@@ -141,7 +141,7 @@ function fallbackPlaceChapters(places: DigestPlace[]): ProfileNoteDigestPlaceCha
     readingAngle: place.latestDisplayName
       ? `${place.latestDisplayName} を起点に、前回との差分を読む`
       : "次に見えるものを探しながら読む",
-    localClue: `${place.visitCount} 回分の訪問が、この場所を読み返す手がかりになっています。`,
+    localClue: `${place.visitCount} 回分の訪問が、この場所を見る手がかりになっています。`,
   }));
 }
 
@@ -160,8 +160,8 @@ function buildLocalDigest(userId: string, context: DigestContext, sourceObservat
       : "まだページは薄いですが、近くの記録を読むだけでも次に見たい観点が生まれます。",
     learningHighlight: stats.supportedCount > 0
       ? `${stats.supportedCount} 件で名前や同定の手がかりが育っています。分かる範囲が少しずつ広がっています。`
-      : `${stats.openQuestionCount} 件の名前が揺れています。分からなさも、次に見返す理由として残っています。`,
-    localContribution: `${stats.observationCount} ページ分の観察が、地域・再訪・同定の手がかりとして読み返せます。`,
+      : `${stats.openQuestionCount} 件の名前が揺れています。分からなさも、次に見る理由として残っています。`,
+    localContribution: `${stats.observationCount} ページ分の観察が、地域・再訪・同定の手がかりとして残っています。`,
     growthStory: firstPlace
       ? `${firstPlace.placeName} を何度も読むほど、同じ場所の季節差や見落としていた対象が見えやすくなります。`
       : "ページが増えるほど、自分が何をよく見ているか、次に何を確かめたいかが見えます。",

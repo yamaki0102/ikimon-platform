@@ -66,7 +66,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /renderAreaPositiveFeedback/);
     assert.match(html, /me-area-positive/);
     assert.match(html, /あなたの視点/);
-    assert.match(html, /あなたのおかげで/);
+    assert.match(html, /記録を足すと/);
     assert.match(html, /みんなの視点/);
     assert.match(html, /重なると見えること/);
     assert.match(html, /記録の手応え/);

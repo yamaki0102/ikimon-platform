@@ -97,10 +97,12 @@ async function waitForMapPerformanceSummary(
     message: "first /api/v1/map response should arrive before the map feels stalled",
     timeout: MAP_LOAD_BUDGET_MS.firstMapApi,
   }).toBeGreaterThan(0);
+  expect(firstMapApi?.status ?? Number.POSITIVE_INFINITY, `${firstMapApi?.url ?? "missing map API"} should not fail`).toBeLessThan(400);
   await expect.poll(() => firstMapTile?.ms ?? 0, {
     message: "first real map tile should arrive before the map appears blank",
     timeout: MAP_LOAD_BUDGET_MS.firstMapTile,
   }).toBeGreaterThan(0);
+  expect(firstMapTile?.status ?? Number.POSITIVE_INFINITY, `${firstMapTile?.url ?? "missing map tile"} should not fail`).toBeLessThan(400);
 
   const summaryWithoutPaint: MapPerfSummary = {
     domContentLoadedMs,

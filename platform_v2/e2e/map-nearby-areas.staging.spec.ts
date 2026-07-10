@@ -61,6 +61,54 @@ const AREA_COLLECTION = {
   ],
 };
 
+const PUBLIC_AREA_SNAPSHOT = {
+  field: {
+    fieldId: "osm_park:nearby-public",
+    name: "西伊場一条公園",
+    sourceLabel: "公園・緑地",
+    locationLabel: "静岡周辺",
+    access: "public",
+    sourceConfidence: 0.92,
+    verificationLevel: "registry_matched",
+    verificationLabel: "公式情報で確認",
+    areaHa: 2.1,
+    accessGuidance: {
+      status: "public_access",
+      label: "公開範囲を確認",
+      body: "公開されている範囲でも、現地の案内板と管理者のルールを優先してください。",
+    },
+  },
+  observationSummary: {
+    totalObservations: 0,
+    totalVisits: 0,
+    uniqueTaxa: 0,
+    seasonsCovered: 0,
+    topTaxa: [],
+  },
+  yearlyTimeline: [],
+  effortIndicators: null,
+  sensitiveMasking: null,
+  representativePhoto: null,
+  observationGallery: [],
+  seasonalCoverage: [
+    { season: "spring", label: "春", observations: 0 },
+    { season: "summer", label: "夏", observations: 0 },
+    { season: "autumn", label: "秋", observations: 0 },
+    { season: "winter", label: "冬", observations: 0 },
+  ],
+  viewerContribution: null,
+  communityPerspective: null,
+  overlapInsight: null,
+  civicReportReadiness: {
+    status: "story_seed",
+    surfaceLine: "写真とメモが増えると、場所の状態を説明しやすくなります。",
+    publicStoryReady: { ready: false },
+    municipalReportReady: { ready: false },
+    nextActions: ["公開範囲で写真を1枚追加", "季節が分かるメモを追加"],
+    exportFormats: ["CSV", "PDF"],
+  },
+};
+
 async function fulfillJson(route: Route, payload: unknown): Promise<void> {
   await route.fulfill({
     status: 200,
@@ -74,6 +122,9 @@ async function installMapFixtures(page: Page): Promise<void> {
   await suppressMapLibreForSmoke(page);
   await page.route("**/api/v1/map/area-polygons**", async (route) => {
     await fulfillJson(route, AREA_COLLECTION);
+  });
+  await page.route("**/api/v1/fields/**/area-snapshot", async (route) => {
+    await fulfillJson(route, { snapshot: PUBLIC_AREA_SNAPSHOT });
   });
   await page.route("**/api/v1/map/cells**", async (route) => {
     await fulfillJson(route, { type: "FeatureCollection", features: [], stats: { totalReturned: 0, totalAll: 0 } });
@@ -122,6 +173,21 @@ for (const profile of VIEWPORTS) {
     await expect(page.locator(".me-nearby-area-marker.is-public")).toContainText("西伊場一条公園");
     await expect(page.locator(".me-nearby-area-marker.is-school")).toContainText("近くの学校");
     await expect(page.locator("#me-map-status")).toContainText("現在地の近くで 2 件のエリア");
+
+    await page.locator(".me-nearby-area-marker.is-public").evaluate((element) => {
+      element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+    });
+    const areaSurface = profile.isMobile
+      ? page.locator("#me-bottom-sheet.me-bottom-sheet--area")
+      : page.locator("#me-map-selection-card .me-detail-panel-area");
+    await expect(areaSurface).toBeVisible();
+    await expect(areaSurface).toContainText("散策シート");
+    await expect(areaSurface).toContainText("歩く・見る・残す");
+    const recordCta = areaSurface.locator(".me-area-next-step-cta").first();
+    await expect(recordCta).toHaveAttribute("href", /\/ja\/record\?context=area_route&source=map_area$/);
+    await recordCta.scrollIntoViewIfNeeded();
+    await recordCta.click();
+    await expect(page).toHaveURL(/\/ja\/record\?context=area_route&source=map_area$/);
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);

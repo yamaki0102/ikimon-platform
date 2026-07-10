@@ -32,6 +32,7 @@ const {
   LIVE_OSM_ENDPOINTS,
   LIVE_OSM_TILE_FETCH_LIMIT,
   SOURCE_LABEL,
+  isAreaPolygonSchemaMissingError,
 } = __test__;
 
 test("defaultSourcesForZoom widens with zoom level", () => {
@@ -71,6 +72,13 @@ test("cacheKey distinguishes different limits", () => {
   const a = cacheKey({ bbox: [137, 34, 138, 35], zoom: 10, sources: ["osm_park"], limit: 10 });
   const b = cacheKey({ bbox: [137, 34, 138, 35], zoom: 10, sources: ["osm_park"], limit: 100 });
   assert.notEqual(a, b);
+});
+
+test("schema-missing errors are treated as an empty optional area layer", () => {
+  assert.equal(isAreaPolygonSchemaMissingError({ code: "42P01" }), true);
+  assert.equal(isAreaPolygonSchemaMissingError({ code: "42703" }), true);
+  assert.equal(isAreaPolygonSchemaMissingError({ code: "53300" }), false);
+  assert.equal(isAreaPolygonSchemaMissingError(new Error("connection failed")), false);
 });
 
 test("buildLiveOsmAreaQuery uses Overpass south,west,north,east order", () => {

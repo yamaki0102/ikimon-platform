@@ -296,6 +296,12 @@ interface CacheEntry {
 }
 const cache = new Map<string, CacheEntry>();
 
+function isAreaPolygonSchemaMissingError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  return code === "42P01" || code === "42703";
+}
+
 function cacheKey(query: AreaPolygonsQuery): string {
   // Small OSM park polygons are click targets. Coarse 0.1 degree rounding can
   // reuse a response from several kilometers away and make the actual park
@@ -1032,7 +1038,9 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
   const limit = Math.min(MAX_LIMIT, Math.max(1, query.limit ?? DEFAULT_LIMIT));
 
   const pool = getPool();
-  const result = await pool.query<{
+  let result;
+  try {
+    result = await pool.query<{
     field_id: string;
     entity_key: string | null;
     name: string;
@@ -1076,8 +1084,19 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         AND valid_to IS NULL
       ORDER BY ${areaLayerSourceSortSql()}, area_ha NULLS LAST
       LIMIT $6`,
-    [minLat, maxLat, minLng, maxLng, sources, limit + 1],
-  );
+      [minLat, maxLat, minLng, maxLng, sources, limit + 1],
+    );
+  } catch (error) {
+    if (!isAreaPolygonSchemaMissingError(error)) throw error;
+    const payload: AreaPolygonCollection = {
+      type: "FeatureCollection",
+      features: [],
+      truncated: false,
+    };
+    cache.set(key, { expires: now + CACHE_TTL_MS, payload });
+    console.warn("[areaPolygons] schema missing; returning empty collection", (error as { code?: unknown }).code);
+    return payload;
+  }
 
   const rows = result.rows.slice(0, limit);
   const features: AreaPolygonFeature[] = rows.flatMap((row) => {
@@ -1223,4 +1242,5 @@ export const __test__ = {
   LIVE_OSM_ENDPOINTS,
   LIVE_OSM_TILE_FETCH_LIMIT,
   SOURCE_LABEL,
+  isAreaPolygonSchemaMissingError,
 };

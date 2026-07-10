@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { observationPhotoUploadTargetIds } from "./observationPhotoUpload.js";
+import { derivePhotoPublicMediaPolicy, observationPhotoUploadTargetIds } from "./observationPhotoUpload.js";
 
 test("photo upload target ids fall back from occurrence id to visit id", () => {
   assert.deepEqual(observationPhotoUploadTargetIds("occ:record-1781909848532:0"), [
@@ -11,6 +11,14 @@ test("photo upload target ids fall back from occurrence id to visit id", () => {
   ]);
   assert.deepEqual(observationPhotoUploadTargetIds("record-1781909848532"), ["record-1781909848532"]);
   assert.deepEqual(observationPhotoUploadTargetIds(""), []);
+});
+
+test("photo public media policy holds uncertain people privacy for review", () => {
+  assert.equal(derivePhotoPublicMediaPolicy(null), "held_for_face_privacy_review");
+  assert.equal(derivePhotoPublicMediaPolicy({ status: "pending", faceCount: 0 }), "held_for_face_privacy_review");
+  assert.equal(derivePhotoPublicMediaPolicy({ status: "unavailable", faceCount: 0 }), "held_for_face_privacy_review");
+  assert.equal(derivePhotoPublicMediaPolicy({ status: "no_faces", faceCount: 0 }), "cleared_public_media");
+  assert.equal(derivePhotoPublicMediaPolicy({ status: "redacted", faceCount: 2 }), "redacted_public_copy");
 });
 
 test("photo upload promotes native no-photo reviews after adding evidence", () => {
@@ -38,7 +46,11 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(source, /storageBackend: originalObject\.storageBackend/);
   assert.match(source, /storageBackend: publicObject\.storageBackend/);
   assert.match(source, /observation_photo_original/);
-  assert.match(source, /privacy_processing_status: "pending"/);
+  assert.match(source, /privacy_processing_status: privacyProcessingStatus/);
+  assert.match(source, /public_media_policy: mediaPublicPolicy/);
+  assert.match(source, /metadata_privacy_policy: "sharp_normalized_without_exif_iptc_xmp"/);
+  assert.match(source, /derivePhotoPublicMediaPolicy/);
+  assert.match(source, /held_for_face_privacy_review/);
   assert.match(source, /original_relative_path: originalRelativePath/);
   assert.match(source, /original_storage_backend: originalObject\.storageBackend/);
   assert.match(source, /set public_visibility = case[\s\S]*else 'public'[\s\S]*end/);

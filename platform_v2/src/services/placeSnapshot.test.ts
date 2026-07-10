@@ -499,7 +499,7 @@ test("area place snapshot marks viewer-only memories without public sharing acti
       audioOrScanCount: 0,
       dominantPerspective: { key: "mixed", label: "いろいろな視点", count: 1, line: "あなたはいろいろな角度から、このエリアを見ています。" },
       secondaryPerspective: null,
-      positiveFeedbackLine: "あなたの1件で、このエリアをあとから見返せる手がかりが増えています。",
+      positiveFeedbackLine: "あなたの1件で、このエリアの手がかりが増えています。",
       recordCards: [{
         occurrenceId: "private-occ-1",
         visitId: "private-visit-1",
@@ -524,7 +524,7 @@ test("area place snapshot marks viewer-only memories without public sharing acti
       dominantPerspective: { key: "mixed", label: "いろいろな視点", count: 0, line: "みんなの記録で、このエリアの見え方が少しずつ育っています。" },
       secondaryPerspective: null,
       seasonCoverageLine: "みんなの記録で、春の顔が見え始めています。",
-      recentMomentumLine: "最近90日で1件、見返せる手がかりが増えています。",
+      recentMomentumLine: "最近90日で1件、手がかりが増えています。",
       recordCards: [],
     },
     overlapInsight: {

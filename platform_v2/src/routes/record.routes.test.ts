@@ -44,10 +44,10 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         });
 
         assert.equal(response.statusCode, 200);
-        assert.match(response.body, /あとで見返すためのメモ/);
+        assert.match(response.body, /あとで開くためのメモ/);
         assert.match(response.body, /まだ分からないまま残す/);
         assert.match(response.body, /今日は見なかったメモを記録として残す/);
-        assert.match(response.body, /次に見返す手がかり/);
+        assert.match(response.body, /次に見る手がかり/);
         assert.match(response.body, /今見えた変化/);
         assert.match(response.body, /当てはまるものを押すと、手がかりに入ります。自宅・学校名は入れないでください。/);
         assert.match(response.body, /data-season-clue="花・実"/);
@@ -84,7 +84,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /最短で残す/);
         assert.match(response.body, /写真かメモを選ぶ/);
         assert.match(response.body, /気づきを1つ入れる/);
-        assert.match(response.body, /保存して見返す/);
+        assert.match(response.body, /保存して開く/);
         assert.match(response.body, /\.record-has-media \.record-first-success/);
         assert.match(response.body, /buildRecordFeedbackSentence/);
         assert.match(response.body, /requestVisualRecordFeedback/);
@@ -193,7 +193,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /const nextLinks = \[/);
         assert.match(response.body, /key: 'observation_detail', label: recordUiCopy\.successObservationCta, primary: hasObservationHref/);
         assert.match(response.body, /recordSuccessMapHref/);
-        assert.match(response.body, /周辺の地図を見る/);
+        assert.match(response.body, /近くの次の場所を見る/);
+        assert.match(response.body, /この地域に1件増えました。近くの記録や季節を見て、次に歩く場所へ戻れます。/);
+        assert.match(response.body, /自分の記録に1件増えました。同じ場所の変化を続けられます。/);
         assert.match(response.body, /自分の記録を見る/);
         assert.match(response.body, /record_saved/);
         assert.match(response.body, /buildContributionReceiptsHtml/);
@@ -204,7 +206,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /contributionReceiptKinds/);
         assert.match(response.body, /contributionReceiptCount/);
         assert.match(response.body, /contribution_receipt_/);
-        assert.match(response.body, /successCtas: \['observation_detail', 'saved_record_card', 'notes', 'profile'\]/);
+        assert.match(response.body, /const successCtas = \['observation_detail', 'saved_record_card', 'notes', 'profile'\]/);
         assert.match(response.body, /record_submit_error/);
         assert.match(response.body, /photo_upload_error/);
         assert.match(response.body, /video_upload_error/);
@@ -307,7 +309,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/ja\/observations\/"/);
         assert.match(response.body, /successProfileCta: "マイページへ"/);
         assert.match(response.body, /successRecordsCta: "自分の記録を見る"/);
-        assert.match(response.body, /保存した1件をすぐ開けます。あとから自分の記録一覧やマイページでも見返せます/);
+        assert.match(response.body, /保存した1件をすぐ開けます。あとから自分の記録一覧やマイページにも出ます/);
         assert.match(response.body, /successSavedCardEyebrow: "保存済みの1件"/);
         assert.match(response.body, /successSavedCardFallbackTitle: "対象を整理中の記録"/);
         assert.match(response.body, /buildPublicStateSuccessHtml/);
@@ -364,6 +366,31 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /document\.querySelectorAll\('\[data-record-locate\]'\)/);
         assert.match(response.body, /locateButtons\.forEach\(\(button\) => \{[\s\S]*button\.addEventListener\('click'/);
         assert.doesNotMatch(response.body, /await applyMediaAutofill\(normalized\.photos\[0\] \|\| null/);
+        assert.match(response.body, /recordKpiContext === 'area_route'/);
+        assert.match(response.body, /recordKpiContext === 'municipal_walk_map'/);
+        assert.match(response.body, /recordKpiMunicipalWalkMapId/);
+        assert.match(response.body, /recordKpiMunicipalWalkMapStopId/);
+        assert.match(response.body, /sendAreaRouteRecordKpi\('record_start_from_area_route'/);
+        assert.match(response.body, /sendMunicipalWalkMapRecordKpi\('record_start_from_municipal_walk_map'/);
+        assert.match(response.body, /sendAreaRouteRecordKpi\('record_context_media_added'/);
+        assert.match(response.body, /sendMunicipalWalkMapRecordKpi\('record_context_walk_map_media_added'/);
+        assert.match(response.body, /sendAreaRouteRecordKpi\('record_context_unknown_name_selected'/);
+        assert.match(response.body, /sendMunicipalWalkMapRecordKpi\('record_context_walk_map_unknown_name_selected'/);
+        assert.match(response.body, /sendAreaRouteRecordKpi\('record_context_note_only_selected'/);
+        assert.match(response.body, /sendMunicipalWalkMapRecordKpi\('record_context_walk_map_note_only_selected'/);
+        assert.match(response.body, /sendAreaRouteRecordKpiOnce\('record_abandon_from_area_route'/);
+        assert.match(response.body, /sendMunicipalWalkMapRecordKpiOnce\('record_abandon_from_municipal_walk_map'/);
+        assert.match(response.body, /sendAreaRouteRecordKpiOnce\('location_permission_declined_from_area_route'/);
+        assert.match(response.body, /sendMunicipalWalkMapRecordKpiOnce\('location_permission_declined_from_municipal_walk_map'/);
+        assert.match(response.body, /sendAreaRouteRecordKpiOnce\('sensitive_location_warning_view'/);
+        assert.match(response.body, /sendAreaRouteRecordKpi\('post_record_local_return_view'/);
+        assert.match(response.body, /sendAreaRouteRecordKpi\('record_complete_from_area_route'/);
+        assert.match(response.body, /sendMunicipalWalkMapRecordKpi\('record_complete_from_municipal_walk_map'/);
+        assert.match(response.body, /sendAreaRouteRecordKpi\('post_record_next_place_click'/);
+        assert.match(response.body, /sendAreaRouteRecordKpi\('post_record_revisit_click'/);
+        assert.match(response.body, /sendAreaRouteRecordKpi\('post_record_area_guide_click'/);
+        assert.match(response.body, /sendAreaRouteRecordKpiOnce\('post_record_return_bounce'/);
+        assert.match(response.body, /window\.addEventListener\('pagehide'/);
       } finally {
         await app.close();
       }
@@ -462,7 +489,9 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/en\/observations\/"/);
         assert.match(response.body, /successProfileCta: "My page"/);
         assert.match(response.body, /successRecordsCta: "View my records"/);
-        assert.match(response.body, /successMapCta: "View nearby map"/);
+        assert.match(response.body, /successMapCta: "Find the next nearby place"/);
+        assert.match(response.body, /One record was added to this area\. Check nearby records and seasons, then choose where to walk next\./);
+        assert.match(response.body, /One record was added to your notebook\. Return later and keep comparing this place\./);
         assert.match(response.body, /Open the saved record right away. You can also return from your records list or My page later/);
         assert.match(response.body, /successSavedCardEyebrow: "Saved record"/);
         assert.match(response.body, /successSavedCardFallbackTitle: "Record still being organized"/);
@@ -659,7 +688,7 @@ test("profile route gives unauthenticated visitors a mypage start guide", async 
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /ログインすると、自分の記録史を読み返せます/);
+    assert.match(response.body, /ログインすると、自分の記録史を開けます/);
     assert.match(response.body, /記録一覧を起点に/);
     assert.match(response.body, /ログインしてマイページへ/);
     assert.match(response.body, /\/ja\/login\?redirect=%2Fprofile/);

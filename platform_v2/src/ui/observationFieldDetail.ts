@@ -500,11 +500,11 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
 
   ${snapshot ? renderPlaceSnapshotTeaser(snapshot) : ""}
 
-  <section class="field-detail-metrics" aria-label="記録の厚み">
+  <section class="field-detail-metrics" aria-label="記録量">
     <header>
       <div>
         <span class="evt-eyebrow">Field Record</span>
-        <h2 class="evt-heading">記録の厚み</h2>
+        <h2 class="evt-heading">記録量</h2>
       </div>
       <div class="field-detail-metrics-actions">
         <a class="evt-btn evt-btn-primary" href="/community/events/new?field_id=${encodeURIComponent(field.fieldId)}">ここで観察会を作る</a>

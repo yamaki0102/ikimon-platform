@@ -207,7 +207,7 @@ export const OVERLAYS: OverlayDefinition[] = [
     maxzoom: 7,
     defaultOpacity: 0.45,
     labels: {
-      ja: { label: "樹冠高（NASA GEDI）", note: "宇宙ステーション搭載 LiDAR で測った平均樹冠高。森の厚みを定量視化し、観察メッシュ・保全優先度と重ねる。" },
+      ja: { label: "樹冠高（NASA GEDI）", note: "宇宙ステーション搭載 LiDAR で測った平均樹冠高。森の高さを定量視化し、観察メッシュ・保全優先度と重ねる。" },
       en: { label: "Canopy height (NASA GEDI)", note: "Mean canopy height from ISS LiDAR — stack on top of observations to see forest thickness." },
       es: { label: "Altura del dosel (GEDI)", note: "Altura media del dosel medida con LiDAR desde la ISS." },
       "pt-BR": { label: "Altura do dossel (GEDI)", note: "Altura média do dossel medida por LiDAR na ISS." },

@@ -26,6 +26,11 @@ export type FacePrivacySummary = {
   error?: string | null;
 };
 
+export type PhotoPublicMediaPolicy =
+  | "cleared_public_media"
+  | "redacted_public_copy"
+  | "held_for_face_privacy_review";
+
 const ALLOWED_OBSERVATION_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 export type ObservationPhotoUploadResult = {
@@ -39,6 +44,7 @@ export type ObservationPhotoUploadResult = {
     error?: string;
   };
   facePrivacy: FacePrivacySummary | null;
+  mediaPublicPolicy: PhotoPublicMediaPolicy;
 };
 
 export function observationPhotoUploadTargetIds(observationId: string): string[] {
@@ -106,6 +112,12 @@ function normalizeFacePrivacy(input: unknown): FacePrivacySummary | null {
     faceCount: Number.isFinite(faceCount) ? Math.max(0, Math.min(100, Math.round(faceCount))) : 0,
     error: typeof record.error === "string" ? record.error.slice(0, 120) : null,
   };
+}
+
+export function derivePhotoPublicMediaPolicy(facePrivacy: FacePrivacySummary | null): PhotoPublicMediaPolicy {
+  if (facePrivacy?.status === "no_faces") return "cleared_public_media";
+  if (facePrivacy?.status === "redacted") return "redacted_public_copy";
+  return "held_for_face_privacy_review";
 }
 
 function canKeepPreparedJpeg(buffer: Buffer, mimeType: string, metadata: Metadata): boolean {
@@ -187,6 +199,8 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   const sha256 = createHash("sha256").update(buffer).digest("hex");
   const mediaRole = normalizeMediaRole(input.mediaRole);
   const facePrivacy = normalizeFacePrivacy(input.facePrivacy);
+  const mediaPublicPolicy = derivePhotoPublicMediaPolicy(facePrivacy);
+  const privacyProcessingStatus = mediaPublicPolicy === "held_for_face_privacy_review" ? "pending" : "complete";
   const safeBase = sanitizeFilename(input.filename).replace(/\.[A-Za-z0-9]+$/, "");
   const fileName = `${safeBase}-${sha256.slice(0, 12)}${extensionForMime(normalizedImage.mimeType)}`;
 
@@ -256,7 +270,9 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         visit_id: visitId,
         media_role: mediaRole,
         face_privacy: facePrivacy,
-        privacy_processing_status: "pending",
+        privacy_processing_status: privacyProcessingStatus,
+        public_media_policy: "private_original",
+        metadata_privacy_policy: "sharp_normalized_without_exif_iptc_xmp",
         private_storage_root: "legacy_data",
         display_relative_path: relativePath,
         normalized_max_edge_px: 2560,
@@ -289,7 +305,9 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
           filename: input.filename,
           media_role: mediaRole,
           face_privacy: facePrivacy,
-          privacy_processing_status: "pending",
+          privacy_processing_status: privacyProcessingStatus,
+          public_media_policy: "private_original",
+          metadata_privacy_policy: "sharp_normalized_without_exif_iptc_xmp",
           private_storage_root: "legacy_data",
           display_relative_path: relativePath,
         }),
@@ -311,7 +329,9 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         visit_id: visitId,
         media_role: mediaRole,
         face_privacy: facePrivacy,
-        privacy_processing_status: "pending",
+        privacy_processing_status: privacyProcessingStatus,
+        public_media_policy: mediaPublicPolicy,
+        metadata_privacy_policy: "sharp_normalized_without_exif_iptc_xmp",
         original_relative_path: originalRelativePath,
         original_storage_backend: originalObject.storageBackend,
         normalized_max_edge_px: 2560,
@@ -345,7 +365,9 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
           filename: input.filename,
           media_role: mediaRole,
           face_privacy: facePrivacy,
-          privacy_processing_status: "pending",
+          privacy_processing_status: privacyProcessingStatus,
+          public_media_policy: mediaPublicPolicy,
+          metadata_privacy_policy: "sharp_normalized_without_exif_iptc_xmp",
           original_relative_path: originalRelativePath,
         }),
       ],
@@ -365,7 +387,9 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         source: "v2_photo_upload",
         filename: input.filename,
         face_privacy: facePrivacy,
-        privacy_processing_status: "pending",
+        privacy_processing_status: privacyProcessingStatus,
+        public_media_policy: mediaPublicPolicy,
+        metadata_privacy_policy: "sharp_normalized_without_exif_iptc_xmp",
         original_relative_path: originalRelativePath,
       },
     });
@@ -485,7 +509,9 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         face_privacy: facePrivacy,
         relative_path: relativePath,
         original_relative_path: originalRelativePath,
-        privacy_processing_status: "pending",
+        privacy_processing_status: privacyProcessingStatus,
+        public_media_policy: mediaPublicPolicy,
+        metadata_privacy_policy: "sharp_normalized_without_exif_iptc_xmp",
       },
     }]);
   } catch {
@@ -499,5 +525,6 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     publicUrl: `/${relativePath}`,
     compatibility,
     facePrivacy,
+    mediaPublicPolicy,
   };
 }

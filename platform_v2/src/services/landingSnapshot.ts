@@ -1119,7 +1119,7 @@ const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
     matches: (observation) => observation.librarySourceKind === "guide",
     cta: {
       title: "観察ガイドから歩く",
-      body: "場所や季節に合わせた見どころをたどると、次に見返す手がかりが決まりやすくなります。",
+      body: "場所や季節に合わせた見どころをたどると、次に見る手がかりが決まりやすくなります。",
       href: "/guide",
       actionLabel: "ガイドを見る",
     },

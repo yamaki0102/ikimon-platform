@@ -19,12 +19,25 @@ test("area snapshot exposes contribution feedback contract", async () => {
   assert.match(source, /viewerContribution: ViewerAreaContribution;/);
   assert.match(source, /communityPerspective: CommunityAreaPerspective;/);
   assert.match(source, /overlapInsight: AreaOverlapInsight;/);
+  assert.match(source, /civicReportReadiness: AreaCivicReportReadinessV0;/);
   assert.match(source, /function buildViewerContribution/);
   assert.match(source, /function buildCommunityPerspective/);
   assert.match(source, /function buildOverlapInsight/);
-  assert.match(source, /あなたのおかげで|あなたの\$\{recordCount\}件/);
+  assert.match(source, /buildAreaCivicReportReadinessV0/);
+  assert.match(source, /記録を足すと|あなたの\$\{recordCount\}件/);
   assert.match(source, /inferPerspective/);
   assert.match(source, /overlapLine/);
+});
+
+test("area snapshot turns area watch signals into civic report readiness", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "areaPlaceSnapshot.ts"), "utf8");
+
+  assert.match(source, /const civicReportReadiness = buildAreaCivicReportReadinessV0\(\{/);
+  assert.match(source, /areaWatchScore: areaWatch\.score/);
+  assert.match(source, /maskedSpecies: sensitiveMasking\.maskedSpecies/);
+  assert.match(source, /hasRepresentativePhoto: Boolean\(representativePhoto\)/);
+  assert.match(source, /galleryCount: observationGallery\.length/);
+  assert.match(source, /civicReportReadiness,/);
 });
 
 test("area snapshot keeps viewer-only memories separate from public album cards", async () => {

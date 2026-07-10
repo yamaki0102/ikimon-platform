@@ -17,8 +17,8 @@ const copyByLang: Record<SiteLang, MentorStripCopy> = {
     cta: "記録の仕組みを読む",
   },
   en: {
-    eyebrow: "Who rereads later",
-    heading: "Your page may be reread by a specialist.",
+    eyebrow: "Who checks later",
+    heading: "Your page may be checked by a specialist.",
     lead: "Observations have a separate lane where specialists revisit identifications. The record does not have to be complete by you alone — someone picks it up after you.",
     cta: "Read how the notebook works",
   },

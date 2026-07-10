@@ -2,6 +2,24 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
 
+test("map startup uses current or recent location before regional fallback", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /var DEFAULT_MAP_CENTER = \[138\.38, 34\.98\];/);
+  assert.match(script, /var DEFAULT_MAP_ZOOM = 10\.8;/);
+  assert.match(script, /var STARTUP_LOCATION_ZOOM = 14\.2;/);
+  assert.match(script, /var LAST_LOCATION_STORAGE_KEY = 'ikimon-map-last-location-v1';/);
+  assert.match(script, /function rememberLastStartupLocation\(lng, lat, meta\)/);
+  assert.match(script, /function readLastStartupLocation\(\)/);
+  assert.match(script, /function initialStartupViewport\(\)/);
+  assert.match(script, /function requestStartupCurrentLocation\(\)/);
+  assert.match(script, /center: startupViewport\.center/);
+  assert.match(script, /zoom: startupViewport\.zoom/);
+  assert.match(script, /requestStartupCurrentLocation\(\);/);
+  assert.match(script, /rememberLastStartupLocation\(lng, lat, \{[\s\S]*source: 'locate_button'/);
+  assert.doesNotMatch(script, /zoom: state\._restoredZoom != null \? state\._restoredZoom : 5\.2/);
+});
+
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const outlineStart = script.indexOf("id: 'area-polygon-outline'");
@@ -169,6 +187,15 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /地域図鑑マップ/);
+  assert.match(html, /data-testid="map-start-panel"/);
+  assert.match(html, /この地図でできること/);
+  assert.match(html, /近くの写真、現地ガイド、散策ルート、記録の入口/);
+  assert.match(html, /みんなの写真/);
+  assert.match(html, /現地ガイド/);
+  assert.match(html, /散策ルート/);
+  assert.match(html, /記録する/);
+  assert.match(html, /href="\/ja\/my-guides"/);
+  assert.match(html, /href="\/ja\/walk-maps"/);
   assert.match(html, /id="me-purpose-hint"/);
   assert.match(html, /残したい風景を探す/);
   assert.match(html, /気になる場所を選ぶと、記録と季節の手がかりが見えます。/);
@@ -193,11 +220,16 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(styles, /\.me-map-momentum/);
   assert.match(script, /tab: 'places'/);
   assert.match(script, /PURPOSE_HINT_STORAGE_KEY = 'ikimon-map-purpose-hint-v1'/);
+  assert.match(script, /START_PANEL_STORAGE_KEY = 'ikimon-map-start-panel-v1'/);
+  assert.match(script, /function dismissStartPanel\(\)/);
+  assert.match(script, /startPanelEl && !startPanelEl\.hidden/);
   assert.match(script, /function canShowPurposeHint\(\)/);
   assert.match(script, /if \(state\.tab === 'rain'\) return false;/);
   assert.match(script, /if \(isBottomSheetOpen\(\)\) return false;/);
   assert.match(script, /state\.map\.on\('dragstart', dismissPurposeHint\);/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.me-start-panel,\s+\.me-sheet-open \.me-start-panel \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\[hidden\],\s+\.me-rain-mode \.me-purpose-hint,\s+\.me-sheet-open \.me-purpose-hint \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-purpose-hint \{[\s\S]*width: min\(260px, calc\(100% - 116px\)\);/);
 });
@@ -374,7 +406,7 @@ test("area sheets gate contribution CTAs behind public access evidence", () => {
   assert.match(script, /: metaHtml;/);
   assert.match(
     script,
-    /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ nextStepHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml \+ followHtml \+ publicPageHtml/,
+    /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ routeSheetHtml \+ nextStepHtml \+ primaryActionsHtml \+ positiveHtml \+ civicReportHtml \+ guideStopHtml \+ followHtml \+ publicPageHtml/,
   );
   assert.match(
     script,
@@ -393,6 +425,30 @@ test("area sheets gate contribution CTAs behind public access evidence", () => {
   assert.match(script, /isSchool \? COPY\.areaSchoolNotice : COPY\.areaRestrictedActionHint/);
   assert.match(script, /canRecord\s+\?\s+'<a class="me-area-gallery-empty-action is-primary"/);
   assert.match(script, /: '<span class="me-area-gallery-empty-action is-safety">/);
+});
+
+test("area sheets expose a light walking route sheet for public places", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const enScript = mapExplorerBootScript({ basePath: "", lang: "en" });
+
+  assert.match(script, /function renderAreaRouteSheet\(options\)/);
+  assert.match(script, /if \(!canRecord\) return '';/);
+  assert.match(script, /散策シート/);
+  assert.match(script, /歩く・見る・残す/);
+  assert.match(script, /公開園路、川沿い、広場/);
+  assert.match(script, /今日残したい景色/);
+  assert.match(script, /名前はあとでよい/);
+  assert.match(script, /var AREA_ROUTE_RECORD_HREF = RECORD_HREF \+ \(RECORD_HREF\.indexOf\('\?'\) >= 0 \? '&' : '\?'\) \+ 'context=area_route&source=map_area';/);
+  assert.match(script, /href="' \+ escapeHtml\(AREA_ROUTE_RECORD_HREF\) \+ '"/);
+  assert.match(script, /var routeSheetHtml = renderAreaRouteSheet\(\{ canRecord: canRecord \}\)/);
+  assert.match(script, /safetyNoticeHtml \+ routeSheetHtml \+ nextStepHtml/);
+  assert.match(script, /renderAreaSafetyNotice\(props, null\)[\s\S]*\+ routeSheetHtml[\s\S]*\+ nextStepHtml/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-area-route-sheet/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-area-route-sheet-grid \{ display: grid; grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
+  assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-area-route-sheet-grid \{ grid-template-columns: 1fr; \}/);
+  assert.match(enScript, /Walk sheet/);
+  assert.match(enScript, /Walk, notice, keep/);
+  assert.doesNotMatch(enScript, /散策シート/);
 });
 
 test("area gallery empty state is localized without leaking Japanese guidance", () => {
@@ -456,11 +512,32 @@ test("area sheet includes contribution feedback surface", () => {
   assert.match(script, /communityPerspective/);
   assert.match(script, /overlapInsight/);
   assert.match(script, /あなたの視点/);
-  assert.match(script, /あなたのおかげで/);
+  assert.match(script, /記録を足すと/);
   assert.match(script, /みんなの視点/);
   assert.match(script, /重なると見えること/);
   assert.match(script, /記録の手応え/);
-  assert.match(script, /自分の記録を見返す/);
+  assert.match(script, /自分の記録を開く/);
+});
+
+test("area sheet shows civic report readiness as a local walking-material bridge", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const enScript = mapExplorerBootScript({ basePath: "", lang: "en" });
+
+  assert.match(script, /function renderAreaCivicReportReadiness\(readiness, canRecord\)/);
+  assert.match(script, /snapshot && snapshot\.civicReportReadiness/);
+  assert.match(script, /data-area-civic-report/);
+  assert.match(script, /地域に残る形/);
+  assert.match(script, /記録が散策資料に育つ/);
+  assert.match(script, /地域資料候補/);
+  assert.match(script, /map:area:civic_report_record/);
+  assert.match(
+    script,
+    /positiveHtml \+ civicReportHtml \+ guideStopHtml/,
+  );
+  assert.match(MAP_EXPLORER_STYLES, /\.me-area-civic-report/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-bottom-sheet\.me-bottom-sheet--area \.me-area-civic-report-grid/);
+  assert.match(enScript, /Records grow into walk material/);
+  assert.doesNotMatch(enScript, /記録が散策資料に育つ/);
 });
 
 test("map UX interactions emit area open and selected-place CTA KPI events", () => {
@@ -469,10 +546,22 @@ test("map UX interactions emit area open and selected-place CTA KPI events", () 
   assert.match(script, /var UI_KPI_ENDPOINT = "\/api\/v1\/ui-kpi\/events"/);
   assert.match(script, /function sendMapKpi\(eventName, actionKey, metadata\)/);
   assert.match(script, /map_area_detail_open/);
+  assert.match(script, /map_area_route_sheet_open/);
+  assert.match(script, /map_area_route_sheet_error/);
+  assert.match(script, /unsafe_area_cta_suppressed/);
+  assert.match(script, /trackAreaRouteSheetOpen\('transient_area'/);
+  assert.match(script, /trackAreaRouteSheetOpen\('registered_area'/);
+  assert.match(script, /function trackAreaRouteSheetError\(kind, areaId, reason\)/);
+  assert.match(script, /trackAreaRouteSheetError\('registered_area', fieldId, 'missing_endpoint'\)/);
+  assert.match(script, /trackAreaRouteSheetError\('registered_area', fieldId, 'fetch_error'\)/);
+  assert.match(script, /trackAreaRouteSuppressed\('transient_area'/);
+  assert.match(script, /trackAreaRouteSuppressed\('registered_area'/);
   assert.match(script, /trackAreaDetailOpen\('transient_area', props\)/);
   assert.match(script, /trackAreaDetailOpen\('registered_area'/);
   assert.match(script, /data-kpi-event="selected_place_cta_click"/);
   assert.match(script, /data-kpi-funnel="map_selected_place"/);
+  assert.match(script, /data-kpi-event="area_route_sheet_cta_click"/);
+  assert.match(script, /data-kpi-funnel="area_route_sheet"/);
   assert.match(script, /map:selected_place:record/);
   assert.match(script, /map:area:album/);
   assert.match(script, /map:area:season_gap_record/);
@@ -912,7 +1001,7 @@ test("area map labels and side cards expose organizer and encyclopedia shortcuts
   assert.match(script, /FIELDS_ALBUM_TPL\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
   assert.doesNotMatch(script, /eventsNewHrefTemplate/);
   assert.doesNotMatch(script, /\/community\/events\/new/);
-  assert.match(script, /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ nextStepHtml \+ primaryActionsHtml \+ positiveHtml/);
+  assert.match(script, /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ routeSheetHtml \+ nextStepHtml \+ primaryActionsHtml \+ positiveHtml/);
 });
 
 test("area sheet exposes on-site guide stops with geolocation-gated playback", () => {
@@ -930,7 +1019,7 @@ test("area sheet exposes on-site guide stops with geolocation-gated playback", (
   assert.match(script, /GUIDE_LANG_ORDER = \['ja', 'en', 'zh-TW', 'zh-CN'\]/);
   assert.match(script, /SpeechSynthesisUtterance/);
   assert.match(script, /hydrateAreaGuideStopControls\(sheetInnerEl\)/);
-  assert.match(script, /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ nextStepHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml/);
+  assert.match(script, /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ routeSheetHtml \+ nextStepHtml \+ primaryActionsHtml \+ positiveHtml \+ civicReportHtml \+ guideStopHtml/);
 });
 
 test("map viewport movement refreshes stale result panels automatically", () => {
@@ -953,7 +1042,7 @@ test("map initial data load stays light and defers secondary panels", () => {
   assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, reason === 'load' \? 220 : 420\);/);
 });
 
-test("map waits for explicit location action instead of auto-locating on open", () => {
+test("map respects shared viewport while normal startup can use local position", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /function applyRestoredParams\(params, options\)/);
@@ -961,6 +1050,8 @@ test("map waits for explicit location action instead of auto-locating on open", 
   assert.match(script, /params = parseStateString\(localStorage\.getItem\(STATE_STORAGE_KEY\) \|\| ''\);[\s\S]*restoreViewport = false;/);
   assert.match(script, /applyRestoredParams\(params, \{ restoreViewport: restoreViewport \}\);/);
   assert.match(script, /if \(restoreViewport && params\.lng && params\.lat && params\.z\)/);
+  assert.match(script, /if \(state\._restoredCenter \|\| state\._restoredCellId \|\| !state\.map \|\| !navigator\.geolocation\) return;/);
+  assert.match(script, /navigator\.permissions\.query\(\{ name: 'geolocation' \}\)/);
   assert.doesNotMatch(script, /maybeAutoLocateOnFirstOpen/);
   assert.match(script, /locateFab\.addEventListener\('click'[\s\S]*navigator\.geolocation\.getCurrentPosition/);
 });

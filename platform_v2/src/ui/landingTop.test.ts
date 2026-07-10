@@ -151,7 +151,7 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /今日見つけた生きものを、名前が分からなくても残せる。/);
   assert.doesNotMatch(html, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
   assert.doesNotMatch(html, /名前が分からなくても始められます。/);
-  assert.match(html, /場所を見返す手がかり/);
+  assert.match(html, /場所を選ぶ手がかり/);
   assert.doesNotMatch(html, /名前を確かめる/);
   assert.doesNotMatch(html, /名前は後でいい/);
   assert.doesNotMatch(html, /AIは候補まで/);
@@ -165,7 +165,7 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /<h3>場所の今を残す記録<\/h3>/);
   assert.match(html, /まだ少ない場所ほど、次に見に行く楽しみがあります。/);
   assert.match(html, /この場所の余白を見つける/);
-  assert.match(html, /記録がないことも、季節や場所を見返す手がかりです。/);
+  assert.match(html, /記録がないことも、次に歩く季節や場所を選ぶ手がかりです。/);
   assert.match(html, /href="\/ja\/map" data-kpi-action="landing:content_wall:empty"/);
   assert.match(html, />近くを見る<\/em>/);
   assert.match(LANDING_TOP_STYLES, /\.prototype-content-empty \{\s+grid-column: 1 \/ -1;/);

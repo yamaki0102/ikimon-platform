@@ -221,7 +221,7 @@ export function observationRallyScript(): string {
       } else if (top?.p && Number(top.p.percent) >= 100) {
         momentum.textContent = top.m.title + " が達成済み。まだ伸ばせます。";
       } else {
-        momentum.textContent = "地点でやることと、どこでも貢献できることが同時に進みます。";
+        momentum.textContent = "地点でやることと、どこでも足せる記録が同時に進みます。";
       }
     }
     if (liveBars) {

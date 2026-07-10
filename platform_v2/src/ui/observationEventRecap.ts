@@ -90,8 +90,8 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
   const personalSection = myContribution
     ? `
       <article class="evt-card evt-impact-card">
-        <h3>${escapeHtml(myContribution.displayName ?? "あなた")} の貢献</h3>
-        <p class="evt-lead">あなたの観察記録は、ZINB / Occupancy Model の高品質ピクセルになります。</p>
+        <h3>${escapeHtml(myContribution.displayName ?? "あなた")} の記録</h3>
+        <p class="evt-lead">今日見つけたものを、あとで地点ごとに開けます。</p>
         <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:10px;">
           <div><strong style="font-size:22px;">${myContribution.observationsCount}</strong><div class="evt-eyebrow">観察</div></div>
           <div><strong style="font-size:22px;">${myContribution.uniqueSpeciesCount}</strong><div class="evt-eyebrow">種数</div></div>
@@ -176,7 +176,7 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
   </section>
 
   <section class="evt-recap-section" data-tab-panel="me" style="display:none;">
-    ${personalSection || `<p class="evt-lead">参加者 URL でアクセスすると、あなたの貢献が見られます。</p>`}
+    ${personalSection || `<p class="evt-lead">参加者 URL でアクセスすると、あなたの記録が見られます。</p>`}
   </section>
 
   <section class="evt-recap-section" data-tab-panel="capsule" style="display:none;">

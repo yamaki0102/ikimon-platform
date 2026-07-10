@@ -102,7 +102,7 @@ export function buildContributionReceipts({ input, result, guideUnlocks = [] }: 
   } else if (hasRevisitFrame) {
     receipts.push(receipt({
       kind: "revisit_seeded",
-      title: "同じ条件で見返す起点ができました",
+      title: "同じ条件で比べる起点ができました",
       body: input.visitMode === "survey"
         ? "見た範囲・目的・時間がまとまり、次回の観察と比べやすくなりました。"
         : "次に見たい観点が残り、同じ場所で続きの観察へ戻りやすくなりました。",
@@ -143,7 +143,7 @@ export function buildContributionReceipts({ input, result, guideUnlocks = [] }: 
     receipts.push(receipt({
       kind: "absence_context_saved",
       title: "見なかった状況も比較材料です",
-      body: "今日は見なかったことを、同じ条件で見返すための記録として残しました。",
+      body: "今日は見なかったことを、同じ条件で比べるための記録として残しました。",
       nextAction: {
         label: "記録を確認する",
         href: observationHref,

@@ -36,6 +36,10 @@ import {
   type AreaWatch,
   type AreaWatchEvidenceStats,
 } from "./areaWatch.js";
+import {
+  buildAreaCivicReportReadinessV0,
+  type AreaCivicReportReadinessV0,
+} from "./municipalReadiness.js";
 
 export type AreaCoverSource = "admin_curated" | "community_curated" | "auto_observation";
 
@@ -154,6 +158,7 @@ export type AreaPlaceSnapshot = PlaceSnapshot & {
   firstSeenSpecies: Array<{ year: number; scientificName: string; vernacularName: string | null }>;
   environmentChange: null;
   areaWatch: AreaWatch;
+  civicReportReadiness: AreaCivicReportReadinessV0;
   viewerContribution: ViewerAreaContribution;
   communityPerspective: CommunityAreaPerspective;
   overlapInsight: AreaOverlapInsight;
@@ -353,7 +358,7 @@ function overlapLine(viewerKey: AreaPerspectiveKey | null, communityKey: AreaPer
   if (viewerKey === "insect" && communityKey === "plant") return "虫と植物の記録が重なると、発生時期や食草の関係が読みやすくなります。";
   if (viewerKey === "bird" && (communityKey === "aquatic" || communityKey === "habitat")) return "鳥の記録と水辺・環境写真が重なると、この場所の休息地としての役割が読めます。";
   if (viewerKey === "habitat" || communityKey === "habitat") return "環境写真と生きものの記録が重なると、草刈りや水分条件の変化を比べやすくなります。";
-  if (viewerKey === "audio" || communityKey === "audio") return "音の記録と写真が重なると、姿が見えない時間帯の気配まで読み返せます。";
+  if (viewerKey === "audio" || communityKey === "audio") return "音の記録と写真が重なると、姿が見えない時間帯の気配も残ります。";
   if (viewerKey && communityKey && viewerKey !== communityKey) return `${perspectiveLabel(viewerKey)}と${perspectiveLabel(communityKey)}が重なると、この場所の見え方が立体的になります。`;
   return "同じエリアの記録が重なるほど、ひとりでは見えない季節差や場所の癖が読めます。";
 }
@@ -1202,8 +1207,8 @@ function buildViewerContribution(rows: AreaPerspectiveRow[], viewerUserId: strin
   const positiveFeedbackLine = recordCount === 0
     ? "自分の記録が重なると、このエリアの見え方にあなたの視点が加わります。"
     : seasons.size > 0
-      ? `あなたの${recordCount}件で、このエリアの${Array.from(seasons).map(seasonLabel).join("・")}の見え方が少し厚くなりました。`
-      : `あなたの${recordCount}件で、このエリアをあとから見返せる手がかりが増えています。`;
+      ? `あなたの${recordCount}件で、このエリアの${Array.from(seasons).map(seasonLabel).join("・")}の手がかりが増えました。`
+      : `あなたの${recordCount}件で、このエリアの手がかりが増えています。`;
   return {
     hasViewerRecords: recordCount > 0,
     recordCount,
@@ -1244,7 +1249,7 @@ function buildCommunityPerspective(rows: AreaPerspectiveRow[], viewerUserId: str
       ? `みんなの記録で、${covered.join("・")}の顔が見え始めています。`
       : "みんなの記録で、このエリアの季節の入口をこれから作れます。",
     recentMomentumLine: recentCount > 0
-      ? `最近90日で${recentCount}件、見返せる手がかりが増えています。`
+      ? `最近90日で${recentCount}件、手がかりが増えています。`
       : "最近の記録が増えると、このエリアの今の顔を比べやすくなります。",
     recordCards: rowsToGalleryCards(sourceRows),
   };
@@ -1408,6 +1413,17 @@ export async function getAreaPlaceSnapshot(
     sensitiveMasking,
     evidenceStats: areaWatchEvidenceStats,
   });
+  const civicReportReadiness = buildAreaCivicReportReadinessV0({
+    totalObservations: base.observationSummary.totalObservations,
+    totalVisits: base.observationSummary.totalVisits,
+    uniqueTaxa: base.observationSummary.uniqueTaxa,
+    seasonsCovered: effortIndicators.seasonsCovered,
+    observerCount: effortIndicators.observerCount,
+    areaWatchScore: areaWatch.score,
+    maskedSpecies: sensitiveMasking.maskedSpecies,
+    hasRepresentativePhoto: Boolean(representativePhoto),
+    galleryCount: observationGallery.length,
+  });
   return {
     ...base,
     representativePhoto,
@@ -1419,6 +1435,7 @@ export async function getAreaPlaceSnapshot(
     firstSeenSpecies: [],
     environmentChange: null,
     areaWatch,
+    civicReportReadiness,
     viewerContribution,
     communityPerspective,
     overlapInsight,

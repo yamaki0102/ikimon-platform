@@ -10,6 +10,46 @@ type ForbiddenTerm = {
 
 const FORBIDDEN_TERMS: ForbiddenTerm[] = [
   {
+    term: "見返",
+    reason: "light-user copy rule: avoid retrospective/heavy phrasing; use 開く, 確認する, 残る, 次を見る, or 比べる by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "読み返",
+    reason: "light-user copy rule: avoid retrospective/heavy phrasing; use 開く or 確認する by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "厚く",
+    reason: "light-user copy rule: vague metaphor; use 記録が増える, 記録量, or 散策資料に育つ by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "厚み",
+    reason: "light-user copy rule: vague metaphor; use 記録量, 手がかり, or 資料に育つ by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "貢献",
+    reason: "light-user copy rule: too duty-heavy for the public surface; use 記録, 残す, 関わる, or 地域に残る形 by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "役立って",
+    reason: "light-user copy rule: avoid utility/impact claims; state the visible result instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "役立った",
+    reason: "light-user copy rule: avoid utility/impact claims; state the visible result instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "おかげ",
+    reason: "light-user copy rule: avoid praise/guilt framing; use neutral record state changes",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
     term: "フィールドガイド",
     reason: "canonical pack §5.2: rename to ライブガイド (for /guide) or その場で調べる (for /lens)",
   },

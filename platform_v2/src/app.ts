@@ -53,6 +53,7 @@ import { registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
 import { registerSampleReportRoute } from "./routes/sampleReport.js";
 import { registerStewardshipActionRoutes } from "./routes/stewardshipActions.js";
 import { registerMonitoringBusinessRoutes } from "./routes/monitoringBusiness.js";
+import { registerMunicipalWalkMapRoutes } from "./routes/municipalWalkMaps.js";
 import { registerMonitoringWorkspaceApiRoutes } from "./routes/monitoringWorkspaceApi.js";
 import {
   listPagesByLane,
@@ -459,7 +460,7 @@ function buildMapHomeHtml(
   return renderSiteDocument({
     basePath: options.basePath,
     title: mapPageCopy.title,
-    description: "地域の自然・風景・水・土・農・季節・活動を、場所ごとに見返す地域図鑑マップです。",
+    description: "地域の自然・風景・水・土・農・季節・活動を、場所ごとに開ける地域図鑑マップです。",
     activeNav: localizedNavHome(lang),
     lang,
     currentPath,
@@ -770,6 +771,7 @@ export function buildApp() {
   void registerMarketingRoutes(app);
   void registerSampleReportRoute(app);
   void registerMonitoringBusinessRoutes(app);
+  void registerMunicipalWalkMapRoutes(app);
   void registerMonitoringWorkspaceApiRoutes(app);
   void registerStewardshipActionRoutes(app);
   void registerReferenceRoutes(app);

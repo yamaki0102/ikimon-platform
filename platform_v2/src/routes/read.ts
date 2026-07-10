@@ -448,7 +448,7 @@ function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
       activeNav: "記録ライブラリ",
       heroEyebrow: "記録ライブラリ",
       heroTitle: "記録ライブラリ",
-      heroLead: "写真・動画・音声・場所・時刻・メモをまとめて残した「記録」を見返す場所です。1件の記録から複数の対象ごとの記録を作れます。対象ごとの記録や同定は詳細で切り分け、ここでは場所・時間・証拠・再訪文脈を主役にします。",
+      heroLead: "写真・動画・音声・場所・時刻・メモをまとめて残した「記録」を開く場所です。1件の記録から複数の対象ごとの記録を作れます。対象ごとの記録や同定は詳細で切り分け、ここでは場所・時間・証拠・再訪文脈を主役にします。",
       actions: {
         record: "記録する",
         guide: "ライブガイドを使う",
@@ -463,7 +463,7 @@ function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
       loop: {
         aria: "記録体験の流れ",
         eyebrow: "記録の流れ",
-        title: "記録する → 記録を見返す → 対象ごとの記録に分ける → 同定で確かめる",
+        title: "記録する → 記録を開く → 対象ごとの記録に分ける → 同定で確かめる",
         lead: "記録ライブラリは倉庫ではなく、次の一歩を決める場所です。写真・動画・音声、ライブガイド、ガイド成果、マップを同じ循環として扱います。",
         steps: [
           { label: "記録", title: "写真・動画を残す", body: "見つけたもの、場所、時刻、メモを1件の記録として保存する。", path: "/record", cta: "記録する" },
@@ -599,7 +599,7 @@ function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
       emptyLibrary: "No records in this observation library yet.",
       latestFallback: "As records grow, monthly shelves will appear here.",
       nearbyEmpty: "Nearby public records are not available yet. Your own library stays primary.",
-      footerNote: "Observation shelves live here. Growth and local contribution stay on your profile.",
+      footerNote: "Observation shelves live here. Growth and local traces stay on your profile.",
     },
     es: {
       pageTitle: "Biblioteca de observaciones | ikimon",
@@ -4009,9 +4009,9 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
       nextEvidenceHeading: "次に意識すると記録が良くなる証拠カット",
       areaLabel: "映像フレームからのエリア推察",
       areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
-      shotAriaLabel: "記録を読み返しやすくする証拠カット",
+      shotAriaLabel: "記録を確かめやすくする証拠カット",
       shotHeading: "次に意識すると記録が良くなる証拠カット",
-      shotReminder: "今この記録に追加する前提ではありません。次に見つけたとき、動き・周囲・大きさの手がかりを残すと、あとで読み返しやすくなります。",
+      shotReminder: "今この記録に追加する前提ではありません。次に見つけたとき、動き・周囲・大きさの手がかりを残すと、あとで確認しやすくなります。",
       focusLead: "映像フレームから読めている手がかりと、まだ止めている理由を先に確認できます。",
       contextHeading: "動画・音から拾えたこと",
       reassessHint: "動画をもう一度見て、見分けるメモを更新できます。",
@@ -4030,7 +4030,7 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
       areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
       shotAriaLabel: "名前の確認に役立つ写真・映像",
       shotHeading: "次に意識すると記録が良くなる写真・映像",
-      shotReminder: "今この記録に追加する前提ではありません。次に見つけたとき、別角度・周囲・大きさの手がかりを残すと、あとで読み返しやすくなります。",
+      shotReminder: "今この記録に追加する前提ではありません。次に見つけたとき、別角度・周囲・大きさの手がかりを残すと、あとで確認しやすくなります。",
       focusLead: "見えている特徴と、保留している点だけをまとめています。",
       contextHeading: "写真・動画・音から拾えたこと",
       reassessHint: "写真や動画をもう一度見て、見分けるメモを更新できます。",
@@ -4048,7 +4048,7 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
     areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
     shotAriaLabel: "名前の確認に役立つ写真",
     shotHeading: "次に意識すると記録が良くなる写真",
-    shotReminder: "今この記録に追加する前提ではありません。次に見つけたとき、別角度・周囲・大きさの手がかりを残すと、あとで読み返しやすくなります。",
+    shotReminder: "今この記録に追加する前提ではありません。次に見つけたとき、別角度・周囲・大きさの手がかりを残すと、あとで確認しやすくなります。",
     focusLead: "見えている特徴と、保留している点だけをまとめています。",
     contextHeading: "写真と音から拾えたこと",
     reassessHint: "写真をもう一度見て、見分けるメモを更新できます。",
@@ -4290,7 +4290,7 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
   const nextAngle = story.nextObservationAngle?.trim();
   const nextAngleBlock = nextAngle
     ? `<div class="regional-story-next">
-        <small>見返すなら</small>
+        <small>次に見るなら</small>
         <strong>${escapeHtml(softenActionCueText(nextAngle, 92))}</strong>
       </div>`
     : "";
@@ -4324,7 +4324,7 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
   return `<section class="${className}" data-testid="regional-story">
     <div class="regional-story-head">
       <div>
-        <div class="regional-story-eyebrow">この場所を見返すヒント</div>
+        <div class="regional-story-eyebrow">この場所を見るヒント</div>
         <h2>${escapeHtml(story.placeHook)}</h2>
       </div>
       <span>${escapeHtml(badge)}</span>
@@ -5102,6 +5102,8 @@ type RecordFormCopy = {
   successObservationCta: string;
   successMapCta: string;
   successRevisitCta: string;
+  successReturnLead: string;
+  successReturnHiddenLead: string;
   successRecordsHelp: string;
   successSavedCardEyebrow: string;
   successSavedCardFallbackTitle: string;
@@ -5217,7 +5219,7 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
       publicFindsAction: "みんなの発見",
       panelEyebrow: "保存すると自分に返る",
       panelHeading: "自分の記録と場所に残ります。",
-      panelBody: "あとで見返す、同じ場所を比べる、公開前に状態を確認するためにログインします。",
+      panelBody: "あとで開く、同じ場所を比べる、公開前に状態を確認するためにログインします。",
       noteAction: "メモで始める",
       learnAction: "使い方を読む",
       dockAria: "ログインして残す",
@@ -5366,7 +5368,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       confidenceItems: start.confidenceItems,
       firstSuccessAria: "最短で残す流れ",
       firstSuccessLabel: "最短で残す",
-      firstSuccessItems: ["写真かメモを選ぶ", "気づきを1つ入れる", "保存して見返す"],
+      firstSuccessItems: ["写真かメモを選ぶ", "気づきを1つ入れる", "保存して開く"],
       captureLabels: {
         note: { title: "音や様子をメモ", help: "写真なしでも、聞こえた音・周囲の様子・場所を残せます。" },
         photo: { title: "写真で記録する", help: "撮った写真、または端末上の写真を記録に添付します。" },
@@ -5585,9 +5587,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successProfileCta: "マイページへ",
       successRecordsCta: "自分の記録を見る",
       successObservationCta: "見つけたものを確認する",
-      successMapCta: "周辺の地図を見る",
+      successMapCta: "近くの次の場所を見る",
       successRevisitCta: "同じ場所でもう1件記録する",
-      successRecordsHelp: "保存した1件をすぐ開けます。あとから自分の記録一覧やマイページでも見返せます。",
+      successReturnLead: "この地域に1件増えました。近くの記録や季節を見て、次に歩く場所へ戻れます。",
+      successReturnHiddenLead: "自分の記録に1件増えました。同じ場所の変化を続けられます。",
+      successRecordsHelp: "保存した1件をすぐ開けます。あとから自分の記録一覧やマイページにも出ます。",
       successSavedCardEyebrow: "保存済みの1件",
       successSavedCardFallbackTitle: "対象を整理中の記録",
       successSavedCardNoPlace: "場所は未設定",
@@ -5655,7 +5659,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
         manager: "管理者",
         participant: "参加者",
       },
-      quickReviewTitle: "あとで見返すためのメモ",
+      quickReviewTitle: "あとで開くためのメモ",
       quickReviewHelp: "見つけた / 見なかった / まだ分からない を軽く残すと、次の散歩で比べやすくなります。",
       quickReviewPill: "再訪用",
       quickCaptureStateLabel: "今回の記録の残し方",
@@ -5669,7 +5673,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
         unknown: "名前はあとで",
         no_detection_note: "今日は見なかった",
       },
-      nextLookForLabel: "次に見返す手がかり",
+      nextLookForLabel: "次に見る手がかり",
       nextLookForPlaceholder: "例: 同じ水辺の音 / 葉の裏 / 同じ木の花",
       seasonClueLabel: "今見えた変化",
       seasonClueHelp: "当てはまるものを押すと、手がかりに入ります。自宅・学校名は入れないでください。",
@@ -5792,8 +5796,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successProfileCta: "My page",
       successRecordsCta: "View my records",
       successObservationCta: "Check what you found",
-      successMapCta: "View nearby map",
+      successMapCta: "Find the next nearby place",
       successRevisitCta: "Record this place again",
+      successReturnLead: "One record was added to this area. Check nearby records and seasons, then choose where to walk next.",
+      successReturnHiddenLead: "One record was added to your notebook. Return later and keep comparing this place.",
       successRecordsHelp: "Open the saved record right away. You can also return from your records list or My page later.",
       successSavedCardEyebrow: "Saved record",
       successSavedCardFallbackTitle: "Record still being organized",
@@ -5999,8 +6005,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successProfileCta: "Mi pagina",
       successRecordsCta: "Ver mis registros",
       successObservationCta: "Revisar lo encontrado",
-      successMapCta: "Ver mapa cercano",
+      successMapCta: "Ver el siguiente lugar cercano",
       successRevisitCta: "Registrar este lugar otra vez",
+      successReturnLead: "Se sumo un registro a esta zona. Mira registros y estaciones cercanas para elegir el proximo paseo.",
+      successReturnHiddenLead: "Se sumo un registro a tu cuaderno. Vuelve despues y compara este lugar.",
       successRecordsHelp: "Abre enseguida el registro guardado. Luego tambien puedes volver desde tu lista o Mi pagina.",
       successSavedCardEyebrow: "Registro guardado",
       successSavedCardFallbackTitle: "Registro en organizacion",
@@ -6206,8 +6214,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successProfileCta: "Minha pagina",
       successRecordsCta: "Ver meus registros",
       successObservationCta: "Conferir o que encontrei",
-      successMapCta: "Ver mapa proximo",
+      successMapCta: "Ver o proximo local perto",
       successRevisitCta: "Registrar este lugar de novo",
+      successReturnLead: "Um registro entrou nesta area. Veja registros e estacoes por perto para escolher o proximo passeio.",
+      successReturnHiddenLead: "Um registro entrou no seu caderno. Volte depois e compare este local.",
       successRecordsHelp: "Abra o registro salvo agora. Depois voce tambem pode voltar pela lista ou Minha pagina.",
       successSavedCardEyebrow: "Registro salvo",
       successSavedCardFallbackTitle: "Registro em organizacao",
@@ -6474,7 +6484,7 @@ function shotFeedbackBenefitText(options: {
     return "周りの草、水辺、日当たりなどが残ると、その場所でどう現れていたかを季節や別地点の記録と比べやすくなります。";
   }
   if (role.includes("基質") || role.includes("substrate") || combined.includes("土") || combined.includes("石") || combined.includes("樹皮")) {
-    return "接している土、石、樹皮などが残ると、その生きものが使っていた場所の条件を後から読み返せます。";
+    return "接している土、石、樹皮などが残ると、その生きものが使っていた場所の条件を後から確認できます。";
   }
   if (role.includes("スケール") || role.includes("scale") || combined.includes("大きさ")) {
     return "大きさの手がかりがあると、写真だけでは迷いやすいサイズ感を後から確認できます。";
@@ -6495,12 +6505,12 @@ function shotFeedbackBenefitText(options: {
     return "細部が残ると、後から見直したときに何が写っていて何が足りないかを判断しやすくなります。";
   }
   if (rationale.includes("特定") || rationale.includes("同定")) {
-    return "後から見返す人が、見えている手がかりと保留すべき点を分けて考えやすくなります。";
+    return "後から確認する人が、見えている手がかりと保留すべき点を分けて考えやすくなります。";
   }
   if (options.rationale && !/詳細|文脈記録|記録するため/.test(options.rationale)) {
     return friendlyObservationText(options.rationale, 86);
   }
-  return "その場の見え方がもう少し残ると、あとで読み返したときに場面や変化を思い出しやすくなります。";
+  return "その場の見え方がもう少し残ると、あとで場面や変化を思い出しやすくなります。";
 }
 
 function shotSuggestionFeedbackItem(suggestion: ShotSuggestion): ObservationShotFeedbackItem {
@@ -6888,7 +6898,7 @@ function fallbackCandidateReadingForSubject(options: {
       visibleFeatures: [
         "濃いピンクから淡いピンクの花がまとまって咲いています。",
         "皿形の花冠と、花の内側に入る雄しべの構造が見えます。",
-        "低木状の枝ぶりと、厚みのある緑葉が同じ株に写っています。",
+        "低木状の枝ぶりと、しっかりした緑葉が同じ株に写っています。",
       ],
       weakPoints: [
         "品種や近い園芸植物まで見るには、花の正面、葉の表裏、枝先の付き方をもう少し近くで見たいです。",
@@ -8074,7 +8084,7 @@ export function renderObservationRecordInsightText(options: {
   } else if (lifeform === "plant") {
     text = `${subjectName}らしい植物が、周囲の草や足元の状態と一緒に写っています。名前だけでなく、どこに生え、どのくらい広がり、まわりの裸地や草地とどう接しているかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、花の量や草地の保たれ方の変化を比べられます。`;
   } else {
-    text = `${subjectName}らしい対象が、まわりの状態と一緒に残っています。名前だけでなく、${place}${season ? `・${season}` : ""}にどんな場面として現れていたかを後から読み返せる記録です。`;
+    text = `${subjectName}らしい対象が、まわりの状態と一緒に残っています。名前だけでなく、${place}${season ? `・${season}` : ""}にどんな場面として現れていたかを後から確認できる記録です。`;
   }
   return appendPositiveObservationFeedback(text, positiveFeedback);
 }
@@ -9355,7 +9365,7 @@ function renderObservationRecordStory(options: {
     ? [
         {
           title: "満開の植栽低木",
-          body: "花だけを切り出すのではなく、低木の株全体、花の密度、周囲の植栽との重なりが残っています。園芸植物がその場所でどう見えていたかを読み返せる記録です。",
+          body: "花だけを切り出すのではなく、低木の株全体、花の密度、周囲の植栽との重なりが残っています。園芸植物がその場所でどう見えていたかを確認できる記録です。",
         },
         {
           title: hasGroundCover ? "株元を覆う植物" : "足元の植栽",
@@ -9375,7 +9385,7 @@ function renderObservationRecordStory(options: {
           title: /ヒメイワダレソウ|イワダレソウ/.test(subjectLabel) ? "足元に咲く花" : "主役の見え方",
           body: /ヒメイワダレソウ|イワダレソウ/.test(subjectLabel)
             ? "低く広がる白い花が、道端の小さな面をつくっています。名前だけでなく、どこまで広がり、裸地や草とどう接しているかが見える記録です。"
-            : `${sceneNoun}の中に、主役の形と周囲の状態が一緒に残っています。名前だけでなく、その場でどう見えていたかを読み返せます。`,
+            : `${sceneNoun}の中に、主役の形と周囲の状態が一緒に残っています。名前だけでなく、その場でどう見えていたかを確認できます。`,
         },
         {
           title: hasBee ? "花を使う虫" : "一緒に写るもの",
@@ -10302,7 +10312,7 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
         withBasePath(basePath, "/records?view=mine"),
         "自分の図鑑",
         topLife?.displayName ?? "名前が付くと並びます",
-        topLife ? `${formatProfileNumber(topLife.observationCount)} 件の記録から見返せます。` : "同定が進むほど、自分だけの Life List が育ちます。",
+        topLife ? `${formatProfileNumber(topLife.observationCount)} 件の記録から確認できます。` : "同定が進むほど、自分だけの Life List が育ちます。",
         topLife?.photoUrl ?? latest?.photoUrl,
         profileChannelFallbackText(topLife?.displayName, latest?.displayName, lifeCountLabel),
       )}
@@ -10320,13 +10330,13 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
     ))
     : withBasePath(basePath, "/records?view=mine");
   const latestBody = digest?.todayReading || (latestObservation
-    ? `${latestObservation.displayName} を見返すと、${latestObservation.placeName} の前回のページから読み始められます。`
-    : "まだ自分の記録はありません。記録一覧や場所の章から、読み返し方を先に眺められます。");
+    ? `${latestObservation.displayName} を開くと、${latestObservation.placeName} の前回のページから始められます。`
+    : "まだ自分の記録はありません。記録一覧や場所の章から、先に画面を眺められます。");
   const placeBody = digest?.placeChapters[0]?.readingAngle || (firstPlace
     ? `${firstPlace.placeName} は ${firstPlace.visitCount} 回分の記憶があります。${buildPlaceNextLine(firstPlace)}。`
-    : "場所が増えるほど、同じ道の季節差や小さな変化を章として読み返せます。");
-  const learningBody = digest?.learningHighlight || "Life List は数ではなく、見分ける観点が増えてきた履歴として読み返せます。";
-  const contributionBody = digest?.localContribution || `${formatProfileNumber(snapshot.stats.placeCount)} か所の記憶が、地域を読み返す手がかりを増やしています。`;
+    : "場所が増えるほど、同じ道の季節差や小さな変化が章として残ります。");
+  const learningBody = digest?.learningHighlight || "Life List は数ではなく、見分ける観点が増えてきた履歴です。";
+  const contributionBody = digest?.localContribution || `${formatProfileNumber(snapshot.stats.placeCount)} か所の記憶が、地域の手がかりを増やしています。`;
   const contributionValue = digest
     ? `${escapeHtml(formatProfileNumber(digest.sourceStats.observationCount))} ページ`
     : `${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))} ページ`;
@@ -10339,7 +10349,7 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
         <p>${escapeHtml(latestBody)}</p>
       </div>
       <div class="profile-reading-points">
-        <div><span>はじまり</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(snapshot.stats.firstObservedAt ? `${profileObservationYears(snapshot)} 年分の記録史として読み返せます。` : "最初の記録が入ると、ここから自分の歴史が始まります。")}</p></div>
+        <div><span>はじまり</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(snapshot.stats.firstObservedAt ? `${profileObservationYears(snapshot)} 年分の記録史として残っています。` : "最初の記録が入ると、ここから自分の歴史が始まります。")}</p></div>
         <div><span>見えてきたこと</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.uniqueTaxaAllTime))} 種を見てきた</strong><p>${escapeHtml(learningBody)}</p></div>
         <div><span>地域への手がかり</span><strong>${contributionValue}</strong><p>${escapeHtml(contributionBody)}</p></div>
       </div>
@@ -10460,12 +10470,12 @@ function dedupeProfileRegionalStories(stories: RegionalStoryCue[], maxCount: num
 function renderProfileContribution(basePath: string, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null): string {
   const revisitCount = profileRevisitCount(snapshot);
   return `<section class="section" data-testid="profile-contribution">
-    <div class="section-header"><div><div class="eyebrow">Contribution</div><h2>地域に残った手がかり</h2></div></div>
+    <div class="section-header"><div><div class="eyebrow">Local traces</div><h2>地域に残った手がかり</h2></div></div>
     <div class="profile-contribution-shell">
       <div class="profile-contribution-grid">
-        <div class="profile-contribution-card"><span>記録</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))}</strong><p>キミの記録が、この地域を読み返す手がかりになっています。</p></div>
-        <div class="profile-contribution-card"><span>場所</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.placeCount))}</strong><p>見た場所が増えるほど、地域の自然を読み返す入口が増えます。</p></div>
-        <div class="profile-contribution-card"><span>再訪の厚み</span><strong>${escapeHtml(formatProfileNumber(revisitCount))}</strong><p>${escapeHtml(digest?.localContribution || "同じ場所を重ねて見ることが、変化の手がかりになります。")}</p></div>
+        <div class="profile-contribution-card"><span>記録</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))}</strong><p>この記録から、地域の手がかりが残ります。</p></div>
+        <div class="profile-contribution-card"><span>場所</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.placeCount))}</strong><p>見た場所が増えるほど、地域の自然を開く入口が増えます。</p></div>
+        <div class="profile-contribution-card"><span>再訪</span><strong>${escapeHtml(formatProfileNumber(revisitCount))}</strong><p>${escapeHtml(digest?.localContribution || "同じ場所を重ねて見ることが、変化の手がかりになります。")}</p></div>
       </div>
       <a class="profile-library-link" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">記録一覧を見る</a>
     </div>
@@ -10828,7 +10838,7 @@ function renderNotesMiniCard(
     ? `<span class="notes-thumb"><img src="${escapeHtml(photoUrls[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(entryKind.slice(0, 1))}</span>${photoCount > 1 ? `<b class="notes-thumb-count">${escapeHtml(formatNotesNumber(photoCount, lang))}</b>` : ""}</span>`
     : `<span class="notes-thumb notes-thumb-empty">${escapeHtml(entryKind.slice(0, 1))}</span>`;
   const observerLine = obs.observerName ? `${formatActorDisplay(obs.observerName, lang)} · ` : "";
-  const needsNameLine = lang === "ja" ? "名前を見返す余地あり" : lang === "es" ? "Nombre por revisar" : lang === "pt-BR" ? "Nome a revisar" : "Name to review";
+  const needsNameLine = lang === "ja" ? "名前を確認する余地あり" : lang === "es" ? "Nombre por revisar" : lang === "pt-BR" ? "Nome a revisar" : "Name to review";
   const supportLine = obs.entryType === "identification"
     ? `${observerLine}${obs.proposedName ? `${obs.proposedName} · ` : ""}${dateLabel}`
     : `${observerLine}${obs.identificationCount > 0 ? `${formatIdentificationCount(obs.identificationCount, lang)} · ` : `${needsNameLine} · `}${dateLabel}`;
@@ -11187,12 +11197,12 @@ function renderNotesReadingBrief(basePath: string, lang: SiteLang, snapshot: Lan
   const digestPlace = digest?.placeChapters[0] ?? null;
   const placeMemory = digestPlace?.readingAngle || (firstPlace
     ? `${firstPlace.visitCount} 回分の記憶があり、${buildPlaceNextLine(firstPlace)}。`
-    : "場所の章はまだ薄い。でも近くのページを読むだけでも、同じ道を見返す感覚は先に掴める。");
+    : "場所の章はまだ少ない。でも近くのページを読むだけでも、同じ道を見るきっかけは掴める。");
   const learningLine = digest?.learningHighlight || (supportedCount > 0
     ? `${supportedCount} 件のページで、名前や同定の手がかりが育っています。`
     : "名前が揺れているページも、次に分かる楽しみとして残っています。");
   const contributionLine = digest?.localContribution || (snapshot.viewerUserId
-    ? `${formatProfileNumber(ownObservationPages)} ページと ${formatProfileNumber(snapshot.myPlaces.length)} つの場所が、地域を読み返す材料になっています。`
+    ? `${formatProfileNumber(ownObservationPages)} ページと ${formatProfileNumber(snapshot.myPlaces.length)} つの場所が、地域の材料になっています。`
     : `${formatProfileNumber(snapshot.stats.observationCount)} 件の公開ページが、地域の自然を読める形で残っています。`);
   const digestLead = digest?.todayReading
     || `${latestPlace} の ${latestDate} のページを起点に読むと、ただの一覧ではなく「前に何を見て、何が分かり、地域に何が残ったか」までつながって見えます。`;
@@ -11227,7 +11237,7 @@ function renderNotesReadingBrief(basePath: string, lang: SiteLang, snapshot: Lan
           </div>
           <div>
             <span>世界や地域への効き方</span>
-            <strong>この地域の観察レコードが少し厚くなった</strong>
+            <strong>この地域の観察レコードが増えた</strong>
             <p>${escapeHtml(contributionLine)}</p>
           </div>
         </div>
@@ -11257,13 +11267,13 @@ function renderNotesLearningHighlights(snapshot: LandingSnapshot, digest: Profil
   const cards = [
     {
       value: formatProfileNumber(uniqueNames.size),
-      label: "よく見返せる生きもの",
+      label: "よく開く生きもの",
       body: uniqueNames.size > 0 ? "名前の並びが、自分の観察テーマになっていきます。" : "近くのページを読むほど、見たい対象が見つかります。",
     },
     {
       value: formatProfileNumber(supportedCount),
       label: "同定が育ったページ",
-      body: supportedCount > 0 ? "候補名や人の同定が、読み返す手がかりになります。" : "まだ揺れている名前も、学びの余白として残ります。",
+      body: supportedCount > 0 ? "候補名や人の同定が、次の確認の手がかりになります。" : "まだ揺れている名前も、学びの余白として残ります。",
     },
     {
       value: formatProfileNumber(openQuestions),
@@ -11279,7 +11289,7 @@ function renderNotesLearningHighlights(snapshot: LandingSnapshot, digest: Profil
   return `<section id="notes-learning" class="section notes-page" data-testid="notes-learning">
     <div class="notes-section-head">
       <div><div class="notes-eyebrow">学びのハイライト</div><h2>前より見えてきたこと</h2></div>
-      <p>${escapeHtml(digest?.learningHighlight || "正解数ではなく、見返すたびに増える観点を並べます。")}</p>
+      <p>${escapeHtml(digest?.learningHighlight || "正解数ではなく、記録ごとに増える観点を並べます。")}</p>
     </div>
     <div class="notes-metric-grid">
       ${cards.map((card) => `<div class="notes-metric-card">
@@ -11313,8 +11323,8 @@ function renderNotesContributionSummary(snapshot: LandingSnapshot, digest: Profi
     <div class="notes-impact-band">
       <div>
         <div class="notes-eyebrow">地域に残った手がかり</div>
-        <h2>キミの記録で、この地域の観察レコードが少し厚くなった</h2>
-        <p>${escapeHtml(digest?.contributionStory || "大げさに言い切らず、いま見えている観察・場所・同定の範囲で、役立ったことだけを返します。")}</p>
+        <h2>キミの記録で、この地域の観察レコードが増えた</h2>
+        <p>${escapeHtml(digest?.contributionStory || "大げさに言い切らず、いま見えている観察・場所・同定の範囲だけを返します。")}</p>
       </div>
       <div class="notes-impact-grid">
         ${cards.map((card) => `<div><strong>${escapeHtml(card.value)}</strong><span>${escapeHtml(card.label)}</span></div>`).join("")}
@@ -11326,8 +11336,8 @@ function renderNotesContributionSummary(snapshot: LandingSnapshot, digest: Profi
 function renderNotesPlaceChapters(basePath: string, lang: SiteLang, snapshot: LandingSnapshot, digest: ProfileNoteDigest | null = null): string {
   if (!snapshot.viewerUserId || snapshot.myPlaces.length === 0) {
     return `<section id="notes-places" class="section notes-page" data-testid="notes-places">
-      <div class="notes-section-head"><div><div class="notes-eyebrow">場所の章</div><h2>読み返す場所</h2></div></div>
-      <div class="notes-empty-reading">場所の章はまだありません。近くのページを読むと、同じ場所を何度も見返す面白さが分かります。</div>
+      <div class="notes-section-head"><div><div class="notes-eyebrow">場所の章</div><h2>よく行く場所</h2></div></div>
+      <div class="notes-empty-reading">場所の章はまだありません。近くのページを読むと、同じ場所に何度も行く面白さが分かります。</div>
     </section>`;
   }
   const digestByPlace = new Map((digest?.placeChapters ?? []).map((chapter) => [chapter.placeName, chapter]));
@@ -11352,8 +11362,8 @@ function renderNotesPlaceChapters(basePath: string, lang: SiteLang, snapshot: La
   }).join("");
   return `<section id="notes-places" class="section notes-page" data-testid="notes-places">
     <div class="notes-section-head">
-      <div><div class="notes-eyebrow">場所の章</div><h2>読み返す場所</h2></div>
-      <p>よく歩く場所を、行き先ではなく読み返す章として並べます。</p>
+      <div><div class="notes-eyebrow">場所の章</div><h2>よく行く場所</h2></div>
+      <p>よく歩く場所を、行き先ではなく場所の章として並べます。</p>
     </div>
     <div class="notes-place-grid">${chapters}</div>
   </section>`;
@@ -14431,7 +14441,7 @@ function renderProgramActionDeck(basePath: string, program: GuideProgramPublicDe
       <b>3</b>
       <div>
         <strong>あとからMy Guide</strong>
-        <span>解放したガイドは公開投稿にせず、本人用に保存して見返せます。</span>
+        <span>解放したガイドは公開投稿にせず、本人用に保存して開けます。</span>
       </div>
     </a>
   </section>`;
@@ -14923,7 +14933,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     </div>
                     <div class="record-place-memory-notes">
                       <label class="record-field"><span class="record-label">同じ場所の人に見える一言</span><input name="placeMemoryEchoNote" maxlength="80" type="text" placeholder="例: 春の夕方、誰かと歩きながら見つけた" /></label>
-                      <label class="record-field"><span class="record-label">自分だけのメモ</span><textarea name="placeMemoryPrivateNote" maxlength="600" rows="3" placeholder="あとで自分だけが読み返すメモ"></textarea></label>
+                      <label class="record-field"><span class="record-label">自分だけのメモ</span><textarea name="placeMemoryPrivateNote" maxlength="600" rows="3" placeholder="あとで自分だけが開くメモ"></textarea></label>
                     </div>
                   </section>
                   <div class="record-field record-field-wide record-media-role">
@@ -15456,6 +15466,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           successObservationCta: ${JSON.stringify(recordForm.successObservationCta)},
           successMapCta: ${JSON.stringify(recordForm.successMapCta)},
           successRevisitCta: ${JSON.stringify(recordForm.successRevisitCta)},
+          successReturnLead: ${JSON.stringify(recordForm.successReturnLead)},
+          successReturnHiddenLead: ${JSON.stringify(recordForm.successReturnHiddenLead)},
           successRecordsHelp: ${JSON.stringify(recordForm.successRecordsHelp)},
           successSavedCardEyebrow: ${JSON.stringify(recordForm.successSavedCardEyebrow)},
           successSavedCardFallbackTitle: ${JSON.stringify(recordForm.successSavedCardFallbackTitle)},
@@ -15492,6 +15504,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           : 'record-kpi-' + String(Date.now()) + '-' + String(Math.random()).slice(2);
         const recordStartParams = new URLSearchParams(window.location.search || '');
         const recordKpiStartMode = recordStartParams.get('start') || 'default';
+        const recordKpiContext = String(recordStartParams.get('context') || '').trim();
+        const recordKpiFromAreaRoute = recordKpiContext === 'area_route';
+        const recordKpiFromMunicipalWalkMap = recordKpiContext === 'municipal_walk_map';
+        const recordKpiAreaRouteSource = String(recordStartParams.get('source') || '').trim();
+        const recordKpiAreaRouteArea = String(recordStartParams.get('area') || recordStartParams.get('areaId') || '').trim();
+        const recordKpiAreaRoutePlace = String(recordStartParams.get('place') || recordStartParams.get('placeId') || '').trim();
+        const recordKpiMunicipalWalkMapId = String(recordStartParams.get('walkMapId') || '').trim();
+        const recordKpiMunicipalWalkMapStopId = String(recordStartParams.get('stopId') || '').trim();
+        const recordKpiMunicipalWalkMapFieldId = String(recordStartParams.get('fieldId') || '').trim();
+        const recordKpiMunicipalWalkMapSource = String(recordStartParams.get('source') || '').trim();
         const recordFirstRecordCandidate = Boolean(form && form.dataset && form.dataset.firstRecordCandidate === '1');
 
         const safeAllSelectedMediaFiles = () => {
@@ -15511,6 +15533,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             elapsedMs: Math.max(0, Date.now() - recordKpiStartedAt),
             captureKind: selectedCaptureKind || 'unknown',
             startMode: recordKpiStartMode,
+            context: recordKpiContext,
+            areaRouteSource: recordKpiAreaRouteSource,
+            areaRouteArea: recordKpiAreaRouteArea,
+            areaRoutePlace: recordKpiAreaRoutePlace,
+            walkMapId: recordKpiMunicipalWalkMapId,
+            walkMapStopId: recordKpiMunicipalWalkMapStopId,
+            walkMapFieldId: recordKpiMunicipalWalkMapFieldId,
+            walkMapSource: recordKpiMunicipalWalkMapSource,
             firstRecordCandidate: recordFirstRecordCandidate,
             hasLocation: Boolean(coords),
             mediaCount: files.length,
@@ -15545,6 +15575,61 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const sendRecordFunnelError = (actionKey, metadata) => sendRecordKpi('funnel_error', actionKey, metadata);
         const sendRecordTaskCompletion = (actionKey, metadata) => sendRecordKpi('task_completion', actionKey, metadata);
         const sendRecordCtaClick = (actionKey, metadata) => sendRecordKpi('primary_cta_click', actionKey, metadata);
+        const areaRouteKpiOnce = new Set();
+        let areaRouteRecordStarted = false;
+        let areaRouteRecordCompleted = false;
+        let areaRoutePostRecordShownAt = 0;
+        let areaRoutePostRecordCtaClicked = false;
+        const municipalWalkMapKpiOnce = new Set();
+        let municipalWalkMapRecordStarted = false;
+        let municipalWalkMapRecordCompleted = false;
+        const sendAreaRouteRecordKpi = (eventName, actionKey, metadata) => {
+          if (!recordKpiFromAreaRoute) return;
+          sendRecordKpi(eventName, actionKey, metadata);
+        };
+        const sendAreaRouteRecordKpiOnce = (eventName, actionKey, metadata) => {
+          if (!recordKpiFromAreaRoute || areaRouteKpiOnce.has(eventName)) return;
+          areaRouteKpiOnce.add(eventName);
+          sendRecordKpi(eventName, actionKey, metadata);
+        };
+        const sendMunicipalWalkMapRecordKpi = (eventName, actionKey, metadata) => {
+          if (!recordKpiFromMunicipalWalkMap) return;
+          sendRecordKpi(eventName, actionKey, metadata);
+        };
+        const sendMunicipalWalkMapRecordKpiOnce = (eventName, actionKey, metadata) => {
+          if (!recordKpiFromMunicipalWalkMap || municipalWalkMapKpiOnce.has(eventName)) return;
+          municipalWalkMapKpiOnce.add(eventName);
+          sendRecordKpi(eventName, actionKey, metadata);
+        };
+        if (recordKpiFromAreaRoute) {
+          window.addEventListener('pagehide', () => {
+            if (areaRoutePostRecordShownAt && !areaRoutePostRecordCtaClicked) {
+              sendAreaRouteRecordKpiOnce('post_record_return_bounce', 'record:area_route:return_bounce', {
+                visibleMs: Math.max(0, Date.now() - areaRoutePostRecordShownAt),
+                completed: areaRouteRecordCompleted,
+              });
+              return;
+            }
+            if (areaRouteRecordStarted && !areaRouteRecordCompleted) {
+              sendAreaRouteRecordKpiOnce('record_abandon_from_area_route', 'record:area_route:abandon', {
+                submitInFlight: Boolean(recordSubmitInFlight),
+                hasLocation: Boolean(readCoords()),
+                hasMedia: safeAllSelectedMediaFiles().length > 0,
+              });
+            }
+          });
+        }
+        if (recordKpiFromMunicipalWalkMap) {
+          window.addEventListener('pagehide', () => {
+            if (municipalWalkMapRecordStarted && !municipalWalkMapRecordCompleted) {
+              sendMunicipalWalkMapRecordKpiOnce('record_abandon_from_municipal_walk_map', 'record:municipal_walk_map:abandon', {
+                submitInFlight: Boolean(recordSubmitInFlight),
+                hasLocation: Boolean(readCoords()),
+                hasMedia: safeAllSelectedMediaFiles().length > 0,
+              });
+            }
+          });
+        }
         const selectedSeasonClues = new Set();
         let seasonClueManagedValue = '';
         let renderingSeasonClues = false;
@@ -15766,6 +15851,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const syncLocationPrivacyNotice = () => {
           const coords = readCoords();
           if (locationPrivacy) locationPrivacy.classList.toggle('has-location', Boolean(coords));
+          if (coords) {
+            sendAreaRouteRecordKpiOnce('sensitive_location_warning_view', 'record:area_route:location_warning_view', {
+              latitudePrecision: 6,
+              longitudePrecision: 6,
+              warningSurface: 'record_location_privacy',
+            });
+            sendMunicipalWalkMapRecordKpiOnce('sensitive_location_warning_view', 'record:municipal_walk_map:location_warning_view', {
+              latitudePrecision: 6,
+              longitudePrecision: 6,
+              warningSurface: 'record_location_privacy',
+            });
+          }
           if (locationPublicPreview) locationPublicPreview.setAttribute('data-location', coords ? 'set' : 'unset');
           if (locationPublicPreviewText) {
             locationPublicPreviewText.textContent = coords
@@ -15905,6 +16002,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (quickCaptureStateField && 'value' in quickCaptureStateField) {
             quickCaptureStateField.value = state === 'unknown' ? 'unknown' : 'present';
           }
+          if (state === 'unknown') {
+            sendAreaRouteRecordKpi('record_context_unknown_name_selected', 'record:area_route:unknown_name', {
+              captureKind: selectedCaptureKind || 'unknown',
+            });
+            sendMunicipalWalkMapRecordKpi('record_context_walk_map_unknown_name_selected', 'record:municipal_walk_map:unknown_name', {
+              captureKind: selectedCaptureKind || 'unknown',
+            });
+          }
           syncQuickCaptureStateChips();
           renderPreviewSelection();
           syncPreview();
@@ -16034,7 +16139,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (hasNoteDraft() && !hasSelectedMedia()) {
             return hasLocation
               ? 'メモと場所は残っています。次に同じ場所へ行ったら、見たものを1枚足すと比較しやすくなります。'
-              : 'メモだけの記録です。次は現在地か場所メモを足すと、あとから見返しやすくなります。';
+              : 'メモだけの記録です。次は現在地か場所メモを足すと、あとから確認しやすくなります。';
           }
           if (hasVideo && photoCount === 0) {
             return '動画で動きは残っています。名前を確かめやすくするなら、主役が止まって見える写真を1枚足すのが効きます。';
@@ -16047,7 +16152,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (photoCount >= 2) {
             return hasLocation
               ? '複数の写真と場所がそろっています。次は何が気になったかを一言足すと、確認の精度が上がります。'
-              : '複数の写真があります。次は場所を入れると、周辺環境まで含めて見返しやすくなります。';
+              : '複数の写真があります。次は場所を入れると、周辺環境まで含めて確認しやすくなります。';
           }
           if (photoCount === 1) {
             if (!hasLocation) return '写真は入っています。次は現在地か場所メモを足すと、記録として使いやすくなります。';
@@ -16162,6 +16267,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             '<a class="' + (link.primary ? 'is-primary' : '') + '" href="' + escapeHtmlText(link.href) + '" data-record-success-cta="' + escapeHtmlText(link.key) + '">' + escapeHtmlText(link.label) + '</a>';
           return '<div class="record-success-return" data-success-return-state="' + escapeHtmlText(options.state || 'review') + '">' +
             '<strong>' + escapeHtmlText(options.heading) + '</strong>' +
+            '<span>' + escapeHtmlText(options.state === 'hidden' ? recordUiCopy.successReturnHiddenLead : recordUiCopy.successReturnLead) + '</span>' +
             '<div class="record-success-shortcuts">' + returnLinks.map(renderLink).join('') + '</div>' +
             '<div class="record-success-actions">' + nextLinks.map(renderLink).join('') + '</div>' +
           '</div>';
@@ -16602,6 +16708,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 if (isGeolocationDenied(lastError)) break;
               }
             }
+            if (isGeolocationDenied(lastError)) {
+              sendAreaRouteRecordKpiOnce('location_permission_declined_from_area_route', 'record:area_route:location_declined', {
+                sourceLabel,
+                silent: Boolean(silent),
+                errorCode: lastError && lastError.message ? lastError.message : 'geolocation_denied',
+              });
+              sendMunicipalWalkMapRecordKpiOnce('location_permission_declined_from_municipal_walk_map', 'record:municipal_walk_map:location_declined', {
+                sourceLabel,
+                silent: Boolean(silent),
+                errorCode: lastError && lastError.message ? lastError.message : 'geolocation_denied',
+              });
+            }
             if (!silent) alert(geolocationFailureMessage(lastError));
             return false;
           } finally {
@@ -16685,7 +16803,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             notes.push('この場所の時間・環境・気づきを比べる起点ができました。');
           }
           if (impact && impact.focusLabel) {
-            notes.push('次に見返す手がかりとして「' + String(impact.focusLabel) + '」を残しました。');
+            notes.push('次に見る手がかりとして「' + String(impact.focusLabel) + '」を残しました。');
           } else if (impact && impact.captureState === 'unknown') {
             notes.push('名前を急がず、場所・時間・周囲の手がかりを先に残しました。');
           } else if (impact && impact.captureState === 'no_detection_note') {
@@ -17579,6 +17697,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (!captureLabels[kind]) return;
           setMediaRetryFormLock(false);
           if (kind === 'note') {
+            sendAreaRouteRecordKpi('record_context_note_only_selected', 'record:area_route:note_start', {
+              captureKind: 'note',
+            });
+            sendMunicipalWalkMapRecordKpi('record_context_walk_map_note_only_selected', 'record:municipal_walk_map:note_start', {
+              captureKind: 'note',
+            });
             showRecordFormForMedia([], 'note');
             renderPreviewFile(null);
             resetVideoProgress();
@@ -18423,6 +18547,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const action = button.getAttribute('data-capture-action') || 'gallery';
             sendRecordFunnelStep('capture_method_selected', { captureKind: action });
             if (action === 'note') {
+              sendAreaRouteRecordKpi('record_context_note_only_selected', 'record:area_route:note_start', {
+                captureKind: action,
+                source: recordKpiAreaRouteSource || null,
+              });
+              sendMunicipalWalkMapRecordKpi('record_context_walk_map_note_only_selected', 'record:municipal_walk_map:note_start', {
+                captureKind: action,
+                source: recordKpiMunicipalWalkMapSource || null,
+              });
               selectedMediaCapturedAt = null;
               mediaAutofillSequence += 1;
               clearMediaInputsExcept(null);
@@ -18448,11 +18580,26 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             clearMediaInputsExcept(input);
             const normalized = normalizeSelectedFiles(files, kind);
             if (normalized.photos.length || normalized.video) {
+              const selectedMediaCount = normalized.photos.length + (normalized.video ? 1 : 0);
               sendRecordFunnelStep('media_selected', {
                 captureKind: kind,
-                mediaCount: normalized.photos.length + (normalized.video ? 1 : 0),
+                mediaCount: selectedMediaCount,
                 photoCount: normalized.photos.length,
                 videoCount: normalized.video ? 1 : 0,
+              });
+              sendAreaRouteRecordKpi('record_context_media_added', 'record:area_route:media_added', {
+                captureKind: kind,
+                mediaCount: selectedMediaCount,
+                photoCount: normalized.photos.length,
+                videoCount: normalized.video ? 1 : 0,
+                source: recordKpiAreaRouteSource || null,
+              });
+              sendMunicipalWalkMapRecordKpi('record_context_walk_map_media_added', 'record:municipal_walk_map:media_added', {
+                captureKind: kind,
+                mediaCount: selectedMediaCount,
+                photoCount: normalized.photos.length,
+                videoCount: normalized.video ? 1 : 0,
+                source: recordKpiMunicipalWalkMapSource || null,
               });
             }
             if (!files.length || (!normalized.photos.length && !normalized.video)) {
@@ -18630,13 +18777,33 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         sendRecordFunnelStep('record_open', {
           hasRevisitContext: Boolean(recordStartParams.get('revisitObservationId') || recordStartParams.get('revisit_of_visit_id')),
         });
+        if (recordKpiFromAreaRoute) areaRouteRecordStarted = true;
+        if (recordKpiFromMunicipalWalkMap) municipalWalkMapRecordStarted = true;
+        sendAreaRouteRecordKpi('record_start_from_area_route', 'record:area_route:start', {
+          hasRevisitContext: Boolean(recordStartParams.get('revisitObservationId') || recordStartParams.get('revisit_of_visit_id')),
+        });
+        sendMunicipalWalkMapRecordKpi('record_start_from_municipal_walk_map', 'record:municipal_walk_map:start', {
+          hasRevisitContext: Boolean(recordStartParams.get('revisitObservationId') || recordStartParams.get('revisit_of_visit_id')),
+        });
 
         document.addEventListener('click', (event) => {
           const target = event.target && event.target.closest ? event.target.closest('[data-record-success-cta]') : null;
           if (!target) return;
+          const ctaKey = target.getAttribute('data-record-success-cta') || 'unknown';
+          if (recordKpiFromAreaRoute) areaRoutePostRecordCtaClicked = true;
           sendRecordCtaClick('record_success_' + (target.getAttribute('data-record-success-cta') || 'unknown'), {
             href: target.getAttribute('href') || '',
           });
+          if (ctaKey === 'map_nearby') {
+            sendAreaRouteRecordKpi('post_record_next_place_click', 'record:area_route:next_place', { href: target.getAttribute('href') || '' });
+          } else if (ctaKey === 'revisit_same_place') {
+            sendAreaRouteRecordKpi('post_record_revisit_click', 'record:area_route:revisit', { href: target.getAttribute('href') || '' });
+          } else if (ctaKey === 'observation_detail' || ctaKey === 'saved_record_card' || ctaKey === 'notes') {
+            sendAreaRouteRecordKpi('post_record_area_guide_click', 'record:area_route:local_record', {
+              ctaKey,
+              href: target.getAttribute('href') || '',
+            });
+          }
         });
 
         if (form) {
@@ -19150,6 +19317,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const successCardPlace = observationJson && observationJson.impact && observationJson.impact.placeName
                 ? observationJson.impact.placeName
                 : String(data.get('municipality') || data.get('localityNote') || '').trim();
+              const successCtas = ['observation_detail', 'saved_record_card', 'notes', 'profile']
+                .concat(mapHref ? ['map_nearby'] : [], ['revisit_same_place'], contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind));
               const successSavedCardHtml = buildRecordSuccessSavedCardHtml({
                 href: observationHref,
                 title: successCardTitle,
@@ -19172,10 +19341,39 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 visitId,
                 occurrenceId: detailId,
                 placeId: observationJson.placeId || null,
-                successCtas: ['observation_detail', 'saved_record_card', 'notes', 'profile'].concat(mapHref ? ['map_nearby'] : [], ['revisit_same_place'], contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
+                successCtas,
                 contributionReceiptCount: contributionReceipts.length,
                 contributionReceiptKinds,
               });
+              sendAreaRouteRecordKpi('post_record_local_return_view', 'record:area_route:local_return_view', {
+                visitId,
+                occurrenceId: detailId,
+                placeId: observationJson.placeId || null,
+                successReturnState,
+                successCtas,
+                contributionReceiptCount: contributionReceipts.length,
+              });
+              areaRoutePostRecordShownAt = recordKpiFromAreaRoute ? Date.now() : 0;
+              sendAreaRouteRecordKpi('record_complete_from_area_route', 'record:area_route:complete', {
+                visitId,
+                occurrenceId: detailId,
+                placeId: observationJson.placeId || null,
+                mediaCount: safeAllSelectedMediaFiles().length,
+                photoUploadCount: preparedPhotoUploads.length,
+                hasVideo: Boolean(selectedVideoFile),
+                successReturnState,
+              });
+              if (recordKpiFromAreaRoute) areaRouteRecordCompleted = true;
+              sendMunicipalWalkMapRecordKpi('record_complete_from_municipal_walk_map', 'record:municipal_walk_map:complete', {
+                visitId,
+                occurrenceId: detailId,
+                placeId: observationJson.placeId || null,
+                mediaCount: safeAllSelectedMediaFiles().length,
+                photoUploadCount: preparedPhotoUploads.length,
+                hasVideo: Boolean(selectedVideoFile),
+                successReturnState,
+              });
+              if (recordKpiFromMunicipalWalkMap) municipalWalkMapRecordCompleted = true;
               sendRecordTaskCompletion('record_saved', {
                 visitId,
                 occurrenceId: detailId,
@@ -21716,7 +21914,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         eyebrow: snapshot.rankLabel || "Observer",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: isOwnProfile ? "自分の記録 — 最近の場所と観察を読み返す。" : "この人の記録 — 最近の場所と観察を追う。",
+        lead: isOwnProfile ? "自分の記録 — 最近の場所と観察を開く。" : "この人の記録 — 最近の場所と観察を追う。",
         actions: [
           { href: profileHomeHref, label: isOwnProfile ? "マイページを見る" : "このユーザーのホームを見る" },
         ],
@@ -21767,7 +21965,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         "マイページ | ikimon",
         stateCard(
           "マイページ",
-          "ログインすると、自分の記録史を読み返せます",
+          "ログインすると、自分の記録史を開けます",
           `<p style="margin:0 0 12px">記録一覧を起点に、マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn btn-solid" href="${escapeHtml(loginHref)}">ログインしてマイページへ</a>
@@ -21802,7 +22000,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         eyebrow: snapshot.rankLabel || "観察者",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: "あなたのマイページ。記録一覧を起点に、積み上げた歴史、学び、地域に残った手がかりを気持ちよく読み返します。",
+        lead: "あなたのマイページ。記録一覧を起点に、積み上げた歴史、学び、地域に残った手がかりを開けます。",
         actions: profileHeroActions(),
       },
       PROFILE_HUB_STYLES,
@@ -22955,7 +23153,7 @@ ${mapExplorerBootScript({ basePath, lang })}`,
       <section class="my-guides-hero">
         <span>For participants</span>
         <h1>近くで記録すると、現地ガイドが開く</h1>
-        <p>ここは参加者向けのページです。ガイドのあるエリアで観察記録を残すと、その場所の見どころや背景をあとから本人用に見返せます。</p>
+        <p>ここは参加者向けのページです。ガイドのあるエリアで観察記録を残すと、その場所の見どころや背景をあとから本人用に開けます。</p>
         <div class="my-guides-actions">
           <a href="${escapeHtml(withBasePath(basePath, "/record"))}">近くで記録する</a>
           <a href="${escapeHtml(withBasePath(basePath, "/my-guides"))}">マイガイド</a>

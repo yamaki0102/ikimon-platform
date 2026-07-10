@@ -244,7 +244,7 @@ export function buildRegionalHypothesesForMesh(source: RegionalHypothesisMeshSou
     drafts.push(draftFor(
       source,
       "species_candidate",
-      `「${vegetation.join("・")}」などの植生手がかりはあるが、対応する通常観察が不足している。種名同定より先に生活形・群落として記録を厚くする段階。`,
+      `「${vegetation.join("・")}」などの植生手がかりはあるが、対応する通常観察が不足している。種名同定より先に生活形・群落として記録を増やす段階。`,
       "ガイドは植生・環境文脈を拾えているが、occurrences 側の証拠が薄い。ここで種分布を語るより、候補分類群と必要証拠を整理するのが妥当。",
       "広角の環境写真に加え、葉・花・実・樹皮など同定部位を別カットで残す。AI同定だけで確定せず、人間補正または再訪で evidence_tier を上げる。",
       { trigger: "vegetation_without_occurrences" },
