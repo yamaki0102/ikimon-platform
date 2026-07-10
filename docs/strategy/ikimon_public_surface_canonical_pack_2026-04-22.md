@@ -1,8 +1,14 @@
 # ikimon Public Surface Canonical Pack
 
-更新日: 2026-04-22
+更新日: 2026-06-10
 
 この文書を、ikimon の `public IA / message / feature-role` の唯一正本として扱う。
+
+2026-06-10 追補:
+
+- 最上位の North Star statement は `docs/strategy/north_star_charter_2026.md` の `自然の記録を、地域の力へ。`
+- この文書の `ENJOY NATURE` は、3層循環のうち `暮らしの入口` 層の public face として扱う
+- public IA / page intent / feature naming はこの文書を使うが、message hierarchy と KPI は North Star Charter に従属する
 
 対象:
 
@@ -26,6 +32,7 @@
 
 - 入口の主語は `ENJOY NATURE`
 - 深部の背骨は `place-first product / Place Intelligence OS`
+- 全体の循環は `暮らしの入口 -> 地域の自然データ -> 企業・行政の判断材料`
 - `フィールドループ` は公開主語にしない
 - `フィールドガイド / フィールドスキャン` は現状のままでは意味が割れているため、名称と役割を再定義する
 - staging / production の UI 変更は、この文書のレビュー完了後にのみ着手する
@@ -41,6 +48,7 @@
 - 一言: `ENJOY NATURE`
 - 日本語の主約束: `自然が楽しい。世界の解像度が上がる。`
 - 行動の入口: `歩く -> 見つける -> 残す`
+- 上位 statement: `自然の記録を、地域の力へ。`
 
 公開面で最初に売るもの:
 
@@ -67,7 +75,8 @@
 解釈:
 
 - 公開面は `楽しい / 分かる / また歩きたくなる`
-- 深部ではじめて `場所の記憶 / 再訪 / 研究接続` を語る
+- 深部ではじめて `場所の記憶 / 再訪 / 根拠ある同定 / 研究接続` を語る
+- `ENJOY NATURE` は入口であり、目的全体ではない。目的全体は `自然の記録を、地域の力へ。` と3層循環で判断する
 
 ### 1.3 Actor priority
 

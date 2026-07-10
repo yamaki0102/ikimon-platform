@@ -1,6 +1,6 @@
 # ikimon.life Knowledge Map
 
-更新日: 2026-04-22
+更新日: 2026-06-10
 
 目的:
 
@@ -12,11 +12,24 @@
 
 ## 1. 最優先で見る正本
 
+### 1.0 North Star / external message の正本
+
+- `docs/strategy/north_star_charter_2026.md`
+  - 最上位 statement: `自然の記録を、地域の力へ。`
+  - 3層循環: `暮らしの入口 -> 地域の自然データ -> 企業・行政の判断材料`
+  - North Star metric: `月内に、地元ユーザーによる再訪記録が2回以上成立した active places 数`
+  - public surface、KPI、club model、effort/absence readiness の判断はここに従属する
+- 外向けピッチ `ikimon.co.jp/pitch/ikimon/`
+  - workspace: `E:\Projects\ikimon\cojp_pitch_upload`
+  - 実体: `pitch/ikimon/index.html`
+  - 対外メッセージの現行正本。repo docs 側では上の charter が pitch の内容を正本化する
+
 ### 1.1 Public surface の正本
 
 - `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
   - public IA / message / feature-role の唯一正本
   - `ENJOY NATURE`, page intent, feature naming, route disposition をここで固定
+  - ただし message hierarchy は `north_star_charter_2026.md` の3層循環に従属する
   - staging / production の公開面を触る前に最優先で読む
 
 ### 1.2 Product / strategy の補助正本
@@ -31,6 +44,7 @@
   - 最上位 identity を `Place Intelligence OS` と定義
   - 主役を `地元の人`
   - North Star を `active places`
+  - 2026-06-10 以降は `north_star_charter_2026.md` が `Place Intelligence OS` を「地域の自然データ」層に位置づける
   - 方向性判断で迷ったらここに戻る
 
 ### 1.4 実装順の正本
@@ -122,14 +136,28 @@
   - `species certainty machine` ではなく `不確実性を保ったまま育つ同定システム` という stance の正本ノート
   - 投稿 UI, review queue, coarse rank 許容, AI suggestion, public claim の判断はここを使う
 
-### 3.5 将来要件の監査
+### 3.5 regional club model / reviewer throughput
+
+- `docs/strategy/north_star_charter_2026.md`
+  - ピッチにしかなかった `観察 -> 根拠ある同定 -> 地域データ -> クラブ運営` を正本化
+  - reviewer throughput を P1 に昇格
+  - club / organization attribution は実装前に design note を作る
+- `docs/strategy/regional_club_reviewer_attribution_2026-06-10.md`
+  - club / organization attribution の実装前判断メモ
+  - `programs` / `memberships`, `specialist_authorities`, `field_managers`, `specialistReview` の責務境界を固定
+  - field manager への吸収を避け、review credit ledger を検討する
+- `docs/strategy/v3.8/ikimon_life_strategy_2026Q1.md`
+  - セクション16の reviewer 供給問題を背景正本として読む
+  - 2026-06-10 追補以降は、地域クラブモデルを reviewer 供給問題への最初の具体解として扱う
+
+### 3.6 将来要件の監査
 
 - `docs/strategy/ikimon_future_readiness_audit_2026-04-11.md`
   - AI, 多言語, 学校, 音声/動画, agent-safe operation の監査
   - 現在の重大ギャップを一覧化
   - とくに `正本の分裂`, `多言語の後付け`, `media = asset 化不足`, `学校運用モデル欠如` が重要
 
-### 3.6 iNaturalist 批判への返答境界
+### 3.7 iNaturalist 批判への返答境界
 
 - `docs/review/ikimon_inaturalist_critique_response_boundary_2026-04-20.md`
   - 2026 年の iNaturalist 関連批判を `集める / 配る / 確かめる / 語る` に分解した review
@@ -231,13 +259,14 @@
 
 ### 8.1 改装タスクに入る前
 
-1. `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
-2. `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
-3. `docs/strategy/ikimon_decision_sheet_2026-04-11.md`
-4. `docs/spec/ikimon_place_first_regional_os_implementation_spec_2026-04-11.md`
-5. `docs/strategy/ikimon_nature_site_monitoring_acceleration_plan_2026-04-12.md`
-6. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\artifacts\notes\ikimon_identification_system_master_note.md`
-7. `docs/strategy/ikimon_staging_ui_cleanup_plan_2026-04-12.md`
+1. `docs/strategy/north_star_charter_2026.md`
+2. `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
+3. `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
+4. `docs/strategy/ikimon_decision_sheet_2026-04-11.md`
+5. `docs/spec/ikimon_place_first_regional_os_implementation_spec_2026-04-11.md`
+6. `docs/strategy/ikimon_nature_site_monitoring_acceleration_plan_2026-04-12.md`
+7. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\artifacts\notes\ikimon_identification_system_master_note.md`
+8. `docs/strategy/ikimon_staging_ui_cleanup_plan_2026-04-12.md`
 
 ### 8.2 データ / canonical / cutover を触る前
 
@@ -257,15 +286,18 @@
 
 ## 9. 現時点の結論
 
-ikimon.life の現行判断は、次の 3 本柱で読むのが最もズレにくい。
+ikimon.life の現行判断は、次の 4 本柱で読むのが最もズレにくい。
 
-1. public / product 改装:
+1. North Star / external message:
+   - `docs/strategy/north_star_charter_2026.md`
+   - `ikimon.co.jp/pitch/ikimon/` (`E:\Projects\ikimon\cojp_pitch_upload`)
+2. public / product 改装:
    - `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
    - `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
-2. 現行 PHP の canonical 改善:
+3. 現行 PHP の canonical 改善:
    - `docs/architecture/ADR-001-canonical-source-of-truth.md`
    - `docs/architecture/canonical_migration_policy.md`
-3. 将来の v2 cutover:
+4. 将来の v2 cutover:
    - `docs/architecture/ikimon_v2_zero_base_cutover_master_plan_2026-04-11.md`
 
-この 3 本を混同せず、レイヤーを分けて扱うこと。
+この 4 本を混同せず、レイヤーを分けて扱うこと。

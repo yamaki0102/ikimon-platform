@@ -580,7 +580,7 @@ iNaturalist/eBird/GBIFとデータ量で正面から勝負するのは不利。
 | Xserver VPS | ¥5,000-10,000/月 | 現行プラン |
 | Gemini API | 従量課金 | テキスト埋め込み$0.20/MTok |
 | ストレージ（サムネイル＋メタデータ） | 400GB NVMe内 | raw mediaは端末に残す設計 |
-| 同定者のレビュー工数 | 0円（ボランティア） | ← 最大のリスク要因。供給能力の試算はセクション14.4参照 |
+| 同定者のレビュー工数 | v3.8時点は0円（ボランティア）前提。2026-06-10追補で地域クラブモデルを採用 | ← 最大のリスク要因。供給能力の試算はセクション14.4、地域クラブ循環はセクション16.2.1参照 |
 
 ### 14.2 収益モデル（Phase 6以降）
 
@@ -696,7 +696,7 @@ iNaturalist/eBird/GBIFとデータ量で正面から勝負するのは不利。
 
 ### 16.2 Reviewer供給問題（最大のリスク要因）
 
-レビュー工数が0円（ボランティア）は認識しているが、まだ解いていない。これがPhase 6の成否を決める。
+v3.8時点では、レビュー工数が0円（ボランティア）であることを最大リスクとして認識していたが、まだ具体的には解いていなかった。これがPhase 6の成否を決める。
 
 **Tier 1→2のreviewer throughput** がボトルネックになる。パッシブセンシングで大量のTier 1データが生成されても、同定者がいなければTier 2に上がらない。
 
@@ -714,6 +714,39 @@ iNaturalist/eBird/GBIFとデータ量で正面から勝負するのは不利。
 - 1サイトの1日あたりTier 1イベント数
 - reviewer 1人が1時間で処理できるTier 1→2レビュー件数
 - 必要なactive reviewer数 = Tier 1生成レート ÷ reviewer処理レート
+
+### 16.2.1 2026-06-10追補: 地域クラブモデル
+
+最新ピッチ `ikimon.co.jp/pitch/ikimon/` は、reviewer 供給問題への最初の具体解として地域クラブモデルを提示した。以後は `docs/strategy/north_star_charter_2026.md` をこの追補の正本とする。
+
+採用する循環:
+
+`観察 -> 根拠ある同定 -> 地域データ -> クラブ運営`
+
+この循環は、単なる参加体験ではなく unit economics の仮説である。企業・行政向け monitoring 収益または協賛を、根拠ある同定と記録整理の対価として地域クラブ運営費へ戻す。これにより、reviewer 供給を「詳しい人の善意」だけに依存しない形へ進める。
+
+役割分担の仮説:
+
+| Actor | 役割 | 成果物 |
+|---|---|---|
+| Grow Up Academy / はままつネイチャークラブ | 地域クラブの運営、参加者育成、活動設計 | 観察会、根拠付き同定、活動継続 |
+| IKIMON | 投稿、同定、根拠、集計、export の基盤 | club attribution、review throughput、monitoring-ready record |
+| 企業・行政 | monitoring 契約、協賛、地域実装の場 | 判断材料、説明責任、地域貢献 |
+| 専門家 / trusted reviewer | 品質基準、監修、差し戻し、難例確認 | 根拠基準、合意形成、強い public claim の境界 |
+
+品質基準:
+
+- 同定は種名だけでなく、根拠資料、根拠メモ、判断者、判断日時、対象 record を残す。
+- club attribution は個人 reviewer と組織の両方を残す。
+- 件数だけでなく、根拠登録率、差し戻し率、合意率、中央値処理時間を測る。
+- 子どもや学生の活動成果を、監修なしに強い企業・行政判断へ昇格しない。
+
+実装含意:
+
+- `specialistReview` / `identificationConsensus` は P1 で throughput 集計対象にする。
+- `organization_id` / `club_id` / `review_credit` の設計判断が必要。既存 `specialist` role と `fieldManagers` だけへ吸収すると、クラブ運営費へ戻す集計が弱くなる。
+- 実装着手前に `docs/strategy/regional_club_reviewer_attribution_2026-06-10.md` を読む。エンティティ設計なしで UI だけ作らない。
+- effort / absence readiness は P2 上位へ上げる。ピッチが `いつ・どこで・どの努力量で見たか` を対外約束にしたため、records / export / report で説明可能にする。
 
 ### 16.3 創業者依存リスクの軽減
 
@@ -745,8 +778,10 @@ iNaturalist/eBird/GBIFとデータ量で正面から勝負するのは不利。
    - DwC-A export adapterのプロトタイプ
    - schemaVersionフィールドでmigration対応
 
-3. **Reviewer供給とPrivacy governanceを同時に設計する**
+3. **Reviewer供給、club attribution、Privacy governanceを同時に設計する**
    - Trusted Reviewer制度の初期設計（レピュテーションスコア、権限レベル）
+   - 地域クラブモデルの初期設計（organization / club / reviewer_membership / review_credit）
+   - reviewer throughput 計測（誰が・どの組織で・何件・何分・どの根拠で処理したか）
    - 精密座標のアクセス制御（研究者登録、利用目的申請、監査ログ）
    - データ保持期間・削除フローの決定
    - → これがそのままmoatと持続可能性の核になる
@@ -859,3 +894,4 @@ iNaturalist/eBird/GBIFとデータ量で正面から勝負するのは不利。
 | 2026-03-21 | v3.6 | v3.5レビュー対応。条文修正、GBIF整理統一、Gemini矛盾解消、SpeciesNet表現修正、整合性ノイズ解消 |
 | 2026-03-21 | v3.7 | 6回目レビュー対応。法務条文の再整理、Gemini記述の現状化、v3.6懸念の解消を試みた版 |
 | 2026-03-21 | v3.8 | Codex改善版。Appendix Aの条文ラベルをAPPI定義条文ベースに修正（位置情報: 第2条第1項 / 第16条第3項 / 第2条第7項）。APPI本文内のGDPR補助整理をノイズ化しない文章に圧縮。顧客PoCの意思決定者を役割ベースで確定条件付きに修正し、ヒアリング成果物に担当者名・評価・導入条件・次アクションを追加。S評価必須アクションの成果物を reviewer処理能力・担当者特定まで具体化 |
+| 2026-06-10 | v3.8.1追補 | ピッチ `自然の記録を、地域の力へ。` を North Star Charter へ昇格。地域クラブモデルを reviewer 供給問題への具体解として追加し、reviewer throughput 可観測化を P1、effort / absence readiness を P2 上位へ更新 |

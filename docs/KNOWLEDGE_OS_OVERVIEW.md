@@ -1,6 +1,6 @@
 # ikimon.life — 知識OS 統一概要
 
-更新日: 2026-05-11
+更新日: 2026-06-10
 対象: Claude / Codex / antigravity など、すべてのエージェント
 
 > **このファイルは入口であり、単独の最終正本ではない。**
@@ -11,7 +11,16 @@
 
 ## 0. 一言ビジョン
 
-**「観察のOS」** — 市民が採った生物観察データを、100年後の研究者が再利用できる形で保全・昇格・公開するプラットフォーム。
+**「自然の記録を、地域の力へ。」** — 暮らしの入口から始まる観察を、地域の自然データへ育て、企業・行政の判断材料にも使える形で保全・昇格・公開するプラットフォーム。
+
+2026-06-10 追加の North Star 正本:
+
+- `docs/strategy/north_star_charter_2026.md`
+- `docs/strategy/regional_club_reviewer_attribution_2026-06-10.md`
+- 外向けピッチ `ikimon.co.jp/pitch/ikimon/` (`E:\Projects\ikimon\cojp_pitch_upload`)
+- `ENJOY NATURE` は `暮らしの入口` 層の public face。`Place Intelligence OS` は `地域の自然データ` 層の内部 identity。
+- North Star metric は `月内に、地元ユーザーによる再訪記録が2回以上成立した active places 数`。
+- input metrics は `クラブの根拠付き同定件数/月`, `投稿フロー完了率`, `地図 -> 観察会作成数`, `place 再訪転換率`。
 
 2026-05-11 追加の用語正本:
 
@@ -26,7 +35,7 @@
 
 | Layer | 何 | 正本ドキュメント |
 |---|---|---|
-| **A. 現行改装** | PHP v1 プロダクトの UX 刷新。Place Intelligence OS へ向かう | `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md` |
+| **A. 現行改装** | current runtime / 公開面の UX 刷新。3層循環で Place Intelligence OS へ向かう | `docs/strategy/north_star_charter_2026.md` + `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md` |
 | **B. Canonical 化** | JSON → SQLite (`ikimon.db`) への段階的移行。証拠の信頼度管理 | `docs/architecture/ADR-001-canonical-source-of-truth.md` |
 | **C. v2 全面切替** | Fastify + PostgreSQL の parallel rebuild。cutover / rollback / readiness を含む | `docs/architecture/ikimon_v2_zero_base_cutover_master_plan_2026-04-11.md` |
 
@@ -280,14 +289,15 @@ platform_v2/src/routes/                  v2 APIルート
 ## 10. 参照ドキュメント優先順（ikimon タスク）
 
 1. `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` — 文書の正本索引
-2. `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` — 現在地と計画
-3. **このファイル** (`docs/KNOWLEDGE_OS_OVERVIEW.md`) — 用語と層の入口整理
-4. `docs/KNOWLEDGE_OS_BRIDGE_2026-04-14.md` — `.codex/knowledge` と repo docs の橋渡し
-5. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\NAVIGATOR.md` — branch 選択
-6. `docs/spec/navigable_biodiversity_os_contract.md` — ObservationPackage / retrieval 契約
-7. `docs/architecture/ADR-001-canonical-source-of-truth.md` — Canonical設計
-8. `docs/architecture/adr-005-evidence-tier.md` — Evidence Tier仕様
-9. `docs/STAGING_RUNBOOK.md` / `docs/DEPLOYMENT.md` — 実行手順
+2. `docs/strategy/north_star_charter_2026.md` — North Star / 3層循環 / KPI
+3. `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` — 現在地と計画
+4. **このファイル** (`docs/KNOWLEDGE_OS_OVERVIEW.md`) — 用語と層の入口整理
+5. `docs/KNOWLEDGE_OS_BRIDGE_2026-04-14.md` — `.codex/knowledge` と repo docs の橋渡し
+6. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\NAVIGATOR.md` — branch 選択
+7. `docs/spec/navigable_biodiversity_os_contract.md` — ObservationPackage / retrieval 契約
+8. `docs/architecture/ADR-001-canonical-source-of-truth.md` — Canonical設計
+9. `docs/architecture/adr-005-evidence-tier.md` — Evidence Tier仕様
+10. `docs/STAGING_RUNBOOK.md` / `docs/DEPLOYMENT.md` — 実行手順
 
 ### v2 / cutover を触る場合の追加順
 
@@ -315,6 +325,7 @@ platform_v2/src/routes/                  v2 APIルート
 `docs/KNOWLEDGE_OS_OVERVIEW.md` は「入口」なので、次のどれかが変わったら review 対象とみなす。
 
 - `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md`
+- `docs/strategy/north_star_charter_2026.md`
 - `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md`
 - `docs/KNOWLEDGE_OS_BRIDGE_2026-04-14.md`
 - `docs/STAGING_RUNBOOK.md`
@@ -332,7 +343,7 @@ platform_v2/src/routes/                  v2 APIルート
 
 ---
 
-## 12. 現時点の注意点（2026-04-30）
+## 12. 現時点の注意点（2026-06-10）
 
 - staging の正式 URL は `https://staging.ikimon.life/`
 - staging の `/` は v2、`/legacy/` は PHP rollback lane
@@ -344,6 +355,9 @@ platform_v2/src/routes/                  v2 APIルート
   - specialist: session + specialist role
   - 特権 API (`session issue / user upsert / remember-token issue/revoke`): `V2_PRIVILEGED_WRITE_API_KEY` 必須
 - `survey` は比較可能性を高める入口だが、まだ `absence claim` や `trend-ready claim` ではない
+- ピッチが `いつ・どこで・どの努力量で見たか` を対外約束にしたため、effort / absence readiness は P2 上位として records / export / report で説明可能にする
+- 地域クラブモデルにより、reviewer throughput 可観測化は P1。`specialistReview` / `identificationConsensus` は、個人だけでなく club / organization attribution の設計判断と連動させる
+- club / organization attribution は `docs/strategy/regional_club_reviewer_attribution_2026-06-10.md` を読み、`field_managers` へ吸収しない
 - iNaturalist 批判への返答境界は `docs/review/ikimon_inaturalist_critique_response_boundary_2026-04-20.md` を参照する
 - `dev_tools/observation_feedback_*` は現 repo には存在しない。今後は `platform_v2/src/scripts/importObservationFeedbackKnowledgeClaims.ts` と `knowledge_claims` を通して復元する
 

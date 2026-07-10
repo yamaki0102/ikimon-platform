@@ -1,6 +1,6 @@
 # ikimon.life Master Status and Development Plan
 
-更新日: 2026-04-22
+更新日: 2026-06-10
 
 目的:
 
@@ -18,15 +18,18 @@ ikimon.life はいま、次の 3 レイヤーが並走している。
 ### Layer A. 現行プロダクト改装
 
 - 正本:
+  - `docs/strategy/north_star_charter_2026.md`
   - `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
   - `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
 - 公開主軸:
+  - `自然の記録を、地域の力へ。`
   - `ENJOY NATURE`
 - 主語:
   - `一般ユーザー`
   - `地元で繰り返し使う人`
   - `旅先ユーザー`
 - 目標:
+  - `暮らしの入口 -> 地域の自然データ -> 企業・行政の判断材料`
   - `自然が楽しい`
   - `世界の解像度が上がる`
   - `また歩きたくなる`
@@ -68,8 +71,11 @@ ikimon.life はいま、次の 3 レイヤーが並走している。
 
 ### 表の顔
 
+- `自然の記録を、地域の力へ。`
 - `ENJOY NATURE`
 - `自然が楽しい。世界の解像度が上がる。`
+
+`ENJOY NATURE` は入口層の public face。全体の北極星は `自然の記録を、地域の力へ。` と3層循環で読む。
 
 ### 内部定義
 
@@ -80,6 +86,8 @@ ikimon.life はいま、次の 3 レイヤーが並走している。
 
 - `Place Intelligence OS`
 - `Long-term Nature Observatory`
+
+`Place Intelligence OS` は、3層循環のうち `地域の自然データ` 層の内部 identity として扱う。
 
 ### 最重要 actor
 
@@ -92,6 +100,13 @@ ikimon.life はいま、次の 3 レイヤーが並走している。
 ### North Star
 
 - `月内に、地元ユーザーによる再訪記録が2回以上成立した active places 数`
+
+Input metrics:
+
+- クラブの根拠付き同定件数/月
+- 投稿フロー完了率
+- 地図 -> 観察会作成数
+- place 再訪転換率
 
 ### 継続動機
 

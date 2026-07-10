@@ -1,12 +1,20 @@
 # ikimon.life 意思決定シート
 
-更新日: 2026-04-11
+更新日: 2026-06-10
 
 参照正本:
 
+- `docs/strategy/north_star_charter_2026.md`
 - `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
 
 この文書は、当面の意思決定サマリーとして使う。
+
+2026-06-10 追補:
+
+- 最上位 statement は `自然の記録を、地域の力へ。`
+- `Place Intelligence OS` は、3層循環 `暮らしの入口 -> 地域の自然データ -> 企業・行政の判断材料` のうち `地域の自然データ` 層の内部 identity として扱う
+- この文書の North Star `active places` は維持するが、定義は `月内に、地元ユーザーによる再訪記録が2回以上成立した active places 数` へ寄せる
+- 旧セクション8の「次からの正本は2本だけ」は、`north_star_charter_2026.md` と `IKIMON_KNOWLEDGE_MAP_2026-04-12.md` によって supersede する
 
 ---
 
@@ -165,9 +173,11 @@ ikimon の最上位の正体は、`自然観察アプリ` でも `地域探求OS
 
 ## 8. 今後の文書ルール
 
-次からの正本は 2 本だけにする。
+2026-06-10 以降、正本の入口は次の順にする。
 
-- `docs/strategy/ikimon_decision_sheet_2026-04-11.md`
-- `docs/strategy/ikimon_place_first_regional_os_execution_plan_2026-04-11.md`
+1. `docs/strategy/north_star_charter_2026.md`
+2. `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md`
+3. `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
+4. `docs/strategy/ikimon_place_first_regional_os_execution_plan_2026-04-11.md`
 
-それ以外は補助資料として扱う。
+この文書は意思決定サマリーとして残す。最上位 statement、3層循環、input metrics、地域クラブモデルは `north_star_charter_2026.md` を優先する。

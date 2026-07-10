@@ -14,6 +14,8 @@ if (-not (Test-Path -LiteralPath $overviewFullPath)) {
 
 $requiredPaths = @(
     "docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md",
+    "docs/strategy/north_star_charter_2026.md",
+    "docs/strategy/regional_club_reviewer_attribution_2026-06-10.md",
     "docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md",
     "docs/KNOWLEDGE_OS_BRIDGE_2026-04-14.md",
     "docs/STAGING_RUNBOOK.md",
@@ -33,6 +35,8 @@ $requiredPaths = @(
 
 $watchedPaths = @(
     "docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md",
+    "docs/strategy/north_star_charter_2026.md",
+    "docs/strategy/regional_club_reviewer_attribution_2026-06-10.md",
     "docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md",
     "docs/KNOWLEDGE_OS_BRIDGE_2026-04-14.md",
     "docs/STAGING_RUNBOOK.md",
@@ -53,6 +57,8 @@ $hasErrors = $false
 
 $requiredMarkers = @(
     "IKIMON_KNOWLEDGE_MAP_2026-04-12.md",
+    "north_star_charter_2026.md",
+    "regional_club_reviewer_attribution_2026-06-10.md",
     "IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md",
     "KNOWLEDGE_OS_BRIDGE_2026-04-14.md",
     "check_knowledge_os_overview_sync.ps1",

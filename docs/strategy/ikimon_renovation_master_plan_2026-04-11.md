@@ -1,9 +1,15 @@
 # ikimon.life 全体改装・実装マスタープラン
 
-更新日: 2026-04-11
+更新日: 2026-06-10
 
-この文書を、ikimon.life 改装の**唯一の正本計画**として扱う。  
+この文書を、ikimon.life 改装の**実装計画正本**として扱う。
 旧来の BtoBtoC 計画、place-first 計画、個別 UI 仕様は、この文書に従って読み替える。
+
+2026-06-10 追補:
+
+- 最上位の North Star statement と KPI は `docs/strategy/north_star_charter_2026.md` を優先する。
+- この文書の `近くの自然が、ちょっとおもしろくなる。` は、3層循環の `暮らしの入口` 層の改装コピーとして扱う。
+- `Place Intelligence OS` は `地域の自然データ` 層の内部 identity として扱う。
 
 ---
 
@@ -551,6 +557,8 @@ API、OAuth callback、manifest、service worker、admin 内部ページは別�
 - first record completion rate
 - first place follow rate
 - first revisit intent rate
+- 投稿フロー完了率（record start -> media selected -> submitted -> accepted）
+- 地図 -> 観察会作成数（map place selected -> event create start -> event published）
 
 ### 10.3 Retention
 
@@ -558,6 +566,7 @@ API、OAuth callback、manifest、service worker、admin 内部ページは別�
 - 30日 revisit completion rate
 - My Places 継続率
 - season-over-season revisit rate
+- place 再訪転換率（first visit cohort -> second visit within period）
 
 ### 10.4 Quality
 
@@ -565,6 +574,7 @@ API、OAuth callback、manifest、service worker、admin 内部ページは別�
 - evidence 付与率
 - label_granularity 記録率
 - application_ready 候補率
+- effort / absence readiness（records / export / report で説明可能か）
 
 ### 10.5 Regional / sponsor
 
@@ -572,6 +582,8 @@ API、OAuth callback、manifest、service worker、admin 内部ページは別�
 - supported active places
 - partner-backed programs count
 - positive-list 候補の蓄積件数
+- クラブの根拠付き同定件数/月
+- monitoring 契約から club attribution へ戻せる review credit
 
 ---
 
