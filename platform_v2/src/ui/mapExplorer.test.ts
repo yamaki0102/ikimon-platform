@@ -1060,6 +1060,7 @@ test("map explorer restores the quick record launcher on mobile only", () => {
   assert.match(styles, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: none;\s*\}/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;\s*z-index: 72;[\s\S]*bottom: max\(8px, env\(safe-area-inset-bottom\)\);/);
   assert.match(styles, /--me-mobile-action-space: calc\(92px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-map \.maplibregl-ctrl-bottom-right \{\s*bottom: calc\(var\(--me-mobile-action-space\) \+ 4px\);\s*\}/);
 });
 
 test("mobile map filters open from the thumb zone above the record launcher", () => {
