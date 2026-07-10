@@ -15,6 +15,8 @@ const LOCAL_TAXON_DICTIONARY: LocalTaxonNameMatch[] = [
   { vernacularName: "ヒメムカシヨモギ", scientificName: "Erigeron canadensis", rank: "species", source: "local_dictionary" },
   { vernacularName: "イネ科", scientificName: "Poaceae", rank: "family", source: "local_dictionary" },
   { vernacularName: "カラスノエンドウ", scientificName: "Vicia sativa subsp. nigra", rank: "species", source: "local_dictionary" },
+  { vernacularName: "ユウマダラエダシャク", scientificName: "Abraxas miranda", rank: "species", source: "local_dictionary" },
+  { vernacularName: "キハラゴマダラヒトリ", scientificName: "Spilosoma lubricipeda", rank: "species", source: "local_dictionary" },
 ];
 
 function normalizeJapaneseTaxonKey(value: string | null | undefined): string {

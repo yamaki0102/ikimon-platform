@@ -67,10 +67,43 @@ test("reassess prompt treats observed subjects as candidate reading targets", ()
   assert.match(prompt, /候補ごとに\*\*その分類群でなければ意味が薄い特徴\*\*/);
   assert.match(prompt, /ツルニチニチソウなら/);
   assert.match(prompt, /草本|イネ科|植栽|花|樹木/);
+  assert.match(prompt, /黄色い腹部だけで `キハラゴマダラヒトリ`/);
+  assert.match(prompt, /`ユウマダラエダシャク` \/ `Abraxas miranda`/);
+  assert.match(prompt, /前脚付け根の色や細かい点状斑/);
   assert.match(prompt, /coexisting_taxa/);
   assert.match(service, /observation_reassess\.md\/v5\.5/);
   assert.match(service, /candidateReading: primaryCandidateReading \?\? null/);
   assert.match(service, /candidateReading: candidate\.candidateReading \?\? null/);
+});
+
+test("visual reassess keeps Lite-first behind an environment-aware escalation gate", () => {
+  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+
+  assert.match(service, /AI_OBSERVATION_VISUAL_LITE_FIRST/);
+  assert.match(service, /runVisualExtractWithOptionalLiteFirst/);
+  assert.match(service, /visualExtractEscalationReasons/);
+  assert.match(service, /non_biological_in_coexisting_taxa/);
+  assert.match(service, /environment_context_sparse/);
+  assert.match(service, /visualLiteFirstEscalationReasons/);
+});
+
+test("visual extract prompt separates biological coexisting taxa from environment context", () => {
+  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+
+  assert.match(service, /非生物は coexisting_taxa に入れず/);
+  assert.match(service, /area_inference は写真から読める植生構造/);
+  assert.match(service, /環境文脈を捨てない/);
+  assert.match(service, /area_inference \/ management_action_candidates に環境・場・人為管理/);
+});
+
+test("visual reassess can downscale stored photos before Gemini behind an env gate", () => {
+  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+
+  assert.match(service, /import sharp from "sharp"/);
+  assert.match(service, /AI_OBSERVATION_IMAGE_MAX_EDGE/);
+  assert.match(service, /preparePhotoBytesForGemini/);
+  assert.match(service, /resize\(\{ width: maxEdge, height: maxEdge, fit: "inside", withoutEnlargement: true \}\)/);
+  assert.match(service, /mime: "image\/jpeg"/);
 });
 
 test("reassess JSON schema avoids concrete taxon examples that can leak into output", () => {

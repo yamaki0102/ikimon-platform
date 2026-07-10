@@ -1100,6 +1100,11 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
           <input data-global-record-camera-zoom-range type="range" min="1" max="1" step="0.1" value="1" />
         </label>
         <button type="button" data-global-record-camera-zoom-max>最大</button>
+        <label class="global-record-camera-focus" data-global-record-camera-focus hidden>
+          <span>手動ピント <output data-global-record-camera-focus-value>--</output></span>
+          <input data-global-record-camera-focus-range type="range" min="0" max="1" step="0.01" value="0" />
+        </label>
+        <button type="button" data-global-record-camera-focus-auto hidden>AF</button>
       </div>
     </div>
     <div class="global-record-photo-tray" data-global-record-photo-tray hidden>
@@ -1167,6 +1172,12 @@ function globalRecordEntryScript(basePath: string): string {
   let cameraZoomMax = 1;
   let cameraZoomStep = 0.1;
   let cameraZoomCurrent = 1;
+  let cameraFocusTrack = null;
+  let cameraFocusMin = 0;
+  let cameraFocusMax = 1;
+  let cameraFocusStep = 0.01;
+  let cameraFocusCurrent = 0;
+  let cameraFocusAutoMode = '';
   let cameraPinchStartDistance = 0;
   let cameraPinchStartZoom = 1;
   let cameraPinchActive = false;
@@ -1197,6 +1208,10 @@ function globalRecordEntryScript(basePath: string): string {
   const zoomRange = document.querySelector('[data-global-record-camera-zoom-range]');
   const zoomValue = document.querySelector('[data-global-record-camera-zoom-value]');
   const zoomMaxButton = document.querySelector('[data-global-record-camera-zoom-max]');
+  const focusWrap = document.querySelector('[data-global-record-camera-focus]');
+  const focusRange = document.querySelector('[data-global-record-camera-focus-range]');
+  const focusValue = document.querySelector('[data-global-record-camera-focus-value]');
+  const focusAutoButton = document.querySelector('[data-global-record-camera-focus-auto]');
   const trimWrap = document.querySelector('[data-global-record-video-trim]');
   const trimStart = document.querySelector('[data-global-record-video-trim-start]');
   const trimEnd = document.querySelector('[data-global-record-video-trim-end]');
@@ -1374,6 +1389,12 @@ function globalRecordEntryScript(basePath: string): string {
     cameraZoomMax = 1;
     cameraZoomStep = 0.1;
     cameraZoomCurrent = 1;
+    cameraFocusTrack = null;
+    cameraFocusMin = 0;
+    cameraFocusMax = 1;
+    cameraFocusStep = 0.01;
+    cameraFocusCurrent = 0;
+    cameraFocusAutoMode = '';
     cameraPinchStartDistance = 0;
     cameraPinchStartZoom = 1;
     cameraPinchActive = false;
@@ -1387,6 +1408,18 @@ function globalRecordEntryScript(basePath: string): string {
     }
     if (zoomValue) zoomValue.textContent = '1.0x';
     if (zoomMaxButton) zoomMaxButton.disabled = true;
+    if (focusWrap) focusWrap.hidden = true;
+    if (focusRange) {
+      focusRange.min = '0';
+      focusRange.max = '1';
+      focusRange.step = '0.01';
+      focusRange.value = '0';
+    }
+    if (focusValue) focusValue.textContent = '--';
+    if (focusAutoButton) {
+      focusAutoButton.hidden = true;
+      focusAutoButton.disabled = true;
+    }
   };
   const updateCameraZoomUi = (value) => {
     cameraZoomCurrent = clamp(Number(value) || cameraZoomMin, cameraZoomMin, cameraZoomMax);
@@ -1401,27 +1434,85 @@ function globalRecordEntryScript(basePath: string): string {
       await cameraZoomTrack.applyConstraints({ advanced: [{ zoom: next }] });
     } catch (_) {}
   };
+  const formatFocus = (value) => {
+    const number = Number(value);
+    if (!Number.isFinite(number) || cameraFocusMax <= cameraFocusMin) return '--';
+    const percent = Math.round(((number - cameraFocusMin) / (cameraFocusMax - cameraFocusMin)) * 100);
+    return String(clamp(percent, 0, 100)) + '%';
+  };
+  const updateCameraFocusUi = (value) => {
+    cameraFocusCurrent = clamp(Number(value) || cameraFocusMin, cameraFocusMin, cameraFocusMax);
+    if (focusRange) focusRange.value = String(cameraFocusCurrent);
+    if (focusValue) focusValue.textContent = formatFocus(cameraFocusCurrent);
+  };
+  const applyCameraFocusDistance = async (value) => {
+    if (!cameraFocusTrack || !cameraFocusTrack.applyConstraints) return;
+    const next = clamp(Number(value) || cameraFocusMin, cameraFocusMin, cameraFocusMax);
+    updateCameraFocusUi(next);
+    const manualConstraint = { focusDistance: next };
+    const capabilities = cameraFocusTrack.getCapabilities ? cameraFocusTrack.getCapabilities() : {};
+    const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+    if (modes.indexOf('manual') >= 0) manualConstraint.focusMode = 'manual';
+    try {
+      await cameraFocusTrack.applyConstraints({ advanced: [manualConstraint] });
+      setStatus('手動ピントを調整しました。');
+    } catch (_) {}
+  };
+  const restoreCameraAutoFocus = async () => {
+    if (!cameraFocusTrack || !cameraFocusTrack.applyConstraints || !cameraFocusAutoMode) return;
+    try {
+      await cameraFocusTrack.applyConstraints({ advanced: [{ focusMode: cameraFocusAutoMode }] });
+      setStatus(cameraFocusAutoMode === 'continuous' ? '自動ピントに戻しました。' : 'AFを1回実行しました。');
+    } catch (_) {}
+  };
   const setupCameraZoom = async (stream) => {
     resetCameraZoomUi();
     const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
     const capabilities = track && track.getCapabilities ? track.getCapabilities() : null;
     const zoom = capabilities && capabilities.zoom ? capabilities.zoom : null;
-    if (!track || !zoom || !Number.isFinite(Number(zoom.max)) || Number(zoom.max) <= 1) return;
+    if (!track) return;
     const settings = track.getSettings ? track.getSettings() : {};
-    cameraZoomTrack = track;
-    cameraZoomMin = Number.isFinite(Number(zoom.min)) ? Number(zoom.min) : 1;
-    cameraZoomMax = Number(zoom.max);
-    cameraZoomStep = Number.isFinite(Number(zoom.step)) && Number(zoom.step) > 0 ? Number(zoom.step) : 0.1;
-    cameraZoomCurrent = clamp(Number(settings.zoom) || cameraZoomMin, cameraZoomMin, cameraZoomMax);
-    if (zoomRange) {
-      zoomRange.min = String(cameraZoomMin);
-      zoomRange.max = String(cameraZoomMax);
-      zoomRange.step = String(cameraZoomStep);
-      zoomRange.value = String(cameraZoomCurrent);
+    let hasControl = false;
+    if (zoom && Number.isFinite(Number(zoom.max)) && Number(zoom.max) > 1) {
+      cameraZoomTrack = track;
+      cameraZoomMin = Number.isFinite(Number(zoom.min)) ? Number(zoom.min) : 1;
+      cameraZoomMax = Number(zoom.max);
+      cameraZoomStep = Number.isFinite(Number(zoom.step)) && Number(zoom.step) > 0 ? Number(zoom.step) : 0.1;
+      cameraZoomCurrent = clamp(Number(settings.zoom) || cameraZoomMin, cameraZoomMin, cameraZoomMax);
+      if (zoomRange) {
+        zoomRange.min = String(cameraZoomMin);
+        zoomRange.max = String(cameraZoomMax);
+        zoomRange.step = String(cameraZoomStep);
+        zoomRange.value = String(cameraZoomCurrent);
+      }
+      updateCameraZoomUi(cameraZoomCurrent);
+      if (zoomMaxButton) zoomMaxButton.disabled = false;
+      hasControl = true;
     }
-    updateCameraZoomUi(cameraZoomCurrent);
-    if (zoomWrap) zoomWrap.hidden = false;
-    if (zoomMaxButton) zoomMaxButton.disabled = false;
+    const focusDistance = capabilities && capabilities.focusDistance ? capabilities.focusDistance : null;
+    const focusModes = capabilities && Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+    if (focusDistance && Number.isFinite(Number(focusDistance.max)) && Number(focusDistance.max) > Number(focusDistance.min ?? 0)) {
+      cameraFocusTrack = track;
+      cameraFocusMin = Number.isFinite(Number(focusDistance.min)) ? Number(focusDistance.min) : 0;
+      cameraFocusMax = Number(focusDistance.max);
+      cameraFocusStep = Number.isFinite(Number(focusDistance.step)) && Number(focusDistance.step) > 0 ? Number(focusDistance.step) : Math.max(0.01, (cameraFocusMax - cameraFocusMin) / 100);
+      cameraFocusCurrent = clamp(Number(settings.focusDistance) || cameraFocusMin, cameraFocusMin, cameraFocusMax);
+      cameraFocusAutoMode = focusModes.indexOf('continuous') >= 0 ? 'continuous' : (focusModes.indexOf('single-shot') >= 0 ? 'single-shot' : '');
+      if (focusRange) {
+        focusRange.min = String(cameraFocusMin);
+        focusRange.max = String(cameraFocusMax);
+        focusRange.step = String(cameraFocusStep);
+        focusRange.value = String(cameraFocusCurrent);
+      }
+      updateCameraFocusUi(cameraFocusCurrent);
+      if (focusWrap) focusWrap.hidden = false;
+      if (focusAutoButton) {
+        focusAutoButton.hidden = !cameraFocusAutoMode;
+        focusAutoButton.disabled = !cameraFocusAutoMode;
+      }
+      hasControl = true;
+    }
+    if (zoomWrap) zoomWrap.hidden = !hasControl;
   };
   const cameraPinchDistance = () => {
     const points = Array.from(cameraPreviewPointers.values());
@@ -1454,6 +1545,7 @@ function globalRecordEntryScript(basePath: string): string {
     for (const constraint of attempts) {
       try {
         await track.applyConstraints({ advanced: [constraint] });
+        if (focusValue) focusValue.textContent = 'AF';
         setStatus('タップした位置にフォーカスを合わせました。');
         return true;
       } catch (_) {}
@@ -2233,10 +2325,13 @@ function globalRecordEntryScript(basePath: string): string {
       }
       if (startButton) startButton.hidden = true;
       setFooterActionMode('capture');
-      const zoomHelp = cameraZoomTrack ? ' ピンチまたはスライダーで最大' + formatZoom(cameraZoomMax) + 'まで使えます。' : '';
+      const controlHelp = [
+        cameraZoomTrack ? 'ピンチまたはスライダーで最大' + formatZoom(cameraZoomMax) + 'まで使えます。' : '',
+        cameraFocusTrack ? '手動ピントも調整できます。' : '',
+      ].filter(Boolean).join(' ');
       setStatus(activeKind === 'video'
-        ? '動画記録は最大60秒。録画後に見せたい区間を選べます。' + zoomHelp
-        : '構図を確認してから撮影できます。' + zoomHelp);
+        ? '動画記録は最大60秒。録画後に見せたい区間を選べます。 ' + controlHelp
+        : '構図を確認してから撮影できます。 ' + controlHelp);
       sendGlobalRecordKpi('camera_start_ms', durationSince(cameraStartedAt), {
         fromSheetOpenMs: sheetOpenedAt ? durationSince(sheetOpenedAt) : null,
         constraintsKind: activeKind,
@@ -2718,6 +2813,16 @@ function globalRecordEntryScript(basePath: string): string {
   if (zoomMaxButton) {
     zoomMaxButton.addEventListener('click', () => {
       void applyCameraZoom(cameraZoomMax);
+    });
+  }
+  if (focusRange) {
+    focusRange.addEventListener('input', () => {
+      void applyCameraFocusDistance(focusRange.value);
+    });
+  }
+  if (focusAutoButton) {
+    focusAutoButton.addEventListener('click', () => {
+      void restoreCameraAutoFocus();
     });
   }
   if (cameraPreview) {

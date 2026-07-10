@@ -202,6 +202,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-camera-zoom/);
   assert.match(html, /data-global-record-camera-zoom-range/);
   assert.match(html, /data-global-record-camera-zoom-max/);
+  assert.match(html, /data-global-record-camera-focus/);
+  assert.match(html, /data-global-record-camera-focus-range/);
+  assert.match(html, /data-global-record-camera-focus-auto/);
   assert.match(html, /data-global-record-photo-tray/);
   assert.match(html, /data-global-record-photo-grid/);
   assert.match(html, /data-photo-draft="true"/);
@@ -241,6 +244,10 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /track\.getCapabilities/);
   assert.match(html, /capabilities && capabilities\.zoom/);
   assert.match(html, /applyConstraints\(\{ advanced: \[\{ zoom: next \}\] \}\)/);
+  assert.match(html, /capabilities && capabilities\.focusDistance/);
+  assert.match(html, /manualConstraint\.focusMode = 'manual'/);
+  assert.match(html, /applyCameraFocusDistance/);
+  assert.match(html, /restoreCameraAutoFocus/);
   assert.match(html, /const applyCameraFocusAt = async \(clientX, clientY\)/);
   assert.match(html, /pointsOfInterest: \[point\]/);
   assert.match(html, /focusMode: 'single-shot'/);

@@ -4,6 +4,7 @@ import path, { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import type { PoolClient } from "pg";
+import sharp from "sharp";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { createObservationAiRun, ensureLegacyAiRunsForVisit, getLatestObservationAiRunForVisit } from "./observationAiRuns.js";
@@ -12,7 +13,7 @@ import { getStoredVisitDisplayState, upsertVisitDisplayState, deriveVisitDisplay
 import { getVisitSubjectSummaries } from "./visitSubjects.js";
 import { logAiCost } from "./aiCostLogger.js";
 import { assertAllowed as assertAiBudgetAllowed } from "./aiBudgetGate.js";
-import { generateAiTextWithRoleChain, type AiRouterPart } from "./aiModelRouter.js";
+import { generateAiTextWithRoleChain, type AiRouterGenerateResult, type AiRouterPart } from "./aiModelRouter.js";
 import { loadProfileDigestForPrompt } from "./profileDigestPromptLoader.js";
 import {
   buildCacheKey,
@@ -887,6 +888,32 @@ function triggerKindForSourceTag(sourceTag: string): string {
   return "manual_reassess";
 }
 
+function readObservationAiImageMaxEdge(): number | null {
+  const raw = process.env.AI_OBSERVATION_IMAGE_MAX_EDGE?.trim();
+  if (!raw) return null;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.min(4096, Math.max(320, parsed));
+}
+
+async function preparePhotoBytesForGemini(input: { buffer: Buffer; mime: string | null }): Promise<{ buffer: Buffer; mime: string }> {
+  const mime = input.mime || "image/jpeg";
+  const maxEdge = readObservationAiImageMaxEdge();
+  if (!maxEdge || !mime.startsWith("image/")) {
+    return { buffer: input.buffer, mime };
+  }
+  try {
+    const resized = await sharp(input.buffer, { failOn: "none" })
+      .rotate()
+      .resize({ width: maxEdge, height: maxEdge, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 86, mozjpeg: true })
+      .toBuffer();
+    return { buffer: resized, mime: "image/jpeg" };
+  } catch {
+    return { buffer: input.buffer, mime };
+  }
+}
+
 async function loadPhotoBytes(client: PoolClient, visitId: string): Promise<LoadedPhotoInput[]> {
   const rows = await client.query<{
     asset_id: string;
@@ -921,9 +948,10 @@ async function loadPhotoBytes(client: PoolClient, visitId: string): Promise<Load
     for (const candidate of candidates) {
       try {
         const buf = await readFile(candidate);
+        const prepared = await preparePhotoBytesForGemini({ buffer: buf, mime: row.mime_type });
         out.push({
-          mime: row.mime_type || "image/jpeg",
-          b64: buf.toString("base64"),
+          mime: prepared.mime,
+          b64: prepared.buffer.toString("base64"),
           assetId: row.asset_id,
           frameTimeMs: null,
         });
@@ -1004,6 +1032,48 @@ type GeminiCostMeta = {
   sourceTag?: string | null;
 };
 
+const NON_BIOLOGICAL_SUBJECT_PATTERN = /石碑|公園|道路|舗装|看板|建物|土壌|裸地|礫|水面|ベンチ|フェンス|人工物|車両|車止め|噴水|モニュメント|コンクリート|アスファルト/u;
+
+function isObservationVisualLiteFirstEnabled(): boolean {
+  const raw = process.env.AI_OBSERVATION_VISUAL_LITE_FIRST?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
+
+function hasAreaInferenceSignal(parsed: GeminiJson): boolean {
+  const area = parsed.area_inference;
+  if (!area) return false;
+  return [
+    area.vegetation_structure_candidates,
+    area.succession_stage_candidates,
+    area.human_influence_candidates,
+    area.moisture_regime_candidates,
+    area.management_hint_candidates,
+  ].some((items) => Array.isArray(items) && items.length > 0);
+}
+
+function coexistingTaxaContainNonBiologicalSubject(parsed: GeminiJson): boolean {
+  if (!Array.isArray(parsed.coexisting_taxa)) return false;
+  return parsed.coexisting_taxa.some((candidate) => {
+    const text = [
+      candidate?.name,
+      candidate?.scientific_name,
+      candidate?.rank,
+      candidate?.note,
+    ].filter(Boolean).join(" ");
+    return NON_BIOLOGICAL_SUBJECT_PATTERN.test(text);
+  });
+}
+
+function visualExtractEscalationReasons(parsed: GeminiJson): string[] {
+  const reasons: string[] = [];
+  const primaryName = String(parsed.recommended_taxon_name ?? "").trim();
+  const primaryScientificName = String(parsed.recommended_scientific_name ?? "").trim();
+  if (!primaryName && !primaryScientificName) reasons.push("missing_primary_taxon");
+  if (coexistingTaxaContainNonBiologicalSubject(parsed)) reasons.push("non_biological_in_coexisting_taxa");
+  if (!hasAreaInferenceSignal(parsed)) reasons.push("environment_context_sparse");
+  return reasons;
+}
+
 function parseGeminiJson(rawText: string): GeminiJson {
   let parsed: GeminiJson = {};
   try {
@@ -1013,6 +1083,59 @@ function parseGeminiJson(rawText: string): GeminiJson {
     parsed = {};
   }
   return parsed;
+}
+
+async function runVisualExtractGemini(
+  parts: AiRouterPart[],
+  meta: GeminiCostMeta,
+  options: {
+    liteFirst: boolean;
+    escalationReasons?: string[];
+  },
+): Promise<AiRouterGenerateResult> {
+  return generateAiTextWithRoleChain({
+    chainName: options.liteFirst ? "observationVisualSummary" : "observationVisualExtract",
+    parts,
+    responseMimeType: "application/json",
+    thinkingConfig: { thinkingLevel: "minimal" },
+    temperature: 0.1,
+    maxOutputTokens: options.liteFirst ? 2048 : 4096,
+    retriesPerModel: 3,
+    retryDelayMs: 1200,
+    cost: {
+      layer: "hot",
+      endpoint: "observation_visual_extract",
+      userId: meta.userId ?? null,
+      visitId: meta.visitId ?? null,
+      occurrenceId: meta.occurrenceId ?? null,
+      metadata: {
+        sourceTag: meta.sourceTag ?? "photo",
+        visualLiteFirst: options.liteFirst,
+        visualLiteFirstEscalationReasons: options.escalationReasons ?? [],
+      },
+    },
+  });
+}
+
+async function runVisualExtractWithOptionalLiteFirst(
+  parts: AiRouterPart[],
+  meta: GeminiCostMeta,
+): Promise<AiRouterGenerateResult> {
+  if (!isObservationVisualLiteFirstEnabled()) {
+    return runVisualExtractGemini(parts, meta, { liteFirst: false });
+  }
+
+  const lite = await runVisualExtractGemini(parts, meta, { liteFirst: true });
+  const reasons = visualExtractEscalationReasons(parseGeminiJson(lite.text || "{}"));
+  const alreadyEscalatedByChain = lite.model.includes("3.5");
+  if (reasons.length === 0 || alreadyEscalatedByChain) {
+    return lite;
+  }
+
+  return runVisualExtractGemini(parts, meta, {
+    liteFirst: false,
+    escalationReasons: reasons,
+  });
 }
 
 async function runSingleGeminiReassess(
@@ -1065,31 +1188,16 @@ async function runVisualTwoStageGemini(
 - recommended_media_regions は主対象が見える矩形。各矩形は asset_index と rect(x,y,width,height 0-1) を必ず含める。動画フレームなら frame_time_ms も使う。
 - candidate_readings は同じ主対象の代替同定候補。副対象をここに混ぜない。
 - coexisting_taxa は主対象とは別に写る対象だけ。各対象に media_regions をできるだけ付ける。
+- 裸地・礫・舗装・石碑・看板・建物など非生物は coexisting_taxa に入れず、area_inference / management_action_candidates / note に分離する。
+- area_inference は写真から読める植生構造・人為影響・水分環境・管理痕跡を短く残す。読み取れないキーは空配列でよいが、環境文脈を捨てない。
 - audio_events / heard_taxa は音声だけで得た証拠。画像に写る副対象 coexisting_taxa に混ぜない。
 - 音声入力がある場合は、何が聞こえたかを audio_events / heard_taxa に必ず入れる。聞き取れない場合も空配列を返す。鳥声・人声・環境音を区別し、人声や個人情報が疑われる場合は audio_privacy_risk を true にする。
-- narrative / observer_boost / next_step_text / management_action_candidates は空または最小限でよい。分類と根拠領域を優先する。
+- narrative / observer_boost / next_step_text は空または最小限でよい。management_action_candidates は写真から読める管理・人為影響候補だけ短く残す。
 - 各説明は短くする。diagnostic_features_seen / missing_evidence は各5件まで、candidate_readings / coexisting_taxa は各6件まで。
 - トップレベルキー名は既存スキーマに合わせ、recommended_taxon_name / recommended_scientific_name / recommended_rank / confidence_band / recommended_media_regions を必ず使う。別名の primary や taxon は使わない。
 JSONのみ出力。`,
   });
-  const extract = await generateAiTextWithRoleChain({
-    chainName: "observationVisualExtract",
-    parts,
-    responseMimeType: "application/json",
-    thinkingConfig: { thinkingLevel: "minimal" },
-    temperature: 0.1,
-    maxOutputTokens: 4096,
-    retriesPerModel: 3,
-    retryDelayMs: 1200,
-    cost: {
-      layer: "hot",
-      endpoint: "observation_visual_extract",
-      userId: meta.userId ?? null,
-      visitId: meta.visitId ?? null,
-      occurrenceId: meta.occurrenceId ?? null,
-      metadata: { sourceTag: meta.sourceTag ?? "photo" },
-    },
-  });
+  const extract = await runVisualExtractWithOptionalLiteFirst(parts, meta);
   const audioExtract = audioInputs.length > 0
     ? await runAudioEvidenceGemini(audioInputs, meta).catch(() => null)
     : null;
@@ -1100,6 +1208,8 @@ AI単独で確定同定せず、根拠・保留点・次に撮るべき写真を
 主対象の recommended_media_regions と、副対象の media_regions は可能な限りそのまま維持してください。
 同じ主対象の代替候補は candidate_readings、別個体や背景植生は coexisting_taxa、音声だけで聞こえた対象は heard_taxa / audio_events に分離してください。
 分類名は証拠JSONにないものを新しく増やさないでください。地域文脈は補助に留め、画像・音声証拠を優先してください。
+裸地・礫・舗装・石碑・看板・建物など非生物は coexisting_taxa に入れず、area_inference / management_action_candidates / narrative の環境文脈へ分離してください。
+証拠JSONの area_inference / management_action_candidates に環境・場・人為管理の情報がある場合、最終JSONにも短く保持してください。
 トップレベルキー recommended_taxon_name / recommended_scientific_name / recommended_rank / confidence_band / recommended_media_regions は必ず含めてください。
 recommended_media_regions と coexisting_taxa[].media_regions は、証拠JSONにある asset_index / frame_time_ms / rect を維持してください。
 証拠JSONに audio_events / heard_taxa がある場合、最終JSONにも必ず残してください。音声入力がある場合、missing_evidence に「音声データ不足」と書かないでください。
