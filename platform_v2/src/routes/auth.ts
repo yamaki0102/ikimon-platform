@@ -583,6 +583,15 @@ async function handleOAuthCallback(
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+  if (!app.hasContentTypeParser("application/x-www-form-urlencoded")) {
+    app.addContentTypeParser(
+      "application/x-www-form-urlencoded",
+      { parseAs: "string" },
+      (_request, body, done) => {
+        done(null, Object.fromEntries(new URLSearchParams(body)));
+      },
+    );
+  }
   app.get("/login", async (request, reply) => {
     const basePath = requestBasePath(request);
     const url = new URL(requestUrl(request), "https://ikimon.local");
