@@ -97,13 +97,14 @@ function normalizeFacePrivacy(input: unknown): FacePrivacySummary | null {
   };
 }
 
-function canKeepPreparedJpeg(buffer: Buffer, mimeType: string, metadata: Metadata): boolean {
+function canKeepPreparedUploadImage(buffer: Buffer, mimeType: string, metadata: Metadata): boolean {
   const width = typeof metadata.width === "number" ? metadata.width : 0;
   const height = typeof metadata.height === "number" ? metadata.height : 0;
   const extraMetadata = metadata as Metadata & { iptc?: unknown; xmp?: unknown };
   const hasSensitiveMetadata = Boolean(metadata.exif || extraMetadata.iptc || extraMetadata.xmp);
-  return mimeType === "image/jpeg"
-    && metadata.format === "jpeg"
+  const expectedFormat = mimeType === "image/jpeg" ? "jpeg" : mimeType === "image/webp" ? "webp" : "";
+  return expectedFormat !== ""
+    && metadata.format === expectedFormat
     && width > 0
     && height > 0
     && width <= 2560
@@ -117,10 +118,10 @@ async function normalizeObservationImage(buffer: Buffer, mimeType: string): Prom
   const normalizedMime = mimeType.trim().toLowerCase();
   try {
     const inputMetadata = await sharp(buffer, { failOn: "none" }).metadata();
-    if (canKeepPreparedJpeg(buffer, normalizedMime, inputMetadata)) {
+    if (canKeepPreparedUploadImage(buffer, normalizedMime, inputMetadata)) {
       return {
         buffer,
-        mimeType: "image/jpeg",
+        mimeType: normalizedMime,
         widthPx: inputMetadata.width ?? null,
         heightPx: inputMetadata.height ?? null,
       };
@@ -131,16 +132,11 @@ async function normalizeObservationImage(buffer: Buffer, mimeType: string): Prom
       fit: "inside",
       withoutEnlargement: true,
     });
-    const pipeline = normalizedMime === "image/png"
-      ? image.png({ compressionLevel: 8, adaptiveFiltering: true })
-      : normalizedMime === "image/webp"
-        ? image.webp({ quality: 86, effort: 4 })
-        : image.jpeg({ quality: 88, mozjpeg: true });
-    const output = await pipeline.toBuffer();
+    const output = await image.webp({ quality: 86, effort: 4 }).toBuffer();
     const metadata = await sharp(output, { failOn: "none" }).metadata();
     return {
       buffer: output,
-      mimeType: normalizedMime === "image/png" || normalizedMime === "image/webp" ? normalizedMime : "image/jpeg",
+      mimeType: "image/webp",
       widthPx: typeof metadata.width === "number" ? metadata.width : null,
       heightPx: typeof metadata.height === "number" ? metadata.height : null,
     };
@@ -347,13 +343,32 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
 
     await client.query(
       `update visits
-          set public_visibility = 'public',
-              quality_review_status = 'accepted',
-              quality_gate_reasons = coalesce((
-                select jsonb_agg(reason)
-                  from jsonb_array_elements_text(coalesce(quality_gate_reasons, '[]'::jsonb)) as reasons(reason)
-                 where reason <> 'missing_photo'
-              ), '[]'::jsonb),
+          set public_visibility = case
+                when visit_id like 'prod-media-smoke-%'
+                  or coalesce(source_payload->>'source', '') = 'prod_media_smoke'
+                then 'hidden'
+                else 'public'
+              end,
+              quality_review_status = case
+                when visit_id like 'prod-media-smoke-%'
+                  or coalesce(source_payload->>'source', '') = 'prod_media_smoke'
+                then 'archived'
+                else 'accepted'
+              end,
+              quality_gate_reasons = case
+                when visit_id like 'prod-media-smoke-%'
+                  or coalesce(source_payload->>'source', '') = 'prod_media_smoke'
+                then case
+                  when coalesce(quality_gate_reasons, '[]'::jsonb) ? 'production_smoke_record'
+                  then coalesce(quality_gate_reasons, '[]'::jsonb)
+                  else coalesce(quality_gate_reasons, '[]'::jsonb) || '["production_smoke_record"]'::jsonb
+                end
+                else coalesce((
+                  select jsonb_agg(reason)
+                    from jsonb_array_elements_text(coalesce(quality_gate_reasons, '[]'::jsonb)) as reasons(reason)
+                   where reason <> 'missing_photo'
+                ), '[]'::jsonb)
+              end,
               updated_at = now()
         where visit_id = $1`,
       [visitId],
@@ -361,8 +376,30 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
 
     await client.query(
       `update observation_quality_reviews
-          set review_status = 'accepted',
-              public_visibility = 'public',
+          set review_status = case
+                when exists (
+                  select 1 from visits v
+                   where v.visit_id = observation_quality_reviews.visit_id
+                     and (
+                       v.visit_id like 'prod-media-smoke-%'
+                       or coalesce(v.source_payload->>'source', '') = 'prod_media_smoke'
+                     )
+                )
+                then 'archived'
+                else 'accepted'
+              end,
+              public_visibility = case
+                when exists (
+                  select 1 from visits v
+                   where v.visit_id = observation_quality_reviews.visit_id
+                     and (
+                       v.visit_id like 'prod-media-smoke-%'
+                       or coalesce(v.source_payload->>'source', '') = 'prod_media_smoke'
+                     )
+                )
+                then 'hidden'
+                else 'public'
+              end,
               reviewed_at = coalesce(reviewed_at, now()),
               updated_at = now()
         where visit_id = $1

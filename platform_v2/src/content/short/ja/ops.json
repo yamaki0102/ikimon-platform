@@ -28,7 +28,7 @@
       {
         "eyebrow": "flow 2",
         "title": "Public / Trust / Business",
-        "lead": "公開面の印象と、business 導線が old PHP URL に落ちず v2 で閉じるかを見る。",
+        "lead": "公開面の印象と、business 導線が old PHP URL に落ちず現行ページで閉じるかを見る。",
         "cards": [
           { "href": "/about", "label": "About", "note": "サービスの主語と CTA を確認。" },
           { "href": "/faq", "label": "FAQ", "note": "個人利用・公開・企業や地域での活用 FAQ を確認。" },
@@ -41,12 +41,12 @@
           { "href": "/for-business/status", "label": "Status", "note": "readiness 用語に寄らず現状説明できているか確認。" },
           { "href": "/for-business/apply", "label": "Apply", "note": "導入相談の固定面を確認。" }
         ],
-        "note": "redirect check: /about.php, /for-business.php, /for-business/apply.php が v2 path に寄るか確認。"
+        "note": "redirect check: /about.php, /for-business.php, /for-business/apply.php が現行 path に寄るか確認。"
       },
       {
         "eyebrow": "flow 3",
         "title": "Specialist Review",
-        "lead": "thin entry ではなく、review read/action が v2 側で回るかを見る。",
+        "lead": "thin entry ではなく、review read/action が現行側で回るかを見る。",
         "cards": [
           { "href": "/specialist/id-workbench", "label": "ID Workbench", "note": "default lane の queue と action form を確認。" },
           { "href": "/specialist/id-workbench?lane=public-claim", "label": "Public Claim Lane", "note": "public claim 用 lane 表示を確認。" },
@@ -74,7 +74,7 @@
         { "title": "Visual", "body": "hero・card・button の崩れ、英日混在、CTA 密度、モバイル幅での詰まり。" },
         { "title": "Transition", "body": "主要導線が 200 / redirect / 401 の想定どおりか。迷子導線や dead end がないか。" },
         { "title": "State", "body": "userId あり/なし、occurrence あり/なしで説明不足や壊れ方が雑でないか。" },
-        { "title": "Legacy drift", "body": "旧 PHP URL が v2 に寄るか。公開導線から PHP surface に着地しないか。" },
+        { "title": "Legacy drift", "body": "旧 PHP URL が現行ページに寄るか。公開導線から PHP surface に着地しないか。" },
         { "title": "Release gate", "body": "最後に /ops/readiness と /healthz を見て、デザイン確認と運用確認を切り分ける。" }
       ]
     },

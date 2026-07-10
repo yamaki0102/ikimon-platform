@@ -1045,7 +1045,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
         if (!session?.userId || session.banned) {
           throw new Error("unauthorized");
         }
-        assertAuthRateLimit(["guide-promote", session.userId, request.ip], 12, 10 * 60 * 1000);
+        await assertAuthRateLimit(["guide-promote", session.userId, request.ip], 12, 10 * 60 * 1000);
         const result = await promoteGuideRecordToObservation({
           guideRecordId: request.params.guideRecordId,
           userId: session.userId,

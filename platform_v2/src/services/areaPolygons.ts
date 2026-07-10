@@ -105,7 +105,7 @@ const LIVE_OSM_MAX_SPAN_DEGREES = 0.18;
 const LIVE_OSM_MIN_ZOOM = 13;
 const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "school"]);
 const LIVE_OSM_TILE_Z = 14;
-const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v2";
+const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v3";
 const LIVE_OSM_TILE_SOURCE = "overpass";
 const LIVE_OSM_SUCCESS_TTL_DAYS = 7;
 const LIVE_OSM_EMPTY_TTL_HOURS = 6;
@@ -224,6 +224,24 @@ function shouldFetchLiveOsm(query: AreaPolygonsQuery, sources: AreaPolygonSource
   const [minLng, minLat, maxLng, maxLat] = query.bbox;
   if (maxLng <= minLng || maxLat <= minLat) return false;
   return (maxLng - minLng) <= LIVE_OSM_MAX_SPAN_DEGREES && (maxLat - minLat) <= LIVE_OSM_MAX_SPAN_DEGREES;
+}
+
+function requestedLiveOsmSources(sources: AreaPolygonSource[]): AreaPolygonSource[] {
+  return sources.filter((source, index) => LIVE_OSM_SOURCES.has(source) && sources.indexOf(source) === index);
+}
+
+function hasRequestedLiveOsmSourceCoverage(sources: AreaPolygonSource[], features: AreaPolygonFeature[]): boolean {
+  const requested = requestedLiveOsmSources(sources);
+  if (requested.length === 0) return true;
+  return requested.every((source) => features.some((feature) => feature.properties.source === source));
+}
+
+function hasFreshLiveOsmCacheCoverage(
+  sources: AreaPolygonSource[],
+  cachedFeatures: AreaPolygonFeature[],
+  freshComplete: boolean,
+): boolean {
+  return freshComplete && hasRequestedLiveOsmSourceCoverage(sources, cachedFeatures);
 }
 
 function filterAreaFeaturesBySources(features: AreaPolygonFeature[], sources: AreaPolygonSource[]): AreaPolygonFeature[] {
@@ -772,7 +790,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
   if (shouldUseLiveOsm && features.length < limit) {
     const cached = await readLiveOsmTileCache(query.bbox, limit - features.length);
     const cachedFeatures = cached.freshComplete ? filterAreaFeaturesBySources(cached.freshFeatures, sources) : [];
-    if (cached.freshComplete) {
+    if (hasFreshLiveOsmCacheCoverage(sources, cachedFeatures, cached.freshComplete)) {
       features.push(...cachedFeatures);
     } else {
       const live = await fetchLiveOsmAreaPolygons(query, limit - features.length);
@@ -824,6 +842,8 @@ export const __test__ = {
   featureTouchesBbox,
   isCompleteFreshLiveCache,
   filterAreaFeaturesBySources,
+  hasFreshLiveOsmCacheCoverage,
+  hasRequestedLiveOsmSourceCoverage,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
   toBiodiversityGroups,

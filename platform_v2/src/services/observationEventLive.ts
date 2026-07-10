@@ -81,8 +81,17 @@ interface LiveNotification {
 
 type Subscriber = (row: LiveEventRow) => void;
 
-const channelName = (sessionId: string): string =>
-  `obs_evt_${sessionId.replace(/-/g, "")}`;
+function normalizeSessionIdForChannel(sessionId: string): string {
+  const normalized = sessionId.trim().toLowerCase().replace(/-/g, "");
+  if (!/^[0-9a-f]{32}$/.test(normalized)) {
+    throw new Error("invalid_observation_event_session_id");
+  }
+  return normalized;
+}
+
+export function observationEventChannelName(sessionId: string): string {
+  return `obs_evt_${normalizeSessionIdForChannel(sessionId)}`;
+}
 
 class ObservationEventLiveHub {
   private listenerClient: PoolClient | null = null;
@@ -102,7 +111,7 @@ class ObservationEventLiveHub {
 
     if (!this.listening.has(sessionId)) {
       try {
-        await this.listenerClient?.query(`LISTEN ${channelName(sessionId)}`);
+        await this.listenerClient?.query(`LISTEN ${observationEventChannelName(sessionId)}`);
         this.listening.add(sessionId);
       } catch (error) {
         bucket.delete(fn);
@@ -121,7 +130,7 @@ class ObservationEventLiveHub {
     if (bucket.size === 0) {
       this.subscribers.delete(sessionId);
       void this.listenerClient
-        ?.query(`UNLISTEN ${channelName(sessionId)}`)
+        ?.query(`UNLISTEN ${observationEventChannelName(sessionId)}`)
         .catch(() => undefined);
       this.listening.delete(sessionId);
     }
@@ -163,7 +172,7 @@ class ObservationEventLiveHub {
       // Re-LISTEN any sessions we already had subscribers for (reconnect case).
       for (const sessionId of this.subscribers.keys()) {
         try {
-          await client.query(`LISTEN ${channelName(sessionId)}`);
+          await client.query(`LISTEN ${observationEventChannelName(sessionId)}`);
           this.listening.add(sessionId);
         } catch {
           // best effort
@@ -195,7 +204,7 @@ class ObservationEventLiveHub {
     const stripped = channel.replace(/^obs_evt_/, "");
     let matchedSessionId: string | null = null;
     for (const sessionId of this.subscribers.keys()) {
-      if (sessionId.replace(/-/g, "") === stripped) {
+      if (normalizeSessionIdForChannel(sessionId) === stripped) {
         matchedSessionId = sessionId;
         break;
       }

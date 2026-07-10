@@ -1,6 +1,6 @@
 # ikimon.life — 知識OS 統一概要
 
-更新日: 2026-05-11
+更新日: 2026-07-09
 対象: Claude / Codex / antigravity など、すべてのエージェント
 
 > **このファイルは入口であり、単独の最終正本ではない。**
@@ -184,17 +184,19 @@ Tier 4   → 論文・標本等の外部エビデンス紐付き
 
 ```
 platform_v2/src/
-├── app.ts / server.ts       エントリポイント (Fastify)
+├── app.ts / server.ts       Fastify app factory / runtime entrypoint
 ├── db.ts                    PostgreSQL接続
 ├── routes/
 │   ├── marketing.ts         トップページ・LP
 │   ├── write.ts             観察投稿 API
-│   ├── read.ts              観察取得 API
+│   ├── read.ts              観察取得 API / public record queue
 │   ├── health.ts            ヘルスチェック
 │   ├── ops.ts               /ops/readiness
 │   └── uiKpi.ts             UI KPI events
 ├── services/
 │   ├── authSession.ts       cookie session
+│   ├── readModels.ts        public read model / needs-id queue
+│   ├── identificationReferencesView.ts 同定根拠資料 view
 │   ├── observationWrite.ts  quick capture / survey write lane
 │   ├── observationPackage.ts 実DBから ObservationPackage を組み立てる read helper
 │   ├── knowledgeClaimRetrieval.ts branch-aware claim retrieval
@@ -216,6 +218,9 @@ platform_v2/src/
 - map は `actor lens` を持ち、`local steward / traveler / casual` ごとに frontier を変える入口ができた
 - observation detail は `AI suggestion -> community support -> authority-backed -> public claim` を段差つきで見せる
 - Navigable Biodiversity OS は `ObservationPackage` 契約、branch INDEX、10問A/B評価、`import:feedback-knowledge`、branch-aware claim retrieval、reassess 出力サンプル生成、reviewer / report への `claim_refs_used` 貫通、CI の `eval:navigable-os` gate まで入っている
+- `/records` / `/observations` の `needs_id` queue は、未同定判定を SQL 側で先に絞ってから cursor / limit を適用する。共有判定は `readModels.isObservationAwaitingIdentification` を入口にする
+- `buildApp()` は app factory として扱い、scheduler などの background job は `server.ts` の runtime 起動後に始める
+- reference duplicate merge は、`identification_references` / `user_reference_access_proofs` / `knowledge_source_taxon_links` を canonical source へコピーしてから duplicate 化する。途中失敗は transaction rollback で止める
 - 切替判断は `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md` と
   `docs/architecture/ikimon_v2_final_cutover_runbook_2026-04-15.md` を参照する
 
@@ -332,7 +337,7 @@ platform_v2/src/routes/                  v2 APIルート
 
 ---
 
-## 12. 現時点の注意点（2026-04-30）
+## 12. 現時点の注意点（2026-07-09）
 
 - staging の正式 URL は `https://staging.ikimon.life/`
 - staging の `/` は v2、`/legacy/` は PHP rollback lane
@@ -343,6 +348,8 @@ platform_v2/src/routes/                  v2 APIルート
   - 一般 write: cookie session の本人のみ
   - specialist: session + specialist role
   - 特権 API (`session issue / user upsert / remember-token issue/revoke`): `V2_PRIVILEGED_WRITE_API_KEY` 必須
+- release handoff は local quality gate だけでは足りない。`scripts/local_deploy_preflight.ps1 -RequireCodexBranch -RequireUpstreamSync` が clean worktree / upstream sync を要求する
+- platform_v2 の最低 local gate は `typecheck` / `build` / `test:node` / `test:curator` / `security:audit` / deploy manifest sync。browser smoke は staging または PostgreSQL 付き local runtime が必要
 - `survey` は比較可能性を高める入口だが、まだ `absence claim` や `trend-ready claim` ではない
 - iNaturalist 批判への返答境界は `docs/review/ikimon_inaturalist_critique_response_boundary_2026-04-20.md` を参照する
 - `dev_tools/observation_feedback_*` は現 repo には存在しない。今後は `platform_v2/src/scripts/importObservationFeedbackKnowledgeClaims.ts` と `knowledge_claims` を通して復元する

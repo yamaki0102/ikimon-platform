@@ -29,12 +29,13 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /data-snap/);
     assert.match(html, /me-discovery-preview/);
     assert.match(html, /pickDiscoveryPreviewRecords/);
-    assert.match(html, /Enjoy Nature Map/);
-    assert.match(html, />最近の発見</);
+    assert.match(html, /近くを見る・振り返る/);
+    assert.match(html, /記録を場所から見返す道具/);
+    assert.match(html, />近くの記録</);
     assert.match(html, />季節の気配</);
     assert.match(html, />エリア図鑑</);
     assert.match(html, />記録の余白</);
-    assert.match(html, /写真カード = 最近の発見/);
+    assert.match(html, /写真カード = 近くの地域記録/);
     assert.match(html, /id="me-contribution-panel"/);
     assert.match(html, /\.me-side\[data-tab="results"\] \.me-contribution-panel \{ display: none; \}/);
     assert.match(html, /場所ストーリー/);
@@ -75,7 +76,9 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /エリア種別/);
     assert.match(html, /自然共生サイト/);
     assert.match(html, /学校・キャンパス/);
-    assert.match(html, /このエリアで観察会/);
+    assert.match(html, /近くを見る・振り返る/);
+    assert.match(html, /地域図鑑の主役ではなく、記録を場所から見返す道具/);
+    assert.doesNotMatch(html, /\/community\/events\/new/);
     assert.match(html, /admin_curated/);
     assert.match(html, /community_curated/);
     assert.match(html, /auto_observation/);

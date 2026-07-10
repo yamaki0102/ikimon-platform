@@ -1,0 +1,4 @@
+{
+  "upload_package/libs/OmoikaneDB.php": "Test and runtime failure semantics fix: replace process-level die on optional OMOIKANE SQLite connection failure with an exception so callers and PHPUnit can handle the fallback path correctly.",
+  "upload_package/public_html/assets/img/ikimon-wordmark-black.png": "Current runtime deploy compatibility asset: the wordmark is served from the legacy public_html static asset bridge, not from legacy PHP runtime code."
+}

@@ -57,8 +57,10 @@ import { adoptObservationCandidate } from "../services/observationCandidateAdopt
 import { proposeObservationSubjectFromCandidate } from "../services/observationSubjectProposal.js";
 import { confirmManagementActionCandidate } from "../services/managementActionConfirmation.js";
 import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
+import { holdIdentificationWorkbenchItem } from "../services/identificationWorkbenchHolds.js";
 import { hideOwnObservation } from "../services/observationVisibility.js";
 import {
+  confirmReferenceDuplicateMerge,
   createKnowledgeSourceCorrection,
   createReferenceCaptureBatch,
   type KnowledgeSourceCorrectionInput,
@@ -126,6 +128,16 @@ function errorStatus(error: unknown, fallback = 400): number {
     return 400;
   }
   return fallback;
+}
+
+async function assertMutationRateLimit(
+  request: FastifyRequest,
+  scope: string,
+  userId: string,
+  maxAttempts = 30,
+  windowMs = 10 * 60 * 1000,
+): Promise<void> {
+  await assertAuthRateLimit([scope, userId, request.ip], maxAttempts, windowMs);
 }
 
 function summarizeUploadBody(body: Partial<Omit<ObservationPhotoUploadInput, "observationId">> | null | undefined): {
@@ -303,7 +315,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSessionUser(session, session?.userId ?? "");
-      assertAuthRateLimit(["record-photo-feedback", resolvedSession.userId, request.ip], 10, 10 * 60 * 1000);
+      await assertAuthRateLimit(["record-photo-feedback", resolvedSession.userId, request.ip], 10, 10 * 60 * 1000);
       const images = normalizeRecordPhotoFeedbackImages(request.body?.images);
       const context = normalizeRecordPhotoFeedbackContext(request.body?.context);
       const result = await generateRecordPhotoFeedback({
@@ -350,6 +362,38 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post<{
+    Body: {
+      canonicalSourceId?: string | null;
+      duplicateSourceId?: string | null;
+    };
+  }>("/api/v1/references/duplicates/merge", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      const canonicalSourceId = request.body?.canonicalSourceId?.trim();
+      const duplicateSourceId = request.body?.duplicateSourceId?.trim();
+      if (!canonicalSourceId || !duplicateSourceId) {
+        throw new Error("reference_source_id_required");
+      }
+      const result = await confirmReferenceDuplicateMerge({
+        canonicalSourceId,
+        duplicateSourceId,
+        actorUserId: resolvedSession.userId,
+      });
+      return {
+        ok: true,
+        result,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "reference_duplicate_merge_failed",
+      };
+    }
+  });
+
+  app.post<{
     Params: { sourceId: string };
     Body: Omit<KnowledgeSourceCorrectionInput, "sourceId" | "verifiedByUserId">;
   }>("/api/v1/references/:sourceId/corrections", async (request, reply) => {
@@ -358,9 +402,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
-      if (!/admin|analyst|specialist/i.test(session.roleName)) {
-        throw new Error("specialist_role_required");
-      }
+      await assertSpecialistSession(session, session.userId);
       return await createKnowledgeSourceCorrection({
         ...request.body,
         sourceId: request.params.sourceId,
@@ -378,7 +420,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Body: ObservationUpsertInput }>("/api/v1/observations/upsert", async (request, reply) => {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
-      assertSessionUser(session, request.body.userId);
+      const resolvedSession = assertSessionUser(session, request.body.userId);
+      await assertMutationRateLimit(request, "observation-upsert", resolvedSession.userId, 30);
       const result = await upsertObservation(request.body);
       const placeMemorySample = result.placeMemory
         ? await getPostSavePlaceMemorySample({ userId: request.body.userId, visitId: result.visitId, limit: 3 }).catch(() => [])
@@ -450,6 +493,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           throw new Error("session_required");
         }
         sessionUserId = session.userId;
+        await assertMutationRateLimit(request, "observation-photo-upload", session.userId, 24);
         await assertObservationOwnedByUser(request.params.id, session.userId);
         const result = await uploadObservationPhoto({
           observationId: request.params.id,
@@ -497,6 +541,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
+      await assertMutationRateLimit(request, "observation-candidate-propose", session.userId, 30);
       const result = await proposeObservationSubjectFromCandidate({
         visitId: request.params.id,
         candidateId: request.params.candidateId,
@@ -524,6 +569,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
+      await assertMutationRateLimit(request, "observation-candidate-adopt", session.userId, 30);
       const result = await adoptObservationCandidate({
         visitId: request.params.id,
         candidateId: request.params.candidateId,
@@ -560,6 +606,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         if (!session) {
           throw new Error("session_required");
         }
+        await assertMutationRateLimit(request, "observation-hide", session.userId, 10);
         const result = await hideOwnObservation({
           observationId: request.params.id,
           actorUserId: session.userId,
@@ -591,6 +638,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
+      await assertMutationRateLimit(request, "observation-identification", session.userId, 30);
       const stance = request.body?.stance === "alternative" ? "alternative" : "support";
       return await submitObservationIdentification({
         occurrenceId: request.params.id,
@@ -620,6 +668,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       proposedName?: string | null;
       proposedRank?: string | null;
       reason?: string | null;
+      referenceSourceIds?: string[];
+      referenceLocator?: string | null;
     };
   }>("/api/v1/observations/:id/disputes", async (request, reply) => {
     try {
@@ -627,6 +677,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
+      await assertMutationRateLimit(request, "observation-dispute", session.userId, 12);
       const kind = request.body?.kind ?? "alternative_id";
       return await openObservationDispute({
         occurrenceId: request.params.id,
@@ -635,6 +686,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         proposedName: request.body?.proposedName ?? null,
         proposedRank: request.body?.proposedRank ?? null,
         reason: request.body?.reason ?? null,
+        referenceSourceIds: Array.isArray(request.body?.referenceSourceIds)
+          ? request.body.referenceSourceIds.map((value) => String(value))
+          : [],
+        referenceLocator: request.body?.referenceLocator ?? null,
       });
     } catch (error) {
       reply.code(errorStatus(error, 400));
@@ -645,10 +700,35 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.post<{
+    Params: { id: string };
+    Body: { reason?: string | null };
+  }>("/api/v1/observations/:id/identification-workbench-hold", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+      await assertMutationRateLimit(request, "identification-workbench-hold", session.userId, 60);
+      return await holdIdentificationWorkbenchItem({
+        occurrenceId: request.params.id,
+        actorUserId: session.userId,
+        reason: request.body?.reason ?? null,
+      });
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "identification_workbench_hold_failed",
+      };
+    }
+  });
+
   app.post<{ Body: TrackUpsertInput }>("/api/v1/tracks/upsert", async (request, reply) => {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
-      assertSessionUser(session, request.body.userId);
+      const resolvedSession = assertSessionUser(session, request.body.userId);
+      await assertMutationRateLimit(request, "track-upsert", resolvedSession.userId, 240);
       return await upsertTrack(request.body);
     } catch (error) {
       reply.code(errorStatus(error, 400));
@@ -670,6 +750,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
+      await assertMutationRateLimit(request, "observation-ai-review", session.userId, 20);
       return await submitObservationRecordAiReview({
         occurrenceId: request.params.id,
         actorUserId: session.userId,
@@ -709,6 +790,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       ) {
         throw new Error("forbidden_recommendation_subject");
       }
+      await assertMutationRateLimit(request, "authority-recommendation-create", session.userId, 12);
 
       const recommendation = await createAuthorityRecommendation({
         actorUserId: session.userId,
@@ -743,6 +825,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = await assertSpecialistSession(session, request.body.actorUserId);
+      await assertMutationRateLimit(request, "authority-recommendation-grant", resolvedSession.userId, 30);
       const result = await grantAuthorityRecommendation({
         recommendationId: request.params.id,
         actorUserId: resolvedSession.userId,
@@ -772,6 +855,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      await assertMutationRateLimit(request, "authority-recommendation-reject", resolvedSession.userId, 30);
       const recommendation = await rejectAuthorityRecommendation({
         recommendationId: request.params.id,
         actorUserId: resolvedSession.userId,
@@ -804,6 +888,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = await assertSpecialistSession(session, request.body.actorUserId);
+      await assertMutationRateLimit(request, "specialist-review", resolvedSession.userId, 60);
       return await recordSpecialistReview({
         occurrenceId: request.params.id,
         actorUserId: request.body.actorUserId,
@@ -836,6 +921,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       const session = await getSessionFromCookie(request.headers.cookie);
       const actorUserId = request.body.actorUserId ?? session?.userId ?? "";
       const resolvedSession = await assertSpecialistSession(session, actorUserId);
+      await assertMutationRateLimit(request, "specialist-dispute-resolve", resolvedSession.userId, 30);
       return await resolveIdentificationDispute({
         disputeId: request.params.id,
         actorUserId: resolvedSession.userId,
@@ -864,6 +950,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      await assertMutationRateLimit(request, "specialist-authority-grant", resolvedSession.userId, 30);
       const authority = await grantReviewerAuthority({
         subjectUserId: request.body.subjectUserId,
         grantedByUserId: resolvedSession.userId,
@@ -895,6 +982,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      await assertMutationRateLimit(request, "specialist-authority-revoke", resolvedSession.userId, 30);
       const authority = await revokeReviewerAuthority({
         authorityId: request.params.id,
         revokedByUserId: resolvedSession.userId,
@@ -920,6 +1008,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      await assertMutationRateLimit(request, "specialist-authority-evidence", resolvedSession.userId, 60);
       const authority = await addReviewerAuthorityEvidence({
         authorityId: request.params.id,
         actorUserId: resolvedSession.userId,
@@ -1075,6 +1164,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "video-direct-upload", session.userId, 12);
         const body = request.body ?? {};
         const observationId = typeof body.observationId === "string" ? body.observationId.trim() : "";
         if (observationId) {
@@ -1145,6 +1235,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "video-finalize", session.userId, 30);
         const observationId = typeof request.body?.observationId === "string"
           ? request.body.observationId.trim()
           : "";
@@ -1179,6 +1270,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "observation-reaction", session.userId, 120);
         const type = request.params.type as ReactionType;
         if (!isValidReactionType(type)) {
           reply.code(400);
@@ -1205,6 +1297,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "observation-reassess", session.userId, 10);
         await assertObservationOwnedByUser(request.params.id, session.userId);
         const result = await reassessObservation(request.params.id);
         return { ok: true, ...result };
@@ -1227,6 +1320,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "record-reading-cards", session.userId, 10);
         await assertObservationOwnedByUser(request.params.id, session.userId);
         const result = await generateRecordReadingCards({
           observationId: request.params.id,
@@ -1253,6 +1347,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "record-reading-card-hide", session.userId, 30);
         const result = await hideRecordReadingCard({
           cardId: request.params.cardId,
           actorUserId: session.userId,
@@ -1277,6 +1372,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "observation-reassess-video", session.userId, 10);
         await assertObservationOwnedByUser(request.params.id, session.userId);
         const result = await reassessFromVideoThumb(request.params.id);
         return { ok: true, ...result };
@@ -1300,6 +1396,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "management-candidate-confirm", session.userId, 30);
         await assertObservationOwnedByUser(request.params.id, session.userId);
         const confirmState = request.body?.confirmState;
         if (confirmState !== "suggested" && confirmState !== "confirmed" && confirmState !== "rejected") {

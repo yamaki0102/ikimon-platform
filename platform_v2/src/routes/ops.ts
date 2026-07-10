@@ -36,6 +36,8 @@ type RagAnswerBody = {
   type?: string;
 };
 
+type ReadinessSnapshot = Awaited<ReturnType<typeof getReadinessSnapshot>>;
+
 function parseLimit(raw: string | undefined, fallback: number, max = 200): number {
   return Math.min(max, Math.max(1, Number.parseInt(raw ?? String(fallback), 10) || fallback));
 }
@@ -66,6 +68,28 @@ async function hasDigitizedBooksOpsSession(request: FastifyRequest): Promise<boo
   return Boolean(session && !session.banned && isAdminOrAnalystRole(session.roleName, session.rankLabel));
 }
 
+async function hasFullReadinessAccess(request: FastifyRequest): Promise<boolean> {
+  if (await hasDigitizedBooksOpsSession(request)) {
+    return true;
+  }
+  try {
+    assertPrivilegedWriteAccess(request);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function publicReadinessSnapshot(snapshot: ReadinessSnapshot) {
+  return {
+    status: snapshot.status,
+    gates: snapshot.gates,
+    audioArchive: {
+      ready: snapshot.gates.audioArchiveReady,
+    },
+  };
+}
+
 function digitizedBooksLoginGate(): string {
   return `
 <div style="max-width:560px;margin:64px auto;padding:24px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;font-family:-apple-system,system-ui,sans-serif;">
@@ -76,8 +100,12 @@ function digitizedBooksLoginGate(): string {
 }
 
 export async function registerOpsRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/ops/readiness", async () => {
-    return getReadinessSnapshot();
+  app.get("/ops/readiness", async (request) => {
+    const snapshot = await getReadinessSnapshot();
+    if (await hasFullReadinessAccess(request)) {
+      return snapshot;
+    }
+    return publicReadinessSnapshot(snapshot);
   });
 
   app.get("/ops/digitized-books/data", async (request, reply) => {

@@ -1168,7 +1168,9 @@ function globalRecordEntryScript(basePath: string): string {
   const DRAFT_KEY = 'latest';
   const MAX_PHOTO_DRAFT_FILES = 6;
   const PHOTO_UPLOAD_MAX_EDGE = 2560;
-  const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
+  const PHOTO_UPLOAD_WEBP_QUALITY = 0.82;
+  const PHOTO_UPLOAD_FALLBACK_JPEG_QUALITY = 0.88;
+  const PHOTO_UPLOAD_KEEP_PREPARED_JPEG_MAX_BYTES = 512 * 1024;
   const PHOTO_UPLOAD_CONCURRENCY = 2;
   const CAMERA_PHOTO_IDEAL_WIDTH = 2560;
   const CAMERA_PHOTO_IDEAL_HEIGHT = 1920;
@@ -1608,18 +1610,26 @@ function globalRecordEntryScript(basePath: string): string {
     }));
     return results;
   };
-  const canvasToJpegDataUrl = (canvas, quality) => new Promise((resolve) => {
+  const jpegFallbackUploadDataUrl = (canvas) => ({
+    filenameExtension: 'jpg',
+    mimeType: 'image/jpeg',
+    base64Data: canvas.toDataURL('image/jpeg', PHOTO_UPLOAD_FALLBACK_JPEG_QUALITY),
+  });
+  const canvasToPhotoUploadData = (canvas) => new Promise((resolve) => {
+    const fallback = () => resolve(jpegFallbackUploadDataUrl(canvas));
     if (!canvas || typeof canvas.toBlob !== 'function') {
-      resolve(canvas.toDataURL('image/jpeg', quality));
+      fallback();
       return;
     }
     canvas.toBlob((blob) => {
-      if (!blob) {
-        resolve(canvas.toDataURL('image/jpeg', quality));
+      if (!blob || blob.type !== 'image/webp') {
+        fallback();
         return;
       }
-      readFileAsDataUrl(blob).then(resolve).catch(() => resolve(canvas.toDataURL('image/jpeg', quality)));
-    }, 'image/jpeg', quality);
+      readFileAsDataUrl(blob)
+        .then((base64Data) => resolve({ filenameExtension: 'webp', mimeType: 'image/webp', base64Data }))
+        .catch(fallback);
+    }, 'image/webp', PHOTO_UPLOAD_WEBP_QUALITY);
   });
   const loadImageElementForUpload = (file) => new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -1666,6 +1676,15 @@ function globalRecordEntryScript(basePath: string): string {
       const height = Number(image.naturalHeight || image.height || 0);
       if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error('photo_decode_failed');
       const scale = Math.min(1, PHOTO_UPLOAD_MAX_EDGE / Math.max(width, height));
+      if (originalType === 'image/jpeg' && scale === 1 && Number(file.size || 0) > 0 && Number(file.size || 0) <= PHOTO_UPLOAD_KEEP_PREPARED_JPEG_MAX_BYTES) {
+        if (image && typeof image.close === 'function') image.close();
+        return {
+          filename: file.name || 'upload.jpg',
+          mimeType: 'image/jpeg',
+          base64Data: await readFileAsDataUrl(file),
+          facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null },
+        };
+      }
       const targetWidth = Math.max(1, Math.round(width * scale));
       const targetHeight = Math.max(1, Math.round(height * scale));
       const canvas = document.createElement('canvas');
@@ -1675,12 +1694,12 @@ function globalRecordEntryScript(basePath: string): string {
       if (!context) throw new Error('photo_canvas_unavailable');
       context.drawImage(image, 0, 0, targetWidth, targetHeight);
       if (image && typeof image.close === 'function') image.close();
-      const base64Data = await canvasToJpegDataUrl(canvas, PHOTO_UPLOAD_JPEG_QUALITY);
+      const uploadImage = await canvasToPhotoUploadData(canvas);
       const safeName = String(file.name || 'upload.jpg').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
       return {
-        filename: safeName + '.jpg',
-        mimeType: 'image/jpeg',
-        base64Data,
+        filename: safeName + '.' + uploadImage.filenameExtension,
+        mimeType: uploadImage.mimeType,
+        base64Data: uploadImage.base64Data,
         facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null },
       };
     } catch (_) {

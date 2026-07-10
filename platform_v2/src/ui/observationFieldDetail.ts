@@ -5,7 +5,6 @@ import {
   AREA_SPOT_TYPE_LABELS,
   normalizeAreaEncyclopediaPayload,
   resolveAreaGuideTemplates,
-  spotHasPublicCoordinates,
   type AreaActor,
   type AreaEncyclopediaPayload,
   type AreaEncyclopediaSpot,
@@ -46,6 +45,54 @@ function sourceConfidenceLabel(field: ObservationField): string {
   return "一次情報: 未確認";
 }
 
+function fieldSourceLabel(field: ObservationField): string {
+  switch (field.source) {
+    case "user_defined":
+      return "利用者が作成したエリア";
+    case "nature_symbiosis_site":
+      return "連携エリア";
+    case "tsunag":
+      return "地域連携エリア";
+    case "protected_area":
+      return "保護区由来のエリア";
+    case "oecm":
+      return "保全候補エリア";
+    case "osm_park":
+      return "公園データ由来のエリア";
+    case "school":
+      return "管理されたエリア";
+    case "admin_municipality":
+      return "市区町村データ由来のエリア";
+    case "admin_prefecture":
+      return "都道府県データ由来のエリア";
+    case "admin_country":
+      return "国・地域データ由来のエリア";
+    default:
+      return "登録エリア";
+  }
+}
+
+function fieldVerificationSummary(field: ObservationField): { label: string; body: string } {
+  if (field.verificationLabel.trim()) {
+    return {
+      label: field.verificationLabel.trim(),
+      body: "公開できる範囲の根拠を確認済みです。",
+    };
+  }
+  switch (field.verificationLevel) {
+    case "registry_matched":
+      return { label: "台帳確認済み", body: "公的台帳と照合した範囲で表示しています。" };
+    case "page_verified":
+      return { label: "公式ページ確認済み", body: "公式ページで確認できる範囲に絞って表示しています。" };
+    case "owner_verified":
+      return { label: "管理者確認済み", body: "管理主体の確認が取れた範囲で表示しています。" };
+    case "staff_verified":
+      return { label: "担当者確認済み", body: "担当者が確認した公開情報として表示しています。" };
+    default:
+      return { label: "確認待ち", body: "名称や公開範囲は確認中です。安全のため詳細位置は出しません。" };
+  }
+}
+
 function sourceLinkItems(field: ObservationField): Array<{ label: string; url: string }> {
   const items = [
     { label: "公式", url: field.ownerUrl },
@@ -74,10 +121,11 @@ function renderSourceButtons(field: ObservationField): string {
 
 function renderFieldTrustInfo(field: ObservationField): string {
   const buttons = renderSourceButtons(field);
+  if (!buttons && !field.verificationLabel.trim()) return "";
   return `<section class="field-trust-info" aria-label="信頼情報">
     <header>
       <div>
-        <span class="evt-eyebrow">Source</span>
+        <span class="evt-eyebrow">Evidence</span>
         <h2 class="evt-heading">信頼情報</h2>
       </div>
       <span class="field-trust-status">${escapeHtml(sourceConfidenceLabel(field))}</span>
@@ -106,10 +154,6 @@ function formatObservationDate(iso: string | null | undefined): string {
 
 function isAreaSnapshot(snapshot: PlaceSnapshot | null | undefined): snapshot is AreaPlaceSnapshot {
   return Boolean(snapshot && Array.isArray((snapshot as Partial<AreaPlaceSnapshot>).observationGallery));
-}
-
-function htmlAttrJson(value: unknown): string {
-  return escapeHtml(JSON.stringify(value));
 }
 
 function fieldHeroAreaMetrics(
@@ -174,6 +218,21 @@ function actorNameMap(actors: AreaActor[]): Map<string, string> {
 function renderAreaHeroStats(metrics: Array<{ value: number; label: string }>): string {
   return `<div class="field-map-hero-stats" aria-label="エリア図鑑の公開記録">
     ${metrics.map((item) => `<div><strong>${formatNumber(item.value)}</strong><span>${escapeHtml(item.label)}</span></div>`).join("")}
+  </div>`;
+}
+
+function renderPublicRangeChips(field: ObservationField): string {
+  const verification = fieldVerificationSummary(field);
+  const locationLabel = [field.prefecture, field.city].filter(Boolean).join(" / ");
+  const chips = [
+    "公開範囲: 位置をぼかして表示",
+    field.radiusM ? `半径 ${formatNumber(field.radiusM)}m` : "",
+    verification.label,
+    fieldSourceLabel(field),
+    locationLabel,
+  ].filter(Boolean);
+  return `<div class="field-public-chips" aria-label="公開範囲と確認状態">
+    ${chips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
   </div>`;
 }
 
@@ -301,15 +360,16 @@ function renderActorCard(actor: AreaActor): string {
 }
 
 function renderAreaActors(encyclopedia: AreaEncyclopediaPayload): string {
+  if (encyclopedia.actors.length === 0 && encyclopedia.externalLinks.length === 0) return "";
   const actorCards = encyclopedia.actors.length > 0
     ? encyclopedia.actors.map(renderActorCard).join("")
-    : `<article class="evt-card field-empty-card"><h3 class="evt-heading">関連する企業・団体はまだありません</h3><p class="evt-lead">管理主体や協力団体が見えてきたら、ここに並びます。</p></article>`;
+    : "";
   const links = encyclopedia.externalLinks.length > 0
     ? `<div class="field-external-links">${encyclopedia.externalLinks.map((link) => `<a href="${escapeHtml(link.url)}" target="_blank" rel="noopener">${escapeHtml(link.label)} ↗</a>`).join("")}</div>`
     : "";
-  return `<section class="field-area-actors" aria-label="関連する企業・団体">
-    <header><span class="evt-eyebrow">Actors</span><h2 class="evt-heading">関連する企業・団体</h2></header>
-    <div class="field-actor-grid">${actorCards}</div>
+  return `<section class="field-area-actors" aria-label="関連">
+    <header><span class="evt-eyebrow">Related</span><h2 class="evt-heading">関連</h2></header>
+    ${actorCards ? `<div class="field-actor-grid">${actorCards}</div>` : ""}
     ${links}
   </section>`;
 }
@@ -375,6 +435,85 @@ function renderFieldAlbum(snapshot: PlaceSnapshot | null | undefined): string {
   </section>`;
 }
 
+function renderAreaHeroFeature(
+  snapshot: PlaceSnapshot | null | undefined,
+  stats: FieldStats,
+): string {
+  const publicRecordCount = snapshot?.observationSummary.totalObservations ?? stats.totalObservations;
+  if (isAreaSnapshot(snapshot) && snapshot.representativePhoto) {
+    const photo = snapshot.representativePhoto;
+    const href = `/observations/${encodeURIComponent(photo.visitId || photo.occurrenceId)}`;
+    const observedAt = formatObservationDate(photo.observedAt);
+    return `<a class="field-area-feature-card has-image" href="${escapeHtml(href)}">
+      <span class="field-area-feature-media"><img src="${escapeHtml(photo.photoUrl)}" alt="" loading="eager" decoding="async" /></span>
+      <span class="field-area-feature-body">
+        <small>公開記録</small>
+        <strong>${escapeHtml(photo.displayName || "このエリアの記録")}</strong>
+        <em>${escapeHtml(observedAt)}</em>
+      </span>
+    </a>`;
+  }
+  if (publicRecordCount > 0) {
+    return `<article class="field-area-feature-card">
+      <span class="field-area-feature-mark" aria-hidden="true"></span>
+      <span class="field-area-feature-body">
+        <small>記録の蓄積</small>
+        <strong>公開記録 ${formatNumber(publicRecordCount)}件</strong>
+        <em>写真や季節の記録から、このエリアの変化を読めます。</em>
+      </span>
+    </article>`;
+  }
+  return `<article class="field-area-feature-card is-empty">
+    <span class="field-area-feature-mark" aria-hidden="true"></span>
+    <span class="field-area-feature-body">
+      <small>公開記録</small>
+      <strong>このエリアの公開記録はまだありません</strong>
+      <em>最初の写真やメモが、地域図鑑の入口になります。</em>
+    </span>
+  </article>`;
+}
+
+function renderFieldPublicRange(field: ObservationField): string {
+  const verification = fieldVerificationSummary(field);
+  const locationLabel = [field.prefecture, field.city].filter(Boolean).join(" / ") || "粗い場所だけ表示";
+  const radiusLabel = field.radiusM ? `半径約 ${formatNumber(field.radiusM)}m` : "公開範囲を丸めて表示";
+  const cards = [
+    {
+      key: "公開範囲",
+      title: "位置をぼかして表示",
+      body: "正確な座標とジオメトリ本体は、この公開ページでは表示しません。",
+    },
+    {
+      key: "確認状態",
+      title: verification.label,
+      body: verification.body,
+    },
+    {
+      key: "作成元",
+      title: fieldSourceLabel(field),
+      body: "内部の登録値ではなく、利用者が読める意味に直して表示しています。",
+    },
+    {
+      key: "粗い場所",
+      title: locationLabel,
+      body: radiusLabel,
+    },
+  ];
+  return `<section class="field-public-range" aria-label="公開範囲と確認">
+    <header>
+      <div><span class="evt-eyebrow">Safety / Evidence</span><h2 class="evt-heading">公開範囲と確認</h2></div>
+      <span class="field-public-range-badge">詳細位置は非公開</span>
+    </header>
+    <div class="field-public-range-grid">
+      ${cards.map((card) => `<article>
+        <span>${escapeHtml(card.key)}</span>
+        <strong>${escapeHtml(card.title)}</strong>
+        <p>${escapeHtml(card.body)}</p>
+      </article>`).join("")}
+    </div>
+  </section>`;
+}
+
 function renderAreaSketchDraftPanel(): string {
   return `<section class="field-area-sketch" data-area-sketch-panel hidden aria-live="polite">
     <header>
@@ -426,45 +565,27 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
     ? `<p class="evt-lead">記録はまだありません。</p>`
     : stats.topTaxa.map((t) => `<span class="evt-badge evt-mode-discovery">${escapeHtml(t.name)} ×${t.count}</span>`).join(" ");
 
-  const polygonJson = field.polygon ? JSON.stringify(field.polygon) : "null";
-  const areaSpotMapJson = encyclopedia.spots
-    .filter(spotHasPublicCoordinates)
-    .map((spot) => ({
-      id: spot.id,
-      name: spot.name,
-      type: spot.type,
-      label: spotTypeLabel(spot.type),
-      lat: spot.lat,
-      lng: spot.lng,
-    }));
-  const locationLabel = [field.prefecture, field.city].filter(Boolean).join(" / ");
   const areaLabel = field.areaHa ? `${field.areaHa.toFixed(2)} ha` : `半径 ${field.radiusM} m`;
 
   return `
-<section class="evt-recap-shell field-detail-shell" data-field-id="${escapeHtml(field.fieldId)}"
-         data-lat="${escapeHtml(String(field.lat))}"
-         data-lng="${escapeHtml(String(field.lng))}"
-         data-radius="${escapeHtml(String(field.radiusM))}"
-         data-polygon='${htmlAttrJson(JSON.parse(polygonJson))}'
-         data-area-spots='${htmlAttrJson(areaSpotMapJson)}'>
+<section class="evt-recap-shell field-detail-shell" data-field-id="${escapeHtml(field.fieldId)}">
 
-  <article class="field-map-hero">
-    <div class="field-map-hero-map">
-      <div class="evt-live-map-canvas" data-evt-field-map></div>
-    </div>
-    <div class="field-map-hero-copy">
-      <span class="evt-result-eyebrow">エリア図鑑${locationLabel ? ` • ${escapeHtml(locationLabel)}` : ""}</span>
-      <h2>${escapeHtml(field.name)}</h2>
-      ${field.summary ? `<p>${escapeHtml(field.summary)}</p>` : ""}
+  <article class="field-area-hero">
+    <div class="field-area-hero-copy">
+      <span class="evt-result-eyebrow">エリア図鑑</span>
+      <h1>${escapeHtml(field.name)}</h1>
+      ${renderPublicRangeChips(field)}
+      ${field.summary ? `<p>${escapeHtml(field.summary)}</p>` : `<p>このエリアに積み上がる公開記録を、安全な範囲で読むためのページです。</p>`}
       ${renderAreaHeroStats(areaHeroMetrics)}
       ${renderAreaTags(encyclopedia, snapshot)}
       ${renderFieldHeroSignals(snapshot)}
       <div class="field-detail-actions">
-        <a class="evt-btn evt-btn-primary" href="/record?field_id=${encodeURIComponent(field.fieldId)}">記録する</a>
-        <a class="evt-btn evt-btn-on-dark" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
-        <a class="evt-btn evt-btn-on-dark" href="#field-album">公開写真 / 季節</a>
+        <a class="evt-btn evt-btn-primary" href="/record?field_id=${encodeURIComponent(field.fieldId)}">このエリアで記録する</a>
+        <a class="evt-btn evt-btn-ghost" href="#field-album">公開写真 / 季節</a>
+        <a class="evt-btn evt-btn-ghost" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
       </div>
     </div>
+    ${renderAreaHeroFeature(snapshot, stats)}
   </article>
 
   ${renderAreaSketchDraftPanel()}
@@ -484,20 +605,22 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
   <section class="field-detail-metrics" aria-label="記録の厚み">
     <header>
       <div>
-        <span class="evt-eyebrow">Field Record</span>
-        <h2 class="evt-heading">記録の厚み</h2>
+        <span class="evt-eyebrow">Area Records</span>
+        <h2 class="evt-heading">このエリアの記録</h2>
       </div>
       <div class="field-detail-metrics-actions">
         <a class="evt-btn evt-btn-primary" href="/community/events/new?field_id=${encodeURIComponent(field.fieldId)}">ここで観察会を作る</a>
-        <a class="evt-btn evt-btn-ghost" href="/community/fields">フィールド一覧へ</a>
+        <a class="evt-btn evt-btn-ghost" href="/community/fields">エリア一覧へ</a>
       </div>
     </header>
-    <p class="evt-lead">エリア: ${escapeHtml(areaLabel)}。希少種や詳細位置は、場所を丸めた記録として公開します。</p>
+    <p class="evt-lead">公開範囲: ${escapeHtml(areaLabel)}。希少種や詳細位置は、場所を丸めた記録として公開します。</p>
     <div class="evt-result-stats evt-stagger">
       ${heroMetrics.map((item) => `<div><strong>${formatNumber(item.value)}</strong><span>${escapeHtml(item.label)}</span></div>`).join("")}
     </div>
     <div class="field-detail-freshness"><span>最終記録</span><strong>${escapeHtml(formatObservationDate(latestObservedAt))}</strong></div>
   </section>
+
+  ${renderFieldPublicRange(field)}
 
   ${renderFieldTrustInfo(field)}
 
@@ -739,6 +862,213 @@ ${RECORD_CARD_SIZING_TOKENS}
 }
 .field-detail-shell .evt-result-stats {
   max-width: 900px;
+}
+.field-area-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+  gap: 16px;
+  align-items: stretch;
+  padding: clamp(18px, 3vw, 30px);
+  border-radius: 22px;
+  border: 1px solid rgba(15,23,42,.08);
+  background:
+    linear-gradient(135deg, rgba(240,253,250,.96), rgba(240,249,255,.94) 58%, rgba(255,251,235,.90));
+  box-shadow: 0 18px 50px rgba(15,23,42,.10);
+}
+.field-area-hero-copy {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+}
+.field-area-hero-copy h1 {
+  max-width: 24ch;
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 1.08;
+  font-weight: 950;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.field-area-hero-copy p {
+  max-width: 62ch;
+  margin: 0;
+  color: #334155;
+  font-size: 15px;
+  line-height: 1.7;
+  font-weight: 650;
+}
+.field-public-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.field-public-chips span {
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,118,110,.18);
+  background: rgba(255,255,255,.76);
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+.field-area-hero .field-map-hero-stats div {
+  border-color: rgba(15,23,42,.08);
+  background: rgba(255,255,255,.82);
+}
+.field-area-hero .field-map-hero-stats strong {
+  color: #0f172a;
+}
+.field-area-hero .field-map-hero-stats span {
+  color: #475569;
+}
+.field-area-hero .field-map-hero-tags span,
+.field-area-hero .field-map-signals b,
+.field-area-hero .field-map-signals > span {
+  border-color: rgba(15,118,110,.14);
+  background: rgba(255,255,255,.72);
+  color: #0f766e;
+}
+.field-area-hero .field-map-signals > span {
+  background: rgba(15,118,110,.10);
+}
+.field-area-feature-card {
+  min-width: 0;
+  min-height: 100%;
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(15,23,42,.08);
+  background: rgba(255,255,255,.90);
+  color: #0f172a;
+  text-decoration: none;
+  box-shadow: 0 12px 34px rgba(15,23,42,.08);
+}
+.field-area-feature-card.has-image {
+  padding: 0;
+  overflow: hidden;
+  align-content: start;
+}
+.field-area-feature-media {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+  overflow: hidden;
+  background: #e7f5ef;
+}
+.field-area-feature-media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+.field-area-feature-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background:
+    linear-gradient(90deg, rgba(15,118,110,.14) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(14,165,233,.12) 1px, transparent 1px),
+    #f8fffc;
+  background-size: 13px 13px, 13px 13px, auto;
+  border: 1px solid rgba(15,118,110,.16);
+}
+.field-area-feature-body {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+.field-area-feature-card.has-image .field-area-feature-body {
+  padding: 16px;
+}
+.field-area-feature-body small {
+  color: #0f766e;
+  font-size: 12px;
+  line-height: 1.15;
+  font-weight: 950;
+}
+.field-area-feature-body strong {
+  color: #0f172a;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+.field-area-feature-body em {
+  color: #475569;
+  font-style: normal;
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 750;
+}
+.field-public-range {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.94);
+  border: 1px solid rgba(15,23,42,.08);
+}
+.field-public-range > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.field-public-range .evt-heading {
+  margin: 0;
+}
+.field-public-range-badge {
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,118,110,.18);
+  background: rgba(240,253,250,.96);
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+.field-public-range-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.field-public-range-grid article {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,.08);
+  background: #ffffff;
+}
+.field-public-range-grid span {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+.field-public-range-grid strong {
+  color: #0f172a;
+  font-size: 15px;
+  line-height: 1.3;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+.field-public-range-grid p {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 750;
 }
 .field-map-hero {
   min-height: clamp(340px, 36vw, 430px);
@@ -1394,6 +1724,9 @@ ${RECORD_CARD_SIZING_TOKENS}
   .field-detail-shell {
     max-width: 1080px;
   }
+  .field-area-hero {
+    grid-template-columns: 1fr;
+  }
   .field-map-hero {
     min-height: 540px;
   }
@@ -1434,6 +1767,9 @@ ${RECORD_CARD_SIZING_TOKENS}
   .field-area-sketch-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .field-public-range-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .field-detail-metrics-actions {
     justify-content: flex-start;
   }
@@ -1443,6 +1779,33 @@ ${RECORD_CARD_SIZING_TOKENS}
   }
 }
 @media (max-width: 720px) {
+  .field-area-hero {
+    padding: 16px;
+    border-radius: 18px;
+  }
+  .field-area-hero-copy h1 {
+    font-size: 30px;
+  }
+  .field-area-hero .field-map-hero-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .field-area-hero .field-map-hero-stats div {
+    padding: 8px 6px;
+  }
+  .field-area-hero .field-map-hero-stats strong {
+    font-size: 19px;
+  }
+  .field-area-hero .field-map-hero-stats span {
+    font-size: 10px;
+    overflow-wrap: anywhere;
+  }
+  .field-public-range > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .field-public-range-grid {
+    grid-template-columns: 1fr;
+  }
   .field-map-hero {
     min-height: 0;
     display: grid;

@@ -5,7 +5,7 @@ import { formatStatLabel, getStrings } from "./index.js";
 
 test("ja returns the canonical dictionary", () => {
   const s = getStrings("ja");
-  assert.strictEqual(s.landing.title, "ikimon | Enjoy Life - 生きものを楽しみ、記録から観察レコードを育てる");
+  assert.strictEqual(s.landing.title, "ikimon - 皆で作る地域図鑑");
   assert.strictEqual(s.fieldLoop.eyebrow, "使い方");
 });
 

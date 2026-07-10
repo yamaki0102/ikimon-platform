@@ -85,14 +85,17 @@ import { buildPublicMapCellHref } from "../services/publicLocation.js";
 import {
   getHomeSnapshot,
   getObservationDetailSnapshot,
+  getObservationNeedsIdPage,
   getObservationListSnapshot,
   getProfileSnapshot,
   getSpecialistSnapshot,
+  isObservationAwaitingIdentification,
   type HomeSnapshot,
   type HomePlace,
   type LandingObservation,
   type LandingSnapshot,
   type ObservationDetailSnapshot,
+  type ObservationListPage,
   type ObservationListSnapshot,
   type ProfileSnapshot,
 } from "../services/readModels.js";
@@ -103,6 +106,7 @@ import {
   type ReferenceCandidate,
   type ReferenceProfileSummary,
 } from "../services/referenceLibrary.js";
+import { listHeldIdentificationOccurrenceIds } from "../services/identificationWorkbenchHolds.js";
 import { getRegionalStoryCue, type RegionalKnowledgeCard, type RegionalStoryCue } from "../services/regionalStory.js";
 import {
   assertSpecialistAdminSession,
@@ -131,6 +135,7 @@ import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
 import { getFixedPointStation } from "../services/fixedPointStation.js";
 import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
+import { registerSpecialistReadApiRoutes } from "./specialistReadApi.js";
 
 type LayoutHero = {
   eyebrow: string;
@@ -1144,6 +1149,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-grounding-shot small { color: #64748b; font-size: 9.5px; line-height: 1.2; font-weight: 820; }
   .obs-ai-grounding.is-empty { background: rgba(248,250,252,.8); border-color: rgba(15,23,42,.08); }
   .obs-ai-grounding-empty { margin: 0; color: #64748b; font-size: 10.8px; line-height: 1.45; font-weight: 760; }
+  .obs-ai-positive { margin: 0; display: grid; gap: 3px; padding: 10px 11px; border-radius: 13px; background: linear-gradient(135deg, #ecfdf5, #f0fdfa); border: 1px solid rgba(16,185,129,.18); }
+  .obs-ai-positive strong { color: #047857; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .08em; }
+  .obs-ai-positive span { color: #0f172a; font-size: 12.2px; line-height: 1.55; font-weight: 820; }
   .obs-ai-detail { display: grid; gap: 8px; padding-top: 1px; }
   .obs-ai-detail[hidden] { display: none; }
   .obs-ai-detail-lead { display: flex; align-items: baseline; gap: 7px; min-width: 0; margin: 0; color: #334155; font-size: 11.5px; line-height: 1.5; font-weight: 760; white-space: normal; }
@@ -1529,6 +1537,8 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-id-accepted { background: rgba(16,185,129,.14); color: #047857; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; border: 1px solid rgba(16,185,129,.3); }
   .obs-id-meta { font-size: 11.5px; color: #64748b; font-weight: 700; margin-top: 3px; }
   .obs-id-note { margin: 6px 0 0; color: #475569; font-size: 13px; line-height: 1.6; }
+  .obs-id-references { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .obs-id-reference-chip { display: inline-flex; align-items: center; max-width: 100%; min-height: 28px; padding: 5px 8px; border-radius: 999px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.22); color: #047857; font-size: 11px; line-height: 1.25; font-weight: 850; overflow-wrap: anywhere; }
   .obs-empty { color: #94a3b8; font-size: 13.5px; text-align: center; padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px dashed rgba(15,23,42,.1); }
   .obs-identify-panel { grid-column: 1 / -1; border-color: rgba(14,165,233,.18); background: linear-gradient(180deg, #ffffff, #f8fafc); }
   .obs-identify-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -3669,6 +3679,26 @@ function renderAiReadoutInteractionScript(): string {
   })();</script>`;
 }
 
+function positiveObservationFeedbackText(subject: ObservationVisitSubject, aiAssessment: AiAssessment): string {
+  const explicit = friendlyObservationText(aiAssessment.observerBoost, 78);
+  if (explicit) return explicit;
+  const clues = aiAssessment.diagnosticFeaturesSeen
+    .map((feature) => friendlyObservationText(feature.replace(/（.*?）/gu, ""), 24))
+    .filter(Boolean)
+    .slice(0, 2);
+  if (clues.length >= 2) {
+    return `${clues.join("、")}が写っていて、候補を確かめる材料が残っています。`;
+  }
+  if (clues.length === 1) {
+    return `${clues[0]}が見えていて、次に比べる手がかりになります。`;
+  }
+  const name = observationDetailUiName(aiAssessment.recommendedTaxonName || subject.displayName || "");
+  if (name && !isWeakIdentificationCandidateName(name)) {
+    return `${name}として読み始められる材料があり、同じ場所で比べ直しやすい記録です。`;
+  }
+  return "";
+}
+
 export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null, bundle: ObservationVisitBundle | null = null, groundingAssets: AiGroundingAsset[] = []): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
@@ -3709,6 +3739,10 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
   const sizeCard = renderAiSizeSummary(aiAssessment.sizeAssessment);
   const fallbackScientificName = lookupLocalTaxonName(candidateName)?.scientificName || null;
   const story = renderAiTaxonStory(insight, candidateName, subject.scientificName || aiAssessment.recommendedScientificName || fallbackScientificName);
+  const positiveFeedback = positiveObservationFeedbackText(subject, aiAssessment);
+  const positiveFeedbackBlock = positiveFeedback
+    ? `<p class="obs-ai-positive"><strong>この記録のいいところ</strong><span>${escapeHtml(positiveFeedback)}</span></p>`
+    : "";
   const note = hasOpenDispute
     ? `<p class="obs-ai-merged-note"><strong>注意</strong>別の名前の提案があるため、候補が固まるまで断定しません。</p>`
     : "";
@@ -3719,6 +3753,7 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
       ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${escapeHtml(leadText)}</span></p>` : ""}
+      ${positiveFeedbackBlock}
       ${renderAiVisualGrounding({ regions: subject.regions, assets: groundingAssets, subjectId: subject.occurrenceId })}
       ${sizeCard}
       ${story}
@@ -3947,7 +3982,10 @@ function renderSubjectHint(
   );
   const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions, photoAssets, mediaContext);
   const hasShotSuggestionsCard = (aiAssessment.shotSuggestions ?? []).length > 0;
-  const boost = "";
+  const boostText = positiveObservationFeedbackText(subject, aiAssessment);
+  const boost = boostText
+    ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">よく残っている点</div><p>${escapeHtml(boostText)}</p></div>`
+    : "";
   // 構造化された shotSuggestions カードがある時は、自由文 nextStep をたたみ重複を避ける
   const nextShotItems: string[] = [];
   if (aiAssessment.nextStepText) nextShotItems.push(aiAssessment.nextStepText);
@@ -4472,7 +4510,9 @@ function renderObservationPhotoRecoveryScript(isOwner: boolean): string {
     var endpoint = root.getAttribute('data-upload-endpoint') || '';
     var existingPhotoCount = Number(root.getAttribute('data-existing-photo-count') || '0');
     var PHOTO_RECOVERY_MAX_EDGE = 2560;
-    var PHOTO_RECOVERY_JPEG_QUALITY = 0.88;
+    var PHOTO_RECOVERY_WEBP_QUALITY = 0.82;
+    var PHOTO_RECOVERY_FALLBACK_JPEG_QUALITY = 0.88;
+    var PHOTO_RECOVERY_KEEP_PREPARED_JPEG_MAX_BYTES = 512 * 1024;
     var PHOTO_RECOVERY_CONCURRENCY = 2;
     var setStatus = function(message, isError) {
       if (!status) return;
@@ -4528,19 +4568,29 @@ function renderObservationPhotoRecoveryScript(isOwner: boolean): string {
         return createBitmap(file).catch(function(){ return loadImageElementForUpload(file); });
       });
     };
-    var canvasToJpegDataUrl = function(canvas, quality) {
+    var jpegFallbackUploadDataUrl = function(canvas) {
+      return {
+        filenameExtension: 'jpg',
+        mimeType: 'image/jpeg',
+        base64Data: canvas.toDataURL('image/jpeg', PHOTO_RECOVERY_FALLBACK_JPEG_QUALITY)
+      };
+    };
+    var canvasToPhotoUploadData = function(canvas) {
       return new Promise(function(resolve) {
+        var fallback = function(){ resolve(jpegFallbackUploadDataUrl(canvas)); };
         if (!canvas || typeof canvas.toBlob !== 'function') {
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          fallback();
           return;
         }
         canvas.toBlob(function(blob) {
-          if (!blob) {
-            resolve(canvas.toDataURL('image/jpeg', quality));
+          if (!blob || blob.type !== 'image/webp') {
+            fallback();
             return;
           }
-          readFileAsDataUrl(blob).then(resolve).catch(function(){ resolve(canvas.toDataURL('image/jpeg', quality)); });
-        }, 'image/jpeg', quality);
+          readFileAsDataUrl(blob)
+            .then(function(base64Data){ resolve({ filenameExtension: 'webp', mimeType: 'image/webp', base64Data: base64Data }); })
+            .catch(fallback);
+        }, 'image/webp', PHOTO_RECOVERY_WEBP_QUALITY);
       });
     };
     var preparePhotoUpload = function(file) {
@@ -4549,6 +4599,16 @@ function renderObservationPhotoRecoveryScript(isOwner: boolean): string {
         var height = Number(image.naturalHeight || image.height || 0);
         if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error('photo_decode_failed');
         var scale = Math.min(1, PHOTO_RECOVERY_MAX_EDGE / Math.max(width, height));
+        if (String(file.type || '').toLowerCase() === 'image/jpeg' && scale === 1 && Number(file.size || 0) > 0 && Number(file.size || 0) <= PHOTO_RECOVERY_KEEP_PREPARED_JPEG_MAX_BYTES) {
+          if (image && typeof image.close === 'function') image.close();
+          return readFileAsDataUrl(file).then(function(base64Data) {
+            return {
+              filename: file.name || 'upload.jpg',
+              mimeType: 'image/jpeg',
+              base64Data: base64Data
+            };
+          });
+        }
         var targetWidth = Math.max(1, Math.round(width * scale));
         var targetHeight = Math.max(1, Math.round(height * scale));
         var canvas = document.createElement('canvas');
@@ -4558,12 +4618,12 @@ function renderObservationPhotoRecoveryScript(isOwner: boolean): string {
         if (!context) throw new Error('photo_canvas_unavailable');
         context.drawImage(image, 0, 0, targetWidth, targetHeight);
         if (image && typeof image.close === 'function') image.close();
-        return canvasToJpegDataUrl(canvas, PHOTO_RECOVERY_JPEG_QUALITY).then(function(base64Data) {
+        return canvasToPhotoUploadData(canvas).then(function(uploadImage) {
           var safeName = String(file.name || 'upload.jpg').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
           return {
-            filename: safeName + '.jpg',
-            mimeType: 'image/jpeg',
-            base64Data: base64Data
+            filename: safeName + '.' + uploadImage.filenameExtension,
+            mimeType: uploadImage.mimeType,
+            base64Data: uploadImage.base64Data
           };
         });
       }).catch(function() {
@@ -4906,15 +4966,15 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
     ja: {
       title: "記録する準備 | ikimon",
       activeNav: "記録",
-      footerNote: "詳しい使い方は読み物ページで確認できます。",
+      footerNote: "写真・動画・メモを先に残して、意味づけはあとから育てます。",
       heroEyebrow: "記録",
-      heroHeading: "写真で記録する",
-      heroLead: "記録は、写真・動画・音声・場所・時刻・メモをまとめて残したものです。1件の記録から、あとで複数の対象ごとの記録を作れます。",
-      photoAction: "ログインして写真で記録する",
+      heroHeading: "記録を始める",
+      heroLead: "分類や説明を先に考え込まなくて大丈夫です。写真・動画・メモ・場所・時刻を先に残し、あとでAIのヒントや人の確認で地域図鑑の記録へ育てます。",
+      photoAction: "ログインして記録を始める",
       registerAction: "新しく登録して記録する",
       panelEyebrow: "sign in required",
       panelHeading: "記録画面はログイン後に開きます。",
-      panelBody: "写真・動画・音声・場所・時刻・メモを自分の記録ライブラリに保存するため、記録前にログインします。",
+      panelBody: "写真・動画・メモを自分の記録ライブラリに保存し、後からAIフィードバックや見返しにつなげるため、記録前にログインします。",
       noteAction: "メモで始める",
       learnAction: "使い方を読む",
       dockAria: "ログインして記録する",
@@ -5017,12 +5077,12 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
     ja: {
       title: "記録する | ikimon",
       activeNav: "記録",
-      footerNote: "いつもの道で見つけた自然を、あとで対象ごとの記録や観察レコードへ育てられる形に残す。",
-      heading: "記録する",
-      lead: "写真・動画・音声・場所・時刻・メモをまとめて1件の記録として保存します。名前や対象の切り分けはあとからで大丈夫です。",
+      footerNote: "先に残した記録に、あとからAIのヒントや地域の意味が返ってきます。",
+      heading: "記録を始める",
+      lead: "写真・動画・メモをまず1件の地域記録として保存します。分類、名前、長い説明はあとからで大丈夫です。",
       sessionLabel: "ログイン中",
       captureAria: "記録の始め方",
-      photoTitle: "写真で記録する",
+      photoTitle: "写真で記録",
       photoSub: "撮る / 選ぶ",
       noteTitle: "メモだけ残す",
       noteSub: "写真なし",
@@ -5039,7 +5099,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       dockGallery: "選ぶ",
       captureResultLabel: "自動下書き",
       captureResultTitle: "未選択",
-      captureResultHelp: "写真・日時・地点だけで保存できます。周囲や気づきはあとで足して、記録の解像度を上げられます。",
+      captureResultHelp: "写真・日時・地点だけで保存できます。AIフィードバックや周囲の気づきは、あとから足して記録の意味を育てられます。",
       captureChange: "選び直す",
       locationTitle: "写真に場所も入れる",
       locationBody: "現在地を入れると、あとで同じ場所を見返しやすくなります。",
@@ -5048,7 +5108,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       modeEntryLabel: "記録入口",
       modeQuickLabel: "ふだんの記録",
       modeSurveyLabel: "しっかり記録",
-      modeQuickLead: "場所・時間・気づいたことを、まず 1 つ残すための入力です。",
+      modeQuickLead: "場所・時間・気づいたことを、1 つの記録として残すための入力です。",
       modeSurveyLead: "見た条件も一緒に残して、あとで同じ場所・同じ対象を比べやすくするための入力です。",
       confidenceAria: start.confidenceAria,
       confidenceItems: start.confidenceItems,
@@ -5901,6 +5961,16 @@ function renderShotSuggestionsCard(
   </section>`;
 }
 
+function renderSubjectShotFeedbackSurface(
+  subject: ObservationVisitSubject,
+  photoAssets: { roleTag: string | null }[] | null | undefined = null,
+  mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
+): string {
+  const card = renderShotSuggestionsCard(subject.aiAssessment?.shotSuggestions, photoAssets, mediaContext);
+  if (!card) return "";
+  return `<section class="section obs-surface-shot-feedback" data-obs-section="shot-feedback">${card}</section>`;
+}
+
 function renderSubjectComparison(bundle: ObservationVisitBundle, subject: ObservationVisitSubject): string {
   if (!bundle.selectedRun && !bundle.previousRun) {
     return "";
@@ -6588,6 +6658,7 @@ function renderSubjectTaxonomy(
                </div>
                <div class="obs-id-meta">${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</div>
                ${item.notes ? `<p class="obs-id-note">${escapeHtml(item.notes)}</p>` : ""}
+               ${renderIdentificationReferenceChips(item.references)}
              </div>
            </li>`).join("")}
         </ul>`
@@ -6601,6 +6672,16 @@ function renderSubjectTaxonomy(
       ${renderSubjectComparison(bundle, subject)}
       ${renderAiCandidates(bundle)}
     </section>`;
+}
+
+function renderIdentificationReferenceChips(references: ObservationVisitSubject["identifications"][number]["references"]): string {
+  if (references.length === 0) return "";
+  return `<div class="obs-id-references" aria-label="同定で確認した資料">
+    ${references.map((reference) => {
+      const locator = reference.locator ? ` ${reference.locator}` : "";
+      return `<span class="obs-id-reference-chip">この資料で確認: ${escapeHtml(reference.title)}${escapeHtml(locator)}</span>`;
+    }).join("")}
+  </div>`;
 }
 
 function renderIdentificationParticipation(options: {
@@ -6659,6 +6740,7 @@ function renderIdentificationParticipation(options: {
   const disputeEndpoint = withBasePath(basePath, `/api/v1/observations/${endpointId}/disputes`);
   const aiReviewEndpoint = withBasePath(basePath, `/api/v1/observation-records/${endpointId}/ai-review`);
   const specialistHref = withBasePath(basePath, `/specialist/id-workbench?occurrenceId=${endpointId}`);
+  const referenceCaptureHref = withBasePath(basePath, `/references/capture?returnTo=${encodeURIComponent(buildObservationDetailPath(snapshot.visitId, snapshot.occurrenceId) + "#identify")}&taxonHint=${encodeURIComponent(defaultName || targetLabel)}`);
   const isAiJudgement = snapshot.aiAssessmentStatus === "ai_judgement";
   const aiReviewStateLabel = snapshot.aiReviewAgreeCount > 0 && snapshot.aiReviewDisagreeCount > 0
     ? "確認が割れています"
@@ -6711,8 +6793,8 @@ function renderIdentificationParticipation(options: {
   const referencePicker = viewerSession
     ? `<div class="obs-reference-picker">
         <div class="obs-reference-picker-head">
-          <strong>参照資料を選ぶ</strong>
-          <a href="${escapeHtml(withBasePath(basePath, "/references/capture"))}">資料を登録</a>
+          <strong>この資料で確認</strong>
+          <a href="${escapeHtml(referenceCaptureHref)}">資料を登録</a>
         </div>
         ${referenceCandidates.length > 0
           ? `<div class="obs-reference-options">
@@ -6730,7 +6812,7 @@ function renderIdentificationParticipation(options: {
               </label>`).join("")}
             </div>`
           : `<p class="obs-empty">この分類群の参照資料はまだありません。</p>`}
-        <label class="obs-reference-locator"><span>ページ・図版番号</span><input name="referenceLocator" type="text" maxlength="160" placeholder="例: p.42 / 図3 / 検索ページ" /></label>
+        <label class="obs-reference-locator"><span>ページ・図版番号</span><input name="referenceLocator" type="text" maxlength="160" placeholder="任意: p.42 / 図3 / 検索ページ" /></label>
       </div>`
     : "";
   const form = viewerSession
@@ -10121,12 +10203,7 @@ function publicObservationToLandingObservation(item: ObservationListSnapshot["ob
 }
 
 function recordsNeedsId(entry: LandingObservation): boolean {
-  const name = (entry.displayName || entry.proposedName || "").trim();
-  return entry.isAiCandidate === true
-    || entry.identificationCount === 0
-    || name === ""
-    || name === "同定待ち"
-    || /awaiting id|unknown|unresolved/i.test(name);
+  return isObservationAwaitingIdentification(entry);
 }
 
 function recordsHasMedia(entry: LandingObservation): boolean {
@@ -10136,6 +10213,10 @@ function recordsHasMedia(entry: LandingObservation): boolean {
 
 function recordsViewHref(basePath: string, lang: SiteLang, view: RecordsWorkbenchView): string {
   return appendLangToHref(withBasePath(basePath, `/records?view=${view}`), lang);
+}
+
+export function recordsPostHrefForView(view: RecordsWorkbenchView, postNeedsId: boolean, detailHref: string): string {
+  return view === "needs_id" && postNeedsId ? `${detailHref}#identify` : detailHref;
 }
 
 function renderRecordsViewTabs(
@@ -10265,8 +10346,9 @@ function recordsPostSubjectsHtml(card: RecordsPostCard): string {
 function recordsNeedsIdBadge(lang: SiteLang, card: RecordsPostCard): string {
   if (!card.postNeedsId) return "";
   const label = lang === "ja" ? "確認待ち" : lang === "es" ? "Por revisar" : lang === "pt-BR" ? "Revisar" : "Needs ID";
+  const aiCandidateLabel = lang === "ja" ? "AI候補あり" : lang === "es" ? "Sugerencia IA" : lang === "pt-BR" ? "Sugestao IA" : "AI suggestion";
   const candidate = card.postCandidateName?.trim();
-  return `<span class="records-post-needs-id"><b>${escapeHtml(label)}</b>${candidate ? `<small>${escapeHtml(candidate)}</small>` : ""}</span>`;
+  return `<span class="records-post-needs-id"><b>${escapeHtml(label)}</b>${candidate ? `<small>${escapeHtml(aiCandidateLabel)}: ${escapeHtml(candidate)}</small>` : ""}</span>`;
 }
 
 function renderRecordsPostCard(
@@ -10277,7 +10359,8 @@ function renderRecordsPostCard(
   options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
 ): string {
   const copy = notesLibraryCopy(lang);
-  const href = notesDetailHref(basePath, lang, card);
+  const detailHref = notesDetailHref(basePath, lang, card);
+  const href = recordsPostHrefForView(view, card.postNeedsId, detailHref);
   const sourceKind = recordsPostSourceKind(card);
   const sourceLabel = notesLibrarySourceLabel(sourceKind, lang);
   const mediaUrl = recordsRepresentativeMediaUrl(card);
@@ -10297,6 +10380,19 @@ function renderRecordsPostCard(
   const observerLine = card.observerName ? `${formatActorDisplay(card.observerName, lang)} · ` : "";
   const metaLine = `${observerLine}${placeLine} · ${dateLabel}`;
   const searchable = `${displayName} ${card.postSubjectNames.join(" ")} ${placeLine} ${card.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
+  const identifyActionLabel = lang === "ja" ? "同定する" : lang === "es" ? "Identificar" : lang === "pt-BR" ? "Identificar" : "Identify";
+  const identifyAction = view === "needs_id" && card.postNeedsId
+    ? `<span class="records-post-action">${escapeHtml(identifyActionLabel)}</span>`
+    : "";
+  const identifyDefaultName = card.postCandidateName?.trim() || (isWeakIdentificationCandidateName(displayName) ? "" : displayName);
+  const identifyEndpointId = encodeURIComponent(card.occurrenceId);
+  const identifyEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/identifications`);
+  const disputeEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/disputes`);
+  const holdEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/identification-workbench-hold`);
+  const referenceCandidatesEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/reference-candidates`);
+  const identifyCardAttrs = view === "needs_id" && card.postNeedsId
+    ? ` data-records-identify-card data-identify-title="${escapeHtml(displayName)}" data-identify-meta="${escapeHtml(metaLine)}" data-identify-source="${escapeHtml(sourceLabel)}" data-identify-candidate="${escapeHtml(card.postCandidateName ?? "")}" data-identify-default-name="${escapeHtml(identifyDefaultName)}" data-identify-default-rank="${escapeHtml(card.aiCandidateRank ?? card.featuredTaxonRank ?? "")}" data-identify-media="${escapeHtml(mediaUrl ?? "")}" data-identify-href="${escapeHtml(href)}" data-identify-endpoint="${escapeHtml(identifyEndpoint)}" data-dispute-endpoint="${escapeHtml(disputeEndpoint)}" data-hold-endpoint="${escapeHtml(holdEndpoint)}" data-reference-candidates-endpoint="${escapeHtml(referenceCandidatesEndpoint)}"`
+    : "";
   const thumbHtml = mediaUrl
     ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.records-post-card').classList.add('is-media-missing');this.remove()" />`
     : `<span class="records-post-empty-thumb" aria-hidden="true"></span>`;
@@ -10311,7 +10407,7 @@ function renderRecordsPostCard(
         </div>
       </details>`
     : "";
-  return `<article class="records-post-card is-source-${escapeHtml(sourceKind)}${mediaUrl ? "" : " is-media-missing"}" data-library-card data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
+  return `<article class="records-post-card is-source-${escapeHtml(sourceKind)}${mediaUrl ? "" : " is-media-missing"}${identifyCardAttrs ? " is-identify-selectable" : ""}" data-library-card${identifyCardAttrs} data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
     <a class="records-post-card-link" href="${escapeHtml(href)}" aria-label="${escapeHtml(displayName)}">
       <span class="records-post-thumb">
         ${thumbHtml}
@@ -10324,6 +10420,7 @@ function renderRecordsPostCard(
           ${recordsPostSubjectsHtml(card)}
         </span>
         <span class="records-post-meta">${escapeHtml(metaLine)}</span>
+        ${identifyAction}
       </span>
     </a>
     ${ownerMenu}
@@ -10355,6 +10452,624 @@ function renderRecordsPostMonths(
       ${items.map((card) => renderRecordsPostCard(basePath, lang, view, card, options)).join("")}
     </div>
   </section>`).join("");
+}
+
+function recordsIdentifyPanelCopy(lang: SiteLang): {
+  kicker: string;
+  empty: string;
+  candidate: string;
+  open: string;
+  next: string;
+  note: string;
+  support: string;
+  alternative: string;
+  needsEvidence: string;
+  hold: string;
+  nameLabel: string;
+  aiPrefillHint: string;
+  noteLabel: string;
+  reference: string;
+  login: string;
+  noReferences: string;
+  loadingReferences: string;
+  locator: string;
+  noReferenceAck: string;
+  ready: string;
+  saving: string;
+  saved: string;
+  held: string;
+  saveFailed: string;
+  restore: string;
+  keepViewing: string;
+  nameRequired: string;
+  referenceRequired: string;
+} {
+  if (lang === "en") return {
+    kicker: "ID workbench",
+    empty: "No records are waiting for ID.",
+    candidate: "AI suggestion",
+    open: "Check details",
+    next: "Next",
+    note: "Review the media and candidate, then save the basis from the detail view.",
+    support: "Looks right",
+    alternative: "Other name",
+    needsEvidence: "Need evidence",
+    hold: "Hold",
+    nameLabel: "Name",
+    aiPrefillHint: "This name is an AI suggestion. Edit it or attach evidence before saving as your review.",
+    noteLabel: "Basis note",
+    reference: "Use a reference",
+    login: "Log in to save an ID.",
+    noReferences: "No matching references yet.",
+    loadingReferences: "Loading references...",
+    locator: "Page / figure",
+    noReferenceAck: "Save without a reference",
+    ready: "Ready",
+    saving: "Saving...",
+    saved: "Saved. Moved to the next record.",
+    held: "Held locally. Moved to the next record.",
+    saveFailed: "Could not save",
+    restore: "Undo",
+    keepViewing: "Keep viewing",
+    nameRequired: "Add a name first, or use Need evidence.",
+    referenceRequired: "Choose a reference, or explicitly save without one.",
+  };
+  if (lang === "es") return {
+    kicker: "Mesa de identificacion",
+    empty: "No hay registros por revisar.",
+    candidate: "Sugerencia IA",
+    open: "Revisar detalle",
+    next: "Siguiente",
+    note: "Revisa el medio y el candidato, y guarda la base desde el detalle.",
+    support: "Parece correcto",
+    alternative: "Otro nombre",
+    needsEvidence: "Falta evidencia",
+    hold: "Pausar",
+    nameLabel: "Nombre",
+    aiPrefillHint: "Este nombre es una sugerencia IA. Editalo o adjunta evidencia antes de guardarlo como revision.",
+    noteLabel: "Nota",
+    reference: "Usar referencia",
+    login: "Inicia sesion para guardar.",
+    noReferences: "Aun no hay referencias.",
+    loadingReferences: "Cargando referencias...",
+    locator: "Pagina / figura",
+    noReferenceAck: "Guardar sin referencia",
+    ready: "Listo.",
+    saving: "Guardando...",
+    saved: "Guardado. Pasamos al siguiente.",
+    held: "Pausado aqui. Pasamos al siguiente.",
+    saveFailed: "No se pudo guardar",
+    restore: "Volver",
+    keepViewing: "Seguir viendo",
+    nameRequired: "Anade un nombre, o usa Falta evidencia.",
+    referenceRequired: "Elige una referencia, o guarda explicitamente sin una.",
+  };
+  if (lang === "pt-BR") return {
+    kicker: "Bancada de identificacao",
+    empty: "Nao ha registros para revisar.",
+    candidate: "Sugestao IA",
+    open: "Ver detalhe",
+    next: "Proximo",
+    note: "Confira a midia e o candidato, depois salve a base no detalhe.",
+    support: "Parece certo",
+    alternative: "Outro nome",
+    needsEvidence: "Falta evidencia",
+    hold: "Segurar",
+    nameLabel: "Nome",
+    aiPrefillHint: "Este nome e uma sugestao IA. Edite ou anexe evidencia antes de salvar como revisao.",
+    noteLabel: "Nota",
+    reference: "Usar referencia",
+    login: "Entre para salvar.",
+    noReferences: "Ainda nao ha referencias.",
+    loadingReferences: "Carregando referencias...",
+    locator: "Pagina / figura",
+    noReferenceAck: "Salvar sem referencia",
+    ready: "Pronto.",
+    saving: "Salvando...",
+    saved: "Salvo. Indo para o proximo.",
+    held: "Segurado aqui. Indo para o proximo.",
+    saveFailed: "Nao foi possivel salvar",
+    restore: "Voltar",
+    keepViewing: "Continuar vendo",
+    nameRequired: "Adicione um nome, ou use Falta evidencia.",
+    referenceRequired: "Escolha uma referencia, ou salve explicitamente sem uma.",
+  };
+  return {
+    kicker: "同定ワークベンチ",
+    empty: "確認待ちの記録はありません。",
+    candidate: "AI候補",
+    open: "詳細で確認",
+    next: "次へ",
+    note: "画像と候補を見て、根拠を選んで記録します。",
+    support: "この候補でよさそう",
+    alternative: "別の名前",
+    needsEvidence: "証拠不足",
+    hold: "保留",
+    nameLabel: "名前",
+    aiPrefillHint: "AIの候補です。自分の確認として保存する前に、編集するか資料を選んでください。",
+    noteLabel: "理由メモ",
+    reference: "この資料で確認",
+    login: "ログインすると同定を記録できます。",
+    noReferences: "この分類群の参照資料はまだありません。",
+    loadingReferences: "資料を確認しています...",
+    locator: "ページ・図版番号",
+    noReferenceAck: "資料なしで保存する",
+    ready: "準備できています。",
+    saving: "保存中...",
+    saved: "保存しました。次の記録へ移動しました。",
+    held: "保留しました。次の記録へ移動しました。",
+    saveFailed: "保存できませんでした",
+    restore: "戻す",
+    keepViewing: "このまま見る",
+    nameRequired: "名前を入れてください。証拠だけ足りない場合は「証拠不足」を使えます。",
+    referenceRequired: "資料を選ぶか、「資料なしで保存する」を明示してください。",
+  };
+}
+
+function renderRecordsIdentifyPanel(
+  basePath: string,
+  lang: SiteLang,
+  entries: LandingObservation[],
+  options: { locationMode: "owner" | "public"; canWrite: boolean; civicContexts?: Map<string, CivicObservationContext> },
+): string {
+  const copy = recordsIdentifyPanelCopy(lang);
+  const card = buildRecordsPostCards(entries, lang).find((item) => item.postNeedsId) ?? null;
+  if (!card) {
+    return `<aside class="records-identify-panel is-empty" data-records-identify-panel>
+      <div class="records-identify-head">
+        <span>${escapeHtml(copy.kicker)}</span>
+        <strong data-identify-panel-title>${escapeHtml(copy.empty)}</strong>
+      </div>
+    </aside>`;
+  }
+  const href = recordsPostHrefForView("needs_id", card.postNeedsId, notesDetailHref(basePath, lang, card));
+  const mediaUrl = recordsRepresentativeMediaUrl(card);
+  const displayName = recordsPostSubjectName(card, lang);
+  const sourceLabel = notesLibrarySourceLabel(recordsPostSourceKind(card), lang);
+  const placeLine = notesPlaceLine(card, lang, options.locationMode) || notesLibraryCopy(lang).card.fallbackPlace;
+  const dateLabel = notesLibraryDateLabel(card, lang);
+  const observerLine = card.observerName ? `${formatActorDisplay(card.observerName, lang)} · ` : "";
+  const metaLine = `${observerLine}${placeLine} · ${dateLabel}`;
+  const candidate = card.postCandidateName?.trim() ?? "";
+  const defaultName = candidate || (isWeakIdentificationCandidateName(displayName) ? "" : displayName);
+  const detailLinkLabel = defaultName ? copy.reference : copy.open;
+  return `<aside class="records-identify-panel" data-records-identify-panel>
+    <div class="records-identify-head">
+      <span>${escapeHtml(copy.kicker)}</span>
+      <strong data-identify-panel-title>${escapeHtml(displayName)}</strong>
+      <p data-identify-panel-meta>${escapeHtml(metaLine)}</p>
+    </div>
+    <a class="records-identify-media${mediaUrl ? "" : " is-empty"}" href="${escapeHtml(href)}" data-identify-panel-media-link>
+      ${mediaUrl
+        ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(displayName)}" data-identify-panel-media loading="lazy" decoding="async" />`
+        : `<span data-identify-panel-empty-media aria-hidden="true"></span>`}
+    </a>
+    <div class="records-identify-facts">
+      <span data-identify-panel-source>${escapeHtml(sourceLabel)}</span>
+      <span data-identify-panel-candidate-row${candidate ? "" : " hidden"}>${escapeHtml(copy.candidate)}: <b data-identify-panel-candidate>${escapeHtml(candidate)}</b></span>
+    </div>
+    ${options.canWrite
+      ? `<form class="records-identify-command" data-identify-panel-form>
+          <div class="records-identify-fields">
+            <label><span>${escapeHtml(copy.nameLabel)}</span><input name="proposedName" type="text" value="${escapeHtml(defaultName)}" data-identify-panel-name placeholder="${escapeHtml(copy.nameLabel)}" /></label>
+            <small class="records-identify-ai-prefill" data-identify-panel-ai-prefill-marker${candidate ? "" : " hidden"}>${escapeHtml(copy.aiPrefillHint)}</small>
+            <input name="proposedRank" type="hidden" value="${escapeHtml(card.aiCandidateRank ?? card.featuredTaxonRank ?? "")}" data-identify-panel-rank />
+            <label><span>${escapeHtml(copy.noteLabel)}</span><textarea name="notes" rows="2" data-identify-panel-notes placeholder="${escapeHtml(copy.noteLabel)}"></textarea></label>
+          </div>
+          <div class="records-identify-command-actions">
+            <button type="button" class="is-primary" data-identify-panel-action="support">${escapeHtml(copy.support)}</button>
+            <button type="button" data-identify-panel-action="alternative">${escapeHtml(copy.alternative)}</button>
+            <button type="button" data-identify-panel-action="needs_more_evidence">${escapeHtml(copy.needsEvidence)}</button>
+            <button type="button" data-identify-panel-action="hold">${escapeHtml(copy.hold)}</button>
+          </div>
+          <div class="records-identify-references" data-identify-panel-references hidden>
+            <div class="records-identify-references-head">
+              <strong>${escapeHtml(copy.reference)}</strong>
+              <a href="${escapeHtml(withBasePath(basePath, "/references/capture?returnTo=%2Frecords%3Fview%3Dneeds_id"))}" data-identify-panel-reference-capture data-reference-capture-base="${escapeHtml(withBasePath(basePath, "/references/capture"))}">資料を登録</a>
+            </div>
+            <div class="records-identify-reference-options" data-identify-panel-reference-options></div>
+            <label class="records-identify-reference-locator"><span>${escapeHtml(copy.locator)}</span><input name="referenceLocator" type="text" maxlength="160" data-identify-panel-reference-locator placeholder="${escapeHtml(copy.locator)}" /></label>
+            <label class="records-identify-reference-waiver"><input name="referenceWaiver" type="checkbox" data-identify-panel-reference-waiver /><span>${escapeHtml(copy.noReferenceAck)}</span></label>
+          </div>
+        </form>`
+      : `<div class="records-identify-login">${escapeHtml(copy.login)}</div>`}
+    <div class="records-identify-followup" data-identify-panel-followup hidden>
+      <span data-identify-panel-status>${escapeHtml(copy.ready)}</span>
+      <button type="button" data-identify-panel-restore>${escapeHtml(copy.restore)}</button>
+      <button type="button" data-identify-panel-keep>${escapeHtml(copy.keepViewing)}</button>
+    </div>
+    <div class="records-identify-actions">
+      <a href="${escapeHtml(href)}" data-identify-panel-open>${escapeHtml(detailLinkLabel)}</a>
+      <button type="button" data-identify-panel-next>${escapeHtml(copy.next)}</button>
+    </div>
+    <p>${escapeHtml(copy.note)}</p>
+  </aside>`;
+}
+
+function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
+  const copy = recordsIdentifyPanelCopy(lang);
+  return `<script>
+(function () {
+  var copy = ${JSON.stringify(copy)};
+  var root = document.querySelector('[data-records-identify-workbench]');
+  if (!root) return;
+  var panel = root.querySelector('[data-records-identify-panel]');
+  if (!panel) return;
+  function identifyCards() {
+    return Array.prototype.slice.call(root.querySelectorAll('[data-records-identify-card]'));
+  }
+  if (!identifyCards().length) return;
+  var title = panel.querySelector('[data-identify-panel-title]');
+  var meta = panel.querySelector('[data-identify-panel-meta]');
+  var source = panel.querySelector('[data-identify-panel-source]');
+  var candidateRow = panel.querySelector('[data-identify-panel-candidate-row]');
+  var candidate = panel.querySelector('[data-identify-panel-candidate]');
+  var mediaLink = panel.querySelector('[data-identify-panel-media-link]');
+  var media = panel.querySelector('[data-identify-panel-media]');
+  var open = panel.querySelector('[data-identify-panel-open]');
+  var next = panel.querySelector('[data-identify-panel-next]');
+  var emptyMedia = panel.querySelector('[data-identify-panel-empty-media]');
+  var form = panel.querySelector('[data-identify-panel-form]');
+  var nameInput = panel.querySelector('[data-identify-panel-name]');
+  var aiPrefillMarker = panel.querySelector('[data-identify-panel-ai-prefill-marker]');
+  var rankInput = panel.querySelector('[data-identify-panel-rank]');
+  var notesInput = panel.querySelector('[data-identify-panel-notes]');
+  var referenceBox = panel.querySelector('[data-identify-panel-references]');
+  var referenceOptions = panel.querySelector('[data-identify-panel-reference-options]');
+  var referenceLocator = panel.querySelector('[data-identify-panel-reference-locator]');
+  var referenceWaiver = panel.querySelector('[data-identify-panel-reference-waiver]');
+  var referenceCapture = panel.querySelector('[data-identify-panel-reference-capture]');
+  var followup = panel.querySelector('[data-identify-panel-followup]');
+  var status = panel.querySelector('[data-identify-panel-status]');
+  var restore = panel.querySelector('[data-identify-panel-restore]');
+  var keep = panel.querySelector('[data-identify-panel-keep]');
+  var activeCard = null;
+  var lastActionCard = null;
+  var referenceRequestSerial = 0;
+  var panelScrollScheduled = false;
+  function selectableCards() {
+    return identifyCards().filter(function (card) { return !card.hidden && card.getAttribute('data-identify-processed') !== '1'; });
+  }
+  function setStatus(message, isError) {
+    if (!status) return;
+    status.textContent = message || '';
+    status.classList.toggle('is-error', Boolean(isError));
+    if (followup) followup.hidden = false;
+  }
+  function ensureMediaElement() {
+    if (media) return media;
+    if (!mediaLink) return null;
+    media = document.createElement('img');
+    media.setAttribute('data-identify-panel-media', '');
+    media.loading = 'lazy';
+    media.decoding = 'async';
+    mediaLink.textContent = '';
+    mediaLink.appendChild(media);
+    return media;
+  }
+  function selectCard(card) {
+    if (!card) return;
+    activeCard = card;
+    panel.removeAttribute('data-identify-panel-cleared');
+    identifyCards().forEach(function (item) {
+      item.classList.toggle('is-identify-active', item === card);
+      if (item === card) item.setAttribute('aria-current', 'true');
+      else item.removeAttribute('aria-current');
+    });
+    var cardTitle = card.getAttribute('data-identify-title') || '';
+    var cardMeta = card.getAttribute('data-identify-meta') || '';
+    var cardSource = card.getAttribute('data-identify-source') || '';
+    var cardCandidate = card.getAttribute('data-identify-candidate') || '';
+    var cardDefaultName = card.getAttribute('data-identify-default-name') || cardCandidate || '';
+    var cardDefaultRank = card.getAttribute('data-identify-default-rank') || '';
+    var cardMedia = card.getAttribute('data-identify-media') || '';
+    var cardHref = card.getAttribute('data-identify-href') || '';
+    var identifyEndpoint = card.getAttribute('data-identify-endpoint') || '';
+    var disputeEndpoint = card.getAttribute('data-dispute-endpoint') || '';
+    var holdEndpoint = card.getAttribute('data-hold-endpoint') || '';
+    if (title) title.textContent = cardTitle;
+    if (meta) meta.textContent = cardMeta;
+    if (source) source.textContent = cardSource;
+    if (candidate) candidate.textContent = cardCandidate;
+    if (candidateRow) candidateRow.hidden = !cardCandidate;
+    if (open && cardHref) open.setAttribute('href', cardHref);
+    if (mediaLink && cardHref) mediaLink.setAttribute('href', cardHref);
+    if (form) {
+      form.setAttribute('data-identify-endpoint', identifyEndpoint);
+      form.setAttribute('data-dispute-endpoint', disputeEndpoint);
+      form.setAttribute('data-hold-endpoint', holdEndpoint);
+    }
+    if (nameInput) nameInput.value = cardDefaultName;
+    if (nameInput) nameInput.setAttribute('data-ai-prefill-value', cardCandidate && cardDefaultName === cardCandidate ? cardCandidate : '');
+    if (aiPrefillMarker) aiPrefillMarker.hidden = !(cardCandidate && cardDefaultName === cardCandidate);
+    if (rankInput) rankInput.value = cardDefaultRank;
+    if (notesInput) notesInput.value = '';
+    if (referenceLocator) referenceLocator.value = '';
+    if (referenceWaiver) referenceWaiver.checked = false;
+    if (referenceCapture) {
+      var captureBase = referenceCapture.getAttribute('data-reference-capture-base') || referenceCapture.getAttribute('href') || '/references/capture';
+      var returnTo = window.location.pathname + window.location.search;
+      var query = '?returnTo=' + encodeURIComponent(returnTo);
+      if (cardDefaultName) query += '&taxonHint=' + encodeURIComponent(cardDefaultName);
+      referenceCapture.setAttribute('href', captureBase + query);
+    }
+    if (followup) followup.hidden = true;
+    loadReferencesForCard(card, cardDefaultName);
+    if (cardMedia) {
+      var image = ensureMediaElement();
+      if (image) {
+        image.src = cardMedia;
+        image.alt = cardTitle;
+      }
+      if (mediaLink) mediaLink.classList.remove('is-empty');
+      if (emptyMedia) emptyMedia.hidden = true;
+    } else {
+      if (media) media.removeAttribute('src');
+      if (mediaLink) mediaLink.classList.add('is-empty');
+      if (emptyMedia) emptyMedia.hidden = false;
+    }
+  }
+  function selectNextAfter(card) {
+    var list = selectableCards();
+    if (!list.length) {
+      showEmptyQueue();
+      return;
+    }
+    var current = list.indexOf(card);
+    if (current < 0) {
+      selectCard(list[0]);
+      return;
+    }
+    selectCard(list[(current + 1) % list.length]);
+  }
+  function selectRelativeCard(step) {
+    var list = selectableCards();
+    if (!list.length) {
+      showEmptyQueue();
+      return;
+    }
+    var current = list.findIndex(function (card) { return card.classList.contains('is-identify-active'); });
+    selectCard(list[(current + step + list.length) % list.length]);
+  }
+  function markProcessed(card) {
+    if (!card) return;
+    card.setAttribute('data-identify-processed', '1');
+    card.classList.add('is-identify-processed');
+    lastActionCard = card;
+  }
+  function showEmptyQueue() {
+    activeCard = null;
+    panel.setAttribute('data-identify-panel-cleared', '1');
+    if (title) title.textContent = copy.empty;
+    if (meta) meta.textContent = '';
+    if (candidateRow) candidateRow.hidden = true;
+    if (form) form.hidden = true;
+    if (referenceBox) referenceBox.hidden = true;
+    if (mediaLink) mediaLink.classList.add('is-empty');
+    if (media) media.removeAttribute('src');
+    if (emptyMedia) emptyMedia.hidden = false;
+    if (followup) followup.hidden = true;
+  }
+  if (nameInput) {
+    nameInput.addEventListener('input', function () {
+      var aiPrefillValue = nameInput.getAttribute('data-ai-prefill-value') || '';
+      if (aiPrefillMarker) aiPrefillMarker.hidden = !aiPrefillValue || String(nameInput.value || '').trim() !== aiPrefillValue;
+    });
+  }
+  function restoreLastAction(selectOnly) {
+    if (!lastActionCard) return;
+    if (!selectOnly) {
+      lastActionCard.removeAttribute('data-identify-processed');
+      lastActionCard.classList.remove('is-identify-processed');
+    }
+    selectCard(lastActionCard);
+  }
+  function scrollPanelIntoViewIfNeeded() {
+    if (!window.matchMedia || !window.matchMedia('(max-width: 980px)').matches || panelScrollScheduled) return;
+    var rect = panel.getBoundingClientRect();
+    var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    if (rect.top >= 0 && rect.bottom <= viewportHeight) return;
+    panelScrollScheduled = true;
+    window.requestAnimationFrame(function () {
+      panelScrollScheduled = false;
+      panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }
+  function postJson(endpoint, body) {
+    return fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    }).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (json) {
+        if (!response.ok || !json || json.ok === false) throw new Error(String((json && json.error) || response.status || 'save_failed'));
+        return json;
+      });
+    });
+  }
+  function clearReferences(message) {
+    if (!referenceBox || !referenceOptions) return;
+    referenceBox.hidden = false;
+    referenceOptions.textContent = message || '';
+    if (referenceLocator) referenceLocator.value = '';
+  }
+  function renderReferenceCandidates(candidates) {
+    if (!referenceBox || !referenceOptions) return;
+    referenceBox.hidden = false;
+    referenceOptions.textContent = '';
+    if (!Array.isArray(candidates) || candidates.length === 0) {
+      referenceOptions.textContent = copy.noReferences;
+      return;
+    }
+    candidates.slice(0, 6).forEach(function (candidate) {
+      var label = document.createElement('label');
+      label.className = 'records-identify-reference-option';
+      var input = document.createElement('input');
+      input.type = 'checkbox';
+      input.name = 'referenceSourceIds';
+      input.value = String(candidate.sourceId || '');
+      input.checked = false;
+      var span = document.createElement('span');
+      var strong = document.createElement('strong');
+      strong.textContent = String(candidate.title || '');
+      var small = document.createElement('small');
+      small.textContent = [
+        candidate.reason,
+        candidate.owned ? '所有確認済み' : '共有カタログ',
+        Array.isArray(candidate.taxonLabels) ? candidate.taxonLabels.slice(0, 3).join(' / ') : '',
+        Number(candidate.usedCount || 0) > 0 ? '過去に' + String(candidate.usedCount) + '回使用' : ''
+      ].filter(Boolean).join(' · ');
+      span.appendChild(strong);
+      span.appendChild(small);
+      label.appendChild(input);
+      label.appendChild(span);
+      referenceOptions.appendChild(label);
+    });
+  }
+  function loadReferencesForCard(card, proposedName) {
+    if (!referenceBox || !referenceOptions) return;
+    var endpoint = card.getAttribute('data-reference-candidates-endpoint') || '';
+    if (!endpoint) {
+      referenceBox.hidden = true;
+      return;
+    }
+    var serial = ++referenceRequestSerial;
+    clearReferences(copy.loadingReferences);
+    var url = endpoint + '?limit=6&proposedName=' + encodeURIComponent(proposedName || '');
+    fetch(url, { headers: { accept: 'application/json' }, credentials: 'same-origin' })
+      .then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (json) {
+          if (!response.ok || !json || json.ok === false) throw new Error(String((json && json.error) || response.status || 'reference_load_failed'));
+          return json;
+        });
+      })
+      .then(function (json) {
+        if (serial !== referenceRequestSerial) return;
+        renderReferenceCandidates(json.candidates || []);
+      })
+      .catch(function () {
+        if (serial !== referenceRequestSerial) return;
+        renderReferenceCandidates([]);
+      });
+  }
+  function selectedReferenceIds() {
+    if (!referenceBox) return [];
+    return Array.prototype.slice.call(referenceBox.querySelectorAll('input[name="referenceSourceIds"]:checked'))
+      .map(function (input) { return String(input.value || '').trim(); })
+      .filter(Boolean);
+  }
+  function submitAction(action) {
+    if (!activeCard || !form) return;
+    if (action === 'hold') {
+      var holdEndpoint = form.getAttribute('data-hold-endpoint') || '';
+      if (!holdEndpoint) return;
+      setStatus(copy.saving, false);
+      postJson(holdEndpoint, { reason: notesInput ? String(notesInput.value || '').trim() : '' })
+        .then(function () {
+          markProcessed(activeCard);
+          selectNextAfter(activeCard);
+          setStatus(copy.held, false);
+        })
+        .catch(function (error) {
+          setStatus(copy.saveFailed + ': ' + String(error && error.message || 'unknown_error'), true);
+        });
+      return;
+    }
+    var proposedName = nameInput ? String(nameInput.value || '').trim() : '';
+    var proposedRank = rankInput ? String(rankInput.value || '').trim() : '';
+    var notes = notesInput ? String(notesInput.value || '').trim() : '';
+    var referenceSourceIds = selectedReferenceIds();
+    var locator = referenceLocator ? String(referenceLocator.value || '').trim() : '';
+    var referenceWaived = referenceWaiver ? Boolean(referenceWaiver.checked) : false;
+    if (action !== 'needs_more_evidence' && !proposedName) {
+      setStatus(copy.nameRequired, true);
+      if (nameInput && typeof nameInput.focus === 'function') nameInput.focus({ preventScroll: true });
+      return;
+    }
+    if (action === 'support' && referenceSourceIds.length === 0 && !referenceWaived) {
+      setStatus(copy.referenceRequired, true);
+      if (referenceWaiver && typeof referenceWaiver.focus === 'function') referenceWaiver.focus({ preventScroll: true });
+      return;
+    }
+    var identifyEndpoint = form.getAttribute('data-identify-endpoint') || '';
+    var disputeEndpoint = form.getAttribute('data-dispute-endpoint') || '';
+    var endpoint = action === 'support' ? identifyEndpoint : disputeEndpoint;
+    if (!endpoint) return;
+    var body = action === 'support'
+      ? { proposedName: proposedName, proposedRank: proposedRank, notes: notes, stance: 'support', referenceSourceIds: referenceSourceIds, referenceLocator: locator }
+      : action === 'alternative'
+        ? { kind: 'alternative_id', proposedName: proposedName, proposedRank: proposedRank, reason: notes, referenceSourceIds: referenceSourceIds, referenceLocator: locator }
+        : { kind: 'needs_more_evidence', reason: notes || copy.needsEvidence };
+    setStatus(copy.saving, false);
+    postJson(endpoint, body)
+      .then(function () {
+        markProcessed(activeCard);
+        selectNextAfter(activeCard);
+        setStatus(copy.saved, false);
+      })
+      .catch(function (error) {
+        setStatus(copy.saveFailed + ': ' + String(error && error.message || 'unknown_error'), true);
+      });
+  }
+  root.addEventListener('click', function (event) {
+    var link = event.target && event.target.closest ? event.target.closest('[data-records-identify-card] .records-post-card-link') : null;
+    if (!link || !root.contains(link)) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    var card = link.closest('[data-records-identify-card]');
+    if (!card) return;
+    event.preventDefault();
+    selectCard(card);
+    scrollPanelIntoViewIfNeeded();
+  });
+  if (next) {
+    next.addEventListener('click', function () {
+      selectRelativeCard(1);
+    });
+  }
+  if (form) {
+    Array.prototype.slice.call(form.querySelectorAll('[data-identify-panel-action]')).forEach(function (button) {
+      button.addEventListener('click', function () {
+        submitAction(button.getAttribute('data-identify-panel-action') || 'support');
+      });
+    });
+  }
+  root.addEventListener('records:lazy-appended', function () {
+    if (!activeCard || panel.getAttribute('data-identify-panel-cleared') === '1') {
+      var nextCard = selectableCards()[0];
+      if (nextCard) selectCard(nextCard);
+    }
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+    var target = event.target;
+    var tagName = target && target.tagName ? String(target.tagName).toLowerCase() : '';
+    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || (target && target.isContentEditable)) return;
+    if (event.key === 'j' || event.key === 'J') {
+      event.preventDefault();
+      selectRelativeCard(1);
+    } else if (event.key === 'k' || event.key === 'K') {
+      event.preventDefault();
+      selectRelativeCard(-1);
+    } else if (event.key === '1') {
+      event.preventDefault();
+      submitAction('support');
+    } else if (event.key === '2') {
+      event.preventDefault();
+      submitAction('alternative');
+    } else if (event.key === '3') {
+      event.preventDefault();
+      submitAction('needs_more_evidence');
+    } else if (event.key === '4') {
+      event.preventDefault();
+      submitAction('hold');
+    }
+  });
+  if (restore) restore.addEventListener('click', function () { restoreLastAction(false); });
+  if (keep) keep.addEventListener('click', function () { restoreLastAction(true); });
+  selectCard(identifyCards()[0]);
+})();
+</script>`;
 }
 
 function renderRecordsPostMonthPayload(
@@ -10457,6 +11172,7 @@ function renderRecordsLazyScript(lang: SiteLang): string {
         })
         .then(function (json) {
           (json.months || []).forEach(appendMonth);
+          root.dispatchEvent(new CustomEvent('records:lazy-appended', { bubbles: true }));
           if (json.nextCursor) {
             button.setAttribute('data-next-cursor', json.nextCursor);
             button.disabled = false;
@@ -10641,15 +11357,28 @@ function renderRecordsWorkbench(
   snapshot: LandingSnapshot,
   publicEntries: LandingObservation[],
   civicContexts: Map<string, CivicObservationContext>,
-  options: { ownPage?: LandingFeedPage | null } = {},
+  options: {
+    ownPage?: LandingFeedPage | null;
+    canWriteIdentification?: boolean;
+    heldIdentificationOccurrenceIds?: Set<string>;
+    needsIdNextCursor?: string | null;
+  } = {},
 ): string {
   const copy = recordsWorkbenchCopy(lang);
+  const heldIdentificationOccurrenceIds = options.heldIdentificationOccurrenceIds ?? new Set<string>();
   const ownEntries = snapshot.viewerUserId ? (options.ownPage?.entries ?? snapshot.myFeed) : [];
-  const entries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
+  const entries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries)
+    .filter((entry) => !heldIdentificationOccurrenceIds.has(entry.occurrenceId));
   const locationMode = view === "mine" && snapshot.viewerUserId ? "owner" : "public";
-  const lazyEndpoint = withBasePath(basePath, "/api/v1/records/mine-page");
+  const lazyEndpoint = view === "needs_id"
+    ? withBasePath(basePath, "/api/v1/records/needs-id-page")
+    : withBasePath(basePath, "/api/v1/records/mine-page");
   const canLazyLoadMine = view === "mine" && Boolean(snapshot.viewerUserId);
-  return `<div class="records-workbench" data-testid="records-workbench">
+  const isIdentifyView = view === "needs_id";
+  const canLazyLoadNeedsId = isIdentifyView && Boolean(options.needsIdNextCursor);
+  const canLazyLoad = canLazyLoadMine || canLazyLoadNeedsId;
+  const canWriteIdentification = Boolean(options.canWriteIdentification);
+  return `<div class="records-workbench${isIdentifyView ? " has-identify-panel" : ""}" data-testid="records-workbench"${isIdentifyView ? " data-records-identify-workbench" : ""}>
     <header class="records-topbar">
       <div class="records-topbar-brand">
         <strong>${escapeHtml(copy.activeNav)}</strong>
@@ -10660,17 +11389,19 @@ function renderRecordsWorkbench(
         <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}" aria-label="${escapeHtml(observationIndexCopy(lang).recordActionAria)}">${escapeHtml(copy.recordLabel)}</a>
       </div>
     </header>
-    <main class="records-main">
-      <section class="records-grid-panel" data-notes-library${canLazyLoadMine ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
+    <main class="records-main${isIdentifyView ? " is-identify" : ""}">
+      <section class="records-grid-panel" data-notes-library${canLazyLoad ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
         ${renderRecordsCollapsedControls(lang)}
         ${entries.length > 0
           ? renderRecordsPostMonths(basePath, lang, view, entries, { locationMode, civicContexts })
           : `<div class="notes-library-empty">${escapeHtml(copy.empty)}</div>`}
-        ${canLazyLoadMine ? renderRecordsLazyFooter(lang, options.ownPage?.nextCursor ?? null) : ""}
+        ${canLazyLoad ? renderRecordsLazyFooter(lang, canLazyLoadMine ? options.ownPage?.nextCursor ?? null : options.needsIdNextCursor ?? null) : ""}
       </section>
+      ${isIdentifyView ? renderRecordsIdentifyPanel(basePath, lang, entries, { locationMode, canWrite: canWriteIdentification, civicContexts }) : ""}
     </main>
     ${renderNotesLibraryScript(lang)}
-    ${canLazyLoadMine ? renderRecordsLazyScript(lang) : ""}
+    ${canLazyLoad ? renderRecordsLazyScript(lang) : ""}
+    ${isIdentifyView ? renderRecordsIdentifyPanelScript(lang) : ""}
   </div>`;
 }
 
@@ -10749,6 +11480,10 @@ const RECORDS_WORKBENCH_STYLES = `
     gap: 10px;
     min-height: 0;
     padding: 10px 14px 14px;
+  }
+  .records-main.is-identify {
+    grid-template-columns: minmax(0, 1fr) minmax(310px, 390px);
+    align-items: start;
   }
   .records-story {
     display: grid;
@@ -10939,6 +11674,17 @@ const RECORDS_WORKBENCH_STYLES = `
     gap: var(--ikimon-record-card-inner-gap);
     color: inherit;
   }
+  .records-post-card.is-identify-selectable { cursor: pointer; }
+  .records-post-card.is-identify-active .records-post-thumb {
+    border-color: rgba(4,120,87,.9);
+    box-shadow: 0 0 0 3px rgba(16,185,129,.22), var(--ikimon-record-card-thumb-shadow);
+  }
+  .records-post-card.is-identify-processed {
+    opacity: .48;
+  }
+  .records-post-card.is-identify-processed .records-post-action {
+    background: #64748b;
+  }
   .records-post-card-link {
     min-width: 0;
     display: grid;
@@ -11102,6 +11848,20 @@ const RECORDS_WORKBENCH_STYLES = `
     line-height: var(--ikimon-record-card-meta-line-height);
     font-weight: 850;
   }
+  .records-post-action {
+    justify-self: start;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #047857;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
+    box-shadow: 0 8px 18px rgba(4,120,87,.16);
+  }
   .records-lazy-footer {
     display: flex;
     justify-content: center;
@@ -11127,6 +11887,337 @@ const RECORDS_WORKBENCH_STYLES = `
   .records-lazy-footer button[disabled] { cursor: progress; opacity: .72; }
   .records-lazy-footer span { color: #64748b; font-size: 12px; font-weight: 800; }
   .records-post-menu { top: 8px; right: 8px; }
+  .records-identify-panel {
+    position: sticky;
+    top: 128px;
+    min-width: 0;
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid rgba(15,23,42,.1);
+    border-radius: 14px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 20px 48px rgba(15,23,42,.1);
+  }
+  .records-identify-panel.is-empty { min-height: 120px; align-content: center; }
+  .records-identify-head {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+  }
+  .records-identify-head span {
+    color: #047857;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .records-identify-head strong {
+    min-width: 0;
+    color: #10251a;
+    font-size: 17px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .records-identify-head p,
+  .records-identify-panel > p {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 780;
+  }
+  .records-identify-media {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid rgba(15,23,42,.08);
+    background:
+      linear-gradient(90deg, rgba(16,185,129,.1) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(14,165,233,.08) 1px, transparent 1px),
+      #f8fffc;
+    background-size: 22px 22px, 22px 22px, auto;
+  }
+  .records-identify-media img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    background: #0f172a;
+  }
+  .records-identify-media.is-empty span {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: #e7f5ef;
+  }
+  .records-identify-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .records-identify-facts span {
+    min-height: 25px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 900;
+  }
+  .records-identify-facts span[hidden] { display: none; }
+  .records-identify-facts b { color: #10251a; font-weight: 950; }
+  .records-identify-command {
+    display: grid;
+    gap: 9px;
+  }
+  .records-identify-fields {
+    display: grid;
+    gap: 7px;
+  }
+  .records-identify-fields label {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+  .records-identify-fields label span {
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .records-identify-fields input,
+  .records-identify-fields textarea {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid rgba(15,23,42,.12);
+    border-radius: 10px;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 780;
+  }
+  .records-identify-fields input { min-height: 35px; padding: 0 10px; }
+  .records-identify-fields textarea {
+    min-height: 58px;
+    padding: 8px 10px;
+    resize: vertical;
+  }
+  .records-identify-ai-prefill {
+    display: block;
+    margin-top: -4px;
+    color: #92400e;
+    font-size: 10.5px;
+    line-height: 1.35;
+    font-weight: 850;
+  }
+  .records-identify-ai-prefill[hidden] { display: none; }
+  .records-identify-command-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .records-identify-command-actions button {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: #fff;
+    color: #10251a;
+    font: inherit;
+    font-size: 11px;
+    line-height: 1.15;
+    font-weight: 950;
+    cursor: pointer;
+  }
+  .records-identify-command-actions button.is-primary {
+    background: #047857;
+    border-color: #047857;
+    color: #fff;
+  }
+  .records-identify-references {
+    display: grid;
+    gap: 7px;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(14,165,233,.16);
+    background: rgba(240,249,255,.72);
+  }
+  .records-identify-references[hidden] { display: none; }
+  .records-identify-references-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+  }
+  .records-identify-references-head strong {
+    color: #0f172a;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .records-identify-references-head a {
+    color: #0369a1;
+    font-size: 10px;
+    font-weight: 950;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .records-identify-reference-options {
+    display: grid;
+    gap: 5px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 820;
+  }
+  .records-identify-reference-option {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 7px;
+    align-items: start;
+    padding: 7px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(15,23,42,.06);
+  }
+  .records-identify-reference-option input { margin-top: 2px; }
+  .records-identify-reference-option span {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+  .records-identify-reference-option strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #10251a;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .records-identify-reference-option small {
+    min-width: 0;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.35;
+    font-weight: 780;
+  }
+  .records-identify-reference-locator {
+    display: grid;
+    gap: 4px;
+  }
+  .records-identify-reference-locator span {
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .records-identify-reference-locator input {
+    min-height: 32px;
+    width: 100%;
+    border: 1px solid rgba(15,23,42,.12);
+    border-radius: 9px;
+    background: #fff;
+    color: #0f172a;
+    padding: 0 9px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 780;
+  }
+  .records-identify-reference-waiver {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #475569;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 850;
+  }
+  .records-identify-reference-waiver input { width: 16px; height: 16px; accent-color: #047857; }
+  .records-identify-login {
+    padding: 9px 10px;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 820;
+  }
+  .records-identify-followup {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 6px;
+    align-items: center;
+    padding: 7px;
+    border-radius: 10px;
+    background: #f0fdf4;
+    border: 1px solid rgba(16,185,129,.22);
+  }
+  .records-identify-followup[hidden] { display: none; }
+  .records-identify-followup span {
+    min-width: 0;
+    color: #065f46;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 900;
+  }
+  .records-identify-followup span.is-error {
+    color: #b91c1c;
+  }
+  .records-identify-followup button {
+    min-height: 29px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: #fff;
+    color: #10251a;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 950;
+    cursor: pointer;
+  }
+  .records-identify-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .records-identify-actions a,
+  .records-identify-actions button {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: #fff;
+    color: #10251a;
+    text-decoration: none;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 950;
+    cursor: pointer;
+  }
+  .records-identify-actions a {
+    background: #047857;
+    border-color: #047857;
+    color: #fff;
+  }
   .records-workbench .notes-library-controls {
     margin-top: 8px;
     display: grid;
@@ -11177,6 +12268,30 @@ const RECORDS_WORKBENCH_STYLES = `
     .records-actions a { min-width: 34px; min-height: 34px; padding: 0 11px; font-size: 12px; }
     .records-actions a.is-primary { font-size: 21px; }
     .records-main { grid-template-columns: 1fr; padding: 6px 8px 10px; }
+    .records-main.is-identify { grid-template-columns: 1fr; padding-bottom: 232px; }
+    .records-identify-panel {
+      position: fixed;
+      left: max(8px, env(safe-area-inset-left));
+      right: max(8px, env(safe-area-inset-right));
+      bottom: calc(max(8px, env(safe-area-inset-bottom)) + 92px);
+      top: auto;
+      z-index: 30;
+      gap: 8px;
+      max-height: calc(100dvh - 184px);
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: 14px;
+      box-shadow: 0 18px 48px rgba(15,23,42,.22);
+    }
+    .records-identify-media { display: none; }
+    .records-identify-head { gap: 3px; }
+    .records-identify-head span { font-size: 10px; }
+    .records-identify-head strong { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .records-identify-head p,
+    .records-identify-panel > p { display: none; }
+    .records-identify-actions { grid-template-columns: minmax(0, 1fr) auto; }
+    .records-identify-command-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .records-identify-reference-options { max-height: 118px; overflow-y: auto; }
     .records-tools {
       position: static;
       justify-self: start;
@@ -11263,6 +12378,8 @@ const RECORDS_WORKBENCH_STYLES = `
 `;
 
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
+  await registerSpecialistReadApiRoutes(app);
+
   app.get("/record", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
@@ -11841,7 +12958,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const submitDockMeta = document.getElementById('record-submit-dock-meta');
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
-        const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
+        const PHOTO_UPLOAD_WEBP_QUALITY = 0.82;
+        const PHOTO_UPLOAD_FALLBACK_JPEG_QUALITY = 0.88;
+        const PHOTO_UPLOAD_KEEP_PREPARED_JPEG_MAX_BYTES = 512 * 1024;
         const PHOTO_FEEDBACK_MAX_EDGE = 1024;
         const PHOTO_FEEDBACK_JPEG_QUALITY = 0.72;
         const PHOTO_UPLOAD_CONCURRENCY = 2;
@@ -13829,6 +14948,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             readFileAsDataUrl(blob).then(resolve).catch(() => resolve(canvas.toDataURL('image/jpeg', quality)));
           }, 'image/jpeg', quality);
         });
+        const jpegFallbackUploadDataUrl = (canvas) => ({
+          filenameExtension: 'jpg',
+          mimeType: 'image/jpeg',
+          base64Data: canvas.toDataURL('image/jpeg', PHOTO_UPLOAD_FALLBACK_JPEG_QUALITY),
+        });
+        const canvasToPhotoUploadData = (canvas) => new Promise((resolve) => {
+          const fallback = () => resolve(jpegFallbackUploadDataUrl(canvas));
+          if (!canvas || typeof canvas.toBlob !== 'function') {
+            fallback();
+            return;
+          }
+          canvas.toBlob((blob) => {
+            if (!blob || blob.type !== 'image/webp') {
+              fallback();
+              return;
+            }
+            readFileAsDataUrl(blob)
+              .then((base64Data) => resolve({ filenameExtension: 'webp', mimeType: 'image/webp', base64Data }))
+              .catch(fallback);
+          }, 'image/webp', PHOTO_UPLOAD_WEBP_QUALITY);
+        });
         const loadImageElementForUpload = (file) => new Promise((resolve, reject) => {
           const url = URL.createObjectURL(file);
           const image = new Image();
@@ -13866,6 +15006,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const height = Number(image.naturalHeight || image.height || 0);
             if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error('photo_decode_failed');
             const scale = Math.min(1, PHOTO_UPLOAD_MAX_EDGE / Math.max(width, height));
+            if (String(file.type || '').toLowerCase() === 'image/jpeg' && scale === 1 && Number(file.size || 0) > 0 && Number(file.size || 0) <= PHOTO_UPLOAD_KEEP_PREPARED_JPEG_MAX_BYTES) {
+              if (image && typeof image.close === 'function') image.close();
+              return {
+                filename: file.name || 'upload.jpg',
+                mimeType: 'image/jpeg',
+                base64Data: await readFileAsDataUrl(file),
+                facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null },
+              };
+            }
             const targetWidth = Math.max(1, Math.round(width * scale));
             const targetHeight = Math.max(1, Math.round(height * scale));
             const canvas = document.createElement('canvas');
@@ -13875,12 +15024,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (!context) throw new Error('photo_canvas_unavailable');
             context.drawImage(image, 0, 0, targetWidth, targetHeight);
             if (image && typeof image.close === 'function') image.close();
-            const base64Data = await canvasToJpegDataUrl(canvas, PHOTO_UPLOAD_JPEG_QUALITY);
+            const uploadImage = await canvasToPhotoUploadData(canvas);
             const safeName = String(file.name || 'upload.jpg').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
             return {
-              filename: safeName + '.jpg',
-              mimeType: 'image/jpeg',
-              base64Data,
+              filename: safeName + '.' + uploadImage.filenameExtension,
+              mimeType: uploadImage.mimeType,
+              base64Data: uploadImage.base64Data,
               facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null },
             };
           } catch (_) {
@@ -14859,7 +16008,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
               const notesHref = withBasePath('/records?view=mine');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + uploadFeedbackHtml + impactHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>記録を保存しました。あとでAIのヒントも返ってきます。</strong>' + uploadFeedbackHtml + impactHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">続けて記録する</a></div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
@@ -15305,6 +16454,47 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  app.get<{ Querystring: { cursor?: string; limit?: string; lang?: string } }>("/api/v1/records/needs-id-page", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String(request.query.lang ? `?lang=${request.query.lang}` : (request as unknown as { url?: string }).url ?? ""));
+    const session = await getSessionFromCookie(request.headers.cookie).catch(() => null);
+    const pageSize = Math.max(12, Math.min(72, Number.parseInt(String(request.query.limit ?? "36"), 10) || 36));
+    const page = await getObservationNeedsIdPage({ cursor: request.query.cursor, limit: pageSize });
+    const heldIds = await listHeldIdentificationOccurrenceIds(session?.userId);
+    const entries = page.observations
+      .map(publicObservationToLandingObservation)
+      .filter((entry) => !heldIds.has(entry.occurrenceId));
+    const civicContexts = await listCivicObservationContexts(entries.map((obs) => obs.visitId));
+    return {
+      ok: true,
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
+      months: renderRecordsPostMonthPayload(basePath, lang, "needs_id", entries, {
+        locationMode: "public",
+        civicContexts,
+      }),
+    };
+  });
+
+  app.get<{
+    Params: { id: string };
+    Querystring: { proposedName?: string; limit?: string };
+  }>("/api/v1/observations/:id/reference-candidates", async (request, reply) => {
+    const session = await getSessionFromCookie(request.headers.cookie).catch(() => null);
+    if (!session || session.banned) {
+      reply.code(401);
+      return { ok: false, error: "session_required" };
+    }
+    const limit = Number.parseInt(String(request.query.limit ?? "6"), 10);
+    const candidates = await listReferenceCandidatesForIdentification({
+      userId: session.userId,
+      occurrenceId: request.params.id,
+      proposedName: request.query.proposedName ?? null,
+      limit: Number.isFinite(limit) ? limit : 6,
+    }).catch(() => []);
+    return { ok: true, candidates };
+  });
+
   app.get<{ Querystring: { view?: string; filter?: string; userId?: string } }>("/records", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
@@ -15313,16 +16503,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const view = normalizeRecordsView(request.query.view, Boolean(viewerUserId));
     const [snapshot, observationSnapshot] = await Promise.all([
       getLandingSnapshot(viewerUserId),
-      getObservationListSnapshot(96).catch(() => ({
-        observations: [],
-        summary: {
-          shownCount: 0,
-          awaitingIdCount: 0,
-          identifiedCount: 0,
-          multiSubjectCount: 0,
-        },
-      } satisfies ObservationListSnapshot)),
-    ]);
+      (view === "needs_id"
+        ? getObservationNeedsIdPage({ limit: 96 })
+        : getObservationListSnapshot(96)
+      ).catch(() => ({
+          observations: [],
+          summary: {
+            shownCount: 0,
+            awaitingIdCount: 0,
+            identifiedCount: 0,
+            multiSubjectCount: 0,
+          },
+          nextCursor: null,
+          hasMore: false,
+        } satisfies ObservationListPage)),
+    ] as const);
     const ownPage = view === "mine" && snapshot.viewerUserId
       ? await getLandingOwnFeedPage(snapshot.viewerUserId, { limit: 36 }).catch(() => null)
       : null;
@@ -15330,6 +16525,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const ownEntries = snapshot.viewerUserId ? (ownPage?.entries ?? snapshot.myFeed) : [];
     const activeEntries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
     const civicContexts = await listCivicObservationContexts(activeEntries.map((obs) => obs.visitId));
+    const heldIdentificationOccurrenceIds = view === "needs_id"
+      ? await listHeldIdentificationOccurrenceIds(session?.userId)
+      : new Set<string>();
+    const needsIdNextCursor = view === "needs_id" && "nextCursor" in observationSnapshot
+      ? observationSnapshot.nextCursor
+      : null;
     const copy = recordsWorkbenchCopy(lang);
 
     reply.type("text/html; charset=utf-8");
@@ -15342,7 +16543,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       shellClassName: "shell-bleed shell-records-workbench",
       extraStyles: `${NOTES_LIBRARY_STYLES}\n${RECORDS_WORKBENCH_STYLES}`,
       hideFooter: true,
-      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, { ownPage }),
+      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, {
+        ownPage,
+        canWriteIdentification: Boolean(session),
+        heldIdentificationOccurrenceIds,
+        needsIdNextCursor,
+      }),
       footerNote: notesLibraryCopy(lang).footerNote,
     });
   });
@@ -15388,7 +16594,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     }
     let snapshot;
     try {
-      snapshot = await getObservationListSnapshot(48);
+      snapshot = activeFilter === "needs_id"
+        ? await getObservationNeedsIdPage({ limit: 48 })
+        : await getObservationListSnapshot(48);
     } catch {
       canCacheHtml = false;
       snapshot = {
@@ -15402,12 +16610,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       };
     }
     const visibleObservations = snapshot.observations.filter((item) => {
-      if (activeFilter === "needs_id") return item.displayName === "同定待ち" || item.isAiCandidate;
+      if (activeFilter === "needs_id") return isObservationAwaitingIdentification(item);
       if (activeFilter === "ai") return Boolean(item.isAiCandidate);
       if (activeFilter === "no_id") return item.identificationCount === 0;
       if (activeFilter === "photo") return Boolean(item.hasPhoto ?? item.photoUrl);
       if (activeFilter === "video") return Boolean(item.hasVideo);
-      if (activeFilter === "identified") return item.displayName !== "同定待ち" && !item.isAiCandidate;
+      if (activeFilter === "identified") return !isObservationAwaitingIdentification(item);
       if (activeFilter === "multi") return Boolean(item.isMultiSubject);
       return true;
     });
@@ -16412,6 +17620,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       recordModeLabel: observationRecordModeLabel(snapshot),
       mediaSceneLabel: mediaSceneNoun(mediaContext),
     });
+    const shotFeedbackBlock = `<div data-obs-switch-shot-feedback>${renderSubjectShotFeedbackSurface(currentSubject, snapshot.photoAssets, mediaContext)}</div>`;
     // 下部の旧要約ブロックは廃止: hero に summaryStrip / trust panel が既に表示されており重複のため
     const summaryBlock = "";
     const readProgressBlock = renderObservationReadProgress({
@@ -16539,6 +17748,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
       <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle, groundingAssets)}</template>
+      <template data-subject-shot-feedback-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectShotFeedbackSurface(subject, snapshot.photoAssets, mediaContext)}</template>
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext, heroPlaceLabel)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
@@ -16612,6 +17822,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            };
            var firstReadRoot = document.querySelector('[data-obs-switch-first-read]');
            var aiReadoutRoot = document.querySelector('[data-obs-switch-ai-readout]');
+           var shotFeedbackRoot = document.querySelector('[data-obs-switch-shot-feedback]');
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
            var taxonomyRoot = document.querySelector('[data-obs-switch-taxonomy]');
            var identifyRoot = document.querySelector('[data-obs-switch-identify]');
@@ -16622,6 +17833,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var switchRegions = [
              { root: firstReadRoot, templateAttr: 'data-subject-first-read-template' },
              { root: aiReadoutRoot, templateAttr: 'data-subject-ai-readout-template' },
+             { root: shotFeedbackRoot, templateAttr: 'data-subject-shot-feedback-template' },
              { root: hintRoot, templateAttr: 'data-subject-hint-template' },
              { root: taxonomyRoot, templateAttr: 'data-subject-taxonomy-template' },
              { root: identifyRoot, templateAttr: 'data-subject-identify-template' }
@@ -16724,11 +17936,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              var candidateListScroll = captureCandidateListScroll();
              var aiReadoutTemplate = selectTemplate('data-subject-ai-readout-template', subjectId);
              var firstReadTemplate = selectTemplate('data-subject-first-read-template', subjectId);
+             var shotFeedbackTemplate = selectTemplate('data-subject-shot-feedback-template', subjectId);
              var hintTemplate = selectTemplate('data-subject-hint-template', subjectId);
              var taxonomyTemplate = selectTemplate('data-subject-taxonomy-template', subjectId);
              var identifyTemplate = selectTemplate('data-subject-identify-template', subjectId);
              if (firstReadRoot && firstReadTemplate) firstReadRoot.innerHTML = firstReadTemplate.innerHTML;
              if (aiReadoutRoot && aiReadoutTemplate) aiReadoutRoot.innerHTML = aiReadoutTemplate.innerHTML;
+             if (shotFeedbackRoot && shotFeedbackTemplate) shotFeedbackRoot.innerHTML = shotFeedbackTemplate.innerHTML;
              if (hintRoot && hintTemplate) hintRoot.innerHTML = hintTemplate.innerHTML;
              if (taxonomyRoot && taxonomyTemplate) taxonomyRoot.innerHTML = taxonomyTemplate.innerHTML;
              if (identifyRoot && identifyTemplate) identifyRoot.innerHTML = identifyTemplate.innerHTML;
@@ -16993,11 +18207,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               return;
             }
             var endpoint = isAlternative || isNeedsEvidence ? disputeEndpoint : identifyEndpoint;
+            var referencePayload = { referenceSourceIds: referenceSourceIds, referenceLocator: referenceLocator };
             var body = isAlternative
-              ? { kind: 'alternative_id', proposedName: proposedName, proposedRank: proposedRank, reason: notes }
+              ? Object.assign({ kind: 'alternative_id', proposedName: proposedName, proposedRank: proposedRank, reason: notes }, referencePayload)
               : isNeedsEvidence
                 ? { kind: 'needs_more_evidence', reason: notes || '証拠が足りない' }
-                : { proposedName: proposedName, proposedRank: proposedRank, notes: notes, stance: 'support', referenceSourceIds: referenceSourceIds, referenceLocator: referenceLocator };
+                : Object.assign({ proposedName: proposedName, proposedRank: proposedRank, notes: notes, stance: 'support' }, referencePayload);
             setStatus('保存中...', false);
             fetch(endpoint, {
               method: 'POST',
@@ -17074,7 +18289,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}`;
+    const detailBody = `${heroBlock}${shotFeedbackBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}`;
     const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,
@@ -17310,109 +18525,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       },
       PROFILE_HUB_STYLES,
     );
-  });
-
-  app.get("/api/v1/specialist/me/authorities", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      if (!session) {
-        reply.code(401);
-        return {
-          ok: false,
-          error: "session_required",
-        };
-      }
-
-      const access = await getReviewerAccessContext(session.userId, session.roleName, session.rankLabel);
-      return {
-        ok: true,
-        globalRole: access.globalRole,
-        hasSpecialistAccess: access.hasSpecialistAccess,
-        authorities: access.activeAuthorities,
-      };
-    } catch (error) {
-      reply.code(400);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "specialist_authorities_lookup_failed",
-      };
-    }
-  });
-
-  app.get("/api/v1/authority/recommendations/me", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      if (!session) {
-        reply.code(401);
-        return {
-          ok: false,
-          error: "session_required",
-        };
-      }
-
-      const recommendations = await listAuthorityRecommendationsForUser(session.userId);
-      return {
-        ok: true,
-        recommendations,
-      };
-    } catch (error) {
-      reply.code(400);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "authority_recommendations_lookup_failed",
-      };
-    }
-  });
-
-  app.get("/api/v1/specialist/recommendations/pending", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      const resolvedSession = await assertSpecialistSession(session, session?.userId ?? "");
-      const recommendations = await listPendingAuthorityRecommendationsForReviewer({
-        actorUserId: resolvedSession.userId,
-        actorRoleName: resolvedSession.roleName,
-        actorRankLabel: resolvedSession.rankLabel,
-      });
-      return {
-        ok: true,
-        recommendations,
-      };
-    } catch (error) {
-      reply.code(error instanceof Error && error.message === "session_required" ? 401 : 403);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "specialist_recommendations_lookup_failed",
-      };
-    }
-  });
-
-  app.get("/api/v1/specialist/authorities/audit", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      assertSpecialistAdminSession(session, session?.userId ?? "");
-      const query = (typeof request.query === "object" && request.query ? request.query : {}) as Record<string, unknown>;
-      const rawAction = typeof query.action === "string" ? query.action.trim() : "";
-      const rawStatus = typeof query.status === "string" ? query.status.trim() : "";
-      const recommendations = await listReviewerAuthorityAudit({
-        subjectUserId: typeof query.subjectUserId === "string" ? query.subjectUserId.trim() : null,
-        scopeTaxonName: typeof query.scopeTaxonName === "string" ? query.scopeTaxonName.trim() : null,
-        action: (rawAction === "grant" || rawAction === "revoke" || rawAction === "update")
-          ? rawAction as ReviewerAuthorityAuditAction
-          : null,
-        status: rawStatus === "active" || rawStatus === "revoked" ? rawStatus : null,
-        limit: typeof query.limit === "string" ? Number(query.limit) : undefined,
-      });
-      return {
-        ok: true,
-        audit: recommendations,
-      };
-    } catch (error) {
-      reply.code(error instanceof Error && error.message === "session_required" ? 401 : 403);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "specialist_authority_audit_lookup_failed",
-      };
-    }
   });
 
   app.get("/authority/recommendations", async (request, reply) => {
@@ -17653,7 +18765,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <section class="section">
         <div class="grid">
           <div class="card is-soft"><div class="card-body"><div class="eyebrow">Summary</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">unresolved occurrences / ${snapshot.summary.totalOccurrences} total</p></div></div>
-          <div class="card is-soft"><div class="card-body"><div class="eyebrow">Identifications</div><h2>${snapshot.summary.identificationCount}</h2><p class="meta">current identification rows in v2</p></div></div>
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">Identifications</div><h2>${snapshot.summary.identificationCount}</h2><p class="meta">current identification rows</p></div></div>
           <div class="card is-soft"><div class="card-body"><div class="eyebrow">Observation photos</div><h2>${snapshot.summary.observationPhotoAssets}</h2><p class="meta">photo assets available for review</p></div></div>
         </div>
       </section>
@@ -18294,7 +19406,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </section>
       <section class="section"><div class="grid">
         <div class="card is-soft"><div class="card-body"><div class="eyebrow">Queue size</div><h2>${snapshot.queue.length}</h2><p class="meta">review shell に表示中の observation sample</p></div></div>
-        <div class="card is-soft"><div class="card-body"><div class="eyebrow">未同定</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">v2 全体で名前を確認中の観察</p></div></div>
+        <div class="card is-soft"><div class="card-body"><div class="eyebrow">未同定</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">名前を確認中の観察</p></div></div>
       </div></section>
       <section class="section"><div class="section-header"><div><div class="eyebrow">Review sample</div><h2>レビュー対象</h2></div></div><div class="list">${rows || '<div class="row"><div>キューに観察はありません。</div></div>'}</div></section>
       <script>

@@ -482,6 +482,11 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const occurrenceIds = subjects.map((_, i) => makeOccurrenceId(visitId, i));
   const photos = Array.isArray(input.photos) ? input.photos : [];
   const hasPhoto = hasNativeObservationPhoto(photos);
+  const rawSourcePayload = (input.sourcePayload && typeof input.sourcePayload === "object")
+    ? input.sourcePayload
+    : {};
+  const isProductionSmokeRecord = visitId.startsWith("prod-media-smoke-")
+    || (rawSourcePayload as { source?: unknown }).source === "prod_media_smoke";
   const qualitySignals: ObservationQualitySignals = {
     hasPhoto,
     hasAudio: false,
@@ -497,10 +502,11 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       subjects.some((subject) =>
         Boolean(normalizeOptionalText(subject.scientificName) ?? normalizeOptionalText(subject.vernacularName) ?? normalizeOptionalText(subject.rank)),
       ) ? null : "missing_identification",
+      isProductionSmokeRecord ? "production_smoke_record" : null,
     ].filter((reason): reason is string => reason !== null),
   };
-  const publicVisibility = hasPhoto ? "public" : "review";
-  const qualityReviewStatus = hasPhoto ? "accepted" : "needs_review";
+  const publicVisibility = isProductionSmokeRecord ? "hidden" : hasPhoto ? "public" : "review";
+  const qualityReviewStatus = isProductionSmokeRecord ? "archived" : hasPhoto ? "accepted" : "needs_review";
   const visitMode = input.visitMode === "survey" ? "survey" : "manual";
   const adminLocality = await resolveAdminLocalityForPoint(client, input.latitude, input.longitude).catch((err) => {
     console.warn("[observationWrite] resolveAdminLocalityForPoint failed", err);
@@ -520,9 +526,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const effortMinutes = visitMode === "survey"
     ? normalizeOptionalNumber(input.effortMinutes)
     : null;
-  const sourcePayload = (input.sourcePayload && typeof input.sourcePayload === "object")
-    ? input.sourcePayload
-    : {};
+  const sourcePayload = rawSourcePayload;
   const distanceMeters = normalizeOptionalNumber(input.distanceMeters);
   const revisitReason = normalizeOptionalText(input.revisitReason);
   const nextLookFor = typeof sourcePayload.next_look_for === "string"
@@ -946,7 +950,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         visitId,
         occurrenceId,
         reasonCode: "native_no_photo",
-        reasonDetail: "V2 observation was saved without photo evidence and is held for review before public display.",
+        reasonDetail: "Observation was saved without photo evidence and is held for review before public display.",
         qualitySignals,
         sourcePayload: {
           source: "v2_write_api",

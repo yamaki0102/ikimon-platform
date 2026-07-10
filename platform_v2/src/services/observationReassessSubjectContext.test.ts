@@ -71,7 +71,7 @@ test("reassess prompt treats observed subjects as candidate reading targets", ()
   assert.match(prompt, /`ユウマダラエダシャク` \/ `Abraxas miranda`/);
   assert.match(prompt, /visual_contradictions/);
   assert.match(prompt, /coexisting_taxa/);
-  assert.match(service, /observation_reassess\.md\/v5\.5/);
+  assert.match(service, /observation_reassess\.md\/v5\.7/);
   assert.match(service, /上流AIが species と言っていても/);
   assert.match(service, /applyTaxonomicRankGuardrail/);
   assert.match(service, /candidateReading: primaryCandidateReading \?\? null/);

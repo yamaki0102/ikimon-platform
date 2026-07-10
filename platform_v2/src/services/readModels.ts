@@ -27,6 +27,7 @@ import type { RegionalStoryCue } from "./regionalStory.js";
 import { extractNavigableOsFromAssessmentPayload } from "./observationAiAssessment.js";
 import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
 import { listPlaceMemoryVisits } from "./placeMemory.js";
+import { identificationReferencesFromJson, type IdentificationReferenceView } from "./identificationReferencesView.js";
 
 function publicMunicipalityLabel(input: {
   municipality?: string | null;
@@ -220,6 +221,7 @@ export type ObservationDetailSnapshot = {
     notes: string | null;
     actorName: string;
     createdAt: string;
+    references: IdentificationReferenceView[];
   }>;
   disputes: Array<{
     disputeId: string;
@@ -283,6 +285,27 @@ export type ObservationListSnapshot = {
     multiSubjectCount: number;
   };
 };
+
+export type ObservationIdentificationStatus = {
+  displayName?: string | null;
+  proposedName?: string | null;
+  isAiCandidate?: boolean | null;
+  identificationCount?: number | null;
+};
+
+export type ObservationListPage = ObservationListSnapshot & {
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export function isObservationAwaitingIdentification(item: ObservationIdentificationStatus): boolean {
+  const name = (item.displayName || item.proposedName || "").trim();
+  return item.isAiCandidate === true
+    || item.identificationCount === 0
+    || name === ""
+    || name === "同定待ち"
+    || /awaiting id|unknown|unresolved/i.test(name);
+}
 
 const OBSERVATION_LIST_SNAPSHOT_TTL_MS = 30_000;
 const OBSERVATION_LIST_CANDIDATE_MULTIPLIER = 20;
@@ -398,6 +421,17 @@ type ObservationListCardRow = {
   subject_count: string;
   field_refs: unknown;
 };
+
+function buildObservationListSummary(observations: RecentObservation[]): ObservationListSnapshot["summary"] {
+  const awaitingIdCount = observations.filter(isObservationAwaitingIdentification).length;
+  const multiSubjectCount = observations.filter((item) => item.isMultiSubject).length;
+  return {
+    shownCount: observations.length,
+    awaitingIdCount,
+    identifiedCount: observations.length - awaitingIdCount,
+    multiSubjectCount,
+  };
+}
 
 export function normalizeFieldRefs(value: unknown): RecentObservation["fieldRefs"] {
   if (!Array.isArray(value)) return [];
@@ -1189,6 +1223,7 @@ export async function getObservationDetailSnapshot(
     notes: string | null;
     actor_name: string | null;
     created_at: string;
+    reference_sources: unknown;
   }>(
     `select
         i.proposed_name,
@@ -1196,9 +1231,27 @@ export async function getObservationDetailSnapshot(
         i.accepted_rank,
         i.notes,
         ${IDENTIFICATION_ACTOR_NAME_SQL} as actor_name,
-        i.created_at::text
+        i.created_at::text,
+        coalesce(refs.reference_sources, '[]'::jsonb) as reference_sources
      from identifications i
      left join users u on u.user_id = i.actor_user_id
+     left join lateral (
+       select jsonb_agg(
+                jsonb_build_object(
+                  'sourceId', ks.source_id::text,
+                  'title', ks.title,
+                  'locator', coalesce(ir.locator, ''),
+                  'referenceRole', ir.reference_role,
+                  'citationText', coalesce(ks.citation_text, ''),
+                  'publisher', coalesce(ks.publisher, ''),
+                  'publicationYear', ks.publication_year
+                )
+                order by ir.created_at asc, ks.title asc
+              ) as reference_sources
+         from identification_references ir
+         join knowledge_sources ks on ks.source_id = ir.source_id
+        where ir.identification_id = i.identification_id
+     ) refs on true
      where i.occurrence_id = $1
      order by i.created_at desc
      limit 8`,
@@ -1410,6 +1463,7 @@ export async function getObservationDetailSnapshot(
       notes: row.notes,
       actorName: row.actor_name ?? "Community",
       createdAt: row.created_at,
+      references: identificationReferencesFromJson(row.reference_sources),
     })),
     disputes: disputesResult.rows.map((row) => ({
       disputeId: row.dispute_id,
@@ -1791,7 +1845,14 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
   );
 
   const wardFields = await safeLoadHamamatsuWardFields(pool);
-  return result.rows.map((row) => {
+  return observationListRowsToRecentObservations(result.rows, wardFields);
+}
+
+function observationListRowsToRecentObservations(
+  rows: ObservationListCardRow[],
+  wardFields: HamamatsuWardField[],
+): RecentObservation[] {
+  return rows.map((row) => {
     const subjectCount = Number(row.subject_count);
     const aiCandidateName = normalizeTaxonDisplayLabel(row.ai_candidate_name);
     const displayName = normalizeTaxonDisplayLabel(row.display_name) ?? aiCandidateName ?? "同定待ち";
@@ -1838,6 +1899,197 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
   });
 }
 
+async function loadObservationNeedsIdCards(limit: number, offset: number): Promise<RecentObservation[]> {
+  const pool = getPool();
+  const result = await pool.query<ObservationListCardRow>(
+    `WITH candidate_occurrences AS MATERIALIZED (
+       SELECT o.occurrence_id,
+              o.visit_id,
+              v.observed_at AS observed_at_sort,
+              coalesce(o.vernacular_name, o.scientific_name, nullif(ai.recommended_taxon_name, ''), '同定待ち') AS display_name,
+              o.scientific_name,
+              o.vernacular_name,
+              o.taxon_rank,
+              ai.recommended_taxon_name AS ai_candidate_name,
+              ai.recommended_rank AS ai_candidate_rank,
+              coalesce(ids.identification_count, 0) AS identification_count
+         FROM occurrences o
+         JOIN visits v ON v.visit_id = o.visit_id
+          LEFT JOIN LATERAL (
+            SELECT recommended_taxon_name, recommended_rank
+              FROM observation_ai_assessments a
+             WHERE a.occurrence_id = o.occurrence_id
+             ORDER BY generated_at DESC
+             LIMIT 1
+         ) ai ON true
+          LEFT JOIN LATERAL (
+            SELECT count(*)::int AS identification_count
+              FROM identifications i
+             WHERE i.occurrence_id = o.occurrence_id
+         ) ids ON true
+        WHERE coalesce(o.occurrence_status, 'present') <> 'absent'
+          AND ${PUBLIC_OBSERVATION_QUALITY_SQL}
+          AND exists (
+            SELECT 1
+              FROM evidence_assets ea
+              JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+             WHERE ea.occurrence_id = o.occurrence_id
+               AND (${VALID_OBSERVATION_PHOTO_ASSET_SQL} OR ${VALID_OBSERVATION_VIDEO_ASSET_SQL})
+          )
+          AND (
+            coalesce(ids.identification_count, 0) = 0
+            OR (o.vernacular_name IS NULL AND o.scientific_name IS NULL AND nullif(ai.recommended_taxon_name, '') IS NOT NULL)
+            OR nullif(trim(coalesce(o.vernacular_name, o.scientific_name, ai.recommended_taxon_name, '')), '') IS NULL
+            OR coalesce(o.vernacular_name, o.scientific_name, ai.recommended_taxon_name, '') = '同定待ち'
+            OR coalesce(o.vernacular_name, o.scientific_name, ai.recommended_taxon_name, '') ~* 'awaiting id|unknown|unresolved'
+          )
+        ORDER BY v.observed_at DESC, o.occurrence_id DESC
+        LIMIT $1 OFFSET $2
+     ),
+     valid_media AS MATERIALIZED (
+       SELECT co.visit_id,
+              ea.occurrence_id,
+              ea.asset_role,
+              ea.created_at,
+              case when ea.asset_role = 'observation_photo'
+                then coalesce(ab.public_url, ab.storage_path)
+                else null
+              end AS photo_url,
+              case when ea.asset_role = 'observation_video'
+                then coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url')
+                else coalesce(ab.public_url, ab.storage_path)
+              end AS media_url
+         FROM candidate_occurrences co
+         JOIN evidence_assets ea ON ea.occurrence_id = co.occurrence_id
+         JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+        WHERE ea.occurrence_id IS NOT NULL
+          AND (${VALID_OBSERVATION_PHOTO_ASSET_SQL} OR ${VALID_OBSERVATION_VIDEO_ASSET_SQL})
+     ),
+     media_flags AS (
+       SELECT occurrence_id,
+              bool_or(asset_role = 'observation_photo') AS has_photo,
+              bool_or(asset_role = 'observation_video') AS has_video
+         FROM valid_media
+        GROUP BY occurrence_id
+     ),
+     primary_media AS (
+       SELECT DISTINCT ON (occurrence_id)
+              visit_id,
+              occurrence_id,
+              photo_url,
+              media_url
+         FROM valid_media
+        ORDER BY occurrence_id, case when asset_role = 'observation_photo' then 0 else 1 end, created_at ASC
+     ),
+     candidate_field_refs AS (
+       SELECT DISTINCT visit_id, field_id
+         FROM (
+           SELECT v.visit_id,
+                  unnest(coalesce(v.resolved_field_ids, ARRAY[]::uuid[])) AS field_id
+             FROM candidate_occurrences co
+             JOIN visits v ON v.visit_id = co.visit_id
+            WHERE coalesce(array_length(v.resolved_field_ids, 1), 0) > 0
+           UNION ALL
+           SELECT v.visit_id,
+                  (v.source_payload->>'field_id')::uuid AS field_id
+             FROM candidate_occurrences co
+             JOIN visits v ON v.visit_id = co.visit_id
+            WHERE coalesce(v.source_payload->>'field_id', '') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+           UNION ALL
+           SELECT v.visit_id,
+                  f.field_id
+             FROM candidate_occurrences co
+             JOIN visits v ON v.visit_id = co.visit_id
+             JOIN observation_fields f ON f.valid_to IS NULL
+            WHERE f.admin_level IN ('osm_park', 'park')
+              AND v.point_latitude IS NOT NULL
+              AND v.point_longitude IS NOT NULL
+              AND f.bbox_min_lat IS NOT NULL
+              AND f.bbox_min_lat <= v.point_latitude + (35.0 / 111320.0)
+              AND f.bbox_max_lat >= v.point_latitude - (35.0 / 111320.0)
+              AND f.bbox_min_lng <= v.point_longitude + (35.0 / (111320.0 * greatest(0.2, abs(cos(radians(v.point_latitude))))))
+              AND f.bbox_max_lng >= v.point_longitude - (35.0 / (111320.0 * greatest(0.2, abs(cos(radians(v.point_latitude))))))
+         ) refs
+     ),
+     field_refs_by_visit AS (
+       SELECT refs.visit_id,
+              jsonb_agg(jsonb_build_object(
+                'fieldId', f.field_id::text,
+                'name', f.name,
+                'source', f.source,
+                'adminLevel', f.admin_level
+              ) ORDER BY f.source, f.name) AS field_refs
+         FROM candidate_field_refs refs
+         JOIN observation_fields f ON f.field_id = refs.field_id
+        WHERE f.valid_to IS NULL
+        GROUP BY refs.visit_id
+     )
+     SELECT co.occurrence_id,
+            v.visit_id,
+            v.observed_at::text AS observed_at,
+            ${VISIT_OBSERVER_NAME_SQL} AS observer_name,
+            p.canonical_name AS place_name,
+            coalesce(v.observed_country, p.country_code) AS country,
+            coalesce(v.observed_municipality, p.municipality) AS municipality,
+            coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
+            coalesce(v.point_latitude, p.center_latitude) AS latitude,
+            coalesce(v.point_longitude, p.center_longitude) AS longitude,
+            co.display_name,
+            co.scientific_name,
+            co.vernacular_name,
+            co.taxon_rank,
+            co.ai_candidate_name,
+            co.ai_candidate_rank,
+            pm.photo_url,
+            pm.media_url,
+            coalesce(mf.has_photo, false) AS has_photo,
+            coalesce(mf.has_video, false) AS has_video,
+            co.identification_count::text AS identification_count,
+            coalesce(subjects.subject_count, 1)::text AS subject_count,
+            coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
+       FROM candidate_occurrences co
+       JOIN visits v ON v.visit_id = co.visit_id
+       LEFT JOIN users u ON u.user_id = v.user_id
+       LEFT JOIN places p ON p.place_id = v.place_id
+       JOIN primary_media pm ON pm.occurrence_id = co.occurrence_id
+       LEFT JOIN media_flags mf ON mf.occurrence_id = co.occurrence_id
+       LEFT JOIN LATERAL (
+         SELECT count(*)::int AS subject_count
+           FROM occurrences o
+          WHERE o.visit_id = v.visit_id
+            AND coalesce(o.occurrence_status, 'present') <> 'absent'
+       ) subjects ON true
+       LEFT JOIN field_refs_by_visit fields ON fields.visit_id = v.visit_id
+      ORDER BY co.observed_at_sort DESC, co.occurrence_id DESC`,
+    [limit, offset],
+  );
+
+  const wardFields = await safeLoadHamamatsuWardFields(pool);
+  return observationListRowsToRecentObservations(result.rows, wardFields);
+}
+
+function parseObservationListCursor(value: string | number | null | undefined): number {
+  const parsed = typeof value === "number" ? value : Number.parseInt(String(value ?? "0"), 10);
+  return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : 0;
+}
+
+export async function getObservationNeedsIdPage(options: {
+  cursor?: string | number | null;
+  limit?: number;
+} = {}): Promise<ObservationListPage> {
+  const pageSize = Math.max(12, Math.min(96, Math.trunc(options.limit ?? 36)));
+  const offset = parseObservationListCursor(options.cursor);
+  const observationsWithSentinel = await loadObservationNeedsIdCards(pageSize + 1, offset);
+  const observations = observationsWithSentinel.slice(0, pageSize);
+  const hasMore = observationsWithSentinel.length > pageSize;
+  return {
+    observations,
+    summary: buildObservationListSummary(observations),
+    nextCursor: hasMore ? String(offset + pageSize) : null,
+    hasMore,
+  };
+}
+
 export async function getObservationListSnapshot(limit = 48): Promise<ObservationListSnapshot> {
   const cacheKey = `limit:${limit}`;
   const now = Date.now();
@@ -1846,18 +2098,9 @@ export async function getObservationListSnapshot(limit = 48): Promise<Observatio
     return cached.snapshot;
   }
   const observations = await loadObservationListCards(limit);
-  const awaitingIdCount = observations.filter((item) =>
-    item.displayName === "同定待ち" || item.isAiCandidate,
-  ).length;
-  const multiSubjectCount = observations.filter((item) => item.isMultiSubject).length;
   const snapshot = {
     observations,
-    summary: {
-      shownCount: observations.length,
-      awaitingIdCount,
-      identifiedCount: observations.length - awaitingIdCount,
-      multiSubjectCount,
-    },
+    summary: buildObservationListSummary(observations),
   };
   observationListSnapshotCache.set(cacheKey, {
     expiresAt: now + OBSERVATION_LIST_SNAPSHOT_TTL_MS,

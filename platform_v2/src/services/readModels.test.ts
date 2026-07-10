@@ -17,7 +17,7 @@ test("observation list cards bound recent visits before scanning valid media", a
   const readModels = await readFile(path.join(process.cwd(), "src", "services", "readModels.ts"), "utf8");
   const listCardsQuery = readModels.slice(
     readModels.indexOf("async function loadObservationListCards"),
-    readModels.indexOf("export async function getObservationListSnapshot"),
+    readModels.indexOf("function observationListRowsToRecentObservations"),
   );
 
   assert.match(listCardsQuery, /WITH recent_public_visits AS MATERIALIZED/);
@@ -28,6 +28,26 @@ test("observation list cards bound recent visits before scanning valid media", a
   assert.match(listCardsQuery, /LEFT JOIN field_refs_by_visit fields ON fields\.visit_id = v\.visit_id/);
   assert.doesNotMatch(listCardsQuery, /WHERE o\.visit_id = v\.visit_id[\s\S]*VALID_OBSERVATION_(?:PHOTO|VIDEO)_ASSET_SQL/);
   assert.doesNotMatch(listCardsQuery, /FROM observation_fields f\s+WHERE f\.valid_to IS NULL[\s\S]*v\.resolved_field_ids/);
+});
+
+test("records needs-id page queries a filtered queue before applying cursors", async () => {
+  const readModels = await readFile(path.join(process.cwd(), "src", "services", "readModels.ts"), "utf8");
+  const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const needsIdQuery = readModels.slice(
+    readModels.indexOf("async function loadObservationNeedsIdCards"),
+    readModels.indexOf("export async function getObservationListSnapshot"),
+  );
+  const needsIdEndpoint = readRoute.slice(
+    readRoute.indexOf('"/api/v1/records/needs-id-page"'),
+    readRoute.indexOf('"/api/v1/observations/:id/reference-candidates"'),
+  );
+
+  assert.match(readModels, /export function isObservationAwaitingIdentification/);
+  assert.match(readModels, /export async function getObservationNeedsIdPage/);
+  assert.match(needsIdQuery, /AND \(\s*coalesce\(ids\.identification_count, 0\) = 0/);
+  assert.match(needsIdQuery, /LIMIT \$1\s+OFFSET \$2/);
+  assert.match(needsIdEndpoint, /getObservationNeedsIdPage/);
+  assert.doesNotMatch(needsIdEndpoint, /\.slice\(offset, offset \+ pageSize\)/);
 });
 
 test("public observation quality gate excludes production smoke fixtures from every public surface", async () => {

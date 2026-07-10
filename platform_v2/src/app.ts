@@ -44,12 +44,12 @@ import { registerObservationPackageApiRoutes } from "./routes/observationPackage
 import { registerPlaceManagementPolicyApiRoutes } from "./routes/placeManagementPolicyApi.js";
 import { registerPlaceMemoryApiRoutes } from "./routes/placeMemoryApi.js";
 import { registerReferenceRoutes } from "./routes/references.js";
-import { startQuestScheduler } from "./services/observationEventQuestEngine.js";
 import { registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
 import { registerSampleReportRoute } from "./routes/sampleReport.js";
 import { registerStewardshipActionRoutes } from "./routes/stewardshipActions.js";
 import { registerMonitoringBusinessRoutes } from "./routes/monitoringBusiness.js";
 import { registerMonitoringWorkspaceApiRoutes } from "./routes/monitoringWorkspaceApi.js";
+import { createCspNonce, runWithCspNonce } from "./services/cspNonce.js";
 import {
   listPagesByLane,
   listPagesByVisibility,
@@ -63,8 +63,8 @@ import { getSessionFromCookie } from "./services/authSession.js";
 import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
 import { buildObserverProfileHref } from "./services/observerProfileLink.js";
-import { getStrings } from "./i18n/index.js";
 import type { LandingSnapshot } from "./services/readModels.js";
+import { getStrings } from "./i18n/index.js";
 import { DEMO_LOGIN_BANNER_STYLES, renderDemoLoginBanner } from "./ui/demoLoginBanner.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "./ui/landingTop.js";
 import { MAP_MINI_STYLES, mapMiniBootScript } from "./ui/mapMini.js";
@@ -270,19 +270,23 @@ function setHeaderIfMissing(reply: { getHeader(name: string): unknown; header(na
   }
 }
 
-function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown }, isProduction: boolean): void {
+function applySecurityHeaders(
+  reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown },
+  isProduction: boolean,
+  cspNonce: string,
+): void {
   const contentSecurityPolicy = [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.clarity.ms",
+    `script-src 'self' 'nonce-${cspNonce}' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.clarity.ms`,
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
-    "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org",
-    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
+    "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org https://tiles.openfreemap.org",
+    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://cyberjapandata.gsi.go.jp https://tiles.openfreemap.org https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
     "frame-src 'self' https://iframe.videodelivery.net",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
@@ -307,6 +311,16 @@ function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(
 
 function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }): string {
   return withBasePath(getForwardedBasePath(request.headers), requestUrl(request));
+}
+
+function requestHost(request: { headers: Record<string, unknown> }): string {
+  const rawHost = Array.isArray(request.headers.host) ? request.headers.host[0] : request.headers.host;
+  return typeof rawHost === "string" ? (rawHost.split(",", 1)[0] ?? "").trim().toLowerCase().replace(/:\d+$/, "") : "";
+}
+
+function isPublicProductionHost(request: { headers: Record<string, unknown> }): boolean {
+  const host = requestHost(request);
+  return host === "ikimon.life" || host === "www.ikimon.life";
 }
 
 function localizedNavHome(lang: SiteLang): string {
@@ -413,6 +427,7 @@ function buildLandingRootHtml(
     fieldLoop,
     snapshot,
     isLoggedIn,
+    showLocalFollowups: false,
   });
 
   const extraStyles = [
@@ -423,8 +438,8 @@ function buildLandingRootHtml(
 
   return renderSiteDocument({
     basePath: options.basePath,
-    title: copy.title,
-    description: copy.heroLead,
+    title: "みんなで作る地域図鑑 | ikimon",
+    description: "ikimon.life は、写真・動画・日常の地域記録をみんなで残して育てる地域図鑑です。",
     activeNav: localizedNavHome(lang),
     lang,
     currentPath,
@@ -434,7 +449,7 @@ function buildLandingRootHtml(
 ${landingTop.dailyDashboardHtml}
 ${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}
 ${mapMiniBootScript("ikimon-topa-map-mini")}`,
-    footerNote: copy.footerNote,
+    footerNote: "ikimon.life は、みんなで作る地域図鑑です。",
   });
 }
 
@@ -478,7 +493,7 @@ function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath
         <div class="row"><strong>Visual</strong><div class="meta">hero・card・button の崩れ、英日混在、CTA 密度、モバイル幅での詰まり。</div></div>
         <div class="row"><strong>Transition</strong><div class="meta">主要導線が 200 / redirect / 401 / 403 の想定どおりか。迷子導線や dead end がないか。</div></div>
         <div class="row"><strong>State</strong><div class="meta">未ログイン・権限不足・空状態が、雑なエラーではなく案内として読めるか。</div></div>
-        <div class="row"><strong>Legacy drift</strong><div class="meta">旧 PHP URL が v2 の正規ページへ 308 redirect されるか。</div></div>
+        <div class="row"><strong>Legacy drift</strong><div class="meta">旧 PHP URL が現行の正規ページへ 308 redirect されるか。</div></div>
       </div>
     </section>`;
 
@@ -594,7 +609,7 @@ async function getPreviewContext(): Promise<PreviewContext> {
   };
 }
 
-const LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT = `// ikimon.life v2 intentionally does not use the legacy PHP Service Worker.
+const LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT = `// ikimon.life current runtime intentionally does not use the legacy PHP Service Worker.
 // Returning this script from the old SW URLs lets browsers update the old
 // registration, clear its shell caches, and then unregister it.
 const LEGACY_CACHE_PREFIXES = ['ikimon-pwa-', 'ikimon-offline-', 'ikimon-static-'];
@@ -641,12 +656,17 @@ export function buildApp() {
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   });
 
-  app.addHook("onRequest", async (request, reply) => {
-    applySecurityHeaders(reply, config.nodeEnv === "production");
-    const redirectUrl = canonicalHostRedirectUrl(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
-    if (redirectUrl) {
-      reply.code(308).header("location", redirectUrl).send();
-    }
+  app.addHook("onRequest", (request, reply, done) => {
+    const cspNonce = createCspNonce();
+    runWithCspNonce(cspNonce, () => {
+      applySecurityHeaders(reply, config.nodeEnv === "production", cspNonce);
+      const redirectUrl = canonicalHostRedirectUrl(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
+      if (redirectUrl) {
+        reply.code(308).header("location", redirectUrl).send();
+        return;
+      }
+      done();
+    });
   });
 
   // SSR HTML responses must never be heuristically cached by the browser.
@@ -672,7 +692,8 @@ export function buildApp() {
   }
 
   app.get<{ Params: { "*": string } }>("/__preview-media/*", async (request, reply) => {
-    const enabled = process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203";
+    const enabled = !isPublicProductionHost(request as unknown as { headers: Record<string, unknown> }) &&
+      (process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203");
     const origin = (process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || "https://ikimon.life").trim().replace(/\/+$/, "");
     const rel = request.params["*"] ?? "";
     if (!enabled || !rel || rel.includes("..") || !/^(?:thumb|uploads|data\/uploads)\//.test(rel)) {
@@ -781,9 +802,6 @@ export function buildApp() {
   void registerObservationPackageApiRoutes(app);
   void registerPlaceManagementPolicyApiRoutes(app);
   void registerMeSubscriptionsApiRoutes(app);
-
-  // 5 分周期の AI Quest cron(activity ありのセッションのみ)
-  startQuestScheduler();
 
   return app;
 }

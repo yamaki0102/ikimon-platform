@@ -215,6 +215,17 @@ test("public map photos fall back to visit-level assets", async () => {
   assert.match(source, /order by case when ea\.occurrence_id = o\.occurrence_id then 0 else 1 end/);
 });
 
+test("public map photos reject tiny placeholder-like assets", () => {
+  const sql = __test__.mapPresentablePhotoAssetSql("ea", "ab");
+
+  assert.match(sql, /ea\.asset_role = 'observation_photo'/);
+  assert.match(sql, /coalesce\(ab\.bytes, 1024\) > 512/);
+  assert.match(sql, /coalesce\(ab\.bytes, 0\) > 0/);
+  assert.match(sql, /ab\.bytes <= 8192/);
+  assert.match(sql, /ab\.width_px <= 640/);
+  assert.match(sql, /ab\.height_px <= 640/);
+});
+
 test("public trace lines coarsen non-owner track points", () => {
   const features = __privacyTest__.buildPublicTraceLineFeatures([
     {

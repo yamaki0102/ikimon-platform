@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 import { buildApp } from "./app.js";
 import { createContactProof } from "./services/contactSubmit.js";
@@ -10,6 +12,15 @@ test("app accepts photo upload JSON bodies up to the v2 photo preflight envelope
   } finally {
     await app.close();
   }
+});
+
+test("buildApp stays free of background scheduler side effects", async () => {
+  const appSource = await readFile(path.join(process.cwd(), "src", "app.ts"), "utf8");
+  const serverSource = await readFile(path.join(process.cwd(), "src", "server.ts"), "utf8");
+
+  assert.doesNotMatch(appSource, /startQuestScheduler/);
+  assert.match(serverSource, /startQuestScheduler\(\)/);
+  assert.match(serverSource, /stopQuestScheduler\(\)/);
 });
 
 test("app sends browser security headers on every response", async () => {
@@ -27,7 +38,8 @@ test("app sends browser security headers on every response", async () => {
     );
     const csp = String(response.headers["content-security-policy"] ?? "");
     assert.match(csp, /default-src 'self'/);
-    assert.match(csp, /script-src 'self' 'unsafe-inline' https:\/\/cdn\.jsdelivr\.net https:\/\/unpkg\.com/);
+    assert.match(csp, /script-src 'self' 'nonce-[^']+' https:\/\/cdn\.jsdelivr\.net https:\/\/unpkg\.com/);
+    assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
     assert.match(csp, /object-src 'none'/);
     assert.match(csp, /frame-ancestors 'none'/);
     assert.match(csp, /form-action 'self'/);
@@ -38,6 +50,42 @@ test("app sends browser security headers on every response", async () => {
     assert.equal(response.headers["strict-transport-security"], undefined);
   } finally {
     await app.close();
+  }
+});
+
+test("root HTML scripts carry the CSP nonce from the response header", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/" });
+    const csp = String(response.headers["content-security-policy"] ?? "");
+    const nonce = /'nonce-([^']+)'/.exec(csp)?.[1];
+    assert.ok(nonce);
+    const escapedNonce = nonce.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.match(response.body, new RegExp(`<script nonce="${escapedNonce}"`));
+    assert.doesNotMatch(response.body, /<script(?![^>]*nonce=)/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("preview media proxy stays disabled on the public production host", async () => {
+  const previousOrigin = process.env.IKIMON_PUBLIC_MEDIA_ORIGIN;
+  process.env.IKIMON_PUBLIC_MEDIA_ORIGIN = "https://ikimon.life";
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/__preview-media/uploads/example.jpg",
+      headers: { host: "ikimon.life" },
+    });
+    assert.equal(response.statusCode, 404);
+  } finally {
+    await app.close();
+    if (previousOrigin === undefined) {
+      delete process.env.IKIMON_PUBLIC_MEDIA_ORIGIN;
+    } else {
+      process.env.IKIMON_PUBLIC_MEDIA_ORIGIN = previousOrigin;
+    }
   }
 });
 
@@ -59,7 +107,7 @@ test("app sends HSTS in production", async () => {
   }
 });
 
-test("root route serves the landing HTML even for generic accept headers", async () => {
+test("root route serves the regional atlas feed HTML even for generic accept headers", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -70,7 +118,14 @@ test("root route serves the landing HTML even for generic accept headers", async
     assert.equal(response.statusCode, 200);
     assert.match(String(response.headers["content-type"] ?? ""), /^text\/html/);
     assert.doesNotMatch(response.body, /"status":"bootstrapping"/);
-    assert.match(response.body, /ikimon\.life/);
+    assert.match(response.body, /みんなで作る地域図鑑/);
+    assert.match(response.body, /prototype-content-wall/);
+    assert.match(response.body, /みんなの記録/);
+    assert.doesNotMatch(response.body, /ぽち/);
+    assert.doesNotMatch(response.body, /landing:topA:primary:record/);
+    assert.doesNotMatch(response.body, /id="map-explorer"/);
+    assert.doesNotMatch(response.body, /simple-road-major/);
+    assert.doesNotMatch(response.body, /このエリアの活動・ラリー/);
   } finally {
     await app.close();
   }

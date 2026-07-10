@@ -34,7 +34,7 @@ class OmoikaneDB
             // Without this, concurrent workers get instant "database is locked" errors
             $this->pdo->exec('PRAGMA busy_timeout = 30000;');
         } catch (PDOException $e) {
-            die("OMOIKANE Database Connection Failed: " . $e->getMessage() . "\n");
+            throw new RuntimeException("OMOIKANE Database Connection Failed: " . $e->getMessage(), 0, $e);
         }
     }
 

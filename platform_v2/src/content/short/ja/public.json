@@ -1,11 +1,11 @@
 {
   "landing": {
-    "title": "ikimon | Enjoy Life - 生きものを楽しみ、記録から観察レコードを育てる",
-    "heroEyebrow": "Enjoy Life",
-    "heroHeadingPlain": "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。",
-    "heroHeadingLine1": "生きものを楽しむ。",
-    "heroHeadingEmphasis": "暮らしと地球のいのちを楽しむ。",
-    "heroLead": "いつもの道で見つけた小さな発見を、写真・音・動画・場所・時間を含む記録として残す。そこから対象ごとの観察レコードを育て、市民・企業・自治体が一緒に自然の変化を見守れる形へつなげます。",
+    "title": "ikimon - 皆で作る地域図鑑",
+    "heroEyebrow": "皆で作る地域図鑑",
+    "heroHeadingPlain": "地域の記録を、場所ごとの図鑑に育てる。",
+    "heroHeadingLine1": "地域の記録を、",
+    "heroHeadingEmphasis": "場所ごとの図鑑に育てる。",
+    "heroLead": "いつもの道や旅先で見つけた自然・風景・水辺・季節の気づきを、写真・音・動画・場所・時間を含む記録として残す。個人のスマホに消えていた地域の記録を場所ページに重ね、あとから見返せる地域図鑑へ育てます。",
     "heroPromiseChips": [
       "小さな発見が残る",
       "また歩きたくなる",
@@ -80,8 +80,8 @@
       }
     },
     "mapSectionEyebrow": "地図で見る",
-    "mapSectionTitle": "地域のいのちを、地図で見る。",
-    "mapSectionLead": "観察が多い場所、季節で変わる場所、まだ記録が少ない場所を見返す。小さな発見の積み重ねから、次に歩く場所が見えてくる。",
+    "mapSectionTitle": "地域図鑑を、地図で見る。",
+    "mapSectionLead": "観察が多い場所、季節で変わる場所、まだ記録が少ない場所を見返す。場所ごとの記録の積み重ねから、次に見たい地域の表情が見えてくる。",
     "mapEmpty": "まだ地図に載せる観察がありません"
   },
   "fieldLoop": {
@@ -987,7 +987,7 @@
       ]
     },
     "map": {
-      "title": "地域のいのちマップ | ikimon.life",
+      "title": "地域図鑑マップ | ikimon.life",
       "activeNav": "ホーム",
       "footerNote": "拡大すると、記録の多さ・生きものの種類・公園や水辺の手がかりが見えてくる地図。"
     },

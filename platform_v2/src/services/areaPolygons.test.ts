@@ -12,6 +12,8 @@ const {
   featureTouchesBbox,
   isCompleteFreshLiveCache,
   filterAreaFeaturesBySources,
+  hasFreshLiveOsmCacheCoverage,
+  hasRequestedLiveOsmSourceCoverage,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
   toBiodiversityGroups,
@@ -219,6 +221,37 @@ test("empty live OSM tile cache is not treated as complete park evidence", () =>
   assert.equal(isCompleteFreshLiveCache(4, 4, 0), false);
   assert.equal(isCompleteFreshLiveCache(3, 4, 12), false);
   assert.equal(isCompleteFreshLiveCache(4, 4, 12), true);
+});
+
+test("fresh live OSM cache must cover every requested live source before skipping fetch", () => {
+  const park = liveElementToFeature({
+    type: "way",
+    id: 901,
+    tags: { name: "伊場遺跡公園", leisure: "park" },
+    geometry: [
+      { lat: 34.70, lon: 137.70 },
+      { lat: 34.70, lon: 137.71 },
+      { lat: 34.71, lon: 137.71 },
+    ],
+  });
+  const school = liveElementToFeature({
+    type: "way",
+    id: 902,
+    tags: { name: "浜松第一小学校", amenity: "school" },
+    geometry: [
+      { lat: 34.71, lon: 137.71 },
+      { lat: 34.71, lon: 137.72 },
+      { lat: 34.72, lon: 137.72 },
+    ],
+  });
+
+  assert.ok(park);
+  assert.ok(school);
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["school", "osm_park"], [park]), false);
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["school", "osm_park"], [park, school]), true);
+  assert.equal(hasFreshLiveOsmCacheCoverage(["school", "osm_park"], [park], true), false);
+  assert.equal(hasFreshLiveOsmCacheCoverage(["school", "osm_park"], [park, school], true), true);
+  assert.equal(hasFreshLiveOsmCacheCoverage(["school", "osm_park"], [park, school], false), false);
 });
 
 test("live OSM fetch has fallback endpoints and short empty-cache TTL", () => {

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 import { JA_PUBLIC_INTERNAL_JARGON } from "../copy/jaPublic.js";
 import { buildApp } from "../app.js";
-import { renderHomePageHtml } from "./read.js";
+import { recordsPostHrefForView, renderHomePageHtml } from "./read.js";
 import type { HomeSnapshot } from "../services/readModels.js";
 
 async function withEnv(
@@ -115,7 +117,7 @@ test("updates page keeps the full release history on the v2 public shell", async
     assert.match(response.body, /v0\.11\.3/);
     assert.match(response.body, /観察会・音声記録・投稿の安全性/);
     assert.match(response.body, /AI考察 全面強化/);
-    assert.match(response.body, /センサースキャン Perch v2/);
+    assert.match(response.body, /センサースキャン音声AI/);
     assert.match(response.body, /プロトタイプ版スタート/);
     assert.match(response.body, /2025年11月1日/);
 
@@ -127,25 +129,25 @@ test("updates page keeps the full release history on the v2 public shell", async
   }
 });
 
-test("home page uses the current content-first top surface", async () => {
+test("home page uses the regional atlas feed surface", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /Enjoy Life/);
-    assert.match(response.body, /<title>ikimon \| Enjoy Life/);
+    assert.match(response.body, /<title>みんなで作る地域図鑑 \| ikimon/);
+    assert.match(response.body, /みんなで作る地域図鑑/);
+    assert.match(response.body, /写真・動画・日常の地域記録/);
     assert.match(response.body, /prototype-content-wall/);
-    assert.match(response.body, /EVERYONE&#39;S RECORDS/);
     assert.match(response.body, /みんなの記録/);
-    assert.match(response.body, /育つ観察エリア/);
-    assert.match(response.body, /FIELD EVENTS/);
-    assert.match(response.body, /近くの観察会/);
-    assert.match(response.body, /記録する/);
-    assert.match(response.body, /写真/);
-    assert.match(response.body, /動画/);
-    assert.match(response.body, /選ぶ/);
-    assert.match(response.body, /ガイド/);
-    assert.match(response.body, /同定待ち/);
+    assert.doesNotMatch(response.body, /ぽち/);
+    assert.doesNotMatch(response.body, /landing:topA:primary:record/);
+    assert.doesNotMatch(response.body, /id="map-explorer"/);
+    assert.doesNotMatch(response.body, /地域図鑑マップ/);
+    assert.doesNotMatch(response.body, /このエリアの活動・ラリー/);
+    assert.doesNotMatch(response.body, /主催者の方へ/);
+    assert.doesNotMatch(response.body, /\/community\/events\/new/);
+    assert.doesNotMatch(response.body, /FIELD EVENTS/);
+    assert.doesNotMatch(response.body, /近くの観察会/);
     assert.doesNotMatch(response.body, /今日見つけた生きものを、名前が分からなくても残せる。/);
     assert.doesNotMatch(response.body, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
     assert.doesNotMatch(response.body, /今日は、どこを見に行く？/);
@@ -274,7 +276,59 @@ test("identification queue is a records workbench tab", async () => {
     assert.match(response.body, /records-view-tabs/);
     assert.match(response.body, /確認待ち/);
     assert.match(response.body, /data-library-search/);
+    assert.match(response.body, /data-records-identify-workbench/);
+    assert.match(response.body, /records-identify-panel/);
+    assert.match(response.body, /data-records-identify-panel/);
+    assert.match(response.body, /同定ワークベンチ/);
+    assert.equal(recordsPostHrefForView("needs_id", true, "/ja/observations/record-1"), "/ja/observations/record-1#identify");
+    assert.equal(recordsPostHrefForView("needs_id", false, "/ja/observations/record-1"), "/ja/observations/record-1");
+    assert.equal(recordsPostHrefForView("public", true, "/ja/observations/record-1"), "/ja/observations/record-1");
     assert.doesNotMatch(response.body, /class="hero-panel/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("identification workbench panel keeps continuous actions in the records surface", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  assert.match(source, /data-identify-panel-action="support"/);
+  assert.match(source, /data-identify-panel-action="alternative"/);
+  assert.match(source, /data-identify-panel-action="needs_more_evidence"/);
+  assert.match(source, /data-identify-panel-action="hold"/);
+  assert.match(source, /data-identify-endpoint=/);
+  assert.match(source, /data-dispute-endpoint=/);
+  assert.match(source, /data-hold-endpoint=/);
+  assert.match(source, /data-identify-panel-restore/);
+  assert.match(source, /data-identify-panel-keep/);
+  assert.match(source, /data-identify-processed/);
+  assert.match(source, /data-reference-candidates-endpoint/);
+  assert.match(source, /data-identify-panel-reference-options/);
+  assert.match(source, /data-identify-panel-reference-capture/);
+  assert.match(source, /taxonHint/);
+  assert.match(source, /referenceSourceIds: referenceSourceIds/);
+  assert.match(source, /AI候補/);
+  assert.match(source, /data-identify-panel-ai-prefill-marker/);
+  assert.match(source, /data-ai-prefill-value/);
+  assert.match(source, /input\.checked = false/);
+  assert.doesNotMatch(source, /input\.checked = Boolean\(candidate\.owned\)/);
+  assert.match(source, /data-identify-panel-cleared/);
+  assert.match(source, /data-identify-panel-reference-waiver/);
+  assert.match(source, /copy\.referenceRequired/);
+  assert.match(source, /identification-workbench-hold/);
+  assert.match(source, /records:lazy-appended/);
+  assert.match(source, /api\/v1\/records\/needs-id-page/);
+  assert.match(source, /event\.key === '1'/);
+  assert.match(source, /event\.key === 'K'/);
+  assert.match(source, /event\.key === '4'/);
+  assert.match(source, /copy\.saveFailed/);
+});
+
+test("reference candidate lookup requires an authenticated session", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/v1/observations/occ-1/reference-candidates?proposedName=test", headers: { accept: "application/json" } });
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), { ok: false, error: "session_required" });
   } finally {
     await app.close();
   }

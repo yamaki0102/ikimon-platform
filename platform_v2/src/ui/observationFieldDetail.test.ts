@@ -192,24 +192,28 @@ test("field detail metrics use place snapshot observations when event stats are 
   assert.doesNotMatch(html, /<strong>0<\/strong><span>開催回数<\/span>/);
 });
 
-test("field detail starts with the map hero before numeric record metrics", () => {
+test("field detail starts with the area encyclopedia hero before numeric record metrics", () => {
   const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
 
-  const mapHeroIndex = html.indexOf('<article class="field-map-hero">');
-  const mapCanvasIndex = html.indexOf("data-evt-field-map");
+  const areaHeroIndex = html.indexOf('<article class="field-area-hero">');
   const metricsIndex = html.indexOf('<section class="field-detail-metrics"');
   const numericIndex = html.indexOf("<span>記録回数</span>");
 
-  assert.ok(mapHeroIndex >= 0);
-  assert.ok(mapCanvasIndex > mapHeroIndex);
-  assert.ok(metricsIndex > mapHeroIndex);
+  assert.ok(areaHeroIndex >= 0);
+  assert.ok(metricsIndex > areaHeroIndex);
   assert.ok(numericIndex > metricsIndex);
+  assert.match(html, /このエリアで記録する/);
+  assert.match(html, /公開範囲: 位置をぼかして表示/);
+  assert.doesNotMatch(html, /data-evt-field-map/);
 });
 
 test("area encyclopedia renders stable empty states without payload", () => {
   const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
 
   assert.match(html, /エリア図鑑/);
+  assert.match(html, /利用者が作成したエリア/);
+  assert.match(html, /確認待ち/);
+  assert.match(html, /正確な座標とジオメトリ本体は、この公開ページでは表示しません。/);
   assert.match(html, /<strong>50<\/strong><span>公開記録<\/span>/);
   assert.match(html, /<strong>0<\/strong><span>近くのスポット<\/span>/);
   assert.match(html, /<strong>3<\/strong><span>ガイド候補<\/span>/);
@@ -218,13 +222,12 @@ test("area encyclopedia renders stable empty states without payload", () => {
   assert.match(html, /はじめての1分ガイド/);
   assert.match(html, /季節の入口ガイド/);
   assert.match(html, /木のまわりガイド/);
-  assert.match(html, /関連する企業・団体はまだありません/);
+  assert.doesNotMatch(html, /関連する企業・団体はまだありません/);
+  assert.doesNotMatch(html, /user_defined|unverified/);
 });
 
-test("area encyclopedia renders spots, guides, actors, and only public spot coordinates", () => {
+test("area encyclopedia renders spots, guides, and actors without exposing spot coordinates", () => {
   const html = renderFieldDetailBody({ field: encyclopediaField(), stats: stats(), snapshot: snapshot() });
-  const attr = html.match(/data-area-spots='([^']*)'/)?.[1] ?? "[]";
-  const mapSpots = JSON.parse(attr.replace(/&quot;/g, "\"").replace(/&#39;/g, "'").replace(/&amp;/g, "&"));
 
   assert.match(html, /葦原デッキ/);
   assert.match(html, /守る水辺/);
@@ -240,7 +243,7 @@ test("area encyclopedia renders spots, guides, actors, and only public spot coor
   assert.match(html, /浜名湖パートナーズ/);
   assert.match(html, /外部名鑑/);
   assert.doesNotMatch(html, /ロック前に出してはいけない本文|audio\.mp3/);
-  assert.deepEqual(mapSpots.map((spot: { name: string }) => spot.name), ["葦原デッキ"]);
+  assert.doesNotMatch(html, /34\.7221|137\.6292|data-area-spots/);
 });
 
 test("area encyclopedia screen copy avoids reserved implementation and brand terms", () => {
@@ -276,6 +279,14 @@ test("field detail map script uses only area spot coordinates for markers", () =
   assert.doesNotMatch(script, /field-map-pin/);
 });
 
+test("field detail public html does not expose exact field coordinate or geometry attributes", () => {
+  const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
+
+  assert.doesNotMatch(html, /data-lat|data-lng|data-radius|data-polygon|data-area-spots/);
+  assert.doesNotMatch(html, /26\.2179484|127\.6918878/);
+  assert.doesNotMatch(html, /"Polygon"|"coordinates"/);
+});
+
 test("field detail can reload the latest area sketch draft and overlay normalized polygon", () => {
   const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
   const script = fieldDetailScript();
@@ -302,17 +313,18 @@ test("field detail area sketch copy keeps estimates inside the precheck boundary
   assert.doesNotMatch(html + script, /認定されます|申請できます|正式面積/);
 });
 
-test("field detail map hero stays compact on desktop", () => {
+test("field detail area hero stays compact on desktop", () => {
   assert.match(FIELD_DETAIL_ALBUM_STYLES, /max-width: 1160px;/);
-  assert.match(FIELD_DETAIL_ALBUM_STYLES, /min-height: clamp\(340px, 36vw, 430px\);/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-area-hero \{[\s\S]*grid-template-columns: minmax\(0, 1\.35fr\) minmax\(280px, \.65fr\);/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-area-hero \{[\s\S]*padding: clamp\(18px, 3vw, 30px\);/);
   assert.doesNotMatch(FIELD_DETAIL_ALBUM_STYLES, /min-height: clamp\(480px, 58vw, 660px\);/);
-  assert.match(FIELD_DETAIL_ALBUM_STYLES, /width: min\(600px, calc\(100% - 32px\)\);/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 1020px\) \{[\s\S]*\.field-area-hero \{[\s\S]*grid-template-columns: 1fr;/);
 });
 
 test("field detail keeps one primary hero action and moves trust links lower", () => {
   const html = renderFieldDetailBody({ field: sourcedField(), stats: stats(), snapshot: snapshot() });
 
-  const heroStart = html.indexOf('<article class="field-map-hero">');
+  const heroStart = html.indexOf('<article class="field-area-hero">');
   const heroEnd = html.indexOf("</article>", heroStart);
   const metricsIndex = html.indexOf('<section class="field-detail-metrics"');
   const trustIndex = html.indexOf('<section class="field-trust-info"');
@@ -320,10 +332,11 @@ test("field detail keeps one primary hero action and moves trust links lower", (
   const heroPrimaryCount = (heroHtml.match(/class="evt-btn evt-btn-primary/g) ?? []).length;
 
   assert.equal(heroPrimaryCount, 1);
-  assert.match(heroHtml, /記録する/);
+  assert.match(heroHtml, /このエリアで記録する/);
   assert.match(heroHtml, /この場所のいま/);
   assert.match(heroHtml, /公開写真 \/ 季節/);
-  assert.doesNotMatch(heroHtml, /公式 ↗|認定情報 ↗|事例 ↗|認定情報と一致/);
+  assert.match(heroHtml, /認定情報と一致/);
+  assert.doesNotMatch(heroHtml, /公式 ↗|認定情報 ↗|事例 ↗/);
   assert.ok(trustIndex > metricsIndex);
   assert.match(html.slice(trustIndex), /公式 ↗/);
   assert.match(html.slice(trustIndex), /認定情報 ↗/);

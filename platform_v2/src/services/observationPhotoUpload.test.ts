@@ -7,14 +7,17 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   const source = readFileSync(path.join(process.cwd(), "src/services/observationPhotoUpload.ts"), "utf8");
 
   assert.match(source, /normalizeObservationImage/);
-  assert.match(source, /canKeepPreparedJpeg/);
+  assert.match(source, /canKeepPreparedUploadImage/);
   assert.match(source, /ALLOWED_OBSERVATION_IMAGE_MIME_TYPES/);
-  assert.match(source, /metadata\.format === "jpeg"/);
+  assert.match(source, /mimeType === "image\/jpeg" \? "jpeg" : mimeType === "image\/webp" \? "webp" : ""/);
+  assert.match(source, /metadata\.format === expectedFormat/);
   assert.match(source, /!metadata\.orientation \|\| metadata\.orientation === 1/);
   assert.match(source, /!hasSensitiveMetadata/);
   assert.match(source, /width: 2560/);
   assert.match(source, /height: 2560/);
   assert.match(source, /fit: "inside"/);
+  assert.match(source, /\.webp\(\{ quality: 86, effort: 4 \}\)/);
+  assert.match(source, /mimeType: "image\/webp"/);
   assert.match(source, /throw new Error\("image_normalization_failed"\)/);
   assert.doesNotMatch(source, /normalizedMime === "image\/gif"[\s\S]*return \{ buffer/);
   assert.match(source, /widthPx: normalizedImage\.widthPx/);
@@ -27,11 +30,13 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(source, /observation_photo_original/);
   assert.match(source, /privacy_processing_status: "pending"/);
   assert.match(source, /original_relative_path: originalRelativePath/);
-  assert.match(source, /set public_visibility = 'public'/);
-  assert.match(source, /quality_review_status = 'accepted'/);
+  assert.match(source, /set public_visibility = case[\s\S]*else 'public'[\s\S]*end/);
+  assert.match(source, /quality_review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
+  assert.match(source, /visit_id like 'prod-media-smoke-%'[\s\S]*then 'hidden'/);
+  assert.match(source, /coalesce\(source_payload->>'source', ''\) = 'prod_media_smoke'[\s\S]*then 'archived'/);
   assert.match(source, /reason <> 'missing_photo'/);
   assert.match(source, /reason_code = 'native_no_photo'/);
-  assert.match(source, /review_status = 'accepted'/);
+  assert.match(source, /review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
   assert.match(source, /enqueueMediaProcessingJobsStandalone/);
   assert.match(source, /photo_ready_reassess/);
 

@@ -54,7 +54,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /activityIntent/);
         assert.match(response.body, /participantRole/);
         assert.match(response.body, /revisitObservationId/);
-        assert.match(response.body, /写真で記録する/);
+        assert.match(response.body, /写真で記録/);
         assert.match(response.body, /メモだけ残す/);
         assert.match(response.body, /動画で残す/);
         assert.match(response.body, /ファイルから選ぶ/);
@@ -88,7 +88,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /id="record-media"[^>]+multiple/);
         assert.match(response.body, /MAX_PHOTO_FILES = 6/);
         assert.match(response.body, /PHOTO_UPLOAD_MAX_EDGE = 2560/);
-        assert.match(response.body, /PHOTO_UPLOAD_JPEG_QUALITY = 0\.88/);
+        assert.match(response.body, /PHOTO_UPLOAD_WEBP_QUALITY = 0\.82/);
+        assert.match(response.body, /PHOTO_UPLOAD_FALLBACK_JPEG_QUALITY = 0\.88/);
+        assert.match(response.body, /PHOTO_UPLOAD_KEEP_PREPARED_JPEG_MAX_BYTES = 512 \* 1024/);
         assert.match(response.body, /PHOTO_UPLOAD_CONCURRENCY = 2/);
         assert.doesNotMatch(response.body, /redactCanvasFaces\(canvas\)/);
         assert.match(response.body, /server_async_face_privacy/);
@@ -109,7 +111,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /動画は保存済みです。公開までの状態を下に表示しています。/);
         assert.match(response.body, /動画は保存済みです。公開準備が続いています。画面を閉じても大丈夫です。/);
         assert.match(response.body, /preparePhotoUpload/);
-        assert.match(response.body, /canvasToJpegDataUrl\(canvas, PHOTO_UPLOAD_JPEG_QUALITY\)/);
+        assert.match(response.body, /canvasToPhotoUploadData\(canvas\)/);
+        assert.match(response.body, /image\/webp/);
+        assert.match(response.body, /PHOTO_UPLOAD_KEEP_PREPARED_JPEG_MAX_BYTES/);
         assert.match(response.body, /mapWithConcurrency\(preparedPhotoUploads, PHOTO_UPLOAD_CONCURRENCY/);
         assert.match(response.body, /let selectedMediaFiles = \[\]/);
         assert.match(response.body, /let selectedVideoFile = null/);
@@ -117,6 +121,11 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /id="record-submit-panel"/);
         assert.match(response.body, /id="record-submit-dock-meta"/);
         assert.match(response.body, /class="record-submit-primary">保存/);
+        assert.match(response.body, /記録を始める/);
+        assert.match(response.body, /分類、名前、長い説明はあとからで大丈夫です。/);
+        assert.match(response.body, /AIフィードバック/);
+        assert.match(response.body, /あとでAIのヒントも返ってきます。/);
+        assert.match(response.body, /続けて記録する/);
         assert.match(response.body, /data-first-record-candidate="1"/);
         assert.match(response.body, /\/api\/v1\/ui-kpi\/events/);
         assert.match(response.body, /recordSessionId/);
@@ -143,7 +152,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /video_upload_error/);
         assert.match(response.body, /const statusHeading = savedDetailId \? '記録本体は保存済みです。' : '送信に失敗しました。'/);
         assert.match(response.body, /data-record-success-cta="revisit_same_place"/);
-        assert.match(response.body, /同じ場所でもう1件記録する/);
+        assert.match(response.body, /続けて記録する/);
         assert.match(response.body, /revisitObservationId=/);
         assert.match(response.body, /写真を保存しています\.\.\. ' \+ String\(index\) \+ '\/' \+ String\(total\)/);
         assert.match(response.body, /photo_upload_failed_at_/);
@@ -273,8 +282,8 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         });
 
         assert.equal(response.statusCode, 200);
-        assert.match(response.body, /写真で記録する/);
-        assert.match(response.body, /ログインして写真で記録する/);
+        assert.match(response.body, /記録を始める/);
+        assert.match(response.body, /ログインして記録を始める/);
         assert.match(response.body, /場所と時間が残る/);
         assert.match(response.body, /周囲も手がかり/);
         assert.match(response.body, /対象はあとで分ける/);

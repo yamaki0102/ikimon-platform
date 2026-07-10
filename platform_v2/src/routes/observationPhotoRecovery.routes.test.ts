@@ -18,7 +18,11 @@ test("observation detail lets owners recover missing photos without exposing rev
   assert.doesNotMatch(readRoutes, /動画サムネイルを Gemini に渡しています/);
   assert.match(readRoutes, /\/api\/v1\/observations\/\$\{encodeURIComponent\(options\.visitId\)\}\/photos\/upload/);
   assert.match(readRoutes, /PHOTO_RECOVERY_CONCURRENCY = 2/);
+  assert.match(readRoutes, /PHOTO_RECOVERY_WEBP_QUALITY = 0\.82/);
+  assert.match(readRoutes, /PHOTO_RECOVERY_FALLBACK_JPEG_QUALITY = 0\.88/);
+  assert.match(readRoutes, /PHOTO_RECOVERY_KEEP_PREPARED_JPEG_MAX_BYTES = 512 \* 1024/);
   assert.match(readRoutes, /preparePhotoUpload/);
+  assert.match(readRoutes, /canvasToPhotoUploadData\(canvas\)/);
   assert.match(readRoutes, /mediaRole: existingPhotoCount === 0 && item\.index === 0 \? 'primary_subject' : 'context'/);
   assert.match(landingSnapshot, /own observation library, including review rows that need media recovery/);
   assert.match(landingSnapshot, /coalesce\(v\.public_visibility, 'public'\) <> 'hidden'/);
