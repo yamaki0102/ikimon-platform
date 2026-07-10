@@ -16227,7 +16227,7 @@ test("production observation event APIs run location and rally routes on D1 with
     const rallyPayload = await rally.json() as any;
     assert.equal(rallyPayload.rally.course.title, "ゆるい観察ラリー");
     assert.equal(rallyPayload.rally.stations.length, 1);
-    assert.equal(rallyPayload.rally.missions.length, 1);
+    assert.equal(rallyPayload.rally.missions.length, 2);
     const manualProgress = rallyPayload.rally.progress.find((row: any) => row.missionId === missionPayload.mission.missionId);
     const autoMatchedProgress = rallyPayload.rally.progress.find((row: any) => row.missionId === autoMissionPayload.mission.missionId);
     assert.equal(manualProgress.percent, 150);
