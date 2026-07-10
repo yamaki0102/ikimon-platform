@@ -762,8 +762,11 @@ test("map explorer surfaces own place thumbnails without old shortcut copy", () 
   assert.match(script, /function loadOwnPlaces\(\)/);
   assert.match(script, /function jumpToOwnPlace\(place\)/);
   assert.match(script, /latestPhotoUrl/);
-  assert.match(script, /自分の場所/);
-  assert.match(script, /前に残した写真から、もう一度その場所へ戻れます。/);
+  assert.match(script, /自分の記録がある場所/);
+  assert.match(script, /前の投稿が、再訪先と地域図鑑の手がかりになります。/);
+  assert.match(script, /function ownPlaceImpactLine\(place\)/);
+  assert.match(script, /同じ場所の変化を見返せます/);
+  assert.match(script, /地域図鑑の手がかりになっています/);
   assert.doesNotMatch(script, /よく行く/);
   assert.doesNotMatch(script, /季節で再訪/);
   assert.doesNotMatch(script, /行った場所へ/);

@@ -1623,7 +1623,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     priority_nearby_gap: props.lang === "ja" ? "近くにまだ知らない場所がある" : props.lang === "es" ? "Hay lugares cercanos por conocer" : props.lang === "pt-BR" ? "Há lugares perto para conhecer" : "There are unknown places nearby",
     remainingLabel: props.lang === "ja" ? "まだ知らない場所" : props.lang === "es" ? "lugares por conocer" : props.lang === "pt-BR" ? "lugares a conhecer" : "unknown places",
     aggregateModeNote: props.lang === "ja" ? "他ユーザー個別ではなく、地域の集計だけを表示中" : props.lang === "es" ? "Solo agregados del área, no personas concretas" : props.lang === "pt-BR" ? "Somente agregados da área, sem pessoas específicas" : "Area aggregate only, no individual people shown",
-    impactPanelTitleMine: props.lang === "ja" ? "キミの記録が役立っていること" : props.lang === "es" ? "Cómo ayudan tus registros" : props.lang === "pt-BR" ? "Como seus registros ajudam" : "How your records help",
+    impactPanelTitleMine: props.lang === "ja" ? "あなたの記録が地図で見えること" : props.lang === "es" ? "Lo que tus registros muestran en el mapa" : props.lang === "pt-BR" ? "O que seus registros mostram no mapa" : "What your records show on the map",
     impactPanelTitleGuest: props.lang === "ja" ? "この地域の記録が増えています" : props.lang === "es" ? "Los registros de esta zona aumentan" : props.lang === "pt-BR" ? "Os registros desta area estao aumentando" : "Records are increasing in this area",
     impactPanelLoading: props.lang === "ja" ? "この範囲の記録を読み込み中…" : props.lang === "es" ? "Leyendo registros de esta zona…" : props.lang === "pt-BR" ? "Lendo registros desta area…" : "Loading records in this area…",
     impactRevisitStory: props.lang === "ja" ? "同じ場所を比べられるようになった" : props.lang === "es" ? "Hizo posible comparar el mismo lugar" : props.lang === "pt-BR" ? "Tornou possível comparar o mesmo lugar" : "Made the same place comparable",
@@ -1632,8 +1632,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     impactBlankStory: props.lang === "ja" ? "この場所の空白を埋める候補が見えた" : props.lang === "es" ? "Aparecieron huecos que se pueden completar" : props.lang === "pt-BR" ? "Apareceram vazios que podem ser preenchidos" : "Found gaps that can be filled",
     impactCommunityStory: props.lang === "ja" ? "最近、見え方が厚くなった場所" : props.lang === "es" ? "Lugares que se hicieron más claros hace poco" : props.lang === "pt-BR" ? "Lugares que ficaram mais claros recentemente" : "Places that became clearer recently",
     impactPrivateNote: props.lang === "ja" ? "個人名ではなく、地域の集計だけで表示しています。" : props.lang === "es" ? "Se muestra solo agregado del área, no nombres." : props.lang === "pt-BR" ? "Mostramos apenas agregados da área, sem nomes." : "Only area aggregates are shown, not names.",
-    ownPlacesTitle: props.lang === "ja" ? "自分の場所" : props.lang === "es" ? "Mis lugares" : props.lang === "pt-BR" ? "Meus lugares" : "My places",
-    ownPlacesLead: props.lang === "ja" ? "前に残した写真から、もう一度その場所へ戻れます。" : props.lang === "es" ? "Vuelve a lugares anteriores desde tus fotos." : props.lang === "pt-BR" ? "Volte aos lugares anteriores pelas suas fotos." : "Return to previous places from your photos.",
+    ownPlacesTitle: props.lang === "ja" ? "自分の記録がある場所" : props.lang === "es" ? "Lugares con tus registros" : props.lang === "pt-BR" ? "Lugares com seus registros" : "Places with your records",
+    ownPlacesLead: props.lang === "ja" ? "前の投稿が、再訪先と地域図鑑の手がかりになります。" : props.lang === "es" ? "Tus publicaciones anteriores se vuelven pistas para volver y para el atlas local." : props.lang === "pt-BR" ? "Suas postagens anteriores viram pistas para voltar e para o atlas local." : "Your previous posts become revisit cues and local atlas clues.",
     ownPlaceRecordLabel: props.lang === "ja" ? "もう一度記録" : props.lang === "es" ? "Registrar otra vez" : props.lang === "pt-BR" ? "Registrar de novo" : "Record again",
     ownPlaceVisitedSuffix: props.lang === "ja" ? "回" : props.lang === "es" ? " visitas" : props.lang === "pt-BR" ? " visitas" : " visits",
     searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
@@ -2751,6 +2751,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return parts.join(' · ');
   }
 
+  function ownPlaceImpactLine(place) {
+    if (!place) return '';
+    var visitCount = Number(place.visitCount || 0);
+    if (visitCount >= 2) return SEARCH_LANG === 'ja' ? '同じ場所の変化を見返せます' : 'You can compare this place over time';
+    if (place.currentSeasonVisited) return SEARCH_LANG === 'ja' ? '今の季節の記録として残っています' : 'Saved as this season\\'s record';
+    if (place.nextLookFor) return SEARCH_LANG === 'ja' ? '次に探すものが残っています' : 'A next thing to look for is saved';
+    if (place.latestDisplayName) return SEARCH_LANG === 'ja' ? '地域図鑑の手がかりになっています' : 'It is now a local atlas clue';
+    return SEARCH_LANG === 'ja' ? '次の記録の出発点になります' : 'This can start your next record';
+  }
+
   function ownPlaceImageHtml(place) {
     var src = place && place.latestPhotoUrl ? String(place.latestPhotoUrl) : '';
     if (src) {
@@ -2779,6 +2789,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         var title = place && place.placeName ? String(place.placeName) : COPY.selectedPointName;
         var subject = place && place.latestDisplayName ? String(place.latestDisplayName) : (place && place.nextLookFor ? String(place.nextLookFor) : '');
         var meta = ownPlaceMeta(place);
+        var impact = ownPlaceImpactLine(place);
         var recordHref = buildPlaceMemoryRecordHref(place || {});
         return '<article class="me-own-place" data-own-place-index="' + String(index) + '">'
           + '<button type="button" class="me-own-place-main" data-own-place-open="' + String(index) + '">'
@@ -2786,6 +2797,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           + '<span class="me-own-place-copy">'
           + '<strong>' + escapeHtml(title) + '</strong>'
           + (subject ? '<small>' + escapeHtml(subject) + '</small>' : '')
+          + (impact ? '<span class="me-own-place-impact">' + escapeHtml(impact) + '</span>' : '')
           + (meta ? '<em>' + escapeHtml(meta) + '</em>' : '')
           + '</span>'
           + '</button>'
@@ -9174,6 +9186,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-own-place-copy { min-width: 0; display: grid; gap: 2px; }
   .me-own-place-copy strong,
   .me-own-place-copy small,
+  .me-own-place-copy .me-own-place-impact,
   .me-own-place-copy em {
     min-width: 0;
     overflow: hidden;
@@ -9182,6 +9195,7 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-own-place-copy strong { font-size: 12px; line-height: 1.25; color: #0f172a; font-weight: 900; }
   .me-own-place-copy small { font-size: 10.5px; line-height: 1.35; color: #334155; font-weight: 750; }
+  .me-own-place-copy .me-own-place-impact { font-size: 10px; line-height: 1.35; color: #0f766e; font-weight: 850; }
   .me-own-place-copy em { font-style: normal; font-size: 10px; line-height: 1.35; color: #64748b; font-weight: 700; }
   .me-own-place-record {
     display: inline-flex;
