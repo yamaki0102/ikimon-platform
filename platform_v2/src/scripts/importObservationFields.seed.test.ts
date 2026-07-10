@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { validateAreaPolygon } from "../services/observationEventAreaGeometry.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seedPath = path.resolve(here, "data", "nature_symbiosis_sites.seed.json");
@@ -45,7 +46,14 @@ test("aikan renri official URL points to the owner primary source, not an ikimon
       certification_id?: string;
       city?: string;
       official_url?: string;
+      lat?: number;
+      lng?: number;
+      area_ha?: number;
+      polygon?: Record<string, unknown>;
       payload?: {
+        boundary_source?: string;
+        boundary_method?: string;
+        boundary_area_ha?: number;
         guide_stop?: {
           enabled?: boolean;
           title?: string;
@@ -64,6 +72,15 @@ test("aikan renri official URL points to the owner primary source, not an ikimon
   assert.equal(site.city, "浜松市浜名区");
   assert.equal(site.official_url, "https://i-kan.co.jp/company/biodiversity/");
   assert.doesNotMatch(site.official_url ?? "", /^https:\/\/ikimon\.life\//);
+  assert.equal(site.lat, 34.8144194);
+  assert.equal(site.lng, 137.7332325);
+  const boundary = validateAreaPolygon(site.polygon);
+  assert.equal(boundary.ok, true);
+  assert.ok(((site.polygon as { coordinates?: unknown[][] })?.coordinates?.[0]?.length ?? 0) >= 16);
+  assert.ok(Math.abs((boundary.areaHa ?? 0) - (site.area_ha ?? 0)) <= 0.1);
+  assert.match(site.payload?.boundary_source ?? "", /増進活動実施計画/);
+  assert.equal(site.payload?.boundary_method, "applicant_workbook_image_digitization");
+  assert.equal(site.payload?.boundary_area_ha, 1.3);
   assert.equal(site.payload?.guide_stop?.enabled, true);
   assert.match(site.payload?.guide_stop?.title ?? "", /LENRI|連理/);
   assert.match(site.payload?.guide_stop?.script ?? "", /連理の木/);
