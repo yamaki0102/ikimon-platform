@@ -4393,6 +4393,208 @@ function isObservationEventLocationShareOpen(session: NonNullable<Awaited<Return
   return Number.isFinite(started) && Number.isFinite(ended) && now >= started - 30 * 60 * 1000 && now <= ended + 24 * 60 * 60 * 1000;
 }
 
+interface ObservationRallyAutoMatchCandidateD1Row extends ObservationRallyMissionD1Row {
+  session_id: string;
+  matched_station_id: string;
+  station_lat: number;
+  station_lng: number;
+  station_radius_m: number;
+}
+
+const RALLY_EARTH_RADIUS_M = 6_371_000;
+
+function observationRallyDistanceMeters(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): number {
+  const toRadians = (value: number) => value * Math.PI / 180;
+  const fromLat = toRadians(from.lat);
+  const toLat = toRadians(to.lat);
+  const deltaLat = toRadians(to.lat - from.lat);
+  const deltaLng = toRadians(to.lng - from.lng);
+  const sinLat = Math.sin(deltaLat / 2);
+  const sinLng = Math.sin(deltaLng / 2);
+  const a = sinLat * sinLat + Math.cos(fromLat) * Math.cos(toLat) * sinLng * sinLng;
+  const bounded = Math.min(1, Math.max(0, a));
+  return 2 * RALLY_EARTH_RADIUS_M * Math.atan2(Math.sqrt(bounded), Math.sqrt(1 - bounded));
+}
+
+async function autoMatchObservationToActiveRalliesNative(
+  env: Env,
+  input: {
+    userId: string;
+    visitId: string;
+    occurrenceId: string;
+    lat: number;
+    lng: number;
+    observedAt: string;
+  }
+): Promise<{ matchedCandidates: number; createdSubmissions: number }> {
+  if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) {
+    return { matchedCandidates: 0, createdSubmissions: 0 };
+  }
+
+  const candidates = await env.OBS_DB.prepare(
+    `SELECT
+       course.session_id AS session_id,
+       course.course_id AS course_id,
+       mission.mission_id AS mission_id,
+       mission.course_id AS mission_course_id,
+       mission.station_id AS station_id,
+       mission.replacement_for_mission_id AS replacement_for_mission_id,
+       mission.scope AS scope,
+       mission.location_binding AS location_binding,
+       mission.title AS title,
+       mission.target AS target,
+       mission.count_unit AS count_unit,
+       mission.goal_count AS goal_count,
+       mission.counting_policy_json AS counting_policy_json,
+       mission.verification_policy AS verification_policy,
+       mission.weather_sensitivity AS weather_sensitivity,
+       mission.fallback_group AS fallback_group,
+       mission.status AS status,
+       mission.starts_at AS starts_at,
+       mission.ends_at AS ends_at,
+       mission.sort_order AS sort_order,
+       mission.created_by AS created_by,
+       mission.created_at AS created_at,
+       mission.updated_at AS updated_at,
+       station.station_id AS matched_station_id,
+       station.lat AS station_lat,
+       station.lng AS station_lng,
+       station.radius_m AS station_radius_m
+     FROM observation_rally_courses course
+     JOIN observation_event_sessions event_session
+       ON event_session.session_id = course.session_id
+     JOIN observation_rally_missions mission
+       ON mission.course_id = course.course_id
+     JOIN observation_rally_stations station
+       ON station.course_id = course.course_id
+      AND (
+        mission.station_id = station.station_id
+        OR (mission.location_binding = 'any_registered_station' AND mission.station_id IS NULL)
+      )
+     WHERE course.status = 'live'
+       AND mission.status = 'published'
+       AND station.status = 'open'
+       AND mission.location_binding IN ('station_required', 'any_registered_station')
+       AND station.lat IS NOT NULL
+       AND station.lng IS NOT NULL
+       AND station.radius_m IS NOT NULL
+       AND station.radius_m > 0
+       AND datetime(event_session.started_at) <= datetime(?)
+       AND (event_session.ended_at IS NULL OR datetime(event_session.ended_at) >= datetime(?))
+       AND (mission.starts_at IS NULL OR datetime(mission.starts_at) <= datetime(?))
+       AND (mission.ends_at IS NULL OR datetime(mission.ends_at) >= datetime(?))
+       AND (
+         event_session.organizer_user_id = ?
+         OR EXISTS (
+           SELECT 1
+           FROM observation_event_participants participant
+           WHERE participant.session_id = course.session_id
+             AND participant.user_id = ?
+             AND participant.status IN ('registered', 'checked_in')
+         )
+       )
+     ORDER BY mission.sort_order ASC, station.sort_order ASC, station.created_at ASC
+     LIMIT 500`
+  ).bind(input.observedAt, input.observedAt, input.observedAt, input.observedAt, input.userId, input.userId).all<ObservationRallyAutoMatchCandidateD1Row>();
+
+  let matchedCandidates = 0;
+  let createdSubmissions = 0;
+
+  for (const candidate of candidates.results) {
+    const stationLat = Number(candidate.station_lat);
+    const stationLng = Number(candidate.station_lng);
+    const radiusM = Number(candidate.station_radius_m);
+    if (!Number.isFinite(stationLat) || !Number.isFinite(stationLng) || !Number.isFinite(radiusM) || radiusM <= 0) continue;
+
+    const distanceM = observationRallyDistanceMeters(
+      { lat: input.lat, lng: input.lng },
+      { lat: stationLat, lng: stationLng }
+    );
+    if (!Number.isFinite(distanceM) || distanceM > radiusM) continue;
+    matchedCandidates += 1;
+
+    const existing = await env.OBS_DB.prepare(
+      `SELECT submission_id
+         FROM observation_rally_submissions
+        WHERE mission_id = ?
+          AND source_type = 'observation_auto_match'
+          AND source_ref = ?
+          AND IFNULL(user_id, '') = ?
+          AND IFNULL(guest_token, '') = ''
+        LIMIT 1`
+    ).bind(candidate.mission_id, input.visitId, input.userId).first<{ submission_id: string }>();
+    if (existing) continue;
+
+    const submissionId = crypto.randomUUID();
+    const reviewStatus = candidate.verification_policy === "auto" ? "auto_accepted" : "pending";
+    const publicLat = roundPublicEventCoordinate(input.lat);
+    const publicLng = roundPublicEventCoordinate(input.lng);
+    const insertResult = await env.OBS_DB.prepare(
+      `INSERT OR IGNORE INTO observation_rally_submissions (
+         submission_id, session_id, course_id, mission_id, station_id, user_id, guest_token, team_id,
+         source_type, source_ref, count_value, public_lat, public_lng, payload_json, review_status
+       ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 'observation_auto_match', ?, 1, ?, ?, ?, ?)`
+    ).bind(
+      submissionId,
+      candidate.session_id,
+      candidate.course_id,
+      candidate.mission_id,
+      candidate.matched_station_id,
+      input.userId,
+      input.visitId,
+      publicLat,
+      publicLng,
+      JSON.stringify({
+        source: "observation_post_save_auto_match",
+        visit_id: input.visitId,
+        occurrence_id: input.occurrenceId,
+        station_id: candidate.matched_station_id,
+        distance_m: Math.round(distanceM * 100) / 100,
+        radius_m: radiusM,
+        observed_at: input.observedAt,
+        exact_location_used: true,
+        exact_location_stored: false
+      }),
+      reviewStatus
+    ).run() as { meta?: { changes?: number } };
+    if (Number(insertResult.meta?.changes ?? 1) === 0) continue;
+
+    createdSubmissions += 1;
+    if (reviewStatus === "auto_accepted") {
+      await incrementObservationRallyProgress(env, candidate.course_id, candidate, {
+        countValue: 1,
+        teamId: null,
+        userId: input.userId,
+        guestToken: null,
+        stationId: candidate.matched_station_id
+      });
+    }
+    await appendObservationEventLive(env, {
+      sessionId: candidate.session_id,
+      type: "rally_task_submitted",
+      scope: "all",
+      actorUserId: input.userId,
+      payload: {
+        submission_id: submissionId,
+        mission_id: candidate.mission_id,
+        station_id: candidate.matched_station_id,
+        visit_id: input.visitId,
+        occurrence_id: input.occurrenceId,
+        source_type: "observation_auto_match",
+        review_status: reviewStatus,
+        public_lat: publicLat,
+        public_lng: publicLng,
+        exact_location_stored: false
+      }
+    });
+  }
+
+  return { matchedCandidates, createdSubmissions };
+}
+
 async function handleObservationEventRallyApi(request: Request, env: Env, sessionId: string, pathRemainder: string): Promise<Response> {
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
@@ -25091,6 +25293,17 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     occurrenceId,
     effortMinutes: numberOrNull(input.sourcePayload?.effort_minutes) ?? null,
     targetTaxaScope: normalizeOptionalText(input.targetTaxaScope)
+  });
+
+  await autoMatchObservationToActiveRalliesNative(env, {
+    userId: input.userId,
+    visitId,
+    occurrenceId,
+    lat: input.latitude,
+    lng: input.longitude,
+    observedAt: input.observedAt
+  }).catch((error) => {
+    console.error("[observation-rally-auto-match] native post-save match failed", error);
   });
 
   await hookLegacyObservationToEventNative(env, input, {
