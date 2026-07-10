@@ -4486,9 +4486,19 @@ async function autoMatchObservationToActiveRalliesNative(
        AND (event_session.ended_at IS NULL OR datetime(event_session.ended_at) >= datetime(?))
        AND (mission.starts_at IS NULL OR datetime(mission.starts_at) <= datetime(?))
        AND (mission.ends_at IS NULL OR datetime(mission.ends_at) >= datetime(?))
+       AND (
+         event_session.organizer_user_id = ?
+         OR EXISTS (
+           SELECT 1
+           FROM observation_event_participants participant
+           WHERE participant.session_id = course.session_id
+             AND participant.user_id = ?
+             AND participant.status IN ('registered', 'checked_in')
+         )
+       )
      ORDER BY mission.sort_order ASC, station.sort_order ASC, station.created_at ASC
      LIMIT 500`
-  ).bind(input.observedAt, input.observedAt, input.observedAt, input.observedAt).all<ObservationRallyAutoMatchCandidateD1Row>();
+  ).bind(input.observedAt, input.observedAt, input.observedAt, input.observedAt, input.userId, input.userId).all<ObservationRallyAutoMatchCandidateD1Row>();
 
   let matchedCandidates = 0;
   let createdSubmissions = 0;

@@ -136,8 +136,18 @@ export async function autoMatchObservationToActiveRallies(
        AND (event_session.ended_at IS NULL OR event_session.ended_at >= $3::timestamptz)
        AND (mission.starts_at IS NULL OR mission.starts_at <= $3::timestamptz)
        AND (mission.ends_at IS NULL OR mission.ends_at >= $3::timestamptz)
+       AND (
+         event_session.organizer_user_id = $4
+         OR EXISTS (
+           SELECT 1
+           FROM observation_event_participants participant
+           WHERE participant.session_id = course.session_id
+             AND participant.user_id = $4
+             AND participant.status IN ('registered', 'checked_in')
+         )
+       )
      ORDER BY mission.sort_order, station.sort_order, station.created_at`,
-    [input.lat, input.lng, observedAt],
+    [input.lat, input.lng, observedAt, input.userId],
   );
 
   let matchedCandidates = 0;

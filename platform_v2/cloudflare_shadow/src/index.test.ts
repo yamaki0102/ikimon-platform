@@ -6191,6 +6191,13 @@ class FakeStatement {
         if (course.status !== "live") return [];
         const eventSession = this.db.observationEventSessions.get(course.session_id);
         if (!eventSession) return [];
+        const userId = string(v[4]);
+        const eligibleParticipant = eventSession.organizer_user_id === userId || [...this.db.observationEventParticipants.values()].some((participant) =>
+          participant.session_id === course.session_id &&
+          participant.user_id === userId &&
+          (participant.status === "registered" || participant.status === "checked_in")
+        );
+        if (!eligibleParticipant) return [];
         const startedAt = Date.parse(eventSession.started_at);
         const endedAt = eventSession.ended_at ? Date.parse(eventSession.ended_at) : Number.POSITIVE_INFINITY;
         if (!Number.isFinite(observedAt) || observedAt < startedAt || observedAt > endedAt) return [];
