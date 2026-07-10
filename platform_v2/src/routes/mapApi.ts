@@ -15,6 +15,12 @@ import {
 import { getSiteBrief, type BriefLang } from "../services/siteBrief.js";
 import { listAreaPolygonsForBbox, flushAreaPolygonCache, type AreaPolygonSource } from "../services/areaPolygons.js";
 import { listMapGuideSpotsForBbox } from "../services/mapGuideSpots.js";
+import {
+  getPublicEnvironmentLayers,
+  isPublicEnvironmentLayerBboxSupported,
+  parsePublicEnvironmentLayerIds,
+  PublicEnvironmentLayerError,
+} from "../services/publicEnvironmentLayers.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 
 const ALLOWED_AREA_SOURCES: readonly AreaPolygonSource[] = [
@@ -256,6 +262,42 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "public, max-age=300");
     return collection;
+  });
+
+  app.get("/api/v1/map/public-environment-layers", async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const bbox = parseBbox(q.bbox);
+    if (!bbox) {
+      reply.code(400).type("application/json; charset=utf-8");
+      return { error: "missing_or_invalid_bbox" };
+    }
+    if (!isPublicEnvironmentLayerBboxSupported(bbox)) {
+      reply.code(400).type("application/json; charset=utf-8");
+      return { error: "bbox_too_large_or_invalid" };
+    }
+    const { layerIds, invalidLayerIds } = parsePublicEnvironmentLayerIds(q.layers);
+    if (invalidLayerIds.length > 0 || layerIds.length === 0) {
+      reply.code(400).type("application/json; charset=utf-8");
+      return { error: "unsupported_public_environment_layers", invalidLayerIds };
+    }
+
+    try {
+      const payload = await getPublicEnvironmentLayers({
+        bbox,
+        layerIds,
+        subscriptionKey: process.env.MSIL_API_SUBSCRIPTION_KEY,
+      });
+      reply
+        .type("application/json; charset=utf-8")
+        .header("Cache-Control", "public, max-age=300");
+      return payload;
+    } catch (error) {
+      if (error instanceof PublicEnvironmentLayerError) {
+        reply.code(error.statusCode).type("application/json; charset=utf-8");
+        return { error: error.code, layers: [], notices: [] };
+      }
+      throw error;
+    }
   });
 
   // Internal: clear the in-memory area-polygons cache so freshly imported

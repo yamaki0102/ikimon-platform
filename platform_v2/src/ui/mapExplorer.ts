@@ -661,6 +661,147 @@ function overlayPanelLabels(lang: SiteLang): {
   return { heading: "レイヤー", intro: "ベース地図の上に重ねて、行政 GIS × 市民観察 の視点を組み合わせる。", opacityLabel: "濃度" };
 }
 
+function publicEnvironmentPanelLabels(lang: SiteLang): {
+  heading: string;
+  intro: string;
+  sourceLabel: string;
+  safetyHeading: string;
+  safetyText: string;
+  creditHeading: string;
+  creditNotice: string;
+  creditSafety: string;
+  fetchedPending: string;
+  fetchedPrefix: string;
+  loading: string;
+  loadedPrefix: string;
+  loadedSuffix: string;
+  truncatedSuffix: string;
+  empty: string;
+  unavailable: string;
+  zoomIn: string;
+} {
+  if (lang === "en") {
+    return {
+      heading: "Public environment",
+      intro: "Overlay official coastal context without mixing it into ikimon observations.",
+      sourceLabel: "public",
+      safetyHeading: "Context only",
+      safetyText: "Do not use these layers for navigation, swimming, entering the water, route safety, emergencies, or private-land access.",
+      creditHeading: "Source and safety",
+      creditNotice: "This view uses information retrieved from the MSIL API. The Japan Coast Guard does not guarantee this service's content.",
+      creditSafety: "Not an official safety guide. Check local signs, rules, weather, tides, and access conditions.",
+      fetchedPending: "Data timestamp appears after loading.",
+      fetchedPrefix: "Retrieved: ",
+      loading: "Loading public environment layer...",
+      loadedPrefix: "Loaded ",
+      loadedSuffix: " public features. Source and safety notes stay below.",
+      truncatedSuffix: "Limit reached. Narrow the map area for a more complete view.",
+      empty: "No public environment features in this view.",
+      unavailable: "This public layer is unavailable right now. The rest of the map still works.",
+      zoomIn: "Zoom in to load public environment layers.",
+    };
+  }
+  if (lang === "es") {
+    return {
+      heading: "Entorno publico",
+      intro: "Superpone contexto costero oficial sin mezclarlo con observaciones de ikimon.",
+      sourceLabel: "publico",
+      safetyHeading: "Solo contexto",
+      safetyText: "No uses estas capas para navegacion, nadar, entrar al agua, seguridad de rutas, emergencias o acceso a terrenos privados.",
+      creditHeading: "Fuente y seguridad",
+      creditNotice: "Esta vista usa informacion obtenida desde la API de MSIL. La Guardia Costera de Japon no garantiza el contenido de este servicio.",
+      creditSafety: "No es una guia oficial de seguridad. Revisa senales locales, normas, clima, mareas y condiciones de acceso.",
+      fetchedPending: "La fecha de datos aparece despues de cargar.",
+      fetchedPrefix: "Obtenido: ",
+      loading: "Cargando capa publica...",
+      loadedPrefix: "Cargadas ",
+      loadedSuffix: " entidades publicas. La fuente y las notas de seguridad quedan abajo.",
+      truncatedSuffix: "Se alcanzo el limite. Acerca o reduce el area para ver mas completo.",
+      empty: "No hay elementos publicos en esta vista.",
+      unavailable: "Esta capa publica no esta disponible ahora. El resto del mapa sigue funcionando.",
+      zoomIn: "Acerca el mapa para cargar capas publicas.",
+    };
+  }
+  if (lang === "pt-BR") {
+    return {
+      heading: "Ambiente publico",
+      intro: "Sobrepoe contexto costeiro oficial sem mistura-lo com observacoes do ikimon.",
+      sourceLabel: "publico",
+      safetyHeading: "Apenas contexto",
+      safetyText: "Nao use estas camadas para navegacao, nadar, entrar na agua, seguranca de rotas, emergencias ou acesso a propriedade privada.",
+      creditHeading: "Fonte e seguranca",
+      creditNotice: "Esta visualizacao usa informacoes obtidas pela API MSIL. A Guarda Costeira do Japao nao garante o conteudo deste servico.",
+      creditSafety: "Nao e um guia oficial de seguranca. Verifique placas locais, regras, clima, mares e condicoes de acesso.",
+      fetchedPending: "A data dos dados aparece depois do carregamento.",
+      fetchedPrefix: "Obtido: ",
+      loading: "Carregando camada publica...",
+      loadedPrefix: "Carregadas ",
+      loadedSuffix: " entidades publicas. Fonte e notas de seguranca ficam abaixo.",
+      truncatedSuffix: "Limite atingido. Aproxime ou reduza a area para uma visao mais completa.",
+      empty: "Nao ha elementos publicos nesta vista.",
+      unavailable: "Esta camada publica nao esta disponivel agora. O restante do mapa continua funcionando.",
+      zoomIn: "Aproxime o mapa para carregar camadas publicas.",
+    };
+  }
+  return {
+    heading: "公的環境レイヤ",
+    intro: "海しる等の公的データを、ikimonの観察記録とは分けて重ねる。",
+    sourceLabel: "公的",
+    safetyHeading: "見るための文脈です",
+    safetyText: "航行、遊泳、入水、接近、避難、ルート安全、私有地への立ち入り判断には使わないでください。",
+    creditHeading: "出典と安全メモ",
+    creditNotice: "このサービスは、海しるAPIを利用して取得した情報をもとに作成しているが、サービスの内容は海上保安庁によって保証されたものではない",
+    creditSafety: "公式の安全案内ではありません。現地の看板、規制、天候、潮位、通行条件を必ず確認してください。",
+    fetchedPending: "読み込み後に取得日時を表示します。",
+    fetchedPrefix: "取得: ",
+    loading: "公的環境レイヤを読み込み中...",
+    loadedPrefix: "",
+    loadedSuffix: "件の公的データを表示しました。出典と安全メモは下に残ります。",
+    truncatedSuffix: "表示上限に達しています。範囲を狭めると取りこぼしを減らせます。",
+    empty: "この表示範囲には公的環境レイヤの要素がありません。",
+    unavailable: "この公的レイヤは現在利用できません。他の地図機能はそのまま使えます。",
+    zoomIn: "公的環境レイヤは、もう少し拡大すると読み込めます。",
+  };
+}
+
+type PublicEnvironmentLayerUiDefinition = {
+  id: "msil_esi" | "msil_depth_contour" | "msil_aquarium";
+  label: string;
+  note: string;
+  categoryLabel: string;
+  color: string;
+  defaultOpacity: number;
+};
+
+function publicEnvironmentLayersForLang(lang: SiteLang): PublicEnvironmentLayerUiDefinition[] {
+  if (lang === "en") {
+    return [
+      { id: "msil_esi", label: "Shoreline type", note: "Sand, rock, artificial shore, and other coastal context. Not a safety or access guide.", categoryLabel: "coast", color: "#0f766e", defaultOpacity: 0.78 },
+      { id: "msil_depth_contour", label: "Sea depth lines", note: "Depth context around the coast. Do not use for swimming, boating, or emergency decisions.", categoryLabel: "coast", color: "#2563eb", defaultOpacity: 0.58 },
+      { id: "msil_aquarium", label: "Learning places", note: "Aquariums and public learning facilities that can help you understand local nature.", categoryLabel: "learning", color: "#7c3aed", defaultOpacity: 0.86 },
+    ];
+  }
+  if (lang === "es") {
+    return [
+      { id: "msil_esi", label: "Tipo de costa", note: "Arena, roca, costa artificial y otro contexto costero. No es guia de seguridad ni acceso.", categoryLabel: "costa", color: "#0f766e", defaultOpacity: 0.78 },
+      { id: "msil_depth_contour", label: "Lineas de profundidad", note: "Contexto de profundidad cerca de la costa. No usar para nadar, navegar o emergencias.", categoryLabel: "costa", color: "#2563eb", defaultOpacity: 0.58 },
+      { id: "msil_aquarium", label: "Lugares de aprendizaje", note: "Acuarios e instalaciones publicas para entender mejor la naturaleza local.", categoryLabel: "aprendizaje", color: "#7c3aed", defaultOpacity: 0.86 },
+    ];
+  }
+  if (lang === "pt-BR") {
+    return [
+      { id: "msil_esi", label: "Tipo de costa", note: "Areia, rocha, costa artificial e outros contextos costeiros. Nao e guia de seguranca ou acesso.", categoryLabel: "costa", color: "#0f766e", defaultOpacity: 0.78 },
+      { id: "msil_depth_contour", label: "Linhas de profundidade", note: "Contexto de profundidade perto da costa. Nao use para nadar, navegar ou emergencias.", categoryLabel: "costa", color: "#2563eb", defaultOpacity: 0.58 },
+      { id: "msil_aquarium", label: "Lugares de aprendizagem", note: "Aquarios e instalacoes publicas para entender melhor a natureza local.", categoryLabel: "aprendizagem", color: "#7c3aed", defaultOpacity: 0.86 },
+    ];
+  }
+  return [
+    { id: "msil_esi", label: "海岸の種類", note: "砂浜、岩場、人工護岸などの沿岸文脈。安全や立ち入り可否の案内ではありません。", categoryLabel: "沿岸", color: "#0f766e", defaultOpacity: 0.78 },
+    { id: "msil_depth_contour", label: "海の深さの線", note: "沿岸の水深の目安。遊泳、航行、緊急時の判断には使わないでください。", categoryLabel: "沿岸", color: "#2563eb", defaultOpacity: 0.58 },
+    { id: "msil_aquarium", label: "学びに行ける場所", note: "水族館など、地域の自然を知る入口になる公共的な学習施設。", categoryLabel: "学習", color: "#7c3aed", defaultOpacity: 0.86 },
+  ];
+}
+
 function ambientPanelLabels(lang: SiteLang): {
   roleLabel: string;
   roles: Array<{ value: "note" | "guide" | "scan" | "mixed"; label: string; icon: string }>;
@@ -786,6 +927,8 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const yearValuesJson = escapeHtml(JSON.stringify(yearTimelineValues));
   const overlays: LocalizedOverlay[] = overlaysForLang(lang);
   const overlayLabels = overlayPanelLabels(lang);
+  const publicEnvironmentLabels = publicEnvironmentPanelLabels(lang);
+  const publicEnvironmentLayers = publicEnvironmentLayersForLang(lang);
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
@@ -797,6 +940,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiMyPlaces = withBasePath(props.basePath, "/api/v1/map/my-places");
   const apiAreaPolygons = withBasePath(props.basePath, "/api/v1/map/area-polygons");
   const apiGuideSpots = withBasePath(props.basePath, "/api/v1/map/guide-spots");
+  const apiPublicEnvironmentLayers = withBasePath(props.basePath, "/api/v1/map/public-environment-layers");
   const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
   const apiAreaFollow = withBasePath(props.basePath, "/api/v1/me/area-subscriptions");
   const eventsOrganizerHref = appendLangToHref(
@@ -1121,6 +1265,56 @@ export function renderMapExplorer(props: MapExplorerProps): string {
                   .join("")}
               </div>
             </details>
+            <details class="me-public-env-panel">
+              <summary class="me-public-env-summary">
+                <span class="me-overlay-heading">${escapeHtml(publicEnvironmentLabels.heading)}</span>
+                <span class="me-overlay-intro">${escapeHtml(publicEnvironmentLabels.intro)}</span>
+              </summary>
+              <div class="me-public-env-safety">
+                <strong>${escapeHtml(publicEnvironmentLabels.safetyHeading)}</strong>
+                <span>${escapeHtml(publicEnvironmentLabels.safetyText)}</span>
+              </div>
+              <div class="me-public-env-list" data-public-env-catalog='${escapeHtml(
+                JSON.stringify(publicEnvironmentLayers.map((o) => ({
+                  id: o.id,
+                  color: o.color,
+                  defaultOpacity: o.defaultOpacity,
+                })))
+              )}'>
+                ${publicEnvironmentLayers
+                  .map(
+                    (o) => `<label class="me-public-env-item" data-public-env-id="${escapeHtml(o.id)}" style="--pe-color:${escapeHtml(o.color)}">
+                      <div class="me-overlay-row">
+                        <input type="checkbox" class="me-public-env-toggle" />
+                        <span class="me-overlay-label">${escapeHtml(o.label)}</span>
+                        <span class="me-overlay-category me-overlay-cat-public">${escapeHtml(o.categoryLabel)}</span>
+                      </div>
+                      <p class="me-overlay-note">${escapeHtml(o.note)}</p>
+                      <div class="me-overlay-opacity">
+                        <span class="me-overlay-opacity-label">${escapeHtml(overlayLabels.opacityLabel)}</span>
+                        <input
+                          type="range"
+                          class="me-public-env-opacity-range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value="${o.defaultOpacity.toString()}"
+                          aria-label="${escapeHtml(overlayLabels.opacityLabel)}: ${escapeHtml(o.label)}"
+                        />
+                      </div>
+                    </label>`,
+                  )
+                  .join("")}
+              </div>
+              <p id="me-public-env-status" class="me-public-env-status" aria-live="polite"></p>
+              <div id="me-public-env-credit" class="me-public-env-credit">
+                <strong>${escapeHtml(publicEnvironmentLabels.creditHeading)}</strong>
+                <span>${escapeHtml(publicEnvironmentLabels.creditNotice)}</span>
+                ${lang === "ja" ? "" : `<span lang="ja">${escapeHtml(publicEnvironmentPanelLabels("ja").creditNotice)}</span>`}
+                <span>${escapeHtml(publicEnvironmentLabels.creditSafety)}</span>
+                <small id="me-public-env-fetched">${escapeHtml(publicEnvironmentLabels.fetchedPending)}</small>
+              </div>
+            </details>
             <div class="me-filter-group me-filter-group-actions">
               <a class="me-cross-chip" href="${escapeHtml(lensHref)}" data-kpi-action="map:cross-lens"><span aria-hidden="true">🔍</span>${escapeHtml(copy.crossLensLabel)}</a>
               <a class="me-cross-chip" href="${escapeHtml(notesHref)}" data-kpi-action="map:cross-notes"><span aria-hidden="true">📖</span>${escapeHtml(copy.crossNotesLabel)}</a>
@@ -1162,7 +1356,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-my-places="${escapeHtml(apiMyPlaces)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-my-places="${escapeHtml(apiMyPlaces)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-public-environment-layers="${escapeHtml(apiPublicEnvironmentLayers)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
         <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
           <span aria-hidden="true">📍</span>
@@ -1192,6 +1386,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   const copy = MAP_EXPLORER_COPY[props.lang];
   const ambient = ambientPanelLabels(props.lang);
   const actor = actorPanelLabels(props.lang);
+  const publicEnvironmentLabels = publicEnvironmentPanelLabels(props.lang);
   const noticeCopy = getOfficialNoticeRenderCopy(props.lang);
   const observationHrefTpl = withBasePath(props.basePath, "/observations/__ID__") +
     "?lang=" + props.lang;
@@ -1209,6 +1404,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var layerHintTextEl = document.getElementById('me-layer-hint-text');
   var layerHintJumpEl = document.getElementById('me-layer-hint-jump');
   var layerHintCloseEl = document.getElementById('me-layer-hint-close');
+  var publicEnvironmentStatusEl = document.getElementById('me-public-env-status');
+  var publicEnvironmentFetchedEl = document.getElementById('me-public-env-fetched');
+  var filterDrawerEl = document.querySelector('.me-filter-drawer');
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
@@ -1225,6 +1423,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var visitedPanelEl = document.getElementById('me-visited-panel');
   var sideSectionEl = sideEl ? sideEl.closest('.me-section') : null;
   var sideTabBtns = document.querySelectorAll('[data-side-tab]');
+  function syncFilterDrawerOpenState() {
+    if (!document.body) return;
+    document.body.classList.toggle('is-map-filter-open', !!(filterDrawerEl && filterDrawerEl.open));
+  }
+  if (filterDrawerEl) {
+    filterDrawerEl.addEventListener('toggle', syncFilterDrawerOpenState);
+    syncFilterDrawerOpenState();
+  }
   function setSideTab(name) {
     if (!sideEl) return;
     sideEl.setAttribute('data-tab', name);
@@ -1282,6 +1488,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiMyPlaces = root.getAttribute('data-api-my-places') || '';
   var apiAreaPolygons = root.getAttribute('data-api-area-polygons') || '';
   var apiGuideSpots = root.getAttribute('data-api-guide-spots') || '';
+  var apiPublicEnvironmentLayers = root.getAttribute('data-api-public-environment-layers') || '';
   var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
   var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
 
@@ -1504,6 +1711,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     placeActionFollow: props.lang === "ja" ? "この場所をフォロー" : props.lang === "es" ? "Seguir este lugar" : props.lang === "pt-BR" ? "Seguir este local" : "Follow this place",
     insightHeading: props.lang === "ja" ? "見えてきた範囲" : props.lang === "es" ? "Lo que ya se ve" : props.lang === "pt-BR" ? "O que já aparece" : "What is coming into view",
     insightSubhead: props.lang === "ja" ? "この表示範囲の発見の気配を眺める。" : props.lang === "es" ? "Mira las señales de esta ventana." : props.lang === "pt-BR" ? "Veja os sinais nesta janela." : "Browse the signs in this viewport.",
+    publicEnvLoading: publicEnvironmentLabels.loading,
+    publicEnvLoadedPrefix: publicEnvironmentLabels.loadedPrefix,
+    publicEnvLoadedSuffix: publicEnvironmentLabels.loadedSuffix,
+    publicEnvTruncatedSuffix: publicEnvironmentLabels.truncatedSuffix,
+    publicEnvEmpty: publicEnvironmentLabels.empty,
+    publicEnvUnavailable: publicEnvironmentLabels.unavailable,
+    publicEnvZoomIn: publicEnvironmentLabels.zoomIn,
+    publicEnvFetchedPending: publicEnvironmentLabels.fetchedPending,
+    publicEnvFetchedPrefix: publicEnvironmentLabels.fetchedPrefix,
   })};
   ${MAP_EXPLORER_STATE_RUNTIME}
   var SEARCH_LANG = ${JSON.stringify(props.lang)};
@@ -1579,6 +1795,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   } catch (_) { overlayCatalog = []; }
   var overlayState = {};
   overlayCatalog.forEach(function (o) { overlayState[o.id] = { enabled: false, opacity: o.defaultOpacity }; });
+  var publicEnvironmentCatalog = [];
+  try {
+    var publicEnvironmentCatalogEl = document.querySelector('.me-public-env-list');
+    if (publicEnvironmentCatalogEl) publicEnvironmentCatalog = JSON.parse(publicEnvironmentCatalogEl.getAttribute('data-public-env-catalog') || '[]');
+  } catch (_) { publicEnvironmentCatalog = []; }
+  var publicEnvironmentState = {};
+  publicEnvironmentCatalog.forEach(function (o) { publicEnvironmentState[o.id] = { enabled: false, opacity: o.defaultOpacity, color: o.color }; });
   var AREA_SOURCE_VALUES = [
     'nature_symbiosis_site', 'tsunag', 'school',
     'protected_area', 'oecm', 'osm_park', 'user_defined',
@@ -1618,6 +1841,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     visitedPlacesAbort: null,
     areaPolygonsAbort: null,
     guideSpotsAbort: null,
+    publicEnvironmentAbort: null,
+    publicEnvironmentDebounce: null,
+    publicEnvironmentCollections: {},
+    publicEnvironmentLastNotices: [],
     areaPolygonsDebounce: null,
     viewportRefreshTimer: null,
     waterwayAbort: null,
@@ -5636,6 +5863,225 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
   }
 
+  function publicEnvironmentSourceId(id) { return 'public-env-src-' + id; }
+  function publicEnvironmentFillLayerId(id) { return 'public-env-fill-' + id; }
+  function publicEnvironmentLineLayerId(id) { return 'public-env-line-' + id; }
+  function publicEnvironmentPointLayerId(id) { return 'public-env-point-' + id; }
+  function emptyPublicEnvironmentCollection() { return { type: 'FeatureCollection', features: [] }; }
+  function enabledPublicEnvironmentLayerIds() {
+    return publicEnvironmentCatalog
+      .map(function (def) { return def.id; })
+      .filter(function (id) { return publicEnvironmentState[id] && publicEnvironmentState[id].enabled; });
+  }
+  function publicEnvironmentDefinition(id) {
+    return publicEnvironmentCatalog.find(function (def) { return def.id === id; }) || null;
+  }
+  function normalizePublicEnvironmentOpacity(value) {
+    var n = Number(value);
+    if (!isFinite(n)) return 0.7;
+    return Math.max(0, Math.min(1, n));
+  }
+  function publicEnvironmentClientBboxSupported(raw) {
+    if (!raw) return false;
+    var parts = String(raw).split(',').map(function (value) { return Number(value); });
+    if (parts.length !== 4 || parts.some(function (value) { return !isFinite(value); })) return false;
+    var width = parts[2] - parts[0];
+    var height = parts[3] - parts[1];
+    return width > 0 && height > 0 && width * height <= 6;
+  }
+  function setPublicEnvironmentStatus(text, isError) {
+    if (!publicEnvironmentStatusEl) return;
+    publicEnvironmentStatusEl.textContent = text || '';
+    publicEnvironmentStatusEl.classList.toggle('is-error', !!isError);
+  }
+  function publicEnvironmentFetchedLabel(raw) {
+    if (!raw) return COPY.publicEnvFetchedPending;
+    var text = String(raw);
+    var dateText = text.length >= 10 ? text.slice(0, 10) : text;
+    return COPY.publicEnvFetchedPrefix + dateText;
+  }
+  function updatePublicEnvironmentCredit(payload) {
+    if (!publicEnvironmentFetchedEl) return;
+    var layers = payload && Array.isArray(payload.layers) ? payload.layers : [];
+    var fetchedAt = '';
+    for (var i = 0; i < layers.length; i += 1) {
+      if (layers[i] && layers[i].fetchedAt) {
+        fetchedAt = layers[i].fetchedAt;
+        break;
+      }
+    }
+    publicEnvironmentFetchedEl.textContent = publicEnvironmentFetchedLabel(fetchedAt);
+  }
+  function setPublicEnvironmentLayerOpacity(map, id, opacity) {
+    if (!map) return;
+    var op = normalizePublicEnvironmentOpacity(opacity);
+    if (map.getLayer(publicEnvironmentFillLayerId(id))) {
+      map.setPaintProperty(publicEnvironmentFillLayerId(id), 'fill-opacity', Math.max(0.04, op * 0.22));
+    }
+    if (map.getLayer(publicEnvironmentLineLayerId(id))) {
+      map.setPaintProperty(publicEnvironmentLineLayerId(id), 'line-opacity', Math.max(0.08, op));
+    }
+    if (map.getLayer(publicEnvironmentPointLayerId(id))) {
+      map.setPaintProperty(publicEnvironmentPointLayerId(id), 'circle-opacity', Math.max(0.08, op));
+      map.setPaintProperty(publicEnvironmentPointLayerId(id), 'circle-stroke-opacity', Math.max(0.16, op));
+    }
+  }
+  function ensurePublicEnvironmentLayer(map, def) {
+    if (!map || !def || !def.id) return;
+    var stateForLayer = publicEnvironmentState[def.id] || {};
+    var sourceId = publicEnvironmentSourceId(def.id);
+    var color = stateForLayer.color || def.color || '#0f766e';
+    var opacity = normalizePublicEnvironmentOpacity(stateForLayer.opacity);
+    var insertBefore = map.getLayer('observation-cell-fill') ? 'observation-cell-fill'
+      : map.getLayer('obs-cell-heat') ? 'obs-cell-heat'
+      : undefined;
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, { type: 'geojson', data: state.publicEnvironmentCollections[def.id] || emptyPublicEnvironmentCollection() });
+    }
+    if (!map.getLayer(publicEnvironmentFillLayerId(def.id))) {
+      map.addLayer({
+        id: publicEnvironmentFillLayerId(def.id),
+        type: 'fill',
+        source: sourceId,
+        filter: ['any', ['==', ['geometry-type'], 'Polygon'], ['==', ['geometry-type'], 'MultiPolygon']],
+        paint: {
+          'fill-color': color,
+          'fill-opacity': Math.max(0.04, opacity * 0.22),
+        },
+      }, insertBefore || undefined);
+    }
+    if (!map.getLayer(publicEnvironmentLineLayerId(def.id))) {
+      map.addLayer({
+        id: publicEnvironmentLineLayerId(def.id),
+        type: 'line',
+        source: sourceId,
+        filter: ['any', ['==', ['geometry-type'], 'LineString'], ['==', ['geometry-type'], 'MultiLineString'], ['==', ['geometry-type'], 'Polygon'], ['==', ['geometry-type'], 'MultiPolygon']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': color,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1, 12, 2.2, 15, 3.2],
+          'line-opacity': Math.max(0.08, opacity),
+        },
+      }, insertBefore || undefined);
+    }
+    if (!map.getLayer(publicEnvironmentPointLayerId(def.id))) {
+      map.addLayer({
+        id: publicEnvironmentPointLayerId(def.id),
+        type: 'circle',
+        source: sourceId,
+        filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']],
+        paint: {
+          'circle-color': color,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 3, 13, 6],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 1.5,
+          'circle-opacity': Math.max(0.08, opacity),
+          'circle-stroke-opacity': Math.max(0.16, opacity),
+        },
+      }, insertBefore || undefined);
+    }
+  }
+  function removePublicEnvironmentLayer(map, id) {
+    if (!map || !id) return;
+    removeLayerIfExists(map, publicEnvironmentPointLayerId(id));
+    removeLayerIfExists(map, publicEnvironmentLineLayerId(id));
+    removeLayerIfExists(map, publicEnvironmentFillLayerId(id));
+    removeSourceIfExists(map, publicEnvironmentSourceId(id));
+    delete state.publicEnvironmentCollections[id];
+  }
+  function clearDisabledPublicEnvironmentLayers(map) {
+    publicEnvironmentCatalog.forEach(function (def) {
+      if (!publicEnvironmentState[def.id] || !publicEnvironmentState[def.id].enabled) removePublicEnvironmentLayer(map, def.id);
+    });
+  }
+  function applyPublicEnvironmentPayload(payload) {
+    if (!state.map || !payload) return;
+    var enabled = enabledPublicEnvironmentLayerIds();
+    var layers = Array.isArray(payload.layers) ? payload.layers : [];
+    var total = 0;
+    var truncated = false;
+    updatePublicEnvironmentCredit(payload);
+    enabled.forEach(function (id) {
+      var def = publicEnvironmentDefinition(id);
+      if (!def) return;
+      ensurePublicEnvironmentLayer(state.map, def);
+      var layer = layers.find(function (item) { return item && item.id === id; });
+      if (layer && layer.truncated === true) truncated = true;
+      var collection = layer && layer.featureCollection ? layer.featureCollection : emptyPublicEnvironmentCollection();
+      var features = Array.isArray(collection.features) ? collection.features : [];
+      total += features.length;
+      state.publicEnvironmentCollections[id] = { type: 'FeatureCollection', features: features };
+      var src = state.map.getSource(publicEnvironmentSourceId(id));
+      if (src) src.setData(state.publicEnvironmentCollections[id]);
+    });
+    state.publicEnvironmentLastNotices = Array.isArray(payload.notices) ? payload.notices : [];
+    if (total <= 0) {
+      setPublicEnvironmentStatus(COPY.publicEnvEmpty, false);
+      return;
+    }
+    setPublicEnvironmentStatus(
+      COPY.publicEnvLoadedPrefix + String(total) + COPY.publicEnvLoadedSuffix + (truncated ? ' ' + COPY.publicEnvTruncatedSuffix : ''),
+      false
+    );
+  }
+  function loadPublicEnvironmentLayers() {
+    if (!apiPublicEnvironmentLayers || !state.map) return;
+    var enabled = enabledPublicEnvironmentLayerIds();
+    if (!enabled.length) {
+      setPublicEnvironmentStatus('', false);
+      if (publicEnvironmentFetchedEl) publicEnvironmentFetchedEl.textContent = COPY.publicEnvFetchedPending;
+      return;
+    }
+    var bbox = currentBboxString();
+    if (!bbox) return;
+    if (!publicEnvironmentClientBboxSupported(bbox)) {
+      enabled.forEach(function (id) {
+        var src = state.map.getSource(publicEnvironmentSourceId(id));
+        if (src) src.setData(emptyPublicEnvironmentCollection());
+      });
+      setPublicEnvironmentStatus(COPY.publicEnvZoomIn, false);
+      return;
+    }
+    enabled.forEach(function (id) {
+      var def = publicEnvironmentDefinition(id);
+      if (def) ensurePublicEnvironmentLayer(state.map, def);
+    });
+    clearDisabledPublicEnvironmentLayers(state.map);
+    setPublicEnvironmentStatus(COPY.publicEnvLoading, false);
+    if (state.publicEnvironmentAbort) { try { state.publicEnvironmentAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    state.publicEnvironmentAbort = controller;
+    var qs = '?bbox=' + encodeURIComponent(bbox) + '&layers=' + encodeURIComponent(enabled.join(','));
+    fetch(apiPublicEnvironmentLayers + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (response) {
+        if (response.ok) return response.json();
+        if (response.status === 503) return { error: 'msil_subscription_key_not_configured', layers: [], notices: [] };
+        return null;
+      })
+      .then(function (payload) {
+        if (!payload) {
+          setPublicEnvironmentStatus(COPY.publicEnvUnavailable, true);
+          return;
+        }
+        if (payload.error) {
+          setPublicEnvironmentStatus(COPY.publicEnvUnavailable, true);
+          return;
+        }
+        applyPublicEnvironmentPayload(payload);
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        setPublicEnvironmentStatus(COPY.publicEnvUnavailable, true);
+      });
+  }
+  function schedulePublicEnvironmentLoad(delay) {
+    if (state.publicEnvironmentDebounce) clearTimeout(state.publicEnvironmentDebounce);
+    state.publicEnvironmentDebounce = setTimeout(function () {
+      state.publicEnvironmentDebounce = null;
+      loadPublicEnvironmentLayers();
+    }, typeof delay === 'number' ? delay : 300);
+  }
+
   function loadFrontier(map) {
     if (!apiFrontier) return;
     if (state.frontierAbort) { try { state.frontierAbort.abort(); } catch (_) {} }
@@ -5840,6 +6286,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     refreshMapData();
     loadFrontier(state.map);
     loadEffortSummary();
+    loadPublicEnvironmentLayers();
   }
 
   function scheduleViewportRefresh() {
@@ -5878,6 +6325,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ensureCellSource(state.map, state.features);
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
+      loadPublicEnvironmentLayers();
       state.waterwaySearchKey = '';
       if (state.frontier) paintFrontier(state.map, state.frontier);
       highlightSelectedCell();
@@ -6070,6 +6518,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       label.classList.toggle('is-on', !!overlayState[id].enabled);
       if (range && overlayState[id].opacity != null) range.value = String(overlayState[id].opacity);
     });
+    document.querySelectorAll('.me-public-env-item').forEach(function (label) {
+      var id = label.getAttribute('data-public-env-id');
+      if (!id || !publicEnvironmentState[id]) return;
+      var toggle = label.querySelector('.me-public-env-toggle');
+      var range = label.querySelector('.me-public-env-opacity-range');
+      if (toggle) { toggle.checked = !!publicEnvironmentState[id].enabled; }
+      label.classList.toggle('is-on', !!publicEnvironmentState[id].enabled);
+      if (range && publicEnvironmentState[id].opacity != null) range.value = String(publicEnvironmentState[id].opacity);
+    });
   }
 
   // Restore explicit shared viewport from query/hash. Local storage may restore
@@ -6185,6 +6642,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       loadTraces();
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
+      loadPublicEnvironmentLayers();
       loadGuideSpots();
       loadVisitedPlaces();
       maybeAutoLocateOnFirstOpen();
@@ -6204,6 +6662,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       refreshDiscoveryPreviewMarkers();
       if (state.areaPolygonsDebounce) clearTimeout(state.areaPolygonsDebounce);
       state.areaPolygonsDebounce = setTimeout(function () { loadAreaPolygons(); }, 250);
+      schedulePublicEnvironmentLoad(300);
       loadGuideSpots();
       if (state.waterwayDebounce) clearTimeout(state.waterwayDebounce);
       state.waterwayDebounce = setTimeout(function () { loadWaterwayHints(); }, 350);
@@ -6885,6 +7344,33 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       saveMapState();
     });
   });
+
+  document.querySelectorAll('.me-public-env-item').forEach(function (label) {
+    var id = label.getAttribute('data-public-env-id');
+    var toggle = label.querySelector('.me-public-env-toggle');
+    var range = label.querySelector('.me-public-env-opacity-range');
+    if (!id || !toggle || !range || !publicEnvironmentState[id]) return;
+    var def = publicEnvironmentDefinition(id);
+    if (!def) return;
+
+    toggle.addEventListener('change', function () {
+      publicEnvironmentState[id].enabled = !!toggle.checked;
+      label.classList.toggle('is-on', !!toggle.checked);
+      if (!state.map) return;
+      if (toggle.checked) {
+        ensurePublicEnvironmentLayer(state.map, def);
+        loadPublicEnvironmentLayers();
+      } else {
+        removePublicEnvironmentLayer(state.map, id);
+        if (!enabledPublicEnvironmentLayerIds().length) setPublicEnvironmentStatus('', false);
+      }
+    });
+    range.addEventListener('input', function () {
+      var op = normalizePublicEnvironmentOpacity(range.value);
+      publicEnvironmentState[id].opacity = op;
+      if (state.map) setPublicEnvironmentLayerOpacity(state.map, id, op);
+    });
+  });
 })();
 </script>`;
 }
@@ -7207,40 +7693,74 @@ export const MAP_EXPLORER_STYLES = `
   .me-region-chip:hover { border-color: rgba(14,165,233,.4); }
   .me-region-chip.is-active { background: linear-gradient(135deg, rgba(14,165,233,.18), rgba(16,185,129,.14)); border-color: rgba(14,165,233,.45); color: #075985; }
 
-  .me-overlay-panel {
+  .me-overlay-panel,
+  .me-public-env-panel {
     padding: 0;
     border-radius: 14px;
     background: rgba(255,255,255,.94);
     border: 1px solid rgba(15,23,42,.06);
     overflow: hidden;
   }
-  .me-overlay-summary {
+  .me-overlay-summary,
+  .me-public-env-summary {
     display: flex; flex-direction: column; gap: 2px;
     padding: 10px 16px; cursor: pointer; user-select: none;
     background: linear-gradient(90deg, rgba(99,102,241,.05), rgba(16,185,129,.05));
   }
-  .me-overlay-summary::-webkit-details-marker { display: none; }
-  .me-overlay-summary::after { content: "⌄"; position: absolute; right: 20px; font-weight: 800; color: #475569; transition: transform .2s ease; }
-  .me-overlay-panel[open] .me-overlay-summary::after { transform: rotate(180deg); }
-  .me-overlay-summary { position: relative; }
+  .me-public-env-summary { background: linear-gradient(90deg, rgba(15,118,110,.07), rgba(37,99,235,.05)); }
+  .me-overlay-summary::-webkit-details-marker,
+  .me-public-env-summary::-webkit-details-marker { display: none; }
+  .me-overlay-summary::after,
+  .me-public-env-summary::after { content: "⌄"; position: absolute; right: 20px; font-weight: 800; color: #475569; transition: transform .2s ease; }
+  .me-overlay-panel[open] .me-overlay-summary::after,
+  .me-public-env-panel[open] .me-public-env-summary::after { transform: rotate(180deg); }
+  .me-overlay-summary,
+  .me-public-env-summary { position: relative; }
   .me-overlay-heading { font-weight: 900; font-size: 14px; color: #0f172a; letter-spacing: -.01em; }
   .me-overlay-intro { font-size: 12px; color: #475569; line-height: 1.5; }
+  .me-public-env-safety {
+    display: grid;
+    gap: 3px;
+    margin: 12px 16px 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(245,158,11,.09);
+    border: 1px solid rgba(245,158,11,.24);
+    color: #78350f;
+  }
+  .me-public-env-safety strong {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .me-public-env-safety span {
+    font-size: 11px;
+    line-height: 1.55;
+    font-weight: 700;
+  }
 
-  .me-overlay-list {
+  .me-overlay-list,
+  .me-public-env-list {
     display: grid; gap: 10px; padding: 14px 16px 16px;
     grid-template-columns: 1fr;
   }
-  @media (min-width: 760px) { .me-overlay-list { grid-template-columns: 1fr 1fr; } }
-  @media (min-width: 1100px) { .me-overlay-list { grid-template-columns: 1fr 1fr 1fr 1fr; } }
-  .me-overlay-item {
+  @media (min-width: 760px) { .me-overlay-list, .me-public-env-list { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 1100px) { .me-overlay-list, .me-public-env-list { grid-template-columns: 1fr 1fr 1fr 1fr; } }
+  .me-overlay-item,
+  .me-public-env-item {
     display: flex; flex-direction: column; gap: 6px;
     padding: 10px 12px; border-radius: 12px;
     background: #fff; border: 1px solid rgba(15,23,42,.06);
     transition: border-color .15s ease, box-shadow .15s ease;
   }
+  .me-public-env-item { border-left: 3px solid var(--pe-color, #0f766e); }
   .me-overlay-item.is-on { border-color: rgba(99,102,241,.45); box-shadow: 0 6px 14px rgba(99,102,241,.08); }
+  .me-public-env-item.is-on { border-color: rgba(15,118,110,.45); box-shadow: 0 6px 14px rgba(15,118,110,.08); }
   .me-overlay-row { display: flex; align-items: center; gap: 8px; }
-  .me-overlay-toggle { width: 16px; height: 16px; accent-color: #6366f1; flex-shrink: 0; }
+  .me-overlay-toggle,
+  .me-public-env-toggle { width: 16px; height: 16px; accent-color: #6366f1; flex-shrink: 0; }
+  .me-public-env-toggle { accent-color: #0f766e; }
   .me-overlay-label { flex: 1 1 auto; font-weight: 800; font-size: 13px; color: #0f172a; letter-spacing: -.01em; }
   .me-overlay-category {
     font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
@@ -7249,13 +7769,46 @@ export const MAP_EXPLORER_STYLES = `
   .me-overlay-cat-terrain { background: rgba(245,158,11,.12); color: #92400e; }
   .me-overlay-cat-landcover { background: rgba(16,185,129,.14); color: #065f46; }
   .me-overlay-cat-conservation { background: rgba(99,102,241,.12); color: #3730a3; }
+  .me-overlay-cat-public { background: rgba(15,118,110,.12); color: #115e59; }
   .me-overlay-note { margin: 0; font-size: 11px; line-height: 1.55; color: #64748b; }
   .me-overlay-legend { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #64748b; }
   .me-overlay-legend-gradient { flex: 1; height: 6px; border-radius: 3px; }
   .me-overlay-opacity { display: flex; align-items: center; gap: 8px; opacity: .55; transition: opacity .15s ease; }
-  .me-overlay-item.is-on .me-overlay-opacity { opacity: 1; }
+  .me-overlay-item.is-on .me-overlay-opacity,
+  .me-public-env-item.is-on .me-overlay-opacity { opacity: 1; }
   .me-overlay-opacity-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; }
-  .me-overlay-opacity-range { flex: 1; }
+  .me-overlay-opacity-range,
+  .me-public-env-opacity-range { flex: 1; }
+  .me-public-env-status {
+    margin: -4px 16px 14px;
+    min-height: 16px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: #475569;
+  }
+  .me-public-env-status.is-error { color: #b91c1c; font-weight: 700; }
+  .me-public-env-credit {
+    display: grid;
+    gap: 4px;
+    margin: -4px 16px 16px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(15,23,42,.045);
+    border: 1px solid rgba(15,23,42,.08);
+    color: #475569;
+    font-size: 10.5px;
+    line-height: 1.45;
+  }
+  .me-public-env-credit strong {
+    color: #0f172a;
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .me-public-env-credit small {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 800;
+  }
 
   .me-main {
     position: relative;
@@ -9330,6 +9883,10 @@ export const MAP_EXPLORER_STYLES = `
       z-index: 72;
     }
 
+    body.is-map-filter-open .site-shell.is-map-surface .global-record-launcher {
+      display: none;
+    }
+
     .me-section {
       --me-side-w: 0px;
       --me-topbar-h: 94px;
@@ -9362,8 +9919,10 @@ export const MAP_EXPLORER_STYLES = `
       right: 8px;
       left: 8px;
       width: auto;
+      z-index: 90;
       max-width: none;
       max-height: min(680px, calc(100dvh - var(--me-header-h) - var(--me-topbar-h) - 18px));
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
       box-shadow: 0 10px 24px rgba(15,23,42,.16);
     }
     .me-main { display: block; }

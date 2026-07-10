@@ -436,3 +436,62 @@ test("map explorer exposes visited place shortcuts and a clickable side collapse
   assert.match(script, /setSideRailMode\(false\);/);
   assert.match(script, /行った場所へ/);
 });
+
+test("map explorer exposes public environment layers through the server-side proxy", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(html, /data-api-public-environment-layers="\/api\/v1\/map\/public-environment-layers"/);
+  assert.match(html, /class="me-public-env-panel"/);
+  assert.match(html, /class="me-public-env-safety"/);
+  assert.match(html, /id="me-public-env-credit"/);
+  assert.match(html, /data-public-env-id="msil_esi"/);
+  assert.match(html, /data-public-env-id="msil_depth_contour"/);
+  assert.match(html, /data-public-env-id="msil_aquarium"/);
+  assert.match(html, /海岸の種類/);
+  assert.match(html, /海の深さの線/);
+  assert.match(html, /学びに行ける場所/);
+  assert.match(html, /航行、遊泳、入水、接近、避難、ルート安全/);
+  assert.match(html, /海上保安庁によって保証されたものではない/);
+  assert.doesNotMatch(html, /bdas_scrape/);
+  assert.match(script, /function loadPublicEnvironmentLayers\(\)/);
+  assert.match(script, /function updatePublicEnvironmentCredit\(payload\)/);
+  assert.match(script, /publicEnvTruncatedSuffix/);
+  assert.match(script, /表示上限に達しています。範囲を狭めると取りこぼしを減らせます。/);
+  assert.match(script, /document\.querySelector\('\.me-filter-drawer'\)/);
+  assert.match(script, /is-map-filter-open/);
+  assert.match(script, /apiPublicEnvironmentLayers \+ qs/);
+  assert.match(script, /public-env-src-/);
+  assert.match(script, /public-env-line-/);
+  assert.match(script, /publicEnvUnavailable/);
+  assert.match(script, /publicEnvironmentClientBboxSupported/);
+  assert.match(styles, /\.me-public-env-panel/);
+  assert.match(styles, /\.me-public-env-safety/);
+  assert.match(styles, /\.me-public-env-credit/);
+  assert.match(styles, /body\.is-map-filter-open \.site-shell\.is-map-surface \.global-record-launcher/);
+  assert.match(styles, /\.me-public-env-status\.is-error/);
+});
+
+test("public environment layer safety copy is localized for travelers", () => {
+  const english = renderMapExplorer({ basePath: "", lang: "en", years: [2026] });
+  const spanish = renderMapExplorer({ basePath: "", lang: "es", years: [2026] });
+  const portuguese = renderMapExplorer({ basePath: "", lang: "pt-BR", years: [2026] });
+
+  assert.match(english, /Shoreline type/);
+  assert.match(english, /Sea depth lines/);
+  assert.match(english, /Do not use these layers for navigation, swimming, entering the water/);
+  assert.match(english, /The Japan Coast Guard does not guarantee this service/);
+  assert.match(english, /海上保安庁によって保証されたものではない/);
+  assert.match(mapExplorerBootScript({ basePath: "", lang: "en" }), /Limit reached. Narrow the map area/);
+
+  assert.match(spanish, /Tipo de costa/);
+  assert.match(spanish, /Lineas de profundidad/);
+  assert.match(spanish, /No uses estas capas para navegacion, nadar, entrar al agua/);
+  assert.match(spanish, /La Guardia Costera de Japon no garantiza/);
+
+  assert.match(portuguese, /Tipo de costa/);
+  assert.match(portuguese, /Linhas de profundidade/);
+  assert.match(portuguese, /Nao use estas camadas para navegacao, nadar, entrar na agua/);
+  assert.match(portuguese, /A Guarda Costeira do Japao nao garante/);
+});
