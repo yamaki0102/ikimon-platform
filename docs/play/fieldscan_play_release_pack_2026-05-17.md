@@ -47,22 +47,23 @@ Console paste-ready answers:
 
 ## Play Console status
 
-Verified on 2026-05-17:
+Verified on 2026-05-17, updated from Google email on 2026-05-18 17:08 JST:
 
 - Developer account: `IKIMON`
 - Account type: personal account
 - Account ID: `7452177191869089046`
-- Current blocker: identity verification is pending after document upload.
-- Contact phone verification remains locked until Google approves identity verification.
-- App creation is still locked with "new app creation requires account verification".
-- Device verification no longer appears as an active blocker on the account home page.
+- Identity verification: completed per Google Play Console email.
+- UI recheck on 2026-05-18 17:31 JST: Play Console still displayed `本人確認中`; the contact phone section was visible with `詳細を表示`, but still described phone verification as dependent on completing the other verification tasks.
+- UI recheck on 2026-05-18 17:33 JST: contact phone number detail page showed `電話番号を確認しました`.
+- UI recheck on 2026-05-18 17:34 JST: app list showed `アプリを作成`; create-app form opened.
+- Current blocker: create the app and upload the AAB to Internal testing.
+- Device verification no longer appeared as an active blocker on the account home page during the 2026-05-17 check.
 
 Next console action after Google approval email:
 
-1. Complete contact phone verification.
-2. Create app `いきものフィールド`.
-3. Upload `app-release.aab` to Internal testing.
-4. Complete Store listing, Data safety, App content, and foreground service declarations.
+1. Create app `いきものフィールド`.
+2. Upload `app-release.aab` to Internal testing.
+3. Complete Store listing, Data safety, App content, and foreground service declarations.
 
 ## Play Console account decision
 
@@ -258,7 +259,16 @@ Re-check this page immediately before production review if app behavior or decla
 2. Create app with package `life.ikimon.fieldscan`.
 3. Upload AAB to Internal testing.
 4. Fill Store listing, Data safety, App content, and Sensitive permissions.
-5. Add at least one tester group.
+5. Add at least one internal tester group.
 6. Install on Pixel 10 Pro from internal track.
 7. Upload the prepared foreground service permission video if Play requires it.
-8. Submit to closed/open/production only after privacy policy and declarations match the binary.
+8. If production access is gated for this personal developer account, run closed testing with at least 12 opted-in testers for 14 continuous days, then apply for production access.
+9. Submit to closed/open/production only after privacy policy and declarations match the binary.
+
+Production access note:
+
+- Google states that personal developer accounts created after 2023-11-13 must run a closed test before production access.
+- The stated threshold is at least 12 testers opted in for the last 14 days continuously.
+- Internal testing remains the fastest first upload path and should be used before organizing the 12-tester closed test.
+- Tester recruitment and CSV instructions are in `docs/play/fieldscan_tester_recruitment_2026-05-18.md`.
+- Official reference: `https://support.google.com/googleplay/android-developer/answer/14151465`

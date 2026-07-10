@@ -4,9 +4,11 @@ Use this sheet when the Play Console account lock is cleared. The source of trut
 
 ## Account blocker
 
-- Current state verified in Play Console: identity verification pending after document upload.
-- Still locked: contact phone verification and app creation.
-- First action after Google approval email: complete contact phone verification.
+- Current state from Google Play Console email, 2026-05-18 17:08 JST: identity verification completed.
+- Current Play Console screen check, 2026-05-18 17:31 JST: account setup page still shows `本人確認中`; `連絡先電話番号の確認` is visible with a `詳細を表示` button, but the text says the phone step depends on the other verification tasks completing.
+- Current Play Console screen check, 2026-05-18 17:33 JST: contact phone number detail page showed `電話番号を確認しました`.
+- Current Play Console screen check, 2026-05-18 17:34 JST: app list showed `アプリを作成`; account setup blocker was cleared enough to open the create-app form.
+- Next console action: create the app and upload the AAB to Internal testing.
 
 ## Create app
 
@@ -29,6 +31,14 @@ Use this sheet when the Play Console account lock is cleared. The source of trut
 ```text
 初回テスト公開。さんぽ、フィールドスキャン、ポケット観測、端末AI対応、位置・音・景色の観察セッション送信に対応しました。
 ```
+
+## Testing path for personal account
+
+- Internal testing: use first after app creation; no tester-count gate.
+- Closed testing: required before production access if this personal developer account is treated as newly created after 2023-11-13.
+- Production access requirement: at least 12 testers opted in to closed testing for 14 continuous days, then apply for production access in Play Console.
+- Tester recruitment and CSV instructions: `docs/play/fieldscan_tester_recruitment_2026-05-18.md`
+- Official reference: `https://support.google.com/googleplay/android-developer/answer/14151465`
 
 ## Main store listing
 
@@ -131,24 +141,34 @@ Suggested inputs:
 
 Use the exact shipped behavior. The release sends derived observation/session data to ikimon.life; it does not intentionally upload raw continuous audio or raw camera video as normal session payload.
 
+Implementation evidence:
+
+- Mobile session start sends `session_id`, app-generated `install_id`, and `movement_mode`; the server responds with `rawMediaPolicy: "digest_only"`.
+- Scene digest upload sends `client_scene_id`, `session_id`, `install_id`, captured time, latitude, longitude, movement mode, scene digest text, detected species/features, area-resolution signals, on-device model metadata, foreground-AI availability/fallback state, optional auth state, and optional monitoring context.
+- Audio event upload sends detection event metadata only: taxon name, scientific name, confidence, latitude, longitude, timestamp, model/AI version, optional snippet hash/id references, auth/install state, on-device model metadata, movement mode, and optional scene digest/context.
+- Server responses explicitly report `rawMediaStored: false` for scene digest uploads and `rawAudioStored: false` for audio events.
+- Optional login sends email/password or Google OAuth result, app-generated install ID, device model, platform, and app version; stored app state includes token, user ID, display name, and email.
+- Install registration sends app-generated install ID, device model, platform, and app version.
+- Legacy local batch upload is disabled in `UploadWorker`; legacy diagnostics upload code exists but the current FieldScan stop path logs that diagnostics upload is skipped and the current mobile session API is the source of truth.
+
 Data types to declare as collected:
 
 - Location: approximate location and precise location.
-- Personal info: email address, user IDs, and name only when optional login is used.
-- App activity: app interactions, in-app search/activity, or other user-generated content equivalent for observation sessions if offered by the form.
-- App info and performance: crash logs or diagnostics if the diagnostics upload path is active in the release form's interpretation.
-- Device or other IDs: app-generated install ID; device model is sent for install registration/login.
+- Personal info: email address, user IDs, and display name only when optional login or OAuth linking is used.
+- App activity: app interactions/session activity, app-generated field session IDs, movement mode, observation/session events, detected species/features, scene digest text, and user-generated observation-equivalent content if Play offers that category.
+- App info and performance: app version and device model are sent for install registration/login. Do not declare crash logs as collected unless Play treats server logs or the disabled legacy diagnostics code as active collection.
+- Device or other IDs: app-generated install ID.
 
 Data derived from sensors:
 
-- Audio: microphone is accessed for natural-sound detection. Declare raw audio files as collected only if the final submitted flow uploads audio snippets or reviewer-visible behavior confirms upload. Current mobile session API sends detection events and metadata, not raw continuous audio.
-- Photos/videos: camera is accessed for field scan. Declare raw photos/videos as collected only if the final submitted flow uploads raw media. Current session API sends scene digest and detected metadata.
+- Audio: microphone is accessed for natural-sound detection. Current mobile session API sends detection events and metadata, not raw continuous audio. Declare raw audio files as collected only if the final submitted flow uploads audio snippets or reviewer-visible behavior confirms upload.
+- Photos/videos: camera is accessed for field scan. Current mobile session API sends scene digest and detected metadata, not raw camera frames or raw video. Declare raw photos/videos as collected only if the final submitted flow uploads raw media.
 
 Purposes:
 
 - App functionality
 - Account management, when login is used
-- Analytics or diagnostics, only for diagnostic uploads/server logs that Play treats as collected data
+- Analytics or diagnostics, only for server logs/app quality handling that Play treats as collected data
 
 Security answers:
 
