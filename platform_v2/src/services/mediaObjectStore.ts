@@ -1,4 +1,4 @@
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export type MediaObjectVisibility = "public" | "private";
@@ -21,14 +21,19 @@ export type ReadMediaObjectInput = {
   storagePath: string;
 };
 
-export type DeleteMediaObjectInput = {
+export type ReferenceMediaObjectInput = {
   visibility: MediaObjectVisibility;
   storagePath: string;
 };
 
+export type ExistsMediaObjectInput = ReferenceMediaObjectInput;
+export type DeleteMediaObjectInput = ReferenceMediaObjectInput;
+
 export type MediaObjectStore = {
   write(input: WriteMediaObjectInput): Promise<StoredMediaObject>;
   read(input: ReadMediaObjectInput): Promise<Buffer>;
+  reference(input: ReferenceMediaObjectInput): StoredMediaObject;
+  exists(input: ExistsMediaObjectInput): Promise<boolean>;
   delete(input: DeleteMediaObjectInput): Promise<void>;
 };
 
@@ -65,11 +70,8 @@ export class LocalMediaObjectStore implements MediaObjectStore {
     return absolutePath;
   }
 
-  async write(input: WriteMediaObjectInput): Promise<StoredMediaObject> {
-    const absolutePath = this.absolutePathFor(input.visibility, input.storagePath);
-    await mkdir(path.dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, input.buffer);
-
+  reference(input: ReferenceMediaObjectInput): StoredMediaObject {
+    this.absolutePathFor(input.visibility, input.storagePath);
     return {
       storageBackend: this.storageBackendForVisibility(input.visibility),
       storagePath: input.storagePath,
@@ -77,8 +79,26 @@ export class LocalMediaObjectStore implements MediaObjectStore {
     };
   }
 
+  async write(input: WriteMediaObjectInput): Promise<StoredMediaObject> {
+    const absolutePath = this.absolutePathFor(input.visibility, input.storagePath);
+    await mkdir(path.dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, input.buffer);
+    return this.reference(input);
+  }
+
   async read(input: ReadMediaObjectInput): Promise<Buffer> {
     return readFile(this.absolutePathFor(input.visibility, input.storagePath));
+  }
+
+  async exists(input: ExistsMediaObjectInput): Promise<boolean> {
+    try {
+      await access(this.absolutePathFor(input.visibility, input.storagePath));
+      return true;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ENOENT") return false;
+      throw error;
+    }
   }
 
   async delete(input: DeleteMediaObjectInput): Promise<void> {
