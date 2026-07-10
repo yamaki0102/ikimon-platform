@@ -1,15 +1,16 @@
 name: Reapply Worker Authz
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches:
+      - agent/worker-place-memory-authz
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: github.head_ref == 'agent/worker-place-memory-authz' && github.actor != 'github-actions[bot]'
+    if: github.ref_name == 'agent/worker-place-memory-authz' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
