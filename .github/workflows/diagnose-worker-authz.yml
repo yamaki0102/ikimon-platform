@@ -1,0 +1,37 @@
+name: Diagnose Worker Authz
+
+on:
+  push:
+    branches:
+      - agent/worker-place-memory-authz
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/worker-place-memory-authz
+          fetch-depth: 0
+      - name: Fetch historical remediation branch
+        shell: bash
+        run: git fetch origin codex/fix-production-qa-p0-p1-20260710 --depth=1
+      - name: Collect current and historical Worker sources
+        shell: bash
+        run: |
+          mkdir -p worker-authz-diagnostic/current worker-authz-diagnostic/historical
+          cp platform_v2/cloudflare_shadow/src/index.ts worker-authz-diagnostic/current/index.ts
+          cp platform_v2/cloudflare_shadow/src/index.test.ts worker-authz-diagnostic/current/index.test.ts
+          git show FETCH_HEAD:platform_v2/cloudflare_shadow/src/index.ts > worker-authz-diagnostic/historical/index.ts
+          git show FETCH_HEAD:platform_v2/cloudflare_shadow/src/index.test.ts > worker-authz-diagnostic/historical/index.test.ts
+          git diff --no-index --unified=80 worker-authz-diagnostic/current/index.ts worker-authz-diagnostic/historical/index.ts > worker-authz-diagnostic/index.diff || true
+          git diff --no-index --unified=40 worker-authz-diagnostic/current/index.test.ts worker-authz-diagnostic/historical/index.test.ts > worker-authz-diagnostic/index.test.diff || true
+      - name: Upload diagnostic sources
+        uses: actions/upload-artifact@v6
+        with:
+          name: worker-authz-diagnostic
+          path: worker-authz-diagnostic
+          if-no-files-found: error
