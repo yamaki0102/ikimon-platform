@@ -1,0 +1,1867 @@
+import { getPool } from "../db.js";
+
+type DbQueryResult<T> = { rows: T[] };
+type MunicipalWalkMapDbClient = {
+  query<T = unknown>(sql: string, params?: unknown[]): Promise<DbQueryResult<T>>;
+  release(): void;
+};
+type MunicipalWalkMapDbPool = {
+  query<T = unknown>(sql: string, params?: unknown[]): Promise<DbQueryResult<T>>;
+  connect(): Promise<MunicipalWalkMapDbClient>;
+};
+
+export type MunicipalWalkMapThemeV0 =
+  | "seasonal_walk"
+  | "waterfront"
+  | "park_walk"
+  | "satoyama"
+  | "city_nature"
+  | "school_learning";
+
+export type MunicipalWalkMapStopAccessV0 =
+  | "public_access"
+  | "permission_required"
+  | "private_or_restricted"
+  | "unknown";
+
+export type MunicipalWalkMapMobilityModeV0 =
+  | "walk"
+  | "bike"
+  | "car"
+  | "motorbike"
+  | "public_transport";
+
+export type MunicipalWalkMapRouteFlexibilityV0 = {
+  routeStyle: "loose_stops" | "suggested_order" | "free_area";
+  mobilityModes: MunicipalWalkMapMobilityModeV0[];
+  offRoutePolicy: "off_route_allowed" | "stay_near_public_path" | "guide_only";
+  returnCues: string[];
+};
+
+export type MunicipalWalkMapCreatorProfileV0 = {
+  creatorId?: string | null;
+  registrationKind: "municipality" | "registered_group" | "registered_company" | "individual" | "unknown";
+  verificationStatus: "verified" | "pending" | "self_declared";
+  commercialIntent: "none" | "limited" | "primary";
+};
+
+export type MunicipalWalkMapCreatorRegistryEntryV0 = {
+  schemaVersion: "municipal_walk_map_creator/v0";
+  creatorId: string;
+  displayName: string;
+  registrationKind: "municipality" | "registered_group" | "registered_company";
+  verificationStatus: "verified" | "pending" | "revoked";
+  commercialIntent: "none" | "limited" | "primary";
+  notes: string;
+};
+
+export type MunicipalWalkMapCreatorValidationV0 = {
+  ok: boolean;
+  errors: string[];
+};
+
+export type MunicipalWalkMapSourceReferenceV0 = {
+  label: string;
+  url: string;
+  note: string;
+};
+
+export type MunicipalWalkMapStopV0 = {
+  stopId: string;
+  title: string;
+  areaKind: "park" | "waterfront" | "satoyama" | "street_edge" | "school" | "other";
+  linkedFieldId?: string | null;
+  access: MunicipalWalkMapStopAccessV0;
+  sensitiveContext?: "none" | "school_or_minor" | "private_edge" | "rare_species" | null;
+  estimatedMinutes?: number | null;
+  noticeCues: string[];
+  recordCues: string[];
+  safetyNotes: string[];
+  internalMemo?: string | null;
+};
+
+export type MunicipalWalkMapConfigV0 = {
+  schemaVersion: "municipal_walk_map_config/v0";
+  walkMapId: string;
+  municipality: string;
+  creatorName: string;
+  creatorProfile: MunicipalWalkMapCreatorProfileV0;
+  title: string;
+  summary: string;
+  theme: MunicipalWalkMapThemeV0;
+  publishMode: "draft" | "public_preview" | "public";
+  areaScope: {
+    municipalityCodes: string[];
+    placeIds: string[];
+    polygonIds: string[];
+  };
+  routeStops: MunicipalWalkMapStopV0[];
+  recordModes: Array<"photo" | "audio" | "memo" | "unknown_species">;
+  routeFlexibility: MunicipalWalkMapRouteFlexibilityV0;
+  publicPrecisionPolicy: "site_or_coarser" | "mesh_or_coarser" | "municipality_or_hidden";
+  claimBoundary: string[];
+  sourceReferences: MunicipalWalkMapSourceReferenceV0[];
+};
+
+export type MunicipalWalkMapValidationV0 = {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+  blockedStopIds: string[];
+};
+
+export type MunicipalWalkMapLocationSafetyPolicyV0 = {
+  schemaVersion: "municipal_walk_map_location_safety/v0";
+  publicPrecisionPolicy: MunicipalWalkMapConfigV0["publicPrecisionPolicy"];
+  publicExactStopLocation: false;
+  recordCtaRule: "public_access_non_school_only";
+  blockedStopIds: string[];
+  reviewRequired: string[];
+  defaultHiddenContexts: Array<"home_or_minor_context" | "rare_species_context" | "school_or_private_land">;
+};
+
+export type MunicipalWalkMapPublicReadModelV0 = {
+  schemaVersion: "municipal_walk_map_public/v0";
+  walkMapId: string;
+  municipality: string;
+  title: string;
+  summary: string;
+  theme: MunicipalWalkMapThemeV0;
+  publishMode: MunicipalWalkMapConfigV0["publishMode"];
+  stops: Array<{
+    stopId: string;
+    title: string;
+    areaKind: MunicipalWalkMapStopV0["areaKind"];
+    estimatedMinutes: number | null;
+    noticeCues: string[];
+    recordCues: string[];
+    recordHref: string | null;
+    accessLabel: "public_scope" | "check_permission" | "not_for_route";
+  }>;
+  routeFlexibility: MunicipalWalkMapRouteFlexibilityV0;
+  claimBoundary: string[];
+  sourceReferences: MunicipalWalkMapSourceReferenceV0[];
+  locationSafety: MunicipalWalkMapLocationSafetyPolicyV0;
+  validation: MunicipalWalkMapValidationV0;
+};
+
+export type MunicipalWalkMapPublicSummaryV0 = {
+  schemaVersion: "municipal_walk_map_public_summary/v0";
+  walkMapId: string;
+  municipality: string;
+  title: string;
+  summary: string;
+  theme: MunicipalWalkMapThemeV0;
+  publishMode: MunicipalWalkMapConfigV0["publishMode"];
+  routeStyle: MunicipalWalkMapRouteFlexibilityV0["routeStyle"];
+  mobilityModes: MunicipalWalkMapMobilityModeV0[];
+  stopCount: number;
+  sourceReferences: MunicipalWalkMapSourceReferenceV0[];
+};
+
+export type MunicipalWalkMapTemplateV0 = {
+  schemaVersion: "municipal_walk_map_template/v0";
+  templateId: string;
+  label: string;
+  sourcePattern: string;
+  summary: string;
+  exampleSources: Array<{
+    label: string;
+    url: string;
+  }>;
+  config: MunicipalWalkMapConfigV0;
+};
+
+export type MunicipalWalkMapSourceCatalogEntryV0 = {
+  schemaVersion: "municipal_walk_map_source_catalog/v0";
+  sourceId: string;
+  templateId: string;
+  primaryType: "walk_route_species_map" | "species_distribution_map" | "citizen_science_report" | "worksheet_or_field_note";
+  municipality: string;
+  title: string;
+  sourceUrl: string;
+  officialPageUrl: string;
+  affinityScore: number;
+  cue: string;
+};
+
+const DEFAULT_WALK_MAP_ID = "jp-shizuoka-light-nature-walk-v0";
+const DEFAULT_CLAIM_BOUNDARY = [
+  "公式調査結果ではなく、散策マップとして扱います。",
+  "学校、私有地、立入不明の場所は公開前に確認します。",
+  "希少種、自宅付近、未成年が推測される情報は場所の出し方を落とします。",
+];
+const SHIZUOKA_SOURCE_REFERENCE: MunicipalWalkMapSourceReferenceV0 = {
+  label: "静岡市 いきもの散策マップ",
+  url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
+  note: "静岡市公式ページを出典として、ikimon.life用に再構成したサンプル。PDF本文や図版は転載していません。",
+};
+const VALID_THEMES: readonly MunicipalWalkMapThemeV0[] = [
+  "seasonal_walk",
+  "waterfront",
+  "park_walk",
+  "satoyama",
+  "city_nature",
+  "school_learning",
+];
+const VALID_PUBLISH_MODES: readonly MunicipalWalkMapConfigV0["publishMode"][] = ["draft", "public_preview", "public"];
+const VALID_AREA_KINDS: readonly MunicipalWalkMapStopV0["areaKind"][] = ["park", "waterfront", "satoyama", "street_edge", "school", "other"];
+const VALID_ACCESS: readonly MunicipalWalkMapStopAccessV0[] = ["public_access", "permission_required", "private_or_restricted", "unknown"];
+const VALID_SENSITIVE_CONTEXTS: readonly NonNullable<MunicipalWalkMapStopV0["sensitiveContext"]>[] = ["none", "school_or_minor", "private_edge", "rare_species"];
+const VALID_RECORD_MODES: readonly MunicipalWalkMapConfigV0["recordModes"][number][] = ["photo", "audio", "memo", "unknown_species"];
+const VALID_MOBILITY_MODES: readonly MunicipalWalkMapMobilityModeV0[] = ["walk", "bike", "car", "motorbike", "public_transport"];
+const VALID_ROUTE_STYLES: readonly MunicipalWalkMapRouteFlexibilityV0["routeStyle"][] = ["loose_stops", "suggested_order", "free_area"];
+const VALID_OFF_ROUTE_POLICIES: readonly MunicipalWalkMapRouteFlexibilityV0["offRoutePolicy"][] = [
+  "off_route_allowed",
+  "stay_near_public_path",
+  "guide_only",
+];
+const VALID_REGISTRATION_KINDS: readonly MunicipalWalkMapCreatorProfileV0["registrationKind"][] = [
+  "municipality",
+  "registered_group",
+  "registered_company",
+  "individual",
+  "unknown",
+];
+const VALID_VERIFICATION_STATUS: readonly MunicipalWalkMapCreatorProfileV0["verificationStatus"][] = [
+  "verified",
+  "pending",
+  "self_declared",
+];
+const VALID_CREATOR_REGISTRATION_KINDS: readonly MunicipalWalkMapCreatorRegistryEntryV0["registrationKind"][] = [
+  "municipality",
+  "registered_group",
+  "registered_company",
+];
+const VALID_CREATOR_VERIFICATION_STATUS: readonly MunicipalWalkMapCreatorRegistryEntryV0["verificationStatus"][] = [
+  "verified",
+  "pending",
+  "revoked",
+];
+const VALID_COMMERCIAL_INTENTS: readonly MunicipalWalkMapCreatorProfileV0["commercialIntent"][] = ["none", "limited", "primary"];
+const VALID_PRECISION_POLICIES: readonly MunicipalWalkMapConfigV0["publicPrecisionPolicy"][] = [
+  "site_or_coarser",
+  "mesh_or_coarser",
+  "municipality_or_hidden",
+];
+
+const DEFAULT_ROUTE_FLEXIBILITY: MunicipalWalkMapRouteFlexibilityV0 = {
+  routeStyle: "loose_stops",
+  mobilityModes: ["walk"],
+  offRoutePolicy: "off_route_allowed",
+  returnCues: ["案内板や大きな通りを目印に戻る"],
+};
+const DEFAULT_CREATOR_PROFILE: MunicipalWalkMapCreatorProfileV0 = {
+  creatorId: null,
+  registrationKind: "unknown",
+  verificationStatus: "pending",
+  commercialIntent: "none",
+};
+
+function cleanText(value: unknown, maxLength: number): string {
+  return String(value ?? "").trim().slice(0, maxLength);
+}
+
+function uniqueClean(values: string[], maxItems: number, maxLength: number): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of values) {
+    const item = cleanText(raw, maxLength);
+    if (!item || seen.has(item)) continue;
+    seen.add(item);
+    result.push(item);
+    if (result.length >= maxItems) break;
+  }
+  return result;
+}
+
+function cleanSourceReferences(value: unknown): MunicipalWalkMapSourceReferenceV0[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 8).flatMap((raw) => {
+    const ref = (raw && typeof raw === "object" ? raw : {}) as Partial<MunicipalWalkMapSourceReferenceV0>;
+    const label = cleanText(ref.label, 120);
+    const url = cleanText(ref.url, 400);
+    const note = cleanText(ref.note, 220);
+    if (!label || !url) return [];
+    if (!/^https:\/\/[^\s]+$/i.test(url)) return [];
+    return [{ label, url, note }];
+  });
+}
+
+function hasSensitiveContext(stop: MunicipalWalkMapStopV0): boolean {
+  return Boolean(stop.sensitiveContext && stop.sensitiveContext !== "none");
+}
+
+function isStrongRecordAllowed(stop: MunicipalWalkMapStopV0): boolean {
+  return stop.access === "public_access" && stop.areaKind !== "school" && !hasSensitiveContext(stop) && Boolean(cleanText(stop.linkedFieldId, 160));
+}
+
+function stopBlocker(stop: MunicipalWalkMapStopV0): string | null {
+  if (stop.areaKind === "school") return "school_stop_requires_permission";
+  if (stop.sensitiveContext === "school_or_minor") return "school_or_minor_context_stop";
+  if (stop.sensitiveContext === "private_edge") return "private_edge_context_stop";
+  if (stop.sensitiveContext === "rare_species") return "rare_species_context_stop";
+  if (stop.access === "private_or_restricted") return "private_or_restricted_stop";
+  if (stop.access === "permission_required") return "permission_required_stop";
+  if (stop.access === "unknown") return "unknown_access_stop";
+  return null;
+}
+
+function isValidValue<T extends string>(values: readonly T[], value: unknown): value is T {
+  return typeof value === "string" && (values as readonly string[]).includes(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isCreatorId(value: string): boolean {
+  return /^(municipality|group|company):[a-z0-9][a-z0-9_-]{2,80}$/i.test(value);
+}
+
+export function validateMunicipalWalkMapCreatorV0(input: unknown): MunicipalWalkMapCreatorValidationV0 {
+  const errors: string[] = [];
+  const candidate = (input && typeof input === "object" ? input : {}) as Partial<MunicipalWalkMapCreatorRegistryEntryV0>;
+  const creatorId = cleanText(candidate.creatorId, 128);
+  const displayName = cleanText(candidate.displayName, 120);
+
+  if (candidate.schemaVersion !== "municipal_walk_map_creator/v0") errors.push("schema_version_mismatch");
+  if (!creatorId) errors.push("creator_id_required");
+  else if (!isCreatorId(creatorId)) errors.push("invalid_creator_id");
+  if (!displayName) errors.push("display_name_required");
+  if (!isValidValue(VALID_CREATOR_REGISTRATION_KINDS, candidate.registrationKind)) errors.push("invalid_registration_kind");
+  if (!isValidValue(VALID_CREATOR_VERIFICATION_STATUS, candidate.verificationStatus)) errors.push("invalid_verification_status");
+  if (!isValidValue(VALID_COMMERCIAL_INTENTS, candidate.commercialIntent)) errors.push("invalid_commercial_intent");
+  if (candidate.verificationStatus === "verified" && candidate.commercialIntent === "primary") {
+    errors.push("commercial_primary_creator_cannot_be_verified");
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+export function creatorProfileFromRegistryEntryV0(
+  entry: MunicipalWalkMapCreatorRegistryEntryV0,
+): MunicipalWalkMapCreatorProfileV0 {
+  return {
+    creatorId: entry.creatorId,
+    registrationKind: entry.registrationKind,
+    verificationStatus: entry.verificationStatus === "verified" ? "verified" : "pending",
+    commercialIntent: entry.commercialIntent,
+  };
+}
+
+export function applyRegisteredCreatorProfileForWriteV0(
+  config: MunicipalWalkMapConfigV0,
+  creator: MunicipalWalkMapCreatorRegistryEntryV0 | null,
+): MunicipalWalkMapConfigV0 {
+  const requestedCreatorId = cleanText(config.creatorProfile?.creatorId, 128);
+  if (!requestedCreatorId) return cloneWalkMapConfig(config);
+  if (!creator || creator.creatorId !== requestedCreatorId) {
+    throw new Error("registered_creator_not_found");
+  }
+  const creatorValidation = validateMunicipalWalkMapCreatorV0(creator);
+  if (!creatorValidation.ok) {
+    throw new Error(`registered_creator_invalid:${creatorValidation.errors.join(",")}`);
+  }
+  const next = cloneWalkMapConfig({
+    ...config,
+    creatorName: cleanText(creator.displayName, 120),
+    creatorProfile: creatorProfileFromRegistryEntryV0(creator),
+  });
+  const validation = validateMunicipalWalkMapConfigV0(next);
+  if (!validation.ok) {
+    throw new Error(`municipal_walk_map_invalid:${validation.errors.join(",")}`);
+  }
+  return next;
+}
+
+export function validateMunicipalWalkMapConfigV0(config: MunicipalWalkMapConfigV0 | unknown): MunicipalWalkMapValidationV0 {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const blockedStopIds: string[] = [];
+  const candidate = (config && typeof config === "object" ? config : {}) as Partial<MunicipalWalkMapConfigV0>;
+  const routeStops = Array.isArray(candidate.routeStops) ? candidate.routeStops : [];
+  const recordModes = Array.isArray(candidate.recordModes) ? candidate.recordModes : [];
+  const publishMode = candidate.publishMode;
+  const creatorProfile = (candidate.creatorProfile && typeof candidate.creatorProfile === "object"
+    ? candidate.creatorProfile
+    : {}) as Partial<MunicipalWalkMapCreatorProfileV0>;
+  const routeFlexibility = (candidate.routeFlexibility && typeof candidate.routeFlexibility === "object"
+    ? candidate.routeFlexibility
+    : {}) as Partial<MunicipalWalkMapRouteFlexibilityV0>;
+
+  if (candidate.schemaVersion !== "municipal_walk_map_config/v0") errors.push("schema_version_mismatch");
+  if (!cleanText(candidate.walkMapId, 128)) errors.push("walk_map_id_required");
+  if (!cleanText(candidate.municipality, 80)) errors.push("municipality_required");
+  if (!cleanText(candidate.creatorName, 120)) errors.push("creator_name_required");
+  if (!candidate.creatorProfile || typeof candidate.creatorProfile !== "object") errors.push("creator_profile_required");
+  if (!isValidValue(VALID_REGISTRATION_KINDS, creatorProfile.registrationKind)) errors.push("invalid_registration_kind");
+  if (!isValidValue(VALID_VERIFICATION_STATUS, creatorProfile.verificationStatus)) errors.push("invalid_verification_status");
+  if (!isValidValue(VALID_COMMERCIAL_INTENTS, creatorProfile.commercialIntent)) errors.push("invalid_commercial_intent");
+  const creatorId = cleanText(creatorProfile.creatorId, 128);
+  if (creatorProfile.verificationStatus === "verified" && !creatorId) errors.push("creator_id_required_for_verified_creator");
+  if (!cleanText(candidate.title, 120)) errors.push("title_required");
+  if (!isValidValue(VALID_THEMES, candidate.theme)) errors.push("invalid_theme");
+  if (!isValidValue(VALID_PUBLISH_MODES, candidate.publishMode)) errors.push("invalid_publish_mode");
+  if (!candidate.areaScope || typeof candidate.areaScope !== "object") errors.push("area_scope_required");
+  if (!Array.isArray(candidate.routeStops) || candidate.routeStops.length === 0) errors.push("route_stops_required");
+  if (routeStops.length > 12) warnings.push("route_stop_count_high");
+  if (!Array.isArray(candidate.recordModes)) errors.push("record_modes_required");
+  if (!recordModes.every((mode) => isValidValue(VALID_RECORD_MODES, mode))) errors.push("invalid_record_mode");
+  if (!candidate.routeFlexibility || typeof candidate.routeFlexibility !== "object") errors.push("route_flexibility_required");
+  if (!isValidValue(VALID_ROUTE_STYLES, routeFlexibility.routeStyle)) errors.push("invalid_route_style");
+  if (!Array.isArray(routeFlexibility.mobilityModes) || routeFlexibility.mobilityModes.length === 0) errors.push("mobility_modes_required");
+  if (Array.isArray(routeFlexibility.mobilityModes) && !routeFlexibility.mobilityModes.every((mode) => isValidValue(VALID_MOBILITY_MODES, mode))) errors.push("invalid_mobility_mode");
+  if (!isValidValue(VALID_OFF_ROUTE_POLICIES, routeFlexibility.offRoutePolicy)) errors.push("invalid_off_route_policy");
+  if (!isStringArray(routeFlexibility.returnCues)) errors.push("return_cues_required");
+  const canUseSuggestedOrder = Boolean(creatorId)
+    && creatorProfile.verificationStatus === "verified"
+    && (creatorProfile.registrationKind === "municipality"
+      || creatorProfile.registrationKind === "registered_group"
+      || creatorProfile.registrationKind === "registered_company");
+  const canPublish = Boolean(creatorId)
+    && creatorProfile.verificationStatus === "verified"
+    && (creatorProfile.registrationKind === "municipality"
+      || creatorProfile.registrationKind === "registered_group"
+      || creatorProfile.registrationKind === "registered_company");
+  if ((publishMode === "public" || publishMode === "public_preview") && !canPublish) {
+    errors.push("public_publish_requires_verified_creator");
+  }
+  if (routeFlexibility.routeStyle === "suggested_order" && !canUseSuggestedOrder) {
+    errors.push("suggested_order_requires_verified_org");
+  }
+  if ((publishMode === "public" || publishMode === "public_preview") && routeFlexibility.routeStyle === "free_area") {
+    errors.push("free_area_publication_requires_area_safety_review");
+  }
+  if ((publishMode === "public" || publishMode === "public_preview") && creatorProfile.commercialIntent === "primary") {
+    errors.push("commercial_primary_not_publishable");
+  }
+  if (!recordModes.includes("unknown_species")) warnings.push("unknown_species_mode_missing");
+  if (!recordModes.includes("memo")) warnings.push("memo_mode_missing");
+  if (!isValidValue(VALID_PRECISION_POLICIES, candidate.publicPrecisionPolicy)) errors.push("invalid_public_precision_policy");
+  if (!isStringArray(candidate.claimBoundary)) errors.push("claim_boundary_required");
+  if (!Array.isArray(candidate.sourceReferences)) errors.push("source_references_required");
+  if (Array.isArray(candidate.sourceReferences) && candidate.sourceReferences.length !== cleanSourceReferences(candidate.sourceReferences).length) {
+    errors.push("invalid_source_reference");
+  }
+
+  const stopIds = new Set<string>();
+  for (const rawStop of routeStops) {
+    const stop = (rawStop && typeof rawStop === "object" ? rawStop : {}) as MunicipalWalkMapStopV0;
+    if (!cleanText(stop.stopId, 80)) errors.push("stop_id_required");
+    if (!cleanText(stop.title, 120)) errors.push(`stop_title_required:${cleanText(stop.stopId, 80) || "unknown"}`);
+    if (stop.stopId && stopIds.has(stop.stopId)) errors.push(`duplicate_stop_id:${cleanText(stop.stopId, 80)}`);
+    if (stop.stopId) stopIds.add(stop.stopId);
+    if (!isValidValue(VALID_AREA_KINDS, stop.areaKind)) errors.push(`invalid_area_kind:${cleanText(stop.stopId, 80) || "unknown"}`);
+    if (!isValidValue(VALID_ACCESS, stop.access)) errors.push(`invalid_access:${cleanText(stop.stopId, 80) || "unknown"}`);
+    if (stop.sensitiveContext != null && !isValidValue(VALID_SENSITIVE_CONTEXTS, stop.sensitiveContext)) errors.push(`invalid_sensitive_context:${cleanText(stop.stopId, 80) || "unknown"}`);
+    if (!isStringArray(stop.noticeCues)) errors.push(`notice_cues_required:${cleanText(stop.stopId, 80) || "unknown"}`);
+    if (!isStringArray(stop.recordCues)) errors.push(`record_cues_required:${cleanText(stop.stopId, 80) || "unknown"}`);
+    if (!isStringArray(stop.safetyNotes)) errors.push(`safety_notes_required:${cleanText(stop.stopId, 80) || "unknown"}`);
+    const blocker = stopBlocker(stop);
+    if (blocker) {
+      blockedStopIds.push(stop.stopId);
+      warnings.push(`${blocker}:${stop.stopId}`);
+      if (publishMode === "public" || publishMode === "public_preview") errors.push(`blocked_stop_not_publishable:${cleanText(stop.stopId, 80) || "unknown"}`);
+    }
+    if (!stop.linkedFieldId && stop.access === "public_access") warnings.push(`public_stop_without_linked_field:${stop.stopId}`);
+    if ((publishMode === "public" || publishMode === "public_preview") && stop.access === "public_access" && !cleanText(stop.linkedFieldId, 160)) {
+      errors.push(`public_stop_requires_linked_field:${cleanText(stop.stopId, 80) || "unknown"}`);
+    }
+    if (Array.isArray(stop.noticeCues) && Array.isArray(stop.recordCues) && !stop.noticeCues.length && !stop.recordCues.length) {
+      warnings.push(`stop_cues_missing:${stop.stopId}`);
+    }
+  }
+
+  if (candidate.publicPrecisionPolicy === "site_or_coarser") {
+    warnings.push("site_precision_requires_public_place_review");
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings: uniqueClean(warnings, 80, 160),
+    blockedStopIds: uniqueClean(blockedStopIds, 80, 80),
+  };
+}
+
+function recordHref(config: MunicipalWalkMapConfigV0, stop: MunicipalWalkMapStopV0): string | null {
+  if (!isStrongRecordAllowed(stop)) return null;
+  const params = new URLSearchParams({
+    context: "municipal_walk_map",
+    walkMapId: config.walkMapId,
+    stopId: stop.stopId,
+    source: "municipal_walk_map",
+  });
+  if (stop.linkedFieldId) params.set("fieldId", stop.linkedFieldId);
+  return `/ja/record?${params.toString()}`;
+}
+
+function accessLabel(stop: MunicipalWalkMapStopV0): "public_scope" | "check_permission" | "not_for_route" {
+  if (isStrongRecordAllowed(stop)) return "public_scope";
+  if (stop.access === "permission_required" || stop.areaKind === "school") return "check_permission";
+  return "not_for_route";
+}
+
+export function buildMunicipalWalkMapLocationSafetyPolicyV0(
+  config: MunicipalWalkMapConfigV0,
+  validation = validateMunicipalWalkMapConfigV0(config),
+): MunicipalWalkMapLocationSafetyPolicyV0 {
+  const reviewRequired = [
+    ...validation.errors,
+    ...validation.warnings,
+    config.publicPrecisionPolicy === "site_or_coarser" ? "site_precision_public_place_review" : "",
+    config.routeFlexibility.routeStyle === "free_area" ? "free_area_safety_review" : "",
+    cleanSourceReferences(config.sourceReferences).length === 0 ? "source_reference_required_before_public" : "",
+  ].filter(Boolean);
+  return {
+    schemaVersion: "municipal_walk_map_location_safety/v0",
+    publicPrecisionPolicy: config.publicPrecisionPolicy,
+    publicExactStopLocation: false,
+    recordCtaRule: "public_access_non_school_only",
+    blockedStopIds: uniqueClean(validation.blockedStopIds, 80, 80),
+    reviewRequired: uniqueClean(reviewRequired, 80, 160),
+    defaultHiddenContexts: ["home_or_minor_context", "rare_species_context", "school_or_private_land"],
+  };
+}
+
+export function buildMunicipalWalkMapPublicReadModelV0(config: MunicipalWalkMapConfigV0): MunicipalWalkMapPublicReadModelV0 {
+  const validation = validateMunicipalWalkMapConfigV0(config);
+  return {
+    schemaVersion: "municipal_walk_map_public/v0",
+    walkMapId: config.walkMapId,
+    municipality: cleanText(config.municipality, 80),
+    title: cleanText(config.title, 120),
+    summary: cleanText(config.summary, 240),
+    theme: config.theme,
+    publishMode: config.publishMode,
+    stops: config.routeStops.map((stop) => ({
+      stopId: cleanText(stop.stopId, 80),
+      title: cleanText(stop.title, 120),
+      areaKind: stop.areaKind,
+      estimatedMinutes: Number.isFinite(Number(stop.estimatedMinutes)) ? Math.max(1, Math.round(Number(stop.estimatedMinutes))) : null,
+      noticeCues: uniqueClean(stop.noticeCues, 5, 80),
+      recordCues: uniqueClean(stop.recordCues, 5, 80),
+      recordHref: recordHref(config, stop),
+      accessLabel: accessLabel(stop),
+    })),
+    routeFlexibility: {
+      routeStyle: config.routeFlexibility.routeStyle,
+      mobilityModes: uniqueClean(config.routeFlexibility.mobilityModes, 6, 40) as MunicipalWalkMapMobilityModeV0[],
+      offRoutePolicy: config.routeFlexibility.offRoutePolicy,
+      returnCues: uniqueClean(config.routeFlexibility.returnCues, 6, 120),
+    },
+    claimBoundary: uniqueClean(config.claimBoundary, 8, 180),
+    sourceReferences: cleanSourceReferences(config.sourceReferences),
+    locationSafety: buildMunicipalWalkMapLocationSafetyPolicyV0(config, validation),
+    validation,
+  };
+}
+
+export function buildMunicipalWalkMapPublicSummaryV0(config: MunicipalWalkMapConfigV0): MunicipalWalkMapPublicSummaryV0 {
+  return {
+    schemaVersion: "municipal_walk_map_public_summary/v0",
+    walkMapId: cleanText(config.walkMapId, 128),
+    municipality: cleanText(config.municipality, 80),
+    title: cleanText(config.title, 120),
+    summary: cleanText(config.summary, 240),
+    theme: config.theme,
+    publishMode: config.publishMode,
+    routeStyle: config.routeFlexibility.routeStyle,
+    mobilityModes: uniqueClean(config.routeFlexibility.mobilityModes, 6, 40) as MunicipalWalkMapMobilityModeV0[],
+    stopCount: config.routeStops.length,
+    sourceReferences: cleanSourceReferences(config.sourceReferences),
+  };
+}
+
+export const STATIC_MUNICIPAL_WALK_MAPS_V0: MunicipalWalkMapConfigV0[] = [
+  {
+    schemaVersion: "municipal_walk_map_config/v0",
+    walkMapId: DEFAULT_WALK_MAP_ID,
+    municipality: "静岡市",
+    creatorName: "ikimon.life model",
+    creatorProfile: {
+      creatorId: "municipality:shizuoka-city",
+      registrationKind: "municipality",
+      verificationStatus: "verified",
+      commercialIntent: "none",
+    },
+    title: "身近な自然を歩く散策マップ",
+    summary: "公開範囲を歩きながら、景色、音、季節の変化を軽く残すためのモデル散策マップ。",
+    theme: "seasonal_walk",
+    publishMode: "public_preview",
+    areaScope: {
+      municipalityCodes: ["22100"],
+      placeIds: [],
+      polygonIds: [],
+    },
+    routeStops: [
+      {
+        stopId: "public-park-start",
+        title: "公園・緑地から始める",
+        areaKind: "park",
+        linkedFieldId: "osm_park:sample-public-park",
+        access: "public_access",
+        estimatedMinutes: 20,
+        noticeCues: ["案内板", "木陰", "足元の草地"],
+        recordCues: ["花", "鳥の声", "水たまりや湿った場所"],
+        safetyNotes: ["公開範囲と現地の案内を優先する"],
+      },
+      {
+        stopId: "school-edge-check",
+        title: "通学路沿いの植栽を見る",
+        areaKind: "street_edge",
+        linkedFieldId: "osm_street_edge:sample-school-route-edge",
+        access: "public_access",
+        estimatedMinutes: 5,
+        noticeCues: ["通学路の植栽", "道路側から見える季節の変化"],
+        recordCues: ["公開道路から見える景色"],
+        safetyNotes: ["敷地内へ入らず、児童生徒が写る写真は扱わない"],
+      },
+    ],
+    recordModes: ["photo", "audio", "memo", "unknown_species"],
+    routeFlexibility: {
+      routeStyle: "loose_stops",
+      mobilityModes: ["walk", "bike", "public_transport"],
+      offRoutePolicy: "off_route_allowed",
+      returnCues: ["公園や大きな道を目印に戻る", "疲れたら近い入口で終える"],
+    },
+    publicPrecisionPolicy: "site_or_coarser",
+    claimBoundary: [
+      "公式提出物ではなく、散策マップ作成のためのモデルです。",
+      "学校、私有地、立入不明の場所には記録CTAを出しません。",
+      "希少種、自宅付近、未成年が推測される情報は公開範囲を落とします。",
+    ],
+    sourceReferences: [SHIZUOKA_SOURCE_REFERENCE],
+  },
+  {
+    schemaVersion: "municipal_walk_map_config/v0",
+    walkMapId: "jp-shizuoka-yatsuyama-sample-v0",
+    municipality: "静岡市",
+    creatorName: "静岡市",
+    creatorProfile: {
+      creatorId: "municipality:shizuoka-city",
+      registrationKind: "municipality",
+      verificationStatus: "verified",
+      commercialIntent: "none",
+    },
+    title: "八ツ山周辺を歩くサンプル",
+    summary: "静岡市公式資料を出典として、公開範囲で木陰、足元の草地、鳥の声を軽く残すために再構成したサンプルです。",
+    theme: "satoyama",
+    publishMode: "public_preview",
+    areaScope: {
+      municipalityCodes: ["22100"],
+      placeIds: [],
+      polygonIds: [],
+    },
+    routeStops: [
+      {
+        stopId: "yatsuyama-open-edge",
+        title: "公開された道沿い",
+        areaKind: "satoyama",
+        linkedFieldId: "sample:shizuoka-yatsuyama-open-edge",
+        access: "public_access",
+        estimatedMinutes: 15,
+        noticeCues: ["木陰", "足元の草", "鳥の声"],
+        recordCues: ["葉の色", "聞こえた音", "地面の湿り"],
+        safetyNotes: ["道を外れず、私有地や管理区域には入らない"],
+      },
+      {
+        stopId: "yatsuyama-rest-point",
+        title: "明るい休憩場所",
+        areaKind: "park",
+        linkedFieldId: "sample:shizuoka-yatsuyama-rest-point",
+        access: "public_access",
+        estimatedMinutes: 10,
+        noticeCues: ["案内板", "木の実", "日なたと日陰"],
+        recordCues: ["見えた花", "虫の動き", "風の様子"],
+        safetyNotes: ["人の顔や学校・住宅が分かる写真は公開しない"],
+      },
+    ],
+    recordModes: ["photo", "memo", "unknown_species"],
+    routeFlexibility: {
+      routeStyle: "loose_stops",
+      mobilityModes: ["walk", "bike", "public_transport"],
+      offRoutePolicy: "stay_near_public_path",
+      returnCues: ["案内板や大きな道を目印に戻る", "無理に次の場所へ進まず近い出口で終える"],
+    },
+    publicPrecisionPolicy: "mesh_or_coarser",
+    claimBoundary: [
+      "静岡市公式資料を出典にしたサンプルで、PDF本文や図版は転載していません。",
+      "現地の案内、立入条件、天候を優先します。",
+      "公式調査結果ではなく、散策と記録導線のサンプルとして扱います。",
+    ],
+    sourceReferences: [
+      SHIZUOKA_SOURCE_REFERENCE,
+      {
+        label: "八ツ山 関連PDF",
+        url: "https://www.city.shizuoka.lg.jp/documents/1483/yatsuyama-map.pdf",
+        note: "静岡市公式ページ掲載PDF。内容は転載せず、サンプル構成の出典として表示します。",
+      },
+    ],
+  },
+  {
+    schemaVersion: "municipal_walk_map_config/v0",
+    walkMapId: "jp-shizuoka-asahata-waterfront-sample-v0",
+    municipality: "静岡市",
+    creatorName: "静岡市",
+    creatorProfile: {
+      creatorId: "municipality:shizuoka-city",
+      registrationKind: "municipality",
+      verificationStatus: "verified",
+      commercialIntent: "none",
+    },
+    title: "麻機の水辺を歩くサンプル",
+    summary: "静岡市公式資料を出典として、水辺を安全に見ながら、鳥の声、水面、草地の変化を残すサンプルです。",
+    theme: "waterfront",
+    publishMode: "public_preview",
+    areaScope: {
+      municipalityCodes: ["22100"],
+      placeIds: [],
+      polygonIds: [],
+    },
+    routeStops: [
+      {
+        stopId: "asahata-water-edge",
+        title: "水辺を外から見る場所",
+        areaKind: "waterfront",
+        linkedFieldId: "sample:shizuoka-asahata-water-edge",
+        access: "public_access",
+        estimatedMinutes: 15,
+        noticeCues: ["水面", "岸辺の草", "鳥の声"],
+        recordCues: ["水の量", "見えた鳥", "草地の様子"],
+        safetyNotes: ["水際へ降りず、柵や現地案内を優先する"],
+      },
+      {
+        stopId: "asahata-open-path",
+        title: "開けた道沿い",
+        areaKind: "street_edge",
+        linkedFieldId: "sample:shizuoka-asahata-open-path",
+        access: "public_access",
+        estimatedMinutes: 10,
+        noticeCues: ["空の広がり", "足元の花", "風の向き"],
+        recordCues: ["花", "虫の動き", "聞こえた音"],
+        safetyNotes: ["通行の邪魔にならない場所で止まる"],
+      },
+    ],
+    recordModes: ["photo", "audio", "memo", "unknown_species"],
+    routeFlexibility: {
+      routeStyle: "loose_stops",
+      mobilityModes: ["walk", "bike", "public_transport"],
+      offRoutePolicy: "stay_near_public_path",
+      returnCues: ["大きな道や案内板へ戻る", "水位が高いときは近い公開道へ戻る"],
+    },
+    publicPrecisionPolicy: "mesh_or_coarser",
+    claimBoundary: [
+      "静岡市公式資料を出典にしたサンプルで、PDF本文や図版は転載していません。",
+      "水辺では現地の安全表示と立入条件を優先します。",
+      "希少種や営巣場所が推測される情報は場所の出し方を落とします。",
+    ],
+    sourceReferences: [
+      SHIZUOKA_SOURCE_REFERENCE,
+      {
+        label: "麻機 関連PDF",
+        url: "https://www.city.shizuoka.lg.jp/documents/1483/asahata2024-map.pdf",
+        note: "静岡市公式ページ掲載PDF。内容は転載せず、サンプル構成の出典として表示します。",
+      },
+    ],
+  },
+  {
+    schemaVersion: "municipal_walk_map_config/v0",
+    walkMapId: "jp-shizuoka-maruko-river-sample-v0",
+    municipality: "静岡市",
+    creatorName: "静岡市",
+    creatorProfile: {
+      creatorId: "municipality:shizuoka-city",
+      registrationKind: "municipality",
+      verificationStatus: "verified",
+      commercialIntent: "none",
+    },
+    title: "丸子川・広野海岸公園周辺サンプル",
+    summary: "静岡市公式資料を出典として、川と海岸公園の公開範囲で、水辺の様子や鳥の声を残すサンプルです。",
+    theme: "waterfront",
+    publishMode: "public_preview",
+    areaScope: {
+      municipalityCodes: ["22100"],
+      placeIds: [],
+      polygonIds: [],
+    },
+    routeStops: [
+      {
+        stopId: "maruko-river-open-side",
+        title: "川沿いの公開範囲",
+        areaKind: "waterfront",
+        linkedFieldId: "sample:shizuoka-maruko-river-open-side",
+        access: "public_access",
+        estimatedMinutes: 15,
+        noticeCues: ["川の流れ", "橋の下", "水辺の草"],
+        recordCues: ["水の色", "見えた鳥", "岸辺の植物"],
+        safetyNotes: ["増水時や足元が悪い場所には近づかない"],
+      },
+      {
+        stopId: "hirono-park-open-space",
+        title: "公園の開けた場所",
+        areaKind: "park",
+        linkedFieldId: "sample:shizuoka-hirono-park-open-space",
+        access: "public_access",
+        estimatedMinutes: 15,
+        noticeCues: ["芝生", "木陰", "海からの風"],
+        recordCues: ["花", "虫", "聞こえた音"],
+        safetyNotes: ["混雑時は周囲の人が写らない向きで記録する"],
+      },
+    ],
+    recordModes: ["photo", "audio", "memo", "unknown_species"],
+    routeFlexibility: {
+      routeStyle: "loose_stops",
+      mobilityModes: ["walk", "bike", "car", "public_transport"],
+      offRoutePolicy: "off_route_allowed",
+      returnCues: ["橋や公園入口を目印に戻る", "車や自転車では停められる公開場所だけ使う"],
+    },
+    publicPrecisionPolicy: "mesh_or_coarser",
+    claimBoundary: [
+      "静岡市公式資料を出典にしたサンプルで、PDF本文や図版は転載していません。",
+      "川、海岸、公園の公開範囲だけを扱います。",
+      "公式調査結果ではなく、散策と記録導線のサンプルとして扱います。",
+    ],
+    sourceReferences: [
+      SHIZUOKA_SOURCE_REFERENCE,
+      {
+        label: "丸子川・広野海岸公園 関連PDF",
+        url: "https://www.city.shizuoka.lg.jp/documents/1483/000980916.pdf",
+        note: "静岡市公式ページ掲載PDF。内容は転載せず、サンプル構成の出典として表示します。",
+      },
+    ],
+  },
+];
+
+export const MUNICIPAL_WALK_MAP_TEMPLATES_V0: MunicipalWalkMapTemplateV0[] = [
+  {
+    schemaVersion: "municipal_walk_map_template/v0",
+    templateId: "habitat_micro_walk",
+    label: "水辺・田んぼ・海岸の観察ルート",
+    sourcePattern: "Habitat micro walk",
+    summary: "川、池、海岸沿いで、鳥、水生生物、水位や草地の変化を扱う散策マップ。",
+    exampleSources: [
+      { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html" },
+      { label: "高知市 鏡川流域いきもの図鑑", url: "https://www.city.kochi.kochi.jp/soshiki/186/r8--kagamigawaryuiki-ikimonozukan.html" },
+    ],
+    config: {
+      schemaVersion: "municipal_walk_map_config/v0",
+      walkMapId: "",
+      municipality: "",
+      creatorName: "",
+      creatorProfile: DEFAULT_CREATOR_PROFILE,
+      title: "水辺を歩く散策マップ",
+      summary: "公開範囲の水辺を歩きながら、鳥の声、水面、草地の変化を軽く残します。",
+      theme: "waterfront",
+      publishMode: "draft",
+      areaScope: { municipalityCodes: [], placeIds: [], polygonIds: [] },
+      routeStops: [
+        {
+          stopId: "waterfront-start",
+          title: "水辺の入口",
+          areaKind: "waterfront",
+          linkedFieldId: null,
+          access: "public_access",
+          estimatedMinutes: 15,
+          noticeCues: ["案内板", "水面", "岸辺の草地"],
+          recordCues: ["鳥の声", "水の量", "水辺の植物"],
+          safetyNotes: ["増水時は近づかず、柵や現地案内を優先する"],
+        },
+        {
+          stopId: "waterfront-open-edge",
+          title: "開けた岸辺",
+          areaKind: "waterfront",
+          linkedFieldId: null,
+          access: "public_access",
+          estimatedMinutes: 15,
+          noticeCues: ["水鳥", "浅瀬", "橋の下"],
+          recordCues: ["見えた鳥", "水際の花", "風やにおい"],
+          safetyNotes: ["足元が悪い場所には入らない"],
+        },
+      ],
+      recordModes: ["photo", "memo", "unknown_species"],
+      routeFlexibility: {
+        routeStyle: "loose_stops",
+        mobilityModes: ["walk", "bike"],
+        offRoutePolicy: "stay_near_public_path",
+        returnCues: ["橋や案内板を目印に戻る", "水位が高いときは近い道へ戻る"],
+      },
+      publicPrecisionPolicy: "mesh_or_coarser",
+      claimBoundary: DEFAULT_CLAIM_BOUNDARY,
+      sourceReferences: [],
+    },
+  },
+  {
+    schemaVersion: "municipal_walk_map_template/v0",
+    templateId: "route_species_walk",
+    label: "コース散策＋見つかる生きもの",
+    sourcePattern: "Route + species walk",
+    summary: "歩く場所と見つかりやすい生きものを同じ画面で扱う、初回散策向けの型。",
+    exampleSources: [
+      { label: "小山市 小山のいきものさがしてみよう", url: "https://www.city.oyama.tochigi.jp/kurashi/shiminkatsudo-machizukuri/page009360.html" },
+      { label: "浦添市 環境マップ", url: "https://www.city.urasoe.lg.jp/doc/62328b2cbb48c45ee17db2b4/" },
+    ],
+    config: {
+      schemaVersion: "municipal_walk_map_config/v0",
+      walkMapId: "",
+      municipality: "",
+      creatorName: "",
+      creatorProfile: DEFAULT_CREATOR_PROFILE,
+      title: "コースで歩く散策マップ",
+      summary: "短い時間で歩ける公開範囲を中心に、花、虫、鳥の声、足元の変化を残します。",
+      theme: "park_walk",
+      publishMode: "draft",
+      areaScope: { municipalityCodes: [], placeIds: [], polygonIds: [] },
+      routeStops: [
+        {
+          stopId: "park-entrance",
+          title: "公園入口",
+          areaKind: "park",
+          linkedFieldId: null,
+          access: "public_access",
+          estimatedMinutes: 10,
+          noticeCues: ["案内板", "花壇", "木陰"],
+          recordCues: ["咲いている花", "虫の動き", "木の実"],
+          safetyNotes: ["混雑時は通行の邪魔にならない場所で止まる"],
+        },
+        {
+          stopId: "grass-edge",
+          title: "草地のふち",
+          areaKind: "park",
+          linkedFieldId: null,
+          access: "public_access",
+          estimatedMinutes: 10,
+          noticeCues: ["草の高さ", "湿った場所", "落ち葉"],
+          recordCues: ["足元の草花", "聞こえた音", "季節の色"],
+          safetyNotes: ["管理作業中の場所には入らない"],
+        },
+      ],
+      recordModes: ["photo", "memo", "unknown_species"],
+      routeFlexibility: {
+        routeStyle: "loose_stops",
+        mobilityModes: ["walk", "bike", "public_transport"],
+        offRoutePolicy: "off_route_allowed",
+        returnCues: ["入口や広場を目印に戻る", "短い時間なら1か所だけで終える"],
+      },
+      publicPrecisionPolicy: "mesh_or_coarser",
+      claimBoundary: DEFAULT_CLAIM_BOUNDARY,
+      sourceReferences: [],
+    },
+  },
+  {
+    schemaVersion: "municipal_walk_map_template/v0",
+    templateId: "stewardship_manners_walk",
+    label: "保全・マナーつき自然観察",
+    sourcePattern: "Stewardship + manners walk",
+    summary: "公開範囲、立入条件、現地マナーを先に示して、保全区域や管理地の散策を扱う型。",
+    exampleSources: [
+      { label: "横浜市 森の散策ガイド", url: "https://www.city.yokohama.lg.jp/kurashi/machizukuri-kankyo/midori-koen/midori_up/1mori/forest/guidemap.html" },
+      { label: "町田市 生きものマップ", url: "https://www.city.machida.tokyo.jp/kurashi/kankyo/kankyo/midori/shikankyo_ikimono/ikimonomap.html" },
+    ],
+    config: {
+      schemaVersion: "municipal_walk_map_config/v0",
+      walkMapId: "",
+      municipality: "",
+      creatorName: "",
+      creatorProfile: DEFAULT_CREATOR_PROFILE,
+      title: "マナーを確認して歩く散策マップ",
+      summary: "公開された道沿いを中心に、木陰、鳥の声、草地や水の気配を残します。",
+      theme: "satoyama",
+      publishMode: "draft",
+      areaScope: { municipalityCodes: [], placeIds: [], polygonIds: [] },
+      routeStops: [
+        {
+          stopId: "trail-open-edge",
+          title: "公開された道沿い",
+          areaKind: "satoyama",
+          linkedFieldId: null,
+          access: "public_access",
+          estimatedMinutes: 20,
+          noticeCues: ["木陰", "落ち葉", "鳥の声"],
+          recordCues: ["葉の色", "足元の花", "聞こえた音"],
+          safetyNotes: ["道を外れず、ぬかるみや倒木には近づかない"],
+        },
+        {
+          stopId: "satoyama-water-sign",
+          title: "水の気配がある場所",
+          areaKind: "satoyama",
+          linkedFieldId: null,
+          access: "public_access",
+          estimatedMinutes: 10,
+          noticeCues: ["湿った土", "小さな水路", "日陰"],
+          recordCues: ["土の湿り", "水辺の草", "音やにおい"],
+          safetyNotes: ["水路や斜面へ降りない"],
+        },
+      ],
+      recordModes: ["photo", "memo", "unknown_species"],
+      routeFlexibility: {
+        routeStyle: "loose_stops",
+        mobilityModes: ["walk", "public_transport"],
+        offRoutePolicy: "guide_only",
+        returnCues: ["案内板や舗装された道へ戻る", "暗くなる前に近い出口へ戻る"],
+      },
+      publicPrecisionPolicy: "mesh_or_coarser",
+      claimBoundary: DEFAULT_CLAIM_BOUNDARY,
+      sourceReferences: [],
+    },
+  },
+  {
+    schemaVersion: "municipal_walk_map_template/v0",
+    templateId: "seasonal_target_walk",
+    label: "季節のいきもの探し",
+    sourcePattern: "Seasonal target walk",
+    summary: "季節ごとに、花、鳴き声、飛ぶ虫、水鳥、落ち葉、実などを扱う短い散策型。",
+    exampleSources: [
+      { label: "秋田市 いきものマップ", url: "https://www.city.akita.lg.jp/kurashi/recycle/1006075/1044957.html" },
+      { label: "小山市 小山のいきものさがしてみよう", url: "https://www.city.oyama.tochigi.jp/kurashi/shiminkatsudo-machizukuri/page009360.html" },
+      { label: "岡崎市 みんなでつくる生きもの図鑑", url: "https://www.city.okazaki.lg.jp/kurashi/gomi/1002429/1002431/1002427.html" },
+    ],
+    config: {
+      schemaVersion: "municipal_walk_map_config/v0",
+      walkMapId: "",
+      municipality: "",
+      creatorName: "",
+      creatorProfile: DEFAULT_CREATOR_PROFILE,
+      title: "季節のいきものを探す散策マップ",
+      summary: "季節ごとに見えやすい花、虫、鳥、水辺や落ち葉の変化を軽く残します。",
+      theme: "seasonal_walk",
+      publishMode: "draft",
+      areaScope: { municipalityCodes: [], placeIds: [], polygonIds: [] },
+      routeStops: [
+        {
+          stopId: "seasonal-open-place",
+          title: "季節が見える場所",
+          areaKind: "park",
+          linkedFieldId: null,
+          access: "public_access",
+          estimatedMinutes: 15,
+          noticeCues: ["花", "葉の色", "虫や鳥の声"],
+          recordCues: ["今日見えた季節", "前と違う色", "聞こえた音"],
+          safetyNotes: ["巣や繁殖場所には近づきすぎない"],
+        },
+        {
+          stopId: "seasonal-water-or-tree",
+          title: "水辺や木の近く",
+          areaKind: "park",
+          linkedFieldId: null,
+          access: "public_access",
+          estimatedMinutes: 10,
+          noticeCues: ["木の実", "落ち葉", "水の量"],
+          recordCues: ["実や落ち葉", "水辺の様子", "におい"],
+          safetyNotes: ["採集せず、見る範囲で扱う"],
+        },
+      ],
+      recordModes: ["photo", "memo", "unknown_species"],
+      routeFlexibility: {
+        routeStyle: "loose_stops",
+        mobilityModes: ["walk", "bike", "public_transport"],
+        offRoutePolicy: "off_route_allowed",
+        returnCues: ["見つけた場所から近い公開道へ戻る", "次の場所へ行かずにそこで終えてよい"],
+      },
+      publicPrecisionPolicy: "mesh_or_coarser",
+      claimBoundary: DEFAULT_CLAIM_BOUNDARY,
+      sourceReferences: [],
+    },
+  },
+  {
+    schemaVersion: "municipal_walk_map_template/v0",
+    templateId: "citizen_campaign_walk",
+    label: "市民参加型いきもの調査",
+    sourcePattern: "Citizen science campaign",
+    summary: "市内全域で、住宅地、公園、道沿いなど身近な場所の発見を集めるキャンペーン型。",
+    exampleSources: [
+      { label: "飯田市 いきもの大調査", url: "https://www.city.iida.lg.jp/soshiki/19/ikimonochousainiidasaishuuhoukoku.html" },
+      { label: "岡崎市 みんなでつくる生きもの図鑑", url: "https://www.city.okazaki.lg.jp/kurashi/gomi/1002429/1002431/1002427.html" },
+      { label: "町田市 生きもの発見レポート", url: "https://www.city.machida.tokyo.jp/kurashi/kankyo/kankyo/midori/ibent/chosa/ikimonohakkenreport.html" },
+    ],
+    config: {
+      schemaVersion: "municipal_walk_map_config/v0",
+      walkMapId: "",
+      municipality: "",
+      creatorName: "",
+      creatorProfile: DEFAULT_CREATOR_PROFILE,
+      title: "市内の生きものを残す散策マップ",
+      summary: "市内の公開範囲で、花、虫、鳥、身近な季節の変化を軽く残します。",
+      theme: "city_nature",
+      publishMode: "draft",
+      areaScope: { municipalityCodes: [], placeIds: [], polygonIds: [] },
+      routeStops: [
+        {
+          stopId: "nearby-park-or-street",
+          title: "近くの公園や道沿い",
+          areaKind: "street_edge",
+          linkedFieldId: null,
+          access: "public_access",
+          estimatedMinutes: 10,
+          noticeCues: ["街路樹", "花壇", "足元の草"],
+          recordCues: ["見えた花", "虫や鳥", "気づいた季節"],
+          safetyNotes: ["自宅前や人の顔が分かる写真は公開しない"],
+        },
+      ],
+      recordModes: ["photo", "memo", "unknown_species"],
+      routeFlexibility: {
+        routeStyle: "free_area",
+        mobilityModes: ["walk", "bike", "car", "motorbike", "public_transport"],
+        offRoutePolicy: "off_route_allowed",
+        returnCues: ["近くの公園や大きな通りへ戻る", "車やバイクでは停められる公開場所だけ使う"],
+      },
+      publicPrecisionPolicy: "municipality_or_hidden",
+      claimBoundary: DEFAULT_CLAIM_BOUNDARY,
+      sourceReferences: [],
+    },
+  },
+  {
+    schemaVersion: "municipal_walk_map_template/v0",
+    templateId: "worksheet_family_walk",
+    label: "親子・学校向けワークシート散策",
+    sourcePattern: "Worksheet / family fieldwork",
+    summary: "学校や観察会に近い用途。公開前に許可と参加範囲を確認する下書き向け。",
+    exampleSources: [
+      { label: "浦添市 てだこ環境調査団", url: "https://www.city.urasoe.lg.jp/doc/62328b2cbb48c45ee17db2b4/" },
+      { label: "豊島区 生きもの調査", url: "https://www.city.toshima.lg.jp/148/2305291059.html" },
+      { label: "世田谷区 生きもの調査", url: "https://www.city.setagaya.lg.jp/02074/4717.html" },
+    ],
+    config: {
+      schemaVersion: "municipal_walk_map_config/v0",
+      walkMapId: "",
+      municipality: "",
+      creatorName: "",
+      creatorProfile: DEFAULT_CREATOR_PROFILE,
+      title: "観察会で使う散策マップ",
+      summary: "参加範囲と許可を確認しながら、観察会で見るもの、残すもの、安全メモを整理します。",
+      theme: "school_learning",
+      publishMode: "draft",
+      areaScope: { municipalityCodes: [], placeIds: [], polygonIds: [] },
+      routeStops: [
+        {
+          stopId: "event-meeting-point",
+          title: "集合場所",
+          areaKind: "other",
+          linkedFieldId: null,
+          access: "permission_required",
+          estimatedMinutes: 10,
+          noticeCues: ["集合場所", "案内板", "足元"],
+          recordCues: ["観察会で見たもの", "講師の確認済みメモ"],
+          safetyNotes: ["参加者、学校、施設管理者の許可を確認してから公開する"],
+        },
+        {
+          stopId: "event-observation-point",
+          title: "観察ポイント",
+          areaKind: "park",
+          linkedFieldId: null,
+          access: "permission_required",
+          estimatedMinutes: 20,
+          noticeCues: ["草地", "水辺", "木陰"],
+          recordCues: ["観察した分類群", "環境の様子"],
+          safetyNotes: ["未成年が写る写真や名札が分かる写真は扱わない"],
+        },
+      ],
+      recordModes: ["photo", "memo", "unknown_species"],
+      routeFlexibility: {
+        routeStyle: "loose_stops",
+        mobilityModes: ["walk", "public_transport"],
+        offRoutePolicy: "stay_near_public_path",
+        returnCues: ["集合場所や案内役のいる場所へ戻る", "許可された範囲から外れたら記録を止める"],
+      },
+      publicPrecisionPolicy: "municipality_or_hidden",
+      claimBoundary: DEFAULT_CLAIM_BOUNDARY,
+      sourceReferences: [],
+    },
+  },
+];
+
+export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalogEntryV0[] = [
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "shizuoka-ikimono-walk-route",
+    templateId: "route_species_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "静岡市",
+    title: "静岡市 いきもの散策マップ",
+    sourceUrl: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
+    officialPageUrl: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
+    affinityScore: 21,
+    cue: "コースと見つかる生きものを同時に見せる型。ikimon.lifeでは立ち寄り先と記録CTAに分ける。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "shizuoka-species-distribution-panels",
+    templateId: "seasonal_target_walk",
+    primaryType: "species_distribution_map",
+    municipality: "静岡市",
+    title: "静岡市 生きもの紹介パネル群",
+    sourceUrl: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
+    officialPageUrl: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
+    affinityScore: 13,
+    cue: "生きものカードの量が多い型。散策マップでは季節や分類群ごとに短い記録対象へ落とす。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "yokohama-citizen-forest-guide",
+    templateId: "stewardship_manners_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "横浜市",
+    title: "市民の森・ふれあいの樹林ガイドマップ",
+    sourceUrl: "https://www.city.yokohama.lg.jp/kurashi/machizukuri-kankyo/midori-koen/midori_up/1mori/forest/guidemap.html",
+    officialPageUrl: "https://www.city.yokohama.lg.jp/kurashi/machizukuri-kankyo/midori-koen/midori_up/1mori/forest/guidemap.html",
+    affinityScore: 16,
+    cue: "道、入口、注意事項が強い型。ikimon.lifeでは外れても戻れる手がかりと立入条件を前に出す。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "iida-biome-campaign-report",
+    templateId: "citizen_campaign_walk",
+    primaryType: "citizen_science_report",
+    municipality: "飯田市",
+    title: "いきもの大調査 in いいだ",
+    sourceUrl: "https://www.city.iida.lg.jp/soshiki/19/ikimonochousainiidasaishuuhoukoku.html",
+    officialPageUrl: "https://www.city.iida.lg.jp/soshiki/19/ikimonochousainiidasaishuuhoukoku.html",
+    affinityScore: 29,
+    cue: "市内全域の投稿キャンペーン型。散策マップでは自由エリアと安全な公開粒度をセットにする。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "kochi-kagamigawa-biome",
+    templateId: "habitat_micro_walk",
+    primaryType: "citizen_science_report",
+    municipality: "高知市",
+    title: "鏡川流域いきもの図鑑をつくろう",
+    sourceUrl: "https://www.city.kochi.kochi.jp/soshiki/186/r8--kagamigawaryuiki-ikimonozukan.html",
+    officialPageUrl: "https://www.city.kochi.kochi.jp/soshiki/186/r8--kagamigawaryuiki-ikimonozukan.html",
+    affinityScore: 29,
+    cue: "川の流域を対象にした型。水辺、親子イベント、学校連携を分けて安全に扱う。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "okazaki-community-zukan",
+    templateId: "citizen_campaign_walk",
+    primaryType: "citizen_science_report",
+    municipality: "岡崎市",
+    title: "みんなでつくる おかざき生きもの図鑑",
+    sourceUrl: "https://www.city.okazaki.lg.jp/kurashi/gomi/1002429/1002431/1002427.html",
+    officialPageUrl: "https://www.city.okazaki.lg.jp/kurashi/gomi/1002429/1002431/1002427.html",
+    affinityScore: 25,
+    cue: "市民投稿と分類集計が中心の型。ikimon.lifeでは投稿前の安全確認と公開範囲の調整を足す。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "oyama-seasonal-creatures",
+    templateId: "seasonal_target_walk",
+    primaryType: "citizen_science_report",
+    municipality: "小山市",
+    title: "小山のいきものさがしてみよう",
+    sourceUrl: "https://www.city.oyama.tochigi.jp/kurashi/shiminkatsudo-machizukuri/page009360.html",
+    officialPageUrl: "https://www.city.oyama.tochigi.jp/kurashi/shiminkatsudo-machizukuri/page009360.html",
+    affinityScore: 25,
+    cue: "季節の対象種と身近な場所の型。軽い散策マップにしやすい。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "machida-report-line-flow",
+    templateId: "citizen_campaign_walk",
+    primaryType: "citizen_science_report",
+    municipality: "町田市",
+    title: "生きもの発見レポート",
+    sourceUrl: "https://www.city.machida.tokyo.jp/kurashi/kankyo/kankyo/midori/ibent/chosa/ikimonohakkenreport.html",
+    officialPageUrl: "https://www.city.machida.tokyo.jp/kurashi/kankyo/kankyo/midori/ibent/chosa/ikimonohakkenreport.html",
+    affinityScore: 23,
+    cue: "報告手順が明確な型。ikimon.lifeでは記録導線と管理者確認に置き換えやすい。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "urasoe-environment-map-fieldwork",
+    templateId: "worksheet_family_walk",
+    primaryType: "worksheet_or_field_note",
+    municipality: "浦添市",
+    title: "てだこ環境調査団",
+    sourceUrl: "https://www.city.urasoe.lg.jp/doc/62328b2cbb48c45ee17db2b4/",
+    officialPageUrl: "https://www.city.urasoe.lg.jp/doc/62328b2cbb48c45ee17db2b4/",
+    affinityScore: 23,
+    cue: "観察会・親子調査の型。許可、集合場所、参加範囲を下書きで管理する。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "akita-line-ikimono-map",
+    templateId: "seasonal_target_walk",
+    primaryType: "citizen_science_report",
+    municipality: "秋田市",
+    title: "秋田市いきものマップ",
+    sourceUrl: "https://www.city.akita.lg.jp/kurashi/recycle/1006075/1044957.html",
+    officialPageUrl: "https://www.city.akita.lg.jp/kurashi/recycle/1006075/1044957.html",
+    affinityScore: 18,
+    cue: "季節ごとの対象種とLINE報告の型。ikimon.lifeではアプリ内記録と公開判断に置き換える。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "koka-field-sheets",
+    templateId: "worksheet_family_walk",
+    primaryType: "worksheet_or_field_note",
+    municipality: "甲賀市",
+    title: "いきものみっけ探検隊",
+    sourceUrl: "https://www.city.koka.lg.jp/9178.htm",
+    officialPageUrl: "https://www.city.koka.lg.jp/9178.htm",
+    affinityScore: 19,
+    cue: "調査票・図鑑シート型。現地で何を見るかを記録項目へ変換しやすい。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "toshima-ikimono-sagashi",
+    templateId: "worksheet_family_walk",
+    primaryType: "worksheet_or_field_note",
+    municipality: "豊島区",
+    title: "としま生きものさがし",
+    sourceUrl: "https://www.city.toshima.lg.jp/148/2305291059.html",
+    officialPageUrl: "https://www.city.toshima.lg.jp/148/2305291059.html",
+    affinityScore: 21,
+    cue: "紙レポートと区内調査の型。年齢層や提出方法をアプリ導線に置き換える。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "funabashi-nature-walk-maps",
+    templateId: "route_species_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "船橋市",
+    title: "自然散策マップ",
+    sourceUrl: "https://www.city.funabashi.lg.jp/machi/kankyou/010/p035951.html",
+    officialPageUrl: "https://www.city.funabashi.lg.jp/machi/kankyou/010/p035951.html",
+    affinityScore: 24,
+    cue: "複数地区の散策PDF型。ikimon.lifeでは地区別の入口、公開範囲、現地で見える対象を分けて管理する。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "kita-city-nature-course",
+    templateId: "stewardship_manners_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "北区",
+    title: "自然観察路・自然ふれあい情報",
+    sourceUrl: "https://www.city.kita.lg.jp/dev-environment/environment/1009900/1009950.html",
+    officialPageUrl: "https://www.city.kita.lg.jp/dev-environment/environment/1009900/1009950.html",
+    affinityScore: 20,
+    cue: "都市河川や緑道のコース型。立入・水辺・学校周辺の注意を route stop ごとに落とす。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "kita-environment-portal-library",
+    templateId: "route_species_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "北区環境ポータル",
+    title: "環境ポータル ライブラリ",
+    sourceUrl: "https://www.kankyoportal.city.kita.lg.jp/library",
+    officialPageUrl: "https://www.kankyoportal.city.kita.lg.jp/library",
+    affinityScore: 22,
+    cue: "散策PDF、河川調査、できること資料が同居するポータル型。ikimon.lifeでは地図、記録、資料リンクを一画面につなぐ。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "fukuoka-kyushu-nature-walk",
+    templateId: "route_species_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "福岡県",
+    title: "九州自然歩道 自然観察マップ",
+    sourceUrl: "https://www.pref.fukuoka.lg.jp/contents/kyushusizenhodo-naturemap.html",
+    officialPageUrl: "https://www.pref.fukuoka.lg.jp/contents/kyushusizenhodo-naturemap.html",
+    affinityScore: 23,
+    cue: "広域ルートと自然観察の型。歩き、自転車、車での移動差をゆるい立ち寄り先として扱う。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "asaka-ikimono-map",
+    templateId: "seasonal_target_walk",
+    primaryType: "species_distribution_map",
+    municipality: "朝霞市",
+    title: "あさかのいきものマップ",
+    sourceUrl: "https://www.city.asaka.lg.jp/soshiki/52/ikimonomap.html",
+    officialPageUrl: "https://www.city.asaka.lg.jp/soshiki/52/ikimonomap.html",
+    affinityScore: 18,
+    cue: "市内の確認種を地図化する型。散策前の対象選びと記録後の地域図鑑化に向く。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "chofu-nogawa-nature-map",
+    templateId: "habitat_micro_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "調布市",
+    title: "野川自然観察マップ",
+    sourceUrl: "https://www.city.chofu.lg.jp/070010/p039088.html",
+    officialPageUrl: "https://www.city.chofu.lg.jp/070010/p039088.html",
+    affinityScore: 24,
+    cue: "川沿いの観察地点と生きものを見せる型。水辺の安全と季節の見どころを分ける。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "kyoto-biodiversity-map",
+    templateId: "seasonal_target_walk",
+    primaryType: "species_distribution_map",
+    municipality: "京都市",
+    title: "京都市 生物多様性マップ",
+    sourceUrl: "https://www.city.kyoto.lg.jp/kankyo/page/0000224675.html",
+    officialPageUrl: "https://www.city.kyoto.lg.jp/kankyo/page/0000224675.html",
+    affinityScore: 17,
+    cue: "古いPDFリンクの失敗が残るが、行政の生物多様性地図型として重要。リンク健全性確認を下書き条件にする。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "machida-ikimono-map",
+    templateId: "seasonal_target_walk",
+    primaryType: "species_distribution_map",
+    municipality: "町田市",
+    title: "まちだ生きものマップ",
+    sourceUrl: "https://www.city.machida.tokyo.jp/kurashi/kankyo/kankyo/midori/shikankyo_ikimono/ikimonomap.html",
+    officialPageUrl: "https://www.city.machida.tokyo.jp/kurashi/kankyo/kankyo/midori/shikankyo_ikimono/ikimonomap.html",
+    affinityScore: 22,
+    cue: "投稿結果を地図化する型。ikimon.lifeではLINEや紙の報告をアプリ内記録と公開粒度に置き換える。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "setagaya-biological-survey-guide",
+    templateId: "worksheet_family_walk",
+    primaryType: "worksheet_or_field_note",
+    municipality: "世田谷区",
+    title: "せたがや生きもの調査",
+    sourceUrl: "https://www.city.setagaya.lg.jp/02074/4717.html",
+    officialPageUrl: "https://www.city.setagaya.lg.jp/02074/4717.html",
+    affinityScore: 21,
+    cue: "区民調査とガイドブックの型。親子、学校、一般参加を分けて公開CTAを制御する。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "sakai-ikimono-web",
+    templateId: "citizen_campaign_walk",
+    primaryType: "species_distribution_map",
+    municipality: "堺市",
+    title: "堺いきもの情報館",
+    sourceUrl: "https://www.city.sakai.lg.jp/kurashi/gomi/kankyo_hozen/seibutsutayosei/sakaiikimonoweb.html",
+    officialPageUrl: "https://www.city.sakai.lg.jp/kurashi/gomi/kankyo_hozen/seibutsutayosei/sakaiikimonoweb.html",
+    affinityScore: 20,
+    cue: "継続ポータル型。単発PDFではなく、地域図鑑、記録、結果公開をつなぐ比較対象にする。",
+  },
+];
+
+function cloneWalkMapConfig(config: MunicipalWalkMapConfigV0): MunicipalWalkMapConfigV0 {
+  return {
+    ...config,
+    areaScope: {
+      municipalityCodes: [...config.areaScope.municipalityCodes],
+      placeIds: [...config.areaScope.placeIds],
+      polygonIds: [...config.areaScope.polygonIds],
+    },
+    creatorProfile: { ...config.creatorProfile },
+    routeStops: config.routeStops.map((stop) => ({
+      ...stop,
+      sensitiveContext: stop.sensitiveContext ?? null,
+      noticeCues: [...stop.noticeCues],
+      recordCues: [...stop.recordCues],
+      safetyNotes: [...stop.safetyNotes],
+    })),
+    recordModes: [...config.recordModes],
+    routeFlexibility: {
+      routeStyle: config.routeFlexibility.routeStyle,
+      mobilityModes: [...config.routeFlexibility.mobilityModes],
+      offRoutePolicy: config.routeFlexibility.offRoutePolicy,
+      returnCues: [...config.routeFlexibility.returnCues],
+    },
+    claimBoundary: [...config.claimBoundary],
+    sourceReferences: config.sourceReferences.map((ref) => ({ ...ref })),
+  };
+}
+
+export function listMunicipalWalkMapTemplatesV0(): MunicipalWalkMapTemplateV0[] {
+  return MUNICIPAL_WALK_MAP_TEMPLATES_V0.map((template) => ({
+    ...template,
+    exampleSources: template.exampleSources.map((source) => ({ ...source })),
+    config: cloneWalkMapConfig(template.config),
+  }));
+}
+
+export function listMunicipalWalkMapSourceCatalogV0(options: { templateId?: string } = {}): MunicipalWalkMapSourceCatalogEntryV0[] {
+  const templateId = cleanText(options.templateId, 80);
+  return MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0
+    .filter((entry) => !templateId || entry.templateId === templateId)
+    .map((entry) => ({ ...entry }));
+}
+
+export function getMunicipalWalkMapTemplateV0(templateId: string): MunicipalWalkMapTemplateV0 | null {
+  return listMunicipalWalkMapTemplatesV0().find((template) => template.templateId === templateId) ?? null;
+}
+
+export function buildMunicipalWalkMapConfigFromTemplateV0(templateId: string): MunicipalWalkMapConfigV0 {
+  const template = getMunicipalWalkMapTemplateV0(templateId);
+  if (!template) {
+    throw new Error(`unknown_municipal_walk_map_template:${templateId}`);
+  }
+  return cloneWalkMapConfig(template.config);
+}
+
+export function getStaticMunicipalWalkMapConfigV0(walkMapId = DEFAULT_WALK_MAP_ID): MunicipalWalkMapConfigV0 {
+  const config = STATIC_MUNICIPAL_WALK_MAPS_V0.find((map) => map.walkMapId === walkMapId);
+  if (!config) {
+    throw new Error(`unknown_municipal_walk_map_config:${walkMapId}`);
+  }
+  return config;
+}
+
+export function listStaticMunicipalWalkMapPublicSummariesV0(): MunicipalWalkMapPublicSummaryV0[] {
+  return STATIC_MUNICIPAL_WALK_MAPS_V0
+    .filter((config) => config.publishMode === "public" || config.publishMode === "public_preview")
+    .map(buildMunicipalWalkMapPublicSummaryV0);
+}
+
+type WalkMapRow = {
+  walk_map_id: string;
+  municipality: string;
+  creator_name: string;
+  creator_profile: MunicipalWalkMapCreatorProfileV0 | null;
+  title: string;
+  summary: string;
+  theme: MunicipalWalkMapThemeV0;
+  publish_mode: MunicipalWalkMapConfigV0["publishMode"];
+  area_scope: MunicipalWalkMapConfigV0["areaScope"] | null;
+  record_modes: MunicipalWalkMapConfigV0["recordModes"];
+  route_flexibility: MunicipalWalkMapRouteFlexibilityV0 | null;
+  public_precision_policy: MunicipalWalkMapConfigV0["publicPrecisionPolicy"];
+  claim_boundary: string[];
+  source_references: MunicipalWalkMapSourceReferenceV0[] | null;
+};
+
+type WalkMapStopRow = {
+  stop_id: string;
+  title: string;
+  area_kind: MunicipalWalkMapStopV0["areaKind"];
+  linked_field_id: string | null;
+  access: MunicipalWalkMapStopAccessV0;
+  sensitive_context: MunicipalWalkMapStopV0["sensitiveContext"] | null;
+  estimated_minutes: number | null;
+  notice_cues: string[];
+  record_cues: string[];
+  safety_notes: string[];
+  internal_memo: string | null;
+};
+
+type WalkMapCreatorRow = {
+  creator_id: string;
+  display_name: string;
+  registration_kind: MunicipalWalkMapCreatorRegistryEntryV0["registrationKind"];
+  verification_status: MunicipalWalkMapCreatorRegistryEntryV0["verificationStatus"];
+  commercial_intent: MunicipalWalkMapCreatorRegistryEntryV0["commercialIntent"];
+  notes: string;
+};
+
+const WALK_MAP_SELECT = `
+  walk_map_id, municipality, creator_name, creator_profile, title, summary, theme, publish_mode,
+  area_scope, record_modes, route_flexibility, public_precision_policy, claim_boundary, source_references
+`;
+
+function municipalWalkMapDbPool(db?: MunicipalWalkMapDbPool): MunicipalWalkMapDbPool {
+  return db ?? (getPool() as unknown as MunicipalWalkMapDbPool);
+}
+
+function mapCreatorRow(row: WalkMapCreatorRow): MunicipalWalkMapCreatorRegistryEntryV0 {
+  return {
+    schemaVersion: "municipal_walk_map_creator/v0",
+    creatorId: row.creator_id,
+    displayName: row.display_name,
+    registrationKind: row.registration_kind,
+    verificationStatus: row.verification_status,
+    commercialIntent: row.commercial_intent,
+    notes: row.notes ?? "",
+  };
+}
+
+function normalizeCreatorForWrite(input: MunicipalWalkMapCreatorRegistryEntryV0): MunicipalWalkMapCreatorRegistryEntryV0 {
+  const validation = validateMunicipalWalkMapCreatorV0(input);
+  if (!validation.ok) {
+    throw new Error(`municipal_walk_map_creator_invalid:${validation.errors.join(",")}`);
+  }
+  return {
+    schemaVersion: "municipal_walk_map_creator/v0",
+    creatorId: cleanText(input.creatorId, 128),
+    displayName: cleanText(input.displayName, 120),
+    registrationKind: input.registrationKind,
+    verificationStatus: input.verificationStatus,
+    commercialIntent: input.commercialIntent,
+    notes: cleanText(input.notes, 1000),
+  };
+}
+
+export async function listMunicipalWalkMapCreatorsV0(db?: MunicipalWalkMapDbPool): Promise<MunicipalWalkMapCreatorRegistryEntryV0[]> {
+  const pool = municipalWalkMapDbPool(db);
+  const result = await pool.query<WalkMapCreatorRow>(
+    `SELECT creator_id, display_name, registration_kind, verification_status, commercial_intent, notes
+     FROM municipal_walk_map_creators
+     ORDER BY updated_at DESC, creator_id ASC
+     LIMIT 200`,
+  );
+  return result.rows.map(mapCreatorRow);
+}
+
+export async function listPublicMunicipalWalkMapSummariesV0(db?: MunicipalWalkMapDbPool): Promise<MunicipalWalkMapPublicSummaryV0[]> {
+  const pool = municipalWalkMapDbPool(db);
+  const result = await pool.query<WalkMapRow & { stop_count: string | number }>(
+    `SELECT ${WALK_MAP_SELECT},
+            (SELECT COUNT(*) FROM municipal_walk_map_stops s WHERE s.walk_map_id = m.walk_map_id) AS stop_count
+     FROM municipal_walk_maps m
+     WHERE publish_mode = 'public'
+     ORDER BY updated_at DESC, walk_map_id ASC
+     LIMIT 100`,
+  );
+  return result.rows.map((row) => ({
+    schemaVersion: "municipal_walk_map_public_summary/v0",
+    walkMapId: row.walk_map_id,
+    municipality: row.municipality,
+    title: row.title,
+    summary: row.summary,
+    theme: row.theme,
+    publishMode: row.publish_mode,
+    routeStyle: (row.route_flexibility ?? DEFAULT_ROUTE_FLEXIBILITY).routeStyle,
+    mobilityModes: uniqueClean((row.route_flexibility ?? DEFAULT_ROUTE_FLEXIBILITY).mobilityModes, 6, 40) as MunicipalWalkMapMobilityModeV0[],
+    stopCount: Math.max(0, Number(row.stop_count) || 0),
+    sourceReferences: cleanSourceReferences(row.source_references),
+  }));
+}
+
+export async function getMunicipalWalkMapCreatorV0(creatorId: string, db?: MunicipalWalkMapDbPool): Promise<MunicipalWalkMapCreatorRegistryEntryV0 | null> {
+  const pool = municipalWalkMapDbPool(db);
+  const result = await pool.query<WalkMapCreatorRow>(
+    `SELECT creator_id, display_name, registration_kind, verification_status, commercial_intent, notes
+     FROM municipal_walk_map_creators
+     WHERE creator_id = $1
+     LIMIT 1`,
+    [creatorId],
+  );
+  const row = result.rows[0];
+  return row ? mapCreatorRow(row) : null;
+}
+
+export async function upsertMunicipalWalkMapCreatorV0(
+  input: MunicipalWalkMapCreatorRegistryEntryV0,
+  actorUserId: string,
+  db?: MunicipalWalkMapDbPool,
+): Promise<MunicipalWalkMapCreatorRegistryEntryV0> {
+  const creator = normalizeCreatorForWrite(input);
+  const pool = municipalWalkMapDbPool(db);
+  const result = await pool.query<WalkMapCreatorRow>(
+    `INSERT INTO municipal_walk_map_creators (
+       creator_id, display_name, registration_kind, verification_status, commercial_intent,
+       verified_by_user_id, verified_at, notes
+     ) VALUES (
+       $1, $2, $3, $4, $5,
+       CASE WHEN $4 = 'verified' THEN $6 ELSE NULL END,
+       CASE WHEN $4 = 'verified' THEN NOW() ELSE NULL END,
+       $7
+     )
+     ON CONFLICT (creator_id) DO UPDATE SET
+       display_name = EXCLUDED.display_name,
+       registration_kind = EXCLUDED.registration_kind,
+       verification_status = EXCLUDED.verification_status,
+       commercial_intent = EXCLUDED.commercial_intent,
+       verified_by_user_id = EXCLUDED.verified_by_user_id,
+       verified_at = EXCLUDED.verified_at,
+       notes = EXCLUDED.notes,
+       updated_at = NOW()
+     RETURNING creator_id, display_name, registration_kind, verification_status, commercial_intent, notes`,
+    [
+      creator.creatorId,
+      creator.displayName,
+      creator.registrationKind,
+      creator.verificationStatus,
+      creator.commercialIntent,
+      actorUserId,
+      creator.notes,
+    ],
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error("municipal_walk_map_creator_upsert_failed");
+  return mapCreatorRow(row);
+}
+
+function mapDbConfig(row: WalkMapRow, stops: WalkMapStopRow[]): MunicipalWalkMapConfigV0 {
+  return {
+    schemaVersion: "municipal_walk_map_config/v0",
+    walkMapId: row.walk_map_id,
+    municipality: row.municipality,
+    creatorName: row.creator_name,
+    creatorProfile: row.creator_profile ?? DEFAULT_CREATOR_PROFILE,
+    title: row.title,
+    summary: row.summary,
+    theme: row.theme,
+    publishMode: row.publish_mode,
+    areaScope: row.area_scope ?? { municipalityCodes: [], placeIds: [], polygonIds: [] },
+    routeStops: stops.map((stop) => ({
+      stopId: stop.stop_id,
+      title: stop.title,
+      areaKind: stop.area_kind,
+      linkedFieldId: stop.linked_field_id,
+      access: stop.access,
+      sensitiveContext: stop.sensitive_context ?? null,
+      estimatedMinutes: stop.estimated_minutes,
+      noticeCues: stop.notice_cues ?? [],
+      recordCues: stop.record_cues ?? [],
+      safetyNotes: stop.safety_notes ?? [],
+      internalMemo: stop.internal_memo,
+    })),
+    recordModes: row.record_modes ?? ["photo", "memo", "unknown_species"],
+    routeFlexibility: row.route_flexibility ?? DEFAULT_ROUTE_FLEXIBILITY,
+    publicPrecisionPolicy: row.public_precision_policy,
+    claimBoundary: row.claim_boundary ?? [],
+    sourceReferences: cleanSourceReferences(row.source_references),
+  };
+}
+
+export async function getMunicipalWalkMapConfigV0FromDb(walkMapId: string, db?: MunicipalWalkMapDbPool): Promise<MunicipalWalkMapConfigV0 | null> {
+  const pool = municipalWalkMapDbPool(db);
+  const mapResult = await pool.query<WalkMapRow>(
+    `SELECT ${WALK_MAP_SELECT}
+     FROM municipal_walk_maps
+     WHERE walk_map_id = $1`,
+    [walkMapId],
+  );
+  const row = mapResult.rows[0];
+  if (!row) return null;
+
+  const stopResult = await pool.query<WalkMapStopRow>(
+    `SELECT stop_id, title, area_kind, linked_field_id, access, estimated_minutes,
+            notice_cues, record_cues, safety_notes, internal_memo, sensitive_context
+     FROM municipal_walk_map_stops
+     WHERE walk_map_id = $1
+     ORDER BY position ASC, stop_id ASC`,
+    [walkMapId],
+  );
+  return mapDbConfig(row, stopResult.rows);
+}
+
+export async function upsertMunicipalWalkMapConfigV0(
+  config: MunicipalWalkMapConfigV0,
+  actorUserId: string,
+  db?: MunicipalWalkMapDbPool,
+): Promise<MunicipalWalkMapConfigV0> {
+  const validation = validateMunicipalWalkMapConfigV0(config);
+  if (!validation.ok) {
+    throw new Error(`municipal_walk_map_invalid:${validation.errors.join(",")}`);
+  }
+
+  const pool = municipalWalkMapDbPool(db);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const before = await client.query<WalkMapRow>(
+      `SELECT ${WALK_MAP_SELECT}
+       FROM municipal_walk_maps
+       WHERE walk_map_id = $1`,
+      [config.walkMapId],
+    );
+    const action = before.rows[0] ? "update" : "create";
+
+    const mapResult = await client.query<WalkMapRow>(
+      `INSERT INTO municipal_walk_maps (
+         walk_map_id, municipality, creator_name, creator_profile, title, summary, theme, publish_mode,
+         area_scope, record_modes, route_flexibility, public_precision_policy, claim_boundary,
+         source_references, created_by_user_id, updated_by_user_id
+       ) VALUES (
+         $1, $2, $3, $4::jsonb, $5, $6, $7, $8,
+         $9::jsonb, $10::text[], $11::jsonb, $12, $13::text[],
+         $14::jsonb, $15, $15
+       )
+       ON CONFLICT (walk_map_id) DO UPDATE SET
+         municipality = EXCLUDED.municipality,
+         creator_name = EXCLUDED.creator_name,
+         creator_profile = EXCLUDED.creator_profile,
+         title = EXCLUDED.title,
+         summary = EXCLUDED.summary,
+         theme = EXCLUDED.theme,
+         publish_mode = EXCLUDED.publish_mode,
+         area_scope = EXCLUDED.area_scope,
+         record_modes = EXCLUDED.record_modes,
+         route_flexibility = EXCLUDED.route_flexibility,
+         public_precision_policy = EXCLUDED.public_precision_policy,
+         claim_boundary = EXCLUDED.claim_boundary,
+         source_references = EXCLUDED.source_references,
+         updated_by_user_id = EXCLUDED.updated_by_user_id,
+         updated_at = NOW()
+       RETURNING ${WALK_MAP_SELECT}`,
+      [
+        config.walkMapId,
+        config.municipality,
+        config.creatorName,
+        JSON.stringify(config.creatorProfile),
+        config.title,
+        config.summary,
+        config.theme,
+        config.publishMode,
+        JSON.stringify(config.areaScope),
+        config.recordModes,
+        JSON.stringify(config.routeFlexibility),
+        config.publicPrecisionPolicy,
+        config.claimBoundary,
+        JSON.stringify(cleanSourceReferences(config.sourceReferences)),
+        actorUserId,
+      ],
+    );
+
+    await client.query(
+      `DELETE FROM municipal_walk_map_stops WHERE walk_map_id = $1`,
+      [config.walkMapId],
+    );
+    for (const [index, stop] of config.routeStops.entries()) {
+      await client.query(
+        `INSERT INTO municipal_walk_map_stops (
+          walk_map_id, stop_id, position, title, area_kind, linked_field_id, access,
+          estimated_minutes, notice_cues, record_cues, safety_notes, internal_memo, sensitive_context
+         ) VALUES (
+           $1, $2, $3, $4, $5, $6, $7,
+           $8, $9::text[], $10::text[], $11::text[], $12, $13
+         )`,
+        [
+          config.walkMapId,
+          stop.stopId,
+          index,
+          stop.title,
+          stop.areaKind,
+          stop.linkedFieldId ?? null,
+          stop.access,
+          Number.isFinite(Number(stop.estimatedMinutes)) ? Math.round(Number(stop.estimatedMinutes)) : null,
+          stop.noticeCues,
+          stop.recordCues,
+          stop.safetyNotes,
+          stop.internalMemo ?? null,
+          stop.sensitiveContext ?? "none",
+        ],
+      );
+    }
+
+    await client.query(
+      `INSERT INTO municipal_walk_map_audit (
+         walk_map_id, actor_user_id, action, before_payload, after_payload
+       ) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)`,
+      [
+        config.walkMapId,
+        actorUserId,
+        action,
+        JSON.stringify(before.rows[0] ?? {}),
+        JSON.stringify(config),
+      ],
+    );
+
+    await client.query("COMMIT");
+    const row = mapResult.rows[0];
+    if (!row) throw new Error("municipal_walk_map_upsert_failed");
+    return mapDbConfig(row, config.routeStops.map((stop) => ({
+      stop_id: stop.stopId,
+      title: stop.title,
+      area_kind: stop.areaKind,
+      linked_field_id: stop.linkedFieldId ?? null,
+      access: stop.access,
+      sensitive_context: stop.sensitiveContext ?? "none",
+      estimated_minutes: Number.isFinite(Number(stop.estimatedMinutes)) ? Math.round(Number(stop.estimatedMinutes)) : null,
+      notice_cues: stop.noticeCues,
+      record_cues: stop.recordCues,
+      safety_notes: stop.safetyNotes,
+      internal_memo: stop.internalMemo ?? null,
+    })));
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
