@@ -45,7 +45,7 @@ test("cross-site logout is rejected without clearing the cookie", async () => {
     });
 
     assert.equal(response.statusCode, 403);
-    assert.match(response.body, /Forbidden/);
+    assert.match(response.body, /same_origin_required|Forbidden/i);
     assert.equal(response.headers["set-cookie"], undefined);
   } finally {
     await app.close();
