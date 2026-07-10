@@ -277,8 +277,10 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /video_trim_required/);
         assert.match(response.body, /const scheduleMediaAutofill = \(file, metadata, opts\) =>/);
         assert.match(response.body, /requestAnimationFrame\(\(\) =>/);
-        assert.match(response.body, /timeout: 2500/);
-        assert.match(response.body, /scheduleMediaAutofill\(normalized\.photos\[0\] \|\| null, \{\}, \{ autoLocateFreshCapture: kind === 'photo' \|\| kind === 'gallery' \}\)/);
+        assert.doesNotMatch(response.body, /autoLocateFreshCapture/);
+        assert.doesNotMatch(response.body, /timeout: 2500/);
+        assert.match(response.body, /scheduleMediaAutofill\(normalized\.photos\[0\] \|\| null, \{\}, \{\}\)/);
+        assert.match(response.body, /void applyCurrentLocation\('現在地を撮影地点に設定', false\)/);
         assert.doesNotMatch(response.body, /await applyMediaAutofill\(normalized\.photos\[0\] \|\| null/);
       } finally {
         await app.close();

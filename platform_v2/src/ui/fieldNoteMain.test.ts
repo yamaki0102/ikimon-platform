@@ -97,3 +97,13 @@ test("field note guest ambient links open the guest notebook instead of a missin
   assert.match(html, /href="\/ja\/guest\/guest_abc123"/);
   assert.doesNotMatch(html, /\/profile\/guest_abc123/);
 });
+
+test("field note location hypothesis waits for an explicit user action", () => {
+  const html = renderFieldNoteMain("", "ja", snapshot);
+
+  assert.match(html, /id="fn-hypothesis-action"/);
+  assert.match(html, />現在地で見る<\/button>/);
+  assert.doesNotMatch(html, /fn-hypothesis-card is-loading/);
+  assert.match(html, /action\.addEventListener\('click', requestBrief\)/);
+  assert.match(html, /function requestBrief\(\) \{[\s\S]*navigator\.geolocation\.getCurrentPosition/);
+});
