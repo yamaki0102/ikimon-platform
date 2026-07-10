@@ -55,6 +55,10 @@ import {
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
 import { adoptObservationCandidate } from "../services/observationCandidateAdoption.js";
 import { proposeObservationSubjectFromCandidate } from "../services/observationSubjectProposal.js";
+import {
+  confirmObservationPlace,
+  type ObservationPlaceConfirmationDecision,
+} from "../services/observationPlaceConfirmation.js";
 import { confirmManagementActionCandidate } from "../services/managementActionConfirmation.js";
 import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
 import { hideOwnObservation } from "../services/observationVisibility.js";
@@ -570,6 +574,39 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         return {
           ok: false,
           error: error instanceof Error ? error.message : "observation_hide_failed",
+        };
+      }
+    },
+  );
+
+  app.post<{
+    Params: { id: string };
+    Body: { decision?: ObservationPlaceConfirmationDecision; fieldId?: string | null };
+  }>(
+    "/api/v1/observations/:id/place-confirmation",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        const result = await confirmObservationPlace({
+          observationId: request.params.id,
+          actorUserId: session.userId,
+          decision: request.body?.decision === "none" ? "none" : "field",
+          fieldId: request.body?.fieldId ?? null,
+        });
+        if (result.decision === "confirmed_field") {
+          void ensureAreaWatchParticipationForVisit({ visitId: result.visitId }).catch((error) => {
+            console.error("[area-watch] place confirmation participation failed", error);
+          });
+        }
+        return { ok: true, ...result };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "place_confirmation_failed",
         };
       }
     },

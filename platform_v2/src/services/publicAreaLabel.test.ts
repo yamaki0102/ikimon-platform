@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { publicRegisteredAreaLine } from "./publicAreaLabel.js";
+import { publicRegisteredAreaCandidates, publicRegisteredAreaLine } from "./publicAreaLabel.js";
 
 test("publicRegisteredAreaLine shows a single safe registered area", () => {
   assert.equal(publicRegisteredAreaLine({
@@ -58,4 +58,45 @@ test("publicRegisteredAreaLine deduplicates duplicate imports before ambiguity c
       },
     ],
   }), "静岡市葵区 · 常磐公園");
+});
+
+test("publicRegisteredAreaLine prefers owner-confirmed area over nearby boundary candidates", () => {
+  assert.equal(publicRegisteredAreaLine({
+    municipality: "静岡市葵区",
+    fieldRefs: [
+      {
+        fieldId: "field-a",
+        name: "青葉緑地",
+        source: "user_defined",
+        adminLevel: "osm_park",
+      },
+      {
+        fieldId: "field-t",
+        name: "常磐公園",
+        source: "user_defined",
+        adminLevel: "osm_park",
+        isConfirmed: true,
+      },
+    ],
+  }), "静岡市葵区 · 常磐公園");
+});
+
+test("publicRegisteredAreaCandidates exposes boundary choices for owner confirmation UI", () => {
+  assert.deepEqual(publicRegisteredAreaCandidates({
+    municipality: "静岡市葵区",
+    fieldRefs: [
+      {
+        fieldId: "field-a",
+        name: "青葉緑地",
+        source: "user_defined",
+        adminLevel: "osm_park",
+      },
+      {
+        fieldId: "field-t",
+        name: "常磐公園",
+        source: "user_defined",
+        adminLevel: "osm_park",
+      },
+    ],
+  }).map((candidate) => candidate.displayName), ["常磐公園", "青葉緑地"]);
 });

@@ -131,6 +131,7 @@ import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
 import { getFixedPointStation } from "../services/fixedPointStation.js";
 import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
+import { publicRegisteredAreaCandidates } from "../services/publicAreaLabel.js";
 
 type LayoutHero = {
   eyebrow: string;
@@ -1469,6 +1470,12 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-owner-delete-button[disabled] { opacity: .62; cursor: progress; }
   .obs-owner-delete-status { max-width: 260px; color: #9a3412; font-size: 11px; font-weight: 850; }
   .obs-owner-delete-status.is-error { color: #b91c1c; }
+  .obs-place-confirm-button { min-height: 32px; padding: 7px 11px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #f8fafc; color: #0f172a; font: inherit; font-size: 11.5px; font-weight: 900; cursor: pointer; }
+  .obs-place-confirm-button.is-muted { color: #475569; background: #fff; }
+  .obs-place-confirm-button[disabled] { opacity: .62; cursor: progress; }
+  .obs-place-confirm-note { max-width: 280px; color: #64748b; font-size: 11px; font-weight: 750; }
+  .obs-place-confirm-status { max-width: 260px; color: #047857; font-size: 11px; font-weight: 850; }
+  .obs-place-confirm-status.is-error { color: #b91c1c; }
   .obs-invasive-reporting { max-width: var(--ikimon-content-max); margin: 0 auto 14px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(255,247,237,.96), rgba(240,253,244,.9)); border: 1px solid rgba(245,158,11,.26); box-shadow: 0 10px 26px rgba(15,23,42,.04); display: grid; gap: 12px; }
   .obs-invasive-reporting-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
   .obs-invasive-reporting h2 { margin: 3px 0 0; color: #0f172a; font-size: 17px; line-height: 1.35; font-weight: 950; }
@@ -1483,7 +1490,7 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-owner-tools { align-items: flex-start; }
     .obs-owner-tools::before { width: 100%; }
     .obs-owner-tool, .obs-reassess-row, .obs-photo-recovery-form { width: 100%; }
-    .obs-photo-recovery-picker, .obs-photo-recovery-submit, .obs-owner-delete-button, .obs-reassess-btn { min-height: 38px; border-radius: 12px; }
+    .obs-photo-recovery-picker, .obs-photo-recovery-submit, .obs-owner-delete-button, .obs-place-confirm-button, .obs-reassess-btn { min-height: 38px; border-radius: 12px; }
     .obs-invasive-reporting { padding: 13px; border-radius: 14px; }
     .obs-invasive-reporting-head { display: grid; }
     .obs-invasive-reporting-grid { grid-template-columns: 1fr; }
@@ -4698,6 +4705,85 @@ function renderObservationOwnerDeleteScript(isOwner: boolean): string {
       }).catch(function(error) {
         setStatus('削除できませんでした: ' + String(error && error.message || 'network'), true);
         button.disabled = false;
+      });
+    });
+  })();</script>`;
+}
+
+function renderObservationPlaceConfirmationPanel(options: {
+  basePath: string;
+  visitId: string;
+  snapshot: ObservationDetailSnapshot;
+  isOwner: boolean;
+}): string {
+  if (!options.isOwner) return "";
+  const candidates = publicRegisteredAreaCandidates({
+    fieldRefs: options.snapshot.fieldRefs,
+    municipality: options.snapshot.municipality,
+    publicLocation: options.snapshot.publicLocation,
+  });
+  const topPriority = candidates[0]?.priority;
+  const boundaryCandidates = candidates
+    .filter((candidate) => candidate.priority === topPriority)
+    .slice(0, 3);
+  if (boundaryCandidates.length < 2 || boundaryCandidates.some((candidate) => candidate.isConfirmed)) return "";
+
+  const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/place-confirmation`);
+  const candidateButtons = boundaryCandidates.map((candidate) => `
+    <button type="button"
+            class="obs-place-confirm-button"
+            data-place-confirm-choice
+            data-field-id="${escapeHtml(candidate.fieldId)}"
+            data-field-label="${escapeHtml(candidate.displayName)}">${escapeHtml(candidate.displayName)}にする</button>`).join("");
+  return `<section class="section obs-owner-tool obs-place-confirm" data-place-confirm data-place-confirm-endpoint="${escapeHtml(endpoint)}" title="境界付近の記録だけ、投稿者があとから場所を確定できます。">
+    <span class="obs-owner-tool-label">場所</span>
+    <span class="obs-place-confirm-note">境界候補</span>
+    ${candidateButtons}
+    <button type="button" class="obs-place-confirm-button is-muted" data-place-confirm-choice data-decision="none">どちらでもない</button>
+    <span class="obs-place-confirm-status" data-place-confirm-status aria-live="polite"></span>
+  </section>`;
+}
+
+function renderObservationPlaceConfirmationScript(isOwner: boolean): string {
+  if (!isOwner) return "";
+  return `<script>(function(){
+    var roots = Array.prototype.slice.call(document.querySelectorAll('[data-place-confirm]'));
+    if (!roots.length) return;
+    roots.forEach(function(root) {
+      var endpoint = root.getAttribute('data-place-confirm-endpoint') || '';
+      var status = root.querySelector('[data-place-confirm-status]');
+      var buttons = Array.prototype.slice.call(root.querySelectorAll('[data-place-confirm-choice]'));
+      var setStatus = function(message, isError) {
+        if (!status) return;
+        status.textContent = message;
+        status.classList.toggle('is-error', Boolean(isError));
+      };
+      if (!endpoint || !buttons.length) return;
+      buttons.forEach(function(button) {
+        button.addEventListener('click', function() {
+          var decision = button.getAttribute('data-decision') === 'none' ? 'none' : 'field';
+          var fieldId = button.getAttribute('data-field-id') || null;
+          var fieldLabel = button.getAttribute('data-field-label') || '選んだ場所';
+          buttons.forEach(function(item) { item.disabled = true; });
+          setStatus(decision === 'none' ? '場所候補から外しています...' : fieldLabel + 'で確定しています...', false);
+          fetch(endpoint, {
+            method: 'POST',
+            headers: { accept: 'application/json', 'content-type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ decision: decision, fieldId: fieldId })
+          }).then(function(response) {
+            return response.json().catch(function(){ return {}; }).then(function(json) {
+              if (!response.ok || !json || json.ok === false) {
+                throw new Error(String((json && json.error) || response.status || 'place_confirmation_failed'));
+              }
+              setStatus('保存しました。表示を更新します。', false);
+              setTimeout(function(){ window.location.reload(); }, 700);
+            });
+          }).catch(function(error) {
+            setStatus('保存できませんでした: ' + String(error && error.message || 'network'), true);
+            buttons.forEach(function(item) { item.disabled = false; });
+          });
+        });
       });
     });
   })();</script>`;
@@ -16433,6 +16519,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       isOwner,
       lang,
     });
+    const placeConfirmationBlock = renderObservationPlaceConfirmationPanel({
+      basePath,
+      visitId: bundle.visitId,
+      snapshot,
+      isOwner,
+    });
 
     const hintBlock = "";
     const aiCandidateLearningBlock = "";
@@ -16583,8 +16675,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            <span class="obs-reassess-status" data-reassess-status hidden></span>
          </section>`
       : "";
-    const ownerToolsBlock = (photoRecoveryBlock || ownerDeleteBlock || reassessBlock)
-      ? `<section class="obs-owner-tools" aria-label="投稿者用ツール">${photoRecoveryBlock}${ownerDeleteBlock}${reassessBlock}</section>`
+    const ownerToolsBlock = (photoRecoveryBlock || ownerDeleteBlock || placeConfirmationBlock || reassessBlock)
+      ? `<section class="obs-owner-tools" aria-label="投稿者用ツール">${photoRecoveryBlock}${ownerDeleteBlock}${placeConfirmationBlock}${reassessBlock}</section>`
       : "";
     const invasiveReportingGuidanceBlock = renderInvasiveReportingGuidanceBlock(currentSubject, basePath, lang);
     const subjectRegionMap = toSubjectRegionMap(bundle.subjects);
@@ -17068,13 +17160,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     })();</script>`;
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
     const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
+    const placeConfirmationScript = renderObservationPlaceConfirmationScript(isOwner);
     const localPolishScript = renderLocalObservationPolishScript();
     const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${hintBlock}${layer2}${aiCandidateLearningBlock}${layer3}${contextBlock}${ctaBlock}</div>`;
     void hintBlock;
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}`;
+    const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${placeConfirmationScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}`;
     const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,

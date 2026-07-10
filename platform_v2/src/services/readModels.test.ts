@@ -56,6 +56,20 @@ test("observation detail revalidates public municipality labels against admin po
   assert.match(detailSnapshot, /publicLocation: buildPublicLocationSummary\(\{/);
 });
 
+test("observation detail carries registered area refs for boundary place confirmation", async () => {
+  const readModels = await readFile(path.join(process.cwd(), "src", "services", "readModels.ts"), "utf8");
+  const detailSnapshot = readModels.slice(
+    readModels.indexOf("export async function getObservationDetailSnapshot"),
+    readModels.indexOf("export async function getProfileSnapshot"),
+  );
+
+  assert.match(readModels, /isConfirmed\?: boolean/);
+  assert.match(detailSnapshot, /coalesce\(fields\.field_refs, '\[\]'::jsonb\) as field_refs/);
+  assert.match(detailSnapshot, /area_confirmation,field_id/);
+  assert.match(detailSnapshot, /area_confirmation,decision/);
+  assert.match(detailSnapshot, /fieldRefs: normalizeFieldRefs\(base\.field_refs\)/);
+});
+
 test("record form coordinate fallback does not guess Shizuoka municipalities from rectangles", async () => {
   const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
   const localityFallback = readRoute.slice(

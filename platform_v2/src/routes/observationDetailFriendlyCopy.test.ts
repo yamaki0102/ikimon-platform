@@ -545,12 +545,15 @@ test("owner-only controls stay compact and avoid support-card copy", () => {
   const ownerSource = [
     sourceBetween("function renderObservationPhotoRecoveryPanel", "function renderObservationPhotoRecoveryScript"),
     sourceBetween("function renderObservationOwnerDeletePanel", "function renderObservationOwnerDeleteScript"),
+    sourceBetween("function renderObservationPlaceConfirmationPanel", "function renderObservationPlaceConfirmationScript"),
     sourceBetween("const reassessBlock =", "const ownerToolsBlock ="),
   ].join("\n");
   assert.match(ownerSource, /obs-owner-tool/);
   assert.match(ownerSource, /obs-owner-tool-label/);
   assert.match(ownerSource, /data-photo-recovery-status/);
   assert.match(ownerSource, /data-owner-delete-status/);
+  assert.match(ownerSource, /data-place-confirm-status/);
+  assert.match(ownerSource, /place-confirmation/);
   assert.doesNotMatch(ownerSource, /obs-owner-tool-details/);
   assert.doesNotMatch(ownerSource, /obs-owner-tool-body/);
   assert.doesNotMatch(routeSource, /Photo recovery/);

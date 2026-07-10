@@ -102,6 +102,7 @@ type RecentObservation = {
     name: string;
     source: string | null;
     adminLevel?: string | null;
+    isConfirmed?: boolean;
   }>;
 };
 
@@ -159,6 +160,7 @@ export type ObservationDetailSnapshot = {
   publicLocation: PublicLocationSummary;
   latitude: number | null;
   longitude: number | null;
+  fieldRefs: RecentObservation["fieldRefs"];
   photoAssets: Array<{
     assetId: string;
     url: string;
@@ -402,7 +404,16 @@ export function normalizeFieldRefs(value: unknown): RecentObservation["fieldRefs
   const seen = new Set<string>();
   for (const item of value) {
     if (!item || typeof item !== "object") continue;
-    const raw = item as { fieldId?: unknown; field_id?: unknown; name?: unknown; source?: unknown; adminLevel?: unknown; admin_level?: unknown };
+    const raw = item as {
+      fieldId?: unknown;
+      field_id?: unknown;
+      name?: unknown;
+      source?: unknown;
+      adminLevel?: unknown;
+      admin_level?: unknown;
+      isConfirmed?: unknown;
+      is_confirmed?: unknown;
+    };
     const fieldId = String(raw.fieldId ?? raw.field_id ?? "").trim();
     const name = String(raw.name ?? "").trim();
     const adminLevel = raw.adminLevel ?? raw.admin_level;
@@ -413,6 +424,7 @@ export function normalizeFieldRefs(value: unknown): RecentObservation["fieldRefs
       name,
       source: raw.source == null ? null : String(raw.source),
       adminLevel: adminLevel == null ? null : String(adminLevel),
+      isConfirmed: raw.isConfirmed === true || raw.is_confirmed === true,
     });
   }
   return refs;
@@ -572,10 +584,12 @@ async function loadVisitSummaryObservations(
                     'fieldId', f.field_id::text,
                     'name', f.name,
                     'source', f.source,
-                    'adminLevel', f.admin_level
+                    'adminLevel', f.admin_level,
+                    'isConfirmed', f.field_id::text = coalesce(v.source_payload #>> '{area_confirmation,field_id}', '')
                   ) ORDER BY f.source, f.name) AS field_refs
              FROM observation_fields f
             WHERE f.valid_to IS NULL
+              AND coalesce(v.source_payload #>> '{area_confirmation,decision}', '') <> 'not_listed'
               AND (
                 f.field_id = ANY(coalesce(v.resolved_field_ids, ARRAY[]::uuid[]))
                 OR f.field_id::text = v.source_payload->>'field_id'
@@ -1060,6 +1074,7 @@ export async function getObservationDetailSnapshot(
     prefecture: string | null;
     latitude: number | null;
     longitude: number | null;
+    field_refs: unknown;
   }>(
     `select
         o.occurrence_id,
@@ -1089,7 +1104,8 @@ export async function getObservationDetailSnapshot(
         coalesce(v.observed_municipality, p.municipality) as municipality,
         coalesce(v.observed_prefecture, p.prefecture) as prefecture,
         coalesce(v.point_latitude, p.center_latitude) as latitude,
-        coalesce(v.point_longitude, p.center_longitude) as longitude
+        coalesce(v.point_longitude, p.center_longitude) as longitude,
+        coalesce(fields.field_refs, '[]'::jsonb) as field_refs
      from occurrences o
      join visits v on v.visit_id = o.visit_id
      left join users u on u.user_id = v.user_id
@@ -1108,6 +1124,32 @@ export async function getObservationDetailSnapshot(
        where ea.asset_id = u.avatar_asset_id
        limit 1
      ) avatar on true
+     left join lateral (
+       select jsonb_agg(jsonb_build_object(
+                'fieldId', f.field_id::text,
+                'name', f.name,
+                'source', f.source,
+                'adminLevel', f.admin_level,
+                'isConfirmed', f.field_id::text = coalesce(v.source_payload #>> '{area_confirmation,field_id}', '')
+              ) order by f.source, f.name) as field_refs
+        from observation_fields f
+       where f.valid_to is null
+          and coalesce(v.source_payload #>> '{area_confirmation,decision}', '') <> 'not_listed'
+          and (
+            f.field_id = any(coalesce(v.resolved_field_ids, array[]::uuid[]))
+            or f.field_id::text = v.source_payload->>'field_id'
+            or (
+              f.admin_level in ('osm_park', 'park')
+              and v.point_latitude is not null
+              and v.point_longitude is not null
+              and f.bbox_min_lat is not null
+              and f.bbox_min_lat <= v.point_latitude + (35.0 / 111320.0)
+              and f.bbox_max_lat >= v.point_latitude - (35.0 / 111320.0)
+              and f.bbox_min_lng <= v.point_longitude + (35.0 / (111320.0 * greatest(0.2, abs(cos(radians(v.point_latitude))))))
+              and f.bbox_max_lng >= v.point_longitude - (35.0 / (111320.0 * greatest(0.2, abs(cos(radians(v.point_latitude))))))
+            )
+          )
+     ) fields on true
      where (o.occurrence_id = $1
         or v.visit_id = $1
         or o.legacy_observation_id = $1)
@@ -1453,6 +1495,7 @@ export async function getObservationDetailSnapshot(
     }),
     latitude: base.latitude,
     longitude: base.longitude,
+    fieldRefs: normalizeFieldRefs(base.field_refs),
     photoAssets,
     photoUrls: photoAssets.map((asset) => asset.url),
     videoAssets: videosResult.rows
@@ -1852,12 +1895,15 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
                 'fieldId', f.field_id::text,
                 'name', f.name,
                 'source', f.source,
-                'adminLevel', f.admin_level
+                'adminLevel', f.admin_level,
+                'isConfirmed', f.field_id::text = coalesce(v.source_payload #>> '{area_confirmation,field_id}', '')
               ) ORDER BY f.source, f.name) AS field_refs
          FROM candidate_field_refs refs
+         JOIN visits v ON v.visit_id = refs.visit_id
          JOIN observation_fields f ON f.field_id = refs.field_id
         WHERE f.valid_to IS NULL
-        GROUP BY refs.visit_id
+          AND coalesce(v.source_payload #>> '{area_confirmation,decision}', '') <> 'not_listed'
+        GROUP BY refs.visit_id, v.source_payload
      )
      SELECT featured.occurrence_id,
             v.visit_id,
