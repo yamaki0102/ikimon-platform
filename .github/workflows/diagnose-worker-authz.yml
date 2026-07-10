@@ -1,15 +1,15 @@
 name: Diagnose Worker Authz
 
 on:
-  push:
-    branches:
-      - agent/worker-place-memory-authz
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
   diagnose:
+    if: github.head_ref == 'agent/worker-place-memory-authz'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
