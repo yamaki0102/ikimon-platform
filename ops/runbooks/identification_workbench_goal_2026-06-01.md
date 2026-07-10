@@ -111,3 +111,25 @@ production deploy 後の汎用 smoke だけでは、同定ワークベンチの�
 - `npm run build`
 - `npx playwright test -c playwright.production-smoke.config.ts --list`
 - `git diff --check`
+
+## 2026-06-11 Opus review hardening
+
+Claude Opus review raw evidence:
+
+- `E:\Projects\_agent_scratch\claude-latest-review\ikimon-identification-ux-20260611-opus\claude-review-20260611-opus.md`
+
+追加実装:
+
+- 所有済み資料を同定パネルで自動チェックしない。`input.checked = false` にし、実際に確認した資料だけを手動で選ぶ。
+- AI由来の候補ラベルを `AI候補` / `AI suggestion` 系にし、AI候補名が入力欄に入っている時は注意を表示する。
+- 最後のカード処理後は同定パネルを空キュー状態へ切り替える。
+- `identification_workbench_holds` と `/api/v1/observations/:id/identification-workbench-hold` を追加し、保留を利用者ごとに永続化する。
+- `/api/v1/records/needs-id-page` を追加し、同定ワークベンチでも追加読み込みできるようにする。
+- `support` 保存時は、資料選択または `資料なしで保存する` の明示チェックを必須にする。
+- 保存失敗文言と `Ready` 文言を多言語コピーへ移す。
+- `J/K` と `1-4` のキーボード操作を追加し、モバイルでは必要時だけ同定パネルへスクロールする。
+
+PR lane:
+
+- `E:\Projects\ikimon\worktrees\identification-opus-pr`
+- branch: `codex/ikimon-identification-opus-pr`

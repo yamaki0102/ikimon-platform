@@ -105,6 +105,7 @@ import {
   type ReferenceCandidate,
   type ReferenceProfileSummary,
 } from "../services/referenceLibrary.js";
+import { listHeldIdentificationOccurrenceIds } from "../services/identificationWorkbenchHolds.js";
 import { getRegionalStoryCue, type RegionalKnowledgeCard, type RegionalStoryCue } from "../services/regionalStory.js";
 import {
   assertSpecialistAdminSession,
@@ -11607,9 +11608,10 @@ function renderRecordsPostCard(
   const identifyEndpointId = encodeURIComponent(card.occurrenceId);
   const identifyEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/identifications`);
   const disputeEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/disputes`);
+  const holdEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/identification-workbench-hold`);
   const referenceCandidatesEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/reference-candidates`);
   const identifyCardAttrs = view === "needs_id" && card.postNeedsId
-    ? ` data-records-identify-card data-identify-title="${escapeHtml(displayName)}" data-identify-meta="${escapeHtml(metaLine)}" data-identify-source="${escapeHtml(sourceLabel)}" data-identify-candidate="${escapeHtml(card.postCandidateName ?? "")}" data-identify-default-name="${escapeHtml(identifyDefaultName)}" data-identify-default-rank="${escapeHtml(card.aiCandidateRank ?? card.featuredTaxonRank ?? "")}" data-identify-media="${escapeHtml(mediaUrl ?? "")}" data-identify-href="${escapeHtml(href)}" data-identify-endpoint="${escapeHtml(identifyEndpoint)}" data-dispute-endpoint="${escapeHtml(disputeEndpoint)}" data-reference-candidates-endpoint="${escapeHtml(referenceCandidatesEndpoint)}"`
+    ? ` data-records-identify-card data-identify-title="${escapeHtml(displayName)}" data-identify-meta="${escapeHtml(metaLine)}" data-identify-source="${escapeHtml(sourceLabel)}" data-identify-candidate="${escapeHtml(card.postCandidateName ?? "")}" data-identify-default-name="${escapeHtml(identifyDefaultName)}" data-identify-default-rank="${escapeHtml(card.aiCandidateRank ?? card.featuredTaxonRank ?? "")}" data-identify-media="${escapeHtml(mediaUrl ?? "")}" data-identify-href="${escapeHtml(href)}" data-identify-endpoint="${escapeHtml(identifyEndpoint)}" data-dispute-endpoint="${escapeHtml(disputeEndpoint)}" data-hold-endpoint="${escapeHtml(holdEndpoint)}" data-reference-candidates-endpoint="${escapeHtml(referenceCandidatesEndpoint)}"`
     : "";
   const thumbHtml = mediaUrl
     ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.records-post-card').classList.add('is-media-missing');this.remove()" />`
@@ -11683,6 +11685,7 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
   alternative: string;
   needsEvidence: string;
   hold: string;
+  aiPrefillHint: string;
   nameLabel: string;
   noteLabel: string;
   reference: string;
@@ -11690,18 +11693,21 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
   noReferences: string;
   loadingReferences: string;
   locator: string;
+  noReferenceAck: string;
   ready: string;
   saving: string;
   saved: string;
   held: string;
+  saveFailed: string;
   restore: string;
   keepViewing: string;
   nameRequired: string;
+  referenceRequired: string;
 } {
   if (lang === "en") return {
     kicker: "ID workbench",
     empty: "No records are waiting for ID.",
-    candidate: "Candidate",
+    candidate: "AI suggestion",
     open: "Check details",
     next: "Next",
     note: "Review the media and candidate, then save the basis from the detail view.",
@@ -11709,6 +11715,7 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
     alternative: "Other name",
     needsEvidence: "Need evidence",
     hold: "Hold",
+    aiPrefillHint: "This is an AI suggestion. Edit it if needed.",
     nameLabel: "Name",
     noteLabel: "Basis note",
     reference: "Use a reference",
@@ -11716,18 +11723,21 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
     noReferences: "No matching references yet.",
     loadingReferences: "Loading references...",
     locator: "Page / figure",
-    ready: "Ready.",
+    noReferenceAck: "Save without a reference",
+    ready: "Ready",
     saving: "Saving...",
     saved: "Saved. Moved to the next record.",
     held: "Held locally. Moved to the next record.",
+    saveFailed: "Could not save",
     restore: "Undo",
     keepViewing: "Keep viewing",
     nameRequired: "Add a name first, or use Need evidence.",
+    referenceRequired: "Choose a reference, or explicitly save without one.",
   };
   if (lang === "es") return {
     kicker: "Mesa de identificacion",
     empty: "No hay registros por revisar.",
-    candidate: "Candidato",
+    candidate: "Sugerencia IA",
     open: "Revisar detalle",
     next: "Siguiente",
     note: "Revisa el medio y el candidato, y guarda la base desde el detalle.",
@@ -11735,6 +11745,7 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
     alternative: "Otro nombre",
     needsEvidence: "Falta evidencia",
     hold: "Pausar",
+    aiPrefillHint: "Es una sugerencia de IA. Corrigela si hace falta.",
     nameLabel: "Nombre",
     noteLabel: "Nota",
     reference: "Usar referencia",
@@ -11742,18 +11753,21 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
     noReferences: "Aun no hay referencias.",
     loadingReferences: "Cargando referencias...",
     locator: "Pagina / figura",
+    noReferenceAck: "Guardar sin referencia",
     ready: "Listo.",
     saving: "Guardando...",
     saved: "Guardado. Pasamos al siguiente.",
     held: "Pausado aqui. Pasamos al siguiente.",
+    saveFailed: "No se pudo guardar",
     restore: "Volver",
     keepViewing: "Seguir viendo",
     nameRequired: "Anade un nombre, o usa Falta evidencia.",
+    referenceRequired: "Elige una referencia, o guarda explicitamente sin una.",
   };
   if (lang === "pt-BR") return {
     kicker: "Bancada de identificacao",
     empty: "Nao ha registros para revisar.",
-    candidate: "Candidato",
+    candidate: "Sugestao IA",
     open: "Ver detalhe",
     next: "Proximo",
     note: "Confira a midia e o candidato, depois salve a base no detalhe.",
@@ -11761,6 +11775,7 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
     alternative: "Outro nome",
     needsEvidence: "Falta evidencia",
     hold: "Segurar",
+    aiPrefillHint: "E uma sugestao de IA. Ajuste se precisar.",
     nameLabel: "Nome",
     noteLabel: "Nota",
     reference: "Usar referencia",
@@ -11768,18 +11783,21 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
     noReferences: "Ainda nao ha referencias.",
     loadingReferences: "Carregando referencias...",
     locator: "Pagina / figura",
+    noReferenceAck: "Salvar sem referencia",
     ready: "Pronto.",
     saving: "Salvando...",
     saved: "Salvo. Indo para o proximo.",
     held: "Segurado aqui. Indo para o proximo.",
+    saveFailed: "Nao foi possivel salvar",
     restore: "Voltar",
     keepViewing: "Continuar vendo",
     nameRequired: "Adicione um nome, ou use Falta evidencia.",
+    referenceRequired: "Escolha uma referencia, ou salve explicitamente sem uma.",
   };
   return {
     kicker: "同定ワークベンチ",
     empty: "確認待ちの記録はありません。",
-    candidate: "候補",
+    candidate: "AI候補",
     open: "詳細で確認",
     next: "次へ",
     note: "画像と候補を見て、根拠を選んで記録します。",
@@ -11787,6 +11805,7 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
     alternative: "別の名前",
     needsEvidence: "証拠不足",
     hold: "保留",
+    aiPrefillHint: "AIの候補です。必要なら直してください。",
     nameLabel: "名前",
     noteLabel: "理由メモ",
     reference: "この資料で確認",
@@ -11794,13 +11813,16 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
     noReferences: "この分類群の参照資料はまだありません。",
     loadingReferences: "資料を確認しています...",
     locator: "ページ・図版番号",
-    ready: "Ready.",
+    noReferenceAck: "資料なしで保存する",
+    ready: "準備できています。",
     saving: "保存中...",
     saved: "保存しました。次の記録へ移動しました。",
     held: "保留しました。次の記録へ移動しました。",
+    saveFailed: "保存できませんでした",
     restore: "戻す",
     keepViewing: "このまま見る",
     nameRequired: "名前を入れてください。証拠だけ足りない場合は「証拠不足」を使えます。",
+    referenceRequired: "資料を選ぶか、「資料なしで保存する」を明示してください。",
   };
 }
 
@@ -11850,6 +11872,7 @@ function renderRecordsIdentifyPanel(
       ? `<form class="records-identify-command" data-identify-panel-form>
           <div class="records-identify-fields">
             <label><span>${escapeHtml(copy.nameLabel)}</span><input name="proposedName" type="text" value="${escapeHtml(defaultName)}" data-identify-panel-name placeholder="${escapeHtml(copy.nameLabel)}" /></label>
+            <span class="records-identify-ai-prefill" data-identify-panel-ai-prefill-marker${candidate && defaultName === candidate ? "" : " hidden"}>${escapeHtml(copy.aiPrefillHint)}</span>
             <input name="proposedRank" type="hidden" value="${escapeHtml(card.aiCandidateRank ?? card.featuredTaxonRank ?? "")}" data-identify-panel-rank />
             <label><span>${escapeHtml(copy.noteLabel)}</span><textarea name="notes" rows="2" data-identify-panel-notes placeholder="${escapeHtml(copy.noteLabel)}"></textarea></label>
           </div>
@@ -11866,6 +11889,7 @@ function renderRecordsIdentifyPanel(
             </div>
             <div class="records-identify-reference-options" data-identify-panel-reference-options></div>
             <label class="records-identify-reference-locator"><span>${escapeHtml(copy.locator)}</span><input name="referenceLocator" type="text" maxlength="160" data-identify-panel-reference-locator placeholder="${escapeHtml(copy.locator)}" /></label>
+            <label class="records-identify-reference-waiver"><input name="referenceWaiver" type="checkbox" data-identify-panel-reference-waiver /><span>${escapeHtml(copy.noReferenceAck)}</span></label>
           </div>
         </form>`
       : `<div class="records-identify-login">${escapeHtml(copy.login)}</div>`}
@@ -11891,8 +11915,9 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
   if (!root) return;
   var panel = root.querySelector('[data-records-identify-panel]');
   if (!panel) return;
-  var cards = Array.prototype.slice.call(root.querySelectorAll('[data-records-identify-card]'));
-  if (!cards.length) return;
+  function identifyCards() {
+    return Array.prototype.slice.call(root.querySelectorAll('[data-records-identify-card]'));
+  }
   var title = panel.querySelector('[data-identify-panel-title]');
   var meta = panel.querySelector('[data-identify-panel-meta]');
   var source = panel.querySelector('[data-identify-panel-source]');
@@ -11905,11 +11930,13 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
   var emptyMedia = panel.querySelector('[data-identify-panel-empty-media]');
   var form = panel.querySelector('[data-identify-panel-form]');
   var nameInput = panel.querySelector('[data-identify-panel-name]');
+  var aiPrefillMarker = panel.querySelector('[data-identify-panel-ai-prefill-marker]');
   var rankInput = panel.querySelector('[data-identify-panel-rank]');
   var notesInput = panel.querySelector('[data-identify-panel-notes]');
   var referenceBox = panel.querySelector('[data-identify-panel-references]');
   var referenceOptions = panel.querySelector('[data-identify-panel-reference-options]');
   var referenceLocator = panel.querySelector('[data-identify-panel-reference-locator]');
+  var referenceWaiver = panel.querySelector('[data-identify-panel-reference-waiver]');
   var referenceCapture = panel.querySelector('[data-identify-panel-reference-capture]');
   var followup = panel.querySelector('[data-identify-panel-followup]');
   var status = panel.querySelector('[data-identify-panel-status]');
@@ -11918,8 +11945,9 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
   var activeCard = null;
   var lastActionCard = null;
   var referenceRequestSerial = 0;
+  var panelScrollScheduled = false;
   function selectableCards() {
-    return cards.filter(function (card) { return !card.hidden && card.getAttribute('data-identify-processed') !== '1'; });
+    return identifyCards().filter(function (card) { return !card.hidden && card.getAttribute('data-identify-processed') !== '1'; });
   }
   function setStatus(message, isError) {
     if (!status) return;
@@ -11941,7 +11969,8 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
   function selectCard(card) {
     if (!card) return;
     activeCard = card;
-    cards.forEach(function (item) {
+    panel.removeAttribute('data-identify-panel-cleared');
+    identifyCards().forEach(function (item) {
       item.classList.toggle('is-identify-active', item === card);
       if (item === card) item.setAttribute('aria-current', 'true');
       else item.removeAttribute('aria-current');
@@ -11956,6 +11985,7 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
     var cardHref = card.getAttribute('data-identify-href') || '';
     var identifyEndpoint = card.getAttribute('data-identify-endpoint') || '';
     var disputeEndpoint = card.getAttribute('data-dispute-endpoint') || '';
+    var holdEndpoint = card.getAttribute('data-hold-endpoint') || '';
     if (title) title.textContent = cardTitle;
     if (meta) meta.textContent = cardMeta;
     if (source) source.textContent = cardSource;
@@ -11964,13 +11994,18 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
     if (open && cardHref) open.setAttribute('href', cardHref);
     if (mediaLink && cardHref) mediaLink.setAttribute('href', cardHref);
     if (form) {
+      form.hidden = false;
       form.setAttribute('data-identify-endpoint', identifyEndpoint);
       form.setAttribute('data-dispute-endpoint', disputeEndpoint);
+      form.setAttribute('data-hold-endpoint', holdEndpoint);
     }
     if (nameInput) nameInput.value = cardDefaultName;
+    if (nameInput) nameInput.setAttribute('data-ai-prefill-value', cardCandidate && cardDefaultName === cardCandidate ? cardCandidate : '');
+    if (aiPrefillMarker) aiPrefillMarker.hidden = !cardCandidate || cardDefaultName !== cardCandidate;
     if (rankInput) rankInput.value = cardDefaultRank;
     if (notesInput) notesInput.value = '';
     if (referenceLocator) referenceLocator.value = '';
+    if (referenceWaiver) referenceWaiver.checked = false;
     if (referenceCapture) {
       var captureBase = referenceCapture.getAttribute('data-reference-capture-base') || referenceCapture.getAttribute('href') || '/references/capture';
       var returnTo = window.location.pathname + window.location.search;
@@ -11996,7 +12031,10 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
   }
   function selectNextAfter(card) {
     var list = selectableCards();
-    if (!list.length) return;
+    if (!list.length) {
+      showEmptyQueue();
+      return;
+    }
     var current = list.indexOf(card);
     if (current < 0) {
       selectCard(list[0]);
@@ -12004,11 +12042,40 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
     }
     selectCard(list[(current + 1) % list.length]);
   }
+  function selectRelativeCard(step) {
+    var list = selectableCards();
+    if (!list.length) {
+      showEmptyQueue();
+      return;
+    }
+    var current = list.findIndex(function (card) { return card.classList.contains('is-identify-active'); });
+    selectCard(list[(current + step + list.length) % list.length]);
+  }
   function markProcessed(card) {
     if (!card) return;
     card.setAttribute('data-identify-processed', '1');
     card.classList.add('is-identify-processed');
     lastActionCard = card;
+  }
+  function showEmptyQueue() {
+    activeCard = null;
+    panel.setAttribute('data-identify-panel-cleared', '1');
+    if (title) title.textContent = copy.empty;
+    if (meta) meta.textContent = '';
+    if (source) source.textContent = '';
+    if (candidateRow) candidateRow.hidden = true;
+    if (form) form.hidden = true;
+    if (referenceBox) referenceBox.hidden = true;
+    if (mediaLink) mediaLink.classList.add('is-empty');
+    if (media) media.removeAttribute('src');
+    if (emptyMedia) emptyMedia.hidden = false;
+    if (followup) followup.hidden = true;
+  }
+  if (nameInput) {
+    nameInput.addEventListener('input', function () {
+      var aiPrefillValue = nameInput.getAttribute('data-ai-prefill-value') || '';
+      if (aiPrefillMarker) aiPrefillMarker.hidden = !aiPrefillValue || String(nameInput.value || '').trim() !== aiPrefillValue;
+    });
   }
   function restoreLastAction(selectOnly) {
     if (!lastActionCard) return;
@@ -12017,6 +12084,17 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
       lastActionCard.classList.remove('is-identify-processed');
     }
     selectCard(lastActionCard);
+  }
+  function scrollPanelIntoViewIfNeeded() {
+    if (!window.matchMedia || !window.matchMedia('(max-width: 980px)').matches || panelScrollScheduled) return;
+    var rect = panel.getBoundingClientRect();
+    var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    if (rect.top >= 0 && rect.bottom <= viewportHeight) return;
+    panelScrollScheduled = true;
+    window.requestAnimationFrame(function () {
+      panelScrollScheduled = false;
+      panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
   }
   function postJson(endpoint, body) {
     return fetch(endpoint, {
@@ -12052,7 +12130,7 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
       input.type = 'checkbox';
       input.name = 'referenceSourceIds';
       input.value = String(candidate.sourceId || '');
-      input.checked = Boolean(candidate.owned);
+      input.checked = false;
       var span = document.createElement('span');
       var strong = document.createElement('strong');
       strong.textContent = String(candidate.title || '');
@@ -12105,9 +12183,18 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
   function submitAction(action) {
     if (!activeCard || !form) return;
     if (action === 'hold') {
-      markProcessed(activeCard);
-      selectNextAfter(activeCard);
-      setStatus(copy.held, false);
+      var holdEndpoint = form.getAttribute('data-hold-endpoint') || '';
+      if (!holdEndpoint) return;
+      setStatus(copy.saving, false);
+      postJson(holdEndpoint, { reason: notesInput ? String(notesInput.value || '').trim() : '' })
+        .then(function () {
+          markProcessed(activeCard);
+          selectNextAfter(activeCard);
+          setStatus(copy.held, false);
+        })
+        .catch(function () {
+          setStatus(copy.saveFailed, true);
+        });
       return;
     }
     var proposedName = nameInput ? String(nameInput.value || '').trim() : '';
@@ -12115,9 +12202,15 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
     var notes = notesInput ? String(notesInput.value || '').trim() : '';
     var referenceSourceIds = selectedReferenceIds();
     var locator = referenceLocator ? String(referenceLocator.value || '').trim() : '';
+    var referenceWaived = referenceWaiver ? Boolean(referenceWaiver.checked) : false;
     if (action !== 'needs_more_evidence' && !proposedName) {
       setStatus(copy.nameRequired, true);
       if (nameInput && typeof nameInput.focus === 'function') nameInput.focus({ preventScroll: true });
+      return;
+    }
+    if (action === 'support' && referenceSourceIds.length === 0 && !referenceWaived) {
+      setStatus(copy.referenceRequired, true);
+      if (referenceWaiver && typeof referenceWaiver.focus === 'function') referenceWaiver.focus({ preventScroll: true });
       return;
     }
     var identifyEndpoint = form.getAttribute('data-identify-endpoint') || '';
@@ -12136,28 +12229,23 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
         selectNextAfter(activeCard);
         setStatus(copy.saved, false);
       })
-      .catch(function (error) {
-        setStatus('保存できませんでした: ' + String(error && error.message || 'unknown_error'), true);
+      .catch(function () {
+        setStatus(copy.saveFailed, true);
       });
   }
-  cards.forEach(function (card) {
-    var link = card.querySelector('.records-post-card-link');
-    if (!link) return;
-    link.addEventListener('click', function (event) {
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      event.preventDefault();
-      selectCard(card);
-      if (window.matchMedia && window.matchMedia('(max-width: 980px)').matches) {
-        panel.scrollIntoView({ block: 'end', behavior: 'smooth' });
-      }
-    });
+  root.addEventListener('click', function (event) {
+    var target = event.target;
+    var link = target && typeof target.closest === 'function' ? target.closest('[data-records-identify-card] .records-post-card-link') : null;
+    if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    var card = link.closest('[data-records-identify-card]');
+    if (!card) return;
+    event.preventDefault();
+    selectCard(card);
+    scrollPanelIntoViewIfNeeded();
   });
   if (next) {
     next.addEventListener('click', function () {
-      var list = selectableCards();
-      if (!list.length) return;
-      var current = list.findIndex(function (card) { return card.classList.contains('is-identify-active'); });
-      selectCard(list[(current + 1 + list.length) % list.length]);
+      selectRelativeCard(1);
     });
   }
   if (form) {
@@ -12167,9 +12255,40 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
       });
     });
   }
+  root.addEventListener('records:lazy-appended', function () {
+    if (!activeCard || panel.getAttribute('data-identify-panel-cleared') === '1') {
+      var nextCard = selectableCards()[0];
+      if (nextCard) selectCard(nextCard);
+    }
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+    var target = event.target;
+    var tagName = target && target.tagName ? String(target.tagName).toLowerCase() : '';
+    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || (target && target.isContentEditable)) return;
+    if (event.key === 'j' || event.key === 'J') {
+      event.preventDefault();
+      selectRelativeCard(1);
+    } else if (event.key === 'k' || event.key === 'K') {
+      event.preventDefault();
+      selectRelativeCard(-1);
+    } else if (event.key === '1') {
+      event.preventDefault();
+      submitAction('support');
+    } else if (event.key === '2') {
+      event.preventDefault();
+      submitAction('alternative');
+    } else if (event.key === '3') {
+      event.preventDefault();
+      submitAction('needs_more_evidence');
+    } else if (event.key === '4') {
+      event.preventDefault();
+      submitAction('hold');
+    }
+  });
   if (restore) restore.addEventListener('click', function () { restoreLastAction(false); });
   if (keep) keep.addEventListener('click', function () { restoreLastAction(true); });
-  selectCard(cards[0]);
+  selectCard(identifyCards()[0]);
 })();
 </script>`;
 }
@@ -12274,6 +12393,7 @@ function renderRecordsLazyScript(lang: SiteLang): string {
         })
         .then(function (json) {
           (json.months || []).forEach(appendMonth);
+          root.dispatchEvent(new CustomEvent('records:lazy-appended', { bubbles: true }));
           if (json.nextCursor) {
             button.setAttribute('data-next-cursor', json.nextCursor);
             button.disabled = false;
@@ -12458,15 +12578,25 @@ function renderRecordsWorkbench(
   snapshot: LandingSnapshot,
   publicEntries: LandingObservation[],
   civicContexts: Map<string, CivicObservationContext>,
-  options: { ownPage?: LandingFeedPage | null; canWriteIdentification?: boolean } = {},
+  options: {
+    ownPage?: LandingFeedPage | null;
+    canWriteIdentification?: boolean;
+    heldIdentificationOccurrenceIds?: Set<string>;
+    needsIdNextCursor?: string | null;
+  } = {},
 ): string {
   const copy = recordsWorkbenchCopy(lang);
   const ownEntries = snapshot.viewerUserId ? (options.ownPage?.entries ?? snapshot.myFeed) : [];
-  const entries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
+  const heldIdentificationOccurrenceIds = options.heldIdentificationOccurrenceIds ?? new Set<string>();
+  const entries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries)
+    .filter((entry) => view !== "needs_id" || !heldIdentificationOccurrenceIds.has(entry.occurrenceId));
   const locationMode = view === "mine" && snapshot.viewerUserId ? "owner" : "public";
-  const lazyEndpoint = withBasePath(basePath, "/api/v1/records/mine-page");
+  const lazyEndpoint = view === "needs_id"
+    ? withBasePath(basePath, "/api/v1/records/needs-id-page")
+    : withBasePath(basePath, "/api/v1/records/mine-page");
   const canLazyLoadMine = view === "mine" && Boolean(snapshot.viewerUserId);
   const isIdentifyView = view === "needs_id";
+  const canLazyLoadNeedsId = isIdentifyView && Boolean(options.needsIdNextCursor);
   const canWriteIdentification = Boolean(options.canWriteIdentification);
   return `<div class="records-workbench${isIdentifyView ? " has-identify-panel" : ""}" data-testid="records-workbench"${isIdentifyView ? " data-records-identify-workbench" : ""}>
     <header class="records-topbar">
@@ -12480,17 +12610,18 @@ function renderRecordsWorkbench(
       </div>
     </header>
     <main class="records-main${isIdentifyView ? " is-identify" : ""}">
-      <section class="records-grid-panel" data-notes-library${canLazyLoadMine ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
+      <section class="records-grid-panel" data-notes-library${canLazyLoadMine || canLazyLoadNeedsId ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
         ${renderRecordsCollapsedControls(lang)}
         ${entries.length > 0
           ? renderRecordsPostMonths(basePath, lang, view, entries, { locationMode, civicContexts })
           : `<div class="notes-library-empty">${escapeHtml(copy.empty)}</div>`}
         ${canLazyLoadMine ? renderRecordsLazyFooter(lang, options.ownPage?.nextCursor ?? null) : ""}
+        ${canLazyLoadNeedsId ? renderRecordsLazyFooter(lang, options.needsIdNextCursor ?? null) : ""}
       </section>
       ${isIdentifyView ? renderRecordsIdentifyPanel(basePath, lang, entries, { locationMode, canWrite: canWriteIdentification, civicContexts }) : ""}
     </main>
     ${renderNotesLibraryScript(lang)}
-    ${canLazyLoadMine ? renderRecordsLazyScript(lang) : ""}
+    ${canLazyLoadMine || canLazyLoadNeedsId ? renderRecordsLazyScript(lang) : ""}
     ${isIdentifyView ? renderRecordsIdentifyPanelScript(lang) : ""}
   </div>`;
 }
@@ -13101,6 +13232,15 @@ const RECORDS_WORKBENCH_STYLES = `
     padding: 8px 10px;
     resize: vertical;
   }
+  .records-identify-ai-prefill {
+    display: block;
+    margin-top: -4px;
+    color: #92400e;
+    font-size: 10.5px;
+    line-height: 1.35;
+    font-weight: 850;
+  }
+  .records-identify-ai-prefill[hidden] { display: none; }
   .records-identify-command-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -13218,6 +13358,17 @@ const RECORDS_WORKBENCH_STYLES = `
     font-size: 11px;
     font-weight: 780;
   }
+  .records-identify-reference-waiver {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #475569;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 850;
+  }
+  .records-identify-reference-waiver input { width: 16px; height: 16px; accent-color: #047857; }
   .records-identify-login {
     padding: 9px 10px;
     border-radius: 10px;
@@ -17699,6 +17850,33 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true, candidates };
   });
 
+  app.get<{ Querystring: { cursor?: string; limit?: string; lang?: string } }>("/api/v1/records/needs-id-page", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String(request.query.lang ? `?lang=${request.query.lang}` : (request as unknown as { url?: string }).url ?? ""));
+    const session = await getSessionFromCookie(request.headers.cookie).catch(() => null);
+    const offset = Math.max(0, Number.parseInt(String(request.query.cursor ?? "0"), 10) || 0);
+    const pageSize = Math.max(12, Math.min(72, Number.parseInt(String(request.query.limit ?? "36"), 10) || 36));
+    const snapshot = await getObservationListSnapshot(offset + pageSize);
+    const heldIds = await listHeldIdentificationOccurrenceIds(session?.userId);
+    const entries = snapshot.observations
+      .slice(offset, offset + pageSize)
+      .map(publicObservationToLandingObservation)
+      .filter((entry) => recordsNeedsId(entry) && !heldIds.has(entry.occurrenceId));
+    const civicContexts = await listCivicObservationContexts(entries.map((obs) => obs.visitId));
+    const nextCursor = snapshot.observations.length >= offset + pageSize
+      ? String(offset + pageSize)
+      : null;
+    return {
+      ok: true,
+      nextCursor,
+      hasMore: Boolean(nextCursor),
+      months: renderRecordsPostMonthPayload(basePath, lang, "needs_id", entries, {
+        locationMode: "public",
+        civicContexts,
+      }),
+    };
+  });
+
   app.get<{ Querystring: { view?: string; filter?: string; userId?: string } }>("/records", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
@@ -17724,6 +17902,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const ownEntries = snapshot.viewerUserId ? (ownPage?.entries ?? snapshot.myFeed) : [];
     const activeEntries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
     const civicContexts = await listCivicObservationContexts(activeEntries.map((obs) => obs.visitId));
+    const heldIdentificationOccurrenceIds = view === "needs_id"
+      ? await listHeldIdentificationOccurrenceIds(session?.userId)
+      : new Set<string>();
+    const needsIdNextCursor = view === "needs_id" && observationSnapshot.observations.length >= 96
+      ? String(observationSnapshot.observations.length)
+      : null;
     const copy = recordsWorkbenchCopy(lang);
 
     reply.type("text/html; charset=utf-8");
@@ -17736,7 +17920,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       shellClassName: "shell-bleed shell-records-workbench",
       extraStyles: `${NOTES_LIBRARY_STYLES}\n${RECORDS_WORKBENCH_STYLES}`,
       hideFooter: true,
-      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, { ownPage, canWriteIdentification: Boolean(session) }),
+      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, {
+        ownPage,
+        canWriteIdentification: Boolean(session),
+        heldIdentificationOccurrenceIds,
+        needsIdNextCursor,
+      }),
       footerNote: notesLibraryCopy(lang).footerNote,
     });
   });

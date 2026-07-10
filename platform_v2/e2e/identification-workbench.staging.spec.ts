@@ -33,7 +33,8 @@ test("identification workbench saves selected reference to the detail history", 
 
     const referenceOption = page.locator(".records-identify-reference-option", { hasText: fixture.reference.title }).first();
     await expect(referenceOption).toBeVisible();
-    await expect(referenceOption.locator('input[name="referenceSourceIds"]')).toBeChecked();
+    await expect(referenceOption.locator('input[name="referenceSourceIds"]')).not.toBeChecked();
+    await referenceOption.locator('input[name="referenceSourceIds"]').check();
     await page.locator("[data-identify-panel-reference-locator]").fill(fixture.reference.locator);
     await page.locator('[data-identify-panel-action="support"]').click();
     await expect(page.locator("[data-identify-panel-status]")).toContainText("保存しました");

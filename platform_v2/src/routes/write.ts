@@ -59,6 +59,7 @@ import { adoptObservationCandidate } from "../services/observationCandidateAdopt
 import { proposeObservationSubjectFromCandidate } from "../services/observationSubjectProposal.js";
 import { confirmManagementActionCandidate } from "../services/managementActionConfirmation.js";
 import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
+import { holdIdentificationWorkbenchItem } from "../services/identificationWorkbenchHolds.js";
 import { hideOwnObservation } from "../services/observationVisibility.js";
 import {
   confirmReferenceDuplicateMerge,
@@ -1092,6 +1093,30 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: false,
         error: error instanceof Error ? error.message : "dispute_submit_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: { reason?: string | null };
+  }>("/api/v1/observations/:id/identification-workbench-hold", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+      await assertMutationRateLimit(request, "identification-workbench-hold", session.userId, 60);
+      return await holdIdentificationWorkbenchItem({
+        occurrenceId: request.params.id,
+        actorUserId: session.userId,
+        reason: request.body?.reason ?? null,
+      });
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "identification_workbench_hold_failed",
       };
     }
   });

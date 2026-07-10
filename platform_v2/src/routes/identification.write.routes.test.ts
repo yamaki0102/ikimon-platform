@@ -64,6 +64,25 @@ test("AI judgement review requires a session", async () => {
   }
 });
 
+test("identification workbench hold requires a session", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/observations/occ-1/identification-workbench-hold",
+      headers: { "content-type": "application/json" },
+      payload: {
+        reason: "Review later.",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.json().error, "session_required");
+  } finally {
+    await app.close();
+  }
+});
+
 test("specialist dispute resolution requires a session before touching DB", async () => {
   const app = buildApp();
   try {
@@ -128,8 +147,21 @@ test("public observation write routes apply per-user rate limits", async () => {
   assert.match(source, /"observation-photo-upload"/);
   assert.match(source, /"observation-identification"/);
   assert.match(source, /"observation-dispute"/);
+  assert.match(source, /"identification-workbench-hold"/);
   assert.match(source, /"video-direct-upload"/);
   assert.match(source, /"video-finalize"/);
+});
+
+test("identification workbench hold has a migration and service guard", async () => {
+  const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0118_identification_workbench_holds.sql"), "utf8");
+  const service = await readFile(path.join(process.cwd(), "src", "services", "identificationWorkbenchHolds.ts"), "utf8");
+  const route = await readFile(path.join(process.cwd(), "src", "routes", "write.ts"), "utf8");
+
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS identification_workbench_holds/);
+  assert.match(migration, /UNIQUE \(occurrence_id, actor_user_id\)/);
+  assert.match(service, /holdIdentificationWorkbenchItem/);
+  assert.match(service, /listHeldIdentificationOccurrenceIds/);
+  assert.match(route, /identification-workbench-hold/);
 });
 
 test("reference duplicate merge preserves evidence before marking duplicate", async () => {

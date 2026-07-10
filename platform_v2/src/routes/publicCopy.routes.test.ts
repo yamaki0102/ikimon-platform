@@ -302,6 +302,7 @@ test("identification workbench panel keeps continuous actions in the records sur
   assert.match(source, /data-identify-panel-action="hold"/);
   assert.match(source, /data-identify-endpoint=/);
   assert.match(source, /data-dispute-endpoint=/);
+  assert.match(source, /data-hold-endpoint=/);
   assert.match(source, /data-identify-panel-restore/);
   assert.match(source, /data-identify-panel-keep/);
   assert.match(source, /data-identify-processed/);
@@ -310,6 +311,21 @@ test("identification workbench panel keeps continuous actions in the records sur
   assert.match(source, /data-identify-panel-reference-capture/);
   assert.match(source, /taxonHint/);
   assert.match(source, /referenceSourceIds: referenceSourceIds/);
+  assert.match(source, /AI候補/);
+  assert.match(source, /data-identify-panel-ai-prefill-marker/);
+  assert.match(source, /data-ai-prefill-value/);
+  assert.match(source, /input\.checked = false/);
+  assert.doesNotMatch(source, /input\.checked = Boolean\(candidate\.owned\)/);
+  assert.match(source, /data-identify-panel-cleared/);
+  assert.match(source, /data-identify-panel-reference-waiver/);
+  assert.match(source, /copy\.referenceRequired/);
+  assert.match(source, /identification-workbench-hold/);
+  assert.match(source, /records:lazy-appended/);
+  assert.match(source, /api\/v1\/records\/needs-id-page/);
+  assert.match(source, /event\.key === '1'/);
+  assert.match(source, /event\.key === 'K'/);
+  assert.match(source, /event\.key === '4'/);
+  assert.match(source, /copy\.saveFailed/);
 });
 
 test("observation detail visible identification history includes reference evidence", async () => {
