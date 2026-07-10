@@ -1,0 +1,48 @@
+name: Rally Shadow Guard Diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'agent/worker-rally-auto-match'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+      - name: Install Worker dependencies
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm ci
+      - name: Capture shadow guard output
+        id: guard
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +e
+          node scripts/deploy-shadow-guard.mjs --test-profile quick --write-preflight-report .deploy/rally-shadow-diagnostic.json > rally-shadow-guard.log 2>&1
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          tail -n 220 rally-shadow-guard.log || true
+          exit 0
+      - name: Upload diagnostic
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: rally-shadow-guard-diagnostics
+          path: |
+            platform_v2/cloudflare_shadow/rally-shadow-guard.log
+            platform_v2/cloudflare_shadow/.deploy/rally-shadow-diagnostic.json
+          if-no-files-found: warn
+      - name: Preserve failure
+        if: steps.guard.outputs.exit_code != '0'
+        run: exit 1
