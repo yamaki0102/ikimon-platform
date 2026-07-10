@@ -1,0 +1,40 @@
+name: Diagnose Production Smoke Cleanup
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'agent/production-smoke-cleanup'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/production-smoke-cleanup
+          fetch-depth: 0
+      - name: Fetch historical remediation branch
+        shell: bash
+        run: git fetch origin codex/fix-production-qa-p0-p1-20260710 --depth=1
+      - name: Collect current and historical smoke sources
+        shell: bash
+        run: |
+          mkdir -p production-smoke-diagnostic/current production-smoke-diagnostic/historical
+          for file in \
+            platform_v2/cloudflare_shadow/src/index.ts \
+            platform_v2/cloudflare_shadow/src/index.test.ts \
+            platform_v2/e2e/production-smoke.spec.ts; do
+            name=$(basename "$file")
+            cp "$file" "production-smoke-diagnostic/current/$name"
+            git show "FETCH_HEAD:$file" > "production-smoke-diagnostic/historical/$name"
+            git diff --no-index --unified=80 "production-smoke-diagnostic/current/$name" "production-smoke-diagnostic/historical/$name" > "production-smoke-diagnostic/$name.diff" || true
+          done
+      - name: Upload diagnostic sources
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-smoke-cleanup-diagnostic
+          path: production-smoke-diagnostic
+          if-no-files-found: error
