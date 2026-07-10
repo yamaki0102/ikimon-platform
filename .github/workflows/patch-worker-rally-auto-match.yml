@@ -1,0 +1,38 @@
+name: Patch Worker Rally Auto Match
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/worker-rally-auto-match' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/worker-rally-auto-match
+          fetch-depth: 0
+      - name: Apply scoped Worker rally parity patch
+        run: python scripts/patch-worker-rally-auto-match.py
+      - name: Remove temporary patch files
+        shell: bash
+        run: |
+          rm .github/workflows/patch-worker-rally-auto-match.yml
+          rm scripts/patch-worker-rally-auto-match.py
+      - name: Commit runtime, tests and boundary disposition
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add platform_v2/cloudflare_shadow/src/index.ts \
+            platform_v2/cloudflare_shadow/src/index.test.ts \
+            platform_v2/cloudflare_shadow/scripts/d1-migration-boundary-report.mjs \
+            .github/workflows/patch-worker-rally-auto-match.yml \
+            scripts/patch-worker-rally-auto-match.py
+          git diff --cached --check
+          git commit -m "feat: auto-match observations to active rallies on D1"
+          git push origin HEAD:agent/worker-rally-auto-match
