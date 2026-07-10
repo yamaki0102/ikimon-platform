@@ -1,0 +1,47 @@
+name: Reapply Worker Authz
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/worker-place-memory-authz' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/worker-place-memory-authz
+          fetch-depth: 0
+      - name: Fetch scoped source branch
+        shell: bash
+        run: |
+          git fetch origin agent/worker-place-memory-authz-source --depth=1
+          mkdir -p .tmp-worker-authz-source
+          git show FETCH_HEAD:platform_v2/cloudflare_shadow/src/index.ts > .tmp-worker-authz-source/index.ts
+          git show FETCH_HEAD:platform_v2/cloudflare_shadow/src/index.test.ts > .tmp-worker-authz-source/index.test.ts
+          git show FETCH_HEAD:platform_v2/cloudflare_shadow/src/workerAuthzContract.test.ts > .tmp-worker-authz-source/workerAuthzContract.test.ts
+      - name: Apply scoped authorization changes
+        run: python scripts/reapply-worker-authz.py
+      - name: Remove temporary patch files
+        shell: bash
+        run: |
+          rm -rf .tmp-worker-authz-source
+          rm .github/workflows/reapply-worker-authz.yml
+          rm scripts/reapply-worker-authz.py
+      - name: Commit latest-main authz implementation
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add platform_v2/cloudflare_shadow/src/index.ts \
+            platform_v2/cloudflare_shadow/src/index.test.ts \
+            platform_v2/cloudflare_shadow/src/workerAuthzContract.test.ts \
+            .github/workflows/reapply-worker-authz.yml \
+            scripts/reapply-worker-authz.py
+          git diff --cached --check
+          git commit -m "security: reapply Worker authz on latest main"
+          git push origin HEAD:agent/worker-place-memory-authz
