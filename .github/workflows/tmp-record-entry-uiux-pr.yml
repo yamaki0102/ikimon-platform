@@ -30,7 +30,9 @@ jobs:
           cache-dependency-path: platform_v2/package-lock.json
 
       - name: Apply focused UI and posting fix
-        run: python3 .github/scripts/apply-record-entry-uiux-patch.py
+        run: |
+          python3 .github/scripts/apply-record-entry-uiux-patch.py
+          python3 .github/scripts/adjust-record-entry-uiux-tests.py
 
       - name: Install dependencies
         working-directory: platform_v2
@@ -63,7 +65,7 @@ jobs:
         run: |
           git config user.name "ikimon-ui-patch-bot"
           git config user.email "actions@users.noreply.github.com"
-          git rm .github/workflows/tmp-record-entry-uiux-pr.yml .github/scripts/apply-record-entry-uiux-patch.py
+          git rm .github/workflows/tmp-record-entry-uiux-pr.yml .github/scripts/apply-record-entry-uiux-patch.py .github/scripts/adjust-record-entry-uiux-tests.py
           git add platform_v2/src/ui/siteShell.ts platform_v2/src/ui/siteShell.test.ts
           git commit -m "fix(ui): keep mobile photo posts in the quick record flow"
           git push origin "HEAD:${HEAD_BRANCH}"
