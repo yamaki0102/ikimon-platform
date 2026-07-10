@@ -116,6 +116,8 @@ test("self profile hub compacts an empty bio and keeps account utilities separat
   assert.doesNotMatch(html, /自己紹介はまだありません。/);
   assert.match(html, /data-testid="profile-account-utilities"/);
   assert.match(html, /ログアウト/);
+  assert.match(html, /<form method="post" action="\/logout"><button class="is-danger" type="submit">ログアウト<\/button><\/form>/);
+  assert.doesNotMatch(html, /href="\/logout"/);
 });
 
 test("self profile channel uses real fallback labels instead of English placeholders", () => {
