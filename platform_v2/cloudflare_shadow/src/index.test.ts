@@ -2479,6 +2479,38 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT OR IGNORE INTO observation_rally_submissions")) {
+      const duplicate = [...this.db.observationRallySubmissions.values()].find((row) =>
+        row.mission_id === string(v[3]) &&
+        row.source_type === "observation_auto_match" &&
+        row.source_ref === string(v[6]) &&
+        row.user_id === string(v[5]) &&
+        row.guest_token === null
+      );
+      if (duplicate) return { meta: { changes: 0 } };
+      this.db.observationRallySubmissions.set(string(v[0]), {
+        submission_id: string(v[0]),
+        session_id: string(v[1]),
+        course_id: string(v[2]),
+        mission_id: string(v[3]),
+        station_id: nullableString(v[4]),
+        user_id: nullableString(v[5]),
+        guest_token: null,
+        team_id: null,
+        source_type: "observation_auto_match",
+        source_ref: nullableString(v[6]),
+        count_value: 1,
+        public_lat: nullableNumber(v[7]),
+        public_lng: nullableNumber(v[8]),
+        payload_json: string(v[9]),
+        review_status: string(v[10]),
+        reviewed_by: null,
+        reviewed_at: null,
+        created_at: new Date().toISOString()
+      });
+      return { meta: { changes: 1 } };
+    }
+
     if (normalized.startsWith("INSERT INTO observation_rally_submissions")) {
       this.db.observationRallySubmissions.set(string(v[0]), {
         submission_id: string(v[0]),
@@ -5283,6 +5315,17 @@ class FakeStatement {
       return (row as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT submission_id FROM observation_rally_submissions WHERE mission_id = ?")) {
+      const row = [...this.db.observationRallySubmissions.values()].find((candidate) =>
+        candidate.mission_id === string(v[0]) &&
+        candidate.source_type === "observation_auto_match" &&
+        candidate.source_ref === string(v[1]) &&
+        candidate.user_id === string(v[2]) &&
+        candidate.guest_token === null
+      );
+      return (row ? { submission_id: row.submission_id } : null) as T | null;
+    }
+
     if (normalized.startsWith("SELECT submission_id, session_id, course_id, mission_id")) {
       const row = this.db.observationRallySubmissions.get(string(v[0]));
       return (row as T | undefined) ?? null;
@@ -6142,6 +6185,65 @@ class FakeStatement {
         .sort((a, b) => a.created_at.localeCompare(b.created_at));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT course.session_id AS session_id, course.course_id AS course_id, mission.mission_id AS mission_id")) {
+      const observedAt = Date.parse(string(v[0]));
+      const rows = [...this.db.observationRallyCourses.values()].flatMap((course) => {
+        if (course.status !== "live") return [];
+        const eventSession = this.db.observationEventSessions.get(course.session_id);
+        if (!eventSession) return [];
+        const startedAt = Date.parse(eventSession.started_at);
+        const endedAt = eventSession.ended_at ? Date.parse(eventSession.ended_at) : Number.POSITIVE_INFINITY;
+        if (!Number.isFinite(observedAt) || observedAt < startedAt || observedAt > endedAt) return [];
+        return [...this.db.observationRallyMissions.values()].flatMap((mission) => {
+          if (mission.course_id !== course.course_id || mission.status !== "published") return [];
+          if (!['station_required', 'any_registered_station'].includes(mission.location_binding)) return [];
+          const startsAt = mission.starts_at ? Date.parse(mission.starts_at) : Number.NEGATIVE_INFINITY;
+          const endsAt = mission.ends_at ? Date.parse(mission.ends_at) : Number.POSITIVE_INFINITY;
+          if (observedAt < startsAt || observedAt > endsAt) return [];
+          return [...this.db.observationRallyStations.values()]
+            .filter((station) =>
+              station.course_id === course.course_id &&
+              station.status === "open" &&
+              station.lat !== null &&
+              station.lng !== null &&
+              station.radius_m !== null &&
+              station.radius_m > 0 &&
+              (mission.station_id === station.station_id || (mission.location_binding === 'any_registered_station' && mission.station_id === null))
+            )
+            .map((station) => ({
+              session_id: course.session_id,
+              course_id: course.course_id,
+              mission_id: mission.mission_id,
+              mission_course_id: mission.course_id,
+              station_id: mission.station_id,
+              replacement_for_mission_id: mission.replacement_for_mission_id,
+              scope: mission.scope,
+              location_binding: mission.location_binding,
+              title: mission.title,
+              target: mission.target,
+              count_unit: mission.count_unit,
+              goal_count: mission.goal_count,
+              counting_policy_json: mission.counting_policy_json,
+              verification_policy: mission.verification_policy,
+              weather_sensitivity: mission.weather_sensitivity,
+              fallback_group: mission.fallback_group,
+              status: mission.status,
+              starts_at: mission.starts_at,
+              ends_at: mission.ends_at,
+              sort_order: mission.sort_order,
+              created_by: mission.created_by,
+              created_at: mission.created_at,
+              updated_at: mission.updated_at,
+              matched_station_id: station.station_id,
+              station_lat: station.lat,
+              station_lng: station.lng,
+              station_radius_m: station.radius_m
+            }));
+        });
+      });
+      return { results: rows as T[] };
+    }
+
     if (normalized.startsWith("SELECT station_id, course_id, field_id, code, name")) {
       const courseId = string(v[0]);
       const rows = [...this.db.observationRallyStations.values()]
@@ -16067,6 +16169,52 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(mission.status, 201);
     const missionPayload = await mission.json() as any;
 
+    const autoMission = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/rally/missions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ station_id: stationPayload.station.stationId, scope: "event", location_binding: "station_required", title: "通常記録で通過", target: "水辺の記録", goal_count: 1, status: "published" })
+    }), productionEnv);
+    assert.equal(autoMission.status, 201);
+    const autoMissionPayload = await autoMission.json() as any;
+
+    const autoObservationRequest = () => new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        observationId: "obs-rally-auto-match-1",
+        userId: "event-organizer",
+        observedAt: "2026-06-25T10:20:00.000Z",
+        latitude: 34.97564,
+        longitude: 138.38284,
+        municipality: "静岡市",
+        prefecture: "静岡県",
+        taxon: { vernacularName: "トンボ" }
+      })
+    });
+    const autoObservation = await worker.fetch(autoObservationRequest(), productionEnv);
+    assert.equal(autoObservation.status, 201);
+    const autoSubmissions = [...obs.observationRallySubmissions.values()].filter((row) =>
+      row.source_type === "observation_auto_match" && row.source_ref === "obs-rally-auto-match-1"
+    );
+    assert.equal(autoSubmissions.length, 1);
+    assert.equal(autoSubmissions[0]?.mission_id, autoMissionPayload.mission.missionId);
+    assert.equal(autoSubmissions[0]?.public_lat, 34.976);
+    assert.equal(autoSubmissions[0]?.public_lng, 138.383);
+    const autoPayload = JSON.parse(autoSubmissions[0]?.payload_json ?? "{}") as Record<string, unknown>;
+    assert.equal(autoPayload.exact_location_used, true);
+    assert.equal(autoPayload.exact_location_stored, false);
+    assert.equal("exact_lat" in autoPayload, false);
+    assert.equal("exact_lng" in autoPayload, false);
+    const autoProgress = [...obs.observationRallyProgress.values()].find((row) => row.mission_id === autoMissionPayload.mission.missionId);
+    assert.equal(autoProgress?.percent, 100);
+
+    const autoObservationRetry = await worker.fetch(autoObservationRequest(), productionEnv);
+    assert.equal(autoObservationRetry.status, 201);
+    assert.equal([...obs.observationRallySubmissions.values()].filter((row) =>
+      row.source_type === "observation_auto_match" && row.source_ref === "obs-rally-auto-match-1"
+    ).length, 1);
+    assert.equal([...obs.observationRallyProgress.values()].find((row) => row.mission_id === autoMissionPayload.mission.missionId)?.percent, 100);
+
     const submission = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/rally/submissions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -16080,8 +16228,12 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(rallyPayload.rally.course.title, "ゆるい観察ラリー");
     assert.equal(rallyPayload.rally.stations.length, 1);
     assert.equal(rallyPayload.rally.missions.length, 1);
-    assert.equal(rallyPayload.rally.progress[0].percent, 150);
-    assert.equal(rallyPayload.rally.progress[0].status, "exceeded");
+    const manualProgress = rallyPayload.rally.progress.find((row: any) => row.missionId === missionPayload.mission.missionId);
+    const autoMatchedProgress = rallyPayload.rally.progress.find((row: any) => row.missionId === autoMissionPayload.mission.missionId);
+    assert.equal(manualProgress.percent, 150);
+    assert.equal(manualProgress.status, "exceeded");
+    assert.equal(autoMatchedProgress.percent, 100);
+    assert.equal(autoMatchedProgress.status, "reached");
 
     const liveEventCountBeforeUnauthorized = obs.observationEventLiveEvents.length;
     const unauthorizedObservation = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {

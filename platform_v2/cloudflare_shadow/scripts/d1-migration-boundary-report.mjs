@@ -159,6 +159,7 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/publicMapSnapshotOpsAlerts.ts": "cloudflare_public_map_snapshot_ops_inventory",
     "platform_v2/src/routes/observationEventApi.ts": "cloudflare_observation_event_core_api",
     "platform_v2/src/services/observationRally.ts": "cloudflare_observation_rally_api",
+    "platform_v2/src/services/observationRallyAutoMatch.ts": "cloudflare_observation_rally_post_save_auto_match",
     "platform_v2/src/services/authSession.ts": "cloudflare_auth_session_api",
     "platform_v2/src/services/authUsers.ts": "cloudflare_auth_user_account_api",
     "platform_v2/src/services/observationWrite.ts": "cloudflare_observation_write_api",
