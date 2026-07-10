@@ -183,15 +183,26 @@ jobs:
         working-directory: platform_v2/cloudflare_shadow
         run: npx wrangler d1 migrations apply OBS_DB --remote --env production
 
-      - name: Deploy Cloudflare Worker
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm run deploy:production:fast
-
       - name: Materialize original UI into production R2
         working-directory: platform_v2/cloudflare_shadow
         run: |
           set -euo pipefail
           npm run materialize:original-ui -- --skip-if-unchanged --output materialize-original-ui.json
+          node <<'NODE' >> "$GITHUB_ENV"
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync("materialize-original-ui.json", "utf8"));
+          if (!report.bundleHash || !report.manifestUpload?.sha256) {
+            throw new Error("Materialized UI release identity is incomplete.");
+          }
+          console.log(`IKIMON_UI_BUNDLE_HASH=${report.bundleHash}`);
+          console.log(`IKIMON_UI_MANIFEST_HASH=${report.manifestUpload.sha256}`);
+          NODE
+          echo "IKIMON_WORKER_VERSION=github-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
+          echo "IKIMON_DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Deploy Cloudflare Worker
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run deploy:production:fast
 
       - name: Write Cloudflare deploy summary
         working-directory: platform_v2/cloudflare_shadow
@@ -332,6 +343,21 @@ jobs:
             echo "Production runtime version endpoint is missing its public-safe reflection contract: $runtime_payload"
             exit 1
           fi
+          node -e '
+            const payload = JSON.parse(process.argv[1]);
+            const expectedSha = process.env.GITHUB_SHA;
+            if (payload.gitSha !== expectedSha) throw new Error(`runtime SHA mismatch: ${payload.gitSha} != ${expectedSha}`);
+            for (const key of ["workerVersion", "uiBundleHash", "originalUiManifestHash", "deployedAt"]) {
+              if (typeof payload[key] !== "string" || !payload[key]) throw new Error(`runtime release field missing: ${key}`);
+            }
+          ' "$runtime_payload"
+          home_headers="$(mktemp)"
+          home_body="$(curl -fsS -D "$home_headers" -H 'cache-control: no-store' "https://ikimon.life/ja/?deploy_release=${GITHUB_SHA}")"
+          grep -Fq 'data-global-record-trigger="photo"' <<< "$home_body"
+          grep -Fq 'data-kpi-action="header_record_photo"' <<< "$home_body"
+          grep -qi "^x-ikimon-deploy-sha: ${GITHUB_SHA}" "$home_headers"
+          grep -qi '^x-ikimon-ui-bundle: ' "$home_headers"
+          grep -qi '^x-ikimon-worker-version: ' "$home_headers"
           reflection_payload="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/qa/reflection-loop.json?deploy_smoke=${GITHUB_SHA}")"
           if [[ "$reflection_payload" != *'"service":"ikimon.life"'* || "$reflection_payload" != *'"runtime":"cloudflare-worker"'* || "$reflection_payload" != *'"no_personal_data":true'* || "$reflection_payload" != *'"/api/v1/runtime/version"'* ]]; then
             echo "Production reflection loop manifest is missing its public-safe contract: $reflection_payload"

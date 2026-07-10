@@ -377,7 +377,8 @@ async function readPreviousMaterializeManifest(tempDir, key) {
       "--file",
       filePath
     ]);
-    return JSON.parse(await readFile(filePath, "utf8"));
+    const manifestBody = await readFile(filePath, "utf8");
+    return { ...JSON.parse(manifestBody), __manifestSha256: sha256(manifestBody) };
   } catch (error) {
     console.warn(`Previous materialize manifest unavailable at ${key}; full R2 materialization will run.`);
     return null;
@@ -386,7 +387,9 @@ async function readPreviousMaterializeManifest(tempDir, key) {
 
 async function tryUploadMaterializeManifest(tempDir, key, manifest) {
   const filePath = join(tempDir, "__materialize_manifest.json");
-  await writeFile(filePath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  const manifestBody = `${JSON.stringify(manifest, null, 2)}\n`;
+  const manifestHash = sha256(manifestBody);
+  await writeFile(filePath, manifestBody, "utf8");
   try {
     await runR2PutWithRetry([
       "wrangler",
@@ -403,7 +406,7 @@ async function tryUploadMaterializeManifest(tempDir, key, manifest) {
       uploadCacheControl,
       "--force"
     ], key);
-    return { ok: true, key };
+    return { ok: true, key, sha256: manifestHash };
   } catch (error) {
     console.warn(`Materialize manifest upload failed at ${key}; deploy output is kept, future skips are disabled until the next successful manifest write.`);
     return { ok: false, key, error: error.message };
@@ -561,7 +564,8 @@ try {
             schemaVersion: previousManifest.schemaVersion ?? null,
             bundleHash: previousManifest.bundleHash ?? null,
             generatedAt: previousManifest.generatedAt ?? null,
-            itemCount: previousManifest.itemCount ?? null
+            itemCount: previousManifest.itemCount ?? null,
+            manifestSha256: previousManifest.__manifestSha256 ?? null
           }
         : null;
       if (
@@ -646,7 +650,13 @@ try {
       };
     }
   } else if (materializeSkipped) {
-    manifestUpload = { ok: true, key: manifestKey, skipped: true, reason: "unchanged_bundle" };
+    manifestUpload = {
+      ok: true,
+      key: manifestKey,
+      skipped: true,
+      reason: "unchanged_bundle",
+      sha256: previousManifestSummary?.manifestSha256 ?? null
+    };
   }
 } finally {
   await app.close();

@@ -6,6 +6,13 @@ import { dirname, resolve } from "node:path";
 const requiredApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const productionWorkerUrl = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
 const productionPublicUrl = "https://ikimon.life";
+const releaseVars = {
+  IKIMON_GIT_SHA: process.env.GITHUB_SHA ?? "",
+  IKIMON_WORKER_VERSION: process.env.IKIMON_WORKER_VERSION ?? "",
+  IKIMON_UI_BUNDLE_HASH: process.env.IKIMON_UI_BUNDLE_HASH ?? "",
+  IKIMON_UI_MANIFEST_HASH: process.env.IKIMON_UI_MANIFEST_HASH ?? "",
+  IKIMON_DEPLOYED_AT: process.env.IKIMON_DEPLOYED_AT ?? ""
+};
 const defaultPreflightReportPath = ".deploy/production-preflight-latest.json";
 const defaultWranglerVersionCachePath = ".deploy/wrangler-version-cache.json";
 const defaultMaxPreflightAgeMinutes = 360;
@@ -313,9 +320,13 @@ function assertFreshPreflightReport(report, state) {
     throw new Error(`Fast deploy refused: preflight report is stale (${Math.round(ageMinutes)} minutes).`);
   }
   const profile = typeof report.testProfile === "string" ? report.testProfile : "full";
-  const requiredCommands = ["npm run check", testCommandForProfile(profile).commandLine, "npx wrangler deploy --env production --dry-run"];
-  const commandSet = new Set((report.events ?? []).map((event) => event.command));
+  const requiredCommands = ["npm run check", testCommandForProfile(profile).commandLine];
+  const commands = (report.events ?? []).map((event) => event.command);
+  const commandSet = new Set(commands);
   const missingCommands = requiredCommands.filter((command) => !commandSet.has(command));
+  if (!commands.some((command) => command.startsWith("npx wrangler deploy --env production --dry-run"))) {
+    missingCommands.push("npx wrangler deploy --env production --dry-run [...release vars]");
+  }
   if (missingCommands.length) {
     throw new Error(`Fast deploy refused: preflight report missing ${missingCommands.join(", ")}.`);
   }
@@ -413,11 +424,20 @@ if (fast) {
   await run(testCommand.command, testCommand.args);
 }
 await runWranglerVersionGate(initialState);
-await run("npx", ["wrangler", "deploy", "--env", "production", "--dry-run"]);
+function wranglerDeployArgs(dryRun = false) {
+  const args = ["wrangler", "deploy", "--env", "production"];
+  if (dryRun) args.push("--dry-run");
+  for (const [key, value] of Object.entries(releaseVars)) {
+    if (value.trim()) args.push("--var", `${key}:${value.trim()}`);
+  }
+  return args;
+}
+
+await run("npx", wranglerDeployArgs(true));
 
 if (execute) {
   try {
-    await run("npx", ["wrangler", "deploy", "--env", "production"]);
+    await run("npx", wranglerDeployArgs());
   } catch (error) {
     if (!isTolerableWranglerRouteUpdateFailure(error)) throw error;
     events.push({
