@@ -2,6 +2,7 @@ import { getPool } from "../db.js";
 import { appendLiveEvent } from "./observationEventLive.js";
 import { runQuestGeneration } from "./observationEventQuestEngine.js";
 import { recordMeshVisit } from "./observationEventEffort.js";
+import { autoMatchObservationToActiveRallies } from "./observationRallyAutoMatch.js";
 
 /**
  * 観察投稿が観察会(observation_event_sessions)に紐付いていれば、
@@ -127,15 +128,32 @@ export async function hookObservationToEvent(args: {
   body: ObservationLikeInput;
   result: ObservationLikeResult;
 }): Promise<void> {
-  const sessionId = await resolveLiveEventSession(args.body);
-  if (!sessionId) return;
-
   const teamId = asString(args.body.teamId);
   const userId = asString(args.body.userId);
   const lat = asNumber(args.body.latitude);
   const lng = asNumber(args.body.longitude);
   const observedAt = asString(args.body.observedAt);
   const taxonName = extractTaxonName(args.body);
+
+  if (userId && args.result.visitId && lat !== null && lng !== null) {
+    try {
+      await autoMatchObservationToActiveRallies({
+        userId,
+        visitId: args.result.visitId,
+        occurrenceId: args.result.occurrenceId ?? null,
+        lat,
+        lng,
+        observedAt,
+      });
+    } catch (err) {
+      // 通常投稿は成功済み。ラリー判定の失敗で投稿結果を巻き戻さない。
+      // eslint-disable-next-line no-console
+      console.error("[observation-event-dual-write] observation rally auto-match failed", err);
+    }
+  }
+
+  const sessionId = await resolveLiveEventSession(args.body);
+  if (!sessionId) return;
 
   try {
     await appendLiveEvent({
