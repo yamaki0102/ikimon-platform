@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
+import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
 
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
@@ -36,6 +36,66 @@ test("map explorer localizes English fallback and failure chrome", () => {
   assert.doesNotMatch(script, /エリア情報を読み込み中/);
   assert.doesNotMatch(script, /AI候補/);
   assert.doesNotMatch(html, /詳細を広げる/);
+});
+
+test("map home opens as a regional encyclopedia instead of a raw point finder", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(html, /地域図鑑マップ/);
+  assert.match(html, /この範囲の地域図鑑/);
+  assert.match(html, /記録は地域単位で集計しています/);
+  assert.match(html, /余白 = これから育つ場所/);
+  assert.match(html, /色 = 季節と記録の厚み/);
+  assert.match(html, /面 = 場所ページ・エリア図鑑/);
+  assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="places"/);
+  assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers"/);
+  assert.match(script, /tab: 'places'/);
+});
+
+test("area sheets gate contribution CTAs behind public access evidence", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /function isSchoolArea\(area\)/);
+  assert.match(script, /幼稚園\|保育園\|こども園\|学園/);
+  assert.match(script, /function areaAccessStatus\(area, masking\)/);
+  assert.match(script, /function canSuggestAreaEvent\(area, masking\)/);
+  assert.match(script, /return areaAccessStatus\(area, masking\) === 'public_access';/);
+  assert.match(script, /function canSuggestDirectAreaRecord\(area, masking\)/);
+  assert.match(script, /function renderRestrictedAreaAction\(\)/);
+  assert.match(script, /COPY\.areaSchoolNotice/);
+  assert.match(script, /var canEvent = canSuggestAreaEvent\(f, masking\);/);
+  assert.match(script, /var canRecord = canSuggestDirectAreaRecord\(f, masking\);/);
+  assert.match(
+    script,
+    /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ followHtml \+ publicPageHtml \+ ctaHtml/,
+  );
+  assert.match(
+    script,
+    /renderAreaObservationGallery\(gallery, \{ label: COPY\.areaGalleryTitle, canRecord: canRecord \}\)/,
+  );
+});
+
+test("mobile map status clears the default area legend", () => {
+  assert.match(
+    MAP_EXPLORER_STYLES,
+    /@media \(max-width: 900px\)[\s\S]*\.me-map-status \{[\s\S]*bottom: 96px;/,
+  );
+});
+
+test("cell and blank map selections are aggregate and safety surfaces", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /title: COPY\.cellAggregateTitle/);
+  assert.match(script, /badge: COPY\.cellAggregateBadge/);
+  assert.match(script, /renderAggregateSafety\(COPY\.cellAggregateSafety\)/);
+  assert.match(script, /renderDetailHero\(\{ title: COPY\.selectedPointName, meta: '', badge: COPY\.selectionPlaceLabel \}\)/);
+  assert.match(script, /renderAggregateSafety\(COPY\.mapPointSafety\)/);
+  assert.doesNotMatch(script, /buildPointAreaEventHref/);
+  assert.doesNotMatch(script, /source: 'map_point_area'/);
+  assert.doesNotMatch(script, /FIELDS_NEW_BASE/);
+  assert.doesNotMatch(script, /title: COPY\.selectedPointName, meta: coordLabel/);
+  assert.doesNotMatch(script, /title: COPY\.cellAggregateTitle, meta: coordLabel/);
 });
 
 test("area sheet includes contribution feedback surface", () => {

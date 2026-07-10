@@ -44,6 +44,15 @@ cd platform_v2
 VISUAL_QA_ASSERT_SCREENSHOTS=1 npm run e2e:staging:site-map -- --update-snapshots
 ```
 
+### Release gate: public map snapshot alert lifecycle
+
+本番昇格前に staging workflow を `verify_level=full` で通し、
+`public_map_snapshot_alert_lifecycle` gate を成功させる。これは staging DB の
+`public_map_snapshots.generated_at` を意図的に古くし、stale alert 発火、
+`/ops/public-map-snapshot` の stale/fresh 遷移、refresh 後の自動 resolve を確認する。
+
+失敗時は public map の snapshot freshness / alert / admin 表示の release blocker として扱う。
+
 ## production v2 の canonical runtime
 
 - unit references: `ops/deploy/ikimon_v2_blue.service`, `ops/deploy/ikimon_v2_green.service`

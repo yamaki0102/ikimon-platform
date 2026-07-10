@@ -31,6 +31,27 @@ foreach ($url in $manifest.healthChecks) {
     }
 }
 
+if ($manifest.PSObject.Properties.Name -contains "releaseGates") {
+    foreach ($gate in @($manifest.releaseGates)) {
+        if (-not $gate.key) {
+            $issues.Add("staging manifest release gate is missing key")
+            continue
+        }
+
+        if ($workflowText -notmatch [regex]::Escape($gate.key)) {
+            $issues.Add("deploy-staging.yml does not reference release gate key: $($gate.key)")
+        }
+
+        if ($gate.PSObject.Properties.Name -contains "workflowMarkers") {
+            foreach ($marker in @($gate.workflowMarkers)) {
+                if ($workflowText -notmatch [regex]::Escape($marker)) {
+                    $issues.Add("deploy-staging.yml release gate '$($gate.key)' is missing marker: $marker")
+                }
+            }
+        }
+    }
+}
+
 if ($issues.Count -gt 0) {
     foreach ($issue in $issues) {
         Write-Error $issue

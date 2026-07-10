@@ -13,6 +13,7 @@ import { getSessionFromCookie } from "../services/authSession.js";
 import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 import { getReadinessSnapshot } from "../services/readiness.js";
+import { getPublicMapSnapshotStatus } from "../services/mapSnapshot.js";
 import { renderSiteDocument } from "../ui/siteShell.js";
 
 type BooksQuery = {
@@ -78,6 +79,10 @@ function digitizedBooksLoginGate(): string {
 export async function registerOpsRoutes(app: FastifyInstance): Promise<void> {
   app.get("/ops/readiness", async () => {
     return getReadinessSnapshot();
+  });
+
+  app.get("/ops/public-map-snapshot", async () => {
+    return getPublicMapSnapshotStatus();
   });
 
   app.get("/ops/digitized-books/data", async (request, reply) => {

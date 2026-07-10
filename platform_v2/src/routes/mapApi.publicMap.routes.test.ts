@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "../app.js";
+import { PUBLIC_MAP_AGGREGATE_POLICY } from "../services/mapSnapshot.js";
 
 test("public map observations require bbox or cell scope", async () => {
   const app = buildApp();
@@ -30,6 +31,7 @@ test("public map cells expose a feature collection contract", async () => {
     assert.equal(payload.type, "FeatureCollection");
     assert.ok(Array.isArray(payload.features));
     assert.ok(payload.stats && typeof payload.stats === "object");
+    assert.deepEqual((payload.stats as { privacy?: unknown }).privacy, PUBLIC_MAP_AGGREGATE_POLICY);
   } finally {
     await app.close();
   }
@@ -48,6 +50,7 @@ test("public map observations expose list items instead of point features", asyn
     assert.ok(Array.isArray(payload.items));
     assert.ok(!("features" in payload));
     assert.ok(payload.stats && typeof payload.stats === "object");
+    assert.deepEqual((payload.stats as { privacy?: unknown }).privacy, PUBLIC_MAP_AGGREGATE_POLICY);
   } finally {
     await app.close();
   }
@@ -63,6 +66,25 @@ test("map my-places endpoint is private-by-session and safe for guests", async (
 
     assert.equal(response.statusCode, 200);
     assert.deepEqual(response.json(), { signedIn: false, items: [] });
+  } finally {
+    await app.close();
+  }
+});
+
+test("ops public map snapshot endpoint exposes freshness metadata only", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/ops/public-map-snapshot",
+    });
+
+    assert.equal(response.statusCode, 200);
+    const payload = response.json() as Record<string, unknown>;
+    assert.equal(payload.snapshotKey, "public-map:v1:global");
+    assert.ok(["missing", "fresh", "stale", "error"].includes(String(payload.status)));
+    assert.ok(!("items" in payload));
+    assert.ok(!("features" in payload));
   } finally {
     await app.close();
   }

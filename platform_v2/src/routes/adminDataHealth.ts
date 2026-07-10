@@ -11,6 +11,7 @@ import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
 import { renderSiteDocument } from "../ui/siteShell.js";
 import { summarizeMonthlyCost, type AiCostLayer } from "../services/aiCostLogger.js";
 import { snapshotBudget } from "../services/aiBudgetGate.js";
+import { getPublicMapSnapshotStatus, type PublicMapSnapshotStatus } from "../services/mapSnapshot.js";
 
 type FreshnessRow = {
   registry_key: string;
@@ -26,6 +27,14 @@ type FreshnessRow = {
 
 type ClaimReviewSummary = { severity: string; pending: number };
 type StalenessSummary = { severity: string; pending: number };
+type StalenessAlertRow = {
+  registry_key: string;
+  alert_kind: string;
+  severity: string;
+  detected_at: string;
+  notified_at: string | null;
+  notes: string;
+};
 
 type AiRoleChainMetricRow = {
   chain_name: string;
@@ -115,9 +124,47 @@ function statusBadge(status: string): string {
     critical: "#ef4444",
     paused: "#6b7280",
     unknown: "#9ca3af",
+    missing: "#ef4444",
+    error: "#7f1d1d",
+    high: "#f97316",
+    normal: "#10b981",
+    low: "#6b7280",
   };
   const color = colorMap[status] ?? "#9ca3af";
   return `<span style="display:inline-block;padding:2px 8px;border-radius:9999px;background:${color};color:#fff;font-size:11px;font-weight:600;">${escapeHtml(status)}</span>`;
+}
+
+function renderPublicMapSnapshotPanel(status: PublicMapSnapshotStatus): string {
+  const ageLabel = status.ageSeconds === null
+    ? "—"
+    : status.ageSeconds < 3600
+      ? `${Math.floor(status.ageSeconds / 60)}m`
+      : `${(status.ageSeconds / 3600).toFixed(1)}h`;
+  const maxAgeLabel = `${(status.maxAgeSeconds / 3600).toFixed(1)}h`;
+  return `
+<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;background:#fff;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;align-items:start;">
+  <div>
+    <div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:4px;">status</div>
+    ${statusBadge(status.status)}
+  </div>
+  <div>
+    <div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:4px;">generated_at</div>
+    <div style="font-family:ui-monospace,monospace;font-size:12px;color:#374151;">${escapeHtml(status.generatedAt ?? "—")}</div>
+  </div>
+  <div>
+    <div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:4px;">age / max</div>
+    <div style="font-size:13px;color:${status.ok ? "#10b981" : "#ef4444"};font-weight:600;">${escapeHtml(ageLabel)} / ${escapeHtml(maxAgeLabel)}</div>
+  </div>
+  <div>
+    <div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:4px;">records</div>
+    <div style="font-size:13px;color:#374151;">source ${status.sourceSampleSize} · public ${status.publicRecordCount}</div>
+  </div>
+  <div>
+    <div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:4px;">refreshed_by</div>
+    <div style="font-family:ui-monospace,monospace;font-size:12px;color:#374151;">${escapeHtml(status.refreshedBy ?? "—")}</div>
+  </div>
+  ${status.error ? `<div style="grid-column:1/-1;font-size:12px;color:#ef4444;">${escapeHtml(status.error)}</div>` : ""}
+</div>`;
 }
 
 function budgetStateBadge(state: string): string {
@@ -205,6 +252,35 @@ function renderQueueSummary(label: string, rows: { severity: string; pending: nu
   <h3 style="margin:0 0 8px;font-size:14px;color:#374151;">${escapeHtml(label)} <span style="font-size:18px;font-weight:600;color:#111827;">${total}</span></h3>
   <table style="width:100%;border-collapse:collapse;">${tbody}</table>
 </div>`;
+}
+
+function renderStalenessAlertTable(rows: StalenessAlertRow[]): string {
+  if (rows.length === 0) {
+    return `<p style="color:#10b981;font-size:13px;">未解決の鮮度アラートはありません。</p>`;
+  }
+  const tbody = rows.map((row) => `
+<tr>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-family:ui-monospace,monospace;font-size:12px;">${escapeHtml(row.registry_key)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;">${statusBadge(row.severity)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${escapeHtml(row.alert_kind)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${escapeHtml(row.detected_at)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${escapeHtml(row.notified_at ?? "unnotified")}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#374151;white-space:pre-wrap;max-width:520px;">${escapeHtml(row.notes)}</td>
+</tr>`).join("");
+  return `
+<table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+  <thead>
+    <tr style="background:#f9fafb;">
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">registry</th>
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">severity</th>
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">kind</th>
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">detected</th>
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">notified</th>
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">notes</th>
+    </tr>
+  </thead>
+  <tbody>${tbody}</tbody>
+</table>`;
 }
 
 async function fetchAiRoleChainMetrics(): Promise<AiRoleChainMetricRow[]> {
@@ -727,9 +803,29 @@ async function fetchStalenessSummary(): Promise<StalenessSummary[]> {
   }
 }
 
+async function fetchActiveStalenessAlerts(): Promise<StalenessAlertRow[]> {
+  const pool = getPool();
+  try {
+    const result = await pool.query<StalenessAlertRow>(
+      `SELECT registry_key, alert_kind, severity,
+              detected_at::text AS detected_at,
+              notified_at::text AS notified_at,
+              notes
+         FROM staleness_alerts
+        WHERE resolved_at IS NULL
+        ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
+                 detected_at DESC
+        LIMIT 12`,
+    );
+    return result.rows;
+  } catch {
+    return [];
+  }
+}
+
 async function renderDashboard(): Promise<string> {
   const layers: AiCostLayer[] = ["hot", "warm", "cold"];
-  const [hotSummary, warmSummary, coldSummary, hotBudget, warmBudget, coldBudget, freshness, claimReview, staleness, curatorRuns, aiRoleChainMetrics, aiCandidateNameHealth] = await Promise.all([
+  const [hotSummary, warmSummary, coldSummary, hotBudget, warmBudget, coldBudget, freshness, claimReview, staleness, activeStalenessAlerts, curatorRuns, aiRoleChainMetrics, aiCandidateNameHealth, publicMapSnapshot] = await Promise.all([
     summarizeMonthlyCost("hot"),
     summarizeMonthlyCost("warm"),
     summarizeMonthlyCost("cold"),
@@ -739,9 +835,11 @@ async function renderDashboard(): Promise<string> {
     fetchFreshnessRegistry(),
     fetchClaimReviewSummary(),
     fetchStalenessSummary(),
+    fetchActiveStalenessAlerts(),
     fetchRecentCuratorRuns(),
     fetchAiRoleChainMetrics(),
     fetchAiCandidateNameHealth(),
+    getPublicMapSnapshotStatus(),
   ]);
 
   const summaries = { hot: hotSummary, warm: warmSummary, cold: coldSummary };
@@ -782,6 +880,16 @@ async function renderDashboard(): Promise<string> {
   <section style="margin-bottom:24px;">
     <h2 style="font-size:14px;color:#374151;text-transform:uppercase;margin:0 0 12px;">直近 7 日の curator run</h2>
     ${renderCuratorRunsTable(curatorRuns)}
+  </section>
+
+  <section style="margin-bottom:24px;">
+    <h2 style="font-size:14px;color:#374151;text-transform:uppercase;margin:0 0 12px;">未解決 staleness alerts</h2>
+    ${renderStalenessAlertTable(activeStalenessAlerts)}
+  </section>
+
+  <section style="margin-bottom:24px;">
+    <h2 style="font-size:14px;color:#374151;text-transform:uppercase;margin:0 0 12px;">public map snapshot</h2>
+    ${renderPublicMapSnapshotPanel(publicMapSnapshot)}
   </section>
 
   <section>

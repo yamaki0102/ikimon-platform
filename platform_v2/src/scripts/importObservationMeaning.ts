@@ -7,6 +7,7 @@ import {
   shouldQuarantineLegacyNoPhoto,
   upsertLegacyObservationQualityReview,
 } from "../services/observationQualityGate.js";
+import { refreshPublicMapSnapshotIfStale } from "../services/mapSnapshot.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -501,6 +502,12 @@ async function main(): Promise<void> {
     }
 
     await finalizeMigrationRun(runId, "completed", summary);
+    if (!options.dryRun && summary.rowsImported > 0) {
+      await refreshPublicMapSnapshotIfStale({
+        force: true,
+        refreshedBy: "import:importObservationMeaning",
+      });
+    }
     console.log(JSON.stringify({ options, summary }, null, 2));
   } catch (error) {
     await finalizeMigrationRun(runId, "failed", summary);

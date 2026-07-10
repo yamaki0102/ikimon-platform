@@ -82,8 +82,14 @@ high-risk path として表示する。
 1. production state snapshot をローカルへ取得
 2. lightweight staging を production data で初期化
 3. staging deploy
-4. review
-5. production deploy
+4. `verify_level=full` で release rehearsal を通す
+5. review
+6. production deploy
+
+`verify_level=full` では `public_map_snapshot_alert_lifecycle` gate として、
+`public_map_snapshots.generated_at` を staging 上で一時的に古くし、stale alert 発火、
+`/ops/public-map-snapshot`、refresh 後の自動 resolve まで確認する。
+この smoke は staging DB を意図的に変更するため、production host には向けない。
 
 staging の詳細は `docs/STAGING_RUNBOOK.md` を参照。
 
