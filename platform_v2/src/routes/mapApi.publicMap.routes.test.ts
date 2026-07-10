@@ -101,6 +101,10 @@ test("map my-observations reads only the signed-in user's records", async () => 
 test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () => {
   const originalFetch = globalThis.fetch;
   const fetched: string[] = [];
+  const validPng = Buffer.from(
+    "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",
+    "base64",
+  );
   globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
     const url = String(input);
     fetched.push(url);
@@ -134,6 +138,12 @@ test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () =>
     }
     if (url.includes("/surf/rasrf/5/28/12.png")) {
       return new Response(new Uint8Array([137, 80, 78, 71]), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      });
+    }
+    if (/\/surf\/hrpns\/10\/11[2-3]\/5[0-1]\.png$/.test(url)) {
+      return new Response(new Uint8Array(validPng), {
         status: 200,
         headers: { "content-type": "image/png" },
       });
@@ -174,7 +184,16 @@ test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () =>
     assert.equal(tile.statusCode, 200);
     assert.match(String(tile.headers["content-type"] ?? ""), /^image\/png/);
     assert.equal(tile.headers["x-ikimon-weather-cache"], "miss");
-    const fetchCountAfterMiss = fetched.length;
+
+    const composedLowZoomTile = await app.inject({
+      method: "GET",
+      url: "/api/v1/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620030000&z=9&x=56&y=25",
+    });
+    assert.equal(composedLowZoomTile.statusCode, 200);
+    assert.match(String(composedLowZoomTile.headers["content-type"] ?? ""), /^image\/png/);
+    assert.ok(fetched.some((url) => url.includes("www.jma.go.jp/bosai/jmatile/data/nowc/20260620030000/none/20260620030000/surf/hrpns/10/112/50.png")));
+    assert.ok(fetched.some((url) => url.includes("www.jma.go.jp/bosai/jmatile/data/nowc/20260620030000/none/20260620030000/surf/hrpns/10/113/51.png")));
+    const fetchCountBeforeCachedTile = fetched.length;
 
     const cachedTile = await app.inject({
       method: "GET",
@@ -182,7 +201,7 @@ test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () =>
     });
     assert.equal(cachedTile.statusCode, 200);
     assert.equal(cachedTile.headers["x-ikimon-weather-cache"], "hit");
-    assert.equal(fetched.length, fetchCountAfterMiss);
+    assert.equal(fetched.length, fetchCountBeforeCachedTile);
     assert.ok(fetched.some((url) => url.includes("www.jma.go.jp/bosai/jmatile/data/nowc/20260620030000/none/20260620030000/surf/hrpns/5/28/12.png")));
 
     const shortRangeTile = await app.inject({

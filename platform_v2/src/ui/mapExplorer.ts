@@ -2471,6 +2471,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
   var JMA_RAIN_TILE_MAX_ZOOM = 10;
+  var DISCOVERY_PREVIEW_MIN_ZOOM = 9.75;
   function rainTileUrl(entry, z, x, y) {
     var tpl = state.rainTileTemplate || '/api/v1/weather/jma-nowcast/tile?product={product}&member={member}&basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}';
     return tpl
@@ -2509,7 +2510,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         type: 'raster',
         source: 'jma-rain-nowcast',
         paint: {
-          'raster-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0.5, 10, 0.62, 14, 0.68, 18, 0.74],
+          'raster-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0.66, 8, 0.76, 10, 0.8, 14, 0.74, 18, 0.74],
           'raster-resampling': 'nearest',
           'raster-fade-duration': 0
         }
@@ -3452,7 +3453,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     clearDiscoveryPreviewMarkers();
     if (!state.map || !window.maplibregl || (state.tab !== 'markers' && state.tab !== 'places')) return;
     var zoom = state.map.getZoom();
-    if (!Number.isFinite(zoom) || zoom < 11.5) return;
+    if (!Number.isFinite(zoom) || zoom < DISCOVERY_PREVIEW_MIN_ZOOM) return;
     pickDiscoveryPreviewRecords().forEach(function (item) {
       var record = item.record;
       var el = document.createElement('button');

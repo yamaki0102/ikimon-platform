@@ -17,6 +17,8 @@ function sampleRows(): PreparedRows {
     {
       occurrenceId: "occ-1",
       visitId: "visit-1",
+      subjectIndex: 0,
+      isPrimary: true,
       displayName: "モンシロチョウ",
       observedAt: "2026-04-08T09:00:00.000Z",
       latitude: 34.7116,
@@ -38,6 +40,8 @@ function sampleRows(): PreparedRows {
     {
       occurrenceId: "occ-2",
       visitId: "visit-2",
+      subjectIndex: 0,
+      isPrimary: true,
       displayName: "モンシロチョウ",
       observedAt: "2026-04-09T09:00:00.000Z",
       latitude: 34.7121,
@@ -59,6 +63,8 @@ function sampleRows(): PreparedRows {
     {
       occurrenceId: "occ-3",
       visitId: "visit-3",
+      subjectIndex: 0,
+      isPrimary: true,
       displayName: "ヒヨドリ",
       observedAt: "2026-04-10T09:00:00.000Z",
       latitude: 34.7124,
@@ -262,6 +268,27 @@ test("public map photo URLs are derived thumbnails, not original upload paths", 
   assert.ok(list.items.every((item) => item.photoUrl === null || !/^\/(?:uploads|data\/uploads)\//i.test(item.photoUrl)));
   assert.ok(list.items.every((item) => item.photoUrl === null || !/\/original\//i.test(item.photoUrl)));
   assert.equal(list.items.find((item) => item.occurrenceId === "occ-absolute-original")?.photoUrl, null);
+});
+
+test("buildPublicCellRecords shows one representative occurrence per visit", () => {
+  const rows = [
+    ...sampleRows(),
+    {
+      ...sampleRows()[0]!,
+      occurrenceId: "occ-1-side",
+      visitId: "visit-1",
+      subjectIndex: 1,
+      isPrimary: false,
+      displayName: "クモ",
+      photoUrl: "/uploads/side-subject.jpg",
+    },
+  ];
+  const list = buildPublicCellRecords(rows, { zoom: 13 });
+
+  assert.equal(list.items.length, 3);
+  assert.equal(list.stats.totalAll, 3);
+  assert.ok(list.items.some((item) => item.occurrenceId === "occ-1"));
+  assert.ok(!list.items.some((item) => item.occurrenceId === "occ-1-side"));
 });
 
 test("public map observation id lookup reads the snapshot without aggregate list filtering", async () => {

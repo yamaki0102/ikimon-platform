@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import sharp from "sharp";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { getEffortSummary, getFrontierMap, type EffortActorClass, type EffortRole } from "../services/mapEffort.js";
 import { listMapOwnObservations } from "../services/mapOwnObservations.js";
@@ -30,6 +31,7 @@ const JMA_NOWCAST_TILE_TTL_MS = 300_000;
 const JMA_NOWCAST_TILE_CACHE_MAX = 384;
 const JMA_NOWCAST_FETCH_TIMEOUT_MS = 3_000;
 const JMA_RAIN_TILE_MAX_ZOOM = 10;
+const JMA_RAIN_TILE_DETAIL_MIN_ZOOM = 8;
 
 type JmaNowcastTarget = {
   basetime: string;
@@ -248,6 +250,79 @@ function getCachedJmaTile(cacheKey: string): Buffer | null {
   return cached.bytes;
 }
 
+function buildJmaTileUrl(
+  product: "nowcast" | "short_range",
+  member: string,
+  basetime: string,
+  validtime: string,
+  z: number,
+  x: number,
+  y: number,
+): string {
+  return product === "short_range"
+    ? `${JMA_SHORT_RANGE_ROOT}/${basetime}/${member}/${validtime}/surf/rasrf/${z}/${x}/${y}.png`
+    : `${JMA_NOWCAST_ROOT}/${basetime}/none/${validtime}/surf/hrpns/${z}/${x}/${y}.png`;
+}
+
+async function fetchJmaTileBuffer(url: string, signal: AbortSignal): Promise<Buffer | null> {
+  const upstream = await fetch(url, { signal, headers: { accept: "image/png" } });
+  if (upstream.status === 404) return null;
+  if (!upstream.ok) throw new Error(`jma_tile_${upstream.status}`);
+  return Buffer.from(await upstream.arrayBuffer());
+}
+
+async function fetchJmaRainTile(
+  product: "nowcast" | "short_range",
+  member: string,
+  basetime: string,
+  validtime: string,
+  z: number,
+  x: number,
+  y: number,
+  signal: AbortSignal,
+): Promise<Buffer> {
+  if (z < JMA_RAIN_TILE_DETAIL_MIN_ZOOM || z >= JMA_RAIN_TILE_MAX_ZOOM) {
+    const bytes = await fetchJmaTileBuffer(buildJmaTileUrl(product, member, basetime, validtime, z, x, y), signal);
+    if (!bytes) throw new Error("jma_tile_404");
+    return bytes;
+  }
+
+  const factor = Math.pow(2, JMA_RAIN_TILE_MAX_ZOOM - z);
+  const size = Math.floor(256 / factor);
+  const composites: sharp.OverlayOptions[] = [];
+  for (let dx = 0; dx < factor; dx += 1) {
+    for (let dy = 0; dy < factor; dy += 1) {
+      const sourceUrl = buildJmaTileUrl(
+        product,
+        member,
+        basetime,
+        validtime,
+        JMA_RAIN_TILE_MAX_ZOOM,
+        x * factor + dx,
+        y * factor + dy,
+      );
+      const source = await fetchJmaTileBuffer(sourceUrl, signal);
+      if (!source) continue;
+      const input = await sharp(source)
+        .resize(size, size, { kernel: sharp.kernel.nearest })
+        .png()
+        .toBuffer();
+      composites.push({ input, left: dx * size, top: dy * size });
+    }
+  }
+  return sharp({
+    create: {
+      width: 256,
+      height: 256,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .png()
+    .composite(composites)
+    .toBuffer();
+}
+
 function setCachedJmaTile(cacheKey: string, bytes: Buffer): void {
   jmaNowcastTileCache.set(cacheKey, { expiresAt: Date.now() + JMA_NOWCAST_TILE_TTL_MS, bytes });
   while (jmaNowcastTileCache.size > JMA_NOWCAST_TILE_CACHE_MAX) {
@@ -319,9 +394,6 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       return { error: "invalid_jma_nowcast_tile" };
     }
 
-    const url = product === "short_range"
-      ? `${JMA_SHORT_RANGE_ROOT}/${basetime}/${member}/${validtime}/surf/rasrf/${z}/${x}/${y}.png`
-      : `${JMA_NOWCAST_ROOT}/${basetime}/none/${validtime}/surf/hrpns/${z}/${x}/${y}.png`;
     const cacheKey = `${product}:${member}:${basetime}:${validtime}:${z}:${x}:${y}`;
     const cached = getCachedJmaTile(cacheKey);
     if (cached) {
@@ -335,12 +407,7 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), JMA_NOWCAST_FETCH_TIMEOUT_MS);
     try {
-      const upstream = await fetch(url, { signal: controller.signal, headers: { accept: "image/png" } });
-      if (!upstream.ok) {
-        reply.code(upstream.status === 404 ? 404 : 502).type("application/json; charset=utf-8").header("Cache-Control", "no-store");
-        return { error: "jma_nowcast_tile_unavailable" };
-      }
-      const bytes = Buffer.from(await upstream.arrayBuffer());
+      const bytes = await fetchJmaRainTile(product, member, basetime, validtime, z, x, y, controller.signal);
       setCachedJmaTile(cacheKey, bytes);
       reply
         .type("image/png")

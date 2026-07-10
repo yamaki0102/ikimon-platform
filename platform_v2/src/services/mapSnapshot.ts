@@ -156,6 +156,8 @@ export type PublicMapObservationList = {
 type PublicMapSourceRow = {
   occurrence_id: string;
   visit_id: string;
+  subject_index: number | null;
+  is_primary: boolean | null;
   scientific_name: string | null;
   vernacular_name: string | null;
   display_name: string;
@@ -180,6 +182,8 @@ type PublicMapSourceRow = {
 type PublicMapPreparedRecord = {
   occurrenceId: string;
   visitId: string;
+  subjectIndex: number;
+  isPrimary: boolean;
   displayName: string;
   aiCandidateName: string | null;
   aiCandidateRank: string | null;
@@ -201,7 +205,7 @@ type PublicMapPreparedRecord = {
   publicCoordReason?: CoordDecision["reason"] | null;
 };
 
-type PublicMapSnapshotRecord = Omit<PublicMapPreparedRecord, "latitude" | "longitude"> & {
+type PublicMapSnapshotRecord = Omit<PublicMapPreparedRecord, "latitude" | "longitude" | "subjectIndex" | "isPrimary"> & {
   cellIdsByRequestedGrid: Record<string, string>;
 };
 
@@ -632,6 +636,24 @@ function compareIsoDesc(a: string | null, b: string | null): number {
   return a < b ? 1 : a > b ? -1 : 0;
 }
 
+function publicRuntimeIsPrimary(row: PublicMapRuntimeRecord): boolean {
+  return "isPrimary" in row ? Boolean(row.isPrimary) : true;
+}
+
+function publicRuntimeSubjectIndex(row: PublicMapRuntimeRecord): number {
+  return "subjectIndex" in row ? Number(row.subjectIndex || 0) : 0;
+}
+
+function comparePublicVisitRepresentative(a: PublicMapRuntimeRecord, b: PublicMapRuntimeRecord): number {
+  const aPrimary = publicRuntimeIsPrimary(a);
+  const bPrimary = publicRuntimeIsPrimary(b);
+  if (aPrimary !== bPrimary) return aPrimary ? -1 : 1;
+  const subjectDelta = publicRuntimeSubjectIndex(a) - publicRuntimeSubjectIndex(b);
+  if (subjectDelta) return subjectDelta;
+  if (Boolean(a.photoUrl) !== Boolean(b.photoUrl)) return a.photoUrl ? -1 : 1;
+  return compareIsoDesc(a.observedAt, b.observedAt) || a.occurrenceId.localeCompare(b.occurrenceId);
+}
+
 async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQueryClient): Promise<{
   rows: PublicMapPreparedRecord[];
   markerProfile: MarkerProfile;
@@ -694,6 +716,11 @@ async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQuer
     select
       o.occurrence_id,
       o.visit_id,
+      coalesce(o.subject_index, 0) as subject_index,
+      coalesce(
+        lower(coalesce(o.source_payload #>> '{v2_subject,is_primary}', o.source_payload->>'is_primary')) in ('true', '1', 'yes'),
+        coalesce(o.subject_index, 0) = 0
+      ) as is_primary,
       o.scientific_name,
       o.vernacular_name,
       coalesce(
@@ -811,6 +838,8 @@ async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQuer
         return {
           occurrenceId: row.occurrence_id,
           visitId: row.visit_id,
+          subjectIndex: Number(row.subject_index ?? 0),
+          isPrimary: Boolean(row.is_primary),
           displayName: display.primaryLabel,
           aiCandidateName: row.ai_candidate_name ?? null,
           aiCandidateRank: row.ai_candidate_rank ?? null,
@@ -841,8 +870,16 @@ async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQuer
         return seasonMonths.includes(month);
       });
 
+    const representativeRows = rows.reduce((acc, row) => {
+      const existing = acc.get(row.visitId);
+      if (!existing || comparePublicVisitRepresentative(row, existing) < 0) {
+        acc.set(row.visitId, row);
+      }
+      return acc;
+    }, new Map<string, PublicMapPreparedRecord>());
+
     return {
-      rows,
+      rows: Array.from(representativeRows.values()),
       markerProfile,
       provenance: {
         sampled: true,
@@ -1301,7 +1338,15 @@ export function buildPublicCellRecords(
   }
   const publicEntries = scopedEntries
     .filter((entry) => (cellCounts.get(entry.cellId) ?? 0) >= PUBLIC_MAP_AGGREGATE_POLICY.minCellRecords);
-  const sorted = publicEntries
+  const representativeEntries = Array.from(publicEntries.reduce((acc, entry) => {
+    const key = entry.row.visitId || entry.row.occurrenceId;
+    const existing = acc.get(key);
+    if (!existing || comparePublicVisitRepresentative(entry.row, existing.row) < 0) {
+      acc.set(key, entry);
+    }
+    return acc;
+  }, new Map<string, (typeof publicEntries)[number]>()).values());
+  const sorted = representativeEntries
     .sort((a, b) => compareIsoDesc(a.row.observedAt, b.row.observedAt));
 
   const items = sorted
@@ -1323,11 +1368,11 @@ export function buildPublicCellRecords(
     items,
     stats: {
       totalReturned: items.length,
-      totalAll: publicEntries.length,
+      totalAll: representativeEntries.length,
       markerProfile: "all_research_artifacts",
       gridM,
       selectedCellId: targetCellId,
-      provenance: publicAggregateProvenance(publicEntries.length),
+      provenance: publicAggregateProvenance(representativeEntries.length),
       privacy: PUBLIC_MAP_AGGREGATE_POLICY,
     },
   };

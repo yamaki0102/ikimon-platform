@@ -37,9 +37,10 @@ test("JMA rain layer caps tile zoom at the API-supported max for overzooming", (
   const checkRainScript = script.slice(checkRainStart, checkRainEnd);
 
   assert.match(script, /var JMA_RAIN_TILE_MAX_ZOOM = 10;/);
+  assert.match(script, /var DISCOVERY_PREVIEW_MIN_ZOOM = 9\.75;/);
   assert.match(rainSourceScript, /maxzoom: JMA_RAIN_TILE_MAX_ZOOM/);
   assert.match(rainSourceScript, /tiles: \[rainTileUrl\(entry, '\{z\}', '\{x\}', '\{y\}'\)\]/);
-  assert.match(script, /'raster-opacity': \['interpolate', \['linear'\], \['zoom'\], 4, 0\.5, 10, 0\.62, 14, 0\.68, 18, 0\.74\]/);
+  assert.match(script, /'raster-opacity': \['interpolate', \['linear'\], \['zoom'\], 4, 0\.66, 8, 0\.76, 10, 0\.8, 14, 0\.74, 18, 0\.74\]/);
   assert.match(script, /'raster-resampling': 'nearest'/);
   assert.match(script, /'raster-fade-duration': 0/);
   assert.match(checkRainScript, /var z = 10;/);
@@ -252,7 +253,7 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /me-my-photo-marker/);
   assert.match(script, /me-community-photo-marker/);
   assert.match(script, /state\.tab !== 'markers' && state\.tab !== 'places'/);
-  assert.match(script, /zoom < 11\.5/);
+  assert.match(script, /zoom < DISCOVERY_PREVIEW_MIN_ZOOM/);
   assert.match(script, /selectRecord\(record, \{ focusMap: false, openSheet: shouldUseBottomSheet\(\), preserveSurroundings: true \}\)/);
   assert.match(script, /data-own-observation-count/);
   assert.match(script, /data-own-observation-ids/);
@@ -800,6 +801,7 @@ test("community photo preview markers stay compact while allowing more visible p
   assert.match(script, /if \(cellCount >= 3\) return;/);
   assert.match(script, /\[0\.0045, 0\.0032\]/);
   assert.match(script, /center: \{ lng: center\.lng \+ offset\[0\], lat: center\.lat \+ offset\[1\] \}/);
+  assert.match(script, /zoom < DISCOVERY_PREVIEW_MIN_ZOOM/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview \{\s+width: 50px;\s+min-height: 58px;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview img,\s+\.me-discovery-preview i \{\s+width: 42px;\s+height: 31px;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview span \{\s+max-width: 42px;\s+min-height: 18px;[\s\S]+font-size: 8\.5px;/);
