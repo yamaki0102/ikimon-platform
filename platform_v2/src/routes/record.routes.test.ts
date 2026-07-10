@@ -634,6 +634,21 @@ test("login and register pages render v2 auth forms", async () => {
   }
 });
 
+test("registration safety copy matches the explicit duplicate-email API contract", async () => {
+  const app = buildApp();
+  try {
+    for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+      const response = await app.inject({ method: "GET", url: `/${lang}/register?redirect=/profile` });
+      assert.equal(response.statusCode, 200);
+      assert.doesNotMatch(response.body, /メール有無が分からない|do not reveal whether an email exists|no revelan si existe un correo|nao revelam se um e-mail existe/i);
+    }
+    const ja = await app.inject({ method: "GET", url: "/ja/register?redirect=/profile" });
+    assert.match(ja.body, /登録済みのメールアドレスはログインへ案内/);
+  } finally {
+    await app.close();
+  }
+});
+
 test("auth pages honor English language context", async () => {
   const app = buildApp();
   try {
