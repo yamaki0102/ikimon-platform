@@ -21262,7 +21262,21 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
       .prototype-record-feed-media-icons{display:inline-flex;align-items:center;gap:5px}
       .prototype-record-feed-media-icons .prototype-content-icon{width:14px;height:14px}
       .cf-home-feed-sentinel{width:1px;height:1px}
-      @media(max-width:640px){.prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}.prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:48vh;min-height:320px}}
+      @media(max-width:640px){
+        .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}
+        .prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:48vh;min-height:320px}
+        .prototype-record-feed.is-owner{margin-bottom:calc(120px + env(safe-area-inset-bottom))}
+        .prototype-record-feed.is-owner .prototype-record-feed-list{gap:10px}
+        .prototype-record-feed.is-owner .prototype-record-feed-card{min-height:136px;border-radius:16px}
+        .prototype-record-feed.is-owner .prototype-record-feed-main{grid-template-columns:124px minmax(0,1fr);min-height:136px;background:#fff}
+        .prototype-record-feed.is-owner .prototype-record-feed-media-wrap{width:124px;height:136px;min-height:136px;background:#eef5f2}
+        .prototype-record-feed.is-owner .prototype-record-feed-copy{position:static;display:flex;flex-direction:column;justify-content:center;min-width:0;padding:14px 14px;background:none}
+        .prototype-record-feed.is-owner .prototype-record-feed-copy strong{color:#10251a;font-size:17px;line-height:1.35;text-shadow:none;overflow-wrap:anywhere}
+        .prototype-record-feed.is-owner .prototype-record-feed-copy span{margin-top:7px;color:#64748b;font-size:13px;line-height:1.45;text-shadow:none}
+        .prototype-record-feed.is-owner .prototype-record-feed-badges{left:8px;right:auto;top:8px;max-width:108px}
+        .prototype-record-feed.is-owner .prototype-record-feed-empty-media .cf-home-media-affordance.is-record::before{left:16%;right:16%;top:24%;bottom:22%;border-radius:12px}
+        .prototype-record-feed.is-owner .prototype-record-feed-empty-media .cf-home-media-affordance.is-record::after{left:27%;right:27%;top:39%;height:46px}
+      }
     </style></head>`);
   }
   if (!next.includes("cf-home-record-feed-infinite-script")) {
