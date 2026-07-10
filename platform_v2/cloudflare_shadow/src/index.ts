@@ -773,6 +773,23 @@ const PUBLIC_AREA_LABEL_MAX_LENGTH = 40;
 const PUBLIC_AREA_LABEL_SENSITIVE_PATTERN = /(学校|小学校|中学校|高校|高等学校|幼稚園|保育園|こども園|児童|自宅|住所|番地|丁目|号室|マンション|アパート|寮|private|school|home|residence|address|apartment|condo|nursery|kindergarten)/i;
 const PUBLIC_AREA_LABEL_ADDRESS_PATTERN = /[0-9]|[-.,;:/\\@#]|[!?"$%&'()*+<=>\[\]^_`{|}~]/;
 const PUBLIC_STREAM_ALLOWED_LOCATION_PRECISIONS = new Set(["municipality", "mesh"]);
+const PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH = 320;
+const PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT = 240;
+const PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES = 12_000;
+
+function presentablePublicPhotoSql(alias = ""): string {
+  const prefix = alias ? `${alias}.` : "";
+  return `AND NOT (
+        COALESCE(${prefix}width, 0) = ${PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH}
+        AND COALESCE(${prefix}height, 0) = ${PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT}
+        AND COALESCE(${prefix}bytes, 0) > 0
+        AND ${prefix}bytes <= ${PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES}
+      )
+      AND NOT (
+        COALESCE(${prefix}width, 0) = 1
+        AND COALESCE(${prefix}height, 0) = 1
+      )`;
+}
 
 interface PublicMapPhotoRow {
   observation_id: string;
@@ -14994,6 +15011,7 @@ async function getPublicMapMyObservations(request: Request, url: URL, env: Env):
                  AND a.exif_scrub_state = 'scrubbed'
                  AND a.public_ready_at IS NOT NULL
                  AND a.mime LIKE 'image/%'
+                 ${presentablePublicPhotoSql("a")}
                ORDER BY COALESCE(a.public_ready_at, a.public_derivative_verified_at, a.uploaded_at, '') DESC
                LIMIT 1
             ) AS public_derivative_key
@@ -18509,6 +18527,7 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
                  AND a.public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
                  AND a.exif_scrub_state = 'scrubbed'
                  AND a.mime LIKE 'image/%'
+                 ${presentablePublicPhotoSql("a")}
                ORDER BY COALESCE(a.public_ready_at, a.public_derivative_verified_at, a.uploaded_at, '') DESC
                LIMIT 1
             ) AS public_derivative_key
@@ -19008,6 +19027,7 @@ async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
         AND exif_scrub_state = 'scrubbed'
         AND public_ready_at IS NOT NULL
         AND mime LIKE 'image/%'
+        ${presentablePublicPhotoSql()}
       ORDER BY public_ready_at DESC
       LIMIT 5000`
   ).all<PublicMapPhotoRow>();
@@ -19376,6 +19396,7 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
        AND public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
        AND exif_scrub_state = 'scrubbed'
        AND public_ready_at IS NOT NULL
+       ${presentablePublicPhotoSql()}
      ORDER BY created_at ASC
      LIMIT 24`
   ).bind(visitId).all<PublicDetailAssetRow>();
