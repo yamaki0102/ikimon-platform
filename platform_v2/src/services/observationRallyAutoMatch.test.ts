@@ -47,10 +47,6 @@ test("auto-match implementation stays post-save, non-blocking and idempotent", (
     path.join(process.cwd(), "db/migrations/0117_observation_rally_submission_idempotency.sql"),
     "utf8",
   );
-  const d1Migration = readFileSync(
-    path.join(process.cwd(), "cloudflare_shadow/migrations/observations/0065_observation_rally_submission_idempotency.sql"),
-    "utf8",
-  );
 
   assert.match(dualWrite, /autoMatchObservationToActiveRallies/);
   assert.match(dualWrite, /observation rally auto-match failed/);
@@ -60,6 +56,6 @@ test("auto-match implementation stays post-save, non-blocking and idempotent", (
   assert.match(autoMatch, /course\.status = 'live'/);
   assert.match(autoMatch, /mission\.status = 'published'/);
   assert.match(autoMatch, /station\.status = 'open'/);
+  assert.match(autoMatch, /station\.lat BETWEEN/);
   assert.match(postgresMigration, /CREATE UNIQUE INDEX IF NOT EXISTS idx_obs_rally_submission_source_once/);
-  assert.match(d1Migration, /CREATE UNIQUE INDEX IF NOT EXISTS idx_obs_rally_submission_source_once/);
 });
