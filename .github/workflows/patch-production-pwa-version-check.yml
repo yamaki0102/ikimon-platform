@@ -5,31 +5,31 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   patch:
-    if: github.head_ref == 'agent/fix-production-pwa-version-check' && github.actor != 'github-actions[bot]'
+    if: github.head_ref == 'agent/fix-production-pwa-version-check'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
           ref: agent/fix-production-pwa-version-check
-          fetch-depth: 0
       - name: Update production PWA version expectation
         run: python scripts/patch-production-pwa-version-check.py
-      - name: Commit synchronized production check
+      - name: Validate patched workflow
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/workflows/deploy.yml
-          git status --short
-          git diff --cached --check
-          if git diff --cached --quiet; then
-            echo "No PWA version synchronization changes to commit."
+          grep -Fq 'ikimon-app-v7' .github/workflows/deploy.yml
+          if grep -Fq 'ikimon-app-v6' .github/workflows/deploy.yml; then
+            echo 'stale v6 marker remains'
             exit 1
           fi
-          git commit -m "fix: sync production PWA verification version"
-          git push origin HEAD:agent/fix-production-pwa-version-check
+      - name: Upload patched deploy workflow
+        uses: actions/upload-artifact@v6
+        with:
+          name: patched-production-deploy-workflow
+          path: .github/workflows/deploy.yml
+          if-no-files-found: error
+          retention-days: 2
