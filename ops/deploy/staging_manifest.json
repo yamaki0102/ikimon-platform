@@ -36,7 +36,7 @@
   ],
   "requiredChecks": [
     "node --test scripts/tests/plan_ci_scope.tests.mjs scripts/tests/report_github_actions_dependency.tests.mjs",
-    "DEPLOY_STAGING=false TEST_PROFILE=quick BROWSER_QA=none ./scripts/run_cloudflare_staging_release.sh",
+    "DEPLOY_STAGING=false TEST_PROFILE=quick BROWSER_QA=none bash ./scripts/run_cloudflare_staging_release.sh",
     "cd platform_v2/cloudflare_shadow && npm run materialize:original-ui:dry-run -- --target-env staging"
   ],
   "releaseGates": [
