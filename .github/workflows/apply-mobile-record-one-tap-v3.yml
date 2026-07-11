@@ -1,0 +1,113 @@
+name: Apply Mobile Record One Tap V3
+
+on:
+  push:
+    branches:
+      - codex/mobile-record-one-tap-20260711
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mobile-record-one-tap-20260711
+          fetch-depth: 0
+
+      - name: Apply one-tap mobile record contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          shell_path = Path('platform_v2/src/ui/siteShell.ts')
+          source = shell_path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  'two-tap confirmation',
+                  re.compile(
+                      r"(    if \(activeKind === 'photo' && selectedPhotoDraftFiles\(\)\.length > 0 && !activeStream\) \{\n"
+                      r"      if \(directPostInFlight\) return;\n)"
+                      r"      if \(nowMs\(\) > photoDraftSubmitConfirmUntil\) \{\n"
+                      r"        photoDraftSubmitConfirmUntil = nowMs\(\) \+ 4500;\n"
+                      r"        if \(captureButton\) captureButton\.textContent = 'もう一度押すと記録';\n"
+                      r"        setStatus\('記録するなら同じボタンをもう一度押してください。続けて撮るなら左のボタンです。'\);\n"
+                      r"        return;\n"
+                      r"      \}\n"
+                      r"      photoDraftSubmitConfirmUntil = 0;\n"
+                  ),
+                  r"\1      photoDraftSubmitConfirmUntil = 0;\n",
+              ),
+              (
+                  'primary action hierarchy',
+                  re.compile(
+                      r"    if \(files\.length > 0\) \{\n"
+                      r"      setPrimaryAction\(startButton, true\);\n"
+                      r"      setPrimaryAction\(captureButton, false\);\n"
+                      r"    \} else \{\n"
+                      r"      setFooterActionMode\('start'\);\n"
+                      r"    \}"
+                  ),
+                  "    if (files.length > 0) {\n      setFooterActionMode('submit');\n    } else {\n      setFooterActionMode('start');\n    }",
+              ),
+              (
+                  'review guidance',
+                  re.compile(
+                      r"    setStatus\(\(metadata && metadata\.location \? '撮影地点も保存しました。' : '位置は記録画面で指定できます。'\) \+ ' 写真' \+ String\(capturedPhotoFiles\.length\) \+ '枚をまとめています。' \+ \(dropped > 0 \? ' 上限を超えた分は外しました。' : ''\)\);"
+                  ),
+                  "    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で記録、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));",
+              ),
+          ]
+          for label, pattern, replacement in replacements:
+              source, count = pattern.subn(replacement, source, count=1)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 replacement, got {count}')
+          shell_path.write_text(source, encoding='utf-8')
+
+          test_path = Path('platform_v2/src/ui/siteShell.test.ts')
+          test_source = test_path.read_text(encoding='utf-8')
+          legacy_contract = re.compile(
+              r"  assert\.match\(html, /photoDraftSubmitConfirmUntil = nowMs\\\(\\\) \\+ 4500/\);\n"
+              r"  assert\.match\(html, /もう一度押すと記録/\);\n"
+              r"  assert\.match\(html, /setPrimaryAction\\\(startButton, true\\\);\\s\+setPrimaryAction\\\(captureButton, false\\\);/\);"
+          )
+          replacement_contract = """  assert.doesNotMatch(html, /photoDraftSubmitConfirmUntil = nowMs\\(\\) \\+ 4500/);
+            assert.doesNotMatch(html, /もう一度押すと記録/);
+            assert.match(html, /if \\(files\\.length > 0\\) \\{\\s+setFooterActionMode\\('submit'\\);/);
+            assert.match(html, /右で記録、左でもう1枚撮れます。/);"""
+          test_source, count = legacy_contract.subn(replacement_contract, test_source, count=1)
+          if count != 1:
+              raise SystemExit(f'legacy shell test contract: expected 1 replacement, got {count}')
+          test_path.write_text(test_source, encoding='utf-8')
+
+          Path('platform_v2/src/ui/mobileQuickRecordContract.test.ts').write_text('''import assert from "node:assert/strict";\nimport test from "node:test";\nimport { readFileSync } from "node:fs";\n\nconst source = readFileSync(new URL("./siteShell.ts", import.meta.url), "utf8");\n\ntest("mobile footer quick record saves a reviewed photo with one tap", () => {\n  assert.doesNotMatch(source, /もう一度押すと記録/);\n  assert.doesNotMatch(source, /記録するなら同じボタンをもう一度押してください/);\n  assert.match(source, /if \(activeKind === 'photo' && selectedPhotoDraftFiles\(\)\.length > 0 && !activeStream\) \{[\\s\\S]*?if \(captureButton\) captureButton\.disabled = true;[\\s\\S]*?await directPostPhotoDraft\(\);/);\n});\n\ntest("reviewed photos make save the primary action and keep add-another secondary", () => {\n  assert.match(source, /if \(files\.length > 0\) \{\\s*setFooterActionMode\('submit'\);/);\n  assert.match(source, /右で記録、左でもう1枚撮れます。/);\n});\n''', encoding='utf-8')
+          PY
+
+      - name: Verify full Node contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix platform_v2 ci
+          npm --prefix platform_v2 run typecheck
+          npm --prefix platform_v2 run test:node
+
+      - name: Commit focused patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-mobile-record-one-tap.yml
+          rm -f .github/workflows/apply-mobile-record-one-tap-v2.yml
+          rm -f .github/workflows/apply-mobile-record-one-tap-v3.yml
+          rm -f quick-record-verification.log
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: make mobile quick-record save one tap'
+          git push origin HEAD:codex/mobile-record-one-tap-20260711
