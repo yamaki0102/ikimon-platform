@@ -1,0 +1,266 @@
+name: Verify Mobile Map Progressive Production
+
+on:
+  push:
+    branches:
+      - agent/verify-mobile-map-progressive-prod-20260712
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/verify-mobile-map-progressive-prod-20260712'
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_SHA: f39487199e4adb8e6a9acaf348f88bdb9ab62281
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/verify-mobile-map-progressive-prod-20260712
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+
+      - name: Install production visual QA dependencies
+        working-directory: platform_v2
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Wait for production deploy and verify release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p mobile-map-production-verification/screenshots
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/deploy.yml/runs?branch=main&event=push&per_page=30"
+          deploy_ready=0
+          for attempt in $(seq 1 80); do
+            curl -fsSL \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$api" > mobile-map-production-verification/deploy-runs.json
+            state="$(node <<'NODE'
+          const fs = require('node:fs');
+          const expected = process.env.EXPECTED_SHA;
+          const payload = JSON.parse(fs.readFileSync('mobile-map-production-verification/deploy-runs.json', 'utf8'));
+          const run = (payload.workflow_runs || []).find((item) => item.head_sha === expected);
+          if (!run) {
+            process.stdout.write('missing|||');
+          } else {
+            fs.writeFileSync('mobile-map-production-verification/deploy-run.json', JSON.stringify({
+              id: run.id,
+              runNumber: run.run_number,
+              status: run.status,
+              conclusion: run.conclusion,
+              headSha: run.head_sha,
+              htmlUrl: run.html_url,
+              createdAt: run.created_at,
+              updatedAt: run.updated_at,
+            }, null, 2));
+            process.stdout.write(`${run.status}|${run.conclusion || ''}|${run.id}|${run.html_url}`);
+          }
+          NODE
+            )"
+            IFS='|' read -r status conclusion run_id run_url <<< "$state"
+            echo "deploy attempt ${attempt}: status=${status} conclusion=${conclusion:-none} run=${run_id:-none}"
+            if [ "$status" = "completed" ] && [ "$conclusion" = "success" ]; then
+              deploy_ready=1
+              break
+            fi
+            if [ "$status" = "completed" ] && [ "$conclusion" != "success" ]; then
+              echo "Production deploy failed: ${run_url:-unknown}"
+              exit 1
+            fi
+            sleep 15
+          done
+          if [ "$deploy_ready" -ne 1 ]; then
+            echo 'Production deploy did not complete within the verification window.'
+            exit 1
+          fi
+
+          for base in \
+            'https://ikimon.life' \
+            'https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev'
+          do
+            safe="$(echo "$base" | tr -cs 'A-Za-z0-9' '_')"
+            curl -fsSL --retry 8 --retry-delay 5 -H 'accept: application/json' -H 'cache-control: no-store' "$base/api/v1/runtime/version" > "mobile-map-production-verification/${safe}_runtime.json"
+            curl -fsSL --retry 8 --retry-delay 5 -H 'accept: application/json' -H 'cache-control: no-store' "$base/healthz" > "mobile-map-production-verification/${safe}_health.json"
+            curl -fsSL --retry 8 --retry-delay 5 -H 'accept: application/json' -H 'cache-control: no-store' "$base/readyz" > "mobile-map-production-verification/${safe}_ready.json"
+          done
+
+          node <<'NODE' > mobile-map-production-verification/runtime-summary.json
+          const fs = require('node:fs');
+          const expected = process.env.EXPECTED_SHA;
+          const files = fs.readdirSync('mobile-map-production-verification').filter((name) => name.endsWith('_runtime.json'));
+          const runtimes = files.map((name) => ({ name, payload: JSON.parse(fs.readFileSync(`mobile-map-production-verification/${name}`, 'utf8')) }));
+          for (const item of runtimes) {
+            if (item.payload.gitSha !== expected) throw new Error(`runtime_sha_mismatch:${item.name}:${item.payload.gitSha}:${expected}`);
+            if (item.payload.ok !== true || item.payload.runtime !== 'cloudflare-worker') throw new Error(`runtime_contract_failed:${item.name}`);
+          }
+          console.log(JSON.stringify({ expectedSha: expected, runtimes }, null, 2));
+          NODE
+
+          map_headers='mobile-map-production-verification/map.headers'
+          map_body='mobile-map-production-verification/map.html'
+          curl -fsSL --retry 8 --retry-delay 5 -D "$map_headers" -H 'cache-control: no-store' \
+            "https://ikimon.life/ja/map?deploy_smoke=${EXPECTED_SHA}" > "$map_body"
+          grep -Fq 'data-mobile-primary-map-controls' "$map_body"
+          grep -Fq '詳しく絞る' "$map_body"
+          grep -Fq 'data-filter-tab="rain"' "$map_body"
+          grep -Fq 'data-filter-tab="frontier"' "$map_body"
+          grep -Fq 'grid-template-columns: repeat(3, minmax(0, 1fr))' "$map_body"
+          grep -Fq '.me-tab[data-tab="rain"],' "$map_body"
+          grep -Fq -- '--me-enjoy-h: 38px' "$map_body"
+          grep -Fq "var mapShellEl = root.closest('.me-section') || root.parentElement;" "$map_body"
+          grep -qi "^x-ikimon-deploy-sha: ${EXPECTED_SHA}" "$map_headers"
+          grep -qi '^x-ikimon-ui-bundle: ' "$map_headers"
+          grep -qi '^x-ikimon-worker-version: ' "$map_headers"
+
+      - name: Run production multi-viewport visual QA
+        working-directory: platform_v2
+        run: |
+          set -euo pipefail
+          cat > .tmp-production-mobile-map-visual.mjs <<'NODE'
+          import { chromium } from '@playwright/test';
+          import fs from 'node:fs/promises';
+          import path from 'node:path';
+
+          const cases = [
+            { name: '360x800', width: 360, height: 800, mobile: true },
+            { name: '390x844', width: 390, height: 844, mobile: true },
+            { name: '412x915', width: 412, height: 915, mobile: true },
+            { name: '768x1024', width: 768, height: 1024, mobile: true },
+            { name: '1440x1200', width: 1440, height: 1200, mobile: false },
+          ];
+          const outDir = path.resolve('../mobile-map-production-verification/screenshots');
+          const browser = await chromium.launch({ headless: true });
+          const results = [];
+          const failures = [];
+          const intersects = (a, b) => Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
+
+          for (const item of cases) {
+            const context = await browser.newContext({
+              viewport: { width: item.width, height: item.height },
+              locale: 'ja-JP',
+              deviceScaleFactor: 1,
+              serviceWorkers: 'block',
+            });
+            const page = await context.newPage();
+            const consoleErrors = [];
+            page.on('console', (message) => {
+              if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 500));
+            });
+            await page.goto(`https://ikimon.life/ja/map?deploy_visual=${process.env.EXPECTED_SHA}&viewport=${item.name}`, {
+              waitUntil: 'domcontentloaded',
+              timeout: 60_000,
+            });
+            await page.locator('.me-map').waitFor({ state: 'visible', timeout: 30_000 });
+            await page.waitForTimeout(5_000);
+
+            const before = await page.evaluate(() => {
+              const visible = (element) => {
+                if (!element) return false;
+                const rect = element.getBoundingClientRect();
+                const style = getComputedStyle(element);
+                return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || '1') > 0;
+              };
+              const rect = (selector) => {
+                const element = document.querySelector(selector);
+                if (!visible(element)) return null;
+                const box = element.getBoundingClientRect();
+                return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
+              };
+              const tabs = Array.from(document.querySelectorAll('.me-tabs .me-tab')).filter(visible);
+              const map = document.querySelector('.me-map');
+              const mapRect = map?.getBoundingClientRect();
+              return {
+                visibleTabCount: tabs.length,
+                visibleTabLabels: tabs.map((tab) => tab.getAttribute('aria-label') || tab.textContent?.trim() || ''),
+                mapRatio: mapRect ? mapRect.height / window.innerHeight : 0,
+                horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                locate: rect('#me-locate-fab'),
+                footer: rect('.global-record-launcher, .site-mobile-footer-nav'),
+                duplicateStartGridVisible: visible(document.querySelector('.me-start-panel.is-collapsed .me-start-panel-grid')),
+                filterLabel: document.querySelector('.me-filter-toggle')?.textContent?.trim() || '',
+              };
+            });
+
+            await page.screenshot({ path: path.join(outDir, `${item.name}-initial.png`), fullPage: false, animations: 'disabled' });
+            const record = { ...item, before, consoleErrors, drawer: null };
+            const expectedTabs = item.mobile ? 3 : 5;
+            if (before.visibleTabCount !== expectedTabs) failures.push(`${item.name}: expected ${expectedTabs} visible tabs, got ${before.visibleTabCount}`);
+            if (item.mobile && before.mapRatio < 0.55) failures.push(`${item.name}: map ratio ${before.mapRatio.toFixed(3)} is below 0.55`);
+            if (before.horizontalOverflow > 1) failures.push(`${item.name}: horizontal overflow ${before.horizontalOverflow}px`);
+            if (item.mobile && before.duplicateStartGridVisible) failures.push(`${item.name}: duplicate collapsed start controls are visible`);
+            if (item.mobile && before.filterLabel !== '詳しく絞る') failures.push(`${item.name}: unexpected filter label ${before.filterLabel}`);
+            if (item.mobile && intersects(before.locate, before.footer)) failures.push(`${item.name}: locate control overlaps fixed footer`);
+
+            if (item.mobile) {
+              await page.locator('.me-filter-toggle').click();
+              await page.waitForTimeout(300);
+              const drawer = await page.evaluate(() => {
+                const visible = (element) => {
+                  if (!element) return false;
+                  const rect = element.getBoundingClientRect();
+                  const style = getComputedStyle(element);
+                  return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || '1') > 0;
+                };
+                const rect = (selector) => {
+                  const element = document.querySelector(selector);
+                  if (!visible(element)) return null;
+                  const box = element.getBoundingClientRect();
+                  return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
+                };
+                const details = document.querySelector('.me-filter-drawer');
+                return {
+                  open: details?.hasAttribute('open') || false,
+                  rainVisible: visible(document.querySelector('[data-filter-tab="rain"]')),
+                  frontierVisible: visible(document.querySelector('[data-filter-tab="frontier"]')),
+                  locateVisible: visible(document.querySelector('#me-locate-fab')),
+                  bottomSheetOpen: document.querySelector('#me-bottom-sheet')?.classList.contains('is-open') || false,
+                  panel: rect('.me-filter-panel'),
+                  footer: rect('.global-record-launcher, .site-mobile-footer-nav'),
+                };
+              });
+              record.drawer = drawer;
+              if (!drawer.open) failures.push(`${item.name}: details drawer did not open`);
+              if (!drawer.rainVisible || !drawer.frontierVisible) failures.push(`${item.name}: advanced layers are missing from drawer`);
+              if (drawer.locateVisible) failures.push(`${item.name}: locate control remains visible over drawer`);
+              if (drawer.bottomSheetOpen) failures.push(`${item.name}: bottom sheet remains open with drawer`);
+              if (intersects(drawer.panel, drawer.footer)) failures.push(`${item.name}: drawer overlaps fixed footer`);
+              await page.screenshot({ path: path.join(outDir, `${item.name}-drawer.png`), fullPage: false, animations: 'disabled' });
+            }
+
+            results.push(record);
+            await context.close();
+          }
+
+          await browser.close();
+          await fs.writeFile('../mobile-map-production-verification/visual-metrics.json', JSON.stringify({ expectedSha: process.env.EXPECTED_SHA, results, failures }, null, 2));
+          if (failures.length > 0) {
+            console.error(failures.join('\n'));
+            process.exit(1);
+          }
+          NODE
+          node .tmp-production-mobile-map-visual.mjs
+          rm -f .tmp-production-mobile-map-visual.mjs
+
+      - name: Upload production verification evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: mobile-map-progressive-production-verification
+          path: mobile-map-production-verification
+          if-no-files-found: error
+          retention-days: 7
