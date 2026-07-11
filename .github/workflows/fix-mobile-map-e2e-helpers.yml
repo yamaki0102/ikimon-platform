@@ -30,8 +30,15 @@ jobs:
           set -euo pipefail
           python ops/fix_mobile_map_e2e_helpers.py
           git diff --check
-          ! rg -n 'installMapApiStubs|waitForMapReady' platform_v2/e2e/map.staging.spec.ts
-          rg -n 'installMapLibreStubForSmoke|installDeterministicMapApiFixtures|waitForMapShellReady' platform_v2/e2e/map.staging.spec.ts
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('platform_v2/e2e/map.staging.spec.ts').read_text(encoding='utf-8')
+          assert 'await installMapApiStubs(page);' not in source
+          assert 'await waitForMapReady(page, "/map");' not in source
+          assert 'await installMapLibreStubForSmoke(page);' in source
+          assert 'await installDeterministicMapApiFixtures(page);' in source
+          assert 'await waitForMapShellReady(page, "/map", true);' in source
+          PY
 
       - name: Commit correction
         run: |
