@@ -1,0 +1,43 @@
+name: Diagnose Production Deploy Failure
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'agent/production-smoke-cleanup'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FAILED_JOB_ID: '86494040613'
+    steps:
+      - name: Extract deploy failure
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p deploy-failure-diagnostic
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/jobs/${FAILED_JOB_ID}/logs" \
+            > deploy-failure-diagnostic/full.log
+          grep -n -E -C 12 'production_execute|production_release|Fast deploy refused|failed with exit code|Smoke failed|Refusing deploy|Error:|##\[error\]' \
+            deploy-failure-diagnostic/full.log \
+            > deploy-failure-diagnostic/error-context.log || true
+          tail -n 260 deploy-failure-diagnostic/full.log > deploy-failure-diagnostic/tail.log
+          cat deploy-failure-diagnostic/error-context.log || true
+          cat deploy-failure-diagnostic/tail.log
+      - name: Upload deploy failure diagnostic
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-deploy-failure-diagnostic
+          path: deploy-failure-diagnostic
+          if-no-files-found: error
+          retention-days: 7
