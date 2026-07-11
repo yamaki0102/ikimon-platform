@@ -26,12 +26,15 @@ jobs:
       - name: Commit synchronized production check
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/workflows/deploy.yml \
-            platform_v2/src/deployPwaVersionContract.test.ts \
-            .github/workflows/patch-production-pwa-version-check.yml \
-            scripts/patch-production-pwa-version-check.py
+          git add -A
+          git status --short
           git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No PWA version synchronization changes to commit."
+            exit 1
+          fi
           git commit -m "fix: sync production PWA verification version"
           git push origin HEAD:agent/fix-production-pwa-version-check
