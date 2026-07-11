@@ -2117,8 +2117,7 @@ function globalRecordEntryScript(basePath: string): string {
       captureButton.textContent = photoDraftSubmitLabel();
     }
     if (files.length > 0) {
-      setPrimaryAction(startButton, true);
-      setPrimaryAction(captureButton, false);
+      setFooterActionMode('submit');
     } else {
       setFooterActionMode('start');
     }
@@ -2441,7 +2440,7 @@ function globalRecordEntryScript(basePath: string): string {
     if (empty) empty.hidden = true;
     syncPhotoDraftControls();
     const dropped = incoming.length - accepted.length;
-    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置は記録画面で指定できます。') + ' 写真' + String(capturedPhotoFiles.length) + '枚をまとめています。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
+    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で記録、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
   };
   const navigateWithDraft = async (files, kind, metadata) => {
     const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
@@ -2883,12 +2882,6 @@ function globalRecordEntryScript(basePath: string): string {
     }
     if (activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream) {
       if (directPostInFlight) return;
-      if (nowMs() > photoDraftSubmitConfirmUntil) {
-        photoDraftSubmitConfirmUntil = nowMs() + 4500;
-        if (captureButton) captureButton.textContent = 'もう一度押すと記録';
-        setStatus('記録するなら同じボタンをもう一度押してください。続けて撮るなら左のボタンです。');
-        return;
-      }
       photoDraftSubmitConfirmUntil = 0;
       if (captureButton) captureButton.disabled = true;
       try {

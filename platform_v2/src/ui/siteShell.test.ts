@@ -360,9 +360,10 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /\.global-record-camera-zoom button \{/);
   assert.match(html, /--global-record-visual-bottom/);
   assert.match(html, /\.global-record-photo-cell img \{\s+position: absolute;\s+inset: 0;/);
-  assert.match(html, /photoDraftSubmitConfirmUntil = nowMs\(\) \+ 4500/);
-  assert.match(html, /もう一度押すと記録/);
-  assert.match(html, /setPrimaryAction\(startButton, true\);\s+setPrimaryAction\(captureButton, false\);/);
+  assert.doesNotMatch(html, /photoDraftSubmitConfirmUntil = nowMs\(\) \+ 4500/);
+  assert.doesNotMatch(html, /もう一度押すと記録/);
+  assert.match(html, /if \(files\.length > 0\) \{\s+setFooterActionMode\('submit'\);/);
+  assert.match(html, /右で記録、左でもう1枚撮れます。/);
   assert.match(html, /必要なら使う区間だけ選べます/);
   assert.match(html, /top: calc\(max\(12px, env\(safe-area-inset-top\)\) \+ var\(--global-record-visual-top, 0px\)\)/);
   assert.match(html, /height: clamp\(260px, min\(72dvh, calc\(var\(--global-record-visual-height, 100dvh\) - 212px\)\), 760px\)/);
