@@ -4,12 +4,16 @@ on:
   push:
     branches:
       - agent/visual-qa-mobile-map-progressive-20260712
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   visual-qa:
+    if: github.head_ref == 'agent/visual-qa-mobile-map-progressive-20260712'
     runs-on: ubuntu-latest
     services:
       postgres:
