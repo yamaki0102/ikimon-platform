@@ -1745,6 +1745,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 (function () {
   var root = document.getElementById('map-explorer');
   if (!root) return;
+  var mapShellEl = root.closest('.me-section') || root.parentElement;
   var statusEl = document.getElementById('me-map-status');
   var legendEl = document.getElementById('me-legend');
   var legendToggleEl = document.getElementById('me-legend-toggle');
@@ -2643,7 +2644,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function closeFilterDrawer() {
     if (!filterDrawerEl) return;
     filterDrawerEl.removeAttribute('open');
-    root.classList.remove('me-filter-open');
+    if (mapShellEl) mapShellEl.classList.remove('me-filter-open');
   }
 
   function mapCenterIsInShizuoka() {
@@ -9397,7 +9398,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   if (filterDrawerEl) {
     filterDrawerEl.addEventListener('toggle', function () {
       var open = filterDrawerEl.hasAttribute('open');
-      root.classList.toggle('me-filter-open', open);
+      if (mapShellEl) mapShellEl.classList.toggle('me-filter-open', open);
       if (!open) return;
       closeBottomSheet();
       if (startPanelEl && !startPanelEl.hidden) setStartPanelCollapsed(true);
