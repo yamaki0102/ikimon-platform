@@ -12,8 +12,7 @@ function normalizeFiles(files) {
 function isTestOrDocumentation(pathname) {
   return /(^|\/)(?:docs?|e2e)\//.test(pathname)
     || /\.(?:test|spec)\.(?:ts|tsx|js|mjs|cjs)$/.test(pathname)
-    || /(?:^|\/)playwright(?:\.[^/]+)?\.config\.ts$/.test(pathname)
-    || /\.md$/i.test(pathname);
+    || /(?:^|\/)playwright(?:\.[^/]+)?\.config\.ts$/.test(pathname);
 }
 
 function isProductionRuntimePath(pathname) {
