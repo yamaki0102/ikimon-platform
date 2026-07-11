@@ -16,7 +16,7 @@ jobs:
       EXPECTED_SHA: 433b0c146ec7b05036ad26a5b76f6e8523c767e5
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Inspect deploy run
+      - name: Inspect deploy run and record page
         shell: bash
         run: |
           set -euo pipefail
@@ -36,3 +36,7 @@ jobs:
           }
           console.log(JSON.stringify({ expectedSha: expected, found: true, id: run.id, runNumber: run.run_number, status: run.status, conclusion: run.conclusion, htmlUrl: run.html_url, createdAt: run.created_at, updatedAt: run.updated_at }, null, 2));
           NODE
+          curl -fsSL -H 'cache-control: no-store' "https://ikimon.life/ja/record?deploy_smoke=${EXPECTED_SHA}" > record.html
+          echo "source=record_saved count: $(grep -o 'source=record_saved' record.html | wc -l)"
+          echo "saved= count: $(grep -o 'saved=' record.html | wc -l)"
+          echo "record-success-shortcuts count: $(grep -o 'record-success-shortcuts' record.html | wc -l)"
