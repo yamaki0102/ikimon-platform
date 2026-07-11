@@ -407,7 +407,7 @@ jobs:
             exit 1
           fi
           app_sw="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/app-sw.js?deploy_smoke=${GITHUB_SHA}")"
-          if [[ "$app_sw" != *"ikimon-app-v6"* || "$app_sw" != *"MAP_NAV_RE"* || "$app_sw" != *"PERSONAL_NAV_RE"* || "$app_sw" != *"REFRESH_NAV_RE"* || "$app_sw" != *"cache: 'no-store'"* || "$app_sw" != *"client.navigate"* ]]; then
+          if [[ "$app_sw" != *"ikimon-app-v7"* || "$app_sw" != *"MAP_NAV_RE"* || "$app_sw" != *"PERSONAL_NAV_RE"* || "$app_sw" != *"REFRESH_NAV_RE"* || "$app_sw" != *"cache: 'no-store'"* || "$app_sw" != *"client.navigate"* ]]; then
             echo "PWA service worker is missing the stale profile/map shell refresh update."
             exit 1
           fi
