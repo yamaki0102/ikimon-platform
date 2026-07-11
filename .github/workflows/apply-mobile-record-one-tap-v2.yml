@@ -80,6 +80,21 @@ jobs:
 
           path.write_text(source, encoding='utf-8')
 
+          shell_test = Path('platform_v2/src/ui/siteShell.test.ts')
+          shell_test_source = shell_test.read_text(encoding='utf-8')
+          old_test_contract = """  assert.match(html, /photoDraftSubmitConfirmUntil = nowMs\(\) \+ 4500/);
+            assert.match(html, /もう一度押すと記録/);
+            assert.match(html, /setPrimaryAction\(startButton, true\);\s+setPrimaryAction\(captureButton, false\);/);
+          """
+          new_test_contract = """  assert.doesNotMatch(html, /photoDraftSubmitConfirmUntil = nowMs\(\) \+ 4500/);
+            assert.doesNotMatch(html, /もう一度押すと記録/);
+            assert.match(html, /if \(files\.length > 0\) \{\s+setFooterActionMode\('submit'\);/);
+            assert.match(html, /右で記録、左でもう1枚撮れます。/);
+          """
+          if shell_test_source.count(old_test_contract) != 1:
+              raise SystemExit('site shell legacy confirmation contract: expected exactly 1 match')
+          shell_test.write_text(shell_test_source.replace(old_test_contract, new_test_contract, 1), encoding='utf-8')
+
           Path('platform_v2/src/ui/mobileQuickRecordContract.test.ts').write_text('''import assert from "node:assert/strict";\nimport test from "node:test";\nimport { readFileSync } from "node:fs";\n\nconst source = readFileSync(new URL("./siteShell.ts", import.meta.url), "utf8");\n\ntest("mobile footer quick record saves a reviewed photo with one tap", () => {\n  assert.doesNotMatch(source, /もう一度押すと記録/);\n  assert.doesNotMatch(source, /記録するなら同じボタンをもう一度押してください/);\n  assert.match(\n    source,\n    /if \(activeKind === 'photo' && selectedPhotoDraftFiles\(\)\.length > 0 && !activeStream\) \{[\\s\\S]*?if \(captureButton\) captureButton\.disabled = true;[\\s\\S]*?await directPostPhotoDraft\(\);/,\n  );\n});\n\ntest("reviewed photos make save the primary action and keep add-another secondary", () => {\n  assert.match(source, /if \(files\.length > 0\) \{\\s*setFooterActionMode\('submit'\);/);\n  assert.match(source, /右で記録、左でもう1枚撮れます。/);\n});\n''', encoding='utf-8')
           PY
 
