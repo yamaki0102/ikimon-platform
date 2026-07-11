@@ -1,0 +1,229 @@
+name: Verify Mobile Map Progressive Visual QA
+
+on:
+  push:
+    branches:
+      - agent/visual-qa-mobile-map-progressive-20260712
+
+permissions:
+  contents: read
+
+jobs:
+  visual-qa:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb-ha:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ikimon_v2_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/ikimon_v2_ci
+      V2_PRIVILEGED_WRITE_API_KEY: ci-write-key
+      ALLOW_QUERY_USER_ID: "1"
+      PORT: "3200"
+      STAGING_BASE_URL: http://127.0.0.1:3200
+      EXPECTED_SHA: 4cbbb055a754e3cbec43cb8af063428837177901
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/mobile-map-progressive-controls-20260712
+          fetch-depth: 1
+
+      - name: Setup platform browser runtime
+        uses: ./.github/actions/setup-platform-browser
+
+      - name: Build platform
+        working-directory: platform_v2
+        run: npm run build
+
+      - name: Enable CI database extensions
+        working-directory: platform_v2
+        run: |
+          node --input-type=module <<'NODE'
+          import { Client } from "pg";
+          const client = new Client({ connectionString: process.env.DATABASE_URL });
+          await client.connect();
+          await client.query("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE");
+          await client.query("CREATE EXTENSION IF NOT EXISTS pgcrypto");
+          await client.query("CREATE EXTENSION IF NOT EXISTS vector");
+          await client.end();
+          NODE
+
+      - name: Apply CI database migrations
+        working-directory: platform_v2
+        run: npm run migrate -- --allow-destructive
+
+      - name: Start local platform runtime
+        working-directory: platform_v2
+        run: |
+          set -euo pipefail
+          npm run start > ../mobile-map-visual-runtime.log 2>&1 &
+          echo "$!" > ../mobile-map-visual-runtime.pid
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3200/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat ../mobile-map-visual-runtime.log
+          exit 1
+
+      - name: Run multi-viewport mobile map visual QA
+        working-directory: platform_v2
+        run: |
+          set -euo pipefail
+          mkdir -p ../visual-qa-mobile-map/screenshots
+          cat > .tmp-mobile-map-visual-qa.mjs <<'NODE'
+          import { chromium } from '@playwright/test';
+          import fs from 'node:fs/promises';
+          import path from 'node:path';
+
+          const cases = [
+            { name: '360x800', width: 360, height: 800, mobile: true },
+            { name: '390x844', width: 390, height: 844, mobile: true },
+            { name: '412x915', width: 412, height: 915, mobile: true },
+            { name: '768x1024', width: 768, height: 1024, mobile: true },
+            { name: '1440x1200', width: 1440, height: 1200, mobile: false },
+          ];
+          const outDir = path.resolve('../visual-qa-mobile-map/screenshots');
+          const browser = await chromium.launch({ headless: true });
+          const results = [];
+          const failures = [];
+
+          const intersects = (a, b) => Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
+
+          for (const item of cases) {
+            const context = await browser.newContext({
+              viewport: { width: item.width, height: item.height },
+              locale: 'ja-JP',
+              deviceScaleFactor: 1,
+              serviceWorkers: 'block',
+            });
+            const page = await context.newPage();
+            const consoleErrors = [];
+            page.on('console', (message) => {
+              if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 500));
+            });
+            await page.goto(`http://127.0.0.1:3200/ja/map?visual_qa=${encodeURIComponent(item.name)}`, {
+              waitUntil: 'domcontentloaded',
+              timeout: 60_000,
+            });
+            await page.locator('.me-map').waitFor({ state: 'visible', timeout: 30_000 });
+            await page.waitForTimeout(4_000);
+
+            const before = await page.evaluate(() => {
+              const visible = (element) => {
+                if (!element) return false;
+                const rect = element.getBoundingClientRect();
+                const style = getComputedStyle(element);
+                return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || '1') > 0;
+              };
+              const rect = (selector) => {
+                const element = document.querySelector(selector);
+                if (!visible(element)) return null;
+                const box = element.getBoundingClientRect();
+                return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
+              };
+              const tabs = Array.from(document.querySelectorAll('.me-tabs .me-tab')).filter(visible);
+              const map = document.querySelector('.me-map');
+              const mapRect = map?.getBoundingClientRect();
+              return {
+                visibleTabCount: tabs.length,
+                visibleTabLabels: tabs.map((tab) => tab.getAttribute('aria-label') || tab.textContent?.trim() || ''),
+                mapRatio: mapRect ? mapRect.height / window.innerHeight : 0,
+                horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                locate: rect('#me-locate-fab'),
+                footer: rect('.global-record-launcher, .site-mobile-footer-nav'),
+                roleStrip: rect('.me-map-role-strip'),
+                duplicateStartGridVisible: visible(document.querySelector('.me-start-panel.is-collapsed .me-start-panel-grid')),
+                filterLabel: document.querySelector('.me-filter-toggle')?.textContent?.trim() || '',
+              };
+            });
+
+            await page.screenshot({ path: path.join(outDir, `${item.name}-initial.png`), fullPage: false, animations: 'disabled' });
+
+            const record = { ...item, before, consoleErrors, drawer: null };
+            const expectedTabs = item.mobile ? 3 : 5;
+            if (before.visibleTabCount !== expectedTabs) failures.push(`${item.name}: expected ${expectedTabs} visible tabs, got ${before.visibleTabCount}`);
+            if (item.mobile && before.mapRatio < 0.55) failures.push(`${item.name}: map ratio ${before.mapRatio.toFixed(3)} is below 0.55`);
+            if (before.horizontalOverflow > 1) failures.push(`${item.name}: horizontal overflow ${before.horizontalOverflow}px`);
+            if (item.mobile && before.duplicateStartGridVisible) failures.push(`${item.name}: duplicate collapsed start controls are visible`);
+            if (item.mobile && before.filterLabel !== '詳しく絞る') failures.push(`${item.name}: unexpected filter label ${before.filterLabel}`);
+            if (item.mobile && intersects(before.locate, before.footer)) failures.push(`${item.name}: locate control overlaps fixed footer`);
+
+            if (item.mobile) {
+              await page.locator('.me-filter-toggle').click();
+              await page.waitForTimeout(250);
+              const drawer = await page.evaluate(() => {
+                const visible = (element) => {
+                  if (!element) return false;
+                  const rect = element.getBoundingClientRect();
+                  const style = getComputedStyle(element);
+                  return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || '1') > 0;
+                };
+                const rect = (selector) => {
+                  const element = document.querySelector(selector);
+                  if (!visible(element)) return null;
+                  const box = element.getBoundingClientRect();
+                  return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
+                };
+                const details = document.querySelector('.me-filter-drawer');
+                return {
+                  open: details?.hasAttribute('open') || false,
+                  rainVisible: visible(document.querySelector('[data-filter-tab="rain"]')),
+                  frontierVisible: visible(document.querySelector('[data-filter-tab="frontier"]')),
+                  locateVisible: visible(document.querySelector('#me-locate-fab')),
+                  bottomSheetOpen: document.querySelector('#me-bottom-sheet')?.classList.contains('is-open') || false,
+                  panel: rect('.me-filter-panel'),
+                  footer: rect('.global-record-launcher, .site-mobile-footer-nav'),
+                };
+              });
+              record.drawer = drawer;
+              if (!drawer.open) failures.push(`${item.name}: details drawer did not open`);
+              if (!drawer.rainVisible || !drawer.frontierVisible) failures.push(`${item.name}: advanced layers are missing from drawer`);
+              if (drawer.locateVisible) failures.push(`${item.name}: locate control remains visible over drawer`);
+              if (drawer.bottomSheetOpen) failures.push(`${item.name}: bottom sheet remains open with drawer`);
+              if (intersects(drawer.panel, drawer.footer)) failures.push(`${item.name}: drawer overlaps fixed footer`);
+              await page.screenshot({ path: path.join(outDir, `${item.name}-drawer.png`), fullPage: false, animations: 'disabled' });
+            }
+
+            results.push(record);
+            await context.close();
+          }
+
+          await browser.close();
+          await fs.writeFile('../visual-qa-mobile-map/metrics.json', JSON.stringify({ expectedSha: process.env.EXPECTED_SHA, results, failures }, null, 2));
+          if (failures.length > 0) {
+            console.error(failures.join('\n'));
+            process.exit(1);
+          }
+          NODE
+          node .tmp-mobile-map-visual-qa.mjs
+          rm -f .tmp-mobile-map-visual-qa.mjs
+
+      - name: Upload visual QA evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: mobile-map-progressive-visual-qa
+          path: |
+            visual-qa-mobile-map
+            mobile-map-visual-runtime.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop local runtime
+        if: always()
+        run: |
+          if [ -f mobile-map-visual-runtime.pid ]; then
+            kill "$(cat mobile-map-visual-runtime.pid)" || true
+          fi
