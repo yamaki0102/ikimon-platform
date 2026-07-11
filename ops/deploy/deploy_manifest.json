@@ -1,11 +1,20 @@
 {
-  "version": 2,
+  "version": 3,
   "strategy": "github_actions_cloudflare_worker",
   "platform": "cloudflare_worker",
   "workerName": "ikimon-life-cloudflare-prod",
   "workerDirectory": "platform_v2/cloudflare_shadow",
   "r2Bucket": "ikimon-prod-media",
   "materializedOriginalUiScope": "core",
+  "portableReleaseScript": "scripts/run_cloudflare_production_release.sh",
+  "portableVerifyScript": "scripts/verify_cloudflare_production_release.sh",
+  "productionScopePlanner": "scripts/plan_production_release_scope.mjs",
+  "triggerPolicy": {
+    "mainPushOnly": true,
+    "pathFiltered": true,
+    "controlOnlySkipsMutation": true,
+    "exactShaRequired": true
+  },
   "healthChecks": [
     "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/healthz",
     "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/readyz",
@@ -17,11 +26,12 @@
     "https://ikimon.life/ja/contact"
   ],
   "requiredChecks": [
-    "php tools/lint.php",
-    "cd platform_v2 && npm ci && npm run typecheck && npm run build && npm run test:node",
-    "cd platform_v2/cloudflare_shadow && npm ci && npm run check && npm test && npm run deploy:production:dry-run",
-    "cd platform_v2/cloudflare_shadow && npm run materialize:original-ui:dry-run",
-    "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_guardrails.ps1"
+    "PR Quality Gate and Ai Review Gate before merge",
+    "node --test scripts/tests/production_release_scope.tests.mjs",
+    "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_guardrails.ps1",
+    "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_manifest_sync.ps1",
+    "bash scripts/run_cloudflare_production_release.sh with DEPLOY_PRODUCTION=true",
+    "bash scripts/verify_cloudflare_production_release.sh"
   ],
   "forbiddenPaths": [
     "**/*.sqlite",
@@ -37,12 +47,14 @@
     "**/*.bak"
   ],
   "notes": [
-    "Production deploy is triggered only by merge to main and GitHub Actions.",
+    "Production mutation is triggered only by an eligible main push whose changed files affect the current app, Worker runtime, bindings, migrations, dependencies, or materialized UI.",
+    "Documentation, test-only, and production control-plane-only changes do not mutate the production Worker, D1, or R2.",
+    "GitHub Actions is the approval and status layer; the release implementation is the portable repository command scripts/run_cloudflare_production_release.sh.",
+    "The portable release command performs one dependency-install/build lane, Worker quick preflight, D1 migration application, R2 materialization, guarded Worker deploy, and post-deploy verification without a GitHub Artifact handoff.",
     "The production public entrypoint is Cloudflare Worker ikimon-life-cloudflare-prod, not the legacy VPS blue/green lane.",
-    "The production workflow deploys the Worker with the guarded Cloudflare script and materializes the core original UI HTML, including /record and /ja/record app shells, plus original-ui/static/app-sw.js into R2. The R2 materializer records a whole-bundle manifest and skips R2 writes when the generated bundle hash is unchanged.",
     "The production Worker must not own staging.ikimon.life routes; Cloudflare staging owns staging.ikimon.life/* through ikimon-life-cloudflare-staging.",
     "Routine production deploy must not use VPS SSH, deploy_platform_v2_blue_green.sh, or VPS_SSH_KEY.",
-    "Routine production deploy must not change DNS, custom domains, D1 data, secrets, billing, provider settings, or VPS state.",
-    "R2 writes in routine deploy are limited to original-ui/html core materialized HTML app shells, original-ui/static/app-sw.js generated from the same commit, and original-ui/materialize-manifest/* optimization metadata."
+    "Routine production deploy must not change DNS, custom domains, secrets, billing, provider settings, or VPS state.",
+    "R2 writes in routine deploy are limited to generated original UI HTML/static assets and materialization metadata from the exact deployed commit."
   ]
 }

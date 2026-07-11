@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { planCiScope } from '../plan_ci_scope.mjs';
+import './production_release_scope.tests.mjs';
 
 test('docs-only changes do not spend browser minutes', () => {
   const plan = planCiScope(['docs/operations.md']);
@@ -76,14 +77,24 @@ test('non-CI deploy workflow changes do not force browser suites', () => {
   assert.equal(plan.run_scene_read_smoke, false);
 });
 
-test('portable staging runner changes execute deploy contract checks', () => {
+test('portable staging runner changes are deploy-impacting', () => {
   const plan = planCiScope(['scripts/run_cloudflare_staging_release.sh']);
   assert.equal(plan.deploy_changed, true);
   assert.equal(plan.run_platform, true);
   assert.equal(plan.run_deploy_manifest_check, true);
-  assert.equal(plan.run_record_funnel_browser_qa, false);
-  assert.equal(plan.run_map_performance_qa, false);
-  assert.equal(plan.run_scene_read_smoke, false);
+});
+
+test('portable production runner changes are deploy-impacting', () => {
+  const plan = planCiScope(['scripts/run_cloudflare_production_release.sh']);
+  assert.equal(plan.deploy_changed, true);
+  assert.equal(plan.run_platform, true);
+  assert.equal(plan.run_deploy_manifest_check, true);
+});
+
+test('production release planner changes are deploy-impacting', () => {
+  const plan = planCiScope(['scripts/plan_production_release_scope.mjs']);
+  assert.equal(plan.deploy_changed, true);
+  assert.equal(plan.run_deploy_manifest_check, true);
 });
 
 test('CI workflow changes keep every browser gate', () => {

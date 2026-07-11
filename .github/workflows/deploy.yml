@@ -3,629 +3,174 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
+    paths:
+      - 'platform_v2/**'
+      - 'ops/deploy/**'
+      - 'scripts/check_deploy_guardrails.ps1'
+      - 'scripts/check_deploy_manifest_sync.ps1'
+      - 'scripts/check_staging_manifest_sync.ps1'
+      - 'scripts/check_platform_migration_guardrails.ps1'
+      - 'scripts/check_legacy_entrypoint_reason.ps1'
+      - 'scripts/classify_deploy_smoke_tier.ps1'
+      - 'scripts/plan_production_release_scope.mjs'
+      - 'scripts/run_cloudflare_production_release.sh'
+      - 'scripts/verify_cloudflare_production_release.sh'
+      - 'scripts/tests/production_release_scope.tests.mjs'
+      - 'scripts/tests/release_automation.tests.ps1'
+      - '.github/workflows/deploy.yml'
 
 concurrency:
   group: production-deploy
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 env:
   IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL: APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
+  IKIMON_PRODUCTION_WORKER: ikimon-life-cloudflare-prod
+  IKIMON_PRODUCTION_R2_BUCKET: ikimon-prod-media
+  IKIMON_PRODUCTION_WORKER_DIRECTORY: platform_v2/cloudflare_shadow
 
 jobs:
-  classify-deploy-change:
-    name: Classify Deploy Change
+  plan-and-guard:
+    name: Plan and Guard Production Release
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
-      smoke_tier: ${{ steps.classify.outputs.smoke_tier }}
-      reason: ${{ steps.classify.outputs.reason }}
-      changed_count: ${{ steps.classify.outputs.changed_count }}
-      legacy_lane_mode: ${{ steps.classify.outputs.legacy_lane_mode }}
-      legacy_lane_reason: ${{ steps.classify.outputs.legacy_lane_reason }}
+      deploy_required: ${{ steps.plan.outputs.deploy_required }}
+      run_guardrails: ${{ steps.plan.outputs.run_guardrails }}
+      smoke_tier: ${{ steps.plan.outputs.smoke_tier }}
+      reason: ${{ steps.plan.outputs.reason }}
+      changed_count: ${{ steps.plan.outputs.changed_count }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
-      - name: Classify production smoke tier
-        id: classify
-        shell: pwsh
-        run: ./scripts/classify_deploy_smoke_tier.ps1 -BaseRef '${{ github.event.before }}' -HeadRef '${{ github.sha }}'
-
-      - name: Write deploy smoke tier summary
-        shell: pwsh
-        run: |
-          $summary = @'
-          ## Deploy Smoke Tier
-
-          - Tier: `${{ steps.classify.outputs.smoke_tier }}`
-          - Reason: `${{ steps.classify.outputs.reason }}`
-          - Changed files: `${{ steps.classify.outputs.changed_count }}`
-          - Legacy lane: `${{ steps.classify.outputs.legacy_lane_mode }}`
-          - Legacy lane reason: `${{ steps.classify.outputs.legacy_lane_reason }}`
-          '@
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
-
-  pre-flight:
-    name: Pre-flight Checks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: gd, mbstring, json
 
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: |
-            platform_v2/package-lock.json
-            platform_v2/cloudflare_shadow/package-lock.json
+          node-version: '22'
 
-      - name: Check deploy guardrails
-        shell: pwsh
-        run: ./scripts/check_deploy_guardrails.ps1
-
-      - name: Check legacy entrypoint reason
-        shell: pwsh
+      - name: Resolve changed files
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
-          $baseRef = '${{ github.event.before }}'
-          if ([string]::IsNullOrWhiteSpace($baseRef) -or $baseRef -match '^0+$') {
-            $baseRef = 'origin/main'
-          }
-          ./scripts/check_legacy_entrypoint_reason.ps1 -BaseRef $baseRef
+          set -euo pipefail
+          if [[ -n "${BEFORE_SHA}" ]] && ! grep -qE '^0+$' <<< "${BEFORE_SHA}" && git rev-parse --verify "${BEFORE_SHA}" >/dev/null 2>&1; then
+            git diff --name-only "${BEFORE_SHA}" "${HEAD_SHA}" > production-release-changed-files.txt
+          else
+            git show --pretty='' --name-only "${HEAD_SHA}" > production-release-changed-files.txt
+          fi
+          sed '/^[[:space:]]*$/d' production-release-changed-files.txt | sort -u -o production-release-changed-files.txt
+          cat production-release-changed-files.txt
 
-      - name: Check platform migration guardrails
+      - name: Plan production release scope
+        id: plan
+        run: >-
+          node scripts/plan_production_release_scope.mjs
+          --changed-files production-release-changed-files.txt
+          --github-output "$GITHUB_OUTPUT"
+          --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Test production release scope planner
+        run: node --test scripts/tests/production_release_scope.tests.mjs
+
+      - name: Run deploy control guardrails
+        if: steps.plan.outputs.run_guardrails == 'true'
         shell: pwsh
-        run: ./scripts/check_platform_migration_guardrails.ps1
+        env:
+          BASE_REF: ${{ github.event.before }}
+        run: |
+          ./scripts/check_deploy_guardrails.ps1
+          ./scripts/check_deploy_manifest_sync.ps1
+          $resolvedBase = $env:BASE_REF
+          if ([string]::IsNullOrWhiteSpace($resolvedBase) -or $resolvedBase -match '^0+$') {
+            $resolvedBase = 'HEAD~1'
+          }
+          ./scripts/check_legacy_entrypoint_reason.ps1 -BaseRef $resolvedBase
+          ./scripts/check_platform_migration_guardrails.ps1
+          ./scripts/tests/release_automation.tests.ps1
 
-      - name: PHP Syntax Check
-        run: php tools/lint.php
-
-      - name: Install platform dependencies
-        working-directory: platform_v2
-        run: npm ci
-
-      - name: Typecheck platform
-        working-directory: platform_v2
-        run: npm run typecheck
-
-      - name: Build platform
-        working-directory: platform_v2
-        run: npm run build
-
-      - name: Run platform node tests
-        working-directory: platform_v2
-        run: npm run test:node
-
-      - name: Test platform curator validators
-        working-directory: platform_v2
-        run: npm run test:curator
-
-      - name: Install Cloudflare Worker dependencies
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm ci
-
-      - name: Typecheck Cloudflare Worker
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm run check
-
-      - name: Test Cloudflare Worker
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm test
-
-      - name: Materialized original UI dry run
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm run materialize:original-ui:dry-run
-
-  cloudflare-production:
-    name: Deploy Cloudflare Production
+  deploy-production:
+    name: Deploy and Verify Cloudflare Production
     runs-on: ubuntu-latest
-    needs:
-      - cloudflare-quick-preflight
-      - classify-deploy-change
-    if: ${{ needs['cloudflare-quick-preflight'].result == 'success' && needs['classify-deploy-change'].result == 'success' }}
+    timeout-minutes: 60
+    needs: plan-and-guard
+    if: needs.plan-and-guard.outputs.deploy_required == 'true'
     environment: production
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      DEPLOY_PRODUCTION: 'true'
+      TEST_PROFILE: quick
+      SMOKE_TIER: ${{ needs.plan-and-guard.outputs.smoke_tier }}
+      PLAYWRIGHT_INSTALL_WITH_DEPS: 'false'
+      IKIMON_EXPECTED_GIT_SHA: ${{ github.sha }}
+      IKIMON_WORKER_VERSION: github-run-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
-          node-version: "22"
+          node-version: '22'
           cache: npm
           cache-dependency-path: |
             platform_v2/package-lock.json
             platform_v2/cloudflare_shadow/package-lock.json
 
-      - name: Install platform dependencies
-        working-directory: platform_v2
-        run: npm ci
+      - name: Configure Playwright browser cache
+        run: echo "PLAYWRIGHT_BROWSERS_PATH=${GITHUB_WORKSPACE}/.cache/ms-playwright" >> "$GITHUB_ENV"
 
-      - name: Build platform
-        working-directory: platform_v2
-        run: npm run build
-
-      - name: Install Cloudflare Worker dependencies
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm ci
-
-      - name: Download Cloudflare quick preflight artifact
-        uses: actions/download-artifact@v8
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v5
         with:
-          name: cloudflare-production-preflight
-          path: platform_v2/cloudflare_shadow/.deploy
+          path: ${{ github.workspace }}/.cache/ms-playwright
+          key: production-playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('platform_v2/package-lock.json') }}
 
-      - name: Verify Cloudflare quick preflight artifact
-        working-directory: platform_v2/cloudflare_shadow
-        run: |
-          set -euo pipefail
-          test -s .deploy/production-preflight-latest.json
-          test -s .deploy/wrangler-version-cache.json
+      - name: Run portable production release
+        run: bash scripts/run_cloudflare_production_release.sh
 
-      - name: Original UI materialization dry run
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm run materialize:original-ui:dry-run
-
-      - name: Apply production D1 core migrations
-        working-directory: platform_v2/cloudflare_shadow
-        run: npx wrangler d1 migrations apply CORE_DB --remote --env production
-
-      - name: Apply production D1 observation migrations
-        working-directory: platform_v2/cloudflare_shadow
-        run: npx wrangler d1 migrations apply OBS_DB --remote --env production
-
-      - name: Materialize original UI into production R2
-        working-directory: platform_v2/cloudflare_shadow
-        run: |
-          set -euo pipefail
-          npm run materialize:original-ui -- --skip-if-unchanged --output materialize-original-ui.json
-          node <<'NODE' >> "$GITHUB_ENV"
-          const fs = require("node:fs");
-          const report = JSON.parse(fs.readFileSync("materialize-original-ui.json", "utf8"));
-          if (!report.bundleHash || !report.manifestUpload?.sha256) {
-            throw new Error("Materialized UI release identity is incomplete.");
-          }
-          console.log(`IKIMON_UI_BUNDLE_HASH=${report.bundleHash}`);
-          console.log(`IKIMON_UI_MANIFEST_HASH=${report.manifestUpload.sha256}`);
-          NODE
-          echo "IKIMON_WORKER_VERSION=github-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
-          echo "IKIMON_DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
-
-      - name: Deploy Cloudflare Worker
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm run deploy:production:fast
-
-      - name: Write Cloudflare deploy summary
-        working-directory: platform_v2/cloudflare_shadow
+      - name: Write portable release summary
+        if: always()
         run: |
           node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
-          const fs = require("node:fs");
-          const json = JSON.parse(fs.readFileSync("materialize-original-ui.json", "utf8"));
-          console.log("## Cloudflare Production Deploy");
-          console.log("");
-          console.log("- Worker: `ikimon-life-cloudflare-prod`");
-          console.log("- R2 bucket: `ikimon-prod-media`");
-          console.log(`- Original UI scope: \`${json.scope}\``);
-          console.log(`- Original UI materialization: \`${json.materializeSkipped ? "skipped: bundle hash unchanged" : "uploaded"}\``);
-          console.log(`- Original UI bundle hash: \`${json.bundleHash}\``);
-          console.log(`- Original UI manifest key: \`${json.manifestKey}\``);
-          console.log("- VPS SSH/deploy: `not used`");
-          console.log("- Preflight artifact: `cloudflare-production-preflight`");
-          console.log("");
-          console.log("### Materialized UI");
-          if (json.materializeSkipped) {
-            console.log(`- R2 writes skipped because \`${json.skipReason}\`.`);
-          } else {
-            for (const item of json.rendered) {
-              console.log(`- \`${item.pathname}\` -> \`${item.key}\` (${item.bytes} bytes)`);
-            }
-            console.log("");
-            console.log("### Materialized Static Assets");
-            for (const item of json.renderedStatic) {
-              console.log(`- \`${item.pathname}\` -> \`${item.key}\` (${item.bytes} bytes)`);
-            }
+          const fs = require('node:fs');
+          const path = 'platform_v2/cloudflare_shadow/.deploy/production-release-summary.json';
+          console.log('## Portable Cloudflare Production Release');
+          console.log('');
+          console.log('- Worker: `ikimon-life-cloudflare-prod`');
+          console.log('- R2 bucket: `ikimon-prod-media`');
+          console.log('- VPS SSH/deploy: `not used`');
+          console.log('- GitHub Artifact handoff: `not used`');
+          if (!fs.existsSync(path)) {
+            console.log('- Release summary: `missing`');
+            process.exit(0);
           }
-          NODE
-
-  cloudflare-quick-preflight:
-    name: Cloudflare Quick Preflight Artifact
-    runs-on: ubuntu-latest
-    needs:
-      - pre-flight
-      - classify-deploy-change
-    if: ${{ needs.pre-flight.result == 'success' && needs['classify-deploy-change'].result == 'success' }}
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: |
-            platform_v2/cloudflare_shadow/package-lock.json
-
-      - name: Require Cloudflare API token
-        run: |
-          set -euo pipefail
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-            echo "CLOUDFLARE_API_TOKEN is required for Wrangler production dry-run."
-            exit 1
-          fi
-
-      - name: Install Cloudflare Worker dependencies
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm ci
-
-      - name: Cloudflare Worker quick preflight
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm run deploy:production:quick-preflight
-
-      - name: Prepare preflight artifact
-        working-directory: platform_v2/cloudflare_shadow
-        run: |
-          set -euo pipefail
-          mkdir -p preflight-artifact
-          cp .deploy/production-preflight-latest.json preflight-artifact/production-preflight-latest.json
-          cp .deploy/wrangler-version-cache.json preflight-artifact/wrangler-version-cache.json
-
-      - name: Upload Cloudflare quick preflight artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: cloudflare-production-preflight
-          path: platform_v2/cloudflare_shadow/preflight-artifact/*
-          if-no-files-found: error
-          retention-days: 2
-
-      - name: Write Cloudflare preflight summary
-        working-directory: platform_v2/cloudflare_shadow
-        run: |
-          node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
-          const fs = require("node:fs");
-          const report = JSON.parse(fs.readFileSync(".deploy/production-preflight-latest.json", "utf8"));
-          console.log("## Cloudflare Quick Preflight Artifact");
-          console.log("");
-          console.log(`- Artifact: \`cloudflare-production-preflight\``);
-          console.log(`- Dry-run contract: \`deploy:production:dry-run\``);
-          console.log(`- Git HEAD: \`${report.gitHead}\``);
+          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+          console.log(`- Status: \`${report.status}\``);
+          console.log(`- Git SHA: \`${report.gitSha}\``);
           console.log(`- Test profile: \`${report.testProfile}\``);
-          console.log(`- Deploy input hash: \`${report.deployInputSha256}\``);
-          console.log(`- Checked at: \`${report.checkedAt}\``);
+          console.log(`- Smoke tier: \`${report.smokeTier}\``);
           NODE
 
-  verify:
-    name: Post-deploy Cloudflare Verification
-    runs-on: ubuntu-latest
-    needs: cloudflare-production
-    steps:
-      - name: Health and route checks
-        run: |
-          set -euo pipefail
-          echo "=== Cloudflare Health Check ==="
-          for url in \
-            https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/healthz \
-            https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/readyz \
-            https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/runtime/version \
-            https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/qa/reflection-loop.json \
-            https://ikimon.life/healthz \
-            https://ikimon.life/readyz \
-            https://ikimon.life/api/v1/runtime/version \
-            https://ikimon.life/qa/reflection-loop.json \
-            https://ikimon.life/ \
-            https://ikimon.life/ja/map \
-            https://ikimon.life/ja/learn \
-            https://ikimon.life/ja/contact
-          do
-            status="$(curl -sS -o /dev/null -w "%{http_code}" "$url")"
-            case "$status" in
-              2*|3*) echo "OK $url -> $status" ;;
-              *) echo "FAIL $url -> $status"; exit 1 ;;
-            esac
-          done
-          health_payload="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/healthz?deploy_smoke=${GITHUB_SHA}")"
-          if [[ "$health_payload" != *'"buildMarker":"one-month-sprint-evidence-gate-20260705"'* ]]; then
-            echo "Production Worker build marker is stale: $health_payload"
-            exit 1
-          fi
-          runtime_payload="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/api/v1/runtime/version?deploy_smoke=${GITHUB_SHA}")"
-          if [[ "$runtime_payload" != *'"schemaVersion":"cloudflare_worker_runtime/v1"'* || "$runtime_payload" != *'"runtime":"cloudflare-worker"'* || "$runtime_payload" != *'"publicSafe":true'* || "$runtime_payload" != *'"buildMarker":"one-month-sprint-evidence-gate-20260705"'* ]]; then
-            echo "Production runtime version endpoint is missing its public-safe reflection contract: $runtime_payload"
-            exit 1
-          fi
-          node -e '
-            const payload = JSON.parse(process.argv[1]);
-            const expectedSha = process.env.GITHUB_SHA;
-            if (payload.gitSha !== expectedSha) throw new Error(`runtime SHA mismatch: ${payload.gitSha} != ${expectedSha}`);
-            for (const key of ["workerVersion", "uiBundleHash", "originalUiManifestHash", "deployedAt"]) {
-              if (typeof payload[key] !== "string" || !payload[key]) throw new Error(`runtime release field missing: ${key}`);
-            }
-          ' "$runtime_payload"
-          home_headers="$(mktemp)"
-          home_body="$(curl -fsS -D "$home_headers" -H 'cache-control: no-store' "https://ikimon.life/ja/?deploy_release=${GITHUB_SHA}")"
-          grep -Fq 'data-global-record-trigger="photo"' <<< "$home_body"
-          grep -Fq 'data-kpi-action="header_record_photo"' <<< "$home_body"
-          grep -qi "^x-ikimon-deploy-sha: ${GITHUB_SHA}" "$home_headers"
-          grep -qi '^x-ikimon-ui-bundle: ' "$home_headers"
-          grep -qi '^x-ikimon-worker-version: ' "$home_headers"
-          reflection_payload="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/qa/reflection-loop.json?deploy_smoke=${GITHUB_SHA}")"
-          if [[ "$reflection_payload" != *'"service":"ikimon.life"'* || "$reflection_payload" != *'"runtime":"cloudflare-worker"'* || "$reflection_payload" != *'"no_personal_data":true'* || "$reflection_payload" != *'"/api/v1/runtime/version"'* ]]; then
-            echo "Production reflection loop manifest is missing its public-safe contract: $reflection_payload"
-            exit 1
-          fi
-
-      - name: Map UI content check
-        run: |
-          set -euo pipefail
-          body="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/ja/map?deploy_smoke=${GITHUB_SHA}")"
-          signed_body="$(curl -fsS -H 'cache-control: no-store' -H 'cookie: ikimon_v2_session=deploy-smoke' "https://ikimon.life/map?deploy_smoke_signed=${GITHUB_SHA}")"
-          if [[ "$body" != *"me-map-kicker"* ]]; then
-            echo "Map header kicker is missing from materialized HTML."
-            exit 1
-          fi
-          if [[ "$signed_body" != *"tiles.openfreemap.org/planet"* ]]; then
-            echo "Signed-in map shell did not receive the materialized simple vector map HTML."
-            exit 1
-          fi
-          if [[ "$signed_body" == *"tile.openstreetmap.org"* ]]; then
-            echo "Signed-in map shell is still falling back to the old OSM raster HTML."
-            exit 1
-          fi
-          for signed_home_url in "https://ikimon.life/?source=pwa&deploy_smoke_home=${GITHUB_SHA}" "https://ikimon.life/ja/?source=pwa&deploy_smoke_home=${GITHUB_SHA}"; do
-            signed_home_headers="$(mktemp)"
-            signed_home="$(curl -fsS -D "$signed_home_headers" -H 'cache-control: no-store' -H 'cookie: ikimon_v2_session=deploy-smoke' "$signed_home_url")"
-            if ! grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' "$signed_home_headers"; then
-              echo "Signed-in home shell is not served from materialized original UI HTML: $signed_home_url"
-              cat "$signed_home_headers"
-              exit 1
-            fi
-            if [[ "$signed_home" != *"data-record-feed"* || "$signed_home" == *'id="map-explorer"'* || "$signed_home" == *"tile.openstreetmap.org"* || "$signed_home" == *"me-area-badge"* ]]; then
-              echo "Signed-in home shell is falling back to the old map-first UI: $signed_home_url"
-              exit 1
-            fi
-          done
-          if [[ "$body" != *"filter: ['match', ['get', 'class'], ['river', 'canal'], true, false]"* ]]; then
-            echo "Map shell is missing the stronger simplified waterway filter."
-            exit 1
-          fi
-          if [[ "$body" == *'<div class="me-enjoy-strip"'* ]]; then
-            echo "Old map overlay DOM is still present in materialized HTML."
-            exit 1
-          fi
-          if [[ "$body" != *"global-record-launcher"* ]]; then
-            echo "Mobile record launcher markup is missing from materialized HTML."
-            exit 1
-          fi
-          app_sw="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/app-sw.js?deploy_smoke=${GITHUB_SHA}")"
-          if [[ "$app_sw" != *"ikimon-app-v7"* || "$app_sw" != *"MAP_NAV_RE"* || "$app_sw" != *"PERSONAL_NAV_RE"* || "$app_sw" != *"REFRESH_NAV_RE"* || "$app_sw" != *"cache: 'no-store'"* || "$app_sw" != *"client.navigate"* ]]; then
-            echo "PWA service worker is missing the stale profile/map shell refresh update."
-            exit 1
-          fi
-          app_refresh_headers="$(mktemp)"
-          app_refresh="$(curl -fsS -D "$app_refresh_headers" -H 'cache-control: no-store' -H 'cookie: ikimon_v2_session=deploy-smoke' "https://ikimon.life/app-refresh?to=%2Fmap%3Flang%3Dja%26tab%3Dplaces&deploy_smoke=${GITHUB_SHA}")"
-          if ! grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' "$app_refresh_headers"; then
-            echo "PWA app refresh page is not served from materialized original UI HTML."
-            cat "$app_refresh_headers"
-            exit 1
-          fi
-          if [[ "$app_refresh" != *"<title>ikimon app refresh</title>"* || "$app_refresh" == *"ページが見つかりません"* || "$app_refresh" == *"Cloudflare移行中"* || "$app_refresh" == *"互換表示"* ]]; then
-            echo "PWA app refresh page is falling back to the wrong shell."
-            exit 1
-          fi
-          if [[ "$app_refresh" != *"registration.unregister"* || "$app_refresh" != *"caches.keys"* || "$app_refresh" != *"URLSearchParams(window.location.search)"* ]]; then
-            echo "PWA app refresh page is missing the stale-shell reset contract."
-            exit 1
-          fi
-          if [[ "$app_refresh" == *"indexedDB.deleteDatabase"* || "$app_refresh" == *"localStorage.clear"* ]]; then
-            echo "PWA app refresh page may clear client draft data stores."
-            exit 1
-          fi
-          echo "Map materialized HTML verified."
-
-      - name: Area Sketch production surface check
-        run: |
-          set -euo pipefail
-          event_headers="$(mktemp)"
-          event_body="$(curl -fsS -D "$event_headers" -H 'cache-control: no-store' "https://ikimon.life/es/community/events/new?field_id=renri-area-sketch-field&deploy_smoke_area_sketch=${GITHUB_SHA}")"
-          if ! grep -qi '^x-ikimon-cloudflare-native: event-page-create' "$event_headers"; then
-            echo "Area Sketch event create page is not served by the native Worker route."
-            cat "$event_headers"
-            exit 1
-          fi
-          for marker in "Area Sketch Assist" "data-area-sketch-map" "tile.openstreetmap.org" "World_Imagery" "area-sketch-assessments"; do
-            if [[ "$event_body" != *"$marker"* ]]; then
-              echo "Area Sketch event create page is missing marker: $marker"
-              exit 1
-            fi
-          done
-          if [[ "$event_body" == *"Cloudflare移行中"* || "$event_body" == *"互換表示"* ]]; then
-            echo "Area Sketch event create page leaked migration fallback copy."
-            exit 1
-          fi
-
-          api_body="$(mktemp)"
-          api_status="$(curl -sS -o "$api_body" -w "%{http_code}" -H 'cache-control: no-store' -H 'content-type: application/json' \
-            -d '{"sketch_polygon":{"type":"Polygon","coordinates":[[[139.7600,35.6800],[139.7605,35.6800],[139.7605,35.6805],[139.7600,35.6805],[139.7600,35.6800]]]}}' \
-            "https://ikimon.life/api/v1/fields/renri-area-sketch-field/area-sketch-assessments?deploy_smoke_area_sketch=${GITHUB_SHA}")"
-          if [[ "$api_status" != "401" ]]; then
-            echo "Area Sketch unauthenticated write contract changed: status=$api_status body=$(cat "$api_body")"
-            exit 1
-          fi
-          if ! grep -q '"login required"' "$api_body"; then
-            echo "Area Sketch unauthenticated write contract did not return login required: $(cat "$api_body")"
-            exit 1
-          fi
-          echo "Area Sketch production surface verified."
-
-      - name: Area encyclopedia field detail production smoke
-        run: |
-          set -euo pipefail
-          field_headers="$(mktemp)"
-          field_body="$(curl -fsS -D "$field_headers" -H 'cache-control: no-store' "https://ikimon.life/ja/community/fields/1730fc82-95f3-4c64-9c82-4f06d56d940f?deploy_smoke_area_field=${GITHUB_SHA}")"
-          if ! grep -qi '^x-ikimon-cloudflare-native: field-detail-readmodel' "$field_headers"; then
-            echo "Area encyclopedia field detail is not served by the native readmodel route."
-            cat "$field_headers"
-            exit 1
-          fi
-          for marker in "エリア図鑑" "西伊場一条南公園" "このエリアで記録する" "公開範囲を見る" "詳細位置は非公開" "位置をぼかしています" "利用者が作成したエリア"; do
-            if [[ "$field_body" != *"$marker"* ]]; then
-              echo "Area encyclopedia field detail is missing marker: $marker"
-              exit 1
-            fi
-          done
-          if grep -Eq 'data-(lat|lng|radius|polygon|area-spots|evt-field-map)=' <<< "$field_body"; then
-            echo "Area encyclopedia field detail leaked exact coordinate or map geometry data attributes."
-            exit 1
-          fi
-          leaked_token="$(grep -Eo 'D1_ERROR|1101|no such table|Cloudflare移行中|互換表示|user_defined|system_import|unverified|needs_review|geom_simplified|geometry_json' <<< "$field_body" | sort -u | tr '\n' ' ' || true)"
-          if [[ -n "$leaked_token" ]]; then
-            echo "Area encyclopedia field detail leaked internal or migration token(s): $leaked_token"
-            exit 1
-          fi
-          echo "Area encyclopedia field detail production smoke verified."
-
-      - name: Record UI C110 marker check
-        run: |
-          set -euo pipefail
-          launcher_headers="$(mktemp)"
-          launcher_body="$(curl -fsS -D "$launcher_headers" -H 'cache-control: no-store' "https://ikimon.life/?deploy_smoke_record=${GITHUB_SHA}")"
-          if ! grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' "$launcher_headers"; then
-            echo "Home shell is not served from materialized original UI HTML."
-            cat "$launcher_headers"
-            exit 1
-          fi
-          if [[ "$launcher_body" != *'class="global-record-launcher"'* ]]; then
-            echo "Home shell is missing the mobile record launcher markup."
-            exit 1
-          fi
-          if [[ "$launcher_body" != *"photoDraftRetryDetailId = detailId"* ]]; then
-            echo "Global record launcher shell is missing the C110 saved detail retry marker."
-            exit 1
-          fi
-          if [[ "$launcher_body" == *"String(observationJson.occurrenceId || observationId)"* ]]; then
-            echo "Global record launcher shell still contains the stale C110 fallback marker."
-            exit 1
-          fi
-          for record_url in \
-            "https://ikimon.life/record?deploy_smoke_record=${GITHUB_SHA}" \
-            "https://ikimon.life/ja/record?start=note&deploy_smoke_record=${GITHUB_SHA}"
-          do
-            record_headers="$(mktemp)"
-            record_body="$(curl -fsS -D "$record_headers" -H 'cache-control: no-store' "$record_url")"
-            if ! grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' "$record_headers"; then
-              echo "Record shell is not served from materialized original UI HTML: $record_url"
-              cat "$record_headers"
-              exit 1
-            fi
-            if [[ "$record_body" != *"記録を始める"* ]]; then
-              echo "Record start guide is missing from materialized HTML: $record_url"
-              exit 1
-            fi
-            if [[ "$record_body" == *'class="global-record-launcher"'* ]]; then
-              echo "Record start guide should not render the mobile global record launcher: $record_url"
-              exit 1
-            fi
-          done
-          echo "Record materialized HTML and C110 launcher marker verified."
-
-      - uses: actions/checkout@v5
-
-      - name: Setup platform browser smoke runtime
-        uses: ./.github/actions/setup-platform-browser
-        with:
-          install-with-deps: "false"
-
-      - name: Observation image detail VPS parity smoke
-        timeout-minutes: 8
-        working-directory: platform_v2
-        env:
-          OBSERVATION_DETAIL_BASE_URL: https://ikimon.life
-          OBSERVATION_IMAGE_TARGET_COUNT: "4"
-        run: npm run e2e:observation-image-target
-
-      - name: Observation video detail regression smoke
-        timeout-minutes: 6
-        working-directory: platform_v2
-        env:
-          OBSERVATION_DETAIL_BASE_URL: https://ikimon.life
-        run: npm run e2e:observation-target
-
-      - name: Upload observation detail smoke artifacts
+      - name: Upload production failure evidence
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: production-observation-detail-smoke
+          name: production-release-failure-evidence
           path: |
+            platform_v2/cloudflare_shadow/.deploy/production-preflight-latest.json
+            platform_v2/cloudflare_shadow/.deploy/wrangler-version-cache.json
+            platform_v2/cloudflare_shadow/.deploy/production-release-summary.json
+            platform_v2/cloudflare_shadow/materialize-original-ui.json
             platform_v2/test-results
             platform_v2/playwright-report/observation-image-target
             platform_v2/playwright-report/observation-target
           if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Map data checks
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const obs = await fetch("https://ikimon.life/ja/api/v1/map/observations?bbox=122.9,24.0,146.0,45.6&zoom=5&limit=20", {
-            headers: { "cache-control": "no-store" }
-          }).then((response) => response.json());
-          const withMedia = (obs.items || []).filter((item) => item.photoUrl || item.videoThumbUrl).length;
-          if (!Array.isArray(obs.items) || obs.items.length === 0 || withMedia === 0) {
-            throw new Error(`Map observation media smoke failed: items=${obs.items?.length ?? 0} withMedia=${withMedia}`);
-          }
-          for (const ownerPath of ["/api/v1/map/my-observations", "/api/v1/me/map-observations"]) {
-            const ownerResponse = await fetch(`https://ikimon.life${ownerPath}`, {
-              headers: { "cache-control": "no-store" }
-            });
-            const ownerText = await ownerResponse.text();
-            if (!ownerResponse.ok) {
-              throw new Error(`Owner map observation guest smoke failed: path=${ownerPath} status=${ownerResponse.status} body=${ownerText.slice(0, 160)}`);
-            }
-            const ownerPayload = JSON.parse(ownerText);
-            if (ownerPayload.signedIn !== false || !Array.isArray(ownerPayload.items) || ownerPayload.items.length !== 0) {
-              throw new Error(`Owner map observation guest contract changed: path=${ownerPath} body=${ownerText.slice(0, 160)}`);
-            }
-          }
-          const areas = await fetch("https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.55,34.61,137.91,34.85&zoom=12&limit=50", {
-            headers: { "cache-control": "no-store" }
-          }).then((response) => response.json());
-          const features = areas.features || [];
-          if (!Array.isArray(features) || areas.type !== "FeatureCollection" || areas.stats?.kind !== "area-polygons") {
-            throw new Error(`Map area contract failed: type=${areas.type} featuresArray=${Array.isArray(features)} kind=${areas.stats?.kind}`);
-          }
-          const deploySmoke = encodeURIComponent(process.env.GITHUB_SHA || String(Date.now()));
-          const parkFixture = await fetch(`https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.6940,34.6910,137.7075,34.7010&zoom=17&sources=osm_park&limit=120&deploy_smoke=${deploySmoke}`, {
-            headers: { "cache-control": "no-store" }
-          }).then((response) => response.json());
-          const parkFeatures = parkFixture.features || [];
-          const nishiIbaFirstPark = parkFeatures.find((feature) =>
-            feature?.properties?.source === "osm_park" &&
-            feature?.properties?.entity_key === "osm:way:263321117" &&
-            /西伊場第1公園/.test(String(feature?.properties?.name || ""))
-          );
-          if (!nishiIbaFirstPark) {
-            const names = parkFeatures.map((feature) => feature?.properties?.name).filter(Boolean).slice(0, 12);
-            throw new Error(`Map area known fixture failed: 西伊場第1公園 not returned by sources=osm_park, features=${parkFeatures.length}, names=${JSON.stringify(names)}`);
-          }
-          const brief = await fetch("https://ikimon.life/ja/api/v1/map/site-brief?lat=34.6942&lng=137.7029&lang=ja", {
-            headers: { "cache-control": "no-store" }
-          }).then((response) => response.json());
-          const briefText = JSON.stringify(brief);
-          if (/Cloudflare|互換表示|移行中/.test(briefText)) {
-            throw new Error(`Map site brief leaked migration copy: ${briefText}`);
-          }
-          console.log(JSON.stringify({ observations: obs.items.length, withMedia, areasContractFeatures: features.length, nishiIbaFirstPark: nishiIbaFirstPark.properties?.name, siteBrief: brief.hypothesis?.label }, null, 2));
-          NODE
-
-# Required GitHub Secrets (Settings > Secrets and variables > Actions):
-# - CLOUDFLARE_API_TOKEN: Cloudflare API token with Workers Scripts:Edit and R2:Edit for ikimon production resources.
+          retention-days: 3
