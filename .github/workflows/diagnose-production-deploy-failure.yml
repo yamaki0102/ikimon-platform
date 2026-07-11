@@ -1,4 +1,4 @@
-name: Inspect Final Production Deploy
+name: Diagnose Latest Production Deploy Failure
 
 on:
   pull_request:
@@ -9,14 +9,14 @@ permissions:
   contents: read
 
 jobs:
-  inspect:
+  diagnose:
     if: github.head_ref == 'agent/production-smoke-cleanup'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      EXPECTED_SHA: ea2db3e2c34e16be0043305928fa17a0191cd868
+      FAILED_JOB_ID: '86495304229'
     steps:
-      - name: Print final deploy status
+      - name: Extract latest deploy failure
         shell: bash
         run: |
           set -euo pipefail
@@ -24,13 +24,7 @@ jobs:
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/deploy.yml/runs?branch=main&event=push&per_page=30" \
-            > runs.json
-          node <<'NODE'
-          const fs = require('node:fs');
-          const expected = process.env.EXPECTED_SHA;
-          const payload = JSON.parse(fs.readFileSync('runs.json', 'utf8'));
-          const run = (payload.workflow_runs || []).find((item) => item.head_sha === expected);
-          if (!run) throw new Error(`deploy_run_not_found:${expected}`);
-          console.log(JSON.stringify({ id: run.id, run_number: run.run_number, status: run.status, conclusion: run.conclusion, html_url: run.html_url, created_at: run.created_at, updated_at: run.updated_at }, null, 2));
-          NODE
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/jobs/${FAILED_JOB_ID}/logs" \
+            > full.log
+          grep -n -E -C 14 'production_execute|production_release|Fast deploy refused|failed with exit code|Smoke failed|Refusing deploy|Error:|##\[error\]' full.log || true
+          tail -n 320 full.log
