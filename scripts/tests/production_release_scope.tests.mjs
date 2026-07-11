@@ -29,6 +29,12 @@ test('portable production runner changes run guardrails without mutation', () =>
   assert.equal(plan.run_guardrails, true);
 });
 
+test('longform Markdown content requires production deploy', () => {
+  const plan = planProductionReleaseScope(['platform_v2/src/content/longform/ja/privacy.md']);
+  assert.equal(plan.deploy_required, true);
+  assert.equal(plan.smoke_tier, 'full');
+});
+
 test('application route changes require full production deploy', () => {
   const plan = planProductionReleaseScope(['platform_v2/src/routes/read.ts']);
   assert.equal(plan.deploy_required, true);
