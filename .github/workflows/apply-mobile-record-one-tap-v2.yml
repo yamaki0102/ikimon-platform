@@ -84,14 +84,35 @@ jobs:
           PY
 
       - name: Verify focused change
+        id: verify
+        continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
-          npm --prefix platform_v2 ci
-          npm --prefix platform_v2 run typecheck
-          npm --prefix platform_v2 run test:node
+          set +e
+          : > quick-record-verification.log
+          npm --prefix platform_v2 ci >> quick-record-verification.log 2>&1
+          ci_status=$?
+          npm --prefix platform_v2 run typecheck >> quick-record-verification.log 2>&1
+          typecheck_status=$?
+          npm --prefix platform_v2 run test:node >> quick-record-verification.log 2>&1
+          test_status=$?
+          printf '\nci_status=%s\ntypecheck_status=%s\ntest_status=%s\n' "$ci_status" "$typecheck_status" "$test_status" >> quick-record-verification.log
+          cat quick-record-verification.log
+          if [ "$ci_status" -ne 0 ] || [ "$typecheck_status" -ne 0 ] || [ "$test_status" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Upload verification log
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: mobile-quick-record-verification
+          path: quick-record-verification.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Commit patch and remove one-time workflows
+        if: steps.verify.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -102,3 +123,8 @@ jobs:
           git add -A
           git commit -m 'fix: make mobile quick-record save one tap'
           git push origin HEAD:codex/mobile-record-one-tap-20260711
+
+      - name: Fail when verification failed
+        if: steps.verify.outcome != 'success'
+        shell: bash
+        run: exit 1
