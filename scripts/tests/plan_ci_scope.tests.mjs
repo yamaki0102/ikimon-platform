@@ -76,6 +76,16 @@ test('non-CI deploy workflow changes do not force browser suites', () => {
   assert.equal(plan.run_scene_read_smoke, false);
 });
 
+test('portable staging runner changes execute deploy contract checks', () => {
+  const plan = planCiScope(['scripts/run_cloudflare_staging_release.sh']);
+  assert.equal(plan.deploy_changed, true);
+  assert.equal(plan.run_platform, true);
+  assert.equal(plan.run_deploy_manifest_check, true);
+  assert.equal(plan.run_record_funnel_browser_qa, false);
+  assert.equal(plan.run_map_performance_qa, false);
+  assert.equal(plan.run_scene_read_smoke, false);
+});
+
 test('CI workflow changes keep every browser gate', () => {
   const plan = planCiScope(['.github/workflows/ci.yml']);
   assert.equal(plan.run_record_funnel_browser_qa, true);
