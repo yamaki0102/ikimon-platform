@@ -11,6 +11,14 @@ const productionBucket = "ikimon-prod-media";
 const stagingBucket = "ikimon-shadow-media";
 const materializeManifestSchemaVersion = "original-ui-materialize/v1";
 const uploadCacheControl = "no-store";
+const canonicalOrigin = "https://ikimon.life";
+const canonicalRenderHeaders = {
+  accept: "*/*",
+  "cache-control": "no-store",
+  host: "ikimon.life",
+  "x-forwarded-host": "ikimon.life",
+  "x-forwarded-proto": "https"
+};
 const allowedArgs = new Set([
   "--execute",
   "--approval",
@@ -95,6 +103,8 @@ const staticAssetPaths = [
   "/offline.html",
   "/robots.txt",
   "/sitemap.xml",
+  "/llms.txt",
+  "/llms-full.txt",
   "/favicon.ico",
   "/manifest.webmanifest",
   "/app-sw.js",
@@ -230,6 +240,48 @@ function staticContentType(pathname) {
   if (pathname.endsWith(".png")) return "image/png";
   if (pathname.endsWith(".webp")) return "image/webp";
   return "application/octet-stream";
+}
+
+async function renderLlmsFull(app) {
+  const sections = [
+    ["LLM index", "/llms.txt"],
+    ["Guide", "/llms/guide.md"],
+    ["FAQ", "/llms/faq.md"],
+    ["Researcher", "/llms/researcher.md"],
+    ["Terms", "/llms/terms.md"]
+  ];
+  const renderedSections = [];
+  for (const [title, pathname] of sections) {
+    const response = await app.inject({ method: "GET", url: pathname, headers: canonicalRenderHeaders });
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new Error(`Failed to render ${pathname} for /llms-full.txt: ${response.statusCode}`);
+    }
+    renderedSections.push(`# ${title}\n\n${response.body.trim()}`);
+  }
+  const body = `${renderedSections.join("\n\n---\n\n")}\n`;
+  return {
+    statusCode: 200,
+    headers: { "content-type": "text/plain; charset=utf-8" },
+    body,
+    rawPayload: Buffer.from(body, "utf8")
+  };
+}
+
+async function renderStaticAsset(app, pathname) {
+  if (pathname === "/llms-full.txt") return renderLlmsFull(app);
+  return app.inject({
+    method: "GET",
+    url: pathname,
+    headers: canonicalRenderHeaders
+  });
+}
+
+function auditCanonicalStaticOrigin(pathname, payload) {
+  if (!["/sitemap.xml", "/robots.txt", "/llms.txt", "/llms-full.txt"].includes(pathname)) return;
+  const text = Buffer.isBuffer(payload) ? payload.toString("utf8") : String(payload);
+  if (!text.includes(canonicalOrigin) || /https?:\/\/(?:localhost|127\.0\.0\.1|ikimon-materialize\.local)(?::\d+)?/i.test(text)) {
+    throw new Error(`canonical_static_origin_mismatch:${pathname}`);
+  }
 }
 
 async function readWorkerStringArray(constName) {
@@ -514,14 +566,7 @@ try {
 
   for (const pathname of staticAssetPaths) {
     const expectedContentType = staticContentType(pathname);
-    const response = await app.inject({
-      method: "GET",
-      url: pathname,
-      headers: {
-        accept: "*/*",
-        "cache-control": "no-store"
-      }
-    });
+    const response = await renderStaticAsset(app, pathname);
     const contentType = String(response.headers["content-type"] ?? "");
     const ok = response.statusCode >= 200 && response.statusCode < 300 && contentType.includes(expectedContentType.split(";")[0]);
     events.push({
@@ -537,6 +582,7 @@ try {
     const key = originalUiStaticKey(pathname);
     const filePath = join(tempDir, key.replaceAll("/", "__"));
     const payload = response.rawPayload ?? Buffer.from(response.body);
+    auditCanonicalStaticOrigin(pathname, payload);
     await writeFile(filePath, payload);
     renderedStatic.push({
       pathname,
