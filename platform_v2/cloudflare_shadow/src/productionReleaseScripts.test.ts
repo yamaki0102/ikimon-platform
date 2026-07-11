@@ -39,20 +39,26 @@ test("production deploy guard injects and verifies the exact git SHA without exp
   assert.doesNotMatch(guard, /command:\s*actualCommandLine/);
 });
 
-test("production execute clean gate rejects dirty deploys while preserving dirty dry-runs", async () => {
+test("production execute clean gate allows only its owned materialize report", async () => {
   const gateUrl = new URL("../scripts/production-deploy-clean-gate.mjs", import.meta.url).href;
-  const runGate = async (execute: boolean, clean: boolean, phase: string) => execFileAsync(process.execPath, [
+  const runGate = async (execute: boolean, clean: boolean, phase: string, status: string) => execFileAsync(process.execPath, [
     "--input-type=module",
     "--eval",
     `import { assertProductionExecuteWorktreeClean } from ${JSON.stringify(gateUrl)};
-     assertProductionExecuteWorktreeClean({ execute: ${JSON.stringify(execute)}, state: { worktreeClean: ${JSON.stringify(clean)}, worktreeGitStatus: ${JSON.stringify(clean ? "" : " M src/index.ts")} }, phase: ${JSON.stringify(phase)} });
+     assertProductionExecuteWorktreeClean({ execute: ${JSON.stringify(execute)}, state: { worktreeClean: ${JSON.stringify(clean)}, worktreeGitStatus: ${JSON.stringify(status)} }, phase: ${JSON.stringify(phase)} });
      process.stdout.write("gate-passed");`,
   ]);
 
-  assert.equal((await runGate(false, false, "start")).stdout, "gate-passed");
-  assert.equal((await runGate(true, true, "start")).stdout, "gate-passed");
-  await assert.rejects(runGate(true, false, "start"), /production_execute_requires_clean_worktree:start/);
-  await assert.rejects(runGate(true, false, "pre-deploy"), /production_execute_requires_clean_worktree:pre-deploy/);
+  assert.equal((await runGate(false, false, "start", " M src/index.ts")).stdout, "gate-passed");
+  assert.equal((await runGate(true, true, "start", "")).stdout, "gate-passed");
+  assert.equal((await runGate(true, false, "start", "?? platform_v2/cloudflare_shadow/materialize-original-ui.json")).stdout, "gate-passed");
+  assert.equal((await runGate(true, false, "start", "?? materialize-original-ui.json")).stdout, "gate-passed");
+  await assert.rejects(runGate(true, false, "start", " M src/index.ts"), /production_execute_requires_clean_worktree:start/);
+  await assert.rejects(runGate(true, false, "pre-deploy", "?? unexpected.json"), /production_execute_requires_clean_worktree:pre-deploy/);
+  await assert.rejects(
+    runGate(true, false, "pre-deploy", "?? platform_v2/cloudflare_shadow/materialize-original-ui.json\n M src/index.ts"),
+    /src\/index\.ts/,
+  );
 
   const guard = await source("../scripts/deploy-production-guard.mjs");
   assert.match(guard, /const worktreeGitStatus = await gitText\(\["status", "--porcelain"\]\)/);
