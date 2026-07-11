@@ -752,8 +752,9 @@ test("mobile map exposes three primary actions and keeps advanced layers in the 
   const profile = MAP_VIEWPORTS.find((item) => item.slug === "mobile-390") ?? MAP_VIEWPORTS[0]!;
   const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
   const page = await context.newPage();
-  await installMapApiStubs(page);
-  await waitForMapReady(page, "/map");
+  await installMapLibreStubForSmoke(page);
+  await installDeterministicMapApiFixtures(page);
+  await waitForMapShellReady(page, "/map", true);
 
   const primaryTabs = page.locator(".me-tabs .me-tab:visible");
   await expect(primaryTabs).toHaveCount(3);
