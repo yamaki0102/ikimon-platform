@@ -25,8 +25,12 @@ test("mobile map keeps enough map area and removes the duplicate collapsed locat
 
 test("mobile map panels use one shared mutually-exclusive control path", () => {
   assert.match(script, /var filterDrawerEl = document\.querySelector\('\.me-filter-drawer'\)/);
+  assert.match(script, /var mapShellEl = root\.closest\('\.me-section'\) \|\| root\.parentElement/);
   assert.match(script, /function closeFilterDrawer\(\)/);
+  assert.match(script, /if \(mapShellEl\) mapShellEl\.classList\.remove\('me-filter-open'\)/);
   assert.match(script, /filterDrawerEl\.addEventListener\('toggle'/);
+  assert.match(script, /if \(mapShellEl\) mapShellEl\.classList\.toggle\('me-filter-open', open\)/);
+  assert.doesNotMatch(script, /root\.classList\.(?:toggle|remove)\('me-filter-open'/);
   assert.match(script, /closeBottomSheet\(\);[\s\S]*setStartPanelCollapsed\(true\);[\s\S]*hideLayerHint\(\);/);
   assert.match(styles, /\.me-filter-open \.me-rain-card,[\s\S]*\.me-filter-open \.me-legend \{[\s\S]*visibility: hidden;[\s\S]*pointer-events: none;/);
 });
