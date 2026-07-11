@@ -114,49 +114,103 @@ function quoteCmdArg(value) {
   return `"${value.replaceAll('"', '\\"')}"`;
 }
 
-async function smoke(baseUrl, expectedGitSha) {
-  for (const path of ["/healthz", "/readyz", "/api/v1/runtime/version", "/qa/reflection-loop.json"]) {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
-      redirect: "manual",
-      headers: { accept: "application/json", "cache-control": "no-store" }
-    });
-    const contentType = response.headers.get("content-type") ?? "";
-    let payload = {};
-    if (contentType.includes("application/json")) {
-      payload = await response.json();
-    }
-    const ok = path === "/qa/reflection-loop.json"
+const SMOKE_MAX_ATTEMPTS = 12;
+const SMOKE_RETRY_DELAY_MS = 5_000;
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function smokeResponseOk(path, response, payload, expectedGitSha) {
+  return path === "/qa/reflection-loop.json"
+    ? response.ok
+      && typeof payload === "object"
+      && payload !== null
+      && payload.ok === true
+      && payload.service === "ikimon.life"
+      && payload.runtime === "cloudflare-worker"
+      && payload.loop_contract?.no_personal_data === true
+    : path === "/api/v1/runtime/version"
       ? response.ok
         && typeof payload === "object"
         && payload !== null
         && payload.ok === true
         && payload.service === "ikimon.life"
         && payload.runtime === "cloudflare-worker"
-        && payload.loop_contract?.no_personal_data === true
-      : path === "/api/v1/runtime/version"
-        ? response.ok
-          && typeof payload === "object"
-          && payload !== null
-          && payload.ok === true
-          && payload.service === "ikimon.life"
-          && payload.runtime === "cloudflare-worker"
-          && payload.schemaVersion === "cloudflare_worker_runtime/v1"
-          && payload.gitSha === expectedGitSha
-          && payload.publicSafe === true
+        && payload.schemaVersion === "cloudflare_worker_runtime/v1"
+        && payload.gitSha === expectedGitSha
+        && payload.publicSafe === true
       : response.ok
         && typeof payload === "object"
         && payload !== null
         && payload.ok === true
         && payload.service === "ikimon-life-cloudflare-worker";
-    events.push({
-      command: `smoke ${baseUrl}${path}`,
-      exitCode: ok ? 0 : 1,
-      durationMs: 0,
-      status: response.status,
-      contentType
-    });
-    if (!ok) {
-      throw new Error(`Smoke failed for ${baseUrl}${path}: ${response.status} ${contentType}`);
+}
+
+async function smoke(baseUrl, expectedGitSha) {
+  for (const path of ["/healthz", "/readyz", "/api/v1/runtime/version", "/qa/reflection-loop.json"]) {
+    let passed = false;
+    let lastStatus = 0;
+    let lastContentType = "";
+    let lastPayload = {};
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= SMOKE_MAX_ATTEMPTS; attempt += 1) {
+      const separator = path.includes("?") ? "&" : "?";
+      const url = `${baseUrl.replace(/\/$/, "")}${path}${separator}deploy_check=${Date.now()}-${attempt}`;
+      try {
+        const response = await fetch(url, {
+          redirect: "manual",
+          headers: { accept: "application/json", "cache-control": "no-store" }
+        });
+        const contentType = response.headers.get("content-type") ?? "";
+        let payload = {};
+        if (contentType.includes("application/json")) {
+          payload = await response.json();
+        }
+        const ok = smokeResponseOk(path, response, payload, expectedGitSha);
+        lastStatus = response.status;
+        lastContentType = contentType;
+        lastPayload = payload;
+        lastError = null;
+        events.push({
+          command: `smoke ${baseUrl}${path}`,
+          exitCode: ok ? 0 : 1,
+          durationMs: 0,
+          status: response.status,
+          contentType,
+          attempt,
+          expectedGitSha: path === "/api/v1/runtime/version" ? expectedGitSha : undefined,
+          actualGitSha: path === "/api/v1/runtime/version" ? payload?.gitSha ?? null : undefined
+        });
+        if (ok) {
+          passed = true;
+          break;
+        }
+      } catch (error) {
+        lastError = error;
+        events.push({
+          command: `smoke ${baseUrl}${path}`,
+          exitCode: 1,
+          durationMs: 0,
+          status: 0,
+          contentType: "",
+          attempt,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+
+      if (attempt < SMOKE_MAX_ATTEMPTS) {
+        await delay(SMOKE_RETRY_DELAY_MS);
+      }
+    }
+
+    if (!passed) {
+      const actualGitSha = typeof lastPayload === "object" && lastPayload !== null ? lastPayload.gitSha ?? null : null;
+      const errorDetail = lastError instanceof Error ? lastError.message : "";
+      throw new Error(
+        `Smoke failed for ${baseUrl}${path}: ${lastStatus} ${lastContentType}; expectedGitSha=${expectedGitSha}; actualGitSha=${actualGitSha}; ${errorDetail}`
+      );
     }
   }
 }
