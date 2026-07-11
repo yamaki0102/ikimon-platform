@@ -1,5 +1,5 @@
 name: Deploy Cloudflare Staging
-run-name: Cloudflare staging | branch=${{ inputs.branch }} | target=${{ inputs.commit_sha }}
+run-name: Cloudflare staging | branch=${{ inputs.branch }} | target=${{ inputs.commit_sha }} | browser=${{ inputs.browser_qa }}
 
 on:
   workflow_dispatch:
@@ -23,13 +23,28 @@ on:
           - "true"
           - "false"
       test_profile:
-        description: "Staging preflight test profile"
+        description: "Portable staging preflight test profile"
         required: true
         default: "quick"
         type: choice
         options:
           - quick
           - full
+      browser_qa:
+        description: "Duplicate browser evidence in Actions only when explicitly needed; normal PR CI already owns affected-surface QA"
+        required: true
+        default: "none"
+        type: choice
+        options:
+          - none
+          - targeted
+          - full
+      sync_staging_write_secret:
+        description: "Rotate/sync the staging write secret before deploy; keep false for normal releases"
+        required: true
+        default: false
+        type: boolean
+
 concurrency:
   group: cloudflare-staging
   cancel-in-progress: false
@@ -47,11 +62,16 @@ jobs:
   cloudflare-staging:
     name: Deploy Cloudflare Staging
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     environment: staging
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
       DEPLOY_STAGING: ${{ github.event.inputs.deploy_staging || 'false' }}
       TEST_PROFILE: ${{ github.event.inputs.test_profile || 'quick' }}
+      BROWSER_QA: ${{ github.event.inputs.browser_qa || 'none' }}
+      SYNC_STAGING_WRITE_SECRET: ${{ github.event.inputs.sync_staging_write_secret || 'false' }}
+      STAGING_BASE_URL: https://staging.ikimon.life
     steps:
       - name: Validate workflow target
         run: |
@@ -66,7 +86,7 @@ jobs:
             echo "Invalid commit SHA: $TARGET_SHA"
             exit 1
           fi
-          if [ "${DEPLOY_STAGING}" = "true" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "${{ github.event.inputs.commit_sha }}" ]; then
+          if [ "${DEPLOY_STAGING}" = "true" ] && [ -z "${{ github.event.inputs.commit_sha }}" ]; then
             echo "commit_sha is required when deploy_staging=true"
             exit 1
           fi
@@ -115,159 +135,44 @@ jobs:
             platform_v2/package-lock.json
             platform_v2/cloudflare_shadow/package-lock.json
 
-      - name: Require Cloudflare API token
-        run: |
-          set -euo pipefail
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-            echo "CLOUDFLARE_API_TOKEN is required for Cloudflare staging deploy."
-            exit 1
-          fi
+      - name: Run portable Cloudflare staging release
+        run: ./scripts/run_cloudflare_staging_release.sh
 
-      - name: Install platform dependencies
-        working-directory: platform_v2
-        run: npm ci
-
-      - name: Build platform original UI
-        working-directory: platform_v2
-        run: npm run build
-
-      - name: Install Cloudflare Worker dependencies
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm ci
-
-      - name: Cloudflare staging preflight
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm run deploy:staging:dry-run -- --test-profile "${TEST_PROFILE}" --write-preflight-report .deploy/staging-preflight-latest.json
-
-      - name: Sync staging Worker write key
-        if: env.DEPLOY_STAGING == 'true'
-        working-directory: platform_v2/cloudflare_shadow
-        env:
-          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -z "${V2_PRIVILEGED_WRITE_API_KEY:-}" ]; then
-            echo "V2_PRIVILEGED_WRITE_API_KEY is required for Cloudflare staging smoke."
-            exit 1
-          fi
-          printf '%s' "$V2_PRIVILEGED_WRITE_API_KEY" | npx wrangler secret put V2_PRIVILEGED_WRITE_API_KEY --env staging
-
-      - name: Apply staging D1 core migrations
-        if: env.DEPLOY_STAGING == 'true'
-        working-directory: platform_v2/cloudflare_shadow
-        run: npx wrangler d1 migrations apply CORE_DB --remote --env staging
-
-      - name: Apply staging D1 observation migrations
-        if: env.DEPLOY_STAGING == 'true'
-        working-directory: platform_v2/cloudflare_shadow
-        run: npx wrangler d1 migrations apply OBS_DB --remote --env staging
-
-      - name: Deploy staging Worker
-        if: env.DEPLOY_STAGING == 'true'
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm run deploy:staging -- --test-profile "${TEST_PROFILE}" --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" --write-preflight-report .deploy/staging-deploy-latest.json
-
-      - name: Materialize original UI into staging R2
-        if: env.DEPLOY_STAGING == 'true'
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm run materialize:original-ui -- --target-env staging --scope staging-qa --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" --output materialize-staging-original-ui.json
-
-      - name: Verify Cloudflare staging public routes
-        if: env.DEPLOY_STAGING == 'true'
-        working-directory: platform_v2/cloudflare_shadow
-        run: |
-          set -euo pipefail
-          curl -fsS https://staging.ikimon.life/healthz | tee staging-healthz.json | grep -q '"environment":"staging"'
-          grep -q '"buildMarker":"one-month-sprint-evidence-gate-20260705"' staging-healthz.json
-          curl -fsS https://staging.ikimon.life/readyz | tee staging-readyz.json | grep -q '"environment":"staging"'
-          curl -fsS https://staging.ikimon.life/api/v1/runtime/version | tee staging-runtime-version.json | grep -q '"schemaVersion":"cloudflare_worker_runtime/v1"'
-          grep -q '"buildMarker":"one-month-sprint-evidence-gate-20260705"' staging-runtime-version.json
-          grep -q '"publicSafe":true' staging-runtime-version.json
-          curl -fsS -D staging-root.headers https://staging.ikimon.life/ -o staging-root.html
-          grep -q 'data-record-feed' staging-root.html
-          ! grep -q 'id="map-explorer"' staging-root.html
-          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-root.headers
-          curl -fsS -D staging-demo.headers https://staging.ikimon.life/demo/place-feeling-tags -o staging-demo.html
-          grep -q '実データではありません' staging-demo.html
-          grep -q 'place_feeling_tags' staging-demo.html
-          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-demo.headers
-          curl -fsS -D staging-brand-icon.headers https://staging.ikimon.life/assets/brand/app-icon-192.png -o staging-brand-icon.png
-          grep -qi '^content-type: image/png' staging-brand-icon.headers
-          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-static-asset' staging-brand-icon.headers
-
-      - name: Install Playwright Chromium for Cloudflare staging QA sitemap smoke
-        if: env.DEPLOY_STAGING == 'true'
-        working-directory: platform_v2
-        run: npx playwright install --with-deps chromium
-
-      - name: Run Cloudflare staging QA sitemap smoke
-        if: env.DEPLOY_STAGING == 'true'
-        working-directory: platform_v2
-        timeout-minutes: 10
-        env:
-          STAGING_BASE_URL: https://staging.ikimon.life
-        run: npm run e2e:staging:site-map
-
-      - name: Run Cloudflare staging record feedback loop smoke
-        if: env.DEPLOY_STAGING == 'true'
-        working-directory: platform_v2
-        timeout-minutes: 10
-        env:
-          STAGING_BASE_URL: https://staging.ikimon.life
-          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
-        run: npm run e2e:staging:record-feedback-loop
-
-      - name: Upload Cloudflare staging artifacts
-        if: always()
+      - name: Upload failure or explicitly requested full QA evidence
+        if: failure() || github.event.inputs.browser_qa == 'full'
         uses: actions/upload-artifact@v6
         with:
           name: cloudflare-staging-evidence
           path: |
-            platform_v2/cloudflare_shadow/.deploy/staging-preflight-latest.json
-            platform_v2/cloudflare_shadow/.deploy/staging-deploy-latest.json
+            platform_v2/cloudflare_shadow/.deploy/
             platform_v2/cloudflare_shadow/materialize-staging-original-ui.json
             platform_v2/cloudflare_shadow/staging-*.json
             platform_v2/cloudflare_shadow/staging-demo.*
-            platform_v2/cloudflare_shadow/staging-walk-map-admin-template.*
-            platform_v2/cloudflare_shadow/staging-walk-map-admin.*
-            platform_v2/cloudflare_shadow/staging-walk-map-admin-shizuoka.*
-            platform_v2/cloudflare_shadow/staging-walk-map-reviews.*
-            platform_v2/cloudflare_shadow/staging-walk-map-review-shizuoka.*
             platform_v2/cloudflare_shadow/staging-brand-icon.*
-            platform_v2/test-results
-            platform_v2/playwright-report/staging
+            platform_v2/test-results/
+            platform_v2/playwright-report/staging/
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 3
 
       - name: Write Cloudflare staging summary
-        working-directory: platform_v2/cloudflare_shadow
+        if: always()
         run: |
-          node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
-          const fs = require("node:fs");
-          const preflight = JSON.parse(fs.readFileSync(".deploy/staging-preflight-latest.json", "utf8"));
-          const deployPath = ".deploy/staging-deploy-latest.json";
-          const deploy = fs.existsSync(deployPath) ? JSON.parse(fs.readFileSync(deployPath, "utf8")) : null;
-          const report = deploy || preflight;
-          const materializePath = "materialize-staging-original-ui.json";
-          const materialized = fs.existsSync(materializePath) ? JSON.parse(fs.readFileSync(materializePath, "utf8")) : null;
-          console.log("## Cloudflare Staging");
-          console.log("");
-          console.log("- Worker: `ikimon-life-cloudflare-staging`");
-          console.log("- Public URL: https://staging.ikimon.life");
-          console.log("- Data plane: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`, `ikimon-shadow-media`");
-          console.log("- Production DB/R2 mutation: `false`");
-          console.log("- VPS SSH/deploy: `not used`");
-          console.log("- QA sitemap smoke: `npm run e2e:staging:site-map`");
-          console.log(`- Status: \`${report.status}\``);
-          console.log(`- Test profile: \`${report.testProfile}\``);
-          if (report.triggerWarning) {
-            console.log(`- Trigger warning tolerated: \`true\``);
-            if (Array.isArray(report.triggerWarning.failedEndpoints) && report.triggerWarning.failedEndpoints.length > 0) {
-              console.log(`- Trigger warning endpoints: \`${report.triggerWarning.failedEndpoints.join(", ")}\``);
-            }
-          }
-          if (materialized) {
-            console.log(`- Materialized paths: \`${materialized.rendered.length}\``);
-            console.log(`- Materialized static assets: \`${materialized.renderedStatic.length}\``);
-          }
-          NODE
+          {
+            echo "## Cloudflare Staging"
+            echo ""
+            echo "- Worker: \`ikimon-life-cloudflare-staging\`"
+            echo "- Public URL / STAGING_BASE_URL: https://staging.ikimon.life"
+            echo "- Health: https://staging.ikimon.life/healthz"
+            echo "- Readiness: https://staging.ikimon.life/readyz"
+            echo "- Demo smoke: https://staging.ikimon.life/demo/place-feeling-tags"
+            echo "- R2 bucket: \`ikimon-shadow-media\`"
+            echo "- D1: \`ikimon_shadow_core\`, \`ikimon_shadow_observations_2026_06\`"
+            echo "- Portable runner: \`scripts/run_cloudflare_staging_release.sh\`"
+            echo "- Browser QA: \`${BROWSER_QA}\`"
+            echo "- Secret mutation requested: \`${SYNC_STAGING_WRITE_SECRET}\`"
+            echo "- VPS SSH/deploy: \`not used\`"
+            echo ""
+            echo "### Optional full evidence contract"
+            echo "- Run Cloudflare staging QA sitemap smoke: \`npm run e2e:staging:site-map\`"
+            echo "- Evidence path: \`playwright-report/staging\`"
+          } >> "$GITHUB_STEP_SUMMARY"
