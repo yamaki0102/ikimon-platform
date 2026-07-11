@@ -25,23 +25,11 @@ jobs:
           ref: agent/mobile-map-progressive-controls-20260712
           fetch-depth: 1
 
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: platform_v2/package-lock.json
-
-      - name: Install browser QA dependencies
-        working-directory: platform_v2
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
-
-      - name: Collect focused source and current production screenshots
+      - name: Collect focused map sources
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p mobile-map-diagnostic/src/ui mobile-map-diagnostic/src/routes mobile-map-diagnostic/e2e mobile-map-diagnostic/screenshots
+          mkdir -p mobile-map-diagnostic/src/ui mobile-map-diagnostic/src/routes mobile-map-diagnostic/e2e
           cp platform_v2/src/ui/mapExplorer.ts mobile-map-diagnostic/src/ui/
           cp platform_v2/src/ui/mapExplorer.test.ts mobile-map-diagnostic/src/ui/
           cp platform_v2/src/routes/mapRead.ts mobile-map-diagnostic/src/routes/
@@ -51,70 +39,14 @@ jobs:
           cp platform_v2/e2e/landing-top-visual.spec.ts mobile-map-diagnostic/e2e/
           {
             echo '=== render shell and controls ==='
-            rg -n -C 8 'renderMapExplorer|me-filter|me-tab|me-search|me-locate|legend|season|basemap|region|drawer|bottom-sheet|side-panel' platform_v2/src/ui/mapExplorer.ts || true
+            rg -n -C 10 'renderMapExplorer|me-filter|me-tab|me-search|me-locate|legend|season|basemap|region|drawer|bottom-sheet|side-panel' platform_v2/src/ui/mapExplorer.ts || true
             echo '=== mobile CSS ==='
-            rg -n -C 8 '@media|390px|768px|me-map|me-toolbar|me-filter|me-tabs|me-controls|me-bottom' platform_v2/src/ui/mapExplorer.ts || true
+            rg -n -C 10 '@media|390px|768px|me-map|me-toolbar|me-filter|me-tabs|me-controls|me-bottom' platform_v2/src/ui/mapExplorer.ts || true
             echo '=== interaction state ==='
-            rg -n -C 8 'querySelector|addEventListener|aria-expanded|hidden|classList|bottomSheet|sidePanel|legend' platform_v2/src/ui/mapExplorer.ts || true
+            rg -n -C 10 'querySelector|addEventListener|aria-expanded|hidden|classList|bottomSheet|sidePanel|legend' platform_v2/src/ui/mapExplorer.ts || true
           } > mobile-map-diagnostic/grep-context.txt
-          cat > platform_v2/.tmp-map-diagnostic.mjs <<'NODE'
-          import { chromium } from 'playwright';
-          import fs from 'node:fs/promises';
-          import path from 'node:path';
-          const cases = [
-            { name: '360x800', width: 360, height: 800 },
-            { name: '390x844', width: 390, height: 844 },
-            { name: '412x915', width: 412, height: 915 },
-            { name: '768x1024', width: 768, height: 1024 },
-            { name: '1440x1200', width: 1440, height: 1200 },
-          ];
-          const browser = await chromium.launch({ headless: true });
-          const metrics = [];
-          for (const item of cases) {
-            const context = await browser.newContext({ viewport: { width: item.width, height: item.height }, locale: 'ja-JP' });
-            const page = await context.newPage();
-            await page.goto(`https://ikimon.life/ja/map?visual_qa=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
-            await page.waitForTimeout(4000);
-            const data = await page.evaluate(() => {
-              const rect = (selector) => {
-                const el = document.querySelector(selector);
-                if (!el) return null;
-                const r = el.getBoundingClientRect();
-                const style = getComputedStyle(el);
-                return { x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right,display:style.display,visibility:style.visibility,overflow:style.overflow };
-              };
-              const visible = (selector) => Array.from(document.querySelectorAll(selector)).filter((el) => {
-                const r = el.getBoundingClientRect();
-                const s = getComputedStyle(el);
-                return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
-              }).length;
-              return {
-                viewport: { width: innerWidth, height: innerHeight },
-                map: rect('#map-explorer, .me-map, [data-map-canvas]'),
-                shell: rect('.map-explorer, .me-shell, [data-map-explorer]'),
-                tabs: rect('.me-tabs, [role="tablist"]'),
-                filter: rect('.me-filters, .me-filter-bar, [data-map-filters]'),
-                bottomSheet: rect('.me-bottom-sheet, [data-map-bottom-sheet]'),
-                sidePanel: rect('.me-side-panel, [data-map-side-panel]'),
-                footer: rect('.global-record-launcher, .site-mobile-footer-nav'),
-                visibleButtons: visible('button'),
-                visibleSelects: visible('select'),
-                horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-                bodyHeight: document.body.scrollHeight,
-              };
-            });
-            data.name = item.name;
-            metrics.push(data);
-            await page.screenshot({ path: path.resolve('../mobile-map-diagnostic/screenshots', `${item.name}.png`), fullPage: false, animations: 'disabled' });
-            await context.close();
-          }
-          await browser.close();
-          await fs.writeFile('../mobile-map-diagnostic/metrics.json', JSON.stringify(metrics, null, 2));
-          NODE
-          (cd platform_v2 && node .tmp-map-diagnostic.mjs)
-          rm -f platform_v2/.tmp-map-diagnostic.mjs
 
-      - name: Upload mobile map diagnostic
+      - name: Upload mobile map source diagnostic
         uses: actions/upload-artifact@v6
         with:
           name: mobile-map-progressive-diagnostic
