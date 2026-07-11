@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - codex/mobile-record-one-tap-20260711
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -14,7 +17,7 @@ concurrency:
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && github.head_ref != 'agent/production-smoke-cleanup'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -28,56 +31,52 @@ jobs:
           set -euo pipefail
           python <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('platform_v2/src/ui/siteShell.ts')
           source = path.read_text(encoding='utf-8')
 
-          old_confirm = """    if (activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream) {
-                if (directPostInFlight) return;
-                if (nowMs() > photoDraftSubmitConfirmUntil) {
-                  photoDraftSubmitConfirmUntil = nowMs() + 4500;
-                  if (captureButton) captureButton.textContent = 'もう一度押すと記録';
-                  setStatus('記録するなら同じボタンをもう一度押してください。続けて撮るなら左のボタンです。');
-                  return;
-                }
-                photoDraftSubmitConfirmUntil = 0;
-                if (captureButton) captureButton.disabled = true;
-          """
-          new_confirm = """    if (activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream) {
-                if (directPostInFlight) return;
-                photoDraftSubmitConfirmUntil = 0;
-                if (captureButton) captureButton.disabled = true;
-          """
-
-          old_hierarchy = """    if (files.length > 0) {
-                setPrimaryAction(startButton, true);
-                setPrimaryAction(captureButton, false);
-              } else {
-                setFooterActionMode('start');
-              }
-          """
-          new_hierarchy = """    if (files.length > 0) {
-                setFooterActionMode('submit');
-              } else {
-                setFooterActionMode('start');
-              }
-          """
-
-          old_status = """    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置は記録画面で指定できます。') + ' 写真' + String(capturedPhotoFiles.length) + '枚をまとめています。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
-          """
-          new_status = """    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で記録、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
-          """
-
-          replacements = [
-              ('double confirmation block', old_confirm, new_confirm),
-              ('button hierarchy block', old_hierarchy, new_hierarchy),
-              ('review status copy', old_status, new_status),
+          patterns = [
+              (
+                  'double confirmation block',
+                  re.compile(
+                      r"(    if \(activeKind === 'photo' && selectedPhotoDraftFiles\(\)\.length > 0 && !activeStream\) \{\n"
+                      r"      if \(directPostInFlight\) return;\n)"
+                      r"      if \(nowMs\(\) > photoDraftSubmitConfirmUntil\) \{\n"
+                      r"        photoDraftSubmitConfirmUntil = nowMs\(\) \+ 4500;\n"
+                      r"        if \(captureButton\) captureButton\.textContent = 'もう一度押すと記録';\n"
+                      r"        setStatus\('記録するなら同じボタンをもう一度押してください。続けて撮るなら左のボタンです。'\);\n"
+                      r"        return;\n"
+                      r"      \}\n"
+                      r"      photoDraftSubmitConfirmUntil = 0;\n"
+                  ),
+                  r"\1      photoDraftSubmitConfirmUntil = 0;\n",
+              ),
+              (
+                  'button hierarchy block',
+                  re.compile(
+                      r"    if \(files\.length > 0\) \{\n"
+                      r"      setPrimaryAction\(startButton, true\);\n"
+                      r"      setPrimaryAction\(captureButton, false\);\n"
+                      r"    \} else \{\n"
+                      r"      setFooterActionMode\('start'\);\n"
+                      r"    \}"
+                  ),
+                  "    if (files.length > 0) {\n      setFooterActionMode('submit');\n    } else {\n      setFooterActionMode('start');\n    }",
+              ),
+              (
+                  'review status copy',
+                  re.compile(
+                      r"    setStatus\(\(metadata && metadata\.location \? '撮影地点も保存しました。' : '位置は記録画面で指定できます。'\) \+ ' 写真' \+ String\(capturedPhotoFiles\.length\) \+ '枚をまとめています。' \+ \(dropped > 0 \? ' 上限を超えた分は外しました。' : ''\)\);"
+                  ),
+                  "    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で記録、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));",
+              ),
           ]
-          for label, old, new in replacements:
-              count = source.count(old)
+
+          for label, pattern, replacement in patterns:
+              source, count = pattern.subn(replacement, source, count=1)
               if count != 1:
                   raise SystemExit(f'{label}: expected exactly 1 match, found {count}')
-              source = source.replace(old, new, 1)
 
           path.write_text(source, encoding='utf-8')
 
