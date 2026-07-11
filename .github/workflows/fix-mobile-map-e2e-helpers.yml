@@ -1,0 +1,45 @@
+name: Fix Mobile Map E2E Helpers
+
+on:
+  push:
+    branches:
+      - agent/mobile-map-progressive-controls-20260712
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-mobile-map-e2e-helpers
+  cancel-in-progress: true
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/mobile-map-progressive-controls-20260712'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/mobile-map-progressive-controls-20260712
+          fetch-depth: 0
+
+      - name: Apply helper correction
+        run: |
+          set -euo pipefail
+          python ops/fix_mobile_map_e2e_helpers.py
+          git diff --check
+          ! rg -n 'installMapApiStubs|waitForMapReady' platform_v2/e2e/map.staging.spec.ts
+          rg -n 'installMapLibreStubForSmoke|installDeterministicMapApiFixtures|waitForMapShellReady' platform_v2/e2e/map.staging.spec.ts
+
+      - name: Commit correction
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/fix-mobile-map-e2e-helpers.yml
+          rm -f ops/fix_mobile_map_e2e_helpers.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'test: use existing map staging helpers'
+          git push origin HEAD:agent/mobile-map-progressive-controls-20260712
