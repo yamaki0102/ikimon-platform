@@ -74,7 +74,7 @@ jobs:
             const context = await browser.newContext({ viewport: { width: item.width, height: item.height }, locale: 'ja-JP' });
             const page = await context.newPage();
             await page.goto(`https://ikimon.life/ja/map?visual_qa=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
-            await page.waitForTimeout(6000);
+            await page.waitForTimeout(4000);
             const data = await page.evaluate(() => {
               const rect = (selector) => {
                 const el = document.querySelector(selector);
@@ -105,7 +105,7 @@ jobs:
             });
             data.name = item.name;
             metrics.push(data);
-            await page.screenshot({ path: path.resolve('../mobile-map-diagnostic/screenshots', `${item.name}.png`), fullPage: true });
+            await page.screenshot({ path: path.resolve('../mobile-map-diagnostic/screenshots', `${item.name}.png`), fullPage: false, animations: 'disabled' });
             await context.close();
           }
           await browser.close();
