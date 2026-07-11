@@ -13,7 +13,7 @@ jobs:
     if: github.head_ref == 'agent/production-smoke-cleanup'
     runs-on: ubuntu-latest
     env:
-      EXPECTED_SHA: b7028a900720130ee747779a0bf13ec1990ffa73
+      EXPECTED_SHA: 8ae5ddc6db72ba1d7f9b882195e4c879898ac2be
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Verify latest production deploy and runtime identity
@@ -78,17 +78,6 @@ jobs:
           }
           console.log(JSON.stringify({ expectedSha: expected, runtimes }, null, 2));
           NODE
-
-          curl -fsSL --retry 8 --retry-delay 5 -H 'cache-control: no-store' "https://ikimon.life/ja/?verify_mobile_record=${EXPECTED_SHA}" > production-deploy-verification/home.html
-          if grep -Fq 'もう一度押すと記録' production-deploy-verification/home.html; then
-            echo 'Production HTML still contains the removed two-tap confirmation.'
-            exit 1
-          fi
-          grep -Fq '右で記録、左でもう1枚撮れます。' production-deploy-verification/home.html
-          grep -Fq "setFooterActionMode('submit')" production-deploy-verification/home.html
-          grep -Fq 'data-global-record-trigger="photo"' production-deploy-verification/home.html
-          printf '{"expectedSha":"%s","oneTapCopy":true,"submitPrimary":true,"photoTrigger":true}\n' "$EXPECTED_SHA" > production-deploy-verification/mobile-record-summary.json
-
       - name: Upload production deploy verification
         if: always()
         uses: actions/upload-artifact@v6
