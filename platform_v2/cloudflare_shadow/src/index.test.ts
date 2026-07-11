@@ -4595,6 +4595,15 @@ class FakeStatement {
       return (this.db.placeMemoryPreferences.get(string(v[0])) as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT EXISTS( SELECT 1 FROM place_memory_entries")) {
+      const userId = string(v[0]);
+      const cellId = string(v[1]);
+      const hasAccess = [...this.db.placeMemoryEntries.values()].some((row) =>
+        row.user_id === userId && row.cell_id === cellId && !row.deleted_at
+      );
+      return ({ has_access: hasAccess ? 1 : 0 } as T);
+    }
+
     if (normalized.startsWith("SELECT entry_id FROM place_memory_likes")) {
       return this.db.placeMemoryLikes.has(`${string(v[0])}:${string(v[1])}`) ? ({ entry_id: string(v[0]) } as T) : null;
     }
@@ -4602,6 +4611,16 @@ class FakeStatement {
     if (normalized.startsWith("SELECT COUNT(*) AS count FROM place_memory_likes")) {
       const count = [...this.db.placeMemoryLikes].filter((key) => key.startsWith(`${string(v[0])}:`)).length;
       return ({ count } as T);
+    }
+
+    if (normalized.startsWith("SELECT COUNT(DISTINCT user_id) AS count FROM place_memory_reports")) {
+      const count = new Set(this.db.placeMemoryReports.filter((row) => row.entry_id === string(v[0])).map((row) => row.user_id)).size;
+      return ({ count } as T);
+    }
+
+    if (normalized.startsWith("SELECT report_id FROM place_memory_reports")) {
+      const row = this.db.placeMemoryReports.find((candidate) => candidate.entry_id === string(v[0]) && candidate.user_id === string(v[1]));
+      return row ? ({ report_id: row.report_id } as T) : null;
     }
 
     if (normalized.startsWith("SELECT COUNT(*) AS count FROM place_memory_reports")) {
@@ -9585,9 +9604,9 @@ test("place memory runtime stores D1 entries and serves preferences list and mod
     headers: { cookie }
   }), env);
   const likePayload = await likeResponse.json() as any;
-  assert.equal(likeResponse.status, 200, JSON.stringify(likePayload));
-  assert.equal(likePayload.liked, true);
-  assert.equal(likePayload.likeCount, 1);
+  assert.equal(likeResponse.status, 403, JSON.stringify(likePayload));
+  assert.equal(likePayload.error, "place_memory_own_like_not_allowed");
+  assert.equal(obs.placeMemoryLikes.size, 0);
 
   const photoReviewResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/photo-review", {
     method: "POST",
@@ -9605,6 +9624,17 @@ test("place memory runtime stores D1 entries and serves preferences list and mod
   assert.equal(reportPayload.hiddenForMe, true);
   assert.equal(obs.placeMemoryReports.length, 1);
 
+  const duplicateReportResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/report", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ reasonCode: "privacy", reasonNote: "重複" })
+  }), env);
+  const duplicateReportPayload = await duplicateReportResponse.json() as any;
+  assert.equal(duplicateReportResponse.status, 200, JSON.stringify(duplicateReportPayload));
+  assert.equal(duplicateReportPayload.duplicate, true);
+  assert.equal(obs.placeMemoryReports.length, 1);
+  assert.equal(obs.placeMemoryEntries.get("pm:visit-place-memory")?.moderation_status, "visible");
+
   const hideResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/hide", {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
@@ -9617,6 +9647,79 @@ test("place memory runtime stores D1 entries and serves preferences list and mod
   }), env);
   const hiddenListPayload = await hiddenListResponse.json() as any;
   assert.equal(hiddenListPayload.items.length, 0);
+});
+
+test("place memory stays locked per cell and denies unauthorized actions and owner self-like", async () => {
+  const { env, obs } = createEnv();
+  const ownerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "place-memory-owner", displayName: "Place Memory Owner" })
+  }), env);
+  const ownerCookie = ownerIssue.headers.get("set-cookie") ?? "";
+  const lockedIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "place-memory-locked", displayName: "Place Memory Locked" })
+  }), env);
+  const lockedCookie = lockedIssue.headers.get("set-cookie") ?? "";
+
+  const upsertResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      observationId: "visit-place-memory-owner",
+      userId: "place-memory-owner",
+      observedAt: "2026-06-15T02:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      taxon: { vernacularName: "テスト生物", rank: "species" },
+      placeMemory: { tags: ["refresh_walk"], echoNote: "owner echo" }
+    })
+  }), env);
+  assert.equal(upsertResponse.status, 201);
+  const entryId = "pm:visit-place-memory-owner";
+
+  const lockedList = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory?cellId=34.71,137.81", {
+    headers: { cookie: lockedCookie }
+  }), env);
+  assert.equal(lockedList.status, 200);
+  assert.deepEqual(await lockedList.json(), {
+    ok: true,
+    cellId: "34.71,137.81",
+    unlocked: false,
+    items: []
+  });
+  const absentCellList = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory?cellId=absent-cell", {
+    headers: { cookie: lockedCookie }
+  }), env);
+  assert.equal(absentCellList.status, lockedList.status);
+  assert.deepEqual(await absentCellList.json(), {
+    ok: true,
+    cellId: "absent-cell",
+    unlocked: false,
+    items: []
+  });
+
+  for (const action of ["like", "hide", "report"]) {
+    const response = await worker.fetch(new Request(`https://shadow.test/api/v1/place-memory/${encodeURIComponent(entryId)}/${action}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: lockedCookie },
+      body: action === "report" ? JSON.stringify({ reasonCode: "privacy" }) : JSON.stringify({ reason: "self" })
+    }), env);
+    assert.equal(response.status, 404, `${action} should stay hidden until the cell is unlocked`);
+    assert.deepEqual(await response.json(), { ok: false, error: "place_memory_not_found" });
+  }
+
+  const selfLike = await worker.fetch(new Request(`https://shadow.test/api/v1/place-memory/${encodeURIComponent(entryId)}/like`, {
+    method: "POST",
+    headers: { cookie: ownerCookie }
+  }), env);
+  assert.equal(selfLike.status, 403);
+  assert.deepEqual(await selfLike.json(), { ok: false, error: "place_memory_own_like_not_allowed" });
+  assert.equal(obs.placeMemoryLikes.size, 0);
+  assert.equal(obs.placeMemoryHidden.size, 0);
+  assert.equal(obs.placeMemoryReports.length, 0);
 });
 
 test("v1 observation upsert persists civic context only for event, risk, or explicit context writes", async () => {
@@ -12393,6 +12496,62 @@ test("production runtime enables app-compatible write routes while keeping shado
   assert.equal(hidePayload.ok, true);
   assert.equal(obs.observations.get("production-runtime-observation")?.emergency_hidden, 1);
   assert.equal(obs.rollbackLedger.size, 4);
+});
+
+test("production observation upsert cannot take over another user's observation or place memory", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const workerOrigin = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
+
+  const issue = async (userId: string) => {
+    const response = await worker.fetch(new Request(`${workerOrigin}/api/v1/auth/session/issue`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+      body: JSON.stringify({ userId, displayName: userId, roleName: "Observer", ttlHours: 1 })
+    }), productionEnv);
+    assert.equal(response.status, 200, await response.text());
+    return response.headers.get("set-cookie") ?? "";
+  };
+  const victimCookie = await issue("idor-victim");
+  const attackerCookie = await issue("idor-attacker");
+  const victimBody = {
+    observationId: "idor-owned-observation",
+    userId: "idor-victim",
+    observedAt: "2026-07-10T00:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "private",
+    note: "victim note",
+    taxon: { vernacularName: "victim taxon", rank: "species" },
+    placeMemory: { tags: ["refresh_walk"], privateNote: "victim private memory" }
+  };
+  const createResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/observations/upsert`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: victimCookie },
+    body: JSON.stringify(victimBody)
+  }), productionEnv);
+  assert.equal(createResponse.status, 201, await createResponse.text());
+  obs.observations.get("idor-owned-observation")!.emergency_hidden = 1;
+
+  const attackResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/observations/upsert`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: attackerCookie },
+    body: JSON.stringify({
+      ...victimBody,
+      userId: "idor-attacker",
+      latitude: 35.0,
+      longitude: 138.0,
+      visibility: "public",
+      note: "attacker overwrite",
+      placeMemory: { tags: ["first_visit"], privateNote: "attacker overwrite" }
+    })
+  }), productionEnv);
+  assert.equal(attackResponse.status, 403, await attackResponse.text());
+  assert.equal(obs.observations.get("idor-owned-observation")?.owner_user_id, "idor-victim");
+  assert.equal(obs.observations.get("idor-owned-observation")?.note, "victim note");
+  assert.equal(obs.observations.get("idor-owned-observation")?.emergency_hidden, 1);
+  assert.equal(obs.placeMemoryEntries.get("pm:idor-owned-observation")?.user_id, "idor-victim");
+  assert.equal(obs.placeMemoryEntries.get("pm:idor-owned-observation")?.private_note, "victim private memory");
 });
 
 test("production runtime honors private visibility before public readmodel refresh", async () => {
