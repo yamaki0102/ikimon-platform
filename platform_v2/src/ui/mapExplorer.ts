@@ -1424,12 +1424,12 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     .join("");
 
   const filterToggleLabel = lang === "ja"
-    ? "レイヤー"
+    ? "詳しく絞る"
     : lang === "es"
-      ? "Filtros"
+      ? "Más filtros"
       : lang === "pt-BR"
-        ? "Filtros"
-        : "Filters";
+        ? "Mais filtros"
+        : "More filters";
   const listHeading = lang === "ja"
     ? "この範囲の記録"
     : lang === "es"
@@ -1512,10 +1512,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           />
           <div id="me-search-results" class="me-search-results" role="listbox" aria-label="${escapeHtml(copy.searchAriaLabel)}"></div>
         </div>
-        <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}">
+        <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}" data-mobile-primary-map-controls>
           ${renderMapLayerTab("markers", copy.tabMarkers, mobileTabLabels.markers)}
-          ${renderMapLayerTab("heatmap", copy.tabHeatmap, mobileTabLabels.heatmap)}
           ${renderMapLayerTab("places", copy.tabPlaces, mobileTabLabels.places, true)}
+          ${renderMapLayerTab("heatmap", copy.tabHeatmap, mobileTabLabels.heatmap)}
           ${renderMapLayerTab("rain", copy.tabRain, mobileTabLabels.rain)}
           ${renderMapLayerTab("frontier", copy.tabCoverage, mobileTabLabels.frontier)}
         </div>
@@ -1770,6 +1770,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var startPanelRoutesStaticHtml = startPanelRoutesEl && startPanelRoutesEl.querySelector('nav')
     ? startPanelRoutesEl.querySelector('nav').innerHTML
     : '';
+  var filterDrawerEl = document.querySelector('.me-filter-drawer');
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
@@ -2638,6 +2639,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         startPanelCloseEl.textContent = collapsed ? '⌄' : '×';
       }
     }
+  }
+  function closeFilterDrawer() {
+    if (!filterDrawerEl) return;
+    filterDrawerEl.removeAttribute('open');
+    root.classList.remove('me-filter-open');
   }
 
   function mapCenterIsInShizuoka() {
@@ -6075,6 +6081,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function showDetailBottomSheet() {
     if (!sheetEl) return;
+    closeFilterDrawer();
+    if (startPanelEl && !startPanelEl.hidden) setStartPanelCollapsed(true);
     if (shouldKeepMapClearForRain()) {
       closeBottomSheet();
       return;
@@ -6090,6 +6098,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function showAreaBottomSheet() {
     if (!sheetEl) return;
+    closeFilterDrawer();
+    if (startPanelEl && !startPanelEl.hidden) setStartPanelCollapsed(true);
     if (shouldKeepMapClearForRain()) {
       closeBottomSheet();
       return;
@@ -9381,10 +9391,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       dismissStartPanel();
       dismissPurposeHint();
       switchMapTab(t);
-      var drawer = btn.closest && btn.closest('.me-filter-drawer');
-      if (drawer) drawer.removeAttribute('open');
+      closeFilterDrawer();
     });
   });
+  if (filterDrawerEl) {
+    filterDrawerEl.addEventListener('toggle', function () {
+      var open = filterDrawerEl.hasAttribute('open');
+      root.classList.toggle('me-filter-open', open);
+      if (!open) return;
+      closeBottomSheet();
+      if (startPanelEl && !startPanelEl.hidden) setStartPanelCollapsed(true);
+      hideLayerHint();
+    });
+  }
   if (layerHintJumpEl) {
     layerHintJumpEl.addEventListener('click', function () {
       jumpToVisibleLayer(layerHintEl ? (layerHintEl.getAttribute('data-tab') || state.tab) : state.tab);
@@ -13518,7 +13537,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-section {
       --me-side-w: 0px;
       --me-topbar-h: 94px;
-      --me-enjoy-h: 70px;
+      --me-enjoy-h: 38px;
       --me-mobile-action-space: calc(92px + max(0px, env(safe-area-inset-bottom)));
       --me-mobile-sheet-clearance: 14px;
     }
@@ -13551,29 +13570,24 @@ export const MAP_EXPLORER_STYLES = `
     .me-map-role-strip {
       grid-template-columns: 1fr;
       align-content: center;
-      gap: 4px;
-      padding: 8px 12px;
+      gap: 0;
+      padding: 5px 12px;
     }
     .me-map-role-strip strong {
-      white-space: normal;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
       font-size: 12px;
     }
-    .me-map-role-strip span {
-      white-space: normal;
-      display: block;
-      font-size: 11px;
-      line-height: 1.35;
-    }
+    .me-map-role-strip span,
     .me-map-role-strip em {
-      width: fit-content;
-      font-size: 10px;
-      white-space: normal;
+      display: none;
     }
     .me-tabs {
       grid-column: 1 / -1;
       grid-row: 2;
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       width: 100%;
       min-width: 0;
       overflow: hidden;
@@ -13582,7 +13596,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-rain-mode .me-tabs {
       grid-column: 1;
       grid-row: 1;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       align-self: center;
       gap: 3px;
       padding: 2px;
@@ -13591,6 +13605,10 @@ export const MAP_EXPLORER_STYLES = `
       box-shadow: 0 8px 22px rgba(15,23,42,.08);
     }
     .me-tabs::-webkit-scrollbar { display: none; }
+    .me-tab[data-tab="rain"],
+    .me-tab[data-tab="frontier"] {
+      display: none;
+    }
     .me-tab {
       min-width: 0;
       min-height: 34px;
@@ -13611,9 +13629,14 @@ export const MAP_EXPLORER_STYLES = `
     }
     .me-filter-drawer { flex: 0 0 auto; }
     .me-filter-toggle {
-      min-width: 76px;
+      min-width: 96px;
       min-height: 38px;
-      padding: 0 13px;
+      padding: 0 12px;
+    }
+    .me-filter-drawer[open] .me-filter-toggle {
+      background: rgba(15,118,110,.12);
+      border-color: rgba(15,118,110,.28);
+      color: #0f766e;
     }
     .me-filter-display-group {
       padding-bottom: 12px;
@@ -13633,6 +13656,15 @@ export const MAP_EXPLORER_STYLES = `
       box-shadow: 0 18px 42px rgba(15,23,42,.22);
       backdrop-filter: blur(12px);
     }
+    .me-filter-open .me-rain-card,
+    .me-filter-open .me-own-trail,
+    .me-filter-open .me-layer-hint,
+    .me-filter-open .me-locate-fab,
+    .me-filter-open .me-legend {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
     .me-main { display: block; }
     .me-map-wrap { position: relative; width: 100%; margin-left: 0; }
     .me-map { min-height: var(--me-map-height); height: var(--me-map-height); }
@@ -13645,6 +13677,7 @@ export const MAP_EXPLORER_STYLES = `
     }
     .me-start-panel.is-collapsed {
       max-width: min(286px, calc(100% - 82px));
+      grid-template-columns: auto;
       padding: 4px;
     }
     .me-start-panel.is-collapsed .me-start-panel-close {
@@ -13658,8 +13691,7 @@ export const MAP_EXPLORER_STYLES = `
       display: none;
     }
     .me-start-panel.is-collapsed .me-start-panel-grid {
-      grid-template-columns: 34px;
-      gap: 0;
+      display: none;
     }
     .me-start-panel.is-collapsed .me-start-panel-location,
     .me-start-panel.is-collapsed .me-start-panel-grid a {
