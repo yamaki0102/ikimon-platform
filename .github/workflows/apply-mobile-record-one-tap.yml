@@ -1,0 +1,105 @@
+name: Apply Mobile Record One Tap
+
+on:
+  push:
+    branches:
+      - codex/mobile-record-one-tap-20260711
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-mobile-record-one-tap
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mobile-record-one-tap-20260711
+          fetch-depth: 0
+
+      - name: Apply focused quick-record patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('platform_v2/src/ui/siteShell.ts')
+          source = path.read_text(encoding='utf-8')
+
+          old_confirm = """    if (activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream) {
+                if (directPostInFlight) return;
+                if (nowMs() > photoDraftSubmitConfirmUntil) {
+                  photoDraftSubmitConfirmUntil = nowMs() + 4500;
+                  if (captureButton) captureButton.textContent = 'もう一度押すと記録';
+                  setStatus('記録するなら同じボタンをもう一度押してください。続けて撮るなら左のボタンです。');
+                  return;
+                }
+                photoDraftSubmitConfirmUntil = 0;
+                if (captureButton) captureButton.disabled = true;
+          """
+          new_confirm = """    if (activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream) {
+                if (directPostInFlight) return;
+                photoDraftSubmitConfirmUntil = 0;
+                if (captureButton) captureButton.disabled = true;
+          """
+
+          old_hierarchy = """    if (files.length > 0) {
+                setPrimaryAction(startButton, true);
+                setPrimaryAction(captureButton, false);
+              } else {
+                setFooterActionMode('start');
+              }
+          """
+          new_hierarchy = """    if (files.length > 0) {
+                setFooterActionMode('submit');
+              } else {
+                setFooterActionMode('start');
+              }
+          """
+
+          old_status = """    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置は記録画面で指定できます。') + ' 写真' + String(capturedPhotoFiles.length) + '枚をまとめています。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
+          """
+          new_status = """    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で記録、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
+          """
+
+          replacements = [
+              ('double confirmation block', old_confirm, new_confirm),
+              ('button hierarchy block', old_hierarchy, new_hierarchy),
+              ('review status copy', old_status, new_status),
+          ]
+          for label, old, new in replacements:
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 match, found {count}')
+              source = source.replace(old, new, 1)
+
+          path.write_text(source, encoding='utf-8')
+
+          test_path = Path('platform_v2/src/ui/mobileQuickRecordContract.test.ts')
+          test_path.write_text('''import assert from "node:assert/strict";\nimport test from "node:test";\nimport { readFileSync } from "node:fs";\n\nconst source = readFileSync(new URL("./siteShell.ts", import.meta.url), "utf8");\n\ntest("mobile footer quick record saves a reviewed photo with one tap", () => {\n  assert.doesNotMatch(source, /もう一度押すと記録/);\n  assert.doesNotMatch(source, /記録するなら同じボタンをもう一度押してください/);\n  assert.match(\n    source,\n    /if \(activeKind === 'photo' && selectedPhotoDraftFiles\(\)\.length > 0 && !activeStream\) \{[\\s\\S]*?if \(captureButton\) captureButton\.disabled = true;[\\s\\S]*?await directPostPhotoDraft\(\);/,\n  );\n});\n\ntest("reviewed photos make save the primary action and keep add-another secondary", () => {\n  assert.match(source, /if \(files\.length > 0\) \{\\s*setFooterActionMode\('submit'\);/);\n  assert.match(source, /右で記録、左でもう1枚撮れます。/);\n});\n''', encoding='utf-8')
+          PY
+
+      - name: Verify focused change
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix platform_v2 ci
+          npm --prefix platform_v2 run typecheck
+          npm --prefix platform_v2 run test:node
+
+      - name: Commit generated patch and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-mobile-record-one-tap.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add platform_v2/src/ui/siteShell.ts platform_v2/src/ui/mobileQuickRecordContract.test.ts .github/workflows/apply-mobile-record-one-tap.yml
+          git commit -m 'fix: make mobile quick-record save one tap'
+          git push origin HEAD:codex/mobile-record-one-tap-20260711
