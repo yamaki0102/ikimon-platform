@@ -29,17 +29,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git apply --check --verbose ops/patches/mobile-map-progressive-controls.patch 2>&1 | tee mobile-map-patch.log
-          git apply --verbose ops/patches/mobile-map-progressive-controls.patch 2>&1 | tee -a mobile-map-patch.log
-
-      - name: Upload patch diagnostics
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: mobile-map-patch-diagnostics
-          path: mobile-map-patch.log
-          if-no-files-found: warn
-          retention-days: 2
+          python ops/apply_mobile_map_progressive.py
+          git diff --check
 
       - uses: actions/setup-node@v5
         with:
@@ -63,7 +54,7 @@ jobs:
           rm -f .github/workflows/diagnose-mobile-map-progressive.yml
           rm -f .github/workflows/apply-mobile-map-progressive.yml
           rm -f ops/patches/mobile-map-progressive-controls.patch
-          rm -f mobile-map-patch.log
+          rm -f ops/apply_mobile_map_progressive.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
