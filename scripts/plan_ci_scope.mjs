@@ -45,6 +45,7 @@ export function planCiScope(inputFiles, { forceFull = false } = {}) {
     /^\.github\/actions\//,
     /^ops\/deploy\//,
     /^scripts\/(check_(deploy_guardrails|deploy_manifest_sync|platform_migration_guardrails|staging_manifest_sync|release_candidate)|plan_ci_scope)\.(ps1|mjs)$/,
+    /^scripts\/run_cloudflare_staging_release\.sh$/,
     /^scripts\/tests\/plan_ci_scope\.tests\.mjs$/,
   ]);
 
