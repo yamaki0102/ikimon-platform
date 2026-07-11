@@ -12425,6 +12425,169 @@ function normalizeRecordsView(raw: unknown, hasViewer: boolean): RecordsWorkbenc
   return hasViewer ? "mine" : "public";
 }
 
+type RecordsArrivalSource = "record_saved" | null;
+
+function normalizeRecordsArrivalSource(raw: unknown): RecordsArrivalSource {
+  return typeof raw === "string" && raw.trim() === "record_saved" ? "record_saved" : null;
+}
+
+function normalizeRecordsArrivalSavedId(raw: unknown): string {
+  const value = typeof raw === "string" ? raw.trim().slice(0, 180) : "";
+  return /^[A-Za-z0-9:_-]+$/.test(value) ? value : "";
+}
+
+function recordsCardMatchesSavedId(card: RecordsPostCard, savedId: string): boolean {
+  return Boolean(savedId) && card.postRecordIds.includes(savedId);
+}
+
+function prioritizeSavedRecord(entries: LandingObservation[], savedId: string): LandingObservation[] {
+  if (!savedId) return entries;
+  const matches: LandingObservation[] = [];
+  const others: LandingObservation[] = [];
+  for (const entry of entries) {
+    const ids = [entry.visitId, entry.detailId, entry.occurrenceId].filter(Boolean);
+    (ids.includes(savedId) ? matches : others).push(entry);
+  }
+  return matches.length > 0 ? [...matches, ...others] : entries;
+}
+
+type RecordsArrivalCopy = {
+  savedEyebrow: string;
+  savedTitle: string;
+  savedFound: string;
+  savedPending: string;
+  savedBadge: string;
+  continueRecord: string;
+  openMap: string;
+  publicEyebrow: string;
+  publicTitle: string;
+  publicLead: string;
+  mineEmptyTitle: string;
+  mineEmptyLead: string;
+  publicEmptyTitle: string;
+  publicEmptyLead: string;
+  openPublic: string;
+  recordPhoto: string;
+};
+
+function recordsArrivalCopy(lang: SiteLang): RecordsArrivalCopy {
+  if (lang === "en") return {
+    savedEyebrow: "Saved",
+    savedTitle: "Your record is saved.",
+    savedFound: "The newest record is shown first.",
+    savedPending: "It is saved. The list is catching up with the newest record.",
+    savedBadge: "Just saved",
+    continueRecord: "Record another",
+    openMap: "Open map",
+    publicEyebrow: "Public records",
+    publicTitle: "See what people have recorded.",
+    publicLead: "Browse public records first. Your own records appear after you sign in.",
+    mineEmptyTitle: "No personal records yet",
+    mineEmptyLead: "Start with one photo. You can add names and details later.",
+    publicEmptyTitle: "No public records are ready yet",
+    publicEmptyLead: "Explore the map or start a record from one photo.",
+    openPublic: "View public records",
+    recordPhoto: "Record from a photo",
+  };
+  if (lang === "es") return {
+    savedEyebrow: "Guardado",
+    savedTitle: "Tu registro se guardó.",
+    savedFound: "El registro más reciente aparece primero.",
+    savedPending: "Está guardado. La lista está actualizando el registro más reciente.",
+    savedBadge: "Recién guardado",
+    continueRecord: "Registrar otro",
+    openMap: "Abrir mapa",
+    publicEyebrow: "Registros públicos",
+    publicTitle: "Mira lo que otras personas registraron.",
+    publicLead: "Primero puedes explorar los registros públicos. Tus registros aparecen al iniciar sesión.",
+    mineEmptyTitle: "Aún no tienes registros",
+    mineEmptyLead: "Empieza con una foto. Puedes añadir el nombre y los detalles después.",
+    publicEmptyTitle: "Aún no hay registros públicos listos",
+    publicEmptyLead: "Explora el mapa o inicia un registro con una foto.",
+    openPublic: "Ver registros públicos",
+    recordPhoto: "Registrar con una foto",
+  };
+  if (lang === "pt-BR") return {
+    savedEyebrow: "Salvo",
+    savedTitle: "Seu registro foi salvo.",
+    savedFound: "O registro mais recente aparece primeiro.",
+    savedPending: "Ele foi salvo. A lista está atualizando o registro mais recente.",
+    savedBadge: "Recém-salvo",
+    continueRecord: "Registrar outro",
+    openMap: "Abrir mapa",
+    publicEyebrow: "Registros públicos",
+    publicTitle: "Veja o que outras pessoas registraram.",
+    publicLead: "Explore primeiro os registros públicos. Seus registros aparecem após entrar.",
+    mineEmptyTitle: "Você ainda não tem registros",
+    mineEmptyLead: "Comece com uma foto. Nome e detalhes podem ser adicionados depois.",
+    publicEmptyTitle: "Ainda não há registros públicos prontos",
+    publicEmptyLead: "Explore o mapa ou comece um registro com uma foto.",
+    openPublic: "Ver registros públicos",
+    recordPhoto: "Registrar com uma foto",
+  };
+  return {
+    savedEyebrow: "保存完了",
+    savedTitle: "記録しました。",
+    savedFound: "いま保存した記録を、一覧の先頭に表示しています。",
+    savedPending: "記録は保存済みです。最新の1件を一覧へ反映しています。",
+    savedBadge: "いま保存した記録",
+    continueRecord: "続けて撮る",
+    openMap: "地図で見る",
+    publicEyebrow: "みんなの公開記録",
+    publicTitle: "まずは、みんなが残した記録を見る。",
+    publicLead: "公開されている写真や場所を見られます。ログインすると、自分の記録を見返せます。",
+    mineEmptyTitle: "自分の記録はまだありません",
+    mineEmptyLead: "写真1枚から始められます。名前や詳しい内容はあとから足せます。",
+    publicEmptyTitle: "公開できる記録はまだありません",
+    publicEmptyLead: "地図から場所を見るか、写真1枚から最初の記録を残せます。",
+    openPublic: "みんなの記録を見る",
+    recordPhoto: "写真から記録する",
+  };
+}
+
+function renderRecordsArrivalBanner(
+  basePath: string,
+  lang: SiteLang,
+  source: RecordsArrivalSource,
+  savedId: string,
+  found: boolean,
+): string {
+  if (source !== "record_saved") return "";
+  const copy = recordsArrivalCopy(lang);
+  const recordHref = appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang);
+  const mapHref = appendLangToHref(withBasePath(basePath, "/map?tab=places&source=record_saved"), lang);
+  return `<section class="records-arrival${found ? " is-found" : " is-pending"}" data-records-arrival data-saved-record-id="${escapeHtml(savedId)}">
+    <div><span>${escapeHtml(copy.savedEyebrow)}</span><strong>${escapeHtml(copy.savedTitle)}</strong><p>${escapeHtml(found ? copy.savedFound : copy.savedPending)}</p></div>
+    <div class="records-arrival-actions"><a class="is-primary" href="${escapeHtml(recordHref)}" data-global-record-trigger="photo">${escapeHtml(copy.continueRecord)}</a><a href="${escapeHtml(mapHref)}">${escapeHtml(copy.openMap)}</a></div>
+  </section>`;
+}
+
+function renderRecordsPublicIntro(basePath: string, lang: SiteLang, isGuest: boolean): string {
+  if (!isGuest) return "";
+  const copy = recordsArrivalCopy(lang);
+  const mapHref = appendLangToHref(withBasePath(basePath, "/map"), lang);
+  return `<section class="records-view-intro" data-records-public-intro><div><span>${escapeHtml(copy.publicEyebrow)}</span><strong>${escapeHtml(copy.publicTitle)}</strong><p>${escapeHtml(copy.publicLead)}</p></div><a href="${escapeHtml(mapHref)}">${escapeHtml(copy.openMap)}</a></section>`;
+}
+
+function renderRecordsEmptyState(basePath: string, lang: SiteLang, view: RecordsWorkbenchView, hasViewer: boolean): string {
+  const copy = recordsArrivalCopy(lang);
+  const recordHref = appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang);
+  const publicHref = appendLangToHref(withBasePath(basePath, "/records?view=public"), lang);
+  const mapHref = appendLangToHref(withBasePath(basePath, "/map"), lang);
+  if (view === "mine" && hasViewer) {
+    return `<div class="notes-library-empty records-empty-state"><strong>${escapeHtml(copy.mineEmptyTitle)}</strong><p>${escapeHtml(copy.mineEmptyLead)}</p><div><a class="is-primary" href="${escapeHtml(recordHref)}" data-global-record-trigger="photo">${escapeHtml(copy.recordPhoto)}</a><a href="${escapeHtml(publicHref)}">${escapeHtml(copy.openPublic)}</a></div></div>`;
+  }
+  if (view === "public") {
+    return `<div class="notes-library-empty records-empty-state"><strong>${escapeHtml(copy.publicEmptyTitle)}</strong><p>${escapeHtml(copy.publicEmptyLead)}</p><div><a class="is-primary" href="${escapeHtml(mapHref)}">${escapeHtml(copy.openMap)}</a><a href="${escapeHtml(recordHref)}" data-global-record-trigger="photo">${escapeHtml(copy.recordPhoto)}</a></div></div>`;
+  }
+  return `<div class="notes-library-empty">${escapeHtml(recordsWorkbenchCopy(lang).empty)} <a class="notes-library-empty-cta" href="${escapeHtml(recordHref)}">${escapeHtml(recordsWorkbenchCopy(lang).recordLabel)}</a></div>`;
+}
+
+function renderRecordsArrivalScript(source: RecordsArrivalSource, savedId: string): string {
+  if (source !== "record_saved" || !savedId) return "";
+  return `<script>(function(){var card=document.querySelector('[data-record-highlight="true"]');if(!card)return;window.requestAnimationFrame(function(){card.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'});});})();</script>`;
+}
+
 function uniqueRecords(entries: LandingObservation[]): LandingObservation[] {
   const seen = new Set<string>();
   const unique: LandingObservation[] = [];
@@ -12551,6 +12714,7 @@ function recordWorkbenchEntriesForView(
 
 type RecordsPostCard = LandingObservation & {
   postRecordCount: number;
+  postRecordIds: string[];
   postSubjectNames: string[];
   postNeedsId: boolean;
   postCandidateName: string | null;
@@ -12654,6 +12818,7 @@ function buildRecordsPostCards(entries: LandingObservation[], lang: SiteLang): R
       ...representative,
       displayName: subjectNames[0] ?? representative.displayName,
       postRecordCount: sorted.length,
+      postRecordIds: Array.from(new Set(sorted.flatMap((entry) => [entry.visitId, entry.detailId, entry.occurrenceId]).filter((id): id is string => Boolean(id)))),
       postSubjectNames: subjectNames,
       postNeedsId: sorted.some(recordsNeedsId),
       postCandidateName: candidateName,
@@ -12818,7 +12983,7 @@ function renderRecordsPostCard(
   lang: SiteLang,
   view: RecordsWorkbenchView,
   card: RecordsPostCard,
-  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
+  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext>; highlightId?: string },
 ): string {
   const copy = notesLibraryCopy(lang);
   const detailHref = notesDetailHref(basePath, lang, card);
@@ -12826,6 +12991,8 @@ function renderRecordsPostCard(
   const sourceKind = recordsPostSourceKind(card);
   const sourceLabel = notesLibrarySourceLabel(sourceKind, lang);
   const mediaUrl = recordsRepresentativeMediaUrl(card);
+  const isHighlighted = recordsCardMatchesSavedId(card, options.highlightId ?? "");
+  const savedBadge = isHighlighted ? `<span class="records-post-saved-badge">${escapeHtml(recordsArrivalCopy(lang).savedBadge)}</span>` : "";
   const rawDisplayName = recordsPostSubjectName(card, lang);
   const displayName = recordsPostDisplayName(lang, card, sourceKind, rawDisplayName);
   const rawPlaceLine = notesPlaceLine(card, lang, options.locationMode);
@@ -12880,7 +13047,8 @@ function renderRecordsPostCard(
         </div>
       </details>`
     : "";
-  return `<article class="records-post-card is-source-${escapeHtml(sourceKind)}${mediaUrl ? "" : " is-media-missing"}${identifyCardAttrs ? " is-identify-selectable" : ""}" data-library-card${identifyCardAttrs} data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
+  return `<article class="records-post-card is-source-${escapeHtml(sourceKind)}${mediaUrl ? "" : " is-media-missing"}${identifyCardAttrs ? " is-identify-selectable" : ""}${isHighlighted ? " is-just-saved" : ""}" data-library-card${identifyCardAttrs}${isHighlighted ? ` data-record-highlight="true"` : ""} data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
+    ${savedBadge}
     <a class="records-post-card-link" href="${escapeHtml(href)}" aria-label="${escapeHtml(displayName)}">
       <span class="records-post-thumb">
         ${thumbHtml}
@@ -12907,7 +13075,7 @@ function renderRecordsPostMonths(
   lang: SiteLang,
   view: RecordsWorkbenchView,
   entries: LandingObservation[],
-  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
+  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext>; highlightId?: string },
 ): string {
   const cards = recordsPostDisplayOrder(buildRecordsPostCards(entries, lang), view);
   if (cards.length === 0) {
@@ -14247,12 +14415,17 @@ function renderRecordsWorkbench(
     publicPage?: { nextCursor: string | null } | null;
     canWriteIdentification?: boolean;
     searchQuery?: string;
+    arrivalSource?: RecordsArrivalSource;
+    savedId?: string;
   } = {},
 ): string {
   const copy = recordsWorkbenchCopy(lang);
   const ownEntries = snapshot.viewerUserId ? (options.ownPage?.entries ?? snapshot.myFeed) : [];
-  const entries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
+  const savedId = (options.savedId ?? "").trim();
+  const entries = prioritizeSavedRecord(recordWorkbenchEntriesForView(view, ownEntries, publicEntries), view === "mine" ? savedId : "");
   const locationMode = view === "mine" && snapshot.viewerUserId ? "owner" : "public";
+  const cardsForArrival = view === "mine" ? buildRecordsPostCards(entries, lang) : [];
+  const savedRecordFound = cardsForArrival.some((card) => recordsCardMatchesSavedId(card, savedId));
   const searchQuery = (options.searchQuery ?? "").trim().slice(0, 80);
   const canLazyLoadMine = view === "mine" && Boolean(snapshot.viewerUserId);
   const canLazyLoadPublic = view === "public" && Boolean(options.publicPage);
@@ -14276,15 +14449,19 @@ function renderRecordsWorkbench(
       </div>
     </header>
     <div class="records-main${isIdentifyView ? " is-identify" : ""}">
+      ${view === "mine" && snapshot.viewerUserId ? renderRecordsArrivalBanner(basePath, lang, options.arrivalSource ?? null, savedId, savedRecordFound) : ""}
+      ${view === "public" ? renderRecordsPublicIntro(basePath, lang, !snapshot.viewerUserId) : ""}
       ${view === "mine" ? renderRecordsMyPlacesLane(basePath, lang, snapshot, ownEntries) : ""}
       <section class="records-grid-panel" ${isIdentifyView ? `id="records-identify-list"` : ""} data-notes-library${canLazyLoad ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
         ${isIdentifyView ? renderRecordsIdentifyIntro(basePath, lang, entries, canWriteIdentification) : ""}
         ${identifyEmpty ? "" : renderRecordsCollapsedControls(lang, searchQuery)}
         ${entries.length > 0
-          ? renderRecordsPostMonths(basePath, lang, view, entries, { locationMode, civicContexts })
+          ? renderRecordsPostMonths(basePath, lang, view, entries, { locationMode, civicContexts, highlightId: view === "mine" ? savedId : "" })
           : identifyEmpty
             ? ""
-          : `<div class="notes-library-empty">${escapeHtml(searchQuery ? recordsSearchEmptyCopy(lang, searchQuery) : copy.empty)}${searchQuery ? "" : ` <a class="notes-library-empty-cta" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.recordLabel)}</a>`}</div>`}
+          : searchQuery
+            ? `<div class="notes-library-empty">${escapeHtml(recordsSearchEmptyCopy(lang, searchQuery))}</div>`
+            : renderRecordsEmptyState(basePath, lang, view, Boolean(snapshot.viewerUserId))}
         <div class="notes-library-empty notes-library-search-empty" data-library-search-empty hidden>${escapeHtml(recordsSearchEmptyCopy(lang, searchQuery))}</div>
         ${canLazyLoad ? renderRecordsLazyFooter(lang, lazyNextCursor) : ""}
       </section>
@@ -14293,6 +14470,7 @@ function renderRecordsWorkbench(
     ${renderNotesLibraryScript(lang)}
     ${canLazyLoad ? renderRecordsLazyScript(lang) : ""}
     ${isIdentifyView ? renderRecordsIdentifyPanelScript(lang) : ""}
+    ${renderRecordsArrivalScript(options.arrivalSource ?? null, savedId)}
   </div>`;
 }
 
@@ -14374,6 +14552,71 @@ const RECORDS_WORKBENCH_STYLES = `
     gap: 10px;
     min-height: 0;
     padding: 10px 14px 14px;
+  }
+  .records-arrival,
+  .records-view-intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid rgba(5,150,105,.22);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(236,253,245,.98), rgba(255,255,255,.98));
+    color: #123226;
+  }
+  .records-arrival > div:first-child,
+  .records-view-intro > div { min-width: 0; display: grid; gap: 3px; }
+  .records-arrival span,
+  .records-view-intro span { color: #047857; font-size: 11px; font-weight: 900; letter-spacing: .08em; }
+  .records-arrival strong,
+  .records-view-intro strong { color: #0f172a; font-size: 17px; line-height: 1.35; }
+  .records-arrival p,
+  .records-view-intro p { margin: 0; color: #475569; font-size: 13px; line-height: 1.65; }
+  .records-arrival-actions { display: flex; align-items: center; gap: 8px; }
+  .records-arrival-actions a,
+  .records-view-intro > a,
+  .records-empty-state > div a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid rgba(5,150,105,.24);
+    border-radius: 999px;
+    background: #fff;
+    color: #047857;
+    font-size: 13px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .records-arrival-actions a.is-primary,
+  .records-empty-state > div a.is-primary { background: #047857; border-color: #047857; color: #fff; }
+  .records-empty-state { display: grid; gap: 8px; color: #475569; }
+  .records-empty-state > strong { color: #0f172a; font-size: 18px; }
+  .records-empty-state > p { margin: 0; }
+  .records-empty-state > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 3px; }
+  .records-post-card.is-just-saved { scroll-margin-top: 150px; }
+  .records-post-card.is-just-saved .records-post-thumb {
+    border-color: rgba(4,120,87,.9);
+    box-shadow: 0 0 0 4px rgba(16,185,129,.2), var(--ikimon-record-card-thumb-shadow);
+  }
+  .records-post-saved-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(4,120,87,.94);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .03em;
+    box-shadow: 0 6px 18px rgba(4,120,87,.2);
   }
   .records-main.is-identify {
     grid-template-columns: minmax(0, 1fr) minmax(310px, 390px);
@@ -15796,6 +16039,11 @@ const RECORDS_WORKBENCH_STYLES = `
     .records-actions a { min-width: 34px; min-height: 34px; padding: 0 11px; font-size: 12px; }
     .records-actions a.is-primary { font-size: 21px; }
     .records-main { grid-template-columns: 1fr; padding: 6px 8px calc(110px + env(safe-area-inset-bottom)); }
+    .records-arrival,
+    .records-view-intro { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+    .records-arrival-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .records-arrival-actions a,
+    .records-view-intro > a { width: 100%; white-space: normal; text-align: center; }
     .records-main.is-identify { grid-template-columns: 1fr; padding-bottom: 232px; }
     .records-identify-intro {
       grid-template-columns: 1fr;
@@ -20611,7 +20859,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 : '';
               const observationHref = recordSuccessObservationHrefPrefix + encodeURIComponent(detailId);
               const profileHref = recordSuccessProfileHref;
-              const notesHref = recordSuccessRecordsHref;
+              const notesHref = recordSuccessRecordsHref + '&saved=' + encodeURIComponent(detailId || visitId);
               const successLatitudeRaw = String(data.get('latitude') || '').trim();
               const successLongitudeRaw = String(data.get('longitude') || '').trim();
               const successLatitude = successLatitudeRaw ? Number(successLatitudeRaw) : null;
@@ -21284,13 +21532,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true, candidates };
   });
 
-  app.get<{ Querystring: { view?: string; filter?: string; userId?: string; q?: string } }>("/records", async (request, reply) => {
+  app.get<{ Querystring: { view?: string; filter?: string; userId?: string; q?: string; source?: string; saved?: string } }>("/records", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
     const view = normalizeRecordsView(request.query.view, Boolean(viewerUserId));
     const searchQuery = String(request.query.q ?? "").trim().slice(0, 80);
+    const arrivalSource = view === "mine" && viewerUserId ? normalizeRecordsArrivalSource(request.query.source) : null;
+    const savedId = arrivalSource === "record_saved" ? normalizeRecordsArrivalSavedId(request.query.saved) : "";
     const emptyObservationSnapshot = {
       observations: [],
       summary: {
@@ -21330,12 +21580,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const isIdentificationSummary = view === "identification_summary";
 
     reply.type("text/html; charset=utf-8");
+    if (viewerUserId) {
+      reply.header("Cache-Control", arrivalSource === "record_saved" ? "private, no-store" : "private, no-cache, must-revalidate");
+      reply.header("Vary", "Cookie");
+    } else {
+      reply.header("Cache-Control", "public, max-age=30, stale-while-revalidate=30");
+    }
+    const arrivalQuery = arrivalSource === "record_saved"
+      ? `&source=record_saved${savedId ? `&saved=${encodeURIComponent(savedId)}` : ""}`
+      : "";
     return renderSiteDocument({
       basePath,
       title: isIdentificationSummary ? summaryCopy.title : copy.title,
       activeNav: isIdentificationSummary ? summaryCopy.activeNav : copy.activeNav,
       lang,
-      currentPath: appendLangToHref(withBasePath(basePath, `/records?view=${view}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`), lang),
+      currentPath: appendLangToHref(withBasePath(basePath, `/records?view=${view}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}${arrivalQuery}`), lang),
       shellClassName: "shell-bleed shell-records-workbench",
       extraStyles: `${NOTES_LIBRARY_STYLES}\n${RECORDS_WORKBENCH_STYLES}`,
       hideGlobalRecordLauncher: isIdentificationSummary,
@@ -21347,6 +21606,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           publicPage: publicPage ? { nextCursor: publicPage.nextCursor } : null,
           canWriteIdentification: Boolean(session),
           searchQuery,
+          arrivalSource,
+          savedId,
         }),
       footerNote: notesLibraryCopy(lang).footerNote,
     });

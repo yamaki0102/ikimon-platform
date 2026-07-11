@@ -321,6 +321,42 @@ test("records workbench unifies personal library and public observations", async
   }
 });
 
+test("records saved arrival preserves the saved id and shows a focused return state", async () => {
+  await withEnv(
+    { ALLOW_QUERY_USER_ID: "1" },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/records?view=mine&userId=story-user&source=record_saved&saved=occ%3Astaging-session-smoke-1%3A1&lang=ja",
+          headers: { accept: "text/html" },
+        });
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.headers["cache-control"], "private, no-store");
+        assert.match(response.body, /data-records-arrival/);
+        assert.match(response.body, /記録しました。/);
+        assert.match(response.body, /続けて撮る/);
+        assert.match(response.body, /data-record-highlight="true"|最新の1件を一覧へ反映しています/);
+        assert.match(response.body, /source=record_saved(?:&amp;|&)saved=occ%3Astaging-session-smoke-1%3A1/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
+test("records source contract keeps guest public-first and actionable empty states", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  assert.match(source, /return hasViewer \? "mine" : "public"/);
+  assert.match(source, /data-records-public-intro/);
+  assert.match(source, /みんなの公開記録/);
+  assert.match(source, /自分の記録はまだありません/);
+  assert.match(source, /写真から記録する/);
+  assert.match(source, /data-record-highlight="true"/);
+  assert.match(source, /private, no-store/);
+});
+
 test("records workbench localizes the unified chrome in English", async () => {
   const app = buildApp();
   try {

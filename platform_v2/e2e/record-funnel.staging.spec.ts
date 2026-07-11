@@ -363,7 +363,7 @@ test.describe("record funnel staging QA", () => {
         await page.locator("#record-submit-panel button[type='submit']").click();
         await expect(page.locator("#record-status")).toContainText(/記録を保存しました|シーンを保存しました/);
         await expect(page.locator("#record-status .record-success-shortcuts a")).toHaveCount(3);
-        await expect(page.locator('#record-status .record-success-shortcuts a[data-record-success-cta="notes"]')).toHaveAttribute("href", /\/records\?view=mine&source=record_saved$/);
+        await expect(page.locator('#record-status .record-success-shortcuts a[data-record-success-cta="notes"]')).toHaveAttribute("href", /\/records\?view=mine&source=record_saved&saved=[^&]+$/);
         await expect(page.locator('#record-status .record-success-shortcuts a[data-record-success-cta="profile"]')).toHaveAttribute("href", /\/profile\?source=record_saved$/);
         await expect(page.locator('#record-status .record-success-shortcuts a[data-record-success-cta="map_nearby"]')).toHaveAttribute("href", /\/map\?tab=places&source=record_saved$/);
         await expect(page.locator("#record-status .record-success-shortcuts a").first()).toContainText(/自分の記録/);
