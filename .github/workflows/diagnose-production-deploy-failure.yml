@@ -1,4 +1,4 @@
-name: Diagnose Post Deploy Map Check
+name: Diagnose PWA Patch Commit
 
 on:
   pull_request:
@@ -14,9 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      FAILED_JOB_ID: '86496616554'
+      FAILED_JOB_ID: '86497318381'
     steps:
-      - name: Extract map verification failure
+      - name: Extract PWA patch commit failure
         shell: bash
         run: |
           set -euo pipefail
@@ -26,5 +26,4 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/jobs/${FAILED_JOB_ID}/logs" \
             > full.log
-          grep -n -E -C 20 'Map UI content check|Map UI|map-content|map content|grep|##\[error\]|Process completed with exit code' full.log || true
-          tail -n 260 full.log
+          tail -n 90 full.log
