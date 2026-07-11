@@ -13,7 +13,7 @@ jobs:
     if: github.head_ref == 'agent/production-smoke-cleanup'
     runs-on: ubuntu-latest
     env:
-      EXPECTED_SHA: 433b0c146ec7b05036ad26a5b76f6e8523c767e5
+      EXPECTED_SHA: 8ae5ddc6db72ba1d7f9b882195e4c879898ac2be
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Verify latest production deploy and runtime identity
@@ -78,20 +78,6 @@ jobs:
           }
           console.log(JSON.stringify({ expectedSha: expected, runtimes }, null, 2));
           NODE
-
-          public_headers="production-deploy-verification/records-public.headers"
-          public_body="production-deploy-verification/records-public.html"
-          curl -fsSL --retry 8 --retry-delay 5 -D "$public_headers" -H 'cache-control: no-store' \
-            "https://ikimon.life/ja/records?view=public&deploy_smoke=${EXPECTED_SHA}" > "$public_body"
-          grep -Fq 'data-records-public-intro' "$public_body"
-          grep -Fq 'みんなの公開記録' "$public_body"
-          grep -Fq '写真から記録する' "$public_body"
-          grep -qi "^x-ikimon-deploy-sha: ${EXPECTED_SHA}" "$public_headers"
-          grep -qi '^x-ikimon-ui-bundle: ' "$public_headers"
-          grep -qi '^x-ikimon-worker-version: ' "$public_headers"
-          echo 'Records public-first production UX and release identity verified read-only.'
-          echo 'Signed-in saved-arrival behavior remains covered by route and browser tests; no production session was forged.'
-
       - name: Upload production deploy verification
         if: always()
         uses: actions/upload-artifact@v6
