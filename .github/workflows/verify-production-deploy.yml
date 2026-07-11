@@ -13,7 +13,7 @@ jobs:
     if: github.head_ref == 'agent/production-smoke-cleanup'
     runs-on: ubuntu-latest
     env:
-      EXPECTED_SHA: ea2db3e2c34e16be0043305928fa17a0191cd868
+      EXPECTED_SHA: 8ae5ddc6db72ba1d7f9b882195e4c879898ac2be
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Verify latest production deploy and runtime identity
