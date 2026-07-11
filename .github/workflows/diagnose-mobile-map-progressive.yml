@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: diagnose-mobile-map-progressive
+  cancel-in-progress: true
+
 jobs:
   diagnose:
     if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/mobile-map-progressive-controls-20260712'
@@ -69,8 +73,8 @@ jobs:
           for (const item of cases) {
             const context = await browser.newContext({ viewport: { width: item.width, height: item.height }, locale: 'ja-JP' });
             const page = await context.newPage();
-            await page.goto(`https://ikimon.life/ja/map?visual_qa=${Date.now()}`, { waitUntil: 'networkidle', timeout: 120000 });
-            await page.waitForTimeout(4000);
+            await page.goto(`https://ikimon.life/ja/map?visual_qa=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+            await page.waitForTimeout(6000);
             const data = await page.evaluate(() => {
               const rect = (selector) => {
                 const el = document.querySelector(selector);
