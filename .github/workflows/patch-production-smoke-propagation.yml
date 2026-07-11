@@ -1,0 +1,37 @@
+name: Patch Production Smoke Propagation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/fix-production-smoke-propagation' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/fix-production-smoke-propagation
+          fetch-depth: 0
+      - name: Apply bounded production smoke retry
+        run: python scripts/patch-production-smoke-propagation.py
+      - name: Remove temporary patch files
+        shell: bash
+        run: |
+          rm .github/workflows/patch-production-smoke-propagation.yml
+          rm scripts/patch-production-smoke-propagation.py
+      - name: Commit production smoke fix
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add platform_v2/cloudflare_shadow/scripts/deploy-production-guard.mjs \
+            platform_v2/cloudflare_shadow/src/productionReleaseScripts.test.ts \
+            .github/workflows/patch-production-smoke-propagation.yml \
+            scripts/patch-production-smoke-propagation.py
+          git diff --cached --check
+          git commit -m "fix: retry production smoke during Worker propagation"
+          git push origin HEAD:agent/fix-production-smoke-propagation
