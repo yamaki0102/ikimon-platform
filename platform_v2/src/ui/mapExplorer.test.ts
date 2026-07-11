@@ -238,7 +238,7 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(html, /<span class="me-tab-short" aria-hidden="true">現地ガイド<\/span>/);
   assert.match(html, /class="me-tab" role="tab" aria-selected="false" aria-label="雨雲" data-tab="rain"/);
   assert.match(html, /class="me-filter-group me-filter-display-group"/);
-  assert.match(html, /<summary class="me-filter-toggle">レイヤー<\/summary>/);
+  assert.match(html, /<summary class="me-filter-toggle">詳しく絞る<\/summary>/);
   assert.match(html, /<span class="me-filter-label">レイヤー<\/span>/);
   assert.match(html, /data-filter-tab="rain" aria-pressed="false">雨雲<\/button>/);
   assert.match(html, /data-filter-tab="frontier" aria-pressed="false">記録の空白<\/button>/);
@@ -246,8 +246,8 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="写真" data-tab="markers"/);
   assert.doesNotMatch(html, /class="me-tab me-tab-link"/);
   assert.doesNotMatch(styles, /\.me-map-momentum/);
-  assert.match(styles, /\.me-start-panel\.is-collapsed \{[\s\S]*grid-template-columns: auto auto;/);
-  assert.doesNotMatch(styles, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{\s*display: none;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-start-panel\.is-collapsed \{[\s\S]*grid-template-columns: auto;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-start-panel\.is-collapsed \.me-start-panel-grid \{\s*display: none;/);
   assert.match(script, /tab: 'places'/);
   assert.match(script, /var DEFAULT_MAP_CENTER = \[138\.383, 34\.975\];/);
   assert.match(script, /var DEFAULT_MAP_ZOOM = 13\.6;/);
@@ -778,12 +778,30 @@ test("layer tabs expose low-zoom guidance without a floating layer key", () => {
   assert.match(styles, /\.me-layer-hint-jump \{/);
 });
 
-test("mobile layer tabs fit within the topbar instead of clipping the final tab", () => {
+test("mobile map keeps three primary tabs and moves advanced layers into the details drawer", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026, 2025] });
   const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
-  assert.doesNotMatch(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab\[data-tab="frontier"\] \{[\s\S]*display: none;/);
+  assert.match(html, /data-mobile-primary-map-controls/);
+  assert.match(html, /data-filter-tab="rain"/);
+  assert.match(html, /data-filter-tab="frontier"/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab\[data-tab="rain"\],[\s\S]*\.me-tab\[data-tab="frontier"\] \{[\s\S]*display: none;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*--me-enjoy-h: 38px;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-map-role-strip span,[\s\S]*\.me-map-role-strip em \{[\s\S]*display: none;/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab \{[\s\S]*min-width: 0;[\s\S]*text-overflow: ellipsis;/);
+});
+
+test("mobile map panels are mutually exclusive", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(script, /var filterDrawerEl = document\.querySelector\('\.me-filter-drawer'\)/);
+  assert.match(script, /function closeFilterDrawer\(\)/);
+  assert.match(script, /filterDrawerEl\.addEventListener\('toggle'[\s\S]*closeBottomSheet\(\);[\s\S]*setStartPanelCollapsed\(true\);[\s\S]*hideLayerHint\(\);/);
+  assert.match(script, /function showDetailBottomSheet\(\) \{[\s\S]*closeFilterDrawer\(\);[\s\S]*setStartPanelCollapsed\(true\);/);
+  assert.match(script, /function showAreaBottomSheet\(\) \{[\s\S]*closeFilterDrawer\(\);[\s\S]*setStartPanelCollapsed\(true\);/);
+  assert.match(styles, /\.me-filter-open \.me-rain-card,[\s\S]*\.me-filter-open \.me-legend \{[\s\S]*visibility: hidden;[\s\S]*pointer-events: none;/);
 });
 
 test("result side panel groups dense records by date and normalizes candidate labels", () => {
@@ -1072,7 +1090,7 @@ test("mobile map filters open from the thumb zone above the record launcher", ()
   assert.match(styles, /\.me-bottom-sheet \{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ var\(--me-mobile-sheet-clearance\)\);/);
   assert.match(styles, /\.me-locate-fab \{ bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\); \}/);
   assert.match(script, /document\.querySelectorAll\('\.me-filter-tab-chip'\)\.forEach/);
-  assert.match(script, /switchMapTab\(t\);[\s\S]*drawer\.removeAttribute\('open'\);/);
+  assert.match(script, /switchMapTab\(t\);[\s\S]*closeFilterDrawer\(\);/);
 });
 
 test("map explorer shows the map role without taking over the service subject", () => {

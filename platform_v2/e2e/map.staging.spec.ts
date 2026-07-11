@@ -294,11 +294,26 @@ async function readMapShellState(page: Page): Promise<MapShellState> {
   });
 }
 
+async function openMapLayerTab(page: Page, tab: string): Promise<void> {
+  const primaryTab = page.locator(`.me-tab[data-tab="${tab}"]`);
+  if (await primaryTab.isVisible()) {
+    await primaryTab.click();
+    await expect(primaryTab).toHaveAttribute("aria-selected", "true");
+    return;
+  }
+  const drawer = page.locator(".me-filter-drawer");
+  if ((await drawer.getAttribute("open")) === null) {
+    await page.locator(".me-filter-toggle").click();
+  }
+  const drawerTab = page.locator(`.me-filter-tab-chip[data-filter-tab="${tab}"]`);
+  await drawerTab.click();
+  await expect(drawerTab).toHaveAttribute("aria-pressed", "true");
+  await expect(drawer).not.toHaveAttribute("open", "");
+}
+
 async function expectRainNowcastGate(page: Page): Promise<void> {
   await expect(page.locator("#me-rain-card")).toBeHidden();
-  const rainTab = page.locator('.me-tab[data-tab="rain"]');
-  await rainTab.click();
-  await expect(rainTab).toHaveAttribute("aria-selected", "true");
+  await openMapLayerTab(page, "rain");
   await expect(page.locator("#me-rain-card")).toBeVisible();
   await expect(page.locator("#me-rain-toggle")).toBeVisible();
   await expect(page.locator("#me-rain-toggle")).toHaveAttribute("aria-pressed", "true");
@@ -723,14 +738,51 @@ test("signed-in owner observations render as private photo markers and stay out 
     await expect(page.locator('[data-own-observation-detail="1"]')).toContainText("自分にだけ正確な位置");
   }
 
-  await page.locator('.me-tab[data-tab="rain"]').click();
-  await expect(page.locator('.me-tab[data-tab="rain"]')).toHaveAttribute("aria-selected", "true");
+  await openMapLayerTab(page, "rain");
   await expect.poll(
     async () => page.locator(".me-own-observation-marker").count(),
     { timeout: 10_000 },
   ).toBe(0);
   await expect(trail).toBeHidden();
 
+  await context.close();
+});
+
+test("mobile map exposes three primary actions and keeps advanced layers in the details drawer", async ({ browser }) => {
+  const profile = MAP_VIEWPORTS.find((item) => item.slug === "mobile-390") ?? MAP_VIEWPORTS[0]!;
+  const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
+  const page = await context.newPage();
+  await installMapLibreStubForSmoke(page);
+  await installDeterministicMapApiFixtures(page);
+  await waitForMapShellReady(page, "/map", true);
+
+  const primaryTabs = page.locator(".me-tabs .me-tab:visible");
+  await expect(primaryTabs).toHaveCount(3);
+  await expect(page.locator('.me-tab[data-tab="markers"]')).toBeVisible();
+  await expect(page.locator('.me-tab[data-tab="places"]')).toBeVisible();
+  await expect(page.locator('.me-tab[data-tab="heatmap"]')).toBeVisible();
+  await expect(page.locator('.me-tab[data-tab="rain"]')).toBeHidden();
+  await expect(page.locator('.me-tab[data-tab="frontier"]')).toBeHidden();
+  await expect(page.locator(".me-filter-toggle")).toContainText("詳しく絞る");
+  await expect(page.locator("#me-locate-fab")).toBeVisible();
+  await expect(page.locator(".me-start-panel.is-collapsed .me-start-panel-grid")).toBeHidden();
+
+  const ratio = await page.evaluate(() => {
+    const map = document.querySelector<HTMLElement>(".me-map");
+    return map ? map.getBoundingClientRect().height / window.innerHeight : 0;
+  });
+  expect(ratio).toBeGreaterThanOrEqual(0.55);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+
+  await page.locator(".me-filter-toggle").click();
+  await expect(page.locator(".me-filter-drawer")).toHaveAttribute("open", "");
+  await expect(page.locator('.me-filter-tab-chip[data-filter-tab="rain"]')).toBeVisible();
+  await expect(page.locator('.me-filter-tab-chip[data-filter-tab="frontier"]')).toBeVisible();
+  await expect(page.locator("#me-bottom-sheet")).not.toHaveClass(/is-open/);
+  await expect(page.locator("#me-locate-fab")).toBeHidden();
+
+  await openMapLayerTab(page, "rain");
+  await expect(page.locator("#me-rain-card")).toBeVisible();
   await context.close();
 });
 
