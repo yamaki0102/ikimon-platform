@@ -34,6 +34,7 @@ test("production deploy guard injects and verifies the exact git SHA without exp
   assert.match(guard, /const SMOKE_RETRY_DELAY_MS = 5_000/);
   assert.match(guard, /attempt < SMOKE_MAX_ATTEMPTS/);
   assert.match(guard, /await delay\(SMOKE_RETRY_DELAY_MS\)/);
+  assert.match(guard, /deploy_check=\$\{Date\.now\(\)\}-\$\{attempt\}/);
   assert.match(guard, /actualGitSha/);
   assert.match(guard, /deferredSafetyGates/);
   assert.match(guard, /execute\s*\?\s*\["post_deploy_health_ready_smoke"\]\s*:\s*\[\]/);
