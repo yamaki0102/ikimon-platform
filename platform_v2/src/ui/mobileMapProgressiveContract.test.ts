@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
 
 const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026, 2025] });
 const styles = MAP_EXPLORER_STYLES;
 const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+const stagingSpec = readFileSync(new URL("../../e2e/map.staging.spec.ts", import.meta.url), "utf8");
 
 test("mobile map exposes three primary layers and preserves advanced layers in the drawer", () => {
   assert.match(html, /data-mobile-primary-map-controls/);
@@ -27,4 +29,11 @@ test("mobile map panels use one shared mutually-exclusive control path", () => {
   assert.match(script, /filterDrawerEl\.addEventListener\('toggle'/);
   assert.match(script, /closeBottomSheet\(\);[\s\S]*setStartPanelCollapsed\(true\);[\s\S]*hideLayerHint\(\);/);
   assert.match(styles, /\.me-filter-open \.me-rain-card,[\s\S]*\.me-filter-open \.me-legend \{[\s\S]*visibility: hidden;[\s\S]*pointer-events: none;/);
+});
+
+test("mobile map staging QA uses the existing deterministic helpers", () => {
+  assert.doesNotMatch(stagingSpec, /installMapApiStubs|waitForMapReady/);
+  assert.match(stagingSpec, /installMapLibreStubForSmoke\(page\)/);
+  assert.match(stagingSpec, /installDeterministicMapApiFixtures\(page\)/);
+  assert.match(stagingSpec, /waitForMapShellReady\(page, "\/map", true\)/);
 });
