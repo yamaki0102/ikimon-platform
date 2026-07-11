@@ -1,6 +1,7 @@
 param(
     [string]$ManifestPath = "ops/deploy/staging_manifest.json",
-    [string]$WorkflowPath = ".github/workflows/deploy-cloudflare-staging.yml"
+    [string]$WorkflowPath = ".github/workflows/deploy-cloudflare-staging.yml",
+    [string]$PortableReleaseScriptPath = "scripts/run_cloudflare_staging_release.sh"
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,6 +9,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $manifestFullPath = if ([System.IO.Path]::IsPathRooted($ManifestPath)) { $ManifestPath } else { Join-Path $repoRoot $ManifestPath }
 $workflowFullPath = if ([System.IO.Path]::IsPathRooted($WorkflowPath)) { $WorkflowPath } else { Join-Path $repoRoot $WorkflowPath }
+$portableReleaseScriptFullPath = if ([System.IO.Path]::IsPathRooted($PortableReleaseScriptPath)) { $PortableReleaseScriptPath } else { Join-Path $repoRoot $PortableReleaseScriptPath }
 
 if (-not (Test-Path $manifestFullPath)) {
     throw "Staging manifest not found: $manifestFullPath"
@@ -19,9 +21,21 @@ if (-not (Test-Path $workflowFullPath)) {
 
 $manifest = Get-Content -Raw -Path $manifestFullPath | ConvertFrom-Json
 $workflowText = Get-Content -Raw -Path $workflowFullPath
+$deployContractText = $workflowText
 $issues = New-Object System.Collections.Generic.List[string]
 
 if ($manifest.platform -eq "cloudflare_worker") {
+    if (-not (Test-Path $portableReleaseScriptFullPath)) {
+        $issues.Add("Portable Cloudflare staging release script is missing: $PortableReleaseScriptPath")
+    }
+    else {
+        $deployContractText += "`n" + (Get-Content -Raw -Path $portableReleaseScriptFullPath)
+    }
+
+    if ($manifest.PSObject.Properties.Name -notcontains "portableReleaseScript" -or $manifest.portableReleaseScript -ne $PortableReleaseScriptPath) {
+        $issues.Add("staging manifest portableReleaseScript must be $PortableReleaseScriptPath")
+    }
+
     foreach ($requiredText in @(
         $manifest.workerName,
         $manifest.r2Bucket,
@@ -37,8 +51,8 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "STAGING_BASE_URL: https://staging.ikimon.life",
         "playwright-report/staging"
     )) {
-        if (-not [string]::IsNullOrWhiteSpace($requiredText) -and $workflowText -notmatch [regex]::Escape($requiredText)) {
-            $issues.Add("deploy-cloudflare-staging.yml is missing Cloudflare staging contract text: $requiredText")
+        if (-not [string]::IsNullOrWhiteSpace($requiredText) -and $deployContractText -notmatch [regex]::Escape($requiredText)) {
+            $issues.Add("Cloudflare staging deploy contract is missing text: $requiredText")
         }
     }
 
@@ -50,7 +64,8 @@ if ($manifest.platform -eq "cloudflare_worker") {
         ".release-control/scripts/check_release_candidate.ps1",
         'ref: ${{ github.sha }}',
         "refs/heads/main",
-        "Require verified release candidate"
+        "Require verified release candidate",
+        "scripts/run_cloudflare_staging_release.sh"
     )) {
         if ($workflowText -notmatch [regex]::Escape($requiredText)) {
             $issues.Add("deploy-cloudflare-staging.yml is missing release promotion guard: $requiredText")
@@ -84,8 +99,8 @@ if ($manifest.platform -eq "cloudflare_worker") {
     }
 
     foreach ($url in $manifest.healthChecks) {
-        if ($workflowText -notmatch [regex]::Escape($url)) {
-            $issues.Add("deploy-cloudflare-staging.yml verify step is missing health check URL: $url")
+        if ($deployContractText -notmatch [regex]::Escape($url.TrimEnd('/'))) {
+            $issues.Add("Cloudflare staging deploy contract is missing health check URL: $url")
         }
     }
 
@@ -95,8 +110,8 @@ if ($manifest.platform -eq "cloudflare_worker") {
         }
     }
 
-    if ($workflowText -match "VPS_SSH_KEY|ssh -i|162\.43\.44\.131|/var/www/ikimon\.life-staging") {
-        $issues.Add("deploy-cloudflare-staging.yml must not reference the legacy VPS staging lane")
+    if ($deployContractText -match "VPS_SSH_KEY|ssh -i|162\.43\.44\.131|/var/www/ikimon\.life-staging") {
+        $issues.Add("Cloudflare staging deploy contract must not reference the legacy VPS staging lane")
     }
 
     $legacyWorkflowPath = Join-Path $repoRoot ".github/workflows/deploy-staging.yml"
@@ -123,7 +138,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
         exit 1
     }
 
-    Write-Output "Cloudflare staging manifest and workflow are in sync."
+    Write-Output "Cloudflare staging manifest, portable release script, and workflow are in sync."
     exit 0
 }
 

@@ -8,20 +8,23 @@ on:
       - 'upload_package/**'
       - 'platform_v2/**'
       - 'tests/**'
-      - 'docs/**'
       - 'scripts/**'
       - '.github/actions/**'
       - '.github/workflows/**'
       - '.vscode/**'
       - 'ikimon.life.code-workspace'
-      - 'README.md'
   pull_request:
     branches: [main, 'codex/**']
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   plan:
     name: Plan CI Run
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       php_changed: ${{ steps.plan.outputs.php_changed }}
       platform_changed: ${{ steps.plan.outputs.platform_changed }}
@@ -39,8 +42,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Classify CI change scope
-        id: plan
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Resolve changed files
+        id: changed
         run: |
           set -euo pipefail
           EVENT_NAME='${{ github.event_name }}'
@@ -49,85 +57,46 @@ jobs:
 
           if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_REF" ]; then
             git fetch origin "$BASE_REF" --quiet || true
-            CHANGED_FILES="$(git diff --name-only "origin/$BASE_REF"...HEAD || git diff --name-only "origin/$BASE_REF" HEAD || true)"
+            git diff --name-only "origin/$BASE_REF"...HEAD > "$RUNNER_TEMP/ci-changed-files.txt" || \
+              git diff --name-only "origin/$BASE_REF" HEAD > "$RUNNER_TEMP/ci-changed-files.txt"
           elif [ "$EVENT_NAME" = "push" ] && [ -n "$BEFORE_SHA" ] && ! printf '%s' "$BEFORE_SHA" | grep -qE '^0+$' && git rev-parse --verify "$BEFORE_SHA" >/dev/null 2>&1; then
-            CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" HEAD || true)"
+            git diff --name-only "$BEFORE_SHA" HEAD > "$RUNNER_TEMP/ci-changed-files.txt"
           else
             git fetch origin main --quiet || true
-            CHANGED_FILES="$(git diff --name-only origin/main...HEAD || git diff --name-only origin/main HEAD || true)"
+            git diff --name-only origin/main...HEAD > "$RUNNER_TEMP/ci-changed-files.txt" || \
+              git diff --name-only origin/main HEAD > "$RUNNER_TEMP/ci-changed-files.txt" || \
+              git diff-tree --no-commit-id --name-only -r HEAD > "$RUNNER_TEMP/ci-changed-files.txt"
           fi
 
-          matches() {
-            printf '%s\n' "$CHANGED_FILES" | grep -Eq "$1"
-          }
+          echo "changed_files=$RUNNER_TEMP/ci-changed-files.txt" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/ci-changed-files.txt"
 
-          PHP_CHANGED=false
-          PLATFORM_CHANGED=false
-          MIGRATION_CHANGED=false
-          DEPLOY_CHANGED=false
-
-          if matches '^(upload_package/|tests/|tools/(lint|check_marketing_copy)\.php|composer\.(json|lock)|phpunit\.xml)'; then PHP_CHANGED=true; fi
-          if matches '^platform_v2/'; then PLATFORM_CHANGED=true; fi
-          if matches '^platform_v2/(migrations/|src/scripts/applyMigrations\.ts)'; then MIGRATION_CHANGED=true; fi
-          if matches '^(\.github/workflows/|\.github/actions/|ops/deploy/|scripts/check_(deploy_guardrails|deploy_manifest_sync|platform_migration_guardrails|staging_manifest_sync|release_candidate)\.ps1)'; then DEPLOY_CHANGED=true; fi
-
-          RUN_PHP_LINT=false
-          RUN_PHP_TESTS=false
-          RUN_PLATFORM=false
-          RUN_RECORD_FUNNEL_BROWSER_QA=false
-          RUN_MAP_PERFORMANCE_QA=false
-          RUN_SCENE_READ_SMOKE=false
-          RUN_DEPLOY_MANIFEST_CHECK=false
-
-          if [ "$PHP_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_PHP_LINT=true; fi
-          if [ "$PHP_CHANGED" = "true" ]; then RUN_PHP_TESTS=true; fi
-          if [ "$PLATFORM_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_PLATFORM=true; fi
-          if [ "$PLATFORM_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_RECORD_FUNNEL_BROWSER_QA=true; fi
-          if [ "$PLATFORM_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_MAP_PERFORMANCE_QA=true; fi
-          if [ "$PLATFORM_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_SCENE_READ_SMOKE=true; fi
-          if [ "$DEPLOY_CHANGED" = "true" ]; then RUN_DEPLOY_MANIFEST_CHECK=true; fi
-
-          {
-            echo "php_changed=$PHP_CHANGED"
-            echo "platform_changed=$PLATFORM_CHANGED"
-            echo "migration_changed=$MIGRATION_CHANGED"
-            echo "deploy_changed=$DEPLOY_CHANGED"
-            echo "run_php_lint=$RUN_PHP_LINT"
-            echo "run_php_tests=$RUN_PHP_TESTS"
-            echo "run_platform=$RUN_PLATFORM"
-            echo "run_record_funnel_browser_qa=$RUN_RECORD_FUNNEL_BROWSER_QA"
-            echo "run_map_performance_qa=$RUN_MAP_PERFORMANCE_QA"
-            echo "run_scene_read_smoke=$RUN_SCENE_READ_SMOKE"
-            echo "run_deploy_manifest_check=$RUN_DEPLOY_MANIFEST_CHECK"
-          } >> "$GITHUB_OUTPUT"
-
-          echo "php_changed=$PHP_CHANGED platform_changed=$PLATFORM_CHANGED migration_changed=$MIGRATION_CHANGED deploy_changed=$DEPLOY_CHANGED"
-          echo "run_php_lint=$RUN_PHP_LINT run_php_tests=$RUN_PHP_TESTS run_platform=$RUN_PLATFORM run_record_funnel_browser_qa=$RUN_RECORD_FUNNEL_BROWSER_QA run_map_performance_qa=$RUN_MAP_PERFORMANCE_QA run_scene_read_smoke=$RUN_SCENE_READ_SMOKE run_deploy_manifest_check=$RUN_DEPLOY_MANIFEST_CHECK"
-
-          {
-            echo "## CI scope"
-            echo ""
-            echo "- PHP changed: $PHP_CHANGED"
-            echo "- platform changed: $PLATFORM_CHANGED"
-            echo "- migration changed: $MIGRATION_CHANGED"
-            echo "- deploy/workflow changed: $DEPLOY_CHANGED"
-            echo "- PHP lint: $RUN_PHP_LINT"
-            echo "- PHPUnit: $RUN_PHP_TESTS"
-            echo "- platform checks: $RUN_PLATFORM"
-            echo "- /record funnel browser QA: $RUN_RECORD_FUNNEL_BROWSER_QA"
-            echo "- /map performance browser QA: $RUN_MAP_PERFORMANCE_QA"
-            echo "- scene read local smoke: $RUN_SCENE_READ_SMOKE"
-            echo "- deploy manifest sync: $RUN_DEPLOY_MANIFEST_CHECK"
-          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Classify CI change scope
+        id: plan
+        run: |
+          set -euo pipefail
+          args=(
+            --changed-files '${{ steps.changed.outputs.changed_files }}'
+            --github-output "$GITHUB_OUTPUT"
+            --summary "$GITHUB_STEP_SUMMARY"
+          )
+          if [ '${{ github.event_name }}' = 'workflow_dispatch' ]; then
+            args+=(--force-full)
+          fi
+          node scripts/plan_ci_scope.mjs "${args[@]}"
 
   lint:
     name: PHP Syntax Check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: plan
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      - name: Test CI scope planner
+        run: node --test scripts/tests/plan_ci_scope.tests.mjs scripts/tests/report_github_actions_dependency.tests.mjs
 
       - name: Setup PHP
         if: needs.plan.outputs.run_php_lint == 'true'
@@ -194,6 +163,7 @@ jobs:
   test:
     name: PHPUnit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [plan, lint]
     if: needs.plan.outputs.run_php_tests == 'true'
     steps:
@@ -214,6 +184,7 @@ jobs:
   platform:
     name: Platform Typecheck & Curator Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [plan, lint]
     if: needs.plan.outputs.run_platform == 'true'
     steps:
@@ -222,7 +193,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
-          node-version: "22"
+          node-version: '22'
           cache: npm
           cache-dependency-path: platform_v2/package-lock.json
 
@@ -257,6 +228,7 @@ jobs:
   scene-read-smoke:
     name: Scene Read Local Smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [plan, lint]
     if: needs.plan.outputs.run_scene_read_smoke == 'true'
     services:
@@ -276,8 +248,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/ikimon_v2_ci
       V2_PRIVILEGED_WRITE_API_KEY: ci-write-key
-      ALLOW_QUERY_USER_ID: "1"
-      PORT: "3200"
+      ALLOW_QUERY_USER_ID: '1'
+      PORT: '3200'
     steps:
       - uses: actions/checkout@v5
 
@@ -293,7 +265,6 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import { Client } from "pg";
-
           const client = new Client({ connectionString: process.env.DATABASE_URL });
           await client.connect();
           await client.query("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE");
@@ -311,10 +282,8 @@ jobs:
         run: |
           npm run start > ../platform-scene-read-smoke.log 2>&1 &
           echo "$!" > ../platform-scene-read-smoke.pid
-          for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
-            if curl -fsS http://127.0.0.1:3200/healthz >/dev/null; then
-              exit 0
-            fi
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:3200/healthz >/dev/null; then exit 0; fi
             sleep 1
           done
           cat ../platform-scene-read-smoke.log
@@ -325,10 +294,9 @@ jobs:
         run: |
           prefix="scene-read-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "SCENE_READ_FIXTURE_PREFIX=${prefix}" >> "$GITHUB_ENV"
-          curl -fsS \
-            -X POST http://127.0.0.1:3200/api/v1/ops/staging/fixtures/seed-regression \
+          curl -fsS -X POST http://127.0.0.1:3200/api/v1/ops/staging/fixtures/seed-regression \
             -H "x-ikimon-write-key: ${V2_PRIVILEGED_WRITE_API_KEY}" \
-            -H "content-type: application/json" \
+            -H 'content-type: application/json' \
             --data "{\"fixturePrefix\":\"${prefix}\"}"
 
       - name: Run scene read smoke against PR runtime
@@ -351,26 +319,21 @@ jobs:
 
       - name: Run map mobile overlap browser QA
         working-directory: platform_v2
-        run: |
-          STAGING_BASE_URL=http://127.0.0.1:3200 \
-          npm run e2e:local:map-compact-ui
+        run: STAGING_BASE_URL=http://127.0.0.1:3200 npm run e2e:local:map-compact-ui
 
       - name: Cleanup local scene fixture
         if: always()
         run: |
           if [ -n "${SCENE_READ_FIXTURE_PREFIX:-}" ]; then
-            curl -fsS \
-              -X POST http://127.0.0.1:3200/api/v1/ops/staging/fixtures/cleanup \
+            curl -fsS -X POST http://127.0.0.1:3200/api/v1/ops/staging/fixtures/cleanup \
               -H "x-ikimon-write-key: ${V2_PRIVILEGED_WRITE_API_KEY}" \
-              -H "content-type: application/json" \
+              -H 'content-type: application/json' \
               --data "{\"fixturePrefix\":\"${SCENE_READ_FIXTURE_PREFIX}\"}" || true
           fi
-          if [ -f platform-scene-read-smoke.pid ]; then
-            kill "$(cat platform-scene-read-smoke.pid)" || true
-          fi
+          if [ -f platform-scene-read-smoke.pid ]; then kill "$(cat platform-scene-read-smoke.pid)" || true; fi
 
-      - name: Upload scene read smoke logs
-        if: always()
+      - name: Upload scene read failure evidence
+        if: failure()
         uses: actions/upload-artifact@v6
         with:
           name: scene-read-smoke-runtime-log
@@ -379,10 +342,12 @@ jobs:
             platform_v2/playwright-report/staging/
             platform_v2/test-results/
           if-no-files-found: ignore
+          retention-days: 3
 
   record-funnel-browser-qa:
     name: Record Funnel Browser QA
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [plan, lint]
     if: needs.plan.outputs.run_record_funnel_browser_qa == 'true'
     services:
@@ -402,9 +367,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/ikimon_v2_ci
       V2_PRIVILEGED_WRITE_API_KEY: ci-write-key
-      ALLOW_QUERY_USER_ID: "1"
-      PORT: "3201"
-      COMPATIBILITY_WRITE_ENABLED: "0"
+      ALLOW_QUERY_USER_ID: '1'
+      PORT: '3201'
+      COMPATIBILITY_WRITE_ENABLED: '0'
     steps:
       - uses: actions/checkout@v5
 
@@ -420,7 +385,6 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import { Client } from "pg";
-
           const client = new Client({ connectionString: process.env.DATABASE_URL });
           await client.connect();
           await client.query("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE");
@@ -438,10 +402,8 @@ jobs:
         run: |
           npm run start > ../platform-record-funnel-qa.log 2>&1 &
           echo "$!" > ../platform-record-funnel-qa.pid
-          for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
-            if curl -fsS http://127.0.0.1:3201/healthz >/dev/null; then
-              exit 0
-            fi
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:3201/healthz >/dev/null; then exit 0; fi
             sleep 1
           done
           cat ../platform-record-funnel-qa.log
@@ -452,10 +414,9 @@ jobs:
         run: |
           prefix="record-funnel-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "RECORD_FUNNEL_FIXTURE_PREFIX=${prefix}" >> "$GITHUB_ENV"
-          curl -fsS \
-            -X POST http://127.0.0.1:3201/api/v1/ops/staging/fixtures/seed-regression \
+          curl -fsS -X POST http://127.0.0.1:3201/api/v1/ops/staging/fixtures/seed-regression \
             -H "x-ikimon-write-key: ${V2_PRIVILEGED_WRITE_API_KEY}" \
-            -H "content-type: application/json" \
+            -H 'content-type: application/json' \
             --data "{\"fixturePrefix\":\"${prefix}\"}"
 
       - name: Run /record funnel local QA
@@ -468,18 +429,15 @@ jobs:
         if: always()
         run: |
           if [ -n "${RECORD_FUNNEL_FIXTURE_PREFIX:-}" ]; then
-            curl -fsS \
-              -X POST http://127.0.0.1:3201/api/v1/ops/staging/fixtures/cleanup \
+            curl -fsS -X POST http://127.0.0.1:3201/api/v1/ops/staging/fixtures/cleanup \
               -H "x-ikimon-write-key: ${V2_PRIVILEGED_WRITE_API_KEY}" \
-              -H "content-type: application/json" \
+              -H 'content-type: application/json' \
               --data "{\"fixturePrefix\":\"${RECORD_FUNNEL_FIXTURE_PREFIX}\"}" || true
           fi
-          if [ -f platform-record-funnel-qa.pid ]; then
-            kill "$(cat platform-record-funnel-qa.pid)" || true
-          fi
+          if [ -f platform-record-funnel-qa.pid ]; then kill "$(cat platform-record-funnel-qa.pid)" || true; fi
 
-      - name: Upload /record funnel Playwright artifacts
-        if: always()
+      - name: Upload /record funnel failure evidence
+        if: failure()
         uses: actions/upload-artifact@v6
         with:
           name: record-funnel-playwright-artifacts
@@ -488,10 +446,12 @@ jobs:
             platform_v2/test-results
             platform_v2/playwright-report/staging
           if-no-files-found: ignore
+          retention-days: 3
 
   map-performance-browser-qa:
     name: Map Performance Browser QA
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [plan, lint]
     if: needs.plan.outputs.run_map_performance_qa == 'true'
     environment: staging
@@ -507,8 +467,8 @@ jobs:
           STAGING_BASE_URL: https://ikimon.life
         run: npm run e2e:staging:map-performance
 
-      - name: Upload /map performance Playwright artifacts
-        if: always()
+      - name: Upload /map performance failure evidence
+        if: failure()
         uses: actions/upload-artifact@v6
         with:
           name: map-performance-playwright-artifacts
@@ -516,10 +476,12 @@ jobs:
             platform_v2/test-results
             platform_v2/playwright-report/staging
           if-no-files-found: ignore
+          retention-days: 3
 
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [plan, lint, test, platform, scene-read-smoke, record-funnel-browser-qa, map-performance-browser-qa]
     if: always()
     steps:
@@ -533,4 +495,4 @@ jobs:
             echo "Quality Gate failed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform=${{ needs.platform.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}, map-performance-browser-qa=${{ needs.map-performance-browser-qa.result }}"
             exit 1
           fi
-          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform=${{ needs.platform.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}, map-performance-browser-qa=${{ needs.map-performance-browser-qa.result }}"
+          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform=${{ needs.platform.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record_funnel_browser_qa.result }}, map-performance-browser-qa=${{ needs.map_performance_browser_qa.result }}"

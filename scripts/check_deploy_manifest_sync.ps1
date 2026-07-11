@@ -9,6 +9,17 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $manifestFullPath = if ([System.IO.Path]::IsPathRooted($ManifestPath)) { $ManifestPath } else { Join-Path $repoRoot $ManifestPath }
 $workflowFullPath = if ([System.IO.Path]::IsPathRooted($WorkflowPath)) { $WorkflowPath } else { Join-Path $repoRoot $WorkflowPath }
 
+function Invoke-StagingManifestSyncCheck {
+    $stagingCheckPath = Join-Path $PSScriptRoot "check_staging_manifest_sync.ps1"
+    if (-not (Test-Path $stagingCheckPath)) {
+        throw "Staging manifest checker not found: $stagingCheckPath"
+    }
+    & pwsh -NoProfile -File $stagingCheckPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Staging manifest sync check failed with exit code $LASTEXITCODE"
+    }
+}
+
 if (-not (Test-Path $manifestFullPath)) {
     throw "Deploy manifest not found: $manifestFullPath"
 }
@@ -64,7 +75,8 @@ if ($manifest.platform -eq "cloudflare_worker") {
         exit 1
     }
 
-    Write-Output "Cloudflare deploy manifest and workflow are in sync."
+    Invoke-StagingManifestSyncCheck
+    Write-Output "Cloudflare deploy manifests and workflows are in sync."
     exit 0
 }
 
@@ -149,4 +161,5 @@ if ($issues.Count -gt 0) {
     exit 1
 }
 
-Write-Output "Deploy manifest and workflow are in sync."
+Invoke-StagingManifestSyncCheck
+Write-Output "Deploy manifests and workflows are in sync."

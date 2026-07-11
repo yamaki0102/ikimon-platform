@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-12",
+  "objective": "Keep GitHub as source control, review, approval, and status aggregation while preventing GitHub Actions from becoming the only execution runtime.",
+  "principles": [
+    "All non-trivial CI, QA, migration, and deploy logic must be runnable through versioned repository scripts.",
+    "GitHub Actions should orchestrate portable commands rather than contain long operational shell programs.",
+    "Browser QA must be selected by affected surface; shared shell, browser infrastructure, migrations, and runtime changes remain full-gate triggers.",
+    "Artifacts are uploaded on failure or for explicitly requested release evidence, not on every successful browser run.",
+    "Normal staging releases reuse existing secrets; secret mutation requires an explicit input.",
+    "Production promotion retains immutable SHA checks, human/environment approval, rollback readiness, and post-deploy verification.",
+    "Old execution paths remain available until the replacement has passed parallel verification."
+  ],
+  "current_state": {
+    "phase": "portable-ci-and-staging",
+    "production_deploy_owner": "github_actions_guarded_cloudflare_lane",
+    "staging_execution_contract": "scripts/run_cloudflare_staging_release.sh",
+    "ci_scope_contract": "scripts/plan_ci_scope.mjs",
+    "actions_inventory_command": "node scripts/report_github_actions_dependency.mjs --json tmp/actions-dependency.json --markdown tmp/actions-dependency.md"
+  },
+  "artifact_policy": {
+    "default_upload_condition": "failure_only",
+    "release_evidence_exception": true,
+    "default_retention_days": 3,
+    "long_term_visual_evidence_target": "R2_or_project_evidence_store"
+  },
+  "migration_order": [
+    "Extract and test portable commands",
+    "Make GitHub Actions a thin caller while preserving check names and guards",
+    "Run old and new paths in parallel where state mutation is involved",
+    "Move provider-native build and browser execution only after release identity and rollback evidence match",
+    "Retain an Actions emergency fallback after provider-native activation"
+  ],
+  "forbidden_shortcuts": [
+    "Do not remove production verification to save runner minutes.",
+    "Do not move database migrations into an unapproved automatic branch build.",
+    "Do not use self-hosted runners as the sole replacement runtime.",
+    "Do not delete legacy/fallback deploy paths in the same change that introduces their replacement."
+  ]
+}
