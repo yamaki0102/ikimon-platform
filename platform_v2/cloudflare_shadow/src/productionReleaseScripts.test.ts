@@ -30,6 +30,12 @@ test("production deploy guard injects and verifies the exact git SHA without exp
   assert.match(guard, /IKIMON_GIT_SHA:\s*releaseVars\.IKIMON_GIT_SHA\.trim\(\) \|\| state\.gitHead/);
   assert.match(guard, /production_release_git_sha_mismatch/);
   assert.match(guard, /payload\.gitSha\s*===\s*expectedGitSha/);
+  assert.match(guard, /const SMOKE_MAX_ATTEMPTS = 12/);
+  assert.match(guard, /const SMOKE_RETRY_DELAY_MS = 5_000/);
+  assert.match(guard, /attempt < SMOKE_MAX_ATTEMPTS/);
+  assert.match(guard, /await delay\(SMOKE_RETRY_DELAY_MS\)/);
+  assert.match(guard, /deploy_check=\$\{Date\.now\(\)\}-\$\{attempt\}/);
+  assert.match(guard, /actualGitSha/);
   assert.match(guard, /deferredSafetyGates/);
   assert.match(guard, /execute\s*\?\s*\["post_deploy_health_ready_smoke"\]\s*:\s*\[\]/);
   assert.match(guard, /eventCommandLine/);
