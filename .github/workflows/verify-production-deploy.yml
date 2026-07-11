@@ -86,24 +86,11 @@ jobs:
           grep -Fq 'data-records-public-intro' "$public_body"
           grep -Fq 'みんなの公開記録' "$public_body"
           grep -Fq '写真から記録する' "$public_body"
-
-          saved_headers="production-deploy-verification/records-saved.headers"
-          saved_body="production-deploy-verification/records-saved.html"
-          curl -fsSL --retry 8 --retry-delay 5 -D "$saved_headers" -H 'cache-control: no-store' \
-            -H 'cookie: ikimon_v2_session=deploy-smoke' \
-            "https://ikimon.life/ja/records?view=mine&source=record_saved&saved=occ%3Adeploy-smoke%3A1&deploy_smoke=${EXPECTED_SHA}" > "$saved_body"
-          grep -Fq 'data-records-arrival' "$saved_body"
-          grep -Fq '記録しました。' "$saved_body"
-          grep -Fq '続けて撮る' "$saved_body"
-          grep -Fq 'data-saved-record-id="occ:deploy-smoke:1"' "$saved_body"
-          grep -qi '^cache-control: private, no-store' "$saved_headers"
-          if grep -Fq 'data-record-highlight="true"' "$saved_body"; then
-            echo 'Saved record highlight present.'
-          else
-            grep -Fq '最新の1件を一覧へ反映しています' "$saved_body"
-            echo 'Saved record pending state present without writing production data.'
-          fi
-          echo 'Records post-save production UX verified read-only.'
+          grep -qi "^x-ikimon-deploy-sha: ${EXPECTED_SHA}" "$public_headers"
+          grep -qi '^x-ikimon-ui-bundle: ' "$public_headers"
+          grep -qi '^x-ikimon-worker-version: ' "$public_headers"
+          echo 'Records public-first production UX and release identity verified read-only.'
+          echo 'Signed-in saved-arrival behavior remains covered by route and browser tests; no production session was forged.'
 
       - name: Upload production deploy verification
         if: always()
