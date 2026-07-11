@@ -26,3 +26,9 @@ test("observation upsert refuses an existing id owned by another user", () => {
   assert.match(workerSource, /existingObservation\.owner_user_id !== input\.userId/);
   assert.match(workerSource, /return json\(\{ ok: false, error: "forbidden" \}, 403/);
 });
+
+test("authorization hardening preserves D1 rally post-save auto-match", () => {
+  assert.match(workerSource, /async function autoMatchObservationToActiveRalliesNative/);
+  assert.match(workerSource, /observation_auto_match/);
+  assert.match(workerSource, /exact_location_stored: false/);
+});
