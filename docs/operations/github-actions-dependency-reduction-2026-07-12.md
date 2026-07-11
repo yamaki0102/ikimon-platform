@@ -52,7 +52,7 @@ CLOUDFLARE_API_TOKEN=... \
 DEPLOY_STAGING=false \
 TEST_PROFILE=quick \
 BROWSER_QA=none \
-./scripts/run_cloudflare_staging_release.sh
+bash ./scripts/run_cloudflare_staging_release.sh
 ```
 
 staging deploy（通常）:
@@ -62,7 +62,7 @@ CLOUDFLARE_API_TOKEN=... \
 DEPLOY_STAGING=true \
 TEST_PROFILE=quick \
 BROWSER_QA=none \
-./scripts/run_cloudflare_staging_release.sh
+bash ./scripts/run_cloudflare_staging_release.sh
 ```
 
 フルVisual QAを含むrelease evidence:
@@ -73,7 +73,7 @@ V2_PRIVILEGED_WRITE_API_KEY=... \
 DEPLOY_STAGING=true \
 TEST_PROFILE=full \
 BROWSER_QA=full \
-./scripts/run_cloudflare_staging_release.sh
+bash ./scripts/run_cloudflare_staging_release.sh
 ```
 
 通常releaseでは既存のstaging secretを再利用する。ローテーション時のみ `SYNC_STAGING_WRITE_SECRET=true` を明示する。
