@@ -118,7 +118,7 @@ echo "== Verify production release =="
 IKIMON_EXPECTED_GIT_SHA="${GIT_SHA}" \
 SMOKE_TIER="${SMOKE_TIER}" \
 PLAYWRIGHT_INSTALL_WITH_DEPS="${PLAYWRIGHT_INSTALL_WITH_DEPS}" \
-  "${SCRIPT_DIR}/verify_cloudflare_production_release.sh"
+  bash "${SCRIPT_DIR}/verify_cloudflare_production_release.sh"
 
 write_summary success
 trap - EXIT
