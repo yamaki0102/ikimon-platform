@@ -136,7 +136,7 @@ jobs:
             platform_v2/cloudflare_shadow/package-lock.json
 
       - name: Run portable Cloudflare staging release
-        run: ./scripts/run_cloudflare_staging_release.sh
+        run: bash ./scripts/run_cloudflare_staging_release.sh
 
       - name: Upload failure or explicitly requested full QA evidence
         if: failure() || github.event.inputs.browser_qa == 'full'
