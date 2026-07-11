@@ -44,9 +44,9 @@ export function planCiScope(inputFiles, { forceFull = false } = {}) {
     /^\.github\/workflows\//,
     /^\.github\/actions\//,
     /^ops\/deploy\//,
-    /^scripts\/(check_(deploy_guardrails|deploy_manifest_sync|platform_migration_guardrails|staging_manifest_sync|release_candidate)|plan_ci_scope)\.(ps1|mjs)$/,
-    /^scripts\/run_cloudflare_staging_release\.sh$/,
-    /^scripts\/tests\/plan_ci_scope\.tests\.mjs$/,
+    /^scripts\/(check_(deploy_guardrails|deploy_manifest_sync|platform_migration_guardrails|staging_manifest_sync|release_candidate)|plan_ci_scope|plan_production_release_scope)\.(ps1|mjs)$/,
+    /^scripts\/(run_cloudflare_staging_release|run_cloudflare_production_release|verify_cloudflare_production_release)\.sh$/,
+    /^scripts\/tests\/(plan_ci_scope|production_release_scope)\.tests\.mjs$/,
   ]);
 
   const browserInfrastructureChanged = anyMatch(files, [
@@ -83,12 +83,10 @@ export function planCiScope(inputFiles, { forceFull = false } = {}) {
     /^platform_v2\/src\/.*(observation|scene|candidate|identification|occurrence|visit|subject)/i,
   ]);
 
-  // Public shell/layout files without a domain hint can affect every browser surface.
   const sharedPublicSurfaceChanged = anyMatch(browserRelevantFiles, [
     /^platform_v2\/src\/(routes|ui|content)\/.*(layout|shell|navigation|header|footer|app|landing|home|global)/i,
   ]);
 
-  // Unknown public routes/UI and unclassified E2E files are safety-side full triggers.
   const publicSurfaceChanged = anyMatch(browserRelevantFiles, [
     /^platform_v2\/src\/(routes|ui|content)\//,
     /^platform_v2\/e2e\//,
