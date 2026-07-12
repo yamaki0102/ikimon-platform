@@ -34,11 +34,19 @@ jobs:
       V2_PRIVILEGED_WRITE_API_KEY: ci-write-key
       ALLOW_QUERY_USER_ID: '1'
       PORT: '3200'
+      EXPECTED_PRODUCT_SHA: a7753d2896752095aef54fd155a21b7a94747fd0
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: agent/visual-qa-record-recovery-20260712
+          ref: agent/record-fallback-recovery-20260712
           fetch-depth: 1
+
+      - name: Confirm product source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_PRODUCT_SHA"
 
       - name: Setup platform browser runtime
         uses: ./.github/actions/setup-platform-browser
@@ -47,7 +55,7 @@ jobs:
         working-directory: platform_v2
         run: npm run build
 
-      - name: Enable CI database extensions
+      - name: Prepare local database
         working-directory: platform_v2
         run: |
           node --input-type=module <<'NODE'
@@ -59,10 +67,7 @@ jobs:
           await client.query('CREATE EXTENSION IF NOT EXISTS vector');
           await client.end();
           NODE
-
-      - name: Apply CI database migrations
-        working-directory: platform_v2
-        run: npm run migrate -- --allow-destructive
+          npm run migrate -- --allow-destructive
 
       - name: Start local platform runtime
         working-directory: platform_v2
@@ -71,9 +76,7 @@ jobs:
           npm run start > ../record-recovery-visual-runtime.log 2>&1 &
           echo "$!" > ../record-recovery-visual-runtime.pid
           for attempt in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:3200/healthz >/dev/null; then
-              exit 0
-            fi
+            curl -fsS http://127.0.0.1:3200/healthz >/dev/null && exit 0
             sleep 2
           done
           cat ../record-recovery-visual-runtime.log
@@ -89,58 +92,41 @@ jobs:
           import fs from 'node:fs/promises';
           import path from 'node:path';
 
-          const guestCases = [
-            { name: '360x800', width: 360, height: 800 },
-            { name: '390x844', width: 390, height: 844 },
-            { name: '412x915', width: 412, height: 915 },
-            { name: '768x1024', width: 768, height: 1024 },
-            { name: '1280x900', width: 1280, height: 900 },
+          const widths = [
+            ['360x800', 360, 800],
+            ['390x844', 390, 844],
+            ['412x915', 412, 915],
+            ['768x1024', 768, 1024],
+            ['1280x900', 1280, 900],
           ];
           const browser = await chromium.launch({ headless: true });
+          const outDir = path.resolve('../record-recovery-visual-qa/screenshots');
           const results = [];
           const failures = [];
-          const outDir = path.resolve('../record-recovery-visual-qa/screenshots');
+          const isVisible = async (locator) => locator.evaluate((element) => {
+            const box = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+          }).catch(() => false);
 
-          const inspect = async (page) => page.evaluate(() => {
-            const visible = (element) => {
-              if (!element) return false;
-              const box = element.getBoundingClientRect();
-              const style = getComputedStyle(element);
-              return box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-            };
-            const rect = (selector) => {
-              const element = document.querySelector(selector);
-              if (!visible(element)) return null;
-              const box = element.getBoundingClientRect();
-              return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
-            };
-            return {
-              horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-              panel: rect('[data-record-recovery-start], [data-record-recovery]'),
-              globalLauncherVisible: visible(document.querySelector('.global-record-launcher')),
-              title: document.querySelector('h1, #record-recovery-title')?.textContent?.trim() || '',
-              loginVisible: visible(document.querySelector('a[href*="/login"]')),
-              registerVisible: visible(document.querySelector('a[href*="/register"]')),
-              genericGuideVisible: visible(document.querySelector('.record-first-success')),
-            };
-          });
-
-          for (const item of guestCases) {
-            const context = await browser.newContext({ viewport: { width: item.width, height: item.height }, locale: 'ja-JP', serviceWorkers: 'block' });
+          for (const [name, width, height] of widths) {
+            const context = await browser.newContext({ viewport: { width, height }, locale: 'ja-JP', serviceWorkers: 'block' });
             const page = await context.newPage();
             const consoleErrors = [];
-            page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 500)); });
+            page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
             const response = await page.goto('http://127.0.0.1:3200/ja/record?draft=1&start=photo&source=login_required', { waitUntil: 'domcontentloaded' });
-            await page.waitForTimeout(500);
-            const state = await inspect(page);
-            await page.screenshot({ path: path.join(outDir, `${item.name}-guest.png`), fullPage: true, animations: 'disabled' });
-            if ((response?.status() || 0) >= 400) failures.push(`${item.name}: guest response ${response?.status()}`);
-            if (!state.panel) failures.push(`${item.name}: recovery panel missing`);
-            if (!state.loginVisible || !state.registerVisible) failures.push(`${item.name}: login/register continuation missing`);
-            if (state.horizontalOverflow > 1) failures.push(`${item.name}: horizontal overflow ${state.horizontalOverflow}px`);
-            if (state.globalLauncherVisible) failures.push(`${item.name}: global launcher should be hidden on recovery surface`);
-            if (consoleErrors.length) failures.push(`${item.name}: console errors ${consoleErrors.join(' | ')}`);
-            results.push({ ...item, mode: 'guest', state, consoleErrors });
+            await page.locator('[data-record-recovery-panel], .record-recovery-login').first().waitFor({ state: 'visible', timeout: 20000 });
+            const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+            const launcherVisible = await isVisible(page.locator('.global-record-launcher').first());
+            const loginVisible = await isVisible(page.locator('a[href*="/login"]').first());
+            const registerVisible = await isVisible(page.locator('a[href*="/register"]').first());
+            await page.screenshot({ path: path.join(outDir, `${name}-guest.png`), fullPage: true, animations: 'disabled' });
+            if ((response?.status() || 0) >= 400) failures.push(`${name}: response ${response?.status()}`);
+            if (!loginVisible || !registerVisible) failures.push(`${name}: login/register links missing`);
+            if (overflow > 1) failures.push(`${name}: horizontal overflow ${overflow}`);
+            if (launcherVisible) failures.push(`${name}: global launcher visible`);
+            if (consoleErrors.length) failures.push(`${name}: console ${consoleErrors.join(' | ')}`);
+            results.push({ name, width, height, overflow, launcherVisible, loginVisible, registerVisible, consoleErrors });
             await context.close();
           }
 
@@ -148,59 +134,42 @@ jobs:
           await context.addInitScript(() => {
             const request = indexedDB.open('ikimon-record-draft', 1);
             request.onupgradeneeded = () => {
-              const db = request.result;
-              if (!db.objectStoreNames.contains('drafts')) db.createObjectStore('drafts');
+              if (!request.result.objectStoreNames.contains('drafts')) request.result.createObjectStore('drafts');
             };
             request.onsuccess = () => {
-              const db = request.result;
-              const tx = db.transaction('drafts', 'readwrite');
-              const file = new File([new Uint8Array([137, 80, 78, 71])], 'recovery-photo.png', { type: 'image/png' });
-              tx.objectStore('drafts').put({
-                file,
-                files: [file],
-                kind: 'photo',
-                savedAt: Date.now(),
-                metadata: { formValues: { note: '復旧確認用の端末内メモ' }, recoverySource: 'location_denied' },
-              }, 'latest');
+              const file = new File([new Uint8Array([255, 216, 255, 217])], 'recovery-photo.jpg', { type: 'image/jpeg' });
+              const tx = request.result.transaction('drafts', 'readwrite');
+              tx.objectStore('drafts').put({ file, files: [file], kind: 'photo', savedAt: Date.now(), metadata: { formValues: { note: '復旧確認' }, recoverySource: 'location_denied' } }, 'latest');
             };
           });
           const page = await context.newPage();
-          const signedConsoleErrors = [];
-          page.on('console', (message) => { if (message.type() === 'error') signedConsoleErrors.push(message.text().slice(0, 500)); });
+          const consoleErrors = [];
+          page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
           const response = await page.goto('http://127.0.0.1:3200/ja/record?userId=record-recovery-qa&draft=1&start=photo&source=location_denied', { waitUntil: 'domcontentloaded' });
-          await page.locator('[data-record-recovery]').waitFor({ state: 'visible', timeout: 20000 });
+          const panel = page.locator('[data-record-recovery]').first();
+          await panel.waitFor({ state: 'visible', timeout: 20000 });
           await page.waitForFunction(() => document.querySelector('[data-record-recovery]')?.getAttribute('data-state') !== 'checking', null, { timeout: 20000 });
-          const recoveryState = await page.locator('[data-record-recovery]').getAttribute('data-state');
-          const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
+          const state = await panel.getAttribute('data-state');
+          const fileChooser = page.waitForEvent('filechooser', { timeout: 10000 });
           await page.locator('[data-record-recovery-pick]').click();
-          const chooser = await fileChooserPromise;
-          await chooser.setFiles({ name: 'replacement-photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([255, 216, 255, 217]) });
+          const chooser = await fileChooser;
+          await chooser.setFiles({ name: 'replacement.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([255, 216, 255, 217]) });
+          const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+          const locationEnabled = !(await page.locator('[data-record-recovery-location]').isDisabled());
+          const saveEnabled = !(await page.locator('[data-record-recovery-save]').isDisabled());
+          const launcherVisible = await isVisible(page.locator('.global-record-launcher').first());
           await page.screenshot({ path: path.join(outDir, '390x844-signed-restored.png'), fullPage: true, animations: 'disabled' });
-          const signed = await page.evaluate(() => ({
-            state: document.querySelector('[data-record-recovery]')?.getAttribute('data-state') || '',
-            overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-            locationEnabled: !(document.querySelector('[data-record-recovery-location]')?.disabled),
-            saveEnabled: !(document.querySelector('[data-record-recovery-save]')?.disabled),
-            selectedMediaCount: document.querySelectorAll('[data-record-preview-item], .record-preview-photo img').length,
-            globalLauncherVisible: (() => {
-              const element = document.querySelector('.global-record-launcher');
-              if (!element) return false;
-              const box = element.getBoundingClientRect();
-              const style = getComputedStyle(element);
-              return box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-            })(),
-          }));
           if ((response?.status() || 0) >= 400) failures.push(`signed: response ${response?.status()}`);
-          if (recoveryState !== 'ready') failures.push(`signed: expected ready state, got ${recoveryState}`);
-          if (signed.overflow > 1) failures.push(`signed: horizontal overflow ${signed.overflow}px`);
-          if (!signed.locationEnabled || !signed.saveEnabled) failures.push('signed: recovery actions are not enabled');
-          if (signed.globalLauncherVisible) failures.push('signed: global launcher should remain hidden');
-          if (signedConsoleErrors.length) failures.push(`signed: console errors ${signedConsoleErrors.join(' | ')}`);
-          results.push({ mode: 'signed-restored', recoveryState, signed, consoleErrors: signedConsoleErrors });
+          if (state !== 'ready') failures.push(`signed: expected ready, got ${state}`);
+          if (!locationEnabled || !saveEnabled) failures.push('signed: actions disabled');
+          if (overflow > 1) failures.push(`signed: horizontal overflow ${overflow}`);
+          if (launcherVisible) failures.push('signed: global launcher visible');
+          if (consoleErrors.length) failures.push(`signed: console ${consoleErrors.join(' | ')}`);
+          results.push({ mode: 'signed-restored', state, locationEnabled, saveEnabled, overflow, launcherVisible, consoleErrors });
           await context.close();
           await browser.close();
 
-          await fs.writeFile('../record-recovery-visual-qa/metrics.json', JSON.stringify({ results, failures }, null, 2));
+          await fs.writeFile('../record-recovery-visual-qa/metrics.json', JSON.stringify({ expectedProductSha: process.env.EXPECTED_PRODUCT_SHA, results, failures }, null, 2));
           if (failures.length) {
             console.error(failures.join('\n'));
             process.exit(1);
