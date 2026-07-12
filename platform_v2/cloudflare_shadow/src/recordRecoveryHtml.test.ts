@@ -60,5 +60,12 @@ test("signed recovery restores IndexedDB media and deletes it only after success
   assert.match(html, /data-record-recovery-location/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /record:latest/);
-  assert.doesNotMatch(html, /fetchOriginFallback|ORIGIN_FALLBACK_BASE_URL/);
+      assert.match(html, /async function persistDraftProgress/);
+      assert.match(html, /recoverySubmissionId/);
+      assert.match(html, /pendingMediaRetryVisitId: visitId/);
+      assert.match(html, /completedPhotoIndexes\.has\(index\)/);
+      assert.match(html, /pendingMediaRetryVideoUid/);
+      assert.match(html, /pendingMediaRetryVideoBodyUploaded/);
+      assert.match(html, /if \(!pendingVideoBodyUploaded\)/);
+      assert.doesNotMatch(html, /fetchOriginFallback|ORIGIN_FALLBACK_BASE_URL/);
 });

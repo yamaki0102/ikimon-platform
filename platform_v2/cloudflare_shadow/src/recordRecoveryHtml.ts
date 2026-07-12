@@ -398,7 +398,13 @@ export function renderCloudflareRecordRecoverySignedHtml(
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
     let recoveredFiles = [];
     let recoveryMetadata = {};
+    let currentDraft = null;
     let pendingRetryTarget = "";
+    let recoverySubmissionId = "";
+    let completedPhotoIndexes = new Set();
+    let pendingVideoUid = "";
+    let pendingVideoUploadUrl = "";
+    let pendingVideoBodyUploaded = false;
 
     function setStatus(message, error) {
       if (!status) return;
@@ -461,7 +467,48 @@ export function renderCloudflareRecordRecoverySignedHtml(
         db.close();
       }
     }
-    async function deleteOutboxDraft() {
+  async function writeDraft(draft) {
+    const db = await openRecordDraftDb();
+    try {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction("drafts", "readwrite");
+        tx.objectStore("drafts").put(draft, "latest");
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error || new Error("indexeddb_write_failed"));
+      });
+    } finally {
+      db.close();
+    }
+  }
+  async function persistDraftProgress(patch) {
+    const previous = currentDraft && typeof currentDraft === "object" ? currentDraft : {};
+    const previousMetadata = previous.metadata && typeof previous.metadata === "object" ? previous.metadata : {};
+    const previousFormValues = previousMetadata.formValues && typeof previousMetadata.formValues === "object" ? previousMetadata.formValues : {};
+    const patchValue = patch && typeof patch === "object" ? patch : {};
+    const files = selectedFiles();
+    recoveryMetadata = {
+      ...previousMetadata,
+      ...recoveryMetadata,
+      ...patchValue,
+      formValues: {
+        ...previousFormValues,
+        ...(recoveryMetadata.formValues && typeof recoveryMetadata.formValues === "object" ? recoveryMetadata.formValues : {}),
+        note: String(noteInput?.value || ""),
+        latitude: String(latitudeInput?.value || ""),
+        longitude: String(longitudeInput?.value || ""),
+      },
+    };
+    currentDraft = {
+      ...previous,
+      file: files[0] || previous.file || null,
+      files: files.length > 0 ? files : normalizeDraftFiles(previous),
+      kind: mediaKind,
+      savedAt: Date.now(),
+      metadata: recoveryMetadata,
+    };
+    await writeDraft(currentDraft);
+  }
+  async function deleteOutboxDraft() {
       try {
         const request = indexedDB.open("ikimon-app-outbox-v1", 1);
         const db = await new Promise((resolve, reject) => {
@@ -537,7 +584,15 @@ export function renderCloudflareRecordRecoverySignedHtml(
         recoveryMetadata.pendingMediaRetryDetailId ||
         ""
       ).trim();
-    }
+    recoverySubmissionId = String(recoveryMetadata.recoverySubmissionId || "").trim();
+    const completed = Array.isArray(recoveryMetadata.completedPhotoIndexes)
+      ? recoveryMetadata.completedPhotoIndexes.filter((value) => Number.isInteger(value) && value >= 0)
+      : [];
+    completedPhotoIndexes = new Set(completed);
+    pendingVideoUid = String(recoveryMetadata.pendingMediaRetryVideoUid || "").trim();
+    pendingVideoUploadUrl = String(recoveryMetadata.pendingMediaRetryVideoUploadUrl || "").trim();
+    pendingVideoBodyUploaded = recoveryMetadata.pendingMediaRetryVideoBodyUploaded === true;
+  }
     async function restoreDraft() {
       setPanelState("checking", copy.checking, copy.checkingBody);
       try {
@@ -546,7 +601,8 @@ export function renderCloudflareRecordRecoverySignedHtml(
           setPanelState("empty", copy.empty, copy.emptyBody);
           return;
         }
-        recoveredFiles = normalizeDraftFiles(draft);
+        currentDraft = draft;
+      recoveredFiles = normalizeDraftFiles(draft);
         applyDraftMetadata(draft.metadata);
         const kind = draft.kind === "video" ? "video" : "photo";
         if (recoveredFiles.length === 0) {
@@ -560,15 +616,47 @@ export function renderCloudflareRecordRecoverySignedHtml(
       }
     }
 
-    photoInput?.addEventListener("change", () => {
-      recoveredFiles = inputFiles();
-      reveal("photo", copy.selected);
-    });
-    videoInput?.addEventListener("change", () => {
-      recoveredFiles = inputFiles();
-      reveal("video", copy.selected);
-    });
-    pickButton?.addEventListener("click", () => {
+    photoInput?.addEventListener("change", async () => {
+    mediaKind = "photo";
+    recoveredFiles = photoInput?.files ? Array.from(photoInput.files).filter((file) => file instanceof File && file.size > 0) : [];
+    completedPhotoIndexes = new Set();
+    pendingVideoUid = "";
+    pendingVideoUploadUrl = "";
+    pendingVideoBodyUploaded = false;
+    reveal("photo", copy.selected);
+    try {
+      await persistDraftProgress({
+        completedPhotoIndexes: [],
+        pendingMediaRetryVideoUid: "",
+        pendingMediaRetryVideoUploadUrl: "",
+        pendingMediaRetryVideoBodyUploaded: false,
+      });
+    } catch (error) {
+      console.error(error);
+      setStatus(copy.failed, true);
+    }
+  });
+  videoInput?.addEventListener("change", async () => {
+    mediaKind = "video";
+    recoveredFiles = videoInput?.files ? Array.from(videoInput.files).filter((file) => file instanceof File && file.size > 0) : [];
+    completedPhotoIndexes = new Set();
+    pendingVideoUid = "";
+    pendingVideoUploadUrl = "";
+    pendingVideoBodyUploaded = false;
+    reveal("video", copy.selected);
+    try {
+      await persistDraftProgress({
+        completedPhotoIndexes: [],
+        pendingMediaRetryVideoUid: "",
+        pendingMediaRetryVideoUploadUrl: "",
+        pendingMediaRetryVideoBodyUploaded: false,
+      });
+    } catch (error) {
+      console.error(error);
+      setStatus(copy.failed, true);
+    }
+  });
+  pickButton?.addEventListener("click", () => {
       const input = mediaKind === "video" ? videoInput : photoInput;
       input?.click();
     });
@@ -630,7 +718,18 @@ export function renderCloudflareRecordRecoverySignedHtml(
       setStatus(copy.saving, false);
       if (saveButton) saveButton.disabled = true;
       try {
-        const observationId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      if (!pendingRetryTarget && !recoverySubmissionId) {
+        recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      }
+      await persistDraftProgress({
+        recoverySubmissionId,
+        pendingMediaRetryVisitId: pendingRetryTarget,
+        completedPhotoIndexes: Array.from(completedPhotoIndexes).sort((a, b) => a - b),
+        pendingMediaRetryVideoUid: pendingVideoUid,
+        pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
+        pendingMediaRetryVideoBodyUploaded: pendingVideoBodyUploaded,
+      });
+      const observationId = recoverySubmissionId || ("record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8));
         let visitId = visitIdFromTarget(pendingRetryTarget);
         if (!isRetry) {
           const observation = await postJson("/api/v1/observations/upsert", {
@@ -646,22 +745,32 @@ export function renderCloudflareRecordRecoverySignedHtml(
             sourcePayload: { source: "cloudflare_record_recovery", mediaKind },
           });
           visitId = String(observation.visitId || observation.observationId || observationId);
-        }
-        if (!visitId) throw new Error("media_retry_target_missing");
+        pendingRetryTarget = visitId;
+        await persistDraftProgress({ recoverySubmissionId, pendingMediaRetryVisitId: visitId });
+      }
+      if (!visitId) throw new Error("media_retry_target_missing");
 
-        if (mediaKind === "photo") {
-          for (let index = 0; index < files.length; index += 1) {
-            const file = files[index];
-            await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
-              filename: file.name || "record-photo-" + String(index + 1) + ".jpg",
-              mimeType: file.type || "image/jpeg",
-              base64Data: await fileToBase64(file),
-              mediaRole: index === 0 ? "primary" : "context",
-              facePrivacy: "no_faces",
-            });
-          }
-        } else {
-          const file = files[0];
+      if (mediaKind === "photo") {
+        for (let index = 0; index < files.length; index += 1) {
+          if (completedPhotoIndexes.has(index)) continue;
+          const file = files[index];
+          await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
+            filename: file.name || "record-photo-" + String(index + 1) + ".jpg",
+            mimeType: file.type || "image/jpeg",
+            base64Data: await fileToBase64(file),
+            mediaRole: index === 0 ? "primary" : "context",
+            facePrivacy: "no_faces",
+          });
+          completedPhotoIndexes.add(index);
+          await persistDraftProgress({
+            recoverySubmissionId,
+            pendingMediaRetryVisitId: visitId,
+            completedPhotoIndexes: Array.from(completedPhotoIndexes).sort((a, b) => a - b),
+          });
+        }
+      } else {
+        const file = files[0];
+        if (!pendingVideoUid || (!pendingVideoBodyUploaded && !pendingVideoUploadUrl)) {
           const direct = await postJson("/api/v1/videos/direct-upload", {
             filename: file.name || "record-video.mp4",
             observationId: visitId,
@@ -671,20 +780,52 @@ export function renderCloudflareRecordRecoverySignedHtml(
             maxDurationSeconds: 60,
           });
           if (!direct.uploadUrl || !direct.uid) throw new Error("video_direct_upload_failed");
-          const uploadResponse = await fetch(String(direct.uploadUrl), {
+          pendingVideoUid = String(direct.uid);
+          pendingVideoUploadUrl = String(direct.uploadUrl);
+          pendingVideoBodyUploaded = false;
+          await persistDraftProgress({
+            recoverySubmissionId,
+            pendingMediaRetryVisitId: visitId,
+            pendingMediaRetryVideoUid: pendingVideoUid,
+            pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
+            pendingMediaRetryVideoBodyUploaded: false,
+          });
+        }
+        if (!pendingVideoBodyUploaded) {
+          const uploadResponse = await fetch(pendingVideoUploadUrl, {
             method: "PUT",
             headers: { "content-type": file.type || "video/mp4" },
             body: file,
           });
-          if (!uploadResponse.ok) throw new Error("video_body_upload_failed");
-          await postJson("/api/v1/videos/" + encodeURIComponent(String(direct.uid)) + "/finalize", {
-            observationId: visitId,
-            durationMs: 1000,
-            readyToStream: true,
+          if (!uploadResponse.ok) {
+            pendingVideoUid = "";
+            pendingVideoUploadUrl = "";
+            await persistDraftProgress({
+              recoverySubmissionId,
+              pendingMediaRetryVisitId: visitId,
+              pendingMediaRetryVideoUid: "",
+              pendingMediaRetryVideoUploadUrl: "",
+              pendingMediaRetryVideoBodyUploaded: false,
+            });
+            throw new Error("video_body_upload_failed");
+          }
+          pendingVideoBodyUploaded = true;
+          await persistDraftProgress({
+            recoverySubmissionId,
+            pendingMediaRetryVisitId: visitId,
+            pendingMediaRetryVideoUid: pendingVideoUid,
+            pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
+            pendingMediaRetryVideoBodyUploaded: true,
           });
         }
+        await postJson("/api/v1/videos/" + encodeURIComponent(pendingVideoUid) + "/finalize", {
+          observationId: visitId,
+          durationMs: 1000,
+          readyToStream: true,
+        });
+      }
 
-        await deleteDraft();
+      await deleteDraft();
         recoveredFiles = [];
         pendingRetryTarget = "";
         setPanelState("saved", isRetry ? copy.retry : copy.ready, isRetry ? copy.retried : copy.saved);
