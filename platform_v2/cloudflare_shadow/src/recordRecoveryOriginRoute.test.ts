@@ -4,7 +4,7 @@ import test from "node:test";
 
 const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
 
-// Keep recovery-only queries ahead of the native/materialized record surface on Cloudflare and preserve normal /record behavior.
+// Keep recovery-only queries ahead of the native/materialized record surface on Cloudflare while preserving normal /record behavior.
 test("record recovery requests use exact origin fallback before native or materialized record HTML", () => {
   assert.match(source, /const RECORD_RECOVERY_SOURCE_VALUES = new Set\(\[/);
   for (const value of ["location_denied", "login_required", "draft_restore", "media_retry", "upload_failed", "global_capture"]) {
