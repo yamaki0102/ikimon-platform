@@ -1,0 +1,46 @@
+name: Extract Home Feed Builder Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    if: github.head_ref == 'agent/diagnose-july-record-pairing-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Extract exact builder functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p home-feed-builder-source
+          python <<'PY'
+          from pathlib import Path
+          src = Path('platform_v2/cloudflare_shadow/src/index.ts').read_text(encoding='utf-8')
+          pairs = [
+            ('buildHomeFeedCards', 'function buildHomeFeedCards', 'function renderHomeRecordCard'),
+            ('publicMapObservationItem', 'function publicMapObservationItem', 'function publicMapObservationItems'),
+            ('homeRecordDisplayTitle', 'function homeRecordDisplayTitle', 'function renderHomeRecordCard'),
+            ('recordsInjectionCopy', 'function recordsInjectionCopy', 'function renderHomeRecordMediaIcons'),
+          ]
+          for filename, start_marker, end_marker in pairs:
+              start = src.find(start_marker)
+              if start < 0:
+                  Path(f'home-feed-builder-source/{filename}.txt').write_text(f'{start_marker}: not found\n', encoding='utf-8')
+                  continue
+              end = src.find(end_marker, start + len(start_marker))
+              if end < 0:
+                  end = min(len(src), start + 20000)
+              Path(f'home-feed-builder-source/{filename}.txt').write_text(src[start:end], encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@v6
+        with:
+          name: home-feed-builder-source
+          path: home-feed-builder-source
+          if-no-files-found: error
+          retention-days: 3
