@@ -51,6 +51,7 @@ fs.writeFileSync(file, `${JSON.stringify({
   smokeTier,
   worker: 'ikimon-life-cloudflare-prod',
   r2Bucket: 'ikimon-prod-media',
+  verificationReport: 'platform_v2/cloudflare_shadow/.deploy/production-verification-latest.json',
   vpsSshDeploy: false,
 }, null, 2)}\n`);
 NODE
@@ -114,11 +115,13 @@ export IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL
 echo "== Deploy production Worker through guarded fast lane =="
 npm --prefix "${WORKER_DIR}" run deploy:production:fast
 
-echo "== Verify production release =="
+echo "== Verify production release and write portable evidence =="
 IKIMON_EXPECTED_GIT_SHA="${GIT_SHA}" \
+IKIMON_VERIFICATION_SOURCE="production-release" \
+PUBLISH_GITHUB_STATUS=false \
 SMOKE_TIER="${SMOKE_TIER}" \
 PLAYWRIGHT_INSTALL_WITH_DEPS="${PLAYWRIGHT_INSTALL_WITH_DEPS}" \
-  bash "${SCRIPT_DIR}/verify_cloudflare_production_release.sh"
+  bash "${SCRIPT_DIR}/run_production_verification_watch.sh"
 
 write_summary success
 trap - EXIT
