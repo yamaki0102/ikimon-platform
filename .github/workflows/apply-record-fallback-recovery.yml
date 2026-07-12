@@ -34,6 +34,15 @@ jobs:
             printf 'decoding %s\n' "$chunk" | tee -a record-fallback-apply-diagnostic/apply.log
             base64 -d "$chunk" >> /tmp/record-fallback-recovery.patch
           done
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/record-fallback-recovery.patch')
+          data = path.read_bytes()
+          old = b"params.gett('start')"
+          if data.count(old) != 1:
+              raise SystemExit(f'expected one staged boundary duplication, found {data.count(old)}')
+          path.write_bytes(data.replace(old, b"params.get('start')", 1))
+          PY
           cp /tmp/record-fallback-recovery.patch record-fallback-apply-diagnostic/record-fallback-recovery.patch
           wc -c /tmp/record-fallback-recovery.patch | tee -a record-fallback-apply-diagnostic/apply.log
           sha256sum /tmp/record-fallback-recovery.patch | tee -a record-fallback-apply-diagnostic/apply.log
