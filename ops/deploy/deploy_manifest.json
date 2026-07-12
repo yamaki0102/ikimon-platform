@@ -1,9 +1,28 @@
 {
-  "version": 6,
-  "strategy": "github_actions_cloudflare_worker",
+  "version": 7,
+  "strategy": "cloudflare_executor_primary",
   "platform": "cloudflare_worker",
   "workerName": "ikimon-life-cloudflare-prod",
   "workerDirectory": "platform_v2/cloudflare_shadow",
+  "executionLanes": {
+    "primary": {
+      "id": "cloudflare_executor",
+      "commandBus": "yamaki0102/all-projects-management issues labeled ops:command",
+      "executor": "ikimon-intake-cloud-executor",
+      "actions": ["status", "dry_run", "setup", "migrate", "deploy", "verify", "visual_qa", "rollback"],
+      "immutableShaRequired": true
+    },
+    "fallback": {
+      "id": "github_actions",
+      "workflow": ".github/workflows/deploy.yml",
+      "normalDispatchAllowed": false
+    },
+    "emergency": {
+      "id": "manual_emergency",
+      "entrypoint": "scripts/run_cloudflare_production_release.sh",
+      "explicitApprovalRequired": true
+    }
+  },
   "r2Bucket": "ikimon-prod-media",
   "materializedOriginalUiScope": "core",
   "portableReleaseScript": "scripts/run_cloudflare_production_release.sh",
@@ -88,7 +107,7 @@
   "notes": [
     "Production mutation is triggered only by an eligible main push whose changed files affect the current app, Worker runtime, bindings, migrations, dependencies, or materialized UI.",
     "Documentation, test-only, monitoring, Linux service controls, Windows scheduled-task controls, and other production control-plane-only changes do not mutate the production Worker, D1, or R2.",
-    "GitHub Actions is the approval and status layer; the release implementation is the portable repository command scripts/run_cloudflare_production_release.sh.",
+    "Cloudflare Queue and Sandbox Executor are the normal execution layer. GitHub Issues hold commands, approval, and audit evidence; GitHub Actions is fallback CI only.",
     "Production verification writes a no-personal-data JSON report bound to the exact public runtime SHA; its adapter remains in this repository while recurring execution, canonical evidence, and alerting are owned by yamaki0102/all-projects-management.",
     "The Linux timer uses a private systemd StateDirectory; the Windows task uses private ProgramData ACLs and runs as SYSTEM. Both archive SHA-bound evidence for 14 days.",
     "Linux and Windows installers preserve existing secret environment files, refuse token command-line options, and require a successful direct verification before recurring scheduling is enabled.",

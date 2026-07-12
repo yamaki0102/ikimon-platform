@@ -220,7 +220,7 @@ async function currentDeployState() {
   };
 }
 
-async function smoke(baseUrl) {
+async function smoke(baseUrl, expectedSha) {
   const checks = [
     { path: "/health", service: undefined },
     { path: "/healthz", service: "ikimon-life-cloudflare-worker", environment: "staging" },
@@ -240,7 +240,8 @@ async function smoke(baseUrl) {
       && payload.ok === true
       && (!check.service || payload.service === check.service)
       && (!check.environment || payload.environment === check.environment)
-      && (!check.runtime || payload.runtime === check.runtime);
+      && (!check.runtime || payload.runtime === check.runtime)
+      && (check.path !== "/api/v1/runtime/version" || payload.gitSha === expectedSha);
     events.push({
       command: `smoke ${baseUrl}${check.path}`,
       exitCode: ok ? 0 : 1,
@@ -259,14 +260,25 @@ let state;
 let triggerWarning = null;
 try {
   state = await currentDeployState();
+  const releaseVars = {
+    IKIMON_GIT_SHA: state.gitHead,
+    IKIMON_WORKER_VERSION: `cloudflare-executor-${state.gitHead.slice(0, 12)}`,
+    IKIMON_DEPLOYED_AT: startedAt
+  };
+  const wranglerArgs = (dryRun = false) => {
+    const values = ["wrangler", "deploy", "--env", "staging"];
+    if (dryRun) values.push("--dry-run");
+    for (const [key, value] of Object.entries(releaseVars)) values.push("--var", `${key}:${value}`);
+    return values;
+  };
   await run("npm", ["run", "check"]);
   await run("npm", ["run", testProfile === "full" ? "test:full" : "test:quick"]);
   await run("npm", ["run", "wrangler:check:staging"]);
-  await run("npx", ["wrangler", "deploy", "--dry-run", "--env", "staging"]);
+  await run("npx", wranglerArgs(true));
 
   if (execute) {
     try {
-      await run("npx", ["wrangler", "deploy", "--env", "staging"]);
+      await run("npx", wranglerArgs(false));
     } catch (error) {
       if (!isWranglerStagingTriggerWarning(error)) {
         throw error;
@@ -280,8 +292,8 @@ try {
       });
       console.warn(JSON.stringify(triggerWarning, null, 2));
     }
-    await smoke(stagingWorkerUrl);
-    await smoke(stagingPublicUrl);
+    await smoke(stagingWorkerUrl, state.gitHead);
+    await smoke(stagingPublicUrl, state.gitHead);
   }
 
   const report = {
@@ -296,6 +308,7 @@ try {
     triggerWarning,
     noProductionDataMutation: true,
     noVpsSsh: true,
+    releaseVars,
     ...state,
     events
   };
