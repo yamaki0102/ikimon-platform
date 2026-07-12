@@ -25,4 +25,5 @@ test("recovery media picking opens the internal file input without delegating to
   assert.match(routeSource, /const chooseRecordRecoveryMedia = \(\) => \{/);
   assert.match(routeSource, /document\.querySelector\('\[data-record-media-input\]\[data-capture-kind="' \+ action \+ '"\]'/);
   assert.doesNotMatch(routeSource, /const chooseRecordRecoveryMedia = \(\) => \{[\s\S]{0,500}preferred\.click\(\)/);
+  assert.doesNotMatch(routeSource, /const chooseRecordRecoveryMedia = \(\) => \{[\s\S]{0,500}captureButtons\.find/);
 });
