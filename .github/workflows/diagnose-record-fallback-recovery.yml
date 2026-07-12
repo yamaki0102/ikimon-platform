@@ -24,15 +24,18 @@ jobs:
       - name: Collect record route sources and state contracts
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           mkdir -p record-fallback-diagnostic/files
+          : > record-fallback-diagnostic/matching-files.txt
           rg -l \
             'record-first-success|record-submit-panel|buildRecordSuccessReturnHtml|record-status|record-media-photo|MAX_PHOTO_FILES' \
-            platform_v2/src platform_v2/e2e \
-            | sort -u > record-fallback-diagnostic/matching-files.txt
+            platform_v2/src platform_v2/e2e 2>/dev/null \
+            | sort -u >> record-fallback-diagnostic/matching-files.txt || true
           while IFS= read -r file; do
-            mkdir -p "record-fallback-diagnostic/files/$(dirname "$file")"
-            cp "$file" "record-fallback-diagnostic/files/$file"
+            [ -f "$file" ] || continue
+            destination="record-fallback-diagnostic/files/$file"
+            mkdir -p "$(dirname "$destination")"
+            cp "$file" "$destination"
           done < record-fallback-diagnostic/matching-files.txt
 
           {
@@ -43,14 +46,16 @@ jobs:
             echo '=== auth and fallback entry ==='
             rg -n -C 12 'location_denied|permission|geolocation|login_required|unauth|source=|fallback|位置情報|未ログイン' platform_v2/src platform_v2/e2e || true
             echo '=== navigation to record ==='
-            rg -n -C 8 "['\"]/?record|/record\?" platform_v2/src platform_v2/e2e || true
+            rg -n -C 8 '/record' platform_v2/src platform_v2/e2e || true
             echo '=== record route tests ==='
             rg -n -C 5 'record route|draft|restore|location|login|fallback' platform_v2/src/routes/record.routes.test.ts platform_v2/e2e/record-funnel.staging.spec.ts || true
           } > record-fallback-diagnostic/grep-context.txt
 
           git rev-parse HEAD > record-fallback-diagnostic/head-sha.txt
+          find record-fallback-diagnostic -maxdepth 8 -type f -print | sort > record-fallback-diagnostic/artifact-files.txt
 
       - name: Upload record fallback diagnostic
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: record-fallback-recovery-diagnostic
