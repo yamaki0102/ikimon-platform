@@ -13,11 +13,12 @@ test("record recovery accepts only explicit source reasons", () => {
   assert.match(routeSource, /RECORD_RECOVERY_SOURCES\.has\(rawSource\) \? rawSource : ""/);
 });
 
-test("global quick record preserves only the recovery reason, not media metadata in the URL", () => {
+test("global quick record preserves only allowlisted recovery reasons, not media metadata in the URL", () => {
   assert.match(shellSource, /withDraftParams = \(href, kind, source\)/);
-  assert.match(shellSource, /url\.searchParams\.set\('source', String\(source\)\.slice\(0, 24\)\)/);
-  assert.match(shellSource, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'login'\)/);
-  assert.match(shellSource, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'location'\)/);
+  assert.match(shellSource, /\['location_denied', 'login_required', 'draft_restore', 'media_retry', 'upload_failed', 'global_capture'\]\.includes\(String\(source \|\| ''\)\)/);
+  assert.match(shellSource, /url\.searchParams\.set\('source', recoverySource\)/);
+  assert.match(shellSource, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'login_required'\)/);
+  assert.match(shellSource, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'location_denied'\)/);
   assert.doesNotMatch(shellSource, /searchParams\.set\('(?:file|filename|latitude|longitude)'/);
 });
 
