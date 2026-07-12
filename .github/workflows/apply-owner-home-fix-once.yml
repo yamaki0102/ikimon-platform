@@ -65,27 +65,47 @@ jobs:
           }'''
               index = index.replace(old_class, new_class, 1)
 
-              old_media = '''      @media(max-width:640px){
-                .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}
-                .prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:48vh;min-height:320px}
-                .prototype-record-feed.is-owner{margin-bottom:calc(120px + env(safe-area-inset-bottom))}'''
-              new_media = '''      @media(max-width:900px){
-                .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}
-                .prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:48vh;min-height:320px}
-                .prototype-record-feed.is-owner{margin-bottom:calc(88px + env(safe-area-inset-bottom))}
-                body[data-owner-home-state-v2] .site-shell{padding-bottom:calc(84px + max(0px,env(safe-area-inset-bottom)))}
-                body[data-owner-home-state-v2] .global-record-launcher{left:8px;right:8px;bottom:max(6px,env(safe-area-inset-bottom));gap:4px;padding:5px;border-radius:18px}
-                body[data-owner-home-state-v2] .global-record-choice{min-height:50px;gap:2px;padding:4px 3px;border-radius:13px;font-size:10px}
-                body[data-owner-home-state-v2] .global-record-choice-icon{width:24px;height:24px;flex-basis:24px}
-                body[data-owner-home-state-v2] .global-record-choice svg{width:15px;height:15px}'''
-              if index.count(old_media) != 1:
-                  raise SystemExit(f'owner mobile CSS target count={index.count(old_media)}')
-              index = index.replace(old_media, new_media, 1)
-              old_main = '.prototype-record-feed.is-owner .prototype-record-feed-main{grid-template-columns:124px minmax(0,1fr);min-height:136px;background:#fff}'
-              new_main = '.prototype-record-feed.is-owner .prototype-record-feed-main{display:grid;grid-template-columns:124px minmax(0,1fr);min-height:136px;background:#fff}'
-              if index.count(old_main) != 1:
-                  raise SystemExit(f'owner grid target count={index.count(old_main)}')
-              index = index.replace(old_main, new_main, 1)
+              lines = index.splitlines()
+              media_candidates = []
+              for line_index, line in enumerate(lines):
+                  window = '\n'.join(lines[line_index:line_index + 8])
+                  if '@media(max-width:640px){' in line and 'prototype-record-feed.is-owner{margin-bottom:calc(120px' in window:
+                      media_candidates.append(line_index)
+              if len(media_candidates) != 1:
+                  raise SystemExit(f'owner mobile CSS block count={len(media_candidates)}')
+              start = media_candidates[0]
+              expected = [
+                  '@media(max-width:640px){',
+                  '.prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}',
+                  '.prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:48vh;min-height:320px}',
+                  '.prototype-record-feed.is-owner{margin-bottom:calc(120px + env(safe-area-inset-bottom))}',
+              ]
+              for offset, needle in enumerate(expected):
+                  if needle not in lines[start + offset]:
+                      raise SystemExit(f'owner mobile CSS line {offset} did not match: {lines[start + offset]}')
+              indent = lines[start][:len(lines[start]) - len(lines[start].lstrip())]
+              replacement = [
+                  indent + '@media(max-width:900px){',
+                  indent + '  .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}',
+                  indent + '  .prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:48vh;min-height:320px}',
+                  indent + '  .prototype-record-feed.is-owner{margin-bottom:calc(88px + env(safe-area-inset-bottom))}',
+                  indent + '  body[data-owner-home-state-v2] .site-shell{padding-bottom:calc(84px + max(0px,env(safe-area-inset-bottom)))}',
+                  indent + '  body[data-owner-home-state-v2] .global-record-launcher{left:8px;right:8px;bottom:max(6px,env(safe-area-inset-bottom));gap:4px;padding:5px;border-radius:18px}',
+                  indent + '  body[data-owner-home-state-v2] .global-record-choice{min-height:50px;gap:2px;padding:4px 3px;border-radius:13px;font-size:10px}',
+                  indent + '  body[data-owner-home-state-v2] .global-record-choice-icon{width:24px;height:24px;flex-basis:24px}',
+                  indent + '  body[data-owner-home-state-v2] .global-record-choice svg{width:15px;height:15px}',
+              ]
+              lines[start:start + 4] = replacement
+              index = '\n'.join(lines) + ('\n' if index.endswith('\n') else '')
+
+              grid_lines = [line for line in index.splitlines() if '.prototype-record-feed.is-owner .prototype-record-feed-main{grid-template-columns:124px' in line]
+              if len(grid_lines) != 1:
+                  raise SystemExit(f'owner grid line count={len(grid_lines)}')
+              index = index.replace(
+                  grid_lines[0],
+                  grid_lines[0].replace('{grid-template-columns:', '{display:grid;grid-template-columns:'),
+                  1,
+              )
               index_path.write_text(index, encoding='utf-8')
               changed = True
 
