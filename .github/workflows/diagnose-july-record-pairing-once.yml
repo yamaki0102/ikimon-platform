@@ -1,0 +1,177 @@
+name: Diagnose July Record Pairing Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'agent/diagnose-july-record-pairing-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+      - name: Install Worker dependencies
+        run: npm --prefix platform_v2/cloudflare_shadow ci
+      - name: Extract exact home selection implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p july-record-pairing-diagnostic
+          python <<'PY'
+          from pathlib import Path
+          src = Path('platform_v2/cloudflare_shadow/src/index.ts').read_text(encoding='utf-8')
+          names = [
+              'ownerHomeRecordCards',
+              'recentPublicRecordCards',
+              'buildHomeFeedCards',
+              'renderHomeRecordCard',
+              'injectHomeObservationRecords',
+          ]
+          def extract(name: str) -> str:
+              candidates = [f'async function {name}', f'function {name}', f'const {name} =']
+              starts = [src.find(candidate) for candidate in candidates if src.find(candidate) >= 0]
+              if not starts:
+                  return f'// {name}: not found\n'
+              start = min(starts)
+              brace = src.find('{', start)
+              if brace < 0:
+                  return src[start:start+2000]
+              depth = 0
+              quote = None
+              escape = False
+              template_expr_depth = 0
+              for i in range(brace, len(src)):
+                  ch = src[i]
+                  if escape:
+                      escape = False
+                      continue
+                  if ch == '\\':
+                      escape = True
+                      continue
+                  if quote:
+                      if ch == quote:
+                          quote = None
+                      continue
+                  if ch in ('"', "'", '`'):
+                      quote = ch
+                      continue
+                  if ch == '{': depth += 1
+                  elif ch == '}':
+                      depth -= 1
+                      if depth == 0:
+                          return src[start:i+1] + '\n'
+              return src[start:start+12000]
+          out = []
+          for name in names:
+              out.append(f'\n===== {name} =====\n')
+              out.append(extract(name))
+          Path('july-record-pairing-diagnostic/home-selection-source.txt').write_text(''.join(out), encoding='utf-8')
+          PY
+      - name: Query and sanitize target production rows
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/july-record-pairing-diagnostic"
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json \
+            --command "SELECT * FROM observations WHERE substr(observed_at,1,10) IN ('2026-07-07','2026-07-10') ORDER BY observed_at DESC" \
+            > "$root/observations.raw.json"
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json \
+            --command "SELECT * FROM asset_ledger WHERE observation_id IN (SELECT observation_id FROM observations WHERE substr(observed_at,1,10) IN ('2026-07-07','2026-07-10')) ORDER BY observation_id, created_at" \
+            > "$root/assets.raw.json"
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json \
+            --command "SELECT name FROM pragma_table_info('observations') ORDER BY cid" \
+            > "$root/observation-columns.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const root = process.env.GITHUB_WORKSPACE + '/july-record-pairing-diagnostic';
+          const rows = (JSON.parse(fs.readFileSync(root + '/observations.raw.json','utf8'))[0]?.results ?? []);
+          const assets = (JSON.parse(fs.readFileSync(root + '/assets.raw.json','utf8'))[0]?.results ?? []);
+          const hash = (value) => value == null ? null : crypto.createHash('sha256').update(String(value)).digest('hex').slice(0,12);
+          const byObservation = new Map();
+          for (const asset of assets) {
+            const key = String(asset.observation_id ?? '');
+            if (!byObservation.has(key)) byObservation.set(key, []);
+            byObservation.get(key).push(asset);
+          }
+          const safeText = (value) => {
+            if (value == null) return null;
+            const text = String(value).trim();
+            if (!text) return null;
+            return { present: true, length: text.length, preview: text.slice(0, 24) };
+          };
+          const safeRows = rows.map((row) => {
+            const observationId = String(row.observation_id ?? row.id ?? '');
+            const linked = byObservation.get(observationId) ?? [];
+            const source = (() => {
+              for (const key of ['source_payload_json','source_json','metadata_json']) {
+                if (!row[key]) continue;
+                try {
+                  const parsed = JSON.parse(row[key]);
+                  return {
+                    captureKind: parsed.captureKind ?? parsed.capture_kind ?? parsed.kind ?? null,
+                    recordMode: parsed.recordMode ?? parsed.record_mode ?? null,
+                    clientRecordSessionIdHash: hash(parsed.recordSessionId ?? parsed.record_session_id ?? null),
+                    selectedMediaCount: Array.isArray(parsed.files) ? parsed.files.length : (parsed.mediaCount ?? parsed.media_count ?? null),
+                  };
+                } catch {}
+              }
+              return null;
+            })();
+            return {
+              observedAt: row.observed_at ?? null,
+              createdAt: row.created_at ?? null,
+              observationHash: hash(observationId),
+              visitHash: hash(row.visit_id ?? null),
+              ownerHash: hash(row.user_id ?? row.owner_user_id ?? null),
+              visibility: row.visibility ?? null,
+              status: row.status ?? row.processing_state ?? null,
+              note: safeText(row.note_text ?? row.note ?? row.description ?? row.notes ?? null),
+              displayName: safeText(row.display_name ?? row.title ?? row.name ?? null),
+              source,
+              assetCount: linked.length,
+              imageAssetCount: linked.filter((asset) => String(asset.mime_type ?? '').startsWith('image/')).length,
+              publicDerivativeCount: linked.filter((asset) => asset.public_derivative_key).length,
+              assetKinds: [...new Set(linked.map((asset) => asset.media_kind ?? asset.asset_kind ?? asset.role ?? null).filter(Boolean))],
+              assetObservationHashes: [...new Set(linked.map((asset) => hash(asset.observation_id)))],
+            };
+          });
+          const groups = {};
+          for (const row of safeRows) {
+            const key = `${String(row.observedAt).slice(0,10)}:${row.ownerHash}`;
+            if (!groups[key]) groups[key] = { date: String(row.observedAt).slice(0,10), ownerHash: row.ownerHash, records: 0, images: 0, notes: 0, visits: [] };
+            groups[key].records += 1;
+            groups[key].images += row.imageAssetCount;
+            groups[key].notes += row.note?.present ? 1 : 0;
+            groups[key].visits.push(row.visitHash);
+          }
+          const report = {
+            mode: 'read-only',
+            rows: safeRows,
+            groups: Object.values(groups),
+            containsRawIdentifiers: false,
+            productionMutated: false,
+          };
+          fs.writeFileSync(root + '/report.json', JSON.stringify(report, null, 2));
+          fs.rmSync(root + '/observations.raw.json');
+          fs.rmSync(root + '/assets.raw.json');
+          NODE
+      - name: Upload sanitized diagnostic
+        uses: actions/upload-artifact@v6
+        with:
+          name: july-record-pairing-diagnostic
+          path: july-record-pairing-diagnostic
+          if-no-files-found: error
+          retention-days: 5
