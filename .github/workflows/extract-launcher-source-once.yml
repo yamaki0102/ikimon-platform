@@ -1,0 +1,31 @@
+name: Extract Launcher Source Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    if: github.head_ref == 'agent/fix-owner-home-live-visual-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Extract launcher markup and CSS
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p launcher-source
+          {
+            grep -n -A 260 -B 40 'global-record-launcher' platform_v2/src/ui/siteShell.ts || true
+          } > launcher-source/source.txt
+          test -s launcher-source/source.txt
+      - uses: actions/upload-artifact@v6
+        with:
+          name: launcher-source
+          path: launcher-source
+          if-no-files-found: error
+          retention-days: 3
