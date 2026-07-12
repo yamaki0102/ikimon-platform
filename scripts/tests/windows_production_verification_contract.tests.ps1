@@ -50,7 +50,11 @@ foreach ($marker in @(
     'Registered SYSTEM task failed',
     'Preserving existing environment file',
     'Invoke-PowerShellChild',
-    '*S-1-5-18',
+    'RemoveAccessRuleSpecific',
+    'SetAccessRuleProtection($true, $false)',
+    'Test-ExactPrivateAcl',
+    'S-1-5-18',
+    'S-1-5-32-544',
     'Initial production verification failed'
 )) {
     Assert-True ($installer.Contains($marker)) "Windows installer is missing marker: $marker"
@@ -60,7 +64,9 @@ Assert-True ($installer.IndexOf('Initial production verification failed') -lt $i
 Assert-True ($installer.IndexOf('Start-ScheduledTask') -lt $installer.LastIndexOf('Wait-ScheduledTaskCompletion')) "Registered SYSTEM execution must be awaited"
 
 foreach ($marker in @(
-    "Test-PrivateAcl",
+    "Test-ExactPrivateAcl",
+    'rules.Count -ne 2',
+    'allowedSids -notcontains',
     "Get-ScheduledTaskInfo",
     "PT15M",
     "noPersonalData",
