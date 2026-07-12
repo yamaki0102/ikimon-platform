@@ -8,7 +8,7 @@ on:
       - agent/record-fallback-recovery-20260712
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: diagnose-record-recovery-picker
@@ -22,57 +22,19 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: agent/record-fallback-recovery-20260712
-          fetch-depth: 0
-      - name: Correct recovery picker delegation
+          fetch-depth: 1
+      - name: Collect current recovery sources
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('platform_v2/src/routes/read.ts')
-          source = path.read_text(encoding='utf-8')
-          old = """        const chooseRecordRecoveryMedia = () => {
-          const preferred = captureButtons.find((button) => button.getAttribute('data-capture-action') === recordRecoveryStart)
-            || captureButtons.find((button) => button.getAttribute('data-capture-action') === 'gallery')
-            || captureButtons[0];
-          if (preferred && typeof preferred.click === 'function') preferred.click();
-        };"""
-          new = """        const chooseRecordRecoveryMedia = () => {
-          const action = recordRecoveryStart === 'video'
-            ? 'video'
-            : recordRecoveryStart === 'photo'
-              ? 'photo'
-              : 'gallery';
-          const target = document.querySelector('[data-record-media-input][data-capture-kind="' + action + '"]') || mediaInput;
-          if (target && typeof target.click === 'function') target.click();
-        };"""
-          count = source.count(old)
-          if count != 1:
-              raise SystemExit(f'expected one recovery picker helper, found {count}')
-          path.write_text(source.replace(old, new, 1), encoding='utf-8')
-          PY
-          git diff --check
-      - uses: actions/setup-node@v5
+          mkdir -p record-recovery-picker-source/platform_v2/src/routes
+          cp platform_v2/src/routes/read.ts record-recovery-picker-source/platform_v2/src/routes/read.ts
+          cp platform_v2/src/routes/recordRecoverySource.contract.test.ts record-recovery-picker-source/platform_v2/src/routes/recordRecoverySource.contract.test.ts
+          git rev-parse HEAD > record-recovery-picker-source/head-sha.txt
+          sha256sum record-recovery-picker-source/platform_v2/src/routes/read.ts > record-recovery-picker-source/read-sha256.txt
+      - uses: actions/upload-artifact@v6
         with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: platform_v2/package-lock.json
-      - name: Verify focused contracts
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm --prefix platform_v2 ci
-          npm --prefix platform_v2 run typecheck
-          (cd platform_v2 && npx tsx --test src/routes/record.routes.test.ts src/routes/recordRecoverySource.contract.test.ts)
-      - name: Commit picker correction
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f .github/workflows/diagnose-record-recovery-picker.yml
-          rm -f .github/workflows/fix-record-recovery-picker.yml
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git diff --cached --check
-          git commit -m 'fix: open recovery media input directly'
-          git push origin HEAD:agent/record-fallback-recovery-20260712
+          name: record-recovery-picker-source
+          path: record-recovery-picker-source
+          if-no-files-found: error
+          retention-days: 2
