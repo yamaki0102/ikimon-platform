@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   apply-fix:
+    # Temporary branch-scoped job; the workflow deletes itself after applying the fix.
     if: github.head_ref == 'agent/fix-record-recovery-origin-route-20260712' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
