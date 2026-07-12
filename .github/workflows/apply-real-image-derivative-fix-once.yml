@@ -67,11 +67,11 @@ jobs:
           set -euo pipefail
           {
             npm --prefix platform_v2/cloudflare_shadow run check
-            npm --prefix platform_v2/cloudflare_shadow exec -- tsx --test src/realImageDerivativeContract.test.ts
+            (cd platform_v2/cloudflare_shadow && npx tsx --test src/realImageDerivativeContract.test.ts)
             npm --prefix platform_v2/cloudflare_shadow run test:quick
-            npm --prefix platform_v2/cloudflare_shadow exec -- wrangler deploy --dry-run --env shadow
-            npm --prefix platform_v2/cloudflare_shadow exec -- wrangler deploy --dry-run --env staging
-            npm --prefix platform_v2/cloudflare_shadow exec -- wrangler deploy --dry-run --env production
+            (cd platform_v2/cloudflare_shadow && npx wrangler deploy --dry-run --env shadow)
+            (cd platform_v2/cloudflare_shadow && npx wrangler deploy --dry-run --env staging)
+            (cd platform_v2/cloudflare_shadow && npx wrangler deploy --dry-run --env production)
             git diff --check
           } 2>&1 | tee real-image-derivative-evidence/verify.log
       - name: Commit verified product changes
