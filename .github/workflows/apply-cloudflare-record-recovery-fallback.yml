@@ -1,0 +1,111 @@
+name: Apply Cloudflare Record Recovery Fallback
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-cloudflare-record-recovery-fallback
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/cloudflare-record-recovery-origin-fallback-20260712' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/cloudflare-record-recovery-origin-fallback-20260712
+          fetch-depth: 0
+
+      - name: Apply narrow recovery origin fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('platform_v2/cloudflare_shadow/src/index.ts')
+          source = path.read_text(encoding='utf-8')
+
+          old_helper_anchor = '''function isRecordHtmlPath(pathname: string): boolean {
+            return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);
+          }
+
+          function isProfileHtmlPath(pathname: string): boolean {'''
+          new_helper_anchor = '''function isRecordHtmlPath(pathname: string): boolean {
+            return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);
+          }
+
+          const RECORD_RECOVERY_ORIGIN_FALLBACK_SOURCES = new Set<string>([
+            "location_denied",
+            "login_required",
+            "draft_restore",
+            "media_retry",
+            "upload_failed",
+            "global_capture"
+          ]);
+
+          function isRecordRecoveryOriginFallbackRequest(url: URL): boolean {
+            if (!isRecordHtmlPath(url.pathname)) return false;
+            if (url.searchParams.get("draft") === "1") return true;
+            if (url.searchParams.get("retry") === "media") return true;
+            const source = (url.searchParams.get("source") ?? "").trim();
+            return RECORD_RECOVERY_ORIGIN_FALLBACK_SOURCES.has(source);
+          }
+
+          function isProfileHtmlPath(pathname: string): boolean {'''
+
+          old_record_handler = '''async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
+            const session = await readCompatibleSessionWithOriginFallback(request, env);'''
+          new_record_handler = '''async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
+            if (isRecordRecoveryOriginFallbackRequest(url) && shouldUseOriginFallback(url, env)) {
+              return fetchOriginFallback(request, url, env, "record_recovery");
+            }
+            const session = await readCompatibleSessionWithOriginFallback(request, env);'''
+
+          if new_helper_anchor not in source:
+              if source.count(old_helper_anchor) != 1:
+                  raise SystemExit(f'expected one record helper anchor, found {source.count(old_helper_anchor)}')
+              source = source.replace(old_helper_anchor, new_helper_anchor, 1)
+          if new_record_handler not in source:
+              if source.count(old_record_handler) != 1:
+                  raise SystemExit(f'expected one record handler anchor, found {source.count(old_record_handler)}')
+              source = source.replace(old_record_handler, new_record_handler, 1)
+
+          path.write_text(source, encoding='utf-8')
+          PY
+          git diff --check
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Verify Cloudflare worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix platform_v2/cloudflare_shadow ci
+          npm --prefix platform_v2/cloudflare_shadow run check
+          npm --prefix platform_v2/cloudflare_shadow test
+
+      - name: Commit focused correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add platform_v2/cloudflare_shadow/src/index.ts
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No source correction was needed.'
+            exit 0
+          fi
+          git commit -m 'fix: route record recovery requests to origin'
+          git push origin HEAD:agent/cloudflare-record-recovery-origin-fallback-20260712
