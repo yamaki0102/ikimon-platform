@@ -43,12 +43,52 @@ function Quote-TaskArgument {
     return '"' + $Value + '"'
 }
 
+function Test-ExactPrivateAcl {
+    param([string]$Path)
+    $allowedSids = @("S-1-5-18", "S-1-5-32-544")
+    $acl = Get-Acl -LiteralPath $Path
+    $rules = @($acl.Access)
+    if ($rules.Count -ne 2) { return $false }
+    foreach ($rule in $rules) {
+        $sid = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+        if ($allowedSids -notcontains $sid) { return $false }
+        if ($rule.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow) { return $false }
+        if ($rule.IsInherited) { return $false }
+        if (($rule.FileSystemRights -band [Security.AccessControl.FileSystemRights]::FullControl) -ne [Security.AccessControl.FileSystemRights]::FullControl) { return $false }
+    }
+    return $true
+}
+
 function Set-PrivateAcl {
     param([string]$Path, [switch]$Directory)
-    $systemGrant = if ($Directory) { "*S-1-5-18:(OI)(CI)F" } else { "*S-1-5-18:F" }
-    $adminGrant = if ($Directory) { "*S-1-5-32-544:(OI)(CI)F" } else { "*S-1-5-32-544:F" }
-    & icacls.exe $Path /inheritance:r /grant:r $systemGrant $adminGrant | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Failed to secure ACL: $Path" }
+    $acl = Get-Acl -LiteralPath $Path
+    $acl.SetAccessRuleProtection($true, $false)
+    foreach ($rule in @($acl.Access)) {
+        [void]$acl.RemoveAccessRuleSpecific($rule)
+    }
+
+    $inheritance = if ($Directory) {
+        [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit
+    } else {
+        [Security.AccessControl.InheritanceFlags]::None
+    }
+    $propagation = [Security.AccessControl.PropagationFlags]::None
+    $allow = [Security.AccessControl.AccessControlType]::Allow
+    foreach ($sidValue in @("S-1-5-18", "S-1-5-32-544")) {
+        $sid = [Security.Principal.SecurityIdentifier]::new($sidValue)
+        $rule = [Security.AccessControl.FileSystemAccessRule]::new(
+            $sid,
+            [Security.AccessControl.FileSystemRights]::FullControl,
+            $inheritance,
+            $propagation,
+            $allow
+        )
+        [void]$acl.AddAccessRule($rule)
+    }
+    Set-Acl -LiteralPath $Path -AclObject $acl
+    if (-not (Test-ExactPrivateAcl -Path $Path)) {
+        throw "Failed to replace ACL with exactly SYSTEM and local Administrators: $Path"
+    }
 }
 
 function Invoke-PowerShellChild {
