@@ -1,0 +1,57 @@
+name: Extract Media Derivative Pipeline Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    if: github.head_ref == 'agent/diagnose-july-record-pairing-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Extract relevant media pipeline code
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p media-derivative-pipeline-source
+          python <<'PY'
+          from pathlib import Path
+          src_path=Path('platform_v2/cloudflare_shadow/src/index.ts')
+          src=src_path.read_text(encoding='utf-8')
+          lines=src.splitlines()
+          markers=[
+            'public_derivative_metadata_json',
+            'scannedContainer',
+            'image/svg+xml',
+            'public_derivative_key',
+            'ASSET_BUCKET.put',
+            'ASSET_BUCKET.get',
+            'MEDIA_QUEUE',
+            'processMedia',
+            'public derivative',
+          ]
+          ranges=[]
+          for i,line in enumerate(lines):
+            if any(marker in line for marker in markers):
+              ranges.append((max(0,i-28),min(len(lines),i+55)))
+          merged=[]
+          for start,end in sorted(ranges):
+            if merged and start<=merged[-1][1]: merged[-1]=(merged[-1][0],max(merged[-1][1],end))
+            else: merged.append((start,end))
+          out=[]
+          for start,end in merged:
+            out.append(f'\n===== lines {start+1}-{end} =====\n')
+            out.extend(f'{j+1}: {lines[j]}\n' for j in range(start,end))
+          Path('media-derivative-pipeline-source/source.txt').write_text(''.join(out),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@v6
+        with:
+          name: media-derivative-pipeline-source
+          path: media-derivative-pipeline-source
+          if-no-files-found: error
+          retention-days: 3
