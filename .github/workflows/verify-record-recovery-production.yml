@@ -5,150 +5,114 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
-  actions: read
-
-concurrency:
-  group: verify-record-recovery-production
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  verify-production:
-    if: github.head_ref == 'agent/verify-record-recovery-production-20260712'
+  apply-origin-route-fix:
+    if: github.head_ref == 'agent/verify-record-recovery-production-20260712' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      TARGET_SHA: 67ea561c25b71860577eda13610b3bda55f9c35c
-      PRODUCTION_BASE_URL: https://ikimon.life
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: main
-          fetch-depth: 1
+          ref: agent/fix-record-recovery-origin-route-20260712
+          fetch-depth: 0
 
-      - name: Capture Cloudflare routing context
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Apply exact recovery origin route
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p record-recovery-production-evidence/source
-          grep -nE -C 90 'ORIGINAL_UI_HTML_(CORE|QUERY_VARIANT|LOCALIZABLE|STATIC)_PATHS|originalUiHtml(QueryVariant|KeyForPublicPath|VariantKey)|getSessionAwareRecordHtml|isRecordHtmlPath|materialized' \
-            platform_v2/cloudflare_shadow/src/index.ts \
-            > record-recovery-production-evidence/source/worker-materialization-context.txt || true
-          grep -nE -C 90 'ORIGIN_FALLBACK_BASE_URL|originFallback|OriginFallback|fetchOrigin|fallbackOrigin|readCompatibleSessionWithOriginFallback|PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE' \
-            platform_v2/cloudflare_shadow/src/index.ts \
-            > record-recovery-production-evidence/source/worker-origin-fallback-context.txt || true
-          grep -nE -C 60 'queryVariantPaths|originalUiHtml(QueryVariant|KeyForPublicPath|VariantKey)|renderUrlForPath|ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS' \
-            platform_v2/cloudflare_shadow/scripts/materialize-original-ui-html.mjs \
-            > record-recovery-production-evidence/source/materializer-context.txt || true
-          grep -nE -C 30 'original-ui-html|materialize:original-ui|materialize-original-ui' \
-            scripts/run_cloudflare_production_release.sh \
-            platform_v2/cloudflare_shadow/scripts/deploy-production-guard.mjs \
-            > record-recovery-production-evidence/source/release-context.txt || true
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('platform_v2/cloudflare_shadow/src/index.ts')
+          source = path.read_text(encoding='utf-8')
+          old_route = '''      if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
+        return getSessionAwareRecordHtml(request, url, env);
+      }'''
+          new_route = '''      if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
+        if (isRecordRecoveryRequest(url) && env.ORIGIN_FALLBACK_BASE_URL) {
+          return fetchOriginFallback(request, url, env, "record_recovery");
+        }
+        return getSessionAwareRecordHtml(request, url, env);
+      }'''
+          if old_route in source:
+              source = source.replace(old_route, new_route, 1)
+          elif new_route not in source:
+              raise SystemExit('record route block not found')
+          old_helper = '''function isRecordHtmlPath(pathname: string): boolean {
+  return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);
+}'''
+          new_helper = '''function isRecordHtmlPath(pathname: string): boolean {
+  return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);
+}
 
-      - name: Capture exact production deployment and public responses
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-            const { owner, repo } = context.repo;
-            const targetSha = process.env.TARGET_SHA;
-            const baseUrl = process.env.PRODUCTION_BASE_URL.replace(/\/$/, '');
-            const evidenceDir = 'record-recovery-production-evidence';
-            fs.mkdirSync(evidenceDir, { recursive: true });
+const RECORD_RECOVERY_SOURCE_VALUES = new Set([
+  "location_denied",
+  "login_required",
+  "draft_restore",
+  "media_retry",
+  "upload_failed",
+  "global_capture"
+]);
 
-            const response = await github.rest.actions.listWorkflowRuns({
-              owner,
-              repo,
-              workflow_id: 'deploy.yml',
-              branch: 'main',
-              event: 'push',
-              per_page: 30,
-            });
-            const run = response.data.workflow_runs.find((candidate) => candidate.head_sha === targetSha) || null;
-            if (!run) throw new Error(`Production workflow run not found for ${targetSha}`);
-            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
-              owner,
-              repo,
-              run_id: run.id,
-              per_page: 100,
-            });
-            fs.writeFileSync(path.join(evidenceDir, 'deployment.json'), JSON.stringify({
-              targetSha,
-              run: {
-                id: run.id,
-                name: run.name,
-                status: run.status,
-                conclusion: run.conclusion,
-                headSha: run.head_sha,
-                headBranch: run.head_branch,
-                event: run.event,
-                htmlUrl: run.html_url,
-                createdAt: run.created_at,
-                updatedAt: run.updated_at,
-                runAttempt: run.run_attempt,
-              },
-              jobs: jobs.map((job) => ({
-                id: job.id,
-                name: job.name,
-                status: job.status,
-                conclusion: job.conclusion,
-                htmlUrl: job.html_url,
-                startedAt: job.started_at,
-                completedAt: job.completed_at,
-                steps: (job.steps || []).map((step) => ({ name: step.name, status: step.status, conclusion: step.conclusion, number: step.number })),
-              })),
-            }, null, 2));
+function isRecordRecoveryRequest(url: URL): boolean {
+  if (!isRecordHtmlPath(url.pathname)) return false;
+  if (url.searchParams.get("draft") === "1") return true;
+  if (url.searchParams.get("retry") === "media") return true;
+  const source = url.searchParams.get("source")?.trim() ?? "";
+  return RECORD_RECOVERY_SOURCE_VALUES.has(source);
+}'''
+          if old_helper in source:
+              source = source.replace(old_helper, new_helper, 1)
+          elif new_helper not in source:
+              raise SystemExit('record helper block not found')
+          path.write_text(source, encoding='utf-8')
+          PY
 
-            const routes = {
-              'runtime-version': '/api/v1/runtime/version',
-              health: '/healthz',
-              'recovery-guest': '/ja/record?draft=1&start=photo&source=login_required',
-              'record-normal': '/ja/record',
-            };
-            const publicResponses = {};
-            for (const [name, route] of Object.entries(routes)) {
-              try {
-                const publicResponse = await fetch(`${baseUrl}${route}`, {
-                  headers: { 'user-agent': 'ikimon-production-readonly-verifier/1.0' },
-                  redirect: 'follow',
-                });
-                const body = await publicResponse.text();
-                publicResponses[name] = { status: publicResponse.status, headers: Object.fromEntries(publicResponse.headers), body };
-              } catch (error) {
-                publicResponses[name] = { status: 0, headers: {}, body: String(error) };
-              }
-              fs.writeFileSync(path.join(evidenceDir, `${name}.json`), JSON.stringify(publicResponses[name], null, 2));
+          cat > platform_v2/cloudflare_shadow/src/recordRecoveryOriginRoute.test.ts <<'TEST'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+          import test from "node:test";
+
+          const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+
+          test("record recovery requests use exact origin fallback before native or materialized record HTML", () => {
+            assert.match(source, /const RECORD_RECOVERY_SOURCE_VALUES = new Set\(\[/);
+            for (const value of ["location_denied", "login_required", "draft_restore", "media_retry", "upload_failed", "global_capture"]) {
+              assert.match(source, new RegExp(`"${value}"`));
             }
+            assert.match(source, /function isRecordRecoveryRequest\(url: URL\): boolean/);
+            assert.match(source, /url\.searchParams\.get\("draft"\) === "1"/);
+            assert.match(source, /url\.searchParams\.get\("retry"\) === "media"/);
+            assert.match(source, /isRecordRecoveryRequest\(url\) && env\.ORIGIN_FALLBACK_BASE_URL/);
+            assert.match(source, /fetchOriginFallback\(request, url, env, "record_recovery"\)/);
+            assert.match(source, /fetchOriginFallback[\s\S]{0,220}getSessionAwareRecordHtml/);
+          });
+          TEST
 
-            const runtime = (() => { try { return JSON.parse(publicResponses['runtime-version'].body); } catch { return null; } })();
-            const health = (() => { try { return JSON.parse(publicResponses.health.body); } catch { return null; } })();
-            const recoveryBody = publicResponses['recovery-guest'].body || '';
-            const normalBody = publicResponses['record-normal'].body || '';
-            fs.writeFileSync(path.join(evidenceDir, 'public-verification.json'), JSON.stringify({
-              targetSha,
-              deploymentStatus: run.status,
-              deploymentConclusion: run.conclusion,
-              runtimeStatus: publicResponses['runtime-version'].status,
-              runtimeGitSha: runtime?.gitSha ?? null,
-              healthStatus: publicResponses.health.status,
-              healthOk: health?.ok === true,
-              recoveryStatus: publicResponses['recovery-guest'].status,
-              recoveryMarkers: {
-                draftRetained: recoveryBody.includes('写真・入力内容はこの端末に残っています'),
-                loginAction: recoveryBody.includes('ログインして続ける'),
-                registerAction: recoveryBody.includes('登録して続ける'),
-              },
-              normalRecordStatus: publicResponses['record-normal'].status,
-              normalRecordHtml: /<html/i.test(normalBody),
-            }, null, 2));
-            if (run.status !== 'completed' || run.conclusion !== 'success') throw new Error(`Production deployment is ${run.status}/${run.conclusion}`);
+          rm -f .github/workflows/apply-record-recovery-origin-route.yml
+          git diff --check
 
-      - name: Upload production evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: record-recovery-production-evidence
-          path: record-recovery-production-evidence
-          if-no-files-found: error
-          retention-days: 14
+      - name: Verify Cloudflare Worker
+        working-directory: platform_v2/cloudflare_shadow
+        run: |
+          npm ci
+          npm run check
+          npm run test:quick
+
+      - name: Commit focused fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix: route record recovery through origin fallback' || exit 0
+          git push origin HEAD:agent/fix-record-recovery-origin-route-20260712
