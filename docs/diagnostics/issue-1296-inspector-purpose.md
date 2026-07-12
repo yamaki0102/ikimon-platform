@@ -1,0 +1,1 @@
+Temporary one-shot source inspector for Issue #1296. It is limited to the `codex/issue-1296-post-flow` pull request, writes only a source excerpt report to that branch, and will be removed after implementation.
