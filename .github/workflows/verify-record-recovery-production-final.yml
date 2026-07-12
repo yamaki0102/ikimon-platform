@@ -85,7 +85,7 @@ jobs:
           done
           test "$matched" = "yes"
 
-      - name: Verify health, public shell, PWA refresh, and recovery route
+      - name: Verify health, mobile owner-card contract, PWA refresh, and recovery route
         shell: bash
         run: |
           set -euo pipefail
@@ -109,7 +109,10 @@ jobs:
           fetch home '/ja/?production_verify=1'
           fetch app-sw '/app-sw.js?production_verify=1'
           fetch recovery '/ja/record?draft=1&start=photo&source=login_required&production_verify=1'
-          grep -Fq 'みんなで作る地域図鑑' current-production-verification/home.body
+          grep -Fq 'id="prototype-guest-home-heading"' current-production-verification/home.body
+          grep -Fq 'grid-template-columns:124px minmax(0,1fr);min-height:136px' current-production-verification/home.body
+          grep -Fq 'margin-bottom:calc(120px + env(safe-area-inset-bottom))' current-production-verification/home.body
+          grep -Fq '.prototype-record-feed.is-owner .prototype-record-feed-copy{position:static' current-production-verification/home.body
           grep -Fq "ikimon-app-v7" current-production-verification/app-sw.body
           ! grep -Fq 'SHELL_CACHE' current-production-verification/app-sw.body
           grep -Fq '写真・入力内容はこの端末に残っています' current-production-verification/recovery.body
@@ -123,6 +126,8 @@ jobs:
             echo "home_status=$(cat current-production-verification/home.status)"
             echo "app_sw_status=$(cat current-production-verification/app-sw.status)"
             echo "recovery_status=$(cat current-production-verification/recovery.status)"
+            echo "owner_mobile_card_contract=true"
+            echo "launcher_clearance_contract=true"
             echo "pwa_version=v7"
             echo "shared_shell_cache_absent=true"
           } | tee current-production-verification/summary.txt
