@@ -152,7 +152,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
 }
 
 export function buildAppServiceWorker(): string {
-  return `const VERSION = 'ikimon-app-v7';
+  return `const VERSION = 'ikimon-app-v8';
 const STATIC_CACHE = VERSION + ':static';
 const OFFLINE_URL = '/offline.html';
 const OFFLINE_URLS = {
@@ -173,8 +173,8 @@ const STATIC_ASSETS = [
   '${BRAND_ASSETS.favicon32}'
 ];
 const MAP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?map\\/?$/;
-const PERSONAL_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$)/;
-const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:map\\/?$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$)/;
+const PERSONAL_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$|record\\/?$)/;
+const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|map\\/?$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$|record\\/?$)/;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => undefined));

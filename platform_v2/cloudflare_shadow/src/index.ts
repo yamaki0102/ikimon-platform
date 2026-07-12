@@ -21483,7 +21483,19 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   let next = html
     .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
     .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*(<script\b[^>]*>)/, `${mediaNav}<div class="prototype-record-feed-list" data-cloudflare-home-infinite-feed>${cards}</div><div class="cf-home-feed-sentinel" data-cloudflare-home-feed-sentinel aria-hidden="true"></div>$1`);
-  next = next.replace(/class="prototype-record-feed(?![^"]*\bis-(?:guest|owner)\b)"/, `class="prototype-record-feed ${isOwnerFeed ? "is-owner" : "is-guest"}"`);
+  next = next.replace(/class="([^"]*\bprototype-record-feed\b[^"]*)"/, (_match, classes: string) => {
+  const normalized = classes
+    .split(/\s+/)
+    .filter((className) => className && className !== "is-owner" && className !== "is-guest");
+  normalized.push(isOwnerFeed ? "is-owner" : "is-guest");
+  return `class="${normalized.join(" ")}"`;
+});
+if (isOwnerFeed) {
+  next = next.replace(/<body\b([^>]*)>/i, (_match, attributes: string) => {
+    if (/\bdata-owner-home-state-v2\b/.test(attributes)) return _match;
+    return `<body${attributes} data-owner-home-state-v2>`;
+  });
+}
   if (!next.includes("cf-home-record-feed-style")) {
     next = next.replace("</head>", `<style id="cf-home-record-feed-style">
       .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{width:min(100%,680px);margin-top:clamp(10px,2.6vw,24px)}
@@ -21520,13 +21532,18 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
       .prototype-record-feed-media-icons{display:inline-flex;align-items:center;gap:5px}
       .prototype-record-feed-media-icons .prototype-content-icon{width:14px;height:14px}
       .cf-home-feed-sentinel{width:1px;height:1px}
-      @media(max-width:640px){
+      @media(max-width:900px){
         .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}
         .prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:48vh;min-height:320px}
-        .prototype-record-feed.is-owner{margin-bottom:calc(120px + env(safe-area-inset-bottom))}
+        .prototype-record-feed.is-owner{margin-bottom:calc(88px + env(safe-area-inset-bottom))}
+        body[data-owner-home-state-v2] .site-shell{padding-bottom:calc(84px + max(0px,env(safe-area-inset-bottom)))}
+        body[data-owner-home-state-v2] .global-record-launcher{left:8px;right:8px;bottom:max(6px,env(safe-area-inset-bottom));gap:4px;padding:5px;border-radius:18px}
+        body[data-owner-home-state-v2] .global-record-choice{min-height:50px;gap:2px;padding:4px 3px;border-radius:13px;font-size:10px}
+        body[data-owner-home-state-v2] .global-record-choice-icon{width:24px;height:24px;flex-basis:24px}
+        body[data-owner-home-state-v2] .global-record-choice svg{width:15px;height:15px}
         .prototype-record-feed.is-owner .prototype-record-feed-list{gap:10px}
         .prototype-record-feed.is-owner .prototype-record-feed-card{min-height:136px;border-radius:16px}
-        .prototype-record-feed.is-owner .prototype-record-feed-main{grid-template-columns:124px minmax(0,1fr);min-height:136px;background:#fff}
+        .prototype-record-feed.is-owner .prototype-record-feed-main{display:grid;grid-template-columns:124px minmax(0,1fr);min-height:136px;background:#fff}
         .prototype-record-feed.is-owner .prototype-record-feed-media-wrap{width:124px;height:136px;min-height:136px;background:#eef5f2}
         .prototype-record-feed.is-owner .prototype-record-feed-copy{position:static;display:flex;flex-direction:column;justify-content:center;min-width:0;padding:14px 14px;background:none}
         .prototype-record-feed.is-owner .prototype-record-feed-copy strong{color:#10251a;font-size:17px;line-height:1.35;text-shadow:none;overflow-wrap:anywhere}

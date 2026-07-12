@@ -10,7 +10,7 @@ test("production deploy verification follows the current app service worker vers
   const releaseContract = `${deployWorkflow}\n${verificationScript}`;
   const version = appInstall.match(/const VERSION = '([^']+)'/)?.[1];
 
-  assert.equal(version, "ikimon-app-v7");
+  assert.equal(version, "ikimon-app-v8");
   assert.match(deployWorkflow, /verify_cloudflare_production_release\.sh/);
   assert.match(releaseContract, new RegExp(version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.doesNotMatch(releaseContract, /ikimon-app-v6/);
