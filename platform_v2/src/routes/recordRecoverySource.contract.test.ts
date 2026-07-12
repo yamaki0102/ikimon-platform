@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+// These source-level contracts protect the recovery handoff paths before browser QA.
 const routeSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 const shellSource = readFileSync(new URL("../ui/siteShell.ts", import.meta.url), "utf8");
 
