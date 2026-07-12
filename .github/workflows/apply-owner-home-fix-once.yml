@@ -35,18 +35,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python <<'PY'
+          mkdir -p owner-home-apply-evidence
+          python <<'PY' 2>&1 | tee owner-home-apply-evidence/apply.log
           from pathlib import Path
+          import re
 
           index_path = Path('platform_v2/cloudflare_shadow/src/index.ts')
           index = index_path.read_text(encoding='utf-8')
           marker = 'data-owner-home-state-v2'
-          if marker in index:
-              print('already patched')
-              Path('.owner-home-patch-status').write_text('unchanged\n', encoding='utf-8')
-          else:
-              old_class = '''  next = next.replace(/class="prototype-record-feed(?![^"]*\\bis-(?:guest|owner)\\b)"/, `class="prototype-record-feed ${isOwnerFeed ? "is-owner" : "is-guest"}"`);'''
-              new_class = '''  next = next.replace(/class="([^"]*\\bprototype-record-feed\\b[^"]*)"/, (_match, classes: string) => {
+          changed = False
+
+          if marker not in index:
+              old_class = '  next = next.replace(/class="prototype-record-feed(?![^\"]*\\bis-(?:guest|owner)\\b)"/, `class="prototype-record-feed ${isOwnerFeed ? "is-owner" : "is-guest"}`);'
+              new_class = '''  next = next.replace(/class="([^\"]*\\bprototype-record-feed\\b[^\"]*)"/, (_match, classes: string) => {
             const normalized = classes
               .split(/\\s+/)
               .filter((className) => className && className !== "is-owner" && className !== "is-guest");
@@ -54,9 +55,9 @@ jobs:
             return `class="${normalized.join(" ")}"`;
           });
           if (isOwnerFeed) {
-            next = next.replace(/class="site-shell([^"]*)"/, (_match, suffix: string) => {
-              if (/\\bis-owner-home\\b/.test(suffix)) return _match;
-              return `class="site-shell${suffix} is-owner-home" data-owner-home-state-v2`;
+            next = next.replace(/<body\\b([^>]*)>/i, (_match, attributes: string) => {
+              if (/\\bdata-owner-home-state-v2\\b/.test(attributes)) return _match;
+              return `<body${attributes} data-owner-home-state-v2>`;
             });
           }'''
               if index.count(old_class) != 1:
@@ -71,57 +72,66 @@ jobs:
                 .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}
                 .prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:48vh;min-height:320px}
                 .prototype-record-feed.is-owner{margin-bottom:calc(88px + env(safe-area-inset-bottom))}
-                .site-shell.is-owner-home{padding-bottom:calc(84px + max(0px,env(safe-area-inset-bottom)))}
-                .site-shell.is-owner-home .global-record-launcher{left:8px;right:8px;bottom:max(6px,env(safe-area-inset-bottom));gap:4px;padding:5px;border-radius:18px}
-                .site-shell.is-owner-home .global-record-choice{min-height:50px;gap:2px;padding:4px 3px;border-radius:13px;font-size:10px}
-                .site-shell.is-owner-home .global-record-choice-icon{width:24px;height:24px;flex-basis:24px}
-                .site-shell.is-owner-home .global-record-choice svg{width:15px;height:15px}'''
+                body[data-owner-home-state-v2] .site-shell{padding-bottom:calc(84px + max(0px,env(safe-area-inset-bottom)))}
+                body[data-owner-home-state-v2] .global-record-launcher{left:8px;right:8px;bottom:max(6px,env(safe-area-inset-bottom));gap:4px;padding:5px;border-radius:18px}
+                body[data-owner-home-state-v2] .global-record-choice{min-height:50px;gap:2px;padding:4px 3px;border-radius:13px;font-size:10px}
+                body[data-owner-home-state-v2] .global-record-choice-icon{width:24px;height:24px;flex-basis:24px}
+                body[data-owner-home-state-v2] .global-record-choice svg{width:15px;height:15px}'''
               if index.count(old_media) != 1:
                   raise SystemExit(f'owner mobile CSS target count={index.count(old_media)}')
               index = index.replace(old_media, new_media)
+              index = index.replace(
+                  '.prototype-record-feed.is-owner .prototype-record-feed-main{grid-template-columns:124px minmax(0,1fr);min-height:136px;background:#fff}',
+                  '.prototype-record-feed.is-owner .prototype-record-feed-main{display:grid;grid-template-columns:124px minmax(0,1fr);min-height:136px;background:#fff}'
+              )
               index_path.write_text(index, encoding='utf-8')
+              changed = True
 
-              test_path = Path('platform_v2/cloudflare_shadow/src/index.test.ts')
-              tests = test_path.read_text(encoding='utf-8')
-              test_start = tests.index('test("production home prioritizes signed-in owner records over public feed records"')
-              test_end = tests.index('\n});', test_start) + len('\n});')
-              block = tests[test_start:test_end]
-              fixture_old = '"<main><section class=\\"prototype-record-feed\\" data-record-feed>",'
-              fixture_new = '"<div class=\\"site-shell has-global-record-launcher\\"><main><section class=\\"prototype-record-feed is-guest\\" data-record-feed>",'
-              if block.count(fixture_old) != 1:
-                  raise SystemExit(f'owner test fixture target count={block.count(fixture_old)}')
-              block = block.replace(fixture_old, fixture_new)
-              closing_old = '"</body>"\n  ].join("")'
-              closing_new = '"</div></body>"\n  ].join("")'
-              if block.count(closing_old) != 1:
-                  raise SystemExit(f'owner test closing target count={block.count(closing_old)}')
-              block = block.replace(closing_old, closing_new)
-              assertion = '  assert.match(homeBody, /prototype-record-feed is-owner/);'
-              added = '''  assert.match(homeBody, /prototype-record-feed is-owner/);
-          assert.doesNotMatch(homeBody, /prototype-record-feed is-guest/);
-          assert.match(homeBody, /site-shell has-global-record-launcher is-owner-home/);
-          assert.match(homeBody, /data-owner-home-state-v2/);
-          assert.match(homeBody, /@media\\(max-width:900px\\)/);
-          assert.match(homeBody, /global-record-choice\\{min-height:50px/);'''
-              if block.count(assertion) != 1:
-                  raise SystemExit(f'owner assertion target count={block.count(assertion)}')
-              block = block.replace(assertion, added)
-              tests = tests[:test_start] + block + tests[test_end:]
-              test_path.write_text(tests, encoding='utf-8')
+              contract_path = Path('platform_v2/cloudflare_shadow/src/ownerHomeInjectionContract.test.ts')
+              contract_path.write_text('''import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+          import test from "node:test";
 
-              app_path = Path('platform_v2/src/appInstall.ts')
-              app = app_path.read_text(encoding='utf-8')
-              if app.count("ikimon-app-v7") != 1:
+          const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+
+          test("owner home always replaces a materialized guest feed state", () => {
+            assert.match(source, /class=\\"\\(\\[\\^\\"\\]\\*\\\\bprototype-record-feed/);
+            assert.match(source, /className !== "is-owner" && className !== "is-guest"/);
+            assert.doesNotMatch(source, /prototype-record-feed\\(\\?!\\[\\^\\"\\]\\*\\\\bis-/);
+            assert.match(source, /data-owner-home-state-v2/);
+          });
+
+          test("owner home cards and launcher use the full mobile shell range", () => {
+            assert.match(source, /@media\\(max-width:900px\\)/);
+            assert.match(source, /prototype-record-feed\\.is-owner \\.prototype-record-feed-main\\{display:grid;grid-template-columns:124px/);
+            assert.match(source, /body\\[data-owner-home-state-v2\\] \\.global-record-choice\\{min-height:50px/);
+          });
+          ''', encoding='utf-8')
+
+          app_path = Path('platform_v2/src/appInstall.ts')
+          app = app_path.read_text(encoding='utf-8')
+          if 'ikimon-app-v8' not in app:
+              if app.count('ikimon-app-v7') != 1:
                   raise SystemExit(f'PWA version target count={app.count("ikimon-app-v7")}')
               app = app.replace('ikimon-app-v7', 'ikimon-app-v8')
-              old_personal = "const PERSONAL_NAV_RE = /^\\\\/(?:ja|en|es|pt-br)?\\\\/?(?:home\\\\/?$|profile(?:\\\\/settings)?\\\\/?$|settings\\\\/?$|records\\\\/?$)/;"
-              new_personal = "const PERSONAL_NAV_RE = /^\\\\/(?:ja|en|es|pt-br)?\\\\/?(?:$|home\\\\/?$|profile(?:\\\\/settings)?\\\\/?$|settings\\\\/?$|records\\\\/?$|record\\\\/?$)/;"
-              old_refresh = "const REFRESH_NAV_RE = /^\\\\/(?:ja|en|es|pt-br)?\\\\/?(?:map\\\\/?$|home\\\\/?$|profile(?:\\\\/settings)?\\\\/?$|settings\\\\/?$)/;"
-              new_refresh = "const REFRESH_NAV_RE = /^\\\\/(?:ja|en|es|pt-br)?\\\\/?(?:$|map\\\\/?$|home\\\\/?$|profile(?:\\\\/settings)?\\\\/?$|settings\\\\/?$|records\\\\/?$|record\\\\/?$)/;"
-              if app.count(old_personal) != 1 or app.count(old_refresh) != 1:
-                  raise SystemExit(f'PWA route targets personal={app.count(old_personal)} refresh={app.count(old_refresh)}')
-              app = app.replace(old_personal, new_personal).replace(old_refresh, new_refresh)
+              app, personal_count = re.subn(
+                  r'^const PERSONAL_NAV_RE = .*?;$',
+                  r'const PERSONAL_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$|record\\/?$)/;',
+                  app,
+                  count=1,
+                  flags=re.MULTILINE,
+              )
+              app, refresh_count = re.subn(
+                  r'^const REFRESH_NAV_RE = .*?;$',
+                  r'const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|map\\/?$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$|record\\/?$)/;',
+                  app,
+                  count=1,
+                  flags=re.MULTILINE,
+              )
+              if personal_count != 1 or refresh_count != 1:
+                  raise SystemExit(f'PWA route targets personal={personal_count} refresh={refresh_count}')
               app_path.write_text(app, encoding='utf-8')
+              changed = True
 
               for filename in [
                   'scripts/verify_cloudflare_production_release.sh',
@@ -135,7 +145,8 @@ jobs:
                       raise SystemExit(f'missing PWA version reference in {filename}')
                   path.write_text(content.replace('ikimon-app-v7', 'ikimon-app-v8'), encoding='utf-8')
 
-              Path('.owner-home-patch-status').write_text('changed\n', encoding='utf-8')
+          Path('.owner-home-patch-status').write_text(('changed' if changed else 'unchanged') + '\n', encoding='utf-8')
+          print(f'patch_status={"changed" if changed else "unchanged"}')
           PY
           echo "status=$(cat .owner-home-patch-status)" >> "$GITHUB_OUTPUT"
 
@@ -151,6 +162,7 @@ jobs:
           npm --prefix platform_v2 run typecheck
           npm --prefix platform_v2/cloudflare_shadow run check
           npm --prefix platform_v2 exec -- tsx --test src/routes/pwa.routes.test.ts src/deployPwaVersionContract.test.ts
+          npm --prefix platform_v2/cloudflare_shadow exec -- tsx --test src/ownerHomeInjectionContract.test.ts
           git diff --check
 
       - name: Commit verified implementation
@@ -162,10 +174,19 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add platform_v2/cloudflare_shadow/src/index.ts \
-                  platform_v2/cloudflare_shadow/src/index.test.ts \
+                  platform_v2/cloudflare_shadow/src/ownerHomeInjectionContract.test.ts \
                   platform_v2/src/appInstall.ts \
                   platform_v2/src/deployPwaVersionContract.test.ts \
                   platform_v2/src/routes/pwa.routes.test.ts \
                   scripts/verify_cloudflare_production_release.sh
           git commit -m "fix: refresh and compact the real owner home"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
+      - name: Upload executor evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: owner-home-apply-evidence
+          path: owner-home-apply-evidence
+          if-no-files-found: error
+          retention-days: 3
