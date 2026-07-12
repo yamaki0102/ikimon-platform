@@ -1,0 +1,58 @@
+name: Fix Real Image Executor Narrowing Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.head_ref == 'agent/fix-real-image-derivatives-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Narrow Images binding once
+        shell: bash
+        run: |
+          set -euo pipefail
+          python <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/apply-real-image-derivative-fix-once.yml')
+          source = path.read_text(encoding='utf-8')
+          marker = 'const images = env.IMAGES;'
+          if marker in source:
+              print('already fixed')
+              raise SystemExit(0)
+          old = '''          async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env): Promise<boolean> {
+            if (!env.IMAGES) {
+              await markImageDerivativeFailed(env, asset.asset_id, "images_binding_unavailable");
+              return false;
+            }
+'''
+          new = '''          async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env): Promise<boolean> {
+            const images = env.IMAGES;
+            if (!images) {
+              await markImageDerivativeFailed(env, asset.asset_id, "images_binding_unavailable");
+              return false;
+            }
+'''
+          if source.count(old) != 1:
+              raise SystemExit(f'function guard target count={source.count(old)}')
+          source = source.replace(old, new, 1)
+          source = source.replace('originalInfo = await env.IMAGES.info(', 'originalInfo = await images.info(', 1)
+          source = source.replace('output = await env.IMAGES\n', 'output = await images\n', 1)
+          source = source.replace('derivativeInfo = await env.IMAGES.info(', 'derivativeInfo = await images.info(', 1)
+          source = source.replace('/env\\.IMAGES[\\s\\S]*\\.output/', '/images[\\s\\S]*\\.output/', 1)
+          path.write_text(source, encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/apply-real-image-derivative-fix-once.yml
+          git commit -m "build: narrow Images binding in derivative executor"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
