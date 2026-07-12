@@ -44,9 +44,16 @@ function Quote-TaskArgument {
 
 function Set-PrivateAcl {
     param([string]$Path, [switch]$Directory)
-    $inheritance = if ($Directory) { "/inheritance:r" } else { "/inheritance:r" }
-    & icacls.exe $Path $inheritance /grant:r "*S-1-5-18:(OI)(CI)F" "*S-1-5-32-544:(OI)(CI)F" | Out-Null
+    $systemGrant = if ($Directory) { "*S-1-5-18:(OI)(CI)F" } else { "*S-1-5-18:F" }
+    $adminGrant = if ($Directory) { "*S-1-5-32-544:(OI)(CI)F" } else { "*S-1-5-32-544:F" }
+    & icacls.exe $Path /inheritance:r /grant:r $systemGrant $adminGrant | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Failed to secure ACL: $Path" }
+}
+
+function Invoke-PowerShellChild {
+    param([string]$PowerShellPath, [string]$ScriptPath, [string[]]$Arguments)
+    & $PowerShellPath -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $ScriptPath @Arguments
+    return $LASTEXITCODE
 }
 
 if ($PurgeState -and -not $Uninstall) { throw "-PurgeState requires -Uninstall" }
@@ -88,12 +95,14 @@ $bash = Find-Executable -Requested $BashPath -CommandName "bash.exe" -Candidates
 $node = Find-Executable -Requested $NodePath -CommandName "node.exe" -Candidates @((Join-Path $programFiles "nodejs\node.exe"))
 $nodeMajor = [int](& $node -p "Number(process.versions.node.split('.')[0])")
 if ($nodeMajor -lt 22) { throw "Node.js 22+ is required; found major $nodeMajor" }
+$powerShellPath = (Get-Command powershell.exe -ErrorAction Stop).Source
 
 if ($DryRun) {
     Write-Output "DRY-RUN repo=$repo"
     Write-Output "DRY-RUN task=$TaskName"
     Write-Output "DRY-RUN bash=$bash"
     Write-Output "DRY-RUN node=$node"
+    Write-Output "DRY-RUN powershell=$powerShellPath"
     Write-Output "DRY-RUN state=$StateDirectory"
     Write-Output "DRY-RUN env=$EnvironmentFile"
     return
@@ -112,11 +121,17 @@ if ($PSCmdlet.ShouldProcess($StateDirectory, "Create private state directory")) 
     Set-PrivateAcl -Path $EnvironmentFile
 }
 
-# Refuse to register a recurring task until one direct verification succeeds.
-& $runner -RepoRoot $repo -EnvironmentFile $EnvironmentFile -StateDirectory $StateDirectory -BashPath $bash -NodePath $node
-if ($LASTEXITCODE -ne 0) { throw "Initial production verification failed with exit code $LASTEXITCODE; scheduled task was not installed." }
+# Refuse to register a recurring task until one isolated verification succeeds.
+$runnerArgs = @(
+    "-RepoRoot", $repo,
+    "-EnvironmentFile", $EnvironmentFile,
+    "-StateDirectory", $StateDirectory,
+    "-BashPath", $bash,
+    "-NodePath", $node
+)
+$initialExit = Invoke-PowerShellChild -PowerShellPath $powerShellPath -ScriptPath $runner -Arguments $runnerArgs
+if ($initialExit -ne 0) { throw "Initial production verification failed with exit code $initialExit; scheduled task was not installed." }
 
-$powerShellPath = (Get-Command powershell.exe -ErrorAction Stop).Source
 $arguments = @(
     "-NoProfile",
     "-NonInteractive",
@@ -131,7 +146,7 @@ $arguments = @(
 
 $action = New-ScheduledTaskAction -Execute $powerShellPath -Argument $arguments -WorkingDirectory $repo
 $start = (Get-Date).AddMinutes(1)
-$trigger = New-ScheduledTaskTrigger -Once -At $start -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration ([TimeSpan]::MaxValue)
+$trigger = New-ScheduledTaskTrigger -Once -At $start -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Days 3650)
 $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
     -MultipleInstances IgnoreNew `
@@ -149,6 +164,15 @@ if ($PSCmdlet.ShouldProcess($TaskName, "Register scheduled task")) {
     if (-not $NoStart) { Start-ScheduledTask -TaskName $TaskName }
 }
 
-& $doctor -RepoRoot $repo -TaskName $TaskName -StateDirectory $StateDirectory -EnvironmentFile $EnvironmentFile -BashPath $bash -NodePath $node -MaxAgeMinutes 30
-if ($LASTEXITCODE -ne 0) { throw "Windows production verification doctor failed." }
+$doctorArgs = @(
+    "-RepoRoot", $repo,
+    "-TaskName", $TaskName,
+    "-StateDirectory", $StateDirectory,
+    "-EnvironmentFile", $EnvironmentFile,
+    "-BashPath", $bash,
+    "-NodePath", $node,
+    "-MaxAgeMinutes", "30"
+)
+$doctorExit = Invoke-PowerShellChild -PowerShellPath $powerShellPath -ScriptPath $doctor -Arguments $doctorArgs
+if ($doctorExit -ne 0) { throw "Windows production verification doctor failed with exit code $doctorExit." }
 Write-Output "Windows production verification scheduled task installation completed."
