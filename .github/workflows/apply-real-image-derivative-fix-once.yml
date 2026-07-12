@@ -38,6 +38,7 @@ jobs:
           python scripts/patch_real_image_test_query_v3_20260712.py 2>&1 | tee -a real-image-derivative-evidence/apply.log
           python scripts/patch_real_image_tests_v4_20260712.py 2>&1 | tee -a real-image-derivative-evidence/apply.log
           python scripts/patch_real_image_tests_v5_20260712.py 2>&1 | tee -a real-image-derivative-evidence/apply.log
+          python scripts/patch_real_image_tests_v6_20260712.py 2>&1 | tee -a real-image-derivative-evidence/apply.log
           if grep -q 'patch_status=changed' real-image-derivative-evidence/apply.log; then
             echo 'status=changed' >> "$GITHUB_OUTPUT"
           else
