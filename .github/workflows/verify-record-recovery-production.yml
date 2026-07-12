@@ -21,6 +21,27 @@ jobs:
       TARGET_SHA: 67ea561c25b71860577eda13610b3bda55f9c35c
       PRODUCTION_BASE_URL: https://ikimon.life
     steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Capture Cloudflare materialization context
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p record-recovery-production-evidence/source
+          grep -nE -C 80 'ORIGINAL_UI_HTML_(CORE|QUERY_VARIANT|LOCALIZABLE|STATIC)_PATHS|originalUiHtml(QueryVariant|KeyForPublicPath|VariantKey)|serveOriginalUi|materialized' \
+            platform_v2/cloudflare_shadow/src/index.ts \
+            > record-recovery-production-evidence/source/worker-materialization-context.txt || true
+          grep -nE -C 60 'queryVariantPaths|originalUiHtml(QueryVariant|KeyForPublicPath|VariantKey)|renderUrlForPath|ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS' \
+            platform_v2/cloudflare_shadow/scripts/materialize-original-ui-html.mjs \
+            > record-recovery-production-evidence/source/materializer-context.txt || true
+          grep -nE -C 30 'original-ui-html|materialize:original-ui|materialize-original-ui' \
+            scripts/run_cloudflare_production_release.sh \
+            platform_v2/cloudflare_shadow/scripts/deploy-production-guard.mjs \
+            > record-recovery-production-evidence/source/release-context.txt || true
+
       - name: Capture exact production deployment and public responses
         uses: actions/github-script@v8
         with:
@@ -124,9 +145,6 @@ jobs:
               deploymentConclusion: run.conclusion,
               runtimeStatus: publicResponses['runtime-version'].status,
               runtimeGitSha: runtime?.gitSha ?? null,
-              runtimeEnv: runtime?.runtimeEnv ?? null,
-              builtAt: runtime?.builtAt ?? null,
-              migrationHead: runtime?.migrationHead ?? null,
               healthStatus: publicResponses.health.status,
               healthOk: health?.ok === true,
               recoveryStatus: publicResponses['recovery-guest'].status,
@@ -139,7 +157,6 @@ jobs:
               normalRecordHtml: /<html/i.test(normalBody),
             };
             fs.writeFileSync(path.join(evidenceDir, 'public-verification.json'), JSON.stringify(verification, null, 2));
-
             if (run.status !== 'completed' || run.conclusion !== 'success') {
               throw new Error(`Production deployment is ${run.status}/${run.conclusion}`);
             }
