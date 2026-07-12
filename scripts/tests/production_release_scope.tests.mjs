@@ -29,6 +29,18 @@ test('portable production runner changes run guardrails without mutation', () =>
   assert.equal(plan.run_guardrails, true);
 });
 
+test('verification evidence and monitoring changes are control-plane only', () => {
+  const plan = planProductionReleaseScope([
+    'scripts/run_production_verification_watch.sh',
+    'scripts/build_production_verification_report.mjs',
+    'scripts/publish_production_verification_status.mjs',
+    'ops/monitoring/production_verification_policy.json',
+  ]);
+  assert.equal(plan.deploy_required, false);
+  assert.equal(plan.run_guardrails, true);
+  assert.equal(plan.reason, 'control_plane_only');
+});
+
 test('longform Markdown content requires production deploy', () => {
   const plan = planProductionReleaseScope(['platform_v2/src/content/longform/ja/privacy.md']);
   assert.equal(plan.deploy_required, true);
