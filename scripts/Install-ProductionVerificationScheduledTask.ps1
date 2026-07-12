@@ -39,7 +39,8 @@ function Find-Executable {
 
 function Quote-TaskArgument {
     param([string]$Value)
-    return '"' + $Value.Replace('"', '\"') + '"'
+    if ($Value.Contains('"')) { throw "Task arguments may not contain a double quote: $Value" }
+    return '"' + $Value + '"'
 }
 
 function Set-PrivateAcl {
@@ -54,6 +55,28 @@ function Invoke-PowerShellChild {
     param([string]$PowerShellPath, [string]$ScriptPath, [string[]]$Arguments)
     & $PowerShellPath -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $ScriptPath @Arguments
     return $LASTEXITCODE
+}
+
+function Wait-ScheduledTaskCompletion {
+    param(
+        [string]$Name,
+        [datetime]$NotBefore,
+        [timespan]$Timeout = ([timespan]::FromMinutes(12))
+    )
+    $deadline = (Get-Date).Add($Timeout)
+    do {
+        Start-Sleep -Seconds 2
+        $taskState = Get-ScheduledTask -TaskName $Name -ErrorAction Stop
+        $taskInfo = Get-ScheduledTaskInfo -TaskName $Name -ErrorAction Stop
+        $ranAfterRegistration = $taskInfo.LastRunTime -ge $NotBefore.AddSeconds(-2)
+        if ($ranAfterRegistration -and $taskState.State -ne "Running") {
+            if ($taskInfo.LastTaskResult -ne 0) {
+                throw "Registered SYSTEM task failed with result $($taskInfo.LastTaskResult)."
+            }
+            return $taskInfo
+        }
+    } while ((Get-Date) -lt $deadline)
+    throw "Registered SYSTEM task did not complete within $([int]$Timeout.TotalMinutes) minutes."
 }
 
 if ($PurgeState -and -not $Uninstall) { throw "-PurgeState requires -Uninstall" }
@@ -121,7 +144,7 @@ if ($PSCmdlet.ShouldProcess($StateDirectory, "Create private state directory")) 
     Set-PrivateAcl -Path $EnvironmentFile
 }
 
-# Refuse to register a recurring task until one isolated verification succeeds.
+# Refuse to register a recurring task until one isolated administrator-context verification succeeds.
 $runnerArgs = @(
     "-RepoRoot", $repo,
     "-EnvironmentFile", $EnvironmentFile,
@@ -161,7 +184,11 @@ if ($PSCmdlet.ShouldProcess($TaskName, "Register scheduled task")) {
         Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
     }
     Register-ScheduledTask -TaskName $TaskName -InputObject $task | Out-Null
-    if (-not $NoStart) { Start-ScheduledTask -TaskName $TaskName }
+    if (-not $NoStart) {
+        $registeredAt = Get-Date
+        Start-ScheduledTask -TaskName $TaskName
+        [void](Wait-ScheduledTaskCompletion -Name $TaskName -NotBefore $registeredAt)
+    }
 }
 
 $doctorArgs = @(
@@ -173,6 +200,7 @@ $doctorArgs = @(
     "-NodePath", $node,
     "-MaxAgeMinutes", "30"
 )
+if ($NoStart) { $doctorArgs += "-AllowMissingTask" }
 $doctorExit = Invoke-PowerShellChild -PowerShellPath $powerShellPath -ScriptPath $doctor -Arguments $doctorArgs
 if ($doctorExit -ne 0) { throw "Windows production verification doctor failed with exit code $doctorExit." }
 Write-Output "Windows production verification scheduled task installation completed."
