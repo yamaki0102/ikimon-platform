@@ -24,41 +24,15 @@ jobs:
           ref: agent/record-fallback-recovery-20260712
           fetch-depth: 0
 
-      - name: Reconstruct and apply implementation
+      - name: Confirm focused implementation
         shell: bash
         run: |
-          set -o pipefail
-          mkdir -p record-fallback-apply-diagnostic
-          : > /tmp/record-fallback-recovery.patch
-          for chunk in ops/patches/record-fallback-recovery/chunk-*.b64; do
-            printf 'decoding %s\n' "$chunk" | tee -a record-fallback-apply-diagnostic/apply.log
-            base64 -d "$chunk" >> /tmp/record-fallback-recovery.patch
-          done
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('/tmp/record-fallback-recovery.patch')
-          data = path.read_bytes()
-          old = b"params.gett('start')"
-          if data.count(old) != 1:
-              raise SystemExit(f'expected one staged boundary duplication, found {data.count(old)}')
-          path.write_bytes(data.replace(old, b"params.get('start')", 1))
-          PY
-          cp /tmp/record-fallback-recovery.patch record-fallback-apply-diagnostic/record-fallback-recovery.patch
-          wc -c /tmp/record-fallback-recovery.patch | tee -a record-fallback-apply-diagnostic/apply.log
-          sha256sum /tmp/record-fallback-recovery.patch | tee -a record-fallback-apply-diagnostic/apply.log
-          printf '%s  %s\n' '927ce41348f77e34528bcd28e20045df23e8a39b85313d24706773fcdc727ffd' '/tmp/record-fallback-recovery.patch' | sha256sum -c - 2>&1 | tee -a record-fallback-apply-diagnostic/apply.log
-          git apply --check --verbose /tmp/record-fallback-recovery.patch 2>&1 | tee -a record-fallback-apply-diagnostic/apply.log
-          git apply --verbose /tmp/record-fallback-recovery.patch 2>&1 | tee -a record-fallback-apply-diagnostic/apply.log
-          git diff --check 2>&1 | tee -a record-fallback-apply-diagnostic/apply.log
-
-      - name: Upload apply diagnostics
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: record-fallback-apply-diagnostic
-          path: record-fallback-apply-diagnostic
-          if-no-files-found: warn
-          retention-days: 2
+          set -euo pipefail
+          grep -q 'record-recovery-card' platform_v2/src/routes/read.ts
+          grep -q "withDraftParams = (href, kind, source)" platform_v2/src/ui/siteShell.ts
+          grep -q 'record draft recovery shows a dedicated guest continuation screen' platform_v2/src/routes/record.routes.test.ts
+          grep -q 'global quick record preserves draft source' platform_v2/src/ui/siteShell.test.ts
+          git diff --check origin/main...HEAD
 
       - uses: actions/setup-node@v5
         with:
@@ -87,5 +61,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git diff --cached --check
-          git commit -m 'feat: make record fallback a recovery workspace'
+          git commit -m 'chore: finalize record fallback recovery implementation'
           git push origin HEAD:agent/record-fallback-recovery-20260712
