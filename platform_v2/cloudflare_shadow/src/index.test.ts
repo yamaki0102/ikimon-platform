@@ -19849,7 +19849,8 @@ test("production home prioritizes signed-in owner records over public feed recor
   assert.match(homeBody, /data-cloudflare-owner-home-record/);
   assert.match(homeBody, /prototype-record-feed is-owner/);
   assert.match(homeBody, /grid-template-columns:124px minmax\(0,1fr\);min-height:136px/);
-  assert.match(homeBody, /margin-bottom:calc\(120px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(homeBody, /margin-bottom:calc\(88px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(homeBody, /@media\(max-width:900px\)/);
   assert.match(homeBody, /\.prototype-record-feed\.is-owner \.prototype-record-feed-copy\{position:static/);
   assert.match(homeBody, /data-home-record-media-filter="record"/);
   assert.match(homeBody, />メモ<\/span><\/button>/);

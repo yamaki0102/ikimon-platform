@@ -42,7 +42,7 @@ test("app service worker keeps authenticated navigation out of shared caches", a
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] as string, /application\/javascript/);
     assert.equal(response.headers["service-worker-allowed"], "/");
-    assert.match(response.body, /ikimon-app-v7/);
+    assert.match(response.body, /ikimon-app-v8/);
     assert.match(response.body, /networkFirstNavigation/);
     assert.doesNotMatch(response.body, /APP_NAV_RE|SHELL_CACHE/);
     assert.match(response.body, /OFFLINE_URLS/);
