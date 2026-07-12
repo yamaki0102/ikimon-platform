@@ -8,7 +8,7 @@ Type=oneshot
 User=ikimon
 Group=ikimon
 WorkingDirectory=/opt/ikimon/ikimon-platform
-EnvironmentFile=-/etc/ikimon/production-verification.env
+EnvironmentFile=/etc/ikimon/production-verification.env
 Environment=SMOKE_TIER=targeted
 Environment=PLAYWRIGHT_INSTALL_WITH_DEPS=false
 Environment=IKIMON_VERIFICATION_SOURCE=management-server-timer
