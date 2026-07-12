@@ -99,8 +99,13 @@ jobs:
             typecheck_code=$?
             (cd platform_v2/cloudflare_shadow && npx tsx --test src/recordRecoveryOriginFallback.contract.test.ts) > cloudflare-record-recovery-verification/focused-test.log 2>&1
             focused_code=$?
+            workflow_path='.github/workflows/apply-cloudflare-record-recovery-fallback.yml'
+            temporary_workflow="$RUNNER_TEMP/apply-cloudflare-record-recovery-fallback.yml"
+            mv "$workflow_path" "$temporary_workflow"
             npm --prefix platform_v2/cloudflare_shadow test > cloudflare-record-recovery-verification/full-test.log 2>&1
             full_code=$?
+            mkdir -p "$(dirname "$workflow_path")"
+            mv "$temporary_workflow" "$workflow_path"
           else
             typecheck_code=99
             focused_code=99
