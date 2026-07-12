@@ -26,6 +26,19 @@ function Assert-Throws {
     throw $Message
 }
 
+function Assert-PowerShellParses {
+    param([string]$Path, [string]$Message)
+
+    $script:assertions++
+    $tokens = $null
+    $errors = $null
+    [void][System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$tokens, [ref]$errors)
+    if (@($errors).Count -gt 0) {
+        $detail = (@($errors) | ForEach-Object { $_.Message }) -join "; "
+        throw "$Message ($detail)"
+    }
+}
+
 Assert-Equal (ConvertTo-ReleaseTaskName -TaskName "Deploy Autopilot 20260710") "deploy-autopilot-20260710" "Task names should normalize to safe branch slugs"
 Assert-Throws { ConvertTo-ReleaseTaskName -TaskName "x" } "One-character task names must be rejected"
 Assert-Throws { ConvertTo-ReleaseTaskName -TaskName "release/unsafe" } "Task names containing a slash must be rejected"
@@ -110,5 +123,30 @@ $worktreeScript = Get-Content -Raw (Join-Path $repoRoot "scripts/new_release_wor
 $candidateScript = Get-Content -Raw (Join-Path $repoRoot "scripts/check_release_candidate.ps1")
 Assert-Equal ([bool]($worktreeScript -match '\$nativeExitCode = \$LASTEXITCODE')) $true "Worktree creation must not treat normal git stderr progress as failure"
 Assert-Equal ([bool]($candidateScript -match '\$nativeExitCode = \$LASTEXITCODE')) $true "Candidate checks must decide gh success from its exit code"
+
+$windowsRunnerPath = Join-Path $repoRoot "scripts/Invoke-ProductionVerificationWatch.ps1"
+$windowsInstallerPath = Join-Path $repoRoot "scripts/Install-ProductionVerificationScheduledTask.ps1"
+$windowsDoctorPath = Join-Path $repoRoot "scripts/Test-ProductionVerificationWindows.ps1"
+Assert-PowerShellParses -Path $windowsRunnerPath -Message "Windows verification runner must parse"
+Assert-PowerShellParses -Path $windowsInstallerPath -Message "Windows scheduled task installer must parse"
+Assert-PowerShellParses -Path $windowsDoctorPath -Message "Windows verification doctor must parse"
+$windowsInstaller = Get-Content -Raw $windowsInstallerPath
+$windowsRunner = Get-Content -Raw $windowsRunnerPath
+$windowsDoctor = Get-Content -Raw $windowsDoctorPath
+Assert-Equal ([bool]($windowsInstaller -match 'New-ScheduledTaskPrincipal -UserId "SYSTEM"')) $true "Windows task must run as SYSTEM"
+Assert-Equal ([bool]($windowsInstaller -match 'RepetitionInterval \(New-TimeSpan -Minutes 15\)')) $true "Windows task must run every 15 minutes"
+Assert-Equal ([bool]($windowsInstaller -match 'Preserving existing environment file')) $true "Windows installer must preserve the existing secret file"
+Assert-Equal ([bool]($windowsInstaller -match 'Initial production verification failed.+scheduled task was not installed')) $true "Windows task registration must require a successful direct verification"
+Assert-Equal ([bool]($windowsInstaller -match 'Invoke-PowerShellChild')) $true "Windows installer must isolate child scripts that call exit"
+Assert-Equal ([bool]($windowsInstaller -match 'RemoveAccessRuleSpecific')) $true "Windows ACL setup must remove every previous explicit access rule"
+Assert-Equal ([bool]($windowsInstaller -match 'Test-ExactPrivateAcl')) $true "Windows installer must verify the final exact ACL"
+Assert-Equal ([bool]($windowsInstaller -match 'S-1-5-18')) $true "Windows state and secret ACLs must grant SYSTEM explicitly"
+Assert-Equal ([bool]($windowsInstaller -match 'S-1-5-32-544')) $true "Windows state and secret ACLs must grant Administrators explicitly"
+Assert-Equal ([bool]($windowsInstaller -match '--(?:github|cloudflare)-token')) $false "Windows installer must not accept token command-line options"
+Assert-Equal ([bool]($windowsRunner -match 'Import-SafeEnvironmentFile')) $true "Windows runner must parse a restricted environment allowlist"
+Assert-Equal ([bool]($windowsRunner -match 'IKIMON_VERIFICATION_ARCHIVE_DIR')) $true "Windows runner must use the shared evidence archive"
+Assert-Equal ([bool]($windowsDoctor -match 'Test-ExactPrivateAcl')) $true "Windows doctor must require exactly SYSTEM and Administrators ACLs"
+Assert-Equal ([bool]($windowsDoctor -match 'rules.Count -ne 2')) $true "Windows doctor must reject additional concrete ACL principals"
+Assert-Equal ([bool]($windowsDoctor -match 'PT15M')) $true "Windows doctor must verify the 15-minute task interval"
 
 Write-Output "release automation tests passed: $script:assertions assertions"

@@ -22,9 +22,13 @@ on:
       - 'scripts/publish_production_verification_status.mjs'
       - 'scripts/install_production_verification_service.sh'
       - 'scripts/doctor_production_verification_service.sh'
+      - 'scripts/Invoke-ProductionVerificationWatch.ps1'
+      - 'scripts/Install-ProductionVerificationScheduledTask.ps1'
+      - 'scripts/Test-ProductionVerificationWindows.ps1'
       - 'scripts/tests/production_release_scope.tests.mjs'
       - 'scripts/tests/production_verification_evidence.tests.mjs'
       - 'scripts/tests/production_verification_operations.tests.mjs'
+      - 'scripts/tests/windows_production_verification_contract.tests.ps1'
       - 'scripts/tests/release_automation.tests.ps1'
       - '.github/workflows/deploy.yml'
 
@@ -100,6 +104,7 @@ jobs:
         run: |
           ./scripts/check_deploy_guardrails.ps1
           ./scripts/check_deploy_manifest_sync.ps1
+          ./scripts/tests/windows_production_verification_contract.tests.ps1
           $resolvedBase = $env:BASE_REF
           if ([string]::IsNullOrWhiteSpace($resolvedBase) -or $resolvedBase -match '^0+$') {
             $resolvedBase = 'HEAD~1'

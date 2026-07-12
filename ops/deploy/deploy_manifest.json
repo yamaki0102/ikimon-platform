@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "strategy": "github_actions_cloudflare_worker",
   "platform": "cloudflare_worker",
   "workerName": "ikimon-life-cloudflare-prod",
@@ -14,10 +14,14 @@
   "verificationStatusPublisher": "scripts/publish_production_verification_status.mjs",
   "verificationInstaller": "scripts/install_production_verification_service.sh",
   "verificationDoctor": "scripts/doctor_production_verification_service.sh",
+  "verificationWindowsRunner": "scripts/Invoke-ProductionVerificationWatch.ps1",
+  "verificationWindowsInstaller": "scripts/Install-ProductionVerificationScheduledTask.ps1",
+  "verificationWindowsDoctor": "scripts/Test-ProductionVerificationWindows.ps1",
   "verificationPolicyPath": "ops/monitoring/production_verification_policy.json",
   "verificationSystemdService": "ops/monitoring/systemd/ikimon-production-verification.service",
   "verificationSystemdTimer": "ops/monitoring/systemd/ikimon-production-verification.timer",
   "verificationEnvironmentExample": "ops/monitoring/systemd/production-verification.env.example",
+  "verificationWindowsEnvironmentExample": "ops/monitoring/windows/production-verification.env.example",
   "verificationStatusContext": "ikimon/production-verification",
   "productionScopePlanner": "scripts/plan_production_release_scope.mjs",
   "triggerPolicy": {
@@ -34,7 +38,15 @@
     "environmentFile": "/etc/ikimon/production-verification.env",
     "installerPreservesExistingEnvironment": true,
     "installerAcceptsSecretsOnCommandLine": false,
-    "timerEnableRequiresHostAccess": true
+    "timerEnableRequiresHostAccess": true,
+    "windowsStateDirectory": "%ProgramData%\\IKIMON\\production-verification",
+    "windowsEnvironmentFile": "%ProgramData%\\IKIMON\\production-verification.env",
+    "windowsTaskName": "IKIMON Production Verification",
+    "windowsTaskPrincipal": "SYSTEM",
+    "windowsInstallerPreservesExistingEnvironment": true,
+    "windowsInstallerAcceptsSecretsOnCommandLine": false,
+    "windowsTaskEnableRequiresHostAccess": true,
+    "windowsInitialSystemRunRequired": true
   },
   "healthChecks": [
     "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/healthz",
@@ -49,13 +61,15 @@
   "requiredChecks": [
     "PR Quality Gate and Ai Review Gate before merge",
     "node --test scripts/tests/production_release_scope.tests.mjs scripts/tests/production_verification_evidence.tests.mjs scripts/tests/production_verification_operations.tests.mjs",
+    "powershell -ExecutionPolicy Bypass -File .\\scripts\\tests\\release_automation.tests.ps1",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_guardrails.ps1",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_manifest_sync.ps1",
     "bash scripts/run_cloudflare_production_release.sh with DEPLOY_PRODUCTION=true",
     "bash scripts/run_production_verification_watch.sh",
     "node scripts/archive_production_verification_evidence.mjs",
     "node scripts/publish_production_verification_status.mjs",
-    "sudo bash scripts/install_production_verification_service.sh --create-user"
+    "sudo bash scripts/install_production_verification_service.sh --create-user",
+    "powershell -ExecutionPolicy Bypass -File .\\scripts\\Install-ProductionVerificationScheduledTask.ps1 -DryRun"
   ],
   "forbiddenPaths": [
     "**/*.sqlite",
@@ -72,10 +86,12 @@
   ],
   "notes": [
     "Production mutation is triggered only by an eligible main push whose changed files affect the current app, Worker runtime, bindings, migrations, dependencies, or materialized UI.",
-    "Documentation, test-only, monitoring, and production control-plane-only changes do not mutate the production Worker, D1, or R2.",
+    "Documentation, test-only, monitoring, Linux service controls, Windows scheduled-task controls, and other production control-plane-only changes do not mutate the production Worker, D1, or R2.",
     "GitHub Actions is the approval and status layer; the release implementation is the portable repository command scripts/run_cloudflare_production_release.sh.",
-    "Production verification writes a no-personal-data JSON report bound to the exact public runtime SHA and can run from GitHub Actions, a Codex management PC, or a management server.",
-    "The management-server timer uses a private systemd StateDirectory, archives SHA-bound evidence for 14 days, and can be installed or upgraded idempotently without replacing an existing secret environment file.",
+    "Production verification writes a no-personal-data JSON report bound to the exact public runtime SHA and can run from GitHub Actions, a Windows Codex management PC, or a Linux management server.",
+    "The Linux timer uses a private systemd StateDirectory; the Windows task uses private ProgramData ACLs and runs as SYSTEM. Both archive SHA-bound evidence for 14 days.",
+    "Linux and Windows installers preserve existing secret environment files, refuse token command-line options, and require a successful direct verification before recurring scheduling is enabled.",
+    "The Windows installer also executes and validates the registered SYSTEM task so user-only drive or permission mistakes are detected during installation.",
     "External verification may publish the deduplicated ikimon/production-verification commit status using a separately managed repository status token.",
     "The portable release command performs one dependency-install/build lane, Worker quick preflight, D1 migration application, R2 materialization, guarded Worker deploy, and post-deploy verification without a GitHub Artifact handoff.",
     "The production public entrypoint is Cloudflare Worker ikimon-life-cloudflare-prod, not the legacy VPS blue/green lane.",

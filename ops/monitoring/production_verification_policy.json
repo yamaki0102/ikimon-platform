@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "ikimon_production_verification_policy/v2",
+  "schemaVersion": "ikimon_production_verification_policy/v3",
   "selfPath": "ops/monitoring/production_verification_policy.json",
   "updatedAt": "2026-07-12",
   "target": "https://ikimon.life",
@@ -16,13 +16,14 @@
   "runtimeSnapshotPath": "platform_v2/cloudflare_shadow/.deploy/production-runtime-version-latest.json",
   "archive": {
     "script": "scripts/archive_production_verification_evidence.mjs",
-    "managementServerPath": "/var/lib/ikimon-production-verification/history",
+    "linuxPath": "/var/lib/ikimon-production-verification/history",
+    "windowsPath": "%ProgramData%\\IKIMON\\production-verification\\history",
     "retentionDays": 14,
     "fileIdentity": "finished timestamp + exact production SHA prefix + smoke tier + outcome",
     "atomicWrites": true,
-    "privateFileMode": "0600"
+    "privateFileMode": "0600 or equivalent private Windows ACL"
   },
-  "installation": {
+  "linuxSystemd": {
     "installer": "scripts/install_production_verification_service.sh",
     "doctor": "scripts/doctor_production_verification_service.sh",
     "environmentExample": "ops/monitoring/systemd/production-verification.env.example",
@@ -33,7 +34,26 @@
     "oneCommand": "sudo bash scripts/install_production_verification_service.sh --create-user",
     "preserveExistingEnvironmentFile": true,
     "acceptSecretsOnCommandLine": false,
-    "enablementRequiresManagementServerAccess": true
+    "enablementRequiresHostAccess": true,
+    "initialVerificationRequired": true
+  },
+  "windowsScheduledTask": {
+    "runner": "scripts/Invoke-ProductionVerificationWatch.ps1",
+    "installer": "scripts/Install-ProductionVerificationScheduledTask.ps1",
+    "doctor": "scripts/Test-ProductionVerificationWindows.ps1",
+    "environmentExample": "ops/monitoring/windows/production-verification.env.example",
+    "environmentFile": "%ProgramData%\\IKIMON\\production-verification.env",
+    "stateDirectory": "%ProgramData%\\IKIMON\\production-verification",
+    "taskName": "IKIMON Production Verification",
+    "taskPrincipal": "SYSTEM",
+    "oneCommand": "powershell -ExecutionPolicy Bypass -File .\\scripts\\Install-ProductionVerificationScheduledTask.ps1",
+    "requiredRuntime": ["Windows PowerShell 5.1 or compatible", "Git for Windows Bash", "Node.js 22+"],
+    "preserveExistingEnvironmentFile": true,
+    "acceptSecretsOnCommandLine": false,
+    "enablementRequiresAdministratorAccess": true,
+    "initialAdministratorVerificationRequired": true,
+    "registeredSystemVerificationRequired": true,
+    "privateAclPrincipals": ["SYSTEM", "local Administrators"]
   },
   "githubStatus": {
     "context": "ikimon/production-verification",
@@ -52,21 +72,24 @@
     "noVpsSsh": true,
     "noPersonalDataInReport": true,
     "exactRuntimeShaBinding": true,
-    "privateUmask": "0077",
+    "linuxPrivateUmask": "0077",
     "systemdNoNewPrivileges": true,
-    "systemdProtectSystem": "strict"
+    "systemdProtectSystem": "strict",
+    "windowsTaskRunsAsSystem": true,
+    "windowsEnvironmentAllowlist": true,
+    "windowsPrivateAcl": true
   },
   "runnerRequirements": [
-    "bash",
+    "bash or Git for Windows Bash",
     "curl",
     "Node.js 22 or compatible",
-    "systemd for timer installation",
+    "systemd for Linux timer installation or Task Scheduler for Windows installation",
     "network access to ikimon.life and api.github.com",
     "Playwright Chromium only when SMOKE_TIER=full"
   ],
   "localRetention": {
     "latestFilesOnlyByDefault": true,
     "recommendedHistoricalRetentionDays": 14,
-    "historicalStorage": "management server StateDirectory; optional future R2 evidence bucket, not GitHub Actions artifacts"
+    "historicalStorage": "Linux StateDirectory or Windows ProgramData; optional future R2 evidence bucket, not GitHub Actions artifacts"
   }
 }
