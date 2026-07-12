@@ -92,8 +92,8 @@ interface ImagesTransformation {
 }
 
 interface ImagesBinding {
-  input(stream: ReadableStream | ArrayBuffer): ImagesTransformation;
-  info(stream: ReadableStream | ArrayBuffer): Promise<ImagesInfo>;
+  input(stream: ReadableStream): ImagesTransformation;
+  info(stream: ReadableStream): Promise<ImagesInfo>;
 }
 
 interface Env {
@@ -28490,7 +28490,7 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
 
   let originalInfo: ImagesInfo = {};
   try {
-    originalInfo = await images.info(originalBytes.slice(0));
+    originalInfo = await images.info(new Response(originalBytes.slice(0)).body!);
   } catch (error) {
     await markImageDerivativeFailed(env, asset.asset_id, "image_info_failed", {
       message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
@@ -28506,7 +28506,7 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
   let output: ImagesOutput;
   try {
     output = await images
-      .input(originalBytes.slice(0))
+      .input(new Response(originalBytes.slice(0)).body!)
       .transform({ width: targetWidth })
       .output({ format: "image/webp", quality: 82, anim: false });
   } catch (error) {
@@ -28538,7 +28538,7 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
   const metadataInspection = inspectPublicDerivativeMetadata(derivativeBody, contentType);
   let derivativeInfo: ImagesInfo = {};
   try {
-    derivativeInfo = await images.info(derivativeBody.slice(0));
+    derivativeInfo = await images.info(new Response(derivativeBody.slice(0)).body!);
   } catch (error) {
     await markImageDerivativeFailed(env, asset.asset_id, "derivative_info_failed", {
       message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
