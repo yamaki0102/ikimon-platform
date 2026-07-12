@@ -1,0 +1,51 @@
+name: Apply Cloudflare Native Record Recovery
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/cloudflare-record-recovery-native-final-20260712' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/cloudflare-record-recovery-native-final-20260712
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+      - name: Import validated native recovery implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/cloudflare-record-recovery-origin-fallback-20260712
+          git checkout origin/agent/cloudflare-record-recovery-origin-fallback-20260712 -- \
+            platform_v2/cloudflare_shadow/src/index.ts \
+            platform_v2/cloudflare_shadow/src/recordRecoveryHtml.ts \
+            platform_v2/cloudflare_shadow/src/recordRecoveryHtml.test.ts
+          git rm -f .github/workflows/apply-cloudflare-native-record-recovery.yml
+          git diff --check
+      - name: Verify native recovery Worker
+        run: |
+          npm --prefix platform_v2/cloudflare_shadow ci
+          npm --prefix platform_v2/cloudflare_shadow run check
+          npm --prefix platform_v2/cloudflare_shadow run test:quick
+      - name: Commit focused implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix: serve record recovery natively on Cloudflare'
+          git push origin HEAD:agent/cloudflare-record-recovery-native-final-20260712
