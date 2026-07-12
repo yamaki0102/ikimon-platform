@@ -27,15 +27,29 @@ jobs:
       - name: Reconstruct and apply implementation
         shell: bash
         run: |
-          set -euo pipefail
+          set -o pipefail
+          mkdir -p record-fallback-apply-diagnostic
           : > /tmp/record-fallback-recovery.patch
           for chunk in ops/patches/record-fallback-recovery/chunk-*.b64; do
+            printf 'decoding %s\n' "$chunk" | tee -a record-fallback-apply-diagnostic/apply.log
             base64 -d "$chunk" >> /tmp/record-fallback-recovery.patch
           done
-          printf '%s  %s\n' '927ce41348f77e34528bcd28e20045df23e8a39b85313d24706773fcdc727ffd' '/tmp/record-fallback-recovery.patch' | sha256sum -c -
-          git apply --check /tmp/record-fallback-recovery.patch
-          git apply /tmp/record-fallback-recovery.patch
-          git diff --check
+          cp /tmp/record-fallback-recovery.patch record-fallback-apply-diagnostic/record-fallback-recovery.patch
+          wc -c /tmp/record-fallback-recovery.patch | tee -a record-fallback-apply-diagnostic/apply.log
+          sha256sum /tmp/record-fallback-recovery.patch | tee -a record-fallback-apply-diagnostic/apply.log
+          printf '%s  %s\n' '927ce41348f77e34528bcd28e20045df23e8a39b85313d24706773fcdc727ffd' '/tmp/record-fallback-recovery.patch' | sha256sum -c - 2>&1 | tee -a record-fallback-apply-diagnostic/apply.log
+          git apply --check --verbose /tmp/record-fallback-recovery.patch 2>&1 | tee -a record-fallback-apply-diagnostic/apply.log
+          git apply --verbose /tmp/record-fallback-recovery.patch 2>&1 | tee -a record-fallback-apply-diagnostic/apply.log
+          git diff --check 2>&1 | tee -a record-fallback-apply-diagnostic/apply.log
+
+      - name: Upload apply diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: record-fallback-apply-diagnostic
+          path: record-fallback-apply-diagnostic
+          if-no-files-found: warn
+          retention-days: 2
 
       - uses: actions/setup-node@v5
         with:
@@ -59,6 +73,7 @@ jobs:
           rm -f .github/workflows/diagnose-record-fallback-recovery.yml
           rm -f .github/workflows/apply-record-fallback-recovery.yml
           rm -rf ops/patches/record-fallback-recovery
+          rm -rf record-fallback-apply-diagnostic
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
