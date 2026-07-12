@@ -131,6 +131,17 @@ jobs:
           });
           ''', encoding='utf-8')
 
+              index_test_path = Path('platform_v2/cloudflare_shadow/src/index.test.ts')
+              index_tests = index_test_path.read_text(encoding='utf-8')
+              old_margin = r'assert.match(homeBody, /margin-bottom:calc\(120px \+ env\(safe-area-inset-bottom\)\)/);'
+              new_margin = r'assert.match(homeBody, /margin-bottom:calc\(88px \+ env\(safe-area-inset-bottom\)\)/);'
+              if index_tests.count(old_margin) != 1:
+                  raise SystemExit(f'owner margin test target count={index_tests.count(old_margin)}')
+              index_tests = index_tests.replace(old_margin, new_margin, 1)
+              anchor = new_margin
+              index_tests = index_tests.replace(anchor, anchor + '\n  assert.match(homeBody, /@media\\(max-width:900px\\)/);', 1)
+              index_test_path.write_text(index_tests, encoding='utf-8')
+
           app_path = Path('platform_v2/src/appInstall.ts')
           app = app_path.read_text(encoding='utf-8')
           if 'ikimon-app-v8' not in app:
@@ -181,12 +192,16 @@ jobs:
 
       - name: Verify owner home and PWA changes
         if: steps.patch.outputs.status == 'changed'
+        shell: bash
         run: |
-          npm --prefix platform_v2 run typecheck
-          npm --prefix platform_v2/cloudflare_shadow run check
-          npm --prefix platform_v2 exec -- tsx --test src/routes/pwa.routes.test.ts src/deployPwaVersionContract.test.ts
-          npm --prefix platform_v2/cloudflare_shadow exec -- tsx --test src/ownerHomeInjectionContract.test.ts
-          git diff --check
+          set -euo pipefail
+          {
+            npm --prefix platform_v2 run typecheck
+            npm --prefix platform_v2/cloudflare_shadow run check
+            npm --prefix platform_v2 exec -- tsx --test src/routes/pwa.routes.test.ts src/deployPwaVersionContract.test.ts
+            npm --prefix platform_v2/cloudflare_shadow exec -- tsx --test src/ownerHomeInjectionContract.test.ts
+            git diff --check
+          } 2>&1 | tee owner-home-apply-evidence/verify.log
 
       - name: Commit verified implementation
         if: steps.patch.outputs.status == 'changed'
@@ -197,6 +212,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add platform_v2/cloudflare_shadow/src/index.ts \
+                  platform_v2/cloudflare_shadow/src/index.test.ts \
                   platform_v2/cloudflare_shadow/src/ownerHomeInjectionContract.test.ts \
                   platform_v2/src/appInstall.ts \
                   platform_v2/src/deployPwaVersionContract.test.ts \
