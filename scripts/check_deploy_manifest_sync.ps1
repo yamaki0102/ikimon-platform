@@ -52,6 +52,10 @@ $issues = New-Object System.Collections.Generic.List[string]
 if ($manifest.platform -eq "cloudflare_worker") {
     Add-ContractFile -RelativePath $manifest.portableReleaseScript -ContractText ([ref]$deployContractText) -Issues $issues
     Add-ContractFile -RelativePath $manifest.portableVerifyScript -ContractText ([ref]$deployContractText) -Issues $issues
+    Add-ContractFile -RelativePath $manifest.verificationWatchScript -ContractText ([ref]$deployContractText) -Issues $issues
+    Add-ContractFile -RelativePath $manifest.verificationReportBuilder -ContractText ([ref]$deployContractText) -Issues $issues
+    Add-ContractFile -RelativePath $manifest.verificationStatusPublisher -ContractText ([ref]$deployContractText) -Issues $issues
+    Add-ContractFile -RelativePath $manifest.verificationPolicyPath -ContractText ([ref]$deployContractText) -Issues $issues
     Add-ContractFile -RelativePath $manifest.productionScopePlanner -ContractText ([ref]$deployContractText) -Issues $issues
 
     foreach ($requiredText in @(
@@ -60,7 +64,13 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $manifest.workerDirectory,
         $manifest.portableReleaseScript,
         $manifest.portableVerifyScript,
+        $manifest.verificationWatchScript,
+        $manifest.verificationReportBuilder,
+        $manifest.verificationStatusPublisher,
+        $manifest.verificationPolicyPath,
+        $manifest.verificationStatusContext,
         $manifest.productionScopePlanner,
+        "ikimon_production_verification/v1",
         "deploy:production:quick-preflight",
         "deploy:production:fast",
         "materialize:original-ui:dry-run",
@@ -84,6 +94,10 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "plan_production_release_scope.mjs",
         "deploy_required",
         "run_cloudflare_production_release.sh",
+        "publish_production_verification_status.mjs",
+        "production-verification-latest.json",
+        "statuses: write",
+        "continue-on-error: true",
         "environment: production",
         "failure()",
         "retention-days: 3"
@@ -107,11 +121,22 @@ if ($manifest.platform -eq "cloudflare_worker") {
     }
 
     if ($manifest.triggerPolicy) {
-        if (-not $manifest.triggerPolicy.mainPushOnly -or -not $manifest.triggerPolicy.pathFiltered -or -not $manifest.triggerPolicy.controlOnlySkipsMutation -or -not $manifest.triggerPolicy.exactShaRequired) {
-            $issues.Add("Production trigger policy must require main push, path filtering, control-only mutation skip, and exact SHA verification")
+        if (-not $manifest.triggerPolicy.mainPushOnly -or -not $manifest.triggerPolicy.pathFiltered -or -not $manifest.triggerPolicy.controlOnlySkipsMutation -or -not $manifest.triggerPolicy.exactShaRequired -or -not $manifest.triggerPolicy.statusAggregationBestEffort) {
+            $issues.Add("Production trigger policy must require main push, path filtering, control-only mutation skip, exact SHA verification, and best-effort status aggregation")
         }
     } else {
         $issues.Add("Production deploy manifest is missing triggerPolicy")
+    }
+
+    $verificationPolicyFullPath = Join-Path $repoRoot $manifest.verificationPolicyPath
+    if (Test-Path $verificationPolicyFullPath) {
+        $verificationPolicy = Get-Content -Raw -Path $verificationPolicyFullPath | ConvertFrom-Json
+        if ($verificationPolicy.githubStatus.context -ne $manifest.verificationStatusContext) {
+            $issues.Add("Production verification policy status context does not match deploy manifest")
+        }
+        if ($verificationPolicy.safety.productionMutation -or -not $verificationPolicy.safety.noDatabaseWrites -or -not $verificationPolicy.safety.noR2Writes -or -not $verificationPolicy.safety.noSecretMutation -or -not $verificationPolicy.safety.noPersonalDataInReport -or -not $verificationPolicy.safety.exactRuntimeShaBinding) {
+            $issues.Add("Production verification policy must remain read-only, no-personal-data, and exact-SHA-bound")
+        }
     }
 
     if ($issues.Count -gt 0) {
@@ -122,7 +147,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
     }
 
     Invoke-StagingManifestSyncCheck
-    Write-Output "Portable Cloudflare production and staging deploy manifests are in sync."
+    Write-Output "Portable Cloudflare production, external verification, and staging deploy manifests are in sync."
     exit 0
 }
 
