@@ -1,0 +1,80 @@
+name: Fix Cloudflare Record Recovery Panel Once
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize, reopened, edited]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-cloudflare-record-recovery-panel-once
+  cancel-in-progress: true
+
+jobs:
+  fix:
+    if: github.head_ref == 'agent/cloudflare-record-recovery-origin-fallback-20260712' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/cloudflare-record-recovery-origin-fallback-20260712
+          fetch-depth: 0
+
+      - name: Make recovery panel marker unique
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('platform_v2/cloudflare_shadow/src/recordRecoveryHtml.ts')
+          source = path.read_text(encoding='utf-8')
+          replacements = [
+              ('<body data-record-start="${escapeHtml(state.start)}" data-record-recovery="1" data-recovery-source="${escapeHtml(state.source)}">',
+               '<body data-record-start="${escapeHtml(state.start)}" data-record-recovery-page="1" data-recovery-source="${escapeHtml(state.source)}">'),
+              ('const panel = document.querySelector("[data-record-recovery]");',
+               'const panel = document.querySelector(".cf-recovery-card[data-record-recovery]");'),
+          ]
+          for old, new in replacements:
+              if source.count(old) != 1:
+                  raise SystemExit(f'expected one occurrence of {old!r}, found {source.count(old)}')
+              source = source.replace(old, new, 1)
+          path.write_text(source, encoding='utf-8')
+
+          test_path = Path('platform_v2/cloudflare_shadow/src/recordRecoveryHtml.test.ts')
+          test_source = test_path.read_text(encoding='utf-8')
+          anchor = '  assert.match(html, /data-record-recovery-pick/);\n'
+          replacement = '  assert.match(html, /data-record-recovery-page="1"/);\n  assert.match(html, /document\\.querySelector\\("\\.cf-recovery-card\\[data-record-recovery\\]"\\)/);\n' + anchor
+          if test_source.count(anchor) != 1:
+              raise SystemExit(f'test anchor count {test_source.count(anchor)}')
+          test_path.write_text(test_source.replace(anchor, replacement, 1), encoding='utf-8')
+          PY
+          git diff --check
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Verify Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix platform_v2/cloudflare_shadow ci
+          npm --prefix platform_v2/cloudflare_shadow run check
+          npm --prefix platform_v2/cloudflare_shadow test
+
+      - name: Commit panel fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add platform_v2/cloudflare_shadow/src/recordRecoveryHtml.ts platform_v2/cloudflare_shadow/src/recordRecoveryHtml.test.ts
+          git diff --cached --check
+          git commit -m 'fix: target the recovery card state explicitly'
+          git push origin HEAD:agent/cloudflare-record-recovery-origin-fallback-20260712
