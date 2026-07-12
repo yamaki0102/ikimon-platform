@@ -2498,6 +2498,9 @@ export const worker = {
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
+        if (isRecordRecoveryRequest(url) && env.ORIGIN_FALLBACK_BASE_URL) {
+          return fetchOriginFallback(request, url, env, "record_recovery");
+        }
         return getSessionAwareRecordHtml(request, url, env);
       }
 
@@ -20808,6 +20811,23 @@ function isHomeHtmlPath(pathname: string): boolean {
 
 function isRecordHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/record$/.test(pathname);
+}
+
+const RECORD_RECOVERY_SOURCE_VALUES = new Set([
+  "location_denied",
+  "login_required",
+  "draft_restore",
+  "media_retry",
+  "upload_failed",
+  "global_capture"
+]);
+
+function isRecordRecoveryRequest(url: URL): boolean {
+  if (!isRecordHtmlPath(url.pathname)) return false;
+  if (url.searchParams.get("draft") === "1") return true;
+  if (url.searchParams.get("retry") === "media") return true;
+  const source = url.searchParams.get("source")?.trim() ?? "";
+  return RECORD_RECOVERY_SOURCE_VALUES.has(source);
 }
 
 function isProfileHtmlPath(pathname: string): boolean {
