@@ -1,9 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { loadConfig } from "../config.js";
 import { checkDatabase } from "../db.js";
+import { registerRecordRecoveryHtmlPatch } from "../services/recordRecoveryHtmlPatch.js";
 import { getRuntimeVersionSnapshot } from "../services/runtimeVersion.js";
 
 export async function registerHealthRoutes(app: FastifyInstance): Promise<void> {
+  // Registered once, before read routes, so only /record HTML responses are repaired.
+  registerRecordRecoveryHtmlPatch(app);
+
   app.get("/healthz", async () => {
     const config = loadConfig();
     return {
