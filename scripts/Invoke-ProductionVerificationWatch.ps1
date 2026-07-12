@@ -31,6 +31,20 @@ function Find-Executable {
     throw "Required executable not found: $CommandName"
 }
 
+function Convert-ToGitBashPath {
+    param([string]$WindowsPath)
+    $full = [IO.Path]::GetFullPath($WindowsPath)
+    if ($full -match '^([A-Za-z]):\\(.*)$') {
+        $drive = $Matches[1].ToLowerInvariant()
+        $tail = $Matches[2].Replace('\', '/')
+        return "/$drive/$tail"
+    }
+    if ($full.StartsWith('\\')) {
+        return '//' + $full.TrimStart('\').Replace('\', '/')
+    }
+    return $full.Replace('\', '/')
+}
+
 function Import-SafeEnvironmentFile {
     param([string]$Path)
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
@@ -86,16 +100,19 @@ $nodeMajor = [int](& $node -p "Number(process.versions.node.split('.')[0])")
 if ($nodeMajor -lt 22) { throw "Node.js 22+ is required; found major $nodeMajor" }
 
 Import-SafeEnvironmentFile -Path $EnvironmentFile
-New-Item -ItemType Directory -Force -Path $StateDirectory | Out-Null
-$historyDirectory = Join-Path $StateDirectory "history"
+$state = [IO.Path]::GetFullPath($StateDirectory)
+New-Item -ItemType Directory -Force -Path $state | Out-Null
+$historyDirectory = Join-Path $state "history"
 New-Item -ItemType Directory -Force -Path $historyDirectory | Out-Null
 
-$env:IKIMON_VERIFICATION_SOURCE = if ($env:IKIMON_VERIFICATION_SOURCE) { $env:IKIMON_VERIFICATION_SOURCE } else { "windows-scheduled-task" }
-$env:IKIMON_VERIFICATION_RUNNER_ID = if ($env:IKIMON_VERIFICATION_RUNNER_ID) { $env:IKIMON_VERIFICATION_RUNNER_ID } else { $env:COMPUTERNAME }
-$env:IKIMON_VERIFICATION_REPORT_PATH = Join-Path $StateDirectory "production-verification-latest.json"
-$env:IKIMON_VERIFICATION_LOG_PATH = Join-Path $StateDirectory "production-verification-latest.log"
-$env:IKIMON_VERIFICATION_RUNTIME_PATH = Join-Path $StateDirectory "production-runtime-version-latest.json"
-$env:IKIMON_VERIFICATION_ARCHIVE_DIR = $historyDirectory
+$sourceValue = [Environment]::GetEnvironmentVariable("IKIMON_VERIFICATION_SOURCE", "Process")
+$runnerValue = [Environment]::GetEnvironmentVariable("IKIMON_VERIFICATION_RUNNER_ID", "Process")
+$env:IKIMON_VERIFICATION_SOURCE = if ($sourceValue) { $sourceValue } else { "windows-scheduled-task" }
+$env:IKIMON_VERIFICATION_RUNNER_ID = if ($runnerValue) { $runnerValue } else { $env:COMPUTERNAME }
+$env:IKIMON_VERIFICATION_REPORT_PATH = Convert-ToGitBashPath (Join-Path $state "production-verification-latest.json")
+$env:IKIMON_VERIFICATION_LOG_PATH = Convert-ToGitBashPath (Join-Path $state "production-verification-latest.log")
+$env:IKIMON_VERIFICATION_RUNTIME_PATH = Convert-ToGitBashPath (Join-Path $state "production-runtime-version-latest.json")
+$env:IKIMON_VERIFICATION_ARCHIVE_DIR = Convert-ToGitBashPath $historyDirectory
 if (-not $env:IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS) { $env:IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS = "14" }
 if (-not $env:SMOKE_TIER) { $env:SMOKE_TIER = "targeted" }
 if (-not $env:PLAYWRIGHT_INSTALL_WITH_DEPS) { $env:PLAYWRIGHT_INSTALL_WITH_DEPS = "false" }
@@ -103,7 +120,7 @@ if (-not $env:PUBLISH_GITHUB_STATUS) { $env:PUBLISH_GITHUB_STATUS = "false" }
 
 $env:PATH = "$(Split-Path -Parent $node);$(Split-Path -Parent $bash);$env:PATH"
 $env:CHERE_INVOKING = "1"
-$scriptForBash = $watchScript.Replace("\", "/")
+$scriptForBash = Convert-ToGitBashPath $watchScript
 
 Push-Location $repo
 try {
