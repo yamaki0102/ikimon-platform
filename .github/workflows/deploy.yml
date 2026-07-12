@@ -6,6 +6,7 @@ on:
     paths:
       - 'platform_v2/**'
       - 'ops/deploy/**'
+      - 'ops/monitoring/**'
       - 'scripts/check_deploy_guardrails.ps1'
       - 'scripts/check_deploy_manifest_sync.ps1'
       - 'scripts/check_staging_manifest_sync.ps1'
@@ -15,7 +16,11 @@ on:
       - 'scripts/plan_production_release_scope.mjs'
       - 'scripts/run_cloudflare_production_release.sh'
       - 'scripts/verify_cloudflare_production_release.sh'
+      - 'scripts/run_production_verification_watch.sh'
+      - 'scripts/build_production_verification_report.mjs'
+      - 'scripts/publish_production_verification_status.mjs'
       - 'scripts/tests/production_release_scope.tests.mjs'
+      - 'scripts/tests/production_verification_evidence.tests.mjs'
       - 'scripts/tests/release_automation.tests.ps1'
       - '.github/workflows/deploy.yml'
 
@@ -76,8 +81,11 @@ jobs:
           --github-output "$GITHUB_OUTPUT"
           --summary "$GITHUB_STEP_SUMMARY"
 
-      - name: Test production release scope planner
-        run: node --test scripts/tests/production_release_scope.tests.mjs
+      - name: Test production release scope and verification evidence
+        run: >-
+          node --test
+          scripts/tests/production_release_scope.tests.mjs
+          scripts/tests/production_verification_evidence.tests.mjs
 
       - name: Run deploy control guardrails
         if: steps.plan.outputs.run_guardrails == 'true'
@@ -102,6 +110,9 @@ jobs:
     needs: plan-and-guard
     if: needs.plan-and-guard.outputs.deploy_required == 'true'
     environment: production
+    permissions:
+      contents: read
+      statuses: write
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       DEPLOY_PRODUCTION: 'true'
@@ -136,27 +147,50 @@ jobs:
       - name: Run portable production release
         run: bash scripts/run_cloudflare_production_release.sh
 
+      - name: Publish production verification commit status
+        if: always()
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          IKIMON_STATUS_TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          node scripts/publish_production_verification_status.mjs
+          --report platform_v2/cloudflare_shadow/.deploy/production-verification-latest.json
+          --sha "${{ github.sha }}"
+          --fallback-state failure
+          --fallback-description "Production release failed before verification evidence was created"
+
       - name: Write portable release summary
         if: always()
         run: |
           node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require('node:fs');
-          const path = 'platform_v2/cloudflare_shadow/.deploy/production-release-summary.json';
+          const releasePath = 'platform_v2/cloudflare_shadow/.deploy/production-release-summary.json';
+          const verificationPath = 'platform_v2/cloudflare_shadow/.deploy/production-verification-latest.json';
           console.log('## Portable Cloudflare Production Release');
           console.log('');
           console.log('- Worker: `ikimon-life-cloudflare-prod`');
           console.log('- R2 bucket: `ikimon-prod-media`');
           console.log('- VPS SSH/deploy: `not used`');
           console.log('- GitHub Artifact handoff: `not used`');
-          if (!fs.existsSync(path)) {
+          if (fs.existsSync(releasePath)) {
+            const release = JSON.parse(fs.readFileSync(releasePath, 'utf8'));
+            console.log(`- Release status: \`${release.status}\``);
+            console.log(`- Git SHA: \`${release.gitSha}\``);
+            console.log(`- Test profile: \`${release.testProfile}\``);
+            console.log(`- Smoke tier: \`${release.smokeTier}\``);
+          } else {
             console.log('- Release summary: `missing`');
-            process.exit(0);
           }
-          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
-          console.log(`- Status: \`${report.status}\``);
-          console.log(`- Git SHA: \`${report.gitSha}\``);
-          console.log(`- Test profile: \`${report.testProfile}\``);
-          console.log(`- Smoke tier: \`${report.smokeTier}\``);
+          if (fs.existsSync(verificationPath)) {
+            const verification = JSON.parse(fs.readFileSync(verificationPath, 'utf8'));
+            console.log(`- Verification status: \`${verification.status}\``);
+            console.log(`- Verification SHA match: \`${verification.shaMatches}\``);
+            console.log(`- Verification phases: \`${verification.checks?.length ?? 0}\``);
+            console.log(`- Verification endpoints: \`${verification.endpoints?.length ?? 0}\``);
+          } else {
+            console.log('- Verification evidence: `missing`');
+          }
           NODE
 
       - name: Upload production failure evidence
@@ -168,6 +202,9 @@ jobs:
             platform_v2/cloudflare_shadow/.deploy/production-preflight-latest.json
             platform_v2/cloudflare_shadow/.deploy/wrangler-version-cache.json
             platform_v2/cloudflare_shadow/.deploy/production-release-summary.json
+            platform_v2/cloudflare_shadow/.deploy/production-verification-latest.json
+            platform_v2/cloudflare_shadow/.deploy/production-verification-latest.log
+            platform_v2/cloudflare_shadow/.deploy/production-runtime-version-latest.json
             platform_v2/cloudflare_shadow/materialize-original-ui.json
             platform_v2/test-results
             platform_v2/playwright-report/observation-image-target

@@ -31,10 +31,10 @@ function isProductionRuntimePath(pathname) {
 
 function isProductionControlPath(pathname) {
   return /^\.github\/workflows\/deploy\.yml$/.test(pathname)
-    || /^ops\/deploy\//.test(pathname)
-    || /^scripts\/(?:check_(?:deploy_guardrails|deploy_manifest_sync|staging_manifest_sync|platform_migration_guardrails|legacy_entrypoint_reason)|classify_deploy_smoke_tier|plan_production_release_scope)\.(?:ps1|mjs)$/.test(pathname)
-    || /^scripts\/(?:run_cloudflare_production_release|verify_cloudflare_production_release)\.sh$/.test(pathname)
-    || /^scripts\/tests\/(?:production_release_scope\.tests\.mjs|release_automation\.tests\.ps1)$/.test(pathname)
+    || /^ops\/(?:deploy|monitoring)\//.test(pathname)
+    || /^scripts\/(?:check_(?:deploy_guardrails|deploy_manifest_sync|staging_manifest_sync|platform_migration_guardrails|legacy_entrypoint_reason)|classify_deploy_smoke_tier|plan_production_release_scope|build_production_verification_report|publish_production_verification_status)\.(?:ps1|mjs)$/.test(pathname)
+    || /^scripts\/(?:run_cloudflare_production_release|verify_cloudflare_production_release|run_production_verification_watch)\.sh$/.test(pathname)
+    || /^scripts\/tests\/(?:production_release_scope\.tests\.mjs|production_verification_evidence\.tests\.mjs|release_automation\.tests\.ps1)$/.test(pathname)
     || /^platform_v2\/cloudflare_shadow\/scripts\/(?:deploy-production-guard|production-deploy-clean-gate)\.mjs$/.test(pathname)
     || /^platform_v2\/cloudflare_shadow\/src\/productionReleaseScripts\.test\.ts$/.test(pathname);
 }

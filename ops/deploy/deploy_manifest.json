@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "strategy": "github_actions_cloudflare_worker",
   "platform": "cloudflare_worker",
   "workerName": "ikimon-life-cloudflare-prod",
@@ -8,12 +8,18 @@
   "materializedOriginalUiScope": "core",
   "portableReleaseScript": "scripts/run_cloudflare_production_release.sh",
   "portableVerifyScript": "scripts/verify_cloudflare_production_release.sh",
+  "verificationWatchScript": "scripts/run_production_verification_watch.sh",
+  "verificationReportBuilder": "scripts/build_production_verification_report.mjs",
+  "verificationStatusPublisher": "scripts/publish_production_verification_status.mjs",
+  "verificationPolicyPath": "ops/monitoring/production_verification_policy.json",
+  "verificationStatusContext": "ikimon/production-verification",
   "productionScopePlanner": "scripts/plan_production_release_scope.mjs",
   "triggerPolicy": {
     "mainPushOnly": true,
     "pathFiltered": true,
     "controlOnlySkipsMutation": true,
-    "exactShaRequired": true
+    "exactShaRequired": true,
+    "statusAggregationBestEffort": true
   },
   "healthChecks": [
     "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/healthz",
@@ -27,11 +33,12 @@
   ],
   "requiredChecks": [
     "PR Quality Gate and Ai Review Gate before merge",
-    "node --test scripts/tests/production_release_scope.tests.mjs",
+    "node --test scripts/tests/production_release_scope.tests.mjs scripts/tests/production_verification_evidence.tests.mjs",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_guardrails.ps1",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_manifest_sync.ps1",
     "bash scripts/run_cloudflare_production_release.sh with DEPLOY_PRODUCTION=true",
-    "bash scripts/verify_cloudflare_production_release.sh"
+    "bash scripts/run_production_verification_watch.sh",
+    "node scripts/publish_production_verification_status.mjs"
   ],
   "forbiddenPaths": [
     "**/*.sqlite",
@@ -48,8 +55,10 @@
   ],
   "notes": [
     "Production mutation is triggered only by an eligible main push whose changed files affect the current app, Worker runtime, bindings, migrations, dependencies, or materialized UI.",
-    "Documentation, test-only, and production control-plane-only changes do not mutate the production Worker, D1, or R2.",
+    "Documentation, test-only, monitoring, and production control-plane-only changes do not mutate the production Worker, D1, or R2.",
     "GitHub Actions is the approval and status layer; the release implementation is the portable repository command scripts/run_cloudflare_production_release.sh.",
+    "Production verification writes a no-personal-data JSON report bound to the exact public runtime SHA and can run from GitHub Actions, a Codex management PC, or a management server.",
+    "External verification may publish the deduplicated ikimon/production-verification commit status using a separately managed repository status token.",
     "The portable release command performs one dependency-install/build lane, Worker quick preflight, D1 migration application, R2 materialization, guarded Worker deploy, and post-deploy verification without a GitHub Artifact handoff.",
     "The production public entrypoint is Cloudflare Worker ikimon-life-cloudflare-prod, not the legacy VPS blue/green lane.",
     "The production Worker must not own staging.ikimon.life routes; Cloudflare staging owns staging.ikimon.life/* through ikimon-life-cloudflare-staging.",

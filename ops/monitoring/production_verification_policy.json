@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "ikimon_production_verification_policy/v1",
+  "selfPath": "ops/monitoring/production_verification_policy.json",
+  "updatedAt": "2026-07-12",
+  "target": "https://ikimon.life",
+  "defaultMode": "targeted",
+  "recommendedCadenceMinutes": 15,
+  "fullVerification": {
+    "requiredAfterProductionRelease": true,
+    "scheduledByDefault": false,
+    "reason": "Full verification installs/runs Playwright and should not be repeated every 15 minutes."
+  },
+  "portableCommand": "bash scripts/run_production_verification_watch.sh",
+  "reportPath": "platform_v2/cloudflare_shadow/.deploy/production-verification-latest.json",
+  "logPath": "platform_v2/cloudflare_shadow/.deploy/production-verification-latest.log",
+  "runtimeSnapshotPath": "platform_v2/cloudflare_shadow/.deploy/production-runtime-version-latest.json",
+  "githubStatus": {
+    "context": "ikimon/production-verification",
+    "publishOnExternalRunner": true,
+    "deduplicateUnchangedStatus": true,
+    "requiredTokenScope": "repository commit statuses write",
+    "doNotStoreTokenInRepository": true
+  },
+  "safety": {
+    "productionMutation": false,
+    "noDatabaseWrites": true,
+    "noR2Writes": true,
+    "noSecretMutation": true,
+    "noDnsMutation": true,
+    "noVpsSsh": true,
+    "noPersonalDataInReport": true,
+    "exactRuntimeShaBinding": true
+  },
+  "runnerRequirements": [
+    "bash",
+    "curl",
+    "Node.js 22 or compatible",
+    "network access to ikimon.life and api.github.com",
+    "Playwright Chromium only when SMOKE_TIER=full"
+  ],
+  "localRetention": {
+    "latestFilesOnlyByDefault": true,
+    "recommendedHistoricalRetentionDays": 14,
+    "historicalStorage": "management server or R2 evidence bucket, not GitHub Actions artifacts"
+  }
+}
