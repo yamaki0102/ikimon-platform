@@ -1,0 +1,187 @@
+name: Inspect Record Recovery Production
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: inspect-record-recovery-production
+  cancel-in-progress: true
+
+jobs:
+  inspect-production:
+    if: github.head_ref == 'agent/visual-qa-record-recovery-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TARGET_SHA: 67ea561c25b71860577eda13610b3bda55f9c35c
+      PRODUCTION_BASE_URL: https://ikimon.life
+    steps:
+      - name: Wait for exact production deployment
+        id: deploy
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const targetSha = process.env.TARGET_SHA;
+            let matched = null;
+            for (let attempt = 1; attempt <= 60; attempt += 1) {
+              const response = await github.rest.actions.listWorkflowRuns({
+                owner,
+                repo,
+                workflow_id: 'deploy.yml',
+                branch: 'main',
+                event: 'push',
+                per_page: 30,
+              });
+              matched = response.data.workflow_runs.find((run) => run.head_sha === targetSha) || null;
+              if (matched?.status === 'completed') break;
+              core.info(`Production run attempt ${attempt}: ${matched ? `${matched.status}/${matched.conclusion || 'pending'}` : 'not found'}`);
+              await new Promise((resolve) => setTimeout(resolve, 20000));
+            }
+            if (!matched) {
+              throw new Error(`Production workflow run not found for ${targetSha}`);
+            }
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner,
+              repo,
+              run_id: matched.id,
+              per_page: 100,
+            });
+            const evidence = {
+              targetSha,
+              run: {
+                id: matched.id,
+                name: matched.name,
+                status: matched.status,
+                conclusion: matched.conclusion,
+                event: matched.event,
+                headBranch: matched.head_branch,
+                headSha: matched.head_sha,
+                htmlUrl: matched.html_url,
+                createdAt: matched.created_at,
+                updatedAt: matched.updated_at,
+                runAttempt: matched.run_attempt,
+              },
+              jobs: jobs.map((job) => ({
+                id: job.id,
+                name: job.name,
+                status: job.status,
+                conclusion: job.conclusion,
+                startedAt: job.started_at,
+                completedAt: job.completed_at,
+                htmlUrl: job.html_url,
+                steps: (job.steps || []).map((step) => ({
+                  name: step.name,
+                  status: step.status,
+                  conclusion: step.conclusion,
+                  number: step.number,
+                })),
+              })),
+            };
+            fs.mkdirSync('record-recovery-production-evidence', { recursive: true });
+            fs.writeFileSync(
+              'record-recovery-production-evidence/deployment.json',
+              JSON.stringify(evidence, null, 2),
+            );
+            core.setOutput('run_id', String(matched.id));
+            core.setOutput('conclusion', String(matched.conclusion || ''));
+            core.setOutput('html_url', String(matched.html_url || ''));
+            if (matched.status !== 'completed') {
+              throw new Error(`Production workflow did not complete: ${matched.status}`);
+            }
+            if (matched.conclusion !== 'success') {
+              throw new Error(`Production workflow failed: ${matched.conclusion}`);
+            }
+
+      - name: Verify public production read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p record-recovery-production-evidence/public
+
+          fetch_with_retry() {
+            local name="$1"
+            local url="$2"
+            local expected="$3"
+            local output="record-recovery-production-evidence/public/${name}.body"
+            local headers="record-recovery-production-evidence/public/${name}.headers"
+            local status_file="record-recovery-production-evidence/public/${name}.status"
+            for attempt in $(seq 1 30); do
+              status="$(curl --silent --show-error --location \
+                --connect-timeout 10 --max-time 30 \
+                --user-agent 'ikimon-production-readonly-verifier/1.0' \
+                --dump-header "$headers" \
+                --output "$output" \
+                --write-out '%{http_code}' \
+                "$url" || true)"
+              printf '%s\n' "$status" > "$status_file"
+              if [ "$status" = "200" ] && grep -Fq "$expected" "$output"; then
+                return 0
+              fi
+              sleep 10
+            done
+            echo "Verification failed for $name ($url)" >&2
+            echo "Last HTTP status: $(cat "$status_file" 2>/dev/null || true)" >&2
+            sed -n '1,80p' "$output" >&2 || true
+            return 1
+          }
+
+          fetch_with_retry \
+            runtime-version \
+            "$PRODUCTION_BASE_URL/api/v1/runtime/version" \
+            "$TARGET_SHA"
+          fetch_with_retry \
+            health \
+            "$PRODUCTION_BASE_URL/healthz" \
+            '"ok":true'
+          fetch_with_retry \
+            recovery-guest \
+            "$PRODUCTION_BASE_URL/ja/record?draft=1&start=photo&source=login_required" \
+            '写真・入力内容はこの端末に残っています'
+          fetch_with_retry \
+            record-normal \
+            "$PRODUCTION_BASE_URL/ja/record" \
+            '<html'
+
+          node <<'NODE'
+          const fs = require('fs');
+          const targetSha = process.env.TARGET_SHA;
+          const runtime = JSON.parse(fs.readFileSync('record-recovery-production-evidence/public/runtime-version.body', 'utf8'));
+          const health = JSON.parse(fs.readFileSync('record-recovery-production-evidence/public/health.body', 'utf8'));
+          const recovery = fs.readFileSync('record-recovery-production-evidence/public/recovery-guest.body', 'utf8');
+          const normal = fs.readFileSync('record-recovery-production-evidence/public/record-normal.body', 'utf8');
+          const report = {
+            targetSha,
+            runtimeGitSha: runtime.gitSha,
+            runtimeEnv: runtime.runtimeEnv,
+            builtAt: runtime.builtAt,
+            migrationHead: runtime.migrationHead,
+            healthOk: health.ok === true,
+            recoveryMarkers: {
+              draftRetained: recovery.includes('写真・入力内容はこの端末に残っています'),
+              loginAction: recovery.includes('ログインして続ける'),
+              registerAction: recovery.includes('登録して続ける'),
+            },
+            normalRecordHtml: /<html/i.test(normal),
+          };
+          fs.writeFileSync('record-recovery-production-evidence/public-verification.json', JSON.stringify(report, null, 2));
+          if (runtime.gitSha !== targetSha) throw new Error(`Runtime SHA mismatch: ${runtime.gitSha}`);
+          if (!report.healthOk) throw new Error('Production health is not ok');
+          if (!Object.values(report.recoveryMarkers).every(Boolean)) throw new Error('Recovery markers missing');
+          if (!report.normalRecordHtml) throw new Error('Normal record page is not HTML');
+          NODE
+
+      - name: Upload production inspection evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: record-recovery-production-evidence
+          path: record-recovery-production-evidence
+          if-no-files-found: error
+          retention-days: 14
