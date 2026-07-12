@@ -7,6 +7,7 @@ import {
 } from "./recordRecoveryHtml";
 
 // Recovery stays Cloudflare-native so VPS origin fallback readiness is unchanged.
+// Network retries must resume the same record and only the unfinished media steps.
 test("record recovery state accepts only explicit recovery inputs", () => {
   const draft = resolveCloudflareRecordRecoveryState(new URL("https://ikimon.life/ja/record?draft=1&start=photo"));
   assert.equal(draft.active, true);
