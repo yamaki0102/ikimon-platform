@@ -117,6 +117,21 @@ test('production verification installer and archive changes stay out of browser 
   assert.equal(plan.run_scene_read_smoke, false);
 });
 
+test('Windows verification task controls stay out of browser lanes', () => {
+  const plan = planCiScope([
+    'scripts/Invoke-ProductionVerificationWatch.ps1',
+    'scripts/Install-ProductionVerificationScheduledTask.ps1',
+    'scripts/Test-ProductionVerificationWindows.ps1',
+    'ops/monitoring/windows/production-verification.env.example',
+  ]);
+  assert.equal(plan.deploy_changed, true);
+  assert.equal(plan.run_platform, true);
+  assert.equal(plan.run_deploy_manifest_check, true);
+  assert.equal(plan.run_record_funnel_browser_qa, false);
+  assert.equal(plan.run_map_performance_qa, false);
+  assert.equal(plan.run_scene_read_smoke, false);
+});
+
 test('production release planner changes are deploy-impacting', () => {
   const plan = planCiScope(['scripts/plan_production_release_scope.mjs']);
   assert.equal(plan.deploy_changed, true);
