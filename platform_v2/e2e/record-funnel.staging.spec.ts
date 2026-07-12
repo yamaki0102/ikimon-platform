@@ -473,3 +473,75 @@ cameraDeviceQaDescribe("global record camera mobile controls QA", () => {
     }
   }
 });
+
+
+test.describe("record recovery staging QA", () => {
+  let api: APIRequestContext;
+  let sessionCookie: string;
+  let userId: string;
+
+  test.beforeAll(async ({ playwright }) => {
+    api = await createStagingApiContext(playwright);
+    userId = await resolveQaUserId(api);
+    sessionCookie = await issueSessionCookie(api, userId);
+  });
+
+  test.afterAll(async () => {
+    await api.dispose();
+  });
+
+  test("restores a device note draft in the focused fallback screen", async ({ browser }) => {
+    test.setTimeout(90_000);
+    const profile: ViewportProfile = { slug: "mobile-recovery-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
+    const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
+    await addSessionCookie(context, sessionCookie);
+    const page = await context.newPage();
+    try {
+      await page.goto("/record?start=note", { waitUntil: "domcontentloaded" });
+      await page.evaluate(async () => {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open("ikimon-record-draft", 1);
+          request.onupgradeneeded = () => {
+            if (!request.result.objectStoreNames.contains("drafts")) request.result.createObjectStore("drafts");
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        await new Promise<void>((resolve, reject) => {
+          const transaction = db.transaction("drafts", "readwrite");
+          transaction.objectStore("drafts").put({
+            files: [],
+            kind: "note",
+            savedAt: Date.now(),
+            metadata: {
+              draftReason: "visual_qa",
+              formValues: { nextLookFor: "水辺の鳥の声", recordMode: "quick" },
+            },
+          }, "latest");
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error);
+        });
+        db.close();
+      });
+
+      const response = await page.goto("/record?start=note&draft=1&source=draft_restore", { waitUntil: "domcontentloaded" });
+      expect(response?.status() ?? 0).toBeLessThan(400);
+      await expect(page.locator("[data-record-recovery]")).toBeVisible();
+      await expect(page.locator("#record-recovery-title")).toContainText("下書きを復元しました");
+      await expect(page.locator("#record-form")).toBeVisible();
+      await expect(page.locator("[data-record-recovery-save]")).toBeEnabled();
+      await expect(page.locator("[data-record-recovery-location]")).toBeEnabled();
+      await expect(page.locator("input[name='nextLookFor']")).toHaveValue("水辺の鳥の声");
+      await expect(page.locator(".record-card-head")).toBeHidden();
+      await expect(page.locator(".record-confidence-strip")).toBeHidden();
+      await expect(page.locator(".record-capture-launcher")).toBeHidden();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+
+      page.once("dialog", (dialog) => dialog.accept());
+      await page.locator("[data-record-recovery-discard]").click();
+      await page.waitForURL(/\/records\?view=mine/);
+    } finally {
+      await context.close();
+    }
+  });
+});

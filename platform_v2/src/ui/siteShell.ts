@@ -1904,15 +1904,19 @@ function globalRecordEntryScript(basePath: string): string {
     }
     return String(json.session.userId);
   };
-  const withDraftParams = (href, kind) => {
+  const withDraftParams = (href, kind, source) => {
     let target = String(href || '/record?start=' + encodeURIComponent(kind || 'gallery'));
+    const recoverySource = ['location_denied', 'login_required', 'draft_restore', 'media_retry', 'upload_failed', 'global_capture'].includes(String(source || ''))
+      ? String(source)
+      : 'draft_restore';
     try {
       const url = new URL(target, window.location.origin);
       url.searchParams.set('draft', '1');
+      url.searchParams.set('source', recoverySource);
       return url.pathname + url.search + url.hash;
     } catch (_) {
       const separator = target.indexOf('?') >= 0 ? '&' : '?';
-      return target + separator + 'draft=1';
+      return target + separator + 'draft=1&source=' + encodeURIComponent(recoverySource);
     }
   };
   const stopRecordingTimer = () => {
@@ -2228,7 +2232,7 @@ function globalRecordEntryScript(basePath: string): string {
     }
     if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {
       setStatus('位置情報を取得できなかったため、写真を保持して記録画面へ移動します。');
-      await navigateWithDraft(files, 'photo', metadata);
+      await navigateWithDraft(files, 'photo', metadata, 'location_denied');
       return;
     }
     try {
@@ -2442,17 +2446,20 @@ function globalRecordEntryScript(basePath: string): string {
     const dropped = incoming.length - accepted.length;
     setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で記録、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
   };
-  const navigateWithDraft = async (files, kind, metadata) => {
+  const navigateWithDraft = async (files, kind, metadata, source) => {
     const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
     const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
     const draftFiles = normalizeDraftFiles(files);
-    const metadataWithRole = Object.assign({}, metadata || {}, {
+    const metadataValue = metadata && typeof metadata === 'object' ? metadata : {};
+    const recoverySource = source || (kind === 'photo' && !metadataValue.location ? 'location_denied' : 'draft_restore');
+    const metadataWithRole = Object.assign({}, metadataValue, {
       mediaRole: kind === 'video' ? 'sound_motion' : 'primary_subject',
+      recoverySource,
     });
     try {
       const [primaryDraftFile = null] = draftFiles;
       await saveDraft({ file: primaryDraftFile, files: draftFiles, kind, savedAt: Date.now(), metadata: metadataWithRole });
-      window.location.href = withDraftParams(href || '/record', kind);
+      window.location.href = withDraftParams(href || '/record', kind, recoverySource);
     } catch (_) {
       window.location.href = href || '/record?start=' + encodeURIComponent(kind);
     }
@@ -2891,7 +2898,7 @@ function globalRecordEntryScript(basePath: string): string {
         const message = error && error.message ? String(error.message) : '';
         if (message === 'session_required') {
           setStatus('ログイン後に続けられるよう、写真を下書きに保存しています...');
-          await navigateWithDraft(selectedPhotoDraftFiles(), 'photo', capturedReviewMeta || {});
+          await navigateWithDraft(selectedPhotoDraftFiles(), 'photo', capturedReviewMeta || {}, 'login_required');
           return;
         } else if (message === 'location_required') setStatus('直接記録には地点が必要です。位置情報を許可してからもう一度試してください。');
         else if (message.startsWith('photo_upload_failed_at_')) setStatus('写真の保存に失敗しました。通信状態を確認してもう一度試してください。');

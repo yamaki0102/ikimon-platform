@@ -6398,30 +6398,322 @@ function renderRecordFirstSuccess(copy: RecordPageCopy): string {
     .join("")}</ol></div>`;
 }
 
+
+type RecordRecoverySource = "" | "location_denied" | "login_required" | "draft_restore" | "media_retry" | "upload_failed" | "global_capture";
+type RecordRecoveryStart = "" | "note" | "photo" | "video" | "gallery";
+type RecordRecoveryState = {
+  active: boolean;
+  draft: boolean;
+  retryMedia: boolean;
+  source: RecordRecoverySource;
+  start: RecordRecoveryStart;
+};
+
+type RecordRecoveryCopy = {
+  pageTitle: string;
+  eyebrow: string;
+  guestTitle: string;
+  guestBody: string;
+  guestSafeTitle: string;
+  guestSafeBody: string;
+  loginAction: string;
+  registerAction: string;
+  recordsAction: string;
+  mapAction: string;
+  panelBadge: string;
+  panelTitle: string;
+  checkingTitle: string;
+  checkingBody: string;
+  readyTitle: string;
+  readyBody: string;
+  mediaRetryTitle: string;
+  mediaRetryBody: string;
+  emptyTitle: string;
+  emptyBody: string;
+  errorTitle: string;
+  errorBody: string;
+  discardedTitle: string;
+  discardedBody: string;
+  locationAction: string;
+  saveAction: string;
+  pickAction: string;
+  backAction: string;
+  discardAction: string;
+  discardConfirm: string;
+  footerNote: string;
+};
+
+const RECORD_RECOVERY_SOURCES = new Set<RecordRecoverySource>([
+  "location_denied",
+  "login_required",
+  "draft_restore",
+  "media_retry",
+  "upload_failed",
+  "global_capture",
+]);
+
+function resolveRecordRecoveryState(currentUrl = "/record"): RecordRecoveryState {
+  let params = new URLSearchParams();
+  try {
+    params = new URL(currentUrl, "https://ikimon.local").searchParams;
+  } catch {
+    params = new URLSearchParams();
+  }
+  const rawStart = params.get("start") ?? "";
+  const start: RecordRecoveryStart = rawStart === "note" || rawStart === "photo" || rawStart === "video" || rawStart === "gallery" ? rawStart : "";
+  const draft = params.get("draft") === "1";
+  const retryMedia = params.get("retry") === "media";
+  const rawSource = (params.get("source") ?? "").trim() as RecordRecoverySource;
+  let source: RecordRecoverySource = RECORD_RECOVERY_SOURCES.has(rawSource) ? rawSource : "";
+  if (retryMedia) source = "media_retry";
+  if (draft && !source) source = "draft_restore";
+  return {
+    active: draft || retryMedia || Boolean(source),
+    draft,
+    retryMedia,
+    source,
+    start,
+  };
+}
+
+function appendRecordRecoveryParams(params: URLSearchParams, state: RecordRecoveryState, lang: SiteLang): void {
+  if (state.start) params.set("start", state.start);
+  if (state.draft) params.set("draft", "1");
+  if (state.retryMedia) params.set("retry", "media");
+  if (state.source) params.set("source", state.source);
+  if (lang) params.set("lang", lang);
+}
+
+function recordRecoveryCopy(lang: SiteLang, state: RecordRecoveryState): RecordRecoveryCopy {
+  const copies: Record<SiteLang, RecordRecoveryCopy> = {
+    ja: {
+      pageTitle: "下書きから記録を続ける",
+      eyebrow: "記録の復旧",
+      guestTitle: "写真・入力内容はこの端末に残っています",
+      guestBody: "ログインすると、この端末に保存した下書きを開き、場所を確認して保存できます。別の端末には自動で移りません。",
+      guestSafeTitle: "いま閉じても下書きは消しません",
+      guestSafeBody: "明示的に「下書きを破棄」するか、保存が完了するまで端末内の下書きを維持します。",
+      loginAction: "ログインして続ける",
+      registerAction: "登録して続ける",
+      recordsAction: "公開記録へ戻る",
+      mapAction: "地図へ戻る",
+      panelBadge: "復旧モード",
+      panelTitle: "下書きを確認しています",
+      checkingTitle: "下書きを確認しています",
+      checkingBody: "この端末に残っている写真と入力内容を読み込んでいます。",
+      readyTitle: "下書きを復元しました",
+      readyBody: "写真と入力内容は保持されています。場所を選ぶか、場所なしのまま内容を確認して保存できます。",
+      mediaRetryTitle: "保存済みの記録へメディアを戻せます",
+      mediaRetryBody: "記録本体は保存済みです。この画面では残っている写真・動画だけを同じ記録へ再送します。",
+      emptyTitle: "復元できる下書きが見つかりませんでした",
+      emptyBody: "別の端末やブラウザで撮影した場合、下書きはここにはありません。写真を選び直すか記録一覧へ戻ってください。",
+      errorTitle: "下書きを読み込めませんでした",
+      errorBody: "端末の保存領域を確認できませんでした。写真を選び直すか、ブラウザのサイトデータ設定を確認してください。",
+      discardedTitle: "下書きを破棄しました",
+      discardedBody: "端末内の下書きを削除しました。記録一覧へ戻ります。",
+      locationAction: "場所を選ぶ",
+      saveAction: "保存する",
+      pickAction: "写真・動画を選び直す",
+      backAction: "戻る",
+      discardAction: "下書きを破棄",
+      discardConfirm: "この端末に残っている写真・動画・入力内容を削除します。元に戻せません。破棄しますか？",
+      footerNote: "下書きは保存完了または明示的な破棄まで、この端末内に保持します。",
+    },
+    en: {
+      pageTitle: "Continue a saved draft",
+      eyebrow: "Record recovery",
+      guestTitle: "Your photos and entries remain on this device",
+      guestBody: "Sign in to reopen the draft saved in this browser, review its place, and save it. Drafts do not move automatically to another device.",
+      guestSafeTitle: "Closing this page will not discard the draft",
+      guestSafeBody: "The device draft stays until saving succeeds or you explicitly discard it.",
+      loginAction: "Sign in and continue",
+      registerAction: "Create account and continue",
+      recordsAction: "Back to public records",
+      mapAction: "Back to map",
+      panelBadge: "Recovery mode",
+      panelTitle: "Checking your draft",
+      checkingTitle: "Checking your draft",
+      checkingBody: "Reading the photos and entries stored on this device.",
+      readyTitle: "Draft restored",
+      readyBody: "Your photos and entries are retained. Choose a place, or review and save without a place.",
+      mediaRetryTitle: "Return media to the saved record",
+      mediaRetryBody: "The record itself is saved. This page only resends the remaining photos or video to the same record.",
+      emptyTitle: "No restorable draft was found",
+      emptyBody: "A draft made in another device or browser is not available here. Select the media again or return to your records.",
+      errorTitle: "The draft could not be read",
+      errorBody: "This browser's storage could not be accessed. Select the media again or check site-data settings.",
+      discardedTitle: "Draft discarded",
+      discardedBody: "The device draft was deleted. Returning to your records.",
+      locationAction: "Choose place",
+      saveAction: "Save",
+      pickAction: "Select media again",
+      backAction: "Back",
+      discardAction: "Discard draft",
+      discardConfirm: "This deletes the photos, video, and entries stored on this device. It cannot be undone. Discard the draft?",
+      footerNote: "The draft remains on this device until saving succeeds or you explicitly discard it.",
+    },
+    es: {
+      pageTitle: "Continuar un borrador",
+      eyebrow: "Recuperación del registro",
+      guestTitle: "Tus fotos y datos siguen en este dispositivo",
+      guestBody: "Inicia sesión para abrir el borrador guardado en este navegador, revisar el lugar y guardarlo. No pasa automáticamente a otro dispositivo.",
+      guestSafeTitle: "Cerrar esta página no elimina el borrador",
+      guestSafeBody: "El borrador se mantiene hasta que se guarda o lo descartas de forma explícita.",
+      loginAction: "Entrar y continuar",
+      registerAction: "Registrarse y continuar",
+      recordsAction: "Volver a registros públicos",
+      mapAction: "Volver al mapa",
+      panelBadge: "Modo recuperación",
+      panelTitle: "Comprobando el borrador",
+      checkingTitle: "Comprobando el borrador",
+      checkingBody: "Leyendo las fotos y datos guardados en este dispositivo.",
+      readyTitle: "Borrador recuperado",
+      readyBody: "Las fotos y los datos siguen guardados. Elige un lugar o revisa y guarda sin lugar.",
+      mediaRetryTitle: "Puedes devolver los archivos al registro guardado",
+      mediaRetryBody: "El registro ya está guardado. Esta pantalla solo reenvía las fotos o el video restantes.",
+      emptyTitle: "No se encontró un borrador recuperable",
+      emptyBody: "Los borradores de otro navegador o dispositivo no aparecen aquí. Selecciona los archivos de nuevo o vuelve a tus registros.",
+      errorTitle: "No se pudo leer el borrador",
+      errorBody: "No se pudo acceder al almacenamiento del navegador. Selecciona los archivos otra vez o revisa los datos del sitio.",
+      discardedTitle: "Borrador descartado",
+      discardedBody: "Se eliminó el borrador del dispositivo. Volviendo a tus registros.",
+      locationAction: "Elegir lugar",
+      saveAction: "Guardar",
+      pickAction: "Elegir archivos otra vez",
+      backAction: "Volver",
+      discardAction: "Descartar borrador",
+      discardConfirm: "Se eliminarán las fotos, el video y los datos guardados en este dispositivo. No se puede deshacer. ¿Descartar?",
+      footerNote: "El borrador permanece en este dispositivo hasta guardar o descartarlo de forma explícita.",
+    },
+    "pt-BR": {
+      pageTitle: "Continuar um rascunho",
+      eyebrow: "Recuperação do registro",
+      guestTitle: "Suas fotos e dados continuam neste dispositivo",
+      guestBody: "Entre para abrir o rascunho salvo neste navegador, revisar o local e salvar. Ele não passa automaticamente para outro dispositivo.",
+      guestSafeTitle: "Fechar esta página não apaga o rascunho",
+      guestSafeBody: "O rascunho permanece até o salvamento concluir ou você descartá-lo explicitamente.",
+      loginAction: "Entrar e continuar",
+      registerAction: "Criar conta e continuar",
+      recordsAction: "Voltar aos registros públicos",
+      mapAction: "Voltar ao mapa",
+      panelBadge: "Modo de recuperação",
+      panelTitle: "Verificando o rascunho",
+      checkingTitle: "Verificando o rascunho",
+      checkingBody: "Lendo as fotos e os dados salvos neste dispositivo.",
+      readyTitle: "Rascunho restaurado",
+      readyBody: "As fotos e os dados estão preservados. Escolha um local ou revise e salve sem local.",
+      mediaRetryTitle: "Você pode devolver a mídia ao registro salvo",
+      mediaRetryBody: "O registro já está salvo. Esta tela apenas reenvia as fotos ou o vídeo restantes.",
+      emptyTitle: "Nenhum rascunho recuperável foi encontrado",
+      emptyBody: "Rascunhos de outro navegador ou dispositivo não aparecem aqui. Selecione a mídia novamente ou volte aos seus registros.",
+      errorTitle: "Não foi possível ler o rascunho",
+      errorBody: "O armazenamento do navegador não pôde ser acessado. Selecione a mídia novamente ou verifique os dados do site.",
+      discardedTitle: "Rascunho descartado",
+      discardedBody: "O rascunho deste dispositivo foi apagado. Voltando aos seus registros.",
+      locationAction: "Escolher local",
+      saveAction: "Salvar",
+      pickAction: "Selecionar mídia novamente",
+      backAction: "Voltar",
+      discardAction: "Descartar rascunho",
+      discardConfirm: "Isso apaga as fotos, o vídeo e os dados salvos neste dispositivo. Não é possível desfazer. Descartar o rascunho?",
+      footerNote: "O rascunho permanece neste dispositivo até salvar ou ser descartado explicitamente.",
+    },
+  };
+  const base = copies[lang] ?? copies.ja;
+  if (state.source === "media_retry") {
+    return { ...base, guestTitle: base.mediaRetryTitle, guestBody: base.mediaRetryBody };
+  }
+  return base;
+}
+
+const RECORD_RECOVERY_START_STYLES = `
+  .record-recovery-start { max-width: 760px; margin: 24px auto 0; padding: 0 18px; }
+  .record-recovery-start-card { padding: clamp(22px, 5vw, 38px); border-radius: 30px; background: linear-gradient(145deg,#fff,#f0fdf4); border: 1px solid rgba(5,150,105,.18); box-shadow: 0 24px 64px rgba(15,23,42,.1); }
+  .record-recovery-start-card h1 { margin: 10px 0 12px; font-size: clamp(27px,5vw,42px); line-height: 1.16; }
+  .record-recovery-start-card > p { color: #475569; line-height: 1.75; }
+  .record-recovery-assurance { margin-top: 18px; padding: 16px; border-radius: 20px; background: rgba(255,255,255,.84); border: 1px solid rgba(15,23,42,.08); }
+  .record-recovery-assurance strong { display:block; color:#065f46; }
+  .record-recovery-assurance span { display:block; margin-top:5px; color:#475569; font-size:13px; line-height:1.6; }
+  .record-recovery-start-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:20px; }
+  .record-recovery-start-links { display:flex; flex-wrap:wrap; gap:14px; margin-top:18px; }
+  .record-recovery-start-links a { color:#0f766e; font-weight:850; }
+  @media (max-width:640px) { .record-recovery-start { margin-top:12px; padding:0 12px; } .record-recovery-start-actions { grid-template-columns:1fr; } }
+`;
+
+function renderRecordRecoveryPanel(copy: RecordRecoveryCopy, state: RecordRecoveryState, recordsHref: string, mapHref: string): string {
+  return `<section class="record-recovery-panel" data-record-recovery data-source="${escapeHtml(state.source || "draft_restore")}" data-state="checking" aria-labelledby="record-recovery-title">
+    <div class="record-recovery-panel-top">
+      <span class="record-recovery-badge">${escapeHtml(copy.panelBadge)}</span>
+      <div class="record-recovery-utility-actions">
+        <button type="button" data-record-recovery-back>${escapeHtml(copy.backAction)}</button>
+        <button type="button" data-record-recovery-discard>${escapeHtml(copy.discardAction)}</button>
+      </div>
+    </div>
+    <strong id="record-recovery-title">${escapeHtml(copy.panelTitle)}</strong>
+    <p id="record-recovery-body">${escapeHtml(copy.checkingBody)}</p>
+    <div class="record-recovery-actions">
+      <button type="button" class="record-recovery-location" data-record-recovery-location disabled>${escapeHtml(copy.locationAction)}</button>
+      <button type="button" class="record-recovery-save" data-record-recovery-save disabled>${escapeHtml(copy.saveAction)}</button>
+      <button type="button" class="record-recovery-pick" data-record-recovery-pick>${escapeHtml(copy.pickAction)}</button>
+    </div>
+    <div class="record-recovery-links"><a href="${escapeHtml(recordsHref)}">${escapeHtml(copy.recordsAction)}</a><a href="${escapeHtml(mapHref)}">${escapeHtml(copy.mapAction)}</a></div>
+  </section>`;
+}
+
 function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "/record"): string {
   const copy = recordStartCopy(lang);
-  const currentParams = new URL(currentUrl, "https://ikimon.local").searchParams;
-  const start = currentParams.get("start");
-  const recordStart = start === "note" || start === "photo" || start === "video" || start === "gallery" ? start : "";
+  const recovery = resolveRecordRecoveryState(currentUrl);
+  const recoveryCopy = recordRecoveryCopy(lang, recovery);
   const recordParams = new URLSearchParams();
-  if (recordStart) recordParams.set("start", recordStart);
-  if (currentParams.get("draft") === "1") recordParams.set("draft", "1");
-  if (lang) recordParams.set("lang", lang);
+  appendRecordRecoveryParams(recordParams, recovery, lang);
   const recordTarget = `/record${recordParams.toString() ? `?${recordParams.toString()}` : ""}`;
   const recordTargetForStart = (kind: "note" | "photo" | "video" | "gallery") => {
     const params = new URLSearchParams();
-    params.set("start", kind);
-    if (currentParams.get("draft") === "1" && recordStart === kind) params.set("draft", "1");
-    if (lang) params.set("lang", lang);
+    const nextState: RecordRecoveryState = {
+      ...recovery,
+      start: kind,
+      draft: recovery.draft && (!recovery.start || recovery.start === kind),
+    };
+    appendRecordRecoveryParams(params, nextState, lang);
     return `/record?${params.toString()}`;
   };
   const loginFor = (target: string) => appendLangToHref(withBasePath(basePath, `/login?redirect=${encodeURIComponent(target)}`), lang);
-  const loginHref = loginFor(recordStart ? recordTarget : recordTargetForStart("photo"));
+  const loginHref = loginFor(recovery.start ? recordTarget : recordTargetForStart("photo"));
   const memoHref = loginFor(recordTargetForStart("note"));
   const registerHref = appendLangToHref(withBasePath(basePath, `/register?redirect=${encodeURIComponent(recordTarget)}`), lang);
   const learnHref = appendLangToHref(withBasePath(basePath, "/learn"), lang);
   const mapHref = appendLangToHref(withBasePath(basePath, "/map"), lang);
   const publicFindsHref = appendLangToHref(withBasePath(basePath, "/records?view=public"), lang);
+
+  if (recovery.active) {
+    return renderSiteDocument({
+      basePath,
+      title: recoveryCopy.pageTitle,
+      activeNav: copy.activeNav,
+      lang,
+      currentPath: appendLangToHref(withBasePath(basePath, recordTarget), lang),
+      extraStyles: `${START_STATE_STYLES}\n${RECORD_RECOVERY_START_STYLES}`,
+      body: `<div class="record-recovery-start" data-record-recovery-start data-source="${escapeHtml(recovery.source || "draft_restore")}">
+        <section class="record-recovery-start-card">
+          <div class="eyebrow">${escapeHtml(recoveryCopy.eyebrow)}</div>
+          <h1>${escapeHtml(recoveryCopy.guestTitle)}</h1>
+          <p>${escapeHtml(recoveryCopy.guestBody)}</p>
+          <div class="record-recovery-assurance"><strong>${escapeHtml(recoveryCopy.guestSafeTitle)}</strong><span>${escapeHtml(recoveryCopy.guestSafeBody)}</span></div>
+          <div class="record-recovery-start-actions">
+            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">${escapeHtml(recoveryCopy.loginAction)}</a>
+            <a class="btn btn-ghost" href="${escapeHtml(registerHref)}">${escapeHtml(recoveryCopy.registerAction)}</a>
+          </div>
+          <div class="record-recovery-start-links"><a href="${escapeHtml(publicFindsHref)}">${escapeHtml(recoveryCopy.recordsAction)}</a><a href="${escapeHtml(mapHref)}">${escapeHtml(recoveryCopy.mapAction)}</a></div>
+        </section>
+      </div>`,
+      footerNote: recoveryCopy.footerNote,
+      shellClassName: "shell-record-recovery-start",
+      hideGlobalRecordLauncher: true,
+      hideFooter: true,
+      minimalChrome: true,
+    });
+  }
+
   const qaHint = process.env.ALLOW_QUERY_USER_ID === "1"
     ? `<p class="meta" style="margin-top:14px;font-size:12px;color:#64748b">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>`
     : "";
@@ -16197,20 +16489,25 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/record", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const currentRecordUrl = String((request as unknown as { url?: string }).url ?? "/record");
+    const lang = detectLangFromUrl(currentRecordUrl);
+    const recoveryState = resolveRecordRecoveryState(currentRecordUrl);
     const session = await getSessionFromCookie(request.headers.cookie);
     const resolution = resolveViewer(request.query, session);
     const viewerUserId = resolution.viewerUserId ?? "";
     if (!viewerUserId) {
       reply.type("text/html; charset=utf-8");
-      return renderRecordStartGuide(basePath, lang, String((request as unknown as { url?: string }).url ?? "/record"));
+      return renderRecordStartGuide(basePath, lang, currentRecordUrl);
     }
 
     reply.type("text/html; charset=utf-8");
     const recordCopy = recordPageCopy(lang);
     const recordForm = recordFormCopy(lang);
+    const recoveryCopy = recordRecoveryCopy(lang, recoveryState);
     const recordGuideHref = appendLangToHref(withBasePath(basePath, "/guide"), lang);
     const recordLearnHref = appendLangToHref(withBasePath(basePath, "/learn"), lang);
+    const recordRecoveryRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
+    const recordRecoveryMapHref = appendLangToHref(withBasePath(basePath, "/map"), lang);
     const recordLandingSnapshot = await getLandingSnapshot(viewerUserId).catch(() => null);
     const firstRecordCandidate = recordLandingSnapshot ? recordLandingSnapshot.myFeed.length === 0 : false;
     const recordSessionDisplayName = session?.userId === viewerUserId && session.displayName
@@ -16221,9 +16518,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       title: recordCopy.title,
       activeNav: recordCopy.activeNav,
       lang,
-      currentPath: appendLangToHref(withBasePath(basePath, "/record"), lang),
-      footerNote: recordCopy.footerNote,
-      body: `<section class="record-page">
+      currentPath: appendLangToHref(withBasePath(basePath, currentRecordUrl), lang),
+      footerNote: recoveryState.active ? recoveryCopy.footerNote : recordCopy.footerNote,
+      hideGlobalRecordLauncher: true,
+      hideFooter: recoveryState.active,
+      minimalChrome: recoveryState.active,
+      shellClassName: recoveryState.active ? "shell-record shell-record-recovery" : "shell-record",
+      body: `<section class="record-page${recoveryState.active ? " record-page--recovery" : ""}" data-record-recovery-mode="${recoveryState.active ? "1" : "0"}" data-record-recovery-source="${escapeHtml(recoveryState.source)}">
+        ${recoveryState.active ? renderRecordRecoveryPanel(recoveryCopy, recoveryState, recordRecoveryRecordsHref, recordRecoveryMapHref) : ""}
         <div class="record-shell">
           <section class="record-card record-sheet">
             <div class="record-card-head">
@@ -16792,6 +17094,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
         const form = document.getElementById('record-form');
         const status = document.getElementById('record-status');
+        const recordRecoveryMode = ${JSON.stringify(recoveryState.active)};
+        const recordRecoverySource = ${JSON.stringify(recoveryState.source)};
+        const recordRecoveryStart = ${JSON.stringify(recoveryState.start || "gallery")};
+        const recordRecoveryCopy = ${JSON.stringify(recoveryCopy)};
+        const recordRecoveryRecordsHref = ${JSON.stringify(recordRecoveryRecordsHref)};
+        const recordRecoveryPanel = document.querySelector('[data-record-recovery]');
+        const recordRecoveryTitle = document.getElementById('record-recovery-title');
+        const recordRecoveryBody = document.getElementById('record-recovery-body');
+        const recordRecoveryLocation = document.querySelector('[data-record-recovery-location]');
+        const recordRecoverySave = document.querySelector('[data-record-recovery-save]');
+        const recordRecoveryPick = document.querySelector('[data-record-recovery-pick]');
+        const recordRecoveryBack = document.querySelector('[data-record-recovery-back]');
+        const recordRecoveryDiscard = document.querySelector('[data-record-recovery-discard]');
         const observedAt = document.getElementById('observedAt');
         const modeEyebrow = document.getElementById('record-mode-eyebrow');
         const modeLead = document.getElementById('record-mode-lead');
@@ -19285,6 +19600,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             videoGuide.hidden = true;
           }
           syncVideoPrimaryPhotoUi();
+          if (recordRecoveryMode && hasDraft && !pendingMediaRetryObservationId) {
+            setRecordRecoveryState('ready');
+          }
         };
 
         const setPendingCaptureKind = (kind) => {
@@ -19709,12 +20027,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             db.close();
           }
         };
+        const RECORD_RECOVERY_SOURCE_VALUES = ['location_denied', 'login_required', 'draft_restore', 'media_retry', 'upload_failed', 'global_capture'];
         const markRecordDraftUrl = (retry) => {
           try {
             const url = new URL(window.location.href);
+            const currentSource = String(url.searchParams.get('source') || '').trim();
             url.searchParams.set('draft', '1');
-            if (retry) url.searchParams.set('retry', 'media');
-            else url.searchParams.delete('retry');
+            if (retry) {
+              url.searchParams.set('retry', 'media');
+              url.searchParams.set('source', 'media_retry');
+            } else {
+              url.searchParams.delete('retry');
+              if (!RECORD_RECOVERY_SOURCE_VALUES.includes(currentSource) || currentSource === 'media_retry') {
+                url.searchParams.set('source', 'draft_restore');
+              }
+            }
             window.history.replaceState(window.history.state, document.title, url.pathname + url.search + url.hash);
           } catch (_) {}
         };
@@ -19724,9 +20051,65 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const url = new URL(window.location.href);
             url.searchParams.delete('draft');
             url.searchParams.delete('retry');
+            url.searchParams.delete('source');
             window.history.replaceState(window.history.state, document.title, url.pathname + url.search + url.hash);
           } catch (_) {}
         };
+        const recordRecoveryStateCopy = (state) => {
+          if (state === 'ready') return [recordRecoveryCopy.readyTitle, recordRecoveryCopy.readyBody];
+          if (state === 'media_retry') return [recordRecoveryCopy.mediaRetryTitle, recordRecoveryCopy.mediaRetryBody];
+          if (state === 'empty') return [recordRecoveryCopy.emptyTitle, recordRecoveryCopy.emptyBody];
+          if (state === 'error') return [recordRecoveryCopy.errorTitle, recordRecoveryCopy.errorBody];
+          if (state === 'discarded') return [recordRecoveryCopy.discardedTitle, recordRecoveryCopy.discardedBody];
+          return [recordRecoveryCopy.checkingTitle, recordRecoveryCopy.checkingBody];
+        };
+        const setRecordRecoveryState = (state, detail) => {
+          if (!recordRecoveryPanel) return;
+          const copy = recordRecoveryStateCopy(state);
+          recordRecoveryPanel.setAttribute('data-state', state);
+          document.documentElement.classList.toggle('record-recovery-ready', state === 'ready' || state === 'media_retry');
+          document.documentElement.classList.toggle('record-recovery-empty', state === 'empty' || state === 'error');
+          if (recordRecoveryTitle) recordRecoveryTitle.textContent = copy[0];
+          if (recordRecoveryBody) recordRecoveryBody.textContent = String(detail || copy[1]);
+          const ready = state === 'ready' || state === 'media_retry';
+          if (recordRecoveryLocation) recordRecoveryLocation.disabled = !ready || !form || form.hidden;
+          if (recordRecoverySave) recordRecoverySave.disabled = !ready || !form || form.hidden;
+          if (recordRecoveryDiscard) recordRecoveryDiscard.disabled = state === 'discarding' || state === 'discarded';
+        };
+        const focusRecordRecoveryLocation = () => {
+          if (!form || form.hidden) return;
+          const placePicker = document.querySelector('.record-place-picker');
+          if (placePicker) placePicker.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          window.requestAnimationFrame(() => {
+            ensureRecordMap();
+            if (locationSearchInput) locationSearchInput.focus();
+          });
+        };
+        const chooseRecordRecoveryMedia = () => {
+          const preferred = captureButtons.find((button) => button.getAttribute('data-capture-action') === recordRecoveryStart)
+            || captureButtons.find((button) => button.getAttribute('data-capture-action') === 'gallery')
+            || captureButtons[0];
+          if (preferred && typeof preferred.click === 'function') preferred.click();
+        };
+        if (recordRecoveryBack) recordRecoveryBack.addEventListener('click', () => {
+          if (window.history.length > 1) window.history.back();
+          else window.location.assign(recordRecoveryRecordsHref);
+        });
+        if (recordRecoveryLocation) recordRecoveryLocation.addEventListener('click', focusRecordRecoveryLocation);
+        if (recordRecoverySave) recordRecoverySave.addEventListener('click', () => {
+          if (form && !form.hidden && typeof form.requestSubmit === 'function') form.requestSubmit();
+        });
+        if (recordRecoveryPick) recordRecoveryPick.addEventListener('click', chooseRecordRecoveryMedia);
+        if (recordRecoveryDiscard) recordRecoveryDiscard.addEventListener('click', async () => {
+          if (!window.confirm(recordRecoveryCopy.discardConfirm)) return;
+          setRecordRecoveryState('discarding', recordRecoveryCopy.discardedBody);
+          try {
+            await deleteRecordDraft();
+          } catch (_) {}
+          clearRecordDraftUrl();
+          setRecordRecoveryState('discarded');
+          window.setTimeout(() => window.location.assign(recordRecoveryRecordsHref), 250);
+        });
         const setMediaRetryFormLock = (locked) => {
           document.documentElement.classList.toggle('record-media-retry-mode', Boolean(locked));
           if (!form) return;
@@ -19896,17 +20279,22 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         };
         const importGlobalRecordDraft = async () => {
           const params = new URLSearchParams(window.location.search);
-          if (params.get('draft') !== '1') return;
+          if (params.get('draft') !== '1') {
+            if (recordRecoveryMode) setRecordRecoveryState('empty');
+            return;
+          }
+          if (recordRecoveryMode) setRecordRecoveryState('checking');
           let draft = null;
           try {
             draft = await consumeRecordDraft();
           } catch (_) {
-            draft = null;
+            if (recordRecoveryMode) setRecordRecoveryState('error');
+            return;
           }
           const draftFiles = draft && Array.isArray(draft.files) ? draft.files.filter((file) => file instanceof File) : [];
           const file = draft && draft.file instanceof File ? draft.file : null;
           const files = draftFiles.length ? draftFiles : (file ? [file] : []);
-          const kind = draft && captureLabels[draft.kind] ? draft.kind : (params.get('start') || 'gallery');
+          const kind = draft && captureLabels[draft.kind] ? draft.kind : (params.get('start') || recordRecoveryStart || 'gallery');
           const metadata = normalizeDraftMetadata(draft && draft.metadata);
           const hasDraftValues = hasRecordDraftFormValues(metadata);
           setSelectedMediaRole(metadata.mediaRole || (kind === 'video' ? 'sound_motion' : 'primary_subject'));
@@ -19925,6 +20313,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (hasDraftValues) {
               applyRecordDraftFormValues(metadata.formValues);
               setStatus('<div class="row"><div>残っていた入力内容を復元しました。このまま保存できます。</div></div>');
+              if (recordRecoveryMode) setRecordRecoveryState(retryObservationId ? 'media_retry' : 'ready');
+            } else if (recordRecoveryMode) {
+              setRecordRecoveryState('empty');
             }
             return;
           }
@@ -19940,8 +20331,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (retryObservationId) {
             setStatus('<div class="row"><div>記録本体は保存済みです。残っていたメディアを同じ記録に再送できます。入力内容は保存済みなので、この画面ではメディアだけ送ります。</div></div>');
             setMediaRetryFormLock(true);
-          } else if (hasDraftValues) {
-            setStatus('<div class="row"><div>残っていた入力内容とメディアを復元しました。このまま保存できます。</div></div>');
+            if (recordRecoveryMode) setRecordRecoveryState('media_retry');
+          } else {
+            if (hasDraftValues) setStatus('<div class="row"><div>残っていた入力内容とメディアを復元しました。このまま保存できます。</div></div>');
+            if (recordRecoveryMode) setRecordRecoveryState('ready');
           }
           const firstAutofillFile = normalized.photos[0] || normalized.video || null;
           if (!normalized.video) {
@@ -20346,7 +20739,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         syncPreview();
         resetVideoProgress();
         applyStartModeFromQuery();
-        importGlobalRecordDraft();
+        void importGlobalRecordDraft().catch(() => setRecordRecoveryState('error'));
         sendRecordFunnelStep('record_open', {
           hasRevisitContext: Boolean(recordStartParams.get('revisitObservationId') || recordStartParams.get('revisit_of_visit_id')),
         });
@@ -20922,6 +21315,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 hasVideo: Boolean(selectedVideoFile),
                 mediaRetry: isMediaRetrySubmit,
               });
+              if (recordRecoveryPanel) recordRecoveryPanel.hidden = true;
+              document.documentElement.classList.remove('record-recovery-ready', 'record-recovery-empty');
               deleteRecordDraft().catch(() => undefined);
               clearRecordDraftUrl();
               clearPendingMediaRetryTarget();
@@ -21018,6 +21413,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 occurrenceId: savedDetailId || null,
                 partialRecordSaved: Boolean(savedDetailId),
               });
+              if (recordRecoveryMode && (retryDraftSaved || unsavedDraftSaved)) {
+                setRecordRecoveryState(savedDetailId ? 'media_retry' : 'ready', userMessage);
+              }
               setStatus('<div class="row"><div>' + escapeHtmlText(statusHeading) + '<div class="meta">' + escapeHtmlText(userMessage) + '</div>' + partialLink + retryDraftNote + unsavedDraftNote + invasiveReportingNote + '</div></div>');
             } finally {
               if (videoCancel) videoCancel.disabled = true;
@@ -21030,6 +21428,31 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </script>`,
       extraStyles: `
         .record-page { margin-top: 24px; }
+        .record-recovery-panel { max-width: 920px; margin: 0 auto 16px; padding: 18px; border-radius: 24px; background: linear-gradient(145deg,#ecfdf5,#fff); border: 1px solid rgba(5,150,105,.22); box-shadow: 0 18px 44px rgba(15,23,42,.09); }
+        .record-recovery-panel[hidden] { display:none; }
+        .record-recovery-panel-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .record-recovery-badge { display:inline-flex; align-items:center; min-height:28px; padding:0 11px; border-radius:999px; background:#065f46; color:#fff; font-size:11px; font-weight:950; }
+        .record-recovery-utility-actions { display:flex; gap:8px; }
+        .record-recovery-utility-actions button { border:0; background:transparent; color:#475569; font:inherit; font-size:12px; font-weight:850; cursor:pointer; }
+        .record-recovery-utility-actions button[data-record-recovery-discard] { color:#b91c1c; }
+        .record-recovery-panel > strong { display:block; margin-top:14px; color:#052e2b; font-size:clamp(22px,4vw,31px); line-height:1.25; }
+        .record-recovery-panel > p { margin:8px 0 0; color:#475569; line-height:1.7; }
+        .record-recovery-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin-top:16px; }
+        .record-recovery-actions button { min-height:48px; border-radius:15px; border:1px solid rgba(15,23,42,.12); background:#fff; color:#0f172a; font:inherit; font-weight:950; cursor:pointer; }
+        .record-recovery-actions .record-recovery-save { background:#065f46; color:#fff; border-color:#065f46; }
+        .record-recovery-actions button:disabled { opacity:.48; cursor:not-allowed; }
+        .record-recovery-links { display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; }
+        .record-recovery-links a { color:#0f766e; font-size:12px; font-weight:850; }
+        .record-page--recovery .record-card-head,
+        .record-page--recovery .record-confidence-strip,
+        .record-page--recovery .record-first-success,
+        .record-page--recovery .record-secondary-links,
+        .record-page--recovery .record-capture-launcher,
+        .record-page--recovery .record-capture-dock { display:none; }
+        .record-page--recovery .record-card { padding-top:18px; }
+        .record-page--recovery .record-capture-result[hidden] + .record-location-nudge[hidden] + .record-autofill-status[hidden] + .record-form[hidden] { display:none; }
+        .record-recovery-empty .record-recovery-location,
+        .record-recovery-empty .record-recovery-save { display:none; }
         .record-shell { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; max-width: 920px; margin: 0 auto; }
         .record-card { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 16px 36px rgba(15,23,42,.06); padding: 24px; }
         .record-sheet { position: relative; overflow: hidden; }
@@ -21378,6 +21801,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-has-media .hero-panel { display: none; }
           .record-success-shortcuts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
           .record-success-actions { grid-template-columns: 1fr; }
+          .record-recovery-panel { margin: 0 12px 12px; padding: 15px; border-radius: 21px; }
+          .record-recovery-panel-top { align-items:flex-start; }
+          .record-recovery-utility-actions { flex-direction:column; align-items:flex-end; gap:2px; }
+          .record-recovery-actions { grid-template-columns:1fr 1fr; }
+          .record-recovery-actions .record-recovery-pick { grid-column:1 / -1; }
           .record-card { padding: 20px; border-radius: 24px; }
           .record-capture-launcher { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-left: 0; }
           .record-capture-photo-primary { grid-column: 1 / -1; }
