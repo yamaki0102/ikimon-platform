@@ -38,18 +38,19 @@ jobs:
           path = Path('platform_v2/cloudflare_shadow/src/index.ts')
           source = path.read_text(encoding='utf-8')
           old = '''  const contentType = (outputResponse.headers.get("content-type") ?? "")
-            .split(";", 1)[0]
-            .trim()
-            .toLowerCase();'''
+              .split(";", 1)[0]
+              .trim()
+              .toLowerCase();'''.replace('              ', '    ')
           new = '''  const contentType = ((outputResponse.headers.get("content-type") ?? "")
-            .split(";", 1)[0] ?? "")
-            .trim()
-            .toLowerCase();'''
+              .split(";", 1)[0] ?? "")
+              .trim()
+              .toLowerCase();'''.replace('              ', '    ')
           if old in source:
             source = source.replace(old, new, 1)
             path.write_text(source, encoding='utf-8')
           elif 'cloudflare-images-public-derivative-v1' in source and new not in source:
-            raise SystemExit('content type narrowing target not found')
+            around = source[source.index('const contentType =', source.index('cloudflare-images-public-derivative-v1')):][:240]
+            raise SystemExit('content type narrowing target not found: ' + repr(around))
           PY
           if grep -q 'patch_status=changed' real-image-derivative-evidence/apply.log; then
             echo 'status=changed' >> "$GITHUB_OUTPUT"
