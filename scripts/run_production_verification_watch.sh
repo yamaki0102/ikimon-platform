@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -20,9 +20,17 @@ case "${PUBLISH_GITHUB_STATUS}" in true|false) ;; *) echo "PUBLISH_GITHUB_STATUS
 
 mkdir -p "$(dirname "${IKIMON_VERIFICATION_REPORT_PATH}")" "$(dirname "${IKIMON_VERIFICATION_LOG_PATH}")"
 RUNTIME_PATH="${REPORT_DIR}/production-runtime-version-latest.json"
+RUNTIME_TMP_PATH="${RUNTIME_PATH}.tmp"
 
 resolve_runtime() {
-  curl -fsS -H 'cache-control: no-store' "https://ikimon.life/api/v1/runtime/version?verification_watch=$(date +%s)" > "${RUNTIME_PATH}"
+  rm -f "${RUNTIME_TMP_PATH}"
+  if curl -fsS -H 'cache-control: no-store' "https://ikimon.life/api/v1/runtime/version?verification_watch=$(date +%s)" > "${RUNTIME_TMP_PATH}"; then
+    node -e 'const fs=require("fs");JSON.parse(fs.readFileSync(process.argv[1],"utf8"));' "${RUNTIME_TMP_PATH}"
+    mv "${RUNTIME_TMP_PATH}" "${RUNTIME_PATH}"
+    return 0
+  fi
+  rm -f "${RUNTIME_TMP_PATH}"
+  return 1
 }
 
 if ! resolve_runtime; then
