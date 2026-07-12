@@ -61,6 +61,8 @@ test("signed recovery resumes the same record and only unfinished media", () => 
   assert.match(html, /if \(!pendingVideoBodyUploaded\)[\s\S]*\/finalize/);
   assert.match(html, /for \(let index = 0; index < files\.length; index \+= 1\)/);
   assert.match(html, /await deleteDraft\(\);[\s\S]*setPanelState\("saved"/);
+  assert.match(html, /data-record-recovery-page="1"/);
+  assert.match(html, /document\.querySelector\("\.cf-recovery-card\[data-record-recovery\]"\)/);
   assert.match(html, /data-record-recovery-pick/);
   assert.match(html, /data-record-recovery-location/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);

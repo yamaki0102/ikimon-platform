@@ -342,7 +342,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
   <title>${escapeHtml(copy.pageTitle)} - ikimon</title>
   <style>${recoveryStyles()}</style>
 </head>
-<body data-record-start="${escapeHtml(state.start)}" data-record-recovery="1" data-recovery-source="${escapeHtml(state.source)}">
+<body data-record-start="${escapeHtml(state.start)}" data-record-recovery-page="1" data-recovery-source="${escapeHtml(state.source)}">
   <header class="cf-recovery-header">
     <a class="cf-recovery-brand" href="${escapeHtml(prefix)}/">ikimon</a>
     <div class="cf-recovery-profile">${escapeHtml(session.displayName || session.userId)}</div>
@@ -382,7 +382,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
     const recordsHref = ${JSON.stringify(`${prefix}/records?view=mine`)};
     const form = document.getElementById("record-form");
     const status = document.getElementById("record-status");
-    const panel = document.querySelector("[data-record-recovery]");
+    const panel = document.querySelector(".cf-recovery-card[data-record-recovery]");
     const title = document.getElementById("record-recovery-title");
     const body = document.getElementById("record-recovery-body");
     const locationButton = document.querySelector("[data-record-recovery-location]");
