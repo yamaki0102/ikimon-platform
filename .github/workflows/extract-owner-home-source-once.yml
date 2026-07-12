@@ -1,0 +1,33 @@
+name: Extract Owner Home Source Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    if: github.head_ref == 'agent/fix-owner-home-live-visual-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Extract exact owner home implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p owner-home-source
+          {
+            grep -n -A 260 -B 25 'async function ownerHomeRecordCards' platform_v2/cloudflare_shadow/src/index.ts || true
+            grep -n -A 220 -B 25 'function renderHomeRecordCard' platform_v2/cloudflare_shadow/src/index.ts || true
+            grep -n -A 180 -B 25 'function buildHomeFeedCards' platform_v2/cloudflare_shadow/src/index.ts || true
+          } > owner-home-source/source.txt
+          test -s owner-home-source/source.txt
+      - uses: actions/upload-artifact@v6
+        with:
+          name: owner-home-source
+          path: owner-home-source
+          if-no-files-found: error
+          retention-days: 3
