@@ -1,0 +1,22 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const routeSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+const shellSource = readFileSync(new URL("../ui/siteShell.ts", import.meta.url), "utf8");
+
+test("record recovery accepts only explicit source reasons", () => {
+  assert.match(routeSource, /const RECORD_RECOVERY_SOURCES = new Set<RecordRecoverySource>/);
+  for (const source of ["location_denied", "login_required", "draft_restore", "media_retry", "upload_failed", "global_capture"]) {
+    assert.match(routeSource, new RegExp(`"${source}"`));
+  }
+  assert.match(routeSource, /RECORD_RECOVERY_SOURCES\.has\(rawSource\) \? rawSource : ""/);
+});
+
+test("global quick record preserves only the recovery reason, not media metadata in the URL", () => {
+  assert.match(shellSource, /withDraftParams = \(href, kind, source\)/);
+  assert.match(shellSource, /url\.searchParams\.set\('source', String\(source\)\.slice\(0, 24\)\)/);
+  assert.match(shellSource, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'login'\)/);
+  assert.match(shellSource, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'location'\)/);
+  assert.doesNotMatch(shellSource, /searchParams\.set\('(?:file|filename|latitude|longitude)'/);
+});
