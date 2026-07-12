@@ -1,0 +1,170 @@
+name: Diagnose Owner Home Production Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnose-owner-home-production-once
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'agent/fix-owner-home-live-visual-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Install Worker dependencies
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm ci
+
+      - name: Diagnose July owner records without exposing identifiers
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p production-owner-home-diagnostic
+          node <<'NODE'
+          import { execFileSync, spawnSync } from 'node:child_process';
+          import { createHash } from 'node:crypto';
+          import { writeFileSync } from 'node:fs';
+          import { devNull } from 'node:os';
+
+          const db = 'ikimon_prod_observations_2026_06';
+          const bucket = 'ikimon-prod-media';
+          const runD1 = (sql) => {
+            const stdout = execFileSync('npx', ['wrangler', 'd1', 'execute', db, '--remote', '--json', '--command', sql], {
+              encoding: 'utf8',
+              stdio: ['ignore', 'pipe', 'pipe'],
+            });
+            const payload = JSON.parse(stdout);
+            return payload[0]?.results ?? [];
+          };
+          const columns = (table) => new Set(runD1(`PRAGMA table_info(${table})`).map((row) => String(row.name)));
+          const observationColumns = columns('observations');
+          const assetColumns = columns('asset_ledger');
+          for (const required of ['observation_id', 'owner_user_id', 'observed_at']) {
+            if (!observationColumns.has(required)) throw new Error(`missing observations.${required}`);
+          }
+          for (const required of ['asset_id', 'observation_id', 'object_key', 'mime']) {
+            if (!assetColumns.has(required)) throw new Error(`missing asset_ledger.${required}`);
+          }
+
+          const optionalCount = (column, condition, alias) => assetColumns.has(column)
+            ? `sum(case when ${condition} then 1 else 0 end) as ${alias}`
+            : `0 as ${alias}`;
+          const optionalKeys = (column, alias) => assetColumns.has(column)
+            ? `group_concat(case when lower(coalesce(a.mime,'')) like 'image/%' then a.${column} end, char(31)) as ${alias}`
+            : `null as ${alias}`;
+          const noteExpr = observationColumns.has('note')
+            ? `case when nullif(trim(coalesce(o.note,'')), '') is null then 0 else 1 end as note_present`
+            : `0 as note_present`;
+          const visibilityExpr = observationColumns.has('visibility')
+            ? `coalesce(o.visibility,'') as visibility`
+            : `'' as visibility`;
+
+          const sql = `select
+              o.observation_id,
+              o.owner_user_id,
+              o.observed_at,
+              ${noteExpr},
+              ${visibilityExpr},
+              count(a.asset_id) as asset_count,
+              sum(case when lower(coalesce(a.mime,'')) like 'image/%' then 1 else 0 end) as image_asset_count,
+              ${optionalCount('public_derivative_key', `a.public_derivative_key is not null and trim(a.public_derivative_key) <> ''`, 'derivative_key_count')},
+              ${optionalCount('public_derivative_verified_at', `a.public_derivative_verified_at is not null`, 'derivative_verified_count')},
+              ${optionalCount('public_ready_at', `a.public_ready_at is not null`, 'public_ready_count')},
+              ${optionalCount('processing_state', `lower(coalesce(a.processing_state,'')) in ('uploaded','ready','processed')`, 'processed_count')},
+              ${optionalCount('exif_scrub_state', `lower(coalesce(a.exif_scrub_state,'')) = 'scrubbed'`, 'exif_scrubbed_count')},
+              ${optionalKeys('object_key', 'object_keys')},
+              ${optionalKeys('public_derivative_key', 'derivative_keys')}
+            from observations o
+            left join asset_ledger a on a.observation_id = o.observation_id
+            where substr(o.observed_at,1,10) in ('2026-07-07','2026-07-10')
+            group by o.observation_id, o.owner_user_id, o.observed_at${observationColumns.has('note') ? ', o.note' : ''}${observationColumns.has('visibility') ? ', o.visibility' : ''}
+            order by o.observed_at desc`;
+          const rows = runD1(sql);
+          const splitKeys = (value) => typeof value === 'string' && value ? value.split(String.fromCharCode(31)).filter(Boolean) : [];
+          const hash = (value) => createHash('sha256').update(String(value ?? '')).digest('hex').slice(0, 12);
+          const exists = (key) => {
+            const result = spawnSync('npx', ['wrangler', 'r2', 'object', 'get', `${bucket}/${key}`, '--remote', '--file', devNull], {
+              encoding: 'utf8',
+              stdio: ['ignore', 'ignore', 'pipe'],
+            });
+            return result.status === 0;
+          };
+          const sanitized = rows.map((row) => {
+            const originals = splitKeys(row.object_keys);
+            const derivatives = splitKeys(row.derivative_keys);
+            return {
+              observedDate: String(row.observed_at).slice(0, 10),
+              observedAtHourUtc: String(row.observed_at).slice(11, 13),
+              observationHash: hash(row.observation_id),
+              ownerHash: hash(row.owner_user_id),
+              notePresent: Boolean(Number(row.note_present)),
+              visibility: String(row.visibility || ''),
+              assetCount: Number(row.asset_count || 0),
+              imageAssetCount: Number(row.image_asset_count || 0),
+              derivativeKeyCount: Number(row.derivative_key_count || 0),
+              derivativeVerifiedCount: Number(row.derivative_verified_count || 0),
+              publicReadyCount: Number(row.public_ready_count || 0),
+              processedCount: Number(row.processed_count || 0),
+              exifScrubbedCount: Number(row.exif_scrubbed_count || 0),
+              originalObjectCount: originals.length,
+              originalObjectExists: originals.filter(exists).length,
+              derivativeObjectCount: derivatives.length,
+              derivativeObjectExists: derivatives.filter(exists).length,
+            };
+          });
+          const ownerGroups = Object.values(sanitized.reduce((acc, row) => {
+            acc[row.ownerHash] ??= { ownerHash: row.ownerHash, dates: [], records: 0, imageAssets: 0, derivativeObjectsExisting: 0 };
+            acc[row.ownerHash].dates.push(row.observedDate);
+            acc[row.ownerHash].records += 1;
+            acc[row.ownerHash].imageAssets += row.imageAssetCount;
+            acc[row.ownerHash].derivativeObjectsExisting += row.derivativeObjectExists;
+            return acc;
+          }, {}));
+          const report = {
+            mode: 'read-only',
+            dates: ['2026-07-07', '2026-07-10'],
+            recordCount: sanitized.length,
+            records: sanitized,
+            ownerGroups,
+            containsRawIdentifiers: false,
+            productionMutated: false,
+          };
+          writeFileSync('production-owner-home-diagnostic/report.json', `${JSON.stringify(report, null, 2)}\n`);
+          console.log(JSON.stringify(report, null, 2));
+          NODE
+
+      - name: Capture relevant source contract
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            grep -n -A 30 -B 8 '@media(max-width:640px)' src/index.ts | grep -A 30 -B 8 'prototype-record-feed.is-owner' || true
+            grep -n -A 35 -B 20 'async function injectHomeObservationRecords' src/index.ts | head -80 || true
+          } > production-owner-home-diagnostic/source-contract.txt
+
+      - name: Upload sanitized diagnosis
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-owner-home-diagnostic
+          path: platform_v2/cloudflare_shadow/production-owner-home-diagnostic
+          if-no-files-found: error
+          retention-days: 7
