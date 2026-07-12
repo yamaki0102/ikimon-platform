@@ -1,148 +1,44 @@
-name: Apply Cloudflare Record Recovery Fallback
+name: Export Cloudflare Record Renderer
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: apply-cloudflare-record-recovery-fallback
+  group: export-cloudflare-record-renderer
   cancel-in-progress: true
 
 jobs:
-  apply:
-    if: github.head_ref == 'agent/cloudflare-record-recovery-origin-fallback-20260712' && github.actor != 'github-actions[bot]'
+  export:
+    if: github.head_ref == 'agent/cloudflare-record-recovery-origin-fallback-20260712'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
         with:
           ref: agent/cloudflare-record-recovery-origin-fallback-20260712
-          fetch-depth: 0
+          fetch-depth: 1
 
-      - name: Apply narrow recovery origin fallback
+      - name: Collect Worker record source
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
+          mkdir -p cloudflare-record-renderer-source/platform_v2/cloudflare_shadow/src
+          cp platform_v2/cloudflare_shadow/src/index.ts cloudflare-record-renderer-source/platform_v2/cloudflare_shadow/src/index.ts
+          grep -nE -C 240 'function isRecordHtmlPath|async function getSessionAwareRecordHtml|function renderCloudflareRecordHtml' \
+            platform_v2/cloudflare_shadow/src/index.ts \
+            > cloudflare-record-renderer-source/record-renderer-context.txt
+          grep -nE -C 100 'data-record|record-media|record-form|indexedDB|draft|file' \
+            cloudflare-record-renderer-source/record-renderer-context.txt \
+            > cloudflare-record-renderer-source/record-interaction-context.txt || true
+          git rev-parse HEAD > cloudflare-record-renderer-source/head-sha.txt
+          sha256sum platform_v2/cloudflare_shadow/src/index.ts > cloudflare-record-renderer-source/index-sha256.txt
 
-          path = Path('platform_v2/cloudflare_shadow/src/index.ts')
-          source = path.read_text(encoding='utf-8')
-
-          old_helper_anchor = '''function isRecordHtmlPath(pathname: string): boolean {
-            return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);
-          }
-
-          function isProfileHtmlPath(pathname: string): boolean {'''
-          new_helper_anchor = '''function isRecordHtmlPath(pathname: string): boolean {
-            return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);
-          }
-
-          const RECORD_RECOVERY_ORIGIN_FALLBACK_SOURCES = new Set<string>([
-            "location_denied",
-            "login_required",
-            "draft_restore",
-            "media_retry",
-            "upload_failed",
-            "global_capture"
-          ]);
-
-          function isRecordRecoveryOriginFallbackRequest(url: URL): boolean {
-            if (!isRecordHtmlPath(url.pathname)) return false;
-            if (url.searchParams.get("draft") === "1") return true;
-            if (url.searchParams.get("retry") === "media") return true;
-            const source = (url.searchParams.get("source") ?? "").trim();
-            return RECORD_RECOVERY_ORIGIN_FALLBACK_SOURCES.has(source);
-          }
-
-          function isProfileHtmlPath(pathname: string): boolean {'''
-
-          old_record_handler = '''async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
-            const session = await readCompatibleSessionWithOriginFallback(request, env);'''
-          new_record_handler = '''async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
-            if (isRecordRecoveryOriginFallbackRequest(url) && shouldUseOriginFallback(url, env)) {
-              return fetchOriginFallback(request, url, env, "record_recovery");
-            }
-            const session = await readCompatibleSessionWithOriginFallback(request, env);'''
-
-          if new_helper_anchor not in source:
-              if source.count(old_helper_anchor) != 1:
-                  raise SystemExit(f'expected one record helper anchor, found {source.count(old_helper_anchor)}')
-              source = source.replace(old_helper_anchor, new_helper_anchor, 1)
-          if new_record_handler not in source:
-              if source.count(old_record_handler) != 1:
-                  raise SystemExit(f'expected one record handler anchor, found {source.count(old_record_handler)}')
-              source = source.replace(old_record_handler, new_record_handler, 1)
-
-          path.write_text(source, encoding='utf-8')
-          PY
-          git diff --check
-
-      - uses: actions/setup-node@v5
+      - uses: actions/upload-artifact@v6
         with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
-
-      - name: Verify Cloudflare worker
-        shell: bash
-        run: |
-          set +e
-          mkdir -p cloudflare-record-recovery-verification
-          npm --prefix platform_v2/cloudflare_shadow ci > cloudflare-record-recovery-verification/npm-ci.log 2>&1
-          install_code=$?
-          if [ "$install_code" -eq 0 ]; then
-            npm --prefix platform_v2/cloudflare_shadow run check > cloudflare-record-recovery-verification/typecheck.log 2>&1
-            typecheck_code=$?
-            (cd platform_v2/cloudflare_shadow && npx tsx --test src/recordRecoveryOriginFallback.contract.test.ts) > cloudflare-record-recovery-verification/focused-test.log 2>&1
-            focused_code=$?
-            workflow_path='.github/workflows/apply-cloudflare-record-recovery-fallback.yml'
-            temporary_workflow="$RUNNER_TEMP/apply-cloudflare-record-recovery-fallback.yml"
-            mv "$workflow_path" "$temporary_workflow"
-            npm --prefix platform_v2/cloudflare_shadow test > cloudflare-record-recovery-verification/full-test.log 2>&1
-            full_code=$?
-            mkdir -p "$(dirname "$workflow_path")"
-            mv "$temporary_workflow" "$workflow_path"
-          else
-            typecheck_code=99
-            focused_code=99
-            full_code=99
-          fi
-          printf '{"install":%s,"typecheck":%s,"focused":%s,"full":%s}\n' \
-            "$install_code" "$typecheck_code" "$focused_code" "$full_code" \
-            > cloudflare-record-recovery-verification/result.json
-          cat cloudflare-record-recovery-verification/result.json
-          for file in cloudflare-record-recovery-verification/*.log; do
-            echo "--- $file ---"
-            tail -n 120 "$file" || true
-          done
-          if [ "$install_code" -ne 0 ] || [ "$typecheck_code" -ne 0 ] || [ "$focused_code" -ne 0 ] || [ "$full_code" -ne 0 ]; then
-            exit 1
-          fi
-
-      - name: Upload verification logs
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: cloudflare-record-recovery-verification
-          path: cloudflare-record-recovery-verification
+          name: cloudflare-record-renderer-source
+          path: cloudflare-record-renderer-source
           if-no-files-found: error
-          retention-days: 7
-
-      - name: Commit focused correction
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add platform_v2/cloudflare_shadow/src/index.ts
-          git diff --cached --check
-          if git diff --cached --quiet; then
-            echo 'No source correction was needed.'
-            exit 0
-          fi
-          git commit -m 'fix: route record recovery requests to origin'
-          git push origin HEAD:agent/cloudflare-record-recovery-origin-fallback-20260712
+          retention-days: 3
