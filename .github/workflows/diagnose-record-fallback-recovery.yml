@@ -27,7 +27,7 @@ jobs:
           set -uo pipefail
           mkdir -p record-fallback-diagnostic/files
           : > record-fallback-diagnostic/matching-files.txt
-          rg -l \
+          grep -RIlE \
             'record-first-success|record-submit-panel|buildRecordSuccessReturnHtml|record-status|record-media-photo|MAX_PHOTO_FILES' \
             platform_v2/src platform_v2/e2e 2>/dev/null \
             | sort -u >> record-fallback-diagnostic/matching-files.txt || true
@@ -38,17 +38,24 @@ jobs:
             cp "$file" "$destination"
           done < record-fallback-diagnostic/matching-files.txt
 
+          context() {
+            local pattern="$1"
+            shift
+            grep -RInE -C 10 -- "$pattern" "$@" 2>/dev/null || true
+          }
           {
             echo '=== route registration and page renderer ==='
-            rg -n -C 10 '(/record|record-first-success|record-submit-panel|record-status)' platform_v2/src || true
+            context '(/record|record-first-success|record-submit-panel|record-status)' platform_v2/src
             echo '=== draft persistence and restore ==='
-            rg -n -C 12 'localStorage|sessionStorage|draft|restore|復元|下書き|pending.*media|selectedMediaFiles' platform_v2/src platform_v2/e2e || true
+            context 'localStorage|sessionStorage|draft|restore|復元|下書き|pending.*media|selectedMediaFiles' platform_v2/src platform_v2/e2e
             echo '=== auth and fallback entry ==='
-            rg -n -C 12 'location_denied|permission|geolocation|login_required|unauth|source=|fallback|位置情報|未ログイン' platform_v2/src platform_v2/e2e || true
+            context 'location_denied|permission|geolocation|login_required|unauth|source=|fallback|位置情報|未ログイン' platform_v2/src platform_v2/e2e
             echo '=== navigation to record ==='
-            rg -n -C 8 '/record' platform_v2/src platform_v2/e2e || true
+            context '/record' platform_v2/src platform_v2/e2e
             echo '=== record route tests ==='
-            rg -n -C 5 'record route|draft|restore|location|login|fallback' platform_v2/src/routes/record.routes.test.ts platform_v2/e2e/record-funnel.staging.spec.ts || true
+            grep -nE -C 5 'record route|draft|restore|location|login|fallback' \
+              platform_v2/src/routes/record.routes.test.ts \
+              platform_v2/e2e/record-funnel.staging.spec.ts 2>/dev/null || true
           } > record-fallback-diagnostic/grep-context.txt
 
           git rev-parse HEAD > record-fallback-diagnostic/head-sha.txt
