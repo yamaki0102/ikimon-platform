@@ -33,6 +33,24 @@ jobs:
           set -euo pipefail
           mkdir -p real-image-derivative-evidence
           python scripts/apply_real_image_derivative_fix_20260712.py 2>&1 | tee real-image-derivative-evidence/apply.log
+          python <<'PY'
+          from pathlib import Path
+          path = Path('platform_v2/cloudflare_shadow/src/index.ts')
+          source = path.read_text(encoding='utf-8')
+          old = '''  const contentType = (outputResponse.headers.get("content-type") ?? "")
+            .split(";", 1)[0]
+            .trim()
+            .toLowerCase();'''
+          new = '''  const contentType = ((outputResponse.headers.get("content-type") ?? "")
+            .split(";", 1)[0] ?? "")
+            .trim()
+            .toLowerCase();'''
+          if old in source:
+            source = source.replace(old, new, 1)
+            path.write_text(source, encoding='utf-8')
+          elif 'cloudflare-images-public-derivative-v1' in source and new not in source:
+            raise SystemExit('content type narrowing target not found')
+          PY
           if grep -q 'patch_status=changed' real-image-derivative-evidence/apply.log; then
             echo 'status=changed' >> "$GITHUB_OUTPUT"
           else
