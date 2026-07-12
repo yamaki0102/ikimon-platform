@@ -31,10 +31,8 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-
           path = Path('platform_v2/cloudflare_shadow/src/index.ts')
           source = path.read_text(encoding='utf-8')
-
           old_route = "\n".join([
               '      if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {',
               '        return getSessionAwareRecordHtml(request, url, env);',
@@ -52,7 +50,6 @@ jobs:
               source = source.replace(old_route, new_route, 1)
           elif new_route not in source:
               raise SystemExit('record route block not found')
-
           old_helper = "\n".join([
               'function isRecordHtmlPath(pathname: string): boolean {',
               '  return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);',
@@ -91,14 +88,10 @@ jobs:
           import assert from "node:assert/strict";
           import { readFileSync } from "node:fs";
           import test from "node:test";
-
           const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
-
           test("record recovery requests use exact origin fallback before native or materialized record HTML", () => {
             assert.match(source, /const RECORD_RECOVERY_SOURCE_VALUES = new Set\(\[/);
-            for (const value of ["location_denied", "login_required", "draft_restore", "media_retry", "upload_failed", "global_capture"]) {
-              assert.match(source, new RegExp(`"${value}"`));
-            }
+            for (const value of ["location_denied", "login_required", "draft_restore", "media_retry", "upload_failed", "global_capture"]) assert.match(source, new RegExp(`"${value}"`));
             assert.match(source, /function isRecordRecoveryRequest\(url: URL\): boolean/);
             assert.match(source, /url\.searchParams\.get\("draft"\) === "1"/);
             assert.match(source, /url\.searchParams\.get\("retry"\) === "media"/);
@@ -107,15 +100,26 @@ jobs:
             assert.match(source, /fetchOriginFallback[\s\S]{0,220}getSessionAwareRecordHtml/);
           });
           TEST
-
           git diff --check
 
       - name: Verify Cloudflare Worker
-        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
         run: |
-          npm ci
-          npm run check
-          npm run test:quick
+          set -uo pipefail
+          npm --prefix platform_v2/cloudflare_shadow ci >/tmp/npm-ci.log 2>&1
+          ci_code=$?
+          npm --prefix platform_v2/cloudflare_shadow run check >/tmp/check.log 2>&1
+          check_code=$?
+          npm --prefix platform_v2/cloudflare_shadow run test:quick >/tmp/test.log 2>&1
+          test_code=$?
+          echo '--- npm ci ---'
+          tail -n 40 /tmp/npm-ci.log
+          echo '--- typecheck ---'
+          cat /tmp/check.log
+          echo '--- quick test tail ---'
+          tail -n 240 /tmp/test.log
+          echo "codes: ci=$ci_code check=$check_code test=$test_code"
+          if [ "$ci_code" -ne 0 ] || [ "$check_code" -ne 0 ] || [ "$test_code" -ne 0 ]; then exit 1; fi
 
       - name: Commit focused fix and remove temporary workflow
         shell: bash
