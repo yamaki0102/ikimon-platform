@@ -3,9 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { archiveProductionVerificationEvidence } from '../archive_production_verification_evidence.mjs';
 
-const repoRoot = path.resolve(new URL('../..', import.meta.url).pathname);
+const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const sha = 'b'.repeat(40);
 
 function read(relativePath) {
@@ -46,6 +47,7 @@ test('verification evidence archive stores immutable SHA-bound copies and a late
   assert.ok(fs.existsSync(result.logPath));
   assert.ok(fs.existsSync(result.runtimePath));
   assert.match(path.basename(result.reportPath), /^20260712T010203Z-b{12}-targeted-success\.json$/);
+  assert.equal(fs.statSync(result.reportPath).mode & 0o777, 0o600);
   const pointer = JSON.parse(fs.readFileSync(path.join(archiveDir, 'latest.json'), 'utf8'));
   assert.equal(pointer.expectedGitSha, sha);
   assert.equal(pointer.status, 'success');
@@ -94,7 +96,9 @@ test('installer is secret-safe, idempotent, dry-runnable, and verifies rendered 
   assert.match(installer, /Preserving existing environment file/);
   assert.match(installer, /systemd-analyze verify/);
   assert.match(installer, /runuser -u/);
+  assert.match(installer, /Node\.js 22\+ is required/);
   assert.match(installer, /systemctl start "\$\{SERVICE_NAME\}"[\s\S]*systemctl enable --now "\$\{TIMER_NAME\}"/);
+  assert.ok(installer.indexOf('if [[ "${UNINSTALL}" == "true" ]]') < installer.indexOf('require_file "${SERVICE_TEMPLATE}"'));
   assert.doesNotMatch(installer, /--(?:github|cloudflare)-token/);
   assert.doesNotMatch(installer, /GITHUB_TOKEN=.*\$2/);
 });
