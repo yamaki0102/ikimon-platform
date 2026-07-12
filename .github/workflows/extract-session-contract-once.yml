@@ -1,0 +1,46 @@
+name: Extract Session Contract Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    if: github.head_ref == 'agent/diagnose-july-record-pairing-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Extract session code
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p session-contract-source
+          python <<'PY'
+          from pathlib import Path
+          src = Path('platform_v2/cloudflare_shadow/src/index.ts').read_text(encoding='utf-8')
+          markers = ['auth_sessions', 'ikimon_v2_session', 'sessionCookie', 'token_hash', 'SessionSnapshot']
+          lines = src.splitlines()
+          ranges = []
+          for i, line in enumerate(lines):
+              if any(marker in line for marker in markers):
+                  ranges.append((max(0, i-18), min(len(lines), i+35)))
+          merged = []
+          for start, end in sorted(ranges):
+              if merged and start <= merged[-1][1]: merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+              else: merged.append((start,end))
+          out=[]
+          for start,end in merged:
+              out.append(f'\n===== lines {start+1}-{end} =====\n')
+              out.extend(f'{j+1}: {lines[j]}\n' for j in range(start,end))
+          Path('session-contract-source/session-contract.txt').write_text(''.join(out), encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@v6
+        with:
+          name: session-contract-source
+          path: session-contract-source
+          if-no-files-found: error
+          retention-days: 3
