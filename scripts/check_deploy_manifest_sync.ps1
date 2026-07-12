@@ -37,6 +37,14 @@ function Add-ContractFile {
     $ContractText.Value += "`n" + (Get-Content -Raw -Path $fullPath)
 }
 
+function Read-ContractFile {
+    param([string]$RelativePath)
+    if ([string]::IsNullOrWhiteSpace($RelativePath)) { return "" }
+    $fullPath = if ([System.IO.Path]::IsPathRooted($RelativePath)) { $RelativePath } else { Join-Path $repoRoot $RelativePath }
+    if (-not (Test-Path $fullPath)) { return "" }
+    return Get-Content -Raw -Path $fullPath
+}
+
 if (-not (Test-Path $manifestFullPath)) {
     throw "Deploy manifest not found: $manifestFullPath"
 }
@@ -50,13 +58,23 @@ $deployContractText = $workflowText
 $issues = New-Object System.Collections.Generic.List[string]
 
 if ($manifest.platform -eq "cloudflare_worker") {
-    Add-ContractFile -RelativePath $manifest.portableReleaseScript -ContractText ([ref]$deployContractText) -Issues $issues
-    Add-ContractFile -RelativePath $manifest.portableVerifyScript -ContractText ([ref]$deployContractText) -Issues $issues
-    Add-ContractFile -RelativePath $manifest.verificationWatchScript -ContractText ([ref]$deployContractText) -Issues $issues
-    Add-ContractFile -RelativePath $manifest.verificationReportBuilder -ContractText ([ref]$deployContractText) -Issues $issues
-    Add-ContractFile -RelativePath $manifest.verificationStatusPublisher -ContractText ([ref]$deployContractText) -Issues $issues
-    Add-ContractFile -RelativePath $manifest.verificationPolicyPath -ContractText ([ref]$deployContractText) -Issues $issues
-    Add-ContractFile -RelativePath $manifest.productionScopePlanner -ContractText ([ref]$deployContractText) -Issues $issues
+    foreach ($contractPath in @(
+        $manifest.portableReleaseScript,
+        $manifest.portableVerifyScript,
+        $manifest.verificationWatchScript,
+        $manifest.verificationReportBuilder,
+        $manifest.verificationArchiveScript,
+        $manifest.verificationStatusPublisher,
+        $manifest.verificationInstaller,
+        $manifest.verificationDoctor,
+        $manifest.verificationPolicyPath,
+        $manifest.verificationSystemdService,
+        $manifest.verificationSystemdTimer,
+        $manifest.verificationEnvironmentExample,
+        $manifest.productionScopePlanner
+    )) {
+        Add-ContractFile -RelativePath $contractPath -ContractText ([ref]$deployContractText) -Issues $issues
+    }
 
     foreach ($requiredText in @(
         $manifest.workerName,
@@ -66,15 +84,27 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $manifest.portableVerifyScript,
         $manifest.verificationWatchScript,
         $manifest.verificationReportBuilder,
+        $manifest.verificationArchiveScript,
         $manifest.verificationStatusPublisher,
+        $manifest.verificationInstaller,
+        $manifest.verificationDoctor,
         $manifest.verificationPolicyPath,
+        $manifest.verificationSystemdService,
+        $manifest.verificationSystemdTimer,
+        $manifest.verificationEnvironmentExample,
         $manifest.verificationStatusContext,
         $manifest.productionScopePlanner,
         "ikimon_production_verification/v1",
+        "ikimon_production_verification_archive_pointer/v1",
         "deploy:production:quick-preflight",
         "deploy:production:fast",
         "materialize:original-ui:dry-run",
         "materialize:original-ui",
+        "StateDirectory=ikimon-production-verification",
+        "IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS=14",
+        "systemd-analyze verify",
+        "--dry-run",
+        "--uninstall",
         "CLOUDFLARE_API_TOKEN",
         "VPS SSH/deploy"
     )) {
@@ -95,6 +125,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "deploy_required",
         "run_cloudflare_production_release.sh",
         "publish_production_verification_status.mjs",
+        "production_verification_operations.tests.mjs",
         "production-verification-latest.json",
         "statuses: write",
         "continue-on-error: true",
@@ -128,6 +159,14 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $issues.Add("Production deploy manifest is missing triggerPolicy")
     }
 
+    if ($manifest.verificationOperations) {
+        if ($manifest.verificationOperations.recommendedCadenceMinutes -ne 15 -or $manifest.verificationOperations.historicalRetentionDays -lt 1 -or -not $manifest.verificationOperations.installerPreservesExistingEnvironment -or $manifest.verificationOperations.installerAcceptsSecretsOnCommandLine -or -not $manifest.verificationOperations.timerEnableRequiresHostAccess) {
+            $issues.Add("Production verification operations must preserve the environment file, reject command-line secrets, retain evidence, and require host access for timer enablement")
+        }
+    } else {
+        $issues.Add("Production deploy manifest is missing verificationOperations")
+    }
+
     $verificationPolicyFullPath = Join-Path $repoRoot $manifest.verificationPolicyPath
     if (Test-Path $verificationPolicyFullPath) {
         $verificationPolicy = Get-Content -Raw -Path $verificationPolicyFullPath | ConvertFrom-Json
@@ -139,6 +178,37 @@ if ($manifest.platform -eq "cloudflare_worker") {
         }
     }
 
+    $serviceText = Read-ContractFile -RelativePath $manifest.verificationSystemdService
+    if ($serviceText -match '(?m)^Environment=PUBLISH_GITHUB_STATUS=true$') {
+        $issues.Add("Systemd service must not force GitHub status publishing without a configured token")
+    }
+    foreach ($serviceMarker in @("UMask=0077", "ProtectSystem=strict", "NoNewPrivileges=true", "PrivateDevices=true", "StateDirectoryMode=0750")) {
+        if ($serviceText -notmatch [regex]::Escape($serviceMarker)) {
+            $issues.Add("Systemd verification service is missing hardening marker: $serviceMarker")
+        }
+    }
+
+    $timerText = Read-ContractFile -RelativePath $manifest.verificationSystemdTimer
+    if ($timerText -notmatch [regex]::Escape("OnCalendar=*:0/15")) {
+        $issues.Add("Systemd verification timer must run on a 15-minute calendar cadence")
+    }
+
+    $environmentExampleText = Read-ContractFile -RelativePath $manifest.verificationEnvironmentExample
+    if ($environmentExampleText -notmatch '(?m)^PUBLISH_GITHUB_STATUS=false$') {
+        $issues.Add("Verification environment example must default GitHub status publishing to false")
+    }
+    if ($environmentExampleText -match '(?m)^(?:GITHUB_TOKEN|GH_TOKEN)=\S+') {
+        $issues.Add("Verification environment example must not contain a token value")
+    }
+
+    $installerText = Read-ContractFile -RelativePath $manifest.verificationInstaller
+    if ($installerText -match '--(?:github|cloudflare)-token') {
+        $issues.Add("Verification installer must not accept secrets on the command line")
+    }
+    if ($installerText -notmatch [regex]::Escape("Preserving existing environment file")) {
+        $issues.Add("Verification installer must preserve an existing environment file")
+    }
+
     if ($issues.Count -gt 0) {
         foreach ($issue in $issues) {
             Write-Error $issue
@@ -147,7 +217,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
     }
 
     Invoke-StagingManifestSyncCheck
-    Write-Output "Portable Cloudflare production, external verification, and staging deploy manifests are in sync."
+    Write-Output "Portable Cloudflare production, external verification, installation operations, and staging deploy manifests are in sync."
     exit 0
 }
 

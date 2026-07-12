@@ -33,12 +33,18 @@ test('verification evidence and monitoring changes are control-plane only', () =
   const plan = planProductionReleaseScope([
     'scripts/run_production_verification_watch.sh',
     'scripts/build_production_verification_report.mjs',
+    'scripts/archive_production_verification_evidence.mjs',
     'scripts/publish_production_verification_status.mjs',
+    'scripts/install_production_verification_service.sh',
+    'scripts/doctor_production_verification_service.sh',
+    'scripts/tests/production_verification_operations.tests.mjs',
     'ops/monitoring/production_verification_policy.json',
+    'ops/monitoring/systemd/ikimon-production-verification.service',
   ]);
   assert.equal(plan.deploy_required, false);
   assert.equal(plan.run_guardrails, true);
   assert.equal(plan.reason, 'control_plane_only');
+  assert.equal(plan.runtime_files.length, 0);
 });
 
 test('longform Markdown content requires production deploy', () => {

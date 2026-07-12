@@ -3,6 +3,7 @@ import test from 'node:test';
 import { planCiScope } from '../plan_ci_scope.mjs';
 import './production_release_scope.tests.mjs';
 import './production_verification_evidence.tests.mjs';
+import './production_verification_operations.tests.mjs';
 
 test('docs-only changes do not spend browser minutes', () => {
   const plan = planCiScope(['docs/operations.md']);
@@ -94,6 +95,20 @@ test('portable production runner changes are deploy-impacting', () => {
 
 test('production verification evidence changes are deploy-impacting without browser fanout', () => {
   const plan = planCiScope(['scripts/publish_production_verification_status.mjs']);
+  assert.equal(plan.deploy_changed, true);
+  assert.equal(plan.run_platform, true);
+  assert.equal(plan.run_deploy_manifest_check, true);
+  assert.equal(plan.run_record_funnel_browser_qa, false);
+  assert.equal(plan.run_map_performance_qa, false);
+  assert.equal(plan.run_scene_read_smoke, false);
+});
+
+test('production verification installer and archive changes stay out of browser lanes', () => {
+  const plan = planCiScope([
+    'scripts/install_production_verification_service.sh',
+    'scripts/archive_production_verification_evidence.mjs',
+    'ops/monitoring/systemd/ikimon-production-verification.service',
+  ]);
   assert.equal(plan.deploy_changed, true);
   assert.equal(plan.run_platform, true);
   assert.equal(plan.run_deploy_manifest_check, true);

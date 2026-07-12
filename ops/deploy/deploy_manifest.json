@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "strategy": "github_actions_cloudflare_worker",
   "platform": "cloudflare_worker",
   "workerName": "ikimon-life-cloudflare-prod",
@@ -10,8 +10,14 @@
   "portableVerifyScript": "scripts/verify_cloudflare_production_release.sh",
   "verificationWatchScript": "scripts/run_production_verification_watch.sh",
   "verificationReportBuilder": "scripts/build_production_verification_report.mjs",
+  "verificationArchiveScript": "scripts/archive_production_verification_evidence.mjs",
   "verificationStatusPublisher": "scripts/publish_production_verification_status.mjs",
+  "verificationInstaller": "scripts/install_production_verification_service.sh",
+  "verificationDoctor": "scripts/doctor_production_verification_service.sh",
   "verificationPolicyPath": "ops/monitoring/production_verification_policy.json",
+  "verificationSystemdService": "ops/monitoring/systemd/ikimon-production-verification.service",
+  "verificationSystemdTimer": "ops/monitoring/systemd/ikimon-production-verification.timer",
+  "verificationEnvironmentExample": "ops/monitoring/systemd/production-verification.env.example",
   "verificationStatusContext": "ikimon/production-verification",
   "productionScopePlanner": "scripts/plan_production_release_scope.mjs",
   "triggerPolicy": {
@@ -20,6 +26,15 @@
     "controlOnlySkipsMutation": true,
     "exactShaRequired": true,
     "statusAggregationBestEffort": true
+  },
+  "verificationOperations": {
+    "recommendedCadenceMinutes": 15,
+    "historicalRetentionDays": 14,
+    "serviceStateDirectory": "/var/lib/ikimon-production-verification",
+    "environmentFile": "/etc/ikimon/production-verification.env",
+    "installerPreservesExistingEnvironment": true,
+    "installerAcceptsSecretsOnCommandLine": false,
+    "timerEnableRequiresHostAccess": true
   },
   "healthChecks": [
     "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/healthz",
@@ -33,12 +48,14 @@
   ],
   "requiredChecks": [
     "PR Quality Gate and Ai Review Gate before merge",
-    "node --test scripts/tests/production_release_scope.tests.mjs scripts/tests/production_verification_evidence.tests.mjs",
+    "node --test scripts/tests/production_release_scope.tests.mjs scripts/tests/production_verification_evidence.tests.mjs scripts/tests/production_verification_operations.tests.mjs",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_guardrails.ps1",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_manifest_sync.ps1",
     "bash scripts/run_cloudflare_production_release.sh with DEPLOY_PRODUCTION=true",
     "bash scripts/run_production_verification_watch.sh",
-    "node scripts/publish_production_verification_status.mjs"
+    "node scripts/archive_production_verification_evidence.mjs",
+    "node scripts/publish_production_verification_status.mjs",
+    "sudo bash scripts/install_production_verification_service.sh --create-user"
   ],
   "forbiddenPaths": [
     "**/*.sqlite",
@@ -58,6 +75,7 @@
     "Documentation, test-only, monitoring, and production control-plane-only changes do not mutate the production Worker, D1, or R2.",
     "GitHub Actions is the approval and status layer; the release implementation is the portable repository command scripts/run_cloudflare_production_release.sh.",
     "Production verification writes a no-personal-data JSON report bound to the exact public runtime SHA and can run from GitHub Actions, a Codex management PC, or a management server.",
+    "The management-server timer uses a private systemd StateDirectory, archives SHA-bound evidence for 14 days, and can be installed or upgraded idempotently without replacing an existing secret environment file.",
     "External verification may publish the deduplicated ikimon/production-verification commit status using a separately managed repository status token.",
     "The portable release command performs one dependency-install/build lane, Worker quick preflight, D1 migration application, R2 materialization, guarded Worker deploy, and post-deploy verification without a GitHub Artifact handoff.",
     "The production public entrypoint is Cloudflare Worker ikimon-life-cloudflare-prod, not the legacy VPS blue/green lane.",

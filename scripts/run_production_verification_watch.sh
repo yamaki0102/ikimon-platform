@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 0077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -13,16 +14,25 @@ IKIMON_VERIFICATION_RUNNER_ID="${IKIMON_VERIFICATION_RUNNER_ID:-${HOSTNAME:-unkn
 IKIMON_VERIFICATION_REPORT_PATH="${IKIMON_VERIFICATION_REPORT_PATH:-${REPORT_DIR}/production-verification-latest.json}"
 IKIMON_VERIFICATION_LOG_PATH="${IKIMON_VERIFICATION_LOG_PATH:-${REPORT_DIR}/production-verification-latest.log}"
 IKIMON_VERIFICATION_RUNTIME_PATH="${IKIMON_VERIFICATION_RUNTIME_PATH:-${REPORT_DIR}/production-runtime-version-latest.json}"
+IKIMON_VERIFICATION_ARCHIVE_DIR="${IKIMON_VERIFICATION_ARCHIVE_DIR:-}"
+IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS="${IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS:-14}"
 PUBLISH_GITHUB_STATUS="${PUBLISH_GITHUB_STATUS:-false}"
 
 case "${SMOKE_TIER}" in full|targeted) ;; *) echo "SMOKE_TIER must be full or targeted" >&2; exit 2 ;; esac
 case "${PLAYWRIGHT_INSTALL_WITH_DEPS}" in true|false) ;; *) echo "PLAYWRIGHT_INSTALL_WITH_DEPS must be true or false" >&2; exit 2 ;; esac
 case "${PUBLISH_GITHUB_STATUS}" in true|false) ;; *) echo "PUBLISH_GITHUB_STATUS must be true or false" >&2; exit 2 ;; esac
+if [[ ! "${IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS}" =~ ^[0-9]+$ || "${IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS}" -lt 1 ]]; then
+  echo "IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS must be a positive integer" >&2
+  exit 2
+fi
 
 mkdir -p \
   "$(dirname "${IKIMON_VERIFICATION_REPORT_PATH}")" \
   "$(dirname "${IKIMON_VERIFICATION_LOG_PATH}")" \
   "$(dirname "${IKIMON_VERIFICATION_RUNTIME_PATH}")"
+if [[ -n "${IKIMON_VERIFICATION_ARCHIVE_DIR}" ]]; then
+  mkdir -p "${IKIMON_VERIFICATION_ARCHIVE_DIR}"
+fi
 RUNTIME_PATH="${IKIMON_VERIFICATION_RUNTIME_PATH}"
 RUNTIME_TMP_PATH="${RUNTIME_PATH}.tmp"
 
@@ -79,6 +89,17 @@ node "${SCRIPT_DIR}/build_production_verification_report.mjs" \
   --smoke-tier "${SMOKE_TIER}" \
   --source "${IKIMON_VERIFICATION_SOURCE}" \
   --runner-id "${IKIMON_VERIFICATION_RUNNER_ID}"
+
+if [[ -n "${IKIMON_VERIFICATION_ARCHIVE_DIR}" ]]; then
+  if ! node "${SCRIPT_DIR}/archive_production_verification_evidence.mjs" \
+    --report "${IKIMON_VERIFICATION_REPORT_PATH}" \
+    --log "${IKIMON_VERIFICATION_LOG_PATH}" \
+    --runtime "${RUNTIME_PATH}" \
+    --archive-dir "${IKIMON_VERIFICATION_ARCHIVE_DIR}" \
+    --retention-days "${IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS}"; then
+    echo "WARNING: Production verification evidence archival failed; preserving verification exit code ${VERIFY_EXIT}." >&2
+  fi
+fi
 
 if [[ "${PUBLISH_GITHUB_STATUS}" == "true" ]]; then
   if ! node "${SCRIPT_DIR}/publish_production_verification_status.mjs" \
