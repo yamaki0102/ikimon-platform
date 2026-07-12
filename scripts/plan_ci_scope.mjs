@@ -44,9 +44,9 @@ export function planCiScope(inputFiles, { forceFull = false } = {}) {
     /^\.github\/workflows\//,
     /^\.github\/actions\//,
     /^ops\/(deploy|monitoring)\//,
-    /^scripts\/(check_(deploy_guardrails|deploy_manifest_sync|platform_migration_guardrails|staging_manifest_sync|release_candidate)|plan_ci_scope|plan_production_release_scope|build_production_verification_report|publish_production_verification_status)\.(ps1|mjs)$/,
-    /^scripts\/(run_cloudflare_staging_release|run_cloudflare_production_release|verify_cloudflare_production_release|run_production_verification_watch)\.sh$/,
-    /^scripts\/tests\/(plan_ci_scope|production_release_scope|production_verification_evidence)\.tests\.mjs$/,
+    /^scripts\/(check_(deploy_guardrails|deploy_manifest_sync|platform_migration_guardrails|staging_manifest_sync|release_candidate)|plan_ci_scope|plan_production_release_scope|build_production_verification_report|archive_production_verification_evidence|publish_production_verification_status)\.(ps1|mjs)$/,
+    /^scripts\/(run_cloudflare_staging_release|run_cloudflare_production_release|verify_cloudflare_production_release|run_production_verification_watch|install_production_verification_service|doctor_production_verification_service)\.sh$/,
+    /^scripts\/tests\/(plan_ci_scope|production_release_scope|production_verification_evidence|production_verification_operations)\.tests\.mjs$/,
   ]);
 
   const browserInfrastructureChanged = anyMatch(files, [
