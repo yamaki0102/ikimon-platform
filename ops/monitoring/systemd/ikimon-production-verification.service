@@ -2,6 +2,7 @@
 Description=IKIMON production verification watch
 After=network-online.target
 Wants=network-online.target
+ConditionPathIsDirectory=/opt/ikimon/ikimon-platform
 
 [Service]
 Type=oneshot
@@ -12,17 +13,29 @@ EnvironmentFile=/etc/ikimon/production-verification.env
 Environment=SMOKE_TIER=targeted
 Environment=PLAYWRIGHT_INSTALL_WITH_DEPS=false
 Environment=IKIMON_VERIFICATION_SOURCE=management-server-timer
-Environment=PUBLISH_GITHUB_STATUS=true
 Environment=IKIMON_VERIFICATION_REPORT_PATH=/var/lib/ikimon-production-verification/production-verification-latest.json
 Environment=IKIMON_VERIFICATION_LOG_PATH=/var/lib/ikimon-production-verification/production-verification-latest.log
 Environment=IKIMON_VERIFICATION_RUNTIME_PATH=/var/lib/ikimon-production-verification/production-runtime-version-latest.json
+Environment=IKIMON_VERIFICATION_ARCHIVE_DIR=/var/lib/ikimon-production-verification/history
+Environment=IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS=14
 ExecStart=/usr/bin/env bash scripts/run_production_verification_watch.sh
 StateDirectory=ikimon-production-verification
 StateDirectoryMode=0750
+UMask=0077
+TimeoutStartSec=15min
+Nice=10
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectHome=true
 ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
 
 [Install]
 WantedBy=multi-user.target
