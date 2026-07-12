@@ -1,0 +1,198 @@
+name: Verify Record Recovery Visual QA
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-record-recovery-visual
+  cancel-in-progress: true
+
+jobs:
+  visual-qa:
+    if: github.head_ref == 'agent/visual-qa-record-recovery-20260712'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb-ha:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ikimon_v2_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/ikimon_v2_ci
+      V2_PRIVILEGED_WRITE_API_KEY: ci-write-key
+      ALLOW_QUERY_USER_ID: '1'
+      PORT: '3200'
+      EXPECTED_PRODUCT_SHA: a7753d2896752095aef54fd155a21b7a94747fd0
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/record-fallback-recovery-20260712
+          fetch-depth: 1
+
+      - name: Confirm product source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_PRODUCT_SHA"
+
+      - name: Setup platform browser runtime
+        uses: ./.github/actions/setup-platform-browser
+
+      - name: Build platform
+        working-directory: platform_v2
+        run: npm run build
+
+      - name: Prepare local database
+        working-directory: platform_v2
+        run: |
+          node --input-type=module <<'NODE'
+          import { Client } from 'pg';
+          const client = new Client({ connectionString: process.env.DATABASE_URL });
+          await client.connect();
+          await client.query('CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE');
+          await client.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
+          await client.query('CREATE EXTENSION IF NOT EXISTS vector');
+          await client.end();
+          NODE
+          npm run migrate -- --allow-destructive
+
+      - name: Start local platform runtime
+        working-directory: platform_v2
+        run: |
+          set -euo pipefail
+          npm run start > ../record-recovery-visual-runtime.log 2>&1 &
+          echo "$!" > ../record-recovery-visual-runtime.pid
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3200/healthz >/dev/null && exit 0
+            sleep 2
+          done
+          cat ../record-recovery-visual-runtime.log
+          exit 1
+
+      - name: Run multi-viewport recovery Visual QA
+        working-directory: platform_v2
+        run: |
+          set -euo pipefail
+          mkdir -p ../record-recovery-visual-qa/screenshots
+          cat > .tmp-record-recovery-visual.mjs <<'NODE'
+          import { chromium } from '@playwright/test';
+          import fs from 'node:fs/promises';
+          import path from 'node:path';
+
+          const widths = [
+            ['360x800', 360, 800],
+            ['390x844', 390, 844],
+            ['412x915', 412, 915],
+            ['768x1024', 768, 1024],
+            ['1280x900', 1280, 900],
+          ];
+          const browser = await chromium.launch({ headless: true });
+          const outDir = path.resolve('../record-recovery-visual-qa/screenshots');
+          const results = [];
+          const failures = [];
+          const isVisible = async (locator) => locator.evaluate((element) => {
+            const box = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+          }).catch(() => false);
+
+          for (const [name, width, height] of widths) {
+            const context = await browser.newContext({ viewport: { width, height }, locale: 'ja-JP', serviceWorkers: 'block' });
+            const page = await context.newPage();
+            const consoleErrors = [];
+            page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+            const response = await page.goto('http://127.0.0.1:3200/ja/record?draft=1&start=photo&source=login_required', { waitUntil: 'domcontentloaded' });
+            const recoveryStart = page.locator('[data-record-recovery-start]').first();
+            await recoveryStart.waitFor({ state: 'visible', timeout: 20000 });
+            const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+            const launcherVisible = await isVisible(page.locator('.global-record-launcher').first());
+            const loginVisible = await isVisible(recoveryStart.locator('a[href*="/login"]').first());
+            const registerVisible = await isVisible(recoveryStart.locator('a[href*="/register"]').first());
+            await page.screenshot({ path: path.join(outDir, `${name}-guest.png`), fullPage: true, animations: 'disabled' });
+            if ((response?.status() || 0) >= 400) failures.push(`${name}: response ${response?.status()}`);
+            if (!loginVisible || !registerVisible) failures.push(`${name}: login/register links missing`);
+            if (overflow > 1) failures.push(`${name}: horizontal overflow ${overflow}`);
+            if (launcherVisible) failures.push(`${name}: global launcher visible`);
+            if (consoleErrors.length) failures.push(`${name}: console ${consoleErrors.join(' | ')}`);
+            results.push({ name, width, height, overflow, launcherVisible, loginVisible, registerVisible, consoleErrors });
+            await context.close();
+          }
+
+          const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ja-JP', serviceWorkers: 'block' });
+          await context.addInitScript(() => {
+            const request = indexedDB.open('ikimon-record-draft', 1);
+            request.onupgradeneeded = () => {
+              if (!request.result.objectStoreNames.contains('drafts')) request.result.createObjectStore('drafts');
+            };
+            request.onsuccess = () => {
+              const file = new File([new Uint8Array([255, 216, 255, 217])], 'recovery-photo.jpg', { type: 'image/jpeg' });
+              const tx = request.result.transaction('drafts', 'readwrite');
+              tx.objectStore('drafts').put({ file, files: [file], kind: 'photo', savedAt: Date.now(), metadata: { formValues: { note: '復旧確認' }, recoverySource: 'location_denied' } }, 'latest');
+            };
+          });
+          const page = await context.newPage();
+          const consoleErrors = [];
+          page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+          const response = await page.goto('http://127.0.0.1:3200/ja/record?userId=record-recovery-qa&draft=1&start=photo&source=location_denied', { waitUntil: 'domcontentloaded' });
+          const panel = page.locator('[data-record-recovery]').first();
+          await panel.waitFor({ state: 'visible', timeout: 20000 });
+          await page.waitForFunction(() => document.querySelector('[data-record-recovery]')?.getAttribute('data-state') !== 'checking', null, { timeout: 20000 });
+          const state = await panel.getAttribute('data-state');
+          const fileChooser = page.waitForEvent('filechooser', { timeout: 10000 });
+          await page.locator('[data-record-recovery-pick]').click();
+          const chooser = await fileChooser;
+          await chooser.setFiles({ name: 'replacement.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([255, 216, 255, 217]) });
+          const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+          const locationEnabled = !(await page.locator('[data-record-recovery-location]').isDisabled());
+          const saveEnabled = !(await page.locator('[data-record-recovery-save]').isDisabled());
+          const launcherVisible = await isVisible(page.locator('.global-record-launcher').first());
+          await page.screenshot({ path: path.join(outDir, '390x844-signed-restored.png'), fullPage: true, animations: 'disabled' });
+          if ((response?.status() || 0) >= 400) failures.push(`signed: response ${response?.status()}`);
+          if (state !== 'ready') failures.push(`signed: expected ready, got ${state}`);
+          if (!locationEnabled || !saveEnabled) failures.push('signed: actions disabled');
+          if (overflow > 1) failures.push(`signed: horizontal overflow ${overflow}`);
+          if (launcherVisible) failures.push('signed: global launcher visible');
+          if (consoleErrors.length) failures.push(`signed: console ${consoleErrors.join(' | ')}`);
+          results.push({ mode: 'signed-restored', state, locationEnabled, saveEnabled, overflow, launcherVisible, consoleErrors });
+          await context.close();
+          await browser.close();
+
+          await fs.writeFile('../record-recovery-visual-qa/metrics.json', JSON.stringify({ expectedProductSha: process.env.EXPECTED_PRODUCT_SHA, results, failures }, null, 2));
+          if (failures.length) {
+            console.error(failures.join('\n'));
+            process.exit(1);
+          }
+          NODE
+          node .tmp-record-recovery-visual.mjs
+          rm -f .tmp-record-recovery-visual.mjs
+
+      - name: Upload Visual QA evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: record-recovery-visual-qa
+          path: |
+            record-recovery-visual-qa
+            record-recovery-visual-runtime.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop local runtime
+        if: always()
+        run: |
+          if [ -f record-recovery-visual-runtime.pid ]; then
+            kill "$(cat record-recovery-visual-runtime.pid)" || true
+          fi

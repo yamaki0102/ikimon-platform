@@ -632,3 +632,18 @@ test("major routes keep route-metadata layout contracts", () => {
     assert.match(html, new RegExp(`class="shell ${entry.className}`), entry.path);
   }
 });
+
+
+test("global record draft handoff includes a recovery source", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "test",
+    body: "<p>test</p>",
+    lang: "ja",
+    currentPath: "/",
+  });
+  assert.match(html, /const withDraftParams = \(href, kind, source\) =>/);
+  assert.match(html, /url\.searchParams\.set\('source', recoverySource\)/);
+  assert.match(html, /navigateWithDraft\(files, 'photo', metadata, 'location_denied'\)/);
+  assert.match(html, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'login_required'\)/);
+});
