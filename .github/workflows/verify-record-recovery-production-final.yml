@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      TARGET_SHA: 74f02e9c4ad3fd6c4f609d8f006582fa156a5d20
+      TARGET_SHA: cff8c6a25de27ef7ddd81b6d92c6cca9cd537722
       GH_TOKEN: ${{ github.token }}
       PRODUCTION_BASE_URL: https://ikimon.life
     steps:
