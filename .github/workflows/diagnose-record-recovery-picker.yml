@@ -8,7 +8,7 @@ on:
       - agent/record-fallback-recovery-20260712
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: diagnose-record-recovery-picker
@@ -22,21 +22,57 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: agent/record-fallback-recovery-20260712
-          fetch-depth: 1
-      - name: Capture picker delegation context
+          fetch-depth: 0
+      - name: Correct recovery picker delegation
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p record-recovery-picker-diagnostic
-          {
-            grep -nE -C 45 'recordRecoveryPick|record-recovery-(pick|media)|data-record-recovery|record-media-photo|data-capture-action="photo"|mobile.*delegat|global-record-trigger' platform_v2/src/routes/read.ts || true
-          } > record-recovery-picker-diagnostic/read-context.txt
-          {
-            grep -nE -C 24 'recordRecoveryPick|record-recovery-(pick|media)|data-record-recovery|record-media-photo|global-record-trigger' platform_v2/src/routes/record.routes.test.ts platform_v2/e2e/record-funnel.staging.spec.ts || true
-          } > record-recovery-picker-diagnostic/test-context.txt
-      - uses: actions/upload-artifact@v6
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('platform_v2/src/routes/read.ts')
+          source = path.read_text(encoding='utf-8')
+          old = """        const chooseRecordRecoveryMedia = () => {
+          const preferred = captureButtons.find((button) => button.getAttribute('data-capture-action') === recordRecoveryStart)
+            || captureButtons.find((button) => button.getAttribute('data-capture-action') === 'gallery')
+            || captureButtons[0];
+          if (preferred && typeof preferred.click === 'function') preferred.click();
+        };"""
+          new = """        const chooseRecordRecoveryMedia = () => {
+          const action = recordRecoveryStart === 'video'
+            ? 'video'
+            : recordRecoveryStart === 'photo'
+              ? 'photo'
+              : 'gallery';
+          const target = document.querySelector('[data-record-media-input][data-capture-kind="' + action + '"]') || mediaInput;
+          if (target && typeof target.click === 'function') target.click();
+        };"""
+          count = source.count(old)
+          if count != 1:
+              raise SystemExit(f'expected one recovery picker helper, found {count}')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          PY
+          git diff --check
+      - uses: actions/setup-node@v5
         with:
-          name: record-recovery-picker-diagnostic
-          path: record-recovery-picker-diagnostic
-          if-no-files-found: error
-          retention-days: 2
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+      - name: Verify focused contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix platform_v2 ci
+          npm --prefix platform_v2 run typecheck
+          (cd platform_v2 && npx tsx --test src/routes/record.routes.test.ts src/routes/recordRecoverySource.contract.test.ts)
+      - name: Commit picker correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/diagnose-record-recovery-picker.yml
+          rm -f .github/workflows/fix-record-recovery-picker.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix: open recovery media input directly'
+          git push origin HEAD:agent/record-fallback-recovery-20260712
