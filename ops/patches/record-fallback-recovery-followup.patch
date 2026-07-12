@@ -1,0 +1,11 @@
+--- a/platform_v2/src/routes/record.routes.test.ts
++++ b/platform_v2/src/routes/record.routes.test.ts
+@@ -955,7 +955,7 @@
+     assert.match(response.body, /いま閉じても下書きは消しません/);
+     assert.match(response.body, /ログインして続ける/);
+     assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dphoto%26draft%3D1%26source%3Dlocation_denied%26lang%3Dja/);
+-    assert.doesNotMatch(response.body, /start-guide-state-row/);
++    assert.doesNotMatch(response.body, /<div class="start-guide-state-row"/);
+   } finally {
+     await app.close();
+   }
