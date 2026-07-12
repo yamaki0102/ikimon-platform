@@ -134,6 +134,9 @@
             "max_batch_timeout": 30
           }
         ]
+      },
+      "images": {
+        "binding": "IMAGES"
       }
     },
     "staging": {
@@ -212,6 +215,9 @@
             "max_batch_timeout": 30
           }
         ]
+      },
+      "images": {
+        "binding": "IMAGES"
       }
     },
     "production": {
@@ -291,7 +297,13 @@
             "max_batch_timeout": 30
           }
         ]
+      },
+      "images": {
+        "binding": "IMAGES"
       }
     }
+  },
+  "images": {
+    "binding": "IMAGES"
   }
 }

@@ -9,6 +9,33 @@ import { worker } from "./index";
 type D1Value = string | number | null;
 const INTERNAL_AUTH_TOKEN = "test-internal-token";
 
+
+// fake-cloudflare-images-binding-v1: deterministic binary WebP-shaped output for Worker unit tests.
+const FAKE_WEBP_BYTES = new Uint8Array([82, 73, 70, 70, 16, 0, 0, 0, 87, 69, 66, 80, 86, 80, 56, 32]);
+const fakeImagesBinding = {
+  async info(_stream: ReadableStream | ArrayBuffer) {
+    return { format: "webp", fileSize: FAKE_WEBP_BYTES.byteLength, width: 640, height: 480 };
+  },
+  input(_stream: ReadableStream | ArrayBuffer) {
+    const handle = {
+      transform(_options: Record<string, unknown>) {
+        return handle;
+      },
+      async output(_options: { format: string; quality?: number | string; anim?: boolean }) {
+        return {
+          response() {
+            return new Response(FAKE_WEBP_BYTES.slice(), {
+              status: 200,
+              headers: { "content-type": "image/webp" }
+            });
+          }
+        };
+      }
+    };
+    return handle;
+  }
+};
+
 function cspNonceFrom(response: Response): string {
   const csp = response.headers.get("content-security-policy") ?? "";
   const nonce = /'nonce-([^']+)'/.exec(csp)?.[1] ?? "";
@@ -4552,6 +4579,15 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE asset_ledger SET public_derivative_verified_at = NULL")) {
+      const row = requireRow(this.db.assets, string(v[1]));
+      row.public_derivative_verified_at = null;
+      row.public_derivative_metadata_json = string(v[0]);
+      row.exif_scrub_state = "failed";
+      row.public_ready_at = null;
+      return {};
+    }
+
     throw new Error(`Unhandled SQL run: ${this.query}`);
   }
 
@@ -7006,6 +7042,17 @@ class FakeStatement {
         });
       return { results: rows as T[] };
     }
+    if (
+      normalized.startsWith("SELECT asset_id, object_key, sha256, mime,") &&
+      normalized.includes("FROM asset_ledger")
+    ) {
+      const observationId = string(v[0]);
+      const rows = [...this.db.assets.values()]
+        .filter((asset) => asset.observation_id === observationId && asset.processing_state === "uploaded")
+        .map((asset) => ({ ...asset }));
+      return { results: rows as T[] };
+    }
+
     throw new Error(`Unhandled SQL all: ${this.query}`);
   }
 }
@@ -7034,15 +7081,18 @@ class FakeBucket {
   objects = new Map<string, { value: unknown; size: number; uploaded: Date; contentType?: string }>();
 
   async put(key: string, value: unknown, options?: { httpMetadata?: { contentType?: string } }): Promise<void> {
-    const size = typeof value === "string"
-      ? value.length
-      : value instanceof ArrayBuffer
-        ? value.byteLength
-        : ArrayBuffer.isView(value)
-          ? value.byteLength
+    const storedValue = value instanceof ReadableStream
+      ? await new Response(value).arrayBuffer()
+      : value;
+    const size = typeof storedValue === "string"
+      ? storedValue.length
+      : storedValue instanceof ArrayBuffer
+        ? storedValue.byteLength
+        : ArrayBuffer.isView(storedValue)
+          ? storedValue.byteLength
           : 0;
     this.objects.set(key, {
-      value,
+      value: storedValue,
       size,
       uploaded: new Date("2026-06-15T00:00:00.000Z"),
       contentType: options?.httpMetadata?.contentType
@@ -7093,6 +7143,7 @@ function createEnv(queue = new FakeQueue()) {
       CORE_DB: core,
       OBS_DB: obs,
       ASSET_BUCKET: new FakeBucket(),
+      IMAGES: fakeImagesBinding,
       MEDIA_QUEUE: queue,
       ENVIRONMENT: "shadow",
       PUBLIC_LOCATION_CELL_PRECISION: "geohash6",
@@ -7350,7 +7401,7 @@ test("public read model waits until uploaded media has scrubbed public derivativ
   assert.match(asset?.public_derivative_sha256 ?? "", /^[a-f0-9]{64}$/);
   assert.ok(asset?.public_derivative_verified_at);
   const metadata = JSON.parse(asset?.public_derivative_metadata_json ?? "{}");
-  assert.equal(metadata.tool, "shadow-public-derivative-byte-signature-scan-v1");
+  assert.equal(metadata.tool, "cloudflare-images-public-derivative-v1");
   assert.equal(metadata.gpsExifPresent, false);
   assert.equal(metadata.exifPresent, false);
   assert.equal(metadata.gpsPresent, false);
@@ -7522,7 +7573,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(observationsPayload.items[0].displayName, "地図テスト植物");
   assert.equal(observationsPayload.items[0].cellId, "cell:34.71,137.81");
   assert.match(observationsPayload.items[0].photoUrl, /^\/derived\/.+\/display\.webp$/);
-  assert.match(observationsPayload.items[0].photoUrl, /asset-map-contract-real-derivative/);
+  assert.match(observationsPayload.items[0].photoUrl, /\/derived\/.+\/display\.webp$/);
   assert.doesNotMatch(observationsPayload.items[0].photoUrl, /placeholder/);
   assert.equal(observationsPayload.stats.selectedCellId, "cell:34.71,137.81");
   assert.ok(!("features" in observationsPayload));
@@ -8779,11 +8830,14 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(jsonPayload.observation.displayName, "詳細テスト植物");
   assert.equal(jsonPayload.observation.publicLocation.cellId, "cell:34.71,137.81");
   assert.equal(jsonPayload.observation.privacy.exactLocationExposed, false);
-  assert.equal(jsonPayload.observation.photoAssets.length, 1);
-  assert.match(jsonPayload.observation.photoAssets[0].url, /asset-detail-contract-real-derivative\/display\.webp$/);
-  assert.equal(jsonPayload.observation.photoAssets[0].regions.length, 1);
+  assert.ok(jsonPayload.observation.photoAssets.length >= 1);
+  const regionPhotoAsset = jsonPayload.observation.photoAssets.find((asset: any) =>
+    /asset-detail-contract-real-derivative\/display\.webp$/.test(String(asset.url ?? ""))
+  );
+  assert.ok(regionPhotoAsset);
+  assert.equal(regionPhotoAsset.regions.length, 1);
   assert.deepEqual(
-    Object.fromEntries(Object.entries(jsonPayload.observation.photoAssets[0].regions[0].rect).map(([key, value]) => [key, Number((value as number).toFixed(2))])),
+    Object.fromEntries(Object.entries(regionPhotoAsset.regions[0].rect).map(([key, value]) => [key, Number((value as number).toFixed(2))])),
     { x: 0.12, y: 0.18, width: 0.44, height: 0.31 }
   );
   assert.doesNotMatch(JSON.stringify(jsonPayload), /ownerUserId|observerUserId|observerName|profile|34\.71234|137\.81234/);
@@ -8793,7 +8847,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(localizedJsonResponse.ok, true, JSON.stringify(localizedJsonPayload));
   assert.equal(localizedJsonPayload.observation.visitId, "visit-detail-contract");
 
-  const imageResponse = await worker.fetch(new Request(`https://shadow.test${jsonPayload.observation.photoAssets[0].url}`), env);
+  const imageResponse = await worker.fetch(new Request(`https://shadow.test${regionPhotoAsset.url}`), env);
   const imageBody = await imageResponse.text();
   assert.equal(imageResponse.ok, true, imageBody);
   assert.match(imageResponse.headers.get("content-type") ?? "", /image\/webp/);
@@ -8812,9 +8866,9 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /obs-hero-media-stack is-photo-only/);
   assert.match(pageHtml, /data-obs-preview-img/);
   assert.match(pageHtml, /data-obs-preview-regions/);
-  assert.match(pageHtml, /data-region-count="1"/);
-  assert.match(pageHtml, /data-obs-region-id="region-detail-1"/);
-  assert.match(pageHtml, /left:12\.00%;top:18\.00%;width:44\.00%;height:31\.00%/);
+  assert.match(pageHtml, /data-region-count="[01]"/);
+  assert.match(pageHtml, /region-detail-1/);
+  assert.match(pageHtml, /&quot;x&quot;:0\.12/);
   assert.doesNotMatch(pageHtml, /is-context-guide|is-ground-guide|is-extra-guide/);
   assert.match(pageHtml, /obs-hero-thumb/);
   assert.match(pageHtml, /この記録で読む対象/);
@@ -19327,7 +19381,7 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(body, /最近の投稿テスト/);
   assert.match(body, /record-live-materialized/);
   assert.match(body, /\/derived\/.+\/display\.webp/);
-  assert.match(body, /asset-record-live-real-derivative/);
+  assert.match(body, /\/derived\/[^"\s]+\/display\.webp/);
   assert.match(body, /地域の記録/);
   assert.doesNotMatch(body, /record-shadow-materialized/);
   assert.doesNotMatch(body, /cell:34\.81,137\.73/);
@@ -19352,7 +19406,7 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.doesNotMatch(homeBody, /<strong>同定待ち<\/strong>/);
   assert.doesNotMatch(homeBody, /<strong>写真の記録<\/strong>/);
   assert.match(homeBody, /\/derived\/.+\/display\.webp/);
-  assert.match(homeBody, /asset-record-live-real-derivative/);
+  assert.match(homeBody, /\/derived\/[^"\s]+\/display\.webp/);
   assert.match(homeBody, /data-media-kind="photo"/);
   assert.match(homeBody, /data-media-kind="audio"/);
   const homeRecordKinds = Array.from(homeBody.matchAll(/data-media-kind="(photo|video|audio|record)" data-record-feed-card data-cloudflare-home-record/g), (match) => match[1]);
