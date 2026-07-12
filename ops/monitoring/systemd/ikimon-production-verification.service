@@ -1,0 +1,24 @@
+[Unit]
+Description=IKIMON production verification watch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ikimon
+Group=ikimon
+WorkingDirectory=/opt/ikimon/ikimon-platform
+EnvironmentFile=-/etc/ikimon/production-verification.env
+Environment=SMOKE_TIER=targeted
+Environment=PLAYWRIGHT_INSTALL_WITH_DEPS=false
+Environment=IKIMON_VERIFICATION_SOURCE=management-server-timer
+Environment=PUBLISH_GITHUB_STATUS=true
+ExecStart=/usr/bin/env bash scripts/run_production_verification_watch.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/ikimon/ikimon-platform/platform_v2/cloudflare_shadow/.deploy
+
+[Install]
+WantedBy=multi-user.target
