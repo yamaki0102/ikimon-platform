@@ -1,0 +1,42 @@
+name: Diagnose Record Recovery Picker
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - agent/record-fallback-recovery-20260712
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnose-record-recovery-picker
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]' && (github.head_ref == 'agent/record-fallback-recovery-20260712' || github.ref_name == 'agent/record-fallback-recovery-20260712')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/record-fallback-recovery-20260712
+          fetch-depth: 1
+      - name: Capture picker delegation context
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p record-recovery-picker-diagnostic
+          {
+            grep -nE -C 30 'record-recovery-(pick|media)|data-record-recovery|record-media-photo|data-capture-action="photo"|mobile.*delegat|global-record-trigger' platform_v2/src/routes/read.ts || true
+          } > record-recovery-picker-diagnostic/read-context.txt
+          {
+            grep -nE -C 16 'record-recovery-(pick|media)|data-record-recovery|record-media-photo|global-record-trigger' platform_v2/src/routes/record.routes.test.ts platform_v2/e2e/record-funnel.staging.spec.ts || true
+          } > record-recovery-picker-diagnostic/test-context.txt
+      - uses: actions/upload-artifact@v6
+        with:
+          name: record-recovery-picker-diagnostic
+          path: record-recovery-picker-diagnostic
+          if-no-files-found: error
+          retention-days: 2
