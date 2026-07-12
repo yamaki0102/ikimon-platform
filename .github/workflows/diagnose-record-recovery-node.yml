@@ -1,0 +1,43 @@
+name: Diagnose Record Recovery Node Tests
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-node:
+    if: github.head_ref == 'agent/visual-qa-record-recovery-20260712'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/record-fallback-recovery-20260712
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+      - working-directory: platform_v2
+        run: npm ci
+      - name: Run all Node tests and capture output
+        shell: bash
+        run: |
+          set +e
+          npm --prefix platform_v2 run test:node > record-recovery-node-tests.log 2>&1
+          code=$?
+          tail -n 800 record-recovery-node-tests.log > record-recovery-node-tests-tail.log
+          echo "$code" > record-recovery-node-tests-exit-code.txt
+          exit 0
+      - uses: actions/upload-artifact@v6
+        with:
+          name: record-recovery-node-test-diagnostic
+          path: |
+            record-recovery-node-tests.log
+            record-recovery-node-tests-tail.log
+            record-recovery-node-tests-exit-code.txt
+          if-no-files-found: error
+          retention-days: 2
