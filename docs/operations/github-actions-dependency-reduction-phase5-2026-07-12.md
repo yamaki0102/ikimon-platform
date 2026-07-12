@@ -1,5 +1,9 @@
 # GitHub Actions依存削減 Phase 5 — Windows管理PCの定期検証
 
+> **SUPERSEDED FOR NEW INSTALLATIONS**
+>
+> 新規PCではこのrepoのTask Scheduler installerを実行しない。scheduler、evidence、heartbeat、alertingは`yamaki0102/all-projects-management`の`operations/service_observability/`へ中央化する。既存Taskが見つかった場合も自動アンインストールしない。中央shadow runを48時間比較し、別承認でdisableしてからcleanupする。
+
 更新日: 2026-07-12
 
 ## 目的

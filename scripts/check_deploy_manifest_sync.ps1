@@ -82,6 +82,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $manifest.verificationWindowsInstaller,
         $manifest.verificationWindowsDoctor,
         $manifest.verificationPolicyPath,
+        $manifest.verificationAdapterContract,
         $manifest.verificationSystemdService,
         $manifest.verificationSystemdTimer,
         $manifest.verificationEnvironmentExample,
@@ -146,6 +147,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "run_cloudflare_production_release.sh",
         "publish_production_verification_status.mjs",
         "production_verification_operations.tests.mjs",
+        "production_verification_centralization.tests.mjs",
         "windows_production_verification_contract.tests.ps1",
         "release_automation.tests.ps1",
         "production-verification-latest.json",
@@ -189,6 +191,18 @@ if ($manifest.platform -eq "cloudflare_worker") {
     $policyPath = Resolve-ContractPath $manifest.verificationPolicyPath
     if (Test-Path $policyPath) {
         $policy = Get-Content -Raw -Path $policyPath | ConvertFrom-Json
+        if ($policy.schemaVersion -ne "ikimon_production_verification_policy/v4") {
+            $issues.Add("Production verification policy must use the centralization-aware v4 schema")
+        }
+        if ($policy.adapterContract -ne $manifest.verificationAdapterContract) {
+            $issues.Add("Production verification policy adapter contract does not match deploy manifest")
+        }
+        if ($policy.ownership.scheduler -ne "yamaki0102/all-projects-management" -or $policy.ownership.evidence -ne "yamaki0102/all-projects-management" -or $policy.ownership.alerting -ne "yamaki0102/all-projects-management") {
+            $issues.Add("Scheduling, evidence, and alerting ownership must be centralized in yamaki0102/all-projects-management")
+        }
+        if ($policy.activation.newHostInstallationsAllowed -or $policy.activation.legacyHostIntegration -ne "deprecated-shadow-migration" -or -not $policy.activation.cleanupRequiresCentralShadowEvidence -or $policy.activation.automaticUninstallAllowed) {
+            $issues.Add("Legacy host integrations must block new installs and require explicit shadow evidence before manual cleanup")
+        }
         if ($policy.githubStatus.context -ne $manifest.verificationStatusContext) {
             $issues.Add("Production verification policy status context does not match deploy manifest")
         }
@@ -197,6 +211,23 @@ if ($manifest.platform -eq "cloudflare_worker") {
         }
         if (-not $policy.windowsScheduledTask -or $policy.windowsScheduledTask.taskPrincipal -ne "SYSTEM" -or $policy.windowsScheduledTask.acceptSecretsOnCommandLine -or -not $policy.windowsScheduledTask.registeredSystemVerificationRequired -or -not $policy.safety.windowsEnvironmentAllowlist -or -not $policy.safety.windowsPrivateAcl) {
             $issues.Add("Production verification policy must define a private, allowlisted, SYSTEM-run Windows scheduled task with registered-task verification")
+        }
+    }
+
+    $adapterPath = Resolve-ContractPath $manifest.verificationAdapterContract
+    if (Test-Path $adapterPath) {
+        $adapter = Get-Content -Raw -Path $adapterPath | ConvertFrom-Json
+        if ($adapter.schemaVersion -ne "ikimon_production_verification_adapter/v1" -or $adapter.commandId -ne "ikimon-production-verification-v1" -or $adapter.entrypoint -ne $manifest.verificationWatchScript) {
+            $issues.Add("Production verification adapter must expose the fixed v1 command and manifest entrypoint")
+        }
+        if ($adapter.entrypointSha256 -notmatch '^[0-9a-f]{64}$' -or @($adapter.dynamicArguments).Count -ne 0) {
+            $issues.Add("Production verification adapter must be digest-pinned and reject dynamic arguments")
+        }
+        if ($adapter.resultSchema -ne "ikimon_production_verification/v1" -or $adapter.productionMutation -or $adapter.safety.personalDataInOutput) {
+            $issues.Add("Production verification adapter must remain read-only and emit the canonical result schema")
+        }
+        if ($adapter.owner.scheduler -ne "yamaki0102/all-projects-management" -or $adapter.owner.evidence -ne "yamaki0102/all-projects-management" -or $adapter.owner.alerting -ne "yamaki0102/all-projects-management") {
+            $issues.Add("Production verification adapter ownership must delegate scheduler, evidence, and alerting to the central repository")
         }
     }
 
