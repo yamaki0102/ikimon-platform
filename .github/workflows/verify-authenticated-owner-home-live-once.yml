@@ -1,0 +1,165 @@
+name: Verify Authenticated Owner Home Live Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.head_ref == 'agent/diagnose-july-record-pairing-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+      - name: Install Worker dependencies
+        run: npm --prefix platform_v2/cloudflare_shadow ci
+      - name: Create temporary session, inspect live HTML, and remove session
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/authenticated-owner-home-live"
+          mkdir -p "$root"
+          raw_token="qa-$(openssl rand -hex 24)"
+          token_hash="$(printf '%s' "$raw_token" | sha256sum | awk '{print $1}')"
+          expires_at="$(date -u -d '+15 minutes' '+%Y-%m-%dT%H:%M:%S.000Z')"
+          cleanup() {
+            npx wrangler d1 execute ikimon_prod_core --env production --remote --json \
+              --command "DELETE FROM auth_sessions WHERE token_hash = '$token_hash'" >/dev/null 2>&1 || true
+            rm -f "$root/live.raw.html" "$root/account.raw.json" "$root/owner.raw.json"
+          }
+          trap cleanup EXIT
+
+          npx wrangler d1 execute ikimon_prod_core --env production --remote --json \
+            --command "SELECT user_id, display_name, role_name, rank_label, banned FROM auth_users WHERE lower(email)=lower('yamaki0102@gmail.com') LIMIT 1" \
+            > "$root/account.raw.json"
+          node <<'NODE' > "$root/account.env"
+          const fs=require('node:fs');
+          const row=JSON.parse(fs.readFileSync(process.env.GITHUB_WORKSPACE+'/authenticated-owner-home-live/account.raw.json','utf8'))[0]?.results?.[0];
+          if(!row) throw new Error('known account not found');
+          const q=(v)=>String(v??'').replaceAll("'","''");
+          console.log(`USER_ID='${q(row.user_id)}'`);
+          console.log(`DISPLAY_NAME='${q(row.display_name)}'`);
+          console.log(`ROLE_NAME='${q(row.role_name||'Observer')}'`);
+          console.log(`RANK_LABEL='${q(row.rank_label||'観察者')}'`);
+          console.log(`BANNED=${Number(row.banned||0)}`);
+          NODE
+          source "$root/account.env"
+
+          npx wrangler d1 execute ikimon_prod_core --env production --remote --json \
+            --command "INSERT INTO auth_sessions (token_hash,user_id,display_name,role_name,rank_label,banned,expires_at,user_agent) VALUES ('$token_hash','$USER_ID','$DISPLAY_NAME','$ROLE_NAME','$RANK_LABEL',$BANNED,'$expires_at','owner-home-live-readonly-qa')" >/dev/null
+
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json \
+            --command "SELECT o.observation_id,o.observed_at,o.taxon_label,o.note,o.owner_user_id,(SELECT a.public_derivative_key FROM asset_ledger a WHERE a.observation_id=o.observation_id AND a.processing_state='uploaded' AND a.public_derivative_key IS NOT NULL AND a.public_derivative_verified_at IS NOT NULL AND a.public_derivative_metadata_json IS NOT NULL AND a.public_derivative_metadata_json NOT LIKE '%\"scannedContainer\":\"svg+xml\"%' AND a.public_derivative_metadata_json NOT LIKE '%\"contentType\":\"image/svg%' AND a.exif_scrub_state='scrubbed' AND a.mime LIKE 'image/%' ORDER BY COALESCE(a.public_ready_at,a.public_derivative_verified_at,a.uploaded_at,'') DESC LIMIT 1) AS public_derivative_key FROM observations o WHERE o.owner_user_id='$USER_ID' AND o.emergency_hidden=0 ORDER BY o.observed_at DESC LIMIT 20" \
+            > "$root/owner.raw.json"
+
+          curl -sS -L --connect-timeout 10 --max-time 45 \
+            -H 'cache-control: no-store, no-cache' \
+            -H "cookie: ikimon_v2_session=$raw_token" \
+            -A 'owner-home-live-readonly-qa/1.0' \
+            -D "$root/live.headers" \
+            -o "$root/live.raw.html" \
+            -w '%{http_code}' \
+            "https://ikimon.life/ja/?owner_home_live_qa=$GITHUB_RUN_ID" > "$root/live.status"
+          test "$(cat "$root/live.status")" = "200"
+
+          node <<'NODE'
+          const fs=require('node:fs');
+          const crypto=require('node:crypto');
+          const root=process.env.GITHUB_WORKSPACE+'/authenticated-owner-home-live';
+          const html=fs.readFileSync(root+'/live.raw.html','utf8');
+          const ownerRows=JSON.parse(fs.readFileSync(root+'/owner.raw.json','utf8'))[0]?.results??[];
+          const hash=(v)=>crypto.createHash('sha256').update(String(v??'')).digest('hex').slice(0,12);
+          const strip=(s)=>String(s??'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+          const cards=[];
+          const cardRe=/<article class="prototype-record-feed-card[^>]*data-cloudflare-home-record[^>]*>([\s\S]*?)<\/article>/g;
+          for(const match of html.matchAll(cardRe)){
+            const full=match[0];
+            const body=match[1];
+            const id=(full.match(/data-cloudflare-home-record-id="([^"]*)"/)||[])[1]||'';
+            const src=(body.match(/<img[^>]*src="([^"]+)"/)||[])[1]||null;
+            const title=strip((body.match(/<strong>([\s\S]*?)<\/strong>/)||[])[1]||'');
+            const meta=strip((body.match(/<span>([^<]*(?:<[^>]+>[^<]*)*)<\/span>\s*<\/span>\s*<\/a>/)||[])[1]||'');
+            cards.push({
+              idHash:hash(id),
+              source:full.includes('data-cloudflare-owner-home-record')?'owner':full.includes('data-cloudflare-public-home-record')?'public':'unknown',
+              hasImage:Boolean(src),
+              imagePath:src?src.replace(/^https?:\/\/[^/]+/,''):null,
+              title,
+              meta,
+              mediaKind:(full.match(/data-media-kind="([^"]+)"/)||[])[1]||null,
+              ownerBadge:full.includes('自分の記録'),
+            });
+          }
+          const safeOwnerRows=ownerRows.map((row)=>({
+            observationHash:hash(row.observation_id),
+            observedAt:row.observed_at,
+            hasPhoto:Boolean(row.public_derivative_key),
+            titlePresent:Boolean(row.taxon_label||row.note),
+            titleKind:row.taxon_label?'taxon':row.note?'note':'empty',
+          }));
+          const report={
+            mode:'temporary-session-read-only-page-check',
+            responseStatus:Number(fs.readFileSync(root+'/live.status','utf8')),
+            hasOwnerStateMarker:html.includes('data-owner-home-state-v2'),
+            feedClass:(html.match(/class="([^"]*prototype-record-feed[^"]*)"/)||[])[1]||null,
+            ownerCardCount:cards.filter(c=>c.source==='owner').length,
+            publicCardCount:cards.filter(c=>c.source==='public').length,
+            imageCardCount:cards.filter(c=>c.hasImage).length,
+            firstCards:cards.slice(0,12),
+            ownerQueryRows:safeOwnerRows,
+            ownerQueryImageCount:safeOwnerRows.filter(r=>r.hasPhoto).length,
+            rawIdentifiersIncluded:false,
+            temporarySessionRemovedByTrap:true,
+            observationDataMutated:false,
+          };
+          fs.writeFileSync(root+'/report.json',JSON.stringify(report,null,2));
+          NODE
+
+          node <<'NODE'
+          const fs=require('node:fs');
+          const root=process.env.GITHUB_WORKSPACE+'/authenticated-owner-home-live';
+          const report=JSON.parse(fs.readFileSync(root+'/report.json','utf8'));
+          const imagePaths=[...new Set(report.firstCards.map(c=>c.imagePath).filter(Boolean))];
+          const out=[];
+          for(const path of imagePaths){
+            out.push({pathHash:require('node:crypto').createHash('sha256').update(path).digest('hex').slice(0,12),path});
+          }
+          fs.writeFileSync(root+'/image-paths.private.json',JSON.stringify(out));
+          NODE
+          node <<'NODE'
+          const fs=require('node:fs');
+          const crypto=require('node:crypto');
+          const cp=require('node:child_process');
+          const root=process.env.GITHUB_WORKSPACE+'/authenticated-owner-home-live';
+          const privatePaths=JSON.parse(fs.readFileSync(root+'/image-paths.private.json','utf8'));
+          const checks=[];
+          for(const item of privatePaths){
+            let status='000';
+            try{status=cp.execFileSync('curl',['-sS','-L','--connect-timeout','10','--max-time','30','-o','/dev/null','-w','%{http_code}','https://ikimon.life'+item.path],{encoding:'utf8'}).trim();}catch(e){status=String(e.stdout||'000').trim()||'000';}
+            checks.push({pathHash:item.pathHash,status:Number(status)});
+          }
+          fs.writeFileSync(root+'/image-status.json',JSON.stringify(checks,null,2));
+          fs.rmSync(root+'/image-paths.private.json');
+          NODE
+      - name: Upload sanitized live diagnosis
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: authenticated-owner-home-live
+          path: |
+            authenticated-owner-home-live/report.json
+            authenticated-owner-home-live/image-status.json
+            authenticated-owner-home-live/live.status
+          if-no-files-found: error
+          retention-days: 5
