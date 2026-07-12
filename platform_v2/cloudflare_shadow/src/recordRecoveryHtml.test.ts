@@ -8,7 +8,6 @@ import {
 
 // Recovery stays Cloudflare-native so VPS origin fallback readiness is unchanged.
 // Network retries must resume the same record and only the unfinished media steps.
-// The retry contract is verified after the one-shot progress patch is applied.
 test("record recovery state accepts only explicit recovery inputs", () => {
   const draft = resolveCloudflareRecordRecoveryState(new URL("https://ikimon.life/ja/record?draft=1&start=photo"));
   assert.equal(draft.active, true);
@@ -41,7 +40,7 @@ test("guest recovery keeps the draft on-device and preserves the recovery redire
   assert.doesNotMatch(html, /filename\.jpg|latitude=|longitude=/);
 });
 
-test("signed recovery restores IndexedDB media and deletes it only after success or explicit discard", () => {
+test("signed recovery resumes the same record and only unfinished media", () => {
   const url = new URL("https://ikimon.life/ja/record?draft=1&start=photo&source=location_denied");
   const html = renderCloudflareRecordRecoverySignedHtml(
     { userId: "user-1", displayName: "記録者" },
@@ -51,21 +50,19 @@ test("signed recovery restores IndexedDB media and deletes it only after success
   );
   assert.match(html, /indexedDB\.open\("ikimon-record-draft", 1\)/);
   assert.match(html, /objectStore\("drafts"\)\.get\("latest"\)/);
-  assert.match(html, /pendingMediaRetryVisitId/);
-  assert.match(html, /pendingMediaRetryObservationId/);
-  assert.match(html, /pendingMediaRetryDetailId/);
+  assert.match(html, /async function persistDraftProgress/);
+  assert.match(html, /recoverySubmissionId/);
+  assert.match(html, /await persistDraftProgress\(\{[\s\S]*recoverySubmissionId[\s\S]*const observationId/);
+  assert.match(html, /pendingMediaRetryVisitId: visitId/);
+  assert.match(html, /completedPhotoIndexes\.has\(index\)[\s\S]*completedPhotoIndexes\.add\(index\)/);
+  assert.match(html, /pendingMediaRetryVideoUid/);
+  assert.match(html, /pendingMediaRetryVideoBodyUploaded/);
+  assert.match(html, /if \(!pendingVideoBodyUploaded\)[\s\S]*\/finalize/);
   assert.match(html, /for \(let index = 0; index < files\.length; index \+= 1\)/);
   assert.match(html, /await deleteDraft\(\);[\s\S]*setPanelState\("saved"/);
   assert.match(html, /data-record-recovery-pick/);
   assert.match(html, /data-record-recovery-location/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /record:latest/);
-      assert.match(html, /async function persistDraftProgress/);
-      assert.match(html, /recoverySubmissionId/);
-      assert.match(html, /pendingMediaRetryVisitId: visitId/);
-      assert.match(html, /completedPhotoIndexes\.has\(index\)/);
-      assert.match(html, /pendingMediaRetryVideoUid/);
-      assert.match(html, /pendingMediaRetryVideoBodyUploaded/);
-      assert.match(html, /if \(!pendingVideoBodyUploaded\)/);
-      assert.doesNotMatch(html, /fetchOriginFallback|ORIGIN_FALLBACK_BASE_URL/);
+  assert.doesNotMatch(html, /fetchOriginFallback|ORIGIN_FALLBACK_BASE_URL/);
 });
