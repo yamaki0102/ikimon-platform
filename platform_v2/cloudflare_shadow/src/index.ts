@@ -75,10 +75,32 @@ interface ScheduledController {
   scheduledTime?: number;
 }
 
+interface ImagesInfo {
+  format?: string;
+  fileSize?: number;
+  width?: number;
+  height?: number;
+}
+
+interface ImagesOutput {
+  response(): Response;
+}
+
+interface ImagesTransformation {
+  transform(options: Record<string, unknown>): ImagesTransformation;
+  output(options: { format: string; quality?: number | string; anim?: boolean }): Promise<ImagesOutput>;
+}
+
+interface ImagesBinding {
+  input(stream: ReadableStream): ImagesTransformation;
+  info(stream: ReadableStream): Promise<ImagesInfo>;
+}
+
 interface Env {
   CORE_DB: D1Database;
   OBS_DB: D1Database;
   ASSET_BUCKET: R2Bucket;
+  IMAGES?: ImagesBinding;
   MEDIA_QUEUE: Queue<MediaJob>;
   ALERT_QUEUE?: Queue<AlertDeliveryJob>;
   ALERT_EMAIL?: SendEmailBinding;
@@ -28418,14 +28440,203 @@ async function countAssets(env: Env, targetValue: string | null): Promise<number
   return row?.count ?? 0;
 }
 
+async function markImageDerivativeFailed(
+  env: Env,
+  assetId: string,
+  reason: string,
+  details: Record<string, unknown> = {}
+): Promise<void> {
+  console.warn("image_derivative_failed", { assetId, reason, ...details });
+  await env.OBS_DB.prepare(
+    `UPDATE asset_ledger
+     SET public_derivative_verified_at = NULL,
+         public_derivative_metadata_json = ?,
+         exif_scrub_state = 'failed',
+         public_ready_at = NULL
+     WHERE asset_id = ?`
+  ).bind(
+    JSON.stringify({
+      tool: "cloudflare-images-public-derivative-v1",
+      reason,
+      ...details,
+      checkedAt: new Date().toISOString()
+    }),
+    assetId
+  ).run();
+}
+
+async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env): Promise<boolean> {
+  const images = env.IMAGES;
+  if (!images) {
+    await markImageDerivativeFailed(env, asset.asset_id, "images_binding_unavailable");
+    return false;
+  }
+
+  const original = await env.ASSET_BUCKET.get(asset.object_key);
+  if (!original?.body) {
+    await markImageDerivativeFailed(env, asset.asset_id, "original_object_missing");
+    return false;
+  }
+
+  const originalBytes = await new Response(original.body).arrayBuffer();
+  const maxInputBytes = 20 * 1024 * 1024;
+  if (originalBytes.byteLength === 0 || originalBytes.byteLength > maxInputBytes) {
+    await markImageDerivativeFailed(env, asset.asset_id, "image_input_size_invalid", {
+      inputBytes: originalBytes.byteLength,
+      maxInputBytes
+    });
+    return false;
+  }
+
+  let originalInfo: ImagesInfo = {};
+  try {
+    originalInfo = await images.info(new Response(originalBytes.slice(0)).body!);
+  } catch (error) {
+    await markImageDerivativeFailed(env, asset.asset_id, "image_info_failed", {
+      message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
+    });
+    return false;
+  }
+
+  const originalWidth = Number(originalInfo.width ?? 0);
+  const targetWidth = Number.isFinite(originalWidth) && originalWidth > 0
+    ? Math.min(originalWidth, 1600)
+    : 1600;
+
+  let output: ImagesOutput;
+  try {
+    output = await images
+      .input(new Response(originalBytes.slice(0)).body!)
+      .transform({ width: targetWidth })
+      .output({ format: "image/webp", quality: 82, anim: false });
+  } catch (error) {
+    await markImageDerivativeFailed(env, asset.asset_id, "image_transform_failed", {
+      message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
+    });
+    return false;
+  }
+
+  const outputResponse = output.response();
+  const contentType = ((outputResponse.headers.get("content-type") ?? "")
+    .split(";", 1)[0] ?? "")
+    .trim()
+    .toLowerCase();
+  if (!outputResponse.ok || contentType !== "image/webp") {
+    await markImageDerivativeFailed(env, asset.asset_id, "image_transform_invalid_response", {
+      status: outputResponse.status,
+      contentType
+    });
+    return false;
+  }
+
+  const derivativeBody = await outputResponse.arrayBuffer();
+  if (derivativeBody.byteLength === 0) {
+    await markImageDerivativeFailed(env, asset.asset_id, "image_transform_empty_output");
+    return false;
+  }
+
+  const metadataInspection = inspectPublicDerivativeMetadata(derivativeBody, contentType);
+  let derivativeInfo: ImagesInfo = {};
+  try {
+    derivativeInfo = await images.info(new Response(derivativeBody.slice(0)).body!);
+  } catch (error) {
+    await markImageDerivativeFailed(env, asset.asset_id, "derivative_info_failed", {
+      message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
+    });
+    return false;
+  }
+
+  const verifiedMetadata = {
+    ...metadataInspection,
+    tool: "cloudflare-images-public-derivative-v1",
+    sourceContentType: asset.mime,
+    sourceBytes: originalBytes.byteLength,
+    sourceWidth: originalInfo.width ?? null,
+    sourceHeight: originalInfo.height ?? null,
+    derivativeFormat: derivativeInfo.format ?? "webp",
+    derivativeWidth: derivativeInfo.width ?? null,
+    derivativeHeight: derivativeInfo.height ?? null,
+    derivativeBytes: derivativeBody.byteLength
+  };
+  if (metadataInspection.gpsExifPresent || metadataInspection.scannedContainer !== "binary") {
+    await markImageDerivativeFailed(env, asset.asset_id, "derivative_privacy_check_failed", verifiedMetadata);
+    return false;
+  }
+
+  const publicDerivativeKey = `derived/${asset.object_key.replace(/^original\//, "")}/display.webp`;
+  const derivativeSha256 = await sha256Hex(derivativeBody);
+  await env.ASSET_BUCKET.put(publicDerivativeKey, derivativeBody, {
+    httpMetadata: { contentType: "image/webp" }
+  });
+  const persisted = await env.ASSET_BUCKET.head(publicDerivativeKey);
+  if (!persisted || persisted.size !== derivativeBody.byteLength || persisted.httpMetadata?.contentType !== "image/webp") {
+    await markImageDerivativeFailed(env, asset.asset_id, "derivative_r2_verification_failed", {
+      ...verifiedMetadata,
+      persisted: Boolean(persisted),
+      persistedBytes: persisted?.size ?? null,
+      persistedContentType: persisted?.httpMetadata?.contentType ?? null
+    });
+    return false;
+  }
+
+  await env.OBS_DB.prepare(
+    `UPDATE asset_ledger
+     SET public_derivative_key = ?,
+         public_derivative_sha256 = ?,
+         public_derivative_verified_at = CURRENT_TIMESTAMP,
+         public_derivative_metadata_json = ?,
+         exif_scrub_state = 'scrubbed',
+         public_ready_at = CURRENT_TIMESTAMP
+     WHERE asset_id = ?`
+  ).bind(
+    publicDerivativeKey,
+    derivativeSha256,
+    JSON.stringify(verifiedMetadata),
+    asset.asset_id
+  ).run();
+  return true;
+}
+
 async function markUploadedAssetsPublicReady(observationId: string, env: Env): Promise<void> {
   const assets = await env.OBS_DB.prepare(
-    `SELECT asset_id, object_key, sha256, mime
+    `SELECT asset_id, object_key, sha256, mime,
+            public_derivative_key, public_derivative_verified_at,
+            public_derivative_metadata_json, exif_scrub_state, public_ready_at
      FROM asset_ledger
      WHERE observation_id = ? AND processing_state = 'uploaded'`
-  ).bind(observationId).all<UploadedAssetRow>();
+  ).bind(observationId).all<UploadedAssetRow & {
+    public_derivative_key: string | null;
+    public_derivative_verified_at: string | null;
+    public_derivative_metadata_json: string | null;
+    exif_scrub_state: string | null;
+    public_ready_at: string | null;
+  }>();
 
   for (const asset of assets.results) {
+    if (
+      asset.mime.startsWith("image/") &&
+      asset.public_derivative_key &&
+      asset.public_derivative_verified_at &&
+      asset.public_derivative_metadata_json &&
+      asset.exif_scrub_state === "scrubbed" &&
+      asset.public_ready_at
+    ) {
+      try {
+        const metadata = JSON.parse(asset.public_derivative_metadata_json) as Record<string, unknown>;
+        const derivativeContentType = String(metadata.contentType ?? "").split(";", 1)[0]?.trim().toLowerCase() ?? "";
+        const scannedContainer = String(metadata.scannedContainer ?? "").trim().toLowerCase();
+        if (
+          derivativeContentType === "image/webp" &&
+          scannedContainer !== "svg+xml" &&
+          metadata.gpsExifPresent !== true
+        ) {
+          continue;
+        }
+      } catch {
+        // Invalid legacy metadata is regenerated below.
+      }
+    }
+
     if (asset.mime.startsWith("audio/")) {
       const metadataInspection = {
         gpsExifPresent: false,
@@ -28448,6 +28659,11 @@ async function markUploadedAssetsPublicReady(observationId: string, env: Env): P
         JSON.stringify(metadataInspection),
         asset.asset_id
       ).run();
+      continue;
+    }
+
+    if (asset.mime.startsWith("image/")) {
+      await createRealPublicImageDerivative(asset, env);
       continue;
     }
 
