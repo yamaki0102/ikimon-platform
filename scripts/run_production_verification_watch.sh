@@ -28,13 +28,16 @@ RUNTIME_TMP_PATH="${RUNTIME_PATH}.tmp"
 
 resolve_runtime() {
   rm -f "${RUNTIME_TMP_PATH}"
-  if curl -fsS -H 'cache-control: no-store' "https://ikimon.life/api/v1/runtime/version?verification_watch=$(date +%s)" > "${RUNTIME_TMP_PATH}"; then
-    node -e 'const fs=require("fs");JSON.parse(fs.readFileSync(process.argv[1],"utf8"));' "${RUNTIME_TMP_PATH}"
-    mv "${RUNTIME_TMP_PATH}" "${RUNTIME_PATH}"
-    return 0
+  if ! curl -fsS -H 'cache-control: no-store' "https://ikimon.life/api/v1/runtime/version?verification_watch=$(date +%s)" > "${RUNTIME_TMP_PATH}"; then
+    rm -f "${RUNTIME_TMP_PATH}"
+    return 1
   fi
-  rm -f "${RUNTIME_TMP_PATH}"
-  return 1
+  if ! node -e 'const fs=require("fs");JSON.parse(fs.readFileSync(process.argv[1],"utf8"));' "${RUNTIME_TMP_PATH}"; then
+    echo "Production runtime endpoint returned invalid JSON." >&2
+    rm -f "${RUNTIME_TMP_PATH}"
+    return 1
+  fi
+  mv "${RUNTIME_TMP_PATH}" "${RUNTIME_PATH}"
 }
 
 if ! resolve_runtime; then
@@ -78,9 +81,11 @@ node "${SCRIPT_DIR}/build_production_verification_report.mjs" \
   --runner-id "${IKIMON_VERIFICATION_RUNNER_ID}"
 
 if [[ "${PUBLISH_GITHUB_STATUS}" == "true" ]]; then
-  node "${SCRIPT_DIR}/publish_production_verification_status.mjs" \
+  if ! node "${SCRIPT_DIR}/publish_production_verification_status.mjs" \
     --report "${IKIMON_VERIFICATION_REPORT_PATH}" \
-    --sha "${EXPECTED_SHA}"
+    --sha "${EXPECTED_SHA}"; then
+    echo "WARNING: GitHub production verification status publishing failed; preserving verification exit code ${VERIFY_EXIT}." >&2
+  fi
 fi
 
 exit "${VERIFY_EXIT}"
