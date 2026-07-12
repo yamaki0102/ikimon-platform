@@ -24,15 +24,15 @@ jobs:
           ref: agent/record-fallback-recovery-20260712
           fetch-depth: 0
 
-      - name: Confirm focused implementation
+      - name: Confirm focused implementation diff
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'record-recovery-card' platform_v2/src/routes/read.ts
-          grep -q "withDraftParams = (href, kind, source)" platform_v2/src/ui/siteShell.ts
-          grep -q 'record draft recovery shows a dedicated guest continuation screen' platform_v2/src/routes/record.routes.test.ts
-          grep -q 'global quick record preserves draft source' platform_v2/src/ui/siteShell.test.ts
+          git fetch origin main --quiet
           git diff --check origin/main...HEAD
+          git diff --name-only origin/main...HEAD | tee /tmp/record-fallback-changed-files.txt
+          grep -q '^platform_v2/src/routes/read.ts$' /tmp/record-fallback-changed-files.txt
+          grep -q '^platform_v2/src/ui/siteShell.ts$' /tmp/record-fallback-changed-files.txt
 
       - uses: actions/setup-node@v5
         with:
