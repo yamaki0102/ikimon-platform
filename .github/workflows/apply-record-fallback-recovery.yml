@@ -69,7 +69,7 @@ jobs:
             record-fallback-npm-ci.log
             record-fallback-typecheck.log
             record-fallback-build.log
-            platform_v2/record-fallback-focused-test.log
+            record-fallback-focused-test.log
             record-fallback-node-test.log
           if-no-files-found: warn
           retention-days: 7
@@ -82,7 +82,6 @@ jobs:
           rm -f .github/workflows/apply-record-fallback-recovery.yml
           rm -f ops/patches/record-fallback-recovery.xz.b64.*
           rm -f record-fallback-*.log
-          rm -f platform_v2/record-fallback-focused-test.log
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
