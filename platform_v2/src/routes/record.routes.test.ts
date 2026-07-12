@@ -555,7 +555,7 @@ test("record start guide preserves a direct-capture draft through login", async 
         });
 
         assert.equal(response.statusCode, 200);
-        assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dphoto%26draft%3D1%26lang%3Dja/);
+        assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dphoto%26draft%3D1%26source%3Ddraft_restore%26lang%3Dja/);
       } finally {
         await app.close();
       }
@@ -937,4 +937,52 @@ test("cross-site auth mutation returns a controlled 403", async () => {
   } finally {
     await app.close();
   }
+});
+
+
+test("record recovery start keeps a device draft through authentication", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/record?start=photo&draft=1&source=location_denied&lang=ja",
+    });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /shell-record-recovery-start/);
+    assert.match(response.body, /data-record-recovery-start/);
+    assert.match(response.body, /data-source="location_denied"/);
+    assert.match(response.body, /写真・入力内容はこの端末に残っています/);
+    assert.match(response.body, /いま閉じても下書きは消しません/);
+    assert.match(response.body, /ログインして続ける/);
+    assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dphoto%26draft%3D1%26source%3Dlocation_denied%26lang%3Dja/);
+    assert.doesNotMatch(response.body, /<div class="start-guide-state-row"/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("signed-in record recovery renders focused restore controls", async () => {
+  await withEnv({ ALLOW_QUERY_USER_ID: "1" }, async () => {
+    const app = buildApp();
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/record?userId=staging-user&start=photo&draft=1&source=location_denied",
+      });
+      assert.equal(response.statusCode, 200);
+      assert.match(response.body, /record-page--recovery/);
+      assert.match(response.body, /data-record-recovery-mode="1"/);
+      assert.match(response.body, /data-record-recovery/);
+      assert.match(response.body, /data-record-recovery-location/);
+      assert.match(response.body, /data-record-recovery-save/);
+      assert.match(response.body, /data-record-recovery-discard/);
+      assert.match(response.body, /recordRecoveryCopy\.discardConfirm/);
+      assert.match(response.body, /setRecordRecoveryState\('empty'\)/);
+      assert.match(response.body, /setRecordRecoveryState\('ready'\)/);
+      assert.match(response.body, /deleteRecordDraft\(\)/);
+      assert.match(response.body, /recordRecoveryPanel\.hidden = true/);
+    } finally {
+      await app.close();
+    }
+  });
 });
