@@ -173,8 +173,8 @@ const STATIC_ASSETS = [
   '${BRAND_ASSETS.favicon32}'
 ];
 const MAP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?map\\/?$/;
-const PERSONAL_NAV_RE = /^\/(?:ja|en|es|pt-br)?\/?(?:$|home\/?$|profile(?:\/settings)?\/?$|settings\/?$|records\/?$|record\/?$)/;
-const REFRESH_NAV_RE = /^\/(?:ja|en|es|pt-br)?\/?(?:$|map\/?$|home\/?$|profile(?:\/settings)?\/?$|settings\/?$|records\/?$|record\/?$)/;
+const PERSONAL_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$|record\\/?$)/;
+const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|map\\/?$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$|record\\/?$)/;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => undefined));

@@ -19729,7 +19729,7 @@ test("production home prioritizes signed-in owner records over public feed recor
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
     "<!doctype html><head></head><body>",
-    "<main><section class=\"prototype-record-feed\" data-record-feed>",
+    "<main><section class=\"prototype-record-feed is-guest\" data-record-feed>",
     "<div class=\"prototype-record-feed-head\"><div><h1>記録を見る</h1></div></div>",
     "<div class=\"prototype-record-feed-list\"><article class=\"prototype-record-feed-card is-preview\" data-record-feed-card>preview</article></div>",
     "<script nonce=\"stale-materialized-feed-nonce\">/* feed */</script></section></main>",
@@ -19848,6 +19848,8 @@ test("production home prioritizes signed-in owner records over public feed recor
   assert.equal(homeResponse.status, 200);
   assert.match(homeBody, /data-cloudflare-owner-home-record/);
   assert.match(homeBody, /prototype-record-feed is-owner/);
+assert.doesNotMatch(homeBody, /prototype-record-feed is-guest/);
+assert.match(homeBody, /data-owner-home-state-v2/);
   assert.match(homeBody, /grid-template-columns:124px minmax\(0,1fr\);min-height:136px/);
   assert.match(homeBody, /margin-bottom:calc\(88px \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(homeBody, /@media\(max-width:900px\)/);
