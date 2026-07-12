@@ -20,3 +20,9 @@ test("global quick record preserves only the recovery reason, not media metadata
   assert.match(shellSource, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'location'\)/);
   assert.doesNotMatch(shellSource, /searchParams\.set\('(?:file|filename|latitude|longitude)'/);
 });
+
+test("recovery media picking opens the internal file input without delegating to the mobile launcher", () => {
+  assert.match(routeSource, /const chooseRecordRecoveryMedia = \(\) => \{/);
+  assert.match(routeSource, /document\.querySelector\('\[data-record-media-input\]\[data-capture-kind="' \+ action \+ '"\]'/);
+  assert.doesNotMatch(routeSource, /const chooseRecordRecoveryMedia = \(\) => \{[\s\S]{0,500}preferred\.click\(\)/);
+});
