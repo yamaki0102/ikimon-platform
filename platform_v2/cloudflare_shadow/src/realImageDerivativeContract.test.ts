@@ -9,6 +9,8 @@ test("image assets are re-encoded to verified WebP bytes", () => {
   assert.match(source, /cloudflare-images-public-derivative-v1/);
   assert.match(source, /asset\.mime\.startsWith\("image\/"\)/);
   assert.match(source, /images[\s\S]*\.output\(\{ format: "image\/webp", quality: 82, anim: false \}\)/);
+  assert.match(source, /images\.info\(new Response\(originalBytes\.slice\(0\)\)\.body!\)/);
+  assert.match(source, /\.input\(new Response\(originalBytes\.slice\(0\)\)\.body!\)/);
   assert.match(source, /contentType !== "image\/webp"/);
   assert.match(source, /persisted\.size !== derivativeBody\.byteLength/);
   assert.match(source, /public_ready_at = CURRENT_TIMESTAMP/);
