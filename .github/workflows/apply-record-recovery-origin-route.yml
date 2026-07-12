@@ -10,9 +10,9 @@ permissions:
 
 jobs:
   apply-fix:
-    # Temporary branch-scoped job; the workflow deletes itself after applying the fix.
     if: github.head_ref == 'agent/fix-record-recovery-origin-route-20260712' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
         with:
@@ -35,45 +35,55 @@ jobs:
           path = Path('platform_v2/cloudflare_shadow/src/index.ts')
           source = path.read_text(encoding='utf-8')
 
-          old_route = '''      if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
-        return getSessionAwareRecordHtml(request, url, env);
-      }'''
-          new_route = '''      if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
-        if (isRecordRecoveryRequest(url) && env.ORIGIN_FALLBACK_BASE_URL) {
-          return fetchOriginFallback(request, url, env, "record_recovery");
-        }
-        return getSessionAwareRecordHtml(request, url, env);
-      }'''
-          if old_route not in source:
+          old_route = "\n".join([
+              '      if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {',
+              '        return getSessionAwareRecordHtml(request, url, env);',
+              '      }',
+          ])
+          new_route = "\n".join([
+              '      if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {',
+              '        if (isRecordRecoveryRequest(url) && env.ORIGIN_FALLBACK_BASE_URL) {',
+              '          return fetchOriginFallback(request, url, env, "record_recovery");',
+              '        }',
+              '        return getSessionAwareRecordHtml(request, url, env);',
+              '      }',
+          ])
+          if old_route in source:
+              source = source.replace(old_route, new_route, 1)
+          elif new_route not in source:
               raise SystemExit('record route block not found')
-          source = source.replace(old_route, new_route, 1)
 
-          old_helper = '''function isRecordHtmlPath(pathname: string): boolean {
-  return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);
-}'''
-          new_helper = '''function isRecordHtmlPath(pathname: string): boolean {
-  return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);
-}
-
-const RECORD_RECOVERY_SOURCE_VALUES = new Set([
-  "location_denied",
-  "login_required",
-  "draft_restore",
-  "media_retry",
-  "upload_failed",
-  "global_capture"
-]);
-
-function isRecordRecoveryRequest(url: URL): boolean {
-  if (!isRecordHtmlPath(url.pathname)) return false;
-  if (url.searchParams.get("draft") === "1") return true;
-  if (url.searchParams.get("retry") === "media") return true;
-  const source = url.searchParams.get("source")?.trim() ?? "";
-  return RECORD_RECOVERY_SOURCE_VALUES.has(source);
-}'''
-          if old_helper not in source:
+          old_helper = "\n".join([
+              'function isRecordHtmlPath(pathname: string): boolean {',
+              '  return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);',
+              '}',
+          ])
+          new_helper = "\n".join([
+              'function isRecordHtmlPath(pathname: string): boolean {',
+              '  return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);',
+              '}',
+              '',
+              'const RECORD_RECOVERY_SOURCE_VALUES = new Set([',
+              '  "location_denied",',
+              '  "login_required",',
+              '  "draft_restore",',
+              '  "media_retry",',
+              '  "upload_failed",',
+              '  "global_capture"',
+              ']);',
+              '',
+              'function isRecordRecoveryRequest(url: URL): boolean {',
+              '  if (!isRecordHtmlPath(url.pathname)) return false;',
+              '  if (url.searchParams.get("draft") === "1") return true;',
+              '  if (url.searchParams.get("retry") === "media") return true;',
+              '  const source = url.searchParams.get("source")?.trim() ?? "";',
+              '  return RECORD_RECOVERY_SOURCE_VALUES.has(source);',
+              '}',
+          ])
+          if old_helper in source:
+              source = source.replace(old_helper, new_helper, 1)
+          elif new_helper not in source:
               raise SystemExit('record helper block not found')
-          source = source.replace(old_helper, new_helper, 1)
           path.write_text(source, encoding='utf-8')
           PY
 
@@ -114,7 +124,7 @@ function isRecordRecoveryRequest(url: URL): boolean {
           rm -f .github/workflows/apply-record-recovery-origin-route.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add platform_v2/cloudflare_shadow/src/index.ts platform_v2/cloudflare_shadow/src/recordRecoveryOriginRoute.test.ts .github/workflows/apply-record-recovery-origin-route.yml
+          git add -A
           git diff --cached --check
           git commit -m 'fix: route record recovery through origin fallback'
           git push origin HEAD:agent/fix-record-recovery-origin-route-20260712
