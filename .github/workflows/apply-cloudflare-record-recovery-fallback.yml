@@ -90,10 +90,42 @@ jobs:
       - name: Verify Cloudflare worker
         shell: bash
         run: |
-          set -euo pipefail
-          npm --prefix platform_v2/cloudflare_shadow ci
-          npm --prefix platform_v2/cloudflare_shadow run check
-          npm --prefix platform_v2/cloudflare_shadow test
+          set +e
+          mkdir -p cloudflare-record-recovery-verification
+          npm --prefix platform_v2/cloudflare_shadow ci > cloudflare-record-recovery-verification/npm-ci.log 2>&1
+          install_code=$?
+          if [ "$install_code" -eq 0 ]; then
+            npm --prefix platform_v2/cloudflare_shadow run check > cloudflare-record-recovery-verification/typecheck.log 2>&1
+            typecheck_code=$?
+            (cd platform_v2/cloudflare_shadow && npx tsx --test src/recordRecoveryOriginFallback.contract.test.ts) > cloudflare-record-recovery-verification/focused-test.log 2>&1
+            focused_code=$?
+            npm --prefix platform_v2/cloudflare_shadow test > cloudflare-record-recovery-verification/full-test.log 2>&1
+            full_code=$?
+          else
+            typecheck_code=99
+            focused_code=99
+            full_code=99
+          fi
+          printf '{"install":%s,"typecheck":%s,"focused":%s,"full":%s}\n' \
+            "$install_code" "$typecheck_code" "$focused_code" "$full_code" \
+            > cloudflare-record-recovery-verification/result.json
+          cat cloudflare-record-recovery-verification/result.json
+          for file in cloudflare-record-recovery-verification/*.log; do
+            echo "--- $file ---"
+            tail -n 120 "$file" || true
+          done
+          if [ "$install_code" -ne 0 ] || [ "$typecheck_code" -ne 0 ] || [ "$focused_code" -ne 0 ] || [ "$full_code" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Upload verification logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloudflare-record-recovery-verification
+          path: cloudflare-record-recovery-verification
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Commit focused correction
         shell: bash
