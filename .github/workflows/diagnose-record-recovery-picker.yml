@@ -29,10 +29,10 @@ jobs:
           set -euo pipefail
           mkdir -p record-recovery-picker-diagnostic
           {
-            grep -nE -C 30 'record-recovery-(pick|media)|data-record-recovery|record-media-photo|data-capture-action="photo"|mobile.*delegat|global-record-trigger' platform_v2/src/routes/read.ts || true
+            grep -nE -C 45 'recordRecoveryPick|record-recovery-(pick|media)|data-record-recovery|record-media-photo|data-capture-action="photo"|mobile.*delegat|global-record-trigger' platform_v2/src/routes/read.ts || true
           } > record-recovery-picker-diagnostic/read-context.txt
           {
-            grep -nE -C 16 'record-recovery-(pick|media)|data-record-recovery|record-media-photo|global-record-trigger' platform_v2/src/routes/record.routes.test.ts platform_v2/e2e/record-funnel.staging.spec.ts || true
+            grep -nE -C 24 'recordRecoveryPick|record-recovery-(pick|media)|data-record-recovery|record-media-photo|global-record-trigger' platform_v2/src/routes/record.routes.test.ts platform_v2/e2e/record-funnel.staging.spec.ts || true
           } > record-recovery-picker-diagnostic/test-context.txt
       - uses: actions/upload-artifact@v6
         with:
