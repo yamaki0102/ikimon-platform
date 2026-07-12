@@ -100,25 +100,10 @@ validate_name() {
 
 validate_name service-user "${SERVICE_USER}"
 validate_name service-group "${SERVICE_GROUP}"
-REPO_ROOT="$(cd "${REPO_ROOT}" && pwd)"
-SERVICE_TEMPLATE="${REPO_ROOT}/ops/monitoring/systemd/${SERVICE_NAME}"
-TIMER_TEMPLATE="${REPO_ROOT}/ops/monitoring/systemd/${TIMER_NAME}"
-ENV_EXAMPLE="${REPO_ROOT}/ops/monitoring/systemd/production-verification.env.example"
-DOCTOR_SCRIPT="${REPO_ROOT}/scripts/doctor_production_verification_service.sh"
 SERVICE_DESTINATION="${SYSTEMD_DIR}/${SERVICE_NAME}"
 TIMER_DESTINATION="${SYSTEMD_DIR}/${TIMER_NAME}"
 STATE_DIR="/var/lib/ikimon-production-verification"
-
-for command in install node systemctl getent id; do require_command "${command}"; done
-if [[ "${CREATE_USER}" == "true" ]]; then
-  require_command groupadd
-  require_command useradd
-fi
-require_file "${SERVICE_TEMPLATE}"
-require_file "${TIMER_TEMPLATE}"
-require_file "${ENV_EXAMPLE}"
-require_file "${DOCTOR_SCRIPT}"
-require_file "${REPO_ROOT}/scripts/run_production_verification_watch.sh"
+require_command systemctl
 
 if [[ "${UNINSTALL}" == "true" ]]; then
   run systemctl disable --now "${TIMER_NAME}" || true
@@ -132,6 +117,32 @@ if [[ "${UNINSTALL}" == "true" ]]; then
   echo "Production verification service uninstalled."
   exit 0
 fi
+
+if [[ ! -d "${REPO_ROOT}" ]]; then
+  echo "Repository root does not exist: ${REPO_ROOT}" >&2
+  exit 2
+fi
+REPO_ROOT="$(cd "${REPO_ROOT}" && pwd)"
+SERVICE_TEMPLATE="${REPO_ROOT}/ops/monitoring/systemd/${SERVICE_NAME}"
+TIMER_TEMPLATE="${REPO_ROOT}/ops/monitoring/systemd/${TIMER_NAME}"
+ENV_EXAMPLE="${REPO_ROOT}/ops/monitoring/systemd/production-verification.env.example"
+DOCTOR_SCRIPT="${REPO_ROOT}/scripts/doctor_production_verification_service.sh"
+
+for command in install node getent id; do require_command "${command}"; done
+node_major="$(node -p 'Number(process.versions.node.split(".")[0])')"
+if [[ ! "${node_major}" =~ ^[0-9]+$ || "${node_major}" -lt 22 ]]; then
+  echo "Node.js 22+ is required; found major ${node_major}." >&2
+  exit 2
+fi
+if [[ "${CREATE_USER}" == "true" ]]; then
+  require_command groupadd
+  require_command useradd
+fi
+require_file "${SERVICE_TEMPLATE}"
+require_file "${TIMER_TEMPLATE}"
+require_file "${ENV_EXAMPLE}"
+require_file "${DOCTOR_SCRIPT}"
+require_file "${REPO_ROOT}/scripts/run_production_verification_watch.sh"
 
 if ! getent group "${SERVICE_GROUP}" >/dev/null 2>&1; then
   if [[ "${CREATE_USER}" == "true" ]]; then
@@ -177,8 +188,12 @@ fi
 render_dir="$(mktemp -d)"
 rendered_service="${render_dir}/${SERVICE_NAME}"
 rendered_timer="${render_dir}/${TIMER_NAME}"
+verify_dir="${render_dir}/verify"
+verify_service="${verify_dir}/${SERVICE_NAME}"
+verify_timer="${verify_dir}/${TIMER_NAME}"
 cleanup() { rm -rf "${render_dir}"; }
 trap cleanup EXIT
+mkdir -p "${verify_dir}"
 
 node --input-type=module - "${SERVICE_TEMPLATE}" "${rendered_service}" "${SERVICE_USER}" "${SERVICE_GROUP}" "${REPO_ROOT}" "${ENV_FILE}" <<'NODE'
 import fs from 'node:fs';
@@ -193,9 +208,12 @@ text = text
 fs.writeFileSync(destination, text);
 NODE
 cp "${TIMER_TEMPLATE}" "${rendered_timer}"
+cp "${rendered_service}" "${verify_service}"
+cp "${rendered_timer}" "${verify_timer}"
+sed -i -E 's/^User=.*/User=root/; s/^Group=.*/Group=root/' "${verify_service}"
 
 if command -v systemd-analyze >/dev/null 2>&1; then
-  systemd-analyze verify "${rendered_service}" "${rendered_timer}"
+  systemd-analyze verify "${verify_service}" "${verify_timer}"
 fi
 
 run install -d -m 0755 "${SYSTEMD_DIR}"
