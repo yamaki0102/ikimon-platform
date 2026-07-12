@@ -9,7 +9,7 @@ import {
 // Recovery stays Cloudflare-native so VPS origin fallback readiness is unchanged.
 // Network retries must resume the same record and only the unfinished media steps.
 // The interactive recovery state belongs to one card, not the page body.
-// These assertions are the final production merge contract for the native recovery surface.
+// These assertions are the final production merge and diagnostic contract for the native recovery surface.
 test("record recovery state accepts only explicit recovery inputs", () => {
   const draft = resolveCloudflareRecordRecoveryState(new URL("https://ikimon.life/ja/record?draft=1&start=photo"));
   assert.equal(draft.active, true);
