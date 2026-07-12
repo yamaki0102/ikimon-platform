@@ -23,13 +23,14 @@ jobs:
           cache-dependency-path: platform_v2/package-lock.json
       - working-directory: platform_v2
         run: npm ci
-      - name: Run all Node tests and capture output
+      - name: Run current product branch Node tests and capture output
         shell: bash
         run: |
           set +e
           npm --prefix platform_v2 run test:node > record-recovery-node-tests.log 2>&1
           code=$?
-          tail -n 800 record-recovery-node-tests.log > record-recovery-node-tests-tail.log
+          tail -n 1200 record-recovery-node-tests.log > record-recovery-node-tests-tail.log
+          grep -nE 'not ok|AssertionError|ERR_ASSERTION|fail [1-9]' record-recovery-node-tests.log > record-recovery-node-tests-failures.txt || true
           echo "$code" > record-recovery-node-tests-exit-code.txt
           exit 0
       - uses: actions/upload-artifact@v6
@@ -38,6 +39,7 @@ jobs:
           path: |
             record-recovery-node-tests.log
             record-recovery-node-tests-tail.log
+            record-recovery-node-tests-failures.txt
             record-recovery-node-tests-exit-code.txt
           if-no-files-found: error
           retention-days: 2
