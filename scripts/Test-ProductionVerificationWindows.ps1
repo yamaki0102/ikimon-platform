@@ -52,15 +52,14 @@ function Test-PrivateAcl([string]$Path) {
         $forbiddenSids = @("S-1-1-0", "S-1-5-32-545", "S-1-5-11") # Everyone, Users, Authenticated Users
         foreach ($entry in $acl.Access) {
             $sid = $entry.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
-            $writeRights = [Security.AccessControl.FileSystemRights]::WriteData -bor
-                [Security.AccessControl.FileSystemRights]::AppendData -bor
-                [Security.AccessControl.FileSystemRights]::Modify -bor
-                [Security.AccessControl.FileSystemRights]::FullControl
-            if ($forbiddenSids -contains $sid -and (($entry.FileSystemRights -band $writeRights) -ne 0) -and $entry.AccessControlType -eq "Allow") {
+            if ($forbiddenSids -contains $sid -and $entry.AccessControlType -eq "Allow") {
                 return $false
             }
         }
-        return $true
+        $allowedSids = @($acl.Access | ForEach-Object {
+            $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+        } | Sort-Object -Unique)
+        return ($allowedSids -contains "S-1-5-18") -and ($allowedSids -contains "S-1-5-32-544")
     } catch {
         return $false
     }
@@ -91,7 +90,7 @@ if ($node) {
 
 if (Test-Path -LiteralPath $EnvironmentFile -PathType Leaf) {
     Pass "Environment file exists: $EnvironmentFile"
-    if (Test-PrivateAcl $EnvironmentFile) { Pass "Environment file ACL does not grant write access to broad principals" } else { Fail "Environment file ACL is too broad or unreadable" }
+    if (Test-PrivateAcl $EnvironmentFile) { Pass "Environment file ACL is restricted to SYSTEM and Administrators" } else { Fail "Environment file ACL grants access to broad principals or misses required principals" }
     $settings = Get-EnvironmentSettings $EnvironmentFile
     $publish = [string]$settings["PUBLISH_GITHUB_STATUS"]
     $hasToken = -not [string]::IsNullOrWhiteSpace([string]$settings["GITHUB_TOKEN"]) -or -not [string]::IsNullOrWhiteSpace([string]$settings["GH_TOKEN"])
@@ -102,14 +101,19 @@ if (Test-Path -LiteralPath $EnvironmentFile -PathType Leaf) {
 
 if (Test-Path -LiteralPath $StateDirectory -PathType Container) {
     Pass "State directory exists: $StateDirectory"
-    if (Test-PrivateAcl $StateDirectory) { Pass "State directory ACL is private" } else { Fail "State directory ACL is too broad or unreadable" }
+    if (Test-PrivateAcl $StateDirectory) { Pass "State directory ACL is restricted to SYSTEM and Administrators" } else { Fail "State directory ACL grants access to broad principals or misses required principals" }
 } else { Fail "State directory missing: $StateDirectory" }
 
-Import-Module ScheduledTasks -ErrorAction SilentlyContinue
+Import-Module ScheduledTasks -ErrorAction Stop
 $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 if ($task) {
     Pass "Scheduled task installed: $TaskName"
     if ($task.State -ne "Disabled") { Pass "Scheduled task enabled; state=$($task.State)" } else { Fail "Scheduled task is disabled" }
+    if ([string]$task.Principal.UserId -in @("SYSTEM", "S-1-5-18") -and [string]$task.Principal.LogonType -eq "ServiceAccount") {
+        Pass "Scheduled task runs as SYSTEM service account"
+    } else {
+        Fail "Scheduled task principal is not SYSTEM service account: user=$($task.Principal.UserId) logonType=$($task.Principal.LogonType)"
+    }
     $info = Get-ScheduledTaskInfo -TaskName $TaskName
     if ($info.LastTaskResult -eq 0) { Pass "Last scheduled task result is success" }
     elseif ($info.LastRunTime -eq [datetime]::MinValue) { Warn "Scheduled task has not run yet" }
