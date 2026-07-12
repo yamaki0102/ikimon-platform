@@ -25,12 +25,14 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          mkdir -p record-fallback-diagnostic/files
+          mkdir -p record-fallback-diagnostic/files/platform_v2/src/ui
           : > record-fallback-diagnostic/matching-files.txt
           grep -RIlE \
             'record-first-success|record-submit-panel|buildRecordSuccessReturnHtml|record-status|record-media-photo|MAX_PHOTO_FILES' \
             platform_v2/src platform_v2/e2e 2>/dev/null \
             | sort -u >> record-fallback-diagnostic/matching-files.txt || true
+          printf '%s\n' platform_v2/src/ui/siteShell.ts platform_v2/src/ui/siteShell.test.ts >> record-fallback-diagnostic/matching-files.txt
+          sort -u -o record-fallback-diagnostic/matching-files.txt record-fallback-diagnostic/matching-files.txt
           while IFS= read -r file; do
             [ -f "$file" ] || continue
             destination="record-fallback-diagnostic/files/$file"
@@ -47,7 +49,9 @@ jobs:
             echo '=== route registration and page renderer ==='
             context '(/record|record-first-success|record-submit-panel|record-status)' platform_v2/src
             echo '=== draft persistence and restore ==='
-            context 'localStorage|sessionStorage|draft|restore|復元|下書き|pending.*media|selectedMediaFiles' platform_v2/src platform_v2/e2e
+            context 'localStorage|sessionStorage|indexedDB|draft|restore|復元|下書き|pending.*media|selectedMediaFiles' platform_v2/src platform_v2/e2e
+            echo '=== global launcher handoff ==='
+            context 'DB_NAME|DRAFT_KEY|save.*Draft|draft=1|retry=media|location\.href|window\.location|redirect|geolocation' platform_v2/src/ui/siteShell.ts
             echo '=== auth and fallback entry ==='
             context 'location_denied|permission|geolocation|login_required|unauth|source=|fallback|位置情報|未ログイン' platform_v2/src platform_v2/e2e
             echo '=== navigation to record ==='
