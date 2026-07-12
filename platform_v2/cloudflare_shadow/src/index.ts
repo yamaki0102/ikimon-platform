@@ -1,4 +1,9 @@
 import * as bcrypt from "bcryptjs";
+import {
+  renderCloudflareRecordRecoveryGuestHtml,
+  renderCloudflareRecordRecoverySignedHtml,
+  resolveCloudflareRecordRecoveryState
+} from "./recordRecoveryHtml";
 
 type D1Value = string | number | null;
 
@@ -20815,7 +20820,26 @@ function isProfileHtmlPath(pathname: string): boolean {
 }
 
 async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
+  const recovery = resolveCloudflareRecordRecoveryState(url);
   const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (recovery.active) {
+    const cspNonce = createHtmlCspNonce();
+    const body = request.method === "HEAD"
+      ? null
+      : session && !session.banned
+        ? renderCloudflareRecordRecoverySignedHtml(session, url, cspNonce, recovery)
+        : renderCloudflareRecordRecoveryGuestHtml(url, cspNonce);
+    return new Response(body, {
+      headers: {
+        ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "vary": "cookie, authorization",
+        "x-ikimon-cloudflare-native": session && !session.banned ? "record-recovery-session" : "record-recovery-guest",
+        ...releaseIdentityHeaders(env)
+      }
+    });
+  }
   if (!session || session.banned) {
     return getOriginalUiHtml(request, url, env);
   }
