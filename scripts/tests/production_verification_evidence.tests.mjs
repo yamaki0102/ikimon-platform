@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   buildProductionVerificationReport,
@@ -116,4 +117,11 @@ test('commit status publisher skips an unchanged context by default when request
   assert.equal(result.skipped, true);
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /\/commits\/.+\/statuses\?per_page=100$/);
+});
+
+test('watch script rejects malformed runtime JSON and keeps status publishing best-effort', () => {
+  const watch = readFileSync(new URL('../run_production_verification_watch.sh', import.meta.url), 'utf8');
+  assert.match(watch, /if ! node -e [\s\S]*RUNTIME_TMP_PATH[\s\S]*return 1/);
+  assert.match(watch, /if ! node "\$\{SCRIPT_DIR\}\/publish_production_verification_status\.mjs"[\s\S]*WARNING: GitHub production verification status publishing failed/);
+  assert.match(watch, /exit "\$\{VERIFY_EXIT\}"/);
 });
