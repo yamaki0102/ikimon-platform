@@ -1,0 +1,241 @@
+name: Verify Cloudflare Native Record Recovery Visual QA V2
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-cloudflare-native-record-recovery-visual-v2
+  cancel-in-progress: true
+
+jobs:
+  visual-qa:
+    if: github.head_ref == 'agent/visual-qa-cloudflare-native-recovery-20260712'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPECTED_PRODUCT_SHA: 6e30666ebcc03331bfc9041193284c50d6d34561
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/cloudflare-record-recovery-origin-fallback-20260712
+          fetch-depth: 1
+
+      - name: Confirm product source identity
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_PRODUCT_SHA"
+
+      - name: Setup platform browser runtime
+        uses: ./.github/actions/setup-platform-browser
+
+      - name: Install Worker dependencies
+        run: npm --prefix platform_v2/cloudflare_shadow ci
+
+      - name: Render Cloudflare recovery HTML
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cloudflare-native-recovery-visual-qa-v2/site cloudflare-native-recovery-visual-qa-v2/screenshots
+          cat > platform_v2/cloudflare_shadow/.tmp-render-recovery.mts <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          import {
+            renderCloudflareRecordRecoveryGuestHtml,
+            renderCloudflareRecordRecoverySignedHtml,
+            resolveCloudflareRecordRecoveryState,
+          } from './src/recordRecoveryHtml.ts';
+          const guestUrl = new URL('https://ikimon.life/ja/record?draft=1&start=photo&source=login_required');
+          const signedUrl = new URL('https://ikimon.life/ja/record?draft=1&start=photo&source=location_denied');
+          const retryUrl = new URL('https://ikimon.life/ja/record?retry=media&start=photo&source=media_retry');
+          const session = { userId: 'visual-qa-user', displayName: 'Visual QA' };
+          await writeFile('../../cloudflare-native-recovery-visual-qa-v2/site/guest.html', renderCloudflareRecordRecoveryGuestHtml(guestUrl, 'qa-nonce'));
+          await writeFile('../../cloudflare-native-recovery-visual-qa-v2/site/signed.html', renderCloudflareRecordRecoverySignedHtml(session, signedUrl, 'qa-nonce', resolveCloudflareRecordRecoveryState(signedUrl)));
+          await writeFile('../../cloudflare-native-recovery-visual-qa-v2/site/retry.html', renderCloudflareRecordRecoverySignedHtml(session, retryUrl, 'qa-nonce', resolveCloudflareRecordRecoveryState(retryUrl)));
+          await writeFile('../../cloudflare-native-recovery-visual-qa-v2/site/blank.html', '<!doctype html><html><body>seed</body></html>');
+          NODE
+          (cd platform_v2/cloudflare_shadow && npx tsx .tmp-render-recovery.mts)
+          rm -f platform_v2/cloudflare_shadow/.tmp-render-recovery.mts
+
+      - name: Start static QA server
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 3202 --directory cloudflare-native-recovery-visual-qa-v2/site > cloudflare-native-recovery-visual-qa-v2/server.log 2>&1 &
+          echo "$!" > cloudflare-native-recovery-visual-qa-v2/server.pid
+          for attempt in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:3202/guest.html >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Run diagnostic multi-viewport Visual QA
+        working-directory: platform_v2
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .tmp-cloudflare-recovery-visual-v2.mjs <<'NODE'
+          import { chromium } from '@playwright/test';
+          import fs from 'node:fs/promises';
+          import path from 'node:path';
+
+          const profiles = [
+            ['360x800', 360, 800],
+            ['390x844', 390, 844],
+            ['412x915', 412, 915],
+            ['768x1024', 768, 1024],
+            ['1280x900', 1280, 900],
+          ];
+          const outDir = path.resolve('../cloudflare-native-recovery-visual-qa-v2/screenshots');
+          const evidenceDir = path.resolve('../cloudflare-native-recovery-visual-qa-v2');
+          const results = [];
+          const failures = [];
+          const browser = await chromium.launch({ headless: true });
+          const overflowFor = (page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
+          const seedDraft = async (page, retry = false) => {
+            await page.goto('http://127.0.0.1:3202/blank.html', { waitUntil: 'domcontentloaded' });
+            const result = await page.evaluate(async ({ retry }) => {
+              try {
+                const blob = new Blob([new Uint8Array([255, 216, 255, 217])], { type: 'image/jpeg' });
+                const db = await new Promise((resolve, reject) => {
+                  const request = indexedDB.open('ikimon-record-draft', 1);
+                  request.onupgradeneeded = () => {
+                    if (!request.result.objectStoreNames.contains('drafts')) request.result.createObjectStore('drafts');
+                  };
+                  request.onsuccess = () => resolve(request.result);
+                  request.onerror = () => reject(request.error || new Error('open_failed'));
+                });
+                await new Promise((resolve, reject) => {
+                  const tx = db.transaction('drafts', 'readwrite');
+                  tx.objectStore('drafts').put({
+                    file: blob,
+                    files: [blob],
+                    kind: 'photo',
+                    savedAt: Date.now(),
+                    metadata: {
+                      formValues: { note: '復旧確認', latitude: '34.710000', longitude: '137.730000' },
+                      ...(retry ? { pendingMediaRetryVisitId: 'visit-existing', completedPhotoIndexes: [] } : {}),
+                    },
+                  }, 'latest');
+                  tx.oncomplete = () => resolve(true);
+                  tx.onerror = () => reject(tx.error || new Error('write_failed'));
+                  tx.onabort = () => reject(tx.error || new Error('write_aborted'));
+                });
+                db.close();
+                return { ok: true };
+              } catch (error) {
+                return { ok: false, error: String(error), stack: error instanceof Error ? error.stack : '' };
+              }
+            }, { retry });
+            if (!result.ok) throw new Error(`seed failed: ${result.error}\n${result.stack || ''}`);
+          };
+
+          const runProfile = async (name, width, height) => {
+            const context = await browser.newContext({ viewport: { width, height }, locale: 'ja-JP', serviceWorkers: 'block' });
+            const page = await context.newPage();
+            const consoleErrors = [];
+            const pageErrors = [];
+            page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+            page.on('pageerror', (error) => pageErrors.push(String(error)));
+            let stage = 'guest-navigation';
+            try {
+              await page.goto('http://127.0.0.1:3202/guest.html', { waitUntil: 'domcontentloaded' });
+              stage = 'guest-visible';
+              await page.locator('[data-record-recovery-start]').waitFor({ state: 'visible', timeout: 10000 });
+              const guestOverflow = await overflowFor(page);
+              const loginVisible = await page.getByText('ログインして続ける', { exact: true }).isVisible();
+              const registerVisible = await page.getByText('登録して続ける', { exact: true }).isVisible();
+              await page.screenshot({ path: path.join(outDir, `${name}-guest.png`), fullPage: true, animations: 'disabled' });
+              if (guestOverflow > 1) failures.push(`${name} guest overflow ${guestOverflow}`);
+              if (!loginVisible || !registerVisible) failures.push(`${name} guest auth actions missing`);
+
+              stage = 'seed-draft';
+              await seedDraft(page, false);
+              stage = 'signed-navigation';
+              await page.goto('http://127.0.0.1:3202/signed.html', { waitUntil: 'domcontentloaded' });
+              stage = 'signed-visible';
+              const panel = page.locator('[data-record-recovery]');
+              await panel.waitFor({ state: 'visible', timeout: 10000 });
+              await page.waitForFunction(() => document.querySelector('[data-record-recovery]')?.getAttribute('data-state') !== 'checking', null, { timeout: 10000 });
+              const signedState = await panel.getAttribute('data-state');
+              const signedOverflow = await overflowFor(page);
+              const saveEnabled = !(await page.locator('[data-record-recovery-save]').isDisabled());
+              const locationEnabled = !(await page.locator('[data-record-recovery-location]').isDisabled());
+              await page.screenshot({ path: path.join(outDir, `${name}-signed.png`), fullPage: true, animations: 'disabled' });
+              if (signedState !== 'ready') failures.push(`${name} signed state ${signedState}`);
+              if (signedOverflow > 1) failures.push(`${name} signed overflow ${signedOverflow}`);
+              if (!saveEnabled || !locationEnabled) failures.push(`${name} signed actions disabled`);
+              if (consoleErrors.length) failures.push(`${name} console ${consoleErrors.join(' | ')}`);
+              if (pageErrors.length) failures.push(`${name} pageerror ${pageErrors.join(' | ')}`);
+              results.push({ name, stage: 'complete', guestOverflow, signedOverflow, signedState, loginVisible, registerVisible, saveEnabled, locationEnabled, consoleErrors, pageErrors });
+            } catch (error) {
+              const message = error instanceof Error ? `${error.message}\n${error.stack || ''}` : String(error);
+              failures.push(`${name} exception at ${stage}: ${message}`);
+              results.push({ name, stage, exception: message, consoleErrors, pageErrors });
+              await page.screenshot({ path: path.join(outDir, `${name}-${stage}-exception.png`), fullPage: true, animations: 'disabled' }).catch(() => {});
+            } finally {
+              await context.close();
+            }
+          };
+
+          for (const profile of profiles) await runProfile(...profile);
+
+          const retryContext = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ja-JP', serviceWorkers: 'block' });
+          const retryPage = await retryContext.newPage();
+          const retryErrors = [];
+          retryPage.on('pageerror', (error) => retryErrors.push(String(error)));
+          let retryStage = 'seed';
+          try {
+            await seedDraft(retryPage, true);
+            retryStage = 'navigation';
+            await retryPage.goto('http://127.0.0.1:3202/retry.html', { waitUntil: 'domcontentloaded' });
+            retryStage = 'state';
+            await retryPage.waitForFunction(() => document.querySelector('[data-record-recovery]')?.getAttribute('data-state') !== 'checking', null, { timeout: 10000 });
+            const retryState = await retryPage.locator('[data-record-recovery]').getAttribute('data-state');
+            const retryTitle = await retryPage.locator('#record-recovery-title').textContent();
+            const chooserPromise = retryPage.waitForEvent('filechooser', { timeout: 10000 });
+            await retryPage.locator('[data-record-recovery-pick]').click();
+            const chooser = await chooserPromise;
+            await chooser.setFiles({ name: 'replacement.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([255, 216, 255, 217]) });
+            await retryPage.screenshot({ path: path.join(outDir, '390x844-media-retry.png'), fullPage: true, animations: 'disabled' });
+            if (retryState !== 'media_retry') failures.push(`retry state ${retryState}`);
+            if (!String(retryTitle).includes('メディアを戻せます')) failures.push(`retry title ${retryTitle}`);
+            if (retryErrors.length) failures.push(`retry pageerror ${retryErrors.join(' | ')}`);
+            results.push({ mode: 'media-retry', stage: 'complete', retryState, retryTitle, retryErrors });
+          } catch (error) {
+            const message = error instanceof Error ? `${error.message}\n${error.stack || ''}` : String(error);
+            failures.push(`retry exception at ${retryStage}: ${message}`);
+            results.push({ mode: 'media-retry', stage: retryStage, exception: message, retryErrors });
+            await retryPage.screenshot({ path: path.join(outDir, `390x844-retry-${retryStage}-exception.png`), fullPage: true, animations: 'disabled' }).catch(() => {});
+          } finally {
+            await retryContext.close();
+            await browser.close();
+          }
+
+          await fs.writeFile(path.join(evidenceDir, 'metrics.json'), JSON.stringify({ expectedProductSha: process.env.EXPECTED_PRODUCT_SHA, results, failures }, null, 2));
+          if (failures.length) {
+            console.error(failures.join('\n'));
+            process.exit(1);
+          }
+          NODE
+          node .tmp-cloudflare-recovery-visual-v2.mjs
+          rm -f .tmp-cloudflare-recovery-visual-v2.mjs
+
+      - name: Upload Visual QA evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloudflare-native-record-recovery-visual-qa-v2
+          path: cloudflare-native-recovery-visual-qa-v2
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop static QA server
+        if: always()
+        shell: bash
+        run: |
+          if [ -f cloudflare-native-recovery-visual-qa-v2/server.pid ]; then
+            kill "$(cat cloudflare-native-recovery-visual-qa-v2/server.pid)" || true
+          fi
