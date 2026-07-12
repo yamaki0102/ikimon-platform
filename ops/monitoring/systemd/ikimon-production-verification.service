@@ -13,12 +13,16 @@ Environment=SMOKE_TIER=targeted
 Environment=PLAYWRIGHT_INSTALL_WITH_DEPS=false
 Environment=IKIMON_VERIFICATION_SOURCE=management-server-timer
 Environment=PUBLISH_GITHUB_STATUS=true
+Environment=IKIMON_VERIFICATION_REPORT_PATH=/var/lib/ikimon-production-verification/production-verification-latest.json
+Environment=IKIMON_VERIFICATION_LOG_PATH=/var/lib/ikimon-production-verification/production-verification-latest.log
+Environment=IKIMON_VERIFICATION_RUNTIME_PATH=/var/lib/ikimon-production-verification/production-runtime-version-latest.json
 ExecStart=/usr/bin/env bash scripts/run_production_verification_watch.sh
+StateDirectory=ikimon-production-verification
+StateDirectoryMode=0750
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/opt/ikimon/ikimon-platform/platform_v2/cloudflare_shadow/.deploy
 
 [Install]
 WantedBy=multi-user.target
