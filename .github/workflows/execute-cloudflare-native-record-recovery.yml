@@ -1,0 +1,159 @@
+name: Execute Cloudflare Native Record Recovery
+
+on:
+  push:
+    branches:
+      - agent/cloudflare-record-recovery-origin-fallback-20260712
+
+permissions:
+  contents: write
+
+concurrency:
+  group: execute-cloudflare-native-record-recovery
+  cancel-in-progress: true
+
+jobs:
+  execute:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/cloudflare-record-recovery-origin-fallback-20260712
+          fetch-depth: 0
+
+      - name: Extract native recovery sources and patch Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import base64
+          import gzip
+
+          workflow = Path('.github/workflows/apply-cloudflare-record-recovery-fallback.yml').read_text(encoding='utf-8')
+
+          def extract(marker: str) -> bytes:
+              start_token = f"cat <<'{marker}' | base64 -d | gunzip > "
+              start_line = workflow.index(start_token)
+              payload_start = workflow.index('\n', start_line) + 1
+              payload_end = workflow.index(f'\n{marker}\n', payload_start)
+              encoded = ''.join(workflow[payload_start:payload_end].split())
+              return gzip.decompress(base64.b64decode(encoded))
+
+          Path('platform_v2/cloudflare_shadow/src/recordRecoveryHtml.ts').write_bytes(extract('MODULE_B64'))
+          Path('platform_v2/cloudflare_shadow/src/recordRecoveryHtml.test.ts').write_bytes(extract('TEST_B64'))
+
+          path = Path('platform_v2/cloudflare_shadow/src/index.ts')
+          source = path.read_text(encoding='utf-8')
+          import_anchor = 'import * as bcrypt from "bcryptjs";\n'
+          import_block = '''import * as bcrypt from "bcryptjs";
+          import {
+            renderCloudflareRecordRecoveryGuestHtml,
+            renderCloudflareRecordRecoverySignedHtml,
+            resolveCloudflareRecordRecoveryState
+          } from "./recordRecoveryHtml";
+          '''
+          if 'from "./recordRecoveryHtml"' not in source:
+              if source.count(import_anchor) != 1:
+                  raise SystemExit('bcrypt import anchor not found')
+              source = source.replace(import_anchor, import_block, 1)
+
+          old_handler = '''async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
+            const session = await readCompatibleSessionWithOriginFallback(request, env);
+            if (!session || session.banned) {
+              return getOriginalUiHtml(request, url, env);
+            }
+
+            const cspNonce = createHtmlCspNonce();
+            const body = request.method === "HEAD"
+              ? null
+              : renderCloudflareRecordHtml(session, url, cspNonce);
+
+            return new Response(body, {
+              headers: {
+                ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+                "content-type": "text/html; charset=utf-8",
+                "cache-control": "no-store",
+                "vary": "cookie, authorization",
+                "x-ikimon-cloudflare-native": "record-session"
+              }
+            });
+          }'''
+          new_handler = '''async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
+            const recovery = resolveCloudflareRecordRecoveryState(url);
+            const session = await readCompatibleSessionWithOriginFallback(request, env);
+            if (recovery.active) {
+              const cspNonce = createHtmlCspNonce();
+              const body = request.method === "HEAD"
+                ? null
+                : session && !session.banned
+                  ? renderCloudflareRecordRecoverySignedHtml(session, url, cspNonce, recovery)
+                  : renderCloudflareRecordRecoveryGuestHtml(url, cspNonce);
+              return new Response(body, {
+                headers: {
+                  ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+                  "content-type": "text/html; charset=utf-8",
+                  "cache-control": "no-store",
+                  "vary": "cookie, authorization",
+                  "x-ikimon-cloudflare-native": session && !session.banned ? "record-recovery-session" : "record-recovery-guest",
+                  ...releaseIdentityHeaders(env)
+                }
+              });
+            }
+            if (!session || session.banned) {
+              return getOriginalUiHtml(request, url, env);
+            }
+
+            const cspNonce = createHtmlCspNonce();
+            const body = request.method === "HEAD"
+              ? null
+              : renderCloudflareRecordHtml(session, url, cspNonce);
+
+            return new Response(body, {
+              headers: {
+                ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+                "content-type": "text/html; charset=utf-8",
+                "cache-control": "no-store",
+                "vary": "cookie, authorization",
+                "x-ikimon-cloudflare-native": "record-session"
+              }
+            });
+          }'''
+          if new_handler not in source:
+              if source.count(old_handler) != 1:
+                  raise SystemExit(f'expected one session-aware record handler, found {source.count(old_handler)}')
+              source = source.replace(old_handler, new_handler, 1)
+          path.write_text(source, encoding='utf-8')
+          PY
+          git diff --check
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Verify Cloudflare native recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix platform_v2/cloudflare_shadow ci
+          npm --prefix platform_v2/cloudflare_shadow run check
+          npm --prefix platform_v2/cloudflare_shadow test
+
+      - name: Commit product files and remove one-shot tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/apply-cloudflare-record-recovery-fallback.yml \
+            .github/workflows/execute-cloudflare-native-record-recovery.yml \
+            docs/qa/cloudflare-native-record-recovery-trigger.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix: serve record recovery natively on Cloudflare'
+          git push origin HEAD:agent/cloudflare-record-recovery-origin-fallback-20260712
