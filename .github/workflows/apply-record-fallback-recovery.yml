@@ -39,15 +39,25 @@ jobs:
           cache: npm
           cache-dependency-path: platform_v2/package-lock.json
 
-      - name: Verify recovery contracts
+      - name: Install platform dependencies
         shell: bash
-        run: |
-          set -o pipefail
-          npm --prefix platform_v2 ci
-          npm --prefix platform_v2 run typecheck
-          npm --prefix platform_v2 run build
-          (cd platform_v2 && npx tsx --test src/routes/record.routes.test.ts src/ui/siteShell.test.ts) 2>&1 | tee record-fallback-focused-test.log
-          npm --prefix platform_v2 run test:node 2>&1 | tee record-fallback-node-test.log
+        run: npm --prefix platform_v2 ci 2>&1 | tee record-fallback-npm-ci.log
+
+      - name: Typecheck recovery implementation
+        shell: bash
+        run: npm --prefix platform_v2 run typecheck 2>&1 | tee record-fallback-typecheck.log
+
+      - name: Build recovery implementation
+        shell: bash
+        run: npm --prefix platform_v2 run build 2>&1 | tee record-fallback-build.log
+
+      - name: Run focused recovery tests
+        shell: bash
+        run: (cd platform_v2 && npx tsx --test src/routes/record.routes.test.ts src/ui/siteShell.test.ts) 2>&1 | tee record-fallback-focused-test.log
+
+      - name: Run all node tests
+        shell: bash
+        run: npm --prefix platform_v2 run test:node 2>&1 | tee record-fallback-node-test.log
 
       - name: Upload apply and test evidence
         if: always()
@@ -56,6 +66,9 @@ jobs:
           name: record-fallback-recovery-apply-evidence
           path: |
             record-fallback-apply.log
+            record-fallback-npm-ci.log
+            record-fallback-typecheck.log
+            record-fallback-build.log
             platform_v2/record-fallback-focused-test.log
             record-fallback-node-test.log
           if-no-files-found: warn
@@ -68,7 +81,7 @@ jobs:
           rm -f .github/workflows/diagnose-record-fallback-recovery.yml
           rm -f .github/workflows/apply-record-fallback-recovery.yml
           rm -f ops/patches/record-fallback-recovery.xz.b64.*
-          rm -f record-fallback-apply.log record-fallback-node-test.log
+          rm -f record-fallback-*.log
           rm -f platform_v2/record-fallback-focused-test.log
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
