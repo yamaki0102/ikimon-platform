@@ -46,20 +46,20 @@ function Get-EnvironmentSettings([string]$Path) {
     return $result
 }
 
-function Test-PrivateAcl([string]$Path) {
+function Test-ExactPrivateAcl([string]$Path) {
     try {
+        $allowedSids = @("S-1-5-18", "S-1-5-32-544")
         $acl = Get-Acl -LiteralPath $Path
-        $forbiddenSids = @("S-1-1-0", "S-1-5-32-545", "S-1-5-11") # Everyone, Users, Authenticated Users
-        foreach ($entry in $acl.Access) {
+        $rules = @($acl.Access)
+        if ($rules.Count -ne 2) { return $false }
+        foreach ($entry in $rules) {
             $sid = $entry.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
-            if ($forbiddenSids -contains $sid -and $entry.AccessControlType -eq "Allow") {
-                return $false
-            }
+            if ($allowedSids -notcontains $sid) { return $false }
+            if ($entry.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow) { return $false }
+            if ($entry.IsInherited) { return $false }
+            if (($entry.FileSystemRights -band [Security.AccessControl.FileSystemRights]::FullControl) -ne [Security.AccessControl.FileSystemRights]::FullControl) { return $false }
         }
-        $allowedSids = @($acl.Access | ForEach-Object {
-            $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
-        } | Sort-Object -Unique)
-        return ($allowedSids -contains "S-1-5-18") -and ($allowedSids -contains "S-1-5-32-544")
+        return $true
     } catch {
         return $false
     }
@@ -90,7 +90,7 @@ if ($node) {
 
 if (Test-Path -LiteralPath $EnvironmentFile -PathType Leaf) {
     Pass "Environment file exists: $EnvironmentFile"
-    if (Test-PrivateAcl $EnvironmentFile) { Pass "Environment file ACL is restricted to SYSTEM and Administrators" } else { Fail "Environment file ACL grants access to broad principals or misses required principals" }
+    if (Test-ExactPrivateAcl $EnvironmentFile) { Pass "Environment file ACL contains only SYSTEM and Administrators full-control rules" } else { Fail "Environment file ACL contains inherited, unexpected, denied, or incomplete rules" }
     $settings = Get-EnvironmentSettings $EnvironmentFile
     $publish = [string]$settings["PUBLISH_GITHUB_STATUS"]
     $hasToken = -not [string]::IsNullOrWhiteSpace([string]$settings["GITHUB_TOKEN"]) -or -not [string]::IsNullOrWhiteSpace([string]$settings["GH_TOKEN"])
@@ -101,7 +101,7 @@ if (Test-Path -LiteralPath $EnvironmentFile -PathType Leaf) {
 
 if (Test-Path -LiteralPath $StateDirectory -PathType Container) {
     Pass "State directory exists: $StateDirectory"
-    if (Test-PrivateAcl $StateDirectory) { Pass "State directory ACL is restricted to SYSTEM and Administrators" } else { Fail "State directory ACL grants access to broad principals or misses required principals" }
+    if (Test-ExactPrivateAcl $StateDirectory) { Pass "State directory ACL contains only SYSTEM and Administrators full-control rules" } else { Fail "State directory ACL contains inherited, unexpected, denied, or incomplete rules" }
 } else { Fail "State directory missing: $StateDirectory" }
 
 Import-Module ScheduledTasks -ErrorAction Stop
