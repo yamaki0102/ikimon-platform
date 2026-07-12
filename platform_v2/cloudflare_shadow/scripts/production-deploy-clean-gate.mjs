@@ -1,4 +1,5 @@
 const ALLOWED_GENERATED_DEPLOY_PATHS = new Set([
+  ".cache/",
   "materialize-original-ui.json",
   "platform_v2/cloudflare_shadow/materialize-original-ui.json",
 ]);
