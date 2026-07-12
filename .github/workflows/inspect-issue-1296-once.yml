@@ -1,0 +1,81 @@
+name: Inspect Issue 1296 Once
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: inspect-issue-1296-once
+  cancel-in-progress: true
+
+jobs:
+  inspect:
+    if: github.head_ref == 'codex/issue-1296-post-flow' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/issue-1296-post-flow
+          fetch-depth: 0
+
+      - name: Capture targeted source excerpts
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=docs/diagnostics/issue-1296-targeted.md
+          mkdir -p docs/diagnostics
+          files=(
+            platform_v2/src/routes/write.ts
+            platform_v2/src/routes/read.ts
+            platform_v2/src/services/observationWrite.ts
+            platform_v2/src/services/observationAiRuns.ts
+            platform_v2/src/services/observationReassessPipeline.ts
+            platform_v2/src/scripts/runAiForMissing.ts
+            platform_v2/src/scripts/refreshRecentObservationAi.ts
+            platform_v2/src/ui/observationCard.ts
+            platform_v2/src/services/localizedDisplay.ts
+            platform_v2/src/ui/siteShell.ts
+            platform_v2/cloudflare_shadow/src/index.ts
+          )
+          {
+            echo '# Issue 1296 targeted source excerpts'
+            echo
+            echo "- SHA: $(git rev-parse HEAD)"
+            echo "- Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            for file in "${files[@]}"; do
+              echo "## $file"
+              echo '```text'
+              if [[ -f "$file" ]]; then
+                rg -n -C 35 \
+                  'app\.(post|put|patch|delete)|/api/v1/observations|/observations/|/record|reassess|AiRun|ai_run|名前待ち|保存済み|自分の記録|ownerHome|assertObservationOwnedByUser|upsertObservation|owner_id|created_by|user_id|identified|needs_review|failed|queued|analyzing|edit' \
+                  "$file" | head -n 5000 || true
+              else
+                echo 'FILE NOT FOUND'
+              fi
+              echo '```'
+              echo
+            done
+            echo '## Route registrations'
+            echo '```text'
+            rg -n -C 12 'registerWriteRoutes|registerReadRoutes|register.*Routes|/api/v1/observations|/record' platform_v2/src/server.ts platform_v2/src/routes 2>/dev/null | head -n 5000 || true
+            echo '```'
+          } > "$out"
+
+      - name: Commit report to target branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/diagnostics/issue-1296-targeted.md
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'docs: capture issue 1296 targeted source map [issue-1296-inspect]'
+          git push origin HEAD:codex/issue-1296-post-flow
