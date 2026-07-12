@@ -1,0 +1,48 @@
+name: Diagnose Record Recovery Shadow
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'agent/fix-record-recovery-origin-route-20260712'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/fix-record-recovery-origin-route-20260712
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+      - name: Remove diagnostic workflow from index and tree
+        run: git rm -f .github/workflows/diagnose-record-recovery-shadow.yml
+      - name: Run shadow preflight and preserve report
+        shell: bash
+        run: |
+          set +e
+          npm --prefix platform_v2/cloudflare_shadow ci
+          npm --prefix platform_v2/cloudflare_shadow run deploy:shadow:preflight > shadow-preflight.log 2>&1
+          code=$?
+          cat shadow-preflight.log
+          printf '%s\n' "$code" > shadow-preflight-exit-code.txt
+          exit 0
+      - name: Upload shadow diagnostics
+        uses: actions/upload-artifact@v6
+        with:
+          name: record-recovery-shadow-diagnostics-clean
+          path: |
+            shadow-preflight.log
+            shadow-preflight-exit-code.txt
+            platform_v2/cloudflare_shadow/.deploy/shadow-preflight-latest.json
+          if-no-files-found: warn
+          retention-days: 3
