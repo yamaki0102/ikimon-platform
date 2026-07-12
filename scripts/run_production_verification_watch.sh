@@ -12,14 +12,18 @@ IKIMON_VERIFICATION_SOURCE="${IKIMON_VERIFICATION_SOURCE:-external-watch}"
 IKIMON_VERIFICATION_RUNNER_ID="${IKIMON_VERIFICATION_RUNNER_ID:-${HOSTNAME:-unknown-runner}}"
 IKIMON_VERIFICATION_REPORT_PATH="${IKIMON_VERIFICATION_REPORT_PATH:-${REPORT_DIR}/production-verification-latest.json}"
 IKIMON_VERIFICATION_LOG_PATH="${IKIMON_VERIFICATION_LOG_PATH:-${REPORT_DIR}/production-verification-latest.log}"
+IKIMON_VERIFICATION_RUNTIME_PATH="${IKIMON_VERIFICATION_RUNTIME_PATH:-${REPORT_DIR}/production-runtime-version-latest.json}"
 PUBLISH_GITHUB_STATUS="${PUBLISH_GITHUB_STATUS:-false}"
 
 case "${SMOKE_TIER}" in full|targeted) ;; *) echo "SMOKE_TIER must be full or targeted" >&2; exit 2 ;; esac
 case "${PLAYWRIGHT_INSTALL_WITH_DEPS}" in true|false) ;; *) echo "PLAYWRIGHT_INSTALL_WITH_DEPS must be true or false" >&2; exit 2 ;; esac
 case "${PUBLISH_GITHUB_STATUS}" in true|false) ;; *) echo "PUBLISH_GITHUB_STATUS must be true or false" >&2; exit 2 ;; esac
 
-mkdir -p "$(dirname "${IKIMON_VERIFICATION_REPORT_PATH}")" "$(dirname "${IKIMON_VERIFICATION_LOG_PATH}")"
-RUNTIME_PATH="${REPORT_DIR}/production-runtime-version-latest.json"
+mkdir -p \
+  "$(dirname "${IKIMON_VERIFICATION_REPORT_PATH}")" \
+  "$(dirname "${IKIMON_VERIFICATION_LOG_PATH}")" \
+  "$(dirname "${IKIMON_VERIFICATION_RUNTIME_PATH}")"
+RUNTIME_PATH="${IKIMON_VERIFICATION_RUNTIME_PATH}"
 RUNTIME_TMP_PATH="${RUNTIME_PATH}.tmp"
 
 resolve_runtime() {
