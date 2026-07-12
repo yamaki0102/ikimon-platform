@@ -26,14 +26,17 @@ jobs:
           ref: main
           fetch-depth: 1
 
-      - name: Capture Cloudflare materialization context
+      - name: Capture Cloudflare routing context
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p record-recovery-production-evidence/source
-          grep -nE -C 80 'ORIGINAL_UI_HTML_(CORE|QUERY_VARIANT|LOCALIZABLE|STATIC)_PATHS|originalUiHtml(QueryVariant|KeyForPublicPath|VariantKey)|serveOriginalUi|materialized' \
+          grep -nE -C 90 'ORIGINAL_UI_HTML_(CORE|QUERY_VARIANT|LOCALIZABLE|STATIC)_PATHS|originalUiHtml(QueryVariant|KeyForPublicPath|VariantKey)|getSessionAwareRecordHtml|isRecordHtmlPath|materialized' \
             platform_v2/cloudflare_shadow/src/index.ts \
             > record-recovery-production-evidence/source/worker-materialization-context.txt || true
+          grep -nE -C 90 'ORIGIN_FALLBACK_BASE_URL|originFallback|OriginFallback|fetchOrigin|fallbackOrigin|readCompatibleSessionWithOriginFallback|PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE' \
+            platform_v2/cloudflare_shadow/src/index.ts \
+            > record-recovery-production-evidence/source/worker-origin-fallback-context.txt || true
           grep -nE -C 60 'queryVariantPaths|originalUiHtml(QueryVariant|KeyForPublicPath|VariantKey)|renderUrlForPath|ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS' \
             platform_v2/cloudflare_shadow/scripts/materialize-original-ui-html.mjs \
             > record-recovery-production-evidence/source/materializer-context.txt || true
@@ -70,7 +73,7 @@ jobs:
               run_id: run.id,
               per_page: 100,
             });
-            const deployment = {
+            fs.writeFileSync(path.join(evidenceDir, 'deployment.json'), JSON.stringify({
               targetSha,
               run: {
                 id: run.id,
@@ -93,15 +96,9 @@ jobs:
                 htmlUrl: job.html_url,
                 startedAt: job.started_at,
                 completedAt: job.completed_at,
-                steps: (job.steps || []).map((step) => ({
-                  name: step.name,
-                  status: step.status,
-                  conclusion: step.conclusion,
-                  number: step.number,
-                })),
+                steps: (job.steps || []).map((step) => ({ name: step.name, status: step.status, conclusion: step.conclusion, number: step.number })),
               })),
-            };
-            fs.writeFileSync(path.join(evidenceDir, 'deployment.json'), JSON.stringify(deployment, null, 2));
+            }, null, 2));
 
             const routes = {
               'runtime-version': '/api/v1/runtime/version',
@@ -117,29 +114,18 @@ jobs:
                   redirect: 'follow',
                 });
                 const body = await publicResponse.text();
-                publicResponses[name] = {
-                  status: publicResponse.status,
-                  headers: Object.fromEntries(publicResponse.headers),
-                  body,
-                };
+                publicResponses[name] = { status: publicResponse.status, headers: Object.fromEntries(publicResponse.headers), body };
               } catch (error) {
                 publicResponses[name] = { status: 0, headers: {}, body: String(error) };
               }
-              fs.writeFileSync(
-                path.join(evidenceDir, `${name}.json`),
-                JSON.stringify(publicResponses[name], null, 2),
-              );
+              fs.writeFileSync(path.join(evidenceDir, `${name}.json`), JSON.stringify(publicResponses[name], null, 2));
             }
 
-            const runtime = (() => {
-              try { return JSON.parse(publicResponses['runtime-version'].body); } catch { return null; }
-            })();
-            const health = (() => {
-              try { return JSON.parse(publicResponses.health.body); } catch { return null; }
-            })();
+            const runtime = (() => { try { return JSON.parse(publicResponses['runtime-version'].body); } catch { return null; } })();
+            const health = (() => { try { return JSON.parse(publicResponses.health.body); } catch { return null; } })();
             const recoveryBody = publicResponses['recovery-guest'].body || '';
             const normalBody = publicResponses['record-normal'].body || '';
-            const verification = {
+            fs.writeFileSync(path.join(evidenceDir, 'public-verification.json'), JSON.stringify({
               targetSha,
               deploymentStatus: run.status,
               deploymentConclusion: run.conclusion,
@@ -155,11 +141,8 @@ jobs:
               },
               normalRecordStatus: publicResponses['record-normal'].status,
               normalRecordHtml: /<html/i.test(normalBody),
-            };
-            fs.writeFileSync(path.join(evidenceDir, 'public-verification.json'), JSON.stringify(verification, null, 2));
-            if (run.status !== 'completed' || run.conclusion !== 'success') {
-              throw new Error(`Production deployment is ${run.status}/${run.conclusion}`);
-            }
+            }, null, 2));
+            if (run.status !== 'completed' || run.conclusion !== 'success') throw new Error(`Production deployment is ${run.status}/${run.conclusion}`);
 
       - name: Upload production evidence
         if: always()
