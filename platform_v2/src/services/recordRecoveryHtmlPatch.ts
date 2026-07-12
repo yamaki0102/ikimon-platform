@@ -46,24 +46,32 @@ function isRecordHtmlRequest(urlValue: string): boolean {
 }
 
 export function registerRecordRecoveryHtmlPatch(app: FastifyInstance): void {
-  app.addHook("onSend", async (request, reply, payload) => {
-    if (!isRecordHtmlRequest(request.url)) return payload;
+  app.addHook("onSend", (request, reply, payload, done) => {
+    if (!isRecordHtmlRequest(request.url)) {
+      done(null, payload);
+      return;
+    }
     const contentType = String(reply.getHeader("content-type") ?? "").toLowerCase();
-    if (!contentType.includes("text/html")) return payload;
+    if (!contentType.includes("text/html")) {
+      done(null, payload);
+      return;
+    }
 
     if (typeof payload === "string") {
       const patched = patchRecordRecoveryHtml(payload);
       if (patched !== payload) reply.removeHeader("content-length");
-      return patched;
+      done(null, patched);
+      return;
     }
     if (Buffer.isBuffer(payload)) {
       const original = payload.toString("utf8");
       const patched = patchRecordRecoveryHtml(original);
       if (patched !== original) {
         reply.removeHeader("content-length");
-        return Buffer.from(patched, "utf8");
+        done(null, Buffer.from(patched, "utf8"));
+        return;
       }
     }
-    return payload;
+    done(null, payload);
   });
 }
