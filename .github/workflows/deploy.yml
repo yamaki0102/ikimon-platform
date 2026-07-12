@@ -18,9 +18,13 @@ on:
       - 'scripts/verify_cloudflare_production_release.sh'
       - 'scripts/run_production_verification_watch.sh'
       - 'scripts/build_production_verification_report.mjs'
+      - 'scripts/archive_production_verification_evidence.mjs'
       - 'scripts/publish_production_verification_status.mjs'
+      - 'scripts/install_production_verification_service.sh'
+      - 'scripts/doctor_production_verification_service.sh'
       - 'scripts/tests/production_release_scope.tests.mjs'
       - 'scripts/tests/production_verification_evidence.tests.mjs'
+      - 'scripts/tests/production_verification_operations.tests.mjs'
       - 'scripts/tests/release_automation.tests.ps1'
       - '.github/workflows/deploy.yml'
 
@@ -81,11 +85,12 @@ jobs:
           --github-output "$GITHUB_OUTPUT"
           --summary "$GITHUB_STEP_SUMMARY"
 
-      - name: Test production release scope and verification evidence
+      - name: Test production release scope and verification operations
         run: >-
           node --test
           scripts/tests/production_release_scope.tests.mjs
           scripts/tests/production_verification_evidence.tests.mjs
+          scripts/tests/production_verification_operations.tests.mjs
 
       - name: Run deploy control guardrails
         if: steps.plan.outputs.run_guardrails == 'true'
