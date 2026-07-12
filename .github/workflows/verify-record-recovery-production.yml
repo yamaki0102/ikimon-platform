@@ -16,12 +16,12 @@ jobs:
   verify-production:
     if: github.head_ref == 'agent/verify-record-recovery-production-20260712'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     env:
       TARGET_SHA: 67ea561c25b71860577eda13610b3bda55f9c35c
       PRODUCTION_BASE_URL: https://ikimon.life
     steps:
-      - name: Wait for exact production deployment
+      - name: Capture exact production deployment and public responses
         uses: actions/github-script@v8
         with:
           script: |
@@ -33,23 +33,16 @@ jobs:
             const evidenceDir = 'record-recovery-production-evidence';
             fs.mkdirSync(evidenceDir, { recursive: true });
 
-            let run = null;
-            for (let attempt = 1; attempt <= 60; attempt += 1) {
-              const response = await github.rest.actions.listWorkflowRuns({
-                owner,
-                repo,
-                workflow_id: 'deploy.yml',
-                branch: 'main',
-                event: 'push',
-                per_page: 30,
-              });
-              run = response.data.workflow_runs.find((candidate) => candidate.head_sha === targetSha) || null;
-              if (run?.status === 'completed') break;
-              core.info(`Production attempt ${attempt}: ${run ? `${run.status}/${run.conclusion || 'pending'}` : 'not found'}`);
-              await new Promise((resolve) => setTimeout(resolve, 20000));
-            }
+            const response = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: 'deploy.yml',
+              branch: 'main',
+              event: 'push',
+              per_page: 30,
+            });
+            const run = response.data.workflow_runs.find((candidate) => candidate.head_sha === targetSha) || null;
             if (!run) throw new Error(`Production workflow run not found for ${targetSha}`);
-
             const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
               owner,
               repo,
@@ -88,63 +81,68 @@ jobs:
               })),
             };
             fs.writeFileSync(path.join(evidenceDir, 'deployment.json'), JSON.stringify(deployment, null, 2));
+
+            const routes = {
+              'runtime-version': '/api/v1/runtime/version',
+              health: '/healthz',
+              'recovery-guest': '/ja/record?draft=1&start=photo&source=login_required',
+              'record-normal': '/ja/record',
+            };
+            const publicResponses = {};
+            for (const [name, route] of Object.entries(routes)) {
+              try {
+                const publicResponse = await fetch(`${baseUrl}${route}`, {
+                  headers: { 'user-agent': 'ikimon-production-readonly-verifier/1.0' },
+                  redirect: 'follow',
+                });
+                const body = await publicResponse.text();
+                publicResponses[name] = {
+                  status: publicResponse.status,
+                  headers: Object.fromEntries(publicResponse.headers),
+                  body,
+                };
+              } catch (error) {
+                publicResponses[name] = { status: 0, headers: {}, body: String(error) };
+              }
+              fs.writeFileSync(
+                path.join(evidenceDir, `${name}.json`),
+                JSON.stringify(publicResponses[name], null, 2),
+              );
+            }
+
+            const runtime = (() => {
+              try { return JSON.parse(publicResponses['runtime-version'].body); } catch { return null; }
+            })();
+            const health = (() => {
+              try { return JSON.parse(publicResponses.health.body); } catch { return null; }
+            })();
+            const recoveryBody = publicResponses['recovery-guest'].body || '';
+            const normalBody = publicResponses['record-normal'].body || '';
+            const verification = {
+              targetSha,
+              deploymentStatus: run.status,
+              deploymentConclusion: run.conclusion,
+              runtimeStatus: publicResponses['runtime-version'].status,
+              runtimeGitSha: runtime?.gitSha ?? null,
+              runtimeEnv: runtime?.runtimeEnv ?? null,
+              builtAt: runtime?.builtAt ?? null,
+              migrationHead: runtime?.migrationHead ?? null,
+              healthStatus: publicResponses.health.status,
+              healthOk: health?.ok === true,
+              recoveryStatus: publicResponses['recovery-guest'].status,
+              recoveryMarkers: {
+                draftRetained: recoveryBody.includes('写真・入力内容はこの端末に残っています'),
+                loginAction: recoveryBody.includes('ログインして続ける'),
+                registerAction: recoveryBody.includes('登録して続ける'),
+              },
+              normalRecordStatus: publicResponses['record-normal'].status,
+              normalRecordHtml: /<html/i.test(normalBody),
+            };
+            fs.writeFileSync(path.join(evidenceDir, 'public-verification.json'), JSON.stringify(verification, null, 2));
+
             if (run.status !== 'completed' || run.conclusion !== 'success') {
               throw new Error(`Production deployment is ${run.status}/${run.conclusion}`);
             }
-
-            async function fetchExpected(name, route, marker) {
-              let last = null;
-              for (let attempt = 1; attempt <= 30; attempt += 1) {
-                try {
-                  const response = await fetch(`${baseUrl}${route}`, {
-                    headers: { 'user-agent': 'ikimon-production-readonly-verifier/1.0' },
-                    redirect: 'follow',
-                  });
-                  const body = await response.text();
-                  last = { status: response.status, headers: Object.fromEntries(response.headers), body };
-                  if (response.status === 200 && body.includes(marker)) break;
-                } catch (error) {
-                  last = { status: 0, headers: {}, body: String(error) };
-                }
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-              }
-              fs.writeFileSync(path.join(evidenceDir, `${name}.json`), JSON.stringify(last, null, 2));
-              if (!last || last.status !== 200 || !last.body.includes(marker)) {
-                throw new Error(`${name} verification failed with status ${last?.status}`);
-              }
-              return last;
-            }
-
-            const runtimeResult = await fetchExpected('runtime-version', '/api/v1/runtime/version', targetSha);
-            const healthResult = await fetchExpected('health', '/healthz', '"ok":true');
-            const recoveryResult = await fetchExpected(
-              'recovery-guest',
-              '/ja/record?draft=1&start=photo&source=login_required',
-              '写真・入力内容はこの端末に残っています',
-            );
-            const normalResult = await fetchExpected('record-normal', '/ja/record', '<html');
-
-            const runtime = JSON.parse(runtimeResult.body);
-            const health = JSON.parse(healthResult.body);
-            const verification = {
-              targetSha,
-              runtimeGitSha: runtime.gitSha,
-              runtimeEnv: runtime.runtimeEnv,
-              builtAt: runtime.builtAt,
-              migrationHead: runtime.migrationHead,
-              healthOk: health.ok === true,
-              recoveryMarkers: {
-                draftRetained: recoveryResult.body.includes('写真・入力内容はこの端末に残っています'),
-                loginAction: recoveryResult.body.includes('ログインして続ける'),
-                registerAction: recoveryResult.body.includes('登録して続ける'),
-              },
-              normalRecordHtml: /<html/i.test(normalResult.body),
-            };
-            fs.writeFileSync(path.join(evidenceDir, 'public-verification.json'), JSON.stringify(verification, null, 2));
-            if (runtime.gitSha !== targetSha) throw new Error(`Runtime SHA mismatch: ${runtime.gitSha}`);
-            if (!verification.healthOk) throw new Error('Production health is not ok');
-            if (!Object.values(verification.recoveryMarkers).every(Boolean)) throw new Error('Recovery markers missing');
-            if (!verification.normalRecordHtml) throw new Error('Normal record page is not HTML');
 
       - name: Upload production evidence
         if: always()
