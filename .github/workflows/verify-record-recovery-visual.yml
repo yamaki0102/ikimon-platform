@@ -1,0 +1,228 @@
+name: Verify Record Recovery Visual QA
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-record-recovery-visual
+  cancel-in-progress: true
+
+jobs:
+  visual-qa:
+    if: github.head_ref == 'agent/visual-qa-record-recovery-20260712'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb-ha:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ikimon_v2_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/ikimon_v2_ci
+      V2_PRIVILEGED_WRITE_API_KEY: ci-write-key
+      ALLOW_QUERY_USER_ID: '1'
+      PORT: '3200'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/visual-qa-record-recovery-20260712
+          fetch-depth: 1
+
+      - name: Setup platform browser runtime
+        uses: ./.github/actions/setup-platform-browser
+
+      - name: Build platform
+        working-directory: platform_v2
+        run: npm run build
+
+      - name: Enable CI database extensions
+        working-directory: platform_v2
+        run: |
+          node --input-type=module <<'NODE'
+          import { Client } from 'pg';
+          const client = new Client({ connectionString: process.env.DATABASE_URL });
+          await client.connect();
+          await client.query('CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE');
+          await client.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
+          await client.query('CREATE EXTENSION IF NOT EXISTS vector');
+          await client.end();
+          NODE
+
+      - name: Apply CI database migrations
+        working-directory: platform_v2
+        run: npm run migrate -- --allow-destructive
+
+      - name: Start local platform runtime
+        working-directory: platform_v2
+        run: |
+          set -euo pipefail
+          npm run start > ../record-recovery-visual-runtime.log 2>&1 &
+          echo "$!" > ../record-recovery-visual-runtime.pid
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3200/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat ../record-recovery-visual-runtime.log
+          exit 1
+
+      - name: Run multi-viewport recovery Visual QA
+        working-directory: platform_v2
+        run: |
+          set -euo pipefail
+          mkdir -p ../record-recovery-visual-qa/screenshots
+          cat > .tmp-record-recovery-visual.mjs <<'NODE'
+          import { chromium } from '@playwright/test';
+          import fs from 'node:fs/promises';
+          import path from 'node:path';
+
+          const guestCases = [
+            { name: '360x800', width: 360, height: 800 },
+            { name: '390x844', width: 390, height: 844 },
+            { name: '412x915', width: 412, height: 915 },
+            { name: '768x1024', width: 768, height: 1024 },
+            { name: '1280x900', width: 1280, height: 900 },
+          ];
+          const browser = await chromium.launch({ headless: true });
+          const results = [];
+          const failures = [];
+          const outDir = path.resolve('../record-recovery-visual-qa/screenshots');
+
+          const inspect = async (page) => page.evaluate(() => {
+            const visible = (element) => {
+              if (!element) return false;
+              const box = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+              return box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+            };
+            const rect = (selector) => {
+              const element = document.querySelector(selector);
+              if (!visible(element)) return null;
+              const box = element.getBoundingClientRect();
+              return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
+            };
+            return {
+              horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+              panel: rect('[data-record-recovery-start], [data-record-recovery]'),
+              globalLauncherVisible: visible(document.querySelector('.global-record-launcher')),
+              title: document.querySelector('h1, #record-recovery-title')?.textContent?.trim() || '',
+              loginVisible: visible(document.querySelector('a[href*="/login"]')),
+              registerVisible: visible(document.querySelector('a[href*="/register"]')),
+              genericGuideVisible: visible(document.querySelector('.record-first-success')),
+            };
+          });
+
+          for (const item of guestCases) {
+            const context = await browser.newContext({ viewport: { width: item.width, height: item.height }, locale: 'ja-JP', serviceWorkers: 'block' });
+            const page = await context.newPage();
+            const consoleErrors = [];
+            page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 500)); });
+            const response = await page.goto('http://127.0.0.1:3200/ja/record?draft=1&start=photo&source=login_required', { waitUntil: 'domcontentloaded' });
+            await page.waitForTimeout(500);
+            const state = await inspect(page);
+            await page.screenshot({ path: path.join(outDir, `${item.name}-guest.png`), fullPage: true, animations: 'disabled' });
+            if ((response?.status() || 0) >= 400) failures.push(`${item.name}: guest response ${response?.status()}`);
+            if (!state.panel) failures.push(`${item.name}: recovery panel missing`);
+            if (!state.loginVisible || !state.registerVisible) failures.push(`${item.name}: login/register continuation missing`);
+            if (state.horizontalOverflow > 1) failures.push(`${item.name}: horizontal overflow ${state.horizontalOverflow}px`);
+            if (state.globalLauncherVisible) failures.push(`${item.name}: global launcher should be hidden on recovery surface`);
+            if (consoleErrors.length) failures.push(`${item.name}: console errors ${consoleErrors.join(' | ')}`);
+            results.push({ ...item, mode: 'guest', state, consoleErrors });
+            await context.close();
+          }
+
+          const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ja-JP', serviceWorkers: 'block' });
+          await context.addInitScript(() => {
+            const request = indexedDB.open('ikimon-record-draft', 1);
+            request.onupgradeneeded = () => {
+              const db = request.result;
+              if (!db.objectStoreNames.contains('drafts')) db.createObjectStore('drafts');
+            };
+            request.onsuccess = () => {
+              const db = request.result;
+              const tx = db.transaction('drafts', 'readwrite');
+              const file = new File([new Uint8Array([137, 80, 78, 71])], 'recovery-photo.png', { type: 'image/png' });
+              tx.objectStore('drafts').put({
+                file,
+                files: [file],
+                kind: 'photo',
+                savedAt: Date.now(),
+                metadata: { formValues: { note: '復旧確認用の端末内メモ' }, recoverySource: 'location_denied' },
+              }, 'latest');
+            };
+          });
+          const page = await context.newPage();
+          const signedConsoleErrors = [];
+          page.on('console', (message) => { if (message.type() === 'error') signedConsoleErrors.push(message.text().slice(0, 500)); });
+          const response = await page.goto('http://127.0.0.1:3200/ja/record?userId=record-recovery-qa&draft=1&start=photo&source=location_denied', { waitUntil: 'domcontentloaded' });
+          await page.locator('[data-record-recovery]').waitFor({ state: 'visible', timeout: 20000 });
+          await page.waitForFunction(() => document.querySelector('[data-record-recovery]')?.getAttribute('data-state') !== 'checking', null, { timeout: 20000 });
+          const recoveryState = await page.locator('[data-record-recovery]').getAttribute('data-state');
+          const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
+          await page.locator('[data-record-recovery-pick]').click();
+          const chooser = await fileChooserPromise;
+          await chooser.setFiles({ name: 'replacement-photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([255, 216, 255, 217]) });
+          await page.screenshot({ path: path.join(outDir, '390x844-signed-restored.png'), fullPage: true, animations: 'disabled' });
+          const signed = await page.evaluate(() => ({
+            state: document.querySelector('[data-record-recovery]')?.getAttribute('data-state') || '',
+            overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            locationEnabled: !(document.querySelector('[data-record-recovery-location]')?.disabled),
+            saveEnabled: !(document.querySelector('[data-record-recovery-save]')?.disabled),
+            selectedMediaCount: document.querySelectorAll('[data-record-preview-item], .record-preview-photo img').length,
+            globalLauncherVisible: (() => {
+              const element = document.querySelector('.global-record-launcher');
+              if (!element) return false;
+              const box = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+              return box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+            })(),
+          }));
+          if ((response?.status() || 0) >= 400) failures.push(`signed: response ${response?.status()}`);
+          if (recoveryState !== 'ready') failures.push(`signed: expected ready state, got ${recoveryState}`);
+          if (signed.overflow > 1) failures.push(`signed: horizontal overflow ${signed.overflow}px`);
+          if (!signed.locationEnabled || !signed.saveEnabled) failures.push('signed: recovery actions are not enabled');
+          if (signed.globalLauncherVisible) failures.push('signed: global launcher should remain hidden');
+          if (signedConsoleErrors.length) failures.push(`signed: console errors ${signedConsoleErrors.join(' | ')}`);
+          results.push({ mode: 'signed-restored', recoveryState, signed, consoleErrors: signedConsoleErrors });
+          await context.close();
+          await browser.close();
+
+          await fs.writeFile('../record-recovery-visual-qa/metrics.json', JSON.stringify({ results, failures }, null, 2));
+          if (failures.length) {
+            console.error(failures.join('\n'));
+            process.exit(1);
+          }
+          NODE
+          node .tmp-record-recovery-visual.mjs
+          rm -f .tmp-record-recovery-visual.mjs
+
+      - name: Upload Visual QA evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: record-recovery-visual-qa
+          path: |
+            record-recovery-visual-qa
+            record-recovery-visual-runtime.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop local runtime
+        if: always()
+        run: |
+          if [ -f record-recovery-visual-runtime.pid ]; then
+            kill "$(cat record-recovery-visual-runtime.pid)" || true
+          fi
