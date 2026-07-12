@@ -1,5 +1,6 @@
 {
   "schemaVersion": "ikimon_production_verification_policy/v1",
+  "selfPath": "ops/monitoring/production_verification_policy.json",
   "updatedAt": "2026-07-12",
   "target": "https://ikimon.life",
   "defaultMode": "targeted",
