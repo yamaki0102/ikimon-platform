@@ -56,15 +56,21 @@ tokenはrepoへ保存しない。管理サーバーでは`/etc/ikimon/production
 
 - `ops/monitoring/systemd/ikimon-production-verification.service`
 - `ops/monitoring/systemd/ikimon-production-verification.timer`
+- `ops/monitoring/production-verification.env.example`
 
-テンプレートは`/opt/ikimon/ikimon-platform`と実行ユーザー`ikimon`を前提とする。実環境に合わせてpathとuserを変更し、timerを有効化する。
+テンプレートは`/opt/ikimon/ikimon-platform`と実行ユーザー`ikimon`を前提とする。実環境に合わせてpathとuserを変更する。証拠はsystemdの`StateDirectory`により`/var/lib/ikimon-production-verification`へ保存し、repoのworking treeを汚さない。
 
 ```bash
+sudo install -d -m 0750 /etc/ikimon
+sudo install -m 0600 ops/monitoring/production-verification.env.example /etc/ikimon/production-verification.env
+sudoedit /etc/ikimon/production-verification.env
 sudo install -m 0644 ops/monitoring/systemd/ikimon-production-verification.service /etc/systemd/system/
 sudo install -m 0644 ops/monitoring/systemd/ikimon-production-verification.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now ikimon-production-verification.timer
 ```
+
+`production-verification.env`の設置後に、実tokenをroot管理ファイルへ設定する。tokenをrepoやsystemd unit本体へ書かない。
 
 ## production releaseとの統合
 
