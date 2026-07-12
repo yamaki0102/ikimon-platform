@@ -26,9 +26,7 @@ function Add-ContractFile {
         [ref]$ContractText,
         [System.Collections.Generic.List[string]]$Issues
     )
-    if ([string]::IsNullOrWhiteSpace($RelativePath)) {
-        return
-    }
+    if ([string]::IsNullOrWhiteSpace($RelativePath)) { return }
     $fullPath = if ([System.IO.Path]::IsPathRooted($RelativePath)) { $RelativePath } else { Join-Path $repoRoot $RelativePath }
     if (-not (Test-Path $fullPath)) {
         $Issues.Add("Production deploy contract file not found: $RelativePath")
@@ -45,12 +43,24 @@ function Read-ContractFile {
     return Get-Content -Raw -Path $fullPath
 }
 
-if (-not (Test-Path $manifestFullPath)) {
-    throw "Deploy manifest not found: $manifestFullPath"
+function Test-PowerShellFileParses {
+    param([string]$RelativePath, [System.Collections.Generic.List[string]]$Issues)
+    if ([string]::IsNullOrWhiteSpace($RelativePath)) { return }
+    $fullPath = Join-Path $repoRoot $RelativePath
+    if (-not (Test-Path $fullPath)) {
+        $Issues.Add("PowerShell contract file not found: $RelativePath")
+        return
+    }
+    $tokens = $null
+    $parseErrors = $null
+    [void][System.Management.Automation.Language.Parser]::ParseFile($fullPath, [ref]$tokens, [ref]$parseErrors)
+    foreach ($parseError in @($parseErrors)) {
+        $Issues.Add("PowerShell parse error in ${RelativePath}: $($parseError.Message)")
+    }
 }
-if (-not (Test-Path $workflowFullPath)) {
-    throw "Deploy workflow not found: $workflowFullPath"
-}
+
+if (-not (Test-Path $manifestFullPath)) { throw "Deploy manifest not found: $manifestFullPath" }
+if (-not (Test-Path $workflowFullPath)) { throw "Deploy workflow not found: $workflowFullPath" }
 
 $manifest = Get-Content -Raw -Path $manifestFullPath | ConvertFrom-Json
 $workflowText = Get-Content -Raw -Path $workflowFullPath
@@ -67,13 +77,25 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $manifest.verificationStatusPublisher,
         $manifest.verificationInstaller,
         $manifest.verificationDoctor,
+        $manifest.verificationWindowsRunner,
+        $manifest.verificationWindowsInstaller,
+        $manifest.verificationWindowsDoctor,
         $manifest.verificationPolicyPath,
         $manifest.verificationSystemdService,
         $manifest.verificationSystemdTimer,
         $manifest.verificationEnvironmentExample,
+        $manifest.verificationWindowsEnvironmentExample,
         $manifest.productionScopePlanner
     )) {
         Add-ContractFile -RelativePath $contractPath -ContractText ([ref]$deployContractText) -Issues $issues
+    }
+
+    foreach ($powerShellPath in @(
+        $manifest.verificationWindowsRunner,
+        $manifest.verificationWindowsInstaller,
+        $manifest.verificationWindowsDoctor
+    )) {
+        Test-PowerShellFileParses -RelativePath $powerShellPath -Issues $issues
     }
 
     foreach ($requiredText in @(
@@ -88,10 +110,14 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $manifest.verificationStatusPublisher,
         $manifest.verificationInstaller,
         $manifest.verificationDoctor,
+        $manifest.verificationWindowsRunner,
+        $manifest.verificationWindowsInstaller,
+        $manifest.verificationWindowsDoctor,
         $manifest.verificationPolicyPath,
         $manifest.verificationSystemdService,
         $manifest.verificationSystemdTimer,
         $manifest.verificationEnvironmentExample,
+        $manifest.verificationWindowsEnvironmentExample,
         $manifest.verificationStatusContext,
         $manifest.productionScopePlanner,
         "ikimon_production_verification/v1",
@@ -102,6 +128,8 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "materialize:original-ui",
         "StateDirectory=ikimon-production-verification",
         "IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS=14",
+        "New-ScheduledTaskPrincipal -UserId \"SYSTEM\"",
+        "RepetitionInterval (New-TimeSpan -Minutes 15)",
         "systemd-analyze verify",
         "--dry-run",
         "--uninstall",
@@ -126,6 +154,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "run_cloudflare_production_release.sh",
         "publish_production_verification_status.mjs",
         "production_verification_operations.tests.mjs",
+        "release_automation.tests.ps1",
         "production-verification-latest.json",
         "statuses: write",
         "continue-on-error: true",
@@ -160,8 +189,12 @@ if ($manifest.platform -eq "cloudflare_worker") {
     }
 
     if ($manifest.verificationOperations) {
-        if ($manifest.verificationOperations.recommendedCadenceMinutes -ne 15 -or $manifest.verificationOperations.historicalRetentionDays -lt 1 -or -not $manifest.verificationOperations.installerPreservesExistingEnvironment -or $manifest.verificationOperations.installerAcceptsSecretsOnCommandLine -or -not $manifest.verificationOperations.timerEnableRequiresHostAccess) {
-            $issues.Add("Production verification operations must preserve the environment file, reject command-line secrets, retain evidence, and require host access for timer enablement")
+        $operations = $manifest.verificationOperations
+        if ($operations.recommendedCadenceMinutes -ne 15 -or $operations.historicalRetentionDays -lt 1 -or -not $operations.installerPreservesExistingEnvironment -or $operations.installerAcceptsSecretsOnCommandLine -or -not $operations.timerEnableRequiresHostAccess) {
+            $issues.Add("Linux verification operations must preserve the environment file, reject command-line secrets, retain evidence, and require host access")
+        }
+        if ($operations.windowsTaskPrincipal -ne "SYSTEM" -or -not $operations.windowsInstallerPreservesExistingEnvironment -or $operations.windowsInstallerAcceptsSecretsOnCommandLine -or -not $operations.windowsTaskEnableRequiresHostAccess -or -not $operations.windowsInitialSystemRunRequired) {
+            $issues.Add("Windows verification operations must run as SYSTEM, preserve the environment file, reject command-line secrets, require host access, and validate the registered task")
         }
     } else {
         $issues.Add("Production deploy manifest is missing verificationOperations")
@@ -175,6 +208,9 @@ if ($manifest.platform -eq "cloudflare_worker") {
         }
         if ($verificationPolicy.safety.productionMutation -or -not $verificationPolicy.safety.noDatabaseWrites -or -not $verificationPolicy.safety.noR2Writes -or -not $verificationPolicy.safety.noSecretMutation -or -not $verificationPolicy.safety.noPersonalDataInReport -or -not $verificationPolicy.safety.exactRuntimeShaBinding) {
             $issues.Add("Production verification policy must remain read-only, no-personal-data, and exact-SHA-bound")
+        }
+        if (-not $verificationPolicy.windowsScheduledTask -or $verificationPolicy.windowsScheduledTask.taskPrincipal -ne "SYSTEM" -or $verificationPolicy.windowsScheduledTask.acceptSecretsOnCommandLine -or -not $verificationPolicy.windowsScheduledTask.registeredSystemVerificationRequired -or -not $verificationPolicy.safety.windowsEnvironmentAllowlist -or -not $verificationPolicy.safety.windowsPrivateAcl) {
+            $issues.Add("Production verification policy must define a private, allowlisted, SYSTEM-run Windows scheduled task with direct registered-task verification")
         }
     }
 
@@ -193,31 +229,62 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $issues.Add("Systemd verification timer must run on a 15-minute calendar cadence")
     }
 
-    $environmentExampleText = Read-ContractFile -RelativePath $manifest.verificationEnvironmentExample
-    if ($environmentExampleText -notmatch '(?m)^PUBLISH_GITHUB_STATUS=false$') {
-        $issues.Add("Verification environment example must default GitHub status publishing to false")
-    }
-    if ($environmentExampleText -match '(?m)^(?:GITHUB_TOKEN|GH_TOKEN)=\S+') {
-        $issues.Add("Verification environment example must not contain a token value")
+    foreach ($environmentPath in @($manifest.verificationEnvironmentExample, $manifest.verificationWindowsEnvironmentExample)) {
+        $environmentText = Read-ContractFile -RelativePath $environmentPath
+        if ($environmentText -notmatch '(?m)^PUBLISH_GITHUB_STATUS=false$') {
+            $issues.Add("Verification environment example must default GitHub status publishing to false: $environmentPath")
+        }
+        if ($environmentText -match '(?m)^(?:GITHUB_TOKEN|GH_TOKEN)=\S+') {
+            $issues.Add("Verification environment example must not contain a token value: $environmentPath")
+        }
     }
 
     $installerText = Read-ContractFile -RelativePath $manifest.verificationInstaller
     if ($installerText -match '--(?:github|cloudflare)-token') {
-        $issues.Add("Verification installer must not accept secrets on the command line")
+        $issues.Add("Linux verification installer must not accept secrets on the command line")
     }
     if ($installerText -notmatch [regex]::Escape("Preserving existing environment file")) {
-        $issues.Add("Verification installer must preserve an existing environment file")
+        $issues.Add("Linux verification installer must preserve an existing environment file")
+    }
+
+    $windowsInstallerText = Read-ContractFile -RelativePath $manifest.verificationWindowsInstaller
+    foreach ($windowsInstallerMarker in @(
+        'New-ScheduledTaskPrincipal -UserId "SYSTEM"',
+        'RepetitionInterval (New-TimeSpan -Minutes 15)',
+        'Preserving existing environment file',
+        'Initial production verification failed',
+        'Invoke-PowerShellChild',
+        'Start-ScheduledTask'
+    )) {
+        if ($windowsInstallerText -notmatch [regex]::Escape($windowsInstallerMarker)) {
+            $issues.Add("Windows verification installer is missing safety marker: $windowsInstallerMarker")
+        }
+    }
+    if ($windowsInstallerText -match '--(?:github|cloudflare)-token') {
+        $issues.Add("Windows verification installer must not accept secrets on the command line")
+    }
+
+    $windowsRunnerText = Read-ContractFile -RelativePath $manifest.verificationWindowsRunner
+    foreach ($windowsRunnerMarker in @("Import-SafeEnvironmentFile", "IKIMON_VERIFICATION_ARCHIVE_DIR", "Node.js 22+")) {
+        if ($windowsRunnerText -notmatch [regex]::Escape($windowsRunnerMarker)) {
+            $issues.Add("Windows verification runner is missing safety marker: $windowsRunnerMarker")
+        }
+    }
+
+    $windowsDoctorText = Read-ContractFile -RelativePath $manifest.verificationWindowsDoctor
+    foreach ($windowsDoctorMarker in @("Test-PrivateAcl", "PT15M", "noPersonalData", "productionMutation")) {
+        if ($windowsDoctorText -notmatch [regex]::Escape($windowsDoctorMarker)) {
+            $issues.Add("Windows verification doctor is missing validation marker: $windowsDoctorMarker")
+        }
     }
 
     if ($issues.Count -gt 0) {
-        foreach ($issue in $issues) {
-            Write-Error $issue
-        }
+        foreach ($issue in $issues) { Write-Error $issue }
         exit 1
     }
 
     Invoke-StagingManifestSyncCheck
-    Write-Output "Portable Cloudflare production, external verification, installation operations, and staging deploy manifests are in sync."
+    Write-Output "Portable Cloudflare production, Linux/Windows external verification operations, and staging deploy manifests are in sync."
     exit 0
 }
 
@@ -252,9 +319,7 @@ if ($workflowText -notmatch "check_deploy_guardrails\.ps1") {
     $issues.Add("deploy.yml is missing deploy guardrail check step")
 }
 if ($issues.Count -gt 0) {
-    foreach ($issue in $issues) {
-        Write-Error $issue
-    }
+    foreach ($issue in $issues) { Write-Error $issue }
     exit 1
 }
 
