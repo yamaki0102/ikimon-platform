@@ -65,6 +65,11 @@ function Test-ExactPrivateAcl([string]$Path) {
     }
 }
 
+# Compatibility entrypoint retained for deploy-contract validation; semantics are exact, not broad-principal-only.
+function Test-PrivateAcl([string]$Path) {
+    return Test-ExactPrivateAcl -Path $Path
+}
+
 if ($MaxAgeMinutes -lt 1) { throw "MaxAgeMinutes must be positive" }
 $repo = $null
 try { $repo = (Resolve-Path -LiteralPath $RepoRoot).Path } catch { Fail "Repository root missing: $RepoRoot" }
@@ -90,7 +95,7 @@ if ($node) {
 
 if (Test-Path -LiteralPath $EnvironmentFile -PathType Leaf) {
     Pass "Environment file exists: $EnvironmentFile"
-    if (Test-ExactPrivateAcl $EnvironmentFile) { Pass "Environment file ACL contains only SYSTEM and Administrators full-control rules" } else { Fail "Environment file ACL contains inherited, unexpected, denied, or incomplete rules" }
+    if (Test-PrivateAcl $EnvironmentFile) { Pass "Environment file ACL contains only SYSTEM and Administrators full-control rules" } else { Fail "Environment file ACL contains inherited, unexpected, denied, or incomplete rules" }
     $settings = Get-EnvironmentSettings $EnvironmentFile
     $publish = [string]$settings["PUBLISH_GITHUB_STATUS"]
     $hasToken = -not [string]::IsNullOrWhiteSpace([string]$settings["GITHUB_TOKEN"]) -or -not [string]::IsNullOrWhiteSpace([string]$settings["GH_TOKEN"])
@@ -101,7 +106,7 @@ if (Test-Path -LiteralPath $EnvironmentFile -PathType Leaf) {
 
 if (Test-Path -LiteralPath $StateDirectory -PathType Container) {
     Pass "State directory exists: $StateDirectory"
-    if (Test-ExactPrivateAcl $StateDirectory) { Pass "State directory ACL contains only SYSTEM and Administrators full-control rules" } else { Fail "State directory ACL contains inherited, unexpected, denied, or incomplete rules" }
+    if (Test-PrivateAcl $StateDirectory) { Pass "State directory ACL contains only SYSTEM and Administrators full-control rules" } else { Fail "State directory ACL contains inherited, unexpected, denied, or incomplete rules" }
 } else { Fail "State directory missing: $StateDirectory" }
 
 Import-Module ScheduledTasks -ErrorAction Stop
