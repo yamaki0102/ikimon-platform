@@ -1,4 +1,4 @@
-name: Verify Final Record Recovery Production
+name: Verify Current Production Release
 
 on:
   pull_request:
@@ -9,78 +9,129 @@ permissions:
   actions: read
 
 concurrency:
-  group: verify-final-record-recovery-production
+  group: verify-current-production-release
   cancel-in-progress: true
 
 jobs:
-  diagnose-production:
+  verify-production:
     if: github.head_ref == 'agent/verify-record-recovery-production-final-20260712'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
-      TARGET_SHA: 34fa5fa7446819bfedefec5ff20533a3e72523fa
+      TARGET_SHA: 74f02e9c4ad3fd6c4f609d8f006582fa156a5d20
       GH_TOKEN: ${{ github.token }}
       PRODUCTION_BASE_URL: https://ikimon.life
     steps:
-      - name: Capture production run and full failed job log
+      - name: Wait for the target production deploy
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p record-recovery-production-final-diagnostics
+          mkdir -p current-production-verification
           repo="$GITHUB_REPOSITORY"
-          gh api --paginate "repos/$repo/actions/workflows/deploy.yml/runs?branch=main&event=push&per_page=100" > record-recovery-production-final-diagnostics/runs.json
-          run_id="$(jq -r --arg sha "$TARGET_SHA" '.workflow_runs[] | select(.head_sha == $sha) | .id' record-recovery-production-final-diagnostics/runs.json | head -1)"
-          test -n "$run_id"
-          printf '%s\n' "$run_id" > record-recovery-production-final-diagnostics/run-id.txt
-          gh api "repos/$repo/actions/runs/$run_id/jobs?filter=latest&per_page=100" > record-recovery-production-final-diagnostics/jobs.json
-          job_id="$(jq -r '.jobs[] | select(.name == "Deploy and Verify Cloudflare Production") | .id' record-recovery-production-final-diagnostics/jobs.json | head -1)"
+          found=""
+          for attempt in $(seq 1 80); do
+            gh api --paginate "repos/$repo/actions/workflows/deploy.yml/runs?branch=main&event=push&per_page=100" \
+              > current-production-verification/runs.json
+            run_id="$(jq -r --arg sha "$TARGET_SHA" '.workflow_runs[] | select(.head_sha == $sha) | .id' current-production-verification/runs.json | head -1)"
+            if [ -n "$run_id" ]; then
+              gh api "repos/$repo/actions/runs/$run_id" > current-production-verification/run.json
+              status="$(jq -r '.status' current-production-verification/run.json)"
+              conclusion="$(jq -r '.conclusion // empty' current-production-verification/run.json)"
+              echo "deploy run=$run_id status=$status conclusion=${conclusion:-pending}"
+              printf '%s\n' "$run_id" > current-production-verification/run-id.txt
+              if [ "$status" = "completed" ]; then
+                test "$conclusion" = "success"
+                found="yes"
+                break
+              fi
+            else
+              echo "deploy run for $TARGET_SHA is not visible yet (attempt $attempt)"
+            fi
+            sleep 15
+          done
+          test "$found" = "yes"
+          run_id="$(cat current-production-verification/run-id.txt)"
+          gh api "repos/$repo/actions/runs/$run_id/jobs?filter=latest&per_page=100" \
+            > current-production-verification/jobs.json
+          jq -e '.jobs[] | select(.name == "Deploy and Verify Cloudflare Production" and .conclusion == "success")' \
+            current-production-verification/jobs.json >/dev/null
+          job_id="$(jq -r '.jobs[] | select(.name == "Deploy and Verify Cloudflare Production") | .id' current-production-verification/jobs.json | head -1)"
           test -n "$job_id"
-          printf '%s\n' "$job_id" > record-recovery-production-final-diagnostics/job-id.txt
-          gh api "repos/$repo/actions/jobs/$job_id/logs" > record-recovery-production-final-diagnostics/deploy-job.log || true
-          grep -nEi 'error|failed|failure|exit code|verification|smoke|wrangler|deploy' record-recovery-production-final-diagnostics/deploy-job.log > record-recovery-production-final-diagnostics/error-lines.txt || true
-          tail -n 500 record-recovery-production-final-diagnostics/deploy-job.log > record-recovery-production-final-diagnostics/deploy-job-tail.log || true
+          gh api "repos/$repo/actions/jobs/$job_id/logs" > current-production-verification/deploy-job.log || true
+          tail -n 500 current-production-verification/deploy-job.log \
+            > current-production-verification/deploy-job-tail.log || true
 
-      - name: Capture current public production state
+      - name: Wait for exact runtime identity
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           base="${PRODUCTION_BASE_URL%/}"
-          for spec in \
-            'runtime-version|/api/v1/runtime/version' \
-            'health|/healthz' \
-            'ready|/readyz' \
-            'recovery-guest|/ja/record?draft=1&start=photo&source=login_required' \
-            'record-normal|/ja/record'
-          do
-            name="${spec%%|*}"
-            route="${spec#*|}"
-            curl -sS -L --connect-timeout 10 --max-time 30 \
-              -H 'cache-control: no-store' \
-              -A 'ikimon-production-readonly-diagnostics/1.0' \
-              -D "record-recovery-production-final-diagnostics/${name}.headers" \
-              -o "record-recovery-production-final-diagnostics/${name}.body" \
-              -w '%{http_code}\n' \
-              "$base$route" > "record-recovery-production-final-diagnostics/${name}.status"
+          matched=""
+          for attempt in $(seq 1 60); do
+            status="$(curl -sS -L --connect-timeout 10 --max-time 30 \
+              -H 'cache-control: no-store, no-cache' \
+              -A 'ikimon-production-readonly-verification/2.0' \
+              -D current-production-verification/runtime-version.headers \
+              -o current-production-verification/runtime-version.body \
+              -w '%{http_code}' \
+              "$base/api/v1/runtime/version?verify=$GITHUB_RUN_ID")"
+            runtime_sha="$(jq -r '.gitSha // empty' current-production-verification/runtime-version.body 2>/dev/null || true)"
+            echo "runtime attempt=$attempt status=$status sha=${runtime_sha:-missing}"
+            if [ "$status" = "200" ] && [ "$runtime_sha" = "$TARGET_SHA" ]; then
+              matched="yes"
+              break
+            fi
+            sleep 10
           done
+          test "$matched" = "yes"
+
+      - name: Verify health, public shell, PWA refresh, and recovery route
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${PRODUCTION_BASE_URL%/}"
+          fetch() {
+            local name="$1"
+            local route="$2"
+            local status
+            status="$(curl -sS -L --connect-timeout 10 --max-time 30 \
+              -H 'cache-control: no-store, no-cache' \
+              -A 'ikimon-production-readonly-verification/2.0' \
+              -D "current-production-verification/${name}.headers" \
+              -o "current-production-verification/${name}.body" \
+              -w '%{http_code}' \
+              "$base$route")"
+            printf '%s\n' "$status" > "current-production-verification/${name}.status"
+            test "$status" = "200"
+          }
+          fetch health '/healthz'
+          fetch ready '/readyz'
+          fetch home '/ja/?production_verify=1'
+          fetch app-sw '/app-sw.js?production_verify=1'
+          fetch recovery '/ja/record?draft=1&start=photo&source=login_required&production_verify=1'
+          grep -Fq 'みんなで作る地域図鑑' current-production-verification/home.body
+          grep -Fq "ikimon-app-v7" current-production-verification/app-sw.body
+          ! grep -Fq 'SHELL_CACHE' current-production-verification/app-sw.body
+          grep -Fq '写真・入力内容はこの端末に残っています' current-production-verification/recovery.body
+          grep -Fq 'ログインして続ける' current-production-verification/recovery.body
+          grep -Fq '登録して続ける' current-production-verification/recovery.body
           {
             echo "target_sha=$TARGET_SHA"
-            echo "runtime_status=$(cat record-recovery-production-final-diagnostics/runtime-version.status)"
-            echo "runtime_sha=$(jq -r '.gitSha // empty' record-recovery-production-final-diagnostics/runtime-version.body 2>/dev/null)"
-            echo "health_status=$(cat record-recovery-production-final-diagnostics/health.status)"
-            echo "ready_status=$(cat record-recovery-production-final-diagnostics/ready.status)"
-            echo "recovery_status=$(cat record-recovery-production-final-diagnostics/recovery-guest.status)"
-            echo "recovery_draft_retained=$(grep -Fq '写真・入力内容はこの端末に残っています' record-recovery-production-final-diagnostics/recovery-guest.body && echo true || echo false)"
-            echo "recovery_login=$(grep -Fq 'ログインして続ける' record-recovery-production-final-diagnostics/recovery-guest.body && echo true || echo false)"
-            echo "recovery_register=$(grep -Fq '登録して続ける' record-recovery-production-final-diagnostics/recovery-guest.body && echo true || echo false)"
-            echo "normal_status=$(cat record-recovery-production-final-diagnostics/record-normal.status)"
-          } > record-recovery-production-final-diagnostics/public-summary.txt
-          cat record-recovery-production-final-diagnostics/public-summary.txt
+            echo "runtime_sha=$(jq -r '.gitSha' current-production-verification/runtime-version.body)"
+            echo "health_status=$(cat current-production-verification/health.status)"
+            echo "ready_status=$(cat current-production-verification/ready.status)"
+            echo "home_status=$(cat current-production-verification/home.status)"
+            echo "app_sw_status=$(cat current-production-verification/app-sw.status)"
+            echo "recovery_status=$(cat current-production-verification/recovery.status)"
+            echo "pwa_version=v7"
+            echo "shared_shell_cache_absent=true"
+          } | tee current-production-verification/summary.txt
 
-      - name: Upload production diagnostics
+      - name: Upload verification evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: record-recovery-production-final-diagnostics
-          path: record-recovery-production-final-diagnostics
+          name: current-production-verification
+          path: current-production-verification
           if-no-files-found: error
           retention-days: 14
