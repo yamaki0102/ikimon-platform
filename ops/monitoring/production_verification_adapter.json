@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "ikimon_production_verification_adapter/v1",
+  "updatedAt": "2026-07-12",
+  "commandId": "ikimon-production-verification-v1",
+  "entrypoint": "scripts/run_production_verification_watch.sh",
+  "entrypointSha256": "bbd5e6db634afa898988edbbdd9c20c823a9d254dfff1b4d7fbd38cff6aae018",
+  "dynamicArguments": [],
+  "resultSchema": "ikimon_production_verification/v1",
+  "defaultSmokeTier": "targeted",
+  "timeoutSeconds": 840,
+  "productionMutation": false,
+  "requiredEnvironment": [],
+  "optionalEnvironment": [
+    "IKIMON_VERIFICATION_REPORT_PATH",
+    "IKIMON_VERIFICATION_LOG_PATH",
+    "IKIMON_VERIFICATION_RUNTIME_PATH",
+    "IKIMON_VERIFICATION_ARCHIVE_DIR",
+    "IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS"
+  ],
+  "owner": {
+    "adapter": "yamaki0102/ikimon-platform",
+    "scheduler": "yamaki0102/all-projects-management",
+    "evidence": "yamaki0102/all-projects-management",
+    "alerting": "yamaki0102/all-projects-management"
+  },
+  "safety": {
+    "databaseWrites": false,
+    "r2Writes": false,
+    "secretMutation": false,
+    "dnsMutation": false,
+    "vpsSsh": false,
+    "personalDataInReport": false,
+    "personalDataInOutput": false,
+    "githubStatusPublishing": false
+  }
+}

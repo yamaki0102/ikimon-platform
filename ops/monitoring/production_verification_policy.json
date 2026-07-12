@@ -1,7 +1,22 @@
 {
-  "schemaVersion": "ikimon_production_verification_policy/v3",
+  "schemaVersion": "ikimon_production_verification_policy/v4",
   "selfPath": "ops/monitoring/production_verification_policy.json",
   "updatedAt": "2026-07-12",
+  "adapterContract": "ops/monitoring/production_verification_adapter.json",
+  "ownership": {
+    "productRepo": "verification-adapter",
+    "scheduler": "yamaki0102/all-projects-management",
+    "evidence": "yamaki0102/all-projects-management",
+    "alerting": "yamaki0102/all-projects-management",
+    "centralRegistry": "operations/service_observability/services.json"
+  },
+  "activation": {
+    "newHostInstallationsAllowed": false,
+    "legacyHostIntegration": "deprecated-shadow-migration",
+    "cleanupRequiresCentralShadowEvidence": true,
+    "automaticUninstallAllowed": false,
+    "shadowComparisonHours": 48
+  },
   "target": "https://ikimon.life",
   "defaultMode": "targeted",
   "recommendedCadenceMinutes": 15,
@@ -24,6 +39,7 @@
     "privateFileMode": "0600 or equivalent private Windows ACL"
   },
   "linuxSystemd": {
+    "status": "deprecated-for-new-installations",
     "installer": "scripts/install_production_verification_service.sh",
     "doctor": "scripts/doctor_production_verification_service.sh",
     "environmentExample": "ops/monitoring/systemd/production-verification.env.example",
@@ -38,6 +54,7 @@
     "initialVerificationRequired": true
   },
   "windowsScheduledTask": {
+    "status": "deprecated-for-new-installations",
     "runner": "scripts/Invoke-ProductionVerificationWatch.ps1",
     "installer": "scripts/Install-ProductionVerificationScheduledTask.ps1",
     "doctor": "scripts/Test-ProductionVerificationWindows.ps1",

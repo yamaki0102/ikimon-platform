@@ -47,7 +47,9 @@ test('verification evidence archive stores immutable SHA-bound copies and a late
   assert.ok(fs.existsSync(result.logPath));
   assert.ok(fs.existsSync(result.runtimePath));
   assert.match(path.basename(result.reportPath), /^20260712T010203Z-b{12}-targeted-success\.json$/);
-  assert.equal(fs.statSync(result.reportPath).mode & 0o777, 0o600);
+  if (process.platform !== 'win32') {
+    assert.equal(fs.statSync(result.reportPath).mode & 0o777, 0o600);
+  }
   const pointer = JSON.parse(fs.readFileSync(path.join(archiveDir, 'latest.json'), 'utf8'));
   assert.equal(pointer.expectedGitSha, sha);
   assert.equal(pointer.status, 'success');
