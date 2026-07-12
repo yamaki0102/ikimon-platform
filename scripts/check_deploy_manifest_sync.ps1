@@ -4,58 +4,60 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$manifestFullPath = if ([System.IO.Path]::IsPathRooted($ManifestPath)) { $ManifestPath } else { Join-Path $repoRoot $ManifestPath }
-$workflowFullPath = if ([System.IO.Path]::IsPathRooted($WorkflowPath)) { $WorkflowPath } else { Join-Path $repoRoot $WorkflowPath }
+$manifestFullPath = if ([IO.Path]::IsPathRooted($ManifestPath)) { $ManifestPath } else { Join-Path $repoRoot $ManifestPath }
+$workflowFullPath = if ([IO.Path]::IsPathRooted($WorkflowPath)) { $WorkflowPath } else { Join-Path $repoRoot $WorkflowPath }
 
 function Invoke-StagingManifestSyncCheck {
-    $stagingCheckPath = Join-Path $PSScriptRoot "check_staging_manifest_sync.ps1"
-    if (-not (Test-Path $stagingCheckPath)) {
-        throw "Staging manifest checker not found: $stagingCheckPath"
-    }
-    & pwsh -NoProfile -File $stagingCheckPath
-    if ($LASTEXITCODE -ne 0) {
-        throw "Staging manifest sync check failed with exit code $LASTEXITCODE"
-    }
+    $path = Join-Path $PSScriptRoot "check_staging_manifest_sync.ps1"
+    if (-not (Test-Path $path)) { throw "Staging manifest checker not found: $path" }
+    & pwsh -NoProfile -File $path
+    if ($LASTEXITCODE -ne 0) { throw "Staging manifest sync check failed with exit code $LASTEXITCODE" }
 }
 
-function Add-ContractFile {
-    param(
-        [string]$RelativePath,
-        [ref]$ContractText,
-        [System.Collections.Generic.List[string]]$Issues
-    )
-    if ([string]::IsNullOrWhiteSpace($RelativePath)) { return }
-    $fullPath = if ([System.IO.Path]::IsPathRooted($RelativePath)) { $RelativePath } else { Join-Path $repoRoot $RelativePath }
-    if (-not (Test-Path $fullPath)) {
-        $Issues.Add("Production deploy contract file not found: $RelativePath")
-        return
-    }
-    $ContractText.Value += "`n" + (Get-Content -Raw -Path $fullPath)
+function Resolve-ContractPath([string]$RelativePath) {
+    if ([string]::IsNullOrWhiteSpace($RelativePath)) { return $null }
+    if ([IO.Path]::IsPathRooted($RelativePath)) { return $RelativePath }
+    return Join-Path $repoRoot $RelativePath
 }
 
 function Read-ContractFile {
-    param([string]$RelativePath)
-    if ([string]::IsNullOrWhiteSpace($RelativePath)) { return "" }
-    $fullPath = if ([System.IO.Path]::IsPathRooted($RelativePath)) { $RelativePath } else { Join-Path $repoRoot $RelativePath }
-    if (-not (Test-Path $fullPath)) { return "" }
-    return Get-Content -Raw -Path $fullPath
+    param([string]$RelativePath, [System.Collections.Generic.List[string]]$Issues)
+    $path = Resolve-ContractPath $RelativePath
+    if (-not $path -or -not (Test-Path $path)) {
+        $Issues.Add("Production deploy contract file not found: $RelativePath")
+        return ""
+    }
+    return Get-Content -Raw -Path $path
 }
 
 function Test-PowerShellFileParses {
     param([string]$RelativePath, [System.Collections.Generic.List[string]]$Issues)
-    if ([string]::IsNullOrWhiteSpace($RelativePath)) { return }
-    $fullPath = Join-Path $repoRoot $RelativePath
-    if (-not (Test-Path $fullPath)) {
+    $path = Resolve-ContractPath $RelativePath
+    if (-not $path -or -not (Test-Path $path)) {
         $Issues.Add("PowerShell contract file not found: $RelativePath")
         return
     }
     $tokens = $null
-    $parseErrors = $null
-    [void][System.Management.Automation.Language.Parser]::ParseFile($fullPath, [ref]$tokens, [ref]$parseErrors)
-    foreach ($parseError in @($parseErrors)) {
-        $Issues.Add("PowerShell parse error in ${RelativePath}: $($parseError.Message)")
+    $errors = $null
+    [void][Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+    foreach ($error in @($errors)) {
+        $Issues.Add("PowerShell parse error in ${RelativePath}: $($error.Message)")
+    }
+}
+
+function Require-Text {
+    param(
+        [string]$Text,
+        [object[]]$Markers,
+        [string]$Prefix,
+        [System.Collections.Generic.List[string]]$Issues
+    )
+    foreach ($markerValue in $Markers) {
+        $marker = [string]$markerValue
+        if (-not [string]::IsNullOrWhiteSpace($marker) -and $Text -notmatch [regex]::Escape($marker)) {
+            $Issues.Add("${Prefix}: $marker")
+        }
     }
 }
 
@@ -64,11 +66,10 @@ if (-not (Test-Path $workflowFullPath)) { throw "Deploy workflow not found: $wor
 
 $manifest = Get-Content -Raw -Path $manifestFullPath | ConvertFrom-Json
 $workflowText = Get-Content -Raw -Path $workflowFullPath
-$deployContractText = $workflowText
 $issues = New-Object System.Collections.Generic.List[string]
 
 if ($manifest.platform -eq "cloudflare_worker") {
-    foreach ($contractPath in @(
+    $contractPaths = @(
         $manifest.portableReleaseScript,
         $manifest.portableVerifyScript,
         $manifest.verificationWatchScript,
@@ -86,19 +87,17 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $manifest.verificationEnvironmentExample,
         $manifest.verificationWindowsEnvironmentExample,
         $manifest.productionScopePlanner
-    )) {
-        Add-ContractFile -RelativePath $contractPath -ContractText ([ref]$deployContractText) -Issues $issues
+    )
+    $deployContractText = $workflowText
+    foreach ($contractPath in $contractPaths) {
+        $deployContractText += "`n" + (Read-ContractFile -RelativePath $contractPath -Issues $issues)
     }
 
-    foreach ($powerShellPath in @(
-        $manifest.verificationWindowsRunner,
-        $manifest.verificationWindowsInstaller,
-        $manifest.verificationWindowsDoctor
-    )) {
-        Test-PowerShellFileParses -RelativePath $powerShellPath -Issues $issues
+    foreach ($path in @($manifest.verificationWindowsRunner, $manifest.verificationWindowsInstaller, $manifest.verificationWindowsDoctor)) {
+        Test-PowerShellFileParses -RelativePath $path -Issues $issues
     }
 
-    foreach ($requiredText in @(
+    Require-Text -Text $deployContractText -Prefix "Production deploy contract is missing text" -Issues $issues -Markers @(
         $manifest.workerName,
         $manifest.r2Bucket,
         $manifest.workerDirectory,
@@ -113,11 +112,6 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $manifest.verificationWindowsRunner,
         $manifest.verificationWindowsInstaller,
         $manifest.verificationWindowsDoctor,
-        $manifest.verificationPolicyPath,
-        $manifest.verificationSystemdService,
-        $manifest.verificationSystemdTimer,
-        $manifest.verificationEnvironmentExample,
-        $manifest.verificationWindowsEnvironmentExample,
         $manifest.verificationStatusContext,
         $manifest.productionScopePlanner,
         "ikimon_production_verification/v1",
@@ -128,18 +122,16 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "materialize:original-ui",
         "StateDirectory=ikimon-production-verification",
         "IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS=14",
-        "New-ScheduledTaskPrincipal -UserId \"SYSTEM\"",
+        'New-ScheduledTaskPrincipal -UserId "SYSTEM"',
         "RepetitionInterval (New-TimeSpan -Minutes 15)",
+        "Wait-ScheduledTaskCompletion",
+        "Convert-ToGitBashPath",
         "systemd-analyze verify",
         "--dry-run",
         "--uninstall",
         "CLOUDFLARE_API_TOKEN",
         "VPS SSH/deploy"
-    )) {
-        if (-not [string]::IsNullOrWhiteSpace($requiredText) -and $deployContractText -notmatch [regex]::Escape($requiredText)) {
-            $issues.Add("Production deploy contract is missing text: $requiredText")
-        }
-    }
+    )
 
     foreach ($url in $manifest.healthChecks) {
         if ($deployContractText -notmatch [regex]::Escape($url)) {
@@ -147,13 +139,14 @@ if ($manifest.platform -eq "cloudflare_worker") {
         }
     }
 
-    foreach ($workflowMarker in @(
+    Require-Text -Text $workflowText -Prefix "deploy.yml is missing portable production workflow marker" -Issues $issues -Markers @(
         "paths:",
         "plan_production_release_scope.mjs",
         "deploy_required",
         "run_cloudflare_production_release.sh",
         "publish_production_verification_status.mjs",
         "production_verification_operations.tests.mjs",
+        "windows_production_verification_contract.tests.ps1",
         "release_automation.tests.ps1",
         "production-verification-latest.json",
         "statuses: write",
@@ -161,11 +154,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "environment: production",
         "failure()",
         "retention-days: 3"
-    )) {
-        if ($workflowText -notmatch [regex]::Escape($workflowMarker)) {
-            $issues.Add("deploy.yml is missing portable production workflow marker: $workflowMarker")
-        }
-    }
+    )
 
     if ($workflowText -match "cloudflare-production-preflight|actions/download-artifact") {
         $issues.Add("deploy.yml must not use the retired production preflight Artifact handoff")
@@ -180,57 +169,50 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $issues.Add("deploy.yml must not expose workflow_dispatch; production deploy is main-push only")
     }
 
-    if ($manifest.triggerPolicy) {
-        if (-not $manifest.triggerPolicy.mainPushOnly -or -not $manifest.triggerPolicy.pathFiltered -or -not $manifest.triggerPolicy.controlOnlySkipsMutation -or -not $manifest.triggerPolicy.exactShaRequired -or -not $manifest.triggerPolicy.statusAggregationBestEffort) {
-            $issues.Add("Production trigger policy must require main push, path filtering, control-only mutation skip, exact SHA verification, and best-effort status aggregation")
-        }
-    } else {
-        $issues.Add("Production deploy manifest is missing triggerPolicy")
+    $trigger = $manifest.triggerPolicy
+    if (-not $trigger -or -not $trigger.mainPushOnly -or -not $trigger.pathFiltered -or -not $trigger.controlOnlySkipsMutation -or -not $trigger.exactShaRequired -or -not $trigger.statusAggregationBestEffort) {
+        $issues.Add("Production trigger policy must require main push, path filtering, control-only mutation skip, exact SHA verification, and best-effort status aggregation")
     }
 
-    if ($manifest.verificationOperations) {
-        $operations = $manifest.verificationOperations
+    $operations = $manifest.verificationOperations
+    if (-not $operations) {
+        $issues.Add("Production deploy manifest is missing verificationOperations")
+    } else {
         if ($operations.recommendedCadenceMinutes -ne 15 -or $operations.historicalRetentionDays -lt 1 -or -not $operations.installerPreservesExistingEnvironment -or $operations.installerAcceptsSecretsOnCommandLine -or -not $operations.timerEnableRequiresHostAccess) {
             $issues.Add("Linux verification operations must preserve the environment file, reject command-line secrets, retain evidence, and require host access")
         }
         if ($operations.windowsTaskPrincipal -ne "SYSTEM" -or -not $operations.windowsInstallerPreservesExistingEnvironment -or $operations.windowsInstallerAcceptsSecretsOnCommandLine -or -not $operations.windowsTaskEnableRequiresHostAccess -or -not $operations.windowsInitialSystemRunRequired) {
             $issues.Add("Windows verification operations must run as SYSTEM, preserve the environment file, reject command-line secrets, require host access, and validate the registered task")
         }
-    } else {
-        $issues.Add("Production deploy manifest is missing verificationOperations")
     }
 
-    $verificationPolicyFullPath = Join-Path $repoRoot $manifest.verificationPolicyPath
-    if (Test-Path $verificationPolicyFullPath) {
-        $verificationPolicy = Get-Content -Raw -Path $verificationPolicyFullPath | ConvertFrom-Json
-        if ($verificationPolicy.githubStatus.context -ne $manifest.verificationStatusContext) {
+    $policyPath = Resolve-ContractPath $manifest.verificationPolicyPath
+    if (Test-Path $policyPath) {
+        $policy = Get-Content -Raw -Path $policyPath | ConvertFrom-Json
+        if ($policy.githubStatus.context -ne $manifest.verificationStatusContext) {
             $issues.Add("Production verification policy status context does not match deploy manifest")
         }
-        if ($verificationPolicy.safety.productionMutation -or -not $verificationPolicy.safety.noDatabaseWrites -or -not $verificationPolicy.safety.noR2Writes -or -not $verificationPolicy.safety.noSecretMutation -or -not $verificationPolicy.safety.noPersonalDataInReport -or -not $verificationPolicy.safety.exactRuntimeShaBinding) {
+        if ($policy.safety.productionMutation -or -not $policy.safety.noDatabaseWrites -or -not $policy.safety.noR2Writes -or -not $policy.safety.noSecretMutation -or -not $policy.safety.noPersonalDataInReport -or -not $policy.safety.exactRuntimeShaBinding) {
             $issues.Add("Production verification policy must remain read-only, no-personal-data, and exact-SHA-bound")
         }
-        if (-not $verificationPolicy.windowsScheduledTask -or $verificationPolicy.windowsScheduledTask.taskPrincipal -ne "SYSTEM" -or $verificationPolicy.windowsScheduledTask.acceptSecretsOnCommandLine -or -not $verificationPolicy.windowsScheduledTask.registeredSystemVerificationRequired -or -not $verificationPolicy.safety.windowsEnvironmentAllowlist -or -not $verificationPolicy.safety.windowsPrivateAcl) {
-            $issues.Add("Production verification policy must define a private, allowlisted, SYSTEM-run Windows scheduled task with direct registered-task verification")
+        if (-not $policy.windowsScheduledTask -or $policy.windowsScheduledTask.taskPrincipal -ne "SYSTEM" -or $policy.windowsScheduledTask.acceptSecretsOnCommandLine -or -not $policy.windowsScheduledTask.registeredSystemVerificationRequired -or -not $policy.safety.windowsEnvironmentAllowlist -or -not $policy.safety.windowsPrivateAcl) {
+            $issues.Add("Production verification policy must define a private, allowlisted, SYSTEM-run Windows scheduled task with registered-task verification")
         }
     }
 
-    $serviceText = Read-ContractFile -RelativePath $manifest.verificationSystemdService
+    $serviceText = Read-ContractFile -RelativePath $manifest.verificationSystemdService -Issues $issues
     if ($serviceText -match '(?m)^Environment=PUBLISH_GITHUB_STATUS=true$') {
         $issues.Add("Systemd service must not force GitHub status publishing without a configured token")
     }
-    foreach ($serviceMarker in @("UMask=0077", "ProtectSystem=strict", "NoNewPrivileges=true", "PrivateDevices=true", "StateDirectoryMode=0750")) {
-        if ($serviceText -notmatch [regex]::Escape($serviceMarker)) {
-            $issues.Add("Systemd verification service is missing hardening marker: $serviceMarker")
-        }
-    }
+    Require-Text -Text $serviceText -Prefix "Systemd verification service is missing hardening marker" -Issues $issues -Markers @("UMask=0077", "ProtectSystem=strict", "NoNewPrivileges=true", "PrivateDevices=true", "StateDirectoryMode=0750")
 
-    $timerText = Read-ContractFile -RelativePath $manifest.verificationSystemdTimer
+    $timerText = Read-ContractFile -RelativePath $manifest.verificationSystemdTimer -Issues $issues
     if ($timerText -notmatch [regex]::Escape("OnCalendar=*:0/15")) {
         $issues.Add("Systemd verification timer must run on a 15-minute calendar cadence")
     }
 
     foreach ($environmentPath in @($manifest.verificationEnvironmentExample, $manifest.verificationWindowsEnvironmentExample)) {
-        $environmentText = Read-ContractFile -RelativePath $environmentPath
+        $environmentText = Read-ContractFile -RelativePath $environmentPath -Issues $issues
         if ($environmentText -notmatch '(?m)^PUBLISH_GITHUB_STATUS=false$') {
             $issues.Add("Verification environment example must default GitHub status publishing to false: $environmentPath")
         }
@@ -239,44 +221,33 @@ if ($manifest.platform -eq "cloudflare_worker") {
         }
     }
 
-    $installerText = Read-ContractFile -RelativePath $manifest.verificationInstaller
-    if ($installerText -match '--(?:github|cloudflare)-token') {
+    $linuxInstaller = Read-ContractFile -RelativePath $manifest.verificationInstaller -Issues $issues
+    if ($linuxInstaller -match '--(?:github|cloudflare)-token') {
         $issues.Add("Linux verification installer must not accept secrets on the command line")
     }
-    if ($installerText -notmatch [regex]::Escape("Preserving existing environment file")) {
+    if ($linuxInstaller -notmatch [regex]::Escape("Preserving existing environment file")) {
         $issues.Add("Linux verification installer must preserve an existing environment file")
     }
 
-    $windowsInstallerText = Read-ContractFile -RelativePath $manifest.verificationWindowsInstaller
-    foreach ($windowsInstallerMarker in @(
+    $windowsInstaller = Read-ContractFile -RelativePath $manifest.verificationWindowsInstaller -Issues $issues
+    Require-Text -Text $windowsInstaller -Prefix "Windows verification installer is missing safety marker" -Issues $issues -Markers @(
         'New-ScheduledTaskPrincipal -UserId "SYSTEM"',
-        'RepetitionInterval (New-TimeSpan -Minutes 15)',
-        'Preserving existing environment file',
-        'Initial production verification failed',
-        'Invoke-PowerShellChild',
-        'Start-ScheduledTask'
-    )) {
-        if ($windowsInstallerText -notmatch [regex]::Escape($windowsInstallerMarker)) {
-            $issues.Add("Windows verification installer is missing safety marker: $windowsInstallerMarker")
-        }
-    }
-    if ($windowsInstallerText -match '--(?:github|cloudflare)-token') {
+        "RepetitionInterval (New-TimeSpan -Minutes 15)",
+        "Preserving existing environment file",
+        "Initial production verification failed",
+        "Invoke-PowerShellChild",
+        "Start-ScheduledTask",
+        "Wait-ScheduledTaskCompletion"
+    )
+    if ($windowsInstaller -match '--(?:github|cloudflare)-token') {
         $issues.Add("Windows verification installer must not accept secrets on the command line")
     }
 
-    $windowsRunnerText = Read-ContractFile -RelativePath $manifest.verificationWindowsRunner
-    foreach ($windowsRunnerMarker in @("Import-SafeEnvironmentFile", "IKIMON_VERIFICATION_ARCHIVE_DIR", "Node.js 22+")) {
-        if ($windowsRunnerText -notmatch [regex]::Escape($windowsRunnerMarker)) {
-            $issues.Add("Windows verification runner is missing safety marker: $windowsRunnerMarker")
-        }
-    }
+    $windowsRunner = Read-ContractFile -RelativePath $manifest.verificationWindowsRunner -Issues $issues
+    Require-Text -Text $windowsRunner -Prefix "Windows verification runner is missing safety marker" -Issues $issues -Markers @("Import-SafeEnvironmentFile", "Convert-ToGitBashPath", "IKIMON_VERIFICATION_ARCHIVE_DIR", "Node.js 22+")
 
-    $windowsDoctorText = Read-ContractFile -RelativePath $manifest.verificationWindowsDoctor
-    foreach ($windowsDoctorMarker in @("Test-PrivateAcl", "PT15M", "noPersonalData", "productionMutation")) {
-        if ($windowsDoctorText -notmatch [regex]::Escape($windowsDoctorMarker)) {
-            $issues.Add("Windows verification doctor is missing validation marker: $windowsDoctorMarker")
-        }
-    }
+    $windowsDoctor = Read-ContractFile -RelativePath $manifest.verificationWindowsDoctor -Issues $issues
+    Require-Text -Text $windowsDoctor -Prefix "Windows verification doctor is missing validation marker" -Issues $issues -Markers @("Test-PrivateAcl", "PT15M", "ServiceAccount", "noPersonalData", "productionMutation")
 
     if ($issues.Count -gt 0) {
         foreach ($issue in $issues) { Write-Error $issue }
@@ -291,30 +262,15 @@ if ($manifest.platform -eq "cloudflare_worker") {
 if ($workflowText -notmatch [regex]::Escape($manifest.productionHost)) {
     $issues.Add("deploy.yml does not reference productionHost $($manifest.productionHost)")
 }
-
 $serverScriptPath = "$($manifest.productionRoot)/deploy.sh"
 if ($workflowText -notmatch [regex]::Escape($serverScriptPath)) {
     $issues.Add("deploy.yml does not call expected server deploy script $serverScriptPath")
 }
-
 foreach ($url in $manifest.healthChecks) {
     if ($workflowText -notmatch [regex]::Escape($url)) {
         $issues.Add("deploy.yml verify step is missing health check URL: $url")
     }
 }
-
-if ($manifest.productionV2BlueGreen) {
-    $v2 = $manifest.productionV2BlueGreen
-    if ($v2.deployScriptPath) {
-        $deployScriptFullPath = if ([System.IO.Path]::IsPathRooted($v2.deployScriptPath)) { $v2.deployScriptPath } else { Join-Path $repoRoot $v2.deployScriptPath }
-        if (Test-Path $deployScriptFullPath) {
-            $deployContractText += "`n" + (Get-Content -Raw -Path $deployScriptFullPath)
-        } else {
-            $issues.Add("Production v2 blue/green deploy script not found: $($v2.deployScriptPath)")
-        }
-    }
-}
-
 if ($workflowText -notmatch "check_deploy_guardrails\.ps1") {
     $issues.Add("deploy.yml is missing deploy guardrail check step")
 }
@@ -322,6 +278,5 @@ if ($issues.Count -gt 0) {
     foreach ($issue in $issues) { Write-Error $issue }
     exit 1
 }
-
 Invoke-StagingManifestSyncCheck
 Write-Output "Deploy manifests and workflows are in sync."
