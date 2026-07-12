@@ -115,7 +115,7 @@ jobs:
             const consoleErrors = [];
             page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
             const response = await page.goto('http://127.0.0.1:3200/ja/record?draft=1&start=photo&source=login_required', { waitUntil: 'domcontentloaded' });
-            await page.locator('[data-record-recovery-panel], .record-recovery-login').first().waitFor({ state: 'visible', timeout: 20000 });
+            await page.locator('[data-record-recovery-start]').first().waitFor({ state: 'visible', timeout: 20000 });
             const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
             const launcherVisible = await isVisible(page.locator('.global-record-launcher').first());
             const loginVisible = await isVisible(page.locator('a[href*="/login"]').first());
