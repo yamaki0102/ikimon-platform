@@ -31,6 +31,8 @@ jobs:
             > /tmp/record-fallback-recovery.patch
           git apply --check --verbose /tmp/record-fallback-recovery.patch 2>&1 | tee record-fallback-apply.log
           git apply --verbose /tmp/record-fallback-recovery.patch 2>&1 | tee -a record-fallback-apply.log
+          git apply --check --verbose ops/patches/record-fallback-recovery-followup.patch 2>&1 | tee -a record-fallback-apply.log
+          git apply --verbose ops/patches/record-fallback-recovery-followup.patch 2>&1 | tee -a record-fallback-apply.log
           git diff --check
 
       - uses: actions/setup-node@v5
@@ -81,6 +83,7 @@ jobs:
           rm -f .github/workflows/diagnose-record-fallback-recovery.yml
           rm -f .github/workflows/apply-record-fallback-recovery.yml
           rm -f ops/patches/record-fallback-recovery.xz.b64.*
+          rm -f ops/patches/record-fallback-recovery-followup.patch
           rm -f record-fallback-*.log
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
