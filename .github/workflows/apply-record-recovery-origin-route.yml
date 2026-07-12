@@ -100,36 +100,21 @@ jobs:
             assert.match(source, /fetchOriginFallback[\s\S]{0,220}getSessionAwareRecordHtml/);
           });
           TEST
+          rm -f .github/workflows/apply-record-recovery-origin-route.yml
           git diff --check
 
       - name: Verify Cloudflare Worker
         shell: bash
         run: |
-          set +e
-          mkdir -p worker-verification-logs
-          npm --prefix platform_v2/cloudflare_shadow ci >worker-verification-logs/npm-ci.log 2>&1
-          ci_code=$?
-          npm --prefix platform_v2/cloudflare_shadow run check >worker-verification-logs/typecheck.log 2>&1
-          check_code=$?
-          npm --prefix platform_v2/cloudflare_shadow run test:quick >worker-verification-logs/test-quick.log 2>&1
-          test_code=$?
-          printf 'ci=%s\ncheck=%s\ntest=%s\n' "$ci_code" "$check_code" "$test_code" > worker-verification-logs/exit-codes.txt
-          if [ "$ci_code" -ne 0 ] || [ "$check_code" -ne 0 ] || [ "$test_code" -ne 0 ]; then exit 1; fi
+          set -euo pipefail
+          npm --prefix platform_v2/cloudflare_shadow ci
+          npm --prefix platform_v2/cloudflare_shadow run check
+          npm --prefix platform_v2/cloudflare_shadow run test:quick
 
-      - name: Upload Worker verification logs
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: record-recovery-worker-verification
-          path: worker-verification-logs
-          if-no-files-found: error
-          retention-days: 3
-
-      - name: Commit focused fix and remove temporary workflow
+      - name: Commit focused fix
         shell: bash
         run: |
           set -euo pipefail
-          rm -f .github/workflows/apply-record-recovery-origin-route.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
