@@ -58,6 +58,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ "${PURGE_STATE}" == "true" && "${UNINSTALL}" != "true" ]]; then
+  echo "--purge-state is only valid with --uninstall." >&2
+  exit 2
+fi
 if [[ "${EUID}" -ne 0 && "${DRY_RUN}" != "true" ]]; then
   echo "Run as root or use --dry-run." >&2
   exit 2
@@ -105,9 +109,11 @@ SERVICE_DESTINATION="${SYSTEMD_DIR}/${SERVICE_NAME}"
 TIMER_DESTINATION="${SYSTEMD_DIR}/${TIMER_NAME}"
 STATE_DIR="/var/lib/ikimon-production-verification"
 
-require_command install
-require_command node
-require_command systemctl
+for command in install node systemctl getent id; do require_command "${command}"; done
+if [[ "${CREATE_USER}" == "true" ]]; then
+  require_command groupadd
+  require_command useradd
+fi
 require_file "${SERVICE_TEMPLATE}"
 require_file "${TIMER_TEMPLATE}"
 require_file "${ENV_EXAMPLE}"
@@ -145,20 +151,33 @@ if ! id "${SERVICE_USER}" >/dev/null 2>&1; then
   fi
 fi
 
-if [[ "${DRY_RUN}" != "true" ]]; then
-  if [[ ! -r "${REPO_ROOT}/scripts/run_production_verification_watch.sh" ]]; then
-    echo "Service user cannot read the repository script: ${REPO_ROOT}" >&2
-    exit 2
+check_service_user_read_access() {
+  local target="$1"
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u "${SERVICE_USER}" -- test -r "${target}"
+    return
   fi
-  if ! sudo -u "${SERVICE_USER}" test -r "${REPO_ROOT}/scripts/run_production_verification_watch.sh"; then
+  if command -v su >/dev/null 2>&1; then
+    local quoted
+    printf -v quoted '%q' "${target}"
+    su -s /bin/sh -c "test -r ${quoted}" "${SERVICE_USER}"
+    return
+  fi
+  echo "runuser or su is required to validate service account access." >&2
+  return 1
+}
+
+if [[ "${DRY_RUN}" != "true" ]]; then
+  if ! check_service_user_read_access "${REPO_ROOT}/scripts/run_production_verification_watch.sh"; then
     echo "${SERVICE_USER} cannot read ${REPO_ROOT}. Fix repository directory permissions before installing." >&2
     exit 2
   fi
 fi
 
-rendered_service="$(mktemp)"
-rendered_timer="$(mktemp)"
-cleanup() { rm -f "${rendered_service}" "${rendered_timer}"; }
+render_dir="$(mktemp -d)"
+rendered_service="${render_dir}/${SERVICE_NAME}"
+rendered_timer="${render_dir}/${TIMER_NAME}"
+cleanup() { rm -rf "${render_dir}"; }
 trap cleanup EXIT
 
 node --input-type=module - "${SERVICE_TEMPLATE}" "${rendered_service}" "${SERVICE_USER}" "${SERVICE_GROUP}" "${REPO_ROOT}" "${ENV_FILE}" <<'NODE'
@@ -169,7 +188,8 @@ text = text
   .replace(/^User=.*$/m, `User=${user}`)
   .replace(/^Group=.*$/m, `Group=${group}`)
   .replace(/^WorkingDirectory=.*$/m, `WorkingDirectory=${repoRoot}`)
-  .replace(/^EnvironmentFile=.*$/m, `EnvironmentFile=${envFile}`);
+  .replace(/^EnvironmentFile=.*$/m, `EnvironmentFile=${envFile}`)
+  .replace(/^ConditionPathIsDirectory=.*$/m, `ConditionPathIsDirectory=${repoRoot}`);
 fs.writeFileSync(destination, text);
 NODE
 cp "${TIMER_TEMPLATE}" "${rendered_timer}"
@@ -185,27 +205,34 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   echo "Created ${ENV_FILE} with GitHub status publishing disabled. Add a status-only token, then set PUBLISH_GITHUB_STATUS=true."
 else
   echo "Preserving existing environment file: ${ENV_FILE}"
+  run chown root:"${SERVICE_GROUP}" "${ENV_FILE}"
+  run chmod 0640 "${ENV_FILE}"
 fi
 run install -m 0644 "${rendered_service}" "${SERVICE_DESTINATION}"
 run install -m 0644 "${rendered_timer}" "${TIMER_DESTINATION}"
 run systemctl daemon-reload
 
-if [[ "${ENABLE_TIMER}" == "true" ]]; then
-  run systemctl enable --now "${TIMER_NAME}"
-fi
 if [[ "${RUN_NOW}" == "true" ]]; then
   run systemctl start "${SERVICE_NAME}"
+fi
+if [[ "${ENABLE_TIMER}" == "true" ]]; then
+  run systemctl enable --now "${TIMER_NAME}"
 fi
 
 if [[ "${DRY_RUN}" == "true" ]]; then
   echo "Dry-run complete. No host changes were made."
 else
-  bash "${DOCTOR_SCRIPT}" \
-    --repo-root "${REPO_ROOT}" \
-    --env-file "${ENV_FILE}" \
-    --service-name "${SERVICE_NAME}" \
-    --timer-name "${TIMER_NAME}" \
+  doctor_args=(
+    --repo-root "${REPO_ROOT}"
+    --env-file "${ENV_FILE}"
+    --service-name "${SERVICE_NAME}"
+    --timer-name "${TIMER_NAME}"
     --max-age-minutes 30
+  )
+  if [[ "${RUN_NOW}" != "true" || "${ENABLE_TIMER}" != "true" ]]; then
+    doctor_args+=(--allow-inactive)
+  fi
+  bash "${DOCTOR_SCRIPT}" "${doctor_args[@]}"
 fi
 
 echo "Production verification service installation completed."
