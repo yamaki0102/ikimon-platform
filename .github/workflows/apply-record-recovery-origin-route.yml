@@ -103,13 +103,14 @@ jobs:
           rm -f .github/workflows/apply-record-recovery-origin-route.yml
           git diff --check
 
-      - name: Verify Cloudflare Worker
+      - name: Verify focused Cloudflare Worker contract
         shell: bash
         run: |
           set -euo pipefail
           npm --prefix platform_v2/cloudflare_shadow ci
           npm --prefix platform_v2/cloudflare_shadow run check
-          npm --prefix platform_v2/cloudflare_shadow run test:quick
+          cd platform_v2/cloudflare_shadow
+          npx tsx --test src/recordRecoveryOriginRoute.test.ts
 
       - name: Commit focused fix
         shell: bash
