@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "ikimon_production_verification_policy/v1",
+  "schemaVersion": "ikimon_production_verification_policy/v2",
   "selfPath": "ops/monitoring/production_verification_policy.json",
   "updatedAt": "2026-07-12",
   "target": "https://ikimon.life",
@@ -14,12 +14,34 @@
   "reportPath": "platform_v2/cloudflare_shadow/.deploy/production-verification-latest.json",
   "logPath": "platform_v2/cloudflare_shadow/.deploy/production-verification-latest.log",
   "runtimeSnapshotPath": "platform_v2/cloudflare_shadow/.deploy/production-runtime-version-latest.json",
+  "archive": {
+    "script": "scripts/archive_production_verification_evidence.mjs",
+    "managementServerPath": "/var/lib/ikimon-production-verification/history",
+    "retentionDays": 14,
+    "fileIdentity": "finished timestamp + exact production SHA prefix + smoke tier + outcome",
+    "atomicWrites": true,
+    "privateFileMode": "0600"
+  },
+  "installation": {
+    "installer": "scripts/install_production_verification_service.sh",
+    "doctor": "scripts/doctor_production_verification_service.sh",
+    "environmentExample": "ops/monitoring/systemd/production-verification.env.example",
+    "service": "ops/monitoring/systemd/ikimon-production-verification.service",
+    "timer": "ops/monitoring/systemd/ikimon-production-verification.timer",
+    "environmentFile": "/etc/ikimon/production-verification.env",
+    "stateDirectory": "/var/lib/ikimon-production-verification",
+    "oneCommand": "sudo bash scripts/install_production_verification_service.sh --create-user",
+    "preserveExistingEnvironmentFile": true,
+    "acceptSecretsOnCommandLine": false,
+    "enablementRequiresManagementServerAccess": true
+  },
   "githubStatus": {
     "context": "ikimon/production-verification",
     "publishOnExternalRunner": true,
     "deduplicateUnchangedStatus": true,
     "requiredTokenScope": "repository commit statuses write",
-    "doNotStoreTokenInRepository": true
+    "doNotStoreTokenInRepository": true,
+    "disabledWithoutTokenByDefault": true
   },
   "safety": {
     "productionMutation": false,
@@ -29,18 +51,22 @@
     "noDnsMutation": true,
     "noVpsSsh": true,
     "noPersonalDataInReport": true,
-    "exactRuntimeShaBinding": true
+    "exactRuntimeShaBinding": true,
+    "privateUmask": "0077",
+    "systemdNoNewPrivileges": true,
+    "systemdProtectSystem": "strict"
   },
   "runnerRequirements": [
     "bash",
     "curl",
     "Node.js 22 or compatible",
+    "systemd for timer installation",
     "network access to ikimon.life and api.github.com",
     "Playwright Chromium only when SMOKE_TIER=full"
   ],
   "localRetention": {
     "latestFilesOnlyByDefault": true,
     "recommendedHistoricalRetentionDays": 14,
-    "historicalStorage": "management server or R2 evidence bucket, not GitHub Actions artifacts"
+    "historicalStorage": "management server StateDirectory; optional future R2 evidence bucket, not GitHub Actions artifacts"
   }
 }
