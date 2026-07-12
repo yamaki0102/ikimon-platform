@@ -16,17 +16,19 @@ jobs:
         with:
           ref: agent/record-fallback-recovery-20260712
           fetch-depth: 1
-      - name: Collect site shell source
+      - name: Collect application and shell sources
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p record-recovery-source/platform_v2/src/ui
+          mkdir -p record-recovery-source/platform_v2/src/ui record-recovery-source/platform_v2/src
           cp platform_v2/src/ui/siteShell.ts record-recovery-source/platform_v2/src/ui/siteShell.ts
+          cp platform_v2/src/app.ts record-recovery-source/platform_v2/src/app.ts
           git rev-parse HEAD > record-recovery-source/head-sha.txt
           sha256sum record-recovery-source/platform_v2/src/ui/siteShell.ts > record-recovery-source/site-shell-sha256.txt
+          sha256sum record-recovery-source/platform_v2/src/app.ts > record-recovery-source/app-sha256.txt
       - uses: actions/upload-artifact@v6
         with:
-          name: record-recovery-site-shell-source
+          name: record-recovery-application-source
           path: record-recovery-source
           if-no-files-found: error
           retention-days: 2
