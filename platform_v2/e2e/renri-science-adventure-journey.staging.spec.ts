@@ -1,6 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
 import {
-  addSessionCookie,
   cleanupFixtures,
   createStagingApiContext,
   issueSessionCookie,
@@ -22,6 +21,14 @@ type RecapPayload = {
   myContribution?: {
     displayName?: string | null;
     observationsCount?: number;
+  } | null;
+};
+
+type SessionPayload = {
+  ok?: boolean;
+  session?: {
+    userId?: string;
+    displayName?: string;
   } | null;
 };
 
@@ -103,10 +110,8 @@ test.describe.serial("renri science adventure family journey on staging", () => 
   let fixturePrefix = "";
   let fixture: SeededRallyFixtureBundle;
   let api: APIRequestContext;
-  let parentUserId = "";
   let observerUserId = "";
   let noLocationUserId = "";
-  let parentCookie = "";
   let observerCookie = "";
   let noLocationCookie = "";
   let guestToken = "";
@@ -117,10 +122,8 @@ test.describe.serial("renri science adventure family journey on staging", () => 
     fixturePrefix = uniqueFixturePrefix("rally-smoke-renri");
     fixture = await seedRallyFixtures(api, writeKey, fixturePrefix);
 
-    parentUserId = `${fixturePrefix}-parent`;
     observerUserId = `${fixturePrefix}-observer`;
     noLocationUserId = `${fixturePrefix}-no-location`;
-    parentCookie = cookieHeader(await issueSessionCookie(api, writeKey, parentUserId));
     observerCookie = cookieHeader(await issueSessionCookie(api, writeKey, observerUserId));
     noLocationCookie = cookieHeader(await issueSessionCookie(api, writeKey, noLocationUserId));
   });
@@ -132,7 +135,9 @@ test.describe.serial("renri science adventure family journey on staging", () => 
     }
   });
 
-  test("guest family, registered participants, posts and recap complete as one journey", async ({ browser }) => {
+  test("guest family, real registration, posts and recap complete as one journey", async ({ browser }) => {
+    const joinPath = `/community/events/${encodeURIComponent(fixture.session.eventCode)}/join`;
+
     const guestContext = await newStagingContext(browser, {
       slug: "mobile-390",
       viewport: { width: 390, height: 844 },
@@ -150,8 +155,9 @@ test.describe.serial("renri science adventure family journey on staging", () => 
       await route.continue();
     });
 
-    await guestPage.goto(`/community/events/${encodeURIComponent(fixture.session.eventCode)}/join`, { waitUntil: "domcontentloaded" });
+    await guestPage.goto(joinPath, { waitUntil: "domcontentloaded" });
     await expect(guestPage.locator("body")).toContainText("家族・グループは、スマホ1台で参加できます");
+    await expect(guestPage.locator("[data-evt-register-link]")).toBeVisible();
     await guestPage.locator('input[name="display_name"]').fill("れんり家テスト");
     await guestPage.locator('input[name="is_minor"]').check();
     await expect(guestPage.locator("[data-guardian-consent-row]")).toBeVisible();
@@ -178,9 +184,35 @@ test.describe.serial("renri science adventure family journey on staging", () => 
       isMobile: true,
       hasTouch: true,
     });
-    await addSessionCookie(parentContext, parentCookie);
     const parentPage = await parentContext.newPage();
-    await parentPage.goto(`/community/events/${encodeURIComponent(fixture.session.eventCode)}/join`, { waitUntil: "domcontentloaded" });
+    await parentPage.goto(joinPath, { waitUntil: "domcontentloaded" });
+    const expectedRegisterRedirect = `/register?redirect=${encodeURIComponent(joinPath)}`;
+    await expect(parentPage.locator("[data-evt-register-link]")).toHaveAttribute("href", expectedRegisterRedirect);
+    await parentPage.locator("[data-evt-register-link]").click();
+    await expect(parentPage).toHaveURL(new RegExp(`/register\\?redirect=${encodeURIComponent(joinPath).replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}`));
+
+    const registrationEmail = `${fixturePrefix}@example.invalid`;
+    await parentPage.locator('input[name="displayName"]').fill("登録テスト保護者");
+    await parentPage.locator('input[name="email"]').fill(registrationEmail);
+    await parentPage.locator('input[name="password"]').fill("RenriTest-2026!");
+    await parentPage.locator("[data-auth-form] button[type='submit']").click();
+    await expect(parentPage).toHaveURL(new RegExp(`${joinPath}$`), { timeout: 30_000 });
+    await expect(parentPage.locator("body")).toContainText("ログイン済みアカウントで参加します");
+    await expect(parentPage.locator("[data-evt-register-link]")).toHaveCount(0);
+
+    const sessionResponse = await parentContext.request.get("/api/v1/auth/session", {
+      headers: { accept: "application/json" },
+    });
+    expect(sessionResponse.ok()).toBeTruthy();
+    const sessionPayload = (await sessionResponse.json()) as SessionPayload;
+    const parentUserId = sessionPayload.session?.userId ?? "";
+    expect(parentUserId).toMatch(/^user_/);
+    expect(sessionPayload.session?.displayName).toBe("登録テスト保護者");
+    const parentCookie = (await parentContext.cookies())
+      .map((cookie) => `${cookie.name}=${cookie.value}`)
+      .join("; ");
+    expect(parentCookie).toContain("=");
+
     await parentPage.locator('input[name="display_name"]').fill("登録済み保護者テスト");
     await parentPage.locator('input[name="share_location"]').uncheck();
     await parentPage.locator('input[name="is_minor"]').check();
@@ -188,7 +220,6 @@ test.describe.serial("renri science adventure family journey on staging", () => 
     await parentPage.locator("[data-evt-checkin-submit]").click();
     await expect(parentPage).toHaveURL(new RegExp(`/events/${fixture.session.sessionId}/rally$`));
     expect(new URL(parentPage.url()).searchParams.has("token")).toBe(false);
-    await parentContext.close();
 
     await checkInRegistered(api, fixture.session.sessionId, observerCookie, "観察担当テスト", true);
     await checkInRegistered(api, fixture.session.sessionId, noLocationCookie, "位置共有なしテスト", false);
@@ -212,13 +243,14 @@ test.describe.serial("renri science adventure family journey on staging", () => 
       intervals: [1_000, 2_000, 5_000],
     }).toEqual({ observations: 2, species: 2, participants: 4 });
 
-    const parentRecapResponse = await api.get(`/api/v1/observation-events/${fixture.session.sessionId}/recap`, {
-      headers: { cookie: parentCookie, accept: "application/json" },
+    const parentRecapResponse = await parentContext.request.get(`/api/v1/observation-events/${fixture.session.sessionId}/recap`, {
+      headers: { accept: "application/json" },
     });
     expect(parentRecapResponse.ok()).toBeTruthy();
     const parentRecap = (await parentRecapResponse.json()) as RecapPayload;
     expect(parentRecap.myContribution?.displayName).toBe("登録済み保護者テスト");
     expect(parentRecap.myContribution?.observationsCount).toBe(1);
+    await parentContext.close();
 
     const guestRecapResponse = await api.get(`/api/v1/observation-events/${fixture.session.sessionId}/recap?token=${encodeURIComponent(guestToken)}`, {
       headers: { accept: "application/json" },
