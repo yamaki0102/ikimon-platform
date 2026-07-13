@@ -85,7 +85,7 @@
     "process:place-memory-photos": "tsx src/scripts/processPlaceMemoryPhotos.ts",
     "process:audio-segments": "tsx src/scripts/processAudioSegments.ts",
     "repair:manual-occurrences": "tsx src/scripts/repairMissingManualOccurrences.ts",
-    "repair:location-labels": "tsx src/scripts/repairObservationLocationLabels.ts",
+    "repair:location-labels": "tsx src/scripts/repairObservationLocations.ts",
     "repair:hamamatsu-ward-labels": "tsx src/scripts/repairHamamatsuWardLabels.ts",
     "repair:observation-spatial-mesh-schema": "tsx src/scripts/repairObservationSpatialMeshSchema.ts",
     "backfill:admin-locality": "tsx src/scripts/backfillObservationLocalityFromAdminAreas.ts",
@@ -139,11 +139,12 @@
     "pg": "^8.16.3",
     "sharp": "^0.34.5",
     "stream-chain": "^3.6.1",
-    "stream-json": "^1.0.0"
+    "stream-json": "^2.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/node": "^24.6.1",
+    "@types/pg": "^8.15.5",
     "tsx": "^4.23.0",
     "typescript": "^5.9.3"
   }
