@@ -18713,6 +18713,22 @@ test("production original UI html serves materialized anonymous pages from R2 wi
   }
 });
 
+test("production original UI switches atomically to the current versioned prefix", async () => {
+  const { env } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const manifestHash = "a".repeat(64);
+  const versionPrefix = `original-ui/versions/${manifestHash}`;
+  await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><main>legacy-pointer</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put(`${versionPrefix}/html/root.html`, "<!doctype html><main>versioned-pointer</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put("original-ui/current/production.json", JSON.stringify({ manifest_hash: manifestHash, version_prefix: versionPrefix }), { httpMetadata: { contentType: "application/json" } });
+
+  const response = await worker.fetch(new Request("https://ikimon.life/"), productionEnv);
+  assert.equal(response.status, 200);
+  const body = await response.text();
+  assert.match(body, /versioned-pointer/);
+  assert.doesNotMatch(body, /legacy-pointer/);
+});
+
 test("production public www host redirects to the canonical apex host", async () => {
   const { env } = createEnv();
   const productionEnv = {
@@ -19060,10 +19076,14 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.match(materializerSource, /rest === "\/home"/);
   assert.match(materializerSource, /"--skip-if-unchanged"/);
   assert.match(materializerSource, /materializeManifestSchemaVersion = "original-ui-materialize\/v1"/);
-  assert.match(materializerSource, /previousManifest\?\.bundleHash === bundleHash/);
+  assert.match(materializerSource, /state\.same_manifest/);
   assert.match(materializerSource, /explicitPaths\.length > 0/);
-  assert.match(materializerSource, /explicit_paths_not_manifested/);
-  assert.match(materializerSource, /tryUploadMaterializeManifest/);
+  assert.match(materializerSource, /explicit_paths_not_finalized/);
+  assert.match(materializerSource, /op: "finalize"/);
+  assert.match(materializerSource, /op: "checkpoint"/);
+  assert.match(workerSource, /original-ui\/current\/\$\{targetEnv\}\.json/);
+  assert.match(workerSource, /getVersionedOriginalUiObject/);
+  assert.match(workerSource, /parsed\.version_prefix/);
   for (const slug of ["aikan-renri-guide-relay", "hamamatsu-heritage-guide-relay"]) {
     const path = `/guide-programs/${slug}`;
     assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);

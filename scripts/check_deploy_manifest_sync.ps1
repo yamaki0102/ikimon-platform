@@ -62,10 +62,8 @@ function Require-Text {
 }
 
 if (-not (Test-Path $manifestFullPath)) { throw "Deploy manifest not found: $manifestFullPath" }
-if (-not (Test-Path $workflowFullPath)) { throw "Deploy workflow not found: $workflowFullPath" }
-
 $manifest = Get-Content -Raw -Path $manifestFullPath | ConvertFrom-Json
-$workflowText = Get-Content -Raw -Path $workflowFullPath
+$workflowText = if (Test-Path $workflowFullPath) { Get-Content -Raw -Path $workflowFullPath } else { "" }
 $issues = New-Object System.Collections.Generic.List[string]
 
 if ($manifest.platform -eq "cloudflare_worker") {
@@ -89,7 +87,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $manifest.verificationWindowsEnvironmentExample,
         $manifest.productionScopePlanner
     )
-    $deployContractText = $workflowText
+    $deployContractText = Get-Content -Raw -Path $manifestFullPath
     foreach ($contractPath in $contractPaths) {
         $deployContractText += "`n" + (Read-ContractFile -RelativePath $contractPath -Issues $issues)
     }
@@ -130,8 +128,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "systemd-analyze verify",
         "--dry-run",
         "--uninstall",
-        "CLOUDFLARE_API_TOKEN",
-        "VPS SSH/deploy"
+        "CLOUDFLARE_API_TOKEN"
     )
 
     foreach ($url in $manifest.healthChecks) {
@@ -140,40 +137,15 @@ if ($manifest.platform -eq "cloudflare_worker") {
         }
     }
 
-    Require-Text -Text $workflowText -Prefix "deploy.yml is missing portable production workflow marker" -Issues $issues -Markers @(
-        "paths:",
-        "plan_production_release_scope.mjs",
-        "deploy_required",
-        "run_cloudflare_production_release.sh",
-        "publish_production_verification_status.mjs",
-        "production_verification_operations.tests.mjs",
-        "production_verification_centralization.tests.mjs",
-        "windows_production_verification_contract.tests.ps1",
-        "release_automation.tests.ps1",
-        "production-verification-latest.json",
-        "statuses: write",
-        "continue-on-error: true",
-        "environment: production",
-        "failure()",
-        "retention-days: 3"
-    )
-
-    if ($workflowText -match "cloudflare-production-preflight|actions/download-artifact") {
-        $issues.Add("deploy.yml must not use the retired production preflight Artifact handoff")
-    }
-    if ($workflowText -match "VPS_SSH_KEY|ssh -i|deploy_platform_v2_blue_green\.sh|162\.43\.44\.131") {
-        $issues.Add("deploy.yml still references the old VPS production lane")
-    }
-    if ($workflowText -notmatch "check_deploy_guardrails\.ps1") {
-        $issues.Add("deploy.yml is missing deploy guardrail check step")
-    }
-    if ($workflowText -match '(?m)^\s{2}workflow_dispatch:') {
-        $issues.Add("deploy.yml must not expose workflow_dispatch; production deploy is main-push only")
-    }
-
     $trigger = $manifest.triggerPolicy
-    if (-not $trigger -or -not $trigger.mainPushOnly -or -not $trigger.pathFiltered -or -not $trigger.controlOnlySkipsMutation -or -not $trigger.exactShaRequired -or -not $trigger.statusAggregationBestEffort) {
-        $issues.Add("Production trigger policy must require main push, path filtering, control-only mutation skip, exact SHA verification, and best-effort status aggregation")
+    if (-not $trigger -or -not $trigger.commandBusOnly -or -not $trigger.pathFiltered -or -not $trigger.controlOnlySkipsMutation -or -not $trigger.exactShaRequired -or -not $trigger.statusAggregationBestEffort) {
+        $issues.Add("Production trigger policy must require the Cloudflare command bus, path filtering, control-only mutation skip, exact SHA verification, and best-effort status aggregation")
+    }
+    if (-not $manifest.githubActionsDependency -or $manifest.githubActionsDependency.required -or $manifest.githubActionsDependency.executionBackend -or $manifest.githubActionsDependency.classification -ne "reference_only") {
+        $issues.Add("GitHub Actions must be reference-only and must not be a required execution backend")
+    }
+    if (@($manifest.executionLanes.PSObject.Properties.Value | Where-Object { $_.id -eq "github_actions" }).Count -gt 0) {
+        $issues.Add("GitHub Actions must not appear in executionLanes")
     }
 
     $operations = $manifest.verificationOperations

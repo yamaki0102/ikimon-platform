@@ -1,5 +1,4 @@
-import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -60,6 +59,10 @@ const bucket = args.get("--bucket") ?? (targetEnv === "staging" ? stagingBucket 
 const outputPath = args.get("--output") ?? "";
 const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 8);
 const skipIfUnchanged = args.get("--skip-if-unchanged") === "true";
+const checkpointInterval = 25;
+const materializationJobId = String(process.env.IKIMON_OPS_JOB_ID || "");
+const materializationSecret = String(process.env.IKIMON_AUTOMATION_PUSH_SECRET || "");
+const materializationGatewayUrl = resolveMaterializationGatewayUrl();
 
 if (!["production", "staging"].includes(targetEnv)) {
   throw new Error("--target-env must be one of: production, staging.");
@@ -89,7 +92,7 @@ const scriptDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const workerSourcePath = join(scriptDir, "..", "src", "index.ts");
 const events = [];
-const r2PutMaxAttempts = 4;
+const gatewayMaxAttempts = 5;
 
 process.env.LEGACY_PUBLIC_ROOT ||= join(repoRoot, "upload_package", "public_html");
 
@@ -333,53 +336,6 @@ async function resolveTargetPaths() {
   throw new Error(`Unsupported materialize scope: ${scope}`);
 }
 
-function run(command, commandArgs, options = {}) {
-  return new Promise((resolve, reject) => {
-    const startedAt = Date.now();
-    const commandLine = [command, ...commandArgs].join(" ");
-    const executable = process.platform === "win32" ? "cmd.exe" : command;
-    const args = process.platform === "win32"
-      ? ["/d", "/s", "/c", [command, ...commandArgs].map(quoteCmdArg).join(" ")]
-      : commandArgs;
-    const child = spawn(executable, args, {
-      cwd: process.cwd(),
-      stdio: ["ignore", "pipe", "pipe"],
-      ...options
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
-      process.stdout.write(chunk);
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-      process.stderr.write(chunk);
-    });
-    child.on("close", (code) => {
-      const event = {
-        command: commandLine,
-        exitCode: code,
-        durationMs: Date.now() - startedAt
-      };
-      events.push(event);
-      if (code === 0) {
-        resolve({ stdout, stderr, event });
-      } else {
-        reject(new Error(`${event.command} failed with exit code ${code}`));
-      }
-    });
-    child.on("error", (error) => {
-      reject(error);
-    });
-  });
-}
-
-function quoteCmdArg(value) {
-  if (/^[A-Za-z0-9_/:.=+\\-]+$/.test(value)) return value;
-  return `"${value.replaceAll('"', '""')}"`;
-}
-
 function clampInteger(value, min, max) {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(max, Math.trunc(value)));
@@ -393,6 +349,54 @@ function sleep(ms) {
 
 function sha256(payload) {
   return createHash("sha256").update(payload).digest("hex");
+}
+
+function resolveMaterializationGatewayUrl() {
+  const explicit = String(process.env.IKIMON_R2_MATERIALIZATION_API_URL || "").trim();
+  if (explicit) return explicit;
+  const callback = String(process.env.IKIMON_AUTOMATION_CALLBACK_URL || "").trim();
+  if (!callback) return "";
+  const url = new URL(callback);
+  url.pathname = "/ops-materialization";
+  url.search = "";
+  return url.toString();
+}
+
+async function gatewayRequest(payload) {
+  if (!/^ops-[a-f0-9-]{16,80}$/u.test(materializationJobId)) throw new Error("IKIMON_OPS_JOB_ID is required for materialization.");
+  if (!materializationSecret || !materializationGatewayUrl) throw new Error("Signed R2 materialization gateway is required.");
+  const body = JSON.stringify({
+    schema: "ikimon.r2-materialization/v1",
+    job_id: materializationJobId,
+    target_env: targetEnv,
+    manifest_hash: bundleHash,
+    ...payload
+  });
+  const signature = createHmac("sha256", materializationSecret).update(body).digest("hex");
+  let lastError;
+  for (let attempt = 1; attempt <= gatewayMaxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(materializationGatewayUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-ikimon-signature": signature },
+        body
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok) return result;
+      if (response.status !== 429 && response.status < 500) {
+        const error = new Error(`materialization_gateway_${response.status}_${result.error || "rejected"}`);
+        error.retryable = false;
+        throw error;
+      }
+      lastError = new Error(`materialization_gateway_${response.status}_${result.error || "retryable"}`);
+    } catch (error) {
+      lastError = error;
+      if (error?.retryable === false) throw error;
+      if (attempt >= gatewayMaxAttempts) break;
+    }
+    await sleep(Math.min(8_000, 500 * (2 ** (attempt - 1))));
+  }
+  throw lastError;
 }
 
 function buildBundleEntry(item) {
@@ -416,55 +420,6 @@ function computeBundleHash(entries) {
   return sha256(JSON.stringify(canonical));
 }
 
-async function readPreviousMaterializeManifest(tempDir, key) {
-  const filePath = join(tempDir, "__previous_materialize_manifest.json");
-  try {
-    await run("npx", [
-      "wrangler",
-      "r2",
-      "object",
-      "get",
-      `${bucket}/${key}`,
-      "--remote",
-      "--file",
-      filePath
-    ]);
-    const manifestBody = await readFile(filePath, "utf8");
-    return { ...JSON.parse(manifestBody), __manifestSha256: sha256(manifestBody) };
-  } catch (error) {
-    console.warn(`Previous materialize manifest unavailable at ${key}; full R2 materialization will run.`);
-    return null;
-  }
-}
-
-async function tryUploadMaterializeManifest(tempDir, key, manifest) {
-  const filePath = join(tempDir, "__materialize_manifest.json");
-  const manifestBody = `${JSON.stringify(manifest, null, 2)}\n`;
-  const manifestHash = sha256(manifestBody);
-  await writeFile(filePath, manifestBody, "utf8");
-  try {
-    await runR2PutWithRetry([
-      "wrangler",
-      "r2",
-      "object",
-      "put",
-      `${bucket}/${key}`,
-      "--remote",
-      "--file",
-      filePath,
-      "--content-type",
-      "application/json",
-      "--cache-control",
-      uploadCacheControl,
-      "--force"
-    ], key);
-    return { ok: true, key, sha256: manifestHash };
-  } catch (error) {
-    console.warn(`Materialize manifest upload failed at ${key}; deploy output is kept, future skips are disabled until the next successful manifest write.`);
-    return { ok: false, key, error: error.message };
-  }
-}
-
 function auditAnonymousHtmlShell(pathname, body) {
   if (!/^(?:\/(?:ja|en|es|pt-br))?\/community\/events\/new$/.test(pathname)) return;
   const lowerBody = body.toLowerCase();
@@ -480,22 +435,6 @@ function auditAnonymousHtmlShell(pathname, body) {
   if (matched) {
     throw new Error(`Refusing to materialize ${pathname}: anonymous event shell contains ${matched}.`);
   }
-}
-
-async function runR2PutWithRetry(commandArgs, label) {
-  let lastError;
-  for (let attempt = 1; attempt <= r2PutMaxAttempts; attempt += 1) {
-    try {
-      return await run("npx", commandArgs);
-    } catch (error) {
-      lastError = error;
-      if (attempt >= r2PutMaxAttempts) break;
-      const delayMs = attempt * 1500;
-      console.warn(`R2 put failed for ${label}; retrying ${attempt + 1}/${r2PutMaxAttempts} in ${delayMs}ms.`);
-      await sleep(delayMs);
-    }
-  }
-  throw lastError;
 }
 
 async function runPool(items, limit, worker) {
@@ -526,6 +465,7 @@ let materializeSkipped = false;
 let skipReason = execute ? "not_requested" : "dry_run";
 let previousManifestSummary = null;
 let manifestUpload = { ok: false, key: manifestKey, skipped: true, reason: "not_executed" };
+const uploadSummary = { updated: 0, skipped: 0, failed: 0, resumed: 0, checkpoints: 0, durationMs: 0 };
 
 try {
   for (const pathname of targets) {
@@ -600,109 +540,83 @@ try {
   ];
   bundleHash = computeBundleHash(bundleEntries);
 
-  if (execute && skipIfUnchanged) {
-    if (explicitPaths.length > 0) {
-      skipReason = "explicit_paths_not_skippable";
+  if (execute) {
+    const uploadStartedAt = Date.now();
+    const state = await gatewayRequest({ op: "state" });
+    previousManifestSummary = {
+      bundleHash: state.current_manifest_hash || null,
+      checkpointCount: Array.isArray(state.completed) ? state.completed.length : 0
+    };
+    if (state.same_manifest) {
+      materializeSkipped = true;
+      skipReason = "bundle_hash_match";
+      uploadSummary.skipped = bundleEntries.length;
+      manifestUpload = { ok: true, skipped: true, reason: "unchanged_bundle", versionPrefix: `original-ui/versions/${bundleHash}` };
     } else {
-      const previousManifest = await readPreviousMaterializeManifest(tempDir, manifestKey);
-      previousManifestSummary = previousManifest
-        ? {
-            schemaVersion: previousManifest.schemaVersion ?? null,
-            bundleHash: previousManifest.bundleHash ?? null,
-            generatedAt: previousManifest.generatedAt ?? null,
-            itemCount: previousManifest.itemCount ?? null,
-            manifestSha256: previousManifest.__manifestSha256 ?? null
-          }
-        : null;
-      if (
-        previousManifest?.schemaVersion === materializeManifestSchemaVersion &&
-        previousManifest?.bundleHash === bundleHash
-      ) {
-        materializeSkipped = true;
-        skipReason = "bundle_hash_match";
-        events.push({
-          command: `skip r2 put ${bundleEntries.length} objects manifest=${manifestKey}`,
-          exitCode: 0,
-          durationMs: 0,
-          bundleHash
+      const allItems = [...rendered, ...renderedStatic];
+      const completed = new Map((Array.isArray(state.completed) ? state.completed : []).map((item) => [item.key, item.sha256]));
+      const pending = allItems.filter((item) => {
+        const key = item.key.replace(/^original-ui\//, "");
+        if (completed.get(key) === item.sha256) { uploadSummary.skipped += 1; uploadSummary.resumed += 1; return false; }
+        return true;
+      });
+      let checkpointSerial = Promise.resolve();
+      const persistCheckpoint = () => {
+        const snapshot = [...completed.entries()].map(([key, sha256]) => ({ key, sha256 }));
+        checkpointSerial = checkpointSerial.then(async () => {
+          await gatewayRequest({ op: "checkpoint", completed: snapshot });
+          uploadSummary.checkpoints += 1;
         });
-      } else {
-        skipReason = previousManifest ? "bundle_hash_changed" : "previous_manifest_unavailable";
+        return checkpointSerial;
+      };
+      try {
+        await runPool(pending, concurrency, async (item) => {
+          const key = item.key.replace(/^original-ui\//, "");
+          const payload = await readFile(item.filePath);
+          const result = await gatewayRequest({
+            op: "put",
+            key,
+            sha256: item.sha256,
+            content_type: item.contentType,
+            body_base64: payload.toString("base64")
+          });
+          completed.set(key, item.sha256);
+          if (result.status === "skipped") uploadSummary.skipped += 1;
+          else uploadSummary.updated += 1;
+          if (completed.size % checkpointInterval === 0) await persistCheckpoint();
+        });
+        await persistCheckpoint();
+        if (explicitPaths.length === 0) {
+          uploadSummary.durationMs = Date.now() - uploadStartedAt;
+          manifestUpload = await gatewayRequest({
+            op: "finalize",
+            items: allItems.map((item) => ({ key: item.key.replace(/^original-ui\//, ""), sha256: item.sha256 })),
+            summary: {
+              updated: uploadSummary.updated,
+              skipped: uploadSummary.skipped,
+              failed: uploadSummary.failed,
+              resumed: uploadSummary.resumed,
+              checkpoints: uploadSummary.checkpoints,
+              duration_ms: uploadSummary.durationMs
+            }
+          });
+        } else {
+          manifestUpload = { ok: true, skipped: true, reason: "explicit_paths_not_finalized" };
+        }
+        skipReason = state.current_manifest_hash ? "bundle_hash_changed" : "no_current_pointer";
+      } catch (error) {
+        uploadSummary.failed += 1;
+        await persistCheckpoint().catch(() => {});
+        throw error;
       }
     }
-  }
-
-  if (execute && !materializeSkipped) {
-    const uploadStartedAt = Date.now();
-    await runPool(rendered, concurrency, async (item) => {
-      await runR2PutWithRetry([
-        "wrangler",
-        "r2",
-        "object",
-        "put",
-        `${bucket}/${item.key}`,
-        "--remote",
-        "--file",
-        item.filePath,
-        "--content-type",
-        "text/html",
-        "--cache-control",
-        uploadCacheControl,
-        "--force"
-      ], item.key);
-    });
+    uploadSummary.durationMs = Date.now() - uploadStartedAt;
     events.push({
-      command: `parallel r2 put ${rendered.length} objects concurrency=${concurrency}`,
+      command: `signed r2 gateway sync objects=${bundleEntries.length} concurrency=${concurrency}`,
       exitCode: 0,
-      durationMs: Date.now() - uploadStartedAt
+      durationMs: uploadSummary.durationMs,
+      ...uploadSummary
     });
-    for (const item of renderedStatic) {
-      await runR2PutWithRetry([
-        "wrangler",
-        "r2",
-        "object",
-        "put",
-        `${bucket}/${item.key}`,
-        "--remote",
-        "--file",
-        item.filePath,
-        "--content-type",
-        item.contentType,
-        "--cache-control",
-        uploadCacheControl,
-        "--force"
-      ], item.key);
-    }
-
-    if (explicitPaths.length === 0) {
-      manifestUpload = await tryUploadMaterializeManifest(tempDir, manifestKey, {
-        schemaVersion: materializeManifestSchemaVersion,
-        generatedAt: new Date().toISOString(),
-        targetEnv,
-        scope,
-        bucket,
-        bundleHash,
-        itemCount: bundleEntries.length,
-        renderedCount: rendered.length,
-        renderedStaticCount: renderedStatic.length,
-        items: bundleEntries
-      });
-    } else {
-      manifestUpload = {
-        ok: true,
-        key: manifestKey,
-        skipped: true,
-        reason: "explicit_paths_not_manifested"
-      };
-    }
-  } else if (materializeSkipped) {
-    manifestUpload = {
-      ok: true,
-      key: manifestKey,
-      skipped: true,
-      reason: "unchanged_bundle",
-      sha256: previousManifestSummary?.manifestSha256 ?? null
-    };
   }
 } finally {
   await app.close();
@@ -725,6 +639,7 @@ const result = {
   skipReason,
   previousManifest: previousManifestSummary,
   manifestUpload,
+  uploadSummary,
   rendered: rendered.map(({ pathname, key, bytes, sha256 }) => ({ pathname, key, bytes, sha256 })),
   renderedStatic: renderedStatic.map(({ pathname, key, bytes, sha256 }) => ({ pathname, key, bytes, sha256 })),
   events

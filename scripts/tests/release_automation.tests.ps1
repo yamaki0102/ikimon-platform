@@ -91,33 +91,15 @@ Assert-Equal @($leakedScan).Count 1 "A GitHub token literal must be detected"
 Assert-Equal $leakedScan[0].kind "github-token" "Secret scan should classify the token without echoing it"
 
 $repoRoot = (Resolve-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))).Path
-$stagingWorkflow = Get-Content -Raw (Join-Path $repoRoot ".github/workflows/deploy-cloudflare-staging.yml")
-Assert-Equal ([bool]($stagingWorkflow -match "group: cloudflare-staging")) $true "Cloudflare staging deploys must share one concurrency group"
-Assert-Equal ([bool]($stagingWorkflow -match "cancel-in-progress: false")) $true "Cloudflare staging deploys must not be cancelled during mutation"
-Assert-Equal ([bool]($stagingWorkflow -match "commit_sha:")) $true "Cloudflare staging must accept a pinned commit SHA"
-Assert-Equal ([bool]($stagingWorkflow -match "\.release-control/scripts/check_release_candidate.ps1")) $true "Cloudflare staging must recheck its release candidate with trusted controls"
-Assert-Equal ([bool]($stagingWorkflow -match '(?m)^\s{2}push:')) $false "Cloudflare staging must not expose its environment from a feature-branch push workflow"
-Assert-Equal ([bool]($stagingWorkflow -match 'refs/heads/main')) $true "Cloudflare staging mutations must use the workflow definition from main"
-Assert-Equal ([bool]($stagingWorkflow -match 'target=\$\{\{ inputs\.commit_sha \}\}')) $true "Cloudflare staging run titles must retain the candidate SHA for resumable lookup"
-
-$productionWorkflow = Get-Content -Raw (Join-Path $repoRoot ".github/workflows/deploy.yml")
-Assert-Equal ([bool]($productionWorkflow -match '(?m)^\s{2}workflow_dispatch:')) $false "Production deploy must only start from a main push"
-
-$autopilot = Get-Content -Raw (Join-Path $repoRoot "scripts/release_autopilot.ps1")
-Assert-Equal ([bool]($autopilot -match '\$nativeExitCode = \$LASTEXITCODE')) $true "Autopilot native commands must decide from exit codes instead of stderr records"
-Assert-Equal ([bool]($autopilot -match 'Write-Host "\$Workflow pending:')) $true "Workflow progress must not pollute the run object returned to final JSON"
-Assert-Equal ([bool]($autopilot -match 'headRefOid,statusCheckRollup,url')) $true "Required-check polling must observe the current PR head SHA"
-Assert-Equal ([bool]($autopilot -match 'PR head changed while waiting for checks')) $true "Required-check polling must fail when the PR head changes"
-Assert-Equal ([bool]($autopilot -match '"--match-head-commit", \$headSha')) $true "Auto-merge must be conditional on the staged head SHA"
-Assert-Equal ([bool]($autopilot -match '"--ref", "main"')) $true "Staging dispatch must load its workflow from main"
-Assert-Equal ([bool]($autopilot -match 'Get-StagingRunDecision')) $true "Staging resume must decide from the globally latest staging run"
-Assert-Equal ([bool]($autopilot -match 'Wait-WorkflowRun -Workflow "deploy\.yml".+-BranchFilter "main"')) $true "Production monitoring must query main rather than the deleted feature branch"
-$preCommitGuardIndex = $autopilot.IndexOf('Pre-commit deploy guardrails failed')
-$commitIndex = $autopilot.IndexOf('Invoke-Git -Arguments @("commit",')
-$prePushGuardIndex = $autopilot.IndexOf('Pre-push local deploy preflight failed')
-$pushIndex = $autopilot.IndexOf('Invoke-Git -Arguments @("push",')
-Assert-Equal ([bool]($preCommitGuardIndex -ge 0 -and $commitIndex -gt $preCommitGuardIndex)) $true "Deploy path guardrails must run before commit"
-Assert-Equal ([bool]($prePushGuardIndex -ge 0 -and $pushIndex -gt $prePushGuardIndex)) $true "Local deploy preflight must run before push"
+$removedDeployWorkflows = @("deploy.yml", "deploy-staging.yml", "deploy-cloudflare-staging.yml", "cloudflare-quick-preflight.yml", "cloudflare-shadow-release.yml")
+foreach ($workflow in $removedDeployWorkflows) {
+    Assert-Equal (Test-Path (Join-Path $repoRoot ".github/workflows/$workflow")) $false "Deploy workflow must be removed: $workflow"
+}
+$deployManifest = Get-Content -Raw (Join-Path $repoRoot "ops/deploy/deploy_manifest.json") | ConvertFrom-Json
+Assert-Equal $deployManifest.triggerPolicy.commandBusOnly $true "Cloudflare command bus must be the only normal deploy trigger"
+Assert-Equal $deployManifest.githubActionsDependency.required $false "GitHub Actions must not be required"
+Assert-Equal $deployManifest.githubActionsDependency.executionBackend $false "GitHub Actions must not be an execution backend"
+Assert-Equal $deployManifest.executionLanes.primary.id "cloudflare_executor" "Cloudflare Executor must own normal execution"
 
 $worktreeScript = Get-Content -Raw (Join-Path $repoRoot "scripts/new_release_worktree.ps1")
 $candidateScript = Get-Content -Raw (Join-Path $repoRoot "scripts/check_release_candidate.ps1")

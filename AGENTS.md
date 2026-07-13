@@ -101,9 +101,17 @@ php tools/lint.php
 
 ## Deployment
 
+### Cloudflare command bus（通常経路）
+
+- 通常の `status / dry_run / setup / migrate / deploy / verify / visual_qa / rollback` は、`yamaki0102/all-projects-management` の `ops:command` Issueから既存Cloudflare Queue / Sandbox Executorを使う。
+- Issueは `ikimon.ops-command/v1` の厳格JSONと40文字commit SHAを使い、任意shell、URL、args、SSH host、secret、pathを渡さない。
+- productionのmigrate/deploy/rollback/setup-writeは、同一Issue・同一job・同一SHAの30分nonce承認とgreen stagingを必須にする。
+- GitHub Actionsはbuild、test、deploy、verify、Visual QA、rollbackの実行backendに使わない。GitHubはsource、PR、immutable SHA、Issue command、監査証跡に限定する。
+- manual emergencyも同じportable release/verification scriptを再利用するが、通常のCloudflare command busを管理PCやActionsへ迂回させない。
+
 ### Codex のデプロイフロー（必読）
 
-**Codex は main に直接 push できない（Protected Branch）。**
+**Codex は main に直接 pushできない（Protected Branch）。**
 以下のフローに従うこと：
 
 通常の入口は、最新 `origin/main` から専用レーンを作る
@@ -117,7 +125,7 @@ php tools/lint.php
 2. git push origin codex/<task-name>
 3. PR を作成（タイトル例: [Phase6] feat: xxx の実装）
 4. オーナーが main にマージ
-5. GitHub Actions が自動的に VPS へデプロイ
+5. Cloudflare command busへ対象SHAを渡す。GitHub Actions fallbackは存在しない
 ```
 
 ### GitHub 管理者権限の扱い

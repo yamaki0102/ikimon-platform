@@ -1,15 +1,18 @@
 # Deployment
 
-ikimon.life の本番 deploy は `main` マージ起点の GitHub Actions に一本化する。  
-ローカル端末から `git add -A`、`main` への自動 merge、直接 SSH deploy は正規ルートにしない。
+ikimon.life の通常deployは、`all-projects-management` の構造化Issueから Cloudflare Queue / Sandbox Executor がportable release scriptを実行する。GitHub Actionsはbuild、test、deploy、verify、Visual QA、rollbackの実行backendに使用しない。
+ローカル端末から `git add -A`、`main` への直接push、直接SSH deployは正規ルートにしない。
 
 ## 正規ルート
 
 1. 作業ブランチで変更する
 2. lint / test / deploy guardrail を通す
-3. PR を作る
-4. `main` にマージする
-5. GitHub Actions が Cloudflare Worker / D1 / R2 を deploy する
+3. PRを作成し、対象の40文字commit SHAを固定する
+4. `yamaki0102/all-projects-management` に `ops:command` Issueを作る
+5. Cloudflare Executorで `dry_run` → staging `deploy` → `verify` → `visual_qa` を実行する
+6. productionは同じIssueの30分nonce承認後、同じSHAをportable scriptでdeployする
+
+`manual_emergency` は明示承認済み非常時だけに使い、全経路で同じportable script、migration guard、runtime SHA verificationを再利用する。GitHub Actions fallbackは存在しない。
 
 現行本番は `ikimon-life-cloudflare-prod` を正本とし、VPS SSH や blue/green runtime は
 通常の release 経路で使わない。旧VPS deploy 資産は互換調査・退役作業の参照実装として

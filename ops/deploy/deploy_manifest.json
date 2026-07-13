@@ -1,9 +1,28 @@
 {
-  "version": 6,
-  "strategy": "github_actions_cloudflare_worker",
+  "version": 8,
+  "strategy": "cloudflare_executor_primary",
   "platform": "cloudflare_worker",
+  "githubActionsDependency": {
+    "required": false,
+    "classification": "reference_only",
+    "executionBackend": false
+  },
   "workerName": "ikimon-life-cloudflare-prod",
   "workerDirectory": "platform_v2/cloudflare_shadow",
+  "executionLanes": {
+    "primary": {
+      "id": "cloudflare_executor",
+      "commandBus": "yamaki0102/all-projects-management issues labeled ops:command",
+      "executor": "ikimon-intake-cloud-executor",
+      "actions": ["status", "dry_run", "setup", "migrate", "deploy", "verify", "visual_qa", "rollback"],
+      "immutableShaRequired": true
+    },
+    "emergency": {
+      "id": "manual_emergency",
+      "entrypoint": "scripts/run_cloudflare_production_release.sh",
+      "explicitApprovalRequired": true
+    }
+  },
   "r2Bucket": "ikimon-prod-media",
   "materializedOriginalUiScope": "core",
   "portableReleaseScript": "scripts/run_cloudflare_production_release.sh",
@@ -26,7 +45,7 @@
   "verificationStatusContext": "ikimon/production-verification",
   "productionScopePlanner": "scripts/plan_production_release_scope.mjs",
   "triggerPolicy": {
-    "mainPushOnly": true,
+    "commandBusOnly": true,
     "pathFiltered": true,
     "controlOnlySkipsMutation": true,
     "exactShaRequired": true,
@@ -88,13 +107,13 @@
   "notes": [
     "Production mutation is triggered only by an eligible main push whose changed files affect the current app, Worker runtime, bindings, migrations, dependencies, or materialized UI.",
     "Documentation, test-only, monitoring, Linux service controls, Windows scheduled-task controls, and other production control-plane-only changes do not mutate the production Worker, D1, or R2.",
-    "GitHub Actions is the approval and status layer; the release implementation is the portable repository command scripts/run_cloudflare_production_release.sh.",
+    "Cloudflare Queue and Sandbox Executor are the only normal build, deploy, verify, visual QA, and rollback execution layer. GitHub is limited to source, pull requests, immutable SHA resolution, command intake, and audit evidence.",
     "Production verification writes a no-personal-data JSON report bound to the exact public runtime SHA; its adapter remains in this repository while recurring execution, canonical evidence, and alerting are owned by yamaki0102/all-projects-management.",
     "The Linux timer uses a private systemd StateDirectory; the Windows task uses private ProgramData ACLs and runs as SYSTEM. Both archive SHA-bound evidence for 14 days.",
     "Linux and Windows installers preserve existing secret environment files, refuse token command-line options, and require a successful direct verification before recurring scheduling is enabled.",
     "The Windows installer also executes and validates the registered SYSTEM task so user-only drive or permission mistakes are detected during installation.",
     "The repository-local Linux and Windows host integrations are deprecated for new installations; removal requires at least 48 hours of successful central shadow evidence and an explicit operator decision.",
-    "The portable release command performs one dependency-install/build lane, Worker quick preflight, D1 migration application, R2 materialization, guarded Worker deploy, and post-deploy verification without a GitHub Artifact handoff.",
+    "The portable release command performs one dependency-install/build lane, Worker quick preflight, R2 staging materialization, guarded Worker deploy, and post-deploy verification without GitHub Actions or a GitHub Artifact handoff. D1 migrations are a separate approval-bound operation.",
     "The production public entrypoint is Cloudflare Worker ikimon-life-cloudflare-prod, not the legacy VPS blue/green lane.",
     "The production Worker must not own staging.ikimon.life routes; Cloudflare staging owns staging.ikimon.life/* through ikimon-life-cloudflare-staging.",
     "Routine production deploy must not use VPS SSH, deploy_platform_v2_blue_green.sh, or VPS_SSH_KEY.",

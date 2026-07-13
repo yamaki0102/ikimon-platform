@@ -21,7 +21,15 @@ test("original UI materializer pins discovery documents to the public canonical 
   assert.match(materializer, /headers:\s*canonicalRenderHeaders/);
   assert.match(materializer, /canonical_static_origin_mismatch/);
   assert.match(materializer, /renderLlmsFull/);
-  assert.match(materializer, /manifestSha256/);
+  assert.match(materializer, /createHmac\("sha256", materializationSecret\)/);
+  assert.match(materializer, /checkpointInterval = 25/);
+  assert.match(materializer, /gatewayMaxAttempts = 5/);
+  assert.match(materializer, /signed r2 gateway sync/);
+  assert.doesNotMatch(materializer, /wrangler["',\s]+r2["',\s]+object/);
+  const stagingRelease = await source("../../../scripts/run_cloudflare_staging_release.sh");
+  assert.match(stagingRelease, /--concurrency 8/);
+  const productionRelease = await source("../../../scripts/run_cloudflare_production_release.sh");
+  assert.match(productionRelease, /materialize:original-ui -- --skip-if-unchanged --concurrency 8/);
 });
 
 test("production deploy guard injects and verifies the exact git SHA without exposing release vars", async () => {
