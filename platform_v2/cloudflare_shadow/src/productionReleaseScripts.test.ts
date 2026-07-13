@@ -53,6 +53,55 @@ test("production deploy guard injects and verifies the exact git SHA without exp
   assert.doesNotMatch(guard, /command:\s*actualCommandLine/);
 });
 
+test("staging release separates pre-materialization and final metadata contracts", async () => {
+  const contractUrl = new URL("../scripts/staging-release-contract.mjs", import.meta.url).href;
+  const runContract = async (phase: string, runtime: Record<string, unknown>, expected: Record<string, unknown>) => execFileAsync(process.execPath, [
+    "--input-type=module",
+    "--eval",
+    `import { assertStagingRuntimeContract } from ${JSON.stringify(contractUrl)};
+     assertStagingRuntimeContract(${JSON.stringify(runtime)}, ${JSON.stringify(expected)}, ${JSON.stringify(phase)});
+     process.stdout.write("contract-passed");`,
+  ]);
+  const expected = {
+    gitSha: "a".repeat(40),
+    workerVersion: "cloudflare-executor-aaaaaaaaaaaa",
+    uiBundleHash: "bundle-hash",
+    originalUiManifestHash: "manifest-hash",
+  };
+  const beforeMaterialization = {
+    ok: true,
+    gitSha: expected.gitSha,
+    workerVersion: expected.workerVersion,
+    uiBundleHash: null,
+    originalUiManifestHash: null,
+  };
+
+  assert.equal((await runContract("pre-materialization", beforeMaterialization, expected)).stdout, "contract-passed");
+  await assert.rejects(
+    runContract("post-materialization", beforeMaterialization, expected),
+    /staging_runtime_contract_failed:post-materialization/,
+  );
+  const afterMaterialization = {
+    ...beforeMaterialization,
+    uiBundleHash: expected.uiBundleHash,
+    originalUiManifestHash: expected.originalUiManifestHash,
+  };
+  assert.equal((await runContract("post-materialization", afterMaterialization, expected)).stdout, "contract-passed");
+
+  const stagingRelease = await source("../../../scripts/run_cloudflare_staging_release.sh");
+  assert.match(stagingRelease, /materialize-staging-original-ui\.json/);
+  assert.match(stagingRelease, /--release-phase post-materialization/);
+  assert.match(stagingRelease, /Materialized staging UI release identity is incomplete/);
+  assert.match(stagingRelease, /report\.pointerVerified !== true/);
+
+  const guard = await source("../scripts/deploy-staging-guard.mjs");
+  assert.match(guard, /runtime_release_identity_match/);
+  assert.match(guard, /uploadSkipped: true/);
+  const materializer = await source("../scripts/materialize-original-ui-html.mjs");
+  assert.match(materializer, /materialization_pointer_identity_mismatch/);
+  assert.match(materializer, /pointerVerified = true/);
+});
+
 test("production execute clean gate allows only owned generated deploy artifacts", async () => {
   const gateUrl = new URL("../scripts/production-deploy-clean-gate.mjs", import.meta.url).href;
   const runGate = async (execute: boolean, clean: boolean, phase: string, status: string) => execFileAsync(process.execPath, [

@@ -465,6 +465,7 @@ let materializeSkipped = false;
 let skipReason = execute ? "not_requested" : "dry_run";
 let previousManifestSummary = null;
 let manifestUpload = { ok: false, key: manifestKey, skipped: true, reason: "not_executed" };
+let pointerVerified = false;
 const uploadSummary = { updated: 0, skipped: 0, failed: 0, resumed: 0, checkpoints: 0, durationMs: 0 };
 
 try {
@@ -610,6 +611,13 @@ try {
         throw error;
       }
     }
+    if (explicitPaths.length === 0) {
+      const finalState = await gatewayRequest({ op: "state" });
+      if (!finalState.same_manifest || finalState.current_manifest_hash !== bundleHash) {
+        throw new Error("materialization_pointer_identity_mismatch");
+      }
+      pointerVerified = true;
+    }
     uploadSummary.durationMs = Date.now() - uploadStartedAt;
     events.push({
       command: `signed r2 gateway sync objects=${bundleEntries.length} concurrency=${concurrency}`,
@@ -639,6 +647,7 @@ const result = {
   skipReason,
   previousManifest: previousManifestSummary,
   manifestUpload,
+  pointerVerified,
   uploadSummary,
   rendered: rendered.map(({ pathname, key, bytes, sha256 }) => ({ pathname, key, bytes, sha256 })),
   renderedStatic: renderedStatic.map(({ pathname, key, bytes, sha256 }) => ({ pathname, key, bytes, sha256 })),

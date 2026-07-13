@@ -126,6 +126,25 @@ npm --prefix "${WORKER_DIR}" run materialize:original-ui -- \
   --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" \
   --output materialize-staging-original-ui.json
 
+IFS=$'\t' read -r IKIMON_UI_BUNDLE_HASH IKIMON_UI_MANIFEST_HASH < <(
+  node --input-type=module - "${WORKER_DIR}/materialize-staging-original-ui.json" <<'NODE'
+import fs from 'node:fs';
+const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+if (!report.bundleHash || report.manifestUpload?.ok !== true || report.pointerVerified !== true) {
+  throw new Error('Materialized staging UI release identity is incomplete.');
+}
+process.stdout.write(`${report.bundleHash}\t${report.bundleHash}\n`);
+NODE
+)
+export IKIMON_UI_BUNDLE_HASH IKIMON_UI_MANIFEST_HASH
+
+echo "== Finalize staging Worker release metadata =="
+npm --prefix "${WORKER_DIR}" run deploy:staging -- \
+  --release-phase post-materialization \
+  --test-profile "${TEST_PROFILE}" \
+  --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" \
+  --write-preflight-report .deploy/staging-finalize-latest.json
+
 echo "== Verify Cloudflare staging public routes =="
 (
   cd "${WORKER_DIR}"

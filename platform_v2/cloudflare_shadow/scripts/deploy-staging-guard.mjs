@@ -2,12 +2,13 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { assertStagingRuntimeContract, stagingRuntimeMatches } from "./staging-release-contract.mjs";
 
 const requiredApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
 const stagingWorkerUrl = "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev";
 const stagingPublicUrl = "https://staging.ikimon.life";
 const defaultPreflightReportPath = ".deploy/staging-preflight-latest.json";
-const allowedArgs = new Set(["--execute", "--approval", "--write-preflight-report", "--test-profile"]);
+const allowedArgs = new Set(["--execute", "--approval", "--write-preflight-report", "--test-profile", "--release-phase"]);
 const args = new Map();
 
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -25,12 +26,16 @@ const execute = args.get("--execute") === "true";
 const approval = args.get("--approval") ?? process.env.IKIMON_CF_STAGING_DEPLOY_APPROVAL ?? "";
 const writePreflightReportPath = args.get("--write-preflight-report") ?? (!execute ? defaultPreflightReportPath : "");
 const testProfile = args.get("--test-profile") ?? "quick";
+const releasePhase = args.get("--release-phase") ?? "pre-materialization";
 
 if (execute && approval !== requiredApproval) {
   throw new Error(`Refusing staging deploy. Pass --approval ${requiredApproval} or set IKIMON_CF_STAGING_DEPLOY_APPROVAL.`);
 }
 if (!["quick", "full"].includes(testProfile)) {
   throw new Error("--test-profile must be one of: quick, full.");
+}
+if (!["pre-materialization", "post-materialization"].includes(releasePhase)) {
+  throw new Error("--release-phase must be one of: pre-materialization, post-materialization.");
 }
 
 const events = [];
@@ -202,14 +207,14 @@ async function hashFiles(files) {
 }
 
 async function hashDeployInputs() {
-  const listed = await gitText(["ls-files", "--", "src", "scripts/deploy-staging-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const listed = await gitText(["ls-files", "--", "src", "scripts/deploy-staging-guard.mjs", "scripts/staging-release-contract.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   const files = listed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).sort();
   return hashFiles(files);
 }
 
 async function currentDeployState() {
   const gitHead = await gitText(["rev-parse", "HEAD"]);
-  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "scripts/deploy-staging-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "scripts/deploy-staging-guard.mjs", "scripts/staging-release-contract.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   return {
     gitHead,
     gitStatus,
@@ -220,7 +225,18 @@ async function currentDeployState() {
   };
 }
 
-async function smoke(baseUrl, expectedSha) {
+async function fetchRuntime(baseUrl) {
+  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/runtime/version`, {
+    redirect: "manual",
+    headers: { accept: "application/json", "cache-control": "no-store" }
+  });
+  if (!response.ok) return null;
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) return null;
+  return response.json();
+}
+
+async function smoke(baseUrl, expectedRelease, phase) {
   const checks = [
     { path: "/health", service: undefined },
     { path: "/healthz", service: "ikimon-life-cloudflare-worker", environment: "staging" },
@@ -241,7 +257,7 @@ async function smoke(baseUrl, expectedSha) {
       && (!check.service || payload.service === check.service)
       && (!check.environment || payload.environment === check.environment)
       && (!check.runtime || payload.runtime === check.runtime)
-      && (check.path !== "/api/v1/runtime/version" || payload.gitSha === expectedSha);
+      && (check.path !== "/api/v1/runtime/version" || stagingRuntimeMatches(payload, expectedRelease, phase));
     events.push({
       command: `smoke ${baseUrl}${check.path}`,
       exitCode: ok ? 0 : 1,
@@ -263,37 +279,70 @@ try {
   const releaseVars = {
     IKIMON_GIT_SHA: state.gitHead,
     IKIMON_WORKER_VERSION: `cloudflare-executor-${state.gitHead.slice(0, 12)}`,
-    IKIMON_DEPLOYED_AT: startedAt
+    IKIMON_DEPLOYED_AT: startedAt,
+    IKIMON_UI_BUNDLE_HASH: process.env.IKIMON_UI_BUNDLE_HASH ?? "",
+    IKIMON_UI_MANIFEST_HASH: process.env.IKIMON_UI_MANIFEST_HASH ?? ""
   };
+  const expectedRelease = {
+    gitSha: releaseVars.IKIMON_GIT_SHA,
+    workerVersion: releaseVars.IKIMON_WORKER_VERSION,
+    uiBundleHash: releaseVars.IKIMON_UI_BUNDLE_HASH,
+    originalUiManifestHash: releaseVars.IKIMON_UI_MANIFEST_HASH
+  };
+  if (releasePhase === "post-materialization" && (!expectedRelease.uiBundleHash || !expectedRelease.originalUiManifestHash)) {
+    throw new Error("Post-materialization staging release identity is incomplete.");
+  }
   const wranglerArgs = (dryRun = false) => {
     const values = ["wrangler", "deploy", "--env", "staging"];
     if (dryRun) values.push("--dry-run");
     for (const [key, value] of Object.entries(releaseVars)) values.push("--var", `${key}:${value}`);
     return values;
   };
-  await run("npm", ["run", "check"]);
-  await run("npm", ["run", testProfile === "full" ? "test:full" : "test:quick"]);
-  await run("npm", ["run", "wrangler:check:staging"]);
-  await run("npx", wranglerArgs(true));
+  if (releasePhase === "pre-materialization") {
+    await run("npm", ["run", "check"]);
+    await run("npm", ["run", testProfile === "full" ? "test:full" : "test:quick"]);
+    await run("npm", ["run", "wrangler:check:staging"]);
+    await run("npx", wranglerArgs(true));
+  }
 
   if (execute) {
-    try {
-      await run("npx", wranglerArgs(false));
-    } catch (error) {
-      if (!isWranglerStagingTriggerWarning(error)) {
-        throw error;
+    const currentRuntime = await fetchRuntime(stagingPublicUrl).catch(() => null);
+    const uploadRequired = !stagingRuntimeMatches(currentRuntime, expectedRelease, releasePhase);
+    if (uploadRequired) {
+      try {
+        await run("npx", wranglerArgs(false));
+      } catch (error) {
+        if (!isWranglerStagingTriggerWarning(error)) {
+          throw error;
+        }
+        triggerWarning = summarizeWranglerTriggerWarning(error);
+        events.push({
+          command: "npx wrangler deploy --env staging trigger warning",
+          exitCode: 0,
+          durationMs: 0,
+          ...triggerWarning
+        });
+        console.warn(JSON.stringify(triggerWarning, null, 2));
       }
-      triggerWarning = summarizeWranglerTriggerWarning(error);
       events.push({
-        command: "npx wrangler deploy --env staging trigger warning",
+        command: `staging release upload ${releasePhase}`,
         exitCode: 0,
         durationMs: 0,
-        ...triggerWarning
+        uploadSkipped: false
       });
-      console.warn(JSON.stringify(triggerWarning, null, 2));
+    } else {
+      events.push({
+        command: `staging release resume ${releasePhase}`,
+        exitCode: 0,
+        durationMs: 0,
+        uploadSkipped: true,
+        reason: "runtime_release_identity_match"
+      });
     }
-    await smoke(stagingWorkerUrl, state.gitHead);
-    await smoke(stagingPublicUrl, state.gitHead);
+    await smoke(stagingWorkerUrl, expectedRelease, releasePhase);
+    await smoke(stagingPublicUrl, expectedRelease, releasePhase);
+    const finalRuntime = await fetchRuntime(stagingPublicUrl);
+    assertStagingRuntimeContract(finalRuntime, expectedRelease, releasePhase);
   }
 
   const report = {
@@ -306,6 +355,7 @@ try {
     stagingWorkerUrl,
     stagingPublicUrl,
     triggerWarning,
+    releasePhase,
     noProductionDataMutation: true,
     noVpsSsh: true,
     releaseVars,
