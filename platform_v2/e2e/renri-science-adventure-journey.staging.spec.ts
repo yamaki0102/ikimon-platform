@@ -188,6 +188,11 @@ test.describe.serial("renri science adventure family journey on staging", () => 
     await parentPage.goto(joinPath, { waitUntil: "domcontentloaded" });
     const expectedRegisterRedirect = `/register?redirect=${encodeURIComponent(joinPath)}`;
     await expect(parentPage.locator("[data-evt-register-link]")).toHaveAttribute("href", expectedRegisterRedirect);
+
+    await parentPage.locator('input[name="display_name"]').fill("登録済み保護者テスト");
+    await parentPage.locator('input[name="share_location"]').uncheck();
+    await parentPage.locator('input[name="is_minor"]').check();
+    await expect(parentPage.locator("[data-guardian-consent-row]")).toBeHidden();
     await parentPage.locator("[data-evt-register-link]").click();
     await expect(parentPage).toHaveURL(new RegExp(`/register\\?redirect=${encodeURIComponent(joinPath).replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}`));
 
@@ -199,6 +204,10 @@ test.describe.serial("renri science adventure family journey on staging", () => 
     await expect(parentPage).toHaveURL(new RegExp(`${joinPath}$`), { timeout: 30_000 });
     await expect(parentPage.locator("body")).toContainText("ログイン済みアカウントで参加します");
     await expect(parentPage.locator("[data-evt-register-link]")).toHaveCount(0);
+    await expect(parentPage.locator('input[name="display_name"]')).toHaveValue("登録済み保護者テスト");
+    await expect(parentPage.locator('input[name="share_location"]')).not.toBeChecked();
+    await expect(parentPage.locator('input[name="is_minor"]')).toBeChecked();
+    await expect(parentPage.locator("[data-guardian-consent-row]")).toBeHidden();
 
     const sessionResponse = await parentContext.request.get("/api/v1/auth/session", {
       headers: { accept: "application/json" },
@@ -213,10 +222,6 @@ test.describe.serial("renri science adventure family journey on staging", () => 
       .join("; ");
     expect(parentCookie).toContain("=");
 
-    await parentPage.locator('input[name="display_name"]').fill("登録済み保護者テスト");
-    await parentPage.locator('input[name="share_location"]').uncheck();
-    await parentPage.locator('input[name="is_minor"]').check();
-    await expect(parentPage.locator("[data-guardian-consent-row]")).toBeHidden();
     await parentPage.locator("[data-evt-checkin-submit]").click();
     await expect(parentPage).toHaveURL(new RegExp(`/events/${fixture.session.sessionId}/rally$`));
     expect(new URL(parentPage.url()).searchParams.has("token")).toBe(false);
