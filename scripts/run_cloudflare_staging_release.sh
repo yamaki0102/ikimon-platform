@@ -122,6 +122,7 @@ echo "== Materialize original UI into staging R2 =="
 npm --prefix "${WORKER_DIR}" run materialize:original-ui -- \
   --target-env staging \
   --scope staging-qa \
+  --concurrency 8 \
   --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" \
   --output materialize-staging-original-ui.json
 

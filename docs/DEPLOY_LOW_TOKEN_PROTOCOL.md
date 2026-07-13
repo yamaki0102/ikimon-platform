@@ -83,7 +83,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_staging_manifest_sync.p
 ### What These Gates Protect
 
 - `check_deploy_guardrails.ps1`
-  - `strategy = github_actions_only` 以外を拒否
+  - `strategy = cloudflare_executor_primary` を正規値とし、旧 `github_actions_only` はfallback互換としてのみ許可
   - `deploy.json` の旧 direct deploy route を拒否
   - `upload_package/data/**` など persistent path の変更を拒否
   - `*.sqlite`, `*.db`, `.env`, `credentials.json`, `debug_*.php`, `test_*.php`, `*.bak` などを拒否

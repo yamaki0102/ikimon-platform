@@ -95,7 +95,7 @@ echo "== Apply idempotent production D1 migrations =="
 )
 
 echo "== Materialize original UI into production R2 =="
-npm --prefix "${WORKER_DIR}" run materialize:original-ui -- --skip-if-unchanged --output materialize-original-ui.json
+npm --prefix "${WORKER_DIR}" run materialize:original-ui -- --skip-if-unchanged --concurrency 8 --output materialize-original-ui.json
 IFS=$'\t' read -r IKIMON_UI_BUNDLE_HASH IKIMON_UI_MANIFEST_HASH < <(
   node --input-type=module - "${WORKER_DIR}/materialize-original-ui.json" <<'NODE'
 import fs from 'node:fs';
