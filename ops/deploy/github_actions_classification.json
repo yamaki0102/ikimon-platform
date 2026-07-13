@@ -1,0 +1,32 @@
+{
+  "schema": "ikimon_github_actions_classification/v1",
+  "updated_at": "2026-07-13T23:30:00+09:00",
+  "github_actions_required": false,
+  "normal_deploy_workflows": [],
+  "classifications": {
+    "deploy.yml": "REMOVE",
+    "deploy-staging.yml": "REMOVE",
+    "deploy-cloudflare-staging.yml": "REMOVE",
+    "cloudflare-quick-preflight.yml": "REMOVE",
+    "cloudflare-shadow-release.yml": "REMOVE",
+    "ci.yml": "UNRELATED",
+    "agent-curator-pr.yml": "UNRELATED",
+    "ai-review-gate.yml": "UNRELATED",
+    "branch-hygiene-audit.yml": "UNRELATED",
+    "curator-invasivelaw-smoke.yml": "UNRELATED",
+    "curator-model-bakeoff.yml": "UNRELATED",
+    "curator-staging-wet-run.yml": "UNRELATED",
+    "enhance-school-boundaries.yml": "UNRELATED",
+    "import-n03-admin.yml": "UNRELATED",
+    "import-osm-area-parks.yml": "UNRELATED",
+    "import-school-fields.yml": "UNRELATED",
+    "refresh-observation-ai.yml": "UNRELATED"
+  },
+  "execution_contract": {
+    "source": "github_api_or_git_exact_sha",
+    "build_test_deploy_verify_visual_qa_rollback": "cloudflare_queue_sandbox_executor",
+    "artifact": "executor_local_sha_bound_manifest_plus_r2_evidence",
+    "isolation": "one_fresh_sandbox_per_job",
+    "production": "explicit_approval_required"
+  }
+}

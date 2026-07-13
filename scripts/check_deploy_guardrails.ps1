@@ -103,7 +103,7 @@ $persistentChanged = @($changedFiles | Where-Object { Test-MatchAnyPattern -Path
 
 $issues = New-Object System.Collections.Generic.List[string]
 
-$allowedStrategies = @("cloudflare_executor_primary", "github_actions_only", "github_actions_cloudflare_worker")
+$allowedStrategies = @("cloudflare_executor_primary")
 if ($allowedStrategies -notcontains $manifest.strategy) {
     $issues.Add("Unsupported deploy strategy in manifest: $($manifest.strategy)")
 }
@@ -138,8 +138,8 @@ foreach ($workflowFile in @(Get-ChildItem -Path $githubRoot -Recurse -File | Whe
 $deployJsonPath = Join-Path $repoRoot "deploy.json"
 if (Test-Path $deployJsonPath) {
     $deployJson = Get-Content -Raw -Path $deployJsonPath | ConvertFrom-Json
-    if (@("cloudflare_executor_primary", "github_actions_only") -notcontains $deployJson.Mode) {
-        $issues.Add("deploy.json must declare Mode=cloudflare_executor_primary or the legacy github_actions_only fallback")
+    if ($deployJson.Mode -ne "cloudflare_executor_primary") {
+        $issues.Add("deploy.json must declare Mode=cloudflare_executor_primary")
     }
 }
 

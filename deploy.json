@@ -5,5 +5,5 @@
     "SshAlias": "production",
     "RemoteBase": "~/public_html/",
     "Url": "https://ikimon.life/",
-    "Note": "Legacy WSL rsync route is disabled. Production uses the fixed Cloudflare Sandbox Executor lane; GitHub Actions is fallback CI only."
+    "Note": "Legacy WSL rsync route is disabled. Build, deploy, verify, Visual QA, and rollback use the fixed Cloudflare Queue and Sandbox Executor lane. GitHub Actions is not an execution backend."
 }

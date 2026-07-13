@@ -10,6 +10,7 @@ DEPLOY_STAGING="${DEPLOY_STAGING:-false}"
 TEST_PROFILE="${TEST_PROFILE:-quick}"
 BROWSER_QA="${BROWSER_QA:-none}"
 SYNC_STAGING_WRITE_SECRET="${SYNC_STAGING_WRITE_SECRET:-false}"
+APPLY_STAGING_MIGRATIONS="${APPLY_STAGING_MIGRATIONS:-false}"
 PLAYWRIGHT_INSTALL_WITH_DEPS="${PLAYWRIGHT_INSTALL_WITH_DEPS:-true}"
 IKIMON_CF_STAGING_DEPLOY_APPROVAL="${IKIMON_CF_STAGING_DEPLOY_APPROVAL:-APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY}"
 STAGING_BASE_URL="${STAGING_BASE_URL:-https://staging.ikimon.life}"
@@ -20,6 +21,7 @@ case "${DEPLOY_STAGING}" in true|false) ;; *) echo "DEPLOY_STAGING must be true 
 case "${TEST_PROFILE}" in quick|full) ;; *) echo "TEST_PROFILE must be quick or full" >&2; exit 2 ;; esac
 case "${BROWSER_QA}" in none|targeted|full) ;; *) echo "BROWSER_QA must be none, targeted, or full" >&2; exit 2 ;; esac
 case "${SYNC_STAGING_WRITE_SECRET}" in true|false) ;; *) echo "SYNC_STAGING_WRITE_SECRET must be true or false" >&2; exit 2 ;; esac
+case "${APPLY_STAGING_MIGRATIONS}" in true|false) ;; *) echo "APPLY_STAGING_MIGRATIONS must be true or false" >&2; exit 2 ;; esac
 case "${PLAYWRIGHT_INSTALL_WITH_DEPS}" in true|false) ;; *) echo "PLAYWRIGHT_INSTALL_WITH_DEPS must be true or false" >&2; exit 2 ;; esac
 
 if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
@@ -45,9 +47,9 @@ write_summary() {
   local status="$1"
   local finished_at
   finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  node --input-type=module - "${SUMMARY_PATH}" "${status}" "${STARTED_AT}" "${finished_at}" "${GIT_SHA}" "${DEPLOY_STAGING}" "${TEST_PROFILE}" "${BROWSER_QA}" "${SYNC_STAGING_WRITE_SECRET}" <<'NODE'
+  node --input-type=module - "${SUMMARY_PATH}" "${status}" "${STARTED_AT}" "${finished_at}" "${GIT_SHA}" "${DEPLOY_STAGING}" "${TEST_PROFILE}" "${BROWSER_QA}" "${SYNC_STAGING_WRITE_SECRET}" "${APPLY_STAGING_MIGRATIONS}" <<'NODE'
 import fs from 'node:fs';
-const [path, status, startedAt, finishedAt, gitSha, deployStaging, testProfile, browserQa, syncSecret] = process.argv.slice(2);
+const [path, status, startedAt, finishedAt, gitSha, deployStaging, testProfile, browserQa, syncSecret, applyMigrations] = process.argv.slice(2);
 fs.writeFileSync(path, `${JSON.stringify({
   schemaVersion: 'ikimon_cloudflare_staging_release/v1',
   status,
@@ -58,6 +60,7 @@ fs.writeFileSync(path, `${JSON.stringify({
   testProfile,
   browserQa,
   syncStagingWriteSecret: syncSecret === 'true',
+  applyStagingMigrations: applyMigrations === 'true',
   productionMutation: false,
   vpsSshDeploy: false,
 }, null, 2)}\n`);
@@ -105,12 +108,11 @@ else
   echo "== Skip secret mutation (existing staging secret is reused) =="
 fi
 
-echo "== Apply idempotent staging D1 migrations =="
-(
-  cd "${WORKER_DIR}"
-  npx wrangler d1 migrations apply CORE_DB --remote --env staging
-  npx wrangler d1 migrations apply OBS_DB --remote --env staging
-)
+if [[ "${APPLY_STAGING_MIGRATIONS}" == "true" ]]; then
+  echo "Staging D1 migration is a separate approval-bound operation and is not permitted by this release entrypoint." >&2
+  exit 2
+fi
+echo "== Skip staging D1 migrations (deploy and migration are separate operations) =="
 
 echo "== Deploy staging Worker =="
 npm --prefix "${WORKER_DIR}" run deploy:staging -- \
