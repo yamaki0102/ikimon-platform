@@ -656,7 +656,8 @@ try {
       exitCode: 0,
       durationMs: Date.now() - uploadStartedAt
     });
-    for (const item of renderedStatic) {
+    const staticUploadStartedAt = Date.now();
+    await runPool(renderedStatic, concurrency, async (item) => {
       await runR2PutWithRetry([
         "wrangler",
         "r2",
@@ -672,7 +673,12 @@ try {
         uploadCacheControl,
         "--force"
       ], item.key);
-    }
+    });
+    events.push({
+      command: `parallel r2 put ${renderedStatic.length} static objects concurrency=${concurrency}`,
+      exitCode: 0,
+      durationMs: Date.now() - staticUploadStartedAt
+    });
 
     if (explicitPaths.length === 0) {
       manifestUpload = await tryUploadMaterializeManifest(tempDir, manifestKey, {
