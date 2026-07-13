@@ -170,7 +170,6 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/import-osm-area-parks.yml"), "manual_import_or_repair_workflow");
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/import-school-fields.yml"), "manual_import_or_repair_workflow");
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/refresh-observation-ai.yml"), "manual_ai_batch_workflow");
-  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/deploy-staging.yml"), "legacy_vps_staging_replaced_by_cloudflare_staging");
   assert.deepEqual(workflowDependencySignals("- VPS SSH/deploy: `not used`"), []);
   assert.deepEqual(workflowDependencySignals("uses: appleboy/ssh-action@v1"), ["ssh/scp"]);
   assert.deepEqual(workflowDependencySignals("ssh -i ~/.ssh/ikimon_vps root@162.43.44.131"), ["ssh/scp"]);
@@ -189,8 +188,8 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/deploy-cloudflare-staging\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
   assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/deploy\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
   assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
-  assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
-  assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
+  assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
+  assert.doesNotMatch(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
 });
