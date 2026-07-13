@@ -31,6 +31,7 @@
     "e2e:staging:map-performance": "playwright test -c playwright.staging.config.ts e2e/map-performance.staging.spec.ts",
     "e2e:local:map-compact-ui": "playwright test -c playwright.staging.config.ts e2e/map-compact-ui.local.spec.ts",
     "e2e:staging:observation-scene": "playwright test -c playwright.staging.config.ts e2e/observation-scene-read-model.staging.spec.ts",
+    "e2e:staging:renri-journey": "playwright test -c playwright.staging.config.ts e2e/renri-science-adventure-journey.staging.spec.ts",
     "plan:staging-non-map-shards": "node scripts/planStagingNonMapShards.mjs",
     "e2e:local:observation-candidates": "playwright test -c playwright.staging.config.ts e2e/observation-candidate-tabs.local.spec.ts",
     "e2e:staging:site-map": "playwright test -c playwright.staging.config.ts e2e/sitemap-registry-visual.staging.spec.ts",
@@ -138,12 +139,11 @@
     "pg": "^8.16.3",
     "sharp": "^0.34.5",
     "stream-chain": "^3.6.1",
-    "stream-json": "^2.1.0"
+    "stream-json": "^1.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/node": "^24.6.1",
-    "@types/pg": "^8.15.5",
     "tsx": "^4.23.0",
     "typescript": "^5.9.3"
   }
