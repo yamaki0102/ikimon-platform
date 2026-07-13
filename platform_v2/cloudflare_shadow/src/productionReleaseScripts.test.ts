@@ -97,6 +97,11 @@ test("staging release separates pre-materialization and final metadata contracts
   const guard = await source("../scripts/deploy-staging-guard.mjs");
   assert.match(guard, /runtime_release_identity_match/);
   assert.match(guard, /uploadSkipped: true/);
+  assert.match(guard, /const SMOKE_MAX_ATTEMPTS = 12/);
+  assert.match(guard, /const SMOKE_RETRY_DELAY_MS = 5_000/);
+  assert.match(guard, /attempt <= SMOKE_MAX_ATTEMPTS/);
+  assert.match(guard, /await delay\(SMOKE_RETRY_DELAY_MS\)/);
+  assert.match(guard, /release_smoke=\$\{Date\.now\(\)\}-\$\{attempt\}/);
   const materializer = await source("../scripts/materialize-original-ui-html.mjs");
   assert.match(materializer, /materialization_pointer_identity_mismatch/);
   assert.match(materializer, /pointerVerified = true/);

@@ -8,6 +8,8 @@ const requiredApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
 const stagingWorkerUrl = "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev";
 const stagingPublicUrl = "https://staging.ikimon.life";
 const defaultPreflightReportPath = ".deploy/staging-preflight-latest.json";
+const SMOKE_MAX_ATTEMPTS = 12;
+const SMOKE_RETRY_DELAY_MS = 5_000;
 const allowedArgs = new Set(["--execute", "--approval", "--write-preflight-report", "--test-profile", "--release-phase"]);
 const args = new Map();
 
@@ -39,6 +41,10 @@ if (!["pre-materialization", "post-materialization"].includes(releasePhase)) {
 }
 
 const events = [];
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function run(command, commandArgs, options = {}) {
   return new Promise((resolve, reject) => {
@@ -244,29 +250,36 @@ async function smoke(baseUrl, expectedRelease, phase) {
     { path: "/api/v1/runtime/version", service: "ikimon.life", environment: "staging", runtime: "cloudflare-worker" }
   ];
   for (const check of checks) {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}${check.path}`, {
-      redirect: "manual",
-      headers: { accept: "application/json", "cache-control": "no-store" }
-    });
-    const contentType = response.headers.get("content-type") ?? "";
-    const payload = contentType.includes("application/json") ? await response.json() : {};
-    const ok = response.ok
-      && typeof payload === "object"
-      && payload !== null
-      && payload.ok === true
-      && (!check.service || payload.service === check.service)
-      && (!check.environment || payload.environment === check.environment)
-      && (!check.runtime || payload.runtime === check.runtime)
-      && (check.path !== "/api/v1/runtime/version" || stagingRuntimeMatches(payload, expectedRelease, phase));
-    events.push({
-      command: `smoke ${baseUrl}${check.path}`,
-      exitCode: ok ? 0 : 1,
-      status: response.status,
-      contentType,
-      durationMs: 0
-    });
-    if (!ok) {
-      throw new Error(`Staging smoke failed for ${baseUrl}${check.path}: ${response.status} ${contentType}`);
+    for (let attempt = 1; attempt <= SMOKE_MAX_ATTEMPTS; attempt += 1) {
+      const separator = check.path.includes("?") ? "&" : "?";
+      const smokeUrl = `${baseUrl.replace(/\/$/, "")}${check.path}${separator}release_smoke=${Date.now()}-${attempt}`;
+      const response = await fetch(smokeUrl, {
+        redirect: "manual",
+        headers: { accept: "application/json", "cache-control": "no-store" }
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      const payload = contentType.includes("application/json") ? await response.json() : {};
+      const ok = response.ok
+        && typeof payload === "object"
+        && payload !== null
+        && payload.ok === true
+        && (!check.service || payload.service === check.service)
+        && (!check.environment || payload.environment === check.environment)
+        && (!check.runtime || payload.runtime === check.runtime)
+        && (check.path !== "/api/v1/runtime/version" || stagingRuntimeMatches(payload, expectedRelease, phase));
+      events.push({
+        command: `smoke ${baseUrl}${check.path}`,
+        exitCode: ok ? 0 : 1,
+        status: response.status,
+        contentType,
+        attempt,
+        durationMs: 0
+      });
+      if (ok) break;
+      if (attempt >= SMOKE_MAX_ATTEMPTS) {
+        throw new Error(`Staging smoke failed for ${baseUrl}${check.path}: ${response.status} ${contentType}`);
+      }
+      await delay(SMOKE_RETRY_DELAY_MS);
     }
   }
 }
