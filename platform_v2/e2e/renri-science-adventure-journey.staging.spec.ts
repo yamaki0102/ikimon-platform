@@ -32,8 +32,26 @@ type SessionPayload = {
   } | null;
 };
 
+type ObservationPayload = {
+  userId?: string;
+  eventCode?: string;
+  eventSessionId?: string;
+  participantRole?: string;
+};
+
 function cookieHeader(rawCookie: string): string {
   return rawCookie.split(";")[0] ?? rawCookie;
+}
+
+function tinyPngFile(): { name: string; mimeType: string; buffer: Buffer } {
+  return {
+    name: "renri-science-adventure.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP8z8Dwn4GBgYGJAQoAHxcCAgCXa7QJAAAAAElFTkSuQmCC",
+      "base64",
+    ),
+  };
 }
 
 async function expectOk(response: Awaited<ReturnType<APIRequestContext["post"]>>, label: string): Promise<JsonObject> {
@@ -135,7 +153,7 @@ test.describe.serial("renri science adventure family journey on staging", () => 
     }
   });
 
-  test("guest family, real registration, posts and recap complete as one journey", async ({ browser }) => {
+  test("guest family, real registration, mobile post and recap complete as one journey", async ({ browser }) => {
     const joinPath = `/community/events/${encodeURIComponent(fixture.session.eventCode)}/join`;
 
     const guestContext = await newStagingContext(browser, {
@@ -176,6 +194,15 @@ test.describe.serial("renri science adventure family journey on staging", () => 
     expect(guestToken).toMatch(/^g_/);
     const storedGuestToken = await guestPage.evaluate((sessionId) => localStorage.getItem(`evt-guest-token:${sessionId}`), fixture.session.sessionId);
     expect(storedGuestToken).toBe(guestToken);
+    await expect(guestPage.locator("[data-rally-account-note]")).toContainText("写真の観察記録は無料アカウントに保存します");
+
+    await guestPage.locator('[data-rally-action="record"]').first().click();
+    await expect(guestPage).toHaveURL(/\/register\?redirect=/);
+    const guestRecordReturn = new URL(guestPage.url()).searchParams.get("redirect") ?? "";
+    expect(guestRecordReturn).toContain("/record?");
+    const guestRecordUrl = new URL(guestRecordReturn, "https://staging.ikimon.life");
+    expect(guestRecordUrl.searchParams.get("event")).toBe(fixture.session.eventCode);
+    expect(guestRecordUrl.searchParams.get("eventSessionId")).toBe(fixture.session.sessionId);
     await guestContext.close();
 
     const parentContext = await newStagingContext(browser, {
@@ -217,19 +244,47 @@ test.describe.serial("renri science adventure family journey on staging", () => 
     const parentUserId = sessionPayload.session?.userId ?? "";
     expect(parentUserId).toMatch(/^user_/);
     expect(sessionPayload.session?.displayName).toBe("登録テスト保護者");
-    const parentCookie = (await parentContext.cookies())
-      .map((cookie) => `${cookie.name}=${cookie.value}`)
-      .join("; ");
-    expect(parentCookie).toContain("=");
 
     await parentPage.locator("[data-evt-checkin-submit]").click();
     await expect(parentPage).toHaveURL(new RegExp(`/events/${fixture.session.sessionId}/rally$`));
     expect(new URL(parentPage.url()).searchParams.has("token")).toBe(false);
 
+    await parentPage.route("**/api/v1/observations/*/photos/upload", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, photo: { publicUrl: "/uploads/qa/renri-science-adventure.png" } }),
+      });
+    });
+    await parentPage.locator('[data-rally-action="record"]').first().click();
+    await expect(parentPage).toHaveURL(/\/record\?/);
+    const recordUrl = new URL(parentPage.url());
+    expect(recordUrl.searchParams.get("event")).toBe(fixture.session.eventCode);
+    expect(recordUrl.searchParams.get("eventSessionId")).toBe(fixture.session.sessionId);
+    expect(recordUrl.searchParams.get("rally")).toBe("1");
+    expect(recordUrl.searchParams.get("activityIntent")).toBe("share");
+
+    await parentPage.locator("#record-media-photo").setInputFiles(tinyPngFile());
+    await expect(parentPage.locator("#record-form")).toBeVisible();
+    await parentPage.locator("summary", { hasText: "座標を直接編集" }).click();
+    await parentPage.locator("input[name='latitude']").fill("34.812700");
+    await parentPage.locator("input[name='longitude']").fill("137.728700");
+
+    const upsertResponsePromise = parentPage.waitForResponse((response) => (
+      response.url().includes("/api/v1/observations/upsert") && response.request().method() === "POST"
+    ));
+    await parentPage.locator("#record-submit-panel button[type='submit']").click();
+    const upsertResponse = await upsertResponsePromise;
+    expect(upsertResponse.ok(), await upsertResponse.text()).toBeTruthy();
+    const observationPayload = upsertResponse.request().postDataJSON() as ObservationPayload;
+    expect(observationPayload.userId).toBe(parentUserId);
+    expect(observationPayload.eventCode).toBe(fixture.session.eventCode);
+    expect(observationPayload.eventSessionId).toBe(fixture.session.sessionId);
+    expect(observationPayload.participantRole).toBe("participant");
+    await expect(parentPage.locator("#record-status")).toContainText(/記録を保存しました|シーンを保存しました/);
+
     await checkInRegistered(api, fixture.session.sessionId, observerCookie, "観察担当テスト", true);
     await checkInRegistered(api, fixture.session.sessionId, noLocationCookie, "位置共有なしテスト", false);
-
-    await postObservation(api, fixture, fixturePrefix, parentCookie, parentUserId, "parent", "ナナホシテントウ");
     await postObservation(api, fixture, fixturePrefix, observerCookie, observerUserId, "observer", "シロツメクサ");
 
     await expect.poll(async () => {
@@ -239,14 +294,14 @@ test.describe.serial("renri science adventure family journey on staging", () => 
       if (!response.ok()) return null;
       const recap = (await response.json()) as RecapPayload;
       return {
-        observations: recap.highlights?.observationCount ?? 0,
-        species: recap.highlights?.uniqueSpeciesCount ?? 0,
+        observationsReady: (recap.highlights?.observationCount ?? 0) >= 2,
+        speciesReady: (recap.highlights?.uniqueSpeciesCount ?? 0) >= 1,
         participants: recap.highlights?.participantsCount ?? 0,
       };
     }, {
       timeout: 60_000,
       intervals: [1_000, 2_000, 5_000],
-    }).toEqual({ observations: 2, species: 2, participants: 4 });
+    }).toEqual({ observationsReady: true, speciesReady: true, participants: 4 });
 
     const parentRecapResponse = await parentContext.request.get(`/api/v1/observation-events/${fixture.session.sessionId}/recap`, {
       headers: { accept: "application/json" },
