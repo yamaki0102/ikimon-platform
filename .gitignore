@@ -120,6 +120,14 @@ artifacts/
 .codex-tmp/
 platform_v2/.codex-tmp/
 
+# Visual QA and browser test outputs (never commit)
+.visual-qa/
+**/.visual-qa/
+playwright-report/
+**/playwright-report/
+test-results/
+**/test-results/
+
 # forbidden per deploy_manifest.json (must never ship)
 tmp_*
 **/cleanup_test_*.php
