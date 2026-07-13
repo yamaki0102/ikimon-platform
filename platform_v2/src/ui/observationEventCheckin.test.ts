@@ -52,10 +52,14 @@ test("family check-in explains one-device guest participation and authenticated 
   assert.match(guestBody, /登録なしのゲスト参加/);
   assert.match(guestBody, /data-guardian-consent-row hidden/);
   assert.match(guestBody, /data-evt-checkin-status/);
+  assert.match(guestBody, /data-evt-register-link/);
+  assert.match(guestBody, /\/register\?redirect=%2Fcommunity%2Fevents%2FRENRI0719%2Fjoin/);
+  assert.match(guestBody, /この観察会へ戻ります/);
 
   const authenticatedBody = renderCheckinBody({ session: familySession, teams: [], isAuthenticated: true });
   assert.match(authenticatedBody, /data-authenticated="true"/);
   assert.match(authenticatedBody, /イベント用のゲストIDは作りません/);
+  assert.doesNotMatch(authenticatedBody, /data-evt-register-link/);
 });
 
 test("check-in script scopes guest identity to one event and supports retry", () => {
