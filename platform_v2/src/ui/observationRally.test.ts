@@ -39,6 +39,8 @@ test("rally participant screen mixes bound and unbound missions without navigati
   assert.match(html, /evt-rally-consent/);
   assert.match(html, /位置共有は任意です/);
   assert.match(html, /開催中だけ使います/);
+  assert.match(html, /写真の観察記録は無料アカウントに保存します/);
+  assert.match(html, /ミッションへの参加とライブ閲覧はゲストのまま使えます/);
   assert.match(html, /evt-rally-action-dock/);
   assert.match(html, /evt-rally-action-btn is-primary/);
   assert.doesNotMatch(html, /evt-live-actions/);
@@ -48,9 +50,20 @@ test("rally participant screen mixes bound and unbound missions without navigati
   assert.match(script, /\/api\/v1\/observation-events\/" \+ sessionId \+ "\/location/);
   assert.match(script, /params\.set\("start", "photo"\)/);
   assert.match(script, /function ensureRallyGuestToken/);
-  assert.match(script, /localStorage\.setItem\("evt-guest-token", guestToken\)/);
+  assert.match(script, /evt-guest-token:" \+ sessionId/);
+  assert.match(script, /localStorage\.removeItem\("evt-guest-token"\)/);
   assert.match(script, /ensureRallyGuestToken\("この記録でラリー参加を開始"\)/);
   assert.match(script, /ensureRallyGuestToken\("ラリー参加を開始"\)/);
+});
+
+test("guest record action checks auth and continues through registration", () => {
+  const script = observationRallyScript();
+  assert.match(script, /\/api\/v1\/auth\/session\?optional=1/);
+  assert.match(script, /params\.set\("eventSessionId", sessionId\)/);
+  assert.match(script, /params\.set\("activityIntent", "share"\)/);
+  assert.match(script, /\/register\?redirect=" \+ encodeURIComponent\(recordPath\)/);
+  assert.match(script, /evt-record-return:" \+ sessionId/);
+  assert.doesNotMatch(script, /\/announce/);
 });
 
 test("rally participant screen has a solo fallback loop when no missions exist", () => {
@@ -69,7 +82,7 @@ test("rally participant screen has a solo fallback loop when no missions exist",
   assert.match(html, /一人観察会/);
   assert.match(script, /まず1枚、名前不明のまま写真で記録する/);
   assert.match(script, /evt-solo-loop-grid/);
-  assert.match(script, /危険なら中止/);
+  assert.match(script, /危険を感じたら観察を中止/);
 });
 
 test("event action bars make the first participant action dominant", () => {
