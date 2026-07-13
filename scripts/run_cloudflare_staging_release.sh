@@ -166,6 +166,12 @@ if [[ "${BROWSER_QA}" != "none" ]]; then
 
   echo "== Run Cloudflare staging record feedback loop smoke =="
   npm --prefix "${PLATFORM_DIR}" run e2e:staging:record-feedback-loop
+
+  echo "== Run Renri science adventure family journey =="
+  (
+    cd "${PLATFORM_DIR}"
+    npx playwright test -c playwright.staging.config.ts e2e/renri-science-adventure-journey.staging.spec.ts
+  )
 fi
 
 write_summary success
