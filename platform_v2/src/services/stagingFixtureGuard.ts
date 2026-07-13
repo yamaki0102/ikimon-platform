@@ -9,7 +9,7 @@ const GLOBAL_STAGING_FIXTURE_PREFIXES = [
 ] as const;
 
 const GLOBAL_STAGING_FIXTURE_SOURCE_REGEX =
-  "^(sample[-_]cadence|smoke|manual[-_]occurrence[-_]map|staging[-_]session[-_]smoke|staging[-_]write[-_]smoke|rally[-_]smoke)";
+  "^(sample[-_]cadence|smoke|manual[-_]occurrence[-_]map|staging[-_]session[-_]smoke|staging[-_]write[-_]smoke|rally[-_]smoke|pr[0-9]+[ _-]*(prod|production|staging)?[ _-]*(rally|smoke|test))";
 
 export type StagingFixtureColumns = {
   userIdColumn?: string;
@@ -80,7 +80,8 @@ export function buildStagingFixturePredicate(
   }
 
   // Global cleanup/exclusion also needs to catch rows whose ids drifted but still
-  // carry smoke provenance in source_payload.source.
+  // carry smoke provenance in source_payload.source. It also removes old PR-numbered
+  // production QA sessions that predate the explicit qa_fixture flag.
   if (!fixturePrefix) {
     if (columns.titleColumn) {
       clauses.push(buildRegexSql(columns.titleColumn, GLOBAL_STAGING_FIXTURE_SOURCE_REGEX, true));
