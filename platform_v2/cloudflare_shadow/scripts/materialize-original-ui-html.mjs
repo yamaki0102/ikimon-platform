@@ -587,9 +587,18 @@ try {
         });
         await persistCheckpoint();
         if (explicitPaths.length === 0) {
+          uploadSummary.durationMs = Date.now() - uploadStartedAt;
           manifestUpload = await gatewayRequest({
             op: "finalize",
-            items: allItems.map((item) => ({ key: item.key.replace(/^original-ui\//, ""), sha256: item.sha256 }))
+            items: allItems.map((item) => ({ key: item.key.replace(/^original-ui\//, ""), sha256: item.sha256 })),
+            summary: {
+              updated: uploadSummary.updated,
+              skipped: uploadSummary.skipped,
+              failed: uploadSummary.failed,
+              resumed: uploadSummary.resumed,
+              checkpoints: uploadSummary.checkpoints,
+              duration_ms: uploadSummary.durationMs
+            }
           });
         } else {
           manifestUpload = { ok: true, skipped: true, reason: "explicit_paths_not_finalized" };
