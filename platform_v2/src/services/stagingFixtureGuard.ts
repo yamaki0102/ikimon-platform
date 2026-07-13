@@ -62,6 +62,12 @@ export function buildStagingFixturePredicate(
 
   if (columns.userIdColumn) {
     clauses.push(buildRegexSql(columns.userIdColumn, `^(${prefixBody})`));
+    // Public registration intentionally generates opaque user UUIDs. The staging
+    // cleanup query is the only caller that passes the users-table alias directly,
+    // so fixture emails can be removed without weakening predicates for visits.
+    if (columns.userIdColumn === "u.user_id") {
+      clauses.push(buildRegexSql("u.email", `^(${prefixBody})(@|\\+)`, true));
+    }
   }
   if (columns.actorUserIdColumn) {
     clauses.push(buildRegexSql(columns.actorUserIdColumn, `^(${prefixBody})`));
