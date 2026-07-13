@@ -258,6 +258,8 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.doesNotMatch(response.body, /const revisitHref = recordSuccessRevisitHrefPrefix \+ encodeURIComponent\(visitId\) \+ [^;]*(?:latitude|longitude)/);
         assert.match(response.body, /写真を保存しています\.\.\. ' \+ String\(index\) \+ '\/' \+ String\(total\)/);
         assert.match(response.body, /photo_upload_failed_at_/);
+        assert.match(response.body, /ai_reassess_queued/);
+        assert.match(response.body, /AI確認を受け付けました/);
         assert.match(response.body, /動画アップロードの準備ができませんでした/);
         assert.match(response.body, /uploadVideoWithDirectPost/);
         assert.match(response.body, /request\.open\('POST', directUploadUrl, true\)/);

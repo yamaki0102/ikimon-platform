@@ -21141,7 +21141,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 await uploadPhotoFile(item.upload, item.role, index + 1, preparedPhotoUploads.length);
               });
               if (preparedPhotoUploads.length > 0) {
-                extraStatus = '写真' + String(preparedPhotoUploads.length) + '枚を同じ記録に保存しました。';
+                extraStatus = '写真' + String(preparedPhotoUploads.length) + '枚を保存し、AI確認を受け付けました。結果は詳細画面で確認できます。';
+                sendRecordFunnelStep('ai_reassess_queued', {
+                  visitId,
+                  occurrenceId: detailId,
+                });
               }
 
               let videoFile = selectedVideoFile instanceof File && selectedVideoFile.size > 0 ? selectedVideoFile : null;
