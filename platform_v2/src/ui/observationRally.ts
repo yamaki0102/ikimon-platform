@@ -53,6 +53,11 @@ export function renderObservationRallyBody(args: {
       <span>参加者のライブ地図と主催者確認に限ります。</span>
       <span>終了後は自動で止まります。</span>
     </p>
+    <p class="evt-rally-consent" data-rally-account-note>
+      <strong>写真の観察記録は無料アカウントに保存します。</strong>
+      <span>未登録の場合は、入力を失わず登録してから記録画面へ進みます。</span>
+      <span>ミッションへの参加とライブ閲覧はゲストのまま使えます。</span>
+    </p>
   </article>
 
   <section class="evt-card" style="display:grid; gap:10px;">
@@ -111,7 +116,6 @@ export function observationRallyScript(): string {
   const root = document.querySelector("[data-rally-root]");
   if (!root) return;
   const sessionId = root.dataset.sessionId;
-  let guestToken = root.dataset.guestToken || readStoredGuestToken();
   const eventCode = root.dataset.eventCode || "";
   const isSolo = root.dataset.soloObservation === "true";
   const radiusM = Number(root.dataset.radiusM || 80);
@@ -123,19 +127,54 @@ export function observationRallyScript(): string {
   const topPercent = root.querySelector("[data-rally-top-percent]");
   let snapshot = { course: null, stations: [], missions: [], progress: [] };
   let watchId = null;
-  function readStoredGuestToken(){
-    try { return localStorage.getItem("evt-guest-token") || ""; } catch (_) { return ""; }
+  let authPromise = null;
+
+  function guestStorageKey(){
+    return "evt-guest-token:" + sessionId;
   }
+  function storeGuestToken(token){
+    if (!token) return;
+    try {
+      localStorage.setItem(guestStorageKey(), token);
+      localStorage.removeItem("evt-guest-token");
+    } catch (_) {}
+  }
+  function readStoredGuestToken(){
+    try {
+      const scoped = localStorage.getItem(guestStorageKey()) || "";
+      if (scoped) return scoped;
+      const legacy = localStorage.getItem("evt-guest-token") || "";
+      if (legacy) storeGuestToken(legacy);
+      return legacy;
+    } catch (_) {
+      return "";
+    }
+  }
+  let guestToken = root.dataset.guestToken || readStoredGuestToken();
+  if (guestToken) storeGuestToken(guestToken);
+
   function ensureRallyGuestToken(label){
     if (guestToken) return guestToken;
     guestToken = readStoredGuestToken();
     if (!guestToken) {
       guestToken = "g_" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36);
-      try { localStorage.setItem("evt-guest-token", guestToken); } catch (_) {}
+      storeGuestToken(guestToken);
     }
     root.dataset.guestToken = guestToken;
     if (label && window.evtFanfare) window.evtFanfare(label);
     return guestToken;
+  }
+  async function isAuthenticated(){
+    if (!authPromise) {
+      authPromise = fetch("/api/v1/auth/session?optional=1", {
+        credentials: "include",
+        headers: { "Accept": "application/json" },
+      }).then(async response => {
+        const data = await response.json().catch(() => null);
+        return Boolean(response.ok && data?.ok && data?.session?.userId);
+      }).catch(() => false);
+    }
+    return authPromise;
   }
 
   function escapeText(s){
@@ -285,7 +324,7 @@ export function observationRallyScript(): string {
     const actionBtn = ev.target instanceof Element ? ev.target.closest("[data-rally-action]") : null;
     if (actionBtn) {
       ev.preventDefault();
-      runRallyAction(actionBtn.getAttribute("data-rally-action"));
+      void runRallyAction(actionBtn.getAttribute("data-rally-action"));
     }
   });
   root.querySelector("[data-rally-refresh]")?.addEventListener("click", () => void loadSnapshot());
@@ -312,32 +351,35 @@ export function observationRallyScript(): string {
     }, () => undefined, { enableHighAccuracy: false, maximumAge: 30000, timeout: 8000 });
     if (window.evtFanfare) window.evtFanfare("開催中の位置共有を開始");
   });
-  function runRallyAction(action){
-      const params = new URLSearchParams();
-      if (eventCode) params.set("event", eventCode);
-      params.set("eventSessionId", sessionId);
-      params.set("rally", "1");
-      params.set("activityIntent", "share");
-      if (action === "guide") window.location.href = "/guide?" + params.toString();
-      else if (action === "scan") {
-        params.set("fieldScanMode", "site_snapshot");
-        params.set("start", "photo");
-        window.location.href = "/record?" + params.toString();
-      } else if (action === "help") {
-        if (isSolo) {
-          alert("一人観察会では、迷ったら同じ場所で3分止まってから写真記録に戻る。危険なら中止してください。");
-          return;
-        }
-        fetch("/api/v1/observation-events/" + sessionId + "/announce", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: "ヘルプ要請がありました" }),
-        }).catch(() => undefined);
-      } else {
-        params.set("start", "photo");
-        window.location.href = "/record?" + params.toString();
-      }
+  async function runRallyAction(action){
+    const params = new URLSearchParams();
+    if (eventCode) params.set("event", eventCode);
+    params.set("eventSessionId", sessionId);
+    params.set("rally", "1");
+    params.set("activityIntent", "share");
+
+    if (action === "guide") {
+      window.location.href = "/guide?" + params.toString();
+      return;
+    }
+    if (action === "help") {
+      alert(isSolo
+        ? "危険を感じたら観察を中止してください。迷った場合は同じ場所で3分止まり、写真記録へ戻ります。"
+        : "近くのスタッフへ声をかけてください。緊急時は観察を中止し、安全な集合場所へ戻ってください。");
+      return;
+    }
+
+    if (action === "scan") params.set("fieldScanMode", "site_snapshot");
+    params.set("start", "photo");
+    const recordPath = "/record?" + params.toString();
+    if (await isAuthenticated()) {
+      window.location.href = recordPath;
+      return;
+    }
+
+    ensureRallyGuestToken();
+    try { sessionStorage.setItem("evt-record-return:" + sessionId, recordPath); } catch (_) {}
+    window.location.href = "/register?redirect=" + encodeURIComponent(recordPath);
   }
   function handleLive(row){
     if (String(row.type || "").startsWith("rally_")) {
