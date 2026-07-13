@@ -39,6 +39,12 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
   const { session, teams, isAuthenticated } = args;
   const isSolo = isSoloMicroSession(session);
   const targets = (session.targetSpecies ?? []).slice(0, 8).map(escapeHtml).join("、") || "見つけたものを自由に記録";
+  const eventCode = String(session.eventCode ?? "").trim();
+  const returnPath = eventCode
+    ? `/community/events/${encodeURIComponent(eventCode)}/join`
+    : `/events/${encodeURIComponent(session.sessionId)}/checkin`;
+  const registerHref = `/register?redirect=${encodeURIComponent(returnPath)}`;
+  const loginHref = `/login?redirect=${encodeURIComponent(returnPath)}`;
 
   const teamCards = teams.length === 0
     ? `<div class="evt-card ${isSolo ? "evt-solo-empty-team" : ""}">
@@ -56,7 +62,7 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
         </label>`).join("");
 
   return `
-<section class="evt-checkin-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}" data-solo-observation="${isSolo ? "true" : "false"}" data-authenticated="${isAuthenticated ? "true" : "false"}">
+<section class="evt-checkin-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(eventCode)}" data-solo-observation="${isSolo ? "true" : "false"}" data-authenticated="${isAuthenticated ? "true" : "false"}">
   <header>
     <span class="evt-eyebrow">${isSolo ? "一人観察会チェックイン" : "観察会チェックイン"}</span>
     <h1 class="evt-heading" style="margin-top:6px; font-size:clamp(22px, 4vw, 30px);">${escapeHtml(session.title || "観察会に参加")}</h1>
@@ -95,7 +101,10 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
 
     ${isAuthenticated
       ? `<p class="evt-lead">ログイン済みアカウントで参加します。このイベント用のゲストIDは作りません。</p>`
-      : `<p class="evt-lead">登録なしのゲスト参加です。この端末にイベント専用IDを保存し、ふり返りへ戻れるようにします。</p>`}
+      : `<div class="evt-card" style="display:grid; gap:8px; padding:12px;">
+          <p class="evt-lead" style="margin:0;">すぐ始める場合は、登録なしのゲスト参加です。この端末にイベント専用IDを保存し、ふり返りへ戻れるようにします。</p>
+          <p class="evt-lead" style="margin:0;">観察を自分の記録として残す方は、<a data-evt-register-link href="${escapeHtml(registerHref)}">無料アカウントを作って参加</a>。登録済みの方は<a data-evt-login-link href="${escapeHtml(loginHref)}">ログイン</a>すると、この観察会へ戻ります。</p>
+        </div>`}
 
     <p class="evt-lead" data-evt-checkin-status role="status" aria-live="polite" style="min-height:22px; margin:0;"></p>
     <button type="submit" class="evt-btn evt-btn-primary" data-evt-checkin-submit style="justify-self:stretch; min-height:56px;">
