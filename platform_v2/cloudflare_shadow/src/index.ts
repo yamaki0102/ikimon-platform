@@ -20598,7 +20598,7 @@ function publicFieldLocationLabel(row: FieldDetailReadmodelRow): string {
 }
 
 async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): Promise<Response> {
-  const object = await env.ASSET_BUCKET.get(originalUiStaticAssetKey(url.pathname));
+  const object = await getVersionedOriginalUiObject(env, originalUiStaticAssetKey(url.pathname));
   if (object?.body) {
     return new Response(request.method === "HEAD" ? null : object.body, {
       headers: {
@@ -20622,6 +20622,25 @@ function isOriginalUiStaticAssetPath(pathname: string): boolean {
 
 function originalUiStaticAssetKey(pathname: string): string {
   return `original-ui/static/${pathname.replace(/^\/+/, "")}`;
+}
+
+async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promise<R2ObjectBody | null> {
+  const targetEnv = env.ENVIRONMENT === "production" ? "production" : "staging";
+  const pointer = await env.ASSET_BUCKET.get(`original-ui/current/${targetEnv}.json`);
+  if (pointer) {
+    try {
+      const parsed = await new Response(pointer.body).json() as { version_prefix?: unknown };
+      const prefix = String(parsed.version_prefix ?? "");
+      if (/^original-ui\/versions\/[a-f0-9]{64}$/.test(prefix)) {
+        const relativeKey = legacyKey.replace(/^original-ui\//, "");
+        const versioned = await env.ASSET_BUCKET.get(`${prefix}/${relativeKey}`);
+        if (versioned?.body) return versioned;
+      }
+    } catch {
+      // An invalid or partially written pointer never replaces the legacy key.
+    }
+  }
+  return await env.ASSET_BUCKET.get(legacyKey);
 }
 
 function contentTypeForOriginalUiStaticAsset(pathname: string): string {
@@ -20734,7 +20753,7 @@ function publicDerivativeContentType(key: string, mime: string | null): string {
 async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
   let object: R2ObjectBody | null = null;
   for (const key of originalUiHtmlKeysForRequest(url)) {
-    object = await env.ASSET_BUCKET.get(key);
+    object = await getVersionedOriginalUiObject(env, key);
     if (object?.body) break;
   }
   if (object?.body) {
