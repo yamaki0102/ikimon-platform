@@ -55,6 +55,7 @@ test("family check-in explains one-device guest participation and authenticated 
   assert.match(guestBody, /data-evt-register-link/);
   assert.match(guestBody, /\/register\?redirect=%2Fcommunity%2Fevents%2FRENRI0719%2Fjoin/);
   assert.match(guestBody, /この観察会へ戻ります/);
+  assert.match(guestBody, /入力した参加情報も同じ端末に復元します/);
 
   const authenticatedBody = renderCheckinBody({ session: familySession, teams: [], isAuthenticated: true });
   assert.match(authenticatedBody, /data-authenticated="true"/);
@@ -62,9 +63,13 @@ test("family check-in explains one-device guest participation and authenticated 
   assert.doesNotMatch(authenticatedBody, /data-evt-register-link/);
 });
 
-test("check-in script scopes guest identity to one event and supports retry", () => {
+test("check-in script scopes identity, restores registration draft, and supports retry", () => {
   const script = checkinScript();
   assert.match(script, /evt-guest-token:" \+ sessionId/);
+  assert.match(script, /evt-checkin-draft:" \+ sessionId/);
+  assert.match(script, /sessionStorage\.setItem\(draftStorageKey\(\)/);
+  assert.match(script, /restoreDraft\(\)/);
+  assert.match(script, /sessionStorage\.removeItem\(draftStorageKey\(\)/);
   assert.match(script, /if \(isAuthenticated\) return null/);
   assert.match(script, /入力内容は残っています/);
   assert.match(script, /同じボタンでもう一度/);
