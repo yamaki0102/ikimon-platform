@@ -31,7 +31,6 @@
     "e2e:staging:map-performance": "playwright test -c playwright.staging.config.ts e2e/map-performance.staging.spec.ts",
     "e2e:local:map-compact-ui": "playwright test -c playwright.staging.config.ts e2e/map-compact-ui.local.spec.ts",
     "e2e:staging:observation-scene": "playwright test -c playwright.staging.config.ts e2e/observation-scene-read-model.staging.spec.ts",
-    "e2e:staging:renri-journey": "playwright test -c playwright.staging.config.ts e2e/renri-science-adventure-journey.staging.spec.ts",
     "plan:staging-non-map-shards": "node scripts/planStagingNonMapShards.mjs",
     "e2e:local:observation-candidates": "playwright test -c playwright.staging.config.ts e2e/observation-candidate-tabs.local.spec.ts",
     "e2e:staging:site-map": "playwright test -c playwright.staging.config.ts e2e/sitemap-registry-visual.staging.spec.ts",
@@ -125,7 +124,7 @@
     "generate:guide-hypothesis-improvements": "tsx src/scripts/generateGuideHypothesisPromptImprovements.ts",
     "postdeploy:guide-environment": "tsx src/scripts/runGuideEnvironmentPostDeploy.ts",
     "backfill:guide-non-biological-species": "tsx src/scripts/backfillGuideNonBiologicalSpecies.ts",
-    "export:guide-correction-eval": "tsx src/scripts/exportGuideCorrectionEvalSet.ts",
+    "export:guide-correction-eval": "tsx src/scripts/exportGuideCorrectionEval.ts",
     "export:guide-hypothesis-eval": "tsx src/scripts/exportGuideHypothesisEvalSet.ts",
     "rebuild:guide-environment-mesh": "tsx src/scripts/rebuildGuideEnvironmentMesh.ts"
   },
