@@ -71,6 +71,13 @@ test("check-in script scopes guest identity to one event and supports retry", ()
   assert.doesNotMatch(script, /localStorage\.getItem\("evt-guest-token"\)/);
 });
 
+test("registered staging fixture users are removable by their test email prefix", () => {
+  const predicate = buildStagingFixturePredicate({ userIdColumn: "u.user_id" }, "rally-smoke-renri-123");
+  assert.match(predicate, /u\.user_id/);
+  assert.match(predicate, /u\.email/);
+  assert.match(predicate, /rally-smoke-renri-123/);
+});
+
 test("legacy PR-numbered production rally sessions are classified as QA fixtures", () => {
   const predicate = buildStagingFixturePredicate({ titleColumn: "s.title" });
   assert.match(predicate, /pr\[0-9\]\+/i);
