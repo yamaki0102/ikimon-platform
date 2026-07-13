@@ -103,7 +103,7 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
       ? `<p class="evt-lead">ログイン済みアカウントで参加します。このイベント用のゲストIDは作りません。</p>`
       : `<div class="evt-card" style="display:grid; gap:8px; padding:12px;">
           <p class="evt-lead" style="margin:0;">すぐ始める場合は、登録なしのゲスト参加です。この端末にイベント専用IDを保存し、ふり返りへ戻れるようにします。</p>
-          <p class="evt-lead" style="margin:0;">観察を自分の記録として残す方は、<a data-evt-register-link href="${escapeHtml(registerHref)}">無料アカウントを作って参加</a>。登録済みの方は<a data-evt-login-link href="${escapeHtml(loginHref)}">ログイン</a>すると、この観察会へ戻ります。</p>
+          <p class="evt-lead" style="margin:0;">観察を自分の記録として残す方は、<a data-evt-register-link href="${escapeHtml(registerHref)}">無料アカウントを作って参加</a>。登録済みの方は<a data-evt-login-link href="${escapeHtml(loginHref)}">ログイン</a>すると、この観察会へ戻ります。入力した参加情報も同じ端末に復元します。</p>
         </div>`}
 
     <p class="evt-lead" data-evt-checkin-status role="status" aria-live="polite" style="min-height:22px; margin:0;"></p>
@@ -136,6 +136,9 @@ export function checkinScript(): string {
   function guestStorageKey(){
     return "evt-guest-token:" + sessionId;
   }
+  function draftStorageKey(){
+    return "evt-checkin-draft:" + sessionId;
+  }
   function ensureGuestToken(){
     if (isAuthenticated) return null;
     const key = guestStorageKey();
@@ -150,6 +153,7 @@ export function checkinScript(): string {
   const form = root.querySelector("[data-evt-checkin-form]");
   const status = root.querySelector("[data-evt-checkin-status]");
   const submit = root.querySelector("[data-evt-checkin-submit]");
+  const displayNameInput = form?.querySelector('input[name="display_name"]');
   const minorInput = form?.querySelector('input[name="is_minor"]');
   const shareInput = form?.querySelector('input[name="share_location"]');
   const guardianInput = form?.querySelector('input[name="guardian_location_consent"]');
@@ -168,9 +172,46 @@ export function checkinScript(): string {
     }
     if (!required && guardianInput) guardianInput.checked = false;
   }
+  function saveDraft(){
+    if (!form) return;
+    const fd = new FormData(form);
+    const draft = {
+      displayName: String(fd.get("display_name") || "").trim(),
+      teamId: String(fd.get("team_id") || ""),
+      shareLocation: fd.get("share_location") === "on",
+      isMinor: fd.get("is_minor") === "on",
+      guardianConsent: fd.get("guardian_location_consent") === "on",
+    };
+    try {
+      sessionStorage.setItem(draftStorageKey(), JSON.stringify(draft));
+    } catch {}
+  }
+  function restoreDraft(){
+    let draft = null;
+    try {
+      draft = JSON.parse(sessionStorage.getItem(draftStorageKey()) || "null");
+    } catch {}
+    if (!draft || typeof draft !== "object") return;
+    if (displayNameInput && typeof draft.displayName === "string") displayNameInput.value = draft.displayName;
+    if (shareInput) shareInput.checked = draft.shareLocation === true;
+    if (minorInput) minorInput.checked = draft.isMinor === true;
+    if (guardianInput) guardianInput.checked = draft.guardianConsent === true;
+    if (typeof draft.teamId === "string" && draft.teamId) {
+      const teamInput = form?.querySelector('input[name="team_id"][value="' + CSS.escape(draft.teamId) + '"]');
+      if (teamInput) {
+        teamInput.checked = true;
+        teamInput.closest("[data-team-card]")?.classList.add("is-selected");
+      }
+    }
+  }
+
   minorInput?.addEventListener("change", syncGuardianConsent);
   shareInput?.addEventListener("change", syncGuardianConsent);
+  restoreDraft();
   syncGuardianConsent();
+  root.querySelectorAll("[data-evt-register-link], [data-evt-login-link]").forEach(link => {
+    link.addEventListener("click", saveDraft);
+  });
 
   form?.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -184,7 +225,7 @@ export function checkinScript(): string {
 
     if (!displayName) {
       setStatus("参加名を入力してください。", "error");
-      form.querySelector('input[name="display_name"]')?.focus();
+      displayNameInput?.focus();
       return;
     }
     if (isMinor && shareLocation && !guardianConsent) {
@@ -217,6 +258,7 @@ export function checkinScript(): string {
         setStatus("チェックインできませんでした。通信状況を確認して、もう一度お試しください。入力内容は残っています。", "error");
         return;
       }
+      try { sessionStorage.removeItem(draftStorageKey()); } catch {}
       setStatus("参加できました。観察画面を開きます。", "success");
       if (window.evtFanfare) window.evtFanfare("ようこそ!");
       setTimeout(() => {
