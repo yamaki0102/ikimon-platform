@@ -3341,7 +3341,7 @@ class FakeStatement {
       const key = `${string(v[1])}:${string(v[2])}:${string(v[3])}`;
       const existing = this.db.observationReassessmentRequests.get(key);
       this.db.observationReassessmentRequests.set(key, {
-        request_id: existing?.request_id ?? string(v[0]),
+        request_id: string(v[0]),
         observation_id: string(v[1]),
         request_kind: string(v[2]),
         actor_user_id: string(v[3]),
@@ -9863,10 +9863,28 @@ test("v1 photo upload stores base64 media in R2 and returns the shared ok contra
   assert.match(response.relativePath, /^original\/v1-compat\/visit-photo-contract\/asset_/);
   assert.equal(response.publicUrl, `/${response.relativePath}`);
   assert.equal(response.facePrivacy, "no_faces");
+  assert.equal(response.reassessment.state, "pending");
+  assert.equal(response.reassessment.kind, "standard");
+  assert.equal(response.reassessment.source, "cloudflare_photo_upload_atomic_reassessment");
   assert.equal(obs.assets.size, 1);
   assert.equal([...obs.assets.values()][0]?.processing_state, "uploaded");
   assert.equal([...obs.assets.values()][0]?.bytes, 11);
+  assert.equal(obs.observationReassessmentRequests.get("visit-photo-contract:standard:user-photo")?.request_state, "pending");
+  assert.match(obs.observationReassessmentRequests.get("visit-photo-contract:standard:user-photo")?.source_payload_json ?? "", /cloudflare_photo_upload_atomic_reassessment/);
   assert.equal(queue.messages.length, 2);
+
+  const secondResponse = await post("/api/v1/observations/visit-photo-contract/photos/upload", env, {
+    filename: "second.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("second-image").toString("base64"),
+    mediaRole: "supporting",
+    facePrivacy: "no_faces"
+  });
+  assert.equal(obs.assets.size, 2);
+  assert.equal(obs.observationReassessmentRequests.size, 1);
+  assert.equal(obs.observationReassessmentRequests.get("visit-photo-contract:standard:user-photo")?.request_state, "pending");
+  assert.equal(obs.observationReassessmentRequests.get("visit-photo-contract:standard:user-photo")?.request_id, secondResponse.reassessment.requestId);
+  assert.equal(queue.messages.length, 4);
 });
 
 test("v1 photo upload compensates the R2 object when the authoritative D1 batch fails", async () => {

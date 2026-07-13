@@ -6228,6 +6228,7 @@ async function requestCompatibleObservationReassessment(observationId: string, r
        request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json
      ) VALUES (?, ?, ?, ?, 'pending', ?)
      ON CONFLICT(observation_id, request_kind, actor_user_id) DO UPDATE SET
+       request_id = excluded.request_id,
        request_state = 'pending',
        source_payload_json = excluded.source_payload_json,
        updated_at = CURRENT_TIMESTAMP`
@@ -26049,6 +26050,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const assetId = newId("asset");
   const outboxMediaId = newId("outbox");
   const outboxReadModelId = newId("outbox");
+  const reassessmentRequestId = newId("reassess");
   const objectKey = `original/v1-compat/${observationId}/${assetId}-${filename}`;
   const relativePath = objectKey;
   const occurrenceId = `occ:${observationId}:0`;
@@ -26079,6 +26081,22 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     env.OBS_DB.prepare(
       "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxReadModelId, "readmodel.refresh", observationId, JSON.stringify({ observationId }), partitionMonth),
+    env.OBS_DB.prepare(
+      `INSERT INTO observation_reassessment_requests (
+         request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json
+       ) VALUES (?, ?, ?, ?, 'pending', ?)
+       ON CONFLICT(observation_id, request_kind, actor_user_id) DO UPDATE SET
+         request_id = excluded.request_id,
+         request_state = 'pending',
+         source_payload_json = excluded.source_payload_json,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      reassessmentRequestId,
+      observationId,
+      "standard",
+      observation.owner_user_id,
+      JSON.stringify({ source: "cloudflare_photo_upload_atomic_reassessment", assetId, occurrenceId })
+    ),
     rollbackLedgerInsert(env, {
       eventType: "asset.photo.upload",
       targetId: assetId,
@@ -26124,6 +26142,12 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       succeeded: false
     },
     facePrivacy,
+    reassessment: {
+      state: "pending",
+      kind: "standard",
+      requestId: reassessmentRequestId,
+      source: "cloudflare_photo_upload_atomic_reassessment"
+    },
     dispatch
   });
 }
