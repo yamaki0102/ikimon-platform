@@ -20,7 +20,7 @@
     "deploy:shadow:dry-run": "node scripts/deploy-shadow-guard.mjs",
     "deploy:shadow": "node scripts/deploy-shadow-guard.mjs --execute",
     "deploy:staging:preflight": "node scripts/deploy-staging-guard.mjs --write-preflight-report .deploy/staging-preflight-latest.json",
-    "deploy:staging:dry-run": "node scripts/deploy-staging-guard.mjs",
+    "deploy:staging:dry-run": "node scripts/deploy-staging-diagnostic.mjs",
     "deploy:staging": "node scripts/deploy-staging-guard.mjs --execute",
     "deploy:production:preflight": "node scripts/deploy-production-guard.mjs --write-preflight-report .deploy/production-preflight-latest.json",
     "deploy:production:quick-preflight": "node scripts/deploy-production-guard.mjs --test-profile quick --write-preflight-report .deploy/production-preflight-latest.json",
