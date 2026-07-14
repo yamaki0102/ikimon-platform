@@ -19018,6 +19018,7 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"\)/);
+  assert.match(materializerSource, /src", "runtime\.ts"/);
   assert.match(materializerSource, /includes\("\.\.\.ORIGINAL_UI_HTML_CORE_PATHS"\)/);
   assert.doesNotMatch(materializerSource, /const\s+corePaths\s*=\s*\[/);
   assert.match(workerSource, /const ORIGINAL_UI_HTML_STATIC_PATHS = new Set\(\[\s*\.\.\.ORIGINAL_UI_HTML_CORE_PATHS,/);

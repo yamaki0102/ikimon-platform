@@ -90,7 +90,10 @@ if (execute && targetEnv === "staging" && approval !== stagingApproval) {
 
 const scriptDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
-const workerSourcePath = join(scriptDir, "..", "src", "index.ts");
+const workerSourcePaths = [
+  join(scriptDir, "..", "src", "index.ts"),
+  join(scriptDir, "..", "src", "runtime.ts")
+];
 const events = [];
 const gatewayMaxAttempts = 5;
 
@@ -288,7 +291,7 @@ function auditCanonicalStaticOrigin(pathname, payload) {
 }
 
 async function readWorkerStringArray(constName) {
-  const source = await readFile(workerSourcePath, "utf8");
+  const source = await readWorkerSource();
   const escapedName = constName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = source.match(new RegExp(`const\\s+${escapedName}\\s*=\\s*\\[\\s*([\\s\\S]*?)\\s*\\]\\s*as const;`));
   if (!match) {
@@ -302,7 +305,7 @@ async function readWorkerStringArray(constName) {
 }
 
 async function readAllOriginalUiStaticPaths() {
-  const source = await readFile(workerSourcePath, "utf8");
+  const source = await readWorkerSource();
   const match = source.match(/const ORIGINAL_UI_HTML_STATIC_PATHS = new Set\(\[\s*([\s\S]*?)\s*\]\);/);
   if (!match) {
     throw new Error("Could not find ORIGINAL_UI_HTML_STATIC_PATHS in Worker source.");
@@ -319,6 +322,10 @@ async function readAllOriginalUiStaticPaths() {
     paths.push(normalizePublicPath(pathMatch[1]));
   }
   return [...new Set(paths)].sort();
+}
+
+async function readWorkerSource() {
+  return (await Promise.all(workerSourcePaths.map((sourcePath) => readFile(sourcePath, "utf8")))).join("\n");
 }
 
 async function resolveTargetPaths() {
