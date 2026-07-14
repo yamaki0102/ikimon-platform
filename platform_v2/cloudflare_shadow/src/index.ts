@@ -319,12 +319,14 @@ async function fetch(request: Request, env: unknown, ctx: unknown): Promise<Resp
     return new Response(filterLegacyQaEventCards(await source.text()), { status: source.status, headers: htmlHeaders(source) });
   }
   const join = path.match(/^\/community\/events\/([^/]+)\/join\/?$/);
-  if (request.method === "GET" && join) {
-    return await renderEnhancedJoin(request, env, ctx, decodeURIComponent(join[1]));
+  const joinCode = join?.[1];
+  if (request.method === "GET" && joinCode) {
+    return await renderEnhancedJoin(request, env, ctx, decodeURIComponent(joinCode));
   }
   const rally = path.match(/^\/events\/([^/]+)\/rally\/?$/);
-  if (request.method === "GET" && rally) {
-    return await renderEnhancedRally(request, env, ctx, decodeURIComponent(rally[1]));
+  const rallySessionId = rally?.[1];
+  if (request.method === "GET" && rallySessionId) {
+    return await renderEnhancedRally(request, env, ctx, decodeURIComponent(rallySessionId));
   }
   return await runtimeFetch(request, env, ctx);
 }
