@@ -220,6 +220,13 @@ async function currentDeployState() {
   };
 }
 
+const SMOKE_MAX_ATTEMPTS = 12;
+const SMOKE_RETRY_DELAY_MS = 5_000;
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function smoke(baseUrl, expectedSha) {
   const checks = [
     { path: "/health", service: undefined },
@@ -228,29 +235,45 @@ async function smoke(baseUrl, expectedSha) {
     { path: "/api/v1/runtime/version", service: "ikimon.life", environment: "staging", runtime: "cloudflare-worker" }
   ];
   for (const check of checks) {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}${check.path}`, {
-      redirect: "manual",
-      headers: { accept: "application/json", "cache-control": "no-store" }
-    });
-    const contentType = response.headers.get("content-type") ?? "";
-    const payload = contentType.includes("application/json") ? await response.json() : {};
-    const ok = response.ok
-      && typeof payload === "object"
-      && payload !== null
-      && payload.ok === true
-      && (!check.service || payload.service === check.service)
-      && (!check.environment || payload.environment === check.environment)
-      && (!check.runtime || payload.runtime === check.runtime)
-      && (check.path !== "/api/v1/runtime/version" || payload.gitSha === expectedSha);
-    events.push({
-      command: `smoke ${baseUrl}${check.path}`,
-      exitCode: ok ? 0 : 1,
-      status: response.status,
-      contentType,
-      durationMs: 0
-    });
-    if (!ok) {
-      throw new Error(`Staging smoke failed for ${baseUrl}${check.path}: ${response.status} ${contentType}`);
+    let lastStatus = 0;
+    let lastContentType = "";
+    let lastGitSha = null;
+    for (let attempt = 1; attempt <= SMOKE_MAX_ATTEMPTS; attempt += 1) {
+      const url = `${baseUrl.replace(/\/$/, "")}${check.path}?deploy_check=${Date.now()}-${attempt}`;
+      const response = await fetch(url, {
+        redirect: "manual",
+        headers: { accept: "application/json", "cache-control": "no-store" }
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      const payload = contentType.includes("application/json") ? await response.json() : {};
+      const ok = response.ok
+        && typeof payload === "object"
+        && payload !== null
+        && payload.ok === true
+        && (!check.service || payload.service === check.service)
+        && (!check.environment || payload.environment === check.environment)
+        && (!check.runtime || payload.runtime === check.runtime)
+        && (check.path !== "/api/v1/runtime/version" || payload.gitSha === expectedSha);
+      lastStatus = response.status;
+      lastContentType = contentType;
+      lastGitSha = payload?.gitSha ?? null;
+      events.push({
+        command: `smoke ${baseUrl}${check.path}`,
+        exitCode: ok ? 0 : 1,
+        status: response.status,
+        contentType,
+        durationMs: 0,
+        attempt,
+        expectedGitSha: check.path === "/api/v1/runtime/version" ? expectedSha : undefined,
+        actualGitSha: check.path === "/api/v1/runtime/version" ? lastGitSha : undefined
+      });
+      if (ok) break;
+      if (attempt < SMOKE_MAX_ATTEMPTS) await delay(SMOKE_RETRY_DELAY_MS);
+      else {
+        throw new Error(
+          `Staging smoke failed for ${baseUrl}${check.path}: ${lastStatus} ${lastContentType}; expectedGitSha=${expectedSha}; actualGitSha=${lastGitSha}`
+        );
+      }
     }
   }
 }

@@ -53,6 +53,17 @@ test("production deploy guard injects and verifies the exact git SHA without exp
   assert.doesNotMatch(guard, /command:\s*actualCommandLine/);
 });
 
+test("staging deploy smoke tolerates bounded Cloudflare propagation delay", async () => {
+  const guard = await source("../scripts/deploy-staging-guard.mjs");
+
+  assert.match(guard, /const SMOKE_MAX_ATTEMPTS = 12/);
+  assert.match(guard, /const SMOKE_RETRY_DELAY_MS = 5_000/);
+  assert.match(guard, /attempt < SMOKE_MAX_ATTEMPTS/);
+  assert.match(guard, /await delay\(SMOKE_RETRY_DELAY_MS\)/);
+  assert.match(guard, /deploy_check=\$\{Date\.now\(\)\}-\$\{attempt\}/);
+  assert.match(guard, /actualGitSha/);
+});
+
 test("production execute clean gate allows only owned generated deploy artifacts", async () => {
   const gateUrl = new URL("../scripts/production-deploy-clean-gate.mjs", import.meta.url).href;
   const runGate = async (execute: boolean, clean: boolean, phase: string, status: string) => execFileAsync(process.execPath, [
