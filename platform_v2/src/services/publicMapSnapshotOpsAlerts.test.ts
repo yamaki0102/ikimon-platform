@@ -102,16 +102,14 @@ test("staging smoke backdates, alerts, verifies admin, refreshes, and resolves",
   assert.match(smokeSource, /\/ops\/public-map-snapshot/);
 });
 
-test("public map snapshot alert smoke is wired into the staging full release gate", async () => {
+test("public map snapshot alert smoke remains documented as a legacy VPS gate outside Cloudflare promotion", async () => {
   const [
-    workflowSource,
     manifestSource,
     manifestSyncSource,
     deploymentDoc,
     stagingRunbook,
     cutoverRunbook,
   ] = await Promise.all([
-    readFile(new URL("../../../.github/workflows/deploy-staging.yml", import.meta.url), "utf8"),
     readFile(new URL("../../../ops/deploy/staging_manifest.json", import.meta.url), "utf8"),
     readFile(new URL("../../../scripts/check_staging_manifest_sync.ps1", import.meta.url), "utf8"),
     readFile(new URL("../../../docs/DEPLOYMENT.md", import.meta.url), "utf8"),
@@ -119,7 +117,11 @@ test("public map snapshot alert smoke is wired into the staging full release gat
     readFile(new URL("../../../ops/CUTOVER_RUNBOOK.md", import.meta.url), "utf8"),
   ]);
   const manifest = JSON.parse(manifestSource) as {
+    githubActionsRequired?: boolean;
+    portableReleaseScript?: string;
+    promotion?: { commandBusOnly?: boolean };
     releaseGates?: Array<{ key: string; scope: string; command: string; workflowMarkers: string[] }>;
+    notes?: string[];
   };
   const gate = manifest.releaseGates?.find((item) => item.key === "public_map_snapshot_alert_lifecycle");
 
@@ -132,16 +134,14 @@ test("public map snapshot alert smoke is wired into the staging full release gat
   assert.match(gate.command, /--require-admin/);
   assert.match(gate.command, /--capture-webhook/);
   assert.match(gate.command, /--require-webhook/);
-  for (const marker of gate.workflowMarkers) {
-    assert.match(workflowSource, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  }
-  assert.match(workflowSource, /if \[ "\$VERIFY_LEVEL" = "full" \]/);
-  assert.match(workflowSource, /npm run smoke:public-map-snapshot-alert/);
-  assert.match(workflowSource, /IKIMON_OPS_STALENESS_WEBHOOK_URL/);
-  assert.match(workflowSource, /--create-smoke-admin-session/);
-  assert.match(workflowSource, /--capture-webhook/);
-  assert.match(manifestSyncSource, /releaseGates/);
-  assert.match(manifestSyncSource, /workflowMarkers/);
+  assert.equal(manifest.githubActionsRequired, false);
+  assert.equal(manifest.promotion?.commandBusOnly, true);
+  assert.equal(manifest.portableReleaseScript, "scripts/run_cloudflare_staging_release.sh");
+  assert.match(manifest.notes?.join("\n") ?? "", /legacy VPS verify_level=full gate/);
+  assert.match(manifest.notes?.join("\n") ?? "", /Cloudflare staging uses requiredChecks and public route smoke/);
+  assert.match(manifestSyncSource, /githubActionsRequired/);
+  assert.match(manifestSyncSource, /commandBusOnly/);
+  assert.match(manifestSyncSource, /Retired deploy workflow remains/);
   assert.match(deploymentDoc, /public_map_snapshot_alert_lifecycle/);
   assert.match(stagingRunbook, /public_map_snapshot_alert_lifecycle/);
   assert.match(stagingRunbook, /production host/);

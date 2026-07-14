@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { readCloudflareWorkerSource } from "../cloudflareWorkerSource.testSupport.js";
 
 test("origin PostgreSQL owner-hide service is retired in favor of Worker native hide", async () => {
   assert.equal(existsSync(path.join(process.cwd(), "src", "services", "observationVisibility.ts")), false);
@@ -11,7 +12,7 @@ test("origin PostgreSQL owner-hide service is retired in favor of Worker native 
   assert.doesNotMatch(writeRoutes, /observationVisibility/);
   assert.doesNotMatch(writeRoutes, /\/api\/v1\/observations\/:id\/hide/);
 
-  const workerSource = await readFile(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
+  const workerSource = await readCloudflareWorkerSource();
   assert.match(workerSource, /hideCompatibleObservation/);
   assert.match(workerSource, /POST \/api\/v1\/observations\/:id\/hide/);
   assert.match(workerSource, /UPDATE observations SET emergency_hidden = 1/);

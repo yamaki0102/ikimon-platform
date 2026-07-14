@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
+import { readWorkerSourceSync } from "./workerSource.testSupport.js";
 
 // Guards the exact signed-in state transition that failed on the Android production home.
-const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+const source = readWorkerSourceSync();
 
 test("owner home replaces a materialized guest feed state", () => {
   assert.match(source, /const normalized = classes/);

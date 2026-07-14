@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { readCloudflareWorkerSource } from "../cloudflareWorkerSource.testSupport.js";
 
 test("video upload lifecycle is owned by the Cloudflare Worker, not the Node origin", async () => {
   const routeSource = await readFile(path.join(process.cwd(), "src", "routes", "write.ts"), "utf8");
-  const workerSource = await readFile(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
+  const workerSource = await readCloudflareWorkerSource();
   const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0094_publish_valid_video_observations.sql"), "utf8");
 
   assert.doesNotMatch(routeSource, /services\/videoUpload\.js/);
@@ -26,7 +27,7 @@ test("video upload lifecycle is owned by the Cloudflare Worker, not the Node ori
 test("video media processing is handled by Cloudflare Queues, not the Node PostgreSQL queue", async () => {
   const packageJson = await readFile(path.join(process.cwd(), "package.json"), "utf8");
   const smokeSource = await readFile(path.join(process.cwd(), "src", "scripts", "smokeProductionMediaUpload.ts"), "utf8");
-  const workerSource = await readFile(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
+  const workerSource = await readCloudflareWorkerSource();
   const wranglerConfig = await readFile(path.join(process.cwd(), "cloudflare_shadow", "wrangler.jsonc"), "utf8");
   const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0033_video_processing_jobs.sql"), "utf8");
   const mediaMigration = await readFile(path.join(process.cwd(), "db", "migrations", "0034_media_processing_jobs.sql"), "utf8");

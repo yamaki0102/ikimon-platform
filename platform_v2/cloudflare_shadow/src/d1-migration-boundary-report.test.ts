@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { readWorkerSource } from "./workerSource.testSupport.js";
 
 function loadClassifyPg(script: string): (text: string) => string[] {
   const match = script.match(/function classifyPg\(text\) \{[\s\S]*?\n\}/);
@@ -584,7 +585,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
 });
 
 test("readModels runtime is covered by Cloudflare materialized and native read lanes", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
@@ -605,7 +606,7 @@ test("readModels runtime is covered by Cloudflare materialized and native read l
 });
 
 test("production area sketch public release gate blocks school children home-nearby private-land rare-species and sensitive-place contexts", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
 
   assert.match(workerSource, /function areaSketchPublicReleaseGate\(/);
@@ -661,7 +662,7 @@ test("write support PostgreSQL helper is separated from pure write helpers", asy
 });
 
 test("legacy write route boundary is covered by Cloudflare app write runtimes", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
@@ -783,14 +784,14 @@ test("VPS stop readiness reports ready P0 capability dispositions", async () => 
 });
 
 test("public custom domain origin fallback is not registered twice", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const publicDomainFallbackCalls = workerSource.match(/fetchOriginFallback\([^)]*"public_custom_domain_path"/g) ?? [];
 
   assert.equal(publicDomainFallbackCalls.length, 1);
 });
 
 test("production legacy PHP public entrypoints cannot use origin fallback", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
 
   assert.match(workerSource, /function isLegacyPhpPublicEntrypointPath\(pathname: string\): boolean/);
@@ -801,7 +802,7 @@ test("production legacy PHP public entrypoints cannot use origin fallback", asyn
 });
 
 test("legacy observation event API fallback is retired from Worker source", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const classifyFallbackReason = loadClassifyFallbackReason(script);
 
@@ -811,7 +812,7 @@ test("legacy observation event API fallback is retired from Worker source", asyn
 });
 
 test("map area polygon origin geometry fallback is retired from Worker source", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const classifyFallbackReason = loadClassifyFallbackReason(script);
 
@@ -820,7 +821,7 @@ test("map area polygon origin geometry fallback is retired from Worker source", 
 });
 
 test("static asset materialized miss origin fallback is retired from Worker source", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const classifyFallbackReason = loadClassifyFallbackReason(script);
 
@@ -829,7 +830,7 @@ test("static asset materialized miss origin fallback is retired from Worker sour
 });
 
 test("area snapshot materialized miss origin fallback is retired from Worker source", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const classifyFallbackReason = loadClassifyFallbackReason(script);
 
@@ -838,7 +839,7 @@ test("area snapshot materialized miss origin fallback is retired from Worker sou
 });
 
 test("personalized html request origin fallback is retired from Worker source", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const classifyFallbackReason = loadClassifyFallbackReason(script);
 
@@ -847,7 +848,7 @@ test("personalized html request origin fallback is retired from Worker source", 
 });
 
 test("html materialized miss origin fallback is retired from Worker source", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const classifyFallbackReason = loadClassifyFallbackReason(script);
 
@@ -856,7 +857,7 @@ test("html materialized miss origin fallback is retired from Worker source", asy
 });
 
 test("thumb materialized miss origin fallback is retired from Worker source", async () => {
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const classifyFallbackReason = loadClassifyFallbackReason(script);
 
@@ -866,7 +867,7 @@ test("thumb materialized miss origin fallback is retired from Worker source", as
 
 test("production origin session probe is opt-in and disabled by default", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
-  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerSource = await readWorkerSource();
   const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
 
   assert.match(workerSource, /const mode = \(env\.ORIGIN_SESSION_IMPORT_MODE \?\? "disabled"\)\.trim\(\)\.toLowerCase\(\)/);

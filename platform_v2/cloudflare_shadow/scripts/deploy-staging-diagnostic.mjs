@@ -13,17 +13,21 @@ const child = spawn(
 
 let stdout = "";
 let stderr = "";
+const captureLimitBytes = 48 * 1024;
+
+function appendTail(current, chunk) {
+  const combined = current + chunk.toString();
+  return combined.length > captureLimitBytes
+    ? combined.slice(-captureLimitBytes)
+    : combined;
+}
 
 child.stdout.on("data", (chunk) => {
-  const text = chunk.toString();
-  stdout += text;
-  process.stdout.write(chunk);
+  stdout = appendTail(stdout, chunk);
 });
 
 child.stderr.on("data", (chunk) => {
-  const text = chunk.toString();
-  stderr += text;
-  process.stderr.write(chunk);
+  stderr = appendTail(stderr, chunk);
 });
 
 child.on("error", (error) => {
@@ -36,12 +40,14 @@ child.on("error", (error) => {
 
 child.on("close", (code) => {
   if (code === 0) {
+    process.stdout.write(stdout);
+    process.stderr.write(stderr);
     process.exitCode = 0;
     return;
   }
 
   const combined = `${stdout}\n${stderr}`
-    .replace(/(?:token|secret|password|authorization)\s*[:=]\s*[^\s"']+/gi, "$1=[REDACTED]")
+    .replace(/(token|secret|password|authorization)\s*[:=]\s*[^\s"']+/gi, "$1=[REDACTED]")
     .replace(/[A-Za-z0-9+/=_-]{80,}/g, "[REDACTED_LONG_VALUE]");
   const lines = combined.split(/\r?\n/).filter(Boolean);
   const diagnosticTail = lines.slice(-120).join("\n").slice(-24000);

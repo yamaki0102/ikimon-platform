@@ -3,8 +3,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { readWorkerSourceSync } from "./workerSource.testSupport.js";
 
-const workerSource = readFileSync(path.join(process.cwd(), "src/index.ts"), "utf8");
+const workerSource = readWorkerSourceSync();
 const boundarySource = readFileSync(path.join(process.cwd(), "scripts/d1-migration-boundary-report.mjs"), "utf8");
 const migrationSource = readFileSync(
   path.join(process.cwd(), "migrations/observations/0065_observation_rally_submission_idempotency.sql"),

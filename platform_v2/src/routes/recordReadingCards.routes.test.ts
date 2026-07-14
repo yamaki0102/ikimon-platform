@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { readCloudflareWorkerSourceSync } from "../cloudflareWorkerSource.testSupport.js";
 
 const readSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 const writeSource = readFileSync(new URL("./write.ts", import.meta.url), "utf8");
-const workerSource = readFileSync(new URL("../../cloudflare_shadow/src/index.ts", import.meta.url), "utf8");
+const workerSource = readCloudflareWorkerSourceSync();
 
 test("observation detail wires the record reading cards into the existing insight block", () => {
   assert.match(readSource, /listRecordReadingCards\(\{ visitId: bundle\.visitId, viewerUserId \}\)/);

@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import test from "node:test";
+import { readWorkerSourceSync } from "./workerSource.testSupport.js";
 
-const workerSource = readFileSync(path.join(process.cwd(), "src/index.ts"), "utf8");
+const workerSource = readWorkerSourceSync();
 
 test("Place Memory remains locked until the viewer records the same cell", () => {
   assert.match(workerSource, /async function placeMemoryViewerHasCellAccessNative/);

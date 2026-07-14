@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { readCloudflareWorkerSourceSync } from "../cloudflareWorkerSource.testSupport.js";
 import { observationPhotoUploadTargetIds } from "./observationPhotoUpload.js";
 
 test("photo upload target ids fall back from occurrence id to visit id", () => {
@@ -56,7 +57,7 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(source, /throw new Error\("observation_not_found"\)/);
   assert.doesNotMatch(source, /observation not found: \$\{input\.observationId\}/);
 
-  const worker = readFileSync(path.join(process.cwd(), "cloudflare_shadow/src/index.ts"), "utf8");
+  const worker = readCloudflareWorkerSourceSync();
   const wranglerConfig = readFileSync(path.join(process.cwd(), "cloudflare_shadow/wrangler.jsonc"), "utf8");
   assert.match(worker, /MEDIA_QUEUE/);
   assert.match(worker, /topic === "media\.process"/);

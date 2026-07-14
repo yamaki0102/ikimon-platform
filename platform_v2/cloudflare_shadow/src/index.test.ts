@@ -5,6 +5,7 @@ import test from "node:test";
 import { deflateSync } from "node:zlib";
 import * as bcrypt from "bcryptjs";
 import { worker } from "./index";
+import { readWorkerSource } from "./workerSource.testSupport.js";
 
 type D1Value = string | number | null;
 const INTERNAL_AUTH_TOKEN = "test-internal-token";
@@ -7578,7 +7579,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(observationsPayload.stats.selectedCellId, "cell:34.71,137.81");
   assert.ok(!("features" in observationsPayload));
   assert.doesNotMatch(JSON.stringify(observationsPayload), /34\.71234|137\.81234/);
-  const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+  const workerSource = await readWorkerSource();
   assert.match(workerSource, /async function queryPublicMapPhotoUrls[\s\S]*presentablePublicPhotoSql\(\)/);
 
   env.OBS_DB.readmodel.set("visit-unidentified-contract", {
@@ -19001,7 +19002,7 @@ test("production guide read entry routes serve localized materialized html witho
 });
 
 test("materialized original UI core entry registry is single-sourced from the Worker", async () => {
-  const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+  const workerSource = await readWorkerSource();
   const materializerSource = await readFile(new URL("../scripts/materialize-original-ui-html.mjs", import.meta.url), "utf8");
   const parseArray = (source: string, constName: string): string[] => {
     const match = source.match(new RegExp(`const\\s+${constName}\\s*=\\s*\\[\\s*([\\s\\S]*?)\\s*\\]\\s*as const;`));
@@ -19091,7 +19092,7 @@ test("materialized original UI core entry registry is single-sourced from the Wo
 });
 
 test("Cloudflare staging QA sitemap smoke materialization scope covers only public visual routes", async () => {
-  const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+  const workerSource = await readWorkerSource();
   const materializerSource = await readFile(new URL("../scripts/materialize-original-ui-html.mjs", import.meta.url), "utf8");
   const parseArray = (source: string, constName: string): string[] => {
     const match = source.match(new RegExp(`const\\s+${constName}\\s*=\\s*\\[\\s*([\\s\\S]*?)\\s*\\]\\s*as const;`));
@@ -19141,7 +19142,7 @@ test("Cloudflare staging QA sitemap smoke materialization scope covers only publ
 });
 
 test("materialized guide program detail registry covers published route links", async () => {
-  const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+  const workerSource = await readWorkerSource();
   const mapGuideSource = await readFile(new URL("../../src/services/mapGuideSpots.ts", import.meta.url), "utf8");
   const routeSources = await Promise.all([
     readFile(new URL("../../src/routes/guideRead.ts", import.meta.url), "utf8"),

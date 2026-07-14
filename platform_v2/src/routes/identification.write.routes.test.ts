@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { buildApp } from "../app.js";
+import { readCloudflareWorkerSource } from "../cloudflareWorkerSource.testSupport.js";
 
 test("public identification write is retired from Fastify", async () => {
   const app = buildApp();
@@ -110,7 +111,7 @@ test("alternative identifications keep selected reference evidence attached", as
 });
 
 test("Worker dispute write accepts reference evidence payloads", async () => {
-  const source = await readFile(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
+  const source = await readCloudflareWorkerSource();
 
   assert.match(source, /referenceSourceIds\?: unknown/);
   assert.match(source, /referenceLocator\?: unknown/);

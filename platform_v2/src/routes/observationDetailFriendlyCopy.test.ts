@@ -4,6 +4,7 @@ import test from "node:test";
 import type { ObservationVisitBundle, ObservationVisitSubject } from "../services/observationVisitBundle.js";
 import type { TaxonInsight } from "../services/taxonInsights.js";
 import { buildVisibleRecordItems, type VisibleRecordItem } from "../services/observationSceneReadModel.js";
+import { readCloudflareWorkerSourceSync } from "../cloudflareWorkerSource.testSupport.js";
 import { renderHeroAiReadout, renderIdentificationCandidateSwitch, renderObservationRecordInsightText, renderVisibleRecordItemsPanel } from "./read.js";
 
 const routeSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
@@ -13,7 +14,7 @@ const mediaSource = readFileSync(new URL("../ui/observationMedia.ts", import.met
 const identificationParticipationSource = readFileSync(new URL("../services/identificationParticipation.ts", import.meta.url), "utf8");
 const observationVisitBundleSource = readFileSync(new URL("../services/observationVisitBundle.ts", import.meta.url), "utf8");
 const siteContributionSource = readFileSync(new URL("../services/observationSiteContribution.ts", import.meta.url), "utf8");
-const cloudflareWorkerSource = readFileSync(new URL("../../cloudflare_shadow/src/index.ts", import.meta.url), "utf8");
+const cloudflareWorkerSource = readCloudflareWorkerSourceSync();
 
 function sourceBetween(startMarker: string, endMarker: string): string {
   const start = routeSource.indexOf(startMarker);

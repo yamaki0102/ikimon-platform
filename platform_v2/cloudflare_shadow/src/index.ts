@@ -1,8 +1,7 @@
 import runtime from "./runtime.js";
 
-const upstream = runtime as Record<string, unknown> & {
-  fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
-};
+const upstream = runtime;
+type UpstreamEnv = Parameters<typeof upstream.fetch>[1];
 
 function escapeHtml(value: string): string {
   return value
@@ -69,11 +68,11 @@ export function filterLegacyQaEventCards(html: string): string {
   return result;
 }
 
-async function runtimeFetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
-  return await upstream.fetch(request, env, ctx);
+async function runtimeFetch(request: Request, env: UpstreamEnv, _ctx: unknown): Promise<Response> {
+  return await upstream.fetch(request, env);
 }
 
-async function authenticatedSession(request: Request, env: unknown, ctx: unknown): Promise<boolean> {
+async function authenticatedSession(request: Request, env: UpstreamEnv, ctx: unknown): Promise<boolean> {
   const url = new URL(request.url);
   url.pathname = "/api/v1/auth/session";
   url.search = "?optional=1";
@@ -232,7 +231,7 @@ function joinEnhancementScript(sessionId: string, eventCode: string, authenticat
 })();`;
 }
 
-async function renderEnhancedJoin(request: Request, env: unknown, ctx: unknown, eventCode: string): Promise<Response> {
+async function renderEnhancedJoin(request: Request, env: UpstreamEnv, ctx: unknown, eventCode: string): Promise<Response> {
   const source = await runtimeFetch(request, env, ctx);
   if (!source.ok || !source.headers.get("content-type")?.includes("text/html")) return source;
   let html = await source.text();
@@ -298,7 +297,7 @@ function rallyEnhancementScript(sessionId: string): string {
 })();`;
 }
 
-async function renderEnhancedRally(request: Request, env: unknown, ctx: unknown, sessionId: string): Promise<Response> {
+async function renderEnhancedRally(request: Request, env: UpstreamEnv, ctx: unknown, sessionId: string): Promise<Response> {
   const source = await runtimeFetch(request, env, ctx);
   if (!source.ok || !source.headers.get("content-type")?.includes("text/html")) return source;
   let html = await source.text();
@@ -310,7 +309,7 @@ async function renderEnhancedRally(request: Request, env: unknown, ctx: unknown,
   return new Response(html, { status: source.status, headers: htmlHeaders(source) });
 }
 
-async function fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
+async function fetch(request: Request, env: UpstreamEnv, ctx?: unknown): Promise<Response> {
   const url = new URL(request.url);
   const path = normalizedPath(url.pathname);
   if (request.method === "GET" && path === "/community/events") {
@@ -331,7 +330,9 @@ async function fetch(request: Request, env: unknown, ctx: unknown): Promise<Resp
   return await runtimeFetch(request, env, ctx);
 }
 
-export default {
+export const worker = {
   ...upstream,
   fetch,
 };
+
+export default worker;

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { readWorkerSourceSync } from "./workerSource.testSupport.js";
 
-const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+const source = readWorkerSourceSync();
 const config = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
 
 test("image assets are re-encoded to verified WebP bytes", () => {

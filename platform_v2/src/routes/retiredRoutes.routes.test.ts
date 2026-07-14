@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { readCloudflareWorkerSource } from "../cloudflareWorkerSource.testSupport.js";
 
 async function listFiles(root: string): Promise<string[]> {
   const entries = await readdir(root, { withFileTypes: true });
@@ -20,7 +21,7 @@ async function listFiles(root: string): Promise<string[]> {
 
 test("municipal walk map Fastify routes are retired in favor of Worker-native routes", async () => {
   const appSource = await readFile(path.join(process.cwd(), "src", "app.ts"), "utf8");
-  const workerSource = await readFile(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
+  const workerSource = await readCloudflareWorkerSource();
 
   assert.doesNotMatch(appSource, /registerMunicipalWalkMapRoutes/);
   assert.match(workerSource, /nativePathname === "\/api\/v1\/municipal-walk-maps"/);
@@ -46,7 +47,7 @@ test("municipal walk map HTML is not rendered through original-ui materializatio
     path.join(process.cwd(), "cloudflare_shadow", "scripts", "materialize-original-ui-html.mjs"),
     "utf8",
   );
-  const workerSource = await readFile(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
+  const workerSource = await readCloudflareWorkerSource();
 
   assert.doesNotMatch(materializerSource, /\/walk-maps/);
   assert.doesNotMatch(materializerSource, /\/walk-map-source-drafts/);
