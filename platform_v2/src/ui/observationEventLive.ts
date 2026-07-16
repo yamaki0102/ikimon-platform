@@ -30,7 +30,7 @@ export interface RenderLiveArgs {
   session: ObservationEventSessionRow;
   participantSelfId: string | null;
   isOrganizer: boolean;
-  guestToken: string | null;
+  guestToken?: string | null;
 }
 
 export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
