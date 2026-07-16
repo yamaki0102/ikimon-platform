@@ -4,6 +4,15 @@ import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { getStrings } from "../i18n/index.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import {
+  buildObservationEventGuestCookie,
+  createObservationEventGuestCredential,
+  readObservationEventGuestCredential,
+} from "../services/observationEventGuestCredential.js";
+import {
+  isObservationEventCheckinOpen,
+  requireObservationEventViewerAccess,
+} from "../services/observationEventParticipantAccess.js";
+import {
   getSessionById,
   getSessionByEventCode,
   type ObservationEventSessionRow,
@@ -72,10 +81,6 @@ import { getPlaceManagementPolicy } from "../services/placeManagementPolicy.js";
 import { getPlaceVegetationTrend } from "../services/placeVegetationTrend.js";
 import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
 import { getFieldManagerRole } from "../services/fieldManagers.js";
-
-function asString(v: unknown): string | null {
-  return typeof v === "string" && v.length > 0 ? v : null;
-}
 
 function pageDocument(args: {
   basePath: string;
@@ -421,7 +426,18 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
           </section>`,
         });
       }
+      if (!isObservationEventCheckinOpen(session)) {
+        reply.header("Cache-Control", "private, no-store");
+        return reply.code(303).redirect(`/events/${encodeURIComponent(session.sessionId)}/recap`);
+      }
       const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth && !readObservationEventGuestCredential(session.sessionId, request.headers.cookie)) {
+        const credential = createObservationEventGuestCredential();
+        reply.header(
+          "Set-Cookie",
+          buildObservationEventGuestCookie(session.sessionId, credential),
+        );
+      }
       const teams = await loadTeamsLite(session.sessionId).catch(() => []);
       const html = pageDocument({
         basePath: "",
@@ -436,7 +452,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
   );
 
   // /events/:sessionId/live  --- 参加者ライブ画面
-  app.get<{ Params: { sessionId: string }; Querystring: { token?: string } }>(
+  app.get<{ Params: { sessionId: string } }>(
     "/events/:sessionId/live",
     async (request, reply) => {
       const session = await getSessionById(request.params.sessionId).catch(() => null);
@@ -450,16 +466,25 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
           body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">セッションが見つかりません</h1></article></section>`,
         });
       }
-      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      const viewer = await requireObservationEventViewerAccess(session, request.headers.cookie);
+      if (!viewer) {
+        reply.code(403);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "観察会 — 参加確認が必要です",
+          currentPath: currentPathOf(request),
+          body: `<section class="evt-recap-shell"><article class="evt-card" data-error="event participant required"><h1 class="evt-heading">参加者のみアクセス可能</h1><p class="evt-lead">チェックインしてから開いてください。</p></article></section>`,
+        });
+      }
       const html = pageDocument({
         basePath: "",
         title: `${session.title || "観察会"} ライブ — ikimon.life`,
         currentPath: currentPathOf(request),
         body: renderObservationEventLiveBody({
           session,
-          participantSelfId: null,
-          isOrganizer: auth ? auth.userId === session.organizerUserId : false,
-          guestToken: asString(request.query.token),
+          participantSelfId: viewer.participantId,
+          isOrganizer: viewer.isOrganizer,
         }),
         extraScript: observationEventLiveScript(),
       });
@@ -469,7 +494,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
   );
 
   // /events/:sessionId/rally  --- 観察ラリー参加者画面
-  app.get<{ Params: { sessionId: string }; Querystring: { token?: string } }>(
+  app.get<{ Params: { sessionId: string } }>(
     "/events/:sessionId/rally",
     async (request, reply) => {
       const session = await getSessionById(request.params.sessionId).catch(() => null);
@@ -483,15 +508,24 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
           body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">セッションが見つかりません</h1></article></section>`,
         });
       }
-      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      const viewer = await requireObservationEventViewerAccess(session, request.headers.cookie);
+      if (!viewer) {
+        reply.code(403);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "観察ラリー — 参加確認が必要です",
+          currentPath: currentPathOf(request),
+          body: `<section class="evt-recap-shell"><article class="evt-card" data-error="event participant required"><h1 class="evt-heading">参加者のみアクセス可能</h1><p class="evt-lead">チェックインしてから開いてください。</p></article></section>`,
+        });
+      }
       const html = pageDocument({
         basePath: "",
         title: `${session.title || "観察会"} 観察ラリー — ikimon.life`,
         currentPath: currentPathOf(request),
         body: renderObservationRallyBody({
           session,
-          guestToken: asString(request.query.token),
-          isOrganizer: auth ? auth.userId === session.organizerUserId : false,
+          isOrganizer: viewer.isOrganizer,
         }),
         extraScript: observationRallyScript(),
       });
@@ -546,13 +580,34 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
   );
 
   // /events/:sessionId/recap  --- 振り返り(永続)
-  app.get<{ Params: { sessionId: string }; Querystring: { token?: string } }>(
+  app.get<{ Params: { sessionId: string } }>(
     "/events/:sessionId/recap",
     async (request, reply) => {
-      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      const session = await getSessionById(request.params.sessionId).catch(() => null);
+      if (!session) {
+        reply.code(404);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "観察会 — 振り返りなし",
+          currentPath: currentPathOf(request),
+          body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">振り返りが見つかりません</h1></article></section>`,
+        });
+      }
+      const viewer = await requireObservationEventViewerAccess(session, request.headers.cookie);
+      if (!viewer) {
+        reply.code(403);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "観察会 — 参加確認が必要です",
+          currentPath: currentPathOf(request),
+          body: `<section class="evt-recap-shell"><article class="evt-card" data-error="event participant required"><h1 class="evt-heading">参加者のみアクセス可能</h1><p class="evt-lead">チェックインしてから開いてください。</p></article></section>`,
+        });
+      }
       const recap = await buildRecap(request.params.sessionId, {
-        viewerUserId: auth?.userId ?? null,
-        viewerGuestToken: asString(request.query.token),
+        viewerUserId: viewer.userId,
+        viewerGuestToken: viewer.guestCredentialDigest,
       }).catch(() => null);
       if (!recap) {
         reply.code(404);

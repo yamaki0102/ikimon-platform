@@ -70,3 +70,42 @@ test("signed recovery resumes the same record and only unfinished media", () => 
   assert.match(html, /record:latest/);
   assert.doesNotMatch(html, /fetchOriginFallback|ORIGIN_FALLBACK_BASE_URL/);
 });
+
+test("signed recovery preserves safe event context through the observation write", () => {
+  const url = new URL(
+    "https://ikimon.life/ja/record?draft=1&start=photo&source=login_required&event=RENRI26&eventSessionId=event-renri-20260719&teamId=family-1&participantRole=participant",
+  );
+  const html = renderCloudflareRecordRecoverySignedHtml(
+    { userId: "user-1", displayName: "記録者" },
+    url,
+    "nonce-value",
+    resolveCloudflareRecordRecoveryState(url),
+  );
+
+  assert.match(html, /data-event-code="RENRI26"/);
+  assert.match(html, /data-event-session-id="event-renri-20260719"/);
+  assert.match(html, /data-event-team-id="family-1"/);
+  assert.match(html, /data-event-participant-role="participant"/);
+  assert.match(html, /eventCode: eventContext\.eventCode \|\| null/);
+  assert.match(html, /eventSessionId: eventContext\.eventSessionId \|\| null/);
+  assert.match(html, /teamId: eventContext\.teamId \|\| null/);
+  assert.match(html, /participantRole: eventContext\.participantRole \|\| null/);
+  assert.match(html, /eventContext,[\s\S]*formValues:/);
+  assert.match(html, /\/api\/v1\/observation-events\/.*\/analytics/);
+  assert.match(html, /event_photo_selected/);
+  assert.match(html, /event_observation_submit_started/);
+  assert.match(html, /event_retry_succeeded/);
+  assert.doesNotMatch(html, /guest_token|guestToken/);
+  assert.doesNotMatch(html, /<\/script><script>alert/);
+
+  const maliciousUrl = new URL(
+    "https://ikimon.life/ja/record?draft=1&event=%3C%2Fscript%3E%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+  );
+  const maliciousHtml = renderCloudflareRecordRecoverySignedHtml(
+    { userId: "user-1" },
+    maliciousUrl,
+    "nonce-value",
+    resolveCloudflareRecordRecoveryState(maliciousUrl),
+  );
+  assert.doesNotMatch(maliciousHtml, /alert\(1\)/);
+});

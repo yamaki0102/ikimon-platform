@@ -1908,6 +1908,12 @@ class FakeStatement {
     const normalized = normalize(this.query);
     const v = this.values;
 
+    if (normalized.startsWith("DELETE FROM ") && normalized.endsWith("/* renri_fixture_scope */")) {
+      const match = /^DELETE FROM ([a-z0-9_]+) WHERE ([a-z0-9_]+) IN \(.+\) \/\* renri_fixture_scope \*\/$/u.exec(normalized);
+      if (!match?.[1] || !match[2]) throw new Error(`invalid Renri fixture delete SQL: ${this.query}`);
+      return { meta: { changes: deleteRenriFixtureFakeRows(this.db, match[1], match[2], v.map(string)) } };
+    }
+
     if (normalized.startsWith("INSERT OR IGNORE INTO users")) {
       this.db.users.add(string(v[0]));
       return {};
@@ -2348,6 +2354,41 @@ class FakeStatement {
       return {};
     }
 
+    if (
+      normalized.startsWith("INSERT INTO observation_event_live_events") &&
+      normalized.includes("'funnel_metric', 'organizer'")
+    ) {
+      const liveEventId = string(v[0]);
+      if (this.db.observationEventLiveEvents.some((row) => row.live_event_id === liveEventId)) {
+        throw new Error("UNIQUE constraint failed: observation_event_live_events.live_event_id");
+      }
+      const sessionId = string(v[1]);
+      const eventName = (JSON.parse(string(v[2])) as { event_name?: string }).event_name;
+      const metrics = this.db.observationEventLiveEvents.filter((row) =>
+        row.session_id === sessionId && row.type === "funnel_metric"
+      );
+      const totalLimit = number(v[4]);
+      const eventLimit = number(v[7]);
+      const eventCount = metrics.filter((row) =>
+        (JSON.parse(row.payload_json) as { event_name?: string }).event_name === eventName
+      ).length;
+      if (metrics.length >= totalLimit || eventCount >= eventLimit) {
+        return { meta: { changes: 0 } };
+      }
+      this.db.observationEventLiveEvents.push({
+        live_event_id: liveEventId,
+        session_id: sessionId,
+        type: "funnel_metric",
+        scope: "organizer",
+        actor_user_id: null,
+        actor_guest_token: null,
+        team_id: null,
+        payload_json: string(v[2]),
+        created_at: new Date(Date.now() + this.db.observationEventLiveEvents.length).toISOString()
+      });
+      return { meta: { changes: 1 } };
+    }
+
     if (normalized.startsWith("INSERT INTO observation_event_live_events")) {
       this.db.observationEventLiveEvents.push({
         live_event_id: string(v[0]),
@@ -2360,6 +2401,26 @@ class FakeStatement {
         payload_json: string(v[7]),
         created_at: new Date(Date.now() + this.db.observationEventLiveEvents.length).toISOString()
       });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_event_live_events SET actor_user_id")) {
+      const guestToken = string(v[0]);
+      const userId = string(v[1]);
+      const sessionId = string(v[5]);
+      for (const row of this.db.observationEventLiveEvents) {
+        if (row.session_id !== sessionId) continue;
+        const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
+        if (row.actor_guest_token === guestToken) {
+          row.actor_user_id = userId;
+          row.actor_guest_token = null;
+        }
+        if (payload.target_guest_token === guestToken) {
+          delete payload.target_guest_token;
+          payload.target_user_id = userId;
+          row.payload_json = JSON.stringify(payload);
+        }
+      }
       return {};
     }
 
@@ -2378,11 +2439,21 @@ class FakeStatement {
 
     if (normalized.startsWith("INSERT INTO observation_event_participants")) {
       const now = new Date().toISOString();
+      const sessionId = string(v[1]);
+      const userId = nullableString(v[2]);
+      const guestToken = nullableString(v[3]);
+      const duplicate = [...this.db.observationEventParticipants.values()].some((row) =>
+        row.session_id === sessionId && (
+          (userId !== null && row.user_id === userId) ||
+          (guestToken !== null && row.guest_token === guestToken)
+        )
+      );
+      if (duplicate) throw new Error("UNIQUE constraint failed: observation_event_participants");
       this.db.observationEventParticipants.set(string(v[0]), {
         participant_id: string(v[0]),
-        session_id: string(v[1]),
-        user_id: nullableString(v[2]),
-        guest_token: nullableString(v[3]),
+        session_id: sessionId,
+        user_id: userId,
+        guest_token: guestToken,
         display_name: string(v[4]),
         team_id: nullableString(v[5]),
         role: "participant",
@@ -2399,8 +2470,18 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE observation_event_participants SET display_name = COALESCE")) {
+      const guest = requireRow(this.db.observationEventParticipants, string(v[0]));
+      const account = requireRow(this.db.observationEventParticipants, string(v[3]));
+      account.display_name = account.display_name || guest.display_name;
+      account.team_id = account.team_id ?? guest.team_id;
+      account.declared_job = account.declared_job ?? guest.declared_job;
+      account.updated_at = new Date().toISOString();
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE observation_event_participants SET display_name")) {
-      const row = requireRow(this.db.observationEventParticipants, string(v[3]));
+      const row = requireRow(this.db.observationEventParticipants, string(v[6]));
       row.display_name = string(v[0]);
       row.team_id = nullableString(v[1]) ?? row.team_id;
       row.status = "checked_in";
@@ -2409,6 +2490,28 @@ class FakeStatement {
       row.is_minor = number(v[3]);
       row.location_share_until = nullableString(v[4]);
       row.location_share_consent_type = nullableString(v[5]);
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM observation_event_participants")) {
+      const participantId = string(v[0]);
+      const row = this.db.observationEventParticipants.get(participantId);
+      if (
+        row &&
+        row.session_id === string(v[1]) &&
+        (row.user_id === null || row.user_id === string(v[2])) &&
+        row.guest_token === string(v[3])
+      ) {
+        this.db.observationEventParticipants.delete(participantId);
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_event_participants SET user_id")) {
+      const row = requireRow(this.db.observationEventParticipants, string(v[1]));
+      row.user_id = string(v[0]);
+      row.guest_token = null;
       row.updated_at = new Date().toISOString();
       return {};
     }
@@ -2616,7 +2719,49 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE observation_event_absences SET user_id")) {
+      for (const row of this.db.observationEventAbsences) {
+        if (row.session_id === string(v[1]) && row.guest_token === string(v[2])) {
+          row.user_id = string(v[0]);
+          row.guest_token = null;
+        }
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM observation_rally_submissions WHERE submission_id IN")) {
+      const userId = string(v[0]);
+      const sessionId = string(v[1]);
+      const guestToken = string(v[2]);
+      for (const [submissionId, guest] of this.db.observationRallySubmissions) {
+        if (guest.session_id !== sessionId || guest.guest_token !== guestToken || !guest.source_ref?.trim()) continue;
+        const duplicate = [...this.db.observationRallySubmissions.values()].some((account) =>
+          account.session_id === sessionId &&
+          account.user_id === userId &&
+          account.mission_id === guest.mission_id &&
+          account.source_type === guest.source_type &&
+          account.source_ref === guest.source_ref
+        );
+        if (duplicate) this.db.observationRallySubmissions.delete(submissionId);
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_rally_submissions SET user_id")) {
+      for (const row of this.db.observationRallySubmissions.values()) {
+        if (row.session_id === string(v[1]) && row.guest_token === string(v[2])) {
+          row.user_id = string(v[0]);
+          row.guest_token = null;
+        }
+      }
+      return {};
+    }
+
     if (normalized.startsWith("INSERT INTO observation_event_recap_views")) {
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_event_recap_views SET viewer_user_id")) {
       return {};
     }
 
@@ -4599,6 +4744,14 @@ class FakeStatement {
 
     const v = this.values;
 
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM ") && normalized.endsWith("/* renri_fixture_scope */")) {
+      const match = /^SELECT COUNT\(\*\) AS count FROM ([a-z0-9_]+) WHERE ([a-z0-9_]+) IN \(.+\) \/\* renri_fixture_scope \*\/$/u.exec(normalized);
+      if (!match?.[1] || !match[2]) throw new Error(`invalid Renri fixture count SQL: ${this.query}`);
+      const ids = new Set(v.map(string));
+      const count = renriFixtureFakeRows(this.db, match[1]).filter((row) => ids.has(String(row[match[2]!]))).length;
+      return ({ count } as T);
+    }
+
     if (normalized.startsWith("SELECT cell_id, query_cell_id, query_grid_m, source_url, license_scope, total_records")) {
       const row = this.db.gbifAreaSummaryCache.get(string(v[0]));
       if (!row) return null;
@@ -5360,6 +5513,21 @@ class FakeStatement {
       return ({ recent: count } as T);
     }
 
+    if (normalized.startsWith("SELECT COUNT(*) AS total_count")) {
+      const eventName = string(v[0]);
+      const sessionId = string(v[1]);
+      const rows = this.db.observationEventLiveEvents.filter((row) =>
+        row.session_id === sessionId && row.type === "funnel_metric"
+      );
+      return ({
+        total_count: rows.length,
+        event_count: rows.filter((row) => {
+          const payload = JSON.parse(row.payload_json) as { event_name?: string };
+          return payload.event_name === eventName;
+        }).length
+      } as T);
+    }
+
     if (normalized.startsWith("SELECT course_id, session_id, title, status, config_json, created_by, created_at, updated_at FROM observation_rally_courses")) {
       const row = [...this.db.observationRallyCourses.values()].find((candidate) => candidate.session_id === string(v[0]));
       return (row as T | undefined) ?? null;
@@ -5729,6 +5897,55 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.endsWith("/* renri_fixture_scope */")) {
+      if (normalized.startsWith("SELECT session_id, organizer_user_id FROM observation_event_sessions")) {
+        const fixturePrefix = string(v[0]);
+        const rows = [...this.db.observationEventSessions.values()].filter((row) => {
+          try {
+            return (JSON.parse(row.config_json) as { fixture_prefix?: unknown }).fixture_prefix === fixturePrefix;
+          } catch {
+            return false;
+          }
+        }).map((row) => ({ session_id: row.session_id, organizer_user_id: row.organizer_user_id }));
+        return { results: rows as T[] };
+      }
+      if (normalized.startsWith("SELECT user_id FROM observation_event_participants")) {
+        const sessionIds = new Set(v.map(string));
+        const rows = [...this.db.observationEventParticipants.values()]
+          .filter((row) => sessionIds.has(row.session_id))
+          .map((row) => ({ user_id: row.user_id }));
+        return { results: rows as T[] };
+      }
+      if (normalized.startsWith("SELECT user_id FROM users")) {
+        const userIds = new Set(v.map(string));
+        return { results: [...this.db.users].filter((userId) => userIds.has(userId)).map((user_id) => ({ user_id })) as T[] };
+      }
+      if (normalized.startsWith("SELECT observation_id FROM observations")) {
+        const userIds = new Set(v.map(string));
+        const rows = [...this.db.observations.values()]
+          .filter((row) => userIds.has(row.owner_user_id))
+          .map((row) => ({ observation_id: row.observation_id }));
+        return { results: rows as T[] };
+      }
+      if (normalized.startsWith("SELECT asset_id, object_key, public_derivative_key FROM asset_ledger")) {
+        const userIds = new Set(v.map(string));
+        const rows = [...this.db.assets.values()]
+          .filter((row) => userIds.has(row.owner_user_id))
+          .map((row) => ({
+            asset_id: row.asset_id,
+            object_key: row.object_key,
+            public_derivative_key: row.public_derivative_key
+          }));
+        return { results: rows as T[] };
+      }
+      if (normalized.startsWith("SELECT course_id FROM observation_rally_courses")) {
+        const sessionIds = new Set(v.map(string));
+        const rows = [...this.db.observationRallyCourses.values()]
+          .filter((row) => sessionIds.has(row.session_id))
+          .map((row) => ({ course_id: row.course_id }));
+        return { results: rows as T[] };
+      }
+    }
     if (normalized.startsWith("SELECT audit_key, taxon_key, cell_id, query_cell_id")) {
       let bindIndex = 0;
       let rows = [...this.db.gbifJapaneseNameDisplayAudit.values()];
@@ -6194,9 +6411,11 @@ class FakeStatement {
     }
     if (normalized.startsWith("SELECT live_event_id, session_id, type, scope, actor_user_id")) {
       const sessionId = string(v[0]);
-      const limit = number(v[1]);
+      const filtersFunnelMetrics = normalized.includes("(? = 1 OR type <> 'funnel_metric')");
+      const includeFunnelMetrics = !filtersFunnelMetrics || number(v[1]) === 1;
+      const limit = number(v[filtersFunnelMetrics ? 2 : 1]);
       const rows = this.db.observationEventLiveEvents
-        .filter((row) => row.session_id === sessionId)
+        .filter((row) => row.session_id === sessionId && (includeFunnelMetrics || row.type !== "funnel_metric"))
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
         .slice(0, limit)
         .map((row) => ({
@@ -7079,6 +7298,7 @@ class FakeEmail {
 
 class FakeBucket {
   objects = new Map<string, { value: unknown; size: number; uploaded: Date; contentType?: string }>();
+  failDelete = false;
 
   async put(key: string, value: unknown, options?: { httpMetadata?: { contentType?: string } }): Promise<void> {
     const storedValue = value instanceof ReadableStream
@@ -7115,6 +7335,7 @@ class FakeBucket {
   }
 
   async delete(key: string): Promise<void> {
+    if (this.failDelete) throw new Error(`R2 delete unavailable for ${key}`);
     this.objects.delete(key);
   }
 
@@ -9869,6 +10090,52 @@ test("v1 photo upload stores base64 media in R2 and returns the shared ok contra
   assert.equal(queue.messages.length, 2);
 });
 
+test("staging photo upload rejects MIME spoofing, extension mismatch, and unsupported image types before R2", async () => {
+  const { env, obs } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "renri-photo-validation",
+    userId: "renri-photo-user",
+    observedAt: "2026-07-19T02:30:00.000Z",
+    latitude: 34.8,
+    longitude: 137.733333,
+  });
+
+  const upload = (payload: Record<string, unknown>) => worker.fetch(new Request(
+    "https://staging.ikimon.life/api/v1/observations/renri-photo-validation/photos/upload",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  ), env);
+
+  const spoofed = await upload({
+    filename: "renri-fixture.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("not-an-image").toString("base64"),
+  });
+  assert.equal(spoofed.status, 415);
+  assert.deepEqual(await spoofed.json(), { ok: false, error: "image_content_type_mismatch" });
+
+  const wrongExtension = await upload({
+    filename: "renri-fixture.jpg",
+    mimeType: "image/png",
+    base64Data: tinyPngBase64(),
+  });
+  assert.equal(wrongExtension.status, 415);
+  assert.deepEqual(await wrongExtension.json(), { ok: false, error: "image_extension_mismatch" });
+
+  const unsupported = await upload({
+    filename: "renri-fixture.svg",
+    mimeType: "image/svg+xml",
+    base64Data: Buffer.from("<svg/>").toString("base64"),
+  });
+  assert.equal(unsupported.status, 415);
+  assert.deepEqual(await unsupported.json(), { ok: false, error: "unsupported_image_type" });
+  assert.equal(obs.assets.size, 0);
+  assert.equal((env.ASSET_BUCKET as unknown as FakeBucket).objects.size, 0);
+});
+
 test("v1 photo upload compensates the R2 object when the authoritative D1 batch fails", async () => {
   const { env, obs } = createEnv();
   await post("/api/v1/observations/upsert", env, {
@@ -12494,9 +12761,9 @@ test("production runtime enables app-compatible write routes while keeping shado
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
-      filename: "production-runtime.jpg",
-      mimeType: "image/jpeg",
-      base64Data: Buffer.from("production-runtime-image").toString("base64"),
+      filename: "production-runtime.png",
+      mimeType: "image/png",
+      base64Data: tinyPngBase64(),
       facePrivacy: "no_faces"
     })
   }), productionEnv);
@@ -14443,9 +14710,9 @@ test("production runtime connects native records to ready feedback notifications
       method: "POST",
       headers: { "content-type": "application/json", cookie },
       body: JSON.stringify({
-        filename: "native-reading-feedback.jpg",
-        mimeType: "image/jpeg",
-        base64Data: Buffer.from("native-reading-feedback-image").toString("base64"),
+        filename: "native-reading-feedback.png",
+        mimeType: "image/png",
+        base64Data: tinyPngBase64(),
         facePrivacy: "no_faces"
       })
     }), productionEnv);
@@ -14503,6 +14770,443 @@ test("production runtime connects native records to ready feedback notifications
   assert.equal(core.operationAudit.length, 0);
 });
 
+async function seedRenriFixture(
+  state: ReturnType<typeof createEnv>,
+  fixturePrefix: string,
+  slug: string
+): Promise<{ sessionId: string; userId: string; observationId: string; assetId: string; objectKey: string; derivativeKey: string }> {
+  const { env, core, obs } = state;
+  const now = "2026-07-16T00:00:00.000Z";
+  const sessionId = `renri-session-${slug}`;
+  const organizerId = `${fixturePrefix}-organizer`;
+  const userId = `${fixturePrefix}-parent`;
+  const observationId = `renri-observation-${slug}`;
+  const draftId = `renri-draft-${slug}`;
+  const assetId = `renri-asset-${slug}`;
+  const objectKey = `private/fixtures/${slug}/original.jpg`;
+  const derivativeKey = `derived/fixtures/${slug}/public.webp`;
+  const courseId = `renri-course-${slug}`;
+  const stationId = `renri-station-${slug}`;
+  const missionId = `renri-mission-${slug}`;
+  const teamId = `renri-team-${slug}`;
+
+  core.users.add(organizerId);
+  core.users.add(userId);
+  core.authSessions.set(`token-${slug}-organizer`, {
+    token_hash: `token-${slug}-organizer`,
+    user_id: organizerId,
+    display_name: "Renri organizer fixture",
+    role_name: "user",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  core.authSessions.set(`token-${slug}-parent`, {
+    token_hash: `token-${slug}-parent`,
+    user_id: userId,
+    display_name: "Renri parent fixture",
+    role_name: "user",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  obs.observationEventSessions.set(sessionId, {
+    session_id: sessionId,
+    legacy_event_id: null,
+    event_code: `RENRI${slug.toUpperCase()}`,
+    title: `Renri fixture ${slug}`,
+    organizer_user_id: organizerId,
+    corporation_id: null,
+    plan: "community",
+    primary_mode: "discovery",
+    active_modes_json: '["discovery","rally"]',
+    location_lat: null,
+    location_lng: null,
+    location_radius_m: 1000,
+    started_at: now,
+    ended_at: null,
+    target_species_json: "[]",
+    config_json: JSON.stringify({ qa_fixture: true, fixture_prefix: fixturePrefix }),
+    field_id: "aikan-renri-ikan-hq",
+    template_source_session_id: null,
+    created_at: now,
+    updated_at: now
+  });
+  obs.observationEventTeams.set(teamId, {
+    team_id: teamId,
+    session_id: sessionId,
+    name: "Fixture family",
+    color: "#4f9d69",
+    lead_user_id: userId,
+    target_taxa_json: "[]",
+    created_at: now
+  });
+  obs.observationEventParticipants.set(`renri-participant-${slug}`, {
+    participant_id: `renri-participant-${slug}`,
+    session_id: sessionId,
+    user_id: userId,
+    guest_token: null,
+    display_name: "Fixture family",
+    team_id: teamId,
+    role: "participant",
+    declared_job: null,
+    status: "checked_in",
+    checked_in_at: now,
+    share_location: 0,
+    is_minor: 0,
+    location_share_until: null,
+    location_share_consent_type: null,
+    created_at: now,
+    updated_at: now
+  });
+  obs.observationEventLiveEvents.push({
+    live_event_id: `renri-live-${slug}`,
+    session_id: sessionId,
+    type: "checkin",
+    scope: "all",
+    actor_user_id: userId,
+    actor_guest_token: null,
+    team_id: teamId,
+    payload_json: "{}",
+    created_at: now
+  });
+  obs.observationEventAbsences.push({
+    absence_id: `renri-absence-${slug}`,
+    session_id: sessionId,
+    user_id: userId,
+    guest_token: null,
+    team_id: teamId,
+    searched_taxon: "fixture",
+    public_lat: 34.8,
+    public_lng: 137.7,
+    created_at: now
+  });
+  obs.observationEventMeshCells.set(`renri-mesh-${slug}`, {
+    mesh_cell_id: `renri-mesh-${slug}`,
+    session_id: sessionId,
+    mesh_key: `mesh-${slug}`,
+    center_lat: 34.8,
+    center_lng: 137.7,
+    visit_seconds: 1,
+    observation_count: 1,
+    absence_count: 1,
+    last_visited_at: now,
+    visited_team_ids_json: JSON.stringify([teamId]),
+    updated_at: now
+  });
+  obs.observationEventQuests.set(`renri-quest-${slug}`, {
+    quest_id: `renri-quest-${slug}`,
+    session_id: sessionId,
+    team_id: teamId,
+    participant_id: `renri-participant-${slug}`,
+    status: "offered",
+    payload_json: "{}",
+    created_at: now,
+    updated_at: now
+  });
+
+  obs.observationRallyCourses.set(courseId, {
+    course_id: courseId,
+    session_id: sessionId,
+    title: "Fixture rally",
+    status: "active",
+    config_json: "{}",
+    created_by: organizerId,
+    created_at: now,
+    updated_at: now
+  });
+  obs.observationRallyStations.set(stationId, {
+    station_id: stationId,
+    course_id: courseId,
+    field_id: null,
+    code: slug,
+    name: "Fixture station",
+    description: "",
+    lat: null,
+    lng: null,
+    radius_m: null,
+    polygon_json: null,
+    route_geojson: null,
+    is_private: 1,
+    access_note: "",
+    danger_note: "",
+    status: "open",
+    sort_order: 1,
+    created_at: now,
+    updated_at: now
+  });
+  obs.observationRallyMissions.set(missionId, {
+    mission_id: missionId,
+    course_id: courseId,
+    station_id: stationId,
+    replacement_for_mission_id: null,
+    scope: "event",
+    location_binding: "none",
+    title: "Fixture mission",
+    target: "fixture",
+    count_unit: "scene",
+    goal_count: 1,
+    counting_policy_json: "{}",
+    verification_policy: "auto",
+    weather_sensitivity: "all_weather",
+    fallback_group: "",
+    status: "active",
+    starts_at: null,
+    ends_at: null,
+    sort_order: 1,
+    created_by: organizerId,
+    created_at: now,
+    updated_at: now
+  });
+  obs.observationRallySubmissions.set(`renri-submission-${slug}`, {
+    submission_id: `renri-submission-${slug}`,
+    session_id: sessionId,
+    course_id: courseId,
+    mission_id: missionId,
+    station_id: stationId,
+    user_id: userId,
+    guest_token: null,
+    team_id: teamId,
+    source_type: "manual_rally",
+    source_ref: null,
+    count_value: 1,
+    public_lat: null,
+    public_lng: null,
+    payload_json: "{}",
+    review_status: "pending",
+    reviewed_by: null,
+    reviewed_at: null,
+    created_at: now
+  });
+  obs.observationRallyProgress.set(`renri-progress-${slug}`, {
+    progress_id: `renri-progress-${slug}`,
+    course_id: courseId,
+    mission_id: missionId,
+    progress_scope: "event",
+    team_id: teamId,
+    participant_key: userId,
+    station_id: stationId,
+    actual_count: 1,
+    goal_count: 1,
+    percent: 100,
+    status: "completed",
+    updated_at: now
+  });
+
+  obs.drafts.set(draftId, {
+    draft_id: draftId,
+    owner_user_id: userId,
+    observed_at: now,
+    partition_month: "2026-07",
+    exact_lat: 34.8,
+    exact_lng: 137.7,
+    location_accuracy_m: 5,
+    public_cell: "34.80,137.70",
+    visibility: "private",
+    processing_state: "finalized",
+    finalized_at: now
+  });
+  obs.observations.set(observationId, {
+    observation_id: observationId,
+    draft_id: draftId,
+    owner_user_id: userId,
+    observed_at: now,
+    partition_month: "2026-07",
+    taxon_label: "fixture",
+    note: "fixture",
+    exact_lat: 34.8,
+    exact_lng: 137.7,
+    location_accuracy_m: 5,
+    public_cell: "34.80,137.70",
+    visibility: "private",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+  obs.assets.set(assetId, {
+    asset_id: assetId,
+    draft_id: draftId,
+    observation_id: observationId,
+    owner_user_id: userId,
+    object_key: objectKey,
+    partition_month: "2026-07",
+    sha256: "fixture",
+    mime: "image/jpeg",
+    bytes: 7,
+    processing_state: "uploaded",
+    public_derivative_key: derivativeKey,
+    public_derivative_sha256: "fixture-derived",
+    public_derivative_verified_at: now,
+    public_derivative_metadata_json: "{}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: now
+  });
+  obs.civicObservationContexts.set(`renri-context-${slug}`, {
+    context_id: `renri-context-${slug}`,
+    visit_id: observationId,
+    occurrence_id: null,
+    context_kind: "event",
+    activity_label: "Renri fixture",
+    activity_intent: "share",
+    participant_role: "participant",
+    audience_scope: "private",
+    public_precision: "municipality",
+    risk_lane: "normal",
+    report_consent: "none",
+    revisit_of_visit_id: null,
+    field_id: "aikan-renri-ikan-hq",
+    route_id: null,
+    plot_id: null,
+    source_payload_json: JSON.stringify({ eventSessionId: sessionId })
+  });
+  obs.recordReadingCards.set(`renri-card-${slug}`, {
+    card_id: `renri-card-${slug}`,
+    visit_id: observationId,
+    axis: "season",
+    title: "Fixture card",
+    body: "Fixture",
+    sources_json: "[]",
+    visibility: "owner_only",
+    generation_condition_json: "{}",
+    quality_gate_json: "{}",
+    model_version: "fixture",
+    created_by_user_id: userId,
+    created_at: now,
+    updated_at: now
+  });
+  obs.readmodel.set(observationId, {
+    observation_id: observationId,
+    public_cell: "34.80,137.70",
+    observed_at: now,
+    taxon_label: "fixture",
+    asset_count: 1,
+    partition_month: "2026-07",
+    public_area_label: null
+  });
+  obs.publicMapSnapshotRecords.push({
+    occurrence_id: `occ:${observationId}:0`,
+    visit_id: observationId,
+    cell_1000: "34.80,137.70",
+    observed_at: now,
+    display_name: "fixture",
+    asset_count: 1
+  });
+  await (env.ASSET_BUCKET as FakeBucket).put(objectKey, "fixture", { httpMetadata: { contentType: "image/jpeg" } });
+  await (env.ASSET_BUCKET as FakeBucket).put(derivativeKey, "fixture", { httpMetadata: { contentType: "image/webp" } });
+  return { sessionId, userId, observationId, assetId, objectKey, derivativeKey };
+}
+
+test("staging Renri fixture endpoints reject production, unauthorized, and broad prefixes", async () => {
+  const { env } = createEnv();
+  const validPrefix = "renri-e2e-20260716093000-a1b2c3d4";
+  const productionResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/ops/staging/renri-fixtures/inventory", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ fixturePrefix: validPrefix })
+  }), { ...env, ENVIRONMENT: "production" });
+  assert.equal(productionResponse.status, 404);
+
+  const forbiddenResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/ops/staging/renri-fixtures/inventory", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ fixturePrefix: validPrefix })
+  }), { ...env, ENVIRONMENT: "staging" });
+  assert.equal(forbiddenResponse.status, 403);
+
+  for (const fixturePrefix of [
+    "renri-e2e-",
+    "renri-e2e-20260716093000-00000000",
+    "renri-e2e-20260716093000-a1b2c3d4-neighbor",
+    "record-feedback-loop-cleanup",
+    "renri-e2e-%"
+  ]) {
+    const response = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/ops/staging/renri-fixtures/cleanup", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+      body: JSON.stringify({ fixturePrefix })
+    }), { ...env, ENVIRONMENT: "staging" });
+    assert.equal(response.status, 400, fixturePrefix);
+  }
+});
+
+test("staging Renri fixture inventory and cleanup stay scoped to the exact fixture prefix", async () => {
+  const state = createEnv();
+  const stagingEnv = { ...state.env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const targetPrefix = "renri-e2e-20260716093000-a1b2c3d4";
+  const neighborPrefix = "renri-e2e-20260716093000-b2c3d4e5";
+  const target = await seedRenriFixture(state, targetPrefix, "target");
+  const neighbor = await seedRenriFixture(state, neighborPrefix, "neighbor");
+
+  const inventoryResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/ops/staging/renri-fixtures/inventory", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ fixturePrefix: targetPrefix })
+  }), stagingEnv);
+  const inventoryPayload = await inventoryResponse.json() as any;
+  assert.equal(inventoryResponse.status, 200, JSON.stringify(inventoryPayload));
+  assert.deepEqual({
+    events: inventoryPayload.inventory.events,
+    users: inventoryPayload.inventory.users,
+    coreSessions: inventoryPayload.inventory.coreSessions,
+    participants: inventoryPayload.inventory.participants,
+    observations: inventoryPayload.inventory.observations,
+    assets: inventoryPayload.inventory.assets,
+    r2Objects: inventoryPayload.inventory.r2Objects
+  }, { events: 1, users: 2, coreSessions: 2, participants: 1, observations: 1, assets: 1, r2Objects: 2 });
+  assert.equal(inventoryPayload.inventory.rallyCourses, 1);
+  assert.equal(inventoryPayload.inventory.rallyStations, 1);
+  assert.equal(inventoryPayload.inventory.rallyMissions, 1);
+  assert.equal(inventoryPayload.inventory.rallySubmissions, 1);
+  assert.equal(inventoryPayload.inventory.rallyProgress, 1);
+
+  const cleanupResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/ops/staging/renri-fixtures/cleanup", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ fixturePrefix: targetPrefix })
+  }), stagingEnv);
+  const cleanupPayload = await cleanupResponse.json() as any;
+  assert.equal(cleanupResponse.status, 200, JSON.stringify(cleanupPayload));
+  assert.equal(cleanupPayload.ok, true);
+  assert.equal(Object.values(cleanupPayload.inventory).every((count) => count === 0), true, JSON.stringify(cleanupPayload.inventory));
+  assert.equal(state.obs.observationEventSessions.has(target.sessionId), false);
+  assert.equal(state.core.users.has(target.userId), false);
+  assert.equal(state.obs.observations.has(target.observationId), false);
+  assert.equal(state.obs.assets.has(target.assetId), false);
+  assert.equal((stagingEnv.ASSET_BUCKET as FakeBucket).objects.has(target.objectKey), false);
+  assert.equal((stagingEnv.ASSET_BUCKET as FakeBucket).objects.has(target.derivativeKey), false);
+
+  assert.equal(state.obs.observationEventSessions.has(neighbor.sessionId), true);
+  assert.equal(state.core.users.has(neighbor.userId), true);
+  assert.equal(state.obs.observations.has(neighbor.observationId), true);
+  assert.equal(state.obs.assets.has(neighbor.assetId), true);
+  assert.equal((stagingEnv.ASSET_BUCKET as FakeBucket).objects.has(neighbor.objectKey), true);
+  assert.equal((stagingEnv.ASSET_BUCKET as FakeBucket).objects.has(neighbor.derivativeKey), true);
+});
+
+test("staging Renri fixture cleanup fails closed when an R2 deletion fails", async () => {
+  const state = createEnv();
+  const stagingEnv = { ...state.env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const fixturePrefix = "renri-e2e-20260716101500-c3d4e5f6";
+  const fixture = await seedRenriFixture(state, fixturePrefix, "r2-failure");
+  const bucket = stagingEnv.ASSET_BUCKET as FakeBucket;
+  bucket.failDelete = true;
+
+  await assert.rejects(
+    worker.fetch(new Request("https://staging.ikimon.life/api/v1/ops/staging/renri-fixtures/cleanup", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+      body: JSON.stringify({ fixturePrefix })
+    }), stagingEnv),
+    /R2 delete unavailable/u
+  );
+  assert.equal(bucket.objects.has(fixture.objectKey), true);
+  assert.equal(state.obs.assets.has(fixture.assetId), true);
+  assert.equal(state.core.users.has(fixture.userId), true);
+  assert.equal(state.obs.observationEventSessions.has(fixture.sessionId), true);
+});
+
 test("staging record feedback loop cleanup removes only prefixed D1 smoke rows", async () => {
   const { env, core, obs } = createEnv();
   const stagingEnv = {
@@ -14543,9 +15247,9 @@ test("staging record feedback loop cleanup removes only prefixed D1 smoke rows",
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
-      filename: `${fixturePrefix}.jpg`,
-      mimeType: "image/jpeg",
-      base64Data: Buffer.from("cleanup-image").toString("base64"),
+      filename: `${fixturePrefix}.png`,
+      mimeType: "image/png",
+      base64Data: tinyPngBase64(),
       facePrivacy: "no_faces"
     })
   }), stagingEnv);
@@ -16059,6 +16763,906 @@ test("production legacy PHP public entrypoints cannot use origin fallback", asyn
   }
 });
 
+test("observation event public flow reuses the QR for participant-only recap, bridges recording accounts, and shows scrubbed event photos", async () => {
+  const { env, obs } = createEnv();
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "event-public-contract-organizer", displayName: "Event Organizer", ttlHours: 1 })
+  }), env);
+  const organizerCookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const endedCreate = await worker.fetch(new Request("https://shadow.test/api/v1/observation-events", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: organizerCookie },
+    body: JSON.stringify({
+      title: "終了した親子観察会",
+      event_code: "ended-family-event",
+      plan: "public",
+      started_at: "2020-07-19T02:10:00.000Z",
+      ended_at: "2020-07-19T04:00:00.000Z",
+      location_lat: 34.9756,
+      location_lng: 138.3828
+    })
+  }), env);
+  const endedEvent = await endedCreate.json() as any;
+  assert.equal(endedCreate.status, 201);
+
+  const endedQr = await worker.fetch(
+    new Request("https://ikimon.life/community/events/ended-family-event/join", { redirect: "manual" }),
+    env
+  );
+  assert.equal(endedQr.status, 303);
+  assert.equal(endedQr.headers.get("location"), `/events/${endedEvent.sessionId}/recap`);
+  assert.equal(endedQr.headers.get("set-cookie"), null);
+
+  const outsiderIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "event-public-contract-outsider", displayName: "Outsider", ttlHours: 1 })
+  }), env);
+  const outsiderCookie = outsiderIssue.headers.get("set-cookie") ?? "";
+  const endedCheckin = await worker.fetch(new Request(
+    `https://ikimon.life/api/v1/observation-events/${endedEvent.sessionId}/checkin`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: outsiderCookie,
+        origin: "https://ikimon.life"
+      },
+      body: JSON.stringify({ display_name: "事後参加者", share_location: false })
+    }
+  ), env);
+  assert.equal(endedCheckin.status, 409);
+  assert.deepEqual(await endedCheckin.json(), { error: "event_checkin_closed" });
+
+  const activeCreate = await worker.fetch(new Request("https://shadow.test/api/v1/observation-events", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: organizerCookie },
+    body: JSON.stringify({
+      title: "親子サイエンスアドベンチャー",
+      event_code: "active-family-event",
+      plan: "public",
+      started_at: "2020-07-19T02:10:00.000Z",
+      location_lat: 34.9756,
+      location_lng: 138.3828
+    })
+  }), env);
+  const activeEvent = await activeCreate.json() as any;
+  assert.equal(activeCreate.status, 201);
+
+  for (const qaSession of [
+    { title: "PR973 prod rally", event_code: "pr973-prod-rally-one", config: {} },
+    { title: "夏の自然観察", event_code: "internal-family-observation", config: { qa_fixture: true } }
+  ]) {
+    const qaCreate = await worker.fetch(new Request("https://shadow.test/api/v1/observation-events", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: organizerCookie },
+      body: JSON.stringify({
+        ...qaSession,
+        plan: "public",
+        started_at: "2020-07-19T02:10:00.000Z",
+        location_lat: 34.9756,
+        location_lng: 138.3828
+      })
+    }), env);
+    assert.equal(qaCreate.status, 201);
+  }
+  const publicEventList = await worker.fetch(new Request("https://ikimon.life/community/events"), env);
+  const publicEventListHtml = await publicEventList.text();
+  assert.match(publicEventListHtml, /親子サイエンスアドベンチャー/);
+  assert.doesNotMatch(publicEventListHtml, /PR973 prod rally|夏の自然観察/);
+  const organizerEventList = await worker.fetch(new Request("https://ikimon.life/community/events", {
+    headers: { cookie: organizerCookie }
+  }), env);
+  const organizerEventListHtml = await organizerEventList.text();
+  assert.match(organizerEventListHtml, /PR973 prod rally/);
+  assert.match(organizerEventListHtml, /夏の自然観察/);
+
+  const recordPath = `/record?event=active-family-event&eventSessionId=${activeEvent.sessionId}&rally=1&activityIntent=share&start=photo`;
+  const guestRally = await worker.fetch(new Request(`https://ikimon.life/events/${activeEvent.sessionId}/rally`), env);
+  const guestRallyHtml = await guestRally.text();
+  assert.equal(guestRally.status, 403);
+  assert.match(guestRallyHtml, /参加者のみ閲覧できます/);
+  assert.doesNotMatch(guestRallyHtml, /data-rally-action="record"|guest_token|guestToken|13:40/);
+
+  const authenticatedRally = await worker.fetch(new Request(`https://ikimon.life/events/${activeEvent.sessionId}/rally`, {
+    headers: { cookie: organizerCookie }
+  }), env);
+  const authenticatedRallyHtml = await authenticatedRally.text();
+  assert.equal(authenticatedRally.status, 200);
+  assert.ok(authenticatedRallyHtml.includes(`href="${recordPath.replace(/&/g, "&amp;")}" data-rally-action="record"`));
+  assert.doesNotMatch(authenticatedRallyHtml, /register\?redirect|guest_token|guestToken|13:40/);
+
+  const participant = (overrides: Partial<ObservationEventParticipantTestRow>): ObservationEventParticipantTestRow => ({
+    participant_id: crypto.randomUUID(),
+    session_id: activeEvent.sessionId,
+    user_id: null,
+    guest_token: crypto.randomUUID(),
+    display_name: "参加家族",
+    team_id: null,
+    role: "participant",
+    declared_job: null,
+    status: "checked_in",
+    checked_in_at: "2099-07-19T02:15:00.000Z",
+    share_location: 0,
+    is_minor: 0,
+    location_share_until: null,
+    location_share_consent_type: null,
+    created_at: "2099-07-19T02:15:00.000Z",
+    updated_at: "2099-07-19T02:15:00.000Z",
+    ...overrides
+  });
+  const rows = [
+    participant({ display_name: "チェックイン済み家族" }),
+    participant({ display_name: "退出済みグループ", status: "left" }),
+    participant({ display_name: "未参加の登録者", status: "registered", checked_in_at: null }),
+    participant({
+      display_name: "主催者",
+      role: "organizer",
+      user_id: "event-public-contract-organizer",
+      guest_token: null
+    })
+  ];
+  for (const row of rows) obs.observationEventParticipants.set(row.participant_id, row);
+
+  const observationId = "event-private-photo-observation";
+  const derivativeKey = "derived/event-private-photo-observation/display.webp";
+  obs.observationEventLiveEvents.push({
+    live_event_id: "event-private-photo-live",
+    session_id: activeEvent.sessionId,
+    type: "observation_added",
+    scope: "all",
+    actor_user_id: "event-public-contract-organizer",
+    actor_guest_token: null,
+    team_id: null,
+    payload_json: JSON.stringify({
+      observation_id: observationId,
+      taxon_name: null,
+      public_lat: 34.976,
+      public_lng: 138.383,
+      exact_location_stored: false
+    }),
+    created_at: "2099-07-19T03:10:00.000Z"
+  });
+  obs.assets.set("event-private-photo-asset", {
+    asset_id: "event-private-photo-asset",
+    draft_id: "event-private-photo-draft",
+    observation_id: observationId,
+    owner_user_id: "event-public-contract-organizer",
+    object_key: "original/event-private-photo.jpg",
+    partition_month: "2099-07",
+    sha256: "original-photo-sha",
+    mime: "image/jpeg",
+    bytes: 48_000,
+    width: 800,
+    height: 600,
+    processing_state: "uploaded",
+    public_derivative_key: derivativeKey,
+    public_derivative_sha256: "scrubbed-photo-sha",
+    public_derivative_verified_at: "2099-07-19T03:10:01.000Z",
+    public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", gpsExifPresent: false }),
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2099-07-19T03:10:01.000Z"
+  });
+  await env.ASSET_BUCKET.put(derivativeKey, "scrubbed-private-event-photo", {
+    httpMetadata: { contentType: "image/webp" }
+  });
+
+  const anonymousRecap = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${activeEvent.sessionId}/recap`), env);
+  assert.equal(anonymousRecap.status, 403);
+
+  const recap = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${activeEvent.sessionId}/recap`, {
+    headers: { cookie: organizerCookie }
+  }), env);
+  const recapPayload = await recap.json() as any;
+  assert.equal(recap.status, 200);
+  assert.equal(recapPayload.highlights.participantsCount, 2);
+  assert.equal(recapPayload.highlights.participantCountUnit, "families_or_groups");
+  assert.equal(recapPayload.highlights.observationCount, 1);
+  assert.equal(recapPayload.photos.length, 1);
+  assert.equal(recapPayload.photos[0].taxonName, "未同定");
+  assert.match(recapPayload.photos[0].photoUrl, new RegExp(`^/api/v1/observation-events/${activeEvent.sessionId}/photos/[a-f0-9]{32}$`));
+  assert.equal(JSON.stringify(recapPayload).includes(observationId), false);
+  assert.equal(JSON.stringify(recapPayload).includes("event-public-contract-organizer"), false);
+  assert.equal(JSON.stringify(recapPayload).includes("public_lat"), false);
+
+  const eventPhoto = await worker.fetch(new Request(`https://ikimon.life${recapPayload.photos[0].photoUrl}`, {
+    headers: { cookie: organizerCookie }
+  }), env);
+  assert.equal(eventPhoto.status, 200);
+  assert.equal(eventPhoto.headers.get("content-type"), "image/webp");
+  assert.equal(eventPhoto.headers.get("cache-control"), "private, no-store");
+  assert.equal(await eventPhoto.text(), "scrubbed-private-event-photo");
+  const anonymousPhoto = await worker.fetch(new Request(`https://ikimon.life${recapPayload.photos[0].photoUrl}`), env);
+  assert.equal(anonymousPhoto.status, 403);
+
+  const recapPage = await worker.fetch(new Request(`https://ikimon.life/events/${activeEvent.sessionId}/recap`, {
+    headers: { cookie: organizerCookie }
+  }), env);
+  const recapHtml = await recapPage.text();
+  assert.match(recapHtml, /参加した家族・グループ/);
+  assert.match(recapHtml, /次に調べるヒント/);
+  assert.match(recapHtml, /未同定/);
+  assert.match(recapHtml, /data-event-recap-photo/);
+  assert.doesNotMatch(recapHtml, /<h2>参加者<\/h2>|13:40/);
+});
+
+test("observation event guest checkin keeps credentials server-side and location opt-in", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "disabled",
+    ORIGIN_SESSION_IMPORT_MODE: "disabled"
+  };
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "event-security-organizer", displayName: "Event Security Organizer", ttlHours: 1 })
+  }), env);
+  const organizerCookie = issueResponse.headers.get("set-cookie") ?? "";
+  const create = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: organizerCookie },
+    body: JSON.stringify({
+      title: "家族観察会",
+      event_code: "family-security-event",
+      plan: "public",
+      started_at: "2026-07-19T02:10:00.000Z",
+      ended_at: "2026-07-19T04:00:00.000Z",
+      location_lat: 34.9756,
+      location_lng: 138.3828,
+      target_species: ["名前が分からない生きもの"]
+    })
+  }), productionEnv);
+  assert.equal(create.status, 201);
+  const created = await create.json() as any;
+
+  const joinPage = await worker.fetch(
+    new Request("https://ikimon.life/community/events/family-security-event/join"),
+    productionEnv
+  );
+  const joinHtml = await joinPage.text();
+  const joinGuestSetCookie = joinPage.headers.get("set-cookie") ?? "";
+  const joinGuestCookie = joinGuestSetCookie.split(";", 1)[0] ?? "";
+  assert.equal(joinPage.status, 200);
+  assert.match(joinGuestSetCookie, /^__Host-ikimon_evt_[a-f0-9]{16}=[a-f0-9]{64}; Path=\/; HttpOnly; SameSite=Lax; Secure;/);
+  assert.match(joinPage.headers.get("content-security-policy") ?? "", /script-src[^;]*'nonce-[a-f0-9]{32}'/);
+  assert.match(joinHtml, /<script nonce="[a-f0-9]{32}">/);
+  assert.match(joinHtml, /data-evt-checkin-form/);
+  assert.match(joinHtml, /<input[^>]*name="share_location"(?![^>]*\schecked(?:\s|=|>))[^>]*>/);
+  assert.doesNotMatch(joinHtml, /guest_token|evt-guest-token|Math\.random/);
+
+  const crossSite = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "origin": "https://evil.example",
+      "sec-fetch-site": "cross-site"
+    },
+    body: JSON.stringify({ display_name: "Cross Site Family" })
+  }), productionEnv);
+  assert.equal(crossSite.status, 403);
+  assert.equal(obs.observationEventParticipants.size, 0);
+
+  const missingOrigin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "cookie": joinGuestCookie
+    },
+    body: JSON.stringify({ display_name: "Missing Origin Family" })
+  }), productionEnv);
+  assert.equal(missingOrigin.status, 403);
+  assert.equal(obs.observationEventParticipants.size, 0);
+
+  const missingGuestCookie = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "origin": "https://ikimon.life",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ display_name: "No Cookie Family" })
+  }), productionEnv);
+  assert.equal(missingGuestCookie.status, 428);
+  assert.equal((await missingGuestCookie.json() as any).error, "event_guest_cookie_required");
+
+  const missingGuardianConsent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "origin": "https://ikimon.life",
+      "sec-fetch-site": "same-origin",
+      "cookie": joinGuestCookie
+    },
+    body: JSON.stringify({
+      display_name: "Minor Family",
+      is_minor: true,
+      share_location: true,
+      guardian_location_consent: false
+    })
+  }), productionEnv);
+  assert.equal(missingGuardianConsent.status, 400);
+  assert.equal((await missingGuardianConsent.json() as any).error, "guardian_location_consent_required");
+  assert.equal(missingGuardianConsent.headers.get("set-cookie"), null);
+  assert.equal(obs.observationEventParticipants.size, 0);
+
+  const firstCheckin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "origin": "https://ikimon.life",
+      "sec-fetch-site": "same-origin",
+      "cookie": joinGuestCookie
+    },
+    body: JSON.stringify({
+      display_name: "First Family",
+      guest_token: "attacker-controlled-token",
+      share_location: false
+    })
+  }), productionEnv);
+  const firstPayload = await firstCheckin.json() as any;
+  const guestSetCookie = firstCheckin.headers.get("set-cookie") ?? "";
+  const guestCookie = guestSetCookie.split(";", 1)[0] ?? "";
+  const rawGuestCredential = guestCookie.split("=", 2)[1] ?? "";
+  assert.equal(firstCheckin.status, 200);
+  assert.ok(firstPayload.participant_id);
+  assert.equal("guest_token" in firstPayload, false);
+  assert.match(guestSetCookie, /^__Host-ikimon_evt_[a-f0-9]{16}=[a-f0-9]{64}; Path=\/; HttpOnly; SameSite=Lax; Secure;/);
+  assert.equal([...obs.observationEventParticipants.values()][0]?.guest_token === "attacker-controlled-token", false);
+  assert.notEqual([...obs.observationEventParticipants.values()][0]?.guest_token, rawGuestCredential);
+  assert.equal([...obs.observationEventParticipants.values()][0]?.share_location, 0);
+  const guestCredentialDigest = [...obs.observationEventParticipants.values()][0]?.guest_token;
+
+  const checkedInGuestRally = await worker.fetch(new Request(
+    `https://ikimon.life/events/${created.sessionId}/rally`,
+    { headers: { cookie: guestCookie } }
+  ), productionEnv);
+  assert.equal(checkedInGuestRally.status, 200);
+  assert.match(await checkedInGuestRally.text(), /観察ラリー/);
+
+  const retryCheckin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "origin": "https://ikimon.life",
+      "sec-fetch-site": "same-origin",
+      "cookie": guestCookie
+    },
+    body: JSON.stringify({ display_name: "First Family", share_location: false })
+  }), productionEnv);
+  const retryPayload = await retryCheckin.json() as any;
+  assert.equal(retryCheckin.status, 200);
+  assert.equal(retryPayload.participant_id, firstPayload.participant_id);
+  assert.equal(obs.observationEventLiveEvents.filter((event) => event.type === "checkin").length, 1);
+
+  const guestRecap = await worker.fetch(
+    new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recap`, {
+      headers: { cookie: guestCookie }
+    }),
+    productionEnv
+  );
+  assert.equal(guestRecap.status, 200);
+  assert.ok((await guestRecap.json() as any).myContribution);
+
+  const injectedQueryRecap = await worker.fetch(
+    new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recap?guest_token=attacker-controlled-token`),
+    productionEnv
+  );
+  assert.equal(injectedQueryRecap.status, 403);
+  assert.equal((await injectedQueryRecap.json() as any).error, "event participant required");
+
+  const concurrentEventResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: organizerCookie },
+    body: JSON.stringify({
+      title: "同時チェックイン観察会",
+      event_code: "family-concurrent-event",
+      plan: "public",
+      started_at: "2026-07-19T02:10:00.000Z",
+      ended_at: "2026-07-19T04:00:00.000Z",
+      location_lat: 34.9756,
+      location_lng: 138.3828
+    })
+  }), productionEnv);
+  const concurrentEvent = await concurrentEventResponse.json() as any;
+  assert.equal(concurrentEventResponse.status, 201);
+  const concurrentJoin = await worker.fetch(
+    new Request("https://ikimon.life/community/events/family-concurrent-event/join"),
+    productionEnv
+  );
+  const concurrentGuestCookie = (concurrentJoin.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const concurrentRequest = () => new Request(`https://ikimon.life/api/v1/observation-events/${concurrentEvent.sessionId}/checkin`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "origin": "https://ikimon.life",
+      "sec-fetch-site": "same-origin",
+      "cookie": concurrentGuestCookie
+    },
+    body: JSON.stringify({ display_name: "Double Tap Family", share_location: false })
+  });
+  const [concurrentA, concurrentB] = await Promise.all([
+    worker.fetch(concurrentRequest(), productionEnv),
+    worker.fetch(concurrentRequest(), productionEnv)
+  ]);
+  const [concurrentPayloadA, concurrentPayloadB] = await Promise.all([
+    concurrentA.json() as Promise<any>,
+    concurrentB.json() as Promise<any>
+  ]);
+  assert.equal(concurrentA.status, 200);
+  assert.equal(concurrentB.status, 200);
+  assert.equal(concurrentPayloadA.participant_id, concurrentPayloadB.participant_id);
+  assert.equal(
+    [...obs.observationEventParticipants.values()].filter((row) => row.session_id === concurrentEvent.sessionId).length,
+    1
+  );
+  assert.equal(
+    obs.observationEventLiveEvents.filter((event) => event.session_id === concurrentEvent.sessionId && event.type === "checkin").length,
+    1
+  );
+
+  const authenticatedCheckin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "origin": "https://ikimon.life",
+      "sec-fetch-site": "same-origin",
+      "cookie": `${organizerCookie.split(";", 1)[0]}; ${guestCookie}`
+    },
+    body: JSON.stringify({ display_name: "Organizer", guest_token: "must-be-ignored" })
+  }), productionEnv);
+  const authenticatedPayload = await authenticatedCheckin.json() as any;
+  assert.equal(authenticatedCheckin.status, 200);
+  assert.match(authenticatedCheckin.headers.get("set-cookie") ?? "", /^__Host-ikimon_evt_[a-f0-9]{16}=; Path=\/; HttpOnly; SameSite=Lax; Secure; Max-Age=0;/);
+  const organizerParticipant = [...obs.observationEventParticipants.values()].find((row) => row.user_id === "event-security-organizer");
+  assert.equal(authenticatedPayload.participant_id, firstPayload.participant_id);
+  assert.equal(
+    [...obs.observationEventParticipants.values()].filter((row) => row.session_id === created.sessionId).length,
+    1
+  );
+  assert.equal(organizerParticipant?.guest_token, null);
+  const staleGuestRecap = await worker.fetch(
+    new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recap`, {
+      headers: { cookie: guestCookie }
+    }),
+    productionEnv
+  );
+  assert.equal(staleGuestRecap.status, 403);
+
+  const secondJoin = await worker.fetch(
+    new Request("https://ikimon.life/community/events/family-security-event/join"),
+    productionEnv
+  );
+  const secondGuestCookie = (secondJoin.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const secondGuestCheckin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "origin": "https://ikimon.life",
+      "sec-fetch-site": "same-origin",
+      "cookie": secondGuestCookie
+    },
+    body: JSON.stringify({ display_name: "Second Guest Family", share_location: false })
+  }), productionEnv);
+  assert.equal(secondGuestCheckin.status, 200);
+  const secondGuestParticipant = [...obs.observationEventParticipants.values()].find((row) =>
+    row.session_id === created.sessionId && row.display_name === "Second Guest Family"
+  );
+  assert.ok(secondGuestParticipant?.guest_token);
+  assert.equal(
+    [...obs.observationEventParticipants.values()].filter((row) => row.session_id === created.sessionId).length,
+    2
+  );
+
+  const mergedAuthenticatedCheckin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "origin": "https://ikimon.life",
+      "sec-fetch-site": "same-origin",
+      "cookie": `${organizerCookie.split(";", 1)[0]}; ${secondGuestCookie}`
+    },
+    body: JSON.stringify({ display_name: "Organizer Again", share_location: false })
+  }), productionEnv);
+  assert.equal(mergedAuthenticatedCheckin.status, 200);
+  assert.equal(
+    [...obs.observationEventParticipants.values()].filter((row) => row.session_id === created.sessionId).length,
+    1
+  );
+  assert.equal(
+    [...obs.observationEventParticipants.values()].some((row) => row.guest_token === secondGuestParticipant.guest_token),
+    false
+  );
+  assert.equal(
+    obs.observationEventLiveEvents.some((event) => event.actor_guest_token === secondGuestParticipant.guest_token),
+    false
+  );
+  const secondStaleGuestRecap = await worker.fetch(
+    new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recap`, {
+      headers: { cookie: secondGuestCookie }
+    }),
+    productionEnv
+  );
+  assert.equal(secondStaleGuestRecap.status, 403);
+});
+
+test("observation event analytics stays allowlisted and registration bridge claims the event guest", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "disabled",
+    ORIGIN_SESSION_IMPORT_MODE: "disabled"
+  };
+  const issueSession = async (userId: string, displayName: string) => {
+    const response = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId, displayName, ttlHours: 1 })
+    }), env);
+    assert.equal(response.status, 200);
+    return (response.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  };
+  const organizerCookie = await issueSession("analytics-organizer", "Analytics Organizer");
+  const registeredParentCookie = await issueSession("analytics-parent", "Analytics Parent");
+  const unrelatedUserCookie = await issueSession("analytics-unrelated", "Unrelated User");
+  const createEvent = async (eventCode: string, title: string) => {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: organizerCookie },
+      body: JSON.stringify({
+        title,
+        event_code: eventCode,
+        plan: "public",
+        started_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+        ended_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        location_lat: 34.9756,
+        location_lng: 138.3828
+      })
+    }), productionEnv);
+    assert.equal(response.status, 201);
+    return response.json() as Promise<any>;
+  };
+  const event = await createEvent("analytics-family-event", "Analytics Family Event");
+  const otherEvent = await createEvent("analytics-other-event", "Analytics Other Event");
+  const joinAndCheckin = async (eventCode: string, sessionId: string, displayName: string) => {
+    const join = await worker.fetch(new Request(`https://ikimon.life/community/events/${eventCode}/join`, {
+      headers: { "user-agent": "Mozilla/5.0 (iPhone) AppleWebKit Safari/605.1" }
+    }), productionEnv);
+    assert.equal(join.status, 200);
+    const cookie = (join.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+    assert.match(cookie, /^__Host-ikimon_evt_[a-f0-9]{16}=[a-f0-9]{64}$/);
+    const checkin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${sessionId}/checkin`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://ikimon.life",
+        "sec-fetch-site": "same-origin",
+        cookie
+      },
+      body: JSON.stringify({ display_name: displayName, share_location: false })
+    }), productionEnv);
+    assert.equal(checkin.status, 200);
+    return (checkin.headers.get("set-cookie") ?? "").split(";", 1)[0] || cookie;
+  };
+
+  const guestCookie = await joinAndCheckin(event.eventCode, event.sessionId, "Analytics Guest Family");
+  const otherEventGuestCookie = await joinAndCheckin(otherEvent.eventCode, otherEvent.sessionId, "Other Event Family");
+  const metricCount = () => obs.observationEventLiveEvents.filter((row) => row.session_id === event.sessionId && row.type === "funnel_metric").length;
+
+  const beforeCrossOrigin = metricCount();
+  const crossOrigin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/analytics`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://evil.example",
+      "sec-fetch-site": "cross-site",
+      cookie: guestCookie
+    },
+    body: JSON.stringify({ event_name: "event_photo_selected", page: "record", auth_state: "guest" })
+  }), productionEnv);
+  assert.equal(crossOrigin.status, 403);
+  assert.equal(metricCount(), beforeCrossOrigin);
+
+  const unauthorized = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/analytics`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: unrelatedUserCookie },
+    body: JSON.stringify({ event_name: "event_photo_selected", page: "record", auth_state: "signed_in" })
+  }), productionEnv);
+  assert.equal(unauthorized.status, 403);
+
+  const acceptedMetric = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/analytics`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: guestCookie },
+    body: JSON.stringify({
+      event_name: "event_photo_selected",
+      page: "record",
+      auth_state: "guest",
+      device_class: "mobile",
+      browser_family: "safari",
+      network_state: "online",
+      duration_bucket: "<10s"
+    })
+  }), productionEnv);
+  assert.equal(acceptedMetric.status, 202);
+  const storedMetric = obs.observationEventLiveEvents.filter((row) => row.session_id === event.sessionId && row.type === "funnel_metric").at(-1);
+  assert.ok(storedMetric);
+  assert.equal(storedMetric?.scope, "organizer");
+  assert.equal(storedMetric?.actor_user_id, null);
+  assert.equal(storedMetric?.actor_guest_token, null);
+  assert.equal(storedMetric?.team_id, null);
+  assert.deepEqual(Object.keys(JSON.parse(storedMetric?.payload_json ?? "{}")).sort(), [
+    "auth_state",
+    "browser_family",
+    "device_class",
+    "duration_bucket",
+    "event_name",
+    "network_state",
+    "page"
+  ]);
+
+  const metricCountAfterAccepted = metricCount();
+  const duplicateAcceptedMetric = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/analytics`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: guestCookie },
+    body: JSON.stringify({
+      event_name: "event_photo_selected",
+      page: "record",
+      auth_state: "guest",
+      device_class: "mobile",
+      browser_family: "safari",
+      network_state: "online",
+      duration_bucket: "<10s"
+    })
+  }), productionEnv);
+  assert.equal(duplicateAcceptedMetric.status, 202);
+  assert.equal(metricCount(), metricCountAfterAccepted);
+
+  const serverManagedMetric = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/analytics`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: guestCookie },
+    body: JSON.stringify({ event_name: "event_checkin_succeeded", page: "join", auth_state: "guest" })
+  }), productionEnv);
+  assert.equal(serverManagedMetric.status, 400);
+  assert.equal(metricCount(), metricCountAfterAccepted);
+
+  const beforeForbidden = metricCount();
+  const forbiddenProperty = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/analytics`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: guestCookie },
+    body: JSON.stringify({
+      event_name: "event_observation_failed",
+      page: "record",
+      auth_state: "guest",
+      result_reason: "unknown",
+      email: "minor@example.test"
+    })
+  }), productionEnv);
+  assert.equal(forbiddenProperty.status, 400);
+  const aliasEvent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/analytics`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: guestCookie },
+    body: JSON.stringify({ event_name: "event_photo_selected_v2", page: "record", auth_state: "guest" })
+  }), productionEnv);
+  assert.equal(aliasEvent.status, 400);
+  const unavailableQueue = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/analytics`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: guestCookie },
+    body: JSON.stringify({ event_name: "event_offline_queued", page: "record", auth_state: "guest", network_state: "offline" })
+  }), productionEnv);
+  assert.equal(unavailableQueue.status, 409);
+  assert.equal(metricCount(), beforeForbidden);
+  assert.equal(obs.observationEventLiveEvents.some((row) => row.payload_json.includes("minor@example.test")), false);
+
+  const bridgeGuestCookie = await joinAndCheckin(event.eventCode, event.sessionId, "Registered Parent Family");
+  const bridgeCookieName = bridgeGuestCookie.split("=", 1)[0] ?? "";
+  const otherCookieName = otherEventGuestCookie.split("=", 1)[0] ?? "";
+  const recordPage = await worker.fetch(new Request(
+    `https://ikimon.life/record?event=${event.eventCode}&eventSessionId=${event.sessionId}&start=photo`,
+    { headers: { cookie: `${registeredParentCookie}; ${bridgeGuestCookie}` } }
+  ), productionEnv);
+  const recordHtml = await recordPage.text();
+  assert.equal(recordPage.status, 200);
+  assert.match(recordHtml, new RegExp(`data-event-session-id="${event.sessionId}"`));
+  assert.match(recordHtml, /event_photo_selected/);
+  assert.match(recordHtml, /event_observation_submit_started/);
+  assert.doesNotMatch(recordHtml, /guest_token|guestToken/);
+  const preClaimSubmitMetric = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/analytics`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://ikimon.life",
+      cookie: `${registeredParentCookie}; ${bridgeGuestCookie}`
+    },
+    body: JSON.stringify({
+      event_name: "event_observation_submit_started",
+      page: "record",
+      auth_state: "signed_in",
+      network_state: "online"
+    })
+  }), productionEnv);
+  assert.equal(preClaimSubmitMetric.status, 202);
+  const observationBody = {
+    observationId: "analytics-bridge-observation",
+    clientSubmissionId: "analytics-bridge-submission",
+    userId: "analytics-parent",
+    observedAt: new Date().toISOString(),
+    latitude: 34.97564,
+    longitude: 138.38284,
+    visibility: "private",
+    taxon: { vernacularName: "未同定", rank: "unknown" },
+    eventCode: event.eventCode,
+    eventSessionId: event.sessionId,
+    sourcePayload: { source: "cloudflare_record_session_form", mediaKind: "photo" }
+  };
+  const observation = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: `${registeredParentCookie}; ${bridgeGuestCookie}; ${otherEventGuestCookie}`
+    },
+    body: JSON.stringify(observationBody)
+  }), productionEnv);
+  const observationPayload = await observation.json() as any;
+  assert.equal(observation.status, 201, JSON.stringify(observationPayload));
+  const clearedCookie = observation.headers.get("set-cookie") ?? "";
+  assert.match(clearedCookie, new RegExp(`^${bridgeCookieName}=; Path=\\/; HttpOnly; SameSite=Lax; Secure; Max-Age=0;`));
+  assert.equal(clearedCookie.includes(otherCookieName), false);
+  assert.equal("guest_token" in observationPayload, false);
+  const claimedParticipant = [...obs.observationEventParticipants.values()].find((row) =>
+    row.session_id === event.sessionId && row.display_name === "Registered Parent Family"
+  );
+  assert.equal(claimedParticipant?.user_id, "analytics-parent");
+  assert.equal(obs.observationEventLiveEvents.filter((row) => row.session_id === event.sessionId && row.type === "observation_added").length, 1);
+  assert.equal(obs.observationEventLiveEvents.filter((row) => {
+    if (row.session_id !== event.sessionId || row.type !== "funnel_metric") return false;
+    return (JSON.parse(row.payload_json) as { event_name?: string }).event_name === "event_registration_succeeded";
+  }).length, 1);
+  assert.equal(obs.observationEventLiveEvents.filter((row) => {
+    if (row.session_id !== event.sessionId || row.type !== "funnel_metric") return false;
+    return (JSON.parse(row.payload_json) as { event_name?: string }).event_name === "event_observation_succeeded";
+  }).length, 1);
+
+  const idempotentObservation = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: `${registeredParentCookie}; ${bridgeGuestCookie}; ${otherEventGuestCookie}` },
+    body: JSON.stringify(observationBody)
+  }), productionEnv);
+  assert.equal(idempotentObservation.status, 200);
+  assert.match(idempotentObservation.headers.get("set-cookie") ?? "", new RegExp(`^${bridgeCookieName}=;`));
+  assert.equal(obs.observationEventLiveEvents.filter((row) => row.session_id === event.sessionId && row.type === "observation_added").length, 1);
+  assert.equal(obs.observationEventLiveEvents.filter((row) => {
+    if (row.session_id !== event.sessionId || row.type !== "funnel_metric") return false;
+    return (JSON.parse(row.payload_json) as { event_name?: string }).event_name === "event_observation_succeeded";
+  }).length, 1);
+
+  const mismatchedContext = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: `${registeredParentCookie}; ${otherEventGuestCookie}` },
+    body: JSON.stringify({
+      ...observationBody,
+      observationId: "analytics-mismatched-observation",
+      clientSubmissionId: "analytics-mismatched-submission",
+      eventCode: otherEvent.eventCode,
+      eventSessionId: event.sessionId
+    })
+  }), productionEnv);
+  assert.equal(mismatchedContext.status, 201);
+  assert.equal(mismatchedContext.headers.get("set-cookie"), null);
+  const otherParticipant = [...obs.observationEventParticipants.values()].find((row) => row.session_id === otherEvent.sessionId);
+  assert.equal(otherParticipant?.user_id, null);
+  assert.equal(obs.observationEventLiveEvents.filter((row) => row.type === "observation_added").length, 1);
+
+  const repeatBridgeGuestCookie = await joinAndCheckin(event.eventCode, event.sessionId, "Repeat Registered Family");
+  const repeatGuestDigest = [...obs.observationEventParticipants.values()].find((row) =>
+    row.session_id === event.sessionId && row.display_name === "Repeat Registered Family"
+  )?.guest_token;
+  assert.ok(repeatGuestDigest);
+  const repeatBridge = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: `${registeredParentCookie}; ${repeatBridgeGuestCookie}`
+    },
+    body: JSON.stringify(observationBody)
+  }), productionEnv);
+  assert.equal(repeatBridge.status, 200);
+  assert.equal(
+    [...obs.observationEventParticipants.values()].filter((row) => row.session_id === event.sessionId).length,
+    2
+  );
+  assert.equal(
+    [...obs.observationEventParticipants.values()].some((row) => row.guest_token === repeatGuestDigest),
+    false
+  );
+  const repeatStaleGuestRecap = await worker.fetch(new Request(
+    `https://ikimon.life/api/v1/observation-events/${event.sessionId}/recap`,
+    { headers: { cookie: repeatBridgeGuestCookie } }
+  ), productionEnv);
+  assert.equal(repeatStaleGuestRecap.status, 403);
+
+  for (let index = 0; index < 60; index += 1) {
+    obs.observationEventLiveEvents.push({
+      live_event_id: `analytics-noise-${index}`,
+      session_id: event.sessionId,
+      type: "funnel_metric",
+      scope: "organizer",
+      actor_user_id: null,
+      actor_guest_token: null,
+      team_id: null,
+      payload_json: JSON.stringify({ event_name: "event_join_loaded" }),
+      created_at: `2100-01-01T00:00:${String(index).padStart(2, "0")}.000Z`
+    });
+  }
+  const liveAfterAnalyticsNoise = await worker.fetch(new Request(
+    `https://ikimon.life/events/${event.sessionId}/live`,
+    { headers: { cookie: guestCookie } }
+  ), productionEnv);
+  const liveAfterAnalyticsNoiseHtml = await liveAfterAnalyticsNoise.text();
+  assert.equal(liveAfterAnalyticsNoise.status, 200);
+  assert.match(liveAfterAnalyticsNoiseHtml, /観察の更新<\/h2><p>1件/);
+  assert.doesNotMatch(liveAfterAnalyticsNoiseHtml, /funnel_metric|analytics-noise/);
+
+  const participantDashboard = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/dashboard`, {
+    headers: { cookie: guestCookie }
+  }), productionEnv);
+  assert.equal(participantDashboard.status, 401);
+  const dashboardResponse = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/dashboard`, {
+    headers: { cookie: organizerCookie }
+  }), productionEnv);
+  const dashboardPayload = await dashboardResponse.json() as any;
+  assert.equal(dashboardResponse.status, 200);
+  assert.deepEqual(dashboardPayload.dashboard.allowedEventNames, [
+    "event_qr_open",
+    "event_join_loaded",
+    "event_checkin_started",
+    "event_checkin_succeeded",
+    "event_checkin_failed",
+    "event_registration_started",
+    "event_registration_succeeded",
+    "event_rally_opened",
+    "event_photo_selected",
+    "event_observation_submit_started",
+    "event_observation_succeeded",
+    "event_observation_failed",
+    "event_live_viewed",
+    "event_recap_viewed",
+    "event_offline_queued",
+    "event_retry_succeeded"
+  ]);
+  assert.equal(dashboardPayload.dashboard.domain.checkedInFamiliesOrGroups, 2);
+  assert.equal(dashboardPayload.dashboard.domain.observationCount, 1);
+  assert.equal(dashboardPayload.dashboard.domain.unsynced.status, "not_measurable");
+  assert.equal(dashboardPayload.dashboard.domain.liveAggregationDelay.status, "not_measurable");
+  assert.equal(dashboardPayload.dashboard.failures.classification, "untrusted_participant_telemetry");
+  assert.equal(dashboardPayload.dashboard.failures.automaticFallbackEligible, false);
+  assert.equal(dashboardPayload.dashboard.failures.requiredCorroboration, "staff_reproduction_or_domain_health_signal");
+  assert.equal(JSON.stringify(dashboardPayload).includes("Analytics Guest Family"), false);
+  assert.equal(JSON.stringify(dashboardPayload).includes("analytics-parent"), false);
+
+  const consolePage = await worker.fetch(new Request(`https://ikimon.life/events/${event.sessionId}/console`, {
+    headers: { cookie: organizerCookie }
+  }), productionEnv);
+  const consoleHtml = await consolePage.text();
+  assert.equal(consolePage.status, 200);
+  assert.match(consoleHtml, /チェックイン済み家族・グループ/);
+  assert.match(consoleHtml, /未同期件数/);
+  assert.match(consoleHtml, /計測不可（durable queueなし）/);
+  assert.match(consoleHtml, /observation saved/);
+  assert.match(consoleHtml, /単独ではフォールバックを発動しません/);
+  assert.doesNotMatch(consoleHtml, /Analytics Guest Family|Registered Parent Family|analytics-parent/);
+});
+
 test("production observation event APIs run location and rally routes on D1 without origin fallback", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
@@ -16096,7 +17700,7 @@ test("production observation event APIs run location and rally routes on D1 with
         title: "D1観察会",
         event_code: "d1-core-event",
         plan: "public",
-        started_at: "2026-06-25T10:00:00.000Z",
+        started_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
         location_lat: 34.9756,
         location_lng: 138.3828,
         target_species: ["セミ"]
@@ -16120,6 +17724,7 @@ test("production observation event APIs run location and rally routes on D1 with
 
     const eventJoinPage = await worker.fetch(new Request("https://ikimon.life/community/events/d1-core-event/join"), productionEnv);
     const eventJoinPageText = await eventJoinPage.text();
+    const guestCookie = (eventJoinPage.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
     assert.equal(eventJoinPage.status, 200);
     assert.equal(eventJoinPage.headers.get("x-ikimon-cloudflare-native"), "event-page-join");
     assert.match(eventJoinPageText, /D1観察会/);
@@ -16135,17 +17740,18 @@ test("production observation event APIs run location and rally routes on D1 with
 
     const checkin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", cookie: guestCookie, origin: "https://ikimon.life", "sec-fetch-site": "same-origin" },
       body: JSON.stringify({ guest_token: "guest-core-1", display_name: "Guest", team_id: teamPayload.team.team_id, is_minor: false, share_location: true })
     }), productionEnv);
     assert.equal(checkin.status, 200);
     const checkinPayload = await checkin.json() as any;
     assert.ok(checkinPayload.participant_id);
+    assert.match(checkin.headers.get("set-cookie") ?? "", /^__Host-ikimon_evt_[a-f0-9]{16}=[a-f0-9]{64};/);
 
     const absence = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/absences`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ guest_token: "guest-core-1", searched_taxon: "セミ", lat: 34.97564, lng: 138.38284, effort_seconds: 120 })
+      headers: { "content-type": "application/json", cookie: guestCookie, origin: "https://ikimon.life", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify({ searched_taxon: "セミ", lat: 34.97564, lng: 138.38284, effort_seconds: 120 })
     }), productionEnv);
     assert.equal(absence.status, 201);
     assert.equal(obs.observationEventAbsences[0]?.public_lat, 34.976);
@@ -16219,11 +17825,27 @@ test("production observation event APIs run location and rally routes on D1 with
       assert.equal(obs.observationEventLiveEvents.some((event) => event.type === `quest_${decision}`), true);
     }
 
-    const eventLivePage = await worker.fetch(new Request(`https://ikimon.life/events/${created.sessionId}/live`), productionEnv);
+    const anonymousLivePage = await worker.fetch(new Request(`https://ikimon.life/events/${created.sessionId}/live`), productionEnv);
+    const anonymousLivePageText = await anonymousLivePage.text();
+    assert.equal(anonymousLivePage.status, 403);
+    assert.equal(anonymousLivePage.headers.get("x-ikimon-cloudflare-native"), "event-page-forbidden");
+    assert.doesNotMatch(anonymousLivePageText, /quest_offered|セミの周辺をもう少し/);
+
+    const unrelatedLivePage = await worker.fetch(new Request(`https://ikimon.life/events/${created.sessionId}/live`, {
+      headers: { cookie: otherCookie }
+    }), productionEnv);
+    assert.equal(unrelatedLivePage.status, 403);
+
+    const eventLivePage = await worker.fetch(new Request(`https://ikimon.life/events/${created.sessionId}/live`, {
+      headers: { cookie: guestCookie }
+    }), productionEnv);
     const eventLivePageText = await eventLivePage.text();
     assert.equal(eventLivePage.status, 200);
     assert.equal(eventLivePage.headers.get("x-ikimon-cloudflare-native"), "event-page-live");
-    assert.match(eventLivePageText, /quest_offered/);
+    assert.match(eventLivePageText, /参加者向けライブ|最近の動き|セミ/);
+    assert.doesNotMatch(eventLivePageText, /<pre|quest_offered|liveEventId|teamId|participantId|observationId|submissionId|absenceId|questId|stationId/);
+    assert.equal(eventLivePageText.includes(created.sessionId), false);
+    assert.equal(eventLivePageText.includes(teamPayload.team.team_id), false);
 
     const forbiddenConsolePage = await worker.fetch(new Request(`https://ikimon.life/events/${created.sessionId}/console`, {
       headers: { cookie: otherCookie }
@@ -16249,11 +17871,34 @@ test("production observation event APIs run location and rally routes on D1 with
       return payload.trigger === "interval" && payload.generated_by === "cloudflare-d1-static-quest";
     }), true);
 
-    const recent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent?guest_token=guest-core-1`), productionEnv);
+    const anonymousRecent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent`), productionEnv);
+    assert.equal(anonymousRecent.status, 403);
+    const unrelatedRecent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent`, {
+      headers: { cookie: otherCookie }
+    }), productionEnv);
+    assert.equal(unrelatedRecent.status, 403);
+
+    const recent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent`, { headers: { cookie: guestCookie } }), productionEnv);
     const recentPayload = await recent.json() as any;
     assert.equal(recent.status, 200);
+    assert.deepEqual(Object.keys(recentPayload.session).sort(), ["activeModes", "endedAt", "primaryMode", "startedAt", "status", "targetSpecies", "title"]);
+    assert.deepEqual(Object.keys(recentPayload.summary).sort(), ["eventCount", "observationCount", "uniqueTaxaCount"]);
     assert.equal(recentPayload.events.some((event: any) => event.type === "absence_recorded"), true);
     assert.equal(recentPayload.events.some((event: any) => event.type === "observation_added"), true);
+    assert.equal(recentPayload.summary.observationCount, 1);
+    assert.equal(recentPayload.summary.uniqueTaxaCount, 1);
+    const eventGuestDigest = [...obs.observationEventParticipants.values()].find((row) => row.session_id === created.sessionId && row.guest_token)?.guest_token ?? "";
+    assert.ok(eventGuestDigest);
+    const recentSerialized = JSON.stringify(recentPayload);
+    assert.equal(recentPayload.events.every((event: any) => {
+      return JSON.stringify(Object.keys(event).sort()) === JSON.stringify(["createdAt", "label", "payload", "type"]);
+    }), true);
+    assert.doesNotMatch(recentSerialized, /(?:actor|guest|internal|participant|team|observation|submission|absence|quest|station|course|mission|liveEvent|session|eventCode|organizer|corporation|field|templateSource)(?:_?[Ii]d|_?token)\"\s*:/);
+    assert.doesNotMatch(recentSerialized, /\"(?:lat|lng|latitude|longitude|publicLat|publicLng|locationLat|locationLng|public_lat|public_lng|location_lat|location_lng)\"\s*:/);
+    assert.equal(recentSerialized.includes(eventGuestDigest), false);
+    assert.equal(recentSerialized.includes(created.sessionId), false);
+    assert.equal(recentSerialized.includes(teamPayload.team.team_id), false);
+    assert.equal(recentSerialized.includes("obs-event-dualwrite-1"), false);
 
     const effort = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/effort`), productionEnv);
     const effortPayload = await effort.json() as any;
@@ -16261,7 +17906,7 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(effortPayload.effort.totalAbsences, 1);
     assert.equal(effortPayload.effort.totalObservations, 1);
 
-    const recap = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recap?guest_token=guest-core-1`), productionEnv);
+    const recap = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recap`, { headers: { cookie: guestCookie } }), productionEnv);
     const recapPayload = await recap.json() as any;
     assert.equal(recap.status, 200);
     assert.equal(recapPayload.highlights.observationCount, 1);
@@ -16271,7 +17916,9 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(recapPayload.teams[0].observationsCount, 1);
     assert.equal(recapPayload.timeline.some((event: any) => event.type === "observation_added"), true);
 
-    const byCodeRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/by-code/d1-core-event/recap"), productionEnv);
+    const byCodeRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/by-code/d1-core-event/recap", {
+      headers: { cookie: guestCookie }
+    }), productionEnv);
     const byCodeRecapPayload = await byCodeRecap.json() as any;
     assert.equal(byCodeRecap.status, 200);
     assert.equal(byCodeRecapPayload.session.sessionId, created.sessionId);
@@ -16316,11 +17963,23 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(privateReview.status, 200);
     assert.equal(privateReviewPayload.capsule.reviewStatus, "approved_private");
 
-    const live = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/live?guest_token=guest-core-1`), productionEnv);
+    const anonymousLive = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/live`), productionEnv);
+    assert.equal(anonymousLive.status, 403);
+    const unrelatedLive = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/live`, {
+      headers: { cookie: otherCookie }
+    }), productionEnv);
+    assert.equal(unrelatedLive.status, 403);
+
+    const live = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/live`, { headers: { cookie: guestCookie } }), productionEnv);
     assert.equal(live.status, 200);
     assert.equal(live.headers.get("content-type"), "text/event-stream; charset=utf-8");
     assert.equal(live.headers.get("x-ikimon-observation-event-live-mode"), "snapshot-only");
-    assert.match(await live.text(), /event: snapshot/);
+    const liveText = await live.text();
+    assert.match(liveText, /event: snapshot/);
+    assert.doesNotMatch(liveText, /actorGuestToken|actorUserId|liveEventId|teamId|participantId|observationId|submissionId|absenceId|questId|stationId|sessionId|eventCode|organizerUserId|locationLat|locationLng|publicLat|publicLng|public_lat|public_lng/);
+    assert.equal(liveText.includes(eventGuestDigest), false);
+    assert.equal(liveText.includes(created.sessionId), false);
+    assert.equal(liveText.includes(teamPayload.team.team_id), false);
 
     const areaSuggestion = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/area-suggestions", {
       method: "POST",
@@ -16336,8 +17995,8 @@ test("production observation event APIs run location and rally routes on D1 with
 
     const location = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/location`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ guest_token: "guest-core-1", lat: 34.97564, lng: 138.38284, visit_seconds: 30 })
+      headers: { "content-type": "application/json", cookie: guestCookie, origin: "https://ikimon.life", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify({ lat: 34.97564, lng: 138.38284, visit_seconds: 30 })
     }), productionEnv);
     assert.equal(location.status, 200);
     const locationPayload = await location.json() as any;
@@ -16347,7 +18006,7 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal("lat" in locationPayload.event.payload, false);
     assert.equal("lng" in locationPayload.event.payload, false);
 
-    const guestRecentAfterLocation = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent?guest_token=guest-core-1`), productionEnv);
+    const guestRecentAfterLocation = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent`, { headers: { cookie: guestCookie } }), productionEnv);
     const guestRecentAfterLocationPayload = await guestRecentAfterLocation.json() as any;
     assert.equal(guestRecentAfterLocation.status, 200);
     assert.equal(guestRecentAfterLocationPayload.events.some((event: any) => event.type === "participant_location_ping"), false);
@@ -16358,6 +18017,11 @@ test("production observation event APIs run location and rally routes on D1 with
     const organizerRecentAfterLocationPayload = await organizerRecentAfterLocation.json() as any;
     assert.equal(organizerRecentAfterLocation.status, 200);
     assert.equal(organizerRecentAfterLocationPayload.events.some((event: any) => event.type === "participant_location_ping"), true);
+    const organizerRecentSerialized = JSON.stringify(organizerRecentAfterLocationPayload);
+    assert.doesNotMatch(organizerRecentSerialized, /participant_id|display_name|team_id|public_lat|public_lng|actorUserId|actorGuestToken|liveEventId/);
+    assert.equal(organizerRecentSerialized.includes(checkinPayload.participant_id), false);
+    assert.equal(organizerRecentSerialized.includes(eventGuestDigest), false);
+    assert.equal(organizerRecentSerialized.includes(teamPayload.team.team_id), false);
 
     const course = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/rally/course`, {
       method: "POST",
@@ -16403,7 +18067,7 @@ test("production observation event APIs run location and rally routes on D1 with
       body: JSON.stringify({
         observationId: "obs-rally-auto-match-1",
         userId: "event-organizer",
-        observedAt: "2026-06-25T10:20:00.000Z",
+        observedAt: new Date().toISOString(),
         latitude: 34.97564,
         longitude: 138.38284,
         municipality: "静岡市",
@@ -16437,14 +18101,19 @@ test("production observation event APIs run location and rally routes on D1 with
 
     const submission = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/rally/submissions`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ guest_token: "guest-core-1", mission_id: missionPayload.mission.missionId, station_id: stationPayload.station.stationId, count_value: 3, lat: 34.97564, lng: 138.38284 })
+      headers: { "content-type": "application/json", cookie: guestCookie, origin: "https://ikimon.life", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify({ mission_id: missionPayload.mission.missionId, station_id: stationPayload.station.stationId, count_value: 3, lat: 34.97564, lng: 138.38284 })
     }), productionEnv);
     assert.equal(submission.status, 201);
 
-    const rally = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/rally`), productionEnv);
+    const anonymousRally = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/rally`), productionEnv);
+    assert.equal(anonymousRally.status, 403);
+    const rally = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/rally`, {
+      headers: { cookie: guestCookie }
+    }), productionEnv);
     assert.equal(rally.status, 200);
     const rallyPayload = await rally.json() as any;
+    assert.equal("session" in rallyPayload, false);
     assert.equal(rallyPayload.rally.course.title, "ゆるい観察ラリー");
     assert.equal(rallyPayload.rally.stations.length, 1);
     assert.equal(rallyPayload.rally.missions.length, 2);
@@ -22122,6 +23791,118 @@ async function post(path: string, env: ReturnType<typeof createEnv>["env"], body
 
 function normalize(query: string): string {
   return query.replace(/\s+/g, " ").trim();
+}
+
+function renriFixtureFakeRows(db: FakeD1, table: string): Array<Record<string, unknown>> {
+  const mapRows = (map: Map<string, unknown>) => [...map.values()] as Array<Record<string, unknown>>;
+  switch (table) {
+    case "users":
+      return [...db.users].map((user_id) => ({ user_id }));
+    case "auth_sessions": return mapRows(db.authSessions as Map<string, unknown>);
+    case "observation_event_sessions": return mapRows(db.observationEventSessions as Map<string, unknown>);
+    case "observation_event_participants": return mapRows(db.observationEventParticipants as Map<string, unknown>);
+    case "observation_event_teams": return mapRows(db.observationEventTeams as Map<string, unknown>);
+    case "observation_event_live_events": return db.observationEventLiveEvents as unknown as Array<Record<string, unknown>>;
+    case "observation_event_absences": return db.observationEventAbsences as unknown as Array<Record<string, unknown>>;
+    case "observation_event_mesh_cells": return mapRows(db.observationEventMeshCells as Map<string, unknown>);
+    case "observation_event_quests": return mapRows(db.observationEventQuests as Map<string, unknown>);
+    case "observation_event_capsules": return mapRows(db.observationEventCapsules as Map<string, unknown>);
+    case "observation_rally_courses": return mapRows(db.observationRallyCourses as Map<string, unknown>);
+    case "observation_rally_stations": return mapRows(db.observationRallyStations as Map<string, unknown>);
+    case "observation_rally_missions": return mapRows(db.observationRallyMissions as Map<string, unknown>);
+    case "observation_rally_submissions": return mapRows(db.observationRallySubmissions as Map<string, unknown>);
+    case "observation_rally_progress": return mapRows(db.observationRallyProgress as Map<string, unknown>);
+    case "draft_observations": return mapRows(db.drafts as Map<string, unknown>);
+    case "observations": return mapRows(db.observations as Map<string, unknown>);
+    case "civic_observation_contexts": return mapRows(db.civicObservationContexts as Map<string, unknown>);
+    case "record_reading_cards": return mapRows(db.recordReadingCards as Map<string, unknown>);
+    case "public_map_snapshot_records_v1": return db.publicMapSnapshotRecords as unknown as Array<Record<string, unknown>>;
+    case "readmodel_public_observations": return mapRows(db.readmodel as Map<string, unknown>);
+    case "asset_ledger": return mapRows(db.assets as Map<string, unknown>);
+    case "outbox": return mapRows(db.outbox as Map<string, unknown>);
+    case "rollback_write_ledger": return mapRows(db.rollbackLedger as Map<string, unknown>);
+    case "observation_data_rights": return mapRows(db.observationDataRights as Map<string, unknown>);
+    case "observation_write_idempotency": return mapRows(db.observationWriteIdempotency as Map<string, unknown>);
+    case "observation_event_recap_views":
+    case "observation_impact_records":
+    case "observation_rally_revisions":
+      return [];
+    default:
+      throw new Error(`unsupported Renri fixture fake table: ${table}`);
+  }
+}
+
+function deleteRenriFixtureFakeRows(db: FakeD1, table: string, column: string, values: string[]): number {
+  const ids = new Set(values);
+  const matches = (row: Record<string, unknown>) => ids.has(String(row[column]));
+  const deleteMapRows = (map: Map<string, unknown>) => {
+    let changes = 0;
+    for (const [key, row] of [...map.entries()]) {
+      if (!matches(row as Record<string, unknown>)) continue;
+      map.delete(key);
+      changes += 1;
+    }
+    return changes;
+  };
+  const filterArrayRows = <T extends Record<string, unknown>>(rows: T[]) => {
+    const kept = rows.filter((row) => !matches(row));
+    return { rows: kept, changes: rows.length - kept.length };
+  };
+
+  switch (table) {
+    case "users": {
+      let changes = 0;
+      for (const userId of [...db.users]) {
+        if (column !== "user_id" || !ids.has(userId)) continue;
+        db.users.delete(userId);
+        changes += 1;
+      }
+      return changes;
+    }
+    case "auth_sessions": return deleteMapRows(db.authSessions as Map<string, unknown>);
+    case "observation_event_sessions": return deleteMapRows(db.observationEventSessions as Map<string, unknown>);
+    case "observation_event_participants": return deleteMapRows(db.observationEventParticipants as Map<string, unknown>);
+    case "observation_event_teams": return deleteMapRows(db.observationEventTeams as Map<string, unknown>);
+    case "observation_event_live_events": {
+      const result = filterArrayRows(db.observationEventLiveEvents as unknown as Array<Record<string, unknown>>);
+      db.observationEventLiveEvents = result.rows as unknown as ObservationEventLiveTestRow[];
+      return result.changes;
+    }
+    case "observation_event_absences": {
+      const result = filterArrayRows(db.observationEventAbsences as unknown as Array<Record<string, unknown>>);
+      db.observationEventAbsences = result.rows as unknown as typeof db.observationEventAbsences;
+      return result.changes;
+    }
+    case "observation_event_mesh_cells": return deleteMapRows(db.observationEventMeshCells as Map<string, unknown>);
+    case "observation_event_quests": return deleteMapRows(db.observationEventQuests as Map<string, unknown>);
+    case "observation_event_capsules": return deleteMapRows(db.observationEventCapsules as Map<string, unknown>);
+    case "observation_rally_courses": return deleteMapRows(db.observationRallyCourses as Map<string, unknown>);
+    case "observation_rally_stations": return deleteMapRows(db.observationRallyStations as Map<string, unknown>);
+    case "observation_rally_missions": return deleteMapRows(db.observationRallyMissions as Map<string, unknown>);
+    case "observation_rally_submissions": return deleteMapRows(db.observationRallySubmissions as Map<string, unknown>);
+    case "observation_rally_progress": return deleteMapRows(db.observationRallyProgress as Map<string, unknown>);
+    case "draft_observations": return deleteMapRows(db.drafts as Map<string, unknown>);
+    case "observations": return deleteMapRows(db.observations as Map<string, unknown>);
+    case "civic_observation_contexts": return deleteMapRows(db.civicObservationContexts as Map<string, unknown>);
+    case "record_reading_cards": return deleteMapRows(db.recordReadingCards as Map<string, unknown>);
+    case "public_map_snapshot_records_v1": {
+      const result = filterArrayRows(db.publicMapSnapshotRecords as unknown as Array<Record<string, unknown>>);
+      db.publicMapSnapshotRecords = result.rows as unknown as PublicMapSnapshotRecordRow[];
+      return result.changes;
+    }
+    case "readmodel_public_observations": return deleteMapRows(db.readmodel as Map<string, unknown>);
+    case "asset_ledger": return deleteMapRows(db.assets as Map<string, unknown>);
+    case "outbox": return deleteMapRows(db.outbox as Map<string, unknown>);
+    case "rollback_write_ledger": return deleteMapRows(db.rollbackLedger as Map<string, unknown>);
+    case "observation_data_rights": return deleteMapRows(db.observationDataRights as Map<string, unknown>);
+    case "observation_write_idempotency": return deleteMapRows(db.observationWriteIdempotency as Map<string, unknown>);
+    case "observation_event_recap_views":
+    case "observation_impact_records":
+    case "observation_rally_revisions":
+      return 0;
+    default:
+      throw new Error(`unsupported Renri fixture fake delete table: ${table}`);
+  }
 }
 
 function requireRow<T>(map: Map<string, T>, key: string): T {

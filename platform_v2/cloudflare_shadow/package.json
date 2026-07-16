@@ -13,6 +13,8 @@
     "wrangler:check:staging": "npx wrangler deploy --dry-run --env staging",
     "dev": "wrangler dev --local --env shadow --port 8787",
     "load:10k": "node scripts/loadtest.mjs --records=10000 --media=3 --url=http://127.0.0.1:8787",
+    "load:renri-event:dry-run": "node scripts/run-renri-event-load-check.mjs --duration-seconds=600",
+    "load:renri-event:staging": "node scripts/run-renri-event-load-check.mjs --execute --duration-seconds=600",
     "build:field-detail-sql": "node scripts/build-field-detail-readmodel-sql.mjs",
     "report:d1-boundary": "node scripts/d1-migration-boundary-report.mjs",
     "report:vps-stop-readiness": "node scripts/d1-migration-boundary-report.mjs --fail-on-vps-blockers",

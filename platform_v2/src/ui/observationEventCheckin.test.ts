@@ -33,6 +33,9 @@ test("solo micro checkin skips team anxiety and opens the live field screen", ()
   assert.match(html, /data-solo-observation="true"/);
   assert.match(html, /班分けなしで開始/);
   assert.match(html, /開催範囲の補助として現在地を使う/);
+  assert.doesNotMatch(html, /name="share_location" checked/);
   assert.match(script, /isSolo \? "\/live" : "\/rally"/);
-  assert.match(script, /encodeURIComponent\(guestToken\)/);
+  assert.doesNotMatch(script, /guest_token|guestToken|Math\.random|localStorage/);
+  assert.doesNotMatch(script, /\?token=/);
+  assert.match(script, /credentials: "include"/);
 });

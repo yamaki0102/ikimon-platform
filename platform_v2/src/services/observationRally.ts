@@ -885,7 +885,11 @@ export async function recordRallySubmission(input: {
     actorUserId: input.userId,
     actorGuestToken: input.guestToken,
     teamId: input.teamId ?? null,
-    payload: { submission, mission_id: mission.missionId, title: mission.title },
+    payload: {
+      title: mission.title,
+      review_status: submission.reviewStatus,
+      count_value: submission.countValue,
+    },
   });
   const progress = reviewStatus === "auto_accepted"
     ? await refreshMissionProgress(input.sessionId, mission.missionId, { emit: true })

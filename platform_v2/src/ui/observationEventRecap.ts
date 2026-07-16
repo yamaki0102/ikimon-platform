@@ -23,7 +23,7 @@ function timelineLabel(entry: RecapTimelineEntry): string {
     case "observation_added":
       return `🌿 <b>${escapeHtml(String(p.taxon_name ?? "観察"))}</b> を発見`;
     case "guide_scene_added":
-      return `🧭 <b>${escapeHtml(String(p.scene_summary ?? p.primary_subject ?? "ガイド場面"))}</b>`;
+      return `🧭 <b>${escapeHtml(String(p.taxon_name ?? "ガイド場面"))}</b>`;
     case "field_scan_added":
       return `📡 <b>${escapeHtml(String(p.taxon_name ?? p.scan_mode ?? "場所の状態"))}</b> をスキャン`;
     case "absence_recorded":
@@ -41,7 +41,9 @@ function timelineLabel(entry: RecapTimelineEntry): string {
     case "milestone":
       return `🏆 マイルストーン`;
     case "fanfare":
-      return `🎉 ${escapeHtml(String(p.message ?? "ファンファーレ"))}`;
+      return `🎉 ${escapeHtml(String(p.headline ?? p.taxon_name ?? "ファンファーレ"))}`;
+    case "rally_task_submitted":
+      return `🎯 ${escapeHtml(String(p.title ?? "ラリー記録"))}`;
     case "team_update":
       return `👥 班情報更新`;
     case "rare_species":
@@ -117,10 +119,9 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
     : timeline
         .slice(-100)
         .map((entry) => `
-          <li style="display:grid; grid-template-columns:auto 1fr auto; gap:10px; padding:8px 12px; border-bottom:1px solid var(--evt-line);">
+          <li style="display:grid; grid-template-columns:auto 1fr; gap:10px; padding:8px 12px; border-bottom:1px solid var(--evt-line);">
             <span class="evt-eyebrow" style="font-variant-numeric: tabular-nums;">${formatTime(entry.createdAt)}</span>
             <span style="font-size:14px;">${timelineLabel(entry)}</span>
-            <span class="evt-eyebrow">${escapeHtml(entry.scope)}</span>
           </li>`).join("");
 
   return `

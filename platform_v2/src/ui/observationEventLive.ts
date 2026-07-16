@@ -30,11 +30,10 @@ export interface RenderLiveArgs {
   session: ObservationEventSessionRow;
   participantSelfId: string | null;
   isOrganizer: boolean;
-  guestToken: string | null;
 }
 
 export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
-  const { session, isOrganizer, guestToken } = args;
+  const { session, isOrganizer } = args;
   const meter = MODE_METERS[session.primaryMode] ?? MODE_METERS.discovery;
   const isSolo = isSoloMicroSession(session);
   const hasTargets = (session.targetSpecies ?? []).length > 0;
@@ -54,7 +53,7 @@ export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
     : "";
 
   return `
-<section class="evt-live-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}" data-guest-token="${escapeHtml(guestToken ?? "")}" data-primary-mode="${escapeHtml(session.primaryMode)}" data-target-species="${escapeHtml(JSON.stringify(session.targetSpecies ?? []))}" data-solo-observation="${isSolo ? "true" : "false"}">
+<section class="evt-live-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}" data-primary-mode="${escapeHtml(session.primaryMode)}" data-target-species="${escapeHtml(JSON.stringify(session.targetSpecies ?? []))}" data-solo-observation="${isSolo ? "true" : "false"}">
 
   <header class="evt-live-topbar">
     <div>
@@ -239,7 +238,6 @@ export function observationEventLiveScript(): string {
   const root = document.querySelector(".evt-live-shell");
   if (!root) return;
   const sessionId = root.dataset.sessionId;
-  const guestToken = root.dataset.guestToken || null;
   const isSolo = root.dataset.soloObservation === "true";
   const targetSpeciesRaw = root.dataset.targetSpecies || "[]";
   let targetSpecies = [];
@@ -576,8 +574,7 @@ export function observationEventLiveScript(): string {
   let evtSource = null;
   let pollHandle = null;
   function connectSSE(){
-    const tokenParam = guestToken ? "?guest_token=" + encodeURIComponent(guestToken) : "";
-    const url = "/api/v1/observation-events/" + sessionId + "/live" + tokenParam;
+    const url = "/api/v1/observation-events/" + sessionId + "/live";
     try { evtSource = new EventSource(url, { withCredentials: true }); }
     catch(_){ fallbackToPolling(); return; }
     evtSource.addEventListener("snapshot", (ev) => {
@@ -602,8 +599,7 @@ export function observationEventLiveScript(): string {
     if (pollHandle) return;
     pollHandle = setInterval(async () => {
       try {
-        const tokenParam = guestToken ? "&guest_token=" + encodeURIComponent(guestToken) : "";
-        const r = await fetch("/api/v1/observation-events/" + sessionId + "/recent?limit=20" + tokenParam, { credentials: "include" });
+        const r = await fetch("/api/v1/observation-events/" + sessionId + "/recent?limit=20", { credentials: "include" });
         if (r.ok) {
           const data = await r.json();
           (data.events || []).slice().reverse().forEach(handleEvent);
@@ -689,7 +685,6 @@ export function observationEventLiveScript(): string {
       effort_seconds: Number(fd.get("effort_seconds")),
       confidence: fd.get("confidence"),
       lat, lng,
-      guest_token: guestToken,
     };
     try {
       const r = await fetch("/api/v1/observation-events/" + sessionId + "/absences", {
@@ -753,7 +748,7 @@ export function observationEventLiveScript(): string {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ declared_job: role, guest_token: guestToken }),
+        body: JSON.stringify({ declared_job: role }),
       });
       if (r.ok && window.evtFanfare) window.evtFanfare("役割を宣言した");
       roleDialog?.close();

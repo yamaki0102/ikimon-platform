@@ -1337,6 +1337,75 @@ const RALLY_VERIFICATION_POLICIES = ["auto", "organizer_review", "ai_assisted", 
 const RALLY_WEATHER_SENSITIVITIES = ["all_weather", "rain_ok", "dry_only", "sunny_only", "wind_sensitive", "temperature_sensitive"] as const;
 const RALLY_MISSION_STATUSES = ["draft", "published", "paused", "replaced", "closed"] as const;
 const RALLY_REVISION_ACTIONS = ["publish", "pause", "replace", "extend", "close"] as const;
+const OBSERVATION_EVENT_FUNNEL_EVENT_NAMES = [
+  "event_qr_open",
+  "event_join_loaded",
+  "event_checkin_started",
+  "event_checkin_succeeded",
+  "event_checkin_failed",
+  "event_registration_started",
+  "event_registration_succeeded",
+  "event_rally_opened",
+  "event_photo_selected",
+  "event_observation_submit_started",
+  "event_observation_succeeded",
+  "event_observation_failed",
+  "event_live_viewed",
+  "event_recap_viewed",
+  "event_offline_queued",
+  "event_retry_succeeded"
+] as const;
+type ObservationEventFunnelEventName = typeof OBSERVATION_EVENT_FUNNEL_EVENT_NAMES[number];
+const OBSERVATION_EVENT_CLIENT_FUNNEL_EVENT_NAMES: readonly ObservationEventFunnelEventName[] = [
+  "event_registration_started",
+  "event_photo_selected",
+  "event_observation_submit_started",
+  "event_observation_failed",
+  "event_offline_queued",
+  "event_retry_succeeded"
+];
+const OBSERVATION_EVENT_CLIENT_FUNNEL_EVENT_NAME_SET = new Set<string>(OBSERVATION_EVENT_CLIENT_FUNNEL_EVENT_NAMES);
+const OBSERVATION_EVENT_FUNNEL_MAX_TOTAL = 5_000;
+const OBSERVATION_EVENT_FUNNEL_MAX_PER_EVENT_NAME = 1_000;
+type ObservationEventFunnelPage = "join" | "rally" | "record" | "live" | "recap";
+type ObservationEventFunnelAuthState = "guest" | "signed_in";
+type ObservationEventFunnelDeviceClass = "mobile" | "tablet" | "desktop";
+type ObservationEventFunnelBrowserFamily = "safari" | "chrome" | "in_app" | "other";
+type ObservationEventFunnelNetworkState = "online" | "offline" | "unknown";
+type ObservationEventFunnelResultReason = "validation" | "timeout" | "4xx" | "5xx" | "permission" | "unknown";
+type ObservationEventFunnelDurationBucket = "<10s" | "10-30s" | "31-120s" | ">120s";
+type ObservationEventFunnelRetryKind = "checkin" | "observation" | "upload";
+type ObservationEventFunnelPayload = {
+  event_name: ObservationEventFunnelEventName;
+  page: ObservationEventFunnelPage;
+  auth_state: ObservationEventFunnelAuthState;
+  device_class?: ObservationEventFunnelDeviceClass;
+  browser_family?: ObservationEventFunnelBrowserFamily;
+  network_state?: ObservationEventFunnelNetworkState;
+  result_reason?: ObservationEventFunnelResultReason;
+  duration_bucket?: ObservationEventFunnelDurationBucket;
+  retry_kind?: ObservationEventFunnelRetryKind;
+};
+const OBSERVATION_EVENT_FUNNEL_PAYLOAD_KEYS = new Set([
+  "event_name",
+  "page",
+  "auth_state",
+  "device_class",
+  "browser_family",
+  "network_state",
+  "result_reason",
+  "duration_bucket",
+  "retry_kind"
+]);
+const OBSERVATION_EVENT_FUNNEL_EVENT_NAME_SET = new Set<string>(OBSERVATION_EVENT_FUNNEL_EVENT_NAMES);
+const OBSERVATION_EVENT_FUNNEL_PAGES = new Set<ObservationEventFunnelPage>(["join", "rally", "record", "live", "recap"]);
+const OBSERVATION_EVENT_FUNNEL_AUTH_STATES = new Set<ObservationEventFunnelAuthState>(["guest", "signed_in"]);
+const OBSERVATION_EVENT_FUNNEL_DEVICE_CLASSES = new Set<ObservationEventFunnelDeviceClass>(["mobile", "tablet", "desktop"]);
+const OBSERVATION_EVENT_FUNNEL_BROWSER_FAMILIES = new Set<ObservationEventFunnelBrowserFamily>(["safari", "chrome", "in_app", "other"]);
+const OBSERVATION_EVENT_FUNNEL_NETWORK_STATES = new Set<ObservationEventFunnelNetworkState>(["online", "offline", "unknown"]);
+const OBSERVATION_EVENT_FUNNEL_RESULT_REASONS = new Set<ObservationEventFunnelResultReason>(["validation", "timeout", "4xx", "5xx", "permission", "unknown"]);
+const OBSERVATION_EVENT_FUNNEL_DURATION_BUCKETS = new Set<ObservationEventFunnelDurationBucket>(["<10s", "10-30s", "31-120s", ">120s"]);
+const OBSERVATION_EVENT_FUNNEL_RETRY_KINDS = new Set<ObservationEventFunnelRetryKind>(["checkin", "observation", "upload"]);
 const STEWARDSHIP_ACTION_KINDS = new Set([
   "cleanup",
   "mowing",
@@ -1409,6 +1478,8 @@ interface ObservationEventParticipantD1Row {
   guest_token: string | null;
   display_name?: string | null;
   team_id: string | null;
+  role: string;
+  status: string;
   share_location?: number;
   location_share_until?: string | null;
   is_minor: number;
@@ -2848,6 +2919,18 @@ export const worker = {
         return researchResponse;
       }
 
+      if (
+        request.method === "POST" &&
+        (url.pathname === "/api/v1/ops/staging/renri-fixtures/inventory" ||
+          url.pathname === "/api/v1/ops/staging/renri-fixtures/cleanup")
+      ) {
+        return handleStagingRenriFixtureRequest(
+          request,
+          env,
+          url.pathname.endsWith("/cleanup") ? "cleanup" : "inventory"
+        );
+      }
+
       if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
         return fetchOriginFallback(request, url, env, "public_custom_domain_path");
       }
@@ -3187,6 +3270,15 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   if (request.method === "POST" && locationMatch?.[1]) {
     return pingObservationEventLocation(request, env, decodeURIComponent(locationMatch[1]));
   }
+  const recapPhotoMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/photos\/([a-f0-9]{32})$/);
+  if (request.method === "GET" && recapPhotoMatch?.[1] && recapPhotoMatch[2]) {
+    return getObservationEventRecapPhoto(
+      request,
+      env,
+      decodeURIComponent(recapPhotoMatch[1]),
+      recapPhotoMatch[2]
+    );
+  }
   const rallyMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/rally(?:\/(.*))?$/);
   if (rallyMatch?.[1]) {
     return handleObservationEventRallyApi(request, env, decodeURIComponent(rallyMatch[1]), rallyMatch[2] ? decodeURIComponent(rallyMatch[2]) : "");
@@ -3218,8 +3310,10 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
     return session ? json({ session, modes: OBSERVATION_EVENT_MODES }, 200, { "cache-control": "no-store" }) : json({ error: "session not found" }, 404, { "cache-control": "no-store" });
   }
   if (request.method === "PATCH" && action === "") return updateObservationEventSession(request, env, sessionId);
-  if (request.method === "GET" && action === "recent") return getObservationEventRecent(url, env, sessionId, request.headers.get("cookie"));
-  if (request.method === "GET" && action === "live") return getObservationEventLiveSnapshot(url, env, sessionId, request.headers.get("cookie"));
+  if (request.method === "GET" && action === "recent") return getObservationEventRecent(request, url, env, sessionId);
+  if (request.method === "GET" && action === "live") return getObservationEventLiveSnapshot(request, env, sessionId);
+  if (request.method === "POST" && action === "analytics") return recordObservationEventFunnelMetric(request, env, sessionId);
+  if (request.method === "GET" && action === "dashboard") return getObservationEventOperationsDashboard(request, env, sessionId);
   if (request.method === "POST" && action === "announce") return announceObservationEvent(request, env, sessionId);
   if (request.method === "POST" && action === "teams") return createObservationEventTeam(request, env, sessionId);
   if (request.method === "POST" && action === "checkin") return checkinObservationEvent(request, env, sessionId);
@@ -3263,8 +3357,37 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
       ORDER BY started_at DESC
       LIMIT 24`
   ).all<ObservationEventSessionD1Row>();
-  const sessions = rows.results.map(mapObservationEventSession);
+  const sessions = rows.results
+    .map(mapObservationEventSession)
+    .filter((session) => auth?.userId === session.organizerUserId || !isObservationEventQaFixture(session));
   return observationEventPageHtml("観察会", renderObservationEventListPage(sessions, auth), "event-page-list");
+}
+
+function isObservationEventQaFixture(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>
+): boolean {
+  const config = session.config;
+  const hiddenFlag = [
+    config.qa_fixture,
+    config.qaFixture,
+    config.is_fixture,
+    config.isFixture,
+    config.test_fixture,
+    config.testFixture
+  ].some((value) => value === true || (typeof value === "string" && /^(?:1|true|yes|qa|fixture|test|smoke)$/iu.test(value.trim())));
+  if (hiddenFlag || config.public_listed === false || config.publicListVisible === false) return true;
+
+  const visibility = normalizeOptionalText(config.public_list_visibility ?? config.publicListVisibility);
+  if (visibility && /^(?:hidden|internal|qa|fixture|test)$/iu.test(visibility)) return true;
+  const sourceMarkers = [config.source, config.fixture_prefix, config.fixturePrefix]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+  if (/(?:^|[\s_-])(?:qa|e2e|fixture|smoke|regression|test)(?:$|[\s_-])/iu.test(sourceMarkers)) return true;
+
+  const eventCode = session.eventCode ?? "";
+  if (/^(?:qa|e2e|fixture|smoke|regression|test|pr\d+)(?:[-_]|$)/iu.test(eventCode)) return true;
+  if (/\bpr\s*#?\d+\b.*\bprod(?:uction)?\b.*\brally\b/iu.test(session.title)) return true;
+  return /(?:^|[\s\[(_-])(?:qa|e2e|fixture|smoke|regression|test)(?:$|[\s\])}_:-])|テスト|検証用|動作確認/iu.test(session.title);
 }
 
 async function getObservationEventJoinPage(request: Request, env: Env, eventCode: string): Promise<Response> {
@@ -3275,8 +3398,44 @@ async function getObservationEventJoinPage(request: Request, env: Env, eventCode
   if (!session) {
     return observationEventPageHtml("観察会が見つかりません", observationEventEmptyState("参加コードが見つかりません", "主催者にコードを確認してください。"), "event-page-not-found", 404);
   }
+  if (!isObservationEventCheckinOpen(session)) {
+    return redirect303(`/events/${encodeURIComponent(session.sessionId)}/recap`, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "event-page-recap-redirect"
+    });
+  }
   const teams = await listObservationEventTeams(env, session.sessionId).catch(() => []);
-  return observationEventPageHtml(`${session.title} に参加`, renderObservationEventJoinPage(session, teams, Boolean(auth)), "event-page-join");
+  const guestCredential = auth
+    ? null
+    : await readObservationEventGuestCredential(request.headers.get("cookie"), session.sessionId) ?? randomToken();
+  if (request.method === "GET") {
+    const context = serverObservationEventFunnelContext(request, "join", Boolean(auth));
+    const actorKey = auth
+      ? `user:${auth.userId}`
+      : `guest:${await observationEventGuestCredentialDigest(guestCredential!)}`;
+    await recordObservationEventServerFunnelMetric(env, session.sessionId, {
+      event_name: "event_qr_open",
+      ...context
+    }, actorKey);
+    await recordObservationEventServerFunnelMetric(env, session.sessionId, {
+      event_name: "event_join_loaded",
+      ...context
+    }, actorKey);
+  }
+  const response = observationEventPageHtml(`${session.title} に参加`, renderObservationEventJoinPage(session, teams, Boolean(auth)), "event-page-join");
+  if (!auth && guestCredential) {
+    response.headers.set("set-cookie", await buildObservationEventGuestCookie(session, guestCredential));
+  }
+  return response;
+}
+
+function isObservationEventCheckinOpen(
+  session: Pick<NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, "endedAt">,
+  nowMs = Date.now()
+): boolean {
+  if (!session.endedAt) return true;
+  const endedAtMs = Date.parse(session.endedAt);
+  return Number.isFinite(endedAtMs) && endedAtMs > nowMs;
 }
 
 async function getObservationEventSessionPage(request: Request, url: URL, env: Env, sessionId: string, page: string): Promise<Response> {
@@ -3287,7 +3446,20 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
   if (!session) {
     return observationEventPageHtml("観察会が見つかりません", observationEventEmptyState("セッションが見つかりません", "観察会一覧から選び直してください。"), "event-page-not-found", 404);
   }
-  const canManage = Boolean(auth?.userId && auth.userId === session.organizerUserId);
+  let canManage = Boolean(auth?.userId && auth.userId === session.organizerUserId);
+  let liveViewer: Awaited<ReturnType<typeof observationEventParticipantContext>> | null = null;
+  if (page === "live" || page === "rally") {
+    liveViewer = await observationEventParticipantContext(request, env, session);
+    canManage = canManage || liveViewer.isOrganizer;
+    if (!liveViewer.isOrganizer && !liveViewer.isCheckedInParticipant) {
+      return observationEventPageHtml(
+        "権限がありません",
+        observationEventEmptyState("参加者のみ閲覧できます", "先に観察会へチェックインしてください。"),
+        "event-page-forbidden",
+        403
+      );
+    }
+  }
   if ((page === "edit" || page === "console") && !canManage) {
     return observationEventPageHtml("権限がありません", observationEventEmptyState("主催者のみアクセスできます", "主催者アカウントでログインしてください。"), "event-page-forbidden", 403);
   }
@@ -3299,7 +3471,8 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
   }
   if (page === "rally") {
     const rally = await getObservationRallySnapshot(env, session.sessionId).catch(() => ({ course: null, stations: [], missions: [], progress: [] }));
-    return observationEventPageHtml(`${session.title} 観察ラリー`, renderObservationEventRallyPage(session, rally, canManage), "event-page-rally");
+    await recordObservationEventParticipantPageMetric(request, env, session, "event_rally_opened", "rally");
+    return observationEventPageHtml(`${session.title} 観察ラリー`, renderObservationEventRallyPage(session, rally, Boolean(auth), canManage), "event-page-rally");
   }
   const [teams, events, effort] = await Promise.all([
     listObservationEventTeams(env, session.sessionId).catch(() => []),
@@ -3310,15 +3483,22 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     return observationEventPageHtml(`${session.title} 編集`, renderObservationEventEditPage(session), "event-page-edit");
   }
   if (page === "console") {
-    return observationEventPageHtml(`${session.title} 管制塔`, renderObservationEventConsolePage(session, teams, events, effort), "event-page-console");
+    const dashboard = await buildObservationEventOperationsDashboard(env, session);
+    return observationEventPageHtml(`${session.title} 管制塔`, renderObservationEventConsolePage(session, teams, events, effort, dashboard), "event-page-console");
   }
-  return observationEventPageHtml(`${session.title} ライブ`, renderObservationEventLivePage(session, teams, events, canManage), "event-page-live");
+  await recordObservationEventParticipantPageMetric(request, env, session, "event_live_viewed", "live");
+  const participantEvents = events
+    .filter((event) => shouldDeliverObservationEvent(event, liveViewer!))
+    .map(publicObservationEventLiveEvent)
+    .filter((event): event is PublicObservationEventLiveEvent => event !== null);
+  return observationEventPageHtml(`${session.title} ライブ`, renderObservationEventLivePage(session, teams, participantEvents, canManage), "event-page-live");
 }
 
 async function getObservationEventRecapPage(request: Request, url: URL, env: Env, session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): Promise<Response> {
   const recapResponse = await getObservationEventRecap(request, url, env, session.sessionId);
   if (!recapResponse.ok) return recapResponse;
   const recap = await recapResponse.json() as Record<string, unknown>;
+  await recordObservationEventParticipantPageMetric(request, env, session, "event_recap_viewed", "recap");
   return observationEventPageHtml(`${session.title} の振り返り`, renderObservationEventRecapPage(recap), "event-page-recap");
 }
 
@@ -3329,7 +3509,8 @@ async function getObservationEventReportPage(request: Request, env: Env, session
 }
 
 function observationEventPageHtml(title: string, body: string, nativeMarker: string, status = 200): Response {
-  return html(`<!doctype html>
+  const cspNonce = createHtmlCspNonce();
+  const document = `<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
@@ -3348,10 +3529,10 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
     .site-search{min-width:200px;max-width:300px;height:38px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;border-radius:999px;background:#fff;border:1px solid #d6e3dc}.site-search-input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#17231b;font:inherit;font-size:13px}.site-search-icon{font-size:13px;opacity:.72}
     .site-header-actions{display:flex;align-items:center;gap:8px}.site-header-actions-mobile{display:none}.site-record-link{min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;background:#0b6b54;color:#fff;text-decoration:none;font-size:13px;font-weight:900;box-shadow:0 8px 18px rgba(11,107,84,.14)}.lang-switch-label,.site-account-icons{display:inline-flex;align-items:center;border:1px solid #d6e3dc;background:#fff;color:#315241}.lang-switch-label{gap:5px;min-height:34px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900}.site-account-icons{gap:4px;padding:3px;border-radius:999px}.site-account-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:#315241;text-decoration:none}.desktop-side-nav-icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     .site-mobile-menu{position:relative;display:none}.site-mobile-menu-toggle{list-style:none;width:42px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:999px;border:1px solid #d6e3dc;background:#fff;color:#17231b;cursor:pointer}.site-mobile-menu-toggle::-webkit-details-marker{display:none}.site-mobile-menu-icon,.site-mobile-menu-icon::before,.site-mobile-menu-icon::after{display:block;width:14px;height:2px;border-radius:999px;background:currentColor}.site-mobile-menu-icon{position:relative}.site-mobile-menu-icon::before,.site-mobile-menu-icon::after{content:"";position:absolute;left:0}.site-mobile-menu-icon::before{top:-5px}.site-mobile-menu-icon::after{top:5px}.site-mobile-menu-panel{position:absolute;right:0;top:calc(100% + 9px);z-index:30;width:min(340px,calc(100vw - 28px));display:grid;gap:10px;padding:12px;border-radius:16px;border:1px solid #d6e3dc;background:#fff;box-shadow:0 20px 42px rgba(15,23,42,.16)}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.card{background:#fff;border:1px solid #d9e5dd;border-radius:8px;padding:16px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.card{background:#fff;border:1px solid #d9e5dd;border-radius:8px;padding:16px}.event-photo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}.event-photo-card{margin:0;padding:0;overflow:hidden}.event-photo-card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#e8f1ed}.event-photo-card figcaption{padding:12px 14px;font-weight:700}
     .muted{color:#587062}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.btn{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:6px;background:#0b6b54;color:#fff;text-decoration:none;font-weight:600}
     button.btn{border:0;cursor:pointer;font:inherit}.area-sketch-card{margin-top:14px}.area-sketch-label,.area-sketch-cover label{display:grid;gap:6px;font-weight:700;color:#315241}.area-sketch-label input,.area-sketch-cover input,textarea[data-area-sketch-polygon]{width:100%;box-sizing:border-box;border:1px solid #cbd8d0;border-radius:6px;padding:9px 10px;font:inherit;background:#fff;color:#17231b}.area-sketch-map{height:420px;min-height:320px;border:1px solid #cbd8d0;border-radius:8px;overflow:hidden;background:#dce6df;margin:12px 0}.area-sketch-cover{margin-top:12px}
-    .btn.secondary{background:#e8f1ed;color:#174c3d}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
+    .btn.secondary{background:#e8f1ed;color:#174c3d}.btn.rally-record-cta{min-height:44px}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
     pre{white-space:pre-wrap;word-break:break-word;background:#102018;color:#f3fff8;border-radius:8px;padding:12px}
     @media(max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}}
   </style>
@@ -3362,7 +3543,12 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
     ${body}
   </main>
 </body>
-</html>`, status, { "cache-control": "no-store", "x-ikimon-cloudflare-native": nativeMarker });
+</html>`;
+  return html(applyCspNonceToHtmlScripts(document, cspNonce), status, {
+    ...browserSecurityHeaders(cspNonce, true),
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": nativeMarker
+  });
 }
 
 function renderObservationEventCreatePage(auth: SessionSnapshot | null, initialFieldId: string): string {
@@ -3529,29 +3715,247 @@ function renderObservationEventListPage(sessions: Array<NonNullable<Awaited<Retu
 }
 
 function renderObservationEventJoinPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, teams: Awaited<ReturnType<typeof listObservationEventTeams>>, isAuthenticated: boolean): string {
-  return `<section class="card"><h1>${escapeHtml(session.title)} に参加</h1><p class="muted">参加コード: ${escapeHtml(session.eventCode ?? "")}</p><p>${session.targetSpecies.map((item) => `<span class="pill">${escapeHtml(item)}</span>`).join("")}</p><h2>チーム</h2><div class="grid">${teams.map((team) => `<article class="card"><strong>${escapeHtml(team.name)}</strong><p class="muted">${escapeHtml(team.color)}</p></article>`).join("") || "<p class=\"muted\">チーム未設定</p>"}</div><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/live">ライブへ</a>${isAuthenticated ? "" : `<a class="btn secondary" href="/login?redirect=/community/events/${encodeURIComponent(session.eventCode ?? "")}/join">ログイン</a>`}</div></section>`;
+  const eventCode = session.eventCode ?? "";
+  const returnPath = `/community/events/${encodeURIComponent(eventCode)}/join`;
+  const registerHref = `/register?redirect=${encodeURIComponent(returnPath)}`;
+  const loginHref = `/login?redirect=${encodeURIComponent(returnPath)}`;
+  const teamOptions = teams.map((team) =>
+    `<option value="${escapeHtml(team.team_id)}">${escapeHtml(team.name)}</option>`
+  ).join("");
+  const accountCopy = isAuthenticated
+    ? `<p class="muted">ログイン済みアカウントで参加します。このイベント用のゲストIDは作りません。</p>`
+    : `<aside class="card"><p><strong>ゲストのまますぐ参加できます。</strong> ライブと終了後のふり返りは、この端末で開けます。</p><p class="muted">写真を自分の記録として残す方は、<a data-evt-register-link href="${escapeHtml(registerHref)}">無料アカウントを作る</a>か、<a data-evt-login-link href="${escapeHtml(loginHref)}">ログイン</a>してください。登録後はこの画面へ戻ります。</p></aside>`;
+  return `<section class="card" data-renri-checkin-root data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(eventCode)}" data-authenticated="${isAuthenticated ? "true" : "false"}">
+    <p class="pill">観察会チェックイン</p>
+    <h1>${escapeHtml(session.title)} に参加</h1>
+    <p>家族・グループはスマートフォン1台で参加できます。代表者のニックネームや「○○家」で進めてください。</p>
+    <aside class="card"><strong>名前が分からなくても大丈夫です</strong><p class="muted">位置情報を共有しなくても、参加・観察・投稿ができます。</p></aside>
+    <form data-evt-checkin-form novalidate>
+      <label>参加名（家族・グループ名でもOK）
+        <input type="text" name="display_name" required maxlength="32" autocomplete="nickname" placeholder="例: やまき家" />
+      </label>
+      ${teamOptions ? `<label>班（任意）<select name="team_id"><option value="">選ばない</option>${teamOptions}</select></label>` : ""}
+      <label class="evt-check-row">
+        <input type="checkbox" name="share_location" />
+        <span>開催中だけ、主催者におおよその現在地を共有<small>共有しなくても同じように参加できます。終了後は自動で止まります。</small></span>
+      </label>
+      <label class="evt-check-row">
+        <input type="checkbox" name="is_minor" />
+        <span>参加者に未成年が含まれます</span>
+      </label>
+      <label class="evt-check-row" data-guardian-consent-row hidden>
+        <input type="checkbox" name="guardian_location_consent" />
+        <span>未成年の位置共有について、保護者または引率者が同意しています</span>
+      </label>
+      ${accountCopy}
+      <p class="muted" data-evt-checkin-status role="status" aria-live="polite"></p>
+      <button type="submit" class="btn" data-evt-checkin-submit>観察を始める</button>
+    </form>
+  </section>${observationEventJoinScript()}`;
 }
 
-function renderObservationEventLivePage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, teams: Awaited<ReturnType<typeof listObservationEventTeams>>, events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>, canManage: boolean): string {
-  return `<section><h1>${escapeHtml(session.title)} ライブ</h1><p class="muted">D1 snapshot delivery / ${escapeHtml(session.primaryMode)}</p><div class="actions">${canManage ? `<a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a>` : ""}<a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/recent">recent API</a></div><div class="grid">${teams.map((team) => `<article class="card"><strong>${escapeHtml(team.name)}</strong><p>${jsonArray(team.target_taxa_json).map((taxon) => `<span class="pill">${escapeHtml(taxon)}</span>`).join("")}</p></article>`).join("")}</div><h2>最近の動き</h2>${renderObservationEventTimeline(events)}</section>`;
+function observationEventJoinScript(): string {
+  return `<script>
+(() => {
+  const root = document.querySelector("[data-renri-checkin-root]");
+  if (!root) return;
+  const sessionId = String(root.dataset.sessionId || "");
+  const eventCode = String(root.dataset.eventCode || "");
+  const form = root.querySelector("[data-evt-checkin-form]");
+  const status = root.querySelector("[data-evt-checkin-status]");
+  const submit = root.querySelector("[data-evt-checkin-submit]");
+  const displayName = form?.querySelector('input[name="display_name"]');
+  const teamId = form?.querySelector('[name="team_id"]');
+  const shareLocation = form?.querySelector('input[name="share_location"]');
+  const isMinor = form?.querySelector('input[name="is_minor"]');
+  const guardianConsent = form?.querySelector('input[name="guardian_location_consent"]');
+  const guardianRow = root.querySelector("[data-guardian-consent-row]");
+  const draftKey = "evt-checkin-draft:" + sessionId;
+
+  function setStatus(message, error) {
+    if (!status) return;
+    status.textContent = message || "";
+    status.style.color = error ? "#b91c1c" : "#047857";
+  }
+  function syncGuardian() {
+    const required = Boolean(isMinor?.checked && shareLocation?.checked);
+    if (guardianRow) guardianRow.hidden = !required;
+    if (!required && guardianConsent) guardianConsent.checked = false;
+  }
+  function draft() {
+    return {
+      displayName: String(displayName?.value || ""),
+      teamId: String(teamId?.value || ""),
+      shareLocation: Boolean(shareLocation?.checked),
+      isMinor: Boolean(isMinor?.checked),
+      guardianConsent: Boolean(guardianConsent?.checked)
+    };
+  }
+  function saveDraft() {
+    try { sessionStorage.setItem(draftKey, JSON.stringify(draft())); } catch {}
+  }
+  function restoreDraft() {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(draftKey) || "null");
+      if (!value || typeof value !== "object") return;
+      if (displayName && typeof value.displayName === "string") displayName.value = value.displayName;
+      if (teamId && typeof value.teamId === "string") teamId.value = value.teamId;
+      if (shareLocation) shareLocation.checked = value.shareLocation === true;
+      if (isMinor) isMinor.checked = value.isMinor === true;
+      if (guardianConsent) guardianConsent.checked = value.guardianConsent === true;
+    } catch {}
+  }
+
+  restoreDraft();
+  syncGuardian();
+  form?.addEventListener("input", saveDraft);
+  isMinor?.addEventListener("change", syncGuardian);
+  shareLocation?.addEventListener("change", syncGuardian);
+  root.querySelectorAll("[data-evt-register-link], [data-evt-login-link]").forEach((link) => link.addEventListener("click", saveDraft));
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (submit?.disabled) return;
+    const name = String(displayName?.value || "").trim();
+    if (!name) {
+      setStatus("参加名を入力してください。", true);
+      displayName?.focus();
+      return;
+    }
+    if (isMinor?.checked && shareLocation?.checked && !guardianConsent?.checked) {
+      setStatus("位置情報を共有する場合は、保護者または引率者の同意を確認してください。共有しない設定でも参加できます。", true);
+      guardianConsent?.focus();
+      return;
+    }
+    saveDraft();
+    if (submit) submit.disabled = true;
+    setStatus("参加情報を確認しています…", false);
+    try {
+      const response = await fetch("/api/v1/observation-events/" + encodeURIComponent(sessionId) + "/checkin", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          display_name: name,
+          team_id: String(teamId?.value || "") || null,
+          share_location: Boolean(shareLocation?.checked),
+          is_minor: Boolean(isMinor?.checked),
+          guardian_location_consent: Boolean(guardianConsent?.checked)
+        })
+      });
+      if (!response.ok) {
+        setStatus("チェックインできませんでした。通信状況を確認して、同じボタンでもう一度お試しください。入力内容は残っています。", true);
+        return;
+      }
+      try {
+        sessionStorage.removeItem(draftKey);
+        sessionStorage.setItem("evt-event-code:" + sessionId, eventCode);
+      } catch {}
+      setStatus("参加できました。観察画面を開きます。", false);
+      window.setTimeout(() => {
+        window.location.href = "/events/" + encodeURIComponent(sessionId) + "/rally";
+      }, 250);
+    } catch {
+      setStatus("通信が途切れました。電波が戻ったら、同じボタンでもう一度お試しください。入力内容は残っています。", true);
+    } finally {
+      if (submit) submit.disabled = false;
+    }
+  });
+})();
+</script>`;
 }
 
-function renderObservationEventConsolePage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, teams: Awaited<ReturnType<typeof listObservationEventTeams>>, events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>, effort: Awaited<ReturnType<typeof summarizeObservationEventEffort>> | null): string {
-  return `<section><h1>${escapeHtml(session.title)} 管制塔</h1><div class="grid"><article class="card"><h2>状態</h2><p>${escapeHtml(session.primaryMode)}</p><p class="muted">${escapeHtml(session.startedAt)} - ${escapeHtml(session.endedAt ?? "open")}</p></article><article class="card"><h2>努力量</h2><p>${escapeHtml(effort?.totalEffortPersonHours ?? 0)} person-hours</p><p>${escapeHtml(effort?.coveragePct ?? 0)}% coverage</p></article><article class="card"><h2>チーム</h2><p>${teams.length}</p></article></div><div class="actions"><a class="btn" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/effort">effort API</a><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/report">公式出力</a></div>${renderObservationEventTimeline(events)}</section>`;
+function renderObservationEventLivePage(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+  teams: Awaited<ReturnType<typeof listObservationEventTeams>>,
+  events: PublicObservationEventLiveEvent[],
+  canManage: boolean
+): string {
+  const summary = summarizePublicObservationEventLive(events);
+  const targetTaxa = [...new Set([
+    ...session.targetSpecies,
+    ...teams.flatMap((team) => jsonArray(team.target_taxa_json).filter((taxon): taxon is string => typeof taxon === "string"))
+  ])].slice(0, 12);
+  const targetTaxaHtml = targetTaxa.length > 0
+    ? `<p>${targetTaxa.map((taxon) => `<span class="pill">${escapeHtml(taxon)}</span>`).join("")}</p>`
+    : `<p class="muted">気になった形や色を手がかりに、身近ないきものを探してみましょう。</p>`;
+  return `<section><h1>${escapeHtml(session.title)} 参加者向けライブ</h1><p class="muted">チェックイン済みの参加者だけが見られる、観察会の最新情報です。</p>${canManage ? `<div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a></div>` : ""}<div class="grid"><article class="card"><h2>観察の更新</h2><p>${summary.observationCount}件</p></article><article class="card"><h2>見つかった種類</h2><p>${summary.uniqueTaxaCount}種</p></article><article class="card"><h2>最近の動き</h2><p>${summary.eventCount}件</p></article></div><article class="card"><h2>観察の手がかり</h2>${targetTaxaHtml}</article><h2>最近の動き</h2>${renderObservationEventTimeline(events)}</section>`;
+}
+
+function renderObservationEventConsolePage(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+  teams: Awaited<ReturnType<typeof listObservationEventTeams>>,
+  events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>,
+  effort: Awaited<ReturnType<typeof summarizeObservationEventEffort>> | null,
+  dashboard: Awaited<ReturnType<typeof buildObservationEventOperationsDashboard>>
+): string {
+  const funnelRows = dashboard.funnel.map((stage) => `<tr><th scope="row">${escapeHtml(stage.label)}</th><td>${stage.count}</td><td>${stage.conversionFromPreviousPct === null ? "—" : `${stage.conversionFromPreviousPct}%`}</td></tr>`).join("");
+  const unsynced = dashboard.domain.unsynced.status === "not_measurable" ? "計測不可（durable queueなし）" : escapeHtml(dashboard.domain.unsynced.count ?? 0);
+  const liveDelay = dashboard.domain.liveAggregationDelay.status === "not_measurable" ? "計測不可（反映時刻を別保持していません）" : `${escapeHtml(dashboard.domain.liveAggregationDelay.seconds ?? 0)}秒`;
+  return `<section><h1>${escapeHtml(session.title)} 管制塔</h1><div class="grid"><article class="card"><h2>状態</h2><p>${escapeHtml(session.primaryMode)}</p><p class="muted">${escapeHtml(session.startedAt)} - ${escapeHtml(session.endedAt ?? "open")}</p></article><article class="card"><h2>努力量</h2><p>${escapeHtml(effort?.totalEffortPersonHours ?? 0)} person-hours</p><p>${escapeHtml(effort?.coveragePct ?? 0)}% coverage</p></article><article class="card"><h2>チーム</h2><p>${teams.length}</p></article></div><h2>当日ドメイン集計</h2><div class="grid"><article class="card"><h3>チェックイン済み家族・グループ</h3><p>${dashboard.domain.checkedInFamiliesOrGroups}</p></article><article class="card"><h3>観察件数</h3><p>${dashboard.domain.observationCount}</p></article><article class="card"><h3>投稿 成功 / 失敗シグナル</h3><p>${dashboard.domain.submissionSucceededCount} / ${dashboard.domain.submissionFailedSignalCount}</p></article><article class="card"><h3>未同期件数</h3><p>${unsynced}</p></article><article class="card"><h3>live集計の遅延</h3><p>${liveDelay}</p></article><article class="card"><h3>recap生成状態</h3><p>${escapeHtml(dashboard.domain.recapStatus)}</p></article></div><p class="muted">最終更新: ${escapeHtml(dashboard.domain.lastUpdatedAt)}</p><h2>Funnel</h2><div class="card"><table><thead><tr><th>段階</th><th>件数</th><th>直前比</th></tr></thead><tbody>${funnelRows}</tbody></table><p class="muted">check-in失敗 ${dashboard.failures.checkin}件 / 観察保存失敗 ${dashboard.failures.observation}件。失敗件数は参加者テレメトリ由来の参考信号であり、単独ではフォールバックを発動しません。スタッフ再現またはドメイン健全性の異常で照合してください。参加組数・観察件数はD1のdomain counterを正本とします。</p></div><div class="actions"><a class="btn" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/dashboard">dashboard API</a><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/effort">effort API</a><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/report">公式出力</a></div><h2>運営イベント（個人情報なし）</h2>${renderObservationEventOperationalTimeline(events)}</section>`;
 }
 
 function renderObservationEventEditPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): string {
   return `<section class="card"><h1>${escapeHtml(session.title)} 編集</h1><p class="muted">Worker/D1 runtimeでは、更新は PATCH /api/v1/observation-events/:sessionId に集約します。</p><pre>${escapeHtml(JSON.stringify({ sessionId: session.sessionId, title: session.title, primaryMode: session.primaryMode, activeModes: session.activeModes, targetSpecies: session.targetSpecies }, null, 2))}</pre><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}">session API</a></div></section>`;
 }
 
-function renderObservationEventRallyPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, rally: Awaited<ReturnType<typeof getObservationRallySnapshot>>, canManage: boolean): string {
-  return `<section><h1>${escapeHtml(session.title)} 観察ラリー</h1><div class="grid"><article class="card"><h2>${escapeHtml(rally.course?.title ?? "観察ラリー未作成")}</h2><p class="muted">${escapeHtml(rally.course?.status ?? "draft")}</p></article><article class="card"><h2>地点</h2><p>${rally.stations.length}</p></article><article class="card"><h2>ミッション</h2><p>${rally.missions.length}</p></article></div><div class="actions"><a class="btn" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/rally">rally API</a>${canManage ? `<a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a>` : ""}</div></section>`;
+function renderObservationEventRallyPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, rally: Awaited<ReturnType<typeof getObservationRallySnapshot>>, isAuthenticated: boolean, canManage: boolean): string {
+  const recordParams = new URLSearchParams();
+  if (session.eventCode) recordParams.set("event", session.eventCode);
+  recordParams.set("eventSessionId", session.sessionId);
+  recordParams.set("rally", "1");
+  recordParams.set("activityIntent", "share");
+  recordParams.set("start", "photo");
+  const recordHref = `/record?${recordParams.toString()}`;
+  const registerHref = `/register?redirect=${encodeURIComponent(recordHref)}`;
+  const loginHref = `/login?redirect=${encodeURIComponent(recordHref)}`;
+  const recordAction = isAuthenticated
+    ? `<a class="btn rally-record-cta" href="${escapeHtml(recordHref)}" data-rally-action="record">写真を記録する</a>`
+    : `<a class="btn rally-record-cta" href="${escapeHtml(registerHref)}" data-rally-action="record" data-event-registration-start>無料アカウントを作って記録する</a><a class="btn secondary" href="${escapeHtml(loginHref)}" data-event-registration-start>ログインして記録する</a>`;
+  const accountCopy = isAuthenticated
+    ? "写真はログイン中のアカウントへ保存され、この観察会の振り返りにつながります。"
+    : "写真を自分の記録として安全に残すには、無料アカウント作成またはログインが必要です。ゲストの参加状態はこの端末に残ります。";
+  const registrationAnalytics = isAuthenticated ? "" : observationEventRegistrationStartScript(session.sessionId);
+  return `<section><h1>${escapeHtml(session.title)} 観察ラリー</h1><article class="card"><h2>見つけたものを記録しよう</h2><p>${escapeHtml(accountCopy)}</p><div class="actions">${recordAction}</div></article><div class="grid"><article class="card"><h2>${escapeHtml(rally.course?.title ?? "観察ラリー未作成")}</h2><p class="muted">${escapeHtml(rally.course?.status ?? "draft")}</p></article><article class="card"><h2>地点</h2><p>${rally.stations.length}</p></article><article class="card"><h2>ミッション</h2><p>${rally.missions.length}</p></article></div><div class="actions"><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/rally">ラリーの進み具合</a>${canManage ? `<a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a>` : ""}</div></section>${registrationAnalytics}`;
+}
+
+function observationEventRegistrationStartScript(sessionId: string): string {
+  return `<script>
+(() => {
+  const endpoint = "/api/v1/observation-events/${encodeURIComponent(sessionId)}/analytics";
+  document.querySelectorAll("[data-event-registration-start]").forEach((link) => {
+    link.addEventListener("click", () => {
+      void fetch(endpoint, {
+        method: "POST",
+        credentials: "same-origin",
+        keepalive: true,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          event_name: "event_registration_started",
+          page: "rally",
+          auth_state: "guest",
+          network_state: navigator.onLine === false ? "offline" : "online"
+        })
+      }).catch(() => {});
+    }, { once: true });
+  });
+})();
+</script>`;
 }
 
 function renderObservationEventRecapPage(recap: Record<string, unknown>): string {
   const session = asPlainObject(recap.session) ?? {};
   const highlights = asPlainObject(recap.highlights) ?? {};
-  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>不在確認</h2><p>${escapeHtml(highlights.absencesCount ?? 0)}</p></article><article class="card"><h2>参加者</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><pre>${escapeHtml(JSON.stringify({ highlights, myContribution: recap.myContribution ?? null }, null, 2))}</pre></section>`;
+  const photos = Array.isArray(recap.photos)
+    ? recap.photos.map(asPlainObject).filter((photo): photo is Record<string, unknown> => Boolean(photo))
+    : [];
+  const topTaxa = Array.isArray(highlights.topTaxa)
+    ? highlights.topTaxa.map(asPlainObject).filter((taxon): taxon is Record<string, unknown> => Boolean(taxon))
+    : [];
+  const photoGallery = photos.length > 0
+    ? `<div class="event-photo-grid">${photos.map((photo) => `<figure class="card event-photo-card" data-event-recap-photo><img src="${escapeHtml(photo.photoUrl ?? "")}" alt="${escapeHtml(photo.taxonName ?? "未同定の観察写真")}" loading="lazy"><figcaption>${escapeHtml(photo.taxonName ?? "未同定")}</figcaption></figure>`).join("")}</div>`
+    : `<p class="muted">写真は安全な表示用データの準備ができ次第、ここに表示されます。</p>`;
+  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>見つかった種類</h2><p>${escapeHtml(highlights.uniqueSpeciesCount ?? 0)}</p></article><article class="card"><h2>参加した家族・グループ</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><h2>みんなの観察写真</h2>${photoGallery}<article class="card"><h2>次に調べるヒント</h2><p>写真の形や色、見つけた場所の環境を見比べてみましょう。名前がまだ分からない記録も、大切な発見です。</p>${topTaxa.length > 0 ? `<p>${topTaxa.map((taxon) => `<span class="pill">${escapeHtml(taxon.name ?? "未同定")} ${escapeHtml(taxon.count ?? 0)}件</span>`).join("")}</p>` : ""}</article></section>`;
 }
 
 function renderObservationEventReportPage(report: Awaited<ReturnType<typeof buildObservationEventOfficialReport>> & Record<string, unknown>): string {
@@ -3560,8 +3964,15 @@ function renderObservationEventReportPage(report: Awaited<ReturnType<typeof buil
   return `<section><h1>${escapeHtml((report.session as { title?: string } | undefined)?.title ?? "観察会")} 公式出力</h1><div class="grid"><article class="card"><h2>公式記録</h2><p>${escapeHtml(stats.officialObservationCount ?? 0)}</p></article><article class="card"><h2>分類群</h2><p>${escapeHtml(stats.uniqueTaxaCount ?? 0)}</p></article></div><pre>${escapeHtml(JSON.stringify(records.slice(0, 20), null, 2))}</pre></section>`;
 }
 
-function renderObservationEventTimeline(events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>): string {
-  return `<div class="grid">${events.slice(0, 20).map((event) => `<article class="card"><strong>${escapeHtml(event.type)}</strong><p class="muted">${escapeHtml(event.createdAt)}</p><pre>${escapeHtml(JSON.stringify(event.payload, null, 2))}</pre></article>`).join("") || "<p class=\"muted\">まだイベントはありません。</p>"}</div>`;
+function renderObservationEventTimeline(events: PublicObservationEventLiveEvent[]): string {
+  return `<div class="grid">${events.slice(0, 20).map((event) => {
+    const detail = observationEventLiveParticipantDetail(event);
+    return `<article class="card"><strong>${escapeHtml(event.label)}</strong>${detail ? `<p>${escapeHtml(detail)}</p>` : ""}<p class="muted"><time datetime="${escapeHtml(event.createdAt)}">${escapeHtml(event.createdAt)}</time></p></article>`;
+  }).join("") || "<p class=\"muted\">まだ新しい動きはありません。</p>"}</div>`;
+}
+
+function renderObservationEventOperationalTimeline(events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>): string {
+  return `<div class="grid">${events.filter((event) => event.type !== "funnel_metric").slice(0, 20).map((event) => `<article class="card"><strong>${escapeHtml(event.type)}</strong><p class="muted">${escapeHtml(event.createdAt)}</p></article>`).join("") || "<p class=\"muted\">まだイベントはありません。</p>"}</div>`;
 }
 
 function observationEventEmptyState(title: string, description: string): string {
@@ -3754,41 +4165,91 @@ async function createObservationEventTeam(request: Request, env: Env, sessionId:
 }
 
 async function checkinObservationEvent(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  if (!isObservationEventCheckinOpen(session)) {
+    return json({ error: "event_checkin_closed" }, 409, { "cache-control": "no-store" });
+  }
   const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const metricContext = serverObservationEventFunnelContext(request, "join", Boolean(auth));
+  const browserGuestCredential = await readObservationEventGuestCredential(request.headers.get("cookie"), sessionId);
+  if (!auth && !browserGuestCredential) {
+    return json({ error: "event_guest_cookie_required" }, 428, { "cache-control": "no-store" });
+  }
+  const browserGuestToken = browserGuestCredential ? await observationEventGuestCredentialDigest(browserGuestCredential) : null;
+  const metricActorKey = auth ? `user:${auth.userId}` : `guest:${browserGuestToken!}`;
+  await recordObservationEventServerFunnelMetric(env, sessionId, {
+    event_name: "event_checkin_started",
+    ...metricContext
+  }, metricActorKey);
   const body = await readJson<Record<string, unknown>>(request);
-  const guestToken = normalizeOptionalText(body.guest_token);
-  if (!auth && !guestToken) return json({ error: "user or guest_token required" }, 400, { "cache-control": "no-store" });
-  const participantId = await upsertObservationEventParticipant(env, {
+  const isMinor = body.is_minor === true;
+  const shareLocation = body.share_location === true;
+  const guardianConsent = body.guardian_location_consent === true;
+  if (isMinor && shareLocation && !guardianConsent) {
+    await recordObservationEventServerFunnelMetric(env, sessionId, {
+      event_name: "event_checkin_failed",
+      ...metricContext,
+      result_reason: "validation"
+    }, metricActorKey);
+    return json({ error: "guardian_location_consent_required" }, 400, { "cache-control": "no-store" });
+  }
+  if (auth && browserGuestToken) {
+    await claimObservationEventGuestParticipant(env, sessionId, auth.userId, browserGuestToken);
+  }
+  const guestCredential = auth ? null : browserGuestCredential;
+  const guestToken = auth ? null : browserGuestToken;
+  const participant = await upsertObservationEventParticipant(env, {
     sessionId,
     userId: auth?.userId ?? null,
     guestToken,
     displayName: normalizeOptionalText(body.display_name) ?? "",
     teamId: normalizeOptionalText(body.team_id),
-    isMinor: body.is_minor === true,
-    shareLocation: body.share_location === true,
-    locationShareUntil: normalizeOptionalText(body.location_share_until),
-    locationShareConsentType: normalizeOptionalText(body.location_share_consent_type)
+    isMinor,
+    shareLocation,
+    locationShareUntil: shareLocation ? observationEventLocationShareUntil(session) : null,
+    locationShareConsentType: shareLocation ? (isMinor ? "guardian" : "self") : null
   });
-  await appendObservationEventLive(env, {
-    sessionId,
-    type: "checkin",
-    scope: "organizer",
-    actorUserId: auth?.userId ?? null,
-    actorGuestToken: guestToken,
-    teamId: normalizeOptionalText(body.team_id),
-    payload: { participant_id: participantId, display_name: normalizeOptionalText(body.display_name) ?? "", team_id: normalizeOptionalText(body.team_id), location_share: body.share_location === true }
-  });
-  return json({ participant_id: participantId }, 200, { "cache-control": "no-store" });
+  if (participant.created) {
+    await appendObservationEventLive(env, {
+      sessionId,
+      type: "checkin",
+      scope: "organizer",
+      actorUserId: auth?.userId ?? null,
+      actorGuestToken: guestToken,
+      teamId: normalizeOptionalText(body.team_id),
+      payload: { participant_id: participant.participantId, display_name: normalizeOptionalText(body.display_name) ?? "", team_id: normalizeOptionalText(body.team_id), location_share: shareLocation }
+    });
+    await recordObservationEventServerFunnelMetric(env, sessionId, {
+      event_name: "event_checkin_succeeded",
+      ...metricContext
+    }, `participant:${participant.participantId}`);
+  }
+  const headers: Record<string, string> = { "cache-control": "no-store" };
+  if (auth && browserGuestCredential) {
+    headers["set-cookie"] = await buildClearedObservationEventGuestCookie(sessionId);
+  } else if (!auth && guestCredential) {
+    headers["set-cookie"] = await buildObservationEventGuestCookie(session, guestCredential);
+  }
+  return json({ participant_id: participant.participantId }, 200, headers);
+}
+
+async function observationEventRequestActor(request: Request, env: Env, sessionId: string) {
+  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const guestCredential = auth ? null : await readObservationEventGuestCredential(request.headers.get("cookie"), sessionId);
+  const guestToken = guestCredential ? await observationEventGuestCredentialDigest(guestCredential) : null;
+  return { auth, guestToken };
 }
 
 async function updateObservationEventRole(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
-  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const { auth, guestToken } = await observationEventRequestActor(request, env, sessionId);
   const body = await readJson<Record<string, unknown>>(request);
-  const guestToken = normalizeOptionalText(body.guest_token);
   const declaredJob = normalizeOptionalText(body.declared_job);
   if (!declaredJob || !["shoot", "identify", "map", "record", "absence", "free"].includes(declaredJob)) {
     return json({ error: "invalid declared_job" }, 400, { "cache-control": "no-store" });
@@ -3814,17 +4275,20 @@ async function announceObservationEvent(request: Request, env: Env, sessionId: s
 }
 
 async function createObservationEventAbsence(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
-  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const { auth, guestToken } = await observationEventRequestActor(request, env, sessionId);
   const body = await readJson<Record<string, unknown>>(request);
-  const guestToken = normalizeOptionalText(body.guest_token);
   const taxon = normalizeOptionalText(body.searched_taxon);
   const lat = numberOrNullFromUnknown(body.lat);
   const lng = numberOrNullFromUnknown(body.lng);
   if (!taxon || lat === null || lng === null) return json({ error: "searched_taxon, lat, lng required" }, 400, { "cache-control": "no-store" });
   if (!auth && !guestToken) return json({ error: "user or guest_token required" }, 400, { "cache-control": "no-store" });
-  const teamId = normalizeOptionalText(body.team_id);
+  const participant = await findObservationEventParticipant(env, sessionId, auth?.userId ?? null, guestToken);
+  if (!participant) return json({ error: "participant required" }, 403, { "cache-control": "no-store" });
+  const teamId = participant.team_id;
   const absenceId = crypto.randomUUID();
   const confidenceRaw = normalizeOptionalText(body.confidence) ?? "searched";
   const confidence = ["searched", "confirmed_absent", "expert_verified"].includes(confidenceRaw) ? confidenceRaw : "searched";
@@ -3841,21 +4305,42 @@ async function createObservationEventAbsence(request: Request, env: Env, session
   return json({ absence_id: absenceId, event }, 201, { "cache-control": "no-store" });
 }
 
-async function getObservationEventRecent(url: URL, env: Env, sessionId: string, cookieHeader: string | null): Promise<Response> {
+async function getObservationEventRecent(request: Request, url: URL, env: Env, sessionId: string): Promise<Response> {
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 500);
-  const ctx = await observationEventParticipantContext(env, session, cookieHeader, url.searchParams.get("guest_token"));
-  const events = (await listObservationEventLiveEvents(env, sessionId, limit)).filter((event) => shouldDeliverObservationEvent(event, ctx));
-  return json({ session, events }, 200, { "cache-control": "no-store" });
+  const ctx = await observationEventParticipantContext(request, env, session);
+  if (!ctx.isOrganizer && !ctx.isCheckedInParticipant) {
+    return json({ error: "event participant required" }, 403, { "cache-control": "no-store" });
+  }
+  const events = (await listObservationEventLiveEvents(env, sessionId, limit))
+    .filter((event) => shouldDeliverObservationEvent(event, ctx))
+    .map(publicObservationEventLiveEvent)
+    .filter((event): event is PublicObservationEventLiveEvent => event !== null);
+  return json({
+    session: publicObservationEventLiveSession(session),
+    summary: summarizePublicObservationEventLive(events),
+    events
+  }, 200, { "cache-control": "no-store" });
 }
 
-async function getObservationEventLiveSnapshot(url: URL, env: Env, sessionId: string, cookieHeader: string | null): Promise<Response> {
+async function getObservationEventLiveSnapshot(request: Request, env: Env, sessionId: string): Promise<Response> {
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
-  const ctx = await observationEventParticipantContext(env, session, cookieHeader, url.searchParams.get("guest_token"));
-  const events = (await listObservationEventLiveEvents(env, sessionId, 50)).filter((event) => shouldDeliverObservationEvent(event, ctx)).reverse();
-  const payload = `event: snapshot\ndata: ${JSON.stringify({ session, events })}\n\nevent: ping\ndata: ${JSON.stringify({ now: new Date().toISOString(), mode: "snapshot_only" })}\n\n`;
+  const ctx = await observationEventParticipantContext(request, env, session);
+  if (!ctx.isOrganizer && !ctx.isCheckedInParticipant) {
+    return json({ error: "event participant required" }, 403, { "cache-control": "no-store" });
+  }
+  const events = (await listObservationEventLiveEvents(env, sessionId, 50))
+    .filter((event) => shouldDeliverObservationEvent(event, ctx))
+    .reverse()
+    .map(publicObservationEventLiveEvent)
+    .filter((event): event is PublicObservationEventLiveEvent => event !== null);
+  const payload = `event: snapshot\ndata: ${JSON.stringify({
+    session: publicObservationEventLiveSession(session),
+    summary: summarizePublicObservationEventLive(events),
+    events
+  })}\n\nevent: ping\ndata: ${JSON.stringify({ now: new Date().toISOString(), mode: "snapshot_only" })}\n\n`;
   return new Response(payload, {
     status: 200,
     headers: {
@@ -3901,11 +4386,161 @@ async function getObservationEventEffort(env: Env, sessionId: string): Promise<R
   }, 200, { "cache-control": "no-store" });
 }
 
+function observationEventObservationId(event: Awaited<ReturnType<typeof listObservationEventLiveEvents>>[number]): string | null {
+  return normalizeOptionalText(event.payload.observation_id)
+    ?? normalizeOptionalText(event.payload.visit_id);
+}
+
+async function observationEventRecapPhotoRef(sessionId: string, observationId: string): Promise<string> {
+  const digest = await sha256Hex(textToArrayBuffer(`event-recap-photo|${sessionId}|${observationId}`));
+  return digest.slice(0, 32);
+}
+
+async function buildObservationEventRecapPhotos(
+  env: Env,
+  sessionId: string,
+  observationEvents: Awaited<ReturnType<typeof listObservationEventLiveEvents>>
+) {
+  const availablePhotos = await queryPublicMapPhotoUrls(env);
+  const seen = new Set<string>();
+  const photos: Array<{ photoUrl: string; taxonName: string; observedAt: string }> = [];
+  for (const event of observationEvents) {
+    const observationId = observationEventObservationId(event);
+    if (!observationId || seen.has(observationId) || !availablePhotos.has(observationId)) continue;
+    seen.add(observationId);
+    const photoRef = await observationEventRecapPhotoRef(sessionId, observationId);
+    photos.push({
+      photoUrl: `/api/v1/observation-events/${encodeURIComponent(sessionId)}/photos/${photoRef}`,
+      taxonName: observationEventTaxonName(event.payload) ?? "未同定",
+      observedAt: event.createdAt
+    });
+    if (photos.length >= 60) break;
+  }
+  return photos;
+}
+
+function publicObservationEventRecapSession(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>) {
+  return {
+    sessionId: session.sessionId,
+    eventCode: session.eventCode,
+    title: session.title,
+    plan: session.plan,
+    primaryMode: session.primaryMode,
+    activeModes: session.activeModes,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt,
+    targetSpecies: session.targetSpecies
+  };
+}
+
+function publicObservationEventRecapTimeline(
+  events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>
+) {
+  const timeline: Array<{ type: string; payload: Record<string, unknown>; createdAt: string }> = [];
+  for (const event of events) {
+    const taxonName = observationEventTaxonName(event.payload);
+    if (["observation_added", "guide_scene_added", "field_scan_added"].includes(event.type)) {
+      timeline.push({ type: event.type, payload: { taxonName: taxonName ?? "未同定" }, createdAt: event.createdAt });
+      continue;
+    }
+    if (event.type === "absence_recorded") {
+      timeline.push({
+        type: event.type,
+        payload: {
+          searchedTaxon: normalizeOptionalText(event.payload.searched_taxon) ?? "未指定",
+          confidence: normalizeOptionalText(event.payload.confidence) ?? "searched"
+        },
+        createdAt: event.createdAt
+      });
+      continue;
+    }
+    if (event.type === "announce") {
+      const message = normalizeOptionalText(event.payload.message);
+      if (message) timeline.push({ type: event.type, payload: { message }, createdAt: event.createdAt });
+      continue;
+    }
+    if (["rare_species", "target_hit", "milestone", "fanfare"].includes(event.type)) {
+      timeline.push({
+        type: event.type,
+        payload: {
+          taxonName: taxonName ?? null,
+          headline: normalizeOptionalText(event.payload.headline) ?? null
+        },
+        createdAt: event.createdAt
+      });
+    }
+  }
+  return timeline;
+}
+
+async function getObservationEventRecapPhoto(
+  request: Request,
+  env: Env,
+  sessionId: string,
+  photoRef: string
+): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const auth = await readCompatibleSession(request, env).catch(() => null);
+  const guestCredential = auth ? null : await readObservationEventGuestCredential(request.headers.get("cookie"), sessionId);
+  const guestToken = guestCredential ? await observationEventGuestCredentialDigest(guestCredential) : null;
+  const participant = await findObservationEventParticipant(env, sessionId, auth?.userId ?? null, guestToken);
+  const canManage = Boolean(auth?.userId && auth.userId === session.organizerUserId);
+  if (!canManage && !participant) {
+    return json({ error: "event participant required" }, 403, { "cache-control": "no-store" });
+  }
+
+  const events = await listObservationEventLiveEvents(env, sessionId, 500);
+  let observationId: string | null = null;
+  for (const event of events) {
+    if (event.type !== "observation_added") continue;
+    const candidateId = observationEventObservationId(event);
+    if (!candidateId) continue;
+    if (await observationEventRecapPhotoRef(sessionId, candidateId) === photoRef) {
+      observationId = candidateId;
+      break;
+    }
+  }
+  if (!observationId) return json({ error: "photo not found" }, 404, { "cache-control": "no-store" });
+
+  const assets = await env.OBS_DB.prepare(
+    `SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key
+       FROM asset_ledger
+      WHERE observation_id = ?
+        AND processing_state = 'uploaded'
+        AND public_derivative_key IS NOT NULL
+        AND public_derivative_verified_at IS NOT NULL
+        AND public_derivative_metadata_json IS NOT NULL
+        AND public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
+        AND public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
+        AND exif_scrub_state = 'scrubbed'
+        AND public_ready_at IS NOT NULL
+        AND mime LIKE 'image/%'
+        ${presentablePublicPhotoSql()}
+      ORDER BY created_at ASC
+      LIMIT 1`
+  ).bind(observationId).all<PublicDetailAssetRow>();
+  const asset = assets.results[0];
+  if (!asset?.public_derivative_key || !isSafePublicDerivedImageKey(asset.public_derivative_key)) {
+    return json({ error: "photo not ready" }, 404, { "cache-control": "no-store" });
+  }
+  const object = await env.ASSET_BUCKET.get(asset.public_derivative_key);
+  if (!object?.body) return json({ error: "photo not ready" }, 404, { "cache-control": "no-store" });
+  return new Response(object.body, {
+    headers: {
+      "content-type": object.httpMetadata?.contentType ?? "image/webp",
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff"
+    }
+  });
+}
+
 async function getObservationEventRecap(request: Request, url: URL, env: Env, sessionId: string): Promise<Response> {
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
   const auth = await readCompatibleSession(request, env).catch(() => null);
-  const guestToken = normalizeOptionalText(url.searchParams.get("guest_token"));
+  const guestCredential = auth ? null : await readObservationEventGuestCredential(request.headers.get("cookie"), sessionId);
+  const guestToken = guestCredential ? await observationEventGuestCredentialDigest(guestCredential) : null;
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "200"), 20, 500);
   const [eventsDesc, teams, participants, absenceRows, effort] = await Promise.all([
     listObservationEventLiveEvents(env, sessionId, limit),
@@ -3923,22 +4558,29 @@ async function getObservationEventRecap(request: Request, url: URL, env: Env, se
   const startedAt = session.startedAt;
   const endedAt = session.endedAt;
   const durationMinutes = durationMinutesBetween(startedAt, endedAt);
+  const participatingGroups = participants.filter(isObservationEventParticipatingGroup);
   const viewer = findObservationEventViewerParticipant(participants, auth?.userId ?? null, guestToken);
+  const canManage = Boolean(auth?.userId && auth.userId === session.organizerUserId);
+  if (!canManage && !viewer) {
+    return json({ error: "event participant required" }, 403, { "cache-control": "no-store" });
+  }
   const myEvents = viewer
     ? observationEvents.filter((event) => (viewer.user_id && event.actorUserId === viewer.user_id) || (viewer.guest_token && event.actorGuestToken === viewer.guest_token))
     : [];
   const myTaxa = [...countObservationEventTaxa(myEvents).keys()];
+  const photos = await buildObservationEventRecapPhotos(env, sessionId, observationEvents);
   await recordObservationEventRecapView(env, sessionId, auth?.userId ?? null, guestToken);
   return json({
-    session,
-    permissions: { canManage: Boolean(auth?.userId && auth.userId === session.organizerUserId) },
+    session: publicObservationEventRecapSession(session),
+    permissions: { canManage },
     highlights: {
       observationCount: observationEvents.length,
       guideSceneCount,
       fieldScanCount,
       uniqueSpeciesCount: taxonCounts.size,
       absencesCount: absenceRows.length,
-      participantsCount: participants.length,
+      participantsCount: participatingGroups.length,
+      participantCountUnit: "families_or_groups",
       questsOffered: 0,
       questsAccepted: 0,
       questsCompleted: 0,
@@ -3954,29 +4596,20 @@ async function getObservationEventRecap(request: Request, url: URL, env: Env, se
     teams: teams.map((team) => {
       const teamEvents = observationEvents.filter((event) => event.teamId === team.team_id);
       return {
-        teamId: team.team_id,
         name: team.name,
         color: team.color,
-        memberCount: participants.filter((participant) => participant.team_id === team.team_id).length,
+        memberCount: participatingGroups.filter((participant) => participant.team_id === team.team_id).length,
         observationsCount: teamEvents.length,
         uniqueSpeciesCount: countObservationEventTaxa(teamEvents).size,
         absencesCount: absenceRows.filter((absence) => absence.team_id === team.team_id).length,
         questsAccepted: 0
       };
     }),
-    timeline: events.map((event) => ({
-      liveEventId: event.liveEventId,
-      type: event.type,
-      scope: event.scope,
-      teamId: event.teamId,
-      payload: event.payload,
-      createdAt: event.createdAt
-    })),
+    timeline: publicObservationEventRecapTimeline(events),
+    photos,
     impacts: [],
     myContribution: viewer ? {
-      participantId: viewer.participant_id,
       displayName: viewer.display_name ?? null,
-      teamId: viewer.team_id,
       observationsCount: myEvents.length,
       uniqueSpeciesCount: myTaxa.length,
       absencesCount: absenceRows.filter((absence) => (viewer.user_id && absence.user_id === viewer.user_id) || (viewer.guest_token && absence.guest_token === viewer.guest_token)).length,
@@ -4366,14 +4999,15 @@ function mapObservationEventCapsule(row: ObservationEventCapsuleD1Row) {
 }
 
 async function pingObservationEventLocation(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
   if (!isObservationEventLocationShareOpen(session)) {
     return json({ error: "location sharing is outside event time" }, 403, { "cache-control": "no-store" });
   }
-  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const { auth, guestToken } = await observationEventRequestActor(request, env, sessionId);
   const body = await readJson<Record<string, unknown>>(request);
-  const guestToken = normalizeOptionalText(body.guest_token);
   if (!auth && !guestToken) return json({ error: "user or guest_token required" }, 400, { "cache-control": "no-store" });
   const lat = numberOrNullFromUnknown(body.lat);
   const lng = numberOrNullFromUnknown(body.lng);
@@ -4627,8 +5261,12 @@ async function handleObservationEventRallyApi(request: Request, env: Env, sessio
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
   const parts = pathRemainder.split("/").filter(Boolean);
   if (request.method === "GET" && parts.length === 0) {
+    const viewer = await observationEventParticipantContext(request, env, session);
+    if (!viewer.isOrganizer && !viewer.isCheckedInParticipant) {
+      return json({ error: "event participant required" }, 403, { "cache-control": "no-store" });
+    }
     const rally = await getObservationRallySnapshot(env, sessionId);
-    return json({ session, rally }, 200, { "cache-control": "no-store" });
+    return json({ rally }, 200, { "cache-control": "no-store" });
   }
   if (request.method === "POST" && parts[0] === "course" && parts.length === 1) {
     return upsertObservationRallyCourse(request, env, sessionId);
@@ -4783,11 +5421,12 @@ async function switchObservationRallyWeatherMode(request: Request, env: Env, ses
 }
 
 async function createObservationRallySubmission(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
-  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const { auth, guestToken } = await observationEventRequestActor(request, env, sessionId);
   const body = await readJson<Record<string, unknown>>(request);
-  const guestToken = normalizeOptionalText(body.guest_token);
   if (!auth && !guestToken) return json({ error: "user or guest_token required" }, 400, { "cache-control": "no-store" });
   const missionId = normalizeOptionalText(body.mission_id);
   if (!missionId) return json({ error: "mission_id required" }, 400, { "cache-control": "no-store" });
@@ -4796,7 +5435,8 @@ async function createObservationRallySubmission(request: Request, env: Env, sess
   const course = await getObservationRallyCourseBySession(env, sessionId);
   if (!course || course.courseId !== mission.course_id) return json({ error: "rally course not found" }, 404, { "cache-control": "no-store" });
   const participant = await findObservationEventParticipant(env, sessionId, auth?.userId ?? null, guestToken);
-  const teamId = normalizeOptionalText(body.team_id) ?? participant?.team_id ?? null;
+  if (!participant) return json({ error: "participant required" }, 403, { "cache-control": "no-store" });
+  const teamId = participant.team_id;
   const countValue = Math.max(0.01, numberOrNullFromUnknown(body.count_value) ?? 1);
   const lat = numberOrNullFromUnknown(body.lat);
   const lng = numberOrNullFromUnknown(body.lng);
@@ -5143,6 +5783,266 @@ async function requireObservationEventOrganizer(request: Request, env: Env, sess
   return { auth, session };
 }
 
+function isObservationEventFunnelEventName(value: unknown): value is ObservationEventFunnelEventName {
+  return typeof value === "string" && OBSERVATION_EVENT_FUNNEL_EVENT_NAME_SET.has(value);
+}
+
+function parseObservationEventFunnelPayload(input: Record<string, unknown>): ObservationEventFunnelPayload | null {
+  if (Object.keys(input).some((key) => !OBSERVATION_EVENT_FUNNEL_PAYLOAD_KEYS.has(key))) return null;
+  if (!isObservationEventFunnelEventName(input.event_name)) return null;
+  if (typeof input.page !== "string" || !OBSERVATION_EVENT_FUNNEL_PAGES.has(input.page as ObservationEventFunnelPage)) return null;
+  if (typeof input.auth_state !== "string" || !OBSERVATION_EVENT_FUNNEL_AUTH_STATES.has(input.auth_state as ObservationEventFunnelAuthState)) return null;
+  const optionalValues: Array<[unknown, ReadonlySet<string>]> = [
+    [input.device_class, OBSERVATION_EVENT_FUNNEL_DEVICE_CLASSES],
+    [input.browser_family, OBSERVATION_EVENT_FUNNEL_BROWSER_FAMILIES],
+    [input.network_state, OBSERVATION_EVENT_FUNNEL_NETWORK_STATES],
+    [input.result_reason, OBSERVATION_EVENT_FUNNEL_RESULT_REASONS],
+    [input.duration_bucket, OBSERVATION_EVENT_FUNNEL_DURATION_BUCKETS],
+    [input.retry_kind, OBSERVATION_EVENT_FUNNEL_RETRY_KINDS]
+  ];
+  if (optionalValues.some(([value, allowed]) => value !== undefined && (typeof value !== "string" || !allowed.has(value)))) return null;
+  return {
+    event_name: input.event_name,
+    page: input.page as ObservationEventFunnelPage,
+    auth_state: input.auth_state as ObservationEventFunnelAuthState,
+    ...(input.device_class ? { device_class: input.device_class as ObservationEventFunnelDeviceClass } : {}),
+    ...(input.browser_family ? { browser_family: input.browser_family as ObservationEventFunnelBrowserFamily } : {}),
+    ...(input.network_state ? { network_state: input.network_state as ObservationEventFunnelNetworkState } : {}),
+    ...(input.result_reason ? { result_reason: input.result_reason as ObservationEventFunnelResultReason } : {}),
+    ...(input.duration_bucket ? { duration_bucket: input.duration_bucket as ObservationEventFunnelDurationBucket } : {}),
+    ...(input.retry_kind ? { retry_kind: input.retry_kind as ObservationEventFunnelRetryKind } : {})
+  };
+}
+
+function serverObservationEventFunnelContext(
+  request: Request,
+  page: ObservationEventFunnelPage,
+  signedIn: boolean
+): Omit<ObservationEventFunnelPayload, "event_name"> {
+  const userAgent = request.headers.get("user-agent") ?? "";
+  const deviceClass: ObservationEventFunnelDeviceClass = /ipad|tablet/i.test(userAgent)
+    ? "tablet"
+    : /mobile|iphone|ipod|android/i.test(userAgent)
+      ? "mobile"
+      : "desktop";
+  const browserFamily: ObservationEventFunnelBrowserFamily = /line\/|instagram|fban|fbav|; wv\)|webview/i.test(userAgent)
+    ? "in_app"
+    : /crios|chrome|chromium/i.test(userAgent)
+      ? "chrome"
+      : /safari/i.test(userAgent)
+        ? "safari"
+        : "other";
+  return {
+    page,
+    auth_state: signedIn ? "signed_in" : "guest",
+    device_class: deviceClass,
+    browser_family: browserFamily,
+    network_state: "unknown"
+  };
+}
+
+async function appendObservationEventFunnelMetric(
+  env: Env,
+  sessionId: string,
+  payload: ObservationEventFunnelPayload,
+  actorKey: string
+) {
+  const metricIdentity = await sha256Hex(textToArrayBuffer(
+    `observation-event-funnel-v1\u0000${sessionId}\u0000${payload.event_name}\u0000${actorKey}`
+  ));
+  try {
+    const result = await env.OBS_DB.prepare(
+      `INSERT INTO observation_event_live_events (
+         live_event_id, session_id, type, scope, actor_user_id, actor_guest_token, team_id, payload_json
+       )
+       SELECT ?, ?, 'funnel_metric', 'organizer', NULL, NULL, NULL, ?
+        WHERE (SELECT COUNT(*)
+                 FROM observation_event_live_events
+                WHERE session_id = ? AND type = 'funnel_metric') < ?
+          AND (SELECT COUNT(*)
+                 FROM observation_event_live_events
+                WHERE session_id = ?
+                  AND type = 'funnel_metric'
+                  AND json_extract(payload_json, '$.event_name') = ?) < ?`
+    ).bind(
+      `event-funnel-${metricIdentity}`,
+      sessionId,
+      JSON.stringify(payload),
+      sessionId,
+      OBSERVATION_EVENT_FUNNEL_MAX_TOTAL,
+      sessionId,
+      payload.event_name,
+      OBSERVATION_EVENT_FUNNEL_MAX_PER_EVENT_NAME
+    ).run() as { meta?: { changes?: number } };
+    if (Number(result.meta?.changes ?? 1) === 0) {
+      return { created: false, reason: "event_metric_capacity" };
+    }
+    return { created: true, reason: null };
+  } catch (error) {
+    if (!isD1UniqueConstraintError(error)) throw error;
+    return { created: false, reason: "duplicate_actor_event" };
+  }
+}
+
+async function recordObservationEventServerFunnelMetric(
+  env: Env,
+  sessionId: string,
+  payload: ObservationEventFunnelPayload,
+  actorKey: string
+): Promise<void> {
+  try {
+    await appendObservationEventFunnelMetric(env, sessionId, payload, actorKey);
+  } catch (error) {
+    console.warn(JSON.stringify({
+      message: "observation_event_funnel_metric_skipped",
+      eventName: payload.event_name,
+      sessionId,
+      error: error instanceof Error ? error.message : "unknown"
+    }));
+  }
+}
+
+async function recordObservationEventParticipantPageMetric(
+  request: Request,
+  env: Env,
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+  eventName: ObservationEventFunnelEventName,
+  page: ObservationEventFunnelPage
+): Promise<void> {
+  if (request.method !== "GET") return;
+  const { auth, guestToken } = await observationEventRequestActor(request, env, session.sessionId);
+  const canManage = Boolean(auth?.userId && auth.userId === session.organizerUserId);
+  const participant = canManage
+    ? null
+    : await findObservationEventParticipant(env, session.sessionId, auth?.userId ?? null, guestToken);
+  if (!canManage && !participant) return;
+  await recordObservationEventServerFunnelMetric(env, session.sessionId, {
+    event_name: eventName,
+    ...serverObservationEventFunnelContext(request, page, Boolean(auth))
+  }, canManage && auth?.userId ? `user:${auth.userId}` : `participant:${participant!.participant_id}`);
+}
+
+async function recordObservationEventFunnelMetric(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const payload = parseObservationEventFunnelPayload(body);
+  if (!payload) return json({ ok: false, error: "invalid_analytics_payload" }, 400, { "cache-control": "no-store" });
+  const { auth, guestToken } = await observationEventRequestActor(request, env, sessionId);
+  const canManage = Boolean(auth?.userId && auth.userId === session.organizerUserId);
+  let participant = canManage
+    ? null
+    : await findObservationEventParticipant(env, sessionId, auth?.userId ?? null, guestToken);
+  if (!canManage && !participant && auth) {
+    const registrationGuestCredential = await readObservationEventGuestCredential(request.headers.get("cookie"), sessionId);
+    const registrationGuestToken = registrationGuestCredential
+      ? await observationEventGuestCredentialDigest(registrationGuestCredential)
+      : null;
+    participant = registrationGuestToken
+      ? await findObservationEventParticipant(env, sessionId, null, registrationGuestToken)
+      : null;
+  }
+  if (!canManage && !participant) {
+    return json({ ok: false, error: "event_participant_required" }, auth || guestToken ? 403 : 401, { "cache-control": "no-store" });
+  }
+  const actualAuthState: ObservationEventFunnelAuthState = auth ? "signed_in" : "guest";
+  if (payload.auth_state !== actualAuthState) {
+    return json({ ok: false, error: "analytics_auth_state_mismatch" }, 400, { "cache-control": "no-store" });
+  }
+  if (!OBSERVATION_EVENT_CLIENT_FUNNEL_EVENT_NAME_SET.has(payload.event_name)) {
+    return json({ ok: false, error: "server_managed_analytics_event" }, 400, { "cache-control": "no-store" });
+  }
+  if (payload.event_name === "event_offline_queued") {
+    return json({ ok: false, error: "durable_offline_queue_unavailable" }, 409, { "cache-control": "no-store" });
+  }
+  const actorKey = canManage && auth?.userId
+    ? `user:${auth.userId}`
+    : `participant:${participant!.participant_id}`;
+  await appendObservationEventFunnelMetric(env, sessionId, payload, actorKey);
+  return json({ ok: true, event_name: payload.event_name }, 202, { "cache-control": "no-store" });
+}
+
+async function buildObservationEventOperationsDashboard(
+  env: Env,
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>
+) {
+  const [participants, events] = await Promise.all([
+    listObservationEventParticipants(env, session.sessionId),
+    listObservationEventLiveEvents(env, session.sessionId, 5000, true)
+  ]);
+  const funnelCounts = new Map<ObservationEventFunnelEventName, number>(
+    OBSERVATION_EVENT_FUNNEL_EVENT_NAMES.map((name) => [name, 0])
+  );
+  for (const event of events) {
+    if (event.type !== "funnel_metric" || event.scope !== "organizer") continue;
+    const eventName = event.payload.event_name;
+    if (!isObservationEventFunnelEventName(eventName)) continue;
+    funnelCounts.set(eventName, (funnelCounts.get(eventName) ?? 0) + 1);
+  }
+  const funnelStages = [
+    ["QR entry", "event_qr_open"],
+    ["join", "event_join_loaded"],
+    ["check-in", "event_checkin_succeeded"],
+    ["rally", "event_rally_opened"],
+    ["photo selected", "event_photo_selected"],
+    ["submit started", "event_observation_submit_started"],
+    ["observation saved", "event_observation_succeeded"],
+    ["live", "event_live_viewed"],
+    ["recap", "event_recap_viewed"]
+  ] as const;
+  let previousCount: number | null = null;
+  const funnel = funnelStages.map(([label, eventName]) => {
+    const count = funnelCounts.get(eventName) ?? 0;
+    const conversionFromPreviousPct = previousCount && previousCount > 0
+      ? Math.round((count / previousCount) * 1000) / 10
+      : null;
+    previousCount = count;
+    return { label, eventName, count, conversionFromPreviousPct };
+  });
+  const observationIds = new Set(
+    events
+      .filter((event) => event.type === "observation_added")
+      .map(observationEventObservationId)
+      .filter((value): value is string => Boolean(value))
+  );
+  const latestCreatedAt = events
+    .map((event) => event.createdAt)
+    .filter(Boolean)
+    .sort((a, b) => b.localeCompare(a))[0] ?? session.updatedAt;
+  const endedAtMs = session.endedAt ? Date.parse(session.endedAt) : Number.NaN;
+  return {
+    sessionId: session.sessionId,
+    allowedEventNames: [...OBSERVATION_EVENT_FUNNEL_EVENT_NAMES],
+    funnel,
+    failures: {
+      checkin: funnelCounts.get("event_checkin_failed") ?? 0,
+      observation: funnelCounts.get("event_observation_failed") ?? 0,
+      classification: "untrusted_participant_telemetry",
+      automaticFallbackEligible: false,
+      requiredCorroboration: "staff_reproduction_or_domain_health_signal"
+    },
+    domain: {
+      checkedInFamiliesOrGroups: participants.filter(isObservationEventParticipatingGroup).length,
+      observationCount: observationIds.size,
+      submissionSucceededCount: observationIds.size,
+      submissionFailedSignalCount: funnelCounts.get("event_observation_failed") ?? 0,
+      unsynced: { status: "not_measurable", count: null, reason: "durable_queue_not_available" },
+      lastUpdatedAt: latestCreatedAt,
+      liveAggregationDelay: { status: "not_measurable", seconds: null, reason: "snapshot_delivery_has_no_separate_reflection_timestamp" },
+      recapStatus: Number.isFinite(endedAtMs) && endedAtMs <= Date.now() ? "ready" : "not_started"
+    }
+  };
+}
+
+async function getObservationEventOperationsDashboard(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const organizer = await requireObservationEventOrganizer(request, env, sessionId);
+  if (organizer instanceof Response) return organizer;
+  const dashboard = await buildObservationEventOperationsDashboard(env, organizer.session);
+  return json({ dashboard }, 200, { "cache-control": "no-store" });
+}
+
 async function appendObservationEventLive(env: Env, input: {
   sessionId: string;
   type: string;
@@ -5169,14 +6069,20 @@ async function appendObservationEventLive(env: Env, input: {
   };
 }
 
-async function listObservationEventLiveEvents(env: Env, sessionId: string, limit: number) {
+async function listObservationEventLiveEvents(
+  env: Env,
+  sessionId: string,
+  limit: number,
+  includeFunnelMetrics = false
+) {
   const rows = await env.OBS_DB.prepare(
     `SELECT live_event_id, session_id, type, scope, actor_user_id, actor_guest_token, team_id, payload_json, created_at
        FROM observation_event_live_events
       WHERE session_id = ?
+        AND (? = 1 OR type <> 'funnel_metric')
       ORDER BY created_at DESC
       LIMIT ?`
-  ).bind(sessionId, limit).all<ObservationEventLiveD1Row>();
+  ).bind(sessionId, includeFunnelMetrics ? 1 : 0, limit).all<ObservationEventLiveD1Row>();
   return rows.results.map((row) => ({
     liveEventId: row.live_event_id,
     sessionId: row.session_id,
@@ -5202,7 +6108,7 @@ async function listObservationEventTeams(env: Env, sessionId: string) {
 
 async function listObservationEventParticipants(env: Env, sessionId: string) {
   const rows = await env.OBS_DB.prepare(
-    `SELECT participant_id, user_id, guest_token, display_name, team_id, share_location, location_share_until, is_minor
+    `SELECT participant_id, user_id, guest_token, display_name, team_id, role, status, share_location, location_share_until, is_minor
        FROM observation_event_participants
       WHERE session_id = ?
       ORDER BY checked_in_at ASC, created_at ASC`
@@ -5256,6 +6162,11 @@ function durationMinutesBetween(startedAt: string, endedAt: string | null): numb
   return Math.max(0, Math.round((end - start) / 60000));
 }
 
+function isObservationEventParticipatingGroup(participant: ObservationEventParticipantD1Row): boolean {
+  if (participant.role === "organizer") return false;
+  return participant.status === "checked_in" || participant.status === "offline" || participant.status === "left";
+}
+
 function findObservationEventViewerParticipant(
   participants: ObservationEventParticipantD1Row[],
   userId: string | null,
@@ -5278,6 +6189,113 @@ async function recordObservationEventRecapView(env: Env, sessionId: string, user
   }
 }
 
+function observationEventLocationShareUntil(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>
+): string | null {
+  const startedAt = Date.parse(session.startedAt);
+  if (!Number.isFinite(startedAt)) return null;
+  const scheduledEnd = session.endedAt ? Date.parse(session.endedAt) : Number.NaN;
+  return new Date(Number.isFinite(scheduledEnd) ? scheduledEnd : startedAt + 4 * 60 * 60 * 1000).toISOString();
+}
+
+async function claimObservationEventGuestParticipant(
+  env: Env,
+  sessionId: string,
+  userId: string,
+  guestToken: string,
+  retriedAfterConflict = false
+): Promise<void> {
+  const [guestParticipant, userParticipant] = await Promise.all([
+    findObservationEventParticipant(env, sessionId, null, guestToken),
+    findObservationEventParticipant(env, sessionId, userId, null)
+  ]);
+  if (!guestParticipant || (guestParticipant.user_id && guestParticipant.user_id !== userId)) return;
+  const statements = [
+    env.OBS_DB.prepare(
+      `UPDATE observation_event_live_events
+          SET actor_user_id = CASE WHEN actor_guest_token = ? THEN ? ELSE actor_user_id END,
+              actor_guest_token = CASE WHEN actor_guest_token = ? THEN NULL ELSE actor_guest_token END,
+              payload_json = CASE
+                WHEN json_extract(payload_json, '$.target_guest_token') = ?
+                  THEN json_set(json_remove(payload_json, '$.target_guest_token'), '$.target_user_id', ?)
+                ELSE payload_json
+              END
+        WHERE session_id = ?
+          AND (actor_guest_token = ? OR json_extract(payload_json, '$.target_guest_token') = ?)`
+    ).bind(guestToken, userId, guestToken, guestToken, userId, sessionId, guestToken, guestToken),
+    env.OBS_DB.prepare(
+      `UPDATE observation_event_absences
+          SET user_id = ?, guest_token = NULL
+        WHERE session_id = ? AND guest_token = ?`
+    ).bind(userId, sessionId, guestToken),
+    env.OBS_DB.prepare(
+      `DELETE FROM observation_rally_submissions
+        WHERE submission_id IN (
+          SELECT guest.submission_id
+            FROM observation_rally_submissions guest
+            JOIN observation_rally_submissions account
+              ON account.session_id = guest.session_id
+             AND account.user_id = ?
+             AND account.mission_id = guest.mission_id
+             AND account.source_type = guest.source_type
+             AND account.source_ref = guest.source_ref
+           WHERE guest.session_id = ?
+             AND guest.guest_token = ?
+             AND guest.source_ref IS NOT NULL
+             AND TRIM(guest.source_ref) <> ''
+        )`
+    ).bind(userId, sessionId, guestToken),
+    env.OBS_DB.prepare(
+      `UPDATE observation_rally_submissions
+          SET user_id = ?, guest_token = NULL
+        WHERE session_id = ? AND guest_token = ?`
+    ).bind(userId, sessionId, guestToken),
+    env.OBS_DB.prepare(
+      `UPDATE observation_event_recap_views
+          SET viewer_user_id = ?, viewer_guest_token = NULL
+        WHERE session_id = ? AND viewer_guest_token = ?`
+    ).bind(userId, sessionId, guestToken)
+  ];
+
+  if (userParticipant && userParticipant.participant_id !== guestParticipant.participant_id) {
+    statements.push(
+      env.OBS_DB.prepare(
+        `UPDATE observation_event_participants
+            SET display_name = COALESCE(NULLIF(display_name, ''), (SELECT display_name FROM observation_event_participants WHERE participant_id = ?)),
+                team_id = COALESCE(team_id, (SELECT team_id FROM observation_event_participants WHERE participant_id = ?)),
+                declared_job = COALESCE(declared_job, (SELECT declared_job FROM observation_event_participants WHERE participant_id = ?)),
+                updated_at = CURRENT_TIMESTAMP
+          WHERE participant_id = ?`
+      ).bind(guestParticipant.participant_id, guestParticipant.participant_id, guestParticipant.participant_id, userParticipant.participant_id),
+      env.OBS_DB.prepare(
+        `DELETE FROM observation_event_participants
+          WHERE participant_id = ?
+            AND session_id = ?
+            AND (user_id IS NULL OR user_id = ?)
+            AND guest_token = ?`
+      ).bind(guestParticipant.participant_id, sessionId, userId, guestToken)
+    );
+  } else {
+    statements.push(
+      env.OBS_DB.prepare(
+        `UPDATE observation_event_participants
+            SET user_id = ?, guest_token = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE participant_id = ?
+            AND session_id = ?
+            AND (user_id IS NULL OR user_id = ?)
+            AND guest_token = ?`
+      ).bind(userId, guestParticipant.participant_id, sessionId, userId, guestToken)
+    );
+  }
+
+  try {
+    await env.OBS_DB.batch(statements);
+  } catch (error) {
+    if (!isD1UniqueConstraintError(error) || retriedAfterConflict) throw error;
+    await claimObservationEventGuestParticipant(env, sessionId, userId, guestToken, true);
+  }
+}
+
 async function upsertObservationEventParticipant(env: Env, input: {
   sessionId: string;
   userId: string | null;
@@ -5288,7 +6306,7 @@ async function upsertObservationEventParticipant(env: Env, input: {
   shareLocation?: boolean;
   locationShareUntil?: string | null;
   locationShareConsentType?: string | null;
-}): Promise<string> {
+}): Promise<{ participantId: string; created: boolean }> {
   const existing = await findObservationEventParticipant(env, input.sessionId, input.userId, input.guestToken);
   const shareLocation = input.shareLocation === true && (!input.isMinor || input.locationShareConsentType === "guardian") ? 1 : 0;
   const shareUntil = shareLocation ? input.locationShareUntil ?? new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() : null;
@@ -5301,22 +6319,30 @@ async function upsertObservationEventParticipant(env: Env, input: {
               location_share_until = ?, location_share_consent_type = ?, updated_at = CURRENT_TIMESTAMP
         WHERE participant_id = ?`
     ).bind(input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType, existing.participant_id).run();
-    return existing.participant_id;
+    return { participantId: existing.participant_id, created: false };
   }
   const participantId = crypto.randomUUID();
-  await env.OBS_DB.prepare(
-    `INSERT INTO observation_event_participants (
-       participant_id, session_id, user_id, guest_token, display_name, team_id, role, status,
-       checked_in_at, share_location, is_minor, location_share_until, location_share_consent_type
-     ) VALUES (?, ?, ?, ?, ?, ?, 'participant', 'checked_in', CURRENT_TIMESTAMP, ?, ?, ?, ?)`
-  ).bind(participantId, input.sessionId, input.userId, input.guestToken, input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType).run();
-  return participantId;
+  try {
+    await env.OBS_DB.prepare(
+      `INSERT INTO observation_event_participants (
+         participant_id, session_id, user_id, guest_token, display_name, team_id, role, status,
+         checked_in_at, share_location, is_minor, location_share_until, location_share_consent_type
+       ) VALUES (?, ?, ?, ?, ?, ?, 'participant', 'checked_in', CURRENT_TIMESTAMP, ?, ?, ?, ?)`
+    ).bind(participantId, input.sessionId, input.userId, input.guestToken, input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType).run();
+    return { participantId, created: true };
+  } catch (error) {
+    if (!isD1UniqueConstraintError(error)) throw error;
+    const concurrent = await findObservationEventParticipant(env, input.sessionId, input.userId, input.guestToken);
+    if (!concurrent) throw error;
+    return { participantId: concurrent.participant_id, created: false };
+  }
 }
 
 async function findObservationEventParticipant(env: Env, sessionId: string, userId: string | null, guestToken: string | null) {
   if (!userId && !guestToken) return null;
   return env.OBS_DB.prepare(
-    `SELECT participant_id, user_id, guest_token, display_name, team_id, share_location, location_share_until, is_minor
+    `SELECT participant_id, user_id, guest_token, display_name, team_id, role, status,
+            share_location, location_share_until, is_minor
        FROM observation_event_participants
       WHERE session_id = ?
         AND ((user_id IS NOT NULL AND user_id = ?) OR (guest_token IS NOT NULL AND guest_token = ?))
@@ -5324,28 +6350,203 @@ async function findObservationEventParticipant(env: Env, sessionId: string, user
   ).bind(sessionId, userId, guestToken).first<ObservationEventParticipantD1Row>();
 }
 
-async function observationEventParticipantContext(env: Env, session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, cookieHeader: string | null, guestTokenOverride?: string | null) {
-  const auth = await readCompatibleSession(new Request("https://ikimon.life/", { headers: cookieHeader ? { cookie: cookieHeader } : undefined }), env).catch(() => null);
-  const guestToken = guestTokenOverride ?? null;
-  const participant = await findObservationEventParticipant(env, session.sessionId, auth?.userId ?? null, guestToken);
+async function observationEventParticipantContext(
+  request: Request,
+  env: Env,
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>
+) {
+  const auth = await readCompatibleSession(request, env).catch(() => null);
+  const guestCredential = await readObservationEventGuestCredential(request.headers.get("cookie"), session.sessionId);
+  const guestToken = guestCredential ? await observationEventGuestCredentialDigest(guestCredential) : null;
+  const [userParticipant, guestParticipant] = await Promise.all([
+    auth?.userId ? findObservationEventParticipant(env, session.sessionId, auth.userId, null) : Promise.resolve(null),
+    guestToken ? findObservationEventParticipant(env, session.sessionId, null, guestToken) : Promise.resolve(null)
+  ]);
+  const participant = [userParticipant, guestParticipant]
+    .filter((candidate): candidate is ObservationEventParticipantD1Row => candidate !== null)
+    .find(isObservationEventParticipatingGroup) ?? null;
   return {
     userId: auth?.userId ?? null,
     guestToken,
     teamId: participant?.team_id ?? null,
-    isOrganizer: Boolean(auth?.userId && auth.userId === session.organizerUserId)
+    isOrganizer: Boolean(auth?.userId && auth.userId === session.organizerUserId),
+    isCheckedInParticipant: Boolean(participant)
   };
 }
 
-function shouldDeliverObservationEvent(event: { scope: string; teamId: string | null; payload: Record<string, unknown> }, ctx: { userId: string | null; guestToken: string | null; teamId: string | null; isOrganizer: boolean }): boolean {
+type PublicObservationEventLiveEvent = {
+  type: string;
+  label: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+};
+
+const PUBLIC_OBSERVATION_EVENT_LIVE_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  observation_added: "観察が追加されました",
+  field_scan_added: "フィールド観察が追加されました",
+  guide_scene_added: "ガイド観察が追加されました",
+  absence_recorded: "見つからなかった記録が追加されました",
+  announce: "主催者からのお知らせ",
+  mode_switch: "観察モードが変わりました",
+  team_update: "観察グループの案内が更新されました",
+  checkin: "チェックインがありました",
+  participant_location_ping: "参加状況が更新されました",
+  quest_offered: "追加の観察ヒント",
+  quest_accepted: "観察ヒントに挑戦します",
+  quest_declined: "観察ヒントを見送りました",
+  quest_completed: "観察ヒントを達成しました",
+  rally_station_opened: "観察地点が開きました",
+  rally_mission_published: "観察ミッションが始まりました",
+  rally_mission_paused: "観察ミッションを一時停止しました",
+  rally_mission_replaced: "観察ミッションが更新されました",
+  rally_mission_extended: "観察ミッションの時間が延長されました",
+  rally_mission_closed: "観察ミッションが終了しました",
+  rally_next_action: "次の観察案内があります",
+  rally_task_submitted: "観察ミッションの記録が届きました",
+  rally_task_cleared: "観察ミッションの確認が終わりました",
+  rare_species: "注目のいきものが見つかりました",
+  target_hit: "探していたいきものが見つかりました",
+  milestone: "観察の節目に到達しました",
+  fanfare: "観察会に新しい発見がありました"
+});
+
+function publicObservationEventLiveText(value: unknown, maxLength = 240): string | null {
+  const normalized = normalizeOptionalText(value);
+  return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+function publicObservationEventLiveEvent(
+  event: Awaited<ReturnType<typeof listObservationEventLiveEvents>>[number]
+): PublicObservationEventLiveEvent | null {
+  const label = PUBLIC_OBSERVATION_EVENT_LIVE_LABELS[event.type];
+  if (!label) return null;
+  const payload: Record<string, unknown> = {};
+  const taxonName = observationEventTaxonName(event.payload);
+  if (["observation_added", "field_scan_added", "guide_scene_added", "rare_species", "target_hit", "milestone", "fanfare"].includes(event.type)) {
+    payload.taxonName = taxonName ?? "未同定";
+  }
+  if (event.type === "absence_recorded") {
+    payload.searchedTaxon = publicObservationEventLiveText(event.payload.searched_taxon) ?? "未指定";
+    payload.confidence = publicObservationEventLiveText(event.payload.confidence, 40) ?? "searched";
+  }
+  if (event.type === "announce") {
+    payload.message = publicObservationEventLiveText(event.payload.message, 500) ?? "お知らせがあります。";
+  }
+  if (["quest_offered", "quest_accepted", "quest_declined", "quest_completed", "rare_species", "target_hit", "milestone", "fanfare"].includes(event.type)) {
+    const headline = publicObservationEventLiveText(event.payload.headline, 160);
+    if (headline) payload.headline = headline;
+  }
+  if (event.type === "quest_offered") {
+    const prompt = publicObservationEventLiveText(event.payload.prompt, 300);
+    if (prompt) payload.prompt = prompt;
+  }
+  if (event.type === "mode_switch") {
+    payload.primaryMode = publicObservationEventLiveText(event.payload.primary_mode, 40) ?? "discovery";
+    payload.activeModes = stringArray(event.payload.active_modes).slice(0, OBSERVATION_EVENT_MODES.length);
+  }
+  if (event.type === "team_update") {
+    const updateKind = publicObservationEventLiveText(event.payload.kind, 40);
+    const declaredJob = publicObservationEventLiveText(event.payload.declared_job, 80);
+    if (updateKind) payload.updateKind = updateKind;
+    if (declaredJob) payload.declaredJob = declaredJob;
+    const targetTaxa = stringArray(asPlainObject(event.payload.team)?.target_taxa).slice(0, 12);
+    if (targetTaxa.length > 0) payload.targetTaxa = targetTaxa;
+  }
+  if (event.type === "rally_station_opened") {
+    const name = publicObservationEventLiveText(event.payload.name, 120);
+    if (name) payload.name = name;
+  }
+  if (["rally_mission_published", "rally_mission_paused", "rally_mission_replaced", "rally_mission_extended", "rally_mission_closed"].includes(event.type)) {
+    const status = publicObservationEventLiveText(event.payload.status, 40);
+    if (status) payload.status = status;
+  }
+  if (event.type === "rally_next_action") {
+    const mode = publicObservationEventLiveText(event.payload.mode, 40);
+    if (mode) payload.mode = mode;
+  }
+  if (["rally_task_submitted", "rally_task_cleared"].includes(event.type)) {
+    const reviewStatus = publicObservationEventLiveText(event.payload.review_status, 40);
+    if (reviewStatus) payload.reviewStatus = reviewStatus;
+  }
+  return {
+    type: event.type,
+    label,
+    payload,
+    createdAt: event.createdAt
+  };
+}
+
+function publicObservationEventLiveSession(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>
+) {
+  const startsAt = Date.parse(session.startedAt);
+  const endsAt = session.endedAt ? Date.parse(session.endedAt) : Number.NaN;
+  const now = Date.now();
+  const status = Number.isFinite(endsAt) && endsAt <= now
+    ? "ended"
+    : Number.isFinite(startsAt) && startsAt > now
+      ? "scheduled"
+      : "live";
+  return {
+    title: session.title,
+    primaryMode: session.primaryMode,
+    activeModes: session.activeModes,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt,
+    targetSpecies: session.targetSpecies,
+    status
+  };
+}
+
+function summarizePublicObservationEventLive(events: PublicObservationEventLiveEvent[]) {
+  const observations = events.filter((event) => ["observation_added", "field_scan_added", "guide_scene_added"].includes(event.type));
+  const taxa = new Set(
+    observations
+      .map((event) => publicObservationEventLiveText(event.payload.taxonName, 160))
+      .filter((taxon): taxon is string => Boolean(taxon && taxon !== "未同定"))
+  );
+  return {
+    eventCount: events.length,
+    observationCount: observations.length,
+    uniqueTaxaCount: taxa.size
+  };
+}
+
+function observationEventLiveParticipantDetail(event: PublicObservationEventLiveEvent): string | null {
+  const candidates = [
+    event.payload.message,
+    event.payload.headline,
+    event.payload.prompt,
+    event.payload.taxonName,
+    event.payload.searchedTaxon,
+    event.payload.name,
+    event.payload.primaryMode,
+    event.payload.status,
+    event.payload.reviewStatus,
+    event.payload.declaredJob
+  ];
+  for (const candidate of candidates) {
+    const value = publicObservationEventLiveText(candidate, 500);
+    if (value) return value;
+  }
+  const targetTaxa = stringArray(event.payload.targetTaxa);
+  return targetTaxa.length > 0 ? targetTaxa.join("・") : null;
+}
+
+function shouldDeliverObservationEvent(
+  event: { scope: string; teamId: string | null; payload: Record<string, unknown> },
+  ctx: { userId: string | null; guestToken: string | null; teamId: string | null; isOrganizer: boolean; isCheckedInParticipant: boolean }
+): boolean {
+  if (ctx.isOrganizer) return true;
+  if (!ctx.isCheckedInParticipant) return false;
   if (event.scope === "all") return true;
-  if (event.scope === "organizer") return ctx.isOrganizer;
   if (event.scope === "team") return Boolean(ctx.teamId && ctx.teamId === event.teamId);
   if (event.scope === "self") {
     const targetUser = normalizeOptionalText(event.payload.target_user_id);
     const targetGuest = normalizeOptionalText(event.payload.target_guest_token);
     return Boolean((targetUser && targetUser === ctx.userId) || (targetGuest && targetGuest === ctx.guestToken));
   }
-  return true;
+  return false;
 }
 
 async function recordObservationEventMeshVisit(env: Env, input: { sessionId: string; lat: number; lng: number; absenceDelta?: number; observationDelta?: number; visitSeconds?: number; teamId?: string | null }): Promise<void> {
@@ -20856,6 +22057,14 @@ function isRecordHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/record$/.test(pathname);
 }
 
+function safeObservationEventContextParam(url: URL, names: string[], maxLength = 128): string {
+  for (const name of names) {
+    const value = String(url.searchParams.get(name) ?? "").trim();
+    if (value && value.length <= maxLength && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value)) return value;
+  }
+  return "";
+}
+
 function isProfileHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/profile(?:\/settings)?$/.test(pathname);
 }
@@ -20941,6 +22150,10 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       failed: "The photo is not saved yet. Keep it selected and try saving again."
     };
   const startMode = url.searchParams.get("start") === "video" ? "video" : "photo";
+  const eventCode = safeObservationEventContextParam(url, ["event", "eventCode"], 32);
+  const eventSessionId = safeObservationEventContextParam(url, ["eventSessionId"], 128);
+  const eventTeamId = safeObservationEventContextParam(url, ["teamId"], 128);
+  const eventParticipantRole = safeObservationEventContextParam(url, ["participantRole"], 64);
   return `<!doctype html>
 <html lang="${escapeHtml(lang)}">
 <head>
@@ -20976,7 +22189,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:54%;font-size:12px}}
   </style>
 </head>
-<body data-record-start="${escapeHtml(startMode)}">
+<body data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   <header class="cf-record-header">
     <a class="cf-record-brand" href="${escapeHtml(prefix)}/">ikimon</a>
     <div class="cf-record-profile">${escapeHtml(session.displayName || session.userId)}</div>
@@ -21011,6 +22224,12 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     const submitPanel = document.getElementById("record-submit-panel");
     const photoInput = document.getElementById("record-media-photo");
     const videoInput = document.getElementById("record-media-video");
+    const eventContext = {
+      eventCode: document.body.dataset.eventCode || "",
+      eventSessionId: document.body.dataset.eventSessionId || "",
+      teamId: document.body.dataset.eventTeamId || "",
+      participantRole: document.body.dataset.eventParticipantRole || ""
+    };
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
     function setStatus(message, error) {
       if (!status) return;
@@ -21027,8 +22246,38 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       if (submitPanel) submitPanel.hidden = false;
       setStatus(copy.statusReady, false);
     }
-    photoInput?.addEventListener("change", () => reveal("photo"));
-    videoInput?.addEventListener("change", () => reveal("video"));
+    function eventMetric(eventName, values = {}) {
+      if (!eventContext.eventSessionId) return Promise.resolve();
+      return fetch("/api/v1/observation-events/" + encodeURIComponent(eventContext.eventSessionId) + "/analytics", {
+        method: "POST",
+        credentials: "same-origin",
+        keepalive: true,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          event_name: eventName,
+          page: "record",
+          auth_state: "signed_in",
+          network_state: navigator.onLine === false ? "offline" : "online",
+          ...values
+        })
+      }).then(() => undefined).catch(() => undefined);
+    }
+    function observationFailureReason(error) {
+      const message = String(error instanceof Error ? error.message : "").toLowerCase();
+      if (message.includes("timeout")) return "timeout";
+      if (message.includes("forbidden") || message.includes("permission") || message.includes("session_required")) return "permission";
+      if (message.includes("invalid") || message.includes("missing") || message.includes("required")) return "validation";
+      if (/\\b5\\d\\d\\b/.test(message)) return "5xx";
+      if (/\\b4\\d\\d\\b/.test(message)) return "4xx";
+      return "unknown";
+    }
+    photoInput?.addEventListener("change", () => {
+      reveal("photo");
+      void eventMetric("event_photo_selected");
+    });
+    videoInput?.addEventListener("change", () => {
+      reveal("video");
+    });
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -21064,7 +22313,9 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       const longitude = Number(longitudeText);
       const userId = form.dataset.userId || "";
       const observationId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      let observationStored = false;
       setStatus(copy.saving, false);
+      void eventMetric("event_observation_submit_started");
       try {
         if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
           throw new Error("invalid_coordinates");
@@ -21079,8 +22330,20 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           visibility: "private",
           note: String(formData.get("note") || ""),
           taxon: { vernacularName: "未同定", rank: "unknown" },
-          sourcePayload: { source: "cloudflare_record_session_form", mediaKind }
+          eventCode: eventContext.eventCode || null,
+          eventSessionId: eventContext.eventSessionId || null,
+          teamId: eventContext.teamId || null,
+          participantRole: eventContext.participantRole || null,
+          sourcePayload: {
+            source: "cloudflare_record_session_form",
+            mediaKind,
+            eventCode: eventContext.eventCode || null,
+            eventSessionId: eventContext.eventSessionId || null,
+            teamId: eventContext.teamId || null,
+            participantRole: eventContext.participantRole || null
+          }
         });
+        observationStored = true;
         const visitId = String(observation.visitId || observation.observationId || observationId);
         if (mediaKind === "photo") {
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
@@ -21117,6 +22380,9 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
         setStatus(copy.saved + " " + copy.videoSaved, false);
       } catch (error) {
         console.error(error);
+        if (!observationStored) {
+          void eventMetric("event_observation_failed", { result_reason: observationFailureReason(error) });
+        }
         setStatus(copy.failed, true);
       }
     });
@@ -23954,14 +25220,18 @@ function normalizeLegacyBcryptHash(hash: string): string {
   return hash.startsWith("$2y$") ? `$2b$${hash.slice(4)}` : hash;
 }
 
-function assertSameOriginRequest(request: Request): Response | null {
+function assertSameOriginRequest(request: Request, requireOrigin = false): Response | null {
   const secFetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
   if (secFetchSite && secFetchSite !== "same-origin" && secFetchSite !== "none") {
     return json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" });
   }
 
   const origin = request.headers.get("origin")?.trim();
-  if (!origin) return null;
+  if (!origin) {
+    return requireOrigin
+      ? json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" })
+      : null;
+  }
 
   const url = new URL(request.url);
   let parsedOrigin: URL;
@@ -25113,19 +26383,81 @@ function buildLegacyCompatibleObservationResponse(input: {
   };
 }
 
+type ObservationEventRegistrationBridge = {
+  sessionId: string;
+  clearEventCookie: boolean;
+  registrationSucceeded: boolean;
+  metricActorKey: string;
+};
+
+async function claimObservationEventRegistrationBridge(
+  request: Request,
+  env: Env,
+  input: LegacyObservationUpsertInput,
+  auth: SessionSnapshot | null
+): Promise<ObservationEventRegistrationBridge | null> {
+  if (!auth) return null;
+  const eventSession = await resolveNativeObservationEventSession(env, input).catch(() => null);
+  if (!eventSession) return null;
+  const guestCredential = await readObservationEventGuestCredential(request.headers.get("cookie"), eventSession.sessionId);
+  if (!guestCredential) return null;
+  const guestToken = await observationEventGuestCredentialDigest(guestCredential);
+  const [userParticipantBefore, guestParticipant] = await Promise.all([
+    findObservationEventParticipant(env, eventSession.sessionId, auth.userId, null),
+    findObservationEventParticipant(env, eventSession.sessionId, null, guestToken)
+  ]);
+  if (guestParticipant) {
+    await claimObservationEventGuestParticipant(env, eventSession.sessionId, auth.userId, guestToken);
+  }
+  const userParticipantAfter = userParticipantBefore
+    ?? await findObservationEventParticipant(env, eventSession.sessionId, auth.userId, null);
+  if (!userParticipantAfter) return null;
+  return {
+    sessionId: eventSession.sessionId,
+    clearEventCookie: true,
+    registrationSucceeded: !userParticipantBefore && Boolean(guestParticipant),
+    metricActorKey: `user:${auth.userId}`
+  };
+}
+
+async function observationEventRegistrationBridgeResponseHeaders(
+  bridge: ObservationEventRegistrationBridge | null
+): Promise<Record<string, string> | undefined> {
+  if (!bridge?.clearEventCookie) return undefined;
+  return {
+    "cache-control": "no-store",
+    "set-cookie": await buildClearedObservationEventGuestCookie(bridge.sessionId)
+  };
+}
+
+async function recordObservationEventRegistrationBridgeMetric(
+  env: Env,
+  bridge: ObservationEventRegistrationBridge | null
+): Promise<void> {
+  if (!bridge?.registrationSucceeded) return;
+  await recordObservationEventServerFunnelMetric(env, bridge.sessionId, {
+    event_name: "event_registration_succeeded",
+    page: "record",
+    auth_state: "signed_in",
+    network_state: "unknown"
+  }, bridge.metricActorKey);
+}
+
 async function upsertLegacyCompatibleObservation(request: Request, env: Env): Promise<Response> {
   const input = await readJson<LegacyObservationUpsertInput>(request);
+  let authenticatedSession: SessionSnapshot | null = null;
   if (env.ENVIRONMENT === "production") {
-    const session = await readCompatibleSessionWithOriginFallback(request, env);
-    if (!session) {
+    authenticatedSession = await readCompatibleSessionWithOriginFallback(request, env);
+    if (!authenticatedSession) {
       return json({ ok: false, error: "session_required" }, 401);
     }
     assertNonEmpty(input.userId, "userId");
-    if (session.userId !== input.userId) {
+    if (authenticatedSession.userId !== input.userId) {
       return json({ ok: false, error: "forbidden" }, 403);
     }
   } else {
     assertNonEmpty(input.userId, "userId");
+    authenticatedSession = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
   }
   if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) {
     throw new HttpError(400, "missing_location");
@@ -25173,6 +26505,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         ?? normalizeOptionalText(input.municipality)
         ?? normalizeOptionalText(input.prefecture)
         ?? "unknown place";
+      const registrationBridge = await claimObservationEventRegistrationBridge(request, env, input, authenticatedSession);
+      await recordObservationEventRegistrationBridgeMetric(env, registrationBridge);
       return json(buildLegacyCompatibleObservationResponse({
         visitId: existing.visit_id,
         occurrenceId,
@@ -25182,7 +26516,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         taxonLabel: resolveLegacyTaxonLabel(input),
         clientSubmissionId,
         idempotencyReused: true
-      }, input), 200);
+      }, input), 200, await observationEventRegistrationBridgeResponseHeaders(registrationBridge));
     }
     await env.OBS_DB.prepare(
       `INSERT OR IGNORE INTO observation_write_idempotency (
@@ -25430,6 +26764,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     console.error("[observation-rally-auto-match] native post-save match failed", error);
   });
 
+  const registrationBridge = await claimObservationEventRegistrationBridge(request, env, input, authenticatedSession);
+  await recordObservationEventRegistrationBridgeMetric(env, registrationBridge);
   await hookLegacyObservationToEventNative(env, input, {
     visitId,
     occurrenceId,
@@ -25453,7 +26789,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     idempotencyReused: false,
     placeMemory: placeMemory.result,
     placeMemorySample: placeMemory.sample,
-  }, input), 201);
+  }, input), 201, await observationEventRegistrationBridgeResponseHeaders(registrationBridge));
 }
 
 async function upsertCompatibleWaterRecordIfPresent(
@@ -25612,6 +26948,12 @@ async function hookLegacyObservationToEventNative(
   } catch (err) {
     console.error("[observation-event-dual-write] native live event failed", err);
   }
+  await recordObservationEventServerFunnelMetric(env, session.sessionId, {
+    event_name: "event_observation_succeeded",
+    page: "record",
+    auth_state: "signed_in",
+    network_state: "unknown"
+  }, participant ? `participant:${participant.participant_id}` : `user:${input.userId}`);
   try {
     await recordObservationEventMeshVisit(env, {
       sessionId: session.sessionId,
@@ -25767,12 +27109,16 @@ async function resolveNativeObservationEventSession(env: Env, input: LegacyObser
   const eventCode = normalizeOptionalText(input.eventCode)
     ?? normalizeOptionalText(input.sourcePayload?.eventCode)
     ?? normalizeOptionalText(input.sourcePayload?.event_code);
-  const session = explicitSessionId
-    ? await getObservationEventSessionById(env, explicitSessionId)
-    : eventCode
-      ? await getObservationEventSessionByEventCode(env, eventCode)
-      : null;
-  if (!session || session.endedAt) return null;
+  const [sessionById, sessionByCode] = await Promise.all([
+    explicitSessionId ? getObservationEventSessionById(env, explicitSessionId) : Promise.resolve(null),
+    eventCode ? getObservationEventSessionByEventCode(env, eventCode) : Promise.resolve(null)
+  ]);
+  if (explicitSessionId && eventCode && (!sessionById || !sessionByCode || sessionById.sessionId !== sessionByCode.sessionId)) {
+    return null;
+  }
+  const session = sessionById ?? sessionByCode;
+  const endedAtMs = session?.endedAt ? Date.parse(session.endedAt) : Number.NaN;
+  if (!session || (Number.isFinite(endedAtMs) && endedAtMs <= Date.now())) return null;
   return session;
 }
 
@@ -26015,15 +27361,11 @@ function buildNativeObservationEventQuestCandidates(
 
 async function uploadLegacyCompatiblePhoto(observationId: string, request: Request, env: Env): Promise<Response> {
   assertNonEmpty(observationId, "observationId");
-  const input = await readJson<LegacyPhotoUploadInput>(request);
-  const mimeType = normalizeOptionalText(input.mimeType) ?? "image/jpeg";
-  const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? "upload.jpg");
-  const body = base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? "");
-  if (body.byteLength === 0) {
-    throw new HttpError(400, "decoded image is empty");
-  }
-  if (body.byteLength > 10 * 1024 * 1024) {
-    throw new HttpError(400, "image exceeds 10MB limit after normalization");
+  const productionSession = env.ENVIRONMENT === "production"
+    ? await readCompatibleSessionWithOriginFallback(request, env)
+    : null;
+  if (env.ENVIRONMENT === "production" && !productionSession) {
+    return json({ ok: false, error: "session_required" }, 401);
   }
 
   const observation = await env.OBS_DB.prepare(
@@ -26034,13 +27376,24 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   if (!observation) {
     return json({ ok: false, error: `observation not found: ${observationId}` }, 404);
   }
-  if (env.ENVIRONMENT === "production") {
-    const session = await readCompatibleSessionWithOriginFallback(request, env);
-    if (!session) {
-      return json({ ok: false, error: "session_required" }, 401);
-    }
-    if (session.userId !== observation.owner_user_id) {
-      return json({ ok: false, error: "forbidden" }, 403);
+  if (productionSession && productionSession.userId !== observation.owner_user_id) {
+    return json({ ok: false, error: "forbidden" }, 403);
+  }
+
+  const input = await readJson<LegacyPhotoUploadInput>(request);
+  const mimeType = (normalizeOptionalText(input.mimeType) ?? "image/jpeg").split(";", 1)[0]!.trim().toLowerCase();
+  const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? "upload.jpg");
+  const body = base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? "");
+  if (body.byteLength === 0) {
+    throw new HttpError(400, "decoded image is empty");
+  }
+  if (body.byteLength > 10 * 1024 * 1024) {
+    throw new HttpError(400, "image exceeds 10MB limit after normalization");
+  }
+  if (requiresStrictPhotoUploadValidation(request, env)) {
+    const validationError = validateObservationPhotoUpload(new Uint8Array(body), mimeType, filename);
+    if (validationError) {
+      return json({ ok: false, error: validationError }, 415, { "cache-control": "no-store" });
     }
   }
   const partitionMonth = observation.partition_month ?? partitionMonthFromDate(new Date().toISOString());
@@ -26126,6 +27479,57 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     facePrivacy,
     dispatch
   });
+}
+
+const OBSERVATION_PHOTO_EXTENSIONS: Readonly<Record<string, readonly string[]>> = {
+  "image/jpeg": ["jpg", "jpeg"],
+  "image/png": ["png"],
+  "image/webp": ["webp"],
+  "image/heic": ["heic"],
+  "image/heif": ["heif"],
+  "image/avif": ["avif"],
+};
+
+function requiresStrictPhotoUploadValidation(request: Request, env: Env): boolean {
+  if (env.ENVIRONMENT === "production" || env.ENVIRONMENT === "staging") return true;
+  const hostname = new URL(request.url).hostname.toLowerCase();
+  return hostname === "staging.ikimon.life" || PUBLIC_CUSTOM_HOSTS.has(hostname);
+}
+
+function validateObservationPhotoUpload(bytes: Uint8Array, declaredMime: string, filename: string): string | null {
+  if (!Object.prototype.hasOwnProperty.call(OBSERVATION_PHOTO_EXTENSIONS, declaredMime)) {
+    return "unsupported_image_type";
+  }
+  const detectedMime = detectObservationPhotoMime(bytes);
+  if (!detectedMime || detectedMime !== declaredMime) {
+    return "image_content_type_mismatch";
+  }
+  const extension = filename.includes(".") ? filename.split(".").pop()?.toLowerCase() ?? "" : "";
+  if (!extension || !OBSERVATION_PHOTO_EXTENSIONS[declaredMime]?.includes(extension)) {
+    return "image_extension_mismatch";
+  }
+  return null;
+}
+
+function detectObservationPhotoMime(bytes: Uint8Array): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+    bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) return "image/png";
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) return "image/webp";
+  if (bytes.length >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+    const brand = String.fromCharCode(bytes[8]!, bytes[9]!, bytes[10]!, bytes[11]!).toLowerCase();
+    if (brand === "avif" || brand === "avis") return "image/avif";
+    if (["heic", "heix", "hevc", "hevx"].includes(brand)) return "image/heic";
+    if (["mif1", "msf1", "heif"].includes(brand)) return "image/heif";
+  }
+  return null;
 }
 
 async function uploadStagingCompatibleAudio(observationId: string, request: Request, env: Env): Promise<Response> {
@@ -26940,6 +28344,311 @@ async function deleteR2Objects(bucket: R2Bucket, objectKeys: string[]): Promise<
 async function runD1DeleteCount(statement: D1PreparedStatement): Promise<number> {
   const result = await statement.run() as { meta?: { changes?: number } };
   return Number(result.meta?.changes ?? 0);
+}
+
+type RenriFixtureAction = "inventory" | "cleanup";
+
+interface RenriFixtureScope {
+  sessionIds: string[];
+  userIds: string[];
+  observationIds: string[];
+  assetIds: string[];
+  r2ObjectKeys: string[];
+  courseIds: string[];
+}
+
+type RenriFixtureInventory = Record<string, number>;
+
+const RENRI_FIXTURE_SQL_MARKER = "/* renri_fixture_scope */";
+
+async function handleStagingRenriFixtureRequest(
+  request: Request,
+  env: Env,
+  action: RenriFixtureAction
+): Promise<Response> {
+  if (env.ENVIRONMENT !== "staging" && env.ENVIRONMENT !== "shadow") {
+    return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
+  }
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+
+  const body = await readJson<{ fixturePrefix?: unknown }>(request);
+  const fixturePrefix = normalizeOptionalText(body.fixturePrefix);
+  if (!fixturePrefix || !isValidRenriFixturePrefix(fixturePrefix)) {
+    return json({ ok: false, error: "invalid_fixture_prefix" }, 400, { "cache-control": "no-store" });
+  }
+
+  const beforeScope = await discoverRenriFixtureScope(env, fixturePrefix);
+  const before = await inventoryRenriFixtureScope(env, beforeScope);
+  if (action === "inventory") {
+    return json({ ok: true, fixturePrefix, inventory: before }, 200, { "cache-control": "no-store" });
+  }
+
+  await cleanupRenriFixtureScope(env, beforeScope);
+  const afterScope = await discoverRenriFixtureScope(env, fixturePrefix);
+  const inventory = await inventoryRenriFixtureScope(env, afterScope);
+  if (Object.values(inventory).some((count) => count !== 0)) {
+    throw new HttpError(500, "renri_fixture_cleanup_incomplete");
+  }
+
+  const deleted = Object.fromEntries(
+    Object.entries(before).map(([key, count]) => [key, Math.max(0, count - (inventory[key] ?? 0))])
+  );
+  return json({ ok: true, fixturePrefix, before, deleted, inventory }, 200, { "cache-control": "no-store" });
+}
+
+function isValidRenriFixturePrefix(value: string): boolean {
+  if (value.length < 33 || value.length > 57) return false;
+  const match = /^renri-e2e-(\d{14})-([a-f0-9]{8,32})$/u.exec(value);
+  if (!match?.[2]) return false;
+  return new Set(match[2]).size >= 2;
+}
+
+async function discoverRenriFixtureScope(env: Env, fixturePrefix: string): Promise<RenriFixtureScope> {
+  const eventRows = await env.OBS_DB.prepare(
+    `SELECT session_id, organizer_user_id
+       FROM observation_event_sessions
+      WHERE json_valid(config_json) = 1
+        AND json_extract(config_json, '$.fixture_prefix') = ?
+      ${RENRI_FIXTURE_SQL_MARKER}`
+  ).bind(fixturePrefix).all<{ session_id: string; organizer_user_id: string }>();
+  const sessionIds = uniqueNonEmpty(eventRows.results.map((row) => row.session_id));
+
+  const participantRows = await selectRenriFixtureRows<{ user_id: string | null }>(
+    env.OBS_DB,
+    "SELECT user_id FROM observation_event_participants WHERE session_id IN",
+    sessionIds
+  );
+  const allowedUserIds = new Set([`${fixturePrefix}-organizer`, `${fixturePrefix}-parent`]);
+  for (const row of eventRows.results) {
+    if (allowedUserIds.has(row.organizer_user_id)) allowedUserIds.add(row.organizer_user_id);
+  }
+  for (const row of participantRows) {
+    if (row.user_id && allowedUserIds.has(row.user_id)) allowedUserIds.add(row.user_id);
+  }
+  const existingUserRows = await selectRenriFixtureRows<{ user_id: string }>(
+    env.CORE_DB,
+    "SELECT user_id FROM users WHERE user_id IN",
+    [...allowedUserIds]
+  );
+  const userIds = uniqueNonEmpty(existingUserRows.map((row) => row.user_id));
+
+  const observationRows = await selectRenriFixtureRows<{ observation_id: string }>(
+    env.OBS_DB,
+    "SELECT observation_id FROM observations WHERE owner_user_id IN",
+    userIds
+  );
+  const observationIds = uniqueNonEmpty(observationRows.map((row) => row.observation_id));
+  const assetRows = await selectRenriFixtureRows<{
+    asset_id: string;
+    object_key: string | null;
+    public_derivative_key: string | null;
+  }>(env.OBS_DB, "SELECT asset_id, object_key, public_derivative_key FROM asset_ledger WHERE owner_user_id IN", userIds);
+  const assetIds = uniqueNonEmpty(assetRows.map((row) => row.asset_id));
+  const r2ObjectKeys = uniqueNonEmpty(assetRows.flatMap((row) => [row.object_key, row.public_derivative_key]));
+  const courseRows = await selectRenriFixtureRows<{ course_id: string }>(
+    env.OBS_DB,
+    "SELECT course_id FROM observation_rally_courses WHERE session_id IN",
+    sessionIds
+  );
+
+  return {
+    sessionIds,
+    userIds,
+    observationIds,
+    assetIds,
+    r2ObjectKeys,
+    courseIds: uniqueNonEmpty(courseRows.map((row) => row.course_id))
+  };
+}
+
+async function selectRenriFixtureRows<T>(
+  db: D1Database,
+  selectPrefix: string,
+  ids: string[]
+): Promise<T[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => "?").join(", ");
+  const result = await db.prepare(`${selectPrefix} (${placeholders}) ${RENRI_FIXTURE_SQL_MARKER}`).bind(...ids).all<T>();
+  return result.results;
+}
+
+async function inventoryRenriFixtureScope(env: Env, scope: RenriFixtureScope): Promise<RenriFixtureInventory> {
+  const [
+    users,
+    coreSessions,
+    participants,
+    teams,
+    liveEvents,
+    absences,
+    meshCells,
+    quests,
+    recapViews,
+    impactRecords,
+    capsules,
+    rallyCourses,
+    rallyStations,
+    rallyMissions,
+    rallySubmissions,
+    rallyProgress,
+    rallyRevisions,
+    drafts,
+    observations,
+    civicContexts,
+    recordReadingCards,
+    publicMapRows,
+    publicReadmodelRows,
+    assets,
+    outbox,
+    rollbackLedger,
+    dataRights,
+    idempotency,
+    r2Objects
+  ] = await Promise.all([
+    countRenriFixtureRows(env.CORE_DB, "users", "user_id", scope.userIds),
+    countRenriFixtureRows(env.CORE_DB, "auth_sessions", "user_id", scope.userIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_event_participants", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_event_teams", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_event_live_events", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_event_absences", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_event_mesh_cells", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_event_quests", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_event_recap_views", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_impact_records", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_event_capsules", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_rally_courses", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_rally_stations", "course_id", scope.courseIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_rally_missions", "course_id", scope.courseIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_rally_submissions", "session_id", scope.sessionIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_rally_progress", "course_id", scope.courseIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_rally_revisions", "course_id", scope.courseIds),
+    countRenriFixtureRows(env.OBS_DB, "draft_observations", "owner_user_id", scope.userIds),
+    countRenriFixtureRows(env.OBS_DB, "observations", "observation_id", scope.observationIds),
+    countRenriFixtureRows(env.OBS_DB, "civic_observation_contexts", "visit_id", scope.observationIds),
+    countRenriFixtureRows(env.OBS_DB, "record_reading_cards", "visit_id", scope.observationIds),
+    countRenriFixtureRows(env.OBS_DB, "public_map_snapshot_records_v1", "visit_id", scope.observationIds),
+    countRenriFixtureRows(env.OBS_DB, "readmodel_public_observations", "observation_id", scope.observationIds),
+    countRenriFixtureRows(env.OBS_DB, "asset_ledger", "asset_id", scope.assetIds),
+    countRenriFixtureRows(env.OBS_DB, "outbox", "target_id", scope.observationIds),
+    countRenriFixtureRows(env.OBS_DB, "rollback_write_ledger", "target_id", scope.observationIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_data_rights", "visit_id", scope.observationIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_write_idempotency", "visit_id", scope.observationIds),
+    countExistingR2Objects(env.ASSET_BUCKET, scope.r2ObjectKeys)
+  ]);
+
+  return {
+    events: scope.sessionIds.length,
+    users,
+    coreSessions,
+    participants,
+    teams,
+    liveEvents,
+    absences,
+    meshCells,
+    quests,
+    recapViews,
+    impactRecords,
+    capsules,
+    rallyCourses,
+    rallyStations,
+    rallyMissions,
+    rallySubmissions,
+    rallyProgress,
+    rallyRevisions,
+    drafts,
+    observations,
+    civicContexts,
+    recordReadingCards,
+    publicMapRows,
+    publicReadmodelRows,
+    assets,
+    r2Objects,
+    outbox,
+    rollbackLedger,
+    dataRights,
+    idempotency
+  };
+}
+
+async function countRenriFixtureRows(
+  db: D1Database,
+  table: string,
+  column: string,
+  ids: string[]
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const placeholders = ids.map(() => "?").join(", ");
+  const row = await db.prepare(
+    `SELECT COUNT(*) AS count FROM ${table} WHERE ${column} IN (${placeholders}) ${RENRI_FIXTURE_SQL_MARKER}`
+  ).bind(...ids).first<{ count: number }>();
+  return Number(row?.count ?? 0);
+}
+
+async function countExistingR2Objects(bucket: R2Bucket, objectKeys: string[]): Promise<number> {
+  let count = 0;
+  for (const key of objectKeys) {
+    if (await bucket.head(key)) count += 1;
+  }
+  return count;
+}
+
+async function cleanupRenriFixtureScope(env: Env, scope: RenriFixtureScope): Promise<void> {
+  // Remove child rows first. Keep the asset ledger until every referenced R2
+  // delete is verified, so a failed cross-store cleanup remains retryable.
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_rally_submissions", "session_id", scope.sessionIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_rally_progress", "course_id", scope.courseIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_rally_revisions", "course_id", scope.courseIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_rally_missions", "course_id", scope.courseIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_rally_stations", "course_id", scope.courseIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_rally_courses", "course_id", scope.courseIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_event_quests", "session_id", scope.sessionIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_event_recap_views", "session_id", scope.sessionIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_impact_records", "session_id", scope.sessionIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_event_capsules", "session_id", scope.sessionIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_event_mesh_cells", "session_id", scope.sessionIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_event_absences", "session_id", scope.sessionIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_event_live_events", "session_id", scope.sessionIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_event_participants", "session_id", scope.sessionIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_event_teams", "session_id", scope.sessionIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "record_reading_cards", "visit_id", scope.observationIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "public_map_snapshot_records_v1", "visit_id", scope.observationIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "readmodel_public_observations", "observation_id", scope.observationIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "civic_observation_contexts", "visit_id", scope.observationIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_data_rights", "visit_id", scope.observationIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_write_idempotency", "visit_id", scope.observationIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "outbox", "target_id", scope.observationIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "rollback_write_ledger", "target_id", scope.observationIds);
+
+  for (const key of scope.r2ObjectKeys) {
+    await env.ASSET_BUCKET.delete(key);
+    if (await env.ASSET_BUCKET.head(key)) {
+      throw new HttpError(502, `renri_fixture_r2_delete_failed:${key}`);
+    }
+  }
+
+  await deleteRenriFixtureRows(env.OBS_DB, "asset_ledger", "asset_id", scope.assetIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observations", "observation_id", scope.observationIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "draft_observations", "owner_user_id", scope.userIds);
+  await deleteRenriFixtureRows(env.CORE_DB, "auth_sessions", "user_id", scope.userIds);
+  await deleteRenriFixtureRows(env.CORE_DB, "users", "user_id", scope.userIds);
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_event_sessions", "session_id", scope.sessionIds);
+}
+
+async function deleteRenriFixtureRows(
+  db: D1Database,
+  table: string,
+  column: string,
+  ids: string[]
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const placeholders = ids.map(() => "?").join(", ");
+  return runD1DeleteCount(
+    db.prepare(`DELETE FROM ${table} WHERE ${column} IN (${placeholders}) ${RENRI_FIXTURE_SQL_MARKER}`).bind(...ids)
+  );
+}
+
+function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
 
 async function shadowTakedownProof(url: URL, env: Env): Promise<Response> {
@@ -31786,6 +33495,39 @@ function buildClearedSessionCookie(env: Env): string {
 
 function secureCookieAttribute(env: Env): string {
   return env.ENVIRONMENT === "production" || env.ENVIRONMENT === "staging" ? " Secure;" : "";
+}
+
+async function observationEventGuestCookieName(sessionId: string): Promise<string> {
+  const digest = await sha256Hex(textToArrayBuffer(sessionId));
+  return `__Host-ikimon_evt_${digest.slice(0, 16)}`;
+}
+
+async function readObservationEventGuestCredential(cookieHeader: string | null, sessionId: string): Promise<string | null> {
+  const cookieName = await observationEventGuestCookieName(sessionId);
+  const token = parseCookies(cookieHeader)[cookieName];
+  return token && /^[a-f0-9]{64}$/i.test(token) ? token.toLowerCase() : null;
+}
+
+async function observationEventGuestCredentialDigest(credential: string): Promise<string> {
+  return sha256Hex(textToArrayBuffer(credential));
+}
+
+async function buildObservationEventGuestCookie(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+  token: string
+): Promise<string> {
+  const cookieName = await observationEventGuestCookieName(session.sessionId);
+  const endedAt = session.endedAt ? Date.parse(session.endedAt) : Number.NaN;
+  const expiresAt = new Date(Math.max(
+    Date.now() + 60 * 60 * 1000,
+    (Number.isFinite(endedAt) ? endedAt : Date.now()) + 30 * 24 * 60 * 60 * 1000
+  ));
+  return `${cookieName}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Secure; Expires=${expiresAt.toUTCString()}`;
+}
+
+async function buildClearedObservationEventGuestCookie(sessionId: string): Promise<string> {
+  const cookieName = await observationEventGuestCookieName(sessionId);
+  return `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
 function randomToken(): string {
