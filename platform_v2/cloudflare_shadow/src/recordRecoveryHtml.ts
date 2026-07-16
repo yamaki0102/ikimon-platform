@@ -233,6 +233,14 @@ function prefixForLang(lang: PublicLang): string {
   return lang === "ja" ? "/ja" : `/${lang}`;
 }
 
+function safeEventContextParam(url: URL, names: string[], maxLength = 128): string {
+  for (const name of names) {
+    const value = String(url.searchParams.get(name) ?? "").trim();
+    if (value && value.length <= maxLength && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value)) return value;
+  }
+  return "";
+}
+
 export function resolveCloudflareRecordRecoveryState(url: URL): CloudflareRecordRecoveryState {
   const draft = url.searchParams.get("draft") === "1";
   const retryMedia = url.searchParams.get("retry") === "media";
@@ -334,6 +342,10 @@ export function renderCloudflareRecordRecoverySignedHtml(
   const prefix = prefixForLang(lang);
   const initialTitle = state.retryMedia || state.source === "media_retry" ? copy.retry : copy.checking;
   const initialBody = state.retryMedia || state.source === "media_retry" ? copy.retryBody : copy.checkingBody;
+  const eventCode = safeEventContextParam(url, ["event", "eventCode"], 32);
+  const eventSessionId = safeEventContextParam(url, ["eventSessionId"], 128);
+  const eventTeamId = safeEventContextParam(url, ["teamId"], 128);
+  const eventParticipantRole = safeEventContextParam(url, ["participantRole"], 64);
   return `<!doctype html>
 <html lang="${escapeHtml(lang)}">
 <head>
@@ -342,7 +354,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
   <title>${escapeHtml(copy.pageTitle)} - ikimon</title>
   <style>${recoveryStyles()}</style>
 </head>
-<body data-record-start="${escapeHtml(state.start)}" data-record-recovery-page="1" data-recovery-source="${escapeHtml(state.source)}">
+<body data-record-start="${escapeHtml(state.start)}" data-record-recovery-page="1" data-recovery-source="${escapeHtml(state.source)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   <header class="cf-recovery-header">
     <a class="cf-recovery-brand" href="${escapeHtml(prefix)}/">ikimon</a>
     <div class="cf-recovery-profile">${escapeHtml(session.displayName || session.userId)}</div>
@@ -395,6 +407,12 @@ export function renderCloudflareRecordRecoverySignedHtml(
     const latitudeInput = form?.elements.namedItem("latitude");
     const longitudeInput = form?.elements.namedItem("longitude");
     const noteInput = form?.elements.namedItem("note");
+    let eventContext = {
+      eventCode: document.body.dataset.eventCode || "",
+      eventSessionId: document.body.dataset.eventSessionId || "",
+      teamId: document.body.dataset.eventTeamId || "",
+      participantRole: document.body.dataset.eventParticipantRole || "",
+    };
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
     let recoveredFiles = [];
     let recoveryMetadata = {};
@@ -410,6 +428,31 @@ export function renderCloudflareRecordRecoverySignedHtml(
       if (!status) return;
       status.textContent = String(message || "");
       status.style.color = error ? "#b42318" : "";
+    }
+    function eventMetric(eventName, values = {}) {
+      if (!eventContext.eventSessionId) return Promise.resolve();
+      return fetch("/api/v1/observation-events/" + encodeURIComponent(eventContext.eventSessionId) + "/analytics", {
+        method: "POST",
+        credentials: "same-origin",
+        keepalive: true,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          event_name: eventName,
+          page: "record",
+          auth_state: "signed_in",
+          network_state: navigator.onLine === false ? "offline" : "online",
+          ...values,
+        }),
+      }).then(() => undefined).catch(() => undefined);
+    }
+    function observationFailureReason(error) {
+      const message = String(error instanceof Error ? error.message : "").toLowerCase();
+      if (message.includes("timeout")) return "timeout";
+      if (message.includes("forbidden") || message.includes("permission") || message.includes("session_required")) return "permission";
+      if (message.includes("invalid") || message.includes("missing") || message.includes("required")) return "validation";
+      if (/\\b5\\d\\d\\b/.test(message)) return "5xx";
+      if (/\\b4\\d\\d\\b/.test(message)) return "4xx";
+      return "unknown";
     }
     function setPanelState(nextState, heading, detail) {
       panel?.setAttribute("data-state", nextState);
@@ -490,6 +533,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
       ...previousMetadata,
       ...recoveryMetadata,
       ...patchValue,
+      eventContext,
       formValues: {
         ...previousFormValues,
         ...(recoveryMetadata.formValues && typeof recoveryMetadata.formValues === "object" ? recoveryMetadata.formValues : {}),
@@ -570,6 +614,15 @@ export function renderCloudflareRecordRecoverySignedHtml(
     }
     function applyDraftMetadata(metadata) {
       recoveryMetadata = metadata && typeof metadata === "object" ? metadata : {};
+      const storedEventContext = recoveryMetadata.eventContext && typeof recoveryMetadata.eventContext === "object"
+        ? recoveryMetadata.eventContext
+        : {};
+      eventContext = {
+        eventCode: eventContext.eventCode || String(storedEventContext.eventCode || ""),
+        eventSessionId: eventContext.eventSessionId || String(storedEventContext.eventSessionId || ""),
+        teamId: eventContext.teamId || String(storedEventContext.teamId || ""),
+        participantRole: eventContext.participantRole || String(storedEventContext.participantRole || ""),
+      };
       const formValues = recoveryMetadata.formValues && typeof recoveryMetadata.formValues === "object" ? recoveryMetadata.formValues : {};
       const location = recoveryMetadata.location && typeof recoveryMetadata.location === "object" ? recoveryMetadata.location : {};
       const note = String(formValues.note || recoveryMetadata.note || "");
@@ -616,7 +669,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
       }
     }
 
-    photoInput?.addEventListener("change", async () => {
+  photoInput?.addEventListener("change", async () => {
     mediaKind = "photo";
     recoveredFiles = photoInput?.files ? Array.from(photoInput.files).filter((file) => file instanceof File && file.size > 0) : [];
     completedPhotoIndexes = new Set();
@@ -624,6 +677,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
     pendingVideoUploadUrl = "";
     pendingVideoBodyUploaded = false;
     reveal("photo", copy.selected);
+    void eventMetric("event_photo_selected");
     try {
       await persistDraftProgress({
         completedPhotoIndexes: [],
@@ -711,12 +765,14 @@ export function renderCloudflareRecordRecoverySignedHtml(
       const longitude = Number(longitudeText);
       const userId = form.dataset.userId || "";
       const isRetry = Boolean(pendingRetryTarget);
+      let observationStored = isRetry;
       if (!isRetry && (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude))) {
         setStatus(copy.invalidCoordinates, true);
         return;
       }
       setStatus(copy.saving, false);
       if (saveButton) saveButton.disabled = true;
+      if (!isRetry) void eventMetric("event_observation_submit_started");
       try {
       if (!pendingRetryTarget && !recoverySubmissionId) {
         recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
@@ -742,8 +798,20 @@ export function renderCloudflareRecordRecoverySignedHtml(
             visibility: "private",
             note: String(data.get("note") || ""),
             taxon: { vernacularName: "未同定", rank: "unknown" },
-            sourcePayload: { source: "cloudflare_record_recovery", mediaKind },
+            eventCode: eventContext.eventCode || null,
+            eventSessionId: eventContext.eventSessionId || null,
+            teamId: eventContext.teamId || null,
+            participantRole: eventContext.participantRole || null,
+            sourcePayload: {
+              source: "cloudflare_record_recovery",
+              mediaKind,
+              eventCode: eventContext.eventCode || null,
+              eventSessionId: eventContext.eventSessionId || null,
+              teamId: eventContext.teamId || null,
+              participantRole: eventContext.participantRole || null,
+            },
           });
+          observationStored = true;
           visitId = String(observation.visitId || observation.observationId || observationId);
         pendingRetryTarget = visitId;
         await persistDraftProgress({ recoverySubmissionId, pendingMediaRetryVisitId: visitId });
@@ -830,8 +898,12 @@ export function renderCloudflareRecordRecoverySignedHtml(
         pendingRetryTarget = "";
         setPanelState("saved", isRetry ? copy.retry : copy.ready, isRetry ? copy.retried : copy.saved);
         setStatus(isRetry ? copy.retried : copy.saved, false);
+        if (isRetry) void eventMetric("event_retry_succeeded", { retry_kind: "upload" });
       } catch (error) {
         console.error(error);
+        if (!observationStored) {
+          void eventMetric("event_observation_failed", { result_reason: observationFailureReason(error) });
+        }
         if (saveButton) saveButton.disabled = false;
         setStatus(copy.failed, true);
       }

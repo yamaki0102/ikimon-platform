@@ -293,6 +293,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventEffort.ts"), "cloudflare_observation_event_effort_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventModeManager.ts"), "cloudflare_observation_event_mode_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventRecap.ts"), "cloudflare_observation_event_recap_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventParticipantAccess.ts"), "cloudflare_observation_event_participant_identity_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventContext.ts"), "cloudflare_observation_event_static_quest_context_dependency");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventQuestEngine.ts"), "cloudflare_observation_event_static_quest_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventCapsule.ts"), "cloudflare_observation_event_capsule_api");
@@ -553,6 +554,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /cloudflare_observation_detail_readmodel/);
   assert.match(script, /cloudflare_observation_event_live_api/);
   assert.match(script, /cloudflare_observation_event_recap_api/);
+  assert.match(script, /cloudflare_observation_event_participant_identity_runtime/);
   assert.match(script, /cloudflare_observation_event_capsule_api/);
   assert.match(script, /cloudflare_observation_event_official_report_api/);
   assert.match(script, /cloudflare_area_sketch_assessment_runtime/);
