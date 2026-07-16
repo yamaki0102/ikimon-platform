@@ -120,3 +120,142 @@ test("production execute state gate rejects HEAD or deploy-input changes after p
   await assert.rejects(runGate(true, { ...unchanged, deployInputSha256: "input-b" }), /production_execute_state_changed:pre-deploy:deployInputSha256/);
   await assert.rejects(runGate(true, { ...unchanged, packageLockSha256: "lock-b" }), /production_execute_state_changed:pre-deploy:packageLockSha256/);
 });
+
+test("staging runtime smoke retries a stale edge until the exact SHA is visible", async () => {
+  const helperUrl = new URL("../scripts/staging-runtime-smoke.mjs", import.meta.url).href;
+  const expectedSha = "a".repeat(40);
+  const oldSha = "b".repeat(40);
+  const { stdout } = await execFileAsync(process.execPath, [
+    "--input-type=module",
+    "--eval",
+    `import { waitForExactStagingRuntimeVersion } from ${JSON.stringify(helperUrl)};
+     const seen = [];
+     const sleeps = [];
+     let calls = 0;
+     const result = await waitForExactStagingRuntimeVersion({
+       baseUrl: "https://staging.example",
+       expectedSha: ${JSON.stringify(expectedSha)},
+       maxAttempts: 3,
+       delayMs: 1,
+       sleep: async (ms) => sleeps.push(ms),
+       fetchImpl: async (url) => {
+         seen.push(String(url));
+         calls += 1;
+         return Response.json({
+           ok: true,
+           service: "ikimon.life",
+           environment: "staging",
+           runtime: "cloudflare-worker",
+           gitSha: calls === 1 ? ${JSON.stringify(oldSha)} : ${JSON.stringify(expectedSha)}
+         });
+       }
+     });
+     process.stdout.write(JSON.stringify({ attempts: result.attempts, seen, sleeps }));`,
+  ]);
+  const result = JSON.parse(stdout) as { attempts: number; seen: string[]; sleeps: number[] };
+  assert.equal(result.attempts, 2);
+  assert.deepEqual(result.sleeps, [1]);
+  assert.equal(result.seen.length, 2);
+  assert.notEqual(result.seen[0], result.seen[1]);
+  assert.ok(result.seen.every((url) => url.includes("deploy_smoke=")));
+});
+
+test("staging runtime smoke fails closed after its bounded retry budget", async () => {
+  const helperUrl = new URL("../scripts/staging-runtime-smoke.mjs", import.meta.url).href;
+  const expectedSha = "c".repeat(40);
+  const { stdout } = await execFileAsync(process.execPath, [
+    "--input-type=module",
+    "--eval",
+    `import { waitForExactStagingRuntimeVersion } from ${JSON.stringify(helperUrl)};
+     let calls = 0;
+     try {
+       await waitForExactStagingRuntimeVersion({
+         baseUrl: "https://staging.example",
+         expectedSha: ${JSON.stringify(expectedSha)},
+         maxAttempts: 2,
+         delayMs: 1,
+         sleep: async () => {},
+         fetchImpl: async () => {
+           calls += 1;
+           return Response.json({ ok: true, service: "ikimon.life", environment: "staging", runtime: "cloudflare-worker", gitSha: "d".repeat(40) });
+         }
+       });
+       process.exit(2);
+     } catch (error) {
+       let invalidBudget = "";
+       try {
+         await waitForExactStagingRuntimeVersion({ baseUrl: "https://staging.example", expectedSha: ${JSON.stringify(expectedSha)}, maxAttempts: 31 });
+       } catch (budgetError) {
+         invalidBudget = budgetError.message;
+       }
+       process.stdout.write(JSON.stringify({ calls, message: error.message, invalidBudget }));
+     }`,
+  ]);
+  const result = JSON.parse(stdout) as { calls: number; message: string; invalidBudget: string };
+  assert.equal(result.calls, 2);
+  assert.match(result.message, /staging_runtime_version_not_converged/u);
+  assert.match(result.invalidBudget, /staging_runtime_smoke_max_attempts_invalid/u);
+});
+
+test("staging runtime smoke aborts every hung HTTP attempt within a bounded timeout", async () => {
+  const helper = await source("../scripts/staging-runtime-smoke.mjs");
+  assert.match(helper, /new AbortController\(\)/u);
+  assert.match(helper, /attemptTimeoutMs/u);
+  const helperUrl = new URL("../scripts/staging-runtime-smoke.mjs", import.meta.url).href;
+  const expectedSha = "e".repeat(40);
+  const { stdout } = await execFileAsync(process.execPath, [
+    "--input-type=module",
+    "--eval",
+    `import { waitForExactStagingRuntimeVersion } from ${JSON.stringify(helperUrl)};
+     let calls = 0;
+     const attempts = [];
+     try {
+       await waitForExactStagingRuntimeVersion({
+         baseUrl: "https://staging.example",
+         expectedSha: ${JSON.stringify(expectedSha)},
+         maxAttempts: 2,
+         delayMs: 1,
+         attemptTimeoutMs: 5,
+         sleep: async () => {},
+         onAttempt: (event) => attempts.push(event),
+         fetchImpl: async (_url, init) => {
+           calls += 1;
+           return await new Promise((_resolve, reject) => {
+             init.signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })), { once: true });
+           });
+         }
+       });
+       process.exit(2);
+     } catch (error) {
+       process.stdout.write(JSON.stringify({ calls, attempts, message: error.message }));
+     }`,
+  ], { timeout: 2_000 });
+  const result = JSON.parse(stdout) as { calls: number; attempts: Array<{ timedOut: boolean }>; message: string };
+  assert.equal(result.calls, 2);
+  assert.deepEqual(result.attempts.map((attempt) => attempt.timedOut), [true, true]);
+  assert.match(result.message, /staging_runtime_version_not_converged/u);
+});
+
+test("staging execute rejects dirty or changed deploy inputs before mutation", async () => {
+  const gateUrl = new URL("../scripts/staging-deploy-state-gate.mjs", import.meta.url).href;
+  const runGate = async (execute: boolean, before: Record<string, unknown>, after: Record<string, unknown>) => execFileAsync(process.execPath, [
+    "--input-type=module",
+    "--eval",
+    `import { assertStagingExecuteState } from ${JSON.stringify(gateUrl)};
+     assertStagingExecuteState({ execute: ${JSON.stringify(execute)}, before: ${JSON.stringify(before)}, after: ${JSON.stringify(after)}, phase: "pre-deploy" });
+     process.stdout.write("gate-passed");`,
+  ]);
+  const clean = { gitHead: "sha-a", deployInputSha256: "input-a", packageLockSha256: "lock-a", clean: true, gitStatus: "" };
+  assert.equal((await runGate(false, { ...clean, clean: false }, { ...clean, clean: false })).stdout, "gate-passed");
+  assert.equal((await runGate(true, clean, clean)).stdout, "gate-passed");
+  await assert.rejects(runGate(true, { ...clean, clean: false, gitStatus: "?? scripts/staging-runtime-smoke.mjs" }, clean), /staging_execute_requires_clean_worktree:pre-deploy:before/u);
+  await assert.rejects(runGate(true, clean, { ...clean, clean: false, gitStatus: " M src\/index.ts" }), /staging_execute_requires_clean_worktree:pre-deploy:after/u);
+  await assert.rejects(runGate(true, clean, { ...clean, gitHead: "sha-b" }), /staging_execute_state_changed:pre-deploy:gitHead/u);
+  await assert.rejects(runGate(true, clean, { ...clean, deployInputSha256: "input-b" }), /staging_execute_state_changed:pre-deploy:deployInputSha256/u);
+  await assert.rejects(runGate(true, clean, { ...clean, packageLockSha256: "lock-b" }), /staging_execute_state_changed:pre-deploy:packageLockSha256/u);
+
+  const guard = await source("../scripts/deploy-staging-guard.mjs");
+  assert.match(guard, /scripts\/staging-runtime-smoke\.mjs/u);
+  assert.match(guard, /scripts\/staging-deploy-state-gate\.mjs/u);
+  assert.match(guard, /assertStagingExecuteState/u);
+});
