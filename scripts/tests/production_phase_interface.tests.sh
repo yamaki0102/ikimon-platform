@@ -52,6 +52,7 @@ tsx_count="$(grep -Fc './node_modules/.bin/tsx' "${MATERIALIZE}")"
 
 node --input-type=module - "${MANIFEST}" <<'NODE'
 import fs from "node:fs";
+import path from "node:path";
 const manifest = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const contract = manifest.productionPhaseInterface;
 if (contract?.schema !== "ikimon_production_phase_interface/v1") throw new Error("phase_contract_schema");
@@ -61,6 +62,34 @@ if (contract?.secretInjectionAfterPreparationRequired !== true) throw new Error(
 if (contract?.processTableEmptyBeforeSecretInjectionRequired !== true) throw new Error("process_table_must_be_empty_before_secret_injection");
 if (contract?.secretFreeAncestorRequired !== true) throw new Error("secret_free_ancestor_required");
 if (contract?.initialEnvironmentSecretAllowlistEnforced !== true) throw new Error("initial_secret_allowlist_required");
+const expectedTools = {
+  tsx: {
+    version: "4.22.4",
+    resolved: "https://registry.npmjs.org/tsx/-/tsx-4.22.4.tgz",
+    integrity: "sha512-X8EX+XV4QR5xCsrgxaED954zTDfY8KqlDtskKEL0cHhyS/P8b4IFOvGDQpsC9Q1XnLq915wEfwwY/zzskCtmhg==",
+  },
+  wrangler: {
+    version: "4.110.0",
+    resolved: "https://registry.npmjs.org/wrangler/-/wrangler-4.110.0.tgz",
+    integrity: "sha512-xZeXKYi7hxQRF5anL+v77RkufJNpF9f3Eqeyqq2QBsETpLZgh0Agj0jJ6JPtkbgn6ukZdh8OK5egsGPWIditgg==",
+  },
+};
+if (contract?.localToolchain?.customWranglerBuildCommandAllowed !== false) throw new Error("custom_wrangler_build_must_be_forbidden");
+if (JSON.stringify(contract?.localToolchain?.tools) !== JSON.stringify(expectedTools)) throw new Error("local_toolchain_contract_mismatch");
+const repoRoot = path.dirname(path.dirname(path.dirname(process.argv[2])));
+const workerRoot = path.join(repoRoot, "platform_v2", "cloudflare_shadow");
+const packageJson = JSON.parse(fs.readFileSync(path.join(workerRoot, "package.json"), "utf8"));
+const packageLock = JSON.parse(fs.readFileSync(path.join(workerRoot, "package-lock.json"), "utf8"));
+for (const [name, expectedTool] of Object.entries(expectedTools)) {
+  if (packageJson?.devDependencies?.[name] !== expectedTool.version) throw new Error(`tool_spec_not_exact:${name}`);
+  if (packageLock?.packages?.[""]?.devDependencies?.[name] !== expectedTool.version) throw new Error(`lock_root_spec_not_exact:${name}`);
+  const locked = packageLock?.packages?.[`node_modules/${name}`];
+  for (const field of ["version", "resolved", "integrity"]) {
+    if (locked?.[field] !== expectedTool[field]) throw new Error(`tool_lock_mismatch:${name}:${field}`);
+  }
+}
+const wranglerConfigSource = fs.readFileSync(path.join(workerRoot, "wrangler.jsonc"), "utf8");
+if (/"build"\s*:/u.test(wranglerConfigSource)) throw new Error("custom_wrangler_build_rejected");
 const expected = {
   preflight: ["scripts/run_cloudflare_production_preflight.sh", [], []],
   materialize: ["scripts/run_cloudflare_production_materialization.sh", ["IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET"], ["IKIMON_R2_MATERIALIZATION_API_URL"]],
