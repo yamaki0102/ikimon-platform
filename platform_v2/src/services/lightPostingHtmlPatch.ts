@@ -47,6 +47,10 @@ const NEW_SUCCESS_MESSAGE = "resetPhotoDraftAfterDirectPost('投稿しました�
 const OLD_PHOTO_TRAY_HELP = "右で記録、左でもう1枚撮れます。";
 const NEW_PHOTO_TRAY_HELP = "右で投稿、左でもう1枚撮れます。";
 
+type LightPostingPatchOptions = {
+  suppressPassiveIdentification?: boolean;
+};
+
 function removePassiveIdentificationPressure(html: string): string {
   return html
     .replace(/\s*<div class="obs-card-species[^"]*\bis-awaiting\b[^"]*">[\s\S]*?<\/div>/g, "")
@@ -55,8 +59,20 @@ function removePassiveIdentificationPressure(html: string): string {
     .replace(/\s*<div class="obs-card-actions">\s*<\/div>/g, "");
 }
 
-export function patchLightPostingHtml(html: string): string {
-  return removePassiveIdentificationPressure(html)
+function shouldSuppressPassiveIdentification(urlValue: string): boolean {
+  try {
+    const url = new URL(urlValue || "/", "https://ikimon.local");
+    const pathname = url.pathname.replace(/\/+$/, "") || "/";
+    if (pathname === "/") return true;
+    if (pathname === "/records") return url.searchParams.get("view") !== "needs_id";
+    return pathname === "/profile" || pathname.startsWith("/profile/");
+  } catch {
+    return false;
+  }
+}
+
+export function patchLightPostingHtml(html: string, options: LightPostingPatchOptions = {}): string {
+  let patched = html
     .replace(OLD_MISSING_LOCATION_FALLBACK, NEW_MISSING_LOCATION_FALLBACK)
     .replace(OLD_LOCATION_NORMALIZATION, NEW_LOCATION_NORMALIZATION)
     .replace(OLD_SUBMISSION_SEED_COORDINATES, NEW_SUBMISSION_SEED_COORDINATES)
@@ -64,18 +80,27 @@ export function patchLightPostingHtml(html: string): string {
     .replace(OLD_PHOTO_SUBMIT_LABEL, NEW_PHOTO_SUBMIT_LABEL)
     .replace(OLD_SUCCESS_MESSAGE, NEW_SUCCESS_MESSAGE)
     .replaceAll(OLD_PHOTO_TRAY_HELP, NEW_PHOTO_TRAY_HELP);
+
+  if (options.suppressPassiveIdentification !== false) {
+    patched = removePassiveIdentificationPressure(patched);
+  }
+  return patched;
 }
 
 export function registerLightPostingHtmlPatch(app: FastifyInstance): void {
-  app.addHook("onSend", (_request, reply, payload, done) => {
+  app.addHook("onSend", (request, reply, payload, done) => {
     const contentType = String(reply.getHeader("content-type") ?? "").toLowerCase();
     if (!contentType.includes("text/html")) {
       done(null, payload);
       return;
     }
 
+    const options: LightPostingPatchOptions = {
+      suppressPassiveIdentification: shouldSuppressPassiveIdentification(request.url),
+    };
+
     if (typeof payload === "string") {
-      const patched = patchLightPostingHtml(payload);
+      const patched = patchLightPostingHtml(payload, options);
       if (patched !== payload) reply.removeHeader("content-length");
       done(null, patched);
       return;
@@ -83,7 +108,7 @@ export function registerLightPostingHtmlPatch(app: FastifyInstance): void {
 
     if (Buffer.isBuffer(payload)) {
       const original = payload.toString("utf8");
-      const patched = patchLightPostingHtml(original);
+      const patched = patchLightPostingHtml(original, options);
       if (patched !== original) {
         reply.removeHeader("content-length");
         done(null, Buffer.from(patched, "utf8"));
