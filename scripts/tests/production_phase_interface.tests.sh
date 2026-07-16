@@ -62,15 +62,26 @@ if (contract?.processTableEmptyBeforeSecretInjectionRequired !== true) throw new
 if (contract?.secretFreeAncestorRequired !== true) throw new Error("secret_free_ancestor_required");
 if (contract?.initialEnvironmentSecretAllowlistEnforced !== true) throw new Error("initial_secret_allowlist_required");
 const expected = {
-  preflight: ["scripts/run_cloudflare_production_preflight.sh", []],
-  materialize: ["scripts/run_cloudflare_production_materialization.sh", ["IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET"]],
-  deploy: ["scripts/run_cloudflare_production_worker_deploy.sh", ["CLOUDFLARE_API_TOKEN"]],
-  verify: ["executor:fixed-http-exact-sha", []],
+  preflight: ["scripts/run_cloudflare_production_preflight.sh", [], []],
+  materialize: ["scripts/run_cloudflare_production_materialization.sh", ["IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET"], ["IKIMON_R2_MATERIALIZATION_API_URL"]],
+  deploy: ["scripts/run_cloudflare_production_worker_deploy.sh", ["CLOUDFLARE_API_TOKEN"], [
+    "CLOUDFLARE_ACCOUNT_ID", "DEPLOY_PRODUCTION", "IKIMON_GIT_SHA", "IKIMON_UI_BUNDLE_HASH",
+    "IKIMON_UI_MANIFEST_HASH", "IKIMON_WORKER_VERSION", "IKIMON_DEPLOYED_AT",
+    "IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL", "IKIMON_PRODUCTION_PREFLIGHT_RECEIPT_SHA256",
+    "IKIMON_PRODUCTION_D1_MIGRATIONS", "IKIMON_PRODUCTION_SECRET_SYNC",
+  ]],
+  verify: ["executor:fixed-http-exact-sha", [], []],
 };
-for (const [phase, [entrypoint, allowlist]] of Object.entries(expected)) {
+const commonNonSecret = [
+  "PATH", "HOME", "CI", "IKIMON_AUTOMATION_JOB_FILE", "IKIMON_TERMINAL_EVENT_FILE",
+  "IKIMON_PRODUCTION_PHASE_V1", "IKIMON_PRODUCTION_SOURCE_DIR", "IKIMON_EXPECTED_GIT_SHA", "IKIMON_OPS_JOB_ID",
+];
+for (const [phase, [entrypoint, allowlist, phaseNonSecret]] of Object.entries(expected)) {
   const actual = contract.phases?.[phase];
   if (actual?.entrypoint !== entrypoint) throw new Error(`entrypoint:${phase}`);
   if (JSON.stringify(actual?.secretAllowlist) !== JSON.stringify(allowlist)) throw new Error(`secret_allowlist:${phase}`);
+  const expectedNonSecret = [...commonNonSecret, ...phaseNonSecret];
+  if (JSON.stringify(actual?.nonSecretInputAllowlist) !== JSON.stringify(expectedNonSecret)) throw new Error(`nonsecret_allowlist:${phase}`);
 }
 const overlap = Object.values(contract.phases).flatMap((phase) => phase.secretAllowlist);
 if (new Set(overlap).size !== overlap.length) throw new Error("phase_secret_overlap");

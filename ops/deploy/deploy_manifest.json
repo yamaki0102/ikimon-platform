@@ -41,23 +41,52 @@
         "marker": "ikimon.production-phase/v1:preflight",
         "entrypoint": "scripts/run_cloudflare_production_preflight.sh",
         "secretAllowlist": [],
-        "nonSecretInputAllowlist": ["IKIMON_PRODUCTION_PHASE_V1", "IKIMON_EXPECTED_GIT_SHA", "TEST_PROFILE"]
+        "nonSecretInputAllowlist": [
+          "PATH",
+          "HOME",
+          "CI",
+          "IKIMON_AUTOMATION_JOB_FILE",
+          "IKIMON_TERMINAL_EVENT_FILE",
+          "IKIMON_PRODUCTION_PHASE_V1",
+          "IKIMON_PRODUCTION_SOURCE_DIR",
+          "IKIMON_EXPECTED_GIT_SHA",
+          "IKIMON_OPS_JOB_ID"
+        ]
       },
       "materialize": {
         "marker": "ikimon.production-phase/v1:materialize",
         "entrypoint": "scripts/run_cloudflare_production_materialization.sh",
         "secretAllowlist": ["IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET"],
-        "nonSecretInputAllowlist": ["IKIMON_PRODUCTION_PHASE_V1", "IKIMON_OPS_JOB_ID", "IKIMON_EXPECTED_GIT_SHA", "IKIMON_R2_MATERIALIZATION_API_URL"]
+        "nonSecretInputAllowlist": [
+          "PATH",
+          "HOME",
+          "CI",
+          "IKIMON_AUTOMATION_JOB_FILE",
+          "IKIMON_TERMINAL_EVENT_FILE",
+          "IKIMON_PRODUCTION_PHASE_V1",
+          "IKIMON_PRODUCTION_SOURCE_DIR",
+          "IKIMON_EXPECTED_GIT_SHA",
+          "IKIMON_OPS_JOB_ID",
+          "IKIMON_R2_MATERIALIZATION_API_URL"
+        ]
       },
       "deploy": {
         "marker": "ikimon.production-phase/v1:deploy",
         "entrypoint": "scripts/run_cloudflare_production_worker_deploy.sh",
         "secretAllowlist": ["CLOUDFLARE_API_TOKEN"],
         "nonSecretInputAllowlist": [
+          "PATH",
+          "HOME",
+          "CI",
+          "IKIMON_AUTOMATION_JOB_FILE",
+          "IKIMON_TERMINAL_EVENT_FILE",
           "IKIMON_PRODUCTION_PHASE_V1",
-          "CLOUDFLARE_ACCOUNT_ID",
-          "IKIMON_GIT_SHA",
+          "IKIMON_PRODUCTION_SOURCE_DIR",
           "IKIMON_EXPECTED_GIT_SHA",
+          "IKIMON_OPS_JOB_ID",
+          "CLOUDFLARE_ACCOUNT_ID",
+          "DEPLOY_PRODUCTION",
+          "IKIMON_GIT_SHA",
           "IKIMON_UI_BUNDLE_HASH",
           "IKIMON_UI_MANIFEST_HASH",
           "IKIMON_WORKER_VERSION",
@@ -72,7 +101,17 @@
         "marker": "ikimon.production-phase/v1:verify",
         "entrypoint": "executor:fixed-http-exact-sha",
         "secretAllowlist": [],
-        "nonSecretInputAllowlist": ["IKIMON_PRODUCTION_PHASE_V1", "IKIMON_EXPECTED_GIT_SHA"]
+        "nonSecretInputAllowlist": [
+          "PATH",
+          "HOME",
+          "CI",
+          "IKIMON_AUTOMATION_JOB_FILE",
+          "IKIMON_TERMINAL_EVENT_FILE",
+          "IKIMON_PRODUCTION_PHASE_V1",
+          "IKIMON_PRODUCTION_SOURCE_DIR",
+          "IKIMON_EXPECTED_GIT_SHA",
+          "IKIMON_OPS_JOB_ID"
+        ]
       }
     }
   },
