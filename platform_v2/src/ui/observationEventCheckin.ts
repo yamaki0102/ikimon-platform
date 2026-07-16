@@ -76,7 +76,7 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
     </fieldset>
 
     <label style="display:flex; gap:8px; align-items:center; min-height:44px;">
-      <input type="checkbox" name="share_location" ${isSolo ? "" : "checked"} />
+      <input type="checkbox" name="share_location" />
       <span>${isSolo ? "開催範囲の補助として現在地を使う" : "開催中だけ、主催者に現在地を共有"}</span>
     </label>
     <label style="display:flex; gap:8px; align-items:center; min-height:44px;">
@@ -90,7 +90,7 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
 
     ${isAuthenticated
       ? `<p class="evt-lead">ログイン済みアカウントで参加します。</p>`
-      : `<p class="evt-lead">ゲスト参加でも、ふり返り URL は永続的に残ります。</p>`}
+      : `<p class="evt-lead">ゲスト参加の記録とふり返りは、この端末の安全な参加情報で開けます。</p>`}
 
     <button type="submit" class="evt-btn evt-btn-primary" style="justify-self:stretch;">
       ✨ 観察を始める
@@ -117,16 +117,6 @@ export function checkinScript(): string {
     });
   });
 
-  // ゲスト用 token は永続化(localStorage)
-  function ensureGuestToken(){
-    let token = localStorage.getItem("evt-guest-token");
-    if (!token) {
-      token = "g_" + Math.random().toString(36).slice(2,8) + Date.now().toString(36);
-      localStorage.setItem("evt-guest-token", token);
-    }
-    return token;
-  }
-
   const form = root.querySelector("[data-evt-checkin-form]");
   form?.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -135,15 +125,16 @@ export function checkinScript(): string {
     const guardianConsent = fd.get("guardian_location_consent") === "on";
     const shareLocation = fd.get("share_location") === "on";
     const teamId = fd.get("team_id") || null;
-    const guestToken = ensureGuestToken();
+    if (isMinor && shareLocation && !guardianConsent) {
+      alert("未成年の位置共有には、保護者または引率者の同意が必要です。");
+      return;
+    }
     const payload = {
       display_name: String(fd.get("display_name") || ""),
       team_id: teamId,
       share_location: shareLocation,
       is_minor: isMinor,
       guardian_location_consent: guardianConsent,
-      location_share_consent_type: isMinor ? (guardianConsent ? "guardian" : null) : "self",
-      guest_token: guestToken,
     };
     const r = await fetch("/api/v1/observation-events/" + sessionId + "/checkin", {
       method: "POST",
@@ -157,7 +148,7 @@ export function checkinScript(): string {
     }
     if (window.evtFanfare) window.evtFanfare("ようこそ!");
     setTimeout(() => {
-      window.location.href = "/events/" + sessionId + (isSolo ? "/live" : "/rally") + (guestToken ? "?token=" + encodeURIComponent(guestToken) : "");
+      window.location.href = "/events/" + sessionId + (isSolo ? "/live" : "/rally");
     }, 600);
   });
 })();
