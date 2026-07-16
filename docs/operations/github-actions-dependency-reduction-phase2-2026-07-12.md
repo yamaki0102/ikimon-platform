@@ -2,6 +2,8 @@
 
 更新日: 2026-07-12
 
+> 2026-07-16 追記: この文書の単一process release記述は履歴情報。現行正本は `ops/deploy/deploy_manifest.json` の `ikimon_production_phase_interface/v1` で、preflight / materialize / deploy / verify を別fresh sandboxで実行する。通常production deployでD1 migrationは実行しない。
+
 ## 目的
 
 production releaseをGitHub Actions固有の長大なYAMLから、リポジトリ内の再利用可能なコマンドへ移す。

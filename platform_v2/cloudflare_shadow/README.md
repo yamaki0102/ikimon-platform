@@ -248,64 +248,29 @@ Read-only smoke:
 
 No `ikimon.life` DNS, route, custom domain, maintenance mode, VPS data, or production user data was changed.
 
-## Production Worker Deploy Guard
+## Production Fresh-Sandbox Phase Interface
 
 Operational runbook: [`docs/cloudflare-operations-runbook.md`](docs/cloudflare-operations-runbook.md)
 
-Use the guarded deploy entrypoint instead of running `wrangler deploy --env production` directly:
+The machine-readable contract is `ops/deploy/deploy_manifest.json` under `productionPhaseInterface`. Production uses four fresh sandboxes: `preflight`, `materialize`, `deploy`, then secretless `verify`. A sandbox must never receive secrets owned by another phase.
+
+Run the secretless preflight entrypoint from the repository root:
 
 ```bash
-npm run deploy:production:dry-run
+IKIMON_EXPECTED_GIT_SHA="$(git rev-parse HEAD)" IKIMON_PRODUCTION_PHASE_V1=ikimon.production-phase/v1:preflight bash scripts/run_cloudflare_production_preflight.sh
 ```
 
-This runs `npm run check`, `npm test`, `wrangler --version`, `wrangler deploy --env production --dry-run`, the production config guard, and the hardcoded-secret scan. It also writes `.deploy/production-preflight-latest.json` for the fast lane.
+This installs and builds the app, runs the Worker checks/tests and Wrangler dry-run, renders the materializer without R2 writes, and writes `.deploy/production-phase-preflight.json`. It rejects production secrets and never mutates Worker, R2, D1, secrets, DNS, routes, or provider settings.
 
-For the normal edit loop, use the quick profile. It skips only the synthetic 10k load-profile test and keeps the other Worker contract tests:
+For a full or heavy preflight, set `TEST_PROFILE=full` or `TEST_PROFILE=heavy`. The default quick profile skips only the synthetic 10k load-profile test.
 
 ```bash
-npm run test:quick
-npm run deploy:production:quick-preflight
+TEST_PROFILE=full IKIMON_EXPECTED_GIT_SHA="$(git rev-parse HEAD)" IKIMON_PRODUCTION_PHASE_V1=ikimon.production-phase/v1:preflight bash scripts/run_cloudflare_production_preflight.sh
 ```
 
-Use `npm run test:heavy` to run only the synthetic 10k profile, and `npm run deploy:production:preflight` before high-risk Worker runtime changes or when refreshing the full deployment evidence.
+The Cloudflare Executor prepares dependencies without secrets, proves no process remains, and starts each mutation phase in a separate sandbox. Materialization receives only its job-scoped 64-hex key plus the canonical gateway URL and writes `.deploy/production-phase-materialize.json`. Worker deploy receives only the Cloudflare token after the Executor verifies the exact SHA, preflight receipt digest, UI hashes, approval, and the explicit `production D1 migrations=false` and `secret sync=false` gates. Its shell performs built-in validation and replaces itself with direct local Wrangler.
 
-When the same git `HEAD` and Worker deploy-input hash have already passed the full preflight, use the fast lane:
-
-```bash
-npm run deploy:production:fast:dry-run
-```
-
-The fast lane does not rerun the full TypeScript/test suite. It validates the preflight report, rechecks the production config and secret scan, runs Wrangler dry-run, and refuses to run if deploy inputs changed or the report is stale.
-
-The deploy guard also caches `npx wrangler --version` in `.deploy/wrangler-version-cache.json`. The cache is accepted only when the package lock hash and Worker deploy-input hash match, so a Wrangler upgrade or Worker/deploy-tool change refreshes the version check automatically. `wrangler deploy --env production --dry-run` is never skipped.
-
-GitHub Actions can build the same fast-lane artifact with `Cloudflare Quick Preflight Artifact`. Use it when local iteration should avoid the TypeScript/test preflight wait:
-
-```bash
-gh workflow run cloudflare-quick-preflight.yml --ref <branch-or-sha>
-npm run deploy:production:artifact:pull
-npm run deploy:production:fast:dry-run
-```
-
-The helper resolves the latest successful artifact run for the current branch and exact `HEAD`, downloads `cloudflare-production-preflight`, and writes `.deploy/production-preflight-latest.json` plus `.deploy/wrangler-version-cache.json`. The fast lane still refuses mismatched `HEAD`, changed Worker deploy inputs, stale reports, and missing Wrangler dry-run evidence.
-
-Production deploy requires an explicit approval code and then smokes both workers.dev and the public custom domain:
-
-```bash
-npm run deploy:production -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
-npm run deploy:production:fast -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
-```
-
-The guard does not change DNS, D1 data, R2 objects, secrets, billing, provider settings, or VPS state. It only deploys the Worker when `--execute` is used with the approval code.
-
-Original UI materialization writes R2 HTML objects in parallel by default:
-
-```bash
-npm run materialize:original-ui:dry-run -- --concurrency 4
-npm run materialize:original-ui -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY --concurrency 4
-```
-
-Keep `--concurrency` between `1` and `8`. Use `1` only when debugging object-specific failures.
+Do not invoke production materialization or Worker deploy through `npm`, `npx`, `run_cloudflare_production_release.sh`, or `deploy-production-guard.mjs --execute`. The combined release script is preflight compatibility only, requires the caller to supply the exact expected SHA, and fails closed when execute mode or a production secret is present. Post-deploy health and exact-SHA verification is the Executor-owned `executor:fixed-http-exact-sha` phase; the repository verify script remains a manual/monitoring utility.
 
 ## Required Before Production
 

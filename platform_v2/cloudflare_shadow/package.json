@@ -29,8 +29,6 @@
     "deploy:production:dry-run": "node scripts/deploy-production-guard.mjs",
     "deploy:production:fast:dry-run": "node scripts/deploy-production-guard.mjs --fast --preflight-report .deploy/production-preflight-latest.json",
     "deploy:production:artifact:pull": "node scripts/pull-production-preflight-artifact.mjs",
-    "deploy:production": "node scripts/deploy-production-guard.mjs --execute",
-    "deploy:production:fast": "node scripts/deploy-production-guard.mjs --execute --fast --preflight-report .deploy/production-preflight-latest.json",
     "seed:staging-observation-image-targets": "node scripts/seed-staging-observation-image-targets.mjs",
     "materialize:original-ui:dry-run": "tsx scripts/materialize-original-ui-html.mjs",
     "materialize:original-ui": "tsx scripts/materialize-original-ui-html.mjs --execute"
