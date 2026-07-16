@@ -92,6 +92,11 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $deployContractText += "`n" + (Read-ContractFile -RelativePath $contractPath -Issues $issues)
     }
 
+    $portableReleaseText = Read-ContractFile -RelativePath $manifest.portableReleaseScript -Issues $issues
+    if ($portableReleaseText -match '(?im)\bwrangler\s+d1\s+migrations\s+apply\b') {
+        $issues.Add("Routine production release must not apply D1 migrations; migration is a separate approval-bound operation")
+    }
+
     foreach ($path in @($manifest.verificationWindowsRunner, $manifest.verificationWindowsInstaller, $manifest.verificationWindowsDoctor)) {
         Test-PowerShellFileParses -RelativePath $path -Issues $issues
     }
