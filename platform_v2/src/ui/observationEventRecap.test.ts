@@ -26,7 +26,7 @@ function recap(canManage: boolean): ObservationEventRecap {
       templateSourceSessionId: null,
       createdAt: "2026-05-13T09:00:00.000Z",
       updatedAt: "2026-05-13T10:00:00.000Z",
-    },
+    } as ObservationEventRecap["session"],
     permissions: { canManage },
     highlights: {
       observationCount: 1,
