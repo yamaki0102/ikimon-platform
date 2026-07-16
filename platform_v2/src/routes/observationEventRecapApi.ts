@@ -8,6 +8,7 @@ import {
   type CapsuleReviewStatus,
 } from "../services/observationEventCapsule.js";
 import { buildRecap } from "../services/observationEventRecap.js";
+import { requireObservationEventViewerAccess } from "../services/observationEventParticipantAccess.js";
 import { getSessionByEventCode, getSessionById } from "../services/observationEventModeManager.js";
 import {
   buildOfficialEventReport,
@@ -38,15 +39,19 @@ function parseReviewStatus(value: unknown): CapsuleReviewStatus | null {
 
 export async function registerObservationEventRecapRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/observation-events/:sessionId/recap
-  app.get<{ Params: { sessionId: string }; Querystring: { token?: string; limit?: string } }>(
+  app.get<{ Params: { sessionId: string }; Querystring: { limit?: string } }>(
     "/api/v1/observation-events/:sessionId/recap",
     async (request, reply) => {
-      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-      const token = asString(request.query.token);
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      reply.header("Cache-Control", "private, no-store");
+      reply.header("Vary", "Cookie");
+      const viewer = await requireObservationEventViewerAccess(session, request.headers.cookie);
+      if (!viewer) return reply.status(403).send({ error: "event participant required" });
       const limit = Number(request.query.limit ?? 200);
       const recap = await buildRecap(request.params.sessionId, {
-        viewerUserId: auth?.userId ?? null,
-        viewerGuestToken: token,
+        viewerUserId: viewer.userId,
+        viewerGuestToken: viewer.guestCredentialDigest,
         timelineLimit: Number.isFinite(limit) ? limit : 200,
       });
       if (!recap) return reply.status(404).send({ error: "session not found" });
@@ -55,16 +60,18 @@ export async function registerObservationEventRecapRoutes(app: FastifyInstance):
   );
 
   // GET /api/v1/observation-events/by-code/:eventCode/recap
-  app.get<{ Params: { eventCode: string }; Querystring: { token?: string; limit?: string } }>(
+  app.get<{ Params: { eventCode: string }; Querystring: { limit?: string } }>(
     "/api/v1/observation-events/by-code/:eventCode/recap",
     async (request, reply) => {
       const session = await getSessionByEventCode(request.params.eventCode);
       if (!session) return reply.status(404).send({ error: "session not found" });
-      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-      const token = asString(request.query.token);
+      reply.header("Cache-Control", "private, no-store");
+      reply.header("Vary", "Cookie");
+      const viewer = await requireObservationEventViewerAccess(session, request.headers.cookie);
+      if (!viewer) return reply.status(403).send({ error: "event participant required" });
       const recap = await buildRecap(session.sessionId, {
-        viewerUserId: auth?.userId ?? null,
-        viewerGuestToken: token,
+        viewerUserId: viewer.userId,
+        viewerGuestToken: viewer.guestCredentialDigest,
         timelineLimit: 200,
       });
       if (!recap) return reply.status(404).send({ error: "recap not built" });
