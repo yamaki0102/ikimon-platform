@@ -1,12 +1,27 @@
 import type { FastifyInstance } from "fastify";
 import { getPool } from "../db.js";
 import { getSessionFromCookie } from "../services/authSession.js";
+import { assertSameOriginRequest } from "../services/authSecurity.js";
+import {
+  buildClearedObservationEventGuestCookie,
+  observationEventGuestCredentialDigestFromCookie,
+} from "../services/observationEventGuestCredential.js";
 import {
   appendLiveEvent,
   listRecentLiveEvents,
   type LiveEventRow,
   type LiveEventScope,
 } from "../services/observationEventLive.js";
+import {
+  isObservationEventCheckinOpen,
+  promoteObservationEventGuestIdentity,
+  requireObservationEventViewerAccess,
+  type ObservationEventViewerAccess,
+} from "../services/observationEventParticipantAccess.js";
+import {
+  publicObservationEventRecapSession,
+  sanitizeObservationEventTimeline,
+} from "../services/observationEventRecap.js";
 import {
   createSession,
   endSession,
@@ -17,7 +32,6 @@ import {
   updateSession,
   EVENT_MODES,
   type EventMode,
-  type ObservationEventSessionRow,
 } from "../services/observationEventModeManager.js";
 import {
   recordMeshVisit,
@@ -57,63 +71,7 @@ function asObject(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-interface ParticipantContext {
-  participantId: string | null;
-  userId: string | null;
-  guestToken: string | null;
-  teamId: string | null;
-  isOrganizer: boolean;
-  isMinor: boolean;
-}
-
-async function resolveParticipantContext(
-  session: ObservationEventSessionRow,
-  cookieHeader: string | undefined,
-  guestTokenOverride?: string | null,
-): Promise<ParticipantContext> {
-  const authSession = await getSessionFromCookie(cookieHeader ?? "").catch(() => null);
-  const userId = authSession?.userId ?? null;
-  const isOrganizer = userId !== null && userId === session.organizerUserId;
-
-  const guestToken = guestTokenOverride ?? null;
-  if (!userId && !guestToken) {
-    return {
-      participantId: null,
-      userId: null,
-      guestToken: null,
-      teamId: null,
-      isOrganizer: false,
-      isMinor: false,
-    };
-  }
-
-  const result = await getPool().query<{
-    participant_id: string;
-    team_id: string | null;
-    is_minor: boolean;
-  }>(
-    `SELECT participant_id, team_id, is_minor
-     FROM observation_event_participants
-     WHERE session_id = $1
-       AND (
-         (user_id IS NOT NULL AND user_id = $2)
-         OR (guest_token IS NOT NULL AND guest_token = $3)
-       )
-     LIMIT 1`,
-    [session.sessionId, userId, guestToken],
-  );
-  const row = result.rows[0];
-  return {
-    participantId: row?.participant_id ?? null,
-    userId,
-    guestToken,
-    teamId: row?.team_id ?? null,
-    isOrganizer,
-    isMinor: row?.is_minor ?? false,
-  };
-}
-
-function shouldDeliverEvent(row: LiveEventRow, ctx: ParticipantContext): boolean {
+function shouldDeliverEvent(row: LiveEventRow, ctx: ObservationEventViewerAccess): boolean {
   const scope = row.scope as LiveEventScope;
   if (scope === "all") return true;
   if (scope === "organizer") return ctx.isOrganizer;
@@ -123,7 +81,7 @@ function shouldDeliverEvent(row: LiveEventRow, ctx: ParticipantContext): boolean
     const targetUser = asString(payload.target_user_id);
     const targetGuest = asString(payload.target_guest_token);
     if (targetUser && ctx.userId === targetUser) return true;
-    if (targetGuest && ctx.guestToken === targetGuest) return true;
+    if (targetGuest && ctx.guestCredentialDigest === targetGuest) return true;
     return false;
   }
   return true;
@@ -263,18 +221,22 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
     async (request, reply) => {
       const row = await getSessionById(request.params.sessionId);
       if (!row) return reply.status(404).send({ error: "session not found" });
+      reply.header("Cache-Control", "private, no-store");
+      reply.header("Vary", "Cookie");
+      const ctx = await requireObservationEventViewerAccess(
+        row,
+        request.headers.cookie,
+      );
+      if (!ctx) return reply.status(403).send({ error: "event participant required" });
       const limit = Number(request.query.limit ?? 100);
       const events = await listRecentLiveEvents(
         request.params.sessionId,
         Number.isFinite(limit) ? limit : 100,
       );
-      const ctx = await resolveParticipantContext(
-        row,
-        request.headers.cookie,
-      );
+      const visibleEvents = events.filter((event) => shouldDeliverEvent(event, ctx));
       return reply.send({
-        session: row,
-        events: events.filter((e) => shouldDeliverEvent(e, ctx)),
+        session: publicObservationEventRecapSession(row),
+        events: sanitizeObservationEventTimeline(visibleEvents),
       });
     },
   );
@@ -355,64 +317,84 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
   app.post<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
     "/api/v1/observation-events/:sessionId/checkin",
     async (request, reply) => {
+      assertSameOriginRequest(request);
       const session = await getSessionById(request.params.sessionId);
       if (!session) return reply.status(404).send({ error: "session not found" });
+      if (!isObservationEventCheckinOpen(session)) {
+        return reply.status(409).send({ error: "event_checkin_closed" });
+      }
 
       const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-      const guestToken = asString(request.body?.guest_token);
+      const guestCredentialDigest = observationEventGuestCredentialDigestFromCookie(
+        session.sessionId,
+        request.headers.cookie,
+      );
       const displayName = asString(request.body?.display_name) ?? "";
       const isMinor = request.body?.is_minor === true;
       const teamId = asString(request.body?.team_id);
-      const shareLocation = request.body?.share_location !== false; // default ON
+      const shareLocation = request.body?.share_location === true;
+      const guardianConsent = request.body?.guardian_location_consent === true;
+      if (shareLocation && isMinor && !guardianConsent) {
+        return reply.status(400).send({ error: "guardian consent required for minor location sharing" });
+      }
       const locationConsent = resolveLocationShareConsent({
         wantsShare: shareLocation,
         isMinor,
-        consentType: asString(request.body?.location_share_consent_type),
-        guardianConsent: request.body?.guardian_location_consent === true,
+        consentType: shareLocation ? (isMinor ? "guardian" : "self") : null,
+        guardianConsent,
       });
       const shareUntil = locationConsent !== null ? locationShareUntil(session)?.toISOString() ?? null : null;
       const locationShareEnabled = locationConsent !== null && shareUntil !== null;
 
-      if (!auth && !guestToken) {
-        return reply.status(400).send({ error: "user or guest_token required" });
+      if (!auth && !guestCredentialDigest) {
+        return reply.status(428).send({ error: "event_guest_cookie_required" });
       }
 
-      const upsert = await getPool().query<{ participant_id: string }>(
-        `INSERT INTO observation_event_participants (
-            session_id, user_id, guest_token, display_name, team_id, role, status,
-            checked_in_at, share_location, is_minor,
-            location_share_started_at, location_share_until, location_share_consent_type
-         ) VALUES ($1, $2, $3, $4, $5, 'participant', 'checked_in',
-                   NOW(), $6, $7,
-                   CASE WHEN $6 THEN NOW() ELSE NULL END, $8, $9)
-         ON CONFLICT (session_id, user_id)
-         WHERE user_id IS NOT NULL DO UPDATE SET
-            display_name = EXCLUDED.display_name,
-            team_id      = COALESCE(EXCLUDED.team_id, observation_event_participants.team_id),
-            status       = 'checked_in',
-            checked_in_at = NOW(),
-            share_location = EXCLUDED.share_location,
-            is_minor     = EXCLUDED.is_minor,
-            location_share_started_at = EXCLUDED.location_share_started_at,
-            location_share_until = EXCLUDED.location_share_until,
-            location_share_consent_type = EXCLUDED.location_share_consent_type
-         RETURNING participant_id`,
-        [
-          session.sessionId,
-          auth?.userId ?? null,
-          guestToken,
-          displayName,
-          teamId,
-          locationShareEnabled,
-          isMinor,
-          shareUntil,
-          locationConsent,
-        ],
-      );
-      // Guest path uses different unique index, so we re-run for guests if needed.
-      let participantId = upsert.rows[0]?.participant_id ?? null;
-      if (!participantId && guestToken) {
-        const guestUpsert = await getPool().query<{ participant_id: string }>(
+      let participantId: string | null = null;
+      let created = false;
+      if (auth) {
+        if (guestCredentialDigest) {
+          await promoteObservationEventGuestIdentity({
+            sessionId: session.sessionId,
+            userId: auth.userId,
+            guestCredentialDigest,
+          });
+        }
+
+        const accountUpsert = await getPool().query<{ participant_id: string; created: boolean }>(
+          `INSERT INTO observation_event_participants (
+              session_id, user_id, guest_token, display_name, team_id, role, status,
+              checked_in_at, share_location, is_minor,
+              location_share_started_at, location_share_until, location_share_consent_type
+           ) VALUES ($1, $2, NULL, $3, $4, 'participant', 'checked_in', NOW(), $5, $6,
+                     CASE WHEN $5 THEN NOW() ELSE NULL END, $7, $8)
+           ON CONFLICT (session_id, user_id)
+           WHERE user_id IS NOT NULL DO UPDATE SET
+              display_name = EXCLUDED.display_name,
+              team_id = COALESCE(EXCLUDED.team_id, observation_event_participants.team_id),
+              status = 'checked_in',
+              checked_in_at = NOW(),
+              share_location = EXCLUDED.share_location,
+              is_minor = EXCLUDED.is_minor,
+              location_share_started_at = EXCLUDED.location_share_started_at,
+              location_share_until = EXCLUDED.location_share_until,
+              location_share_consent_type = EXCLUDED.location_share_consent_type
+           RETURNING participant_id, (xmax = 0) AS created`,
+          [
+            session.sessionId,
+            auth.userId,
+            displayName,
+            teamId,
+            locationShareEnabled,
+            isMinor,
+            shareUntil,
+            locationConsent,
+          ],
+        );
+        participantId = accountUpsert.rows[0]?.participant_id ?? null;
+        created = accountUpsert.rows[0]?.created === true;
+      } else if (guestCredentialDigest) {
+        const guestUpsert = await getPool().query<{ participant_id: string; created: boolean }>(
           `INSERT INTO observation_event_participants (
               session_id, user_id, guest_token, display_name, team_id, role, status,
               checked_in_at, share_location, is_minor,
@@ -430,10 +412,10 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
               location_share_started_at = EXCLUDED.location_share_started_at,
               location_share_until = EXCLUDED.location_share_until,
               location_share_consent_type = EXCLUDED.location_share_consent_type
-           RETURNING participant_id`,
+           RETURNING participant_id, (xmax = 0) AS created`,
           [
             session.sessionId,
-            guestToken,
+            guestCredentialDigest,
             displayName,
             teamId,
             locationShareEnabled,
@@ -443,26 +425,36 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
           ],
         );
         participantId = guestUpsert.rows[0]?.participant_id ?? null;
+        created = guestUpsert.rows[0]?.created === true;
       }
 
       if (!participantId) {
         return reply.status(500).send({ error: "checkin failed" });
       }
 
-      await appendLiveEvent({
-        sessionId: session.sessionId,
-        type: "checkin",
-        scope: "organizer",
-        actorUserId: auth?.userId ?? null,
-        actorGuestToken: guestToken,
-        teamId,
-        payload: {
-          participant_id: participantId,
-          display_name: displayName,
-          team_id: teamId,
-          location_share: locationShareEnabled,
-        },
-      });
+      if (auth && guestCredentialDigest) {
+        reply.header(
+          "Set-Cookie",
+          buildClearedObservationEventGuestCookie(session.sessionId),
+        );
+      }
+
+      if (created) {
+        await appendLiveEvent({
+          sessionId: session.sessionId,
+          type: "checkin",
+          scope: "organizer",
+          actorUserId: auth?.userId ?? null,
+          actorGuestToken: auth ? null : guestCredentialDigest,
+          teamId,
+          payload: {
+            participant_id: participantId,
+            display_name: displayName,
+            team_id: teamId,
+            location_share: locationShareEnabled,
+          },
+        });
+      }
 
       return reply.send({ participant_id: participantId });
     },
@@ -472,11 +464,14 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
   app.post<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
     "/api/v1/observation-events/:sessionId/absences",
     async (request, reply) => {
+      assertSameOriginRequest(request);
       const session = await getSessionById(request.params.sessionId);
       if (!session) return reply.status(404).send({ error: "session not found" });
 
-      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-      const guestToken = asString(request.body?.guest_token);
+      const ctx = await requireObservationEventViewerAccess(session, request.headers.cookie);
+      if (!ctx || !ctx.participantId) {
+        return reply.status(403).send({ error: "event participant required" });
+      }
       const taxon = asString(request.body?.searched_taxon);
       const lat = asNumber(request.body?.lat);
       const lng = asNumber(request.body?.lng);
@@ -485,15 +480,11 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
       const confidence = ["searched", "confirmed_absent", "expert_verified"].includes(confidenceRaw)
         ? confidenceRaw
         : "searched";
-      const teamId = asString(request.body?.team_id);
+      const teamId = ctx.teamId;
 
       if (!taxon || lat === null || lng === null) {
         return reply.status(400).send({ error: "searched_taxon, lat, lng required" });
       }
-      if (!auth && !guestToken) {
-        return reply.status(400).send({ error: "user or guest_token required" });
-      }
-
       const inserted = await getPool().query<{ absence_id: string }>(
         `INSERT INTO observation_event_absences (
             session_id, user_id, guest_token, team_id,
@@ -502,8 +493,8 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
          RETURNING absence_id`,
         [
           session.sessionId,
-          auth?.userId ?? null,
-          guestToken,
+          ctx.userId,
+          ctx.guestCredentialDigest,
           teamId,
           taxon,
           Math.max(0, Math.round(effortSeconds)),
@@ -528,8 +519,8 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
         sessionId: session.sessionId,
         type: "absence_recorded",
         scope: "all",
-        actorUserId: auth?.userId ?? null,
-        actorGuestToken: guestToken,
+        actorUserId: ctx.userId,
+        actorGuestToken: ctx.guestCredentialDigest,
         teamId,
         payload: {
           absence_id: absenceId,
@@ -611,25 +602,25 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
   }>(
     "/api/v1/observation-events/:sessionId/role",
     async (request, reply) => {
+      assertSameOriginRequest(request);
       const session = await getSessionById(request.params.sessionId);
       if (!session) return reply.status(404).send({ error: "session not found" });
-      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-      const guestToken = asString(request.body?.guest_token);
+      const ctx = await requireObservationEventViewerAccess(session, request.headers.cookie);
+      if (!ctx || !ctx.participantId) {
+        return reply.status(403).send({ error: "event participant required" });
+      }
       const declaredJob = asString(request.body?.declared_job);
       const allowed = ["shoot", "identify", "map", "record", "absence", "free"] as const;
       if (!declaredJob || !(allowed as readonly string[]).includes(declaredJob)) {
         return reply.status(400).send({ error: "invalid declared_job" });
       }
-      if (!auth && !guestToken) {
-        return reply.status(400).send({ error: "user or guest_token required" });
-      }
       const result = await getPool().query<{ participant_id: string; team_id: string | null }>(
         `UPDATE observation_event_participants
-         SET declared_job = $4
+         SET declared_job = $3
          WHERE session_id = $1
-           AND ((user_id IS NOT NULL AND user_id = $2) OR (guest_token IS NOT NULL AND guest_token = $3))
+           AND participant_id = $2
          RETURNING participant_id, team_id`,
-        [session.sessionId, auth?.userId ?? null, guestToken, declaredJob],
+        [session.sessionId, ctx.participantId, declaredJob],
       );
       const row = result.rows[0];
       if (!row) return reply.status(404).send({ error: "participant not found" });
@@ -638,8 +629,8 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
         type: "team_update",
         scope: "team",
         teamId: row.team_id,
-        actorUserId: auth?.userId ?? null,
-        actorGuestToken: guestToken,
+        actorUserId: ctx.userId,
+        actorGuestToken: ctx.guestCredentialDigest,
         payload: { kind: "role", participant_id: row.participant_id, declared_job: declaredJob },
       });
       return reply.send({ participant_id: row.participant_id, declared_job: declaredJob });
@@ -652,8 +643,12 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
     async (request, reply) => {
       const session = await getSessionById(request.params.sessionId);
       if (!session) return reply.status(404).send({ error: "session not found" });
+      reply.header("Cache-Control", "private, no-store");
+      reply.header("Vary", "Cookie");
+      const viewer = await requireObservationEventViewerAccess(session, request.headers.cookie);
+      if (!viewer) return reply.status(403).send({ error: "event participant required" });
       const rally = await getRallySnapshot(session.sessionId);
-      return reply.send({ session, rally });
+      return reply.send({ rally });
     },
   );
 
@@ -819,21 +814,22 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
   app.post<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
     "/api/v1/observation-events/:sessionId/rally/submissions",
     async (request, reply) => {
+      assertSameOriginRequest(request);
       const session = await getSessionById(request.params.sessionId);
       if (!session) return reply.status(404).send({ error: "session not found" });
-      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-      const guestToken = asString(request.body?.guest_token);
-      if (!auth && !guestToken) return reply.status(400).send({ error: "user or guest_token required" });
+      const ctx = await requireObservationEventViewerAccess(session, request.headers.cookie);
+      if (!ctx || !ctx.participantId) {
+        return reply.status(403).send({ error: "event participant required" });
+      }
       const missionId = asString(request.body?.mission_id);
       if (!missionId) return reply.status(400).send({ error: "mission_id required" });
-      const ctx = await resolveParticipantContext(session, request.headers.cookie, guestToken);
       try {
         const result = await recordRallySubmission({
           sessionId: session.sessionId,
           missionId,
-          userId: auth?.userId ?? null,
-          guestToken,
-          teamId: asString(request.body?.team_id) ?? ctx.teamId,
+          userId: ctx.userId,
+          guestToken: ctx.guestCredentialDigest,
+          teamId: ctx.teamId,
           stationId: asString(request.body?.station_id),
           sourceType: asString(request.body?.source_type),
           sourceRef: asString(request.body?.source_ref),
@@ -877,11 +873,13 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
   app.post<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
     "/api/v1/observation-events/:sessionId/location",
     async (request, reply) => {
+      assertSameOriginRequest(request);
       const session = await getSessionById(request.params.sessionId);
       if (!session) return reply.status(404).send({ error: "session not found" });
-      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-      const guestToken = asString(request.body?.guest_token);
-      if (!auth && !guestToken) return reply.status(400).send({ error: "user or guest_token required" });
+      const ctx = await requireObservationEventViewerAccess(session, request.headers.cookie);
+      if (!ctx || !ctx.participantId) {
+        return reply.status(403).send({ error: "event participant required" });
+      }
       if (!isLocationShareOpen(session)) return reply.status(403).send({ error: "location sharing is outside event time" });
       const lat = asNumber(request.body?.lat);
       const lng = asNumber(request.body?.lng);
@@ -897,12 +895,9 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
                 location_share_until::text AS location_share_until
          FROM observation_event_participants
          WHERE session_id = $1
-           AND (
-             (user_id IS NOT NULL AND user_id = $2)
-             OR (guest_token IS NOT NULL AND guest_token = $3)
-           )
+           AND participant_id = $2
          LIMIT 1`,
-        [session.sessionId, auth?.userId ?? null, guestToken],
+        [session.sessionId, ctx.participantId],
       );
       const participant = participantResult.rows[0];
       if (!participant) return reply.status(404).send({ error: "participant not found" });
@@ -923,8 +918,8 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
         sessionId: session.sessionId,
         type: "participant_location_ping",
         scope: "organizer",
-        actorUserId: auth?.userId ?? null,
-        actorGuestToken: guestToken,
+        actorUserId: ctx.userId,
+        actorGuestToken: ctx.guestCredentialDigest,
         teamId: participant.team_id,
         payload: {
           participant_id: participant.participant_id,
