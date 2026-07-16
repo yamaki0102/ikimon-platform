@@ -88,8 +88,10 @@ for (const [name, expectedTool] of Object.entries(expectedTools)) {
     if (locked?.[field] !== expectedTool[field]) throw new Error(`tool_lock_mismatch:${name}:${field}`);
   }
 }
-const wranglerConfigSource = fs.readFileSync(path.join(workerRoot, "wrangler.jsonc"), "utf8");
-if (/"build"\s*:/u.test(wranglerConfigSource)) throw new Error("custom_wrangler_build_rejected");
+const wranglerConfig = JSON.parse(fs.readFileSync(path.join(workerRoot, "wrangler.jsonc"), "utf8"));
+const containsBuildKey = (value) => value !== null && typeof value === "object"
+  && (Object.prototype.hasOwnProperty.call(value, "build") || Object.values(value).some(containsBuildKey));
+if (containsBuildKey(wranglerConfig)) throw new Error("custom_wrangler_build_rejected");
 const expected = {
   preflight: ["scripts/run_cloudflare_production_preflight.sh", [], []],
   materialize: ["scripts/run_cloudflare_production_materialization.sh", ["IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET"], ["IKIMON_R2_MATERIALIZATION_API_URL"]],
