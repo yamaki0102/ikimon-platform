@@ -74,7 +74,22 @@ test("formatPlaceDisplay removes unknown fallbacks in Japanese owner and public 
     displayMode: "area" as const,
   };
   assert.equal(formatPlaceDisplay({ placeName: "Unknown place", municipality: "浜松市", publicLocation }, "ja", "owner"), "浜松市");
-  assert.equal(formatPlaceDisplay({ placeName: "Unknown place", municipality: null, prefecture: null }, "ja", "public"), "位置をぼかしています");
+  assert.equal(formatPlaceDisplay({ placeName: "地点未指定の記録", municipality: null, prefecture: null }, "ja", "public"), "");
+});
+
+test("formatPlaceDisplay preserves the generalized fallback outside explicitly unlocated records", () => {
+  const blurredLocation = {
+    label: "位置をぼかしています",
+    scope: "blurred" as const,
+    cellId: null,
+    gridM: null,
+    radiusM: null,
+    centroidLat: null,
+    centroidLng: null,
+    displayMode: "area" as const,
+  };
+  assert.equal(formatPlaceDisplay({ publicLocation: blurredLocation }, "ja", "public"), "位置をぼかしています");
+  assert.equal(formatPlaceDisplay({}, "ja", "public"), "位置をぼかしています");
 });
 
 test("formatActorDisplay localizes common actor fallbacks", () => {

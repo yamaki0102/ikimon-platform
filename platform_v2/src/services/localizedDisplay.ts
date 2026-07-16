@@ -1,6 +1,12 @@
 import type { SiteLang } from "../i18n.js";
 import type { PublicLocationSummary } from "./publicLocation.js";
 
+const UNLOCATED_VALUES = new Set([
+  "unlocated record",
+  "location not set",
+  "地点未指定の記録",
+]);
+
 const UNKNOWN_VALUES = new Set([
   "",
   "unknown",
@@ -9,9 +15,14 @@ const UNKNOWN_VALUES = new Set([
   "unknown observer",
   "unresolved",
   "awaiting id",
+  ...UNLOCATED_VALUES,
   "同定待ち",
   "名前待ち",
 ]);
+
+function normalizedRaw(value: string | null | undefined): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
 
 function clean(value: string | null | undefined): string | null {
   const trimmed = typeof value === "string" ? value.trim() : "";
@@ -101,6 +112,7 @@ export function formatPlaceDisplay(
   mode: "owner" | "public",
 ): string {
   const blurred = lang === "ja" ? "位置をぼかしています" : "Location generalized";
+  const explicitlyUnlocated = UNLOCATED_VALUES.has(normalizedRaw(input.placeName));
   const placeName = clean(input.placeName);
   const municipality = clean(input.municipality);
   const prefecture = clean(input.prefecture);
@@ -109,10 +121,12 @@ export function formatPlaceDisplay(
   if (mode === "owner") {
     const parts = [placeName, municipality].filter((part): part is string => Boolean(part));
     if (parts.length > 0) return parts.join(" · ");
-    return prefecture ?? publicLabel ?? blurred;
+    if (prefecture || publicLabel) return prefecture ?? publicLabel ?? "";
+    return explicitlyUnlocated ? "" : blurred;
   }
 
-  return publicLabel ?? municipality ?? prefecture ?? blurred;
+  if (publicLabel || municipality || prefecture) return publicLabel ?? municipality ?? prefecture ?? "";
+  return explicitlyUnlocated ? "" : blurred;
 }
 
 export function formatActorDisplay(value: string | null | undefined, lang: SiteLang): string {
