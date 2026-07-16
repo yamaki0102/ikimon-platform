@@ -77,9 +77,9 @@ test("formatPlaceDisplay removes unknown fallbacks in Japanese owner and public 
   assert.equal(formatPlaceDisplay({ placeName: "地点未指定の記録", municipality: null, prefecture: null }, "ja", "public"), "");
 });
 
-test("formatPlaceDisplay only shows the generalized label for explicitly blurred locations", () => {
+test("formatPlaceDisplay preserves the generalized fallback outside explicitly unlocated records", () => {
   const blurredLocation = {
-    label: null,
+    label: "位置をぼかしています",
     scope: "blurred" as const,
     cellId: null,
     gridM: null,
@@ -89,7 +89,7 @@ test("formatPlaceDisplay only shows the generalized label for explicitly blurred
     displayMode: "area" as const,
   };
   assert.equal(formatPlaceDisplay({ publicLocation: blurredLocation }, "ja", "public"), "位置をぼかしています");
-  assert.equal(formatPlaceDisplay({}, "ja", "public"), "");
+  assert.equal(formatPlaceDisplay({}, "ja", "public"), "位置をぼかしています");
 });
 
 test("formatActorDisplay localizes common actor fallbacks", () => {
