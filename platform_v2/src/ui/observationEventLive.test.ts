@@ -31,7 +31,6 @@ test("live event actions expose record, guide, and field scan entry points with 
     session,
     participantSelfId: null,
     isOrganizer: false,
-    guestToken: null,
   });
   const script = observationEventLiveScript();
 
@@ -46,6 +45,9 @@ test("live event actions expose record, guide, and field scan entry points with 
   assert.match(script, /params\.set\("start", "photo"\)/);
   assert.match(script, /radiusM <= 100 \? 18/);
   assert.match(script, /fallbackLat = Number\(mapEl\?\.dataset\.centerLat\)/);
+  assert.doesNotMatch(html, /data-guest-token/);
+  assert.doesNotMatch(script, /guest_token|guestToken/);
+  assert.match(script, /new EventSource\(url, \{ withCredentials: true \}\)/);
 });
 
 test("live page gives solo micro sessions a field cockpit", () => {
@@ -57,7 +59,6 @@ test("live page gives solo micro sessions a field cockpit", () => {
     },
     participantSelfId: null,
     isOrganizer: false,
-    guestToken: null,
   });
 
   assert.match(html, /evt-solo-cockpit/);

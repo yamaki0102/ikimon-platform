@@ -19,10 +19,9 @@ function isSoloMicroSession(session: ObservationEventSessionRow): boolean {
 
 export function renderObservationRallyBody(args: {
   session: ObservationEventSessionRow;
-  guestToken?: string | null;
   isOrganizer: boolean;
 }): string {
-  const { session, guestToken, isOrganizer } = args;
+  const { session, isOrganizer } = args;
   const isSolo = isSoloMicroSession(session);
   const consoleLink = isOrganizer
     ? `<a class="evt-btn evt-btn-ghost" href="./console">主催者管制塔</a>`
@@ -32,7 +31,6 @@ export function renderObservationRallyBody(args: {
          data-rally-root
          data-session-id="${escapeHtml(session.sessionId)}"
          data-event-code="${escapeHtml(session.eventCode ?? "")}"
-         data-guest-token="${escapeHtml(guestToken ?? "")}"
          data-solo-observation="${isSolo ? "true" : "false"}"
          data-radius-m="${escapeHtml(String(session.locationRadiusM ?? 80))}">
   <article class="evt-hero evt-rally-hero">
@@ -111,7 +109,6 @@ export function observationRallyScript(): string {
   const root = document.querySelector("[data-rally-root]");
   if (!root) return;
   const sessionId = root.dataset.sessionId;
-  let guestToken = root.dataset.guestToken || readStoredGuestToken();
   const eventCode = root.dataset.eventCode || "";
   const isSolo = root.dataset.soloObservation === "true";
   const radiusM = Number(root.dataset.radiusM || 80);
@@ -123,20 +120,6 @@ export function observationRallyScript(): string {
   const topPercent = root.querySelector("[data-rally-top-percent]");
   let snapshot = { course: null, stations: [], missions: [], progress: [] };
   let watchId = null;
-  function readStoredGuestToken(){
-    try { return localStorage.getItem("evt-guest-token") || ""; } catch (_) { return ""; }
-  }
-  function ensureRallyGuestToken(label){
-    if (guestToken) return guestToken;
-    guestToken = readStoredGuestToken();
-    if (!guestToken) {
-      guestToken = "g_" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36);
-      try { localStorage.setItem("evt-guest-token", guestToken); } catch (_) {}
-    }
-    root.dataset.guestToken = guestToken;
-    if (label && window.evtFanfare) window.evtFanfare(label);
-    return guestToken;
-  }
 
   function escapeText(s){
     return String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -264,8 +247,7 @@ export function observationRallyScript(): string {
     render();
   }
   async function submitMission(missionId){
-    const token = ensureRallyGuestToken("この記録でラリー参加を開始");
-    const payload = { mission_id: missionId, guest_token: token, source_type: "manual_rally", count_value: 1 };
+    const payload = { mission_id: missionId, source_type: "manual_rally", count_value: 1 };
     const r = await fetch("/api/v1/observation-events/" + sessionId + "/rally/submissions", {
       method: "POST",
       credentials: "include",
@@ -295,7 +277,6 @@ export function observationRallyScript(): string {
       return;
     }
     if (watchId !== null) return;
-    const token = ensureRallyGuestToken("ラリー参加を開始");
     watchId = navigator.geolocation.watchPosition(async (pos) => {
       try {
         await fetch("/api/v1/observation-events/" + sessionId + "/location", {
@@ -303,7 +284,6 @@ export function observationRallyScript(): string {
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            guest_token: token,
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
           }),
@@ -349,8 +329,7 @@ export function observationRallyScript(): string {
   }
   function connectSse(){
     if (typeof EventSource === "undefined") return;
-    const tokenParam = guestToken ? "?guest_token=" + encodeURIComponent(guestToken) : "";
-    const es = new EventSource("/api/v1/observation-events/" + sessionId + "/live" + tokenParam, { withCredentials: true });
+    const es = new EventSource("/api/v1/observation-events/" + sessionId + "/live", { withCredentials: true });
     es.addEventListener("snapshot", ev => {
       try { (JSON.parse(ev.data).events || []).forEach(handleLive); } catch (_) {}
     });
