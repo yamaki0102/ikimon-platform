@@ -36,6 +36,21 @@
     "secretFreeAncestorRequired": true,
     "initialEnvironmentSecretAllowlistEnforced": true,
     "preflightReceiptVerifiedByExecutorBeforeSecretInjection": true,
+    "localToolchain": {
+      "customWranglerBuildCommandAllowed": false,
+      "tools": {
+        "tsx": {
+          "version": "4.22.4",
+          "resolved": "https://registry.npmjs.org/tsx/-/tsx-4.22.4.tgz",
+          "integrity": "sha512-X8EX+XV4QR5xCsrgxaED954zTDfY8KqlDtskKEL0cHhyS/P8b4IFOvGDQpsC9Q1XnLq915wEfwwY/zzskCtmhg=="
+        },
+        "wrangler": {
+          "version": "4.110.0",
+          "resolved": "https://registry.npmjs.org/wrangler/-/wrangler-4.110.0.tgz",
+          "integrity": "sha512-xZeXKYi7hxQRF5anL+v77RkufJNpF9f3Eqeyqq2QBsETpLZgh0Agj0jJ6JPtkbgn6ukZdh8OK5egsGPWIditgg=="
+        }
+      }
+    },
     "phases": {
       "preflight": {
         "marker": "ikimon.production-phase/v1:preflight",
