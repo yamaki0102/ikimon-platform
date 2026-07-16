@@ -21826,6 +21826,12 @@ function originalUiStaticAssetKey(pathname: string): string {
 }
 
 async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promise<R2ObjectBody | null> {
+  const pinnedManifestHash = env.IKIMON_UI_MANIFEST_HASH?.trim() ?? "";
+  if (/^[a-f0-9]{64}$/.test(pinnedManifestHash)) {
+    const relativeKey = legacyKey.replace(/^original-ui\//, "");
+    return await env.ASSET_BUCKET.get(`original-ui/versions/${pinnedManifestHash}/${relativeKey}`);
+  }
+
   const targetEnv = env.ENVIRONMENT === "production" ? "production" : "staging";
   const pointer = await env.ASSET_BUCKET.get(`original-ui/current/${targetEnv}.json`);
   if (pointer) {

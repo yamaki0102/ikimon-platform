@@ -20382,7 +20382,37 @@ test("production original UI html serves materialized anonymous pages from R2 wi
   }
 });
 
-test("production original UI switches atomically to the current versioned prefix", async () => {
+test("production original UI follows the deployed or rollback manifest hash instead of the mutable pointer", async () => {
+  const { env } = createEnv();
+  const pointerManifestHash = "a".repeat(64);
+  const pinnedManifestHash = "b".repeat(64);
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    IKIMON_UI_MANIFEST_HASH: pinnedManifestHash
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><main>legacy-pointer</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put(`original-ui/versions/${pointerManifestHash}/html/root.html`, "<!doctype html><main>mutable-pointer</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put(`original-ui/versions/${pinnedManifestHash}/html/root.html`, "<!doctype html><main>deployed-hash</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put("original-ui/current/production.json", JSON.stringify({ manifest_hash: pointerManifestHash, version_prefix: `original-ui/versions/${pointerManifestHash}` }), { httpMetadata: { contentType: "application/json" } });
+
+  const response = await worker.fetch(new Request("https://ikimon.life/"), productionEnv);
+  assert.equal(response.status, 200);
+  const body = await response.text();
+  assert.match(body, /deployed-hash/);
+  assert.doesNotMatch(body, /mutable-pointer|legacy-pointer/);
+
+  const rollbackResponse = await worker.fetch(new Request("https://ikimon.life/"), {
+    ...productionEnv,
+    IKIMON_UI_MANIFEST_HASH: pointerManifestHash
+  });
+  assert.equal(rollbackResponse.status, 200);
+  const rollbackBody = await rollbackResponse.text();
+  assert.match(rollbackBody, /mutable-pointer/);
+  assert.doesNotMatch(rollbackBody, /deployed-hash|legacy-pointer/);
+});
+
+test("production original UI falls back to the current versioned pointer without a valid deployed hash", async () => {
   const { env } = createEnv();
   const productionEnv = { ...env, ENVIRONMENT: "production" };
   const manifestHash = "a".repeat(64);
@@ -20396,6 +20426,13 @@ test("production original UI switches atomically to the current versioned prefix
   const body = await response.text();
   assert.match(body, /versioned-pointer/);
   assert.doesNotMatch(body, /legacy-pointer/);
+
+  const invalidHashResponse = await worker.fetch(new Request("https://ikimon.life/"), {
+    ...productionEnv,
+    IKIMON_UI_MANIFEST_HASH: "invalid-manifest-hash"
+  });
+  assert.equal(invalidHashResponse.status, 200);
+  assert.match(await invalidHashResponse.text(), /versioned-pointer/);
 });
 
 test("production public www host redirects to the canonical apex host", async () => {
@@ -20752,6 +20789,8 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.match(materializerSource, /op: "checkpoint"/);
   assert.match(workerSource, /original-ui\/current\/\$\{targetEnv\}\.json/);
   assert.match(workerSource, /getVersionedOriginalUiObject/);
+  assert.match(workerSource, /env\.IKIMON_UI_MANIFEST_HASH/);
+  assert.match(workerSource, /original-ui\/versions\/\$\{pinnedManifestHash\}/);
   assert.match(workerSource, /parsed\.version_prefix/);
   for (const slug of ["aikan-renri-guide-relay", "hamamatsu-heritage-guide-relay"]) {
     const path = `/guide-programs/${slug}`;
