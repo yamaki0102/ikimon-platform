@@ -70,7 +70,7 @@ const expected = {
     "IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL", "IKIMON_PRODUCTION_PREFLIGHT_RECEIPT_SHA256",
     "IKIMON_PRODUCTION_D1_MIGRATIONS", "IKIMON_PRODUCTION_SECRET_SYNC",
   ]],
-  verify: ["executor:fixed-http-exact-sha", [], []],
+  verify: ["executor:fixed-http-exact-sha", [], ["IKIMON_UI_BUNDLE_HASH", "IKIMON_UI_MANIFEST_HASH"]],
 };
 const commonNonSecret = [
   "PATH", "HOME", "CI", "IKIMON_AUTOMATION_JOB_FILE", "IKIMON_TERMINAL_EVENT_FILE",

@@ -110,7 +110,9 @@
           "IKIMON_PRODUCTION_PHASE_V1",
           "IKIMON_PRODUCTION_SOURCE_DIR",
           "IKIMON_EXPECTED_GIT_SHA",
-          "IKIMON_OPS_JOB_ID"
+          "IKIMON_OPS_JOB_ID",
+          "IKIMON_UI_BUNDLE_HASH",
+          "IKIMON_UI_MANIFEST_HASH"
         ]
       }
     }
