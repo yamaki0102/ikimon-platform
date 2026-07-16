@@ -35,7 +35,7 @@ test("manifest is app-first and localized from device or query language", async 
   }
 });
 
-test("app service worker keeps authenticated navigation out of shared caches", async () => {
+test("app service worker keeps authenticated navigation out of shared caches without activate-time self-navigation", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/app-sw.js" });
@@ -52,8 +52,8 @@ test("app service worker keeps authenticated navigation out of shared caches", a
     assert.match(response.body, /\/assets\/brand\/favicon-32\.png/);
     assert.match(response.body, /MAP_NAV_RE/);
     assert.match(response.body, /PERSONAL_NAV_RE/);
-    assert.match(response.body, /REFRESH_NAV_RE/);
-    const navigationPattern = (name: "PERSONAL_NAV_RE" | "REFRESH_NAV_RE"): RegExp => {
+    assert.doesNotMatch(response.body, /REFRESH_NAV_RE/);
+    const navigationPattern = (name: "PERSONAL_NAV_RE"): RegExp => {
       const declaration = response.body
         .split("\n")
         .find((line) => line.startsWith(`const ${name} = `));
@@ -62,21 +62,16 @@ test("app service worker keeps authenticated navigation out of shared caches", a
       return new Function(`return ${expression}`)() as RegExp;
     };
     const personalNavigation = navigationPattern("PERSONAL_NAV_RE");
-    const refreshNavigation = navigationPattern("REFRESH_NAV_RE");
     assert.equal(personalNavigation.test("/record"), true);
     assert.equal(personalNavigation.test("/ja/record"), true);
     assert.equal(personalNavigation.test("/records"), true);
     assert.equal(personalNavigation.test("/ja/records"), true);
-    assert.equal(refreshNavigation.test("/record"), false);
-    assert.equal(refreshNavigation.test("/ja/record"), false);
-    assert.equal(refreshNavigation.test("/records"), false);
-    assert.equal(refreshNavigation.test("/ja/records"), false);
-    assert.equal(refreshNavigation.test("/map"), true);
     assert.match(response.body, /profile(?:\\\/settings)?/);
     assert.match(response.body, /cache: 'no-store'/);
+    assert.match(response.body, /self\.clients\.claim/);
     assert.match(response.body, /clients\.matchAll/);
-    assert.match(response.body, /client\.navigate/);
-    assert.match(response.body, /searchParams\.set\('sw', VERSION\)/);
+    assert.doesNotMatch(response.body, /client\.navigate/);
+    assert.doesNotMatch(response.body, /searchParams\.set\('sw', VERSION\)/);
     assert.match(response.body, /request\.mode === 'navigate'/);
     assert.match(response.body, /ikimon-app-outbox-sync/);
     assert.match(response.body, /self\.addEventListener\('sync'/);
