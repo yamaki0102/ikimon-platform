@@ -78,6 +78,19 @@ test("light posting patch removes passive awaiting-ID pressure from normal cards
   assert.match(patched, /obs-card-media/);
 });
 
+test("light posting patch preserves identification cues when the caller keeps the dedicated lane", () => {
+  const html = `<article class="obs-card">
+    <div class="obs-card-species is-awaiting"><span>名前待ち</span></div>
+    <div class="obs-card-actions"><a href="/observations/1#identify">名前を手伝う</a></div>
+  </article>`;
+
+  const patched = patchLightPostingHtml(html, { suppressPassiveIdentification: false });
+
+  assert.match(patched, /is-awaiting/);
+  assert.match(patched, /名前待ち/);
+  assert.match(patched, /名前を手伝う/);
+});
+
 test("light posting patch keeps specialist review while removing the passive identify link", () => {
   const html = `<div class="obs-card-actions">
     <a href="/observations/1#identify">Identify</a>
