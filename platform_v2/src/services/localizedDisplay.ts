@@ -9,8 +9,11 @@ const UNKNOWN_VALUES = new Set([
   "unknown observer",
   "unresolved",
   "awaiting id",
+  "unlocated record",
+  "location not set",
   "同定待ち",
   "名前待ち",
+  "地点未指定の記録",
 ]);
 
 function clean(value: string | null | undefined): string | null {
@@ -105,14 +108,15 @@ export function formatPlaceDisplay(
   const municipality = clean(input.municipality);
   const prefecture = clean(input.prefecture);
   const publicLabel = clean(input.publicLocation?.label);
+  const explicitlyBlurred = input.publicLocation?.scope === "blurred";
 
   if (mode === "owner") {
     const parts = [placeName, municipality].filter((part): part is string => Boolean(part));
     if (parts.length > 0) return parts.join(" · ");
-    return prefecture ?? publicLabel ?? blurred;
+    return prefecture ?? publicLabel ?? (explicitlyBlurred ? blurred : "");
   }
 
-  return publicLabel ?? municipality ?? prefecture ?? blurred;
+  return publicLabel ?? municipality ?? prefecture ?? (explicitlyBlurred ? blurred : "");
 }
 
 export function formatActorDisplay(value: string | null | undefined, lang: SiteLang): string {
