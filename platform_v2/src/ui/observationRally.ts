@@ -19,7 +19,7 @@ function isSoloMicroSession(session: ObservationEventSessionRow): boolean {
 
 export function renderObservationRallyBody(args: {
   session: ObservationEventSessionRow;
-  guestToken: string | null;
+  guestToken?: string | null;
   isOrganizer: boolean;
 }): string {
   const { session, guestToken, isOrganizer } = args;
