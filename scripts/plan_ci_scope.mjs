@@ -57,6 +57,7 @@ export function planCiScope(inputFiles, { forceFull = false } = {}) {
     /^scripts\/tests\/plan_ci_scope\.tests\.mjs$/,
     /^platform_v2\/package(-lock)?\.json$/,
     /^platform_v2\/playwright(?:\.[^/]+)?\.config\.ts$/,
+    /^platform_v2\/src\/appInstall\.ts$/,
     /^platform_v2\/src\/(server|config)\.ts$/,
   ]);
 

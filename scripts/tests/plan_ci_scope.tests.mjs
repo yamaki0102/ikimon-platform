@@ -70,6 +70,13 @@ test('browser infrastructure changes keep every browser gate', () => {
   assert.equal(plan.run_scene_read_smoke, true);
 });
 
+test('app install service worker changes keep every browser gate', () => {
+  const plan = planCiScope(['platform_v2/src/appInstall.ts']);
+  assert.equal(plan.run_record_funnel_browser_qa, true);
+  assert.equal(plan.run_map_performance_qa, true);
+  assert.equal(plan.run_scene_read_smoke, true);
+});
+
 test('non-CI deploy workflow changes do not force browser suites', () => {
   const plan = planCiScope(['.github/workflows/deploy.yml']);
   assert.equal(plan.run_platform, true);
