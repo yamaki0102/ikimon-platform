@@ -59,11 +59,20 @@ function removePassiveIdentificationPressure(html: string): string {
     .replace(/\s*<div class="obs-card-actions">\s*<\/div>/g, "");
 }
 
+function normalizeProductPath(pathname: string): string {
+  const segments = pathname.split("/").filter(Boolean);
+  const first = segments[0]?.toLowerCase();
+  if (first === "ja" || first === "en" || first === "es" || first === "pt-br") {
+    segments.shift();
+  }
+  return `/${segments.join("/")}`.replace(/\/+$/, "") || "/";
+}
+
 function shouldSuppressPassiveIdentification(urlValue: string): boolean {
   try {
     const url = new URL(urlValue || "/", "https://ikimon.local");
-    const pathname = url.pathname.replace(/\/+$/, "") || "/";
-    if (pathname === "/") return true;
+    const pathname = normalizeProductPath(url.pathname);
+    if (pathname === "/" || pathname === "/home") return true;
     if (pathname === "/records") return url.searchParams.get("view") !== "needs_id";
     return pathname === "/profile" || pathname.startsWith("/profile/");
   } catch {
@@ -79,7 +88,8 @@ export function patchLightPostingHtml(html: string, options: LightPostingPatchOp
     .replace(OLD_UPSERT_COORDINATES, NEW_UPSERT_COORDINATES)
     .replace(OLD_PHOTO_SUBMIT_LABEL, NEW_PHOTO_SUBMIT_LABEL)
     .replace(OLD_SUCCESS_MESSAGE, NEW_SUCCESS_MESSAGE)
-    .replaceAll(OLD_PHOTO_TRAY_HELP, NEW_PHOTO_TRAY_HELP);
+    .replaceAll(OLD_PHOTO_TRAY_HELP, NEW_PHOTO_TRAY_HELP)
+    .replace(/\s*<div class="obs-card-place">\s*<\/div>/g, "");
 
   if (options.suppressPassiveIdentification !== false) {
     patched = removePassiveIdentificationPressure(patched);
