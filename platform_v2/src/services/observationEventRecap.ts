@@ -29,7 +29,6 @@ export interface RecapHighlights {
 }
 
 export interface RecapTeamSummary {
-  teamId: string;
   name: string;
   color: string;
   memberCount: number;
@@ -40,16 +39,12 @@ export interface RecapTeamSummary {
 }
 
 export interface RecapTimelineEntry {
-  liveEventId: string;
   type: string;
-  scope: string;
-  teamId: string | null;
   payload: Record<string, unknown>;
   createdAt: string;
 }
 
 export interface RecapImpactRecord {
-  impactId: string;
   impactType: string;
   description: string;
   externalRef: string | null;
@@ -57,7 +52,7 @@ export interface RecapImpactRecord {
 }
 
 export interface ObservationEventRecap {
-  session: ObservationEventSessionRow;
+  session: PublicObservationEventRecapSession;
   permissions: {
     canManage: boolean;
   };
@@ -70,14 +65,130 @@ export interface ObservationEventRecap {
 }
 
 export interface ParticipantContribution {
-  participantId: string | null;
   displayName: string | null;
-  teamId: string | null;
   observationsCount: number;
   uniqueSpeciesCount: number;
   absencesCount: number;
   questsAccepted: number;
   recentTaxa: string[];
+}
+
+export type PublicObservationEventRecapSession = Pick<
+  ObservationEventSessionRow,
+  | "sessionId"
+  | "eventCode"
+  | "title"
+  | "plan"
+  | "primaryMode"
+  | "activeModes"
+  | "startedAt"
+  | "endedAt"
+  | "targetSpecies"
+>;
+
+interface ObservationEventTimelineSource {
+  type: string;
+  payload: Record<string, unknown> | null;
+  createdAt?: string;
+  created_at?: string;
+}
+
+function safeTimelineText(value: unknown, maxLength = 160): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+function timelineTaxonName(payload: Record<string, unknown>): string | null {
+  return safeTimelineText(
+    payload.taxon_name
+      ?? payload.taxonName
+      ?? payload.primary_subject
+      ?? payload.primarySubject,
+  );
+}
+
+/**
+ * Public event timeline DTO. The allowlist deliberately excludes coordinates,
+ * actor identities, guest credentials, team IDs, and storage IDs.
+ */
+export function sanitizeObservationEventTimeline(
+  events: readonly ObservationEventTimelineSource[],
+): RecapTimelineEntry[] {
+  const timeline: RecapTimelineEntry[] = [];
+  for (const event of events) {
+    const payload = event.payload ?? {};
+    const createdAt = event.createdAt ?? event.created_at;
+    if (!createdAt) continue;
+
+    if (["observation_added", "guide_scene_added", "field_scan_added"].includes(event.type)) {
+      timeline.push({
+        type: event.type,
+        payload: { taxon_name: timelineTaxonName(payload) ?? "未同定" },
+        createdAt,
+      });
+      continue;
+    }
+    if (event.type === "absence_recorded") {
+      timeline.push({
+        type: event.type,
+        payload: {
+          searched_taxon: safeTimelineText(payload.searched_taxon ?? payload.searchedTaxon) ?? "未指定",
+          confidence: safeTimelineText(payload.confidence, 40) ?? "searched",
+        },
+        createdAt,
+      });
+      continue;
+    }
+    if (event.type === "announce") {
+      const message = safeTimelineText(payload.message, 500);
+      if (message) timeline.push({ type: event.type, payload: { message }, createdAt });
+      continue;
+    }
+    if (["rare_species", "target_hit", "milestone", "fanfare"].includes(event.type)) {
+      timeline.push({
+        type: event.type,
+        payload: {
+          taxon_name: timelineTaxonName(payload),
+          headline: safeTimelineText(payload.headline, 240),
+        },
+        createdAt,
+      });
+      continue;
+    }
+    if (event.type === "rally_task_submitted") {
+      timeline.push({
+        type: event.type,
+        payload: {
+          title: safeTimelineText(payload.title, 240),
+          review_status: safeTimelineText(payload.review_status ?? payload.reviewStatus, 40),
+          count_value: typeof payload.count_value === "number"
+            ? payload.count_value
+            : typeof payload.countValue === "number"
+              ? payload.countValue
+              : null,
+        },
+        createdAt,
+      });
+    }
+  }
+  return timeline;
+}
+
+export function publicObservationEventRecapSession(
+  session: ObservationEventSessionRow,
+): PublicObservationEventRecapSession {
+  return {
+    sessionId: session.sessionId,
+    eventCode: session.eventCode,
+    title: session.title,
+    plan: session.plan,
+    primaryMode: session.primaryMode,
+    activeModes: session.activeModes,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt,
+    targetSpecies: session.targetSpecies,
+  };
 }
 
 export async function buildRecap(
@@ -220,7 +331,6 @@ export async function buildRecap(
   };
 
   const teams: RecapTeamSummary[] = teamsResult.rows.map((r) => ({
-    teamId: r.team_id,
     name: r.name,
     color: r.color,
     memberCount: Number(r.member_count),
@@ -230,17 +340,9 @@ export async function buildRecap(
     questsAccepted: Number(r.quests_accepted),
   }));
 
-  const timeline: RecapTimelineEntry[] = timelineResult.rows.map((r) => ({
-    liveEventId: r.live_event_id,
-    type: r.type,
-    scope: r.scope,
-    teamId: r.team_id,
-    payload: r.payload ?? {},
-    createdAt: r.created_at,
-  }));
+  const timeline = sanitizeObservationEventTimeline(timelineResult.rows);
 
   const impacts: RecapImpactRecord[] = impactsResult.rows.map((r) => ({
-    impactId: r.impact_id,
     impactType: r.impact_type,
     description: r.description,
     externalRef: r.external_ref,
@@ -270,7 +372,7 @@ export async function buildRecap(
   }
 
   return {
-    session,
+    session: publicObservationEventRecapSession(session),
     permissions: {
       canManage: Boolean(options.viewerUserId && options.viewerUserId === session.organizerUserId),
     },
@@ -292,18 +394,21 @@ async function buildContribution(
     participant_id: string;
     display_name: string;
     team_id: string | null;
+    guest_token: string | null;
   }>(
-    `SELECT participant_id, display_name, team_id
+    `SELECT participant_id, display_name, team_id, guest_token
      FROM observation_event_participants
      WHERE session_id = $1
        AND (
          (user_id IS NOT NULL AND user_id = $2)
          OR (guest_token IS NOT NULL AND guest_token = $3)
        )
+     ORDER BY CASE WHEN user_id = $2 THEN 0 ELSE 1 END
      LIMIT 1`,
     [sessionId, viewer.userId, viewer.guestToken],
   );
   const participant = participantResult.rows[0] ?? null;
+  const contributionGuestToken = participant?.guest_token ?? viewer.guestToken;
 
   const [obsRow, absenceRow, questRow, recentRow] = await Promise.all([
     pool.query<{ obs_count: string; species_count: string }>(
@@ -316,7 +421,7 @@ async function buildContribution(
            (actor_user_id IS NOT NULL AND actor_user_id = $2)
            OR (actor_guest_token IS NOT NULL AND actor_guest_token = $3)
          )`,
-      [sessionId, viewer.userId, viewer.guestToken],
+      [sessionId, viewer.userId, contributionGuestToken],
     ),
     pool.query<{ absence_count: string }>(
       `SELECT COUNT(*)::text AS absence_count
@@ -326,7 +431,7 @@ async function buildContribution(
            (user_id IS NOT NULL AND user_id = $2)
            OR (guest_token IS NOT NULL AND guest_token = $3)
          )`,
-      [sessionId, viewer.userId, viewer.guestToken],
+      [sessionId, viewer.userId, contributionGuestToken],
     ),
     pool.query<{ quests_accepted: string }>(
       `SELECT COUNT(*)::text AS quests_accepted
@@ -347,7 +452,7 @@ async function buildContribution(
          )
        ORDER BY taxon_name
        LIMIT 12`,
-      [sessionId, viewer.userId, viewer.guestToken],
+      [sessionId, viewer.userId, contributionGuestToken],
     ),
   ]);
 
@@ -355,9 +460,7 @@ async function buildContribution(
   const abs = absenceRow.rows[0];
   const qst = questRow.rows[0];
   return {
-    participantId: participant?.participant_id ?? null,
     displayName: participant?.display_name ?? null,
-    teamId: participant?.team_id ?? null,
     observationsCount: Number(obs?.obs_count ?? 0),
     uniqueSpeciesCount: Number(obs?.species_count ?? 0),
     absencesCount: Number(abs?.absence_count ?? 0),
