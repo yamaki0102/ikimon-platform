@@ -11,6 +11,13 @@ const GLOBAL_STAGING_FIXTURE_PREFIXES = [
 const GLOBAL_STAGING_FIXTURE_SOURCE_REGEX =
   "^(sample[-_]cadence|smoke|manual[-_]occurrence[-_]map|staging[-_]session[-_]smoke|staging[-_]write[-_]smoke|rally[-_]smoke)";
 
+const OBSERVATION_EVENT_QA_CODE_REGEX =
+  "^(qa|e2e|fixture|smoke|regression|test|pr[0-9]+)([-_]|$)";
+const OBSERVATION_EVENT_QA_TITLE_REGEX =
+  "(^|[^[:alnum:]_])(qa|e2e|fixture|smoke|regression|test)([^[:alnum:]_]|$)|テスト|検証用|動作確認|(^|[^[:alnum:]_])(pr[0-9]+|pr[[:space:]]*#?[0-9]+).*prod(uction)?.*rally([^[:alnum:]_]|$)";
+const OBSERVATION_EVENT_QA_CONFIG_REGEX =
+  '"(qa_fixture|qaFixture|is_fixture|isFixture|test_fixture|testFixture)"[[:space:]]*:[[:space:]]*(true|"(1|true|yes|qa|fixture|test|smoke)")|"(public_listed|publicListVisible)"[[:space:]]*:[[:space:]]*false|"(public_list_visibility|publicListVisibility)"[[:space:]]*:[[:space:]]*"(hidden|internal|qa|fixture|test)"|"(source|fixture_prefix|fixturePrefix)"[[:space:]]*:[[:space:]]*"[^"]*(qa|e2e|fixture|smoke|regression|test)[^"]*"';
+
 export type StagingFixtureColumns = {
   userIdColumn?: string;
   actorUserIdColumn?: string;
@@ -82,11 +89,16 @@ export function buildStagingFixturePredicate(
   // Global cleanup/exclusion also needs to catch rows whose ids drifted but still
   // carry smoke provenance in source_payload.source.
   if (!fixturePrefix) {
+    if (columns.eventCodeColumn) {
+      clauses.push(buildRegexSql(columns.eventCodeColumn, OBSERVATION_EVENT_QA_CODE_REGEX, true));
+    }
     if (columns.titleColumn) {
       clauses.push(buildRegexSql(columns.titleColumn, GLOBAL_STAGING_FIXTURE_SOURCE_REGEX, true));
+      clauses.push(buildRegexSql(columns.titleColumn, OBSERVATION_EVENT_QA_TITLE_REGEX, true));
     }
     if (columns.configColumn) {
       clauses.push(buildRegexSql(columns.configColumn, GLOBAL_STAGING_FIXTURE_SOURCE_REGEX, true));
+      clauses.push(buildRegexSql(columns.configColumn, OBSERVATION_EVENT_QA_CONFIG_REGEX, true));
     }
     if (columns.visitSourceColumn) {
       clauses.push(buildRegexSql(columns.visitSourceColumn, GLOBAL_STAGING_FIXTURE_SOURCE_REGEX, true));
