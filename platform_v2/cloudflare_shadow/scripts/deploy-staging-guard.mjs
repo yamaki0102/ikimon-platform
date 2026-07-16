@@ -2,6 +2,8 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { assertStagingExecuteState } from "./staging-deploy-state-gate.mjs";
+import { waitForExactStagingRuntimeVersion } from "./staging-runtime-smoke.mjs";
 
 const requiredApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
 const stagingWorkerUrl = "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev";
@@ -202,14 +204,14 @@ async function hashFiles(files) {
 }
 
 async function hashDeployInputs() {
-  const listed = await gitText(["ls-files", "--", "src", "scripts/deploy-staging-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const listed = await gitText(["ls-files", "--", "src", "scripts/deploy-staging-guard.mjs", "scripts/staging-deploy-state-gate.mjs", "scripts/staging-runtime-smoke.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   const files = listed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).sort();
   return hashFiles(files);
 }
 
 async function currentDeployState() {
   const gitHead = await gitText(["rev-parse", "HEAD"]);
-  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "scripts/deploy-staging-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "scripts/deploy-staging-guard.mjs", "scripts/staging-deploy-state-gate.mjs", "scripts/staging-runtime-smoke.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   return {
     gitHead,
     gitStatus,
@@ -224,8 +226,7 @@ async function smoke(baseUrl, expectedSha) {
   const checks = [
     { path: "/health", service: undefined },
     { path: "/healthz", service: "ikimon-life-cloudflare-worker", environment: "staging" },
-    { path: "/readyz", service: "ikimon-life-cloudflare-worker", environment: "staging" },
-    { path: "/api/v1/runtime/version", service: "ikimon.life", environment: "staging", runtime: "cloudflare-worker" }
+    { path: "/readyz", service: "ikimon-life-cloudflare-worker", environment: "staging" }
   ];
   for (const check of checks) {
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${check.path}`, {
@@ -239,9 +240,7 @@ async function smoke(baseUrl, expectedSha) {
       && payload !== null
       && payload.ok === true
       && (!check.service || payload.service === check.service)
-      && (!check.environment || payload.environment === check.environment)
-      && (!check.runtime || payload.runtime === check.runtime)
-      && (check.path !== "/api/v1/runtime/version" || payload.gitSha === expectedSha);
+      && (!check.environment || payload.environment === check.environment);
     events.push({
       command: `smoke ${baseUrl}${check.path}`,
       exitCode: ok ? 0 : 1,
@@ -253,6 +252,11 @@ async function smoke(baseUrl, expectedSha) {
       throw new Error(`Staging smoke failed for ${baseUrl}${check.path}: ${response.status} ${contentType}`);
     }
   }
+  await waitForExactStagingRuntimeVersion({
+    baseUrl,
+    expectedSha,
+    onAttempt: (event) => events.push(event)
+  });
 }
 
 const startedAt = new Date().toISOString();
@@ -260,6 +264,7 @@ let state;
 let triggerWarning = null;
 try {
   state = await currentDeployState();
+  assertStagingExecuteState({ execute, before: state, after: state, phase: "start" });
   const releaseVars = {
     IKIMON_GIT_SHA: state.gitHead,
     IKIMON_WORKER_VERSION: `cloudflare-executor-${state.gitHead.slice(0, 12)}`,
@@ -277,6 +282,8 @@ try {
   await run("npx", wranglerArgs(true));
 
   if (execute) {
+    const preDeployState = await currentDeployState();
+    assertStagingExecuteState({ execute, before: state, after: preDeployState, phase: "pre-deploy" });
     try {
       await run("npx", wranglerArgs(false));
     } catch (error) {
