@@ -102,27 +102,36 @@ test("staging smoke backdates, alerts, verifies admin, refreshes, and resolves",
   assert.match(smokeSource, /\/ops\/public-map-snapshot/);
 });
 
-test("public map snapshot alert smoke is wired into the staging full release gate", async () => {
+test("public map snapshot alert smoke stays documented while Cloudflare staging uses the command bus", async () => {
   const [
-    workflowSource,
     manifestSource,
     manifestSyncSource,
-    deploymentDoc,
-    stagingRunbook,
-    cutoverRunbook,
+    portableReleaseSource,
   ] = await Promise.all([
-    readFile(new URL("../../../.github/workflows/deploy-staging.yml", import.meta.url), "utf8"),
     readFile(new URL("../../../ops/deploy/staging_manifest.json", import.meta.url), "utf8"),
     readFile(new URL("../../../scripts/check_staging_manifest_sync.ps1", import.meta.url), "utf8"),
-    readFile(new URL("../../../docs/DEPLOYMENT.md", import.meta.url), "utf8"),
-    readFile(new URL("../../../docs/STAGING_RUNBOOK.md", import.meta.url), "utf8"),
-    readFile(new URL("../../../ops/CUTOVER_RUNBOOK.md", import.meta.url), "utf8"),
+    readFile(new URL("../../../scripts/run_cloudflare_staging_release.sh", import.meta.url), "utf8"),
   ]);
   const manifest = JSON.parse(manifestSource) as {
+    strategy?: string;
+    githubActionsRequired?: boolean;
+    portableReleaseScript?: string;
+    promotion?: {
+      commandBusOnly?: boolean;
+      pinCommitSha?: boolean;
+      executorIsolation?: string;
+    };
     releaseGates?: Array<{ key: string; scope: string; command: string; workflowMarkers: string[] }>;
+    notes?: string[];
   };
   const gate = manifest.releaseGates?.find((item) => item.key === "public_map_snapshot_alert_lifecycle");
 
+  assert.equal(manifest.strategy, "cloudflare_queue_sandbox_executor");
+  assert.equal(manifest.githubActionsRequired, false);
+  assert.equal(manifest.portableReleaseScript, "scripts/run_cloudflare_staging_release.sh");
+  assert.equal(manifest.promotion?.commandBusOnly, true);
+  assert.equal(manifest.promotion?.pinCommitSha, true);
+  assert.equal(manifest.promotion?.executorIsolation, "one_fresh_sandbox_per_job");
   assert.ok(gate);
   assert.equal(gate.scope, "verify_level_full");
   assert.match(gate.command, /smoke:public-map-snapshot-alert/);
@@ -132,20 +141,15 @@ test("public map snapshot alert smoke is wired into the staging full release gat
   assert.match(gate.command, /--require-admin/);
   assert.match(gate.command, /--capture-webhook/);
   assert.match(gate.command, /--require-webhook/);
-  for (const marker of gate.workflowMarkers) {
-    assert.match(workflowSource, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  }
-  assert.match(workflowSource, /if \[ "\$VERIFY_LEVEL" = "full" \]/);
-  assert.match(workflowSource, /npm run smoke:public-map-snapshot-alert/);
-  assert.match(workflowSource, /IKIMON_OPS_STALENESS_WEBHOOK_URL/);
-  assert.match(workflowSource, /--create-smoke-admin-session/);
-  assert.match(workflowSource, /--capture-webhook/);
-  assert.match(manifestSyncSource, /releaseGates/);
-  assert.match(manifestSyncSource, /workflowMarkers/);
-  assert.match(deploymentDoc, /public_map_snapshot_alert_lifecycle/);
-  assert.match(stagingRunbook, /public_map_snapshot_alert_lifecycle/);
-  assert.match(stagingRunbook, /production host/);
-  assert.match(cutoverRunbook, /public_map_snapshot_alert_lifecycle/);
+  assert.match(portableReleaseSource, /deploy:staging:dry-run/);
+  assert.match(portableReleaseSource, /Verify Cloudflare staging public routes/);
+  assert.match(portableReleaseSource, /Staging D1 migration is a separate approval-bound operation/);
+  assert.doesNotMatch(portableReleaseSource, /smoke:public-map-snapshot-alert/);
+  assert.match(manifestSyncSource, /cloudflare_queue_sandbox_executor/);
+  assert.match(manifestSyncSource, /Retired deploy workflow remains/);
+  assert.ok(
+    manifest.notes?.some((note) => note.includes("releaseGates currently documents the legacy VPS")),
+  );
 });
 
 test("public map snapshot ops webhook resolves dedicated env before generic env", () => {
