@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { patchLightPostingHtml } from "./lightPostingHtmlPatch.js";
+import Fastify from "fastify";
+import { patchLightPostingHtml, registerLightPostingHtmlPatch } from "./lightPostingHtmlPatch.js";
 
 test("light posting patch allows a signed-in photo post without coordinates", () => {
   const html = `<script>
@@ -63,6 +64,7 @@ test("light posting patch removes passive awaiting-ID pressure from normal cards
       <div class="obs-card-species is-awaiting"><span class="obs-card-species-label">名前待ち</span></div>
     </a>
     <footer>
+      <div class="obs-card-place"></div>
       <div class="obs-card-actions">
         <a href="/observations/1#identify">名前を手伝う</a>
       </div>
@@ -75,6 +77,7 @@ test("light posting patch removes passive awaiting-ID pressure from normal cards
   assert.doesNotMatch(patched, /名前待ち/);
   assert.doesNotMatch(patched, /名前を手伝う/);
   assert.doesNotMatch(patched, /obs-card-actions/);
+  assert.doesNotMatch(patched, /obs-card-place/);
   assert.match(patched, /obs-card-media/);
 });
 
@@ -89,6 +92,25 @@ test("light posting patch preserves identification cues when the caller keeps th
   assert.match(patched, /is-awaiting/);
   assert.match(patched, /名前待ち/);
   assert.match(patched, /名前を手伝う/);
+});
+
+test("light posting hook suppresses passive identification on localized feeds but keeps needs-id review", async () => {
+  const app = Fastify();
+  registerLightPostingHtmlPatch(app);
+  const card = `<article class="obs-card"><div class="obs-card-species is-awaiting"><span>名前待ち</span></div></article>`;
+  app.get("/ja/records", async (_request, reply) => reply.type("text/html").send(card));
+
+  try {
+    const feed = await app.inject({ method: "GET", url: "/ja/records?view=public" });
+    assert.equal(feed.statusCode, 200);
+    assert.doesNotMatch(feed.body, /名前待ち/);
+
+    const review = await app.inject({ method: "GET", url: "/ja/records?view=needs_id" });
+    assert.equal(review.statusCode, 200);
+    assert.match(review.body, /名前待ち/);
+  } finally {
+    await app.close();
+  }
 });
 
 test("light posting patch keeps specialist review while removing the passive identify link", () => {
