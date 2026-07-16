@@ -28,7 +28,7 @@ const session: ObservationEventSessionRow = {
 };
 
 test("rally participant screen mixes bound and unbound missions without navigation", () => {
-  const html = renderObservationRallyBody({ session, guestToken: "guest-1", isOrganizer: false });
+  const html = renderObservationRallyBody({ session, isOrganizer: false });
   const script = observationRallyScript();
 
   assert.match(html, /data-rally-next-action/);
@@ -47,10 +47,9 @@ test("rally participant screen mixes bound and unbound missions without navigati
   assert.match(script, /rally_goal_exceeded/);
   assert.match(script, /\/api\/v1\/observation-events\/" \+ sessionId \+ "\/location/);
   assert.match(script, /params\.set\("start", "photo"\)/);
-  assert.match(script, /function ensureRallyGuestToken/);
-  assert.match(script, /localStorage\.setItem\("evt-guest-token", guestToken\)/);
-  assert.match(script, /ensureRallyGuestToken\("この記録でラリー参加を開始"\)/);
-  assert.match(script, /ensureRallyGuestToken\("ラリー参加を開始"\)/);
+  assert.doesNotMatch(html, /data-guest-token/);
+  assert.doesNotMatch(script, /guest_token|guestToken|Math\.random|localStorage/);
+  assert.match(script, /credentials: "include"/);
 });
 
 test("rally participant screen has a solo fallback loop when no missions exist", () => {
@@ -60,7 +59,6 @@ test("rally participant screen has a solo fallback loop when no missions exist",
       config: { solo_observation: true, place_event: { event_kind: "solo_micro_observation" } },
       locationRadiusM: 80,
     },
-    guestToken: "guest-1",
     isOrganizer: false,
   });
   const script = observationRallyScript();
