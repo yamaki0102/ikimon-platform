@@ -39,22 +39,20 @@ References:
 
 ## 1. Daily Deploy
 
-Use this when deploying reviewed code from this branch or its successor to the production Worker.
+Use the command-bus Cloudflare Executor. The current contract is `ops/deploy/deploy_manifest.json` → `productionPhaseInterface` (`ikimon_production_phase_interface/v1`). It requires a separate fresh sandbox for preflight, materialization, deploy, and verify.
 
 Preconditions:
 
 - PR review scope is clear.
 - `git status --short --branch` is clean except for the intended change.
 - No pending D1 migration, R2 import, secret update, DNS change, route/custom-domain change, billing operation, or VPS/provider operation is included.
-- If the change needs D1/R2 mutation outside `original-ui/html/*` and `original-ui/static/app-sw.js` materialization, stop and write a separate data-change plan.
+- Production D1 migrations and secret synchronization are explicitly false for routine deploy.
+- If the change needs R2 mutation outside the signed original-UI materialization gateway, stop and write a separate data-change plan.
 
 Commands:
 
-```powershell
-cd platform_v2/cloudflare_shadow
-npm install
-npm run deploy:production:dry-run
-npm run materialize:original-ui:dry-run -- --concurrency 4
+```bash
+IKIMON_EXPECTED_GIT_SHA="$(git rev-parse HEAD)" IKIMON_PRODUCTION_PHASE_V1=ikimon.production-phase/v1:preflight bash scripts/run_cloudflare_production_preflight.sh
 ```
 
 Expected dry-run gates:
@@ -65,46 +63,25 @@ Expected dry-run gates:
 - `npx wrangler --version`
 - `npx wrangler deploy --env production --dry-run`
 - local render of core `original-ui/html/*` pages and `original-ui/static/app-sw.js`.
-- `.deploy/production-preflight-latest.json` written for the fast lane.
+- `.deploy/production-phase-preflight.json` with the exact source SHA and receipt digest.
 
-For routine low-risk Worker/tooling edits, the quick profile may be used during iteration:
+The default profile is quick. Use a full profile for high-risk runtime changes:
 
-```powershell
-npm run test:quick
-npm run deploy:production:quick-preflight
+```bash
+TEST_PROFILE=full IKIMON_EXPECTED_GIT_SHA="$(git rev-parse HEAD)" IKIMON_PRODUCTION_PHASE_V1=ikimon.production-phase/v1:preflight bash scripts/run_cloudflare_production_preflight.sh
 ```
 
-Quick profile skips only `synthetic 10k daily profile`; it still runs the other Worker contract tests, TypeScript, config guard, secret scan, and Wrangler dry-run. Run `npm run test:heavy` to exercise only the synthetic 10k case, and refresh full evidence with `npm run deploy:production:preflight` before high-risk runtime changes.
+Quick profile skips only `synthetic 10k daily profile`; it still runs the other Worker contracts, TypeScript, config guard, secret scan, Wrangler dry-run, and materializer dry-run.
 
-If the same git `HEAD` and deploy-input hash have already passed the full dry-run, the fast lane may be used:
+After green preflight, the Executor must prepare a fresh checkout and dependencies without production secrets, verify exact SHA/receipt/hash evidence, and prove the process table is empty before injecting the single phase secret. It then invokes the fixed entrypoints directly:
 
-```powershell
-npm run deploy:production:fast:dry-run
-```
+- `scripts/run_cloudflare_production_materialization.sh`: only the job-scoped materialization key; shell is replaced by local `tsx`; writes `.deploy/production-phase-materialize.json`.
+- `scripts/run_cloudflare_production_worker_deploy.sh`: only the Cloudflare token; shell is replaced by local Wrangler. It requires exact expected/deployed SHA equality, approval, receipt digest, UI hashes, and `D1 migrations=false` / `secret sync=false`.
+- `executor:fixed-http-exact-sha`: Executor-owned secretless workers.dev and canonical exact-SHA verification. The repository verify script remains a manual/monitoring utility.
 
-The fast lane must still validate the preflight report, re-run the config guard and secret scan, run Wrangler dry-run, and refuse stale or mismatched deploy inputs.
+Never use `npm`/`npx` wrappers for a secret-bearing phase. `run_cloudflare_production_release.sh` is a secretless preflight compatibility wrapper and rejects execute mode. `deploy-production-guard.mjs --execute` also fails closed.
 
-The guard caches `npx wrangler --version` at `.deploy/wrangler-version-cache.json` and reuses it only when both the package lock hash and Worker deploy-input hash match. A Wrangler dependency change, Worker/deploy-tool change, or package lock change refreshes the cache. `wrangler deploy --env production --dry-run` remains mandatory and is not cached.
-
-For the lowest local wait time, have GitHub Actions create the quick preflight artifact first:
-
-```powershell
-gh workflow run cloudflare-quick-preflight.yml --ref <branch-or-sha>
-npm run deploy:production:artifact:pull
-npm run deploy:production:fast:dry-run
-```
-
-The helper resolves the latest successful artifact run for the current branch and exact `HEAD`, downloads `cloudflare-production-preflight`, and writes `.deploy/production-preflight-latest.json` plus `.deploy/wrangler-version-cache.json`. It is valid only for the same git `HEAD` and Worker deploy-input hash; the fast lane still rechecks config, scans for hardcoded secrets, runs Wrangler production dry-run, and refuses stale evidence. The production GitHub Actions deploy workflow now creates this artifact before deploy and uses `npm run deploy:production:fast` in the Worker deploy job.
-
-Execute only after dry-run passes:
-
-```powershell
-npm run deploy:production -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
-npm run deploy:production:fast -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
-npm run materialize:original-ui -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY --concurrency 4
-```
-
-The guarded scripts deploy the Worker, update core materialized HTML in R2, and smoke:
+The secretless verify phase smokes:
 
 - `https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/healthz`
 - `https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/readyz`

@@ -69,6 +69,9 @@ $issues = New-Object System.Collections.Generic.List[string]
 if ($manifest.platform -eq "cloudflare_worker") {
     $contractPaths = @(
         $manifest.portableReleaseScript,
+        $manifest.productionPreflightScript,
+        $manifest.productionMaterializationScript,
+        $manifest.productionWorkerDeployScript,
         $manifest.portableVerifyScript,
         $manifest.verificationWatchScript,
         $manifest.verificationReportBuilder,
@@ -106,6 +109,9 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $manifest.r2Bucket,
         $manifest.workerDirectory,
         $manifest.portableReleaseScript,
+        $manifest.productionPreflightScript,
+        $manifest.productionMaterializationScript,
+        $manifest.productionWorkerDeployScript,
         $manifest.portableVerifyScript,
         $manifest.verificationWatchScript,
         $manifest.verificationReportBuilder,
@@ -120,10 +126,16 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $manifest.productionScopePlanner,
         "ikimon_production_verification/v1",
         "ikimon_production_verification_archive_pointer/v1",
-        "deploy:production:quick-preflight",
-        "deploy:production:fast",
-        "materialize:original-ui:dry-run",
-        "materialize:original-ui",
+        "ikimon_production_phase_interface/v1",
+        "ikimon.production-phase/v1:preflight",
+        "ikimon.production-phase/v1:materialize",
+        "ikimon.production-phase/v1:deploy",
+        "run_cloudflare_production_preflight.sh",
+        "run_cloudflare_production_materialization.sh",
+        "run_cloudflare_production_worker_deploy.sh",
+        "./node_modules/.bin/tsx",
+        "./node_modules/.bin/wrangler",
+        "IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET",
         "StateDirectory=ikimon-production-verification",
         "IKIMON_VERIFICATION_ARCHIVE_RETENTION_DAYS=14",
         'New-ScheduledTaskPrincipal -UserId "SYSTEM"',
@@ -135,6 +147,25 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "--uninstall",
         "CLOUDFLARE_API_TOKEN"
     )
+
+    $phaseContract = $manifest.productionPhaseInterface
+    if (-not $phaseContract -or $phaseContract.schema -ne "ikimon_production_phase_interface/v1" -or -not $phaseContract.freshSandboxRequired -or $phaseContract.productionD1Migrations -ne $false -or $phaseContract.combinedExecuteEntrypointAllowed -ne $false -or -not $phaseContract.secretInjectionAfterPreparationRequired -or -not $phaseContract.processTableEmptyBeforeSecretInjectionRequired -or -not $phaseContract.secretFreeAncestorRequired -or -not $phaseContract.initialEnvironmentSecretAllowlistEnforced) {
+        $issues.Add("Production phase contract must require fresh sandboxes and secret-free ancestors, reject combined execute, and forbid production D1 migrations")
+    }
+    $expectedPhaseSecrets = @{
+        preflight = @()
+        materialize = @("IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET")
+        deploy = @("CLOUDFLARE_API_TOKEN")
+        verify = @()
+    }
+    foreach ($phaseName in $expectedPhaseSecrets.Keys) {
+        $phase = $phaseContract.phases.$phaseName
+        $actual = @($phase.secretAllowlist)
+        $expected = @($expectedPhaseSecrets[$phaseName])
+        if (($actual -join "`n") -ne ($expected -join "`n")) {
+            $issues.Add("Production phase secret allowlist mismatch: $phaseName")
+        }
+    }
 
     foreach ($url in $manifest.healthChecks) {
         if ($deployContractText -notmatch [regex]::Escape($url)) {

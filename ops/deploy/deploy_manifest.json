@@ -19,13 +19,67 @@
     },
     "emergency": {
       "id": "manual_emergency",
-      "entrypoint": "scripts/run_cloudflare_production_release.sh",
+      "entrypoint": "scripts/run_cloudflare_production_worker_deploy.sh",
       "explicitApprovalRequired": true
     }
   },
   "r2Bucket": "ikimon-prod-media",
   "materializedOriginalUiScope": "core",
+  "productionPhaseInterface": {
+    "schema": "ikimon_production_phase_interface/v1",
+    "resultSchema": "ikimon.production-phase-result/v1",
+    "freshSandboxRequired": true,
+    "productionD1Migrations": false,
+    "combinedExecuteEntrypointAllowed": false,
+    "secretInjectionAfterPreparationRequired": true,
+    "processTableEmptyBeforeSecretInjectionRequired": true,
+    "secretFreeAncestorRequired": true,
+    "initialEnvironmentSecretAllowlistEnforced": true,
+    "preflightReceiptVerifiedByExecutorBeforeSecretInjection": true,
+    "phases": {
+      "preflight": {
+        "marker": "ikimon.production-phase/v1:preflight",
+        "entrypoint": "scripts/run_cloudflare_production_preflight.sh",
+        "secretAllowlist": [],
+        "nonSecretInputAllowlist": ["IKIMON_PRODUCTION_PHASE_V1", "IKIMON_EXPECTED_GIT_SHA", "TEST_PROFILE"]
+      },
+      "materialize": {
+        "marker": "ikimon.production-phase/v1:materialize",
+        "entrypoint": "scripts/run_cloudflare_production_materialization.sh",
+        "secretAllowlist": ["IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET"],
+        "nonSecretInputAllowlist": ["IKIMON_PRODUCTION_PHASE_V1", "IKIMON_OPS_JOB_ID", "IKIMON_EXPECTED_GIT_SHA", "IKIMON_R2_MATERIALIZATION_API_URL"]
+      },
+      "deploy": {
+        "marker": "ikimon.production-phase/v1:deploy",
+        "entrypoint": "scripts/run_cloudflare_production_worker_deploy.sh",
+        "secretAllowlist": ["CLOUDFLARE_API_TOKEN"],
+        "nonSecretInputAllowlist": [
+          "IKIMON_PRODUCTION_PHASE_V1",
+          "CLOUDFLARE_ACCOUNT_ID",
+          "IKIMON_GIT_SHA",
+          "IKIMON_EXPECTED_GIT_SHA",
+          "IKIMON_UI_BUNDLE_HASH",
+          "IKIMON_UI_MANIFEST_HASH",
+          "IKIMON_WORKER_VERSION",
+          "IKIMON_DEPLOYED_AT",
+          "IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL",
+          "IKIMON_PRODUCTION_PREFLIGHT_RECEIPT_SHA256",
+          "IKIMON_PRODUCTION_D1_MIGRATIONS",
+          "IKIMON_PRODUCTION_SECRET_SYNC"
+        ]
+      },
+      "verify": {
+        "marker": "ikimon.production-phase/v1:verify",
+        "entrypoint": "executor:fixed-http-exact-sha",
+        "secretAllowlist": [],
+        "nonSecretInputAllowlist": ["IKIMON_PRODUCTION_PHASE_V1", "IKIMON_EXPECTED_GIT_SHA"]
+      }
+    }
+  },
   "portableReleaseScript": "scripts/run_cloudflare_production_release.sh",
+  "productionPreflightScript": "scripts/run_cloudflare_production_preflight.sh",
+  "productionMaterializationScript": "scripts/run_cloudflare_production_materialization.sh",
+  "productionWorkerDeployScript": "scripts/run_cloudflare_production_worker_deploy.sh",
   "portableVerifyScript": "scripts/verify_cloudflare_production_release.sh",
   "verificationWatchScript": "scripts/run_production_verification_watch.sh",
   "verificationReportBuilder": "scripts/build_production_verification_report.mjs",
@@ -84,7 +138,9 @@
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\tests\\release_automation.tests.ps1",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_guardrails.ps1",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_manifest_sync.ps1",
-    "bash scripts/run_cloudflare_production_release.sh with DEPLOY_PRODUCTION=true",
+    "bash scripts/tests/production_phase_interface.tests.sh",
+    "bash scripts/run_cloudflare_production_preflight.sh without production secrets",
+    "bash scripts/run_cloudflare_production_worker_deploy.sh only in a fresh approval-bound deploy sandbox",
     "bash scripts/run_production_verification_watch.sh",
     "node scripts/archive_production_verification_evidence.mjs",
     "node scripts/publish_production_verification_status.mjs",
@@ -113,7 +169,9 @@
     "Linux and Windows installers preserve existing secret environment files, refuse token command-line options, and require a successful direct verification before recurring scheduling is enabled.",
     "The Windows installer also executes and validates the registered SYSTEM task so user-only drive or permission mistakes are detected during installation.",
     "The repository-local Linux and Windows host integrations are deprecated for new installations; removal requires at least 48 hours of successful central shadow evidence and an explicit operator decision.",
-    "The portable release command performs one dependency-install/build lane, Worker quick preflight, R2 staging materialization, guarded Worker deploy, and post-deploy verification without GitHub Actions or a GitHub Artifact handoff. D1 migrations are a separate approval-bound operation.",
+    "Production release uses isolated fresh sandboxes for preflight, R2 materialization, Worker deploy, and verification. The compatibility release command is secretless preflight-only and rejects execute mode.",
+    "Production Worker deploy receives only the Cloudflare token after the Executor verifies the exact checkout, preflight receipt digest, materialized UI hashes, prepared dependencies, and an empty process table. The target entrypoint then replaces its shell with direct local Wrangler.",
+    "Routine production deploy never applies D1 migrations; productionD1Migrations is false in the machine-readable phase contract.",
     "The production public entrypoint is Cloudflare Worker ikimon-life-cloudflare-prod, not the legacy VPS blue/green lane.",
     "The production Worker must not own staging.ikimon.life routes; Cloudflare staging owns staging.ikimon.life/* through ikimon-life-cloudflare-staging.",
     "Routine production deploy must not use VPS SSH, deploy_platform_v2_blue_green.sh, or VPS_SSH_KEY.",

@@ -106,6 +106,31 @@ $candidateScript = Get-Content -Raw (Join-Path $repoRoot "scripts/check_release_
 Assert-Equal ([bool]($worktreeScript -match '\$nativeExitCode = \$LASTEXITCODE')) $true "Worktree creation must not treat normal git stderr progress as failure"
 Assert-Equal ([bool]($candidateScript -match '\$nativeExitCode = \$LASTEXITCODE')) $true "Candidate checks must decide gh success from its exit code"
 
+$productionReleaseScript = Get-Content -Raw (Join-Path $repoRoot "scripts/run_cloudflare_production_release.sh")
+$productionPreflightScript = Get-Content -Raw (Join-Path $repoRoot "scripts/run_cloudflare_production_preflight.sh")
+$productionMaterializationScript = Get-Content -Raw (Join-Path $repoRoot "scripts/run_cloudflare_production_materialization.sh")
+$productionDeployScript = Get-Content -Raw (Join-Path $repoRoot "scripts/run_cloudflare_production_worker_deploy.sh")
+Assert-Equal ([bool]($productionReleaseScript -match 'combined_production_release_execute_forbidden')) $true "Combined production release must reject execute mode"
+Assert-Equal ([bool]($productionReleaseScript -match 'combined_production_release_secret_forbidden')) $true "Combined production release must reject production secrets"
+Assert-Equal ([bool]($productionReleaseScript -match 'exec bash .+run_cloudflare_production_preflight\.sh')) $true "Combined production release may only delegate to secretless preflight"
+Assert-Equal ([bool]($productionPreflightScript -match 'ikimon\.production-phase/v1:preflight')) $true "Production preflight must expose the fixed phase marker"
+Assert-Equal ([regex]::Matches($productionPreflightScript, 'ci --ignore-scripts --prefer-offline').Count) 2 "Both preflight dependency installs must disable lifecycle scripts"
+Assert-Equal ([bool]($productionPreflightScript -match 'wrangler_dry_run')) $true "Preflight receipt must attest Wrangler dry-run"
+Assert-Equal ([bool]($productionPreflightScript -match 'materializer_dry_run')) $true "Preflight receipt must attest materializer dry-run"
+Assert-Equal ([bool]($productionPreflightScript -match 'production_d1_migrations:\s*false')) $true "Preflight receipt must attest that production D1 migrations were not run"
+Assert-Equal ([bool]($productionPreflightScript -match 'IKIMON_EXPECTED_GIT_SHA.+40-character commit SHA')) $true "Preflight must require an exact expected SHA"
+Assert-Equal ([bool]($productionPreflightScript -match 'IKIMON_EXPECTED_GIT_SHA.+!=.+GIT_SHA')) $true "Preflight must bind its receipt to the exact checkout SHA"
+Assert-Equal ([bool]($productionMaterializationScript -match 'ikimon\.production-phase/v1:materialize')) $true "Production materialization must expose the fixed phase marker"
+Assert-Equal ([bool]($productionMaterializationScript -match 'exec \./node_modules/\.bin/tsx scripts/materialize-original-ui-html\.mjs --execute --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY')) $true "Materialization phase must replace its shell with approved direct local tsx"
+Assert-Equal ([bool]($productionMaterializationScript -match 'CLOUDFLARE_API_TOKEN')) $true "Materialization phase must reject Cloudflare-token overlap"
+Assert-Equal ([bool]($productionDeployScript -match 'ikimon\.production-phase/v1:deploy')) $true "Production deploy must expose the fixed phase marker"
+Assert-Equal ([regex]::Matches($productionDeployScript, '\./node_modules/\.bin/wrangler').Count) 1 "Production deploy must reference direct local Wrangler exactly once"
+Assert-Equal ([bool]($productionDeployScript -match 'exec \./node_modules/\.bin/wrangler deploy --env production')) $true "Production deploy must replace its shell with Wrangler"
+Assert-Equal ([bool]($productionDeployScript -match 'IKIMON_PRODUCTION_PREFLIGHT_RECEIPT_SHA256')) $true "Production deploy must require an Executor-verified preflight receipt digest"
+Assert-Equal ([bool]($productionDeployScript -match 'CLOUDFLARE_ACCOUNT_ID.+lowercase 32-character account id')) $true "Production deploy must pin the exact Cloudflare account id shape"
+Assert-Equal ([bool]($productionDeployScript -match '(?i)\b(?:npm|npx|git)\b')) $false "Secret-bearing deploy phase must not run npm, npx, or git"
+Assert-Equal ([bool]($productionDeployScript -match '(?i)wrangler\s+d1|migrations\s+apply')) $false "Routine production deploy must not mutate D1"
+
 $windowsRunnerPath = Join-Path $repoRoot "scripts/Invoke-ProductionVerificationWatch.ps1"
 $windowsInstallerPath = Join-Path $repoRoot "scripts/Install-ProductionVerificationScheduledTask.ps1"
 $windowsDoctorPath = Join-Path $repoRoot "scripts/Test-ProductionVerificationWindows.ps1"

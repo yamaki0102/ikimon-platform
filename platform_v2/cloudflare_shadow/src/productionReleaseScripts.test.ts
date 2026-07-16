@@ -22,34 +22,54 @@ test("original UI materializer pins discovery documents to the public canonical 
   assert.match(materializer, /canonical_static_origin_mismatch/);
   assert.match(materializer, /renderLlmsFull/);
   assert.match(materializer, /createHmac\("sha256", materializationSecret\)/);
+  assert.match(materializer, /targetEnv === "production" \? \{ source_sha: materializationSourceSha \} : \{\}/);
+  assert.match(materializer, /production_materialization_source_sha_invalid/);
+  assert.match(materializer, /const materializationSecret = targetEnv === "production"\s*\?\s*String\(process\.env\.IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET \|\| ""\)\s*:\s*String\(process\.env\.IKIMON_AUTOMATION_PUSH_SECRET \|\| ""\)/);
+  assert.match(materializer, /delete process\.env\.IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET/);
+  assert.match(materializer, /delete process\.env\.IKIMON_AUTOMATION_PUSH_SECRET/);
+  assert.doesNotMatch(materializer, /OPS_PRODUCTION_MATERIALIZATION_HMAC_SECRET/);
   assert.match(materializer, /checkpointInterval = 25/);
   assert.match(materializer, /gatewayMaxAttempts = 5/);
   assert.match(materializer, /signed r2 gateway sync/);
   assert.doesNotMatch(materializer, /wrangler["',\s]+r2["',\s]+object/);
   const stagingRelease = await source("../../../scripts/run_cloudflare_staging_release.sh");
   assert.match(stagingRelease, /--concurrency 8/);
-  const productionRelease = await source("../../../scripts/run_cloudflare_production_release.sh");
-  assert.match(productionRelease, /materialize:original-ui -- --skip-if-unchanged --concurrency 8/);
+  const productionMaterialization = await source("../../../scripts/run_cloudflare_production_materialization.sh");
+  assert.match(productionMaterialization, /exec \.\/node_modules\/\.bin\/tsx scripts\/materialize-original-ui-html\.mjs --execute --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY --target-env production --scope core --skip-if-unchanged --concurrency 8 --phase-result/);
+  assert.match(materializer, /\.deploy\/production-phase-materialize\.json/);
+  assert.match(materializer, /schema:\s*"ikimon\.production-phase-result\/v1"/);
+  assert.match(materializer, /bundle_hash:\s*bundleHash/);
+  assert.match(materializer, /manifest_hash:\s*manifestHash/);
 });
 
-test("production deploy guard injects and verifies the exact git SHA without exposing release vars", async () => {
+test("production mutation phases use fixed fresh-sandbox entrypoints without secret overlap", async () => {
+  const materialization = await source("../../../scripts/run_cloudflare_production_materialization.sh");
+  const deploy = await source("../../../scripts/run_cloudflare_production_worker_deploy.sh");
+  const combined = await source("../../../scripts/run_cloudflare_production_release.sh");
+
+  assert.match(materialization, /ikimon\.production-phase\/v1:materialize/);
+  assert.match(materialization, /production_materialization_secret_overlap_forbidden/);
+  assert.match(materialization, /exec \.\/node_modules\/\.bin\/tsx/);
+  assert.doesNotMatch(materialization, /\b(?:npm|npx|git)\b/);
+  assert.match(deploy, /ikimon\.production-phase\/v1:deploy/);
+  assert.match(deploy, /production_deploy_secret_overlap_forbidden/);
+  assert.equal(deploy.match(/\.\/node_modules\/\.bin\/wrangler/g)?.length, 1);
+  assert.match(deploy, /exec \.\/node_modules\/\.bin\/wrangler deploy --env production/);
+  assert.doesNotMatch(deploy, /\b(?:npm|npx|git|test)\b/);
+  assert.doesNotMatch(deploy, /wrangler\s+d1|migrations\s+apply/i);
+  assert.match(combined, /combined_production_release_execute_forbidden/);
+  assert.match(combined, /combined_production_release_secret_forbidden/);
+});
+
+test("production deploy guard remains a secretless preflight guard", async () => {
   const guard = await source("../scripts/deploy-production-guard.mjs");
 
-  assert.match(guard, /IKIMON_GIT_SHA:\s*releaseVars\.IKIMON_GIT_SHA\.trim\(\) \|\| state\.gitHead/);
-  assert.match(guard, /production_release_git_sha_mismatch/);
-  assert.match(guard, /payload\.gitSha\s*===\s*expectedGitSha/);
-  assert.match(guard, /const SMOKE_MAX_ATTEMPTS = 12/);
-  assert.match(guard, /const SMOKE_RETRY_DELAY_MS = 5_000/);
-  assert.match(guard, /attempt < SMOKE_MAX_ATTEMPTS/);
-  assert.match(guard, /await delay\(SMOKE_RETRY_DELAY_MS\)/);
-  assert.match(guard, /deploy_check=\$\{Date\.now\(\)\}-\$\{attempt\}/);
-  assert.match(guard, /actualGitSha/);
-  assert.match(guard, /deferredSafetyGates/);
-  assert.match(guard, /execute\s*\?\s*\["post_deploy_health_ready_smoke"\]\s*:\s*\[\]/);
+  assert.match(guard, /production_execute_phase_entrypoint_required/);
   assert.match(guard, /eventCommandLine/);
   assert.match(guard, /eventCommandLine:\s*"npx wrangler deploy --env production --dry-run"/);
-  assert.match(guard, /eventCommandLine:\s*"npx wrangler deploy --env production"/);
   assert.match(guard, /const requiredCommands = \["npm run check", testCommandForProfile\(profile\)\.commandLine, "npx wrangler deploy --env production --dry-run"\]/);
+  assert.doesNotMatch(guard, /captureCloudflareReleaseToken|cloudflareDeployEnvironment/);
+  assert.doesNotMatch(guard, /eventCommandLine:\s*"npx wrangler deploy --env production"/);
   assert.doesNotMatch(guard, /command:\s*actualCommandLine/);
 });
 
@@ -81,9 +101,7 @@ test("production execute clean gate allows only owned generated deploy artifacts
 
   const guard = await source("../scripts/deploy-production-guard.mjs");
   assert.match(guard, /const worktreeGitStatus = await gitText\(\["status", "--porcelain"\]\)/);
-  assert.match(guard, /if \(execute && \(!report\.clean \|\| !state\.clean\)\)/);
-  assert.match(guard, /assertProductionExecuteWorktreeClean\(\{ execute, state: initialState, phase: "start" \}\)/);
-  assert.match(guard, /const preDeployState = await currentDeployState\(\);[\s\S]*assertProductionExecuteWorktreeClean\(\{ execute, state: preDeployState, phase: "pre-deploy" \}\)/);
+  assert.match(guard, /production_execute_phase_entrypoint_required/);
 });
 
 test("production execute state gate rejects HEAD or deploy-input changes after preflight", async () => {

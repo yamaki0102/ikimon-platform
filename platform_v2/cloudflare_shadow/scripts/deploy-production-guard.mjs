@@ -2,18 +2,6 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { assertProductionExecuteStateUnchanged, assertProductionExecuteWorktreeClean } from "./production-deploy-clean-gate.mjs";
-
-const requiredApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
-const productionWorkerUrl = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
-const productionPublicUrl = "https://ikimon.life";
-const releaseVars = {
-  IKIMON_GIT_SHA: process.env.GITHUB_SHA ?? "",
-  IKIMON_WORKER_VERSION: process.env.IKIMON_WORKER_VERSION ?? "",
-  IKIMON_UI_BUNDLE_HASH: process.env.IKIMON_UI_BUNDLE_HASH ?? "",
-  IKIMON_UI_MANIFEST_HASH: process.env.IKIMON_UI_MANIFEST_HASH ?? "",
-  IKIMON_DEPLOYED_AT: process.env.IKIMON_DEPLOYED_AT ?? ""
-};
 const defaultPreflightReportPath = ".deploy/production-preflight-latest.json";
 const defaultWranglerVersionCachePath = ".deploy/wrangler-version-cache.json";
 const defaultMaxPreflightAgeMinutes = 360;
@@ -42,15 +30,14 @@ for (let index = 2; index < process.argv.length; index += 1) {
 
 const execute = args.get("--execute") === "true";
 const fast = args.get("--fast") === "true";
-const approval = args.get("--approval") ?? process.env.IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL ?? "";
 const preflightReportPath = args.get("--preflight-report") ?? defaultPreflightReportPath;
 const wranglerVersionCachePath = args.get("--wrangler-version-cache") ?? defaultWranglerVersionCachePath;
 const writePreflightReportPath = args.get("--write-preflight-report") ?? (!fast ? defaultPreflightReportPath : "");
 const maxPreflightAgeMinutes = Number(args.get("--max-preflight-age-minutes") ?? String(defaultMaxPreflightAgeMinutes));
 const testProfile = args.get("--test-profile") ?? "full";
 
-if (execute && approval !== requiredApproval) {
-  throw new Error(`Refusing production deploy. Pass --approval ${requiredApproval} or set IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL.`);
+if (execute) {
+  throw new Error("production_execute_phase_entrypoint_required:scripts/run_cloudflare_production_worker_deploy.sh");
 }
 if (!Number.isFinite(maxPreflightAgeMinutes) || maxPreflightAgeMinutes < 1) {
   throw new Error("--max-preflight-age-minutes must be a positive number.");
@@ -112,115 +99,6 @@ function run(command, commandArgs, options = {}) {
 function quoteCmdArg(value) {
   if (/^[A-Za-z0-9_/:.=+-]+$/.test(value)) return value;
   return `"${value.replaceAll('"', '\\"')}"`;
-}
-
-const SMOKE_MAX_ATTEMPTS = 12;
-const SMOKE_RETRY_DELAY_MS = 5_000;
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function smokeResponseOk(path, response, payload, expectedGitSha) {
-  return path === "/qa/reflection-loop.json"
-    ? response.ok
-      && typeof payload === "object"
-      && payload !== null
-      && payload.ok === true
-      && payload.service === "ikimon.life"
-      && payload.runtime === "cloudflare-worker"
-      && payload.loop_contract?.no_personal_data === true
-    : path === "/api/v1/runtime/version"
-      ? response.ok
-        && typeof payload === "object"
-        && payload !== null
-        && payload.ok === true
-        && payload.service === "ikimon.life"
-        && payload.runtime === "cloudflare-worker"
-        && payload.schemaVersion === "cloudflare_worker_runtime/v1"
-        && payload.gitSha === expectedGitSha
-        && payload.publicSafe === true
-      : response.ok
-        && typeof payload === "object"
-        && payload !== null
-        && payload.ok === true
-        && payload.service === "ikimon-life-cloudflare-worker";
-}
-
-async function smoke(baseUrl, expectedGitSha) {
-  for (const path of ["/healthz", "/readyz", "/api/v1/runtime/version", "/qa/reflection-loop.json"]) {
-    let passed = false;
-    let lastStatus = 0;
-    let lastContentType = "";
-    let lastPayload = {};
-    let lastError = null;
-
-    for (let attempt = 1; attempt <= SMOKE_MAX_ATTEMPTS; attempt += 1) {
-      const separator = path.includes("?") ? "&" : "?";
-      const url = `${baseUrl.replace(/\/$/, "")}${path}${separator}deploy_check=${Date.now()}-${attempt}`;
-      try {
-        const response = await fetch(url, {
-          redirect: "manual",
-          headers: { accept: "application/json", "cache-control": "no-store" }
-        });
-        const contentType = response.headers.get("content-type") ?? "";
-        let payload = {};
-        if (contentType.includes("application/json")) {
-          payload = await response.json();
-        }
-        const ok = smokeResponseOk(path, response, payload, expectedGitSha);
-        lastStatus = response.status;
-        lastContentType = contentType;
-        lastPayload = payload;
-        lastError = null;
-        events.push({
-          command: `smoke ${baseUrl}${path}`,
-          exitCode: ok ? 0 : 1,
-          durationMs: 0,
-          status: response.status,
-          contentType,
-          attempt,
-          expectedGitSha: path === "/api/v1/runtime/version" ? expectedGitSha : undefined,
-          actualGitSha: path === "/api/v1/runtime/version" ? payload?.gitSha ?? null : undefined
-        });
-        if (ok) {
-          passed = true;
-          break;
-        }
-      } catch (error) {
-        lastError = error;
-        events.push({
-          command: `smoke ${baseUrl}${path}`,
-          exitCode: 1,
-          durationMs: 0,
-          status: 0,
-          contentType: "",
-          attempt,
-          error: error instanceof Error ? error.message : String(error)
-        });
-      }
-
-      if (attempt < SMOKE_MAX_ATTEMPTS) {
-        await delay(SMOKE_RETRY_DELAY_MS);
-      }
-    }
-
-    if (!passed) {
-      const actualGitSha = typeof lastPayload === "object" && lastPayload !== null ? lastPayload.gitSha ?? null : null;
-      const errorDetail = lastError instanceof Error ? lastError.message : "";
-      throw new Error(
-        `Smoke failed for ${baseUrl}${path}: ${lastStatus} ${lastContentType}; expectedGitSha=${expectedGitSha}; actualGitSha=${actualGitSha}; ${errorDetail}`
-      );
-    }
-  }
-}
-
-function isTolerableWranglerRouteUpdateFailure(error) {
-  const output = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
-  return output.includes("Uploaded ikimon-life-cloudflare-prod")
-    && output.includes("Some triggers failed to deploy for ikimon-life-cloudflare-prod")
-    && output.includes("/workers/routes")
-    && output.includes("All Zones");
 }
 
 function stripJsonComments(source) {
@@ -373,9 +251,6 @@ function assertFreshPreflightReport(report, state) {
   if (report.deployInputSha256 !== state.deployInputSha256) {
     throw new Error("Fast deploy refused: deploy input hash changed after preflight.");
   }
-  if (execute && (!report.clean || !state.clean)) {
-    throw new Error("Fast deploy refused: deploy inputs must be clean in git before and during fast deploy.");
-  }
   const ageMinutes = (Date.now() - Date.parse(report.checkedAt)) / 60000;
   if (!Number.isFinite(ageMinutes) || ageMinutes > maxPreflightAgeMinutes) {
     throw new Error(`Fast deploy refused: preflight report is stale (${Math.round(ageMinutes)} minutes).`);
@@ -410,10 +285,9 @@ async function writePreflightReport(path, state) {
       testProfile === "quick" ? "worker_quick_test_suite" : testProfile === "heavy" ? "worker_heavy_test_suite" : "worker_full_test_suite",
       "wrangler_dry_run",
       "production_config_guard",
-      "hardcoded_secret_scan",
-      ...(execute ? ["post_deploy_health_ready_smoke"] : [])
+      "hardcoded_secret_scan"
     ],
-    deferredSafetyGates: execute ? [] : ["post_deploy_health_ready_smoke"],
+    deferredSafetyGates: ["post_deploy_health_ready_smoke"],
     events
   };
   await mkdir(dirname(resolve(path)), { recursive: true });
@@ -444,7 +318,7 @@ async function runWranglerVersionGate(state) {
     return cache.version.trim();
   }
 
-  const result = await run("npx", ["wrangler", "--version"]);
+  const result = await run("npx", ["--no-install", "wrangler", "--version"]);
   const version = result.stdout.trim().split(/\r?\n/).at(-1)?.trim() || "";
   const payload = {
     ok: true,
@@ -465,7 +339,6 @@ async function runWranglerVersionGate(state) {
 }
 
 const initialState = await currentDeployState();
-assertProductionExecuteWorktreeClean({ execute, state: initialState, phase: "start" });
 await assertNoHardcodedSecrets();
 if (fast) {
   const report = await readPreflightReport(preflightReportPath);
@@ -483,50 +356,9 @@ if (fast) {
   await run(testCommand.command, testCommand.args);
 }
 await runWranglerVersionGate(initialState);
-function resolvedReleaseVars(state) {
-  return {
-    ...releaseVars,
-    IKIMON_GIT_SHA: releaseVars.IKIMON_GIT_SHA.trim() || state.gitHead
-  };
-}
-
-function wranglerDeployArgs(state, dryRun = false) {
-  const args = ["wrangler", "deploy", "--env", "production"];
-  if (dryRun) args.push("--dry-run");
-  for (const [key, value] of Object.entries(resolvedReleaseVars(state))) {
-    if (value.trim()) args.push("--var", `${key}:${value.trim()}`);
-  }
-  return args;
-}
-
-const intendedReleaseVars = resolvedReleaseVars(initialState);
-if (intendedReleaseVars.IKIMON_GIT_SHA !== initialState.gitHead) {
-  throw new Error(`production_release_git_sha_mismatch:${intendedReleaseVars.IKIMON_GIT_SHA}:${initialState.gitHead}`);
-}
-await run("npx", wranglerDeployArgs(initialState, true), {
+await run("npx", ["--no-install", "wrangler", "deploy", "--env", "production", "--dry-run"], {
   eventCommandLine: "npx wrangler deploy --env production --dry-run"
 });
-
-if (execute) {
-  const preDeployState = await currentDeployState();
-  assertProductionExecuteWorktreeClean({ execute, state: preDeployState, phase: "pre-deploy" });
-  assertProductionExecuteStateUnchanged({ execute, before: initialState, after: preDeployState, phase: "pre-deploy" });
-  try {
-    await run("npx", wranglerDeployArgs(initialState), {
-      eventCommandLine: "npx wrangler deploy --env production"
-    });
-  } catch (error) {
-    if (!isTolerableWranglerRouteUpdateFailure(error)) throw error;
-    events.push({
-      command: "tolerate wrangler route trigger update failure after worker upload",
-      exitCode: 0,
-      durationMs: 0,
-      warning: "Wrangler uploaded the production Worker, then failed while reapplying existing routes with the current token. Production smoke remains mandatory."
-    });
-  }
-  await smoke(productionWorkerUrl, intendedReleaseVars.IKIMON_GIT_SHA);
-  await smoke(productionPublicUrl, intendedReleaseVars.IKIMON_GIT_SHA);
-}
 
 if (!fast && writePreflightReportPath) {
   const finalState = await currentDeployState();
@@ -535,13 +367,13 @@ if (!fast && writePreflightReportPath) {
 
 console.log(JSON.stringify({
   ok: true,
-  mode: execute ? "execute" : "dry-run",
+  mode: "dry-run",
   lane: fast ? "fast" : `${testProfile}-preflight`,
   testProfile: fast ? undefined : testProfile,
-  productionDeployExecuted: execute,
-  approvalRequiredForExecute: requiredApproval,
+  productionDeployExecuted: false,
+  approvalRequiredForExecute: "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY",
   preflightReport: fast ? preflightReportPath : (writePreflightReportPath || null),
   wranglerVersionCache: wranglerVersionCachePath,
-  smokeTargets: execute ? [productionWorkerUrl, productionPublicUrl] : [],
+  smokeTargets: [],
   events
 }, null, 2));

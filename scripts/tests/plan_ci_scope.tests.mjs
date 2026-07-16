@@ -94,7 +94,13 @@ test('portable staging runner changes are deploy-impacting', () => {
 });
 
 test('portable production runner changes are deploy-impacting', () => {
-  const plan = planCiScope(['scripts/run_cloudflare_production_release.sh']);
+  const plan = planCiScope([
+    'scripts/run_cloudflare_production_release.sh',
+    'scripts/run_cloudflare_production_preflight.sh',
+    'scripts/run_cloudflare_production_materialization.sh',
+    'scripts/run_cloudflare_production_worker_deploy.sh',
+    'scripts/tests/production_phase_interface.tests.sh',
+  ]);
   assert.equal(plan.deploy_changed, true);
   assert.equal(plan.run_platform, true);
   assert.equal(plan.run_deploy_manifest_check, true);

@@ -1,5 +1,5 @@
 import { createHash, createHmac } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,7 +28,8 @@ const allowedArgs = new Set([
   "--output",
   "--concurrency",
   "--skip-if-unchanged",
-  "--manifest-key"
+  "--manifest-key",
+  "--phase-result"
 ]);
 const args = new Map();
 const explicitPaths = [];
@@ -57,11 +58,17 @@ const targetEnv = args.get("--target-env") ?? "production";
 const scope = args.get("--scope") ?? "core";
 const bucket = args.get("--bucket") ?? (targetEnv === "staging" ? stagingBucket : productionBucket);
 const outputPath = args.get("--output") ?? "";
+const emitPhaseResult = args.get("--phase-result") === "true";
 const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 8);
 const skipIfUnchanged = args.get("--skip-if-unchanged") === "true";
 const checkpointInterval = 25;
 const materializationJobId = String(process.env.IKIMON_OPS_JOB_ID || "");
-const materializationSecret = String(process.env.IKIMON_AUTOMATION_PUSH_SECRET || "");
+const materializationSourceSha = String(process.env.IKIMON_EXPECTED_GIT_SHA || "");
+const materializationSecret = targetEnv === "production"
+  ? String(process.env.IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET || "")
+  : String(process.env.IKIMON_AUTOMATION_PUSH_SECRET || "");
+delete process.env.IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET;
+delete process.env.IKIMON_AUTOMATION_PUSH_SECRET;
 const materializationGatewayUrl = resolveMaterializationGatewayUrl();
 
 if (!["production", "staging"].includes(targetEnv)) {
@@ -82,6 +89,10 @@ const manifestKey = normalizeR2ObjectKey(
 
 if (execute && targetEnv === "production" && approval !== productionApproval) {
   throw new Error(`Refusing production R2 materialization. Pass --approval ${productionApproval} or set IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL.`);
+}
+
+if (execute && targetEnv === "production" && !/^[a-f0-9]{40}$/u.test(materializationSourceSha)) {
+  throw new Error("production_materialization_source_sha_invalid");
 }
 
 if (execute && targetEnv === "staging" && approval !== stagingApproval) {
@@ -369,6 +380,7 @@ async function gatewayRequest(payload) {
     schema: "ikimon.r2-materialization/v1",
     job_id: materializationJobId,
     target_env: targetEnv,
+    ...(targetEnv === "production" ? { source_sha: materializationSourceSha } : {}),
     manifest_hash: bundleHash,
     ...payload
   });
@@ -650,3 +662,25 @@ if (outputPath) {
   await writeFile(outputPath, resultText, "utf8");
 }
 console.log(resultText);
+if (emitPhaseResult) {
+  if (!execute || targetEnv !== "production") {
+    throw new Error("production_materialization_phase_result_requires_execute");
+  }
+  const manifestHash = String(manifestUpload?.sha256 || bundleHash);
+  if (!/^[a-f0-9]{64}$/u.test(bundleHash) || !/^[a-f0-9]{64}$/u.test(manifestHash)) {
+    throw new Error("production_materialization_release_identity_invalid");
+  }
+  const phaseResult = {
+    schema: "ikimon.production-phase-result/v1",
+    phase: "materialize",
+    status: "succeeded",
+    source_sha: materializationSourceSha,
+    job_id: materializationJobId,
+    bundle_hash: bundleHash,
+    manifest_hash: manifestHash,
+    object_key: String(manifestUpload?.key || manifestKey),
+  };
+  await mkdir(".deploy", { recursive: true });
+  await writeFile(".deploy/production-phase-materialize.json", `${JSON.stringify(phaseResult, null, 2)}\n`, "utf8");
+  console.log(JSON.stringify(phaseResult));
+}
