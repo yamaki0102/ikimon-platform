@@ -87,12 +87,7 @@ if [[ "${DEPLOY_PRODUCTION}" != "true" ]]; then
   exit 0
 fi
 
-echo "== Apply idempotent production D1 migrations =="
-(
-  cd "${WORKER_DIR}"
-  npx wrangler d1 migrations apply CORE_DB --remote --env production
-  npx wrangler d1 migrations apply OBS_DB --remote --env production
-)
+echo "== Keep production D1 migrations on the separate approval-bound lane =="
 
 echo "== Materialize original UI into production R2 =="
 npm --prefix "${WORKER_DIR}" run materialize:original-ui -- --skip-if-unchanged --concurrency 8 --output materialize-original-ui.json
