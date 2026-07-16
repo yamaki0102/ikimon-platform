@@ -65,8 +65,12 @@ test("app service worker keeps authenticated navigation out of shared caches", a
     const refreshNavigation = navigationPattern("REFRESH_NAV_RE");
     assert.equal(personalNavigation.test("/record"), true);
     assert.equal(personalNavigation.test("/ja/record"), true);
+    assert.equal(personalNavigation.test("/records"), true);
+    assert.equal(personalNavigation.test("/ja/records"), true);
     assert.equal(refreshNavigation.test("/record"), false);
     assert.equal(refreshNavigation.test("/ja/record"), false);
+    assert.equal(refreshNavigation.test("/records"), false);
+    assert.equal(refreshNavigation.test("/ja/records"), false);
     assert.equal(refreshNavigation.test("/map"), true);
     assert.match(response.body, /profile(?:\\\/settings)?/);
     assert.match(response.body, /cache: 'no-store'/);
