@@ -10,6 +10,10 @@ import {
   uniqueFixturePrefix,
 } from "./support/staging.js";
 
+// This spec sends a privileged staging key and authenticated session cookie.
+// Playwright traces preserve request headers, so do not retain them on failure.
+test.use({ trace: "off" });
+
 type SessionPayload = {
   ok: boolean;
   error?: string;
@@ -99,7 +103,7 @@ test.describe.serial("observation rally staging smoke", () => {
     await expect(page.locator("body")).toContainText("差し替え済");
     await expect(page.locator("body")).toContainText("雨天: 登録スポットで落ち葉シーンを3件");
 
-    const response = await api.get(`/api/v1/observation-events/${fixture.session.sessionId}/rally`, {
+    const response = await page.request.get(`/api/v1/observation-events/${fixture.session.sessionId}/rally`, {
       headers: { accept: "application/json" },
     });
     expect(response.ok(), "rally snapshot should be readable after rain switch").toBeTruthy();
