@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "ikimon-life-cloudflare-shadow-lab",
-  "main": "src/index.ts",
+  "main": "src/publicPresentationEntry.ts",
   "compatibility_date": "2026-06-15",
   "observability": {
     "enabled": true
