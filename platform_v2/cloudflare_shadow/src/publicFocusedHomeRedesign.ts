@@ -8,6 +8,17 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
   [data-app-install-prompt] {
     display: none !important;
   }
+  .prototype-guest-home,
+  .prototype-guest-home-copy,
+  .prototype-guest-home-panel,
+  .prototype-guest-home-proof,
+  .prototype-guest-home-proof-grid,
+  .prototype-focused-feed-heading,
+  .prototype-record-feed.is-guest {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
   .prototype-guest-home-stats,
   .prototype-guest-home-notes,
   .prototype-guest-home-guide {
@@ -20,23 +31,39 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
     max-width: 10em;
     font-size: clamp(36px, 4.7vw, 60px);
     letter-spacing: -.035em;
+    overflow-wrap: anywhere;
   }
   .prototype-guest-home-copy h1 span {
     display: block;
+  }
+  .prototype-guest-home-lead,
+  .prototype-guest-home-trust,
+  .prototype-focused-feed-heading strong,
+  .prototype-focused-feed-heading span {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
   .prototype-guest-home-lead {
     max-width: 31em !important;
   }
   .prototype-guest-home-actions.is-focused {
+    min-width: 0;
+    max-width: 100%;
     display: flex;
     align-items: center;
     gap: 10px;
     margin-top: 4px;
+    box-sizing: border-box;
   }
   .prototype-guest-home-actions.is-focused a {
+    min-width: 0;
+    max-width: 100%;
     min-height: 48px;
     padding: 0 18px;
     font-size: 15px;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
   }
   .prototype-guest-home-actions.is-focused .prototype-guest-home-primary {
     min-height: 52px;
@@ -67,11 +94,15 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
   }
   .prototype-guest-home-proof-card {
     position: relative;
+    min-width: 0;
+    max-width: 100%;
     min-height: 142px;
     overflow: hidden;
+    box-sizing: border-box;
   }
   .prototype-guest-home-proof-card img {
     width: 100%;
+    max-width: 100%;
     height: 100%;
     object-fit: cover;
   }
@@ -95,15 +126,20 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
   }
   @media (max-width: 720px) {
     .shell.shell-bleed.prototype-shell {
+      min-width: 0;
+      max-width: calc(100vw - 32px);
       padding-top: 14px;
+      box-sizing: border-box;
     }
     .prototype-guest-home {
+      width: 100%;
       display: flex;
       flex-direction: column;
       gap: 0;
       margin-bottom: 28px;
     }
     .prototype-guest-home-panel {
+      width: 100%;
       order: 0;
       padding: 0;
       border: 0;
@@ -112,6 +148,7 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
       box-shadow: none;
     }
     .prototype-guest-home-proof {
+      width: 100%;
       padding: 0;
       border: 0;
       border-radius: 0;
@@ -121,12 +158,14 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
       display: none;
     }
     .prototype-guest-home-proof-grid {
+      width: 100%;
       display: block;
     }
     .prototype-guest-home-proof-card {
       display: none;
     }
     .prototype-guest-home-proof-card:first-child {
+      width: 100%;
       display: block;
       height: clamp(270px, 42vh, 370px);
       min-height: 270px;
@@ -139,7 +178,9 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
       align-items: center;
       position: absolute;
       left: 12px;
+      right: auto;
       bottom: 12px;
+      max-width: calc(100% - 24px);
       padding: 0 10px;
       border-radius: 999px;
       background: rgba(2,6,23,.76);
@@ -147,9 +188,11 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
       font-size: 13px;
       font-weight: 900;
       line-height: 1;
+      box-sizing: border-box;
       backdrop-filter: blur(8px);
     }
     .prototype-guest-home-copy {
+      width: 100%;
       order: 1;
       gap: 12px;
       padding: 20px 4px 0;
@@ -160,35 +203,40 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
       color: #10251a;
     }
     .prototype-guest-home-copy > span {
+      max-width: 100%;
       padding: 0;
       background: transparent;
       color: #047857;
       font-size: 13px;
+      overflow-wrap: anywhere;
     }
     .prototype-guest-home-copy h1 {
-      max-width: none;
+      max-width: 100%;
       color: #10251a;
       font-size: clamp(34px, 9.8vw, 42px);
       line-height: 1.04;
     }
     .prototype-guest-home-copy p,
     .prototype-guest-home-lead {
-      max-width: 30em !important;
+      max-width: 100% !important;
       color: #334155 !important;
       font-size: 16px !important;
       line-height: 1.65 !important;
       font-weight: 720 !important;
     }
     .prototype-guest-home-actions.is-focused {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
       width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
       margin-top: 2px;
     }
     .prototype-guest-home-actions.is-focused a {
       width: 100%;
+      min-width: 0;
+      max-width: 100%;
       min-height: 46px;
+      padding-inline: 12px;
       border-color: rgba(15,118,110,.22);
       background: #fff;
       color: #0f766e;
@@ -208,11 +256,13 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
       color: #0f766e;
     }
     .prototype-guest-home-trust {
+      width: 100%;
       color: #64748b !important;
       font-size: 13px !important;
       line-height: 1.5 !important;
     }
     .prototype-focused-feed-heading {
+      width: 100%;
       margin: 0 0 12px;
     }
     .prototype-focused-feed-heading strong {
@@ -220,6 +270,15 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
     }
     .prototype-focused-feed-heading span {
       font-size: 13px;
+    }
+    .prototype-record-feed.is-guest,
+    .prototype-record-feed-list,
+    .prototype-record-feed-card,
+    .prototype-record-feed-main,
+    .prototype-record-feed-media-wrap {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
     }
     .prototype-record-feed-list {
       gap: 22px;
@@ -234,9 +293,15 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
     }
   }
   @media (max-width: 360px) {
+    .shell.shell-bleed.prototype-shell {
+      max-width: calc(100vw - 24px);
+    }
     .prototype-guest-home-proof-card:first-child {
       height: 260px;
       min-height: 260px;
+    }
+    .prototype-guest-home-copy {
+      padding-inline: 0;
     }
     .prototype-guest-home-copy h1 {
       font-size: 33px;
