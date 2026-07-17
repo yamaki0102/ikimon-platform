@@ -1,3 +1,8 @@
+import {
+  applyFocusedPublicHomeRedesign,
+  FOCUSED_PUBLIC_HOME_PRESENTATION,
+} from "./publicFocusedHomeRedesign";
+
 const NORMAL_HOME_PATHS = new Set(["/", "/home"]);
 const LANGUAGE_SEGMENTS = new Set(["ja", "en", "es", "pt-br"]);
 
@@ -45,13 +50,15 @@ export async function patchPublicHomePresentation(request: Request, response: Re
   if (!contentType.includes("text/html")) return response;
 
   const html = await response.text();
-  const patched = stripPassiveIdentificationFromHomeHtml(html);
+  const withoutPassiveIdentification = stripPassiveIdentificationFromHomeHtml(html);
+  const patched = applyFocusedPublicHomeRedesign(withoutPassiveIdentification);
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   headers.delete("etag");
   headers.delete("last-modified");
   headers.set("cache-control", "no-cache, no-store, must-revalidate");
   headers.set("x-ikimon-presentation-contract", "light-home-v2");
+  headers.set("x-ikimon-home-redesign", FOCUSED_PUBLIC_HOME_PRESENTATION);
 
   return new Response(patched, {
     status: response.status,
