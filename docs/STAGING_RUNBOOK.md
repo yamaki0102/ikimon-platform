@@ -43,6 +43,27 @@ gh workflow run deploy-cloudflare-staging.yml --ref main -f branch=<codex-branch
 `Ai Review Gate` の成功を、`main` からcheckoutしたrelease controlでworkflow内でも再確認する。
 feature branchのpushではこのworkflowを起動しない。staging全体で1本ずつ実行し、途中cancelしない。
 
+## Secretless Renri Browser QA Surface
+
+連理イベント導線の通常のVisual QAは、staging Workerに固定した合成面を使える。
+入口・安全境界・証拠項目は
+[`docs/operations/renri_synthetic_browser_qa_surface_2026-07-17.md`](operations/renri_synthetic_browser_qa_surface_2026-07-17.md)
+を正本とする。
+
+- `GET /__ops/browser-qa/renri/manifest.json`
+- `GET /__ops/browser-qa/renri/join`
+- `GET /__ops/browser-qa/renri/rally`
+- `GET /__ops/browser-qa/renri/live`
+- `GET /__ops/browser-qa/renri/recap`
+
+この面は `ENVIRONMENT=staging` のときだけ応答し、query、未登録path、GET/HEAD以外を404にする。
+D1、R2、Queue、認証、Cookie、位置情報、顧客データ、実投稿APIを使わず、外部asset・analyticsも読み込まない。
+したがってread-only Browser Runnerにsecretを渡さず、最低6 viewportのlayout、console、failed request、
+accessibility smoke、入力保持、error、操作結果を検証できる。
+
+これは合成Visual/interaction QAであり、実データ、実ログイン、実端末、現地、人による確認、
+本番導線のread-only smokeを置き換えない。
+
 ## Legacy VPS Staging Lane
 
 以下は旧PHP/PostgreSQL integrationの調査・退役作業だけに使う。通常のCloudflare promotionでは

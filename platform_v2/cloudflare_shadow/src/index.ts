@@ -2276,6 +2276,12 @@ export const worker = {
     try {
       const url = new URL(request.url);
       const nativePathname = stripPublicLangPrefix(url.pathname);
+      const syntheticRenriBrowserQaResponse = handleSyntheticRenriBrowserQa(
+        request,
+        url,
+        env.ENVIRONMENT
+      );
+      if (syntheticRenriBrowserQaResponse) return syntheticRenriBrowserQaResponse;
       const canonicalRedirect = canonicalPublicHostRedirect(request, url, env);
       if (canonicalRedirect) return canonicalRedirect;
 
@@ -3327,6 +3333,430 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
 }
 
+const SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH = "/__ops/browser-qa/renri";
+const SYNTHETIC_RENRI_BROWSER_QA_ROUTES = Object.freeze({
+  manifest: `${SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH}/manifest.json`,
+  join: `${SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH}/join`,
+  rally: `${SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH}/rally`,
+  live: `${SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH}/live`,
+  recap: `${SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH}/recap`
+});
+const SYNTHETIC_RENRI_BROWSER_QA_ROUTE_SET = new Set<string>(Object.values(SYNTHETIC_RENRI_BROWSER_QA_ROUTES));
+const SYNTHETIC_RENRI_BROWSER_QA_HOST_SET = new Set([
+  "staging.ikimon.life",
+  "ikimon-life-cloudflare-staging.yamaki0102.workers.dev"
+]);
+const SYNTHETIC_RENRI_BROWSER_QA_VIEWPORTS = Object.freeze([
+  "320x568",
+  "360x800",
+  "375x667",
+  "390x844",
+  "412x915",
+  "768x1024",
+  "1024x768",
+  "1366x768",
+  "1440x900",
+  "1920x1080"
+]);
+
+type SyntheticObservationEventRenderOptions = Readonly<{
+  syntheticQaBasePath: string;
+}>;
+
+function handleSyntheticRenriBrowserQa(
+  request: Request,
+  url: URL,
+  environment: string
+): Response | null {
+  const ownsPath = url.pathname === SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH
+    || url.pathname.startsWith(`${SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH}/`);
+  if (!ownsPath) return null;
+
+  if (
+    environment !== "staging"
+    || !SYNTHETIC_RENRI_BROWSER_QA_HOST_SET.has(url.hostname)
+    || (request.method !== "GET" && request.method !== "HEAD")
+    || url.search !== ""
+    || !SYNTHETIC_RENRI_BROWSER_QA_ROUTE_SET.has(url.pathname)
+  ) {
+    return syntheticRenriBrowserQaNotFound();
+  }
+
+  if (url.pathname === SYNTHETIC_RENRI_BROWSER_QA_ROUTES.manifest) {
+    return json({
+      ok: true,
+      schema_version: "ikimon.synthetic-renri-browser-qa/v1",
+      synthetic: true,
+      staging_only: true,
+      values_exposed: false,
+      customer_data_access: false,
+      customer_data_write: false,
+      production_unchanged: true,
+      external_requests: false,
+      routes: SYNTHETIC_RENRI_BROWSER_QA_ROUTES,
+      viewports: SYNTHETIC_RENRI_BROWSER_QA_VIEWPORTS,
+      interaction_checks: [
+        "join_required_name_error",
+        "join_guardian_consent_error",
+        "join_browser_local_draft_restore",
+        "join_synthetic_success",
+        "rally_browser_local_progress"
+      ]
+    }, 200, syntheticRenriBrowserQaSecurityHeaders());
+  }
+
+  const fixture = syntheticRenriBrowserQaFixture();
+  if (url.pathname === SYNTHETIC_RENRI_BROWSER_QA_ROUTES.join) {
+    const body = `<div data-renderer-contract="renderObservationEventJoinPage">${renderObservationEventJoinPage(
+      fixture.session,
+      fixture.teams,
+      false,
+      { syntheticQaBasePath: SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH }
+    )}</div>`;
+    return syntheticRenriBrowserQaPageHtml("参加", "join", body);
+  }
+  if (url.pathname === SYNTHETIC_RENRI_BROWSER_QA_ROUTES.rally) {
+    const body = `<div data-renderer-contract="renderObservationEventRallyPage">${renderObservationEventRallyPage(
+      fixture.session,
+      fixture.rally,
+      true,
+      false,
+      { syntheticQaBasePath: SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH }
+    )}</div>${renderSyntheticRenriRallyInteractions(fixture.rally)}`;
+    return syntheticRenriBrowserQaPageHtml("観察ラリー", "rally", body);
+  }
+  if (url.pathname === SYNTHETIC_RENRI_BROWSER_QA_ROUTES.live) {
+    const body = `<div data-renderer-contract="renderObservationEventLivePage">${renderObservationEventLivePage(
+      fixture.session,
+      fixture.teams,
+      fixture.liveEvents,
+      false
+    )}</div>`;
+    return syntheticRenriBrowserQaPageHtml("ライブ", "live", body);
+  }
+
+  const body = `<div data-renderer-contract="renderObservationEventRecapPage">${renderObservationEventRecapPage(
+    fixture.recap
+  )}</div>`;
+  return syntheticRenriBrowserQaPageHtml("振り返り", "recap", body);
+}
+
+function syntheticRenriBrowserQaNotFound(): Response {
+  return json({ error: "not_found" }, 404, {
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff"
+  });
+}
+
+function syntheticRenriBrowserQaSecurityHeaders(cspNonce?: string): Record<string, string> {
+  const contentSecurityPolicy = cspNonce
+    ? [
+        "default-src 'none'",
+        "base-uri 'none'",
+        "object-src 'none'",
+        "frame-ancestors 'none'",
+        "form-action 'none'",
+        `script-src 'nonce-${cspNonce}'`,
+        "style-src 'unsafe-inline'",
+        "img-src data:",
+        "connect-src 'none'",
+        "font-src 'none'",
+        "media-src 'none'",
+        "worker-src 'none'",
+        "manifest-src 'none'"
+      ].join("; ")
+    : "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'none'; connect-src 'none'";
+  return {
+    "cache-control": "no-store, max-age=0",
+    "content-security-policy": contentSecurityPolicy,
+    "cross-origin-opener-policy": "same-origin",
+    "cross-origin-resource-policy": "same-origin",
+    "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=()",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "x-ikimon-synthetic-browser-qa": "renri-v1",
+    "x-robots-tag": "noindex, nofollow, noarchive, nosnippet"
+  };
+}
+
+function syntheticRenriBrowserQaPageHtml(
+  title: string,
+  state: "join" | "rally" | "live" | "recap",
+  body: string
+): Response {
+  const cspNonce = createHtmlCspNonce();
+  const document = `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
+  <title>${escapeHtml(title)} - 連理 合成Browser QA</title>
+  <style>
+    :root{color-scheme:light;--ink:#17231b;--muted:#587062;--line:#d9e5dd;--brand:#0b6b54;--base:#f7faf8;--surface:#fff;--warn:#fff7d6}
+    *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--base);color:var(--ink);line-height:1.65;overflow-wrap:anywhere}
+    a{color:var(--brand)}button,input,select{font:inherit}button,input,select,a.btn{min-height:44px}input,select{width:100%;margin-top:6px;padding:10px 12px;border:1px solid #b9cbc1;border-radius:8px;background:#fff;color:var(--ink)}
+    label{display:block;margin:14px 0;font-weight:700}.qa-header{border-bottom:1px solid var(--line);background:#fff}.qa-header-inner{max-width:1040px;margin:auto;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}.qa-brand{font-weight:900}.qa-marker{padding:4px 9px;border-radius:999px;background:var(--warn);font-size:12px;font-weight:900}
+    .qa-nav{max-width:1040px;margin:auto;padding:10px 18px;display:flex;gap:8px;overflow-x:auto}.qa-nav a{flex:0 0 auto;padding:8px 11px;border:1px solid var(--line);border-radius:999px;background:#fff;text-decoration:none;font-weight:800}.qa-nav a[aria-current="page"]{background:var(--brand);color:#fff;border-color:var(--brand)}
+    main{width:min(100%,1040px);margin:auto;padding:18px 18px 56px}.qa-boundary{margin-bottom:18px;padding:12px 14px;border:2px solid #d49b00;border-radius:10px;background:var(--warn)}.qa-boundary strong{display:block}.qa-boundary p{margin:4px 0 0}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}.muted{color:var(--muted)}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 13px;border:0;border-radius:8px;background:var(--brand);color:#fff;text-decoration:none;font-weight:800;cursor:pointer}.btn.secondary{background:#e8f1ed;color:#174c3d}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
+    .evt-check-row{display:flex;align-items:flex-start;gap:10px}.evt-check-row input{flex:0 0 auto;width:22px;min-height:22px;margin:3px 0}.evt-check-row span{min-width:0}.evt-check-row small{display:block;font-weight:400;color:var(--muted)}[hidden]{display:none!important}
+    .qa-mission{display:grid;gap:10px}.qa-progress{height:12px;overflow:hidden;border-radius:999px;background:#e1ebe5}.qa-progress>span{display:block;height:100%;background:var(--brand);transition:width .2s ease}.qa-footer{padding:18px;text-align:center;color:var(--muted);font-size:13px}
+    @media(max-width:420px){.qa-header-inner,main,.qa-nav{padding-left:12px;padding-right:12px}.card{padding:14px}.actions>.btn{width:100%}h1{font-size:1.6rem;line-height:1.35}h2{font-size:1.2rem}}
+  </style>
+</head>
+<body data-synthetic-browser-qa="renri-v1" data-synthetic-state="${escapeHtml(state)}">
+  <header class="qa-header"><div class="qa-header-inner"><span class="qa-brand">ikimon.life / 連理</span><span class="qa-marker">合成QA・staging限定</span></div></header>
+  <nav class="qa-nav" aria-label="合成QA状態">
+    ${(["join", "rally", "live", "recap"] as const).map((item) => `<a href="${escapeHtml(SYNTHETIC_RENRI_BROWSER_QA_ROUTES[item])}"${item === state ? ' aria-current="page"' : ""}>${escapeHtml({ join: "参加", rally: "ラリー", live: "ライブ", recap: "振り返り" }[item])}</a>`).join("")}
+  </nav>
+  <main>
+    <aside class="qa-boundary" data-synthetic-marker="true"><strong>合成データだけを使う表示・操作確認面です</strong><p>顧客データ、D1、R2、Queue、認証、位置情報、実投稿APIには接続しません。</p></aside>
+    ${body}
+  </main>
+  <footer class="qa-footer">Synthetic visual and interaction QA only — 実データ・実端末・人による確認の代替ではありません。</footer>
+</body>
+</html>`;
+  return html(applyCspNonceToHtmlScripts(document, cspNonce), 200, {
+    ...syntheticRenriBrowserQaSecurityHeaders(cspNonce),
+    "x-ikimon-cloudflare-native": `synthetic-renri-browser-qa-${state}`
+  });
+}
+
+function syntheticRenriBrowserQaFixture() {
+  const session = mapObservationEventSession({
+    session_id: "synthetic-renri-browser-qa-v1",
+    legacy_event_id: null,
+    event_code: "SYNTHETIC-RENRI-QA",
+    title: "連理サイエンスアドベンチャー（合成QA）",
+    organizer_user_id: "synthetic-organizer",
+    corporation_id: null,
+    plan: "community",
+    primary_mode: "discovery",
+    active_modes_json: JSON.stringify(["discovery", "survey"]),
+    location_lat: null,
+    location_lng: null,
+    location_radius_m: 0,
+    started_at: "2026-07-19T09:00:00.000Z",
+    ended_at: null,
+    target_species_json: JSON.stringify(["セミの声", "樹皮の模様", "足元の小さないきもの"]),
+    config_json: JSON.stringify({ synthetic_browser_qa: true, public_list_visibility: "hidden" }),
+    field_id: null,
+    template_source_session_id: null,
+    created_at: "2026-07-17T00:00:00.000Z",
+    updated_at: "2026-07-17T00:00:00.000Z"
+  });
+  const teams: ObservationEventTeamD1Row[] = [
+    {
+      team_id: "synthetic-team-green",
+      name: "みどり班（合成）",
+      color: "#0b6b54",
+      lead_user_id: null,
+      target_taxa_json: JSON.stringify(["セミの声", "樹皮の模様"]),
+      created_at: "2026-07-17T00:00:00.000Z"
+    },
+    {
+      team_id: "synthetic-team-water",
+      name: "みず班（合成）",
+      color: "#2878a8",
+      lead_user_id: null,
+      target_taxa_json: JSON.stringify(["足元の小さないきもの"]),
+      created_at: "2026-07-17T00:00:00.000Z"
+    }
+  ];
+  const course = mapObservationRallyCourse({
+    course_id: "synthetic-renri-course",
+    session_id: session.sessionId,
+    title: "連理の木をめぐる合成ラリー",
+    status: "active",
+    config_json: JSON.stringify({ synthetic_browser_qa: true }),
+    created_by: null,
+    created_at: "2026-07-17T00:00:00.000Z",
+    updated_at: "2026-07-17T00:00:00.000Z"
+  });
+  const stations = [
+    mapObservationRallyStation({
+      station_id: "synthetic-station-trunk",
+      course_id: course.courseId,
+      field_id: null,
+      code: "TRUNK",
+      name: "連理の幹（合成）",
+      description: "樹皮の模様を比べる合成地点です。",
+      lat: null,
+      lng: null,
+      radius_m: null,
+      polygon_json: null,
+      route_geojson: null,
+      is_private: 0,
+      access_note: "合成QAのため現地案内ではありません。",
+      danger_note: "",
+      status: "open",
+      sort_order: 1,
+      created_at: "2026-07-17T00:00:00.000Z",
+      updated_at: "2026-07-17T00:00:00.000Z"
+    }),
+    mapObservationRallyStation({
+      station_id: "synthetic-station-canopy",
+      course_id: course.courseId,
+      field_id: null,
+      code: "CANOPY",
+      name: "木陰の音（合成）",
+      description: "聞こえた音を比べる合成地点です。",
+      lat: null,
+      lng: null,
+      radius_m: null,
+      polygon_json: null,
+      route_geojson: null,
+      is_private: 0,
+      access_note: "合成QAのため現地案内ではありません。",
+      danger_note: "",
+      status: "open",
+      sort_order: 2,
+      created_at: "2026-07-17T00:00:00.000Z",
+      updated_at: "2026-07-17T00:00:00.000Z"
+    })
+  ];
+  const missions = [
+    mapObservationRallyMission({
+      mission_id: "synthetic-mission-bark",
+      course_id: course.courseId,
+      station_id: stations[0]?.stationId ?? null,
+      replacement_for_mission_id: null,
+      scope: "event",
+      location_binding: "none",
+      title: "樹皮の違いを3つ見つける",
+      target: "樹皮の模様",
+      count_unit: "scene",
+      goal_count: 3,
+      counting_policy_json: "{}",
+      verification_policy: "auto",
+      weather_sensitivity: "all_weather",
+      fallback_group: "",
+      status: "published",
+      starts_at: null,
+      ends_at: null,
+      sort_order: 1,
+      created_by: null,
+      created_at: "2026-07-17T00:00:00.000Z",
+      updated_at: "2026-07-17T00:00:00.000Z"
+    }),
+    mapObservationRallyMission({
+      mission_id: "synthetic-mission-sound",
+      course_id: course.courseId,
+      station_id: stations[1]?.stationId ?? null,
+      replacement_for_mission_id: null,
+      scope: "event",
+      location_binding: "none",
+      title: "聞こえた音を2種類見つける",
+      target: "セミの声",
+      count_unit: "taxon",
+      goal_count: 2,
+      counting_policy_json: "{}",
+      verification_policy: "auto",
+      weather_sensitivity: "all_weather",
+      fallback_group: "",
+      status: "published",
+      starts_at: null,
+      ends_at: null,
+      sort_order: 2,
+      created_by: null,
+      created_at: "2026-07-17T00:00:00.000Z",
+      updated_at: "2026-07-17T00:00:00.000Z"
+    })
+  ];
+  const progress = missions.map((mission, index) => mapObservationRallyProgress({
+    progress_id: `synthetic-progress-${index + 1}`,
+    course_id: course.courseId,
+    mission_id: mission.missionId,
+    progress_scope: "event",
+    team_id: null,
+    participant_key: null,
+    station_id: mission.stationId,
+    actual_count: index === 0 ? 1 : 0,
+    goal_count: mission.goalCount,
+    percent: index === 0 ? 33 : 0,
+    status: "active",
+    updated_at: "2026-07-17T00:00:00.000Z"
+  }));
+  const liveEvents: PublicObservationEventLiveEvent[] = [
+    {
+      type: "observation_added",
+      label: "観察が追加されました",
+      payload: { taxonName: "樹皮の模様（合成）" },
+      createdAt: "2026-07-19T09:12:00.000Z"
+    },
+    {
+      type: "rally_station_opened",
+      label: "観察地点が開きました",
+      payload: { name: "木陰の音（合成）" },
+      createdAt: "2026-07-19T09:08:00.000Z"
+    },
+    {
+      type: "announce",
+      label: "主催者からのお知らせ",
+      payload: { message: "足元に気をつけて、合成ミッションを続けましょう。" },
+      createdAt: "2026-07-19T09:05:00.000Z"
+    }
+  ];
+  return {
+    session,
+    teams,
+    rally: { course, stations, missions, progress },
+    liveEvents,
+    recap: {
+      session: { title: session.title },
+      highlights: {
+        observationCount: 12,
+        uniqueSpeciesCount: 7,
+        participantsCount: 4,
+        topTaxa: [
+          { name: "セミの声（合成）", count: 4 },
+          { name: "樹皮の模様（合成）", count: 3 }
+        ]
+      },
+      photos: [],
+      synthetic: true
+    }
+  };
+}
+
+function renderSyntheticRenriRallyInteractions(
+  rally: Awaited<ReturnType<typeof getObservationRallySnapshot>>
+): string {
+  const cards = rally.missions.map((mission) => {
+    const initial = rally.progress.find((item) => item.missionId === mission.missionId)?.actualCount ?? 0;
+    const percent = Math.min(100, Math.round((initial / Math.max(1, mission.goalCount)) * 100));
+    return `<article class="card qa-mission" data-synthetic-mission="${escapeHtml(mission.missionId)}" data-count="${initial}" data-goal="${mission.goalCount}">
+      <h2>${escapeHtml(mission.title)}</h2>
+      <p class="muted">${escapeHtml(mission.target)} / 目標 ${mission.goalCount}</p>
+      <div class="qa-progress" role="progressbar" aria-label="${escapeHtml(mission.title)} の進み具合" aria-valuemin="0" aria-valuemax="${mission.goalCount}" aria-valuenow="${initial}"><span style="width:${percent}%"></span></div>
+      <p data-synthetic-mission-status role="status">${initial} / ${mission.goalCount}</p>
+      <button type="button" class="btn" data-synthetic-mission-add>合成発見を1件追加</button>
+    </article>`;
+  }).join("");
+  return `<section aria-labelledby="synthetic-missions-heading"><h2 id="synthetic-missions-heading">合成ミッション操作</h2><div class="grid">${cards}</div><div class="actions"><a class="btn secondary" href="${SYNTHETIC_RENRI_BROWSER_QA_ROUTES.live}">合成ライブを見る</a></div></section>
+<script>
+(() => {
+  document.querySelectorAll("[data-synthetic-mission]").forEach((card) => {
+    const button = card.querySelector("[data-synthetic-mission-add]");
+    const status = card.querySelector("[data-synthetic-mission-status]");
+    const progress = card.querySelector('[role="progressbar"]');
+    const fill = progress?.querySelector("span");
+    button?.addEventListener("click", () => {
+      const goal = Math.max(1, Number(card.dataset.goal || "1"));
+      const count = Math.min(goal, Number(card.dataset.count || "0") + 1);
+      card.dataset.count = String(count);
+      if (status) status.textContent = count + " / " + goal + (count >= goal ? " 達成（合成）" : "");
+      if (progress) progress.setAttribute("aria-valuenow", String(count));
+      if (fill) fill.style.width = String(Math.round((count / goal) * 100)) + "%";
+      if (count >= goal && button instanceof HTMLButtonElement) button.disabled = true;
+    });
+  });
+})();
+</script>`;
+}
+
 async function handleObservationEventPages(request: Request, url: URL, env: Env): Promise<Response | null> {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const pathname = stripPublicLangPrefix(url.pathname);
@@ -3714,7 +4144,12 @@ function renderObservationEventListPage(sessions: Array<NonNullable<Awaited<Retu
   return `<section><h1>観察会</h1><p class="muted">${auth ? `${escapeHtml(auth.displayName)} として表示中` : "公開D1セッションを表示中"}</p><div class="grid">${items || observationEventEmptyState("観察会はまだありません", "新しい観察会を作成してください。")}</div></section>`;
 }
 
-function renderObservationEventJoinPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, teams: Awaited<ReturnType<typeof listObservationEventTeams>>, isAuthenticated: boolean): string {
+function renderObservationEventJoinPage(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+  teams: Awaited<ReturnType<typeof listObservationEventTeams>>,
+  isAuthenticated: boolean,
+  options?: SyntheticObservationEventRenderOptions
+): string {
   const eventCode = session.eventCode ?? "";
   const returnPath = `/community/events/${encodeURIComponent(eventCode)}/join`;
   const registerHref = `/register?redirect=${encodeURIComponent(returnPath)}`;
@@ -3722,10 +4157,12 @@ function renderObservationEventJoinPage(session: NonNullable<Awaited<ReturnType<
   const teamOptions = teams.map((team) =>
     `<option value="${escapeHtml(team.team_id)}">${escapeHtml(team.name)}</option>`
   ).join("");
-  const accountCopy = isAuthenticated
+  const accountCopy = options
+    ? `<aside class="card" data-synthetic-account-boundary><p><strong>合成参加として操作します。</strong></p><p class="muted">アカウント、Cookie、位置情報、実データは使いません。入力はこのブラウザタブの sessionStorage にだけ残ります。</p></aside>`
+    : isAuthenticated
     ? `<p class="muted">ログイン済みアカウントで参加します。このイベント用のゲストIDは作りません。</p>`
     : `<aside class="card"><p><strong>ゲストのまますぐ参加できます。</strong> ライブと終了後のふり返りは、この端末で開けます。</p><p class="muted">写真を自分の記録として残す方は、<a data-evt-register-link href="${escapeHtml(registerHref)}">無料アカウントを作る</a>か、<a data-evt-login-link href="${escapeHtml(loginHref)}">ログイン</a>してください。登録後はこの画面へ戻ります。</p></aside>`;
-  return `<section class="card" data-renri-checkin-root data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(eventCode)}" data-authenticated="${isAuthenticated ? "true" : "false"}">
+  return `<section class="card" data-renri-checkin-root data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(eventCode)}" data-authenticated="${isAuthenticated ? "true" : "false"}"${options ? ' data-synthetic="true"' : ""}>
     <p class="pill">観察会チェックイン</p>
     <h1>${escapeHtml(session.title)} に参加</h1>
     <p>家族・グループはスマートフォン1台で参加できます。代表者のニックネームや「○○家」で進めてください。</p>
@@ -3750,8 +4187,92 @@ function renderObservationEventJoinPage(session: NonNullable<Awaited<ReturnType<
       ${accountCopy}
       <p class="muted" data-evt-checkin-status role="status" aria-live="polite"></p>
       <button type="submit" class="btn" data-evt-checkin-submit>観察を始める</button>
+      ${options ? `<button type="button" class="btn secondary" data-synthetic-checkin-error>合成通信エラー表示を確認</button><a class="btn secondary" data-synthetic-checkin-continue href="${escapeHtml(`${options.syntheticQaBasePath}/rally`)}" hidden>合成ラリーへ進む</a>` : ""}
     </form>
-  </section>${observationEventJoinScript()}`;
+  </section>${options ? syntheticObservationEventJoinScript() : observationEventJoinScript()}`;
+}
+
+function syntheticObservationEventJoinScript(): string {
+  return `<script>
+(() => {
+  const root = document.querySelector("[data-renri-checkin-root][data-synthetic='true']");
+  if (!root) return;
+  const form = root.querySelector("[data-evt-checkin-form]");
+  const status = root.querySelector("[data-evt-checkin-status]");
+  const submit = root.querySelector("[data-evt-checkin-submit]");
+  const displayName = form?.querySelector('input[name="display_name"]');
+  const teamId = form?.querySelector('[name="team_id"]');
+  const shareLocation = form?.querySelector('input[name="share_location"]');
+  const isMinor = form?.querySelector('input[name="is_minor"]');
+  const guardianConsent = form?.querySelector('input[name="guardian_location_consent"]');
+  const guardianRow = root.querySelector("[data-guardian-consent-row]");
+  const errorButton = root.querySelector("[data-synthetic-checkin-error]");
+  const continueLink = root.querySelector("[data-synthetic-checkin-continue]");
+  const draftKey = "synthetic-renri-checkin-draft-v1";
+
+  function setStatus(message, error) {
+    if (!status) return;
+    status.textContent = message || "";
+    status.style.color = error ? "#b91c1c" : "#047857";
+  }
+  function syncGuardian() {
+    const required = Boolean(isMinor?.checked && shareLocation?.checked);
+    if (guardianRow) guardianRow.hidden = !required;
+    if (!required && guardianConsent) guardianConsent.checked = false;
+  }
+  function draft() {
+    return {
+      displayName: String(displayName?.value || ""),
+      teamId: String(teamId?.value || ""),
+      shareLocation: Boolean(shareLocation?.checked),
+      isMinor: Boolean(isMinor?.checked),
+      guardianConsent: Boolean(guardianConsent?.checked)
+    };
+  }
+  function saveDraft() {
+    try { sessionStorage.setItem(draftKey, JSON.stringify(draft())); } catch {}
+  }
+  function restoreDraft() {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(draftKey) || "null");
+      if (!value || typeof value !== "object") return;
+      if (displayName && typeof value.displayName === "string") displayName.value = value.displayName;
+      if (teamId && typeof value.teamId === "string") teamId.value = value.teamId;
+      if (shareLocation) shareLocation.checked = value.shareLocation === true;
+      if (isMinor) isMinor.checked = value.isMinor === true;
+      if (guardianConsent) guardianConsent.checked = value.guardianConsent === true;
+    } catch {}
+  }
+
+  restoreDraft();
+  syncGuardian();
+  form?.addEventListener("input", saveDraft);
+  isMinor?.addEventListener("change", syncGuardian);
+  shareLocation?.addEventListener("change", syncGuardian);
+  errorButton?.addEventListener("click", () => {
+    saveDraft();
+    setStatus("合成通信エラーです。入力内容はこのタブに残っています。実際の通信は行っていません。", true);
+  });
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const name = String(displayName?.value || "").trim();
+    if (!name) {
+      setStatus("参加名を入力してください。", true);
+      displayName?.focus();
+      return;
+    }
+    if (isMinor?.checked && shareLocation?.checked && !guardianConsent?.checked) {
+      setStatus("位置情報を共有する場合は、保護者または引率者の同意を確認してください。共有しない設定でも参加できます。", true);
+      guardianConsent?.focus();
+      return;
+    }
+    saveDraft();
+    if (submit) submit.disabled = true;
+    setStatus("合成参加の操作確認が完了しました。D1・R2・Queue・実APIへの送信はありません。", false);
+    if (continueLink) continueLink.hidden = false;
+  });
+})();
+</script>`;
 }
 
 function observationEventJoinScript(): string {
@@ -3899,7 +4420,13 @@ function renderObservationEventEditPage(session: NonNullable<Awaited<ReturnType<
   return `<section class="card"><h1>${escapeHtml(session.title)} 編集</h1><p class="muted">Worker/D1 runtimeでは、更新は PATCH /api/v1/observation-events/:sessionId に集約します。</p><pre>${escapeHtml(JSON.stringify({ sessionId: session.sessionId, title: session.title, primaryMode: session.primaryMode, activeModes: session.activeModes, targetSpecies: session.targetSpecies }, null, 2))}</pre><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}">session API</a></div></section>`;
 }
 
-function renderObservationEventRallyPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, rally: Awaited<ReturnType<typeof getObservationRallySnapshot>>, isAuthenticated: boolean, canManage: boolean): string {
+function renderObservationEventRallyPage(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+  rally: Awaited<ReturnType<typeof getObservationRallySnapshot>>,
+  isAuthenticated: boolean,
+  canManage: boolean,
+  options?: SyntheticObservationEventRenderOptions
+): string {
   const recordParams = new URLSearchParams();
   if (session.eventCode) recordParams.set("event", session.eventCode);
   recordParams.set("eventSessionId", session.sessionId);
@@ -3909,14 +4436,21 @@ function renderObservationEventRallyPage(session: NonNullable<Awaited<ReturnType
   const recordHref = `/record?${recordParams.toString()}`;
   const registerHref = `/register?redirect=${encodeURIComponent(recordHref)}`;
   const loginHref = `/login?redirect=${encodeURIComponent(recordHref)}`;
-  const recordAction = isAuthenticated
+  const recordAction = options
+    ? `<button type="button" class="btn rally-record-cta" data-synthetic-record-action disabled>実投稿なし（合成QA）</button>`
+    : isAuthenticated
     ? `<a class="btn rally-record-cta" href="${escapeHtml(recordHref)}" data-rally-action="record">写真を記録する</a>`
     : `<a class="btn rally-record-cta" href="${escapeHtml(registerHref)}" data-rally-action="record" data-event-registration-start>無料アカウントを作って記録する</a><a class="btn secondary" href="${escapeHtml(loginHref)}" data-event-registration-start>ログインして記録する</a>`;
-  const accountCopy = isAuthenticated
+  const accountCopy = options
+    ? "合成ミッションの表示とブラウザ内操作だけを確認します。写真、位置、アカウント情報は送信しません。"
+    : isAuthenticated
     ? "写真はログイン中のアカウントへ保存され、この観察会の振り返りにつながります。"
     : "写真を自分の記録として安全に残すには、無料アカウント作成またはログインが必要です。ゲストの参加状態はこの端末に残ります。";
-  const registrationAnalytics = isAuthenticated ? "" : observationEventRegistrationStartScript(session.sessionId);
-  return `<section><h1>${escapeHtml(session.title)} 観察ラリー</h1><article class="card"><h2>見つけたものを記録しよう</h2><p>${escapeHtml(accountCopy)}</p><div class="actions">${recordAction}</div></article><div class="grid"><article class="card"><h2>${escapeHtml(rally.course?.title ?? "観察ラリー未作成")}</h2><p class="muted">${escapeHtml(rally.course?.status ?? "draft")}</p></article><article class="card"><h2>地点</h2><p>${rally.stations.length}</p></article><article class="card"><h2>ミッション</h2><p>${rally.missions.length}</p></article></div><div class="actions"><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/rally">ラリーの進み具合</a>${canManage ? `<a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a>` : ""}</div></section>${registrationAnalytics}`;
+  const registrationAnalytics = options || isAuthenticated ? "" : observationEventRegistrationStartScript(session.sessionId);
+  const progressHref = options
+    ? `${options.syntheticQaBasePath}/live`
+    : `/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/rally`;
+  return `<section><h1>${escapeHtml(session.title)} 観察ラリー</h1><article class="card"><h2>見つけたものを記録しよう</h2><p>${escapeHtml(accountCopy)}</p><div class="actions">${recordAction}</div></article><div class="grid"><article class="card"><h2>${escapeHtml(rally.course?.title ?? "観察ラリー未作成")}</h2><p class="muted">${escapeHtml(rally.course?.status ?? "draft")}</p></article><article class="card"><h2>地点</h2><p>${rally.stations.length}</p></article><article class="card"><h2>ミッション</h2><p>${rally.missions.length}</p></article></div><div class="actions"><a class="btn secondary" href="${escapeHtml(progressHref)}">${options ? "合成ライブを見る" : "ラリーの進み具合"}</a>${!options && canManage ? `<a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a>` : ""}</div></section>${registrationAnalytics}`;
 }
 
 function observationEventRegistrationStartScript(sessionId: string): string {
