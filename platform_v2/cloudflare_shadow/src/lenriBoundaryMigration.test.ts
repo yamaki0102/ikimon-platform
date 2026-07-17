@@ -20,7 +20,7 @@ test("Aikan Lenri D1 migration publishes the verified irregular boundary", async
   assert.match(sql, /7cb246a5-388b-4acb-b701-2bfd698fac13/);
   assert.match(sql, /ikimon:aikan:renri-no-ki/);
   assert.match(sql, /applicant_workbook_image_digitization/);
-  assert.match(sql, /\n\s*0,\n\s*'applicant_workbook_image_digitization'/);
+  assert.match(sql, /\r?\n\s*0,\r?\n\s*'applicant_workbook_image_digitization'/);
 
   const geometryMatch = sql.match(/'(\{"type":"Polygon","coordinates":\[\[\[.*?\]\]\]\})'/s);
   assert.ok(geometryMatch?.[1], "migration must contain a GeoJSON Polygon");
