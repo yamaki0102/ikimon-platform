@@ -50,6 +50,15 @@ test("focused Japanese home makes one photo the primary action and preserves rea
   assert.doesNotMatch(redesigned, />地域の記録を見る<\/a>/u);
 });
 
+test("focused mobile CSS contains full-width actions and media at 320px", () => {
+  const redesigned = applyFocusedPublicHomeRedesign(japaneseHome);
+
+  assert.match(redesigned, /\.prototype-guest-home-actions\.is-focused a \{[\s\S]*max-width: 100%;[\s\S]*box-sizing: border-box;/u);
+  assert.match(redesigned, /@media \(max-width: 360px\)[\s\S]*max-width: calc\(100vw - 24px\)/u);
+  assert.match(redesigned, /\.prototype-guest-home-proof-card:first-child \{[\s\S]*width: 100%;/u);
+  assert.match(redesigned, /\.prototype-record-feed\.is-guest,[\s\S]*max-width: 100%;[\s\S]*box-sizing: border-box;/u);
+});
+
 test("focused home redesign is idempotent", () => {
   const once = applyFocusedPublicHomeRedesign(japaneseHome);
   const twice = applyFocusedPublicHomeRedesign(once);
