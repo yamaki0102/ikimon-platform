@@ -46,16 +46,27 @@ const NEW_SUCCESS_MESSAGE = "resetPhotoDraftAfterDirectPost('投稿しました�
 
 const OLD_PHOTO_TRAY_HELP = "右で記録、左でもう1枚撮れます。";
 const NEW_PHOTO_TRAY_HELP = "右で投稿、左でもう1枚撮れます。";
+const INJECT_PATCH_FLAG = "__ikimonLightPostingInjectPatched";
 
 type LightPostingPatchOptions = {
   suppressPassiveIdentification?: boolean;
 };
 
+type MutableInjectResponse = {
+  headers?: Record<string, unknown>;
+  body?: unknown;
+  rawPayload?: unknown;
+};
+
 function removePassiveIdentificationPressure(html: string): string {
   return html
     .replace(/\s*<div class="obs-card-species[^"]*\bis-awaiting\b[^"]*">[\s\S]*?<\/div>/g, "")
-    .replace(/\s*<span class="obs-card-sketch-name">(?:名前待ち|Awaiting ID)<\/span>/g, "")
-    .replace(/\s*<a href="[^"]*#identify[^"]*">(?:名前を手伝う|Identify)<\/a>/g, "")
+    .replace(/\s*<span class="obs-card-sketch-name">(?:名前待ち|同定待ち|Awaiting ID)<\/span>/gi, "")
+    .replace(/\s*<a href="[^"]*#identify[^"]*">(?:名前を手伝う|Identify)<\/a>/gi, "")
+    .replace(/\s*<strong>(?:名前待ち|同定待ち|Awaiting ID)<\/strong>/gi, "")
+    .replace(/\s*<span[^>]*>(?:名前待ちの(?:写真|動画|音|記録)|Awaiting ID(?: photo| video| sound| record)?)<\/span>/gi, "")
+    .replace(/\s*<span><strong>\d+<\/strong><small>(?:名前確認中|Names in review)<\/small><\/span>/gi, "")
+    .replace(/\s*<span>(?:名前は後で確かめる|Confirm names later)<\/span>/gi, "")
     .replace(/\s*<div class="obs-card-actions">\s*<\/div>/g, "");
 }
 
@@ -80,6 +91,87 @@ function shouldSuppressPassiveIdentification(urlValue: string): boolean {
   }
 }
 
+function injectRequestUrl(args: unknown[]): string {
+  const input = args[0];
+  if (typeof input === "string") return input;
+  if (!input || typeof input !== "object") return "/";
+  const request = input as { url?: unknown; path?: unknown };
+  return typeof request.url === "string"
+    ? request.url
+    : typeof request.path === "string"
+      ? request.path
+      : "/";
+}
+
+function setMutableResponseValue(response: MutableInjectResponse, key: "body" | "rawPayload", value: string | Buffer): void {
+  try {
+    response[key] = value;
+  } catch {
+    Object.defineProperty(response, key, {
+      configurable: true,
+      enumerable: true,
+      value,
+      writable: true,
+    });
+  }
+}
+
+function patchInjectedHtmlResponse(value: unknown, urlValue: string): unknown {
+  if (!value || typeof value !== "object") return value;
+  const response = value as MutableInjectResponse;
+  const contentType = String(response.headers?.["content-type"] ?? response.headers?.["Content-Type"] ?? "").toLowerCase();
+  if (!contentType.includes("text/html") || typeof response.body !== "string") return value;
+
+  const patched = patchLightPostingHtml(response.body, {
+    suppressPassiveIdentification: shouldSuppressPassiveIdentification(urlValue),
+  });
+  if (patched === response.body) return value;
+
+  const rawPayload = Buffer.from(patched, "utf8");
+  setMutableResponseValue(response, "body", patched);
+  setMutableResponseValue(response, "rawPayload", rawPayload);
+  if (response.headers) {
+    const contentLengthKey = Object.keys(response.headers).find((key) => key.toLowerCase() === "content-length");
+    if (contentLengthKey) response.headers[contentLengthKey] = String(rawPayload.byteLength);
+  }
+  return value;
+}
+
+function registerMaterializationInjectPatch(app: FastifyInstance): void {
+  const patchableApp = app as FastifyInstance & Record<string, unknown>;
+  if (patchableApp[INJECT_PATCH_FLAG]) return;
+  patchableApp[INJECT_PATCH_FLAG] = true;
+
+  const originalInject = app.inject.bind(app) as (...args: unknown[]) => unknown;
+  const wrappedInject = (...args: unknown[]): unknown => {
+    if (args.length === 0) return originalInject(...args);
+    const urlValue = injectRequestUrl(args);
+    const callbackIndex = typeof args[args.length - 1] === "function" ? args.length - 1 : -1;
+
+    if (callbackIndex >= 0) {
+      const callback = args[callbackIndex] as (error: unknown, response: unknown) => unknown;
+      const callbackArgs = [...args];
+      callbackArgs[callbackIndex] = (error: unknown, response: unknown) => callback(
+        error,
+        error ? response : patchInjectedHtmlResponse(response, urlValue),
+      );
+      return originalInject(...callbackArgs);
+    }
+
+    const result = originalInject(...args);
+    if (result && typeof result === "object" && "then" in result && typeof (result as { then?: unknown }).then === "function") {
+      return (result as Promise<unknown>).then((response) => patchInjectedHtmlResponse(response, urlValue));
+    }
+    return result;
+  };
+
+  Object.defineProperty(app, "inject", {
+    configurable: true,
+    value: wrappedInject,
+    writable: true,
+  });
+}
+
 export function patchLightPostingHtml(html: string, options: LightPostingPatchOptions = {}): string {
   let patched = html
     .replace(OLD_MISSING_LOCATION_FALLBACK, NEW_MISSING_LOCATION_FALLBACK)
@@ -98,6 +190,12 @@ export function patchLightPostingHtml(html: string, options: LightPostingPatchOp
 }
 
 export function registerLightPostingHtmlPatch(app: FastifyInstance): void {
+  // The root route is registered before registerHealthRoutes(). Fastify route hooks
+  // therefore cannot retroactively attach to it. Production HTML is materialized via
+  // app.inject(), so patch that path as well while keeping the normal onSend hook for
+  // routes registered after this function.
+  registerMaterializationInjectPatch(app);
+
   app.addHook("onSend", (request, reply, payload, done) => {
     const contentType = String(reply.getHeader("content-type") ?? "").toLowerCase();
     if (!contentType.includes("text/html")) {
