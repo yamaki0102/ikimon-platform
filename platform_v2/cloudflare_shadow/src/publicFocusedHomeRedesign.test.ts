@@ -88,3 +88,19 @@ test("response patch publishes the focused home contract", async () => {
   assert.equal(response.headers.get("x-ikimon-home-redesign"), FOCUSED_PUBLIC_HOME_PRESENTATION);
   assert.match(await response.text(), /写真を残す/u);
 });
+
+test("Spanish and Portuguese home layouts stay outside the focused redesign", async () => {
+  for (const lang of ["es", "pt-br"] as const) {
+    const response = await patchPublicHomePresentation(
+      new Request(`https://ikimon.life/${lang}/`),
+      new Response(japaneseHome.replace('lang="ja"', `lang="${lang}"`), {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      }),
+    );
+    const body = await response.text();
+
+    assert.equal(response.headers.get("x-ikimon-home-redesign"), null);
+    assert.match(body, /地域の記録から始める/u);
+    assert.doesNotMatch(body, /ikimon-focused-home-v3/u);
+  }
+});
