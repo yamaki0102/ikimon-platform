@@ -56,7 +56,7 @@ test("focused home redesign is idempotent", () => {
 
   assert.equal(twice, once);
   assert.equal((twice.match(/id="ikimon-focused-home-v3"/gu) ?? []).length, 1);
-  assert.equal((twice.match(/prototype-focused-feed-heading/gu) ?? []).length, 2);
+  assert.equal((twice.match(/<div class="prototype-focused-feed-heading">/gu) ?? []).length, 1);
 });
 
 test("focused English home keeps localized routes", () => {
