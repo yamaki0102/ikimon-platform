@@ -9184,6 +9184,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(pageResponse.ok, true, pageHtml);
   assert.doesNotMatch(pageHtml, /data-observation-processing-status/);
   assert.match(pageHtml, /data-cloudflare-observation-detail="1"/);
+  assert.match(pageHtml, /data-observation-visibility="public"/);
   assert.match(pageHtml, /obs-vps-image-detail-body/);
   assert.match(pageHtml, /\/assets\/brand\/app-icon-192\.png/);
   assert.match(pageHtml, /\/assets\/brand\/ikimon-wordmark-black\.png/);
@@ -9304,6 +9305,10 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(privateOwnerResponse.status, 200, privateOwnerHtml);
   assert.match(privateOwnerHtml, /本人だけに見える保存済み記録/);
   assert.match(privateOwnerHtml, /data-observation-processing-status/);
+  assert.match(privateOwnerHtml, /data-observation-visibility="private"/);
+  assert.match(privateOwnerHtml, /非公開記録/);
+  assert.match(privateOwnerHtml, /本人だけに表示している記録です。/);
+  assert.doesNotMatch(privateOwnerHtml, /<span>公開記録<\/span>|<strong>公開中<\/strong>/);
   assert.match(privateOwnerHtml, /表示準備中/);
   assert.match(privateOwnerHtml, /現在利用不可/);
   assert.doesNotMatch(privateOwnerHtml, /34\.71234|137\.81234|ownerUserId/);

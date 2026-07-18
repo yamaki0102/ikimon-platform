@@ -24873,6 +24873,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     canonicalPath: `/observations/${encodeURIComponent(row.observation_id)}`,
     displayName: row.taxon_label ?? "名前待ち",
     isAwaitingId: !row.taxon_label,
+    visibility: row.visibility,
     observedAt: row.observed_at,
     note: row.note,
     placeName: "位置をぼかしています",
@@ -24895,7 +24896,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     )),
     privacy: {
       exactLocationExposed: false,
-      source: "readmodel_public_observations.public_cell"
+      source: ownerUserId ? "observations.public_cell" : "readmodel_public_observations.public_cell"
     }
   };
 }
@@ -31862,14 +31863,17 @@ function renderPublicObservationDetailHtml(
   detail: PublicObservationDetail,
   ownerStatus: ObservationProcessingStatus | null = null
 ): string {
-  const polish = publicObservationDetailPolish(detail);
+  const isPrivateRecord = detail.visibility === "private";
+  const polish = isPrivateRecord ? null : publicObservationDetailPolish(detail);
   const displayName = polish?.displayName ?? detail.displayName;
-  const lead = polish?.lead ?? (detail.isAwaitingId ? "名前はまだ確認待ちの公開記録です。" : "公開範囲をぼかした観察記録です。");
+  const lead = polish?.lead ?? (isPrivateRecord
+    ? (detail.isAwaitingId ? "名前はまだ確認待ちの、本人だけに表示している記録です。" : "本人だけに表示している観察記録です。")
+    : (detail.isAwaitingId ? "名前はまだ確認待ちの公開記録です。" : "公開範囲をぼかした観察記録です。"));
   const photos = detail.photoAssets.length > 0
     ? detail.photoAssets.map((asset, index) => `<figure class="obs-photo ${index === 0 ? "obs-photo--main" : ""}" data-obs-media-item="${escapeHtml(asset.assetId)}">
         <img src="${escapeHtml(asset.url)}" alt="${escapeHtml(displayName)}" loading="${index === 0 ? "eager" : "lazy"}">
       </figure>`).join("")
-    : `<div class="obs-empty">公開できる写真はまだありません。</div>`;
+    : `<div class="obs-empty">${isPrivateRecord ? "表示できる写真はまだありません。" : "公開できる写真はまだありません。"}</div>`;
   const mediaBlock = polish?.mediaBlock ?? `<div class="obs-photo-grid">${photos}</div>`;
   const videos = !polish?.mediaBlock && detail.videoAssets.length > 0
     ? detail.videoAssets.map((asset) => `<a class="obs-media-link" href="${escapeHtml(asset.watchUrl)}">動画を開く</a>`).join("")
@@ -31897,13 +31901,17 @@ function renderPublicObservationDetailHtml(
         </span>
       </a>`).join("")
     : `<div class="obs-empty obs-empty--compact">近くの公開記録はまだ少ない状態です。</div>`);
+  const visibleMediaLabel = isPrivateRecord ? "本人のみ" : "公開中";
+  const hiddenMediaLabel = isPrivateRecord ? "未保存" : "未公開";
   const mediaLedger = `<div class="obs-media-ledger" aria-label="メディア台帳">
-    <div class="obs-media-ledger-item"><strong>写真</strong><span>${escapeHtml(`${photoCount}枚`)}</span><small>${escapeHtml(photoCount > 0 ? "公開中" : "未公開")}</small></div>
-    <div class="obs-media-ledger-item"><strong>動画</strong><span>${escapeHtml(`${videoCount}本`)}</span><small>${escapeHtml(videoCount > 0 ? "公開中" : "未公開")}</small></div>
-    <div class="obs-media-ledger-item"><strong>音</strong><span>${escapeHtml(`${audioCount}件`)}</span><small>${escapeHtml(audioCount > 0 ? "公開中" : "未記録")}</small></div>
+    <div class="obs-media-ledger-item"><strong>写真</strong><span>${escapeHtml(`${photoCount}枚`)}</span><small>${escapeHtml(photoCount > 0 ? visibleMediaLabel : hiddenMediaLabel)}</small></div>
+    <div class="obs-media-ledger-item"><strong>動画</strong><span>${escapeHtml(`${videoCount}本`)}</span><small>${escapeHtml(videoCount > 0 ? visibleMediaLabel : hiddenMediaLabel)}</small></div>
+    <div class="obs-media-ledger-item"><strong>音</strong><span>${escapeHtml(`${audioCount}件`)}</span><small>${escapeHtml(audioCount > 0 ? visibleMediaLabel : "未記録")}</small></div>
     <a class="obs-media-ledger-item" href="#place" aria-label="同じエリアの投稿一覧へ移動"><strong>同エリア</strong><span>${escapeHtml(`${relatedForDisplay.length}件`)}</span><small>投稿一覧へ</small></a>
   </div>`;
-  const recordInsight = polish?.recordInsight ?? (detail.isAwaitingId ? "この記録は、公開写真と日時だけを見られる状態です。名前は今後の確認で更新されることがあります。" : `${displayName}として公開されています。公開ページでは、写真とぼかした場所だけを扱います。`);
+  const recordInsight = polish?.recordInsight ?? (isPrivateRecord
+    ? "この記録は本人だけに表示されています。写真、日時、ぼかした位置を同じページで確認できます。"
+    : (detail.isAwaitingId ? "この記録は、公開写真と日時だけを見られる状態です。名前は今後の確認で更新されることがあります。" : `${displayName}として公開されています。公開ページでは、写真とぼかした場所だけを扱います。`));
   const recordNextHint = polish?.recordNextHint ?? "次は対象に少し寄った写真と、足元を広めに入れた写真があると、候補と環境を確かめやすくなります。";
   const recordFeedbackChips = polish?.recordFeedbackChips ?? [];
   const recordFeedbackChipBlock = recordFeedbackChips.length > 0
@@ -31917,8 +31925,8 @@ function renderPublicObservationDetailHtml(
         <p>${escapeHtml(detail.isAwaitingId ? "この記録は名前の確認待ちです。" : `${displayName} として表示しています。`)}</p>
       </section>`;
   const qualityBlock = polish?.qualityBlock ?? `<section class="obs-local-quality-card">
-        <h2>公開データ</h2>
-        <p>公開写真、ぼかした場所、日時だけを使います。投稿者ID、精密座標、元画像URLは表示しません。</p>
+        <h2>${isPrivateRecord ? "保存データ" : "公開データ"}</h2>
+        <p>${isPrivateRecord ? "写真、ぼかした場所、日時を本人ページに表示します。精密座標と元画像URLは表示しません。" : "公開写真、ぼかした場所、日時だけを使います。投稿者ID、精密座標、元画像URLは表示しません。"}</p>
       </section>`;
   const relatedEye = polish?.relatedEye ?? "同じ周辺";
   const relatedTitle = polish?.relatedTitle ?? "近くの公開記録";
@@ -31945,20 +31953,20 @@ function renderPublicObservationDetailHtml(
   <a href="#place">場所</a>
   <a href="#meta">情報</a>`);
   const genericInfoSections = polish ? "" : `<section id="privacy" class="obs-layer">
-      <h2>公開範囲</h2>
+      <h2>${isPrivateRecord ? "表示範囲" : "公開範囲"}</h2>
       <div class="obs-layer-grid">
         <div class="obs-layer-card"><span>位置</span><strong>${escapeHtml(placeLabel)}</strong></div>
-        <div class="obs-layer-card"><span>表示</span><strong>ぼかし表示</strong></div>
+        <div class="obs-layer-card"><span>表示</span><strong>${isPrivateRecord ? "本人のみ" : "ぼかし表示"}</strong></div>
         <div class="obs-layer-card"><span>精密座標</span><strong>非表示</strong></div>
       </div>
-      <p>公開ページでは、観察地点をそのまま表示しません。</p>
+      <p>${isPrivateRecord ? "本人ページでも、観察地点の精密な座標は表示しません。" : "公開ページでは、観察地点をそのまま表示しません。"}</p>
     </section>`;
   const genericMetaSection = polish ? "" : `<section id="meta" class="obs-layer">
       <h2>記録情報</h2>
       <div class="obs-layer-grid">
         <div class="obs-layer-card"><span>記録ID</span><strong>${escapeHtml(detail.visitId)}</strong></div>
         <div class="obs-layer-card"><span>メディア</span><strong>${escapeHtml(`${assetCount}件`)}</strong></div>
-        <div class="obs-layer-card"><span>公開状態</span><strong>公開中</strong></div>
+        <div class="obs-layer-card"><span>公開状態</span><strong>${isPrivateRecord ? "非公開" : "公開中"}</strong></div>
       </div>
     </section>`;
   const factsBlock = polish ? "" : `<div class="obs-facts">
@@ -31967,7 +31975,7 @@ function renderPublicObservationDetailHtml(
         <div class="obs-fact"><span>写真</span><strong>${escapeHtml(String(detail.photoAssets.length))}</strong></div>
         <div class="obs-fact"><span>状態</span><strong>${escapeHtml(stateLabel)}</strong></div>
       </div>`;
-  const privacyBlock = polish ? "" : `<section class="obs-privacy"><h2>公開位置</h2><p>このページでは、精密な座標や投稿者のプロフィールリンクは表示していません。</p></section>`;
+  const privacyBlock = polish ? "" : `<section class="obs-privacy"><h2>${isPrivateRecord ? "位置情報" : "公開位置"}</h2><p>${isPrivateRecord ? "本人ページでも精密な座標は表示していません。" : "このページでは、精密な座標や投稿者のプロフィールリンクは表示していません。"}</p></section>`;
   const storyBlock = polish ? "" : `<section id="story" class="obs-record-story">
       <div class="obs-record-story-head">
         <div>
@@ -31977,7 +31985,7 @@ function renderPublicObservationDetailHtml(
         <span class="obs-record-story-pill">${escapeHtml(stateLabel)}</span>
       </div>
       <div class="obs-record-story-cards">
-        <div class="obs-record-story-card"><strong>写真</strong><p>${escapeHtml(`${photoCount}枚の公開サムネイルを表示しています。`)}</p></div>
+        <div class="obs-record-story-card"><strong>写真</strong><p>${escapeHtml(isPrivateRecord ? `${photoCount}枚の表示用写真を確認できます。` : `${photoCount}枚の公開サムネイルを表示しています。`)}</p></div>
         <div class="obs-record-story-card"><strong>日時</strong><p>${escapeHtml(observedLabel)}</p></div>
         <div class="obs-record-story-card"><strong>場所</strong><p>${escapeHtml(placeLabel)}</p></div>
       </div>
@@ -31992,9 +32000,9 @@ function renderPublicObservationDetailHtml(
     </nav>
   </details>
 </header>`;
-  const observerBlock = polish?.observerBlock ?? `<span class="obs-hero-observer" aria-label="投稿者は公開していません">
+  const observerBlock = polish?.observerBlock ?? `<span class="obs-hero-observer" aria-label="${isPrivateRecord ? "この記録は本人だけに表示しています" : "投稿者は公開していません"}">
             <span class="obs-hero-avatar" aria-hidden="true">i</span>
-            <span>公開記録</span>
+            <span>${isPrivateRecord ? "非公開記録" : "公開記録"}</span>
           </span>`;
   return `<!doctype html>
 <html lang="ja">
@@ -32375,9 +32383,9 @@ ${headerBlock}
 <nav class="obs-read-progress" aria-label="記録ページの読み進め">
   ${readProgressLinks}
 </nav>
-<main class="${escapeHtml(polish?.pageClass ?? "")}" data-cloudflare-observation-detail="1" data-visit-id="${escapeHtml(detail.visitId)}" data-occurrence-id="${escapeHtml(detail.occurrenceId)}">
+<main class="${escapeHtml(polish?.pageClass ?? "")}" data-cloudflare-observation-detail="1" data-observation-visibility="${isPrivateRecord ? "private" : "public"}" data-visit-id="${escapeHtml(detail.visitId)}" data-occurrence-id="${escapeHtml(detail.occurrenceId)}">
   <article id="photos" class="obs-reading-hero">
-    <section class="obs-reading-media obs-media-evidence-shell" aria-label="公開メディア">
+    <section class="obs-reading-media obs-media-evidence-shell" aria-label="${isPrivateRecord ? "本人用メディア" : "公開メディア"}">
       ${mediaBlock}
     </section>
     <aside class="obs-reading-panel" aria-label="観察記録">
