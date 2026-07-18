@@ -1,4 +1,5 @@
 import baseWorker from "./index";
+import { enforceCameraFirstHomeCta } from "./cameraFirstHomeCta";
 import { patchPublicHomePresentation } from "./publicPresentationPatch";
 
 type DelegatedWorker = Record<string, unknown> & {
@@ -11,6 +12,7 @@ export default {
   ...delegatedWorker,
   async fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
     const response = await delegatedWorker.fetch.call(delegatedWorker, request, env, ctx);
-    return patchPublicHomePresentation(request, response);
+    const presented = await patchPublicHomePresentation(request, response);
+    return enforceCameraFirstHomeCta(request, presented);
   },
 };
