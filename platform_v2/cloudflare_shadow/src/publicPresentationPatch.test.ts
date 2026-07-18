@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   isNormalPublicHomeRequest,
   patchPublicHomePresentation,
+  routeFocusedHomePrimaryCtaToPhotoCamera,
   stripPassiveIdentificationFromHomeHtml,
 } from "./publicPresentationPatch";
 
@@ -26,6 +27,18 @@ test("public home presentation removes passive unresolved labels but keeps real 
   assert.doesNotMatch(patched, /名前確認中/);
   assert.doesNotMatch(patched, /名前は後で確かめる/);
   assert.doesNotMatch(patched, /名前を手伝う/);
+});
+
+test("focused public home primary CTA opens the shared photo camera trigger", () => {
+  const html = `<a class="prototype-guest-home-primary" href="/ja/record?start=gallery" data-kpi-target="/ja/record?start=gallery">写真を残す</a>`;
+
+  const patched = routeFocusedHomePrimaryCtaToPhotoCamera(html);
+
+  assert.match(patched, /href="\/ja\/record\?start=photo"/u);
+  assert.match(patched, /data-kpi-target="\/ja\/record\?start=photo"/u);
+  assert.match(patched, /data-global-record-trigger="photo"/u);
+  assert.match(patched, /data-record-target="\/ja\/record\?start=photo"/u);
+  assert.doesNotMatch(patched, /start=gallery/u);
 });
 
 test("only public home aliases receive the final presentation patch", () => {
@@ -53,6 +66,7 @@ test("final HTML patch sets a no-store presentation contract on home", async () 
   assert.equal(patched.status, 200);
   assert.equal(patched.headers.get("cache-control"), "no-cache, no-store, must-revalidate");
   assert.equal(patched.headers.get("x-ikimon-presentation-contract"), "light-home-v2");
+  assert.equal(patched.headers.get("x-ikimon-home-capture-contract"), "camera-first-v1");
   assert.equal(patched.headers.get("etag"), null);
   assert.doesNotMatch(await patched.text(), /名前待ち/);
 });
