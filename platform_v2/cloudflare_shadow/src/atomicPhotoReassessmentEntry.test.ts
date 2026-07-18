@@ -36,12 +36,16 @@ class FakeStatement {
 
 class FakeDatabase {
   readonly batches: RecordedStatement[][] = [];
+  failBatches = false;
 
   prepare(sql: string): FakeStatement {
     return new FakeStatement(sql);
   }
 
   async batch<T>(statements: FakeStatement[]): Promise<T[]> {
+    if (this.failBatches) {
+      throw new Error("d1_batch_failed");
+    }
     this.batches.push(statements.map((statement) => ({
       sql: statement.sql,
       values: statement.values,
@@ -96,9 +100,7 @@ test("non-photo batches are delegated without an analysis intent", async () => {
 
 test("intent persistence shares the same failed D1 batch", async () => {
   const database = new FakeDatabase();
-  database.batch = async () => {
-    throw new Error("d1_batch_failed");
-  };
+  database.failBatches = true;
   const state = { intentAppended: false };
   const wrapped = createAtomicPhotoReassessmentDatabase(
     database as never,
