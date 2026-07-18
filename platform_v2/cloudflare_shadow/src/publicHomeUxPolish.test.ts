@@ -13,7 +13,7 @@ function recordCards(count: number): string {
 }
 
 const japaneseHome = `<!doctype html>
-<html lang="ja">
+<html lang="ja">">
 <head><title>ikimon</title></head>
 <body>
   <aside class="app-install-prompt" data-app-install-prompt hidden>
@@ -50,8 +50,13 @@ const japaneseHome = `<!doctype html>
 
 test("public home suppresses the complete nested install prompt without removing or unbalancing its DOM", () => {
   const polished = applyPublicHomeUxPolish(japaneseHome, "ja");
+  const promptTag = polished.match(/<aside\b[^>]*\bdata-app-install-prompt\b[^>]*>/u)?.[0] ?? "";
 
-  assert.match(polished, /<aside[^>]*data-app-install-prompt[^>]*aria-hidden="true"[^>]*hidden[^>]*inert[^>]*data-public-home-install-suppressed="true"[^>]*>/u);
+  assert.ok(promptTag, "the complete prompt root remains in the balanced DOM");
+  assert.match(promptTag, /\baria-hidden="true"/u);
+  assert.match(promptTag, /(?:^|\s)hidden(?:\s|>|=)/u);
+  assert.match(promptTag, /(?:^|\s)inert(?:\s|>|=)/u);
+  assert.match(promptTag, /\bdata-public-home-install-suppressed="true"/u);
   assert.match(polished, /<div class="app-install-copy">[\s\S]*?<\/div>[\s\S]*?<div class="app-install-actions">[\s\S]*?<\/div>[\s\S]*?<\/aside>/u);
   assert.match(polished, /data-app-install-action>追加<\/button>/u);
   assert.match(polished, /data-app-install-dismiss>あとで<\/button>/u);
