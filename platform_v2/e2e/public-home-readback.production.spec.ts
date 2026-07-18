@@ -42,6 +42,8 @@ async function visibleUnnamedControls(page: Page): Promise<string[]> {
         node.getAttribute("title"),
         node.textContent,
         input.value,
+        input.placeholder,
+        node.querySelector("[aria-label]")?.getAttribute("aria-label"),
         node.querySelector("img")?.getAttribute("alt"),
       ].map((value) => String(value ?? "").trim()).find(Boolean);
       if (name) return [];
@@ -97,13 +99,16 @@ test.describe("[production-read-only] public home UX completion gate", () => {
     await page.close();
   });
 
-  test("secondary nearby action navigates and the mobile menu opens", async ({ browser }) => {
+  test("secondary nearby action navigates after the mobile menu open-close check", async ({ browser }) => {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     await page.goto(`/ja/?ux_navigation_readback=${Date.now()}`, { waitUntil: "domcontentloaded" });
 
     const menu = page.locator("details.site-mobile-menu");
-    await page.locator("summary.site-mobile-menu-toggle").click();
+    const toggle = page.locator("summary.site-mobile-menu-toggle");
+    await toggle.click();
     await expect(menu).toHaveAttribute("open", "");
+    await toggle.click();
+    await expect(menu).not.toHaveAttribute("open", "");
 
     await Promise.all([
       page.waitForURL(/\/ja\/map(?:\?|$)/u),
