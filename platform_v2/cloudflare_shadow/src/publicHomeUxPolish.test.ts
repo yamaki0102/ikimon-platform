@@ -70,7 +70,7 @@ test("public home polish is idempotent", () => {
   const twice = applyPublicHomeUxPolish(once, "ja");
 
   assert.equal(twice, once);
-  assert.equal((twice.match(/prototype-home-records-more/gu) ?? []).length, 2);
+  assert.equal((twice.match(/class="prototype-home-records-more"/gu) ?? []).length, 1);
   assert.equal((twice.match(/id="ikimon-public-home-ux-v1"/gu) ?? []).length, 1);
 });
 
