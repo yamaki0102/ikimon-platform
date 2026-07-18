@@ -4,6 +4,7 @@ DROP TRIGGER IF EXISTS trg_asset_photo_reassessment_update;
 CREATE TRIGGER trg_asset_photo_reassessment_insert
 AFTER INSERT ON asset_ledger
 WHEN NEW.observation_id IS NOT NULL
+  AND NEW.owner_user_id IS NOT NULL
   AND NEW.processing_state = 'uploaded'
   AND lower(NEW.mime) LIKE 'image/%'
 BEGIN
@@ -39,6 +40,7 @@ END;
 CREATE TRIGGER trg_asset_photo_reassessment_update
 AFTER UPDATE OF observation_id, owner_user_id, mime, processing_state, object_key, sha256 ON asset_ledger
 WHEN NEW.observation_id IS NOT NULL
+  AND NEW.owner_user_id IS NOT NULL
   AND NEW.processing_state = 'uploaded'
   AND lower(NEW.mime) LIKE 'image/%'
 BEGIN
