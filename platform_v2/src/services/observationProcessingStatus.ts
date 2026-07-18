@@ -1,7 +1,4 @@
 import type { FastifyInstance } from "fastify";
-import { loadConfig } from "../config.js";
-import { getPool } from "../db.js";
-import { getSessionFromCookie } from "./authSession.js";
 
 export type ObservationMediaProcessingState = "none" | "processing" | "ready" | "retry_required";
 export type ObservationAiProcessingState =
@@ -44,7 +41,7 @@ export type ObservationProcessingStatusLoader = (
 ) => Promise<ObservationProcessingStatus | null>;
 
 type ObservationProcessingStatusPatchOptions = {
-  loadStatus?: ObservationProcessingStatusLoader;
+  loadStatus: ObservationProcessingStatusLoader;
 };
 
 function normalizedStatus(value: string | null | undefined): string {
@@ -225,98 +222,10 @@ function observationIdFromUrl(rawUrl: string): string | null {
   }
 }
 
-export async function loadOwnerObservationProcessingStatus(
-  observationId: string,
-  cookieHeader: string | undefined,
-): Promise<ObservationProcessingStatus | null> {
-  const session = await getSessionFromCookie(cookieHeader);
-  if (!session) return null;
-  const pool = getPool();
-  const result = await pool.query<{
-    occurrence_id: string;
-    visit_id: string;
-    ai_assessment_status: string | null;
-    original_photo_count: string;
-    display_photo_count: string;
-    latest_job_status: string | null;
-    latest_job_error: string | null;
-    candidate_count: string;
-    identification_count: string;
-    updated_at: string | null;
-  }>(
-    `select
-        o.occurrence_id,
-        v.visit_id,
-        o.ai_assessment_status,
-        coalesce(media.original_photo_count, 0)::text as original_photo_count,
-        coalesce(media.display_photo_count, 0)::text as display_photo_count,
-        job.job_status as latest_job_status,
-        job.last_error as latest_job_error,
-        coalesce(candidates.candidate_count, 0)::text as candidate_count,
-        coalesce(ids.identification_count, 0)::text as identification_count,
-        greatest(o.updated_at, v.updated_at, coalesce(job.updated_at, o.updated_at))::text as updated_at
-     from occurrences o
-     join visits v on v.visit_id = o.visit_id
-     left join lateral (
-       select
-         count(*) filter (where ea.asset_role = 'observation_photo_original') as original_photo_count,
-         count(*) filter (
-           where ea.asset_role = 'observation_photo'
-             and coalesce(ab.bytes, 0) > 0
-             and coalesce(nullif(ab.public_url, ''), nullif(ab.storage_path, '')) is not null
-         ) as display_photo_count
-       from evidence_assets ea
-       left join asset_blobs ab on ab.blob_id = ea.blob_id
-       where ea.visit_id = v.visit_id
-     ) media on true
-     left join lateral (
-       select job_status, last_error, updated_at
-       from media_processing_jobs mpj
-       where mpj.media_kind = 'photo'
-         and (mpj.observation_id = v.visit_id or mpj.occurrence_id = o.occurrence_id)
-       order by mpj.updated_at desc, mpj.created_at desc
-       limit 1
-     ) job on true
-     left join lateral (
-       select count(*) as candidate_count
-       from observation_ai_subject_candidates c
-       where c.suggested_occurrence_id = o.occurrence_id
-     ) candidates on true
-     left join lateral (
-       select count(*) as identification_count
-       from identifications i
-       where i.occurrence_id = o.occurrence_id
-         and coalesce(i.is_current, true) = true
-     ) ids on true
-     where (o.occurrence_id = $1 or v.visit_id = $1 or o.legacy_observation_id = $1)
-       and v.user_id = $2
-     order by v.observed_at desc
-     limit 1`,
-    [observationId, session.userId],
-  );
-  const row = result.rows[0];
-  if (!row) return null;
-  const config = loadConfig();
-  return deriveObservationProcessingStatus({
-    occurrenceId: row.occurrence_id,
-    visitId: row.visit_id,
-    originalPhotoCount: Number(row.original_photo_count),
-    displayPhotoCount: Number(row.display_photo_count),
-    latestMediaJobStatus: row.latest_job_status,
-    latestMediaJobError: row.latest_job_error,
-    aiAssessmentStatus: row.ai_assessment_status,
-    candidateCount: Number(row.candidate_count),
-    identificationCount: Number(row.identification_count),
-    providerAvailable: Boolean(config.geminiApiKey || config.vertexAi),
-    updatedAt: row.updated_at,
-  });
-}
-
 export function registerObservationProcessingStatusHtmlPatch(
   app: FastifyInstance,
-  options: ObservationProcessingStatusPatchOptions = {},
+  options: ObservationProcessingStatusPatchOptions,
 ): void {
-  const loadStatus = options.loadStatus ?? loadOwnerObservationProcessingStatus;
   app.addHook("onSend", async (request, reply, payload) => {
     if (request.method !== "GET" && request.method !== "HEAD") return payload;
     const contentType = String(reply.getHeader("content-type") ?? "").toLowerCase();
@@ -330,7 +239,7 @@ export function registerObservationProcessingStatusHtmlPatch(
         : null;
     if (html == null) return payload;
     try {
-      const status = await loadStatus(observationId, request.headers.cookie);
+      const status = await options.loadStatus(observationId, request.headers.cookie);
       return patchObservationProcessingStatusHtml(html, status);
     } catch (error) {
       request.log.warn({ err: error, observationId }, "observation processing status patch failed");
