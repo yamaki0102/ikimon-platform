@@ -51,6 +51,38 @@ export function stripPassiveIdentificationFromHomeHtml(html: string): string {
     .replace(/\s*<a\b[^>]*href="[^"]*#identify[^"]*"[^>]*>(?:名前を手伝う|Identify)<\/a>/giu, "");
 }
 
+export function routeFocusedHomePrimaryCtaToPhotoCamera(html: string): string {
+  return html.replace(
+    /<a\b[^>]*\bclass="[^"]*\bprototype-guest-home-primary\b[^"]*"[^>]*>/gu,
+    (tag) => {
+      const hrefMatch = tag.match(/\bhref="([^"]*\/record)\?start=gallery"/u);
+      if (!hrefMatch) return tag;
+
+      const photoHref = `${hrefMatch[1] ?? "/record"}?start=photo`;
+      let patched = tag.replace(hrefMatch[0], `href="${photoHref}"`);
+      const additions: string[] = [];
+
+      if (/\bdata-kpi-target="[^"]*"/u.test(patched)) {
+        patched = patched.replace(/\bdata-kpi-target="[^"]*"/u, `data-kpi-target="${photoHref}"`);
+      }
+      if (/\bdata-global-record-trigger="[^"]*"/u.test(patched)) {
+        patched = patched.replace(/\bdata-global-record-trigger="[^"]*"/u, 'data-global-record-trigger="photo"');
+      } else {
+        additions.push('data-global-record-trigger="photo"');
+      }
+      if (/\bdata-record-target="[^"]*"/u.test(patched)) {
+        patched = patched.replace(/\bdata-record-target="[^"]*"/u, `data-record-target="${photoHref}"`);
+      } else {
+        additions.push(`data-record-target="${photoHref}"`);
+      }
+
+      return additions.length > 0
+        ? patched.replace(/>$/u, ` ${additions.join(" ")}>`)
+        : patched;
+    },
+  );
+}
+
 export async function patchPublicHomePresentation(request: Request, response: Response): Promise<Response> {
   if (!isNormalPublicHomeRequest(request) || response.status < 200 || response.status >= 300) {
     return response;
@@ -63,7 +95,7 @@ export async function patchPublicHomePresentation(request: Request, response: Re
   const withoutPassiveIdentification = stripPassiveIdentificationFromHomeHtml(html);
   const focusedRedesign = supportsFocusedHomeRedesign(request);
   const patched = focusedRedesign
-    ? applyFocusedPublicHomeRedesign(withoutPassiveIdentification)
+    ? routeFocusedHomePrimaryCtaToPhotoCamera(applyFocusedPublicHomeRedesign(withoutPassiveIdentification))
     : withoutPassiveIdentification;
   const headers = new Headers(response.headers);
   headers.delete("content-length");
@@ -73,6 +105,7 @@ export async function patchPublicHomePresentation(request: Request, response: Re
   headers.set("x-ikimon-presentation-contract", "light-home-v2");
   if (focusedRedesign) {
     headers.set("x-ikimon-home-redesign", FOCUSED_PUBLIC_HOME_PRESENTATION);
+    headers.set("x-ikimon-home-capture-contract", "camera-first-v1");
   }
 
   return new Response(patched, {
