@@ -6,8 +6,8 @@
 
 ## 実装
 
-- PostgreSQL: `evidence_assets` の写真asset作成と同じtransaction内で `media_processing_jobs` のpending intentを作成するtriggerを追加。
-- Cloudflare D1: `asset_ledger` が画像upload済みになった同じtransaction/batch内で `observation_reassessment_requests` をpendingへupsertするtriggerを追加。
+- Cloudflare本番経路: 写真uploadの既存D1 batchへ `observation_reassessment_requests` のpending UPSERTを追加する。写真asset metadataと処理依頼が同じbatchで成功・失敗するため、写真だけ保存されて受付intentが欠落する状態を作らない。
+- upload成功応答へ `reassessment.state=pending` を追加し、AI完了とは表示しない。
 - 個別記録ページ: ログイン中のownerだけに「この記録の状態」を表示。
   - 記録: 保存済み
   - 写真: 写真なし / 表示準備中 / 保存済み / 再送が必要
@@ -17,13 +17,15 @@
 
 ## 安全境界
 
-- migrationは追加するが、このPR作成時点ではstaging/productionへ適用しない。
+- DB/D1 migrationを追加しない。現在のcommand-busで配備可能なactive Cloudflare upload batch内に処理を閉じる。
 - 既存投稿のbackfill、production DB/R2の直接編集、secret/provider/課金設定の変更は行わない。
-- triggerは新規・更新される写真assetの処理intentだけを冪等に作成し、AI provider呼出し自体は行わない。
+- 永続化するのはpending処理intentだけで、AI provider呼出しや判定完了は行わない。
+- PostgreSQL互換経路のcommit後best-effort gapはactive production write pathではないため、この変更に混ぜず別途扱う。
 
 ## 検証
 
 - 状態導出のunit test
 - owner/non-owner HTML hook test
-- PostgreSQL/D1 trigger source contract test
-- command bus dry-runでTypeScript、Node tests、Worker check/quick tests、migration guardrailsを確認する。
+- D1 batchへpending intentが同時追加されるunit test
+- D1 batch失敗時にintentだけ成功しないfailure test
+- command bus dry-runでTypeScript、Node tests、Worker check/quick tests、deploy guardrailsを確認する。
