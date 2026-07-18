@@ -254,6 +254,10 @@ interface CompatibleObservationDisputeInput {
   referenceLocator?: unknown;
 }
 
+interface CompatibleIdentificationWorkbenchHoldInput {
+  reason?: unknown;
+}
+
 interface CompatibleObservationRecordAiReviewInput {
   reviewState?: unknown;
 }
@@ -2109,14 +2113,14 @@ const ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS = [
 
 const ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS = [
   "/records?view=identification_summary",
-  "/ja/records?view=identification_summary",
-  "/en/records?view=identification_summary",
-  "/es/records?view=identification_summary",
-  "/pt-br/records?view=identification_summary",
   "/records?view=needs_id",
+  "/ja/records?view=identification_summary",
   "/ja/records?view=needs_id",
+  "/en/records?view=identification_summary",
   "/en/records?view=needs_id",
+  "/es/records?view=identification_summary",
   "/es/records?view=needs_id",
+  "/pt-br/records?view=identification_summary",
   "/pt-br/records?view=needs_id"
 ] as const;
 
@@ -2744,6 +2748,15 @@ export const worker = {
       if (request.method === "POST" && identificationMatch?.[1]) {
         return submitCompatibleObservationIdentification(
           decodeURIComponent(identificationMatch[1]),
+          request,
+          env
+        );
+      }
+
+      const identificationHoldMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/identification-workbench-hold$/);
+      if (request.method === "POST" && identificationHoldMatch?.[1]) {
+        return holdCompatibleIdentificationWorkbenchItem(
+          decodeURIComponent(identificationHoldMatch[1]),
           request,
           env
         );
@@ -8766,6 +8779,66 @@ async function openCompatibleObservationDispute(occurrenceId: string, request: R
   }, 200, { "cache-control": "no-store" });
 }
 
+async function holdCompatibleIdentificationWorkbenchItem(occurrenceId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
+  if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
+    return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+
+  const targetExists = await observationReactionTargetExists(normalizedOccurrenceId, env);
+  if (!targetExists) {
+    return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  const input = await readJson<CompatibleIdentificationWorkbenchHoldInput>(request);
+  const reason = normalizeOptionalText(input.reason) ?? "";
+  const now = new Date().toISOString();
+  const sourcePayload = {
+    source: "cloudflare_identification_workbench_hold",
+    updatedAt: now
+  };
+
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_identification_workbench_holds (
+       hold_id, occurrence_id, actor_user_id, hold_reason, source_payload_json, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(occurrence_id, actor_user_id) DO UPDATE SET
+       hold_reason = excluded.hold_reason,
+       source_payload_json = excluded.source_payload_json,
+       updated_at = excluded.updated_at`
+  ).bind(
+    newId("id_hold"),
+    normalizedOccurrenceId,
+    session.userId,
+    reason,
+    JSON.stringify(sourcePayload),
+    now,
+    now
+  ).run();
+
+  return json({
+    ok: true,
+    occurrenceId: normalizedOccurrenceId,
+    hold: true,
+    compatibility: {
+      source: "cloudflare_identification_workbench_holds"
+    }
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "identification-workbench-hold" });
+}
+
 async function submitCompatibleObservationRecordAiReview(occurrenceId: string, request: Request, env: Env): Promise<Response> {
   const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
   if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
@@ -10498,6 +10571,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (/^\/api\/v1\/observations\/[^/]+\/audio\/upload$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/observations\/[^/]+\/identification-workbench-hold$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/occurrences\/[^/]+\/(?:origin|observed-at|location|environment-field|environment-record)$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/specialist\/occurrences\/[^/]+\/review$/.test(url.pathname)) return true;

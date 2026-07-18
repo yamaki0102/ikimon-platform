@@ -154,6 +154,16 @@ interface ObservationIdentificationDisputeRow {
   updated_at: string;
 }
 
+interface ObservationIdentificationWorkbenchHoldRow {
+  hold_id: string;
+  occurrence_id: string;
+  actor_user_id: string;
+  hold_reason: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ObservationAiReviewTargetRow {
   occurrence_id: string;
   ai_assessment_status: string | null;
@@ -1762,6 +1772,7 @@ class FakeD1 {
   observationReactions = new Map<string, ObservationReactionRow>();
   observationIdentifications = new Map<string, ObservationIdentificationRow>();
   observationIdentificationDisputes = new Map<string, ObservationIdentificationDisputeRow>();
+  observationIdentificationWorkbenchHolds = new Map<string, ObservationIdentificationWorkbenchHoldRow>();
   observationAiReviewTargets = new Map<string, ObservationAiReviewTargetRow>();
   observationRecordAiReviews = new Map<string, ObservationRecordAiReviewRow>();
   observationSpecialistReviews = new Map<string, ObservationSpecialistReviewRow>();
@@ -3446,6 +3457,31 @@ class FakeStatement {
         created_at: now,
         updated_at: now
       });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_identification_workbench_holds")) {
+      const now = new Date().toISOString();
+      const occurrenceId = string(v[1]);
+      const actorUserId = string(v[2]);
+      const existing = [...this.db.observationIdentificationWorkbenchHolds.values()].find((candidate) =>
+        candidate.occurrence_id === occurrenceId && candidate.actor_user_id === actorUserId
+      );
+      if (existing) {
+        existing.hold_reason = string(v[3]);
+        existing.source_payload_json = string(v[4]);
+        existing.updated_at = string(v[6]) || now;
+      } else {
+        this.db.observationIdentificationWorkbenchHolds.set(string(v[0]), {
+          hold_id: string(v[0]),
+          occurrence_id: occurrenceId,
+          actor_user_id: actorUserId,
+          hold_reason: string(v[3]),
+          source_payload_json: string(v[4]),
+          created_at: string(v[5]) || now,
+          updated_at: string(v[6]) || now
+        });
+      }
       return {};
     }
 
@@ -13783,6 +13819,67 @@ test("production runtime records observation identifications natively without or
   assert.equal(core.operationAudit.length, 0);
 });
 
+test("production runtime records identification workbench holds natively without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  obs.readmodel.set("occ-1", {
+    observation_id: "occ-1",
+    public_cell: "34.97,138.38",
+    observed_at: "2026-06-25T00:00:00.000Z",
+    taxon_label: "hold target",
+    asset_count: 0,
+    partition_month: "2026-06",
+    public_area_label: null
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ userId: "hold-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/identification-workbench-hold", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ reason: "Review later." })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "identification-workbench-hold");
+    assert.equal(payload.ok, true);
+    assert.equal(payload.occurrenceId, "occ-1");
+    assert.equal(payload.hold, true);
+    assert.equal(payload.compatibility.source, "cloudflare_identification_workbench_holds");
+    assert.equal(obs.observationIdentificationWorkbenchHolds.size, 1);
+    const saved = [...obs.observationIdentificationWorkbenchHolds.values()][0];
+    assert.equal(saved?.actor_user_id, "hold-user");
+    assert.equal(saved?.hold_reason, "Review later.");
+    assert.match(saved?.source_payload_json ?? "", /cloudflare_identification_workbench_hold/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
 test("production runtime records observation AI reviews natively without origin fallback", async () => {
   const { env, core, obs } = createEnv();
   obs.observationAiReviewTargets.set("occ-ai-1", {
@@ -20520,6 +20617,9 @@ test("production records query variants serve dedicated materialized HTML", asyn
   await env.ASSET_BUCKET.put("original-ui/html/ja/records.view-identification-summary.html", "<!doctype html><title>同定まとめ | ikimon</title><main data-testid=\"identification-summary\">summary records</main>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/records.view-needs-id.html", "<!doctype html><title>確認待ち | ikimon</title><main data-records-identify-workbench data-identify-hold>needs id records</main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -20538,6 +20638,16 @@ test("production records query variants serve dedicated materialized HTML", asyn
     assert.equal(await prefixedSummary.text(), "<!doctype html><title>同定まとめ | ikimon</title><main data-testid=\"identification-summary\">summary records</main>");
     assert.equal(prefixedSummary.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
+    const queryNeedsId = await worker.fetch(new Request("https://ikimon.life/records?view=needs_id&lang=ja"), productionEnv);
+    assert.equal(queryNeedsId.status, 200);
+    assert.equal(await queryNeedsId.text(), "<!doctype html><title>確認待ち | ikimon</title><main data-records-identify-workbench data-identify-hold>needs id records</main>");
+    assert.equal(queryNeedsId.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const prefixedNeedsId = await worker.fetch(new Request("https://ikimon.life/ja/records?view=needs_id"), productionEnv);
+    assert.equal(prefixedNeedsId.status, 200);
+    assert.equal(await prefixedNeedsId.text(), "<!doctype html><title>確認待ち | ikimon</title><main data-records-identify-workbench data-identify-hold>needs id records</main>");
+    assert.equal(prefixedNeedsId.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
     const normalRecords = await worker.fetch(new Request("https://ikimon.life/records?lang=ja"), productionEnv);
     assert.equal(normalRecords.status, 200);
     const normalRecordsBody = await normalRecords.text();
@@ -20545,6 +20655,7 @@ test("production records query variants serve dedicated materialized HTML", asyn
     assert.match(normalRecordsBody, /data-cloudflare-records-live/);
     assert.match(normalRecordsBody, /public records/);
     assert.doesNotMatch(normalRecordsBody, /summary records/);
+    assert.doesNotMatch(normalRecordsBody, /needs id records/);
     assert.equal(normalRecords.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
     assert.equal(fallbackCalls, 0);
@@ -20723,6 +20834,7 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"\)/);
+  assert.match(materializerSource, /view-needs-id/);
   assert.match(materializerSource, /includes\("\.\.\.ORIGINAL_UI_HTML_CORE_PATHS"\)/);
   assert.doesNotMatch(materializerSource, /const\s+corePaths\s*=\s*\[/);
   assert.match(workerSource, /const ORIGINAL_UI_HTML_STATIC_PATHS = new Set\(\[\s*\.\.\.ORIGINAL_UI_HTML_CORE_PATHS,/);
@@ -20750,14 +20862,14 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   }
   for (const path of [
     "/records?view=identification_summary",
-    "/ja/records?view=identification_summary",
-    "/en/records?view=identification_summary",
-    "/es/records?view=identification_summary",
-    "/pt-br/records?view=identification_summary",
     "/records?view=needs_id",
+    "/ja/records?view=identification_summary",
     "/ja/records?view=needs_id",
+    "/en/records?view=identification_summary",
     "/en/records?view=needs_id",
+    "/es/records?view=identification_summary",
     "/es/records?view=needs_id",
+    "/pt-br/records?view=identification_summary",
     "/pt-br/records?view=needs_id"
   ]) {
     assert.ok(queryVariantPaths.includes(path), `${path} should be materialized as a query-specific original UI variant`);

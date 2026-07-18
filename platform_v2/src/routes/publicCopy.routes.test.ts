@@ -478,6 +478,7 @@ test("identification workbench panel keeps continuous actions in the records sur
   assert.match(source, /data-identify-panel-action="hold"/);
   assert.match(source, /data-identify-endpoint=/);
   assert.match(source, /data-dispute-endpoint=/);
+  assert.match(source, /data-hold-endpoint=/);
   assert.match(source, /data-identify-panel-restore/);
   assert.match(source, /data-identify-panel-keep/);
   assert.match(source, /data-identify-processed/);
@@ -486,6 +487,7 @@ test("identification workbench panel keeps continuous actions in the records sur
   assert.match(source, /data-identify-panel-reference-capture/);
   assert.match(source, /taxonHint/);
   assert.match(source, /referenceSourceIds: referenceSourceIds/);
+  assert.match(source, /identification-workbench-hold/);
 });
 
 test("observation detail visible identification history includes reference evidence", async () => {

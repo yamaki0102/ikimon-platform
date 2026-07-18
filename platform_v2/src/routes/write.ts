@@ -49,6 +49,7 @@ import {
   type KnowledgeSourceCorrectionInput,
   type ReferenceCaptureItemInput,
 } from "../services/referenceLibrary.js";
+import { holdIdentificationWorkbenchItem } from "../services/identificationWorkbenchHolds.js";
 import { assertAuthRateLimit, assertSameOriginRequest } from "../services/authSecurity.js";
 import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
 import { stagingFixtureOpsEnabled } from "../services/stagingFixtureGuard.js";
@@ -951,6 +952,30 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: false,
         error: error instanceof Error ? error.message : "ai_review_submit_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: { reason?: string | null };
+  }>("/api/v1/observations/:id/identification-workbench-hold", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+      await assertMutationRateLimit(request, "identification-workbench-hold", session.userId, 60);
+      return await holdIdentificationWorkbenchItem({
+        occurrenceId: request.params.id,
+        actorUserId: session.userId,
+        reason: request.body?.reason ?? null,
+      });
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "identification_workbench_hold_failed",
       };
     }
   });

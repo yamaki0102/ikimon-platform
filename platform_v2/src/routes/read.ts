@@ -131,6 +131,7 @@ import {
   type ReferenceCandidate,
   type ReferenceProfileSummary,
 } from "../services/referenceLibrary.js";
+import { listHeldIdentificationOccurrenceIds } from "../services/identificationWorkbenchHolds.js";
 import { getRegionalStoryCue, type RegionalKnowledgeCard, type RegionalStoryCue, type RegionalStoryInput } from "../services/regionalStory.js";
 import {
   assertSpecialistAdminSession,
@@ -12990,16 +12991,23 @@ function renderRecordsSidePanel(
   </aside>`;
 }
 
+type RecordWorkbenchEntriesForViewOptions = {
+  heldOccurrenceIds?: Set<string>;
+};
+
 function recordWorkbenchEntriesForView(
   view: RecordsWorkbenchView,
   ownEntries: LandingObservation[],
   publicEntries: LandingObservation[],
+  options: RecordWorkbenchEntriesForViewOptions = {},
 ): LandingObservation[] {
   const all = uniqueRecords([...ownEntries, ...publicEntries]);
+  const heldOccurrenceIds = options.heldOccurrenceIds;
+  const isHeld = (entry: LandingObservation) => heldOccurrenceIds?.has(entry.occurrenceId) ?? false;
   if (view === "mine") return ownEntries;
   if (view === "public") return publicEntries;
   if (view === "identification_summary") return all.filter(recordsNeedsId);
-  if (view === "needs_id") return all.filter(recordsNeedsId);
+  if (view === "needs_id") return all.filter((entry) => recordsNeedsId(entry) && !isHeld(entry));
   if (view === "media") return all.filter(recordsHasMedia);
   return all;
 }
@@ -13321,9 +13329,10 @@ function renderRecordsPostCard(
   const identifyEndpointId = encodeURIComponent(card.occurrenceId);
   const identifyEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/identifications`);
   const disputeEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/disputes`);
+  const holdEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/identification-workbench-hold`);
   const referenceCandidatesEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/reference-candidates`);
   const identifyCardAttrs = view === "needs_id" && card.postNeedsId
-    ? ` data-records-identify-card data-identify-title="${escapeHtml(displayName)}" data-identify-meta="${escapeHtml(metaLine)}" data-identify-source="${escapeHtml(sourceLabel)}" data-identify-candidate="${escapeHtml(card.postCandidateName ?? "")}" data-identify-default-name="${escapeHtml(identifyDefaultName)}" data-identify-default-rank="${escapeHtml(card.aiCandidateRank ?? card.featuredTaxonRank ?? "")}" data-identify-media="${escapeHtml(mediaUrl ?? "")}" data-identify-href="${escapeHtml(href)}" data-identify-endpoint="${escapeHtml(identifyEndpoint)}" data-dispute-endpoint="${escapeHtml(disputeEndpoint)}" data-reference-candidates-endpoint="${escapeHtml(referenceCandidatesEndpoint)}"`
+    ? ` data-records-identify-card data-identify-title="${escapeHtml(displayName)}" data-identify-meta="${escapeHtml(metaLine)}" data-identify-source="${escapeHtml(sourceLabel)}" data-identify-candidate="${escapeHtml(card.postCandidateName ?? "")}" data-identify-default-name="${escapeHtml(identifyDefaultName)}" data-identify-default-rank="${escapeHtml(card.aiCandidateRank ?? card.featuredTaxonRank ?? "")}" data-identify-media="${escapeHtml(mediaUrl ?? "")}" data-identify-href="${escapeHtml(href)}" data-identify-endpoint="${escapeHtml(identifyEndpoint)}" data-dispute-endpoint="${escapeHtml(disputeEndpoint)}" data-hold-endpoint="${escapeHtml(holdEndpoint)}" data-reference-candidates-endpoint="${escapeHtml(referenceCandidatesEndpoint)}"`
     : "";
   const thumbHtml = mediaUrl
     ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.records-post-card').classList.add('is-media-missing');this.remove()" />`
@@ -13725,6 +13734,7 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
     var cardHref = card.getAttribute('data-identify-href') || '';
     var identifyEndpoint = card.getAttribute('data-identify-endpoint') || '';
     var disputeEndpoint = card.getAttribute('data-dispute-endpoint') || '';
+    var holdEndpoint = card.getAttribute('data-hold-endpoint') || '';
     if (title) title.textContent = cardTitle;
     if (meta) meta.textContent = cardMeta;
     if (source) source.textContent = cardSource;
@@ -13735,6 +13745,7 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
     if (form) {
       form.setAttribute('data-identify-endpoint', identifyEndpoint);
       form.setAttribute('data-dispute-endpoint', disputeEndpoint);
+      form.setAttribute('data-hold-endpoint', holdEndpoint);
     }
     if (nameInput) nameInput.value = cardDefaultName;
     if (rankInput) rankInput.value = cardDefaultRank;
@@ -13874,9 +13885,22 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
   function submitAction(action) {
     if (!activeCard || !form) return;
     if (action === 'hold') {
-      markProcessed(activeCard);
-      selectNextAfter(activeCard);
-      setStatus(copy.held, false);
+      var holdEndpoint = form.getAttribute('data-hold-endpoint') || '';
+      if (!holdEndpoint) {
+        setStatus('保存できませんでした: hold_endpoint_missing', true);
+        return;
+      }
+      var holdReason = notesInput ? String(notesInput.value || '').trim() : '';
+      setStatus(copy.saving, false);
+      postJson(holdEndpoint, { reason: holdReason })
+        .then(function () {
+          markProcessed(activeCard);
+          selectNextAfter(activeCard);
+          setStatus(copy.held, false);
+        })
+        .catch(function (error) {
+          setStatus('保存できませんでした: ' + String(error && error.message || 'unknown_error'), true);
+        });
       return;
     }
     var proposedName = nameInput ? String(nameInput.value || '').trim() : '';
@@ -14706,6 +14730,7 @@ function renderRecordsWorkbench(
     ownPage?: LandingFeedPage | null;
     publicPage?: { nextCursor: string | null } | null;
     canWriteIdentification?: boolean;
+    heldOccurrenceIds?: Set<string>;
     searchQuery?: string;
     arrivalSource?: RecordsArrivalSource;
     savedId?: string;
@@ -14714,7 +14739,12 @@ function renderRecordsWorkbench(
   const copy = recordsWorkbenchCopy(lang);
   const ownEntries = snapshot.viewerUserId ? (options.ownPage?.entries ?? snapshot.myFeed) : [];
   const savedId = (options.savedId ?? "").trim();
-  const entries = prioritizeSavedRecord(recordWorkbenchEntriesForView(view, ownEntries, publicEntries), view === "mine" ? savedId : "");
+  const entries = prioritizeSavedRecord(
+    recordWorkbenchEntriesForView(view, ownEntries, publicEntries, {
+      heldOccurrenceIds: options.heldOccurrenceIds,
+    }),
+    view === "mine" ? savedId : "",
+  );
   const locationMode = view === "mine" && snapshot.viewerUserId ? "owner" : "public";
   const cardsForArrival = view === "mine" ? buildRecordsPostCards(entries, lang) : [];
   const savedRecordFound = cardsForArrival.some((card) => recordsCardMatchesSavedId(card, savedId));
@@ -21996,7 +22026,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : observationSnapshot.observations
     ).map(publicObservationToLandingObservation);
     const ownEntries = snapshot.viewerUserId ? (ownPage?.entries ?? snapshot.myFeed) : [];
-    const activeEntries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
+    const heldOccurrenceIds = view === "needs_id" && session?.userId
+      ? await listHeldIdentificationOccurrenceIds(session.userId).catch(() => new Set<string>())
+      : new Set<string>();
+    const activeEntries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries, { heldOccurrenceIds });
     const [civicContexts, identificationSummaryReferences] = await Promise.all([
       listCivicObservationContexts(activeEntries.map((obs) => obs.visitId)),
       view === "identification_summary"
@@ -22033,6 +22066,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           ownPage,
           publicPage: publicPage ? { nextCursor: publicPage.nextCursor } : null,
           canWriteIdentification: Boolean(session),
+          heldOccurrenceIds,
           searchQuery,
           arrivalSource,
           savedId,
