@@ -52,9 +52,13 @@ jobs:
           cache: npm
           cache-dependency-path: platform_v2/package-lock.json
 
-      - name: Install browser dependencies
+      - name: Install platform dependencies
         working-directory: platform_v2
         run: npm ci
+
+      - name: Install readback browser
+        working-directory: platform_v2
+        run: npx playwright install --with-deps chromium
 
       - name: Verify target runtime identity
         shell: bash
