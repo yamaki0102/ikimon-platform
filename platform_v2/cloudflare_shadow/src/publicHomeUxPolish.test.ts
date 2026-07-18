@@ -13,7 +13,7 @@ function recordCards(count: number): string {
 }
 
 const japaneseHome = `<!doctype html>
-<html lang="ja">">
+<html lang="ja">
 <head><title>ikimon</title></head>
 <body>
   <aside class="app-install-prompt" data-app-install-prompt hidden>
