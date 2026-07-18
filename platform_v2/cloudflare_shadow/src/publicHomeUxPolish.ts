@@ -180,7 +180,15 @@ export async function polishPublicHomeUx(request: Request, response: Response): 
 
   const html = await response.text();
   const lang = detectHomeLang(request, html);
-  if (!lang) return new Response(html, response);
+  if (!lang) {
+    const unchangedHeaders = new Headers(response.headers);
+    unchangedHeaders.delete("content-length");
+    return new Response(html, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: unchangedHeaders,
+    });
+  }
 
   const polished = applyPublicHomeUxPolish(html, lang);
   const headers = new Headers(response.headers);
