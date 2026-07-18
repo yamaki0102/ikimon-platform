@@ -16,7 +16,16 @@ const japaneseHome = `<!doctype html>
 <html lang="ja">
 <head><title>ikimon</title></head>
 <body>
-  <aside data-app-install-prompt><div>ikimon を端末に追加</div><button>追加</button></aside>
+  <aside class="app-install-prompt" data-app-install-prompt hidden>
+    <div class="app-install-copy">
+      <strong>ikimon を端末に追加</strong>
+      <p>ガイド、記録、地図をすぐ開けます。</p>
+    </div>
+    <div class="app-install-actions">
+      <button type="button" data-app-install-action>追加</button>
+      <button type="button" data-app-install-dismiss>あとで</button>
+    </div>
+  </aside>
   <section class="prototype-guest-home">
     <div class="prototype-guest-home-copy">
       <h1>見つけたものを、<span>写真1枚から。</span></h1>
@@ -39,10 +48,25 @@ const japaneseHome = `<!doctype html>
 </body>
 </html>`;
 
+test("public home suppresses the complete nested install prompt without removing or unbalancing its DOM", () => {
+  const polished = applyPublicHomeUxPolish(japaneseHome, "ja");
+  const promptTag = polished.match(/<aside\b[^>]*\bdata-app-install-prompt\b[^>]*>/u)?.[0] ?? "";
+
+  assert.ok(promptTag, "the complete prompt root remains in the balanced DOM");
+  assert.match(promptTag, /\baria-hidden="true"/u);
+  assert.match(promptTag, /(?:^|\s)hidden(?:\s|>|=)/u);
+  assert.match(promptTag, /(?:^|\s)inert(?:\s|>|=)/u);
+  assert.match(promptTag, /\bdata-public-home-install-suppressed="true"/u);
+  assert.match(polished, /<div class="app-install-copy">[\s\S]*?<\/div>[\s\S]*?<div class="app-install-actions">[\s\S]*?<\/div>[\s\S]*?<\/aside>/u);
+  assert.match(polished, /data-app-install-action>追加<\/button>/u);
+  assert.match(polished, /data-app-install-dismiss>あとで<\/button>/u);
+  assert.match(polished, /\[data-app-install-prompt\],[\s\S]*\[data-app-install-action\],[\s\S]*\[data-app-install-dismiss\][\s\S]*display: none !important;/u);
+  assert.doesNotMatch(polished, /<button[^>]*>追加<\/button>\s*<button[^>]*>あとで<\/button>\s*<\/body>/u);
+});
+
 test("public home polish reduces first-visit noise and keeps the camera-first action", () => {
   const polished = applyPublicHomeUxPolish(japaneseHome, "ja");
 
-  assert.doesNotMatch(polished, /data-app-install-prompt/u);
   assert.doesNotMatch(polished, /prototype-guest-home-guide/u);
   assert.match(polished, /まずは自分の記録として残し、あとから見返せます。/u);
   assert.match(polished, /href="\/ja\/record\?start=photo"[^>]*data-global-record-trigger="photo"/u);
@@ -58,9 +82,9 @@ test("public home polish shows an honest recent-record heading and limits the fi
 
   assert.match(polished, /最近の公開記録/u);
   assert.match(polished, /公開されている記録を、最大6件紹介します。/u);
-  assert.equal((polished.match(/prototype-record-feed-card/gu) ?? []).length, 6);
+  assert.equal((polished.match(/<article\b[^>]*\bprototype-record-feed-card\b/gu) ?? []).length, 6);
   assert.match(polished, /href="\/ja\/records\?view=public"[^>]*>もっと記録を見る<\/a>/u);
-  assert.match(polished, /id="ikimon-public-home-ux-v1"/u);
+  assert.match(polished, /id="ikimon-public-home-ux-v2"/u);
   assert.match(polished, /:focus-visible/u);
   assert.match(polished, /min-height: 48px/u);
 });
@@ -71,7 +95,8 @@ test("public home polish is idempotent", () => {
 
   assert.equal(twice, once);
   assert.equal((twice.match(/class="prototype-home-records-more"/gu) ?? []).length, 1);
-  assert.equal((twice.match(/id="ikimon-public-home-ux-v1"/gu) ?? []).length, 1);
+  assert.equal((twice.match(/id="ikimon-public-home-ux-v2"/gu) ?? []).length, 1);
+  assert.equal((twice.match(/data-public-home-install-suppressed="true"/gu) ?? []).length, 1);
 });
 
 test("English public home keeps localized routes and copy", () => {
@@ -100,7 +125,7 @@ test("response wrapper publishes the UX contract only on Japanese and English pu
     new Response(japaneseHome, { headers: { "content-type": "text/html; charset=utf-8" } }),
   );
   assert.equal(homeResponse.headers.get("x-ikimon-home-ux-polish"), PUBLIC_HOME_UX_POLISH_PRESENTATION);
-  assert.match(await homeResponse.text(), /もっと記録を見る/u);
+  assert.match(await homeResponse.text(), /data-public-home-install-suppressed="true"/u);
 
   const mapResponse = await polishPublicHomeUx(
     new Request("https://ikimon.life/ja/map"),
