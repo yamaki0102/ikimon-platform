@@ -1,12 +1,18 @@
-export const PUBLIC_HOME_UX_POLISH_PRESENTATION = "public-home-ux-v1";
+export const PUBLIC_HOME_UX_POLISH_PRESENTATION = "public-home-ux-v2";
 
 const HOME_PATHS = new Set(["/", "/home", "/ja", "/ja/", "/ja/home", "/en", "/en/", "/en/home"]);
-const UX_STYLE_ID = "ikimon-public-home-ux-v1";
+const UX_STYLE_ID = "ikimon-public-home-ux-v2";
 const MAX_GUEST_RECORD_CARDS = 6;
 
 type HomeLang = "ja" | "en";
 
 const UX_STYLE = `<style id="${UX_STYLE_ID}">
+  [data-public-home-install-suppressed],
+  [data-app-install-prompt],
+  [data-app-install-action],
+  [data-app-install-dismiss] {
+    display: none !important;
+  }
   .prototype-guest-home-actions.is-focused a:focus-visible,
   .prototype-home-records-more a:focus-visible {
     outline: 3px solid #0f766e;
@@ -64,10 +70,23 @@ function detectHomeLang(request: Request, html: string): HomeLang | null {
   return null;
 }
 
-function removeFirstVisitInstallPrompt(html: string): string {
+function suppressPublicHomeInstallPrompt(html: string): string {
   return html.replace(
-    /<(aside|div)\b[^>]*\bdata-app-install-prompt\b[^>]*>[\s\S]*?<\/\1>/giu,
-    "",
+    /<(aside|div)\b([^>]*\bdata-app-install-prompt\b[^>]*)>/iu,
+    (tag) => {
+      let patched = tag;
+      if (/\baria-hidden=["'][^"']*["']/iu.test(patched)) {
+        patched = patched.replace(/\baria-hidden=["'][^"']*["']/iu, 'aria-hidden="true"');
+      } else {
+        patched = patched.replace(/>$/u, ' aria-hidden="true">');
+      }
+      if (!/\bhidden(?:\s|=|>)/iu.test(patched)) patched = patched.replace(/>$/u, " hidden>");
+      if (!/\binert(?:\s|=|>)/iu.test(patched)) patched = patched.replace(/>$/u, " inert>");
+      if (!/\bdata-public-home-install-suppressed(?:\s|=|>)/iu.test(patched)) {
+        patched = patched.replace(/>$/u, ' data-public-home-install-suppressed="true">');
+      }
+      return patched;
+    },
   );
 }
 
@@ -123,7 +142,7 @@ function rewriteHomeCopy(html: string, lang: HomeLang): string {
 }
 
 function connectTrustTextToActions(html: string): string {
-  let rewritten = html.replace(
+  const rewritten = html.replace(
     /<p class="prototype-guest-home-trust">/u,
     '<p id="prototype-guest-home-trust" class="prototype-guest-home-trust">',
   );
@@ -165,7 +184,7 @@ function injectUxStyles(html: string): string {
 }
 
 export function applyPublicHomeUxPolish(html: string, lang: HomeLang): string {
-  let polished = removeFirstVisitInstallPrompt(html);
+  let polished = suppressPublicHomeInstallPrompt(html);
   polished = removeGuestHeroGuide(polished);
   polished = rewriteHomeCopy(polished, lang);
   polished = connectTrustTextToActions(polished);
