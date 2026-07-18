@@ -10,8 +10,10 @@ const migration = readFileSync(
 
 test("photo asset migration persists processing intent in the same PostgreSQL transaction", () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION enqueue_observation_photo_processing_intent/);
-  assert.match(migration, /AFTER INSERT OR UPDATE OF/);
-  assert.match(migration, /ON evidence_assets/);
+  assert.match(migration, /CREATE TRIGGER trg_observation_photo_processing_intent_insert/);
+  assert.match(migration, /AFTER INSERT ON evidence_assets/);
+  assert.match(migration, /CREATE TRIGGER trg_observation_photo_processing_intent_update/);
+  assert.match(migration, /AFTER UPDATE OF[\s\S]*ON evidence_assets/);
   assert.match(migration, /WHEN \(NEW\.asset_role = 'observation_photo'\)/);
   assert.match(migration, /INSERT INTO media_processing_jobs/);
   assert.match(migration, /'photo_ready_reassess'/);
