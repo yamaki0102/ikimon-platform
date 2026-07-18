@@ -1,4 +1,5 @@
 import baseWorker from "./index";
+import { withAtomicPhotoReassessment } from "./atomicPhotoReassessmentEntry";
 import { enforceCameraFirstHomeCta } from "./cameraFirstHomeCta";
 import { polishPublicHomeUx } from "./publicHomeUxPolish";
 import { patchPublicHomePresentation } from "./publicPresentationPatch";
@@ -12,7 +13,11 @@ const delegatedWorker = baseWorker as DelegatedWorker;
 export default {
   ...delegatedWorker,
   async fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
-    const response = await delegatedWorker.fetch.call(delegatedWorker, request, env, ctx);
+    const response = await withAtomicPhotoReassessment(
+      request,
+      env,
+      async (delegatedEnv) => delegatedWorker.fetch.call(delegatedWorker, request, delegatedEnv, ctx),
+    );
     const presented = await patchPublicHomePresentation(request, response);
     const cameraFirst = await enforceCameraFirstHomeCta(request, presented);
     return polishPublicHomeUx(request, cameraFirst);
