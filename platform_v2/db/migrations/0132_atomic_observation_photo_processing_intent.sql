@@ -39,9 +39,17 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS trg_observation_photo_processing_intent ON evidence_assets;
+DROP TRIGGER IF EXISTS trg_observation_photo_processing_intent_insert ON evidence_assets;
+DROP TRIGGER IF EXISTS trg_observation_photo_processing_intent_update ON evidence_assets;
 
-CREATE TRIGGER trg_observation_photo_processing_intent
-AFTER INSERT OR UPDATE OF blob_id, occurrence_id, visit_id, legacy_relative_path, source_payload
+CREATE TRIGGER trg_observation_photo_processing_intent_insert
+AFTER INSERT ON evidence_assets
+FOR EACH ROW
+WHEN (NEW.asset_role = 'observation_photo')
+EXECUTE FUNCTION enqueue_observation_photo_processing_intent();
+
+CREATE TRIGGER trg_observation_photo_processing_intent_update
+AFTER UPDATE OF blob_id, occurrence_id, visit_id, legacy_relative_path, source_payload
 ON evidence_assets
 FOR EACH ROW
 WHEN (NEW.asset_role = 'observation_photo')
