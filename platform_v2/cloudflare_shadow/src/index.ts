@@ -4,6 +4,11 @@ import {
   renderCloudflareRecordRecoverySignedHtml,
   resolveCloudflareRecordRecoveryState
 } from "./recordRecoveryHtml";
+import { loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
+import {
+  renderObservationProcessingStatusPanel,
+  type ObservationProcessingStatus,
+} from "../../src/services/observationProcessingStatus";
 
 type D1Value = string | number | null;
 
@@ -2704,6 +2709,15 @@ export const worker = {
       const publicDetailApiMatch = nativePathname.match(/^\/api\/v1\/observations\/([^/]+)\/public-detail$/);
       if (request.method === "GET" && publicDetailApiMatch?.[1]) {
         return getPublicObservationDetailJson(decodeURIComponent(publicDetailApiMatch[1]), env);
+      }
+
+      const processingStatusMatch = nativePathname.match(/^\/api\/v1\/observations\/([^/]+)\/processing-status$/);
+      if (request.method === "GET" && processingStatusMatch?.[1]) {
+        return getOwnerObservationProcessingStatusJson(
+          decodeURIComponent(processingStatusMatch[1]),
+          request,
+          env
+        );
       }
 
       const publicDetailPageMatch = nativePathname.match(/^\/observations\/([^/]+)$/);
@@ -24722,7 +24736,15 @@ async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<
 }
 
 async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env): Promise<Response> {
-  const detail = await buildPublicObservationDetail(rawId, env);
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const ownerStatus = session && !session.banned
+    ? await loadOwnerObservationProcessingStatusFromD1(env.OBS_DB, {
+        observationId: detailIdToVisitId(rawId),
+        ownerUserId: session.userId,
+        providerAvailable: false
+      }).catch(() => null)
+    : null;
+  const detail = await buildObservationDetail(rawId, env, ownerStatus ? session?.userId ?? null : null);
   if (!detail) {
     const materialized = await getOriginalUiHtml(request, url, env);
     if (materialized.status !== 404) {
@@ -24730,20 +24752,61 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     }
     return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
   }
-  return html(renderPublicObservationDetailHtml(detail), 200, { "cache-control": "no-store" });
+  return html(renderPublicObservationDetailHtml(detail, ownerStatus), 200, { "cache-control": "no-store" });
+}
+
+async function getOwnerObservationProcessingStatusJson(rawId: string, request: Request, env: Env): Promise<Response> {
+  let session: SessionSnapshot | null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "status_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  const status = await loadOwnerObservationProcessingStatusFromD1(env.OBS_DB, {
+    observationId: detailIdToVisitId(rawId),
+    ownerUserId: session.userId,
+    providerAvailable: false
+  });
+  if (!status) return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  return json({ ok: true, status }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "owner-observation-processing-status"
+  });
 }
 
 async function buildPublicObservationDetail(rawId: string, env: Env) {
+  return buildObservationDetail(rawId, env, null);
+}
+
+async function buildObservationDetail(rawId: string, env: Env, ownerUserId: string | null) {
   const visitId = detailIdToVisitId(rawId);
-  const row = await env.OBS_DB.prepare(
-    `SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, r.asset_count,
-            o.note, o.visibility
-     FROM readmodel_public_observations r
-     JOIN observations o ON o.observation_id = r.observation_id
-     WHERE r.observation_id = ?
-       AND o.visibility = 'public'
-       AND o.emergency_hidden = 0`
-  ).bind(visitId).first<PublicDetailRow>();
+  const row = ownerUserId
+    ? await env.OBS_DB.prepare(
+        `SELECT o.observation_id, COALESCE(r.public_cell, o.public_cell, '') AS public_cell,
+                o.observed_at, o.taxon_label,
+                COALESCE(r.asset_count, (
+                  SELECT COUNT(*) FROM asset_ledger a
+                   WHERE a.observation_id = o.observation_id
+                     AND a.processing_state = 'uploaded'
+                ), 0) AS asset_count,
+                o.note, o.visibility
+           FROM observations o
+           LEFT JOIN readmodel_public_observations r ON r.observation_id = o.observation_id
+          WHERE o.observation_id = ?
+            AND o.owner_user_id = ?
+            AND o.emergency_hidden = 0`
+      ).bind(visitId, ownerUserId).first<PublicDetailRow>()
+    : await env.OBS_DB.prepare(
+        `SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, r.asset_count,
+                o.note, o.visibility
+           FROM readmodel_public_observations r
+           JOIN observations o ON o.observation_id = r.observation_id
+          WHERE r.observation_id = ?
+            AND o.visibility = 'public'
+            AND o.emergency_hidden = 0`
+      ).bind(visitId).first<PublicDetailRow>();
   if (!row) return null;
 
   const assets = await env.OBS_DB.prepare(
@@ -28016,6 +28079,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const assetId = newId("asset");
   const outboxMediaId = newId("outbox");
   const outboxReadModelId = newId("outbox");
+  const reassessmentRequestId = `reassess:${observationId}:standard:${observation.owner_user_id}`;
   const objectKey = `original/v1-compat/${observationId}/${assetId}-${filename}`;
   const relativePath = objectKey;
   const occurrenceId = `occ:${observationId}:0`;
@@ -28046,6 +28110,25 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     env.OBS_DB.prepare(
       "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxReadModelId, "readmodel.refresh", observationId, JSON.stringify({ observationId }), partitionMonth),
+    env.OBS_DB.prepare(
+      `INSERT INTO observation_reassessment_requests (
+         request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json,
+         created_at, updated_at
+       ) VALUES (?, ?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT(observation_id, request_kind, actor_user_id) DO UPDATE SET
+         request_state = 'pending',
+         source_payload_json = excluded.source_payload_json,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      reassessmentRequestId,
+      observationId,
+      "standard",
+      observation.owner_user_id,
+      JSON.stringify({
+        source: "cloudflare_photo_upload_atomic_reassessment",
+        transactionalIntent: true
+      })
+    ),
     rollbackLedgerInsert(env, {
       eventType: "asset.photo.upload",
       targetId: assetId,
@@ -28091,6 +28174,11 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       succeeded: false
     },
     facePrivacy,
+    reassessment: {
+      state: "pending",
+      kind: "standard",
+      source: "cloudflare_photo_upload_atomic_reassessment"
+    },
     dispatch
   });
 }
@@ -31770,7 +31858,10 @@ loadMap().catch((error) => {
 
 type PublicObservationDetail = NonNullable<Awaited<ReturnType<typeof buildPublicObservationDetail>>>;
 
-function renderPublicObservationDetailHtml(detail: PublicObservationDetail): string {
+function renderPublicObservationDetailHtml(
+  detail: PublicObservationDetail,
+  ownerStatus: ObservationProcessingStatus | null = null
+): string {
   const polish = publicObservationDetailPolish(detail);
   const displayName = polish?.displayName ?? detail.displayName;
   const lead = polish?.lead ?? (detail.isAwaitingId ? "名前はまだ確認待ちの公開記録です。" : "公開範囲をぼかした観察記録です。");
@@ -32291,6 +32382,7 @@ ${headerBlock}
     </section>
     <aside class="obs-reading-panel" aria-label="観察記録">
       <h1 class="sr-only">${escapeHtml(displayName)}</h1>
+      ${ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus) : ""}
       <div id="summary" class="obs-record-brief obs-record-brief-compact" data-obs-section="summary" aria-label="この記録">
         <div class="obs-record-compact-main">
           <div class="obs-record-compact-meta">

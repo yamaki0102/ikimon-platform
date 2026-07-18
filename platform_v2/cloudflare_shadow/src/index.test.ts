@@ -5068,6 +5068,57 @@ class FakeStatement {
       } as T) : null;
     }
 
+    if (normalized.startsWith("SELECT o.observation_id, o.observed_at") && normalized.includes("AS original_photo_count")) {
+      const observation = this.db.observations.get(string(v[0]));
+      if (!observation || observation.owner_user_id !== string(v[1])) return null;
+      const assets = [...this.db.assets.values()].filter((asset) =>
+        asset.observation_id === observation.observation_id &&
+        asset.mime.startsWith("image/") &&
+        asset.processing_state === "uploaded"
+      );
+      const displayPhotoCount = assets.filter((asset) =>
+        Boolean(asset.public_derivative_key) &&
+        Boolean(asset.public_derivative_verified_at) &&
+        Boolean(asset.public_derivative_metadata_json) &&
+        !String(asset.public_derivative_metadata_json).includes('"scannedContainer":"svg+xml"') &&
+        !String(asset.public_derivative_metadata_json).includes('"contentType":"image/svg') &&
+        asset.exif_scrub_state === "scrubbed" &&
+        Boolean(asset.public_ready_at)
+      ).length;
+      const outbox = [...this.db.outbox.values()].reverse().find((row) =>
+        row.target_id === observation.observation_id && row.topic === "media.process"
+      );
+      const reassessment = this.db.observationReassessmentRequests.get(
+        `${observation.observation_id}:standard:${observation.owner_user_id}`
+      );
+      const occurrenceId = `occ:${observation.observation_id}:0`;
+      const aiTarget = this.db.observationAiReviewTargets.get(occurrenceId);
+      const identificationCount = [...this.db.observationIdentifications.values()].filter((row) =>
+        row.occurrence_id === occurrenceId && row.is_current === 1
+      ).length;
+      const candidateCount = aiTarget && (
+        aiTarget.candidate_id ||
+        aiTarget.candidate_scientific_name ||
+        aiTarget.candidate_vernacular_name ||
+        aiTarget.ai_recommended_taxon_name
+      ) ? 1 : 0;
+      return ({
+        observation_id: observation.observation_id,
+        observed_at: observation.observed_at,
+        original_photo_count: assets.length,
+        display_photo_count: displayPhotoCount,
+        latest_media_job_status: outbox
+          ? (outbox.dispatch_state === "pending" && outbox.last_error ? "failed" : outbox.dispatch_state)
+          : null,
+        latest_media_job_error: outbox?.last_error ?? null,
+        ai_request_status: reassessment?.request_state ?? null,
+        ai_assessment_status: aiTarget?.ai_assessment_status ?? null,
+        candidate_count: candidateCount,
+        identification_count: identificationCount,
+        updated_at: reassessment?.updated_at ?? observation.observed_at
+      } as T);
+    }
+
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label")) {
       const observation = this.db.observations.get(string(v[0]));
       if (!observation) return null;
@@ -5288,6 +5339,24 @@ class FakeStatement {
         note: observation.note,
         visibility: observation.visibility
       } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT o.observation_id, COALESCE(r.public_cell, o.public_cell, '') AS public_cell")) {
+      const observation = this.db.observations.get(string(v[0]));
+      if (!observation || observation.owner_user_id !== string(v[1]) || observation.emergency_hidden !== 0) return null;
+      const read = this.db.readmodel.get(observation.observation_id);
+      const assetCount = [...this.db.assets.values()].filter((asset) =>
+        asset.observation_id === observation.observation_id && asset.processing_state === "uploaded"
+      ).length;
+      return ({
+        observation_id: observation.observation_id,
+        public_cell: read?.public_cell ?? observation.public_cell ?? "",
+        observed_at: observation.observed_at,
+        taxon_label: observation.taxon_label,
+        asset_count: read?.asset_count ?? assetCount,
+        note: observation.note,
+        visibility: observation.visibility
+      } as T);
     }
 
     if (normalized.startsWith("SELECT COUNT(*) AS count FROM readmodel_public_observations")) {
@@ -9113,6 +9182,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   const pageResponse = await worker.fetch(new Request("https://shadow.test/observations/visit-detail-contract"), env);
   const pageHtml = await pageResponse.text();
   assert.equal(pageResponse.ok, true, pageHtml);
+  assert.doesNotMatch(pageHtml, /data-observation-processing-status/);
   assert.match(pageHtml, /data-cloudflare-observation-detail="1"/);
   assert.match(pageHtml, /obs-vps-image-detail-body/);
   assert.match(pageHtml, /\/assets\/brand\/app-icon-192\.png/);
@@ -9163,6 +9233,46 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.doesNotMatch(pageHtml, new RegExp(`\\u91cd\\u306d|${"写真の" + "対象枠"}|${"同じ" + "ページで確認"}|驥阪|縺|蜀`));
   assert.doesNotMatch(pageHtml, /ikimon shadow|data-shadow-observation-detail|ownerUserId|observerUserId|profile\/detail-user|profile\/user_|YAMAKI|34\.71234|137\.81234|\/uploads\//);
 
+  const ownerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "detail-user", displayName: "Detail Owner", ttlHours: 1 })
+  }), env);
+  const ownerCookie = ownerIssue.headers.get("set-cookie") ?? "";
+  const ownerPageResponse = await worker.fetch(new Request("https://shadow.test/observations/visit-detail-contract", {
+    headers: { cookie: ownerCookie }
+  }), env);
+  const ownerPageHtml = await ownerPageResponse.text();
+  assert.equal(ownerPageResponse.status, 200, ownerPageHtml);
+  assert.match(ownerPageHtml, /data-observation-processing-status/);
+  assert.match(ownerPageHtml, /この記録の状態/);
+  assert.match(ownerPageHtml, /写真と記録は保存されています。AI確認は現在利用できません。/);
+
+  const ownerStatusResponse = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/observations/visit-detail-contract/processing-status",
+    { headers: { cookie: ownerCookie } }
+  ), env);
+  const ownerStatusPayload = await ownerStatusResponse.json() as any;
+  assert.equal(ownerStatusResponse.status, 200, JSON.stringify(ownerStatusPayload));
+  assert.equal(ownerStatusPayload.status.mediaState, "ready");
+  assert.equal(ownerStatusPayload.status.aiState, "unavailable");
+
+  const otherIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "other-detail-user", displayName: "Other User", ttlHours: 1 })
+  }), env);
+  const otherCookie = otherIssue.headers.get("set-cookie") ?? "";
+  const otherStatusResponse = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/observations/visit-detail-contract/processing-status",
+    { headers: { cookie: otherCookie } }
+  ), env);
+  assert.equal(otherStatusResponse.status, 404);
+  const otherPageResponse = await worker.fetch(new Request("https://shadow.test/observations/visit-detail-contract", {
+    headers: { cookie: otherCookie }
+  }), env);
+  assert.doesNotMatch(await otherPageResponse.text(), /data-observation-processing-status/);
+
   const localizedPageResponse = await worker.fetch(new Request("https://shadow.test/ja/observations/visit-detail-contract"), env);
   const localizedPageHtml = await localizedPageResponse.text();
   assert.equal(localizedPageResponse.ok, true, localizedPageHtml);
@@ -9172,6 +9282,36 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(localizedPageHtml, /obs-hero-media-stack is-photo-only/);
   assert.match(localizedPageHtml, /data-obs-preview-img/);
   assert.match(localizedPageHtml, /詳細テスト植物/);
+
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-private-detail-contract",
+    userId: "detail-user",
+    observedAt: "2026-06-15T04:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "private",
+    note: "本人だけに見える保存済み記録"
+  });
+  await post("/api/v1/observations/visit-private-detail-contract/photos/upload", env, {
+    filename: "private-detail.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("private-detail-image").toString("base64")
+  });
+  const privateOwnerResponse = await worker.fetch(new Request("https://shadow.test/observations/visit-private-detail-contract", {
+    headers: { cookie: ownerCookie }
+  }), env);
+  const privateOwnerHtml = await privateOwnerResponse.text();
+  assert.equal(privateOwnerResponse.status, 200, privateOwnerHtml);
+  assert.match(privateOwnerHtml, /本人だけに見える保存済み記録/);
+  assert.match(privateOwnerHtml, /data-observation-processing-status/);
+  assert.match(privateOwnerHtml, /表示準備中/);
+  assert.match(privateOwnerHtml, /現在利用不可/);
+  assert.doesNotMatch(privateOwnerHtml, /34\.71234|137\.81234|ownerUserId/);
+
+  const privateGuestResponse = await worker.fetch(new Request("https://shadow.test/observations/visit-private-detail-contract"), env);
+  assert.equal(privateGuestResponse.status, 404);
+  const privatePublicApiResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-private-detail-contract/public-detail"), env);
+  assert.equal(privatePublicApiResponse.status, 404);
 
   const missingResponse = await worker.fetch(new Request("https://shadow.test/observations/not-found"), env);
   assert.equal(missingResponse.status, 404);
@@ -9597,6 +9737,12 @@ test("v1 observation upsert honors private visibility before public readmodel re
   });
 
   assert.equal(photoResponse.ok, true);
+  assert.equal(photoResponse.reassessment.state, "pending");
+  assert.equal(photoResponse.reassessment.kind, "standard");
+  assert.equal(
+    obs.observationReassessmentRequests.get("private-post-smoke-contract:standard:private-post-user")?.request_state,
+    "pending"
+  );
   assert.equal(obs.readmodel.has("private-post-smoke-contract"), false);
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "private-post-smoke-contract"), false);
 });
@@ -10194,6 +10340,7 @@ test("v1 photo upload compensates the R2 object when the authoritative D1 batch 
       })
     }), env), /simulated_d1_failure/);
     assert.equal(obs.assets.size, 0);
+    assert.equal(obs.observationReassessmentRequests.size, 0);
     assert.equal((env.ASSET_BUCKET as unknown as FakeBucket).objects.size, 0);
   } finally {
     obs.batch = originalBatch;

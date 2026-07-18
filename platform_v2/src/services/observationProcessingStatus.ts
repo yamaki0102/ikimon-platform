@@ -1,5 +1,3 @@
-import type { FastifyInstance } from "fastify";
-
 export type ObservationMediaProcessingState = "none" | "processing" | "ready" | "retry_required";
 export type ObservationAiProcessingState =
   | "not_requested"
@@ -17,6 +15,7 @@ export type ObservationProcessingFacts = {
   displayPhotoCount: number;
   latestMediaJobStatus: string | null;
   latestMediaJobError: string | null;
+  aiRequestStatus: string | null;
   aiAssessmentStatus: string | null;
   candidateCount: number;
   identificationCount: number;
@@ -33,15 +32,6 @@ export type ObservationProcessingStatus = {
   updatedAt: string | null;
   message: string;
   action: { href: string; label: string } | null;
-};
-
-export type ObservationProcessingStatusLoader = (
-  observationId: string,
-  cookieHeader: string | undefined,
-) => Promise<ObservationProcessingStatus | null>;
-
-type ObservationProcessingStatusPatchOptions = {
-  loadStatus: ObservationProcessingStatusLoader;
 };
 
 function normalizedStatus(value: string | null | undefined): string {
@@ -66,6 +56,7 @@ function safeObservationHref(id: string, suffix = ""): string {
 
 export function deriveObservationProcessingStatus(facts: ObservationProcessingFacts): ObservationProcessingStatus {
   const latestJob = normalizedStatus(facts.latestMediaJobStatus);
+  const requestStatus = normalizedStatus(facts.aiRequestStatus);
   const assessment = normalizedStatus(facts.aiAssessmentStatus);
 
   let mediaState: ObservationMediaProcessingState;
@@ -84,11 +75,11 @@ export function deriveObservationProcessingStatus(facts: ObservationProcessingFa
     aiState = "candidate_ready";
   } else if (facts.identificationCount > 0 || isCompletedStatus(assessment)) {
     aiState = "completed";
-  } else if (isFailedStatus(latestJob) || isFailedStatus(assessment)) {
+  } else if (isFailedStatus(requestStatus) || isFailedStatus(assessment)) {
     aiState = "failed_retryable";
-  } else if (isRunningStatus(latestJob) || isRunningStatus(assessment)) {
+  } else if (isRunningStatus(requestStatus) || isRunningStatus(assessment)) {
     aiState = "processing";
-  } else if (latestJob === "pending" || assessment === "queued" || assessment === "pending") {
+  } else if (requestStatus === "pending" || assessment === "queued" || assessment === "pending") {
     aiState = facts.providerAvailable ? "queued" : "unavailable";
   } else if (!facts.providerAvailable) {
     aiState = "unavailable";
@@ -198,52 +189,4 @@ export function renderObservationProcessingStatusPanel(status: ObservationProces
     <p class="obs-processing-status-message">${escapeHtml(status.message)}</p>
     ${action}
   </section>`;
-}
-
-export function patchObservationProcessingStatusHtml(html: string, status: ObservationProcessingStatus | null): string {
-  if (!status || html.includes("data-observation-processing-status")) return html;
-  const panel = renderObservationProcessingStatusPanel(status);
-  const readingPanel = /(<(?:main|section|div|article)\b[^>]*class="[^"]*\bobs-reading-panel\b[^"]*"[^>]*>)/i;
-  if (readingPanel.test(html)) {
-    return html.replace(readingPanel, `$1${panel}`);
-  }
-  const main = /(<main\b[^>]*>)/i;
-  return main.test(html) ? html.replace(main, `$1${panel}`) : html;
-}
-
-function observationIdFromUrl(rawUrl: string): string | null {
-  const pathname = rawUrl.split("?", 1)[0] ?? "";
-  const match = /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?observations\/([^/?#]+)\/?$/i.exec(pathname);
-  if (!match?.[1]) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return null;
-  }
-}
-
-export function registerObservationProcessingStatusHtmlPatch(
-  app: FastifyInstance,
-  options: ObservationProcessingStatusPatchOptions,
-): void {
-  app.addHook("onSend", async (request, reply, payload) => {
-    if (request.method !== "GET" && request.method !== "HEAD") return payload;
-    const contentType = String(reply.getHeader("content-type") ?? "").toLowerCase();
-    if (!contentType.includes("text/html")) return payload;
-    const observationId = observationIdFromUrl(request.url);
-    if (!observationId) return payload;
-    const html = typeof payload === "string"
-      ? payload
-      : Buffer.isBuffer(payload)
-        ? payload.toString("utf8")
-        : null;
-    if (html == null) return payload;
-    try {
-      const status = await options.loadStatus(observationId, request.headers.cookie);
-      return patchObservationProcessingStatusHtml(html, status);
-    } catch (error) {
-      request.log.warn({ err: error, observationId }, "observation processing status patch failed");
-      return payload;
-    }
-  });
 }
