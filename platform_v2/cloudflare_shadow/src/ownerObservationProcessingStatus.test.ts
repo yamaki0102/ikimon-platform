@@ -36,7 +36,7 @@ test("D1 owner status keeps media and AI facts separate", async () => {
 
   assert.equal(status?.mediaState, "processing");
   assert.equal(status?.aiState, "unavailable");
-  assert.match(status?.message ?? "", /写真は保存されています/);
+  assert.match(status?.message ?? "", /写真1枚は保存済み/);
 });
 
 test("D1 owner status returns null when the owner-scoped row is absent", async () => {

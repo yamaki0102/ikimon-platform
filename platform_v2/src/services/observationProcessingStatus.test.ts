@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   deriveObservationProcessingStatus,
+  renderObservationProcessingStatusPanel,
   type ObservationProcessingFacts,
 } from "./observationProcessingStatus.js";
 
@@ -29,6 +30,8 @@ test("processing status distinguishes saved media and an AI candidate", () => {
 
   assert.equal(status.recordState, "saved");
   assert.equal(status.mediaState, "ready");
+  assert.equal(status.originalPhotoCount, 1);
+  assert.equal(status.displayPhotoCount, 1);
   assert.equal(status.aiState, "candidate_ready");
   assert.equal(status.action?.label, "候補を確認");
   assert.match(status.action?.href ?? "", /#identify$/);
@@ -44,7 +47,7 @@ test("processing status does not claim AI completion when the provider is unavai
 
   assert.equal(status.mediaState, "processing");
   assert.equal(status.aiState, "unavailable");
-  assert.match(status.message, /写真と記録は保存されています|写真は保存されています/);
+  assert.match(status.message, /写真1枚は保存済み/);
   assert.doesNotMatch(status.message, /完了しました/);
 });
 
@@ -73,7 +76,20 @@ test("processing status exposes a photo retry without losing the record", () => 
   assert.equal(status.mediaState, "retry_required");
   assert.equal(status.aiState, "not_requested");
   assert.equal(status.action?.label, "写真を再送");
-  assert.match(status.message, /記録本体は保存されています/);
+  assert.match(status.message, /写真1枚は保存済み/);
+});
+
+test("a partial derivative set reports the saved total instead of claiming all photos are ready", () => {
+  const status = deriveObservationProcessingStatus({
+    ...baseFacts,
+    originalPhotoCount: 4,
+    displayPhotoCount: 2,
+    latestMediaJobStatus: "processing",
+  });
+
+  assert.equal(status.mediaState, "processing");
+  assert.match(status.message, /写真4枚は保存済み/);
+  assert.match(status.message, /残り2枚/);
 });
 
 test("processing status treats a record with no photo separately from a failed photo", () => {
@@ -87,4 +103,22 @@ test("processing status treats a record with no photo separately from a failed p
   assert.equal(status.mediaState, "none");
   assert.equal(status.action?.label, "写真を追加");
   assert.match(status.message, /写真はまだ追加されていません/);
+});
+
+test("retryable AI failure offers an owner-initiated reassessment without treating it as a link", () => {
+  const status = deriveObservationProcessingStatus({
+    ...baseFacts,
+    aiRequestStatus: "failed",
+  });
+
+  assert.equal(status.aiState, "failed_retryable");
+  assert.equal(status.action?.label, "AIで再確認");
+  assert.equal(status.action?.method, "post");
+  assert.equal(status.action?.href, "/api/v1/observations/record-1/reassess");
+
+  const html = renderObservationProcessingStatusPanel(status);
+  assert.match(html, /<button[^>]+data-observation-reassess/);
+  assert.match(html, /method:'POST'/);
+  assert.match(html, /AIで再確認を受け付けました/);
+  assert.doesNotMatch(html, /<a[^>]+reassess/);
 });

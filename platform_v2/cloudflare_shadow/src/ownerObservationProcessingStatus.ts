@@ -48,15 +48,24 @@ const OWNER_PROCESSING_STATUS_SQL = `SELECT
       AND a.public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
       AND a.exif_scrub_state = 'scrubbed'
       AND a.public_ready_at IS NOT NULL) AS display_photo_count,
-  (SELECT CASE
-            WHEN ob.dispatch_state = 'pending' AND ob.last_error IS NOT NULL THEN 'failed'
-            ELSE ob.dispatch_state
-          END
-     FROM outbox ob
-    WHERE ob.target_id = o.observation_id
-      AND ob.topic = 'media.process'
-    ORDER BY ob.created_at DESC
-    LIMIT 1) AS latest_media_job_status,
+  CASE
+    WHEN EXISTS (
+      SELECT 1 FROM asset_ledger failed_asset
+       WHERE failed_asset.observation_id = o.observation_id
+         AND failed_asset.mime LIKE 'image/%'
+         AND failed_asset.processing_state = 'uploaded'
+         AND failed_asset.exif_scrub_state = 'failed'
+    ) THEN 'failed'
+    ELSE (SELECT CASE
+                   WHEN ob.dispatch_state = 'pending' AND ob.last_error IS NOT NULL THEN 'failed'
+                   ELSE ob.dispatch_state
+                 END
+            FROM outbox ob
+           WHERE ob.target_id = o.observation_id
+             AND ob.topic = 'media.process'
+           ORDER BY ob.created_at DESC
+           LIMIT 1)
+  END AS latest_media_job_status,
   (SELECT ob.last_error
      FROM outbox ob
     WHERE ob.target_id = o.observation_id
