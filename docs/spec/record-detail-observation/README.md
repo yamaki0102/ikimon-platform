@@ -3,9 +3,10 @@
 ## Status
 
 - specification status: current target contract
-- implementation status: planned migration; existing code must be audited PR by PR
+- implementation status: PR-A current implementation inventory active; runtime behavior unchanged
 - supersedes: `docs/architecture/adr-0004-observation-entity-model.md`のsubject / occurrence昇格契約と「AI単独ではobservationを作らない」に相当する旧解釈
-- central execution: `yamaki0102/all-projects-management#413`およびikimon.lifeのcurrent-state packet
+- central execution: `yamaki0102/all-projects-management#435`
+- current implementation issue: `yamaki0102/ikimon-platform#1376`
 
 ## Purpose
 
@@ -15,8 +16,9 @@
 
 1. [`SPEC.md`](SPEC.md) — 現在有効なproduct contract
 2. [`decisions/ADR-0001-observation-first-record-model.md`](decisions/ADR-0001-observation-first-record-model.md) — 採用理由と旧契約からの変更
-3. [`PLAN.md`](PLAN.md) — additive migration、PR分割、verification、rollback
-4. `yamaki0102/all-projects-management` — 現在フェーズ、blocker、active PR、deploy状態
+3. [`CURRENT_INVENTORY.md`](CURRENT_INVENTORY.md) — 現行実装、衝突、再利用可能部分、未確認事項
+4. [`PLAN.md`](PLAN.md) — additive migration、PR分割、verification、rollback
+5. `yamaki0102/all-projects-management#435` — 現在フェーズ、blocker、active PR、deploy状態
 
 ## Core model
 
@@ -45,4 +47,4 @@ site / place / project ── monitoring series
 
 ## Scope boundary
 
-このフォルダはproduct specification、decision、implementation planの正本です。日々の進捗、PR番号、deploy実績を時系列で追記しません。
+このフォルダはproduct specification、decision、implementation plan、current implementation inventoryの正本です。日々の進捗、PR番号、deploy実績を時系列で追記しません。
