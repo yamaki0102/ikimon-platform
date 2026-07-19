@@ -5,7 +5,7 @@
     "path": "data/project_manifest.schema.json",
     "version": 1
   },
-  "manifest_status": "candidate_pending_validation",
+  "manifest_status": "confirmed",
   "scope_level": "project",
   "project_key": "ikimon/ikimon-life/ikimon-life",
   "organization_id": "ikimon",
