@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "manifest_status": "candidate_pending_central_schema",
+  "project_key": "ikimon/ikimon-life/ikimon-platform",
+  "organization_id": "ikimon",
+  "service_id": "ikimon-life",
+  "project_id": "ikimon-platform",
+  "display_name": "ikimon.life platform",
+  "lifecycle": "active",
+  "repository": {
+    "slug": "yamaki0102/ikimon-platform",
+    "default_branch": "main",
+    "current_runtime_path": "platform_v2"
+  },
+  "canonical": {
+    "routing": {
+      "repository": "yamaki0102/github-project-map",
+      "path": "data/projects.json",
+      "anchor": "ikimon-life"
+    },
+    "organization_boundary": {
+      "repository": "yamaki0102/company-strategy-portfolio",
+      "path": "portfolio/organization-registry.json",
+      "anchor": "ikimon"
+    },
+    "strategy": {
+      "repository": "yamaki0102/ikimon-business-strategy",
+      "path": null
+    },
+    "execution": {
+      "repository": "yamaki0102/all-projects-management",
+      "path": "operations/project_state/ikimon-life.current.json"
+    },
+    "product_entry": {
+      "repository": "yamaki0102/ikimon-platform",
+      "path": "docs/START_HERE.md"
+    },
+    "record_observation_spec": {
+      "repository": "yamaki0102/ikimon-platform",
+      "path": "docs/spec/record-detail-observation/README.md"
+    },
+    "agent_instructions": {
+      "repository": "yamaki0102/ikimon-platform",
+      "path": "AGENTS.md"
+    }
+  },
+  "confidentiality": {
+    "classification": "public_product_repository",
+    "organization_scope": "ikimon",
+    "cross_organization_reuse": "deidentified_patterns_only",
+    "shared_customer_knowledge": false,
+    "secrets_allowed": false
+  },
+  "control_plane": {
+    "project_id": "github-canonical-control-plane",
+    "execution_issue": "yamaki0102/all-projects-management#413"
+  }
+}
