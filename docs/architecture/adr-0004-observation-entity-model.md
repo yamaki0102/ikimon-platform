@@ -1,6 +1,10 @@
 # ADR-0004 Observation Entity Model — 候補 / subject / occurrence / interaction / event / public claim
 
-2026-04-18 / status: proposed
+2026-04-18 / status: superseded-in-part
+
+> Superseded on 2026-07-19 by [`docs/spec/record-detail-observation/decisions/ADR-0001-observation-first-record-model.md`](../spec/record-detail-observation/decisions/ADR-0001-observation-first-record-model.md).
+>
+> この文書は履歴証拠として保持します。現在の契約は「AIはprovisional observationを作成できる。ただしAIだけではconfirmed observation、accepted identification、active occurrence、研究利用可能データへ昇格させない」です。subjectをoccurrence行として兼用するmappingと、candidateからoccurrenceへ直接昇格するモデルは現行仕様ではありません。
 
 ## 背景
 
@@ -80,6 +84,8 @@ event は上記 subject〜public_claim を **包む文脈**で、並列に：
 candidate のまま UI で表示するのは OK だが、**canonical の occurrence には reviewer 同意が必要**。  
 iNaturalist と同じ保守的ルール（coarse ID と uncertainty を許容）を守る。
 
+> Historical note: 現行契約ではAIがprovisional observationを作成できます。この節は「AIだけではactive occurrenceへ昇格させない」という境界としてのみ維持します。
+
 ### B. 代替候補は「負けた仮説」として残す
 
 ある subject に対して採用された taxa だけを残すのではなく、**却下された candidate も alternative_hypothesis として保持**する。これは AI 学習ループと研究的な再解析に効く。
@@ -112,6 +118,8 @@ observation_fields の workaround ではなく、`interactions` テーブル（s
 | interaction | **新規テーブル** `observation_interactions` (P1) |
 | event | `visits` 行（observed_at / place_id / effort_minutes / target_taxa_scope / complete_checklist_flag 既存、absence は P1） |
 | public_claim | `occurrences.evidence_tier` ≥ 2 かつ reviewer 同意レコードあり |
+
+> Historical mapping: subjectとoccurrenceを同じ行で表す上記mappingはsupersededです。現行target modelは`record → observation → occurrence projection`です。
 
 ## 優先順位
 
