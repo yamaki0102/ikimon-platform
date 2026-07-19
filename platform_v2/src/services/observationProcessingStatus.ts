@@ -33,7 +33,7 @@ export type ObservationProcessingStatus = {
   displayPhotoCount: number;
   updatedAt: string | null;
   message: string;
-  action: { href: string; label: string } | null;
+  action: { href: string; label: string; method?: "post" } | null;
 };
 
 function normalizedStatus(value: string | null | undefined): string {
@@ -106,6 +106,11 @@ export function deriveObservationProcessingStatus(facts: ObservationProcessingFa
     message = "写真と記録は保存されています。AI確認は現在利用できません。";
   } else if (aiState === "failed_retryable") {
     message = "写真と記録は保存されています。AI確認は完了していません。";
+    action = {
+      href: `/api/v1/observations/${encodeURIComponent(facts.visitId)}/reassess`,
+      label: "AIで再確認",
+      method: "post",
+    };
   } else if (aiState === "queued" || aiState === "processing") {
     message = "写真と記録は保存されています。AIが候補を確認しています。";
   }
@@ -173,8 +178,13 @@ function formattedUpdatedAt(value: string | null): string {
 
 export function renderObservationProcessingStatusPanel(status: ObservationProcessingStatus): string {
   const updatedAt = formattedUpdatedAt(status.updatedAt);
-  const action = status.action
-    ? `<a class="obs-processing-status-action" href="${escapeHtml(status.action.href)}">${escapeHtml(status.action.label)}</a>`
+  const action = status.action?.method === "post"
+    ? `<button type="button" class="obs-processing-status-action" data-observation-reassess data-endpoint="${escapeHtml(status.action.href)}">${escapeHtml(status.action.label)}</button><span class="obs-processing-status-action-result" aria-live="polite"></span>`
+    : status.action
+      ? `<a class="obs-processing-status-action" href="${escapeHtml(status.action.href)}">${escapeHtml(status.action.label)}</a>`
+      : "";
+  const actionScript = status.action?.method === "post"
+    ? `<script data-observation-reassess-script>(()=>{const button=document.querySelector('[data-observation-reassess]');if(!(button instanceof HTMLButtonElement))return;const result=button.nextElementSibling;button.addEventListener('click',async()=>{if(button.disabled)return;button.disabled=true;button.textContent='受付中…';try{const response=await fetch(button.dataset.endpoint||'',{method:'POST',credentials:'same-origin',headers:{accept:'application/json'}});if(!response.ok)throw new Error('request_failed');button.textContent='受付済み';if(result)result.textContent='AIで再確認を受け付けました。';window.setTimeout(()=>window.location.reload(),800);}catch{button.disabled=false;button.textContent='AIで再確認';if(result)result.textContent='受付できませんでした。少し待ってからもう一度お試しください。';}});})();</script>`
     : "";
   return `<style data-observation-processing-status-style>
     .obs-processing-status{margin:0 0 16px;padding:16px;border:1px solid rgba(15,23,42,.1);border-radius:18px;background:#fff;box-shadow:0 12px 30px rgba(15,23,42,.06);display:grid;gap:12px}
@@ -186,8 +196,10 @@ export function renderObservationProcessingStatusPanel(status: ObservationProces
     .obs-processing-status-item span{font-size:11px;color:#64748b;font-weight:800}
     .obs-processing-status-item strong{font-size:14px;line-height:1.35;color:#0f172a}
     .obs-processing-status-message{margin:0;color:#334155;font-size:13px;line-height:1.7;font-weight:650}
-    .obs-processing-status-action{min-height:48px;padding:11px 16px;border-radius:999px;background:#0f3d2e;color:#fff;text-decoration:none;font-weight:900;display:inline-flex;align-items:center;justify-content:center;justify-self:start}
+    .obs-processing-status-action{min-height:48px;padding:11px 16px;border:0;border-radius:999px;background:#0f3d2e;color:#fff;text-decoration:none;font:inherit;font-weight:900;display:inline-flex;align-items:center;justify-content:center;justify-self:start;cursor:pointer}
+    .obs-processing-status-action:disabled{cursor:wait;opacity:.72}
     .obs-processing-status-action:focus-visible{outline:3px solid rgba(14,165,233,.5);outline-offset:3px}
+    .obs-processing-status-action-result{font-size:12px;line-height:1.6;color:#475569;font-weight:700}
     @media(max-width:560px){.obs-processing-status{padding:14px}.obs-processing-status-grid{grid-template-columns:1fr}.obs-processing-status-item{min-height:54px;grid-template-columns:72px 1fr;align-items:center}.obs-processing-status-head{display:grid}.obs-processing-status-updated{text-align:left}.obs-processing-status-action{width:100%;justify-self:stretch}}
   </style><section class="obs-processing-status" data-observation-processing-status aria-labelledby="obs-processing-status-title">
     <div class="obs-processing-status-head"><h2 id="obs-processing-status-title">この記録の状態</h2>${updatedAt ? `<span class="obs-processing-status-updated">最終更新 ${escapeHtml(updatedAt)}</span>` : ""}</div>
@@ -198,5 +210,5 @@ export function renderObservationProcessingStatusPanel(status: ObservationProces
     </div>
     <p class="obs-processing-status-message">${escapeHtml(status.message)}</p>
     ${action}
-  </section>`;
+  </section>${actionScript}`;
 }

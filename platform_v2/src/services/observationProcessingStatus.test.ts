@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   deriveObservationProcessingStatus,
+  renderObservationProcessingStatusPanel,
   type ObservationProcessingFacts,
 } from "./observationProcessingStatus.js";
 
@@ -102,4 +103,22 @@ test("processing status treats a record with no photo separately from a failed p
   assert.equal(status.mediaState, "none");
   assert.equal(status.action?.label, "写真を追加");
   assert.match(status.message, /写真はまだ追加されていません/);
+});
+
+test("retryable AI failure offers an owner-initiated reassessment without treating it as a link", () => {
+  const status = deriveObservationProcessingStatus({
+    ...baseFacts,
+    aiRequestStatus: "failed",
+  });
+
+  assert.equal(status.aiState, "failed_retryable");
+  assert.equal(status.action?.label, "AIで再確認");
+  assert.equal(status.action?.method, "post");
+  assert.equal(status.action?.href, "/api/v1/observations/record-1/reassess");
+
+  const html = renderObservationProcessingStatusPanel(status);
+  assert.match(html, /<button[^>]+data-observation-reassess/);
+  assert.match(html, /method:'POST'/);
+  assert.match(html, /AIで再確認を受け付けました/);
+  assert.doesNotMatch(html, /<a[^>]+reassess/);
 });
