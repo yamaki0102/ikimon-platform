@@ -13,6 +13,9 @@ test("photo upload, queue, cron, Workers AI, and review target form one durable 
   assert.match(source, /env\.AI\.run\(OBSERVATION_VISION_MODEL/);
   assert.match(source, /INSERT INTO observation_ai_review_targets/);
   assert.match(source, /request_state = 'completed'/);
+  assert.match(source, /request_state IN \('pending', 'failed'\)/);
+  assert.match(source, /attemptCount/);
+  assert.match(source, /Array\.from\(new Uint8Array\(transformed\)\)/);
   assert.match(source, /humanReviewRequired: true/);
   assert.equal((wrangler.match(/"binding": "AI"/g) ?? []).length, 4);
 });

@@ -28762,7 +28762,8 @@ async function runScheduledObservationReassessments(env: Env): Promise<void> {
     `SELECT observation_id
        FROM observation_reassessment_requests
       WHERE request_kind = 'standard'
-        AND request_state = 'pending'
+        AND request_state IN ('pending', 'failed')
+        AND CAST(COALESCE(json_extract(source_payload_json, '$.attemptCount'), 0) AS INTEGER) < 3
       ORDER BY updated_at
       LIMIT 3`
   ).all<{ observation_id: string }>();
@@ -28785,47 +28786,53 @@ type ObservationAiAssetRow = {
   mime: string;
 };
 
-function arrayBufferToBase64(value: ArrayBuffer): string {
-  const bytes = new Uint8Array(value);
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+function reassessmentAttemptCount(sourcePayloadJson: string): number {
+  try {
+    const parsed = JSON.parse(sourcePayloadJson) as { attemptCount?: unknown };
+    const value = Number(parsed.attemptCount ?? 0);
+    return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+  } catch {
+    return 0;
   }
-  return btoa(binary);
 }
 
-async function observationAiImageDataUri(asset: ObservationAiAssetRow, env: Env): Promise<string> {
+async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): Promise<number[]> {
+  let sourceBytes: ArrayBuffer | null = null;
   if (asset.public_derivative_key) {
     const derivative = await env.ASSET_BUCKET.get(asset.public_derivative_key);
     if (derivative?.body) {
       const bytes = await new Response(derivative.body).arrayBuffer();
       if (bytes.byteLength > 0 && bytes.byteLength <= 8 * 1024 * 1024) {
-        return `data:image/webp;base64,${arrayBufferToBase64(bytes)}`;
+        sourceBytes = bytes;
       }
     }
   }
 
-  const original = await env.ASSET_BUCKET.get(asset.object_key);
-  if (!original?.body) throw new Error("ai_original_image_missing");
-  const originalBytes = await new Response(original.body).arrayBuffer();
-  if (originalBytes.byteLength === 0 || originalBytes.byteLength > 20 * 1024 * 1024) {
-    throw new Error("ai_original_image_size_invalid");
+  if (!sourceBytes) {
+    const original = await env.ASSET_BUCKET.get(asset.object_key);
+    if (!original?.body) throw new Error("ai_original_image_missing");
+    const originalBytes = await new Response(original.body).arrayBuffer();
+    if (originalBytes.byteLength === 0 || originalBytes.byteLength > 20 * 1024 * 1024) {
+      throw new Error("ai_original_image_size_invalid");
+    }
+    sourceBytes = originalBytes;
   }
+
   if (env.IMAGES) {
     const output = await env.IMAGES
-      .input(new Response(originalBytes.slice(0)).body!)
+      .input(new Response(sourceBytes.slice(0)).body!)
       .transform({ width: 1024 })
       .output({ format: "image/webp", quality: 76, anim: false });
     const response = output.response();
     if (response.ok) {
       const transformed = await response.arrayBuffer();
       if (transformed.byteLength > 0 && transformed.byteLength <= 8 * 1024 * 1024) {
-        return `data:image/webp;base64,${arrayBufferToBase64(transformed)}`;
+        return Array.from(new Uint8Array(transformed));
       }
     }
   }
-  return `data:${asset.mime};base64,${arrayBufferToBase64(originalBytes)}`;
+  if (sourceBytes.byteLength > 8 * 1024 * 1024) throw new Error("ai_image_input_too_large");
+  return Array.from(new Uint8Array(sourceBytes));
 }
 
 function workersAiAnswer(value: unknown): string {
@@ -28833,7 +28840,12 @@ function workersAiAnswer(value: unknown): string {
   const response = value as Record<string, unknown>;
   if (typeof response.answer === "string") return response.answer;
   if (typeof response.response === "string") return response.response;
-  throw new Error("ai_answer_missing");
+  const nested = response.result;
+  if (nested && typeof nested === "object" && typeof (nested as Record<string, unknown>).answer === "string") {
+    return (nested as Record<string, unknown>).answer as string;
+  }
+  const shape = Object.keys(response).slice(0, 8).join(",") || "empty";
+  throw new Error(`ai_answer_missing:${shape}`);
 }
 
 function reassessmentPayloadWithResult(
@@ -28884,7 +28896,8 @@ async function processObservationReassessment(observationId: string, env: Env): 
     ).bind(observationId).first<ObservationAiAssetRow>();
     if (!asset) throw new Error("ai_photo_missing");
 
-    const image = await observationAiImageDataUri(asset, env);
+    const image = await observationAiImageInput(asset, env);
+    const attemptCount = reassessmentAttemptCount(request.source_payload_json) + 1;
     const rawResponse = await env.AI.run(OBSERVATION_VISION_MODEL, {
       task: "query",
       image,
@@ -28948,6 +28961,7 @@ async function processObservationReassessment(observationId: string, env: Env): 
       ).bind(
         reassessmentPayloadWithResult(request.source_payload_json, {
           executionStatus: "completed",
+          attemptCount,
           aiRunId,
           model: OBSERVATION_VISION_MODEL,
           completedAt: new Date().toISOString(),
@@ -28967,6 +28981,7 @@ async function processObservationReassessment(observationId: string, env: Env): 
     ).bind(
       reassessmentPayloadWithResult(request.source_payload_json, {
         executionStatus: "failed",
+        attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
         errorCode,
         failedAt: new Date().toISOString(),
       }),
