@@ -1,14 +1,15 @@
 {
   "schema_version": 1,
   "manifest_status": "candidate_pending_central_schema",
-  "project_key": "ikimon/ikimon-life/ikimon-platform",
+  "project_key": "ikimon/ikimon-life/ikimon-life",
   "organization_id": "ikimon",
   "service_id": "ikimon-life",
-  "project_id": "ikimon-platform",
-  "display_name": "ikimon.life platform",
+  "project_id": "ikimon-life",
+  "display_name": "ikimon.life",
   "lifecycle": "active",
   "repository": {
     "slug": "yamaki0102/ikimon-platform",
+    "role": "current_source",
     "default_branch": "main",
     "current_runtime_path": "platform_v2"
   },
@@ -25,7 +26,7 @@
     },
     "strategy": {
       "repository": "yamaki0102/ikimon-business-strategy",
-      "path": null
+      "path": "strategy/business-plan-master.md"
     },
     "execution": {
       "repository": "yamaki0102/all-projects-management",
