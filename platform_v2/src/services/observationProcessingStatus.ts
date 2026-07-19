@@ -29,6 +29,8 @@ export type ObservationProcessingStatus = {
   recordState: "saved";
   mediaState: ObservationMediaProcessingState;
   aiState: ObservationAiProcessingState;
+  originalPhotoCount: number;
+  displayPhotoCount: number;
   updatedAt: string | null;
   message: string;
   action: { href: string; label: string } | null;
@@ -60,7 +62,7 @@ export function deriveObservationProcessingStatus(facts: ObservationProcessingFa
   const assessment = normalizedStatus(facts.aiAssessmentStatus);
 
   let mediaState: ObservationMediaProcessingState;
-  if (facts.displayPhotoCount > 0) {
+  if (facts.originalPhotoCount > 0 && facts.displayPhotoCount >= facts.originalPhotoCount) {
     mediaState = "ready";
   } else if (facts.originalPhotoCount > 0 && isFailedStatus(latestJob)) {
     mediaState = "retry_required";
@@ -90,10 +92,10 @@ export function deriveObservationProcessingStatus(facts: ObservationProcessingFa
   let message = "記録は保存されています。";
   let action: ObservationProcessingStatus["action"] = null;
   if (mediaState === "retry_required") {
-    message = "記録本体は保存されていますが、写真の処理を完了できませんでした。写真を選び直して同じ記録へ再送できます。";
+    message = `写真${facts.originalPhotoCount}枚は保存済みです。${facts.displayPhotoCount}枚は表示済みですが、残り${Math.max(0, facts.originalPhotoCount - facts.displayPhotoCount)}枚の表示処理を完了できませんでした。`;
     action = { href: `/record?retry=media&source=media_retry&observationId=${encodeURIComponent(facts.visitId)}`, label: "写真を再送" };
   } else if (mediaState === "processing") {
-    message = "写真は保存されています。表示できる状態へ整えています。";
+    message = `写真${facts.originalPhotoCount}枚は保存済みです。${facts.displayPhotoCount}枚を表示でき、残り${Math.max(0, facts.originalPhotoCount - facts.displayPhotoCount)}枚を整えています。`;
   } else if (mediaState === "none") {
     message = "記録は保存されています。写真はまだ追加されていません。";
     action = { href: "/record?start=photo", label: "写真を追加" };
@@ -114,6 +116,8 @@ export function deriveObservationProcessingStatus(facts: ObservationProcessingFa
     recordState: "saved",
     mediaState,
     aiState,
+    originalPhotoCount: facts.originalPhotoCount,
+    displayPhotoCount: facts.displayPhotoCount,
     updatedAt: facts.updatedAt,
     message,
     action,
@@ -144,6 +148,12 @@ function aiStateLabel(state: ObservationAiProcessingState): string {
   if (state === "failed_retryable") return "確認できませんでした";
   if (state === "unavailable") return "現在利用不可";
   return "未受付";
+}
+
+function mediaCountLabel(status: ObservationProcessingStatus): string {
+  if (status.originalPhotoCount <= 0) return mediaStateLabel(status.mediaState);
+  if (status.mediaState === "ready") return `${status.originalPhotoCount}枚保存済み`;
+  return `${status.originalPhotoCount}枚保存・${status.displayPhotoCount}枚表示`;
 }
 
 function formattedUpdatedAt(value: string | null): string {
@@ -183,7 +193,7 @@ export function renderObservationProcessingStatusPanel(status: ObservationProces
     <div class="obs-processing-status-head"><h2 id="obs-processing-status-title">この記録の状態</h2>${updatedAt ? `<span class="obs-processing-status-updated">最終更新 ${escapeHtml(updatedAt)}</span>` : ""}</div>
     <div class="obs-processing-status-grid">
       <div class="obs-processing-status-item"><span>記録</span><strong>保存済み</strong></div>
-      <div class="obs-processing-status-item"><span>写真</span><strong>${escapeHtml(mediaStateLabel(status.mediaState))}</strong></div>
+      <div class="obs-processing-status-item"><span>写真</span><strong>${escapeHtml(mediaCountLabel(status))}</strong></div>
       <div class="obs-processing-status-item"><span>AI</span><strong>${escapeHtml(aiStateLabel(status.aiState))}</strong></div>
     </div>
     <p class="obs-processing-status-message">${escapeHtml(status.message)}</p>

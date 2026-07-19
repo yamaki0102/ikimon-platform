@@ -11,7 +11,10 @@ const INTERNAL_AUTH_TOKEN = "test-internal-token";
 
 
 // fake-cloudflare-images-binding-v1: deterministic binary WebP-shaped output for Worker unit tests.
-const FAKE_WEBP_BYTES = new Uint8Array([82, 73, 70, 70, 16, 0, 0, 0, 87, 69, 66, 80, 86, 80, 56, 32]);
+const FAKE_WEBP_BYTES = new Uint8Array([
+  82, 73, 70, 70, 12, 0, 0, 0, 87, 69, 66, 80,
+  86, 80, 56, 32, 0, 0, 0, 0,
+]);
 const fakeImagesBinding = {
   async info(_stream: ReadableStream | ArrayBuffer) {
     return { format: "webp", fileSize: FAKE_WEBP_BYTES.byteLength, width: 640, height: 480 };
@@ -9309,7 +9312,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(privateOwnerHtml, /非公開記録/);
   assert.match(privateOwnerHtml, /本人だけに表示している記録です。/);
   assert.doesNotMatch(privateOwnerHtml, /<span>公開記録<\/span>|<strong>公開中<\/strong>/);
-  assert.match(privateOwnerHtml, /表示準備中/);
+  assert.match(privateOwnerHtml, /1枚保存・0枚表示/);
   assert.match(privateOwnerHtml, /現在利用不可/);
   assert.doesNotMatch(privateOwnerHtml, /34\.71234|137\.81234|ownerUserId/);
 
@@ -10274,7 +10277,17 @@ test("v1 photo upload stores base64 media in R2 and returns the shared ok contra
   assert.equal(obs.assets.size, 1);
   assert.equal([...obs.assets.values()][0]?.processing_state, "uploaded");
   assert.equal([...obs.assets.values()][0]?.bytes, 11);
-  assert.equal(queue.messages.length, 2);
+  assert.equal(queue.messages.length, 3);
+  assert.equal(
+    queue.messages.some(
+      (message) =>
+        typeof message === "object" &&
+        message !== null &&
+        "topic" in message &&
+        message.topic === "observation.reassess",
+    ),
+    true,
+  );
 });
 
 test("staging photo upload rejects MIME spoofing, extension mismatch, and unsupported image types before R2", async () => {

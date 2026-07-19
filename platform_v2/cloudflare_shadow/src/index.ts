@@ -5,6 +5,13 @@ import {
   resolveCloudflareRecordRecoveryState
 } from "./recordRecoveryHtml";
 import { loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
+import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
+import {
+  OBSERVATION_VISION_MODEL,
+  observationAiQuestion,
+  parseObservationAiCandidate,
+  type ObservationAiCandidate,
+} from "./cloudflareObservationAi";
 import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
@@ -101,11 +108,16 @@ interface ImagesBinding {
   info(stream: ReadableStream): Promise<ImagesInfo>;
 }
 
+interface WorkersAiBinding {
+  run(model: string, input: Record<string, unknown>): Promise<unknown>;
+}
+
 interface Env {
   CORE_DB: D1Database;
   OBS_DB: D1Database;
   ASSET_BUCKET: R2Bucket;
   IMAGES?: ImagesBinding;
+  AI?: WorkersAiBinding;
   MEDIA_QUEUE: Queue<MediaJob>;
   ALERT_QUEUE?: Queue<AlertDeliveryJob>;
   ALERT_EMAIL?: SendEmailBinding;
@@ -788,7 +800,7 @@ interface VideoStreamWebhookInput {
 
 interface MediaJob {
   outboxId: string;
-  topic: "media.process" | "readmodel.refresh";
+  topic: "media.process" | "readmodel.refresh" | "observation.reassess";
   targetId: string;
 }
 
@@ -929,6 +941,9 @@ interface OwnerHomeRecordRow {
 interface PublicDetailRow extends PublicMapRow {
   note: string | null;
   visibility: string;
+  ai_assessment_status: string | null;
+  ai_candidate_label: string | null;
+  ai_candidate_rank: string | null;
 }
 
 interface PublicDetailAssetRow {
@@ -965,19 +980,6 @@ interface PublicDetailMediaRegionRow {
   normalized_rect: unknown;
   frame_time_ms: number | null;
   confidence_score: number | null;
-}
-
-interface PublicDerivativeInspection {
-  tool: string;
-  contentType: string;
-  bytes: number;
-  scannedContainer: string;
-  gpsExifPresent: boolean;
-  exifPresent: boolean;
-  gpsPresent: boolean;
-  xmpPresent: boolean;
-  exactCoordinateLiteralPresent: boolean;
-  checkedAt: string;
 }
 
 interface PartitionSummaryRow {
@@ -3136,6 +3138,9 @@ export const worker = {
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runScheduledOutboxDrain(env));
+    ctx.waitUntil(recoverLegacyFalsePositiveImageDerivatives(env));
+    ctx.waitUntil(runScheduledObservationReassessments(env));
     ctx.waitUntil(scheduleAlertDeliveryDrain(env, controller));
     ctx.waitUntil(runScheduledObservationEventQuests(env));
     ctx.waitUntil(runScheduledSentinelEnvironmentSnapshots(env));
@@ -7980,26 +7985,46 @@ async function requestCompatibleObservationReassessment(observationId: string, r
   }
 
   const requestId = newId("reassess_req");
+  const outboxAiId = newId("outbox");
   const sourcePayload = {
     source: "cloudflare_observation_reassessment_request_ledger",
     observationId: normalizedObservationId,
-    requestKind
-  };
-  await env.OBS_DB.prepare(
-    `INSERT INTO observation_reassessment_requests (
-       request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json
-     ) VALUES (?, ?, ?, ?, 'pending', ?)
-     ON CONFLICT(observation_id, request_kind, actor_user_id) DO UPDATE SET
-       request_state = 'pending',
-       source_payload_json = excluded.source_payload_json,
-       updated_at = CURRENT_TIMESTAMP`
-  ).bind(
-    requestId,
-    normalizedObservationId,
     requestKind,
-    session.userId,
-    JSON.stringify(sourcePayload)
-  ).run();
+    enqueueId: requestKind === "standard" ? outboxAiId : null,
+    requestedAt: new Date().toISOString()
+  };
+  const reassessmentStatements = [env.OBS_DB.prepare(
+      `INSERT INTO observation_reassessment_requests (
+         request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json
+       ) VALUES (?, ?, ?, ?, 'pending', ?)
+       ON CONFLICT(observation_id, request_kind, actor_user_id) DO UPDATE SET
+         request_state = 'pending',
+         source_payload_json = excluded.source_payload_json,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      requestId,
+      normalizedObservationId,
+      requestKind,
+      session.userId,
+      JSON.stringify(sourcePayload)
+    )];
+  if (requestKind === "standard") {
+    reassessmentStatements.push(env.OBS_DB.prepare(
+      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+    ).bind(
+      outboxAiId,
+      "observation.reassess",
+      normalizedObservationId,
+      JSON.stringify({ observationId: normalizedObservationId, requestKind }),
+      null
+    ));
+  }
+  await env.OBS_DB.batch(reassessmentStatements);
+  const dispatch = requestKind === "standard"
+    ? await dispatchOutboxBestEffort(env, [
+        { outboxId: outboxAiId, topic: "observation.reassess", targetId: normalizedObservationId }
+      ])
+    : { sent: 0, pending: 0, errors: [] as string[] };
 
   return json({
     ok: true,
@@ -8010,8 +8035,9 @@ async function requestCompatibleObservationReassessment(observationId: string, r
     },
     compatibility: {
       source: "cloudflare_observation_reassessment_request_ledger",
-      executionStatus: "not_migrated"
-    }
+      executionStatus: requestKind === "standard" ? "queued" : "not_migrated"
+    },
+    dispatch
   }, 202, { "cache-control": "no-store" });
 }
 
@@ -24741,7 +24767,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     ? await loadOwnerObservationProcessingStatusFromD1(env.OBS_DB, {
         observationId: detailIdToVisitId(rawId),
         ownerUserId: session.userId,
-        providerAvailable: false
+        providerAvailable: Boolean(env.AI)
       }).catch(() => null)
     : null;
   const detail = await buildObservationDetail(rawId, env, ownerStatus ? session?.userId ?? null : null);
@@ -24767,7 +24793,7 @@ async function getOwnerObservationProcessingStatusJson(rawId: string, request: R
   const status = await loadOwnerObservationProcessingStatusFromD1(env.OBS_DB, {
     observationId: detailIdToVisitId(rawId),
     ownerUserId: session.userId,
-    providerAvailable: false
+    providerAvailable: Boolean(env.AI)
   });
   if (!status) return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
   return json({ ok: true, status }, 200, {
@@ -24791,18 +24817,26 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
                    WHERE a.observation_id = o.observation_id
                      AND a.processing_state = 'uploaded'
                 ), 0) AS asset_count,
-                o.note, o.visibility
+                o.note, o.visibility,
+                art.ai_assessment_status,
+                COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
+                COALESCE(art.candidate_taxon_rank, art.ai_recommended_rank) AS ai_candidate_rank
            FROM observations o
            LEFT JOIN readmodel_public_observations r ON r.observation_id = o.observation_id
+           LEFT JOIN observation_ai_review_targets art ON art.occurrence_id = 'occ:' || o.observation_id || ':0'
           WHERE o.observation_id = ?
             AND o.owner_user_id = ?
             AND o.emergency_hidden = 0`
       ).bind(visitId, ownerUserId).first<PublicDetailRow>()
     : await env.OBS_DB.prepare(
         `SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, r.asset_count,
-                o.note, o.visibility
+                o.note, o.visibility,
+                art.ai_assessment_status,
+                COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
+                COALESCE(art.candidate_taxon_rank, art.ai_recommended_rank) AS ai_candidate_rank
            FROM readmodel_public_observations r
            JOIN observations o ON o.observation_id = r.observation_id
+           LEFT JOIN observation_ai_review_targets art ON art.occurrence_id = 'occ:' || o.observation_id || ':0'
           WHERE r.observation_id = ?
             AND o.visibility = 'public'
             AND o.emergency_hidden = 0`
@@ -24871,8 +24905,11 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     occurrenceId: `occ:${row.observation_id}:0`,
     visitId: row.observation_id,
     canonicalPath: `/observations/${encodeURIComponent(row.observation_id)}`,
-    displayName: row.taxon_label ?? "名前待ち",
+    displayName: row.taxon_label ?? row.ai_candidate_label ?? "名前待ち",
     isAwaitingId: !row.taxon_label,
+    aiCandidateLabel: row.ai_candidate_label,
+    aiCandidateRank: row.ai_candidate_rank,
+    aiAssessmentStatus: row.ai_assessment_status,
     visibility: row.visibility,
     observedAt: row.observed_at,
     note: row.note,
@@ -28080,6 +28117,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const assetId = newId("asset");
   const outboxMediaId = newId("outbox");
   const outboxReadModelId = newId("outbox");
+  const outboxAiId = newId("outbox");
   const reassessmentRequestId = `reassess:${observationId}:standard:${observation.owner_user_id}`;
   const objectKey = `original/v1-compat/${observationId}/${assetId}-${filename}`;
   const relativePath = objectKey;
@@ -28112,6 +28150,9 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxReadModelId, "readmodel.refresh", observationId, JSON.stringify({ observationId }), partitionMonth),
     env.OBS_DB.prepare(
+      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+    ).bind(outboxAiId, "observation.reassess", observationId, JSON.stringify({ observationId, assetId }), partitionMonth),
+    env.OBS_DB.prepare(
       `INSERT INTO observation_reassessment_requests (
          request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json,
          created_at, updated_at
@@ -28127,7 +28168,10 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       observation.owner_user_id,
       JSON.stringify({
         source: "cloudflare_photo_upload_atomic_reassessment",
-        transactionalIntent: true
+        transactionalIntent: true,
+        assetId,
+        enqueueId: outboxAiId,
+        requestedAt: new Date().toISOString()
       })
     ),
     rollbackLedgerInsert(env, {
@@ -28161,7 +28205,8 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
 
   const dispatch = await dispatchOutboxBestEffort(env, [
     { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
-    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId }
+    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId },
+    { outboxId: outboxAiId, topic: "observation.reassess", targetId: observationId }
   ]);
 
   return json({
@@ -28671,6 +28716,263 @@ async function applyMediaJob(job: MediaJob, env: Env): Promise<void> {
 
   if (job.topic === "readmodel.refresh") {
     await refreshPublicReadmodel(job.targetId, env);
+    return;
+  }
+
+  if (job.topic === "observation.reassess") {
+    await processObservationReassessment(job.targetId, env);
+  }
+}
+
+async function runScheduledOutboxDrain(env: Env): Promise<void> {
+  const rows = await queryPendingOutbox(env);
+  for (const row of rows) {
+    await sendOutbox(env, { outboxId: row.outbox_id, topic: row.topic, targetId: row.target_id });
+  }
+}
+
+async function recoverLegacyFalsePositiveImageDerivatives(env: Env): Promise<void> {
+  let rows: { results: Array<{ observation_id: string }> };
+  try {
+    rows = await env.OBS_DB.prepare(
+      `SELECT DISTINCT observation_id
+         FROM asset_ledger
+        WHERE observation_id IS NOT NULL
+          AND mime LIKE 'image/%'
+          AND processing_state = 'uploaded'
+          AND exif_scrub_state = 'failed'
+          AND public_derivative_metadata_json LIKE '%"reason":"derivative_privacy_check_failed"%'
+          AND public_derivative_metadata_json NOT LIKE '%"inspectionVersion":"webp-chunk-v2"%'
+        ORDER BY created_at
+        LIMIT 10`
+    ).all<{ observation_id: string }>();
+  } catch (error) {
+    console.error("[media-recovery] failed to query legacy derivative failures", error);
+    return;
+  }
+  for (const row of rows.results) {
+    await markUploadedAssetsPublicReady(row.observation_id, env);
+    await refreshPublicReadmodel(row.observation_id, env);
+  }
+}
+
+async function runScheduledObservationReassessments(env: Env): Promise<void> {
+  if (!env.AI) return;
+  const rows = await env.OBS_DB.prepare(
+    `SELECT observation_id
+       FROM observation_reassessment_requests
+      WHERE request_kind = 'standard'
+        AND request_state = 'pending'
+      ORDER BY updated_at
+      LIMIT 3`
+  ).all<{ observation_id: string }>();
+  for (const row of rows.results) {
+    await processObservationReassessment(row.observation_id, env);
+  }
+}
+
+type ObservationReassessmentRequestRow = {
+  request_id: string;
+  actor_user_id: string;
+  request_state: string;
+  source_payload_json: string;
+};
+
+type ObservationAiAssetRow = {
+  asset_id: string;
+  object_key: string;
+  public_derivative_key: string | null;
+  mime: string;
+};
+
+function arrayBufferToBase64(value: ArrayBuffer): string {
+  const bytes = new Uint8Array(value);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function observationAiImageDataUri(asset: ObservationAiAssetRow, env: Env): Promise<string> {
+  if (asset.public_derivative_key) {
+    const derivative = await env.ASSET_BUCKET.get(asset.public_derivative_key);
+    if (derivative?.body) {
+      const bytes = await new Response(derivative.body).arrayBuffer();
+      if (bytes.byteLength > 0 && bytes.byteLength <= 8 * 1024 * 1024) {
+        return `data:image/webp;base64,${arrayBufferToBase64(bytes)}`;
+      }
+    }
+  }
+
+  const original = await env.ASSET_BUCKET.get(asset.object_key);
+  if (!original?.body) throw new Error("ai_original_image_missing");
+  const originalBytes = await new Response(original.body).arrayBuffer();
+  if (originalBytes.byteLength === 0 || originalBytes.byteLength > 20 * 1024 * 1024) {
+    throw new Error("ai_original_image_size_invalid");
+  }
+  if (env.IMAGES) {
+    const output = await env.IMAGES
+      .input(new Response(originalBytes.slice(0)).body!)
+      .transform({ width: 1024 })
+      .output({ format: "image/webp", quality: 76, anim: false });
+    const response = output.response();
+    if (response.ok) {
+      const transformed = await response.arrayBuffer();
+      if (transformed.byteLength > 0 && transformed.byteLength <= 8 * 1024 * 1024) {
+        return `data:image/webp;base64,${arrayBufferToBase64(transformed)}`;
+      }
+    }
+  }
+  return `data:${asset.mime};base64,${arrayBufferToBase64(originalBytes)}`;
+}
+
+function workersAiAnswer(value: unknown): string {
+  if (!value || typeof value !== "object") throw new Error("ai_response_invalid");
+  const response = value as Record<string, unknown>;
+  if (typeof response.answer === "string") return response.answer;
+  if (typeof response.response === "string") return response.response;
+  throw new Error("ai_answer_missing");
+}
+
+function reassessmentPayloadWithResult(
+  sourcePayloadJson: string,
+  result: Record<string, unknown>,
+): string {
+  let source: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(sourcePayloadJson) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) source = parsed as Record<string, unknown>;
+  } catch {
+    source = {};
+  }
+  return JSON.stringify({ ...source, ...result });
+}
+
+async function processObservationReassessment(observationId: string, env: Env): Promise<void> {
+  if (!env.AI) return;
+  const request = await env.OBS_DB.prepare(
+    `SELECT request_id, actor_user_id, request_state, source_payload_json
+       FROM observation_reassessment_requests
+      WHERE observation_id = ?
+        AND request_kind = 'standard'
+        AND request_state IN ('pending', 'failed')
+      ORDER BY updated_at DESC
+      LIMIT 1`
+  ).bind(observationId).first<ObservationReassessmentRequestRow>();
+  if (!request) return;
+
+  const claimed = await env.OBS_DB.prepare(
+    `UPDATE observation_reassessment_requests
+        SET request_state = 'processing', updated_at = CURRENT_TIMESTAMP
+      WHERE request_id = ?
+        AND request_state IN ('pending', 'failed')
+        AND source_payload_json = ?`
+  ).bind(request.request_id, request.source_payload_json).run() as { meta?: { changes?: number } };
+  if (Number(claimed.meta?.changes ?? 0) === 0) return;
+
+  try {
+    const asset = await env.OBS_DB.prepare(
+      `SELECT asset_id, object_key, public_derivative_key, mime
+         FROM asset_ledger
+        WHERE observation_id = ?
+          AND processing_state = 'uploaded'
+          AND mime LIKE 'image/%'
+        ORDER BY CASE WHEN public_ready_at IS NOT NULL THEN 0 ELSE 1 END, created_at
+        LIMIT 1`
+    ).bind(observationId).first<ObservationAiAssetRow>();
+    if (!asset) throw new Error("ai_photo_missing");
+
+    const image = await observationAiImageDataUri(asset, env);
+    const rawResponse = await env.AI.run(OBSERVATION_VISION_MODEL, {
+      task: "query",
+      image,
+      question: observationAiQuestion(),
+      reasoning: false,
+      temperature: 0.1,
+      max_tokens: 700,
+      stream: false,
+    });
+    const candidate = parseObservationAiCandidate(workersAiAnswer(rawResponse));
+    const occurrenceId = `occ:${observationId}:0`;
+    const aiRunId = newId("cf_ai_run");
+    const candidateName = candidate.vernacularName ?? candidate.scientificName;
+    const candidateId = candidateName ? newId("cf_ai_candidate") : null;
+    const assessmentStatus = candidate.nonBiological ? "completed_no_candidate" : "ai_judgement";
+    const assessmentPayload = {
+      source: "cloudflare_workers_ai_observation_reassessment",
+      model: OBSERVATION_VISION_MODEL,
+      assetId: asset.asset_id,
+      candidate,
+      humanReviewRequired: true,
+      completedAt: new Date().toISOString(),
+    };
+    await env.OBS_DB.batch([
+      env.OBS_DB.prepare(
+        `INSERT INTO observation_ai_review_targets (
+           occurrence_id, ai_assessment_status, scientific_name, vernacular_name, taxon_rank,
+           ai_run_id, candidate_id, candidate_scientific_name, candidate_vernacular_name,
+           candidate_taxon_rank, ai_recommended_taxon_name, ai_recommended_rank,
+           source_payload_json, updated_at
+         ) VALUES (?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(occurrence_id) DO UPDATE SET
+           ai_assessment_status = excluded.ai_assessment_status,
+           ai_run_id = excluded.ai_run_id,
+           candidate_id = excluded.candidate_id,
+           candidate_scientific_name = excluded.candidate_scientific_name,
+           candidate_vernacular_name = excluded.candidate_vernacular_name,
+           candidate_taxon_rank = excluded.candidate_taxon_rank,
+           ai_recommended_taxon_name = excluded.ai_recommended_taxon_name,
+           ai_recommended_rank = excluded.ai_recommended_rank,
+           source_payload_json = excluded.source_payload_json,
+           updated_at = CURRENT_TIMESTAMP`
+      ).bind(
+        occurrenceId,
+        assessmentStatus,
+        aiRunId,
+        candidateId,
+        candidate.scientificName,
+        candidate.vernacularName,
+        candidate.rank,
+        candidateName,
+        candidate.rank,
+        JSON.stringify(assessmentPayload),
+      ),
+      env.OBS_DB.prepare(
+        `UPDATE observation_reassessment_requests
+            SET request_state = 'completed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE request_id = ?
+            AND request_state = 'processing'
+            AND source_payload_json = ?`
+      ).bind(
+        reassessmentPayloadWithResult(request.source_payload_json, {
+          executionStatus: "completed",
+          aiRunId,
+          model: OBSERVATION_VISION_MODEL,
+          completedAt: new Date().toISOString(),
+        }),
+        request.request_id,
+        request.source_payload_json,
+      ),
+    ]);
+  } catch (error) {
+    const errorCode = error instanceof Error ? error.message.slice(0, 160) : "ai_reassessment_failed";
+    await env.OBS_DB.prepare(
+      `UPDATE observation_reassessment_requests
+          SET request_state = 'failed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE request_id = ?
+          AND request_state = 'processing'
+          AND source_payload_json = ?`
+    ).bind(
+      reassessmentPayloadWithResult(request.source_payload_json, {
+        executionStatus: "failed",
+        errorCode,
+        failedAt: new Date().toISOString(),
+      }),
+      request.request_id,
+      request.source_payload_json,
+    ).run();
   }
 }
 
@@ -30989,7 +31291,7 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
     derivativeHeight: derivativeInfo.height ?? null,
     derivativeBytes: derivativeBody.byteLength
   };
-  if (metadataInspection.gpsExifPresent || metadataInspection.scannedContainer !== "binary") {
+  if (metadataInspection.gpsExifPresent || metadataInspection.scannedContainer !== "webp") {
     await markImageDerivativeFailed(env, asset.asset_id, "derivative_privacy_check_failed", verifiedMetadata);
     return false;
   }
@@ -31250,32 +31552,6 @@ function partitionMonthFromDate(value: string): string {
     throw new HttpError(400, "invalid_observed_at");
   }
   return date.toISOString().slice(0, 7);
-}
-
-function inspectPublicDerivativeMetadata(bytes: ArrayBuffer, contentType: string): PublicDerivativeInspection {
-  const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-  const lower = text.toLowerCase();
-  const exifPresent = lower.includes("exif") || lower.includes("http://ns.adobe.com/exif/");
-  const gpsPresent = lower.includes("gps") ||
-    lower.includes("gpslatitude") ||
-    lower.includes("gpslongitude") ||
-    lower.includes("gpsaltitude");
-  const xmpPresent = lower.includes("<x:xmpmeta") ||
-    lower.includes("adobe:ns:meta") ||
-    lower.includes("http://ns.adobe.com/xap/");
-  const exactCoordinateLiteralPresent = /34\.71234|137\.81234/.test(text);
-  return {
-    tool: "shadow-public-derivative-byte-signature-scan-v1",
-    contentType,
-    bytes: bytes.byteLength,
-    scannedContainer: contentType.includes("svg") ? "svg+xml" : "binary",
-    gpsExifPresent: exifPresent || gpsPresent || xmpPresent || exactCoordinateLiteralPresent,
-    exifPresent,
-    gpsPresent,
-    xmpPresent,
-    exactCoordinateLiteralPresent,
-    checkedAt: new Date().toISOString()
-  };
 }
 
 function inspectVideoContainerMetadata(bytes: ArrayBuffer, contentType: string) {
@@ -31888,7 +32164,10 @@ function renderPublicObservationDetailHtml(
   const related = detail.relatedObservations ?? [];
   const observedLabel = polish?.observedLabel ?? formatPublicObservationDate(detail.observedAt);
   const placeLabel = polish?.placeLabel ?? detail.publicLocation.label;
-  const stateLabel = polish?.stateLabel ?? (detail.isAwaitingId ? "名前待ち" : "名前あり");
+  const hasAiCandidate = detail.isAwaitingId && Boolean(detail.aiCandidateLabel);
+  const stateLabel = hasAiCandidate
+    ? "AI候補 / 人の確認待ち"
+    : (polish?.stateLabel ?? (detail.isAwaitingId ? "名前待ち" : "名前あり"));
   const relatedForDisplay = typeof polish?.relatedLimit === "number" ? related.slice(0, polish.relatedLimit) : related;
   const relatedCards = polish?.relatedCards ?? (relatedForDisplay.length > 0
     ? relatedForDisplay.map((item) => `<a class="obs-nearby-card" href="/observations/${encodeURIComponent(item.visitId)}">
@@ -31924,6 +32203,9 @@ function renderPublicObservationDetailHtml(
         <h2>同定</h2>
         <p>${escapeHtml(detail.isAwaitingId ? "この記録は名前の確認待ちです。" : `${displayName} として表示しています。`)}</p>
       </section>`;
+  const aiCandidateDisclosure = hasAiCandidate
+    ? `<section class="obs-ai-candidate-disclosure"><span>AI候補</span><strong>${escapeHtml(detail.aiCandidateLabel)}</strong><p>写真から自動で作った候補です。確定名ではなく、人の確認で更新できます。</p></section>`
+    : "";
   const qualityBlock = polish?.qualityBlock ?? `<section class="obs-local-quality-card">
         <h2>${isPrivateRecord ? "保存データ" : "公開データ"}</h2>
         <p>${isPrivateRecord ? "写真、ぼかした場所、日時を本人ページに表示します。精密座標と元画像URLは表示しません。" : "公開写真、ぼかした場所、日時だけを使います。投稿者ID、精密座標、元画像URLは表示しません。"}</p>
@@ -32112,6 +32394,10 @@ function renderPublicObservationDetailHtml(
     .obs-empty--compact { min-height: 116px; }
     .obs-local-quality-inline { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr); gap: 12px; align-items: stretch; min-width: 0; margin-top: 12px; }
     .obs-local-quality-inline.is-full-width { order: 3; width: 100%; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); margin-top: 16px; }
+    .obs-ai-candidate-disclosure { grid-column: 1 / -1; padding: 14px 16px; border: 1px solid rgba(5,150,105,.2); border-radius: 16px; background: #ecfdf5; display: grid; gap: 5px; }
+    .obs-ai-candidate-disclosure span { color: #047857; font-size: 11px; font-weight: 900; letter-spacing: .06em; }
+    .obs-ai-candidate-disclosure strong { color: #064e3b; font-size: 18px; line-height: 1.4; }
+    .obs-ai-candidate-disclosure p { margin: 0; color: #475569; font-size: 12px; line-height: 1.7; }
     .obs-local-quality-left, .obs-local-quality-card { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.08); box-shadow: 0 10px 26px rgba(15,23,42,.04); }
     .obs-local-quality-card h2, .obs-local-quality-left h2 { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; letter-spacing: 0; }
     .obs-local-quality-card p, .obs-local-quality-left p { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
@@ -32424,6 +32710,7 @@ ${headerBlock}
       ${privacyBlock}
     </aside>
     <div id="identify" class="obs-local-quality-inline is-full-width">
+      ${aiCandidateDisclosure}
       ${identifyBlock}
       ${qualityBlock}
     </div>

@@ -137,6 +137,9 @@
       },
       "images": {
         "binding": "IMAGES"
+      },
+      "ai": {
+        "binding": "AI"
       }
     },
     "staging": {
@@ -218,6 +221,9 @@
       },
       "images": {
         "binding": "IMAGES"
+      },
+      "ai": {
+        "binding": "AI"
       }
     },
     "production": {
@@ -300,10 +306,16 @@
       },
       "images": {
         "binding": "IMAGES"
+      },
+      "ai": {
+        "binding": "AI"
       }
     }
   },
   "images": {
     "binding": "IMAGES"
+  },
+  "ai": {
+    "binding": "AI"
   }
 }
