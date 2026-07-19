@@ -20,8 +20,9 @@
 3. [`CURRENT_INVENTORY.md`](CURRENT_INVENTORY.md) — 現行実装、衝突、再利用可能部分、未確認事項
 4. [`PR_A_EVIDENCE_MATRIX.md`](PR_A_EVIDENCE_MATRIX.md) — GitHubから確認したwriter/readmodel、D1、privacy、monitoring、競合laneの証拠
 5. [`PR_B_ADDITIVE_SCHEMA_DESIGN.md`](PR_B_ADDITIVE_SCHEMA_DESIGN.md) — additive-only schema設計、制約、backfill分類、未決事項
-6. [`PLAN.md`](PLAN.md) — migration順、PR分割、verification、rollback
-7. `yamaki0102/all-projects-management#435` — 現在フェーズ、blocker、active PR、deploy状態
+6. [`PR_A_EXTERNAL_GATES.md`](PR_A_EXTERNAL_GATES.md) — clean checkout、完全検索、read-only metrics、privacy scan、独立reviewの再現手順
+7. [`PLAN.md`](PLAN.md) — migration順、PR分割、verification、rollback
+8. `yamaki0102/all-projects-management#435` — 現在フェーズ、blocker、active PR、deploy状態
 
 ## Core model
 
@@ -60,4 +61,4 @@ GitHub上のsource evidenceからPR-Bの設計までは進められます。次�
 
 ## Scope boundary
 
-このフォルダはproduct specification、decision、implementation plan、current implementation inventory、phase designの正本です。日々の進捗、deploy実績、production row dataを時系列で複製しません。
+このフォルダはproduct specification、decision、implementation plan、current implementation inventory、phase design、external gate手順の正本です。日々の進捗、deploy実績、production row dataを時系列で複製しません。
