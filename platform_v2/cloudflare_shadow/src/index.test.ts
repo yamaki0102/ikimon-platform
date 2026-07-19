@@ -17275,8 +17275,8 @@ test("observation event guest checkin keeps credentials server-side and location
       title: "家族観察会",
       event_code: "family-security-event",
       plan: "public",
-      started_at: "2026-07-19T02:10:00.000Z",
-      ended_at: "2026-07-19T04:00:00.000Z",
+      started_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      ended_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       location_lat: 34.9756,
       location_lng: 138.3828,
       target_species: ["名前が分からない生きもの"]
@@ -17427,8 +17427,8 @@ test("observation event guest checkin keeps credentials server-side and location
       title: "同時チェックイン観察会",
       event_code: "family-concurrent-event",
       plan: "public",
-      started_at: "2026-07-19T02:10:00.000Z",
-      ended_at: "2026-07-19T04:00:00.000Z",
+      started_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      ended_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       location_lat: 34.9756,
       location_lng: 138.3828
     })
