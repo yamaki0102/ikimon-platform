@@ -28796,7 +28796,7 @@ function reassessmentAttemptCount(sourcePayloadJson: string): number {
   }
 }
 
-async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): Promise<number[]> {
+async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): Promise<Uint8Array> {
   let sourceBytes: ArrayBuffer | null = null;
   if (asset.public_derivative_key) {
     const derivative = await env.ASSET_BUCKET.get(asset.public_derivative_key);
@@ -28827,12 +28827,12 @@ async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): 
     if (response.ok) {
       const transformed = await response.arrayBuffer();
       if (transformed.byteLength > 0 && transformed.byteLength <= 8 * 1024 * 1024) {
-        return Array.from(new Uint8Array(transformed));
+        return new Uint8Array(transformed);
       }
     }
   }
   if (sourceBytes.byteLength > 8 * 1024 * 1024) throw new Error("ai_image_input_too_large");
-  return Array.from(new Uint8Array(sourceBytes));
+  return new Uint8Array(sourceBytes);
 }
 
 function workersAiAnswer(value: unknown): string {
@@ -28899,13 +28899,9 @@ async function processObservationReassessment(observationId: string, env: Env): 
     const image = await observationAiImageInput(asset, env);
     const attemptCount = reassessmentAttemptCount(request.source_payload_json) + 1;
     const rawResponse = await env.AI.run(OBSERVATION_VISION_MODEL, {
-      task: "query",
       image,
-      question: observationAiQuestion(),
-      reasoning: false,
-      temperature: 0.1,
+      prompt: observationAiQuestion(),
       max_tokens: 700,
-      stream: false,
     });
     const candidate = parseObservationAiCandidate(workersAiAnswer(rawResponse));
     const occurrenceId = `occ:${observationId}:0`;
