@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "schema_source": {
+    "repository": "yamaki0102/github-project-map",
+    "path": "data/project_manifest.schema.json",
+    "version": 1
+  },
+  "manifest_status": "candidate_pending_validation",
+  "scope_level": "project",
+  "project_key": "ikimon/ikimon-life/ikimon-life",
+  "organization_id": "ikimon",
+  "service_id": "ikimon-life",
+  "project_id": "ikimon-life",
+  "display_name": "ikimon.life",
+  "lifecycle": "active",
+  "repository": {
+    "slug": "yamaki0102/ikimon-platform",
+    "role": "current_source",
+    "default_branch": "main",
+    "current_runtime_path": "platform_v2"
+  },
+  "canonical": {
+    "routing": {
+      "repository": "yamaki0102/github-project-map",
+      "path": "data/projects.json",
+      "anchor": "ikimon-life"
+    },
+    "organization_boundary": {
+      "repository": "yamaki0102/company-strategy-portfolio",
+      "path": "portfolio/organization-registry.json",
+      "anchor": "ikimon"
+    },
+    "strategy": {
+      "repository": "yamaki0102/ikimon-business-strategy",
+      "path": "strategy/business-plan-master.md"
+    },
+    "execution": {
+      "repository": "yamaki0102/all-projects-management",
+      "path": "operations/project_state/ikimon-life.current.json"
+    },
+    "product_entry": {
+      "repository": "yamaki0102/ikimon-platform",
+      "path": "docs/START_HERE.md"
+    },
+    "record_observation_spec": {
+      "repository": "yamaki0102/ikimon-platform",
+      "path": "docs/spec/record-detail-observation/README.md"
+    },
+    "agent_instructions": {
+      "repository": "yamaki0102/ikimon-platform",
+      "path": "AGENTS.md"
+    }
+  },
+  "confidentiality": {
+    "classification": "public_product_repository",
+    "organization_scope": "ikimon",
+    "cross_organization_reuse": "deidentified_patterns_only",
+    "shared_customer_knowledge": false,
+    "secrets_allowed": false
+  },
+  "control_plane": {
+    "project_id": "github-canonical-control-plane",
+    "execution_issue": "yamaki0102/all-projects-management#413"
+  }
+}
