@@ -1,6 +1,12 @@
 {
   "schema_version": 1,
-  "manifest_status": "candidate_pending_central_schema",
+  "schema_source": {
+    "repository": "yamaki0102/github-project-map",
+    "path": "data/project_manifest.schema.json",
+    "version": 1
+  },
+  "manifest_status": "candidate_pending_validation",
+  "scope_level": "project",
   "project_key": "ikimon/ikimon-life/ikimon-life",
   "organization_id": "ikimon",
   "service_id": "ikimon-life",
