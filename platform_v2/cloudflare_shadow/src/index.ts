@@ -24899,14 +24899,18 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     .filter((related) => related.public_cell === row.public_cell && related.observation_id !== visitId)
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
+  const isAwaitingId = isWeakTaxonLabel(row.taxon_label);
+  const displayName = isAwaitingId
+    ? row.ai_candidate_label ?? "名前待ち"
+    : row.taxon_label!.trim();
 
   return {
     schemaVersion: "shadow_public_observation_detail/v1",
     occurrenceId: `occ:${row.observation_id}:0`,
     visitId: row.observation_id,
     canonicalPath: `/observations/${encodeURIComponent(row.observation_id)}`,
-    displayName: row.taxon_label ?? row.ai_candidate_label ?? "名前待ち",
-    isAwaitingId: !row.taxon_label,
+    displayName,
+    isAwaitingId,
     aiCandidateLabel: row.ai_candidate_label,
     aiCandidateRank: row.ai_candidate_rank,
     aiAssessmentStatus: row.ai_assessment_status,
@@ -31698,7 +31702,7 @@ function publicMapExactCoordinateGate() {
 
 function isWeakTaxonLabel(label: string | null): boolean {
   const text = (label ?? "").trim().toLowerCase();
-  return !text || ["unidentified", "unknown", "unresolved", "awaiting id", "同定待ち", "不明"].includes(text);
+  return !text || ["unidentified", "unknown", "unresolved", "awaiting id", "同定待ち", "未同定", "不明"].includes(text);
 }
 
 function publicTaxonDisplayName(label: string | null): string {

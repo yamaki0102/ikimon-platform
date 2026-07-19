@@ -5336,11 +5336,15 @@ class FakeStatement {
     if (normalized.startsWith("SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, r.asset_count")) {
       const read = this.db.readmodel.get(string(v[0]));
       const observation = this.db.observations.get(string(v[0]));
+      const aiTarget = this.db.observationAiReviewTargets.get(`occ:${string(v[0])}:0`);
       return read && observation && observation.visibility === "public" && observation.emergency_hidden === 0 ? ({
         ...read,
         owner_user_id: observation.owner_user_id,
         note: observation.note,
-        visibility: observation.visibility
+        visibility: observation.visibility,
+        ai_assessment_status: aiTarget?.ai_assessment_status ?? null,
+        ai_candidate_label: aiTarget?.candidate_vernacular_name ?? aiTarget?.candidate_scientific_name ?? aiTarget?.ai_recommended_taxon_name ?? null,
+        ai_candidate_rank: aiTarget?.candidate_taxon_rank ?? aiTarget?.ai_recommended_rank ?? null
       } as T) : null;
     }
 
@@ -5351,6 +5355,7 @@ class FakeStatement {
       const assetCount = [...this.db.assets.values()].filter((asset) =>
         asset.observation_id === observation.observation_id && asset.processing_state === "uploaded"
       ).length;
+      const aiTarget = this.db.observationAiReviewTargets.get(`occ:${observation.observation_id}:0`);
       return ({
         observation_id: observation.observation_id,
         public_cell: read?.public_cell ?? observation.public_cell ?? "",
@@ -5358,7 +5363,10 @@ class FakeStatement {
         taxon_label: observation.taxon_label,
         asset_count: read?.asset_count ?? assetCount,
         note: observation.note,
-        visibility: observation.visibility
+        visibility: observation.visibility,
+        ai_assessment_status: aiTarget?.ai_assessment_status ?? null,
+        ai_candidate_label: aiTarget?.candidate_vernacular_name ?? aiTarget?.candidate_scientific_name ?? aiTarget?.ai_recommended_taxon_name ?? null,
+        ai_candidate_rank: aiTarget?.candidate_taxon_rank ?? aiTarget?.ai_recommended_rank ?? null
       } as T);
     }
 
@@ -9100,7 +9108,7 @@ test("d1 partition routing uses one active binding with logical month partitions
 });
 
 test("public observation detail route exposes a safe read page and JSON without exact coordinates", async () => {
-  const { env, queue } = createEnv();
+  const { env, queue, obs } = createEnv();
   await post("/api/v1/observations/upsert", env, {
     observationId: "visit-detail-contract",
     userId: "detail-user",
@@ -9286,6 +9294,32 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(localizedPageHtml, /obs-hero-media-stack is-photo-only/);
   assert.match(localizedPageHtml, /data-obs-preview-img/);
   assert.match(localizedPageHtml, /詳細テスト植物/);
+
+  obs.observations.get("visit-detail-contract")!.taxon_label = "未同定";
+  obs.readmodel.get("visit-detail-contract")!.taxon_label = "未同定";
+  obs.observationAiReviewTargets.set("occ:visit-detail-contract:0", {
+    occurrence_id: "occ:visit-detail-contract:0",
+    ai_assessment_status: "ai_judgement",
+    scientific_name: null,
+    vernacular_name: null,
+    taxon_rank: null,
+    ai_run_id: "ai-run-detail-contract",
+    candidate_id: "candidate-detail-contract",
+    candidate_scientific_name: "Camellia",
+    candidate_vernacular_name: "ツバキ属",
+    candidate_taxon_rank: "genus",
+    ai_recommended_taxon_name: "Camellia",
+    ai_recommended_rank: "genus"
+  });
+  const candidateResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-detail-contract/public-detail"), env);
+  const candidatePayload = await candidateResponse.json() as any;
+  assert.equal(candidatePayload.observation.isAwaitingId, true);
+  assert.equal(candidatePayload.observation.displayName, "ツバキ属");
+  assert.equal(candidatePayload.observation.aiCandidateLabel, "ツバキ属");
+  const candidatePage = await worker.fetch(new Request("https://shadow.test/observations/visit-detail-contract"), env);
+  const candidateHtml = await candidatePage.text();
+  assert.match(candidateHtml, /<span>AI候補<\/span><strong>ツバキ属<\/strong>/);
+  assert.match(candidateHtml, /確定名ではなく、人の確認で更新できます/);
 
   await post("/api/v1/observations/upsert", env, {
     observationId: "visit-private-detail-contract",
