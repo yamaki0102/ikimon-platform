@@ -25,16 +25,17 @@ const cleanText = (value: unknown, maxLength: number): string | null => {
   return normalized || null;
 };
 
-const cleanList = (value: unknown): string[] => Array.isArray(value)
-  ? value.map((item) => cleanText(item, 160)).filter((item): item is string => Boolean(item)).slice(0, 4)
-  : [];
+const cleanList = (value: unknown): string[] => {
+  const values = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+  return values.map((item) => cleanText(item, 160)).filter((item): item is string => Boolean(item)).slice(0, 4);
+};
 
 export function observationAiQuestion(): string {
   return [
-    "あなたは市民科学の画像判定支援AIです。画像の主な生物を、断定せず候補として判定してください。",
-    "種まで判断できない場合は、属・科など画像から妥当な粗い分類に留めてください。園芸植物も考慮してください。",
-    "返答は説明文やMarkdownを付けず、次のキーを持つJSONオブジェクト1個だけにしてください。",
-    '{"vernacularName":"日本語名またはnull","scientificName":"学名またはnull","rank":"species|genus|family|order|class|unknown","confidence":0.0,"visualEvidence":["画像で見える根拠"],"needsMoreEvidence":["次に撮るとよい部位"],"nonBiological":false}',
+    "What is the main organism in this citizen-science image? Give the most likely common and scientific name, but stay at genus or family when the visible evidence is insufficient for a species identification.",
+    "List the visible traits supporting the candidate and what additional photo would help. This is a candidate for human review, not a confirmed identification. Consider cultivated plants.",
+    "Return JSON only, using exactly these keys: vernacularName, scientificName, rank, confidence, visualEvidence, needsMoreEvidence, nonBiological.",
+    "Use a Japanese common name for vernacularName when known. rank is one of species, genus, family, order, class, unknown. confidence is 0 to 1. visualEvidence and needsMoreEvidence are arrays. nonBiological is true only when no organism is visible.",
   ].join("\n");
 }
 
@@ -52,14 +53,16 @@ export function parseObservationAiCandidate(answer: unknown): ObservationAiCandi
 
   const rawRank = cleanText(parsed.rank, 24)?.toLowerCase() as ObservationAiCandidate["rank"] | undefined;
   const confidence = Number(parsed.confidence);
+  const vernacularName = cleanText(parsed.vernacularName, 120);
+  const scientificName = cleanText(parsed.scientificName, 180);
   const candidate: ObservationAiCandidate = {
-    vernacularName: cleanText(parsed.vernacularName, 120),
-    scientificName: cleanText(parsed.scientificName, 180),
+    vernacularName,
+    scientificName,
     rank: rawRank && allowedRanks.has(rawRank) ? rawRank : "unknown",
     confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0,
     visualEvidence: cleanList(parsed.visualEvidence),
     needsMoreEvidence: cleanList(parsed.needsMoreEvidence),
-    nonBiological: parsed.nonBiological === true,
+    nonBiological: parsed.nonBiological === true && !vernacularName && !scientificName,
   };
   if (!candidate.nonBiological && !candidate.vernacularName && !candidate.scientificName) {
     throw new Error("ai_candidate_name_missing");

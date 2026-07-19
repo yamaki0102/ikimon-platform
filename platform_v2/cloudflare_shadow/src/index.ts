@@ -28796,14 +28796,25 @@ function reassessmentAttemptCount(sourcePayloadJson: string): number {
   }
 }
 
-async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): Promise<Uint8Array> {
+function imageBytesToDataUri(bytes: ArrayBuffer, mime: string): string {
+  const view = new Uint8Array(bytes);
+  let binary = "";
+  for (let offset = 0; offset < view.length; offset += 0x8000) {
+    binary += String.fromCharCode(...view.subarray(offset, offset + 0x8000));
+  }
+  return `data:${mime};base64,${btoa(binary)}`;
+}
+
+async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): Promise<string> {
   let sourceBytes: ArrayBuffer | null = null;
+  let sourceMime = asset.mime;
   if (asset.public_derivative_key) {
     const derivative = await env.ASSET_BUCKET.get(asset.public_derivative_key);
     if (derivative?.body) {
       const bytes = await new Response(derivative.body).arrayBuffer();
       if (bytes.byteLength > 0 && bytes.byteLength <= 8 * 1024 * 1024) {
         sourceBytes = bytes;
+        sourceMime = "image/webp";
       }
     }
   }
@@ -28827,12 +28838,12 @@ async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): 
     if (response.ok) {
       const transformed = await response.arrayBuffer();
       if (transformed.byteLength > 0 && transformed.byteLength <= 8 * 1024 * 1024) {
-        return new Uint8Array(transformed);
+        return imageBytesToDataUri(transformed, "image/webp");
       }
     }
   }
   if (sourceBytes.byteLength > 8 * 1024 * 1024) throw new Error("ai_image_input_too_large");
-  return new Uint8Array(sourceBytes);
+  return imageBytesToDataUri(sourceBytes, sourceMime);
 }
 
 function workersAiAnswer(value: unknown): string {
@@ -28899,9 +28910,13 @@ async function processObservationReassessment(observationId: string, env: Env): 
     const image = await observationAiImageInput(asset, env);
     const attemptCount = reassessmentAttemptCount(request.source_payload_json) + 1;
     const rawResponse = await env.AI.run(OBSERVATION_VISION_MODEL, {
+      task: "query",
       image,
-      prompt: observationAiQuestion(),
+      question: observationAiQuestion(),
+      reasoning: false,
+      temperature: 0.1,
       max_tokens: 700,
+      stream: false,
     });
     const candidate = parseObservationAiCandidate(workersAiAnswer(rawResponse));
     const occurrenceId = `occ:${observationId}:0`;

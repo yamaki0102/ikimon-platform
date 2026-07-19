@@ -4,9 +4,9 @@ import { observationAiQuestion, parseObservationAiCandidate } from "./cloudflare
 
 test("AI prompt requires candidate language and coarse ranks when evidence is weak", () => {
   const prompt = observationAiQuestion();
-  assert.match(prompt, /断定せず候補/);
-  assert.match(prompt, /属・科/);
-  assert.match(prompt, /JSONオブジェクト1個/);
+  assert.match(prompt, /candidate for human review, not a confirmed identification/);
+  assert.match(prompt, /stay at genus or family/);
+  assert.match(prompt, /Return JSON only/);
 });
 
 test("AI candidate parser accepts a fenced response but returns bounded data", () => {
@@ -27,4 +27,20 @@ test("AI candidate parser accepts a fenced response but returns bounded data", (
 
 test("AI candidate parser rejects an unnamed biological guess", () => {
   assert.throws(() => parseObservationAiCandidate('{"rank":"unknown","confidence":0.2,"nonBiological":false}'), /ai_candidate_name_missing/);
+});
+
+test("AI candidate parser keeps an identified organism biological when provider flags conflict", () => {
+  const candidate = parseObservationAiCandidate(JSON.stringify({
+    vernacularName: "ツバキ属",
+    scientificName: "Camellia",
+    rank: "genus",
+    confidence: 0.62,
+    visualEvidence: "鋸歯のある光沢葉",
+    needsMoreEvidence: "花または果実の接写",
+    nonBiological: true,
+  }));
+
+  assert.equal(candidate.nonBiological, false);
+  assert.deepEqual(candidate.visualEvidence, ["鋸歯のある光沢葉"]);
+  assert.deepEqual(candidate.needsMoreEvidence, ["花または果実の接写"]);
 });
