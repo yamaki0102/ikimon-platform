@@ -501,8 +501,8 @@ test("public map snapshot scheduler clamps unsafe refresh intervals", () => {
 
 test("public map request read path does not aggregate source rows directly", async () => {
   const source = await readFile(new URL("./mapSnapshot.ts", import.meta.url), "utf8");
-  const cellsBody = source.match(/export async function getMapCells[\s\S]*?\n}\n\nexport async function getMapObservations/)?.[0] ?? "";
-  const observationsBody = source.match(/export async function getMapObservations[\s\S]*?\n}\n\nexport const __test__/)?.[0] ?? "";
+  const cellsBody = source.match(/^export async function getMapCells[\s\S]*?^}\r?$/m)?.[0] ?? "";
+  const observationsBody = source.match(/^export async function getMapObservations[\s\S]*?^}\r?$/m)?.[0] ?? "";
 
   assert.match(cellsBody, /loadPublicMapSnapshotPayload/);
   assert.match(observationsBody, /loadPublicMapSnapshotPayload/);
