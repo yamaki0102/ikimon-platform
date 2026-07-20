@@ -24384,6 +24384,23 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
   };
 }
 
+function publicObservationDetailRelatedItem(row: PublicMapRow, photoUrl: string | null) {
+  const item = publicMapObservationItem(row, photoUrl);
+  return {
+    occurrenceId: item.occurrenceId,
+    visitId: item.visitId,
+    displayName: item.displayName,
+    isAiCandidate: item.isAiCandidate,
+    isAwaitingId: item.isAwaitingId,
+    localityLabel: item.localityLabel,
+    publicAreaLabel: item.publicAreaLabel,
+    observedAt: item.observedAt,
+    photoUrl: item.photoUrl,
+    mediaKind: item.mediaKind,
+    taxonGroup: item.taxonGroup
+  };
+}
+
 function ownObservationTime(value: string): number {
   const ms = Date.parse(value);
   return Number.isFinite(ms) ? ms : 0;
@@ -24920,9 +24937,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     placeName: "位置をぼかしています",
     municipality: null,
     publicLocation: {
-      label: "位置をぼかしています",
-      cellId: publicCellToCellId(row.public_cell),
-      publicCell: row.public_cell
+      label: "位置をぼかしています"
     },
     photoAssets,
     photoUrls: photoAssets.map((asset) => asset.url),
@@ -24931,13 +24946,13 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     assetCount: row.asset_count,
     environmentRecord,
     mediaRegions,
-    relatedObservations: relatedRows.map((related) => publicMapObservationItem(
+    relatedObservations: relatedRows.map((related) => publicObservationDetailRelatedItem(
       related,
       relatedPhotoUrls.get(related.observation_id) ?? null
     )),
     privacy: {
       exactLocationExposed: false,
-      source: ownerUserId ? "observations.public_cell" : "readmodel_public_observations.public_cell"
+      source: "public_observation_location_policy/v1"
     }
   };
 }
@@ -32100,7 +32115,7 @@ form.addEventListener('submit', async (event) => {
     setStatus('公開read model待機中...', 'status');
     const detailJson = await waitForDetail(observationJson.visitId);
     const detailHref = '/observations/' + encodeURIComponent(observationJson.visitId);
-    const mapHref = '/shadow-smoke/map?cell_id=' + encodeURIComponent(detailJson.observation.publicLocation.cellId);
+    const mapHref = '/shadow-smoke/map';
     linksEl.innerHTML = '<a class="button" id="detail-link" href="' + detailHref + '">詳細を見る</a><a class="button" id="map-link" href="' + mapHref + '">地図で見る</a>';
     jsonEl.textContent = JSON.stringify({ observation: observationJson, photo: photoJson, detail: detailJson }, null, 2);
     setStatus('保存と公開read確認が完了しました', 'ok');
@@ -32189,8 +32204,8 @@ function renderPublicObservationDetailHtml(
   const videoCount = Math.max(detail.videoAssets.length, polish?.videoCount ?? 0);
   const audioCount = polish?.audioCount ?? 0;
   const assetCount = Math.max(detail.assetCount ?? 0, photoCount + videoCount + audioCount);
-  const mapHref = `/map?tab=places&cell=${encodeURIComponent(detail.publicLocation.cellId)}`;
-  const recordHref = `/record?from=observation&cell=${encodeURIComponent(detail.publicLocation.cellId)}`;
+  const mapHref = "/map?tab=places";
+  const recordHref = "/record?from=observation";
   const related = detail.relatedObservations ?? [];
   const observedLabel = polish?.observedLabel ?? formatPublicObservationDate(detail.observedAt);
   const placeLabel = polish?.placeLabel ?? detail.publicLocation.label;

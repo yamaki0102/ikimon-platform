@@ -61,7 +61,7 @@ Exit:
 Scope:
 
 - record / observation detail、feed、search、map、API、OGP、JSON-LD、cache、media metadata、monitoring/exportの位置情報surface inventory
-- public responseからcoordinates、cell、mesh、geohash、private geometry、exact place locatorを除去する共通policy
+- record/observation単位のpublic responseとURLからcoordinates、cell、mesh、geohash、private geometry、exact place locatorを除去する共通policy
 - owner exact-location responseをauthenticated private `no-store` laneへ限定
 - rare/sensitive species、home、school、minors、private landの回帰test
 
@@ -70,6 +70,7 @@ Rules:
 - observation migrationと独立に先行できる
 - UIだけを隠してAPI、HTML attribute、structured data、cache、URLへ残さない
 - public display policyとresearch export policyを混同しない
+- public mapは別のaggregate contractとし、k-anonymity・sensitive suppression・coarse geometryを満たす集約cellだけを許可する。単一recordのcellをdetail/API/URLへ戻さない
 
 Exit:
 
@@ -373,7 +374,7 @@ Additive observation-first endpoints:
 - split / merge endpoints under `/api/v1/record-observations/:observationId`
 - `GET /api/v1/identification-queue`
 
-既存のoccurrence-compatible `/api/v1/observations/:id/*`はcutover gate完了まで維持します。public responseへexact location、coordinate-derived ID、cell、mesh、geohashを含めません。
+既存のoccurrence-compatible `/api/v1/observations/:id/*`はcutover gate完了まで維持します。record/observation単位のpublic responseへexact location、coordinate-derived ID、cell、mesh、geohashを含めません。aggregate map APIはPR0のk-anonymous map contractに従います。
 
 ## 8. Rollback
 

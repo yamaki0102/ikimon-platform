@@ -760,6 +760,13 @@ test("observation detail route has a saved fallback for public map records still
   assert.match(readRoute, /escapeHtml\(record\.displayName\)/);
 });
 
+test("public observation detail links do not serialize a record location cell into URLs", async () => {
+  const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+
+  assert.doesNotMatch(readRoute, /buildPublicMapCellHref/);
+  assert.match(readRoute, /const publicMapHref = withBasePath\(basePath, "\/map"\)/);
+});
+
 test("profile settings route gives unauthenticated visitors a login guide", async () => {
   const app = buildApp();
   try {

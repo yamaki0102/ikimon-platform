@@ -323,6 +323,8 @@ AI job成功は次の成功を意味しません。
 
 UIだけを丸め、API、HTML attribute、JSON-LD、画像metadataからexact locationが漏れる状態を許容しません。
 
+record/observation詳細のpublic JSON・HTML・URLには、単一recordへ結び付くcoordinate、cell、mesh、geohashを含めません。public mapは別のaggregate contractとし、k-anonymity、sensitive suppression、coarse geometryを満たす集約cellだけを扱います。owner exact-location APIはauthenticated owner scopeかつ`private, no-store`に限定します。
+
 ## 7. Audit and provenance
 
 重要状態には次を追跡します。

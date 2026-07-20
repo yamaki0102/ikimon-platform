@@ -106,7 +106,6 @@ import {
   visibleRecordMeta,
   type VisibleRecordItem,
 } from "../services/observationSceneReadModel.js";
-import { buildPublicMapCellHref } from "../services/publicLocation.js";
 import { findPublicMapObservationRecordById, type PublicMapObservationRecord } from "../services/mapSnapshot.js";
 import {
   getHomeSnapshot,
@@ -22993,7 +22992,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, currentSubject, mediaAnnotationTargets, {
       afterVideoHtml: renderObservationRecordInsight(recordInsightText, "", recordReadingInsightOptions),
     });
-    const publicMapHref = buildPublicMapCellHref(withBasePath(basePath, "/map"), snapshot.publicLocation);
+    const publicMapHref = withBasePath(basePath, "/map");
     const detailMapHref = canSeeCanonicalLocation
       ? withBasePath(basePath, "/map")
       : publicMapHref;
