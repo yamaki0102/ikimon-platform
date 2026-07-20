@@ -174,6 +174,15 @@ This satisfies the target principle that AI is not a community vote in the inspe
 - public visibility → community participation is spread across routes/read models rather than one proven shared policy evaluator;
 - organization membership, moderation, trust weighting, rate limits, withdrawal, and reviewer override need a separate policy evidence map.
 
+### Recruitment-dependent copy/code search
+
+A clean-checkout exact-phrase search on 2026-07-20 found no runtime implementation of a 「みんなに聞く」button or recruitment state. It did find the banned `人の確認待ち` copy in current runtime code:
+
+- `platform_v2/cloudflare_shadow/src/index.ts`: AI target status label, chip, evidence fallback and review-state heading
+- `platform_v2/src/routes/read.ts`: identification-strength summary and human-support label
+
+The other exact phrases `名前の提案を募集中`, `みんなの確認はまだありません`, and `確認0件` were not found in current runtime code. Contract documents mention the phrases only to forbid them. PR-F must remove/localize the confirmed runtime occurrences and add a repository search gate for JP / EN / ES / PT-BR equivalents. Queue membership and proposal authorization must not depend on any replacement recruitment flag.
+
 ## 7. Cloudflare D1 migration inventory
 
 The following migrations were confirmed from current files or merged PR file lists.

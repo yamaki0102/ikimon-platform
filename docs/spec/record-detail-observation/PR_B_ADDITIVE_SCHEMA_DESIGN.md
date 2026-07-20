@@ -54,14 +54,21 @@ Split, merge, exclude, reassignment and correction produce lifecycle/audit event
 
 ```text
 current record source
+  ├── record_observation_policies
   └── record_observations
         ├── record_observation_media
+        ├── observation_ai_suggestions
         ├── observation_identification_claims
         ├── observation_lifecycle_events
-        └── occurrence_projection_versions
+        ├── occurrence_projection_versions
+        └── identification_queue_entries
 
 record / observation / media / place
   └── environment_assessments
+        └── environment_assessment_media
+
+site / place / project
+  └── monitoring_projection_versions
 
 source writes / migration runs
   ├── record_observation_source_map
@@ -79,8 +86,12 @@ Recommended columns:
 | `observation_id` | stable primary key, independent from occurrence projection ID |
 | `record_id` | current container ID: PostgreSQL visit ID or D1 native observation ID |
 | `record_runtime` | `postgresql | cloudflare_d1 | import` |
-| `origin` | `user | ai | import | system` |
-| `lifecycle` | `provisional | confirmed | excluded | superseded` |
+| `origin` | `owner | ai | community | import | system` |
+| `assertion_status` | `provisional | human_asserted` |
+| `verification_status` | `unreviewed | owner_confirmed | community_review | disputed | verified` |
+| `lifecycle_status` | `active | excluded | superseded` |
+| `data_use_scope` | `personal_only | community_observation | research_export` |
+| `accepted_identification_id` | nullable pointer to the single accepted human claim |
 | `subject_type` | `organism | group | trace | sound | unknown_subject` |
 | `individual_certainty` | `individual | group | unknown` |
 | `captive_context` | `wild | captive | cultivated | pet | unknown` |
@@ -101,18 +112,44 @@ Required constraints:
 
 - one stable primary key;
 - unique `(record_runtime, record_id, source_key)`;
-- AI origin cannot be inserted as `confirmed` without a separate human transition;
+- AI origin starts `provisional / unreviewed / active / personal_only` and cannot become `human_asserted` without a separate human transition;
+- community origin starts `provisional / community_review / active` with no accepted identification;
+- AI alone cannot populate `accepted_identification_id`, set `verified`, create an active occurrence projection or widen `data_use_scope`;
 - `count_min <= count_max` when both exist;
 - excluded/superseded rows remain queryable;
 - record may have zero rows.
 
 Recommended source keys:
 
-- user-created: `user:<client-submission-id>:<local-subject-id>`
+- owner-created: `owner:<client-submission-id>:<local-subject-id>`
 - AI-created: `ai:<ai-run-id>:<candidate-key>`
 - PostgreSQL backfill: `pg-occurrence:<occurrence-id>`
 - D1 compatibility backfill: `d1-occurrence:<compat-occurrence-id>`
 - machine detection: `machine:<provider>:<event-or-detection-id>`
+
+## 4.1 `record_observation_policies`
+
+Purpose: keep community proposal permission separate from visibility and from identification lifecycle.
+
+Recommended columns:
+
+| Column | Contract |
+|---|---|
+| `record_runtime` / `record_id` | one policy row per current record container |
+| `accepts_identification_proposals` | owner-controlled boolean |
+| `default_source` | `visibility_default | owner_override | import` |
+| `updated_by_actor_id` | owner or migration actor |
+| `created_at` / `updated_at` | timestamps |
+| `row_version` | optimistic concurrency |
+
+Defaults and evaluator contract:
+
+- public and limited records default to `true`;
+- private records are owner-only regardless of this flag;
+- public records allow logged-in users when enabled;
+- limited records allow only logged-in shared recipients when enabled;
+- the owner may always edit or propose on their own record;
+- no recruitment/request state or queue-membership flag exists in this table.
 
 ## 5. `record_observation_source_map`
 
@@ -156,7 +193,7 @@ Recommended columns:
 | `role` | `primary_evidence | supporting_evidence | context | audio_evidence | trace_evidence | excluded` |
 | `locator_kind` | `full | rect | polygon | frame_time | time_range | other` |
 | `locator_json` | normalized rectangle/polygon/frame/range and source coordinate system |
-| `origin` | `user | ai | import | system` |
+| `origin` | `owner | ai | community | import | system` |
 | `active` | current association flag |
 | `source_key` | idempotent key |
 | `provenance_json` | actor/model/rule/source |
@@ -170,6 +207,28 @@ Required behavior:
 - public media access is still decided by the current media/privacy pipeline;
 - the link table never grants public access to an original asset.
 
+## 6.1 `observation_ai_suggestions`
+
+Purpose: preserve AI candidates and provenance without turning them into human claims or community votes.
+
+Recommended columns:
+
+| Column | Contract |
+|---|---|
+| `suggestion_id` | primary key |
+| `observation_id` | target provisional observation |
+| `candidate_key` | model-run-local stable candidate identity |
+| `proposed_name` / `proposed_rank` / `taxon_ref` | normalized candidate |
+| `confidence_score` | bounded model confidence |
+| `rationale_json` | bounded evidence and reasons |
+| `model_provider` / `model_name` / `model_version` | model provenance |
+| `prompt_version` / `rule_version` | inference contract |
+| `input_digest` / `source_key` | idempotency and source provenance |
+| `suggestion_status` | `active | rejected_by_owner | superseded | hidden` |
+| `created_at` / `updated_at` | timestamps |
+
+AI suggestions never populate `accepted_identification_id`, never count toward consensus, and never create an active occurrence projection.
+
 ## 7. `observation_identification_claims`
 
 Purpose: preserve every taxonomic or context claim separately from acceptance.
@@ -180,8 +239,8 @@ Recommended columns:
 |---|---|
 | `identification_id` | primary key |
 | `observation_id` | target observation |
-| `actor_kind` | `submitter | community_member | reviewer | ai | import | system` |
-| `actor_id` | nullable for system/import |
+| `actor_kind` | `owner | community_member | curator | import` |
+| `actor_id` | nullable only for governed import |
 | `claim_status` | `candidate | accepted | rejected | withdrawn | superseded` |
 | `proposed_name` / `proposed_rank` | claim |
 | `accepted_name` / `accepted_rank` | normalized accepted form when applicable |
@@ -198,9 +257,10 @@ Recommended columns:
 Required constraints:
 
 - at most one active `accepted` claim per observation;
-- AI actor cannot directly set `accepted`;
-- a system transition to accepted must reference qualifying human/community/reviewer evidence;
+- AI suggestions are not stored in this table;
+- a system transition to accepted must reference qualifying owner/community/curator evidence;
 - AI confidence is never counted as a community supporter;
+- consensus uses only the latest active claim per human actor, requires at least two independent supporters and two-thirds support, has no unresolved dispute, and respects taxon-rank precision ceilings;
 - withdrawal and supersession preserve the original row;
 - accepted state changes are audit events.
 
@@ -220,7 +280,7 @@ Recommended columns:
 |---|---|
 | `event_id` | primary key |
 | `observation_id` | main target |
-| `event_kind` | `created | confirmed | excluded | restored | split | merged | media_linked | media_unlinked | identification_changed | projection_changed` |
+| `event_kind` | `created | human_asserted | verification_changed | disputed | excluded | restored | split | merged | media_linked | media_unlinked | identification_changed | projection_changed` |
 | `actor_kind` / `actor_id` | provenance |
 | `reason_code` | stable code |
 | `before_json` / `after_json` | bounded state deltas |
@@ -232,7 +292,7 @@ Do not store secrets, exact public-inappropriate location or full private media 
 
 ## 9. `occurrence_projection_versions`
 
-Purpose: reproducible scientific occurrence projection derived from a confirmed observation and accepted identification.
+Purpose: reproducible scientific occurrence projection derived from a human-asserted observation and accepted identification.
 
 Recommended columns:
 
@@ -259,13 +319,15 @@ Recommended columns:
 
 Required constraints:
 
-- only a confirmed observation can have an active projection;
+- only a `human_asserted` observation can have an active projection;
 - active projection requires one accepted identification or an explicit coarse/unknown scientific rule;
 - active projection requires non-AI human provenance;
 - one active projection per observation;
 - projection is re-generated deterministically when source or rule version changes;
 - public display and research eligibility remain separate;
 - revocation/deactivation does not delete history.
+- `verification_status=disputed` deactivates or blocks the active projection until the dispute is resolved;
+- `data_use_scope=research_export` is required for research/export eligibility and is independent from public/community visibility.
 
 Current `occurrences` compatibility:
 
@@ -308,6 +370,24 @@ Required behavior:
 
 `place_environment_snapshots` remains a valid external/place source and does not need to be copied into each record assessment.
 
+## 10.1 `environment_assessment_media`
+
+Purpose: link an assessment to one or more evidence media without granting media visibility.
+
+Columns include `link_id`, `assessment_id`, `media_source_runtime`, `media_id`, `role`, optional privacy-safe locator, `source_key`, provenance and timestamps. One assessment may use multiple media and one media may support multiple assessments.
+
+## 10.2 `monitoring_projection_versions`
+
+Purpose: version the governed aggregation from eligible occurrences, assessments, sensors and human observations into a site/place/project monitoring series.
+
+Rows retain target identity, projection version/state, period, source IDs/digest, aggregation rule version, privacy/consent decision, value payload, generated/activated/deactivated timestamps and supersession. A single provisional AI assessment is never sufficient to overwrite or activate the canonical monitoring value.
+
+## 10.3 `identification_queue_entries`
+
+Purpose: materialize explainable, automatically ranked identification work without a recruitment/request state.
+
+Recommended columns include `observation_id`, `queue_state`, `score`, bounded reason codes/components, target taxon/region hints, evidence summary, consensus summary, `scoring_rule_version`, `source_digest`, timestamps and row version. Score inputs include missing accepted identification, claim disagreement, age, media quality/count, identifier expertise fit, region/season relevance, rare/invasive review value and whether sufficient agreement already exists. No owner recruitment flag is an input.
+
 ## 11. `record_observation_consistency_ledger`
 
 Purpose: prove dual-write parity and support retries/rollback.
@@ -336,13 +416,17 @@ Do not put raw private payloads in this ledger. Store IDs, digests, counts and r
 The future PostgreSQL PR-B migration may add only:
 
 - `record_observations`
+- `record_observation_policies`
 - `record_observation_source_map`
 - `record_observation_media`
+- `observation_ai_suggestions`
 - `observation_identification_claims`
 - `observation_lifecycle_events`
 - `occurrence_projection_versions`
 - `environment_assessments`
+- `environment_assessment_media`
 - `record_observation_consistency_ledger`
+- `identification_queue_entries`
 - supporting indexes, checks and partial unique constraints
 
 It must not:
@@ -351,7 +435,7 @@ It must not:
 - add triggers that change current write behavior;
 - backfill data;
 - change public readers;
-- apply to production in the schema-definition PR.
+- apply through routine production deploy. Migration apply uses a separate fixed named command/profile bound to an approved exact SHA.
 
 ## 13. D1 expand migration boundary
 
@@ -370,11 +454,11 @@ These are design rules only; backfill is PR-D.
 
 | Current source | Target observation lifecycle | Notes |
 |---|---|---|
-| explicit user subject with human source evidence | confirmed candidate, subject to exact rule evidence | retain submitter provenance |
+| explicit owner subject with human source evidence | `human_asserted`, subject to exact rule evidence | retain owner provenance |
 | AI judgement occurrence / AI review target | provisional | never active projection from AI alone |
 | coexisting AI candidate | provisional | retain media region and candidate key |
 | empty primary occurrence created only for note/map compatibility | no observation or excluded compatibility placeholder | do not turn an empty note into a confirmed organism |
-| imported occurrence with clear human provenance | confirmed or needs-review according to import rule | rule version and source digest required |
+| imported occurrence with clear human provenance | `human_asserted` or needs-review according to import rule | rule version and source digest required |
 | ambiguous subject/taxon collision | provisional or quarantined | no guessed confirmation |
 | passive audio/FieldScan detection | provisional machine-origin observation | reviewer/human confirmation required for occurrence activation |
 | current human identification row | identification claim | `is_current` does not automatically mean target `accepted` |
@@ -396,7 +480,9 @@ These are design rules only; backfill is PR-D.
 - record supports zero observations;
 - source key is idempotent;
 - media links are many-to-many;
-- AI cannot create confirmed observation through DB/application contract;
+- AI cannot create `human_asserted` observation through DB/application contract;
+- public/limited proposal policy defaults ON, private remains owner-only, and owner override is record-scoped;
+- AI suggestions and human claims are physically separate;
 - at most one accepted identification per observation;
 - at most one active occurrence projection per observation;
 - excluded/superseded history remains queryable;
@@ -419,31 +505,35 @@ PR-B itself does not enable them, but reserve configuration names for later phas
 - `RECORD_OBSERVATION_READ_CUTOVER`
 - `RECORD_OBSERVATION_OCCURRENCE_PROJECTION`
 - `RECORD_OBSERVATION_ENVIRONMENT_ASSESSMENTS`
+- `RECORD_OBSERVATION_COMMUNITY_API`
+- `RECORD_OBSERVATION_IDENTIFICATION_QUEUE`
 
 Defaults must remain off until the relevant phase gate passes. Production changes require the established approval path.
 
-## 17. Open decisions requiring independent review
+## 17. Final implementation decisions
 
-1. final identifier format for cross-store observations;
-2. whether submitter-entered taxon can be accepted immediately or requires a separate explicit confirmation transition;
-3. exact status model for merge/split source rows;
-4. SQLite enforcement method for one accepted identification and one active projection;
-5. representation of unknown/coarse scientific projections;
-6. per-observation rights override versus record-level rights inheritance;
-7. media locator coordinate normalization and privacy constraints;
-8. machine observation mapping for passive audio, camera traps and FieldScan;
-9. whether environment assessment confirmation may be performed by the submitter or requires governed reviewer scope;
-10. retention window and storage size limits for audit/consistency JSON.
+1. IDs are application-generated UUIDs; PostgreSQL uses `uuid`, D1 uses `TEXT`, and the same value crosses stores.
+2. AI/community observations require a qualifying human transition. An owner-created subject with an explicitly selected name may start `human_asserted / owner_confirmed`; merely inheriting a legacy `is_current` row is insufficient.
+3. split/merge sources become `lifecycle_status=superseded`, retain immutable lifecycle events and point to successor observations; they are never deleted.
+4. SQLite uses partial unique indexes for one active projection and the observation's single `accepted_identification_id` pointer for acceptance. Service transactions validate pointer/claim consistency.
+5. unknown/coarse occurrence projection is allowed only by a versioned explicit scientific rule with rank ceiling and reason code; it is never inferred from an AI candidate alone.
+6. rights inherit from the record. A per-observation override may only narrow use unless a separately audited owner consent transition broadens `data_use_scope`.
+7. image locators use normalized `[0,1]` coordinates and media dimensions/version; time locators use integer milliseconds. Public serializers omit locators that could reconstruct protected location or private media.
+8. passive audio, camera-trap and FieldScan detections map to provisional machine/AI observations with source-key idempotency and require human provenance for projection.
+9. owners may confirm ordinary descriptive environment context. Regulated, research-export or monitoring-canonical assessment kinds require curator/sensor/external-source rules.
+10. audit and lifecycle history is retained. JSON payloads are bounded and schema-validated (16 KiB consistency deltas, 64 KiB evidence/provenance maximum); raw private media/location payloads are forbidden.
+11. community proposal defaults are ON for public and limited, private is owner-only, and the record owner can disable external proposals without disabling their own edits.
+12. contract cleanup starts only after 14 stable days and at least 100 representative old/new record comparisons with zero unexplained P0/P1 differences and zero location leaks.
 
 ## 18. Gate decision
 
-Status: `PR_B_DESIGN_READY_FOR_CLEAN_CHECKOUT_AND_INDEPENDENT_REVIEW`
+Status: `PR_B_DESIGN_READY_FOR_IMPLEMENTATION`
 
-This document authorizes preparation of additive migration code only after:
+This document authorizes additive migration code after:
 
 - complete clean-checkout source inventory;
 - active migration-lane conflict check;
 - schema/security review;
-- explicit decision on the open items above.
+- schema/security review of the final decisions above.
 
-It does not authorize migration apply, dual-write, backfill, cutover or deploy.
+Migration apply remains separate from routine deploy and requires the fixed, exact-SHA controlled migration lane. Dual-write, backfill and cutover remain later PR gates.

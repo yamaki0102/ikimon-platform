@@ -307,7 +307,7 @@ Review at minimum:
 
 Review questions:
 
-1. Can any AI-only path produce a confirmed observation, accepted identification or active projection?
+1. Can any AI-only path produce a `human_asserted` observation, accepted identification, verified state or active projection?
 2. Can any split/merge/edit path delete source history?
 3. Can any public surface expose protected location through a secondary representation?
 4. Are `record`, `observation`, `identification`, `occurrence projection`, `environment assessment` and `monitoring series` distinct?
