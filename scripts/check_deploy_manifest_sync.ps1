@@ -252,7 +252,7 @@ if ($manifest.platform -eq "cloudflare_worker") {
 
     foreach ($environmentPath in @($manifest.verificationEnvironmentExample, $manifest.verificationWindowsEnvironmentExample)) {
         $environmentText = Read-ContractFile -RelativePath $environmentPath -Issues $issues
-        if ($environmentText -notmatch '(?m)^PUBLISH_GITHUB_STATUS=false$') {
+        if ($environmentText -notmatch '(?m)^PUBLISH_GITHUB_STATUS=false\r?$') {
             $issues.Add("Verification environment example must default GitHub status publishing to false: $environmentPath")
         }
         if ($environmentText -match '(?m)^(?:GITHUB_TOKEN|GH_TOKEN)=\S+') {
