@@ -7,11 +7,15 @@ import {
 import { loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
 import {
+  OBSERVATION_AI_PROMPT_VERSION,
+  OBSERVATION_AI_RULE_VERSION,
   OBSERVATION_VISION_MODEL,
   observationAiQuestion,
+  observationAiSubjects,
   parseObservationAiCandidate,
   type ObservationAiCandidate,
 } from "./cloudflareObservationAi";
+import { buildObservationAiDualWritePlan } from "./cloudflareObservationAiDualWrite";
 import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
@@ -28805,6 +28809,10 @@ type ObservationAiAssetRow = {
   mime: string;
 };
 
+type ObservationAiRecordRow = {
+  owner_user_id: string;
+};
+
 function reassessmentAttemptCount(sourcePayloadJson: string): number {
   try {
     const parsed = JSON.parse(sourcePayloadJson) as { attemptCount?: unknown };
@@ -28925,6 +28933,10 @@ async function processObservationReassessment(observationId: string, env: Env): 
         LIMIT 1`
     ).bind(observationId).first<ObservationAiAssetRow>();
     if (!asset) throw new Error("ai_photo_missing");
+    const record = await env.OBS_DB.prepare(
+      "SELECT owner_user_id FROM observations WHERE observation_id = ?"
+    ).bind(observationId).first<ObservationAiRecordRow>();
+    if (!record) throw new Error("ai_record_missing");
 
     const image = await observationAiImageInput(asset, env);
     const attemptCount = reassessmentAttemptCount(request.source_payload_json) + 1;
@@ -28934,24 +28946,41 @@ async function processObservationReassessment(observationId: string, env: Env): 
       question: observationAiQuestion(),
       reasoning: false,
       temperature: 0.1,
-      max_tokens: 700,
+      max_tokens: 1200,
       stream: false,
     });
     const candidate = parseObservationAiCandidate(workersAiAnswer(rawResponse));
+    const subjects = observationAiSubjects(candidate);
     const occurrenceId = `occ:${observationId}:0`;
     const aiRunId = newId("cf_ai_run");
     const candidateName = candidate.vernacularName ?? candidate.scientificName;
     const candidateId = candidateName ? newId("cf_ai_candidate") : null;
-    const assessmentStatus = candidate.nonBiological ? "completed_no_candidate" : "ai_judgement";
+    const assessmentStatus = subjects.length === 0 ? "completed_no_candidate" : "ai_judgement";
     const assessmentPayload = {
       source: "cloudflare_workers_ai_observation_reassessment",
       model: OBSERVATION_VISION_MODEL,
+      promptVersion: OBSERVATION_AI_PROMPT_VERSION,
+      ruleVersion: OBSERVATION_AI_RULE_VERSION,
       assetId: asset.asset_id,
       candidate,
+      subjectCount: subjects.length,
       humanReviewRequired: true,
       completedAt: new Date().toISOString(),
     };
-    await env.OBS_DB.batch([
+    const dualWritePlan = await buildObservationAiDualWritePlan({
+      recordId: observationId,
+      ownerUserId: record.owner_user_id,
+      mediaId: asset.asset_id,
+      legacyOccurrenceId: occurrenceId,
+      requestId: request.request_id,
+      aiRunId,
+      candidate,
+    });
+    const dualWriteStatements = dualWritePlan.mutations.map((mutation) =>
+      env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)
+    );
+    const targetObservationIds = dualWritePlan.observationIds;
+    const statements: D1PreparedStatement[] = [
       env.OBS_DB.prepare(
         `INSERT INTO observation_ai_review_targets (
            occurrence_id, ai_assessment_status, scientific_name, vernacular_name, taxon_rank,
@@ -28982,6 +29011,7 @@ async function processObservationReassessment(observationId: string, env: Env): 
         candidate.rank,
         JSON.stringify(assessmentPayload),
       ),
+      ...dualWriteStatements,
       env.OBS_DB.prepare(
         `UPDATE observation_reassessment_requests
             SET request_state = 'completed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
@@ -28994,12 +29024,16 @@ async function processObservationReassessment(observationId: string, env: Env): 
           attemptCount,
           aiRunId,
           model: OBSERVATION_VISION_MODEL,
+          promptVersion: OBSERVATION_AI_PROMPT_VERSION,
+          ruleVersion: OBSERVATION_AI_RULE_VERSION,
+          provisionalObservationIds: targetObservationIds,
           completedAt: new Date().toISOString(),
         }),
         request.request_id,
         request.source_payload_json,
       ),
-    ]);
+    ];
+    await env.OBS_DB.batch(statements);
   } catch (error) {
     const errorCode = error instanceof Error ? error.message.slice(0, 160) : "ai_reassessment_failed";
     await env.OBS_DB.prepare(
