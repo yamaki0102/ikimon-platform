@@ -8809,6 +8809,7 @@ test("owner map observations route is native, guest-safe, and owner-scoped", asy
   const { env, obs } = createEnv();
   const guest = await worker.fetch(new Request("https://shadow.test/api/v1/map/my-observations?limit=48"), env);
   assert.equal(guest.ok, true);
+  assert.equal(guest.headers.get("cache-control"), "private, no-store");
   assert.deepEqual(await guest.json(), { signedIn: false, items: [], clusters: [] });
 
   await post("/api/v1/observations/upsert", env, {
@@ -8884,6 +8885,7 @@ test("owner map observations route is native, guest-safe, and owner-scoped", asy
   const payload = await response.json() as any;
 
   assert.equal(response.ok, true);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
   assert.equal(payload.signedIn, true);
   assert.equal(payload.items.length, 3);
   assert.equal(payload.clusters.length, 1);
@@ -9118,10 +9120,23 @@ test("public observation detail route exposes a safe read page and JSON without 
     note: "public detail note",
     taxon: { vernacularName: "詳細テスト植物", rank: "species" }
   });
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-detail-related",
+    userId: "related-user",
+    observedAt: "2026-06-15T04:00:00.000Z",
+    latitude: 34.71298,
+    longitude: 137.81298,
+    taxon: { vernacularName: "関連テスト植物", rank: "species" }
+  });
   await post("/api/v1/observations/visit-detail-contract/photos/upload", env, {
     filename: "detail.jpg",
     mimeType: "image/jpeg",
     base64Data: Buffer.from("detail-image").toString("base64")
+  });
+  await post("/api/v1/observations/visit-detail-related/photos/upload", env, {
+    filename: "related.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("related-image").toString("base64")
   });
   await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
   env.OBS_DB.assets.set("asset-detail-contract-real-derivative", {
@@ -9165,8 +9180,10 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(jsonPayload.observation.visitId, "visit-detail-contract");
   assert.equal(jsonPayload.observation.occurrenceId, "occ:visit-detail-contract:0");
   assert.equal(jsonPayload.observation.displayName, "詳細テスト植物");
-  assert.equal(jsonPayload.observation.publicLocation.cellId, "cell:34.71,137.81");
+  assert.deepEqual(jsonPayload.observation.publicLocation, { label: "位置をぼかしています" });
+  assert.equal(jsonResponse.headers.get("cache-control"), "no-store");
   assert.equal(jsonPayload.observation.privacy.exactLocationExposed, false);
+  assert.equal(jsonPayload.observation.relatedObservations.length, 1);
   assert.ok(jsonPayload.observation.photoAssets.length >= 1);
   const regionPhotoAsset = jsonPayload.observation.photoAssets.find((asset: any) =>
     /asset-detail-contract-real-derivative\/display\.webp$/.test(String(asset.url ?? ""))
@@ -9177,7 +9194,7 @@ test("public observation detail route exposes a safe read page and JSON without 
     Object.fromEntries(Object.entries(regionPhotoAsset.regions[0].rect).map(([key, value]) => [key, Number((value as number).toFixed(2))])),
     { x: 0.12, y: 0.18, width: 0.44, height: 0.31 }
   );
-  assert.doesNotMatch(JSON.stringify(jsonPayload), /ownerUserId|observerUserId|observerName|profile|34\.71234|137\.81234/);
+  assert.doesNotMatch(JSON.stringify(jsonPayload), /ownerUserId|observerUserId|observerName|profile|publicCell|cellId|34\.71|137\.81/);
 
   const localizedJsonResponse = await worker.fetch(new Request("https://shadow.test/ja/api/v1/observations/visit-detail-contract/public-detail"), env);
   const localizedJsonPayload = await localizedJsonResponse.json() as any;
@@ -9193,6 +9210,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   const pageResponse = await worker.fetch(new Request("https://shadow.test/observations/visit-detail-contract"), env);
   const pageHtml = await pageResponse.text();
   assert.equal(pageResponse.ok, true, pageHtml);
+  assert.equal(pageResponse.headers.get("cache-control"), "no-store");
   assert.doesNotMatch(pageHtml, /data-observation-processing-status/);
   assert.match(pageHtml, /data-cloudflare-observation-detail="1"/);
   assert.match(pageHtml, /data-observation-visibility="public"/);
@@ -9239,6 +9257,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /詳細テスト植物/);
   assert.match(pageHtml, /位置ぼかし/);
   assert.doesNotMatch(pageHtml, /cell:34\.71,137\.81|公開セル|セル単位/);
+  assert.doesNotMatch(pageHtml, /[?&](?:cell|cell_id)=|cell%3A|34\.71|137\.81/);
   assert.doesNotMatch(pageHtml, /class="[^"]*obs-hero-video-frame|class="[^"]*obs-video-evidence-frame|この映像で読む対象を切り替える/);
   assert.doesNotMatch(pageHtml, /画像解析|検出しました|音声を解析/);
   assert.doesNotMatch(pageHtml, /IDENTIFICATION|OBSERVATION QUALITY|記録の質を育てる/);
@@ -9259,6 +9278,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(ownerPageHtml, /data-observation-processing-status/);
   assert.match(ownerPageHtml, /この記録の状態/);
   assert.match(ownerPageHtml, /写真と記録は保存されています。AI確認は現在利用できません。/);
+  assert.doesNotMatch(ownerPageHtml, /[?&](?:cell|cell_id)=|cell%3A|34\.71|137\.81/);
 
   const ownerStatusResponse = await worker.fetch(new Request(
     "https://shadow.test/api/v1/observations/visit-detail-contract/processing-status",
@@ -9316,6 +9336,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(candidatePayload.observation.isAwaitingId, true);
   assert.equal(candidatePayload.observation.displayName, "ツバキ属");
   assert.equal(candidatePayload.observation.aiCandidateLabel, "ツバキ属");
+  assert.doesNotMatch(JSON.stringify(candidatePayload), /publicCell|cellId|34\.71|137\.81/);
   const candidatePage = await worker.fetch(new Request("https://shadow.test/observations/visit-detail-contract"), env);
   const candidateHtml = await candidatePage.text();
   assert.match(candidateHtml, /<span>AI候補<\/span><strong>ツバキ属<\/strong>/);
@@ -9348,7 +9369,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.doesNotMatch(privateOwnerHtml, /<span>公開記録<\/span>|<strong>公開中<\/strong>/);
   assert.match(privateOwnerHtml, /1枚保存・0枚表示/);
   assert.match(privateOwnerHtml, /現在利用不可/);
-  assert.doesNotMatch(privateOwnerHtml, /34\.71234|137\.81234|ownerUserId/);
+  assert.doesNotMatch(privateOwnerHtml, /publicCell|cellId|cell%3A|34\.71|137\.81|ownerUserId/);
 
   const privateGuestResponse = await worker.fetch(new Request("https://shadow.test/observations/visit-private-detail-contract"), env);
   assert.equal(privateGuestResponse.status, 404);
