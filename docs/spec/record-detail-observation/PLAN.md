@@ -16,7 +16,7 @@ active PR、現在フェーズ、blocker、deploy状態は`yamaki0102/all-projec
 - current write paths
 - current record detail read paths
 - multi-subject、coexisting taxa、visual rescueの既存実装
-- community identificationとreviewer state
+- community identificationとcurator state
 - public location protection surfaces
 - environment assessmentとmonitoringの既存境界
 - PostgreSQL / D1 / materialized read modelの現行責務
@@ -56,23 +56,49 @@ Exit:
 - target contractとのconflictが分類済み
 - migrationとrollback対象が確定
 
+### PR0 — Common public location protection
+
+Scope:
+
+- record / observation detail、feed、search、map、API、OGP、JSON-LD、cache、media metadata、monitoring/exportの位置情報surface inventory
+- public responseからcoordinates、cell、mesh、geohash、private geometry、exact place locatorを除去する共通policy
+- owner exact-location responseをauthenticated private `no-store` laneへ限定
+- rare/sensitive species、home、school、minors、private landの回帰test
+
+Rules:
+
+- observation migrationと独立に先行できる
+- UIだけを隠してAPI、HTML attribute、structured data、cache、URLへ残さない
+- public display policyとresearch export policyを混同しない
+
+Exit:
+
+- protected exact location leakage = 0 on the enumerated public surfaces
+- owner-only exact path has authentication, authorization and cache-control tests
+
 ### PR-B — Expand schema
 
 Additive only:
 
-- observations
-- observation-media link
-- identification provenance / state
-- occurrence projection provenance / version
-- environment assessment boundary
-- audit / idempotency fields
+- `record_observations`
+- `record_observation_policies`
+- `record_observation_source_map`
+- `record_observation_media`
+- `observation_ai_suggestions`
+- `observation_identification_claims`
+- `observation_lifecycle_events`
+- `occurrence_projection_versions`
+- `environment_assessments`
+- `environment_assessment_media`
+- `record_observation_consistency_ledger`
+- `identification_queue_entries`
 
 Rules:
 
 - existing columns / tablesを削除・renameしない
 - current readers / writersを壊さない
 - migrationはfresh DB、backup restore、stagingで検証してからremote apply候補にする
-- production migrationは別承認
+- production migrationはroutine deployと分離した固定名command/profileで、承認済みexact SHAにだけ適用する
 
 Exit:
 
@@ -97,12 +123,12 @@ Rules:
 - user saveはAI完了を待たない
 - AI failureはrecord save failureにしない
 - replayで重複observationを増やさない
-- AIだけでconfirmed / accepted / active occurrenceへ遷移しない
+- AIだけでhuman_asserted / accepted / verified / active occurrenceへ遷移しない
 
 Exit:
 
 - exact input replayがidempotent
-- AI-created records are always provisional
+- AI-created observations are always `ai / provisional / unreviewed / active / personal_only`
 - old write path remains compatible
 
 ### PR-D — Backfill
@@ -116,7 +142,7 @@ Scope:
 
 Rules:
 
-- 曖昧なsubject境界を推測でconfirmed化しない
+- 曖昧なsubject境界を推測でhuman_asserted化しない
 - destructive rewriteをしない
 - batch cursor、resume、checksum、dry-run、diff reportを持つ
 
@@ -162,13 +188,17 @@ Scope:
 - media reassignment
 - AI provisional state
 - community identification without recruitment action
+- record-level proposal policy for public / limited / private
+- community-added provisional subjects
+- automatically ranked identification queue
 - pet / unknown / group presentation
 
 Rules:
 
-- 「みんなに聞く」は追加しない
+- 「みんなに聞く」「名前の提案を募集中」「人の確認待ち」「みんなの確認はまだありません」「確認0件」および同義の募集状態は追加しない
+- 提案0件の専用empty stateを表示しない
 - AIをcommunity票に含めない
-- human / AI / reviewer provenanceを混同しない
+- owner / AI / community / curator provenanceを混同しない
 - no-JS / accessibility / mobile statesを確認
 
 Exit:
@@ -176,13 +206,16 @@ Exit:
 - 0 / 1 / N observationsのUIが成立
 - user can correct AI split / merge
 - public community identification works by policy
+- public/limited default ON、private owner-only、record-level OFFがAPIとUIで一致する
+- community-added subject remains provisional and creates no occurrence
+- queue ordering is independent from proposal recruitment state
 - accessibility and visual QA pass
 
 ### PR-G — Occurrence projection and research gate
 
 Scope:
 
-- confirmed observation + accepted identificationからoccurrence projection
+- human_asserted observation + accepted identificationからoccurrence projection
 - active / inactive projection
 - projection version / provenance
 - rights / evidence / privacy / quality gates
@@ -204,6 +237,7 @@ Scope:
 - monitoring series aggregation contract
 - suppression, consent, missing data, provenance
 - public area / monitoring location protection
+- `monitoring_projection_versions`による再生成可能な集約version
 
 Exit:
 
@@ -225,6 +259,7 @@ Rules:
 - source data and audit history are retained
 - contract cleanup does not combine unrelated legacy removal
 - deletion / destructive migration requires separate approval
+- contract開始条件は14日間の安定観測、代表100 records以上のold/new比較、unexplained P0/P1差分0、位置漏洩0
 
 Exit:
 
@@ -265,6 +300,12 @@ Exit:
 - group with estimated count
 - unknown individual
 - community identification without recruitment
+- public / limited / private / proposal-policy-OFF permission matrix
+- community adds another visible subject without creating an occurrence
+- owner accept / reject / alternative-name decision
+- owner/community conflict becomes disputed and deactivates projection
+- consensus excludes AI/system, deduplicates latest claim per actor, and requires 2 supporters plus 2/3 support
+- identification queue order remains independent from recruitment operations
 - AI vote excluded
 - accepted identification change
 - occurrence projection activate / deactivate
@@ -297,7 +338,7 @@ At minimum:
 - desktop
 - wide desktop
 
-Cover loading, AI processing, provisional, confirmed, multiple observations, community activity, environment assessment, error and empty states.
+Cover loading, AI processing, provisional, human_asserted, disputed, multiple observations, community activity, environment assessment, error and empty states.
 
 ## 6. Observability
 
@@ -306,7 +347,7 @@ Track at least:
 - records saved
 - AI jobs queued / succeeded / failed / replayed
 - provisional observations created
-- human-confirmed / excluded observations
+- human-asserted / excluded observations
 - split / merge corrections
 - identification source distribution
 - active occurrence projections
@@ -317,7 +358,24 @@ Track at least:
 
 Metrics must not expose secret, private exact location, or customer-specific data.
 
-## 7. Rollback
+## 7. API migration contract
+
+Additive observation-first endpoints:
+
+- `GET /api/v1/records/:recordId/observations`
+- `POST /api/v1/records/:recordId/observations`
+- `PATCH /api/v1/records/:recordId/identification-policy`
+- `GET /api/v1/record-observations/:observationId`
+- `PATCH /api/v1/record-observations/:observationId`
+- `POST /api/v1/record-observations/:observationId/identifications`
+- `POST /api/v1/record-observations/:observationId/owner-decision`
+- `PUT /api/v1/record-observations/:observationId/evidence`
+- split / merge endpoints under `/api/v1/record-observations/:observationId`
+- `GET /api/v1/identification-queue`
+
+既存のoccurrence-compatible `/api/v1/observations/:id/*`はcutover gate完了まで維持します。public responseへexact location、coordinate-derived ID、cell、mesh、geohashを含めません。
+
+## 8. Rollback
 
 Before cutover:
 
@@ -334,14 +392,14 @@ After cutover:
 
 DB direct edits and ad-hoc reverse migration are prohibited.
 
-## 8. Stop conditions
+## 9. Stop conditions
 
 Stop the affected phase when:
 
 - current source / schema cannot be verified
 - dirty or conflicting migration lane cannot be isolated
 - old/new data differences include unexplained P0 / P1
-- AI-created data is promoted beyond provisional
+- AI-created data is promoted beyond provisional or counted as a community vote
 - location protection differs by public surface
 - rights / consent provenance is missing
 - rollback cannot preserve source records
@@ -349,7 +407,7 @@ Stop the affected phase when:
 
 Other independent doc or test work may continue.
 
-## 9. Completion
+## 10. Completion
 
 The program is complete only when:
 
@@ -357,7 +415,7 @@ The program is complete only when:
 - record supports 0..N observations
 - observation-media is many-to-many
 - AI provisional creation is idempotent and editable
-- human provenance gates confirmed / accepted / active occurrence
+- human provenance gates human_asserted / accepted / active occurrence
 - community identification is always policy-driven, not recruitment-driven
 - AI is not counted as a community vote
 - environment assessment and monitoring are distinct

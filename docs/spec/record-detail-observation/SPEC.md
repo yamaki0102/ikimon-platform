@@ -15,7 +15,7 @@
 - site / place monitoring
 - 公開位置保護
 
-物理テーブル名、API path、UI copyは実装PRで確定できますが、意味論と昇格境界は本仕様に従います。
+物理テーブル名、API path、状態語彙、権限、昇格境界は本仕様を正本とします。実装PRは意味を変更せず、この契約を段階的に実装します。
 
 ## 2. Entity contract
 
@@ -66,8 +66,12 @@
 
 - observation ID
 - record ID
-- origin: `user | ai | import | system`
-- lifecycle: `provisional | confirmed | excluded`
+- origin: `owner | ai | community | import | system`
+- assertion status: `provisional | human_asserted`
+- verification status: `unreviewed | owner_confirmed | community_review | disputed | verified`
+- lifecycle status: `active | excluded | superseded`
+- data use scope: `personal_only | community_observation | research_export`
+- accepted identification ID（nullable）
 - subject type: `organism | group | trace | sound | unknown_subject`
 - individual certainty: `individual | group | unknown`
 - captive / cultivated / pet等のcontext
@@ -75,9 +79,28 @@
 - provenance
 - created_at / reviewed_at
 
-AIは`provisional` observationを自動作成できます。
+AIは表示基準を満たす対象ごとに、次の初期状態でobservationを自動作成できます。
 
-AI単独では`confirmed`へ昇格できません。昇格には投稿者確認、community合意、reviewer判断等、AI以外の有効なhuman provenanceが必要です。
+```text
+origin = ai
+assertion_status = provisional
+verification_status = unreviewed
+lifecycle_status = active
+accepted_identification_id = null
+data_use_scope = personal_only
+```
+
+communityが別対象を追加する場合は、次の初期状態です。
+
+```text
+origin = community
+assertion_status = provisional
+verification_status = community_review
+lifecycle_status = active
+accepted_identification_id = null
+```
+
+AI単独では`human_asserted`へ昇格できません。昇格には投稿者の対象確認・名前選択、community consensus、curator確認のいずれかと、監査可能なhuman provenanceが必要です。
 
 ### 2.4 Identification
 
@@ -85,26 +108,38 @@ AI単独では`confirmed`へ昇格できません。昇格には投稿者確認�
 
 - 1 observationへ0..N件
 - taxonだけでなく`unknown`、粗い分類、ペット等のcontextを許容
-- source: `submitter | community_member | reviewer | ai`
+- source: `owner | community_member | curator | import`
 - status: `candidate | accepted | rejected | withdrawn`
 - confidenceと根拠を持てる
 
-AI identificationは候補として保存できますが、AIだけでは`accepted`にしません。
+AIの候補名、confidence、根拠、モデル・prompt・rule・input provenanceはhuman claimと混ぜず、`ai_suggestion`として保存します。AIだけでは`accepted`にしません。
 
 accepted identificationはobservationごとに最大1つをactiveとし、変更履歴と過去候補を消しません。
 
 ### 2.5 Community identification
 
-公開recordのobservationは、投稿者が募集操作をしなくてもcommunity同定の対象です。
+提案可否はrecord visibility、共有関係、record単位の受付policyから共通evaluatorで決定します。
 
-- 「みんなに聞く」ボタンや募集状態を実装しない
-- public visibilityとparticipation policyから同定可否を決める
-- 投稿者が明示募集しなかったことをcommunity参加拒否と解釈しない
+- `public`: 受付ONなら、ログイン利用者が公開中のprovisional observationへ名前を提案し、写っている別対象を追加できる
+- `limited`: 受付ONなら、共有対象のログイン利用者だけが名前・対象を提案できる
+- `private`: 投稿者本人だけが編集・提案できる
+- publicとlimitedの既定値は受付ONとする
+- 投稿者はrecord単位で「他の人からの名前の提案を受け付ける」をOFFにできる
+- 受付OFFでも投稿者本人の編集・提案は妨げない
+- communityによる別対象追加はprovisional observationを作り、直接occurrenceを生成しない
 - AIの推論・候補・confidenceをcommunity票数へ含めない
-- 投票、reviewer判断、投稿者判断を区別してprovenanceを保持する
+- AI suggestion、投稿者判断、community claim、curator判断を区別してprovenanceを保持する
 - 荒らし、組織票、低品質連投へのtrust / rate / moderation contractを別途適用する
 
-### 2.6 Occurrence
+community consensusは、actorごとの最新human proposalだけを数え、AI・systemを除外します。最低2人の独立supporter、2/3以上の支持、未解決disputeなし、taxon/GBIF精度上限を満たす場合にだけ昇格根拠になれます。
+
+提案が0件の場合は専用の空状態を表示しません。「みんなに聞く」「名前の提案を募集中」「人の確認待ち」「みんなの確認はまだありません」「確認0件」、および同義の募集状態・badge・通知は仕様・UI・API状態から除外します。
+
+### 2.6 Identification queue
+
+同定キューへの掲載と優先順位は投稿者の募集操作に依存させません。accepted identificationの欠如、提案対立、経過時間、証拠mediaの品質・枚数、分類群と同定者の専門性、地域・季節、希少種・外来種等の確認価値、既存合意の十分性からsystemが自動算出します。
+
+### 2.7 Occurrence
 
 `occurrence`はobservationから生成される科学データ用の派生投影です。
 
@@ -112,7 +147,7 @@ accepted identificationはobservationごとに最大1つをactiveとし、変更
 
 active occurrenceの最小条件:
 
-- source observationが`confirmed`
+- source observationが`human_asserted`
 - accepted identificationが存在する、または科学的に許容されたcoarse / unknown contractを満たす
 - location / time / rights / privacy / quality gateが評価済み
 - AI以外のhuman provenanceが存在する
@@ -124,7 +159,7 @@ provisional observationが存在しても、active occurrence、GBIF候補、研
 
 occurrenceは再生成可能なprojectionとし、source observation、accepted identification、privacy rule version、quality rule version、projection versionを追跡します。
 
-### 2.7 Research-use projection
+### 2.8 Research-use projection
 
 研究、GBIF、TNFD等の外部利用はactive occurrenceよりさらに厳しいgateを持てます。
 
@@ -137,10 +172,11 @@ occurrenceは再生成可能なprojectionとし、source observation、accepted 
 - accepted identification quality
 - export policy
 - revocation / correction path
+- source observationの`data_use_scope = research_export`
 
 「publicページに表示できる」と「研究利用できる」を同一視しません。
 
-### 2.8 Environment assessment
+### 2.9 Environment assessment
 
 `environment assessment`は写真、音、時刻、場所、気象・地形等から得る推定・観測値です。
 
@@ -150,7 +186,7 @@ occurrenceは再生成可能なprojectionとし、source observation、accepted 
 - 生息環境、植生、水辺、人工物、天候等の候補を保持できる
 - AI結果はprovisional assessmentであり、siteの長期状態を直接上書きしない
 
-### 2.9 Monitoring
+### 2.10 Monitoring
 
 `monitoring`はsite、place、field、project等を対象とする継続時系列です。
 
@@ -165,7 +201,8 @@ occurrenceは再生成可能なprojectionとし、source observation、accepted 
 record 1 ── 1..N media
 record 1 ── 0..N observation
 observation N ── N media
-observation 1 ── 0..N identification
+observation 1 ── 0..N AI suggestion
+observation 1 ── 0..N human identification claim
 observation 1 ── 0..N occurrence projection versions
 observation 1 ── 0..1 active occurrence
 record / media / place 1 ── 0..N environment assessment
@@ -213,7 +250,7 @@ AIのmerge / split判断は履歴を残し、人が訂正可能にします。
 
 AI job成功は次の成功を意味しません。
 
-- confirmed observation
+- human_asserted observation
 - accepted identification
 - active occurrence
 - research-use eligibility
@@ -238,6 +275,8 @@ AI job成功は次の成功を意味しません。
 - environment assessment
 - monitoringへの反映有無
 - privacy-safe location
+
+投稿者の操作は「この名前でよさそう」「違うと思う」「別の名前を選ぶ・提案する」とします。他の利用者には「名前を提案する」「写っている別の生きもの・植物を追加する」を表示します。AI、投稿者、community、curatorの情報を一つの票・状態として混ぜません。
 
 ### 5.1 Multiple observations
 
@@ -321,14 +360,19 @@ expand
 - `cutover`: gateを満たしたread / write単位だけ切替
 - `contract`: rollback windowと監査完了後に旧責務を縮小
 
+contract cleanupは、少なくとも14日間の安定観測と代表100 records以上のold/new比較がgreenになった後だけ開始します。source data、履歴、監査証跡は削除しません。
+
 ## 9. Acceptance criteria
 
 - 1 recordへ0..N observationsを保存・表示できる
 - observationとmediaの多対多が往復可能
 - AIは保存後に非同期実行される
 - AIがprovisional observationを作成できる
-- AIだけではconfirmed / accepted / active occurrence / research-useへ昇格しない
+- AIだけではhuman_asserted / accepted / verified / active occurrence / research-useへ昇格しない
 - community同定は募集操作なしで機能する
+- public / limited / privateと受付OFFの権限境界が一つのpolicy evaluatorで一致する
+- communityは別対象をprovisional observationとして追加でき、occurrenceを直接生成しない
+- 同定キューの掲載・順位は募集操作に依存しない
 - AIがcommunity vote countへ入らない
 - pet、unknown individual、groupを表現できる
 - environment assessmentとmonitoringが別状態として確認できる
@@ -341,6 +385,7 @@ expand
 - 本仕様だけでDB schemaやAPI名を即時固定すること
 - AIを最終reviewerにすること
 - community募集ボタンを追加すること
+- 募集状態、募集badge、0件のcommunity空状態を追加すること
 - public visibilityを研究利用同意として扱うこと
 - 既存dataを曖昧なまま自動確定すること
 - AI環境推定をsite monitoringへ直接上書きすること

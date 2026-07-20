@@ -29,23 +29,29 @@
 
 採用する契約:
 
-> AIはprovisional observationを作成できる。ただしAIだけでは確定観察・accepted identification・active occurrence・研究利用可能データに昇格させない。
+> AIは`origin=ai / assertion_status=provisional / verification_status=unreviewed / lifecycle_status=active / accepted_identification_id=null / data_use_scope=personal_only`のobservationを作成できる。ただしAIだけでは`human_asserted`、accepted identification、verified、active occurrence、community/research利用可能データに昇格させない。
 
-AIが作ったobservationにはorigin、model / prompt / rule version、input media、subject locator、confidenceを保持します。
+AI候補はhuman identification claimと混ぜず`ai_suggestion`に保存し、model / prompt / rule version、input media、subject locator、confidence、根拠を保持します。
 
 ### 4. Occurrenceを科学データ用projectionにする
 
-occurrenceはobservationそのものではなく、confirmed observation、accepted identification、rights、privacy、quality gateから生成される派生投影とします。
+occurrenceはobservationそのものではなく、human-asserted observation、accepted identification、rights、privacy、quality gateから生成される派生投影とします。
 
 sourceが変われば再生成でき、projection versionとprovenanceを追跡します。
 
 ### 5. Community identificationを募集操作から分離する
 
-public recordは、投稿者が「みんなに聞く」操作をしなくてもcommunity同定可能です。
+community同定は募集状態ではなくvisibility、共有関係、record単位の受付policyから決めます。
 
-- 募集ボタンを実装しない
+- publicは受付ONならログイン利用者、limitedは受付ONなら共有対象者、privateは投稿者本人だけが提案できる
+- publicとlimitedの既定値は受付ONとし、投稿者はrecord単位でOFFにできる
+- communityは別対象を`origin=community / provisional / community_review`として追加できるが、直接occurrenceを作らない
+- 募集ボタン、募集状態、募集badge、提案0件の空状態を実装しない
 - AIをcommunity票へ含めない
-- AI候補、投稿者判断、community票、reviewer判断を別sourceとして保持する
+- AI候補、投稿者判断、community claim、curator判断を別sourceとして保持する
+- consensusはactorごとの最新human proposal、独立supporter 2人以上、2/3以上、未解決disputeなし、taxon精度上限を条件にする
+- ownerとcommunityが対立する場合は`disputed`とし、active occurrence projectionを止める
+- 同定キューは募集操作ではなく、未同定、経過時間、対立、証拠品質、専門性、地域・季節、希少/外来価値、合意十分性から自動算出する
 
 ### 6. Environment assessmentとmonitoringを分離する
 
