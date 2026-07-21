@@ -8597,7 +8597,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (list) {
         if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return;
         state.recordsRecoveryAttempts = 0;
-        state.records = ((list && list.items) || []).filter(isRenderableMapRecord);
+        var selectedAggregateCellId = scope && scope.cellId && list && list.stats && list.stats.selectedCellId === scope.cellId
+          ? scope.cellId
+          : null;
+        state.records = ((list && list.items) || []).map(function (record) {
+          if (!record || !selectedAggregateCellId) return record;
+          return Object.assign({}, record, { cellId: selectedAggregateCellId });
+        }).filter(isRenderableMapRecord);
         state.lastStats = (list && list.stats) || null;
         if (state.selectedOccurrenceId) {
           var selectedRecord = getSelectedRecord();

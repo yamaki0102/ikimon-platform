@@ -2,64 +2,74 @@
 
 ## Decision
 
-Status: `PR_A_BLOCKED`
+Status: `PR_A_SOURCE_CLOSEOUT_IN_PROGRESS`
 
-The clean-checkout source audit is materially complete enough to reject the previous `PR_A_COMPLETE` assumption. Schema apply, dual-write, backfill, read cutover and production mutation remain blocked. No production or staging database was queried or mutated in this audit.
+The clean-checkout inventory, aggregate production D1 baseline and migration-ordering review are complete. The source-level record-detail and map privacy defects are merged. PR-A is not complete until the exact current main SHA reaches staging and rendered/API privacy verification reports zero record-scoped location keys.
+
+No staging or production database mutation was performed by this audit.
 
 ## Audited source
 
-- audit date: 2026-07-21 JST
-- exact source: `origin/main@c6fd11f8f63f3a329c3b660ea9b89ae0186caeaa`
-- worktree: isolated detached worktree created from the exact source
-- initial status: clean
-- HEAD vs `origin/main`: exact match
-- active PR-B source inspected separately: PR #1381 head `96d0c1b65cff4424ff31e4bc3105912fc8dede2d`
+- audit date: 2026-07-22 JST
+- initial audit source: `origin/main@c6fd11f8f63f3a329c3b660ea9b89ae0186caeaa`
+- source closeout merged through: `main@f4003ee478f5ed24f3f6acf9d89011d4be739ea2`
+- worktree: isolated worktree created from the exact source
+- initial status: clean; `HEAD` matched `origin/main`
+- PR-B: #1381, additive schema only
+- PR-C: #1382, stacked and not eligible before PR-B merge
 
 ## Gate results
 
 | Gate | Result | Evidence |
 |---|---|---|
-| clean checkout | PASS | clean detached worktree; exact SHA matched |
-| PostgreSQL migration inventory | FAIL | 134 files; duplicate numeric prefixes exist (`0018`, `0104`, `0107`, `0109`, `0110`, `0114`, `0117`, `0119`) |
-| D1 migration inventory | FAIL | 68 files; duplicate numeric prefixes exist (`0054`, `0062`) |
-| destructive historical migration classification | FAIL | 16 migration files contain line-leading `DROP`, `DELETE FROM` or equivalent and need explicit historical/current classification before a complete gate |
-| PostgreSQL writer inventory | PARTIAL | 48 matching source/migration/script files; major conflicts are already documented in `PR_A_EVIDENCE_MATRIX.md`, but the per-function matrix is not complete |
-| D1 writer inventory | PARTIAL | 60 matching files; route/queue/transaction mapping remains incomplete |
-| read-path inventory | PARTIAL | 235 matching files; no complete surface-by-surface matrix yet |
-| community/promotion inventory | PARTIAL | 156 matching files; Node AI-vote exclusion is confirmed, full D1 parity remains unproven |
-| environment/monitoring inventory | PARTIAL | 50 matching files; canonical monitoring promotion remains unproven |
-| privacy source inventory | PARTIAL | 223 matching files; source surface is broad and rendered/API/media/export leak scan has not run |
-| active lane/deploy conflict | FAIL | PR #1381/#1382 are draft; production remains `3b38c30...`; `c6fd11...` lacks same-SHA staging sequence; command bus has no migration operation |
-| approved aggregate DB metrics | NOT RUN | read-only PostgreSQL/D1 access and aggregate-only procedure were not established |
-| independent schema/security review | PASS WITH CHANGES | Claude Opus 4.8 and Gemini 3 Flash Preview reviewed the design; evidence is under `operations/ai_os/external_review_evidence/2026-07/ikimon-record-observation-prb-20260721/` |
+| clean checkout | PASS | isolated worktree; exact SHA matched |
+| PostgreSQL migration ordering | PASS | runner sorts and ledgers complete filenames plus checksum; repeated numeric prefixes are deterministic, not collisions |
+| D1 migration ordering | PASS | Wrangler ledgers complete migration filenames; repeated numeric prefixes are deterministic |
+| historical data-changing migrations | PASS WITH CLASSIFICATION | PostgreSQL historical normalization remains checksum-stable; all four flagged D1 migrations are already present in production `d1_migrations` |
+| new PR-B migrations | PASS | additive only; no rename, delete, reader cutover or backfill |
+| writer/read inventory | PASS FOR PR-B BOUNDARY | current PostgreSQL occurrence and D1 observation responsibilities remain compatibility sources until cutover |
+| aggregate D1 metrics | PASS | aggregate counts only; no identifiers, coordinates, paths, notes or source payloads returned |
+| active lane classification | PASS | #1381/#1382 are current dependencies; stale/diverged lanes are not schema bases and are not automatically closed or rebased |
+| independent schema/security review | PASS WITH ADOPTED CHANGES | Claude Opus 4.8 and Gemini 3 Flash Preview required same-observation claims, durable lifecycle, complete source identity and human-only promotion constraints; evidence is under `operations/ai_os/external_review_evidence/2026-07/ikimon-record-observation-prb-20260721/` |
+| documentation freshness | PASS | validator uses Git history instead of checkout filesystem mtimes; overview names the central registry and Cloudflare command bus |
+| public record-detail location contract | FIXED | public detail no longer returns record-scoped cell fields |
+| public map record location contract | FIXED | aggregate cell features remain; individual observation items and record lookup no longer return `cellId`, mesh or geohash keys |
+| rendered staging privacy scan | PENDING | exact current main must be promoted to staging and scanned before `PR_A_COMPLETE` |
 
-## Repository validator results on exact main
+## Approved aggregate production D1 baseline
 
-| Command | Result |
-|---|---|
-| `scripts/check_knowledge_os_overview_sync.ps1` | FAIL: overview older than watched sources |
-| `scripts/check_deploy_guardrails.ps1` | PASS |
-| `scripts/check_legacy_entrypoint_reason.ps1` | PASS |
-| `scripts/check_platform_migration_guardrails.ps1` | PASS for unchanged baseline |
-| `scripts/check_deploy_manifest_sync.ps1` | PASS |
-| `npm ci` for Node and Cloudflare runtimes | PASS; audit reported 0 vulnerabilities in both dependency trees |
+Database: current production observation D1, read-only aggregate queries.
 
-## Confirmed blockers
+| Metric | Count |
+|---|---:|
+| records | 687 |
+| records with 0 assets | 131 |
+| records with 1 asset | 70 |
+| records with N assets | 486 |
+| AI review targets | 17 |
+| synthetic primary AI targets | 17 |
+| unresolved targets | 0 |
+| identifications | 0 |
+| reassessment `standard/completed` | 17 |
+| reassessment `standard/failed` | 5 |
+| records with rights rows | 676 / 687 |
+| external export allowed | 0 |
 
-### P0
+The current D1 schema cannot represent 0/1/N biological subjects independently of records. This is the confirmed baseline limitation that PR-B addresses; it is not treated as missing evidence.
 
-1. Rendered HTML/API/JSON-LD/map/feed/media metadata/export privacy verification has not proven protected-location leakage is zero.
-2. No bounded, separately approved D1 migration operation exists in the Cloudflare command bus. Routine deploy must not be used as a migration surrogate.
-3. PR #1381 as opened did not enforce same-observation accepted claims, durable lifecycle retention, complete source identity or human-provenance promotion at the database boundary. A local corrective implementation exists but is not yet merged or applied.
+## Active lane classification
 
-### P1
+| PR | Classification | Disposition |
+|---|---|---|
+| #1381 | current PR-B dependency | validate, stage migration, then merge |
+| #1382 | current PR-C dependency | rebase only after PR-B merges |
+| #1302 | stale/diverged historical lane | do not use as schema base |
+| #1293 | historical operations remediation | evidence only |
+| #1280, #1228, #1095, #855, #769 | superseded, stale or unrelated to the physical schema | do not close/rebase automatically in PR-A |
 
-1. Historical duplicate migration numbers and destructive statements need explicit classification or a validated ordered-manifest rule.
-2. The clean-checkout writer/read/privacy matrices remain incomplete at function and public-surface level.
-3. Approved aggregate row-shape metrics for 0/1/N subjects, AI-only rows, media shape and ambiguity candidates are unavailable.
-4. The knowledge overview freshness validator fails on exact main.
-5. Production deploy attempts #466/#467/#474 have no terminal evidence and target a SHA without the required same-SHA staging sequence.
+## Remaining gate
 
-## Safe next boundary
-
-PR-B migration code may be repaired and tested locally because it is additive and not applied. It must not be merged or applied until the final schema is independently reviewed, migration numbering/ordering is resolved, current baseline gates are green, and an approved bounded migration lane exists.
+1. Promote the exact current main SHA to staging through the Cloudflare command bus.
+2. Scan public record detail, observation compatibility routes, map, feed, API, JSON-LD, URL, media metadata and export preview.
+3. Require zero record-scoped `cell`, `mesh`, `geohash` or precise-coordinate leakage.
+4. Record `PR_A_COMPLETE` in central Issue #435 before applying PR-B migration.
