@@ -22,7 +22,6 @@ type ProductionMapObservation = {
   localityLabel?: string;
   observedAt: string;
   photoUrl?: string | null;
-  cellId?: string | null;
   taxonGroup?: string | null;
 };
 
@@ -42,6 +41,7 @@ type ProductionMapCellFeature = {
 type ProductionPublicDataSnapshot = {
   observations: ProductionMapObservation[];
   cells: ProductionMapCellFeature[];
+  selectedCellId: string | null;
 };
 
 async function expectViewportScreenshotHealth(page: Page, viewport: typeof viewports[number]) {
@@ -74,13 +74,19 @@ async function fetchProductionJson<T>(path: string): Promise<T> {
 
 async function fetchProductionPublicData(): Promise<ProductionPublicDataSnapshot> {
   const params = `bbox=${encodeURIComponent(productionVisualBbox)}&zoom=12`;
-  const [observationsPayload, cellsPayload] = await Promise.all([
-    fetchProductionJson<{ items?: ProductionMapObservation[] }>(`/api/v1/map/observations?${params}`),
-    fetchProductionJson<{ features?: ProductionMapCellFeature[] }>(`/api/v1/map/cells?${params}`),
-  ]);
+  const cellsPayload = await fetchProductionJson<{ features?: ProductionMapCellFeature[] }>(`/api/v1/map/cells?${params}`);
+  const cells = cellsPayload.features ?? [];
+  const selectedCellId = cells.find((feature) => Boolean(feature.properties?.cellId))?.properties?.cellId ?? null;
+  const observationScope = selectedCellId
+    ? `cell_id=${encodeURIComponent(selectedCellId)}`
+    : params;
+  const observationsPayload = await fetchProductionJson<{ items?: ProductionMapObservation[] }>(
+    `/api/v1/map/observations?${observationScope}`,
+  );
   return {
     observations: (observationsPayload.items ?? []).filter((item) => Boolean(item.photoUrl)),
-    cells: cellsPayload.features ?? [],
+    cells,
+    selectedCellId,
   };
 }
 
@@ -96,14 +102,11 @@ function productionPhotoUrl(rawUrl: string | null | undefined): string | null {
 }
 
 function liveProductionSnapshot(data: ProductionPublicDataSnapshot): LandingSnapshot {
-  const cells = new Map(
-    data.cells
-      .map((feature) => feature.properties)
-      .filter((properties): properties is NonNullable<ProductionMapCellFeature["properties"]> => Boolean(properties?.cellId))
-      .map((properties) => [properties.cellId, properties]),
-  );
+  const selectedCell = data.cells
+    .map((feature) => feature.properties)
+    .find((properties) => properties?.cellId === data.selectedCellId);
   const feed = data.observations.slice(0, 30).map((item, index): LandingObservation => {
-    const cell = item.cellId ? cells.get(item.cellId) : undefined;
+    const cell = selectedCell;
     const label = item.localityLabel ?? cell?.localityLabel ?? cell?.label ?? "公開エリア";
     return {
       occurrenceId: item.occurrenceId,
@@ -117,7 +120,7 @@ function liveProductionSnapshot(data: ProductionPublicDataSnapshot): LandingSnap
       publicLocation: {
         label,
         scope: cell?.scope ?? "municipality",
-        cellId: item.cellId ?? cell?.cellId ?? `production-live-${index}`,
+        cellId: cell?.cellId ?? `production-live-${index}`,
         gridM: cell?.gridM ?? 3000,
         radiusM: cell?.radiusM ?? 2121,
         centroidLat: cell?.centroidLat ?? null,
