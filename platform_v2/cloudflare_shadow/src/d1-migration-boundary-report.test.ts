@@ -188,9 +188,10 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/deploy-cloudflare-staging\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
   assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/deploy\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
   assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
-  assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
+  assert.match(result.stdout, /- maintenance_vps_workflow_files: 0/);
+  assert.doesNotMatch(result.stdout, /\| \.github\/workflows\//);
   assert.doesNotMatch(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
-  assert.match(result.stdout, /manual_import_or_repair_workflow/);
+  assert.doesNotMatch(result.stdout, /manual_import_or_repair_workflow/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
 });
 

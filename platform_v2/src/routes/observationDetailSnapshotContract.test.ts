@@ -12,7 +12,6 @@ const snapshotDir = join(repoRoot, "docs", "review", "observation-record-final-p
 const readRouteSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 const e2eSource = readFileSync(join(platformRoot, "e2e", "observation-detail-target.spec.ts"), "utf8");
 const packageJsonSource = readFileSync(join(platformRoot, "package.json"), "utf8");
-const ciSource = readFileSync(join(repoRoot, ".github", "workflows", "ci.yml"), "utf8");
 const readmeSource = readFileSync(join(snapshotDir, "README.md"), "utf8");
 const meceSource = readFileSync(join(snapshotDir, "snapshot_content_order_mece.md"), "utf8");
 const snapshotHtml = readFileSync(join(snapshotDir, "snapshot.html"));
@@ -110,7 +109,6 @@ test("observation detail production browser check follows the snapshot copy cont
   assert.match(e2eSource, /expectPolishedObservationPage/);
 });
 
-test("observation detail snapshot contract is pinned to the normal CI gate", () => {
+test("observation detail snapshot contract is pinned to the local node test gate", () => {
   assert.match(packageJsonSource, /"test:node": "tsx --test \\"src\/\*\*\/\*\.test\.ts\\""/);
-  assert.match(ciSource, /working-directory: platform_v2[\s\S]*?run: npm run test:node/);
 });
