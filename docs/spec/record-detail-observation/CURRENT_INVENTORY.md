@@ -522,13 +522,13 @@ Explicit exclusions from PR-B:
 - [x] reusable multi-subject and environment capability documented
 - [x] rights/governance/monitoring package foundations documented
 - [x] preliminary mapping, conflict/reuse matrix, and baseline query templates documented
-- [ ] complete writer inventory from clean checkout
-- [ ] complete read-path matrix from clean checkout
-- [ ] complete D1 migration inventory
+- [x] complete writer inventory from clean checkout
+- [x] complete read-path matrix from clean checkout
+- [x] complete D1 migration inventory
 - [ ] complete privacy surface matrix
-- [ ] complete environment/monitoring call graph
-- [ ] record active PR/migration/worktree conflicts
-- [ ] run documentation/link/secret/local-path checks
-- [ ] independent review of PR-B boundary
+- [x] complete environment/monitoring call graph
+- [x] record active PR/migration/worktree conflicts
+- [x] run documentation/link/secret/local-path checks
+- [x] independent review of PR-B boundary
 
-Until the unchecked items are complete, PR-A remains active and PR-B remains design-only.
+Until the exact-SHA staging privacy surface matrix is complete, PR-A remains active and PR-B must not be applied or merged.

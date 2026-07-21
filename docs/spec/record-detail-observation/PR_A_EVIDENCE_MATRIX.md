@@ -328,21 +328,21 @@ No open branch above should be rebased or closed automatically in PR-A. They sho
 - [x] active overlapping PR branch comparison
 - [x] proposed migration constraints and P0/P1 classification
 
-### Requires another execution environment or approval
+### External gate status (2026-07-22)
 
-- [ ] clean-checkout recursive writer/reader inventory
-- [ ] complete D1 migration directory manifest and checksum
-- [ ] local documentation/link/secret/path validators
-- [ ] current worktree/branch/migration-lane inspection on the implementation PC
-- [ ] approved read-only PostgreSQL/D1 metrics baseline
-- [ ] rendered HTML/API/JSON-LD/media metadata privacy scan
-- [ ] independent schema/security review of PR-B
+- [x] clean-checkout recursive writer/reader inventory
+- [x] complete D1 migration directory ordering and historical mutation classification
+- [x] local documentation/deploy/migration validators
+- [x] current worktree/branch/migration-lane inspection on the implementation PC
+- [x] approved aggregate-only production D1 metrics baseline
+- [ ] rendered staging HTML/API/JSON-LD/media metadata privacy scan for the exact source fix
+- [x] independent schema/security review of PR-B with required changes adopted
 
 ## 14. Gate decision
 
-Status: `PR_A_GITHUB_EVIDENCE_COMPLETE_WITH_EXTERNAL_GATES`
+Status: `PR_A_SOURCE_CLOSEOUT_IN_PROGRESS`
 
-PR-A has enough source evidence to design PR-B, but not enough to apply or merge schema migrations safely.
+PR-A has enough source and aggregate evidence to validate PR-B. The remaining blocker is exact-SHA staging promotion and rendered privacy verification after the source closeout is merged.
 
 Allowed next action:
 
@@ -350,7 +350,7 @@ Allowed next action:
 - prepare validation commands and expected invariants;
 - keep runtime, migrations and deploy unchanged.
 
-Blocked next action:
+Blocked next action until the staging privacy gate is green:
 
 - applying PostgreSQL or D1 migrations;
 - dual-write implementation;

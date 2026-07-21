@@ -50,6 +50,11 @@ test("public map observations expose list items instead of point features", asyn
     const payload = response.json() as Record<string, unknown>;
     assert.ok(Array.isArray(payload.items));
     assert.ok(!("features" in payload));
+    for (const item of payload.items as Array<Record<string, unknown>>) {
+      assert.ok(!("cellId" in item));
+      assert.ok(!("mesh" in item));
+      assert.ok(!("geohash" in item));
+    }
     assert.ok(payload.stats && typeof payload.stats === "object");
     assert.deepEqual((payload.stats as { privacy?: unknown }).privacy, PUBLIC_MAP_AGGREGATE_POLICY);
   } finally {

@@ -1,6 +1,6 @@
 # ikimon.life — 知識OS 統一概要
 
-更新日: 2026-07-10
+更新日: 2026-07-22
 対象: Claude / Codex / antigravity など、すべてのエージェント
 
 > **このファイルは入口であり、単独の最終正本ではない。**
@@ -332,16 +332,16 @@ platform_v2/src/routes/                  v2 APIルート
 
 ---
 
-## 12. 現時点の注意点（2026-07-10）
+## 12. 現時点の注意点（2026-07-22）
 
 - staging の正式 URL は `https://staging.ikimon.life/`
 - production / staging の現行公開面は Cloudflare Worker。通常releaseでVPS SSHや旧blue/green runtimeを使わない
-- staging は `ikimon-life-cloudflare-staging` と非productionのD1/R2/Queueを使い、`ops/deploy/staging_manifest.json` を正本にする
+- deploy方式の唯一の正本は中央registry `E:\Projects\00_all_projects_management\operations\deploy_standard\service_deploy_registry.json`。repo内manifest/runbookは詳細locatorであり、現行方式の正本ではない
+- staging は `ikimon-life-cloudflare-staging` と非productionのD1/R2/Queueを使う。対象SHAとbundleはrepo内manifestで照合し、実行方式は中央registryから解決する
 - 実装開始は `scripts/new_release_worktree.ps1` で最新 `origin/main` からtask専用worktreeを作る
-- releaseは `scripts/release_autopilot.ps1` で明示pathだけを扱い、required checks済みの同一commit SHAをCloudflare stagingへ配置する。PR head変更時は停止し、mergeも対象SHA一致を要求する
-- Cloudflare staging実deployは`main`上のtrusted workflow/controlから起動し、全branch横断で直列化する。再開時は全体の最新runを確認し、同一SHAの実行中runは再利用、別SHAに上書き済みなら再配置する
-- release control自体の初回導入は、runtime差分と分けたbootstrap PRをrequired checks後に先行mergeし、次のPRから通常のstaging promotionを使う
-- production deployは`main` push起点だけ。feature branchの`workflow_dispatch`や直接SSHをproduction入口にしない
+- GitHubはsource、PR、Issue command、immutable SHA、監査証跡に限定する。GitHub Actions、workflow YAML、`workflow_dispatch`を実行・復旧・fallbackに使わない
+- Cloudflare command busで `resolve_project → get_status → dry_run` を行い、exact SHA、required gate、lease、環境境界を確認してからstagingへ配置する。DB migrationは通常deployと分離し、承認・checksum・migration ledgerを必須にする
+- production deployは、同一SHAのstaging evidenceと明示承認を満たしたCloudflare command bus / 中央registry記載のentrypointだけを使う。feature branchからの直接deployや旧VPS SSHを入口にしない
 - v2 には `/ops/readiness` があり、cutover gate は `near_ready / needs_work` で確認する。`near_ready` は rollback safety と audio archive がどちらも成立した時だけ許可する
 - 旧VPS cutoverを調査する場合だけ `parityVerified` / `deltaSyncHealthy` / `driftReportHealthy` / `compatibilityWriteWorking` / `audioArchiveReady` / `rollbackSafetyWindowReady` を見る
 - 旧VPS rollbackを調査する場合だけ `trackPoints > 0`、`audioArchiveReady=true`、`private_uploads`の永続化契約を確認する
