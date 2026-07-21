@@ -239,6 +239,9 @@ test("buildPublicCellRecords drops exact coordinates and site-level names from p
   assert.ok(!("observerId" in record));
   assert.ok(!("profileHref" in record));
   assert.ok(!("profileUrl" in record));
+  assert.ok(!("cellId" in record));
+  assert.ok(!("mesh" in record));
+  assert.ok(!("geohash" in record));
 });
 
 test("buildPublicCellRecords exposes exact coordinates only for the signed-in viewer's own records", () => {
@@ -254,6 +257,17 @@ test("buildPublicCellRecords exposes exact coordinates only for the signed-in vi
   assert.ok(!("exactLatitude" in other));
   assert.ok(!("exactLongitude" in other));
   assert.ok(!("userId" in own));
+  assert.ok(!("cellId" in own));
+});
+
+test("public map record lookup does not expose a record-scoped cell", async () => {
+  const source = await readFile(new URL("./mapSnapshot.ts", import.meta.url), "utf8");
+  const lookupBody = source.slice(
+    source.indexOf("export async function findPublicMapObservationRecordById"),
+    source.indexOf("export type PublicAreaNameCandidate"),
+  );
+
+  assert.doesNotMatch(lookupBody, /cellId[,\s]/);
 });
 
 test("buildPublicCellRecords hides selected cells below the aggregate threshold", () => {
@@ -330,7 +344,8 @@ test("public map observation id lookup reads the snapshot without aggregate list
   assert.match(functionSource, /record\.visitId === normalizedVisitId/);
   assert.match(functionSource, /record\.occurrenceId === raw/);
   assert.doesNotMatch(functionSource, /buildPublicCellRecords/);
-  assert.match(functionSource, /publicCellKeyForRuntimeRecord\(row, gridM\)/);
+  assert.doesNotMatch(functionSource, /publicCellKeyForRuntimeRecord/);
+  assert.doesNotMatch(functionSource, /cellId/);
 });
 
 test("sensitive redlist records use coarser cells and masked list fields", () => {
