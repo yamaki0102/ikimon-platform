@@ -89,73 +89,86 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
     mutations.push(
       {
         sql: `INSERT INTO record_observations (
-          observation_id, record_id, owner_user_id, origin, assertion_status,
-          verification_status, lifecycle_status, data_use_scope, accepted_identification_id,
-          subject_type, individual_certainty, context_json, provenance_json, created_at, updated_at
-        ) VALUES (?, ?, ?, 'ai', 'provisional', 'unreviewed', 'active', 'personal_only', NULL,
-          'organism', 'unknown', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          observation_id, record_runtime, record_id, owner_user_id, source_key,
+          origin, assertion_status, verification_status, lifecycle_status, data_use_scope,
+          accepted_identification_id, subject_type, individual_certainty, captive_context,
+          count_mode, display_order, context_json, provenance_json, created_at, updated_at
+        ) VALUES (?, 'cloudflare_d1', ?, ?, ?,
+          'ai', 'provisional', 'unreviewed', 'active', 'personal_only', NULL,
+          'organism', 'unknown', 'unknown', 'unknown', 0, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(observation_id) DO UPDATE SET
           context_json = excluded.context_json,
           provenance_json = excluded.provenance_json,
+          row_version = record_observations.row_version + 1,
           updated_at = CURRENT_TIMESTAMP
         WHERE record_observations.origin = 'ai'
-          AND record_observations.assertion_status = 'provisional'`,
-        values: [observationId, input.recordId, input.ownerUserId, context, provenance],
+          AND record_observations.assertion_status = 'provisional'
+          AND record_observations.accepted_identification_id IS NULL`,
+        values: [observationId, input.recordId, input.ownerUserId, sourceKey, context, provenance],
       },
       {
         sql: `INSERT INTO record_observation_source_map (
-          mapping_id, observation_id, source_system, source_entity_type, source_id,
-          source_version, mapping_kind, provenance_json, created_at
-        ) VALUES (?, ?, 'cloudflare_native', 'ai_visual_subject', ?, ?, 'dual_write', ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(observation_id, source_system, source_entity_type, source_id, mapping_kind)
-        DO UPDATE SET source_version = excluded.source_version, provenance_json = excluded.provenance_json`,
-        values: [mappingId, observationId, sourceKey, OBSERVATION_AI_RULE_VERSION, provenance],
+          mapping_id, source_runtime, source_entity_kind, source_entity_id,
+          mapping_rule_version, observation_id, mapping_kind, mapping_confidence,
+          ambiguity_state, source_snapshot_hash, provenance_json, created_at
+        ) VALUES (?, 'machine', 'ai_review_target', ?, ?, ?, 'candidate', ?,
+          'clear', ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(source_runtime, source_entity_kind, source_entity_id, mapping_rule_version)
+        DO UPDATE SET
+          observation_id = excluded.observation_id,
+          mapping_confidence = excluded.mapping_confidence,
+          source_snapshot_hash = excluded.source_snapshot_hash,
+          provenance_json = excluded.provenance_json`,
+        values: [mappingId, sourceKey, OBSERVATION_AI_RULE_VERSION, observationId, subject.candidate.confidence, inputFingerprint, provenance],
       },
       {
         sql: `INSERT INTO record_observation_media (
-          link_id, observation_id, media_id, media_role, locator_key, subject_locator,
-          source_kind, confidence_score, lifecycle_status, provenance_json, created_at, updated_at
-        ) VALUES (?, ?, ?, 'evidence', ?, ?, 'ai', ?, 'active', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT(observation_id, media_id, locator_key) DO UPDATE SET
-          subject_locator = excluded.subject_locator,
-          confidence_score = excluded.confidence_score,
+          link_id, observation_id, media_source_runtime, media_id, role,
+          locator_kind, locator_json, origin, active, source_key,
+          provenance_json, created_at, updated_at
+        ) VALUES (?, ?, 'cloudflare_d1', ?, 'primary_evidence',
+          ?, ?, 'ai', 1, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(observation_id, source_key) DO UPDATE SET
+          locator_kind = excluded.locator_kind,
+          locator_json = excluded.locator_json,
           provenance_json = excluded.provenance_json,
-          lifecycle_status = 'active',
+          active = 1,
           updated_at = CURRENT_TIMESTAMP`,
         values: [
           mediaLinkId,
           observationId,
           input.mediaId,
-          subject.subjectKey,
+          subject.candidate.subjectLocator.rect ? "rect" : "full",
           JSON.stringify(subject.candidate.subjectLocator),
-          subject.candidate.confidence,
+          `${sourceKey}:media`,
           provenance,
         ],
       },
       {
         sql: `INSERT INTO observation_ai_suggestions (
-          suggestion_id, observation_id, ai_run_id, idempotency_key, candidate_key,
+          suggestion_id, observation_id, ai_run_id, candidate_key, source_key,
           proposed_name, proposed_scientific_name, proposed_rank, confidence_score,
           rationale_json, model_provider, model_name, model_version, prompt_version,
-          rule_version, input_fingerprint, input_provenance, suggestion_status, created_at, updated_at
+          rule_version, input_digest, input_provenance_json, suggestion_status, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cloudflare_workers_ai', ?, '', ?, ?, ?, ?,
-          'proposed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT(idempotency_key) DO UPDATE SET
+          'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(observation_id, source_key) DO UPDATE SET
           ai_run_id = excluded.ai_run_id,
           proposed_name = excluded.proposed_name,
           proposed_scientific_name = excluded.proposed_scientific_name,
           proposed_rank = excluded.proposed_rank,
           confidence_score = excluded.confidence_score,
           rationale_json = excluded.rationale_json,
-          input_provenance = excluded.input_provenance,
+          input_digest = excluded.input_digest,
+          input_provenance_json = excluded.input_provenance_json,
           updated_at = CURRENT_TIMESTAMP
-        WHERE observation_ai_suggestions.suggestion_status = 'proposed'`,
+        WHERE observation_ai_suggestions.suggestion_status = 'active'`,
         values: [
           suggestionId,
           observationId,
           input.aiRunId,
-          inputFingerprint,
           subject.subjectKey,
+          sourceKey,
           subject.candidate.vernacularName ?? subject.candidate.scientificName,
           subject.candidate.scientificName,
           subject.candidate.rank,
@@ -170,9 +183,11 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
       },
       {
         sql: `INSERT OR IGNORE INTO observation_lifecycle_events (
-          event_id, observation_id, actor_kind, actor_user_id, event_type,
-          previous_state, next_state, reason_code, provenance_json, created_at
-        ) VALUES (?, ?, 'system', NULL, 'created', '{}', ?, 'ai_visual_subject_detected', ?, CURRENT_TIMESTAMP)`,
+          event_id, observation_id, event_kind, actor_kind, actor_id,
+          reason_code, before_json, after_json, related_observation_ids_json,
+          source_key, created_at
+        ) VALUES (?, ?, 'created', 'system', NULL,
+          'ai_visual_subject_detected', '{}', ?, '[]', ?, CURRENT_TIMESTAMP)`,
         values: [
           lifecycleEventId,
           observationId,
@@ -183,31 +198,37 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
             dataUseScope: "personal_only",
             acceptedIdentificationId: null,
           }),
-          provenance,
+          `${sourceKey}:created`,
         ],
       },
       {
         sql: `INSERT INTO record_observation_consistency_ledger (
-          ledger_id, ledger_key, record_id, observation_id, operation_key,
-          old_write_status, new_write_status, source_ref, target_ref,
-          source_checksum, target_checksum, difference_code, details_json, created_at, resolved_at
-        ) VALUES (?, ?, ?, ?, 'ai_provisional_observation_dual_write',
-          'succeeded', 'succeeded', ?, ?, ?, ?, NULL, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT(ledger_key) DO UPDATE SET
-          old_write_status = 'succeeded', new_write_status = 'succeeded',
-          source_ref = excluded.source_ref, target_ref = excluded.target_ref,
-          source_checksum = excluded.source_checksum, target_checksum = excluded.target_checksum,
-          difference_code = NULL, details_json = excluded.details_json, resolved_at = CURRENT_TIMESTAMP`,
+          ledger_id, operation_key, record_runtime, record_id, observation_id,
+          operation_kind, legacy_write_refs_json, target_write_refs_json,
+          source_digest, target_digest, consistency_state, reason_codes_json,
+          attempt_count, created_at, updated_at, resolved_at
+        ) VALUES (?, ?, 'cloudflare_d1', ?, ?,
+          'ai_analysis', ?, ?, ?, ?, 'matched', '[]',
+          1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(operation_key) DO UPDATE SET
+          legacy_write_refs_json = excluded.legacy_write_refs_json,
+          target_write_refs_json = excluded.target_write_refs_json,
+          source_digest = excluded.source_digest,
+          target_digest = excluded.target_digest,
+          consistency_state = 'matched',
+          reason_codes_json = '[]',
+          attempt_count = MIN(record_observation_consistency_ledger.attempt_count + 1, 100),
+          updated_at = CURRENT_TIMESTAMP,
+          resolved_at = CURRENT_TIMESTAMP`,
         values: [
           ledgerId,
           inputFingerprint,
           input.recordId,
           observationId,
-          input.legacyOccurrenceId,
-          observationId,
+          JSON.stringify({ occurrenceId: input.legacyOccurrenceId, aiRunId: input.aiRunId }),
+          JSON.stringify({ observationId, suggestionId, mediaLinkId }),
           inputFingerprint,
           targetChecksum,
-          JSON.stringify({ subjectKey: subject.subjectKey, aiOnly: true, activeOccurrenceCreated: false }),
         ],
       },
     );

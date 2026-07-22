@@ -32,5 +32,7 @@ test("photo upload, queue, cron, Workers AI, and review target form one durable 
   assert.match(source, /question: observationAiQuestion\(\)/);
   assert.match(source, /response\.result/);
   assert.match(source, /humanReviewRequired: true/);
+  assert.match(source, /OBSERVATION_DUAL_WRITE_MODE \?\? "off"/);
   assert.equal((wrangler.match(/"binding": "AI"/g) ?? []).length, 4);
+  assert.equal((wrangler.match(/"OBSERVATION_DUAL_WRITE_MODE": "off"/g) ?? []).length, 4);
 });

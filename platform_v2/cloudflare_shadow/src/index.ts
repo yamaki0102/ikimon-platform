@@ -17,6 +17,13 @@ import {
 } from "./cloudflareObservationAi";
 import { buildObservationAiDualWritePlan } from "./cloudflareObservationAiDualWrite";
 import {
+  buildHumanObservationEditPlan,
+  buildIdentificationClaimDualWritePlan,
+  buildMediaReassignmentDualWritePlan,
+  buildOwnerObservationUpsertPlan,
+  type ObservationDualWritePlan,
+} from "./cloudflareObservationDualWrite";
+import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus";
@@ -133,6 +140,7 @@ interface Env {
   ALERT_EMAIL_ALLOWED_RECIPIENTS?: string;
   OBSERVATION_DB_NAME?: string;
   OBSERVATION_ARCHIVE_TARGET?: string;
+  OBSERVATION_DUAL_WRITE_MODE?: string;
   ORIGIN_FALLBACK_BASE_URL?: string;
   ORIGIN_FALLBACK_RESOLVE_OVERRIDE?: string;
   PUBLIC_WRITE_MODE?: string;
@@ -165,6 +173,15 @@ interface Env {
 
 function isAppRuntime(env: Env): boolean {
   return env.ENVIRONMENT === "shadow" || env.ENVIRONMENT === "staging" || env.ENVIRONMENT === "production";
+}
+
+function observationDualWriteEnabled(env: Env): boolean {
+  return String(env.OBSERVATION_DUAL_WRITE_MODE ?? "off").trim().toLowerCase() === "on";
+}
+
+function observationDualWriteStatements(env: Env, plan: ObservationDualWritePlan | null): D1PreparedStatement[] {
+  if (!plan || !observationDualWriteEnabled(env)) return [];
+  return plan.mutations.map((mutation) => env.OBS_DB.prepare(mutation.sql).bind(...mutation.values));
 }
 
 const IKIMON_GA4_MEASUREMENT_ID = "G-NCL0M1VJZ2";
@@ -8662,8 +8679,41 @@ async function submitCompatibleObservationIdentification(occurrenceId: string, r
     updatedAt: new Date().toISOString()
   };
 
-  await env.OBS_DB.prepare(
-    `INSERT INTO observation_identifications (
+  const recordId = normalizedOccurrenceId.match(/^occ:(.+):[0-9]+$/u)?.[1] ?? normalizedOccurrenceId;
+  const recordRow = observationDualWriteEnabled(env)
+    ? await env.OBS_DB.prepare(
+      "SELECT owner_user_id, visibility FROM observations WHERE observation_id = ? LIMIT 1"
+    ).bind(recordId).first<{ owner_user_id: string; visibility: string }>()
+    : null;
+  if (observationDualWriteEnabled(env) && recordRow) {
+    const policy = await env.OBS_DB.prepare(
+      `SELECT accepts_identification_proposals
+         FROM record_observation_policies
+        WHERE record_runtime = 'cloudflare_d1' AND record_id = ? LIMIT 1`
+    ).bind(recordId).first<{ accepts_identification_proposals: number }>();
+    if (policy?.accepts_identification_proposals === 0 || (!policy && recordRow.visibility !== "public")) {
+      return json({ ok: false, error: "identification_proposals_disabled" }, 403, { "cache-control": "no-store" });
+    }
+  }
+  const ownerPlan = recordRow
+    ? await existingOwnerObservationDualWritePlan(recordId, recordRow.owner_user_id, env)
+    : null;
+  const identificationPlan = observationDualWriteEnabled(env) && recordRow
+    ? await buildIdentificationClaimDualWritePlan({
+      recordId,
+      legacyIdentificationId: sourceKey,
+      actorUserId: session.userId,
+      actorKind: session.userId === recordRow.owner_user_id ? "owner" : "community_member",
+      proposedName,
+      proposedRank,
+      stance,
+      sourcePayload,
+    })
+    : null;
+
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      `INSERT INTO observation_identifications (
        identification_id, occurrence_id, actor_user_id, proposed_name, proposed_rank,
        stance, notes, source_key, source_payload_json, is_current
      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
@@ -8675,27 +8725,29 @@ async function submitCompatibleObservationIdentification(occurrenceId: string, r
        source_payload_json = excluded.source_payload_json,
        is_current = 1,
        updated_at = CURRENT_TIMESTAMP`
-  ).bind(
-    identificationId,
-    normalizedOccurrenceId,
-    session.userId,
-    proposedName,
-    proposedRank,
-    stance,
-    notes,
-    sourceKey,
-    JSON.stringify(sourcePayload)
-  ).run();
-
-  await env.OBS_DB.prepare(
-    "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
-  ).bind(
-    newId("outbox"),
-    "readmodel.refresh",
-    normalizedOccurrenceId,
-    JSON.stringify({ observationId: normalizedOccurrenceId, reason: "identification.write" }),
-    null
-  ).run();
+    ).bind(
+      identificationId,
+      normalizedOccurrenceId,
+      session.userId,
+      proposedName,
+      proposedRank,
+      stance,
+      notes,
+      sourceKey,
+      JSON.stringify(sourcePayload)
+    ),
+    env.OBS_DB.prepare(
+      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+    ).bind(
+      newId("outbox"),
+      "readmodel.refresh",
+      normalizedOccurrenceId,
+      JSON.stringify({ observationId: normalizedOccurrenceId, reason: "identification.write" }),
+      null
+    ),
+    ...observationDualWriteStatements(env, ownerPlan),
+    ...observationDualWriteStatements(env, identificationPlan),
+  ]);
 
   const consensus = await getD1IdentificationConsensus(env, normalizedOccurrenceId);
 
@@ -26493,6 +26545,44 @@ const COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS: Record<CompatibleEnvironmentRe
   human_change: "人の影響"
 };
 
+async function existingOwnerObservationDualWritePlan(
+  recordId: string,
+  ownerUserId: string,
+  env: Env
+): Promise<ObservationDualWritePlan | null> {
+  if (!observationDualWriteEnabled(env)) return null;
+  const record = await env.OBS_DB.prepare(
+    `SELECT observed_at, taxon_label, visibility, organism_origin
+       FROM observations WHERE observation_id = ? AND owner_user_id = ? LIMIT 1`
+  ).bind(recordId, ownerUserId).first<{
+    observed_at: string;
+    taxon_label: string | null;
+    visibility: string;
+    organism_origin: string | null;
+  }>();
+  if (!record) return null;
+  const captiveContext = record.organism_origin === "wild"
+    ? "wild"
+    : record.organism_origin === "planted"
+      ? "cultivated"
+      : record.organism_origin === "captive"
+        ? "captive"
+        : "unknown";
+  return buildOwnerObservationUpsertPlan({
+    recordId,
+    ownerUserId,
+    visibility: record.visibility === "public" ? "public" : "private",
+    subjectType: record.taxon_label ? "organism" : "unknown_subject",
+    captiveContext,
+    sourceSnapshot: {
+      observedAt: record.observed_at,
+      taxonLabel: record.taxon_label,
+      visibility: record.visibility,
+      organismOrigin: record.organism_origin,
+    },
+  });
+}
+
 async function updateCompatibleOccurrenceDetail(
   occurrenceId: string,
   kind: CompatibleOccurrenceDetailEditKind,
@@ -26527,11 +26617,25 @@ async function updateCompatibleOccurrenceOrigin(
   env: Env
 ): Promise<Response> {
   const organismOrigin = normalizeCompatibleOrganismOrigin(body.organismOrigin);
+  const ownerPlan = await existingOwnerObservationDualWritePlan(occurrenceId, session.userId, env);
+  const editPlan = observationDualWriteEnabled(env)
+    ? await buildHumanObservationEditPlan({
+      recordId: occurrenceId,
+      actorUserId: session.userId,
+      editKind: "origin",
+      payload: { organismOrigin },
+      captiveContext: organismOrigin === "wild" ? "wild"
+        : organismOrigin === "planted" ? "cultivated"
+          : organismOrigin === "captive" ? "captive" : "unknown",
+    })
+    : null;
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       "UPDATE observations SET organism_origin = ? WHERE observation_id = ?"
     ).bind(organismOrigin, occurrenceId),
-    compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "origin", { organismOrigin })
+    compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "origin", { organismOrigin }),
+    ...observationDualWriteStatements(env, ownerPlan),
+    ...observationDualWriteStatements(env, editPlan),
   ]);
   return json({
     ok: true,
@@ -26549,6 +26653,15 @@ async function updateCompatibleOccurrenceObservedAt(
 ): Promise<Response> {
   const observedAt = normalizeCompatibleObservedAt(body.observedAt);
   const partitionMonth = partitionMonthFromDate(observedAt);
+  const ownerPlan = await existingOwnerObservationDualWritePlan(occurrenceId, session.userId, env);
+  const editPlan = observationDualWriteEnabled(env)
+    ? await buildHumanObservationEditPlan({
+      recordId: occurrenceId,
+      actorUserId: session.userId,
+      editKind: "observed-at",
+      payload: { observedAt },
+    })
+    : null;
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       "UPDATE observations SET observed_at = ?, partition_month = ? WHERE observation_id = ?"
@@ -26557,7 +26670,9 @@ async function updateCompatibleOccurrenceObservedAt(
       "UPDATE readmodel_public_observations SET observed_at = ?, updated_at = CURRENT_TIMESTAMP WHERE observation_id = ?"
     ).bind(observedAt, occurrenceId),
     compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "observed-at", { observedAt }),
-    compatibleReadmodelRefreshOutbox(env, occurrenceId, partitionMonth)
+    compatibleReadmodelRefreshOutbox(env, occurrenceId, partitionMonth),
+    ...observationDualWriteStatements(env, ownerPlan),
+    ...observationDualWriteStatements(env, editPlan),
   ]);
   return json({
     ok: true,
@@ -26576,6 +26691,15 @@ async function updateCompatibleOccurrenceLocation(
   const latitude = normalizeCompatibleLatitude(body.latitude);
   const longitude = normalizeCompatibleLongitude(body.longitude);
   const publicCell = blurLocation(latitude, longitude);
+  const ownerPlan = await existingOwnerObservationDualWritePlan(occurrenceId, session.userId, env);
+  const editPlan = observationDualWriteEnabled(env)
+    ? await buildHumanObservationEditPlan({
+      recordId: occurrenceId,
+      actorUserId: session.userId,
+      editKind: "location",
+      payload: { publicLocationChanged: true },
+    })
+    : null;
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       "UPDATE observations SET exact_lat = ?, exact_lng = ?, public_cell = ?, public_area_label = NULL WHERE observation_id = ?"
@@ -26584,7 +26708,9 @@ async function updateCompatibleOccurrenceLocation(
       "UPDATE readmodel_public_observations SET public_cell = ?, public_area_label = NULL, updated_at = CURRENT_TIMESTAMP WHERE observation_id = ?"
     ).bind(publicCell, occurrenceId),
     compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "location", { latitude, longitude, publicCell }),
-    compatibleReadmodelRefreshOutbox(env, occurrenceId, null)
+    compatibleReadmodelRefreshOutbox(env, occurrenceId, null),
+    ...observationDualWriteStatements(env, ownerPlan),
+    ...observationDualWriteStatements(env, editPlan),
   ]);
   return json({
     ok: true,
@@ -26672,12 +26798,23 @@ async function insertCompatibleEnvironmentRecord(
   const structured = mergeCompatibleUserEnvironmentRecordValues(previous, values, userId);
   structured.environment_record_location_source = exactLat !== null && exactLng !== null ? "exact_observation" : "public_cell";
   const recordId = newId("envrec");
+  const ownerPlan = await existingOwnerObservationDualWritePlan(occurrenceId, userId, env);
+  const editPlan = observationDualWriteEnabled(env)
+    ? await buildHumanObservationEditPlan({
+      recordId: occurrenceId,
+      actorUserId: userId,
+      editKind: "environment-record",
+      payload: { fields: Object.keys(values).sort() },
+    })
+    : null;
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       "INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang) VALUES (?, ?, ?, ?, ?, 'ja')"
     ).bind(recordId, occurrenceId, lat, lng, JSON.stringify(structured)),
     compatibleOccurrenceDetailEditEvent(env, occurrenceId, userId, "environment-record", { values }),
-    compatibleReadmodelRefreshOutbox(env, occurrenceId, null)
+    compatibleReadmodelRefreshOutbox(env, occurrenceId, null),
+    ...observationDualWriteStatements(env, ownerPlan),
+    ...observationDualWriteStatements(env, editPlan),
   ]);
   return { recordId };
 }
@@ -26940,6 +27077,20 @@ async function attachVideoAssetToObservation(input: {
   const assetId = `video_asset_${input.uid}`;
   const outboxMediaId = newId("outbox");
   const outboxReadModelId = newId("outbox");
+  const ownerPlan = await existingOwnerObservationDualWritePlan(
+    input.observationId,
+    observation.owner_user_id,
+    env
+  );
+  const mediaPlan = observationDualWriteEnabled(env)
+    ? await buildMediaReassignmentDualWritePlan({
+      recordId: input.observationId,
+      mediaId: assetId,
+      actorUserId: observation.owner_user_id,
+      role: "supporting_evidence",
+      sourcePayload: { streamUid: input.uid, mime: "video/mp4" },
+    })
+    : null;
 
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
@@ -26966,6 +27117,8 @@ async function attachVideoAssetToObservation(input: {
     env.OBS_DB.prepare(
       "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxReadModelId, "readmodel.refresh", input.observationId, JSON.stringify({ observationId: input.observationId }), partitionMonth),
+    ...observationDualWriteStatements(env, ownerPlan),
+    ...observationDualWriteStatements(env, mediaPlan),
     rollbackLedgerInsert(env, {
       eventType: "asset.video.finalize",
       targetId: assetId,
@@ -27333,6 +27486,23 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       JSON.stringify(civicContext.sourcePayload)
     )]
     : [];
+  const ownerDualWritePlan = observationDualWriteEnabled(env)
+    ? await buildOwnerObservationUpsertPlan({
+      recordId: visitId,
+      ownerUserId: input.userId,
+      visibility,
+      subjectType: taxonLabel ? "organism" : "unknown_subject",
+      individualCertainty: occurrenceIds.length > 1 ? "group" : "unknown",
+      sourceSnapshot: {
+        observedAt: input.observedAt,
+        taxonLabel,
+        visibility,
+        occurrenceCount: occurrenceIds.length,
+        hasMedia: Array.isArray(input.sourcePayload?.client_photo_sha256s)
+          && input.sourcePayload.client_photo_sha256s.length > 0,
+      },
+    })
+    : null;
 
   await env.CORE_DB.batch([
     env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(input.userId)
@@ -27432,6 +27602,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     ),
     ...placeMemory.statements,
     ...civicContextStatements,
+    ...observationDualWriteStatements(env, ownerDualWritePlan),
     rollbackLedgerInsert(env, {
       eventType: "observation.upsert",
       targetId: visitId,
@@ -28590,6 +28761,35 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
 
   if (!ownerUserId) return json({ error: "draft_missing_owner" }, 500);
 
+  const ownerDualWritePlan = observationDualWriteEnabled(env)
+    ? await buildOwnerObservationUpsertPlan({
+      recordId: observationId,
+      ownerUserId,
+      visibility,
+      subjectType: input.taxonLabel ? "organism" : "unknown_subject",
+      sourceSnapshot: {
+        observedAt,
+        taxonLabel: input.taxonLabel ?? null,
+        visibility,
+        finalizedFromDraft: true,
+      },
+    })
+    : null;
+  const draftAssets = observationDualWriteEnabled(env)
+    ? (await env.OBS_DB.prepare(
+      "SELECT asset_id, mime FROM asset_ledger WHERE draft_id = ? ORDER BY created_at, asset_id"
+    ).bind(input.draftId).all<{ asset_id: string; mime: string }>()).results
+    : [];
+  const mediaDualWritePlans = await Promise.all(draftAssets.map((asset) =>
+    buildMediaReassignmentDualWritePlan({
+      recordId: observationId,
+      mediaId: asset.asset_id,
+      actorUserId: ownerUserId,
+      role: asset.mime.startsWith("audio/") ? "audio_evidence" : "primary_evidence",
+      sourcePayload: { draftId: input.draftId, mime: asset.mime },
+    })
+  ));
+
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       `INSERT INTO observations
@@ -28616,6 +28816,8 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
     env.OBS_DB.prepare(
       "UPDATE asset_ledger SET observation_id = ? WHERE draft_id = ?"
     ).bind(observationId, input.draftId),
+    ...observationDualWriteStatements(env, ownerDualWritePlan),
+    ...mediaDualWritePlans.flatMap((plan) => observationDualWriteStatements(env, plan)),
     env.OBS_DB.prepare(
       "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxMediaId, "media.process", observationId, JSON.stringify({ observationId }), partition.partitionMonth),
@@ -28966,15 +29168,17 @@ async function processObservationReassessment(observationId: string, env: Env): 
       humanReviewRequired: true,
       completedAt: new Date().toISOString(),
     };
-    const dualWritePlan = await buildObservationAiDualWritePlan({
-      recordId: observationId,
-      ownerUserId: record.owner_user_id,
-      mediaId: asset.asset_id,
-      legacyOccurrenceId: occurrenceId,
-      requestId: request.request_id,
-      aiRunId,
-      candidate,
-    });
+    const dualWritePlan = observationDualWriteEnabled(env)
+      ? await buildObservationAiDualWritePlan({
+        recordId: observationId,
+        ownerUserId: record.owner_user_id,
+        mediaId: asset.asset_id,
+        legacyOccurrenceId: occurrenceId,
+        requestId: request.request_id,
+        aiRunId,
+        candidate,
+      })
+      : { observationIds: [], mutations: [] };
     const dualWriteStatements = dualWritePlan.mutations.map((mutation) =>
       env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)
     );
