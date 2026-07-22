@@ -38,4 +38,20 @@ test("photo upload, queue, cron, Workers AI, and review target form one durable 
   assert.equal((wrangler.match(/"OBSERVATION_DUAL_WRITE_MODE": "on"/g) ?? []).length, 2);
   assert.equal((wrangler.match(/"OBSERVATION_READ_CUTOVER_MODE": "off"/g) ?? []).length, 2);
   assert.equal((wrangler.match(/"OBSERVATION_READ_CUTOVER_MODE": "on"/g) ?? []).length, 2);
+
+  const envStart = wrangler.indexOf('"env": {');
+  const shadowStart = wrangler.indexOf('"shadow": {', envStart);
+  const stagingStart = wrangler.indexOf('"staging": {', shadowStart);
+  const productionStart = wrangler.indexOf('"production": {', stagingStart);
+  assert.ok(envStart >= 0 && shadowStart > envStart && stagingStart > shadowStart && productionStart > stagingStart);
+  const environmentBlocks = {
+    shadow: wrangler.slice(shadowStart, stagingStart),
+    staging: wrangler.slice(stagingStart, productionStart),
+    production: wrangler.slice(productionStart),
+  };
+  for (const flag of ["OBSERVATION_DUAL_WRITE_MODE", "OBSERVATION_READ_CUTOVER_MODE"]) {
+    assert.match(environmentBlocks.shadow, new RegExp(`"${flag}": "off"`));
+    assert.match(environmentBlocks.staging, new RegExp(`"${flag}": "on"`));
+    assert.match(environmentBlocks.production, new RegExp(`"${flag}": "on"`));
+  }
 });
