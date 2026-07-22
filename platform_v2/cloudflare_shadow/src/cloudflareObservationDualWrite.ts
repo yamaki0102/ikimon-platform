@@ -38,12 +38,17 @@ export async function buildOwnerObservationUpsertPlan(input: {
   individualCertainty?: "individual" | "group" | "unknown";
   captiveContext?: "wild" | "captive" | "cultivated" | "pet" | "unknown";
   sourceSnapshot: Record<string, unknown>;
+  writeMode?: "dual_write" | "backfill";
 }): Promise<ObservationDualWritePlan> {
   const sourceKey = ownerObservationSourceKey(input.recordId);
+  const writeMode = input.writeMode ?? "dual_write";
+  const mappingRuleVersion = writeMode === "backfill" ? "record-observation-backfill/v1" : "record-observation-dual-write/v1";
+  const operationKind = writeMode === "backfill" ? "backfill" : "record_save";
+  const operationKey = writeMode === "backfill" ? `backfill:v1:record:${input.recordId}` : `${sourceKey}:record_save`;
   const observationId = await observationIdForRecord(input.recordId);
   const mappingId = await deterministicUuid(`record-observation-source-map:${sourceKey}`);
   const eventId = await deterministicUuid(`record-observation-event:${sourceKey}:created`);
-  const ledgerId = await deterministicUuid(`record-observation-ledger:${sourceKey}:record_save`);
+  const ledgerId = await deterministicUuid(`record-observation-ledger:${operationKey}`);
   const sourceDigest = await sha256Hex(JSON.stringify(input.sourceSnapshot));
   const targetDigest = await sha256Hex(JSON.stringify({
     observationId,
@@ -54,10 +59,11 @@ export async function buildOwnerObservationUpsertPlan(input: {
     captiveContext: input.captiveContext ?? "unknown",
   }));
   const provenance = JSON.stringify({
-    source: "cloudflare_native_record_writer",
+    source: writeMode === "backfill" ? "cloudflare_native_record_backfill" : "cloudflare_native_record_writer",
     recordRuntime: "cloudflare_d1",
     sourceKey,
     sourceDigest,
+    mappingRuleVersion,
   });
   const context = JSON.stringify({
     legacyRecordSnapshot: input.sourceSnapshot,
@@ -127,20 +133,20 @@ export async function buildOwnerObservationUpsertPlan(input: {
           mapping_rule_version, observation_id, mapping_kind, mapping_confidence,
           ambiguity_state, source_snapshot_hash, provenance_json, created_at
         ) VALUES (?, 'cloudflare_d1', 'native_observation', ?,
-          'record-observation-dual-write/v1', ?, 'primary', 1,
+          ?, ?, 'primary', 1,
           'clear', ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(source_runtime, source_entity_kind, source_entity_id, mapping_rule_version)
         DO UPDATE SET observation_id = excluded.observation_id,
           source_snapshot_hash = excluded.source_snapshot_hash,
           provenance_json = excluded.provenance_json`,
-        values: [mappingId, input.recordId, observationId, sourceDigest, provenance],
+        values: [mappingId, input.recordId, mappingRuleVersion, observationId, sourceDigest, provenance],
       },
       {
         sql: `INSERT OR IGNORE INTO observation_lifecycle_events (
           event_id, observation_id, event_kind, actor_kind, actor_id, reason_code,
           before_json, after_json, related_observation_ids_json, source_key, created_at
-        ) VALUES (?, ?, 'created', 'owner', ?, 'record_saved', '{}', ?, '[]', ?, CURRENT_TIMESTAMP)`,
-        values: [eventId, observationId, input.ownerUserId, JSON.stringify({ assertionStatus: "human_asserted" }), `${sourceKey}:created`],
+        ) VALUES (?, ?, 'created', 'owner', ?, ?, '{}', ?, '[]', ?, CURRENT_TIMESTAMP)`,
+        values: [eventId, observationId, input.ownerUserId, writeMode === "backfill" ? "legacy_record_backfilled" : "record_saved", JSON.stringify({ assertionStatus: "human_asserted" }), `${sourceKey}:created`],
       },
       {
         sql: `INSERT INTO record_observation_consistency_ledger (
@@ -148,7 +154,7 @@ export async function buildOwnerObservationUpsertPlan(input: {
           operation_kind, legacy_write_refs_json, target_write_refs_json,
           source_digest, target_digest, consistency_state, reason_codes_json,
           attempt_count, created_at, updated_at, resolved_at
-        ) VALUES (?, ?, 'cloudflare_d1', ?, ?, 'record_save', ?, ?, ?, ?,
+        ) VALUES (?, ?, 'cloudflare_d1', ?, ?, ?, ?, ?, ?, ?,
           'matched', '[]', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(operation_key) DO UPDATE SET
           legacy_write_refs_json = excluded.legacy_write_refs_json,
@@ -162,9 +168,10 @@ export async function buildOwnerObservationUpsertPlan(input: {
           resolved_at = CURRENT_TIMESTAMP`,
         values: [
           ledgerId,
-          `${sourceKey}:record_save`,
+          operationKey,
           input.recordId,
           observationId,
+          operationKind,
           JSON.stringify({ recordId: input.recordId }),
           JSON.stringify({ observationId }),
           sourceDigest,
@@ -249,12 +256,14 @@ export async function buildIdentificationClaimDualWritePlan(input: {
   proposedRank?: string | null;
   stance?: "support" | "alternative" | "not_organism" | "needs_more_evidence" | "context_only";
   sourcePayload: Record<string, unknown>;
+  writeMode?: "dual_write" | "backfill";
 }): Promise<ObservationDualWritePlan> {
   const observationId = await observationIdForRecord(input.recordId);
   const sourceKey = `legacy_identification:${input.legacyIdentificationId}`;
   const identificationId = await deterministicUuid(`record-observation-identification:${sourceKey}`);
   const eventId = await deterministicUuid(`record-observation-event:${sourceKey}`);
-  const ledgerId = await deterministicUuid(`record-observation-ledger:${sourceKey}`);
+  const operationKey = input.writeMode === "backfill" ? `backfill:v1:identification:${input.legacyIdentificationId}` : sourceKey;
+  const ledgerId = await deterministicUuid(`record-observation-ledger:${operationKey}`);
   const sourcePayloadJson = JSON.stringify(input.sourcePayload);
   const sourceDigest = await sha256Hex(sourcePayloadJson);
   const targetDigest = await sha256Hex(JSON.stringify({ observationId, identificationId, claimStatus: "candidate" }));
@@ -300,7 +309,7 @@ export async function buildIdentificationClaimDualWritePlan(input: {
           attempt_count = MIN(record_observation_consistency_ledger.attempt_count + 1, 100),
           updated_at = CURRENT_TIMESTAMP,
           resolved_at = CURRENT_TIMESTAMP`,
-        values: [ledgerId, sourceKey, input.recordId, observationId, JSON.stringify({ identificationId: input.legacyIdentificationId }), JSON.stringify({ identificationId }), sourceDigest, targetDigest],
+        values: [ledgerId, operationKey, input.recordId, observationId, JSON.stringify({ identificationId: input.legacyIdentificationId }), JSON.stringify({ identificationId }), sourceDigest, targetDigest],
       },
     ],
   };
@@ -313,15 +322,17 @@ export async function buildMediaReassignmentDualWritePlan(input: {
   actorUserId: string;
   role?: "primary_evidence" | "supporting_evidence" | "context" | "audio_evidence" | "trace_evidence";
   sourcePayload: Record<string, unknown>;
+  writeMode?: "dual_write" | "backfill";
 }): Promise<ObservationDualWritePlan> {
   const observationId = await observationIdForRecord(input.recordId);
   const sourceKey = `legacy_media:${input.mediaId}`;
   const linkId = await deterministicUuid(`record-observation-media:${observationId}:${sourceKey}`);
   const eventId = await deterministicUuid(`record-observation-event:${observationId}:${sourceKey}:linked`);
-  const ledgerId = await deterministicUuid(`record-observation-ledger:${observationId}:${sourceKey}:reassign`);
+  const operationKey = input.writeMode === "backfill" ? `backfill:v1:media:${input.mediaId}:${input.recordId}` : `${sourceKey}:reassign:${input.recordId}`;
+  const ledgerId = await deterministicUuid(`record-observation-ledger:${operationKey}`);
   const sourceDigest = await sha256Hex(JSON.stringify(input.sourcePayload));
   const targetDigest = await sha256Hex(JSON.stringify({ observationId, mediaId: input.mediaId, role: input.role ?? "primary_evidence" }));
-  const provenance = JSON.stringify({ source: "cloudflare_native_media_writer", actorUserId: input.actorUserId, sourceDigest });
+  const provenance = JSON.stringify({ source: input.writeMode === "backfill" ? "cloudflare_native_media_backfill" : "cloudflare_native_media_writer", actorUserId: input.actorUserId, sourceDigest });
   return {
     observationId,
     mutations: [
@@ -366,7 +377,7 @@ export async function buildMediaReassignmentDualWritePlan(input: {
           attempt_count = MIN(record_observation_consistency_ledger.attempt_count + 1, 100),
           updated_at = CURRENT_TIMESTAMP,
           resolved_at = CURRENT_TIMESTAMP`,
-        values: [ledgerId, `${sourceKey}:reassign:${input.recordId}`, input.recordId, observationId, JSON.stringify({ mediaId: input.mediaId }), JSON.stringify({ observationId, linkId }), sourceDigest, targetDigest],
+        values: [ledgerId, operationKey, input.recordId, observationId, JSON.stringify({ mediaId: input.mediaId }), JSON.stringify({ observationId, linkId }), sourceDigest, targetDigest],
       },
     ],
   };
