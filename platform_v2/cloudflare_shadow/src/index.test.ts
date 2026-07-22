@@ -7908,7 +7908,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(observationsPayload.items[0].visitId, "visit-map-contract");
   assert.equal(observationsPayload.items[0].occurrenceId, "occ:visit-map-contract:0");
   assert.equal(observationsPayload.items[0].displayName, "地図テスト植物");
-  assert.equal(observationsPayload.items[0].cellId, "cell:34.71,137.81");
+  assert.ok(!("cellId" in observationsPayload.items[0]));
   assert.match(observationsPayload.items[0].photoUrl, /^\/derived\/.+\/display\.webp$/);
   assert.match(observationsPayload.items[0].photoUrl, /\/derived\/.+\/display\.webp$/);
   assert.doesNotMatch(observationsPayload.items[0].photoUrl, /placeholder/);
@@ -8740,7 +8740,7 @@ test("privacy exact-coordinate gate keeps public map responses on public cells o
   assert.equal(observationsResponse.ok, true, JSON.stringify(observationsPayload));
   assert.equal(observationsPayload.items.length, 1);
   assert.equal(observationsPayload.items[0].visitId, "privacy-exact-coordinate-gate");
-  assert.equal(observationsPayload.items[0].cellId, "cell:34.77,137.88");
+  assert.ok(!("cellId" in observationsPayload.items[0]));
   assert.equal(observationsPayload.items[0].privacy.exactLocationExposed, false);
   assert.equal(observationsPayload.stats.privacy.exactLocationExposed, false);
   assert.deepEqual(observationsPayload.stats.privacy.rawCoordinateFieldsExposed, []);
