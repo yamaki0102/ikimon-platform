@@ -1,13 +1,25 @@
 export const OBSERVATION_VISION_MODEL = "@cf/moondream/moondream3.1-9B-A2B";
+export const OBSERVATION_AI_PROMPT_VERSION = "observation-multisubject/v1";
+export const OBSERVATION_AI_RULE_VERSION = "record-observation-dual-write/v1";
 
-export type ObservationAiCandidate = {
+export type ObservationAiSubjectLocator = {
+  rect?: { x: number; y: number; width: number; height: number };
+};
+
+export type ObservationAiSubjectCandidate = {
+  candidateKey: string | null;
   vernacularName: string | null;
   scientificName: string | null;
   rank: "species" | "genus" | "family" | "order" | "class" | "unknown";
   confidence: number;
   visualEvidence: string[];
   needsMoreEvidence: string[];
+  subjectLocator: ObservationAiSubjectLocator;
+};
+
+export type ObservationAiCandidate = ObservationAiSubjectCandidate & {
   nonBiological: boolean;
+  coexistingSubjects: ObservationAiSubjectCandidate[];
 };
 
 const allowedRanks = new Set<ObservationAiCandidate["rank"]>([
@@ -30,12 +42,85 @@ const cleanList = (value: unknown): string[] => {
   return values.map((item) => cleanText(item, 160)).filter((item): item is string => Boolean(item)).slice(0, 4);
 };
 
+const boundedUnit = (value: unknown): number | null => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : null;
+};
+
+const cleanSubjectLocator = (value: unknown): ObservationAiSubjectLocator => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const locator = value as Record<string, unknown>;
+  const rawRect = locator.rect;
+  if (!rawRect || typeof rawRect !== "object" || Array.isArray(rawRect)) return {};
+  const rect = rawRect as Record<string, unknown>;
+  const x = boundedUnit(rect.x);
+  const y = boundedUnit(rect.y);
+  const width = boundedUnit(rect.width);
+  const height = boundedUnit(rect.height);
+  if (x === null || y === null || width === null || height === null || width <= 0 || height <= 0) return {};
+  if (x + width > 1.001 || y + height > 1.001) return {};
+  return { rect: { x, y, width, height } };
+};
+
+const cleanSubjectCandidate = (value: unknown): ObservationAiSubjectCandidate | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const parsed = value as Record<string, unknown>;
+  const vernacularName = cleanText(parsed.vernacularName ?? parsed.vernacular_name, 120);
+  const scientificName = cleanText(parsed.scientificName ?? parsed.scientific_name, 180);
+  if (!vernacularName && !scientificName) return null;
+  const rawRank = cleanText(parsed.rank, 24)?.toLowerCase() as ObservationAiCandidate["rank"] | undefined;
+  const confidence = Number(parsed.confidence);
+  return {
+    candidateKey: cleanText(parsed.candidateKey ?? parsed.candidate_key, 80),
+    vernacularName,
+    scientificName,
+    rank: rawRank && allowedRanks.has(rawRank) ? rawRank : "unknown",
+    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0,
+    visualEvidence: cleanList(parsed.visualEvidence ?? parsed.visual_evidence),
+    needsMoreEvidence: cleanList(parsed.needsMoreEvidence ?? parsed.needs_more_evidence),
+    subjectLocator: cleanSubjectLocator(parsed.subjectLocator ?? parsed.subject_locator),
+  };
+};
+
+const fallbackSubjectKey = (candidate: ObservationAiSubjectCandidate): string => {
+  const name = (candidate.scientificName ?? candidate.vernacularName ?? "unknown")
+    .normalize("NFKC")
+    .toLocaleLowerCase("en-US")
+    .replace(/\s+/gu, "-")
+    .slice(0, 80);
+  const rect = candidate.subjectLocator.rect;
+  const locator = rect ? `${rect.x.toFixed(4)}:${rect.y.toFixed(4)}:${rect.width.toFixed(4)}:${rect.height.toFixed(4)}` : "full";
+  return `subject:${name}:${locator}`;
+};
+
+export function observationAiSubjects(candidate: ObservationAiCandidate): Array<{
+  subjectKey: string;
+  candidate: ObservationAiSubjectCandidate;
+  primary: boolean;
+}> {
+  const source: Array<{ subjectKey: string; candidate: ObservationAiSubjectCandidate; primary: boolean }> = [];
+  if (!candidate.nonBiological && (candidate.vernacularName || candidate.scientificName)) {
+    source.push({ subjectKey: "primary", candidate, primary: true });
+  }
+  for (const child of candidate.coexistingSubjects) {
+    source.push({ subjectKey: child.candidateKey ?? fallbackSubjectKey(child), candidate: child, primary: false });
+  }
+  const occurrences = new Map<string, number>();
+  return source.map((subject) => {
+    const count = (occurrences.get(subject.subjectKey) ?? 0) + 1;
+    occurrences.set(subject.subjectKey, count);
+    return count === 1 ? subject : { ...subject, subjectKey: `${subject.subjectKey}#${count}` };
+  });
+}
+
 export function observationAiQuestion(): string {
   return [
     "What is the main organism in this citizen-science image? Give the most likely common and scientific name, but stay at genus or family when the visible evidence is insufficient for a species identification.",
     "List the visible traits supporting the candidate and what additional photo would help. This is a candidate for human review, not a confirmed identification. Consider cultivated plants.",
-    "Return JSON only, using exactly these keys: vernacularName, scientificName, rank, confidence, visualEvidence, needsMoreEvidence, nonBiological.",
+    "Detect each separate organism or plant that is visibly supported. Keep alternative names for the same subject out of coexistingSubjects.",
+    "Return JSON only, using exactly these keys: vernacularName, scientificName, rank, confidence, visualEvidence, needsMoreEvidence, nonBiological, subjectLocator, coexistingSubjects.",
     "Use a Japanese common name for vernacularName when known. rank is one of species, genus, family, order, class, unknown. confidence is 0 to 1. visualEvidence and needsMoreEvidence are arrays. nonBiological is true only when no organism is visible.",
+    "subjectLocator is {rect:{x,y,width,height}} with normalized 0 to 1 coordinates. coexistingSubjects is an array of at most 6 separate visible subjects using candidateKey, vernacularName, scientificName, rank, confidence, visualEvidence, needsMoreEvidence, subjectLocator.",
   ].join("\n");
 }
 
@@ -51,20 +136,27 @@ export function parseObservationAiCandidate(answer: unknown): ObservationAiCandi
     throw new Error("ai_answer_invalid_json");
   }
 
-  const rawRank = cleanText(parsed.rank, 24)?.toLowerCase() as ObservationAiCandidate["rank"] | undefined;
-  const confidence = Number(parsed.confidence);
-  const vernacularName = cleanText(parsed.vernacularName, 120);
-  const scientificName = cleanText(parsed.scientificName, 180);
+  const primary = cleanSubjectCandidate(parsed);
+  const vernacularName = primary?.vernacularName ?? null;
+  const scientificName = primary?.scientificName ?? null;
+  const coexistingRaw = parsed.coexistingSubjects ?? parsed.coexisting_subjects ?? parsed.coexisting_taxa;
+  const coexistingSubjects = (Array.isArray(coexistingRaw) ? coexistingRaw : [])
+    .map(cleanSubjectCandidate)
+    .filter((item): item is ObservationAiSubjectCandidate => item !== null)
+    .slice(0, 6);
   const candidate: ObservationAiCandidate = {
+    candidateKey: primary?.candidateKey ?? null,
     vernacularName,
     scientificName,
-    rank: rawRank && allowedRanks.has(rawRank) ? rawRank : "unknown",
-    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0,
-    visualEvidence: cleanList(parsed.visualEvidence),
-    needsMoreEvidence: cleanList(parsed.needsMoreEvidence),
+    rank: primary?.rank ?? "unknown",
+    confidence: primary?.confidence ?? 0,
+    visualEvidence: primary?.visualEvidence ?? [],
+    needsMoreEvidence: primary?.needsMoreEvidence ?? [],
+    subjectLocator: primary?.subjectLocator ?? {},
     nonBiological: parsed.nonBiological === true && !vernacularName && !scientificName,
+    coexistingSubjects,
   };
-  if (!candidate.nonBiological && !candidate.vernacularName && !candidate.scientificName) {
+  if (!candidate.nonBiological && !candidate.vernacularName && !candidate.scientificName && coexistingSubjects.length === 0) {
     throw new Error("ai_candidate_name_missing");
   }
   return candidate;
