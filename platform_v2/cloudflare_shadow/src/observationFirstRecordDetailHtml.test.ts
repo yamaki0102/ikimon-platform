@@ -87,6 +87,7 @@ test("guest HTML omits owner lifecycle and media reassignment controls", () => {
   assert.doesNotMatch(rendered, /この対象を編集|メディアの割り当て|対象を分ける|対象を統合/);
   assert.doesNotMatch(rendered, /name="action" value="identify"/);
   assert.match(rendered, /ログインして同定候補を記録/);
+  assert.match(rendered, /\.of-policy-off a\{display:inline-flex;align-items:center;min-height:44px/);
   assert.doesNotMatch(rendered, /35\.123456|138\.123456|[?&]lat=/);
 });
 
