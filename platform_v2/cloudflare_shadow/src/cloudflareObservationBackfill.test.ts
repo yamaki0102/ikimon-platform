@@ -35,8 +35,8 @@ test("backfill is deterministic, idempotent and does not infer an accepted ident
   assert.doesNotMatch(sql, /'accepted'.*is_current/is);
   assert.doesNotMatch(sql, /SET\s+accepted_identification_id\s*=\s*(?!NULL)/i);
   const policyMutation = first.mutations.find((mutation) => mutation.sql.includes("record_observation_policies"));
-  assert.equal(policyMutation?.values[2], "private");
-  assert.equal(policyMutation?.values[3], 0);
+  assert.equal(policyMutation?.values[2], "public");
+  assert.equal(policyMutation?.values[3], 1);
 });
 
 test("ambiguous ownership and missing parents are quarantined without provenance promotion", async () => {
@@ -76,6 +76,13 @@ test("explicit curator provenance is preserved and can repair a candidate-only b
   assert.equal(claim?.values[2], "curator-1");
   assert.equal(claim?.values[3], "curator");
   assert.match(claim?.sql ?? "", /actor_id = excluded\.actor_id, actor_kind = excluded\.actor_kind/);
+});
+
+test("withdrawal remains private while consent is only a fallback for missing legacy visibility", async () => {
+  const withdrawn = await buildRecordObservationBackfillPlan({ observations: [{ ...record, observation_id: "record-withdrawn", withdrawal_status: "withdrawn" }], assets: [], identifications: [], aiTargets: [] });
+  const fallback = await buildRecordObservationBackfillPlan({ observations: [{ ...record, observation_id: "record-fallback", visibility: "unknown", record_consent: "private" }], assets: [], identifications: [], aiTargets: [] });
+  assert.equal(withdrawn.mutations.find((mutation) => mutation.sql.includes("record_observation_policies"))?.values[2], "private");
+  assert.equal(fallback.mutations.find((mutation) => mutation.sql.includes("record_observation_policies"))?.values[2], "private");
 });
 
 test("fresh D1 apply and replay keep counts stable and foreign keys valid", async () => {
