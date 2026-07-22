@@ -24911,7 +24911,7 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
   if (!container) return { state: "missing" as const, detail: null };
   const [observations, media, claims, suggestions] = await Promise.all([
     env.OBS_DB.prepare(
-      `SELECT observation_id, record_id, owner_user_id, origin, assertion_status,
+      `SELECT observation_id, source_key, record_id, owner_user_id, origin, assertion_status,
               verification_status, lifecycle_status, data_use_scope,
               accepted_identification_id, subject_type, captive_context, display_order,
               context_json, provenance_json
@@ -24934,7 +24934,8 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
       `SELECT c.identification_id AS claim_id, c.observation_id,
               c.actor_kind AS actor_type, COALESCE(c.actor_id, '') AS actor_id,
               c.proposed_name, c.proposed_scientific_name, c.proposed_rank,
-              c.stance, c.claim_status, c.created_at
+              c.stance, c.claim_status, c.accepted_name, c.accepted_rank,
+              c.decided_by_actor_kind, c.decided_by_actor_id, c.decided_at, c.created_at
          FROM observation_identification_claims c
          JOIN record_observations ro ON ro.observation_id = c.observation_id
         WHERE ro.record_runtime = 'cloudflare_d1' AND ro.record_id = ?
