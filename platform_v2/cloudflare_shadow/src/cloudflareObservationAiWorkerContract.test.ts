@@ -34,8 +34,8 @@ test("photo upload, queue, cron, Workers AI, and review target form one durable 
   assert.match(source, /humanReviewRequired: true/);
   assert.match(source, /OBSERVATION_DUAL_WRITE_MODE \?\? "off"/);
   assert.equal((wrangler.match(/"binding": "AI"/g) ?? []).length, 4);
-  assert.equal((wrangler.match(/"OBSERVATION_DUAL_WRITE_MODE": "off"/g) ?? []).length, 3);
-  assert.equal((wrangler.match(/"OBSERVATION_DUAL_WRITE_MODE": "on"/g) ?? []).length, 1);
-  assert.equal((wrangler.match(/"OBSERVATION_READ_CUTOVER_MODE": "off"/g) ?? []).length, 3);
-  assert.equal((wrangler.match(/"OBSERVATION_READ_CUTOVER_MODE": "on"/g) ?? []).length, 1);
+  assert.equal((wrangler.match(/"OBSERVATION_DUAL_WRITE_MODE": "off"/g) ?? []).length, 2);
+  assert.equal((wrangler.match(/"OBSERVATION_DUAL_WRITE_MODE": "on"/g) ?? []).length, 2);
+  assert.equal((wrangler.match(/"OBSERVATION_READ_CUTOVER_MODE": "off"/g) ?? []).length, 2);
+  assert.equal((wrangler.match(/"OBSERVATION_READ_CUTOVER_MODE": "on"/g) ?? []).length, 2);
 });
