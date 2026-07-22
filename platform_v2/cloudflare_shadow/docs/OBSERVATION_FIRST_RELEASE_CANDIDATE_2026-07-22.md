@@ -1,6 +1,6 @@
 # Observation-first record release candidate evidence
 
-Date: 2026-07-22  
+Date: 2026-07-22
 Base source: `52011106d01c90561b0e46a252ea665e6d0fa509`
 
 This note records the immutable release-candidate gates for the observation-first record detail rollout. It does not authorize or perform a deployment, database mutation, secret change, DNS change, access change, or customer send.
