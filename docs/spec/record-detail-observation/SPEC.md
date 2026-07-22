@@ -265,10 +265,11 @@ AI job成功は次の成功を意味しません。
 通常閲覧の表示順:
 
 - 重複のないrecord media gallery
-- title / note summary、observed time、privacy-safe location、公開範囲
+- title、observed time、privacy-safe location、位置保護の短い説明、公開範囲
 - edit / share等の基本操作
-- 値がある場合だけobservation summary、environment summary、note
-- 投稿者だけの「詳しい編集」入口
+- 値がある場合だけ投稿者の写真メモ
+- 値がある場合だけobservation summaryまたは写真内構成要素・非検出状態、learning、environment、過去比較
+- 投稿者だけの「記録に情報を追加」入口
 - 折りたたんだ撮影情報
 - 値がある場合だけ関連記録
 
@@ -280,7 +281,17 @@ community proposalは募集操作なしでpolicyに従って可能ですが、fo
 
 投稿者の追加、split、merge、exclude、restore、media reassignment、proposal policy、accepted identification操作は「詳しい編集」へまとめます。no-JS form、権限、冪等性、provenanceは従来どおり維持します。
 
-### 5.1 Multiple observations
+### 5.1 Scene / detection presentation
+
+- `detected`: active observationがある。対象summary、保存済みlearning、environmentを条件表示する。
+- `not_detected`: 解析が完了し、この写真内で生きもの候補を確認できなかった。「不在」「生きものなし」とは表示しない。
+- `not_assessable`: 画質、距離、暗さ、処理失敗等により判定根拠がない。短い判定不能文言だけを表示し、エラー画面にしない。
+- 状態を裏づける保存値がない場合は、0 observationsから`not_detected`または`not_assessable`を推測しない。
+- 写真内構成要素は、写真由来と確認できる保存済みenvironment値だけをallowlist変換する。
+- environmentはdetectedでも非検出でも値があれば表示する。
+- 過去比較はprivacy-safe同一地点identity、比較対象、比較根拠が揃う場合だけ表示し、「変化なし」の空カードを作らない。
+
+### 5.2 Multiple observations
 
 - 0件: observation sectionを表示せず、通常の写真・動画・音の記録として成立
 - 1件: 件数を強調せず、accepted identificationまたはAI候補を短いsummaryに表示
@@ -288,7 +299,7 @@ community proposalは募集操作なしでpolicyに従って可能ですが、fo
 
 巨大なobservation cardを全件縦へ展開せず、mediaをobservationごとに重複表示しません。ユーザーは操作後の詳細・編集でobservationの追加、分割、統合、除外、media再関連付けを行えます。操作はsource historyを残します。
 
-### 5.2 Pet / captive / unknown / group
+### 5.3 Pet / captive / unknown / group
 
 - ペットや飼育個体を野生occurrenceと誤投影しない
 - captive / cultivated contextを表示・保持する

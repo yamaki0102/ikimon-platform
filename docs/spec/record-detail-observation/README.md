@@ -4,7 +4,7 @@
 
 - specification status: current target contract
 - implementation status: observation-first read/write cutover済み。通常閲覧面のmedia-first表示契約はADR-0002とPR-F文書を正本とする
-- next design status: 季節性・生態・類似種・地域文脈は現行record detail read modelに未保存。追加する場合はprovenance付きread-model拡張を別PRで設計する
+- next design status: 季節性・生態・類似種・地域文脈、privacy-safe同一地点comparisonは現行record detail read modelに未保存。追加する場合はprovenance付きread-model拡張を別PRで設計する
 - supersedes: `docs/architecture/adr-0004-observation-entity-model.md`のsubject / occurrence昇格契約と「AI単独ではobservationを作らない」に相当する旧解釈
 - central execution: `yamaki0102/all-projects-management#435`
 - current implementation issue: `yamaki0102/ikimon-platform#1376`

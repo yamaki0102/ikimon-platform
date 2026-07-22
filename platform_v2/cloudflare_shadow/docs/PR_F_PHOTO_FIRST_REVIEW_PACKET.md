@@ -10,16 +10,18 @@
 mobile
   back / menu
   record-wide media gallery (deduplicated)
-  title / observed time / safe public location / visibility
+  title / observed time / safe public location / location protection / visibility
   basic actions
+  photo note (only when present)
   one observation summary (only when observations exist, max 3 rows)
     existing AI visual evidence / shooting advice (only when present)
     all details (collapsed)
       accepted name / AI candidates / existing community proposals
       propose-name form (collapsed, policy controlled)
-  environment summary (only when present)
-  note (only when present)
-  detailed edit (owner only, collapsed)
+  OR scene elements + non-detection / unassessable state (only when durable facts exist)
+  environment summary (only when present, including scene records)
+  previous comparison (only when privacy-safe evidence exists)
+  add information (owner only, collapsed / full-screen on mobile)
   capture information (collapsed)
   related records (only when present)
 
@@ -35,7 +37,9 @@ desktop
 - Summary source rules: accepted human identification wins; otherwise an AI name is shown only under the localized “What AI found” heading and localized “possibly” wording. Community proposals remain in the on-demand detail and are never used as the accepted name.
 - For N observations, the summary lists the first three observations and “View all” opens every active observation; no observation row or management state duplicates record media.
 - Not present in this read model: seasonality, ecology, similar-species comparison, regional learning context. The UI does not fabricate them.
-- `place_environment_snapshots` is not used because this detail has no verified privacy-safe record link contract.
+- `completed_no_candidate` maps to `not_detected`; failed reassessment maps to `not_assessable`; no saved fact means no inferred status.
+- Scene elements come only from allowlisted `*_source = derived` environment values. Internal JSON and confidence are not rendered.
+- `place_environment_snapshots`, PostgreSQL `visual_observation_signals`, and previous-record comparison are not read because this detail has no verified privacy-safe record link / same-place comparison contract.
 
 ## Implementation locators
 

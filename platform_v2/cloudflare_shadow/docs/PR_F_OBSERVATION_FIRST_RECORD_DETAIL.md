@@ -9,11 +9,14 @@ The observation-first foundation remains canonical, while the normal record-deta
 - accepted human identification, AI suggestions, and community proposals remain separate, but full details open only after a viewer action;
 - visual evidence and additional-shooting advice are rendered only when already present in `rationale_json`; seasonality, ecology, and regional context are not fabricated;
 - the latest privacy-safe environment record is converted from internal values to a light viewer summary only when data exists;
+- records without an active biological observation use durable assessment facts to distinguish completed non-detection from an unassessable photo, and neither state is presented as absence;
+- photo-derived environment values can produce a bounded scene-element list; internal JSON, confidence values, and unknown codes remain hidden;
+- prior-change UI exists only for an evidence-backed privacy-safe comparison; the current production read model supplies no comparison because the required same-place contract is not yet available;
 - proposal forms are on demand and proposal-zero states are absent;
 - split, merge, exclude, restore, media reassignment, proposal policy, and owner decisions remain no-JavaScript operations under one detailed-edit disclosure;
 - all new viewer copy uses the existing language selection for Japanese, English, Spanish, and Brazilian Portuguese.
 
-No schema, migration, backfill, new AI request, observation state transition, permission policy, or exact-location surface changes in this presentation correction.
+No schema, migration, backfill, new AI request, observation state transition, permission policy, or exact-location surface changes in this presentation correction. PostgreSQL `visual_observation_signals` and `place_environment_snapshots` are not joined into this D1 detail without a verified privacy-safe record link.
 
 ## Scope
 
@@ -48,3 +51,4 @@ POST actions require both feature flags, a same-origin request, a valid session,
 - visual QA at 320, 375, 390, and desktop widths, plus keyboard/focus/label/contrast smoke
 - rendered-output scans reject latitude, longitude, cell, mesh, geohash, coordinate-derived IDs, and exact-place locators
 - photo, video, and audio are deduplicated at record level; 0 / 1 / N summary contracts are covered by HTML tests
+- `completed_no_candidate`, failed/unassessable, scene elements, absent comparison data, and four-locale wording are covered by HTML contracts

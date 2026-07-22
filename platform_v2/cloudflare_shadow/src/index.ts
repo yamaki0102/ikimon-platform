@@ -32,7 +32,7 @@ import {
   type ObservationFirstRecordDetail,
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
-import { renderObservationFirstRecordDetailHtml } from "./observationFirstRecordDetailHtml";
+import { renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import {
   renderObservationProcessingStatusPanel,
@@ -979,6 +979,7 @@ interface PublicDetailRow extends PublicMapRow {
   note: string | null;
   visibility: string;
   ai_assessment_status: string | null;
+  ai_request_status: string | null;
   ai_candidate_label: string | null;
   ai_candidate_rank: string | null;
 }
@@ -24894,6 +24895,12 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         ...detail.videoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "video" as const, url: item.watchUrl })),
         ...(detail.audioAssets as Array<{ assetId: string; url?: string }>).map((item) => ({ mediaId: item.assetId, mediaKind: "audio" as const, url: item.url ?? null })),
       ];
+      const activeObservationCount = observationFirst.detail.observations.filter((item) => item.state === "active").length;
+      const detectionState = resolveObservationFirstDetectionState(
+        activeObservationCount,
+        detail.aiAssessmentStatus,
+        detail.aiRequestStatus,
+      );
       return html(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
         title: detail.displayName,
@@ -24901,6 +24908,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
         note: detail.note,
         publicLocationLabel: detail.publicLocation.label,
+        detectionState,
         media,
         environment: detail.environmentRecord,
         related: detail.relatedObservations.map((item) => ({
@@ -25174,6 +25182,9 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
                 ), 0) AS asset_count,
                 o.note, o.visibility,
                 art.ai_assessment_status,
+                (SELECT rr.request_state FROM observation_reassessment_requests rr
+                  WHERE rr.observation_id = o.observation_id AND rr.request_kind = 'standard'
+                  ORDER BY rr.updated_at DESC LIMIT 1) AS ai_request_status,
                 COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
                 COALESCE(art.candidate_taxon_rank, art.ai_recommended_rank) AS ai_candidate_rank
            FROM observations o
@@ -25187,6 +25198,9 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
         `SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, r.asset_count,
                 o.note, o.visibility,
                 art.ai_assessment_status,
+                (SELECT rr.request_state FROM observation_reassessment_requests rr
+                  WHERE rr.observation_id = o.observation_id AND rr.request_kind = 'standard'
+                  ORDER BY rr.updated_at DESC LIMIT 1) AS ai_request_status,
                 COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
                 COALESCE(art.candidate_taxon_rank, art.ai_recommended_rank) AS ai_candidate_rank
            FROM readmodel_public_observations r
@@ -25249,6 +25263,14 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
         mediaRole: "observation_video"
       };
     });
+  const audioAssets = assets.results
+    .filter((asset) => asset.mime.startsWith("audio/"))
+    .map((asset) => ({
+      assetId: asset.asset_id,
+      url: publicMediaUrl(asset.public_derivative_key),
+      durationMs: asset.duration_ms ?? 0,
+      mediaRole: "observation_audio",
+    }));
   const environmentRecord = await readLatestPublicObservationEnvironmentRecord(env, visitId);
   const relatedRows = (await queryPublicMapRows(env))
     .filter((related) => related.public_cell === row.public_cell && related.observation_id !== visitId)
@@ -25269,6 +25291,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiCandidateLabel: row.ai_candidate_label,
     aiCandidateRank: row.ai_candidate_rank,
     aiAssessmentStatus: row.ai_assessment_status,
+    aiRequestStatus: row.ai_request_status,
     visibility: row.visibility,
     observedAt: row.observed_at,
     note: row.note,
@@ -25280,7 +25303,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     photoAssets,
     photoUrls: photoAssets.map((asset) => asset.url),
     videoAssets,
-    audioAssets: [],
+    audioAssets,
     assetCount: row.asset_count,
     environmentRecord,
     mediaRegions,

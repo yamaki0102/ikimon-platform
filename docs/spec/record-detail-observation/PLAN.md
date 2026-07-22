@@ -201,6 +201,10 @@ Rules:
 - observationの管理状態と全操作は通常閲覧へ展開せず、「詳しい編集」配下へ置く
 - AI候補、環境情報、学習情報はデータ状態の説明より自然への気づきと学びを優先し、存在する保存データだけを表示する
 - observation 0件ではobservation sectionそのものを表示せず、通常の写真・動画・音の記録として成立させる
+- observation 0件でも保存済みの写真解析・environmentがある場合は、写真内構成要素と`not_detected / not_assessable`を条件表示し、景色・場所・暮らしの記録として成立させる
+- `not_detected`は写真内で候補を確認できなかった状態であり、生きものの不在を意味しない。解析失敗や判断不能を`not_detected`へ混ぜない
+- 写真構成要素は保存済みの写真由来environment値をallowlist変換し、内部JSON・confidence・未知codeを表示しない
+- 過去比較はprivacy-safe同一地点identityと比較根拠がある場合だけ表示し、現行read modelで不足する値を生成しない
 - observation複数では最大3件をsummaryに出し、全件は利用者操作後に表示する
 - 「みんなに聞く」「名前の提案を募集中」「人の確認待ち」「みんなの確認はまだありません」「確認0件」および同義の募集状態は追加しない
 - 提案0件の専用empty stateを表示しない
@@ -219,6 +223,7 @@ Exit:
 - community-added subject remains provisional and creates no occurrence
 - queue ordering is independent from proposal recruitment state
 - accessibility and visual QA pass
+- detected / not_detected / not_assessableの文言、条件表示、非不在claimが4言語で一致する
 
 ### PR-G — Occurrence projection and research gate
 

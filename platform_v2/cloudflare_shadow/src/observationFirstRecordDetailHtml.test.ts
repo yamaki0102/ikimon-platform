@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
-import { renderObservationFirstRecordDetailHtml } from "./observationFirstRecordDetailHtml";
+import { renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 
 const detail: ObservationFirstRecordDetail = {
   schema: "ikimon.observation-first-record-detail/v1",
@@ -41,6 +41,14 @@ const detail: ObservationFirstRecordDetail = {
   privacy: { exactLocationExposed: false, publicLocationLabel: "位置情報は公開範囲に合わせて保護されています" },
 };
 
+test("detection presentation is derived only from durable assessment facts", () => {
+  assert.equal(resolveObservationFirstDetectionState(1, null, null), "detected");
+  assert.equal(resolveObservationFirstDetectionState(0, "completed_no_candidate", "completed"), "not_detected");
+  assert.equal(resolveObservationFirstDetectionState(0, null, "failed"), "not_assessable");
+  assert.equal(resolveObservationFirstDetectionState(0, null, "pending"), null);
+  assert.equal(resolveObservationFirstDetectionState(0, null, null), null);
+});
+
 test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its own idempotency key", () => {
   const rendered = renderObservationFirstRecordDetailHtml(detail, {
     title: "庭の観察",
@@ -62,7 +70,8 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.equal((rendered.match(/<img[^>]+https:\/\/media\.example\/safe\.jpg/g) ?? []).length, 1);
   assert.match(rendered, /この記録で見つかったもの|AIが見つけたもの/);
   assert.match(rendered, /<details class="of-manage"/);
-  assert.match(rendered, /<summary[^>]*>記録を詳しくする<\/summary>/);
+  assert.match(rendered, /<summary[^>]*>記録に情報を追加<\/summary>/);
+  assert.match(rendered, /見つけた生きものや、環境、気づき、写真の整理を追加できます/);
   assert.match(rendered, /<summary[^>]*>名前を提案する<\/summary>/);
   assert.match(rendered, /見分けるポイント/);
   assert.match(rendered, /この場所のようす/);
@@ -95,7 +104,7 @@ test("guest HTML omits owner management and keeps proposals on demand", () => {
     actionNonce: "nonce-guest",
     viewerAuthenticated: false,
   });
-  assert.doesNotMatch(rendered, /記録を詳しくする|写真を対象へ割り当てる|別の対象として分ける|別の対象とまとめる/);
+  assert.doesNotMatch(rendered, /記録に情報を追加|写真を対象へ割り当てる|別の対象として分ける|別の対象とまとめる/);
   assert.doesNotMatch(rendered, /name="action" value="identify"/);
   assert.match(rendered, /ログインして名前を提案する/);
   assert.match(rendered, /a,button,input,select,textarea,summary\{min-height:44px/);
@@ -117,10 +126,10 @@ test("owner identification remains available when external proposals are off", (
 
 test("all supported languages render localized viewer copy", () => {
   const expectations = {
-    ja: "AIが見つけたもの",
-    en: "What AI found",
-    es: "Lo que encontró la IA",
-    "pt-br": "O que a IA encontrou",
+    ja: "この記録で見つかったもの",
+    en: "Found in this record",
+    es: "Encontrado en este registro",
+    "pt-br": "Encontrado neste registro",
   } as const;
   for (const [lang, expected] of Object.entries(expectations)) {
     const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
@@ -134,6 +143,30 @@ test("all supported languages render localized viewer copy", () => {
     });
     assert.match(rendered, new RegExp(expected));
     assert.match(rendered, new RegExp(`<html lang="${lang}"`));
+  }
+});
+
+test("scene and non-detection copy is localized in every supported language", () => {
+  const expectations = {
+    ja: ["この写真から見つかったもの", "この写真では、生きものの姿は見つかりませんでした"],
+    en: ["Found in this photo", "No organism was visible in this photo"],
+    es: ["Encontrado en esta foto", "En esta foto no se encontró la figura de ningún ser vivo"],
+    "pt-br": ["Encontrado nesta foto", "Nesta foto, não foi possível encontrar a figura de um ser vivo"],
+  } as const;
+  for (const [lang, expected] of Object.entries(expectations)) {
+    const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
+      lang: lang as keyof typeof expectations,
+      title: "River scene",
+      observedLabel: "2026-07-22",
+      note: null,
+      detectionState: "not_detected",
+      sceneElements: ["water"],
+      media: [{ mediaId: "scene", mediaKind: "photo", url: "https://media.example/scene.jpg" }],
+      actionNonce: `nonce-scene-${lang}`,
+      viewerAuthenticated: false,
+    });
+    assert.match(rendered, new RegExp(expected[0]));
+    assert.match(rendered, new RegExp(expected[1]));
   }
 });
 
@@ -177,4 +210,131 @@ test("multiple observations expose at most three summary rows and keep every det
   assert.equal((rendered.match(/<article class="of-observation-detail">/g) ?? []).length, 5);
   assert.match(rendered, /<summary>すべて見る<\/summary>/);
   assert.equal((rendered.match(/<video controls/g) ?? []).length, 1);
+});
+
+test("a completed scene analysis without a biological candidate remains a useful landscape record", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
+    title: "川沿いの夕景",
+    observedLabel: "2026年7月19日 18:42",
+    note: "水面が夕日に光っていた",
+    publicLocationLabel: "静岡県浜松市",
+    locationProtectionLabel: "位置はぼかして表示",
+    detectionState: "not_detected",
+    sceneElements: ["water", "low_grass", "built_surface"],
+    media: [{ mediaId: "scene", mediaKind: "photo", url: "https://media.example/river.jpg" }],
+    environment: {
+      place_type: "water_edge",
+      surrounding_cover: "low_grass",
+      contact_surface: "artificial",
+      human_change: "construction",
+      place_type_source: "derived",
+      surrounding_cover_source: "derived",
+      contact_surface_source: "derived",
+      human_change_source: "derived",
+      environment_record_status: "auto_draft",
+    },
+    actionNonce: "nonce-scene",
+    viewerAuthenticated: false,
+  });
+
+  assert.match(rendered, /この写真から見つかったもの/);
+  assert.match(rendered, /水面/);
+  assert.match(rendered, /低い草地/);
+  assert.match(rendered, /舗装・構造物/);
+  assert.match(rendered, /この写真では、生きものの姿は見つかりませんでした/);
+  assert.match(rendered, /この場所のようす/);
+  assert.match(rendered, /写真メモ/);
+  assert.match(rendered, /位置はぼかして表示/);
+  assert.doesNotMatch(rendered, /生きものなし|生きものはいない|不在|<section class="of-summary"/);
+});
+
+test("scene chips ignore non-derived environment fields and unknown internal codes", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
+    title: "環境データ境界",
+    observedLabel: "2026年7月19日",
+    note: null,
+    detectionState: "not_detected",
+    media: [{ mediaId: "scene-boundary", mediaKind: "photo", url: "https://media.example/scene.jpg" }],
+    environment: {
+      place_type: "water_edge",
+      place_type_source: "owner",
+      surrounding_cover: "low_grass",
+      surrounding_cover_source: "derived",
+      contact_surface: "future_internal_code",
+      contact_surface_source: "derived",
+      environment_record_status: "auto_draft",
+    },
+    actionNonce: "nonce-scene-boundary",
+    viewerAuthenticated: false,
+  });
+
+  assert.match(rendered, /低い草地/);
+  assert.doesNotMatch(rendered, /水面/);
+  assert.doesNotMatch(rendered, /future_internal_code/);
+});
+
+test("an unassessable photo never becomes an absence claim", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: true, observationCount: 0, observations: [] }, {
+    title: "暗い林",
+    observedLabel: "2026年7月22日 21:30",
+    note: null,
+    detectionState: "not_assessable",
+    sceneElements: ["trees_shrubs"],
+    media: [{ mediaId: "dark", mediaKind: "photo", url: "https://media.example/dark.jpg" }],
+    actionNonce: "nonce-unassessable",
+    viewerAuthenticated: true,
+  });
+
+  assert.match(rendered, /この写真だけでは、生きものの姿を判断できませんでした/);
+  assert.match(rendered, /樹木・低木/);
+  assert.match(rendered, /記録に情報を追加/);
+  assert.doesNotMatch(rendered, /見つかりませんでした|生きものなし|不在/);
+});
+
+test("comparison appears only with an evidence-backed presentation", () => {
+  const basePresentation = {
+    title: "河原の記録",
+    observedLabel: "2026年7月22日",
+    note: null,
+    detectionState: "not_detected" as const,
+    sceneElements: [] as string[],
+    media: [{ mediaId: "river", mediaKind: "photo" as const, url: "https://media.example/river.jpg" }],
+    actionNonce: "nonce-comparison",
+    viewerAuthenticated: false,
+  };
+  const withoutComparison = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, basePresentation);
+  const withComparison = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
+    ...basePresentation,
+    comparison: {
+      summary: "前回より草がよく茂って見えます。",
+      comparedRecordId: "previous-safe",
+      comparedObservedLabel: "2026年7月12日",
+    },
+  });
+
+  assert.doesNotMatch(withoutComparison, /前の記録との変化/);
+  assert.match(withComparison, /前の記録との変化/);
+  assert.match(withComparison, /前回より草がよく茂って見えます/);
+  assert.match(withComparison, /2026年7月12日/);
+  assert.doesNotMatch(withComparison, /latitude|longitude|geohash|public_cell/i);
+});
+
+test("detected records label learning and location protection without exposing internal state", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
+    title: "庭のアゲハ",
+    observedLabel: "2026年7月22日",
+    note: null,
+    publicLocationLabel: "浜松市周辺",
+    locationProtectionLabel: "おおよその場所を表示",
+    detectionState: "detected",
+    sceneElements: [],
+    media: [{ mediaId: "butterfly", mediaKind: "photo", url: "https://media.example/butterfly.jpg" }],
+    actionNonce: "nonce-detected",
+    viewerAuthenticated: false,
+  });
+
+  assert.match(rendered, /この記録で見つかったもの/);
+  assert.match(rendered, /わかること/);
+  assert.match(rendered, /おおよその場所を表示/);
+  assert.doesNotMatch(rendered, /provisional|human_asserted|accepted identification|provenance|occurrence/i);
 });
