@@ -328,7 +328,9 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /function hideOwnObservationTrail\(\)/);
   assert.match(script, /function isMeaningfulMapRecordLabel\(value\)/);
   assert.match(script, /function isRenderableMapRecord\(record\)/);
-  assert.match(script, /state\.records = \(\(list && list\.items\) \|\| \[\]\)\.filter\(isRenderableMapRecord\)/);
+  assert.match(script, /var selectedAggregateCellId = scope && scope\.cellId/);
+  assert.match(script, /Object\.assign\(\{\}, record, \{ cellId: selectedAggregateCellId \}\)/);
+  assert.match(script, /state\.records = \(\(list && list\.items\) \|\| \[\]\)\.map[\s\S]*\.filter\(isRenderableMapRecord\)/);
   assert.match(script, /state\.myObservations = payload && payload\.signedIn \? \(payload\.items \|\| \[\]\)\.filter\(isRenderableMapRecord\) : \[\]/);
   assert.match(script, /function viewerOwnedRecordCenter\(record\)/);
   assert.match(script, /record && record\.isViewerOwned && Number\.isFinite\(lat\) && Number\.isFinite\(lng\)/);

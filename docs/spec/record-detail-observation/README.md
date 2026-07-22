@@ -3,7 +3,7 @@
 ## Status
 
 - specification status: current target contract
-- implementation status: PR-A GitHub evidence complete with external gates; runtime behavior unchanged
+- implementation status: PR-A source closeout in progress; aggregate D1 baseline complete, exact-SHA staging privacy scan pending
 - next design status: PR-B additive schema design ready for implementation; migration apply remains a separate fixed controlled lane
 - supersedes: `docs/architecture/adr-0004-observation-entity-model.md`のsubject / occurrence昇格契約と「AI単独ではobservationを作らない」に相当する旧解釈
 - central execution: `yamaki0102/all-projects-management#435`
@@ -21,8 +21,9 @@
 4. [`PR_A_EVIDENCE_MATRIX.md`](PR_A_EVIDENCE_MATRIX.md) — GitHubから確認したwriter/readmodel、D1、privacy、monitoring、競合laneの証拠
 5. [`PR_B_ADDITIVE_SCHEMA_DESIGN.md`](PR_B_ADDITIVE_SCHEMA_DESIGN.md) — additive-only schema設計、制約、backfill分類、最終実装判断
 6. [`PR_A_EXTERNAL_GATES.md`](PR_A_EXTERNAL_GATES.md) — clean checkout、完全検索、read-only metrics、privacy scan、独立reviewの再現手順
-7. [`PLAN.md`](PLAN.md) — migration順、PR分割、verification、rollback
-8. `yamaki0102/all-projects-management#435` — 現在フェーズ、blocker、active PR、deploy状態
+7. [`PR_A_LOCAL_AUDIT_RESULTS.md`](PR_A_LOCAL_AUDIT_RESULTS.md) — exact source、aggregate metrics、残gateの実行証跡
+8. [`PLAN.md`](PLAN.md) — migration順、PR分割、verification、rollback
+9. `yamaki0102/all-projects-management#435` — 現在フェーズ、blocker、active PR、deploy状態
 
 ## Core model
 
@@ -54,7 +55,7 @@ site / place / project ── monitoring series
 
 ## Current gate
 
-PR-Aはcontract確定、PR0以降はruntime implementationです。migration applyはroutine deployから分離し、fixed command/profile、exact SHA、environment gate、承認証跡を必須にします。
+PR-Aはcontractとsource privacy closeout、PR0以降はruntime implementationです。migration applyはroutine deployから分離し、fixed command/profile、exact SHA、environment gate、承認証跡を必須にします。PR-Aのexact-SHA staging privacy scanがgreenになるまで以下を開始しません。
 
 - PostgreSQL / D1 migration apply
 - dual-write implementation

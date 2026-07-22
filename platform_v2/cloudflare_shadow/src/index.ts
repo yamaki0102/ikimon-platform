@@ -24383,7 +24383,6 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
     photoUrl,
     mediaKind,
     taxonGroup: taxonGroupForLabel(row.taxon_label),
-    cellId: publicCellToCellId(row.public_cell),
     privacy: publicMapExactCoordinateGate()
   };
 }

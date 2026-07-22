@@ -48,8 +48,28 @@ $watchedPaths = @(
 )
 
 $overviewContent = Get-Content -Raw -Path $overviewFullPath
-$overviewLastWrite = (Get-Item -LiteralPath $overviewFullPath).LastWriteTimeUtc
 $hasErrors = $false
+
+function Get-LastCommitUnix([string]$RelativePath) {
+    $value = (& git -C $repoRoot log -1 --format=%ct -- $RelativePath 2>$null | Select-Object -First 1)
+    if (-not $value) {
+        Write-Error "Unable to resolve Git history for: $RelativePath"
+        return $null
+    }
+    return [long]$value
+}
+
+function Test-PathChanged([string]$RelativePath) {
+    $unstaged = @(& git -C $repoRoot diff --name-only -- $RelativePath 2>$null)
+    $staged = @(& git -C $repoRoot diff --cached --name-only -- $RelativePath 2>$null)
+    return ($unstaged.Count -gt 0 -or $staged.Count -gt 0)
+}
+
+$overviewCommitUnix = Get-LastCommitUnix $OverviewPath
+$overviewPendingRefresh = Test-PathChanged $OverviewPath
+if ($null -eq $overviewCommitUnix) {
+    $hasErrors = $true
+}
 
 $requiredMarkers = @(
     "IKIMON_KNOWLEDGE_MAP_2026-04-12.md",
@@ -82,11 +102,19 @@ foreach ($relativePath in $watchedPaths) {
         continue
     }
 
-    $watchedLastWrite = (Get-Item -LiteralPath $fullPath).LastWriteTimeUtc
-    if ($watchedLastWrite -gt $overviewLastWrite) {
+    $watchedPendingChange = Test-PathChanged $relativePath
+    $watchedCommitUnix = Get-LastCommitUnix $relativePath
+    if ($null -eq $watchedCommitUnix) {
+        $hasErrors = $true
+        continue
+    }
+
+    $isStale = ($watchedPendingChange -and -not $overviewPendingRefresh) -or
+        (-not $overviewPendingRefresh -and $watchedCommitUnix -gt $overviewCommitUnix)
+    if ($isStale) {
         $stalePaths += [PSCustomObject]@{
             Path = $relativePath
-            UpdatedAtUtc = $watchedLastWrite.ToString("u")
+            Source = if ($watchedPendingChange) { "working tree" } else { "commit $watchedCommitUnix" }
         }
     }
 }
@@ -95,7 +123,7 @@ if ($stalePaths.Count -gt 0) {
     Write-Error "KNOWLEDGE_OS_OVERVIEW.md is older than watched sources. Review and refresh the overview."
     $stalePaths |
         Sort-Object Path |
-        ForEach-Object { Write-Output ("STALE: {0} (updated {1})" -f $_.Path, $_.UpdatedAtUtc) }
+        ForEach-Object { Write-Output ("STALE: {0} ({1})" -f $_.Path, $_.Source) }
     $hasErrors = $true
 }
 

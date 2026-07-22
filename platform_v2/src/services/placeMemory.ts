@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
@@ -579,7 +579,7 @@ async function pixelateRegions(buffer: Buffer, regions: PrivacyRegion[]): Promis
     const out = await sharp(buffer, { failOn: "none" }).rotate().jpeg({ quality: 84, mozjpeg: true }).toBuffer();
     return { buffer: out, width, height };
   }
-  const overlays: sharp.OverlayOptions[] = [];
+  const overlays: OverlayOptions[] = [];
   for (const region of regions) {
     const left = Math.max(0, Math.floor(region.x * width));
     const top = Math.max(0, Math.floor(region.y * height));

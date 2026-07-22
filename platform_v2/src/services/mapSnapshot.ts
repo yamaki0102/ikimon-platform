@@ -135,7 +135,6 @@ export type PublicMapObservationRecord = {
   observedAt: string;
   photoUrl: string | null;
   taxonGroup: TaxonGroup;
-  cellId: string;
   /** true when the logged-in viewer owns the record and can see its exact point. */
   isViewerOwned?: boolean;
   exactLatitude?: number;
@@ -1579,7 +1578,6 @@ export function buildPublicCellRecords(
         observedAt: entry.row.observedAt,
         photoUrl: publicMapPhotoUrl(entry.row),
         taxonGroup: entry.row.taxonGroup,
-        cellId: entry.cellId,
         ...exactDisclosure,
       };
     });
@@ -1600,7 +1598,6 @@ export function buildPublicCellRecords(
 
 export async function findPublicMapObservationRecordById(
   id: string,
-  options: { zoom?: number } = {},
 ): Promise<PublicMapObservationRecord | null> {
   const raw = String(id ?? "").trim();
   if (!raw) return null;
@@ -1614,8 +1611,6 @@ export async function findPublicMapObservationRecordById(
   );
   if (!row) return null;
 
-  const gridM = pickPublicGridMeters(options.zoom);
-  const cellId = formatPublicCellId(publicCellKeyForRuntimeRecord(row, gridM));
   return {
     occurrenceId: row.occurrenceId,
     visitId: row.visitId,
@@ -1626,7 +1621,6 @@ export async function findPublicMapObservationRecordById(
     observedAt: row.observedAt,
     photoUrl: publicMapPhotoUrl(row),
     taxonGroup: row.taxonGroup,
-    cellId,
   };
 }
 
@@ -1842,7 +1836,6 @@ function buildViewerOwnedObservationRecords(
         observedAt: row.observedAt,
         photoUrl: publicMapPhotoUrl(row),
         taxonGroup: row.taxonGroup,
-        cellId,
         isViewerOwned: true,
         exactLatitude: row.latitude,
         exactLongitude: row.longitude,
