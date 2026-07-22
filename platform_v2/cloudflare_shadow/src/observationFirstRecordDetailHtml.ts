@@ -72,6 +72,21 @@ const forbiddenEmptyCopy = /対象はまだ分けられていません|人から
 const template = (value: string, name: string): string => value.replace("{name}", name);
 const mediaLabel = (kind: ObservationFirstMediaPresentation["mediaKind"], copy: ObservationFirstRecordDetailCopy): string => kind === "photo" ? copy.photo : kind === "video" ? copy.video : copy.audio;
 const langPrefix = (lang: ObservationRecordLang): string => `/${lang}`;
+const internalSubjectPlaceholder = /^(?:unidentified|unknown(?:[_ -]subject)?|unclassified|unspecified)$/iu;
+
+const publicSubjectName = (value: string | null | undefined): string | null => {
+  const normalized = value?.trim();
+  return normalized && !internalSubjectPlaceholder.test(normalized) ? normalized : null;
+};
+
+const subjectTypeName = (card: ObservationFirstCard, copy: ObservationFirstRecordDetailCopy): string => {
+  if (card.subjectType === "pet") return copy.subjectTypes.pet;
+  if (card.subjectType === "group") return copy.subjectTypes.group;
+  if (card.subjectType === "trace") return copy.subjectTypes.trace;
+  if (card.subjectType === "sound") return copy.subjectTypes.sound;
+  if (card.subjectType === "unknown_subject") return copy.subjectTypes.unknown_subject;
+  return copy.subjectTypes.organism;
+};
 
 const safeMedia = (items: ObservationFirstMediaPresentation[]): ObservationFirstMediaPresentation[] => {
   const seen = new Set<string>();
@@ -101,16 +116,15 @@ function renderRecordMedia(items: ObservationFirstMediaPresentation[], title: st
 }
 
 const observationName = (card: ObservationFirstCard, copy: ObservationFirstRecordDetailCopy): { text: string; ai: boolean } => {
-  if (card.acceptedIdentification?.proposedName) return { text: card.acceptedIdentification.proposedName, ai: false };
-  const suggestion = card.aiSuggestions.find((item) => item.proposedName || item.proposedScientificName);
-  const suggestedName = suggestion?.proposedName ?? suggestion?.proposedScientificName;
+  const acceptedName = publicSubjectName(card.acceptedIdentification?.proposedName);
+  if (acceptedName) return { text: acceptedName, ai: false };
+  const suggestedName = card.aiSuggestions
+    .map((item) => publicSubjectName(item.proposedName) ?? publicSubjectName(item.proposedScientificName))
+    .find((item): item is string => item !== null);
   if (suggestedName) return { text: template(copy.candidateTemplate, suggestedName), ai: true };
-  if (card.subjectType === "pet") return { text: copy.subjectTypes.pet, ai: false };
-  if (card.subjectType === "group") return { text: copy.subjectTypes.group, ai: false };
-  if (card.subjectType === "trace") return { text: copy.subjectTypes.trace, ai: false };
-  if (card.subjectType === "sound") return { text: copy.subjectTypes.sound, ai: false };
   const genericLabels = new Set(["名前を決めていない対象", "観察した生きもの", "飼育されている生きもの"]);
-  return { text: genericLabels.has(card.subjectLabel) ? copy.subjectTypes.organism : card.subjectLabel, ai: false };
+  const subjectLabel = publicSubjectName(card.subjectLabel);
+  return { text: !subjectLabel || genericLabels.has(subjectLabel) ? subjectTypeName(card, copy) : subjectLabel, ai: false };
 };
 
 function renderLearning(card: ObservationFirstCard, copy: ObservationFirstRecordDetailCopy): string {
@@ -151,13 +165,18 @@ function renderObservationDetail(
 ): string {
   const display = observationName(card, copy);
   const common = hidden("observation_id", card.observationId) + hidden("return_lang", presentation.lang ?? "ja");
-  const accepted = card.acceptedIdentification
-    ? `<div class="of-record-name"><span>${escapeHtml(copy.recordName)}</span><strong>${escapeHtml(card.acceptedIdentification.proposedName)}</strong></div>`
+  const acceptedName = publicSubjectName(card.acceptedIdentification?.proposedName);
+  const accepted = acceptedName
+    ? `<div class="of-record-name"><span>${escapeHtml(copy.recordName)}</span><strong>${escapeHtml(acceptedName)}</strong></div>`
     : "";
-  const ai = card.aiSuggestions.length > 0
-    ? `<section class="of-ai-detail"><h4>${escapeHtml(copy.aiFound)}</h4><ul>${card.aiSuggestions.map((item) => `<li><strong>${escapeHtml(item.proposedName ?? item.proposedScientificName ?? copy.subjectTypes.organism)}</strong><span>${escapeHtml(copy.photoCandidate)}</span></li>`).join("")}</ul></section>`
+  const aiNames = card.aiSuggestions.flatMap((item) => {
+    const name = publicSubjectName(item.proposedName) ?? publicSubjectName(item.proposedScientificName);
+    return name ? [name] : [];
+  });
+  const ai = aiNames.length > 0
+    ? `<section class="of-ai-detail"><h4>${escapeHtml(copy.aiFound)}</h4><ul>${aiNames.map((name) => `<li><strong>${escapeHtml(name)}</strong><span>${escapeHtml(copy.photoCandidate)}</span></li>`).join("")}</ul></section>`
     : "";
-  const proposals = card.communityIdentifications.filter((item) => !item.accepted);
+  const proposals = card.communityIdentifications.filter((item) => !item.accepted && publicSubjectName(item.proposedName));
   const proposalList = proposals.length > 0
     ? `<section class="of-proposals"><h4>${escapeHtml(copy.proposals)}</h4><ul>${proposals.map((item, claimIndex) => `<li><span>${escapeHtml(item.proposedName)}</span>${detail.owner ? `<form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "accept_identification")}${hidden("identification_id", item.claimId)}${hidden("operation_id", `${presentation.actionNonce}-${index}-accept-${claimIndex}`)}<button type="submit">${escapeHtml(copy.acceptName)}</button></form>` : ""}</li>`).join("")}</ul></section>`
     : "";
@@ -174,7 +193,7 @@ function renderObservationSummary(
   if (active.length === 0) return "";
   const names = active.slice(0, 3).map((card) => ({
     ...observationName(card, copy),
-    communityProposal: card.communityIdentifications.some((item) => !item.accepted),
+    communityProposal: card.communityIdentifications.some((item) => !item.accepted && publicSubjectName(item.proposedName)),
   }));
   const list = names.map((item) => {
     const status = item.ai ? copy.aiCandidate : item.communityProposal ? copy.communityProposalAvailable : "";
