@@ -1,4 +1,9 @@
-import type { ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
+import type { ObservationFirstCard, ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
+import {
+  observationFirstRecordDetailCopy,
+  type ObservationFirstRecordDetailCopy,
+  type ObservationRecordLang,
+} from "./observationFirstRecordDetailI18n";
 
 export type ObservationFirstMediaPresentation = {
   mediaId: string;
@@ -6,11 +11,47 @@ export type ObservationFirstMediaPresentation = {
   url: string | null;
 };
 
-export type ObservationFirstRecordPresentation = {
+export type ObservationFirstRelatedPresentation = {
+  recordId: string;
   title: string;
   observedLabel: string;
+  photoUrl: string | null;
+};
+
+export type ObservationFirstDetectionState = "detected" | "not_detected" | "not_assessable";
+
+export function resolveObservationFirstDetectionState(
+  activeObservationCount: number,
+  aiAssessmentStatus: string | null | undefined,
+  aiRequestStatus: string | null | undefined,
+): ObservationFirstDetectionState | null {
+  if (activeObservationCount > 0) return "detected";
+  if (aiAssessmentStatus === "completed_no_candidate") return "not_detected";
+  if (aiRequestStatus === "failed") return "not_assessable";
+  return null;
+}
+
+export type ObservationFirstComparisonPresentation = {
+  summary: string;
+  comparedRecordId: string;
+  comparedObservedLabel: string;
+};
+
+export type ObservationFirstRecordPresentation = {
+  lang?: ObservationRecordLang;
+  title: string;
+  titleIsFallback?: boolean;
+  observedLabel: string;
   note: string | null;
+  publicLocationLabel?: string | null;
+  locationProtectionLabel?: string | null;
+  detectionState?: ObservationFirstDetectionState | null;
+  sceneElements?: string[];
   media: ObservationFirstMediaPresentation[];
+  environment?: Record<string, string> | null;
+  comparison?: ObservationFirstComparisonPresentation | null;
+  related?: ObservationFirstRelatedPresentation[];
+  canonicalUrl?: string;
   actionNonce: string;
   processingMessage?: string | null;
   notice?: string | null;
@@ -24,75 +65,267 @@ const escapeHtml = (value: unknown): string => String(value ?? "")
   .replaceAll('"', "&quot;")
   .replaceAll("'", "&#039;");
 
-const provenanceLabels = (card: ObservationFirstRecordDetail["observations"][number]): string[] => [
-  card.provenance.owner ? "本人の観察" : "",
-  card.provenance.ai ? "AIの暫定候補" : "",
-  card.provenance.community ? "コミュニティの同定" : "",
-  card.provenance.curator ? "専門家の確認" : "",
-  card.provenance.imported ? "移行元の記録" : "",
-].filter(Boolean);
-
-const renderMedia = (media: ObservationFirstMediaPresentation | undefined, label: string): string => {
-  if (!media?.url) return `<div class="of-media-empty" role="img" aria-label="${escapeHtml(label)}のメディアはありません"><span>${escapeHtml(label)}</span></div>`;
-  if (media.mediaKind === "photo") return `<img src="${escapeHtml(media.url)}" alt="${escapeHtml(label)}" loading="lazy" decoding="async">`;
-  if (media.mediaKind === "video") return `<video controls preload="metadata" src="${escapeHtml(media.url)}"><a href="${escapeHtml(media.url)}">動画を開く</a></video>`;
-  return `<audio controls preload="metadata" src="${escapeHtml(media.url)}"><a href="${escapeHtml(media.url)}">音声を開く</a></audio>`;
-};
-
 const hidden = (name: string, value: string): string => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`;
 const forbiddenPublicMediaLocator = /(?:[?&#/]|^)(?:lat|lng|longitude|latitude|cell(?:id)?|mesh|geohash|coordinate|h3)[=_:/-]|[-+]?\d{1,2}\.\d{4,}\s*[,/]\s*[-+]?\d{2,3}\.\d{4,}/iu;
+const forbiddenEmptyCopy = /対象はまだ分けられていません|人から記録された同定候補はまだありません|名前は未決定|割り当てられたメディアはありません|確認待ち|みんなの確認はまだありません|名前の提案を募集中|みんなに聞く|(?:^|\D)0件/u;
+
+const template = (value: string, name: string): string => value.replace("{name}", name);
+const mediaLabel = (kind: ObservationFirstMediaPresentation["mediaKind"], copy: ObservationFirstRecordDetailCopy): string => kind === "photo" ? copy.photo : kind === "video" ? copy.video : copy.audio;
+const langPrefix = (lang: ObservationRecordLang): string => `/${lang}`;
+
+const safeMedia = (items: ObservationFirstMediaPresentation[]): ObservationFirstMediaPresentation[] => {
+  const seen = new Set<string>();
+  return items.flatMap((item) => {
+    if (seen.has(item.mediaId) || !item.url || forbiddenPublicMediaLocator.test(item.url)) return [];
+    seen.add(item.mediaId);
+    return [item];
+  });
+};
+
+function renderRecordMedia(items: ObservationFirstMediaPresentation[], title: string, copy: ObservationFirstRecordDetailCopy): string {
+  if (items.length === 0) return "";
+  const slides = items.map((item, index) => {
+    const label = `${title} — ${mediaLabel(item.mediaKind, copy)} ${index + 1}`;
+    if (item.mediaKind === "photo") {
+      return `<figure class="of-media-slide" id="record-media-${index + 1}"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener" aria-label="${escapeHtml(copy.enlargePhoto)}"><img src="${escapeHtml(item.url)}" alt="${escapeHtml(label)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""}></a></figure>`;
+    }
+    if (item.mediaKind === "video") {
+      return `<figure class="of-media-slide" id="record-media-${index + 1}"><video controls preload="metadata" aria-label="${escapeHtml(label)}" src="${escapeHtml(item.url)}"><a href="${escapeHtml(item.url)}">${escapeHtml(copy.openVideo)}</a></video></figure>`;
+    }
+    return `<figure class="of-media-slide is-audio" id="record-media-${index + 1}"><div class="of-audio-mark" aria-hidden="true">♪</div><audio controls preload="metadata" aria-label="${escapeHtml(label)}" src="${escapeHtml(item.url)}"><a href="${escapeHtml(item.url)}">${escapeHtml(copy.openAudio)}</a></audio></figure>`;
+  }).join("");
+  const navigation = items.length > 1
+    ? `<nav class="of-media-nav" aria-label="${escapeHtml(copy.mediaNavigation)}">${items.map((item, index) => `<a href="#record-media-${index + 1}" aria-label="${escapeHtml(`${mediaLabel(item.mediaKind, copy)} ${index + 1}`)}">${index + 1}</a>`).join("")}</nav>`
+    : "";
+  return `<section class="of-media-stage" aria-label="${escapeHtml(copy.media)}"><div class="of-media-gallery" tabindex="0">${slides}</div>${navigation}</section>`;
+}
+
+const observationName = (card: ObservationFirstCard, copy: ObservationFirstRecordDetailCopy): { text: string; ai: boolean } => {
+  if (card.acceptedIdentification?.proposedName) return { text: card.acceptedIdentification.proposedName, ai: false };
+  const suggestion = card.aiSuggestions.find((item) => item.proposedName || item.proposedScientificName);
+  const suggestedName = suggestion?.proposedName ?? suggestion?.proposedScientificName;
+  if (suggestedName) return { text: template(copy.candidateTemplate, suggestedName), ai: true };
+  if (card.subjectType === "pet") return { text: copy.subjectTypes.pet, ai: false };
+  if (card.subjectType === "group") return { text: copy.subjectTypes.group, ai: false };
+  if (card.subjectType === "trace") return { text: copy.subjectTypes.trace, ai: false };
+  if (card.subjectType === "sound") return { text: copy.subjectTypes.sound, ai: false };
+  const genericLabels = new Set(["名前を決めていない対象", "観察した生きもの", "飼育されている生きもの"]);
+  return { text: genericLabels.has(card.subjectLabel) ? copy.subjectTypes.organism : card.subjectLabel, ai: false };
+};
+
+function renderLearning(card: ObservationFirstCard, copy: ObservationFirstRecordDetailCopy): string {
+  const suggestion = card.aiSuggestions.find((item) => item.visualEvidence.length > 0 || item.shootingAdvice.length > 0);
+  if (!suggestion) return "";
+  const visible = suggestion.visualEvidence.slice(0, 2);
+  const advice = suggestion.shootingAdvice.slice(0, 2);
+  return `<section class="of-learning" aria-labelledby="of-learning-title"><h3 id="of-learning-title">${escapeHtml(copy.learning)}</h3>
+    ${visible.length ? `<section><h4>${escapeHtml(copy.distinguishingPoints)}</h4><ul>${visible.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : ""}
+    ${advice.length ? `<section><h4>${escapeHtml(copy.shootingAdvice)}</h4><ul>${advice.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : ""}
+  </section>`;
+}
+
+function renderIdentificationForm(
+  card: ObservationFirstCard,
+  index: number,
+  detail: ObservationFirstRecordDetail,
+  presentation: ObservationFirstRecordPresentation,
+  action: string,
+  copy: ObservationFirstRecordDetailCopy,
+): string {
+  const allowed = card.state === "active" && (detail.owner || detail.proposalPolicy.identification);
+  if (!allowed) return "";
+  if (!detail.owner && !presentation.viewerAuthenticated) {
+    return `<a class="of-login-proposal" href="${escapeHtml(`${langPrefix(presentation.lang ?? "ja")}/login?redirect=${encodeURIComponent(`/observations/${detail.recordId}`)}`)}">${escapeHtml(copy.loginToPropose)}</a>`;
+  }
+  const common = hidden("observation_id", card.observationId) + hidden("return_lang", presentation.lang ?? "ja");
+  return `<details class="of-propose"><summary>${escapeHtml(copy.proposeName)}</summary><form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "identify")}${hidden("operation_id", `${presentation.actionNonce}-${index}-identify`)}<label>${escapeHtml(copy.proposedName)}<input name="proposed_name" required maxlength="160" autocomplete="off"></label><label>${escapeHtml(copy.proposalNote)}<textarea name="note" rows="2" maxlength="500"></textarea></label><button type="submit">${escapeHtml(copy.saveProposal)}</button></form></details>`;
+}
+
+function renderObservationDetail(
+  card: ObservationFirstCard,
+  index: number,
+  detail: ObservationFirstRecordDetail,
+  presentation: ObservationFirstRecordPresentation,
+  action: string,
+  copy: ObservationFirstRecordDetailCopy,
+): string {
+  const display = observationName(card, copy);
+  const common = hidden("observation_id", card.observationId) + hidden("return_lang", presentation.lang ?? "ja");
+  const accepted = card.acceptedIdentification
+    ? `<div class="of-record-name"><span>${escapeHtml(copy.recordName)}</span><strong>${escapeHtml(card.acceptedIdentification.proposedName)}</strong></div>`
+    : "";
+  const ai = card.aiSuggestions.length > 0
+    ? `<section class="of-ai-detail"><h4>${escapeHtml(copy.aiFound)}</h4><ul>${card.aiSuggestions.map((item) => `<li><strong>${escapeHtml(item.proposedName ?? item.proposedScientificName ?? copy.subjectTypes.organism)}</strong><span>${escapeHtml(copy.photoCandidate)}</span></li>`).join("")}</ul></section>`
+    : "";
+  const proposals = card.communityIdentifications.filter((item) => !item.accepted);
+  const proposalList = proposals.length > 0
+    ? `<section class="of-proposals"><h4>${escapeHtml(copy.proposals)}</h4><ul>${proposals.map((item, claimIndex) => `<li><span>${escapeHtml(item.proposedName)}</span>${detail.owner ? `<form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "accept_identification")}${hidden("identification_id", item.claimId)}${hidden("operation_id", `${presentation.actionNonce}-${index}-accept-${claimIndex}`)}<button type="submit">${escapeHtml(copy.acceptName)}</button></form>` : ""}</li>`).join("")}</ul></section>`
+    : "";
+  return `<article class="of-observation-detail"><h3>${escapeHtml(display.text)}</h3>${accepted}${ai}${proposalList}${renderIdentificationForm(card, index, detail, presentation, action, copy)}</article>`;
+}
+
+function renderObservationSummary(
+  detail: ObservationFirstRecordDetail,
+  presentation: ObservationFirstRecordPresentation,
+  action: string,
+  copy: ObservationFirstRecordDetailCopy,
+): string {
+  const active = detail.observations.filter((card) => card.state === "active");
+  if (active.length === 0) return "";
+  const names = active.slice(0, 3).map((card) => ({
+    ...observationName(card, copy),
+    communityProposal: card.communityIdentifications.some((item) => !item.accepted),
+  }));
+  const list = names.map((item) => {
+    const status = item.ai ? copy.aiCandidate : item.communityProposal ? copy.communityProposalAvailable : "";
+    return `<li${item.ai ? ' data-ai-candidate="true"' : ""}><strong>${escapeHtml(item.text)}</strong>${status ? `<small>${escapeHtml(status)}</small>` : ""}</li>`;
+  }).join("");
+  const details = active.map((card, index) => renderObservationDetail(card, index, detail, presentation, action, copy)).join("");
+  return `<section class="of-summary" aria-labelledby="of-summary-title"><h2 id="of-summary-title">${escapeHtml(copy.found)}</h2><ul class="of-summary-list">${list}</ul>${renderLearning(active[0]!, copy)}<details class="of-observation-details"><summary>${escapeHtml(active.length > 1 ? copy.openAll : copy.openDetails)}</summary><div>${details}</div></details></section>`;
+}
+
+const sceneElementKeys = new Set(["water", "low_grass", "trees_shrubs", "bare_ground", "built_surface", "soil", "plant", "rock", "artificial", "urban", "coast", "wetland"]);
+
+function derivedSceneElements(environment: Record<string, string> | null | undefined): string[] {
+  if (!environment) return [];
+  const mappings: Array<[string, Record<string, string>]> = [
+    ["place_type", { water_edge: "water", wetland: "wetland", coast: "coast", woodland: "trees_shrubs", urban: "urban", grassland_urban_edge: "low_grass" }],
+    ["contact_surface", { water: "water", soil_gravel_litter: "soil", soil: "soil", plant: "plant", rock: "rock", artificial: "artificial" }],
+    ["surrounding_cover", { water: "water", low_grass: "low_grass", trees_shrubs: "trees_shrubs", bare_ground: "bare_ground", built_surface: "built_surface" }],
+  ];
+  const found = mappings.flatMap(([field, values]) => {
+    if (environment[`${field}_source`] !== "derived") return [];
+    const key = values[environment[field] ?? ""];
+    return key ? [key] : [];
+  });
+  return [...new Set(found)].slice(0, 8);
+}
+
+function renderSceneUnderstanding(presentation: ObservationFirstRecordPresentation, copy: ObservationFirstRecordDetailCopy): string {
+  const rawElements = presentation.sceneElements ?? derivedSceneElements(presentation.environment);
+  const elements = [...new Set(rawElements)].filter((item) => sceneElementKeys.has(item) && copy.sceneElements[item]).slice(0, 8);
+  const state = presentation.detectionState;
+  if (!state && elements.length === 0) return "";
+  if (state === "detected" && elements.length === 0) return "";
+  const stateMessage = state === "not_detected" ? copy.notDetected : state === "not_assessable" ? copy.notAssessable : "";
+  return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2>${elements.length ? `<ul>${elements.map((item) => `<li>${escapeHtml(copy.sceneElements[item])}</li>`).join("")}</ul>` : ""}${stateMessage ? `<p class="of-detection-state" data-detection-state="${escapeHtml(state ?? "")}">${escapeHtml(stateMessage)}</p>` : ""}</section>`;
+}
+
+function renderComparison(comparison: ObservationFirstComparisonPresentation | null | undefined, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
+  if (!comparison?.summary.trim() || !comparison.comparedObservedLabel.trim() || !/^[A-Za-z0-9:_-]{1,180}$/u.test(comparison.comparedRecordId)) return "";
+  return `<section class="of-comparison" aria-labelledby="of-comparison-title"><h2 id="of-comparison-title">${escapeHtml(copy.previousChange)}</h2><p>${escapeHtml(comparison.summary.trim())}</p><a href="${escapeHtml(`${langPrefix(lang)}/observations/${encodeURIComponent(comparison.comparedRecordId)}`)}">${escapeHtml(template(copy.comparedWith, comparison.comparedObservedLabel.trim()))}</a></section>`;
+}
+
+function renderEnvironment(environment: Record<string, string> | null | undefined, copy: ObservationFirstRecordDetailCopy): string {
+  if (!environment) return "";
+  const placeType = environment.place_type;
+  const rows = (["contact_surface", "surrounding_cover", "environment_condition", "human_change"] as const).flatMap((field) => {
+    const value = environment[field];
+    const label = value && value !== "unknown" ? copy.environmentValues[value] : null;
+    return label ? [`<li><span>${escapeHtml(copy.environmentFields[field])}</span><strong>${escapeHtml(label)}</strong></li>`] : [];
+  });
+  const headline = placeType && placeType !== "unknown" ? copy.environmentHeadlines[placeType] : null;
+  if (!headline && rows.length === 0) return "";
+  const inferred = environment.environment_record_status === "auto_draft"
+    || Object.keys(environment).some((key) => key.endsWith("_source") && environment[key] === "derived");
+  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${inferred ? `<small>${escapeHtml(copy.photoInference)}</small>` : ""}</section>`;
+}
+
+function selectOptions(values: Record<string, string>, selected?: string): string {
+  return Object.entries(values).map(([value, label]) => `<option value="${escapeHtml(value)}"${selected === value ? " selected" : ""}>${escapeHtml(label)}</option>`).join("");
+}
+
+function renderOwnerManagement(
+  detail: ObservationFirstRecordDetail,
+  presentation: ObservationFirstRecordPresentation,
+  media: ObservationFirstMediaPresentation[],
+  action: string,
+  copy: ObservationFirstRecordDetailCopy,
+): string {
+  if (!detail.owner) return "";
+  const lang = presentation.lang ?? "ja";
+  const returnLang = hidden("return_lang", lang);
+  const active = detail.observations.filter((card) => card.state === "active");
+  const subjectTypes = {
+    unknown_subject: copy.subjectTypes.unknown_subject,
+    organism: copy.subjectTypes.organism,
+    group: copy.subjectTypes.group,
+    trace: copy.subjectTypes.trace,
+    sound: copy.subjectTypes.sound,
+  };
+  const add = `<section><h3>${escapeHtml(copy.addSubject)}</h3><form method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "add")}${hidden("operation_id", `${presentation.actionNonce}-add`)}<label>${escapeHtml(copy.subjectName)}<input name="display_name" maxlength="160" autocomplete="off" placeholder="${escapeHtml(copy.subjectNameExample)}"></label><label>${escapeHtml(copy.subjectType)}<select name="subject_type">${selectOptions(subjectTypes)}</select></label><label>${escapeHtml(copy.context)}<select name="captive_context">${selectOptions(copy.contexts)}</select></label><button type="submit">${escapeHtml(copy.add)}</button></form></section>`;
+  const cards = detail.observations.map((card, index) => {
+    const common = returnLang + hidden("observation_id", card.observationId);
+    if (card.state === "excluded") {
+      return `<section class="of-manage-subject"><h3>${escapeHtml(observationName(card, copy).text)}</h3><form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "restore")}${hidden("operation_id", `${presentation.actionNonce}-${index}-restore`)}<button type="submit">${escapeHtml(copy.restore)}</button></form></section>`;
+    }
+    const mergeTargets = active.filter((candidate) => candidate.observationId !== card.observationId);
+    return `<section class="of-manage-subject"><h3>${escapeHtml(observationName(card, copy).text)}</h3>
+      <form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "split")}${hidden("operation_id", `${presentation.actionNonce}-${index}-split`)}<label>${escapeHtml(copy.separateName)}<input name="display_name" maxlength="160" autocomplete="off"></label><label>${escapeHtml(copy.subjectType)}<select name="subject_type">${selectOptions(subjectTypes)}</select></label><button type="submit">${escapeHtml(copy.separate)}</button></form>
+      ${mergeTargets.length ? `<form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "merge")}${hidden("operation_id", `${presentation.actionNonce}-${index}-merge`)}<label>${escapeHtml(copy.combineWith)}<select name="target_observation_id">${mergeTargets.map((candidate) => `<option value="${escapeHtml(candidate.observationId)}">${escapeHtml(observationName(candidate, copy).text)}</option>`).join("")}</select></label><button type="submit">${escapeHtml(copy.combine)}</button></form>` : ""}
+      <form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "exclude")}${hidden("reason", "not_visible_in_record")}${hidden("operation_id", `${presentation.actionNonce}-${index}-exclude`)}<button class="is-secondary" type="submit">${escapeHtml(copy.notVisible)}</button></form>
+    </section>`;
+  }).join("");
+  const mediaAssignment = media.length > 0 && active.length > 0
+    ? `<section><h3>${escapeHtml(copy.assignMedia)}</h3><p>${escapeHtml(copy.assignMediaLead)}</p>${media.map((item, index) => `<form method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "media_reassign")}${hidden("media_id", item.mediaId)}${hidden("operation_id", `${presentation.actionNonce}-media-${index}`)}<label>${escapeHtml(mediaLabel(item.mediaKind, copy))}<select name="target_observation_id">${active.map((card) => `<option value="${escapeHtml(card.observationId)}">${escapeHtml(observationName(card, copy).text)}</option>`).join("")}</select></label><button type="submit">${escapeHtml(copy.assign)}</button></form>`).join("")}</section>`
+    : "";
+  const policy = detail.visibility !== "private"
+    ? `<section><form method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "set_proposal_policy")}${hidden("accepts_identification_proposals", detail.proposalPolicy.identification ? "0" : "1")}${hidden("operation_id", `${presentation.actionNonce}-policy-${detail.proposalPolicy.identification ? "off" : "on"}`)}<button class="is-secondary" type="submit">${escapeHtml(detail.proposalPolicy.identification ? copy.pauseProposals : copy.receiveProposals)}</button></form></section>`
+    : "";
+  return `<details class="of-manage" id="manage"><summary>${escapeHtml(copy.manage)}</summary><p class="of-manage-lead">${escapeHtml(copy.manageLead)}</p><div class="of-manage-body">${add}${cards}${mediaAssignment}${policy}</div></details>`;
+}
+
+function renderCaptureInfo(
+  detail: ObservationFirstRecordDetail,
+  presentation: ObservationFirstRecordPresentation,
+  media: ObservationFirstMediaPresentation[],
+  copy: ObservationFirstRecordDetailCopy,
+): string {
+  const counts = (["photo", "video", "audio"] as const).flatMap((kind) => {
+    const count = media.filter((item) => item.mediaKind === kind).length;
+    return count > 0 ? [`${copy[kind]} ${count}`] : [];
+  }).join(" · ");
+  return `<details class="of-capture"><summary>${escapeHtml(copy.captureInfo)}</summary><dl><div><dt>${escapeHtml(copy.capturedAt)}</dt><dd>${escapeHtml(presentation.observedLabel)}</dd></div><div><dt>${escapeHtml(copy.place)}</dt><dd>${escapeHtml(presentation.publicLocationLabel ?? detail.privacy.publicLocationLabel)}</dd></div><div><dt>${escapeHtml(copy.scope)}</dt><dd>${escapeHtml(copy.visibility[detail.visibility])}</dd></div>${counts ? `<div><dt>${escapeHtml(copy.mediaCount)}</dt><dd>${escapeHtml(counts)}</dd></div>` : ""}</dl></details>`;
+}
+
+function renderRelated(items: ObservationFirstRelatedPresentation[] | undefined, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
+  if (!items?.length) return "";
+  const cards = items.slice(0, 6).map((item) => {
+    const safePhoto = item.photoUrl && !forbiddenPublicMediaLocator.test(item.photoUrl) ? item.photoUrl : null;
+    const title = forbiddenEmptyCopy.test(item.title) ? copy.relatedRecord : item.title;
+    return `<a class="of-related-card${safePhoto ? "" : " has-no-photo"}" href="${escapeHtml(`${langPrefix(lang)}/observations/${encodeURIComponent(item.recordId)}`)}">${safePhoto ? `<img src="${escapeHtml(safePhoto)}" alt="" loading="lazy" decoding="async">` : ""}<span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(item.observedLabel)}</small></span></a>`;
+  }).join("");
+  return `<section class="of-related" aria-labelledby="of-related-title"><h2 id="of-related-title">${escapeHtml(copy.related)}</h2><div>${cards}</div></section>`;
+}
 
 export function renderObservationFirstRecordDetailHtml(
   detail: ObservationFirstRecordDetail,
   presentation: ObservationFirstRecordPresentation,
 ): string {
-  const mediaById = new Map(presentation.media.map((item) => [item.mediaId, !detail.owner && item.url && forbiddenPublicMediaLocator.test(item.url) ? { ...item, url: null } : item]));
+  const lang = presentation.lang ?? "ja";
+  const copy = observationFirstRecordDetailCopy(lang);
+  const media = safeMedia(presentation.media);
+  const title = presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title) ? copy.natureRecord : presentation.title;
   const action = `/api/v1/records/${encodeURIComponent(detail.recordId)}/observation-actions`;
-  const cards = detail.observations.length === 0
-    ? `<section class="of-empty" aria-labelledby="of-empty-title"><h2 id="of-empty-title">対象はまだ分けられていません</h2><p>写真や音声を記録として残し、対象はあとから追加できます。</p></section>`
-    : detail.observations.map((card, index) => {
-      const labels = provenanceLabels(card);
-      const accepted = card.acceptedIdentification
-        ? `<div class="of-accepted"><span>採用された同定</span><strong>${escapeHtml(card.acceptedIdentification.proposedName)}</strong><small>${escapeHtml(card.acceptedIdentification.actorType)}による明示的な判断</small></div>`
-        : `<div class="of-unresolved"><strong>名前は未決定</strong><span>観察内容は名前がなくても保存されています。</span></div>`;
-      const common = hidden("observation_id", card.observationId);
-      const operation = (kind: string) => hidden("operation_id", `${presentation.actionNonce}-${index}-${kind}`);
-      const ai = card.aiSuggestions.map((item) => `<li><strong>${escapeHtml(item.proposedName ?? item.proposedScientificName ?? "候補なし")}</strong><span>AIによる暫定候補・人の判断ではありません</span></li>`).join("");
-      const claims = card.communityIdentifications.map((item, claimIndex) => `<li><strong>${escapeHtml(item.proposedName)}</strong><span>${escapeHtml(item.actorType)} / ${item.accepted ? "採用済み" : "候補"}</span>${detail.owner && !item.accepted && card.state === "active" ? `<form method="post" action="${escapeHtml(action)}">${hidden("action", "accept_identification")}${common}${hidden("identification_id", item.claimId)}${hidden("operation_id", `${presentation.actionNonce}-${index}-accept-${claimIndex}`)}<button type="submit">この同定を採用</button></form>` : ""}</li>`).join("");
-      const media = card.media.map((item) => `<figure>${renderMedia(mediaById.get(item.mediaId), `${card.subjectLabel}の${item.mediaKind}`)}<figcaption>${escapeHtml(item.mediaKind)}</figcaption></figure>`).join("");
-      const ownerActions = detail.owner ? `<details class="of-edit"><summary>この対象を編集</summary>
-        <div class="of-action-grid">
-          <form method="post" action="${escapeHtml(action)}">${common}${operation("split")}${hidden("action", "split")}<label>分ける対象の表示名<input name="display_name" maxlength="160" autocomplete="off"></label><label>対象の種類<select name="subject_type"><option value="unknown_subject">まだ不明</option><option value="organism">生きもの</option><option value="group">複数の生きもの</option><option value="trace">痕跡</option><option value="sound">音</option></select></label><button type="submit">対象を分ける</button></form>
-          ${card.state === "excluded"
-            ? `<form method="post" action="${escapeHtml(action)}">${common}${operation("restore")}${hidden("action", "restore")}<button type="submit">対象を復元</button></form>`
-            : `<form method="post" action="${escapeHtml(action)}">${common}${operation("exclude")}${hidden("action", "exclude")}<label>除外理由<input name="reason" value="別の対象だった"></label><button type="submit">この対象を除外</button></form>`}
-          ${detail.observations.filter((candidate) => candidate.observationId !== card.observationId && candidate.state === "active").length > 0 ? `<form method="post" action="${escapeHtml(action)}">${common}${operation("merge")}${hidden("action", "merge")}<label>統合先<select name="target_observation_id">${detail.observations.filter((candidate) => candidate.observationId !== card.observationId && candidate.state === "active").map((candidate) => `<option value="${escapeHtml(candidate.observationId)}">${escapeHtml(candidate.subjectLabel)}</option>`).join("")}</select></label><button type="submit">対象を統合</button></form>` : ""}
-        </div>
-      </details>` : "";
-      const identificationAllowed = detail.owner || detail.proposalPolicy.identification;
-      const identificationForm = card.state !== "active"
-        ? `<p class="of-policy-off">除外した対象には同定候補を追加できません。</p>`
-        : identificationAllowed && (detail.owner || presentation.viewerAuthenticated)
-        ? `<form class="of-identification-form" method="post" action="${escapeHtml(action)}">${common}${operation("identify")}${hidden("action", "identify")}<label>同定候補<input name="proposed_name" required autocomplete="off"></label><label>根拠・補足<textarea name="note" rows="2"></textarea></label><button type="submit">候補を記録</button><p>候補の追加だけでは採用されません。</p></form>`
-        : identificationAllowed
-          ? `<p class="of-policy-off"><a href="/login?return_to=${encodeURIComponent(`/observations/${detail.recordId}`)}">ログインして同定候補を記録</a></p>`
-        : `<p class="of-policy-off">この記録では外部からの同定候補を受け付けていません。</p>`;
-      return `<article class="of-card${card.state === "excluded" ? " is-excluded" : ""}" aria-labelledby="of-card-${index}">
-        <header><span class="of-index">対象 ${index + 1}</span><h2 id="of-card-${index}">${escapeHtml(card.subjectLabel)}</h2><div class="of-badges">${labels.map((label) => `<span>${escapeHtml(label)}</span>`).join("")}</div></header>
-        <div class="of-media-grid">${media || `<div class="of-media-empty"><span>割り当てられたメディアはありません</span></div>`}</div>
-        ${accepted}
-        ${ai ? `<section class="of-ai"><h3>AIの暫定候補</h3><ul>${ai}</ul></section>` : ""}
-        <section class="of-community"><h3>同定の履歴</h3>${claims ? `<ul>${claims}</ul>` : `<p>人から記録された同定候補はまだありません。</p>`}${identificationForm}</section>
-        ${ownerActions}
-      </article>`;
-    }).join("");
-  const ownerRecordTools = detail.owner ? `<section class="of-record-tools"><h2>記録内の対象</h2><form method="post" action="${escapeHtml(action)}">${hidden("action", "add")}${hidden("operation_id", `${presentation.actionNonce}-add`)}<label>表示名<input name="display_name" maxlength="160" autocomplete="off" placeholder="例: 葉の上の幼虫"></label><label>対象の種類<select name="subject_type"><option value="unknown_subject">まだ不明</option><option value="organism">生きもの</option><option value="group">複数の生きもの</option><option value="trace">痕跡</option><option value="sound">音</option></select></label><label>環境<select name="captive_context"><option value="unknown">未設定</option><option value="wild">野外</option><option value="pet">ペット</option><option value="captive">飼育</option><option value="cultivated">栽培</option></select></label><button type="submit">対象を追加</button></form>${detail.visibility === "private" ? `<p class="of-policy-off">非公開記録では外部提案は常にOFFです。</p>` : `<form method="post" action="${escapeHtml(action)}">${hidden("action", "set_proposal_policy")}${hidden("accepts_identification_proposals", detail.proposalPolicy.identification ? "0" : "1")}${hidden("operation_id", `${presentation.actionNonce}-policy-${detail.proposalPolicy.identification ? "off" : "on"}`)}<button type="submit">外部からの同定候補を${detail.proposalPolicy.identification ? "受け付けない" : "受け付ける"}</button></form>`}</section>` : "";
-  const mediaReassignment = detail.owner && presentation.media.length > 0 && detail.observations.some((card) => card.state === "active")
-    ? `<section class="of-record-tools"><h2>メディアの割り当て</h2><p>写真・動画・音声を対象ごとに付け替えられます。</p>${presentation.media.map((item, index) => `<form method="post" action="${escapeHtml(action)}">${hidden("action", "media_reassign")}${hidden("media_id", item.mediaId)}${hidden("operation_id", `${presentation.actionNonce}-media-${index}`)}<label>${escapeHtml(item.mediaKind)} <select name="target_observation_id">${detail.observations.filter((card) => card.state === "active").map((card) => `<option value="${escapeHtml(card.observationId)}">${escapeHtml(card.subjectLabel)}</option>`).join("")}</select></label><button type="submit">割り当てる</button></form>`).join("")}</section>`
-    : "";
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(presentation.title)} | ikimon</title>
+  const canonicalUrl = presentation.canonicalUrl ?? `https://ikimon.life/${lang}/observations/${encodeURIComponent(detail.recordId)}`;
+  const prefix = langPrefix(lang);
+  const cleanStatus = presentation.processingMessage && !forbiddenEmptyCopy.test(presentation.processingMessage) ? presentation.processingMessage : null;
+  const languageLinks = (["ja", "en", "es", "pt-br"] as const).map((item) => `<a href="/${item}/observations/${encodeURIComponent(detail.recordId)}" lang="${escapeHtml(item)}"${item === lang ? ' aria-current="page"' : ""}>${escapeHtml(item === "ja" ? "JP" : item === "pt-br" ? "PT" : item.toUpperCase())}</a>`).join("");
+  const menu = `<details class="of-menu"><summary aria-label="${escapeHtml(copy.menu)}"><span aria-hidden="true">•••</span></summary><nav aria-label="${escapeHtml(copy.menu)}"><a href="${prefix}/">${escapeHtml(copy.home)}</a><a href="${prefix}/records">${escapeHtml(copy.records)}</a><div aria-label="${escapeHtml(copy.language)}">${languageLinks}</div></nav></details>`;
+  const mediaStage = renderRecordMedia(media, title, copy);
+  const summary = renderObservationSummary(detail, { ...presentation, lang }, action, copy);
+  const scene = renderSceneUnderstanding(presentation, copy);
+  const environment = renderEnvironment(presentation.environment, copy);
+  const comparison = renderComparison(presentation.comparison, lang, copy);
+  const note = presentation.note?.trim() ? `<section class="of-note" aria-labelledby="of-note-title"><h2 id="of-note-title">${escapeHtml(copy.note)}</h2><p>${escapeHtml(presentation.note.trim())}</p></section>` : "";
+  const management = renderOwnerManagement(detail, { ...presentation, lang }, media, action, copy);
+  const capture = renderCaptureInfo(detail, presentation, media, copy);
+  const related = renderRelated(presentation.related, lang, copy);
+  const mailto = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(canonicalUrl)}`;
+  const locationProtection = presentation.locationProtectionLabel?.trim()
+    || (detail.visibility === "public" ? copy.approximateLocation : copy.exactLocationPrivate);
+  return `<!doctype html><html lang="${escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} | ${escapeHtml(copy.documentSuffix)}</title>
   <style>
-    .of-policy-off a{display:inline-flex;align-items:center;min-height:44px;padding:7px 0}
-    :root{color-scheme:light;--ink:#14231b;--muted:#5b6b63;--line:#d8e4dc;--paper:#fff;--wash:#f3f8f5;--green:#087f5b;--teal:#0f766e}*{box-sizing:border-box}body{margin:0;background:var(--wash);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6}a{color:var(--teal)}button,input,select,textarea{font:inherit}button,input,select,textarea,summary{min-height:44px}.of-header{position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:11px max(12px,calc((100vw - 920px)/2));background:rgba(255,255,255,.96);border-bottom:1px solid var(--line)}.of-header a{display:inline-flex;align-items:center;min-height:44px;font-weight:900;text-decoration:none;color:var(--ink)}.of-shell{width:min(920px,calc(100% - 24px));margin:18px auto 56px}.of-hero,.of-card,.of-record-tools,.of-empty{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 34px rgba(15,35,25,.07)}.of-hero{padding:22px;margin-bottom:14px}.of-hero h1{margin:0;font-size:clamp(25px,6vw,38px);line-height:1.2}.of-hero p{margin:6px 0 0;color:var(--muted)}.of-count{display:inline-flex;margin-top:12px;padding:5px 10px;border-radius:999px;background:#dff6eb;color:#075c42;font-weight:900}.of-list{display:grid;gap:14px}.of-card{padding:18px}.of-card.is-excluded{opacity:.72;border-style:dashed}.of-card header h2{margin:3px 0 8px;font-size:22px}.of-index{color:var(--green);font-size:13px;font-weight:900}.of-badges{display:flex;flex-wrap:wrap;gap:6px}.of-badges span{padding:4px 8px;border-radius:999px;background:#edf7f2;font-size:12px;font-weight:800}.of-media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:9px;margin:14px 0}.of-media-grid figure{margin:0;border-radius:13px;overflow:hidden;background:#eef3f0}.of-media-grid img,.of-media-grid video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}.of-media-grid audio{width:100%;margin:28px 0}.of-media-grid figcaption{padding:7px 10px;color:var(--muted);font-size:12px}.of-media-empty{display:grid;place-items:center;min-height:120px;padding:14px;border-radius:13px;background:#eef3f0;color:var(--muted)}.of-accepted,.of-unresolved,.of-ai,.of-community,.of-edit{margin-top:12px;padding:13px;border:1px solid var(--line);border-radius:13px}.of-accepted{display:grid;background:#effbf5}.of-accepted span,.of-accepted small,.of-unresolved span{color:var(--muted)}.of-unresolved{display:grid}.of-ai{background:#f3f0ff}.of-ai h3,.of-community h3{margin:0 0 8px;font-size:17px}.of-ai ul,.of-community ul{display:grid;gap:7px;margin:0;padding:0;list-style:none}.of-ai li,.of-community li{display:grid;padding:9px;border-radius:10px;background:#fff}.of-ai li span,.of-community li span{color:var(--muted);font-size:12px}.of-identification-form,.of-action-grid form,.of-record-tools form{display:grid;gap:7px;margin-top:10px}.of-identification-form label,.of-action-grid label,.of-record-tools label{display:grid;gap:4px;font-weight:800}.of-identification-form input,.of-identification-form textarea,.of-action-grid input,.of-action-grid select,.of-record-tools select{width:100%;padding:9px 10px;border:1px solid #b8c9bf;border-radius:9px;background:#fff}.of-identification-form button,.of-action-grid button,.of-record-tools button{border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:900;padding:9px 12px}.of-identification-form p,.of-policy-off{color:var(--muted);font-size:13px}.of-edit summary{display:flex;align-items:center;cursor:pointer;font-weight:900}.of-action-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.of-record-tools,.of-empty{margin-top:14px;padding:18px}.of-record-tools h2,.of-empty h2{margin-top:0}.of-privacy{margin:16px 4px;color:var(--muted);font-size:13px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}:focus-visible{outline:3px solid #f59e0b;outline-offset:3px}@media(max-width:390px){.of-shell{width:calc(100% - 16px);margin-top:10px}.of-hero,.of-card,.of-record-tools,.of-empty{border-radius:14px}.of-card{padding:13px}.of-action-grid{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
-  </style></head><body><header class="of-header"><a href="/">ikimon</a><a href="/records">記録一覧</a></header><main class="of-shell" data-observation-first-record-detail="1">${presentation.notice ? `<p class="of-privacy" role="status">${escapeHtml(presentation.notice)}</p>` : ""}<section class="of-hero"><span>観察記録</span><h1>${escapeHtml(presentation.title)}</h1><p>${escapeHtml(presentation.observedLabel)}</p>${presentation.note ? `<p>${escapeHtml(presentation.note)}</p>` : ""}<strong class="of-count">${detail.observationCount}件の対象</strong>${presentation.processingMessage ? `<p role="status" aria-live="polite">${escapeHtml(presentation.processingMessage)}</p>` : ""}</section>${ownerRecordTools}<div class="of-list">${cards}</div>${mediaReassignment}<p class="of-privacy">${escapeHtml(detail.privacy.publicLocationLabel)}</p></main></body></html>`;
+    :root{color-scheme:light;--ink:#16231c;--muted:#607067;--line:#dce7e0;--paper:#fff;--wash:#f4f8f5;--green:#0a7b57;--soft:#edf7f2;--focus:#f59e0b}*{box-sizing:border-box}html{overflow-x:hidden;scroll-behavior:smooth}body{margin:0;background:var(--wash);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px;line-height:1.65;overflow-wrap:anywhere}a{color:#0b6f61}button,input,select,textarea{font:inherit}a,button,input,select,textarea,summary{min-height:44px}:focus-visible{outline:3px solid var(--focus);outline-offset:3px}.of-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;min-height:58px;padding:6px max(12px,calc((100vw - 1320px)/2));background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.of-back{display:inline-flex;align-items:center;gap:7px;padding:0 10px;color:var(--ink);font-weight:800;text-decoration:none}.of-menu{position:relative}.of-menu>summary{display:grid;place-items:center;width:48px;cursor:pointer;list-style:none;border-radius:999px;font-weight:900}.of-menu>summary::-webkit-details-marker{display:none}.of-menu nav{position:absolute;right:0;top:50px;display:grid;width:min(270px,calc(100vw - 24px));padding:10px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 20px 50px rgba(15,35,25,.18)}.of-menu:not([open]) nav{display:none}.of-menu nav>a{display:flex;align-items:center;padding:8px 10px;border-radius:10px;font-weight:800;text-decoration:none}.of-menu nav div{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding-top:8px;border-top:1px solid var(--line)}.of-menu nav div a{display:grid;place-items:center;border-radius:9px;text-decoration:none}.of-menu [aria-current="page"]{background:var(--soft);font-weight:900}.of-page{width:min(1320px,100%);margin:0 auto 56px}.of-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,440px);align-items:start}.of-layout.has-no-media{grid-template-columns:minmax(0,700px);justify-content:center}.of-layout.has-no-media .of-media-column{display:none}.of-media-column{position:sticky;top:58px;min-width:0}.of-media-stage{position:relative;display:grid;align-items:center;min-height:calc(100vh - 58px);background:#101713;color:#fff}.of-media-gallery{display:flex;width:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin;overscroll-behavior-x:contain}.of-media-slide{display:grid;place-items:center;flex:0 0 100%;min-width:0;min-height:min(74vw,calc(100vh - 96px));margin:0;scroll-snap-align:start}.of-media-slide a{display:grid;place-items:center;width:100%;min-height:inherit}.of-media-slide img{display:block;width:auto;max-width:100%;height:auto;max-height:calc(100vh - 96px);object-fit:contain}.of-media-slide video{display:block;width:100%;height:auto;max-height:calc(100vh - 96px);object-fit:contain}.of-media-slide.is-audio{align-content:center;gap:22px;padding:32px}.of-media-slide audio{width:min(520px,100%)}.of-audio-mark{font-size:72px;line-height:1;color:#9be7c9}.of-media-nav{position:absolute;right:14px;bottom:14px;display:flex;gap:7px;padding:6px;border-radius:999px;background:rgba(0,0,0,.58)}.of-media-nav a{display:grid;place-items:center;width:44px;min-height:44px;border-radius:999px;color:#fff;text-decoration:none}.of-media-nav a:hover,.of-media-nav a:focus-visible{background:rgba(255,255,255,.2)}.of-panel{min-width:0;padding:28px 24px 48px;background:#fff;min-height:calc(100vh - 58px);border-left:1px solid var(--line)}.of-layout.has-no-media .of-panel{border-left:0}.of-record-info h1{margin:0;font-size:clamp(27px,3vw,38px);line-height:1.22;letter-spacing:-.02em}.of-meta{display:grid;gap:5px;margin:14px 0 18px;color:var(--muted)}.of-meta p{display:flex;align-items:flex-start;gap:8px;margin:0}.of-meta p span:first-child{font-weight:800;color:var(--ink)}.of-meta .of-location-protection{color:#365848;font-weight:750}.of-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}.of-action{display:inline-flex;align-items:center;justify-content:center;padding:9px 15px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink);font-weight:850;text-decoration:none}.of-action.is-primary{border-color:var(--green);background:var(--green);color:#fff}.of-status{margin:0 0 14px;padding:10px 12px;border-radius:12px;background:var(--soft)}.of-summary,.of-scene,.of-environment,.of-comparison,.of-note,.of-manage,.of-capture{margin-top:14px;padding:17px;border:1px solid var(--line);border-radius:17px;background:#fff}.of-summary{background:linear-gradient(150deg,#effaf5,#fff 55%)}.of-summary h2,.of-scene h2,.of-environment h2,.of-comparison h2,.of-note h2{margin:0 0 9px;font-size:19px;line-height:1.35}.of-summary-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}.of-summary-list li{position:relative;display:grid;padding-left:18px;font-size:17px}.of-summary-list li:before{content:"";position:absolute;left:1px;top:.72em;width:7px;height:7px;border-radius:50%;background:var(--green)}.of-summary-list li strong{font-weight:850}.of-summary-list li small{color:var(--muted);font-size:13px}.of-learning{display:grid;gap:10px;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}.of-learning>h3{margin:0;font-size:17px}.of-learning h4{margin:0 0 5px;font-size:15px}.of-learning ul{margin:0;padding-left:20px;color:#33473c}.of-scene{background:#f5f8fb}.of-scene ul{display:flex;flex-wrap:wrap;gap:7px;margin:0;padding:0;list-style:none}.of-scene li{padding:5px 10px;border:1px solid #cbd8df;border-radius:999px;background:#fff;font-weight:750}.of-detection-state{margin:11px 0 0;color:#33473c}.of-comparison p{margin:0 0 6px}.of-comparison a{display:inline-flex;align-items:center;font-weight:800}.of-observation-details,.of-propose{margin-top:12px}.of-observation-details>summary,.of-propose>summary,.of-manage>summary,.of-capture>summary{display:flex;align-items:center;cursor:pointer;color:var(--green);font-weight:900;list-style-position:inside}.of-observation-detail{margin-top:12px;padding:14px;border-radius:13px;background:var(--wash)}.of-observation-detail h3{margin:0 0 8px;font-size:17px}.of-record-name{display:grid;margin-bottom:9px}.of-record-name span,.of-ai-detail span{color:var(--muted);font-size:13px}.of-ai-detail h4,.of-proposals h4{margin:10px 0 5px;font-size:14px}.of-ai-detail ul,.of-proposals ul{display:grid;gap:6px;margin:0;padding:0;list-style:none}.of-ai-detail li{display:grid}.of-proposals li{display:flex;align-items:center;justify-content:space-between;gap:8px}.of-proposals form{margin:0}.of-proposals button{padding:7px 11px}.of-propose form,.of-manage form{display:grid;gap:8px;margin-top:9px}.of-propose label,.of-manage label{display:grid;gap:4px;font-weight:800}.of-propose input,.of-propose textarea,.of-manage input,.of-manage select{width:100%;padding:9px 10px;border:1px solid #aebfb5;border-radius:10px;background:#fff}.of-propose button,.of-manage button{border:0;border-radius:11px;background:var(--green);color:#fff;font-weight:900;padding:10px 13px}.of-manage button.is-secondary{border:1px solid var(--line);background:#fff;color:var(--ink)}.of-login-proposal{display:inline-flex;align-items:center;margin-top:10px;font-weight:850}.of-environment{background:#f7faf0}.of-environment-headline{margin:0 0 8px;font-weight:850}.of-environment ul{display:grid;gap:5px;margin:0;padding:0;list-style:none}.of-environment li{display:grid;grid-template-columns:minmax(112px,.75fr) minmax(0,1.25fr);gap:10px}.of-environment li span{color:var(--muted)}.of-environment small{display:block;margin-top:9px;color:var(--muted)}.of-note p{margin:0;white-space:pre-wrap}.of-manage>summary,.of-capture>summary{color:var(--ink)}.of-manage-lead{margin:3px 0 0;color:var(--muted);font-size:14px}.of-manage-body{display:grid;gap:14px;padding-top:11px}.of-manage-body>section{padding-top:12px;border-top:1px solid var(--line)}.of-manage-body>section:first-child{padding-top:0;border-top:0}.of-manage h3{margin:0;font-size:16px}.of-manage p{margin:5px 0;color:var(--muted);font-size:14px}.of-capture dl{display:grid;gap:8px;margin:11px 0 0}.of-capture dl div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px}.of-capture dt{color:var(--muted)}.of-capture dd{margin:0;font-weight:750}.of-related{padding:24px}.of-related h2{margin:0 0 12px;font-size:21px}.of-related>div{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}.of-related-card{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;min-height:76px;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);text-decoration:none}.of-related-card.has-no-photo{grid-template-columns:minmax(0,1fr)}.of-related-card img{width:76px;height:76px;object-fit:cover}.of-related-card span{display:grid;padding:8px 10px}.of-related-card small{color:var(--muted)}@media(max-width:899px){.of-layout{display:flex;flex-direction:column}.of-media-column{position:static;width:100%}.of-media-stage{min-height:0}.of-media-slide{min-height:min(82vh,133vw)}.of-media-slide img,.of-media-slide video{max-height:min(82vh,133vw)}.of-panel{width:100%;min-height:0;padding:22px 16px 38px;border-left:0}.of-related{padding:18px 16px}.of-related>div{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x proximity;padding-bottom:8px}.of-related-card{flex:0 0 min(76vw,300px);scroll-snap-align:start}.of-record-info h1{font-size:29px}.of-observation-details[open],.of-manage[open]{position:fixed;inset:58px 0 0;z-index:60;margin:0;padding:16px;overflow-y:auto;border-radius:0;background:#fff}.of-observation-details[open]>summary,.of-manage[open]>summary{position:sticky;top:0;z-index:2;padding:8px 0;background:#fff;border-bottom:1px solid var(--line)}}@media(max-width:390px){.of-header{padding-inline:6px}.of-panel{padding:19px 12px 34px}.of-summary,.of-scene,.of-environment,.of-comparison,.of-note,.of-manage,.of-capture{padding:14px;border-radius:14px}.of-related{padding-inline:12px}.of-environment li{grid-template-columns:1fr;gap:0}.of-capture dl div{grid-template-columns:92px minmax(0,1fr)}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.of-media-gallery,.of-related>div{scroll-behavior:auto}}
+  </style></head><body><header class="of-header"><a class="of-back" href="${prefix}/records" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}<h1>${escapeHtml(title)}</h1><div class="of-meta"><p><span>◷</span>${escapeHtml(presentation.observedLabel)}</p><p><span>⌖</span>${escapeHtml(presentation.publicLocationLabel ?? detail.privacy.publicLocationLabel)}</p><p class="of-location-protection"><span>◌</span>${escapeHtml(locationProtection)}</p><p><span>◉</span>${escapeHtml(copy.visibility[detail.visibility])}</p></div><div class="of-actions">${detail.owner ? `<a class="of-action is-primary" href="#manage">${escapeHtml(copy.edit)}</a>` : ""}<a class="of-action" href="${escapeHtml(mailto)}">${escapeHtml(copy.share)}</a></div>${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}</section>${note}${summary}${scene}${environment}${comparison}${management}${capture}</aside></div>${related}</main></body></html>`;
 }

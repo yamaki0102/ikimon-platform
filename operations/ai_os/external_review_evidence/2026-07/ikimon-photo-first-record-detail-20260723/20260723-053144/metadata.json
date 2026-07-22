@@ -1,0 +1,10 @@
+{
+  "task_id": "ikimon-record-detail-scene-states-20260723",
+  "status": "complete",
+  "model_used": "gemini-3.1-flash-lite",
+  "target": "platform_v2/cloudflare_shadow/docs/PR_F_PHOTO_FIRST_REVIEW_PACKET.md",
+  "raw_review": "gemini-review.md",
+  "adoption": "adoption.md",
+  "visual_qa": "visual_qa/README.md",
+  "generated_at": "2026-07-23T05:32:38+09:00"
+}

@@ -47,13 +47,15 @@ test("record container supports zero, one and many observation cards", () => {
 test("AI remains provisional and cannot become a community vote or accepted decision", () => {
   const detail = buildObservationFirstRecordDetail(snapshot({
     observations: [observation("o1"), observation("o2", "ai")],
-    aiSuggestions: [{ suggestion_id: "ai-1", observation_id: "o2", proposed_name: "アブラゼミ", proposed_scientific_name: null, proposed_rank: null, suggestion_status: "active" }],
+    aiSuggestions: [{ suggestion_id: "ai-1", observation_id: "o2", proposed_name: "アブラゼミ", proposed_scientific_name: null, proposed_rank: null, rationale_json: JSON.stringify({ visualEvidence: ["透明な翅"], needsMoreEvidence: ["腹側も撮る"] }), suggestion_status: "active" }],
   }), null)!;
   const ai = detail.observations[1]!;
   assert.equal(ai.assertionStatus, "provisional");
   assert.equal(ai.acceptedIdentification, null);
   assert.equal(ai.communityIdentifications.length, 0);
   assert.equal(ai.aiSuggestions[0]?.provisional, true);
+  assert.deepEqual(ai.aiSuggestions[0]?.visualEvidence, ["透明な翅"]);
+  assert.deepEqual(ai.aiSuggestions[0]?.shootingAdvice, ["腹側も撮る"]);
   assert.equal(ai.provenance.ai, true);
 });
 
