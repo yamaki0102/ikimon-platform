@@ -111,6 +111,21 @@ test("guest HTML omits owner management and keeps proposals on demand", () => {
   assert.doesNotMatch(rendered, /35\.123456|138\.123456|[?&]lat=/);
 });
 
+test("related records without a photo use the full card width", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
+    title: "関連記録の表示",
+    observedLabel: "2026年7月23日",
+    note: null,
+    media: [],
+    related: [{ recordId: "related-without-photo", title: "同じ季節の記録", observedLabel: "2026年7月20日", photoUrl: null }],
+    actionNonce: "nonce-related-no-photo",
+    viewerAuthenticated: false,
+  });
+
+  assert.match(rendered, /class="of-related-card has-no-photo"/);
+  assert.match(rendered, /\.of-related-card\.has-no-photo\{grid-template-columns:minmax\(0,1fr\)\}/);
+});
+
 test("owner identification remains available when external proposals are off", () => {
   const rendered = renderObservationFirstRecordDetailHtml({ ...detail, proposalPolicy: { identification: false, media: false, disabledReason: "record_policy" } }, {
     title: "非公開募集の記録",
