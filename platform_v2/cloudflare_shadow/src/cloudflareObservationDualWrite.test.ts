@@ -7,6 +7,7 @@ import {
   buildHumanObservationEditPlan,
   buildIdentificationClaimDualWritePlan,
   buildMediaReassignmentDualWritePlan,
+  buildObservationLifecyclePlan,
   buildOwnerObservationUpsertPlan,
 } from "./cloudflareObservationDualWrite.js";
 
@@ -84,6 +85,37 @@ test("record, human edit, identification and media dual-write is replay-safe and
     actor_kind: "community_member",
   });
   assert.equal(db.prepare("SELECT accepts_identification_proposals FROM record_observation_policies").get()?.accepts_identification_proposals, 0);
+  db.close();
+});
+
+test("owner lifecycle actions split, exclude, restore and merge without destructive deletion", async () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON;");
+  db.exec(readFileSync(path.join(process.cwd(), "migrations", "observations", "0067_record_observation_foundation.sql"), "utf8"));
+  const owner = await buildOwnerObservationUpsertPlan({ recordId: "record-life", ownerUserId: "owner-1", visibility: "public", sourceSnapshot: {} });
+  applyPlan(db, owner);
+  const split = await buildObservationLifecyclePlan({ recordId: "record-life", actorUserId: "owner-1", action: "split", sourceObservationId: owner.observationId, operationId: "split-1" });
+  applyPlan(db, split);
+  applyPlan(db, split);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM record_observations").get()?.count, 2);
+
+  const exclude = await buildObservationLifecyclePlan({ recordId: "record-life", actorUserId: "owner-1", action: "exclude", sourceObservationId: split.observationId, operationId: "exclude-1", reason: "別の対象だった" });
+  applyPlan(db, exclude);
+  applyPlan(db, exclude);
+  assert.equal(db.prepare("SELECT lifecycle_status FROM record_observations WHERE observation_id = ?").get(split.observationId)?.lifecycle_status, "excluded");
+
+  const restore = await buildObservationLifecyclePlan({ recordId: "record-life", actorUserId: "owner-1", action: "restore", sourceObservationId: split.observationId, operationId: "restore-1" });
+  applyPlan(db, restore);
+  applyPlan(db, restore);
+  assert.equal(db.prepare("SELECT lifecycle_status FROM record_observations WHERE observation_id = ?").get(split.observationId)?.lifecycle_status, "active");
+
+  const merge = await buildObservationLifecyclePlan({ recordId: "record-life", actorUserId: "owner-1", action: "merge", sourceObservationId: split.observationId, targetObservationId: owner.observationId, operationId: "merge-1" });
+  applyPlan(db, merge);
+  applyPlan(db, merge);
+  const merged = db.prepare("SELECT lifecycle_status, superseded_by_observation_id FROM record_observations WHERE observation_id = ?").get(split.observationId) as Record<string, unknown>;
+  assert.deepEqual(Object.fromEntries(Object.entries(merged)), { lifecycle_status: "superseded", superseded_by_observation_id: owner.observationId });
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM record_observation_consistency_ledger WHERE operation_kind = 'human_edit'").get()?.count, 4);
   db.close();
 });
 

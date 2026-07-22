@@ -20,9 +20,15 @@ import {
   buildHumanObservationEditPlan,
   buildIdentificationClaimDualWritePlan,
   buildMediaReassignmentDualWritePlan,
+  buildObservationLifecyclePlan,
   buildOwnerObservationUpsertPlan,
   type ObservationDualWritePlan,
 } from "./cloudflareObservationDualWrite";
+import {
+  buildObservationFirstRecordDetail,
+  type RecordObservationReadSnapshot,
+} from "./cloudflareObservationReadModel";
+import { renderObservationFirstRecordDetailHtml } from "./observationFirstRecordDetailHtml";
 import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
@@ -141,6 +147,7 @@ interface Env {
   OBSERVATION_DB_NAME?: string;
   OBSERVATION_ARCHIVE_TARGET?: string;
   OBSERVATION_DUAL_WRITE_MODE?: string;
+  OBSERVATION_READ_CUTOVER_MODE?: string;
   ORIGIN_FALLBACK_BASE_URL?: string;
   ORIGIN_FALLBACK_RESOLVE_OVERRIDE?: string;
   PUBLIC_WRITE_MODE?: string;
@@ -177,6 +184,10 @@ function isAppRuntime(env: Env): boolean {
 
 function observationDualWriteEnabled(env: Env): boolean {
   return String(env.OBSERVATION_DUAL_WRITE_MODE ?? "off").trim().toLowerCase() === "on";
+}
+
+function observationReadCutoverEnabled(env: Env): boolean {
+  return String(env.OBSERVATION_READ_CUTOVER_MODE ?? "off").trim().toLowerCase() === "on";
 }
 
 function observationDualWriteStatements(env: Env, plan: ObservationDualWritePlan | null): D1PreparedStatement[] {
@@ -2746,6 +2757,11 @@ export const worker = {
       const publicDetailPageMatch = nativePathname.match(/^\/observations\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && publicDetailPageMatch?.[1]) {
         return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), request, url, env);
+      }
+
+      const observationActionMatch = nativePathname.match(/^\/api\/v1\/records\/([^/]+)\/observation-actions$/);
+      if (request.method === "POST" && observationActionMatch?.[1]) {
+        return handleObservationFirstRecordAction(decodeURIComponent(observationActionMatch[1]), request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
@@ -24850,7 +24866,189 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     }
     return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
   }
+  if (observationReadCutoverEnabled(env)) {
+    const observationFirst = await loadObservationFirstRecordDetail(detailIdToVisitId(rawId), session?.userId ?? null, env).catch(() => null);
+    if (observationFirst) {
+      const media = [
+        ...detail.photoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "photo" as const, url: item.url })),
+        ...detail.videoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "video" as const, url: item.watchUrl })),
+        ...(detail.audioAssets as Array<{ assetId: string; url?: string }>).map((item) => ({ mediaId: item.assetId, mediaKind: "audio" as const, url: item.url ?? null })),
+      ];
+      return html(renderObservationFirstRecordDetailHtml(observationFirst, {
+        title: detail.displayName,
+        observedLabel: detail.observedAt ? new Date(detail.observedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }) : "観察日時は未設定です",
+        note: detail.note,
+        media,
+        actionNonce: crypto.randomUUID(),
+        processingMessage: ownerStatus?.message ?? null,
+        notice: url.searchParams.get("action") === "updated" ? "変更を記録しました。" : null,
+      }), 200, {
+        "cache-control": "private, no-store",
+        "x-ikimon-record-reader": "observation-first/v1",
+      });
+    }
+  }
   return html(renderPublicObservationDetailHtml(detail, ownerStatus), 200, { "cache-control": "no-store" });
+}
+
+async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: string | null, env: Env) {
+  const container = await env.OBS_DB.prepare(
+    `SELECT o.owner_user_id, COALESCE(p.visibility, o.visibility) AS visibility,
+            COALESCE(p.accepts_identification_proposals, 0) AS accepts_identification_proposals
+       FROM observations o
+       LEFT JOIN record_observation_policies p
+         ON p.record_runtime = 'cloudflare_d1' AND p.record_id = o.observation_id
+      WHERE o.observation_id = ? AND o.emergency_hidden = 0 LIMIT 1`
+  ).bind(recordId).first<{ owner_user_id: string; visibility: "public" | "limited" | "private"; accepts_identification_proposals: number }>();
+  if (!container) return null;
+  const [observations, media, claims, suggestions] = await Promise.all([
+    env.OBS_DB.prepare(
+      `SELECT observation_id, record_id, owner_user_id, origin, assertion_status,
+              verification_status, lifecycle_status, data_use_scope,
+              accepted_identification_id, subject_type, captive_context, display_order,
+              context_json, provenance_json
+         FROM record_observations
+        WHERE record_runtime = 'cloudflare_d1' AND record_id = ?
+        ORDER BY display_order, created_at, observation_id`
+    ).bind(recordId).all<RecordObservationReadSnapshot["observations"][number]>(),
+    env.OBS_DB.prepare(
+      `SELECT rom.observation_id, rom.media_id,
+              CASE WHEN a.mime LIKE 'video/%' THEN 'video'
+                   WHEN a.mime LIKE 'audio/%' THEN 'audio' ELSE 'photo' END AS media_kind,
+              rom.active, 0 AS display_order
+         FROM record_observation_media rom
+         JOIN record_observations ro ON ro.observation_id = rom.observation_id
+         LEFT JOIN asset_ledger a ON a.asset_id = rom.media_id
+        WHERE ro.record_runtime = 'cloudflare_d1' AND ro.record_id = ?
+        ORDER BY rom.created_at, rom.media_id`
+    ).bind(recordId).all<RecordObservationReadSnapshot["media"][number]>(),
+    env.OBS_DB.prepare(
+      `SELECT c.identification_id AS claim_id, c.observation_id,
+              c.actor_kind AS actor_type, COALESCE(c.actor_id, '') AS actor_id,
+              c.proposed_name, c.proposed_scientific_name, c.proposed_rank,
+              c.stance, c.claim_status, c.created_at
+         FROM observation_identification_claims c
+         JOIN record_observations ro ON ro.observation_id = c.observation_id
+        WHERE ro.record_runtime = 'cloudflare_d1' AND ro.record_id = ?
+        ORDER BY c.created_at, c.identification_id`
+    ).bind(recordId).all<RecordObservationReadSnapshot["claims"][number]>(),
+    env.OBS_DB.prepare(
+      `SELECT s.suggestion_id, s.observation_id, s.proposed_name,
+              s.proposed_scientific_name, s.proposed_rank, s.suggestion_status
+         FROM observation_ai_suggestions s
+         JOIN record_observations ro ON ro.observation_id = s.observation_id
+        WHERE ro.record_runtime = 'cloudflare_d1' AND ro.record_id = ?
+        ORDER BY s.created_at, s.suggestion_id`
+    ).bind(recordId).all<RecordObservationReadSnapshot["aiSuggestions"][number]>(),
+  ]);
+  return buildObservationFirstRecordDetail({
+    recordId,
+    ownerUserId: container.owner_user_id,
+    visibility: container.visibility,
+    policy: {
+      visibility: container.visibility,
+      accepts_identification_proposals: Number(container.accepts_identification_proposals),
+      accepts_media_proposals: Number(container.accepts_identification_proposals),
+    },
+    observations: observations.results,
+    media: media.results,
+    claims: claims.results,
+    aiSuggestions: suggestions.results,
+  }, viewerUserId);
+}
+
+async function handleObservationFirstRecordAction(recordId: string, request: Request, env: Env): Promise<Response> {
+  if (!observationReadCutoverEnabled(env) || !observationDualWriteEnabled(env)) {
+    return json({ ok: false, error: "observation_first_write_disabled" }, 503, { "cache-control": "no-store" });
+  }
+  const requestUrl = new URL(request.url);
+  if (request.headers.get("origin") !== requestUrl.origin) {
+    return json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" });
+  }
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  if (!session || session.banned) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  const form = await request.formData();
+  const action = String(form.get("action") ?? "");
+  const sourceObservationId = String(form.get("observation_id") ?? "");
+  const targetObservationId = String(form.get("target_observation_id") ?? "") || null;
+  const operationId = String(form.get("operation_id") ?? "");
+  if (!/^[A-Za-z0-9:_-]{1,180}$/u.test(recordId) || !/^[A-Za-z0-9:_-]{8,220}$/u.test(operationId)) {
+    return json({ ok: false, error: "observation_action_identity_invalid" }, 400, { "cache-control": "no-store" });
+  }
+  const container = await env.OBS_DB.prepare(
+    `SELECT o.owner_user_id, COALESCE(p.visibility, o.visibility) AS visibility,
+            COALESCE(p.accepts_identification_proposals, 0) AS accepts_identification_proposals
+       FROM observations o LEFT JOIN record_observation_policies p
+         ON p.record_runtime = 'cloudflare_d1' AND p.record_id = o.observation_id
+      WHERE o.observation_id = ? AND o.emergency_hidden = 0 LIMIT 1`
+  ).bind(recordId).first<{ owner_user_id: string; visibility: string; accepts_identification_proposals: number }>();
+  if (!container) return json({ ok: false, error: "record_not_found" }, 404, { "cache-control": "no-store" });
+  const owner = container.owner_user_id === session.userId;
+  let plan: ObservationDualWritePlan;
+  if (action === "identify") {
+    if (!sourceObservationId || (!owner && (container.visibility !== "public" || Number(container.accepts_identification_proposals) !== 1))) {
+      return json({ ok: false, error: "identification_proposal_not_allowed" }, 403, { "cache-control": "no-store" });
+    }
+    const target = await env.OBS_DB.prepare(
+      `SELECT observation_id FROM record_observations
+        WHERE observation_id = ? AND record_runtime = 'cloudflare_d1' AND record_id = ? AND lifecycle_status = 'active' LIMIT 1`
+    ).bind(sourceObservationId, recordId).first<{ observation_id: string }>();
+    const proposedName = String(form.get("proposed_name") ?? "").trim();
+    if (!target || proposedName.length < 1 || proposedName.length > 160) return json({ ok: false, error: "identification_input_invalid" }, 400, { "cache-control": "no-store" });
+    plan = await buildIdentificationClaimDualWritePlan({
+      recordId,
+      targetObservationId: sourceObservationId,
+      legacyIdentificationId: `record-ui:${operationId}`,
+      actorUserId: session.userId,
+      actorKind: owner ? "owner" : "community_member",
+      proposedName,
+      sourcePayload: { source: "observation_first_record_ui", notePresent: Boolean(String(form.get("note") ?? "").trim()) },
+    });
+  } else if (action === "media_reassign") {
+    if (!owner || !targetObservationId) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const mediaId = String(form.get("media_id") ?? "");
+    const target = await env.OBS_DB.prepare(
+      `SELECT ro.observation_id FROM record_observations ro
+        WHERE ro.observation_id = ? AND ro.record_runtime = 'cloudflare_d1'
+          AND ro.record_id = ? AND ro.owner_user_id = ? AND ro.lifecycle_status = 'active'
+          AND EXISTS (SELECT 1 FROM asset_ledger a WHERE a.asset_id = ? AND a.observation_id = ? AND a.owner_user_id = ?)
+        LIMIT 1`
+    ).bind(targetObservationId, recordId, session.userId, mediaId, recordId, session.userId).first<{ observation_id: string }>();
+    if (!target) return json({ ok: false, error: "media_reassignment_target_invalid" }, 400, { "cache-control": "no-store" });
+    plan = await buildMediaReassignmentDualWritePlan({ recordId, targetObservationId, mediaId, actorUserId: session.userId, sourcePayload: { source: "observation_first_record_ui", operationId } });
+  } else if (["split", "merge", "exclude", "restore"].includes(action)) {
+    if (!owner || !sourceObservationId) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const requiredSourceState = action === "restore" ? "excluded" : "active";
+    const source = await env.OBS_DB.prepare(
+      `SELECT observation_id FROM record_observations
+        WHERE observation_id = ? AND record_runtime = 'cloudflare_d1'
+          AND record_id = ? AND owner_user_id = ? AND lifecycle_status = ? LIMIT 1`
+    ).bind(sourceObservationId, recordId, session.userId, requiredSourceState).first<{ observation_id: string }>();
+    if (!source) return json({ ok: false, error: "observation_action_source_invalid" }, 400, { "cache-control": "no-store" });
+    if (action === "merge") {
+      const target = targetObservationId ? await env.OBS_DB.prepare(
+        `SELECT observation_id FROM record_observations
+          WHERE observation_id = ? AND record_runtime = 'cloudflare_d1'
+            AND record_id = ? AND owner_user_id = ? AND lifecycle_status = 'active' LIMIT 1`
+      ).bind(targetObservationId, recordId, session.userId).first<{ observation_id: string }>() : null;
+      if (!target || target.observation_id === sourceObservationId) {
+        return json({ ok: false, error: "observation_merge_target_invalid" }, 400, { "cache-control": "no-store" });
+      }
+    }
+    plan = await buildObservationLifecyclePlan({
+      recordId,
+      actorUserId: session.userId,
+      action: action as "split" | "merge" | "exclude" | "restore",
+      sourceObservationId,
+      targetObservationId,
+      operationId,
+      reason: String(form.get("reason") ?? "").trim() || null,
+    });
+  } else {
+    return json({ ok: false, error: "observation_action_invalid" }, 400, { "cache-control": "no-store" });
+  }
+  await env.OBS_DB.batch(plan.mutations.map((mutation) => env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)));
+  return new Response(null, { status: 303, headers: { location: `/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
 }
 
 async function getOwnerObservationProcessingStatusJson(rawId: string, request: Request, env: Env): Promise<Response> {

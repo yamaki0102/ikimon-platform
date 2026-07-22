@@ -247,18 +247,127 @@ export async function buildHumanObservationEditPlan(input: {
   };
 }
 
+export async function buildObservationLifecyclePlan(input: {
+  recordId: string;
+  actorUserId: string;
+  action: "split" | "merge" | "exclude" | "restore";
+  sourceObservationId: string;
+  targetObservationId?: string | null;
+  operationId: string;
+  reason?: string | null;
+}): Promise<ObservationDualWritePlan> {
+  const operationKey = `record_observation_lifecycle:${input.action}:${input.operationId}`;
+  const newObservationId = input.action === "split"
+    ? await deterministicUuid(`record-observation-split:${operationKey}`)
+    : input.sourceObservationId;
+  const eventId = await deterministicUuid(`record-observation-event:${operationKey}`);
+  const ledgerId = await deterministicUuid(`record-observation-ledger:${operationKey}`);
+  const sourceDigest = await sha256Hex(JSON.stringify({
+    action: input.action,
+    sourceObservationId: input.sourceObservationId,
+    targetObservationId: input.targetObservationId ?? null,
+    reason: input.reason ?? null,
+  }));
+  const targetDigest = await sha256Hex(JSON.stringify({ observationId: newObservationId, action: input.action }));
+  const lifecycleEventKind = input.action === "merge" ? "merged" : input.action === "exclude" ? "excluded" : input.action === "restore" ? "restored" : "split";
+  const relatedIds = JSON.stringify([input.sourceObservationId, input.targetObservationId, input.action === "split" ? newObservationId : null].filter(Boolean));
+  let lifecycleMutation: ObservationDualWriteSqlMutation;
+  if (input.action === "split") {
+    lifecycleMutation = {
+      sql: `INSERT INTO record_observations (
+        observation_id, record_runtime, record_id, owner_user_id, source_key,
+        origin, assertion_status, verification_status, lifecycle_status, data_use_scope,
+        data_use_consent_key, accepted_identification_id, subject_type, individual_certainty,
+        captive_context, count_mode, count_value, count_min, count_max, display_order,
+        context_json, provenance_json, reviewed_by_actor_kind, reviewed_by_actor_id,
+        reviewed_at, created_at, updated_at
+      ) SELECT ?, record_runtime, record_id, owner_user_id, ?, 'owner', 'human_asserted',
+        'owner_confirmed', 'active', data_use_scope, data_use_consent_key, NULL,
+        subject_type, individual_certainty, captive_context, count_mode, count_value,
+        count_min, count_max, display_order + 1,
+        json_set(context_json, '$.splitFromObservationId', observation_id, '$.splitOperationId', ?),
+        json_set(provenance_json, '$.lifecycleAction', 'split', '$.operationId', ?),
+        'owner', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      FROM record_observations
+      WHERE observation_id = ? AND record_runtime = 'cloudflare_d1' AND record_id = ?
+        AND owner_user_id = ? AND lifecycle_status = 'active'
+      ON CONFLICT(observation_id) DO NOTHING`,
+      values: [newObservationId, `owner_split:${input.operationId}`, input.operationId, input.operationId, input.actorUserId, input.sourceObservationId, input.recordId, input.actorUserId],
+    };
+  } else if (input.action === "merge") {
+    if (!input.targetObservationId || input.targetObservationId === input.sourceObservationId) throw new Error("observation_merge_target_invalid");
+    lifecycleMutation = {
+      sql: `UPDATE record_observations SET lifecycle_status = 'superseded', excluded_reason = NULL,
+        superseded_by_observation_id = ?, reviewed_by_actor_kind = 'owner', reviewed_by_actor_id = ?,
+        reviewed_at = CURRENT_TIMESTAMP, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+      WHERE observation_id = ? AND record_runtime = 'cloudflare_d1' AND record_id = ?
+        AND owner_user_id = ? AND lifecycle_status = 'active'
+        AND EXISTS (SELECT 1 FROM record_observations target
+          WHERE target.observation_id = ? AND target.record_runtime = 'cloudflare_d1'
+            AND target.record_id = ? AND target.owner_user_id = ? AND target.lifecycle_status = 'active')`,
+      values: [input.targetObservationId, input.actorUserId, input.sourceObservationId, input.recordId, input.actorUserId, input.targetObservationId, input.recordId, input.actorUserId],
+    };
+  } else if (input.action === "exclude") {
+    lifecycleMutation = {
+      sql: `UPDATE record_observations SET lifecycle_status = 'excluded', excluded_reason = ?,
+        superseded_by_observation_id = NULL, reviewed_by_actor_kind = 'owner', reviewed_by_actor_id = ?,
+        reviewed_at = CURRENT_TIMESTAMP, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+      WHERE observation_id = ? AND record_runtime = 'cloudflare_d1' AND record_id = ?
+        AND owner_user_id = ? AND lifecycle_status = 'active'`,
+      values: [input.reason?.trim() || "owner_excluded", input.actorUserId, input.sourceObservationId, input.recordId, input.actorUserId],
+    };
+  } else {
+    lifecycleMutation = {
+      sql: `UPDATE record_observations SET lifecycle_status = 'active', excluded_reason = NULL,
+        superseded_by_observation_id = NULL, reviewed_by_actor_kind = 'owner', reviewed_by_actor_id = ?,
+        reviewed_at = CURRENT_TIMESTAMP, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+      WHERE observation_id = ? AND record_runtime = 'cloudflare_d1' AND record_id = ?
+        AND owner_user_id = ? AND lifecycle_status = 'excluded'`,
+      values: [input.actorUserId, input.sourceObservationId, input.recordId, input.actorUserId],
+    };
+  }
+  return {
+    observationId: newObservationId,
+    mutations: [
+      lifecycleMutation,
+      {
+        sql: `INSERT OR IGNORE INTO observation_lifecycle_events (
+          event_id, observation_id, event_kind, actor_kind, actor_id, reason_code,
+          before_json, after_json, related_observation_ids_json, source_key, created_at
+        ) VALUES (?, ?, ?, 'owner', ?, ?, '{}', ?, ?, ?, CURRENT_TIMESTAMP)`,
+        values: [eventId, input.sourceObservationId, lifecycleEventKind, input.actorUserId, input.reason ?? `owner_${input.action}`, JSON.stringify({ action: input.action, resultingObservationId: newObservationId }), relatedIds, operationKey],
+      },
+      {
+        sql: `INSERT INTO record_observation_consistency_ledger (
+          ledger_id, operation_key, record_runtime, record_id, observation_id,
+          operation_kind, legacy_write_refs_json, target_write_refs_json,
+          source_digest, target_digest, consistency_state, reason_codes_json,
+          attempt_count, created_at, updated_at, resolved_at
+        ) VALUES (?, ?, 'cloudflare_d1', ?, ?, 'human_edit', '{}', ?, ?, ?,
+          'matched', '[]', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(operation_key) DO UPDATE SET target_digest = excluded.target_digest,
+          consistency_state = 'matched', reason_codes_json = '[]',
+          attempt_count = MIN(record_observation_consistency_ledger.attempt_count + 1, 100),
+          updated_at = CURRENT_TIMESTAMP, resolved_at = CURRENT_TIMESTAMP`,
+        values: [ledgerId, operationKey, input.recordId, newObservationId, JSON.stringify({ action: input.action, sourceObservationId: input.sourceObservationId, targetObservationId: input.targetObservationId ?? null, resultingObservationId: newObservationId, eventId }), sourceDigest, targetDigest],
+      },
+    ],
+  };
+}
+
 export async function buildIdentificationClaimDualWritePlan(input: {
   recordId: string;
   legacyIdentificationId: string;
   actorUserId: string;
   actorKind: "owner" | "community_member" | "curator";
+  targetObservationId?: string;
   proposedName: string;
   proposedRank?: string | null;
   stance?: "support" | "alternative" | "not_organism" | "needs_more_evidence" | "context_only";
   sourcePayload: Record<string, unknown>;
   writeMode?: "dual_write" | "backfill";
 }): Promise<ObservationDualWritePlan> {
-  const observationId = await observationIdForRecord(input.recordId);
+  const observationId = input.targetObservationId ?? await observationIdForRecord(input.recordId);
   const sourceKey = `legacy_identification:${input.legacyIdentificationId}`;
   const identificationId = await deterministicUuid(`record-observation-identification:${sourceKey}`);
   const eventId = await deterministicUuid(`record-observation-event:${sourceKey}`);
@@ -320,11 +429,12 @@ export async function buildMediaReassignmentDualWritePlan(input: {
   mediaId: string;
   mediaSourceRuntime?: string;
   actorUserId: string;
+  targetObservationId?: string;
   role?: "primary_evidence" | "supporting_evidence" | "context" | "audio_evidence" | "trace_evidence";
   sourcePayload: Record<string, unknown>;
   writeMode?: "dual_write" | "backfill";
 }): Promise<ObservationDualWritePlan> {
-  const observationId = await observationIdForRecord(input.recordId);
+  const observationId = input.targetObservationId ?? await observationIdForRecord(input.recordId);
   const sourceKey = `legacy_media:${input.mediaId}`;
   const linkId = await deterministicUuid(`record-observation-media:${observationId}:${sourceKey}`);
   const eventId = await deterministicUuid(`record-observation-event:${observationId}:${sourceKey}:linked`);

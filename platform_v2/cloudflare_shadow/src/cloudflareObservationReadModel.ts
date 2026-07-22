@@ -2,13 +2,14 @@ export type RecordObservationReadRow = {
   observation_id: string;
   record_id: string;
   owner_user_id: string;
-  origin: "owner" | "ai" | "community" | "curator" | "import";
-  assertion_status: "human_asserted" | "provisional" | "community_proposed" | "curator_asserted";
+  origin: "owner" | "ai" | "community" | "curator" | "import" | "system";
+  assertion_status: "human_asserted" | "provisional";
   verification_status: string;
-  lifecycle_status: "active" | "excluded" | "merged" | "deleted";
-  data_use_scope: "public_reuse" | "community_review" | "personal_only";
+  lifecycle_status: "active" | "excluded" | "superseded";
+  data_use_scope: "personal_only" | "community_observation" | "research_export";
   accepted_identification_id: string | null;
-  subject_type: "organism" | "pet" | "unknown_subject" | "group";
+  subject_type: "organism" | "unknown_subject" | "group" | "trace" | "sound";
+  captive_context?: "wild" | "captive" | "cultivated" | "pet" | "unknown";
   display_order: number;
   context_json: string;
   provenance_json: string;
@@ -17,7 +18,7 @@ export type RecordObservationReadRow = {
 export type RecordObservationPolicyRow = {
   visibility: "public" | "limited" | "private";
   accepts_identification_proposals: number;
-  accepts_media_proposals: number;
+  accepts_media_proposals?: number;
 };
 
 export type RecordObservationMediaRow = {
@@ -31,13 +32,13 @@ export type RecordObservationMediaRow = {
 export type RecordObservationClaimRow = {
   claim_id: string;
   observation_id: string;
-  actor_type: "owner" | "community" | "curator";
+  actor_type: "owner" | "community_member" | "curator" | "import";
   actor_id: string;
   proposed_name: string;
   proposed_scientific_name: string | null;
   proposed_rank: string | null;
   stance: string;
-  claim_status: "active" | "accepted" | "withdrawn" | "rejected";
+  claim_status: "candidate" | "accepted" | "withdrawn" | "rejected" | "superseded";
   created_at: string;
 };
 
@@ -64,7 +65,7 @@ export type RecordObservationReadSnapshot = {
 export type ObservationFirstCard = {
   observationId: string;
   state: "active" | "excluded";
-  subjectType: RecordObservationReadRow["subject_type"];
+  subjectType: RecordObservationReadRow["subject_type"] | "pet";
   subjectLabel: string;
   assertionStatus: string;
   verificationStatus: string;
@@ -129,10 +130,13 @@ const parseContext = (value: string): Record<string, unknown> => {
 
 const subjectLabel = (row: RecordObservationReadRow): string => {
   const context = parseContext(row.context_json);
-  const candidate = [context.displayName, context.taxonLabel, context.subjectLabel]
+  const legacy = context.legacyRecordSnapshot && typeof context.legacyRecordSnapshot === "object" && !Array.isArray(context.legacyRecordSnapshot)
+    ? context.legacyRecordSnapshot as Record<string, unknown>
+    : {};
+  const candidate = [context.displayName, context.taxonLabel, context.subjectLabel, legacy.taxonLabel]
     .find((value) => typeof value === "string" && value.trim()) as string | undefined;
   if (candidate) return candidate.trim();
-  if (row.subject_type === "pet") return "飼育されている生きもの";
+  if (row.captive_context === "pet") return "飼育されている生きもの";
   if (row.subject_type === "group") return "複数の生きもの";
   if (row.subject_type === "unknown_subject") return "名前を決めていない対象";
   return "観察した生きもの";
@@ -147,12 +151,12 @@ export function buildObservationFirstRecordDetail(
   const privateRecord = snapshot.visibility === "private";
   const policyDisabled = !snapshot.policy || snapshot.policy.accepts_identification_proposals !== 1;
   const activeRows = snapshot.observations
-    .filter((row) => row.lifecycle_status !== "deleted" && row.lifecycle_status !== "merged")
-    .filter((row) => owner || (row.lifecycle_status === "active" && row.data_use_scope === "public_reuse"))
+    .filter((row) => row.lifecycle_status !== "superseded")
+    .filter((row) => owner || row.lifecycle_status === "active")
     .sort((left, right) => left.display_order - right.display_order || left.observation_id.localeCompare(right.observation_id));
   const observations = activeRows.map((row): ObservationFirstCard => {
     const claims = snapshot.claims
-      .filter((claim) => claim.observation_id === row.observation_id && !["withdrawn", "rejected"].includes(claim.claim_status))
+      .filter((claim) => claim.observation_id === row.observation_id && !["withdrawn", "rejected", "superseded"].includes(claim.claim_status))
       .sort((left, right) => left.created_at.localeCompare(right.created_at) || left.claim_id.localeCompare(right.claim_id));
     const accepted = row.accepted_identification_id
       ? claims.find((claim) => claim.claim_id === row.accepted_identification_id && claim.claim_status === "accepted") ?? null
@@ -169,7 +173,7 @@ export function buildObservationFirstRecordDetail(
     return {
       observationId: row.observation_id,
       state: row.lifecycle_status === "excluded" ? "excluded" : "active",
-      subjectType: row.subject_type,
+      subjectType: row.captive_context === "pet" ? "pet" : row.subject_type,
       subjectLabel: subjectLabel(row),
       assertionStatus: row.assertion_status,
       verificationStatus: row.verification_status,
@@ -199,7 +203,7 @@ export function buildObservationFirstRecordDetail(
       provenance: {
         owner: row.origin === "owner",
         ai: row.origin === "ai" || aiSuggestions.length > 0,
-        community: row.origin === "community" || claims.some((claim) => claim.actor_type === "community"),
+        community: row.origin === "community" || claims.some((claim) => claim.actor_type === "community_member"),
         curator: row.origin === "curator" || claims.some((claim) => claim.actor_type === "curator"),
         imported: row.origin === "import",
       },
