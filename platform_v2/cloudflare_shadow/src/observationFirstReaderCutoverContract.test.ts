@@ -17,3 +17,9 @@ test("legacy detail fallback remains available only when the observation-first r
   assert.match(workerSource, /if \(!container\) return \{ state: "missing" as const, detail: null \}/);
   assert.match(workerSource, /return html\(renderPublicObservationDetailHtml\(detail, ownerStatus\)/);
 });
+
+test("accepted identification reader preserves the human decider and accepted value", () => {
+  assert.match(workerSource, /SELECT observation_id, source_key, record_id/);
+  assert.match(workerSource, /c\.accepted_name, c\.accepted_rank/);
+  assert.match(workerSource, /c\.decided_by_actor_kind, c\.decided_by_actor_id, c\.decided_at/);
+});

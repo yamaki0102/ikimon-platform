@@ -24,7 +24,6 @@ export function compareShadowPairs(input: ComparisonInput) {
       counts[item.code] = (counts[item.code] ?? 0) + 1;
       return counts;
     }, {})).sort(([left], [right]) => left.localeCompare(right)).map(([code, count]) => ({ code, count })),
-    containsRawLocation: false,
   };
 }
 

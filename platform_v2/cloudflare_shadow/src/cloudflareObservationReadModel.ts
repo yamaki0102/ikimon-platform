@@ -1,5 +1,6 @@
 export type RecordObservationReadRow = {
   observation_id: string;
+  source_key?: string;
   record_id: string;
   owner_user_id: string;
   origin: "owner" | "ai" | "community" | "curator" | "import" | "system";
@@ -39,6 +40,11 @@ export type RecordObservationClaimRow = {
   proposed_rank: string | null;
   stance: string;
   claim_status: "candidate" | "accepted" | "withdrawn" | "rejected" | "superseded";
+  accepted_name?: string | null;
+  accepted_rank?: string | null;
+  decided_by_actor_kind?: "owner" | "community_member" | "curator" | "import" | null;
+  decided_by_actor_id?: string | null;
+  decided_at?: string | null;
   created_at: string;
 };
 
@@ -73,6 +79,7 @@ export type ObservationFirstCard = {
     claimId: string;
     actorType: RecordObservationClaimRow["actor_type"];
     actorId: string;
+    proposalActorType: RecordObservationClaimRow["actor_type"];
     proposedName: string;
     proposedScientificName: string | null;
     proposedRank: string | null;
@@ -159,7 +166,12 @@ export function buildObservationFirstRecordDetail(
       .filter((claim) => claim.observation_id === row.observation_id && !["withdrawn", "rejected", "superseded"].includes(claim.claim_status))
       .sort((left, right) => left.created_at.localeCompare(right.created_at) || left.claim_id.localeCompare(right.claim_id));
     const accepted = row.accepted_identification_id
-      ? claims.find((claim) => claim.claim_id === row.accepted_identification_id && claim.claim_status === "accepted") ?? null
+      ? claims.find((claim) => claim.claim_id === row.accepted_identification_id
+        && claim.claim_status === "accepted"
+        && claim.decided_by_actor_kind !== null
+        && claim.decided_by_actor_kind !== "import"
+        && Boolean(claim.decided_by_actor_id)
+        && Boolean(claim.decided_at)) ?? null
       : null;
     const aiSuggestions = snapshot.aiSuggestions
       .filter((item) => item.observation_id === row.observation_id && item.suggestion_status === "active")
@@ -179,11 +191,12 @@ export function buildObservationFirstRecordDetail(
       verificationStatus: row.verification_status,
       acceptedIdentification: accepted ? {
         claimId: accepted.claim_id,
-        actorType: accepted.actor_type,
-        actorId: accepted.actor_id,
-        proposedName: accepted.proposed_name,
+        actorType: accepted.decided_by_actor_kind as "owner" | "community_member" | "curator",
+        actorId: accepted.decided_by_actor_id!,
+        proposalActorType: accepted.actor_type,
+        proposedName: accepted.accepted_name ?? accepted.proposed_name,
         proposedScientificName: accepted.proposed_scientific_name,
-        proposedRank: accepted.proposed_rank,
+        proposedRank: accepted.accepted_rank ?? accepted.proposed_rank,
         humanDecision: true,
       } : null,
       communityIdentifications: claims.map((claim) => ({
@@ -245,8 +258,28 @@ export type LegacyRecordShadowSummary = {
   recordId: string;
   ownerUserId: string;
   visibility: "public" | "limited" | "private";
-  mediaCount: number;
-  expectedObservationMinimum: number;
+  proposalPolicy: { identification: boolean; media: boolean };
+  observations: Array<{
+    sourceKey: string;
+    lifecycleStatus: "active" | "excluded";
+    dataUseScope: RecordObservationReadRow["data_use_scope"];
+    media: Array<{ mediaId: string; mediaKind: RecordObservationMediaRow["media_kind"] }>;
+    identifications: Array<{
+      actorType: RecordObservationClaimRow["actor_type"];
+      actorId?: string;
+      proposedName: string;
+      proposedScientificName: string | null;
+      proposedRank: string | null;
+      accepted: boolean;
+    }>;
+    acceptedIdentification: null | {
+      actorType: "owner" | "community_member" | "curator";
+      actorId?: string;
+      proposedName: string;
+      proposedScientificName: string | null;
+      proposedRank: string | null;
+    };
+  }>;
 };
 
 export type RecordShadowDifference = { severity: "P0" | "P1" | "P2"; code: string; recordId: string };
@@ -258,12 +291,84 @@ export function compareLegacyAndObservationFirstRecord(
   const differences: RecordShadowDifference[] = [];
   const ownerDetail = buildObservationFirstRecordDetail(snapshot, legacy.ownerUserId);
   if (!ownerDetail) return [{ severity: "P0", code: "new_read_missing", recordId: legacy.recordId }];
+  if (snapshot.recordId !== legacy.recordId) differences.push({ severity: "P0", code: "record_id_mismatch", recordId: legacy.recordId });
   if (snapshot.ownerUserId !== legacy.ownerUserId) differences.push({ severity: "P0", code: "owner_mismatch", recordId: legacy.recordId });
   if (snapshot.visibility !== legacy.visibility) differences.push({ severity: "P0", code: "visibility_mismatch", recordId: legacy.recordId });
   if (publicRecordDetailPrivacyFindings(ownerDetail).length > 0) differences.push({ severity: "P0", code: "exact_location_key_exposed", recordId: legacy.recordId });
-  const mediaCount = ownerDetail.observations.reduce((count, observation) => count + observation.media.length, 0);
-  if (mediaCount !== legacy.mediaCount) differences.push({ severity: "P1", code: "media_association_count_mismatch", recordId: legacy.recordId });
-  if (ownerDetail.observationCount < legacy.expectedObservationMinimum) differences.push({ severity: "P1", code: "observation_count_below_legacy_minimum", recordId: legacy.recordId });
+  if (ownerDetail.proposalPolicy.identification !== legacy.proposalPolicy.identification
+    || ownerDetail.proposalPolicy.media !== legacy.proposalPolicy.media) {
+    differences.push({ severity: "P1", code: "proposal_policy_mismatch", recordId: legacy.recordId });
+  }
+  if (ownerDetail.observationCount !== legacy.observations.length) {
+    differences.push({ severity: "P1", code: "observation_count_mismatch", recordId: legacy.recordId });
+  }
+
+  const currentRows = snapshot.observations.filter((row) => row.lifecycle_status !== "superseded");
+  const cardsByObservationId = new Map(ownerDetail.observations.map((card) => [card.observationId, card]));
+  let lifecycleMismatch = false;
+  let rightsMismatch = false;
+  let mediaMismatch = false;
+  let identificationMismatch = false;
+  const tuple = (values: Array<string | null | undefined>): string => JSON.stringify(values);
+  const sameTuples = (left: string[], right: string[]): boolean => {
+    const orderedLeft = [...left].sort();
+    const orderedRight = [...right].sort();
+    return orderedLeft.length === orderedRight.length && orderedLeft.every((value, index) => value === orderedRight[index]);
+  };
+  for (const expected of legacy.observations) {
+    const row = currentRows.find((candidate) => candidate.source_key === expected.sourceKey);
+    const card = row ? cardsByObservationId.get(row.observation_id) : undefined;
+    if (!row || !card) {
+      mediaMismatch = true;
+      identificationMismatch = true;
+      continue;
+    }
+    if (row.lifecycle_status !== expected.lifecycleStatus) lifecycleMismatch = true;
+    if (row.data_use_scope !== expected.dataUseScope) rightsMismatch = true;
+    const expectedMedia = expected.media.map((item) => tuple([item.mediaId, item.mediaKind]));
+    const actualMedia = card.media.map((item) => tuple([item.mediaId, item.mediaKind]));
+    if (!sameTuples(expectedMedia, actualMedia)) mediaMismatch = true;
+    const expectedClaims = expected.identifications.map((item) => tuple([
+      item.actorType,
+      item.actorId ?? null,
+      item.proposedName,
+      item.proposedScientificName,
+      item.proposedRank,
+      item.accepted ? "accepted" : "candidate",
+    ]));
+    const actualClaims = card.communityIdentifications.map((item) => {
+      const claim = snapshot.claims.find((candidate) => candidate.claim_id === item.claimId);
+      return tuple([
+        item.actorType,
+        expected.identifications.some((candidate) => candidate.actorId !== undefined) ? claim?.actor_id ?? null : null,
+        item.proposedName,
+        item.proposedScientificName,
+        item.proposedRank,
+        item.accepted ? "accepted" : "candidate",
+      ]);
+    });
+    if (!sameTuples(expectedClaims, actualClaims)) identificationMismatch = true;
+    const expectedAccepted = expected.acceptedIdentification;
+    const actualAccepted = card.acceptedIdentification;
+    if ((expectedAccepted === null) !== (actualAccepted === null)
+      || (expectedAccepted && actualAccepted && tuple([
+        expectedAccepted.actorType,
+        expectedAccepted.actorId ?? null,
+        expectedAccepted.proposedName,
+        expectedAccepted.proposedScientificName,
+        expectedAccepted.proposedRank,
+      ]) !== tuple([
+        actualAccepted.actorType,
+        expectedAccepted.actorId !== undefined ? actualAccepted.actorId : null,
+        actualAccepted.proposedName,
+        actualAccepted.proposedScientificName,
+        actualAccepted.proposedRank,
+      ]))) identificationMismatch = true;
+  }
+  if (lifecycleMismatch) differences.push({ severity: "P1", code: "observation_lifecycle_mismatch", recordId: legacy.recordId });
+  if (rightsMismatch) differences.push({ severity: "P1", code: "data_use_scope_mismatch", recordId: legacy.recordId });
+  if (mediaMismatch) differences.push({ severity: "P1", code: "media_association_mismatch", recordId: legacy.recordId });
+  if (identificationMismatch) differences.push({ severity: "P1", code: "identification_mismatch", recordId: legacy.recordId });
   for (const observation of ownerDetail.observations) {
     if (observation.acceptedIdentification && observation.acceptedIdentification.humanDecision !== true) {
       differences.push({ severity: "P0", code: "accepted_identification_without_human_decision", recordId: legacy.recordId });
@@ -282,5 +387,6 @@ export function summarizeRecordShadowComparison(differences: RecordShadowDiffere
     unexplainedP0P1: counts.P0 + counts.P1,
     pass: compared >= 100 && counts.P0 === 0 && counts.P1 === 0,
     privacyFindings: differences.filter((item) => item.code === "exact_location_key_exposed").length,
+    containsRawLocation: differences.some((item) => item.code === "exact_location_key_exposed"),
   };
 }
