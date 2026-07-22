@@ -359,7 +359,7 @@ export async function buildIdentificationClaimDualWritePlan(input: {
   recordId: string;
   legacyIdentificationId: string;
   actorUserId: string;
-  actorKind: "owner" | "community_member" | "curator";
+  actorKind: "owner" | "community_member" | "curator" | "import";
   targetObservationId?: string;
   proposedName: string;
   proposedRank?: string | null;
@@ -372,6 +372,9 @@ export async function buildIdentificationClaimDualWritePlan(input: {
   const identificationId = await deterministicUuid(`record-observation-identification:${sourceKey}`);
   const eventId = await deterministicUuid(`record-observation-event:${sourceKey}`);
   const operationKey = input.writeMode === "backfill" ? `backfill:v1:identification:${input.legacyIdentificationId}` : sourceKey;
+  const backfillProvenanceCorrection = input.writeMode === "backfill"
+    ? "actor_id = excluded.actor_id, actor_kind = excluded.actor_kind,"
+    : "";
   const ledgerId = await deterministicUuid(`record-observation-ledger:${operationKey}`);
   const sourcePayloadJson = JSON.stringify(input.sourcePayload);
   const sourceDigest = await sha256Hex(sourcePayloadJson);
@@ -386,6 +389,7 @@ export async function buildIdentificationClaimDualWritePlan(input: {
           evidence_json, created_at, updated_at
         ) VALUES (?, ?, ?, ?, 'candidate', ?, ?, ?, ?, ?, '{}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(observation_id, source_key) DO UPDATE SET
+          ${backfillProvenanceCorrection}
           proposed_name = excluded.proposed_name,
           proposed_rank = excluded.proposed_rank,
           stance = excluded.stance,

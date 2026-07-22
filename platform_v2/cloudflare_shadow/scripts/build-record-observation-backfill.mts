@@ -6,6 +6,7 @@ import {
   buildRecordObservationBackfillPlan,
   type RecordObservationBackfillInput,
 } from "../src/cloudflareObservationBackfill";
+import { publicRecordDetailPrivacyFindings } from "../src/cloudflareObservationReadModel";
 
 type CliArgs = { input: string; outputDir: string; report: string; batchSize: number };
 
@@ -82,7 +83,7 @@ async function main(): Promise<void> {
     batchCount: batches.length,
     batches,
     generatedAt: new Date().toISOString(),
-    containsRawLocation: false,
+    containsRawLocation: publicRecordDetailPrivacyFindings(snapshot).length > 0,
     executionRequired: true,
   };
   await writeFile(args.report, `${JSON.stringify(report, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
