@@ -26,6 +26,7 @@ import {
 } from "./cloudflareObservationDualWrite";
 import {
   buildObservationFirstRecordDetail,
+  type ObservationFirstRecordDetail,
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
 import { renderObservationFirstRecordDetailHtml } from "./observationFirstRecordDetailHtml";
@@ -24867,14 +24868,21 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
   }
   if (observationReadCutoverEnabled(env)) {
-    const observationFirst = await loadObservationFirstRecordDetail(detailIdToVisitId(rawId), session?.userId ?? null, env).catch(() => null);
-    if (observationFirst) {
+    const observationFirst = await loadObservationFirstRecordDetail(detailIdToVisitId(rawId), session?.userId ?? null, env)
+      .catch(() => ({ state: "unavailable" as const, detail: null }));
+    if (observationFirst.state === "forbidden") {
+      return html(renderObservationNotFoundHtml(), 404, { "cache-control": "private, no-store" });
+    }
+    if (observationFirst.state === "unavailable") {
+      return html(renderObservationNotFoundHtml(), 503, { "cache-control": "private, no-store", "retry-after": "30" });
+    }
+    if (observationFirst.state === "ready") {
       const media = [
         ...detail.photoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "photo" as const, url: item.url })),
         ...detail.videoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "video" as const, url: item.watchUrl })),
         ...(detail.audioAssets as Array<{ assetId: string; url?: string }>).map((item) => ({ mediaId: item.assetId, mediaKind: "audio" as const, url: item.url ?? null })),
       ];
-      return html(renderObservationFirstRecordDetailHtml(observationFirst, {
+      return html(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         title: detail.displayName,
         observedLabel: detail.observedAt ? new Date(detail.observedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }) : "観察日時は未設定です",
         note: detail.note,
@@ -24900,7 +24908,7 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
          ON p.record_runtime = 'cloudflare_d1' AND p.record_id = o.observation_id
       WHERE o.observation_id = ? AND o.emergency_hidden = 0 LIMIT 1`
   ).bind(recordId).first<{ owner_user_id: string; visibility: "public" | "limited" | "private"; accepts_identification_proposals: number }>();
-  if (!container) return null;
+  if (!container) return { state: "missing" as const, detail: null };
   const [observations, media, claims, suggestions] = await Promise.all([
     env.OBS_DB.prepare(
       `SELECT observation_id, record_id, owner_user_id, origin, assertion_status,
@@ -24941,7 +24949,7 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
         ORDER BY s.created_at, s.suggestion_id`
     ).bind(recordId).all<RecordObservationReadSnapshot["aiSuggestions"][number]>(),
   ]);
-  return buildObservationFirstRecordDetail({
+  const detail: ObservationFirstRecordDetail | null = buildObservationFirstRecordDetail({
     recordId,
     ownerUserId: container.owner_user_id,
     visibility: container.visibility,
@@ -24955,6 +24963,9 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
     claims: claims.results,
     aiSuggestions: suggestions.results,
   }, viewerUserId);
+  return detail
+    ? { state: "ready" as const, detail }
+    : { state: "forbidden" as const, detail: null };
 }
 
 async function handleObservationFirstRecordAction(recordId: string, request: Request, env: Env): Promise<Response> {
