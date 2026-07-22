@@ -33,7 +33,8 @@
     "materialize:original-ui:dry-run": "tsx scripts/materialize-original-ui-html.mjs",
     "materialize:original-ui": "tsx scripts/materialize-original-ui-html.mjs --execute",
     "build:record-observation-backfill": "tsx scripts/build-record-observation-backfill.mts",
-    "compare:record-observation-shadow": "tsx scripts/compare-record-observation-shadow.mts"
+    "compare:record-observation-shadow": "tsx scripts/compare-record-observation-shadow.mts",
+    "visual:record-detail": "tsx scripts/render-record-detail-visual-fixtures.mts"
   },
   "devDependencies": {
     "@types/node": "^24.10.2",

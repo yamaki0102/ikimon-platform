@@ -33,6 +33,7 @@ import {
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
 import { renderObservationFirstRecordDetailHtml } from "./observationFirstRecordDetailHtml";
+import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
@@ -24880,19 +24881,38 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       return html(renderObservationUnavailableHtml(), 503, { "cache-control": "private, no-store", "retry-after": "30" });
     }
     if (observationFirst.state === "ready") {
+      const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
+      const recordLang: ObservationRecordLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
+      const locale = recordLang === "ja" ? "ja-JP" : recordLang === "pt-br" ? "pt-BR" : recordLang;
+      const copy = observationFirstRecordDetailCopy(recordLang);
+      const formatRecordDate = (value: string): string => {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString(locale, { timeZone: "Asia/Tokyo" });
+      };
       const media = [
         ...detail.photoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "photo" as const, url: item.url })),
         ...detail.videoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "video" as const, url: item.watchUrl })),
         ...(detail.audioAssets as Array<{ assetId: string; url?: string }>).map((item) => ({ mediaId: item.assetId, mediaKind: "audio" as const, url: item.url ?? null })),
       ];
       return html(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
+        lang: recordLang,
         title: detail.displayName,
-        observedLabel: detail.observedAt ? new Date(detail.observedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }) : "観察日時は未設定です",
+        titleIsFallback: detail.isAwaitingId,
+        observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
         note: detail.note,
+        publicLocationLabel: detail.publicLocation.label,
         media,
+        environment: detail.environmentRecord,
+        related: detail.relatedObservations.map((item) => ({
+          recordId: item.visitId,
+          title: item.displayName,
+          observedLabel: formatRecordDate(item.observedAt),
+          photoUrl: item.photoUrl,
+        })),
+        canonicalUrl: new URL(`/${recordLang}/observations/${encodeURIComponent(detail.visitId)}`, url.origin).toString(),
         actionNonce: crypto.randomUUID(),
-        processingMessage: ownerStatus?.message ?? null,
-        notice: url.searchParams.get("action") === "updated" ? "変更を記録しました。" : null,
+        processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
+        notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
       }), 200, {
         "cache-control": "private, no-store",
@@ -24947,7 +24967,7 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
     ).bind(recordId).all<RecordObservationReadSnapshot["claims"][number]>(),
     env.OBS_DB.prepare(
       `SELECT s.suggestion_id, s.observation_id, s.proposed_name,
-              s.proposed_scientific_name, s.proposed_rank, s.suggestion_status
+              s.proposed_scientific_name, s.proposed_rank, s.rationale_json, s.suggestion_status
          FROM observation_ai_suggestions s
          JOIN record_observations ro ON ro.observation_id = s.observation_id
         WHERE ro.record_runtime = 'cloudflare_d1' AND ro.record_id = ?
@@ -24985,6 +25005,8 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   if (!session || session.banned) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
   const form = await request.formData();
   const action = String(form.get("action") ?? "");
+  const requestedReturnLang = String(form.get("return_lang") ?? "ja").toLowerCase();
+  const returnLang: ObservationRecordLang = requestedReturnLang === "en" || requestedReturnLang === "es" || requestedReturnLang === "pt-br" ? requestedReturnLang : "ja";
   const sourceObservationId = String(form.get("observation_id") ?? "");
   const targetObservationId = String(form.get("target_observation_id") ?? "") || null;
   const operationId = String(form.get("operation_id") ?? "");
@@ -25111,7 +25133,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
     return json({ ok: false, error: "observation_action_invalid" }, 400, { "cache-control": "no-store" });
   }
   await env.OBS_DB.batch(plan.mutations.map((mutation) => env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)));
-  return new Response(null, { status: 303, headers: { location: `/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
+  return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
 }
 
 async function getOwnerObservationProcessingStatusJson(rawId: string, request: Request, env: Env): Promise<Response> {

@@ -260,31 +260,33 @@ AI job成功は次の成功を意味しません。
 
 ## 5. Record detail UI contract
 
-記録詳細ではrecordとobservationを混同しません。
+記録詳細ではrecordとobservationを混同せず、通常閲覧面は写真・動画・音を主役にします。observation-firstのデータ基盤と管理機能は維持しますが、管理状態を初期画面の情報設計にしません。
 
-最低表示:
+通常閲覧の表示順:
 
-- record media gallery
-- record contextと公開範囲
-- observation list
-- observationごとの関連media / region
-- lifecycleとorigin
-- identification候補とaccepted状態
-- AI解析状態とhuman confirmationの違い
-- community activity
-- environment assessment
-- monitoringへの反映有無
-- privacy-safe location
+- 重複のないrecord media gallery
+- title / note summary、observed time、privacy-safe location、公開範囲
+- edit / share等の基本操作
+- 値がある場合だけobservation summary、environment summary、note
+- 投稿者だけの「詳しい編集」入口
+- 折りたたんだ撮影情報
+- 値がある場合だけ関連記録
 
-投稿者の操作は「この名前でよさそう」「違うと思う」「別の名前を選ぶ・提案する」とします。他の利用者には「名前を提案する」「写っている別の生きもの・植物を追加する」を表示します。AI、投稿者、community、curatorの情報を一つの票・状態として混ぜません。
+同一mediaが複数observationの証拠でも通常閲覧では一度だけ表示し、observationとの証拠関係は操作後の詳細・編集で確認します。AI、投稿者、community、curatorの情報を一つの票・状態として混ぜません。
+
+AI候補の根拠、見分け方、追加撮影助言、environmentは、保存済みread modelに値がある場合だけ表示します。季節性、生態、類似種、地域文脈を未保存の状態から生成しません。長い権限説明や免責を主情報にせず、AI推定であることを短く明示します。
+
+community proposalは募集操作なしでpolicyに従って可能ですが、formを常時展開しません。「名前を提案する」操作後に開き、提案0件ではsectionもempty stateも表示しません。
+
+投稿者の追加、split、merge、exclude、restore、media reassignment、proposal policy、accepted identification操作は「詳しい編集」へまとめます。no-JS form、権限、冪等性、provenanceは従来どおり維持します。
 
 ### 5.1 Multiple observations
 
-- 0件: 環境記録、解析待ち、対象不明等として成立
-- 1件: 一般的な単一subject
-- 複数件: 写真内の複数生物、群れと背景植物、主対象と共存種等
+- 0件: observation sectionを表示せず、通常の写真・動画・音の記録として成立
+- 1件: 件数を強調せず、accepted identificationまたはAI候補を短いsummaryに表示
+- 複数件: 初期表示は1枚のsummaryに最大3件を示し、全件は「すべて見る」操作後に表示
 
-ユーザーはobservationの追加、分割、統合、除外、media再関連付けを行えます。操作はsource historyを残します。
+巨大なobservation cardを全件縦へ展開せず、mediaをobservationごとに重複表示しません。ユーザーは操作後の詳細・編集でobservationの追加、分割、統合、除外、media再関連付けを行えます。操作はsource historyを残します。
 
 ### 5.2 Pet / captive / unknown / group
 

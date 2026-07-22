@@ -54,6 +54,7 @@ export type RecordObservationAiSuggestionRow = {
   proposed_name: string | null;
   proposed_scientific_name: string | null;
   proposed_rank: string | null;
+  rationale_json?: string;
   suggestion_status: string;
 };
 
@@ -99,6 +100,8 @@ export type ObservationFirstCard = {
     proposedName: string | null;
     proposedScientificName: string | null;
     proposedRank: string | null;
+    visualEvidence: string[];
+    shootingAdvice: string[];
     provisional: true;
   }>;
   media: Array<{ mediaId: string; mediaKind: "photo" | "video" | "audio"; displayOrder: number }>;
@@ -133,6 +136,17 @@ const parseContext = (value: string): Record<string, unknown> => {
   } catch {
     return {};
   }
+};
+
+const parseAiRationale = (value: string | undefined): { visualEvidence: string[]; shootingAdvice: string[] } => {
+  const parsed = parseContext(value ?? "{}");
+  const stringList = (input: unknown): string[] => Array.isArray(input)
+    ? input.filter((item): item is string => typeof item === "string" && item.trim() !== "").map((item) => item.trim()).slice(0, 5)
+    : [];
+  return {
+    visualEvidence: stringList(parsed.visualEvidence ?? parsed.visual_evidence),
+    shootingAdvice: stringList(parsed.needsMoreEvidence ?? parsed.needs_more_evidence),
+  };
 };
 
 const subjectLabel = (row: RecordObservationReadRow): string => {
@@ -175,13 +189,18 @@ export function buildObservationFirstRecordDetail(
       : null;
     const aiSuggestions = snapshot.aiSuggestions
       .filter((item) => item.observation_id === row.observation_id && item.suggestion_status === "active")
-      .map((item) => ({
-        suggestionId: item.suggestion_id,
-        proposedName: item.proposed_name,
-        proposedScientificName: item.proposed_scientific_name,
-        proposedRank: item.proposed_rank,
-        provisional: true as const,
-      }));
+      .map((item) => {
+        const rationale = parseAiRationale(item.rationale_json);
+        return {
+          suggestionId: item.suggestion_id,
+          proposedName: item.proposed_name,
+          proposedScientificName: item.proposed_scientific_name,
+          proposedRank: item.proposed_rank,
+          visualEvidence: rationale.visualEvidence,
+          shootingAdvice: rationale.shootingAdvice,
+          provisional: true as const,
+        };
+      });
     return {
       observationId: row.observation_id,
       state: row.lifecycle_status === "excluded" ? "excluded" : "active",

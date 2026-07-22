@@ -23,6 +23,19 @@ test("accepted identification reader preserves the human decider and accepted va
   assert.match(workerSource, /SELECT observation_id, source_key, record_id/);
   assert.match(workerSource, /c\.accepted_name, c\.accepted_rank/);
   assert.match(workerSource, /c\.decided_by_actor_kind, c\.decided_by_actor_id, c\.decided_at/);
+  assert.match(workerSource, /s\.rationale_json/);
+});
+
+test("an awaiting-identification AI candidate cannot become the unlabelled record title", () => {
+  assert.match(workerSource, /titleIsFallback: detail\.isAwaitingId,/);
+  assert.doesNotMatch(workerSource, /titleIsFallback: detail\.isAwaitingId && !detail\.aiCandidateLabel/);
+});
+
+test("record-detail media remains a verified EXIF-scrubbed public derivative", () => {
+  assert.match(workerSource, /public_derivative_key IS NOT NULL/);
+  assert.match(workerSource, /public_derivative_verified_at IS NOT NULL/);
+  assert.match(workerSource, /exif_scrub_state = 'scrubbed'/);
+  assert.match(workerSource, /public_ready_at IS NOT NULL/);
 });
 
 test("observation-first owner and community actions are wired without JavaScript", () => {
@@ -31,4 +44,6 @@ test("observation-first owner and community actions are wired without JavaScript
   }
   assert.match(workerSource, /candidate\.proposed_name/);
   assert.match(workerSource, /viewerAuthenticated: Boolean\(session/);
+  assert.match(workerSource, /return_lang/);
+  assert.match(workerSource, /\/\$\{returnLang\}\/observations\//);
 });
