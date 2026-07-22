@@ -242,8 +242,13 @@ export function buildObservationFirstRecordDetail(
 }
 
 const FORBIDDEN_PUBLIC_LOCATION_KEY = /(?:^|_)(?:lat|lng|longitude|latitude|cell|mesh|geohash|coordinate|h3)(?:_|$)/iu;
+const FORBIDDEN_PUBLIC_LOCATION_VALUE = /(?:[?&#/]|^)(?:lat|lng|longitude|latitude|cell(?:id)?|mesh|geohash|coordinate|h3)[=_:/-]|[-+]?\d{1,2}\.\d{4,}\s*[,/]\s*[-+]?\d{2,3}\.\d{4,}/iu;
 
 export function publicRecordDetailPrivacyFindings(value: unknown, path = "$", findings: string[] = []): string[] {
+  if (typeof value === "string") {
+    if (FORBIDDEN_PUBLIC_LOCATION_VALUE.test(value)) findings.push(path);
+    return findings;
+  }
   if (!value || typeof value !== "object") return findings;
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
     const childPath = `${path}.${key}`;

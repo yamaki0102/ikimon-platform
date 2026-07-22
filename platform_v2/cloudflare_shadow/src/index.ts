@@ -18,10 +18,13 @@ import {
 import { buildObservationAiDualWritePlan } from "./cloudflareObservationAiDualWrite";
 import {
   buildHumanObservationEditPlan,
+  buildIdentificationAcceptancePlan,
   buildIdentificationClaimDualWritePlan,
   buildMediaReassignmentDualWritePlan,
+  buildObservationAddPlan,
   buildObservationLifecyclePlan,
   buildOwnerObservationUpsertPlan,
+  buildRecordProposalPolicyPlan,
   type ObservationDualWritePlan,
 } from "./cloudflareObservationDualWrite";
 import {
@@ -24874,7 +24877,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       return html(renderObservationNotFoundHtml(), 404, { "cache-control": "private, no-store" });
     }
     if (observationFirst.state === "unavailable") {
-      return html(renderObservationNotFoundHtml(), 503, { "cache-control": "private, no-store", "retry-after": "30" });
+      return html(renderObservationUnavailableHtml(), 503, { "cache-control": "private, no-store", "retry-after": "30" });
     }
     if (observationFirst.state === "ready") {
       const media = [
@@ -24890,6 +24893,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         actionNonce: crypto.randomUUID(),
         processingMessage: ownerStatus?.message ?? null,
         notice: url.searchParams.get("action") === "updated" ? "変更を記録しました。" : null,
+        viewerAuthenticated: Boolean(session && !session.banned),
       }), 200, {
         "cache-control": "private, no-store",
         "x-ikimon-record-reader": "observation-first/v1",
@@ -24997,7 +25001,47 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   if (!container) return json({ ok: false, error: "record_not_found" }, 404, { "cache-control": "no-store" });
   const owner = container.owner_user_id === session.userId;
   let plan: ObservationDualWritePlan;
-  if (action === "identify") {
+  if (action === "add") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const subjectType = String(form.get("subject_type") ?? "unknown_subject");
+    const captiveContext = String(form.get("captive_context") ?? "unknown");
+    const displayName = String(form.get("display_name") ?? "").trim();
+    if (!["organism", "group", "trace", "sound", "unknown_subject"].includes(subjectType)
+      || !["wild", "captive", "cultivated", "pet", "unknown"].includes(captiveContext)
+      || displayName.length > 160) return json({ ok: false, error: "observation_add_input_invalid" }, 400, { "cache-control": "no-store" });
+    plan = await buildObservationAddPlan({
+      recordId,
+      actorUserId: session.userId,
+      operationId,
+      subjectType: subjectType as "organism" | "group" | "trace" | "sound" | "unknown_subject",
+      captiveContext: captiveContext as "wild" | "captive" | "cultivated" | "pet" | "unknown",
+      displayName,
+    });
+  } else if (action === "set_proposal_policy") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const accepts = String(form.get("accepts_identification_proposals") ?? "");
+    if (!["0", "1"].includes(accepts)) return json({ ok: false, error: "proposal_policy_input_invalid" }, 400, { "cache-control": "no-store" });
+    plan = await buildRecordProposalPolicyPlan({
+      recordId,
+      ownerUserId: session.userId,
+      acceptsIdentificationProposals: accepts === "1" && container.visibility !== "private",
+      operationId,
+    });
+  } else if (action === "accept_identification") {
+    if (!owner || !sourceObservationId) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const identificationId = String(form.get("identification_id") ?? "");
+    const candidate = await env.OBS_DB.prepare(
+      `SELECT c.identification_id, c.proposed_name, c.proposed_rank FROM observation_identification_claims c
+        JOIN record_observations ro ON ro.observation_id = c.observation_id
+       WHERE c.identification_id = ? AND c.observation_id = ? AND c.claim_status IN ('candidate', 'accepted')
+         AND ro.record_runtime = 'cloudflare_d1' AND ro.record_id = ?
+         AND ro.owner_user_id = ? AND ro.lifecycle_status = 'active' LIMIT 1`
+    ).bind(identificationId, sourceObservationId, recordId, session.userId).first<{ identification_id: string; proposed_name: string; proposed_rank: string | null }>();
+    if (!candidate || candidate.proposed_name.length < 1 || candidate.proposed_name.length > 160 || (candidate.proposed_rank?.length ?? 0) > 80) {
+      return json({ ok: false, error: "identification_acceptance_invalid" }, 400, { "cache-control": "no-store" });
+    }
+    plan = await buildIdentificationAcceptancePlan({ recordId, observationId: sourceObservationId, identificationId, actorUserId: session.userId, actorKind: "owner", acceptedName: candidate.proposed_name, acceptedRank: candidate.proposed_rank, operationId });
+  } else if (action === "identify") {
     if (!sourceObservationId || (!owner && (container.visibility !== "public" || Number(container.accepts_identification_proposals) !== 1))) {
       return json({ ok: false, error: "identification_proposal_not_allowed" }, 403, { "cache-control": "no-store" });
     }
@@ -25055,6 +25099,13 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
       targetObservationId,
       operationId,
       reason: String(form.get("reason") ?? "").trim() || null,
+      subjectType: action === "split" && ["organism", "group", "trace", "sound", "unknown_subject"].includes(String(form.get("subject_type") ?? ""))
+        ? String(form.get("subject_type")) as "organism" | "group" | "trace" | "sound" | "unknown_subject"
+        : undefined,
+      captiveContext: action === "split" && ["wild", "captive", "cultivated", "pet", "unknown"].includes(String(form.get("captive_context") ?? ""))
+        ? String(form.get("captive_context")) as "wild" | "captive" | "cultivated" | "pet" | "unknown"
+        : undefined,
+      displayName: action === "split" ? String(form.get("display_name") ?? "").trim().slice(0, 160) : undefined,
     });
   } else {
     return json({ ok: false, error: "observation_action_invalid" }, 400, { "cache-control": "no-store" });
@@ -32443,6 +32494,14 @@ function renderObservationNotFoundHtml(): string {
 <html lang="ja">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Observation not found</title></head>
 <body><main><h1>見つかりません</h1><p>この観察はまだ取得できません。</p></main></body>
+</html>`;
+}
+
+function renderObservationUnavailableHtml(): string {
+  return `<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>記録を読み込めません</title></head>
+<body><main><h1>記録を読み込めません</h1><p>一時的に取得できません。少し待ってからもう一度お試しください。</p><p><a href="">再読み込み</a></p></main></body>
 </html>`;
 }
 

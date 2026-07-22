@@ -125,7 +125,7 @@ export async function buildOwnerObservationUpsertPlan(input: {
           END,
           row_version = record_observation_policies.row_version + 1,
           updated_at = CURRENT_TIMESTAMP`,
-        values: [input.recordId, input.ownerUserId, input.visibility, input.visibility === "private" ? 0 : 1],
+        values: [input.recordId, input.ownerUserId, input.visibility, input.visibility === "public" ? 1 : 0],
       },
       {
         sql: `INSERT INTO record_observation_source_map (
@@ -247,6 +247,71 @@ export async function buildHumanObservationEditPlan(input: {
   };
 }
 
+export async function buildObservationAddPlan(input: {
+  recordId: string;
+  actorUserId: string;
+  operationId: string;
+  subjectType: "organism" | "group" | "trace" | "sound" | "unknown_subject";
+  captiveContext: "wild" | "captive" | "cultivated" | "pet" | "unknown";
+  displayName?: string | null;
+}): Promise<ObservationDualWritePlan> {
+  const operationKey = `record_observation_add:${input.operationId}`;
+  const observationId = await deterministicUuid(`record-observation-add:${operationKey}`);
+  const eventId = await deterministicUuid(`record-observation-event:${operationKey}`);
+  const ledgerId = await deterministicUuid(`record-observation-ledger:${operationKey}`);
+  const sourceKey = `owner_add:${input.operationId}`;
+  const context = JSON.stringify({ displayName: input.displayName?.trim() || undefined, addOperationId: input.operationId });
+  const provenance = JSON.stringify({ source: "observation_first_record_ui", lifecycleAction: "add", operationId: input.operationId });
+  const sourceDigest = await sha256Hex(JSON.stringify(input));
+  const targetDigest = await sha256Hex(JSON.stringify({ observationId, subjectType: input.subjectType, captiveContext: input.captiveContext }));
+  return {
+    observationId,
+    mutations: [
+      {
+        sql: `INSERT INTO record_observations (
+          observation_id, record_runtime, record_id, owner_user_id, source_key,
+          origin, assertion_status, verification_status, lifecycle_status, data_use_scope,
+          accepted_identification_id, subject_type, individual_certainty, captive_context,
+          count_mode, display_order, context_json, provenance_json,
+          reviewed_by_actor_kind, reviewed_by_actor_id, reviewed_at, created_at, updated_at
+        ) SELECT ?, 'cloudflare_d1', p.record_id, p.owner_user_id, ?,
+          'owner', 'human_asserted', 'owner_confirmed', 'active', 'personal_only',
+          NULL, ?, ?, ?, 'unknown',
+          COALESCE((SELECT MAX(display_order) + 1 FROM record_observations ro
+            WHERE ro.record_runtime = 'cloudflare_d1' AND ro.record_id = p.record_id), 0),
+          ?, ?, 'owner', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        FROM record_observation_policies p
+        WHERE p.record_runtime = 'cloudflare_d1' AND p.record_id = ? AND p.owner_user_id = ?
+        ON CONFLICT(observation_id) DO NOTHING`,
+        values: [observationId, sourceKey, input.subjectType, input.subjectType === "group" ? "group" : "unknown", input.captiveContext, context, provenance, input.actorUserId, input.recordId, input.actorUserId],
+      },
+      {
+        sql: `INSERT OR IGNORE INTO observation_lifecycle_events (
+          event_id, observation_id, event_kind, actor_kind, actor_id, reason_code,
+          before_json, after_json, related_observation_ids_json, source_key, created_at
+        ) SELECT ?, ?, 'created', 'owner', ?, 'owner_added_subject', '{}', ?, '[]', ?, CURRENT_TIMESTAMP
+        WHERE EXISTS (SELECT 1 FROM record_observations WHERE observation_id = ? AND owner_user_id = ?)`,
+        values: [eventId, observationId, input.actorUserId, JSON.stringify({ subjectType: input.subjectType, captiveContext: input.captiveContext }), operationKey, observationId, input.actorUserId],
+      },
+      {
+        sql: `INSERT INTO record_observation_consistency_ledger (
+          ledger_id, operation_key, record_runtime, record_id, observation_id,
+          operation_kind, legacy_write_refs_json, target_write_refs_json,
+          source_digest, target_digest, consistency_state, reason_codes_json,
+          attempt_count, created_at, updated_at, resolved_at
+        ) SELECT ?, ?, 'cloudflare_d1', ?, ?, 'human_edit', '{}', ?, ?, ?,
+          'matched', '[]', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        WHERE EXISTS (SELECT 1 FROM record_observations WHERE observation_id = ? AND owner_user_id = ?)
+        ON CONFLICT(operation_key) DO UPDATE SET target_digest = excluded.target_digest,
+          consistency_state = 'matched', reason_codes_json = '[]',
+          attempt_count = MIN(record_observation_consistency_ledger.attempt_count + 1, 100),
+          updated_at = CURRENT_TIMESTAMP, resolved_at = CURRENT_TIMESTAMP`,
+        values: [ledgerId, operationKey, input.recordId, observationId, JSON.stringify({ observationId, eventId }), sourceDigest, targetDigest, observationId, input.actorUserId],
+      },
+    ],
+  };
+}
+
 export async function buildObservationLifecyclePlan(input: {
   recordId: string;
   actorUserId: string;
@@ -255,6 +320,9 @@ export async function buildObservationLifecyclePlan(input: {
   targetObservationId?: string | null;
   operationId: string;
   reason?: string | null;
+  subjectType?: "organism" | "group" | "trace" | "sound" | "unknown_subject";
+  captiveContext?: "wild" | "captive" | "cultivated" | "pet" | "unknown";
+  displayName?: string | null;
 }): Promise<ObservationDualWritePlan> {
   const operationKey = `record_observation_lifecycle:${input.action}:${input.operationId}`;
   const newObservationId = input.action === "split"
@@ -271,6 +339,9 @@ export async function buildObservationLifecyclePlan(input: {
   const targetDigest = await sha256Hex(JSON.stringify({ observationId: newObservationId, action: input.action }));
   const lifecycleEventKind = input.action === "merge" ? "merged" : input.action === "exclude" ? "excluded" : input.action === "restore" ? "restored" : "split";
   const relatedIds = JSON.stringify([input.sourceObservationId, input.targetObservationId, input.action === "split" ? newObservationId : null].filter(Boolean));
+  const guardObservationId = input.action === "split" ? newObservationId : input.sourceObservationId;
+  const guardLifecycleStatus = input.action === "merge" ? "superseded" : input.action === "exclude" ? "excluded" : "active";
+  const guardSupersededBy = input.action === "merge" ? input.targetObservationId! : null;
   let lifecycleMutation: ObservationDualWriteSqlMutation;
   if (input.action === "split") {
     lifecycleMutation = {
@@ -283,16 +354,16 @@ export async function buildObservationLifecyclePlan(input: {
         reviewed_at, created_at, updated_at
       ) SELECT ?, record_runtime, record_id, owner_user_id, ?, 'owner', 'human_asserted',
         'owner_confirmed', 'active', data_use_scope, data_use_consent_key, NULL,
-        subject_type, individual_certainty, captive_context, count_mode, count_value,
+        COALESCE(?, subject_type), individual_certainty, COALESCE(?, captive_context), count_mode, count_value,
         count_min, count_max, display_order + 1,
-        json_set(context_json, '$.splitFromObservationId', observation_id, '$.splitOperationId', ?),
+        json_set(context_json, '$.splitFromObservationId', observation_id, '$.splitOperationId', ?, '$.displayName', ?),
         json_set(provenance_json, '$.lifecycleAction', 'split', '$.operationId', ?),
         'owner', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       FROM record_observations
       WHERE observation_id = ? AND record_runtime = 'cloudflare_d1' AND record_id = ?
         AND owner_user_id = ? AND lifecycle_status = 'active'
       ON CONFLICT(observation_id) DO NOTHING`,
-      values: [newObservationId, `owner_split:${input.operationId}`, input.operationId, input.operationId, input.actorUserId, input.sourceObservationId, input.recordId, input.actorUserId],
+      values: [newObservationId, `owner_split:${input.operationId}`, input.subjectType ?? null, input.captiveContext ?? null, input.operationId, input.displayName?.trim() || null, input.operationId, input.actorUserId, input.sourceObservationId, input.recordId, input.actorUserId],
     };
   } else if (input.action === "merge") {
     if (!input.targetObservationId || input.targetObservationId === input.sourceObservationId) throw new Error("observation_merge_target_invalid");
@@ -329,13 +400,64 @@ export async function buildObservationLifecyclePlan(input: {
   return {
     observationId: newObservationId,
     mutations: [
+      ...(input.action === "merge" ? [
+        {
+          sql: `UPDATE record_observations SET accepted_identification_id = NULL,
+            row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+          WHERE observation_id = ? AND record_runtime = 'cloudflare_d1' AND record_id = ? AND owner_user_id = ?`,
+          values: [input.sourceObservationId, input.recordId, input.actorUserId],
+        },
+        {
+          sql: `UPDATE record_observation_media SET observation_id = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE observation_id = ? AND active = 1
+            AND NOT EXISTS (SELECT 1 FROM record_observation_media target
+              WHERE target.observation_id = ? AND target.source_key = record_observation_media.source_key)
+            AND EXISTS (SELECT 1 FROM record_observations source
+              JOIN record_observations target ON target.observation_id = ?
+             WHERE source.observation_id = ? AND source.record_runtime = 'cloudflare_d1'
+               AND source.record_id = ? AND source.owner_user_id = ?
+               AND target.record_runtime = source.record_runtime AND target.record_id = source.record_id
+               AND target.owner_user_id = source.owner_user_id AND target.lifecycle_status = 'active')`,
+          values: [input.targetObservationId!, input.sourceObservationId, input.targetObservationId!, input.targetObservationId!, input.sourceObservationId, input.recordId, input.actorUserId],
+        },
+        {
+          sql: `UPDATE observation_identification_claims SET observation_id = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE observation_id = ?
+            AND NOT EXISTS (SELECT 1 FROM observation_identification_claims target
+              WHERE target.observation_id = ? AND target.source_key = observation_identification_claims.source_key)
+            AND EXISTS (SELECT 1 FROM record_observations source
+              JOIN record_observations target ON target.observation_id = ?
+             WHERE source.observation_id = ? AND source.record_runtime = 'cloudflare_d1'
+               AND source.record_id = ? AND source.owner_user_id = ?
+               AND target.record_runtime = source.record_runtime AND target.record_id = source.record_id
+               AND target.owner_user_id = source.owner_user_id AND target.lifecycle_status = 'active')`,
+          values: [input.targetObservationId!, input.sourceObservationId, input.targetObservationId!, input.targetObservationId!, input.sourceObservationId, input.recordId, input.actorUserId],
+        },
+        {
+          sql: `UPDATE observation_ai_suggestions SET observation_id = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE observation_id = ?
+            AND NOT EXISTS (SELECT 1 FROM observation_ai_suggestions target
+              WHERE target.observation_id = ? AND target.source_key = observation_ai_suggestions.source_key)
+            AND EXISTS (SELECT 1 FROM record_observations source
+              JOIN record_observations target ON target.observation_id = ?
+             WHERE source.observation_id = ? AND source.record_runtime = 'cloudflare_d1'
+               AND source.record_id = ? AND source.owner_user_id = ?
+               AND target.record_runtime = source.record_runtime AND target.record_id = source.record_id
+               AND target.owner_user_id = source.owner_user_id AND target.lifecycle_status = 'active')`,
+          values: [input.targetObservationId!, input.sourceObservationId, input.targetObservationId!, input.targetObservationId!, input.sourceObservationId, input.recordId, input.actorUserId],
+        },
+      ] : []),
       lifecycleMutation,
       {
         sql: `INSERT OR IGNORE INTO observation_lifecycle_events (
           event_id, observation_id, event_kind, actor_kind, actor_id, reason_code,
           before_json, after_json, related_observation_ids_json, source_key, created_at
-        ) VALUES (?, ?, ?, 'owner', ?, ?, '{}', ?, ?, ?, CURRENT_TIMESTAMP)`,
-        values: [eventId, input.sourceObservationId, lifecycleEventKind, input.actorUserId, input.reason ?? `owner_${input.action}`, JSON.stringify({ action: input.action, resultingObservationId: newObservationId }), relatedIds, operationKey],
+        ) SELECT ?, ?, ?, 'owner', ?, ?, '{}', ?, ?, ?, CURRENT_TIMESTAMP
+        WHERE EXISTS (SELECT 1 FROM record_observations result
+          WHERE result.observation_id = ? AND result.record_runtime = 'cloudflare_d1'
+            AND result.record_id = ? AND result.owner_user_id = ? AND result.lifecycle_status = ?
+            AND (? IS NULL OR result.superseded_by_observation_id = ?))`,
+        values: [eventId, input.sourceObservationId, lifecycleEventKind, input.actorUserId, input.reason ?? `owner_${input.action}`, JSON.stringify({ action: input.action, resultingObservationId: newObservationId }), relatedIds, operationKey, guardObservationId, input.recordId, input.actorUserId, guardLifecycleStatus, guardSupersededBy, guardSupersededBy],
       },
       {
         sql: `INSERT INTO record_observation_consistency_ledger (
@@ -343,13 +465,17 @@ export async function buildObservationLifecyclePlan(input: {
           operation_kind, legacy_write_refs_json, target_write_refs_json,
           source_digest, target_digest, consistency_state, reason_codes_json,
           attempt_count, created_at, updated_at, resolved_at
-        ) VALUES (?, ?, 'cloudflare_d1', ?, ?, 'human_edit', '{}', ?, ?, ?,
-          'matched', '[]', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ) SELECT ?, ?, 'cloudflare_d1', ?, ?, 'human_edit', '{}', ?, ?, ?,
+          'matched', '[]', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        WHERE EXISTS (SELECT 1 FROM record_observations result
+          WHERE result.observation_id = ? AND result.record_runtime = 'cloudflare_d1'
+            AND result.record_id = ? AND result.owner_user_id = ? AND result.lifecycle_status = ?
+            AND (? IS NULL OR result.superseded_by_observation_id = ?))
         ON CONFLICT(operation_key) DO UPDATE SET target_digest = excluded.target_digest,
           consistency_state = 'matched', reason_codes_json = '[]',
           attempt_count = MIN(record_observation_consistency_ledger.attempt_count + 1, 100),
           updated_at = CURRENT_TIMESTAMP, resolved_at = CURRENT_TIMESTAMP`,
-        values: [ledgerId, operationKey, input.recordId, newObservationId, JSON.stringify({ action: input.action, sourceObservationId: input.sourceObservationId, targetObservationId: input.targetObservationId ?? null, resultingObservationId: newObservationId, eventId }), sourceDigest, targetDigest],
+        values: [ledgerId, operationKey, input.recordId, newObservationId, JSON.stringify({ action: input.action, sourceObservationId: input.sourceObservationId, targetObservationId: input.targetObservationId ?? null, resultingObservationId: newObservationId, eventId }), sourceDigest, targetDigest, guardObservationId, input.recordId, input.actorUserId, guardLifecycleStatus, guardSupersededBy, guardSupersededBy],
       },
     ],
   };
@@ -423,6 +549,113 @@ export async function buildIdentificationClaimDualWritePlan(input: {
           updated_at = CURRENT_TIMESTAMP,
           resolved_at = CURRENT_TIMESTAMP`,
         values: [ledgerId, operationKey, input.recordId, observationId, JSON.stringify({ identificationId: input.legacyIdentificationId }), JSON.stringify({ identificationId }), sourceDigest, targetDigest],
+      },
+    ],
+  };
+}
+
+export async function buildIdentificationAcceptancePlan(input: {
+  recordId: string;
+  observationId: string;
+  identificationId: string;
+  actorUserId: string;
+  actorKind: "owner";
+  acceptedName: string;
+  acceptedRank?: string | null;
+  operationId: string;
+}): Promise<ObservationDualWritePlan> {
+  const operationKey = `record_observation_accept:${input.operationId}`;
+  const eventId = await deterministicUuid(`record-observation-event:${operationKey}`);
+  const ledgerId = await deterministicUuid(`record-observation-ledger:${operationKey}`);
+  const sourceDigest = await sha256Hex(JSON.stringify(input));
+  const targetDigest = await sha256Hex(JSON.stringify({ observationId: input.observationId, identificationId: input.identificationId, acceptedName: input.acceptedName }));
+  return {
+    observationId: input.observationId,
+    mutations: [
+      {
+        sql: `UPDATE observation_identification_claims SET
+          claim_status = 'accepted', accepted_name = ?, accepted_rank = ?,
+          decided_by_actor_kind = ?, decided_by_actor_id = ?, decided_at = CURRENT_TIMESTAMP,
+          decision_reason = 'explicit_record_owner_decision', updated_at = CURRENT_TIMESTAMP
+        WHERE identification_id = ? AND observation_id = ? AND claim_status IN ('candidate', 'accepted')
+          AND EXISTS (SELECT 1 FROM record_observations ro
+            WHERE ro.observation_id = ? AND ro.record_runtime = 'cloudflare_d1'
+              AND ro.record_id = ? AND ro.owner_user_id = ? AND ro.lifecycle_status = 'active')`,
+        values: [input.acceptedName, input.acceptedRank ?? null, input.actorKind, input.actorUserId, input.identificationId, input.observationId, input.observationId, input.recordId, input.actorUserId],
+      },
+      {
+        sql: `UPDATE record_observations SET accepted_identification_id = ?,
+          verification_status = 'owner_confirmed', reviewed_by_actor_kind = ?,
+          reviewed_by_actor_id = ?, reviewed_at = CURRENT_TIMESTAMP,
+          row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE observation_id = ? AND record_runtime = 'cloudflare_d1' AND record_id = ?
+          AND owner_user_id = ? AND lifecycle_status = 'active'
+          AND EXISTS (SELECT 1 FROM observation_identification_claims c
+            WHERE c.observation_id = record_observations.observation_id
+              AND c.identification_id = ? AND c.claim_status = 'accepted'
+              AND c.decided_by_actor_kind = ? AND c.decided_by_actor_id = ?)`,
+        values: [input.identificationId, input.actorKind, input.actorUserId, input.observationId, input.recordId, input.actorUserId, input.identificationId, input.actorKind, input.actorUserId],
+      },
+      {
+        sql: `INSERT OR IGNORE INTO observation_lifecycle_events (
+          event_id, observation_id, event_kind, actor_kind, actor_id, reason_code,
+          before_json, after_json, related_observation_ids_json, source_key, created_at
+        ) VALUES (?, ?, 'identification_changed', ?, ?, 'identification_explicitly_accepted',
+          '{}', ?, '[]', ?, CURRENT_TIMESTAMP)`,
+        values: [eventId, input.observationId, input.actorKind, input.actorUserId, JSON.stringify({ identificationId: input.identificationId, acceptedName: input.acceptedName }), operationKey],
+      },
+      {
+        sql: `INSERT INTO record_observation_consistency_ledger (
+          ledger_id, operation_key, record_runtime, record_id, observation_id,
+          operation_kind, legacy_write_refs_json, target_write_refs_json,
+          source_digest, target_digest, consistency_state, reason_codes_json,
+          attempt_count, created_at, updated_at, resolved_at
+        ) VALUES (?, ?, 'cloudflare_d1', ?, ?, 'identification', '{}', ?, ?, ?,
+          'matched', '[]', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(operation_key) DO UPDATE SET target_digest = excluded.target_digest,
+          consistency_state = 'matched', reason_codes_json = '[]',
+          attempt_count = MIN(record_observation_consistency_ledger.attempt_count + 1, 100),
+          updated_at = CURRENT_TIMESTAMP, resolved_at = CURRENT_TIMESTAMP`,
+        values: [ledgerId, operationKey, input.recordId, input.observationId, JSON.stringify({ identificationId: input.identificationId }), sourceDigest, targetDigest],
+      },
+    ],
+  };
+}
+
+export async function buildRecordProposalPolicyPlan(input: {
+  recordId: string;
+  ownerUserId: string;
+  acceptsIdentificationProposals: boolean;
+  operationId: string;
+}): Promise<ObservationDualWritePlan> {
+  const operationKey = `record_observation_policy:${input.operationId}`;
+  const observationId = await observationIdForRecord(input.recordId);
+  const ledgerId = await deterministicUuid(`record-observation-ledger:${operationKey}`);
+  const sourceDigest = await sha256Hex(JSON.stringify(input));
+  const targetDigest = await sha256Hex(JSON.stringify({ acceptsIdentificationProposals: input.acceptsIdentificationProposals }));
+  return {
+    observationId,
+    mutations: [
+      {
+        sql: `UPDATE record_observation_policies SET
+          accepts_identification_proposals = ?, default_source = 'owner_override',
+          updated_by_actor_id = ?, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE record_runtime = 'cloudflare_d1' AND record_id = ? AND owner_user_id = ?`,
+        values: [input.acceptsIdentificationProposals ? 1 : 0, input.ownerUserId, input.recordId, input.ownerUserId],
+      },
+      {
+        sql: `INSERT INTO record_observation_consistency_ledger (
+          ledger_id, operation_key, record_runtime, record_id, observation_id,
+          operation_kind, legacy_write_refs_json, target_write_refs_json,
+          source_digest, target_digest, consistency_state, reason_codes_json,
+          attempt_count, created_at, updated_at, resolved_at
+        ) VALUES (?, ?, 'cloudflare_d1', ?, NULL, 'human_edit', '{}', ?, ?, ?,
+          'matched', '[]', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(operation_key) DO UPDATE SET target_digest = excluded.target_digest,
+          consistency_state = 'matched', reason_codes_json = '[]',
+          attempt_count = MIN(record_observation_consistency_ledger.attempt_count + 1, 100),
+          updated_at = CURRENT_TIMESTAMP, resolved_at = CURRENT_TIMESTAMP`,
+        values: [ledgerId, operationKey, input.recordId, JSON.stringify({ acceptsIdentificationProposals: input.acceptsIdentificationProposals }), sourceDigest, targetDigest],
       },
     ],
   };

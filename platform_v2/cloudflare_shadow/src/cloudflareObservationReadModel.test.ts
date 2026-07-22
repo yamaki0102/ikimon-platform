@@ -94,6 +94,7 @@ test("pet, unknown and group labels are natural and public output has no exact-l
   assert.deepEqual(detail.observations.map((row) => row.subjectLabel).sort(), ["名前を決めていない対象", "複数の生きもの", "飼育されている生きもの"].sort());
   assert.deepEqual(publicRecordDetailPrivacyFindings(detail), []);
   assert.deepEqual(publicRecordDetailPrivacyFindings({ publicCell: "x", nested: { geohash: "y" } }), ["$.publicCell", "$.nested.geohash"]);
+  assert.deepEqual(publicRecordDetailPrivacyFindings({ mediaUrl: "https://media.example/photo.jpg?lat=35.123456&lng=138.123456" }), ["$.mediaUrl"]);
 });
 
 test("shadow comparison requires at least 100 records and zero unexplained P0/P1", () => {

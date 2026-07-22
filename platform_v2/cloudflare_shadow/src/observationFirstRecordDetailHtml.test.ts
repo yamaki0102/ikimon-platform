@@ -19,7 +19,7 @@ const detail: ObservationFirstRecordDetail = {
       assertionStatus: "human_asserted",
       verificationStatus: "owner_confirmed",
       acceptedIdentification: null,
-      communityIdentifications: [],
+      communityIdentifications: [{ claimId: "claim-community", actorType: "community_member", proposedName: "ナミアゲハ", proposedScientificName: "Papilio xuthus", proposedRank: "species", stance: "support", accepted: false }],
       aiSuggestions: [{ suggestionId: "ai-1", proposedName: "ナミアゲハ", proposedScientificName: null, proposedRank: null, provisional: true }],
       media: [{ mediaId: "asset-1", mediaKind: "photo", displayOrder: 0 }],
       provenance: { owner: true, ai: true, community: false, curator: false, imported: true },
@@ -50,6 +50,7 @@ test("owner HTML is no-JS, privacy-safe, and gives every action its own idempote
     actionNonce: "nonce-contract",
     processingMessage: "写真を表示できるよう整えています。",
     notice: "変更を記録しました。",
+    viewerAuthenticated: true,
   });
 
   assert.match(rendered, /data-observation-first-record-detail="1"/);
@@ -69,6 +70,9 @@ test("owner HTML is no-JS, privacy-safe, and gives every action its own idempote
   assert.ok(operationIds.includes("nonce-contract-0-split"));
   assert.ok(operationIds.includes("nonce-contract-0-identify"));
   assert.ok(operationIds.includes("nonce-contract-1-restore"));
+  assert.ok(operationIds.includes("nonce-contract-0-accept-0"));
+  assert.ok(operationIds.includes("nonce-contract-add"));
+  assert.ok(operationIds.includes("nonce-contract-policy-off"));
 });
 
 test("guest HTML omits owner lifecycle and media reassignment controls", () => {
@@ -76,9 +80,25 @@ test("guest HTML omits owner lifecycle and media reassignment controls", () => {
     title: "公開記録",
     observedLabel: "観察日時は未設定です",
     note: null,
-    media: [],
+    media: [{ mediaId: "asset-1", mediaKind: "photo", url: "https://media.example/photo.jpg?lat=35.123456&lng=138.123456" }],
     actionNonce: "nonce-guest",
+    viewerAuthenticated: false,
   });
   assert.doesNotMatch(rendered, /この対象を編集|メディアの割り当て|対象を分ける|対象を統合/);
-  assert.match(rendered, /同定候補/);
+  assert.doesNotMatch(rendered, /name="action" value="identify"/);
+  assert.match(rendered, /ログインして同定候補を記録/);
+  assert.doesNotMatch(rendered, /35\.123456|138\.123456|[?&]lat=/);
+});
+
+test("owner identification remains available when external proposals are off", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, proposalPolicy: { identification: false, media: false, disabledReason: "record_policy" } }, {
+    title: "非公開募集の記録",
+    observedLabel: "観察日時は未設定です",
+    note: null,
+    media: [],
+    actionNonce: "nonce-policy",
+    viewerAuthenticated: true,
+  });
+  assert.match(rendered, /name="action" value="identify"/);
+  assert.match(rendered, /外部からの同定候補を受け付ける/);
 });
