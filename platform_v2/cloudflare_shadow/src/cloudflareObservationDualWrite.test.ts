@@ -5,10 +5,13 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
   buildHumanObservationEditPlan,
+  buildIdentificationAcceptancePlan,
   buildIdentificationClaimDualWritePlan,
   buildMediaReassignmentDualWritePlan,
+  buildObservationAddPlan,
   buildObservationLifecyclePlan,
   buildOwnerObservationUpsertPlan,
+  buildRecordProposalPolicyPlan,
 } from "./cloudflareObservationDualWrite.js";
 
 const applyPlan = (db: DatabaseSync, plan: { mutations: Array<{ sql: string; values: Array<string | number | null> }> }): void => {
@@ -98,6 +101,18 @@ test("owner lifecycle actions split, exclude, restore and merge without destruct
   applyPlan(db, split);
   applyPlan(db, split);
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM record_observations").get()?.count, 2);
+  const splitMedia = await buildMediaReassignmentDualWritePlan({ recordId: "record-life", targetObservationId: split.observationId, mediaId: "asset-split", actorUserId: "owner-1", sourcePayload: {} });
+  const splitClaim = await buildIdentificationClaimDualWritePlan({ recordId: "record-life", targetObservationId: split.observationId, legacyIdentificationId: "claim-split", actorUserId: "community-1", actorKind: "community_member", proposedName: "アマガエル", sourcePayload: {} });
+  applyPlan(db, splitMedia);
+  applyPlan(db, splitClaim);
+
+  const deniedMerge = await buildObservationLifecyclePlan({ recordId: "record-life", actorUserId: "intruder", action: "merge", sourceObservationId: split.observationId, targetObservationId: owner.observationId, operationId: "merge-denied" });
+  applyPlan(db, deniedMerge);
+  assert.equal(db.prepare("SELECT lifecycle_status FROM record_observations WHERE observation_id = ?").get(split.observationId)?.lifecycle_status, "active");
+  assert.equal(db.prepare("SELECT observation_id FROM record_observation_media WHERE media_id = 'asset-split'").get()?.observation_id, split.observationId);
+  assert.equal(db.prepare("SELECT observation_id FROM observation_identification_claims WHERE proposed_name = 'アマガエル'").get()?.observation_id, split.observationId);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM observation_lifecycle_events WHERE source_key = 'record_observation_lifecycle:merge:merge-denied'").get()?.count, 0);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM record_observation_consistency_ledger WHERE operation_key = 'record_observation_lifecycle:merge:merge-denied'").get()?.count, 0);
 
   const exclude = await buildObservationLifecyclePlan({ recordId: "record-life", actorUserId: "owner-1", action: "exclude", sourceObservationId: split.observationId, operationId: "exclude-1", reason: "別の対象だった" });
   applyPlan(db, exclude);
@@ -114,8 +129,37 @@ test("owner lifecycle actions split, exclude, restore and merge without destruct
   applyPlan(db, merge);
   const merged = db.prepare("SELECT lifecycle_status, superseded_by_observation_id FROM record_observations WHERE observation_id = ?").get(split.observationId) as Record<string, unknown>;
   assert.deepEqual(Object.fromEntries(Object.entries(merged)), { lifecycle_status: "superseded", superseded_by_observation_id: owner.observationId });
+  assert.equal(db.prepare("SELECT observation_id FROM record_observation_media WHERE media_id = 'asset-split' AND active = 1").get()?.observation_id, owner.observationId);
+  assert.equal(db.prepare("SELECT observation_id FROM observation_identification_claims WHERE proposed_name = 'アマガエル'").get()?.observation_id, owner.observationId);
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM record_observation_consistency_ledger WHERE operation_kind = 'human_edit'").get()?.count, 4);
+  db.close();
+});
+
+test("owner can add a distinct observation and explicitly accept a human claim", async () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON;");
+  db.exec(readFileSync(path.join(process.cwd(), "migrations", "observations", "0067_record_observation_foundation.sql"), "utf8"));
+  const owner = await buildOwnerObservationUpsertPlan({ recordId: "record-add", ownerUserId: "owner-1", visibility: "public", sourceSnapshot: {} });
+  applyPlan(db, owner);
+  const add = await buildObservationAddPlan({ recordId: "record-add", actorUserId: "owner-1", operationId: "add-1", subjectType: "group", captiveContext: "pet", displayName: "庭の小鳥たち" });
+  applyPlan(db, add);
+  applyPlan(db, add);
+  const added = db.prepare("SELECT subject_type, captive_context, context_json FROM record_observations WHERE observation_id = ?").get(add.observationId) as Record<string, unknown>;
+  assert.equal(added.subject_type, "group");
+  assert.equal(added.captive_context, "pet");
+  assert.equal(JSON.parse(String(added.context_json)).displayName, "庭の小鳥たち");
+
+  const claim = await buildIdentificationClaimDualWritePlan({ recordId: "record-add", targetObservationId: add.observationId, legacyIdentificationId: "claim-owner-accept", actorUserId: "community-1", actorKind: "community_member", proposedName: "スズメ", proposedRank: "species", sourcePayload: {} });
+  applyPlan(db, claim);
+  const identificationId = String(db.prepare("SELECT identification_id FROM observation_identification_claims WHERE observation_id = ?").get(add.observationId)?.identification_id);
+  const accept = await buildIdentificationAcceptancePlan({ recordId: "record-add", observationId: add.observationId, identificationId, actorUserId: "owner-1", actorKind: "owner", acceptedName: "スズメ", acceptedRank: "species", operationId: "accept-1" });
+  applyPlan(db, accept);
+  applyPlan(db, accept);
+  const accepted = db.prepare("SELECT claim_status, decided_by_actor_kind, decided_by_actor_id, accepted_name FROM observation_identification_claims WHERE identification_id = ?").get(identificationId) as Record<string, unknown>;
+  assert.deepEqual(Object.fromEntries(Object.entries(accepted)), { claim_status: "accepted", decided_by_actor_kind: "owner", decided_by_actor_id: "owner-1", accepted_name: "スズメ" });
+  assert.equal(db.prepare("SELECT accepted_identification_id FROM record_observations WHERE observation_id = ?").get(add.observationId)?.accepted_identification_id, identificationId);
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
   db.close();
 });
 
@@ -130,9 +174,9 @@ test("owner override proposal policy survives record-save replay", async () => {
     sourceSnapshot: {},
   });
   applyPlan(db, plan);
-  db.exec(`UPDATE record_observation_policies
-    SET accepts_identification_proposals = 0, default_source = 'owner_override', updated_by_actor_id = 'owner-1'
-    WHERE record_runtime = 'cloudflare_d1' AND record_id = 'record-policy'`);
+  const policy = await buildRecordProposalPolicyPlan({ recordId: "record-policy", ownerUserId: "owner-1", acceptsIdentificationProposals: false, operationId: "policy-off-1" });
+  applyPlan(db, policy);
+  applyPlan(db, policy);
   applyPlan(db, plan);
   const policyRow = db.prepare(`SELECT accepts_identification_proposals, default_source
     FROM record_observation_policies WHERE record_id = 'record-policy'`).get() as Record<string, unknown>;

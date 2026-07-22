@@ -8,7 +8,8 @@ test("observation-first cutover fails closed for policy-forbidden and unavailabl
   assert.match(workerSource, /observationFirst\.state === "forbidden"/);
   assert.match(workerSource, /renderObservationNotFoundHtml\(\), 404/);
   assert.match(workerSource, /observationFirst\.state === "unavailable"/);
-  assert.match(workerSource, /renderObservationNotFoundHtml\(\), 503/);
+  assert.match(workerSource, /renderObservationUnavailableHtml\(\), 503/);
+  assert.match(workerSource, /一時的に取得できません/);
   assert.match(workerSource, /retry-after": "30"/);
 });
 
@@ -22,4 +23,12 @@ test("accepted identification reader preserves the human decider and accepted va
   assert.match(workerSource, /SELECT observation_id, source_key, record_id/);
   assert.match(workerSource, /c\.accepted_name, c\.accepted_rank/);
   assert.match(workerSource, /c\.decided_by_actor_kind, c\.decided_by_actor_id, c\.decided_at/);
+});
+
+test("observation-first owner and community actions are wired without JavaScript", () => {
+  for (const action of ["add", "split", "merge", "exclude", "restore", "media_reassign", "identify", "accept_identification", "set_proposal_policy"]) {
+    assert.ok(workerSource.includes(`"${action}"`), `missing action route: ${action}`);
+  }
+  assert.match(workerSource, /candidate\.proposed_name/);
+  assert.match(workerSource, /viewerAuthenticated: Boolean\(session/);
 });
