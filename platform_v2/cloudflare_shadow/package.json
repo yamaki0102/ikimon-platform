@@ -32,7 +32,8 @@
     "seed:staging-observation-image-targets": "node scripts/seed-staging-observation-image-targets.mjs",
     "materialize:original-ui:dry-run": "tsx scripts/materialize-original-ui-html.mjs",
     "materialize:original-ui": "tsx scripts/materialize-original-ui-html.mjs --execute",
-    "build:record-observation-backfill": "tsx scripts/build-record-observation-backfill.mts"
+    "build:record-observation-backfill": "tsx scripts/build-record-observation-backfill.mts",
+    "compare:record-observation-shadow": "tsx scripts/compare-record-observation-shadow.mts"
   },
   "devDependencies": {
     "@types/node": "^24.10.2",
