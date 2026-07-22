@@ -29,6 +29,7 @@ export type LegacyIdentificationBackfillRow = {
   identification_id: string;
   occurrence_id: string;
   actor_user_id: string;
+  actor_provenance?: "owner" | "community_member" | "curator" | "import" | null;
   proposed_name: string;
   proposed_rank: string | null;
   stance: string;
@@ -320,15 +321,29 @@ export async function buildRecordObservationBackfillPlan(input: RecordObservatio
       await addQuarantine(mutations, quarantineCounts, { sourceKind: "identification", sourceId: identification.identification_id, recordId: recordId ?? identification.occurrence_id, operationKind: "identification", reason: "identification_record_missing", source: identification });
       continue;
     }
+    const declaredProvenance = identification.actor_provenance ?? null;
+    let actorKind: "owner" | "community_member" | "curator" | "import";
+    if (identification.actor_user_id === record.owner_user_id) {
+      if (declaredProvenance && declaredProvenance !== "owner") {
+        await addQuarantine(mutations, quarantineCounts, { sourceKind: "identification", sourceId: identification.identification_id, recordId, operationKind: "identification", reason: "identification_provenance_conflict", source: identification });
+        continue;
+      }
+      actorKind = "owner";
+    } else if (["community_member", "curator", "import"].includes(String(declaredProvenance))) {
+      actorKind = declaredProvenance as "community_member" | "curator" | "import";
+    } else {
+      await addQuarantine(mutations, quarantineCounts, { sourceKind: "identification", sourceId: identification.identification_id, recordId, operationKind: "identification", reason: "identification_provenance_ambiguous", source: identification });
+      continue;
+    }
     const plan = await buildIdentificationClaimDualWritePlan({
       recordId,
       legacyIdentificationId: identification.identification_id,
       actorUserId: identification.actor_user_id,
-      actorKind: identification.actor_user_id === record.owner_user_id ? "owner" : "community_member",
+      actorKind,
       proposedName: identification.proposed_name,
       proposedRank: identification.proposed_rank,
       stance: safeStance(identification.stance),
-      sourcePayload: { sourceKey: identification.source_key, isCurrent: identification.is_current, payloadDigest: await sha256Hex(identification.source_payload_json), acceptedByBackfill: false },
+      sourcePayload: { sourceKey: identification.source_key, isCurrent: identification.is_current, actorProvenance: actorKind, payloadDigest: await sha256Hex(identification.source_payload_json), acceptedByBackfill: false },
       writeMode: "backfill",
     });
     mutations.push(...plan.mutations);
