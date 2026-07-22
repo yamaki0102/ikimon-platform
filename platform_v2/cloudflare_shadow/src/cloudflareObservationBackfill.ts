@@ -98,9 +98,9 @@ const recordIdFromOccurrence = (value: string): string | null => {
 
 const normalizedVisibility = (row: LegacyObservationBackfillRow): "public" | "limited" | "private" => {
   if (row.withdrawal_status && row.withdrawal_status !== "active") return "private";
+  if (row.visibility === "public" || row.visibility === "limited" || row.visibility === "private") return row.visibility;
   if (row.record_consent === "private") return "private";
   if (row.record_consent === "public_summary") return "public";
-  if (row.visibility === "public" || row.visibility === "limited" || row.visibility === "private") return row.visibility;
   return "private";
 };
 
