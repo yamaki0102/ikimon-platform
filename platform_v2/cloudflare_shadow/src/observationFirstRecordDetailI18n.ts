@@ -107,7 +107,7 @@ const ja: ObservationFirstRecordDetailCopy = {
   },
   environmentHeadlines: { grassland_urban_edge: "草地と市街地の境界のようです", urban: "市街地のようです", woodland: "林の中のようです", water_edge: "水辺のようです", wetland: "湿地のようです", coast: "海岸のようです" },
   note: "写真メモ", manage: "記録に情報を追加", manageLead: "見つけた生きものや、環境、気づき、写真の整理を追加できます。", addSubject: "写っている対象を追加", subjectName: "対象の呼び名", subjectNameExample: "例：葉の上の幼虫",
-  subjectType: "対象の種類", context: "環境", add: "追加する", subjectTypes: { unknown_subject: "まだ不明", organism: "生きもの", group: "複数の生きもの", trace: "痕跡", sound: "音", pet: "ペット" },
+  subjectType: "対象の種類", context: "環境", add: "追加する", subjectTypes: { unknown_subject: "写っているもの", organism: "生きもの", group: "複数の生きもの", trace: "痕跡", sound: "音", pet: "ペット" },
   contexts: { unknown: "未設定", wild: "野外", pet: "ペット", captive: "飼育", cultivated: "栽培" },
   separateSubject: "別の対象として分ける", separateName: "分ける対象の呼び名", separate: "分ける", notVisible: "この対象は写っていない", restore: "この対象を戻す",
   combineWith: "まとめる対象", combine: "別の対象とまとめる", assignMedia: "写真を対象へ割り当てる", assignMediaLead: "写真・動画・音と対象の関係を整理できます。", assign: "割り当てる",
@@ -134,7 +134,7 @@ const en: ObservationFirstRecordDetailCopy = {
   },
   environmentHeadlines: { grassland_urban_edge: "It may be where grassland meets the city", urban: "It appears to be an urban area", woodland: "It appears to be woodland", water_edge: "It appears to be near water", wetland: "It appears to be a wetland", coast: "It appears to be on the coast" },
   note: "Photo note", manage: "Add information to this record", manageLead: "Add organisms, environment details, notes, or organize the media.", addSubject: "Add something visible", subjectName: "Short name", subjectNameExample: "Example: larva on the leaf", subjectType: "Type", context: "Context", add: "Add",
-  subjectTypes: { unknown_subject: "Not sure yet", organism: "Organism", group: "Group", trace: "Trace", sound: "Sound", pet: "Pet" }, contexts: { unknown: "Not set", wild: "Wild", pet: "Pet", captive: "Captive", cultivated: "Cultivated" },
+  subjectTypes: { unknown_subject: "Something visible", organism: "Organism", group: "Group", trace: "Trace", sound: "Sound", pet: "Pet" }, contexts: { unknown: "Not set", wild: "Wild", pet: "Pet", captive: "Captive", cultivated: "Cultivated" },
   separateSubject: "Separate as another subject", separateName: "Name for the new subject", separate: "Separate", notVisible: "This subject is not visible", restore: "Restore this subject", combineWith: "Combine with", combine: "Combine subjects",
   assignMedia: "Assign media to subjects", assignMediaLead: "Organize how photos, video and sound support each subject.", assign: "Assign", receiveProposals: "Allow name suggestions", pauseProposals: "Pause name suggestions",
   captureInfo: "Capture information", capturedAt: "Captured", place: "Place", scope: "Visibility", mediaCount: "Media", photo: "Photo", video: "Video", audio: "Audio", related: "Connected records", relatedRecord: "Nearby nature record", protectedLocation: "Location is protected according to the sharing scope"
@@ -158,7 +158,7 @@ const es: ObservationFirstRecordDetailCopy = {
   },
   environmentHeadlines: { grassland_urban_edge: "Parece el límite entre pastizal y ciudad", urban: "Parece una zona urbana", woodland: "Parece un bosque", water_edge: "Parece estar junto al agua", wetland: "Parece un humedal", coast: "Parece una costa" },
   note: "Nota de la foto", manage: "Añadir información al registro", manageLead: "Añade seres vivos, entorno, notas u organiza el contenido.", addSubject: "Añadir algo visible", subjectName: "Nombre breve", subjectNameExample: "Ejemplo: larva sobre la hoja", subjectType: "Tipo", context: "Contexto", add: "Añadir",
-  subjectTypes: { unknown_subject: "Aún no se sabe", organism: "Ser vivo", group: "Grupo", trace: "Rastro", sound: "Sonido", pet: "Mascota" }, contexts: { unknown: "Sin definir", wild: "Silvestre", pet: "Mascota", captive: "En cautividad", cultivated: "Cultivado" },
+  subjectTypes: { unknown_subject: "Algo visible", organism: "Ser vivo", group: "Grupo", trace: "Rastro", sound: "Sonido", pet: "Mascota" }, contexts: { unknown: "Sin definir", wild: "Silvestre", pet: "Mascota", captive: "En cautividad", cultivated: "Cultivado" },
   separateSubject: "Separar como otro sujeto", separateName: "Nombre del nuevo sujeto", separate: "Separar", notVisible: "Este sujeto no aparece", restore: "Restaurar este sujeto", combineWith: "Combinar con", combine: "Combinar sujetos",
   assignMedia: "Asignar contenido a los sujetos", assignMediaLead: "Organiza la relación de las fotos, vídeos y sonidos con cada sujeto.", assign: "Asignar", receiveProposals: "Permitir propuestas de nombre", pauseProposals: "Pausar propuestas de nombre",
   captureInfo: "Información de captura", capturedAt: "Fecha y hora", place: "Lugar", scope: "Visibilidad", mediaCount: "Contenido", photo: "Foto", video: "Vídeo", audio: "Audio", related: "Registros relacionados", relatedRecord: "Registro natural cercano", protectedLocation: "La ubicación está protegida según el alcance de publicación"
@@ -182,7 +182,7 @@ const ptBr: ObservationFirstRecordDetailCopy = {
   },
   environmentHeadlines: { grassland_urban_edge: "Parece ser a borda entre gramado e cidade", urban: "Parece ser uma área urbana", woodland: "Parece ser uma mata", water_edge: "Parece estar perto da água", wetland: "Parece ser uma área úmida", coast: "Parece ser uma costa" },
   note: "Nota da foto", manage: "Adicionar informações ao registro", manageLead: "Adicione seres vivos, ambiente, observações ou organize as mídias.", addSubject: "Adicionar algo visível", subjectName: "Nome curto", subjectNameExample: "Exemplo: larva sobre a folha", subjectType: "Tipo", context: "Contexto", add: "Adicionar",
-  subjectTypes: { unknown_subject: "Ainda não se sabe", organism: "Ser vivo", group: "Grupo", trace: "Vestígio", sound: "Som", pet: "Animal de estimação" }, contexts: { unknown: "Não definido", wild: "Silvestre", pet: "Animal de estimação", captive: "Em cativeiro", cultivated: "Cultivado" },
+  subjectTypes: { unknown_subject: "Algo visível", organism: "Ser vivo", group: "Grupo", trace: "Vestígio", sound: "Som", pet: "Animal de estimação" }, contexts: { unknown: "Não definido", wild: "Silvestre", pet: "Animal de estimação", captive: "Em cativeiro", cultivated: "Cultivado" },
   separateSubject: "Separar como outro sujeito", separateName: "Nome do novo sujeito", separate: "Separar", notVisible: "Este sujeito não aparece", restore: "Restaurar este sujeito", combineWith: "Combinar com", combine: "Combinar sujeitos",
   assignMedia: "Atribuir mídia aos sujeitos", assignMediaLead: "Organize como fotos, vídeos e sons apoiam cada sujeito.", assign: "Atribuir", receiveProposals: "Permitir sugestões de nome", pauseProposals: "Pausar sugestões de nome",
   captureInfo: "Informações da captura", capturedAt: "Data e hora", place: "Local", scope: "Visibilidade", mediaCount: "Mídia", photo: "Foto", video: "Vídeo", audio: "Áudio", related: "Registros relacionados", relatedRecord: "Registro natural próximo", protectedLocation: "A localização está protegida de acordo com o nível de compartilhamento"

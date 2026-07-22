@@ -161,6 +161,69 @@ test("all supported languages render localized viewer copy", () => {
   }
 });
 
+test("legacy unidentified sentinel is never exposed and uses a localized natural label", () => {
+  const expectations = {
+    ja: "写っているもの",
+    en: "Something visible",
+    es: "Algo visible",
+    "pt-br": "Algo visível",
+  } as const;
+  const observations = [{
+    ...detail.observations[0]!,
+    subjectType: "unknown_subject" as const,
+    subjectLabel: " unidentified ",
+    acceptedIdentification: {
+      claimId: "accepted-placeholder",
+      actorType: "owner" as const,
+      actorId: "owner",
+      proposalActorType: "owner" as const,
+      proposedName: "unidentified",
+      proposedScientificName: null,
+      proposedRank: null,
+      humanDecision: true as const,
+    },
+    communityIdentifications: [{
+      claimId: "community-placeholder",
+      actorType: "community_member" as const,
+      proposedName: "unknown_subject",
+      proposedScientificName: null,
+      proposedRank: null,
+      stance: "support",
+      accepted: false,
+    }],
+    aiSuggestions: [{
+      suggestionId: "ai-placeholder",
+      proposedName: "unclassified",
+      proposedScientificName: null,
+      proposedRank: null,
+      visualEvidence: [],
+      shootingAdvice: [],
+      provisional: true as const,
+    }],
+  }];
+
+  for (const [lang, expected] of Object.entries(expectations)) {
+    const rendered = renderObservationFirstRecordDetailHtml({
+      ...detail,
+      owner: false,
+      observationCount: 1,
+      observations,
+    }, {
+      lang: lang as keyof typeof expectations,
+      title: "Landscape record",
+      observedLabel: "2026-07-23",
+      note: null,
+      media: [{ mediaId: "photo", mediaKind: "photo", url: "https://media.example/photo.jpg" }],
+      actionNonce: `nonce-unidentified-${lang}`,
+      viewerAuthenticated: false,
+    });
+
+    assert.match(rendered, new RegExp(expected));
+    assert.doesNotMatch(rendered, /unidentified|unknown_subject|unclassified/i);
+    if (lang === "ja") assert.doesNotMatch(rendered, /名前の提案があります/);
+  }
+});
+
 test("scene and non-detection copy is localized in every supported language", () => {
   const expectations = {
     ja: ["この写真から見つかったもの", "この写真では、生きものの姿は見つかりませんでした"],
