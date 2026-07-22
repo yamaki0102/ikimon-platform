@@ -4,14 +4,15 @@
 
 Status: `PR_A_SOURCE_CLOSEOUT_IN_PROGRESS`
 
-The clean-checkout inventory, aggregate production D1 baseline and migration-ordering review are complete. This branch repairs the remaining source-level privacy and documentation-freshness defects. PR-A is not complete until this exact fix reaches staging and rendered/API privacy verification reports zero record-scoped location keys.
+The clean-checkout inventory, aggregate production D1 baseline and migration-ordering review are complete. The source-level record-detail and map privacy defects are merged. PR-A is not complete until the exact current main SHA reaches staging and rendered/API privacy verification reports zero record-scoped location keys.
 
 No staging or production database mutation was performed by this audit.
 
 ## Audited source
 
 - audit date: 2026-07-22 JST
-- exact source: `origin/main@c6fd11f8f63f3a329c3b660ea9b89ae0186caeaa`
+- initial audit source: `origin/main@c6fd11f8f63f3a329c3b660ea9b89ae0186caeaa`
+- source closeout merged through: `main@f4003ee478f5ed24f3f6acf9d89011d4be739ea2`
 - worktree: isolated worktree created from the exact source
 - initial status: clean; `HEAD` matched `origin/main`
 - PR-B: #1381, additive schema only
@@ -29,11 +30,11 @@ No staging or production database mutation was performed by this audit.
 | writer/read inventory | PASS FOR PR-B BOUNDARY | current PostgreSQL occurrence and D1 observation responsibilities remain compatibility sources until cutover |
 | aggregate D1 metrics | PASS | aggregate counts only; no identifiers, coordinates, paths, notes or source payloads returned |
 | active lane classification | PASS | #1381/#1382 are current dependencies; stale/diverged lanes are not schema bases and are not automatically closed or rebased |
-| independent schema/security review | PASS WITH ADOPTED CHANGES | paired external reviews required same-observation claims, durable lifecycle, complete source identity and human-only promotion constraints; PR-B contains the fixes |
-| documentation freshness | FIXED IN THIS BRANCH | validator now uses Git history instead of checkout filesystem mtimes; overview now names the central registry and Cloudflare command bus |
-| public record-detail location contract | FIXED IN MAIN BASELINE | exact source no longer returns record-scoped public detail cell fields |
-| public map record location contract | FIXED IN THIS BRANCH | aggregate cell features remain; individual observation items and record lookup no longer return `cellId`, mesh or geohash keys |
-| rendered staging privacy scan | PENDING | exact fix must be promoted to staging and scanned before `PR_A_COMPLETE` |
+| independent schema/security review | PASS WITH ADOPTED CHANGES | Claude Opus 4.8 and Gemini 3 Flash Preview required same-observation claims, durable lifecycle, complete source identity and human-only promotion constraints; evidence is under `operations/ai_os/external_review_evidence/2026-07/ikimon-record-observation-prb-20260721/` |
+| documentation freshness | PASS | validator uses Git history instead of checkout filesystem mtimes; overview names the central registry and Cloudflare command bus |
+| public record-detail location contract | FIXED | public detail no longer returns record-scoped cell fields |
+| public map record location contract | FIXED | aggregate cell features remain; individual observation items and record lookup no longer return `cellId`, mesh or geohash keys |
+| rendered staging privacy scan | PENDING | exact current main must be promoted to staging and scanned before `PR_A_COMPLETE` |
 
 ## Approved aggregate production D1 baseline
 
@@ -68,8 +69,7 @@ The current D1 schema cannot represent 0/1/N biological subjects independently o
 
 ## Remaining gate
 
-1. Merge this source closeout.
-2. Promote its exact main SHA to staging through the Cloudflare command bus.
-3. Scan public record detail, observation compatibility routes, map, feed, API, JSON-LD, URL, media metadata and export preview.
-4. Require zero record-scoped `cell`, `mesh`, `geohash` or precise-coordinate leakage.
-5. Record `PR_A_COMPLETE` in central Issue #435 before applying PR-B migration.
+1. Promote the exact current main SHA to staging through the Cloudflare command bus.
+2. Scan public record detail, observation compatibility routes, map, feed, API, JSON-LD, URL, media metadata and export preview.
+3. Require zero record-scoped `cell`, `mesh`, `geohash` or precise-coordinate leakage.
+4. Record `PR_A_COMPLETE` in central Issue #435 before applying PR-B migration.

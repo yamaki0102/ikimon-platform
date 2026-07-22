@@ -311,6 +311,7 @@ Recommended columns:
 | `quality_decision_json` | evidence/review/taxonomy gate and version |
 | `projection_rule_version` | immutable generator version |
 | `source_digest` | digest of source observation/claim/gate inputs |
+| `consent_event_id` | nullable lifecycle-event reference; required when research use becomes eligible |
 | `research_use_state` | `not_evaluated | blocked | eligible | revoked` |
 | `research_blockers_json` | reason codes |
 | `generated_at` | timestamp |
@@ -428,6 +429,7 @@ The future PostgreSQL PR-B migration may add only:
 - `record_observation_consistency_ledger`
 - `identification_queue_entries`
 - supporting indexes, checks and partial unique constraints
+- validation functions/triggers attached only to the new expand tables; they may reject invalid new-model state but must not observe, mutate or change behavior of current tables/writers
 
 It must not:
 
@@ -512,22 +514,23 @@ Defaults must remain off until the relevant phase gate passes. Production change
 
 ## 17. Final implementation decisions
 
-1. IDs are application-generated UUIDs; PostgreSQL uses `uuid`, D1 uses `TEXT`, and the same value crosses stores.
+1. IDs are application-generated canonical lowercase hyphenated UUIDs; PostgreSQL uses `uuid`, D1 uses format-checked `TEXT`, and the same value crosses stores. Retries recover the existing row through the unique source key instead of generating a second identity.
 2. AI/community observations require a qualifying human transition. An owner-created subject with an explicitly selected name may start `human_asserted / owner_confirmed`; merely inheriting a legacy `is_current` row is insufficient.
 3. split/merge sources become `lifecycle_status=superseded`, retain immutable lifecycle events and point to successor observations; they are never deleted.
-4. SQLite uses partial unique indexes for one active projection and the observation's single `accepted_identification_id` pointer for acceptance. Service transactions validate pointer/claim consistency.
+4. PostgreSQL and D1 both use partial unique indexes for one active projection and one accepted claim. Composite foreign keys require every accepted pointer and projection claim to belong to the same observation; service transactions validate status and transition semantics.
 5. unknown/coarse occurrence projection is allowed only by a versioned explicit scientific rule with rank ceiling and reason code; it is never inferred from an AI candidate alone.
-6. rights inherit from the record. A per-observation override may only narrow use unless a separately audited owner consent transition broadens `data_use_scope`.
-7. image locators use normalized `[0,1]` coordinates and media dimensions/version; time locators use integer milliseconds. Public serializers omit locators that could reconstruct protected location or private media.
+6. rights inherit from the record. A per-observation override may only narrow use unless a separately audited owner consent transition broadens `data_use_scope`. Research-eligible projections must reference the corresponding `data_use_scope_changed` lifecycle event through `consent_event_id`.
+7. image locators use normalized `[0,1]` coordinates and media dimensions/version; time locators use integer milliseconds. Public serializers remove subject locators and original-media metadata by default; an explicitly public derivative may expose only a policy-approved coarse locator that cannot reconstruct protected location or private media.
 8. passive audio, camera-trap and FieldScan detections map to provisional machine/AI observations with source-key idempotency and require human provenance for projection.
 9. owners may confirm ordinary descriptive environment context. Regulated, research-export or monitoring-canonical assessment kinds require curator/sensor/external-source rules.
 10. audit and lifecycle history is retained. JSON payloads are bounded and schema-validated (16 KiB consistency deltas, 64 KiB evidence/provenance maximum); raw private media/location payloads are forbidden.
 11. community proposal defaults are ON for public and limited, private is owner-only, and the record owner can disable external proposals without disabling their own edits.
 12. contract cleanup starts only after 14 stable days and at least 100 representative old/new record comparisons with zero unexplained P0/P1 differences and zero location leaks.
+13. digests use UTF-8 RFC 8785 JSON Canonicalization Scheme bytes and SHA-256 lowercase hexadecimal output. PostgreSQL and D1 writers must call the same shared TypeScript implementation and cross-runtime golden fixtures before ledger comparisons are authoritative.
 
 ## 18. Gate decision
 
-Status: `PR_B_DESIGN_READY_FOR_IMPLEMENTATION`
+Status: `PR_B_IMPLEMENTATION_IN_PROGRESS_PR_A_BLOCKED`
 
 This document authorizes additive migration code after:
 
