@@ -24,7 +24,8 @@
 7. [`PR_A_EXTERNAL_GATES.md`](PR_A_EXTERNAL_GATES.md) — clean checkout、完全検索、read-only metrics、privacy scan、独立reviewの再現手順
 8. [`PR_A_LOCAL_AUDIT_RESULTS.md`](PR_A_LOCAL_AUDIT_RESULTS.md) — exact source、aggregate metrics、残gateの実行証跡
 9. [`PLAN.md`](PLAN.md) — migration順、PR分割、verification、rollback
-10. `yamaki0102/all-projects-management#435` — 現在フェーズ、blocker、active PR、deploy状態
+10. [`PR_G_MEDIA_DEDUP_AI_FUSION_AUDIT.md`](PR_G_MEDIA_DEDUP_AI_FUSION_AUDIT.md) — 公開605件、複数画像sample、代表回帰ケース、表示・AI入力・候補統合の根本原因
+11. `yamaki0102/all-projects-management#435` — 現在フェーズ、blocker、active PR、deploy状態
 
 ## Core model
 
