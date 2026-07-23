@@ -2,17 +2,24 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("photo upload, queue, cron, Workers AI, and review target form one durable reassessment path", async () => {
-  const [source, dualWrite, wrangler] = await Promise.all([
+test("photo upload, queue, cron, Gemini Batch, and review target form one durable reassessment path", async () => {
+  const [source, dualWrite, geminiBatch, wrangler] = await Promise.all([
     readFile(new URL("./index.ts", import.meta.url), "utf8"),
     readFile(new URL("./cloudflareObservationAiDualWrite.ts", import.meta.url), "utf8"),
+    readFile(new URL("./geminiObservationBatch.ts", import.meta.url), "utf8"),
     readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
   ]);
-  const runtime = `${source}\n${dualWrite}`;
+  const runtime = `${source}\n${dualWrite}\n${geminiBatch}`;
 
   assert.match(source, /"observation\.reassess"/);
   assert.match(source, /runScheduledObservationReassessments/);
-  assert.match(source, /env\.AI\.run\(OBSERVATION_VISION_MODEL/);
+  assert.match(source, /env\.GEMINI_API_KEY/);
+  assert.match(source, /submitGeminiObservationReassessmentGroups/);
+  assert.match(source, /resumeGeminiObservationBatchGroups/);
+  assert.match(runtime, /gemini-3\.5-flash-lite/);
+  assert.match(runtime, /gemini-3\.1-flash-lite/);
+  assert.match(runtime, /batchGenerateContent/);
+  assert.doesNotMatch(runtime, /@cf\/moondream/);
   assert.match(source, /INSERT INTO observation_ai_review_targets/);
   assert.match(runtime, /INSERT INTO record_observations/);
   assert.match(runtime, /INSERT INTO record_observation_media/);
@@ -27,11 +34,15 @@ test("photo upload, queue, cron, Workers AI, and review target form one durable 
   assert.match(source, /request_state = 'completed'/);
   assert.match(source, /request_state IN \('pending', 'failed'\)/);
   assert.match(source, /attemptCount/);
-  assert.match(source, /imageBytesToDataUri\(transformed, "image\/webp"\)/);
-  assert.match(source, /task: "query"/);
-  assert.match(source, /question: observationAiQuestion\(\)/);
-  assert.match(source, /response\.result/);
+  assert.match(source, /imageBytesToBase64\(transformed\)/);
+  assert.match(runtime, /buildGeminiPrimaryRequest/);
+  assert.match(runtime, /buildGeminiCensusRequest/);
+  assert.match(runtime, /buildGeminiEnvironmentRequest/);
+  assert.match(runtime, /buildGeminiSummaryRequest/);
+  assert.match(runtime, /generationConfig\([^\n]+, 2048,/);
   assert.match(source, /humanReviewRequired: true/);
+  assert.match(source, /latest_public_record_ai_upgrade_v2/);
+  assert.match(source, /ORDER BY o\.created_at DESC, o\.observation_id DESC\s+LIMIT 30/);
   assert.match(source, /OBSERVATION_DUAL_WRITE_MODE \?\? "off"/);
   assert.equal((wrangler.match(/"binding": "AI"/g) ?? []).length, 4);
   assert.equal((wrangler.match(/"OBSERVATION_DUAL_WRITE_MODE": "off"/g) ?? []).length, 2);
