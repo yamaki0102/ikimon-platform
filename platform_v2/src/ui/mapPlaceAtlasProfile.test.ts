@@ -129,6 +129,30 @@ test("place atlas renderer keeps imported display derivatives on their public R2
   assert.doesNotMatch(html, /\/derived-transform\/w(?:360|680)\/derived\/import\//);
 });
 
+test("place atlas imported media bypass stays limited to sanitized display derivatives", () => {
+  const unsafeUrl = "/derived/import/20260615/observation_photo/asset-1/display.webp\n.svg";
+  const rawImportUrl = "/derived/import/20260615/observation_photo/asset-1/original.jpg";
+  const html = renderMapPlaceAtlasProfile(fixture({
+    place: {
+      ...fixture().place,
+      representativeMedia: [{
+        url: unsafeUrl,
+        recordId: "record-unsafe",
+        kind: "photo",
+      }],
+    },
+    facets: [],
+    recentRecords: [{
+      ...fixture().recentRecords[0]!,
+      mediaUrl: rawImportUrl,
+    }],
+  }), options);
+
+  assert.doesNotMatch(html, /display\.webp[\r\n]/);
+  assert.match(html, /src="\/derived-transform\/w360\/derived\/import\/20260615\/observation_photo\/asset-1\/original\.jpg"/);
+  assert.doesNotMatch(html, /src="\/derived\/import\/20260615\/observation_photo\/asset-1\/original\.jpg"/);
+});
+
 test("place atlas renderer never turns unknown counts into zero or a false empty claim", () => {
   const profile = fixture({
     summary: {

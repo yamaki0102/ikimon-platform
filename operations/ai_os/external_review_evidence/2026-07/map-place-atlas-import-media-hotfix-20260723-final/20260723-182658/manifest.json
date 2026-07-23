@@ -1,0 +1,7 @@
+﻿{
+    "task_id":  "map-place-atlas-import-media-hotfix-20260723-final",
+    "status":  "complete",
+    "claude_model":  "claude-opus-4-8",
+    "gemini_model":  "gemini-3.5-flash",
+    "adoption_status":  "approved_for_staging_first_production_promotion"
+}
