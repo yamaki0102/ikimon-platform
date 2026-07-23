@@ -29497,26 +29497,27 @@ async function runScheduledObservationReassessments(env: Env): Promise<void> {
 }
 
 async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> {
+  const publicPhotoUrls = await queryPublicMapPhotoUrls(env);
+  const latestPublicIds = (await queryPublicMapRows(env))
+    .filter((row) => publicPhotoUrls.has(row.observation_id))
+    .slice(0, 30)
+    .map((row) => row.observation_id);
+  if (latestPublicIds.length === 0) return;
   const rows = await env.OBS_DB.prepare(
-    `WITH latest_public AS (
-       SELECT o.observation_id, o.owner_user_id, r.observed_at
-         FROM readmodel_public_observations r
-         JOIN observations o ON o.observation_id = r.observation_id
-        WHERE o.visibility = 'public' AND o.emergency_hidden = 0
-          AND EXISTS (SELECT 1 FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.processing_state = 'uploaded' AND a.mime LIKE 'image/%')
-        ORDER BY r.observed_at DESC, o.observation_id DESC
-        LIMIT 30
-     )
-     SELECT rr.request_id, latest_public.observation_id, latest_public.owner_user_id,
+    `SELECT rr.request_id, o.observation_id, o.owner_user_id,
             rr.actor_user_id, rr.request_state, rr.source_payload_json
-       FROM latest_public
+       FROM observations o
        LEFT JOIN observation_reassessment_requests rr
-         ON rr.observation_id = latest_public.observation_id
+         ON rr.observation_id = o.observation_id
         AND rr.request_kind = 'standard'
-        AND rr.actor_user_id = latest_public.owner_user_id
-      ORDER BY latest_public.observed_at DESC, latest_public.observation_id DESC`
-  ).all<ObservationReassessmentUpgradeTargetRow>();
-  for (const row of rows.results) {
+        AND rr.actor_user_id = o.owner_user_id
+      WHERE o.visibility = 'public' AND o.emergency_hidden = 0
+        AND o.observation_id IN (${latestPublicIds.map(() => "?").join(", ")})`
+  ).bind(...latestPublicIds).all<ObservationReassessmentUpgradeTargetRow>();
+  const targetsById = new Map(rows.results.map((row) => [row.observation_id, row]));
+  for (const observationId of latestPublicIds) {
+    const row = targetsById.get(observationId);
+    if (!row) continue;
     if (!row.request_id) {
       const requestId = `reassess:${row.observation_id}:standard:${row.owner_user_id}`;
       await env.OBS_DB.prepare(
