@@ -494,12 +494,17 @@ async function loadPlaceMembershipRows(
               COALESCE(o.taxon_rank, 'other') AS taxon_group,
               COALESCE(NULLIF(o.vernacular_name, ''), NULLIF(o.scientific_name, ''), '同定待ち') AS display_name,
               CASE
-                WHEN COALESCE(o.quality_grade, '') IN ('research_grade', 'verified') THEN 0
-                ELSE 1
+                WHEN COALESCE(o.quality_grade, '') = 'ai_judgement' THEN 1
+                ELSE 0
               END AS is_ai_candidate,
               CASE
                 WHEN NULLIF(o.vernacular_name, '') IS NULL
                  AND NULLIF(o.scientific_name, '') IS NULL THEN 1
+                WHEN COALESCE(o.quality_grade, '') NOT IN (
+                  'ai_judgement',
+                  'research_grade',
+                  'verified'
+                ) THEN 1
                 ELSE 0
               END AS is_awaiting_id,
               NULL AS photo_url,
@@ -618,13 +623,27 @@ async function loadVisitLocations(
     if (chunk.length === 0) continue;
     try {
       const rows = await db.prepare(
-        `SELECT visit_id, place_id, user_id, exact_lat, exact_lng, public_visibility
-           FROM production_import_visits
-          WHERE visit_id IN (${chunk.map(() => "?").join(", ")})`
+        `SELECT v.visit_id, v.place_id, v.user_id, v.exact_lat, v.exact_lng, v.public_visibility
+           FROM production_import_visits v
+          WHERE v.visit_id IN (${chunk.map(() => "?").join(", ")})
+            AND COALESCE(v.public_visibility, 'private') = 'public'
+            AND EXISTS (
+              SELECT 1
+                FROM observation_data_rights rights
+               WHERE rights.visit_id = v.visit_id
+                 AND rights.withdrawal_status = 'active'
+                 AND rights.record_consent IN (
+                   'public_summary',
+                   'external_export'
+                 )
+            )`
       ).bind(...chunk).all<VisitLocationRow>();
       rows.results.forEach((row) => output.set(row.visit_id, row));
     } catch (error) {
-      if (isMissingOptionalTable(error, "production_import_visits")) return new Map();
+      if (
+        isMissingOptionalTable(error, "production_import_visits") ||
+        isMissingOptionalTable(error, "observation_data_rights")
+      ) return new Map();
       throw error;
     }
   }

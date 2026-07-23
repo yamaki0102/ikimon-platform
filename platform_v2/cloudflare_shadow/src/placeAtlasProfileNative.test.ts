@@ -84,7 +84,8 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
       assert.match(this.query, /withdrawal_status = 'active'/);
       assert.match(this.query, /membership_state = 'confirmed'/);
       assert.match(this.query, /removed_at IS NULL/);
-      assert.match(this.query, /quality_grade[^]*research_grade[^]*verified/);
+      assert.match(this.query, /quality_grade[^]*ai_judgement/);
+      assert.match(this.query, /quality_grade[^]*research_grade[^]*verified[^]*is_awaiting_id/);
       assert.match(this.query, /WHERE ea\.visit_id = v\.visit_id/);
       assert.doesNotMatch(this.query, /ea\.occurrence_id\s*=\s*o\.occurrence_id\s+OR/);
       const requestedPlaceId = String(this.values[0] ?? "");
@@ -148,6 +149,9 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
       return { results: (this.data.placeContent ?? []) as T[] };
     }
     if (this.query.includes("production_import_visits")) {
+      assert.match(this.query, /observation_data_rights/);
+      assert.match(this.query, /withdrawal_status = 'active'/);
+      assert.match(this.query, /record_consent IN/);
       const requested = new Set(this.values.map(String));
       return {
         results: (this.data.visits ?? [])
