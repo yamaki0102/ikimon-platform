@@ -17,6 +17,7 @@ type FixtureData = {
   photos?: Array<Record<string, unknown>>;
   themes?: Array<Record<string, unknown>>;
   membershipRecords?: Array<Record<string, unknown>>;
+  excludedMembershipRecordIds?: Array<Record<string, unknown>>;
   registeredPlace?: Record<string, unknown> | null;
   placeBoundary?: Record<string, unknown> | null;
   placeAliases?: Array<Record<string, unknown>>;
@@ -60,6 +61,13 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
   }
 
   async all<T>(): Promise<{ results: T[] }> {
+    if (this.query.includes("SELECT DISTINCT record_id") && this.query.includes("record_place_memberships")) {
+      assert.match(this.query, /membership_state <> 'confirmed'/);
+      assert.match(this.query, /removed_at IS NOT NULL/);
+      return {
+        results: (this.data.excludedMembershipRecordIds ?? []) as T[],
+      };
+    }
     if (this.query.includes("FROM record_place_memberships m")) {
       assert.doesNotMatch(this.query, /exact_lat|exact_lng|user_id/);
       assert.match(this.query, /public_precision = 'place'/);
@@ -67,10 +75,16 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
       assert.match(this.query, /observation_data_rights/);
       assert.match(this.query, /public_summary/);
       assert.match(this.query, /external_export/);
+      assert.match(this.query, /membership_state = 'confirmed'/);
+      assert.match(this.query, /removed_at IS NULL/);
       const requestedPlaceId = String(this.values[0] ?? "");
       return {
         results: (this.data.membershipRecords ?? [])
-          .filter((row) => String(row.place_id ?? requestedPlaceId) === requestedPlaceId) as T[],
+          .filter((row) =>
+            String(row.place_id ?? requestedPlaceId) === requestedPlaceId &&
+            String(row.membership_state ?? "confirmed") === "confirmed" &&
+            (row.removed_at ?? null) === null
+          ) as T[],
       };
     }
     if (this.query.includes("public_map_snapshot_records_v1")) {
@@ -751,22 +765,8 @@ test("registered Place reuses confirmed historic Records without Occurrence over
       membership_state: "confirmed",
       removed_at: null,
     },
-    {
-      place_id: "plc_1dac5b52233720ee",
-      occurrence_id: "occ:record-1:0",
-      visit_id: "record-1",
-      observed_at: "2026-07-20T10:00:00.000Z",
-      taxon_group: "bird",
-      display_name: "候補Record",
-      is_ai_candidate: 0,
-      is_awaiting_id: 0,
-      photo_url: null,
-      cell_1000: "",
-      asset_count: 1,
-      membership_state: "candidate",
-      removed_at: null,
-    },
   ];
+  fixtures.excludedMembershipRecordIds = [{ record_id: "record-1" }];
 
   const profile = await loadCloudflarePlaceAtlasProfile({
     db: new FixtureDb(fixtures),
@@ -789,6 +789,57 @@ test("registered Place reuses confirmed historic Records without Occurrence over
   assert.doesNotMatch(JSON.stringify(profile), /候補Record/);
   assert.ok(profile.provenance.sources.includes("record_place_memberships"));
   assert.doesNotMatch(JSON.stringify(profile), /exact_lat|exact_lng|user_id/);
+});
+
+test("membership exclusion overflow suppresses geometry fallback and reports partial", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.registeredPlace = {
+    place_id: "plc_overflow",
+    canonical_name: "除外上限検証Place",
+    locality_label: null,
+    place_kind: "other_named_area",
+    verification_status: "verified",
+    official_status: "unknown",
+    public_summary: null,
+    recording_policy: "check_rules",
+    public_location_mode: "place",
+    contribution_cta_mode: "check_rules",
+    official_rule_url: null,
+    policy_verification_status: "source_verified",
+  };
+  fixtures.placeBoundary = {
+    boundary_geojson: JSON.stringify(TOKIWA_GEOMETRY),
+    confidence: 0.9,
+    precision_kind: "exact",
+    bbox_west: 138.376,
+    bbox_south: 34.966,
+    bbox_east: 138.385,
+    bbox_north: 34.975,
+  };
+  fixtures.excludedMembershipRecordIds = Array.from(
+    { length: 5_001 },
+    (_, index) => ({ record_id: `excluded-${index}` }),
+  );
+
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:999001",
+      osmType: "way",
+      osmId: 999001,
+    },
+    fetchFn: async () => {
+      throw new Error("registered boundary must avoid Overpass");
+    },
+    generatedAt: "2026-07-23T00:00:00Z",
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.summary.recordCount, null);
+  assert.equal(profile.publication.status, "partial");
+  assert.doesNotMatch(JSON.stringify(profile), /スズメ|アジサイ|サクラ/);
+  assert.ok(profile.provenance.sources.includes("record_place_memberships"));
 });
 
 test("generic OSM schools suppress direct contribution", async () => {
