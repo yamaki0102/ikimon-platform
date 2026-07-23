@@ -29325,11 +29325,10 @@ async function runScheduledObservationReassessments(env: Env): Promise<void> {
 }
 
 async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> {
-  const publicPhotoUrls = await queryPublicMapPhotoUrls(env);
-  const latestPublicIds = (await queryPublicMapRows(env))
-    .filter((row) => publicPhotoUrls.has(row.observation_id))
+  const latestPublicIds = (await recentPublicRecordCards(env, 120))
+    .filter((item) => Boolean(item.photoUrl))
     .slice(0, 30)
-    .map((row) => row.observation_id);
+    .map((item) => item.visitId);
   if (latestPublicIds.length === 0) return;
   const rows = await env.OBS_DB.prepare(
     `SELECT rr.request_id, o.observation_id, o.owner_user_id,
