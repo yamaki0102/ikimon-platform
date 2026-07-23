@@ -17,6 +17,7 @@ type FixtureData = {
   memories?: Array<Record<string, unknown>>;
   memoryAccess?: boolean;
   hiddenMemoryEntryIds?: string[];
+  snapshotBindCounts?: number[];
 };
 
 class FixtureStatement implements PlaceAtlasD1PreparedStatement {
@@ -50,6 +51,7 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
 
   async all<T>(): Promise<{ results: T[] }> {
     if (this.query.includes("public_map_snapshot_records_v1")) {
+      this.data.snapshotBindCounts?.push(this.values.length);
       const requestedCells = new Set(this.values.slice(1, -1).map(String));
       const rows = (this.data.snapshots ?? []).filter((row) =>
         requestedCells.size === 0 || requestedCells.has(String(row.cell_1000))
@@ -327,6 +329,24 @@ test("public cell atlas uses the same contract without exact-coordinate joins", 
   assert.doesNotMatch(JSON.stringify(profile), /34\.9702|138\.3805|exact_lat|exact_lng/);
 });
 
+test("public cell atlas accepts the canonical Web Mercator grid cell id", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.snapshots = fixtures.snapshots?.filter((row) =>
+    ["record-1", "record-2", "record-3"].includes(String(row.visit_id))
+  );
+  fixtures.visits = [];
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: { kind: "public_cell", cellId: "1000:15404:4159" },
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.place.type, "public_cell");
+  assert.equal(profile.summary.recordCount, 3);
+  assert.equal(profile.publication.locationMode, "public_cell");
+  assert.doesNotMatch(JSON.stringify(profile), /34\.97|138\.38|exact_lat|exact_lng/);
+});
+
 test("generic OSM park resolution does not depend on a Tokiwa-specific branch", async () => {
   const fixtures = tokiwaFixtures(null);
   const fetchFn: typeof fetch = async () => new Response(JSON.stringify({
@@ -411,6 +431,47 @@ test("oversized OSM geometry does not fall back to an unbounded global snapshot 
   assert.ok(profile);
   assert.equal(profile.summary.recordCount, null);
   assert.equal(profile.recentRecords.length, 0);
+});
+
+test("medium OSM geometry chunks public snapshot cells below the D1 bind limit", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.snapshotBindCounts = [];
+  const fetchFn: typeof fetch = async () => new Response(JSON.stringify({
+    elements: [{
+      type: "way",
+      id: 987657,
+      tags: {
+        name: "複数セルにまたがる公園",
+        leisure: "park",
+      },
+      geometry: [
+        { lat: 34.92, lon: 138.33 },
+        { lat: 34.92, lon: 138.43 },
+        { lat: 35.02, lon: 138.43 },
+        { lat: 35.02, lon: 138.33 },
+        { lat: 34.92, lon: 138.33 },
+      ],
+    }],
+  }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:987657",
+      osmType: "way",
+      osmId: 987657,
+    },
+    fetchFn,
+  });
+
+  assert.ok(profile);
+  assert.ok(fixtures.snapshotBindCounts.length > 1);
+  assert.ok(fixtures.snapshotBindCounts.every((count) => count <= 82));
+  assert.equal(profile.summary.recordCount, 3);
 });
 
 test("OSM relation inner rings stay excluded from the Record scope", async () => {

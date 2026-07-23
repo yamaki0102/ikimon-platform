@@ -197,8 +197,14 @@ function atlasSafeImageUrl(value: unknown, width: 360 | 680): string {
   if (url.startsWith("/derived/")) {
     return `/derived-transform/w${width}/${url.replace(/^\/+/, "")}`;
   }
-  if (url.startsWith("/") || url.startsWith("https://")) return url;
-  return "";
+  if (url.startsWith("/")) return url;
+  try {
+    const parsed = new URL(url);
+    const allowedHost = parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
+    return parsed.protocol === "https:" && allowedHost ? parsed.toString() : "";
+  } catch {
+    return "";
+  }
 }
 
 function atlasDate(value: unknown): string {

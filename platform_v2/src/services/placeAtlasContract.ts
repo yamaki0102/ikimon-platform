@@ -212,7 +212,8 @@ function safeMediaUrl(value: unknown): string | null {
   if (url.startsWith("/") && !url.startsWith("//") && !/[\u0000-\u001f\u007f]/.test(url)) return url;
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "https:" ? parsed.toString() : null;
+    const allowedHost = parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
+    return parsed.protocol === "https:" && allowedHost ? parsed.toString() : null;
   } catch {
     return null;
   }

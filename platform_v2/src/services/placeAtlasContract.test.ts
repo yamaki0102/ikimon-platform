@@ -195,8 +195,9 @@ test("rejects unsafe media URLs instead of rendering them", () => {
     { recordId: "record-1", observedAt: "2026-07-20T00:00:00Z", mediaUrl: "javascript:alert(1)" },
     { recordId: "record-2", observedAt: "2026-07-21T00:00:00Z", mediaUrl: "//evil.example/x.jpg" },
     { recordId: "record-3", observedAt: "2026-07-22T00:00:00Z", mediaUrl: "https://cdn.example/x.jpg" },
+    { recordId: "record-4", observedAt: "2026-07-23T00:00:00Z", mediaUrl: "https://media.ikimon.life/x.jpg" },
   ]));
-  assert.deepEqual(profile.place.representativeMedia.map((media) => media.url), ["https://cdn.example/x.jpg"]);
+  assert.deepEqual(profile.place.representativeMedia.map((media) => media.url), ["https://media.ikimon.life/x.jpg"]);
 });
 
 test("connects guide, memories, and facilities to place-atlas facets without fake Occurrences", () => {

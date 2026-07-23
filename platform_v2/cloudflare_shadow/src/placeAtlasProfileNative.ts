@@ -5,6 +5,10 @@ import {
   type PlaceAtlasRef,
   type PlaceAtlasSourceRecord,
 } from "../../src/services/placeAtlasContract";
+import {
+  buildPublicCellGeometry,
+  parsePublicCellId,
+} from "../../src/services/publicLocation";
 
 type D1Value = string | number | null;
 
@@ -286,6 +290,38 @@ function parsePublicCell(cell: string): { lat: number; lng: number } | null {
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
+function resolvePublicCellScope(cellId: string): {
+  center: { lat: number; lng: number };
+  memoryCell: string;
+  snapshotCells: string[];
+  completeScope: boolean;
+  radiusM: number;
+} | null {
+  const raw = cellId.startsWith("cell:") ? cellId.slice("cell:".length) : cellId;
+  const decimal = parsePublicCell(raw);
+  if (decimal) {
+    return {
+      center: decimal,
+      memoryCell: raw,
+      snapshotCells: [raw],
+      completeScope: true,
+      radiusM: 750,
+    };
+  }
+  const grid = parsePublicCellId(raw);
+  if (!grid) return null;
+  const geometry = buildPublicCellGeometry(grid);
+  const memoryCell = publicCellFromCoordinates(geometry.centroidLat, geometry.centroidLng);
+  const snapshotCells = publicCellsForBbox(geometry.bounds);
+  return {
+    center: { lat: geometry.centroidLat, lng: geometry.centroidLng },
+    memoryCell,
+    snapshotCells: snapshotCells ?? [memoryCell],
+    completeScope: snapshotCells !== null,
+    radiusM: Math.max(250, Math.min(10_000, Math.ceil(Math.SQRT2 * grid.gridM / 2))),
+  };
+}
+
 async function loadFieldDetail(db: PlaceAtlasD1Database, fieldId: string): Promise<FieldDetailRow | null> {
   try {
     return await db.prepare(
@@ -334,24 +370,36 @@ async function loadSnapshotRows(
   if (!cells || cells.length === 0) {
     return { rows: [], complete: false };
   }
-  const filters = ` AND cell_1000 IN (${cells.map(() => "?").join(", ")})`;
-  try {
-    const result = await db.prepare(
-      `SELECT occurrence_id, visit_id, observed_at, taxon_group, display_name,
-              is_ai_candidate, is_awaiting_id, photo_url, cell_1000, asset_count
-         FROM public_map_snapshot_records_v1
-        WHERE snapshot_key = ?${filters}
-        ORDER BY observed_at DESC
-        LIMIT ?`
-    ).bind(SNAPSHOT_KEY, ...cells, MAX_SNAPSHOT_ROWS).all<PublicSnapshotRow>();
-    return {
-      rows: result.results,
-      complete: result.results.length < MAX_SNAPSHOT_ROWS,
-    };
-  } catch (error) {
-    if (isMissingOptionalTable(error, "public_map_snapshot_records_v1")) return { rows: [], complete: false };
-    throw error;
+  const rows: PublicSnapshotRow[] = [];
+  let complete = true;
+  const perChunkLimit = MAX_SNAPSHOT_ROWS + 1;
+  for (let start = 0; start < cells.length; start += MAX_QUERY_BINDINGS) {
+    const chunk = cells.slice(start, start + MAX_QUERY_BINDINGS);
+    const filters = ` AND cell_1000 IN (${chunk.map(() => "?").join(", ")})`;
+    try {
+      const result = await db.prepare(
+        `SELECT occurrence_id, visit_id, observed_at, taxon_group, display_name,
+                is_ai_candidate, is_awaiting_id, photo_url, cell_1000, asset_count
+           FROM public_map_snapshot_records_v1
+          WHERE snapshot_key = ?${filters}
+          ORDER BY observed_at DESC
+          LIMIT ?`
+      ).bind(SNAPSHOT_KEY, ...chunk, perChunkLimit).all<PublicSnapshotRow>();
+      if (result.results.length >= perChunkLimit) complete = false;
+      rows.push(...result.results.slice(0, MAX_SNAPSHOT_ROWS));
+    } catch (error) {
+      if (isMissingOptionalTable(error, "public_map_snapshot_records_v1")) {
+        return { rows: [], complete: false };
+      }
+      throw error;
+    }
   }
+  rows.sort((left, right) => String(right.observed_at).localeCompare(String(left.observed_at)));
+  if (rows.length > MAX_SNAPSHOT_ROWS) complete = false;
+  return {
+    rows: rows.slice(0, MAX_SNAPSHOT_ROWS),
+    complete,
+  };
 }
 
 async function loadVisitLocations(
@@ -751,7 +799,10 @@ async function resolveOsmPlace(
     value,
     expiresAt: Date.now() + (value ? OSM_CACHE_TTL_MS : OSM_FAILURE_CACHE_TTL_MS),
   });
-  if (osmPlaceCache.size > 100) osmPlaceCache.delete(osmPlaceCache.keys().next().value as string);
+  if (osmPlaceCache.size > 100) {
+    const oldestKey = osmPlaceCache.keys().next().value;
+    if (oldestKey !== undefined) osmPlaceCache.delete(oldestKey);
+  }
   return value;
 }
 
@@ -824,7 +875,14 @@ async function buildRecordsForCell(
   input: LoadCloudflarePlaceAtlasInput,
   publicCell: string,
 ): Promise<{ records: PlaceAtlasSourceRecord[]; complete: boolean }> {
-  const snapshot = await loadSnapshotRows(input.db, [publicCell]);
+  return buildRecordsForCells(input, [publicCell]);
+}
+
+async function buildRecordsForCells(
+  input: LoadCloudflarePlaceAtlasInput,
+  publicCells: string[],
+): Promise<{ records: PlaceAtlasSourceRecord[]; complete: boolean }> {
+  const snapshot = await loadSnapshotRows(input.db, publicCells);
   const photos = await loadPhotoUrls(
     input.db,
     [...new Set(snapshot.rows.flatMap((row) => [row.visit_id, row.occurrence_id]))],
@@ -966,13 +1024,10 @@ async function loadPublicCellPlaceAtlasProfile(
   input: LoadCloudflarePlaceAtlasInput,
   ref: Extract<PlaceAtlasRef, { kind: "public_cell" }>,
 ): Promise<PlaceAtlasProfile | null> {
-  const publicCell = ref.cellId.startsWith("cell:")
-    ? ref.cellId.slice("cell:".length)
-    : ref.cellId;
-  const parsed = parsePublicCell(publicCell);
-  if (!parsed) return null;
-  const records = await buildRecordsForCell(input, publicCell);
-  const memories = await loadUnlockedMemories(input.db, input.viewerUserId, publicCell);
+  const scope = resolvePublicCellScope(ref.cellId);
+  if (!scope) return null;
+  const records = await buildRecordsForCells(input, scope.snapshotCells);
+  const memories = await loadUnlockedMemories(input.db, input.viewerUserId, scope.memoryCell);
   return buildPlaceAtlasProfile({
     placeRef: ref,
     place: {
@@ -982,11 +1037,11 @@ async function loadPublicCellPlaceAtlasProfile(
       description: null,
     },
     records: records.records,
-    recordSetComplete: records.complete,
+    recordSetComplete: records.complete && scope.completeScope,
     locationMode: "public_cell",
     minimumPublicRecords: 3,
     contributorCountAllowed: false,
-    guide: guideForScope(input.guideSpots ?? [], null, parsed, 750),
+    guide: guideForScope(input.guideSpots ?? [], null, scope.center, scope.radiusM),
     memories,
     facilities: [],
     sources: profileSources(

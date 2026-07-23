@@ -78,12 +78,13 @@ type PlaceAtlasRef =
 
 公開API query:
 
-- `kind=field&field_id=<id>`
-- `kind=osm_area&entity_key=osm:<way|relation>:<id>&osm_type=<type>&osm_id=<id>`
-- `kind=public_cell&cell_id=<public-cell-id>`
+- `kind=field&fieldId=<id>`
+- `kind=osm_area&entityKey=osm:<way|relation>:<id>&osmType=<type>&osmId=<id>`
+- `kind=public_cell&cellId=<public-cell-id>`
 
 raw latitude/longitudeとGeoJSONは受け取らない。OSMのtype、id、entityKeyは相互一致を
-検証する。登録済みfieldとtransient OSM areaを同一IDとして扱わない。
+検証する。登録済みfieldとtransient OSM areaを同一IDとして扱わない。既存client互換のため
+snake_case aliasも受けるが、公開例と新規clientはcamelCaseを正本とする。
 
 ## Read Model contract
 

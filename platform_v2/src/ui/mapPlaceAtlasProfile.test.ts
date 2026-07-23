@@ -162,12 +162,14 @@ test("untrusted names and external-looking record hrefs are escaped or rejected"
       ...fixture().recentRecords[0]!,
       href: "https://evil.test/record",
       displayName: "<script>alert(1)</script>",
+      mediaUrl: "https://tracking.evil.test/photo.jpg",
     }],
   });
   const html = renderMapPlaceAtlasProfile(profile, options);
 
   assert.doesNotMatch(html, /<script>alert/);
   assert.doesNotMatch(html, /https:\/\/evil\.test/);
+  assert.doesNotMatch(html, /tracking\.evil\.test/);
   assert.match(html, /&lt;script&gt;alert/);
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
 });
