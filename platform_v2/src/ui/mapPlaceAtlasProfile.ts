@@ -194,6 +194,8 @@ function atlasSafeImageUrl(value: unknown, width: 360 | 680): string {
   if (typeof value !== "string") return "";
   const url = value.trim();
   if (!url || url.startsWith("//") || /[\u0000-\u001f\u007f]/.test(url)) return "";
+  // Imported display.webp assets are already bounded R2-backed public derivatives.
+  if (url.startsWith("/derived/import/") && url.endsWith("/display.webp")) return url;
   if (url.startsWith("/derived/")) {
     return `/derived-transform/w${width}/${url.replace(/^\/+/, "")}`;
   }
