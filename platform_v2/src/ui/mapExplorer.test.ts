@@ -973,6 +973,14 @@ test("unified search prefers canonical registry aliases and keeps Nominatim as a
   assert.match(script, /props\.canonical_place_id/);
   assert.match(script, /props\.osm_type/);
   assert.match(script, /props\.osm_id/);
+  assert.match(
+    script,
+    /\/\^\(node\|way\|relation\)\[:\/\]\(\[0-9\]\+\)\$\//,
+  );
+  assert.doesNotMatch(
+    script,
+    /\/\^\(node\|way\|relation\)\[:\/\]\(d\+\)\$\//,
+  );
 });
 
 test("place search selection opens the area encyclopedia around the result", () => {
@@ -998,6 +1006,24 @@ test("place search selection opens the area encyclopedia around the result", () 
   assert.match(placeBody, /maxZoom: sensitivePlaceSearch \? 12 : 14/);
   assert.match(placeBody, /state\.map\.fitBounds/);
   assert.match(placeBody, /state\.map\.flyTo/);
+  assert.match(placeBody, /var canonicalSearchFeature = canonicalPlaceSearchFeature\(row, lat, lng\);/);
+  assert.match(
+    placeBody,
+    /state\.pendingPlaceSearchRef = row\.canonical_place_id && !canonicalSearchFeature/,
+  );
+  assert.match(placeBody, /openAreaFeatureSheet\(canonicalSearchFeature, lat, lng\);/);
+
+  const canonicalFeatureBody = script.slice(
+    script.indexOf("function canonicalPlaceSearchFeature"),
+    script.indexOf("function canonicalPlaceRows"),
+  );
+  assert.match(
+    canonicalFeatureBody,
+    /osmType !== 'way' && osmType !== 'relation'/,
+  );
+  assert.match(canonicalFeatureBody, /if \(!validBbox\) return null;/);
+  assert.match(canonicalFeatureBody, /boundary_projection: 'safe_bbox'/);
+  assert.doesNotMatch(canonicalFeatureBody, /pointCirclePolygon/);
 });
 
 test("place search origin stays local and is not persisted or sent as map telemetry", () => {

@@ -479,6 +479,41 @@ test("canonical alias search shows place kind, locality, and verified state", as
   const page = await context.newPage();
   const diagnostics = monitorPageDiagnostics(page);
   await installPlaceAtlasFixtures(page);
+  const profileRequests: string[] = [];
+  await page.route("**/api/v1/map/place-profile**", async (route) => {
+    profileRequests.push(route.request().url());
+    await fulfillJson(route, {
+      profile: {
+        ...TOKIWA_PLACE_ATLAS_PROFILE,
+        placeRef: {
+          kind: "osm_area",
+          entityKey: "osm:way:1281984233",
+          osmType: "way",
+          osmId: 1281984233,
+        },
+        place: {
+          ...TOKIWA_PLACE_ATLAS_PROFILE.place,
+          name: "JUNGLIA OKINAWA",
+          type: "theme_park",
+          localityLabel: "沖縄県国頭郡今帰仁村",
+        },
+        policy: {
+          placeVisibility: "public",
+          recordingPolicy: "permission_required",
+          publicLocationMode: "place",
+          contributionCtaMode: "suppressed",
+          ruleSource: "official",
+          ruleUrl: "https://junglia.jp/terms/park-termsofuse",
+          reason: "verified_place_policy",
+        },
+        publication: {
+          ...TOKIWA_PLACE_ATLAS_PROFILE.publication,
+          status: "partial",
+          suppressedSections: ["contribution_cta"],
+        },
+      },
+    });
+  });
   await page.route("**/api/v1/map/place-search**", async (route) => {
     await fulfillJson(route, {
       version: "place_search/v1",
@@ -529,6 +564,99 @@ test("canonical alias search shows place kind, locality, and verified state", as
     fullPage: true,
     path: path.join(VISUAL_EVIDENCE_DIR, "chromium-search-junglia-mobile-390.png"),
   });
+  await result.click();
+  await expect(page.locator("#map-explorer")).toHaveAttribute(
+    "data-place-search-profile-ref",
+    "osm:way:1281984233",
+  );
+  await expect.poll(() => profileRequests.length).toBe(1);
+  const atlas = page.locator("[data-place-atlas-profile]");
+  await expect(atlas).toBeVisible();
+  await expect(atlas.getByRole("heading", { name: "JUNGLIA OKINAWA" })).toBeVisible();
+  await expect(
+    atlas.locator('[data-kpi-action="map:place_atlas:record_here"]'),
+  ).toHaveCount(0);
+  const profileUrl = new URL(profileRequests[0]);
+  expect(profileUrl.searchParams.get("kind")).toBe("osm_area");
+  expect(profileUrl.searchParams.get("entityKey")).toBe("osm:way:1281984233");
+  expect(profileUrl.searchParams.get("osmType")).toBe("way");
+  expect(profileUrl.searchParams.get("osmId")).toBe("1281984233");
+  expect(diagnostics).toEqual({
+    pageErrors: [],
+    consoleErrors: [],
+    criticalResponses: [],
+  });
+  await context.close();
+});
+
+test("canonical search without a safe OSM area ref does not open a profile", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "one browser covers the fail-closed search handoff");
+  const context = await browser.newContext({
+    baseURL: "http://127.0.0.1:4322",
+    viewport: { width: 390, height: 844 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = monitorPageDiagnostics(page);
+  const profileRequests: string[] = [];
+  page.on("request", (request) => {
+    if (/\/api\/v1\/map\/place-profile\b/.test(request.url())) {
+      profileRequests.push(request.url());
+    }
+  });
+  await installPlaceAtlasFixtures(page);
+  await page.route("**/api/v1/map/place-search**", async (route) => {
+    await fulfillJson(route, {
+      version: "place_search/v1",
+      query: new URL(route.request().url()).searchParams.get("q"),
+      state: "complete",
+      privacy: "boundary_bbox_only",
+      results: [{
+        canonicalPlaceId: "plc_node_only",
+        canonicalName: "ノード施設",
+        aliases: [],
+        placeKind: "other_named_area",
+        localityLabel: "静岡県静岡市",
+        verificationStatus: "source_verified",
+        officialStatus: "unofficial",
+        matchKind: "canonical_name",
+        matchConfidence: 1,
+        osmSourceId: "node:123456",
+        boundary: {
+          bbox: [138.37, 34.96, 138.38, 34.97],
+          precision: "approximate",
+          confidence: 0.5,
+        },
+        source: {
+          sourceType: "osm",
+          sourceId: "node:123456",
+          sourceUrl: "https://www.openstreetmap.org/node/123456",
+          confidence: 0.5,
+          verificationStatus: "source_verified",
+          lastCheckedAt: "2026-07-24T00:00:00Z",
+        },
+      }],
+    });
+  });
+  await page.route("https://nominatim.openstreetmap.org/search**", async (route) => {
+    await fulfillJson(route, []);
+  });
+
+  await page.goto(TOKIWA_MAP_PATH, { waitUntil: "domcontentloaded" });
+  const input = page.locator("#me-search-input");
+  await input.fill("ノード施設");
+  const result = page.locator("#me-search-results .me-search-row", {
+    hasText: "ノード施設",
+  });
+  await expect(result).toBeVisible();
+  await result.click();
+  await expect(page.locator("#map-explorer")).toHaveAttribute(
+    "data-place-search-profile-ref",
+    "unresolved",
+  );
+  await page.waitForTimeout(2_500);
+  expect(profileRequests).toEqual([]);
+  await expect(page.locator("[data-place-atlas-profile]")).toHaveCount(0);
   expect(diagnostics).toEqual({
     pageErrors: [],
     consoleErrors: [],

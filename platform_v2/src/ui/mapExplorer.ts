@@ -10047,9 +10047,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           var lat = Number(row.lat);
           var lng = Number(row.lon);
           if (!isFinite(lat) || !isFinite(lng)) return;
+          var canonicalSearchFeature = canonicalPlaceSearchFeature(row, lat, lng);
+          if (root) {
+            root.setAttribute(
+              'data-place-search-profile-ref',
+              canonicalSearchFeature
+                ? String(canonicalSearchFeature.properties.entity_key || 'resolved')
+                : 'unresolved'
+            );
+          }
           state.tab = 'places';
           state.namedAreaDiscoveryUntil = Date.now() + 60 * 1000;
-          state.pendingPlaceSearchRef = row.canonical_place_id ? {
+          state.pendingPlaceSearchRef = row.canonical_place_id && !canonicalSearchFeature ? {
             canonicalPlaceId: String(row.canonical_place_id),
             osmType: String(row.osm_type || ''),
             osmId: String(row.osm_id || '')
@@ -10092,12 +10101,56 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           } else {
             state.map.flyTo({ center: [lng, lat], zoom: targetZoom, duration: 500 });
           }
+          if (canonicalSearchFeature) {
+            openAreaFeatureSheet(canonicalSearchFeature, lat, lng);
+          }
           searchResultsEl.classList.remove('is-open');
           if (searchInputEl) searchInputEl.value = row.display_name || '';
           saveMapState();
         },
       };
     });
+  }
+
+  function canonicalPlaceSearchFeature(row, lat, lng) {
+    if (!row || !row.canonical_place_id) return null;
+    var osmType = String(row.osm_type || '');
+    var osmId = String(row.osm_id || '');
+    if ((osmType !== 'way' && osmType !== 'relation') || !/^[0-9]+$/.test(osmId)) return null;
+    var bbox = Array.isArray(row.boundingbox) ? row.boundingbox.map(Number) : null;
+    var validBbox = bbox && bbox.length === 4 && bbox.every(isFinite);
+    if (!validBbox) return null;
+    var geometry = {
+      type: 'Polygon',
+      coordinates: [[
+        [bbox[2], bbox[0]],
+        [bbox[3], bbox[0]],
+        [bbox[3], bbox[1]],
+        [bbox[2], bbox[1]],
+        [bbox[2], bbox[0]],
+      ]],
+    };
+    return {
+      type: 'Feature',
+      geometry: geometry,
+      properties: {
+        field_id: 'osm-live:' + osmType + ':' + osmId,
+        entity_key: 'osm:' + osmType + ':' + osmId,
+        osm_type: osmType,
+        osm_id: Number(osmId),
+        canonical_place_id: String(row.canonical_place_id),
+        name: String(row.display_name || row.name || COPY.osmAreaFallbackName || ''),
+        place_kind: String(row.type || ''),
+        localityLabel: String(row.locality_label || ''),
+        source: 'osm_named_area',
+        source_label: COPY.searchResultPlace,
+        source_confidence: 0.9,
+        verification_level: String(row.verification_status || ''),
+        center: [lng, lat],
+        transient: true,
+        boundary_projection: 'safe_bbox',
+      },
+    };
   }
 
   function canonicalPlaceRows(payload) {
@@ -10108,7 +10161,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         : null;
       var validBbox = bbox && bbox.length === 4 && bbox.every(isFinite);
       var sourceId = String(place && place.osmSourceId || '');
-      var osmMatch = /^(node|way|relation)[:/](\d+)$/.exec(sourceId);
+      var osmMatch = /^(node|way|relation)[:/]([0-9]+)$/.exec(sourceId);
       return {
         display_name: String(place.canonicalName || ''),
         type: String(place.placeKind || ''),
