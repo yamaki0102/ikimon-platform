@@ -1,6 +1,30 @@
 {
   "landing": {
     "title": "地域の記録から始める | ikimon",
+    "home": {
+      "guest": {
+        "heroHeading": "記録から、場所の今が見えてくる。",
+        "heroLead": "生きものも、景色も、音も。残した記録から、名前や環境の手がかりが返ってきます。",
+        "primaryCta": "記録する", "secondaryCta": "地域の記録を見る", "publicRecordsTitle": "地域に残っている記録",
+        "valueTitle": "記録すると、こんなことがわかります",
+        "valueItems": [
+          { "title": "写真から見つかる", "body": "生きものや景色の特徴を、AIが整理します。" },
+          { "title": "場所のようすがわかる", "body": "草地、水辺、建物など、写真から環境の手がかりを残します。" },
+          { "title": "時間を重ねて比べられる", "body": "同じ場所の記録が増えると、季節や変化が見えてきます。" }
+        ],
+        "privacyTitle": "正確な位置は公開しません", "privacyBody": "記録ごとに公開範囲を選べます。自宅や希少な生きものの場所は、より厳しく保護します。",
+        "finalTitle": "写真1枚から始められます", "finalCta": "最初の1件を残してみる"
+      },
+      "member": {
+        "actionTitle": "気になったものを残してみよう", "actionLead": "写真・動画・音・メモを残すと、あとから自然や場所のことが少しわかります。", "primaryCta": "記録する",
+        "recentTitle": "最近の記録", "discoveriesTitle": "写真からわかったこと", "nearbyTitle": "近くで残された記録", "processing": "写真からわかることを調べています"
+      },
+      "shared": {
+        "openRecord": "記録を見る", "unknownRecord": "名前を調べている記録", "safePlaceFallback": "地域の記録", "aiCandidateSuffix": "かもしれません", "fromRecord": "この記録から", "multipleMedia": "件のメディア",
+        "media": { "photo": "写真", "video": "動画", "audio": "音声", "memo": "メモ" },
+        "navigation": { "home": "ホーム", "record": "記録", "discover": "見つける", "profile": "マイページ" }
+      }
+    },
     "heroEyebrow": "Enjoy Life",
     "heroHeadingPlain": "地域の記録から始める",
     "heroHeadingLine1": "地域の記録から",

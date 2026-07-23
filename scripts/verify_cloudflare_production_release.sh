@@ -115,7 +115,7 @@ do
   signed_home_headers="$(mktemp "${TMP_DIR}/signed-home.XXXXXX.headers")"
   signed_home="$(curl -fsS -D "${signed_home_headers}" -H 'cache-control: no-store' -H 'cookie: ikimon_v2_session=deploy-smoke' "${signed_home_url}")"
   grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' "${signed_home_headers}"
-  require_contains "${signed_home}" "data-record-feed" "Signed-in home shell"
+  require_contains "${signed_home}" "data-home-contract=\"state-split-v1\"" "Signed-in state-split home shell"
   for marker in 'id="map-explorer"' 'tile.openstreetmap.org' 'me-area-badge'; do
     require_not_contains "${signed_home}" "${marker}" "Signed-in home shell"
   done

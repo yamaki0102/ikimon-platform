@@ -18,6 +18,7 @@ type JsonActionLink = {
 
 type JsonLandingCopy = {
   title: string;
+  home: LandingStrings["home"];
   heroEyebrow: string;
   heroHeadingPlain: string;
   heroHeadingLine1: string;
@@ -745,6 +746,7 @@ export function buildAppStrings(lang: SiteLang): AppStrings {
   const heading = composeHeroHeading(publicCopy.landing);
   const landing: LandingStrings = {
     title: publicCopy.landing.title,
+    home: publicCopy.landing.home,
     heroEyebrow: publicCopy.landing.heroEyebrow,
     heroHeading: heading.html,
     heroHeadingPlain: heading.plain,
