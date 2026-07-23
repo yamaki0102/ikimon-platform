@@ -1,0 +1,75 @@
+{
+  "version": "universal_place_atlas_seed_report/v1",
+  "sourceVerifiedAt": "2026-07-23",
+  "generatedAt": "2026-07-23T12:42:17.718Z",
+  "mode": "dry_run",
+  "totalPlaces": 4,
+  "resolvedBoundaries": 4,
+  "failed": [],
+  "places": [
+    {
+      "placeId": "plc_e3293ec4bb9288a0",
+      "canonicalName": "常磐公園",
+      "actualOsmName": "常磐公園",
+      "configuredKind": "park",
+      "actualOsmKind": "park",
+      "osmReference": "way:125727939",
+      "areaHa": 2.3782492599015215,
+      "bbox": [
+        138.3793901,
+        34.9695006,
+        138.3812408,
+        34.970775
+      ],
+      "recordingPolicy": "check_rules"
+    },
+    {
+      "placeId": "plc_1dac5b52233720ee",
+      "canonicalName": "JUNGLIA OKINAWA",
+      "actualOsmName": "ジャングリア沖縄",
+      "configuredKind": "theme_park",
+      "actualOsmKind": "theme_park",
+      "osmReference": "way:1281984233",
+      "areaHa": 52.07519799853075,
+      "bbox": [
+        127.9674261,
+        26.6383491,
+        127.9739382,
+        26.6456196
+      ],
+      "recordingPolicy": "permission_required"
+    },
+    {
+      "placeId": "plc_16788e9b2fde5c87",
+      "canonicalName": "イオンモール浜松市野",
+      "actualOsmName": "イオンモール浜松市野",
+      "configuredKind": "shopping_mall",
+      "actualOsmKind": "shopping_mall",
+      "osmReference": "way:189307274",
+      "areaHa": 10.77342058779561,
+      "bbox": [
+        137.7611866,
+        34.7384768,
+        137.7651294,
+        34.741179
+      ],
+      "recordingPolicy": "check_rules"
+    },
+    {
+      "placeId": "plc_a7fb32f39a754b5f",
+      "canonicalName": "イオンモール浜松志都呂",
+      "actualOsmName": "イオンモール浜松志都呂",
+      "configuredKind": "shopping_mall",
+      "actualOsmKind": "commercial_complex",
+      "osmReference": "way:189307792",
+      "areaHa": 10.458746325652998,
+      "bbox": [
+        137.6483654,
+        34.6957231,
+        137.6533371,
+        34.6978024
+      ],
+      "recordingPolicy": "check_rules"
+    }
+  ]
+}

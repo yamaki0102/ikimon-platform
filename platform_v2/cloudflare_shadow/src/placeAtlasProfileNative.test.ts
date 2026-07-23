@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   loadCloudflarePlaceAtlasProfile,
+  placeAtlasGeometryWithinRuntimeBudget,
   pointInPlaceAtlasGeometry,
   type PlaceAtlasD1Database,
   type PlaceAtlasD1PreparedStatement,
@@ -768,6 +769,87 @@ test("oversized OSM geometry does not fall back to an unbounded global snapshot 
   assert.ok(profile);
   assert.equal(profile.summary.recordCount, null);
   assert.equal(profile.recentRecords.length, 0);
+});
+
+test("vertex-heavy OSM geometry returns a partial profile without request-time point scans", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.snapshotBindCounts = [];
+  const geometry = Array.from({ length: 1_001 }, (_, index) => {
+    const angle = index / 1_000 * Math.PI * 2;
+    return {
+      lat: 34.97 + Math.sin(angle) * 0.005,
+      lon: 138.38 + Math.cos(angle) * 0.005,
+    };
+  });
+  geometry.push({ ...geometry[0]! });
+  const fetchFn: typeof fetch = async () => new Response(JSON.stringify({
+    elements: [{
+      type: "way",
+      id: 987660,
+      tags: {
+        name: "頂点過多の公園",
+        leisure: "park",
+      },
+      geometry,
+    }],
+  }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:987660",
+      osmType: "way",
+      osmId: 987660,
+    },
+    fetchFn,
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.publication.status, "partial");
+  assert.equal(profile.summary.recordCount, null);
+  assert.deepEqual(fixtures.snapshotBindCounts, []);
+  assert.equal(placeAtlasGeometryWithinRuntimeBudget({
+    type: "Polygon",
+    coordinates: [geometry.map((point) => [point.lon, point.lat])],
+  }), false);
+});
+
+test("dense snapshots are capped and reported as partial instead of overstating totals", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.snapshots = Array.from({ length: 600 }, (_, index) => ({
+    occurrence_id: `occ:dense-${index}:0`,
+    visit_id: `dense-${index}`,
+    observed_at: `2026-07-${String(1 + index % 23).padStart(2, "0")}T10:00:00.000Z`,
+    taxon_group: "plant",
+    display_name: `密集記録${index}`,
+    is_ai_candidate: 0,
+    is_awaiting_id: 0,
+    photo_url: null,
+    cell_1000: "34.97,138.38",
+    asset_count: 0,
+  }));
+  fixtures.visits = Array.from({ length: 600 }, (_, index) => ({
+    visit_id: `dense-${index}`,
+    place_id: null,
+    user_id: `user-${index}`,
+    exact_lat: 34.9702,
+    exact_lng: 138.3805,
+    public_visibility: "public",
+  }));
+
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: { kind: "field", fieldId: TOKIWA_FIELD_ID },
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.publication.status, "partial");
+  assert.equal(profile.summary.recordCount, null);
+  assert.ok(profile.recentRecords.length <= 24);
 });
 
 test("medium OSM geometry chunks public snapshot cells below the D1 bind limit", async () => {

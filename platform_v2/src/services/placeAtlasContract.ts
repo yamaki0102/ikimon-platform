@@ -234,7 +234,28 @@ export function normalizePlaceAtlasRef(input: Record<string, unknown>): PlaceAtl
 function safeMediaUrl(value: unknown): string | null {
   const url = normalizeText(value, 2048);
   if (!url) return null;
-  if (url.startsWith("/") && !url.startsWith("//") && !/[\u0000-\u001f\u007f]/.test(url)) return url;
+  if (
+    url.startsWith("/")
+    && !url.startsWith("//")
+    && !/[\u0000-\u001f\u007f\\]/.test(url)
+  ) {
+    const path = url.split(/[?#]/, 1)[0] ?? "";
+    let decodedPath = "";
+    try {
+      decodedPath = decodeURIComponent(path);
+    } catch {
+      return null;
+    }
+    if (/(?:^|\/)\.\.(?:\/|$)/.test(decodedPath)) return null;
+    const allowed = [
+      "/derived/",
+      "/derived-transform/",
+      "/thumb/",
+      "/uploads/",
+      "/data/uploads/",
+    ].some((prefix) => decodedPath.startsWith(prefix));
+    return allowed ? url : null;
+  }
   try {
     const parsed = new URL(url);
     const allowedHost = parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
@@ -553,7 +574,9 @@ export function buildPlaceAtlasProfile(input: PlaceAtlasBuildInput): PlaceAtlasP
   const status: PlaceAtlasProfile["publication"]["status"] =
     baseStatus === "suppressed"
       ? "suppressed"
-      : suppressedSections.length > 0 || input.locationMode === "public_cell_derived"
+      : !input.recordSetComplete
+        || suppressedSections.length > 0
+        || input.locationMode === "public_cell_derived"
         ? "partial"
         : "published";
 

@@ -139,9 +139,29 @@ export async function newStagingContext(
 }
 
 export async function suppressMapLibreForSmoke(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    Object.defineProperty(HTMLLinkElement.prototype, "integrity", {
+      configurable: true,
+      get() {
+        return "";
+      },
+      set() {
+        // Smoke tests provide an inline, deterministic CSS response instead of
+        // the third-party bytes whose SRI digest the production page enforces.
+      },
+    });
+  });
   await page.route(
     /https:\/\/(?:cdn\.jsdelivr\.net\/npm|unpkg\.com)\/maplibre-gl@4\.7\.1\/dist\/maplibre-gl\.(?:js|css)$/,
     async (route) => {
+      if (new URL(route.request().url()).pathname.endsWith(".css")) {
+        await route.fulfill({
+          status: 200,
+          contentType: "text/css; charset=utf-8",
+          body: "/* MapLibre layout is replaced by the deterministic smoke stub. */",
+        });
+        return;
+      }
       await route.abort("blockedbyclient");
     },
   );

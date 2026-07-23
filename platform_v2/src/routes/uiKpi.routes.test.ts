@@ -9,6 +9,10 @@ test("ui KPI validation accepts record funnel event names", () => {
 
 test("ui KPI validation accepts map UX event names", () => {
   assert.equal(isUiKpiEventName("map_area_detail_open"), true);
+  assert.equal(isUiKpiEventName("place_profile_open"), true);
+  assert.equal(isUiKpiEventName("place_theme_open"), true);
+  assert.equal(isUiKpiEventName("place_image_error"), true);
+  assert.equal(isUiKpiEventName("place_search_complete"), true);
   assert.equal(isUiKpiEventName("selected_place_cta_click"), true);
 });
 

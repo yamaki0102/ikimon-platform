@@ -7,6 +7,10 @@ const EVENT_NAMES = new Set([
   "read_depth",
   "primary_cta_click",
   "map_area_detail_open",
+  "place_profile_open",
+  "place_theme_open",
+  "place_image_error",
+  "place_search_complete",
   "selected_place_cta_click",
   "funnel_step",
   "funnel_error",
@@ -16,6 +20,10 @@ const OBSERVATION_EVENT_NAMES = new Set([
   "read_depth",
   "primary_cta_click",
   "map_area_detail_open",
+  "place_profile_open",
+  "place_theme_open",
+  "place_image_error",
+  "place_search_complete",
   "selected_place_cta_click",
 ] as const);
 const RECORD_FUNNEL_EVENT_NAMES = new Set(["funnel_step", "funnel_error"] as const);
@@ -27,6 +35,10 @@ type UiKpiEventName =
   | "read_depth"
   | "primary_cta_click"
   | "map_area_detail_open"
+  | "place_profile_open"
+  | "place_theme_open"
+  | "place_image_error"
+  | "place_search_complete"
   | "selected_place_cta_click"
   | "funnel_step"
   | "funnel_error";
