@@ -79,3 +79,13 @@ DB schema、write path、secret、DNS、既存Record/Occurrence dataは変更し
 - 現行中央deploy registryと実runtimeが矛盾し、正本更新なしに解決できない場合
 - Wレビューでprivacy/data integrityの未解消P0/P1が残る場合
 - stagingでprofileまたは既存mapの回帰が再現する場合
+
+## Release gate実績
+
+- runtime head `f34bfdb5`: Node 1,365件、Worker 391件、Visual QA 7件がgreen
+- Claude `claude-opus-4-8`: `APPROVE_WITH_NONBLOCKING_NOTES`
+- Gemini `gemini-3.5-flash`: `APPROVE_WITH_NONBLOCKING_NOTES`
+- production blocker、DB migration、secret変更: なし
+- raw review、可逆packet、採用判断は
+  `operations/ai_os/external_review_evidence/2026-07/map-place-atlas-mvp-20260723-transport-safe/`
+  に保存
