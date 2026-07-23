@@ -30,6 +30,7 @@
     "e2e:staging:record-feedback-loop": "playwright test -c playwright.staging.config.ts e2e/record-feedback-loop.staging.spec.ts",
     "e2e:staging:renri-event": "playwright test -c playwright.staging.config.ts e2e/renri-science-adventure-journey.staging.spec.ts",
     "e2e:staging:map-performance": "playwright test -c playwright.staging.config.ts e2e/map-performance.staging.spec.ts",
+    "e2e:staging:place-atlas-live": "playwright test -c playwright.staging.config.ts e2e/universal-place-atlas-live.manual.spec.ts",
     "e2e:local:map-compact-ui": "playwright test -c playwright.staging.config.ts e2e/map-compact-ui.local.spec.ts",
     "e2e:local:place-atlas": "npm run build:server && playwright test -c playwright.place-atlas.local.config.ts e2e/map-place-atlas.staging.spec.ts",
     "e2e:staging:observation-scene": "playwright test -c playwright.staging.config.ts e2e/observation-scene-read-model.staging.spec.ts",

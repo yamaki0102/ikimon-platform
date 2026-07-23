@@ -479,6 +479,41 @@ test("canonical alias search shows place kind, locality, and verified state", as
   const page = await context.newPage();
   const diagnostics = monitorPageDiagnostics(page);
   await installPlaceAtlasFixtures(page);
+  const profileRequests: string[] = [];
+  await page.route("**/api/v1/map/place-profile**", async (route) => {
+    profileRequests.push(route.request().url());
+    await fulfillJson(route, {
+      profile: {
+        ...TOKIWA_PLACE_ATLAS_PROFILE,
+        placeRef: {
+          kind: "osm_area",
+          entityKey: "osm:way:1281984233",
+          osmType: "way",
+          osmId: 1281984233,
+        },
+        place: {
+          ...TOKIWA_PLACE_ATLAS_PROFILE.place,
+          name: "JUNGLIA OKINAWA",
+          type: "theme_park",
+          localityLabel: "沖縄県国頭郡今帰仁村",
+        },
+        policy: {
+          placeVisibility: "public",
+          recordingPolicy: "permission_required",
+          publicLocationMode: "place",
+          contributionCtaMode: "suppressed",
+          ruleSource: "official",
+          ruleUrl: "https://junglia.jp/terms/park-termsofuse",
+          reason: "verified_place_policy",
+        },
+        publication: {
+          ...TOKIWA_PLACE_ATLAS_PROFILE.publication,
+          status: "partial",
+          suppressedSections: ["contribution_cta"],
+        },
+      },
+    });
+  });
   await page.route("**/api/v1/map/place-search**", async (route) => {
     await fulfillJson(route, {
       version: "place_search/v1",
@@ -529,6 +564,23 @@ test("canonical alias search shows place kind, locality, and verified state", as
     fullPage: true,
     path: path.join(VISUAL_EVIDENCE_DIR, "chromium-search-junglia-mobile-390.png"),
   });
+  await result.click();
+  await expect(page.locator("#map-explorer")).toHaveAttribute(
+    "data-place-search-profile-ref",
+    "osm:way:1281984233",
+  );
+  await expect.poll(() => profileRequests.length).toBe(1);
+  const atlas = page.locator("[data-place-atlas-profile]");
+  await expect(atlas).toBeVisible();
+  await expect(atlas.getByRole("heading", { name: "JUNGLIA OKINAWA" })).toBeVisible();
+  await expect(
+    atlas.locator('[data-kpi-action="map:place_atlas:record_here"]'),
+  ).toHaveCount(0);
+  const profileUrl = new URL(profileRequests[0]);
+  expect(profileUrl.searchParams.get("kind")).toBe("osm_area");
+  expect(profileUrl.searchParams.get("entityKey")).toBe("osm:way:1281984233");
+  expect(profileUrl.searchParams.get("osmType")).toBe("way");
+  expect(profileUrl.searchParams.get("osmId")).toBe("1281984233");
   expect(diagnostics).toEqual({
     pageErrors: [],
     consoleErrors: [],
