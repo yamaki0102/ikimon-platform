@@ -14,7 +14,7 @@ export type ObservationAiSqlMutation = {
 export type ObservationAiDualWriteInput = {
   recordId: string;
   ownerUserId: string;
-  mediaId: string;
+  mediaIds: string[];
   legacyOccurrenceId: string;
   requestId: string;
   aiRunId: string;
@@ -44,16 +44,16 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
   const mutations: ObservationAiSqlMutation[] = [];
   const observationIds: string[] = [];
   for (const subject of observationAiSubjects(input.candidate)) {
+    const mediaId = input.mediaIds[subject.candidate.assetIndex ?? 0] ?? input.mediaIds[0];
+    if (!mediaId) continue;
     const sourceKey = [
-      "cloudflare_workers_ai",
+      "google_gemini_batch",
       input.recordId,
-      input.mediaId,
-      OBSERVATION_VISION_MODEL,
-      OBSERVATION_AI_PROMPT_VERSION,
       OBSERVATION_AI_RULE_VERSION,
       subject.subjectKey,
     ].join(":");
-    const inputFingerprint = await sha256Hex(sourceKey);
+    const modelName = subject.candidate.sourceModel ?? OBSERVATION_VISION_MODEL;
+    const inputFingerprint = await sha256Hex(JSON.stringify({ sourceKey, mediaIds: input.mediaIds, modelName, promptVersion: OBSERVATION_AI_PROMPT_VERSION }));
     const observationId = await deterministicUuid(`record-observation:${sourceKey}`);
     const mappingId = await deterministicUuid(`record-observation-source-map:${sourceKey}`);
     const mediaLinkId = await deterministicUuid(`record-observation-media:${sourceKey}`);
@@ -61,14 +61,14 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
     const lifecycleEventId = await deterministicUuid(`observation-lifecycle-created:${sourceKey}`);
     const ledgerId = await deterministicUuid(`record-observation-consistency:${sourceKey}`);
     const provenance = JSON.stringify({
-      source: "cloudflare_workers_ai_observation_reassessment",
+      source: "google_gemini_batch_observation_reassessment",
       legacyOccurrenceId: input.legacyOccurrenceId,
       requestId: input.requestId,
       aiRunId: input.aiRunId,
-      assetId: input.mediaId,
+      assetId: mediaId,
       subjectKey: subject.subjectKey,
       primary: subject.primary,
-      model: OBSERVATION_VISION_MODEL,
+      model: modelName,
       promptVersion: OBSERVATION_AI_PROMPT_VERSION,
       ruleVersion: OBSERVATION_AI_RULE_VERSION,
       inputFingerprint,
@@ -137,7 +137,7 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
         values: [
           mediaLinkId,
           observationId,
-          input.mediaId,
+          mediaId,
           subject.candidate.subjectLocator.rect ? "rect" : "full",
           JSON.stringify(subject.candidate.subjectLocator),
           `${sourceKey}:media`,
@@ -150,7 +150,7 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
           proposed_name, proposed_scientific_name, proposed_rank, confidence_score,
           rationale_json, model_provider, model_name, model_version, prompt_version,
           rule_version, input_digest, input_provenance_json, suggestion_status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cloudflare_workers_ai', ?, '', ?, ?, ?, ?,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'google_gemini_api', ?, '', ?, ?, ?, ?,
           'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(observation_id, source_key) DO UPDATE SET
           ai_run_id = excluded.ai_run_id,
@@ -174,7 +174,7 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
           subject.candidate.rank,
           subject.candidate.confidence,
           rationale,
-          OBSERVATION_VISION_MODEL,
+          modelName,
           OBSERVATION_AI_PROMPT_VERSION,
           OBSERVATION_AI_RULE_VERSION,
           inputFingerprint,
@@ -230,6 +230,42 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
           inputFingerprint,
           targetChecksum,
         ],
+      },
+    );
+  }
+  const placeholders = observationIds.map(() => "?").join(", ");
+  if (observationIds.length > 0) {
+    const replacementId = observationIds[0]!;
+    const staleWhere = `record_runtime = 'cloudflare_d1' AND record_id = ? AND origin = 'ai'
+      AND assertion_status = 'provisional' AND accepted_identification_id IS NULL
+      AND lifecycle_status = 'active' AND observation_id NOT IN (${placeholders})`;
+    mutations.push(
+      {
+        sql: `UPDATE observation_ai_suggestions SET suggestion_status = 'superseded', updated_at = CURRENT_TIMESTAMP
+          WHERE suggestion_status = 'active' AND observation_id IN (SELECT observation_id FROM record_observations WHERE ${staleWhere})`,
+        values: [input.recordId, ...observationIds],
+      },
+      {
+        sql: `UPDATE record_observations SET lifecycle_status = 'superseded', superseded_by_observation_id = ?,
+          excluded_reason = NULL, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+          WHERE ${staleWhere}`,
+        values: [replacementId, input.recordId, ...observationIds],
+      },
+    );
+  } else {
+    const staleWhere = `record_runtime = 'cloudflare_d1' AND record_id = ? AND origin = 'ai'
+      AND assertion_status = 'provisional' AND accepted_identification_id IS NULL AND lifecycle_status = 'active'`;
+    mutations.push(
+      {
+        sql: `UPDATE observation_ai_suggestions SET suggestion_status = 'superseded', updated_at = CURRENT_TIMESTAMP
+          WHERE suggestion_status = 'active' AND observation_id IN (SELECT observation_id FROM record_observations WHERE ${staleWhere})`,
+        values: [input.recordId],
+      },
+      {
+        sql: `UPDATE record_observations SET lifecycle_status = 'excluded', excluded_reason = 'ai_reassessment_no_visible_biota',
+          superseded_by_observation_id = NULL, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+          WHERE ${staleWhere}`,
+        values: [input.recordId],
       },
     );
   }

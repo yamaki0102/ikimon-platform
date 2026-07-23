@@ -20,13 +20,22 @@ export type ObservationFirstRelatedPresentation = {
 
 export type ObservationFirstDetectionState = "detected" | "not_detected" | "not_assessable";
 
+export function isObservationDetectionEvidence(item: ObservationFirstCard): boolean {
+  if (item.state !== "active") return false;
+  return item.assertionStatus === "human_asserted"
+    || item.acceptedIdentification !== null
+    || item.communityIdentifications.length > 0
+    || item.aiSuggestions.length > 0;
+}
+
 export function resolveObservationFirstDetectionState(
-  activeObservationCount: number,
+  activeEvidenceObservationCount: number,
   aiAssessmentStatus: string | null | undefined,
   aiRequestStatus: string | null | undefined,
 ): ObservationFirstDetectionState | null {
-  if (activeObservationCount > 0) return "detected";
+  if (activeEvidenceObservationCount > 0) return "detected";
   if (aiAssessmentStatus === "completed_no_candidate") return "not_detected";
+  if (aiAssessmentStatus === "completed_not_assessable") return "not_assessable";
   if (aiRequestStatus === "failed") return "not_assessable";
   return null;
 }
