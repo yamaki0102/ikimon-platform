@@ -29326,17 +29326,49 @@ async function runScheduledObservationReassessments(env: Env): Promise<void> {
 
 async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> {
   const rows = await env.OBS_DB.prepare(
-    `SELECT rr.request_id, rr.observation_id, rr.actor_user_id, rr.request_state, rr.source_payload_json
-       FROM observation_reassessment_requests rr
-       JOIN observations o ON o.observation_id = rr.observation_id
-      WHERE rr.request_kind = 'standard' AND rr.request_state IN ('completed', 'failed')
-        AND o.visibility = 'public' AND o.emergency_hidden = 0
-        AND COALESCE(json_extract(rr.source_payload_json, '$.ruleVersion'), '') <> ?
-        AND EXISTS (SELECT 1 FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.processing_state = 'uploaded' AND a.mime LIKE 'image/%')
-      ORDER BY o.created_at DESC, o.observation_id DESC
-      LIMIT 30`
-  ).bind(GEMINI_OBSERVATION_RULE_VERSION).all<ObservationReassessmentRequestRow>();
+    `WITH latest_public AS (
+       SELECT o.observation_id, o.owner_user_id, o.created_at
+         FROM observations o
+        WHERE o.visibility = 'public' AND o.emergency_hidden = 0
+          AND EXISTS (SELECT 1 FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.processing_state = 'uploaded' AND a.mime LIKE 'image/%')
+        ORDER BY o.created_at DESC, o.observation_id DESC
+        LIMIT 30
+     )
+     SELECT rr.request_id, latest_public.observation_id, latest_public.owner_user_id,
+            rr.actor_user_id, rr.request_state, rr.source_payload_json
+       FROM latest_public
+       LEFT JOIN observation_reassessment_requests rr
+         ON rr.observation_id = latest_public.observation_id
+        AND rr.request_kind = 'standard'
+        AND rr.actor_user_id = latest_public.owner_user_id
+      ORDER BY latest_public.created_at DESC, latest_public.observation_id DESC`
+  ).all<ObservationReassessmentUpgradeTargetRow>();
   for (const row of rows.results) {
+    if (!row.request_id) {
+      const requestId = `reassess:${row.observation_id}:standard:${row.owner_user_id}`;
+      await env.OBS_DB.prepare(
+        `INSERT INTO observation_reassessment_requests (
+           request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json,
+           created_at, updated_at
+         ) VALUES (?, ?, 'standard', ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT(observation_id, request_kind, actor_user_id) DO NOTHING`
+      ).bind(
+        requestId,
+        row.observation_id,
+        row.owner_user_id,
+        JSON.stringify({
+          source: "latest_public_record_ai_upgrade_v2",
+          reason: "missing_reassessment_request",
+          executionStatus: "pending",
+          attemptCount: 0,
+          requestedRuleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+          requestedAt: new Date().toISOString(),
+        }),
+      ).run();
+      continue;
+    }
+    if (!row.source_payload_json || !["completed", "failed"].includes(row.request_state ?? "")) continue;
+    if (String(reassessmentPayload(row.source_payload_json).ruleVersion ?? "") === GEMINI_OBSERVATION_RULE_VERSION) continue;
     const source = reassessmentPayload(row.source_payload_json);
     delete source.batchExecution;
     const nextPayload = JSON.stringify({
@@ -29353,6 +29385,15 @@ async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> 
     ).bind(nextPayload, row.request_id, row.source_payload_json).run();
   }
 }
+
+type ObservationReassessmentUpgradeTargetRow = {
+  request_id: string | null;
+  observation_id: string;
+  owner_user_id: string;
+  actor_user_id: string | null;
+  request_state: string | null;
+  source_payload_json: string | null;
+};
 
 type ObservationReassessmentRequestRow = {
   request_id: string;
