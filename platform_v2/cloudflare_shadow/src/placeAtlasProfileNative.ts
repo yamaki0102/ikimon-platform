@@ -504,7 +504,7 @@ async function loadPlaceMembershipRows(
               (
                 SELECT COUNT(*)
                   FROM production_import_evidence_assets ea
-                 WHERE (ea.occurrence_id = o.occurrence_id OR ea.visit_id = v.visit_id)
+                 WHERE ea.visit_id = v.visit_id
                    AND ea.asset_role IN (
                      'observation_photo',
                      'observation_photo_original',
@@ -1371,7 +1371,7 @@ async function buildRecordsForGeometry(
       rowsByRecord.set(row.visit_id, row);
       return;
     }
-    const primary = row.observed_at.localeCompare(current.observed_at) > 0 ? row : current;
+    const primary = row.observed_at > current.observed_at ? row : current;
     const secondary = primary === row ? current : row;
     rowsByRecord.set(row.visit_id, {
       ...primary,
@@ -1393,7 +1393,13 @@ async function buildRecordsForGeometry(
   }
   const mergedComplete = rowsByRecord.size <= MAX_SNAPSHOT_ROWS;
   const scoped = [...rowsByRecord.values()]
-    .sort((left, right) => right.observed_at.localeCompare(left.observed_at))
+    .sort((left, right) =>
+      left.observed_at < right.observed_at
+        ? 1
+        : left.observed_at > right.observed_at
+          ? -1
+          : 0
+    )
     .slice(0, MAX_SNAPSHOT_ROWS);
   const photoIds = [...new Set(scoped.flatMap((row) => [row.visit_id, row.occurrence_id]))];
   const [photos, themes] = await Promise.all([

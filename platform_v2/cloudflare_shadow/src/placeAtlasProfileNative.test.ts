@@ -80,6 +80,8 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
       assert.match(this.query, /withdrawal_status = 'active'/);
       assert.match(this.query, /membership_state = 'confirmed'/);
       assert.match(this.query, /removed_at IS NULL/);
+      assert.match(this.query, /WHERE ea\.visit_id = v\.visit_id/);
+      assert.doesNotMatch(this.query, /ea\.occurrence_id\s*=\s*o\.occurrence_id\s+OR/);
       const requestedPlaceId = String(this.values[0] ?? "");
       return {
         results: (this.data.membershipRecords ?? [])
