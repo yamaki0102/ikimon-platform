@@ -1,0 +1,63 @@
+{
+  "version": "universal_place_atlas_migration_rehearsal/v1",
+  "generatedAt": "2026-07-23T22:13:46.8480884+09:00",
+  "environment": "wrangler-d1-local-staging-config",
+  "remoteDatabaseMutated": false,
+  "migration": "platform_v2/cloudflare_shadow/migrations/observations/0068_universal_place_atlas.sql",
+  "freshDatabase": {
+    "status": "passed",
+    "allMigrationsApplied": true,
+    "pendingMigrationsAfterApply": 0,
+    "verifiedTables": [
+      "places",
+      "place_atlas_rollout_state",
+      "place_boundaries",
+      "record_place_memberships",
+      "record_theme_assertions"
+    ]
+  },
+  "existingDatabase": {
+    "status": "passed",
+    "evidenceTest": "platform_v2/src/services/placeAtlasMigration.test.ts",
+    "privateMemoryPreserved": true,
+    "publicOptInDefault": 0,
+    "moderationDefault": "not_submitted",
+    "attributionDefault": "anonymous"
+  },
+  "canarySeed": {
+    "status": "passed",
+    "wranglerCompatibleSql": true,
+    "firstRun": {
+      "commandsExecuted": 31,
+      "places": 4,
+      "aliases": 10,
+      "sources": 9,
+      "boundaries": 4,
+      "policies": 4
+    },
+    "secondRun": {
+      "commandsExecuted": 31,
+      "places": 4,
+      "aliases": 10,
+      "sources": 9,
+      "boundaries": 4,
+      "policies": 4
+    },
+    "idempotent": true
+  },
+  "forwardRollback": {
+    "status": "passed",
+    "rolloutEnabledBefore": 1,
+    "membershipsBefore": 1,
+    "rolloutEnabledAfter": 0,
+    "enabledPlaceKindsAfter": [],
+    "updatedBy": "forward_rollback",
+    "membershipsAfter": 1,
+    "evidencePreserved": true
+  },
+  "notes": [
+    "The generated seed intentionally omits explicit BEGIN/COMMIT because Wrangler D1 execute rejects transaction wrapper statements.",
+    "Seed statements are independently replay-safe through stable identifiers and ON CONFLICT upserts.",
+    "No staging or production D1 database was changed during this rehearsal."
+  ]
+}

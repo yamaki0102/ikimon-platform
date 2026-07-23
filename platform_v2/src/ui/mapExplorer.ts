@@ -1123,6 +1123,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
   const apiPlaceProfile = withBasePath(props.basePath, "/api/v1/map/place-profile");
+  const apiPlaceSearch = withBasePath(props.basePath, "/api/v1/map/place-search");
   const apiMyObservations = withBasePath(props.basePath, "/api/v1/map/my-observations");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
@@ -1384,6 +1385,11 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       value: "school",
       label: lang === "ja" ? "学校・キャンパス" : lang === "es" ? "Escuelas/campus" : lang === "pt-BR" ? "Escolas/campus" : "Schools/campuses",
       icon: "🏫",
+    },
+    {
+      value: "osm_named_area",
+      label: lang === "ja" ? "施設・観光・文化" : lang === "es" ? "Instalaciones/turismo" : lang === "pt-BR" ? "Instalações/turismo" : "Facilities/tourism",
+      icon: "🏛️",
     },
     {
       value: "protected_area,oecm,osm_park,user_defined",
@@ -1681,7 +1687,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-place-profile="${escapeHtml(apiPlaceProfile)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-gbif-area-summary="${escapeHtml(apiGbifAreaSummary)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-api-walk-map-candidates="${escapeHtml(apiWalkMapCandidates)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-place-profile="${escapeHtml(apiPlaceProfile)}" data-api-place-search="${escapeHtml(apiPlaceSearch)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-gbif-area-summary="${escapeHtml(apiGbifAreaSummary)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-api-walk-map-candidates="${escapeHtml(apiWalkMapCandidates)}"></div>
         ${startPanelHtml}
         <section class="me-purpose-hint" id="me-purpose-hint" data-testid="map-purpose-hint" aria-label="${escapeHtml(copy.purposeHintTitle)}" aria-hidden="true" hidden>
           <button type="button" class="me-purpose-hint-close" id="me-purpose-hint-close" aria-label="${escapeHtml(copy.purposeHintDismiss)}">×</button>
@@ -1849,6 +1855,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiCells = root.getAttribute('data-api-cells') || '';
   var apiObservations = root.getAttribute('data-api-observations') || '';
   var apiPlaceProfile = root.getAttribute('data-api-place-profile') || '';
+  var apiPlaceSearch = root.getAttribute('data-api-place-search') || '';
   var apiMyObservations = root.getAttribute('data-api-my-observations') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
   var apiTraces = root.getAttribute('data-api-traces') || '';
@@ -2509,7 +2516,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var overlayState = {};
   overlayCatalog.forEach(function (o) { overlayState[o.id] = { enabled: false, opacity: o.defaultOpacity }; });
   var AREA_SOURCE_VALUES = [
-    'nature_symbiosis_site', 'tsunag', 'school',
+    'nature_symbiosis_site', 'tsunag', 'school', 'osm_named_area',
     'protected_area', 'oecm', 'osm_park', 'user_defined',
   ];
   var VIEWPORT_RECORD_LIMIT = 600;
@@ -2555,6 +2562,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaPolygonsAbort: null,
     guideSpotsAbort: null,
     areaPolygonsDebounce: null,
+    namedAreaDiscoveryUntil: 0,
+    pendingPlaceSearchRef: null,
     viewportRefreshTimer: null,
     waterwayAbort: null,
     waterwayDebounce: null,
@@ -2819,6 +2828,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       }
     } catch (_) {}
   }
+
+  document.addEventListener('ikimon:place-atlas-image-error', function (event) {
+    var detail = event && event.detail ? event.detail : {};
+    sendMapKpi('place_image_error', 'map:place_atlas:image_error', {
+      src: String(detail.src || '').slice(0, 256)
+    });
+  });
+  document.addEventListener('ikimon:place-atlas-theme-open', function (event) {
+    var detail = event && event.detail ? event.detail : {};
+    if (detail.open === false) return;
+    sendMapKpi('place_theme_open', 'map:place_atlas:theme:' + String(detail.theme || 'unknown'), {
+      theme: String(detail.theme || 'unknown').slice(0, 80)
+    });
+  });
 
   function trackAreaDetailOpen(kind, props) {
     var p = props || {};
@@ -3092,6 +3115,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function areaSourcesQueryValueForMap() {
     var sources = normalizeAreaSources(state.areaSources);
+    var zoom = state.map && typeof state.map.getZoom === 'function' ? Number(state.map.getZoom()) : 0;
+    if (
+      Number(state.namedAreaDiscoveryUntil || 0) > Date.now() &&
+      zoom >= 12.5 &&
+      sources.indexOf('osm_named_area') < 0
+    ) {
+      sources.push('osm_named_area');
+    }
     if (state.tab === 'heatmap' && sources.length && sources.indexOf('osm_park') < 0) {
       sources.push('osm_park');
     }
@@ -5226,6 +5257,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     placeAtlasAbort = controller;
     var seq = ++placeAtlasSeq;
     var refKey = placeAtlasRefKey(ref);
+    var requestStartedAt = typeof performance !== 'undefined' && performance.now
+      ? performance.now()
+      : Date.now();
     context.placeAtlasProfile = null;
     context.placeAtlasStatus = 'loading';
     context.placeAtlasRefKey = refKey;
@@ -5251,6 +5285,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (!payload || !payload.profile || payload.profile.version !== 1) throw new Error('place_atlas_contract');
         selected.placeAtlasProfile = payload.profile;
         selected.placeAtlasStatus = 'success';
+        var completedAt = typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+        sendMapKpi('place_profile_open', 'map:place_atlas:profile_open', {
+          placeKind: String(payload.profile && payload.profile.place && payload.profile.place.type || ref.kind || 'place').slice(0, 80),
+          publicationStatus: String(payload.profile && payload.profile.publication && payload.profile.publication.status || 'partial').slice(0, 40),
+          latencyMs: Math.max(0, Math.round(completedAt - requestStartedAt)),
+          source: 'place_profile_api'
+        });
         rerenderPlaceAtlasSelection();
       })
       .catch(function (error) {
@@ -5886,15 +5929,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var guidance = a.accessGuidance || {};
     var guidanceStatus = String(guidance.status || a.access_status || '').toLowerCase();
     var access = String(a.access || a.accessStatus || '').toLowerCase();
+    var recordingPolicy = String(a.recording_policy || a.recordingPolicy || '').toLowerCase();
+    var ctaMode = String(a.contribution_cta_mode || a.contributionCtaMode || '').toLowerCase();
+    if (recordingPolicy === 'prohibited' || recordingPolicy === 'permission_required' || ctaMode === 'suppressed') {
+      return 'private_or_restricted';
+    }
+    if (recordingPolicy === 'customers_only' || recordingPolicy === 'check_rules' || recordingPolicy === 'unknown' || ctaMode === 'check_rules') {
+      return 'unknown';
+    }
+    if (recordingPolicy === 'allowed' && ctaMode === 'record') return 'public_access';
     if (guidanceStatus === 'private_or_restricted' || access === 'private' || access === 'no' || access === 'restricted') {
       return 'private_or_restricted';
     }
     if (guidanceStatus === 'public_access' || access === 'yes' || access === 'public' || access === 'permissive') {
-      return 'public_access';
-    }
-    var verification = String(a.verificationLevel || a.verification_level || '').toLowerCase();
-    var confidence = Number(a.sourceConfidence || a.source_confidence || 0);
-    if (/^(registry_matched|page_verified|owner_verified|staff_verified)$/.test(verification) || confidence >= 0.75) {
       return 'public_access';
     }
     return 'unknown';
@@ -5905,7 +5952,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function canSuggestDirectAreaRecord(area, masking) {
-    return areaAccessStatus(area, masking) === 'public_access';
+    var a = area || {};
+    return String(a.recording_policy || a.recordingPolicy || '').toLowerCase() === 'allowed'
+      && String(a.contribution_cta_mode || a.contributionCtaMode || '').toLowerCase() === 'record'
+      && areaAccessStatus(area, masking) === 'public_access';
   }
 
   function renderAreaSafetyNotice(area, masking) {
@@ -8308,6 +8358,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           'tsunag', 'rgba(20,184,166,0.18)',
           'school', 'rgba(245,158,11,0.16)',
           'osm_park', 'rgba(56,189,248,0.14)',
+          'osm_named_area', 'rgba(139,92,246,0.14)',
           'admin_municipality', 'rgba(148,163,184,0.10)',
           'admin_prefecture', 'rgba(148,163,184,0.08)',
           'admin_country', 'rgba(148,163,184,0.06)',
@@ -8377,7 +8428,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         ['!', ['in', ['get', 'access'], ['literal', ['private', 'no', 'restricted']]]],
         ['any',
           ['all',
-            ['match', ['get', 'source'], ['osm_park', 'protected_area'], true, false],
+            ['match', ['get', 'source'], ['osm_park', 'protected_area', 'osm_named_area'], true, false],
             ['any',
               ['in', ['get', 'access'], ['literal', ['yes', 'public', 'permissive']]],
               ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]],
@@ -8407,6 +8458,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           'match', ['get', 'source'],
           'school', '#8a6a16',
           'osm_park', '#0f766e',
+          'osm_named_area', '#6d28d9',
           'protected_area', '#047857',
           'oecm', '#4d7c0f',
           'nature_symbiosis_site', '#047857',
@@ -8438,6 +8490,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           'match', ['get', 'source'],
           'school', '#8a6a16',
           'osm_park', '#0f766e',
+          'osm_named_area', '#6d28d9',
           'protected_area', '#047857',
           'oecm', '#4d7c0f',
           'nature_symbiosis_site', '#047857',
@@ -8517,6 +8570,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (src) src.setData(collection);
         applyTab(state.map, state.tab);
         refreshAreaBadgeMarkers();
+        if (state.pendingPlaceSearchRef) {
+          var pendingRef = state.pendingPlaceSearchRef;
+          var pendingMatch = state.areaPolygonFeatures.find(function (feature) {
+            var props = feature && feature.properties ? feature.properties : {};
+            if (pendingRef.canonicalPlaceId && String(props.canonical_place_id || '') === pendingRef.canonicalPlaceId) return true;
+            return pendingRef.osmType
+              && pendingRef.osmId
+              && String(props.osm_type || '') === pendingRef.osmType
+              && String(props.osm_id || '') === pendingRef.osmId;
+          });
+          if (pendingMatch) {
+            state.pendingPlaceSearchRef = null;
+            var pendingOrigin = state.nearbyAreaOrigin || { lat: 0, lng: 0 };
+            openAreaFeatureSheet(pendingMatch, pendingOrigin.lat, pendingOrigin.lng);
+          }
+        }
       })
       .catch(function (err) { if (err && err.name === 'AbortError') return; });
   }
@@ -9816,6 +9885,23 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       artwork: '作品',
       monument: '記念碑',
       museum: '博物館',
+      theme_park: 'テーマパーク',
+      shopping_mall: 'ショッピングモール',
+      commercial_complex: '商業施設',
+      zoo: '動物園',
+      aquarium: '水族館',
+      stadium: 'スタジアム',
+      sports_facility: 'スポーツ施設',
+      resort: 'リゾート',
+      market: '市場',
+      farm: '農園',
+      temple_shrine: '寺社',
+      cultural_facility: '文化施設',
+      public_facility: '公共施設',
+      event_venue: 'イベント会場',
+      neighborhood: '地域',
+      administrative_area: '行政区域',
+      other_named_area: '名前のある場所',
       school: '学校',
       university: '大学',
       river: '川',
@@ -9945,11 +10031,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var name = row.display_name || row.name || '';
       var typeLabel = placeTypeLabel(row.type || row.category || row.class || '');
       var inCurrentBounds = placeRowInCurrentBounds(row);
+      var verificationLabel = row.canonical_place_id
+        ? (/^(verified|source_verified|administrator_verified)$/.test(String(row.verification_status || ''))
+          ? (SEARCH_LANG === 'ja' ? '確認済み' : 'verified')
+          : (SEARCH_LANG === 'ja' ? '未確認' : 'unverified'))
+        : '';
       return {
         kind: 'place',
         badge: COPY.searchResultPlace,
         title: name,
-        subtitle: [typeLabel, inCurrentBounds ? COPY.searchGroupCurrent : COPY.searchGroupOther].filter(Boolean).join(' · '),
+        subtitle: [typeLabel, row.locality_label || '', verificationLabel, inCurrentBounds ? COPY.searchGroupCurrent : COPY.searchGroupOther].filter(Boolean).join(' · '),
         inCurrentBounds: inCurrentBounds,
         onSelect: function () {
           if (!row || !state.map) return;
@@ -9957,12 +10048,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           var lng = Number(row.lon);
           if (!isFinite(lat) || !isFinite(lng)) return;
           state.tab = 'places';
+          state.namedAreaDiscoveryUntil = Date.now() + 60 * 1000;
+          state.pendingPlaceSearchRef = row.canonical_place_id ? {
+            canonicalPlaceId: String(row.canonical_place_id),
+            osmType: String(row.osm_type || ''),
+            osmId: String(row.osm_id || '')
+          } : null;
           state.nearbyAreaOrigin = safePlaceSearchOrigin(row, lat, lng);
           state.nearbyAreaLocateMovePending = true;
           syncUiFromState();
           applyTab(state.map, state.tab);
           var sensitivePlaceSearch = isSensitivePlaceSearchRow(row);
-          var targetZoom = 12;
+          var targetZoom = sensitivePlaceSearch ? 12 : 14;
           var currentCenter = typeof state.map.getCenter === 'function' ? state.map.getCenter() : null;
           var currentZoom = typeof state.map.getZoom === 'function' ? state.map.getZoom() : NaN;
           var staysInPlace = currentCenter
@@ -10003,10 +10100,59 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  function canonicalPlaceRows(payload) {
+    var results = payload && Array.isArray(payload.results) ? payload.results : [];
+    return results.map(function (place) {
+      var bbox = place && place.boundary && Array.isArray(place.boundary.bbox)
+        ? place.boundary.bbox.map(Number)
+        : null;
+      var validBbox = bbox && bbox.length === 4 && bbox.every(isFinite);
+      var sourceId = String(place && place.osmSourceId || '');
+      var osmMatch = /^(node|way|relation)[:/](\d+)$/.exec(sourceId);
+      return {
+        display_name: String(place.canonicalName || ''),
+        type: String(place.placeKind || ''),
+        lat: validBbox ? String((bbox[1] + bbox[3]) / 2) : '',
+        lon: validBbox ? String((bbox[0] + bbox[2]) / 2) : '',
+        boundingbox: validBbox ? [bbox[1], bbox[3], bbox[0], bbox[2]].map(String) : null,
+        canonical_place_id: String(place.canonicalPlaceId || ''),
+        locality_label: String(place.localityLabel || ''),
+        verification_status: String(place.verificationStatus || ''),
+        official_status: String(place.officialStatus || ''),
+        osm_type: osmMatch ? osmMatch[1] : '',
+        osm_id: osmMatch ? osmMatch[2] : '',
+      };
+    }).filter(function (row) {
+      return row.display_name && isFinite(Number(row.lat)) && isFinite(Number(row.lon));
+    });
+  }
+
+  function mergePlaceSearchCandidates(canonicalRows, nominatimRows) {
+    var out = [];
+    var seen = {};
+    (canonicalRows || []).concat(nominatimRows || []).forEach(function (row) {
+      var nameKey = normalizeSearchText(row && (row.display_name || row.name || ''))
+        .replace(/[\s　・･'’"()（）_-]+/g, '');
+      var lat = Number(row && row.lat);
+      var lng = Number(row && row.lon);
+      var spatialKey = isFinite(lat) && isFinite(lng)
+        ? String(Math.round(lat * 1000)) + ':' + String(Math.round(lng * 1000))
+        : '';
+      var key = nameKey + '|' + spatialKey;
+      if (!nameKey || seen[key]) return;
+      seen[key] = true;
+      out.push(row);
+    });
+    return out.slice(0, 8);
+  }
+
   function runUnifiedSearch(query) {
     if (!searchResultsEl) return;
     var trimmed = String(query || '').trim();
     var seq = ++searchSeq;
+    var searchStartedAt = typeof performance !== 'undefined' && performance.now
+      ? performance.now()
+      : Date.now();
     var localRows = buildSpeciesSearchRows(trimmed);
     if (!trimmed || trimmed.length < 2) {
       closeSearchResults();
@@ -10029,15 +10175,39 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
     params.set('email', 'ops@ikimon.life');
 
-    fetch(NOMINATIM_URL + '?' + params.toString(), {
+    var registryPromise = apiPlaceSearch
+      ? fetch(apiPlaceSearch + '?q=' + encodeURIComponent(trimmed) + '&limit=5', {
+          credentials: 'same-origin',
+          headers: { 'Accept': 'application/json' },
+          signal: controller ? controller.signal : undefined,
+        }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+      : Promise.resolve(null);
+    var nominatimPromise = fetch(NOMINATIM_URL + '?' + params.toString(), {
       headers: { 'Accept': 'application/json' },
       signal: controller ? controller.signal : undefined,
-    })
-      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('nominatim ' + r.status)); })
-      .then(function (rows) {
+    }).then(function (r) { return r.ok ? r.json() : null; }).catch(function (err) {
+      if (err && err.name === 'AbortError') throw err;
+      return null;
+    });
+
+    Promise.all([registryPromise, nominatimPromise])
+      .then(function (resolved) {
         if (seq !== searchSeq) return;
-        var placeRows = buildPlaceSearchRows(rows);
+        var registryRows = canonicalPlaceRows(resolved[0]);
+        var candidates = mergePlaceSearchCandidates(registryRows, Array.isArray(resolved[1]) ? resolved[1] : []);
+        var placeRows = buildPlaceSearchRows(candidates);
         var merged = groupSearchRows(localRows, placeRows);
+        var searchCompletedAt = typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+        sendMapKpi('place_search_complete', 'map:place_search:complete', {
+          queryLength: trimmed.length,
+          canonicalCount: registryRows.length,
+          placeCount: placeRows.length,
+          localCount: localRows.length,
+          latencyMs: Math.max(0, Math.round(searchCompletedAt - searchStartedAt)),
+          state: merged.length ? 'complete' : 'empty'
+        });
         if (!merged.length) {
           renderSearchRows([]);
           return;

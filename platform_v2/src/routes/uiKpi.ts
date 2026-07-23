@@ -10,6 +10,10 @@ type UiKpiBody = {
     | "read_depth"
     | "primary_cta_click"
     | "map_area_detail_open"
+    | "place_profile_open"
+    | "place_theme_open"
+    | "place_image_error"
+    | "place_search_complete"
     | "selected_place_cta_click"
     | "funnel_step"
     | "funnel_error";

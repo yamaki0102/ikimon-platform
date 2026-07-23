@@ -627,7 +627,7 @@ test("locate action highlights nearby discoverable places on the map", () => {
   assert.match(script, /if \(origin && state\.areaPolygonsLoaded\) setStatus\(COPY\.nearbyAreasNoneStatus\);/);
   assert.match(script, /refreshNearbyAreaMarkers\(state\.nearbyAreaOrigin\)/);
   assert.match(script, /openAreaFeatureSheet\(feature, center\.lat, center\.lng\)/);
-  assert.match(script, /function canSuggestDirectAreaRecord\(area, masking\) \{\s*return areaAccessStatus\(area, masking\) === 'public_access';\s*\}/);
+  assert.match(script, /function canSuggestDirectAreaRecord\(area, masking\) \{[\s\S]*?recording_policy[\s\S]*?=== 'allowed'[\s\S]*?contribution_cta_mode[\s\S]*?=== 'record'/);
   assert.match(script, /renderAreaObservationGallery\(gallery, \{ label: COPY\.areaGalleryTitle, canRecord: canRecord, areaStatus: accessStatus \}\)/);
   assert.match(script, /COPY\.areaGalleryEmptySchoolLead/);
   assert.match(script, /me-nearby-area-marker/);
@@ -696,6 +696,11 @@ test("map UX interactions emit area open and selected-place CTA KPI events", () 
   assert.match(script, /var UI_KPI_ENDPOINT = "\/api\/v1\/ui-kpi\/events"/);
   assert.match(script, /function sendMapKpi\(eventName, actionKey, metadata\)/);
   assert.match(script, /map_area_detail_open/);
+  assert.match(script, /place_profile_open/);
+  assert.match(script, /place_theme_open/);
+  assert.match(script, /place_image_error/);
+  assert.match(script, /place_search_complete/);
+  assert.match(script, /latencyMs/);
   assert.match(script, /trackAreaDetailOpen\('transient_area', props\)/);
   assert.match(script, /trackAreaDetailOpen\('registered_area'/);
   assert.match(script, /data-kpi-event="selected_place_cta_click"/);
@@ -952,6 +957,22 @@ test("unified search separates current-area and other-area results", () => {
   assert.match(script, /COPY\.searchRecentPrefix/);
   assert.match(script, /Number\(btn\.getAttribute\('data-idx'\)\)/);
   assert.match(styles, /\.me-search-group-heading/);
+});
+
+test("unified search prefers canonical registry aliases and keeps Nominatim as a bounded fallback", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(html, /data-api-place-search="\/api\/v1\/map\/place-search"/);
+  assert.match(script, /function canonicalPlaceRows\(payload\)/);
+  assert.match(script, /place\.osmSourceId/);
+  assert.match(script, /function mergePlaceSearchCandidates\(canonicalRows, nominatimRows\)/);
+  assert.match(script, /Promise\.all\(\[registryPromise, nominatimPromise\]\)/);
+  assert.match(script, /verification_status/);
+  assert.match(script, /pendingPlaceSearchRef/);
+  assert.match(script, /props\.canonical_place_id/);
+  assert.match(script, /props\.osm_type/);
+  assert.match(script, /props\.osm_id/);
 });
 
 test("place search selection opens the area encyclopedia around the result", () => {
@@ -1275,7 +1296,7 @@ test("area density and labels are staged by zoom instead of appearing all at onc
   assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?minzoom: 13\.2/);
   assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?maxzoom: 15\.35/);
   assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?\['!', \['in', \['get', 'access'\], \['literal', \['private', 'no', 'restricted'\]\]\]\]/);
-  assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?\['match', \['get', 'source'\], \['osm_park', 'protected_area'\], true, false\]/);
+  assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?\['match', \['get', 'source'\], \['osm_park', 'protected_area', 'osm_named_area'\], true, false\]/);
   assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?\['match', \['get', 'source'\], \['oecm', 'nature_symbiosis_site'\], true, false\]/);
   assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?\['>=', \['coalesce', \['get', 'area_ha'\], 0\], 35\]/);
   assert.doesNotMatch(script, /id: 'area-polygon-name-priority'[\s\S]*?\['school', 'osm_park'/);

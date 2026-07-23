@@ -63,6 +63,15 @@ function fixture(overrides: Partial<PlaceAtlasProfile> = {}): PlaceAtlasProfile 
     },
     memories: [],
     facilities: [{ kind: "toilet", label: "トイレ" }],
+    policy: {
+      placeVisibility: "public",
+      recordingPolicy: "allowed",
+      publicLocationMode: "place",
+      contributionCtaMode: "record",
+      ruleSource: "administrator",
+      ruleUrl: "https://example.test/tokiwa/rules",
+      reason: "verified_recording_policy",
+    },
     dataGaps: [{
       key: "history",
       label: "歴史・物語",
@@ -108,7 +117,7 @@ test("place atlas renderer leads with place, representative media, safe summary,
   assert.doesNotMatch(html, /緯度|経度|exact_lat|exact_lng/);
 });
 
-test("place atlas renderer keeps imported display derivatives on their public R2 route", () => {
+test("place atlas renderer sends imported display derivatives through the canonical responsive transform", () => {
   const importedUrl = "/derived/import/20260615/observation_photo/asset-1/display.webp";
   const html = renderMapPlaceAtlasProfile(fixture({
     place: {
@@ -125,11 +134,13 @@ test("place atlas renderer keeps imported display derivatives on their public R2
     }],
   }), options);
 
-  assert.match(html, /src="\/derived\/import\/20260615\/observation_photo\/asset-1\/display\.webp"/);
-  assert.doesNotMatch(html, /\/derived-transform\/w(?:360|680)\/derived\/import\//);
+  assert.match(html, /src="\/derived-transform\/w680\/derived\/import\/20260615\/observation_photo\/asset-1\/display\.webp"/);
+  assert.match(html, /src="\/derived-transform\/w360\/derived\/import\/20260615\/observation_photo\/asset-1\/display\.webp"/);
+  assert.match(html, /srcset="\/derived-transform\/w360\/derived\/import\/.+? 360w, \/derived-transform\/w680\/derived\/import\/.+? 680w, \/derived-transform\/w1020\/derived\/import\/.+? 1020w, \/derived-transform\/w1360\/derived\/import\/.+? 1360w"/);
+  assert.match(html, /sizes="\(max-width: 767px\) 100vw, 680px"/);
 });
 
-test("place atlas imported media bypass stays limited to sanitized display derivatives", () => {
+test("place atlas imported media accepts only sanitized paths and never bypasses the transform", () => {
   const unsafeUrl = "/derived/import/20260615/observation_photo/asset-1/display.webp\n.svg";
   const rawImportUrl = "/derived/import/20260615/observation_photo/asset-1/original.jpg";
   const html = renderMapPlaceAtlasProfile(fixture({
@@ -169,6 +180,27 @@ test("place atlas renderer never turns unknown counts into zero or a false empty
   assert.match(html, /未確認/);
 });
 
+test("place atlas renders sourced activities and stories without turning them into reviews", () => {
+  const html = renderMapPlaceAtlasProfile(fixture({
+    activities: [{
+      title: "観察会",
+      temporalState: "ended",
+      source: { url: "https://example.test/event" },
+    }],
+    stories: [{
+      title: "公園の由来",
+      body: "自治体資料で確認された内容です。",
+      source: { url: "https://example.test/history" },
+    }],
+  }), options);
+  assert.match(html, /出来事・活動/);
+  assert.match(html, /観察会/);
+  assert.match(html, /ended/);
+  assert.match(html, /歴史・物語/);
+  assert.match(html, /自治体資料で確認された内容です。/);
+  assert.doesNotMatch(html, /★|rating|レビュー点数/);
+});
+
 test("suppressed and empty profiles have explicit states without oversized empty theme cards", () => {
   const profile = fixture({
     facets: [],
@@ -195,6 +227,24 @@ test("suppressed and empty profiles have explicit states without oversized empty
   assert.doesNotMatch(html, /map:place_atlas:record_here/);
   assert.match(html, /map:place_atlas:browse_records/);
   assert.match(html, /一部の情報を表示していません/);
+});
+
+test("unknown venue rules show check guidance without a direct contribution CTA", () => {
+  const html = renderMapPlaceAtlasProfile(fixture({
+    policy: {
+      placeVisibility: "public",
+      recordingPolicy: "check_rules",
+      publicLocationMode: "place",
+      contributionCtaMode: "check_rules",
+      ruleSource: "osm_access",
+      ruleUrl: null,
+      reason: "osm_access_does_not_imply_recording_permission",
+    },
+  }), options);
+
+  assert.match(html, /撮影・記録の前に、施設の案内と現地ルールを確認/);
+  assert.doesNotMatch(html, /map:place_atlas:record_here/);
+  assert.match(html, /施設ルール・出典/);
 });
 
 test("untrusted names and external-looking record hrefs are escaped or rejected", () => {
@@ -230,12 +280,30 @@ test("loading and error states are distinct and accessible", () => {
 });
 
 test("runtime is valid JavaScript and styles cover touch, focus, mobile peek, and reduced motion", () => {
-  assert.doesNotThrow(() => new vm.Script(MAP_PLACE_ATLAS_PROFILE_RUNTIME));
+  const html = renderMapPlaceAtlasProfile(fixture(), options);
+  const context = vm.createContext({ URL });
+  assert.doesNotThrow(() => new vm.Script(MAP_PLACE_ATLAS_PROFILE_RUNTIME).runInContext(context));
+  const runtime = (context as {
+    MapPlaceAtlasProfile?: {
+      render: (profile: PlaceAtlasProfile, renderOptions: typeof options) => string;
+    };
+  }).MapPlaceAtlasProfile;
+  assert.ok(runtime);
+  const runtimeHtml = runtime.render(fixture(), options);
+  assert.match(runtimeHtml, /data-place-atlas-theme="nature"/);
+  assert.match(runtimeHtml, /施設ルール・出典/);
+  assert.match(runtimeHtml, /公式ルール/);
+  assert.match(html, /data-place-atlas-theme="nature"/);
+  assert.match(html, /role="button" tabindex="0" aria-pressed="false"/);
+  assert.match(MAP_PLACE_ATLAS_PROFILE_RUNTIME, /ikimon:place-atlas-image-error/);
+  assert.match(MAP_PLACE_ATLAS_PROFILE_RUNTIME, /ikimon:place-atlas-theme-open/);
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /min-height: 46px/);
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /:focus-visible/);
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /data-snap="peek"/);
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /prefers-reduced-motion: reduce/);
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /min-width: 0/);
+  assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /me-place-atlas-image-fallback/);
+  assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /is-image-error > \.me-place-atlas-image-fallback/);
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /@media \(min-width: 1280px\)/);
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /@media \(max-width: 900px\)/);
   assert.doesNotMatch(MAP_PLACE_ATLAS_PROFILE_STYLES, /@platform_v2|observationMedia\.ts/);

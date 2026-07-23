@@ -1,0 +1,44 @@
+{
+  "version": "record_place_backfill_report/v1",
+  "calculationVersion": "universal_place_membership/v1",
+  "themeRuleVersion": "record_theme_rules/v1",
+  "dryRun": true,
+  "inputRows": 94,
+  "uniqueRecords": 94,
+  "sourceOccurrenceCount": 255,
+  "recordsWithExactLocation": 94,
+  "recordsWithoutExactLocation": 0,
+  "recordsMatched": 85,
+  "confirmedMemberships": 70,
+  "candidateMemberships": 15,
+  "ambiguousRecords": 15,
+  "skippedReasons": {
+    "outside_all_boundaries": 9
+  },
+  "sourceRecordsMutated": false,
+  "membershipCountsByPlace": {
+    "plc_1dac5b52233720ee": 56,
+    "plc_e3293ec4bb9288a0": 29
+  },
+  "membershipBreakdownByPlace": {
+    "plc_1dac5b52233720ee": {
+      "records": 56,
+      "confirmed": 54,
+      "candidate": 2,
+      "publicRecords": 56,
+      "sourceOccurrences": 150
+    },
+    "plc_e3293ec4bb9288a0": {
+      "records": 29,
+      "confirmed": 16,
+      "candidate": 13,
+      "publicRecords": 29,
+      "sourceOccurrences": 81
+    }
+  },
+  "themeCounts": {
+    "nature": 94
+  },
+  "recordIdsIncluded": false,
+  "exactCoordinatesIncluded": false
+}
