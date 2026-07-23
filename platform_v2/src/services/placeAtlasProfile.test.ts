@@ -277,4 +277,3 @@ test("builds a public-cell profile and keeps AI candidates provisional", async (
   assert.ok(profile.recentRecords.some((record) => record.identificationStatus === "ai_candidate"));
   assert.equal(profile.summary.contributorCount, null);
 });
-

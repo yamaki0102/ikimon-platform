@@ -1,6 +1,6 @@
 # Map Place Atlas Profile Specification
 
-Status: implementation target
+Status: MVP implemented; release gates pending
 Contract version: `place_atlas_profile/v1`
 Baseline: `2a93c8983e2c836b847730bd77f9ff964c0404a0`
 Issue: [#1418](https://github.com/yamaki0102/ikimon-platform/issues/1418)
@@ -277,3 +277,10 @@ Occurrence件数をRecord件数へ流用しない。関連移行は #1376 を上
 - 常磐公園相当fixture、desktop side panel、mobile bottom sheet
 - CTA href/KPI、keyboard、focus-visible、safe-area、horizontal overflow
 - widths: 375、390前後、768、1024、1280、1440以上
+
+## Local validation evidence
+
+2026-07-23の実装完了時点で、Node 1,363件、Cloudflare Worker 386件の全テスト、
+両runtimeのtypecheck、production dependency auditを通過した。常磐公園相当fixtureを使う
+Playwrightは375 / 390 / 768 / 1024 / 1280 / 1536pxとAPI failureの7ケースを通過した。
+画面証跡と観点は [`evidence/README.md`](./evidence/README.md) に固定する。

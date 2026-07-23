@@ -100,15 +100,16 @@ test("map explorer localizes English fallback and failure chrome", () => {
   assert.doesNotMatch(html, /詳細を広げる/);
 });
 
-test("selected place and cell details replace static story with site brief", () => {
+test("selected raw points keep site brief while stable cells use place atlas", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const selectedCardStart = script.indexOf("function renderSelectedCard()");
   const selectedPlaceBody = script.slice(
-    script.indexOf("if (context.kind === 'place')"),
-    script.indexOf("if (context.kind === 'cell')"),
+    script.indexOf("if (context.kind === 'place')", selectedCardStart),
+    script.indexOf("if (context.kind === 'cell')", selectedCardStart),
   );
   const selectedCellBody = script.slice(
-    script.indexOf("if (context.kind === 'cell')"),
-    script.indexOf("var record = context.record"),
+    script.indexOf("if (context.kind === 'cell')", selectedCardStart),
+    script.indexOf("var record = context.record", selectedCardStart),
   );
   const openCellBody = script.slice(
     script.indexOf("function openCellSheet"),
@@ -121,8 +122,8 @@ test("selected place and cell details replace static story with site brief", () 
 
   assert.match(script, /function renderSiteBriefSlot\(slotId, context\)/);
   assert.match(selectedPlaceBody, /renderSiteBriefSlot\('me-selected-brief-slot', context\)/);
-  assert.match(selectedCellBody, /renderSiteBriefSlot\('me-selected-brief-slot', context\)/);
-  assert.match(openCellBody, /renderSiteBriefSlot\('me-site-brief-slot', detailContext\)/);
+  assert.match(selectedCellBody, /renderPlaceAtlasContent\(context, ''\)/);
+  assert.match(openCellBody, /renderPlaceAtlasContent\(detailContext, ''\)/);
   assert.match(openPlaceBody, /renderSiteBriefSlot\('me-site-brief-slot', detailContext\)/);
   assert.match(script, /data-brief-fallback/);
   assert.match(script, /target\.removeAttribute\('data-brief-fallback'\)/);
@@ -140,6 +141,68 @@ test("public place actions avoid raw coordinate area creation", () => {
   assert.match(actionBody, /COPY\.bottomSheetNotes/);
   assert.doesNotMatch(actionBody, /FIELDS_NEW_BASE/);
   assert.doesNotMatch(actionBody, /source: 'map_point_area'/);
+});
+
+test("place atlas integration lazily fetches only stable selections with stale-response protection", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const requestBody = script.slice(
+    script.indexOf("function requestPlaceAtlasForSelection"),
+    script.indexOf("function renderPlaceDetailActions"),
+  );
+
+  assert.match(html, /data-api-place-profile="\/api\/v1\/map\/place-profile"/);
+  assert.match(script, /function placeAtlasRefForContext\(context\)/);
+  assert.match(script, /kind: 'field'/);
+  assert.match(script, /kind: 'osm_area'/);
+  assert.match(script, /kind: 'public_cell'/);
+  assert.match(script, /entityKey: 'osm:' \+ osmType \+ ':' \+ String\(osmId\)/);
+  assert.doesNotMatch(script, /kind: 'point'/);
+  assert.match(requestBody, /new AbortController\(\)/);
+  assert.match(requestBody, /var seq = \+\+placeAtlasSeq/);
+  assert.match(requestBody, /seq !== placeAtlasSeq/);
+  assert.match(requestBody, /placeAtlasRefKey\(placeAtlasRefForContext\(selected\)\) !== refKey/);
+  assert.match(requestBody, /setTimeout\(function \(\) \{[\s\S]*controller\.abort\(\)/);
+  assert.match(requestBody, /payload\.profile\.version !== 1/);
+  assert.match(requestBody, /credentials: 'same-origin'/);
+  assert.match(script, /MapPlaceAtlasProfile\.loading/);
+  assert.match(script, /MapPlaceAtlasProfile\.error/);
+  assert.match(script, /MapPlaceAtlasProfile\.render/);
+});
+
+test("area and cell selections render place atlas in desktop panel and mobile sheet", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const areaOpenBody = script.slice(
+    script.indexOf("function openAreaSheet"),
+    script.indexOf("function closeBottomSheet"),
+  );
+  const transientBody = script.slice(
+    script.indexOf("function openTransientAreaSheet"),
+    script.indexOf("function openAreaFeatureSheet"),
+  );
+  const cellSelectBody = script.slice(
+    script.indexOf("function selectCell"),
+    script.indexOf("function selectRecord"),
+  );
+
+  assert.match(areaOpenBody, /requestPlaceAtlasForSelection\(state\.selectedPoint\)/);
+  assert.match(areaOpenBody, /renderPlaceAtlasContent\(state\.selectedPoint/);
+  assert.match(transientBody, /requestPlaceAtlasForSelection\(state\.selectedPoint\)/);
+  assert.match(cellSelectBody, /requestPlaceAtlasForSelection\(state\.selectedPoint\)/);
+  assert.match(script, /showAreaBottomSheet\(\);[\s\S]*bindPlaceAtlasContent\(sheetInnerEl\)/);
+});
+
+test("transient area fallback does not expose raw coordinates or use them as a durable follow id", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const body = script.slice(
+    script.indexOf("function renderTransientAreaContent"),
+    script.indexOf("function openTransientAreaSheet"),
+  );
+
+  assert.match(body, /var locationLabel = \[props\.prefecture, props\.city\]/);
+  assert.doesNotMatch(body, /safeCenter\.lat\.toFixed\(4\)/);
+  assert.doesNotMatch(body, /point:' \+ safeCenter/);
+  assert.match(body, /canRecord && followId/);
 });
 
 test("mobile place detail peek keeps the map visible", () => {
