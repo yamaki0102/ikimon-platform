@@ -1,6 +1,6 @@
-export const OBSERVATION_VISION_MODEL = "@cf/moondream/moondream3.1-9B-A2B";
-export const OBSERVATION_AI_PROMPT_VERSION = "observation-multisubject/v1";
-export const OBSERVATION_AI_RULE_VERSION = "record-observation-dual-write/v1";
+export const OBSERVATION_VISION_MODEL = "gemini-3.5-flash-lite";
+export const OBSERVATION_AI_PROMPT_VERSION = "observation-triple-lane/v2";
+export const OBSERVATION_AI_RULE_VERSION = "record-observation-gemini-batch/v2";
 
 export type ObservationAiSubjectLocator = {
   rect?: { x: number; y: number; width: number; height: number };
@@ -10,10 +10,12 @@ export type ObservationAiSubjectCandidate = {
   candidateKey: string | null;
   vernacularName: string | null;
   scientificName: string | null;
-  rank: "species" | "genus" | "family" | "order" | "class" | "unknown";
+  rank: "species" | "genus" | "family" | "order" | "class" | "lifeform" | "unknown";
   confidence: number;
   visualEvidence: string[];
   needsMoreEvidence: string[];
+  assetIndex?: number;
+  sourceModel?: string;
   subjectLocator: ObservationAiSubjectLocator;
 };
 
@@ -28,6 +30,7 @@ const allowedRanks = new Set<ObservationAiCandidate["rank"]>([
   "family",
   "order",
   "class",
+  "lifeform",
   "unknown",
 ]);
 
@@ -78,6 +81,8 @@ const cleanSubjectCandidate = (value: unknown): ObservationAiSubjectCandidate | 
     confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0,
     visualEvidence: cleanList(parsed.visualEvidence ?? parsed.visual_evidence),
     needsMoreEvidence: cleanList(parsed.needsMoreEvidence ?? parsed.needs_more_evidence),
+    assetIndex: Number.isInteger(Number(parsed.assetIndex ?? parsed.asset_index)) ? Math.max(0, Number(parsed.assetIndex ?? parsed.asset_index)) : 0,
+    sourceModel: cleanText(parsed.sourceModel ?? parsed.source_model, 120) ?? undefined,
     subjectLocator: cleanSubjectLocator(parsed.subjectLocator ?? parsed.subject_locator),
   };
 };

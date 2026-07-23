@@ -10,12 +10,37 @@ import {
   OBSERVATION_AI_PROMPT_VERSION,
   OBSERVATION_AI_RULE_VERSION,
   OBSERVATION_VISION_MODEL,
-  observationAiQuestion,
   observationAiSubjects,
-  parseObservationAiCandidate,
-  type ObservationAiCandidate,
 } from "./cloudflareObservationAi";
 import { buildObservationAiDualWritePlan } from "./cloudflareObservationAiDualWrite";
+import {
+  GEMINI_ANALYSIS_MODEL,
+  GEMINI_BATCH_MAX_INLINE_BYTES,
+  GEMINI_BATCH_MAX_RECORDS,
+  GEMINI_OBSERVATION_PROMPT_VERSION,
+  GEMINI_OBSERVATION_RULE_VERSION,
+  GEMINI_PRIMARY_MODEL,
+  GEMINI_SUMMARY_MODEL,
+  applyGeminiObservationSummary,
+  buildGeminiCensusRequest,
+  buildGeminiEnvironmentRequest,
+  buildGeminiPrimaryRequest,
+  buildGeminiSummaryRequest,
+  createGeminiBatch,
+  findGeminiBatchByDisplayName,
+  geminiBatchDisplayName,
+  geminiBatchResponseText,
+  getGeminiBatch,
+  mergeGeminiObservationEvidence,
+  parseGeminiCensusEvidence,
+  parseGeminiEnvironmentEvidence,
+  parseGeminiObservationSummary,
+  parseGeminiPrimaryEvidence,
+  type GeminiBatchOperation,
+  type GeminiBatchRequest,
+  type GeminiMergedObservation,
+  type GeminiObservationImage,
+} from "./geminiObservationBatch";
 import {
   buildHumanObservationEditPlan,
   buildIdentificationAcceptancePlan,
@@ -32,7 +57,7 @@ import {
   type ObservationFirstRecordDetail,
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
-import { renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import {
   renderObservationProcessingStatusPanel,
@@ -160,6 +185,7 @@ interface Env {
   PUBLIC_DERIVED_IMAGE_TRANSFORM_MODE?: string;
   ORIGIN_SESSION_IMPORT_MODE?: string;
   V2_PRIVILEGED_WRITE_API_KEY?: string;
+  GEMINI_API_KEY?: string;
   CONTACT_FORM_SECRET?: string;
   CONTACT_ADMIN_TO?: string;
   GOOGLE_CLIENT_ID?: string;
@@ -3191,16 +3217,20 @@ export const worker = {
   },
 
   async queue(batch: { messages: Array<{ body: MediaJob | AlertDeliveryJob }> }, env: Env): Promise<void> {
+    const reassessmentIds: string[] = [];
     for (const message of batch.messages) {
       if (isAlertDeliveryJob(message.body)) {
         await drainAlertDeliveries(env, {
           source: "queue",
           limit: message.body.limit
         });
+      } else if (message.body.topic === "observation.reassess") {
+        reassessmentIds.push(message.body.targetId);
       } else {
         await applyMediaJob(message.body, env);
       }
     }
+    if (reassessmentIds.length > 0) await submitGeminiObservationReassessmentGroups(reassessmentIds, env);
   }
 };
 
@@ -3249,7 +3279,8 @@ async function getReadyz(env: Env): Promise<Response> {
       coreDb: "ok",
       observationDb: "ok",
       assetBucket: "bound",
-      mediaQueue: "bound"
+      mediaQueue: "bound",
+      observationAiProvider: env.GEMINI_API_KEY ? "gemini_batch_configured" : "missing"
     }, 200, { "cache-control": "no-store" });
   } catch (error) {
     console.error("readyz failed", error);
@@ -24861,7 +24892,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     ? await loadOwnerObservationProcessingStatusFromD1(env.OBS_DB, {
         observationId: detailIdToVisitId(rawId),
         ownerUserId: session.userId,
-        providerAvailable: Boolean(env.AI)
+        providerAvailable: Boolean(env.GEMINI_API_KEY)
       }).catch(() => null)
     : null;
   const detail = await buildObservationDetail(rawId, env, ownerStatus ? session?.userId ?? null : null);
@@ -24895,9 +24926,9 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         ...detail.videoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "video" as const, url: item.watchUrl })),
         ...(detail.audioAssets as Array<{ assetId: string; url?: string }>).map((item) => ({ mediaId: item.assetId, mediaKind: "audio" as const, url: item.url ?? null })),
       ];
-      const activeObservationCount = observationFirst.detail.observations.filter((item) => item.state === "active").length;
+      const activeEvidenceObservationCount = observationFirst.detail.observations.filter(isObservationDetectionEvidence).length;
       const detectionState = resolveObservationFirstDetectionState(
-        activeObservationCount,
+        activeEvidenceObservationCount,
         detail.aiAssessmentStatus,
         detail.aiRequestStatus,
       );
@@ -25156,7 +25187,7 @@ async function getOwnerObservationProcessingStatusJson(rawId: string, request: R
   const status = await loadOwnerObservationProcessingStatusFromD1(env.OBS_DB, {
     observationId: detailIdToVisitId(rawId),
     ownerUserId: session.userId,
-    providerAvailable: Boolean(env.AI)
+    providerAvailable: Boolean(env.GEMINI_API_KEY)
   });
   if (!status) return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
   return json({ ok: true, status }, 200, {
@@ -29250,7 +29281,7 @@ async function applyMediaJob(job: MediaJob, env: Env): Promise<void> {
   }
 
   if (job.topic === "observation.reassess") {
-    await processObservationReassessment(job.targetId, env);
+    await submitGeminiObservationReassessmentGroups([job.targetId], env);
   }
 }
 
@@ -29287,23 +29318,45 @@ async function recoverLegacyFalsePositiveImageDerivatives(env: Env): Promise<voi
 }
 
 async function runScheduledObservationReassessments(env: Env): Promise<void> {
-  if (!env.AI) return;
+  if (!env.GEMINI_API_KEY) return;
+  await requeueLatestPublicGeminiUpgradeTargets(env);
+  await resumeGeminiObservationBatchGroups(env);
+  await submitGeminiObservationReassessmentGroups([], env);
+}
+
+async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> {
   const rows = await env.OBS_DB.prepare(
-    `SELECT observation_id
-       FROM observation_reassessment_requests
-      WHERE request_kind = 'standard'
-        AND request_state IN ('pending', 'failed')
-        AND CAST(COALESCE(json_extract(source_payload_json, '$.attemptCount'), 0) AS INTEGER) < 3
-      ORDER BY updated_at
-      LIMIT 3`
-  ).all<{ observation_id: string }>();
+    `SELECT rr.request_id, rr.observation_id, rr.actor_user_id, rr.request_state, rr.source_payload_json
+       FROM observation_reassessment_requests rr
+       JOIN observations o ON o.observation_id = rr.observation_id
+      WHERE rr.request_kind = 'standard' AND rr.request_state IN ('completed', 'failed')
+        AND o.visibility = 'public' AND o.emergency_hidden = 0
+        AND COALESCE(json_extract(rr.source_payload_json, '$.ruleVersion'), '') <> ?
+        AND EXISTS (SELECT 1 FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.processing_state = 'uploaded' AND a.mime LIKE 'image/%')
+      ORDER BY o.created_at DESC, o.observation_id DESC
+      LIMIT 30`
+  ).bind(GEMINI_OBSERVATION_RULE_VERSION).all<ObservationReassessmentRequestRow>();
   for (const row of rows.results) {
-    await processObservationReassessment(row.observation_id, env);
+    const source = reassessmentPayload(row.source_payload_json);
+    delete source.batchExecution;
+    const nextPayload = JSON.stringify({
+      ...source,
+      source: "latest_public_record_ai_upgrade_v2",
+      executionStatus: "pending",
+      attemptCount: 0,
+      requestedRuleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+      requestedAt: new Date().toISOString(),
+    });
+    await env.OBS_DB.prepare(
+      `UPDATE observation_reassessment_requests SET request_state = 'pending', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE request_id = ? AND request_state IN ('completed', 'failed') AND source_payload_json = ?`
+    ).bind(nextPayload, row.request_id, row.source_payload_json).run();
   }
 }
 
 type ObservationReassessmentRequestRow = {
   request_id: string;
+  observation_id: string;
   actor_user_id: string;
   request_state: string;
   source_payload_json: string;
@@ -29318,6 +29371,34 @@ type ObservationAiAssetRow = {
 
 type ObservationAiRecordRow = {
   owner_user_id: string;
+  observed_at: string;
+  exact_lat: number | null;
+  exact_lng: number | null;
+  public_cell: string;
+};
+
+type GeminiBatchExecution = {
+  version: "ikimon.observation-gemini-batch/v2";
+  claimId: string;
+  primaryDisplayName: string;
+  analysisDisplayName: string;
+  summaryDisplayName: string;
+  primaryJobName?: string;
+  analysisJobName?: string;
+  summaryJobName?: string;
+  primaryIndex: number;
+  censusIndex: number;
+  environmentIndex: number;
+  summaryIndex?: number;
+  claimedAt: string;
+  lastSubmitAttemptAt?: string;
+};
+
+type PreparedGeminiObservation = {
+  request: ObservationReassessmentRequestRow;
+  record: ObservationAiRecordRow;
+  assets: ObservationAiAssetRow[];
+  images: GeminiObservationImage[];
 };
 
 function reassessmentAttemptCount(sourcePayloadJson: string): number {
@@ -29330,16 +29411,16 @@ function reassessmentAttemptCount(sourcePayloadJson: string): number {
   }
 }
 
-function imageBytesToDataUri(bytes: ArrayBuffer, mime: string): string {
+function imageBytesToBase64(bytes: ArrayBuffer): string {
   const view = new Uint8Array(bytes);
   let binary = "";
   for (let offset = 0; offset < view.length; offset += 0x8000) {
     binary += String.fromCharCode(...view.subarray(offset, offset + 0x8000));
   }
-  return `data:${mime};base64,${btoa(binary)}`;
+  return btoa(binary);
 }
 
-async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): Promise<string> {
+async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): Promise<GeminiObservationImage> {
   let sourceBytes: ArrayBuffer | null = null;
   let sourceMime = asset.mime;
   if (asset.public_derivative_key) {
@@ -29372,25 +29453,12 @@ async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): 
     if (response.ok) {
       const transformed = await response.arrayBuffer();
       if (transformed.byteLength > 0 && transformed.byteLength <= 8 * 1024 * 1024) {
-        return imageBytesToDataUri(transformed, "image/webp");
+        return { assetId: asset.asset_id, mimeType: "image/webp", base64Data: imageBytesToBase64(transformed) };
       }
     }
   }
   if (sourceBytes.byteLength > 8 * 1024 * 1024) throw new Error("ai_image_input_too_large");
-  return imageBytesToDataUri(sourceBytes, sourceMime);
-}
-
-function workersAiAnswer(value: unknown): string {
-  if (!value || typeof value !== "object") throw new Error("ai_response_invalid");
-  const response = value as Record<string, unknown>;
-  if (typeof response.answer === "string") return response.answer;
-  if (typeof response.response === "string") return response.response;
-  const nested = response.result;
-  if (nested && typeof nested === "object" && typeof (nested as Record<string, unknown>).answer === "string") {
-    return (nested as Record<string, unknown>).answer as string;
-  }
-  const shape = Object.keys(response).slice(0, 8).join(",") || "empty";
-  throw new Error(`ai_answer_missing:${shape}`);
+  return { assetId: asset.asset_id, mimeType: sourceMime, base64Data: imageBytesToBase64(sourceBytes) };
 }
 
 function reassessmentPayloadWithResult(
@@ -29407,161 +29475,430 @@ function reassessmentPayloadWithResult(
   return JSON.stringify({ ...source, ...result });
 }
 
-async function processObservationReassessment(observationId: string, env: Env): Promise<void> {
-  if (!env.AI) return;
-  const request = await env.OBS_DB.prepare(
-    `SELECT request_id, actor_user_id, request_state, source_payload_json
-       FROM observation_reassessment_requests
-      WHERE observation_id = ?
-        AND request_kind = 'standard'
-        AND request_state IN ('pending', 'failed')
-      ORDER BY updated_at DESC
-      LIMIT 1`
-  ).bind(observationId).first<ObservationReassessmentRequestRow>();
-  if (!request) return;
-
-  const claimed = await env.OBS_DB.prepare(
-    `UPDATE observation_reassessment_requests
-        SET request_state = 'processing', updated_at = CURRENT_TIMESTAMP
-      WHERE request_id = ?
-        AND request_state IN ('pending', 'failed')
-        AND source_payload_json = ?`
-  ).bind(request.request_id, request.source_payload_json).run() as { meta?: { changes?: number } };
-  if (Number(claimed.meta?.changes ?? 0) === 0) return;
-
+function reassessmentPayload(sourcePayloadJson: string): Record<string, unknown> {
   try {
-    const asset = await env.OBS_DB.prepare(
-      `SELECT asset_id, object_key, public_derivative_key, mime
-         FROM asset_ledger
-        WHERE observation_id = ?
-          AND processing_state = 'uploaded'
-          AND mime LIKE 'image/%'
-        ORDER BY CASE WHEN public_ready_at IS NOT NULL THEN 0 ELSE 1 END, created_at
-        LIMIT 1`
-    ).bind(observationId).first<ObservationAiAssetRow>();
-    if (!asset) throw new Error("ai_photo_missing");
-    const record = await env.OBS_DB.prepare(
-      "SELECT owner_user_id FROM observations WHERE observation_id = ?"
-    ).bind(observationId).first<ObservationAiRecordRow>();
-    if (!record) throw new Error("ai_record_missing");
+    const parsed = JSON.parse(sourcePayloadJson) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
 
-    const image = await observationAiImageInput(asset, env);
-    const attemptCount = reassessmentAttemptCount(request.source_payload_json) + 1;
-    const rawResponse = await env.AI.run(OBSERVATION_VISION_MODEL, {
-      task: "query",
-      image,
-      question: observationAiQuestion(),
-      reasoning: false,
-      temperature: 0.1,
-      max_tokens: 1200,
-      stream: false,
-    });
-    const candidate = parseObservationAiCandidate(workersAiAnswer(rawResponse));
-    const subjects = observationAiSubjects(candidate);
-    const occurrenceId = `occ:${observationId}:0`;
-    const aiRunId = newId("cf_ai_run");
-    const candidateName = candidate.vernacularName ?? candidate.scientificName;
-    const candidateId = candidateName ? newId("cf_ai_candidate") : null;
-    const assessmentStatus = subjects.length === 0 ? "completed_no_candidate" : "ai_judgement";
-    const assessmentPayload = {
-      source: "cloudflare_workers_ai_observation_reassessment",
-      model: OBSERVATION_VISION_MODEL,
-      promptVersion: OBSERVATION_AI_PROMPT_VERSION,
-      ruleVersion: OBSERVATION_AI_RULE_VERSION,
-      assetId: asset.asset_id,
-      candidate,
-      subjectCount: subjects.length,
-      humanReviewRequired: true,
-      completedAt: new Date().toISOString(),
-    };
-    const dualWritePlan = observationDualWriteEnabled(env)
-      ? await buildObservationAiDualWritePlan({
-        recordId: observationId,
-        ownerUserId: record.owner_user_id,
-        mediaId: asset.asset_id,
-        legacyOccurrenceId: occurrenceId,
-        requestId: request.request_id,
-        aiRunId,
-        candidate,
-      })
-      : { observationIds: [], mutations: [] };
-    const dualWriteStatements = dualWritePlan.mutations.map((mutation) =>
-      env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)
-    );
-    const targetObservationIds = dualWritePlan.observationIds;
-    const statements: D1PreparedStatement[] = [
-      env.OBS_DB.prepare(
-        `INSERT INTO observation_ai_review_targets (
-           occurrence_id, ai_assessment_status, scientific_name, vernacular_name, taxon_rank,
-           ai_run_id, candidate_id, candidate_scientific_name, candidate_vernacular_name,
-           candidate_taxon_rank, ai_recommended_taxon_name, ai_recommended_rank,
-           source_payload_json, updated_at
-         ) VALUES (?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-         ON CONFLICT(occurrence_id) DO UPDATE SET
-           ai_assessment_status = excluded.ai_assessment_status,
-           ai_run_id = excluded.ai_run_id,
-           candidate_id = excluded.candidate_id,
-           candidate_scientific_name = excluded.candidate_scientific_name,
-           candidate_vernacular_name = excluded.candidate_vernacular_name,
-           candidate_taxon_rank = excluded.candidate_taxon_rank,
-           ai_recommended_taxon_name = excluded.ai_recommended_taxon_name,
-           ai_recommended_rank = excluded.ai_recommended_rank,
-           source_payload_json = excluded.source_payload_json,
-           updated_at = CURRENT_TIMESTAMP`
-      ).bind(
-        occurrenceId,
-        assessmentStatus,
-        aiRunId,
-        candidateId,
-        candidate.scientificName,
-        candidate.vernacularName,
-        candidate.rank,
-        candidateName,
-        candidate.rank,
-        JSON.stringify(assessmentPayload),
-      ),
-      ...dualWriteStatements,
-      env.OBS_DB.prepare(
-        `UPDATE observation_reassessment_requests
-            SET request_state = 'completed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
-          WHERE request_id = ?
-            AND request_state = 'processing'
-            AND source_payload_json = ?`
-      ).bind(
-        reassessmentPayloadWithResult(request.source_payload_json, {
-          executionStatus: "completed",
-          attemptCount,
-          aiRunId,
-          model: OBSERVATION_VISION_MODEL,
-          promptVersion: OBSERVATION_AI_PROMPT_VERSION,
-          ruleVersion: OBSERVATION_AI_RULE_VERSION,
-          provisionalObservationIds: targetObservationIds,
-          completedAt: new Date().toISOString(),
-        }),
-        request.request_id,
-        request.source_payload_json,
-      ),
-    ];
-    await env.OBS_DB.batch(statements);
-  } catch (error) {
-    const errorCode = error instanceof Error ? error.message.slice(0, 160) : "ai_reassessment_failed";
-    await env.OBS_DB.prepare(
-      `UPDATE observation_reassessment_requests
-          SET request_state = 'failed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE request_id = ?
-          AND request_state = 'processing'
-          AND source_payload_json = ?`
-    ).bind(
-      reassessmentPayloadWithResult(request.source_payload_json, {
+function geminiBatchExecution(sourcePayloadJson: string): GeminiBatchExecution | null {
+  const value = reassessmentPayload(sourcePayloadJson).batchExecution;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const execution = value as Partial<GeminiBatchExecution>;
+  return execution.version === "ikimon.observation-gemini-batch/v2" && typeof execution.claimId === "string"
+    ? execution as GeminiBatchExecution
+    : null;
+}
+
+async function loadPreparedGeminiObservation(request: ObservationReassessmentRequestRow, env: Env): Promise<PreparedGeminiObservation> {
+  const record = await env.OBS_DB.prepare(
+    "SELECT owner_user_id, observed_at, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
+  ).bind(request.observation_id).first<ObservationAiRecordRow>();
+  if (!record) throw new Error("ai_record_missing");
+  const assets = await env.OBS_DB.prepare(
+    `SELECT asset_id, object_key, public_derivative_key, mime
+       FROM asset_ledger
+      WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'image/%'
+      ORDER BY CASE WHEN public_ready_at IS NOT NULL THEN 0 ELSE 1 END, created_at, asset_id
+      LIMIT 12`
+  ).bind(request.observation_id).all<ObservationAiAssetRow>();
+  if (assets.results.length === 0) throw new Error("ai_photo_missing");
+  const images: GeminiObservationImage[] = [];
+  for (const asset of assets.results) images.push(await observationAiImageInput(asset, env));
+  return { request, record, assets: assets.results, images };
+}
+
+async function loadPendingGeminiRequests(observationIds: string[], env: Env): Promise<ObservationReassessmentRequestRow[]> {
+  const uniqueIds = [...new Set(observationIds)].filter((value) => /^[A-Za-z0-9:_-]{1,180}$/u.test(value));
+  const filter = uniqueIds.length > 0 ? `AND observation_id IN (${uniqueIds.map(() => "?").join(", ")})` : "";
+  const rows = await env.OBS_DB.prepare(
+    `SELECT request_id, observation_id, actor_user_id, request_state, source_payload_json
+       FROM observation_reassessment_requests
+      WHERE request_kind = 'standard' AND request_state IN ('pending', 'failed')
+        AND CAST(COALESCE(json_extract(source_payload_json, '$.attemptCount'), 0) AS INTEGER) < 3
+        ${filter}
+      ORDER BY updated_at, request_id
+      LIMIT 100`
+  ).bind(...uniqueIds).all<ObservationReassessmentRequestRow>();
+  return rows.results;
+}
+
+async function updateProcessingGeminiPayload(request: ObservationReassessmentRequestRow, execution: GeminiBatchExecution, env: Env, extra: Record<string, unknown> = {}): Promise<boolean> {
+  const nextPayload = reassessmentPayloadWithResult(request.source_payload_json, { ...extra, batchExecution: execution });
+  const updated = await env.OBS_DB.prepare(
+    `UPDATE observation_reassessment_requests SET source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
+  ).bind(nextPayload, request.request_id, request.source_payload_json).run() as { meta?: { changes?: number } };
+  if (Number(updated.meta?.changes ?? 0) === 0) return false;
+  request.source_payload_json = nextPayload;
+  return true;
+}
+
+async function failGeminiReassessment(request: ObservationReassessmentRequestRow, error: unknown, env: Env): Promise<void> {
+  const errorCode = (error instanceof Error ? error.message : String(error)).slice(0, 180);
+  await env.OBS_DB.prepare(
+    `UPDATE observation_reassessment_requests SET request_state = 'failed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
+  ).bind(
+    reassessmentPayloadWithResult(request.source_payload_json, { executionStatus: "failed", errorCode, failedAt: new Date().toISOString() }),
+    request.request_id,
+    request.source_payload_json,
+  ).run();
+}
+
+async function ensureGeminiBatch(apiKey: string, model: string, displayName: string, requests: GeminiBatchRequest[]): Promise<GeminiBatchOperation> {
+  const existing = await findGeminiBatchByDisplayName(apiKey, displayName);
+  return existing ?? createGeminiBatch(apiKey, model, displayName, requests);
+}
+
+async function submitGeminiObservationReassessmentGroups(observationIds: string[], env: Env): Promise<void> {
+  if (!env.GEMINI_API_KEY) return;
+  let pending = await loadPendingGeminiRequests(observationIds, env);
+  while (pending.length > 0) {
+    const submitted = await submitGeminiObservationReassessmentGroup(pending, env);
+    if (submitted.size === 0) break;
+    pending = pending.filter((row) => !submitted.has(row.request_id));
+  }
+}
+
+async function submitGeminiObservationReassessmentGroup(rows: ObservationReassessmentRequestRow[], env: Env): Promise<Set<string>> {
+  if (!env.GEMINI_API_KEY) return new Set();
+  const prepared: PreparedGeminiObservation[] = [];
+  let inlineBudget = 0;
+  for (const request of rows) {
+    if (prepared.length >= GEMINI_BATCH_MAX_RECORDS) break;
+    try {
+      const item = await loadPreparedGeminiObservation(request, env);
+      const estimatedBytes = item.images.reduce((sum, image) => sum + image.base64Data.length, 0) * 2;
+      if (prepared.length > 0 && inlineBudget + estimatedBytes > GEMINI_BATCH_MAX_INLINE_BYTES) break;
+      prepared.push(item);
+      inlineBudget += estimatedBytes;
+    } catch (error) {
+      const claimPayload = reassessmentPayloadWithResult(request.source_payload_json, {
         executionStatus: "failed",
         attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
-        errorCode,
+        errorCode: (error instanceof Error ? error.message : String(error)).slice(0, 180),
         failedAt: new Date().toISOString(),
-      }),
-      request.request_id,
-      request.source_payload_json,
-    ).run();
+      });
+      await env.OBS_DB.prepare(
+        `UPDATE observation_reassessment_requests SET request_state = 'failed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`
+      ).bind(claimPayload, request.request_id, request.source_payload_json).run();
+    }
   }
+  if (prepared.length === 0) return new Set();
+
+  const claimId = crypto.randomUUID().replace(/-/gu, "");
+  const claimed: PreparedGeminiObservation[] = [];
+  for (const item of prepared) {
+    const index = claimed.length;
+    const execution: GeminiBatchExecution = {
+      version: "ikimon.observation-gemini-batch/v2",
+      claimId,
+      primaryDisplayName: geminiBatchDisplayName(claimId, "primary"),
+      analysisDisplayName: geminiBatchDisplayName(claimId, "analysis"),
+      summaryDisplayName: geminiBatchDisplayName(claimId, "summary"),
+      primaryIndex: index,
+      censusIndex: index * 2,
+      environmentIndex: index * 2 + 1,
+      claimedAt: new Date().toISOString(),
+      lastSubmitAttemptAt: new Date().toISOString(),
+    };
+    const nextPayload = reassessmentPayloadWithResult(item.request.source_payload_json, {
+      executionStatus: "processing",
+      attemptCount: reassessmentAttemptCount(item.request.source_payload_json) + 1,
+      modelStack: [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+      promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
+      ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+      batchExecution: execution,
+      startedAt: new Date().toISOString(),
+    });
+    const result = await env.OBS_DB.prepare(
+      `UPDATE observation_reassessment_requests SET request_state = 'processing', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`
+    ).bind(nextPayload, item.request.request_id, item.request.source_payload_json).run() as { meta?: { changes?: number } };
+    if (Number(result.meta?.changes ?? 0) === 0) continue;
+    item.request.request_state = "processing";
+    item.request.source_payload_json = nextPayload;
+    claimed.push(item);
+  }
+  if (claimed.length === 0) return new Set();
+
+  const primaryRequests: GeminiBatchRequest[] = claimed.map((item) => ({
+    request: buildGeminiPrimaryRequest(item.request.observation_id, item.record.observed_at, item.images),
+    metadata: { key: item.request.observation_id, lane: "primary" },
+  }));
+  const analysisRequests: GeminiBatchRequest[] = claimed.flatMap((item) => [
+    { request: buildGeminiCensusRequest(item.request.observation_id, item.images), metadata: { key: item.request.observation_id, lane: "census" } },
+    { request: buildGeminiEnvironmentRequest(item.request.observation_id, item.images), metadata: { key: item.request.observation_id, lane: "environment" } },
+  ]);
+  try {
+    const firstExecution = geminiBatchExecution(claimed[0]!.request.source_payload_json)!;
+    const primaryJob = await ensureGeminiBatch(env.GEMINI_API_KEY, GEMINI_PRIMARY_MODEL, firstExecution.primaryDisplayName, primaryRequests);
+    const analysisJob = await ensureGeminiBatch(env.GEMINI_API_KEY, GEMINI_ANALYSIS_MODEL, firstExecution.analysisDisplayName, analysisRequests);
+    for (const item of claimed) {
+      const execution = geminiBatchExecution(item.request.source_payload_json)!;
+      await updateProcessingGeminiPayload(item.request, { ...execution, primaryJobName: primaryJob.name, analysisJobName: analysisJob.name }, env);
+    }
+  } catch (error) {
+    console.error("[gemini-batch] submit deferred for recovery", error);
+    for (const item of claimed) {
+      const execution = geminiBatchExecution(item.request.source_payload_json)!;
+      await updateProcessingGeminiPayload(item.request, execution, env, { lastSubmitError: (error instanceof Error ? error.message : String(error)).slice(0, 180) });
+    }
+  }
+  return new Set(claimed.map((item) => item.request.request_id));
+}
+
+function geminiBatchSucceeded(operation: GeminiBatchOperation): boolean {
+  return operation.state === "BATCH_STATE_SUCCEEDED" || operation.state === "JOB_STATE_SUCCEEDED";
+}
+
+function geminiBatchTerminalFailure(operation: GeminiBatchOperation): boolean {
+  return ["BATCH_STATE_FAILED", "BATCH_STATE_CANCELLED", "BATCH_STATE_EXPIRED", "JOB_STATE_FAILED", "JOB_STATE_CANCELLED", "JOB_STATE_EXPIRED"].includes(operation.state ?? "");
+}
+
+async function loadProcessingGeminiRequests(env: Env): Promise<ObservationReassessmentRequestRow[]> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT request_id, observation_id, actor_user_id, request_state, source_payload_json
+       FROM observation_reassessment_requests
+      WHERE request_kind = 'standard' AND request_state = 'processing'
+        AND json_extract(source_payload_json, '$.batchExecution.version') = 'ikimon.observation-gemini-batch/v2'
+      ORDER BY updated_at, request_id LIMIT 100`
+  ).all<ObservationReassessmentRequestRow>();
+  return rows.results;
+}
+
+async function resumeGeminiObservationBatchGroups(env: Env): Promise<void> {
+  if (!env.GEMINI_API_KEY) return;
+  const rows = await loadProcessingGeminiRequests(env);
+  const groups = new Map<string, ObservationReassessmentRequestRow[]>();
+  for (const row of rows) {
+    const execution = geminiBatchExecution(row.source_payload_json);
+    if (!execution) continue;
+    const group = groups.get(execution.claimId) ?? [];
+    group.push(row);
+    groups.set(execution.claimId, group);
+  }
+  for (const group of groups.values()) {
+    try {
+      await resumeGeminiObservationBatchGroup(group, env);
+    } catch (error) {
+      console.error("[gemini-batch] group resume failed", error);
+    }
+  }
+}
+
+async function resumeGeminiObservationBatchGroup(rows: ObservationReassessmentRequestRow[], env: Env): Promise<void> {
+  if (!env.GEMINI_API_KEY || rows.length === 0) return;
+  const ordered = [...rows].sort((left, right) => (geminiBatchExecution(left.source_payload_json)?.primaryIndex ?? 0) - (geminiBatchExecution(right.source_payload_json)?.primaryIndex ?? 0));
+  let firstExecution = geminiBatchExecution(ordered[0]!.source_payload_json)!;
+  let primaryJobName = firstExecution.primaryJobName;
+  let analysisJobName = firstExecution.analysisJobName;
+  if (!primaryJobName || !analysisJobName) {
+    const prepared: PreparedGeminiObservation[] = [];
+    for (const row of ordered) prepared.push(await loadPreparedGeminiObservation(row, env));
+    const primaryRequests: GeminiBatchRequest[] = prepared.map((item) => ({ request: buildGeminiPrimaryRequest(item.request.observation_id, item.record.observed_at, item.images), metadata: { key: item.request.observation_id, lane: "primary" } }));
+    const analysisRequests: GeminiBatchRequest[] = prepared.flatMap((item) => [
+      { request: buildGeminiCensusRequest(item.request.observation_id, item.images), metadata: { key: item.request.observation_id, lane: "census" } },
+      { request: buildGeminiEnvironmentRequest(item.request.observation_id, item.images), metadata: { key: item.request.observation_id, lane: "environment" } },
+    ]);
+    const primary = primaryJobName ? await getGeminiBatch(env.GEMINI_API_KEY, primaryJobName) : await ensureGeminiBatch(env.GEMINI_API_KEY, GEMINI_PRIMARY_MODEL, firstExecution.primaryDisplayName, primaryRequests);
+    const analysis = analysisJobName ? await getGeminiBatch(env.GEMINI_API_KEY, analysisJobName) : await ensureGeminiBatch(env.GEMINI_API_KEY, GEMINI_ANALYSIS_MODEL, firstExecution.analysisDisplayName, analysisRequests);
+    primaryJobName = primary.name;
+    analysisJobName = analysis.name;
+    for (const row of ordered) {
+      const execution = geminiBatchExecution(row.source_payload_json)!;
+      await updateProcessingGeminiPayload(row, { ...execution, primaryJobName, analysisJobName }, env);
+    }
+    firstExecution = geminiBatchExecution(ordered[0]!.source_payload_json)!;
+  }
+
+  const primary = await getGeminiBatch(env.GEMINI_API_KEY, primaryJobName!);
+  const analysis = await getGeminiBatch(env.GEMINI_API_KEY, analysisJobName!);
+  if (geminiBatchTerminalFailure(primary) || geminiBatchTerminalFailure(analysis)) {
+    for (const row of ordered) await failGeminiReassessment(row, new Error(primary.error ?? analysis.error ?? "gemini_extract_batch_failed"), env);
+    return;
+  }
+  if (!geminiBatchSucceeded(primary) || !geminiBatchSucceeded(analysis)) return;
+
+  if (!firstExecution.summaryJobName) {
+    const summaryRows: Array<{ row: ObservationReassessmentRequestRow; merged: GeminiMergedObservation }> = [];
+    for (const row of ordered) {
+      const execution = geminiBatchExecution(row.source_payload_json)!;
+      try {
+        const primaryEvidence = parseGeminiPrimaryEvidence(geminiBatchResponseText(primary.responses[execution.primaryIndex]));
+        const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(analysis.responses[execution.censusIndex]));
+        const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(analysis.responses[execution.environmentIndex]));
+        const mediaCount = (await env.OBS_DB.prepare("SELECT COUNT(*) AS count FROM asset_ledger WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'image/%'").bind(row.observation_id).first<{ count: number }>())?.count ?? 1;
+        summaryRows.push({ row, merged: mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, mediaCount) });
+      } catch (error) {
+        await failGeminiReassessment(row, error, env);
+      }
+    }
+    if (summaryRows.length === 0) return;
+    const summaryRequests: GeminiBatchRequest[] = summaryRows.map((item) => ({ request: buildGeminiSummaryRequest(item.row.observation_id, item.merged), metadata: { key: item.row.observation_id, lane: "summary" } }));
+    const summaryJob = await ensureGeminiBatch(env.GEMINI_API_KEY, GEMINI_SUMMARY_MODEL, firstExecution.summaryDisplayName, summaryRequests);
+    for (const [summaryIndex, item] of summaryRows.entries()) {
+      const execution = geminiBatchExecution(item.row.source_payload_json)!;
+      await updateProcessingGeminiPayload(item.row, { ...execution, summaryJobName: summaryJob.name, summaryIndex }, env);
+    }
+    return;
+  }
+
+  const summary = await getGeminiBatch(env.GEMINI_API_KEY, firstExecution.summaryJobName);
+  if (geminiBatchTerminalFailure(summary)) {
+    for (const row of ordered) await failGeminiReassessment(row, new Error(summary.error ?? "gemini_summary_batch_failed"), env);
+    return;
+  }
+  if (!geminiBatchSucceeded(summary)) return;
+  for (const row of ordered) {
+    const execution = geminiBatchExecution(row.source_payload_json)!;
+    try {
+      const primaryEvidence = parseGeminiPrimaryEvidence(geminiBatchResponseText(primary.responses[execution.primaryIndex]));
+      const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(analysis.responses[execution.censusIndex]));
+      const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(analysis.responses[execution.environmentIndex]));
+      const prepared = await loadPreparedGeminiObservation(row, env);
+      const merged = applyGeminiObservationSummary(
+        mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, prepared.images.length),
+        parseGeminiObservationSummary(geminiBatchResponseText(summary.responses[execution.summaryIndex ?? -1])),
+      );
+      await finalizeGeminiObservationReassessment(prepared, merged, env);
+    } catch (error) {
+      await failGeminiReassessment(row, error, env);
+    }
+  }
+}
+
+async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObservation, merged: GeminiMergedObservation, env: Env): Promise<void> {
+  const request = prepared.request;
+  const observationId = request.observation_id;
+  const candidate = merged.candidate;
+  const subjects = observationAiSubjects(candidate);
+  const occurrenceId = `occ:${observationId}:0`;
+  const aiRunId = newId("gemini_batch_run");
+  const candidateName = candidate.vernacularName ?? candidate.scientificName;
+  const candidateId = candidateName ? newId("gemini_candidate") : null;
+  const assessmentStatus = merged.detectionState === "detected" ? "ai_judgement" : merged.detectionState === "not_assessable" ? "completed_not_assessable" : "completed_no_candidate";
+  const completedAt = new Date().toISOString();
+  const assessmentPayload = {
+    source: "google_gemini_batch_observation_reassessment",
+    models: { primary: GEMINI_PRIMARY_MODEL, census: GEMINI_ANALYSIS_MODEL, environment: GEMINI_ANALYSIS_MODEL, summary: GEMINI_SUMMARY_MODEL },
+    promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
+    ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+    assetIds: prepared.assets.map((asset) => asset.asset_id),
+    recordClass: merged.recordClass,
+    informationState: merged.informationState,
+    detectionState: merged.detectionState,
+    candidate,
+    environment: merged.environment,
+    relations: merged.relations,
+    summary: merged.summary,
+    subjectCount: subjects.length,
+    humanReviewRequired: true,
+    completedAt,
+  };
+  const dualWritePlan = observationDualWriteEnabled(env)
+    ? await buildObservationAiDualWritePlan({
+      recordId: observationId,
+      ownerUserId: prepared.record.owner_user_id,
+      mediaIds: prepared.assets.map((asset) => asset.asset_id),
+      legacyOccurrenceId: occurrenceId,
+      requestId: request.request_id,
+      aiRunId,
+      candidate,
+    })
+    : { observationIds: [], mutations: [] };
+  const statements: D1PreparedStatement[] = [
+    env.OBS_DB.prepare(
+      `INSERT INTO observation_ai_review_targets (
+         occurrence_id, ai_assessment_status, scientific_name, vernacular_name, taxon_rank,
+         ai_run_id, candidate_id, candidate_scientific_name, candidate_vernacular_name,
+         candidate_taxon_rank, ai_recommended_taxon_name, ai_recommended_rank,
+         source_payload_json, updated_at
+       ) VALUES (?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(occurrence_id) DO UPDATE SET
+         ai_assessment_status = excluded.ai_assessment_status, ai_run_id = excluded.ai_run_id,
+         candidate_id = excluded.candidate_id, candidate_scientific_name = excluded.candidate_scientific_name,
+         candidate_vernacular_name = excluded.candidate_vernacular_name, candidate_taxon_rank = excluded.candidate_taxon_rank,
+         ai_recommended_taxon_name = excluded.ai_recommended_taxon_name, ai_recommended_rank = excluded.ai_recommended_rank,
+         source_payload_json = excluded.source_payload_json, updated_at = CURRENT_TIMESTAMP`
+    ).bind(occurrenceId, assessmentStatus, aiRunId, candidateId, candidate.scientificName, candidate.vernacularName, candidate.rank, candidateName, candidate.rank, JSON.stringify(assessmentPayload)),
+    ...dualWritePlan.mutations.map((mutation) => env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)),
+    env.OBS_DB.prepare(
+      `INSERT INTO environment_assessments (
+         assessment_id, record_runtime, record_id, media_source_runtime, media_id,
+         source_kind, assessment_state, assessment_kind, value_json, confidence_score,
+         model_provider, model_name, model_version, prompt_version, rule_version, source_key,
+         input_provenance_json, observed_at, created_at, updated_at
+       ) VALUES (?, 'cloudflare_d1', ?, 'cloudflare_d1', ?, 'ai', 'provisional', 'visual_environment', ?, ?,
+         'google_gemini_api', ?, '', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT(source_kind, source_key) DO UPDATE SET
+         media_id = excluded.media_id, value_json = excluded.value_json, confidence_score = excluded.confidence_score,
+         model_name = excluded.model_name, prompt_version = excluded.prompt_version, rule_version = excluded.rule_version,
+         input_provenance_json = excluded.input_provenance_json, observed_at = excluded.observed_at,
+         assessment_state = 'provisional', updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      crypto.randomUUID(), observationId, prepared.assets[0]?.asset_id ?? null,
+      JSON.stringify(merged.environment), merged.environment.cues.length > 0 ? Math.max(...merged.environment.cues.map((cue) => cue.confidence)) : null,
+      GEMINI_ANALYSIS_MODEL, GEMINI_OBSERVATION_PROMPT_VERSION, GEMINI_OBSERVATION_RULE_VERSION,
+      `google_gemini_batch:${observationId}:${GEMINI_OBSERVATION_RULE_VERSION}:environment`,
+      JSON.stringify({ assetIds: prepared.assets.map((asset) => asset.asset_id), source: "record_photo_set" }), prepared.record.observed_at,
+    ),
+  ];
+
+  const previousEnvironment = await env.OBS_DB.prepare(
+    "SELECT structured_json FROM observation_environment_records WHERE occurrence_id = ? ORDER BY created_at DESC LIMIT 1"
+  ).bind(observationId).first<{ structured_json: string }>();
+  const previousStructured = parseCompatibleStructuredJson(previousEnvironment?.structured_json);
+  if (merged.environment.assessment_state === "informative" && previousStructured.environment_record_status !== "user_edited") {
+    const publicCell = parsePublicCell(prepared.record.public_cell);
+    const lat = numberOrNull(prepared.record.exact_lat) ?? publicCell?.lat ?? null;
+    const lng = numberOrNull(prepared.record.exact_lng) ?? publicCell?.lng ?? null;
+    if (lat !== null && lng !== null) {
+      const fields = merged.environment.fields;
+      const structured: Record<string, string> = {
+        ...fields,
+        place_type_source: "derived",
+        contact_surface_source: "derived",
+        surrounding_cover_source: "derived",
+        environment_condition_source: "derived",
+        human_change_source: "derived",
+        environment_record_source: "google_gemini_batch",
+        environment_record_status: "auto_draft",
+        environment_record_updated_by: "google_gemini_batch",
+        environment_record_updated_at: completedAt,
+        ai_environment_cues_json: JSON.stringify(merged.environment.cues),
+      };
+      statements.push(env.OBS_DB.prepare(
+        "INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang) VALUES (?, ?, ?, ?, ?, 'ja')"
+      ).bind(newId("envrec_ai"), observationId, lat, lng, JSON.stringify(structured)));
+    }
+  }
+
+  statements.push(env.OBS_DB.prepare(
+    `UPDATE observation_reassessment_requests SET request_state = 'completed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
+  ).bind(
+    reassessmentPayloadWithResult(request.source_payload_json, {
+      executionStatus: "completed",
+      aiRunId,
+      models: [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+      promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
+      ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+      recordClass: merged.recordClass,
+      informationState: merged.informationState,
+      detectionState: merged.detectionState,
+      provisionalObservationIds: dualWritePlan.observationIds,
+      completedAt,
+    }),
+    request.request_id,
+    request.source_payload_json,
+  ));
+  await env.OBS_DB.batch(statements);
 }
 
 async function refreshPublicReadmodel(observationId: string, env: Env): Promise<void> {

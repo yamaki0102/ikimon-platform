@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
-import { renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 
 const detail: ObservationFirstRecordDetail = {
   schema: "ikimon.observation-first-record-detail/v1",
@@ -44,9 +44,29 @@ const detail: ObservationFirstRecordDetail = {
 test("detection presentation is derived only from durable assessment facts", () => {
   assert.equal(resolveObservationFirstDetectionState(1, null, null), "detected");
   assert.equal(resolveObservationFirstDetectionState(0, "completed_no_candidate", "completed"), "not_detected");
+  assert.equal(resolveObservationFirstDetectionState(0, "completed_not_assessable", "completed"), "not_assessable");
   assert.equal(resolveObservationFirstDetectionState(0, null, "failed"), "not_assessable");
   assert.equal(resolveObservationFirstDetectionState(0, null, "pending"), null);
   assert.equal(resolveObservationFirstDetectionState(0, null, null), null);
+});
+
+test("generic imported placeholders do not override a durable no-biota result", () => {
+  const placeholder: ObservationFirstRecordDetail["observations"][number] = {
+    observationId: "placeholder",
+    state: "active",
+    subjectType: "unknown_subject",
+    subjectLabel: "写っているもの",
+    assertionStatus: "provisional",
+    verificationStatus: "unreviewed",
+    acceptedIdentification: null,
+    communityIdentifications: [],
+    aiSuggestions: [],
+    media: [],
+    provenance: { owner: false, ai: false, community: false, curator: false, imported: true },
+  };
+  assert.equal(isObservationDetectionEvidence(placeholder), false);
+  assert.equal(resolveObservationFirstDetectionState([placeholder].filter(isObservationDetectionEvidence).length, "completed_no_candidate", "completed"), "not_detected");
+  assert.equal(isObservationDetectionEvidence(detail.observations[0]!), true);
 });
 
 test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its own idempotency key", () => {
