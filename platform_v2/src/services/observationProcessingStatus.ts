@@ -112,7 +112,7 @@ export function deriveObservationProcessingStatus(facts: ObservationProcessingFa
       method: "post",
     };
   } else if (aiState === "queued" || aiState === "processing") {
-    message = "写真と記録は保存されています。AIが候補を確認しています。";
+    message = "写真からわかることを調べています。写真と記録は保存されています。";
   }
 
   return {

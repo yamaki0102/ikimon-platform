@@ -123,6 +123,8 @@ platform_v2/.codex-tmp/
 # Visual QA and browser test outputs (never commit)
 .visual-qa/
 **/.visual-qa/
+.visual-record-detail*/
+**/.visual-record-detail*/
 playwright-report/
 **/playwright-report/
 test-results/

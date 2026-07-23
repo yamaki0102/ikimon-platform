@@ -81,6 +81,23 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
     canonicalUrl: "https://ikimon.life/ja/observations/visit-ui-contract",
     actionNonce: "nonce-contract",
     processingMessage: "写真を表示できるよう整えています。",
+    mediaDedup: { sourcePhotoCount: 2, representativePhotoCount: 1, excludedPhotoCount: 1 },
+    aiCandidateInsights: [
+      {
+        name: "ナミアゲハ",
+        scientificName: "Papilio xuthus",
+        supportingFeatures: ["後翅に尾状突起が見えます"],
+        missingFeatures: ["翅の表側は確認できません"],
+        contradictions: [],
+      },
+      {
+        name: "キアゲハ",
+        scientificName: "Papilio machaon",
+        supportingFeatures: ["大きなアゲハ類の体形です"],
+        missingFeatures: [],
+        contradictions: ["前翅の模様は一致を確認できません"],
+      },
+    ],
     notice: "変更を記録しました。",
     viewerAuthenticated: true,
   });
@@ -99,6 +116,12 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.match(rendered, /つながる記録/);
   assert.match(rendered, /浜松市周辺/);
   assert.match(rendered, /写真を表示できるよう整えています/);
+  assert.match(rendered, /似た写真1枚は1枚にまとめて表示しています/);
+  assert.match(rendered, /似ている候補との比較/);
+  assert.match(rendered, /ナミアゲハ/);
+  assert.match(rendered, /キアゲハ/);
+  assert.match(rendered, /後翅に尾状突起が見えます/);
+  assert.doesNotMatch(rendered, /confidence|0\.91/);
   assert.match(rendered, /変更を記録しました/);
   assert.doesNotMatch(rendered, /<script>alert\(1\)<\/script>/);
   assert.doesNotMatch(rendered, /<script\b/i);
@@ -121,6 +144,7 @@ test("guest HTML omits owner management and keeps proposals on demand", () => {
     observedLabel: "観察日時は未設定です",
     note: null,
     media: [{ mediaId: "asset-1", mediaKind: "photo", url: "https://media.example/photo.jpg?lat=35.123456&lng=138.123456" }],
+    mediaDedup: { sourcePhotoCount: 2, representativePhotoCount: 1, excludedPhotoCount: 1 },
     actionNonce: "nonce-guest",
     viewerAuthenticated: false,
   });
@@ -129,6 +153,44 @@ test("guest HTML omits owner management and keeps proposals on demand", () => {
   assert.match(rendered, /ログインして名前を提案する/);
   assert.match(rendered, /a,button,input,select,textarea,summary\{min-height:44px/);
   assert.doesNotMatch(rendered, /35\.123456|138\.123456|[?&]lat=/);
+  assert.doesNotMatch(rendered, /data-media-dedup-notice|similar photos|似た写真/);
+});
+
+test("accepted human identification suppresses the provisional AI comparison", () => {
+  const acceptedDetail: ObservationFirstRecordDetail = {
+    ...detail,
+    observations: [{
+      ...detail.observations[0]!,
+      acceptedIdentification: {
+        claimId: "accepted-human",
+        actorType: "owner",
+        actorId: "owner-1",
+        proposalActorType: "community_member",
+        proposedName: "ナミアゲハ",
+        proposedScientificName: "Papilio xuthus",
+        proposedRank: "species",
+        humanDecision: true,
+      },
+    }],
+  };
+  const rendered = renderObservationFirstRecordDetailHtml(acceptedDetail, {
+    title: "人が確認した記録",
+    observedLabel: "2026年7月23日",
+    note: null,
+    media: [],
+    aiCandidateInsights: [{
+      name: "キアゲハ",
+      scientificName: "Papilio machaon",
+      supportingFeatures: ["AIだけの候補"],
+      missingFeatures: [],
+      contradictions: [],
+    }],
+    actionNonce: "nonce-accepted-human",
+    viewerAuthenticated: true,
+  });
+
+  assert.match(rendered, /ナミアゲハ/);
+  assert.doesNotMatch(rendered, /似ている候補との比較|AIだけの候補/);
 });
 
 test("related records without a photo use the full card width", () => {

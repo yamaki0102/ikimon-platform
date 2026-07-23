@@ -64,6 +64,7 @@ import {
 } from "./cloudflareObservationReadModel";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
+import { publicObservationAiCandidateInsights } from "./publicObservationAiPresentation";
 import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
@@ -1018,6 +1019,7 @@ interface PublicDetailRow extends PublicMapRow {
   ai_request_status: string | null;
   ai_candidate_label: string | null;
   ai_candidate_rank: string | null;
+  ai_source_payload_json: string | null;
 }
 
 interface PublicDetailAssetRow {
@@ -24954,6 +24956,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         publicLocationLabel: detail.publicLocation.label,
         detectionState,
         media,
+        aiCandidateInsights: detail.aiCandidateInsights,
+        mediaDedup: detail.mediaDedup,
         environment: detail.environmentRecord,
         related: detail.relatedObservations.map((item) => ({
           recordId: item.visitId,
@@ -25230,7 +25234,8 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
                   WHERE rr.observation_id = o.observation_id AND rr.request_kind = 'standard'
                   ORDER BY rr.updated_at DESC LIMIT 1) AS ai_request_status,
                 COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
-                COALESCE(art.candidate_taxon_rank, art.ai_recommended_rank) AS ai_candidate_rank
+                COALESCE(art.candidate_taxon_rank, art.ai_recommended_rank) AS ai_candidate_rank,
+                art.source_payload_json AS ai_source_payload_json
            FROM observations o
            LEFT JOIN readmodel_public_observations r ON r.observation_id = o.observation_id
            LEFT JOIN observation_ai_review_targets art ON art.occurrence_id = 'occ:' || o.observation_id || ':0'
@@ -25246,7 +25251,8 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
                   WHERE rr.observation_id = o.observation_id AND rr.request_kind = 'standard'
                   ORDER BY rr.updated_at DESC LIMIT 1) AS ai_request_status,
                 COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
-                COALESCE(art.candidate_taxon_rank, art.ai_recommended_rank) AS ai_candidate_rank
+                COALESCE(art.candidate_taxon_rank, art.ai_recommended_rank) AS ai_candidate_rank,
+                art.source_payload_json AS ai_source_payload_json
            FROM readmodel_public_observations r
            JOIN observations o ON o.observation_id = r.observation_id
            LEFT JOIN observation_ai_review_targets art ON art.occurrence_id = 'occ:' || o.observation_id || ':0'
@@ -25340,6 +25346,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     isAwaitingId,
     aiCandidateLabel: row.ai_candidate_label,
     aiCandidateRank: row.ai_candidate_rank,
+    aiCandidateInsights: publicObservationAiCandidateInsights(row.ai_source_payload_json),
     aiAssessmentStatus: row.ai_assessment_status,
     aiRequestStatus: row.ai_request_status,
     visibility: row.visibility,

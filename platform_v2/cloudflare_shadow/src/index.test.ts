@@ -180,6 +180,7 @@ interface ObservationAiReviewTargetRow {
   candidate_taxon_rank: string | null;
   ai_recommended_taxon_name: string | null;
   ai_recommended_rank: string | null;
+  source_payload_json?: string | null;
 }
 
 interface ObservationRecordAiReviewRow {
@@ -5344,7 +5345,8 @@ class FakeStatement {
         visibility: observation.visibility,
         ai_assessment_status: aiTarget?.ai_assessment_status ?? null,
         ai_candidate_label: aiTarget?.candidate_vernacular_name ?? aiTarget?.candidate_scientific_name ?? aiTarget?.ai_recommended_taxon_name ?? null,
-        ai_candidate_rank: aiTarget?.candidate_taxon_rank ?? aiTarget?.ai_recommended_rank ?? null
+        ai_candidate_rank: aiTarget?.candidate_taxon_rank ?? aiTarget?.ai_recommended_rank ?? null,
+        ai_source_payload_json: aiTarget?.source_payload_json ?? null
       } as T) : null;
     }
 
@@ -5366,7 +5368,8 @@ class FakeStatement {
         visibility: observation.visibility,
         ai_assessment_status: aiTarget?.ai_assessment_status ?? null,
         ai_candidate_label: aiTarget?.candidate_vernacular_name ?? aiTarget?.candidate_scientific_name ?? aiTarget?.ai_recommended_taxon_name ?? null,
-        ai_candidate_rank: aiTarget?.candidate_taxon_rank ?? aiTarget?.ai_recommended_rank ?? null
+        ai_candidate_rank: aiTarget?.candidate_taxon_rank ?? aiTarget?.ai_recommended_rank ?? null,
+        ai_source_payload_json: aiTarget?.source_payload_json ?? null
       } as T);
     }
 
@@ -9367,13 +9370,39 @@ test("public observation detail route exposes a safe read page and JSON without 
     candidate_vernacular_name: "ツバキ属",
     candidate_taxon_rank: "genus",
     ai_recommended_taxon_name: "Camellia",
-    ai_recommended_rank: "genus"
+    ai_recommended_rank: "genus",
+    source_payload_json: JSON.stringify({
+      topCandidates: [
+        {
+          name: "ツバキ属",
+          scientificName: "Camellia",
+          confidence: 0.81,
+          supportingFeatures: ["厚みのある常緑葉が見える"],
+          missingFeatures: ["花は確認できない"],
+          contradictions: [],
+          sourceLanes: ["specialist"],
+          sourceAssetIds: ["asset-detail-contract-real-derivative"],
+        },
+        {
+          name: "サザンカ",
+          scientificName: "Camellia sasanqua",
+          supportingFeatures: ["葉形を比較する余地がある"],
+          missingFeatures: [],
+          contradictions: ["花期と花弁は確認できない"],
+        },
+      ],
+    })
   });
   const candidateResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-detail-contract/public-detail"), env);
   const candidatePayload = await candidateResponse.json() as any;
   assert.equal(candidatePayload.observation.isAwaitingId, true);
   assert.equal(candidatePayload.observation.displayName, "ツバキ属");
   assert.equal(candidatePayload.observation.aiCandidateLabel, "ツバキ属");
+  assert.deepEqual(
+    candidatePayload.observation.aiCandidateInsights.map((candidate: any) => candidate.name),
+    ["ツバキ属", "サザンカ"]
+  );
+  assert.doesNotMatch(JSON.stringify(candidatePayload.observation.aiCandidateInsights), /confidence|sourceLanes|sourceAssetIds|asset-detail-contract/);
   assert.doesNotMatch(JSON.stringify(candidatePayload), /publicCell|cellId|34\.71|137\.81/);
   const candidatePage = await worker.fetch(new Request("https://shadow.test/observations/visit-detail-contract"), env);
   const candidateHtml = await candidatePage.text();
