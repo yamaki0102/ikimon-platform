@@ -1067,6 +1067,7 @@ function siteShellLayoutKind(currentPath: string, shellClassName: string): SiteS
 type GlobalRecordEntryCopy = {
   navLabel: string;
   photo: string;
+  photoMode: string;
   captureAria: string;
   places: string;
   records: string;
@@ -1096,7 +1097,7 @@ type GlobalRecordEntryCopy = {
 };
 
 function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
-  type LegacyCopy = Omit<GlobalRecordEntryCopy, "navLabel" | "photo" | "captureAria" | "places" | "records" | "self" | "gallery" | "errorTitle" | "errorBody" | "permissionBody" | "retry" | "cancel">;
+  type LegacyCopy = Omit<GlobalRecordEntryCopy, "navLabel" | "photo" | "photoMode" | "captureAria" | "places" | "records" | "self" | "gallery" | "errorTitle" | "errorBody" | "permissionBody" | "retry" | "cancel">;
   const copy: Record<SiteLang, LegacyCopy> = {
     ja: {
       video: "動画",
@@ -1180,6 +1181,8 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
     self: string;
   }>(lang, "shared", "bottomNav");
   const cameraCapture = getShortCopy<{
+    photo: string;
+    video: string;
     errorTitle: string;
     errorBody: string;
     permissionBody: string;
@@ -1191,6 +1194,8 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
     ...(copy[lang] ?? copy.ja),
     navLabel: bottomNav.ariaLabel,
     photo: bottomNav.capture,
+    photoMode: cameraCapture.photo,
+    video: cameraCapture.video,
     captureAria: bottomNav.captureAria,
     places: bottomNav.places,
     records: bottomNav.records,
@@ -1245,6 +1250,10 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <div>
         <strong data-global-record-camera-title>${escapeHtml(copy.sheetTitle)}</strong>
         <p data-global-record-camera-help>${escapeHtml(copy.sheetHelp)}</p>
+        <div class="global-record-camera-modes" aria-label="${escapeHtml(copy.actionLabel)}">
+          <button type="button" data-global-record-trigger="photo" data-global-record-mode="photo" aria-pressed="true">${escapeHtml(copy.photoMode)}</button>
+          <button type="button" data-global-record-trigger="video" data-global-record-mode="video" aria-pressed="false">${escapeHtml(copy.video)}</button>
+        </div>
       </div>
       <button type="button" class="global-record-camera-close" data-global-record-camera-close aria-label="${escapeHtml(copy.close)}">×</button>
     </div>
@@ -2097,6 +2106,9 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (!sheet) return;
     if (kind) sheet.setAttribute('data-active-kind', kind);
     else sheet.removeAttribute('data-active-kind');
+    document.querySelectorAll('[data-global-record-mode]').forEach((button) => {
+      button.setAttribute('aria-pressed', button.getAttribute('data-global-record-mode') === kind ? 'true' : 'false');
+    });
   };
   const setPrimaryAction = (button, enabled) => {
     if (!button) return;
@@ -2600,6 +2612,11 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     setStatus('');
   };
   const openSheet = (kind, options) => {
+    if (activeKind && activeKind !== kind) {
+      cameraRequestId += 1;
+      cameraStartInFlight = false;
+      stopActiveStream();
+    }
     hideCameraError();
     if (!(options && options.keepReview)) clearReview();
     sheetOpenedAt = nowMs();
@@ -5995,6 +6012,32 @@ ${alternateLinks}
     .global-record-camera-head p {
       display: none;
     }
+    .global-record-camera-modes {
+      display: inline-flex;
+      gap: 4px;
+      margin-top: 6px;
+      padding: 3px;
+      border-radius: 999px;
+      background: #eef4f0;
+    }
+    .global-record-camera-modes button {
+      min-width: 64px;
+      min-height: 36px;
+      padding: 6px 12px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #475569;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .global-record-camera-modes button[aria-pressed="true"] {
+      background: #fff;
+      color: #065f46;
+      box-shadow: 0 1px 5px rgba(15,23,42,.12);
+    }
     .global-record-camera-close {
       position: fixed;
       top: calc(max(18px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
@@ -6474,6 +6517,7 @@ ${alternateLinks}
       color: #fff;
     }
     .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-actions,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-modes,
     .global-record-camera-sheet[data-camera-error="true"] > .global-record-gallery-select,
     .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-preview,
     .global-record-camera-sheet[data-camera-error="true"] .global-record-photo-tray,

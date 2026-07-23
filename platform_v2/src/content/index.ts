@@ -162,6 +162,8 @@ type JsonSharedCopy = {
     self: string;
   };
   cameraCapture: {
+    photo: string;
+    video: string;
     errorTitle: string;
     errorBody: string;
     permissionBody: string;

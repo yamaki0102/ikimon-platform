@@ -64,6 +64,8 @@
     "self": "Eu"
   },
   "cameraCapture": {
+    "photo": "Foto",
+    "video": "Vídeo",
     "errorTitle": "Não foi possível abrir a câmera",
     "errorBody": "Permita a câmera ou escolha uma foto do dispositivo.",
     "permissionBody": "Permita a câmera no navegador ou nas configurações do dispositivo e tente novamente.",

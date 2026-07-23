@@ -312,6 +312,8 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /source: 'record'/);
   assert.match(html, /id: 'record:' \+ DRAFT_KEY/);
   assert.match(html, /data-global-record-camera-sheet/);
+  assert.match(html, /data-global-record-mode="photo"[^>]+aria-pressed="true"[^>]*>写真<\/button>/);
+  assert.match(html, /data-global-record-mode="video"[^>]+aria-pressed="false"[^>]*>動画<\/button>/);
   assert.match(html, /data-global-record-camera-video/);
   assert.match(html, /data-global-record-camera-image/);
   assert.match(html, /data-global-record-camera-zoom/);
@@ -339,6 +341,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.doesNotMatch(html, /data-global-record-inline-edit/);
   assert.doesNotMatch(html, /data-global-record-data-estimate/);
   assert.match(html, /data-global-record-video-trim/);
+  assert.match(html, /activeKind && activeKind !== kind[\s\S]+stopActiveStream\(\)/);
   assert.match(html, /object-fit: contain/);
   assert.match(html, /global-record-camera-preview video\[hidden\]/);
   assert.match(html, /\.global-record-camera-backdrop \{[\s\S]+z-index: 130;/);

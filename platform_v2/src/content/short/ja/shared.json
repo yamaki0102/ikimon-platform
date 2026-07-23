@@ -82,6 +82,8 @@
     "self": "自分"
   },
   "cameraCapture": {
+    "photo": "写真",
+    "video": "動画",
     "errorTitle": "カメラを開けませんでした",
     "errorBody": "カメラの利用を許可するか、端末の写真を選んでください。",
     "permissionBody": "ブラウザや端末の設定でカメラを許可してから、もう一度お試しください。",
