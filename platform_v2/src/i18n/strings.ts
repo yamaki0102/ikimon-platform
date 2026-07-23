@@ -1,5 +1,39 @@
 export type LandingStrings = {
   title: string;
+  home: {
+    guest: {
+      heroHeading: string;
+      heroLead: string;
+      primaryCta: string;
+      secondaryCta: string;
+      publicRecordsTitle: string;
+      valueTitle: string;
+      valueItems: Array<{ title: string; body: string }>;
+      privacyTitle: string;
+      privacyBody: string;
+      finalTitle: string;
+      finalCta: string;
+    };
+    member: {
+      actionTitle: string;
+      actionLead: string;
+      primaryCta: string;
+      recentTitle: string;
+      discoveriesTitle: string;
+      nearbyTitle: string;
+      processing: string;
+    };
+    shared: {
+      openRecord: string;
+      unknownRecord: string;
+      safePlaceFallback: string;
+      aiCandidateSuffix: string;
+      fromRecord: string;
+      multipleMedia: string;
+      media: Record<"photo" | "video" | "audio" | "memo", string>;
+      navigation: Record<"home" | "record" | "discover" | "profile", string>;
+    };
+  };
   heroEyebrow: string;
   heroHeading: string;
   heroHeadingPlain: string;

@@ -450,7 +450,9 @@ function buildLandingRootHtml(
     currentPath,
     extraStyles,
     shellClassName: "shell-bleed prototype-shell",
-    minimalChrome: !isLoggedIn,
+    minimalChrome: false,
+    homeChrome: isLoggedIn ? "member" : "guest",
+    hideGlobalRecordLauncher: true,
     body: `${landingTop.heroHtml}
 ${landingTop.dailyDashboardHtml}
 ${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}`,

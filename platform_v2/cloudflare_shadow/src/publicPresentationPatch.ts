@@ -92,6 +92,16 @@ export async function patchPublicHomePresentation(request: Request, response: Re
   if (!contentType.includes("text/html")) return response;
 
   const html = await response.text();
+  const stateSplitHome = html.includes('data-home-contract="state-split-v1"');
+  if (stateSplitHome) {
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    headers.delete("etag");
+    headers.delete("last-modified");
+    headers.set("cache-control", "no-cache, no-store, must-revalidate");
+    headers.set("x-ikimon-presentation-contract", "state-split-home-v1");
+    return new Response(html, { status: response.status, statusText: response.statusText, headers });
+  }
   const withoutPassiveIdentification = stripPassiveIdentificationFromHomeHtml(html);
   const focusedRedesign = supportsFocusedHomeRedesign(request);
   const patched = focusedRedesign

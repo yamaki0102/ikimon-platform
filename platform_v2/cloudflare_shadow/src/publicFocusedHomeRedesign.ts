@@ -396,6 +396,7 @@ function injectFocusedHomeStyles(html: string): string {
 }
 
 export function applyFocusedPublicHomeRedesign(html: string): string {
+  if (html.includes('data-home-contract="state-split-v1"')) return html;
   const lang = detectFocusedHomeLang(html);
   let redesigned = html;
   if (lang) {

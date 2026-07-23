@@ -8,10 +8,11 @@ import {
 } from "./support/staging.js";
 
 const HOME_VIEWPORTS: ViewportProfile[] = [
-  { slug: "desktop-1536", viewport: { width: 1536, height: 900 } },
+  { slug: "mobile-320", viewport: { width: 320, height: 720 }, isMobile: true, hasTouch: true },
+  { slug: "mobile-375", viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true },
+  { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
   { slug: "desktop-1280", viewport: { width: 1280, height: 800 } },
   { slug: "tablet-768", viewport: { width: 768, height: 900 } },
-  { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
 ];
 
 type SessionPayload = {
@@ -60,20 +61,27 @@ async function issueSessionCookie(api: APIRequestContext, userId: string): Promi
   return rawCookie;
 }
 
-async function expectRecordFeedHomeShell(page: Page): Promise<void> {
+async function expectGuestHome(page: Page): Promise<void> {
   await expect(async () => {
     await page.goto("/?lang=ja", { waitUntil: "networkidle" });
-    await expect(page.locator("[data-record-feed]")).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator("[data-record-feed-card]").first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('[data-home-contract="state-split-v1"]')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('[data-home-view="guest"]')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('[data-home-view="member"]')).toBeHidden();
+    await expect(page.locator('[data-home-auth-state="guest"]')).toHaveCount(2);
+    await expect(page.locator('[data-home-view="guest"] .home-primary-button')).toHaveCount(1);
+    await expect(page.locator('[data-home-view="guest"] .home-bottom-nav')).toHaveCount(0);
+    await expect(page.locator("#home-public-records")).toBeVisible();
     await expect(page.locator("#map-explorer")).toHaveCount(0);
-    await expect(page.locator("body")).toContainText(/写真・動画の記録|記録を見る/);
+    await expect(page.locator("body")).toContainText("記録から、");
   }).toPass({
     intervals: [1_500, 3_000, 5_000],
     timeout: 45_000,
   });
 }
 
-async function expectQuietFeedHome(page: Page): Promise<void> {
+async function expectNoLegacyHome(page: Page): Promise<void> {
+  await expect(page.locator("[data-record-feed]")).toHaveCount(0);
+  await expect(page.locator(".global-record-launcher")).toHaveCount(0);
   await expect(page.locator(".me-enjoy-strip")).toHaveCount(0);
   await expect(page.locator("#me-visited-panel")).toHaveCount(0);
   await expect(page.locator("[data-api-my-places]")).toHaveCount(0);
@@ -88,22 +96,23 @@ async function expectQuietFeedHome(page: Page): Promise<void> {
 }
 
 for (const profile of HOME_VIEWPORTS) {
-  test(`home opens the record feed shell (${profile.slug})`, async ({ browser }) => {
+  test(`guest home exposes the value-first state layout (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
     const page = await context.newPage();
 
     try {
       await suppressMapLibreForSmoke(page);
-      await expectRecordFeedHomeShell(page);
-      await expectQuietFeedHome(page);
+      await expectGuestHome(page);
+      await expectNoLegacyHome(page);
       await expectNoHorizontalOverflow(page);
+      await page.screenshot({ path: `test-results/home-state-split-guest-${profile.slug}.png`, fullPage: true });
     } finally {
       await context.close();
     }
   });
 }
 
-test("logged-in staging home keeps the record feed shell", async ({ browser, playwright }) => {
+test("logged-in staging home exposes recent records, discoveries, nearby records, and one bottom nav", async ({ browser, playwright }) => {
   const api = await createStagingApiContext(playwright);
   const userId = await resolveQaUserId(api);
   const rawCookie = await issueSessionCookie(api, userId);
@@ -113,10 +122,20 @@ test("logged-in staging home keeps the record feed shell", async ({ browser, pla
 
   try {
     await suppressMapLibreForSmoke(page);
-    await expectRecordFeedHomeShell(page);
-    await expectQuietFeedHome(page);
+    await page.goto("/?lang=ja", { waitUntil: "networkidle" });
+    await expect(page.locator('[data-home-contract="state-split-v1"]')).toBeVisible();
+    await expect(page.locator('[data-home-view="member"]')).toBeVisible();
+    await expect(page.locator('[data-home-view="guest"]')).toBeHidden();
+    await expect(page.locator('[data-home-auth-state="member"]')).toHaveCount(2);
+    await expect(page.locator('[data-home-view="member"] .home-primary-button')).toHaveCount(1);
+    await expect(page.locator('[data-home-view="member"] .home-bottom-nav')).toHaveCount(1);
+    await expect(page.locator('[data-home-view="member"] .home-bottom-nav a')).toHaveCount(4);
+    await expect(page.locator('[data-home-section="monitoring"]')).toHaveCount(0);
+    await expectNoLegacyHome(page);
     await expectNoHorizontalOverflow(page);
-    await page.screenshot({ path: "test-results/home-record-feed-logged-in.png", fullPage: true });
+    const visibleIds = await page.locator('[data-home-view="member"] [data-home-record-id]:visible').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-home-record-id")).filter(Boolean));
+    expect(new Set(visibleIds).size).toBe(visibleIds.length);
+    await page.screenshot({ path: "test-results/home-state-split-member-1440.png", fullPage: true });
   } finally {
     await context.close();
     await api.dispose();

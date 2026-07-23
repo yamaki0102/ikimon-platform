@@ -2,6 +2,8 @@
 
 このrepoの実装入口はroot [`AGENTS.md`](../AGENTS.md)、機械可読project pointerは[`PROJECT.json`](../PROJECT.json)です。
 
+公開ホームの現行仕様は [`spec/public-home-state-split.md`](spec/public-home-state-split.md)、完了判定は [`operations/public-home-ux-completion-gate.md`](operations/public-home-ux-completion-gate.md) を参照します。
+
 ## 読む順番
 
 1. [`AGENTS.md`](../AGENTS.md) — current app、security、test、deploy境界

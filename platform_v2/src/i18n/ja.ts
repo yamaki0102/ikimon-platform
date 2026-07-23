@@ -1,8 +1,8 @@
 import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
-import type { AppStrings } from "./strings.js";
+import type { PartialAppStrings } from "./strings.js";
 import { getObservationEventStrings } from "./observationEventStrings.js";
 
-export const ja: AppStrings = {
+export const ja: PartialAppStrings = {
   landing: {
     title: "ikimon | 生きものを手がかりに、この場所の今を残す",
     heroEyebrow: "Enjoy Life",
