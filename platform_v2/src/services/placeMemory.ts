@@ -65,6 +65,18 @@ export type PlaceMemoryUserPreferences = {
   defaultTagsPublic: boolean;
 };
 
+export type PublicPlaceMemoryItem = {
+  entryId: string;
+  recordId: string;
+  tags: PlaceMemoryTag[];
+  echoNote: string;
+  observedYearMonth: string;
+  photoUrl: string | null;
+  sourceLabel: "利用者の地域記憶";
+  moderationStatus: "approved";
+  attributionMode: "anonymous" | "display_name";
+};
+
 function cleanText(value: unknown, maxLength: number): string {
   if (typeof value !== "string") return "";
   return value.trim().replace(/\s+/g, " ").slice(0, maxLength);
@@ -339,6 +351,66 @@ export async function getPostSavePlaceMemorySample(input: { userId: string; visi
   if (!cellId) return [];
   const list = await listUnlockedPlaceMemories({ userId: input.userId, cellId, limit: input.limit ?? 3, randomSample: true });
   return list.unlocked ? list.items : [];
+}
+
+/**
+ * Public Place Atlas projection. This is deliberately separate from the
+ * post-contribution "unlocked memories" feed: owner-only/private memories
+ * must never become public merely because the viewer is signed in.
+ */
+export async function listPublicPlaceMemories(input: {
+  cellId: string;
+  limit?: number;
+}): Promise<PublicPlaceMemoryItem[]> {
+  const limit = Math.max(1, Math.min(24, Math.floor(input.limit ?? 12)));
+  const pool = getPool();
+  const result = await pool.query<{
+    entry_id: string;
+    visit_id: string;
+    memory_tags: PlaceMemoryTag[];
+    echo_note: string;
+    observed_year_month: string;
+    photo_url: string | null;
+    public_attribution_mode: string;
+  }>(
+    `select pme.entry_id::text,
+            pme.visit_id,
+            case when pme.tags_public then pme.memory_tags else '{}'::text[] end as memory_tags,
+            pme.echo_note,
+            to_char(v.observed_at, 'YYYY-MM') as observed_year_month,
+            case
+              when pme.photo_echo_visibility = 'ready'
+               and pmd.processing_status = 'ready'
+               and coalesce(pmd.sensitive_status, '') <> 'sensitive'
+              then ab.public_url
+              else null
+            end as photo_url,
+            pme.public_attribution_mode
+       from place_memory_entries pme
+       join visits v on v.visit_id = pme.visit_id
+       left join place_memory_photo_derivatives pmd on pmd.entry_id = pme.entry_id
+       left join asset_blobs ab on ab.blob_id = pmd.redacted_blob_id
+      where pme.cell_id = $1
+        and pme.deleted_at is null
+        and pme.moderation_status = 'visible'
+        and pme.public_place_opt_in = true
+        and pme.public_place_moderation_status = 'approved'
+        and v.public_visibility <> 'hidden'
+      order by pme.public_place_reviewed_at desc nulls last, pme.updated_at desc
+      limit $2`,
+    [input.cellId, limit],
+  );
+  return result.rows.map((row) => ({
+    entryId: row.entry_id,
+    recordId: row.visit_id,
+    tags: normalizeTags(row.memory_tags),
+    echoNote: cleanText(row.echo_note, MAX_ECHO_NOTE_LENGTH),
+    observedYearMonth: row.observed_year_month,
+    photoUrl: row.photo_url,
+    sourceLabel: "利用者の地域記憶",
+    moderationStatus: "approved",
+    attributionMode: row.public_attribution_mode === "display_name" ? "display_name" : "anonymous",
+  }));
 }
 
 async function resolveEntryAccess(client: PoolClient, entryId: string, userId: string): Promise<{
