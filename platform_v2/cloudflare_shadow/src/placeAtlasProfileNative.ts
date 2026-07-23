@@ -822,7 +822,7 @@ function osmFacilities(place: ResolvedOsmPlace): unknown[] {
 
 function osmSuppressedSections(place: ResolvedOsmPlace): string[] {
   const access = (place.tags.access ?? "").toLowerCase();
-  return ["private", "no", "customers", "permit"].includes(access)
+  return place.type === "school" || ["private", "no", "customers", "permit"].includes(access)
     ? ["contribution_cta"]
     : [];
 }
@@ -929,11 +929,13 @@ async function loadFieldPlaceAtlasProfile(
   const sensitiveSuppression = isSensitivePolicySuppression(policy);
   const guide = guideForScope(input.guideSpots ?? [], geometry, center, radiusM);
   const memories = await loadUnlockedMemories(input.db, input.viewerUserId, field.public_cell);
+  const contributionRestricted = fieldType(field) === "school" || sensitiveSuppression;
   const suppressedSections = [
     ...(policy?.display_suppression_reason ? ["field_profile_narrative"] : []),
     ...(sensitiveSuppression
       ? ["record_summary", "representative_media", "recent_records", "themes", "highlights"]
       : []),
+    ...(contributionRestricted ? ["contribution_cta"] : []),
   ];
   return buildPlaceAtlasProfile({
     placeRef: ref,

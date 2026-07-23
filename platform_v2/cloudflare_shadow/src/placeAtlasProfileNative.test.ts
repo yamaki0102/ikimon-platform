@@ -309,6 +309,25 @@ test("field atlas honors sensitive policy suppression even when public snapshot 
   assert.equal(profile.recentRecords.length, 0);
   assert.equal(profile.place.representativeMedia.length, 0);
   assert.ok(profile.publication.suppressedSections.includes("recent_records"));
+  assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
+});
+
+test("field atlas suppresses direct contribution for schools", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.field = {
+    ...fixtures.field,
+    source: "school",
+    admin_level: "school",
+    name: "公開範囲を限定する学校",
+  };
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: { kind: "field", fieldId: TOKIWA_FIELD_ID },
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.place.type, "school");
+  assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
 });
 
 test("public cell atlas uses the same contract without exact-coordinate joins", async () => {
@@ -392,6 +411,46 @@ test("generic OSM park resolution does not depend on a Tokiwa-specific branch", 
     source: "OpenStreetMap",
     confidence: "derived",
   }]);
+});
+
+test("generic OSM schools suppress direct contribution", async () => {
+  const fixtures = tokiwaFixtures(null);
+  const fetchFn: typeof fetch = async () => new Response(JSON.stringify({
+    elements: [{
+      type: "way",
+      id: 987658,
+      tags: {
+        name: "公開範囲を限定する学校",
+        amenity: "school",
+      },
+      geometry: [
+        { lat: 34.966, lon: 138.376 },
+        { lat: 34.966, lon: 138.385 },
+        { lat: 34.975, lon: 138.385 },
+        { lat: 34.975, lon: 138.376 },
+        { lat: 34.966, lon: 138.376 },
+      ],
+    }],
+  }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:987658",
+      osmType: "way",
+      osmId: 987658,
+    },
+    fetchFn,
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.place.type, "school");
+  assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
+  assert.ok(profile.dataGaps.some((gap) => gap.key === "access"));
 });
 
 test("oversized OSM geometry does not fall back to an unbounded global snapshot scan", async () => {

@@ -191,4 +191,7 @@ test("runtime is valid JavaScript and styles cover touch, focus, mobile peek, an
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /data-snap="peek"/);
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /prefers-reduced-motion: reduce/);
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /min-width: 0/);
+  assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /@media \(min-width: 1280px\)/);
+  assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /@media \(max-width: 900px\)/);
+  assert.doesNotMatch(MAP_PLACE_ATLAS_PROFILE_STYLES, /@platform_v2|observationMedia\.ts/);
 });
