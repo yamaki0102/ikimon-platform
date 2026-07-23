@@ -157,7 +157,7 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
     <section class="home-guest-hero${heroVisual ? " has-visual" : ""}">
       <div class="home-guest-hero-copy"><h1>${escapeHtml(copy.heroHeading)}</h1><p>${escapeHtml(copy.heroLead)}</p>
         <div class="home-hero-actions"><a class="home-primary-button" href="${escapeHtml(href(options, "/record"))}">${escapeHtml(copy.primaryCta)}</a><a class="home-secondary-link" href="#home-public-records">${escapeHtml(copy.secondaryCta)}</a></div>
-      </div>${heroVisual}
+      </div>${slot("guest-hero", heroVisual)}
     </section>
     <section class="home-section" id="home-public-records"><h2>${escapeHtml(copy.publicRecordsTitle)}</h2>${slot("guest-public", publicShelf)}</section>
     <section class="home-section home-value-section"><h2>${escapeHtml(copy.valueTitle)}</h2><ol>${valueItems}</ol></section>

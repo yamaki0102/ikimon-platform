@@ -23603,6 +23603,12 @@ export async function injectStateSplitHome(html: string, session: SessionSnapsho
   const publicItems = await recentPublicRecordCards(env, 16).catch(() => []);
   let next = setStateHomeAuth(html, member);
   if (publicItems.length > 0) {
+    const heroItem = publicItems.find((item) => Boolean(item.photoUrl));
+    if (heroItem) {
+      const heroVisual = `<div class="home-guest-hero-visual">${stateHomeMedia(heroItem, lang, true)}</div>`;
+      next = replaceStateHomeMarker(next, "slot", "guest-hero", heroVisual);
+      next = next.replace('<section class="home-guest-hero">', '<section class="home-guest-hero has-visual">');
+    }
     const guestCards = `<div class="home-horizontal-list" role="region" aria-label="${escapeHtml(stateHomeCopy(lang).publicRecords)}">${publicItems.slice(0, 8).map((item) => stateHomePublicCard(item, lang)).join("")}</div>`;
     next = replaceStateHomeMarker(next, "slot", "guest-public", guestCards);
   }

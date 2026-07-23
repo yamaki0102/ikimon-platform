@@ -8,7 +8,7 @@ import { enforceCameraFirstHomeCtaHtml } from "./cameraFirstHomeCta";
 const template = `<!doctype html><html lang="ja"><head></head><body>
 <header data-home-header data-home-auth-state="guest"></header>
 <main><div class="home-state-root" data-home-contract="state-split-v1" data-home-auth-state="guest">
-<div class="home-state-view is-guest" data-home-view="guest"><!-- ikimon-home-slot:guest-public:start --><a href="/ja/records?view=public">public</a><!-- ikimon-home-slot:guest-public:end --></div>
+<div class="home-state-view is-guest" data-home-view="guest"><section class="home-guest-hero"><!-- ikimon-home-slot:guest-hero:start --><!-- ikimon-home-slot:guest-hero:end --></section><!-- ikimon-home-slot:guest-public:start --><a href="/ja/records?view=public">public</a><!-- ikimon-home-slot:guest-public:end --></div>
 <div class="home-state-view is-member" data-home-view="member" hidden>
 <!-- ikimon-home-section:member-recent:start --><!-- ikimon-home-section:member-recent:end -->
 <!-- ikimon-home-section:member-discovery:start --><!-- ikimon-home-section:member-discovery:end -->
@@ -50,6 +50,9 @@ test("state split worker renders distinct owner, discovery, and nearby slots wit
   assert.match(html, /写真からわかったこと/);
   assert.match(html, /カワセミ かもしれません/);
   assert.match(html, /近くで残された記録/);
+  assert.match(html, /home-guest-hero has-visual/);
+  assert.match(html, /home-guest-hero-visual/);
+  assert.match(html, /fetchpriority="high"/);
   const member = html.slice(html.indexOf('data-home-view="member"'));
   assert.equal((member.match(/data-home-record-id="owner-latest"/g) || []).length, 1);
   assert.equal((member.match(/data-home-record-id="owner-discovery"/g) || []).length, 1);

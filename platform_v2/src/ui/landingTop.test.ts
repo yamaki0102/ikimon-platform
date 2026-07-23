@@ -51,6 +51,9 @@ test("guest home has a dedicated value-first layout and one hero primary action"
   assert.match(html, /記録から、場所の今が見えてくる/);
   assert.match(html, /地域に残っている記録/);
   assert.match(html, /正確な位置は公開しません/);
+  assert.match(html, /ikimon-home-slot:guest-hero:start/);
+  assert.match(html, /home-guest-hero-visual/);
+  assert.match(html, /fetchpriority="high"/);
   assert.equal((html.match(/class="home-primary-button"/g) || []).length, 2, "one hero CTA plus a restrained final CTA/member hidden template");
   assert.doesNotMatch(html, /今日のおすすめ|人気ランキング|前回から続ける|同じ場所をもう一度/);
 });
