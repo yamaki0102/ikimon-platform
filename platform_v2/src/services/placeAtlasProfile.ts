@@ -383,4 +383,3 @@ export const __test__ = {
   sanitizeFacilities,
   sourceRecords,
 };
-

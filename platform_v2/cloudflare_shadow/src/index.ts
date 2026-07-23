@@ -70,6 +70,13 @@ import {
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus";
 import {
+  normalizePlaceAtlasRef,
+  PLACE_ATLAS_PROFILE_VERSION,
+} from "../../src/services/placeAtlasContract";
+import {
+  loadCloudflarePlaceAtlasProfile,
+} from "./placeAtlasProfileNative";
+import {
   buildObservationMediaDedupPlan,
   type ObservationMediaDedupInput,
   type ObservationMediaDedupPlan,
@@ -2433,6 +2440,10 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/observations") {
         return getPublicMapObservations(url, env);
+      }
+
+      if (request.method === "GET" && nativePathname === "/api/v1/map/place-profile") {
+        return getPublicMapPlaceProfile(request, url, env);
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/gbif-area-summary") {
@@ -12256,6 +12267,7 @@ async function originFallbackTelemetrySummary(url: URL, env: Env): Promise<Respo
 
 function fallbackRoutePattern(pathname: string): string {
   if (/^\/api\/v1\/fields\/[^/]+\/area-snapshot$/.test(pathname)) return "/api/v1/fields/:id/area-snapshot";
+  if (pathname === "/api/v1/map/place-profile") return "/api/v1/map/place-profile";
   if (pathname === "/favicon.ico") return "/favicon.ico";
   if (pathname === "/manifest.webmanifest") return "/manifest.webmanifest";
   if (/^\/assets\/brand\/[^/]+$/.test(pathname)) return "/assets/brand/:asset";
@@ -12571,6 +12583,63 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
       provenance: publicMapEmptyProvenance(scopedRows.length)
     }
   }, 200, { "cache-control": "no-store" });
+}
+
+async function getPublicMapPlaceProfile(request: Request, url: URL, env: Env): Promise<Response> {
+  const placeRef = normalizePlaceAtlasRef(Object.fromEntries(url.searchParams.entries()));
+  if (!placeRef) {
+    return json({
+      error: "invalid_place_ref",
+      supportedKinds: ["field", "osm_area", "public_cell"]
+    }, 400, {
+      "cache-control": "no-store",
+      "x-ikimon-profile-version": PLACE_ATLAS_PROFILE_VERSION
+    });
+  }
+
+  const hasCredential = Boolean(
+    readSessionTokenFromCookie(request.headers.get("cookie"))
+    || bearerToken(request.headers.get("authorization"))
+  );
+  const session = hasCredential
+    ? await readCompatibleSessionWithOriginFallback(request, env).catch(() => null)
+    : null;
+
+  try {
+    const profile = await loadCloudflarePlaceAtlasProfile({
+      db: env.OBS_DB,
+      placeRef,
+      viewerUserId: session && !session.banned ? session.userId : null,
+      guideSpots: SHADOW_MAP_GUIDE_SPOTS,
+      overpassApiUrl: env.OVERPASS_API_URL,
+      generatedAt: new Date().toISOString()
+    });
+    if (!profile) {
+      return json({ error: "place_profile_not_found" }, 404, {
+        "cache-control": "public, max-age=60, stale-while-revalidate=300",
+        "x-ikimon-profile-version": PLACE_ATLAS_PROFILE_VERSION,
+        "x-ikimon-cloudflare-native": "map-place-profile"
+      });
+    }
+    return json({ profile }, 200, {
+      "cache-control": hasCredential
+        ? "private, no-cache, no-store, must-revalidate"
+        : "public, max-age=60, stale-while-revalidate=300",
+      "vary": "cookie, authorization",
+      "x-ikimon-profile-version": PLACE_ATLAS_PROFILE_VERSION,
+      "x-ikimon-cloudflare-native": "map-place-profile"
+    });
+  } catch (error) {
+    console.warn("[map-place-profile] read model unavailable", error);
+    return json({
+      error: "place_profile_unavailable",
+      retryable: true
+    }, 503, {
+      "cache-control": "no-store",
+      "x-ikimon-profile-version": PLACE_ATLAS_PROFILE_VERSION,
+      "x-ikimon-cloudflare-native": "map-place-profile"
+    });
+  }
 }
 
 async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
