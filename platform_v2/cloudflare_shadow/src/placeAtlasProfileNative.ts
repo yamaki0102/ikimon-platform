@@ -822,7 +822,7 @@ function osmFacilities(place: ResolvedOsmPlace): unknown[] {
 
 function osmSuppressedSections(place: ResolvedOsmPlace): string[] {
   const access = (place.tags.access ?? "").toLowerCase();
-  return place.type === "school" || ["private", "no", "customers", "permit"].includes(access)
+  return place.type === "school" || ["private", "no", "restricted", "customers", "permit"].includes(access)
     ? ["contribution_cta"]
     : [];
 }

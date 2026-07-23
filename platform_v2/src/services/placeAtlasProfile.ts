@@ -259,7 +259,7 @@ async function buildFieldProfile(
     suppressedSections: [
       ...policy.sections,
       ...(areaRecords.directScopeAvailable ? [] : ["field_exact_aggregation"]),
-      ...((field.adminLevel || field.source) === "school" ? ["direct_record_cta"] : []),
+      ...((field.adminLevel || field.source) === "school" ? ["contribution_cta"] : []),
     ],
     dataGaps: [...(policy.dataGaps ?? []), ...directScopeGap],
     sources: [
@@ -296,7 +296,8 @@ async function buildOsmAreaProfile(
     loadAreaRecords(scope, bbox, cellId, dependencies),
     memoriesForCell(cellId, context.viewerUserId, dependencies),
   ]);
-  const restricted = area.source === "school" || ["private", "no", "restricted"].includes(area.access);
+  const restricted = area.source === "school" ||
+    ["private", "no", "restricted", "customers", "permit"].includes(area.access);
   return buildPlaceAtlasProfile({
     placeRef: ref,
     place: {
@@ -315,7 +316,7 @@ async function buildOsmAreaProfile(
     suppressedSections: [
       "confirmed_life",
       ...(areaRecords.directScopeAvailable ? [] : ["osm_exact_aggregation"]),
-      ...(restricted ? ["direct_record_cta"] : []),
+      ...(restricted ? ["contribution_cta"] : []),
     ],
     dataGaps: areaRecords.directScopeAvailable ? [] : [{
       key: "osm_exact_aggregation",

@@ -218,6 +218,23 @@ test("falls back to public-cell-derived records when exact area scope is unavail
   assert.ok(profile.dataGaps.some((gap) => gap.key === "field_exact_aggregation"));
 });
 
+test("registered school fields use the shared contribution suppression token", async () => {
+  const profile = await getPlaceAtlasProfile(
+    { kind: "field", fieldId: TOKIWA_FIELD_ID },
+    {},
+    dependencies({
+      getField: async () => fieldFixture({
+        source: "school",
+        adminLevel: "school",
+      }),
+    }),
+  );
+
+  assert.ok(profile);
+  assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
+  assert.ok(!profile.publication.suppressedSections.includes("direct_record_cta"));
+});
+
 test("suppresses editorial field details when the field public profile policy is not public", async () => {
   const profile = await getPlaceAtlasProfile(
     { kind: "field", fieldId: TOKIWA_FIELD_ID },
@@ -261,6 +278,31 @@ test("builds the same public contract for a transient OSM park without hardcodin
   assert.equal(profile.summary.recordCount, 3);
   assert.equal(profile.publication.locationMode, "osm_area");
   assert.ok(profile.provenance.sources.includes("openstreetmap"));
+});
+
+test("transient restricted OSM areas use the shared contribution suppression token", async () => {
+  const profile = await getPlaceAtlasProfile({
+    kind: "osm_area",
+    entityKey: "osm:way:125727939",
+    osmType: "way",
+    osmId: 125727939,
+  }, {}, dependencies({
+    resolveOsmArea: async () => ({
+      entityKey: "osm:way:125727939",
+      osmType: "way",
+      osmId: 125727939,
+      name: "立入制限のある場所",
+      source: "osm_park",
+      sourceLabel: "公園・緑地 (OSM live)",
+      access: "restricted",
+      center: { lat: 34.9701378, lng: 138.38031545 },
+      geometry: fieldFixture().polygon!,
+    }),
+  }));
+
+  assert.ok(profile);
+  assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
+  assert.ok(!profile.publication.suppressedSections.includes("direct_record_cta"));
 });
 
 test("builds a public-cell profile and keeps AI candidates provisional", async () => {

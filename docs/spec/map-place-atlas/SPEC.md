@@ -133,6 +133,10 @@ type PlaceAtlasProfile = {
 `null`は未取得・安全に算出不能、`0`は完全な対象集合を評価して該当なしと確認できた場合に
 限る。Record数はdistinct Record ID、mediaは正規化URLまたはasset keyで重複排除する。
 contributor数は安全なdistinct contributor集計があり、公開閾値を満たす場合だけ返す。
+記録導線を抑制する正本tokenは`contribution_cta`とする。NodeとCloudflare Workerは、
+学校、`private`、`no`、`restricted`、`customers`、`permit`、sensitive policy抑制を
+検出できる範囲で同じtokenを返す。UIは旧response互換のため`direct_record_cta`も抑制として
+受理するが、新規responseでは生成しない。
 
 ## Facet contract
 

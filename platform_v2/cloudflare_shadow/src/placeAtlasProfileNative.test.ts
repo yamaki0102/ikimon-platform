@@ -453,6 +453,47 @@ test("generic OSM schools suppress direct contribution", async () => {
   assert.ok(profile.dataGaps.some((gap) => gap.key === "access"));
 });
 
+test("generic OSM restricted access suppresses direct contribution", async () => {
+  const fixtures = tokiwaFixtures(null);
+  const fetchFn: typeof fetch = async () => new Response(JSON.stringify({
+    elements: [{
+      type: "way",
+      id: 987659,
+      tags: {
+        name: "立入制限のある公園",
+        leisure: "park",
+        access: "restricted",
+      },
+      geometry: [
+        { lat: 34.966, lon: 138.376 },
+        { lat: 34.966, lon: 138.385 },
+        { lat: 34.975, lon: 138.385 },
+        { lat: 34.975, lon: 138.376 },
+        { lat: 34.966, lon: 138.376 },
+      ],
+    }],
+  }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:987659",
+      osmType: "way",
+      osmId: 987659,
+    },
+    fetchFn,
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.place.type, "park");
+  assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
+  assert.ok(profile.dataGaps.some((gap) => gap.key === "access"));
+});
+
 test("oversized OSM geometry does not fall back to an unbounded global snapshot scan", async () => {
   const fixtures = tokiwaFixtures(null);
   const fetchFn: typeof fetch = async () => new Response(JSON.stringify({

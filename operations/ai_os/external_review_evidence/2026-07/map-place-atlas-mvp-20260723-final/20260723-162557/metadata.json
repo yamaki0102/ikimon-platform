@@ -1,0 +1,47 @@
+﻿{
+    "success":  true,
+    "status":  "complete",
+    "task_id":  "map-place-atlas-mvp-20260723-final",
+    "target":  "D:\\LocalData\\Temp\\ikimon-place-atlas-pr1419-final.patch",
+    "review_focus":  "Final independent production gate for PR 1419. Review only the exact patch text and cite exact existing lines; do not repeat claims that cannot be found in the patch. Verify correctness, privacy/security, Record versus Occurrence semantics, school/private/sensitive contribution CTA suppression in the Cloudflare Worker production runtime, D1 bind count below 100, canonical Web Mercator public-cell compatibility, bounded OSM scope, multipolygon holes, media URL allowlisting, Place Memory visibility, stale-response protection, actual @media syntax, accessibility, mobile/desktop behavior, rollback, and production release safety. Prior blockers were remediated with tests. Give APPROVE, APPROVE_WITH_NONBLOCKING_NOTES, or BLOCK. A BLOCK requires an exact quoted patch line plus a reproducible failure. No DB migration or secret change is allowed.",
+    "claude":  {
+                   "status":  "ok",
+                   "model_used":  "claude-opus-4-8",
+                   "prompt_variant_used":  "full",
+                   "review_path":  "E:\\Projects\\_agent_scratch\\claude-latest-review\\map-place-atlas-mvp-20260723-final\\claude-review-20260723-161845.md",
+                   "meta_path":  "E:\\Projects\\_agent_scratch\\claude-latest-review\\map-place-atlas-mvp-20260723-final\\claude-review-20260723-161845.meta.json",
+                   "safe_mode":  true
+               },
+    "gemini":  {
+                   "success":  true,
+                   "model_used":  "gemini-3.5-flash",
+                   "task_id":  "map-place-atlas-mvp-20260723-final-gemini-flash",
+                   "target":  "D:\\LocalData\\Temp\\ikimon-place-atlas-pr1419-final.patch",
+                   "review_focus":  "Final independent production gate for PR 1419. Review only the exact patch text and cite exact existing lines; do not repeat claims that cannot be found in the patch. Verify correctness, privacy/security, Record versus Occurrence semantics, school/private/sensitive contribution CTA suppression in the Cloudflare Worker production runtime, D1 bind count below 100, canonical Web Mercator public-cell compatibility, bounded OSM scope, multipolygon holes, media URL allowlisting, Place Memory visibility, stale-response protection, actual @media syntax, accessibility, mobile/desktop behavior, rollback, and production release safety. Prior blockers were remediated with tests. Give APPROVE, APPROVE_WITH_NONBLOCKING_NOTES, or BLOCK. A BLOCK requires an exact quoted patch line plus a reproducible failure. No DB migration or secret change is allowed.",
+                   "prompt_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\map-place-atlas-mvp-20260723-final-gemini-flash\\prompt.md",
+                   "review_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\map-place-atlas-mvp-20260723-final-gemini-flash\\review-gemini-3.5-flash.md",
+                   "model_doc_check_required":  false,
+                   "model_doc_refresh_status":  "not_needed",
+                   "model_doc_report_path":  null,
+                   "failed_candidates":  [
+
+                                         ],
+                   "attempts":  [
+                                    {
+                                        "model":  "gemini-3.5-flash",
+                                        "exit_code":  0,
+                                        "timed_out":  false,
+                                        "raw_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\map-place-atlas-mvp-20260723-final-gemini-flash\\review-gemini-3.5-flash.md",
+                                        "stderr_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\map-place-atlas-mvp-20260723-final-gemini-flash\\stderr-gemini-3.5-flash.txt"
+                                    }
+                                ],
+                   "generated_at":  "2026-07-23T16:25:56.7416831+09:00"
+               },
+    "evidence":  {
+                     "repo_root":  "C:\\Users\\YAMAKI\\Documents\\Codex\\2026-07-23\\w-gpt-5-6-sol-pro\\ikimon-platform",
+                     "relative_dir":  "operations\\ai_os\\external_review_evidence\\2026-07\\map-place-atlas-mvp-20260723-final\\20260723-162557",
+                     "absolute_dir":  "C:\\Users\\YAMAKI\\Documents\\Codex\\2026-07-23\\w-gpt-5-6-sol-pro\\ikimon-platform\\operations\\ai_os\\external_review_evidence\\2026-07\\map-place-atlas-mvp-20260723-final\\20260723-162557",
+                     "github_status":  "pending_commit"
+                 },
+    "generated_at":  "2026-07-23T16:25:57.4465188+09:00"
+}
