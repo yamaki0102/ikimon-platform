@@ -81,6 +81,11 @@ export type PlaceAtlasProfile = {
     type: string;
     localityLabel: string | null;
     description: string | null;
+    canonicalPlaceId?: string;
+    aliases?: string[];
+    multilingualNames?: Record<string, string>;
+    verificationStatus?: "unverified" | "source_verified" | "administrator_verified";
+    officialStatus?: "official" | "unofficial" | "unknown";
     representativeMedia: Array<{
       url: string;
       recordId?: string;
@@ -100,6 +105,9 @@ export type PlaceAtlasProfile = {
   guide: unknown | null;
   memories: unknown[];
   facilities: unknown[];
+  activities?: unknown[];
+  stories?: unknown[];
+  policy?: PlacePolicyProjection;
   dataGaps: Array<{
     key: string;
     label: string;
@@ -114,6 +122,14 @@ export type PlaceAtlasProfile = {
     generatedAt: string;
     profileVersion: typeof PLACE_ATLAS_PROFILE_VERSION;
     sources: string[];
+    sourceReferences?: Array<{
+      sourceType: string;
+      sourceId: string;
+      sourceUrl: string | null;
+      confidence: number;
+      verificationStatus: string;
+      lastCheckedAt: string | null;
+    }>;
   };
 };
 
@@ -124,6 +140,11 @@ export type PlaceAtlasBuildInput = {
     type: string;
     localityLabel?: string | null;
     description?: string | null;
+    canonicalPlaceId?: string | null;
+    aliases?: string[];
+    multilingualNames?: Record<string, string>;
+    verificationStatus?: PlaceAtlasProfile["place"]["verificationStatus"];
+    officialStatus?: PlaceAtlasProfile["place"]["officialStatus"];
   };
   records: PlaceAtlasSourceRecord[] | null;
   recordSetComplete: boolean;
@@ -133,9 +154,13 @@ export type PlaceAtlasBuildInput = {
   guide?: unknown | null;
   memories?: unknown[];
   facilities?: unknown[];
+  activities?: unknown[];
+  stories?: unknown[];
+  policy?: PlaceAtlasProfile["policy"];
   suppressedSections?: string[];
   dataGaps?: PlaceAtlasProfile["dataGaps"];
   sources: string[];
+  sourceReferences?: PlaceAtlasProfile["provenance"]["sourceReferences"];
   generatedAt?: string;
   now?: string;
 };
@@ -492,6 +517,8 @@ export function buildPlaceAtlasProfile(input: PlaceAtlasBuildInput): PlaceAtlasP
       : null;
   const memories = Array.isArray(input.memories) ? input.memories.slice(0, 12) : [];
   const facilities = Array.isArray(input.facilities) ? input.facilities.slice(0, 12) : [];
+  const activities = Array.isArray(input.activities) ? input.activities.slice(0, 12) : [];
+  const stories = Array.isArray(input.stories) ? input.stories.slice(0, 12) : [];
   const facets = buildFacets(publishableRecords, input.guide, memories, facilities);
   const contributorCount = input.contributorCountAllowed && input.records
     ? distinctContributorCount(input.records)
@@ -538,6 +565,31 @@ export function buildPlaceAtlasProfile(input: PlaceAtlasBuildInput): PlaceAtlasP
       type: normalizeText(input.place.type, 80) ?? "place",
       localityLabel: normalizeText(input.place.localityLabel, 160),
       description: normalizeText(input.place.description, 360),
+      ...(normalizeText(input.place.canonicalPlaceId, 128)
+        ? { canonicalPlaceId: normalizeText(input.place.canonicalPlaceId, 128)! }
+        : {}),
+      ...(input.place.aliases
+        ? { aliases: uniqueStrings(input.place.aliases).slice(0, 32) }
+        : {}),
+      ...(input.place.multilingualNames
+        ? {
+            multilingualNames: Object.fromEntries(
+              Object.entries(input.place.multilingualNames)
+                .map(([language, name]) => [
+                  normalizeText(language, 16),
+                  normalizeText(name, 160),
+                ])
+                .filter((entry): entry is [string, string] => Boolean(entry[0] && entry[1]))
+                .slice(0, 16),
+            ),
+          }
+        : {}),
+      ...(input.place.verificationStatus
+        ? { verificationStatus: input.place.verificationStatus }
+        : {}),
+      ...(input.place.officialStatus
+        ? { officialStatus: input.place.officialStatus }
+        : {}),
       representativeMedia: representativeMedia(publishableRecords),
     },
     summary: {
@@ -552,6 +604,9 @@ export function buildPlaceAtlasProfile(input: PlaceAtlasBuildInput): PlaceAtlasP
     guide: input.guide ?? null,
     memories,
     facilities,
+    activities,
+    stories,
+    ...(input.policy ? { policy: input.policy } : {}),
     dataGaps,
     publication: {
       status,
@@ -562,6 +617,9 @@ export function buildPlaceAtlasProfile(input: PlaceAtlasBuildInput): PlaceAtlasP
       generatedAt,
       profileVersion: PLACE_ATLAS_PROFILE_VERSION,
       sources: uniqueStrings(input.sources),
+      ...(input.sourceReferences
+        ? { sourceReferences: input.sourceReferences.slice(0, 32) }
+        : {}),
     },
   };
 }
@@ -574,3 +632,4 @@ export const __test__ = {
   safeMediaUrl,
   seasonForDate,
 };
+import type { PlacePolicyProjection } from "./placeDomain.js";

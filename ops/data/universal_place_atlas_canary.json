@@ -1,0 +1,193 @@
+{
+  "schemaVersion": "universal_place_atlas_seed/v1",
+  "verifiedAt": "2026-07-23",
+  "places": [
+    {
+      "placeId": "plc_e3293ec4bb9288a0",
+      "canonicalName": "常磐公園",
+      "canonicalNameNormalized": "常磐公園",
+      "aliases": [
+        { "value": "常盤公園", "language": "ja", "kind": "orthographic_variant", "sourceType": "ikimon_curator", "confidence": 1.0 },
+        { "value": "Tokiwa Park", "language": "en", "kind": "multilingual", "sourceType": "osm", "confidence": 0.9 }
+      ],
+      "placeKind": "park",
+      "localityLabel": "静岡県静岡市葵区",
+      "verificationStatus": "verified",
+      "publicProfileStatus": "published",
+      "officialStatus": "official",
+      "publicSummary": "静岡市葵区常磐町にある都市公園。名称・所在地は静岡市の施設案内で確認。",
+      "sources": [
+        {
+          "sourceReferenceId": "src_tokiwa_city_20260723",
+          "sourceType": "municipality_official",
+          "sourceId": "shizuoka:s0000240",
+          "sourceUrl": "https://www.city.shizuoka.lg.jp/shisetsu/s0000240.html",
+          "confidence": 1.0,
+          "verificationStatus": "verified",
+          "precedenceRank": 10
+        },
+        {
+          "sourceReferenceId": "src_tokiwa_osm_way_125727939",
+          "sourceType": "osm",
+          "sourceId": "way:125727939",
+          "sourceUrl": "https://www.openstreetmap.org/way/125727939",
+          "confidence": 0.9,
+          "verificationStatus": "source_verified",
+          "precedenceRank": 40
+        }
+      ],
+      "boundarySourceReferenceId": "src_tokiwa_osm_way_125727939",
+      "policy": {
+        "recordingPolicy": "check_rules",
+        "photographyRuleStatus": "unknown",
+        "publicLocationMode": "place",
+        "contributionCtaMode": "check_rules",
+        "officialRuleUrl": null,
+        "verificationStatus": "unverified"
+      }
+    },
+    {
+      "placeId": "plc_1dac5b52233720ee",
+      "canonicalName": "JUNGLIA OKINAWA",
+      "canonicalNameNormalized": "jungliaokinawa",
+      "aliases": [
+        { "value": "ジャングリア沖縄", "language": "ja", "kind": "multilingual", "sourceType": "official", "confidence": 1.0 },
+        { "value": "ジャングリア", "language": "ja", "kind": "short_name", "sourceType": "ikimon_curator", "confidence": 1.0 },
+        { "value": "JUNGLIA", "language": "en", "kind": "short_name", "sourceType": "official", "confidence": 1.0 }
+      ],
+      "placeKind": "theme_park",
+      "localityLabel": "沖縄県国頭郡今帰仁村",
+      "verificationStatus": "verified",
+      "publicProfileStatus": "published",
+      "officialStatus": "official",
+      "publicSummary": "沖縄県北部のテーマパーク。名称と利用条件は施設公式情報を優先する。",
+      "sources": [
+        {
+          "sourceReferenceId": "src_junglia_official_20260723",
+          "sourceType": "facility_official",
+          "sourceId": "junglia:official",
+          "sourceUrl": "https://www.junglia.jp/en",
+          "confidence": 1.0,
+          "verificationStatus": "verified",
+          "precedenceRank": 10
+        },
+        {
+          "sourceReferenceId": "src_junglia_terms_20260723",
+          "sourceType": "facility_official_rule",
+          "sourceId": "junglia:park_terms",
+          "sourceUrl": "https://junglia.jp/terms/park-termsofuse",
+          "confidence": 1.0,
+          "verificationStatus": "verified",
+          "precedenceRank": 5
+        },
+        {
+          "sourceReferenceId": "src_junglia_osm_way_1281984233",
+          "sourceType": "osm",
+          "sourceId": "way:1281984233",
+          "sourceUrl": "https://www.openstreetmap.org/way/1281984233",
+          "confidence": 0.9,
+          "verificationStatus": "source_verified",
+          "precedenceRank": 40
+        }
+      ],
+      "boundarySourceReferenceId": "src_junglia_osm_way_1281984233",
+      "policy": {
+        "recordingPolicy": "permission_required",
+        "photographyRuleStatus": "restricted",
+        "publicLocationMode": "place",
+        "contributionCtaMode": "suppressed",
+        "officialRuleUrl": "https://junglia.jp/terms/park-termsofuse",
+        "verificationStatus": "verified"
+      }
+    },
+    {
+      "placeId": "plc_16788e9b2fde5c87",
+      "canonicalName": "イオンモール浜松市野",
+      "canonicalNameNormalized": "イオンモール浜松市野",
+      "aliases": [
+        { "value": "AEON MALL Hamamatsu Ichino", "language": "en", "kind": "multilingual", "sourceType": "official", "confidence": 1.0 },
+        { "value": "イオン浜松市野", "language": "ja", "kind": "short_name", "sourceType": "ikimon_curator", "confidence": 0.9 },
+        { "value": "イオンモール", "language": "ja", "kind": "brand_query", "sourceType": "ikimon_curator", "confidence": 0.8 }
+      ],
+      "placeKind": "shopping_mall",
+      "localityLabel": "静岡県浜松市中央区",
+      "verificationStatus": "verified",
+      "publicProfileStatus": "published",
+      "officialStatus": "official",
+      "publicSummary": "浜松市中央区天王町のショッピングモール。施設名は公式サイトを優先する。",
+      "sources": [
+        {
+          "sourceReferenceId": "src_aeon_ichino_official_20260723",
+          "sourceType": "facility_official",
+          "sourceId": "aeon:hamamatsuichino",
+          "sourceUrl": "https://www.aeon.jp/sc/hamamatsuichino/",
+          "confidence": 1.0,
+          "verificationStatus": "verified",
+          "precedenceRank": 10
+        },
+        {
+          "sourceReferenceId": "src_aeon_ichino_osm_way_189307274",
+          "sourceType": "osm",
+          "sourceId": "way:189307274",
+          "sourceUrl": "https://www.openstreetmap.org/way/189307274",
+          "confidence": 0.9,
+          "verificationStatus": "source_verified",
+          "precedenceRank": 40
+        }
+      ],
+      "boundarySourceReferenceId": "src_aeon_ichino_osm_way_189307274",
+      "policy": {
+        "recordingPolicy": "check_rules",
+        "photographyRuleStatus": "unknown",
+        "publicLocationMode": "place",
+        "contributionCtaMode": "check_rules",
+        "officialRuleUrl": null,
+        "verificationStatus": "unverified"
+      }
+    },
+    {
+      "placeId": "plc_a7fb32f39a754b5f",
+      "canonicalName": "イオンモール浜松志都呂",
+      "canonicalNameNormalized": "イオンモール浜松志都呂",
+      "aliases": [
+        { "value": "AEON MALL Hamamatsu Shitoro", "language": "en", "kind": "multilingual", "sourceType": "official", "confidence": 1.0 },
+        { "value": "イオンモール", "language": "ja", "kind": "brand_query", "sourceType": "ikimon_curator", "confidence": 0.8 }
+      ],
+      "placeKind": "shopping_mall",
+      "localityLabel": "静岡県浜松市中央区",
+      "verificationStatus": "source_verified",
+      "publicProfileStatus": "published",
+      "officialStatus": "official",
+      "publicSummary": "浜松市中央区志都呂のショッピングモール。retail landuseを親施設として扱い、駐車場や単一店舗は別Placeにしない。",
+      "sources": [
+        {
+          "sourceReferenceId": "src_aeon_shitoro_official_20260723",
+          "sourceType": "facility_official",
+          "sourceId": "aeon:hamamatsushitoro",
+          "sourceUrl": "https://hamamatsushitoro-aeonmall.com/",
+          "confidence": 1.0,
+          "verificationStatus": "verified",
+          "precedenceRank": 10
+        },
+        {
+          "sourceReferenceId": "src_aeon_shitoro_osm_way_189307792",
+          "sourceType": "osm",
+          "sourceId": "way:189307792",
+          "sourceUrl": "https://www.openstreetmap.org/way/189307792",
+          "confidence": 0.85,
+          "verificationStatus": "source_verified",
+          "precedenceRank": 40
+        }
+      ],
+      "boundarySourceReferenceId": "src_aeon_shitoro_osm_way_189307792",
+      "policy": {
+        "recordingPolicy": "check_rules",
+        "photographyRuleStatus": "unknown",
+        "publicLocationMode": "place",
+        "contributionCtaMode": "check_rules",
+        "officialRuleUrl": null,
+        "verificationStatus": "unverified"
+      }
+    }
+  ]
+}

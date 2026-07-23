@@ -19,6 +19,15 @@ import { listMapGuideSpotsForBbox } from "../services/mapGuideSpots.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 import { normalizePlaceAtlasRef, PLACE_ATLAS_PROFILE_VERSION } from "../services/placeAtlasContract.js";
 import { getPlaceAtlasProfile } from "../services/placeAtlasProfile.js";
+import {
+  buildPlaceAtlasProfileV2,
+  PLACE_ATLAS_PROFILE_V2_VERSION,
+} from "../services/placeAtlasV2Contract.js";
+import {
+  createPlaceCorrectionProposal,
+  listPublicPlaceChildren,
+  searchPublicPlaces,
+} from "../services/placeRegistry.js";
 
 const JMA_NOWCAST_TARGET_N1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
 const JMA_NOWCAST_TARGET_N2 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json";
@@ -61,7 +70,7 @@ type JmaNowcastTimesResponse = {
 
 const ALLOWED_AREA_SOURCES: readonly AreaPolygonSource[] = [
   "user_defined", "nature_symbiosis_site", "tsunag", "protected_area", "oecm",
-  "school", "osm_park", "admin_municipality", "admin_prefecture", "admin_country",
+  "school", "osm_park", "osm_named_area", "admin_municipality", "admin_prefecture", "admin_country",
 ];
 
 function parseAreaSources(raw: unknown): AreaPolygonSource[] | undefined {
@@ -79,7 +88,9 @@ function shouldLogHighZoomEmptyAreaViewport(
   featureCount: number,
 ): boolean {
   const [minLng, minLat, maxLng, maxLat] = bbox;
-  const liveSourceRequested = sources == null || sources.some((source) => source === "osm_park" || source === "school");
+  const liveSourceRequested = sources == null || sources.some((source) =>
+    source === "osm_park" || source === "school" || source === "osm_named_area"
+  );
   return featureCount === 0
     && (zoom ?? 0) >= 13
     && liveSourceRequested
@@ -455,9 +466,18 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
   });
 
   app.get("/api/v1/map/place-profile", async (request, reply) => {
+    const startedAt = performance.now();
+    const setTimingHeaders = () => {
+      const durationMs = Math.max(0, performance.now() - startedAt);
+      reply
+        .header("Server-Timing", `place_profile;dur=${durationMs.toFixed(1)}`)
+        .header("X-Ikimon-Latency-Ms", durationMs.toFixed(1));
+    };
     const q = (request.query ?? {}) as Record<string, unknown>;
     const placeRef = normalizePlaceAtlasRef(q);
+    const wantsV2 = q.version === "2" || q.profile_version === "2";
     if (!placeRef) {
+      setTimingHeaders();
       reply
         .code(400)
         .type("application/json; charset=utf-8")
@@ -469,6 +489,7 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     try {
       const profile = await getPlaceAtlasProfile(placeRef, { viewerUserId });
       if (!profile) {
+        setTimingHeaders();
         reply
           .code(404)
           .type("application/json; charset=utf-8")
@@ -481,13 +502,17 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
           ? "private, no-store"
           : "public, max-age=60, stale-while-revalidate=300")
         .header("Vary", "Cookie")
-        .header("X-Ikimon-Profile-Version", PLACE_ATLAS_PROFILE_VERSION);
-      return { profile };
+        .header("X-Ikimon-Profile-Version", wantsV2
+          ? PLACE_ATLAS_PROFILE_V2_VERSION
+          : PLACE_ATLAS_PROFILE_VERSION);
+      setTimingHeaders();
+      return { profile: wantsV2 ? buildPlaceAtlasProfileV2(profile) : profile };
     } catch (error) {
       request.log.warn({
         err: error,
         placeKind: placeRef.kind,
       }, "place_atlas_profile_failed");
+      setTimingHeaders();
       reply
         .code(503)
         .type("application/json; charset=utf-8")
@@ -495,6 +520,104 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       return {
         error: "place_profile_unavailable",
         retryable: true,
+      };
+    }
+  });
+
+  app.get("/api/v1/map/place-search", async (request, reply) => {
+    const startedAt = performance.now();
+    const setTimingHeaders = () => {
+      const durationMs = Math.max(0, performance.now() - startedAt);
+      reply
+        .header("Server-Timing", `place_search;dur=${durationMs.toFixed(1)}`)
+        .header("X-Ikimon-Latency-Ms", durationMs.toFixed(1));
+    };
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    try {
+      const response = await searchPublicPlaces(q.q, parseInt32(q.limit) ?? 8);
+      setTimingHeaders();
+      reply
+        .type("application/json; charset=utf-8")
+        .header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+      return response;
+    } catch (error) {
+      request.log.warn({ err: error }, "place_search_failed");
+      setTimingHeaders();
+      reply
+        .code(503)
+        .type("application/json; charset=utf-8")
+        .header("Cache-Control", "no-store");
+      return { error: "place_search_unavailable", retryable: true };
+    }
+  });
+
+  app.get("/api/v1/map/place-resolve", async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    try {
+      const response = await searchPublicPlaces(q.place_id ?? q.q, 1);
+      const place = response.results[0] ?? null;
+      if (!place) {
+        reply.code(404).header("Cache-Control", "public, max-age=60");
+        return { error: "place_not_found" };
+      }
+      reply.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+      return { version: response.version, place, privacy: response.privacy };
+    } catch (error) {
+      request.log.warn({ err: error }, "place_resolve_failed");
+      reply.code(503).header("Cache-Control", "no-store");
+      return { error: "place_resolve_unavailable", retryable: true };
+    }
+  });
+
+  app.get("/api/v1/map/place-children", async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const placeId = typeof q.place_id === "string" ? q.place_id.trim() : "";
+    if (!placeId) {
+      reply.code(400).header("Cache-Control", "no-store");
+      return { error: "invalid_place_id" };
+    }
+    try {
+      const results = await listPublicPlaceChildren(placeId);
+      reply.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+      return {
+        version: "place_children/v1",
+        parentPlaceId: placeId,
+        results,
+        state: results.length > 0 ? "complete" : "empty",
+        privacy: "boundary_bbox_only",
+      };
+    } catch (error) {
+      request.log.warn({ err: error }, "place_children_failed");
+      reply.code(503).header("Cache-Control", "no-store");
+      return { error: "place_children_unavailable", retryable: true };
+    }
+  });
+
+  app.post<{
+    Body: {
+      placeId?: string | null;
+      proposalType?: string;
+      proposedPayload?: unknown;
+    };
+  }>("/api/v1/map/place-correction-proposals", async (request, reply) => {
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    if (!session || session.banned) {
+      reply.code(401).header("Cache-Control", "no-store");
+      return { error: "authentication_required" };
+    }
+    try {
+      const proposal = await createPlaceCorrectionProposal({
+        placeId: request.body?.placeId ?? null,
+        proposerUserId: session.userId,
+        proposalType: String(request.body?.proposalType ?? ""),
+        proposedPayload: request.body?.proposedPayload,
+      });
+      reply.code(202).header("Cache-Control", "no-store");
+      return { proposal, directMutation: false };
+    } catch (error) {
+      reply.code(400).header("Cache-Control", "no-store");
+      return {
+        error: error instanceof Error ? error.message : "invalid_correction_proposal",
       };
     }
   });
