@@ -522,16 +522,14 @@ async function loadPlaceMembershipRows(
           AND m.membership_state = 'confirmed'
           AND m.removed_at IS NULL
           AND COALESCE(v.public_visibility, 'private') = 'public'
-          AND NOT EXISTS (
+          AND EXISTS (
             SELECT 1
               FROM observation_data_rights rights
              WHERE rights.visit_id = v.visit_id
-               AND (
-                 COALESCE(rights.withdrawal_status, 'active') <> 'active'
-                 OR COALESCE(rights.record_consent, 'private') NOT IN (
-                   'public_summary',
-                   'external_export'
-                 )
+               AND rights.withdrawal_status = 'active'
+               AND rights.record_consent IN (
+                 'public_summary',
+                 'external_export'
                )
           )
         ORDER BY COALESCE(v.observed_at, o.created_at, '') DESC, o.occurrence_id ASC
@@ -1389,8 +1387,11 @@ async function buildRecordsForGeometry(
     }
   }
   for (const row of membership.confirmed) {
-    mergeRecord(row);
+    if (!excludedMemberships.recordIds.has(row.visit_id)) {
+      mergeRecord(row);
+    }
   }
+  const mergedComplete = rowsByRecord.size <= MAX_SNAPSHOT_ROWS;
   const scoped = [...rowsByRecord.values()]
     .sort((left, right) => right.observed_at.localeCompare(left.observed_at))
     .slice(0, MAX_SNAPSHOT_ROWS);
@@ -1401,7 +1402,10 @@ async function buildRecordsForGeometry(
   ]);
   return {
     records: sourceRecords(scoped, photos, themes),
-    complete: snapshot.complete && membership.complete && excludedMemberships.complete,
+    complete: snapshot.complete &&
+      membership.complete &&
+      excludedMemberships.complete &&
+      mergedComplete,
     membershipProjectionUsed: (membership.available || excludedMemberships.available) && (
       membership.confirmed.length > 0 ||
       excludedMemberships.recordIds.size > 0 ||
