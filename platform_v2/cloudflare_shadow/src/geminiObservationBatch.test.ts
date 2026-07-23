@@ -14,6 +14,7 @@ import {
   createGeminiBatch,
   decideGeminiSpecialistEscalation,
   findGeminiBatchByDisplayName,
+  geminiBatchDisplayName,
   geminiBatchResponseText,
   mergeGeminiObservationEvidence,
   type GeminiCensusEvidence,
@@ -223,6 +224,11 @@ test("specialist request is conditional, uses 3.5 Flash-Lite contract, and asks 
   assert.match(text, /雌/);
   assert.equal(request.generationConfig.maxOutputTokens, 2048);
   assert.equal(request.generationConfig.responseMimeType, "application/json");
+  assert.equal(
+    geminiBatchDisplayName("fixed-claim", "specialist"),
+    geminiBatchDisplayName("fixed-claim", "specialist"),
+  );
+  assert.match(geminiBatchDisplayName("fixed-claim", "specialist"), /fixed-claim-specialist$/);
 });
 
 test("batch REST client uses exact model paths, recovers by display name, and parses item text", async () => {

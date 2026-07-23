@@ -804,6 +804,6 @@ export function applyGeminiObservationSummary(merged: GeminiMergedObservation, s
   return { ...merged, candidate: { ...merged.candidate, ...main, coexistingSubjects: merged.candidate.coexistingSubjects.map(enrich) }, summary };
 }
 
-export function geminiBatchDisplayName(claimId: string, lane: "primary" | "analysis" | "summary"): string {
+export function geminiBatchDisplayName(claimId: string, lane: "primary" | "analysis" | "specialist" | "summary"): string {
   return `ikimon-observation-${GEMINI_OBSERVATION_RULE_VERSION.replace(/[^A-Za-z0-9-]/gu, "-")}-${claimId}-${lane}`.slice(0, 120);
 }

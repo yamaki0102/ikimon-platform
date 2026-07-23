@@ -38,7 +38,16 @@ test("photo upload, queue, cron, Gemini Batch, and review target form one durabl
   assert.match(runtime, /buildGeminiPrimaryRequest/);
   assert.match(runtime, /buildGeminiCensusRequest/);
   assert.match(runtime, /buildGeminiEnvironmentRequest/);
+  assert.match(runtime, /buildGeminiSpecialistRequest/);
   assert.match(runtime, /buildGeminiSummaryRequest/);
+  assert.match(source, /if \(!decision\?\.required\) continue/);
+  assert.match(source, /ensureGeminiBatch\(\s*env\.GEMINI_API_KEY,\s*GEMINI_SPECIALIST_MODEL/);
+  assert.match(source, /specialistDisplayName: geminiBatchDisplayName\(claimId, "specialist"\)/);
+  assert.match(source, /asset\.public_derivative_key/);
+  assert.match(source, /trim:\s*\{\s*top,/);
+  assert.match(source, /specialist-crop-v1/);
+  assert.match(source, /specialistStatus: selection \? "pending" : "skipped"/);
+  assert.match(source, /geminiBatchTerminalFailure\(specialist\)/);
   assert.match(runtime, /generationConfig\([^\n]+, 2048,/);
   assert.match(source, /humanReviewRequired: true/);
   assert.match(source, /latest_public_record_ai_upgrade_v2/);
