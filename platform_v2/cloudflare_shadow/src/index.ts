@@ -29499,11 +29499,11 @@ async function runScheduledObservationReassessments(env: Env): Promise<void> {
 async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> {
   const rows = await env.OBS_DB.prepare(
     `WITH latest_public AS (
-       SELECT o.observation_id, o.owner_user_id, o.created_at
+       SELECT o.observation_id, o.owner_user_id, o.observed_at
          FROM observations o
         WHERE o.visibility = 'public' AND o.emergency_hidden = 0
           AND EXISTS (SELECT 1 FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.processing_state = 'uploaded' AND a.mime LIKE 'image/%')
-        ORDER BY o.created_at DESC, o.observation_id DESC
+        ORDER BY o.observed_at DESC, o.observation_id DESC
         LIMIT 30
      )
      SELECT rr.request_id, latest_public.observation_id, latest_public.owner_user_id,
@@ -29513,7 +29513,7 @@ async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> 
          ON rr.observation_id = latest_public.observation_id
         AND rr.request_kind = 'standard'
         AND rr.actor_user_id = latest_public.owner_user_id
-      ORDER BY latest_public.created_at DESC, latest_public.observation_id DESC`
+      ORDER BY latest_public.observed_at DESC, latest_public.observation_id DESC`
   ).all<ObservationReassessmentUpgradeTargetRow>();
   for (const row of rows.results) {
     if (!row.request_id) {
