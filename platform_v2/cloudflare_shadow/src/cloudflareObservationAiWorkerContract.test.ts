@@ -42,8 +42,9 @@ test("photo upload, queue, cron, Gemini Batch, and review target form one durabl
   assert.match(runtime, /generationConfig\([^\n]+, 2048,/);
   assert.match(source, /humanReviewRequired: true/);
   assert.match(source, /latest_public_record_ai_upgrade_v2/);
-  assert.match(source, /WITH latest_public AS \([\s\S]+FROM readmodel_public_observations r\s+JOIN observations o ON o\.observation_id = r\.observation_id[\s\S]+ORDER BY r\.observed_at DESC, o\.observation_id DESC\s+LIMIT 30/);
-  assert.match(source, /FROM latest_public\s+LEFT JOIN observation_reassessment_requests/);
+  assert.match(source, /const publicPhotoUrls = await queryPublicMapPhotoUrls\(env\)/);
+  assert.match(source, /await queryPublicMapRows\(env\)[\s\S]+publicPhotoUrls\.has\(row\.observation_id\)[\s\S]+\.slice\(0, 30\)/);
+  assert.match(source, /FROM observations o\s+LEFT JOIN observation_reassessment_requests/);
   assert.match(source, /reason: "missing_reassessment_request"/);
   assert.match(source, /ON CONFLICT\(observation_id, request_kind, actor_user_id\) DO NOTHING/);
   assert.match(source, /OBSERVATION_DUAL_WRITE_MODE \?\? "off"/);
