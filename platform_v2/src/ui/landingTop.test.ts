@@ -59,13 +59,20 @@ test("guest Top leads with a broad regional-record promise and concrete actions"
   assert.match(html, /fetchpriority="high"/);
   assert.match(html, /data-global-record-trigger="photo"/);
   assert.match(html, /data-kpi-event="top_place_tap"/);
+  assert.equal((html.match(/\/media\/public-1\.jpg/g) || []).length, 1);
+  assert.match(html, /\/assets\/img\/landing\/home-daily-place\.webp/);
   assert.doesNotMatch(html, /地方創生|ウェルビーイング|Place Intelligence OS|ENJOY NATURE/);
 });
 
 test("guest Top stays useful without public data and never invents record cards", () => {
   const html = render("ja", snapshot());
   assert.match(html, /map\?tab=places/);
-  assert.match(html, /home-place-visual is-placeholder/);
+  assert.match(html, /home-guest-hero-visual/);
+  assert.match(html, /\/assets\/img\/landing\/home-community-hero\.webp/);
+  assert.match(html, /\/assets\/img\/landing\/home-community-event\.webp/);
+  assert.match(html, /\/assets\/img\/landing\/home-daily-place\.webp/);
+  assert.match(html, /home-generated-badge">イメージ</);
+  assert.doesNotMatch(html, /home-place-visual is-placeholder/);
   assert.doesNotMatch(html, /class="home-public-card"/);
   assert.doesNotMatch(html, /sample|placeholder\.jpg|0件|未記録/);
 });
@@ -168,6 +175,11 @@ test("guest Top explains broad regional records and starts with the shared camer
   assert.match(html, /地域・イベント/);
   assert.match(html, /仕事・文化/);
   assert.match(html, /暮らし・自然/);
+  assert.match(html, /\/assets\/img\/landing\/home-school-learning\.webp/);
+  assert.match(html, /\/assets\/img\/landing\/home-community-event\.webp/);
+  assert.match(html, /\/assets\/img\/landing\/home-work-culture\.webp/);
+  assert.match(html, /\/assets\/img\/landing\/home-daily-place\.webp/);
+  assert.doesNotMatch(html, /placeholder\.jpg|home-category-photo" aria-hidden="true"><\/span>/);
   assert.match(html, /data-global-record-trigger="photo"/);
   assert.match(html, /data-kpi-event="top_place_tap"/);
   assert.doesNotMatch(html, /href="[^"]*\/record"[^>]*class="home-primary-button"/);
@@ -179,6 +191,11 @@ test("member Home is personal, continuation-oriented, and compact when empty", (
   assert.match(empty, /data-home-primary-state="draft_resume"/);
   assert.match(empty, /data-home-draft-owner="viewer"/);
   assert.match(empty, /data-global-record-trigger="photo"/);
+  assert.match(empty, /data-global-record-gallery-select/);
+  assert.match(empty, /href="\/ja\/map\?tab=places"/);
+  assert.match(empty, /ikimon-home-section:member-primary:start/);
+  assert.match(empty, /ikimon-home-section:member-recent:start/);
+  assert.match(empty, /ikimon-home-section:member-place:start/);
   assert.doesNotMatch(empty, /今日は何を残しますか？/);
   assert.doesNotMatch(empty, /近くで残された記録|写真からわかったこと|名前待ち|0件|未記録/);
 

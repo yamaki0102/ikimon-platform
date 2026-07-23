@@ -7,6 +7,7 @@ export type LandingStrings = {
       primaryCta: string;
       secondaryCta: string;
       categoriesTitle: string;
+      imageLabel: string;
       categories: Array<{ title: string; body: string }>;
       flowTitle: string;
       flowItems: Array<{ title: string; body: string }>;
@@ -37,6 +38,8 @@ export type LandingStrings = {
       nextTitle: string;
       emptyTitle: string;
       emptyBody: string;
+      galleryCta: string;
+      emptyPlaceCta: string;
     };
     shared: {
       openRecord: string;

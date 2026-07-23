@@ -7,6 +7,7 @@
         "heroLead": "祭りも、仕事も、風景も、日常の発見も。写真や動画で残したことが、場所の記憶と次の活動につながります。",
         "primaryCta": "撮る", "secondaryCta": "場所を見る",
         "categoriesTitle": "何を残せるか",
+        "imageLabel": "イメージ",
         "categories": [
           { "title": "学校・学び", "body": "授業、探究、仕事体験で見つけたこと。" },
           { "title": "地域・イベント", "body": "祭り、マルシェ、地域行事の一場面。" },
@@ -30,7 +31,8 @@
         "memoryEyebrow": "この前の記録", "memoryLead": "写真と場所から、前の時間を見返せます。", "memoryCta": "この記録を見る",
         "activeEyebrow": "参加中の活動", "activeLead": "この場所の今と、次にできることを確認できます。", "activeCta": "活動を見る",
         "recentTitle": "最近の記録", "recentCta": "すべて見る", "placesTitle": "関わっている場所", "placesCta": "地図で見る", "nextTitle": "次の活動",
-        "emptyTitle": "最初の記録を残してみましょう", "emptyBody": "気になったものを撮るだけで始められます。"
+        "emptyTitle": "最初の記録を残してみましょう", "emptyBody": "写真を1枚撮ると、時間と場所と一緒に自分の記録になります。",
+        "galleryCta": "端末の写真から選ぶ", "emptyPlaceCta": "場所から見つける"
       },
       "shared": {
         "openRecord": "記録を見る", "unknownRecord": "名前を調べている記録", "safePlaceFallback": "地域の記録", "aiCandidateSuffix": "かもしれません", "fromRecord": "この記録から", "multipleMedia": "件のメディア",

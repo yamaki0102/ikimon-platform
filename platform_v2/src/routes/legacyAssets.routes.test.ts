@@ -32,6 +32,26 @@ async function withEnv(
   }
 }
 
+test("landing Top photo assets are served from the canonical project asset root", async () => {
+  const app = buildApp();
+  try {
+    for (const url of [
+      "/assets/img/landing/home-community-hero.webp",
+      "/assets/img/landing/home-school-learning.webp",
+    ]) {
+      const response = await app.inject({ method: "GET", url });
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.headers["content-type"], "image/webp");
+      const metadata = await sharp(response.rawPayload).metadata();
+      assert.equal(metadata.format, "webp");
+      assert.equal(metadata.width, 1280);
+      assert.equal(metadata.height, 720);
+    }
+  } finally {
+    await app.close();
+  }
+});
+
 test("legacy asset routes serve uploads from the legacy uploads root", async () => {
   const sandboxRoot = await mkdtemp(path.join(tmpdir(), "ikimon-legacy-assets-"));
   const publicRoot = path.join(sandboxRoot, "public");

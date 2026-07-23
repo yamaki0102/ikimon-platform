@@ -367,7 +367,7 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
   assertObject(value.home, `${path}.home`);
   assertObject(value.home.guest, `${path}.home.guest`);
   for (const key of [
-    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "categoriesTitle", "flowTitle",
+    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "categoriesTitle", "imageLabel", "flowTitle",
     "placesTitle", "placesBody", "privacyTitle", "privacyBody", "finalTitle", "finalCta",
   ] as const) {
     assertString(value.home.guest[key], `${path}.home.guest.${key}`);
@@ -386,7 +386,7 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
     "actionTitle", "actionLead", "primaryCta", "continuationTitle", "continuationBody",
     "continuationCta", "memoryEyebrow", "memoryLead", "memoryCta", "activeEyebrow",
     "activeLead", "activeCta", "recentTitle", "recentCta", "placesTitle", "placesCta",
-    "nextTitle", "emptyTitle", "emptyBody",
+    "nextTitle", "emptyTitle", "emptyBody", "galleryCta", "emptyPlaceCta",
   ] as const) {
     assertString(value.home.member[key], `${path}.home.member.${key}`);
   }

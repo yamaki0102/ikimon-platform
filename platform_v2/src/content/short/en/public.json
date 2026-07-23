@@ -4,7 +4,7 @@
     "home": {
       "guest": {
         "heroHeading": "Grow the community record together.", "heroLead": "Festivals, work, scenery, and everyday discoveries. What you save in photos and videos becomes a memory of the place and a path to what happens next.",
-        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep",
+        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "imageLabel": "Illustrative image",
         "categories": [
           { "title": "School & learning", "body": "Classes, projects, and workplace learning." },
           { "title": "Community & events", "body": "Festivals, markets, and local gatherings." },
@@ -27,7 +27,8 @@
         "memoryEyebrow": "From your last record", "memoryLead": "Return to the photo, place, and time you kept.", "memoryCta": "Open this record",
         "activeEyebrow": "An activity you are part of", "activeLead": "See what is happening here and what you can do next.", "activeCta": "Open activity",
         "recentTitle": "Recent records", "recentCta": "View all", "placesTitle": "Places you are involved with", "placesCta": "View map", "nextTitle": "What comes next",
-        "emptyTitle": "Leave your first record", "emptyBody": "Start by capturing something that catches your attention."
+        "emptyTitle": "Leave your first record", "emptyBody": "Take one photo and keep it as your record with its time and place.",
+        "galleryCta": "Choose from this device", "emptyPlaceCta": "Explore by place"
       },
       "shared": {
         "openRecord": "Open record", "unknownRecord": "Record awaiting a name", "safePlaceFallback": "Community record", "aiCandidateSuffix": "may be the match", "fromRecord": "From this record", "multipleMedia": "media items",

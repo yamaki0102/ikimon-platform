@@ -4,7 +4,7 @@
     "home": {
       "guest": {
         "heroHeading": "Vamos cultivar juntos a memória local.", "heroLead": "Festas, trabalho, paisagens e descobertas do dia a dia. Fotos e vídeos viram memória do lugar e um caminho para a próxima atividade.",
-        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar",
+        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar", "imageLabel": "Imagem ilustrativa",
         "categories": [
           { "title": "Escola e aprendizado", "body": "Aulas, projetos e experiências de trabalho." },
           { "title": "Comunidade e eventos", "body": "Festas, feiras e encontros locais." },
@@ -27,7 +27,8 @@
         "memoryEyebrow": "Do seu último registro", "memoryLead": "Volte à foto, ao lugar e ao momento que você guardou.", "memoryCta": "Abrir este registro",
         "activeEyebrow": "Uma atividade em que você participa", "activeLead": "Veja o que acontece aqui e o que pode fazer depois.", "activeCta": "Ver atividade",
         "recentTitle": "Registros recentes", "recentCta": "Ver todos", "placesTitle": "Lugares com que você se envolve", "placesCta": "Ver mapa", "nextTitle": "Próxima atividade",
-        "emptyTitle": "Deixe seu primeiro registro", "emptyBody": "Comece capturando algo que chamar sua atenção."
+        "emptyTitle": "Deixe seu primeiro registro", "emptyBody": "Tire uma foto e guarde-a como seu registro com a hora e o lugar.",
+        "galleryCta": "Escolher do dispositivo", "emptyPlaceCta": "Explorar por lugar"
       },
       "shared": {
         "openRecord": "Ver registro", "unknownRecord": "Registro aguardando um nome", "safePlaceFallback": "Registro da comunidade", "aiCandidateSuffix": "pode ser", "fromRecord": "Deste registro", "multipleMedia": "itens de mídia",

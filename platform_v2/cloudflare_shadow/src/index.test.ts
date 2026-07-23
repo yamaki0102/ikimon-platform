@@ -20514,6 +20514,9 @@ test("production original UI static assets serve materialized bytes from R2 with
   await env.ASSET_BUCKET.put("original-ui/static/assets/img/invasive/invasive-plant-thumb.webp", "webp-bytes", {
     httpMetadata: { contentType: "image/webp" }
   });
+  await env.ASSET_BUCKET.put("original-ui/static/assets/img/landing/home-school-learning.webp", "landing-webp-bytes", {
+    httpMetadata: { contentType: "image/webp" }
+  });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -20559,6 +20562,12 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(await invasive.text(), "webp-bytes");
     assert.equal(invasive.headers.get("content-type"), "image/webp");
     assert.equal(invasive.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+
+    const landing = await worker.fetch(new Request("https://ikimon.life/assets/img/landing/home-school-learning.webp"), productionEnv);
+    assert.equal(landing.status, 200);
+    assert.equal(await landing.text(), "landing-webp-bytes");
+    assert.equal(landing.headers.get("content-type"), "image/webp");
+    assert.equal(landing.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
@@ -22916,14 +22925,16 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.doesNotMatch(body, /権限|ランク|admin|管理者|ログイン中/, check.path);
       }
       if (check.path === "/ja/profile") {
-        assert.match(body, /data-testid="profile-home"/);
-        assert.match(body, /今日の入口/);
-        assert.match(body, /ikimon\.lifeの流れ/);
-        assert.match(body, /八巻の最初の記録/);
+        assert.match(body, /data-testid="self-control-hub"/);
+        assert.match(body, /プロフィールと公開ページ/);
+        assert.match(body, /公開範囲と位置情報/);
+        assert.match(body, /参加とフォロー/);
+        assert.match(body, /アカウント設定/);
+        assert.doesNotMatch(body, /今日の入口|ikimon\.lifeの流れ|最近の記録|八巻の最初の記録/);
         assert.match(body, /href="\/ja\/records\?view=mine"/);
-        assert.match(body, /href="\/ja\/record"/);
-        assert.match(body, /href="\/ja\/map"/);
         assert.match(body, /href="\/ja\/profile\/settings"/);
+        assert.match(body, /href="\/ja\/profile\/profile-user"/);
+        assert.match(body, /href="\/ja\/community\/events"/);
       }
       if (check.native === "record") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session", check.path);

@@ -23209,6 +23209,7 @@ function isOriginalUiStaticAssetPath(pathname: string): boolean {
   if (pathname === "/favicon.ico" || pathname === "/manifest.webmanifest") return true;
   if (/^\/assets\/brand\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
   if (/^\/assets\/img\/invasive\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
+  if (/^\/assets\/img\/landing\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
   return false;
 }
 
@@ -23796,15 +23797,12 @@ async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env):
   }
 
   const settings = /\/profile\/settings$/.test(url.pathname);
-  const ownerRecords = request.method === "HEAD" || settings
-    ? []
-    : await ownerHomeRecordCards(session.userId, env, 8).catch(() => []);
   const body = request.method === "HEAD"
     ? null
     : renderCloudflareProfileHtml(session, {
       lang: publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja",
       settings
-    }, ownerRecords);
+    });
 
   return new Response(body, {
     headers: {
@@ -23818,8 +23816,7 @@ async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env):
 
 function renderCloudflareProfileHtml(
   session: SessionSnapshot,
-  options: { lang: string; settings: boolean },
-  ownerRecords: Array<ReturnType<typeof publicMapObservationItem>> = []
+  options: { lang: string; settings: boolean }
 ): string {
   const lang = options.lang === "en" || options.lang === "es" || options.lang === "pt-br" ? options.lang : "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
@@ -23827,60 +23824,47 @@ function renderCloudflareProfileHtml(
     ? {
       title: options.settings ? "プロフィール設定" : "マイページ",
       eyebrow: "マイページ",
-      lead: "見つけた自然を残し、あとから自分の記録・地図・公開プロフィールへつなぐ場所です。",
-      today: "今日の入口",
-      latest: "最近の記録",
-      latestEmpty: "まだ記録はありません",
-      latestEmptyBody: "最初の写真やメモを残すと、ここから自分の記録を見返せます。",
-      recordsLead: "保存した観察を時系列で見る",
+      lead: "プロフィール、公開範囲、参加履歴、アカウント設定を管理します。",
+      profile: "プロフィールと公開ページ",
+      profileLead: "表示名を整え、公開される自分のページを確認する",
+      privacy: "公開範囲と位置情報",
+      privacyLead: "自分の記録を見ながら、公開状態を確かめる",
+      participation: "参加とフォロー",
+      participationLead: "関わっている場所や活動を確認する",
+      account: "アカウント設定",
+      accountLead: "表示名やアカウントの設定を変更する",
       records: "自分の記録",
-      record: "記録する",
-      recordLead: "写真・場所・メモを残す",
-      map: "地図",
-      mapLead: "記録した場所と地域を見る",
-      settings: "設定",
+      recordsLead: "保存した記録を時系列で見る",
+      settings: "プロフィールを編集",
       settingsLead: "表示名とプロフィールを整える",
       publicProfile: "公開プロフィール",
-      publicProfileLead: "公開できる記録を人に見せる",
-      flow: "ikimon.lifeの流れ",
-      flowRecord: "見つける",
-      flowLibrary: "見返す",
-      flowMap: "場所で見る",
-      flowPublic: "公開面へ",
+      publicProfileLead: "公開されるプロフィールを確認する",
       back: "マイページへ",
       displayName: "表示名"
     }
     : {
       title: options.settings ? "Profile Settings" : "My Page",
       eyebrow: "My Page",
-      lead: "Keep your nature records connected to your library, map, and public profile.",
-      today: "Start here",
-      latest: "Recent records",
-      latestEmpty: "No records yet",
-      latestEmptyBody: "Your first photo or note will appear here.",
-      recordsLead: "Review your saved observations",
+      lead: "Manage your profile, visibility, participation, and account settings.",
+      profile: "Profile and public page",
+      profileLead: "Edit your display details and review your public page",
+      privacy: "Visibility and location",
+      privacyLead: "Review your records and check what is shared",
+      participation: "Participation and follows",
+      participationLead: "Review the places and activities you follow",
+      account: "Account settings",
+      accountLead: "Update your profile and account preferences",
       records: "My records",
-      record: "Record",
-      recordLead: "Save a photo, place, or note",
-      map: "Map",
-      mapLead: "See your places and local records",
-      settings: "Settings",
+      recordsLead: "Review your saved records",
+      settings: "Edit profile",
       settingsLead: "Edit display and profile details",
       publicProfile: "Public profile",
-      publicProfileLead: "Share records that are ready to publish",
-      flow: "ikimon.life flow",
-      flowRecord: "Find",
-      flowLibrary: "Review",
-      flowMap: "Map",
-      flowPublic: "Publish",
+      publicProfileLead: "Review your public profile",
       back: "Back to profile",
       displayName: "Display name"
     };
   const title = escapeHtml(copy.title);
   const displayName = escapeHtml(session.displayName || session.userId);
-  const recordCards = ownerRecords.length > 0
-    ? ownerRecords.slice(0, 6).map((item) => renderCloudflareProfileRecordCard(item, copy, lang)).join("")
-    : `<div class="cf-profile-empty"><strong>${escapeHtml(copy.latestEmpty)}</strong><p>${escapeHtml(copy.latestEmptyBody)}</p><a href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.record)}</a></div>`;
   const settingsBody = options.settings
     ? `<section class="cf-profile-settings" data-testid="profile-settings">
         <div>
@@ -23895,35 +23879,27 @@ function renderCloudflareProfileHtml(
         </dl>
         <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
       </section>`
-    : `<section class="cf-profile-dashboard" data-testid="profile-home">
+    : `<section class="cf-profile-dashboard" data-testid="self-control-hub">
         <div class="cf-profile-hero">
           <div class="cf-profile-hero-copy">
             <span>${escapeHtml(copy.eyebrow)}</span>
             <h1 data-testid="profile-heading">${displayName}</h1>
             <p>${escapeHtml(copy.lead)}</p>
           </div>
-          <nav class="cf-profile-primary-actions" aria-label="${escapeHtml(copy.today)}">
-            ${renderCloudflareProfileAction(`${prefix}/record`, copy.record, copy.recordLead, true)}
-            ${renderCloudflareProfileAction(`${prefix}/records?view=mine`, copy.records, copy.recordsLead)}
-            ${renderCloudflareProfileAction(`${prefix}/map`, copy.map, copy.mapLead)}
-            ${renderCloudflareProfileAction(`${prefix}/profile/settings`, copy.settings, copy.settingsLead)}
+          <nav class="cf-profile-primary-actions" aria-label="${escapeHtml(copy.profile)}">
+            ${renderCloudflareProfileAction(`${prefix}/profile/settings`, copy.settings, copy.settingsLead, true)}
+            ${renderCloudflareProfileAction(`${prefix}/profile/${encodeURIComponent(session.userId)}`, copy.publicProfile, copy.publicProfileLead)}
           </nav>
         </div>
-        <section class="cf-profile-latest" aria-labelledby="cf-profile-latest-title">
-          <div class="cf-profile-section-head">
-            <span>${escapeHtml(copy.today)}</span>
-            <h2 id="cf-profile-latest-title">${escapeHtml(copy.latest)}</h2>
-          </div>
-          <div class="cf-profile-record-grid">${recordCards}</div>
+        <section class="cf-profile-control-grid" aria-label="${escapeHtml(copy.profile)}">
+          ${renderCloudflareProfileAction(`${prefix}/records?view=mine`, copy.privacy, copy.privacyLead)}
+          ${renderCloudflareProfileAction(`${prefix}/community/events`, copy.participation, copy.participationLead)}
         </section>
-        <section class="cf-profile-flow" aria-label="${escapeHtml(copy.flow)}">
-          <span>${escapeHtml(copy.flow)}</span>
-          <ol>
-            <li><a href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.flowRecord)}</a></li>
-            <li><a href="${escapeHtml(`${prefix}/records?view=mine`)}">${escapeHtml(copy.flowLibrary)}</a></li>
-            <li><a href="${escapeHtml(`${prefix}/map`)}">${escapeHtml(copy.flowMap)}</a></li>
-            <li><a href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.flowPublic)}</a></li>
-          </ol>
+        <section class="cf-profile-account" data-testid="profile-account-utilities">
+          <div><span>${escapeHtml(copy.eyebrow)}</span><h2>${escapeHtml(copy.account)}</h2><p>${escapeHtml(copy.accountLead)}</p></div>
+          <div class="cf-profile-account-actions">
+            <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile/settings`)}">${escapeHtml(copy.settings)}</a>
+          </div>
         </section>
       </section>`;
 
@@ -23984,6 +23960,12 @@ function renderCloudflareProfileHtml(
     .cf-profile-action span{color:var(--muted);font-size:13px;line-height:1.35;font-weight:750}
     .cf-profile-action.is-primary{background:#047857;border-color:#047857;color:#fff;box-shadow:0 16px 30px rgba(4,120,87,.22)}
     .cf-profile-action.is-primary span{color:#d1fae5}
+    .cf-profile-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .cf-profile-account{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 14px 32px rgba(15,23,42,.06)}
+    .cf-profile-account h2{margin:3px 0 0;font-size:22px;line-height:1.25}
+    .cf-profile-account p{margin:6px 0 0;color:var(--muted);font-weight:700}
+    .cf-profile-account>div>span{display:block;color:#0f766e;font-size:13px;line-height:1.2;font-weight:950}
+    .cf-profile-account-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
     .cf-profile-latest,.cf-profile-settings,.cf-profile-flow{padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 14px 32px rgba(15,23,42,.06)}
     .cf-profile-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}
     .cf-profile-section-head h2,.cf-profile-settings h2{margin:3px 0 0;font-size:22px;line-height:1.25;letter-spacing:0}
@@ -24010,7 +23992,7 @@ function renderCloudflareProfileHtml(
     .cf-profile-settings dd{margin:4px 0 0;font-weight:950;overflow-wrap:anywhere}
     .cf-profile-settings a{color:var(--blue);font-weight:950}
     @media (max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}.cf-profile-hero{grid-template-columns:1fr}.cf-profile-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-profile-settings dl{grid-template-columns:1fr}}
-    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 20px);margin:16px auto calc(116px + env(safe-area-inset-bottom))}.cf-profile-hero-copy{padding:20px;border-radius:16px}.cf-profile-hero-copy h1{font-size:28px}.cf-profile-primary-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.cf-profile-action{min-height:78px;padding:12px}.cf-profile-record-grid{grid-template-columns:1fr;gap:9px}.cf-profile-record{grid-template-columns:124px minmax(0,1fr);min-height:128px;padding:8px;gap:12px}.cf-profile-record-media{width:124px;height:112px;border-radius:11px}.cf-profile-record>span:last-child{min-width:0}.cf-profile-record>span:last-child strong{font-size:15px;line-height:1.35}.cf-profile-record>span:last-child span{font-size:13px;line-height:1.45}.cf-profile-flow ol{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 20px);margin:16px auto calc(116px + env(safe-area-inset-bottom))}.cf-profile-hero-copy{padding:20px;border-radius:16px}.cf-profile-hero-copy h1{font-size:28px}.cf-profile-primary-actions,.cf-profile-control-grid{grid-template-columns:1fr;gap:9px}.cf-profile-action{min-height:78px;padding:12px}.cf-profile-account{display:grid}.cf-profile-account-actions{justify-content:flex-start}.cf-profile-record-grid{grid-template-columns:1fr;gap:9px}.cf-profile-record{grid-template-columns:124px minmax(0,1fr);min-height:128px;padding:8px;gap:12px}.cf-profile-record-media{width:124px;height:112px;border-radius:11px}.cf-profile-record>span:last-child{min-width:0}.cf-profile-record>span:last-child strong{font-size:15px;line-height:1.35}.cf-profile-record>span:last-child span{font-size:13px;line-height:1.45}.cf-profile-flow ol{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
 <body data-cloudflare-profile="signed-in">
@@ -24170,10 +24152,34 @@ type StateHomeLang = "ja" | "en" | "es" | "pt-br";
 
 function stateHomeCopy(lang: StateHomeLang) {
   const all = {
-    ja: { publicRecords: "地域に残っている記録", recent: "最近の記録", discoveries: "写真からわかったこと", nearby: "近くで残された記録", open: "記録を見る", unknown: "名前を調べている記録", safePlace: "地域の記録", candidate: "かもしれません", from: "この記録から", processing: "写真からわかることを調べています", photo: "写真", video: "動画", audio: "音声", memo: "メモ" },
-    en: { publicRecords: "Records from the community", recent: "Recent record", discoveries: "What your photos revealed", nearby: "Records left nearby", open: "Open record", unknown: "Record awaiting a name", safePlace: "Community record", candidate: "may be the match", from: "From this record", processing: "Looking for clues in this photo", photo: "Photo", video: "Video", audio: "Audio", memo: "Note" },
-    es: { publicRecords: "Registros de la comunidad", recent: "Registro reciente", discoveries: "Lo que mostraron tus fotos", nearby: "Registros guardados cerca", open: "Ver registro", unknown: "Registro pendiente de nombre", safePlace: "Registro de la comunidad", candidate: "podría ser", from: "De este registro", processing: "Buscando pistas en esta foto", photo: "Foto", video: "Video", audio: "Audio", memo: "Nota" },
-    "pt-br": { publicRecords: "Registros da comunidade", recent: "Registro recente", discoveries: "O que suas fotos revelaram", nearby: "Registros guardados por perto", open: "Ver registro", unknown: "Registro aguardando um nome", safePlace: "Registro da comunidade", candidate: "pode ser", from: "Deste registro", processing: "Procurando pistas nesta foto", photo: "Foto", video: "Vídeo", audio: "Áudio", memo: "Nota" }
+    ja: {
+      publicRecords: "地域に残っている記録", recent: "最近の記録", recentAll: "すべて見る",
+      memory: "この前の記録", memoryLead: "前の写真を見返すと、次に残したいことが見つかります。", captureToday: "今日の記録を撮る",
+      places: "場所から見つける", placesBody: "記録が残っている場所や、参加できる活動を地図から見られます。", placesCta: "場所を見る",
+      open: "この記録を見る", unknown: "記録した写真", safePlace: "地域の記録", imageLabel: "イメージ",
+      photo: "写真", video: "動画", audio: "音声", memo: "メモ"
+    },
+    en: {
+      publicRecords: "Records from the community", recent: "Recent records", recentAll: "View all",
+      memory: "Your last record", memoryLead: "Looking back at a photo can suggest what to keep next.", captureToday: "Capture today",
+      places: "Explore by place", placesBody: "See places with records and activities you can join.", placesCta: "View places",
+      open: "Open this record", unknown: "Saved photo", safePlace: "Community record", imageLabel: "Illustrative image",
+      photo: "Photo", video: "Video", audio: "Audio", memo: "Note"
+    },
+    es: {
+      publicRecords: "Registros de la comunidad", recent: "Registros recientes", recentAll: "Ver todos",
+      memory: "Tu último registro", memoryLead: "Volver a una foto puede mostrarte qué guardar después.", captureToday: "Capturar hoy",
+      places: "Explorar por lugar", placesBody: "Descubre lugares con registros y actividades en las que participar.", placesCta: "Ver lugares",
+      open: "Abrir este registro", unknown: "Foto guardada", safePlace: "Registro de la comunidad", imageLabel: "Imagen ilustrativa",
+      photo: "Foto", video: "Video", audio: "Audio", memo: "Nota"
+    },
+    "pt-br": {
+      publicRecords: "Registros da comunidade", recent: "Registros recentes", recentAll: "Ver todos",
+      memory: "Seu último registro", memoryLead: "Rever uma foto pode mostrar o que guardar a seguir.", captureToday: "Registrar hoje",
+      places: "Explorar por lugar", placesBody: "Veja lugares com registros e atividades das quais participar.", placesCta: "Ver lugares",
+      open: "Abrir este registro", unknown: "Foto salva", safePlace: "Registro da comunidade", imageLabel: "Imagem ilustrativa",
+      photo: "Foto", video: "Vídeo", audio: "Áudio", memo: "Nota"
+    }
   } as const;
   return all[lang];
 }
@@ -24231,25 +24237,41 @@ function stateHomePublicCard(item: ReturnType<typeof publicMapObservationItem>, 
   return `<a class="home-public-card" href="${prefix}/observations/${encodeURIComponent(item.visitId)}" data-home-record-id="${escapeHtml(item.visitId)}">${stateHomeMedia(item, lang)}<span class="home-card-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(meta)}</span></span></a>`;
 }
 
-function stateHomeDiscovery(item: OwnerHomeRecordItem, lang: StateHomeLang): string | null {
-  const copy = stateHomeCopy(lang);
-  const candidate = normalizeOptionalText(item.aiCandidateLabel);
-  if (candidate) return `${candidate} ${copy.candidate}`;
-  return item.isAwaitingId ? null : normalizeOptionalText(item.displayName);
-}
-
-function stateHomeRecentCard(item: OwnerHomeRecordItem, lang: StateHomeLang, integratedDiscovery: string | null): string {
+function stateHomeOwnerPrimary(item: OwnerHomeRecordItem, lang: StateHomeLang): string {
   const copy = stateHomeCopy(lang);
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const recordHref = `${prefix}/observations/${encodeURIComponent(item.visitId)}`;
-  const processing = /queued|processing|running|pending|requested/i.test(item.aiAssessmentStatus ?? "");
-  return `<article class="home-recent-card" data-home-record-id="${escapeHtml(item.visitId)}"><a class="home-recent-media-link" href="${recordHref}">${stateHomeMedia(item, lang, true)}</a><div class="home-recent-copy"><h3>${escapeHtml(stateHomeTitle(item, lang))}</h3><p class="home-record-date">${escapeHtml(stateHomeObservedAt(item.observedAt, lang))}</p>${integratedDiscovery ? `<p class="home-record-insight"><span>${escapeHtml(copy.from)}</span><strong>${escapeHtml(integratedDiscovery)}</strong></p>` : ""}${processing ? `<p class="home-record-processing" role="status">${escapeHtml(copy.processing)}</p>` : ""}<a class="home-text-link" href="${recordHref}">${escapeHtml(copy.open)}</a></div></article>`;
+  return `<section class="home-member-primary is-memory" data-home-primary-state="recent_memory" data-home-primary-active="true" data-home-record-id="${escapeHtml(item.visitId)}">
+    <a class="home-member-primary-media" href="${recordHref}" aria-label="${escapeHtml(copy.open)}">${stateHomeMedia(item, lang, true)}</a>
+    <div class="home-member-primary-copy">
+      <span class="home-member-eyebrow">${escapeHtml(copy.memory)}</span>
+      <h1>${escapeHtml(stateHomeTitle(item, lang))}</h1>
+      <p class="home-member-meta">${escapeHtml(stateHomeObservedAt(item.observedAt, lang))}</p>
+      <p>${escapeHtml(copy.memoryLead)}</p>
+      <div class="home-empty-actions">
+        <a class="home-primary-button" href="${recordHref}">${escapeHtml(copy.open)}</a>
+        <button type="button" class="home-secondary-button" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="home_memory_capture" aria-haspopup="dialog">${escapeHtml(copy.captureToday)}</button>
+      </div>
+    </div>
+  </section>`;
 }
 
-function stateHomeDiscoveryCard(item: OwnerHomeRecordItem, lang: StateHomeLang, discovery: string): string {
+function stateHomeOwnerCard(item: OwnerHomeRecordItem, lang: StateHomeLang): string {
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  return `<a class="home-recent-card" href="${prefix}/observations/${encodeURIComponent(item.visitId)}" data-home-record-id="${escapeHtml(item.visitId)}">${stateHomeMedia(item, lang)}<span class="home-card-copy"><strong>${escapeHtml(stateHomeTitle(item, lang))}</strong><span>${escapeHtml(stateHomeObservedAt(item.observedAt, lang))}</span></span></a>`;
+}
+
+function stateHomePlaceSection(publicItems: Array<ReturnType<typeof publicMapObservationItem>>, lang: StateHomeLang): string {
   const copy = stateHomeCopy(lang);
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  return `<a class="home-discovery-card" href="${prefix}/observations/${encodeURIComponent(item.visitId)}" data-home-record-id="${escapeHtml(item.visitId)}">${stateHomeMedia(item, lang)}<span class="home-card-copy"><strong>${escapeHtml(discovery)}</strong><span>${escapeHtml(copy.from)}</span></span></a>`;
+  const visualItem = publicItems.find((item) => Boolean(item.photoUrl));
+  const visual = visualItem
+    ? `<div class="home-place-visual">${stateHomeMedia(visualItem, lang)}</div>`
+    : `<div class="home-place-visual"><span class="home-card-media is-generated"><img src="/assets/img/landing/home-daily-place.webp" alt="" width="1280" height="720" loading="lazy" decoding="async"><span class="home-generated-badge">${escapeHtml(copy.imageLabel)}</span></span></div>`;
+  return `<section class="home-section home-place-section">
+    ${visual}
+    <div><h2>${escapeHtml(copy.places)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button" href="${prefix}/map?tab=places" data-kpi-event="top_place_tap" data-kpi-action="home_member_place">${escapeHtml(copy.placesCta)}</a></div>
+  </section>`;
 }
 
 export async function injectStateSplitHome(html: string, session: SessionSnapshot | null, url: URL, env: Env): Promise<string> {
@@ -24272,26 +24294,20 @@ export async function injectStateSplitHome(html: string, session: SessionSnapsho
 
   const ownerItems = await ownerHomeRecordCards(session.userId, env, 24).catch(() => []);
   const recent = ownerItems[0] ?? null;
-  const separateDiscovery = ownerItems.slice(1).find((item) => Boolean(stateHomeDiscovery(item, lang))) ?? null;
-  const recentDiscovery = recent ? stateHomeDiscovery(recent, lang) : null;
   const copy = stateHomeCopy(lang);
-  const recentSection = recent
-    ? `<section class="home-section home-recent-section"><h2>${escapeHtml(copy.recent)}</h2>${stateHomeRecentCard(recent, lang, separateDiscovery ? null : recentDiscovery)}</section>`
+  if (recent) {
+    next = replaceStateHomeMarker(next, "section", "member-primary", stateHomeOwnerPrimary(recent, lang));
+  }
+
+  const recentItems = ownerItems.slice(1, 7);
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  const recentSection = recentItems.length > 0
+    ? `<section class="home-section home-recent-section"><div class="home-section-heading"><h2>${escapeHtml(copy.recent)}</h2><a href="${prefix}/records?view=mine">${escapeHtml(copy.recentAll)}</a></div><div class="home-recent-grid">${recentItems.map((item) => stateHomeOwnerCard(item, lang)).join("")}</div></section>`
     : "";
   next = replaceStateHomeMarker(next, "section", "member-recent", recentSection);
-
-  const discovery = separateDiscovery ? stateHomeDiscovery(separateDiscovery, lang) : null;
-  const discoverySection = separateDiscovery && discovery
-    ? `<section class="home-section home-discovery-section"><h2>${escapeHtml(copy.discoveries)}</h2>${stateHomeDiscoveryCard(separateDiscovery, lang, discovery)}</section>`
-    : "";
-  next = replaceStateHomeMarker(next, "section", "member-discovery", discoverySection);
-
-  const ownerIds = new Set(ownerItems.map((item) => item.visitId));
-  const nearby = publicItems.filter((item) => !ownerIds.has(item.visitId)).slice(0, 8);
-  const nearbySection = nearby.length > 0
-    ? `<section class="home-section home-nearby-section"><h2>${escapeHtml(copy.nearby)}</h2><div class="home-horizontal-list" role="region" aria-label="${escapeHtml(copy.nearby)}">${nearby.map((item) => stateHomePublicCard(item, lang)).join("")}</div></section>`
-    : "";
-  next = replaceStateHomeMarker(next, "section", "member-nearby", nearbySection);
+  next = replaceStateHomeMarker(next, "section", "member-discovery", "");
+  next = replaceStateHomeMarker(next, "section", "member-place", stateHomePlaceSection(publicItems, lang));
+  next = replaceStateHomeMarker(next, "section", "member-nearby", "");
   return next;
 }
 
