@@ -1,0 +1,12 @@
+{
+  "status": "complete",
+  "model_used": "claude-opus-4-8",
+  "task_id": "universal-place-atlas-record-reuse-1434-claude-r3",
+  "target_sha": "83e8cc9ee0a37ea20145bf179b0cdabf5c98ad98",
+  "prompt_variant_used": "full",
+  "safe_mode": true,
+  "raw_review_file": "claude-review-r3.md",
+  "prior_attempts_usable": false,
+  "prior_attempt_reason": "Claude attempted unavailable read-only tools and returned no substantive findings.",
+  "created_at": "2026-07-24T06:29:18.6706093+09:00"
+}
