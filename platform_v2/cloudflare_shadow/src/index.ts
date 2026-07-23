@@ -27,6 +27,7 @@ import {
   buildGeminiPrimaryRequest,
   buildGeminiSummaryRequest,
   createGeminiBatch,
+  decideGeminiSpecialistEscalation,
   findGeminiBatchByDisplayName,
   geminiBatchDisplayName,
   geminiBatchResponseText,
@@ -29900,7 +29901,9 @@ async function resumeGeminiObservationBatchGroup(rows: ObservationReassessmentRe
         const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(analysis.responses[execution.environmentIndex]));
         const mediaCount = execution.representativeImageCount
           ?? (await loadObservationAiAssetSelection(row.observation_id, env)).assets.length;
-        summaryRows.push({ row, merged: mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, mediaCount) });
+        const merged = mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, mediaCount);
+        merged.specialistEscalation = decideGeminiSpecialistEscalation(merged, primaryEvidence, censusEvidence);
+        summaryRows.push({ row, merged });
       } catch (error) {
         await failGeminiReassessment(row, error, env);
       }
@@ -29928,8 +29931,10 @@ async function resumeGeminiObservationBatchGroup(rows: ObservationReassessmentRe
       const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(analysis.responses[execution.censusIndex]));
       const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(analysis.responses[execution.environmentIndex]));
       const prepared = await loadPreparedGeminiObservation(row, env);
+      const mergedEvidence = mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, prepared.images.length);
+      mergedEvidence.specialistEscalation = decideGeminiSpecialistEscalation(mergedEvidence, primaryEvidence, censusEvidence);
       const merged = applyGeminiObservationSummary(
-        mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, prepared.images.length),
+        mergedEvidence,
         parseGeminiObservationSummary(geminiBatchResponseText(summary.responses[execution.summaryIndex ?? -1])),
       );
       await finalizeGeminiObservationReassessment(prepared, merged, env);
@@ -29970,6 +29975,15 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
     informationState: merged.informationState,
     detectionState: merged.detectionState,
     candidate,
+    topCandidates: merged.topCandidates.map((topCandidate) => ({
+      ...topCandidate,
+      sourceAssetIds: topCandidate.sourceAssetIndices
+        .map((assetIndex) => prepared.assets[assetIndex]?.asset_id)
+        .filter((assetId): assetId is string => Boolean(assetId)),
+    })),
+    genericCandidateOnly: merged.genericCandidateOnly,
+    candidateFusionRuleVersion: merged.candidateFusionRuleVersion,
+    specialistEscalation: merged.specialistEscalation,
     environment: merged.environment,
     relations: merged.relations,
     summary: merged.summary,
@@ -30073,6 +30087,9 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
       recordClass: merged.recordClass,
       informationState: merged.informationState,
       detectionState: merged.detectionState,
+      genericCandidateOnly: merged.genericCandidateOnly,
+      candidateFusionRuleVersion: merged.candidateFusionRuleVersion,
+      specialistEscalation: merged.specialistEscalation,
       mediaDedup: {
         ruleVersion: prepared.mediaDedup.ruleVersion,
         sourceImageCount: prepared.sourceAssets.length,

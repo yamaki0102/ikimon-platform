@@ -3,12 +3,16 @@ import test from "node:test";
 import {
   GEMINI_ANALYSIS_MODEL,
   GEMINI_PRIMARY_MODEL,
+  GEMINI_SPECIALIST_MODEL,
   GEMINI_SUMMARY_MODEL,
   applyGeminiObservationSummary,
+  applyGeminiSpecialistEvidence,
   buildGeminiCensusRequest,
   buildGeminiEnvironmentRequest,
   buildGeminiPrimaryRequest,
+  buildGeminiSpecialistRequest,
   createGeminiBatch,
+  decideGeminiSpecialistEscalation,
   findGeminiBatchByDisplayName,
   geminiBatchResponseText,
   mergeGeminiObservationEvidence,
@@ -110,6 +114,115 @@ test("summary can only enrich already extracted subjects", () => {
   assert.match(enriched.candidate.visualEvidence.join(" "), /嘴と羽毛/);
   assert.match(enriched.candidate.needsMoreEvidence.join(" "), /頭部と翼/);
   assert.equal(enriched.candidate.coexistingSubjects[0]?.vernacularName, "樹木");
+});
+
+test("candidate fusion promotes a concrete census species over a generic primary class", () => {
+  const concreteCensus: GeminiCensusEvidence = {
+    ...census,
+    groups: [
+      {
+        id: "bird",
+        kind: "animal",
+        role: "primary",
+        scope: "individual",
+        count: 1,
+        label: "イソヒヨドリ",
+        scientific: "Monticola solitarius",
+        rank: "species",
+        evidence: "全身に鱗状の羽衣が見え、冠羽は目立たない",
+        supporting_features: ["全身の鱗状模様", "冠羽が目立たない", "細めの嘴"],
+        missing_features: ["尾全体", "胸腹の正面"],
+        contradictions: [],
+        confidence: 0.78,
+      },
+      census.groups[1]!,
+    ],
+  };
+  const genericPrimary: GeminiPrimaryEvidence = {
+    ...primary,
+    subjects: [{ ...primary.subjects[0]!, name: "鳥類", rank: "class", confidence: 0.65 }],
+  };
+  const merged = mergeGeminiObservationEvidence(genericPrimary, concreteCensus, environment, 3);
+  assert.equal(merged.candidate.vernacularName, "イソヒヨドリ");
+  assert.equal(merged.candidate.scientificName, "Monticola solitarius");
+  assert.equal(merged.candidate.rank, "species");
+  assert.equal(merged.candidate.sourceModel, GEMINI_ANALYSIS_MODEL);
+  assert.equal(merged.topCandidates[0]?.name, "イソヒヨドリ");
+  assert.equal(merged.topCandidates.some((candidate) => candidate.name === "鳥類"), true);
+  assert.deepEqual(merged.topCandidates[0]?.sourceLanes, ["census"]);
+  assert.equal(merged.genericCandidateOnly, false);
+  assert.equal(merged.candidate.coexistingSubjects.length, 1);
+  assert.equal(merged.candidate.coexistingSubjects[0]?.vernacularName, "樹木");
+
+  const escalation = decideGeminiSpecialistEscalation(merged, genericPrimary, concreteCensus);
+  assert.equal(escalation.required, true);
+  assert.equal(escalation.specialistKind, "bird");
+  assert.equal(escalation.reasons.includes("lane_candidate_conflict"), true);
+});
+
+test("bird specialist keeps top three alternatives for one subject without creating coexisting subjects", () => {
+  const merged = mergeGeminiObservationEvidence(primary, census, environment, 3);
+  const specialized = applyGeminiSpecialistEvidence(merged, {
+    assessment_state: "informative",
+    candidates: [
+      {
+        name: "イソヒヨドリ",
+        scientific: "Monticola solitarius",
+        rank: "species",
+        confidence: 0.74,
+        supporting_features: ["全身の鱗状模様", "冠羽が目立たない", "嘴が比較的細い"],
+        missing_features: ["尾全体", "胸腹の正面"],
+        contradictions: [],
+      },
+      {
+        name: "ヒヨドリ",
+        scientific: "Hypsipetes amaurotis",
+        rank: "species",
+        confidence: 0.43,
+        supporting_features: ["体型と止まり方"],
+        missing_features: ["耳斑", "明瞭な冠羽"],
+        contradictions: ["冠羽が目立たない"],
+      },
+      {
+        name: "ムクドリ",
+        scientific: "Spodiopsar cineraceus",
+        rank: "species",
+        confidence: 0.31,
+        supporting_features: ["建物上に止まる中型の鳥"],
+        missing_features: ["顔の白色部", "嘴色"],
+        contradictions: ["全身の鱗状模様"],
+      },
+    ],
+    comparison_summary: "鱗状模様、冠羽、耳斑、嘴、尾を比較する。",
+    needs_review: true,
+  });
+  assert.deepEqual(
+    specialized.topCandidates.slice(0, 3).map((candidate) => candidate.name),
+    ["イソヒヨドリ", "ヒヨドリ", "ムクドリ"],
+  );
+  assert.equal(specialized.candidate.vernacularName, "イソヒヨドリ");
+  assert.equal(specialized.candidate.coexistingSubjects.length, 1);
+  assert.equal(specialized.candidate.coexistingSubjects[0]?.vernacularName, "樹木");
+  assert.match(specialized.reviewReasons.join(" "), /幼鳥|雌/);
+});
+
+test("specialist request is conditional, uses 3.5 Flash-Lite contract, and asks for bird diagnostic traits", () => {
+  assert.equal(GEMINI_SPECIALIST_MODEL, "gemini-3.5-flash-lite");
+  const request = buildGeminiSpecialistRequest(
+    "record-1780552463658",
+    "bird",
+    images,
+    mergeGeminiObservationEvidence(primary, census, environment, 2),
+  );
+  const text = JSON.stringify(request);
+  assert.match(text, /嘴/);
+  assert.match(text, /冠羽/);
+  assert.match(text, /耳斑/);
+  assert.match(text, /翼帯/);
+  assert.match(text, /幼鳥/);
+  assert.match(text, /雌/);
+  assert.equal(request.generationConfig.maxOutputTokens, 2048);
+  assert.equal(request.generationConfig.responseMimeType, "application/json");
 });
 
 test("batch REST client uses exact model paths, recovers by display name, and parses item text", async () => {
