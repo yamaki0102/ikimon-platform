@@ -164,6 +164,33 @@ test("place atlas imported media accepts only sanitized paths and never bypasses
   assert.doesNotMatch(html, /src="\/derived\/import\/20260615\/observation_photo\/asset-1\/original\.jpg"/);
 });
 
+test("place atlas media allowlist rejects same-origin API and traversal-shaped image URLs", () => {
+  const html = renderMapPlaceAtlasProfile(fixture({
+    place: {
+      ...fixture().place,
+      representativeMedia: [{
+        url: "/api/v1/auth/session",
+        recordId: "record-api",
+        kind: "photo",
+      }],
+    },
+    facets: [{
+      key: "nature",
+      label: "自然・生きもの",
+      count: 1,
+      representativeMediaUrl: "/uploads/../api/v1/auth/session",
+    }],
+    recentRecords: [{
+      ...fixture().recentRecords[0]!,
+      mediaUrl: "/record",
+    }],
+  }), options);
+
+  assert.doesNotMatch(html, /src="\/api\/v1\/auth\/session"/);
+  assert.doesNotMatch(html, /src="\/record"/);
+  assert.doesNotMatch(html, /uploads\/\.\.\/api/);
+});
+
 test("place atlas renderer never turns unknown counts into zero or a false empty claim", () => {
   const profile = fixture({
     summary: {

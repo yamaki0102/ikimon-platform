@@ -250,11 +250,26 @@ type AtlasImageWidth = 360 | 680 | 1020 | 1360;
 function atlasSafeImageUrl(value: unknown, width: AtlasImageWidth): string {
   if (typeof value !== "string") return "";
   const url = value.trim();
-  if (!url || url.startsWith("//") || /[\u0000-\u001f\u007f]/.test(url)) return "";
-  if (url.startsWith("/derived/")) {
+  if (!url || url.startsWith("//") || /[\u0000-\u001f\u007f\\]/.test(url)) return "";
+  const path = url.split(/[?#]/, 1)[0] ?? "";
+  let decodedPath = "";
+  try {
+    decodedPath = decodeURIComponent(path);
+  } catch {
+    return "";
+  }
+  if (/(?:^|\/)\.\.(?:\/|$)/.test(decodedPath)) return "";
+  const allowedLocalPath = [
+    "/derived/",
+    "/derived-transform/",
+    "/thumb/",
+    "/uploads/",
+    "/data/uploads/",
+  ].some((prefix) => decodedPath.startsWith(prefix));
+  if (decodedPath.startsWith("/derived/")) {
     return `/derived-transform/w${width}/${url.replace(/^\/+/, "")}`;
   }
-  if (url.startsWith("/")) return url;
+  if (url.startsWith("/")) return allowedLocalPath ? url : "";
   try {
     const parsed = new URL(url);
     const allowedHost = parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");

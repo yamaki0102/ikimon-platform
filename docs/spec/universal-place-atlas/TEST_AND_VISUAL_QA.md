@@ -8,15 +8,20 @@ Generated: 2026-07-23 JST
 | --- | --- | --- |
 | Node typecheck | passed | `npm --prefix platform_v2 run typecheck` |
 | Node production build | passed | `npm --prefix platform_v2 run build` |
-| Node test suite | 1,403 passed, 0 failed | `npm --prefix platform_v2 run test:node` |
+| Node test suite | 1,406 passed, 0 failed | `npm --prefix platform_v2 run test:node` |
 | Worker typecheck | passed | `npm --prefix platform_v2/cloudflare_shadow run check` |
-| Worker test suite | 397 passed, 0 failed | `npm --prefix platform_v2/cloudflare_shadow test` |
-| Worker staging bundle dry-run | passed | 2,052.35 KiB raw / 437.22 KiB gzip |
+| Worker test suite | 399 passed, 0 failed | `npm --prefix platform_v2/cloudflare_shadow test` |
+| Worker staging bundle dry-run | passed | 2,053.67 KiB raw / 437.57 KiB gzip |
 | Local Place Atlas E2E | 28 passed, 2 skipped, 0 failed | `npm --prefix platform_v2 run e2e:local:place-atlas` |
 | Fresh D1 migration | passed | `evidence/local-d1-migration-rehearsal.json` |
 | Existing D1 compatibility | passed | `placeAtlasMigration.test.ts` |
 | Seed replay/idempotency | passed | `evidence/local-d1-migration-rehearsal.json` |
 | Forward rollback | passed; evidence retained | `ops/deploy/forward_rollback/0068_disable_universal_place_atlas.sql` |
+
+The final rerun includes the adopted independent-review fixes: stale calculated
+membership retirement without overwriting reviewed corrections, a 1,000-vertex
+request-time geometry budget, a 500-row snapshot cap with honest `partial`
+status, and a same-origin media-path allowlist.
 
 The two E2E skips are the canonical alias-search browser case in WebKit and
 Firefox. The same search contract is covered by Node and Worker registry tests;

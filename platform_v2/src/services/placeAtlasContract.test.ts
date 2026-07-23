@@ -180,6 +180,22 @@ test("distinguishes unknown counts, verified zero, and threshold suppression", (
   assert.ok(underThreshold.publication.suppressedSections.includes("recent_records"));
 });
 
+test("an incomplete Record set is explicitly partial and never presents a false total", () => {
+  const input = buildInput([
+    { recordId: "record-1", observedAt: "2026-07-20T00:00:00Z" },
+    { recordId: "record-2", observedAt: "2026-07-21T00:00:00Z" },
+    { recordId: "record-3", observedAt: "2026-07-22T00:00:00Z" },
+  ]);
+  const profile = buildPlaceAtlasProfile({
+    ...input,
+    recordSetComplete: false,
+    locationMode: "field",
+    suppressedSections: [],
+  });
+  assert.equal(profile.publication.status, "partial");
+  assert.equal(profile.summary.recordCount, null);
+});
+
 test("does not return contributor count when any contributor is unavailable", () => {
   const profile = buildPlaceAtlasProfile(buildInput([
     { recordId: "record-1", observedAt: "2026-07-20T00:00:00Z", contributorKey: "user-1" },
@@ -196,8 +212,12 @@ test("rejects unsafe media URLs instead of rendering them", () => {
     { recordId: "record-2", observedAt: "2026-07-21T00:00:00Z", mediaUrl: "//evil.example/x.jpg" },
     { recordId: "record-3", observedAt: "2026-07-22T00:00:00Z", mediaUrl: "https://cdn.example/x.jpg" },
     { recordId: "record-4", observedAt: "2026-07-23T00:00:00Z", mediaUrl: "https://media.ikimon.life/x.jpg" },
+    { recordId: "record-5", observedAt: "2026-07-24T00:00:00Z", mediaUrl: "/api/v1/auth/session" },
+    { recordId: "record-6", observedAt: "2026-07-25T00:00:00Z", mediaUrl: "/uploads/../api/v1/auth/session" },
   ]));
   assert.deepEqual(profile.place.representativeMedia.map((media) => media.url), ["https://media.ikimon.life/x.jpg"]);
+  assert.equal(profile.recentRecords.find((record) => record.recordId === "record-5")?.mediaUrl, null);
+  assert.equal(profile.recentRecords.find((record) => record.recordId === "record-6")?.mediaUrl, null);
 });
 
 test("connects guide, memories, and facilities to place-atlas facets without fake Occurrences", () => {

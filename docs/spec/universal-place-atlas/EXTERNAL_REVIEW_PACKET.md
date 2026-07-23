@@ -53,6 +53,17 @@ without exposing exact locations or private memory.
 
 No production migration, backfill, or deployment has been performed.
 
+## Reconciliation
+
+Raw review outputs and the Japanese adoption record are preserved under:
+
+`operations/ai_os/external_review_evidence/2026-07/universal-place-atlas-1421/20260723-232412/`
+
+Gemini's stale-membership, Worker geometry CPU, snapshot cap, and media-path
+allowlist findings were adopted and fixed. Claude could not read the target
+source and its zero-byte/EXIF claims were disproved from target-SHA Git blobs;
+that lane is retained as limited evidence rather than a valid code audit.
+
 ## Required review focus
 
 Classify findings as P0/P1/P2 and provide concrete file/contract evidence.

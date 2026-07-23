@@ -76,6 +76,7 @@ export type RecordPlaceBackfillReport = {
   candidateMemberships: number;
   ambiguousRecords: number;
   skippedReasons: Record<string, number>;
+  evaluatedRecordIds: string[];
   memberships: MembershipBackfillRow[];
   themeAssertions: ThemeAssertionBackfillRow[];
   sourceRecordsMutated: false;
@@ -171,6 +172,7 @@ export function runRecordPlaceBackfill(input: {
   }
   const memberships: MembershipBackfillRow[] = [];
   const themeAssertions: ThemeAssertionBackfillRow[] = [];
+  const evaluatedRecordIds: string[] = [];
   const skippedReasons: Record<string, number> = {};
   let recordsWithExactLocation = 0;
   let recordsMatched = 0;
@@ -197,6 +199,7 @@ export function runRecordPlaceBackfill(input: {
       continue;
     }
     recordsWithExactLocation += 1;
+    evaluatedRecordIds.push(record.recordId);
     const decisions = decideRecordPlaceMembership({
       point: { lat, lng },
       uncertaintyM: record.uncertaintyM,
@@ -237,6 +240,7 @@ export function runRecordPlaceBackfill(input: {
     candidateMemberships: memberships.filter((row) => row.state === "candidate").length,
     ambiguousRecords,
     skippedReasons,
+    evaluatedRecordIds,
     memberships,
     themeAssertions,
     sourceRecordsMutated: false,
@@ -250,6 +254,18 @@ function sqlText(value: unknown): string {
 
 export function buildD1RecordPlaceBackfillSql(report: RecordPlaceBackfillReport): string {
   const statements: string[] = [];
+  for (const recordId of report.evaluatedRecordIds) {
+    statements.push(
+      `UPDATE record_place_memberships
+          SET is_primary = 0,
+              removed_at = CURRENT_TIMESTAMP,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE record_id = ${sqlText(recordId)}
+          AND calculation_version = ${sqlText(report.calculationVersion)}
+          AND reviewed_state = 'unreviewed'
+          AND removed_at IS NULL;`,
+    );
+  }
   for (const row of report.memberships) {
     statements.push(
       `INSERT INTO record_place_memberships (
@@ -271,7 +287,9 @@ export function buildD1RecordPlaceBackfillSql(report: RecordPlaceBackfillReport)
         internal_precision = excluded.internal_precision,
         public_precision = 'place',
         is_primary = excluded.is_primary,
-        updated_at = CURRENT_TIMESTAMP;`,
+        removed_at = NULL,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE record_place_memberships.reviewed_state = 'unreviewed';`,
     );
   }
   for (const row of report.themeAssertions) {

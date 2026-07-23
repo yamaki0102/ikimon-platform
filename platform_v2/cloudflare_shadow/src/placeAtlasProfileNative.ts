@@ -187,9 +187,10 @@ type RegisteredPlaceProjection = {
 };
 
 const SNAPSHOT_KEY = "public-map:v1:global";
-const MAX_SNAPSHOT_ROWS = 5_000;
+const MAX_SNAPSHOT_ROWS = 500;
 const MAX_SCOPE_CELLS = 256;
 const MAX_QUERY_BINDINGS = 80;
+const MAX_RUNTIME_GEOMETRY_VERTICES = 1_000;
 const OVERPASS_TIMEOUT_MS = 2_500;
 const DEFAULT_OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 const OSM_CACHE_TTL_MS = 5 * 60 * 1_000;
@@ -242,6 +243,28 @@ function safeGeometry(value: string | null | undefined): PlaceGeometry | null {
     type: parsed.type,
     coordinates: parsed.coordinates,
   };
+}
+
+export function placeAtlasGeometryWithinRuntimeBudget(geometry: PlaceGeometry): boolean {
+  const stack: unknown[] = [geometry.coordinates];
+  let vertexCount = 0;
+  while (stack.length > 0) {
+    const value = stack.pop();
+    if (!Array.isArray(value)) continue;
+    if (
+      value.length >= 2
+      && typeof value[0] === "number"
+      && typeof value[1] === "number"
+      && Number.isFinite(value[0])
+      && Number.isFinite(value[1])
+    ) {
+      vertexCount += 1;
+      if (vertexCount > MAX_RUNTIME_GEOMETRY_VERTICES) return false;
+      continue;
+    }
+    for (const entry of value) stack.push(entry);
+  }
+  return vertexCount >= 4;
 }
 
 function pointInRing(lng: number, lat: number, ring: unknown): boolean {
@@ -698,9 +721,9 @@ function guideForScope(
     ) {
       return false;
     }
-    return geometry
+    return geometry && placeAtlasGeometryWithinRuntimeBudget(geometry)
       ? pointInPlaceAtlasGeometry(candidate.lng, candidate.lat, geometry)
-      : distanceMeters(center.lat, center.lng, candidate.lat, candidate.lng) <=
+      : !geometry && distanceMeters(center.lat, center.lng, candidate.lat, candidate.lng) <=
         Math.max(radiusM, candidate.triggerRadiusM);
   });
   if (!spot) return null;
@@ -1209,6 +1232,9 @@ async function buildRecordsForGeometry(
   bbox: [number, number, number, number],
   directFieldId?: string,
 ): Promise<{ records: PlaceAtlasSourceRecord[]; complete: boolean }> {
+  if (!placeAtlasGeometryWithinRuntimeBudget(geometry)) {
+    return { records: [], complete: false };
+  }
   const snapshot = await loadSnapshotRows(input.db, publicCellsForBbox(bbox));
   const visitIds = [...new Set(snapshot.rows.map((row) => row.visit_id))];
   const visits = await loadVisitLocations(input.db, visitIds);

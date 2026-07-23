@@ -123,7 +123,7 @@ const membershipBreakdownByPlace = Object.fromEntries(
 const evidenceReport = summaryOnly
   ? {
       ...Object.fromEntries(Object.entries(report).filter(([key]) =>
-        key !== "memberships" && key !== "themeAssertions"
+        key !== "memberships" && key !== "themeAssertions" && key !== "evaluatedRecordIds"
       )),
       membershipCountsByPlace: Object.fromEntries(report.memberships.reduce((counts, row) => {
         counts.set(row.placeId, (counts.get(row.placeId) ?? 0) + 1);

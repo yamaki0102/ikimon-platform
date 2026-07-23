@@ -14,8 +14,11 @@ Generated: 2026-07-23 JST
 - registered canonical boundaries keep a profile available when Overpass is
   unavailable;
 - relation inner rings remain holes;
-- large geometry is bounded and medium geometry is chunked below D1 bind
-  limits;
+- request-time geometry scans stop at 1,000 vertices and return `partial`
+  instead of simplifying into a false membership;
+- snapshot reads stop at 500 rows and return `partial` with unknown totals
+  instead of treating the capped set as complete;
+- medium geometry is chunked below D1 bind limits;
 - public-cell fallback remains available when no named Place resolves;
 - Node and Worker expose the same profile/search version and cache contract.
 
@@ -46,7 +49,7 @@ exact coordinates or contributor identity.
 - stale response: earlier requests cannot overwrite the latest selection;
 - invalid/huge geometry: no unbounded global snapshot scan;
 - media failure: visible fallback is rendered;
-- Worker bundle staging dry-run: 2,052.35 KiB raw / 437.22 KiB gzip.
+- Worker bundle staging dry-run: 2,053.67 KiB raw / 437.57 KiB gzip.
 
 ## Latency status
 
