@@ -80,6 +80,7 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
       assert.match(this.query, /withdrawal_status = 'active'/);
       assert.match(this.query, /membership_state = 'confirmed'/);
       assert.match(this.query, /removed_at IS NULL/);
+      assert.match(this.query, /quality_grade[^]*research_grade[^]*verified/);
       assert.match(this.query, /WHERE ea\.visit_id = v\.visit_id/);
       assert.doesNotMatch(this.query, /ea\.occurrence_id\s*=\s*o\.occurrence_id\s+OR/);
       const requestedPlaceId = String(this.values[0] ?? "");
@@ -747,7 +748,7 @@ test("registered Place reuses confirmed historic Records without Occurrence over
       observed_at: "2026-07-18T00:00:00Z",
       taxon_group: "species",
       display_name: "過去Record 2",
-      is_ai_candidate: 0,
+      is_ai_candidate: 1,
       is_awaiting_id: 0,
       photo_url: null,
       cell_1000: "",
@@ -792,6 +793,10 @@ test("registered Place reuses confirmed historic Records without Occurrence over
   assert.match(JSON.stringify(profile), /過去Record 1/);
   assert.doesNotMatch(JSON.stringify(profile), /同じRecord内の別Occurrence/);
   assert.doesNotMatch(JSON.stringify(profile), /候補Record/);
+  assert.equal(
+    profile.recentRecords.find((record) => record.recordId === "historic-2")?.identificationStatus,
+    "ai_candidate",
+  );
   assert.ok(profile.provenance.sources.includes("record_place_memberships"));
   assert.doesNotMatch(JSON.stringify(profile), /exact_lat|exact_lng|user_id/);
 });

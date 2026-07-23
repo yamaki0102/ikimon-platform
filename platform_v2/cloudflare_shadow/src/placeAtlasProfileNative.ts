@@ -493,7 +493,10 @@ async function loadPlaceMembershipRows(
               COALESCE(v.observed_at, o.created_at, '') AS observed_at,
               COALESCE(o.taxon_rank, 'other') AS taxon_group,
               COALESCE(NULLIF(o.vernacular_name, ''), NULLIF(o.scientific_name, ''), '同定待ち') AS display_name,
-              0 AS is_ai_candidate,
+              CASE
+                WHEN COALESCE(o.quality_grade, '') IN ('research_grade', 'verified') THEN 0
+                ELSE 1
+              END AS is_ai_candidate,
               CASE
                 WHEN NULLIF(o.vernacular_name, '') IS NULL
                  AND NULLIF(o.scientific_name, '') IS NULL THEN 1
