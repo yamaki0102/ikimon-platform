@@ -16,6 +16,8 @@ type FixtureData = {
   visits?: Array<Record<string, unknown>>;
   photos?: Array<Record<string, unknown>>;
   themes?: Array<Record<string, unknown>>;
+  membershipRecords?: Array<Record<string, unknown>>;
+  excludedMembershipRecordIds?: Array<Record<string, unknown>>;
   registeredPlace?: Record<string, unknown> | null;
   placeBoundary?: Record<string, unknown> | null;
   placeAliases?: Array<Record<string, unknown>>;
@@ -59,6 +61,43 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
   }
 
   async all<T>(): Promise<{ results: T[] }> {
+    if (this.query.includes("SELECT DISTINCT m.record_id") && this.query.includes("record_place_memberships")) {
+      assert.match(this.query, /membership_state <> 'confirmed'/);
+      assert.match(this.query, /removed_at IS NOT NULL/);
+      assert.match(this.query, /LEFT JOIN observation_data_rights/);
+      assert.match(this.query, /rights\.visit_id IS NULL/);
+      assert.match(this.query, /rights\.withdrawal_status <> 'active'/);
+      assert.match(this.query, /public_visibility[^]*<> 'public'/);
+      return {
+        results: (this.data.excludedMembershipRecordIds ?? []) as T[],
+      };
+    }
+    if (this.query.includes("FROM record_place_memberships m")) {
+      assert.doesNotMatch(this.query, /exact_lat|exact_lng|user_id/);
+      assert.match(this.query, /public_precision = 'place'/);
+      assert.match(this.query, /public_visibility/);
+      assert.match(this.query, /observation_data_rights/);
+      assert.match(this.query, /public_summary/);
+      assert.match(this.query, /external_export/);
+      assert.match(this.query, /AND EXISTS/);
+      assert.doesNotMatch(this.query, /NOT EXISTS/);
+      assert.match(this.query, /withdrawal_status = 'active'/);
+      assert.match(this.query, /membership_state = 'confirmed'/);
+      assert.match(this.query, /removed_at IS NULL/);
+      assert.match(this.query, /quality_grade[^]*ai_judgement/);
+      assert.match(this.query, /quality_grade[^]*research_grade[^]*verified[^]*is_awaiting_id/);
+      assert.match(this.query, /WHERE ea\.visit_id = v\.visit_id/);
+      assert.doesNotMatch(this.query, /ea\.occurrence_id\s*=\s*o\.occurrence_id\s+OR/);
+      const requestedPlaceId = String(this.values[0] ?? "");
+      return {
+        results: (this.data.membershipRecords ?? [])
+          .filter((row) =>
+            String(row.place_id ?? requestedPlaceId) === requestedPlaceId &&
+            String(row.membership_state ?? "confirmed") === "confirmed" &&
+            (row.removed_at ?? null) === null
+          ) as T[],
+      };
+    }
     if (this.query.includes("public_map_snapshot_records_v1")) {
       this.data.snapshotBindCounts?.push(this.values.length);
       const requestedCells = new Set(this.values.slice(1, -1).map(String));
@@ -110,6 +149,9 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
       return { results: (this.data.placeContent ?? []) as T[] };
     }
     if (this.query.includes("production_import_visits")) {
+      assert.match(this.query, /observation_data_rights/);
+      assert.match(this.query, /withdrawal_status = 'active'/);
+      assert.match(this.query, /record_consent IN/);
       const requested = new Set(this.values.map(String));
       return {
         results: (this.data.visits ?? [])
@@ -649,6 +691,254 @@ test("verified registry boundary keeps the profile available during an Overpass 
   assert.equal(profile.publication.locationMode, "osm_area");
   assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
   assert.doesNotMatch(JSON.stringify(profile), /exact_lat|exact_lng/);
+});
+
+test("registered Place reuses confirmed historic Records without Occurrence overcount or candidate leakage", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.registeredPlace = {
+    place_id: "plc_1dac5b52233720ee",
+    canonical_name: "JUNGLIA OKINAWA",
+    locality_label: "沖縄県国頭郡今帰仁村",
+    place_kind: "theme_park",
+    verification_status: "verified",
+    official_status: "official",
+    public_summary: "公式情報と公開Recordを束ねた場所図鑑です。",
+    recording_policy: "permission_required",
+    public_location_mode: "place",
+    contribution_cta_mode: "suppressed",
+    official_rule_url: "https://junglia.jp/terms/park-termsofuse",
+    policy_verification_status: "verified",
+  };
+  fixtures.placeBoundary = {
+    boundary_geojson: JSON.stringify(TOKIWA_GEOMETRY),
+    confidence: 0.9,
+    precision_kind: "exact",
+    bbox_west: 138.376,
+    bbox_south: 34.966,
+    bbox_east: 138.385,
+    bbox_north: 34.975,
+  };
+  fixtures.membershipRecords = [
+    {
+      place_id: "plc_1dac5b52233720ee",
+      occurrence_id: "historic-1-a",
+      visit_id: "historic-1",
+      observed_at: "2026-07-19T00:00:00Z",
+      taxon_group: "species",
+      display_name: "過去Record 1",
+      is_ai_candidate: 0,
+      is_awaiting_id: 0,
+      photo_url: null,
+      cell_1000: "",
+      asset_count: 2,
+      membership_state: "confirmed",
+      removed_at: null,
+    },
+    {
+      place_id: "plc_1dac5b52233720ee",
+      occurrence_id: "historic-1-b",
+      visit_id: "historic-1",
+      observed_at: "2026-07-19T00:00:00Z",
+      taxon_group: "species",
+      display_name: "同じRecord内の別Occurrence",
+      is_ai_candidate: 0,
+      is_awaiting_id: 0,
+      photo_url: null,
+      cell_1000: "",
+      asset_count: 2,
+      membership_state: "confirmed",
+      removed_at: null,
+    },
+    {
+      place_id: "plc_1dac5b52233720ee",
+      occurrence_id: "historic-2-a",
+      visit_id: "historic-2",
+      observed_at: "2026-07-18T00:00:00Z",
+      taxon_group: "species",
+      display_name: "過去Record 2",
+      is_ai_candidate: 1,
+      is_awaiting_id: 0,
+      photo_url: null,
+      cell_1000: "",
+      asset_count: 1,
+      membership_state: "confirmed",
+      removed_at: null,
+    },
+    {
+      place_id: "plc_1dac5b52233720ee",
+      occurrence_id: "historic-3-a",
+      visit_id: "historic-3",
+      observed_at: "2026-07-17T00:00:00Z",
+      taxon_group: "species",
+      display_name: "過去Record 3",
+      is_ai_candidate: 0,
+      is_awaiting_id: 0,
+      photo_url: null,
+      cell_1000: "",
+      asset_count: 1,
+      membership_state: "confirmed",
+      removed_at: null,
+    },
+  ];
+  fixtures.excludedMembershipRecordIds = [{ record_id: "record-1" }];
+
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:1281984233",
+      osmType: "way",
+      osmId: 1281984233,
+    },
+    fetchFn: async () => {
+      throw new Error("registered boundary must avoid Overpass");
+    },
+    generatedAt: "2026-07-23T00:00:00Z",
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.summary.recordCount, 5);
+  assert.match(JSON.stringify(profile), /過去Record 1/);
+  assert.doesNotMatch(JSON.stringify(profile), /同じRecord内の別Occurrence/);
+  assert.doesNotMatch(JSON.stringify(profile), /候補Record/);
+  assert.equal(
+    profile.recentRecords.find((record) => record.recordId === "historic-2")?.identificationStatus,
+    "ai_candidate",
+  );
+  assert.ok(profile.provenance.sources.includes("record_place_memberships"));
+  assert.doesNotMatch(JSON.stringify(profile), /exact_lat|exact_lng|user_id/);
+});
+
+test("merged geometry and membership overflow reports partial instead of an exact 500", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.registeredPlace = {
+    place_id: "plc_merged_overflow",
+    canonical_name: "統合上限検証Place",
+    locality_label: null,
+    place_kind: "other_named_area",
+    verification_status: "verified",
+    official_status: "unknown",
+    public_summary: null,
+    recording_policy: "check_rules",
+    public_location_mode: "place",
+    contribution_cta_mode: "check_rules",
+    official_rule_url: null,
+    policy_verification_status: "source_verified",
+  };
+  fixtures.placeBoundary = {
+    boundary_geojson: JSON.stringify(TOKIWA_GEOMETRY),
+    confidence: 0.9,
+    precision_kind: "exact",
+    bbox_west: 138.376,
+    bbox_south: 34.966,
+    bbox_east: 138.385,
+    bbox_north: 34.975,
+  };
+  fixtures.snapshots = Array.from({ length: 300 }, (_, index) => ({
+    occurrence_id: `snapshot-occurrence-${index}`,
+    visit_id: `snapshot-record-${index}`,
+    observed_at: `2026-07-${String(20 - (index % 10)).padStart(2, "0")}T10:00:00Z`,
+    taxon_group: "other",
+    display_name: `snapshot-${index}`,
+    is_ai_candidate: 0,
+    is_awaiting_id: 0,
+    photo_url: null,
+    cell_1000: "34.97,138.38",
+    asset_count: 0,
+  }));
+  fixtures.visits = fixtures.snapshots.map((row) => ({
+    visit_id: row.visit_id,
+    place_id: null,
+    user_id: `private-test-id-${row.visit_id}`,
+    exact_lat: 34.9702,
+    exact_lng: 138.3805,
+    public_visibility: "public",
+  }));
+  fixtures.membershipRecords = Array.from({ length: 300 }, (_, index) => ({
+    place_id: "plc_merged_overflow",
+    occurrence_id: `historic-occurrence-${index}`,
+    visit_id: `historic-record-${index}`,
+    observed_at: `2026-06-${String(20 - (index % 10)).padStart(2, "0")}T10:00:00Z`,
+    taxon_group: "other",
+    display_name: `historic-${index}`,
+    is_ai_candidate: 0,
+    is_awaiting_id: 0,
+    photo_url: null,
+    cell_1000: "",
+    asset_count: 0,
+    membership_state: "confirmed",
+    removed_at: null,
+  }));
+
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:999002",
+      osmType: "way",
+      osmId: 999002,
+    },
+    fetchFn: async () => {
+      throw new Error("registered boundary must avoid Overpass");
+    },
+    generatedAt: "2026-07-23T00:00:00Z",
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.summary.recordCount, null);
+  assert.equal(profile.publication.status, "partial");
+  assert.equal(profile.recentRecords.length, 12);
+});
+
+test("membership exclusion overflow suppresses geometry fallback and reports partial", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.registeredPlace = {
+    place_id: "plc_overflow",
+    canonical_name: "除外上限検証Place",
+    locality_label: null,
+    place_kind: "other_named_area",
+    verification_status: "verified",
+    official_status: "unknown",
+    public_summary: null,
+    recording_policy: "check_rules",
+    public_location_mode: "place",
+    contribution_cta_mode: "check_rules",
+    official_rule_url: null,
+    policy_verification_status: "source_verified",
+  };
+  fixtures.placeBoundary = {
+    boundary_geojson: JSON.stringify(TOKIWA_GEOMETRY),
+    confidence: 0.9,
+    precision_kind: "exact",
+    bbox_west: 138.376,
+    bbox_south: 34.966,
+    bbox_east: 138.385,
+    bbox_north: 34.975,
+  };
+  fixtures.excludedMembershipRecordIds = Array.from(
+    { length: 5_001 },
+    (_, index) => ({ record_id: `excluded-${index}` }),
+  );
+
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:999001",
+      osmType: "way",
+      osmId: 999001,
+    },
+    fetchFn: async () => {
+      throw new Error("registered boundary must avoid Overpass");
+    },
+    generatedAt: "2026-07-23T00:00:00Z",
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.summary.recordCount, null);
+  assert.equal(profile.publication.status, "partial");
+  assert.doesNotMatch(JSON.stringify(profile), /スズメ|アジサイ|サクラ/);
+  assert.ok(profile.provenance.sources.includes("record_place_memberships"));
 });
 
 test("generic OSM schools suppress direct contribution", async () => {

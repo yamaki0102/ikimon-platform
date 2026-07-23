@@ -1,0 +1,47 @@
+﻿{
+    "success":  true,
+    "status":  "complete",
+    "task_id":  "universal-place-atlas-record-reuse-1434-final2",
+    "target":  "C:\\Users\\YAMAKI\\Documents\\Codex\\2026-07-23\\gpt-5-6-sol-pro-ultra\\ikimon-platform-staging-evidence\\docs\\spec\\universal-place-atlas\\STAGING_RECORD_REUSE_REVIEW_PACKET_2026-07-24.md",
+    "review_focus":  "Target SHA f336b815f31145587fae29de3708149364ef3216. Defensive privacy, GIS membership correctness, Record versus Occurrence dedupe, AI provenance, D1 performance and staging readiness. Use the packet schema invariants; return concrete P0/P1/P2 and staging-block yes/no.",
+    "claude":  {
+                   "status":  "ok",
+                   "model_used":  "claude-opus-4-8",
+                   "prompt_variant_used":  "full",
+                   "review_path":  "E:\\Projects\\_agent_scratch\\claude-latest-review\\universal-place-atlas-record-reuse-1434-final2\\claude-review-20260724-064650.md",
+                   "meta_path":  "E:\\Projects\\_agent_scratch\\claude-latest-review\\universal-place-atlas-record-reuse-1434-final2\\claude-review-20260724-064650.meta.json",
+                   "safe_mode":  true
+               },
+    "gemini":  {
+                   "success":  true,
+                   "model_used":  "gemini-3.5-flash",
+                   "task_id":  "universal-place-atlas-record-reuse-1434-final2-gemini-flash",
+                   "target":  "C:\\Users\\YAMAKI\\Documents\\Codex\\2026-07-23\\gpt-5-6-sol-pro-ultra\\ikimon-platform-staging-evidence\\docs\\spec\\universal-place-atlas\\STAGING_RECORD_REUSE_REVIEW_PACKET_2026-07-24.md",
+                   "review_focus":  "Target SHA f336b815f31145587fae29de3708149364ef3216. Defensive privacy, GIS membership correctness, Record versus Occurrence dedupe, AI provenance, D1 performance and staging readiness. Use the packet schema invariants; return concrete P0/P1/P2 and staging-block yes/no.",
+                   "prompt_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\universal-place-atlas-record-reuse-1434-final2-gemini-flash\\prompt.md",
+                   "review_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\universal-place-atlas-record-reuse-1434-final2-gemini-flash\\review-gemini-3.5-flash.md",
+                   "model_doc_check_required":  false,
+                   "model_doc_refresh_status":  "not_needed",
+                   "model_doc_report_path":  null,
+                   "failed_candidates":  [
+
+                                         ],
+                   "attempts":  [
+                                    {
+                                        "model":  "gemini-3.5-flash",
+                                        "exit_code":  0,
+                                        "timed_out":  false,
+                                        "raw_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\universal-place-atlas-record-reuse-1434-final2-gemini-flash\\review-gemini-3.5-flash.md",
+                                        "stderr_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\universal-place-atlas-record-reuse-1434-final2-gemini-flash\\stderr-gemini-3.5-flash.txt"
+                                    }
+                                ],
+                   "generated_at":  "2026-07-24T06:49:35.6883099+09:00"
+               },
+    "evidence":  {
+                     "repo_root":  "C:\\Users\\YAMAKI\\Documents\\Codex\\2026-07-23\\gpt-5-6-sol-pro-ultra\\ikimon-platform-staging-evidence",
+                     "relative_dir":  "operations\\ai_os\\external_review_evidence\\2026-07\\universal-place-atlas-record-reuse-1434-final2\\20260724-064936",
+                     "absolute_dir":  "C:\\Users\\YAMAKI\\Documents\\Codex\\2026-07-23\\gpt-5-6-sol-pro-ultra\\ikimon-platform-staging-evidence\\operations\\ai_os\\external_review_evidence\\2026-07\\universal-place-atlas-record-reuse-1434-final2\\20260724-064936",
+                     "github_status":  "pending_commit"
+                 },
+    "generated_at":  "2026-07-24T06:49:36.4405470+09:00"
+}

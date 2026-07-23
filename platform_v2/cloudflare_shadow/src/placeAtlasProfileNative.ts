@@ -188,6 +188,7 @@ type RegisteredPlaceProjection = {
 
 const SNAPSHOT_KEY = "public-map:v1:global";
 const MAX_SNAPSHOT_ROWS = 500;
+const MAX_EXCLUDED_MEMBERSHIP_RECORDS = 5_000;
 const MAX_SCOPE_CELLS = 256;
 const MAX_QUERY_BINDINGS = 80;
 const MAX_RUNTIME_GEOMETRY_VERTICES = 1_000;
@@ -474,6 +475,144 @@ async function loadSnapshotRows(
   };
 }
 
+async function loadPlaceMembershipRows(
+  db: PlaceAtlasD1Database,
+  placeId: string | null | undefined,
+): Promise<{
+  confirmed: PublicSnapshotRow[];
+  complete: boolean;
+  available: boolean;
+}> {
+  if (!placeId) {
+    return { confirmed: [], complete: true, available: false };
+  }
+  try {
+    const result = await db.prepare(
+      `SELECT o.occurrence_id,
+              v.visit_id,
+              COALESCE(v.observed_at, o.created_at, '') AS observed_at,
+              COALESCE(o.taxon_rank, 'other') AS taxon_group,
+              COALESCE(NULLIF(o.vernacular_name, ''), NULLIF(o.scientific_name, ''), '同定待ち') AS display_name,
+              CASE
+                WHEN COALESCE(o.quality_grade, '') = 'ai_judgement' THEN 1
+                ELSE 0
+              END AS is_ai_candidate,
+              CASE
+                WHEN NULLIF(o.vernacular_name, '') IS NULL
+                 AND NULLIF(o.scientific_name, '') IS NULL THEN 1
+                WHEN COALESCE(o.quality_grade, '') NOT IN (
+                  'ai_judgement',
+                  'research_grade',
+                  'verified'
+                ) THEN 1
+                ELSE 0
+              END AS is_awaiting_id,
+              NULL AS photo_url,
+              '' AS cell_1000,
+              (
+                SELECT COUNT(*)
+                  FROM production_import_evidence_assets ea
+                 WHERE ea.visit_id = v.visit_id
+                   AND ea.asset_role IN (
+                     'observation_photo',
+                     'observation_photo_original',
+                     'observation_video',
+                     'observation_audio'
+                   )
+              ) AS asset_count
+         FROM record_place_memberships m
+         JOIN production_import_visits v
+           ON v.visit_id = m.record_id
+         JOIN production_import_occurrences o
+           ON o.visit_id = v.visit_id
+        WHERE m.place_id = ?
+          AND m.public_precision = 'place'
+          AND m.membership_state = 'confirmed'
+          AND m.removed_at IS NULL
+          AND COALESCE(v.public_visibility, 'private') = 'public'
+          AND EXISTS (
+            SELECT 1
+              FROM observation_data_rights rights
+             WHERE rights.visit_id = v.visit_id
+               AND rights.withdrawal_status = 'active'
+               AND rights.record_consent IN (
+                 'public_summary',
+                 'external_export'
+               )
+          )
+        ORDER BY COALESCE(v.observed_at, o.created_at, '') DESC, o.occurrence_id ASC
+        LIMIT ?`
+    ).bind(placeId, MAX_SNAPSHOT_ROWS + 1).all<PublicSnapshotRow>();
+    const complete = result.results.length <= MAX_SNAPSHOT_ROWS;
+    return {
+      confirmed: result.results.slice(0, MAX_SNAPSHOT_ROWS),
+      complete,
+      available: true,
+    };
+  } catch (error) {
+    if (
+      isMissingOptionalTable(error, "record_place_memberships") ||
+      isMissingOptionalTable(error, "production_import_occurrences") ||
+      isMissingOptionalTable(error, "production_import_visits") ||
+      isMissingOptionalTable(error, "observation_data_rights")
+    ) {
+      return { confirmed: [], complete: true, available: false };
+    }
+    throw error;
+  }
+}
+
+async function loadExcludedPlaceMembershipRecordIds(
+  db: PlaceAtlasD1Database,
+  placeId: string | null | undefined,
+): Promise<{ recordIds: Set<string>; complete: boolean; available: boolean }> {
+  if (!placeId) return { recordIds: new Set(), complete: true, available: false };
+  try {
+    const result = await db.prepare(
+      `SELECT DISTINCT m.record_id
+         FROM record_place_memberships m
+         JOIN production_import_visits v
+           ON v.visit_id = m.record_id
+         LEFT JOIN observation_data_rights rights
+           ON rights.visit_id = v.visit_id
+        WHERE m.place_id = ?
+          AND (
+            m.membership_state <> 'confirmed'
+            OR m.removed_at IS NOT NULL
+            OR COALESCE(v.public_visibility, 'private') <> 'public'
+            OR rights.visit_id IS NULL
+            OR rights.withdrawal_status <> 'active'
+            OR rights.record_consent NOT IN (
+              'public_summary',
+              'external_export'
+            )
+          )
+        ORDER BY m.record_id
+        LIMIT ?`
+    ).bind(placeId, MAX_EXCLUDED_MEMBERSHIP_RECORDS + 1).all<{ record_id: string }>();
+    return {
+      recordIds: new Set(
+        result.results
+          .slice(0, MAX_EXCLUDED_MEMBERSHIP_RECORDS)
+          .map((row) => row.record_id),
+      ),
+      complete: result.results.length <= MAX_EXCLUDED_MEMBERSHIP_RECORDS,
+      available: true,
+    };
+  } catch (error) {
+    if (isMissingOptionalTable(error, "record_place_memberships")) {
+      return { recordIds: new Set(), complete: true, available: false };
+    }
+    if (
+      isMissingOptionalTable(error, "production_import_visits") ||
+      isMissingOptionalTable(error, "observation_data_rights")
+    ) {
+      return { recordIds: new Set(), complete: false, available: false };
+    }
+    throw error;
+  }
+}
+
 async function loadVisitLocations(
   db: PlaceAtlasD1Database,
   visitIds: string[],
@@ -484,13 +623,27 @@ async function loadVisitLocations(
     if (chunk.length === 0) continue;
     try {
       const rows = await db.prepare(
-        `SELECT visit_id, place_id, user_id, exact_lat, exact_lng, public_visibility
-           FROM production_import_visits
-          WHERE visit_id IN (${chunk.map(() => "?").join(", ")})`
+        `SELECT v.visit_id, v.place_id, v.user_id, v.exact_lat, v.exact_lng, v.public_visibility
+           FROM production_import_visits v
+          WHERE v.visit_id IN (${chunk.map(() => "?").join(", ")})
+            AND COALESCE(v.public_visibility, 'private') = 'public'
+            AND EXISTS (
+              SELECT 1
+                FROM observation_data_rights rights
+               WHERE rights.visit_id = v.visit_id
+                 AND rights.withdrawal_status = 'active'
+                 AND rights.record_consent IN (
+                   'public_summary',
+                   'external_export'
+                 )
+            )`
       ).bind(...chunk).all<VisitLocationRow>();
       rows.results.forEach((row) => output.set(row.visit_id, row));
     } catch (error) {
-      if (isMissingOptionalTable(error, "production_import_visits")) return new Map();
+      if (
+        isMissingOptionalTable(error, "production_import_visits") ||
+        isMissingOptionalTable(error, "observation_data_rights")
+      ) return new Map();
       throw error;
     }
   }
@@ -1231,22 +1384,79 @@ async function buildRecordsForGeometry(
   geometry: PlaceGeometry,
   bbox: [number, number, number, number],
   directFieldId?: string,
-): Promise<{ records: PlaceAtlasSourceRecord[]; complete: boolean }> {
+  canonicalPlaceId?: string,
+): Promise<{
+  records: PlaceAtlasSourceRecord[];
+  complete: boolean;
+  membershipProjectionUsed: boolean;
+}> {
   if (!placeAtlasGeometryWithinRuntimeBudget(geometry)) {
-    return { records: [], complete: false };
+    return { records: [], complete: false, membershipProjectionUsed: false };
   }
-  const snapshot = await loadSnapshotRows(input.db, publicCellsForBbox(bbox));
+  const [snapshot, membership, excludedMemberships] = await Promise.all([
+    loadSnapshotRows(input.db, publicCellsForBbox(bbox)),
+    loadPlaceMembershipRows(input.db, canonicalPlaceId),
+    loadExcludedPlaceMembershipRecordIds(input.db, canonicalPlaceId),
+  ]);
   const visitIds = [...new Set(snapshot.rows.map((row) => row.visit_id))];
   const visits = await loadVisitLocations(input.db, visitIds);
-  const scoped = visits.size > 0
+  const geometryScoped = excludedMemberships.complete && visits.size > 0
     ? scopeRowsByGeometry(snapshot.rows, visits, geometry, directFieldId)
     : [];
+  const rowsByRecord = new Map<string, PublicSnapshotRow>();
+  const mergeRecord = (row: PublicSnapshotRow) => {
+    const current = rowsByRecord.get(row.visit_id);
+    if (!current) {
+      rowsByRecord.set(row.visit_id, row);
+      return;
+    }
+    const primary = row.observed_at > current.observed_at ? row : current;
+    const secondary = primary === row ? current : row;
+    rowsByRecord.set(row.visit_id, {
+      ...primary,
+      is_ai_candidate: Math.max(primary.is_ai_candidate, secondary.is_ai_candidate),
+      is_awaiting_id: Math.max(primary.is_awaiting_id, secondary.is_awaiting_id),
+      photo_url: primary.photo_url ?? secondary.photo_url,
+      asset_count: Math.max(primary.asset_count, secondary.asset_count),
+    });
+  };
+  for (const row of geometryScoped) {
+    if (!excludedMemberships.recordIds.has(row.visit_id)) {
+      mergeRecord(row);
+    }
+  }
+  for (const row of membership.confirmed) {
+    if (!excludedMemberships.recordIds.has(row.visit_id)) {
+      mergeRecord(row);
+    }
+  }
+  const mergedComplete = rowsByRecord.size <= MAX_SNAPSHOT_ROWS;
+  const scoped = [...rowsByRecord.values()]
+    .sort((left, right) =>
+      left.observed_at < right.observed_at
+        ? 1
+        : left.observed_at > right.observed_at
+          ? -1
+          : 0
+    )
+    .slice(0, MAX_SNAPSHOT_ROWS);
   const photoIds = [...new Set(scoped.flatMap((row) => [row.visit_id, row.occurrence_id]))];
   const [photos, themes] = await Promise.all([
     loadPhotoUrls(input.db, photoIds),
     loadAcceptedRecordThemes(input.db, photoIds),
   ]);
-  return { records: sourceRecords(scoped, photos, themes), complete: snapshot.complete };
+  return {
+    records: sourceRecords(scoped, photos, themes),
+    complete: snapshot.complete &&
+      membership.complete &&
+      excludedMemberships.complete &&
+      mergedComplete,
+    membershipProjectionUsed: (membership.available || excludedMemberships.available) && (
+      membership.confirmed.length > 0 ||
+      excludedMemberships.recordIds.size > 0 ||
+      !excludedMemberships.complete
+    ),
+  };
 }
 
 async function buildRecordsForRadius(
@@ -1404,7 +1614,13 @@ async function loadOsmPlaceAtlasProfile(
   );
   const place = registeredResolvedOsmPlace(registered) ?? await resolveOsmPlace(ref, input);
   if (!place) return null;
-  const records = await buildRecordsForGeometry(input, place.geometry, place.bbox);
+  const records = await buildRecordsForGeometry(
+    input,
+    place.geometry,
+    place.bbox,
+    undefined,
+    registered?.placeId,
+  );
   const publicCell = publicCellFromCoordinates(place.center.lat, place.center.lng);
   const guide = guideForScope(input.guideSpots ?? [], place.geometry, place.center, 500);
   const memories = await loadPublicPlaceMemories(input.db, publicCell);
@@ -1462,6 +1678,7 @@ async function loadOsmPlaceAtlasProfile(
     sources: profileSources(
       "OpenStreetMap",
       "public_map_snapshot_records_v1",
+      records.membershipProjectionUsed && "record_place_memberships",
       guide && "map_guide_spots",
       memories.length > 0 && "place_memory",
       registered && "canonical_place_registry",

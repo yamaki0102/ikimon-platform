@@ -85,6 +85,74 @@ test("legacy public rights backfill is provenance-marked and cannot grant export
   db.close();
 });
 
+test("Place Atlas legacy import rights backfill requires preexisting public visibility and grants no export rights", async () => {
+  const sql = await migration("observations", "0069_place_atlas_legacy_import_public_rights.sql");
+
+  assert.match(sql, /INSERT OR IGNORE INTO observation_data_rights/i);
+  assert.match(sql, /FROM production_import_visits AS v/i);
+  assert.match(sql, /v\.public_visibility = 'public'/i);
+  assert.match(sql, /'public_summary'/i);
+  assert.match(sql, /place_atlas_legacy_import_public_visibility_20260724/i);
+  assert.match(sql, /external_export_allowed[\s\S]*0/i);
+  assert.match(sql, /dataset_license[\s\S]*NULL/i);
+  assert.match(sql, /media_license[\s\S]*NULL/i);
+  assert.doesNotMatch(sql, /^\s*(UPDATE|DELETE|DROP|TRUNCATE)\b/im);
+
+  const db = new DatabaseSync(":memory:");
+  db.exec(`
+    CREATE TABLE production_import_visits (
+      visit_id TEXT PRIMARY KEY,
+      public_visibility TEXT
+    );
+    CREATE TABLE observation_data_rights (
+      visit_id TEXT PRIMARY KEY,
+      occurrence_id TEXT,
+      record_consent TEXT NOT NULL DEFAULT 'private',
+      research_use_consent TEXT NOT NULL DEFAULT 'none',
+      enterprise_report_consent TEXT NOT NULL DEFAULT 'none',
+      dataset_license TEXT,
+      media_license TEXT,
+      external_export_allowed INTEGER NOT NULL DEFAULT 0,
+      withdrawal_status TEXT NOT NULL DEFAULT 'active',
+      source_payload_json TEXT NOT NULL DEFAULT '{}',
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    INSERT INTO production_import_visits VALUES
+      ('legacy-public', 'public'),
+      ('legacy-private', 'private'),
+      ('explicit-withdrawn', 'public');
+    INSERT INTO observation_data_rights (
+      visit_id, record_consent, withdrawal_status, source_payload_json
+    ) VALUES (
+      'explicit-withdrawn', 'private', 'withdrawn', '{"source":"explicit"}'
+    );
+  `);
+  db.exec(sql);
+
+  const rows = db.prepare(`
+    SELECT visit_id, record_consent, research_use_consent,
+           enterprise_report_consent, dataset_license, media_license,
+           external_export_allowed, withdrawal_status, source_payload_json
+      FROM observation_data_rights
+     ORDER BY visit_id
+  `).all() as Array<Record<string, unknown>>;
+  assert.deepEqual(rows.map((row) => row.visit_id), ["explicit-withdrawn", "legacy-public"]);
+  const publicRow = rows.find((row) => row.visit_id === "legacy-public");
+  assert.equal(publicRow?.record_consent, "public_summary");
+  assert.equal(publicRow?.research_use_consent, "none");
+  assert.equal(publicRow?.enterprise_report_consent, "none");
+  assert.equal(publicRow?.dataset_license, null);
+  assert.equal(publicRow?.media_license, null);
+  assert.equal(publicRow?.external_export_allowed, 0);
+  assert.equal(publicRow?.withdrawal_status, "active");
+  assert.match(String(publicRow?.source_payload_json), /"inferred_export_consent":false/);
+  const explicit = rows.find((row) => row.visit_id === "explicit-withdrawn");
+  assert.equal(explicit?.record_consent, "private");
+  assert.equal(explicit?.withdrawal_status, "withdrawn");
+  assert.equal(explicit?.source_payload_json, '{"source":"explicit"}');
+  db.close();
+});
+
 test("auth lifecycle repair only fills missing timestamps and removes expired sessions", async () => {
   const sql = await migration("core", "0008_auth_lifecycle_integrity.sql");
 

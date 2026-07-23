@@ -1,0 +1,47 @@
+﻿{
+    "success":  true,
+    "status":  "complete",
+    "task_id":  "universal-place-atlas-record-reuse-1434",
+    "target":  "C:\\Users\\YAMAKI\\Documents\\Codex\\2026-07-23\\gpt-5-6-sol-pro-ultra\\ikimon-platform-staging-evidence\\docs\\spec\\universal-place-atlas\\STAGING_RECORD_REUSE_REVIEW_PACKET_2026-07-24.md",
+    "review_focus":  "GIS membership correctness, privacy and consent fail-closed behavior, Record versus Occurrence dedupe, candidate and removed suppression, D1 latency bounds, staging blockers. Report P0/P1/P2.",
+    "claude":  {
+                   "status":  "ok",
+                   "model_used":  "claude-opus-4-8",
+                   "prompt_variant_used":  "full",
+                   "review_path":  "E:\\Projects\\_agent_scratch\\claude-latest-review\\universal-place-atlas-record-reuse-1434\\claude-review-20260724-061701.md",
+                   "meta_path":  "E:\\Projects\\_agent_scratch\\claude-latest-review\\universal-place-atlas-record-reuse-1434\\claude-review-20260724-061701.meta.json",
+                   "safe_mode":  true
+               },
+    "gemini":  {
+                   "success":  true,
+                   "model_used":  "gemini-3.5-flash",
+                   "task_id":  "universal-place-atlas-record-reuse-1434-gemini-flash",
+                   "target":  "C:\\Users\\YAMAKI\\Documents\\Codex\\2026-07-23\\gpt-5-6-sol-pro-ultra\\ikimon-platform-staging-evidence\\docs\\spec\\universal-place-atlas\\STAGING_RECORD_REUSE_REVIEW_PACKET_2026-07-24.md",
+                   "review_focus":  "GIS membership correctness, privacy and consent fail-closed behavior, Record versus Occurrence dedupe, candidate and removed suppression, D1 latency bounds, staging blockers. Report P0/P1/P2.",
+                   "prompt_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\universal-place-atlas-record-reuse-1434-gemini-flash\\prompt.md",
+                   "review_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\universal-place-atlas-record-reuse-1434-gemini-flash\\review-gemini-3.5-flash.md",
+                   "model_doc_check_required":  false,
+                   "model_doc_refresh_status":  "not_needed",
+                   "model_doc_report_path":  null,
+                   "failed_candidates":  [
+
+                                         ],
+                   "attempts":  [
+                                    {
+                                        "model":  "gemini-3.5-flash",
+                                        "exit_code":  0,
+                                        "timed_out":  false,
+                                        "raw_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\universal-place-atlas-record-reuse-1434-gemini-flash\\review-gemini-3.5-flash.md",
+                                        "stderr_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\universal-place-atlas-record-reuse-1434-gemini-flash\\stderr-gemini-3.5-flash.txt"
+                                    }
+                                ],
+                   "generated_at":  "2026-07-24T06:20:38.1263229+09:00"
+               },
+    "evidence":  {
+                     "repo_root":  "C:\\Users\\YAMAKI\\Documents\\Codex\\2026-07-23\\gpt-5-6-sol-pro-ultra\\ikimon-platform-staging-evidence",
+                     "relative_dir":  "operations\\ai_os\\external_review_evidence\\2026-07\\universal-place-atlas-record-reuse-1434\\20260724-062038",
+                     "absolute_dir":  "C:\\Users\\YAMAKI\\Documents\\Codex\\2026-07-23\\gpt-5-6-sol-pro-ultra\\ikimon-platform-staging-evidence\\operations\\ai_os\\external_review_evidence\\2026-07\\universal-place-atlas-record-reuse-1434\\20260724-062038",
+                     "github_status":  "pending_commit"
+                 },
+    "generated_at":  "2026-07-24T06:20:38.8772975+09:00"
+}
