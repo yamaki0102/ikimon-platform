@@ -24,8 +24,16 @@ export type LandingStrings = {
       continuationTitle: string;
       continuationBody: string;
       continuationCta: string;
+      memoryEyebrow: string;
+      memoryLead: string;
+      memoryCta: string;
+      activeEyebrow: string;
+      activeLead: string;
+      activeCta: string;
       recentTitle: string;
+      recentCta: string;
       placesTitle: string;
+      placesCta: string;
       nextTitle: string;
       emptyTitle: string;
       emptyBody: string;

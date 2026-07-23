@@ -496,7 +496,7 @@ test.describe("record recovery staging QA", () => {
     const page = await context.newPage();
     try {
       await page.goto("/record?start=note", { waitUntil: "domcontentloaded" });
-      await page.evaluate(async () => {
+      await page.evaluate(async (activeUserId) => {
         const db = await new Promise<IDBDatabase>((resolve, reject) => {
           const request = indexedDB.open("ikimon-record-draft", 1);
           request.onupgradeneeded = () => {
@@ -511,16 +511,18 @@ test.describe("record recovery staging QA", () => {
             files: [],
             kind: "note",
             savedAt: Date.now(),
+            ownerKey: `user:${activeUserId}`,
+            continuationToken: null,
             metadata: {
               draftReason: "visual_qa",
               formValues: { nextLookFor: "水辺の鳥の声", recordMode: "quick" },
             },
-          }, "latest");
+          }, `latest:user:${activeUserId}`);
           transaction.oncomplete = () => resolve();
           transaction.onerror = () => reject(transaction.error);
         });
         db.close();
-      });
+      }, userId);
 
       const response = await page.goto("/record?start=note&draft=1&source=draft_restore", { waitUntil: "domcontentloaded" });
       expect(response?.status() ?? 0).toBeLessThan(400);

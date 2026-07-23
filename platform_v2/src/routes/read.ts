@@ -10092,9 +10092,23 @@ const PROFILE_CHANNEL_STYLES = `
   }
 `;
 
-const PROFILE_HUB_STYLES = `
+export const PROFILE_HUB_STYLES = `
   ${PROFILE_CHANNEL_STYLES}
   ${PLACE_REVISIT_ROW_STYLES}
+  .self-control-hub { display: grid; gap: 18px; }
+  .self-identity-card { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 16px; align-items: center; padding: 22px; border-radius: 20px; border: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.94); box-shadow: 0 12px 30px rgba(15,23,42,.05); }
+  .self-identity-copy { min-width: 0; display: grid; gap: 5px; }
+  .self-identity-copy h2 { margin: 0; color: #10251a; font-size: clamp(22px,3vw,30px); line-height: 1.25; overflow-wrap: anywhere; }
+  .self-identity-copy p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+  .self-identity-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+  .self-identity-actions a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 9px 13px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #10251a; font-size: 13px; font-weight: 900; text-decoration: none; }
+  .self-identity-actions a:first-child { background: #16734a; border-color: #16734a; color: #fff; }
+  .self-control-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .self-control-card { min-width: 0; min-height: 132px; display: grid; align-content: start; gap: 7px; padding: 18px; border-radius: 18px; border: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.92); color: inherit; text-decoration: none; }
+  .self-control-card span { color: #16734a; font-size: 12px; line-height: 1.3; font-weight: 900; }
+  .self-control-card strong { color: #10251a; font-size: 18px; line-height: 1.35; overflow-wrap: anywhere; }
+  .self-control-card p { margin: 0; color: #64748b; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+  .self-control-card:focus-visible,.self-identity-actions a:focus-visible { outline: 3px solid #1c7b52; outline-offset: 3px; }
   .profile-saved-record-pulse { min-width: 0; display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 16px 18px; border-radius: 8px; border: 1px solid rgba(16,185,129,.18); background: linear-gradient(135deg, rgba(236,253,245,.94), rgba(255,255,255,.96)); box-shadow: 0 14px 32px rgba(15,23,42,.055); }
   .profile-saved-record-pulse > div:first-child { min-width: 0; display: grid; gap: 6px; }
   .profile-saved-record-pulse span { color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
@@ -10185,7 +10199,7 @@ const PROFILE_HUB_STYLES = `
   .profile-account-utilities p { margin: 4px 0 0; color: #64748b; font-size: 13px; line-height: 1.65; font-weight: 720; }
   .profile-account-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
   .profile-account-links form { display: contents; }
-  .profile-account-links a, .profile-account-links button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 7px 11px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #334155; font: inherit; font-size: 12px; line-height: 1.2; font-weight: 900; text-decoration: none; white-space: normal; cursor: pointer; }
+  .profile-account-links a, .profile-account-links button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #334155; font: inherit; font-size: 12px; line-height: 1.2; font-weight: 900; text-decoration: none; white-space: normal; cursor: pointer; }
   .profile-account-links .is-danger { border-color: rgba(185,28,28,.18); color: #991b1b; background: #fffafa; }
   .profile-life-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
   .profile-life-card { min-width: 0; display: grid; grid-template-rows: auto 1fr; min-height: 210px; overflow: hidden; border-radius: 18px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); }
@@ -10219,6 +10233,9 @@ const PROFILE_HUB_STYLES = `
     .profile-history-line, .profile-growth-grid, .profile-contribution-grid, .profile-reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 620px) {
+    .self-identity-card { grid-template-columns: auto minmax(0,1fr); padding: 18px 16px; }
+    .self-identity-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; justify-content: stretch; }
+    .self-control-grid { grid-template-columns: 1fr; }
     .profile-saved-record-pulse { display: grid; gap: 12px; padding: 15px; }
     .profile-saved-record-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
     .profile-saved-record-stats small { min-width: 0; display: grid; place-items: center; gap: 2px; text-align: center; border-radius: 8px; }
@@ -11049,48 +11066,215 @@ function renderProfileReferenceLibrary(basePath: string, summary: ReferenceProfi
   </section>`;
 }
 
-function renderProfileAccountUtilities(basePath: string): string {
+function renderProfileAccountUtilities(basePath: string, lang: SiteLang): string {
+  const copy: Record<SiteLang, { title: string; body: string; settings: string; logout: string }> = {
+    ja: { title: "アカウント設定", body: "表示名や自己紹介の調整、ログアウトはこちらから行えます。", settings: "プロフィール設定", logout: "ログアウト" },
+    en: { title: "Account settings", body: "Update your profile or sign out here.", settings: "Profile settings", logout: "Sign out" },
+    es: { title: "Configuración de la cuenta", body: "Actualiza tu perfil o cierra sesión aquí.", settings: "Configuración del perfil", logout: "Cerrar sesión" },
+    "pt-BR": { title: "Configurações da conta", body: "Atualize seu perfil ou saia da conta aqui.", settings: "Configurações do perfil", logout: "Sair" },
+  };
+  const active = copy[lang];
   return `<section class="section" data-testid="profile-account-utilities">
     <div class="profile-account-utilities">
       <div>
-        <div class="eyebrow">アカウント</div>
-        <p>表示名や自己紹介の調整、ログアウトはこちらから行えます。</p>
+        <div class="eyebrow">${escapeHtml(active.title)}</div>
+        <p>${escapeHtml(active.body)}</p>
       </div>
       <div class="profile-account-links">
-        <a href="${escapeHtml(withBasePath(basePath, "/profile/settings"))}">プロフィール設定</a>
-        <form method="post" action="${escapeHtml(withBasePath(basePath, "/logout"))}"><button class="is-danger" type="submit">ログアウト</button></form>
+        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/profile/settings"), lang))}">${escapeHtml(active.settings)}</a>
+        <form method="post" action="${escapeHtml(withBasePath(basePath, "/logout"))}"><button class="is-danger" type="submit">${escapeHtml(active.logout)}</button></form>
       </div>
     </div>
   </section>`;
+}
+
+type SelfHubCopy = {
+  profileEyebrow: string;
+  profileTitle: string;
+  profileFallback: string;
+  editProfile: string;
+  publicProfile: string;
+  recordsEyebrow: string;
+  recordsTitle: (count: string) => string;
+  recordsBody: string;
+  placesEyebrow: string;
+  placesTitle: (count: string) => string;
+  placesBody: string;
+  visibilityEyebrow: string;
+  visibilityTitle: string;
+  visibilityBody: string;
+  participationEyebrow: string;
+  participationTitle: string;
+  participationBody: string;
+};
+
+type SelfGuestCopy = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  login: string;
+  register: string;
+};
+
+function selfGuestCopy(lang: SiteLang): SelfGuestCopy {
+  const copies: Record<SiteLang, SelfGuestCopy> = {
+    ja: {
+      eyebrow: "自分",
+      title: "ログインすると、残した記録と場所へ戻れます",
+      body: "写真やメモ、関わった場所、公開範囲を一つのアカウントで管理できます。",
+      login: "ログイン",
+      register: "アカウントを作る",
+    },
+    en: {
+      eyebrow: "You",
+      title: "Sign in to return to your records and places",
+      body: "Manage your photos, notes, places, and visibility in one account.",
+      login: "Sign in",
+      register: "Create account",
+    },
+    es: {
+      eyebrow: "Tú",
+      title: "Inicia sesión para volver a tus registros y lugares",
+      body: "Gestiona tus fotos, notas, lugares y visibilidad en una sola cuenta.",
+      login: "Iniciar sesión",
+      register: "Crear cuenta",
+    },
+    "pt-BR": {
+      eyebrow: "Você",
+      title: "Entre para voltar aos seus registros e lugares",
+      body: "Gerencie fotos, notas, lugares e visibilidade em uma única conta.",
+      login: "Entrar",
+      register: "Criar conta",
+    },
+  };
+  return copies[lang];
+}
+
+function selfHubCopy(lang: SiteLang): SelfHubCopy {
+  const copies: Record<SiteLang, SelfHubCopy> = {
+    ja: {
+      profileEyebrow: "自分",
+      profileTitle: "プロフィールと公開ページ",
+      profileFallback: "表示名や自己紹介を整え、公開ページを確認できます。",
+      editProfile: "プロフィールを編集",
+      publicProfile: "公開プロフィールを見る",
+      recordsEyebrow: "記録",
+      recordsTitle: (count) => `${count}件の記録`,
+      recordsBody: "写真やメモを見返す入口です。記録そのものは「記録」にまとめています。",
+      placesEyebrow: "場所",
+      placesTitle: (count) => `${count}か所`,
+      placesBody: "残した場所、参加先、よく訪れる場所は地図から確認できます。",
+      visibilityEyebrow: "プライバシー",
+      visibilityTitle: "公開範囲と位置情報",
+      visibilityBody: "記録ごとの公開範囲と、場所の見え方を確認します。",
+      participationEyebrow: "つながり",
+      participationTitle: "参加とフォロー",
+      participationBody: "関わっている場所や、次に参加する活動へ戻れます。",
+    },
+    en: {
+      profileEyebrow: "You",
+      profileTitle: "Profile and public page",
+      profileFallback: "Update your name and introduction, then check what others can see.",
+      editProfile: "Edit profile",
+      publicProfile: "View public page",
+      recordsEyebrow: "Records",
+      recordsTitle: (count) => `${count} records`,
+      recordsBody: "Return to your photos and notes. The complete library stays under Records.",
+      placesEyebrow: "Places",
+      placesTitle: (count) => `${count} places`,
+      placesBody: "See places you recorded, joined, or often visit on the map.",
+      visibilityEyebrow: "Privacy",
+      visibilityTitle: "Visibility and location",
+      visibilityBody: "Review who can see each record and how its place is shown.",
+      participationEyebrow: "Connections",
+      participationTitle: "Participation and follows",
+      participationBody: "Return to places and activities you are involved with.",
+    },
+    es: {
+      profileEyebrow: "Tú",
+      profileTitle: "Perfil y página pública",
+      profileFallback: "Actualiza tu nombre y presentación y revisa lo que pueden ver otras personas.",
+      editProfile: "Editar perfil",
+      publicProfile: "Ver página pública",
+      recordsEyebrow: "Registros",
+      recordsTitle: (count) => `${count} registros`,
+      recordsBody: "Vuelve a tus fotos y notas. La biblioteca completa está en Registros.",
+      placesEyebrow: "Lugares",
+      placesTitle: (count) => `${count} lugares`,
+      placesBody: "Consulta en el mapa los lugares que registraste, visitaste o sigues.",
+      visibilityEyebrow: "Privacidad",
+      visibilityTitle: "Visibilidad y ubicación",
+      visibilityBody: "Revisa quién puede ver cada registro y cómo se muestra su lugar.",
+      participationEyebrow: "Conexiones",
+      participationTitle: "Participación y seguimiento",
+      participationBody: "Vuelve a lugares y actividades con los que participas.",
+    },
+    "pt-BR": {
+      profileEyebrow: "Você",
+      profileTitle: "Perfil e página pública",
+      profileFallback: "Atualize seu nome e apresentação e confira o que outras pessoas podem ver.",
+      editProfile: "Editar perfil",
+      publicProfile: "Ver página pública",
+      recordsEyebrow: "Registros",
+      recordsTitle: (count) => `${count} registros`,
+      recordsBody: "Volte às suas fotos e notas. A biblioteca completa fica em Registros.",
+      placesEyebrow: "Lugares",
+      placesTitle: (count) => `${count} lugares`,
+      placesBody: "Veja no mapa os lugares que registrou, visitou ou segue.",
+      visibilityEyebrow: "Privacidade",
+      visibilityTitle: "Visibilidade e localização",
+      visibilityBody: "Revise quem pode ver cada registro e como o lugar aparece.",
+      participationEyebrow: "Conexões",
+      participationTitle: "Participação e seguidores",
+      participationBody: "Volte aos lugares e atividades com que você participa.",
+    },
+  };
+  return copies[lang];
 }
 
 export function renderSelfProfileHub(
   basePath: string,
   lang: SiteLang,
   snapshot: ProfileSnapshot,
-  digest: ProfileNoteDigest | null = null,
-  regionalStories: RegionalStoryCue[] = [],
-  referenceSummary: ReferenceProfileSummary | null = null,
+  _digest: ProfileNoteDigest | null = null,
+  _regionalStories: RegionalStoryCue[] = [],
+  _referenceSummary: ReferenceProfileSummary | null = null,
 ): string {
-  return `${renderProfileSavedRecordPulse(basePath, lang, snapshot)}
-    ${renderProfileChannelHero(basePath, snapshot)}
-    ${renderProfileIntro(basePath, snapshot, true)}
-    ${renderProfileNextActions(basePath, snapshot, digest)}
-    ${renderProfileReferenceLibrary(basePath, referenceSummary)}
-    ${renderProfileLifeList(snapshot)}
-    ${renderProfilePlaceStories(regionalStories)}
-    ${renderProfileHistory(snapshot)}
-    ${renderProfileGrowth(snapshot, digest)}
-    ${renderProfileSummary(snapshot)}
-    ${renderProfileContribution(basePath, snapshot, digest)}
-    ${renderProfileAccountUtilities(basePath)}`;
+  const copy = selfHubCopy(lang);
+  const avatarFallback = (snapshot.displayName || "?").slice(0, 1);
+  const avatar = snapshot.avatarUrl
+    ? `<span class="profile-avatar"><img src="${escapeHtml(snapshot.avatarUrl)}" alt="" loading="lazy" /></span>`
+    : `<span class="profile-avatar">${escapeHtml(avatarFallback)}</span>`;
+  const profileLead = snapshot.profileBio || snapshot.expertise || copy.profileFallback;
+  const publicProfileHref = appendLangToHref(withBasePath(basePath, `/profile/${encodeURIComponent(snapshot.userId)}`), lang);
+  const settingsHref = appendLangToHref(withBasePath(basePath, "/profile/settings"), lang);
+  const recordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
+  const placesHref = appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang);
+  const privacyHref = appendLangToHref(withBasePath(basePath, "/records?view=mine&source=self_privacy"), lang);
+  const participationHref = appendLangToHref(withBasePath(basePath, "/map?tab=places&source=self_participation"), lang);
+  const recordCount = formatProfileNumber(snapshot.stats.totalObservations);
+  const placeCount = formatProfileNumber(snapshot.stats.placeCount);
+  return `<section class="section self-control-hub" data-testid="self-control-hub">
+    <div class="self-identity-card">
+      ${avatar}
+      <div class="self-identity-copy"><span class="eyebrow">${escapeHtml(copy.profileEyebrow)}</span><h2>${escapeHtml(copy.profileTitle)}</h2><p><strong>${escapeHtml(snapshot.displayName)}</strong> · ${escapeHtml(profileLead)}</p></div>
+      <div class="self-identity-actions"><a href="${escapeHtml(settingsHref)}">${escapeHtml(copy.editProfile)}</a><a href="${escapeHtml(publicProfileHref)}">${escapeHtml(copy.publicProfile)}</a></div>
+    </div>
+    <div class="self-control-grid">
+      <a class="self-control-card" href="${escapeHtml(recordsHref)}"><span>${escapeHtml(copy.recordsEyebrow)}</span><strong>${escapeHtml(copy.recordsTitle(recordCount))}</strong><p>${escapeHtml(copy.recordsBody)}</p></a>
+      <a class="self-control-card" href="${escapeHtml(placesHref)}"><span>${escapeHtml(copy.placesEyebrow)}</span><strong>${escapeHtml(copy.placesTitle(placeCount))}</strong><p>${escapeHtml(copy.placesBody)}</p></a>
+      <a class="self-control-card" href="${escapeHtml(privacyHref)}"><span>${escapeHtml(copy.visibilityEyebrow)}</span><strong>${escapeHtml(copy.visibilityTitle)}</strong><p>${escapeHtml(copy.visibilityBody)}</p></a>
+      <a class="self-control-card" href="${escapeHtml(participationHref)}"><span>${escapeHtml(copy.participationEyebrow)}</span><strong>${escapeHtml(copy.participationTitle)}</strong><p>${escapeHtml(copy.participationBody)}</p></a>
+    </div>
+  </section>
+  ${renderProfileAccountUtilities(basePath, lang)}`;
 }
 
-export function profileHeroActions(): LayoutHeroAction[] {
+export function profileHeroActions(userId = "", lang: SiteLang = "ja"): LayoutHeroAction[] {
+  const copy = selfHubCopy(lang);
   return [
-    { href: "/records?view=mine", label: "記録一覧を見る" },
-    { href: "/records?view=places", label: "場所を見る", variant: "secondary" },
-    { href: "/guide/outcomes", label: "ガイド成果を見る", variant: "secondary" },
+    { href: "/profile/settings", label: copy.editProfile },
+    { href: userId ? `/profile/${encodeURIComponent(userId)}` : "/profile", label: copy.publicProfile, variant: "secondary" },
   ];
 }
 
@@ -19973,7 +20157,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const RECORD_DRAFT_DB = 'ikimon-record-draft';
         const RECORD_DRAFT_STORE = 'drafts';
-        const RECORD_DRAFT_KEY = 'latest';
+        const RECORD_DRAFT_GUEST_TOKEN_KEY = 'ikimon:record-draft-guest-token-v1';
+        const RECORD_DRAFT_SESSION_ENDPOINT = ${JSON.stringify(withBasePath(basePath, "/api/v1/auth/session"))};
+        let activeRecordDraftContext = null;
         const openRecordDraftDb = () => new Promise((resolve, reject) => {
           if (!('indexedDB' in window)) {
             reject(new Error('indexeddb_unavailable'));
@@ -19987,19 +20173,128 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           request.onsuccess = () => resolve(request.result);
           request.onerror = () => reject(request.error || new Error('indexeddb_open_failed'));
         });
+        const normalizeDraftToken = (value) => String(value || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 96);
+        const secureRecordDraftToken = () => {
+          if (!(window.crypto && typeof window.crypto.getRandomValues === 'function')) {
+            throw new Error('secure_random_unavailable');
+          }
+          if (typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+          const bytes = new Uint8Array(24);
+          window.crypto.getRandomValues(bytes);
+          return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+        };
+        const guestRecordDraftToken = () => {
+          let token = '';
+          try {
+            token = normalizeDraftToken(sessionStorage.getItem(RECORD_DRAFT_GUEST_TOKEN_KEY));
+            if (!token) {
+              token = normalizeDraftToken(secureRecordDraftToken());
+              sessionStorage.setItem(RECORD_DRAFT_GUEST_TOKEN_KEY, token);
+            }
+          } catch (_) {
+            token = normalizeDraftToken(secureRecordDraftToken());
+          }
+          return token;
+        };
+        const currentRecordSessionUserId = async () => {
+          try {
+            const response = await fetch(RECORD_DRAFT_SESSION_ENDPOINT + '?optional=1', {
+              method: 'GET',
+              headers: { accept: 'application/json' },
+              credentials: 'same-origin',
+            });
+            const payload = await response.json().catch(() => null);
+            return response.ok && payload && payload.ok && payload.session && payload.session.userId
+              ? String(payload.session.userId)
+              : '';
+          } catch (_) {
+            return '';
+          }
+        };
+        const recordDraftOwnerContext = async () => {
+          if (activeRecordDraftContext) return activeRecordDraftContext;
+          const params = new URLSearchParams(window.location.search);
+          const continuationToken = normalizeDraftToken(params.get('draft_token'));
+          const userId = await currentRecordSessionUserId();
+          if (continuationToken) {
+            activeRecordDraftContext = {
+              draftKey: 'latest:guest:' + continuationToken,
+              ownerKey: 'guest:' + continuationToken,
+              continuationToken,
+              claimDraftKey: userId ? 'latest:user:' + userId : '',
+              claimOwnerKey: userId ? 'user:' + userId : '',
+            };
+            return activeRecordDraftContext;
+          }
+          if (userId) {
+            activeRecordDraftContext = {
+              draftKey: 'latest:user:' + userId,
+              ownerKey: 'user:' + userId,
+              continuationToken: '',
+              claimDraftKey: '',
+              claimOwnerKey: '',
+            };
+            return activeRecordDraftContext;
+          }
+          const token = guestRecordDraftToken();
+          activeRecordDraftContext = {
+            draftKey: 'latest:guest:' + token,
+            ownerKey: 'guest:' + token,
+            continuationToken: token,
+            claimDraftKey: '',
+            claimOwnerKey: '',
+          };
+          return activeRecordDraftContext;
+        };
         const consumeRecordDraft = async () => {
+          const context = await recordDraftOwnerContext();
           const db = await openRecordDraftDb();
           try {
             return await new Promise((resolve, reject) => {
               const transaction = db.transaction(RECORD_DRAFT_STORE, 'readwrite');
               const store = transaction.objectStore(RECORD_DRAFT_STORE);
-              const request = store.get(RECORD_DRAFT_KEY);
+              const request = store.get(context.draftKey);
               let value = null;
               request.onsuccess = () => {
-                value = request.result || null;
+                const candidate = request.result || null;
+                const owned = candidate && candidate.ownerKey === context.ownerKey;
+                const tokenMatches = !context.continuationToken || candidate.continuationToken === context.continuationToken;
+                if (!owned || !tokenMatches) return;
+                if (context.claimDraftKey && context.claimOwnerKey) {
+                  value = Object.assign({}, candidate, {
+                    ownerKey: context.claimOwnerKey,
+                    continuationToken: null,
+                  });
+                  store.put(value, context.claimDraftKey);
+                  store.delete(context.draftKey);
+                  activeRecordDraftContext = {
+                    draftKey: context.claimDraftKey,
+                    ownerKey: context.claimOwnerKey,
+                    continuationToken: '',
+                    claimDraftKey: '',
+                    claimOwnerKey: '',
+                  };
+                } else {
+                  value = candidate;
+                }
               };
               request.onerror = () => reject(request.error || new Error('indexeddb_read_failed'));
-              transaction.oncomplete = () => resolve(value);
+              transaction.oncomplete = () => {
+                if (context.claimDraftKey && value) {
+                  try {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('draft_token');
+                    window.history.replaceState(window.history.state, document.title, url.pathname + url.search + url.hash);
+                    if (sessionStorage.getItem(RECORD_DRAFT_GUEST_TOKEN_KEY) === context.continuationToken) {
+                      sessionStorage.removeItem(RECORD_DRAFT_GUEST_TOKEN_KEY);
+                    }
+                  } catch (_) {}
+                  if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.delete === 'function') {
+                    window.ikimonAppOutbox.delete('record:' + context.draftKey).catch(() => undefined);
+                  }
+                }
+                resolve(value);
+              };
               transaction.onerror = () => reject(transaction.error || new Error('indexeddb_transaction_failed'));
             });
           } finally {
@@ -20007,32 +20302,38 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
         };
         const saveRecordDraft = async (draft) => {
+          const context = await recordDraftOwnerContext();
+          const draftKey = context.draftKey;
+          const storedDraft = Object.assign({}, draft, {
+            ownerKey: context.ownerKey,
+            continuationToken: context.continuationToken || null,
+          });
           const db = await openRecordDraftDb();
           try {
             await new Promise((resolve, reject) => {
               const transaction = db.transaction(RECORD_DRAFT_STORE, 'readwrite');
-              transaction.objectStore(RECORD_DRAFT_STORE).put(draft, RECORD_DRAFT_KEY);
+              transaction.objectStore(RECORD_DRAFT_STORE).put(storedDraft, draftKey);
               transaction.oncomplete = () => resolve(true);
               transaction.onerror = () => reject(transaction.error || new Error('indexeddb_write_failed'));
             });
             if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.enqueue === 'function') {
-              const metadata = draft && draft.metadata && typeof draft.metadata === 'object' ? draft.metadata : {};
+              const metadata = storedDraft && storedDraft.metadata && typeof storedDraft.metadata === 'object' ? storedDraft.metadata : {};
               const isMediaRetryDraft = Boolean(metadata.mediaRetry || metadata.pendingMediaRetryObservationId || metadata.pendingMediaRetryVisitId || metadata.pendingMediaRetryDetailId);
               window.ikimonAppOutbox.enqueue({
-                id: 'record:' + RECORD_DRAFT_KEY,
+                id: 'record:' + draftKey,
                 source: 'record',
                 kind: isMediaRetryDraft ? 'media_retry' : 'record_draft',
-                sourceId: RECORD_DRAFT_KEY,
+                sourceId: draftKey,
                 status: 'queued',
                 payloadMeta: {
-                  kind: draft && draft.kind || null,
-                  fileCount: draft && Array.isArray(draft.files) ? draft.files.length : (draft && draft.file ? 1 : 0),
+                  kind: storedDraft && storedDraft.kind || null,
+                  fileCount: storedDraft && Array.isArray(storedDraft.files) ? storedDraft.files.length : (storedDraft && storedDraft.file ? 1 : 0),
                   pendingMediaRetryObservationId: metadata.pendingMediaRetryObservationId || null,
                   pendingMediaRetryVisitId: metadata.pendingMediaRetryVisitId || null,
                   pendingMediaRetryDetailId: metadata.pendingMediaRetryDetailId || null,
                   hasFormValues: Boolean(metadata.formValues && typeof metadata.formValues === 'object'),
                   draftReason: metadata.draftReason || metadata.mediaRetryReason || null,
-                  savedAt: draft && draft.savedAt || Date.now()
+                  savedAt: storedDraft && storedDraft.savedAt || Date.now()
                 }
               }).catch(() => undefined);
             }
@@ -20041,16 +20342,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
         };
         const deleteRecordDraft = async () => {
+          const context = await recordDraftOwnerContext();
           const db = await openRecordDraftDb();
           try {
             await new Promise((resolve, reject) => {
               const transaction = db.transaction(RECORD_DRAFT_STORE, 'readwrite');
-              transaction.objectStore(RECORD_DRAFT_STORE).delete(RECORD_DRAFT_KEY);
+              transaction.objectStore(RECORD_DRAFT_STORE).delete(context.draftKey);
               transaction.oncomplete = () => resolve(true);
               transaction.onerror = () => reject(transaction.error || new Error('indexeddb_delete_failed'));
             });
             if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.delete === 'function') {
-              window.ikimonAppOutbox.delete('record:' + RECORD_DRAFT_KEY).catch(() => undefined);
+              window.ikimonAppOutbox.delete('record:' + context.draftKey).catch(() => undefined);
             }
           } finally {
             db.close();
@@ -20079,6 +20381,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           try {
             const url = new URL(window.location.href);
             url.searchParams.delete('draft');
+            url.searchParams.delete('draft_token');
             url.searchParams.delete('retry');
             url.searchParams.delete('source');
             window.history.replaceState(window.history.state, document.title, url.pathname + url.search + url.hash);
@@ -23997,6 +24300,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const session = await getSessionFromCookie(request.headers.cookie);
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     if (!session) {
+      const copy = selfGuestCopy(lang);
       const loginHref = appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang);
       const registerHref = appendLangToHref(withBasePath(basePath, "/register?redirect=/profile"), lang);
       reply.type("text/html; charset=utf-8");
@@ -24004,28 +24308,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         basePath,
         "マイページ | ikimon",
         stateCard(
-          "自分の記録",
-          "ログインすると、残した記録と場所へ戻れます",
-          `<p style="margin:0 0 12px">マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
-          <div aria-label="マイページの表示イメージ" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin:14px 0; padding:12px; border-radius:8px; background:#f8fafc; border:1px solid rgba(15,23,42,.08);">
-            <div style="display:grid; gap:8px; align-content:start;">
-              <span style="width:fit-content; padding:3px 8px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:12px; font-weight:900;">表示イメージ</span>
-              <p style="margin:0; color:#334155; font-size:12.5px; line-height:1.55; font-weight:750;">これはサンプルです。あなたの記録で、数字・場所・季節の入口が育ちます。</p>
-              <p style="margin:0; color:#475569; font-size:13px; line-height:1.55;">実際の表示では、公開できる範囲だけを使い、自宅・学校・詳しすぎる位置は外して見返せます。</p>
-            </div>
-            <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; align-content:start;">
-              <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">12</strong><span style="color:#64748b; font-size:12px;">残した記録</span></div>
-              <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">4</strong><span style="color:#64748b; font-size:12px;">見返す場所</span></div>
-              <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">今季</strong><span style="color:#64748b; font-size:12px;">季節の入口</span></div>
-            </div>
-          </div>
-          <p style="margin:0; color:#475569; font-size:13px; line-height:1.55;">すでに記録がある方はログインすると、このページに自分の場所と記録史が戻ります。</p>
+          copy.eyebrow,
+          copy.title,
+          `<p style="margin:0;color:#475569;line-height:1.7">${escapeHtml(copy.body)}</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn btn-solid" href="${escapeHtml(loginHref)}" data-kpi-action="profile:logged_out:login">ログインしてマイページへ</a>
-            <a class="btn btn-ghost" href="${escapeHtml(registerHref)}" data-kpi-action="profile:logged_out:register">アカウントを作る</a>
+            <a class="btn btn-solid" href="${escapeHtml(loginHref)}" data-kpi-action="profile:logged_out:login">${escapeHtml(copy.login)}</a>
+            <a class="btn btn-ghost" href="${escapeHtml(registerHref)}" data-kpi-action="profile:logged_out:register">${escapeHtml(copy.register)}</a>
           </div>`,
         ),
-        "ホーム",
+        "自分",
         undefined,
         undefined,
         appendLangToHref(withBasePath(basePath, "/profile"), lang),
@@ -24036,30 +24327,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "記録として読めるページが増えると、ここに場所と学びの履歴が育ち始めます。"), "ホーム");
     }
-    const [digest, referenceSummary] = await Promise.all([
-      getProfileNoteDigest(session.userId).catch((error) => {
-        console.warn("[read] profile note digest lookup failed", error);
-        return null;
-      }),
-      getReferenceProfileSummary(session.userId).catch((error) => {
-        console.warn("[read] profile reference summary lookup failed", error);
-        return null;
-      }),
-    ]);
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       `${snapshot.displayName} | ikimon`,
-      renderSelfProfileHub(basePath, lang, snapshot, digest, [], referenceSummary),
-      "ホーム",
-      {
-        eyebrow: snapshot.rankLabel || "Observer",
-        heading: snapshot.displayName,
-        headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: "自分の記録、場所、名前待ち、地域に残った手がかりを読み返す。",
-        actions: profileHeroActions(),
-      },
-      PLACE_REVISIT_ROW_STYLES,
+      renderSelfProfileHub(basePath, lang, snapshot),
+      "自分",
+      undefined,
+      PROFILE_HUB_STYLES,
       appendLangToHref(withBasePath(basePath, "/profile"), lang),
     );
   });

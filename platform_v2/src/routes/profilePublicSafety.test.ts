@@ -61,9 +61,9 @@ test("signed-in /profile uses the owner profile hub while public routes stay pub
   );
 
   assert.match(selfProfileRoute, /getProfileSnapshot\(session\.userId, \{ visibility: "owner" \}\)/);
-  assert.match(selfProfileRoute, /renderSelfProfileHub\(basePath, lang, snapshot, digest, \[\], referenceSummary\)/);
-  assert.match(selfProfileRoute, /getProfileNoteDigest\(session\.userId\)/);
-  assert.match(selfProfileRoute, /getReferenceProfileSummary\(session\.userId\)/);
+  assert.match(selfProfileRoute, /renderSelfProfileHub\(basePath, lang, snapshot\)/);
+  assert.doesNotMatch(selfProfileRoute, /getProfileNoteDigest\(session\.userId\)/);
+  assert.doesNotMatch(selfProfileRoute, /getReferenceProfileSummary\(session\.userId\)/);
   assert.doesNotMatch(selfProfileRoute, /getRegionalStoryCue\(profileRegionalStoryInputForPlace\(session\.userId, place\)\)/);
   assert.doesNotMatch(selfProfileRoute, /renderProfileSnapshotBody\(basePath, lang, session\.userId, snapshot, "registered", "public"\)/);
 });

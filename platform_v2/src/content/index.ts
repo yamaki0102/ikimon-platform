@@ -384,7 +384,9 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
   assertObject(value.home.member, `${path}.home.member`);
   for (const key of [
     "actionTitle", "actionLead", "primaryCta", "continuationTitle", "continuationBody",
-    "continuationCta", "recentTitle", "placesTitle", "nextTitle", "emptyTitle", "emptyBody",
+    "continuationCta", "memoryEyebrow", "memoryLead", "memoryCta", "activeEyebrow",
+    "activeLead", "activeCta", "recentTitle", "recentCta", "placesTitle", "placesCta",
+    "nextTitle", "emptyTitle", "emptyBody",
   ] as const) {
     assertString(value.home.member[key], `${path}.home.member.${key}`);
   }

@@ -76,12 +76,14 @@ test("member Home shows only the viewer's recent records as its main record sect
   const nearby = observation("nearby-public", { observerUserId: "neighbor", displayName: "水辺の記録" });
   const html = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [latest, discovery], feed: [latest, nearby] }), true);
   const member = html.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || html;
-  assert.match(member, /今日は何を残しますか？/);
-  assert.match(member, /前回の続き/);
+  assert.match(member, /data-home-primary-state="recent_memory"/);
+  assert.match(member, /川沿いの夕景/);
+  assert.doesNotMatch(member, /今日は何を残しますか？/);
   assert.match(member, /最近の記録/);
   assert.equal((member.match(/data-home-record-id="mine-latest"/g) || []).length, 1);
   assert.equal((member.match(/data-home-record-id="mine-discovery"/g) || []).length, 1);
   assert.equal((member.match(/data-home-record-id="nearby-public"/g) || []).length, 0);
+  assert.equal((member.match(/class="home-member-primary(?: |")/g) || []).length, 2);
   assert.doesNotMatch(member, /ツバメ かもしれません|近くで残された記録|monitoring|モニタリング/);
 });
 
@@ -96,9 +98,12 @@ test("member Home keeps AI and internal processing labels out of recent cards", 
 
 test("member empty state stays compact and hides internal processing state", () => {
   const emptyHtml = render("ja", snapshot({ viewerUserId: "viewer" }), true);
-  assert.match(emptyHtml, /最初の記録を残してみましょう/);
-  assert.doesNotMatch(emptyHtml, /home-recent-section|home-discovery-section|home-nearby-section|home-places-section|home-next-section/);
-  assert.doesNotMatch(emptyHtml, /まだありません|0件|未記録|名前待ち/);
+  const member = emptyHtml.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || emptyHtml;
+  assert.match(member, /最初の記録を残してみましょう/);
+  assert.match(member, /data-home-primary-state="first_record"/);
+  assert.equal((member.match(/data-global-record-trigger="photo"/g) || []).length, 1);
+  assert.doesNotMatch(member, /home-recent-section|home-discovery-section|home-nearby-section|home-places-section|home-next-section/);
+  assert.doesNotMatch(member, /まだありません|0件|未記録|名前待ち/);
   const processingHtml = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [observation("processing", { observerUserId: "viewer", aiAssessmentStatus: "processing" })] }), true);
   assert.doesNotMatch(processingHtml, /写真からわかることを調べています/);
 });
@@ -170,10 +175,11 @@ test("guest Top explains broad regional records and starts with the shared camer
 
 test("member Home is personal, continuation-oriented, and compact when empty", () => {
   const empty = render("ja", snapshot({ viewerUserId: "viewer" }), true);
-  assert.match(empty, /今日は何を残しますか？/);
   assert.match(empty, /最初の記録を残してみましょう/);
-  assert.match(empty, /data-home-continuation/);
+  assert.match(empty, /data-home-primary-state="draft_resume"/);
+  assert.match(empty, /data-home-draft-owner="viewer"/);
   assert.match(empty, /data-global-record-trigger="photo"/);
+  assert.doesNotMatch(empty, /今日は何を残しますか？/);
   assert.doesNotMatch(empty, /近くで残された記録|写真からわかったこと|名前待ち|0件|未記録/);
 
   const populated = render("ja", snapshot({
@@ -209,8 +215,73 @@ test("member Home is personal, continuation-oriented, and compact when empty", (
       participantCount: 3,
     }],
   }), true);
-  assert.match(populated, /最近の記録/);
+  assert.match(populated, /この前の記録/);
   assert.match(populated, /関わっている場所/);
   assert.match(populated, /次の活動/);
+  assert.match(populated, /data-home-primary-state="recent_memory"/);
   assert.doesNotMatch(populated, /近くで残された記録/);
+});
+
+test("member Home uses an active context only when no safe personal memory is available", () => {
+  const html = render("ja", snapshot({
+    viewerUserId: "viewer",
+    nearbyEvents: [{
+      sessionId: "event-1",
+      eventCode: "miyakoda-summer",
+      title: "都田夏祭り",
+      startedAt: "2026-08-01T09:00:00.000Z",
+      endedAt: null,
+      fieldId: "place-1",
+      fieldName: "都田",
+      city: "浜松市",
+      prefecture: "静岡県",
+      participantCount: 3,
+    }],
+  }), true);
+
+  assert.match(html, /data-home-primary-state="active_context"/);
+  assert.match(html, /都田夏祭り/);
+  assert.doesNotMatch(html, /data-home-primary-state="first_record"[^>]*data-home-primary-active="true"/);
+});
+
+test("member Home excludes sensitive records from automatic photo surfaces", () => {
+  const sensitive = observation("private-home", {
+    observerUserId: "viewer",
+    displayName: "自宅の記録",
+    publicFeedEligible: false,
+    publicLocation: {
+      label: "",
+      scope: "blurred",
+      cellId: null,
+      gridM: null,
+      radiusM: null,
+      centroidLat: null,
+      centroidLng: null,
+      displayMode: "area",
+    },
+  });
+  const html = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [sensitive] }), true);
+
+  assert.doesNotMatch(html, /\/media\/private-home\.jpg/);
+  assert.doesNotMatch(html, /自宅の記録/);
+  assert.match(html, /data-home-primary-state="recent_memory"/);
+  assert.match(html, /href="\/ja\/records\?view=mine"/);
+  assert.doesNotMatch(html, /data-home-primary-state="first_record"[^>]*data-home-primary-active="true"/);
+});
+
+test("member Home keeps a private owner photo useful without exposing its place", () => {
+  const privateRecord = observation("private-owner", {
+    observerUserId: "viewer",
+    displayName: "家族との思い出",
+    placeName: "非公開の場所",
+    municipality: "浜松市",
+    publicFeedEligible: false,
+    publicFeedGateStatus: "pending_review",
+  });
+  const html = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [privateRecord] }), true);
+
+  assert.match(html, /data-home-primary-state="recent_memory"/);
+  assert.match(html, /\/media\/private-owner\.jpg/);
+  assert.match(html, /家族との思い出/);
+  assert.doesNotMatch(html, /非公開の場所|浜松市/);
 });

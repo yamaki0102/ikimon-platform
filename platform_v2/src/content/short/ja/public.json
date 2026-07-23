@@ -27,7 +27,9 @@
       "member": {
         "actionTitle": "今日は何を残しますか？", "actionLead": "気になったことを撮るだけで、自分の記録が始まります。", "primaryCta": "撮る",
         "continuationTitle": "前回の続き", "continuationBody": "保存前の撮影があります。内容を失わずに続けられます。", "continuationCta": "続きを開く",
-        "recentTitle": "最近の記録", "placesTitle": "関わっている場所", "nextTitle": "次の活動",
+        "memoryEyebrow": "この前の記録", "memoryLead": "写真と場所から、前の時間を見返せます。", "memoryCta": "この記録を見る",
+        "activeEyebrow": "参加中の活動", "activeLead": "この場所の今と、次にできることを確認できます。", "activeCta": "活動を見る",
+        "recentTitle": "最近の記録", "recentCta": "すべて見る", "placesTitle": "関わっている場所", "placesCta": "地図で見る", "nextTitle": "次の活動",
         "emptyTitle": "最初の記録を残してみましょう", "emptyBody": "気になったものを撮るだけで始められます。"
       },
       "shared": {
