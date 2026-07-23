@@ -3,19 +3,29 @@
     "title": "ikimon — Enjoy Life | Disfrutar y registrar la naturaleza cercana",
     "home": {
       "guest": {
-        "heroHeading": "Un registro muestra cómo está un lugar hoy.", "heroLead": "Seres vivos, paisajes y sonidos. Tus registros pueden devolverte pistas sobre nombres y el entorno.",
-        "primaryCta": "Registrar", "secondaryCta": "Ver registros locales", "publicRecordsTitle": "Registros guardados en la comunidad", "valueTitle": "Lo que puedes descubrir al registrar",
-        "valueItems": [
-          { "title": "Encontrar pistas en una foto", "body": "La IA organiza rasgos visibles de seres vivos y paisajes." },
-          { "title": "Entender el entorno", "body": "Guarda pistas como pastizales, agua y edificios visibles en la foto." },
-          { "title": "Comparar con el tiempo", "body": "Cuando aumentan los registros de un lugar, se ven estaciones y cambios." }
+        "heroHeading": "Hagamos crecer juntos la memoria local.", "heroLead": "Fiestas, trabajo, paisajes y hallazgos cotidianos. Tus fotos y videos se convierten en memoria del lugar y en un puente hacia la próxima actividad.",
+        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "Qué puedes guardar",
+        "categories": [
+          { "title": "Escuela y aprendizaje", "body": "Clases, proyectos y experiencias de trabajo." },
+          { "title": "Comunidad y eventos", "body": "Fiestas, mercados y encuentros locales." },
+          { "title": "Trabajo y cultura", "body": "Tiendas, productores, oficios, productos y tradiciones." },
+          { "title": "Vida diaria y naturaleza", "body": "Paisajes, caminos, estaciones, seres vivos y recuerdos." }
         ],
+        "flowTitle": "Cómo crece un registro",
+        "flowItems": [
+          { "title": "Capturar", "body": "Guarda en el momento lo que llamó tu atención." },
+          { "title": "Queda en el lugar", "body": "La hora y el lugar lo convierten en tu registro." },
+          { "title": "Lleva a lo siguiente", "body": "Vuelve a verlo, comprueba algo o participa otra vez." }
+        ],
+        "placesTitle": "Explorar por lugar", "placesBody": "Sigue las fotos y actividades de un mismo lugar para ver los cambios y lo que viene.",
         "privacyTitle": "No publicamos tu ubicación exacta", "privacyBody": "Elige la visibilidad de cada registro. Los hogares y lugares de especies sensibles reciben mayor protección.",
-        "finalTitle": "Empieza con una sola foto", "finalCta": "Deja tu primer registro"
+        "finalTitle": "Guarda algo que hoy llamó tu atención", "finalCta": "Capturar"
       },
       "member": {
-        "actionTitle": "Guarda lo que llame tu atención", "actionLead": "Deja una foto, un video, un sonido o una nota y aprende luego un poco más sobre la naturaleza y el lugar.", "primaryCta": "Registrar",
-        "recentTitle": "Registro reciente", "discoveriesTitle": "Lo que mostraron tus fotos", "nearbyTitle": "Registros guardados cerca", "processing": "Buscando pistas en esta foto"
+        "actionTitle": "¿Qué guardarás hoy?", "actionLead": "Captura algo que llamó tu atención para comenzar tu propio registro.", "primaryCta": "Capturar",
+        "continuationTitle": "Continúa donde lo dejaste", "continuationBody": "Hay una captura sin guardar. Puedes continuar sin perderla.", "continuationCta": "Continuar",
+        "recentTitle": "Registros recientes", "placesTitle": "Lugares con los que participas", "nextTitle": "Próxima actividad",
+        "emptyTitle": "Deja tu primer registro", "emptyBody": "Empieza capturando algo que llame tu atención."
       },
       "shared": {
         "openRecord": "Ver registro", "unknownRecord": "Registro pendiente de nombre", "safePlaceFallback": "Registro de la comunidad", "aiCandidateSuffix": "podría ser", "fromRecord": "De este registro", "multipleMedia": "elementos multimedia",

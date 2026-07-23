@@ -44,80 +44,83 @@ function render(lang: SiteLang, data: LandingSnapshot, isLoggedIn = Boolean(data
   return `${result.heroHtml}${result.dailyDashboardHtml}`;
 }
 
-test("guest home has a dedicated value-first layout and one hero primary action", () => {
+test("guest Top leads with a broad regional-record promise and concrete actions", () => {
   const html = render("ja", snapshot({ feed: [observation("public-1")] }));
   assert.match(html, /data-home-contract="state-split-v1"/);
   assert.match(html, /data-home-auth-state="guest"/);
-  assert.match(html, /記録から、場所の今が見えてくる/);
-  assert.match(html, /地域に残っている記録/);
+  assert.match(html, /<span class="home-hero-phrase">地域の記録を、<\/span><span class="home-hero-phrase">みんなで育てる。<\/span>/);
+  assert.match(html, /祭りも、仕事も、風景も、日常の発見も/);
+  assert.match(html, /何を残せるか/);
+  assert.match(html, /記録が育つ流れ/);
+  assert.match(html, /場所から見る/);
   assert.match(html, /正確な位置は公開しません/);
   assert.match(html, /ikimon-home-slot:guest-hero:start/);
   assert.match(html, /home-guest-hero-visual/);
   assert.match(html, /fetchpriority="high"/);
-  assert.equal((html.match(/class="home-primary-button"/g) || []).length, 2, "one hero CTA plus a restrained final CTA/member hidden template");
-  assert.doesNotMatch(html, /今日のおすすめ|人気ランキング|前回から続ける|同じ場所をもう一度/);
+  assert.match(html, /data-global-record-trigger="photo"/);
+  assert.match(html, /data-kpi-event="top_place_tap"/);
+  assert.doesNotMatch(html, /地方創生|ウェルビーイング|Place Intelligence OS|ENJOY NATURE/);
 });
 
-test("guest empty public state uses a route link and never invents cards", () => {
+test("guest Top stays useful without public data and never invents record cards", () => {
   const html = render("ja", snapshot());
-  assert.match(html, /records\?view=public/);
+  assert.match(html, /map\?tab=places/);
+  assert.match(html, /home-place-visual is-placeholder/);
   assert.doesNotMatch(html, /class="home-public-card"/);
-  assert.doesNotMatch(html, /sample|placeholder\.jpg/);
+  assert.doesNotMatch(html, /sample|placeholder\.jpg|0件|未記録/);
 });
 
-test("member home shows latest own record, a distinct discovery, and other public records", () => {
+test("member Home shows only the viewer's recent records as its main record section", () => {
   const latest = observation("mine-latest", { observerUserId: "viewer", displayName: "川沿いの夕景" });
   const discovery = observation("mine-discovery", { observerUserId: "viewer", aiCandidateName: "ツバメ", isAiCandidate: true });
   const nearby = observation("nearby-public", { observerUserId: "neighbor", displayName: "水辺の記録" });
   const html = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [latest, discovery], feed: [latest, nearby] }), true);
   const member = html.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || html;
-  assert.match(member, /気になったものを残してみよう/);
+  assert.match(member, /今日は何を残しますか？/);
+  assert.match(member, /前回の続き/);
   assert.match(member, /最近の記録/);
-  assert.match(member, /写真からわかったこと/);
-  assert.match(member, /ツバメ かもしれません/);
-  assert.match(member, /近くで残された記録/);
   assert.equal((member.match(/data-home-record-id="mine-latest"/g) || []).length, 1);
   assert.equal((member.match(/data-home-record-id="mine-discovery"/g) || []).length, 1);
-  assert.equal((member.match(/data-home-record-id="nearby-public"/g) || []).length, 1);
-  assert.doesNotMatch(member, /monitoring|モニタリング|継続調査|再訪/);
+  assert.equal((member.match(/data-home-record-id="nearby-public"/g) || []).length, 0);
+  assert.doesNotMatch(member, /ツバメ かもしれません|近くで残された記録|monitoring|モニタリング/);
 });
 
-test("member discovery is integrated into latest card when there is no second record", () => {
+test("member Home keeps AI and internal processing labels out of recent cards", () => {
   const latest = observation("mine-only", { observerUserId: "viewer", aiCandidateName: "ニホンアマガエル", isAiCandidate: true });
   const html = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [latest] }), true);
-  assert.match(html, /ニホンアマガエル かもしれません/);
+  assert.match(html, /data-home-record-id="mine-only"/);
+  assert.doesNotMatch(html, /ニホンアマガエル かもしれません/);
   assert.doesNotMatch(html, /home-discovery-section/);
   assert.equal((html.match(/data-home-record-id="mine-only"/g) || []).length, 1);
 });
 
-test("member empty states stay compact and processing appears only for durable status", () => {
+test("member empty state stays compact and hides internal processing state", () => {
   const emptyHtml = render("ja", snapshot({ viewerUserId: "viewer" }), true);
-  assert.doesNotMatch(emptyHtml, /home-recent-section|home-discovery-section|home-nearby-section/);
-  assert.doesNotMatch(emptyHtml, /まだありません/);
+  assert.match(emptyHtml, /最初の記録を残してみましょう/);
+  assert.doesNotMatch(emptyHtml, /home-recent-section|home-discovery-section|home-nearby-section|home-places-section|home-next-section/);
+  assert.doesNotMatch(emptyHtml, /まだありません|0件|未記録|名前待ち/);
   const processingHtml = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [observation("processing", { observerUserId: "viewer", aiAssessmentStatus: "processing" })] }), true);
-  assert.match(processingHtml, /写真からわかることを調べています/);
-  const completedHtml = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [observation("complete", { observerUserId: "viewer", aiAssessmentStatus: "completed" })] }), true);
-  assert.doesNotMatch(completedHtml, /写真からわかることを調べています/);
+  assert.doesNotMatch(processingHtml, /写真からわかることを調べています/);
 });
 
-test("photo, video, audio, memo, and multiple media use static accessible card states", () => {
+test("member recent records render photo, video, audio, memo, and multiple media accessibly", () => {
   const items = [
-    observation("photo"),
-    observation("video", { librarySourceKind: "video", hasVideo: true }),
-    observation("audio", { librarySourceKind: "audio", hasAudio: true, photoUrl: null }),
-    observation("memo", { librarySourceKind: "note", photoUrl: null }),
-    observation("multiple", { photoCount: 3, photoUrls: ["a", "b", "c"] }),
+    observation("photo", { observerUserId: "viewer" }),
+    observation("video", { observerUserId: "viewer", librarySourceKind: "video", hasVideo: true }),
+    observation("audio", { observerUserId: "viewer", librarySourceKind: "audio", hasAudio: true, photoUrl: null }),
+    observation("memo", { observerUserId: "viewer", librarySourceKind: "note", photoUrl: null }),
+    observation("multiple", { observerUserId: "viewer", photoCount: 3, photoUrls: ["a", "b", "c"] }),
   ];
-  const html = render("ja", snapshot({ feed: items }));
+  const html = render("ja", snapshot({ viewerUserId: "viewer", myFeed: items }), true);
   assert.match(html, /is-video/);
   assert.match(html, /is-audio/);
   assert.match(html, /is-memo/);
   assert.match(html, />3 件のメディア</);
   assert.doesNotMatch(html, /<video|autoplay/);
-  assert.match(html, /loading="eager"[\s\S]*loading="lazy"/);
+  assert.match(html, /loading="eager"/);
 });
 
-test("public privacy stays fail-closed for blocked and blurred records", () => {
+test("guest Top media stays fail-closed for blocked and blurred records", () => {
   const blocked = observation("blocked", { publicFeedEligible: false, displayName: "private record" });
   const blurred = observation("blurred", {
     displayName: "protected record",
@@ -128,24 +131,86 @@ test("public privacy stays fail-closed for blocked and blurred records", () => {
   });
   const html = render("ja", snapshot({ feed: [blocked, blurred] }));
   assert.doesNotMatch(html, /private record|exact private home|exact municipality|2026-07-19/);
-  assert.match(html, /protected record/);
+  assert.match(html, /\/media\/blurred\.jpg/);
   assert.doesNotMatch(html, /latitude|longitude|geohash|cellId|centroid/);
 });
 
 for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
   test(`${lang} home copy is localized and routes retain locale`, () => {
     const html = render(lang, snapshot({ feed: [observation(`public-${lang}`)] }));
-    assert.match(html, new RegExp(`/${lang === "pt-BR" ? "pt-br" : lang}/record`));
+    assert.match(html, new RegExp(`/${lang === "pt-BR" ? "pt-br" : lang}/map\\?tab=places`));
     assert.doesNotMatch(html, /undefined|\[object Object\]/);
     assert.match(html, /data-home-view="guest"/);
+    assert.doesNotMatch(html, /<a[^>]+data-global-record-trigger="photo"/);
   });
 }
 
 test("home CSS enforces mobile card sizing, touch targets, focus and reduced motion", () => {
-  assert.match(LANDING_TOP_STYLES, /grid-auto-columns:min\(78vw,310px\)/);
+  assert.match(LANDING_TOP_STYLES, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(LANDING_TOP_STYLES, /min-height:54px/);
   assert.match(LANDING_TOP_STYLES, /min-height:44px/);
   assert.match(LANDING_TOP_STYLES, /focus-visible/);
+  assert.match(LANDING_TOP_STYLES, /\.home-hero-phrase\{display:inline-block;max-width:100%\}/);
+  assert.match(LANDING_TOP_STYLES, /word-break:auto-phrase/);
   assert.match(LANDING_TOP_STYLES, /prefers-reduced-motion/);
   assert.match(LANDING_TOP_STYLES, /@media\(max-width:359px\)/);
+});
+
+test("guest Top explains broad regional records and starts with the shared camera action", () => {
+  const html = render("ja", snapshot({ feed: [observation("public-1")] }));
+  assert.match(html, /<span class="home-hero-phrase">地域の記録を、<\/span><span class="home-hero-phrase">みんなで育てる。<\/span>/);
+  assert.match(html, /学校・学び/);
+  assert.match(html, /地域・イベント/);
+  assert.match(html, /仕事・文化/);
+  assert.match(html, /暮らし・自然/);
+  assert.match(html, /data-global-record-trigger="photo"/);
+  assert.match(html, /data-kpi-event="top_place_tap"/);
+  assert.doesNotMatch(html, /href="[^"]*\/record"[^>]*class="home-primary-button"/);
+});
+
+test("member Home is personal, continuation-oriented, and compact when empty", () => {
+  const empty = render("ja", snapshot({ viewerUserId: "viewer" }), true);
+  assert.match(empty, /今日は何を残しますか？/);
+  assert.match(empty, /最初の記録を残してみましょう/);
+  assert.match(empty, /data-home-continuation/);
+  assert.match(empty, /data-global-record-trigger="photo"/);
+  assert.doesNotMatch(empty, /近くで残された記録|写真からわかったこと|名前待ち|0件|未記録/);
+
+  const populated = render("ja", snapshot({
+    viewerUserId: "viewer",
+    myFeed: [observation("mine", { observerUserId: "viewer" })],
+    myPlaces: [{
+      placeId: "place-1",
+      placeName: "都田",
+      municipality: "浜松市",
+      lastObservedAt: "2026-07-19T08:30:00.000Z",
+      previousObservedAt: null,
+      firstObservedAt: "2026-07-19T08:30:00.000Z",
+      visitCount: 1,
+      latestDisplayName: "夏祭り",
+      revisitReason: null,
+      nextLookFor: null,
+      lastRecordMode: null,
+      lastSurveyResult: null,
+      absenceSemantics: null,
+      latitude: null,
+      longitude: null,
+    }],
+    nearbyEvents: [{
+      sessionId: "event-1",
+      eventCode: "miyakoda-summer",
+      title: "都田夏祭り",
+      startedAt: "2026-08-01T09:00:00.000Z",
+      endedAt: null,
+      fieldId: "place-1",
+      fieldName: "都田",
+      city: "浜松市",
+      prefecture: "静岡県",
+      participantCount: 3,
+    }],
+  }), true);
+  assert.match(populated, /最近の記録/);
+  assert.match(populated, /関わっている場所/);
+  assert.match(populated, /次の活動/);
+  assert.doesNotMatch(populated, /近くで残された記録/);
 });

@@ -65,7 +65,12 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.doesNotMatch(html, /ログインすると、フォロー中の分類群や観察エリアをここに固定します。/);
   assert.match(html, /desktop-side-nav-mini-card/);
   assert.match(html, /class="shell shell-layout-home"/);
-  assert.match(html, /href="\/ja\/records">記録を見る/);
+  assert.match(html, /class="site-nav site-nav-desktop site-core-nav"/);
+  assert.match(html, /data-global-record-trigger="photo"/);
+  assert.match(html, />場所<\/a>/);
+  assert.match(html, />記録<\/a>/);
+  assert.match(html, />自分<\/a>/);
+  assert.match(html, /data-auth-member-href="\/ja\/records\?view=mine"/);
   assert.match(html, /href="\/ja\/profile" title="マイページ"/);
   assert.match(html, /href="\/ja\/records\?view=mine" title="記録を見る"/);
   assert.match(html, /href="\/ja\/records" title="記録を見る"/);
@@ -87,7 +92,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /html\[data-auth="signed-in"\] \.desktop-side-nav-section--guest/);
   assert.match(html, /\.site-mobile-menu-section\.desktop-side-nav-section--signed-in \{[^}]*display: none;/);
   assert.match(html, /window\.ikimonAppOutbox/);
-  assert.match(html, /class="btn btn-solid site-record-link" href="\/ja\/record\?start=photo" data-global-record-trigger="photo" data-record-target="\/ja\/record\?start=photo"/);
+  assert.match(html, /class="site-core-nav-link is-capture" data-global-record-trigger="photo"/);
   assert.doesNotMatch(html, /class="desktop-side-nav-link[^"]*" href="\/ja\/record(?:\?|")/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /location: latestCaptureLocation,/);
@@ -292,23 +297,17 @@ test("site shell renders a global record footer nav outside the record flow", ()
 
   assert.match(html, /class="global-record-launcher"/);
   assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 4);
-  assert.equal(html.match(/data-global-record-input="(?:photo|video|gallery)"/g)?.length, 3);
-  assert.equal(html.match(/data-global-record-trigger="(?:photo|video|gallery)"/g)?.length, 5);
-  assert.match(html, /accept="image\/\*" capture="environment" multiple/);
-  assert.match(html, /accept="video\/\*" capture="environment"/);
-  assert.match(html, /accept="image\/\*,video\/\*" multiple/);
+  assert.equal(html.match(/data-global-record-input="gallery"/g)?.length, 1);
+  assert.match(html, /data-global-record-input="gallery" type="file" accept="image\/\*" multiple/);
+  assert.doesNotMatch(html, /capture="environment"/);
   assert.match(html, /files: draftFiles/);
   assert.match(html, /Array\.from\(input\.files\)/);
   assert.doesNotMatch(html, /class="global-record-entry"/);
   assert.doesNotMatch(html, /class="global-record-entry"[^>]*aria-expanded="false"/);
-  assert.match(html, /data-kpi-action="global_record_photo"/);
-  assert.match(html, /data-kpi-action="global_record_video"/);
-  assert.match(html, /data-kpi-action="global_record_gallery"/);
-  assert.match(html, /data-kpi-action="global_record_guide"/);
-  assert.match(html, /data-record-target="\/ja\/record\?start=photo"/);
-  assert.match(html, /data-record-target="\/ja\/record\?start=video"/);
-  assert.match(html, /data-record-target="\/ja\/record\?start=gallery"/);
-  assert.match(html, /href="\/ja\/guide"/);
+  assert.match(html, /data-kpi-action="capture_nav"/);
+  assert.doesNotMatch(html, /data-global-record-trigger="gallery"/);
+  assert.doesNotMatch(html, /data-record-target="\/ja\/record\?start=photo"/);
+  assert.match(html, /data-global-record-gallery-select/);
   assert.match(html, /indexedDB\.open\(DB_NAME, 1\)/);
   assert.match(html, /source: 'record'/);
   assert.match(html, /id: 'record:' \+ DRAFT_KEY/);
@@ -445,8 +444,13 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /失敗した' \+ String\(failed\) \+ '枚を再送/);
   assert.doesNotMatch(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/reassess/);
   assert.match(html, /subject_inference: 'ai'/);
-  assert.doesNotMatch(html, /data-global-record-camera-fallback/);
-  assert.doesNotMatch(html, /端末のカメラを開く/);
+  assert.match(html, /data-global-record-camera-error/);
+  assert.match(html, /data-global-record-camera-retry/);
+  assert.match(html, /data-global-record-camera-cancel/);
+  assert.match(html, /端末の写真から選ぶ/);
+  assert.match(html, /global-record-camera-sheet\[data-camera-error="true"\] \.global-record-camera-preview/);
+  assert.match(html, /@media \(min-width: 721px\) and \(max-width: 960px\)/);
+  assert.match(html, /@media \(min-width: 961px\) \{\s+\.site-core-nav \{\s+display: flex;/);
   assert.match(html, /もう1枚撮る/);
   assert.match(html, /VIDEO_MAX_SECONDS = 60/);
   assert.match(html, /動画記録は最大60秒/);
@@ -455,6 +459,64 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.doesNotMatch(html, /名前、メモを整えられます/);
   assert.match(html, /この内容で記録画面へ/);
   assert.match(html, /撮り直す/);
+});
+
+test("primary mobile navigation is capture-first and keeps camera separate from the gallery", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Home",
+    body: "<p>home</p>",
+    lang: "ja",
+    currentPath: "/ja/",
+    homeChrome: "guest",
+  });
+  const launcher = html.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
+
+  assert.match(launcher, />撮る<\/span>/);
+  assert.match(launcher, />場所<\/span>/);
+  assert.match(launcher, />記録<\/span>/);
+  assert.match(launcher, />自分<\/span>/);
+  assert.ok(launcher.indexOf(">撮る</span>") < launcher.indexOf(">場所</span>"));
+  assert.ok(launcher.indexOf(">場所</span>") < launcher.indexOf(">記録</span>"));
+  assert.ok(launcher.indexOf(">記録</span>") < launcher.indexOf(">自分</span>"));
+  assert.match(launcher, /<button[^>]+data-global-record-trigger="photo"[^>]+aria-haspopup="dialog"/);
+  assert.doesNotMatch(launcher, /data-global-record-trigger="gallery"/);
+  assert.doesNotMatch(launcher, /href="[^"]*\/record(?:\?|")/);
+  assert.doesNotMatch(launcher, /aria-current="page"/);
+  assert.match(html, /data-global-record-gallery-select[^>]*>端末の写真から選ぶ<\/button>/);
+  assert.match(html, /カメラを開けませんでした/);
+  assert.match(html, /data-global-record-camera-retry[^>]*>カメラの利用を許可する<\/button>/);
+  assert.match(html, /data-global-record-camera-cancel[^>]*>キャンセル<\/button>/);
+  assert.match(html, /document\.addEventListener\('visibilitychange'/);
+  assert.match(html, /capture_nav_tap/);
+  assert.match(html, /camera_open_success/);
+  assert.match(html, /camera_permission_denied/);
+  assert.match(html, /camera_unavailable/);
+  assert.match(html, /gallery_select_tap/);
+  assert.match(html, /capture_completed/);
+  assert.match(html, /capture_saved/);
+
+  const profileHtml = renderSiteDocument({
+    basePath: "",
+    title: "Profile",
+    body: "<p>profile</p>",
+    lang: "ja",
+    currentPath: "/ja/profile",
+  });
+  const profileLauncher = profileHtml.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
+  assert.match(profileLauncher, /global-record-choice is-active[^>]+href="\/ja\/login\?redirect=%2Fprofile"[^>]+aria-current="page"/);
+});
+
+test("logo is the auth-aware home entry and exposes its privacy-safe KPI", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Records",
+    body: "<p>records</p>",
+    lang: "ja",
+    currentPath: "/ja/records",
+  });
+  assert.match(html, /<a class="brand" href="\/ja\/" data-kpi-event="logo_home_tap"/);
+  assert.doesNotMatch(html, /<footer[^>]*>[\s\S]*>ホーム</);
 });
 
 test("site shell minimal chrome keeps guest top visually quiet", () => {
@@ -470,7 +532,9 @@ test("site shell minimal chrome keeps guest top visually quiet", () => {
   assert.match(html, /site-shell[^"]*is-minimal-chrome/);
   assert.match(html, /class="site-header site-header-minimal"/);
   assert.match(html, /class="btn btn-solid site-login-link" href="\/ja\/login\?redirect=%2Fprofile">ログイン<\/a>/);
-  assert.match(html, /class="btn btn-solid site-record-link" href="\/ja\/record\?start=photo" data-global-record-trigger="photo" data-record-target="\/ja\/record\?start=photo" data-kpi-action="header_record_photo">記録する<\/a>/);
+  assert.match(html, /class="site-nav site-nav-desktop site-core-nav"/);
+  assert.match(html, /class="site-core-nav-link is-capture" data-global-record-trigger="photo"/);
+  assert.doesNotMatch(html, /href="[^"]*\/record\?start=photo"[^>]*data-global-record-trigger="photo"/);
   assert.doesNotMatch(html, /<nav class="desktop-side-nav-inner"/);
   assert.doesNotMatch(html, /<form class="site-search site-search-desktop"/);
   assert.doesNotMatch(html, /<div class="site-mobile-menu-panel"/);
@@ -505,15 +569,16 @@ test("site shell localizes the mobile global record launcher", () => {
     currentPath: "/?lang=en",
   });
 
-  assert.match(html, /aria-label="Record quickly"/);
-  assert.match(html, />Photo</);
-  assert.match(html, />Video</);
-  assert.match(html, />Choose</);
-  assert.match(html, />Guide</);
+  assert.match(html, /aria-label="Main actions"/);
+  assert.match(html, />Capture<\/span>/);
+  assert.match(html, />Places<\/span>/);
+  assert.match(html, />Records<\/span>/);
+  assert.match(html, />Me<\/span>/);
   assert.match(html, /class="site-mobile-menu-account site-login-link" href="\/en\/login\?redirect=%2Fprofile">Sign in</);
   assert.match(html, /Capture a record/);
-  assert.doesNotMatch(html, /aria-label="すぐ記録する"/);
-  assert.doesNotMatch(html, />写真</);
+  assert.match(html, /Choose from device/);
+  assert.doesNotMatch(html, /aria-label="主要ナビゲーション"/);
+  assert.doesNotMatch(html, />撮る<\/span>/);
 });
 
 test("site shell excludes the global record launcher from record surfaces", () => {

@@ -71,6 +71,22 @@
       }
     }
   },
+  "bottomNav": {
+    "ariaLabel": "Main actions",
+    "capture": "Capture",
+    "captureAria": "Capture (opens camera)",
+    "places": "Places",
+    "records": "Records",
+    "self": "Me"
+  },
+  "cameraCapture": {
+    "errorTitle": "Could not open the camera",
+    "errorBody": "Allow camera access or choose a photo from your device.",
+    "permissionBody": "Allow camera access in your browser or device settings, then try again.",
+    "retry": "Allow camera access",
+    "gallery": "Choose from device",
+    "cancel": "Cancel"
+  },
   "quickNav": {
     "ariaLabel": "Primary actions",
     "labels": {

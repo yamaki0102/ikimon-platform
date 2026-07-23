@@ -3,19 +3,29 @@
     "title": "A regional field guide built together | ikimon",
     "home": {
       "guest": {
-        "heroHeading": "A record reveals how a place is now.", "heroLead": "Wildlife, scenery, and sound. Your records can return clues about names and the environment.",
-        "primaryCta": "Record something", "secondaryCta": "See local records", "publicRecordsTitle": "Records left in the community", "valueTitle": "What your records can reveal",
-        "valueItems": [
-          { "title": "Find clues in a photo", "body": "AI organizes visible features of wildlife and scenery." },
-          { "title": "Understand the setting", "body": "Keep clues such as grassland, water, and buildings from a photo." },
-          { "title": "Compare over time", "body": "As records from a place grow, seasons and changes become visible." }
+        "heroHeading": "Grow the community record together.", "heroLead": "Festivals, work, scenery, and everyday discoveries. What you save in photos and videos becomes a memory of the place and a path to what happens next.",
+        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep",
+        "categories": [
+          { "title": "School & learning", "body": "Classes, projects, and workplace learning." },
+          { "title": "Community & events", "body": "Festivals, markets, and local gatherings." },
+          { "title": "Work & culture", "body": "Shops, makers, skills, products, and traditions." },
+          { "title": "Daily life & nature", "body": "Scenery, roads, seasons, wildlife, and memories." }
         ],
+        "flowTitle": "How a record grows",
+        "flowItems": [
+          { "title": "Capture", "body": "Keep what caught your attention, right where you are." },
+          { "title": "Keep it with the place", "body": "Time and place turn it into your own record." },
+          { "title": "Take the next step", "body": "Look back, check again, or join in another time." }
+        ],
+        "placesTitle": "Explore by place", "placesBody": "Follow photos and activities kept at the same place to see what changed and what comes next.",
         "privacyTitle": "Your exact location is not made public", "privacyBody": "Choose the visibility of every record. Homes and sensitive wildlife locations receive stronger protection.",
-        "finalTitle": "Start with a single photo", "finalCta": "Leave your first record"
+        "finalTitle": "Keep something that caught your attention today", "finalCta": "Capture"
       },
       "member": {
-        "actionTitle": "Save whatever catches your attention", "actionLead": "Leave a photo, video, sound, or note and learn a little more about nature and the place later.", "primaryCta": "Record something",
-        "recentTitle": "Recent record", "discoveriesTitle": "What your photos revealed", "nearbyTitle": "Records left nearby", "processing": "Looking for clues in this photo"
+        "actionTitle": "What will you keep today?", "actionLead": "Capture something that caught your attention to start your own record.", "primaryCta": "Capture",
+        "continuationTitle": "Continue where you left off", "continuationBody": "You have an unsaved capture. Continue without losing it.", "continuationCta": "Continue",
+        "recentTitle": "Recent records", "placesTitle": "Places you are involved with", "nextTitle": "What comes next",
+        "emptyTitle": "Leave your first record", "emptyBody": "Start by capturing something that catches your attention."
       },
       "shared": {
         "openRecord": "Open record", "unknownRecord": "Record awaiting a name", "safePlaceFallback": "Community record", "aiCandidateSuffix": "may be the match", "fromRecord": "From this record", "multipleMedia": "media items",

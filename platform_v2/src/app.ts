@@ -444,7 +444,7 @@ function buildLandingRootHtml(
   return renderSiteDocument({
     basePath: options.basePath,
     title: copy.title,
-    description: copy.heroLead,
+    description: copy.home.guest.heroLead,
     activeNav: localizedNavHome(lang),
     lang,
     currentPath,
@@ -452,7 +452,7 @@ function buildLandingRootHtml(
     shellClassName: "shell-bleed prototype-shell",
     minimalChrome: false,
     homeChrome: isLoggedIn ? "member" : "guest",
-    hideGlobalRecordLauncher: true,
+    hideGlobalRecordLauncher: false,
     body: `${landingTop.heroHtml}
 ${landingTop.dailyDashboardHtml}
 ${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}`,

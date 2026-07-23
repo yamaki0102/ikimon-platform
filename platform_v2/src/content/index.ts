@@ -153,6 +153,22 @@ type JsonSharedCopy = {
       revisit: string;
     };
   };
+  bottomNav: {
+    ariaLabel: string;
+    capture: string;
+    captureAria: string;
+    places: string;
+    records: string;
+    self: string;
+  };
+  cameraCapture: {
+    errorTitle: string;
+    errorBody: string;
+    permissionBody: string;
+    retry: string;
+    gallery: string;
+    cancel: string;
+  };
   quickNav: {
     ariaLabel: string;
     labels: Record<string, string>;
@@ -346,6 +362,38 @@ function hasByPath(source: JsonObject, key: string): boolean {
 function validateLandingCopy(value: unknown, path: string): asserts value is JsonLandingCopy {
   assertObject(value, path);
   assertString(value.title, `${path}.title`);
+  assertObject(value.home, `${path}.home`);
+  assertObject(value.home.guest, `${path}.home.guest`);
+  for (const key of [
+    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "categoriesTitle", "flowTitle",
+    "placesTitle", "placesBody", "privacyTitle", "privacyBody", "finalTitle", "finalCta",
+  ] as const) {
+    assertString(value.home.guest[key], `${path}.home.guest.${key}`);
+  }
+  for (const collection of ["categories", "flowItems"] as const) {
+    const items = value.home.guest[collection];
+    if (!Array.isArray(items)) throw new Error(`${path}.home.guest.${collection} must be an array`);
+    for (const [index, item] of items.entries()) {
+      assertObject(item, `${path}.home.guest.${collection}[${index}]`);
+      assertString(item.title, `${path}.home.guest.${collection}[${index}].title`);
+      assertString(item.body, `${path}.home.guest.${collection}[${index}].body`);
+    }
+  }
+  assertObject(value.home.member, `${path}.home.member`);
+  for (const key of [
+    "actionTitle", "actionLead", "primaryCta", "continuationTitle", "continuationBody",
+    "continuationCta", "recentTitle", "placesTitle", "nextTitle", "emptyTitle", "emptyBody",
+  ] as const) {
+    assertString(value.home.member[key], `${path}.home.member.${key}`);
+  }
+  assertObject(value.home.shared, `${path}.home.shared`);
+  for (const key of ["openRecord", "unknownRecord", "safePlaceFallback", "aiCandidateSuffix", "fromRecord", "multipleMedia"] as const) {
+    assertString(value.home.shared[key], `${path}.home.shared.${key}`);
+  }
+  assertObject(value.home.shared.media, `${path}.home.shared.media`);
+  for (const key of ["photo", "video", "audio", "memo"] as const) {
+    assertString(value.home.shared.media[key], `${path}.home.shared.media.${key}`);
+  }
   assertString(value.heroEyebrow, `${path}.heroEyebrow`);
   assertString(value.heroHeadingPlain, `${path}.heroHeadingPlain`);
   assertString(value.heroHeadingLine1, `${path}.heroHeadingLine1`);
@@ -502,6 +550,12 @@ function validateSharedNamespace(value: JsonObject): void {
   ] as const) {
     for (const [key, entry] of Object.entries(group)) {
       assertString(entry, `shared.shell.footer.${groupName}.${key}`);
+    }
+  }
+  for (const groupName of ["bottomNav", "cameraCapture"] as const) {
+    assertObject(value[groupName], `shared.${groupName}`);
+    for (const [key, entry] of Object.entries(value[groupName])) {
+      assertString(entry, `shared.${groupName}.${key}`);
     }
   }
   assertObject(value.quickNav, "shared.quickNav");
