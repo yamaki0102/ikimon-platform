@@ -11,6 +11,7 @@ function isFocusedHomeRequest(request: Request): boolean {
 }
 
 export function enforceCameraFirstHomeCtaHtml(html: string): string {
+  if (html.includes('data-home-contract="state-split-v1"')) return html;
   return html.replace(/<a\b[^>]*>/gu, (tag) => {
     if (!/\bclass=["'][^"']*\bprototype-guest-home-primary\b[^"']*["']/u.test(tag)) return tag;
 
@@ -50,7 +51,7 @@ export async function enforceCameraFirstHomeCta(request: Request, response: Resp
   headers.delete("etag");
   headers.delete("last-modified");
   headers.set("cache-control", "no-cache, no-store, must-revalidate");
-  headers.set("x-ikimon-home-capture-entry", "camera-first-v2");
+  headers.set("x-ikimon-home-capture-entry", html.includes('data-home-contract="state-split-v1"') ? "format-neutral-v1" : "camera-first-v2");
 
   return new Response(patched, {
     status: response.status,

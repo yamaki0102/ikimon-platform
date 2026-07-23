@@ -59,6 +59,8 @@ export type SiteShellOptions = {
    *  automatically so primary circulation stays in the header/side menu. */
   hideFooter?: boolean;
   minimalChrome?: boolean;
+  /** State-aware home header. Both safe shells are emitted so the Cloudflare materialized runtime can switch without JS. */
+  homeChrome?: "guest" | "member";
 };
 
 type ShellCopy = {
@@ -748,7 +750,7 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: S
   </div>`;
 }
 
-function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: string | undefined, availableLangs: SiteLang[], minimalChrome = false): string {
+function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: string | undefined, availableLangs: SiteLang[], minimalChrome = false, homeChrome?: "guest" | "member"): string {
   const copy = shellCopyFor(lang);
   const accountCopy = accountUiCopy(lang);
   const brandMarkSrc = BRAND_ASSETS.mark192;
@@ -772,6 +774,21 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   const profileIcon = siteAccountIcon(basePath, lang, "account", "/login?redirect=/profile", accountCopy.profile, "data-account-profile");
   const notificationIcon = siteNotificationMenu(basePath, lang);
   const settingsIcon = siteAccountIcon(basePath, lang, "settings", "/login?redirect=/profile/settings", accountCopy.settings, "data-account-settings");
+
+  if (homeChrome) {
+    const homeProfileIcon = siteAccountIcon(basePath, lang, "account", "/profile", accountCopy.profile, "data-account-profile");
+    return `<header class="site-header site-header-home" data-home-header data-home-auth-state="${homeChrome}">
+    <div class="site-header-inner">
+      <div class="site-brand-cluster">
+        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
+          <span class="brand-logo-lockup"><span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span><span class="brand-wordmark" aria-label="ikimon"><img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" /></span></span>
+        </a>
+      </div>
+      <div class="home-header-actions is-guest"><a class="home-header-login" href="${loginHref}">${escapeHtml(accountCopy.login)}</a></div>
+      <nav class="home-header-actions is-member" aria-label="${escapeHtml(accountCopy.accountNav)}">${notificationIcon}${homeProfileIcon}</nav>
+    </div>
+  </header>`;
+  }
 
   if (minimalChrome) {
     return `<header class="site-header site-header-minimal">
@@ -5015,16 +5032,17 @@ ${alternateLinks}
     .skip-link {
       position: absolute;
       left: 12px;
-      top: -48px;
+      top: 0;
+      transform: translateY(-150%);
       z-index: 100;
       padding: 10px 14px;
       border-radius: 10px;
       background: #0f172a;
       color: #ffffff;
       font-weight: 700;
-      transition: top .15s ease;
+      transition: transform .15s ease;
     }
-    .skip-link:focus-visible { top: 10px; }
+    .skip-link:focus-visible { top: 10px; transform: translateY(0); }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .site-shell.is-map-surface .site-search-desktop { display: none; }
     a:focus-visible,
@@ -6950,7 +6968,7 @@ ${alternateLinks}
   ${languageSuggestionHtml}
   ${installPromptHtml}
   <div class="${siteShellClassName}">
-    ${nav(options.basePath, lang, currentPath, options.activeNav, uiLangs, minimalChrome)}
+    ${nav(options.basePath, lang, currentPath, options.activeNav, uiLangs, minimalChrome, options.homeChrome)}
     <main id="main-content" class="${mainClassName}" tabindex="-1">
       ${hero(options.basePath, options.hero)}
       ${!options.hero && !/<h1[\s>]/.test(`${options.belowHeroHtml ?? ""}${options.body}`) ? `<h1 class="sr-only">${escapeHtml(srOnlyPageHeading)}</h1>` : ""}

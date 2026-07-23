@@ -478,6 +478,24 @@ test("site shell minimal chrome keeps guest top visually quiet", () => {
   assert.match(html, /width: min\(680px, calc\(100% - 48px\)\)/);
 });
 
+test("site shell home chrome emits state-aware guest and member controls without the global launcher", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Home",
+    body: '<h1>Home</h1>',
+    lang: "ja",
+    currentPath: "/ja/",
+    homeChrome: "member",
+    hideGlobalRecordLauncher: true,
+  });
+  assert.match(html, /class="site-header site-header-home"/);
+  assert.match(html, /data-home-auth-state="member"/);
+  assert.match(html, /home-header-actions is-guest/);
+  assert.match(html, /home-header-actions is-member/);
+  assert.doesNotMatch(html, /class="global-record-launcher"/);
+  assert.doesNotMatch(html, /class="desktop-side-nav"/);
+});
+
 test("site shell localizes the mobile global record launcher", () => {
   const html = renderSiteDocument({
     basePath: "",

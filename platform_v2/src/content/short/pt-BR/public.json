@@ -1,6 +1,28 @@
 {
   "landing": {
     "title": "ikimon — Enjoy Life | Curtir e registrar a natureza próxima",
+    "home": {
+      "guest": {
+        "heroHeading": "Um registro mostra como um lugar está agora.", "heroLead": "Seres vivos, paisagens e sons. Seus registros podem devolver pistas sobre nomes e o ambiente.",
+        "primaryCta": "Registrar", "secondaryCta": "Ver registros locais", "publicRecordsTitle": "Registros guardados na comunidade", "valueTitle": "O que você pode descobrir ao registrar",
+        "valueItems": [
+          { "title": "Encontrar pistas em uma foto", "body": "A IA organiza características visíveis de seres vivos e paisagens." },
+          { "title": "Entender o ambiente", "body": "Guarde pistas como gramados, água e construções visíveis na foto." },
+          { "title": "Comparar ao longo do tempo", "body": "Quando os registros de um lugar aumentam, estações e mudanças aparecem." }
+        ],
+        "privacyTitle": "Sua localização exata não é publicada", "privacyBody": "Escolha a visibilidade de cada registro. Casas e locais de espécies sensíveis recebem proteção maior.",
+        "finalTitle": "Comece com uma única foto", "finalCta": "Deixe seu primeiro registro"
+      },
+      "member": {
+        "actionTitle": "Guarde o que chamar sua atenção", "actionLead": "Deixe uma foto, vídeo, som ou nota e descubra depois um pouco mais sobre a natureza e o lugar.", "primaryCta": "Registrar",
+        "recentTitle": "Registro recente", "discoveriesTitle": "O que suas fotos revelaram", "nearbyTitle": "Registros guardados por perto", "processing": "Procurando pistas nesta foto"
+      },
+      "shared": {
+        "openRecord": "Ver registro", "unknownRecord": "Registro aguardando um nome", "safePlaceFallback": "Registro da comunidade", "aiCandidateSuffix": "pode ser", "fromRecord": "Deste registro", "multipleMedia": "itens de mídia",
+        "media": { "photo": "Foto", "video": "Vídeo", "audio": "Áudio", "memo": "Nota" },
+        "navigation": { "home": "Início", "record": "Registrar", "discover": "Descobrir", "profile": "Minha página" }
+      }
+    },
     "heroEyebrow": "Enjoy Life",
     "heroHeadingPlain": "A caminhada de sempre vira uma aventura.",
     "heroHeadingLine1": "A caminhada de sempre",

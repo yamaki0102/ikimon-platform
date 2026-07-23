@@ -138,7 +138,7 @@ echo "== Verify Cloudflare staging public routes =="
   grep -q '"buildMarker":"one-month-sprint-evidence-gate-20260705"' staging-runtime-version.json
   grep -q '"publicSafe":true' staging-runtime-version.json
   curl -fsS -D staging-root.headers "${STAGING_BASE_URL}/" -o staging-root.html
-  grep -q 'data-record-feed' staging-root.html
+  grep -q 'data-home-contract="state-split-v1"' staging-root.html
   ! grep -q 'id="map-explorer"' staging-root.html
   grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-root.headers
   curl -fsS -D staging-demo.headers "${STAGING_BASE_URL}/demo/place-feeling-tags" -o staging-demo.html

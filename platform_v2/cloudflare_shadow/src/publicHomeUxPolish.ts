@@ -1,10 +1,10 @@
 export const PUBLIC_HOME_UX_POLISH_PRESENTATION = "public-home-ux-v2";
 
-const HOME_PATHS = new Set(["/", "/home", "/ja", "/ja/", "/ja/home", "/en", "/en/", "/en/home"]);
+const HOME_PATHS = new Set(["/", "/home", "/ja", "/ja/", "/ja/home", "/en", "/en/", "/en/home", "/es", "/es/", "/es/home", "/pt-br", "/pt-br/", "/pt-br/home"]);
 const UX_STYLE_ID = "ikimon-public-home-ux-v2";
 const MAX_GUEST_RECORD_CARDS = 6;
 
-type HomeLang = "ja" | "en";
+type HomeLang = "ja" | "en" | "es" | "pt-br";
 
 const UX_STYLE = `<style id="${UX_STYLE_ID}">
   [data-public-home-install-suppressed],
@@ -61,11 +61,15 @@ function detectHomeLang(request: Request, html: string): HomeLang | null {
   try {
     const path = new URL(request.url).pathname.toLowerCase();
     if (path === "/en" || path === "/en/" || path === "/en/home") return "en";
+    if (path === "/es" || path === "/es/" || path === "/es/home") return "es";
+    if (path === "/pt-br" || path === "/pt-br/" || path === "/pt-br/home") return "pt-br";
     if (path === "/" || path === "/home" || path === "/ja" || path === "/ja/" || path === "/ja/home") return "ja";
   } catch {
     // Fall back to the document language below.
   }
   if (/<html\b[^>]*\blang=["']en(?:-[^"']+)?["']/iu.test(html)) return "en";
+  if (/<html\b[^>]*\blang=["']es(?:-[^"']+)?["']/iu.test(html)) return "es";
+  if (/<html\b[^>]*\blang=["']pt-BR["']/iu.test(html)) return "pt-br";
   if (/<html\b[^>]*\blang=["']ja(?:-[^"']+)?["']/iu.test(html)) return "ja";
   return null;
 }
@@ -185,6 +189,7 @@ function injectUxStyles(html: string): string {
 
 export function applyPublicHomeUxPolish(html: string, lang: HomeLang): string {
   let polished = suppressPublicHomeInstallPrompt(html);
+  if (polished.includes('data-home-contract="state-split-v1"')) return polished;
   polished = removeGuestHeroGuide(polished);
   polished = rewriteHomeCopy(polished, lang);
   polished = connectTrustTextToActions(polished);
@@ -215,7 +220,7 @@ export async function polishPublicHomeUx(request: Request, response: Response): 
   headers.delete("etag");
   headers.delete("last-modified");
   headers.set("cache-control", "no-cache, no-store, must-revalidate");
-  headers.set("x-ikimon-home-ux-polish", PUBLIC_HOME_UX_POLISH_PRESENTATION);
+  headers.set("x-ikimon-home-ux-polish", html.includes('data-home-contract="state-split-v1"') ? "state-split-pass-through-v1" : PUBLIC_HOME_UX_POLISH_PRESENTATION);
 
   return new Response(polished, {
     status: response.status,

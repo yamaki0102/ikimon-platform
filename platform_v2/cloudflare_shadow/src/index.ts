@@ -999,7 +999,16 @@ interface OwnerHomeRecordRow {
   note: string | null;
   visibility: string | null;
   public_derivative_key: string | null;
+  ai_assessment_status?: string | null;
+  ai_request_status?: string | null;
+  ai_candidate_label?: string | null;
 }
+
+type OwnerHomeRecordItem = ReturnType<typeof publicMapObservationItem> & {
+  aiAssessmentStatus: string | null;
+  aiCandidateLabel: string | null;
+  ownerVisibility: string;
+};
 
 interface PublicDetailRow extends PublicMapRow {
   note: string | null;
@@ -23532,7 +23541,139 @@ async function injectRecentObservationRecords(html: string, url: URL, env: Env):
   return `${section}${html}`;
 }
 
+type StateHomeLang = "ja" | "en" | "es" | "pt-br";
+
+function stateHomeCopy(lang: StateHomeLang) {
+  const all = {
+    ja: { publicRecords: "地域に残っている記録", recent: "最近の記録", discoveries: "写真からわかったこと", nearby: "近くで残された記録", open: "記録を見る", unknown: "名前を調べている記録", safePlace: "地域の記録", candidate: "かもしれません", from: "この記録から", processing: "写真からわかることを調べています", photo: "写真", video: "動画", audio: "音声", memo: "メモ" },
+    en: { publicRecords: "Records from the community", recent: "Recent record", discoveries: "What your photos revealed", nearby: "Records left nearby", open: "Open record", unknown: "Record awaiting a name", safePlace: "Community record", candidate: "may be the match", from: "From this record", processing: "Looking for clues in this photo", photo: "Photo", video: "Video", audio: "Audio", memo: "Note" },
+    es: { publicRecords: "Registros de la comunidad", recent: "Registro reciente", discoveries: "Lo que mostraron tus fotos", nearby: "Registros guardados cerca", open: "Ver registro", unknown: "Registro pendiente de nombre", safePlace: "Registro de la comunidad", candidate: "podría ser", from: "De este registro", processing: "Buscando pistas en esta foto", photo: "Foto", video: "Video", audio: "Audio", memo: "Nota" },
+    "pt-br": { publicRecords: "Registros da comunidade", recent: "Registro recente", discoveries: "O que suas fotos revelaram", nearby: "Registros guardados por perto", open: "Ver registro", unknown: "Registro aguardando um nome", safePlace: "Registro da comunidade", candidate: "pode ser", from: "Deste registro", processing: "Procurando pistas nesta foto", photo: "Foto", video: "Vídeo", audio: "Áudio", memo: "Nota" }
+  } as const;
+  return all[lang];
+}
+
+function replaceStateHomeMarker(html: string, kind: "slot" | "section", name: string, content: string): string {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`<!-- ikimon-home-${kind}:${escapedName}:start -->[\\s\\S]*?<!-- ikimon-home-${kind}:${escapedName}:end -->`);
+  return html.replace(pattern, `<!-- ikimon-home-${kind}:${name}:start -->${content}<!-- ikimon-home-${kind}:${name}:end -->`);
+}
+
+function setStateHomeAuth(html: string, member: boolean): string {
+  const state = member ? "member" : "guest";
+  let next = html.replace(/data-home-auth-state="(?:guest|member)"/g, `data-home-auth-state="${state}"`);
+  const setView = (view: "guest" | "member", active: boolean) => {
+    const pattern = new RegExp(`(<div class="home-state-view is-${view}" data-home-view="${view}")([^>]*)(>)`);
+    next = next.replace(pattern, (_match, start: string, attrs: string, end: string) => {
+      const clean = attrs.replace(/\s+hidden(?:="")?/g, "");
+      return `${start}${clean}${active ? "" : " hidden"}${end}`;
+    });
+  };
+  setView("guest", !member);
+  setView("member", member);
+  return next;
+}
+
+function stateHomeObservedAt(value: string, lang: StateHomeLang): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  const locale = lang === "pt-br" ? "pt-BR" : lang === "ja" ? "ja-JP" : lang === "es" ? "es-ES" : "en-US";
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(date);
+}
+
+function stateHomeMedia(item: ReturnType<typeof publicMapObservationItem>, lang: StateHomeLang, priority = false): string {
+  const copy = stateHomeCopy(lang);
+  const kind = item.mediaKind === "record" ? "memo" : item.mediaKind;
+  const label = copy[kind];
+  if (item.photoUrl) {
+    return `<span class="home-card-media is-${escapeHtml(kind)}"><img src="${escapeHtml(item.photoUrl)}" alt="" width="680" height="510" loading="${priority ? "eager" : "lazy"}" decoding="async"${priority ? ' fetchpriority="high"' : ""}>${kind === "video" ? `<span class="home-media-affordance"><span aria-hidden="true">▶</span><span>${escapeHtml(label)}</span></span>` : ""}</span>`;
+  }
+  return `<span class="home-card-media is-empty is-${escapeHtml(kind)}"><span class="home-empty-media-icon" aria-hidden="true">${kind === "audio" ? "◖)))" : kind === "video" ? "▶" : "▤"}</span><span>${escapeHtml(label)}</span></span>`;
+}
+
+function stateHomeTitle(item: ReturnType<typeof publicMapObservationItem>, lang: StateHomeLang): string {
+  const copy = stateHomeCopy(lang);
+  const value = normalizeOptionalText(item.displayName);
+  return !value || item.isAwaitingId ? copy.unknown : value;
+}
+
+function stateHomePublicCard(item: ReturnType<typeof publicMapObservationItem>, lang: StateHomeLang): string {
+  const copy = stateHomeCopy(lang);
+  const title = stateHomeTitle(item, lang);
+  const place = normalizeOptionalText(item.publicAreaLabel) ?? copy.safePlace;
+  const meta = [place, stateHomeObservedAt(item.observedAt, lang)].filter(Boolean).join(" · ");
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  return `<a class="home-public-card" href="${prefix}/observations/${encodeURIComponent(item.visitId)}" data-home-record-id="${escapeHtml(item.visitId)}">${stateHomeMedia(item, lang)}<span class="home-card-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(meta)}</span></span></a>`;
+}
+
+function stateHomeDiscovery(item: OwnerHomeRecordItem, lang: StateHomeLang): string | null {
+  const copy = stateHomeCopy(lang);
+  const candidate = normalizeOptionalText(item.aiCandidateLabel);
+  if (candidate) return `${candidate} ${copy.candidate}`;
+  return item.isAwaitingId ? null : normalizeOptionalText(item.displayName);
+}
+
+function stateHomeRecentCard(item: OwnerHomeRecordItem, lang: StateHomeLang, integratedDiscovery: string | null): string {
+  const copy = stateHomeCopy(lang);
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  const recordHref = `${prefix}/observations/${encodeURIComponent(item.visitId)}`;
+  const processing = /queued|processing|running|pending|requested/i.test(item.aiAssessmentStatus ?? "");
+  return `<article class="home-recent-card" data-home-record-id="${escapeHtml(item.visitId)}"><a class="home-recent-media-link" href="${recordHref}">${stateHomeMedia(item, lang, true)}</a><div class="home-recent-copy"><h3>${escapeHtml(stateHomeTitle(item, lang))}</h3><p class="home-record-date">${escapeHtml(stateHomeObservedAt(item.observedAt, lang))}</p>${integratedDiscovery ? `<p class="home-record-insight"><span>${escapeHtml(copy.from)}</span><strong>${escapeHtml(integratedDiscovery)}</strong></p>` : ""}${processing ? `<p class="home-record-processing" role="status">${escapeHtml(copy.processing)}</p>` : ""}<a class="home-text-link" href="${recordHref}">${escapeHtml(copy.open)}</a></div></article>`;
+}
+
+function stateHomeDiscoveryCard(item: OwnerHomeRecordItem, lang: StateHomeLang, discovery: string): string {
+  const copy = stateHomeCopy(lang);
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  return `<a class="home-discovery-card" href="${prefix}/observations/${encodeURIComponent(item.visitId)}" data-home-record-id="${escapeHtml(item.visitId)}">${stateHomeMedia(item, lang)}<span class="home-card-copy"><strong>${escapeHtml(discovery)}</strong><span>${escapeHtml(copy.from)}</span></span></a>`;
+}
+
+export async function injectStateSplitHome(html: string, session: SessionSnapshot | null, url: URL, env: Env): Promise<string> {
+  const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
+  const lang: StateHomeLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
+  const member = Boolean(session && !session.banned);
+  const publicItems = await recentPublicRecordCards(env, 16).catch(() => []);
+  let next = setStateHomeAuth(html, member);
+  if (publicItems.length > 0) {
+    const heroItem = publicItems.find((item) => Boolean(item.photoUrl));
+    if (heroItem) {
+      const heroVisual = `<div class="home-guest-hero-visual">${stateHomeMedia(heroItem, lang, true)}</div>`;
+      next = replaceStateHomeMarker(next, "slot", "guest-hero", heroVisual);
+      next = next.replace('<section class="home-guest-hero">', '<section class="home-guest-hero has-visual">');
+    }
+    const guestCards = `<div class="home-horizontal-list" role="region" aria-label="${escapeHtml(stateHomeCopy(lang).publicRecords)}">${publicItems.slice(0, 8).map((item) => stateHomePublicCard(item, lang)).join("")}</div>`;
+    next = replaceStateHomeMarker(next, "slot", "guest-public", guestCards);
+  }
+  if (!member || !session) return next;
+
+  const ownerItems = await ownerHomeRecordCards(session.userId, env, 24).catch(() => []);
+  const recent = ownerItems[0] ?? null;
+  const separateDiscovery = ownerItems.slice(1).find((item) => Boolean(stateHomeDiscovery(item, lang))) ?? null;
+  const recentDiscovery = recent ? stateHomeDiscovery(recent, lang) : null;
+  const copy = stateHomeCopy(lang);
+  const recentSection = recent
+    ? `<section class="home-section home-recent-section"><h2>${escapeHtml(copy.recent)}</h2>${stateHomeRecentCard(recent, lang, separateDiscovery ? null : recentDiscovery)}</section>`
+    : "";
+  next = replaceStateHomeMarker(next, "section", "member-recent", recentSection);
+
+  const discovery = separateDiscovery ? stateHomeDiscovery(separateDiscovery, lang) : null;
+  const discoverySection = separateDiscovery && discovery
+    ? `<section class="home-section home-discovery-section"><h2>${escapeHtml(copy.discoveries)}</h2>${stateHomeDiscoveryCard(separateDiscovery, lang, discovery)}</section>`
+    : "";
+  next = replaceStateHomeMarker(next, "section", "member-discovery", discoverySection);
+
+  const ownerIds = new Set(ownerItems.map((item) => item.visitId));
+  const nearby = publicItems.filter((item) => !ownerIds.has(item.visitId)).slice(0, 8);
+  const nearbySection = nearby.length > 0
+    ? `<section class="home-section home-nearby-section"><h2>${escapeHtml(copy.nearby)}</h2><div class="home-horizontal-list" role="region" aria-label="${escapeHtml(copy.nearby)}">${nearby.map((item) => stateHomePublicCard(item, lang)).join("")}</div></section>`
+    : "";
+  next = replaceStateHomeMarker(next, "section", "member-nearby", nearbySection);
+  return next;
+}
+
 async function injectHomeObservationRecords(html: string, session: SessionSnapshot | null, url: URL, env: Env): Promise<string> {
+  if (html.includes('data-home-contract="state-split-v1"')) {
+    return injectStateSplitHome(html, session, url, env);
+  }
   html = injectCompactHeaderMenu(html, url, session);
   if (!html.includes("data-record-feed")) return html;
   const ownerItems = session && !session.banned
@@ -23895,9 +24036,16 @@ async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<Retu
   return uniqueItems;
 }
 
-async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
-  const rows = await env.OBS_DB.prepare(
+async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120): Promise<OwnerHomeRecordItem[]> {
+  let rows;
+  try {
+    rows = await env.OBS_DB.prepare(
     `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,
+            art.ai_assessment_status,
+            (SELECT rr.request_state FROM observation_reassessment_requests rr
+              WHERE rr.observation_id = o.observation_id AND rr.request_kind = 'standard'
+              ORDER BY rr.updated_at DESC LIMIT 1) AS ai_request_status,
+            COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
             (
               SELECT a.public_derivative_key
                 FROM asset_ledger a
@@ -23915,19 +24063,43 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
                LIMIT 1
             ) AS public_derivative_key
        FROM observations o
+       LEFT JOIN observation_ai_review_targets art ON art.occurrence_id = 'occ:' || o.observation_id || ':0'
       WHERE o.owner_user_id = ?
         AND o.emergency_hidden = 0
       ORDER BY o.observed_at DESC
       LIMIT ?`
   ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
-
-  return rows.results.map((row) => publicMapObservationItem({
-    observation_id: row.observation_id,
-    public_cell: "",
-    observed_at: row.observed_at,
-    taxon_label: row.taxon_label ?? row.note,
-    asset_count: row.public_derivative_key ? 1 : 0
-  }, row.public_derivative_key ? publicMediaUrl(row.public_derivative_key) : null));
+  } catch (error) {
+    if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
+    rows = await env.OBS_DB.prepare(
+      `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,
+              (
+                SELECT a.public_derivative_key FROM asset_ledger a
+                 WHERE a.observation_id = o.observation_id
+                   AND a.processing_state = 'uploaded'
+                   AND a.public_derivative_key IS NOT NULL
+                   AND a.exif_scrub_state = 'scrubbed'
+                   AND a.mime LIKE 'image/%'
+                 ORDER BY COALESCE(a.public_ready_at, a.uploaded_at, '') DESC LIMIT 1
+              ) AS public_derivative_key
+         FROM observations o
+        WHERE o.owner_user_id = ? AND o.emergency_hidden = 0
+        ORDER BY o.observed_at DESC LIMIT ?`
+    ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
+  }
+  const mediaKinds = await queryPublicMapMediaKinds(env).catch(() => new Map<string, HomeRecordMediaKind>());
+  return rows.results.map((row) => ({
+    ...publicMapObservationItem({
+      observation_id: row.observation_id,
+      public_cell: "",
+      observed_at: row.observed_at,
+      taxon_label: row.taxon_label ?? row.note,
+      asset_count: row.public_derivative_key ? 1 : 0
+    }, row.public_derivative_key ? publicMediaUrl(row.public_derivative_key) : null, mediaKinds.get(row.observation_id) ?? (row.public_derivative_key ? "photo" : "record")),
+    aiAssessmentStatus: row.ai_assessment_status ?? row.ai_request_status ?? null,
+    aiCandidateLabel: normalizeOptionalText(row.ai_candidate_label),
+    ownerVisibility: row.visibility ?? "private"
+  }));
 }
 
 function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>): string {
