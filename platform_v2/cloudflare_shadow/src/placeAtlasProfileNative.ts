@@ -9,6 +9,14 @@ import {
   buildPublicCellGeometry,
   parsePublicCellId,
 } from "../../src/services/publicLocation";
+import {
+  classifyOsmPlaceKind,
+  collectOsmPlaceNames,
+  defaultPlacePolicy,
+  initialCanonicalPlaceId,
+  type PlaceKind,
+  type PlacePolicyProjection,
+} from "../../src/services/placeDomain";
 
 type D1Value = string | number | null;
 
@@ -109,6 +117,11 @@ type AssetPhotoRow = {
   public_derivative_key: string;
 };
 
+type RecordThemeAssertionRow = {
+  record_id: string;
+  theme: string;
+};
+
 type PlaceMemoryRow = {
   entry_id: string;
   visit_id: string;
@@ -139,12 +152,38 @@ type OverpassElement = {
 
 type ResolvedOsmPlace = {
   name: string;
-  type: string;
+  type: PlaceKind;
+  aliases: string[];
+  multilingualNames: Record<string, string>;
+  policy: PlacePolicyProjection;
   description: string | null;
   geometry: PlaceGeometry;
   bbox: [number, number, number, number];
   center: { lat: number; lng: number };
   tags: Record<string, string>;
+};
+
+type RegisteredPlaceProjection = {
+  placeId: string;
+  canonicalName: string;
+  aliases: string[];
+  localityLabel: string | null;
+  placeKind: PlaceKind;
+  verificationStatus: "unverified" | "source_verified" | "administrator_verified";
+  officialStatus: "official" | "unofficial" | "unknown";
+  description: string | null;
+  boundary: {
+    geometry: PlaceGeometry;
+    bbox: [number, number, number, number];
+    center: { lat: number; lng: number };
+    confidence: number;
+    precision: "exact" | "approximate" | "unknown";
+  } | null;
+  policy: PlacePolicyProjection;
+  facilities: unknown[];
+  activities: unknown[];
+  stories: unknown[];
+  sourceReferences: NonNullable<PlaceAtlasProfile["provenance"]["sourceReferences"]>;
 };
 
 const SNAPSHOT_KEY = "public-map:v1:global";
@@ -170,6 +209,16 @@ function cleanText(value: unknown, maxLength = 240): string | null {
   if (typeof value !== "string") return null;
   const clean = value.replace(/\s+/g, " ").trim();
   return clean ? clean.slice(0, maxLength) : null;
+}
+
+function registeredVerificationStatus(value: unknown): RegisteredPlaceProjection["verificationStatus"] {
+  if (value === "administrator_verified") return "administrator_verified";
+  if (value === "verified" || value === "source_verified") return "source_verified";
+  return "unverified";
+}
+
+function registeredOfficialStatus(value: unknown): RegisteredPlaceProjection["officialStatus"] {
+  return value === "official" || value === "unofficial" ? value : "unknown";
 }
 
 function safeJsonRecord(value: string | null | undefined): Record<string, unknown> {
@@ -469,6 +518,49 @@ async function loadPhotoUrls(
   return output;
 }
 
+async function loadAcceptedRecordThemes(
+  db: PlaceAtlasD1Database,
+  recordIds: string[],
+): Promise<Map<string, NonNullable<PlaceAtlasSourceRecord["themes"]>>> {
+  const output = new Map<string, NonNullable<PlaceAtlasSourceRecord["themes"]>>();
+  for (let start = 0; start < recordIds.length; start += MAX_QUERY_BINDINGS) {
+    const chunk = recordIds.slice(start, start + MAX_QUERY_BINDINGS);
+    if (chunk.length === 0) continue;
+    try {
+      const rows = await db.prepare(
+        `SELECT record_id, theme
+           FROM record_theme_assertions
+          WHERE record_id IN (${chunk.map(() => "?").join(", ")})
+            AND assertion_status = 'accepted'
+          ORDER BY confidence DESC, updated_at DESC`
+      ).bind(...chunk).all<RecordThemeAssertionRow>();
+      for (const row of rows.results) {
+        const theme = cleanText(row.theme, 32);
+        if (!theme || ![
+          "nature",
+          "scenery",
+          "daily_life",
+          "facility",
+          "activity",
+          "history",
+          "audio_visual",
+          "insight",
+          "unclassified",
+        ].includes(theme)) continue;
+        const current = output.get(row.record_id) ?? [];
+        if (!current.includes(theme as NonNullable<PlaceAtlasSourceRecord["themes"]>[number])) {
+          current.push(theme as NonNullable<PlaceAtlasSourceRecord["themes"]>[number]);
+        }
+        output.set(row.record_id, current);
+      }
+    } catch (error) {
+      if (isMissingOptionalTable(error, "record_theme_assertions")) return new Map();
+      throw error;
+    }
+  }
+  return output;
+}
+
 function isPublicVisit(row: VisitLocationRow): boolean {
   return !row.public_visibility || row.public_visibility === "public";
 }
@@ -515,7 +607,11 @@ function safeSnapshotPhoto(row: PublicSnapshotRow, photos: Map<string, string>):
   return photos.get(row.visit_id) ?? photos.get(row.occurrence_id) ?? null;
 }
 
-function sourceRecords(rows: PublicSnapshotRow[], photos: Map<string, string>): PlaceAtlasSourceRecord[] {
+function sourceRecords(
+  rows: PublicSnapshotRow[],
+  photos: Map<string, string>,
+  themes: Map<string, NonNullable<PlaceAtlasSourceRecord["themes"]>>,
+): PlaceAtlasSourceRecord[] {
   return rows.map((row) => ({
     recordId: row.visit_id,
     observedAt: cleanText(row.observed_at, 64),
@@ -524,6 +620,10 @@ function sourceRecords(rows: PublicSnapshotRow[], photos: Map<string, string>): 
     mediaUrl: safeSnapshotPhoto(row, photos),
     mediaKind: safeSnapshotPhoto(row, photos) ? "photo" : "record",
     taxonGroup: cleanText(row.taxon_group, 64),
+    themes: [
+      ...(themes.get(row.visit_id) ?? []),
+      ...(themes.get(row.occurrence_id) ?? []),
+    ].filter((theme, index, values) => values.indexOf(theme) === index),
     identificationStatus: row.is_ai_candidate === 1
       ? "ai_candidate"
       : row.is_awaiting_id === 1
@@ -544,6 +644,19 @@ function fieldType(field: FieldDetailRow): string {
   if (field.source === "osm_park") return "park";
   if (field.source.includes("farm")) return "farm";
   return cleanText(field.admin_level, 64) ?? cleanText(field.source, 64) ?? "field";
+}
+
+function fieldPlaceKind(field: FieldDetailRow): PlaceKind {
+  const type = fieldType(field);
+  if ([
+    "park",
+    "school",
+    "farm",
+    "nature_area",
+    "administrative_area",
+  ].includes(type)) return type as PlaceKind;
+  if (type === "protected_area" || type === "nature_symbiosis_site") return "nature_area";
+  return "other_named_area";
 }
 
 function publicPolicyMinimum(row: FieldPolicyRow | null): number {
@@ -607,51 +720,36 @@ function guideForScope(
   };
 }
 
-async function loadUnlockedMemories(
+async function loadPublicPlaceMemories(
   db: PlaceAtlasD1Database,
-  viewerUserId: string | null | undefined,
   publicCell: string,
 ): Promise<unknown[]> {
-  if (!viewerUserId || !publicCell) return [];
+  if (!publicCell) return [];
   try {
-    const access = await db.prepare(
-      `SELECT EXISTS(
-         SELECT 1
-           FROM place_memory_entries
-          WHERE user_id = ?
-            AND cell_id = ?
-            AND deleted_at IS NULL
-       ) AS has_access`
-    ).bind(viewerUserId, publicCell).first<{ has_access: number | boolean }>();
-    if (access?.has_access !== 1 && access?.has_access !== true) return [];
     const rows = await db.prepare(
-      `SELECT entry_id, visit_id, occurrence_id, user_id, cell_id,
+      `SELECT entry_id, visit_id, occurrence_id, cell_id,
               memory_tags_json, tags_public, echo_note, photo_echo_visibility,
-              moderation_status, updated_at
+              moderation_status, updated_at, public_attribution_mode
          FROM place_memory_entries pme
         WHERE pme.cell_id = ?
           AND pme.deleted_at IS NULL
           AND pme.moderation_status = 'visible'
+          AND pme.public_place_opt_in = 1
+          AND pme.public_place_moderation_status = 'approved'
           AND EXISTS (
             SELECT 1
               FROM production_import_visits visit
              WHERE visit.visit_id = pme.visit_id
                AND COALESCE(visit.public_visibility, 'public') = 'public'
           )
-          AND NOT EXISTS (
-            SELECT 1
-              FROM place_memory_hidden_entries hidden
-             WHERE hidden.entry_id = pme.entry_id
-               AND hidden.user_id = ?
-          )
-        ORDER BY pme.updated_at DESC
+        ORDER BY pme.public_place_reviewed_at DESC, pme.updated_at DESC
         LIMIT 12`
-    ).bind(publicCell, viewerUserId).all<PlaceMemoryRow>();
+    ).bind(publicCell).all<PlaceMemoryRow & { public_attribution_mode?: string }>();
     return rows.results.map((row) => {
       let tags: string[] = [];
       try {
         const parsed = JSON.parse(row.memory_tags_json);
-        if (Array.isArray(parsed) && (row.tags_public === 1 || row.user_id === viewerUserId)) {
+        if (Array.isArray(parsed) && row.tags_public === 1) {
           tags = parsed.filter((value): value is string => typeof value === "string").slice(0, 6);
         }
       } catch {
@@ -664,13 +762,290 @@ async function loadUnlockedMemories(
         echoNote: cleanText(row.echo_note, 80),
         observedYearMonth: row.updated_at.slice(0, 7),
         photoState: row.photo_echo_visibility,
-        ownEntry: row.user_id === viewerUserId,
+        sourceLabel: "利用者の地域記憶",
+        moderationStatus: "approved",
+        attributionMode: row.public_attribution_mode === "display_name" ? "display_name" : "anonymous",
       };
     });
   } catch (error) {
-    if (isMissingOptionalTable(error, "place_memory_entries")) return [];
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      isMissingOptionalTable(error, "place_memory_entries") ||
+      /no such column: .*public_place_/i.test(message)
+    ) return [];
     throw error;
   }
+}
+
+async function loadRegisteredPlaceByOsmRef(
+  db: PlaceAtlasD1Database,
+  osmType: "way" | "relation",
+  osmId: number,
+  generatedAt: string,
+): Promise<RegisteredPlaceProjection | null> {
+  type PlaceRow = {
+    place_id: string;
+    canonical_name: string;
+    locality_label: string | null;
+    place_kind: PlaceKind;
+    verification_status: string;
+    official_status: string;
+    public_summary: string | null;
+    recording_policy: PlacePolicyProjection["recordingPolicy"] | null;
+    public_location_mode: PlacePolicyProjection["publicLocationMode"] | null;
+    contribution_cta_mode: PlacePolicyProjection["contributionCtaMode"] | null;
+    official_rule_url: string | null;
+    policy_verification_status: string | null;
+  };
+  try {
+    const row = await db.prepare(
+      `SELECT p.place_id, p.canonical_name, p.locality_label, p.place_kind,
+              p.verification_status, p.official_status, p.public_summary,
+              pp.recording_policy, pp.public_location_mode, pp.contribution_cta_mode,
+              pp.official_rule_url, pp.verification_status AS policy_verification_status
+         FROM place_source_references ps
+         JOIN places p ON p.place_id = ps.place_id
+         LEFT JOIN place_policies pp
+           ON pp.place_policy_id = (
+             SELECT place_policy_id
+               FROM place_policies
+              WHERE place_id = p.place_id
+                AND valid_to IS NULL
+              ORDER BY last_checked_at DESC, updated_at DESC
+              LIMIT 1
+           )
+        WHERE ps.source_type = 'osm'
+          AND ps.source_id = ?
+          AND ps.valid_to IS NULL
+          AND ps.superseded_by_source_reference_id IS NULL
+          AND p.public_profile_status = 'published'
+          AND p.superseded_by_place_id IS NULL
+        LIMIT 1`
+    ).bind(`${osmType}:${osmId}`).first<PlaceRow>();
+    if (!row) return null;
+
+    const [aliasRows, sourceRows, boundaryRow, facilityRows, contentRows] = await Promise.all([
+      db.prepare(
+        `SELECT alias
+           FROM place_aliases
+          WHERE place_id = ?
+            AND valid_to IS NULL
+          ORDER BY confidence DESC, alias`
+      ).bind(row.place_id).all<{ alias: string }>(),
+      db.prepare(
+        `SELECT source_type, source_id, source_url, source_confidence,
+                verification_status, last_checked_at
+           FROM place_source_references
+          WHERE place_id = ?
+            AND valid_to IS NULL
+            AND superseded_by_source_reference_id IS NULL
+          ORDER BY precedence_rank ASC, source_confidence DESC`
+      ).bind(row.place_id).all<{
+        source_type: string;
+        source_id: string;
+        source_url: string | null;
+        source_confidence: number;
+        verification_status: string;
+        last_checked_at: string | null;
+      }>(),
+      db.prepare(
+        `SELECT boundary_geojson, confidence, precision_kind,
+                bbox_west, bbox_south, bbox_east, bbox_north
+           FROM place_boundaries
+          WHERE place_id = ?
+            AND is_primary = 1
+            AND valid_to IS NULL
+            AND superseded_by_boundary_id IS NULL
+            AND validation_state IN ('valid', 'verified')
+          ORDER BY boundary_version DESC
+          LIMIT 1`
+      ).bind(row.place_id).first<{
+        boundary_geojson: string;
+        confidence: number;
+        precision_kind: string;
+        bbox_west: number | null;
+        bbox_south: number | null;
+        bbox_east: number | null;
+        bbox_north: number | null;
+      }>(),
+      db.prepare(
+        `SELECT pf.facility_kind, pf.label, pf.availability_status, pf.confidence,
+                pf.last_checked_at, ps.source_type, ps.source_url
+           FROM place_facilities pf
+           JOIN place_source_references ps ON ps.source_reference_id = pf.source_reference_id
+          WHERE pf.place_id = ?
+            AND pf.valid_to IS NULL
+          ORDER BY pf.confidence DESC, pf.facility_kind`
+      ).bind(row.place_id).all<{
+        facility_kind: string;
+        label: string | null;
+        availability_status: string;
+        confidence: number;
+        last_checked_at: string | null;
+        source_type: string;
+        source_url: string | null;
+      }>(),
+      db.prepare(
+        `SELECT pci.content_kind, pci.title, pci.body, pci.starts_at, pci.ends_at,
+                pci.last_checked_at, ps.source_type, ps.source_url, ps.verification_status
+           FROM place_content_items pci
+           LEFT JOIN place_source_references ps ON ps.source_reference_id = pci.source_reference_id
+          WHERE pci.place_id = ?
+            AND pci.content_status = 'published'
+          ORDER BY COALESCE(pci.starts_at, pci.created_at) DESC
+          LIMIT 24`
+      ).bind(row.place_id).all<{
+        content_kind: string;
+        title: string;
+        body: string | null;
+        starts_at: string | null;
+        ends_at: string | null;
+        last_checked_at: string | null;
+        source_type: string | null;
+        source_url: string | null;
+        verification_status: string | null;
+      }>(),
+    ]);
+    const now = Date.parse(generatedAt);
+    const content = contentRows.results.map((item) => {
+      const starts = item.starts_at ? Date.parse(item.starts_at) : NaN;
+      const ends = item.ends_at ? Date.parse(item.ends_at) : NaN;
+      const temporalState = Number.isFinite(ends) && ends < now
+        ? "ended"
+        : Number.isFinite(starts) && starts > now
+          ? "upcoming"
+          : Number.isFinite(starts) || Number.isFinite(ends)
+            ? "active"
+            : "undated";
+      return {
+        kind: cleanText(item.content_kind, 48),
+        title: cleanText(item.title, 160),
+        body: cleanText(item.body, 600),
+        startsAt: item.starts_at,
+        endsAt: item.ends_at,
+        temporalState,
+        source: item.source_type
+          ? {
+              type: item.source_type,
+              url: item.source_url,
+              verificationStatus: item.verification_status ?? "unverified",
+              lastCheckedAt: item.last_checked_at,
+            }
+          : null,
+      };
+    });
+    const placeKind = row.place_kind;
+    const recordingPolicy = row.recording_policy ?? "check_rules";
+    const ctaMode = row.contribution_cta_mode
+      ?? (recordingPolicy === "permission_required" || recordingPolicy === "prohibited"
+        ? "suppressed"
+        : recordingPolicy === "allowed"
+          ? "record"
+          : "check_rules");
+    const boundaryGeometry = safeGeometry(boundaryRow?.boundary_geojson);
+    const computedBbox = boundaryGeometry ? geometryBbox(boundaryGeometry) : null;
+    const storedBbox = boundaryRow
+      && [boundaryRow.bbox_west, boundaryRow.bbox_south, boundaryRow.bbox_east, boundaryRow.bbox_north]
+        .every((value) => typeof value === "number" && Number.isFinite(value))
+      ? [
+          boundaryRow.bbox_west!,
+          boundaryRow.bbox_south!,
+          boundaryRow.bbox_east!,
+          boundaryRow.bbox_north!,
+        ] as [number, number, number, number]
+      : null;
+    const boundaryBbox = storedBbox ?? computedBbox;
+    return {
+      placeId: row.place_id,
+      canonicalName: row.canonical_name,
+      aliases: aliasRows.results.map((item) => item.alias).filter(Boolean).slice(0, 32),
+      localityLabel: row.locality_label,
+      placeKind,
+      verificationStatus: registeredVerificationStatus(row.verification_status),
+      officialStatus: registeredOfficialStatus(row.official_status),
+      description: cleanText(row.public_summary, 600),
+      boundary: boundaryGeometry && boundaryBbox
+        ? {
+            geometry: boundaryGeometry,
+            bbox: boundaryBbox,
+            center: {
+              lat: (boundaryBbox[1] + boundaryBbox[3]) / 2,
+              lng: (boundaryBbox[0] + boundaryBbox[2]) / 2,
+            },
+            confidence: Number(boundaryRow?.confidence ?? 0.5),
+            precision: boundaryRow?.precision_kind === "exact" || boundaryRow?.precision_kind === "approximate"
+              ? boundaryRow.precision_kind
+              : "unknown",
+          }
+        : null,
+      policy: {
+        placeVisibility: "public",
+        recordingPolicy,
+        publicLocationMode: row.public_location_mode ?? "place",
+        contributionCtaMode: ctaMode,
+        ruleSource: row.official_rule_url ? "official" : "default",
+        ruleUrl: row.official_rule_url,
+        reason: row.policy_verification_status === "verified"
+          ? "verified_place_policy"
+          : "recording_rules_unverified",
+      },
+      facilities: facilityRows.results.map((item) => ({
+        kind: cleanText(item.facility_kind, 48),
+        label: cleanText(item.label, 100) ?? cleanText(item.facility_kind, 48),
+        availabilityStatus: item.availability_status,
+        confidence: item.confidence,
+        lastCheckedAt: item.last_checked_at,
+        caution: "availability_not_guaranteed",
+        source: {
+          type: item.source_type,
+          url: item.source_url,
+        },
+      })),
+      activities: content.filter((item) =>
+        item.kind === "activity" || item.kind === "event" || item.kind === "rally"
+      ),
+      stories: content.filter((item) =>
+        item.kind === "history" || item.kind === "story"
+      ),
+      sourceReferences: sourceRows.results.map((source) => ({
+        sourceType: source.source_type,
+        sourceId: source.source_id,
+        sourceUrl: source.source_url,
+        confidence: source.source_confidence,
+        verificationStatus: source.verification_status,
+        lastCheckedAt: source.last_checked_at,
+      })),
+    };
+  } catch (error) {
+    if (
+      isMissingOptionalTable(error, "places")
+      || isMissingOptionalTable(error, "place_source_references")
+      || isMissingOptionalTable(error, "place_aliases")
+      || isMissingOptionalTable(error, "place_boundaries")
+      || isMissingOptionalTable(error, "place_policies")
+      || isMissingOptionalTable(error, "place_facilities")
+      || isMissingOptionalTable(error, "place_content_items")
+    ) return null;
+    throw error;
+  }
+}
+
+function registeredResolvedOsmPlace(
+  registered: RegisteredPlaceProjection | null,
+): ResolvedOsmPlace | null {
+  if (!registered?.boundary) return null;
+  return {
+    name: registered.canonicalName,
+    type: registered.placeKind,
+    aliases: registered.aliases,
+    multilingualNames: {},
+    policy: registered.policy,
+    description: registered.description,
+    geometry: registered.boundary.geometry,
+    bbox: registered.boundary.bbox,
+    center: registered.boundary.center,
+    tags: {},
+  };
 }
 
 function normalizeOsmRing(points: Array<{ lat: number; lon: number }> | undefined): number[][] | null {
@@ -712,17 +1087,12 @@ function osmGeometry(element: OverpassElement): PlaceGeometry | null {
     : { type: "MultiPolygon", coordinates: polygons };
 }
 
-function supportedOsmType(tags: Record<string, string>): string | null {
-  if (["park", "garden", "nature_reserve"].includes(tags.leisure ?? "")) return "park";
-  if (["school", "college", "university", "kindergarten"].includes(tags.amenity ?? "")) return "school";
-  if (["farmland", "farmyard", "orchard", "vineyard"].includes(tags.landuse ?? "")) return "farm";
-  if (tags.amenity === "community_centre") return "community";
-  if (["forest", "meadow", "recreation_ground"].includes(tags.landuse ?? "")) return "nature_area";
-  return null;
+function supportedOsmType(tags: Record<string, string>): PlaceKind | null {
+  return classifyOsmPlaceKind(tags);
 }
 
 function osmName(tags: Record<string, string>): string | null {
-  return cleanText(tags["name:ja"] ?? tags.name ?? tags.alt_name, 160);
+  return cleanText(collectOsmPlaceNames(tags).canonicalName, 160);
 }
 
 function osmDescription(tags: Record<string, string>): string | null {
@@ -776,6 +1146,7 @@ async function resolveOsmPlace(
     const tags = element?.tags ?? {};
     const type = supportedOsmType(tags);
     const geometry = element ? osmGeometry(element) : null;
+    const names = collectOsmPlaceNames(tags);
     const name = osmName(tags);
     const center = element && geometry ? osmCenter(element, geometry) : null;
     const bbox = geometry ? geometryBbox(geometry) : null;
@@ -783,6 +1154,12 @@ async function resolveOsmPlace(
       value = {
         name,
         type,
+        aliases: names.aliases,
+        multilingualNames: names.multilingualNames,
+        policy: defaultPlacePolicy({
+          placeKind: type,
+          osmAccess: tags.access,
+        }),
         description: osmDescription(tags),
         geometry,
         bbox,
@@ -821,8 +1198,7 @@ function osmFacilities(place: ResolvedOsmPlace): unknown[] {
 }
 
 function osmSuppressedSections(place: ResolvedOsmPlace): string[] {
-  const access = (place.tags.access ?? "").toLowerCase();
-  return place.type === "school" || ["private", "no", "restricted", "customers", "permit"].includes(access)
+  return place.policy.contributionCtaMode === "suppressed"
     ? ["contribution_cta"]
     : [];
 }
@@ -840,8 +1216,11 @@ async function buildRecordsForGeometry(
     ? scopeRowsByGeometry(snapshot.rows, visits, geometry, directFieldId)
     : [];
   const photoIds = [...new Set(scoped.flatMap((row) => [row.visit_id, row.occurrence_id]))];
-  const photos = await loadPhotoUrls(input.db, photoIds);
-  return { records: sourceRecords(scoped, photos), complete: snapshot.complete };
+  const [photos, themes] = await Promise.all([
+    loadPhotoUrls(input.db, photoIds),
+    loadAcceptedRecordThemes(input.db, photoIds),
+  ]);
+  return { records: sourceRecords(scoped, photos, themes), complete: snapshot.complete };
 }
 
 async function buildRecordsForRadius(
@@ -864,11 +1243,12 @@ async function buildRecordsForRadius(
   const scoped = visits.size > 0
     ? scopeRowsByRadius(snapshot.rows, visits, center, radiusM, directFieldId)
     : [];
-  const photos = await loadPhotoUrls(
-    input.db,
-    [...new Set(scoped.flatMap((row) => [row.visit_id, row.occurrence_id]))],
-  );
-  return { records: sourceRecords(scoped, photos), complete: snapshot.complete };
+  const recordIds = [...new Set(scoped.flatMap((row) => [row.visit_id, row.occurrence_id]))];
+  const [photos, themes] = await Promise.all([
+    loadPhotoUrls(input.db, recordIds),
+    loadAcceptedRecordThemes(input.db, recordIds),
+  ]);
+  return { records: sourceRecords(scoped, photos, themes), complete: snapshot.complete };
 }
 
 async function buildRecordsForCell(
@@ -883,12 +1263,13 @@ async function buildRecordsForCells(
   publicCells: string[],
 ): Promise<{ records: PlaceAtlasSourceRecord[]; complete: boolean }> {
   const snapshot = await loadSnapshotRows(input.db, publicCells);
-  const photos = await loadPhotoUrls(
-    input.db,
-    [...new Set(snapshot.rows.flatMap((row) => [row.visit_id, row.occurrence_id]))],
-  );
+  const recordIds = [...new Set(snapshot.rows.flatMap((row) => [row.visit_id, row.occurrence_id]))];
+  const [photos, themes] = await Promise.all([
+    loadPhotoUrls(input.db, recordIds),
+    loadAcceptedRecordThemes(input.db, recordIds),
+  ]);
   return {
-    records: sourceRecords(snapshot.rows, photos),
+    records: sourceRecords(snapshot.rows, photos, themes),
     complete: snapshot.complete,
   };
 }
@@ -927,8 +1308,9 @@ async function loadFieldPlaceAtlasProfile(
     recordResult = await buildRecordsForCell(input, field.public_cell);
   }
   const sensitiveSuppression = isSensitivePolicySuppression(policy);
+  const placeKind = fieldPlaceKind(field);
   const guide = guideForScope(input.guideSpots ?? [], geometry, center, radiusM);
-  const memories = await loadUnlockedMemories(input.db, input.viewerUserId, field.public_cell);
+  const memories = await loadPublicPlaceMemories(input.db, field.public_cell);
   const contributionRestricted = fieldType(field) === "school" || sensitiveSuppression;
   const suppressedSections = [
     ...(policy?.display_suppression_reason ? ["field_profile_narrative"] : []),
@@ -941,9 +1323,17 @@ async function loadFieldPlaceAtlasProfile(
     placeRef: ref,
     place: {
       name: field.name,
-      type: fieldType(field),
+      type: placeKind,
       localityLabel: localityLabel(field),
       description: field.summary,
+      canonicalPlaceId: initialCanonicalPlaceId({
+        canonicalName: field.name,
+        localityLabel: localityLabel(field) ?? "",
+        placeKind,
+      }),
+      aliases: [],
+      verificationStatus: "source_verified",
+      officialStatus: "unknown",
     },
     records: sensitiveSuppression ? null : recordResult.records,
     recordSetComplete: recordResult.complete,
@@ -953,6 +1343,7 @@ async function loadFieldPlaceAtlasProfile(
     guide,
     memories,
     facilities: [],
+    policy: defaultPlacePolicy({ placeKind }),
     suppressedSections,
     dataGaps: [
       ...(policy?.display_suppression_reason
@@ -979,20 +1370,47 @@ async function loadOsmPlaceAtlasProfile(
   input: LoadCloudflarePlaceAtlasInput,
   ref: Extract<PlaceAtlasRef, { kind: "osm_area" }>,
 ): Promise<PlaceAtlasProfile | null> {
-  const place = await resolveOsmPlace(ref, input);
+  const registered = await loadRegisteredPlaceByOsmRef(
+    input.db,
+    ref.osmType,
+    ref.osmId,
+    input.generatedAt ?? new Date().toISOString(),
+  );
+  const place = registeredResolvedOsmPlace(registered) ?? await resolveOsmPlace(ref, input);
   if (!place) return null;
   const records = await buildRecordsForGeometry(input, place.geometry, place.bbox);
   const publicCell = publicCellFromCoordinates(place.center.lat, place.center.lng);
   const guide = guideForScope(input.guideSpots ?? [], place.geometry, place.center, 500);
-  const memories = await loadUnlockedMemories(input.db, input.viewerUserId, publicCell);
-  const suppressedSections = osmSuppressedSections(place);
+  const memories = await loadPublicPlaceMemories(input.db, publicCell);
+  const policy = registered?.policy ?? place.policy;
+  const suppressedSections = policy.contributionCtaMode === "suppressed"
+    ? ["contribution_cta"]
+    : osmSuppressedSections(place);
+  const osmDerivedFacilities = osmFacilities(place);
+  const facilities = [...(registered?.facilities ?? []), ...osmDerivedFacilities]
+    .filter((facility, index, values) => {
+      const key = cleanText((facility as { kind?: unknown }).kind, 48);
+      return values.findIndex((candidate) =>
+        cleanText((candidate as { kind?: unknown }).kind, 48) === key
+      ) === index;
+    })
+    .slice(0, 12);
   return buildPlaceAtlasProfile({
     placeRef: ref,
     place: {
-      name: place.name,
-      type: place.type,
-      localityLabel: null,
-      description: place.description,
+      name: registered?.canonicalName ?? place.name,
+      type: registered?.placeKind ?? place.type,
+      localityLabel: registered?.localityLabel ?? null,
+      description: registered?.description ?? place.description,
+      canonicalPlaceId: registered?.placeId ?? initialCanonicalPlaceId({
+        canonicalName: place.name,
+        localityLabel: "",
+        placeKind: place.type,
+      }),
+      aliases: [...(registered?.aliases ?? []), ...place.aliases],
+      multilingualNames: place.multilingualNames,
+      verificationStatus: registered?.verificationStatus ?? "unverified",
+      officialStatus: registered?.officialStatus ?? "unknown",
     },
     records: records.records,
     recordSetComplete: records.complete,
@@ -1001,7 +1419,10 @@ async function loadOsmPlaceAtlasProfile(
     contributorCountAllowed: false,
     guide,
     memories,
-    facilities: osmFacilities(place),
+    facilities,
+    activities: registered?.activities ?? [],
+    stories: registered?.stories ?? [],
+    policy,
     suppressedSections,
     dataGaps: [
       ...(suppressedSections.includes("contribution_cta")
@@ -1017,7 +1438,16 @@ async function loadOsmPlaceAtlasProfile(
       "public_map_snapshot_records_v1",
       guide && "map_guide_spots",
       memories.length > 0 && "place_memory",
+      registered && "canonical_place_registry",
     ),
+    sourceReferences: registered?.sourceReferences ?? [{
+      sourceType: `osm_${ref.osmType}`,
+      sourceId: `${ref.osmType}:${ref.osmId}`,
+      sourceUrl: `https://www.openstreetmap.org/${ref.osmType}/${ref.osmId}`,
+      confidence: 0.75,
+      verificationStatus: "unverified",
+      lastCheckedAt: input.generatedAt ?? null,
+    }],
     generatedAt: input.generatedAt,
   });
 }
@@ -1029,7 +1459,7 @@ async function loadPublicCellPlaceAtlasProfile(
   const scope = resolvePublicCellScope(ref.cellId);
   if (!scope) return null;
   const records = await buildRecordsForCells(input, scope.snapshotCells);
-  const memories = await loadUnlockedMemories(input.db, input.viewerUserId, scope.memoryCell);
+  const memories = await loadPublicPlaceMemories(input.db, scope.memoryCell);
   return buildPlaceAtlasProfile({
     placeRef: ref,
     place: {
@@ -1046,6 +1476,10 @@ async function loadPublicCellPlaceAtlasProfile(
     guide: guideForScope(input.guideSpots ?? [], null, scope.center, scope.radiusM),
     memories,
     facilities: [],
+    policy: {
+      ...defaultPlacePolicy({ placeKind: "administrative_area" }),
+      publicLocationMode: "public_cell",
+    },
     sources: profileSources(
       "public_map_snapshot_records_v1",
       memories.length > 0 && "place_memory",

@@ -14,9 +14,14 @@ type FixtureData = {
   snapshots?: Array<Record<string, unknown>>;
   visits?: Array<Record<string, unknown>>;
   photos?: Array<Record<string, unknown>>;
+  themes?: Array<Record<string, unknown>>;
+  registeredPlace?: Record<string, unknown> | null;
+  placeBoundary?: Record<string, unknown> | null;
+  placeAliases?: Array<Record<string, unknown>>;
+  placeSources?: Array<Record<string, unknown>>;
+  placeFacilities?: Array<Record<string, unknown>>;
+  placeContent?: Array<Record<string, unknown>>;
   memories?: Array<Record<string, unknown>>;
-  memoryAccess?: boolean;
-  hiddenMemoryEntryIds?: string[];
   snapshotBindCounts?: number[];
 };
 
@@ -43,8 +48,11 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
     if (this.query.includes("production_import_area_polygon_readmodel")) {
       return (this.data.area ?? null) as T | null;
     }
-    if (this.query.includes("SELECT EXISTS") && this.query.includes("place_memory_entries")) {
-      return ({ has_access: this.data.memoryAccess ? 1 : 0 }) as T;
+    if (this.query.includes("FROM place_source_references ps") && this.query.includes("JOIN places p")) {
+      return (this.data.registeredPlace ?? null) as T | null;
+    }
+    if (this.query.includes("FROM place_boundaries")) {
+      return (this.data.placeBoundary ?? null) as T | null;
     }
     throw new Error(`Unhandled first query: ${this.query}`);
   }
@@ -67,17 +75,38 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
     }
     if (this.query.includes("place_memory_entries")) {
       assert.match(this.query, /production_import_visits/);
-      assert.match(this.query, /place_memory_hidden_entries/);
-      const hidden = new Set(this.data.hiddenMemoryEntryIds ?? []);
+      assert.match(this.query, /public_place_opt_in = 1/);
+      assert.match(this.query, /public_place_moderation_status = 'approved'/);
       const visits = new Map((this.data.visits ?? []).map((row) => [String(row.visit_id), row]));
       return {
         results: (this.data.memories ?? []).filter((row) => {
           const visit = visits.get(String(row.visit_id));
           return visit &&
             (!visit.public_visibility || visit.public_visibility === "public") &&
-            !hidden.has(String(row.entry_id));
+            row.moderation_status === "visible" &&
+            row.public_place_opt_in === 1 &&
+            row.public_place_moderation_status === "approved";
         }) as T[],
       };
+    }
+    if (this.query.includes("record_theme_assertions")) {
+      const requested = new Set(this.values.map(String));
+      return {
+        results: (this.data.themes ?? [])
+          .filter((row) => requested.has(String(row.record_id))) as T[],
+      };
+    }
+    if (this.query.includes("FROM place_aliases")) {
+      return { results: (this.data.placeAliases ?? []) as T[] };
+    }
+    if (this.query.includes("FROM place_source_references") && !this.query.includes("JOIN places p")) {
+      return { results: (this.data.placeSources ?? []) as T[] };
+    }
+    if (this.query.includes("FROM place_facilities")) {
+      return { results: (this.data.placeFacilities ?? []) as T[] };
+    }
+    if (this.query.includes("FROM place_content_items")) {
+      return { results: (this.data.placeContent ?? []) as T[] };
     }
     if (this.query.includes("production_import_visits")) {
       const requested = new Set(this.values.map(String));
@@ -258,6 +287,10 @@ function tokiwaFixtures(policyReason: string | null = "source_record_statistics_
       },
     ],
     photos: [],
+    themes: [
+      { record_id: "record-1", theme: "scenery" },
+      { record_id: "record-2", theme: "daily_life" },
+    ],
   };
 }
 
@@ -288,6 +321,7 @@ test("field atlas intersects public snapshots with the canonical area and counts
   assert.equal(profile.summary.recordCount, 3);
   assert.equal(profile.recentRecords.length, 3);
   assert.equal(profile.recentRecords.find((record) => record.recordId === "record-1")?.identificationStatus, "ai_candidate");
+  assert.equal(profile.recentRecords.find((record) => record.recordId === "record-1")?.themes.includes("scenery"), true);
   assert.equal(profile.place.representativeMedia.length, 2);
   assert.equal(profile.summary.contributorCount, null);
   assert.equal(profile.publication.locationMode, "field");
@@ -411,6 +445,209 @@ test("generic OSM park resolution does not depend on a Tokiwa-specific branch", 
     source: "OpenStreetMap",
     confidence: "derived",
   }]);
+});
+
+test("generic OSM profile parity includes theme parks and shopping malls", async () => {
+  const fixtures = tokiwaFixtures(null);
+  const cases = [
+    {
+      id: 1281984233,
+      tags: {
+        name: "JUNGLIA OKINAWA",
+        "name:ja": "ジャングリア沖縄",
+        tourism: "theme_park",
+      },
+      expectedName: "ジャングリア沖縄",
+      expectedType: "theme_park",
+    },
+    {
+      id: 189307274,
+      tags: {
+        name: "イオンモール浜松市野",
+        "name:ja": "イオン",
+        brand: "イオン",
+        shop: "mall",
+      },
+      expectedName: "イオンモール浜松市野",
+      expectedType: "shopping_mall",
+    },
+  ] as const;
+
+  for (const fixture of cases) {
+    const fetchFn: typeof fetch = async () => new Response(JSON.stringify({
+      elements: [{
+        type: "way",
+        id: fixture.id,
+        tags: fixture.tags,
+        geometry: [
+          { lat: 34.966, lon: 138.376 },
+          { lat: 34.966, lon: 138.385 },
+          { lat: 34.975, lon: 138.385 },
+          { lat: 34.975, lon: 138.376 },
+          { lat: 34.966, lon: 138.376 },
+        ],
+      }],
+    }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+    const profile = await loadCloudflarePlaceAtlasProfile({
+      db: new FixtureDb(fixtures),
+      placeRef: {
+        kind: "osm_area",
+        entityKey: `osm:way:${fixture.id}`,
+        osmType: "way",
+        osmId: fixture.id,
+      },
+      fetchFn,
+    });
+    assert.ok(profile);
+    assert.equal(profile.place.name, fixture.expectedName);
+    assert.equal(profile.place.type, fixture.expectedType);
+    assert.ok(!profile.publication.suppressedSections.includes("contribution_cta"));
+  }
+});
+
+test("verified registry overrides OSM display and policy while retaining both provenances", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.registeredPlace = {
+    place_id: "plc_1dac5b52233720ee",
+    canonical_name: "JUNGLIA OKINAWA",
+    locality_label: "沖縄県国頭郡今帰仁村",
+    place_kind: "theme_park",
+    verification_status: "verified",
+    official_status: "official",
+    public_summary: "公式情報と公開Recordを束ねた場所図鑑です。",
+    recording_policy: "permission_required",
+    public_location_mode: "place",
+    contribution_cta_mode: "suppressed",
+    official_rule_url: "https://junglia.jp/terms/park-termsofuse",
+    policy_verification_status: "verified",
+  };
+  fixtures.placeAliases = [{ alias: "ジャングリア沖縄" }, { alias: "JUNGLIA" }];
+  fixtures.placeSources = [{
+    source_type: "facility_official",
+    source_id: "junglia:official",
+    source_url: "https://www.junglia.jp/en",
+    source_confidence: 1,
+    verification_status: "verified",
+    last_checked_at: "2026-07-23T00:00:00Z",
+  }, {
+    source_type: "osm",
+    source_id: "way:1281984233",
+    source_url: "https://www.openstreetmap.org/way/1281984233",
+    source_confidence: 0.9,
+    verification_status: "source_verified",
+    last_checked_at: "2026-07-23T00:00:00Z",
+  }];
+  fixtures.placeContent = [{
+    content_kind: "activity",
+    title: "開催中の活動",
+    body: "公式出典付き",
+    starts_at: "2026-07-01T00:00:00Z",
+    ends_at: "2026-08-01T00:00:00Z",
+    last_checked_at: "2026-07-23T00:00:00Z",
+    source_type: "facility_official",
+    source_url: "https://www.junglia.jp/en",
+    verification_status: "verified",
+  }];
+  const fetchFn: typeof fetch = async () => new Response(JSON.stringify({
+    elements: [{
+      type: "way",
+      id: 1281984233,
+      tags: {
+        name: "ジャングリア沖縄",
+        tourism: "theme_park",
+        access: "yes",
+      },
+      geometry: [
+        { lat: 34.966, lon: 138.376 },
+        { lat: 34.966, lon: 138.385 },
+        { lat: 34.975, lon: 138.385 },
+        { lat: 34.975, lon: 138.376 },
+        { lat: 34.966, lon: 138.376 },
+      ],
+    }],
+  }), { status: 200, headers: { "content-type": "application/json" } });
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:1281984233",
+      osmType: "way",
+      osmId: 1281984233,
+    },
+    fetchFn,
+    generatedAt: "2026-07-23T00:00:00Z",
+  });
+  assert.ok(profile);
+  assert.equal(profile.place.name, "JUNGLIA OKINAWA");
+  assert.equal(profile.place.canonicalPlaceId, "plc_1dac5b52233720ee");
+  assert.equal(profile.place.officialStatus, "official");
+  assert.equal(profile.policy?.recordingPolicy, "permission_required");
+  assert.equal(profile.policy?.contributionCtaMode, "suppressed");
+  assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
+  assert.equal(profile.activities?.[0] && (profile.activities[0] as { temporalState: string }).temporalState, "active");
+  assert.equal(profile.provenance.sourceReferences?.length, 2);
+});
+
+test("verified registry boundary keeps the profile available during an Overpass outage", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.registeredPlace = {
+    place_id: "plc_1dac5b52233720ee",
+    canonical_name: "JUNGLIA OKINAWA",
+    locality_label: "沖縄県国頭郡今帰仁村",
+    place_kind: "theme_park",
+    verification_status: "verified",
+    official_status: "official",
+    public_summary: "公式情報と公開Recordを束ねた場所図鑑です。",
+    recording_policy: "permission_required",
+    public_location_mode: "place",
+    contribution_cta_mode: "suppressed",
+    official_rule_url: "https://junglia.jp/terms/park-termsofuse",
+    policy_verification_status: "verified",
+  };
+  fixtures.placeAliases = [{ alias: "ジャングリア沖縄" }, { alias: "JUNGLIA" }];
+  fixtures.placeSources = [{
+    source_type: "osm",
+    source_id: "way:1281984233",
+    source_url: "https://www.openstreetmap.org/way/1281984233",
+    source_confidence: 0.9,
+    verification_status: "source_verified",
+    last_checked_at: "2026-07-23T00:00:00Z",
+  }];
+  fixtures.placeBoundary = {
+    boundary_geojson: JSON.stringify(TOKIWA_GEOMETRY),
+    confidence: 0.9,
+    precision_kind: "exact",
+    bbox_west: 138.376,
+    bbox_south: 34.966,
+    bbox_east: 138.385,
+    bbox_north: 34.975,
+  };
+  let fetchCalls = 0;
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:1281984233",
+      osmType: "way",
+      osmId: 1281984233,
+    },
+    fetchFn: async () => {
+      fetchCalls += 1;
+      throw new Error("overpass_unavailable");
+    },
+    generatedAt: "2026-07-23T00:00:00Z",
+  });
+
+  assert.ok(profile);
+  assert.equal(fetchCalls, 0);
+  assert.equal(profile.place.name, "JUNGLIA OKINAWA");
+  assert.equal(profile.place.canonicalPlaceId, "plc_1dac5b52233720ee");
+  assert.equal(profile.publication.locationMode, "osm_area");
+  assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
+  assert.doesNotMatch(JSON.stringify(profile), /exact_lat|exact_lng/);
 });
 
 test("generic OSM schools suppress direct contribution", async () => {
@@ -630,9 +867,8 @@ test("OSM relation inner rings stay excluded from the Record scope", async () =>
   assert.equal(profile.recentRecords.length, 0);
 });
 
-test("Place Memory excludes hidden entries and memories attached to private Records", async () => {
+test("Place Atlas publishes only explicit opt-in, approved memories attached to public Records", async () => {
   const fixtures = tokiwaFixtures(null);
-  fixtures.memoryAccess = true;
   fixtures.memories = [
     {
       entry_id: "memory-public",
@@ -645,6 +881,9 @@ test("Place Memory excludes hidden entries and memories attached to private Reco
       echo_note: "公開できる思い出",
       photo_echo_visibility: "hidden_by_user",
       moderation_status: "visible",
+      public_place_opt_in: 1,
+      public_place_moderation_status: "approved",
+      public_attribution_mode: "anonymous",
       updated_at: "2026-07-20T10:00:00.000Z",
     },
     {
@@ -658,6 +897,9 @@ test("Place Memory excludes hidden entries and memories attached to private Reco
       echo_note: "非公開Record由来",
       photo_echo_visibility: "hidden_by_user",
       moderation_status: "visible",
+      public_place_opt_in: 1,
+      public_place_moderation_status: "approved",
+      public_attribution_mode: "anonymous",
       updated_at: "2026-07-21T10:00:00.000Z",
     },
     {
@@ -668,13 +910,15 @@ test("Place Memory excludes hidden entries and memories attached to private Reco
       cell_id: "34.97,138.38",
       memory_tags_json: JSON.stringify(["first_visit"]),
       tags_public: 1,
-      echo_note: "閲覧者が非表示にした思い出",
+      echo_note: "opt-inされていない思い出",
       photo_echo_visibility: "hidden_by_user",
       moderation_status: "visible",
+      public_place_opt_in: 0,
+      public_place_moderation_status: "not_submitted",
+      public_attribution_mode: "anonymous",
       updated_at: "2026-07-22T10:00:00.000Z",
     },
   ];
-  fixtures.hiddenMemoryEntryIds = ["memory-hidden-by-viewer"];
 
   const profile = await loadCloudflarePlaceAtlasProfile({
     db: new FixtureDb(fixtures),
@@ -690,7 +934,9 @@ test("Place Memory excludes hidden entries and memories attached to private Reco
     echoNote: "公開できる思い出",
     observedYearMonth: "2026-07",
     photoState: "hidden_by_user",
-    ownEntry: false,
+    sourceLabel: "利用者の地域記憶",
+    moderationStatus: "approved",
+    attributionMode: "anonymous",
   }]);
 });
 

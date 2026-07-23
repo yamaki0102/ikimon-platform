@@ -158,23 +158,21 @@ function dependencies(overrides: Partial<PlaceAtlasProfileDependencies> = {}): P
       type: "FeatureCollection",
       features: [],
     }),
-    listMemories: async (input) => ({
-      ok: true,
-      cellId: input.cellId,
-      unlocked: true,
-      items: [{
+    listPublicMemories: async () => ([{
         entryId: "memory-1",
-        cellId: input.cellId,
+        recordId: "record-1",
         tags: ["quiet_moment"],
         echoNote: "朝の散歩",
         observedYearMonth: "2026-05",
         photoUrl: null,
-        photoState: "hidden_by_user",
-        likeCount: 0,
-        likedByMe: false,
-        ownEntry: true,
-      }],
-    }),
+        sourceLabel: "利用者の地域記憶",
+        moderationStatus: "approved",
+        attributionMode: "anonymous",
+      }]),
+    loadRecordThemes: async () => new Map([
+      ["record-1", ["scenery"]],
+    ]),
+    loadRegisteredPlace: async () => null,
     now: () => "2026-07-23T00:00:00.000Z",
     ...overrides,
   };
@@ -278,6 +276,68 @@ test("builds the same public contract for a transient OSM park without hardcodin
   assert.equal(profile.summary.recordCount, 3);
   assert.equal(profile.publication.locationMode, "osm_area");
   assert.ok(profile.provenance.sources.includes("openstreetmap"));
+});
+
+test("serves a registered Place from its canonical boundary when live OSM is unavailable", async () => {
+  let liveResolveCalls = 0;
+  const profile = await getPlaceAtlasProfile({
+    kind: "osm_area",
+    entityKey: "osm:way:1281984233",
+    osmType: "way",
+    osmId: 1281984233,
+  }, {}, dependencies({
+    resolveOsmArea: async () => {
+      liveResolveCalls += 1;
+      return null;
+    },
+    loadRegisteredPlace: async () => ({
+      placeId: "plc_1dac5b52233720ee",
+      canonicalName: "JUNGLIA OKINAWA",
+      aliases: ["ジャングリア沖縄", "JUNGLIA"],
+      localityLabel: "沖縄県国頭郡今帰仁村",
+      placeKind: "theme_park",
+      verificationStatus: "source_verified",
+      officialStatus: "official",
+      description: "公式情報と公開Recordを束ねた場所図鑑です。",
+      boundary: {
+        geometry: {
+          type: "Polygon",
+          coordinates: (fieldFixture().polygon as { coordinates: unknown }).coordinates,
+        },
+        bbox: [138.376, 34.966, 138.385, 34.975],
+        center: { lat: 34.9705, lng: 138.3805 },
+        confidence: 0.9,
+        precision: "exact",
+      },
+      policy: {
+        placeVisibility: "public",
+        recordingPolicy: "permission_required",
+        publicLocationMode: "place",
+        contributionCtaMode: "suppressed",
+        ruleSource: "official",
+        ruleUrl: "https://junglia.jp/terms/park-termsofuse",
+        reason: "verified_place_policy",
+      },
+      facilities: [],
+      activities: [],
+      stories: [],
+      sourceReferences: [{
+        sourceType: "osm",
+        sourceId: "way:1281984233",
+        sourceUrl: "https://www.openstreetmap.org/way/1281984233",
+        confidence: 0.9,
+        verificationStatus: "source_verified",
+        lastCheckedAt: "2026-07-23T00:00:00.000Z",
+      }],
+    }),
+  }));
+
+  assert.ok(profile);
+  assert.equal(liveResolveCalls, 0);
+  assert.equal(profile.place.name, "JUNGLIA OKINAWA");
+  assert.equal(profile.place.canonicalPlaceId, "plc_1dac5b52233720ee");
+  assert.equal(profile.summary.recordCount, 3);
+  assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
 });
 
 test("transient restricted OSM areas use the shared contribution suppression token", async () => {

@@ -1,4 +1,5 @@
 import { computeBbox } from "./geoJsonBbox.js";
+import { getPool } from "../db.js";
 import {
   resolveOsmAreaByRef,
   type ResolvedOsmArea,
@@ -12,7 +13,7 @@ import { getField, type ObservationField } from "./observationFieldRegistry.js";
 import { getMapObservations, type PublicMapObservationList } from "./mapSnapshot.js";
 import { buildPublicCellId } from "./publicLocation.js";
 import { listMapGuideSpotsForBbox } from "./mapGuideSpots.js";
-import { listUnlockedPlaceMemories } from "./placeMemory.js";
+import { listPublicPlaceMemories } from "./placeMemory.js";
 import {
   buildPlaceAtlasProfile,
   type PlaceAtlasBuildInput,
@@ -20,6 +21,15 @@ import {
   type PlaceAtlasRef,
   type PlaceAtlasSourceRecord,
 } from "./placeAtlasContract.js";
+import {
+  defaultPlacePolicy,
+  initialCanonicalPlaceId,
+  type PlaceKind,
+} from "./placeDomain.js";
+import {
+  loadRegisteredPlaceProfileByOsmRef,
+  type RegisteredPlaceProfileProjection,
+} from "./placeRegistry.js";
 
 type Bbox = [number, number, number, number];
 
@@ -33,9 +43,47 @@ export type PlaceAtlasProfileDependencies = {
   loadAreaVisitIds: typeof loadAreaSnapshotVisitIds;
   resolveOsmArea: typeof resolveOsmAreaByRef;
   listGuideSpots: typeof listMapGuideSpotsForBbox;
-  listMemories: typeof listUnlockedPlaceMemories;
+  listPublicMemories: typeof listPublicPlaceMemories;
+  loadRecordThemes: (recordIds: string[]) => Promise<Map<string, NonNullable<PlaceAtlasSourceRecord["themes"]>>>;
+  loadRegisteredPlace: (
+    osmType: "way" | "relation",
+    osmId: number,
+  ) => Promise<RegisteredPlaceProfileProjection | null>;
   now: () => string;
 };
+
+async function loadAcceptedRecordThemes(
+  recordIds: string[],
+): Promise<Map<string, NonNullable<PlaceAtlasSourceRecord["themes"]>>> {
+  const output = new Map<string, NonNullable<PlaceAtlasSourceRecord["themes"]>>();
+  if (recordIds.length === 0) return output;
+  try {
+    const result = await getPool().query<{ record_id: string; theme: string }>(
+      `SELECT record_id, theme
+         FROM record_theme_assertions
+        WHERE record_id = ANY($1::text[])
+          AND assertion_status = 'accepted'
+        ORDER BY confidence DESC, updated_at DESC`,
+      [recordIds],
+    );
+    for (const row of result.rows) {
+      if (![
+        "nature", "scenery", "daily_life", "facility", "activity",
+        "history", "audio_visual", "insight", "unclassified",
+      ].includes(row.theme)) continue;
+      const current = output.get(row.record_id) ?? [];
+      const theme = row.theme as NonNullable<PlaceAtlasSourceRecord["themes"]>[number];
+      if (!current.includes(theme)) current.push(theme);
+      output.set(row.record_id, current);
+    }
+  } catch (error) {
+    if (/record_theme_assertions|does not exist/i.test(error instanceof Error ? error.message : String(error))) {
+      return output;
+    }
+    throw error;
+  }
+  return output;
+}
 
 const defaultDependencies: PlaceAtlasProfileDependencies = {
   getField,
@@ -43,7 +91,9 @@ const defaultDependencies: PlaceAtlasProfileDependencies = {
   loadAreaVisitIds: loadAreaSnapshotVisitIds,
   resolveOsmArea: resolveOsmAreaByRef,
   listGuideSpots: listMapGuideSpotsForBbox,
-  listMemories: listUnlockedPlaceMemories,
+  listPublicMemories: listPublicPlaceMemories,
+  loadRecordThemes: loadAcceptedRecordThemes,
+  loadRegisteredPlace: loadRegisteredPlaceProfileByOsmRef,
   now: () => new Date().toISOString(),
 };
 
@@ -70,6 +120,13 @@ function fieldType(field: ObservationField): string {
   return "observation_field";
 }
 
+function fieldPlaceKind(field: ObservationField): PlaceKind {
+  const type = fieldType(field);
+  if (type === "nature_symbiosis_site" || type === "protected_area") return "nature_area";
+  if (type === "observation_field") return "other_named_area";
+  return type as PlaceKind;
+}
+
 function fieldLocalityLabel(field: ObservationField): string | null {
   return [field.prefecture, field.city].filter(Boolean).join(" ") || null;
 }
@@ -82,7 +139,10 @@ function recordIdentificationStatus(
   return "confirmed";
 }
 
-function sourceRecords(list: PublicMapObservationList): PlaceAtlasSourceRecord[] {
+function sourceRecords(
+  list: PublicMapObservationList,
+  themes: Map<string, NonNullable<PlaceAtlasSourceRecord["themes"]>> = new Map(),
+): PlaceAtlasSourceRecord[] {
   return list.items.map((record) => ({
     recordId: record.visitId,
     observedAt: record.observedAt,
@@ -91,6 +151,7 @@ function sourceRecords(list: PublicMapObservationList): PlaceAtlasSourceRecord[]
     mediaUrl: record.photoUrl,
     mediaKind: record.photoUrl ? "photo" : "record",
     taxonGroup: record.taxonGroup,
+    themes: themes.get(record.visitId) ?? [],
     identificationStatus: recordIdentificationStatus(record),
   }));
 }
@@ -98,8 +159,9 @@ function sourceRecords(list: PublicMapObservationList): PlaceAtlasSourceRecord[]
 function filteredSourceRecords(
   list: PublicMapObservationList,
   visitIds: Set<string> | null,
+  themes: Map<string, NonNullable<PlaceAtlasSourceRecord["themes"]>> = new Map(),
 ): PlaceAtlasSourceRecord[] {
-  const records = sourceRecords(list);
+  const records = sourceRecords(list, themes);
   return visitIds ? records.filter((record) => visitIds.has(record.recordId)) : records;
 }
 
@@ -153,17 +215,13 @@ function sanitizeFacilities(field: ObservationField): Array<Record<string, strin
 
 async function memoriesForCell(
   cellId: string,
-  viewerUserId: string | null | undefined,
   dependencies: PlaceAtlasProfileDependencies,
 ): Promise<unknown[]> {
-  if (!viewerUserId) return [];
   try {
-    const result = await dependencies.listMemories({
-      userId: viewerUserId,
+    return await dependencies.listPublicMemories({
       cellId,
       limit: 12,
     });
-    return result.unlocked ? result.items : [];
   } catch {
     return [];
   }
@@ -183,16 +241,18 @@ async function loadAreaRecords(
   try {
     const visitIds = new Set(await dependencies.loadAreaVisitIds(scope, null));
     const list = await dependencies.getMapObservations({ bbox, zoom: 16, limit: 1200 });
+    const themes = await dependencies.loadRecordThemes(list.items.map((record) => record.visitId));
     return {
-      records: filteredSourceRecords(list, visitIds),
+      records: filteredSourceRecords(list, visitIds, themes),
       complete: recordsComplete(list),
       locationMode: scope.fieldId.startsWith("osm-live:") ? "osm_area" : "field",
       directScopeAvailable: true,
     };
   } catch {
     const list = await dependencies.getMapObservations({ cellId: fallbackCellId, limit: 1200 });
+    const themes = await dependencies.loadRecordThemes(list.items.map((record) => record.visitId));
     return {
-      records: filteredSourceRecords(list, null),
+      records: filteredSourceRecords(list, null, themes),
       complete: recordsComplete(list),
       locationMode: "public_cell_derived",
       directScopeAvailable: false,
@@ -233,9 +293,10 @@ async function buildFieldProfile(
   const cellId = buildPublicCellId(field.lat, field.lng, 1000);
   const [areaRecords, memories] = await Promise.all([
     loadAreaRecords(field, bbox, cellId, dependencies),
-    memoriesForCell(cellId, context.viewerUserId, dependencies),
+    memoriesForCell(cellId, dependencies),
   ]);
   const policy = fieldPolicySuppression(field);
+  const kind = fieldPlaceKind(field);
   const directScopeGap = areaRecords.directScopeAvailable ? [] : [{
     key: "field_exact_aggregation",
     label: "field内Record",
@@ -245,9 +306,19 @@ async function buildFieldProfile(
     placeRef: ref,
     place: {
       name: field.name,
-      type: fieldType(field),
+      type: kind,
       localityLabel: fieldLocalityLabel(field),
       description: field.publicProfileEnabled ? field.summary : "公開できる場所情報と地域の記録を束ねた場所図鑑です。",
+      canonicalPlaceId: initialCanonicalPlaceId({
+        canonicalName: field.name,
+        localityLabel: fieldLocalityLabel(field) ?? "",
+        placeKind: kind,
+      }),
+      aliases: field.nameKana ? [field.nameKana] : [],
+      verificationStatus: field.verificationLevel === "registry_matched"
+        ? "source_verified"
+        : "unverified",
+      officialStatus: field.ownerUrl || field.officialUrl ? "official" : "unknown",
     },
     records: areaRecords.records,
     recordSetComplete: areaRecords.complete,
@@ -256,6 +327,7 @@ async function buildFieldProfile(
     guide: guidePayloadForBbox(bbox, dependencies),
     memories,
     facilities: sanitizeFacilities(field),
+    policy: defaultPlacePolicy({ placeKind: kind }),
     suppressedSections: [
       ...policy.sections,
       ...(areaRecords.directScopeAvailable ? [] : ["field_exact_aggregation"]),
@@ -273,7 +345,37 @@ async function buildFieldProfile(
 }
 
 function osmTypeLabel(area: ResolvedOsmArea): string {
-  return area.source === "school" ? "school" : "park";
+  return area.placeKind ?? (area.source === "school" ? "school" : "park");
+}
+
+function registeredOsmArea(
+  ref: Extract<PlaceAtlasRef, { kind: "osm_area" }>,
+  registered: RegisteredPlaceProfileProjection | null,
+): ResolvedOsmArea | null {
+  if (!registered?.boundary) return null;
+  const source = registered.placeKind === "school"
+    ? "school"
+    : registered.placeKind === "park"
+      ? "osm_park"
+      : "osm_named_area";
+  return {
+    entityKey: ref.entityKey,
+    osmType: ref.osmType,
+    osmId: ref.osmId,
+    name: registered.canonicalName,
+    source,
+    sourceLabel: "IKIMON canonical place registry",
+    placeKind: registered.placeKind,
+    aliases: registered.aliases,
+    multilingualNames: {},
+    recordingPolicy: registered.policy.recordingPolicy,
+    contributionCtaMode: registered.policy.contributionCtaMode,
+    policyReason: registered.policy.reason,
+    canonicalPlaceId: registered.placeId,
+    access: "",
+    center: registered.boundary.center,
+    geometry: registered.boundary.geometry,
+  };
 }
 
 async function buildOsmAreaProfile(
@@ -281,7 +383,9 @@ async function buildOsmAreaProfile(
   context: PlaceAtlasProfileContext,
   dependencies: PlaceAtlasProfileDependencies,
 ): Promise<PlaceAtlasProfile | null> {
-  const area = await dependencies.resolveOsmArea(ref.osmType, ref.osmId);
+  const registered = await dependencies.loadRegisteredPlace(ref.osmType, ref.osmId);
+  const registeredArea = registeredOsmArea(ref, registered);
+  const area = registeredArea ?? await dependencies.resolveOsmArea(ref.osmType, ref.osmId);
   if (!area || area.entityKey !== ref.entityKey) return null;
   const scope: AreaSnapshotScopeField = {
     fieldId: `osm-live:${area.osmType}:${area.osmId}`,
@@ -294,17 +398,32 @@ async function buildOsmAreaProfile(
   const cellId = buildPublicCellId(area.center.lat, area.center.lng, 1000);
   const [areaRecords, memories] = await Promise.all([
     loadAreaRecords(scope, bbox, cellId, dependencies),
-    memoriesForCell(cellId, context.viewerUserId, dependencies),
+    memoriesForCell(cellId, dependencies),
   ]);
-  const restricted = area.source === "school" ||
+  const effectivePolicy = registered?.policy ?? {
+    placeVisibility: "public" as const,
+    recordingPolicy: area.recordingPolicy ?? "check_rules",
+    publicLocationMode: "place" as const,
+    contributionCtaMode: area.contributionCtaMode ?? "check_rules",
+    ruleSource: "default" as const,
+    ruleUrl: null,
+    reason: area.policyReason ?? "osm_access_does_not_imply_recording_permission",
+  };
+  const restricted = effectivePolicy.contributionCtaMode === "suppressed" ||
+    area.source === "school" ||
     ["private", "no", "restricted", "customers", "permit"].includes(area.access);
   return buildPlaceAtlasProfile({
     placeRef: ref,
     place: {
-      name: area.name,
-      type: osmTypeLabel(area),
-      localityLabel: null,
-      description: "OpenStreetMapの場所情報と、公開できる地域のRecordを束ねた場所図鑑です。",
+      name: registered?.canonicalName ?? area.name,
+      type: registered?.placeKind ?? osmTypeLabel(area),
+      localityLabel: registered?.localityLabel ?? null,
+      description: registered?.description ?? "OpenStreetMapの範囲情報と、公開できる地域のRecordを束ねた場所図鑑です。",
+      canonicalPlaceId: registered?.placeId ?? area.canonicalPlaceId,
+      aliases: [...(registered?.aliases ?? []), ...(area.aliases ?? [])],
+      multilingualNames: area.multilingualNames ?? {},
+      verificationStatus: registered?.verificationStatus ?? "unverified",
+      officialStatus: registered?.officialStatus ?? "unknown",
     },
     records: areaRecords.records,
     recordSetComplete: areaRecords.complete,
@@ -312,7 +431,10 @@ async function buildOsmAreaProfile(
     contributorCountAllowed: false,
     guide: guidePayloadForBbox(bbox, dependencies),
     memories,
-    facilities: [],
+    facilities: registered?.facilities ?? [],
+    activities: registered?.activities ?? [],
+    stories: registered?.stories ?? [],
+    policy: effectivePolicy,
     suppressedSections: [
       "confirmed_life",
       ...(areaRecords.directScopeAvailable ? [] : ["osm_exact_aggregation"]),
@@ -328,7 +450,16 @@ async function buildOsmAreaProfile(
       "public_map_snapshot",
       ...(areaRecords.directScopeAvailable ? ["area_snapshot_visit_scope"] : ["public_cell_derived"]),
       ...(memories.length > 0 ? ["place_memory"] : []),
+      ...(registered ? ["canonical_place_registry"] : []),
     ],
+    sourceReferences: registered?.sourceReferences ?? [{
+      sourceType: `osm_${ref.osmType}`,
+      sourceId: `${ref.osmType}:${ref.osmId}`,
+      sourceUrl: `https://www.openstreetmap.org/${ref.osmType}/${ref.osmId}`,
+      confidence: 0.75,
+      verificationStatus: "unverified",
+      lastCheckedAt: dependencies.now(),
+    }],
     generatedAt: dependencies.now(),
   });
 }
@@ -340,8 +471,9 @@ async function buildPublicCellProfile(
 ): Promise<PlaceAtlasProfile> {
   const [list, memories] = await Promise.all([
     dependencies.getMapObservations({ cellId: ref.cellId, limit: 1200 }),
-    memoriesForCell(ref.cellId, context.viewerUserId, dependencies),
+    memoriesForCell(ref.cellId, dependencies),
   ]);
+  const themes = await dependencies.loadRecordThemes(list.items.map((record) => record.visitId));
   return buildPlaceAtlasProfile({
     placeRef: ref,
     place: {
@@ -350,11 +482,15 @@ async function buildPublicCellProfile(
       localityLabel: "位置をぼかして表示しています",
       description: "公開位置を保護した範囲で、このあたりのRecordをまとめています。",
     },
-    records: sourceRecords(list),
+    records: sourceRecords(list, themes),
     recordSetComplete: recordsComplete(list),
     locationMode: "public_cell",
     contributorCountAllowed: false,
     memories,
+    policy: {
+      ...defaultPlacePolicy({ placeKind: "administrative_area" }),
+      publicLocationMode: "public_cell",
+    },
     suppressedSections: ["exact_location", "confirmed_life"],
     dataGaps: [{
       key: "exact_location",
@@ -383,4 +519,5 @@ export const __test__ = {
   recordsComplete,
   sanitizeFacilities,
   sourceRecords,
+  registeredOsmArea,
 };

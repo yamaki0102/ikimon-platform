@@ -7802,6 +7802,14 @@ test("place atlas route rejects unstable refs and contains adapter failures", as
     supportedKinds: ["field", "osm_area", "public_cell"]
   });
   assert.equal(invalidResponse.headers.get("cache-control"), "no-store");
+  assert.match(invalidResponse.headers.get("server-timing") ?? "", /^place_profile;dur=\d+$/);
+  assert.match(invalidResponse.headers.get("x-ikimon-latency-ms") ?? "", /^\d+$/);
+
+  const invalidV2Response = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/map/place-profile?version=2&lat=34.9702&lng=138.3805"
+  ), env);
+  assert.equal(invalidV2Response.status, 400);
+  assert.equal(invalidV2Response.headers.get("x-ikimon-profile-version"), "place_atlas_profile/v2");
 
   const unavailableResponse = await worker.fetch(new Request(
     "https://shadow.test/api/v1/map/place-profile?kind=public_cell&cellId=cell%3A34.97%2C138.38"
@@ -7812,6 +7820,7 @@ test("place atlas route rejects unstable refs and contains adapter failures", as
   assert.equal(unavailablePayload.retryable, true);
   assert.equal(unavailableResponse.headers.get("cache-control"), "no-store");
   assert.equal(unavailableResponse.headers.get("x-ikimon-cloudflare-native"), "map-place-profile");
+  assert.match(unavailableResponse.headers.get("server-timing") ?? "", /^place_profile;dur=\d+$/);
 });
 
 test("v1 public map read routes expose current shell contracts without exact coordinates", async () => {
@@ -18809,6 +18818,91 @@ test("production map area polygons show certified radius approximations while hi
   assert.equal(payload.features[0].properties.boundary_approximation, "radius");
   assert.equal(payload.features[0].properties.approximate_boundary, true);
   assert.doesNotMatch(JSON.stringify(payload), /native-approx-school|代表点小学校/);
+});
+
+test("production map area polygons discover generic named facilities and dedupe mall-retail overlap", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  let call = 0;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    call += 1;
+    const query = decodeURIComponent(String(init?.body ?? ""));
+    assert.match(query, /theme_park/);
+    assert.match(query, /shopping_centre/);
+    if (call === 1) {
+      return Response.json({
+        elements: [{
+          type: "way",
+          id: 1281984233,
+          tags: {
+            name: "JUNGLIA OKINAWA",
+            "name:ja": "ジャングリア沖縄",
+            tourism: "theme_park"
+          },
+          geometry: [
+            { lat: 26.680, lon: 127.950 },
+            { lat: 26.680, lon: 127.960 },
+            { lat: 26.690, lon: 127.960 },
+            { lat: 26.690, lon: 127.950 },
+            { lat: 26.680, lon: 127.950 }
+          ]
+        }]
+      });
+    }
+    const mallGeometry = [
+      { lat: 34.710, lon: 137.755 },
+      { lat: 34.710, lon: 137.765 },
+      { lat: 34.720, lon: 137.765 },
+      { lat: 34.720, lon: 137.755 },
+      { lat: 34.710, lon: 137.755 }
+    ];
+    return Response.json({
+      elements: [
+        {
+          type: "way",
+          id: 189307274,
+          tags: { name: "イオンモール浜松市野", shop: "mall", brand: "イオン" },
+          geometry: mallGeometry
+        },
+        {
+          type: "relation",
+          id: 99189307274,
+          tags: { name: "イオンモール浜松市野", landuse: "retail" },
+          members: [{ type: "way", ref: 1, role: "outer", geometry: mallGeometry }]
+        }
+      ]
+    });
+  }) as typeof fetch;
+  try {
+    const themeResponse = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=127.94%2C26.67%2C127.97%2C26.70&zoom=14&sources=osm_named_area"
+    ), productionEnv);
+    const themePayload = await themeResponse.json() as any;
+    assert.equal(themeResponse.status, 200);
+    assert.equal(themePayload.features.length, 1);
+    assert.equal(themePayload.features[0].properties.name, "ジャングリア沖縄");
+    assert.equal(themePayload.features[0].properties.place_kind, "theme_park");
+    assert.equal(themePayload.features[0].properties.recording_policy, "check_rules");
+    assert.equal(themePayload.stats.source, "live_osm_named_area");
+
+    const mallResponse = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.74%2C34.70%2C137.78%2C34.73&zoom=14&sources=osm_named_area"
+    ), productionEnv);
+    const mallPayload = await mallResponse.json() as any;
+    assert.equal(mallResponse.status, 200);
+    assert.equal(mallPayload.features.length, 1);
+    assert.equal(mallPayload.features[0].properties.place_kind, "shopping_mall");
+    assert.equal(mallPayload.features[0].properties.merged_candidate_ids.length, 1);
+    assert.equal(mallPayload.features[0].properties.source_references.length, 2);
+    assert.equal(call, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("production map area polygons supplement live OSM school polygons when native school rows are only point buffers", async () => {
