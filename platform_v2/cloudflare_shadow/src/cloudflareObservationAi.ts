@@ -1,5 +1,5 @@
 export const OBSERVATION_VISION_MODEL = "gemini-3.5-flash-lite";
-export const OBSERVATION_AI_PROMPT_VERSION = "observation-triple-lane/v2";
+export const OBSERVATION_AI_PROMPT_VERSION = "observation-triple-lane/v3";
 export const OBSERVATION_AI_RULE_VERSION = "record-observation-gemini-batch/v2";
 
 export type ObservationAiSubjectLocator = {
