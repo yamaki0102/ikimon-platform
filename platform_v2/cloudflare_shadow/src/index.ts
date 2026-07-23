@@ -63,6 +63,11 @@ import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus";
+import {
+  buildObservationMediaDedupPlan,
+  type ObservationMediaDedupInput,
+  type ObservationMediaDedupPlan,
+} from "./observationMediaDedup";
 
 type D1Value = string | number | null;
 
@@ -1017,6 +1022,9 @@ interface PublicDetailAssetRow {
   bytes: number;
   duration_ms: number | null;
   public_derivative_key: string | null;
+  sha256: string | null;
+  public_derivative_sha256: string | null;
+  public_derivative_metadata_json: string | null;
 }
 
 type PublicDetailRegionRect = {
@@ -25244,7 +25252,8 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
   if (!row) return null;
 
   const assets = await env.OBS_DB.prepare(
-    `SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key
+    `SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key,
+            sha256, public_derivative_sha256, public_derivative_metadata_json
      FROM asset_ledger
      WHERE observation_id = ?
        AND processing_state = 'uploaded'
@@ -25267,13 +25276,18 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     list.push(region);
     regionsByAssetId.set(region.assetId, list);
   }
-  const photoAssets = assets.results
-    .filter((asset) => asset.mime.startsWith("image/"))
+  const sourcePhotoAssets = assets.results.filter((asset) => asset.mime.startsWith("image/"));
+  const photoDedupPlan = buildObservationMediaDedupPlan(
+    sourcePhotoAssets.map((asset, displayOrder) => observationMediaDedupInput(asset, displayOrder)),
+  );
+  const photoAssets = photoDedupPlan.representatives
+    .map((representative) => sourcePhotoAssets.find((asset) => asset.asset_id === representative.mediaId))
+    .filter((asset): asset is PublicDetailAssetRow => Boolean(asset))
     .map((asset) => ({
       assetId: asset.asset_id,
       url: publicMediaUrl(asset.public_derivative_key),
-      widthPx: null,
-      heightPx: null,
+      widthPx: publicDerivativeMetadataNumber(asset.public_derivative_metadata_json, "derivativeWidth"),
+      heightPx: publicDerivativeMetadataNumber(asset.public_derivative_metadata_json, "derivativeHeight"),
       mediaRole: null,
       regions: regionsByAssetId.get(asset.asset_id) ?? []
     }));
@@ -25335,7 +25349,16 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     photoUrls: photoAssets.map((asset) => asset.url),
     videoAssets,
     audioAssets,
-    assetCount: row.asset_count,
+    assetCount: photoAssets.length + videoAssets.length + audioAssets.length,
+    sourceAssetCount: assets.results.length,
+    mediaDedup: {
+      ruleVersion: photoDedupPlan.ruleVersion,
+      sourcePhotoCount: sourcePhotoAssets.length,
+      representativePhotoCount: photoAssets.length,
+      excludedPhotoCount: photoDedupPlan.excluded.length,
+      exactDuplicateClusters: photoDedupPlan.clusters.filter((cluster) => cluster.kind === "exact").length,
+      nearDuplicateClusters: photoDedupPlan.clusters.filter((cluster) => cluster.kind === "near_duplicate").length,
+    },
     environmentRecord,
     mediaRegions,
     relatedObservations: relatedRows.map((related) => publicObservationDetailRelatedItem(
@@ -29408,7 +29431,11 @@ type ObservationAiAssetRow = {
   asset_id: string;
   object_key: string;
   public_derivative_key: string | null;
+  public_derivative_sha256: string | null;
+  public_derivative_metadata_json: string | null;
+  sha256: string | null;
   mime: string;
+  bytes: number;
 };
 
 type ObservationAiRecordRow = {
@@ -29432,6 +29459,9 @@ type GeminiBatchExecution = {
   censusIndex: number;
   environmentIndex: number;
   summaryIndex?: number;
+  sourceImageCount?: number;
+  representativeImageCount?: number;
+  dedupRuleVersion?: string;
   claimedAt: string;
   lastSubmitAttemptAt?: string;
 };
@@ -29439,9 +29469,91 @@ type GeminiBatchExecution = {
 type PreparedGeminiObservation = {
   request: ObservationReassessmentRequestRow;
   record: ObservationAiRecordRow;
+  sourceAssets: ObservationAiAssetRow[];
   assets: ObservationAiAssetRow[];
   images: GeminiObservationImage[];
+  mediaDedup: ObservationMediaDedupPlan<ObservationMediaDedupInput>;
+  unselectedUniqueAssetIds: string[];
 };
+
+function publicDerivativeMetadata(value: string | null | undefined): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function publicDerivativeMetadataNumber(
+  value: string | null | undefined,
+  key: string,
+): number | null {
+  const numberValue = Number(publicDerivativeMetadata(value)[key]);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+}
+
+function publicDerivativePerceptualHashes(value: string | null | undefined): string[] {
+  const metadata = publicDerivativeMetadata(value);
+  const candidates = [
+    ...(Array.isArray(metadata.perceptualHashes) ? metadata.perceptualHashes : []),
+    ...(Array.isArray(metadata.dhash64Variants) ? metadata.dhash64Variants : []),
+  ];
+  return candidates.filter((candidate): candidate is string => typeof candidate === "string");
+}
+
+function observationMediaDedupInput(
+  asset: Pick<
+    PublicDetailAssetRow & ObservationAiAssetRow,
+    "asset_id" | "sha256" | "public_derivative_sha256" | "public_derivative_metadata_json" | "bytes"
+  >,
+  displayOrder: number,
+): ObservationMediaDedupInput {
+  return {
+    mediaId: asset.asset_id,
+    displayOrder,
+    contentSha256: asset.public_derivative_sha256,
+    sourceSha256: asset.sha256,
+    widthPx: publicDerivativeMetadataNumber(asset.public_derivative_metadata_json, "derivativeWidth"),
+    heightPx: publicDerivativeMetadataNumber(asset.public_derivative_metadata_json, "derivativeHeight"),
+    bytes: publicDerivativeMetadataNumber(asset.public_derivative_metadata_json, "derivativeBytes") ?? asset.bytes,
+    perceptualHashes: publicDerivativePerceptualHashes(asset.public_derivative_metadata_json),
+  };
+}
+
+async function loadObservationAiAssetSelection(
+  observationId: string,
+  env: Env,
+): Promise<{
+  sourceAssets: ObservationAiAssetRow[];
+  assets: ObservationAiAssetRow[];
+  plan: ObservationMediaDedupPlan<ObservationMediaDedupInput>;
+  unselectedUniqueAssetIds: string[];
+}> {
+  const sourceAssets = (await env.OBS_DB.prepare(
+    `SELECT asset_id, object_key, sha256, mime, bytes, public_derivative_key,
+            public_derivative_sha256, public_derivative_metadata_json
+       FROM asset_ledger
+      WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'image/%'
+      ORDER BY CASE WHEN public_ready_at IS NOT NULL THEN 0 ELSE 1 END, created_at, asset_id
+      LIMIT 36`
+  ).bind(observationId).all<ObservationAiAssetRow>()).results;
+  if (sourceAssets.length === 0) throw new Error("ai_photo_missing");
+  const plan = buildObservationMediaDedupPlan(
+    sourceAssets.map((asset, displayOrder) => observationMediaDedupInput(asset, displayOrder)),
+  );
+  const representativeIds = new Set(plan.representatives.slice(0, 12).map((item) => item.mediaId));
+  const assets = sourceAssets.filter((asset) => representativeIds.has(asset.asset_id));
+  return {
+    sourceAssets,
+    assets,
+    plan,
+    unselectedUniqueAssetIds: plan.representatives.slice(12).map((item) => item.mediaId),
+  };
+}
 
 function reassessmentAttemptCount(sourcePayloadJson: string): number {
   try {
@@ -29540,17 +29652,18 @@ async function loadPreparedGeminiObservation(request: ObservationReassessmentReq
     "SELECT owner_user_id, observed_at, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
   ).bind(request.observation_id).first<ObservationAiRecordRow>();
   if (!record) throw new Error("ai_record_missing");
-  const assets = await env.OBS_DB.prepare(
-    `SELECT asset_id, object_key, public_derivative_key, mime
-       FROM asset_ledger
-      WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'image/%'
-      ORDER BY CASE WHEN public_ready_at IS NOT NULL THEN 0 ELSE 1 END, created_at, asset_id
-      LIMIT 12`
-  ).bind(request.observation_id).all<ObservationAiAssetRow>();
-  if (assets.results.length === 0) throw new Error("ai_photo_missing");
+  const selection = await loadObservationAiAssetSelection(request.observation_id, env);
   const images: GeminiObservationImage[] = [];
-  for (const asset of assets.results) images.push(await observationAiImageInput(asset, env));
-  return { request, record, assets: assets.results, images };
+  for (const asset of selection.assets) images.push(await observationAiImageInput(asset, env));
+  return {
+    request,
+    record,
+    sourceAssets: selection.sourceAssets,
+    assets: selection.assets,
+    images,
+    mediaDedup: selection.plan,
+    unselectedUniqueAssetIds: selection.unselectedUniqueAssetIds,
+  };
 }
 
 async function loadPendingGeminiRequests(observationIds: string[], env: Env): Promise<ObservationReassessmentRequestRow[]> {
@@ -29646,6 +29759,9 @@ async function submitGeminiObservationReassessmentGroup(rows: ObservationReasses
       primaryIndex: index,
       censusIndex: index * 2,
       environmentIndex: index * 2 + 1,
+      sourceImageCount: item.sourceAssets.length,
+      representativeImageCount: item.images.length,
+      dedupRuleVersion: item.mediaDedup.ruleVersion,
       claimedAt: new Date().toISOString(),
       lastSubmitAttemptAt: new Date().toISOString(),
     };
@@ -29655,6 +29771,13 @@ async function submitGeminiObservationReassessmentGroup(rows: ObservationReasses
       modelStack: [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
       promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
       ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+      mediaDedup: {
+        ruleVersion: item.mediaDedup.ruleVersion,
+        sourceImageCount: item.sourceAssets.length,
+        representativeImageCount: item.images.length,
+        excludedImageCount: item.mediaDedup.excluded.length,
+        unselectedUniqueImageCount: item.unselectedUniqueAssetIds.length,
+      },
       batchExecution: execution,
       startedAt: new Date().toISOString(),
     });
@@ -29775,7 +29898,8 @@ async function resumeGeminiObservationBatchGroup(rows: ObservationReassessmentRe
         const primaryEvidence = parseGeminiPrimaryEvidence(geminiBatchResponseText(primary.responses[execution.primaryIndex]));
         const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(analysis.responses[execution.censusIndex]));
         const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(analysis.responses[execution.environmentIndex]));
-        const mediaCount = (await env.OBS_DB.prepare("SELECT COUNT(*) AS count FROM asset_ledger WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'image/%'").bind(row.observation_id).first<{ count: number }>())?.count ?? 1;
+        const mediaCount = execution.representativeImageCount
+          ?? (await loadObservationAiAssetSelection(row.observation_id, env)).assets.length;
         summaryRows.push({ row, merged: mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, mediaCount) });
       } catch (error) {
         await failGeminiReassessment(row, error, env);
@@ -29832,6 +29956,16 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
     promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
     ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
     assetIds: prepared.assets.map((asset) => asset.asset_id),
+    sourceAssetIds: prepared.sourceAssets.map((asset) => asset.asset_id),
+    mediaDedup: {
+      ruleVersion: prepared.mediaDedup.ruleVersion,
+      sourceImageCount: prepared.sourceAssets.length,
+      representativeImageCount: prepared.assets.length,
+      excludedImageCount: prepared.mediaDedup.excluded.length,
+      unselectedUniqueAssetIds: prepared.unselectedUniqueAssetIds,
+      clusters: prepared.mediaDedup.clusters,
+      excluded: prepared.mediaDedup.excluded,
+    },
     recordClass: merged.recordClass,
     informationState: merged.informationState,
     detectionState: merged.detectionState,
@@ -29888,7 +30022,12 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
       JSON.stringify(merged.environment), merged.environment.cues.length > 0 ? Math.max(...merged.environment.cues.map((cue) => cue.confidence)) : null,
       GEMINI_ANALYSIS_MODEL, GEMINI_OBSERVATION_PROMPT_VERSION, GEMINI_OBSERVATION_RULE_VERSION,
       `google_gemini_batch:${observationId}:${GEMINI_OBSERVATION_RULE_VERSION}:environment`,
-      JSON.stringify({ assetIds: prepared.assets.map((asset) => asset.asset_id), source: "record_photo_set" }), prepared.record.observed_at,
+      JSON.stringify({
+        assetIds: prepared.assets.map((asset) => asset.asset_id),
+        sourceAssetIds: prepared.sourceAssets.map((asset) => asset.asset_id),
+        mediaDedupRuleVersion: prepared.mediaDedup.ruleVersion,
+        source: "record_photo_set",
+      }), prepared.record.observed_at,
     ),
   ];
 
@@ -29934,6 +30073,13 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
       recordClass: merged.recordClass,
       informationState: merged.informationState,
       detectionState: merged.detectionState,
+      mediaDedup: {
+        ruleVersion: prepared.mediaDedup.ruleVersion,
+        sourceImageCount: prepared.sourceAssets.length,
+        representativeImageCount: prepared.assets.length,
+        excludedImageCount: prepared.mediaDedup.excluded.length,
+        unselectedUniqueImageCount: prepared.unselectedUniqueAssetIds.length,
+      },
       provisionalObservationIds: dualWritePlan.observationIds,
       completedAt,
     }),

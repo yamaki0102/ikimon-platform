@@ -6811,7 +6811,10 @@ class FakeStatement {
         }));
       return { results: rows as T[] };
     }
-    if (normalized.startsWith("SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key FROM asset_ledger")) {
+    if (
+      normalized.startsWith("SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key,")
+      || normalized.startsWith("SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key FROM asset_ledger")
+    ) {
       const rows = [...this.db.assets.values()]
         .filter((asset) =>
           asset.observation_id === string(this.values[0]) &&
@@ -6831,7 +6834,10 @@ class FakeStatement {
           mime: asset.mime,
           bytes: asset.bytes,
           duration_ms: null,
-          public_derivative_key: asset.public_derivative_key
+          public_derivative_key: asset.public_derivative_key,
+          sha256: asset.sha256,
+          public_derivative_sha256: asset.public_derivative_sha256,
+          public_derivative_metadata_json: asset.public_derivative_metadata_json
         }));
       return { results: rows as T[] };
     }
@@ -9151,11 +9157,31 @@ test("public observation detail route exposes a safe read page and JSON without 
     bytes: 1234,
     processing_state: "uploaded",
     public_derivative_key: "derived/import/20260615/observation_photo/asset-detail-contract-real-derivative/display.webp",
-    public_derivative_sha256: "detail-real-derivative-sha",
+    public_derivative_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     public_derivative_verified_at: "2026-06-15T03:30:00.000Z",
-    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\",\"derivativeWidth\":1200,\"derivativeHeight\":900,\"derivativeBytes\":1234}",
     exif_scrub_state: "scrubbed",
     public_ready_at: "2026-06-15T03:30:00.000Z"
+  });
+  env.OBS_DB.assets.set("asset-detail-contract-real-duplicate", {
+    asset_id: "asset-detail-contract-real-duplicate",
+    draft_id: "draft-detail-contract-real-duplicate",
+    observation_id: "visit-detail-contract",
+    owner_user_id: "detail-user",
+    object_key: "original/visit-detail-contract/detail-real-copy.jpg",
+    partition_month: "2026-06",
+    sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    mime: "image/jpeg",
+    bytes: 1234,
+    width: 1200,
+    height: 900,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260615/observation_photo/asset-detail-contract-real-duplicate/display.webp",
+    public_derivative_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    public_derivative_verified_at: "2026-06-15T03:30:01.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\",\"derivativeWidth\":1200,\"derivativeHeight\":900,\"derivativeBytes\":1234}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T03:30:01.000Z"
   });
   await env.ASSET_BUCKET.put(
     "derived/import/20260615/observation_photo/asset-detail-contract-real-derivative/display.webp",
@@ -9184,7 +9210,19 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(jsonResponse.headers.get("cache-control"), "no-store");
   assert.equal(jsonPayload.observation.privacy.exactLocationExposed, false);
   assert.equal(jsonPayload.observation.relatedObservations.length, 1);
-  assert.ok(jsonPayload.observation.photoAssets.length >= 1);
+  assert.equal(jsonPayload.observation.sourceAssetCount, 3);
+  assert.equal(jsonPayload.observation.assetCount, 2);
+  assert.equal(jsonPayload.observation.photoAssets.length, 2);
+  assert.equal(jsonPayload.observation.mediaDedup.sourcePhotoCount, 3);
+  assert.equal(jsonPayload.observation.mediaDedup.representativePhotoCount, 2);
+  assert.equal(jsonPayload.observation.mediaDedup.excludedPhotoCount, 1);
+  assert.equal(jsonPayload.observation.mediaDedup.exactDuplicateClusters, 1);
+  assert.equal(jsonPayload.observation.mediaDedup.nearDuplicateClusters, 0);
+  assert.equal(jsonPayload.observation.mediaDedup.ruleVersion, "observation-media-dedup-v1");
+  assert.equal(
+    jsonPayload.observation.photoAssets.some((asset: any) => asset.assetId === "asset-detail-contract-real-duplicate"),
+    false
+  );
   const regionPhotoAsset = jsonPayload.observation.photoAssets.find((asset: any) =>
     /asset-detail-contract-real-derivative\/display\.webp$/.test(String(asset.url ?? ""))
   );
