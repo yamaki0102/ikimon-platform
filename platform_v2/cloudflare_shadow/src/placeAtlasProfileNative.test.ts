@@ -61,9 +61,13 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
   }
 
   async all<T>(): Promise<{ results: T[] }> {
-    if (this.query.includes("SELECT DISTINCT record_id") && this.query.includes("record_place_memberships")) {
+    if (this.query.includes("SELECT DISTINCT m.record_id") && this.query.includes("record_place_memberships")) {
       assert.match(this.query, /membership_state <> 'confirmed'/);
       assert.match(this.query, /removed_at IS NOT NULL/);
+      assert.match(this.query, /LEFT JOIN observation_data_rights/);
+      assert.match(this.query, /rights\.visit_id IS NULL/);
+      assert.match(this.query, /rights\.withdrawal_status <> 'active'/);
+      assert.match(this.query, /public_visibility[^]*<> 'public'/);
       return {
         results: (this.data.excludedMembershipRecordIds ?? []) as T[],
       };

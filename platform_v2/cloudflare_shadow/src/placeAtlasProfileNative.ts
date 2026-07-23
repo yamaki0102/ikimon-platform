@@ -564,14 +564,25 @@ async function loadExcludedPlaceMembershipRecordIds(
   if (!placeId) return { recordIds: new Set(), complete: true, available: false };
   try {
     const result = await db.prepare(
-      `SELECT DISTINCT record_id
-         FROM record_place_memberships
-        WHERE place_id = ?
+      `SELECT DISTINCT m.record_id
+         FROM record_place_memberships m
+         JOIN production_import_visits v
+           ON v.visit_id = m.record_id
+         LEFT JOIN observation_data_rights rights
+           ON rights.visit_id = v.visit_id
+        WHERE m.place_id = ?
           AND (
-            membership_state <> 'confirmed'
-            OR removed_at IS NOT NULL
+            m.membership_state <> 'confirmed'
+            OR m.removed_at IS NOT NULL
+            OR COALESCE(v.public_visibility, 'private') <> 'public'
+            OR rights.visit_id IS NULL
+            OR rights.withdrawal_status <> 'active'
+            OR rights.record_consent NOT IN (
+              'public_summary',
+              'external_export'
+            )
           )
-        ORDER BY record_id
+        ORDER BY m.record_id
         LIMIT ?`
     ).bind(placeId, MAX_EXCLUDED_MEMBERSHIP_RECORDS + 1).all<{ record_id: string }>();
     return {
@@ -586,6 +597,12 @@ async function loadExcludedPlaceMembershipRecordIds(
   } catch (error) {
     if (isMissingOptionalTable(error, "record_place_memberships")) {
       return { recordIds: new Set(), complete: true, available: false };
+    }
+    if (
+      isMissingOptionalTable(error, "production_import_visits") ||
+      isMissingOptionalTable(error, "observation_data_rights")
+    ) {
+      return { recordIds: new Set(), complete: false, available: false };
     }
     throw error;
   }
