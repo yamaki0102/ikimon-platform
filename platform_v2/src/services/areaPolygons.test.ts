@@ -24,6 +24,7 @@ const {
   radiusFallbackMeters,
   radiusFallbackGeometry,
   isDisplayableAreaFeature,
+  dedupeAreaFeatures,
   shouldFetchLiveOsm,
   shouldSupplementLiveOsm,
   hasRequestedLiveOsmSourceCoverage,
@@ -208,6 +209,71 @@ test("liveElementToFeature treats OSM education landuse and named education buil
   assert.equal(educationLanduse?.properties.source, "school");
   assert.equal(schoolBuilding?.properties.source, "school");
   assert.equal(schoolBuilding?.properties.verification_level, "unverified");
+});
+
+test("generic named-area discovery recognizes a theme park without enabling it at low zoom", () => {
+  const highZoomQuery = buildLiveOsmAreaQuery(
+    [127.9, 26.6, 128.1, 26.8],
+    ["osm_named_area"],
+  );
+  const junglia = liveElementToFeature({
+    type: "way",
+    id: 1281984233,
+    tags: {
+      name: "JUNGLIA OKINAWA",
+      "name:ja": "ジャングリア沖縄",
+      tourism: "theme_park",
+    },
+    geometry: [
+      { lat: 26.684, lon: 127.953 },
+      { lat: 26.684, lon: 127.959 },
+      { lat: 26.690, lon: 127.959 },
+      { lat: 26.690, lon: 127.953 },
+    ],
+  }, { zoom: 14, context: "search" });
+
+  assert.match(highZoomQuery, /theme_park/);
+  assert.match(highZoomQuery, /shop/);
+  assert.equal(defaultSourcesForZoom(11).includes("osm_named_area"), false);
+  assert.equal(defaultSourcesForZoom(13).includes("osm_named_area"), true);
+  assert.equal(junglia?.properties.source, "osm_named_area");
+  assert.equal(junglia?.properties.place_kind, "theme_park");
+  assert.equal(junglia?.properties.recording_policy, "check_rules");
+  assert.equal(junglia?.properties.contribution_cta_mode, "check_rules");
+});
+
+test("mall and overlapping retail landuse collapse to one canonical map feature", () => {
+  const geometry = [
+    { lat: 34.710, lon: 137.755 },
+    { lat: 34.710, lon: 137.765 },
+    { lat: 34.720, lon: 137.765 },
+    { lat: 34.720, lon: 137.755 },
+  ];
+  const mall = liveElementToFeature({
+    type: "way",
+    id: 189307274,
+    tags: { name: "イオンモール浜松市野", shop: "mall", brand: "イオン" },
+    geometry,
+  }, { zoom: 14, context: "search" });
+  const retail = liveElementToFeature({
+    type: "relation",
+    id: 99189307274,
+    tags: { name: "イオンモール浜松市野", landuse: "retail" },
+    members: [{
+      type: "way",
+      ref: 1,
+      role: "outer",
+      geometry: geometry.map((point) => ({ ...point, lat: point.lat + 0.0002 })),
+    }],
+  }, { zoom: 14, context: "search" });
+
+  assert.ok(mall);
+  assert.ok(retail);
+  const deduped = dedupeAreaFeatures([mall!, retail!], 10);
+  assert.equal(deduped.length, 1);
+  assert.equal(deduped[0]?.properties.place_kind, "shopping_mall");
+  assert.equal(deduped[0]?.properties.merged_candidate_ids?.length, 1);
+  assert.equal(deduped[0]?.properties.source_references?.length, 2);
 });
 
 test("live OSM fallback respects selected area sources", () => {
@@ -447,8 +513,9 @@ test("area layer SQL prioritizes human-scale school and park areas before admin 
   const orderSql = areaLayerSourceSortSql();
   assert.match(orderSql, /WHEN 'school' THEN 0/);
   assert.match(orderSql, /WHEN 'osm_park' THEN 1/);
-  assert.match(orderSql, /WHEN 'admin_municipality' THEN 7/);
-  assert.ok(orderSql.indexOf("WHEN 'school' THEN 0") < orderSql.indexOf("WHEN 'admin_municipality' THEN 7"));
+  assert.match(orderSql, /WHEN 'osm_named_area' THEN 2/);
+  assert.match(orderSql, /WHEN 'admin_municipality' THEN 8/);
+  assert.ok(orderSql.indexOf("WHEN 'school' THEN 0") < orderSql.indexOf("WHEN 'admin_municipality' THEN 8"));
 });
 
 test("stored school point-buffer rows render when the geometry is no longer a generated circle", () => {
@@ -551,12 +618,11 @@ test("displayable area feature filter keeps named OSM school polygons visible bu
     ],
   });
 
-  assert.equal(weakUnnamedSchool ? isDisplayableAreaFeature(weakUnnamedSchool) : true, false);
+  assert.equal(weakUnnamedSchool, null);
   assert.equal(namedSchoolWithoutOfficialUrl ? isDisplayableAreaFeature(namedSchoolWithoutOfficialUrl) : false, true);
   assert.equal(namedSchoolWithoutOfficialUrl?.properties.source_confidence, 0.45);
   assert.equal(namedSchoolWithoutOfficialUrl?.properties.verification_level, "unverified");
   assert.equal(namedSchoolWithoutOfficialUrl?.properties.osm_named, true);
-  assert.equal(weakUnnamedSchool?.properties.osm_named, false);
   assert.equal(namedSchoolBuildingWithoutAmenity?.properties.source, "school");
   assert.equal(namedSchoolBuildingWithoutAmenity ? isDisplayableAreaFeature(namedSchoolBuildingWithoutAmenity) : false, true);
   assert.equal(officialSchool ? isDisplayableAreaFeature(officialSchool) : false, true);

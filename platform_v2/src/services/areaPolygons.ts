@@ -14,10 +14,27 @@ import { getPool } from "../db.js";
 import type { FieldSource } from "./observationFieldRegistry.js";
 import { inferTaxonGroup, type TaxonGroup } from "./mapSnapshot.js";
 import { PUBLIC_OBSERVATION_QUALITY_SQL } from "./observationQualityGate.js";
+import {
+  bboxAreaHa,
+  bboxForPlaceGeometry,
+  classifyOsmPlaceKind,
+  collectOsmPlaceNames,
+  dedupePlaceCandidates,
+  defaultPlacePolicy,
+  initialCanonicalPlaceId,
+  isDiscoverableNamedArea,
+  pointInPlaceGeometry,
+  type PlaceCandidate,
+  type PlaceDiscoveryContext,
+  type PlaceGeometry,
+  type PlaceKind,
+  type RecordingPolicy,
+} from "./placeDomain.js";
 
 export type AreaPolygonSource =
   | FieldSource
   | "osm_park"
+  | "osm_named_area"
   | "admin_municipality"
   | "admin_prefecture"
   | "admin_country";
@@ -49,6 +66,20 @@ export interface AreaPolygonFeatureProps {
   osm_type?: string;
   osm_id?: number;
   osm_named?: boolean;
+  canonical_place_id?: string;
+  place_kind?: PlaceKind;
+  aliases?: string[];
+  multilingual_names?: Record<string, string>;
+  recording_policy?: RecordingPolicy;
+  contribution_cta_mode?: "record" | "check_rules" | "suppressed";
+  policy_reason?: string;
+  merged_candidate_ids?: string[];
+  source_references?: Array<{
+    source_type: string;
+    source_id: string;
+    confidence: number;
+    verification_status: string;
+  }>;
   biodiversity_groups?: AreaBiodiversityGroup[];
 }
 
@@ -122,6 +153,7 @@ const SOURCE_LABEL: Record<AreaPolygonSource, string> = {
   oecm: "OECM",
   school: "学校",
   osm_park: "公園 (OSM)",
+  osm_named_area: "場所・施設 (OSM)",
   admin_municipality: "市町村",
   admin_prefecture: "都道府県",
   admin_country: "国",
@@ -144,9 +176,9 @@ const CACHE_TTL_MS = 60_000;
 const LIVE_OSM_TIMEOUT_MS = 4_500;
 const LIVE_OSM_MAX_SPAN_DEGREES = 0.18;
 const LIVE_OSM_MIN_ZOOM = 13;
-const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "school"]);
+const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "school", "osm_named_area"]);
 const LIVE_OSM_TILE_Z = 14;
-const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v4";
+const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v5";
 const LIVE_OSM_TILE_SOURCE = "overpass";
 const LIVE_OSM_TILE_FETCH_LIMIT = 600;
 const LIVE_OSM_SUCCESS_TTL_DAYS = 7;
@@ -335,11 +367,15 @@ function defaultSourcesForZoom(zoom: number | undefined): AreaPolygonSource[] {
     "protected_area", "oecm", "nature_symbiosis_site", "tsunag", "school",
     "osm_park", "user_defined",
   ];
-  return [
+  const sources: AreaPolygonSource[] = [
     "admin_municipality", "admin_prefecture",
     "protected_area", "oecm", "nature_symbiosis_site", "tsunag", "school",
     "osm_park", "user_defined",
   ];
+  // Managed/commercial/tourism areas are contextual discovery only. They are
+  // not requested for low/mid zoom pan traffic.
+  if (z >= LIVE_OSM_MIN_ZOOM) sources.push("osm_named_area");
+  return sources;
 }
 
 function normalizeAreaLayerSource(source: string | null, adminLevel: string | null): AreaPolygonSource {
@@ -347,6 +383,23 @@ function normalizeAreaLayerSource(source: string | null, adminLevel: string | nu
     return adminLevel as AreaPolygonSource;
   }
   return (source as AreaPolygonSource | null) ?? "user_defined";
+}
+
+function placeKindForStoredArea(source: AreaPolygonSource, adminLevel: string | null): PlaceKind {
+  if (source === "school" || adminLevel === "school") return "school";
+  if (source === "osm_park" || adminLevel === "park") return "park";
+  if (
+    source === "protected_area" ||
+    source === "oecm" ||
+    source === "nature_symbiosis_site" ||
+    source === "tsunag"
+  ) return "nature_area";
+  if (
+    source === "admin_municipality" ||
+    source === "admin_prefecture" ||
+    source === "admin_country"
+  ) return "administrative_area";
+  return "other_named_area";
 }
 
 function ringLooksLikeGeneratedPointBuffer(ring: unknown): boolean {
@@ -497,6 +550,7 @@ function areaFeatureSourceRank(source: AreaPolygonSource, sources: AreaPolygonSo
   if (requestedIndex >= 0) return requestedIndex;
   if (source === "school") return 0;
   if (source === "osm_park") return 1;
+  if (source === "osm_named_area") return 2;
   return 10;
 }
 
@@ -520,7 +574,11 @@ function isWeakLiveOsmAreaFeature(feature: AreaPolygonFeature): boolean {
   const props = feature.properties;
   if (!String(props.field_id || "").startsWith("osm-live:")) return false;
   const name = String(props.name || "");
-  if (name === "OSMの学校・キャンパス" || name === "OSMの公園・緑地") return true;
+  if (
+    name === "OSMの学校・キャンパス" ||
+    name === "OSMの公園・緑地" ||
+    name === "OSMの名前付きエリア"
+  ) return true;
   if (props.source === "school") {
     const hasExternalEvidence = Boolean(props.official_url || props.owner_url || props.certification_url);
     const hasSpecificName = props.osm_named === true;
@@ -563,6 +621,22 @@ function buildLiveOsmAreaQuery(bbox: [number, number, number, number], sources: 
       `  relation["building"~"^(school|college|university|kindergarten)$"](${bb});`,
     );
   }
+  if (includeAll || requested.includes("osm_named_area")) {
+    clauses.push(
+      `  way["tourism"~"^(theme_park|museum|zoo|aquarium|attraction|resort)$"]["name"](${bb});`,
+      `  relation["tourism"~"^(theme_park|museum|zoo|aquarium|attraction|resort)$"]["name"](${bb});`,
+      `  way["shop"~"^(mall|shopping_centre|shopping_center)$"]["name"](${bb});`,
+      `  relation["shop"~"^(mall|shopping_centre|shopping_center)$"]["name"](${bb});`,
+      `  way["landuse"~"^(retail|commercial)$"]["name"](${bb});`,
+      `  relation["landuse"~"^(retail|commercial)$"]["name"](${bb});`,
+      `  way["leisure"~"^(water_park|stadium|sports_centre|sports_center|sports_hall)$"]["name"](${bb});`,
+      `  relation["leisure"~"^(water_park|stadium|sports_centre|sports_center|sports_hall)$"]["name"](${bb});`,
+      `  way["amenity"~"^(marketplace|community_centre|community_center|arts_centre|arts_center|place_of_worship|events_venue|conference_centre|conference_center|townhall|library|theatre)$"]["name"](${bb});`,
+      `  relation["amenity"~"^(marketplace|community_centre|community_center|arts_centre|arts_center|place_of_worship|events_venue|conference_centre|conference_center|townhall|library|theatre)$"]["name"](${bb});`,
+      `  way["landuse"~"^(farmland|farmyard|orchard|vineyard)$"]["name"](${bb});`,
+      `  relation["landuse"~"^(farmland|farmyard|orchard|vineyard)$"]["name"](${bb});`,
+    );
+  }
   return `
 [out:json][timeout:8];
 (
@@ -590,25 +664,44 @@ function liveElementToPolygon(element: OverpassElement): Record<string, unknown>
     return ring ? { type: "Polygon", coordinates: [ring] } : null;
   }
   if (element.type === "relation" && Array.isArray(element.members)) {
-    const polygons: number[][][][] = [];
-    for (const member of element.members) {
-      if (member.type !== "way") continue;
-      const ring = ringFromGeometry(member.geometry);
-      if (ring) polygons.push([ring]);
-    }
+    const outerRings = element.members
+      .filter((member) => member.type === "way" && member.role !== "inner")
+      .map((member) => ringFromGeometry(member.geometry))
+      .filter((ring): ring is number[][] => Boolean(ring));
+    const polygons: number[][][][] = outerRings.map((ring) => [ring]);
     if (polygons.length === 0) return null;
+    const innerRings = element.members
+      .filter((member) => member.type === "way" && member.role === "inner")
+      .map((member) => ringFromGeometry(member.geometry))
+      .filter((ring): ring is number[][] => Boolean(ring));
+    for (const inner of innerRings) {
+      const first = inner[0];
+      if (!first) continue;
+      const owner = polygons.find((polygon) => pointInPlaceGeometry(
+        { lng: first[0]!, lat: first[1]! },
+        { type: "Polygon", coordinates: polygon },
+      ));
+      if (owner) owner.push(inner);
+    }
     if (polygons.length === 1) return { type: "Polygon", coordinates: polygons[0]! };
     return { type: "MultiPolygon", coordinates: polygons };
   }
   return null;
 }
 
-function liveElementSource(element: OverpassElement): { source: AreaPolygonSource; label: string; fallbackName: string } | null {
+function liveElementSource(element: OverpassElement): {
+  source: AreaPolygonSource;
+  label: string;
+  fallbackName: string;
+  placeKind: PlaceKind;
+} | null {
   const tags = element.tags ?? {};
+  const placeKind = classifyOsmPlaceKind(tags);
+  if (!placeKind) return null;
   const amenity = tags.amenity ?? "";
   const landuse = tags.landuse ?? "";
   const building = tags.building ?? "";
-  const hasName = Boolean((tags["name:ja"] ?? tags.name ?? tags.alt_name ?? "").trim());
+  const hasName = Boolean(collectOsmPlaceNames(tags).canonicalName);
   const namedEducationBuilding = hasName && (
     building === "school" || building === "college" || building === "university" || building === "kindergarten"
   );
@@ -618,7 +711,12 @@ function liveElementSource(element: OverpassElement): { source: AreaPolygonSourc
     landuse === "education" || landuse === "school" || landuse === "college" || landuse === "university" || landuse === "kindergarten" ||
     namedEducationBuilding
   ) {
-    return { source: "school", label: "学校・キャンパス (OSM live)", fallbackName: "OSMの学校・キャンパス" };
+    return {
+      source: "school",
+      label: "学校・キャンパス (OSM live)",
+      fallbackName: "OSMの学校・キャンパス",
+      placeKind: "school",
+    };
   }
   if (
     tags.leisure === "park" ||
@@ -627,19 +725,28 @@ function liveElementSource(element: OverpassElement): { source: AreaPolygonSourc
     tags.leisure === "playground" ||
     tags.boundary === "national_park"
   ) {
-    return { source: "osm_park", label: "公園・緑地 (OSM live)", fallbackName: "OSMの公園・緑地" };
+    return {
+      source: "osm_park",
+      label: "公園・緑地 (OSM live)",
+      fallbackName: "OSMの公園・緑地",
+      placeKind,
+    };
   }
-  return null;
+  return {
+    source: "osm_named_area",
+    label: "場所・施設 (OSM live)",
+    fallbackName: "OSMの名前付きエリア",
+    placeKind,
+  };
 }
 
 function liveElementDisplayName(element: OverpassElement): string {
   const tags = element.tags ?? {};
-  return tags["name:ja"] ?? tags.name ?? tags.alt_name ?? liveElementSource(element)?.fallbackName ?? "OSMのエリア";
+  return collectOsmPlaceNames(tags).canonicalName ?? liveElementSource(element)?.fallbackName ?? "OSMのエリア";
 }
 
 function liveElementHasName(element: OverpassElement): boolean {
-  const tags = element.tags ?? {};
-  return Boolean((tags["name:ja"] ?? tags.name ?? tags.alt_name ?? "").trim());
+  return Boolean(collectOsmPlaceNames(element.tags ?? {}).canonicalName);
 }
 
 function liveElementCenter(element: OverpassElement, geometry: Record<string, unknown>): [number, number] | null {
@@ -670,7 +777,10 @@ function liveElementCenter(element: OverpassElement, geometry: Record<string, un
   return count > 0 ? [lng / count, lat / count] : null;
 }
 
-function liveElementToFeature(element: OverpassElement): AreaPolygonFeature | null {
+function liveElementToFeature(
+  element: OverpassElement,
+  options: { zoom?: number; context?: PlaceDiscoveryContext } = {},
+): AreaPolygonFeature | null {
   if (element.type !== "way" && element.type !== "relation") return null;
   const geometry = liveElementToPolygon(element);
   if (!geometry) return null;
@@ -680,19 +790,41 @@ function liveElementToFeature(element: OverpassElement): AreaPolygonFeature | nu
   const entityKey = `osm:${element.type}:${element.id}`;
   const source = liveElementSource(element);
   if (!source) return null;
+  const placeGeometry = geometry as PlaceGeometry;
+  const bbox = bboxForPlaceGeometry(placeGeometry);
+  const areaHa = bboxAreaHa(bbox);
+  if (!isDiscoverableNamedArea({
+    osmType: element.type,
+    tags,
+    geometry: placeGeometry,
+    areaHa,
+    zoom: options.zoom ?? LIVE_OSM_MIN_ZOOM,
+    context: options.context ?? "selected",
+  })) return null;
   const website = tags.website ?? tags["contact:website"] ?? "";
   const hasName = liveElementHasName(element);
+  const names = collectOsmPlaceNames(tags);
+  const policy = defaultPlacePolicy({
+    placeKind: source.placeKind,
+    osmAccess: tags.access,
+  });
+  const canonicalName = names.canonicalName ?? source.fallbackName;
+  const canonicalPlaceId = initialCanonicalPlaceId({
+    canonicalName,
+    localityLabel: "",
+    placeKind: source.placeKind,
+  });
   return {
     type: "Feature",
     properties: {
       field_id: `osm-live:${element.type}:${element.id}`,
-      name: liveElementDisplayName(element),
+      name: canonicalName,
       source: source.source,
       source_label: source.label,
-      admin_level: source.source,
+      admin_level: source.placeKind,
       prefecture: "",
       city: "",
-      area_ha: null,
+      area_ha: areaHa,
       official_url: website,
       owner_url: website,
       story_url: "",
@@ -707,6 +839,19 @@ function liveElementToFeature(element: OverpassElement): AreaPolygonFeature | nu
       osm_type: element.type,
       osm_id: element.id,
       osm_named: hasName,
+      canonical_place_id: canonicalPlaceId,
+      place_kind: source.placeKind,
+      aliases: names.aliases,
+      multilingual_names: names.multilingualNames,
+      recording_policy: policy.recordingPolicy,
+      contribution_cta_mode: policy.contributionCtaMode,
+      policy_reason: policy.reason,
+      source_references: [{
+        source_type: `osm_${element.type}`,
+        source_id: `${element.type}:${element.id}`,
+        confidence: website ? 0.75 : 0.45,
+        verification_status: "unverified",
+      }],
     },
     geometry,
   };
@@ -723,8 +868,15 @@ export type ResolvedOsmArea = {
   osmType: "way" | "relation";
   osmId: number;
   name: string;
-  source: "osm_park" | "school";
+  source: "osm_park" | "school" | "osm_named_area";
   sourceLabel: string;
+  placeKind?: PlaceKind;
+  aliases?: string[];
+  multilingualNames?: Record<string, string>;
+  recordingPolicy?: RecordingPolicy;
+  contributionCtaMode?: "record" | "check_rules" | "suppressed";
+  policyReason?: string;
+  canonicalPlaceId?: string;
   access: string;
   center: { lat: number; lng: number };
   geometry: Record<string, unknown>;
@@ -746,8 +898,14 @@ function resolvedOsmAreaFromFeature(
   const lng = Number(center[0]);
   const lat = Number(center[1]);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (feature.properties.source !== "osm_park" && feature.properties.source !== "school") return null;
+  if (
+    feature.properties.source !== "osm_park" &&
+    feature.properties.source !== "school" &&
+    feature.properties.source !== "osm_named_area"
+  ) return null;
   if (!feature.geometry) return null;
+  const placeKind = feature.properties.place_kind ??
+    (feature.properties.source === "school" ? "school" : "park");
   return {
     entityKey: `osm:${osmType}:${osmId}`,
     osmType,
@@ -755,6 +913,13 @@ function resolvedOsmAreaFromFeature(
     name: feature.properties.name,
     source: feature.properties.source,
     sourceLabel: feature.properties.source_label,
+    placeKind,
+    aliases: feature.properties.aliases ?? [],
+    multilingualNames: feature.properties.multilingual_names ?? {},
+    recordingPolicy: feature.properties.recording_policy ?? "check_rules",
+    contributionCtaMode: feature.properties.contribution_cta_mode ?? "check_rules",
+    policyReason: feature.properties.policy_reason ?? "recording_rules_unverified",
+    canonicalPlaceId: feature.properties.canonical_place_id,
     access: feature.properties.access ?? "",
     center: { lat, lng },
     geometry: feature.geometry,
@@ -766,10 +931,24 @@ export async function resolveOsmAreaByRef(
   osmId: number,
 ): Promise<ResolvedOsmArea | null> {
   if ((osmType !== "way" && osmType !== "relation") || !Number.isSafeInteger(osmId) || osmId <= 0) return null;
+  const startedAt = Date.now();
+  const logResolve = (status: string, cache: string, error?: string) => {
+    console.info("[place-atlas-osm]", JSON.stringify({
+      event: "entity_resolve",
+      status,
+      cache,
+      osmType,
+      latencyMs: Math.max(0, Date.now() - startedAt),
+      error: error ?? null,
+    }));
+  };
   const key = `${osmType}:${osmId}`;
   const now = Date.now();
   const cached = resolvedOsmAreaCache.get(key);
-  if (cached && cached.expiresAt > now) return cached.value;
+  if (cached && cached.expiresAt > now) {
+    logResolve(cached.value ? "success" : "empty", "hit");
+    return cached.value;
+  }
 
   const configuredEndpoint = process.env.OVERPASS_API_URL?.trim();
   const endpoints = Array.from(new Set([
@@ -807,14 +986,17 @@ export async function resolveOsmAreaByRef(
         if (!oldest) break;
         resolvedOsmAreaCache.delete(oldest);
       }
+      logResolve(resolved ? "success" : "empty", "miss");
       return resolved;
-    } catch {
+    } catch (error) {
+      logResolve("retry", "miss", error instanceof Error ? error.message : "overpass_failed");
       // Try the next bounded endpoint. The map remains usable when OSM is down.
     } finally {
       clearTimeout(timeout);
     }
   }
   resolvedOsmAreaCache.set(key, { expiresAt: now + 60_000, value: null });
+  logResolve("error", "miss", "overpass_unavailable");
   return null;
 }
 
@@ -899,18 +1081,103 @@ function featureTouchesBbox(feature: AreaPolygonFeature, bbox: [number, number, 
   return fMaxLat >= minLat && fMinLat <= maxLat && fMaxLng >= minLng && fMinLng <= maxLng;
 }
 
+function placeKindForAreaFeature(feature: AreaPolygonFeature): PlaceKind | null {
+  if (feature.properties.place_kind) return feature.properties.place_kind;
+  if (feature.properties.source === "school") return "school";
+  if (feature.properties.source === "osm_park") return "park";
+  if (
+    feature.properties.source === "protected_area" ||
+    feature.properties.source === "oecm" ||
+    feature.properties.source === "nature_symbiosis_site"
+  ) return "nature_area";
+  if (
+    feature.properties.source === "admin_municipality" ||
+    feature.properties.source === "admin_prefecture" ||
+    feature.properties.source === "admin_country"
+  ) return "administrative_area";
+  return null;
+}
+
+function placeGeometryForAreaFeature(feature: AreaPolygonFeature): PlaceGeometry | null {
+  const geometry = feature.geometry;
+  if (!geometry || (geometry.type !== "Polygon" && geometry.type !== "MultiPolygon")) return null;
+  return geometry as PlaceGeometry;
+}
+
+function semanticDedupeAreaFeatures(features: AreaPolygonFeature[]): AreaPolygonFeature[] {
+  const featureByCandidateId = new Map<string, AreaPolygonFeature>();
+  const candidates: PlaceCandidate[] = [];
+  for (const feature of features) {
+    const placeKind = placeKindForAreaFeature(feature);
+    const geometry = placeGeometryForAreaFeature(feature);
+    if (!placeKind || !geometry) continue;
+    const candidateId = feature.properties.entity_key ?? feature.properties.field_id;
+    const bbox = bboxForPlaceGeometry(geometry);
+    featureByCandidateId.set(candidateId, feature);
+    candidates.push({
+      candidateId,
+      canonicalName: feature.properties.name,
+      aliases: feature.properties.aliases ?? [],
+      placeKind,
+      geometry,
+      bbox,
+      areaHa: feature.properties.area_ha ?? bboxAreaHa(bbox),
+      sourceType: String(feature.properties.entity_key ?? "").startsWith("osm:")
+        ? `osm_${feature.properties.osm_type ?? "area"}`
+        : "observation_field",
+      sourceId: feature.properties.entity_key ?? feature.properties.field_id,
+      sourceConfidence: feature.properties.source_confidence,
+      verificationStatus: feature.properties.verification_level,
+      localityLabel: [feature.properties.prefecture, feature.properties.city].filter(Boolean).join(" "),
+      tags: undefined,
+    });
+  }
+  if (candidates.length <= 1) return features;
+  const canonical = dedupePlaceCandidates(candidates);
+  const represented = new Set(candidates.map((candidate) => candidate.candidateId));
+  const untouched = features.filter((feature) =>
+    !represented.has(feature.properties.entity_key ?? feature.properties.field_id)
+  );
+  const merged = canonical.flatMap((candidate) => {
+    const feature = featureByCandidateId.get(candidate.candidateId);
+    if (!feature) return [];
+    const canonicalPlaceId = feature.properties.canonical_place_id ?? initialCanonicalPlaceId({
+      canonicalName: candidate.canonicalName,
+      localityLabel: candidate.localityLabel,
+      placeKind: candidate.placeKind,
+    });
+    return [{
+      ...feature,
+      properties: {
+        ...feature.properties,
+        name: candidate.canonicalName,
+        place_kind: candidate.placeKind,
+        canonical_place_id: canonicalPlaceId,
+        aliases: candidate.aliases,
+        merged_candidate_ids: candidate.mergedCandidateIds,
+        source_references: candidate.sourceReferences.map((reference) => ({
+          source_type: reference.sourceType,
+          source_id: reference.sourceId,
+          confidence: reference.confidence,
+          verification_status: reference.verificationStatus,
+        })),
+      },
+    }];
+  });
+  return [...merged, ...untouched];
+}
+
 function dedupeAreaFeatures(features: AreaPolygonFeature[], limit: number, bbox?: [number, number, number, number]): AreaPolygonFeature[] {
   const seen = new Set<string>();
-  const out: AreaPolygonFeature[] = [];
+  const unique: AreaPolygonFeature[] = [];
   for (const feature of features) {
     if (bbox && !featureTouchesBbox(feature, bbox)) continue;
     const key = feature.properties.entity_key ?? feature.properties.field_id;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(feature);
-    if (out.length >= limit) break;
+    unique.push(feature);
   }
-  return out;
+  return semanticDedupeAreaFeatures(unique).slice(0, Math.max(0, limit));
 }
 
 function featuresFromCollection(value: unknown): AreaPolygonFeature[] {
@@ -942,14 +1209,15 @@ function areaLayerSourceSortSql(): string {
   return `CASE ${AREA_LAYER_SOURCE_SQL}
         WHEN 'school' THEN 0
         WHEN 'osm_park' THEN 1
-        WHEN 'user_defined' THEN 2
-        WHEN 'nature_symbiosis_site' THEN 3
-        WHEN 'tsunag' THEN 4
-        WHEN 'protected_area' THEN 5
-        WHEN 'oecm' THEN 6
-        WHEN 'admin_municipality' THEN 7
-        WHEN 'admin_prefecture' THEN 8
-        ELSE 9
+        WHEN 'osm_named_area' THEN 2
+        WHEN 'user_defined' THEN 3
+        WHEN 'nature_symbiosis_site' THEN 4
+        WHEN 'tsunag' THEN 5
+        WHEN 'protected_area' THEN 6
+        WHEN 'oecm' THEN 7
+        WHEN 'admin_municipality' THEN 8
+        WHEN 'admin_prefecture' THEN 9
+        ELSE 10
       END`;
 }
 
@@ -1149,7 +1417,10 @@ async function fetchLiveOsmAreaPolygons(query: AreaPolygonsQuery, remainingLimit
       const features: AreaPolygonFeature[] = [];
       const seen = new Set<string>();
       for (const element of json.elements ?? []) {
-        const feature = liveElementToFeature(element);
+        const feature = liveElementToFeature(element, {
+          zoom: query.zoom,
+          context: "viewport",
+        });
         if (!feature) continue;
         if (query.sources && query.sources.length > 0 && !query.sources.includes(feature.properties.source)) continue;
         const key = feature.properties.entity_key ?? feature.properties.field_id;
@@ -1256,6 +1527,10 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     const sourceConfidence = Number.isFinite(rawSourceConfidence) ? rawSourceConfidence : 0;
     const guideStop = normalizeGuideStop(row.payload && row.payload.guide_stop);
     const boundaryApproximation = approximateSchoolBoundary ? "point_buffer" : approximateRadiusBoundary ? "radius" : undefined;
+    const placeKind = placeKindForStoredArea(source, row.admin_level);
+    const access = typeof row.payload?.access === "string" ? row.payload.access : "";
+    const policy = defaultPlacePolicy({ placeKind, osmAccess: access });
+    const localityLabel = [row.prefecture, row.city].filter(Boolean).join(" ");
     return [{
       type: "Feature",
       properties: {
@@ -1281,7 +1556,25 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         approximate_boundary: (approximateSchoolBoundary || approximateRadiusBoundary) || undefined,
         boundary_approximation: boundaryApproximation,
         center: [Number(row.lng), Number(row.lat)],
+        access,
         entity_key: row.entity_key ?? undefined,
+        canonical_place_id: initialCanonicalPlaceId({
+          canonicalName: row.name,
+          localityLabel,
+          placeKind,
+        }),
+        place_kind: placeKind,
+        aliases: [],
+        multilingual_names: {},
+        recording_policy: policy.recordingPolicy,
+        contribution_cta_mode: policy.contributionCtaMode,
+        policy_reason: policy.reason,
+        source_references: [{
+          source_type: "observation_field",
+          source_id: row.field_id,
+          confidence: approximateSchoolBoundary ? approximateSchoolSourceConfidence(sourceConfidence) : sourceConfidence,
+          verification_status: row.verification_level ?? "unverified",
+        }],
         guide_stop: guideStop,
         guide_stop_json: guideStop ? JSON.stringify(guideStop) : undefined,
       },
@@ -1384,6 +1677,7 @@ export const __test__ = {
   radiusFallbackGeometry,
   isDisplayableAreaFeature,
   isWeakLiveOsmAreaFeature,
+  dedupeAreaFeatures,
   shouldFetchLiveOsm,
   shouldSupplementLiveOsm,
   hasRequestedLiveOsmSourceCoverage,

@@ -74,8 +74,28 @@ import {
   PLACE_ATLAS_PROFILE_VERSION,
 } from "../../src/services/placeAtlasContract";
 import {
+  buildPlaceAtlasProfileV2,
+  PLACE_ATLAS_PROFILE_V2_VERSION,
+} from "../../src/services/placeAtlasV2Contract";
+import {
+  bboxAreaHa,
+  bboxForPlaceGeometry,
+  classifyOsmPlaceKind,
+  collectOsmPlaceNames,
+  dedupePlaceCandidates,
+  defaultPlacePolicy,
+  initialCanonicalPlaceId,
+  isDiscoverableNamedArea,
+  pointInPlaceGeometry,
+  type PlaceGeometry as UniversalPlaceGeometry,
+} from "../../src/services/placeDomain";
+import {
   loadCloudflarePlaceAtlasProfile,
 } from "./placeAtlasProfileNative";
+import {
+  listD1PublicPlaceChildren,
+  searchD1PublicPlaces,
+} from "./placeRegistryD1";
 import {
   buildObservationMediaDedupPlan,
   type ObservationMediaDedupInput,
@@ -2444,6 +2464,22 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/place-profile") {
         return getPublicMapPlaceProfile(request, url, env);
+      }
+
+      if (request.method === "GET" && nativePathname === "/api/v1/map/place-search") {
+        return getPublicMapPlaceSearch(url, env);
+      }
+
+      if (request.method === "GET" && nativePathname === "/api/v1/map/place-resolve") {
+        return getPublicMapPlaceResolve(url, env);
+      }
+
+      if (request.method === "GET" && nativePathname === "/api/v1/map/place-children") {
+        return getPublicMapPlaceChildren(url, env);
+      }
+
+      if (request.method === "POST" && nativePathname === "/api/v1/map/place-correction-proposals") {
+        return createPublicMapPlaceCorrectionProposal(request, env);
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/gbif-area-summary") {
@@ -12586,14 +12622,29 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
 }
 
 async function getPublicMapPlaceProfile(request: Request, url: URL, env: Env): Promise<Response> {
+  const startedAt = Date.now();
+  const timingHeaders = () => {
+    const durationMs = Math.max(0, Date.now() - startedAt);
+    return {
+      "server-timing": `place_profile;dur=${durationMs}`,
+      "x-ikimon-latency-ms": String(durationMs),
+    };
+  };
   const placeRef = normalizePlaceAtlasRef(Object.fromEntries(url.searchParams.entries()));
+  const wantsV2 =
+    url.searchParams.get("version") === "2" ||
+    url.searchParams.get("profile_version") === "2";
+  const responseVersion = wantsV2
+    ? PLACE_ATLAS_PROFILE_V2_VERSION
+    : PLACE_ATLAS_PROFILE_VERSION;
   if (!placeRef) {
     return json({
       error: "invalid_place_ref",
       supportedKinds: ["field", "osm_area", "public_cell"]
     }, 400, {
       "cache-control": "no-store",
-      "x-ikimon-profile-version": PLACE_ATLAS_PROFILE_VERSION
+      "x-ikimon-profile-version": responseVersion,
+      ...timingHeaders(),
     });
   }
 
@@ -12617,17 +12668,19 @@ async function getPublicMapPlaceProfile(request: Request, url: URL, env: Env): P
     if (!profile) {
       return json({ error: "place_profile_not_found" }, 404, {
         "cache-control": "public, max-age=60, stale-while-revalidate=300",
-        "x-ikimon-profile-version": PLACE_ATLAS_PROFILE_VERSION,
-        "x-ikimon-cloudflare-native": "map-place-profile"
+        "x-ikimon-profile-version": responseVersion,
+        "x-ikimon-cloudflare-native": "map-place-profile",
+        ...timingHeaders(),
       });
     }
-    return json({ profile }, 200, {
+    return json({ profile: wantsV2 ? buildPlaceAtlasProfileV2(profile) : profile }, 200, {
       "cache-control": hasCredential
         ? "private, no-cache, no-store, must-revalidate"
         : "public, max-age=60, stale-while-revalidate=300",
       "vary": "cookie, authorization",
-      "x-ikimon-profile-version": PLACE_ATLAS_PROFILE_VERSION,
-      "x-ikimon-cloudflare-native": "map-place-profile"
+      "x-ikimon-profile-version": responseVersion,
+      "x-ikimon-cloudflare-native": "map-place-profile",
+      ...timingHeaders(),
     });
   } catch (error) {
     console.warn("[map-place-profile] read model unavailable", error);
@@ -12636,8 +12689,170 @@ async function getPublicMapPlaceProfile(request: Request, url: URL, env: Env): P
       retryable: true
     }, 503, {
       "cache-control": "no-store",
-      "x-ikimon-profile-version": PLACE_ATLAS_PROFILE_VERSION,
-      "x-ikimon-cloudflare-native": "map-place-profile"
+      "x-ikimon-profile-version": responseVersion,
+      "x-ikimon-cloudflare-native": "map-place-profile",
+      ...timingHeaders(),
+    });
+  }
+}
+
+async function getPublicMapPlaceSearch(url: URL, env: Env): Promise<Response> {
+  const startedAt = Date.now();
+  const timingHeaders = () => {
+    const durationMs = Math.max(0, Date.now() - startedAt);
+    return {
+      "server-timing": `place_search;dur=${durationMs}`,
+      "x-ikimon-latency-ms": String(durationMs),
+    };
+  };
+  const query = normalizeOptionalText(url.searchParams.get("q")) ?? "";
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "8"), 1, 20);
+  try {
+    const response = await searchD1PublicPlaces({
+      db: env.OBS_DB,
+      query,
+      limit,
+    });
+    return json(response, 200, {
+      "cache-control": "public, max-age=60, stale-while-revalidate=300",
+      "x-ikimon-cloudflare-native": "map-place-search",
+      ...timingHeaders(),
+    });
+  } catch (error) {
+    console.warn("[map-place-search] registry unavailable", error);
+    return json({
+      error: "place_search_unavailable",
+      retryable: true,
+    }, 503, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "map-place-search",
+      ...timingHeaders(),
+    });
+  }
+}
+
+async function getPublicMapPlaceResolve(url: URL, env: Env): Promise<Response> {
+  const query = normalizeOptionalText(url.searchParams.get("place_id"))
+    ?? normalizeOptionalText(url.searchParams.get("q"))
+    ?? "";
+  try {
+    const response = await searchD1PublicPlaces({
+      db: env.OBS_DB,
+      query,
+      limit: 1,
+    });
+    const place = response.results[0] ?? null;
+    return place
+      ? json({
+          version: response.version,
+          place,
+          privacy: response.privacy,
+        }, 200, {
+          "cache-control": "public, max-age=60, stale-while-revalidate=300",
+          "x-ikimon-cloudflare-native": "map-place-resolve",
+        })
+      : json({ error: "place_not_found" }, 404, {
+          "cache-control": "public, max-age=60",
+          "x-ikimon-cloudflare-native": "map-place-resolve",
+        });
+  } catch (error) {
+    console.warn("[map-place-resolve] registry unavailable", error);
+    return json({ error: "place_resolve_unavailable", retryable: true }, 503, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "map-place-resolve",
+    });
+  }
+}
+
+async function getPublicMapPlaceChildren(url: URL, env: Env): Promise<Response> {
+  const parentPlaceId = normalizeOptionalText(url.searchParams.get("place_id")) ?? "";
+  if (!parentPlaceId) {
+    return json({ error: "invalid_place_id" }, 400, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "map-place-children",
+    });
+  }
+  try {
+    const results = await listD1PublicPlaceChildren({
+      db: env.OBS_DB,
+      parentPlaceId,
+      limit: clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 50),
+    });
+    return json({
+      version: "place_children/v1",
+      parentPlaceId,
+      results,
+      state: results.length > 0 ? "complete" : "empty",
+      privacy: "boundary_bbox_only",
+    }, 200, {
+      "cache-control": "public, max-age=60, stale-while-revalidate=300",
+      "x-ikimon-cloudflare-native": "map-place-children",
+    });
+  } catch (error) {
+    console.warn("[map-place-children] registry unavailable", error);
+    return json({ error: "place_children_unavailable", retryable: true }, 503, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "map-place-children",
+    });
+  }
+}
+
+async function createPublicMapPlaceCorrectionProposal(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  if (!session || session.banned) {
+    return json({ error: "authentication_required" }, 401, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "map-place-correction-proposal",
+    });
+  }
+  const body = await request.json().catch(() => null) as {
+    placeId?: unknown;
+    proposalType?: unknown;
+    proposedPayload?: unknown;
+  } | null;
+  const proposalType = normalizeOptionalText(body?.proposalType);
+  const allowedTypes = new Set([
+    "name", "alias", "boundary", "place_kind", "relationship", "membership", "policy",
+  ]);
+  if (!proposalType || !allowedTypes.has(proposalType)) {
+    return json({ error: "invalid_proposal_type" }, 400, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "map-place-correction-proposal",
+    });
+  }
+  const payload = JSON.stringify(body?.proposedPayload ?? null);
+  if (payload.length < 2 || payload.length > 20_000) {
+    return json({ error: "invalid_proposal_payload" }, 400, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "map-place-correction-proposal",
+    });
+  }
+  const proposalId = crypto.randomUUID();
+  try {
+    await env.OBS_DB.prepare(
+      `INSERT INTO place_correction_proposals (
+         proposal_id, place_id, proposer_user_id, proposal_type,
+         proposed_payload_json, proposal_status
+       ) VALUES (?, ?, ?, ?, ?, 'pending')`
+    ).bind(
+      proposalId,
+      normalizeOptionalText(body?.placeId),
+      session.userId,
+      proposalType,
+      payload,
+    ).run();
+    return json({
+      proposal: { proposalId, status: "pending" },
+      directMutation: false,
+    }, 202, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "map-place-correction-proposal",
+    });
+  } catch (error) {
+    console.warn("[map-place-correction-proposal] queue unavailable", error);
+    return json({ error: "place_correction_queue_unavailable", retryable: true }, 503, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "map-place-correction-proposal",
     });
   }
 }
@@ -13990,6 +14205,13 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
   const requestedLimit = clampInteger(Number(url.searchParams.get("limit") ?? String(defaultLimit)), 1, 1000);
   const limit = mapAreaPolygonsResponseLimit(bbox, sources, zoom, requestedLimit);
   const nativeRows = await queryNativeAreaPolygonRows(env, bbox, sources, limit);
+  const liveNamedFeatures = await fetchLiveNamedAreaPolygonsWhenRequested(
+    env,
+    bbox,
+    sources,
+    zoom,
+    limit
+  );
   if (nativeRows.length > 0) {
     const nativeFeatures = nativeRows
       .map((row) => areaPolygonFeatureFromGeometryReadmodel(row))
@@ -14004,7 +14226,10 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
       nativeFeatures,
       limit
     );
-    const features = dedupePublicAreaPolygonFeatures([...nativeFeatures, ...liveSchoolFeatures], limit);
+    const features = dedupePublicAreaPolygonFeatures(
+      [...nativeFeatures, ...liveSchoolFeatures, ...liveNamedFeatures],
+      limit
+    );
     if (
       options.allowApproximateFallback === false
       && sources.includes("school")
@@ -14019,7 +14244,24 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
       stats: {
         totalReturned: features.length,
         totalAll: features.length,
-        source: liveSchoolFeatures.length > 0 ? "cloudflare_area_polygon_readmodel+live_osm_school" : "cloudflare_area_polygon_readmodel",
+        source: [
+          "cloudflare_area_polygon_readmodel",
+          liveSchoolFeatures.length > 0 ? "live_osm_school" : "",
+          liveNamedFeatures.length > 0 ? "live_osm_named_area" : "",
+        ].filter(Boolean).join("+"),
+        kind: "area-polygons"
+      }
+    }, 200, { "cache-control": "public, max-age=60" });
+  }
+  if (liveNamedFeatures.length > 0) {
+    return json({
+      type: "FeatureCollection",
+      features: liveNamedFeatures,
+      truncated: liveNamedFeatures.length >= limit,
+      stats: {
+        totalReturned: liveNamedFeatures.length,
+        totalAll: liveNamedFeatures.length,
+        source: "live_osm_named_area",
         kind: "area-polygons"
       }
     }, 200, { "cache-control": "public, max-age=60" });
@@ -14027,10 +14269,14 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
   if (options.allowApproximateFallback === false) return null;
 
   const rows = await queryAreaPolygonRows(env, bbox, sources, limit);
-  const features = rows
+  const fallbackFeatures = rows
     .map((row) => areaPolygonFeatureFromReadmodel(row))
     .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature))
     .filter(isDisplayableAreaPolygonFeature);
+  const features = dedupePublicAreaPolygonFeatures(
+    [...fallbackFeatures, ...liveNamedFeatures],
+    limit
+  );
 
   return json({
     type: "FeatureCollection",
@@ -14156,11 +14402,23 @@ function liveSchoolElementToPolygon(element: OverpassAreaElement): { type: "Poly
     return ring ? { type: "Polygon", coordinates: [ring] } : null;
   }
   if (element.type === "relation" && Array.isArray(element.members)) {
-    const polygons: number[][][][] = [];
+    const polygons = element.members
+      .filter((member) => member.type === "way" && member.role !== "inner")
+      .map((member) => liveOsmRingFromGeometry(member.geometry))
+      .filter((ring): ring is number[][] => Boolean(ring))
+      .map((ring) => [ring]);
     for (const member of element.members) {
-      if (member.type !== "way") continue;
+      if (member.type !== "way" || member.role !== "inner") continue;
       const ring = liveOsmRingFromGeometry(member.geometry);
-      if (ring) polygons.push([ring]);
+      const first = ring?.[0];
+      if (!ring || !first) continue;
+      const owner = polygons.find((polygon) =>
+        pointInPlaceGeometry(
+          { lng: Number(first[0]), lat: Number(first[1]) },
+          { type: "Polygon", coordinates: polygon }
+        )
+      );
+      if (owner) owner.push(ring);
     }
     if (polygons.length === 0) return null;
     if (polygons.length === 1) return { type: "Polygon", coordinates: polygons[0] ?? [] };
@@ -14261,6 +14519,211 @@ function liveSchoolElementToFeature(element: OverpassAreaElement) {
 
 type LiveSchoolAreaPolygonFeature = NonNullable<ReturnType<typeof liveSchoolElementToFeature>>;
 
+const LIVE_NAMED_AREA_CACHE_TTL_MS = 15 * 60 * 1_000;
+const LIVE_NAMED_AREA_NEGATIVE_CACHE_TTL_MS = 2 * 60 * 1_000;
+const liveNamedAreaCache = new Map<string, {
+  expiresAt: number;
+  features: LiveNamedAreaPolygonFeature[];
+}>();
+
+function isGenericNamedAreaRequest(
+  bbox: [number, number, number, number],
+  sources: string[],
+  zoom: number | null
+): boolean {
+  return sources.includes("osm_named_area")
+    && isHumanScaleSchoolAreaBbox(bbox)
+    && zoom !== null
+    && Number.isFinite(zoom)
+    && zoom >= LIVE_SCHOOL_OSM_MIN_ZOOM;
+}
+
+function buildLiveNamedOsmAreaQuery(bbox: [number, number, number, number]): string {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const bb = `${minLat},${minLng},${maxLat},${maxLng}`;
+  return `
+[out:json][timeout:8];
+(
+  way["tourism"~"^(theme_park|museum|zoo|aquarium|attraction|resort)$"]["name"](${bb});
+  relation["tourism"~"^(theme_park|museum|zoo|aquarium|attraction|resort)$"]["name"](${bb});
+  way["shop"~"^(mall|shopping_centre|shopping_center)$"]["name"](${bb});
+  relation["shop"~"^(mall|shopping_centre|shopping_center)$"]["name"](${bb});
+  way["landuse"~"^(retail|commercial)$"]["name"](${bb});
+  relation["landuse"~"^(retail|commercial)$"]["name"](${bb});
+  way["leisure"~"^(water_park|stadium|sports_centre|sports_center|sports_hall)$"]["name"](${bb});
+  relation["leisure"~"^(water_park|stadium|sports_centre|sports_center|sports_hall)$"]["name"](${bb});
+  way["amenity"~"^(marketplace|community_centre|community_center|arts_centre|arts_center|place_of_worship|events_venue|conference_centre|conference_center|townhall|library|theatre)$"]["name"](${bb});
+  relation["amenity"~"^(marketplace|community_centre|community_center|arts_centre|arts_center|place_of_worship|events_venue|conference_centre|conference_center|townhall|library|theatre)$"]["name"](${bb});
+  way["landuse"~"^(farmland|farmyard|orchard|vineyard)$"]["name"](${bb});
+  relation["landuse"~"^(farmland|farmyard|orchard|vineyard)$"]["name"](${bb});
+);
+out tags geom;
+`;
+}
+
+function liveNamedElementToFeature(element: OverpassAreaElement, zoom: number) {
+  if (element.type !== "way" && element.type !== "relation") return null;
+  const tags = element.tags ?? {};
+  const placeKind = classifyOsmPlaceKind(tags);
+  if (!placeKind) return null;
+  const geometry = liveSchoolElementToPolygon(element);
+  if (!geometry) return null;
+  const universalGeometry = geometry as UniversalPlaceGeometry;
+  const bbox = bboxForPlaceGeometry(universalGeometry);
+  const areaHa = bboxAreaHa(bbox);
+  if (!isDiscoverableNamedArea({
+    osmType: element.type,
+    tags,
+    geometry: universalGeometry,
+    areaHa,
+    zoom,
+    context: "viewport",
+  })) return null;
+  const center = liveSchoolElementCenter(element, geometry);
+  if (!center) return null;
+  const names = collectOsmPlaceNames(tags);
+  if (!names.canonicalName) return null;
+  const website = tags.website ?? tags["contact:website"] ?? "";
+  const policy = defaultPlacePolicy({
+    placeKind,
+    osmAccess: tags.access,
+  });
+  const entityKey = `osm:${element.type}:${element.id}`;
+  const canonicalPlaceId = initialCanonicalPlaceId({
+    canonicalName: names.canonicalName,
+    localityLabel: "",
+    placeKind,
+  });
+  return {
+    type: "Feature",
+    geometry,
+    properties: {
+      field_id: `osm-live:${element.type}:${element.id}`,
+      name: names.canonicalName,
+      source: "osm_named_area",
+      source_label: "場所・施設 (OSM live)",
+      admin_level: placeKind,
+      place_kind: placeKind,
+      canonical_place_id: canonicalPlaceId,
+      aliases: names.aliases,
+      multilingual_names: names.multilingualNames,
+      prefecture: "",
+      city: "",
+      area_ha: areaHa,
+      official_url: website,
+      owner_url: website,
+      story_url: "",
+      certification_url: "",
+      source_confidence: website ? 0.75 : 0.55,
+      verification_level: "unverified",
+      verification_label: website ? "公式ページ候補あり" : "OSM出典・未確認",
+      center,
+      access: tags.access ?? "",
+      transient: true,
+      entity_key: entityKey,
+      osm_type: element.type,
+      osm_id: element.id,
+      osm_named: true,
+      recording_policy: policy.recordingPolicy,
+      contribution_cta_mode: policy.contributionCtaMode,
+      policy_reason: policy.reason,
+      source_references: [{
+        source_type: `osm_${element.type}`,
+        source_id: String(element.id),
+        confidence: website ? 0.75 : 0.55,
+        verification_status: "unverified",
+      }],
+      biodiversity_groups: []
+    }
+  };
+}
+
+type LiveNamedAreaPolygonFeature = NonNullable<ReturnType<typeof liveNamedElementToFeature>>;
+
+function liveNamedAreaCacheKey(
+  bbox: [number, number, number, number],
+  zoom: number
+): string {
+  return `${bbox.map((value) => value.toFixed(4)).join(",")}|z${Math.floor(zoom)}`;
+}
+
+async function fetchLiveNamedAreaPolygonsWhenRequested(
+  env: Env,
+  bbox: [number, number, number, number],
+  sources: string[],
+  zoom: number | null,
+  limit: number
+): Promise<LiveNamedAreaPolygonFeature[]> {
+  if (limit <= 0 || !isGenericNamedAreaRequest(bbox, sources, zoom)) return [];
+  const startedAt = Date.now();
+  const logResolve = (status: string, cache: string, count: number, error?: string) => {
+    console.info("[place-atlas-osm]", JSON.stringify({
+      event: "named_area_resolve",
+      status,
+      cache,
+      count,
+      latencyMs: Math.max(0, Date.now() - startedAt),
+      error: error ?? null,
+    }));
+  };
+  const cacheKey = liveNamedAreaCacheKey(bbox, zoom as number);
+  const cached = liveNamedAreaCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    const features = cached.features.slice(0, limit);
+    logResolve(features.length > 0 ? "success" : "empty", "hit", features.length);
+    return features;
+  }
+  const endpoints = Array.from(new Set([
+    ...(env.OVERPASS_API_URL?.trim() ? [env.OVERPASS_API_URL.trim()] : []),
+    ...LIVE_SCHOOL_OSM_ENDPOINTS
+  ])).slice(0, LIVE_SCHOOL_OSM_MAX_ENDPOINT_ATTEMPTS);
+  const body = `data=${encodeURIComponent(buildLiveNamedOsmAreaQuery(bbox))}`;
+  for (const endpoint of endpoints) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), LIVE_SCHOOL_OSM_TIMEOUT_MS);
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
+          "User-Agent": "ikimon.life universal place atlas contact: https://ikimon.life",
+          "X-Ikimon-Client": "ikimon.life-named-area-polygons"
+        },
+        body,
+        signal: controller.signal
+      });
+      if (!response.ok) continue;
+      const payload = await response.json() as { elements?: OverpassAreaElement[] };
+      const features = dedupePublicAreaPolygonFeatures(
+        (payload.elements ?? [])
+          .map((element) => liveNamedElementToFeature(element, zoom as number))
+          .filter((feature): feature is LiveNamedAreaPolygonFeature => Boolean(feature)),
+        limit,
+        bbox
+      );
+      liveNamedAreaCache.set(cacheKey, {
+        features,
+        expiresAt: Date.now() + (features.length > 0
+          ? LIVE_NAMED_AREA_CACHE_TTL_MS
+          : LIVE_NAMED_AREA_NEGATIVE_CACHE_TTL_MS),
+      });
+      logResolve(features.length > 0 ? "success" : "empty", "miss", features.length);
+      return features;
+    } catch (error) {
+      console.warn("[area-polygons] live named area OSM fallback failed", error);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  liveNamedAreaCache.set(cacheKey, {
+    features: [],
+    expiresAt: Date.now() + LIVE_NAMED_AREA_NEGATIVE_CACHE_TTL_MS,
+  });
+  logResolve("error", "miss", 0, "overpass_unavailable");
+  return [];
+}
+
 function walkPublicAreaPolygonGeometry(value: unknown, visit: (lng: number, lat: number) => void): void {
   if (!Array.isArray(value)) return;
   if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") {
@@ -14318,7 +14781,7 @@ function osmEntityKeyFromAreaPolygonProps(props: Record<string, unknown>): strin
 
 function dedupePublicAreaPolygonFeatures<T>(features: T[], limit: number, bbox?: [number, number, number, number]): T[] {
   const seen = new Set<string>();
-  const out: T[] = [];
+  const unique: T[] = [];
   for (const feature of features) {
     if (bbox && !publicAreaPolygonFeatureTouchesBbox(feature, bbox)) continue;
     const props = areaPolygonFeatureProps(feature);
@@ -14328,10 +14791,88 @@ function dedupePublicAreaPolygonFeatures<T>(features: T[], limit: number, bbox?:
     if (!key || seen.has(key)) continue;
     seen.add(key);
     if (osmKey) seen.add(osmKey);
-    out.push(feature);
-    if (out.length >= limit) break;
+    unique.push(feature);
   }
-  return out;
+  const byCandidateId = new Map<string, T>();
+  const candidates = unique.flatMap((feature) => {
+    const props = areaPolygonFeatureProps(feature);
+    if (!props || !feature || typeof feature !== "object" || Array.isArray(feature)) return [];
+    const geometry = (feature as { geometry?: UniversalPlaceGeometry }).geometry;
+    if (!geometry || (geometry.type !== "Polygon" && geometry.type !== "MultiPolygon")) return [];
+    const placeKind = String(props.place_kind ?? props.admin_level ?? "");
+    const tags = { name: textProp(props, "name") };
+    const classified = classifyOsmPlaceKind(tags);
+    const supportedKind = [
+      "park", "school", "nature_area", "theme_park", "shopping_mall",
+      "commercial_complex", "museum", "zoo", "aquarium", "stadium",
+      "sports_facility", "resort", "market", "farm", "temple_shrine",
+      "cultural_facility", "public_facility", "event_venue", "neighborhood",
+      "administrative_area", "other_named_area",
+    ].includes(placeKind)
+      ? placeKind
+      : classified;
+    if (!supportedKind) return [];
+    const candidateId = textProp(props, "entity_key") || textProp(props, "field_id");
+    if (!candidateId) return [];
+    byCandidateId.set(candidateId, feature);
+    return [{
+      candidateId,
+      canonicalName: textProp(props, "name"),
+      aliases: Array.isArray(props.aliases)
+        ? props.aliases.filter((value): value is string => typeof value === "string")
+        : [],
+      placeKind: supportedKind as Parameters<typeof initialCanonicalPlaceId>[0]["placeKind"],
+      geometry,
+      bbox: bboxForPlaceGeometry(geometry),
+      areaHa: Number.isFinite(Number(props.area_ha)) ? Number(props.area_ha) : null,
+      sourceType: candidateId.startsWith("osm:")
+        ? `osm_${textProp(props, "osm_type") || "area"}`
+        : "observation_field",
+      sourceId: candidateId,
+      sourceConfidence: Number.isFinite(Number(props.source_confidence))
+        ? Number(props.source_confidence)
+        : 0.45,
+      verificationStatus: textProp(props, "verification_level") || "unverified",
+      localityLabel: [textProp(props, "prefecture"), textProp(props, "city")].filter(Boolean).join(" "),
+    }];
+  });
+  if (candidates.length < 2) return unique.slice(0, limit);
+  const represented = new Set(candidates.map((candidate) => candidate.candidateId));
+  const merged = dedupePlaceCandidates(candidates).flatMap((candidate) => {
+    const feature = byCandidateId.get(candidate.candidateId);
+    if (!feature || typeof feature !== "object" || Array.isArray(feature)) return [];
+    const current = feature as { properties?: Record<string, unknown> };
+    return [{
+      ...current,
+      properties: {
+        ...(current.properties ?? {}),
+        name: candidate.canonicalName,
+        aliases: candidate.aliases,
+        place_kind: candidate.placeKind,
+        canonical_place_id: textProp(current.properties ?? {}, "canonical_place_id") ||
+          initialCanonicalPlaceId({
+            canonicalName: candidate.canonicalName,
+            localityLabel: candidate.localityLabel ?? "",
+            placeKind: candidate.placeKind,
+          }),
+        merged_candidate_ids: candidate.mergedCandidateIds,
+        source_references: candidate.sourceReferences.map((source) => ({
+          source_type: source.sourceType,
+          source_id: source.sourceId,
+          confidence: source.confidence,
+          verification_status: source.verificationStatus,
+        })),
+      },
+    } as T];
+  });
+  const untouched = unique.filter((feature) => {
+    const props = areaPolygonFeatureProps(feature);
+    const candidateId = props
+      ? textProp(props, "entity_key") || textProp(props, "field_id")
+      : "";
+    return !represented.has(candidateId);
+  });
+  return [...merged, ...untouched].slice(0, limit);
 }
 
 async function fetchLiveSchoolAreaPolygons(
@@ -26683,6 +27224,10 @@ async function recordUiKpiEventShim(request: Request): Promise<Response> {
     "read_depth",
     "primary_cta_click",
     "map_area_detail_open",
+    "place_profile_open",
+    "place_theme_open",
+    "place_image_error",
+    "place_search_complete",
     "selected_place_cta_click",
     "funnel_step",
     "funnel_error"

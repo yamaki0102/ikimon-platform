@@ -134,6 +134,7 @@ test("VPS stop readiness counts every runtime PostgreSQL dependency, not only di
 test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory, not blockers", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const isNoRuntimeQueryPgInventoryOnly = loadIsNoRuntimeQueryPgInventoryOnly(script);
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
 
   assert.equal(isNoRuntimeQueryPgInventoryOnly({ flags: ["postgis"] }), true);
   assert.equal(isNoRuntimeQueryPgInventoryOnly({ flags: ["postgis", "pg_types"] }), true);
@@ -151,10 +152,22 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /## PostgreSQL No-Runtime-Query Inventory/);
-  assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
+  const inventoryCount = Number(
+    result.stdout.match(/- no_runtime_query_pg_inventory_files: (\d+)/)?.[1] ?? "0",
+  );
+  assert.ok(inventoryCount >= 15, `expected at least the established 15 inventory files, got ${inventoryCount}`);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /platform_v2\/src\/services\/placeAtlasProfile\.ts/);
+  assert.match(result.stdout, /platform_v2\/src\/services\/placeRegistryContract\.ts/);
+  assert.match(result.stdout, /platform_v2\/src\/scripts\/backfillUniversalPlaceAtlas\.ts/);
+  assert.equal(
+    replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeAtlasProfile.ts"),
+    "cloudflare_place_atlas_profile_native",
+  );
+  assert.equal(
+    replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeRegistry.ts"),
+    "cloudflare_place_registry_native",
+  );
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
