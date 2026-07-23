@@ -310,7 +310,12 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-gallery-select/);
   assert.match(html, /indexedDB\.open\(DB_NAME, 1\)/);
   assert.match(html, /source: 'record'/);
-  assert.match(html, /id: 'record:' \+ DRAFT_KEY/);
+  assert.match(html, /const draftOwnerContext = async \(\) =>/);
+  assert.match(html, /'latest:user:' \+ userId/);
+  assert.match(html, /'latest:guest:' \+ token/);
+  assert.match(html, /continuationToken/);
+  assert.match(html, /id: 'record:' \+ draftKey/);
+  assert.doesNotMatch(html, /const DRAFT_KEY = 'latest';/);
   assert.match(html, /data-global-record-camera-sheet/);
   assert.match(html, /data-global-record-mode="photo"[^>]+aria-pressed="true"[^>]*>写真<\/button>/);
   assert.match(html, /data-global-record-mode="video"[^>]+aria-pressed="false"[^>]*>動画<\/button>/);
@@ -728,8 +733,9 @@ test("global record draft handoff includes a recovery source", () => {
     lang: "ja",
     currentPath: "/",
   });
-  assert.match(html, /const withDraftParams = \(href, kind, source\) =>/);
+  assert.match(html, /const withDraftParams = \(href, kind, source, continuationToken\) =>/);
   assert.match(html, /url\.searchParams\.set\('source', recoverySource\)/);
+  assert.match(html, /url\.searchParams\.set\('draft_token', String\(continuationToken\)\)/);
   assert.match(html, /navigateWithDraft\(files, 'photo', metadata, 'location_denied'\)/);
   assert.match(html, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'login_required'\)/);
 });

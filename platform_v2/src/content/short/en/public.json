@@ -24,7 +24,9 @@
       "member": {
         "actionTitle": "What will you keep today?", "actionLead": "Capture something that caught your attention to start your own record.", "primaryCta": "Capture",
         "continuationTitle": "Continue where you left off", "continuationBody": "You have an unsaved capture. Continue without losing it.", "continuationCta": "Continue",
-        "recentTitle": "Recent records", "placesTitle": "Places you are involved with", "nextTitle": "What comes next",
+        "memoryEyebrow": "From your last record", "memoryLead": "Return to the photo, place, and time you kept.", "memoryCta": "Open this record",
+        "activeEyebrow": "An activity you are part of", "activeLead": "See what is happening here and what you can do next.", "activeCta": "Open activity",
+        "recentTitle": "Recent records", "recentCta": "View all", "placesTitle": "Places you are involved with", "placesCta": "View map", "nextTitle": "What comes next",
         "emptyTitle": "Leave your first record", "emptyBody": "Start by capturing something that catches your attention."
       },
       "shared": {

@@ -24,7 +24,9 @@
       "member": {
         "actionTitle": "O que você vai guardar hoje?", "actionLead": "Capture algo que chamou sua atenção para começar seu próprio registro.", "primaryCta": "Capturar",
         "continuationTitle": "Continue de onde parou", "continuationBody": "Há uma captura ainda não salva. Continue sem perdê-la.", "continuationCta": "Continuar",
-        "recentTitle": "Registros recentes", "placesTitle": "Lugares com que você se envolve", "nextTitle": "Próxima atividade",
+        "memoryEyebrow": "Do seu último registro", "memoryLead": "Volte à foto, ao lugar e ao momento que você guardou.", "memoryCta": "Abrir este registro",
+        "activeEyebrow": "Uma atividade em que você participa", "activeLead": "Veja o que acontece aqui e o que pode fazer depois.", "activeCta": "Ver atividade",
+        "recentTitle": "Registros recentes", "recentCta": "Ver todos", "placesTitle": "Lugares com que você se envolve", "placesCta": "Ver mapa", "nextTitle": "Próxima atividade",
         "emptyTitle": "Deixe seu primeiro registro", "emptyBody": "Comece capturando algo que chamar sua atenção."
       },
       "shared": {

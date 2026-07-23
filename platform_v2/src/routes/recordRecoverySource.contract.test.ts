@@ -16,9 +16,10 @@ test("record recovery accepts only explicit source reasons", () => {
 });
 
 test("global quick record preserves only allowlisted recovery reasons, not media metadata in the URL", () => {
-  assert.match(shellSource, /withDraftParams = \(href, kind, source\)/);
+  assert.match(shellSource, /withDraftParams = \(href, kind, source, continuationToken\)/);
   assert.match(shellSource, /\['location_denied', 'login_required', 'draft_restore', 'media_retry', 'upload_failed', 'global_capture'\]\.includes\(String\(source \|\| ''\)\)/);
   assert.match(shellSource, /url\.searchParams\.set\('source', recoverySource\)/);
+  assert.match(shellSource, /if \(continuationToken\) url\.searchParams\.set\('draft_token', String\(continuationToken\)\)/);
   assert.match(shellSource, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'login_required'\)/);
   assert.match(patchSource, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'location_denied'\)/);
   assert.doesNotMatch(shellSource, /searchParams\.set\('(?:file|filename|latitude|longitude)'/);

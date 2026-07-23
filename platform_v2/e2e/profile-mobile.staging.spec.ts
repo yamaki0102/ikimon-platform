@@ -53,8 +53,10 @@ test("mypage keeps profile content inside the mobile viewport", async ({ browser
     await addSessionCookie(context, await issueSessionCookie(api, writeKey, fixture.user.userId));
     const page = await context.newPage();
     await page.goto("/profile?lang=ja", { waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("profile-summary")).toBeVisible();
-    await expect(page.getByTestId("profile-next-actions")).toBeVisible();
+    await expect(page.getByTestId("self-control-hub")).toBeVisible();
+    await expect(page.getByTestId("profile-account-utilities")).toBeVisible();
+    await expect(page.getByRole("link", { name: "プロフィールを編集" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /件の記録/ })).toBeVisible();
 
     const overflow = await page.evaluate(() => {
       const clientWidth = document.documentElement.clientWidth;

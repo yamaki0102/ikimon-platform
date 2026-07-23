@@ -3,8 +3,8 @@ import { defineConfig } from "@playwright/test";
 const port = Number.parseInt(process.env.LANDING_TOP_VISUAL_PORT ?? "3317", 10);
 const baseURL = process.env.LANDING_TOP_VISUAL_BASE_URL ?? `http://127.0.0.1:${port}`;
 const command = process.platform === "win32"
-  ? `cmd /c "set PORT=${port}&& npm run dev"`
-  : `PORT=${port} npm run dev`;
+  ? `cmd /c "set PORT=${port}&& set ALLOW_QUERY_USER_ID=1&& npm run dev"`
+  : `PORT=${port} ALLOW_QUERY_USER_ID=1 npm run dev`;
 
 export default defineConfig({
   testDir: "./e2e",

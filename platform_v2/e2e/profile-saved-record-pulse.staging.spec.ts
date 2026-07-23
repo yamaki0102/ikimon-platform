@@ -32,31 +32,20 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-async function expectSavedRecordPulseVisible(page: Page): Promise<void> {
+async function expectSelfControlHubVisible(page: Page): Promise<void> {
   await page.goto("/profile?lang=ja", { waitUntil: "domcontentloaded" });
-  await expect(page.getByTestId("profile-saved-record-pulse")).toBeVisible();
-  await expect(page.getByTestId("profile-saved-record-pulse")).toContainText("最後に保存した記録");
-
-  const latestAction = page.locator('[data-kpi-action="profile:saved_record:latest"]');
-  const recordsAction = page.locator('[data-kpi-action="profile:saved_record:records"]');
-  const firstRecordAction = page.locator('[data-kpi-action="profile:saved_record:first_record"]');
-
-  const latestCount = await latestAction.count();
-  const firstRecordCount = await firstRecordAction.count();
-  expect(latestCount + firstRecordCount, "profile should offer a saved-record or first-record action").toBeGreaterThan(0);
-
-  if (latestCount > 0) {
-    await expect(latestAction.first()).toBeVisible();
-    await expect(recordsAction.first()).toBeVisible();
-  } else {
-    await expect(firstRecordAction.first()).toBeVisible();
-  }
-
+  await expect(page.getByTestId("self-control-hub")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "プロフィールと公開ページ" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /件の記録/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /か所/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "公開範囲と位置情報" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "参加とフォロー" })).toBeVisible();
+  await expect(page.getByTestId("profile-saved-record-pulse")).toHaveCount(0);
   await expect(page.getByText("ログインすると、あなたの記録")).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 }
 
-test.describe("logged-in profile saved record pulse staging evidence", () => {
+test.describe("logged-in self control hub staging evidence", () => {
   let api: APIRequestContext;
   let sessionCookie: string;
 
@@ -71,13 +60,13 @@ test.describe("logged-in profile saved record pulse staging evidence", () => {
   });
 
   for (const profile of PROFILE_VIEWPORTS) {
-    test(`shows the saved-record pulse on /profile (${profile.slug})`, async ({ browser }) => {
+    test(`shows identity, privacy, and participation controls on /profile (${profile.slug})`, async ({ browser }) => {
       const context = await newStagingContext(browser, profile);
       await addSessionCookie(context, sessionCookie);
       const page = await context.newPage();
 
       try {
-        await expectSavedRecordPulseVisible(page);
+        await expectSelfControlHubVisible(page);
       } finally {
         await context.close();
       }

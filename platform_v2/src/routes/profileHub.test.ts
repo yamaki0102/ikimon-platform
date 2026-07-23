@@ -97,30 +97,35 @@ function recentObservation(overrides: Partial<ProfileRecentObservation> = {}): P
   };
 }
 
-test("profile hero actions focus on continuation instead of account utilities", () => {
+test("profile hero actions keep the self hub focused on identity and controls", () => {
   const actions = profileHeroActions();
 
   assert.deepEqual(actions.map((action) => action.label), [
-    "記録一覧を見る",
-    "場所を見る",
-    "ガイド成果を見る",
+    "プロフィールを編集",
+    "公開プロフィールを見る",
   ]);
   assert.equal(actions.filter((action) => !action.variant || action.variant === "primary").length, 1);
-  assert.ok(!actions.some((action) => action.href === "/logout" || action.href === "/profile/settings"));
+  assert.ok(!actions.some((action) => action.href === "/logout"));
 });
 
-test("self profile hub compacts an empty bio and keeps account utilities separate", () => {
+test("self profile hub is an identity and control surface, not a duplicate record dashboard", () => {
   const html = renderSelfProfileHub("", "ja", profileSnapshot());
 
-  assert.match(html, /プロフィールメモは未設定です。/);
-  assert.doesNotMatch(html, /自己紹介はまだありません。/);
+  assert.match(html, /data-testid="self-control-hub"/);
+  assert.match(html, /プロフィールと公開ページ/);
+  assert.match(html, /公開範囲と位置情報/);
+  assert.match(html, /参加とフォロー/);
+  assert.match(html, /アカウント設定/);
+  assert.doesNotMatch(html, /data-testid="profile-channel"/);
+  assert.doesNotMatch(html, /data-testid="profile-summary"/);
+  assert.doesNotMatch(html, /自分の記録史|Life List|最近の記録/);
   assert.match(html, /data-testid="profile-account-utilities"/);
   assert.match(html, /ログアウト/);
   assert.match(html, /<form method="post" action="\/logout"><button class="is-danger" type="submit">ログアウト<\/button><\/form>/);
   assert.doesNotMatch(html, /href="\/logout"/);
 });
 
-test("self profile channel uses real fallback labels instead of English placeholders", () => {
+test("self profile hub shows compact destinations without reproducing record cards", () => {
   const html = renderSelfProfileHub("", "ja", profileSnapshot({
     stats: {
       totalObservations: 4,
@@ -148,20 +153,16 @@ test("self profile channel uses real fallback labels instead of English placehol
     }],
   }));
 
-  assert.match(html, /data-testid="profile-channel"/);
-  assert.match(html, /<span>静岡県の草地<\/span>/);
-  assert.match(html, /<span>朝の水音メモ<\/span>/);
-  assert.match(html, /<span>水辺の鳥<\/span>/);
-  assert.match(html, /<span>タンポポ<\/span>/);
-  assert.match(html, /<span>名前待ち<\/span><strong>1 件<\/strong>/);
-  assert.match(html, /href="\/records\?view=needs_id">名前待ちを見る<\/a>/);
-  assert.doesNotMatch(html, />FIELD<\/span>/);
-  assert.doesNotMatch(html, />PHOTO<\/span>/);
-  assert.doesNotMatch(html, />NEXT<\/span>/);
-  assert.doesNotMatch(html, />LIFE<\/span>/);
+  assert.match(html, /href="\/ja\/records\?view=mine"/);
+  assert.match(html, /href="\/ja\/map\?tab=places"/);
+  assert.match(html, /href="\/ja\/profile\/user-profile-test"/);
+  assert.match(html, /4件の記録/);
+  assert.match(html, /2か所/);
+  assert.equal((html.match(/朝の水音メモ/g) || []).length, 0);
+  assert.equal((html.match(/静岡県の草地/g) || []).length, 0);
 });
 
-test("self profile hub deduplicates repeated regional story cards before rendering", () => {
+test("self profile hub does not render regional story cards", () => {
   const duplicate = regionalStory();
   const distinct = regionalStory({
     placeHook: "別の場所を見返すなら、草地の境目を残す。",
@@ -169,9 +170,9 @@ test("self profile hub deduplicates repeated regional story cards before renderi
   });
   const html = renderSelfProfileHub("", "ja", profileSnapshot(), null, [duplicate, regionalStory(), distinct]);
 
-  assert.equal((html.match(/data-testid="regional-story"/g) ?? []).length, 2);
-  assert.equal((html.match(/同じ場所を見返すなら、道の端を残す。/g) ?? []).length, 1);
-  assert.equal((html.match(/別の場所を見返すなら、草地の境目を残す。/g) ?? []).length, 1);
+  assert.equal((html.match(/data-testid="regional-story"/g) ?? []).length, 0);
+  assert.doesNotMatch(html, /同じ場所を見返すなら、道の端を残す。/);
+  assert.doesNotMatch(html, /別の場所を見返すなら、草地の境目を残す。/);
 });
 
 test("profile regional story input carries the latest place subject and date", () => {
