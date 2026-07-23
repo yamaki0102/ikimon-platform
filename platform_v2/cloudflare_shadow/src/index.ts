@@ -20,11 +20,14 @@ import {
   GEMINI_OBSERVATION_PROMPT_VERSION,
   GEMINI_OBSERVATION_RULE_VERSION,
   GEMINI_PRIMARY_MODEL,
+  GEMINI_SPECIALIST_MODEL,
   GEMINI_SUMMARY_MODEL,
+  applyGeminiSpecialistEvidence,
   applyGeminiObservationSummary,
   buildGeminiCensusRequest,
   buildGeminiEnvironmentRequest,
   buildGeminiPrimaryRequest,
+  buildGeminiSpecialistRequest,
   buildGeminiSummaryRequest,
   createGeminiBatch,
   decideGeminiSpecialistEscalation,
@@ -37,6 +40,7 @@ import {
   parseGeminiEnvironmentEvidence,
   parseGeminiObservationSummary,
   parseGeminiPrimaryEvidence,
+  parseGeminiSpecialistEvidence,
   type GeminiBatchOperation,
   type GeminiBatchRequest,
   type GeminiMergedObservation,
@@ -29452,13 +29456,19 @@ type GeminiBatchExecution = {
   claimId: string;
   primaryDisplayName: string;
   analysisDisplayName: string;
+  specialistDisplayName?: string;
   summaryDisplayName: string;
   primaryJobName?: string;
   analysisJobName?: string;
+  specialistJobName?: string;
   summaryJobName?: string;
   primaryIndex: number;
   censusIndex: number;
   environmentIndex: number;
+  specialistIndex?: number;
+  specialistKind?: "bird" | "plant" | "insect" | "general";
+  specialistStatus?: "pending" | "succeeded" | "failed" | "skipped";
+  specialistImageCount?: number;
   summaryIndex?: number;
   sourceImageCount?: number;
   representativeImageCount?: number;
@@ -29616,6 +29626,72 @@ async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): 
   return { assetId: asset.asset_id, mimeType: sourceMime, base64Data: imageBytesToBase64(sourceBytes) };
 }
 
+async function observationAiSpecialistCropInput(
+  asset: ObservationAiAssetRow,
+  rect: { x: number; y: number; width: number; height: number },
+  env: Env,
+): Promise<GeminiObservationImage | null> {
+  if (!env.IMAGES || !asset.public_derivative_key) return null;
+  const horizontalPadding = Math.max(0.04, rect.width * 0.25);
+  const verticalPadding = Math.max(0.04, rect.height * 0.25);
+  const left = Math.max(0, rect.x - horizontalPadding);
+  const top = Math.max(0, rect.y - verticalPadding);
+  const rightEdge = Math.min(1, rect.x + rect.width + horizontalPadding);
+  const bottomEdge = Math.min(1, rect.y + rect.height + verticalPadding);
+  if (rightEdge - left >= 0.92 && bottomEdge - top >= 0.92) return null;
+  try {
+    const derivative = await env.ASSET_BUCKET.get(asset.public_derivative_key);
+    if (!derivative?.body) return null;
+    const output = await env.IMAGES
+      .input(derivative.body)
+      .transform({
+        trim: {
+          top,
+          right: Math.max(0, 1 - rightEdge),
+          bottom: Math.max(0, 1 - bottomEdge),
+          left,
+        },
+        width: 1024,
+        fit: "scale-down",
+      })
+      .output({ format: "image/webp", quality: 82, anim: false });
+    const response = output.response();
+    if (!response.ok) return null;
+    const bytes = await response.arrayBuffer();
+    if (bytes.byteLength === 0 || bytes.byteLength > 8 * 1024 * 1024) return null;
+    return {
+      assetId: `${asset.asset_id}:specialist-crop-v1`,
+      mimeType: "image/webp",
+      base64Data: imageBytesToBase64(bytes),
+    };
+  } catch (error) {
+    console.warn("[gemini-specialist] target crop unavailable", asset.asset_id, error);
+    return null;
+  }
+}
+
+async function observationAiSpecialistImages(
+  prepared: PreparedGeminiObservation,
+  merged: GeminiMergedObservation,
+  env: Env,
+): Promise<GeminiObservationImage[]> {
+  const requestedIndex = Number(merged.candidate.assetIndex ?? 0);
+  const primaryIndex = Number.isInteger(requestedIndex) && requestedIndex >= 0 && requestedIndex < prepared.images.length
+    ? requestedIndex
+    : 0;
+  const primaryImage = prepared.images[primaryIndex];
+  if (!primaryImage) return prepared.images.slice(0, 4);
+  const output: GeminiObservationImage[] = [primaryImage];
+  const primaryAsset = prepared.assets[primaryIndex];
+  const rect = merged.candidate.subjectLocator.rect;
+  if (primaryAsset && rect) {
+    const crop = await observationAiSpecialistCropInput(primaryAsset, rect, env);
+    if (crop) output.push(crop);
+  }
+  output.push(...prepared.images.filter((_image, index) => index !== primaryIndex).slice(0, 2));
+  return output.slice(0, 4);
+}
+
 function reassessmentPayloadWithResult(
   sourcePayloadJson: string,
   result: Record<string, unknown>,
@@ -29756,6 +29832,7 @@ async function submitGeminiObservationReassessmentGroup(rows: ObservationReasses
       claimId,
       primaryDisplayName: geminiBatchDisplayName(claimId, "primary"),
       analysisDisplayName: geminiBatchDisplayName(claimId, "analysis"),
+      specialistDisplayName: geminiBatchDisplayName(claimId, "specialist"),
       summaryDisplayName: geminiBatchDisplayName(claimId, "summary"),
       primaryIndex: index,
       censusIndex: index * 2,
@@ -29770,6 +29847,13 @@ async function submitGeminiObservationReassessmentGroup(rows: ObservationReasses
       executionStatus: "processing",
       attemptCount: reassessmentAttemptCount(item.request.source_payload_json) + 1,
       modelStack: [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+      modelPlan: {
+        primary: GEMINI_PRIMARY_MODEL,
+        census: GEMINI_ANALYSIS_MODEL,
+        environment: GEMINI_ANALYSIS_MODEL,
+        specialistConditional: GEMINI_SPECIALIST_MODEL,
+        summary: GEMINI_SUMMARY_MODEL,
+      },
       promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
       ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
       mediaDedup: {
@@ -29858,6 +29942,61 @@ async function resumeGeminiObservationBatchGroups(env: Env): Promise<void> {
   }
 }
 
+async function mergeGeminiBatchEvidence(
+  row: ObservationReassessmentRequestRow,
+  primary: GeminiBatchOperation,
+  analysis: GeminiBatchOperation,
+  env: Env,
+): Promise<GeminiMergedObservation> {
+  const execution = geminiBatchExecution(row.source_payload_json)!;
+  const primaryEvidence = parseGeminiPrimaryEvidence(geminiBatchResponseText(primary.responses[execution.primaryIndex]));
+  const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(analysis.responses[execution.censusIndex]));
+  const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(analysis.responses[execution.environmentIndex]));
+  const mediaCount = execution.representativeImageCount
+    ?? (await loadObservationAiAssetSelection(row.observation_id, env)).assets.length;
+  const merged = mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, mediaCount);
+  merged.specialistEscalation = decideGeminiSpecialistEscalation(merged, primaryEvidence, censusEvidence);
+  return merged;
+}
+
+function applyGeminiSpecialistBatchResult(
+  merged: GeminiMergedObservation,
+  execution: GeminiBatchExecution,
+  specialist: GeminiBatchOperation | null,
+): GeminiMergedObservation {
+  if (execution.specialistStatus === "skipped" || execution.specialistIndex === undefined || !specialist) {
+    return merged;
+  }
+  if (geminiBatchSucceeded(specialist)) {
+    try {
+      return applyGeminiSpecialistEvidence(
+        merged,
+        parseGeminiSpecialistEvidence(geminiBatchResponseText(specialist.responses[execution.specialistIndex])),
+      );
+    } catch (error) {
+      return {
+        ...merged,
+        needsReview: true,
+        reviewReasons: [...new Set([
+          ...merged.reviewReasons,
+          `専門解析結果を安全に解釈できませんでした:${(error instanceof Error ? error.message : String(error)).slice(0, 80)}`,
+        ])].slice(0, 8),
+      };
+    }
+  }
+  if (geminiBatchTerminalFailure(specialist)) {
+    return {
+      ...merged,
+      needsReview: true,
+      reviewReasons: [...new Set([
+        ...merged.reviewReasons,
+        `専門解析を完了できませんでした:${(specialist.error ?? specialist.state ?? "unknown").slice(0, 80)}`,
+      ])].slice(0, 8),
+    };
+  }
+  return merged;
+}
+
 async function resumeGeminiObservationBatchGroup(rows: ObservationReassessmentRequestRow[], env: Env): Promise<void> {
   if (!env.GEMINI_API_KEY || rows.length === 0) return;
   const ordered = [...rows].sort((left, right) => (geminiBatchExecution(left.source_payload_json)?.primaryIndex ?? 0) - (geminiBatchExecution(right.source_payload_json)?.primaryIndex ?? 0));
@@ -29891,18 +30030,108 @@ async function resumeGeminiObservationBatchGroup(rows: ObservationReassessmentRe
   }
   if (!geminiBatchSucceeded(primary) || !geminiBatchSucceeded(analysis)) return;
 
-  if (!firstExecution.summaryJobName) {
+  let summaryJobName = ordered
+    .map((row) => geminiBatchExecution(row.source_payload_json)?.summaryJobName)
+    .find((value): value is string => Boolean(value));
+  let specialist: GeminiBatchOperation | null = null;
+  if (!summaryJobName) {
+    const specialistInitialized = ordered.every((row) => Boolean(geminiBatchExecution(row.source_payload_json)?.specialistStatus));
+    if (!specialistInitialized) {
+      const specialistRequests: GeminiBatchRequest[] = [];
+      const selections = new Map<string, {
+        specialistIndex: number;
+        specialistKind: "bird" | "plant" | "insect" | "general";
+        specialistImageCount: number;
+        reasons: string[];
+      }>();
+      for (const row of ordered) {
+        try {
+          const merged = await mergeGeminiBatchEvidence(row, primary, analysis, env);
+          const decision = merged.specialistEscalation;
+          if (!decision?.required) continue;
+          const prepared = await loadPreparedGeminiObservation(row, env);
+          const specialistImages = await observationAiSpecialistImages(prepared, merged, env);
+          if (specialistImages.length === 0) continue;
+          const specialistIndex = specialistRequests.length;
+          specialistRequests.push({
+            request: buildGeminiSpecialistRequest(row.observation_id, decision.specialistKind, specialistImages, merged),
+            metadata: { key: row.observation_id, lane: `specialist:${decision.specialistKind}` },
+          });
+          selections.set(row.request_id, {
+            specialistIndex,
+            specialistKind: decision.specialistKind,
+            specialistImageCount: specialistImages.length,
+            reasons: decision.reasons,
+          });
+        } catch (error) {
+          await failGeminiReassessment(row, error, env);
+        }
+      }
+      if (specialistRequests.length > 0) {
+        const displayName = firstExecution.specialistDisplayName
+          ?? geminiBatchDisplayName(firstExecution.claimId, "specialist");
+        const specialistJob = await ensureGeminiBatch(
+          env.GEMINI_API_KEY,
+          GEMINI_SPECIALIST_MODEL,
+          displayName,
+          specialistRequests,
+        );
+        for (const row of ordered) {
+          const execution = geminiBatchExecution(row.source_payload_json)!;
+          const selection = selections.get(row.request_id);
+          await updateProcessingGeminiPayload(row, {
+            ...execution,
+            specialistDisplayName: displayName,
+            specialistJobName: specialistJob.name,
+            specialistIndex: selection?.specialistIndex,
+            specialistKind: selection?.specialistKind,
+            specialistImageCount: selection?.specialistImageCount,
+            specialistStatus: selection ? "pending" : "skipped",
+          }, env, {
+            specialistLane: selection
+              ? {
+                status: "pending",
+                model: GEMINI_SPECIALIST_MODEL,
+                kind: selection.specialistKind,
+                imageCount: selection.specialistImageCount,
+                reasons: selection.reasons,
+              }
+              : { status: "skipped", model: null },
+          });
+        }
+        return;
+      }
+      for (const row of ordered) {
+        const execution = geminiBatchExecution(row.source_payload_json)!;
+        await updateProcessingGeminiPayload(row, {
+          ...execution,
+          specialistStatus: "skipped",
+        }, env, {
+          specialistLane: { status: "skipped", model: null },
+        });
+      }
+      firstExecution = geminiBatchExecution(ordered[0]!.source_payload_json)!;
+    }
+
+    const specialistJobName = ordered
+      .map((row) => geminiBatchExecution(row.source_payload_json)?.specialistJobName)
+      .find((value): value is string => Boolean(value));
+    if (specialistJobName) {
+      specialist = await getGeminiBatch(env.GEMINI_API_KEY, specialistJobName);
+      if (!geminiBatchSucceeded(specialist) && !geminiBatchTerminalFailure(specialist)) return;
+    }
+  }
+
+  if (!summaryJobName) {
     const summaryRows: Array<{ row: ObservationReassessmentRequestRow; merged: GeminiMergedObservation }> = [];
     for (const row of ordered) {
-      const execution = geminiBatchExecution(row.source_payload_json)!;
       try {
-        const primaryEvidence = parseGeminiPrimaryEvidence(geminiBatchResponseText(primary.responses[execution.primaryIndex]));
-        const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(analysis.responses[execution.censusIndex]));
-        const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(analysis.responses[execution.environmentIndex]));
-        const mediaCount = execution.representativeImageCount
-          ?? (await loadObservationAiAssetSelection(row.observation_id, env)).assets.length;
-        const merged = mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, mediaCount);
-        merged.specialistEscalation = decideGeminiSpecialistEscalation(merged, primaryEvidence, censusEvidence);
+        const execution = geminiBatchExecution(row.source_payload_json)!;
+        const merged = applyGeminiSpecialistBatchResult(
+          await mergeGeminiBatchEvidence(row, primary, analysis, env),
+          execution,
+          specialist,
+        );
         summaryRows.push({ row, merged });
       } catch (error) {
         await failGeminiReassessment(row, error, env);
@@ -29913,26 +30142,48 @@ async function resumeGeminiObservationBatchGroup(rows: ObservationReassessmentRe
     const summaryJob = await ensureGeminiBatch(env.GEMINI_API_KEY, GEMINI_SUMMARY_MODEL, firstExecution.summaryDisplayName, summaryRequests);
     for (const [summaryIndex, item] of summaryRows.entries()) {
       const execution = geminiBatchExecution(item.row.source_payload_json)!;
-      await updateProcessingGeminiPayload(item.row, { ...execution, summaryJobName: summaryJob.name, summaryIndex }, env);
+      const specialistStatus = execution.specialistIndex === undefined
+        ? "skipped"
+        : specialist && geminiBatchSucceeded(specialist) ? "succeeded" : "failed";
+      await updateProcessingGeminiPayload(item.row, {
+        ...execution,
+        specialistStatus,
+        summaryJobName: summaryJob.name,
+        summaryIndex,
+      }, env, {
+        specialistLane: {
+          status: specialistStatus,
+          model: specialistStatus === "skipped" ? null : GEMINI_SPECIALIST_MODEL,
+          kind: execution.specialistKind ?? null,
+          imageCount: execution.specialistImageCount ?? 0,
+        },
+      });
     }
+    summaryJobName = summaryJob.name;
     return;
   }
 
-  const summary = await getGeminiBatch(env.GEMINI_API_KEY, firstExecution.summaryJobName);
+  const summary = await getGeminiBatch(env.GEMINI_API_KEY, summaryJobName);
   if (geminiBatchTerminalFailure(summary)) {
     for (const row of ordered) await failGeminiReassessment(row, new Error(summary.error ?? "gemini_summary_batch_failed"), env);
     return;
   }
   if (!geminiBatchSucceeded(summary)) return;
+  if (!specialist) {
+    const specialistJobName = ordered
+      .map((row) => geminiBatchExecution(row.source_payload_json)?.specialistJobName)
+      .find((value): value is string => Boolean(value));
+    if (specialistJobName) specialist = await getGeminiBatch(env.GEMINI_API_KEY, specialistJobName);
+  }
   for (const row of ordered) {
     const execution = geminiBatchExecution(row.source_payload_json)!;
     try {
-      const primaryEvidence = parseGeminiPrimaryEvidence(geminiBatchResponseText(primary.responses[execution.primaryIndex]));
-      const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(analysis.responses[execution.censusIndex]));
-      const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(analysis.responses[execution.environmentIndex]));
       const prepared = await loadPreparedGeminiObservation(row, env);
-      const mergedEvidence = mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, prepared.images.length);
-      mergedEvidence.specialistEscalation = decideGeminiSpecialistEscalation(mergedEvidence, primaryEvidence, censusEvidence);
+      const mergedEvidence = applyGeminiSpecialistBatchResult(
+        await mergeGeminiBatchEvidence(row, primary, analysis, env),
+        execution,
+        specialist,
+      );
       const merged = applyGeminiObservationSummary(
         mergedEvidence,
         parseGeminiObservationSummary(geminiBatchResponseText(summary.responses[execution.summaryIndex ?? -1])),
@@ -29955,9 +30206,16 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
   const candidateId = candidateName ? newId("gemini_candidate") : null;
   const assessmentStatus = merged.detectionState === "detected" ? "ai_judgement" : merged.detectionState === "not_assessable" ? "completed_not_assessable" : "completed_no_candidate";
   const completedAt = new Date().toISOString();
+  const specialistApplied = merged.topCandidates.some((topCandidate) => topCandidate.sourceLanes.includes("specialist"));
   const assessmentPayload = {
     source: "google_gemini_batch_observation_reassessment",
-    models: { primary: GEMINI_PRIMARY_MODEL, census: GEMINI_ANALYSIS_MODEL, environment: GEMINI_ANALYSIS_MODEL, summary: GEMINI_SUMMARY_MODEL },
+    models: {
+      primary: GEMINI_PRIMARY_MODEL,
+      census: GEMINI_ANALYSIS_MODEL,
+      environment: GEMINI_ANALYSIS_MODEL,
+      specialist: specialistApplied ? GEMINI_SPECIALIST_MODEL : null,
+      summary: GEMINI_SUMMARY_MODEL,
+    },
     promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
     ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
     assetIds: prepared.assets.map((asset) => asset.asset_id),
@@ -29984,6 +30242,7 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
     genericCandidateOnly: merged.genericCandidateOnly,
     candidateFusionRuleVersion: merged.candidateFusionRuleVersion,
     specialistEscalation: merged.specialistEscalation,
+    specialistApplied,
     environment: merged.environment,
     relations: merged.relations,
     summary: merged.summary,
@@ -30081,7 +30340,9 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
     reassessmentPayloadWithResult(request.source_payload_json, {
       executionStatus: "completed",
       aiRunId,
-      models: [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+      models: specialistApplied
+        ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
+        : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
       promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
       ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
       recordClass: merged.recordClass,
@@ -30090,6 +30351,7 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
       genericCandidateOnly: merged.genericCandidateOnly,
       candidateFusionRuleVersion: merged.candidateFusionRuleVersion,
       specialistEscalation: merged.specialistEscalation,
+      specialistApplied,
       mediaDedup: {
         ruleVersion: prepared.mediaDedup.ruleVersion,
         sourceImageCount: prepared.sourceAssets.length,
