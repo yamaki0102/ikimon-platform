@@ -1329,7 +1329,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   const RECORD_TARGETS = ${JSON.stringify(recordTargets)};
   const DB_NAME = 'ikimon-record-draft';
   const STORE_NAME = 'drafts';
-  const DRAFT_KEY = 'latest';
+  const GUEST_DRAFT_TOKEN_KEY = 'ikimon:record-draft-guest-token-v1';
   const MAX_PHOTO_DRAFT_FILES = 6;
   const PHOTO_UPLOAD_MAX_EDGE = 2560;
   const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
@@ -1616,29 +1616,67 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('indexeddb_open_failed'));
   });
+  const secureGuestDraftToken = () => {
+    if (!(window.crypto && typeof window.crypto.getRandomValues === 'function')) {
+      throw new Error('secure_random_unavailable');
+    }
+    if (typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    const bytes = new Uint8Array(24);
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  };
+  const guestDraftToken = () => {
+    let token = '';
+    try {
+      token = String(sessionStorage.getItem(GUEST_DRAFT_TOKEN_KEY) || '');
+      if (!token) {
+        token = secureGuestDraftToken();
+        sessionStorage.setItem(GUEST_DRAFT_TOKEN_KEY, token);
+      }
+    } catch (_) {
+      token = secureGuestDraftToken();
+    }
+    return token.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 96);
+  };
+  const draftOwnerContext = async () => {
+    try {
+      const userId = await getCurrentSessionUserId();
+      return { draftKey: 'latest:user:' + userId, ownerKey: 'user:' + userId, continuationToken: '' };
+    } catch (_) {
+      const token = guestDraftToken();
+      return { draftKey: 'latest:guest:' + token, ownerKey: 'guest:' + token, continuationToken: token };
+    }
+  };
   const saveDraft = async (draft) => {
+    const context = await draftOwnerContext();
+    const draftKey = context.draftKey;
+    const storedDraft = Object.assign({}, draft, {
+      ownerKey: context.ownerKey,
+      continuationToken: context.continuationToken || null,
+    });
     const db = await openDraftDb();
     try {
       await new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
-        transaction.objectStore(STORE_NAME).put(draft, DRAFT_KEY);
+        transaction.objectStore(STORE_NAME).put(storedDraft, draftKey);
         transaction.oncomplete = () => resolve(true);
         transaction.onerror = () => reject(transaction.error || new Error('indexeddb_write_failed'));
       });
       if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.enqueue === 'function') {
         window.ikimonAppOutbox.enqueue({
-          id: 'record:' + DRAFT_KEY,
+          id: 'record:' + draftKey,
           source: 'record',
           kind: 'draft',
-          sourceId: DRAFT_KEY,
+          sourceId: draftKey,
           status: 'queued',
           payloadMeta: {
-            kind: draft && draft.kind || null,
-            fileCount: draft && Array.isArray(draft.files) ? draft.files.length : (draft && draft.file ? 1 : 0),
-            savedAt: draft && draft.savedAt || Date.now()
+            kind: storedDraft && storedDraft.kind || null,
+            fileCount: storedDraft && Array.isArray(storedDraft.files) ? storedDraft.files.length : (storedDraft && storedDraft.file ? 1 : 0),
+            savedAt: storedDraft && storedDraft.savedAt || Date.now()
           }
         }).catch(() => undefined);
       }
+      return context;
     } finally {
       db.close();
     }
@@ -2030,7 +2068,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     }
     return String(json.session.userId);
   };
-  const withDraftParams = (href, kind, source) => {
+  const withDraftParams = (href, kind, source, continuationToken) => {
     let target = String(href || '/record?start=' + encodeURIComponent(kind || 'gallery'));
     const recoverySource = ['location_denied', 'login_required', 'draft_restore', 'media_retry', 'upload_failed', 'global_capture'].includes(String(source || ''))
       ? String(source)
@@ -2039,10 +2077,12 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       const url = new URL(target, window.location.origin);
       url.searchParams.set('draft', '1');
       url.searchParams.set('source', recoverySource);
+      if (continuationToken) url.searchParams.set('draft_token', String(continuationToken));
       return url.pathname + url.search + url.hash;
     } catch (_) {
       const separator = target.indexOf('?') >= 0 ? '&' : '?';
-      return target + separator + 'draft=1&source=' + encodeURIComponent(recoverySource);
+      return target + separator + 'draft=1&source=' + encodeURIComponent(recoverySource)
+        + (continuationToken ? '&draft_token=' + encodeURIComponent(String(continuationToken)) : '');
     }
   };
   const stopRecordingTimer = () => {
@@ -2587,8 +2627,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     });
     try {
       const [primaryDraftFile = null] = draftFiles;
-      await saveDraft({ file: primaryDraftFile, files: draftFiles, kind, savedAt: Date.now(), metadata: metadataWithRole });
-      window.location.href = withDraftParams(href, kind, recoverySource);
+      const draftContext = await saveDraft({ file: primaryDraftFile, files: draftFiles, kind, savedAt: Date.now(), metadata: metadataWithRole });
+      window.location.href = withDraftParams(href, kind, recoverySource, draftContext && draftContext.continuationToken);
     } catch (_) {
       window.location.href = href;
     }

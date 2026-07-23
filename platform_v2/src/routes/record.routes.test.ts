@@ -695,9 +695,9 @@ test("profile route gives unauthenticated visitors a mypage start guide", async 
 
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /ログインすると、残した記録と場所へ戻れます/);
-    assert.match(response.body, /マイページでは、積み上げた時間/);
-    assert.match(response.body, /これはサンプルです。あなたの記録で、数字・場所・季節の入口が育ちます。/);
-    assert.match(response.body, /ログインしてマイページへ/);
+    assert.match(response.body, /写真やメモ、関わった場所、公開範囲を一つのアカウントで管理できます/);
+    assert.doesNotMatch(response.body, /表示イメージ|これはサンプルです|マイページでは、積み上げた時間/);
+    assert.match(response.body, />ログイン<\/a>/);
     assert.match(response.body, /data-kpi-action="profile:logged_out:register"/);
     assert.match(response.body, /data-kpi-action="profile:logged_out:login"/);
     assert.match(response.body, /\/ja\/login\?redirect=%2Fprofile/);
@@ -717,6 +717,9 @@ test("profile guest entry keeps English auth links", async () => {
     });
 
     assert.equal(response.statusCode, 200);
+    assert.match(response.body, /Sign in to return to your records and places/);
+    assert.match(response.body, /Manage your photos, notes, places, and visibility in one account/);
+    assert.doesNotMatch(response.body, /これはサンプルです|マイページでは/);
     assert.match(response.body, /\/en\/login\?redirect=%2Fprofile/);
     assert.match(response.body, /\/en\/register\?redirect=%2Fprofile/);
   } finally {
@@ -724,23 +727,16 @@ test("profile guest entry keeps English auth links", async () => {
   }
 });
 
-test("self profile hub promotes the latest saved record", async () => {
+test("self profile hub leaves record browsing to the Records destination", async () => {
   const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
-  const profileHub = readRoute.slice(
-    readRoute.indexOf("function profileSavedRecordCopy"),
-    readRoute.indexOf("function renderProfileSettingsForm"),
+  const selfProfileRoute = readRoute.slice(
+    readRoute.indexOf('app.get("/profile", async'),
+    readRoute.indexOf('app.get("/profile/settings"'),
   );
 
-  assert.match(profileHub, /function renderProfileSavedRecordPulse/);
-  assert.match(profileHub, /data-testid="profile-saved-record-pulse"/);
-  assert.match(profileHub, /最後に保存した記録/);
-  assert.match(profileHub, /Latest saved record/);
-  assert.match(profileHub, /profile:saved_record:latest/);
-  assert.match(profileHub, /profile:saved_record:records/);
-  assert.match(profileHub, /profile:saved_record:first_record/);
-  assert.match(profileHub, /renderProfileSavedRecordPulse\(basePath, lang, snapshot\)/);
-  assert.match(profileHub, /appendLangToHref\(profileObservationHref\(basePath, latest\), lang\)/);
-  assert.match(readRoute, /\.profile-saved-record-pulse/);
+  assert.match(selfProfileRoute, /renderSelfProfileHub\(basePath, lang, snapshot\)/);
+  assert.doesNotMatch(selfProfileRoute, /renderProfileSavedRecordPulse/);
+  assert.doesNotMatch(selfProfileRoute, /profile:saved_record:/);
 });
 
 test("observation detail route has a saved fallback for public map records still preparing", async () => {
