@@ -6,9 +6,12 @@ export type LandingStrings = {
       heroLead: string;
       primaryCta: string;
       secondaryCta: string;
-      publicRecordsTitle: string;
-      valueTitle: string;
-      valueItems: Array<{ title: string; body: string }>;
+      categoriesTitle: string;
+      categories: Array<{ title: string; body: string }>;
+      flowTitle: string;
+      flowItems: Array<{ title: string; body: string }>;
+      placesTitle: string;
+      placesBody: string;
       privacyTitle: string;
       privacyBody: string;
       finalTitle: string;
@@ -18,10 +21,14 @@ export type LandingStrings = {
       actionTitle: string;
       actionLead: string;
       primaryCta: string;
+      continuationTitle: string;
+      continuationBody: string;
+      continuationCta: string;
       recentTitle: string;
-      discoveriesTitle: string;
-      nearbyTitle: string;
-      processing: string;
+      placesTitle: string;
+      nextTitle: string;
+      emptyTitle: string;
+      emptyBody: string;
     };
     shared: {
       openRecord: string;

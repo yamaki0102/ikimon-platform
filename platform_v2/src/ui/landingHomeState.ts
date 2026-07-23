@@ -48,14 +48,6 @@ function displayName(item: LandingObservation, copy: LandingStrings): string {
   return genericNames.has(String(preferred || "").trim().toLowerCase()) ? copy.home.shared.unknownRecord : String(preferred);
 }
 
-function discoveryText(item: LandingObservation, copy: LandingStrings): string | null {
-  const candidate = String(item.aiCandidateName || "").trim();
-  if (candidate) return `${candidate} ${copy.home.shared.aiCandidateSuffix}`;
-  const accepted = String(item.vernacularName || item.scientificName || "").trim();
-  if (accepted && !genericNames.has(accepted.toLowerCase()) && item.identificationCount > 0) return accepted;
-  return null;
-}
-
 function dateLabel(item: LandingObservation, lang: SiteLang): string {
   if (item.publicLocation?.scope === "blurred") return "";
   const value = new Date(item.observedAt);
@@ -83,16 +75,6 @@ function mediaIcon(kind: HomeMediaKind): string {
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[kind]}</svg>`;
 }
 
-function navigationIcon(kind: "home" | "record" | "discover" | "profile"): string {
-  const paths = {
-    home: '<path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4z"/>',
-    record: '<path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.2"/>',
-    discover: '<circle cx="11" cy="11" r="6"/><path d="m16 16 4 4M11 8v6M8 11h6"/>',
-    profile: '<circle cx="12" cy="8" r="3.5"/><path d="M5 21c.6-4 3-6 7-6s6.4 2 7 6"/>',
-  } as const;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[kind]}</svg>`;
-}
-
 function renderMedia(item: LandingObservation, copy: LandingStrings, eager = false): string {
   const kind = mediaKind(item);
   const imageUrl = item.photoUrl ? toThumbnailUrl(item.photoUrl, "md") : null;
@@ -108,32 +90,11 @@ function renderMedia(item: LandingObservation, copy: LandingStrings, eager = fal
   return `<span class="home-card-media is-empty is-${kind}"><span class="home-empty-media-icon">${mediaIcon(kind)}</span><span>${escapeHtml(copy.home.shared.media[kind])}</span>${countBadge}</span>`;
 }
 
-function renderPublicCard(options: LandingHomeStateOptions, item: LandingObservation, eager = false): string {
-  const meta = [safePlace(item, options.copy), dateLabel(item, options.lang)].filter(Boolean).join(" · ");
-  return `<a class="home-public-card" href="${escapeHtml(detailHref(options, item))}" data-home-record-id="${escapeHtml(observationKey(item))}">
+function renderRecentCard(options: LandingHomeStateOptions, item: LandingObservation, eager = false): string {
+  const meta = [dateLabel(item, options.lang), safePlace(item, options.copy)].filter(Boolean).join(" · ");
+  return `<a class="home-recent-card" href="${escapeHtml(detailHref(options, item))}" data-home-record-id="${escapeHtml(observationKey(item))}">
     ${renderMedia(item, options.copy, eager)}
     <span class="home-card-copy"><strong>${escapeHtml(displayName(item, options.copy))}</strong>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</span>
-  </a>`;
-}
-
-function renderRecentCard(options: LandingHomeStateOptions, item: LandingObservation, integratedDiscovery: string | null): string {
-  const processing = item.aiAssessmentStatus === "queued" || item.aiAssessmentStatus === "processing";
-  return `<article class="home-recent-card" data-home-record-id="${escapeHtml(observationKey(item))}">
-    <a class="home-recent-media-link" href="${escapeHtml(detailHref(options, item))}">${renderMedia(item, options.copy, true)}</a>
-    <div class="home-recent-copy">
-      <h3>${escapeHtml(displayName(item, options.copy))}</h3>
-      <p class="home-record-date">${escapeHtml(dateLabel(item, options.lang))}</p>
-      ${integratedDiscovery ? `<p class="home-record-insight"><span>${escapeHtml(options.copy.home.shared.fromRecord)}</span><strong>${escapeHtml(integratedDiscovery)}</strong></p>` : ""}
-      ${processing ? `<p class="home-record-processing" role="status">${escapeHtml(options.copy.home.member.processing)}</p>` : ""}
-      <a class="home-text-link" href="${escapeHtml(detailHref(options, item))}">${escapeHtml(options.copy.home.shared.openRecord)}</a>
-    </div>
-  </article>`;
-}
-
-function renderDiscoveryCard(options: LandingHomeStateOptions, item: LandingObservation, text: string): string {
-  return `<a class="home-discovery-card" href="${escapeHtml(detailHref(options, item))}" data-home-record-id="${escapeHtml(observationKey(item))}">
-    ${renderMedia(item, options.copy)}
-    <span class="home-card-copy"><strong>${escapeHtml(text)}</strong><span>${escapeHtml(options.copy.home.shared.fromRecord)}</span></span>
   </a>`;
 }
 
@@ -141,63 +102,103 @@ function slot(name: string, content: string): string {
   return `<!-- ikimon-home-slot:${name}:start -->${content}<!-- ikimon-home-slot:${name}:end -->`;
 }
 
-function sectionSlot(name: string, content: string): string {
-  return `<!-- ikimon-home-section:${name}:start -->${content}<!-- ikimon-home-section:${name}:end -->`;
+function captureButton(label: string, className: string, action: string): string {
+  return `<button type="button" class="${escapeHtml(className)}" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="${escapeHtml(action)}" aria-haspopup="dialog">${escapeHtml(label)}</button>`;
+}
+
+function renderHeroHeading(lang: SiteLang, value: string): string {
+  if (lang !== "ja") return escapeHtml(value);
+  const phraseBoundary = value.indexOf("、");
+  if (phraseBoundary < 0 || phraseBoundary >= value.length - 1) return escapeHtml(value);
+  return `<span class="home-hero-phrase">${escapeHtml(value.slice(0, phraseBoundary + 1))}</span><span class="home-hero-phrase">${escapeHtml(value.slice(phraseBoundary + 1))}</span>`;
 }
 
 function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObservation[]): string {
   const copy = options.copy.home.guest;
   const heroItem = publicItems.find((item) => Boolean(item.photoUrl));
   const heroVisual = heroItem ? `<div class="home-guest-hero-visual">${renderMedia(heroItem, options.copy, true)}</div>` : "";
-  const publicShelf = publicItems.length > 0
-    ? `<div class="home-horizontal-list" role="region" aria-label="${escapeHtml(copy.publicRecordsTitle)}">${publicItems.slice(0, 8).map((item) => renderPublicCard(options, item)).join("")}</div>`
-    : `<a class="home-quiet-link" href="${escapeHtml(href(options, "/records?view=public"))}">${escapeHtml(copy.secondaryCta)}</a>`;
-  const valueItems = copy.valueItems.map((item, index) => `<li><span class="home-value-icon" aria-hidden="true">${index + 1}</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.body)}</small></span></li>`).join("");
+  const categoryItems = copy.categories.map((item, index) => `<li class="is-category-${index + 1}"><span class="home-category-photo" aria-hidden="true"></span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.body)}</small></span></li>`).join("");
+  const flowItems = copy.flowItems.map((item, index) => `<li><span class="home-value-icon" aria-hidden="true">${index + 1}</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.body)}</small></span></li>`).join("");
+  const placeVisual = heroItem ? `<div class="home-place-visual">${renderMedia(heroItem, options.copy)}</div>` : `<div class="home-place-visual is-placeholder" aria-hidden="true"><span></span><span></span><span></span></div>`;
+  const placeHref = href(options, "/map?tab=places");
   return `<div class="home-state-view is-guest" data-home-view="guest"${options.isLoggedIn ? " hidden" : ""}>
     <section class="home-guest-hero${heroVisual ? " has-visual" : ""}">
-      <div class="home-guest-hero-copy"><h1>${escapeHtml(copy.heroHeading)}</h1><p>${escapeHtml(copy.heroLead)}</p>
-        <div class="home-hero-actions"><a class="home-primary-button" href="${escapeHtml(href(options, "/record"))}">${escapeHtml(copy.primaryCta)}</a><a class="home-secondary-link" href="#home-public-records">${escapeHtml(copy.secondaryCta)}</a></div>
+      <div class="home-guest-hero-copy"><h1>${renderHeroHeading(options.lang, copy.heroHeading)}</h1><p>${escapeHtml(copy.heroLead)}</p>
+        <div class="home-hero-actions">${captureButton(copy.primaryCta, "home-primary-button", "top_capture")}${`<a class="home-secondary-link" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place">${escapeHtml(copy.secondaryCta)}</a>`}</div>
       </div>${slot("guest-hero", heroVisual)}
     </section>
-    <section class="home-section" id="home-public-records"><h2>${escapeHtml(copy.publicRecordsTitle)}</h2>${slot("guest-public", publicShelf)}</section>
-    <section class="home-section home-value-section"><h2>${escapeHtml(copy.valueTitle)}</h2><ol>${valueItems}</ol></section>
+    <section class="home-section home-category-section"><h2>${escapeHtml(copy.categoriesTitle)}</h2><ul>${categoryItems}</ul></section>
+    <section class="home-section home-value-section"><h2>${escapeHtml(copy.flowTitle)}</h2><ol>${flowItems}</ol></section>
+    <section class="home-section home-place-section" id="home-places">
+      ${placeVisual}
+      <div><h2>${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
+    </section>
     <section class="home-section home-privacy-section"><span class="home-privacy-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><div><h2>${escapeHtml(copy.privacyTitle)}</h2><p>${escapeHtml(copy.privacyBody)}</p></div></section>
-    <section class="home-section home-final-section"><h2>${escapeHtml(copy.finalTitle)}</h2><a class="home-secondary-button" href="${escapeHtml(href(options, "/record"))}">${escapeHtml(copy.finalCta)}</a></section>
+    <section class="home-section home-final-section"><h2>${escapeHtml(copy.finalTitle)}</h2>${captureButton(copy.finalCta, "home-secondary-button", "top_capture_final")}</section>
   </div>`;
 }
 
-function renderMember(options: LandingHomeStateOptions, ownItems: LandingObservation[], publicItems: LandingObservation[]): string {
+function formatEventDate(value: string, lang: SiteLang): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const locale: Record<SiteLang, string> = { ja: "ja-JP", en: "en-US", es: "es-ES", "pt-BR": "pt-BR" };
+  return new Intl.DateTimeFormat(locale[lang], { month: "short", day: "numeric" }).format(date);
+}
+
+function renderHomeContinuationScript(): string {
+  return `<script>
+(() => {
+  const section = document.querySelector('[data-home-continuation]');
+  if (!section || !('indexedDB' in window)) return;
+  try {
+    const request = indexedDB.open('ikimon-record-draft', 1);
+    request.onsuccess = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('drafts')) { db.close(); return; }
+      const tx = db.transaction('drafts', 'readonly');
+      const getRequest = tx.objectStore('drafts').get('latest');
+      getRequest.onsuccess = () => {
+        const draft = getRequest.result;
+        const files = draft && Array.isArray(draft.files) ? draft.files : [];
+        if (draft && (draft.file || files.length > 0)) section.hidden = false;
+      };
+      tx.oncomplete = () => db.close();
+      tx.onerror = () => db.close();
+    };
+  } catch (_) {}
+})();
+</script>`;
+}
+
+function renderMember(options: LandingHomeStateOptions, ownItems: LandingObservation[]): string {
   const copy = options.copy.home.member;
-  const recent = ownItems[0] || null;
-  const recentDiscovery = recent ? discoveryText(recent, options.copy) : null;
-  const separateDiscovery = ownItems.slice(1).find((item) => Boolean(discoveryText(item, options.copy))) || null;
-  const excluded = new Set([recent, separateDiscovery].filter(Boolean).map((item) => observationKey(item as LandingObservation)));
-  const nearby = publicItems.filter((item) => !excluded.has(observationKey(item))).slice(0, 8);
-  const recentSection = recent
-    ? `<section class="home-section home-recent-section"><h2>${escapeHtml(copy.recentTitle)}</h2>${slot("member-recent", renderRecentCard(options, recent, separateDiscovery ? null : recentDiscovery))}</section>`
+  const recentSection = ownItems.length > 0
+    ? `<section class="home-section home-recent-section"><h2>${escapeHtml(copy.recentTitle)}</h2><div class="home-recent-grid">${ownItems.slice(0, 6).map((item, index) => renderRecentCard(options, item, index === 0)).join("")}</div></section>`
     : "";
-  const separateText = separateDiscovery ? discoveryText(separateDiscovery, options.copy) : null;
-  const discoverySection = separateDiscovery && separateText
-    ? `<section class="home-section home-discovery-section"><h2>${escapeHtml(copy.discoveriesTitle)}</h2>${slot("member-discovery", renderDiscoveryCard(options, separateDiscovery, separateText))}</section>`
+  const placesSection = options.snapshot.myPlaces.length > 0
+    ? `<section class="home-section home-places-section"><div class="home-section-heading"><h2>${escapeHtml(copy.placesTitle)}</h2><a href="${escapeHtml(href(options, "/records?view=places"))}">${escapeHtml(options.copy.home.guest.secondaryCta)}</a></div><div class="home-place-grid">${options.snapshot.myPlaces.slice(0, 4).map((place) => `<a class="home-place-card" href="${escapeHtml(href(options, "/records?view=places"))}"><strong>${escapeHtml(place.placeName)}</strong>${place.municipality ? `<span>${escapeHtml(place.municipality)}</span>` : ""}${place.latestDisplayName ? `<small>${escapeHtml(place.latestDisplayName)}</small>` : ""}</a>`).join("")}</div></section>`
     : "";
-  const nearbySection = nearby.length > 0
-    ? `<section class="home-section home-nearby-section"><h2>${escapeHtml(copy.nearbyTitle)}</h2>${slot("member-nearby", `<div class="home-horizontal-list" role="region" aria-label="${escapeHtml(copy.nearbyTitle)}">${nearby.map((item) => renderPublicCard(options, item)).join("")}</div>`)}</section>`
+  const nextSection = options.snapshot.nearbyEvents.length > 0
+    ? `<section class="home-section home-next-section"><h2>${escapeHtml(copy.nextTitle)}</h2><div class="home-next-list">${options.snapshot.nearbyEvents.slice(0, 3).map((event) => {
+      const eventHref = event.eventCode
+        ? href(options, `/community/events/${encodeURIComponent(event.eventCode)}/join`)
+        : href(options, `/events/${encodeURIComponent(event.sessionId)}/live`);
+      const meta = [formatEventDate(event.startedAt, options.lang), event.fieldName || event.city || event.prefecture || ""].filter(Boolean).join(" · ");
+      return `<a href="${escapeHtml(eventHref)}"><strong>${escapeHtml(event.title)}</strong>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</a>`;
+    }).join("")}</div></section>`
+    : "";
+  const emptyState = ownItems.length === 0
+    ? `<section class="home-empty-state"><h2>${escapeHtml(copy.emptyTitle)}</h2><p>${escapeHtml(copy.emptyBody)}</p>${captureButton(copy.primaryCta, "home-primary-button", "home_empty_capture")}</section>`
     : "";
   return `<div class="home-state-view is-member" data-home-view="member"${options.isLoggedIn ? "" : " hidden"}>
-    <section class="home-member-action"><h1>${escapeHtml(copy.actionTitle)}</h1><p>${escapeHtml(copy.actionLead)}</p><a class="home-primary-button" href="${escapeHtml(href(options, "/record"))}">${escapeHtml(copy.primaryCta)}</a></section>
-    ${sectionSlot("member-recent", recentSection)}
-    ${sectionSlot("member-discovery", discoverySection)}
-    ${sectionSlot("member-nearby", nearbySection)}
-    ${renderMemberBottomNav(options)}
+    <section class="home-member-action"><h1>${escapeHtml(copy.actionTitle)}</h1><p>${escapeHtml(copy.actionLead)}</p>${captureButton(copy.primaryCta, "home-primary-button", "home_capture")}</section>
+    <section class="home-continuation" data-home-continuation hidden><div><h2>${escapeHtml(copy.continuationTitle)}</h2><p>${escapeHtml(copy.continuationBody)}</p></div><a class="home-secondary-button" href="${escapeHtml(href(options, "/record?draft=1&source=home_continue"))}">${escapeHtml(copy.continuationCta)}</a></section>
+    ${renderHomeContinuationScript()}
+    ${emptyState}
+    ${recentSection}
+    ${placesSection}
+    ${nextSection}
   </div>`;
-}
-
-function renderMemberBottomNav(options: LandingHomeStateOptions): string {
-  const copy = options.copy.home.shared.navigation;
-  const links: Array<[keyof typeof copy, string]> = [
-    ["home", "/"], ["record", "/record"], ["discover", "/records?view=public"], ["profile", "/profile"],
-  ];
-  return `<nav class="home-bottom-nav" aria-label="${escapeHtml(copy.home)}">${links.map(([key, path], index) => `<a href="${escapeHtml(href(options, path))}"${index === 0 ? ' aria-current="page"' : ""}>${navigationIcon(key)}<span>${escapeHtml(copy[key])}</span></a>`).join("")}</nav>`;
 }
 
 export function renderLandingHomeState(options: LandingHomeStateOptions): { heroHtml: string; bodyHtml: string } {
@@ -207,24 +208,25 @@ export function renderLandingHomeState(options: LandingHomeStateOptions): { hero
     .filter((item) => item.publicFeedEligible !== false && !ownKeys.has(observationKey(item)));
   return {
     heroHtml: `<div class="home-state-root" data-home-contract="state-split-v1" data-home-auth-state="${options.isLoggedIn ? "member" : "guest"}">${renderGuest(options, publicItems)}`,
-    bodyHtml: `${renderMember(options, ownItems, publicItems)}</div>`,
+    bodyHtml: `${renderMember(options, ownItems)}</div>`,
   };
 }
 
 export const LANDING_HOME_STATE_STYLES = `
-  body{background:#f7faf7;color:#17211b}.shell.shell-bleed.prototype-shell{width:min(100%,1180px);max-width:none;margin:0 auto;padding:0 20px 112px;color:#17211b}
+  body{background:#f7faf7;color:#17211b}.shell.shell-bleed.prototype-shell{box-sizing:border-box;width:min(100%,1180px);min-width:0;max-width:none;margin:0 auto;padding:0 20px 72px;color:#17211b}
   .site-header-home .site-header-inner{min-height:60px}.home-header-actions{margin-left:auto;align-items:center;gap:6px}.site-header-home[data-home-auth-state=guest] .home-header-actions.is-guest,.site-header-home[data-home-auth-state=member] .home-header-actions.is-member{display:flex}.site-header-home[data-home-auth-state=guest] .home-header-actions.is-member,.site-header-home[data-home-auth-state=member] .home-header-actions.is-guest{display:none}.home-header-login{min-width:72px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;color:#105738;font-weight:800;text-decoration:none}.site-header-home .site-account-icon,.site-header-home .site-notification-trigger{min-width:44px;min-height:44px}
-  .home-state-root{--home-green:#16734a;--home-green-dark:#105738;--home-border:#dce6df;--home-muted:#5b675f}.home-state-view[hidden]{display:none!important}
-  .home-state-view{display:grid;grid-template-columns:minmax(0,1fr);gap:40px;padding:24px 0 48px}.home-section{display:grid;gap:16px;min-width:0}.home-section h2,.home-member-action h1{margin:0;font-size:clamp(1.25rem,4.8vw,1.75rem);line-height:1.35;letter-spacing:-.02em}
-  .home-guest-hero{display:grid;gap:20px;min-height:min(68svh,620px);align-content:center}.home-guest-hero-copy{display:grid;gap:18px}.home-guest-hero h1{max-width:12em;margin:0;font-size:clamp(2rem,8.5vw,4.1rem);line-height:1.2;letter-spacing:-.045em}.home-guest-hero p,.home-member-action p{max-width:42rem;margin:0;color:var(--home-muted);font-size:1rem;line-height:1.75}
-  .home-guest-hero-visual{min-width:0}.home-guest-hero-visual .home-card-media{aspect-ratio:16/10;border-radius:20px}.home-hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px}.home-primary-button,.home-secondary-button{min-height:54px;display:inline-flex;align-items:center;justify-content:center;padding:0 24px;border-radius:999px;text-decoration:none;font-size:1rem;font-weight:800}.home-primary-button{background:var(--home-green);color:#fff}.home-primary-button:hover{background:var(--home-green-dark)}.home-secondary-button{min-height:48px;border:1px solid var(--home-green);color:var(--home-green);background:#fff}.home-secondary-link,.home-text-link,.home-quiet-link{min-height:44px;display:inline-flex;align-items:center;color:var(--home-green-dark);font-weight:750;text-underline-offset:4px}
-  .home-horizontal-list{display:grid;grid-auto-flow:column;grid-auto-columns:min(78vw,310px);gap:14px;overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:inline mandatory;padding:2px 20px 12px 0;scrollbar-width:thin}.home-public-card{display:grid;align-content:start;gap:12px;min-width:0;color:inherit;text-decoration:none;scroll-snap-align:start}.home-card-media{position:relative;display:grid;place-items:center;overflow:hidden;aspect-ratio:4/3;border-radius:18px;background:#e5eee8;color:var(--home-green-dark)}.home-card-media img{width:100%;height:100%;object-fit:cover}.home-card-media.is-empty{gap:8px;align-content:center;min-height:174px}.home-empty-media-icon svg{width:42px;height:42px}.home-card-media svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.home-media-affordance,.home-media-count{position:absolute;display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:rgba(18,28,22,.78);color:#fff;font-size:.8125rem;font-weight:750}.home-media-affordance{inset:auto auto 10px 10px}.home-media-affordance svg{width:18px;height:18px}.home-media-count{inset:10px 10px auto auto}.home-card-copy{display:grid;gap:5px;padding:0 2px}.home-card-copy strong{font-size:1rem;line-height:1.45}.home-card-copy span{color:var(--home-muted);font-size:.875rem;line-height:1.5}
-  .home-value-section ol{display:grid;gap:0;margin:0;padding:0;list-style:none;border-top:1px solid var(--home-border)}.home-value-section li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:start;padding:20px 0;border-bottom:1px solid var(--home-border)}.home-value-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:#e6f2eb;color:var(--home-green-dark);font-weight:850}.home-value-section li span:last-child{display:grid;min-width:0;gap:5px;overflow-wrap:anywhere}.home-value-section strong{font-size:1rem}.home-value-section small{color:var(--home-muted);font-size:.875rem;line-height:1.65}
-  .home-privacy-section{grid-template-columns:44px minmax(0,1fr);gap:14px;padding:24px 20px;border-radius:20px;background:#eaf4ee}.home-privacy-icon{width:44px;height:44px;display:grid;place-items:center;color:var(--home-green-dark)}.home-privacy-icon svg{width:28px;fill:none;stroke:currentColor;stroke-width:1.8}.home-privacy-section div{display:grid;min-width:0;gap:8px;overflow-wrap:anywhere}.home-privacy-section p{margin:0;color:var(--home-muted);font-size:.9375rem;line-height:1.7}.home-final-section{justify-items:start;padding:8px 0 16px}
-  .home-member-action{display:grid;gap:14px;padding:24px 20px;border-radius:20px;background:#eaf4ee}.home-member-action .home-primary-button{width:100%;margin-top:4px}.home-recent-card{display:grid;overflow:hidden;border:1px solid var(--home-border);border-radius:20px;background:#fff}.home-recent-media-link{display:block}.home-recent-card .home-card-media{border-radius:0;aspect-ratio:16/11}.home-recent-copy{display:grid;gap:8px;padding:18px}.home-recent-copy h3,.home-recent-copy p{margin:0}.home-recent-copy h3{font-size:1.25rem;line-height:1.4}.home-record-date{color:var(--home-muted);font-size:.875rem}.home-record-insight{display:grid;gap:4px;margin-top:4px!important;padding-top:14px;border-top:1px solid var(--home-border)}.home-record-insight span,.home-record-processing{color:var(--home-muted);font-size:.875rem;line-height:1.5}.home-record-insight strong{font-size:1rem;line-height:1.5}.home-discovery-card{display:grid;grid-template-columns:112px 1fr;gap:14px;align-items:center;color:inherit;text-decoration:none}.home-discovery-card .home-card-media{aspect-ratio:1;border-radius:16px}.home-discovery-card .home-card-copy{padding:0}
-  .home-bottom-nav{position:fixed;z-index:50;inset:auto 0 0;display:grid;grid-template-columns:repeat(4,1fr);padding:6px max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));border-top:1px solid var(--home-border);background:rgba(255,255,255,.96);backdrop-filter:blur(16px)}.home-bottom-nav a{min-width:0;min-height:56px;display:grid;place-items:center;align-content:center;gap:3px;color:#526158;text-decoration:none;font-size:.8125rem;font-weight:700}.home-bottom-nav a[aria-current=page]{color:var(--home-green-dark)}.home-bottom-nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .home-state-root a:focus-visible{outline:3px solid #1c7b52;outline-offset:3px}.home-state-root a{touch-action:manipulation}@media(prefers-reduced-motion:reduce){.home-state-root *{scroll-behavior:auto!important;transition:none!important}}
-  @media(min-width:768px){.shell.shell-bleed.prototype-shell{padding-inline:32px}.home-state-view{gap:48px}.home-guest-hero.has-visual{grid-template-columns:minmax(0,1fr) minmax(340px,.95fr);align-items:center;gap:44px}.home-horizontal-list{grid-auto-columns:min(38vw,330px)}.home-member-action{grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:28px 32px}.home-member-action p{grid-column:1}.home-member-action .home-primary-button{grid-column:2;grid-row:1/3;width:auto;min-width:190px}.home-recent-card{grid-template-columns:minmax(320px,1.15fr) minmax(260px,.85fr);align-items:stretch}.home-recent-copy{align-content:center;padding:28px}.home-bottom-nav{left:50%;right:auto;bottom:16px;width:min(560px,calc(100vw - 32px));transform:translateX(-50%);border:1px solid var(--home-border);border-radius:20px;padding:5px 8px;box-shadow:0 12px 38px rgba(25,46,33,.14)}}
-  @media(min-width:1100px){.home-state-view{padding-top:36px}.home-horizontal-list{grid-auto-flow:initial;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;padding-right:0}.home-public-card:nth-child(n+7){display:none}.home-guest-hero{min-height:600px}.home-value-section ol{grid-template-columns:repeat(3,1fr);gap:28px;border:0}.home-value-section li{grid-template-columns:44px 1fr;border:0;padding:16px 0}.home-privacy-section{padding:30px 32px}}
-  @media(max-width:359px){.shell.shell-bleed.prototype-shell{padding-inline:14px}.home-guest-hero h1{font-size:1.9rem}.home-horizontal-list{grid-auto-columns:82vw}.home-card-copy strong{font-size:.9375rem}.home-bottom-nav a{font-size:.75rem}}
+  .home-state-root{min-width:0;--home-green:#16734a;--home-green-dark:#105738;--home-border:#dce6df;--home-muted:#5b675f}.home-state-root :where(p,small,.home-card-copy strong){overflow-wrap:anywhere}.home-state-view[hidden]{display:none!important}.home-state-view{display:grid;min-width:0;gap:44px;padding:24px 0 48px}.home-section{display:grid;gap:16px;min-width:0}.home-section h2,.home-member-action h1,.home-empty-state h2,.home-continuation h2{margin:0;font-size:clamp(1.25rem,4.8vw,1.8rem);line-height:1.35;letter-spacing:-.02em}
+  .home-guest-hero{display:grid;min-width:0;gap:22px;min-height:min(70svh,640px);align-content:center}.home-guest-hero-copy{display:grid;min-width:0;gap:18px}.home-guest-hero h1{min-width:0;max-width:12em;margin:0;font-size:clamp(2.15rem,9vw,4.35rem);line-height:1.16;letter-spacing:-.045em;text-wrap:balance;overflow-wrap:break-word;word-break:normal}.home-hero-phrase{display:inline-block;max-width:100%}.home-guest-hero p,.home-member-action p,.home-place-section p,.home-empty-state p,.home-continuation p{max-width:44rem;margin:0;color:var(--home-muted);font-size:1rem;line-height:1.75}
+  .home-guest-hero-visual{min-width:0}.home-card-media{position:relative;display:grid;place-items:center;overflow:hidden;aspect-ratio:4/3;border-radius:18px;background:#e5eee8;color:var(--home-green-dark)}.home-card-media img{width:100%;height:100%;object-fit:cover}.home-guest-hero-visual .home-card-media{aspect-ratio:16/10;border-radius:22px}.home-card-media.is-empty{gap:8px;align-content:center;min-height:174px}.home-empty-media-icon svg{width:42px;height:42px}.home-card-media svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.home-media-affordance,.home-media-count{position:absolute;display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:rgba(18,28,22,.78);color:#fff;font-size:.8125rem;font-weight:750}.home-media-affordance{inset:auto auto 10px 10px}.home-media-affordance svg{width:18px;height:18px}.home-media-count{inset:10px 10px auto auto}.home-card-copy{display:grid;gap:5px;padding:0 2px}.home-card-copy strong{font-size:1rem;line-height:1.45}.home-card-copy span{color:var(--home-muted);font-size:.875rem;line-height:1.5}
+  .home-hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px}.home-primary-button,.home-secondary-button{min-height:54px;display:inline-flex;align-items:center;justify-content:center;padding:0 24px;border-radius:999px;text-decoration:none;font:inherit;font-size:1rem;font-weight:850;cursor:pointer}.home-primary-button{border:0;background:var(--home-green);color:#fff}.home-primary-button:hover{background:var(--home-green-dark)}.home-secondary-button{min-height:48px;border:1px solid var(--home-green);color:var(--home-green);background:#fff}.home-secondary-link{min-height:44px;display:inline-flex;align-items:center;color:var(--home-green-dark);font-weight:750;text-underline-offset:4px}
+  .home-category-section ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0;padding:0;list-style:none}.home-category-section li{display:grid;overflow:hidden;border:1px solid var(--home-border);border-radius:18px;background:#fff}.home-category-photo{display:block;aspect-ratio:16/9;background:linear-gradient(135deg,#e9b96e,#8b4d2d)}.home-category-section .is-category-2 .home-category-photo{background:linear-gradient(135deg,#d7424b,#f2bf60)}.home-category-section .is-category-3 .home-category-photo{background:linear-gradient(135deg,#506f7d,#d2a76b)}.home-category-section .is-category-4 .home-category-photo{background:linear-gradient(135deg,#70a977,#5479a7)}.home-category-section li>span:last-child{display:grid;gap:5px;padding:14px}.home-category-section small{color:var(--home-muted);font-size:.85rem;line-height:1.55}
+  .home-value-section ol{display:grid;gap:0;margin:0;padding:0;list-style:none;border-top:1px solid var(--home-border)}.home-value-section li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:start;padding:20px 0;border-bottom:1px solid var(--home-border)}.home-value-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:#e6f2eb;color:var(--home-green-dark);font-weight:850}.home-value-section li span:last-child{display:grid;gap:5px}.home-value-section small{color:var(--home-muted);font-size:.875rem;line-height:1.65}
+  .home-place-section{padding:20px;border-radius:22px;background:#edf4ef}.home-place-visual .home-card-media{aspect-ratio:16/9}.home-place-visual.is-placeholder{min-height:180px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px;border-radius:18px;background:#dfeae2}.home-place-visual.is-placeholder span{border-radius:14px;background:linear-gradient(160deg,#89a990,#d8a96c)}.home-place-section>div:last-child{display:grid;align-content:center;justify-items:start;gap:12px}
+  .home-privacy-section{grid-template-columns:44px minmax(0,1fr);gap:14px;padding:24px 20px;border-radius:20px;background:#eaf4ee}.home-privacy-icon{width:44px;height:44px;display:grid;place-items:center;color:var(--home-green-dark)}.home-privacy-icon svg{width:28px;fill:none;stroke:currentColor;stroke-width:1.8}.home-privacy-section div{display:grid;gap:8px}.home-privacy-section p{margin:0;color:var(--home-muted);font-size:.9375rem;line-height:1.7}.home-final-section{justify-items:start;padding:8px 0 16px}
+  .home-member-action,.home-empty-state,.home-continuation{display:grid;gap:14px;padding:24px 20px;border-radius:20px;background:#eaf4ee}.home-member-action .home-primary-button,.home-empty-state .home-primary-button{width:100%;margin-top:4px}.home-continuation{background:#fff;border:1px solid var(--home-border)}.home-continuation[hidden]{display:none}.home-continuation>div{display:grid;gap:6px}
+  .home-recent-grid,.home-place-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.home-recent-card{display:grid;align-content:start;gap:12px;min-width:0;color:inherit;text-decoration:none}.home-recent-card .home-card-media{aspect-ratio:4/3}.home-place-card,.home-next-list a{min-height:88px;display:grid;align-content:center;gap:5px;padding:16px;border:1px solid var(--home-border);border-radius:16px;background:#fff;color:inherit;text-decoration:none}.home-place-card span,.home-place-card small,.home-next-list span{color:var(--home-muted);font-size:.875rem;line-height:1.45}.home-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.home-section-heading a{min-height:44px;display:inline-flex;align-items:center;color:var(--home-green-dark);font-weight:750}.home-next-list{display:grid;gap:10px}
+  .home-state-root :is(a,button):focus-visible{outline:3px solid #1c7b52;outline-offset:3px}.home-state-root :is(a,button){touch-action:manipulation}@supports(word-break:auto-phrase){html[lang=ja] .home-state-root :is(h1,h2,p,small){word-break:auto-phrase}}@media(prefers-reduced-motion:reduce){.home-state-root *{scroll-behavior:auto!important;transition:none!important}}
+  @media(min-width:768px){.shell.shell-bleed.prototype-shell{padding-inline:32px}.home-state-view{gap:56px}.home-guest-hero.has-visual{grid-template-columns:minmax(0,1fr) minmax(340px,.95fr);align-items:center;gap:44px}.home-category-section ul{grid-template-columns:repeat(4,minmax(0,1fr))}.home-place-section{grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:28px;padding:28px}.home-member-action,.home-continuation{grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:28px 32px}.home-member-action p{grid-column:1}.home-member-action .home-primary-button{grid-column:2;grid-row:1/3;width:auto;min-width:190px}.home-recent-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.home-place-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  @media(min-width:1100px){.home-state-view{padding-top:36px}.home-guest-hero{min-height:620px}.home-value-section ol{grid-template-columns:repeat(3,1fr);gap:28px;border:0}.home-value-section li{grid-template-columns:44px 1fr;border:0;padding:16px 0}.home-privacy-section{padding:30px 32px}}
+  @media(max-width:359px){.shell.shell-bleed.prototype-shell{padding-inline:14px}.home-guest-hero h1{font-size:1.95rem}.home-category-section ul,.home-recent-grid,.home-place-grid{grid-template-columns:1fr}.home-privacy-section{grid-template-columns:1fr;padding:18px 14px}.home-privacy-icon{width:36px;height:36px}.home-card-copy strong{font-size:.9375rem}}
 `;

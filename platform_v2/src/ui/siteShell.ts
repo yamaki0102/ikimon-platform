@@ -8,7 +8,6 @@ import { getCspNonce } from "../services/cspNonce.js";
 import {
   getSiteShellLayoutForPath,
   listPagesByLane,
-  listPagesByVisibility,
   sitePageLabel,
   type RouteLane,
   type SitePageDefinition,
@@ -120,17 +119,6 @@ function applyCspNonceToScripts(html: string): string {
   return html
     .replace(/<script\b([^>]*?)\snonce=(?:"[^"]*"|'[^']*'|[^\s>]+)([^>]*)>/g, `<script$1${nonceAttribute}$2>`)
     .replace(/<script\b(?![^>]*\bnonce=)/g, `<script${nonceAttribute}`);
-}
-
-function buildNavLinks(basePath: string, lang: SiteLang, activeNav?: string): string {
-  return listPagesByVisibility("header")
-    .map((page) => {
-      const label = sitePageLabel(page, lang);
-      const activeClass = activeNav === label ? " is-active" : "";
-      const href = withBasePath(basePath, page.path);
-      return `<a class="site-nav-link${activeClass}" href="${escapeHtml(appendLangToHref(href, lang))}">${escapeHtml(label)}</a>`;
-    })
-    .join("");
 }
 
 function recordsSearchState(currentPath: string): { query: string; view: string } {
@@ -750,17 +738,36 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: S
   </div>`;
 }
 
-function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: string | undefined, availableLangs: SiteLang[], minimalChrome = false, homeChrome?: "guest" | "member"): string {
+function renderHeaderCoreNavigation(basePath: string, lang: SiteLang, currentPath: string, authState?: "guest" | "member"): string {
+  if (!shouldRenderGlobalRecordEntry(currentPath)) return "";
+  const copy = globalRecordEntryCopy(lang);
+  const pathname = normalizePathname(currentPath);
+  const placesHref = appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang);
+  const memberRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
+  const memberSelfHref = appendLangToHref(withBasePath(basePath, "/profile"), lang);
+  const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Frecords%3Fview%3Dmine"), lang);
+  const guestSelfHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Fprofile"), lang);
+  const recordsHref = authState === "member" ? memberRecordsHref : guestRecordsHref;
+  const selfHref = authState === "member" ? memberSelfHref : guestSelfHref;
+  const current = (matched: boolean): string => matched ? ' aria-current="page"' : "";
+  return `<nav class="site-nav site-nav-desktop site-core-nav" aria-label="${escapeHtml(copy.navLabel)}">
+    <button type="button" class="site-core-nav-link is-capture" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="header_capture" aria-haspopup="dialog">${escapeHtml(copy.photo)}</button>
+    <a class="site-core-nav-link" href="${escapeHtml(placesHref)}"${current(pathname === "/map" || pathname.startsWith("/map/"))}>${escapeHtml(copy.places)}</a>
+    <a class="site-core-nav-link" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${current(pathname === "/records" || pathname.startsWith("/records/") || pathname.startsWith("/observations/"))}>${escapeHtml(copy.records)}</a>
+    <a class="site-core-nav-link" href="${escapeHtml(selfHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestSelfHref)}" data-auth-member-href="${escapeHtml(memberSelfHref)}"${current(pathname === "/profile" || pathname.startsWith("/profile/"))}>${escapeHtml(copy.self)}</a>
+  </nav>`;
+}
+
+function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: string | undefined, availableLangs: SiteLang[], minimalChrome = false, homeChrome?: "guest" | "member"): string {
   const copy = shellCopyFor(lang);
   const accountCopy = accountUiCopy(lang);
   const brandMarkSrc = BRAND_ASSETS.mark192;
   const brandWordmarkSrc = BRAND_ASSETS.wordmarkBlack;
-  const navLinks = buildNavLinks(basePath, lang, activeNav);
+  const navLinks = renderHeaderCoreNavigation(basePath, lang, currentPath, homeChrome);
   const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop", currentPath);
   const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile", currentPath);
   const desktopLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-desktop");
   const mobileLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-mobile");
-  const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang));
   const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang));
   const profileHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/profile"), lang));
   const myRecordsHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang));
@@ -780,10 +787,11 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
     return `<header class="site-header site-header-home" data-home-header data-home-auth-state="${homeChrome}">
     <div class="site-header-inner">
       <div class="site-brand-cluster">
-        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
+        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
           <span class="brand-logo-lockup"><span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span><span class="brand-wordmark" aria-label="ikimon"><img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" /></span></span>
         </a>
       </div>
+      ${navLinks}
       <div class="home-header-actions is-guest"><a class="home-header-login" href="${loginHref}">${escapeHtml(accountCopy.login)}</a></div>
       <nav class="home-header-actions is-member" aria-label="${escapeHtml(accountCopy.accountNav)}">${notificationIcon}${homeProfileIcon}</nav>
     </div>
@@ -794,7 +802,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
     return `<header class="site-header site-header-minimal">
     <div class="site-header-inner">
       <div class="site-brand-cluster">
-        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
+        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
           <span class="brand-logo-lockup">
             <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
             <span class="brand-wordmark" aria-label="ikimon">
@@ -803,13 +811,12 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
           </span>
         </a>
       </div>
+      ${navLinks}
       <div class="site-header-actions site-header-actions-desktop">
         ${desktopLangSwitch}
-        <a class="btn btn-solid site-record-link" href="${recordHref}" data-global-record-trigger="photo" data-record-target="${recordHref}" data-kpi-action="header_record_photo">${escapeHtml(copy.record)}</a>
         <a class="btn btn-solid site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
-        <a class="btn btn-solid site-record-link" href="${recordHref}" data-global-record-trigger="photo" data-record-target="${recordHref}" data-kpi-action="header_record_photo">${escapeHtml(copy.record)}</a>
         <a class="btn btn-solid site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
       </div>
     </div>
@@ -825,7 +832,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
         <button class="desktop-side-nav-toggle" type="button" aria-label="左メニューを切り替える" aria-pressed="false" data-desktop-side-nav-toggle>
           <span class="desktop-side-nav-toggle-lines" aria-hidden="true"></span>
         </button>
-        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
+        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
           <span class="brand-logo-lockup">
             <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
             <span class="brand-wordmark" aria-label="ikimon">
@@ -834,15 +841,13 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
           </span>
         </a>
       </div>
-      <nav class="site-nav site-nav-desktop">${navLinks}</nav>
+      ${navLinks}
       ${desktopSearch}
       <div class="site-header-actions site-header-actions-desktop">
         ${desktopLangSwitch}
-        <a class="btn btn-solid site-record-link" href="${recordHref}" data-global-record-trigger="photo" data-record-target="${recordHref}" data-kpi-action="header_record_photo">${escapeHtml(copy.record)}</a>
         <nav class="site-account-icons" aria-label="${escapeHtml(accountCopy.accountNav)}">${profileIcon}${notificationIcon}${settingsIcon}</nav>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
-        <a class="btn btn-solid site-record-link" href="${recordHref}" data-global-record-trigger="photo" data-record-target="${recordHref}" data-kpi-action="header_record_photo">${escapeHtml(copy.record)}</a>
         <details class="site-mobile-menu">
           <summary class="site-mobile-menu-toggle" aria-label="${escapeHtml(copy.menu)}" title="${escapeHtml(copy.menu)}">
             <span class="site-mobile-menu-icon" aria-hidden="true"></span>
@@ -1001,8 +1006,6 @@ function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
   return !(
     pathname === "/guide" ||
     (pathname.startsWith("/guide/") && pathname !== "/guide/outcomes") ||
-    pathname === "/profile" ||
-    pathname.startsWith("/profile/") ||
     pathname === "/record" ||
     pathname.startsWith("/record/") ||
     pathname === "/debug" ||
@@ -1064,6 +1067,11 @@ function siteShellLayoutKind(currentPath: string, shellClassName: string): SiteS
 type GlobalRecordEntryCopy = {
   navLabel: string;
   photo: string;
+  photoMode: string;
+  captureAria: string;
+  places: string;
+  records: string;
+  self: string;
   video: string;
   gallery: string;
   guide: string;
@@ -1081,15 +1089,18 @@ type GlobalRecordEntryCopy = {
   trimTitle: string;
   trimStart: string;
   trimEnd: string;
+  errorTitle: string;
+  errorBody: string;
+  permissionBody: string;
+  retry: string;
+  cancel: string;
 };
 
 function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
-  const copy: Record<SiteLang, GlobalRecordEntryCopy> = {
+  type LegacyCopy = Omit<GlobalRecordEntryCopy, "navLabel" | "photo" | "photoMode" | "captureAria" | "places" | "records" | "self" | "gallery" | "errorTitle" | "errorBody" | "permissionBody" | "retry" | "cancel">;
+  const copy: Record<SiteLang, LegacyCopy> = {
     ja: {
-      navLabel: "すぐ記録する",
-      photo: "写真",
       video: "動画",
-      gallery: "選ぶ",
       guide: "ガイド",
       sheetLabel: "撮影して記録する",
       sheetTitle: "撮影して記録",
@@ -1107,10 +1118,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trimEnd: "終了",
     },
     en: {
-      navLabel: "Record quickly",
-      photo: "Photo",
       video: "Video",
-      gallery: "Choose",
       guide: "Guide",
       sheetLabel: "Capture and record",
       sheetTitle: "Capture a record",
@@ -1128,10 +1136,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trimEnd: "End",
     },
     es: {
-      navLabel: "Registrar rapido",
-      photo: "Foto",
       video: "Video",
-      gallery: "Elegir",
       guide: "Guia",
       sheetLabel: "Capturar y registrar",
       sheetTitle: "Captura un registro",
@@ -1149,10 +1154,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trimEnd: "Fin",
     },
     "pt-BR": {
-      navLabel: "Registrar rapido",
-      photo: "Foto",
       video: "Video",
-      gallery: "Escolher",
       guide: "Guia",
       sheetLabel: "Capturar e registrar",
       sheetTitle: "Capture um registro",
@@ -1170,37 +1172,76 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trimEnd: "Fim",
     },
   };
-  return copy[lang] ?? copy.ja;
+  const bottomNav = getShortCopy<{
+    ariaLabel: string;
+    capture: string;
+    captureAria: string;
+    places: string;
+    records: string;
+    self: string;
+  }>(lang, "shared", "bottomNav");
+  const cameraCapture = getShortCopy<{
+    photo: string;
+    video: string;
+    errorTitle: string;
+    errorBody: string;
+    permissionBody: string;
+    retry: string;
+    gallery: string;
+    cancel: string;
+  }>(lang, "shared", "cameraCapture");
+  return {
+    ...(copy[lang] ?? copy.ja),
+    navLabel: bottomNav.ariaLabel,
+    photo: bottomNav.capture,
+    photoMode: cameraCapture.photo,
+    video: cameraCapture.video,
+    captureAria: bottomNav.captureAria,
+    places: bottomNav.places,
+    records: bottomNav.records,
+    self: bottomNav.self,
+    gallery: cameraCapture.gallery,
+    errorTitle: cameraCapture.errorTitle,
+    errorBody: cameraCapture.errorBody,
+    permissionBody: cameraCapture.permissionBody,
+    retry: cameraCapture.retry,
+    cancel: cameraCapture.cancel,
+  };
 }
 
-function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string): string {
+function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string, authState?: "guest" | "member"): string {
   if (!shouldRenderGlobalRecordEntry(currentPath)) {
     return "";
   }
   const copy = globalRecordEntryCopy(lang);
-  const photoHref = appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang);
-  const videoHref = appendLangToHref(withBasePath(basePath, "/record?start=video"), lang);
-  const galleryHref = appendLangToHref(withBasePath(basePath, "/record?start=gallery"), lang);
-  const guideHref = appendLangToHref(withBasePath(basePath, "/guide"), lang);
+  const pathname = normalizePathname(currentPath);
+  const placesHref = appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang);
+  const memberRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
+  const memberSelfHref = appendLangToHref(withBasePath(basePath, "/profile"), lang);
+  const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Frecords%3Fview%3Dmine"), lang);
+  const guestSelfHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Fprofile"), lang);
+  const recordsHref = authState === "member" ? memberRecordsHref : guestRecordsHref;
+  const selfHref = authState === "member" ? memberSelfHref : guestSelfHref;
+  const placesCurrent = pathname === "/map" || pathname.startsWith("/map/");
+  const recordsCurrent = pathname === "/records" || pathname.startsWith("/records/") || pathname.startsWith("/observations/");
+  const selfCurrent = pathname === "/profile" || pathname.startsWith("/profile/");
   return `<nav class="global-record-launcher" aria-label="${escapeHtml(copy.navLabel)}">
-    <input class="global-record-input" data-global-record-input="photo" type="file" accept="image/*" capture="environment" multiple hidden />
-    <input class="global-record-input" data-global-record-input="video" type="file" accept="video/*" capture="environment" hidden />
-    <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*,video/*" multiple hidden />
-    <button type="button" class="global-record-choice is-primary" data-global-record-trigger="photo" data-record-target="${escapeHtml(photoHref)}" data-kpi-action="global_record_photo">
+    <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*" multiple hidden />
+    <button type="button" class="global-record-choice is-primary" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="capture_nav" aria-haspopup="dialog" aria-label="${escapeHtml(copy.captureAria)}">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
       <span>${escapeHtml(copy.photo)}</span>
     </button>
-    <button type="button" class="global-record-choice" data-global-record-trigger="video" data-record-target="${escapeHtml(videoHref)}" data-kpi-action="global_record_video">
-      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
-      <span>${escapeHtml(copy.video)}</span>
-    </button>
-    <button type="button" class="global-record-choice" data-global-record-trigger="gallery" data-record-target="${escapeHtml(galleryHref)}" data-kpi-action="global_record_gallery">
-      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-      <span>${escapeHtml(copy.gallery)}</span>
-    </button>
-    <a class="global-record-choice" href="${escapeHtml(guideHref)}" data-kpi-action="global_record_guide">
-      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
-      <span>${escapeHtml(copy.guide)}</span>
+    <a class="global-record-choice${placesCurrent ? " is-active" : ""}" href="${escapeHtml(placesHref)}"${placesCurrent ? ' aria-current="page"' : ""}>
+      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></svg></span>
+      <span>${escapeHtml(copy.places)}</span>
+    </a>
+    <a class="global-record-choice${recordsCurrent ? " is-active" : ""}" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${recordsCurrent ? ' aria-current="page"' : ""}>
+      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+      <span>${escapeHtml(copy.records)}</span>
+    </a>
+    <a class="global-record-choice${selfCurrent ? " is-active" : ""}" href="${escapeHtml(selfHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestSelfHref)}" data-auth-member-href="${escapeHtml(memberSelfHref)}"${selfCurrent ? ' aria-current="page"' : ""}>
+      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 21c.6-4 3-6 7-6s6.4 2 7 6"/></svg></span>
+      <span>${escapeHtml(copy.self)}</span>
     </a>
   </nav>
   <div class="global-record-camera-backdrop" data-global-record-camera-close hidden></div>
@@ -1209,6 +1250,10 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <div>
         <strong data-global-record-camera-title>${escapeHtml(copy.sheetTitle)}</strong>
         <p data-global-record-camera-help>${escapeHtml(copy.sheetHelp)}</p>
+        <div class="global-record-camera-modes" aria-label="${escapeHtml(copy.actionLabel)}">
+          <button type="button" data-global-record-trigger="photo" data-global-record-mode="photo" aria-pressed="true">${escapeHtml(copy.photoMode)}</button>
+          <button type="button" data-global-record-trigger="video" data-global-record-mode="video" aria-pressed="false">${escapeHtml(copy.video)}</button>
+        </div>
       </div>
       <button type="button" class="global-record-camera-close" data-global-record-camera-close aria-label="${escapeHtml(copy.close)}">×</button>
     </div>
@@ -1240,6 +1285,16 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>${escapeHtml(copy.start)}</button>
       <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>${escapeHtml(copy.capture)}</button>
     </div>
+    <button type="button" class="global-record-gallery-select" data-global-record-gallery-select>${escapeHtml(copy.gallery)}</button>
+    <div class="global-record-camera-error" data-global-record-camera-error role="alert" hidden>
+      <strong>${escapeHtml(copy.errorTitle)}</strong>
+      <p data-global-record-camera-error-body>${escapeHtml(copy.errorBody)}</p>
+      <div>
+        <button type="button" data-global-record-camera-retry>${escapeHtml(copy.retry)}</button>
+        <button type="button" data-global-record-gallery-select>${escapeHtml(copy.gallery)}</button>
+        <button type="button" data-global-record-camera-cancel>${escapeHtml(copy.cancel)}</button>
+      </div>
+    </div>
     <div class="global-record-camera-status" data-global-record-camera-status aria-live="polite"></div>
     <div class="global-record-video-trim" data-global-record-video-trim hidden>
       <div class="global-record-video-trim-head">
@@ -1260,10 +1315,18 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   </section>`;
 }
 
-function globalRecordEntryScript(basePath: string): string {
+function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
+  const cameraCopy = globalRecordEntryCopy(lang);
+  const recordTargets = {
+    photo: appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang),
+    video: appendLangToHref(withBasePath(basePath, "/record?start=video"), lang),
+    gallery: appendLangToHref(withBasePath(basePath, "/record?start=gallery"), lang),
+  };
   return `<script>
 (function () {
   const BASE_PATH = ${JSON.stringify(basePath.replace(/\/$/, ""))};
+  const CAMERA_COPY = ${JSON.stringify(cameraCopy)};
+  const RECORD_TARGETS = ${JSON.stringify(recordTargets)};
   const DB_NAME = 'ikimon-record-draft';
   const STORE_NAME = 'drafts';
   const DRAFT_KEY = 'latest';
@@ -1384,6 +1447,10 @@ function globalRecordEntryScript(basePath: string): string {
   const photoGrid = document.querySelector('[data-global-record-photo-grid]');
   const startButton = document.querySelector('[data-global-record-camera-start]');
   const captureButton = document.querySelector('[data-global-record-camera-capture]');
+  const cameraError = document.querySelector('[data-global-record-camera-error]');
+  const cameraErrorBody = document.querySelector('[data-global-record-camera-error-body]');
+  const cameraRetryButton = document.querySelector('[data-global-record-camera-retry]');
+  const cameraCancelButton = document.querySelector('[data-global-record-camera-cancel]');
   const zoomWrap = document.querySelector('[data-global-record-camera-zoom]');
   const zoomRange = document.querySelector('[data-global-record-camera-zoom-range]');
   const zoomValue = document.querySelector('[data-global-record-camera-zoom-value]');
@@ -1456,6 +1523,31 @@ function globalRecordEntryScript(basePath: string): string {
           durationMs: Math.round(Number(durationMs) || 0),
           kind: activeKind || '',
           photoCount: selectedPhotoDraftFiles().length,
+          lang: document.documentElement.lang || 'ja',
+          ts: new Date().toISOString(),
+        }, metadata || {}),
+      };
+      fetch(apiPath('/api/v1/ui-kpi/events'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+        credentials: 'same-origin',
+      }).catch(() => undefined);
+      if (window.ikimonExternalAnalytics && typeof window.ikimonExternalAnalytics.track === 'function') {
+        window.ikimonExternalAnalytics.track(payload.eventName, payload);
+      }
+    } catch (_) {}
+  };
+  const sendGlobalRecordEvent = (eventName, actionKey, metadata) => {
+    try {
+      const payload = {
+        eventName: String(eventName || 'ui_action').slice(0, 64),
+        pagePath: location.pathname + location.search,
+        routeKey: 'global_record_capture',
+        actionKey: String(actionKey || eventName || 'global_record_action').slice(0, 128),
+        metadata: Object.assign({
+          kind: activeKind || '',
           lang: document.documentElement.lang || 'ja',
           ts: new Date().toISOString(),
         }, metadata || {}),
@@ -1553,6 +1645,23 @@ function globalRecordEntryScript(basePath: string): string {
   };
   const setStatus = (message) => {
     if (status) status.textContent = message || '';
+  };
+  const hideCameraError = () => {
+    if (cameraError) cameraError.hidden = true;
+    if (sheet) sheet.removeAttribute('data-camera-error');
+  };
+  const showCameraError = (permissionDenied) => {
+    stopActiveStream();
+    if (cameraErrorBody) cameraErrorBody.textContent = permissionDenied ? CAMERA_COPY.permissionBody : CAMERA_COPY.errorBody;
+    if (cameraError) cameraError.hidden = false;
+    if (sheet) sheet.setAttribute('data-camera-error', 'true');
+    if (startButton) {
+      startButton.hidden = true;
+      startButton.disabled = false;
+    }
+    if (captureButton) captureButton.hidden = true;
+    setFooterActionMode('start');
+    setStatus('');
   };
   const escapeStatusHtml = (value) => String(value || '').replace(/[&<>"']/g, (char) => ({
     '&': '&amp;',
@@ -1997,6 +2106,9 @@ function globalRecordEntryScript(basePath: string): string {
     if (!sheet) return;
     if (kind) sheet.setAttribute('data-active-kind', kind);
     else sheet.removeAttribute('data-active-kind');
+    document.querySelectorAll('[data-global-record-mode]').forEach((button) => {
+      button.setAttribute('aria-pressed', button.getAttribute('data-global-record-mode') === kind ? 'true' : 'false');
+    });
   };
   const setPrimaryAction = (button, enabled) => {
     if (!button) return;
@@ -2421,6 +2533,7 @@ function globalRecordEntryScript(basePath: string): string {
         return;
       }
       resetPhotoDraftAfterDirectPost('記録を保存しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
+      sendGlobalRecordEvent('capture_saved', 'capture_saved', { mediaType: 'photo', fileCount: uploads.length });
       sendGlobalRecordKpi('direct_post_total_ms', durationSince(directPostStartedAt), {
         fileCount: uploads.length,
         detailId,
@@ -2464,8 +2577,7 @@ function globalRecordEntryScript(basePath: string): string {
     setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で記録、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
   };
   const navigateWithDraft = async (files, kind, metadata, source) => {
-    const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
-    const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
+    const href = RECORD_TARGETS[kind] || RECORD_TARGETS.photo;
     const draftFiles = normalizeDraftFiles(files);
     const metadataValue = metadata && typeof metadata === 'object' ? metadata : {};
     const recoverySource = source || (kind === 'photo' && !metadataValue.location ? 'location_denied' : 'draft_restore');
@@ -2476,18 +2588,14 @@ function globalRecordEntryScript(basePath: string): string {
     try {
       const [primaryDraftFile = null] = draftFiles;
       await saveDraft({ file: primaryDraftFile, files: draftFiles, kind, savedAt: Date.now(), metadata: metadataWithRole });
-      window.location.href = withDraftParams(href || '/record', kind, recoverySource);
+      window.location.href = withDraftParams(href, kind, recoverySource);
     } catch (_) {
-      window.location.href = href || '/record?start=' + encodeURIComponent(kind);
+      window.location.href = href;
     }
   };
   const clickFallbackInput = (kind) => {
     const input = document.querySelector('[data-global-record-input="' + kind + '"]');
     if (input && typeof input.click === 'function') input.click();
-    else {
-      const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
-      window.location.href = (target && target.getAttribute('data-record-target')) || '/record';
-    }
   };
   const closeSheet = () => {
     cameraRequestId += 1;
@@ -2500,9 +2608,16 @@ function globalRecordEntryScript(basePath: string): string {
     activeKind = '';
     setSheetKind('');
     resetVisualViewportVars();
+    hideCameraError();
     setStatus('');
   };
   const openSheet = (kind, options) => {
+    if (activeKind && activeKind !== kind) {
+      cameraRequestId += 1;
+      cameraStartInFlight = false;
+      stopActiveStream();
+    }
+    hideCameraError();
     if (!(options && options.keepReview)) clearReview();
     sheetOpenedAt = nowMs();
     activeKind = kind;
@@ -2542,8 +2657,10 @@ function globalRecordEntryScript(basePath: string): string {
     const cameraStartedAt = nowMs();
     setPhotoDraftLayout(false);
     if (!(activeKind === 'photo' && selectedPhotoDraftFiles().length > 0)) clearReview();
-    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
-      setStatus('このブラウザでは撮影を開始できません。ブラウザのカメラ許可を確認してください。');
+    hideCameraError();
+    if (window.isSecureContext === false || !(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function')) {
+      showCameraError(false);
+      sendGlobalRecordEvent('camera_unavailable', 'camera_unavailable', { reason: window.isSecureContext === false ? 'insecure_context' : 'unsupported' });
       sendGlobalRecordErrorKpi('camera_start_failed', 'media_devices_unavailable', {
         durationMs: durationSince(cameraStartedAt),
       });
@@ -2602,19 +2719,19 @@ function globalRecordEntryScript(basePath: string): string {
         fromSheetOpenMs: sheetOpenedAt ? durationSince(sheetOpenedAt) : null,
         constraintsKind: activeKind,
       });
-    } catch (_) {
+      sendGlobalRecordEvent('camera_open_success', 'camera_open_success', { kind: activeKind });
+    } catch (error) {
       setCameraLiveLayout(false);
       resetCameraZoomUi();
-      setStatus('カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。');
-      sendGlobalRecordErrorKpi('camera_start_failed', 'get_user_media_failed', {
+      const errorName = String(error && error.name || '');
+      const permissionDenied = errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError' || errorName === 'SecurityError';
+      showCameraError(permissionDenied);
+      sendGlobalRecordEvent(permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', {
+        reason: permissionDenied ? 'permission_denied' : 'get_user_media_failed',
+      });
+      sendGlobalRecordErrorKpi('camera_start_failed', permissionDenied ? 'permission_denied' : 'get_user_media_failed', {
         durationMs: durationSince(cameraStartedAt),
       });
-      if (startButton) {
-        startButton.hidden = false;
-        startButton.disabled = false;
-        startButton.textContent = (labels[activeKind] || labels.photo).start;
-      }
-      setFooterActionMode('start');
     } finally {
       if (requestId === cameraRequestId) cameraStartInFlight = false;
     }
@@ -2827,6 +2944,7 @@ function globalRecordEntryScript(basePath: string): string {
       stopActiveStream();
       const metadata = buildCaptureMetadata();
       showCapturedReview(file, 'photo', metadata);
+      sendGlobalRecordEvent('capture_completed', 'capture_completed', { mediaType: 'photo' });
       sendGlobalRecordKpi('capture_encode_ms', durationSince(encodeStartedAt), {
         width,
         height,
@@ -2879,6 +2997,7 @@ function globalRecordEntryScript(basePath: string): string {
       stopActiveStream();
       const metadata = buildCaptureMetadata();
       showCapturedReview(file, 'video', metadata);
+      sendGlobalRecordEvent('capture_completed', 'capture_completed', { mediaType: 'video' });
       if (capturePressedAt) {
         sendGlobalRecordKpi('capture_to_review_ms', durationSince(capturePressedAt), {
           mediaType: 'video',
@@ -2953,9 +3072,15 @@ function globalRecordEntryScript(basePath: string): string {
   document.querySelectorAll('[data-global-record-trigger]').forEach((button) => {
     button.addEventListener('click', (event) => {
       event.preventDefault();
-      const kind = button.getAttribute('data-global-record-trigger') || 'gallery';
-      if (kind === 'gallery') clickFallbackInput(kind);
-      else openSheet(kind);
+      const kind = button.getAttribute('data-global-record-trigger') || 'photo';
+      openSheet(kind === 'video' ? 'video' : 'photo');
+    });
+  });
+  document.querySelectorAll('[data-global-record-gallery-select]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      sendGlobalRecordEvent('gallery_select_tap', 'gallery_select_tap', { source: cameraError && !cameraError.hidden ? 'camera_error' : 'camera_sheet' });
+      clickFallbackInput('gallery');
     });
   });
   document.querySelectorAll('[data-global-record-input]').forEach((input) => {
@@ -2976,6 +3101,16 @@ function globalRecordEntryScript(basePath: string): string {
   document.querySelectorAll('[data-global-record-camera-close]').forEach((button) => {
     button.addEventListener('click', closeSheet);
   });
+  if (cameraRetryButton) cameraRetryButton.addEventListener('click', () => {
+    hideCameraError();
+    if (startButton) {
+      startButton.hidden = false;
+      startButton.disabled = false;
+      startButton.textContent = (labels[activeKind] || labels.photo).start;
+    }
+    void startCamera();
+  });
+  if (cameraCancelButton) cameraCancelButton.addEventListener('click', closeSheet);
   if (startButton) startButton.addEventListener('click', () => {
     resetPhotoDraftSubmitConfirm();
     if (capturedReviewFile) retakeCapture();
@@ -3074,6 +3209,18 @@ function globalRecordEntryScript(basePath: string): string {
       }
     });
   }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden' || !activeStream) return;
+    stopActiveStream();
+    if (startButton) {
+      startButton.hidden = false;
+      startButton.disabled = false;
+      startButton.textContent = (labels[activeKind] || labels.photo).start;
+    }
+    if (captureButton) captureButton.hidden = true;
+    setFooterActionMode('start');
+  });
+  window.addEventListener('pagehide', stopActiveStream);
 })();
 </script>`;
 }
@@ -3346,13 +3493,21 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     document.querySelectorAll('[data-notification-panel]').forEach((panel) => { panel.hidden = true; });
     document.querySelectorAll('[data-notification-toggle]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
   });
+  const hydrateBottomNavAuth = (isSignedIn) => {
+    document.querySelectorAll('[data-bottom-nav-auth]').forEach((link) => {
+      const target = link.getAttribute(isSignedIn ? 'data-auth-member-href' : 'data-auth-guest-href');
+      if (target) link.setAttribute('href', target);
+    });
+  };
   const applySignedInState = (session) => {
     if (!session || !session.userId) {
       document.documentElement.dataset.auth = 'guest';
+      hydrateBottomNavAuth(false);
       return;
     }
     signedIn = true;
     document.documentElement.dataset.auth = 'signed-in';
+    hydrateBottomNavAuth(true);
     document.querySelectorAll('.site-login-link').forEach((link) => {
       const label = link.querySelector('.desktop-side-nav-label');
       if (label) label.textContent = accountCopy.profile;
@@ -3441,7 +3596,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const robotsMeta = options.noindex || lang !== "ja" ? `\n  <meta name="robots" content="noindex,follow" />` : "";
   const uiKpiEndpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
   const skipLabel = shellCopyFor(lang).skipToContent;
-  const globalRecordNav = options.hideGlobalRecordLauncher ? "" : globalRecordEntry(options.basePath, lang, currentPath);
+  const globalRecordNav = options.hideGlobalRecordLauncher ? "" : globalRecordEntry(options.basePath, lang, currentPath, options.homeChrome);
   const installCopy = appInstallCopy[lang];
   const manifestHref = `/manifest.webmanifest?lang=${encodeURIComponent(lang)}`;
   const installPromptHtml = `<div class="app-install-prompt" data-app-install-prompt hidden>
@@ -4274,6 +4429,26 @@ ${alternateLinks}
     .site-nav-link { display: inline-flex; align-items: center; min-height: 40px; padding: 9px 9px; border-radius: 999px; background: transparent; border: 0; font-weight: 750; font-size: 13.5px; color: #475569; white-space: nowrap; }
     .site-nav-link:hover { background: rgba(15,23,42,.04); }
     .site-nav-link.is-active { color: #047857; background: #ecfdf5; }
+    .site-core-nav { gap: 3px; }
+    .site-core-nav-link {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 11px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #334155;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .site-core-nav-link.is-capture { background: #087a4d; color: #fff; }
+    .site-core-nav-link[aria-current="page"] { color: #065f46; box-shadow: inset 0 -3px #087a4d; }
     .site-header-actions { display: flex; gap: 8px; flex: 0 0 auto; flex-wrap: nowrap; align-items: center; }
     .site-header-actions-mobile { display: none; }
     .site-account-icons {
@@ -5716,9 +5891,9 @@ ${alternateLinks}
     }
     .global-record-launcher {
       position: fixed;
-      left: 12px;
-      right: 12px;
-      bottom: max(10px, env(safe-area-inset-bottom));
+      left: max(8px, env(safe-area-inset-left));
+      right: max(8px, env(safe-area-inset-right));
+      bottom: max(6px, env(safe-area-inset-bottom));
       z-index: 36;
       display: none;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5752,6 +5927,18 @@ ${alternateLinks}
     .global-record-choice.is-primary {
       background: #ecfdf5;
       color: #065f46;
+    }
+    .global-record-choice.is-active,
+    .global-record-choice[aria-current="page"] {
+      color: #065f46;
+      background: #f0f7f2;
+      box-shadow: inset 0 -3px #087a4d;
+    }
+    .global-record-choice > span:last-child {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .global-record-choice-icon {
       width: 30px;
@@ -5824,6 +6011,32 @@ ${alternateLinks}
     }
     .global-record-camera-head p {
       display: none;
+    }
+    .global-record-camera-modes {
+      display: inline-flex;
+      gap: 4px;
+      margin-top: 6px;
+      padding: 3px;
+      border-radius: 999px;
+      background: #eef4f0;
+    }
+    .global-record-camera-modes button {
+      min-width: 64px;
+      min-height: 36px;
+      padding: 6px 12px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #475569;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .global-record-camera-modes button[aria-pressed="true"] {
+      background: #fff;
+      color: #065f46;
+      box-shadow: 0 1px 5px rgba(15,23,42,.12);
     }
     .global-record-camera-close {
       position: fixed;
@@ -6249,6 +6462,73 @@ ${alternateLinks}
     .global-record-camera-action:disabled {
       opacity: .64;
       cursor: wait;
+    }
+    .global-record-gallery-select {
+      min-height: 44px;
+      justify-self: center;
+      padding: 8px 16px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #0f6846;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 850;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+    .global-record-camera-error {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border: 1px solid #f0c8c3;
+      border-radius: 14px;
+      background: #fff7f5;
+      color: #4a211e;
+    }
+    .global-record-camera-error[hidden] { display: none; }
+    .global-record-camera-error p {
+      margin: 0;
+      color: #68413d;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .global-record-camera-error > div {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .global-record-camera-error button {
+      min-height: 44px;
+      padding: 9px 12px;
+      border: 1px solid rgba(15,23,42,.12);
+      border-radius: 12px;
+      background: #fff;
+      color: #17211b;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .global-record-camera-error button:first-child {
+      border-color: #087a4d;
+      background: #087a4d;
+      color: #fff;
+    }
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-actions,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-modes,
+    .global-record-camera-sheet[data-camera-error="true"] > .global-record-gallery-select,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-preview,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-photo-tray,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-status,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-video-trim {
+      display: none;
+    }
+    .global-record-camera-sheet[data-camera-error="true"] {
+      grid-template-rows: auto auto;
+      align-content: start;
+      padding-bottom: 10px;
     }
     @media (max-width: 520px) {
       .global-record-camera-sheet {
@@ -6852,6 +7132,39 @@ ${alternateLinks}
         display: grid;
       }
     }
+    @media (min-width: 721px) and (max-width: 960px) {
+      .global-record-launcher {
+        display: grid;
+      }
+      .site-shell.has-global-record-launcher {
+        padding-bottom: calc(112px + max(0px, env(safe-area-inset-bottom)));
+      }
+      .site-shell.has-global-record-launcher.is-map-surface {
+        padding-bottom: 0;
+      }
+    }
+    @media (min-width: 961px) {
+      .site-core-nav {
+        display: flex;
+      }
+    }
+    @media (min-width: 1161px) {
+      .site-header-inner:has(.site-core-nav) {
+        grid-template-columns: var(--ikimon-header-brand-w) auto minmax(220px, 1fr) auto;
+      }
+      .site-header-inner:has(.site-core-nav) .site-core-nav {
+        grid-column: 2;
+        justify-self: start;
+      }
+      .site-header-inner:has(.site-core-nav) .site-search-desktop {
+        grid-column: 3;
+        width: min(520px, 100%);
+      }
+      .site-header-inner:has(.site-core-nav) .site-header-actions-desktop,
+      .site-header-home .home-header-actions {
+        grid-column: 4;
+      }
+    }
     @media (max-width: 430px) {
       .brand {
         flex: 1 1 auto;
@@ -6981,7 +7294,7 @@ ${alternateLinks}
   ${legacyServiceWorkerCleanupScript}
   ${appRuntimeScript}
   ${authNavHydrationScript(options.basePath, lang)}
-  ${globalRecordNav ? globalRecordEntryScript(options.basePath) : ""}
+  ${globalRecordNav ? globalRecordEntryScript(options.basePath, lang) : ""}
   ${uiKpiScript}
 </body>
 </html>`);

@@ -11,8 +11,9 @@ const HOME_VIEWPORTS: ViewportProfile[] = [
   { slug: "mobile-320", viewport: { width: 320, height: 720 }, isMobile: true, hasTouch: true },
   { slug: "mobile-375", viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true },
   { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
-  { slug: "desktop-1280", viewport: { width: 1280, height: 800 } },
   { slug: "tablet-768", viewport: { width: 768, height: 900 } },
+  { slug: "desktop-1280", viewport: { width: 1280, height: 800 } },
+  { slug: "desktop-1440", viewport: { width: 1440, height: 900 } },
 ];
 
 type SessionPayload = {
@@ -70,9 +71,11 @@ async function expectGuestHome(page: Page): Promise<void> {
     await expect(page.locator('[data-home-auth-state="guest"]')).toHaveCount(2);
     await expect(page.locator('[data-home-view="guest"] .home-primary-button')).toHaveCount(1);
     await expect(page.locator('[data-home-view="guest"] .home-bottom-nav')).toHaveCount(0);
-    await expect(page.locator("#home-public-records")).toBeVisible();
+    await expect(page.locator(".home-category-section")).toBeVisible();
+    await expect(page.locator(".home-place-section")).toBeVisible();
     await expect(page.locator("#map-explorer")).toHaveCount(0);
-    await expect(page.locator("body")).toContainText("記録から、");
+    await expect(page.locator("body")).toContainText("地域の記録を、");
+    await expect(page.locator("body")).toContainText("みんなで育てる。");
   }).toPass({
     intervals: [1_500, 3_000, 5_000],
     timeout: 45_000,
@@ -81,7 +84,8 @@ async function expectGuestHome(page: Page): Promise<void> {
 
 async function expectNoLegacyHome(page: Page): Promise<void> {
   await expect(page.locator("[data-record-feed]")).toHaveCount(0);
-  await expect(page.locator(".global-record-launcher")).toHaveCount(0);
+  await expect(page.locator(".global-record-launcher")).toHaveCount(1);
+  await expect(page.locator(".home-bottom-nav")).toHaveCount(0);
   await expect(page.locator(".me-enjoy-strip")).toHaveCount(0);
   await expect(page.locator("#me-visited-panel")).toHaveCount(0);
   await expect(page.locator("[data-api-my-places]")).toHaveCount(0);
@@ -104,6 +108,12 @@ for (const profile of HOME_VIEWPORTS) {
       await suppressMapLibreForSmoke(page);
       await expectGuestHome(page);
       await expectNoLegacyHome(page);
+      if (profile.viewport.width <= 960) {
+        await expect(page.locator(".global-record-launcher")).toBeVisible();
+      } else {
+        await expect(page.locator(".global-record-launcher")).toBeHidden();
+        await expect(page.locator(".site-core-nav")).toBeVisible();
+      }
       await expectNoHorizontalOverflow(page);
       await page.screenshot({ path: `test-results/home-state-split-guest-${profile.slug}.png`, fullPage: true });
     } finally {
@@ -112,7 +122,7 @@ for (const profile of HOME_VIEWPORTS) {
   });
 }
 
-test("logged-in staging home exposes recent records, discoveries, nearby records, and one bottom nav", async ({ browser, playwright }) => {
+test("logged-in staging Home centers the viewer's continuation, records, places, and next action", async ({ browser, playwright }) => {
   const api = await createStagingApiContext(playwright);
   const userId = await resolveQaUserId(api);
   const rawCookie = await issueSessionCookie(api, userId);
@@ -128,9 +138,13 @@ test("logged-in staging home exposes recent records, discoveries, nearby records
     await expect(page.locator('[data-home-view="guest"]')).toBeHidden();
     await expect(page.locator('[data-home-auth-state="member"]')).toHaveCount(2);
     await expect(page.locator('[data-home-view="member"] .home-primary-button')).toHaveCount(1);
-    await expect(page.locator('[data-home-view="member"] .home-bottom-nav')).toHaveCount(1);
-    await expect(page.locator('[data-home-view="member"] .home-bottom-nav a')).toHaveCount(4);
+    await expect(page.locator(".global-record-launcher")).toHaveCount(1);
+    await expect(page.locator(".global-record-launcher")).toBeHidden();
+    await expect(page.locator(".site-core-nav")).toBeVisible();
+    await expect(page.locator('[data-home-view="member"] .home-recent-section,[data-home-view="member"] .home-empty-state')).toHaveCount(1);
     await expect(page.locator('[data-home-section="monitoring"]')).toHaveCount(0);
+    await expect(page.locator("body")).not.toContainText("写真からわかったこと");
+    await expect(page.locator("body")).not.toContainText("近くで残された記録");
     await expectNoLegacyHome(page);
     await expectNoHorizontalOverflow(page);
     const visibleIds = await page.locator('[data-home-view="member"] [data-home-record-id]:visible').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-home-record-id")).filter(Boolean));

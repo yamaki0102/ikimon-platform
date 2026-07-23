@@ -73,6 +73,24 @@
       "revisit": ""
     }
   },
+  "bottomNav": {
+    "ariaLabel": "主な操作",
+    "capture": "撮る",
+    "captureAria": "撮る（カメラを開きます）",
+    "places": "場所",
+    "records": "記録",
+    "self": "自分"
+  },
+  "cameraCapture": {
+    "photo": "写真",
+    "video": "動画",
+    "errorTitle": "カメラを開けませんでした",
+    "errorBody": "カメラの利用を許可するか、端末の写真を選んでください。",
+    "permissionBody": "ブラウザや端末の設定でカメラを許可してから、もう一度お試しください。",
+    "retry": "カメラの利用を許可する",
+    "gallery": "端末の写真から選ぶ",
+    "cancel": "キャンセル"
+  },
   "quickNav": {
     "ariaLabel": "主な入口",
     "labels": {

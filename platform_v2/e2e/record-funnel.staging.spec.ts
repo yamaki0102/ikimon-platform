@@ -95,9 +95,7 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
 async function expectRecordEntryReachable(page: Page, profile: ViewportProfile): Promise<void> {
   const result = await page.evaluate((expectMobileLauncher) => {
     const selectors = [
-      ".site-record-link",
       '[data-global-record-trigger="photo"]',
-      '[data-global-record-trigger="gallery"]',
     ];
     const candidates = selectors.flatMap((selector) =>
       Array.from(document.querySelectorAll<HTMLElement>(selector)).map((element) => {
@@ -430,7 +428,7 @@ const cameraDeviceQaDescribe = process.env.IKIMON_CAMERA_DEVICE_QA === "1" ? tes
 
 cameraDeviceQaDescribe("global record camera mobile controls QA", () => {
   for (const profile of CAMERA_DEVICE_VIEWPORTS) {
-    for (const kind of ["photo", "video"] as const) {
+    for (const kind of ["photo"] as const) {
       test(`keeps ${kind} camera controls clear on ${profile.slug}`, async ({ browser }) => {
         const context = await newStagingContext(browser, profile);
         const page = await context.newPage();

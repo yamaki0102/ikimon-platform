@@ -55,6 +55,24 @@
       }
     }
   },
+  "bottomNav": {
+    "ariaLabel": "Acciones principales",
+    "capture": "Capturar",
+    "captureAria": "Capturar (abre la cámara)",
+    "places": "Lugares",
+    "records": "Registros",
+    "self": "Yo"
+  },
+  "cameraCapture": {
+    "photo": "Foto",
+    "video": "Video",
+    "errorTitle": "No se pudo abrir la cámara",
+    "errorBody": "Permite la cámara o elige una foto del dispositivo.",
+    "permissionBody": "Permite la cámara en el navegador o en los ajustes del dispositivo y vuelve a intentarlo.",
+    "retry": "Permitir la cámara",
+    "gallery": "Elegir del dispositivo",
+    "cancel": "Cancelar"
+  },
   "quickNav": {
     "ariaLabel": "Acciones principales",
     "labels": {
