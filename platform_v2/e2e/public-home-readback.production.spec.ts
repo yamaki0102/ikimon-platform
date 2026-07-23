@@ -61,8 +61,8 @@ test.describe("[production-read-only] public home UX completion gate", () => {
       await page.goto(`/ja/?ux_readback=${Date.now()}`, { waitUntil: "domcontentloaded" });
       await dispatchSyntheticInstallPrompt(page);
 
-      await expect(page.locator("h1").filter({ hasText: "写真1枚から" })).toBeVisible();
-      await expect(page.locator(".prototype-guest-home-primary")).toBeVisible();
+      await expect(page.locator("h1").filter({ hasText: "地域の記録を、みんなで育てる。" })).toBeVisible();
+      await expect(page.locator(".home-hero-actions .home-primary-button")).toBeVisible();
       await expect(page.locator("[data-app-install-prompt]")).toBeHidden();
       await expect(page.locator("[data-app-install-action]")).toBeHidden();
       await expect(page.locator("[data-app-install-dismiss]")).toBeHidden();
@@ -72,7 +72,7 @@ test.describe("[production-read-only] public home UX completion gate", () => {
       const layout = await page.evaluate(() => ({
         clientWidth: document.documentElement.clientWidth,
         scrollWidth: document.documentElement.scrollWidth,
-        primaryCount: Array.from(document.querySelectorAll(".prototype-guest-home-actions.is-focused .prototype-guest-home-primary"))
+        primaryCount: Array.from(document.querySelectorAll(".home-hero-actions .home-primary-button"))
           .filter((element) => {
             const rect = element.getBoundingClientRect();
             return rect.width > 0 && rect.height > 0;
@@ -86,33 +86,43 @@ test.describe("[production-read-only] public home UX completion gate", () => {
     });
   }
 
-  test("mobile primary photo action opens a real file chooser without writing data", async ({ browser }) => {
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test("mobile capture opens the camera first and the gallery only by explicit choice", async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    await context.addInitScript(() => {
+      Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
+      Object.defineProperty(navigator, "mediaDevices", {
+        configurable: true,
+        value: {
+          getUserMedia: async () => {
+            throw new DOMException("denied", "NotAllowedError");
+          },
+        },
+      });
+    });
+    const page = await context.newPage();
     await page.goto(`/ja/?ux_photo_readback=${Date.now()}`, { waitUntil: "domcontentloaded" });
 
+    await page.locator(".home-hero-actions .home-primary-button").click();
+    await expect(page.locator("[data-global-record-camera-error]")).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe("/ja/");
+
     const chooserPromise = page.waitForEvent("filechooser");
-    await page.locator(".prototype-guest-home-primary").click();
+    await page.locator("[data-global-record-camera-error] [data-global-record-gallery-select]").click();
     const chooser = await chooserPromise;
     expect(chooser.isMultiple()).toBeTruthy();
-    expect(page.url()).toContain("/ja/");
 
-    await page.close();
+    await context.close();
   });
 
-  test("secondary nearby action navigates after the mobile menu open-close check", async ({ browser }) => {
+  test("secondary place action navigates directly from the compact mobile header", async ({ browser }) => {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     await page.goto(`/ja/?ux_navigation_readback=${Date.now()}`, { waitUntil: "domcontentloaded" });
 
-    const menu = page.locator("details.site-mobile-menu");
-    const toggle = page.locator("summary.site-mobile-menu-toggle");
-    await toggle.click();
-    await expect(menu).toHaveAttribute("open", "");
-    await toggle.click();
-    await expect(menu).not.toHaveAttribute("open", "");
+    await expect(page.locator("details.site-mobile-menu")).toHaveCount(0);
 
     await Promise.all([
-      page.waitForURL(/\/ja\/map(?:\?|$)/u),
-      page.locator(".prototype-guest-home-secondary").click(),
+      page.waitForURL(/\/ja\/map\?tab=places$/u),
+      page.locator(".home-hero-actions .home-secondary-link").click(),
     ]);
 
     await page.close();
