@@ -82,3 +82,7 @@ support `READY_100`.
 The same assertions must be rerun against the deployed staging exact SHA.
 Staging screenshots and response headers belong under
 `evidence/visual-qa/staging/`; until present, staging Visual QA is pending.
+
+The 2026-07-23 central command-bus attempt stopped before an operation ID was
+issued with `oauth_mutation_authorization_expired`. Direct local Wrangler
+deployment was not used as a bypass. See `STAGING_ATTEMPT_2026-07-23.md`.
