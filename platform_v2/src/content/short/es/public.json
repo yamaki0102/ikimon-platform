@@ -1,6 +1,28 @@
 {
   "landing": {
     "title": "ikimon — Enjoy Life | Disfrutar y registrar la naturaleza cercana",
+    "home": {
+      "guest": {
+        "heroHeading": "Un registro muestra cómo está un lugar hoy.", "heroLead": "Seres vivos, paisajes y sonidos. Tus registros pueden devolverte pistas sobre nombres y el entorno.",
+        "primaryCta": "Registrar", "secondaryCta": "Ver registros locales", "publicRecordsTitle": "Registros guardados en la comunidad", "valueTitle": "Lo que puedes descubrir al registrar",
+        "valueItems": [
+          { "title": "Encontrar pistas en una foto", "body": "La IA organiza rasgos visibles de seres vivos y paisajes." },
+          { "title": "Entender el entorno", "body": "Guarda pistas como pastizales, agua y edificios visibles en la foto." },
+          { "title": "Comparar con el tiempo", "body": "Cuando aumentan los registros de un lugar, se ven estaciones y cambios." }
+        ],
+        "privacyTitle": "No publicamos tu ubicación exacta", "privacyBody": "Elige la visibilidad de cada registro. Los hogares y lugares de especies sensibles reciben mayor protección.",
+        "finalTitle": "Empieza con una sola foto", "finalCta": "Deja tu primer registro"
+      },
+      "member": {
+        "actionTitle": "Guarda lo que llame tu atención", "actionLead": "Deja una foto, un video, un sonido o una nota y aprende luego un poco más sobre la naturaleza y el lugar.", "primaryCta": "Registrar",
+        "recentTitle": "Registro reciente", "discoveriesTitle": "Lo que mostraron tus fotos", "nearbyTitle": "Registros guardados cerca", "processing": "Buscando pistas en esta foto"
+      },
+      "shared": {
+        "openRecord": "Ver registro", "unknownRecord": "Registro pendiente de nombre", "safePlaceFallback": "Registro de la comunidad", "aiCandidateSuffix": "podría ser", "fromRecord": "De este registro", "multipleMedia": "elementos multimedia",
+        "media": { "photo": "Foto", "video": "Video", "audio": "Audio", "memo": "Nota" },
+        "navigation": { "home": "Inicio", "record": "Registrar", "discover": "Descubrir", "profile": "Mi página" }
+      }
+    },
     "heroEyebrow": "Enjoy Life",
     "heroHeadingPlain": "Tu paseo de siempre se vuelve una aventura.",
     "heroHeadingLine1": "Tu paseo de siempre",

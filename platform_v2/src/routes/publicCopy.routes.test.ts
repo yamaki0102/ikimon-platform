@@ -172,17 +172,22 @@ test("updates page keeps the full release history on the v2 public shell", async
   }
 });
 
-test("home page uses the local record feed surface", async () => {
+test("root home page uses the state-split guest surface", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /<title>地域の記録から始める \| ikimon<\/title>/);
     assert.doesNotMatch(response.body, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
-    assert.match(response.body, /data-record-feed/);
-    assert.match(response.body, /prototype-record-feed[^"]*is-guest/);
+    assert.match(response.body, /data-home-contract="state-split-v1"/);
+    assert.match(response.body, /data-home-view="guest"/);
+    assert.match(response.body, /data-home-view="member"[^>]* hidden/);
     assert.doesNotMatch(response.body, /<h1>記録を見る<\/h1>/);
-    assert.match(response.body, /みんなの記録/);
+    assert.match(response.body, /地域に残っている記録/);
+    assert.match(response.body, /正確な位置は公開しません/);
+    assert.match(response.body, /記録から、場所の今が見えてくる。/);
+    assert.doesNotMatch(response.body, /data-record-feed/);
+    assert.doesNotMatch(response.body, /prototype-record-feed[^"]*is-guest/);
     assert.doesNotMatch(response.body, /公開前に安全側で確認します/);
     assert.doesNotMatch(response.body, /class="me-enjoy-strip"/);
     assert.doesNotMatch(response.body, /landing:topA:primary:record/);

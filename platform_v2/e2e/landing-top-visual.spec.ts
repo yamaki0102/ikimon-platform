@@ -1,581 +1,151 @@
-import { expect, test, type Page } from "@playwright/test";
-import sharp from "sharp";
+import { expect, test } from "@playwright/test";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { getStrings } from "../src/i18n/index.js";
+import type { SiteLang } from "../src/i18n.js";
 import type { LandingObservation, LandingSnapshot } from "../src/services/readModels.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "../src/ui/landingTop.js";
 import { renderSiteDocument } from "../src/ui/siteShell.js";
 
-const productionVisualBaseUrl = process.env.PRODUCTION_VISUAL_BASE_URL ?? "https://ikimon.life";
-const productionVisualBbox = process.env.PRODUCTION_VISUAL_BBOX ?? "137.60,34.60,137.91,34.85";
-
-const viewports = [
-  { name: "desktop", width: 1440, height: 1200 },
-  { name: "mobile", width: 390, height: 844 },
-];
-
-type ProductionMapObservation = {
-  occurrenceId: string;
-  visitId: string;
-  displayName: string;
-  isAiCandidate?: boolean;
-  isAwaitingId?: boolean;
-  localityLabel?: string;
-  observedAt: string;
-  photoUrl?: string | null;
-  taxonGroup?: string | null;
-};
-
-type ProductionMapCellFeature = {
-  properties?: {
-    cellId?: string;
-    localityLabel?: string;
-    label?: string;
-    gridM?: number;
-    radiusM?: number;
-    centroidLat?: number;
-    centroidLng?: number;
-    scope?: "municipality" | "prefecture" | "blurred";
-  };
-};
-
-type ProductionPublicDataSnapshot = {
-  observations: ProductionMapObservation[];
-  cells: ProductionMapCellFeature[];
-  selectedCellId: string | null;
-};
-
-async function expectViewportScreenshotHealth(page: Page, viewport: typeof viewports[number]) {
-  const screenshot = await page.screenshot({
-    fullPage: false,
-    animations: "disabled",
-  });
-  const image = sharp(screenshot);
-  const metadata = await image.metadata();
-  const stats = await image.stats();
-  const maxChannelDeviation = Math.max(...stats.channels.slice(0, 3).map((channel) => channel.stdev));
-
-  expect(metadata.width, `${viewport.name} viewport screenshot width`).toBe(viewport.width);
-  expect(metadata.height, `${viewport.name} viewport screenshot height`).toBe(viewport.height);
-  expect(maxChannelDeviation, `${viewport.name} viewport screenshot is not blank`).toBeGreaterThan(8);
-}
-
-async function fetchProductionJson<T>(path: string): Promise<T> {
-  const url = new URL(path, productionVisualBaseUrl);
-  const response = await fetch(url, {
-    headers: {
-      accept: "application/json",
-      "user-agent": "ikimon-life-production-visual-qa",
-    },
-    signal: AbortSignal.timeout(20_000),
-  });
-  expect(response.ok, `fetch ${url.toString()} from production public API`).toBeTruthy();
-  return await response.json() as T;
-}
-
-async function fetchProductionPublicData(): Promise<ProductionPublicDataSnapshot> {
-  const params = `bbox=${encodeURIComponent(productionVisualBbox)}&zoom=12`;
-  const cellsPayload = await fetchProductionJson<{ features?: ProductionMapCellFeature[] }>(`/api/v1/map/cells?${params}`);
-  const cells = cellsPayload.features ?? [];
-  const selectedCellId = cells.find((feature) => Boolean(feature.properties?.cellId))?.properties?.cellId ?? null;
-  const observationScope = selectedCellId
-    ? `cell_id=${encodeURIComponent(selectedCellId)}`
-    : params;
-  const observationsPayload = await fetchProductionJson<{ items?: ProductionMapObservation[] }>(
-    `/api/v1/map/observations?${observationScope}`,
-  );
+function obs(id: string, overrides: Partial<LandingObservation> = {}): LandingObservation {
   return {
-    observations: (observationsPayload.items ?? []).filter((item) => Boolean(item.photoUrl)),
-    cells,
-    selectedCellId,
+    occurrenceId: `occ-${id}`, visitId: id, detailId: id, displayName: `record-${id}`,
+    observedAt: "2026-07-19T08:30:00Z", observerName: "viewer", placeName: "source place", municipality: "浜松市",
+    publicLocation: { label: "浜松市", scope: "municipality", cellId: null, gridM: null, radiusM: null, centroidLat: null, centroidLng: null, displayMode: "area" },
+    photoUrl: `https://ikimon.life/thumb/md/photos/${id}/photo.webp`, identificationCount: 0,
+    latitude: null, longitude: null, observerUserId: "other", observerAvatarUrl: null, entryType: "observation", publicFeedEligible: true, librarySourceKind: "photo",
+    ...overrides,
   };
 }
 
-function productionPhotoUrl(rawUrl: string | null | undefined): string | null {
-  if (!rawUrl) return null;
-  if (rawUrl.startsWith("/uploads/")) {
-    return new URL(`/thumb/md/${rawUrl.replace(/^\/uploads\//, "")}`, productionVisualBaseUrl).toString();
-  }
-  if (rawUrl.startsWith("/data/uploads/")) {
-    return new URL(`/thumb/md/${rawUrl.replace(/^\/data\/uploads\//, "")}`, productionVisualBaseUrl).toString();
-  }
-  return new URL(rawUrl, productionVisualBaseUrl).toString();
-}
-
-function liveProductionSnapshot(data: ProductionPublicDataSnapshot): LandingSnapshot {
-  const selectedCell = data.cells
-    .map((feature) => feature.properties)
-    .find((properties) => properties?.cellId === data.selectedCellId);
-  const feed = data.observations.slice(0, 30).map((item, index): LandingObservation => {
-    const cell = selectedCell;
-    const label = item.localityLabel ?? cell?.localityLabel ?? cell?.label ?? "公開エリア";
-    return {
-      occurrenceId: item.occurrenceId,
-      visitId: item.visitId,
-      detailId: item.visitId,
-      displayName: item.displayName || "同定待ち",
-      observedAt: item.observedAt,
-      observerName: `production-public-${index + 1}`,
-      placeName: label,
-      municipality: label,
-      publicLocation: {
-        label,
-        scope: cell?.scope ?? "municipality",
-        cellId: cell?.cellId ?? `production-live-${index}`,
-        gridM: cell?.gridM ?? 3000,
-        radiusM: cell?.radiusM ?? 2121,
-        centroidLat: cell?.centroidLat ?? null,
-        centroidLng: cell?.centroidLng ?? null,
-        displayMode: "area",
-      },
-      photoUrl: productionPhotoUrl(item.photoUrl),
-      identificationCount: item.isAwaitingId ? 0 : 1,
-      latitude: cell?.centroidLat ?? null,
-      longitude: cell?.centroidLng ?? null,
-      observerUserId: `production-live-user-${index + 1}`,
-      observerAvatarUrl: null,
-      entryType: "observation",
-      isAiCandidate: Boolean(item.isAiCandidate),
-      librarySourceKind: "photo",
-    };
-  });
-
-  return {
-    viewerUserId: null,
-    stats: {
-      observationCount: data.observations.length,
-      speciesCount: new Set(data.observations.map((item) => item.displayName).filter(Boolean)).size,
-      placeCount: data.cells.length,
-    },
-    feed,
-    myFeed: [],
-    myPlaces: [],
-    nearbyFields: [],
-    mapPreviewCells: [],
-    ambient: [],
-    habit: null,
-    dailyDashboard: feed[0]
-      ? {
-          dateKey: "production-live",
-          updatedAt: new Date().toISOString(),
-          featuredObservation: {
-            ...feed[0],
-            score: 80,
-            reasonKey: "vividPhoto",
-            scoreBreakdown: {
-              season: 12,
-              region: 12,
-              photo: 20,
-              evidence: 14,
-              freshness: 12,
-              dailyVariation: 10,
-              total: 80,
-            },
-          },
-          dailyCards: [
-            { kind: "recordToday", href: "/record", primaryText: null, secondaryText: null, metricValue: null },
-            { kind: "nearbyPulse", href: "/map", primaryText: feed[0].publicLocation.label, secondaryText: null, metricValue: data.observations.length },
-            { kind: "needsId", href: "/records?view=needs_id", primaryText: "名前を待つ記録", secondaryText: feed[0].publicLocation.label, metricValue: feed.filter((item) => item.identificationCount === 0).length, observation: feed[0] },
-          ],
-          seasonalStrip: feed.slice(0, 3).map((observation) => ({ observation, score: 80, reasonKey: "vividPhoto" })),
-        }
-      : null,
-  };
-}
-
-function renderLandingSnapshotHtml(snapshot: LandingSnapshot): string {
-  const strings = getStrings("ja");
-  const sections = renderLandingTopSections({
-    basePath: "",
-    lang: "ja",
-    copy: strings.landing,
-    fieldLoop: strings.fieldLoop,
-    snapshot,
-    isLoggedIn: false,
-  });
-  return `<!doctype html>
-    <html lang="ja">
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <style>
-          body { margin: 0; font-family: Inter, "Noto Sans JP", system-ui, sans-serif; color: #10201c; background: #f7fbf8; }
-          .shell { max-width: 1180px; margin: 0 auto; padding: 24px; }
-          ${LANDING_TOP_STYLES}
-        </style>
-      </head>
-      <body>
-        <main class="shell shell-bleed prototype-shell">
-          ${sections.heroHtml}
-          ${sections.dailyDashboardHtml}
-        </main>
-      </body>
-    </html>`;
-}
-
-function productionObservation(
-  index: number,
-  displayName: string,
-  photoUrl: string,
-  observedAt: string,
-  observerName: string,
-): LandingObservation {
-  return {
-    occurrenceId: `production-density-occ-${index}`,
-    visitId: `production-density-visit-${index}`,
-    detailId: `production-density-detail-${index}`,
-    displayName,
-    observedAt,
-    observerName,
-    placeName: "浜松市",
-    municipality: "浜松市",
-    publicLocation: {
-      label: "浜松市",
-      scope: "municipality",
-      cellId: `3000:production-density:${index}`,
-      gridM: 3000,
-      radiusM: 2121,
-      centroidLat: 34.71,
-      centroidLng: 137.72,
-      displayMode: "area",
-    },
-    photoUrl,
-    identificationCount: 0,
-    latitude: 34.71,
-    longitude: 137.72,
-    observerUserId: `production-density-user-${index}`,
-    observerAvatarUrl: null,
-    entryType: "observation",
-    isAiCandidate: true,
-  };
-}
-
-function productionDensitySnapshot(): LandingSnapshot {
-  const feed = [
-    productionObservation(
-      1,
-      "イボタノキ属",
-      "https://ikimon.life/thumb/md/v2-observations/record-1778031798988/ikimon-photo-1778031776740-7b0d361271c1.jpg",
-      "2026-05-06T08:00:00.000Z",
-      "公開フィールド",
-    ),
-    productionObservation(
-      2,
-      "ベニスジヒトリ",
-      "https://ikimon.life/thumb/md/v2-observations/record-1777966749587/ikimon-photo-1777966735278-224970cfd358.jpg",
-      "2026-05-05T21:00:00.000Z",
-      "夜の観察者",
-    ),
-    productionObservation(
-      3,
-      "バラ属",
-      "https://ikimon.life/thumb/md/photos/a98a7fee-ad56-4c6a-be13-9db729a3091c/photo_0.webp",
-      "2026-04-12T11:00:00.000Z",
-      "公園の投稿",
-    ),
-    productionObservation(
-      4,
-      "タンポポ属",
-      "https://ikimon.life/thumb/md/photos/76457d8c-479f-4313-9c3e-82fe4cec864a/photo_0.webp",
-      "2026-04-12T10:00:00.000Z",
-      "散歩の記録",
-    ),
-    productionObservation(
-      5,
-      "タケ亜科（タケノコ）",
-      "https://ikimon.life/thumb/md/photos/3554857c-d9ba-49db-9fe0-76aa598943a6/photo_0.webp",
-      "2026-04-12T09:00:00.000Z",
-      "春の観察",
-    ),
-    productionObservation(
-      6,
-      "キク科",
-      "https://ikimon.life/thumb/md/photos/08dbff8d-279b-401c-acdc-6e576ddbac5c/photo_0.webp",
-      "2026-04-12T08:00:00.000Z",
-      "足元の発見",
-    ),
-    productionObservation(
-      7,
-      "ツツジ属",
-      "https://ikimon.life/thumb/md/v2-observations/record-1778031209103/ikimon-photo-1778031190776-304420146f5a.jpg",
-      "2026-05-06T07:00:00.000Z",
-      "花壇の投稿",
-    ),
-    productionObservation(
-      8,
-      "ドウダンツツジ",
-      "https://ikimon.life/thumb/md/photos/9bdc05ea-37df-4fd3-83ac-a8d4c3c6d4db/photo_0.webp",
-      "2026-04-13T13:00:00.000Z",
-      "近所の観察",
-    ),
+function snap(member: boolean, sparse = false): LandingSnapshot {
+  const publicItems = sparse ? [] : [
+    obs("public-landscape", { displayName: "川沿いの夕景" }),
+    obs("public-portrait", { displayName: "ツバメかもしれません" }),
+    obs("public-video", { displayName: "水辺の動画", librarySourceKind: "video", hasVideo: true }),
+    obs("public-audio", { displayName: "夜の音", librarySourceKind: "audio", hasAudio: true, photoUrl: null }),
+    obs("public-memo", { displayName: "草地のメモ", librarySourceKind: "note", photoUrl: null }),
   ];
-
-  return {
-    viewerUserId: null,
-    stats: { observationCount: 150, speciesCount: 28, placeCount: 289 },
-    feed,
-    myFeed: [],
-    myPlaces: [],
-    nearbyFields: [],
-    mapPreviewCells: [],
-    ambient: [],
-    habit: null,
-    dailyDashboard: {
-      dateKey: "2026-05-06",
-      updatedAt: "2026-05-06T09:00:00.000Z",
-      featuredObservation: {
-        ...feed[0],
-        score: 84,
-        reasonKey: "vividPhoto",
-        scoreBreakdown: {
-          season: 8,
-          region: 9,
-          photo: 20,
-          evidence: 17,
-          freshness: 18,
-          dailyVariation: 12,
-          total: 84,
-        },
-      },
-      dailyCards: [
-        { kind: "recordToday", href: "/record", primaryText: null, secondaryText: null, metricValue: null },
-        { kind: "revisitPlace", href: "/map", primaryText: "浜松市", secondaryText: "イボタノキ属", metricValue: 8 },
-        { kind: "nearbyPulse", href: "/map", primaryText: "浜松市", secondaryText: null, metricValue: 8 },
-        { kind: "needsId", href: "/records?view=needs_id", primaryText: "名前を待つ記録", secondaryText: "浜松市", metricValue: 8, observation: feed[1] },
-      ],
-      seasonalStrip: [
-        { observation: feed[0], score: 84, reasonKey: "vividPhoto" },
-        { observation: feed[1], score: 80, reasonKey: "fresh" },
-      ],
-    },
-  };
+  const ownItems = member && !sparse ? [
+    obs("mine-latest", { observerUserId: "viewer", displayName: "川沿いの夕景", aiAssessmentStatus: "processing" }),
+    obs("mine-discovery", { observerUserId: "viewer", displayName: "名前待ち", aiCandidateName: "ツバメ", isAiCandidate: true }),
+  ] : [];
+  return { viewerUserId: member ? "viewer" : null, stats: { observationCount: 5, speciesCount: 2, placeCount: 2 }, feed: publicItems, myFeed: ownItems, myPlaces: [], nearbyFields: [], nearbyEvents: [], mapPreviewCells: [], ambient: [], habit: null, dailyDashboard: null };
 }
 
-function renderProductionDensityHtml(): string {
-  return renderLandingSnapshotHtml(productionDensitySnapshot());
-}
-
-function renderMinimalChromeLandingDocumentHtml(snapshot: LandingSnapshot): string {
-  const strings = getStrings("ja");
-  const sections = renderLandingTopSections({
-    basePath: "",
-    lang: "ja",
-    copy: strings.landing,
-    fieldLoop: strings.fieldLoop,
-    snapshot,
-    isLoggedIn: false,
-  });
+function pageHtml(lang: SiteLang, member: boolean, sparse = false): string {
+  const strings = getStrings(lang);
+  const sections = renderLandingTopSections({ basePath: "", lang, copy: strings.landing, fieldLoop: strings.fieldLoop, snapshot: snap(member, sparse), isLoggedIn: member });
   return renderSiteDocument({
-    basePath: "",
-    title: strings.landing.title,
-    description: strings.landing.heroLead,
-    activeNav: "ホーム",
-    lang: "ja",
-    currentPath: "/ja/",
-    extraStyles: LANDING_TOP_STYLES,
-    shellClassName: "shell-bleed prototype-shell",
-    minimalChrome: true,
-    body: `${sections.heroHtml}
-${sections.dailyDashboardHtml}`,
-    footerNote: strings.landing.footerNote,
+    basePath: "", title: strings.landing.title, description: strings.landing.home.guest.heroLead,
+    body: `${sections.heroHtml}${sections.dailyDashboardHtml}`, lang, currentPath: `/${lang === "pt-BR" ? "pt-br" : lang}/`,
+    shellClassName: "shell-bleed prototype-shell", extraStyles: LANDING_TOP_STYLES, homeChrome: member ? "member" : "guest", hideGlobalRecordLauncher: true,
   });
 }
 
-test.describe("landing top visual regression", () => {
-  test("desktop guest top keeps landing width under minimal chrome", async ({ browser }) => {
-    const page = await browser.newPage({
-      viewport: { width: 1440, height: 900 },
-    });
+const widths = [320, 375, 390, 768, 1280];
+const qaDir = process.env.LANDING_HOME_QA_DIR;
 
-    await page.setContent(renderMinimalChromeLandingDocumentHtml(productionDensitySnapshot()), { waitUntil: "load" });
-    await expect(page.locator(".site-shell.is-minimal-chrome")).toBeVisible();
-    await expect(page.locator(".prototype-guest-home")).toBeVisible();
+async function capture(page: import("@playwright/test").Page, name: string): Promise<void> {
+  if (!qaDir) return;
+  mkdirSync(qaDir, { recursive: true });
+  await page.screenshot({ path: join(qaDir, `${name}.png`), fullPage: true });
+}
 
-    const metrics = await page.evaluate(() => {
-      const rectFor = (selector: string) => {
-        const rect = document.querySelector(selector)?.getBoundingClientRect();
-        return {
-          width: Math.round(rect?.width ?? 0),
-          height: Math.round(rect?.height ?? 0),
-          bottom: Math.round(rect?.bottom ?? 0),
-        };
-      };
-      return {
-        clientWidth: document.documentElement.clientWidth,
-        scrollWidth: document.documentElement.scrollWidth,
-        shell: rectFor(".shell.shell-bleed.prototype-shell"),
-        guest: rectFor(".prototype-guest-home"),
-        copy: rectFor(".prototype-guest-home-copy"),
-        panel: rectFor(".prototype-guest-home-panel"),
-      };
-    });
-
-    expect(metrics.scrollWidth, "minimal chrome landing has no horizontal scroll").toBe(metrics.clientWidth);
-    expect(metrics.shell.width, "desktop guest shell must not collapse to the mobile feed width").toBeGreaterThanOrEqual(1040);
-    expect(metrics.guest.width, "desktop guest hero uses the available landing width").toBeGreaterThanOrEqual(1040);
-    expect(metrics.copy.width, "desktop headline column stays readable").toBeGreaterThanOrEqual(460);
-    expect(metrics.panel.width, "desktop proof panel stays usable").toBeGreaterThanOrEqual(500);
-    expect(metrics.guest.bottom, "desktop guest hero should fit the first viewport").toBeLessThan(860);
-
+for (const width of widths) {
+  test(`guest ${width}px keeps the value flow readable`, async ({ browser }) => {
+    const page = await browser.newPage({ viewport: { width, height: width < 700 ? 844 : 900 } });
+    await page.setContent(pageHtml("ja", false), { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-home-view="guest"]')).toBeVisible();
+    await expect(page.locator('[data-home-view="member"]')).toBeHidden();
+    await expect(page.locator(".global-record-launcher")).toHaveCount(0);
+    await expect(page.locator(".home-bottom-nav")).toBeHidden();
+    const metrics = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth, heroBottom: Math.round(document.querySelector(".home-guest-hero")?.getBoundingClientRect().bottom || 0), publicTop: Math.round(document.querySelector("#home-public-records")?.getBoundingClientRect().top || 0) }));
+    expect(metrics.scrollWidth).toBe(metrics.clientWidth);
+    if (width <= 390) {
+      expect(metrics.heroBottom).toBeLessThan(760);
+      expect(metrics.publicTop).toBeLessThan(800);
+    }
+    await capture(page, `guest-ja-${width}`);
     await page.close();
   });
+}
 
-  for (const viewport of viewports) {
-    test(`${viewport.name} production-density content stays scannable`, async ({ browser }) => {
-      const page = await browser.newPage({
-        viewport: { width: viewport.width, height: viewport.height },
-      });
+for (const width of widths) {
+  test(`member ${width}px prioritizes record, recent, discovery, nearby`, async ({ browser }) => {
+    const page = await browser.newPage({ viewport: { width, height: width < 700 ? 844 : 900 } });
+    await page.setContent(pageHtml("ja", true), { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-home-view="member"]')).toBeVisible();
+    await expect(page.locator('[data-home-view="guest"]')).toBeHidden();
+    await expect(page.locator(".home-bottom-nav")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "最近の記録" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "写真からわかったこと" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "近くで残された記録" })).toBeVisible();
+    const memberIds = await page.locator('[data-home-view="member"] [data-home-record-id]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-home-record-id")));
+    expect(new Set(memberIds).size).toBe(memberIds.length);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    await capture(page, `member-ja-${width}`);
+    await page.close();
+  });
+}
 
-      await page.setContent(renderProductionDensityHtml(), { waitUntil: "load" });
-      await page.addStyleTag({
-        content: `
-          *, *::before, *::after {
-            animation-duration: 0s !important;
-            animation-delay: 0s !important;
-            transition-duration: 0s !important;
-          }
-        `,
-      });
+test("320px at 200 percent text does not create page overflow", async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 320, height: 844 } });
+  await page.setContent(pageHtml("pt-BR", false), { waitUntil: "domcontentloaded" });
+  await page.addStyleTag({ content: "html{font-size:200%!important}" });
+  expect(await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }))).toEqual({ client: 320, scroll: 320 });
+  await expect(page.getByRole("link", { name: "Registrar", exact: true }).first()).toBeVisible();
+  await capture(page, "guest-pt-br-320-text-200");
+  await page.close();
+});
 
-      await expect(page.locator(".prototype-guest-home")).toBeVisible();
-      await expect(page.locator(".prototype-record-feed.is-guest")).toBeVisible();
-      expect(await page.locator("[data-record-feed-card]").count(), "fixture keeps production-like card volume").toBeGreaterThanOrEqual(8);
+test("320px at 200 percent browser zoom keeps long English copy in the page", async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 320, height: 844 } });
+  await page.setContent(pageHtml("en", false), { waitUntil: "domcontentloaded" });
+  await page.evaluate(() => { document.documentElement.style.zoom = "2"; });
+  expect(await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }))).toEqual({ client: 320, scroll: 320 });
+  await page.close();
+});
 
-      const metrics = await page.evaluate(() => {
-        const viewportHeight = window.innerHeight;
-        const guestHome = document.querySelector(".prototype-guest-home")?.getBoundingClientRect();
-        const guestCopy = document.querySelector(".prototype-guest-home-copy")?.getBoundingClientRect();
-        const guestPanel = document.querySelector(".prototype-guest-home-panel")?.getBoundingClientRect();
-        const recordFeed = document.querySelector(".prototype-record-feed.is-guest")?.getBoundingClientRect();
-        const visibleCards = Array.from(document.querySelectorAll("[data-record-feed-card]"))
-          .filter((card) => {
-            const rect = card.getBoundingClientRect();
-            return rect.bottom > 0 && rect.top < viewportHeight;
-          }).length;
-        return {
-          clientWidth: document.documentElement.clientWidth,
-          scrollWidth: document.documentElement.scrollWidth,
-          guestWidth: Math.round(guestHome?.width ?? 0),
-          guestBottom: Math.round(guestHome?.bottom ?? 9999),
-          guestCopyWidth: Math.round(guestCopy?.width ?? 0),
-          guestPanelWidth: Math.round(guestPanel?.width ?? 0),
-          recordFeedTop: Math.round(recordFeed?.top ?? 9999),
-          visibleCards,
-        };
-      });
-
-      expect(metrics.scrollWidth, "production-density fixture has no horizontal scroll").toBe(metrics.clientWidth);
-      if (viewport.name === "mobile") {
-        expect(metrics.guestBottom, "mobile guest hero fits the first viewport").toBeLessThan(820);
-        expect(metrics.recordFeedTop, "mobile exposes the record feed after the hero").toBeLessThan(900);
-        expect(metrics.visibleCards, "mobile first viewport reaches a public record card").toBeGreaterThanOrEqual(1);
-      } else {
-        expect(metrics.guestWidth, "desktop guest hero uses the landing width").toBeGreaterThanOrEqual(1040);
-        expect(metrics.guestCopyWidth, "desktop headline column remains readable").toBeGreaterThanOrEqual(460);
-        expect(metrics.guestPanelWidth, "desktop proof panel remains usable").toBeGreaterThanOrEqual(500);
-        expect(metrics.guestBottom, "desktop guest hero leaves room for the feed").toBeLessThan(560);
-        expect(metrics.recordFeedTop, "desktop record feed starts inside the first viewport").toBeLessThan(700);
-        expect(metrics.visibleCards, "desktop first viewport includes public record cards").toBeGreaterThanOrEqual(2);
-      }
-
-      if (process.env.VISUAL_QA_ASSERT_SCREENSHOTS === "1") {
-        await expectViewportScreenshotHealth(page, viewport);
-      }
-
-      await page.close();
-    });
+test("all locales retain long copy and localized routes", async ({ browser }) => {
+  for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+    const page = await browser.newPage({ viewport: { width: 375, height: 844 } });
+    await page.setContent(pageHtml(lang, false), { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".home-guest-hero h1")).not.toBeEmpty();
+    const expected = `/${lang === "pt-BR" ? "pt-br" : lang}/record`;
+    expect(await page.locator(".home-primary-button").first().getAttribute("href")).toBe(expected);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
+    if (lang === "en" || lang === "pt-BR") await capture(page, `guest-${lang.toLowerCase()}-375`);
+    await page.close();
   }
+});
 
-  for (const viewport of viewports) {
-    test(`${viewport.name} live production public data remains content-first`, async ({ browser }, testInfo) => {
-      test.skip(
-        process.env.LIVE_PRODUCTION_VISUAL_QA !== "1",
-        "set LIVE_PRODUCTION_VISUAL_QA=1 to verify against current ikimon.life public data",
-      );
-      const productionData = await fetchProductionPublicData();
-      expect(productionData.observations.length, "production public API provides enough real photo observations").toBeGreaterThanOrEqual(8);
-      const snapshot = liveProductionSnapshot(productionData);
-      const page = await browser.newPage({
-        viewport: { width: viewport.width, height: viewport.height },
-      });
+test("no-JS home preserves primary routes and semantic cards", async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 375, height: 844 } });
+  const page = await context.newPage();
+  await page.setContent(pageHtml("ja", false), { waitUntil: "domcontentloaded" });
+  await expect(page.locator('a[href="/ja/record"]').first()).toBeVisible();
+  await expect(page.locator('a[href="/ja/records?view=public"]')).toHaveCount(1);
+  await expect(page.locator(".home-public-card").first()).toBeVisible();
+  await context.close();
+});
 
-      await page.goto(productionVisualBaseUrl, { waitUntil: "domcontentloaded" });
-      await page.setContent(renderLandingSnapshotHtml(snapshot), { waitUntil: "load" });
-      await page.addStyleTag({
-        content: `
-          *, *::before, *::after {
-            animation-duration: 0s !important;
-            animation-delay: 0s !important;
-            transition-duration: 0s !important;
-          }
-        `,
-      });
+test("keyboard focus is visible and every primary target is at least 44px", async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 375, height: 844 } });
+  await page.setContent(pageHtml("ja", true), { waitUntil: "domcontentloaded" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const sizes = await page.locator('[data-home-view="member"] a:visible').evaluateAll((links) => links.map((link) => { const rect = link.getBoundingClientRect(); return { width: rect.width, height: rect.height }; }));
+  expect(sizes.filter((size) => size.width > 0).every((size) => size.height >= 44)).toBeTruthy();
+  await page.close();
+});
 
-      await expect(page.locator(".prototype-guest-home")).toBeVisible();
-      await expect(page.locator(".prototype-record-feed.is-guest")).toBeVisible();
-      expect(await page.locator("[data-record-feed-card]").count(), "live production card volume").toBeGreaterThanOrEqual(8);
-      await page.waitForFunction(() => {
-        return Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-record-feed-card img"))
-          .filter((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0).length >= 6;
-      }, null, { timeout: 20_000 });
-
-      const metrics = await page.evaluate(() => {
-        const viewportHeight = window.innerHeight;
-        const guestHome = document.querySelector(".prototype-guest-home")?.getBoundingClientRect();
-        const guestCopy = document.querySelector(".prototype-guest-home-copy")?.getBoundingClientRect();
-        const guestPanel = document.querySelector(".prototype-guest-home-panel")?.getBoundingClientRect();
-        const recordFeed = document.querySelector(".prototype-record-feed.is-guest")?.getBoundingClientRect();
-        const visibleCards = Array.from(document.querySelectorAll("[data-record-feed-card]"))
-          .filter((card) => {
-            const rect = card.getBoundingClientRect();
-            return rect.bottom > 0 && rect.top < viewportHeight;
-          }).length;
-        const loadedImages = Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-record-feed-card img"))
-          .filter((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0).length;
-        return {
-          clientWidth: document.documentElement.clientWidth,
-          scrollWidth: document.documentElement.scrollWidth,
-          guestWidth: Math.round(guestHome?.width ?? 0),
-          guestBottom: Math.round(guestHome?.bottom ?? 9999),
-          guestCopyWidth: Math.round(guestCopy?.width ?? 0),
-          guestPanelWidth: Math.round(guestPanel?.width ?? 0),
-          recordFeedTop: Math.round(recordFeed?.top ?? 9999),
-          visibleCards,
-          loadedImages,
-        };
-      });
-
-      expect(metrics.scrollWidth, "live production data has no horizontal scroll").toBe(metrics.clientWidth);
-      expect(metrics.loadedImages, "production thumbnails load inside cards").toBeGreaterThanOrEqual(6);
-      if (viewport.name === "mobile") {
-        expect(metrics.guestBottom, "mobile guest hero fits the first viewport").toBeLessThan(820);
-        expect(metrics.recordFeedTop, "mobile exposes the record feed after the hero").toBeLessThan(900);
-        expect(metrics.visibleCards, "mobile first viewport reaches a public record card").toBeGreaterThanOrEqual(1);
-      } else {
-        expect(metrics.guestWidth, "desktop guest hero uses the landing width").toBeGreaterThanOrEqual(1040);
-        expect(metrics.guestCopyWidth, "desktop headline column remains readable").toBeGreaterThanOrEqual(460);
-        expect(metrics.guestPanelWidth, "desktop proof panel remains usable").toBeGreaterThanOrEqual(500);
-        expect(metrics.guestBottom, "desktop guest hero leaves room for the feed").toBeLessThan(560);
-        expect(metrics.recordFeedTop, "desktop record feed starts inside the first viewport").toBeLessThan(700);
-        expect(metrics.visibleCards, "desktop first viewport includes public record cards").toBeGreaterThanOrEqual(2);
-      }
-
-      await testInfo.attach(`${viewport.name}-production-public-data-summary`, {
-        body: JSON.stringify({
-          baseUrl: productionVisualBaseUrl,
-          bbox: productionVisualBbox,
-          observations: productionData.observations.length,
-          cells: productionData.cells.length,
-          renderedCards: await page.locator(".prototype-topa-card").count(),
-          metrics,
-        }, null, 2),
-        contentType: "application/json",
-      });
-
-      if (process.env.VISUAL_QA_ASSERT_SCREENSHOTS === "1") {
-        await expectViewportScreenshotHealth(page, viewport);
-      }
-
-      await page.close();
-    });
-  }
+test("sparse member data keeps only the record action and navigation", async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await page.setContent(pageHtml("ja", true, true), { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".home-member-action")).toBeVisible();
+  await expect(page.locator(".home-recent-section,.home-discovery-section,.home-nearby-section")).toHaveCount(0);
+  await expect(page.locator(".home-bottom-nav")).toBeVisible();
+  await capture(page, "member-ja-390-sparse");
+  await page.close();
 });

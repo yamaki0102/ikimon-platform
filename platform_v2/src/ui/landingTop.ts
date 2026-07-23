@@ -18,6 +18,7 @@ import { toThumbnailUrl, type ThumbnailPreset } from "../services/thumbnailUrl.j
 import { renderMapMini, toMapMiniCells } from "./mapMini.js";
 import { RECORD_CARD_SIZING_TOKENS } from "./recordCardSizing.js";
 import { escapeHtml } from "./siteShell.js";
+import { LANDING_HOME_STATE_STYLES, renderLandingHomeState } from "./landingHomeState.js";
 
 export type LandingTopRenderOptions = {
   basePath: string;
@@ -2183,9 +2184,10 @@ function renderFinalCta(basePath: string, lang: SiteLang): string {
 }
 
 export function renderLandingTopSections(options: LandingTopRenderOptions): LandingTopSections {
+  const stateHome = renderLandingHomeState(options);
   return {
-    heroHtml: renderLandingHeroHtml(options),
-    dailyDashboardHtml: renderLandingDailyDashboard(options),
+    heroHtml: stateHome.heroHtml,
+    dailyDashboardHtml: stateHome.bodyHtml,
     linkBandHtml: "",
     flowSectionHtml: "",
     mapSectionHtml: "",
@@ -2196,7 +2198,7 @@ export function renderLandingTopSections(options: LandingTopRenderOptions): Land
   };
 }
 
-export const LANDING_TOP_STYLES = `
+const LEGACY_LANDING_TOP_STYLES = `
   ${RECORD_CARD_SIZING_TOKENS}
   body {
     background:
@@ -5473,3 +5475,8 @@ export const LANDING_TOP_STYLES = `
     .prototype-feed-thumb { width: 46px; height: 46px; }
   }
 `;
+
+// Keep the legacy renderer in this file until downstream references are retired, but do not
+// ship its large CSS payload on the active home route.
+void LEGACY_LANDING_TOP_STYLES;
+export const LANDING_TOP_STYLES = LANDING_HOME_STATE_STYLES;
