@@ -3,9 +3,11 @@
 - 日付: 2026-07-24
 - ブランチ: `codex/home-self-redesign-plan-20260724`
 - 基準: `origin/main` (`31e3e46e`)
+- 実装PR: [#1435](https://github.com/yamaki0102/ikimon-platform/pull/1435)
+- production SHA: `a4561c003f24634dc2c28d9daf900b560b809313`
 - 対象: ログイン後Home、本人用「自分」、下書き引継ぎ、関連テスト
 - production DB migration: 不要
-- 状態: ローカル実装・検証・実装Wレビュー完了、リリース待ち
+- 状態: staging／production反映・production verify・対象機能read-only smoke完了
 
 ## 1. 原因
 
@@ -64,6 +66,14 @@
   - PWA standalone相当／landscape／200%文字・zoom
   - 横スクロール、44pxタップ領域、console error
 - `npm run security:audit`: 既存間接依存 `find-my-way <=9.6.0` のHigh advisory 1件で終了1。今回差分による新規依存はない。
+- production対象機能read-only smoke: 6件成功。
+  - 公開Top 320 / 390 / 1280 / 1440px
+  - 「撮る」からカメラを先に開き、ギャラリーは明示選択時だけ開く
+  - 「場所を見る」の直接遷移
+- production全体read-only smoke: 20件中15件成功、対象外の既存期待値5件が失敗。
+  - `/learn` と `/ja/contact` は `html_not_materialized`
+  - 観察詳細3件は旧表示語「AI候補」「観察記録 / 環境情報」を期待
+  - `31e3e46e..a4561c00` の差分には上記route／表示語の変更がなく、今回のHome／Self差分由来ではない。
 
 ローカル比較スクリーンショット:
 
@@ -74,6 +84,18 @@
 - `member-ja-390-sparse.png`
 - `self-ja-{375,390,768,1440}.png`
 - `guest-ja-390-camera-denied.png`
+
+production確認スクリーンショット:
+
+`E:\Projects\_agent_scratch\yamaki0102-ikimon-platform\home-self-redesign-20260724\production-screenshots\`
+
+- `production-guest-home-390.png`
+- `production-guest-home-1440.png`
+- `production-guest-self-390.png`
+
+変更前の提供画像:
+
+`E:\Projects\00_all_projects_management\.codex-remote-attachments\019f8eee-0aed-70a3-9e60-0084c0771b2c\60463ff1-6537-4e5a-ae68-0c4d99037b30\1-Photo-1.jpg`
 
 ## 4. 実装Wレビューで確認する論点
 
@@ -86,11 +108,26 @@
 - P0として過剰実装または実体のない共有機能を混ぜていないか。
 - staging／productionへ進む前に追加すべきblocking testがあるか。
 
-## 5. リリース前の残り
+## 5. リリース結果
 
-- 実装Wレビューの採否反映（完了、採用ログ参照）
-- commit / push / PR / merge
-- 中央deploy registryの現行手順によるstaging反映
-- staging authenticated QAとスクリーンショット
-- production反映とread-only smoke
-- 本記録へ実SHA、URL、結果、既知制約を追記
+- 実装コミット: `704901212ea83feb980918382baf0ce90cd7727a`
+- PR: [#1435](https://github.com/yamaki0102/ikimon-platform/pull/1435)、squash merge成功
+- production SHA: `a4561c003f24634dc2c28d9daf900b560b809313`
+- staging dry-run: [ops #705](https://github.com/yamaki0102/all-projects-management/issues/705)、成功
+- staging deploy: [ops #706](https://github.com/yamaki0102/all-projects-management/issues/706)、成功
+- staging verify: [ops #707](https://github.com/yamaki0102/all-projects-management/issues/707)、成功
+- staging visual QA: [ops #708](https://github.com/yamaki0102/all-projects-management/issues/708)、成功
+- production dry-run: [ops #709](https://github.com/yamaki0102/all-projects-management/issues/709)、成功
+- production deploy: [ops #710](https://github.com/yamaki0102/all-projects-management/issues/710)、明示承認後に成功
+- production verify: [ops #712](https://github.com/yamaki0102/all-projects-management/issues/712)、成功
+- DB migration: 変更なし
+- GitHub Actions: 不使用。中央Cloudflare command busからimmutable SHAを反映
+
+stagingの認証済みQAキーはローカル環境へ注入されていなかったため、秘密値を持ち出さず中央visual QAを正式証拠とした。ローカルでは認証済みHome／Selfを含む31件のブラウザE2Eを実施した。
+
+## 6. 既知制約
+
+- `getUserMedia()` はHTTPS・ブラウザ対応・権限許可が必要。拒否／非対応時は理由と「カメラの利用を許可する」「端末の写真から選ぶ」「キャンセル」を明示し、ギャラリーへ無言で切り替えない。
+- iOS／Androidのファイルinput `capture` はOS・ブラウザ依存で、直接カメラ起動を保証しないため、「端末の写真から選ぶ」専用に限定した。
+- 共有端末に残る所有者不明の旧IndexedDBキー `latest` は、別アカウントへの誤帰属を避けるため自動claim／自動削除しない。将来の同意付き整理対象。
+- production全体smokeの対象外5件は、別タスクでroute materializationと旧期待値を同期する必要がある。今回のHome／Self releaseは対象機能smokeと中央verifyがgreenであり、rollback条件には該当しない。
