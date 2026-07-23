@@ -589,6 +589,82 @@ test("canonical alias search shows place kind, locality, and verified state", as
   await context.close();
 });
 
+test("canonical search without a safe OSM area ref does not open a profile", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "one browser covers the fail-closed search handoff");
+  const context = await browser.newContext({
+    baseURL: "http://127.0.0.1:4322",
+    viewport: { width: 390, height: 844 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const diagnostics = monitorPageDiagnostics(page);
+  const profileRequests: string[] = [];
+  page.on("request", (request) => {
+    if (/\/api\/v1\/map\/place-profile\b/.test(request.url())) {
+      profileRequests.push(request.url());
+    }
+  });
+  await installPlaceAtlasFixtures(page);
+  await page.route("**/api/v1/map/place-search**", async (route) => {
+    await fulfillJson(route, {
+      version: "place_search/v1",
+      query: new URL(route.request().url()).searchParams.get("q"),
+      state: "complete",
+      privacy: "boundary_bbox_only",
+      results: [{
+        canonicalPlaceId: "plc_node_only",
+        canonicalName: "ノード施設",
+        aliases: [],
+        placeKind: "other_named_area",
+        localityLabel: "静岡県静岡市",
+        verificationStatus: "source_verified",
+        officialStatus: "unofficial",
+        matchKind: "canonical_name",
+        matchConfidence: 1,
+        osmSourceId: "node:123456",
+        boundary: {
+          bbox: [138.37, 34.96, 138.38, 34.97],
+          precision: "approximate",
+          confidence: 0.5,
+        },
+        source: {
+          sourceType: "osm",
+          sourceId: "node:123456",
+          sourceUrl: "https://www.openstreetmap.org/node/123456",
+          confidence: 0.5,
+          verificationStatus: "source_verified",
+          lastCheckedAt: "2026-07-24T00:00:00Z",
+        },
+      }],
+    });
+  });
+  await page.route("https://nominatim.openstreetmap.org/search**", async (route) => {
+    await fulfillJson(route, []);
+  });
+
+  await page.goto(TOKIWA_MAP_PATH, { waitUntil: "domcontentloaded" });
+  const input = page.locator("#me-search-input");
+  await input.fill("ノード施設");
+  const result = page.locator("#me-search-results .me-search-row", {
+    hasText: "ノード施設",
+  });
+  await expect(result).toBeVisible();
+  await result.click();
+  await expect(page.locator("#map-explorer")).toHaveAttribute(
+    "data-place-search-profile-ref",
+    "unresolved",
+  );
+  await page.waitForTimeout(2_500);
+  expect(profileRequests).toEqual([]);
+  await expect(page.locator("[data-place-atlas-profile]")).toHaveCount(0);
+  expect(diagnostics).toEqual({
+    pageErrors: [],
+    consoleErrors: [],
+    criticalResponses: [],
+  });
+  await context.close();
+});
+
 test("verified restricted Place suppresses recording CTA and keeps browse access", async ({ browser }, testInfo) => {
   const restrictedProfile = {
     ...TOKIWA_PLACE_ATLAS_PROFILE,

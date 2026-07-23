@@ -10119,18 +10119,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if ((osmType !== 'way' && osmType !== 'relation') || !/^[0-9]+$/.test(osmId)) return null;
     var bbox = Array.isArray(row.boundingbox) ? row.boundingbox.map(Number) : null;
     var validBbox = bbox && bbox.length === 4 && bbox.every(isFinite);
-    var geometry = validBbox
-      ? {
-          type: 'Polygon',
-          coordinates: [[
-            [bbox[2], bbox[0]],
-            [bbox[3], bbox[0]],
-            [bbox[3], bbox[1]],
-            [bbox[2], bbox[1]],
-            [bbox[2], bbox[0]],
-          ]],
-        }
-      : pointCirclePolygon(lat, lng, 160);
+    if (!validBbox) return null;
+    var geometry = {
+      type: 'Polygon',
+      coordinates: [[
+        [bbox[2], bbox[0]],
+        [bbox[3], bbox[0]],
+        [bbox[3], bbox[1]],
+        [bbox[2], bbox[1]],
+        [bbox[2], bbox[0]],
+      ]],
+    };
     return {
       type: 'Feature',
       geometry: geometry,
@@ -10149,7 +10148,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         verification_level: String(row.verification_status || ''),
         center: [lng, lat],
         transient: true,
-        boundary_projection: validBbox ? 'safe_bbox' : 'generated_radius',
+        boundary_projection: 'safe_bbox',
       },
     };
   }
