@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { loadConfig } from "../config.js";
 import { THUMBNAIL_PRESET_SIZES, type ThumbnailPreset } from "../services/thumbnailUrl.js";
@@ -21,6 +22,7 @@ import { THUMBNAIL_PRESET_SIZES, type ThumbnailPreset } from "../services/thumbn
 
 const ALLOWED_PREFIXES = ["assets/", "favicon.ico", "favicon.svg"];
 const BLOCKED_PUBLIC_UPLOAD_EXTENSIONS = new Set([".svg", ".html", ".htm", ".xml", ".js", ".mjs"]);
+const LOCAL_LANDING_ASSET_ROOT = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../../assets");
 
 const MIME: Record<string, string> = {
   ".png": "image/png",
@@ -129,7 +131,10 @@ export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<v
       reply.code(404).type("text/plain").send("not found");
       return;
     }
-    const file = await serveFileFromRoot(loadConfig().legacyPublicRoot, rel);
+    const localFile = rel.startsWith("assets/img/landing/")
+      ? await serveFileFromRoot(LOCAL_LANDING_ASSET_ROOT, rel.slice("assets/".length))
+      : null;
+    const file = localFile ?? await serveFileFromRoot(loadConfig().legacyPublicRoot, rel);
     if (!file) {
       reply.code(404).type("text/plain").send("not found");
       return;
