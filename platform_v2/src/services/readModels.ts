@@ -87,6 +87,8 @@ type RecentObservation = {
   featuredTaxonRank?: string | null;
   aiCandidateName?: string | null;
   aiCandidateRank?: string | null;
+  /** Existing durable analysis state. Home only renders a short processing note for queued/running values. */
+  aiAssessmentStatus?: string | null;
   isAiCandidate?: boolean;
   confidenceScore?: number | null;
   observedAt: string;

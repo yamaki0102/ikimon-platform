@@ -170,7 +170,7 @@ test("app sends HSTS in production", async () => {
   }
 });
 
-test("root route serves the local record feed home HTML even for generic accept headers", async () => {
+test("root route serves the state-split guest home HTML even for generic accept headers", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -194,11 +194,13 @@ test("root route serves the local record feed home HTML even for generic accept 
     assert.doesNotMatch(response.body, /prototype-topa-trust/);
     assert.doesNotMatch(response.body, /prototype-topa-metrics/);
     assert.doesNotMatch(response.body, /prototype-topa-actions/);
-    assert.match(response.body, /data-record-feed/);
-    assert.match(response.body, /みんなの記録/);
-    assert.match(response.body, /prototype-record-feed[^"]*is-guest/);
+    assert.match(response.body, /data-home-contract="state-split-v1"/);
+    assert.match(response.body, /data-home-auth-state="guest"/);
+    assert.match(response.body, /地域に残っている記録/);
+    assert.match(response.body, /正確な位置は公開しません/);
+    assert.doesNotMatch(response.body, /class="global-record-launcher"/);
     assert.doesNotMatch(response.body, /<h1>記録を見る<\/h1>/);
-    assert.match(response.body, /site-shell[^"]*is-minimal-chrome/);
+    assert.match(response.body, /class="site-header site-header-home"/);
     assert.doesNotMatch(response.body, /<nav class="desktop-side-nav-inner"/);
     assert.doesNotMatch(response.body, /使い方を見る/);
     assert.doesNotMatch(response.body, /公開前に安全側で確認します/);
