@@ -99,6 +99,14 @@ test("320px at 200 percent text does not create page overflow", async ({ browser
   await page.close();
 });
 
+test("320px at 200 percent browser zoom keeps long English copy in the page", async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 320, height: 844 } });
+  await page.setContent(pageHtml("en", false), { waitUntil: "domcontentloaded" });
+  await page.evaluate(() => { document.documentElement.style.zoom = "2"; });
+  expect(await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }))).toEqual({ client: 320, scroll: 320 });
+  await page.close();
+});
+
 test("all locales retain long copy and localized routes", async ({ browser }) => {
   for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
     const page = await browser.newPage({ viewport: { width: 375, height: 844 } });
