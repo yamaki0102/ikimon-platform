@@ -108,6 +108,27 @@ test("place atlas renderer leads with place, representative media, safe summary,
   assert.doesNotMatch(html, /緯度|経度|exact_lat|exact_lng/);
 });
 
+test("place atlas renderer keeps imported display derivatives on their public R2 route", () => {
+  const importedUrl = "/derived/import/20260615/observation_photo/asset-1/display.webp";
+  const html = renderMapPlaceAtlasProfile(fixture({
+    place: {
+      ...fixture().place,
+      representativeMedia: [{
+        url: importedUrl,
+        recordId: "record-imported",
+        kind: "photo",
+      }],
+    },
+    recentRecords: [{
+      ...fixture().recentRecords[0]!,
+      mediaUrl: importedUrl,
+    }],
+  }), options);
+
+  assert.match(html, /src="\/derived\/import\/20260615\/observation_photo\/asset-1\/display\.webp"/);
+  assert.doesNotMatch(html, /\/derived-transform\/w(?:360|680)\/derived\/import\//);
+});
+
 test("place atlas renderer never turns unknown counts into zero or a false empty claim", () => {
   const profile = fixture({
     summary: {
