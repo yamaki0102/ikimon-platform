@@ -8,6 +8,9 @@ await mkdir(outputDirectory, { recursive: true });
 
 const photoOne = "https://ikimon.life/derived/v1-compat/record-1784431188621/asset_28fd7254-9c20-4c8b-891f-6ad0198bf5b0-ikimon-photo-1784431184745.jpg/display.webp";
 const photoTwo = "https://ikimon.life/derived/v1-compat/record-1784431188621/asset_82109a6c-f044-4af9-ab6f-805d9771516e-ikimon-photo-1784431177593.jpg/display.webp";
+const birdCloseup = "https://ikimon.life/derived/import/20260615/observation_photo/36e7dba9-9e6e-4e1b-8ddd-5a26076ba9ea/display.webp";
+const birdPerch = "https://ikimon.life/derived/import/20260615/observation_photo/8ed39677-0959-44d5-a58e-6c4a8502f1c8/display.webp";
+const birdEnvironment = "https://ikimon.life/derived/import/20260615/observation_photo/9f0eb001-0c30-46b7-8e29-6c0b0e45d4a9/display.webp";
 const video = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
 const audio = "https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3";
 
@@ -47,6 +50,42 @@ const detail = (observations: ObservationFirstCard[], overrides: Partial<Observa
 });
 
 const fixtures: Record<string, string> = {
+  "dedup-bird-candidates-owner.html": renderObservationFirstRecordDetailHtml(detail([
+    observation({
+      subjectLabel: "鳥",
+      aiSuggestions: [{
+        suggestionId: "visual-bird-ai",
+        proposedName: "イソヒヨドリ",
+        proposedScientificName: "Monticola solitarius",
+        proposedRank: "species",
+        visualEvidence: ["全身に鱗状の羽衣が見えます。", "冠羽は目立ちません。"],
+        shootingAdvice: ["顔の横から耳の後ろが分かる写真", "尾全体が入る横向き写真"],
+        provisional: true,
+      }],
+    }),
+  ], { owner: true }), {
+    title: "鳥の記録",
+    observedLabel: "2026年6月15日 10:48",
+    note: "同じ鳥を接写と周辺を含む写真で記録。",
+    publicLocationLabel: "浜松市周辺",
+    locationProtectionLabel: "位置はぼかして表示",
+    detectionState: "detected",
+    media: [
+      { mediaId: "bird-closeup", mediaKind: "photo", url: birdCloseup },
+      { mediaId: "bird-perch", mediaKind: "photo", url: birdPerch },
+      { mediaId: "bird-environment", mediaKind: "photo", url: birdEnvironment },
+    ],
+    mediaDedup: { sourcePhotoCount: 6, representativePhotoCount: 3, excludedPhotoCount: 3 },
+    aiCandidateInsights: [
+      { name: "イソヒヨドリ", scientificName: "Monticola solitarius", supportingFeatures: ["全身の鱗状模様", "冠羽が目立たない"], missingFeatures: ["幼鳥か雌成鳥かは未確認"], contradictions: [] },
+      { name: "ヒヨドリ", scientificName: "Hypsipetes amaurotis", supportingFeatures: ["中型の鳥の体形"], missingFeatures: [], contradictions: ["冠羽と耳斑を確認できない"] },
+      { name: "ムクドリ", scientificName: "Spodiopsar cineraceus", supportingFeatures: ["嘴と尾の形を比較する余地"], missingFeatures: ["頭部の模様が不鮮明"], contradictions: [] },
+    ],
+    environment: { place_type: "urban", contact_surface: "artificial", surrounding_cover: "built_surface", place_type_source: "derived", contact_surface_source: "derived", surrounding_cover_source: "derived", environment_record_status: "auto_draft" },
+    actionNonce: "visual-dedup-bird",
+    processingMessage: "写真からわかることを調べています。写真と記録は保存されています。",
+    viewerAuthenticated: true,
+  }),
   "zero-observations-guest.html": renderObservationFirstRecordDetailHtml(detail([]), {
     title: "夕方の空と鳥の声",
     observedLabel: "2026年7月22日 18:30",

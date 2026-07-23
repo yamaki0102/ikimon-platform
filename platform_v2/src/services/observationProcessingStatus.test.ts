@@ -65,6 +65,16 @@ test("media processing does not masquerade as AI processing", () => {
   assert.equal(status.aiState, "not_requested");
 });
 
+test("AI processing reassures the owner that the photo is already saved", () => {
+  const status = deriveObservationProcessingStatus({
+    ...baseFacts,
+    aiRequestStatus: "processing",
+  });
+
+  assert.equal(status.aiState, "processing");
+  assert.equal(status.message, "写真からわかることを調べています。写真と記録は保存されています。");
+});
+
 test("processing status exposes a photo retry without losing the record", () => {
   const status = deriveObservationProcessingStatus({
     ...baseFacts,
