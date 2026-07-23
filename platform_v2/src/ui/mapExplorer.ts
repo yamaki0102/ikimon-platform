@@ -7,6 +7,10 @@ import {
   getOfficialNoticeRenderCopy,
   OFFICIAL_NOTICE_CARD_STYLES,
 } from "./officialNoticeCard.js";
+import {
+  MAP_PLACE_ATLAS_PROFILE_RUNTIME,
+  MAP_PLACE_ATLAS_PROFILE_STYLES,
+} from "./mapPlaceAtlasProfile.js";
 import { MAP_EXPLORER_STATE_RUNTIME } from "./mapExplorerState.js";
 import { escapeHtml } from "./siteShell.js";
 
@@ -1118,6 +1122,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         : { markers: "Finds", heatmap: "Signs", places: "Areas", rain: "Rain", frontier: "Gaps" };
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
+  const apiPlaceProfile = withBasePath(props.basePath, "/api/v1/map/place-profile");
   const apiMyObservations = withBasePath(props.basePath, "/api/v1/map/my-observations");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
@@ -1676,7 +1681,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-gbif-area-summary="${escapeHtml(apiGbifAreaSummary)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-api-walk-map-candidates="${escapeHtml(apiWalkMapCandidates)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-place-profile="${escapeHtml(apiPlaceProfile)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-gbif-area-summary="${escapeHtml(apiGbifAreaSummary)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-api-walk-map-candidates="${escapeHtml(apiWalkMapCandidates)}"></div>
         ${startPanelHtml}
         <section class="me-purpose-hint" id="me-purpose-hint" data-testid="map-purpose-hint" aria-label="${escapeHtml(copy.purposeHintTitle)}" aria-hidden="true" hidden>
           <button type="button" class="me-purpose-hint-close" id="me-purpose-hint-close" aria-label="${escapeHtml(copy.purposeHintDismiss)}">×</button>
@@ -1843,6 +1848,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var rainTargetEl = document.getElementById('me-rain-target');
   var apiCells = root.getAttribute('data-api-cells') || '';
   var apiObservations = root.getAttribute('data-api-observations') || '';
+  var apiPlaceProfile = root.getAttribute('data-api-place-profile') || '';
   var apiMyObservations = root.getAttribute('data-api-my-observations') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
   var apiTraces = root.getAttribute('data-api-traces') || '';
@@ -1855,6 +1861,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
   var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
   var apiWalkMapCandidates = root.getAttribute('data-api-walk-map-candidates') || '';
+  var placeAtlasSeq = 0;
+  var placeAtlasAbort = null;
 
   var COPY = ${JSON.stringify({
     loading: copy.loading,
@@ -2152,6 +2160,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     insightSubhead: props.lang === "ja" ? "この表示範囲の発見の気配を眺める。" : props.lang === "es" ? "Mira las señales de esta ventana." : props.lang === "pt-BR" ? "Veja os sinais nesta janela." : "Browse the signs in this viewport.",
   })};
   ${MAP_EXPLORER_STATE_RUNTIME}
+  ${MAP_PLACE_ATLAS_PROFILE_RUNTIME}
   var SEARCH_LANG = ${JSON.stringify(props.lang)};
   var YEAR_VALUES = [];
   try {
@@ -2160,6 +2169,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var OBSERVATION_HREF_TPL = ${JSON.stringify(observationHrefTpl)};
   var RECORD_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/record"), props.lang))};
   var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang))};
+  var COMMUNITY_RECORDS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/records?view=public"), props.lang))};
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
   var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/map?tab=frontier"), props.lang))};
   var EVENTS_ORGANIZER_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events"), props.lang))};
@@ -3745,7 +3755,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function getSelectedContext() {
-    if (state.selectedPoint && (state.selectedPoint.kind === 'place' || state.selectedPoint.kind === 'area' || state.selectedPoint.kind === 'guide_spot')) return state.selectedPoint;
+    if (state.selectedPoint && (
+      state.selectedPoint.kind === 'place' ||
+      state.selectedPoint.kind === 'area' ||
+      state.selectedPoint.kind === 'cell' ||
+      state.selectedPoint.kind === 'guide_spot'
+    )) return state.selectedPoint;
     var cellFeature = getSelectedCellFeature();
     var record = getSelectedRecord();
     if (record && cellFeature) {
@@ -5116,6 +5131,143 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       renderDetailVisitReasons(context) +
     '</div>';
   }
+  function placeAtlasRefForContext(context) {
+    if (!context) return null;
+    if (context.kind === 'cell') {
+      var cellProps = context.cellFeature && context.cellFeature.properties ? context.cellFeature.properties : {};
+      var cellId = String(cellProps.cellId || state.selectedCellId || '');
+      return cellId ? { kind: 'public_cell', cellId: cellId } : null;
+    }
+    if (context.kind !== 'area') return null;
+    var props = context.areaFeature && context.areaFeature.properties ? context.areaFeature.properties : {};
+    var fieldId = String(context.fieldId || props.field_id || '');
+    if (!context.transient && fieldId && fieldId.indexOf('osm-live:') !== 0) {
+      return { kind: 'field', fieldId: fieldId };
+    }
+    var entityKey = String(props.entity_key || '');
+    var entityMatch = entityKey.match(/^osm:(way|relation):([0-9]+)$/);
+    var osmType = String(props.osm_type || (entityMatch && entityMatch[1]) || '');
+    var osmId = Number(props.osm_id || (entityMatch && entityMatch[2]) || 0);
+    if ((osmType === 'way' || osmType === 'relation') && Number.isSafeInteger(osmId) && osmId > 0) {
+      return { kind: 'osm_area', entityKey: 'osm:' + osmType + ':' + String(osmId), osmType: osmType, osmId: osmId };
+    }
+    return null;
+  }
+  function placeAtlasRefKey(ref) {
+    if (!ref) return '';
+    if (ref.kind === 'field') return 'field:' + ref.fieldId;
+    if (ref.kind === 'public_cell') return 'public_cell:' + ref.cellId;
+    return ref.entityKey;
+  }
+  function placeAtlasUrl(ref) {
+    if (!apiPlaceProfile || !ref) return '';
+    var query = new URLSearchParams();
+    query.set('kind', ref.kind);
+    if (ref.kind === 'field') query.set('fieldId', ref.fieldId);
+    if (ref.kind === 'public_cell') query.set('cellId', ref.cellId);
+    if (ref.kind === 'osm_area') {
+      query.set('entityKey', ref.entityKey);
+      query.set('osmType', ref.osmType);
+      query.set('osmId', String(ref.osmId));
+    }
+    return apiPlaceProfile + (apiPlaceProfile.indexOf('?') >= 0 ? '&' : '?') + query.toString();
+  }
+  function placeAtlasNameForContext(context) {
+    var props = context && context.areaFeature && context.areaFeature.properties ? context.areaFeature.properties : {};
+    if (context && context.kind === 'cell') return COPY.cellAggregateTitle;
+    return String(props.name || COPY.osmAreaFallbackName || '');
+  }
+  function placeAtlasRenderOptions() {
+    return {
+      lang: SEARCH_LANG,
+      recordHref: RECORD_HREF,
+      recordsHref: COMMUNITY_RECORDS_HREF,
+    };
+  }
+  function renderPlaceAtlasContent(context, fallbackHtml) {
+    var ref = placeAtlasRefForContext(context);
+    if (!ref || !apiPlaceProfile) return fallbackHtml || '';
+    if (context.placeAtlasProfile) {
+      return MapPlaceAtlasProfile.render(context.placeAtlasProfile, placeAtlasRenderOptions());
+    }
+    if (context.placeAtlasStatus === 'error') {
+      return MapPlaceAtlasProfile.error(SEARCH_LANG) + (fallbackHtml || '');
+    }
+    return MapPlaceAtlasProfile.loading(SEARCH_LANG, placeAtlasNameForContext(context));
+  }
+  function bindPlaceAtlasContent(rootEl) {
+    MapPlaceAtlasProfile.bind(rootEl || document);
+  }
+  function renderPlaceAtlasMobileSelection() {
+    if (!shouldUseBottomSheet() || !sheetInnerEl || !state.selectedPoint) return;
+    var context = state.selectedPoint;
+    if (context.kind !== 'area' && context.kind !== 'cell') return;
+    var fallback = '';
+    if (context.kind === 'area' && context.areaSnapshot) fallback = renderAreaSheet(context.areaSnapshot);
+    sheetInnerEl.innerHTML = renderPlaceAtlasContent(context, fallback);
+    bindPlaceAtlasContent(sheetInnerEl);
+    if (context.kind === 'area') hydrateAreaGuideStopControls(sheetInnerEl);
+  }
+  function rerenderPlaceAtlasSelection() {
+    if (shouldUseBottomSheet()) {
+      renderPlaceAtlasMobileSelection();
+      return;
+    }
+    renderSelectedCard();
+    renderSidePanels();
+  }
+  function requestPlaceAtlasForSelection(context) {
+    var ref = placeAtlasRefForContext(context);
+    if (!ref || !apiPlaceProfile) return;
+    if (placeAtlasAbort) {
+      try { placeAtlasAbort.abort(); } catch (_) {}
+    }
+    var controller = new AbortController();
+    placeAtlasAbort = controller;
+    var seq = ++placeAtlasSeq;
+    var refKey = placeAtlasRefKey(ref);
+    context.placeAtlasProfile = null;
+    context.placeAtlasStatus = 'loading';
+    context.placeAtlasRefKey = refKey;
+    rerenderPlaceAtlasSelection();
+    var timedOut = false;
+    var timeout = setTimeout(function () {
+      timedOut = true;
+      try { controller.abort(); } catch (_) {}
+    }, 8000);
+    fetch(placeAtlasUrl(ref), {
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' },
+      signal: controller.signal,
+    })
+      .then(function (response) {
+        if (!response.ok) throw new Error('place_atlas_' + String(response.status));
+        return response.json();
+      })
+      .then(function (payload) {
+        if (seq !== placeAtlasSeq) return;
+        var selected = state.selectedPoint;
+        if (!selected || placeAtlasRefKey(placeAtlasRefForContext(selected)) !== refKey) return;
+        if (!payload || !payload.profile || payload.profile.version !== 1) throw new Error('place_atlas_contract');
+        selected.placeAtlasProfile = payload.profile;
+        selected.placeAtlasStatus = 'success';
+        rerenderPlaceAtlasSelection();
+      })
+      .catch(function (error) {
+        if (seq !== placeAtlasSeq) return;
+        if (controller.signal.aborted && !timedOut) return;
+        var selected = state.selectedPoint;
+        if (!selected || placeAtlasRefKey(placeAtlasRefForContext(selected)) !== refKey) return;
+        selected.placeAtlasProfile = null;
+        selected.placeAtlasStatus = 'error';
+        selected.placeAtlasError = String(error && error.message || 'place_atlas_unavailable');
+        rerenderPlaceAtlasSelection();
+      })
+      .finally(function () {
+        clearTimeout(timeout);
+        if (placeAtlasAbort === controller) placeAtlasAbort = null;
+      });
+  }
   function renderPlaceDetailActions(context) {
     var hasCoord = context && Number.isFinite(context.lat) && Number.isFinite(context.lng);
     var eventHref = context && context.memoryPlace ? buildPlaceMemoryRecordHref(context.memoryPlace) : RECORD_HREF;
@@ -5163,17 +5315,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     if (context.kind === 'area') {
-      var areaContent = context.areaSnapshot
+      var areaFallbackContent = context.areaSnapshot
         ? renderAreaSheet(context.areaSnapshot)
         : context.areaFeature
           ? renderTransientAreaContent(context.areaFeature, { lat: context.lat, lng: context.lng })
           : '<div class="me-area-sheet-loading">' + escapeHtml(COPY.areaLoading) + '</div>';
+      var areaContent = renderPlaceAtlasContent(context, areaFallbackContent);
       selectedCardEl.innerHTML =
         '<article class="me-detail-panel me-detail-panel-area">' +
           areaContent +
         '</article>';
       selectedCardEl.classList.add('is-visible');
       markSideSelection();
+      bindPlaceAtlasContent(selectedCardEl);
       hydrateAreaGuideStopControls(selectedCardEl);
       return;
     }
@@ -5210,6 +5364,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     if (context.kind === 'cell') {
+      if (apiPlaceProfile) {
+        resetAreaGuideStopSession();
+        selectedCardEl.innerHTML =
+          '<article class="me-detail-panel me-detail-panel-cell">' +
+            renderPlaceAtlasContent(context, '') +
+          '</article>';
+        selectedCardEl.classList.add('is-visible');
+        markSideSelection();
+        bindPlaceAtlasContent(selectedCardEl);
+        return;
+      }
       resetAreaGuideStopSession();
       var feature = context.cellFeature;
       var cellProps = feature && feature.properties ? feature.properties : {};
@@ -6212,6 +6377,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     loadRecords(state.selectedCellId ? { cellId: state.selectedCellId } : null);
     if (options && options.openSheet && shouldUseBottomSheet()) openCellSheet(feature);
     else if (!shouldUseBottomSheet()) closeBottomSheet();
+    requestPlaceAtlasForSelection(state.selectedPoint);
     saveMapState();
   }
 
@@ -6315,6 +6481,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var center = cellCenter(feature);
     var detailContext = { lat: center.lat, lng: center.lng, kind: 'cell', cellFeature: feature };
     state.selectedPoint = detailContext;
+    if (apiPlaceProfile) {
+      sheetInnerEl.innerHTML =
+        '<article class="me-detail-panel me-bottom-detail me-detail-panel-cell">' +
+          renderPlaceAtlasContent(detailContext, '') +
+        '</article>';
+      showAreaBottomSheet();
+      bindPlaceAtlasContent(sheetInnerEl);
+      return;
+    }
     var seq = ++siteBriefSeq;
     var p = feature.properties || {};
     var gbifSlotId = 'me-sheet-gbif-area-slot';
@@ -6535,8 +6710,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var sourceLinksHtml = renderAreaSourceLinks(props);
     var sourceTrustHtml = renderAreaSourceTrust(props.source_confidence, props.verification_label, props.verification_level);
     var areaName = String(props.name || COPY.osmAreaFallbackName);
-    var locationLabel = safeCenter ? safeCenter.lat.toFixed(4) + ', ' + safeCenter.lng.toFixed(4) : '';
-    var followId = String(props.entity_key || props.field_id || (safeCenter ? 'point:' + safeCenter.lat.toFixed(5) + ',' + safeCenter.lng.toFixed(5) : areaName));
+    var locationLabel = [props.prefecture, props.city].filter(Boolean).join(' ') || COPY.cellAggregateBadge;
+    var followId = String(props.entity_key || props.field_id || '');
     var guidance = transientAccessGuidance(props);
     var areaStatus = areaAccessStatus(props, null);
     var canRecord = canSuggestDirectAreaRecord(props, null);
@@ -6561,7 +6736,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + nextStepHtml
       + activityHtml
       + guideStopHtml
-      + (canRecord ? renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId })) : '')
+      + (canRecord && followId ? renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId })) : '')
       + renderAreaObservationGallery(galleryItems, { label: COPY.areaGalleryTitle, canRecord: canRecord, areaStatus: areaStatus })
       + renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null)
       + '<div class="me-area-sheet-timeline is-empty">' + escapeHtml(COPY.unregisteredAreaText) + '</div>';
@@ -6589,13 +6764,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       renderSelectedCard();
       renderSidePanels();
       setSideTab('selection');
+      requestPlaceAtlasForSelection(state.selectedPoint);
       saveMapState();
       return;
     }
-    sheetInnerEl.innerHTML = renderTransientAreaContent(feature, center);
+    sheetInnerEl.innerHTML = renderPlaceAtlasContent(state.selectedPoint, renderTransientAreaContent(feature, center));
+    bindPlaceAtlasContent(sheetInnerEl);
     hydrateAreaGuideStopControls(sheetInnerEl);
     showAreaBottomSheet();
     renderSidePanels();
+    requestPlaceAtlasForSelection(state.selectedPoint);
     saveMapState();
   }
   function openAreaFeatureSheet(feature, lat, lng) {
@@ -6628,6 +6806,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       renderSidePanels();
       setSideTab('selection');
       saveMapState();
+      requestPlaceAtlasForSelection(state.selectedPoint);
       if (!apiAreaSnapshotTemplate) return;
       var sideUrl = apiAreaSnapshotTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId));
       fetch(sideUrl, { credentials: 'same-origin' })
@@ -6637,14 +6816,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           if (!state.selectedPoint || state.selectedPoint.kind !== 'area' || state.selectedPoint.fieldId !== fieldId) return;
           state.selectedPoint.areaSnapshot = payload.snapshot;
           if (feature && !state.selectedPoint.areaFeature) state.selectedPoint.areaFeature = feature;
-          renderSelectedCard();
+          rerenderPlaceAtlasSelection();
         })
         .catch(function () { /* noop */ });
       return;
     }
-    sheetInnerEl.innerHTML = '<div class="me-bottom-meta"><strong>' + escapeHtml(COPY.areaLoading) + '</strong></div>';
+    sheetInnerEl.innerHTML = renderPlaceAtlasContent(state.selectedPoint, '<div class="me-bottom-meta"><strong>' + escapeHtml(COPY.areaLoading) + '</strong></div>');
+    bindPlaceAtlasContent(sheetInnerEl);
     // PC では full-width だと地図を覆い隠して圧迫感が出るので area モード専用の狭幅版に。
     showAreaBottomSheet();
+    requestPlaceAtlasForSelection(state.selectedPoint);
     if (!apiAreaSnapshotTemplate) return;
     var url = apiAreaSnapshotTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId));
     fetch(url, { credentials: 'same-origin' })
@@ -6654,7 +6835,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (!state.selectedPoint || state.selectedPoint.kind !== 'area' || state.selectedPoint.fieldId !== fieldId) return;
         state.selectedPoint.areaSnapshot = payload.snapshot;
         if (feature && !state.selectedPoint.areaFeature) state.selectedPoint.areaFeature = feature;
-        sheetInnerEl.innerHTML = renderAreaSheet(payload.snapshot);
+        sheetInnerEl.innerHTML = renderPlaceAtlasContent(state.selectedPoint, renderAreaSheet(payload.snapshot));
+        bindPlaceAtlasContent(sheetInnerEl);
         hydrateAreaGuideStopControls(sheetInnerEl);
       })
       .catch(function () { /* noop */ });
@@ -10093,6 +10275,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 }
 
 export const MAP_EXPLORER_STYLES = `
+  ${MAP_PLACE_ATLAS_PROFILE_STYLES}
   .site-header {
     background: rgba(249,255,254,.9);
   }
@@ -12149,7 +12332,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-bottom-sheet--detail[data-snap="peek"] .me-site-brief-loop-grid {
     margin-bottom: 0;
   }
-  .me-bottom-close { position: absolute; right: 10px; top: 10px; width: 30px; height: 30px; border-radius: 999px; background: rgba(15,23,42,.06); border: 0; color: #475569; font-size: 18px; cursor: pointer; }
+  .me-bottom-close { position: absolute; right: 8px; top: 8px; width: 44px; height: 44px; padding: 0; border-radius: 999px; background: rgba(15,23,42,.06); border: 0; color: #475569; font-size: 18px; cursor: pointer; }
   .me-bottom-photo { width: 100%; max-height: 220px; object-fit: cover; border-radius: 16px 16px 0 0; margin-bottom: 0; }
   .me-bottom-meta { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; margin-top: 10px; }
   .me-bottom-meta strong { font-size: 18px; font-weight: 800; color: #0f172a; }

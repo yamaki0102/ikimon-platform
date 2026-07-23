@@ -62,6 +62,64 @@ test("public map observations expose list items instead of point features", asyn
   }
 });
 
+test("place atlas profile route validates stable references instead of accepting raw coordinates", async () => {
+  const app = buildApp();
+  try {
+    for (const url of [
+      "/api/v1/map/place-profile",
+      "/api/v1/map/place-profile?kind=point&lat=34.9702&lng=138.3805",
+      "/api/v1/map/place-profile?kind=osm_area&entity_key=osm:way:999&osm_type=way&osm_id=125727939",
+      "/api/v1/map/place-profile?kind=public_cell&cell_id=cell:91,138.38",
+    ]) {
+      const response = await app.inject({ method: "GET", url });
+      assert.equal(response.statusCode, 400, url);
+      assert.deepEqual(response.json(), { error: "invalid_place_ref" });
+      assert.equal(response.headers["cache-control"], "no-store");
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test("public-cell place atlas route returns a versioned privacy-safe profile", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/map/place-profile?kind=public_cell&cell_id=1000:0:0",
+    });
+
+    assert.equal(response.statusCode, 200);
+    const payload = response.json() as Record<string, unknown>;
+    const profile = payload.profile as Record<string, unknown>;
+    assert.equal(profile.version, 1);
+    assert.equal(response.headers["x-ikimon-profile-version"], "place_atlas_profile/v1");
+    assert.match(String(response.headers["cache-control"]), /^public, max-age=60/);
+    assert.ok(!JSON.stringify(profile).includes("exactLatitude"));
+    assert.ok(!JSON.stringify(profile).includes("exactLongitude"));
+    assert.ok(!JSON.stringify(profile).includes("\"lat\""));
+    assert.ok(!JSON.stringify(profile).includes("\"lng\""));
+    assert.equal((profile.publication as { locationMode: string }).locationMode, "public_cell");
+  } finally {
+    await app.close();
+  }
+});
+
+test("place atlas route isolates not-found and adapter failures from the map response contract", async () => {
+  const source = await readFile(new URL("./mapApi.ts", import.meta.url), "utf8");
+  const routeStart = source.indexOf('app.get("/api/v1/map/place-profile"');
+  const routeEnd = source.indexOf('app.get("/api/v1/map/coverage"', routeStart);
+  const placeProfileRoute = source.slice(routeStart, routeEnd);
+
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  assert.match(placeProfileRoute, /place_not_found/);
+  assert.match(placeProfileRoute, /place_profile_unavailable/);
+  assert.match(placeProfileRoute, /retryable:\s*true/);
+  assert.match(placeProfileRoute, /place_atlas_profile_failed/);
+  assert.match(placeProfileRoute, /stale-while-revalidate=300/);
+  assert.doesNotMatch(placeProfileRoute, /q\.lat|q\.lng/);
+});
+
 test("area polygon route logs high zoom empty viewport diagnostics", async () => {
   const source = await readFile(new URL("./mapApi.ts", import.meta.url), "utf8");
 

@@ -1,0 +1,7 @@
+﻿{
+    "task_id":  "map-place-atlas-mvp-20260723-r2",
+    "status":  "complete",
+    "claude_model":  "claude-opus-4-8",
+    "gemini_model":  "gemini-3.5-flash",
+    "adoption_status":  "fixes_applied_pending_final_rereview"
+}

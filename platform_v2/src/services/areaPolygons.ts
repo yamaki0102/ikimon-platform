@@ -718,6 +718,106 @@ type LiveOsmFetchResult = {
   error?: string;
 };
 
+export type ResolvedOsmArea = {
+  entityKey: string;
+  osmType: "way" | "relation";
+  osmId: number;
+  name: string;
+  source: "osm_park" | "school";
+  sourceLabel: string;
+  access: string;
+  center: { lat: number; lng: number };
+  geometry: Record<string, unknown>;
+};
+
+const resolvedOsmAreaCache = new Map<string, { expiresAt: number; value: ResolvedOsmArea | null }>();
+
+function directOsmAreaQuery(osmType: "way" | "relation", osmId: number): string {
+  return `[out:json][timeout:8];${osmType}(${osmId});out tags geom;`;
+}
+
+function resolvedOsmAreaFromFeature(
+  feature: AreaPolygonFeature,
+  osmType: "way" | "relation",
+  osmId: number,
+): ResolvedOsmArea | null {
+  const center = feature.properties.center;
+  if (!Array.isArray(center) || center.length < 2) return null;
+  const lng = Number(center[0]);
+  const lat = Number(center[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (feature.properties.source !== "osm_park" && feature.properties.source !== "school") return null;
+  if (!feature.geometry) return null;
+  return {
+    entityKey: `osm:${osmType}:${osmId}`,
+    osmType,
+    osmId,
+    name: feature.properties.name,
+    source: feature.properties.source,
+    sourceLabel: feature.properties.source_label,
+    access: feature.properties.access ?? "",
+    center: { lat, lng },
+    geometry: feature.geometry,
+  };
+}
+
+export async function resolveOsmAreaByRef(
+  osmType: "way" | "relation",
+  osmId: number,
+): Promise<ResolvedOsmArea | null> {
+  if ((osmType !== "way" && osmType !== "relation") || !Number.isSafeInteger(osmId) || osmId <= 0) return null;
+  const key = `${osmType}:${osmId}`;
+  const now = Date.now();
+  const cached = resolvedOsmAreaCache.get(key);
+  if (cached && cached.expiresAt > now) return cached.value;
+
+  const configuredEndpoint = process.env.OVERPASS_API_URL?.trim();
+  const endpoints = Array.from(new Set([
+    ...(configuredEndpoint ? [configuredEndpoint] : []),
+    ...LIVE_OSM_ENDPOINTS,
+  ]));
+  const body = `data=${encodeURIComponent(directOsmAreaQuery(osmType, osmId))}`;
+  for (const endpoint of endpoints) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), LIVE_OSM_TIMEOUT_MS);
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
+          "X-Ikimon-Client": "ikimon.life-place-atlas",
+        },
+        body,
+        signal: controller.signal,
+      });
+      if (!response.ok) continue;
+      const json = await response.json() as { elements?: OverpassElement[] };
+      const matching = (json.elements ?? []).find((element) =>
+        element.type === osmType && element.id === osmId
+      );
+      const feature = matching ? liveElementToFeature(matching) : null;
+      const resolved = feature ? resolvedOsmAreaFromFeature(feature, osmType, osmId) : null;
+      resolvedOsmAreaCache.set(key, {
+        expiresAt: now + (resolved ? 5 * 60_000 : 60_000),
+        value: resolved,
+      });
+      while (resolvedOsmAreaCache.size > 100) {
+        const oldest = resolvedOsmAreaCache.keys().next().value;
+        if (!oldest) break;
+        resolvedOsmAreaCache.delete(oldest);
+      }
+      return resolved;
+    } catch {
+      // Try the next bounded endpoint. The map remains usable when OSM is down.
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  resolvedOsmAreaCache.set(key, { expiresAt: now + 60_000, value: null });
+  return null;
+}
+
 function tileForLngLat(lng: number, lat: number, z = LIVE_OSM_TILE_Z): { x: number; y: number } {
   const clampedLat = Math.max(-85.05112878, Math.min(85.05112878, lat));
   const n = 2 ** z;

@@ -52,6 +52,7 @@ const explicitAllowlist = [
   "platform_v2/src/ui/landingTop.ts",
   "platform_v2/src/ui/mapExplorer.ts",
   "platform_v2/src/ui/mapMini.ts",
+  "platform_v2/src/ui/mapPlaceAtlasProfile.ts",
   "platform_v2/src/ui/mentorStrip.ts",
   "platform_v2/src/ui/observationCard.ts",
   "platform_v2/src/ui/observationEventCheckin.ts",

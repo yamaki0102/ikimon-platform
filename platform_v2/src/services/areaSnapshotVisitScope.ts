@@ -12,6 +12,11 @@ type CandidateVisitRow = {
   resolved_match: boolean | null;
 };
 
+export type AreaSnapshotScopeField = Pick<
+  ObservationField,
+  "fieldId" | "lat" | "lng" | "radiusM" | "polygon"
+>;
+
 const AREA_SNAPSHOT_VISIT_SCOPE_SQL = `select v.visit_id,
             v.point_latitude::text as point_latitude,
             v.point_longitude::text as point_longitude,
@@ -30,7 +35,7 @@ const AREA_SNAPSHOT_VISIT_SCOPE_SQL = `select v.visit_id,
         and ($7::timestamptz is null or v.observed_at >= $7::timestamptz)
         and ($8::timestamptz is null or v.observed_at < $8::timestamptz)`;
 
-function radiusBbox(field: Pick<ObservationField, "lat" | "lng" | "radiusM">): {
+function radiusBbox(field: Pick<AreaSnapshotScopeField, "lat" | "lng" | "radiusM">): {
   minLat: number; maxLat: number; minLng: number; maxLng: number;
 } {
   const radius = Math.max(50, Math.min(field.radiusM || 1000, 200000));
@@ -44,7 +49,7 @@ function radiusBbox(field: Pick<ObservationField, "lat" | "lng" | "radiusM">): {
   };
 }
 
-function fieldSearchBbox(field: ObservationField): {
+function fieldSearchBbox(field: AreaSnapshotScopeField): {
   minLat: number; maxLat: number; minLng: number; maxLng: number;
 } {
   const polygonBbox = computeBbox(field.polygon);
@@ -52,7 +57,7 @@ function fieldSearchBbox(field: ObservationField): {
 }
 
 export function visitMatchesAreaScope(
-  field: Pick<ObservationField, "fieldId" | "lat" | "lng" | "radiusM" | "polygon">,
+  field: AreaSnapshotScopeField,
   visit: Pick<CandidateVisitRow, "point_latitude" | "point_longitude" | "source_field_id" | "resolved_match">,
 ): boolean {
   const lat = Number(visit.point_latitude);
@@ -72,7 +77,7 @@ export function visitMatchesAreaScope(
 }
 
 export async function loadAreaSnapshotVisitIds(
-  field: ObservationField,
+  field: AreaSnapshotScopeField,
   placeId: string | null,
   options: { observedFrom?: string | null; observedTo?: string | null } = {},
 ): Promise<string[]> {

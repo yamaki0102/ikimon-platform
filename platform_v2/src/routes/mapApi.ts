@@ -17,6 +17,8 @@ import { getSiteBrief, type BriefLang } from "../services/siteBrief.js";
 import { listAreaPolygonsForBbox, flushAreaPolygonCache, type AreaPolygonSource } from "../services/areaPolygons.js";
 import { listMapGuideSpotsForBbox } from "../services/mapGuideSpots.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
+import { normalizePlaceAtlasRef, PLACE_ATLAS_PROFILE_VERSION } from "../services/placeAtlasContract.js";
+import { getPlaceAtlasProfile } from "../services/placeAtlasProfile.js";
 
 const JMA_NOWCAST_TARGET_N1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
 const JMA_NOWCAST_TARGET_N2 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json";
@@ -450,6 +452,51 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "no-store");
     return collection;
+  });
+
+  app.get("/api/v1/map/place-profile", async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const placeRef = normalizePlaceAtlasRef(q);
+    if (!placeRef) {
+      reply
+        .code(400)
+        .type("application/json; charset=utf-8")
+        .header("Cache-Control", "no-store");
+      return { error: "invalid_place_ref" };
+    }
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const viewerUserId = session?.userId && !session.banned ? session.userId : null;
+    try {
+      const profile = await getPlaceAtlasProfile(placeRef, { viewerUserId });
+      if (!profile) {
+        reply
+          .code(404)
+          .type("application/json; charset=utf-8")
+          .header("Cache-Control", "no-store");
+        return { error: "place_not_found" };
+      }
+      reply
+        .type("application/json; charset=utf-8")
+        .header("Cache-Control", viewerUserId
+          ? "private, no-store"
+          : "public, max-age=60, stale-while-revalidate=300")
+        .header("Vary", "Cookie")
+        .header("X-Ikimon-Profile-Version", PLACE_ATLAS_PROFILE_VERSION);
+      return { profile };
+    } catch (error) {
+      request.log.warn({
+        err: error,
+        placeKind: placeRef.kind,
+      }, "place_atlas_profile_failed");
+      reply
+        .code(503)
+        .type("application/json; charset=utf-8")
+        .header("Cache-Control", "no-store");
+      return {
+        error: "place_profile_unavailable",
+        retryable: true,
+      };
+    }
   });
 
   app.get("/api/v1/map/coverage", async (request, reply) => {

@@ -7791,6 +7791,29 @@ test("media processing refreshes the public read model even when queue jobs run 
   assert.equal(obs.publicMapSnapshotMeta?.refreshed_by, "readmodel_refresh");
 });
 
+test("place atlas route rejects unstable refs and contains adapter failures", async () => {
+  const { env } = createEnv();
+  const invalidResponse = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/map/place-profile?lat=34.9702&lng=138.3805"
+  ), env);
+  assert.equal(invalidResponse.status, 400);
+  assert.deepEqual(await invalidResponse.json(), {
+    error: "invalid_place_ref",
+    supportedKinds: ["field", "osm_area", "public_cell"]
+  });
+  assert.equal(invalidResponse.headers.get("cache-control"), "no-store");
+
+  const unavailableResponse = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/map/place-profile?kind=public_cell&cellId=cell%3A34.97%2C138.38"
+  ), env);
+  const unavailablePayload = await unavailableResponse.json() as any;
+  assert.equal(unavailableResponse.status, 503);
+  assert.equal(unavailablePayload.error, "place_profile_unavailable");
+  assert.equal(unavailablePayload.retryable, true);
+  assert.equal(unavailableResponse.headers.get("cache-control"), "no-store");
+  assert.equal(unavailableResponse.headers.get("x-ikimon-cloudflare-native"), "map-place-profile");
+});
+
 test("v1 public map read routes expose current shell contracts without exact coordinates", async () => {
   const { env, queue } = createEnv();
   const schoolFieldId = "school-map-contract";
