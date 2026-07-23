@@ -16,6 +16,7 @@ type FixtureData = {
   visits?: Array<Record<string, unknown>>;
   photos?: Array<Record<string, unknown>>;
   themes?: Array<Record<string, unknown>>;
+  membershipRecords?: Array<Record<string, unknown>>;
   registeredPlace?: Record<string, unknown> | null;
   placeBoundary?: Record<string, unknown> | null;
   placeAliases?: Array<Record<string, unknown>>;
@@ -59,6 +60,19 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
   }
 
   async all<T>(): Promise<{ results: T[] }> {
+    if (this.query.includes("FROM record_place_memberships m")) {
+      assert.doesNotMatch(this.query, /exact_lat|exact_lng|user_id/);
+      assert.match(this.query, /public_precision = 'place'/);
+      assert.match(this.query, /public_visibility/);
+      assert.match(this.query, /observation_data_rights/);
+      assert.match(this.query, /public_summary/);
+      assert.match(this.query, /external_export/);
+      const requestedPlaceId = String(this.values[0] ?? "");
+      return {
+        results: (this.data.membershipRecords ?? [])
+          .filter((row) => String(row.place_id ?? requestedPlaceId) === requestedPlaceId) as T[],
+      };
+    }
     if (this.query.includes("public_map_snapshot_records_v1")) {
       this.data.snapshotBindCounts?.push(this.values.length);
       const requestedCells = new Set(this.values.slice(1, -1).map(String));
@@ -649,6 +663,132 @@ test("verified registry boundary keeps the profile available during an Overpass 
   assert.equal(profile.publication.locationMode, "osm_area");
   assert.ok(profile.publication.suppressedSections.includes("contribution_cta"));
   assert.doesNotMatch(JSON.stringify(profile), /exact_lat|exact_lng/);
+});
+
+test("registered Place reuses confirmed historic Records without Occurrence overcount or candidate leakage", async () => {
+  const fixtures = tokiwaFixtures(null);
+  fixtures.registeredPlace = {
+    place_id: "plc_1dac5b52233720ee",
+    canonical_name: "JUNGLIA OKINAWA",
+    locality_label: "沖縄県国頭郡今帰仁村",
+    place_kind: "theme_park",
+    verification_status: "verified",
+    official_status: "official",
+    public_summary: "公式情報と公開Recordを束ねた場所図鑑です。",
+    recording_policy: "permission_required",
+    public_location_mode: "place",
+    contribution_cta_mode: "suppressed",
+    official_rule_url: "https://junglia.jp/terms/park-termsofuse",
+    policy_verification_status: "verified",
+  };
+  fixtures.placeBoundary = {
+    boundary_geojson: JSON.stringify(TOKIWA_GEOMETRY),
+    confidence: 0.9,
+    precision_kind: "exact",
+    bbox_west: 138.376,
+    bbox_south: 34.966,
+    bbox_east: 138.385,
+    bbox_north: 34.975,
+  };
+  fixtures.membershipRecords = [
+    {
+      place_id: "plc_1dac5b52233720ee",
+      occurrence_id: "historic-1-a",
+      visit_id: "historic-1",
+      observed_at: "2026-07-19T00:00:00Z",
+      taxon_group: "species",
+      display_name: "過去Record 1",
+      is_ai_candidate: 0,
+      is_awaiting_id: 0,
+      photo_url: null,
+      cell_1000: "",
+      asset_count: 2,
+      membership_state: "confirmed",
+      removed_at: null,
+    },
+    {
+      place_id: "plc_1dac5b52233720ee",
+      occurrence_id: "historic-1-b",
+      visit_id: "historic-1",
+      observed_at: "2026-07-19T00:00:00Z",
+      taxon_group: "species",
+      display_name: "同じRecord内の別Occurrence",
+      is_ai_candidate: 0,
+      is_awaiting_id: 0,
+      photo_url: null,
+      cell_1000: "",
+      asset_count: 2,
+      membership_state: "confirmed",
+      removed_at: null,
+    },
+    {
+      place_id: "plc_1dac5b52233720ee",
+      occurrence_id: "historic-2-a",
+      visit_id: "historic-2",
+      observed_at: "2026-07-18T00:00:00Z",
+      taxon_group: "species",
+      display_name: "過去Record 2",
+      is_ai_candidate: 0,
+      is_awaiting_id: 0,
+      photo_url: null,
+      cell_1000: "",
+      asset_count: 1,
+      membership_state: "confirmed",
+      removed_at: null,
+    },
+    {
+      place_id: "plc_1dac5b52233720ee",
+      occurrence_id: "historic-3-a",
+      visit_id: "historic-3",
+      observed_at: "2026-07-17T00:00:00Z",
+      taxon_group: "species",
+      display_name: "過去Record 3",
+      is_ai_candidate: 0,
+      is_awaiting_id: 0,
+      photo_url: null,
+      cell_1000: "",
+      asset_count: 1,
+      membership_state: "confirmed",
+      removed_at: null,
+    },
+    {
+      place_id: "plc_1dac5b52233720ee",
+      occurrence_id: "occ:record-1:0",
+      visit_id: "record-1",
+      observed_at: "2026-07-20T10:00:00.000Z",
+      taxon_group: "bird",
+      display_name: "候補Record",
+      is_ai_candidate: 0,
+      is_awaiting_id: 0,
+      photo_url: null,
+      cell_1000: "",
+      asset_count: 1,
+      membership_state: "candidate",
+      removed_at: null,
+    },
+  ];
+
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: {
+      kind: "osm_area",
+      entityKey: "osm:way:1281984233",
+      osmType: "way",
+      osmId: 1281984233,
+    },
+    fetchFn: async () => {
+      throw new Error("registered boundary must avoid Overpass");
+    },
+    generatedAt: "2026-07-23T00:00:00Z",
+  });
+
+  assert.ok(profile);
+  assert.equal(profile.summary.recordCount, 5);
+  assert.match(JSON.stringify(profile), /過去Record 1/);
+  assert.doesNotMatch(JSON.stringify(profile), /同じRecord内の別Occurrence/);
+  assert.doesNotMatch(JSON.stringify(profile), /候補Record/);
+  assert.ok(profile.provenance.sources.includes("record_place_memberships"));
+  assert.doesNotMatch(JSON.stringify(profile), /exact_lat|exact_lng|user_id/);
 });
 
 test("generic OSM schools suppress direct contribution", async () => {
