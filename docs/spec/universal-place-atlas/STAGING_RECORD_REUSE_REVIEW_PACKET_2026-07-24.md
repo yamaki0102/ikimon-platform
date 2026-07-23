@@ -5,6 +5,7 @@
 - Repository: `yamaki0102/ikimon-platform`
 - Base SHA: `31e3e46e1c76aa3ccf3c6383ed72e31cc961608a`
 - Target commit: `02d77f558c39452dd69b676578b3cc36758cae2a`
+- Post-review integration base: `a4561c003f24634dc2c28d9daf900b560b809313`
 - Draft PR: `#1434`
 - Runtime implementation:
   `platform_v2/cloudflare_shadow/src/placeAtlasProfileNative.ts`
@@ -125,7 +126,10 @@ Canary breakdown from the privacy-safe summary:
 - Focused final tests: 21 pass, 0 fail.
 - Final platform typecheck: pass.
 - Final platform build: pass.
-- Final platform Node tests: 1,410 pass, 0 fail.
+- Target platform Node tests: 1,410 pass, 0 fail.
+- Post-`origin/main` merge platform Node tests: 1,416 pass, 0 fail.
+- Post-`origin/main` merge Worker tests: 403 pass, 0 fail.
+- Post-`origin/main` merge typecheck/build: pass.
 - Staging D1 query-plan verification:
   - membership lookup uses the Place index, visit primary-key index,
     rights primary-key index, and Occurrence visit index;
