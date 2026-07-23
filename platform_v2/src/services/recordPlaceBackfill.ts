@@ -263,7 +263,7 @@ export function buildD1RecordPlaceBackfillSql(report: RecordPlaceBackfillReport)
         WHERE record_id = ${sqlText(recordId)}
           AND calculation_version = ${sqlText(report.calculationVersion)}
           AND reviewed_state = 'unreviewed'
-          AND removed_at IS NULL;`,
+      AND removed_at IS NULL;`,
     );
   }
   for (const row of report.memberships) {
