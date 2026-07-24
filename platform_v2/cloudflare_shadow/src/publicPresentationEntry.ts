@@ -1,5 +1,6 @@
 import baseWorker from "./index";
 import { enforceCameraFirstHomeCta } from "./cameraFirstHomeCta";
+import { enhancePostCaptureValueLoop } from "./postCaptureValueLoopPatch";
 import { polishPublicHomeUx } from "./publicHomeUxPolish";
 import { patchPublicHomePresentation } from "./publicPresentationPatch";
 
@@ -15,6 +16,7 @@ export default {
     const response = await delegatedWorker.fetch.call(delegatedWorker, request, env, ctx);
     const presented = await patchPublicHomePresentation(request, response);
     const cameraFirst = await enforceCameraFirstHomeCta(request, presented);
-    return polishPublicHomeUx(request, cameraFirst);
+    const polished = await polishPublicHomeUx(request, cameraFirst);
+    return enhancePostCaptureValueLoop(request, polished);
   },
 };
