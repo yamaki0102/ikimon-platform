@@ -84,6 +84,41 @@ test("state split worker injects owner data into the actual canonical Home rende
   assert.match(injected, /場所から見つける/);
 });
 
+test("state split worker preserves the curated guest hero instead of promoting the latest public photo", async () => {
+  const strings = getStrings("ja");
+  const rendered = renderLandingTopSections({
+    basePath: "",
+    lang: "ja",
+    copy: strings.landing,
+    fieldLoop: strings.fieldLoop,
+    isLoggedIn: false,
+    snapshot: {
+      viewerUserId: null,
+      stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
+      feed: [],
+      myFeed: [],
+      myPlaces: [],
+      nearbyFields: [],
+      nearbyEvents: [],
+      mapPreviewCells: [],
+      ambient: [],
+      habit: null,
+      dailyDashboard: null,
+    },
+  });
+  const canonicalHtml = `<!doctype html><html lang="ja"><head></head><body>${rendered.heroHtml}${rendered.dailyDashboardHtml}</body></html>`;
+  const injected = await injectStateSplitHome(
+    canonicalHtml,
+    null,
+    new URL("https://staging.ikimon.life/ja/"),
+    mockEnv(),
+  );
+
+  assert.match(injected, /\/assets\/img\/landing\/home-community-hero\.webp/);
+  assert.match(injected, /home-generated-badge">イメージ</);
+  assert.doesNotMatch(injected, /\/media\/derived\/public%2Fpublic-1\.webp/);
+});
+
 test("state split worker turns owner history into a memory-first Home with a place continuation", async () => {
   const html = await injectStateSplitHome(template, { userId: "viewer", banned: false } as never, new URL("https://staging.ikimon.life/ja/"), mockEnv());
   assert.match(html, /data-home-auth-state="member"/);
@@ -97,9 +132,6 @@ test("state split worker turns owner history into a memory-first Home with a pla
   assert.doesNotMatch(html, /写真からわかったこと|カワセミ かもしれません|近くで残された記録/);
   assert.match(html, /場所から見つける/);
   assert.match(html, /href="\/ja\/map\?tab=places"/);
-  assert.match(html, /home-guest-hero has-visual/);
-  assert.match(html, /home-guest-hero-visual/);
-  assert.match(html, /fetchpriority="high"/);
   const member = html.slice(html.indexOf('data-home-view="member"'));
   assert.equal((member.match(/data-home-record-id="owner-latest"/g) || []).length, 1);
   assert.equal((member.match(/data-home-record-id="owner-discovery"/g) || []).length, 1);
