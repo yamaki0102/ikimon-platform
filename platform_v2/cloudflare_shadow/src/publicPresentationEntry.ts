@@ -1,5 +1,6 @@
 import baseWorker from "./index";
 import { enforceCameraFirstHomeCta } from "./cameraFirstHomeCta";
+import { enforcePostCaptureValueLoopCompatibility } from "./postCaptureValueLoopCompatibilityPatch";
 import { enhancePostCaptureValueLoop } from "./postCaptureValueLoopPatch";
 import { polishPublicHomeUx } from "./publicHomeUxPolish";
 import { patchPublicHomePresentation } from "./publicPresentationPatch";
@@ -17,6 +18,7 @@ export default {
     const presented = await patchPublicHomePresentation(request, response);
     const cameraFirst = await enforceCameraFirstHomeCta(request, presented);
     const polished = await polishPublicHomeUx(request, cameraFirst);
-    return enhancePostCaptureValueLoop(request, polished);
+    const valueLoop = await enhancePostCaptureValueLoop(request, polished);
+    return enforcePostCaptureValueLoopCompatibility(request, valueLoop);
   },
 };
