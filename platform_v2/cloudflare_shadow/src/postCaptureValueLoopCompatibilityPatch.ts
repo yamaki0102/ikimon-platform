@@ -177,8 +177,10 @@ const INJECTED_SCRIPT = String.raw`
     var panel = document.querySelector('.of-panel');
     var note = panel && panel.querySelector('.of-note');
     var summary = panel && panel.querySelector('.of-summary');
-    if (panel && note && summary) panel.insertBefore(summary, note);
-    if (summary && !isCaptureReturn() && summary.parentNode) {
+    if (panel && note && summary && note.previousElementSibling !== summary) {
+      panel.insertBefore(summary, note);
+    }
+    if (summary && !isCaptureReturn() && summary.nextElementSibling !== enhanced) {
       summary.insertAdjacentElement('afterend', enhanced);
     }
   };
