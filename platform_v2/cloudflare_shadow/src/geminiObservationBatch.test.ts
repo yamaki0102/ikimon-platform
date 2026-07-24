@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   GEMINI_ANALYSIS_MODEL,
+  GEMINI_OBSERVATION_RULE_VERSION,
   GEMINI_PRIMARY_MODEL,
   GEMINI_SPECIALIST_MODEL,
   GEMINI_SUMMARY_MODEL,
@@ -28,6 +29,7 @@ const images = [
 ];
 
 test("production model stack uses the measured exact Flash-Lite IDs and every image", () => {
+  assert.equal(GEMINI_OBSERVATION_RULE_VERSION, "record-observation-gemini-batch/v3");
   assert.equal(GEMINI_PRIMARY_MODEL, "gemini-3.5-flash-lite");
   assert.equal(GEMINI_ANALYSIS_MODEL, "gemini-3.1-flash-lite");
   assert.equal(GEMINI_SUMMARY_MODEL, "gemini-3.1-flash-lite");
