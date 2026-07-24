@@ -23797,21 +23797,41 @@ async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env):
   }
 
   const settings = /\/profile\/settings$/.test(url.pathname);
-  const body = request.method === "HEAD"
-    ? null
-    : renderCloudflareProfileHtml(session, {
-      lang: publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja",
-      settings
-    });
+  const options = {
+    lang: publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja",
+    settings
+  };
+  const originalResponse = await getOriginalUiHtml(request, url, env);
+  const headers = new Headers(originalResponse.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-store");
+  headers.set("vary", "cookie, authorization");
+  headers.set("x-ikimon-cloudflare-native", "profile-session");
 
-  return new Response(body, {
-    headers: {
-      "content-type": "text/html; charset=utf-8",
-      "cache-control": "no-store",
-      "vary": "cookie, authorization",
-      "x-ikimon-cloudflare-native": "profile-session"
-    }
-  });
+  if (request.method === "HEAD") {
+    return new Response(null, { status: originalResponse.status, headers });
+  }
+
+  const originalHtml = await originalResponse.text();
+  const cloudflareHtml = renderCloudflareProfileHtml(session, options);
+  const body = injectCloudflareProfileIntoOriginalShell(originalHtml, cloudflareHtml);
+  return new Response(body, { status: originalResponse.status, headers });
+}
+
+function injectCloudflareProfileIntoOriginalShell(originalHtml: string, cloudflareHtml: string): string {
+  const originalMain = originalHtml.match(/<main\b[\s\S]*?<\/main>/i)?.[0] ?? "";
+  const cloudflareMain = cloudflareHtml.match(/<main\b[\s\S]*?<\/main>/i)?.[0] ?? "";
+  const cloudflareStyle = cloudflareHtml.match(/<style>[\s\S]*?<\/style>/i)?.[0] ?? "";
+  const cloudflareTitle = cloudflareHtml.match(/<title>[\s\S]*?<\/title>/i)?.[0] ?? "";
+  if (!originalMain || !cloudflareMain || !cloudflareStyle || !/<\/head>/i.test(originalHtml)) {
+    return cloudflareHtml;
+  }
+
+  return originalHtml
+    .replace(/<title>[\s\S]*?<\/title>/i, cloudflareTitle)
+    .replace(/<\/head>/i, `${cloudflareStyle}\n</head>`)
+    .replace(/<body(?![^>]*\bdata-cloudflare-profile=)([^>]*)>/i, '<body$1 data-cloudflare-profile="signed-in">')
+    .replace(/<main\b[\s\S]*?<\/main>/i, cloudflareMain);
 }
 
 function renderCloudflareProfileHtml(
@@ -23997,7 +24017,7 @@ function renderCloudflareProfileHtml(
 </head>
 <body data-cloudflare-profile="signed-in">
   ${renderCloudflareProfileHeader(prefix)}
-  <main class="cf-profile-shell">
+  <main id="main-content" class="cf-profile-shell" tabindex="-1">
     ${settingsBody}
   </main>
 </body>

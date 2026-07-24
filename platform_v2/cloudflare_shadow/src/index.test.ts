@@ -22861,10 +22861,36 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
-  await env.ASSET_BUCKET.put("original-ui/html/ja/profile.html", "<!doctype html><title>materialized profile</title>", {
+  const materializedProfileShell = (page: string) => `<!doctype html>
+    <html lang="ja">
+      <head><title>${page}</title></head>
+      <body>
+        <header class="site-header">
+          <a class="brand" href="/ja/" data-kpi-event="logo_home_tap">ikimon</a>
+          <nav class="site-core-nav" aria-label="主な操作">
+            <button type="button" data-global-record-trigger="photo">撮る</button>
+            <a href="/ja/map?tab=places">場所</a>
+            <a href="/ja/records?view=mine">記録</a>
+            <a href="/ja/profile">自分</a>
+          </nav>
+        </header>
+        <main id="main-content"><h1>${page}</h1></main>
+        <div data-global-record-launcher>
+          <button type="button" data-global-record-trigger="photo">撮る</button>
+          <button type="button" data-global-record-gallery>端末の写真から選ぶ</button>
+        </div>
+        <nav data-global-bottom-nav>
+          <button type="button" data-global-record-trigger="photo">撮る</button>
+          <a href="/ja/map?tab=places">場所</a>
+          <a href="/ja/records?view=mine">記録</a>
+          <a href="/ja/profile">自分</a>
+        </nav>
+      </body>
+    </html>`;
+  await env.ASSET_BUCKET.put("original-ui/html/ja/profile.html", materializedProfileShell("materialized profile"), {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
-  await env.ASSET_BUCKET.put("original-ui/html/ja/profile/settings.html", "<!doctype html><title>materialized settings</title>", {
+  await env.ASSET_BUCKET.put("original-ui/html/ja/profile/settings.html", materializedProfileShell("materialized settings"), {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
   await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><main><title>materialized records</title></main>", {
@@ -22917,9 +22943,13 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "profile-session", check.path);
         assert.match(body, /data-cloudflare-profile="signed-in"/, check.path);
         assert.match(body, /class="site-header"/, check.path);
-        assert.match(body, /class="site-header-inner"/, check.path);
-        assert.match(body, /href="\/ja\/profile" title="マイページ"/, check.path);
-        assert.match(body, /href="\/ja\/profile\/settings" title="設定"/, check.path);
+        assert.match(body, /class="site-core-nav"/, check.path);
+        assert.match(body, />撮る<\/button>[\s\S]*>場所<\/a>[\s\S]*>記録<\/a>[\s\S]*>自分<\/a>/, check.path);
+        assert.match(body, /data-global-bottom-nav/, check.path);
+        assert.match(body, /data-global-record-trigger="photo"/, check.path);
+        assert.match(body, /data-global-record-gallery>端末の写真から選ぶ/, check.path);
+        assert.doesNotMatch(body, /href="\/ja\/record"[^>]*>撮る/, check.path);
+        assert.match(body, /id="main-content" class="cf-profile-shell"/, check.path);
         assert.doesNotMatch(body, /cf-profile-header/, check.path);
         assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
         assert.doesNotMatch(body, /権限|ランク|admin|管理者|ログイン中/, check.path);
