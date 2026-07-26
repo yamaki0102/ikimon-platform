@@ -73,12 +73,17 @@ test("staging deploy cannot skip the UTSUROU runtime gate", async () => {
   assert.match(release, /APPLY_STAGING_MIGRATIONS.*false/);
 });
 
-test("runtime Playwright profile requires a fixed local Chromium executable", async () => {
+test("runtime Playwright profile is pinned and does not retain credential-bearing traces", async () => {
   const config = await source("playwright.utsurou-runtime.config.ts");
 
   assert.match(config, /PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is required/);
+  assert.match(config, /pinned to https:\/\/staging\.ikimon\.life/);
+  assert.match(config, /report must stay under platform_v2\/\.deploy/);
   assert.match(config, /serviceWorkers: "block"/);
   assert.match(config, /--no-sandbox/);
   assert.match(config, /--disable-dev-shm-usage/);
+  assert.match(config, /trace: "off"/);
+  assert.match(config, /video: "off"/);
+  assert.doesNotMatch(config, /retain-on-failure/);
   assert.match(config, /name: "chromium"/);
 });
