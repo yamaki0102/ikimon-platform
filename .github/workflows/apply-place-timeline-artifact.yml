@@ -1,6 +1,9 @@
 name: Temporary apply Place Atlas timeline artifact
 
 on:
+  push:
+    branches:
+      - feat/place-atlas-timeline-ui
   pull_request:
     branches:
       - main
@@ -16,8 +19,10 @@ jobs:
   apply-verified-artifact:
     if: >-
       github.repository == 'yamaki0102/ikimon-platform' &&
-      github.event.pull_request.number == 1456 &&
-      github.event.pull_request.head.ref == 'feat/place-atlas-timeline-ui'
+      (
+        (github.event_name == 'push' && github.ref == 'refs/heads/feat/place-atlas-timeline-ui') ||
+        (github.event_name == 'pull_request' && github.event.pull_request.number == 1456 && github.event.pull_request.head.ref == 'feat/place-atlas-timeline-ui')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
