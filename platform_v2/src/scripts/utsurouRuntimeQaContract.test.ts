@@ -43,7 +43,7 @@ test("capture retry browser contract never writes through to staging APIs", asyn
   assert.match(spec, /retryable: true/);
   assert.match(spec, /record-media-retry-mode/);
   assert.match(spec, /data-record-success-cta/);
-  assert.match(spec, /visibility\]\[value="private"/);
+  assert.match(spec, /input\[name="visibility"\]\[value="private"\]/);
   assert.doesNotMatch(spec, /V2_PRIVILEGED_WRITE_API_KEY/);
   assert.doesNotMatch(spec, /CLOUDFLARE_API_TOKEN/);
 });
