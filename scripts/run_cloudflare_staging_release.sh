@@ -9,6 +9,7 @@ WORKER_DIR="${PLATFORM_DIR}/cloudflare_shadow"
 DEPLOY_STAGING="${DEPLOY_STAGING:-false}"
 TEST_PROFILE="${TEST_PROFILE:-quick}"
 BROWSER_QA="${BROWSER_QA:-none}"
+UTSUROU_RUNTIME_QA="${UTSUROU_RUNTIME_QA:-true}"
 SYNC_STAGING_WRITE_SECRET="${SYNC_STAGING_WRITE_SECRET:-false}"
 APPLY_STAGING_MIGRATIONS="${APPLY_STAGING_MIGRATIONS:-false}"
 PLAYWRIGHT_INSTALL_WITH_DEPS="${PLAYWRIGHT_INSTALL_WITH_DEPS:-true}"
@@ -20,6 +21,7 @@ SUMMARY_PATH="${REPORT_DIR}/staging-release-summary.json"
 case "${DEPLOY_STAGING}" in true|false) ;; *) echo "DEPLOY_STAGING must be true or false" >&2; exit 2 ;; esac
 case "${TEST_PROFILE}" in quick|full) ;; *) echo "TEST_PROFILE must be quick or full" >&2; exit 2 ;; esac
 case "${BROWSER_QA}" in none|targeted|full) ;; *) echo "BROWSER_QA must be none, targeted, or full" >&2; exit 2 ;; esac
+case "${UTSUROU_RUNTIME_QA}" in true|false) ;; *) echo "UTSUROU_RUNTIME_QA must be true or false" >&2; exit 2 ;; esac
 case "${SYNC_STAGING_WRITE_SECRET}" in true|false) ;; *) echo "SYNC_STAGING_WRITE_SECRET must be true or false" >&2; exit 2 ;; esac
 case "${APPLY_STAGING_MIGRATIONS}" in true|false) ;; *) echo "APPLY_STAGING_MIGRATIONS must be true or false" >&2; exit 2 ;; esac
 case "${PLAYWRIGHT_INSTALL_WITH_DEPS}" in true|false) ;; *) echo "PLAYWRIGHT_INSTALL_WITH_DEPS must be true or false" >&2; exit 2 ;; esac
@@ -47,9 +49,9 @@ write_summary() {
   local status="$1"
   local finished_at
   finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  node --input-type=module - "${SUMMARY_PATH}" "${status}" "${STARTED_AT}" "${finished_at}" "${GIT_SHA}" "${DEPLOY_STAGING}" "${TEST_PROFILE}" "${BROWSER_QA}" "${SYNC_STAGING_WRITE_SECRET}" "${APPLY_STAGING_MIGRATIONS}" <<'NODE'
+  node --input-type=module - "${SUMMARY_PATH}" "${status}" "${STARTED_AT}" "${finished_at}" "${GIT_SHA}" "${DEPLOY_STAGING}" "${TEST_PROFILE}" "${BROWSER_QA}" "${UTSUROU_RUNTIME_QA}" "${SYNC_STAGING_WRITE_SECRET}" "${APPLY_STAGING_MIGRATIONS}" <<'NODE'
 import fs from 'node:fs';
-const [path, status, startedAt, finishedAt, gitSha, deployStaging, testProfile, browserQa, syncSecret, applyMigrations] = process.argv.slice(2);
+const [path, status, startedAt, finishedAt, gitSha, deployStaging, testProfile, browserQa, utsurouRuntimeQa, syncSecret, applyMigrations] = process.argv.slice(2);
 fs.writeFileSync(path, `${JSON.stringify({
   schemaVersion: 'ikimon_cloudflare_staging_release/v1',
   status,
@@ -59,6 +61,7 @@ fs.writeFileSync(path, `${JSON.stringify({
   deployStaging: deployStaging === 'true',
   testProfile,
   browserQa,
+  utsurouRuntimeQa: utsurouRuntimeQa === 'true',
   syncStagingWriteSecret: syncSecret === 'true',
   applyStagingMigrations: applyMigrations === 'true',
   productionMutation: false,
@@ -150,6 +153,24 @@ echo "== Verify Cloudflare staging public routes =="
   grep -qi '^x-ikimon-cloudflare-materialized: original-ui-static-asset' staging-brand-icon.headers
 )
 
+if [[ "${UTSUROU_RUNTIME_QA}" == "true" ]]; then
+  echo "== Run exact-SHA UTSUROU Place Atlas and capture P0 runtime QA =="
+  CHROMIUM_EXECUTABLE="${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}"
+  if [[ -z "${CHROMIUM_EXECUTABLE}" ]]; then
+    CHROMIUM_EXECUTABLE="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+  fi
+  if [[ -z "${CHROMIUM_EXECUTABLE}" || ! -x "${CHROMIUM_EXECUTABLE}" ]]; then
+    echo "BLOCKED_CONFIG: a local Chromium executable is required for UTSUROU runtime QA." >&2
+    exit 2
+  fi
+  export STAGING_BASE_URL
+  export IKIMON_EXPECTED_GIT_SHA="${GIT_SHA}"
+  export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${CHROMIUM_EXECUTABLE}"
+  npm --prefix "${PLATFORM_DIR}" run e2e:staging:utsurou-runtime
+else
+  echo "== Skip UTSUROU runtime QA by explicit configuration =="
+fi
+
 if [[ "${BROWSER_QA}" != "none" ]]; then
   echo "== Install Playwright Chromium for requested browser QA =="
   if [[ "${PLAYWRIGHT_INSTALL_WITH_DEPS}" == "true" ]]; then
@@ -170,4 +191,4 @@ fi
 
 write_summary success
 trap - EXIT
-echo "Cloudflare staging release completed: browser_qa=${BROWSER_QA}."
+echo "Cloudflare staging release completed: browser_qa=${BROWSER_QA}; utsurou_runtime_qa=${UTSUROU_RUNTIME_QA}."
