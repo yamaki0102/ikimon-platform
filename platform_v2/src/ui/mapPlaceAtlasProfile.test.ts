@@ -125,6 +125,10 @@ test("timeline renders only the API projection in chronological order without id
   assert.match(html, /候補/);
   assert.match(html, /確認済み/);
   assert.match(html, />今を撮る</);
+  assert.match(html, /data-kpi-event="selected_place_cta_click"/);
+  assert.match(html, /data-kpi-action="map:place_atlas:timeline_revisit"/);
+  assert.match(html, /data-kpi-funnel="map_selected_place"/);
+  assert.match(html, /data-kpi-target="\/ja\/record"/);
   assert.doesNotMatch(html, /secret-old|secret-new|secret-owner|exactLat|evil\.test|javascript:bad/);
 });
 
