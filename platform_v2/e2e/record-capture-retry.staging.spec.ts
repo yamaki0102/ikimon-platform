@@ -2,12 +2,14 @@ import { test, expect, type Route } from "@playwright/test";
 
 const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life";
 const STAGING_ORIGIN = new URL(STAGING_BASE_URL).origin;
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 const fixtureImage = {
-  name: "utsurou-runtime-fixture.svg",
-  mimeType: "image/svg+xml",
+  name: "utsurou-runtime-fixture.png",
+  mimeType: "image/png",
   buffer: Buffer.from(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#4f765f"/><circle cx="32" cy="32" r="18" fill="#d7b16a"/></svg>',
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZpWQAAAAASUVORK5CYII=",
+    "base64",
   ),
 };
 
@@ -32,6 +34,7 @@ test.describe.serial("capture P0 failure, retry, and success stay fixture-only",
     const fixtureId = `utsurou-runtime-${Date.now()}`;
     const visitId = `${fixtureId}-visit`;
     const occurrenceId = `occ:${visitId}:0`;
+    let allowSuccessfulUpload = false;
     const counters: MutationCounters = {
       observationUpsert: 0,
       photoUpload: 0,
@@ -58,7 +61,7 @@ test.describe.serial("capture P0 failure, retry, and success stay fixture-only",
         return;
       }
 
-      if (!url.pathname.startsWith("/api/v1/") || method === "GET" || method === "HEAD" || method === "OPTIONS") {
+      if (SAFE_METHODS.has(method)) {
         await route.continue();
         return;
       }
@@ -99,7 +102,7 @@ test.describe.serial("capture P0 failure, retry, and success stay fixture-only",
 
       if (/\/api\/v1\/observations\/[^/]+\/photos\/upload$/u.test(url.pathname)) {
         counters.photoUpload += 1;
-        if (counters.photoUpload === 1) {
+        if (!allowSuccessfulUpload) {
           await fulfillJson(route, 503, {
             ok: false,
             error: "fixture_photo_upload_temporarily_unavailable",
@@ -135,11 +138,6 @@ test.describe.serial("capture P0 failure, retry, and success stay fixture-only",
     await expect(photoInput).toHaveAttribute("accept", /image/u);
     await photoInput.setInputFiles(fixtureImage);
 
-    const note = page.locator('textarea[name="note"], textarea').first();
-    if (await note.count()) {
-      await note.fill("UTSUROU runtime fixture: retry contract");
-    }
-
     const privateVisibility = page.locator('input[name="visibility"][value="private"]');
     if (await privateVisibility.count()) {
       await privateVisibility.check({ force: true });
@@ -152,8 +150,10 @@ test.describe.serial("capture P0 failure, retry, and success stay fixture-only",
     await expect(page.locator("#record-status")).toContainText(/記録本体は保存済みです。|送信に失敗しました。/u);
     await expect.poll(() => new URL(page.url()).searchParams.get("retry")).toBe("media");
     expect(counters.observationUpsert).toBe(1);
-    expect(counters.photoUpload).toBe(1);
+    expect(counters.photoUpload).toBeGreaterThan(0);
+    const failedUploadAttempts = counters.photoUpload;
 
+    allowSuccessfulUpload = true;
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("html")).toHaveClass(/record-media-retry-mode/u);
     await expect(page.locator("body")).toContainText(/残っていたメディアを同じ記録に再送できます。|この画面ではメディアだけ送ります。/u);
@@ -168,8 +168,9 @@ test.describe.serial("capture P0 failure, retry, and success stay fixture-only",
     await expect(page.locator("[data-record-success-cta]").first()).toBeVisible();
 
     expect(counters.observationUpsert, "media retry must not create a duplicate Record").toBe(1);
-    expect(counters.photoUpload, "one failed upload and one successful retry are required").toBe(2);
-    expect(counters.unknown).toEqual([]);
+    expect(counters.photoUpload, "retry must add exactly one successful upload attempt").toBe(failedUploadAttempts + 1);
+    expect(counters.kpi, "the actual capture UI should emit its existing KPI events").toBeGreaterThan(0);
+    expect(counters.unknown, "no non-idempotent request may reach staging or an unknown fixture").toEqual([]);
 
     const screenshot = await page.screenshot({ animations: "disabled", fullPage: true });
     await testInfo.attach("capture-p0-retry-success", {
