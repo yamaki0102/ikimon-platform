@@ -100,6 +100,27 @@ test("public-cell place atlas route returns a versioned privacy-safe profile", a
     assert.ok(!JSON.stringify(profile).includes("\"lat\""));
     assert.ok(!JSON.stringify(profile).includes("\"lng\""));
     assert.equal((profile.publication as { locationMode: string }).locationMode, "public_cell");
+    assert.ok(profile.timelineProjection && typeof profile.timelineProjection === "object");
+  } finally {
+    await app.close();
+  }
+});
+
+test("place atlas v1 and v2 add the same canonical timeline projection", async () => {
+  const app = buildApp();
+  try {
+    const baseUrl = "/api/v1/map/place-profile?kind=public_cell&cell_id=1000:0:0";
+    const [v1, v2] = await Promise.all([
+      app.inject({ method: "GET", url: baseUrl }),
+      app.inject({ method: "GET", url: `${baseUrl}&version=2` }),
+    ]);
+    assert.equal(v1.statusCode, 200);
+    assert.equal(v2.statusCode, 200);
+    const profileV1 = v1.json().profile as Record<string, unknown>;
+    const profileV2 = v2.json().profile as Record<string, unknown>;
+    assert.deepEqual(profileV2.timelineProjection, profileV1.timelineProjection);
+    assert.equal(profileV1.version, 1);
+    assert.equal(profileV2.version, 2);
   } finally {
     await app.close();
   }
@@ -117,6 +138,7 @@ test("place atlas route isolates not-found and adapter failures from the map res
   assert.match(placeProfileRoute, /retryable:\s*true/);
   assert.match(placeProfileRoute, /place_atlas_profile_failed/);
   assert.match(placeProfileRoute, /stale-while-revalidate=300/);
+  assert.match(placeProfileRoute, /buildPlaceAtlasTimelineProjection\(profile\)/);
   assert.doesNotMatch(placeProfileRoute, /q\.lat|q\.lng/);
 });
 
