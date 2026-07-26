@@ -28,6 +28,7 @@
     "e2e:staging:service-loop": "playwright test -c playwright.staging.config.ts e2e/service-loop.staging.spec.ts",
     "e2e:staging:record-funnel": "playwright test -c playwright.staging.config.ts e2e/record-funnel.staging.spec.ts",
     "e2e:staging:record-feedback-loop": "playwright test -c playwright.staging.config.ts e2e/record-feedback-loop.staging.spec.ts",
+    "e2e:staging:utsurou-runtime": "node scripts/runUtsurouRuntimeQa.mjs",
     "e2e:staging:renri-event": "playwright test -c playwright.staging.config.ts e2e/renri-science-adventure-journey.staging.spec.ts",
     "e2e:staging:map-performance": "playwright test -c playwright.staging.config.ts e2e/map-performance.staging.spec.ts",
     "e2e:staging:place-atlas-live": "playwright test -c playwright.staging.config.ts e2e/universal-place-atlas-live.manual.spec.ts",
@@ -129,7 +130,7 @@
     "generate:guide-hypothesis-improvements": "tsx src/scripts/generateGuideHypothesisPromptImprovements.ts",
     "postdeploy:guide-environment": "tsx src/scripts/runGuideEnvironmentPostDeploy.ts",
     "backfill:guide-non-biological-species": "tsx src/scripts/backfillGuideNonBiologicalSpecies.ts",
-    "export:guide-correction-eval": "tsx src/scripts/exportGuideCorrectionEval.ts",
+    "export:guide-correction-eval": "tsx src/scripts/exportGuideCorrectionEvalSet.ts",
     "export:guide-hypothesis-eval": "tsx src/scripts/exportGuideHypothesisEvalSet.ts",
     "rebuild:guide-environment-mesh": "tsx src/scripts/rebuildGuideEnvironmentMesh.ts"
   },
@@ -143,12 +144,11 @@
     "pg": "^8.16.3",
     "sharp": "^0.35.3",
     "stream-chain": "^3.6.1",
-    "stream-json": "^2.1.0"
+    "stream-json": "^1.9.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/node": "^24.6.1",
-    "@types/pg": "^8.15.5",
     "tsx": "^4.23.0",
     "typescript": "^5.9.3"
   }
