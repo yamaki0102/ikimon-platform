@@ -574,6 +574,8 @@ test("timeline single, empty, suppressed, CTA, and privacy states stay fail-clos
     { policy: { ...TOKIWA_PLACE_ATLAS_PROFILE.policy, recordingPolicy: "permission_required" } },
     { policy: { ...TOKIWA_PLACE_ATLAS_PROFILE.policy, contributionCtaMode: "suppressed" } },
     { publication: { ...TOKIWA_PLACE_ATLAS_PROFILE.publication, suppressedSections: ["direct_record_cta"] } },
+    { publication: { ...TOKIWA_PLACE_ATLAS_PROFILE.publication, status: "suppressed" }, hideTimeline: true },
+    { timelinePublicationStatus: "suppressed", hideTimeline: true },
   ]) {
     const profile = {
       ...TOKIWA_PLACE_ATLAS_PROFILE,
@@ -582,10 +584,15 @@ test("timeline single, empty, suppressed, CTA, and privacy states stay fail-clos
       timelineProjection: {
         ...baseTimeline,
         ...(mutation.recordingSuggestion ? { recordingSuggestion: mutation.recordingSuggestion } : {}),
+        ...(mutation.timelinePublicationStatus ? { publicationStatus: mutation.timelinePublicationStatus } : {}),
       },
     };
     const page = await openTokiwaPlaceAtlas(browser, viewport, profile);
-    await expect(page.locator(".me-place-atlas-timeline-cta")).toHaveCount(0);
+    if (mutation.hideTimeline) {
+      await expect(page.locator(".me-place-atlas-timeline")).toHaveCount(0);
+    } else {
+      await expect(page.locator(".me-place-atlas-timeline-cta")).toHaveCount(0);
+    }
     await page.context().close();
   }
 });

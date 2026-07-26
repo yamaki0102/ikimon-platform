@@ -139,6 +139,14 @@ test("single, empty, and suppressed timeline states make no unsupported change o
     (profile.timelineProjection as Record<string, unknown>).state = state;
     assert.doesNotMatch(renderMapPlaceAtlasProfile(profile, options), /この場所のうつろい/);
   }
+
+  const suppressedProfile = withTimeline();
+  suppressedProfile.publication.status = "suppressed";
+  assert.doesNotMatch(renderMapPlaceAtlasProfile(suppressedProfile, options), /この場所のうつろい/);
+
+  const suppressedProjection = withTimeline();
+  (suppressedProjection.timelineProjection as Record<string, unknown>).publicationStatus = "suppressed";
+  assert.doesNotMatch(renderMapPlaceAtlasProfile(suppressedProjection, options), /この場所のうつろい/);
 });
 
 test("timeline localization and browser runtime stay in exact renderer parity", () => {
