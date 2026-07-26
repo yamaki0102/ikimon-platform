@@ -376,12 +376,17 @@ function renderAtlasTimeline(
   copy: AtlasCopy,
 ): string {
   const projection = atlasPlainObject(profile.timelineProjection) as (Record<string, unknown> & Partial<PlaceAtlasTimelineProjection>) | null;
-  if (!projection || (projection.state !== "single_period" && projection.state !== "timeline")) return "";
+  const publication = atlasPlainObject(profile.publication) ?? {};
+  if (
+    !projection
+    || publication.status === "suppressed"
+    || projection.publicationStatus === "suppressed"
+    || (projection.state !== "single_period" && projection.state !== "timeline")
+  ) return "";
   const periods = atlasArray(projection.periods)
     .map(atlasPlainObject)
     .filter((period): period is Record<string, unknown> => Boolean(period));
   if (periods.length === 0) return "";
-  const publication = atlasPlainObject(profile.publication) ?? {};
   const policy = atlasPlainObject(profile.policy) ?? {};
   const suppressedSections = atlasArray(publication.suppressedSections).map(String);
   const showCta = projection.recordingSuggestion === "revisit"
@@ -401,7 +406,7 @@ function renderAtlasTimeline(
     }).join("")}</div></li>`;
   }).join("");
   const recordHref = atlasSafeHref(options.recordHref, "/record");
-  return `<section class="me-place-atlas-section me-place-atlas-timeline"><h3>${atlasEscapeHtml(copy.timeline)}</h3><p>${atlasEscapeHtml(projection.state === "single_period" ? copy.timelineSingle : copy.timelineMultiple)}</p>${projection.sampled === true ? `<small class="me-place-atlas-timeline-sampled">${atlasEscapeHtml(copy.timelineSampled)}</small>` : ""}<ol>${periodHtml}</ol>${showCta ? `<a class="me-place-atlas-timeline-cta" href="${atlasEscapeHtml(recordHref)}">${atlasEscapeHtml(copy.timelineRecord)}</a>` : ""}</section>`;
+  return `<section class="me-place-atlas-section me-place-atlas-timeline"><h3>${atlasEscapeHtml(copy.timeline)}</h3><p>${atlasEscapeHtml(projection.state === "single_period" ? copy.timelineSingle : copy.timelineMultiple)}</p>${projection.sampled === true ? `<small class="me-place-atlas-timeline-sampled">${atlasEscapeHtml(copy.timelineSampled)}</small>` : ""}<ol>${periodHtml}</ol>${showCta ? `<a class="me-place-atlas-timeline-cta" href="${atlasEscapeHtml(recordHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:timeline_revisit" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordHref)}">${atlasEscapeHtml(copy.timelineRecord)}</a>` : ""}</section>`;
 }
 
 function renderAtlasFacets(profile: Record<string, unknown>, lang: SiteLang, copy: AtlasCopy): string {

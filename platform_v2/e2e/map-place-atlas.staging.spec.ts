@@ -122,6 +122,77 @@ const TOKIWA_PLACE_ATLAS_PROFILE = {
     firstRecordedAt: "2026-04-01T08:00:00.000Z",
     latestRecordedAt: "2026-07-20T08:00:00.000Z",
   },
+  timelineProjection: {
+    version: 1,
+    state: "timeline",
+    summaryKey: "multiple_observation_periods",
+    changeAssessment: "not_assessed",
+    recordCount: 3,
+    totalRecordCount: 6,
+    sampled: true,
+    distinctPeriodCount: 2,
+    oldestObservedAt: "2025-04-01T08:00:00.000Z",
+    latestObservedAt: "2026-07-20T08:00:00.000Z",
+    recordingSuggestion: "revisit",
+    publicationStatus: "published",
+    excluded: {},
+    periods: [
+      {
+        periodKey: "2025-04-01",
+        observedDate: "2025-04-01",
+        items: [
+          {
+            recordId: "timeline-hidden-old",
+            observedAt: "2025-04-01T08:00:00.000Z",
+            observedDate: "2025-04-01",
+            displayLabel: "春の若葉",
+            publicMediaUrl: "/uploads/qa-place-atlas/tokiwa-spring.jpg",
+            sourceKind: "public_record",
+            verificationState: "unverified",
+            identificationStatus: "awaiting_identification",
+            href: "/ja/observations/tokiwa-spring",
+            mediaKind: "photo",
+            owner: "timeline-hidden-owner",
+            poster: "timeline-hidden-poster",
+            exactLat: "timeline-hidden-lat",
+            exactLng: "timeline-hidden-lng",
+            cell: "timeline-hidden-cell",
+          },
+        ],
+      },
+      {
+        periodKey: "2026-07-20",
+        observedDate: "2026-07-20",
+        items: [
+          {
+            recordId: "timeline-hidden-candidate",
+            observedAt: "2026-07-18T08:00:00.000Z",
+            observedDate: "2026-07-18",
+            displayLabel: "夏の昆虫候補",
+            publicMediaUrl: "javascript:alert(1)",
+            sourceKind: "public_record",
+            verificationState: "candidate",
+            identificationStatus: "ai_candidate",
+            href: "https://unsafe.example/timeline-hidden-href",
+            mediaKind: "photo",
+            contributor: "timeline-hidden-contributor",
+          },
+          {
+            recordId: "timeline-hidden-verified",
+            observedAt: "2026-07-20T08:00:00.000Z",
+            observedDate: "2026-07-20",
+            displayLabel: "夏の樹木",
+            publicMediaUrl: "/uploads/qa-place-atlas/tokiwa-park.jpg",
+            sourceKind: "public_record",
+            verificationState: "verified",
+            identificationStatus: "confirmed",
+            href: "/ja/observations/tokiwa-summer",
+            mediaKind: "photo",
+          },
+        ],
+      },
+    ],
+  },
   facets: [
     {
       key: "nature",
@@ -371,6 +442,36 @@ for (const profile of PLACE_ATLAS_VIEWPORTS) {
     ).toBeGreaterThan(0);
     await expect(atlas.locator('[data-kpi-action="map:place_atlas:record_here"]')).toHaveAttribute("href", /\/record/);
     await expect(atlas.locator('[data-kpi-action="map:place_atlas:browse_records"]')).toHaveAttribute("href", /\/records/);
+    const timeline = atlas.locator(".me-place-atlas-timeline");
+    if (profile.viewport.width <= 900) {
+      await expect(timeline).toBeHidden();
+    } else {
+      await expect(timeline).toBeVisible();
+    }
+    await expect(timeline).toContainText("この場所のうつろい");
+    await expect(timeline).toContainText("複数の時期の記録");
+    await expect(timeline).toContainText("公開記録からの標本表示");
+    await expect(timeline).toContainText("未確認");
+    await expect(timeline).toContainText("候補");
+    await expect(timeline).toContainText("確認済み");
+    await expect(timeline).not.toContainText("変化した");
+    await expect(timeline.locator("time").nth(0)).toHaveText("2025-04-01");
+    await expect(timeline.locator("time").nth(1)).toHaveText("2026-07-20");
+    await expect(timeline.locator('a[href="https://unsafe.example/timeline-hidden-href"]')).toHaveCount(0);
+    await expect(timeline.locator('img[src*="javascript"]')).toHaveCount(0);
+    await expect(timeline.locator('[data-kpi-action="map:place_atlas:timeline_revisit"]')).toHaveAttribute("href", /\/record/);
+    await expect(timeline.locator('[data-kpi-action="map:place_atlas:timeline_revisit"]')).toHaveAttribute("data-kpi-event", "selected_place_cta_click");
+    await expect(timeline.locator('[data-kpi-action="map:place_atlas:timeline_revisit"]')).toHaveAttribute("data-kpi-funnel", "map_selected_place");
+    await expect(timeline.locator('[data-kpi-action="map:place_atlas:timeline_revisit"]')).toHaveAttribute("data-kpi-target", /\/record/);
+    await expect(atlas).not.toContainText(/timeline-hidden-(?:old|candidate|verified|owner|poster|lat|lng|cell|contributor|href)/);
+    const sectionOrder = await atlas.evaluate((root) => ({
+      summary: Array.from(root.children).findIndex((node) => node.classList.contains("me-place-atlas-summary")),
+      timeline: Array.from(root.children).findIndex((node) => node.classList.contains("me-place-atlas-timeline")),
+      highlights: Array.from(root.children).findIndex((node) => node.classList.contains("me-place-atlas-highlights")),
+    }));
+    expect(sectionOrder.summary).toBeGreaterThanOrEqual(0);
+    expect(sectionOrder.timeline).toBeGreaterThan(sectionOrder.summary);
+    expect(sectionOrder.highlights).toBeGreaterThan(sectionOrder.timeline);
 
     const overflow = await page.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -398,6 +499,7 @@ for (const profile of PLACE_ATLAS_VIEWPORTS) {
       expect(touchTargets.grip.height).toBeGreaterThanOrEqual(44);
       await page.locator("#me-bottom-grip").click();
       await expect(sheet).toHaveAttribute("data-snap", "full");
+      await expect(timeline).toBeVisible();
       await expect(atlas.getByText("地域図鑑のテーマ")).toBeVisible();
       await expect(page.locator("#me-bottom-close")).toHaveAttribute("aria-label");
     } else {
@@ -406,6 +508,12 @@ for (const profile of PLACE_ATLAS_VIEWPORTS) {
       await expect(atlas.getByText("地域図鑑のテーマ")).toBeVisible();
     }
 
+    if (profile.viewport.width <= 900) {
+      await timeline.scrollIntoViewIfNeeded();
+    }
+    const timelineCta = timeline.locator('[data-kpi-action="map:place_atlas:timeline_revisit"]');
+    await timelineCta.focus();
+    await expect(timelineCta).toBeFocused();
     await mkdir(VISUAL_EVIDENCE_DIR, { recursive: true });
     const screenshot = await page.screenshot({
       animations: "disabled",
@@ -427,6 +535,67 @@ for (const profile of PLACE_ATLAS_VIEWPORTS) {
     await page.context().close();
   });
 }
+
+test("timeline single, empty, suppressed, CTA, and privacy states stay fail-closed", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "one real browser covers state and locale contracts");
+  const viewport = PLACE_ATLAS_VIEWPORTS.find((item) => item.slug === "mobile-390")!;
+  const baseTimeline = TOKIWA_PLACE_ATLAS_PROFILE.timelineProjection;
+
+  for (const state of ["single_period", "empty", "suppressed"] as const) {
+    const profile = {
+      ...TOKIWA_PLACE_ATLAS_PROFILE,
+      timelineProjection: {
+        ...baseTimeline,
+        state,
+        recordCount: state === "single_period" ? baseTimeline.recordCount : 987_654,
+        totalRecordCount: state === "single_period" ? baseTimeline.totalRecordCount : 987_655,
+        periods: state === "single_period" ? baseTimeline.periods.slice(0, 1) : baseTimeline.periods,
+      },
+    };
+    const page = await openTokiwaPlaceAtlas(browser, viewport, profile);
+    const atlas = page.locator("[data-place-atlas-profile]");
+    const timeline = atlas.locator(".me-place-atlas-timeline");
+    if (state === "single_period") {
+      await page.locator("#me-bottom-grip").click();
+      await expect(page.locator("#me-bottom-sheet")).toHaveAttribute("data-snap", "full");
+      await expect(timeline).toBeVisible();
+      await expect(timeline).toContainText("一時期の記録");
+      await expect(timeline).not.toContainText("変化した");
+    } else {
+      await expect(timeline).toHaveCount(0);
+      await expect(atlas).not.toContainText(/987654|987655/);
+      await expect(atlas).not.toContainText(/timeline-hidden-(?:old|candidate|verified|owner|poster|lat|lng|cell|contributor|href)/);
+    }
+    await page.context().close();
+  }
+
+  for (const mutation of [
+    { recordingSuggestion: "none" },
+    { policy: { ...TOKIWA_PLACE_ATLAS_PROFILE.policy, recordingPolicy: "permission_required" } },
+    { policy: { ...TOKIWA_PLACE_ATLAS_PROFILE.policy, contributionCtaMode: "suppressed" } },
+    { publication: { ...TOKIWA_PLACE_ATLAS_PROFILE.publication, suppressedSections: ["direct_record_cta"] } },
+    { publication: { ...TOKIWA_PLACE_ATLAS_PROFILE.publication, status: "suppressed" }, hideTimeline: true },
+    { timelinePublicationStatus: "suppressed", hideTimeline: true },
+  ]) {
+    const profile = {
+      ...TOKIWA_PLACE_ATLAS_PROFILE,
+      ...(mutation.policy ? { policy: mutation.policy } : {}),
+      ...(mutation.publication ? { publication: mutation.publication } : {}),
+      timelineProjection: {
+        ...baseTimeline,
+        ...(mutation.recordingSuggestion ? { recordingSuggestion: mutation.recordingSuggestion } : {}),
+        ...(mutation.timelinePublicationStatus ? { publicationStatus: mutation.timelinePublicationStatus } : {}),
+      },
+    };
+    const page = await openTokiwaPlaceAtlas(browser, viewport, profile);
+    if (mutation.hideTimeline) {
+      await expect(page.locator(".me-place-atlas-timeline")).toHaveCount(0);
+    } else {
+      await expect(page.locator(".me-place-atlas-timeline-cta")).toHaveCount(0);
+    }
+    await page.context().close();
+  }
+});
 
 test("place atlas API failure leaves the map usable", async ({ browser }) => {
   const profile = PLACE_ATLAS_VIEWPORTS.find((item) => item.slug === "mobile-390")!;
