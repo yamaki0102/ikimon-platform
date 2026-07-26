@@ -1,5 +1,6 @@
 import type { SiteLang } from "../i18n.js";
 import type { PlaceAtlasProfile } from "../services/placeAtlasContract.js";
+import type { PlaceAtlasTimelineProjection } from "../services/placeAtlasTimeline.js";
 
 export type MapPlaceAtlasRenderOptions = {
   lang: SiteLang;
@@ -38,6 +39,13 @@ type AtlasCopy = {
   emptyTitle: string;
   emptyBody: string;
   unknown: string;
+  timeline: string;
+  timelineSingle: string;
+  timelineMultiple: string;
+  timelineSampled: string;
+  timelineRecord: string;
+  verified: string;
+  candidate: string;
 };
 
 const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
@@ -72,6 +80,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "この場所の図鑑はこれから",
     emptyBody: "公開できるRecordがまだ十分でないか、安全のため詳細を控えています。",
     unknown: "未確認",
+    timeline: "この場所のうつろい", timelineSingle: "一時期の記録", timelineMultiple: "複数の時期の記録", timelineSampled: "公開記録からの標本表示", timelineRecord: "今を撮る", verified: "確認済み", candidate: "候補",
   },
   en: {
     eyebrow: "A local atlas led by place",
@@ -104,6 +113,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "This place atlas is just beginning",
     emptyBody: "There are not enough publishable records yet, or details are withheld for safety.",
     unknown: "Unknown",
+    timeline: "This place over time", timelineSingle: "Records from one period", timelineMultiple: "Records from multiple periods", timelineSampled: "Sample of public records", timelineRecord: "Capture now", verified: "Verified", candidate: "Candidate",
   },
   es: {
     eyebrow: "Atlas local guiado por el lugar",
@@ -136,6 +146,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "Este atlas apenas comienza",
     emptyBody: "Aún no hay suficientes registros publicables o se ocultan detalles por seguridad.",
     unknown: "Sin confirmar",
+    timeline: "Este lugar a través del tiempo", timelineSingle: "Registros de un periodo", timelineMultiple: "Registros de varios periodos", timelineSampled: "Muestra de registros públicos", timelineRecord: "Capturar ahora", verified: "Verificado", candidate: "Candidato",
   },
   "pt-BR": {
     eyebrow: "Atlas local guiado pelo lugar",
@@ -168,6 +179,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "Este atlas está só começando",
     emptyBody: "Ainda não há registros publicáveis suficientes ou os detalhes estão ocultos por segurança.",
     unknown: "Não confirmado",
+    timeline: "Este lugar ao longo do tempo", timelineSingle: "Registros de um período", timelineMultiple: "Registros de vários períodos", timelineSampled: "Amostra de registros públicos", timelineRecord: "Registrar agora", verified: "Verificado", candidate: "Candidato",
   },
 };
 
@@ -352,6 +364,44 @@ function renderAtlasHighlights(profile: Record<string, unknown>, copy: AtlasCopy
   return `<section class="me-place-atlas-section me-place-atlas-highlights"><h3>${atlasEscapeHtml(copy.highlights)}</h3><ul>${items.map((item) =>
     `<li><span aria-hidden="true">✦</span><strong>${atlasEscapeHtml(item.text)}</strong><small>${atlasEscapeHtml(item.sourceLabel)}${typeof item.evidenceCount === "number" ? ` · ${item.evidenceCount}` : ""}</small></li>`
   ).join("")}</ul></section>`;
+}
+
+function atlasTimelineStatusLabel(value: unknown, copy: AtlasCopy): string {
+  return value === "verified" ? copy.verified : value === "candidate" ? copy.candidate : copy.unverified;
+}
+
+function renderAtlasTimeline(
+  profile: Record<string, unknown>,
+  options: MapPlaceAtlasRenderOptions,
+  copy: AtlasCopy,
+): string {
+  const projection = atlasPlainObject(profile.timelineProjection) as (Record<string, unknown> & Partial<PlaceAtlasTimelineProjection>) | null;
+  if (!projection || (projection.state !== "single_period" && projection.state !== "timeline")) return "";
+  const periods = atlasArray(projection.periods)
+    .map(atlasPlainObject)
+    .filter((period): period is Record<string, unknown> => Boolean(period));
+  if (periods.length === 0) return "";
+  const publication = atlasPlainObject(profile.publication) ?? {};
+  const policy = atlasPlainObject(profile.policy) ?? {};
+  const suppressedSections = atlasArray(publication.suppressedSections).map(String);
+  const showCta = projection.recordingSuggestion === "revisit"
+    && policy.recordingPolicy === "allowed"
+    && policy.contributionCtaMode === "record"
+    && !suppressedSections.includes("contribution_cta")
+    && !suppressedSections.includes("direct_record_cta");
+  const periodHtml = periods.map((period) => {
+    const items = atlasArray(period.items).map(atlasPlainObject)
+      .filter((item): item is Record<string, unknown> => Boolean(item));
+    return `<li class="me-place-atlas-timeline-period"><time>${atlasEscapeHtml(atlasDate(period.observedDate))}</time><div>${items.map((item) => {
+      const label = typeof item.displayLabel === "string" && item.displayLabel.trim() ? item.displayLabel : copy.unknown;
+      const image = renderAtlasImage(String(item.publicMediaUrl ?? ""), label, 360, "me-place-atlas-timeline-media", copy.imageFallback);
+      const body = `${image}<span><strong>${atlasEscapeHtml(label)}</strong><small>${atlasEscapeHtml(atlasTimelineStatusLabel(item.verificationState, copy))}</small></span>`;
+      const href = atlasSafeHref(item.href);
+      return href ? `<a class="me-place-atlas-timeline-item" href="${atlasEscapeHtml(href)}">${body}</a>` : `<article class="me-place-atlas-timeline-item">${body}</article>`;
+    }).join("")}</div></li>`;
+  }).join("");
+  const recordHref = atlasSafeHref(options.recordHref, "/record");
+  return `<section class="me-place-atlas-section me-place-atlas-timeline"><h3>${atlasEscapeHtml(copy.timeline)}</h3><p>${atlasEscapeHtml(projection.state === "single_period" ? copy.timelineSingle : copy.timelineMultiple)}</p>${projection.sampled === true ? `<small class="me-place-atlas-timeline-sampled">${atlasEscapeHtml(copy.timelineSampled)}</small>` : ""}<ol>${periodHtml}</ol>${showCta ? `<a class="me-place-atlas-timeline-cta" href="${atlasEscapeHtml(recordHref)}">${atlasEscapeHtml(copy.timelineRecord)}</a>` : ""}</section>`;
 }
 
 function renderAtlasFacets(profile: Record<string, unknown>, lang: SiteLang, copy: AtlasCopy): string {
@@ -539,7 +589,7 @@ export function renderMapPlaceAtlasProfile(
   const stateNotice = suppressed || empty
     ? `<section class="me-place-atlas-empty" data-place-atlas-state="${suppressed ? "suppressed" : "empty"}"><strong>${atlasEscapeHtml(copy.emptyTitle)}</strong><p>${atlasEscapeHtml(copy.emptyBody)}</p></section>`
     : "";
-  return `<article class="me-place-atlas" data-place-atlas-profile data-place-atlas-status="${atlasEscapeHtml(publication.status || "partial")}"><header class="me-place-atlas-hero"><div class="me-place-atlas-hero-copy"><span>${atlasEscapeHtml(copy.eyebrow)}</span><h2>${atlasEscapeHtml(name)}</h2>${description ? `<p>${atlasEscapeHtml(description)}</p>` : ""}<small>${atlasEscapeHtml([locality, type].filter(Boolean).join(" · "))}</small></div>${heroImage}</header>${renderAtlasSummary(profile, copy)}${stateNotice}${renderAtlasHighlights(profile, copy)}${renderAtlasFacets(profile, options.lang, copy)}${renderAtlasRecent(profile, copy)}${renderAtlasRelated(profile, copy)}${renderAtlasGaps(profile, copy)}${renderAtlasActions(profile, options, copy)}${renderAtlasPolicy(profile, place, copy)}<p class="me-place-atlas-privacy">${atlasEscapeHtml(suppressed ? copy.privacySuppressed : copy.privacy)}</p></article>`;
+  return `<article class="me-place-atlas" data-place-atlas-profile data-place-atlas-status="${atlasEscapeHtml(publication.status || "partial")}"><header class="me-place-atlas-hero"><div class="me-place-atlas-hero-copy"><span>${atlasEscapeHtml(copy.eyebrow)}</span><h2>${atlasEscapeHtml(name)}</h2>${description ? `<p>${atlasEscapeHtml(description)}</p>` : ""}<small>${atlasEscapeHtml([locality, type].filter(Boolean).join(" · "))}</small></div>${heroImage}</header>${renderAtlasSummary(profile, copy)}${stateNotice}${renderAtlasTimeline(profile, options, copy)}${renderAtlasHighlights(profile, copy)}${renderAtlasFacets(profile, options.lang, copy)}${renderAtlasRecent(profile, copy)}${renderAtlasRelated(profile, copy)}${renderAtlasGaps(profile, copy)}${renderAtlasActions(profile, options, copy)}${renderAtlasPolicy(profile, place, copy)}<p class="me-place-atlas-privacy">${atlasEscapeHtml(suppressed ? copy.privacySuppressed : copy.privacy)}</p></article>`;
 }
 
 export function renderMapPlaceAtlasLoading(lang: SiteLang, name = ""): string {
@@ -718,6 +768,55 @@ export const MAP_PLACE_ATLAS_PROFILE_STYLES = `
   .me-place-atlas-section {
     margin: 18px 0;
   }
+  /* Responsive QA contract: 375px, 390px, 768px, 1024px, 1280px, 1536px. */
+  .me-place-atlas-timeline > p,
+  .me-place-atlas-timeline-sampled {
+    display: block;
+    margin: 0 0 8px;
+    color: #66756d;
+    font-size: 11px;
+  }
+  .me-place-atlas-timeline ol {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .me-place-atlas-timeline-period {
+    min-width: 0;
+    border-left: 2px solid #9bbcab;
+    padding-left: 10px;
+  }
+  .me-place-atlas-timeline-period > time {
+    display: block;
+    margin-bottom: 6px;
+    color: #52675b;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .me-place-atlas-timeline-period > div {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+    gap: 8px;
+    min-width: 0;
+  }
+  .me-place-atlas-timeline-item {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid rgba(83, 112, 96, .14);
+    border-radius: 12px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .me-place-atlas-timeline-media { margin: 0; aspect-ratio: 1; background: #e7eee9; }
+  .me-place-atlas-timeline-media img { width: 100%; height: 100%; object-fit: cover; }
+  .me-place-atlas-timeline-item > span { display: grid; align-content: center; gap: 2px; min-width: 0; padding: 7px; }
+  .me-place-atlas-timeline-item strong { font-size: 11px; }
+  .me-place-atlas-timeline-item small { color: #6a786f; font-size: 10px; }
+  .me-place-atlas-timeline-cta { display: inline-flex; align-items: center; justify-content: center; min-height: 56px; margin-top: 10px; padding: 10px 16px; border-radius: 13px; color: #fff !important; background: #236342; font-weight: 900; text-decoration: none; }
   .me-place-atlas-section > h3,
   .me-place-atlas-related-card > h3 {
     margin: 0 0 9px;
@@ -1063,6 +1162,8 @@ const MAP_PLACE_ATLAS_RUNTIME_HELPERS = [
   atlasPlainObject,
   renderAtlasImage,
   renderAtlasSummary,
+  atlasTimelineStatusLabel,
+  renderAtlasTimeline,
   renderAtlasHighlights,
   renderAtlasFacets,
   renderAtlasRecent,

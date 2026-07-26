@@ -19,6 +19,7 @@ import { listMapGuideSpotsForBbox } from "../services/mapGuideSpots.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 import { normalizePlaceAtlasRef, PLACE_ATLAS_PROFILE_VERSION } from "../services/placeAtlasContract.js";
 import { getPlaceAtlasProfile } from "../services/placeAtlasProfile.js";
+import { buildPlaceAtlasTimelineProjection } from "../services/placeAtlasTimeline.js";
 import {
   buildPlaceAtlasProfileV2,
   PLACE_ATLAS_PROFILE_V2_VERSION,
@@ -506,7 +507,12 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
           ? PLACE_ATLAS_PROFILE_V2_VERSION
           : PLACE_ATLAS_PROFILE_VERSION);
       setTimingHeaders();
-      return { profile: wantsV2 ? buildPlaceAtlasProfileV2(profile) : profile };
+      const timelineProjection = buildPlaceAtlasTimelineProjection(profile);
+      return {
+        profile: wantsV2
+          ? { ...buildPlaceAtlasProfileV2(profile), timelineProjection }
+          : { ...profile, timelineProjection },
+      };
     } catch (error) {
       request.log.warn({
         err: error,
