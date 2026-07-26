@@ -97,6 +97,59 @@ const options = {
   recordsHref: "/ja/records",
 };
 
+function withTimeline(state: "single_period" | "timeline" = "timeline"): PlaceAtlasProfile & Record<string, unknown> {
+  return {
+    ...fixture(),
+    timelineProjection: {
+      version: 1, state,
+      summaryKey: state === "timeline" ? "multiple_observation_periods" : "one_observation_period",
+      changeAssessment: "not_assessed", recordCount: 2, totalRecordCount: 3, sampled: true,
+      distinctPeriodCount: state === "timeline" ? 2 : 1,
+      oldestObservedAt: "2024-03-05T00:00:00Z", latestObservedAt: "2026-07-01T00:00:00Z",
+      recordingSuggestion: "revisit", publicationStatus: "partial", excluded: {},
+      periods: [
+        { periodKey: "2024-03-05", observedDate: "2024-03-05", items: [{ recordId: "secret-old", observedAt: "2024-03-05T00:00:00Z", observedDate: "2024-03-05", displayLabel: "以前", publicMediaUrl: "/derived/old/display.webp", sourceKind: "public_record", verificationState: "candidate", identificationStatus: "ai_candidate", href: "/ja/observations/old", mediaKind: "photo", contributor: "secret-owner", exactLat: 35 }] },
+        ...(state === "timeline" ? [{ periodKey: "2026-07-01", observedDate: "2026-07-01", items: [{ recordId: "secret-new", observedAt: "2026-07-01T00:00:00Z", observedDate: "2026-07-01", displayLabel: "現在", publicMediaUrl: "javascript:bad", sourceKind: "public_record", verificationState: "verified", identificationStatus: "confirmed", href: "https://evil.test", mediaKind: "photo" }] }] : []),
+      ],
+    },
+  } as unknown as PlaceAtlasProfile & Record<string, unknown>;
+}
+
+test("timeline renders only the API projection in chronological order without identity leakage", () => {
+  const html = renderMapPlaceAtlasProfile(withTimeline(), options);
+  assert.ok(html.indexOf("この場所のうつろい") < html.indexOf("この場所で見えてきたこと"));
+  assert.ok(html.indexOf("2024-03-05") < html.indexOf("2026-07-01"));
+  assert.match(html, /複数の時期の記録/);
+  assert.doesNotMatch(html, /変化した/);
+  assert.match(html, /公開記録からの標本表示/);
+  assert.match(html, /候補/);
+  assert.match(html, /確認済み/);
+  assert.match(html, />今を撮る</);
+  assert.doesNotMatch(html, /secret-old|secret-new|secret-owner|exactLat|evil\.test|javascript:bad/);
+});
+
+test("single, empty, and suppressed timeline states make no unsupported change or count claim", () => {
+  assert.match(renderMapPlaceAtlasProfile(withTimeline("single_period"), options), /一時期の記録/);
+  for (const state of ["empty", "suppressed"]) {
+    const profile = withTimeline();
+    (profile.timelineProjection as Record<string, unknown>).state = state;
+    assert.doesNotMatch(renderMapPlaceAtlasProfile(profile, options), /この場所のうつろい/);
+  }
+});
+
+test("timeline localization and browser runtime stay in exact renderer parity", () => {
+  const profile = withTimeline();
+  const context = vm.createContext({ URL });
+  new vm.Script(MAP_PLACE_ATLAS_PROFILE_RUNTIME).runInContext(context);
+  const runtime = (context as any).MapPlaceAtlasProfile;
+  for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+    const localizedOptions = { ...options, lang };
+    const nodeHtml = renderMapPlaceAtlasProfile(profile, localizedOptions);
+    assert.equal(runtime.render(profile, localizedOptions), nodeHtml);
+    assert.match(nodeHtml, /確認済み|Verified|Verificado/);
+  }
+});
+
 test("place atlas renderer leads with place, representative media, safe summary, and themes", () => {
   const html = renderMapPlaceAtlasProfile(fixture(), options);
 
