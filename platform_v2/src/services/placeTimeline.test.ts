@@ -133,9 +133,24 @@ test("recent Record does not suggest a revisit", () => {
 
 test("unsafe public media URLs are removed", () => {
   const result = buildPlaceTimeline([
-    record({ publicMediaUrl: "/api/v1/auth/session" }),
+    record({ recordId: "relative-api", publicMediaUrl: "/api/v1/auth/session" }),
+    record({ recordId: "absolute-api", publicMediaUrl: "https://ikimon.life/api/v1/auth/session" }),
+    record({ recordId: "allowed-media", publicMediaUrl: "https://media.ikimon.life/derived/example/display.webp" }),
   ], { now: NOW });
-  assert.equal(result.periods[0]?.items[0]?.publicMediaUrl, null);
+  assert.equal(result.periods[0]?.items.find((item) => item.recordId === "relative-api")?.publicMediaUrl, null);
+  assert.equal(result.periods[0]?.items.find((item) => item.recordId === "absolute-api")?.publicMediaUrl, null);
+  assert.equal(
+    result.periods[0]?.items.find((item) => item.recordId === "allowed-media")?.publicMediaUrl,
+    "https://media.ikimon.life/derived/example/display.webp",
+  );
+});
+
+test("periods are ordered by observation date even when timezone instants cross", () => {
+  const result = buildPlaceTimeline([
+    record({ recordId: "local-later", observedAt: "2026-07-02T00:30:00+14:00" }),
+    record({ recordId: "local-earlier", observedAt: "2026-07-01T23:30:00-12:00" }),
+  ], { now: NOW });
+  assert.deepEqual(result.periods.map((period) => period.periodKey), ["2026-07-01", "2026-07-02"]);
 });
 
 test("extra exact coordinates and owner identity are never projected", () => {
