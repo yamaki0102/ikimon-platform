@@ -170,6 +170,19 @@ function normalizeOptionalText(value: unknown, maxLength: number): string | null
   return normalized;
 }
 
+function allowedPublicMediaPath(value: string): boolean {
+  if (!value || value.includes("\\") || CONTROL_CHAR_PATTERN.test(value)) return false;
+  let decodedPath = "";
+  try {
+    decodedPath = decodeURIComponent(value);
+  } catch {
+    return false;
+  }
+  if (/(?:^|\/)\.\.(?:\/|$)/u.test(decodedPath)) return false;
+  return ["/derived/", "/derived-transform/", "/thumb/", "/uploads/", "/data/uploads/"]
+    .some((prefix) => decodedPath.startsWith(prefix));
+}
+
 function normalizePublicMediaUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
@@ -180,23 +193,17 @@ function normalizePublicMediaUrl(value: unknown): string | null {
   if (normalized.startsWith("/")) {
     if (normalized.startsWith("//")) return null;
     const path = normalized.split(/[?#]/u, 1)[0] ?? "";
-    let decodedPath = "";
-    try {
-      decodedPath = decodeURIComponent(path);
-    } catch {
-      return null;
-    }
-    if (/(?:^|\/)\.\.(?:\/|$)/u.test(decodedPath)) return null;
-    return ["/derived/", "/derived-transform/", "/thumb/", "/uploads/", "/data/uploads/"]
-      .some((prefix) => decodedPath.startsWith(prefix))
-      ? normalized
-      : null;
+    return allowedPublicMediaPath(path) ? normalized : null;
   }
 
   try {
     const parsed = new URL(normalized);
     const allowedHost = parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
-    return parsed.protocol === "https:" && allowedHost ? parsed.toString() : null;
+    return parsed.protocol === "https:"
+      && allowedHost
+      && allowedPublicMediaPath(parsed.pathname)
+      ? parsed.toString()
+      : null;
   } catch {
     return null;
   }
@@ -212,6 +219,10 @@ function normalizeVerificationState(value: unknown): PlaceTimelineVerificationSt
   return "unverified";
 }
 
+function compareCodeUnits(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 function verificationRank(value: PlaceTimelineVerificationState): number {
   if (value === "verified") return 3;
   if (value === "reviewed") return 2;
@@ -225,14 +236,14 @@ function compareDuplicatePreference(a: NormalizedTimelineCandidate, b: Normalize
   if (verificationDelta !== 0) return verificationDelta;
   const mediaDelta = Number(Boolean(b.publicMediaUrl)) - Number(Boolean(a.publicMediaUrl));
   if (mediaDelta !== 0) return mediaDelta;
-  const sourceDelta = String(a.sourceLabel ?? "").localeCompare(String(b.sourceLabel ?? ""), "en");
+  const sourceDelta = compareCodeUnits(String(a.sourceLabel ?? ""), String(b.sourceLabel ?? ""));
   if (sourceDelta !== 0) return sourceDelta;
-  return String(a.displayLabel ?? "").localeCompare(String(b.displayLabel ?? ""), "en");
+  return compareCodeUnits(String(a.displayLabel ?? ""), String(b.displayLabel ?? ""));
 }
 
 function compareTimelineItems(a: NormalizedTimelineCandidate, b: NormalizedTimelineCandidate): number {
   if (a.epochMs !== b.epochMs) return a.epochMs - b.epochMs;
-  return a.recordId.localeCompare(b.recordId, "en");
+  return compareCodeUnits(a.recordId, b.recordId);
 }
 
 export function buildPlaceTimeline(
@@ -289,7 +300,7 @@ export function buildPlaceTimeline(
   }
 
   candidates.sort((a, b) => {
-    const idDelta = a.recordId.localeCompare(b.recordId, "en");
+    const idDelta = compareCodeUnits(a.recordId, b.recordId);
     return idDelta !== 0 ? idDelta : compareDuplicatePreference(a, b);
   });
 
@@ -322,11 +333,13 @@ export function buildPlaceTimeline(
     periodMap.set(item.observedDate, period);
   }
 
-  const periods: PlaceTimelinePeriod[] = [...periodMap.entries()].map(([periodKey, items]) => ({
-    periodKey,
-    observedDate: periodKey,
-    items,
-  }));
+  const periods: PlaceTimelinePeriod[] = [...periodMap.entries()]
+    .sort(([a], [b]) => compareCodeUnits(a, b))
+    .map(([periodKey, items]) => ({
+      periodKey,
+      observedDate: periodKey,
+      items,
+    }));
   const distinctPeriodCount = periods.length;
   const state: PlaceTimelineState = distinctPeriodCount === 0
     ? "empty"
