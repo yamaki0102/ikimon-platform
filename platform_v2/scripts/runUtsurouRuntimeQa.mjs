@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -7,12 +8,13 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const platformRoot = path.resolve(scriptDir, "..");
 const reportDir = path.join(platformRoot, ".deploy");
-const reportPath = process.env.UTSUROU_RUNTIME_QA_REPORT?.trim()
-  || path.join(reportDir, "utsurou-runtime-qa-latest.json");
+const reportPath = path.join(reportDir, "utsurou-runtime-qa-latest.json");
 const stagingBaseUrl = (process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life").replace(/\/+$/u, "");
 const expectedSha = String(process.env.IKIMON_EXPECTED_GIT_SHA ?? "").trim();
 const chromiumExecutable = String(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ?? "").trim();
 const startedAt = new Date().toISOString();
+const PLAYWRIGHT_TIMEOUT_MS = 20 * 60 * 1000;
+const SHA256_RE = /^[a-f0-9]{64}$/u;
 
 function assertConfiguration() {
   if (stagingBaseUrl !== "https://staging.ikimon.life") {
@@ -37,6 +39,12 @@ function runtimeSourceSha(payload) {
 
 function runtimeDeploymentId(payload) {
   return String(payload?.workerVersion ?? payload?.version ?? payload?.deploymentId ?? "");
+}
+
+function assertNotCached(headers, label) {
+  if (String(headers?.["cf-cache-status"] ?? "").toUpperCase() === "HIT") {
+    throw new Error(`${label} unexpectedly came from a Cloudflare cache hit`);
+  }
 }
 
 async function fetchNoStore(pathname, accept = "application/json") {
@@ -70,6 +78,7 @@ async function fetchNoStore(pathname, accept = "application/json") {
 async function readRuntimeIdentity() {
   const response = await fetchNoStore("/api/v1/runtime/version");
   if (!response.ok) throw new Error(`runtime identity HTTP ${response.status}`);
+  assertNotCached(response.headers, "runtime identity");
   let payload;
   try {
     payload = JSON.parse(response.body);
@@ -77,17 +86,25 @@ async function readRuntimeIdentity() {
     throw new Error("runtime identity response is not JSON");
   }
   const sourceSha = runtimeSourceSha(payload);
+  const deploymentId = runtimeDeploymentId(payload);
+  const uiBundleHash = String(payload?.uiBundleHash ?? "");
+  const uiManifestHash = String(payload?.originalUiManifestHash ?? "");
   if (sourceSha !== expectedSha) {
     throw new Error(`runtime SHA mismatch: expected ${expectedSha}, received ${sourceSha || "missing"}`);
   }
+  if (payload?.environment !== "staging") throw new Error("runtime identity environment is not staging");
+  if (payload?.publicSafe !== true) throw new Error("runtime identity is not public-safe");
+  if (!deploymentId) throw new Error("runtime identity deployment ID is missing");
+  if (!SHA256_RE.test(uiBundleHash)) throw new Error("runtime UI bundle hash is missing or invalid");
+  if (!SHA256_RE.test(uiManifestHash)) throw new Error("runtime UI manifest hash is missing or invalid");
   return {
     sourceSha,
-    deploymentId: runtimeDeploymentId(payload),
+    deploymentId,
     artifactHash: String(payload?.artifactHash ?? ""),
-    uiBundleHash: String(payload?.uiBundleHash ?? ""),
-    uiManifestHash: String(payload?.originalUiManifestHash ?? ""),
-    environment: String(payload?.environment ?? ""),
-    publicSafe: payload?.publicSafe === true,
+    uiBundleHash,
+    uiManifestHash,
+    environment: "staging",
+    publicSafe: true,
     headers: response.headers,
   };
 }
@@ -95,7 +112,15 @@ async function readRuntimeIdentity() {
 async function readHealth(pathname) {
   const response = await fetchNoStore(pathname);
   if (!response.ok) throw new Error(`${pathname} HTTP ${response.status}`);
-  return { status: response.status, headers: response.headers };
+  assertNotCached(response.headers, pathname);
+  let payload;
+  try {
+    payload = JSON.parse(response.body);
+  } catch {
+    throw new Error(`${pathname} response is not JSON`);
+  }
+  if (payload?.environment !== "staging") throw new Error(`${pathname} environment is not staging`);
+  return { status: response.status, environment: "staging", headers: response.headers };
 }
 
 async function assertMapArtifact() {
@@ -111,6 +136,9 @@ async function assertMapArtifact() {
   ];
   const missing = requiredMarkers.filter((marker) => !response.body.includes(marker));
   if (missing.length) throw new Error(`map artifact markers missing: ${missing.join(",")}`);
+  if (response.headers["x-ikimon-cloudflare-materialized"] !== "original-ui-html") {
+    throw new Error("map artifact is not the materialized original UI");
+  }
   return {
     status: response.status,
     headers: response.headers,
@@ -121,6 +149,10 @@ async function assertMapArtifact() {
 function playwrightBinary() {
   const executable = process.platform === "win32" ? "playwright.cmd" : "playwright";
   return path.join(platformRoot, "node_modules", ".bin", executable);
+}
+
+function digestText(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 async function runPlaywright(name, args, extraEnv = {}) {
@@ -142,6 +174,11 @@ async function runPlaywright(name, args, extraEnv = {}) {
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
+    const timeout = setTimeout(() => {
+      child.kill("SIGTERM");
+      setTimeout(() => child.kill("SIGKILL"), 10_000).unref();
+    }, PLAYWRIGHT_TIMEOUT_MS);
+    timeout.unref();
     child.stdout.on("data", (chunk) => {
       const text = String(chunk);
       stdout.push(text);
@@ -152,15 +189,29 @@ async function runPlaywright(name, args, extraEnv = {}) {
       stderr.push(text);
       process.stderr.write(text);
     });
-    child.once("error", reject);
-    child.once("close", (code) => resolve(Number(code ?? 1)));
+    child.once("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    child.once("close", (code, signal) => {
+      clearTimeout(timeout);
+      if (signal) {
+        reject(new Error(`${name} terminated by ${signal}`));
+        return;
+      }
+      resolve(Number(code ?? 1));
+    });
   });
+  const stdoutText = stdout.join("");
+  const stderrText = stderr.join("");
   if (exitCode !== 0) throw new Error(`${name} failed with exit code ${exitCode}`);
   return {
     name,
     exitCode,
-    stdoutTail: stdout.join("").split(/\r?\n/u).filter(Boolean).slice(-20),
-    stderrTail: stderr.join("").split(/\r?\n/u).filter(Boolean).slice(-20),
+    stdoutBytes: Buffer.byteLength(stdoutText),
+    stderrBytes: Buffer.byteLength(stderrText),
+    stdoutSha256: digestText(stdoutText),
+    stderrSha256: digestText(stderrText),
   };
 }
 
@@ -175,8 +226,9 @@ async function writeReport(status, details = {}, error = null) {
     stagingUrl: stagingBaseUrl,
     productionUnverified: true,
     mutations: {
-      stagingApplicationDeploys: 0,
-      stagingFixtureDatabaseWrites: 0,
+      qaTriggeredStagingApplicationDeploys: 0,
+      qaFixtureNetworkWrites: 0,
+      actualStagingDatabaseWrites: 0,
       productionChanges: 0,
       databaseOrMigrationChanges: 0,
       secretChanges: 0,
@@ -235,14 +287,23 @@ async function main() {
   if (runtimeAfter.deploymentId !== runtimeBefore.deploymentId) {
     throw new Error("staging deployment changed during UTSUROU runtime QA");
   }
+  if (runtimeAfter.uiBundleHash !== runtimeBefore.uiBundleHash
+      || runtimeAfter.uiManifestHash !== runtimeBefore.uiManifestHash) {
+    throw new Error("staging UI artifact identity changed during UTSUROU runtime QA");
+  }
 
   await writeReport("succeeded", {
-    runtimeIdentity: runtimeAfter,
+    runtimeIdentityBefore: runtimeBefore,
+    runtimeIdentityAfter: runtimeAfter,
     health,
     ready,
     mapArtifact,
     checks: [
       "exact_sha_runtime_before",
+      "staging_environment",
+      "public_safe_runtime_identity",
+      "deployment_id_present",
+      "ui_artifact_hashes_present",
       "health_200",
       "ready_200",
       "no_store_cache_buster",
@@ -256,6 +317,7 @@ async function main() {
       "record_not_duplicated",
       "fixture_only_mutations",
       "exact_sha_runtime_after",
+      "stable_deployment_and_ui_identity",
     ],
     playwright: [mapQa, captureQa],
   });
