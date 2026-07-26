@@ -26,6 +26,11 @@ case "${SYNC_STAGING_WRITE_SECRET}" in true|false) ;; *) echo "SYNC_STAGING_WRIT
 case "${APPLY_STAGING_MIGRATIONS}" in true|false) ;; *) echo "APPLY_STAGING_MIGRATIONS must be true or false" >&2; exit 2 ;; esac
 case "${PLAYWRIGHT_INSTALL_WITH_DEPS}" in true|false) ;; *) echo "PLAYWRIGHT_INSTALL_WITH_DEPS must be true or false" >&2; exit 2 ;; esac
 
+if [[ "${DEPLOY_STAGING}" == "true" && "${UTSUROU_RUNTIME_QA}" != "true" ]]; then
+  echo "UTSUROU_RUNTIME_QA cannot be disabled for a staging deployment." >&2
+  exit 2
+fi
+
 if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
   echo "CLOUDFLARE_API_TOKEN is required for Cloudflare staging preflight/deploy." >&2
   exit 2
@@ -153,23 +158,19 @@ echo "== Verify Cloudflare staging public routes =="
   grep -qi '^x-ikimon-cloudflare-materialized: original-ui-static-asset' staging-brand-icon.headers
 )
 
-if [[ "${UTSUROU_RUNTIME_QA}" == "true" ]]; then
-  echo "== Run exact-SHA UTSUROU Place Atlas and capture P0 runtime QA =="
-  CHROMIUM_EXECUTABLE="${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}"
-  if [[ -z "${CHROMIUM_EXECUTABLE}" ]]; then
-    CHROMIUM_EXECUTABLE="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
-  fi
-  if [[ -z "${CHROMIUM_EXECUTABLE}" || ! -x "${CHROMIUM_EXECUTABLE}" ]]; then
-    echo "BLOCKED_CONFIG: a local Chromium executable is required for UTSUROU runtime QA." >&2
-    exit 2
-  fi
-  export STAGING_BASE_URL
-  export IKIMON_EXPECTED_GIT_SHA="${GIT_SHA}"
-  export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${CHROMIUM_EXECUTABLE}"
-  npm --prefix "${PLATFORM_DIR}" run e2e:staging:utsurou-runtime
-else
-  echo "== Skip UTSUROU runtime QA by explicit configuration =="
+echo "== Run exact-SHA UTSUROU Place Atlas and capture P0 runtime QA =="
+CHROMIUM_EXECUTABLE="${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-}"
+if [[ -z "${CHROMIUM_EXECUTABLE}" ]]; then
+  CHROMIUM_EXECUTABLE="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
 fi
+if [[ -z "${CHROMIUM_EXECUTABLE}" || ! -x "${CHROMIUM_EXECUTABLE}" ]]; then
+  echo "BLOCKED_CONFIG: a local Chromium executable is required for UTSUROU runtime QA." >&2
+  exit 2
+fi
+export STAGING_BASE_URL
+export IKIMON_EXPECTED_GIT_SHA="${GIT_SHA}"
+export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${CHROMIUM_EXECUTABLE}"
+npm --prefix "${PLATFORM_DIR}" run e2e:staging:utsurou-runtime
 
 if [[ "${BROWSER_QA}" != "none" ]]; then
   echo "== Install Playwright Chromium for requested browser QA =="
