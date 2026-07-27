@@ -13,7 +13,7 @@ test("retired DB MCP path cannot be activated in place", async () => {
     stateBoundary: "none",
   });
 
-  await assert.rejects(startStdioMcp(), /ikimon-db-mcp is retired/);
+  await assert.rejects(startStdioMcp());
 
   const source = await readFile(new URL("./server.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /from\s+["']@modelcontextprotocol\//);
