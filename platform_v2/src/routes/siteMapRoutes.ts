@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { buildRobotsTxt, buildXmlSitemap } from "../siteMap.js";
 import { buildReflectionLoopManifest } from "../services/reflectionLoopManifest.js";
+import { registerIwataOpenDataRoutes } from "./iwataOpenData.js";
 
 function requestOrigin(request: { headers: Record<string, unknown> }): string {
   const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "ikimon.life");
@@ -9,6 +10,8 @@ function requestOrigin(request: { headers: Record<string, unknown> }): string {
 }
 
 export async function registerSiteMapRoutes(app: FastifyInstance): Promise<void> {
+  await registerIwataOpenDataRoutes(app);
+
   app.get("/sitemap.xml", async (request, reply) => {
     reply.type("application/xml; charset=utf-8");
     return buildXmlSitemap(requestOrigin(request as unknown as { headers: Record<string, unknown> }));
