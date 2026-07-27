@@ -1,384 +1,268 @@
-# IKIMON 3分価値デモ設計
+# ZUKAN 3分価値デモ設計
 
-- 状態: proposed / P0依存
-- 基準日: 2026-07-26
+- 状態: `P0_DEPENDENT / NOT_READY`
+- 基準日: 2026-07-28
 - 関連仕様: `docs/spec/core-experience-p0/SPEC.md`
-- READY条件: P0 integrated staging E2Eがgreen
+- 実施計画: `docs/spec/core-experience-p0/ZUKAN_EXECUTION_PLAN.md`
+- READY条件: latest main exact-SHA stagingでP0 integrated E2Eがgreen
+- current URL: `ikimon.life`
+- 公開サービス名: `ZUKAN`
 
 ## 1. デモの目的
 
-機能一覧を説明せず、一件の写真が本人の記録から場所の記憶へ変わるまでを見せる。
+機能一覧を説明しない。一件の写真が、端末内の画像から、本人へ返るRecord、AI候補、人の確認、Placeの記憶へ変わるまでを見せる。
 
-デモ後、見た人が次を説明できる状態を目指す。
+伝える結論:
 
-> 現地で撮った写真が、AIの候補と人の確認を経て、公開範囲を守りながら場所ごとの地域図鑑へ積み重なる。過去の記録や既存情報とつながり、地域の現在を更新できる。
+> 何気なく撮った一枚が、場所と時間に結び付き、確かめられ、地域の次の記録へつながる。
 
-## 2. 見せないもの
+## 2. 想定相手
 
-3分内では次を主役にしない。
+- 自治体
+- 学校・教育関係者
+- 企業・自然共生・地域貢献担当
+- 地域団体・施設
+- 市民・参加者
 
-- 技術構成
-- AIモデル名
-- database schema
-- FDE、RAG、LLMO等の専門語
-- 詳細な利用規約
-- 料金表
-- 全メニュー
-- 自治体向け管理画面
-- 長い会社紹介
+同じデモを使い、最後の30秒だけ相手別に変える。
 
-質問された場合だけFAQで補う。
+## 3. 事前条件
 
-## 3. デモ前提
-
-### 必須環境
-
-- exact SHAが確認できるstaging
-- demo用login user
-- camera permissionまたは事前撮影済みの端末画像
-- location permissionを許可できる端末
-- AIが成功する標準サンプル
-- Place boundaryとprofileが準備済みのdemo Place
-- public／privateを切り替えられるdemo Record
-- 過去Recordが2〜5件ある同一Place
-
-### sample Place
-
-第一候補:
-
-- 磐田市内の公開情報と現地撮影が安全に扱える公園、文化施設、街区等
-
-代替:
-
-- 常磐公園canary
-- IKIMONが利用権限を持つ公開用fixture Place
-
-施設規則、人物、学校、自宅、希少種等の判断が必要な場所を本番デモの第一候補にしない。
-
-### sample subject
-
-AI候補が完全正解でなくても意味が伝わる対象を使う。
-
-例:
-
-- 公園の案内板
-- 季節の風景
-- 建物外観
-- 一般的な植物
-- イベント後の場所の状態
-
-デモの主題はAI正解率ではなく、候補→人が確認→場所へ残る流れである。
+- ZUKAN P0 `READY_P0`
+- exact staging runtime identityを表示できる
+- test accountまたはguest flowが使える
+- cameraまたは事前撮影mediaが使える
+- Place candidateが存在する
+- public-safe RecordがPlace profileへ反映できる
+- failure時のfallback recordingがある
+- demo Record・media・locationが公開安全
 
 ## 4. 3分台本
 
-### 0:00–0:20　地域の情報は散らばっている
+### 0:00–0:20　地域の現在は、あとから作れない
 
 画面:
 
-- Place profileの過去写真と情報源を短く表示
+- ZUKAN HomeまたはPlaceの過去・現在
 
-話す内容:
+説明:
 
-「地域の情報は、行政のページ、施設案内、学校の調査、個人の写真など、いろいろな場所にあります。IKIMONは、それを場所ごとにつなぎ、今の状態をみんなで確かめられるようにします。」
+> 地域には、あとから検索しても戻らない現在があります。店、風景、生きもの、看板、行事、子どもの発見。ZUKANは、こうした記録を場所と時間に結び付け、次の人が確かめられる形で残します。
+
+### 0:20–0:50　撮る
 
 操作:
 
-- Place profileを開く
-- 過去のRecordを一枚だけ見せる
+1. `撮る`
+2. cameraまたは端末画像
+3. 一枚撮影
 
-### 0:20–0:50　現地で一枚撮る
+説明:
 
-画面:
+> 専門知識や長い入力は先に求めません。まず撮ります。位置が取れない、通信が切れる場合も、Recordを失わない設計にします。
 
-- 共通カメラ
+見せるもの:
 
-話す内容:
+- camera permission
+- clear primary action
+- optional location
 
-「現地では、必要な場所で一枚撮るだけです。位置は許可された場合に自動で取得します。撮影画面は複雑にしません。」
-
-操作:
-
-1. 「撮る」を押す
-2. 写真を撮る
-3. 写真を確認する
-4. 位置取得状態を確認する
-5. 保存する
-
-見せる状態:
-
-- 保存中
-- 写真保存完了
-- AI準備中
-
-### 0:50–1:20　AIが候補を出し、人が確認する
-
-画面:
-
-- 投稿直後のowner Record detail
-
-話す内容:
-
-「写真は先に保存され、AIの処理とは別に状態が分かります。AIは内容をざっくり整理して候補を出しますが、正しいと自動確定はしません。」
+### 0:50–1:15　保存され、本人へ返る
 
 操作:
 
-1. queued／analyzingを確認
-2. candidateを表示
-3. 候補を採用、修正、または保留する
-4. 短いメモを追加する
+- upload progress
+- Record詳細へ遷移
 
-必須表示:
+説明:
 
-- 写真
-- 保存済み
-- AI状態
-- 候補確認の主操作
+> 写真が保存されたことと、AIの処理が終わったことは別です。保存できたRecordは本人へ返り、処理中・確認待ち・失敗・再試行が分かります。
 
-### 1:20–1:45　公開範囲と位置を守る
+見せるもの:
 
-画面:
+- photo
+- saved state
+- owner-only processing state
+- observed time
+- safe Place表示
 
-- Record editまたは公開設定
-
-話す内容:
-
-「公開するか、非公開で残すかを選べます。正確な位置をそのまま出さず、公園や施設などの場所単位で見せることもできます。」
+### 1:15–1:45　AI候補を、人が確かめる
 
 操作:
 
-1. 公開／非公開を確認
-2. public precisionをPlace単位にする
-3. 保存する
+- AI suggestionを表示
+- accept、edit、reject、retryのどれか
 
-補足:
+説明:
 
-- 自宅、学校、人物、希少種、施設規則等は裏側でfail-closedにする。
-- 3分内で詳細ルールを読み上げない。
+> AIは名前や内容の候補を出しますが、勝手に確定しません。本人、先生、専門家、自治体担当者など、役割を持つ人が根拠を見て確かめます。
 
-### 1:45–2:15　場所に積み重なる
+成功demo:
 
-画面:
+- suggestion_available → acceptedまたはneeds_review
 
-- Record detailのPlace link
+failure fallback demo:
+
+- failed_retryable → retry → suggestion_available
+
+### 1:45–2:15　公開範囲と位置を守る
+
+操作:
+
+- private / limited / public requested
+- public precision説明
+
+説明:
+
+> 正確な撮影位置は、Placeへの所属判定には使えても、そのまま公開しません。自宅、学校、子ども、人物、希少種、施設ルールを考慮し、一般には場所や安全な範囲として表示します。
+
+見せないもの:
+
+- exact coordinate
+- private note
+- contributor identity
+- internal provider error
+
+### 2:15–2:40　Placeの記憶へ積み重なる
+
+操作:
+
+- `この場所を見る`
 - Place profile
+- Record一件増加
+- 過去・現在または周辺Record
 
-話す内容:
+説明:
 
-「この写真は単独の投稿で終わりません。同じ場所の記録として積み重なります。境界が曖昧なら、勝手に決めず候補として確認できます。」
+> 一枚は、投稿欄へ流れて終わりません。この場所のRecordとして積み重なります。同じ写真を自治体別、学校別に複製するのではなく、共通のPlaceを地域Viewから読みます。
 
-操作:
+### 2:40–3:00　次の行動へつながる
 
-1. 「この場所の記録」を押す
-2. Place profileを開く
-3. 新規Recordが一件として追加されたことを確認する
-4. 過去Recordと並べる
+共通説明:
 
-必須確認:
+> 情報が足りない場所はQuestになります。次の人が現地で確かめ、Reviewされ、必要なら地域や行政の正式な更新へ返ります。ZUKANは、完成済みの図鑑ではなく、地域の記録をみんなで育てる仕組みです。
 
-- media数やOccurrence数で重複しない
-- exact coordinateとowner identityがpublic面に出ない
+相手別締め:
 
-### 2:15–2:40　個人の写真が地域の記憶になる
-
-画面:
-
-- 新旧Recordの時系列
-- source／確認状態
-
-話す内容:
-
-「同じ場所を時間を置いて記録すると、変化が分かります。行政や施設の既存情報と現地の記録を比べ、確認された内容は地域の情報更新にも返せます。」
-
-操作:
-
-- 過去と現在を切り替える
-- source／確認状態を一箇所だけ見せる
-
-### 2:40–3:00　次の行動
-
-画面:
-
-- デモの最終カード
-
-話す内容:
-
-「IKIMONは、写真投稿アプリではなく、地域の情報を記録、確認、更新、継承までつなぐ仕組みです。まず一つの地域、一つのテーマから一緒に実証できます。」
-
-CTA:
-
-- 地域図鑑を見る
-- 実証を相談する
-- 会社・事業紹介資料を見る
+- 自治体: `公開データの不足を現地Recordで補い、正本更新へ返せます。`
+- 学校: `今年の探究を、次年度の子どもが続けられます。`
+- 企業: `拠点周辺の活動を地域へ返し、必要な専門reportだけを有償で作れます。`
+- 地域団体・施設: `担当者が替わっても、Placeと根拠と訂正履歴が残ります。`
 
 ## 5. 必要画面
 
-| 順番 | 画面 | P0依存 | 代替 |
-|---|---|---|---|
-| 1 | Place profile | #1421〜#1426 | fixture profile screenshot |
-| 2 | 共通カメラ | #1432 | 事前撮影画像の明示的選択 |
-| 3 | 保存progress | #1296 | 事前録画。成功とAI状態を分ける |
-| 4 | owner Record detail | #1442/#1443 | fixture Record detail |
-| 5 | AI candidate confirm | #1296 | 候補済みRecordを使用 |
-| 6 | 公開・位置設定 | #1296 / Place privacy | 事前設定済みRecordで説明 |
-| 7 | Place membership | #1424/#1426 | confirmed fixture |
-| 8 | 時系列Record | Place profile | screenshot／video |
-| 9 | final CTA | official materials | QR付き静止画 |
+1. Home
+2. capture sheet
+3. upload progress
+4. owner Record detail
+5. AI suggestion / retry
+6. edit / visibility / public precision
+7. Place profile
+8. Place timelineまたは関連Record
+9. optional Quest / correction status
+10. runtime identity・demo evidence（裏画面）
 
-## 6. サンプルデータ契約
+## 6. sample data
 
-### Record A: 過去
+### Record
 
-- public-ready
-- verified sourceまたはmoderated Record
-- exact coordinate非公開
-- sourceと撮影日あり
+- 日常的だが場所の現在が分かる写真
+- 顔、車番、住所、室内private情報なし
+- Place候補が一つまたは安全なcandidate状態
+- 撮影日時あり
+- AIが候補を出しやすいが、人の確認余地がある
 
-### Record B: 今回撮影
+候補:
 
-- demo owner
-- public precision: Place
-- AI candidateあり
-- ownerが候補を採用可能
-- Place membership confirmed
+- 公園の季節変化
+- 文化財の現在写真
+- 店舗・施設の外観変化（公開許可確認済み）
+- 学校外の地域景観
+- 生きもの（希少種でないもの）
 
-### Record C: 曖昧性の説明用
+### Place
 
-- boundary近く
-- membership candidate
-- 3分本編では使用せず、質問時に見せる
+- public profileあり
+- source・provenanceあり
+- exact geometryをpublicへ出さない
+- 過去Recordが一件以上ある
 
-### Record D: private安全説明用
+## 7. live失敗時のfallback
 
-- private
-- owner画面のみ
-- Place public profileへ出ない
-- 質問時に比較する
+優先順:
 
-サンプルに実在人物、車両番号、自宅、学校児童、希少種の正確な位置、撮影禁止施設を含めない。
+1. staging live happy path
+2. staging pre-created Recordを使い、AI retryだけlive
+3. exact同一SHAで撮影済みの90秒screen recording
+4. 8〜12枚のstep screenshots
+5. static sample。必ず`操作デモではなく画面例`と表示
 
-## 7. 失敗時の切替
+fallbackでも、source SHA、runtime SHA、撮影日時、Record ID、Place、公開状態、失敗理由を記録する。
 
-### cameraが使えない
+動画構成:
 
-- 「端末の写真から選ぶ」を明示的に使用する。
-- cameraが動いたように装わない。
+- 15秒 capture
+- 15秒 saved / owner
+- 20秒 AI candidate / retry
+- 15秒 edit / safety
+- 15秒 Place profile
+- 10秒 next Quest / writeback
 
-### locationが取得できない
+## 8. FAQ
 
-- 位置なしで保存し、後からPlace検索で追加する流れを見せる。
-- 失敗をデモ中断理由にせず、設計上の正常分岐として扱う。
+### iNaturalistや写真SNSとの違いは
 
-### AIが遅い
+生きものだけでなく、場所、文化、施設、仕事、行事等を同じPlace・Time・Evidenceモデルで扱う。投稿数を競わず、Review、訂正、正本還流、次年度引継ぎまでを対象にする。
 
-- queued／analyzingを正しく表示する。
-- 事前に作成した同等Recordで候補確認へ切り替える。
-- AIが瞬時に完了したように演出しない。
+### AIが間違えたら
 
-### AIが失敗
+AIは候補であり確定ではない。本人や役割を持つ人がaccept、edit、reject、専門Reviewを行う。処理履歴を残す。
 
-- failed_retryableと「もう一度試す」を見せる。
-- retryが成功しない場合、事前Recordで続行する。
-- 失敗しても写真とRecordが残ることを価値として説明する。
+### 位置は公開されるか
 
-### networkが切れる
+内部の正確な位置と、公開するPlace・Zone・cellを分ける。自宅、学校、未成年、人物、希少種、施設ルール等で抑止する。
 
-- outbox／再送待ちを見せる。
-- fallback動画へ切り替える。
+### 自治体ごとに別systemか
 
-### Place membershipが曖昧
+別DB・別tenantにしない。共通Place Graphを対象地域・時点・theme・Programで読むViewとする。
 
-- candidateとして二候補を示し、人が選べることを説明する。
-- 無理にconfirmedへ変更しない。
+### 学校・自治体・企業は有料か
 
-## 8. fallback動画
+標準Program、参加、Quest、同意、Review、引継ぎ、通常Viewは無料コア。専門report、種リスト、販促制作、coupon、個別integration・運営は有償。
 
-### 長さ
+### CSVは無料か
 
-2分20秒から2分40秒。最後の20秒は会場で口頭説明する。
+Record単位の原記録保全・移行は無料。場所・期間単位のspecies list、aggregate、提出用CSV・Excel・PDF・APIは有償派生物。
 
-### 構成
+### `ikimon.life`とZUKANの関係は
 
-1. Place profile before
-2. camera撮影
-3. 保存progress
-4. AI queued→candidate
-5. owner確認
-6. 公開範囲・位置精度
-7. Place profile after
-8. 過去比較
-9. CTA
+公開サービス名がZUKAN。現在のURL・runtime・技術識別子は`ikimon.life`で、domain移行は別release計画。
 
-### 証拠
+### UTSUROUは
 
-動画内に次を小さく表示する。
+サービス名としてはsuperseded。`この場所のうつろい`はPlaceの時間変化を見る機能名として残せる。
 
-- staging
-- exact source SHA
-- 撮影日
-- demo data
+## 9. 合格条件
 
-production画面と誤認させない。
+- 3分以内
+- 一件のRecordを中心に進む
+- savedとAI completedを区別
+- owner、edit、retryを実際に示す
+- exact locationを表示しない
+- Placeへ一回だけ反映
+- AIを確定主体として説明しない
+- 無料コアと有償派生物を一文で説明できる
+- current URLとfuture domainを混同しない
+- live失敗時にfallbackへ切り替えられる
 
-### 用意する素材
+## 10. 現時点判定
 
-- 横16:9会場投影版
-- 縦9:16スマホ説明版
-- 無音字幕版
-- 30秒短縮版
-- 8枚の静止画packet
+`NOT_READY`
 
-## 9. 展示時FAQ
+理由:
 
-### これは生きもの判定アプリですか
-
-生きものも扱いますが、中心は地域の記録です。風景、施設、文化、行事、暮らし、自然などを場所と時間に積み重ねます。
-
-### AIは正しい名前を決めますか
-
-AIは候補を出します。確認前の候補と、人が確認した情報を分けて扱います。
-
-### 写真の位置は公開されますか
-
-正確な位置は既定で公開しません。公園や施設などの場所単位、地域単位へ丸められます。対象や場所に応じて非公開にもできます。
-
-### 自宅や子どもの写真はどうなりますか
-
-非公開原本と公開派生を分け、人物、学校、自宅、希少種等は安全確認を通します。公開停止や通報・訂正の手順も持ちます。
-
-### Google MapsやSNSとの違いは
-
-投稿や店舗検索が中心ではありません。出所、時点、確認状態、権利、訂正履歴を持ち、地域情報の更新へ返すことを重視します。
-
-### 自治体のシステムを置き換えますか
-
-置き換えません。既存のWeb、PDF、台帳、GIS等を生かし、不足・古さ・矛盾と現地Evidenceをつないで更新を支援します。
-
-### 学校では何ができますか
-
-地域を調べ、現地で確かめ、根拠付きで記録し、成果を地域へ返し、次年度へ引き継げます。
-
-### 企業では何ができますか
-
-拠点周辺の継続記録、自然共生、地域貢献、従業員参加、活動Evidenceの整理に使えます。
-
-### 誰でも情報を確定できますか
-
-投稿、候補、確認済み、公式情報を分けます。正式な更新は権限を持つ担当者や運営者の確認が必要です。
-
-### すぐ導入できますか
-
-まず一つの地域、一つのテーマ、一つの正本還流を90日以内で検証するPoCから始めます。
-
-## 10. デモ合格条件
-
-- 3分以内。
-- 画面操作は10操作以内を目標とする。
-- AI待ち時間を除き、停止して説明する箇所は3回以内。
-- 保存とAI状態を誤表示しない。
-- public／privateと位置精度を一度見せる。
-- Place profileに新規Recordが一件として反映される。
-- exact coordinate、owner identity、private noteがpublic面に出ない。
-- 失敗時のfallbackを30秒以内に開始できる。
-- 最後のCTAが、地域図鑑・資料・実証相談の三つに整理されている。
-
-P0 integrated staging E2Eがgreenでない場合、live demoを標準手段にせず、exact SHA付きfallback動画を使用する。
+- strategy ZUKAN definition adoption pending
+- P0 docs sync Draft
+- #1459 latest main rebuild pending
+- exact-SHA staging P0 E2E pending
+- current route blocker resolution evidence absent
