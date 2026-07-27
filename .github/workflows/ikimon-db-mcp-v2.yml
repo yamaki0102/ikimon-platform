@@ -1,0 +1,48 @@
+name: IKIMON DB MCP v2
+
+on:
+  pull_request:
+    paths:
+      - "platform_v2/mcp_servers/ikimon-db-mcp/**"
+      - ".github/workflows/ikimon-db-mcp-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform_v2/mcp_servers/ikimon-db-mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate exact lock with diagnostics
+        id: lock
+        shell: bash
+        run: |
+          set +e
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund > mcp-v2-install.log 2>&1
+          exit_code=$?
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          cat mcp-v2-install.log
+          exit 0
+      - name: Upload lock and install diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ikimon-db-mcp-v2-lock-diagnostics
+          path: |
+            platform_v2/mcp_servers/ikimon-db-mcp/package-lock.json
+            platform_v2/mcp_servers/ikimon-db-mcp/mcp-v2-install.log
+          if-no-files-found: error
+          retention-days: 1
+      - name: Enforce dependency resolution
+        if: steps.lock.outputs.exit_code != '0'
+        run: exit 1
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run verify
