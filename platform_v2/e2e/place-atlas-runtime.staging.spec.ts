@@ -10,7 +10,6 @@ const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.ikimon
 const STAGING_ORIGIN = new URL(STAGING_BASE_URL).origin;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const FIELD_ID = "d50678d0-ba57-4d3d-a713-2fe441d646ab";
-const EXPECTED_MAP_HASHES = parseExpectedMapHashes();
 
 const LOCALES = [
   { path: "/ja/map", lang: "ja-JP", timeline: "この場所のうつろい", multiple: "複数の時期の記録", sampled: "公開記録からの標本表示", verified: "確認済み", candidate: "候補", unknown: "未確認", capture: "今を撮る" },
@@ -18,6 +17,8 @@ const LOCALES = [
   { path: "/es/map", lang: "es-ES", timeline: "Este lugar a través del tiempo", multiple: "Registros de varios periodos", sampled: "Muestra de registros públicos", verified: "Verificado", candidate: "Candidato", unknown: "Sin confirmar", capture: "Capturar ahora" },
   { path: "/pt-br/map", lang: "pt-BR", timeline: "Este lugar ao longo do tempo", multiple: "Registros de vários períodos", sampled: "Amostra de registros públicos", verified: "Verificado", candidate: "Candidato", unknown: "Não confirmado", capture: "Registrar agora" },
 ] as const;
+
+const EXPECTED_MAP_HASHES = parseExpectedMapHashes();
 
 const AREA_COLLECTION = {
   type: "FeatureCollection",
@@ -357,6 +358,7 @@ test.describe.serial("Place Atlas exact staging runtime", () => {
       }));
       expect(order.timeline).toBeGreaterThan(order.summary);
       expect(order.highlights).toBeGreaterThan(order.timeline);
+      expect(session.mutationEvents.length).toBeGreaterThan(0);
       expect(session.mutationEvents.every((event) => event === "POST /api/v1/ui-kpi/events")).toBe(true);
       await session.page.context().close();
     });
@@ -436,6 +438,7 @@ test.describe.serial("Place Atlas exact staging runtime", () => {
         await expect(atlas).not.toContainText(/987654|987655/u);
         await expect(atlas).not.toContainText(/timeline-hidden-/u);
       }
+      expect(session.mutationEvents.length).toBeGreaterThan(0);
       expect(session.mutationEvents.every((event) => event === "POST /api/v1/ui-kpi/events")).toBe(true);
       await session.page.context().close();
     }
