@@ -1,167 +1,111 @@
-# Latest main addendum: 磐田View・Source Registry・Publication Pipeline
+# Latest main addendum: ZUKAN戦略・磐田View・Source Registry
 
 - 観測日: 2026-07-28
-- latest implementation main: `19e4aa032ca902fb1ffa24d0560562f76f25d501`
-- relevant merges:
-  - #1468 / `c8ff06e177c6fa43b728fbf6ed9d7674f8abebe3`
-  - Source Registry / Publication implementation contract / `19e4aa032ca902fb1ffa24d0560562f76f25d501`
-- strategy latest main: `c26f39ed953bf5984d2c776bcc3a5ebc63f28d3f`
+- strategy main: `09fe199fbc4e42320d6595b9de9c2d1c9b3d98dd`
+- implementation main: `a91861aa6f21cc206fd1cae387b06b75e68f2559`
 - 本文書PR: #1470
-- 状態: `IWATA_VIEW_SOURCE_IMPLEMENTED / SOURCE_REGISTRY_CONTRACT_RECORDED / RUNTIME_NOT_VERIFIED`
+- 状態: `STRATEGY_ADOPTED / IWATA_VIEW_SOURCE_IMPLEMENTED / SOURCE_REGISTRY_SOURCE_IMPLEMENTED / RUNTIME_NOT_VERIFIED`
 
-## 1. 磐田市公開データView source
+## 1. 戦略採用
 
-mainへ、磐田市の実公開オープンデータを読取専用の地域Viewとして表示するsourceが追加された。
+IKIMON株式会社とZUKANの事業・サービス定義はstrategy PR #32でmainへ採用済み。
 
-- route: `/iwata`
-- API: `/api/iwata/open-data`
-- 59件
-- 地図
-- 全文検索
-- 4カテゴリfilter
-- 位置欠損・data接続候補の可視化
-- 原典、取得日、原典更新日、利用条件
-- source-only snapshotとtests
+- 公開サービス: ZUKAN
+- future domain: `zukan.earth`
+- current URL・runtime・technical identity: `ikimon.life`
+- UTSUROU: service nameとしてsuperseded
+- `この場所のうつろい`: feature nameとして維持可能
+- ZUKAN: Publisher、SourceEdition、Rights、Place、Time、Evidence、Review付きのsource-neutralな地域知識database
+- paper、PDF、Web、map、event page、guide、report: Publication
+- eligible biodiversity Record: rights・consent・quality・safety確認後にGBIFへ接続可能
 
-対象dataset:
-
-- 観光施設
-- 都市公園
-- 交流センター
-- 文化財
-
-主なsource:
-
-- `platform_v2/src/routes/iwataOpenData.ts`
-- `platform_v2/src/services/iwataOpenDataSnapshot.ts`
-- `platform_v2/src/services/iwataOpenDataSnapshot.test.ts`
-- `platform_v2/e2e/iwata-open-data.staging.spec.ts`
-
-## 2. Source Registry / Publication契約
-
-latest mainへ、次のadopted implementation contractが追加された。
-
-- `docs/spec/zukan_regional_source_registry_and_publication_pipeline_2026-07-28.md`
-
-ZUKANを、磐田市専用viewerではなくsource-neutralな地域知識databaseとして扱う。
-
-正規object:
-
-- `Publisher`
-- `SourceAsset`
-- `SourceEdition`
-- `SourceRecord`
-- `Place / Entity / Claim`
-- `Publication / PublicationEdition`
-
-紙、PDF、Web、map layer、event page、report等は別databaseではなく、ZUKANから選定・編集されるPublicationである。
-
-外部Publisherの公式正本をZUKANが置き換えない。source recordをcanonical Placeへ自動昇格させず、人のReviewまたはsource owner approvalを介する。
-
-rights class:
-
-- `OPEN_REUSE`
-- `ATTRIBUTION_REUSE`
-- `FACTS_ONLY`
-- `INDEX_ONLY`
-- `CONTRIBUTED_PRIVATE`
-- `RESTRICTED`
-- `UNKNOWN`
-
-解析許可と再出版許可を分離する。
-
-adapterは自治体ごとではなくformat / platformごとに作る。
-
-- Japanese municipal standard open data
-- CKAN
-- LinkData / RDF
-- ArcGIS REST / FeatureServer
-- Socrata
-- CSV / Excel / Google Sheets
-- GeoJSON / KML
-- HTML
-- PDF
-- publisher template
-
-## 3. 現在の実装境界
+## 2. 磐田View source
 
 実装済み:
 
-- `/iwata`read-only View source
-- Iwata snapshot・route・tests
-- Source Registry / Publicationのdocs contract
+- `/iwata`
+- `/api/iwata/open-data`
+- 59 records
+- 観光施設、都市公園、交流センター、文化財
+- map、全文search、4 category filter
+- missing location・data connection candidate
+- source、retrieved date、source updated date、terms
 
-未実装・未確認:
+未確認:
 
-- `GET /api/regional-sources`
-- `GET /api/regional-sources/:sourceAssetId`
-- Publisher / SourceAsset runtime registry
-- acquisition / preservation / extraction
-- Place candidate link・human Review
-- Publication manifest generation
-- MIYAKODA listing extraction・公開
-- staging deploy・verify・Visual QA
-- production deploy・verify
-- DB / migration
-- 市公式dataへのwriteback
-- canonical PlaceIdentityへの確定統合
-- existing Observationとのmembership確定
-- correction / WritebackReceipt
-- 見付deep slice
-- 市側責任者・正本担当・正式更新経路
+- staging / production runtime
+- PlaceIdentity確定接続
+- existing Record / Observation membership
+- Review / correction / writeback
 
-名称・座標だけでsame-placeを自動確定しない。公開PDFの存在を、全文・画像の再掲載許可とみなさない。
+## 3. Source Registry source
 
-## 4. 実施計画への反映
+main `a91861aa...`までに追加済み:
 
-`ZUKAN_EXECUTION_PLAN.md`は、WP2〜WP8を次の依存で読む。
+- `platform_v2/src/services/regionalSourceRegistry.ts`
+- `platform_v2/src/services/regionalSourceRegistry.test.ts`
+- `platform_v2/src/routes/regionalSources.ts`
+- site map route registration
 
-```text
-individual P0 runtime gate
-→ current source surface audit
-→ Source Registry contract + read-only registry
-→ SourceRecord adapter
-→ Place / Entity / Claim candidate link
-→ rights-safe View
-→ Publication Builder
-→ correction / writeback
-→ brand / domain
-```
+実装済みの契約:
 
-Iwata work:
+- Publisher
+- SourceAsset
+- SourceEdition
+- SourceRecord envelope
+- rights class
+- acquisition state
+- read-only registry service
+- read API route
+- Iwata open-data sourceとの接続
+- municipal / non-municipal source共存
+- PDF等のrights fail-closed
 
-```text
-Phase 1: public snapshot View source implemented
-Phase 2: current main runtime QA pending
-Phase 3: Publisher / Source Registry registration pending
-Phase 4: PlaceIdentity candidate adapter pending
-Phase 5: existing Record / Observation connection pending
-Phase 6: deep culture / Mitsuke slice pending
-Phase 7: correction / writeback pending
-Phase 8: Publication generation pending
-```
+状態は`SOURCE_IMPLEMENTED`。本監査ではfull test、staging、productionのterminal evidenceを確認していないため`RUNTIME_VERIFIED`とはしない。
 
-WP6をゼロから再実装しない。`iwataOpenDataSnapshot`と`/iwata`を再利用する。
+## 4. P0との依存分離
 
-MIYAKODA等の紙mapは、Publication Builderから始めない。Publisher、SourceEdition、rights、SourceRecord、Place candidate Reviewを先にする。
+個人P0:
 
-## 5. P0への影響
+`撮る → 保存 → owner → AI候補 → edit → public safety → Place → revisit`
 
-個人P0のREADY判定は変わらない。
+Source Registry:
 
-- `/iwata`やSource Registry contractが存在しても、capture、owner、AI、edit、public safety、Place membershipのfresh E2Eがなければ`NOT_READY_P0`。
-- P0 runtime QAはlatest main `19e4aa032...`以降から再構築する。
-- Draft PR #1459の古いbaseをそのまま使わない。
-- Publication Builder、TaxonInventory、coupon等を個人P0の依存にしない。
+`Publisher → SourceAsset → SourceEdition → SourceRecord → candidate link → human Review → rights-safe View`
 
-## 6. PR #1470のbase
+Publication:
 
-PR #1470 branchは`3c6f355...`から作成された。以後mainに追加された変更は、Iwata sourceとSource Registry / Publication docs contractであり、本PRのP0 docs pathとの直接競合はない。
+`rights-safe View → selected Claim / SourceEdition → editorial decision → PublicationEdition → manifest`
 
-merge前にlatest main追従を確認し、次を失わない。
+Source Registry sourceが存在しても、個人P0のfresh runtime E2Eがなければ`NOT_READY_P0`。Publication Builder、Program、TaxonInventory、couponを個人P0の依存にしない。
 
-- `/iwata`source
-- Source Registry / Publication contract
-- Place Graph・free organizational core・paid output contracts
+## 5. 後続順
 
-PR本文・台帳・後続runtime Issueではcurrent implementation mainを`19e4aa032...`として扱う。
+1. 本P0 docsをmainへ採用
+2. latest mainからfresh個人P0 runtime gateを実装
+3. exact-SHA stagingでRecord E2EとSource Registry readback
+4. SourceRecord adapterとPlace / Entity / Claim candidate link
+5. Program無料コア
+6. rights-safe Review / View
+7. TaxonInventory等の専門派生
+8. Publication Builder
+9. correction / external writeback
+10. brand / domain release
+
+## 6. READY境界
+
+個人P0 READYには次を要求する。
+
+- latest exact-SHA staging identity
+- fresh Record作成
+- owner / another-user deny
+- AI state / retry / safe error
+- edit
+- private / limited / public precision
+- Place membership・public profile一回反映
+- Home / Records / detail / Place整合
+- Android / iPhone / desktop QA
+- `/learn`・`/ja/contact`のblocker解消または安全なcontract変更
+- evidenceとrollback locator
+
+Source Registry READYは別判定とし、read API、rights fail-closed、source identity、Iwata source link、staging readbackを要求する。
