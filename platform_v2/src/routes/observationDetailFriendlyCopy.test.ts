@@ -244,6 +244,19 @@ test("observation detail visible order stays aligned with the canonical snapshot
   assert.match(registrationSource, /const layer2 = ""/);
 });
 
+test("observation detail preserves safe shared arrival context only in canonical redirect and follow-up CTAs", () => {
+  const registrationSource = sourceBetween("app.get<{ Params: { id: string }; Querystring: { subject?: string; occurrence?: string } }>(\"/observations/:id\"", "const canonicalDetailPath");
+
+  assert.match(routeSource, /collectSharedArrivalContext\(request\.query as Record<string, unknown>\)/);
+  assert.match(routeSource, /const withSharedArrivalContext = \(href: string\): string => appendSharedArrivalContext\(href, sharedArrivalContext\)/);
+  assert.match(registrationSource, /const canonicalHref = withSharedArrivalContext\(appendLangToHref\(/);
+  assert.match(registrationSource, /if \(request\.params\.id !== bundle\.visitId \|\| request\.query\.subject \|\| request\.query\.occurrence\) \{\s+return reply\.redirect\(canonicalHref, 302\);/);
+  assert.match(registrationSource, /const revisitRecordHref = withSharedArrivalContext\(buildPlaceRecordHref\(/);
+  assert.match(registrationSource, /href: withSharedArrivalContext\(appendLangToHref\(withBasePath\(basePath, `\/record\?start=gallery&revisitObservationId=/);
+  assert.match(registrationSource, /href: withSharedArrivalContext\(relatedObservationsHref\)/);
+  assert.doesNotMatch(registrationSource, /request\.query\.lat|request\.query\.lng|request\.query\.latitude|request\.query\.longitude|request\.query\.localityNote/);
+});
+
 test("observation detail keeps nearby guide cards owner-scoped and capped", () => {
   const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
 
