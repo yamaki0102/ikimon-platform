@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -9,12 +9,26 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const platformRoot = path.resolve(scriptDir, "..");
 const reportDir = path.join(platformRoot, ".deploy");
 const reportPath = path.join(reportDir, "utsurou-runtime-qa-latest.json");
+const materializationReportPath = path.join(
+  platformRoot,
+  "cloudflare_shadow",
+  "materialize-staging-original-ui.json",
+);
 const stagingBaseUrl = (process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life").replace(/\/+$/u, "");
 const expectedSha = String(process.env.IKIMON_EXPECTED_GIT_SHA ?? "").trim();
 const chromiumExecutable = String(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ?? "").trim();
+const materializationNotBefore = String(process.env.UTSUROU_MATERIALIZATION_NOT_BEFORE ?? "").trim();
 const startedAt = new Date().toISOString();
 const PLAYWRIGHT_TIMEOUT_MS = 20 * 60 * 1000;
 const SHA256_RE = /^[a-f0-9]{64}$/u;
+const MAX_MATERIALIZATION_REPORT_BYTES = 2 * 1024 * 1024;
+const MATERIALIZATION_MANIFEST_KEY = "original-ui/materialize-manifest/staging/staging-qa.json";
+const MAP_KEYS = Object.freeze({
+  "/ja/map": "original-ui/html/ja/map.html",
+  "/en/map": "original-ui/html/en/map.html",
+  "/es/map": "original-ui/html/es/map.html",
+  "/pt-br/map": "original-ui/html/pt-br/map.html",
+});
 
 function assertConfiguration() {
   if (stagingBaseUrl !== "https://staging.ikimon.life") {
@@ -25,6 +39,10 @@ function assertConfiguration() {
   }
   if (!chromiumExecutable || !path.isAbsolute(chromiumExecutable)) {
     throw new Error("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH must be an absolute path");
+  }
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(materializationNotBefore)
+      || !Number.isFinite(Date.parse(materializationNotBefore))) {
+    throw new Error("UTSUROU_MATERIALIZATION_NOT_BEFORE must be a UTC release timestamp");
   }
 }
 
@@ -41,6 +59,13 @@ function runtimeDeploymentId(payload) {
   return String(payload?.workerVersion ?? payload?.version ?? payload?.deploymentId ?? "");
 }
 
+function optionalHash(value, label) {
+  const normalized = String(value ?? "");
+  if (!normalized) return null;
+  if (!SHA256_RE.test(normalized)) throw new Error(`${label} is invalid`);
+  return normalized;
+}
+
 function assertNotCached(headers, label) {
   if (String(headers?.["cf-cache-status"] ?? "").toUpperCase() === "HIT") {
     throw new Error(`${label} unexpectedly came from a Cloudflare cache hit`);
@@ -49,7 +74,7 @@ function assertNotCached(headers, label) {
 
 async function fetchNoStore(pathname, accept = "application/json") {
   const url = new URL(pathname, `${stagingBaseUrl}/`);
-  url.searchParams.set("utsurou_runtime_qa", `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  url.searchParams.set("utsurou_runtime_qa", expectedSha);
   const response = await fetch(url, {
     redirect: "error",
     headers: {
@@ -87,22 +112,18 @@ async function readRuntimeIdentity() {
   }
   const sourceSha = runtimeSourceSha(payload);
   const deploymentId = runtimeDeploymentId(payload);
-  const uiBundleHash = String(payload?.uiBundleHash ?? "");
-  const uiManifestHash = String(payload?.originalUiManifestHash ?? "");
   if (sourceSha !== expectedSha) {
     throw new Error(`runtime SHA mismatch: expected ${expectedSha}, received ${sourceSha || "missing"}`);
   }
   if (payload?.environment !== "staging") throw new Error("runtime identity environment is not staging");
   if (payload?.publicSafe !== true) throw new Error("runtime identity is not public-safe");
   if (!deploymentId) throw new Error("runtime identity deployment ID is missing");
-  if (!SHA256_RE.test(uiBundleHash)) throw new Error("runtime UI bundle hash is missing or invalid");
-  if (!SHA256_RE.test(uiManifestHash)) throw new Error("runtime UI manifest hash is missing or invalid");
   return {
     sourceSha,
     deploymentId,
-    artifactHash: String(payload?.artifactHash ?? ""),
-    uiBundleHash,
-    uiManifestHash,
+    artifactHash: optionalHash(payload?.artifactHash, "runtime artifact hash"),
+    uiBundleHash: optionalHash(payload?.uiBundleHash, "runtime UI bundle hash"),
+    uiManifestHash: optionalHash(payload?.originalUiManifestHash, "runtime UI manifest hash"),
     environment: "staging",
     publicSafe: true,
     headers: response.headers,
@@ -123,12 +144,70 @@ async function readHealth(pathname) {
   return { status: response.status, environment: "staging", headers: response.headers };
 }
 
-async function assertMapArtifact() {
+async function readMaterializationIdentity() {
+  const file = await stat(materializationReportPath);
+  const notBeforeMs = Date.parse(materializationNotBefore);
+  if (!file.isFile() || file.size < 2 || file.size > MAX_MATERIALIZATION_REPORT_BYTES) {
+    throw new Error("materialization report is missing or outside the allowed size");
+  }
+  if (file.mtimeMs + 1_000 < notBeforeMs) {
+    throw new Error("materialization report predates this release");
+  }
+  const text = await readFile(materializationReportPath, "utf8");
+  let result;
+  try {
+    result = JSON.parse(text);
+  } catch {
+    throw new Error("materialization report is not JSON");
+  }
+  if (result?.ok !== true
+      || result?.mode !== "execute"
+      || result?.r2WritesRequested !== true
+      || result?.targetEnv !== "staging"
+      || result?.scope !== "staging-qa"
+      || result?.manifestKey !== MATERIALIZATION_MANIFEST_KEY
+      || !SHA256_RE.test(String(result?.bundleHash ?? ""))
+      || result?.manifestUpload?.ok !== true
+      || result?.manifestUpload?.reason === "explicit_paths_not_finalized") {
+    throw new Error("materialization report contract is invalid");
+  }
+  const manifestHash = String(result.manifestUpload?.sha256 ?? result.bundleHash);
+  if (!SHA256_RE.test(manifestHash)) throw new Error("materialization manifest hash is invalid");
+  if (!Array.isArray(result.rendered)) throw new Error("materialization rendered list is missing");
+  const byKey = new Map();
+  for (const entry of result.rendered) {
+    const key = String(entry?.key ?? "");
+    const sha256 = String(entry?.sha256 ?? "");
+    if (!key || !SHA256_RE.test(sha256) || byKey.has(key)) {
+      throw new Error("materialization rendered identity is invalid");
+    }
+    byKey.set(key, sha256);
+  }
+  const mapSha256ByPath = {};
+  for (const [publicPath, key] of Object.entries(MAP_KEYS)) {
+    const sha256 = byKey.get(key);
+    if (!sha256) throw new Error(`materialization map entry is missing: ${key}`);
+    mapSha256ByPath[publicPath] = sha256;
+  }
+  return {
+    bundleHash: result.bundleHash,
+    manifestHash,
+    manifestKey: result.manifestKey,
+    reportSha256: createHash("sha256").update(text).digest("hex"),
+    reportMtime: new Date(file.mtimeMs).toISOString(),
+    materializeSkipped: result.materializeSkipped === true,
+    r2WritesExecuted: result.r2WritesExecuted === true,
+    mapSha256ByPath,
+  };
+}
+
+async function assertMapArtifact(materializationIdentity) {
   const response = await fetchNoStore(
     "/ja/map?tab=places&lng=138.3805&lat=34.9702&z=16.4",
     "text/html",
   );
   if (!response.ok) throw new Error(`map artifact HTTP ${response.status}`);
+  assertNotCached(response.headers, "map artifact");
   const requiredMarkers = [
     "function renderAtlasTimeline",
     "data-place-atlas-theme",
@@ -139,9 +218,15 @@ async function assertMapArtifact() {
   if (response.headers["x-ikimon-cloudflare-materialized"] !== "original-ui-html") {
     throw new Error("map artifact is not the materialized original UI");
   }
+  const bodySha256 = createHash("sha256").update(response.body).digest("hex");
+  if (bodySha256 !== materializationIdentity.mapSha256ByPath["/ja/map"]) {
+    throw new Error("map artifact SHA does not match the fresh materialization report");
+  }
   return {
     status: response.status,
     headers: response.headers,
+    bodySha256,
+    materializationKey: MAP_KEYS["/ja/map"],
     requiredMarkers,
   };
 }
@@ -218,7 +303,7 @@ async function runPlaywright(name, args, extraEnv = {}) {
 async function writeReport(status, details = {}, error = null) {
   await mkdir(reportDir, { recursive: true });
   const report = {
-    schema: "ikimon.utsurou-runtime-qa/v1",
+    schema: "ikimon.utsurou-runtime-qa/v2",
     status,
     startedAt,
     finishedAt: new Date().toISOString(),
@@ -249,10 +334,11 @@ async function main() {
   await assertChromiumExists();
   await mkdir(reportDir, { recursive: true });
 
+  const materializationIdentity = await readMaterializationIdentity();
   const runtimeBefore = await readRuntimeIdentity();
   const health = await readHealth("/healthz");
   const ready = await readHealth("/readyz");
-  const mapArtifact = await assertMapArtifact();
+  const mapArtifact = await assertMapArtifact(materializationIdentity);
 
   const mapQa = await runPlaywright(
     "place_atlas_runtime",
@@ -260,12 +346,10 @@ async function main() {
       "test",
       "-c",
       "playwright.utsurou-runtime.config.ts",
-      "e2e/map-place-atlas.staging.spec.ts",
-      "--grep",
-      "place atlas is usable without overflow|timeline single, empty, suppressed, CTA, and privacy states stay fail-closed",
+      "e2e/place-atlas-runtime.staging.spec.ts",
     ],
     {
-      PLACE_ATLAS_QA_CANONICAL_ROUTE: "1",
+      UTSUROU_EXPECTED_MAP_SHA256_BY_PATH: JSON.stringify(materializationIdentity.mapSha256ByPath),
       UTSUROU_RUNTIME_QA_PLAYWRIGHT_REPORT: path.join(reportDir, "utsurou-place-atlas-playwright.json"),
     },
   );
@@ -284,17 +368,14 @@ async function main() {
   );
 
   const runtimeAfter = await readRuntimeIdentity();
-  if (runtimeAfter.deploymentId !== runtimeBefore.deploymentId) {
-    throw new Error("staging deployment changed during UTSUROU runtime QA");
-  }
-  if (runtimeAfter.uiBundleHash !== runtimeBefore.uiBundleHash
-      || runtimeAfter.uiManifestHash !== runtimeBefore.uiManifestHash) {
-    throw new Error("staging UI artifact identity changed during UTSUROU runtime QA");
+  if (JSON.stringify(runtimeAfter) !== JSON.stringify(runtimeBefore)) {
+    throw new Error("staging runtime identity changed during UTSUROU runtime QA");
   }
 
   await writeReport("succeeded", {
     runtimeIdentityBefore: runtimeBefore,
     runtimeIdentityAfter: runtimeAfter,
+    materializationIdentity,
     health,
     ready,
     mapArtifact,
@@ -303,11 +384,14 @@ async function main() {
       "staging_environment",
       "public_safe_runtime_identity",
       "deployment_id_present",
-      "ui_artifact_hashes_present",
+      "fresh_materialization_report",
+      "materialization_bundle_and_manifest_identity",
+      "localized_materialized_map_sha_identity",
       "health_200",
       "ready_200",
       "no_store_cache_buster",
       "latest_map_artifact_markers",
+      "materialized_map_sha_match",
       "place_atlas_timeline_runtime_fixture",
       "capture_start",
       "record_saved_once",
@@ -317,7 +401,7 @@ async function main() {
       "record_not_duplicated",
       "fixture_only_mutations",
       "exact_sha_runtime_after",
-      "stable_deployment_and_ui_identity",
+      "stable_runtime_identity",
     ],
     playwright: [mapQa, captureQa],
   });
