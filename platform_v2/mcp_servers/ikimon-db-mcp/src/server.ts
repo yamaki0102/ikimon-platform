@@ -1,9 +1,9 @@
-// ikimon-db-mcp — stdio MCP server skeleton.
+// ikimon-db-mcp — MCP tool contract and transport skeleton.
 //
-// Sprint 4 lands the contract (allowlist enforcement + PR emission). The
-// MCP wire format integration with @modelcontextprotocol/sdk is wired
-// to a placeholder — replace startStdioMcp() with the SDK transport once
-// the first curator is scheduled to run.
+// Sprint 4 lands the contract (allowlist enforcement + PR emission). No MCP
+// transport is active yet. When transport activation is approved, it must use
+// the pinned MCP SDK v2 server package and a stateless application boundary.
+// Do not introduce an SDK v1 or sessionful legacy lane for this skeleton.
 //
 // Run:
 //   AGENT_ID=invasive-law DATABASE_URL=postgres://... node dist/server.js
@@ -13,6 +13,15 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
+
+export const MCP_TRANSPORT_POLICY = Object.freeze({
+  implementationStatus: "skeleton",
+  activationTarget: "v2_stateless",
+  legacyLane: "forbidden",
+  agentsVersion: "0.20.0",
+  serverPackage: "@modelcontextprotocol/server@2.0.0-beta.5",
+  stateBoundary: "application_database",
+} as const);
 
 type AgentId = "invasive-law" | "redlist" | "paper-research" | "satellite-update";
 
@@ -300,15 +309,16 @@ export async function startStdioMcp(): Promise<void> {
   if (!databaseUrl) throw new Error("DATABASE_URL is required");
   const pool = new Pool({ connectionString: databaseUrl, application_name: `ikimon-db-mcp/${agentId}` });
 
-  // PLACEHOLDER: integrate @modelcontextprotocol/sdk Server here once a
-  // curator is actually scheduled to run. The exported tool functions
+  // PLACEHOLDER: activation must use @modelcontextprotocol/server v2 with
+  // stateless operation handles. The exported tool functions
   // (queryReadonly / proposeWrite / schemaIntrospect / recordRunStatus /
-  // registerSnapshot) are the wire-level API.
+  // registerSnapshot) remain the application API and business state stays in
+  // the database. Do not add @modelcontextprotocol/sdk v1 or session storage.
   // eslint-disable-next-line no-console
-  console.log(`[ikimon-db-mcp] agent=${agentId} ready (skeleton — MCP transport pending integration)`);
+  console.log(`[ikimon-db-mcp] agent=${agentId} ready (skeleton — v2 stateless transport pending activation)`);
 
   // Keep the process alive so systemd treats this as a long-running service.
-  // Real MCP transport will block on stdin instead.
+  // The eventual transport implementation will own this lifecycle.
   await new Promise<void>(() => {
     // never resolves — operator stops via systemctl
   });
