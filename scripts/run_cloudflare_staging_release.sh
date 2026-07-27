@@ -17,6 +17,9 @@ IKIMON_CF_STAGING_DEPLOY_APPROVAL="${IKIMON_CF_STAGING_DEPLOY_APPROVAL:-APPROVE_
 STAGING_BASE_URL="${STAGING_BASE_URL:-https://staging.ikimon.life}"
 REPORT_DIR="${WORKER_DIR}/.deploy"
 SUMMARY_PATH="${REPORT_DIR}/staging-release-summary.json"
+MATERIALIZATION_PREFLIGHT_REPORT="${WORKER_DIR}/materialize-staging-original-ui-preflight.json"
+MATERIALIZATION_REPORT="${WORKER_DIR}/materialize-staging-original-ui.json"
+UTSUROU_QA_REPORT="${PLATFORM_DIR}/.deploy/utsurou-runtime-qa-latest.json"
 
 case "${DEPLOY_STAGING}" in true|false) ;; *) echo "DEPLOY_STAGING must be true or false" >&2; exit 2 ;; esac
 case "${TEST_PROFILE}" in quick|full) ;; *) echo "TEST_PROFILE must be quick or full" >&2; exit 2 ;; esac
@@ -48,6 +51,66 @@ GIT_SHA="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
 run_npm_ci() {
   local directory="$1"
   npm --prefix "${directory}" ci --prefer-offline
+}
+
+validate_materialization_report() {
+  local report_path="$1"
+  local expected_mode="$2"
+  node --input-type=module - "${report_path}" "${expected_mode}" <<'NODE'
+import fs from "node:fs";
+import crypto from "node:crypto";
+const [reportPath, expectedMode] = process.argv.slice(2);
+const text = fs.readFileSync(reportPath, "utf8");
+if (Buffer.byteLength(text) < 2 || Buffer.byteLength(text) > 2 * 1024 * 1024) {
+  throw new Error("materialization_report_size_invalid");
+}
+const result = JSON.parse(text);
+const sha256 = /^[a-f0-9]{64}$/u;
+if (result?.ok !== true
+    || result?.mode !== expectedMode
+    || result?.targetEnv !== "staging"
+    || result?.scope !== "staging-qa"
+    || result?.manifestKey !== "original-ui/materialize-manifest/staging/staging-qa.json"
+    || !sha256.test(String(result?.bundleHash ?? ""))
+    || !Array.isArray(result?.rendered)) {
+  throw new Error("materialization_report_contract_invalid");
+}
+if (expectedMode === "dry-run" && result.r2WritesRequested !== false) {
+  throw new Error("materialization_preflight_write_requested");
+}
+if (expectedMode === "execute"
+    && (result.r2WritesRequested !== true
+      || result?.manifestUpload?.ok !== true
+      || result?.manifestUpload?.reason === "explicit_paths_not_finalized")) {
+  throw new Error("materialization_execute_not_finalized");
+}
+const required = new Map([
+  ["/ja/map", "original-ui/html/ja/map.html"],
+  ["/en/map", "original-ui/html/en/map.html"],
+  ["/es/map", "original-ui/html/es/map.html"],
+  ["/pt-br/map", "original-ui/html/pt-br/map.html"],
+]);
+const byKey = new Map();
+for (const entry of result.rendered) {
+  const key = String(entry?.key ?? "");
+  const digest = String(entry?.sha256 ?? "");
+  if (!key || !sha256.test(digest) || byKey.has(key)) {
+    throw new Error("materialization_rendered_identity_invalid");
+  }
+  byKey.set(key, digest);
+}
+const maps = {};
+for (const [publicPath, key] of required) {
+  const digest = byKey.get(key);
+  if (!digest) throw new Error(`materialization_map_entry_missing_${key.replaceAll("/", "_")}`);
+  maps[publicPath] = digest;
+}
+process.stdout.write(JSON.stringify({
+  bundleHash: result.bundleHash,
+  maps,
+  reportSha256: crypto.createHash("sha256").update(text).digest("hex"),
+}));
+NODE
 }
 
 write_summary() {
@@ -102,6 +165,15 @@ if [[ "${DEPLOY_STAGING}" != "true" ]]; then
   exit 0
 fi
 
+rm -f "${MATERIALIZATION_PREFLIGHT_REPORT}" "${MATERIALIZATION_REPORT}" "${UTSUROU_QA_REPORT}"
+echo "== Preflight exact staging materialization identity before mutation =="
+npm --prefix "${WORKER_DIR}" run materialize:original-ui:dry-run -- \
+  --target-env staging \
+  --scope staging-qa \
+  --concurrency 8 \
+  --output "${MATERIALIZATION_PREFLIGHT_REPORT}"
+MATERIALIZATION_PREFLIGHT_IDENTITY="$(validate_materialization_report "${MATERIALIZATION_PREFLIGHT_REPORT}" dry-run)"
+
 if [[ "${SYNC_STAGING_WRITE_SECRET}" == "true" ]]; then
   if [[ -z "${V2_PRIVILEGED_WRITE_API_KEY:-}" ]]; then
     echo "V2_PRIVILEGED_WRITE_API_KEY is required when SYNC_STAGING_WRITE_SECRET=true." >&2
@@ -134,7 +206,17 @@ npm --prefix "${WORKER_DIR}" run materialize:original-ui -- \
   --scope staging-qa \
   --concurrency 8 \
   --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" \
-  --output materialize-staging-original-ui.json
+  --output "${MATERIALIZATION_REPORT}"
+MATERIALIZATION_EXECUTE_IDENTITY="$(validate_materialization_report "${MATERIALIZATION_REPORT}" execute)"
+node --input-type=module - "${MATERIALIZATION_PREFLIGHT_IDENTITY}" "${MATERIALIZATION_EXECUTE_IDENTITY}" <<'NODE'
+const [preflightText, executeText] = process.argv.slice(2);
+const preflight = JSON.parse(preflightText);
+const execute = JSON.parse(executeText);
+if (preflight.bundleHash !== execute.bundleHash
+    || JSON.stringify(preflight.maps) !== JSON.stringify(execute.maps)) {
+  throw new Error("materialization_preflight_execute_identity_mismatch");
+}
+NODE
 
 echo "== Verify Cloudflare staging public routes =="
 (
@@ -170,6 +252,7 @@ fi
 export STAGING_BASE_URL
 export IKIMON_EXPECTED_GIT_SHA="${GIT_SHA}"
 export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${CHROMIUM_EXECUTABLE}"
+export UTSUROU_MATERIALIZATION_NOT_BEFORE="${STARTED_AT}"
 npm --prefix "${PLATFORM_DIR}" run e2e:staging:utsurou-runtime
 
 if [[ "${BROWSER_QA}" != "none" ]]; then
