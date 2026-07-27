@@ -1,24 +1,26 @@
 # DB Migration Baseline Rehearsal
 
-Generated: 2026-06-30T12:40:25.003Z
-Schema version: platform_migration_baseline_rehearsal/v0
+Generated: 2026-07-28T00:00:00.000Z  
+Schema version: platform_migration_baseline_rehearsal/v0  
 Migration dir: db/migrations
 
 ## Summary
 
-- Total migrations: 125
+- Total migrations: 141
 - First migration: 0001_extensions_and_core.sql
-- Head migration: 0123_municipal_walk_maps.sql
+- Head migration: 0138_zukan_foundation_v2_disputes_coverage.sql
 - Extension requirements: timescaledb, vector
 - Duplicate sequences: 8
 - Missing sequences: 0010, 0041, 0042, 0043, 0044, 0078, 0084
 
 ## Risk Summary
 
-- Destructive approved: 12
+- Destructive approved: 14
 - Destructive unapproved historical debt: 1
-- Owner-sensitive approved: 30
+- Owner-sensitive approved: 35
 - Owner-sensitive unapproved historical debt: 9
+
+Foundation v2 migrations `0134`–`0138` create new tables, indexes, functions and triggers only. They do not alter, rename, backfill or delete existing product rows.
 
 ## Stop Conditions
 
