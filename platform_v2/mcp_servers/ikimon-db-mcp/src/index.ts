@@ -65,7 +65,6 @@ export function createIkimonDbMcpServer(
   const server = new McpServer({
     name: "ikimon-db-mcp",
     version: "0.2.0",
-    description: "Allowlisted database access for IKIMON curator agents.",
   });
 
   server.registerTool(
