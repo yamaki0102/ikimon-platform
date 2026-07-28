@@ -20,6 +20,6 @@ PR #1485で、次のsource-only登録を行った。
 - issued: `2026-03-01`
 - geographic scope hint: `place:jp-mie-inabe`
 
-PDF本文、写真、イラスト、地図、紙面はrepositoryへ複製していない。SourceObject、SourceFragment、ExtractionRun、Claim候補、人レビュー、public projectionも未実施である。
+PR #1485時点では、PDF本文、写真、イラスト、地図、紙面をrepositoryへ複製しておらず、SourceObject、SourceFragment、ExtractionRun、Claim候補、人レビュー、public projectionも未実施だった。
 
 本書にあった有効なrights、evidence、identity、edition、publicationの契約は`SPEC.md`へ、実装順、migration、verification、rollback、停止条件は`PLAN.md`へ移した。以後、この文書をproduct contractまたは実装順の正本として参照しない。
