@@ -232,6 +232,12 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   const exclusiveMaintenancePgDependencyReason = loadExclusiveMaintenancePgDependencyReason(script);
 
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/applyMigrations.ts"), "migration_cli_tool");
+  assert.equal(
+    maintenancePgDependencyReason(
+      "platform_v2/src/scripts/applyZukanFoundationV2SourceRegistryImport.ts",
+    ),
+    "foundation_v2_operator_apply_tool",
+  );
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/embedRegionalKnowledgeCards.ts"), "manual_embedding_batch");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reportMissingObservationPhotos.ts"), "manual_integrity_report");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importObservationFields.ts"), "manual_field_import");

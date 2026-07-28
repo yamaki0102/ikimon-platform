@@ -1,6 +1,8 @@
 export const ZUKAN_FOUNDATION_SOURCE_IMPORT_OPERATION = "source_registry_import_v1" as const;
 export const ZUKAN_FOUNDATION_SOURCE_IMPORT_SCHEMA = "zukan.foundation-source-import/v1" as const;
 export const ZUKAN_FOUNDATION_ID_NAMESPACE = "zukan.foundation-source-registry/v1" as const;
+export const ZUKAN_FOUNDATION_SOURCE_REGISTRY_CANONICAL_TENANT_ID =
+  "ikimon-source-registry-canonical-v1" as const;
 
 export type FoundationDialect = "postgres" | "d1";
 export type FoundationSourceImportOperation = typeof ZUKAN_FOUNDATION_SOURCE_IMPORT_OPERATION;
