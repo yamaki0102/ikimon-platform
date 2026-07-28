@@ -2230,29 +2230,54 @@ SELECT
 INSERT INTO zukan_foundation_v2_schema_assertions(assertion_key, assertion_holds)
 SELECT
   '0014_all_audit_hashes_lowercase_hex',
-  CASE WHEN EXISTS (
-    SELECT 1
-      FROM (
-        SELECT content_sha256 AS digest FROM zukan_content_objects
-        UNION ALL SELECT fragment_hash FROM zukan_source_fragments
-        UNION ALL SELECT input_hash FROM zukan_extraction_runs
-        UNION ALL SELECT output_hash FROM zukan_extraction_runs
-        UNION ALL SELECT content_sha256 FROM zukan_value_artifacts
-        UNION ALL SELECT content_sha256 FROM zukan_content_fixity_events
-        UNION ALL SELECT predicate_registry_snapshot_hash FROM zukan_resolution_runs
-        UNION ALL SELECT authority_snapshot_hash FROM zukan_resolution_runs
-        UNION ALL SELECT input_hash FROM zukan_resolution_runs
-        UNION ALL SELECT output_hash FROM zukan_resolution_runs
-        UNION ALL SELECT snapshot_hash FROM zukan_projection_snapshots
-        UNION ALL SELECT manifest_hash FROM zukan_publication_editions
-        UNION ALL SELECT payload_sha256 FROM zukan_foundation_v2_write_receipts
-      ) AS hashes
-     WHERE digest IS NOT NULL
-       AND (
-         length(digest) <> 64
-         OR digest GLOB '*[^0-9a-f]*'
-       )
-  ) THEN 0 ELSE 1 END;
+  CASE WHEN
+    EXISTS (
+      SELECT 1 FROM zukan_content_objects
+       WHERE content_sha256 IS NOT NULL
+         AND (length(content_sha256) <> 64 OR content_sha256 GLOB '*[^0-9a-f]*')
+    )
+    OR EXISTS (
+      SELECT 1 FROM zukan_source_fragments
+       WHERE length(fragment_hash) <> 64 OR fragment_hash GLOB '*[^0-9a-f]*'
+    )
+    OR EXISTS (
+      SELECT 1 FROM zukan_extraction_runs
+       WHERE length(input_hash) <> 64 OR input_hash GLOB '*[^0-9a-f]*'
+          OR length(output_hash) <> 64 OR output_hash GLOB '*[^0-9a-f]*'
+    )
+    OR EXISTS (
+      SELECT 1 FROM zukan_value_artifacts
+       WHERE content_sha256 IS NOT NULL
+         AND (length(content_sha256) <> 64 OR content_sha256 GLOB '*[^0-9a-f]*')
+    )
+    OR EXISTS (
+      SELECT 1 FROM zukan_content_fixity_events
+       WHERE length(content_sha256) <> 64 OR content_sha256 GLOB '*[^0-9a-f]*'
+    )
+    OR EXISTS (
+      SELECT 1 FROM zukan_resolution_runs
+       WHERE length(predicate_registry_snapshot_hash) <> 64
+          OR predicate_registry_snapshot_hash GLOB '*[^0-9a-f]*'
+          OR length(authority_snapshot_hash) <> 64
+          OR authority_snapshot_hash GLOB '*[^0-9a-f]*'
+          OR length(input_hash) <> 64
+          OR input_hash GLOB '*[^0-9a-f]*'
+          OR length(output_hash) <> 64
+          OR output_hash GLOB '*[^0-9a-f]*'
+    )
+    OR EXISTS (
+      SELECT 1 FROM zukan_projection_snapshots
+       WHERE length(snapshot_hash) <> 64 OR snapshot_hash GLOB '*[^0-9a-f]*'
+    )
+    OR EXISTS (
+      SELECT 1 FROM zukan_publication_editions
+       WHERE length(manifest_hash) <> 64 OR manifest_hash GLOB '*[^0-9a-f]*'
+    )
+    OR EXISTS (
+      SELECT 1 FROM zukan_foundation_v2_write_receipts
+       WHERE length(payload_sha256) <> 64 OR payload_sha256 GLOB '*[^0-9a-f]*'
+    )
+  THEN 0 ELSE 1 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_zukan_content_objects_hash_canonical
 BEFORE INSERT ON zukan_content_objects
