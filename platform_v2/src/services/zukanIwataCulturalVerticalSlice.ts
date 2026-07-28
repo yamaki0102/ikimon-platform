@@ -249,7 +249,6 @@ function publicationManifest(input: {
       entityKind: `iwata_cultural_publication:${input.outputKind}`,
       externalId: input.envelope.record.externalRecordId,
     }),
-    outputKind: input.outputKind,
     state: "shadow_candidate",
     ...manifestCore,
     manifestSha256: sha256(canonicalFoundationJson(manifestCore)),
