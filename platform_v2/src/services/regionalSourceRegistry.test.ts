@@ -34,6 +34,17 @@ test("PDF map defaults to index-only until acquisition and republication rights 
   assert.equal(source?.retrievedAt, null);
 });
 
+test("Inabe Green Map is registered as a rights-classified official PDF edition", () => {
+  const source = findRegionalSourceAsset("source:inabe:green-map:2026");
+  assert.equal(source?.format, "pdf");
+  assert.equal(source?.rightsClass, "INDEX_ONLY");
+  assert.equal(source?.state, "RIGHTS_CLASSIFIED");
+  assert.equal(source?.issuedAt, "2026-03-01");
+  assert.equal(source?.updatedAt, "2026-03-03");
+  assert.deepEqual(source?.publisherIds, ["publisher:inabe-city"]);
+  assert.deepEqual(source?.geographicScopes, ["place:jp-mie-inabe"]);
+});
+
 test("existing Iwata open-data sources remain published and attribution-aware", () => {
   const source = findRegionalSourceAsset("source:iwata:tourism-facilities-linkdata");
   assert.equal(source?.state, "PUBLISHED");
