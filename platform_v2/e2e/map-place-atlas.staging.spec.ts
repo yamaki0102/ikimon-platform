@@ -440,7 +440,8 @@ for (const profile of PLACE_ATLAS_VIEWPORTS) {
         image instanceof HTMLImageElement ? image.naturalWidth : 0
       )
     ).toBeGreaterThan(0);
-    await expect(atlas.locator('[data-kpi-action="map:place_atlas:record_here"]')).toHaveAttribute("href", /\/record/);
+    await expect(atlas.locator("[data-place-primary-action]")).toHaveCount(1);
+    await expect(atlas.locator('[data-kpi-action="map:place_atlas:record_here"]')).toHaveCount(0);
     await expect(atlas.locator('[data-kpi-action="map:place_atlas:browse_records"]')).toHaveAttribute("href", /\/records/);
     const timeline = atlas.locator(".me-place-atlas-timeline");
     if (profile.viewport.width <= 900) {

@@ -2,8 +2,9 @@ import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import type { LandingStrings } from "../i18n/strings.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
-import type { LandingObservation, LandingSnapshot } from "../services/readModels.js";
+import type { HomePlace, LandingObservation, LandingSnapshot } from "../services/readModels.js";
 import { toThumbnailUrl } from "../services/thumbnailUrl.js";
+import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "./placeRevisit.js";
 import { escapeHtml } from "./siteShell.js";
 
 export type LandingHomeStateOptions = {
@@ -44,7 +45,10 @@ function mediaKind(item: LandingObservation): HomeMediaKind {
 }
 
 function displayName(item: LandingObservation, copy: LandingStrings): string {
-  const preferred = item.vernacularName || item.scientificName || item.aiCandidateName || item.displayName;
+  if (item.isAiCandidate && !item.vernacularName && !item.scientificName) {
+    return copy.home.shared.unknownRecord;
+  }
+  const preferred = item.vernacularName || item.scientificName || item.displayName;
   return genericNames.has(String(preferred || "").trim().toLowerCase()) ? copy.home.shared.unknownRecord : String(preferred);
 }
 
@@ -167,13 +171,6 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
   </div>`;
 }
 
-function formatEventDate(value: string, lang: SiteLang): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const locale: Record<SiteLang, string> = { ja: "ja-JP", en: "en-US", es: "es-ES", "pt-BR": "pt-BR" };
-  return new Intl.DateTimeFormat(locale[lang], { month: "short", day: "numeric" }).format(date);
-}
-
 type HomePreviewPolicy = "photo" | "photo_without_place" | "masked" | "excluded";
 
 function homePreviewPolicy(item: LandingObservation): HomePreviewPolicy {
@@ -182,6 +179,62 @@ function homePreviewPolicy(item: LandingObservation): HomePreviewPolicy {
   if (item.publicFeedEligible === false) return "photo_without_place";
   const place = String(item.publicLocation?.label || item.municipality || "").trim();
   return place ? "photo" : "photo_without_place";
+}
+
+type MemberP0Copy = LandingStrings["home"]["member"]["p0"];
+
+function fillHomeTemplate(template: string, key: "count" | "focus", value: string): string {
+  return template.replace(`{${key}}`, value);
+}
+
+function homeDateLocale(lang: SiteLang): string {
+  return ({ ja: "ja-JP", en: "en-US", es: "es-ES", "pt-BR": "pt-BR" } as const)[lang];
+}
+
+function homeSeasonKey(value: string): string {
+  const calendarMonth = value.match(/^\d{4}-(\d{2})/u);
+  if (calendarMonth) {
+    const month = Number(calendarMonth[1]);
+    if (month >= 1 && month <= 12) return String(Math.floor((month - 1) / 3));
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return String(Math.floor(date.getUTCMonth() / 3));
+}
+
+function homePlaceKey(item: LandingObservation): string {
+  if (homePreviewPolicy(item) !== "photo") return "";
+  const fieldId = item.fieldRefs?.find((field) => field.fieldId)?.fieldId;
+  return fieldId ? `field:${fieldId}` : "";
+}
+
+function sameHomePlace(left: LandingObservation, right: LandingObservation): boolean {
+  const leftKey = homePlaceKey(left);
+  return Boolean(leftKey) && leftKey === homePlaceKey(right);
+}
+
+function observationMatchesPlace(item: LandingObservation, place: HomePlace): boolean {
+  return item.fieldRefs?.some((field) => field.fieldId === place.placeId) === true;
+}
+
+function renderPlaceChangeCard(
+  options: LandingHomeStateOptions,
+  place: HomePlace,
+  ownItems: LandingObservation[],
+  p0: MemberP0Copy,
+): string {
+  const record = ownItems.find((item) => observationMatchesPlace(item, place) && homePreviewPolicy(item) !== "excluded") ?? null;
+  const cardHref = record ? detailHref(options, record) : href(options, "/records?view=mine");
+  const dates = [place.previousObservedAt, place.lastObservedAt]
+    .map((value) => formatShortDate(value, homeDateLocale(options.lang)))
+    .filter(Boolean);
+  const comparison = dates.length >= 2
+    ? dates.join(" → ")
+    : fillHomeTemplate(p0.comparableRecordsTemplate, "count", String(place.visitCount));
+  return `<a class="home-place-change-card" href="${escapeHtml(cardHref)}" data-home-place-change="${escapeHtml(place.placeId)}">
+    ${record ? renderMedia(record, options.copy) : ""}
+    <span class="home-place-change-copy"><strong>${escapeHtml(place.placeName)}</strong>${place.municipality ? `<span>${escapeHtml(place.municipality)}</span>` : ""}<small>${escapeHtml(comparison)}</small></span>
+  </a>`;
 }
 
 function renderHomeContinuationScript(viewerUserId: string): string {
@@ -219,11 +272,11 @@ function renderHomeContinuationScript(viewerUserId: string): string {
 
 function renderMember(options: LandingHomeStateOptions, ownItems: LandingObservation[]): string {
   const copy = options.copy.home.member;
+  const p0 = copy.p0;
   const safeItems = ownItems.filter((item) => homePreviewPolicy(item) !== "excluded");
   const memory = safeItems[0] ?? null;
   const hasPrivateHistory = !memory && ownItems.length > 0;
-  const activeEvent = memory || hasPrivateHistory ? null : options.snapshot.nearbyEvents[0] ?? null;
-  const baseState = memory || hasPrivateHistory ? "recent_memory" : activeEvent ? "active_context" : "first_record";
+  const baseState = memory || hasPrivateHistory ? "recent_memory" : "first_record";
   const baseHero = (() => {
     if (memory) {
       const policy = homePreviewPolicy(memory);
@@ -238,15 +291,6 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
         <div class="home-member-primary-copy"><span class="home-member-eyebrow">${escapeHtml(copy.memoryEyebrow)}</span><h1>${escapeHtml(copy.recentTitle)}</h1><p>${escapeHtml(copy.memoryLead)}</p><a class="home-primary-button" href="${escapeHtml(href(options, "/records?view=mine"))}" data-kpi-action="home_memory_open">${escapeHtml(copy.memoryCta)}</a></div>
       </section>`;
     }
-    if (activeEvent) {
-      const eventHref = activeEvent.eventCode
-        ? href(options, `/community/events/${encodeURIComponent(activeEvent.eventCode)}/join`)
-        : href(options, `/events/${encodeURIComponent(activeEvent.sessionId)}/live`);
-      const meta = [formatEventDate(activeEvent.startedAt, options.lang), activeEvent.fieldName || activeEvent.city || activeEvent.prefecture || ""].filter(Boolean).join(" · ");
-      return `<section class="home-member-primary is-context" data-home-primary-state="active_context" data-home-primary-active="true">
-        <div class="home-member-primary-copy"><span class="home-member-eyebrow">${escapeHtml(copy.activeEyebrow)}</span><h1>${escapeHtml(activeEvent.title)}</h1>${meta ? `<p class="home-member-meta">${escapeHtml(meta)}</p>` : ""}<p>${escapeHtml(copy.activeLead)}</p><a class="home-primary-button" href="${escapeHtml(eventHref)}" data-kpi-action="home_active_context_open">${escapeHtml(copy.activeCta)}</a></div>
-      </section>`;
-    }
     return `<section class="home-member-primary is-first" data-home-primary-state="first_record" data-home-primary-active="true">
       <div class="home-member-primary-copy"><h1>${escapeHtml(copy.emptyTitle)}</h1><p>${escapeHtml(copy.emptyBody)}</p>
         <div class="home-empty-actions">${captureButton(copy.primaryCta, "home-primary-button", "home_empty_capture")}${galleryButton(copy.galleryCta, "home-secondary-button")}</div>
@@ -254,22 +298,40 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
       </div>
     </section>`;
   })();
-  const recentItems = memory ? safeItems.slice(1, 7) : safeItems.slice(0, 6);
+  const recentItems = memory ? safeItems.slice(1, 5) : safeItems.slice(0, 4);
   const recentSection = recentItems.length > 0
     ? `<section class="home-section home-recent-section"><div class="home-section-heading"><h2>${escapeHtml(copy.recentTitle)}</h2><a href="${escapeHtml(href(options, "/records?view=mine"))}">${escapeHtml(copy.recentCta)}</a></div><div class="home-recent-grid">${recentItems.map((item) => renderRecentCard(options, item)).join("")}</div></section>`
     : "";
-  const placesSection = options.snapshot.myPlaces.length > 0
-    ? `<section class="home-section home-places-section"><div class="home-section-heading"><h2>${escapeHtml(copy.placesTitle)}</h2><a href="${escapeHtml(href(options, "/map?tab=places"))}">${escapeHtml(copy.placesCta)}</a></div><div class="home-place-grid">${options.snapshot.myPlaces.slice(0, 4).map((place) => `<a class="home-place-card" href="${escapeHtml(href(options, "/map?tab=places"))}"><strong>${escapeHtml(place.placeName)}</strong>${place.municipality ? `<span>${escapeHtml(place.municipality)}</span>` : ""}${place.latestDisplayName ? `<small>${escapeHtml(place.latestDisplayName)}</small>` : ""}</a>`).join("")}</div></section>`
+  const recentKeys = new Set([memory, ...recentItems].filter((item): item is LandingObservation => Boolean(item)).map(observationKey));
+  const pastPool = safeItems.filter((item) => !recentKeys.has(observationKey(item)));
+  const samePlaceItems = memory ? pastPool.filter((item) => sameHomePlace(memory, item)) : [];
+  const memorySeason = memory ? homeSeasonKey(memory.observedAt) : "";
+  const sameSeasonItems = memorySeason
+    ? pastPool.filter((item) => homeSeasonKey(item.observedAt) === memorySeason)
+    : [];
+  const pastItems = (samePlaceItems.length > 0 ? samePlaceItems : sameSeasonItems).slice(0, 4);
+  const pastTitle = samePlaceItems.length > 0 ? p0.samePlaceTitle : p0.sameSeasonTitle;
+  const pastSection = pastItems.length > 0
+    ? `<section class="home-section home-past-section"><h2>${escapeHtml(pastTitle)}</h2><div class="home-recent-grid">${pastItems.map((item) => renderRecentCard(options, item)).join("")}</div></section>`
     : "";
-  const nextEvents = activeEvent ? options.snapshot.nearbyEvents.slice(1, 4) : options.snapshot.nearbyEvents.slice(0, 3);
-  const nextSection = nextEvents.length > 0
-    ? `<section class="home-section home-next-section"><h2>${escapeHtml(copy.nextTitle)}</h2><div class="home-next-list">${nextEvents.map((event) => {
-      const eventHref = event.eventCode
-        ? href(options, `/community/events/${encodeURIComponent(event.eventCode)}/join`)
-        : href(options, `/events/${encodeURIComponent(event.sessionId)}/live`);
-      const meta = [formatEventDate(event.startedAt, options.lang), event.fieldName || event.city || event.prefecture || ""].filter(Boolean).join(" · ");
-      return `<a href="${escapeHtml(eventHref)}"><strong>${escapeHtml(event.title)}</strong>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</a>`;
-    }).join("")}</div></section>`
+  const changePlaces = options.snapshot.myPlaces
+    .filter((place) => Boolean(place.previousObservedAt) || place.visitCount > 1)
+    .slice(0, 4);
+  const placesSection = changePlaces.length > 0
+    ? `<section class="home-section home-places-section"><div class="home-section-heading"><h2>${escapeHtml(p0.placeChangesTitle)}</h2><a href="${escapeHtml(href(options, "/map?tab=places"))}">${escapeHtml(copy.placesCta)}</a></div><div class="home-place-change-grid">${changePlaces.map((place) => renderPlaceChangeCard(options, place, safeItems, p0)).join("")}</div></section>`
+    : "";
+  const nextPlace = options.snapshot.myPlaces.find((place) => Boolean(place.nextLookFor || place.revisitReason))
+    ?? changePlaces[0]
+    ?? null;
+  const nextFocus = nextPlace ? pickPlaceFocus(nextPlace) : null;
+  const nextSection = nextPlace
+    ? `<section class="home-section home-next-section" data-home-next-action>
+        <h2>${escapeHtml(p0.nextActionTitle)}</h2>
+        <div class="home-next-action-card">
+          <span><strong>${escapeHtml(nextPlace.placeName)}</strong><small>${escapeHtml(nextFocus ? fillHomeTemplate(p0.nextFocusTemplate, "focus", nextFocus) : p0.nextFallback)}</small></span>
+          <a href="${escapeHtml(buildPlaceRecordHref(options.basePath, options.lang, options.snapshot.viewerUserId, nextPlace))}" data-kpi-event="capture_nav_tap" data-kpi-action="home_place_revisit">${escapeHtml(p0.captureNow)}</a>
+        </div>
+      </section>`
     : "";
   const viewerUserId = options.snapshot.viewerUserId ?? "";
   return `<div class="home-state-view is-member" data-home-view="member" data-home-draft-owner="${escapeHtml(viewerUserId)}" data-home-base-state="${baseState}"${options.isLoggedIn ? "" : " hidden"}>
@@ -277,7 +339,7 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
     ${sectionSlot("member-primary", baseHero)}
     ${renderHomeContinuationScript(viewerUserId)}
     ${sectionSlot("member-recent", recentSection)}
-    ${sectionSlot("member-discovery", "")}
+    ${sectionSlot("member-discovery", pastSection)}
     ${sectionSlot("member-place", placesSection)}
     ${sectionSlot("member-next", nextSection)}
   </div>`;
@@ -305,11 +367,12 @@ export const LANDING_HOME_STATE_STYLES = `
   .home-value-section ol{display:grid;gap:0;margin:0;padding:0;list-style:none;border-top:1px solid var(--home-border)}.home-value-section li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:start;padding:20px 0;border-bottom:1px solid var(--home-border)}.home-value-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:#e6f2eb;color:var(--home-green-dark);font-weight:850}.home-value-section li span:last-child{display:grid;gap:5px}.home-value-section small{color:var(--home-muted);font-size:.875rem;line-height:1.65}
   .home-place-section{padding:20px;border-radius:22px;background:#edf4ef}.home-place-visual .home-card-media{aspect-ratio:16/9}.home-place-visual.is-placeholder{min-height:180px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px;border-radius:18px;background:#dfeae2}.home-place-visual.is-placeholder span{border-radius:14px;background:linear-gradient(160deg,#89a990,#d8a96c)}.home-place-section>div:last-child{display:grid;align-content:center;justify-items:start;gap:12px}
   .home-privacy-section{grid-template-columns:44px minmax(0,1fr);gap:14px;padding:24px 20px;border-radius:20px;background:#eaf4ee}.home-privacy-icon{width:44px;height:44px;display:grid;place-items:center;color:var(--home-green-dark)}.home-privacy-icon svg{width:28px;fill:none;stroke:currentColor;stroke-width:1.8}.home-privacy-section div{display:grid;gap:8px}.home-privacy-section p{margin:0;color:var(--home-muted);font-size:.9375rem;line-height:1.7}.home-final-section{justify-items:start;padding:8px 0 16px}
-  .home-member-primary{display:grid;min-width:0;gap:18px;padding:20px;border-radius:24px;background:#eaf4ee}.home-member-primary[hidden]{display:none!important}.home-member-primary-media{display:block;min-width:0;color:inherit;text-decoration:none}.home-member-primary-media .home-card-media{aspect-ratio:16/10;border-radius:18px}.home-member-primary-copy{display:grid;min-width:0;align-content:center;justify-items:start;gap:10px}.home-member-primary-copy .home-primary-button{width:100%;margin-top:4px}.home-empty-actions{width:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:4px}.home-empty-actions .home-primary-button,.home-empty-actions .home-secondary-button{width:100%;margin:0}.home-member-eyebrow{color:var(--home-green-dark);font-size:.8125rem;font-weight:850;letter-spacing:.04em}.home-member-meta{font-size:.875rem!important}.home-member-primary.is-draft{background:#fff;border:1px solid var(--home-border)}.home-member-primary.is-context{background:linear-gradient(145deg,#e8f3eb,#f7efe1)}
-  .home-recent-grid,.home-place-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.home-recent-card{display:grid;align-content:start;gap:12px;min-width:0;color:inherit;text-decoration:none}.home-recent-card .home-card-media{aspect-ratio:4/3}.home-place-card,.home-next-list a{min-height:88px;display:grid;align-content:center;gap:5px;padding:16px;border:1px solid var(--home-border);border-radius:16px;background:#fff;color:inherit;text-decoration:none}.home-place-card span,.home-place-card small,.home-next-list span{color:var(--home-muted);font-size:.875rem;line-height:1.45}.home-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.home-section-heading a{min-height:44px;display:inline-flex;align-items:center;color:var(--home-green-dark);font-weight:750}.home-next-list{display:grid;gap:10px}
+  .home-member-primary{display:grid;min-width:0;gap:18px;padding:20px;border-radius:24px;background:#eaf4ee}.home-member-primary[hidden]{display:none!important}.home-member-primary-media{display:block;min-width:0;color:inherit;text-decoration:none}.home-member-primary-media .home-card-media{aspect-ratio:16/10;border-radius:18px}.home-member-primary-copy{display:grid;min-width:0;align-content:center;justify-items:start;gap:10px}.home-member-primary-copy .home-primary-button{width:100%;margin-top:4px}.home-empty-actions{width:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:4px}.home-empty-actions .home-primary-button,.home-empty-actions .home-secondary-button{width:100%;margin:0}.home-member-eyebrow{color:var(--home-green-dark);font-size:.8125rem;font-weight:850;letter-spacing:.04em}.home-member-meta{font-size:.875rem!important}.home-member-primary.is-draft{background:#fff;border:1px solid var(--home-border)}
+  .home-recent-grid,.home-place-change-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.home-recent-card,.home-place-change-card{display:grid;align-content:start;gap:12px;min-width:0;color:inherit;text-decoration:none}.home-recent-card .home-card-media{aspect-ratio:4/3}.home-place-change-card{overflow:hidden;border:1px solid var(--home-border);border-radius:18px;background:#fff}.home-place-change-card .home-card-media{aspect-ratio:16/10;border-radius:0}.home-place-change-copy{display:grid;gap:4px;padding:0 14px 14px}.home-place-change-copy span,.home-place-change-copy small{color:var(--home-muted);font-size:.8125rem;line-height:1.45}.home-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.home-section-heading a{min-height:44px;display:inline-flex;align-items:center;color:var(--home-green-dark);font-weight:750}.home-next-action-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:18px;border:1px solid var(--home-border);border-radius:18px;background:#fff}.home-next-action-card>span{display:grid;gap:5px}.home-next-action-card small{color:var(--home-muted);font-size:.875rem;line-height:1.5}.home-next-action-card a{min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:0 18px;border:1px solid var(--home-green);border-radius:999px;color:var(--home-green-dark);font-weight:850;text-decoration:none}
   .home-state-root :is(a,button):focus-visible{outline:3px solid #1c7b52;outline-offset:3px}.home-state-root :is(a,button){touch-action:manipulation}@supports(word-break:auto-phrase){html[lang=ja] .home-state-root :is(h1,h2,p,small){word-break:auto-phrase}}@media(prefers-reduced-motion:reduce){.home-state-root *{scroll-behavior:auto!important;transition:none!important}}
-  @media(min-width:768px){.shell.shell-bleed.prototype-shell{padding-inline:32px}.home-state-view{gap:56px}.home-category-section ul{grid-template-columns:repeat(4,minmax(0,1fr))}.home-place-section{grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:28px;padding:28px}.home-member-primary.is-memory{grid-template-columns:minmax(320px,1.05fr) minmax(0,.95fr);align-items:center;padding:28px}.home-member-primary:not(.is-memory){padding:32px}.home-member-primary-copy .home-primary-button{width:auto;min-width:190px}.home-empty-actions{grid-template-columns:repeat(2,minmax(0,220px))}.home-empty-actions .home-primary-button,.home-empty-actions .home-secondary-button{width:100%;min-width:0}.home-recent-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.home-place-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  @media(min-width:768px){.shell.shell-bleed.prototype-shell{padding-inline:32px}.home-state-view{gap:56px}.home-category-section ul{grid-template-columns:repeat(4,minmax(0,1fr))}.home-place-section{grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:28px;padding:28px}.home-member-primary.is-memory{grid-template-columns:minmax(320px,1.05fr) minmax(0,.95fr);align-items:center;padding:28px}.home-member-primary:not(.is-memory){padding:32px}.home-member-primary-copy .home-primary-button{width:auto;min-width:190px}.home-empty-actions{grid-template-columns:repeat(2,minmax(0,220px))}.home-empty-actions .home-primary-button,.home-empty-actions .home-secondary-button{width:100%;min-width:0}.home-recent-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.home-place-change-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
   @media(min-width:900px){.home-guest-hero.has-visual{grid-template-columns:minmax(0,1fr) minmax(340px,.95fr);align-items:center;gap:44px}}
   @media(min-width:1100px){.home-state-view{padding-top:36px}.home-guest-hero{min-height:620px}.home-value-section ol{grid-template-columns:repeat(3,1fr);gap:28px;border:0}.home-value-section li{grid-template-columns:44px 1fr;border:0;padding:16px 0}.home-privacy-section{padding:30px 32px}}
-  @media(max-width:359px){.shell.shell-bleed.prototype-shell{padding-inline:14px}.home-guest-hero h1{font-size:1.95rem}.home-category-section ul,.home-recent-grid,.home-place-grid{grid-template-columns:1fr}.home-privacy-section{grid-template-columns:1fr;padding:18px 14px}.home-privacy-icon{width:36px;height:36px}.home-card-copy strong{font-size:.9375rem}}
+  @media(max-width:520px){.home-next-action-card{grid-template-columns:1fr}.home-next-action-card a{width:100%}}
+  @media(max-width:359px){.shell.shell-bleed.prototype-shell{padding-inline:14px}.home-guest-hero h1{font-size:1.95rem}.home-category-section ul,.home-recent-grid,.home-place-change-grid{grid-template-columns:1fr}.home-privacy-section{grid-template-columns:1fr;padding:18px 14px}.home-privacy-icon{width:36px;height:36px}.home-card-copy strong{font-size:.9375rem}}
 `;

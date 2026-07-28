@@ -491,6 +491,9 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   assert.doesNotMatch(launcher, /data-global-record-trigger="gallery"/);
   assert.doesNotMatch(launcher, /href="[^"]*\/record(?:\?|")/);
   assert.doesNotMatch(launcher, /aria-current="page"/);
+  assert.match(html, /\.site-core-nav-link\.is-capture \{[^}]*min-height: 48px;[^}]*background: #087a4d;/);
+  assert.match(html, /\.global-record-choice\.is-primary \{[^}]*min-height: 66px;[^}]*margin-top: -10px;[^}]*border-radius: 21px;/);
+  assert.match(html, /\.global-record-choice\.is-primary \.global-record-choice-icon \{[^}]*width: 36px;[^}]*background: #087a4d;[^}]*color: #fff;/);
   assert.match(html, /data-global-record-gallery-select[^>]*>端末の写真から選ぶ<\/button>/);
   assert.match(html, /カメラを開けませんでした/);
   assert.match(html, /data-global-record-camera-retry[^>]*>カメラの利用を許可する<\/button>/);
@@ -513,6 +516,36 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   });
   const profileLauncher = profileHtml.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
   assert.match(profileLauncher, /global-record-choice is-active[^>]+href="\/ja\/login\?redirect=%2Fprofile"[^>]+aria-current="page"/);
+});
+
+test("browse navigation gives active state only to places, records, or self", () => {
+  const surfaces = [
+    { path: "/ja/map?tab=places", label: "場所" },
+    { path: "/ja/records?view=mine", label: "記録" },
+    { path: "/ja/profile", label: "自分" },
+  ];
+
+  for (const surface of surfaces) {
+    const html = renderSiteDocument({
+      basePath: "",
+      title: surface.label,
+      body: "<p>surface</p>",
+      lang: "ja",
+      currentPath: surface.path,
+      homeChrome: "member",
+    });
+    const desktopNav = html.match(/<nav class="site-nav site-nav-desktop site-core-nav"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    const mobileNav = html.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
+
+    assert.equal((desktopNav.match(/aria-current="page"/g) || []).length, 1);
+    assert.equal((mobileNav.match(/aria-current="page"/g) || []).length, 1);
+    assert.match(desktopNav, new RegExp(`aria-current="page">${surface.label}</a>`));
+    assert.match(mobileNav, new RegExp(`aria-current="page">[\\s\\S]*?<span>${surface.label}</span>`));
+    const desktopCapture = desktopNav.match(/<button[^>]+data-global-record-trigger="photo"[^>]*>/)?.[0] ?? "";
+    const mobileCapture = mobileNav.match(/<button[^>]+data-global-record-trigger="photo"[^>]*>/)?.[0] ?? "";
+    assert.doesNotMatch(desktopCapture, /aria-current|is-active/);
+    assert.doesNotMatch(mobileCapture, /aria-current|is-active/);
+  }
 });
 
 test("logo is the auth-aware home entry and exposes its privacy-safe KPI", () => {
@@ -614,8 +647,11 @@ test("site shell excludes the global record launcher from record surfaces", () =
 
   for (const rendered of [html, localizedHtml, subpathHtml]) {
     assert.doesNotMatch(rendered, /class="global-record-launcher"/);
+    assert.doesNotMatch(rendered, /class="site-nav site-nav-desktop site-core-nav"/);
     assert.doesNotMatch(rendered, /site-shell has-global-record-launcher/);
     assert.doesNotMatch(rendered, /class="global-record-entry"/);
+    assert.doesNotMatch(rendered, /data-global-record-trigger="photo"/);
+    assert.doesNotMatch(rendered, /aria-current="page"[^>]*>撮る/);
   }
 });
 

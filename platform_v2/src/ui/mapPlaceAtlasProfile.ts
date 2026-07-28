@@ -370,6 +370,30 @@ function atlasTimelineStatusLabel(value: unknown, copy: AtlasCopy): string {
   return value === "verified" ? copy.verified : value === "candidate" ? copy.candidate : copy.unverified;
 }
 
+function atlasCanRecordAtPlace(profile: Record<string, unknown>): boolean {
+  const publication = atlasPlainObject(profile.publication) ?? {};
+  const policy = atlasPlainObject(profile.policy) ?? {};
+  const suppressedSections = atlasArray(publication.suppressedSections).map(String);
+  return policy.recordingPolicy === "allowed"
+    && policy.contributionCtaMode === "record"
+    && !suppressedSections.includes("contribution_cta")
+    && !suppressedSections.includes("direct_record_cta");
+}
+
+function atlasTimelineHasRecordCta(profile: Record<string, unknown>): boolean {
+  const projection = atlasPlainObject(profile.timelineProjection);
+  const publication = atlasPlainObject(profile.publication) ?? {};
+  return Boolean(
+    projection
+    && (projection.state === "single_period" || projection.state === "timeline")
+    && atlasArray(projection.periods).length > 0
+    && projection.recordingSuggestion === "revisit"
+    && projection.publicationStatus !== "suppressed"
+    && publication.status !== "suppressed"
+    && atlasCanRecordAtPlace(profile),
+  );
+}
+
 function renderAtlasTimeline(
   profile: Record<string, unknown>,
   options: MapPlaceAtlasRenderOptions,
@@ -387,13 +411,7 @@ function renderAtlasTimeline(
     .map(atlasPlainObject)
     .filter((period): period is Record<string, unknown> => Boolean(period));
   if (periods.length === 0) return "";
-  const policy = atlasPlainObject(profile.policy) ?? {};
-  const suppressedSections = atlasArray(publication.suppressedSections).map(String);
-  const showCta = projection.recordingSuggestion === "revisit"
-    && policy.recordingPolicy === "allowed"
-    && policy.contributionCtaMode === "record"
-    && !suppressedSections.includes("contribution_cta")
-    && !suppressedSections.includes("direct_record_cta");
+  const showCta = atlasTimelineHasRecordCta(profile);
   const periodHtml = periods.map((period) => {
     const items = atlasArray(period.items).map(atlasPlainObject)
       .filter((item): item is Record<string, unknown> => Boolean(item));
@@ -406,7 +424,7 @@ function renderAtlasTimeline(
     }).join("")}</div></li>`;
   }).join("");
   const recordHref = atlasSafeHref(options.recordHref, "/record");
-  return `<section class="me-place-atlas-section me-place-atlas-timeline"><h3>${atlasEscapeHtml(copy.timeline)}</h3><p>${atlasEscapeHtml(projection.state === "single_period" ? copy.timelineSingle : copy.timelineMultiple)}</p>${projection.sampled === true ? `<small class="me-place-atlas-timeline-sampled">${atlasEscapeHtml(copy.timelineSampled)}</small>` : ""}<ol>${periodHtml}</ol>${showCta ? `<a class="me-place-atlas-timeline-cta" href="${atlasEscapeHtml(recordHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:timeline_revisit" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordHref)}">${atlasEscapeHtml(copy.timelineRecord)}</a>` : ""}</section>`;
+  return `<section class="me-place-atlas-section me-place-atlas-timeline"><h3>${atlasEscapeHtml(copy.timeline)}</h3><p>${atlasEscapeHtml(projection.state === "single_period" ? copy.timelineSingle : copy.timelineMultiple)}</p>${projection.sampled === true ? `<small class="me-place-atlas-timeline-sampled">${atlasEscapeHtml(copy.timelineSampled)}</small>` : ""}<ol>${periodHtml}</ol>${showCta ? `<a class="me-place-atlas-timeline-cta" href="${atlasEscapeHtml(recordHref)}" data-place-primary-action data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:timeline_revisit" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordHref)}">${atlasEscapeHtml(copy.timelineRecord)}</a>` : ""}</section>`;
 }
 
 function renderAtlasFacets(profile: Record<string, unknown>, lang: SiteLang, copy: AtlasCopy): string {
@@ -441,7 +459,7 @@ function renderAtlasRecent(profile: Record<string, unknown>, copy: AtlasCopy): s
       : copy.unknown;
     const image = renderAtlasImage(String(record.mediaUrl ?? ""), String(label), 360, "me-place-atlas-record-media", copy.imageFallback);
     const status = record.identificationStatus === "ai_candidate"
-      ? "AI candidate"
+      ? copy.candidate
       : record.identificationStatus === "awaiting_identification"
         ? copy.unknown
         : "";
@@ -528,16 +546,11 @@ function renderAtlasActions(
   options: MapPlaceAtlasRenderOptions,
   copy: AtlasCopy,
 ): string {
-  const publication = atlasPlainObject(profile.publication) ?? {};
   const policy = atlasPlainObject(profile.policy) ?? {};
-  const suppressedSections = atlasArray(publication.suppressedSections).map(String);
   const recordingPolicy = String(policy.recordingPolicy ?? "unknown");
   const contributionCtaMode = String(policy.contributionCtaMode ?? "check_rules");
-  const recordAllowed =
-    recordingPolicy === "allowed" &&
-    contributionCtaMode === "record" &&
-    !suppressedSections.includes("contribution_cta") &&
-    !suppressedSections.includes("direct_record_cta");
+  const recordAllowed = atlasCanRecordAtPlace(profile);
+  const timelineOwnsPrimaryAction = atlasTimelineHasRecordCta(profile);
   const policyMessage = recordingPolicy === "prohibited"
     ? copy.prohibited
     : recordingPolicy === "permission_required" || contributionCtaMode === "suppressed"
@@ -545,9 +558,12 @@ function renderAtlasActions(
       : copy.checkRules;
   const recordHref = atlasSafeHref(options.recordHref, "/record");
   const recordsHref = atlasSafeHref(options.recordsHref, "/records");
-  return `<section class="me-place-atlas-actions" aria-label="${atlasEscapeHtml(copy.record)}">${recordAllowed
-    ? `<a class="me-place-atlas-primary" href="${atlasEscapeHtml(recordHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:record_here" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordHref)}">${atlasEscapeHtml(copy.record)}</a>`
-    : `<p class="me-place-atlas-policy-notice">${atlasEscapeHtml(policyMessage)}</p>`}<a class="me-place-atlas-secondary" href="${atlasEscapeHtml(recordsHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:browse_records" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordsHref)}">${atlasEscapeHtml(copy.browseRecords)}</a></section>`;
+  const primaryAction = recordAllowed
+    ? timelineOwnsPrimaryAction
+      ? ""
+      : `<a class="me-place-atlas-primary" href="${atlasEscapeHtml(recordHref)}" data-place-primary-action data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:record_here" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordHref)}">${atlasEscapeHtml(copy.timelineRecord)}</a>`
+    : `<p class="me-place-atlas-policy-notice">${atlasEscapeHtml(policyMessage)}</p>`;
+  return `<section class="me-place-atlas-actions" aria-label="${atlasEscapeHtml(copy.record)}">${primaryAction}<a class="me-place-atlas-secondary" href="${atlasEscapeHtml(recordsHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:browse_records" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordsHref)}">${atlasEscapeHtml(copy.browseRecords)}</a></section>`;
 }
 
 function renderAtlasPolicy(
@@ -1168,6 +1184,8 @@ const MAP_PLACE_ATLAS_RUNTIME_HELPERS = [
   renderAtlasImage,
   renderAtlasSummary,
   atlasTimelineStatusLabel,
+  atlasCanRecordAtPlace,
+  atlasTimelineHasRecordCta,
   renderAtlasTimeline,
   renderAtlasHighlights,
   renderAtlasFacets,

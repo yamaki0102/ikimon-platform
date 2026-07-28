@@ -40,6 +40,16 @@ export type LandingStrings = {
       emptyBody: string;
       galleryCta: string;
       emptyPlaceCta: string;
+      p0: {
+        samePlaceTitle: string;
+        sameSeasonTitle: string;
+        placeChangesTitle: string;
+        comparableRecordsTemplate: string;
+        nextActionTitle: string;
+        nextFocusTemplate: string;
+        nextFallback: string;
+        captureNow: string;
+      };
     };
     shared: {
       openRecord: string;

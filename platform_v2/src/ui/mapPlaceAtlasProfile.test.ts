@@ -129,6 +129,8 @@ test("timeline renders only the API projection in chronological order without id
   assert.match(html, /data-kpi-action="map:place_atlas:timeline_revisit"/);
   assert.match(html, /data-kpi-funnel="map_selected_place"/);
   assert.match(html, /data-kpi-target="\/ja\/record"/);
+  assert.equal((html.match(/data-place-primary-action/g) || []).length, 1);
+  assert.doesNotMatch(html, /map:place_atlas:record_here/);
   assert.doesNotMatch(html, /secret-old|secret-new|secret-owner|exactLat|evil\.test|javascript:bad/);
 });
 
@@ -173,11 +175,14 @@ test("place atlas renderer leads with place, representative media, safe summary,
   assert.match(html, /この場所で見えてきたこと/);
   assert.match(html, /自然・生きもの/);
   assert.match(html, /最近の記録/);
-  assert.match(html, /AI candidate/);
+  assert.match(html, /候補/);
+  assert.doesNotMatch(html, /AI candidate/);
   assert.match(html, /現地ガイド/);
   assert.match(html, /場所・施設/);
   assert.match(html, /これから記録できること/);
   assert.match(html, /data-kpi-action="map:place_atlas:record_here"/);
+  assert.match(html, />今を撮る</);
+  assert.equal((html.match(/data-place-primary-action/g) || []).length, 1);
   assert.match(html, /href="\/ja\/record"/);
   assert.doesNotMatch(html, /緯度|経度|exact_lat|exact_lng/);
 });

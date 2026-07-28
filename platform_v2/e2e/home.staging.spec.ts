@@ -9,11 +9,14 @@ import {
 
 const HOME_VIEWPORTS: ViewportProfile[] = [
   { slug: "mobile-320", viewport: { width: 320, height: 720 }, isMobile: true, hasTouch: true },
-  { slug: "mobile-375", viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true },
+  { slug: "iphone-se2-375", viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true },
   { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+  { slug: "android-412", viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true },
   { slug: "tablet-768", viewport: { width: 768, height: 900 } },
+  { slug: "notebook-1024", viewport: { width: 1024, height: 768 } },
   { slug: "desktop-1280", viewport: { width: 1280, height: 800 } },
   { slug: "desktop-1440", viewport: { width: 1440, height: 900 } },
+  { slug: "wide-1536", viewport: { width: 1536, height: 960 } },
 ];
 
 type SessionPayload = {
@@ -110,9 +113,13 @@ for (const profile of HOME_VIEWPORTS) {
       await expectNoLegacyHome(page);
       if (profile.viewport.width <= 960) {
         await expect(page.locator(".global-record-launcher")).toBeVisible();
+        const capture = page.locator(".global-record-launcher [data-global-record-trigger='photo']");
+        await expect(capture).toBeVisible();
+        await expect(capture).not.toHaveAttribute("aria-current", "page");
       } else {
         await expect(page.locator(".global-record-launcher")).toBeHidden();
         await expect(page.locator(".site-core-nav")).toBeVisible();
+        await expect(page.locator(".site-core-nav [data-global-record-trigger='photo']")).not.toHaveAttribute("aria-current", "page");
       }
       await expectNoHorizontalOverflow(page);
       await page.screenshot({ path: `test-results/home-state-split-guest-${profile.slug}.png`, fullPage: true });
@@ -137,7 +144,7 @@ test("logged-in staging Home centers the viewer's continuation, records, places,
     await expect(page.locator('[data-home-view="member"]')).toBeVisible();
     await expect(page.locator('[data-home-view="guest"]')).toBeHidden();
     await expect(page.locator('[data-home-auth-state="member"]')).toHaveCount(2);
-    await expect(page.locator('[data-home-view="member"] .home-primary-button')).toHaveCount(1);
+    await expect(page.locator('[data-home-view="member"] [data-home-primary-active="true"]:visible')).toHaveCount(1);
     await expect(page.locator(".global-record-launcher")).toHaveCount(1);
     await expect(page.locator(".global-record-launcher")).toBeHidden();
     await expect(page.locator(".site-core-nav")).toBeVisible();
@@ -145,6 +152,8 @@ test("logged-in staging Home centers the viewer's continuation, records, places,
     await expect(page.locator('[data-home-section="monitoring"]')).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText("写真からわかったこと");
     await expect(page.locator("body")).not.toContainText("近くで残された記録");
+    const nextActionCount = await page.locator('[data-home-view="member"] [data-home-next-action]').count();
+    expect(nextActionCount).toBeLessThanOrEqual(1);
     await expectNoLegacyHome(page);
     await expectNoHorizontalOverflow(page);
     const visibleIds = await page.locator('[data-home-view="member"] [data-home-record-id]:visible').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-home-record-id")).filter(Boolean));

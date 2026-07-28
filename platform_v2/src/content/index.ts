@@ -390,6 +390,13 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
   ] as const) {
     assertString(value.home.member[key], `${path}.home.member.${key}`);
   }
+  assertObject(value.home.member.p0, `${path}.home.member.p0`);
+  for (const key of [
+    "samePlaceTitle", "sameSeasonTitle", "placeChangesTitle", "comparableRecordsTemplate",
+    "nextActionTitle", "nextFocusTemplate", "nextFallback", "captureNow",
+  ] as const) {
+    assertString(value.home.member.p0[key], `${path}.home.member.p0.${key}`);
+  }
   assertObject(value.home.shared, `${path}.home.shared`);
   for (const key of ["openRecord", "unknownRecord", "safePlaceFallback", "aiCandidateSuffix", "fromRecord", "multipleMedia"] as const) {
     assertString(value.home.shared[key], `${path}.home.shared.${key}`);

@@ -4,7 +4,18 @@ import test from "node:test";
 import type { ObservationVisitBundle, ObservationVisitSubject } from "../services/observationVisitBundle.js";
 import type { TaxonInsight } from "../services/taxonInsights.js";
 import { buildVisibleRecordItems, type VisibleRecordItem } from "../services/observationSceneReadModel.js";
-import { renderHeroAiReadout, renderIdentificationCandidateSwitch, renderObservationRecordInsightText, renderVisibleRecordItemsPanel } from "./read.js";
+import {
+  classifyObservationDetailAiState,
+  observationDetailP0Copy,
+  observationDetailAiStateLabel,
+  observationOwnerCoordinate,
+  observationOwnerNoteValue,
+  observationQualityLocationLabel,
+  renderHeroAiReadout,
+  renderIdentificationCandidateSwitch,
+  renderObservationRecordInsightText,
+  renderVisibleRecordItemsPanel,
+} from "./read.js";
 
 const routeSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 const writeRouteSource = readFileSync(new URL("./write.ts", import.meta.url), "utf8");
@@ -242,6 +253,119 @@ test("observation detail visible order stays aligned with the canonical snapshot
   assert.match(registrationSource, /const hintBlock = ""/);
   assert.match(registrationSource, /const aiCandidateLearningBlock = ""/);
   assert.match(registrationSource, /const layer2 = ""/);
+});
+
+test("observation detail keeps one dominant enrichment action and owner-only private fields", () => {
+  const qualitySource = sourceBetween("function renderObservationQualityCard", "type ObservationNextAction");
+  const heroSource = sourceBetween("function renderObservationReadingHero", "function renderObservationReadProgress");
+  const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
+
+  const jaP0 = observationDetailP0Copy("ja");
+  assert.equal(observationQualityLocationLabel({ latitude: 35.123456, longitude: 137.654321 }, false, "公開エリア", jaP0), "公開エリア");
+  assert.equal(observationQualityLocationLabel({ latitude: 35.123456, longitude: 137.654321 }, true, "公開エリア", jaP0), "35.123456, 137.654321");
+  assert.equal(observationOwnerCoordinate(35.123456, false), "");
+  assert.equal(observationOwnerCoordinate(35.123456, true), "35.123456");
+  assert.equal(observationOwnerNoteValue("非公開メモ", false), "");
+  assert.equal(observationOwnerNoteValue("非公開メモ", true), "非公開メモ");
+
+  assert.match(routeSource, /function observationQualityLocationLabel\([\s\S]*canSeeCanonicalLocation[\s\S]*publicPlaceLabel/);
+  assert.match(routeSource, /if \(canSeeCanonicalLocation && typeof snapshot\.latitude === "number" && typeof snapshot\.longitude === "number"\)/);
+  assert.match(qualitySource, /observationQualityLocationLabel\(options\.snapshot, options\.canEditOrigin, options\.placeLabel, options\.p0Copy\)/);
+  assert.match(qualitySource, /const ownerLatitude = observationOwnerCoordinate\(options\.snapshot\.latitude, options\.canEditOrigin\)/);
+  assert.match(qualitySource, /const ownerLongitude = observationOwnerCoordinate\(options\.snapshot\.longitude, options\.canEditOrigin\)/);
+  assert.match(qualitySource, /data-location-lat="\$\{escapeHtml\(ownerLatitude\)\}" data-location-lng="\$\{escapeHtml\(ownerLongitude\)\}"/);
+  assert.match(qualitySource, /data-location-lat-input value="\$\{escapeHtml\(ownerLatitude\)\}"/);
+  assert.match(qualitySource, /data-location-lng-input value="\$\{escapeHtml\(ownerLongitude\)\}"/);
+  assert.match(qualitySource, /options\.p0Copy\.mediaEvidenceAvailable/);
+  assert.doesNotMatch(qualitySource, /isGreenfinchSnapshot|AI確認済み/);
+  assert.match(registrationSource, /const ownerNoteValue = observationOwnerNoteValue\(snapshot\.note, isOwner\)/);
+
+  assert.match(heroSource, /<details id="record-details" class="obs-record-details">/);
+  assert.match(heroSource, /<summary data-observation-primary-cta="enrich_record">/);
+  assert.match(heroSource, /options\.p0Copy\.enrichTitle/);
+  assert.match(heroSource, /options\.p0Copy\.enrichHelp/);
+  assert.match(heroSource, /options\.p0Copy\.saved/);
+  assert.match(routeSource, /return copy\.aiProcessedCandidate/);
+  assert.equal((heroSource.match(/data-observation-primary-cta=/g) || []).length, 1);
+  assert.match(registrationSource, /const nextActionRail = ""/);
+});
+
+test("observation detail P0 status and enrichment copy stays localized", () => {
+  const expected = {
+    en: { saved: "Saved", enrichTitle: "Add record details", candidate: "candidate unverified", reviewed: "human-reviewed", media: "Media evidence available" },
+    es: { saved: "Guardado", enrichTitle: "Completar el registro", candidate: "candidato sin verificar", reviewed: "revisado por una persona", media: "Evidencia multimedia disponible" },
+    "pt-BR": { saved: "Salvo", enrichTitle: "Completar o registro", candidate: "candidato não verificado", reviewed: "revisado por uma pessoa", media: "Evidência de mídia disponível" },
+  } as const;
+
+  for (const [lang, terms] of Object.entries(expected) as Array<[keyof typeof expected, typeof expected[keyof typeof expected]]>) {
+    const copy = observationDetailP0Copy(lang);
+    assert.equal(copy.saved, terms.saved);
+    assert.equal(copy.enrichTitle, terms.enrichTitle);
+    assert.match(copy.aiProcessedCandidate, new RegExp(terms.candidate));
+    assert.match(copy.aiVerified, new RegExp(terms.reviewed));
+    assert.equal(copy.mediaEvidenceAvailable, terms.media);
+    assert.doesNotMatch(JSON.stringify(copy), /保存済み|記録を詳しくする|候補は未確認|地点未入力/);
+  }
+  assert.equal(observationDetailP0Copy("ja").aiVerified, "AI処理済み・人が確認済み");
+  assert.equal(observationDetailP0Copy("ja").mediaEvidenceAvailable, "メディア証拠あり");
+});
+
+test("observation detail AI state classifier preserves durable processing and review semantics", () => {
+  const cases = [
+    { label: "queued request", facts: { aiRequestStatus: "queued" }, expected: "processing" },
+    { label: "processing request", facts: { aiRequestStatus: "processing" }, expected: "processing" },
+    { label: "AI judgement candidate", facts: { aiAssessmentStatus: "ai_judgement" }, expected: "candidate_unverified" },
+    { label: "audio candidate", facts: { aiAssessmentStatus: "ai_audio_candidate" }, expected: "candidate_unverified" },
+    { label: "candidate ready", facts: { aiAssessmentStatus: "candidate_ready" }, expected: "candidate_unverified" },
+    { label: "failed request", facts: { aiRequestStatus: "failed" }, expected: "retry" },
+    { label: "retry required", facts: { aiAssessmentStatus: "retry_required" }, expected: "retry" },
+    { label: "unavailable request", facts: { aiRequestStatus: "unavailable" }, expected: "unavailable" },
+    { label: "provider unavailable", facts: { providerAvailable: false }, expected: "unavailable" },
+    { label: "reviewer verified", facts: { aiAssessmentStatus: "reviewer_verified" }, expected: "verified" },
+    { label: "reviewer rejected", facts: { aiAssessmentStatus: "reviewer_rejected" }, expected: "rejected" },
+    {
+      label: "new processing run supersedes a stale candidate",
+      facts: { aiRequestStatus: "processing", aiAssessmentStatus: "ai_judgement" },
+      expected: "processing",
+    },
+    {
+      label: "new failed run supersedes a stale human review",
+      facts: { aiRequestStatus: "failed", aiAssessmentStatus: "reviewer_verified" },
+      expected: "retry",
+    },
+    {
+      label: "new unavailable run supersedes a stale human review",
+      facts: { aiRequestStatus: "unavailable", aiAssessmentStatus: "reviewer_verified" },
+      expected: "unavailable",
+    },
+    {
+      label: "completed run delegates to the current human review",
+      facts: { aiRequestStatus: "completed", aiAssessmentStatus: "reviewer_verified" },
+      expected: "verified",
+    },
+    { label: "legacy accepted is not reviewer verified", facts: { aiAssessmentStatus: "accepted" }, expected: "completed" },
+    { label: "legacy reviewed is not reviewer verified", facts: { aiAssessmentStatus: "reviewed" }, expected: "completed" },
+    { label: "legacy identified is not reviewer verified", facts: { aiAssessmentStatus: "identified" }, expected: "completed" },
+    { label: "missing durable state", facts: { aiRequestStatus: null, aiAssessmentStatus: null }, expected: "unknown" },
+  ] as const;
+
+  for (const item of cases) {
+    assert.equal(classifyObservationDetailAiState(item.facts), item.expected, item.label);
+  }
+
+  const copy = observationDetailP0Copy("ja");
+  assert.equal(
+    observationDetailAiStateLabel(
+      { aiRequestStatus: null, aiAssessmentStatus: null },
+      { aiAssessment: null },
+      copy,
+    ),
+    copy.aiUnknown,
+  );
+  assert.notEqual(copy.aiUnknown, copy.aiNone);
+  for (const status of ["accepted", "reviewed", "identified"]) {
+    assert.notEqual(classifyObservationDetailAiState({ aiAssessmentStatus: status }), "verified");
+  }
 });
 
 test("observation detail keeps nearby guide cards owner-scoped and capped", () => {

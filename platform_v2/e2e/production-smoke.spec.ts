@@ -664,6 +664,10 @@ test.describe("production candidate smoke", () => {
     await expect(page.locator("body")).toContainText("AI候補");
     await expect(page.locator("body")).toContainText("観察記録 / 環境情報");
     await expect(page.locator(".obs-ai-readout")).toBeVisible();
+    const recordDetails = page.locator(".obs-record-details");
+    await expect(recordDetails.locator(":scope > summary")).toContainText("記録を詳しくする");
+    await expect(page.locator(".obs-local-quality-inline")).toBeHidden();
+    await recordDetails.locator(":scope > summary").click();
     await expect(page.locator(".obs-local-quality-inline")).toBeVisible();
     await expect(page.locator(".obs-frame-identify-card")).toBeVisible();
     await expect(page.locator(".obs-local-quality-card")).toBeVisible();

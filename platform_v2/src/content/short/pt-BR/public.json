@@ -28,7 +28,12 @@
         "activeEyebrow": "Uma atividade em que você participa", "activeLead": "Veja o que acontece aqui e o que pode fazer depois.", "activeCta": "Ver atividade",
         "recentTitle": "Registros recentes", "recentCta": "Ver todos", "placesTitle": "Lugares com que você se envolve", "placesCta": "Ver mapa", "nextTitle": "Próxima atividade",
         "emptyTitle": "Deixe seu primeiro registro", "emptyBody": "Tire uma foto e guarde-a como seu registro com a hora e o lugar.",
-        "galleryCta": "Escolher do dispositivo", "emptyPlaceCta": "Explorar por lugar"
+        "galleryCta": "Escolher do dispositivo", "emptyPlaceCta": "Explorar por lugar",
+        "p0": {
+          "samePlaceTitle": "Antes neste lugar", "sameSeasonTitle": "Da mesma estação", "placeChangesTitle": "Locais que você pode comparar",
+          "comparableRecordsTemplate": "{count} registros para comparar", "nextActionTitle": "Um próximo passo",
+          "nextFocusTemplate": "Procure {focus} na próxima visita", "nextFallback": "Registre uma pequena diferença na próxima visita.", "captureNow": "Registrar agora"
+        }
       },
       "shared": {
         "openRecord": "Ver registro", "unknownRecord": "Registro aguardando um nome", "safePlaceFallback": "Registro da comunidade", "aiCandidateSuffix": "pode ser", "fromRecord": "Deste registro", "multipleMedia": "itens de mídia",

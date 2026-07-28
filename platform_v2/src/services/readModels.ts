@@ -151,6 +151,7 @@ export type ObservationDetailSnapshot = {
   vernacularName: string | null;
   organismOrigin: string | null;
   environmentRecord: Record<string, string> | null;
+  aiRequestStatus?: string | null;
   aiAssessmentStatus: string | null;
   publicVisibility: string | null;
   qualityReviewStatus: string | null;
@@ -1114,8 +1115,9 @@ export async function getObservationDetailSnapshot(
     [base.visit_id],
   );
 
-  const latestAiRunResult = await pool.query<{ ai_run_id: string }>(
-    `select ai_run_id::text
+  const latestAiRunResult = await pool.query<{ ai_run_id: string; run_status: string | null }>(
+    `select ai_run_id::text,
+            run_status
        from observation_ai_runs
       where visit_id = $1
       order by generated_at desc
@@ -1123,6 +1125,7 @@ export async function getObservationDetailSnapshot(
     [base.visit_id],
   );
   const latestAiRunId = latestAiRunResult.rows[0]?.ai_run_id ?? null;
+  const latestAiRequestStatus = latestAiRunResult.rows[0]?.run_status ?? null;
   const visualEvidenceResult = latestAiRunId
     ? await pool.query<{
         extract_id: string;
@@ -1350,6 +1353,7 @@ export async function getObservationDetailSnapshot(
     vernacularName: base.vernacular_name,
     organismOrigin: base.organism_origin,
     environmentRecord,
+    aiRequestStatus: latestAiRequestStatus,
     aiAssessmentStatus: base.ai_assessment_status,
     publicVisibility: base.public_visibility,
     qualityReviewStatus: base.quality_review_status,

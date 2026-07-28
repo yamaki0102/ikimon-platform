@@ -28,7 +28,12 @@
         "activeEyebrow": "An activity you are part of", "activeLead": "See what is happening here and what you can do next.", "activeCta": "Open activity",
         "recentTitle": "Recent records", "recentCta": "View all", "placesTitle": "Places you are involved with", "placesCta": "View map", "nextTitle": "What comes next",
         "emptyTitle": "Leave your first record", "emptyBody": "Take one photo and keep it as your record with its time and place.",
-        "galleryCta": "Choose from this device", "emptyPlaceCta": "Explore by place"
+        "galleryCta": "Choose from this device", "emptyPlaceCta": "Explore by place",
+        "p0": {
+          "samePlaceTitle": "Earlier at this place", "sameSeasonTitle": "From the same season", "placeChangesTitle": "Places you can compare",
+          "comparableRecordsTemplate": "{count} records to compare", "nextActionTitle": "One next step",
+          "nextFocusTemplate": "Look for {focus} next", "nextFallback": "Capture one small difference on your next visit.", "captureNow": "Capture now"
+        }
       },
       "shared": {
         "openRecord": "Open record", "unknownRecord": "Record awaiting a name", "safePlaceFallback": "Community record", "aiCandidateSuffix": "may be the match", "fromRecord": "From this record", "multipleMedia": "media items",
