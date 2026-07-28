@@ -11,7 +11,7 @@
   "organization_id": "ikimon",
   "service_id": "ikimon-life",
   "project_id": "ikimon-life",
-  "display_name": "ikimon.life",
+  "display_name": "ZUKAN",
   "lifecycle": "active",
   "repository": {
     "slug": "yamaki0102/ikimon-platform",
@@ -34,6 +34,14 @@
       "repository": "yamaki0102/ikimon-business-strategy",
       "path": "strategy/business-plan-master.md"
     },
+    "zukan_service_definition": {
+      "repository": "yamaki0102/ikimon-business-strategy",
+      "path": "strategy/zukan-service-definition-master.md"
+    },
+    "zukan_product_architecture_decision": {
+      "repository": "yamaki0102/ikimon-business-strategy",
+      "path": "decisions/2026-07-29-zukan-product-architecture-and-safety-boundary.md"
+    },
     "execution": {
       "repository": "yamaki0102/all-projects-management",
       "path": "operations/project_state/ikimon-life.current.json"
@@ -41,6 +49,10 @@
     "product_entry": {
       "repository": "yamaki0102/ikimon-platform",
       "path": "docs/START_HERE.md"
+    },
+    "product_architecture": {
+      "repository": "yamaki0102/ikimon-platform",
+      "path": "docs/spec/zukan-product-architecture/SPEC.md"
     },
     "record_observation_spec": {
       "repository": "yamaki0102/ikimon-platform",
