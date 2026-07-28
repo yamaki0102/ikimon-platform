@@ -1,5 +1,9 @@
 import { resolveLegacyRoots } from "./legacy/legacyRoots.js";
 import { AI_MODEL_ROLES } from "./services/aiModels.js";
+import {
+  loadFoundationRolloutConfig,
+  type FoundationRolloutConfig,
+} from "./services/zukanFoundationV2Rollout.js";
 
 export type AppConfig = {
   nodeEnv: string;
@@ -43,6 +47,7 @@ export type AppConfig = {
   legacyUploadsRoot: string;
   legacyMirrorRoot?: string;
   compatibilityWriteEnabled: boolean;
+  zukanFoundationV2: FoundationRolloutConfig;
   cloudflare?: {
     accountId: string;
     streamApiToken: string;
@@ -195,6 +200,7 @@ export function loadConfig(): AppConfig {
     legacyUploadsRoot: legacyRoots.uploadsRoot,
     legacyMirrorRoot: process.env.LEGACY_MIRROR_ROOT,
     compatibilityWriteEnabled: parseBoolean(process.env.COMPATIBILITY_WRITE_ENABLED, true),
+    zukanFoundationV2: loadFoundationRolloutConfig(process.env),
     cloudflare,
     oauth: {
       google: googleClientId && googleClientSecret

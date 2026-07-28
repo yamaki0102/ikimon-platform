@@ -124,6 +124,8 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/scripts/reportMigrationBaseline.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/reportVisitWindows.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/rehearseCutover.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/runZukanFoundationV2PostgresDatabaseFixtures.ts": "foundation_v2_scratch_fixture_tool",
+    "platform_v2/src/scripts/runZukanFoundationV2PostgresReadOnlyEvidence.ts": "foundation_v2_read_only_evidence_tool",
     "platform_v2/src/scripts/runGuideEnvironmentPostDeploy.ts": "deploy_or_postdeploy_tool",
     "platform_v2/src/scripts/runAiForMissing.ts": "manual_ai_batch_tool",
     "platform_v2/src/scripts/setExistingUserPassword.ts": "manual_repair_or_admin_tool",
