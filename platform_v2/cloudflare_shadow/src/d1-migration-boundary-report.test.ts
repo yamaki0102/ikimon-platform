@@ -242,6 +242,24 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/verifyProductionShadowParity.ts"), "manual_verification_or_smoke_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reportLegacyDrift.ts"), "manual_audit_report_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reportMigrationBaseline.ts"), "manual_audit_report_tool");
+  assert.equal(
+    maintenancePgDependencyReason(
+      "platform_v2/src/scripts/runZukanFoundationV2PostgresDatabaseFixtures.ts",
+    ),
+    "foundation_v2_scratch_fixture_tool",
+  );
+  assert.equal(
+    maintenancePgDependencyReason(
+      "platform_v2/src/scripts/runZukanFoundationV2PostgresReadOnlyEvidence.ts",
+    ),
+    "foundation_v2_read_only_evidence_tool",
+  );
+  assert.equal(
+    maintenancePgDependencyReason(
+      "platform_v2/src/services/zukanFoundationV2PostgresRepository.ts",
+    ),
+    null,
+  );
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/repairObservationLocationLabels.ts"), "manual_repair_or_admin_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/compileKnowledgeNavigation.ts"), "deploy_or_postdeploy_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runGuideEnvironmentPostDeploy.ts"), "deploy_or_postdeploy_tool");
@@ -419,6 +437,36 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
           new Set([
             "platform_v2/src/scripts/embedRegionalKnowledgeCards.ts",
             "platform_v2/src/routes/guideApi.ts",
+          ]),
+        ],
+      ]),
+    ),
+    null,
+  );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/zukanFoundationV2PostgresRepository.ts",
+      new Map([
+        [
+          "platform_v2/src/services/zukanFoundationV2PostgresRepository.ts",
+          new Set([
+            "platform_v2/src/scripts/runZukanFoundationV2PostgresDatabaseFixtures.ts",
+            "platform_v2/src/scripts/runZukanFoundationV2PostgresReadOnlyEvidence.ts",
+          ]),
+        ],
+      ]),
+    ),
+    "foundation_v2_read_only_evidence_tool+foundation_v2_scratch_fixture_tool_dependency",
+  );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/zukanFoundationV2PostgresRepository.ts",
+      new Map([
+        [
+          "platform_v2/src/services/zukanFoundationV2PostgresRepository.ts",
+          new Set([
+            "platform_v2/src/scripts/runZukanFoundationV2PostgresReadOnlyEvidence.ts",
+            "platform_v2/src/server.ts",
           ]),
         ],
       ]),

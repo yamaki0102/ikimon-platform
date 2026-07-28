@@ -6,9 +6,9 @@ Migration dir: db/migrations
 
 ## Summary
 
-- Total migrations: 141
+- Total migrations: 142
 - First migration: 0001_extensions_and_core.sql
-- Head migration: 0138_zukan_foundation_v2_disputes_coverage.sql
+- Head migration: 0139_zukan_foundation_v2_integrity_hardening.sql
 - Extension requirements: timescaledb, vector
 - Duplicate sequences: 8
 - Missing sequences: 0010, 0041, 0042, 0043, 0044, 0078, 0084
@@ -17,10 +17,10 @@ Migration dir: db/migrations
 
 - Destructive approved: 14
 - Destructive unapproved historical debt: 1
-- Owner-sensitive approved: 35
+- Owner-sensitive approved: 36
 - Owner-sensitive unapproved historical debt: 9
 
-Foundation v2 migrations `0134`–`0138` create new tables, indexes, functions and triggers only. They do not alter, rename, backfill or delete existing product rows.
+Foundation v2 migrations `0134`–`0139` create the persistence model and harden its invariants. `0139` adds triggers, a named tombstone constraint and the bounded-write receipt table; it does not rename, backfill or delete existing product rows.
 
 ## Stop Conditions
 

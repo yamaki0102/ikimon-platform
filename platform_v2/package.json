@@ -68,6 +68,7 @@
     "backfill:authority-rank": "tsx src/scripts/backfillAuthorityRank.ts",
     "report:replacement-readiness": "tsx src/scripts/replacementReadinessReport.ts",
     "report:municipal-walk-map-sources": "tsx src/scripts/reportMunicipalWalkMapSourceCoverage.ts",
+    "plan:zukan-foundation-source-import": "tsx src/scripts/planZukanFoundationV2SourceRegistryImport.ts",
     "report:visit-windows": "tsx src/scripts/reportVisitWindows.ts",
     "materialize:legacy-verify-snapshot": "tsx src/scripts/materializeLegacyVerifySnapshot.ts",
     "report:legacy-drift": "tsx src/scripts/reportLegacyDrift.ts",
