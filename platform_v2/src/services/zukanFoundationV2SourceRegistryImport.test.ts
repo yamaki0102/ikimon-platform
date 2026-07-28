@@ -12,8 +12,8 @@ test("Source Registry dry-run is bounded, lossless, and stable across two runs",
   const first = planRegionalSourceFoundationImport({ tenantId: "tenant-regional-source" });
   assert.equal(first.mode, "dry_run");
   assert.equal(first.counts.sourceAssets, REGIONAL_SOURCE_ASSETS.length);
-  assert.equal(first.counts.entities, 54);
-  assert.equal(first.counts.wouldInsert, 54);
+  assert.equal(first.counts.entities, 60);
+  assert.equal(first.counts.wouldInsert, 60);
   assert.equal(first.counts.conflicts, 0);
   assert.deepEqual(first.blockers, []);
   assert.deepEqual(first.batch.contentFixityEvents, []);
@@ -39,7 +39,7 @@ test("Source Registry dry-run is bounded, lossless, and stable across two runs",
   });
   assert.equal(second.payloadSha256, first.payloadSha256);
   assert.equal(second.counts.wouldInsert, 0);
-  assert.equal(second.counts.unchanged, 54);
+  assert.equal(second.counts.unchanged, 60);
   assert.equal(second.counts.conflicts, 0);
 
   const reordered = planRegionalSourceFoundationImport({
