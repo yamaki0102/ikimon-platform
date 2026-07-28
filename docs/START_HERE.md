@@ -26,6 +26,14 @@
 
 この仕様は、record、observation、media、identification、occurrence、AI provisional data、community identification、environment assessment、monitoringの責務を分離します。
 
+### 地域フィールドガイド・紙地図・PDFの知識取込
+
+- 現行仕様: [`spec/regional-field-guide-intake/SPEC.md`](spec/regional-field-guide-intake/SPEC.md)
+- 実装計画: [`spec/regional-field-guide-intake/PLAN.md`](spec/regional-field-guide-intake/PLAN.md)
+- 決定記録: [`spec/regional-field-guide-intake/decisions/ADR-001-source-first-rights-safe-intake.md`](spec/regional-field-guide-intake/decisions/ADR-001-source-first-rights-safe-intake.md)
+
+原資料、版、fragment、抽出、Claim、identity候補、review、rights、public projectionを分離し、公開PDFをそのまま再掲載せず地域知識へ変換する契約です。
+
 ## 正本境界
 
 - product specification / ADR / implementation plan / code: このrepo
