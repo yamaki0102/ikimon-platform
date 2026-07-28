@@ -1,9 +1,12 @@
 # Regional Field Guide Intake Implementation Plan
 
-Status: planned; source registration fixture merged  
+Plan version: `regional_field_guide_intake_plan/v1`  
+Adopted: 2026-07-28  
+Source baseline commit: `351f80398241dc1ba88894779466ce40339a1c90`  
 Contract: [`SPEC.md`](SPEC.md)  
 Issue: [#1486](https://github.com/yamaki0102/ikimon-platform/issues/1486)  
-Initial source fixture: `source:inabe:green-map:2026`
+Initial source fixture: `source:inabe:green-map:2026`  
+Live execution state: `yamaki0102/all-projects-management`
 
 ## 1. Completion conditions
 
@@ -20,17 +23,17 @@ Initial source fixture: `source:inabe:green-map:2026`
 11. Typecheck, targeted tests, Foundation fixtures, local scratch database tests, and review are green.
 12. Staging, production, DB apply, external publication, secret access, and remote content acquisition remain separately approval-bound.
 
-## 2. Current baseline
+## 2. Adopted baseline — 2026-07-28
 
-Completed:
+Baseline facts:
 
 - the official Inabe publisher and source metadata are registered
 - the source is `INDEX_ONLY / RIGHTS_CLASSIFIED`
 - no PDF bytes or expressive content were copied into the repository
-- the current full Source Registry plan is 60 entities against the existing 64-entity operator ceiling
+- the full Source Registry plan at adoption is 60 entities against the existing 64-entity operator ceiling
 - the normative contract is in `SPEC.md`
 
-Not completed:
+Explicitly outside the adopted source-only baseline:
 
 - byte acquisition and fixity
 - SourceFragment persistence and selectors
@@ -42,7 +45,7 @@ Not completed:
 
 ## 3. Ordered implementation stages
 
-### Stage 0 — canonical documentation and fixture
+### Stage 0 — canonical documentation and fixture baseline
 
 Deliverables:
 
