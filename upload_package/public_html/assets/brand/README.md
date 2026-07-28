@@ -1,15 +1,15 @@
-# ikimon Brand Assets
+# ZUKAN Brand Assets
 
-Canonical brand assets for ikimon.life web, app install surfaces, OGP, and social previews.
+Canonical current-app assets for the public service **ZUKAN**. The legal/operator identity remains IKIMON株式会社 and the technical runtime identifiers remain `ikimon.life`.
 
-## Files
+## Current assets
 
-- `app-icon-192.png`, `app-icon-512.png`: standard app icons.
-- `app-icon-192-maskable.png`, `app-icon-512-maskable.png`: maskable PWA icons.
-- `apple-touch-icon.png`, `favicon-32.png`: browser and OS entry icons.
-- `ikimon-mark-192.png`: standalone product mark source.
-- `ikimon-wordmark-black.png`: black wordmark source.
-- `ikimon-lockup-black.png`: horizontal mark + wordmark lockup.
-- `ikimon-ogp-default.png`: default social preview image.
+- `zukan-symbol.svg`: standalone ZUKAN mark.
+- `zukan-wordmark.svg`: ZUKAN wordmark.
+- `zukan-lockup.svg`: horizontal mark and wordmark.
+- `zukan-app-icon.svg`: standard browser/PWA icon.
+- `zukan-app-icon-maskable.svg`: maskable PWA icon with a larger safe zone.
 
-Keep legacy `/assets/img/*` icon paths available for compatibility, but new current-app references should use `/assets/brand/*`.
+The assets were reconstructed from the adopted source image recorded in `ikimon-business-strategy/decisions/2026-07-28-zukan-logo-source-assets.md`. Do not redraw the symbol or change the four-dot order without updating the strategy decision first.
+
+Legacy `ikimon-*` files remain available for rollback and compatibility. New current-app references must use the ZUKAN files above.
