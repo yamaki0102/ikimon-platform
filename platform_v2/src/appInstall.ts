@@ -17,68 +17,68 @@ type AppInstallCopy = {
   retry: string;
 };
 
-export const APP_LAUNCH_BACKGROUND_COLOR = "#f5fbf7";
-export const APP_THEME_COLOR = "#d8efe3";
+export const APP_LAUNCH_BACKGROUND_COLOR = "#f7f7f3";
+export const APP_THEME_COLOR = "#143f2e";
 
 export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
   ja: {
-    name: "ikimon",
-    shortName: "ikimon",
-    description: "身近な生きものを楽しみ、地域の自然を記録し、地図とガイドで探せる生物多様性アプリ。",
-    installTitle: "ikimon を端末に追加",
-    installBody: "Guide、記録、地図をすぐ開けます。",
+    name: "ZUKAN",
+    shortName: "ZUKAN",
+    description: "写真や記録を場所と時間につなぎ、地域の記憶をみんなで育てるアプリ。",
+    installTitle: "ZUKAN を端末に追加",
+    installBody: "撮る、場所、記録、自分をすぐ開けます。",
     installAction: "追加",
     dismissAction: "あとで",
     offlineTitle: "オフラインです",
-    offlineBody: "接続が戻るまで、最後に開いた Guide・記録・地図を端末から再表示します。",
-    offlineGuide: "Guide を開く",
+    offlineBody: "接続が戻るまで、最後に開いた記録・場所・ガイドを端末から再表示します。",
+    offlineGuide: "ガイドを開く",
     offlineRecord: "記録を開く",
-    offlineMap: "地図を開く",
+    offlineMap: "場所を開く",
     retry: "再接続を試す",
   },
   en: {
-    name: "ikimon",
-    shortName: "ikimon",
-    description: "A field app for recording nearby nature with Guide, Record, and Map.",
-    installTitle: "Add ikimon to this device",
-    installBody: "Open Guide, Record, and Map faster in the field.",
+    name: "ZUKAN",
+    shortName: "ZUKAN",
+    description: "A place- and time-aware photo record for growing local knowledge together.",
+    installTitle: "Add ZUKAN to this device",
+    installBody: "Open Capture, Places, Records, and My page faster.",
     installAction: "Add",
     dismissAction: "Later",
     offlineTitle: "You are offline",
-    offlineBody: "Until the connection returns, ikimon can reopen the last cached Guide, Record, and Map screens.",
+    offlineBody: "Until the connection returns, ZUKAN can reopen cached Records, Places, and Guides.",
     offlineGuide: "Open Guide",
-    offlineRecord: "Open Record",
-    offlineMap: "Open Map",
+    offlineRecord: "Open Records",
+    offlineMap: "Open Places",
     retry: "Try again",
   },
   es: {
-    name: "ikimon",
-    shortName: "ikimon",
-    description: "Una app de campo para registrar naturaleza cercana con Guía, Registro y Mapa.",
-    installTitle: "Añadir ikimon al dispositivo",
-    installBody: "Abre Guía, Registro y Mapa más rápido en campo.",
+    name: "ZUKAN",
+    shortName: "ZUKAN",
+    description: "Un registro de fotos conectado con lugares y tiempo para cultivar conocimiento local.",
+    installTitle: "Añadir ZUKAN al dispositivo",
+    installBody: "Abre Capturar, Lugares, Registros y Mi página más rápido.",
     installAction: "Añadir",
     dismissAction: "Luego",
     offlineTitle: "Sin conexión",
-    offlineBody: "Hasta que vuelva la conexión, ikimon puede reabrir las pantallas guardadas de Guía, Registro y Mapa.",
+    offlineBody: "Hasta que vuelva la conexión, ZUKAN puede reabrir Registros, Lugares y Guías guardados.",
     offlineGuide: "Abrir Guía",
-    offlineRecord: "Abrir Registro",
-    offlineMap: "Abrir Mapa",
+    offlineRecord: "Abrir Registros",
+    offlineMap: "Abrir Lugares",
     retry: "Intentar de nuevo",
   },
   "pt-BR": {
-    name: "ikimon",
-    shortName: "ikimon",
-    description: "Um app de campo para registrar a natureza próxima com Guia, Registro e Mapa.",
-    installTitle: "Adicionar ikimon ao dispositivo",
-    installBody: "Abra Guia, Registro e Mapa mais rápido em campo.",
+    name: "ZUKAN",
+    shortName: "ZUKAN",
+    description: "Um registro de fotos ligado a lugares e tempo para cultivar conhecimento local.",
+    installTitle: "Adicionar ZUKAN ao dispositivo",
+    installBody: "Abra Capturar, Lugares, Registros e Minha página mais rápido.",
     installAction: "Adicionar",
     dismissAction: "Depois",
     offlineTitle: "Você está offline",
-    offlineBody: "Até a conexão voltar, o ikimon pode reabrir as telas salvas de Guia, Registro e Mapa.",
+    offlineBody: "Até a conexão voltar, o ZUKAN pode reabrir Registros, Lugares e Guias salvos.",
     offlineGuide: "Abrir Guia",
-    offlineRecord: "Abrir Registro",
-    offlineMap: "Abrir Mapa",
+    offlineRecord: "Abrir Registros",
+    offlineMap: "Abrir Lugares",
     retry: "Tentar novamente",
   },
 };
@@ -106,15 +106,15 @@ export function buildWebManifest(lang: SiteLang): Record<string, unknown> {
     categories: ["education", "lifestyle", "utilities"],
     prefer_related_applications: false,
     icons: [
-      { src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: BRAND_ASSETS.mark512, sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: BRAND_ASSETS.mark192Maskable, sizes: "192x192", type: "image/png", purpose: "maskable" },
-      { src: BRAND_ASSETS.mark512Maskable, sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: BRAND_ASSETS.mark192, sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: BRAND_ASSETS.mark512, sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: BRAND_ASSETS.mark192Maskable, sizes: "any", type: "image/svg+xml", purpose: "maskable" },
+      { src: BRAND_ASSETS.mark512Maskable, sizes: "any", type: "image/svg+xml", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "Guide", short_name: "Guide", url: `${prefix}/guide`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192" }] },
-      { name: "Record", short_name: "Record", url: `${prefix}/record`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192" }] },
-      { name: "Map", short_name: "Map", url: `${prefix}/map`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192" }] },
+      { name: "Guide", short_name: "Guide", url: `${prefix}/guide`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "any", type: "image/svg+xml" }] },
+      { name: "Record", short_name: "Record", url: `${prefix}/record`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "any", type: "image/svg+xml" }] },
+      { name: "Map", short_name: "Map", url: `${prefix}/map`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "any", type: "image/svg+xml" }] },
     ],
     orientation: "portrait-primary",
   };
@@ -129,14 +129,14 @@ export function buildOfflineHtml(lang: SiteLang): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="${APP_THEME_COLOR}" />
-  <title>${copy.offlineTitle} | ikimon</title>
+  <title>${copy.offlineTitle} | ZUKAN</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:${APP_LAUNCH_BACKGROUND_COLOR};color:#0f172a}.offline{width:min(420px,100%);display:grid;gap:16px}.mark{width:56px;height:56px;border-radius:16px;background:#ecfdf5;display:grid;place-items:center;color:#047857;font-weight:950;font-size:24px}.offline h1{margin:0;font-size:26px;line-height:1.2}.offline p{margin:0;color:#475569;line-height:1.7}.links{display:grid;gap:10px;margin-top:6px}.links a,.retry{min-height:48px;border-radius:8px;border:1px solid rgba(15,23,42,.1);display:flex;align-items:center;justify-content:center;padding:0 14px;text-decoration:none;font-weight:850;color:#064e3b;background:#fff}.retry{background:#10b981;color:#fff;border:0;font:inherit;cursor:pointer}
+    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:${APP_LAUNCH_BACKGROUND_COLOR};color:#17211b}.offline{width:min(420px,100%);display:grid;gap:16px}.mark{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;overflow:hidden}.mark img{width:100%;height:100%;display:block}.offline h1{margin:0;font-size:26px;line-height:1.2}.offline p{margin:0;color:#69716c;line-height:1.7}.links{display:grid;gap:10px;margin-top:6px}.links a,.retry{min-height:48px;border-radius:999px;border:1px solid rgba(20,63,46,.16);display:flex;align-items:center;justify-content:center;padding:0 14px;text-decoration:none;font-weight:850;color:#143f2e;background:#fff}.retry{background:#143f2e;color:#fff;border:0;font:inherit;cursor:pointer}
   </style>
 </head>
 <body>
   <main class="offline">
-    <div class="mark">i</div>
+    <div class="mark"><img src="${BRAND_ASSETS.mark192}" alt="ZUKAN" /></div>
     <h1>${copy.offlineTitle}</h1>
     <p>${copy.offlineBody}</p>
     <div class="links">
@@ -152,7 +152,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
 }
 
 export function buildAppServiceWorker(): string {
-  return `const VERSION = 'ikimon-app-v8';
+  return `const VERSION = 'ikimon-app-v9';
 const STATIC_CACHE = VERSION + ':static';
 const OFFLINE_URL = '/offline.html';
 const OFFLINE_URLS = {
