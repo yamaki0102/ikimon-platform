@@ -544,6 +544,9 @@ test("records owner cards separate return-place memory from public metadata", as
   assert.match(source, /records-post-memory-line/);
   assert.match(source, /options\.locationMode === "owner"[\s\S]*\[sourceLabel, civicLabel\]/);
   assert.match(source, /\.records-post-memory-line \{[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;/);
+  assert.match(source, /data-record-timeline-item data-record-grouping="visit"/);
+  assert.match(source, /data-record-scene-count="\$\{escapeHtml\(String\(card\.postRecordCount\)\)\}"/);
+  assert.match(source, /data-notes-library data-record-timeline/);
 });
 
 test("records mine tab opens directly into the card grid instead of a story hero", async () => {

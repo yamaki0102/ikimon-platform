@@ -112,6 +112,10 @@ test.describe.serial("observation scene read model visual QA", () => {
         await expect(page.locator(".obs-local-quality-card").first()).toContainText("日時・場所・環境を土台にする");
         await expect(page.locator("body")).not.toContainText("この映像で読む対象を切り替える");
         await expect(page.locator("body")).not.toContainText("候補を確かめる材料");
+        const recordDetails = page.locator(".obs-record-details").first();
+        await expect(recordDetails.locator(":scope > summary")).toContainText("記録を詳しくする");
+        await expect(page.locator(".obs-local-quality-inline").first()).toBeHidden();
+        await recordDetails.locator(":scope > summary").click();
         await expect(page.locator(".obs-local-quality-inline").first()).toBeVisible();
         await expect(page.locator("body")).not.toContainText("AI 主役");
         await expect(page.locator("body")).not.toContainText("AI 主対象");

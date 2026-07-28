@@ -207,12 +207,12 @@ test("member Home is personal, continuation-oriented, and compact when empty", (
       placeName: "都田",
       municipality: "浜松市",
       lastObservedAt: "2026-07-19T08:30:00.000Z",
-      previousObservedAt: null,
-      firstObservedAt: "2026-07-19T08:30:00.000Z",
-      visitCount: 1,
+      previousObservedAt: "2026-06-19T08:30:00.000Z",
+      firstObservedAt: "2026-06-19T08:30:00.000Z",
+      visitCount: 2,
       latestDisplayName: "夏祭り",
       revisitReason: null,
-      nextLookFor: null,
+      nextLookFor: "祭りのあとの様子",
       lastRecordMode: null,
       lastSurveyResult: null,
       absenceSemantics: null,
@@ -233,13 +233,16 @@ test("member Home is personal, continuation-oriented, and compact when empty", (
     }],
   }), true);
   assert.match(populated, /この前の記録/);
-  assert.match(populated, /関わっている場所/);
-  assert.match(populated, /次の活動/);
+  assert.match(populated, /関わっている場所の変化/);
+  assert.match(populated, /次の一手/);
+  assert.match(populated, /今を撮る/);
   assert.match(populated, /data-home-primary-state="recent_memory"/);
-  assert.doesNotMatch(populated, /近くで残された記録/);
+  const populatedMember = populated.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || populated;
+  assert.doesNotMatch(populatedMember, /都田夏祭り|次の活動|data-home-primary-state="active_context"/);
+  assert.doesNotMatch(populatedMember, /近くで残された記録/);
 });
 
-test("member Home uses an active context only when no safe personal memory is available", () => {
+test("member Home never promotes nearby Program or event context into the personal primary action", () => {
   const html = render("ja", snapshot({
     viewerUserId: "viewer",
     nearbyEvents: [{
@@ -256,9 +259,68 @@ test("member Home uses an active context only when no safe personal memory is av
     }],
   }), true);
 
-  assert.match(html, /data-home-primary-state="active_context"/);
-  assert.match(html, /都田夏祭り/);
-  assert.doesNotMatch(html, /data-home-primary-state="first_record"[^>]*data-home-primary-active="true"/);
+  const member = html.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || html;
+  assert.match(member, /data-home-primary-state="first_record"[^>]*data-home-primary-active="true"/);
+  assert.doesNotMatch(member, /data-home-primary-state="active_context"|都田夏祭り|次の活動/);
+});
+
+test("member Home orders one continuation, recent records, past comparison, place change, and one next action", () => {
+  const items = Array.from({ length: 8 }, (_, index) => observation(`mine-${index + 1}`, {
+    observerUserId: "viewer",
+    observedAt: `202${6 - Math.floor(index / 4)}-07-${String(20 - index).padStart(2, "0")}T08:30:00.000Z`,
+    fieldRefs: [{ fieldId: "place-1", name: "都田", source: "observation" }],
+  }));
+  const html = render("ja", snapshot({
+    viewerUserId: "viewer",
+    myFeed: items,
+    nearbyEvents: [{
+      sessionId: "event-hidden",
+      eventCode: "hidden-program",
+      title: "表示してはいけないQuest",
+      startedAt: "2026-08-01T09:00:00.000Z",
+      endedAt: null,
+      fieldId: "place-1",
+      fieldName: "都田",
+      city: "浜松市",
+      prefecture: "静岡県",
+      participantCount: 3,
+    }],
+    myPlaces: [{
+      placeId: "place-1",
+      placeName: "都田",
+      municipality: "浜松市",
+      lastObservedAt: "2026-07-20T08:30:00.000Z",
+      previousObservedAt: "2025-07-18T08:30:00.000Z",
+      firstObservedAt: "2025-07-18T08:30:00.000Z",
+      visitCount: 8,
+      latestVisitId: "mine-1",
+      latestDisplayName: "夏の記録",
+      revisitReason: "去年との違い",
+      nextLookFor: "水辺の様子",
+      lastRecordMode: "quick",
+      lastSurveyResult: null,
+      absenceSemantics: null,
+      latitude: 34.712345,
+      longitude: 137.723456,
+    }],
+  }), true);
+
+  const member = html.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || html;
+  const order = [
+    member.indexOf("ikimon-home-section:member-primary:start"),
+    member.indexOf("home-recent-section"),
+    member.indexOf("home-past-section"),
+    member.indexOf("home-places-section"),
+    member.indexOf("home-next-section"),
+  ];
+  assert.ok(order.every((index) => index >= 0));
+  assert.deepEqual(order.slice().sort((a, b) => a - b), order);
+  assert.equal((member.match(/data-home-primary-active="true"/g) || []).length, 1);
+  assert.match(member, /同じ場所の過去/);
+  assert.match(member, /関わっている場所の変化/);
+  assert.equal((member.match(/data-home-next-action/g) || []).length, 1);
+  assert.match(member, /次は「水辺の様子」を確かめる/);
+  assert.doesNotMatch(member, /表示してはいけないQuest|hidden-program|34\.712345|137\.723456|latitude|longitude/);
 });
 
 test("member Home excludes sensitive records from automatic photo surfaces", () => {
@@ -301,4 +363,37 @@ test("member Home keeps a private owner photo useful without exposing its place"
   assert.match(html, /\/media\/private-owner\.jpg/);
   assert.match(html, /家族との思い出/);
   assert.doesNotMatch(html, /非公開の場所|浜松市/);
+});
+
+test("member Home never borrows media from a different same-named Place", () => {
+  const recordAtOtherPlace = observation("same-name-other", {
+    observerUserId: "viewer",
+    placeName: "都田",
+    fieldRefs: [{ fieldId: "place-other", name: "都田", source: "observation" }],
+  });
+  const html = render("ja", snapshot({
+    viewerUserId: "viewer",
+    myFeed: [recordAtOtherPlace],
+    myPlaces: [{
+      placeId: "place-target",
+      placeName: "都田",
+      municipality: "浜松市",
+      lastObservedAt: "2026-07-19T08:30:00.000Z",
+      previousObservedAt: "2026-06-19T08:30:00.000Z",
+      firstObservedAt: "2026-06-19T08:30:00.000Z",
+      visitCount: 2,
+      latestDisplayName: null,
+      revisitReason: null,
+      nextLookFor: null,
+      lastRecordMode: null,
+      lastSurveyResult: null,
+      absenceSemantics: null,
+      latitude: null,
+      longitude: null,
+    }],
+  }), true);
+
+  const placeCard = html.match(/<a class="home-place-change-card"[^>]*data-home-place-change="place-target"[\s\S]*?<\/a>/)?.[0] ?? "";
+  assert.match(placeCard, /data-home-place-change="place-target"/);
+  assert.doesNotMatch(placeCard, /\/media\/same-name-other\.jpg|data-home-record-id="same-name-other"/);
 });

@@ -1002,6 +1002,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-record-compact-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .obs-record-compact-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 10px; color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; }
   .obs-record-brief-compact .obs-hero-observer { flex: 0 0 auto; }
+  .obs-record-state-line { display: flex; flex-wrap: wrap; gap: 5px; }
+  .obs-record-state-line span { min-height: 25px; display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #475569; font-size: 10px; line-height: 1.2; font-weight: 900; }
+  .obs-record-state-line .is-saved { background: #ecfdf5; border-color: rgba(16,185,129,.2); color: #047857; }
   .obs-reading-panel > .obs-media-ledger { display: flex; flex-wrap: nowrap; gap: 5px; overflow-x: auto; scrollbar-width: none; }
   .obs-reading-panel > .obs-media-ledger::-webkit-scrollbar { display: none; }
   .obs-reading-panel .obs-media-ledger-item { flex: 1 1 0; min-width: 0; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 5px 7px; border-radius: 999px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.075); text-align: center; white-space: nowrap; }
@@ -1575,6 +1578,18 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-identify-quality-left > [data-obs-switch-identify], .obs-identify-quality-left #identify { min-width: 0; height: 100%; }
   .obs-local-quality-inline { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr); gap: 12px; align-items: stretch; min-width: 0; margin-top: 12px; }
   .obs-local-quality-inline.is-full-width { order: 3; width: 100%; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); margin-top: 16px; }
+  .obs-record-details { grid-column: 1 / -1; order: 3; min-width: 0; border: 0; }
+  .obs-record-details > summary { min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 16px; border-radius: 16px; background: #047857; color: #fff; cursor: pointer; list-style: none; box-shadow: 0 12px 28px rgba(4,120,87,.18); }
+  .obs-record-details > summary::-webkit-details-marker { display: none; }
+  .obs-record-details > summary::marker { content: ""; }
+  .obs-record-details > summary > span:first-child { display: grid; gap: 2px; }
+  .obs-record-details > summary strong { font-size: 14px; line-height: 1.3; }
+  .obs-record-details > summary small { color: rgba(255,255,255,.78); font-size: 10.5px; line-height: 1.35; }
+  .obs-record-details > summary > span:last-child { flex: 0 0 auto; font-size: 22px; line-height: 1; transition: transform .16s ease; }
+  .obs-record-details[open] > summary > span:last-child { transform: rotate(45deg); }
+  .obs-record-details-body { min-width: 0; }
+  .obs-record-details .obs-local-quality-inline.is-full-width { order: initial; }
+  .obs-record-details > summary:focus-visible { outline: 3px solid #fbbf24; outline-offset: 3px; }
   @media (max-width: 720px) {
     .obs-local-quality-inline.is-full-width { order: 7; grid-template-columns: 1fr; }
   }
@@ -7930,10 +7945,134 @@ function observationLocalDateTimeValue(value: string | null | undefined): string
   return local.toISOString().slice(0, 16);
 }
 
-function qualityLocationLabel(snapshot: ObservationDetailSnapshot): string {
+export type ObservationDetailP0Copy = {
+  stateAria: string;
+  saved: string;
+  aiProcessing: string;
+  aiIncomplete: string;
+  aiUnavailable: string;
+  aiProcessedCandidate: string;
+  aiCompleted: string;
+  aiVerified: string;
+  aiRejected: string;
+  aiUnknown: string;
+  aiNone: string;
+  mediaEvidenceAvailable: string;
+  enrichTitle: string;
+  enrichHelp: string;
+  maskedLocation: string;
+  emptyLocation: string;
+};
+
+export function observationDetailP0Copy(lang: SiteLang): ObservationDetailP0Copy {
+  if (lang === "en") {
+    return {
+      stateAria: "Save and AI status",
+      saved: "Saved",
+      aiProcessing: "AI processing",
+      aiIncomplete: "AI processing incomplete",
+      aiUnavailable: "AI processing unavailable",
+      aiProcessedCandidate: "AI processed · candidate unverified",
+      aiCompleted: "AI processing completed",
+      aiVerified: "AI processed · human-reviewed",
+      aiRejected: "AI candidate rejected",
+      aiUnknown: "AI status unavailable",
+      aiNone: "No AI processing",
+      mediaEvidenceAvailable: "Media evidence available",
+      enrichTitle: "Add record details",
+      enrichHelp: "Review place, name, evidence, and visibility",
+      maskedLocation: "Location shown at the public precision",
+      emptyLocation: "Location not added",
+    };
+  }
+  if (lang === "es") {
+    return {
+      stateAria: "Estado de guardado e IA",
+      saved: "Guardado",
+      aiProcessing: "Procesando con IA",
+      aiIncomplete: "Procesamiento de IA incompleto",
+      aiUnavailable: "Procesamiento de IA no disponible",
+      aiProcessedCandidate: "Procesado por IA · candidato sin verificar",
+      aiCompleted: "Procesamiento de IA completado",
+      aiVerified: "Procesado por IA · revisado por una persona",
+      aiRejected: "Candidato de IA rechazado",
+      aiUnknown: "Estado de IA no disponible",
+      aiNone: "Sin procesamiento de IA",
+      mediaEvidenceAvailable: "Evidencia multimedia disponible",
+      enrichTitle: "Completar el registro",
+      enrichHelp: "Revisa el lugar, el nombre, la evidencia y la visibilidad",
+      maskedLocation: "La ubicación se muestra con precisión pública",
+      emptyLocation: "Ubicación no añadida",
+    };
+  }
+  if (lang === "pt-BR") {
+    return {
+      stateAria: "Status de salvamento e IA",
+      saved: "Salvo",
+      aiProcessing: "Processando com IA",
+      aiIncomplete: "Processamento de IA incompleto",
+      aiUnavailable: "Processamento de IA indisponível",
+      aiProcessedCandidate: "Processado por IA · candidato não verificado",
+      aiCompleted: "Processamento de IA concluído",
+      aiVerified: "Processado por IA · revisado por uma pessoa",
+      aiRejected: "Candidato de IA rejeitado",
+      aiUnknown: "Status de IA indisponível",
+      aiNone: "Sem processamento de IA",
+      mediaEvidenceAvailable: "Evidência de mídia disponível",
+      enrichTitle: "Completar o registro",
+      enrichHelp: "Revise local, nome, evidências e visibilidade",
+      maskedLocation: "A localização é exibida com precisão pública",
+      emptyLocation: "Localização não adicionada",
+    };
+  }
+  return {
+    stateAria: "保存とAIの状態",
+    saved: "保存済み",
+    aiProcessing: "AI処理中",
+    aiIncomplete: "AI処理未完了",
+    aiUnavailable: "AI処理は現在利用できません",
+    aiProcessedCandidate: "AI処理済み・候補は未確認",
+    aiCompleted: "AI処理完了",
+    aiVerified: "AI処理済み・人が確認済み",
+    aiRejected: "AI候補は却下済み",
+    aiUnknown: "AIの状態を確認できません",
+    aiNone: "AI処理なし",
+    mediaEvidenceAvailable: "メディア証拠あり",
+    enrichTitle: "記録を詳しくする",
+    enrichHelp: "場所・名前・根拠・公開範囲を確認する",
+    maskedLocation: "位置は公開範囲に合わせて表示",
+    emptyLocation: "地点未入力",
+  };
+}
+
+export function observationQualityLocationLabel(
+  snapshot: Pick<ObservationDetailSnapshot, "latitude" | "longitude">,
+  canSeeCanonicalLocation: boolean,
+  publicPlaceLabel: string,
+  copy: Pick<ObservationDetailP0Copy, "maskedLocation" | "emptyLocation">,
+): string {
+  if (canSeeCanonicalLocation && typeof snapshot.latitude === "number" && typeof snapshot.longitude === "number") {
+    return `${snapshot.latitude.toFixed(6)}, ${snapshot.longitude.toFixed(6)}`;
+  }
+  const safeLabel = publicPlaceLabel.trim();
+  if (safeLabel) return safeLabel;
   return typeof snapshot.latitude === "number" && typeof snapshot.longitude === "number"
-    ? `${snapshot.latitude.toFixed(6)}, ${snapshot.longitude.toFixed(6)}`
-    : "地点未入力";
+    ? copy.maskedLocation
+    : copy.emptyLocation;
+}
+
+export function observationOwnerCoordinate(
+  value: number | null | undefined,
+  canEditOrigin: boolean,
+): string {
+  return canEditOrigin && typeof value === "number" ? value.toFixed(6) : "";
+}
+
+export function observationOwnerNoteValue(
+  note: string | null | undefined,
+  isOwner: boolean,
+): string {
+  return isOwner && note ? note : "";
 }
 
 function collectQualityNameCandidates(options: {
@@ -7996,6 +8135,7 @@ function renderObservationQualityCard(options: {
   originLoginHref: string;
   glossaryTerms?: GlossaryTermHint[];
   siteBrief?: SiteBrief | null;
+  p0Copy: ObservationDetailP0Copy;
 }): string {
   const mediaCount = options.snapshot.photoAssets.length + options.snapshot.videoAssets.length + options.snapshot.audioAssets.length;
   const hasEvidence = mediaCount > 0;
@@ -8011,8 +8151,6 @@ function renderObservationQualityCard(options: {
       : options.snapshot.audioAssets.length > 0
         ? "音声あり"
         : "未追加";
-  const sceneNoun = mediaSceneNoun(options.mediaContext);
-  const isGreenfinchSnapshot = /カワラヒワ|Chloris sinica/i.test(`${subjectName} ${options.subject.scientificName ?? ""}`);
   const glossaryTerms = options.glossaryTerms ?? [];
   const originRaw = String(options.snapshot.organismOrigin ?? "").trim();
   const originValue = observationOriginValue(originRaw);
@@ -8038,7 +8176,7 @@ function renderObservationQualityCard(options: {
   const defaultRankCandidate = qualityNameCandidates[0]?.rank || options.subject.aiAssessment?.recommendedRank || options.subject.rank || "";
   const observedAtInputValue = observationLocalDateTimeValue(options.snapshot.observedAt);
   const observedAtLabel = formatAbsolute(options.snapshot.observedAt);
-  const locationLabel = qualityLocationLabel(options.snapshot);
+  const locationLabel = observationQualityLocationLabel(options.snapshot, options.canEditOrigin, options.placeLabel, options.p0Copy);
   const hasRecordLocation = typeof options.snapshot.latitude === "number" && typeof options.snapshot.longitude === "number";
   const dateLocationStateClass = hasRecordLocation ? "" : " is-warn";
   const dateLocationMark = hasRecordLocation ? "✓" : "!";
@@ -8055,7 +8193,7 @@ function renderObservationQualityCard(options: {
   const mediaConsistencyState = isNoDetectionRecord
     ? hasEvidence ? "補助メディアあり" : "任意"
     : hasEvidence
-    ? (isGreenfinchSnapshot ? "AI確認済み" : `${sceneNoun}確認済み`)
+    ? options.p0Copy.mediaEvidenceAvailable
     : "対象外";
   const storedEnvironmentRecord = options.snapshot.environmentRecord ?? {};
   const fallbackEnvironmentRecord = hasAnyEnvironmentRecordValue(storedEnvironmentRecord)
@@ -8089,7 +8227,9 @@ function renderObservationQualityCard(options: {
   const environmentHistorySeed = hasAnyEnvironmentValue
     ? hasDerivedEnvironmentValue ? "環境レコードの自動下書きがあります" : "環境レコードに入力があります"
     : "まだ編集はありません";
-  return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-can-edit="${options.canEditOrigin ? "1" : "0"}" data-name-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-current="${escapeHtml(defaultNameCandidate)}" data-name-rank-current="${escapeHtml(defaultRankCandidate)}" data-date-can-edit="${options.canEditOrigin ? "1" : "0"}" data-date-login-required="${options.isLoggedIn ? "0" : "1"}" data-date-current="${escapeHtml(options.snapshot.observedAt)}" data-location-can-edit="${options.canEditOrigin ? "1" : "0"}" data-location-login-required="${options.isLoggedIn ? "0" : "1"}" data-location-lat="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}" data-location-lng="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}">
+  const ownerLatitude = observationOwnerCoordinate(options.snapshot.latitude, options.canEditOrigin);
+  const ownerLongitude = observationOwnerCoordinate(options.snapshot.longitude, options.canEditOrigin);
+  return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-can-edit="${options.canEditOrigin ? "1" : "0"}" data-name-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-current="${escapeHtml(defaultNameCandidate)}" data-name-rank-current="${escapeHtml(defaultRankCandidate)}" data-date-can-edit="${options.canEditOrigin ? "1" : "0"}" data-date-login-required="${options.isLoggedIn ? "0" : "1"}" data-date-current="${escapeHtml(options.snapshot.observedAt)}" data-location-can-edit="${options.canEditOrigin ? "1" : "0"}" data-location-login-required="${options.isLoggedIn ? "0" : "1"}" data-location-lat="${escapeHtml(ownerLatitude)}" data-location-lng="${escapeHtml(ownerLongitude)}">
     <div class="obs-local-quality-head">
       <div>
         <div class="obs-local-quality-eye">記録の土台</div>
@@ -8196,8 +8336,8 @@ function renderObservationQualityCard(options: {
           <span class="obs-location-map-note">ピンを動かして地点を微調整します。</span>
         </div>
         <div class="obs-edit-fields">
-          <label class="obs-edit-field"><span>緯度</span><input type="number" step="0.000001" data-location-lat-input value="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}"></label>
-          <label class="obs-edit-field"><span>経度</span><input type="number" step="0.000001" data-location-lng-input value="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}"></label>
+          <label class="obs-edit-field"><span>緯度</span><input type="number" step="0.000001" data-location-lat-input value="${escapeHtml(ownerLatitude)}"></label>
+          <label class="obs-edit-field"><span>経度</span><input type="number" step="0.000001" data-location-lng-input value="${escapeHtml(ownerLongitude)}"></label>
         </div>
         <button class="obs-origin-save" type="button" data-location-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
       </div>
@@ -9830,6 +9970,90 @@ function renderPhotoFirstRead(
   </div>`;
 }
 
+export type ObservationDetailAiDisplayState =
+  | "processing"
+  | "retry"
+  | "unavailable"
+  | "candidate_unverified"
+  | "completed"
+  | "verified"
+  | "rejected"
+  | "not_requested"
+  | "unknown";
+
+export type ObservationDetailAiStateFacts = {
+  aiRequestStatus?: string | null;
+  aiAssessmentStatus?: string | null;
+  hasAiAssessment?: boolean;
+  /**
+   * This is nullable because the detail read model does not own provider health.
+   * Missing provider state must remain unknown instead of being inferred as available.
+   */
+  providerAvailable?: boolean | null;
+};
+
+function normalizedObservationDetailAiStatus(value: string | null | undefined): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+export function classifyObservationDetailAiState(
+  facts: ObservationDetailAiStateFacts,
+): ObservationDetailAiDisplayState {
+  const request = normalizedObservationDetailAiStatus(facts.aiRequestStatus);
+  const assessment = normalizedObservationDetailAiStatus(facts.aiAssessmentStatus);
+  const requestIs = (...values: string[]): boolean => values.includes(request);
+  const assessmentIs = (...values: string[]): boolean => values.includes(assessment);
+
+  // A newer run in flight or in error supersedes any assessment left by an older run.
+  if (requestIs("failed", "error", "cancelled", "failed_retryable", "failed_terminal", "retry", "retry_required")) {
+    return "retry";
+  }
+  if (requestIs("unavailable") || facts.providerAvailable === false) return "unavailable";
+  if (requestIs("queued", "pending", "processing", "running", "analyzing", "analysing")) {
+    return "processing";
+  }
+
+  if (assessmentIs("reviewer_rejected", "rejected")) return "rejected";
+  if (assessmentIs("reviewer_verified")) return "verified";
+  if (assessmentIs("ai_judgement", "ai_audio_candidate", "candidate_ready", "ai_candidate")) {
+    return "candidate_unverified";
+  }
+  if (assessmentIs("failed", "error", "cancelled", "failed_retryable", "failed_terminal", "retry", "retry_required")) {
+    return "retry";
+  }
+  if (assessmentIs("unavailable")) return "unavailable";
+  if (assessmentIs("queued", "pending", "processing", "running", "analyzing", "analysing")) {
+    return "processing";
+  }
+  if (assessmentIs("accepted", "reviewed", "identified", "completed", "succeeded") || requestIs("completed", "succeeded")) {
+    return "completed";
+  }
+  if (facts.hasAiAssessment === true) return "candidate_unverified";
+  if (requestIs("not_requested", "none") || assessmentIs("not_requested", "none")) return "not_requested";
+  return "unknown";
+}
+
+export function observationDetailAiStateLabel(
+  snapshot: Pick<ObservationDetailSnapshot, "aiRequestStatus" | "aiAssessmentStatus">,
+  subject: Pick<ObservationVisitSubject, "aiAssessment">,
+  copy: ObservationDetailP0Copy,
+): string {
+  const state = classifyObservationDetailAiState({
+    aiRequestStatus: snapshot.aiRequestStatus,
+    aiAssessmentStatus: snapshot.aiAssessmentStatus,
+    hasAiAssessment: Boolean(subject.aiAssessment),
+  });
+  if (state === "processing") return copy.aiProcessing;
+  if (state === "retry") return copy.aiIncomplete;
+  if (state === "unavailable") return copy.aiUnavailable;
+  if (state === "candidate_unverified") return copy.aiProcessedCandidate;
+  if (state === "completed") return copy.aiCompleted;
+  if (state === "verified") return copy.aiVerified;
+  if (state === "rejected") return copy.aiRejected;
+  if (state === "not_requested") return copy.aiNone;
+  return copy.aiUnknown;
+}
+
 function renderObservationReadingHero(options: {
   mediaBlock: string;
   snapshot: ObservationDetailSnapshot;
@@ -9859,6 +10083,8 @@ function renderObservationReadingHero(options: {
   evidenceLabel: string;
   recordModeLabel: string;
   mediaSceneLabel: string;
+  aiStateLabel: string;
+  p0Copy: ObservationDetailP0Copy;
 }): string {
   return `<section id="photos" class="section obs-reading-hero" data-obs-section="photos">
     <div class="obs-reading-media obs-media-evidence-shell">
@@ -9881,6 +10107,10 @@ function renderObservationReadingHero(options: {
           </a>
         </div>
       </div>
+      <div class="obs-record-state-line" aria-label="${escapeHtml(options.p0Copy.stateAria)}">
+        <span class="is-saved">${escapeHtml(options.p0Copy.saved)}</span>
+        <span>${escapeHtml(options.aiStateLabel)}</span>
+      </div>
       ${options.mediaLedgerBlock}
       ${options.recordInsightBlock}
       ${options.useStatusBlock}
@@ -9891,10 +10121,31 @@ function renderObservationReadingHero(options: {
       <div data-obs-switch-ai-readout>${options.nameStatusBlock}</div>
       ${options.nextActionRail}
     </aside>
-    <div class="obs-local-quality-inline is-full-width">
-      <div class="obs-local-quality-left">${options.identifyBlock}</div>
-      ${options.qualityBlock}
-    </div>
+    <details id="record-details" class="obs-record-details">
+      <summary data-observation-primary-cta="enrich_record">
+        <span><strong>${escapeHtml(options.p0Copy.enrichTitle)}</strong><small>${escapeHtml(options.p0Copy.enrichHelp)}</small></span>
+        <span aria-hidden="true">＋</span>
+      </summary>
+      <div class="obs-record-details-body">
+        <div class="obs-local-quality-inline is-full-width">
+          <div class="obs-local-quality-left">${options.identifyBlock}</div>
+          ${options.qualityBlock}
+        </div>
+      </div>
+    </details>
+    <script>(function(){
+      var details = document.getElementById('record-details');
+      if (!details) return;
+      var openForHash = function(){
+        if (location.hash === '#identify' || location.hash === '#record-details') details.open = true;
+      };
+      openForHash();
+      window.addEventListener('hashchange', openForHash);
+      document.addEventListener('click', function(event){
+        var link = event.target instanceof Element ? event.target.closest('a[href="#identify"]') : null;
+        if (link) details.open = true;
+      }, { capture: true });
+    })();</script>
   </section>`;
 }
 
@@ -13531,9 +13782,10 @@ function renderRecordsPostCard(
         </div>
       </details>`
     : "";
-  return `<article class="records-post-card is-source-${escapeHtml(sourceKind)}${mediaUrl ? "" : " is-media-missing"}${identifyCardAttrs ? " is-identify-selectable" : ""}${isHighlighted ? " is-just-saved" : ""}" data-library-card${identifyCardAttrs}${isHighlighted ? ` data-record-highlight="true"` : ""} data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
+  const accessibleLabel = [displayName, dateLabel, placeLine].filter(Boolean).join(" · ");
+  return `<article class="records-post-card is-source-${escapeHtml(sourceKind)}${mediaUrl ? "" : " is-media-missing"}${identifyCardAttrs ? " is-identify-selectable" : ""}${isHighlighted ? " is-just-saved" : ""}" data-library-card data-record-timeline-item data-record-grouping="visit" data-record-scene-count="${escapeHtml(String(card.postRecordCount))}"${identifyCardAttrs}${isHighlighted ? ` data-record-highlight="true"` : ""} data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
     ${savedBadge}
-    <a class="records-post-card-link" href="${escapeHtml(href)}" aria-label="${escapeHtml(displayName)}">
+    <a class="records-post-card-link" href="${escapeHtml(href)}" aria-label="${escapeHtml(accessibleLabel)}">
       <span class="records-post-thumb">
         ${thumbHtml}
         <span class="records-post-icon is-${escapeHtml(sourceKind)}" aria-hidden="true"></span>
@@ -14957,7 +15209,7 @@ function renderRecordsWorkbench(
       ${view === "mine" && snapshot.viewerUserId ? renderRecordsArrivalBanner(basePath, lang, options.arrivalSource ?? null, savedId, savedRecordFound) : ""}
       ${view === "public" ? renderRecordsPublicIntro(basePath, lang, !snapshot.viewerUserId) : ""}
       ${view === "mine" ? renderRecordsMyPlacesLane(basePath, lang, snapshot, ownEntries) : ""}
-      <section class="records-grid-panel" ${isIdentifyView ? `id="records-identify-list"` : ""} data-notes-library${canLazyLoad ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
+      <section class="records-grid-panel" ${isIdentifyView ? `id="records-identify-list"` : ""} aria-label="${escapeHtml(copy.activeNav)}" data-notes-library data-record-timeline${canLazyLoad ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
         ${isIdentifyView ? renderRecordsIdentifyIntro(basePath, lang, entries, canWriteIdentification) : ""}
         ${identifyEmpty ? "" : renderRecordsCollapsedControls(lang, searchQuery)}
         ${entries.length > 0
@@ -23462,6 +23714,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
       referenceCandidates: subjectIdentifyMap.get(currentSubject.occurrenceId)?.referenceCandidates ?? [],
     })}</div>`;
+    const detailP0Copy = observationDetailP0Copy(lang);
     const heroBlock = renderObservationReadingHero({
       mediaBlock,
       snapshot,
@@ -23491,6 +23744,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         originLoginHref: appendLangToHref(withBasePath(basePath, `/login?redirect=${encodeURIComponent(request.url)}`), lang),
         glossaryTerms,
         siteBrief: siteBriefResult ?? null,
+        p0Copy: detailP0Copy,
       }),
       visibleRecordCount: visibleRecordItems.length,
       summaryStrip: "",
@@ -23504,6 +23758,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       evidenceLabel,
       recordModeLabel: observationRecordModeLabel(snapshot),
       mediaSceneLabel: mediaSceneNoun(mediaContext),
+      aiStateLabel: observationDetailAiStateLabel(snapshot, currentSubject, detailP0Copy),
+      p0Copy: detailP0Copy,
     });
     const shotFeedbackBlock = renderObservationShotFeedbackSurface(bundle, mediaContext, glossaryTerms);
     // 下部の旧要約ブロックは廃止: hero に summaryStrip / trust panel が既に表示されており重複のため
@@ -23545,10 +23801,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const recordStoryBlock = "";
 
     // ===== Layer 1: 物語 =====
-    const ownerNote = snapshot.note
+    const ownerNoteValue = observationOwnerNoteValue(snapshot.note, isOwner);
+    const ownerNote = ownerNoteValue
       ? `<div class="obs-story-block">
            <div class="obs-story-eyebrow">この日のメモ</div>
-           <p>${escapeHtml(snapshot.note)}</p>
+           <p>${escapeHtml(ownerNoteValue)}</p>
          </div>`
       : "";
     const placeFeelingLabels = snapshot.placeFeelingTags
