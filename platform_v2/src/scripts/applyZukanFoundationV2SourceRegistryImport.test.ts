@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assertFoundationApplyPostgresIdentity,
+  foundationApplyPostgresConnection,
   foundationSourceRegistryApplyConfirmation,
   parseFoundationSourceRegistryApplyCli,
   runFoundationSourceRegistryApply,
@@ -23,10 +25,21 @@ import {
 import type {
   FoundationDualWriteAuditEvent,
   FoundationDualWriteAuditSink,
+  FoundationDualWriteTargetIdentity,
 } from "../services/zukanFoundationV2Rollout.js";
 
 const SOURCE_SHA = "a".repeat(40);
+const D1_ACCOUNT_ID = "b".repeat(32);
 const D1_DATABASE_ID = "e06a7372-6964-4db1-92dd-3491d058f412";
+
+const TARGET_IDENTITY: FoundationDualWriteTargetIdentity = {
+  postgresHost: "db.staging.internal",
+  postgresPort: 5432,
+  postgresDatabase: "ikimon_staging",
+  d1AccountId: D1_ACCOUNT_ID,
+  d1DatabaseId: D1_DATABASE_ID,
+  d1DatabaseName: "ikimon_shadow_core",
+};
 
 function canonicalPlan() {
   return planRegionalSourceFoundationImport({
@@ -40,25 +53,29 @@ function applyOptions(): Extract<
 > {
   const plan = canonicalPlan();
   const maxEntities = foundationSourceImportEntityCount(plan.batch);
+  const idempotencyKey = "foundation-source:apply-0001";
   return {
     mode: "apply",
     sourceSha: SOURCE_SHA,
     expectedTenantId: ZUKAN_FOUNDATION_SOURCE_REGISTRY_CANONICAL_TENANT_ID,
     expectedPlanSha256: plan.payloadSha256,
     maxEntities,
-    idempotencyKey: "foundation-source:apply-0001",
+    idempotencyKey,
     attemptId: "foundation-source:attempt-0001",
-    expectedPostgresHost: "db.staging.internal",
-    expectedPostgresPort: 5432,
-    expectedPostgresDatabase: "ikimon_staging",
-    expectedD1DatabaseId: D1_DATABASE_ID,
-    expectedD1DatabaseName: "ikimon_shadow_core",
+    expectedPostgresHost: TARGET_IDENTITY.postgresHost,
+    expectedPostgresPort: TARGET_IDENTITY.postgresPort,
+    expectedPostgresDatabase: TARGET_IDENTITY.postgresDatabase,
+    expectedD1AccountId: TARGET_IDENTITY.d1AccountId,
+    expectedD1DatabaseId: TARGET_IDENTITY.d1DatabaseId,
+    expectedD1DatabaseName: TARGET_IDENTITY.d1DatabaseName,
     confirmation: foundationSourceRegistryApplyConfirmation({
       sourceSha: SOURCE_SHA,
       tenantId: ZUKAN_FOUNDATION_SOURCE_REGISTRY_CANONICAL_TENANT_ID,
       payloadSha256: plan.payloadSha256,
       entityCount: maxEntities,
       maxEntities,
+      idempotencyKey,
+      target: TARGET_IDENTITY,
     }),
   };
 }
@@ -134,6 +151,7 @@ function targetResources(input: {
   postgres?: MutableFoundationRepository;
   d1?: MutableFoundationRepository;
   sink?: FoundationDualWriteAuditSink;
+  target?: Partial<FoundationSourceRegistryApplyTargetResources["target"]>;
   close?: () => Promise<void>;
 } = {}): FoundationSourceRegistryApplyTargetResources {
   return {
@@ -143,11 +161,12 @@ function targetResources(input: {
     ],
     auditSink: input.sink ?? new CollectingAuditSink(),
     target: {
-      postgresHost: "db.staging.internal",
-      postgresPort: 5432,
-      postgresDatabase: "ikimon_staging",
-      d1DatabaseId: D1_DATABASE_ID,
-      d1DatabaseName: "ikimon_shadow_core",
+      ...TARGET_IDENTITY,
+      postgresServerAddress: "192.0.2.10",
+      postgresServerPort: 5432,
+      postgresSchema: "public",
+      postgresTls: true,
+      ...input.target,
     },
     close: input.close ?? (async () => {}),
   };
@@ -205,6 +224,7 @@ test("apply CLI requires every immutable plan and target confirmation", () => {
     `--expected-postgres-host=${expected.expectedPostgresHost}`,
     `--expected-postgres-port=${expected.expectedPostgresPort}`,
     `--expected-postgres-database=${expected.expectedPostgresDatabase}`,
+    `--expected-d1-account-id=${expected.expectedD1AccountId}`,
     `--expected-d1-database-id=${expected.expectedD1DatabaseId}`,
     `--expected-d1-database-name=${expected.expectedD1DatabaseName}`,
     `--confirm=${expected.confirmation}`,
@@ -217,6 +237,177 @@ test("apply CLI requires every immutable plan and target confirmation", () => {
       `--expected-tenant=${expected.expectedTenantId}`,
     ]),
     /foundation_apply_expected_plan_sha256_required/u,
+  );
+});
+
+test("prepare-confirmation emits target-bound evidence without constructing targets", async () => {
+  const expected = applyOptions();
+  const parsed = parseFoundationSourceRegistryApplyCli([
+    "--prepare-confirmation",
+    `--source-sha=${expected.sourceSha}`,
+    `--expected-tenant=${expected.expectedTenantId}`,
+    `--expected-plan-sha256=${expected.expectedPlanSha256}`,
+    `--max-entities=${expected.maxEntities}`,
+    `--idempotency-key=${expected.idempotencyKey}`,
+    `--expected-postgres-host=${expected.expectedPostgresHost}`,
+    `--expected-postgres-port=${expected.expectedPostgresPort}`,
+    `--expected-postgres-database=${expected.expectedPostgresDatabase}`,
+    `--expected-d1-account-id=${expected.expectedD1AccountId}`,
+    `--expected-d1-database-id=${expected.expectedD1DatabaseId}`,
+    `--expected-d1-database-name=${expected.expectedD1DatabaseName}`,
+  ]);
+  let createTargetsCalls = 0;
+  const result = await runFoundationSourceRegistryApply(parsed, {}, {
+    repositoryRoot: "ignored",
+    readGitState: cleanGitState,
+    createTargets: async () => {
+      createTargetsCalls += 1;
+      return targetResources();
+    },
+  });
+  assert.equal(result.status, "confirmation_ready");
+  assert.equal(result.requiredConfirmation, expected.confirmation);
+  assert.equal(result.idempotencyKey, expected.idempotencyKey);
+  assert.deepEqual(result.target, TARGET_IDENTITY);
+  assert.equal(createTargetsCalls, 0);
+});
+
+test("confirmation changes with the exact target tuple and idempotency key", () => {
+  const expected = applyOptions();
+  const plan = canonicalPlan();
+  const confirmation = (input: {
+    idempotencyKey?: string;
+    target?: FoundationDualWriteTargetIdentity;
+  }) => foundationSourceRegistryApplyConfirmation({
+    sourceSha: SOURCE_SHA,
+    tenantId: ZUKAN_FOUNDATION_SOURCE_REGISTRY_CANONICAL_TENANT_ID,
+    payloadSha256: plan.payloadSha256,
+    entityCount: expected.maxEntities,
+    maxEntities: expected.maxEntities,
+    idempotencyKey: input.idempotencyKey ?? expected.idempotencyKey,
+    target: input.target ?? TARGET_IDENTITY,
+  });
+  assert.equal(confirmation({}), expected.confirmation);
+  assert.notEqual(
+    confirmation({ idempotencyKey: "foundation-source:apply-0002" }),
+    expected.confirmation,
+  );
+  assert.notEqual(
+    confirmation({
+      target: {
+        ...TARGET_IDENTITY,
+        d1DatabaseId: "4f111229-7329-49db-bbbd-073a0dc00e5f",
+      },
+    }),
+    expected.confirmation,
+  );
+  assert.notEqual(
+    confirmation({
+      target: {
+        ...TARGET_IDENTITY,
+        postgresDatabase: "ikimon_production",
+      },
+    }),
+    expected.confirmation,
+  );
+});
+
+test("PostgreSQL DSN rejects target overrides and weak TLS, then canonicalizes safe TLS options", () => {
+  const base = "postgresql://operator:secret@db.staging.internal:5432/ikimon_staging";
+  assert.throws(
+    () => foundationApplyPostgresConnection(base),
+    /foundation_apply_postgres_tls_verify_full_required/u,
+  );
+  for (const mode of ["disable", "allow", "prefer", "require", "verify-ca"]) {
+    assert.throws(
+      () => foundationApplyPostgresConnection(`${base}?sslmode=${mode}`),
+      /foundation_apply_postgres_tls_verify_full_required/u,
+    );
+  }
+  for (const query of [
+    "host=other.internal",
+    "port=6543",
+    "database=other",
+    "user=other",
+    "password=other",
+    "search_path=other",
+    "options=-c%20search_path%3Dother",
+  ]) {
+    assert.throws(
+      () => foundationApplyPostgresConnection(`${base}?sslmode=verify-full&${query}`),
+      /foundation_apply_postgres_url_query_parameter_forbidden/u,
+    );
+  }
+  assert.throws(
+    () => foundationApplyPostgresConnection(
+      `${base}?sslmode=verify-full&sslmode=disable`,
+    ),
+    /foundation_apply_postgres_url_query_parameter_invalid/u,
+  );
+  const accepted = foundationApplyPostgresConnection(
+    `${base}?sslmode=verify-full&sslrootcert=C%3A%5Ccerts%5Cfoundation-ca.pem`,
+  );
+  assert.deepEqual(accepted.target, {
+    host: "db.staging.internal",
+    port: 5432,
+    database: "ikimon_staging",
+  });
+  const canonical = new URL(accepted.connectionString);
+  assert.equal(canonical.searchParams.get("sslmode"), "verify-full");
+  assert.equal(
+    canonical.searchParams.get("options"),
+    "-c statement_timeout=30000 -c lock_timeout=5000 -c search_path=public",
+  );
+  assert.equal(canonical.searchParams.has("host"), false);
+});
+
+test("PostgreSQL live identity requires resolved server, public schema, and active TLS", () => {
+  const row = {
+    database_name: "ikimon_staging",
+    transaction_read_only: "off",
+    schema_name: "public",
+    search_path: "public",
+    server_address: "192.0.2.10",
+    server_port: 5432,
+    tls_enabled: true,
+  };
+  assert.deepEqual(assertFoundationApplyPostgresIdentity({
+    row,
+    expectedDatabase: "ikimon_staging",
+    expectedPort: 5432,
+    resolvedHostAddresses: ["192.0.2.10", "192.0.2.11"],
+  }), {
+    serverAddress: "192.0.2.10",
+    serverPort: 5432,
+    schema: "public",
+    tls: true,
+  });
+  assert.throws(
+    () => assertFoundationApplyPostgresIdentity({
+      row: { ...row, tls_enabled: false },
+      expectedDatabase: "ikimon_staging",
+      expectedPort: 5432,
+      resolvedHostAddresses: ["192.0.2.10"],
+    }),
+    /foundation_apply_postgres_tls_not_active/u,
+  );
+  assert.throws(
+    () => assertFoundationApplyPostgresIdentity({
+      row: { ...row, search_path: "other, public" },
+      expectedDatabase: "ikimon_staging",
+      expectedPort: 5432,
+      resolvedHostAddresses: ["192.0.2.10"],
+    }),
+    /foundation_apply_postgres_schema_mismatch/u,
+  );
+  assert.throws(
+    () => assertFoundationApplyPostgresIdentity({
+      row,
+      expectedDatabase: "ikimon_staging",
+      expectedPort: 5432,
+      resolvedHostAddresses: ["192.0.2.99"],
+    }),
+    /foundation_apply_postgres_server_identity_mismatch/u,
   );
 });
 
@@ -291,6 +482,11 @@ test("apply writes both repositories, audits requested/succeeded, and verifies p
     "requested",
     "succeeded",
   ]);
+  assert.deepEqual(sink.events.map((event) => event.target), [
+    TARGET_IDENTITY,
+    TARGET_IDENTITY,
+  ]);
+  assert.equal(sink.events[0]?.idempotencyKey, options.idempotencyKey);
   assert.equal(closed, true);
 });
 
@@ -324,6 +520,40 @@ test("requested audit failure prevents either repository write", async () => {
   );
   assert.equal(postgres.applyCalls, 0);
   assert.equal(d1.applyCalls, 0);
+  assert.equal(closed, true);
+});
+
+test("target factory identity mismatch prevents audit and both writes", async () => {
+  const options = applyOptions();
+  const postgres = new MutableFoundationRepository("postgres");
+  const d1 = new MutableFoundationRepository("d1");
+  const sink = new CollectingAuditSink();
+  let closed = false;
+  await assert.rejects(
+    runFoundationSourceRegistryApply(
+      options,
+      applyEnvironment(options),
+      {
+        repositoryRoot: "ignored",
+        readGitState: cleanGitState,
+        createTargets: async () => targetResources({
+          postgres,
+          d1,
+          sink,
+          target: {
+            d1DatabaseId: "4f111229-7329-49db-bbbd-073a0dc00e5f",
+          },
+          close: async () => {
+            closed = true;
+          },
+        }),
+      },
+    ),
+    /foundation_apply_target_factory_identity_mismatch/u,
+  );
+  assert.equal(postgres.applyCalls, 0);
+  assert.equal(d1.applyCalls, 0);
+  assert.equal(sink.events.length, 0);
   assert.equal(closed, true);
 });
 

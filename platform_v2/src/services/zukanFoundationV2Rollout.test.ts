@@ -25,6 +25,14 @@ const VERIFIED_SOURCE_SHA = verifyFoundationEvidenceSourceSha({
     porcelainStatus: "",
   }),
 });
+const AUDIT_TARGET = {
+  postgresHost: "db.staging.internal",
+  postgresPort: 5432,
+  postgresDatabase: "ikimon_staging",
+  d1AccountId: "b".repeat(32),
+  d1DatabaseId: "e06a7372-6964-4db1-92dd-3491d058f412",
+  d1DatabaseName: "ikimon_shadow_core",
+};
 
 test("Foundation rollout defaults fail closed", () => {
   assert.deepEqual(loadFoundationRolloutConfig({}), {
@@ -108,6 +116,7 @@ test("bounded dual-write is OFF by default and requires two allowlisted dialects
   const audit = (attemptId: string) => ({
     attemptId,
     sourceCommitSha: VERIFIED_SOURCE_SHA,
+    target: AUDIT_TARGET,
     sink: {
       appendDurable: async (event: FoundationDualWriteAuditEvent) => {
         auditEvents.push(event);
@@ -230,6 +239,7 @@ test("bounded dual-write preflights both capabilities and durably records a part
   const audit = {
     attemptId: "audit-attempt-partial-0001",
     sourceCommitSha: VERIFIED_SOURCE_SHA,
+    target: AUDIT_TARGET,
     sink: {
       appendDurable: async (event: FoundationDualWriteAuditEvent) => {
         auditEvents.push(event);
@@ -350,6 +360,7 @@ test("partial retry reuses the idempotency key and turns the committed side into
     audit: {
       attemptId: "audit-attempt-retry-0001",
       sourceCommitSha: VERIFIED_SOURCE_SHA,
+      target: AUDIT_TARGET,
       sink,
     },
   }), /partial_failure/);
@@ -360,6 +371,7 @@ test("partial retry reuses the idempotency key and turns the committed side into
     audit: {
       attemptId: "audit-attempt-retry-0002",
       sourceCommitSha: VERIFIED_SOURCE_SHA,
+      target: AUDIT_TARGET,
       sink,
     },
   });
@@ -428,6 +440,7 @@ test("mixed success and blocked plus terminal audit failure both fail closed as 
       audit: {
         attemptId: "audit-attempt-mixed-0001",
         sourceCommitSha: VERIFIED_SOURCE_SHA,
+        target: AUDIT_TARGET,
         sink: {
           appendDurable: async (event) => {
             durable.push(event);
@@ -456,6 +469,7 @@ test("mixed success and blocked plus terminal audit failure both fail closed as 
       audit: {
         attemptId: "audit-attempt-audit-fail-0001",
         sourceCommitSha: VERIFIED_SOURCE_SHA,
+        target: AUDIT_TARGET,
         sink: {
           appendDurable: async (event) => {
             if (event.phase === "succeeded") throw new Error("sink unavailable");

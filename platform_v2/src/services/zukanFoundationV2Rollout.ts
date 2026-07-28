@@ -153,8 +153,17 @@ export type FoundationDualWriteAuditDialectOutcome = {
   errorCode: string | null;
 };
 
+export type FoundationDualWriteTargetIdentity = {
+  postgresHost: string;
+  postgresPort: number;
+  postgresDatabase: string;
+  d1AccountId: string;
+  d1DatabaseId: string;
+  d1DatabaseName: string;
+};
+
 export type FoundationDualWriteAuditEvent = {
-  schema: "zukan.foundation-v2-dual-write-audit/v1";
+  schema: "zukan.foundation-v2-dual-write-audit/v2";
   attemptId: string;
   recordedAt: string;
   sourceCommitSha: string;
@@ -168,6 +177,7 @@ export type FoundationDualWriteAuditEvent = {
   tenantId: string;
   operation: FoundationSourceImportOperation;
   idempotencyKey: string;
+  target: FoundationDualWriteTargetIdentity;
   payloadSha256: string;
   entityCount: number;
   retryRequired: boolean;
@@ -251,6 +261,7 @@ export async function runBoundedFoundationDualWrite(input: {
   audit: {
     attemptId: string;
     sourceCommitSha: VerifiedFoundationEvidenceSourceSha;
+    target: FoundationDualWriteTargetIdentity;
     sink: FoundationDualWriteAuditSink;
     now?: () => string;
   };
@@ -271,7 +282,7 @@ export async function runBoundedFoundationDualWrite(input: {
     } = {},
   ): Promise<FoundationDualWriteAuditEvent> => {
     const event: FoundationDualWriteAuditEvent = {
-      schema: "zukan.foundation-v2-dual-write-audit/v1",
+      schema: "zukan.foundation-v2-dual-write-audit/v2",
       attemptId: input.audit.attemptId,
       recordedAt: now(),
       sourceCommitSha: input.audit.sourceCommitSha,
@@ -279,6 +290,7 @@ export async function runBoundedFoundationDualWrite(input: {
       tenantId: input.request.batch.tenantId,
       operation: input.request.batch.operation,
       idempotencyKey: input.request.idempotencyKey,
+      target: input.audit.target,
       payloadSha256: input.request.batch.payloadSha256,
       entityCount: foundationSourceImportEntityCount(input.request.batch),
       retryRequired: options.retryRequired ?? false,

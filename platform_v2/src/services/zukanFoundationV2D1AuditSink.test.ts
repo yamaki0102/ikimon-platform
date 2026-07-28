@@ -77,7 +77,7 @@ function auditEvent(
   recordedAt = "2026-07-28T00:00:00.000Z",
 ): FoundationDualWriteAuditEvent {
   return {
-    schema: "zukan.foundation-v2-dual-write-audit/v1",
+    schema: "zukan.foundation-v2-dual-write-audit/v2",
     attemptId: "foundation-source:attempt-0001",
     recordedAt,
     sourceCommitSha: "a".repeat(40),
@@ -85,6 +85,14 @@ function auditEvent(
     tenantId: "ikimon-source-registry-canonical-v1",
     operation: "source_registry_import_v1",
     idempotencyKey: "foundation-source:apply-0001",
+    target: {
+      postgresHost: "db.staging.internal",
+      postgresPort: 5432,
+      postgresDatabase: "ikimon_staging",
+      d1AccountId: "a".repeat(32),
+      d1DatabaseId: "e06a7372-6964-4db1-92dd-3491d058f412",
+      d1DatabaseName: "ikimon_shadow_core",
+    },
     payloadSha256: "b".repeat(64),
     entityCount: 54,
     retryRequired: false,
@@ -107,6 +115,10 @@ test("D1 audit sink is insert-only, confirms persistence, and permits exact repl
     "ikimon-source-registry-canonical-v1:foundation-source:apply-0001",
   );
   assert.equal(JSON.parse(row.payload_json).phase, "requested");
+  assert.equal(
+    JSON.parse(row.payload_json).target.d1DatabaseId,
+    "e06a7372-6964-4db1-92dd-3491d058f412",
+  );
   assert.equal(row.created_at, event.recordedAt);
 });
 
