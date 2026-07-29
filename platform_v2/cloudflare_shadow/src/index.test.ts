@@ -21242,6 +21242,17 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.doesNotMatch(materializerSource, /const\s+corePaths\s*=\s*\[/);
   assert.match(workerSource, /const ORIGINAL_UI_HTML_STATIC_PATHS = new Set\(\[\s*\.\.\.ORIGINAL_UI_HTML_CORE_PATHS,/);
   assert.match(workerSource, /\.\.\.ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS,/);
+  for (const assetPath of [
+    "/assets/brand/zukan-app-icon-192.png",
+    "/assets/brand/zukan-app-icon-192-maskable.png",
+    "/assets/brand/zukan-app-icon-512.png",
+    "/assets/brand/zukan-app-icon-512-maskable.png",
+    "/assets/brand/zukan-apple-touch-icon.png",
+    "/assets/brand/zukan-favicon-32.png",
+    "/assets/brand/zukan-ogp-default.png"
+  ]) {
+    assert.match(materializerSource, new RegExp(assetPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
 
   for (const path of [
     "/home",

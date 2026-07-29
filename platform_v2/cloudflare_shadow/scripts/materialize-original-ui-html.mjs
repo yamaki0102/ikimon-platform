@@ -1,4 +1,5 @@
 import { createHash, createHmac } from "node:crypto";
+import { execFileSync, spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -29,7 +30,8 @@ const allowedArgs = new Set([
   "--concurrency",
   "--skip-if-unchanged",
   "--manifest-key",
-  "--phase-result"
+  "--phase-result",
+  "--direct-staging-r2"
 ]);
 const args = new Map();
 const explicitPaths = [];
@@ -61,6 +63,7 @@ const outputPath = args.get("--output") ?? "";
 const emitPhaseResult = args.get("--phase-result") === "true";
 const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 8);
 const skipIfUnchanged = args.get("--skip-if-unchanged") === "true";
+const directStagingR2 = args.get("--direct-staging-r2") === "true";
 const checkpointInterval = 25;
 const materializationJobId = String(process.env.IKIMON_OPS_JOB_ID || "");
 const materializationSourceSha = String(process.env.IKIMON_EXPECTED_GIT_SHA || "");
@@ -98,10 +101,19 @@ if (execute && targetEnv === "production" && !/^[a-f0-9]{40}$/u.test(materializa
 if (execute && targetEnv === "staging" && approval !== stagingApproval) {
   throw new Error(`Refusing staging R2 materialization. Pass --approval ${stagingApproval}.`);
 }
+if (directStagingR2 && (targetEnv !== "staging" || bucket !== stagingBucket)) {
+  throw new Error("--direct-staging-r2 is restricted to the fixed staging bucket.");
+}
 
 const scriptDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const workerSourcePath = join(scriptDir, "..", "src", "index.ts");
+if (execute && directStagingR2) {
+  const currentHead = execFileSync("git", ["-C", repoRoot, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  if (!/^[a-f0-9]{40}$/u.test(materializationSourceSha) || materializationSourceSha !== currentHead) {
+    throw new Error("direct_staging_materialization_exact_sha_mismatch");
+  }
+}
 const events = [];
 const gatewayMaxAttempts = 5;
 
@@ -131,6 +143,13 @@ const staticAssetPaths = [
   "/assets/brand/ikimon-lockup-black.png",
   "/assets/brand/ikimon-ogp-default.png",
   "/assets/brand/ikimon-wordmark-black.png",
+  "/assets/brand/zukan-app-icon-192.png",
+  "/assets/brand/zukan-app-icon-192-maskable.png",
+  "/assets/brand/zukan-app-icon-512.png",
+  "/assets/brand/zukan-app-icon-512-maskable.png",
+  "/assets/brand/zukan-apple-touch-icon.png",
+  "/assets/brand/zukan-favicon-32.png",
+  "/assets/brand/zukan-ogp-default.png",
   "/assets/img/landing/home-community-hero.webp",
   "/assets/img/landing/home-school-learning.webp",
   "/assets/img/landing/home-community-event.webp",
@@ -416,6 +435,92 @@ async function gatewayRequest(payload) {
   throw lastError;
 }
 
+function wranglerR2Put(key, filePath, contentType) {
+  const wranglerCliPath = join(scriptDir, "..", "node_modules", "wrangler", "bin", "wrangler.js");
+  const objectPath = `${stagingBucket}/${normalizeR2ObjectKey(key)}`;
+  const commandArgs = [
+    wranglerCliPath,
+    "r2",
+    "object",
+    "put",
+    objectPath,
+    "--file",
+    filePath,
+    "--content-type",
+    contentType,
+    "--cache-control",
+    uploadCacheControl,
+    "--remote",
+    "--force"
+  ];
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const child = spawn(process.execPath, commandArgs, {
+      cwd: join(scriptDir, ".."),
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
+    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+    child.on("close", (exitCode) => {
+      if (exitCode === 0) {
+        resolve({ key, exitCode, durationMs: Date.now() - startedAt });
+        return;
+      }
+      reject(new Error(`wrangler r2 object put failed for ${key}: exit=${exitCode} ${stderr || stdout}`));
+    });
+  });
+}
+
+async function directStagingR2Sync(allItems, tempDirPath) {
+  const versionPrefix = `original-ui/versions/${bundleHash}`;
+  await runPool(allItems, concurrency, async (item) => {
+    const relativeKey = item.key.replace(/^original-ui\//, "");
+    await wranglerR2Put(`${versionPrefix}/${relativeKey}`, item.filePath, item.contentType);
+    uploadSummary.updated += 1;
+  });
+
+  const manifest = {
+    schemaVersion: materializeManifestSchemaVersion,
+    sourceSha: materializationSourceSha,
+    targetEnv,
+    scope,
+    bundleHash,
+    versionPrefix,
+    items: allItems.map((item) => ({
+      key: item.key.replace(/^original-ui\//, ""),
+      bytes: item.bytes,
+      sha256: item.sha256,
+      contentType: item.contentType
+    }))
+  };
+  const manifestPayload = `${JSON.stringify(manifest, null, 2)}\n`;
+  const manifestPath = join(tempDirPath, "materialize-manifest.json");
+  await writeFile(manifestPath, manifestPayload, "utf8");
+  await wranglerR2Put(`${versionPrefix}/manifest.json`, manifestPath, "application/json");
+  await wranglerR2Put(manifestKey, manifestPath, "application/json");
+
+  const pointerKey = "original-ui/current/staging.json";
+  const pointerPath = join(tempDirPath, "current-staging.json");
+  await writeFile(pointerPath, `${JSON.stringify({
+    manifest_hash: bundleHash,
+    version_prefix: versionPrefix,
+    source_sha: materializationSourceSha
+  }, null, 2)}\n`, "utf8");
+  await wranglerR2Put(pointerKey, pointerPath, "application/json");
+
+  return {
+    ok: true,
+    key: manifestKey,
+    sha256: sha256(manifestPayload),
+    versionPrefix,
+    pointerKey,
+    transport: "wrangler-r2"
+  };
+}
+
 function buildBundleEntry(item) {
   return {
     pathname: item.pathname,
@@ -559,77 +664,82 @@ try {
 
   if (execute) {
     const uploadStartedAt = Date.now();
-    const state = await gatewayRequest({ op: "state" });
-    previousManifestSummary = {
-      bundleHash: state.current_manifest_hash || null,
-      checkpointCount: Array.isArray(state.completed) ? state.completed.length : 0
-    };
-    if (state.same_manifest) {
-      materializeSkipped = true;
-      skipReason = "bundle_hash_match";
-      uploadSummary.skipped = bundleEntries.length;
-      manifestUpload = { ok: true, skipped: true, reason: "unchanged_bundle", versionPrefix: `original-ui/versions/${bundleHash}` };
+    const allItems = [...rendered, ...renderedStatic];
+    if (directStagingR2) {
+      manifestUpload = await directStagingR2Sync(allItems, tempDir);
+      skipReason = "direct_staging_r2";
     } else {
-      const allItems = [...rendered, ...renderedStatic];
-      const completed = new Map((Array.isArray(state.completed) ? state.completed : []).map((item) => [item.key, item.sha256]));
-      const pending = allItems.filter((item) => {
-        const key = item.key.replace(/^original-ui\//, "");
-        if (completed.get(key) === item.sha256) { uploadSummary.skipped += 1; uploadSummary.resumed += 1; return false; }
-        return true;
-      });
-      let checkpointSerial = Promise.resolve();
-      const persistCheckpoint = () => {
-        const snapshot = [...completed.entries()].map(([key, sha256]) => ({ key, sha256 }));
-        checkpointSerial = checkpointSerial.then(async () => {
-          await gatewayRequest({ op: "checkpoint", completed: snapshot });
-          uploadSummary.checkpoints += 1;
-        });
-        return checkpointSerial;
+      const state = await gatewayRequest({ op: "state" });
+      previousManifestSummary = {
+        bundleHash: state.current_manifest_hash || null,
+        checkpointCount: Array.isArray(state.completed) ? state.completed.length : 0
       };
-      try {
-        await runPool(pending, concurrency, async (item) => {
+      if (state.same_manifest) {
+        materializeSkipped = true;
+        skipReason = "bundle_hash_match";
+        uploadSummary.skipped = bundleEntries.length;
+        manifestUpload = { ok: true, skipped: true, reason: "unchanged_bundle", versionPrefix: `original-ui/versions/${bundleHash}` };
+      } else {
+        const completed = new Map((Array.isArray(state.completed) ? state.completed : []).map((item) => [item.key, item.sha256]));
+        const pending = allItems.filter((item) => {
           const key = item.key.replace(/^original-ui\//, "");
-          const payload = await readFile(item.filePath);
-          const result = await gatewayRequest({
-            op: "put",
-            key,
-            sha256: item.sha256,
-            content_type: item.contentType,
-            body_base64: payload.toString("base64")
-          });
-          completed.set(key, item.sha256);
-          if (result.status === "skipped") uploadSummary.skipped += 1;
-          else uploadSummary.updated += 1;
-          if (completed.size % checkpointInterval === 0) await persistCheckpoint();
+          if (completed.get(key) === item.sha256) { uploadSummary.skipped += 1; uploadSummary.resumed += 1; return false; }
+          return true;
         });
-        await persistCheckpoint();
-        if (explicitPaths.length === 0) {
-          uploadSummary.durationMs = Date.now() - uploadStartedAt;
-          manifestUpload = await gatewayRequest({
-            op: "finalize",
-            items: allItems.map((item) => ({ key: item.key.replace(/^original-ui\//, ""), sha256: item.sha256 })),
-            summary: {
-              updated: uploadSummary.updated,
-              skipped: uploadSummary.skipped,
-              failed: uploadSummary.failed,
-              resumed: uploadSummary.resumed,
-              checkpoints: uploadSummary.checkpoints,
-              duration_ms: uploadSummary.durationMs
-            }
+        let checkpointSerial = Promise.resolve();
+        const persistCheckpoint = () => {
+          const snapshot = [...completed.entries()].map(([key, sha256]) => ({ key, sha256 }));
+          checkpointSerial = checkpointSerial.then(async () => {
+            await gatewayRequest({ op: "checkpoint", completed: snapshot });
+            uploadSummary.checkpoints += 1;
           });
-        } else {
-          manifestUpload = { ok: true, skipped: true, reason: "explicit_paths_not_finalized" };
+          return checkpointSerial;
+        };
+        try {
+          await runPool(pending, concurrency, async (item) => {
+            const key = item.key.replace(/^original-ui\//, "");
+            const payload = await readFile(item.filePath);
+            const result = await gatewayRequest({
+              op: "put",
+              key,
+              sha256: item.sha256,
+              content_type: item.contentType,
+              body_base64: payload.toString("base64")
+            });
+            completed.set(key, item.sha256);
+            if (result.status === "skipped") uploadSummary.skipped += 1;
+            else uploadSummary.updated += 1;
+            if (completed.size % checkpointInterval === 0) await persistCheckpoint();
+          });
+          await persistCheckpoint();
+          if (explicitPaths.length === 0) {
+            uploadSummary.durationMs = Date.now() - uploadStartedAt;
+            manifestUpload = await gatewayRequest({
+              op: "finalize",
+              items: allItems.map((item) => ({ key: item.key.replace(/^original-ui\//, ""), sha256: item.sha256 })),
+              summary: {
+                updated: uploadSummary.updated,
+                skipped: uploadSummary.skipped,
+                failed: uploadSummary.failed,
+                resumed: uploadSummary.resumed,
+                checkpoints: uploadSummary.checkpoints,
+                duration_ms: uploadSummary.durationMs
+              }
+            });
+          } else {
+            manifestUpload = { ok: true, skipped: true, reason: "explicit_paths_not_finalized" };
+          }
+          skipReason = state.current_manifest_hash ? "bundle_hash_changed" : "no_current_pointer";
+        } catch (error) {
+          uploadSummary.failed += 1;
+          await persistCheckpoint().catch(() => {});
+          throw error;
         }
-        skipReason = state.current_manifest_hash ? "bundle_hash_changed" : "no_current_pointer";
-      } catch (error) {
-        uploadSummary.failed += 1;
-        await persistCheckpoint().catch(() => {});
-        throw error;
       }
     }
     uploadSummary.durationMs = Date.now() - uploadStartedAt;
     events.push({
-      command: `signed r2 gateway sync objects=${bundleEntries.length} concurrency=${concurrency}`,
+      command: `${directStagingR2 ? "direct staging wrangler r2" : "signed r2 gateway"} sync objects=${bundleEntries.length} concurrency=${concurrency}`,
       exitCode: 0,
       durationMs: uploadSummary.durationMs,
       ...uploadSummary
@@ -648,6 +758,7 @@ const result = {
   bucket,
   targetEnv,
   scope,
+  transport: directStagingR2 ? "wrangler-r2" : "signed-gateway",
   concurrency,
   skipIfUnchanged,
   manifestKey,
