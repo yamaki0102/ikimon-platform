@@ -43,15 +43,11 @@ const KUBIAKA_ACCEPTED_NORMALIZED_SCIENTIFIC_NAMES = [
 export const EXPERIENCE_MANAGED_TAXON_SCOPES: readonly ExperienceManagedTaxonScope[] = [
   {
     scopeKey: "kubiaka-watch",
-    acceptedNormalizedScientificNames: KUBIAAKA_NAMES(),
+    acceptedNormalizedScientificNames: KUBIAKA_ACCEPTED_NORMALIZED_SCIENTIFIC_NAMES,
     status: "deny_external_routing",
     policyVersion: "kubiaka-watch-routing-v1",
   },
 ];
-
-function KUBIAAKA_NAMES(): readonly string[] {
-  return KUBIAKA_ACCEPTED_NORMALIZED_SCIENTIFIC_NAMES;
-}
 
 export function normalizeManagedScientificName(
   value: string | null | undefined,
