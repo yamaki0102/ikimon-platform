@@ -40,6 +40,7 @@ function reviewedEnvelope(): RegionalKnowledgeEnvelopePlan {
     visibility: "workspace",
     payload: {
       sourceLocator: "linkdata-record:BB00000003",
+      sourceUpdatedAt: "2024-03-26T00:00:00.000Z",
       name: "旧見付学校附磐田文庫",
     },
     claims: [
@@ -55,11 +56,11 @@ function reviewedEnvelope(): RegionalKnowledgeEnvelopePlan {
         visibility: "public_candidate",
       },
       {
-        externalClaimId: "claim:source-updated-at",
+        externalClaimId: "claim:summary",
         subjectId: entityId,
-        predicateUri: "https://zukan.earth/predicate/source-updated-at",
+        predicateUri: "https://zukan.earth/predicate/summary",
         predicateVersion: 1,
-        value: "2024-03-26T00:00:00.000Z",
+        value: "文化財オープンデータと観光施設データの接続候補。",
         evidenceRefs: [sourceEditionId],
         reviewState: "human_reviewed",
         accountableReviewerId: reviewerId,
@@ -70,21 +71,26 @@ function reviewedEnvelope(): RegionalKnowledgeEnvelopePlan {
       externalPublicationId: "publication:iwata-cultural-preview",
       audience: "public-shadow",
       purpose: "regional-view-preview",
-      selectedClaimExternalIds: ["claim:name", "claim:source-updated-at"],
+      selectedClaimExternalIds: ["claim:name", "claim:summary"],
     },
     action: null,
   });
 }
 
-test("regional core predicates are unique and versioned", () => {
+test("regional core predicates are unique, versioned, and exclude SourceEdition metadata", () => {
   const keys = ZUKAN_REGIONAL_CORE_PREDICATES.map((predicate) =>
     `${predicate.predicateUri}@${predicate.predicateVersion}`);
   assert.equal(new Set(keys).size, keys.length);
+  assert.equal(ZUKAN_REGIONAL_CORE_PREDICATES.length, 3);
   assert.equal(
     regionalCorePredicateByUri("https://zukan.earth/predicate/name", 1)?.valueType,
     "string",
   );
   assert.equal(regionalCorePredicateByUri("https://zukan.earth/predicate/name", 2), null);
+  assert.equal(
+    regionalCorePredicateByUri("https://zukan.earth/predicate/source-updated-at", 1),
+    null,
+  );
 });
 
 test("persistence plan keeps Record payload and Claim values in separate artifacts", () => {
