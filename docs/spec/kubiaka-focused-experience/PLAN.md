@@ -19,25 +19,31 @@ Each PR must have one clear responsibility, exact source SHA, explicit non-goals
 ### PR S1 — strategy #42
 
 Purpose:
+
 - finalize ZUKAN architecture and all-alert routing safety
 
 Exit:
+
 - strategy main contains taxon-side, link-independent, dispatcher-entry interlock
 
 ### PR S2 — strategy #43
 
 Purpose:
+
 - adopt Receipt-first, Map-later Kubiaka decision
 
 Exit:
+
 - strategy main fixes P0 scope, state axes, guest boundary, feedback truthfulness, public-map deferral
 
 ### PR P1 — platform #1489
 
 Purpose:
+
 - integrate ZUKAN product architecture contract
 
 Required before merge:
+
 - references current strategy exact SHA
 - typecheck green
 - Node tests green
@@ -48,9 +54,11 @@ Required before merge:
 ### PR P2 — platform #1491
 
 Purpose:
+
 - integrate final Kubiaka SPEC / Master Plan / Coverage deferral
 
 Required before merge:
+
 - rebase to latest main
 - docs/spec only
 - no review prompt in active spec
@@ -62,9 +70,11 @@ Required before merge:
 ### PR K0 — Managed-taxon all-alert interlock
 
 Base:
+
 - latest platform main
 
 Files likely involved:
+
 - alert dispatcher
 - taxon normalization helper
 - managed-taxon scope registry/config
@@ -72,6 +82,7 @@ Files likely involved:
 - operations evidence
 
 Implement:
+
 - canonical normalized name + approved synonym set
 - dispatcher-entry early return
 - deny taxon match, novelty, researcher, invasive, webhook/mail/delivery paths
@@ -80,6 +91,7 @@ Implement:
 - unmanaged taxon regression
 
 Do not implement:
+
 - Kubiaka UI
 - Record link
 - DB activation unless separately approved
@@ -87,6 +99,7 @@ Do not implement:
 - external send
 
 Exit:
+
 - focused tests green
 - full relevant alert tests green
 - no external mutation
@@ -96,6 +109,7 @@ Exit:
 ### PR K1 — Kubiaka registry and route contract
 
 Implement:
+
 - source-only Kubiaka definition
 - `/kubiaka` route registry
 - normalized taxon scope reference
@@ -103,18 +117,21 @@ Implement:
 - dedicated route resolution
 
 Do not implement:
+
 - DB
 - composer save
 - receipt
 - map
 
 Exit:
+
 - deterministic contract tests
 - no runtime behavior outside disabled/fixture-safe route registration
 
 ### PR K2 — Dedicated shell and static public pages
 
 Implement:
+
 - `/kubiaka`
 - `/kubiaka/guide`
 - `/kubiaka/about`
@@ -124,11 +141,13 @@ Implement:
 - accessibility / visual QA
 
 Do not implement:
+
 - public area map
 - external routing
 - real Record context
 
 Exit:
+
 - 320–1536 viewports
 - text 200%
 - keyboard and screen-reader checks
@@ -139,6 +158,7 @@ Exit:
 Source-only migration PR first.
 
 Entities:
+
 - `experience_managed_taxa` if runtime activation requires DB
 - `kubiaka_record_links`
 - `kubiaka_link_outbox`
@@ -147,6 +167,7 @@ Entities:
 - `kubiaka_receipt_claims`
 
 Required evidence:
+
 - schema review
 - PostgreSQL fixture
 - D1 fixture only where active runtime requires
@@ -160,6 +181,7 @@ Do not apply migration without explicit approval.
 ### PR K4 — Composer context and outbox
 
 Implement:
+
 - `/kubiaka/record`
 - server-side experience context
 - existing composer reuse
@@ -170,6 +192,7 @@ Implement:
 - `link_pending` state
 
 Blocking tests:
+
 - Record save success + link failure
 - outbox retry idempotency
 - no Assessment before ready
@@ -179,6 +202,7 @@ Blocking tests:
 ### PR K5 — Guest credential and private receipt
 
 Implement:
+
 - scoped guest credential
 - private receipt
 - current-session receipt only
@@ -187,6 +211,7 @@ Implement:
 - no-store
 
 Blocking tests:
+
 - guest A/B isolation
 - stale cookie
 - replay
@@ -197,12 +222,14 @@ Blocking tests:
 ### PR K6 — Receipt-scoped account claim
 
 Implement:
+
 - receipt claim transaction
 - account attribution
 - guest mutation invalidation
 - duplicate prevention
 
 Blocking tests:
+
 - account A/B isolation
 - claim merge
 - partial failure rollback
@@ -213,6 +240,7 @@ Blocking tests:
 ### PR K7 — Dedicated member workspace
 
 Implement:
+
 - `/kubiaka/me`
 - `/kubiaka/me/records`
 - `/kubiaka/records/:recordId`
@@ -221,6 +249,7 @@ Implement:
 - annual revisit read model
 
 Exit:
+
 - post-save and login return remain in dedicated experience
 - unrelated ZUKAN records do not dominate
 - exact location remains owner-only
@@ -244,6 +273,7 @@ Guest open
 ```
 
 Verify:
+
 - mobile real image
 - offline/retry
 - shared device
@@ -258,6 +288,7 @@ Record metrics in operations evidence.
 ### PR K8 — Asset-aware assessment adapter
 
 Implement:
+
 - asset ID in input/output
 - deterministic batch handling
 - submitted / assessed / failed IDs
@@ -265,6 +296,7 @@ Implement:
 - no silent truncation
 
 Blocking tests:
+
 - 6 submitted / 3 assessed copy
 - 6 submitted / 6 assessed copy
 - finding references assessed IDs only
@@ -273,6 +305,7 @@ Blocking tests:
 ### PR K9 — Orthogonal state projection
 
 Implement pure projection from:
+
 - persistence
 - assessment
 - feedback
@@ -282,6 +315,7 @@ Implement pure projection from:
 - revisit due
 
 Blocking combinations:
+
 - saved + assessment failed
 - published + assessment stale
 - published + specialist review ongoing
@@ -292,6 +326,7 @@ Blocking combinations:
 ### PR K10 — FeedbackEdition persistence and publisher
 
 Implement:
+
 - append-only edition
 - authority
 - source assessment versions
@@ -300,12 +335,14 @@ Implement:
 - publish/withhold gate
 
 Do not implement:
+
 - survey non-detection
 - external routing
 
 ### PR K11 — Operator inbox
 
 Implement:
+
 - candidate queue
 - insufficient/contradiction queue
 - feedback draft
@@ -327,6 +364,7 @@ Measure before further scope:
 - feedback read rate
 
 Stop if:
+
 - feedback makes unsupported claim
 - queue capacity is unsustainable
 - submitted/assessed accounting mismatches
@@ -339,10 +377,12 @@ Stop if:
 Start only after C1 evidence.
 
 Reuse:
+
 - grid derivation
 - snapshot cadence mechanism
 
 Implement:
+
 - separate operator read model
 - no public route
 - no generic public map feature schema
@@ -351,6 +391,7 @@ Implement:
 ### PR K13 — Suppression and erase consumer
 
 Implement:
+
 - consume suppression/erase events
 - exclude affected source data
 - regenerate immutable edition
@@ -360,6 +401,7 @@ Implement:
 ### PR K14 — Operator coverage UI
 
 Implement:
+
 - `/ops/kubiaka/coverage`
 - authorized access
 - map/list parity
@@ -372,6 +414,7 @@ Not part of this plan's execution authorization.
 Requires new Decision.
 
 Minimum evidence:
+
 - account-only participant threshold
 - sparse-cell privacy tests
 - empty/suppressed indistinguishability
@@ -388,6 +431,7 @@ Start with municipality or approved Place group, not 500m public cells.
 Not part of this plan's execution authorization.
 
 Requires explicit approval for:
+
 - recipient registration
 - routing gate activation
 - external send
@@ -400,6 +444,7 @@ Gate 0 remains deny by default.
 Each code PR should run the repository's current canonical commands after reading `AGENTS.md` and `docs/START_HERE.md`.
 
 Minimum evidence:
+
 - typecheck
 - focused Node tests
 - full relevant Node tests
