@@ -72,6 +72,7 @@ function contextPayload(): ContextPacketPayload {
   return {
     packetVersion: "zukan.context-packet/v1",
     purpose: "summarize accepted claims",
+    scope: { tenantId: "tenant-a", workspaceId: null },
     derivedFrom: {
       resolutionRunId: "run-1",
       claimStoreSnapshotToken: "snapshot-1",
@@ -179,30 +180,29 @@ test("context packet normalizes set-like arrays before hashing", () => {
   assert.equal(first.payloadSha256, second.payloadSha256);
 });
 
-test("model input only accepts segments admitted by the sealed context packet", () => {
+test("model input is derived only from facts admitted by the sealed context packet", () => {
   const context = sealContextPacket({ payload: contextPayload(), receipt: receipt() });
   const envelope = buildModelInputEnvelope({
     context,
     provider: "google",
     modelId: "gemini-3.1-flash-lite",
-    segments: [{
+    selectors: [{
       claimId: "claim-1",
       claimRevision: 1,
       rightsEvaluationId: "rights-1",
-      text: "example",
     }],
   });
   assert.equal(envelope.payload.contextPacketSha256, context.payloadSha256);
   assert.equal(envelope.payload.contextReceiptId, context.receipt.receiptId);
+  assert.equal(envelope.payload.segments[0]?.text, "{\"label\":\"example\"}");
   assert.throws(() => buildModelInputEnvelope({
     context,
     provider: "google",
     modelId: "gemini-3.1-flash-lite",
-    segments: [{
+    selectors: [{
       claimId: "claim-1",
       claimRevision: 1,
       rightsEvaluationId: "rights-other",
-      text: "example",
     }],
   }), /model_input_segment_not_admitted/u);
 });
@@ -221,4 +221,35 @@ test("context packet rejects receipt generated before authorization", () => {
     payload: contextPayload(),
     receipt: receipt({ generatedAt: "2026-07-28T23:59:59.000Z" }),
   }), /context_packet_receipt_generated_before_authorization/u);
+});
+
+test("model input rejects a tampered authorization receipt", () => {
+  const context = sealContextPacket({ payload: contextPayload(), receipt: receipt() });
+  const tampered = {
+    ...context,
+    receipt: {
+      ...context.receipt,
+      authorization: { ...context.receipt.authorization, decisionId: "authz-tampered" },
+    },
+  };
+  assert.throws(() => buildModelInputEnvelope({
+    context: tampered,
+    provider: "google",
+    modelId: "gemini-3.1-flash-lite",
+    selectors: [{ claimId: "claim-1", claimRevision: 1, rightsEvaluationId: "rights-1" }],
+  }), /context_packet_receipt_signature_mismatch/u);
+});
+
+test("context receipt must match the semantic tenant and workspace scope", () => {
+  assert.throws(() => sealContextPacket({
+    payload: contextPayload(),
+    receipt: receipt({
+      principal: {
+        subjectId: "user-1",
+        tenantId: "tenant-other",
+        workspaceId: null,
+        scopes: ["context:read"],
+      },
+    }),
+  }), /context_packet_receipt_scope_mismatch/u);
 });
