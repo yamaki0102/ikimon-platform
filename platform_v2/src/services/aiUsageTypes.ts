@@ -6,6 +6,7 @@ export type AiExecutionKeyInput = {
   provider: string;
   modelId: string;
   operationVersion: string;
+  invocationId: string;
   canonicalInputDigest: string;
   sourceDigest: string;
   extractionRunId: string | null;
@@ -79,7 +80,6 @@ export type AiBudgetLimits = {
   fallbackDepth: number;
   providerFailureCount: number;
 };
-
 export type AiBudgetSnapshot = {
   hourlyUsdMicros: number;
   featureMonthlyUsdMicros: number;
@@ -88,64 +88,33 @@ export type AiBudgetSnapshot = {
   fallbackDepth: number;
   providerFailureCount: number;
 };
-
 export type AiBudgetProjection = {
   requestUsdMicros: number;
   retryCount: number;
   fallbackDepth: number;
   providerFailureCount: number;
 };
-
 export type AiBudgetReason =
-  | "request_limit"
-  | "hourly_limit"
-  | "feature_monthly_limit"
-  | "tenant_monthly_limit"
-  | "retry_limit"
-  | "fallback_depth_limit"
-  | "provider_failure_limit";
+  | "request_limit" | "hourly_limit" | "feature_monthly_limit" | "tenant_monthly_limit"
+  | "retry_limit" | "fallback_depth_limit" | "provider_failure_limit";
+export type AiBudgetDecision = { allowed: boolean; reasons: AiBudgetReason[] };
 
-export type AiBudgetDecision = {
-  allowed: boolean;
-  reasons: AiBudgetReason[];
-};
-
-export type AcquireAiExecutionInput = {
-  key: AiExecutionKeyInput;
-  attemptId: string;
-  leaseDurationMs: number;
-};
-
+export type AcquireAiExecutionInput = { key: AiExecutionKeyInput; attemptId: string; leaseDurationMs: number };
 export type AcquireAiExecutionResult =
   | { acquired: true; guard: AiExecutionGuard }
   | { acquired: false; reason: "active_lease" | "already_succeeded"; guard: AiExecutionGuard };
-
 export type RenewAiExecutionInput = {
-  executionKey: string;
-  attemptId: string;
-  leaseGeneration: number;
-  leaseDurationMs: number;
+  executionKey: string; attemptId: string; leaseGeneration: number; leaseDurationMs: number;
 };
-
 export type SettleAiExecutionInput = {
-  executionKey: string;
-  attemptId: string;
-  leaseGeneration: number;
-  outcome: "succeeded" | "failed";
-  detail?: string | null;
+  executionKey: string; attemptId: string; leaseGeneration: number;
+  outcome: "succeeded" | "failed"; detail?: string | null;
 };
-
 export type RecordAiUsageInput = Omit<AiUsageEvent, "recordedSequence">;
-
 export type CompleteAiExecutionInput = { settle: SettleAiExecutionInput; usage: RecordAiUsageInput };
 export type CompleteAiExecutionResult = { guard: AiExecutionGuard; usage: AiUsageEvent };
-
 export type AiBudgetSnapshotInput = {
-  tenantId: string;
-  project: string;
-  workspaceId: string | null;
-  feature: string;
-  now: string;
+  tenantId: string; project: string; workspaceId: string | null; feature: string; now: string;
 };
 
 export interface AiUsageRepository {
