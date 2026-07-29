@@ -24,6 +24,15 @@ CREATE TABLE IF NOT EXISTS ai_execution_guards (
         CHECK (execution_key ~ '^[0-9a-f]{64}$'),
     CONSTRAINT ai_execution_guards_source_digest_chk
         CHECK (source_digest ~ '^[0-9a-f]{64}$'),
+    CONSTRAINT ai_execution_guards_required_text_chk
+        CHECK (
+            char_length(tenant_id) BETWEEN 1 AND 200
+            AND char_length(feature) BETWEEN 1 AND 200
+            AND char_length(policy_version) BETWEEN 1 AND 200
+            AND char_length(prompt_version) BETWEEN 1 AND 200
+            AND char_length(model_id) BETWEEN 1 AND 300
+            AND char_length(holder_attempt_id) BETWEEN 1 AND 300
+        ),
     CONSTRAINT ai_execution_guards_state_chk
         CHECK (state IN ('active', 'succeeded', 'failed')),
     CONSTRAINT ai_execution_guards_time_chk
@@ -46,6 +55,8 @@ CREATE TABLE IF NOT EXISTS ai_execution_attempt_events (
     occurred_at           TIMESTAMPTZ NOT NULL,
     kind                  TEXT NOT NULL,
     detail                TEXT,
+    CONSTRAINT ai_execution_attempt_events_required_text_chk
+        CHECK (char_length(event_id) BETWEEN 1 AND 300 AND char_length(attempt_id) BETWEEN 1 AND 300),
     CONSTRAINT ai_execution_attempt_events_kind_chk
         CHECK (kind IN ('started', 'succeeded', 'failed', 'lease_expired')),
     CONSTRAINT ai_execution_attempt_events_detail_len_chk
@@ -54,6 +65,46 @@ CREATE TABLE IF NOT EXISTS ai_execution_attempt_events (
 
 CREATE INDEX IF NOT EXISTS idx_ai_execution_attempt_events_execution
     ON ai_execution_attempt_events (execution_key, recorded_sequence);
+
+CREATE OR REPLACE FUNCTION ai_usage_json_is_safe(value JSONB, depth INTEGER DEFAULT 0)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+    item JSONB;
+    key_name TEXT;
+    item_count INTEGER;
+BEGIN
+    IF depth > 6 THEN
+        RETURN FALSE;
+    END IF;
+    CASE jsonb_typeof(value)
+        WHEN 'object' THEN
+            SELECT COUNT(*) INTO item_count FROM jsonb_each(value);
+            IF item_count > 256 THEN RETURN FALSE; END IF;
+            FOR key_name, item IN SELECT * FROM jsonb_each(value) LOOP
+                IF lower(key_name) = ANY(ARRAY[
+                    'content', 'text', 'prompt', 'completion', 'messages',
+                    'input', 'output', 'request_body', 'response_body'
+                ]) THEN
+                    RETURN FALSE;
+                END IF;
+                IF NOT ai_usage_json_is_safe(item, depth + 1) THEN RETURN FALSE; END IF;
+            END LOOP;
+        WHEN 'array' THEN
+            IF jsonb_array_length(value) > 256 THEN RETURN FALSE; END IF;
+            FOR item IN SELECT * FROM jsonb_array_elements(value) LOOP
+                IF NOT ai_usage_json_is_safe(item, depth + 1) THEN RETURN FALSE; END IF;
+            END LOOP;
+        WHEN 'string' THEN
+            IF char_length(value #>> '{}') > 1024 THEN RETURN FALSE; END IF;
+        ELSE
+            NULL;
+    END CASE;
+    RETURN TRUE;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS ai_usage_events (
     event_id                  TEXT PRIMARY KEY,
@@ -84,6 +135,23 @@ CREATE TABLE IF NOT EXISTS ai_usage_events (
     raw_usage                 JSONB NOT NULL DEFAULT '{}'::jsonb,
     retry_of_event_id         TEXT REFERENCES ai_usage_events(event_id),
     adjustment_of_event_id    TEXT REFERENCES ai_usage_events(event_id),
+    CONSTRAINT ai_usage_events_required_text_chk
+        CHECK (
+            char_length(event_id) BETWEEN 1 AND 300
+            AND char_length(tenant_id) BETWEEN 1 AND 200
+            AND char_length(project) BETWEEN 1 AND 200
+            AND char_length(feature) BETWEEN 1 AND 200
+            AND char_length(request_id) BETWEEN 1 AND 300
+            AND char_length(provider) BETWEEN 1 AND 100
+            AND char_length(model_id) BETWEEN 1 AND 300
+            AND char_length(pricing_version) BETWEEN 1 AND 200
+            AND char_length(prompt_version) BETWEEN 1 AND 200
+        ),
+    CONSTRAINT ai_usage_events_optional_text_chk
+        CHECK (
+            (attempt_id IS NULL OR char_length(attempt_id) BETWEEN 1 AND 300)
+            AND (provider_request_id IS NULL OR char_length(provider_request_id) BETWEEN 1 AND 500)
+        ),
     CONSTRAINT ai_usage_events_execution_key_chk
         CHECK (execution_key IS NULL OR execution_key ~ '^[0-9a-f]{64}$'),
     CONSTRAINT ai_usage_events_tokens_chk
@@ -101,6 +169,8 @@ CREATE TABLE IF NOT EXISTS ai_usage_events (
         CHECK (outcome IN ('ok', 'error', 'timeout', 'refused', 'aborted')),
     CONSTRAINT ai_usage_events_reconciliation_chk
         CHECK (reconciliation_status IN ('pending', 'matched', 'adjusted')),
+    CONSTRAINT ai_usage_events_raw_usage_chk
+        CHECK (octet_length(raw_usage::text) <= 16384 AND ai_usage_json_is_safe(raw_usage, 0)),
     CONSTRAINT ai_usage_events_lineage_shape_chk
         CHECK (
             (
@@ -126,7 +196,7 @@ CREATE TABLE IF NOT EXISTS ai_usage_events (
 CREATE INDEX IF NOT EXISTS idx_ai_usage_events_tenant_time
     ON ai_usage_events (tenant_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_events_tenant_feature_time
-    ON ai_usage_events (tenant_id, feature, occurred_at DESC);
+    ON ai_usage_events (tenant_id, feature, event_kind, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_events_provider_request
     ON ai_usage_events (provider, provider_request_id)
     WHERE provider_request_id IS NOT NULL;
@@ -214,6 +284,13 @@ CREATE TABLE IF NOT EXISTS ai_usage_budget_overrides (
     reason             TEXT NOT NULL,
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     revoked_at         TIMESTAMPTZ,
+    CONSTRAINT ai_usage_budget_overrides_required_text_chk
+        CHECK (
+            char_length(override_id) BETWEEN 1 AND 300
+            AND char_length(tenant_id) BETWEEN 1 AND 200
+            AND (feature IS NULL OR char_length(feature) BETWEEN 1 AND 200)
+            AND char_length(approved_by) BETWEEN 1 AND 300
+        ),
     CONSTRAINT ai_usage_budget_overrides_time_chk
         CHECK (valid_until > valid_from),
     CONSTRAINT ai_usage_budget_overrides_reason_chk
