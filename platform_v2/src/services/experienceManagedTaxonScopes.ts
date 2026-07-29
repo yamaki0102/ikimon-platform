@@ -104,8 +104,8 @@ export function isExperienceManagedTaxonRoutingEnabled(
   scope: ExperienceManagedTaxonScope,
 ): boolean {
   const approval = scope.routingApproval;
-  return scope.status === "routing_enabled"
-    && approval?.allowExternalRouting === true
+  if (scope.status !== "routing_enabled" || !approval) return false;
+  return approval.allowExternalRouting === true
     && approval.approvedPolicyVersion === scope.policyVersion
     && approval.approvalRef.trim().length > 0;
 }
