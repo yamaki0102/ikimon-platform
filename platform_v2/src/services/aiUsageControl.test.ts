@@ -275,3 +275,44 @@ test("raw usage metadata rejects prompt or response content", async () => {
     adjustmentOfEventId: null,
   }), /ai_raw_usage_json_forbidden_key:prompt/u);
 });
+
+test("retry and adjustment references must remain in the same scope", async () => {
+  const repository = new InMemoryAiUsageRepository();
+  const original = await repository.recordUsage({
+    eventId: "usage-scope-original",
+    occurredAt: "2026-07-29T00:00:00.000Z",
+    tenantId: "tenant-a",
+    project: "zukan",
+    feature: "context_packet",
+    requestId: "request-scope",
+    executionKey: "execution-scope",
+    attemptId: "attempt-scope",
+    provider: "google",
+    providerRequestId: "provider-scope",
+    modelId: "gemini-3.1-flash-lite",
+    pricingVersion: "google-2026-07-29",
+    promptVersion: "prompt-v1",
+    inputTokens: 1,
+    cachedInputTokens: 0,
+    cacheWriteTokens: 0,
+    outputTokens: 1,
+    costUsdMicros: 1,
+    retryCount: 0,
+    fallbackDepth: 0,
+    providerFailureCount: 0,
+    eventKind: "usage",
+    outcome: "error",
+    reconciliationStatus: "pending",
+    rawUsageJson: "{}",
+    retryOfEventId: null,
+    adjustmentOfEventId: null,
+  });
+  const { recordedSequence: _recordedSequence, ...retryInput } = original;
+  await assert.rejects(() => repository.recordUsage({
+    ...retryInput,
+    eventId: "usage-scope-retry",
+    tenantId: "tenant-other",
+    requestId: "request-scope-retry",
+    retryOfEventId: original.eventId,
+  }), /ai_retry_target_scope_mismatch/u);
+});
