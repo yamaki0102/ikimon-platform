@@ -12,6 +12,7 @@ class TestRepository extends InMemoryAiUsageRepository {
 const key: AiExecutionKeyInput = {
   tenantId: "tenant-a", project: "zukan", workspaceId: null, feature: "context_packet",
   provider: "google", modelId: "gemini-3.1-flash-lite", operationVersion: "context/v2",
+  invocationId: "invocation-boundary-1",
   canonicalInputDigest: "a".repeat(64), sourceDigest: "b".repeat(64), extractionRunId: null,
   policyVersion: "policy-v1", promptVersion: "prompt-v1", targetTime: null,
 };
@@ -46,7 +47,8 @@ test("boundary records failed provider attempts before rethrowing", async () => 
   const repository = new TestRepository(() => new Date("2026-07-29T00:00:00Z"));
   const boundary = new AiExecutionBoundary(repository, () => new Date("2026-07-29T00:00:01Z"));
   await assert.rejects(() => boundary.execute({
-    key, attemptId: "attempt-2", leaseDurationMs: 60_000,
+    key: { ...key, invocationId: "invocation-boundary-2" },
+    attemptId: "attempt-2", leaseDurationMs: 60_000,
     requestId: "request-2", providerAccountId: "account-a", pricingVersion: "pricing-v1",
     budgetLimits: limits,
     budgetProjection: { requestUsdMicros: 100, retryCount: 0, fallbackDepth: 0, providerFailureCount: 1 },
