@@ -22,6 +22,6 @@ Regenerate the committed raster derivatives deterministically from the SVG sourc
 node platform_v2/scripts/generate-zukan-brand-assets.mjs
 ```
 
-The assets were reconstructed from the adopted source image recorded in `ikimon-business-strategy/decisions/2026-07-28-zukan-logo-source-assets.md`. Do not redraw the symbol or change the four-dot order without updating the strategy decision first.
+The assets were reconstructed from the adopted source image recorded in `ikimon-business-strategy/decisions/2026-07-28-zukan-logo-source-assets.md`. The SVG geometry uses smooth vector curves and true circles; do not replace it with pixel-traced polygon steps. Do not change the symbol concept, colors, or four-dot order without updating the strategy decision first.
 
 Legacy `ikimon-*` files remain available for rollback and compatibility. New current-app references must use the ZUKAN files above.

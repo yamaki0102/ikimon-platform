@@ -52,6 +52,24 @@ test("generated ZUKAN raster assets are deterministic PNGs with declared dimensi
   assert.equal(ogp.hasAlpha, false);
 });
 
+test("ZUKAN vector assets keep smooth curves and circular record markers", async () => {
+  const symbol = await readFile(path.join(brandDir, "zukan-symbol.svg"), "utf8");
+  const wordmark = await readFile(path.join(brandDir, "zukan-wordmark.svg"), "utf8");
+  const lockup = await readFile(path.join(brandDir, "zukan-lockup.svg"), "utf8");
+  const appIcon = await readFile(path.join(brandDir, "zukan-app-icon.svg"), "utf8");
+  const maskableIcon = await readFile(path.join(brandDir, "zukan-app-icon-maskable.svg"), "utf8");
+
+  for (const [name, asset] of Object.entries({ symbol, lockup, appIcon, maskableIcon })) {
+    assert.match(asset, /\sC-?\d/, `${name} must use Bezier curves`);
+    assert.match(asset, /stroke-linecap="round"/, `${name} must keep rounded stroke ends`);
+    assert.equal((asset.match(/<circle\b/g) ?? []).length, 4, `${name} must keep four circular records`);
+    assert.doesNotMatch(asset, /M171 23 L169 22/, `${name} must not restore the pixel-traced outline`);
+  }
+
+  assert.match(wordmark, /\sC-?\d/, "wordmark U must keep a smooth bowl");
+  assert.doesNotMatch(wordmark, /M341 27 L340 28/, "wordmark must not restore the pixel-traced outline");
+});
+
 test("manifest, runtime paths, MIME types, ICO payload, and maskable safe zone agree", async () => {
   await execFileAsync(process.execPath, [generator]);
   const manifest = JSON.parse(
