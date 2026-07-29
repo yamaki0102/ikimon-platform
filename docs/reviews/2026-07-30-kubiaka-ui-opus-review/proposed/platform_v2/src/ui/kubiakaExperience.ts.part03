@@ -1,0 +1,104 @@
+kubiaka-receipt-status">${escapeHtml(copy.receipt.status)}</span>
+          <p>${escapeHtml(copy.receipt.body)}</p>
+          <p class="kubiaka-receipt-next">${escapeHtml(copy.receipt.next)}</p>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderAboutAndSafety(copy: KubiakaExperienceCopy): string {
+  return `<section class="kubiaka-section kubiaka-section--soft" id="about">
+    <div class="kubiaka-frame kubiaka-about-grid">
+      <article class="kubiaka-about-card">
+        <div class="kubiaka-eyebrow">${escapeHtml(copy.about.eyebrow)}</div>
+        <h2>${escapeHtml(copy.about.title)}</h2>
+        <p>${escapeHtml(copy.about.body)}</p>
+        <div class="kubiaka-scientific-name">
+          <span>${escapeHtml(copy.about.scientificNameLabel)}</span>
+          <em>${escapeHtml(copy.about.scientificName)}</em>
+        </div>
+      </article>
+      <article class="kubiaka-promise-card" id="promise" data-kubiaka-safety-boundary>
+        <div class="kubiaka-eyebrow">${escapeHtml(copy.safety.eyebrow)}</div>
+        <h2>${escapeHtml(copy.safety.title)}</h2>
+        <ul class="kubiaka-promise-list">
+          ${copy.safety.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+        </ul>
+      </article>
+    </div>
+  </section>`;
+}
+
+function renderFaq(copy: KubiakaExperienceCopy): string {
+  return `<section class="kubiaka-section" id="faq">
+    <div class="kubiaka-frame kubiaka-faq-layout">
+      <div class="kubiaka-faq-head">
+        <div class="kubiaka-eyebrow">${escapeHtml(copy.faq.eyebrow)}</div>
+        <h2>${escapeHtml(copy.faq.title)}</h2>
+      </div>
+      <div class="kubiaka-faq-list">
+        ${copy.faq.items.map((item, index) => `<details class="kubiaka-faq"${index === 0 ? " open" : ""}>
+          <summary>${escapeHtml(item.question)}</summary>
+          <p>${escapeHtml(item.answer)}</p>
+        </details>`).join("")}
+      </div>
+    </div>
+  </section>`;
+}
+
+export function renderKubiakaExperience(options: RenderKubiakaExperienceOptions): string {
+  const { copy, basePath, lang } = options;
+  const homeHref = localizedHref(basePath, "/", lang);
+  const recordHref = localizedHref(basePath, "/kubiaka/record", lang);
+
+  return `<main class="kubiaka-page" data-kubiaka-experience="kubiaka-watch">
+    <div class="kubiaka-frame">
+      <header class="kubiaka-topbar">
+        <a class="kubiaka-brand" href="${escapeHtml(homeHref)}" aria-label="${escapeHtml(copy.brand)}">
+          <span class="kubiaka-wordmark">${escapeHtml(copy.brand)}</span>
+          <span class="kubiaka-scope">${escapeHtml(copy.scopeLabel)}</span>
+        </a>
+        <span class="kubiaka-status-dot">${escapeHtml(copy.pilotLabel)}</span>
+      </header>
+      <section class="kubiaka-hero">
+        <div class="kubiaka-hero-copy">
+          <div class="kubiaka-eyebrow">${escapeHtml(copy.hero.eyebrow)}</div>
+          <h1 aria-label="${escapeHtml(copy.hero.headingLines.join(" "))}">${copy.hero.headingLines.map((line) => `<span>${escapeHtml(line)}</span>`).join("")}</h1>
+          <p class="kubiaka-hero-lead">${escapeHtml(copy.hero.lead)}</p>
+          <div class="kubiaka-action-row">
+            <a class="kubiaka-primary-action" href="${escapeHtml(recordHref)}" data-kubiaka-primary-action>
+              ${cameraIcon()}
+              <span>${escapeHtml(copy.hero.cta)}</span>
+            </a>
+            <p class="kubiaka-action-note">${escapeHtml(copy.hero.note)}</p>
+          </div>
+          ${renderTrustItems(copy)}
+        </div>
+        <div class="kubiaka-visual-wrap" aria-hidden="true">
+          <div class="kubiaka-visual-halo"></div>
+          <div class="kubiaka-viewfinder">
+            ${treeArtwork("kubiaka-hero")}
+            <span class="kubiaka-corner kubiaka-corner--tl"></span>
+            <span class="kubiaka-corner kubiaka-corner--tr"></span>
+            <span class="kubiaka-corner kubiaka-corner--bl"></span>
+            <span class="kubiaka-corner kubiaka-corner--br"></span>
+            <div class="kubiaka-visual-copy">
+              <span class="kubiaka-visual-badge">${escapeHtml(copy.visual.badge)}</span>
+              <strong>${escapeHtml(copy.visual.label)}</strong>
+              <small>${escapeHtml(copy.visual.note)}</small>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    ${renderFlow(copy)}
+    ${renderReceipt(copy)}
+    ${renderAboutAndSafety(copy)}
+    ${renderFaq(copy)}
+    <footer class="kubiaka-frame kubiaka-footer">
+      <strong>${escapeHtml(copy.brand)}</strong>
+      <span>${escapeHtml(copy.footerNote)}</span>
+    </footer>
+  </main>`;
+}
