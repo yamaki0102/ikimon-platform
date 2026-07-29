@@ -14,6 +14,7 @@ import {
 } from "./zukanRegionalCorePredicates.js";
 
 const tenantId = "tenant-generic-record-fixture";
+const reviewAssertedAt = "2026-07-29T02:00:00Z";
 
 function id(kind: string, externalId: string): string {
   return deterministicRegionalKnowledgeUuid({ tenantId, entityKind: kind, externalId });
@@ -53,6 +54,7 @@ function reviewedEnvelope(): RegionalKnowledgeEnvelopePlan {
         evidenceRefs: [sourceEditionId],
         reviewState: "human_reviewed",
         accountableReviewerId: reviewerId,
+        assertedAt: reviewAssertedAt,
         visibility: "public_candidate",
       },
       {
@@ -64,6 +66,7 @@ function reviewedEnvelope(): RegionalKnowledgeEnvelopePlan {
         evidenceRefs: [sourceEditionId],
         reviewState: "human_reviewed",
         accountableReviewerId: reviewerId,
+        assertedAt: reviewAssertedAt,
         visibility: "public_candidate",
       },
     ],
@@ -117,6 +120,10 @@ test("persistence plan keeps Record payload and Claim values in separate artifac
   assert.notEqual(plan.records[0]?.payloadArtifactId, plan.claimRevisions[0]?.valueArtifactId);
   assert.ok(plan.claimRecordLinks.every((link) => link.recordId === plan.records[0]?.recordId));
   assert.ok(plan.claimRecordLinks.every((link) => link.linkRole === "reviewed_from"));
+  assert.ok(plan.claimRevisions.every((revision) =>
+    revision.recordedAt === "2026-07-29T02:00:00.000Z"));
+  assert.ok(plan.claimRevisions.every((revision) =>
+    revision.recordedAt !== plan.records[0]?.recordedAt));
   assert.ok(plan.warnings.includes(
     "publication_candidate_requires_resolution_snapshot_before_persistence",
   ));
@@ -162,7 +169,7 @@ test("unknown predicates fail closed without creating Claim persistence rows", (
   assert.equal(plan.counts.claimRevisions, 0);
 });
 
-test("public candidates require accountable review and a canonical rights dependency", () => {
+test("public candidates require accountable review, assertion time, and rights", () => {
   const envelope = reviewedEnvelope();
   const candidate = envelope.claims[0]!;
   const plan = planGenericRecordPersistence({
@@ -173,6 +180,7 @@ test("public candidates require accountable review and a canonical rights depend
       ...candidate,
       reviewState: "ai_candidate",
       accountableReviewerId: null,
+      assertedAt: null,
     }],
   });
 
