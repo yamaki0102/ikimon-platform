@@ -3,8 +3,8 @@
 ## Review order
 
 1. `REVIEW_REQUEST.md`
-2. `mobile-hero.webp` and `desktop-hero.webp`
-3. `mobile-390.webp` and `desktop-1440.webp`
+2. `visual-preview.html`
+3. `VISUAL_QA.md`
 4. `proposed/platform_v2/src/content/kubiakaExperience.ts`
 5. `proposed/platform_v2/src/routes/kubiakaExperience.ts`
 6. `proposed/platform_v2/src/routes/kubiakaExperience.routes.test.ts`
