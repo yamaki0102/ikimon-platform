@@ -201,3 +201,19 @@ test("budget decision checks cost retry fallback and provider-failure limits", (
     ],
   });
 });
+
+test("expired lease cannot be reacquired with the same attempt id", async () => {
+  const repository = new InMemoryAiUsageRepository();
+  await repository.acquire({
+    key,
+    attemptId: "attempt-expired",
+    now: "2026-07-29T00:00:00.000Z",
+    leaseExpiresAt: "2026-07-29T00:01:00.000Z",
+  });
+  await assert.rejects(() => repository.acquire({
+    key,
+    attemptId: "attempt-expired",
+    now: "2026-07-29T00:02:00.000Z",
+    leaseExpiresAt: "2026-07-29T00:03:00.000Z",
+  }), /ai_retry_requires_new_attempt_id/u);
+});
