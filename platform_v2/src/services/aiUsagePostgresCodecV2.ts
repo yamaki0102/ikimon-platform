@@ -3,9 +3,7 @@ import {
   canonicalAiJson, normalizeAiUsageMetadata, normalizeExecutionKeyInput,
   nonNegativeInteger, required, validTimestamp,
 } from "./aiUsagePolicy.js";
-import type {
-  AiExecutionGuard, AiExecutionKeyInput, AiUsageEvent, RecordAiUsageInput,
-} from "./aiUsageTypes.js";
+import type { AiExecutionGuard, AiExecutionKeyInput, AiUsageEvent, RecordAiUsageInput } from "./aiUsageTypes.js";
 
 export interface AiUsagePostgresQueryable {
   query<T extends Record<string, unknown> = Record<string, unknown>>(
@@ -19,9 +17,9 @@ export interface AiUsagePostgresPool extends AiUsagePostgresQueryable { connect(
 export type GuardRow = {
   execution_key: string; tenant_id: string; project: string; workspace_id: string | null;
   feature: string; provider: string; model_id: string; operation_version: string;
-  canonical_input_digest: string; source_digest: string; extraction_run_id: string | null;
-  policy_version: string; prompt_version: string; target_time: string | null;
-  holder_attempt_id: string; lease_generation: string | number;
+  invocation_id: string; canonical_input_digest: string; source_digest: string;
+  extraction_run_id: string | null; policy_version: string; prompt_version: string;
+  target_time: string | null; holder_attempt_id: string; lease_generation: string | number;
   acquired_at: string; lease_expires_at: string; state: string; settled_at: string | null;
 };
 export type UsageRow = {
@@ -40,9 +38,10 @@ export type UsageRow = {
 };
 
 export const GUARD_COLUMNS = `execution_key, tenant_id, project, workspace_id, feature, provider,
-  model_id, operation_version, canonical_input_digest, source_digest, extraction_run_id,
-  policy_version, prompt_version, target_time::text, holder_attempt_id, lease_generation,
-  acquired_at::text, lease_expires_at::text, state, settled_at::text`;
+  model_id, operation_version, invocation_id, canonical_input_digest, source_digest,
+  extraction_run_id, policy_version, prompt_version, target_time::text,
+  holder_attempt_id, lease_generation, acquired_at::text, lease_expires_at::text,
+  state, settled_at::text`;
 export const USAGE_COLUMNS = `event_id, recorded_sequence, occurred_at::text, tenant_id, project,
   workspace_id, feature, operation_version, request_id, execution_key, attempt_id,
   lease_generation, provider, provider_request_id, provider_account_id, model_id,
@@ -63,9 +62,10 @@ export function guardFromRow(row: GuardRow): AiExecutionGuard {
   const key: AiExecutionKeyInput = {
     tenantId: row.tenant_id, project: row.project, workspaceId: row.workspace_id,
     feature: row.feature, provider: row.provider, modelId: row.model_id,
-    operationVersion: row.operation_version, canonicalInputDigest: row.canonical_input_digest,
-    sourceDigest: row.source_digest, extractionRunId: row.extraction_run_id,
-    policyVersion: row.policy_version, promptVersion: row.prompt_version,
+    operationVersion: row.operation_version, invocationId: row.invocation_id,
+    canonicalInputDigest: row.canonical_input_digest, sourceDigest: row.source_digest,
+    extractionRunId: row.extraction_run_id, policyVersion: row.policy_version,
+    promptVersion: row.prompt_version,
     targetTime: row.target_time === null ? null : timestamp(row.target_time, "ai_guard_target_time_invalid"),
   };
   return {
