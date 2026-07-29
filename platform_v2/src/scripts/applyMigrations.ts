@@ -186,12 +186,9 @@ async function main() {
     } catch (error) {
       await client.query("rollback");
       if (OWNER_SENSITIVE_APPROVAL.test(sql) && isOwnerPrivilegeError(error)) {
-        await pool.query(
-          "insert into schema_migrations (filename, checksum) values ($1, $2) on conflict (filename) do nothing",
-          [filename, checksum],
+        throw new Error(
+          `Owner-sensitive migration blocked for ${filename}: database role lacks ownership or required privileges. The transaction was rolled back and the migration was not recorded as applied. Repair object ownership or run with the approved migration owner role before retrying.`,
         );
-        console.warn(`skip owner-sensitive migration ${filename}: database role does not own the target object`);
-        continue;
       }
       throw error;
     } finally {
