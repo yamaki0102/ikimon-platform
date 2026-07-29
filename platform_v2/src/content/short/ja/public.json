@@ -1,13 +1,13 @@
 {
   "landing": {
-    "title": "地域の記録から始める | ikimon",
+    "title": "地域の記録から始める | ZUKAN",
     "home": {
       "guest": {
         "heroHeading": "地域の記録を、みんなで育てる。",
         "heroLead": "祭りも、仕事も、風景も、日常の発見も。写真や動画で残したことが、場所の記憶と次の活動につながります。",
         "primaryCta": "撮る", "secondaryCta": "場所を見る",
         "categoriesTitle": "何を残せるか",
-        "imageLabel": "イメージ",
+        "proofEmpty": "公開できる写真は、まだありません。",
         "categories": [
           { "title": "学校・学び", "body": "授業、探究、仕事体験で見つけたこと。" },
           { "title": "地域・イベント", "body": "祭り、マルシェ、地域行事の一場面。" },
@@ -41,6 +41,7 @@
       },
       "shared": {
         "openRecord": "記録を見る", "unknownRecord": "名前を調べている記録", "safePlaceFallback": "地域の記録", "aiCandidateSuffix": "かもしれません", "fromRecord": "この記録から", "multipleMedia": "件のメディア",
+        "operatorStatement": "ZUKANはIKIMON株式会社が運営しています。現在はikimon.lifeで提供しています。",
         "media": { "photo": "写真", "video": "動画", "audio": "音声", "memo": "メモ" },
         "navigation": { "home": "ホーム", "record": "記録", "discover": "見つける", "profile": "マイページ" }
       }

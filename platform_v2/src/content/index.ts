@@ -367,7 +367,7 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
   assertObject(value.home, `${path}.home`);
   assertObject(value.home.guest, `${path}.home.guest`);
   for (const key of [
-    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "categoriesTitle", "imageLabel", "flowTitle",
+    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "categoriesTitle", "proofEmpty", "flowTitle",
     "placesTitle", "placesBody", "privacyTitle", "privacyBody", "finalTitle", "finalCta",
   ] as const) {
     assertString(value.home.guest[key], `${path}.home.guest.${key}`);
@@ -398,7 +398,7 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
     assertString(value.home.member.p0[key], `${path}.home.member.p0.${key}`);
   }
   assertObject(value.home.shared, `${path}.home.shared`);
-  for (const key of ["openRecord", "unknownRecord", "safePlaceFallback", "aiCandidateSuffix", "fromRecord", "multipleMedia"] as const) {
+  for (const key of ["openRecord", "unknownRecord", "safePlaceFallback", "aiCandidateSuffix", "fromRecord", "multipleMedia", "operatorStatement"] as const) {
     assertString(value.home.shared[key], `${path}.home.shared.${key}`);
   }
   assertObject(value.home.shared.media, `${path}.home.shared.media`);

@@ -24,6 +24,7 @@ function observation(id: string, overrides: Partial<LandingObservation> = {}): L
     observerAvatarUrl: null,
     entryType: "observation",
     publicFeedEligible: true,
+    publicFeedGateStatus: "public_eligible",
     librarySourceKind: "photo",
     ...overrides,
   };
@@ -59,8 +60,9 @@ test("guest Top leads with a broad regional-record promise and concrete actions"
   assert.match(html, /fetchpriority="high"/);
   assert.match(html, /data-global-record-trigger="photo"/);
   assert.match(html, /data-kpi-event="top_place_tap"/);
-  assert.equal((html.match(/\/media\/public-1\.jpg/g) || []).length, 1);
-  assert.match(html, /\/assets\/img\/landing\/home-daily-place\.webp/);
+  assert.ok((html.match(/\/media\/public-1\.jpg/g) || []).length >= 1);
+  assert.match(html, /home-guest-proof is-count-1/);
+  assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(html, /地方創生|ウェルビーイング|Place Intelligence OS|ENJOY NATURE/);
 });
 
@@ -68,13 +70,13 @@ test("guest Top stays useful without public data and never invents record cards"
   const html = render("ja", snapshot());
   assert.match(html, /map\?tab=places/);
   assert.match(html, /home-guest-hero-visual/);
-  assert.match(html, /\/assets\/img\/landing\/home-community-hero\.webp/);
-  assert.match(html, /\/assets\/img\/landing\/home-community-event\.webp/);
-  assert.match(html, /\/assets\/img\/landing\/home-daily-place\.webp/);
-  assert.match(html, /home-generated-badge">イメージ</);
-  assert.doesNotMatch(html, /home-place-visual is-placeholder/);
+  assert.match(html, /home-guest-proof is-count-0 is-empty/);
+  assert.match(html, /<p>公開できる写真は、まだありません。<\/p>/);
+  assert.match(html, /\/assets\/brand\/zukan-symbol\.svg/);
+  assert.match(html, /home-place-visual is-placeholder/);
+  assert.doesNotMatch(html, /home-generated-badge|イメージ|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(html, /class="home-public-card"/);
-  assert.doesNotMatch(html, /sample|placeholder\.jpg|0件|未記録/);
+  assert.doesNotMatch(html, /sample|placeholder\.jpg|0件|未記録|場所から見る<\/p>/);
 });
 
 test("member Home shows only the viewer's recent records as its main record section", () => {
@@ -132,8 +134,12 @@ test("member recent records render photo, video, audio, memo, and multiple media
   assert.match(html, /loading="eager"/);
 });
 
-test("guest Top media stays fail-closed for blocked and blurred records", () => {
-  const blocked = observation("blocked", { publicFeedEligible: false, displayName: "private record" });
+test("guest Top media stays fail-closed for private, blocked, and blurred records", () => {
+  const blocked = observation("blocked", {
+    publicFeedEligible: false,
+    publicFeedGateStatus: "blocked_public",
+    displayName: "private record",
+  });
   const blurred = observation("blurred", {
     displayName: "protected record",
     placeName: "exact private home",
@@ -143,8 +149,41 @@ test("guest Top media stays fail-closed for blocked and blurred records", () => 
   });
   const html = render("ja", snapshot({ feed: [blocked, blurred] }));
   assert.doesNotMatch(html, /private record|exact private home|exact municipality|2026-07-19/);
-  assert.match(html, /\/media\/blurred\.jpg/);
+  assert.doesNotMatch(html, /\/media\/blocked\.jpg|\/media\/blurred\.jpg/);
+  assert.match(html, /home-guest-proof is-count-0 is-empty/);
   assert.doesNotMatch(html, /latitude|longitude|geohash|cellId|centroid/);
+});
+
+for (const count of [0, 1, 2, 3, 5] as const) {
+  test(`guest proof renders the explicit ${count}-photo mosaic contract`, () => {
+    const feed = Array.from({ length: count }, (_, index) => observation(`proof-${count}-${index + 1}`));
+    const html = render("ja", snapshot({ feed }));
+    assert.match(html, new RegExp(`home-guest-proof is-count-${count}(?: is-empty)?`));
+    assert.equal((html.match(/data-home-public-record=/g) || []).length, count);
+    assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
+  });
+}
+
+test("guest proof does not expose metadata from an ineligible record", () => {
+  const privateRecord = observation("private-proof", {
+    publicFeedEligible: false,
+    publicFeedGateStatus: "private",
+    displayName: "private display name",
+    municipality: "private municipality",
+    publicLocation: {
+      label: "private exact label",
+      scope: "municipality",
+      cellId: null,
+      gridM: null,
+      radiusM: null,
+      centroidLat: null,
+      centroidLng: null,
+      displayMode: "area",
+    },
+  });
+  const html = render("ja", snapshot({ feed: [privateRecord] }));
+  assert.match(html, /home-guest-proof is-count-0 is-empty/);
+  assert.doesNotMatch(html, /private display name|private municipality|private exact label|private-proof/);
 });
 
 for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
@@ -159,13 +198,16 @@ for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
 
 test("home CSS enforces mobile card sizing, touch targets, focus and reduced motion", () => {
   assert.match(LANDING_TOP_STYLES, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
-  assert.match(LANDING_TOP_STYLES, /min-height:54px/);
+  assert.match(LANDING_TOP_STYLES, /min-height:52px/);
   assert.match(LANDING_TOP_STYLES, /min-height:44px/);
   assert.match(LANDING_TOP_STYLES, /focus-visible/);
   assert.match(LANDING_TOP_STYLES, /\.home-hero-phrase\{display:inline-block;max-width:100%\}/);
   assert.match(LANDING_TOP_STYLES, /word-break:auto-phrase/);
   assert.match(LANDING_TOP_STYLES, /prefers-reduced-motion/);
   assert.match(LANDING_TOP_STYLES, /@media\(max-width:359px\)/);
+  assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-1 \.is-item-1\{grid-column:1\/13/);
+  assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-2 \.is-item-2\{grid-column:7\/13/);
+  assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-5 \.is-item-5\{grid-column:10\/13/);
 });
 
 test("guest Top explains broad regional records and starts with the shared camera action", () => {
@@ -175,11 +217,9 @@ test("guest Top explains broad regional records and starts with the shared camer
   assert.match(html, /地域・イベント/);
   assert.match(html, /仕事・文化/);
   assert.match(html, /暮らし・自然/);
-  assert.match(html, /\/assets\/img\/landing\/home-school-learning\.webp/);
-  assert.match(html, /\/assets\/img\/landing\/home-community-event\.webp/);
-  assert.match(html, /\/assets\/img\/landing\/home-work-culture\.webp/);
-  assert.match(html, /\/assets\/img\/landing\/home-daily-place\.webp/);
-  assert.doesNotMatch(html, /placeholder\.jpg|home-category-photo" aria-hidden="true"><\/span>/);
+  assert.match(html, /home-category-index/);
+  assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
+  assert.doesNotMatch(html, /placeholder\.jpg|home-category-photo/);
   assert.match(html, /data-global-record-trigger="photo"/);
   assert.match(html, /data-kpi-event="top_place_tap"/);
   assert.doesNotMatch(html, /href="[^"]*\/record"[^>]*class="home-primary-button"/);

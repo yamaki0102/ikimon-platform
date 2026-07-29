@@ -699,7 +699,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     })
     .join("");
   const legal = `<div class="desktop-side-nav-legal">
-    <span>ikimon</span>
+    <span>ZUKAN</span>
     <span>${escapeHtml(directoryCopy.legalTagline)}</span>
   </div>`;
   return `<div class="${rootClass}">${primary}${secondary}${legal}</div>`;
@@ -788,7 +788,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
     <div class="site-header-inner">
       <div class="site-brand-cluster">
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup"><span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span><span class="brand-wordmark" aria-label="ikimon"><img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" /></span></span>
+          <span class="brand-logo-lockup"><span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span><span class="brand-wordmark" aria-label="ZUKAN"><img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" /></span></span>
         </a>
       </div>
       ${navLinks}
@@ -805,7 +805,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
           <span class="brand-logo-lockup">
             <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
-            <span class="brand-wordmark" aria-label="ikimon">
+            <span class="brand-wordmark" aria-label="ZUKAN">
               <img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" />
             </span>
           </span>
@@ -835,7 +835,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
           <span class="brand-logo-lockup">
             <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
-            <span class="brand-wordmark" aria-label="ikimon">
+            <span class="brand-wordmark" aria-label="ZUKAN">
               <img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" />
             </span>
           </span>
@@ -912,6 +912,16 @@ function renderFooterLinks(basePath: string, lang: SiteLang, pages: SitePageDefi
     .join("");
 }
 
+function operatorStatement(lang: SiteLang): string {
+  const copy: Record<SiteLang, string> = {
+    ja: "ZUKANはIKIMON株式会社が運営しています。現在はikimon.lifeで提供しています。",
+    en: "ZUKAN is operated by IKIMON Inc. and is currently available at ikimon.life.",
+    es: "ZUKAN es operado por IKIMON Inc. y actualmente se ofrece en ikimon.life.",
+    "pt-BR": "O ZUKAN é operado pela IKIMON Inc. e atualmente está disponível em ikimon.life.",
+  };
+  return copy[lang];
+}
+
 function footer(basePath: string, lang: SiteLang, _footerNote?: string): string {
   const copy = shellCopyFor(lang);
   const startPages = footerGroupPages(["start"], 5);
@@ -924,9 +934,9 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
         <div class="footer-brand-panel">
           <div>
           <div class="brand brand-footer">
-            <span class="brand-mark"><img src="${BRAND_ASSETS.mark192}" alt="ikimon icon" /></span>
+            <span class="brand-mark"><img src="${BRAND_ASSETS.mark192}" alt="ZUKAN symbol" /></span>
             <span>
-              <strong>ikimon</strong>
+              <strong>ZUKAN</strong>
               <small>${escapeHtml(copy.footer.tagline)}</small>
             </span>
           </div>
@@ -938,7 +948,8 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
               <a class="btn btn-ghost-on-dark" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">読み物を見る</a>
             </div>
           </div>
-          <div class="footer-chip-row" aria-label="ikimon の価値">
+          <p class="footer-operator">${escapeHtml(operatorStatement(lang))}</p>
+          <div class="footer-chip-row" aria-label="ZUKAN の価値">
             <span>名前が分からなくても残せる</span>
             <span>公開範囲を安全側で制御</span>
             <span>学校・研究・企業活動へ接続</span>
@@ -986,7 +997,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
       </section>
 
       <div class="footer-bottom">
-        <span>ikimon｜皆で作る地域図鑑</span>
+        <span>ZUKAN｜皆で作る地域図鑑</span>
         <span><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>・<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a></span>
       </div>
     </div>
@@ -3604,7 +3615,9 @@ function ogLocale(lang: SiteLang): string {
 }
 
 function displayPageTitle(title: string): string {
-  return title.replace(/\bikimon\.life\b/g, "ikimon");
+  return title
+    .replace(/\bikimon\.life\b/gi, "ZUKAN")
+    .replace(/\bikimon\b/gi, "ZUKAN");
 }
 
 export function renderSiteDocument(options: SiteShellOptions): string {
@@ -3623,7 +3636,11 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const hasCustomTwitterImage = /name=["']twitter:image["']/.test(structuredDataHtml);
   const ogImageMeta = hasCustomOgImage
     ? ""
-    : `\n  <meta property="og:image" content="${escapeHtml(defaultOgpImageUrl)}" />\n  <meta property="og:image:alt" content="ikimon" />`;
+    : `\n  <meta property="og:image" content="${escapeHtml(defaultOgpImageUrl)}" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="ZUKAN" />`;
   const twitterCardMeta = hasCustomTwitterCard ? "" : `\n  <meta name="twitter:card" content="summary_large_image" />`;
   const twitterImageMeta = hasCustomTwitterImage ? "" : `\n  <meta name="twitter:image" content="${escapeHtml(defaultOgpImageUrl)}" />`;
   const alternateLinks = seoAlternateLangs
@@ -3674,7 +3691,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const prefersCollapsedSideNav = isReadingPage || isImmersiveSurface || /\bshell-records-workbench\b/.test(shellClassName);
   const isMapSurface = /\bshell-map\b/.test(shellClassName);
   const minimalChrome = Boolean(options.minimalChrome);
-  const defaultSrOnlyHeading = pageTitle.replace(/\s*\|\s*ikimon\s*$/i, "");
+  const defaultSrOnlyHeading = pageTitle.replace(/\s*\|\s*ZUKAN\s*$/i, "");
   const srOnlyPageHeading = isMapSurface
     ? (lang === "ja" ? "地図" : lang === "es" ? "Mapa" : lang === "pt-BR" ? "Mapa" : "Map")
     : defaultSrOnlyHeading;
@@ -3869,19 +3886,19 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const supported = { ja: 'ja', en: 'en', es: 'es', pt: 'pt-BR', 'pt-br': 'pt-BR' };
   const languageSuggestionCopy = {
     en: {
-      title: 'Use ikimon in English?',
+      title: 'Use ZUKAN in English?',
       body: 'You can switch the interface. Search indexing stays focused on Japanese.',
       action: 'Switch to English',
       dismiss: 'Keep Japanese'
     },
     es: {
-      title: '¿Usar ikimon en español?',
+      title: '¿Usar ZUKAN en español?',
       body: 'Puedes cambiar la interfaz. La búsqueda sigue centrada en japonés.',
       action: 'Cambiar a español',
       dismiss: 'Seguir en japonés'
     },
     'pt-BR': {
-      title: 'Usar ikimon em português?',
+      title: 'Usar ZUKAN em português?',
       body: 'Voce pode mudar a interface. A busca continua focada em japones.',
       action: 'Mudar para português',
       dismiss: 'Manter japones'
@@ -4162,13 +4179,13 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="${APP_THEME_COLOR}" />
-  <meta name="application-name" content="ikimon" />
+  <meta name="application-name" content="ZUKAN" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="ikimon" />
+  <meta name="apple-mobile-web-app-title" content="ZUKAN" />
   <link rel="manifest" href="${escapeHtml(manifestHref)}" />
-  <link rel="apple-touch-icon" href="${BRAND_ASSETS.appleTouchIcon}" />
-  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="${BRAND_ASSETS.appleTouchIcon}" />
   <link rel="icon" type="image/png" sizes="32x32" href="${BRAND_ASSETS.favicon32}" />
+  <link rel="icon" type="image/x-icon" sizes="32x32" href="/favicon.ico" />
   <link rel="icon" type="image/png" sizes="192x192" href="${BRAND_ASSETS.mark192}" />
   <title>${escapeHtml(pageTitle)}</title>
   <meta name="description" content="${escapeHtml(description)}" />${robotsMeta}
@@ -4176,7 +4193,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
 ${alternateLinks}
   <link rel="alternate" hreflang="x-default" href="${escapeHtml(xDefaultHref)}" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="ikimon" />
+  <meta property="og:site_name" content="ZUKAN" />
   <meta property="og:locale" content="${escapeHtml(ogLocale(lang))}" />
   <meta property="og:title" content="${escapeHtml(pageTitle)}" />
   <meta property="og:description" content="${escapeHtml(description)}" />

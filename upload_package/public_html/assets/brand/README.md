@@ -1,15 +1,27 @@
-# ikimon Brand Assets
+# ZUKAN Brand Assets
 
-Canonical brand assets for ikimon.life web, app install surfaces, OGP, and social previews.
+Canonical current-app assets for the public service **ZUKAN**. The legal/operator identity remains IKIMON株式会社 and the technical runtime identifiers remain `ikimon.life`.
 
-## Files
+## Current assets
 
-- `app-icon-192.png`, `app-icon-512.png`: standard app icons.
-- `app-icon-192-maskable.png`, `app-icon-512-maskable.png`: maskable PWA icons.
-- `apple-touch-icon.png`, `favicon-32.png`: browser and OS entry icons.
-- `ikimon-mark-192.png`: standalone product mark source.
-- `ikimon-wordmark-black.png`: black wordmark source.
-- `ikimon-lockup-black.png`: horizontal mark + wordmark lockup.
-- `ikimon-ogp-default.png`: default social preview image.
+- `zukan-symbol.svg`: standalone ZUKAN mark.
+- `zukan-wordmark.svg`: ZUKAN wordmark.
+- `zukan-lockup.svg`: horizontal mark and wordmark.
+- `zukan-app-icon.svg`: standard browser/PWA icon.
+- `zukan-app-icon-maskable.svg`: maskable PWA icon with a larger safe zone.
+- `zukan-app-icon-192.png` / `zukan-app-icon-512.png`: PWA `any` icons.
+- `zukan-app-icon-192-maskable.png` / `zukan-app-icon-512-maskable.png`: PWA maskable icons with the artwork kept inside the 40% safe-zone radius.
+- `zukan-apple-touch-icon.png`: 180×180 Apple touch icon.
+- `zukan-favicon-32.png`: 32×32 browser favicon.
+- `zukan-ogp-default.png`: opaque 1200×630 social preview.
+- `/favicon.ico`: 32px ZUKAN PNG wrapped in an ICO container.
 
-Keep legacy `/assets/img/*` icon paths available for compatibility, but new current-app references should use `/assets/brand/*`.
+Regenerate the committed raster derivatives deterministically from the SVG sources:
+
+```bash
+node platform_v2/scripts/generate-zukan-brand-assets.mjs
+```
+
+The assets were reconstructed from the adopted source image recorded in `ikimon-business-strategy/decisions/2026-07-28-zukan-logo-source-assets.md`. The SVG geometry uses smooth vector curves and true circles; do not replace it with pixel-traced polygon steps. Do not change the symbol concept, colors, or four-dot order without updating the strategy decision first.
+
+Legacy `ikimon-*` files remain available for rollback and compatibility. New current-app references must use the ZUKAN files above.

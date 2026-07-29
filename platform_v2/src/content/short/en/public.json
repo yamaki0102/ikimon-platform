@@ -1,10 +1,10 @@
 {
   "landing": {
-    "title": "A regional field guide built together | ikimon",
+    "title": "A regional field guide built together | ZUKAN",
     "home": {
       "guest": {
         "heroHeading": "Grow the community record together.", "heroLead": "Festivals, work, scenery, and everyday discoveries. What you save in photos and videos becomes a memory of the place and a path to what happens next.",
-        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "imageLabel": "Illustrative image",
+        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "proofEmpty": "No photos are available to show yet.",
         "categories": [
           { "title": "School & learning", "body": "Classes, projects, and workplace learning." },
           { "title": "Community & events", "body": "Festivals, markets, and local gatherings." },
@@ -37,6 +37,7 @@
       },
       "shared": {
         "openRecord": "Open record", "unknownRecord": "Record awaiting a name", "safePlaceFallback": "Community record", "aiCandidateSuffix": "may be the match", "fromRecord": "From this record", "multipleMedia": "media items",
+        "operatorStatement": "ZUKAN is operated by IKIMON Inc. and is currently available at ikimon.life.",
         "media": { "photo": "Photo", "video": "Video", "audio": "Audio", "memo": "Note" },
         "navigation": { "home": "Home", "record": "Record", "discover": "Discover", "profile": "My page" }
       }

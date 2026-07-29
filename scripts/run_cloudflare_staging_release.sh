@@ -145,7 +145,7 @@ echo "== Verify Cloudflare staging public routes =="
   grep -q '実データではありません' staging-demo.html
   grep -q 'place_feeling_tags' staging-demo.html
   grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-demo.headers
-  curl -fsS -D staging-brand-icon.headers "${STAGING_BASE_URL}/assets/brand/app-icon-192.png" -o staging-brand-icon.png
+  curl -fsS -D staging-brand-icon.headers "${STAGING_BASE_URL}/assets/brand/zukan-app-icon-192.png" -o staging-brand-icon.png
   grep -qi '^content-type: image/png' staging-brand-icon.headers
   grep -qi '^x-ikimon-cloudflare-materialized: original-ui-static-asset' staging-brand-icon.headers
 )

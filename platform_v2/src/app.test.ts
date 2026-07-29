@@ -181,7 +181,7 @@ test("root route serves the state-split guest home HTML even for generic accept 
     assert.equal(response.statusCode, 200);
     assert.match(String(response.headers["content-type"] ?? ""), /^text\/html/);
     assert.doesNotMatch(response.body, /"status":"bootstrapping"/);
-    assert.match(response.body, /<title>地域の記録から始める \| ikimon<\/title>/);
+    assert.match(response.body, /<title>地域の記録から始める \| ZUKAN<\/title>/);
     assert.doesNotMatch(response.body, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
     assert.doesNotMatch(response.body, /class="me-enjoy-strip"/);
     assert.doesNotMatch(response.body, /landing:topA:primary:record/);

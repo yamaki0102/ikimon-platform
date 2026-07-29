@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" role="img" aria-labelledby="title">
+<title id="title">ZUKAN</title>
+<g transform="translate(10 -2) scale(1.02)">
+<path d="M55 27 C87 26 129 26 164 28 C168 28 170 30 170 34 C170 37 168 39 165 42 C141 60 119 79 98 100 C77 121 59 145 44 169" fill="none" stroke="#143f2e" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M104 179 C124 182 149 182 166 178 C181 175 193 167 196 157" fill="none" stroke="#76a455" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="116" cy="147" r="7" fill="#174534"/>
+<circle cx="160" cy="78" r="7" fill="#7aa757"/>
+<circle cx="132" cy="118" r="6.5" fill="#77a453"/>
+<circle cx="145" cy="101" r="5.5" fill="#ebb72f"/>
+</g>
+<g transform="translate(260 48) scale(1.12)">
+<path d="M10 27 H60 V36 L25 83 H60 V92 H10 V84 L46 36 H10 Z M91 27 H102 V71 C102 79 108 84 118 84 C128 84 133 79 133 71 V27 H144 V72 C144 86 134 94 118 94 C102 94 91 86 91 72 Z M177 27 H188 V55 L215 27 H229 L201 58 L231 92 H216 L188 61 V92 H177 Z M252 92 L278 27 H290 L316 92 H304 L297 75 H270 L264 92 Z M274 65 H293 L284 40 Z M340 92 V27 H352 L385 72 V27 H396 V92 H385 L351 46 V92 Z" fill="#143f2e" fill-rule="evenodd"/>
+</g>
+</svg>

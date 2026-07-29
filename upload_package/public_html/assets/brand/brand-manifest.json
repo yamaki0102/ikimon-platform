@@ -1,18 +1,19 @@
 {
-  "brand": "ikimon",
+  "brand": "ZUKAN",
   "canonicalPath": "/assets/brand/",
-  "mark": "/assets/brand/ikimon-mark-192.png",
-  "wordmark": "/assets/brand/ikimon-wordmark-black.png",
-  "lockup": "/assets/brand/ikimon-lockup-black.png",
-  "ogpDefault": "/assets/brand/ikimon-ogp-default.png",
+  "mark": "/assets/brand/zukan-symbol.svg",
+  "wordmark": "/assets/brand/zukan-wordmark.svg",
+  "lockup": "/assets/brand/zukan-lockup.svg",
+  "ogpDefault": "/assets/brand/zukan-ogp-default.png",
   "pwaIcons": {
-    "any192": "/assets/brand/app-icon-192.png",
-    "any512": "/assets/brand/app-icon-512.png",
-    "maskable192": "/assets/brand/app-icon-192-maskable.png",
-    "maskable512": "/assets/brand/app-icon-512-maskable.png"
+    "any192": "/assets/brand/zukan-app-icon-192.png",
+    "any512": "/assets/brand/zukan-app-icon-512.png",
+    "maskable192": "/assets/brand/zukan-app-icon-192-maskable.png",
+    "maskable512": "/assets/brand/zukan-app-icon-512-maskable.png"
   },
   "browserIcons": {
-    "appleTouch": "/assets/brand/apple-touch-icon.png",
-    "favicon32": "/assets/brand/favicon-32.png"
-  }
+    "appleTouch": "/assets/brand/zukan-apple-touch-icon.png",
+    "favicon32": "/assets/brand/zukan-favicon-32.png"
+  },
+  "rootFavicon": "/favicon.ico"
 }
