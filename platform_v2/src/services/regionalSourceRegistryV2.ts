@@ -146,12 +146,13 @@ export const REGIONAL_SOURCE_EDITIONS: readonly RegionalSourceEdition[] = buildR
 export function buildRegionalSourceRegistryEntries(
   sources: readonly RegionalSourceAsset[] = REGIONAL_SOURCE_ASSETS,
   publishers: readonly RegionalPublisher[] = REGIONAL_PUBLISHERS,
-  editions: readonly RegionalSourceEdition[] = REGIONAL_SOURCE_EDITIONS,
+  editions?: readonly RegionalSourceEdition[],
 ): readonly RegionalSourceRegistryEntryV2[] {
+  const resolvedEditions = editions ?? buildRegionalSourceEditions(sources);
   const publisherById = new Map(publishers.map((publisher) => [publisher.publisherId, publisher]));
   const editionsBySource = new Map<string, RegionalSourceEdition[]>();
 
-  for (const edition of editions) {
+  for (const edition of resolvedEditions) {
     const current = editionsBySource.get(edition.sourceAssetId) ?? [];
     current.push(edition);
     editionsBySource.set(edition.sourceAssetId, current);
