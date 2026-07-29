@@ -37,8 +37,7 @@ CREATE TABLE IF NOT EXISTS zukan_records (
         'case_outcome'
     )),
     CHECK (provenance_status IN ('known', 'partial', 'unknown')),
-    CHECK (visibility IN ('private', 'workspace', 'restricted', 'public_candidate', 'public')),
-    CHECK (occurred_at IS NULL OR occurred_at <= recorded_at)
+    CHECK (visibility IN ('private', 'workspace', 'restricted', 'public_candidate', 'public'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_zukan_records_scope_time
