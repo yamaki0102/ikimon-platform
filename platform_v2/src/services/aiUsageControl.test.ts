@@ -30,6 +30,15 @@ test("active and succeeded guards prevent duplicate execution", async () => {
     leaseExpiresAt: "2026-07-29T00:05:00.000Z",
   });
   assert.equal(first.acquired, true);
+  const replay = await repository.acquire({
+    key,
+    attemptId: "attempt-1",
+    now: "2026-07-29T00:00:30.000Z",
+    leaseExpiresAt: "2026-07-29T00:06:00.000Z",
+  });
+  assert.equal(replay.acquired, true);
+  assert.equal((await repository.listAttemptEvents()).length, 1);
+
   const duplicate = await repository.acquire({
     key,
     attemptId: "attempt-2",
@@ -47,6 +56,14 @@ test("active and succeeded guards prevent duplicate execution", async () => {
     occurredAt: "2026-07-29T00:02:00.000Z",
     outcome: "succeeded",
   });
+  const replayedSettle = await repository.settle({
+    executionKey,
+    attemptId: "attempt-1",
+    occurredAt: "2026-07-29T00:02:30.000Z",
+    outcome: "succeeded",
+  });
+  assert.equal(replayedSettle.state, "succeeded");
+
   const afterSuccess = await repository.acquire({
     key,
     attemptId: "attempt-3",
@@ -98,6 +115,7 @@ test("failed or expired attempts can be reacquired with append-only attempt even
 test("usage and reconciliation adjustments are both retained", async () => {
   const repository = new InMemoryAiUsageRepository();
   const base = {
+    eventId: "usage-1",
     occurredAt: "2026-07-29T00:00:00.000Z",
     tenantId: "tenant-a",
     project: "zukan",
@@ -129,6 +147,7 @@ test("usage and reconciliation adjustments are both retained", async () => {
   });
   const adjustment = await repository.recordUsage({
     ...base,
+    eventId: "adjustment-1",
     requestId: "reconciliation-1",
     inputTokens: 0,
     outputTokens: 0,
@@ -139,6 +158,13 @@ test("usage and reconciliation adjustments are both retained", async () => {
   });
   assert.equal(usage.recordedSequence, 1);
   assert.equal(adjustment.recordedSequence, 2);
+  const replay = await repository.recordUsage({
+    ...base,
+    costUsdMicros: 100,
+    eventKind: "usage",
+    reconciliationStatus: "pending",
+  });
+  assert.equal(replay.recordedSequence, usage.recordedSequence);
   assert.equal((await repository.listUsageEvents()).length, 2);
 });
 
