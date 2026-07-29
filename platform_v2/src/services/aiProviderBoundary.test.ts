@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
+const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
+const adjacentSourceRoot = path.resolve(moduleDirectory, "..");
+const sourceRoot = existsSync(path.join(adjacentSourceRoot, "services", "aiModelRouter.ts"))
+  ? adjacentSourceRoot
+  : path.resolve(moduleDirectory, "../../src");
 const googleGenAiModule = ["@", "google/genai"].join("");
 const reviewedProviderAdapters = new Set([
   "services/providers/googleGenAiSdk.ts",
