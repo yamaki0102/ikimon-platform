@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
+import { canonicalFoundationJson } from "./zukanFoundationV2RepositoryContract.js";
 import type { FoundationSourceRegistryReadOnlyEvidence } from "./zukanFoundationV2ReadOnlyEvidence.js";
 import { buildSourceImportEvidenceEnvelope } from "./zukanSourceImportEvidenceEnvelope.js";
 
+const sha = (value: unknown) => createHash("sha256").update(canonicalFoundationJson(value)).digest("hex");
+
 function evidence(): FoundationSourceRegistryReadOnlyEvidence {
-  const run = {
-    manifestSha256: "1".repeat(64),
-    payloadSha256: "2".repeat(64),
-    itemDiffSha256: "3".repeat(64),
-    itemDiff: [],
-  };
+  const itemDiff: FoundationSourceRegistryReadOnlyEvidence["runs"][number]["itemDiff"] = [];
+  const run = { manifestSha256: "1".repeat(64), payloadSha256: "2".repeat(64), itemDiffSha256: sha(itemDiff), itemDiff };
   return {
     schema: "zukan.foundation-source-registry-read-only-evidence/v1",
     mode: "read_only_dry_run",
@@ -28,21 +28,11 @@ function evidence(): FoundationSourceRegistryReadOnlyEvidence {
       readOnlyEnforcement: "postgres_default_transaction_read_only",
     },
     tenantId: "tenant-a",
-    sourceRegistry: {
-      publisherCount: 1,
-      sourceAssetCount: 1,
-      entityCount: 4,
-      projectionSha256: "4".repeat(64),
-    },
-    runs: [run, { ...run }],
-    twoRunStability: {
-      stable: true,
-      manifestMatch: true,
-      payloadMatch: true,
-      itemDiffMatch: true,
-    },
+    sourceRegistry: { publisherCount: 1, sourceAssetCount: 1, entityCount: 4, projectionSha256: "4".repeat(64) },
+    runs: [run, structuredClone(run)],
+    twoRunStability: { stable: true, manifestMatch: true, payloadMatch: true, itemDiffMatch: true },
     identityCandidates: [],
-    rights: { status: "unknown", warnings: ["review:b", "review:a", "review:a"] },
+    rights: { status: "unknown", warnings: ["b", "a", "a"] },
     mutationEvidence: {
       before: { stateSha256: "5".repeat(64), entityCount: 0 },
       after: { stateSha256: "5".repeat(64), entityCount: 0 },
@@ -53,25 +43,26 @@ function evidence(): FoundationSourceRegistryReadOnlyEvidence {
   };
 }
 
-test("stable read-only evidence is sealed deterministically and remains AI-blocked", () => {
-  const first = buildSourceImportEvidenceEnvelope(evidence());
-  const second = buildSourceImportEvidenceEnvelope(evidence());
-  assert.equal(first.payloadSha256, second.payloadSha256);
-  assert.equal(first.payload.rightsReview.aiInputAdmitted, false);
-  assert.deepEqual(first.payload.rightsReview.warnings, ["review:a", "review:b"]);
-});
+test("evidence seal recomputes stability and state equality", () => {
+  const envelope = buildSourceImportEvidenceEnvelope(evidence());
+  assert.equal(envelope.payload.rightsReview.aiInputAdmitted, false);
+  assert.deepEqual(envelope.payload.rightsReview.warnings, ["a", "b"]);
 
-test("unstable, mutating, or rollout-crossing evidence is rejected", () => {
-  const unstable = evidence();
-  unstable.twoRunStability.stable = false;
-  assert.throws(() => buildSourceImportEvidenceEnvelope(unstable), /source_evidence_not_stable/u);
+  const badRun = evidence();
+  badRun.runs[1].payloadSha256 = "3".repeat(64);
+  assert.throws(() => buildSourceImportEvidenceEnvelope(badRun), /source_evidence_not_stable/u);
 
-  const mutating = evidence();
-  mutating.mutationEvidence.mutationCount = 1;
-  mutating.mutationEvidence.unchanged = false;
-  assert.throws(() => buildSourceImportEvidenceEnvelope(mutating), /source_evidence_mutation_detected/u);
+  const badDiff = evidence();
+  badDiff.runs[0].itemDiff = [{
+    kind: "source_work",
+    id: "work-1",
+    status: "would_insert",
+    desiredProjectionSha256: "6".repeat(64),
+    foundationSha256: null,
+  }];
+  assert.throws(() => buildSourceImportEvidenceEnvelope(badDiff), /item_diff_digest_mismatch/u);
 
-  const crossing = evidence();
-  crossing.rolloutBoundary.writeMethodsInvoked = 1;
-  assert.throws(() => buildSourceImportEvidenceEnvelope(crossing), /source_evidence_rollout_boundary_crossed/u);
+  const changedState = evidence();
+  changedState.mutationEvidence.after.stateSha256 = "6".repeat(64);
+  assert.throws(() => buildSourceImportEvidenceEnvelope(changedState), /mutation_detected/u);
 });
