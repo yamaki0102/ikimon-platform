@@ -6,9 +6,15 @@ This directory contains the revised Kubiaka private-pilot UI proposal after the 
 
 1. `REVIEW_RESOLUTION.md`
 2. `VISUAL_QA.md`
-3. concatenate `revision-1.patch.part00`, `part01`, and `part02` in that order
-4. review the resulting patch against the original `proposed/` packet
-5. `visual-preview-revision-1.patch` updates the original self-contained preview
+3. decode `revision-1.patch.gz.b64` and review the resulting patch against the original `proposed/` packet
+4. decode `visual-preview-revision-1.patch.gz.b64` to inspect the exact preview update
+
+Decode command:
+
+```bash
+base64 --decode revision-1.patch.gz.b64 | gzip --decompress > revision-1.patch
+base64 --decode visual-preview-revision-1.patch.gz.b64 | gzip --decompress > visual-preview-revision-1.patch
+```
 
 ## Main decision
 
