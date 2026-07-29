@@ -21,6 +21,64 @@ function makeMockClient(history: Query[]) {
   } as unknown as import("pg").PoolClient;
 }
 
+test("emitAlertsForOccurrence: managed taxon is denied before DB connection", async () => {
+  const summary = await emitAlertsForOccurrence({
+    occurrenceId: "00000000-0000-0000-0000-000000000101",
+    visitId: "00000000-0000-0000-0000-000000000102",
+    invasiveStatus: "iaspecified",
+    scientificName: "Aromia bungii (Faldermann, 1835)",
+    vernacularName: "クビアカツヤカミキリ",
+    genus: "Aromia",
+    family: "Cerambycidae",
+    orderName: "Coleoptera",
+    className: "Insecta",
+    prefecture: "静岡県",
+    municipality: "浜松市",
+    noveltyScore: 0.99,
+    isRare: true,
+  });
+
+  assert.deepEqual(summary, {
+    municipalityInvasive: 0,
+    invasiveReportingMatched: 0,
+    invasiveReportingSuppressed: 0,
+    researcherInvasive: 0,
+    researcherRare: 0,
+    researcherNovelty: 0,
+    userTaxonMatches: 0,
+    blockedReason: "experience_managed_taxon_denied",
+    managedTaxonScopeKey: "kubiaka-watch",
+  });
+});
+
+test("emitAlertsForOccurrence: managed synonym stays denied during link_pending", async () => {
+  const history: Query[] = [];
+  const client = makeMockClient(history);
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000103",
+      visitId: "00000000-0000-0000-0000-000000000104",
+      invasiveStatus: "priority",
+      scientificName: "Callichroma ruficolle Redtenbacher, 1868",
+      vernacularName: "クビアカツヤカミキリ",
+      genus: "Aromia",
+      family: "Cerambycidae",
+      orderName: "Coleoptera",
+      className: "Insecta",
+      prefecture: "静岡県",
+      municipality: "浜松市",
+      noveltyScore: 0.99,
+      isRare: true,
+      experienceRecordLinkState: "link_pending",
+    },
+    client,
+  );
+
+  assert.equal(summary.blockedReason, "experience_managed_taxon_denied");
+  assert.equal(summary.managedTaxonScopeKey, "kubiaka-watch");
+  assert.equal(history.length, 0, "managed taxon must not query or create delivery rows");
+});
+
 test("emitAlertsForOccurrence: in-trigger invasive issues municipality + researcher inserts", async () => {
   const history: Query[] = [];
   const client = makeMockClient(history);
@@ -40,6 +98,7 @@ test("emitAlertsForOccurrence: in-trigger invasive issues municipality + researc
     },
     client,
   );
+  assert.equal(summary.blockedReason, null);
   assert.equal(summary.municipalityInvasive, 0); // mock returns no rows
   assert.equal(summary.invasiveReportingMatched, 0);
   // SQL がそれぞれ走った形跡があれば良い
