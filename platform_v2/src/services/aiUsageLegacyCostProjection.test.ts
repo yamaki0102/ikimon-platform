@@ -32,6 +32,7 @@ function event(overrides: Partial<AiUsageEvent> = {}): AiUsageEvent {
     reconciliationStatus: "pending",
     rawUsageJson: "{}",
     retryOfEventId: null,
+    adjustmentOfEventId: null,
     ...overrides,
   };
 }
@@ -45,11 +46,18 @@ test("usage event projects into the existing ai_cost_log shape", () => {
   assert.equal(projected.entry.cacheHit, true);
   assert.equal(projected.entry.escalated, true);
   assert.equal(projected.entry.metadata?.aiProviderRequestId, "provider-1");
+  assert.equal(typeof projected.entry.metadata?.aiRawUsageSha256, "string");
+  assert.equal("aiRawUsageJson" in (projected.entry.metadata ?? {}), false);
 });
 
 test("negative reconciliation adjustment is not silently written to ai_cost_log", () => {
   const projected = projectUsageToLegacyAiCostLog({
-    event: event({ eventKind: "adjustment", costUsdMicros: -50 }),
+    event: event({
+      eventKind: "adjustment",
+      costUsdMicros: -50,
+      reconciliationStatus: "adjusted",
+      adjustmentOfEventId: "usage-original",
+    }),
     layer: "hot",
   });
   assert.deepEqual(projected, {
