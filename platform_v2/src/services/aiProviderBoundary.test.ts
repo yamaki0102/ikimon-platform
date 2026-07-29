@@ -10,7 +10,7 @@ const sourceRoot = existsSync(path.join(adjacentSourceRoot, "services", "aiModel
   ? adjacentSourceRoot
   : path.resolve(moduleDirectory, "../../src");
 const googleModule = ["@", "google/genai"].join("");
-const deepseekEndpoint = "https://api.deepseek.com/chat/completions";
+const deepseekEndpoint = ["https://api.deepseek.com", "/chat/completions"].join("");
 const reviewedProviderImports = new Set(["services/providers/googleGenAiOperations.ts"]);
 const legacyScriptImports: Record<string, { owner: string; removeBy: string; reason: string }> = {
   "scripts/draftRegionalKnowledgeHooks.ts": {
