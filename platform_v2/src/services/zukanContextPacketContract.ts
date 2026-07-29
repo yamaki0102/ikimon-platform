@@ -6,6 +6,10 @@ export type ContextVisibility = "internal" | "tenant" | "public";
 export type ContextPacketPayload = {
   packetVersion: "zukan.context-packet/v1";
   purpose: string;
+  scope: {
+    tenantId: string;
+    workspaceId: string | null;
+  };
   derivedFrom: {
     resolutionRunId: string;
     claimStoreSnapshotToken: string;
@@ -83,6 +87,7 @@ export type ContextPacketReceiptInput = {
 
 export type ContextPacketReceipt = ContextPacketReceiptInput & {
   contextPacketSha256: string;
+  receiptSha256: string;
 };
 
 export type ContextPacketEnvelope = {
@@ -96,6 +101,7 @@ export type ModelInputEnvelopePayload = {
   envelopeVersion: "zukan.model-input/v1";
   contextPacketSha256: string;
   contextReceiptId: string;
+  contextReceiptSha256: string;
   provider: string;
   modelId: string;
   purpose: "ai_input";
@@ -103,9 +109,16 @@ export type ModelInputEnvelopePayload = {
   segments: Array<{
     claimId: string;
     claimRevision: number;
+    valueArtifactId: string;
     rightsEvaluationId: string;
     text: string;
   }>;
+};
+
+export type ModelInputSegmentSelector = {
+  claimId: string;
+  claimRevision: number;
+  rightsEvaluationId: string;
 };
 
 export type ModelInputEnvelope = {
@@ -190,10 +203,16 @@ export function sealContextPacket(input: {
   const payload = normalizePayload(input.payload);
   const receiptInput = normalizeReceipt(input.receipt);
   requireNonEmpty(payload.purpose, "purpose");
+  requireNonEmpty(payload.scope.tenantId, "scope.tenant_id");
   requireNonEmpty(receiptInput.receiptId, "receipt.receipt_id");
   requireNonEmpty(receiptInput.principal.subjectId, "receipt.principal.subject_id");
   requireNonEmpty(receiptInput.principal.tenantId, "receipt.principal.tenant_id");
   requireNonEmpty(receiptInput.authorization.decisionId, "receipt.authorization.decision_id");
+  if (receiptInput.authorization.allowed !== true) throw new Error("context_packet_authorization_not_allowed");
+  if (receiptInput.principal.tenantId !== payload.scope.tenantId
+    || receiptInput.principal.workspaceId !== payload.scope.workspaceId) {
+    throw new Error("context_packet_receipt_scope_mismatch");
+  }
   const generatedAt = requireTimestamp(receiptInput.generatedAt, "receipt.generated_at");
   const evaluatedAt = requireTimestamp(receiptInput.authorization.evaluatedAt, "receipt.authorization.evaluated_at");
   if (generatedAt < evaluatedAt) throw new Error("context_packet_receipt_generated_before_authorization");
@@ -235,6 +254,11 @@ export function sealContextPacket(input: {
     throw new Error("context_packet_visibility_not_most_restrictive");
   }
   const payloadSha256 = sha256(canonicalFoundationJson(payload));
+  const receiptForDigest = {
+    ...receiptInput,
+    contextPacketSha256: payloadSha256,
+  };
+  const receiptSha256 = sha256(canonicalFoundationJson(receiptForDigest));
   return {
     schema: "zukan.context-packet-envelope/v1",
     payloadSha256,
@@ -242,6 +266,7 @@ export function sealContextPacket(input: {
     receipt: {
       ...receiptInput,
       contextPacketSha256: payloadSha256,
+      receiptSha256,
     },
   };
 }
@@ -250,7 +275,7 @@ export function buildModelInputEnvelope(input: {
   context: ContextPacketEnvelope;
   provider: string;
   modelId: string;
-  segments: ModelInputEnvelopePayload["segments"];
+  selectors: ModelInputSegmentSelector[];
 }): ModelInputEnvelope {
   requireNonEmpty(input.provider, "model_input.provider");
   requireNonEmpty(input.modelId, "model_input.model_id");
@@ -259,32 +284,48 @@ export function buildModelInputEnvelope(input: {
   if (input.context.receipt.contextPacketSha256 !== input.context.payloadSha256) {
     throw new Error("context_packet_receipt_digest_mismatch");
   }
+  const { receiptSha256, ...receiptForDigest } = input.context.receipt;
+  if (sha256(canonicalFoundationJson(receiptForDigest)) !== receiptSha256) {
+    throw new Error("context_packet_receipt_signature_mismatch");
+  }
   const admitted = new Map(
     input.context.payload.facts.map((fact) => [
       `${fact.claimId}:${fact.claimRevision}`,
-      fact.rightsEvaluationId,
+      fact,
     ]),
   );
   const seen = new Set<string>();
-  for (const segment of input.segments) {
-    requireNonEmpty(segment.text, "model_input.segment.text");
-    const key = `${segment.claimId}:${segment.claimRevision}`;
+  const segments: ModelInputEnvelopePayload["segments"] = [];
+  for (const selector of input.selectors) {
+    const key = `${selector.claimId}:${selector.claimRevision}`;
     if (seen.has(key)) throw new Error("model_input_duplicate_segment");
     seen.add(key);
-    const rightsEvaluationId = admitted.get(key);
-    if (!rightsEvaluationId || rightsEvaluationId !== segment.rightsEvaluationId) {
+    const fact = admitted.get(key);
+    if (!fact || fact.rightsEvaluationId !== selector.rightsEvaluationId) {
       throw new Error("model_input_segment_not_admitted");
     }
+    const text = typeof fact.admittedValue === "string"
+      ? fact.admittedValue
+      : canonicalFoundationJson(fact.admittedValue);
+    requireNonEmpty(text, "model_input.segment.text");
+    segments.push({
+      claimId: fact.claimId,
+      claimRevision: fact.claimRevision,
+      valueArtifactId: fact.valueArtifactId,
+      rightsEvaluationId: fact.rightsEvaluationId,
+      text,
+    });
   }
   const payload: ModelInputEnvelopePayload = {
     envelopeVersion: "zukan.model-input/v1",
     contextPacketSha256: input.context.payloadSha256,
     contextReceiptId: input.context.receipt.receiptId,
+    contextReceiptSha256: input.context.receipt.receiptSha256,
     provider: input.provider,
     modelId: input.modelId,
     purpose: "ai_input",
     authorizationDecisionId: input.context.receipt.authorization.decisionId,
-    segments: input.segments,
+    segments,
   };
   return {
     schema: "zukan.model-input-envelope/v1",
