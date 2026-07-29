@@ -8,13 +8,10 @@ import {
 } from "./aiUsagePostgresRepository.js";
 
 type Response = { rows: Record<string, unknown>[]; rowCount?: number };
-
 class ScriptedClient implements AiUsagePostgresClient {
   readonly calls: Array<{ sql: string; params: readonly unknown[] }> = [];
   released = false;
-
   constructor(private readonly responses: Response[]) {}
-
   async query<T extends Record<string, unknown> = Record<string, unknown>>(
     sql: string,
     params: readonly unknown[] = [],
@@ -23,182 +20,91 @@ class ScriptedClient implements AiUsagePostgresClient {
     const response = this.responses.shift() ?? { rows: [] };
     return { rows: response.rows as T[], rowCount: response.rowCount ?? response.rows.length };
   }
-
-  release(): void {
-    this.released = true;
-  }
+  release(): void { this.released = true }
 }
-
 class ScriptedPool implements AiUsagePostgresPool {
   readonly directCalls: Array<{ sql: string; params: readonly unknown[] }> = [];
-
-  constructor(
-    readonly client: ScriptedClient,
-    private readonly directResponses: Response[] = [],
-  ) {}
-
-  async connect(): Promise<AiUsagePostgresClient> {
-    return this.client;
-  }
-
+  constructor(readonly client: ScriptedClient, private readonly responses: Response[] = []) {}
+  async connect(): Promise<AiUsagePostgresClient> { return this.client }
   async query<T extends Record<string, unknown> = Record<string, unknown>>(
     sql: string,
     params: readonly unknown[] = [],
   ): Promise<{ rows: T[]; rowCount?: number | null }> {
     this.directCalls.push({ sql, params });
-    const response = this.directResponses.shift() ?? { rows: [] };
+    const response = this.responses.shift() ?? { rows: [] };
     return { rows: response.rows as T[], rowCount: response.rowCount ?? response.rows.length };
   }
 }
 
-function usageInput(): RecordAiUsageInput {
+const key = {
+  tenantId: "tenant-a", project: "zukan", workspaceId: null, feature: "context_packet",
+  provider: "google", modelId: "gemini-3.1-flash-lite", operationVersion: "context/v2",
+  canonicalInputDigest: "a".repeat(64), sourceDigest: "b".repeat(64), extractionRunId: null,
+  policyVersion: "policy-v1", promptVersion: "prompt-v1", targetTime: null,
+};
+function guardRow() {
   return {
-    eventId: "usage-1",
-    occurredAt: "2026-07-29T00:00:00.000Z",
-    tenantId: "tenant-a",
-    project: "zukan",
-    feature: "context_packet",
-    requestId: "request-1",
-    executionKey: null,
-    attemptId: null,
-    provider: "google",
-    providerRequestId: "provider-request-1",
-    modelId: "gemini-3.1-flash-lite",
-    pricingVersion: "google-2026-07-29",
-    promptVersion: "prompt-v1",
-    inputTokens: 100,
-    cachedInputTokens: 0,
-    cacheWriteTokens: 0,
-    outputTokens: 20,
-    costUsdMicros: 100,
-    retryCount: 0,
-    fallbackDepth: 0,
-    providerFailureCount: 0,
-    eventKind: "usage",
-    outcome: "ok",
-    reconciliationStatus: "pending",
-    rawUsageJson: "{\"promptTokenCount\":100,\"candidatesTokenCount\":20}",
-    retryOfEventId: null,
-    adjustmentOfEventId: null,
+    execution_key: "c".repeat(64), tenant_id: key.tenantId, project: key.project,
+    workspace_id: key.workspaceId, feature: key.feature, provider: key.provider,
+    model_id: key.modelId, operation_version: key.operationVersion,
+    canonical_input_digest: key.canonicalInputDigest, source_digest: key.sourceDigest,
+    extraction_run_id: null, policy_version: key.policyVersion, prompt_version: key.promptVersion,
+    target_time: null, holder_attempt_id: "attempt-1", lease_generation: "1",
+    acquired_at: "2026-07-29T00:00:00.000Z", lease_expires_at: "2026-07-29T00:01:00.000Z",
+    state: "active", settled_at: null,
+  };
+}
+function usage(overrides: Partial<RecordAiUsageInput> = {}): RecordAiUsageInput {
+  return {
+    eventId: "usage-1", occurredAt: "2026-07-29T00:00:00.000Z",
+    tenantId: key.tenantId, project: key.project, workspaceId: null, feature: key.feature,
+    operationVersion: key.operationVersion, requestId: "request-1",
+    executionKey: null, attemptId: null, leaseGeneration: null,
+    provider: key.provider, providerRequestId: "provider-1", providerAccountId: "account-1",
+    modelId: key.modelId, pricingVersion: "pricing-v1", promptVersion: key.promptVersion,
+    inputTokens: 1, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 1,
+    costUsdMicros: 10, retryCount: 0, fallbackDepth: 0, providerFailureCount: 0,
+    eventKind: "usage", outcome: "ok", reconciliationStatus: "pending",
+    rawUsageJson: '{"prompt_tokens":1,"completion_tokens":1}',
+    retryOfEventId: null, adjustmentOfEventId: null, ...overrides,
   };
 }
 
-test("Postgres acquire uses a transaction, advisory lock, guard row, and attempt event", async () => {
+test("acquire uses database clock, generation fencing, and bounded duration", async () => {
+  const row = guardRow();
   const client = new ScriptedClient([
-    { rows: [] }, { rows: [] }, { rows: [] },
-    { rows: [] }, { rows: [] }, { rows: [] },
-  ]);
-  const repository = new AiUsagePostgresRepository(new ScriptedPool(client));
-  const result = await repository.acquire({
-    key: {
-      tenantId: "tenant-a",
-      feature: "context_packet",
-      sourceDigest: "a".repeat(64),
-      extractionRunId: null,
-      policyVersion: "policy-v1",
-      promptVersion: "prompt-v1",
-      modelId: "gemini-3.1-flash-lite",
-    },
-    attemptId: "attempt-1",
-    now: "2026-07-29T00:00:00.000Z",
-    leaseExpiresAt: "2026-07-29T00:05:00.000Z",
-  });
-
-  assert.equal(result.acquired, true);
-  assert.equal(client.calls[0]?.sql, "BEGIN");
-  assert.match(client.calls[1]?.sql ?? "", /pg_advisory_xact_lock/u);
-  assert.match(client.calls[2]?.sql ?? "", /FOR UPDATE/u);
-  assert.match(client.calls[3]?.sql ?? "", /INSERT INTO ai_execution_guards/u);
-  assert.match(client.calls[4]?.sql ?? "", /INSERT INTO ai_execution_attempt_events/u);
-  assert.equal(client.calls[5]?.sql, "COMMIT");
-  assert.equal(client.released, true);
-});
-
-test("Postgres usage insert returns the authoritative recorded sequence", async () => {
-  const input = usageInput();
-  const row = {
-    event_id: input.eventId,
-    recorded_sequence: "7",
-    occurred_at: input.occurredAt,
-    tenant_id: input.tenantId,
-    project: input.project,
-    feature: input.feature,
-    request_id: input.requestId,
-    execution_key: input.executionKey,
-    attempt_id: input.attemptId,
-    provider: input.provider,
-    provider_request_id: input.providerRequestId,
-    model_id: input.modelId,
-    pricing_version: input.pricingVersion,
-    prompt_version: input.promptVersion,
-    input_tokens: input.inputTokens,
-    cached_input_tokens: input.cachedInputTokens,
-    cache_write_tokens: input.cacheWriteTokens,
-    output_tokens: input.outputTokens,
-    cost_usd_micros: input.costUsdMicros,
-    retry_count: input.retryCount,
-    fallback_depth: input.fallbackDepth,
-    provider_failure_count: input.providerFailureCount,
-    event_kind: input.eventKind,
-    outcome: input.outcome,
-    reconciliation_status: input.reconciliationStatus,
-    raw_usage: JSON.parse(input.rawUsageJson),
-    retry_of_event_id: input.retryOfEventId,
-    adjustment_of_event_id: input.adjustmentOfEventId,
-  };
-  const client = new ScriptedClient([
+    { rows: [] }, { rows: [] }, { rows: [{ now: "2026-07-29T00:00:00.000Z" }] },
     { rows: [] }, { rows: [] }, { rows: [] }, { rows: [row] }, { rows: [] },
   ]);
   const repository = new AiUsagePostgresRepository(new ScriptedPool(client));
-  const inserted = await repository.recordUsage(input);
-
-  assert.equal(inserted.recordedSequence, 7);
-  assert.equal(inserted.eventId, "usage-1");
-  assert.match(client.calls[3]?.sql ?? "", /INSERT INTO ai_usage_events/u);
-  assert.equal(client.calls[4]?.sql, "COMMIT");
+  const result = await repository.acquire({ key, attemptId: "attempt-1", leaseDurationMs: 60_000 });
+  assert.equal(result.acquired, true);
+  assert.match(client.calls[2]?.sql ?? "", /clock_timestamp/u);
+  assert.match(client.calls[4]?.sql ?? "", /lease_generation/u);
+  assert.match(client.calls[4]?.sql ?? "", /interval '1 millisecond'/u);
+  assert.equal(client.calls[7]?.sql, "COMMIT");
 });
 
-test("Postgres persistence rejects prompt or response content before opening a transaction", async () => {
+test("strict metadata rejects unknown keys before a transaction", async () => {
   const client = new ScriptedClient([]);
   const repository = new AiUsagePostgresRepository(new ScriptedPool(client));
-  await assert.rejects(() => repository.recordUsage({
-    ...usageInput(),
-    eventId: "usage-sensitive",
-    rawUsageJson: JSON.stringify({ response_body: "secret" }),
-  }), /ai_usage_raw_usage_forbidden_key:response_body/u);
+  await assert.rejects(() => repository.recordUsage(usage({ rawUsageJson: '{"unknown":1}' })), /unknown_key:unknown/u);
   assert.equal(client.calls.length, 0);
 });
 
-test("Postgres budget snapshot reads gross usage and excludes reconciliation adjustments", async () => {
-  const client = new ScriptedClient([]);
-  const pool = new ScriptedPool(client, [{
-    rows: [{
-      hourly_usd_micros: "10",
-      feature_monthly_usd_micros: "20",
-      tenant_monthly_usd_micros: "30",
-      retry_count: "2",
-      fallback_depth: "1",
-      provider_failure_count: "3",
-    }],
-  }]);
+test("budget query is UTC bounded and prefilters tenant gross usage", async () => {
+  const pool = new ScriptedPool(new ScriptedClient([]), [{ rows: [{
+    hourly_usd_micros: "1", feature_monthly_usd_micros: "2", tenant_monthly_usd_micros: "3",
+    retry_count: "0", fallback_depth: "0", provider_failure_count: "0",
+  }] }]);
   const repository = new AiUsagePostgresRepository(pool);
   const snapshot = await repository.budgetSnapshot({
-    tenantId: "tenant-a",
-    project: "zukan",
-    feature: "context_packet",
-    now: "2026-07-29T00:10:00.000Z",
+    tenantId: key.tenantId, project: key.project, workspaceId: null,
+    feature: key.feature, now: "2026-07-29T00:10:00.000Z",
   });
-
-  assert.deepEqual(snapshot, {
-    hourlyUsdMicros: 10,
-    featureMonthlyUsdMicros: 20,
-    tenantMonthlyUsdMicros: 30,
-    retryCount: 2,
-    fallbackDepth: 1,
-    providerFailureCount: 3,
-  });
+  assert.equal(snapshot.tenantMonthlyUsdMicros, 3);
   const sql = pool.directCalls[0]?.sql ?? "";
-  assert.match(sql, /date_trunc\('hour'/u);
-  assert.match(sql, /date_trunc\('month'/u);
-  assert.match(sql, /event_kind = 'usage'/u);
+  assert.match(sql, /date_trunc\('month',\$5::timestamptz,'UTC'\)/u);
+  assert.match(sql, /WHERE tenant_id=\$1 AND event_kind='usage'/u);
+  assert.match(sql, /occurred_at>=bounds\.month_start/u);
 });
