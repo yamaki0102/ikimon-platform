@@ -1,0 +1,311 @@
+import type { KubiakaExperienceCopy } from "../content/kubiakaExperience.js";
+import { withBasePath } from "../httpBasePath.js";
+import { appendLangToHref, type SiteLang } from "../i18n.js";
+import { escapeHtml } from "./siteShell.js";
+
+export const KUBIAKA_EXPERIENCE_STYLES = String.raw`
+  .kubiaka-shell {
+    --kubiaka-ink: #26342d;
+    --kubiaka-muted: #657168;
+    --kubiaka-moss: #536957;
+    --kubiaka-moss-deep: #34483b;
+    --kubiaka-paper: #f8f5ee;
+    --kubiaka-warm: #eee7da;
+    --kubiaka-sakura: #ead7d2;
+    --kubiaka-sakura-deep: #c96959;
+    --kubiaka-line: rgba(38, 52, 45, 0.14);
+    --kubiaka-shadow: 0 28px 80px rgba(44, 55, 48, 0.12);
+    background:
+      radial-gradient(circle at 84% 2%, rgba(234, 215, 210, 0.72), transparent 34rem),
+      linear-gradient(180deg, #fbf8f2 0%, #f4f0e8 48%, #fbf9f4 100%);
+  }
+  .kubiaka-shell .shell,
+  .kubiaka-shell .main {
+    max-width: none;
+  }
+  .kubiaka-page {
+    color: var(--kubiaka-ink);
+    overflow: clip;
+  }
+  .kubiaka-page * {
+    box-sizing: border-box;
+  }
+  .kubiaka-page a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .kubiaka-frame {
+    width: min(1120px, calc(100% - 40px));
+    margin-inline: auto;
+  }
+  .kubiaka-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px 0 10px;
+  }
+  .kubiaka-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--kubiaka-ink);
+    text-decoration: none;
+  }
+  .kubiaka-wordmark {
+    font-size: 0.93rem;
+    font-weight: 850;
+    letter-spacing: 0.16em;
+  }
+  .kubiaka-scope {
+    padding: 7px 12px;
+    border: 1px solid var(--kubiaka-line);
+    border-radius: 999px;
+    color: var(--kubiaka-muted);
+    background: rgba(255, 255, 255, 0.58);
+    font-size: 0.76rem;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+  }
+  .kubiaka-status-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--kubiaka-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+  .kubiaka-status-dot::before {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #8c9d8a;
+    box-shadow: 0 0 0 5px rgba(140, 157, 138, 0.13);
+    content: "";
+  }
+  .kubiaka-hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(330px, 0.82fr);
+    align-items: center;
+    gap: clamp(44px, 7vw, 92px);
+    min-height: 680px;
+    padding: clamp(50px, 8vw, 104px) 0 92px;
+  }
+  .kubiaka-hero-copy {
+    position: relative;
+    z-index: 2;
+  }
+  .kubiaka-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 20px;
+    color: var(--kubiaka-moss);
+    font-size: 0.76rem;
+    font-weight: 850;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .kubiaka-eyebrow::before {
+    width: 28px;
+    height: 1px;
+    background: currentColor;
+    content: "";
+  }
+  .kubiaka-hero h1 {
+    max-width: 710px;
+    margin: 0;
+    color: var(--kubiaka-ink);
+    font-size: clamp(2.55rem, 5.35vw, 5rem);
+    font-weight: 760;
+    letter-spacing: -0.055em;
+    line-height: 1.04;
+    text-wrap: balance;
+  }
+  .kubiaka-hero h1 span {
+    display: block;
+  }
+  .kubiaka-hero-lead {
+    max-width: 610px;
+    margin: 30px 0 0;
+    color: var(--kubiaka-muted);
+    font-size: clamp(1.02rem, 1.6vw, 1.24rem);
+    line-height: 1.9;
+  }
+  .kubiaka-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px;
+    margin-top: 38px;
+  }
+  .kubiaka-primary-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 58px;
+    padding: 0 26px;
+    border: 1px solid var(--kubiaka-moss-deep);
+    border-radius: 999px;
+    color: #fff;
+    background: var(--kubiaka-moss-deep);
+    box-shadow: 0 14px 30px rgba(52, 72, 59, 0.22);
+    font-size: 1rem;
+    font-weight: 820;
+    text-decoration: none;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+  .kubiaka-primary-action:hover {
+    color: #fff;
+    background: #283b30;
+    box-shadow: 0 18px 38px rgba(52, 72, 59, 0.28);
+    transform: translateY(-2px);
+  }
+  .kubiaka-primary-action:focus-visible,
+  .kubiaka-brand:focus-visible,
+  .kubiaka-faq summary:focus-visible {
+    outline: 3px solid rgba(201, 105, 89, 0.42);
+    outline-offset: 4px;
+  }
+  .kubiaka-primary-action svg {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+  }
+  .kubiaka-action-note {
+    max-width: 250px;
+    margin: 0;
+    color: var(--kubiaka-muted);
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+  .kubiaka-trust-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin: 30px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .kubiaka-trust-list li {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 12px;
+    border: 1px solid var(--kubiaka-line);
+    border-radius: 999px;
+    color: var(--kubiaka-muted);
+    background: rgba(255, 255, 255, 0.48);
+    font-size: 0.75rem;
+    font-weight: 760;
+  }
+  .kubiaka-trust-list li::before {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--kubiaka-sakura-deep);
+    content: "";
+  }
+  .kubiaka-visual-wrap {
+    position: relative;
+    min-height: 540px;
+  }
+  .kubiaka-visual-halo {
+    position: absolute;
+    inset: 3% -16% auto auto;
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    background: rgba(234, 215, 210, 0.54);
+    filter: blur(1px);
+  }
+  .kubiaka-viewfinder {
+    position: absolute;
+    inset: 0 0 auto auto;
+    width: min(100%, 430px);
+    aspect-ratio: 0.78;
+    overflow: hidden;
+    border: 12px solid rgba(255, 255, 255, 0.9);
+    border-radius: 38px;
+    background: #dfe6de;
+    box-shadow: var(--kubiaka-shadow);
+    transform: rotate(2.3deg);
+  }
+  .kubiaka-viewfinder::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 52%, rgba(31, 44, 36, 0.46) 100%);
+    content: "";
+    pointer-events: none;
+  }
+  .kubiaka-tree-art {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .kubiaka-corner {
+    position: absolute;
+    z-index: 2;
+    width: 42px;
+    height: 42px;
+    border-color: rgba(255, 255, 255, 0.92);
+    border-style: solid;
+  }
+  .kubiaka-corner--tl {
+    top: 26px;
+    left: 26px;
+    border-width: 2px 0 0 2px;
+    border-radius: 10px 0 0;
+  }
+  .kubiaka-corner--tr {
+    top: 26px;
+    right: 26px;
+    border-width: 2px 2px 0 0;
+    border-radius: 0 10px 0 0;
+  }
+  .kubiaka-corner--bl {
+    bottom: 26px;
+    left: 26px;
+    border-width: 0 0 2px 2px;
+    border-radius: 0 0 0 10px;
+  }
+  .kubiaka-corner--br {
+    right: 26px;
+    bottom: 26px;
+    border-width: 0 2px 2px 0;
+    border-radius: 0 0 10px;
+  }
+  .kubiaka-visual-copy {
+    position: absolute;
+    z-index: 3;
+    right: 24px;
+    bottom: 24px;
+    left: 24px;
+    color: #fff;
+  }
+  .kubiaka-visual-copy strong {
+    display: block;
+    margin-top: 10px;
+    font-size: 1.24rem;
+    line-height: 1.35;
+  }
+  .kubiaka-visual-copy small {
+    display: block;
+    margin-top: 5px;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.74rem;
+  }
+  .kubiaka-visual-badge {
+    display: inline-flex;
+    padding: 7px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.48);
+    border-radius: 999px;
+    background: rgba(32, 48, 39, 0.42);
+    backdrop-filter: blur(10px);
+    font-size: 0.7rem;
+    font-weight: 820;
+    letter-spacing: 0.04em;
+  }
+  .kubiaka-section {
+    padding: clamp(78px, 10v
