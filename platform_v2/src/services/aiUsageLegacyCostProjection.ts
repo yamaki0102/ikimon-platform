@@ -61,6 +61,8 @@ export function projectUsageToLegacyAiCostLog(input: {
         aiCachedInputTokens: input.event.cachedInputTokens,
         aiCacheWriteTokens: input.event.cacheWriteTokens,
         aiRetryCount: input.event.retryCount,
+        aiRetryOfEventId: input.event.retryOfEventId,
+        aiAdjustmentOfEventId: input.event.adjustmentOfEventId,
         aiFallbackDepth: input.event.fallbackDepth,
         aiProviderFailureCount: input.event.providerFailureCount,
         aiReconciliationStatus: input.event.reconciliationStatus,
