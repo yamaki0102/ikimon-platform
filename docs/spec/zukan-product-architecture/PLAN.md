@@ -6,7 +6,7 @@
 
 ## Goal
 
-Prove one non-biological regional Record through the common semantic boundary without changing the current public runtime, database state or biodiversity behavior.
+Prove one non-biological regional Record through the common semantic boundary without changing the current public runtime, production data or biodiversity behavior.
 
 ## Stage 0 — Product contract
 
@@ -47,36 +47,86 @@ First fixture:
 - one name or status Claim supported by a SourceEdition reference
 - one Publication candidate
 
-The fixture is synthetic contract data and must not be presented as a verified real-world heritage fact.
-
 Exit:
 
 - targeted node tests pass
 - no runtime route imports the planner
 - no DB write is possible from the planner
 
-## Stage 2 — Existing Foundation mapping
+## Stage 2A — Additive generic Record schema
 
-After Stage 1 review, map the envelope to the already-expanded Foundation v2 schema.
+Add first-class persistence primitives without enabling a writer or reader.
+
+Required schema:
+
+- immutable `zukan_records`
+- append-only Record-to-Subject links
+- append-only Record-to-SourceEdition links with source selector
+- append-only ClaimRevision-to-Record links
+- monotonic Record sequence
+- tenant/workspace scope checks
+- payload stored as a distinct erasable ValueArtifact
 
 Rules:
 
-- additive writer behind explicit feature flag and tenant allowlist
-- a dedicated operation and idempotency key
-- shadow tenant only
-- no current public reader
-- no existing Occurrence or biodiversity row migration
-- SourceEdition and Evidence references must already exist or fail closed
-- Claim predicate/version must exist or fail closed
+- PostgreSQL and D1 must express the same semantic boundary
+- existing Occurrence, Taxon, Observation and biodiversity rows are not migrated
+- SourceEdition is referenced; source bytes and layouts are not copied into Record
+- Record payload and Claim values remain separate artifacts
+- schema application alone cannot activate writes or public reads
+- Record governance/public projection remains blocked until status-event and reader contracts exist
 
 Required evidence:
 
-- dry-run diff
-- deterministic replay
-- conflict behavior
-- transaction rollback
-- tenant isolation
-- PostgreSQL and D1 parity or an explicit decision to use only one store
+- migration source checks
+- D1 scratch apply and insert
+- mutation rejection
+- cross-tenant Subject, Source and Claim-link rejection
+- pinned workerd migration apply
+- migration baseline head update
+
+## Stage 2B — Dry-run Foundation mapping
+
+Map the Stage 1 envelope to the Stage 2A schema without applying it.
+
+The plan must produce:
+
+- Record payload ValueArtifact
+- Record row
+- Subject links
+- SourceEdition links
+- Claim value artifacts
+- Claims and first ClaimRevisions
+- ClaimRevision-to-Record links
+- explicit dependencies for Subject, SourceEdition, Predicate and Rights rows
+
+Rules:
+
+- `writeEnabled=false`
+- only registered predicate URI/version pairs are accepted
+- public candidates require accountable Review and Rights dependencies
+- unsupported PostgreSQL/D1 semantic drift fails closed
+- Publication candidates do not bypass ResolutionRun and ProjectionSnapshot
+
+Exit:
+
+- deterministic dry-run plan
+- Record and Claim artifacts are distinct
+- equivalent ordering produces the same digest
+- unknown predicates and non-canonical references are blocked
+
+## Stage 2C — Shadow writer rehearsal
+
+Only after Stage 2A and 2B are independently green:
+
+- implement an explicit operation and idempotency key
+- use a dedicated shadow tenant allowlist
+- keep kill switch active by default
+- write PostgreSQL scratch first
+- add D1 only when a real runtime projection requires it
+- prove replay, conflict, rollback and tenant isolation
+
+No staging or production DB application is authorized by this plan alone.
 
 ## Stage 3 — Read-only regional View
 
@@ -123,6 +173,7 @@ Source change verification:
 ```bash
 npm --prefix platform_v2 run typecheck
 npm --prefix platform_v2 run test:node
+npm --prefix platform_v2/cloudflare_shadow run check
 ```
 
 Targeted tests must cover:
@@ -131,6 +182,9 @@ Targeted tests must cover:
 - Record/Claim separation
 - Source/Evidence reference integrity
 - reorder invariance
+- migration parity and append-only behavior
+- tenant/workspace scope rejection
+- unknown predicate and rights gates
 - emergency action rejection
 - specialist conclusion rejection without an accountable reviewer
 - unknown provenance represented explicitly rather than invented
@@ -139,7 +193,9 @@ Targeted tests must cover:
 
 Before merge, close the branch.
 
-After merge, the Stage 1 planner is unused by runtime routes and has no database side effect. Reverting its files and documentation restores the previous source state. Foundation migrations and existing runtime data are not changed by this plan.
+After merge but before any DB apply, revert the source PR.
+
+After an additive migration is applied, disable every Record writer/reader and retain the audit-bearing tables. Do not drop populated Record tables as the normal rollback.
 
 ## Stop conditions
 
@@ -151,3 +207,5 @@ Stop before enabling a writer when any of the following is true:
 - a Case would become the owner of evidence or canonical truth
 - the use requires emergency response guarantees
 - the accountable reviewer or publication owner is unknown
+- Record suppression/withdrawal cannot be propagated before a public reader exists
+- PostgreSQL and D1 semantics diverge without an explicit single-store decision
