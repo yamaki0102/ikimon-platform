@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI, Modality } from "./providers/googleGenAiSdk.js";
 import { loadConfig } from "../config.js";
 import type { TtsLang } from "./guideTts.js";
 
