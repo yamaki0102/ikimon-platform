@@ -138,6 +138,7 @@ test("usage and reconciliation adjustments are both retained", async () => {
     outcome: "ok" as const,
     rawUsageJson: "{\"promptTokenCount\":100,\"candidatesTokenCount\":20}",
     retryOfEventId: null,
+    adjustmentOfEventId: null,
   };
   const usage = await repository.recordUsage({
     ...base,
@@ -154,7 +155,8 @@ test("usage and reconciliation adjustments are both retained", async () => {
     costUsdMicros: -10,
     eventKind: "adjustment",
     reconciliationStatus: "adjusted",
-    retryOfEventId: usage.eventId,
+    retryOfEventId: null,
+    adjustmentOfEventId: usage.eventId,
   });
   assert.equal(usage.recordedSequence, 1);
   assert.equal(adjustment.recordedSequence, 2);
@@ -216,4 +218,60 @@ test("expired lease cannot be reacquired with the same attempt id", async () => 
     now: "2026-07-29T00:02:00.000Z",
     leaseExpiresAt: "2026-07-29T00:03:00.000Z",
   }), /ai_retry_requires_new_attempt_id/u);
+});
+
+test("failed execution requires a new attempt id", async () => {
+  const repository = new InMemoryAiUsageRepository();
+  const executionKey = buildAiExecutionKey(key);
+  await repository.acquire({
+    key,
+    attemptId: "attempt-failed",
+    now: "2026-07-29T00:00:00.000Z",
+    leaseExpiresAt: "2026-07-29T00:01:00.000Z",
+  });
+  await repository.settle({
+    executionKey,
+    attemptId: "attempt-failed",
+    occurredAt: "2026-07-29T00:00:30.000Z",
+    outcome: "failed",
+  });
+  await assert.rejects(() => repository.acquire({
+    key,
+    attemptId: "attempt-failed",
+    now: "2026-07-29T00:00:40.000Z",
+    leaseExpiresAt: "2026-07-29T00:02:00.000Z",
+  }), /ai_retry_requires_new_attempt_id/u);
+});
+
+test("raw usage metadata rejects prompt or response content", async () => {
+  const repository = new InMemoryAiUsageRepository();
+  await assert.rejects(() => repository.recordUsage({
+    eventId: "usage-sensitive",
+    occurredAt: "2026-07-29T00:00:00.000Z",
+    tenantId: "tenant-a",
+    project: "zukan",
+    feature: "context_packet",
+    requestId: "request-sensitive",
+    executionKey: null,
+    attemptId: null,
+    provider: "google",
+    providerRequestId: "provider-sensitive",
+    modelId: "gemini-3.1-flash-lite",
+    pricingVersion: "google-2026-07-29",
+    promptVersion: "prompt-v1",
+    inputTokens: 1,
+    cachedInputTokens: 0,
+    cacheWriteTokens: 0,
+    outputTokens: 1,
+    costUsdMicros: 1,
+    retryCount: 0,
+    fallbackDepth: 0,
+    providerFailureCount: 0,
+    eventKind: "usage",
+    outcome: "ok",
+    reconciliationStatus: "pending",
+    rawUsageJson: JSON.stringify({ prompt: "secret" }),
+    retryOfEventId: null,
+    adjustmentOfEventId: null,
+  }), /ai_raw_usage_json_forbidden_key:prompt/u);
 });
