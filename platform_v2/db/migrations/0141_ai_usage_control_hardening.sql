@@ -3,7 +3,60 @@
 
 ALTER TABLE ai_usage_events
     ADD CONSTRAINT ai_usage_events_raw_usage_object_chk
-    CHECK (jsonb_typeof(raw_usage) = 'object');
+    CHECK (jsonb_typeof(raw_usage) = 'object'),
+    ADD CONSTRAINT ai_usage_events_execution_attempt_shape_chk
+    CHECK (
+        (execution_key IS NULL AND attempt_id IS NULL)
+        OR (execution_key IS NOT NULL AND attempt_id IS NOT NULL)
+    ),
+    ADD CONSTRAINT ai_usage_events_execution_guard_fk
+    FOREIGN KEY (execution_key) REFERENCES ai_execution_guards(execution_key);
+
+CREATE OR REPLACE FUNCTION ai_usage_events_validate_lineage()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    target ai_usage_events%ROWTYPE;
+BEGIN
+    IF NEW.execution_key IS NOT NULL AND NOT EXISTS (
+        SELECT 1
+          FROM ai_execution_attempt_events
+         WHERE execution_key = NEW.execution_key
+           AND attempt_id = NEW.attempt_id
+           AND kind = 'started'
+    ) THEN
+        RAISE EXCEPTION 'ai_usage_attempt_not_started';
+    END IF;
+
+    IF NEW.retry_of_event_id IS NOT NULL THEN
+        SELECT * INTO target FROM ai_usage_events WHERE event_id = NEW.retry_of_event_id;
+        IF NOT FOUND OR target.event_kind <> 'usage' THEN
+            RAISE EXCEPTION 'ai_retry_target_not_found';
+        END IF;
+        IF target.tenant_id <> NEW.tenant_id
+           OR target.project <> NEW.project
+           OR target.feature <> NEW.feature
+           OR target.execution_key IS DISTINCT FROM NEW.execution_key THEN
+            RAISE EXCEPTION 'ai_retry_target_scope_mismatch';
+        END IF;
+    END IF;
+
+    IF NEW.adjustment_of_event_id IS NOT NULL THEN
+        SELECT * INTO target FROM ai_usage_events WHERE event_id = NEW.adjustment_of_event_id;
+        IF NOT FOUND OR target.event_kind <> 'usage' THEN
+            RAISE EXCEPTION 'ai_adjustment_target_not_found';
+        END IF;
+        IF target.tenant_id <> NEW.tenant_id
+           OR target.project <> NEW.project
+           OR target.feature <> NEW.feature
+           OR target.execution_key IS DISTINCT FROM NEW.execution_key THEN
+            RAISE EXCEPTION 'ai_adjustment_target_scope_mismatch';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
 
 ALTER TABLE ai_usage_budget_overrides
     ADD COLUMN revoked_by TEXT,
