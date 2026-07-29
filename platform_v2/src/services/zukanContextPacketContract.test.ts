@@ -5,6 +5,7 @@ import {
   buildModelInputEnvelope,
   sealContextPacket,
   type ContextPacketPayload,
+  type ContextPacketReceiptInput,
 } from "./zukanContextPacketContract.js";
 import { buildSourceImportEvidenceEnvelope } from "./zukanSourceImportEvidenceEnvelope.js";
 
@@ -71,17 +72,6 @@ function contextPayload(): ContextPacketPayload {
   return {
     packetVersion: "zukan.context-packet/v1",
     purpose: "summarize accepted claims",
-    principal: {
-      subjectId: "user-1",
-      tenantId: "tenant-a",
-      workspaceId: null,
-      scopes: ["context:read"],
-    },
-    authorization: {
-      decisionId: "authz-1",
-      evaluatedAt: "2026-07-29T00:00:00.000Z",
-      allowed: true,
-    },
     derivedFrom: {
       resolutionRunId: "run-1",
       claimStoreSnapshotToken: "snapshot-1",
@@ -135,6 +125,26 @@ function contextPayload(): ContextPacketPayload {
   };
 }
 
+function receipt(overrides: Partial<ContextPacketReceiptInput> = {}): ContextPacketReceiptInput {
+  return {
+    receiptVersion: "zukan.context-packet-receipt/v1",
+    receiptId: "receipt-1",
+    generatedAt: "2026-07-29T00:00:01.000Z",
+    principal: {
+      subjectId: "user-1",
+      tenantId: "tenant-a",
+      workspaceId: null,
+      scopes: ["context:read"],
+    },
+    authorization: {
+      decisionId: "authz-1",
+      evaluatedAt: "2026-07-29T00:00:00.000Z",
+      allowed: true,
+    },
+    ...overrides,
+  };
+}
+
 test("source import evidence remains separate and blocks AI input while rights are unknown", () => {
   const first = buildSourceImportEvidenceEnvelope(sourceEvidence());
   const second = buildSourceImportEvidenceEnvelope(sourceEvidence());
@@ -148,15 +158,29 @@ test("source import evidence remains separate and blocks AI input while rights a
   assert.equal("derivedFrom" in first.payload, false);
 });
 
-test("context packet digest excludes the digest field and is deterministic", () => {
-  const first = sealContextPacket(contextPayload());
-  const second = sealContextPacket(contextPayload());
+test("context semantic digest is independent from generation receipt", () => {
+  const first = sealContextPacket({ payload: contextPayload(), receipt: receipt() });
+  const second = sealContextPacket({
+    payload: contextPayload(),
+    receipt: receipt({ receiptId: "receipt-2", generatedAt: "2026-07-29T00:00:02.000Z" }),
+  });
   assert.equal(first.payloadSha256, second.payloadSha256);
-  assert.equal(first.payload.completeness.admittedFacts, first.payload.facts.length);
+  assert.notEqual(first.receipt.receiptId, second.receipt.receiptId);
+  assert.equal(first.receipt.contextPacketSha256, first.payloadSha256);
+});
+
+test("context packet normalizes set-like arrays before hashing", () => {
+  const firstPayload = contextPayload();
+  firstPayload.facts[0]!.authorityAssertionIds = ["authority-2", "authority-1"];
+  const secondPayload = contextPayload();
+  secondPayload.facts[0]!.authorityAssertionIds = ["authority-1", "authority-2"];
+  const first = sealContextPacket({ payload: firstPayload, receipt: receipt() });
+  const second = sealContextPacket({ payload: secondPayload, receipt: receipt() });
+  assert.equal(first.payloadSha256, second.payloadSha256);
 });
 
 test("model input only accepts segments admitted by the sealed context packet", () => {
-  const context = sealContextPacket(contextPayload());
+  const context = sealContextPacket({ payload: contextPayload(), receipt: receipt() });
   const envelope = buildModelInputEnvelope({
     context,
     provider: "google",
@@ -169,6 +193,7 @@ test("model input only accepts segments admitted by the sealed context packet", 
     }],
   });
   assert.equal(envelope.payload.contextPacketSha256, context.payloadSha256);
+  assert.equal(envelope.payload.contextReceiptId, context.receipt.receiptId);
   assert.throws(() => buildModelInputEnvelope({
     context,
     provider: "google",
@@ -185,5 +210,15 @@ test("model input only accepts segments admitted by the sealed context packet", 
 test("context packet rejects admitted count drift", () => {
   const payload = contextPayload();
   payload.completeness.admittedFacts = 2;
-  assert.throws(() => sealContextPacket(payload), /context_packet_admitted_fact_count_mismatch/u);
+  assert.throws(
+    () => sealContextPacket({ payload, receipt: receipt() }),
+    /context_packet_admitted_fact_count_mismatch/u,
+  );
+});
+
+test("context packet rejects receipt generated before authorization", () => {
+  assert.throws(() => sealContextPacket({
+    payload: contextPayload(),
+    receipt: receipt({ generatedAt: "2026-07-28T23:59:59.000Z" }),
+  }), /context_packet_receipt_generated_before_authorization/u);
 });
