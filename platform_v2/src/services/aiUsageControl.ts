@@ -114,7 +114,7 @@ export type SettleAiExecutionInput = {
   detail?: string | null;
 };
 
-export type RecordAiUsageInput = Omit<AiUsageEvent, "eventId" | "recordedSequence">;
+export type RecordAiUsageInput = Omit<AiUsageEvent, "recordedSequence">;
 
 /**
  * Persistence boundary. Production implementations must make acquire() atomic
@@ -125,8 +125,6 @@ export interface AiUsageRepository {
   settle(input: SettleAiExecutionInput): Promise<AiExecutionGuard>;
   recordUsage(input: RecordAiUsageInput): Promise<AiUsageEvent>;
   getGuard(executionKey: string): Promise<AiExecutionGuard | null>;
-  listAttemptEvents(): Promise<AiExecutionAttemptEvent[]>;
-  listUsageEvents(): Promise<AiUsageEvent[]>;
 }
 
 function sortedAiValue(value: unknown): unknown {
@@ -217,6 +215,7 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
   private readonly guards = new Map<string, AiExecutionGuard>();
   private readonly attemptEvents: AiExecutionAttemptEvent[] = [];
   private readonly usageEvents: AiUsageEvent[] = [];
+  private readonly usageEventsById = new Map<string, AiUsageEvent>();
   private recordedSequence = 0;
 
   async acquire(input: AcquireAiExecutionInput): Promise<AcquireAiExecutionResult> {
@@ -229,10 +228,17 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
     if (existing?.state === "succeeded") {
       return { acquired: false, reason: "already_succeeded", guard: { ...existing } };
     }
+    if (existing?.state === "active" && existing.holderAttemptId === attemptId) {
+      return { acquired: true, guard: { ...existing } };
+    }
+    if (existing?.state === "failed" && existing.holderAttemptId === attemptId) {
+      throw new Error("ai_retry_requires_new_attempt_id");
+    }
     if (existing?.state === "active" && validTimestamp(existing.leaseExpiresAt, "existing_lease") > nowEpoch) {
       return { acquired: false, reason: "active_lease", guard: { ...existing } };
     }
     if (existing?.state === "active") {
+      if (existing.holderAttemptId === attemptId) throw new Error("ai_retry_requires_new_attempt_id");
       this.attemptEvents.push({
         eventId: randomUUID(),
         executionKey,
@@ -269,7 +275,11 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
     const guard = this.guards.get(executionKey);
     if (!guard) throw new Error("ai_guard_not_found");
     if (guard.holderAttemptId !== attemptId) throw new Error("ai_guard_holder_mismatch");
-    if (guard.state !== "active") throw new Error("ai_guard_not_active");
+    if (guard.state === input.outcome) return { ...guard };
+    if (guard.state !== "active") throw new Error("ai_guard_already_settled_with_different_outcome");
+    if (validTimestamp(input.occurredAt, "settled_at") < validTimestamp(guard.acquiredAt, "acquired_at")) {
+      throw new Error("ai_guard_settled_before_acquired");
+    }
     const settled: AiExecutionGuard = {
       ...guard,
       state: input.outcome,
@@ -289,6 +299,7 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
 
   async recordUsage(input: RecordAiUsageInput): Promise<AiUsageEvent> {
     validTimestamp(input.occurredAt, "usage_occurred_at");
+    const eventId = required(input.eventId, "usage_event_id");
     nonNegativeInteger(input.inputTokens, "input_tokens");
     nonNegativeInteger(input.cachedInputTokens, "cached_input_tokens");
     nonNegativeInteger(input.cacheWriteTokens, "cache_write_tokens");
@@ -306,13 +317,31 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
     required(input.modelId, "usage_model_id");
     required(input.pricingVersion, "usage_pricing_version");
     required(input.promptVersion, "usage_prompt_version");
+    if (input.rawUsageJson.length > 16_384) throw new Error("ai_raw_usage_json_too_large");
+    try {
+      JSON.parse(input.rawUsageJson);
+    } catch {
+      throw new Error("ai_raw_usage_json_invalid");
+    }
+    if (input.eventKind === "adjustment" && !input.retryOfEventId) {
+      throw new Error("ai_adjustment_requires_target_event");
+    }
+    const existing = this.usageEventsById.get(eventId);
+    if (existing) {
+      const { recordedSequence: _recordedSequence, ...existingInput } = existing;
+      if (canonicalAiJson(existingInput) !== canonicalAiJson(input)) {
+        throw new Error("ai_usage_event_id_conflict");
+      }
+      return { ...existing };
+    }
     this.recordedSequence += 1;
     const event: AiUsageEvent = {
       ...input,
-      eventId: randomUUID(),
+      eventId,
       recordedSequence: this.recordedSequence,
     };
     this.usageEvents.push(event);
+    this.usageEventsById.set(eventId, event);
     return { ...event };
   }
 
