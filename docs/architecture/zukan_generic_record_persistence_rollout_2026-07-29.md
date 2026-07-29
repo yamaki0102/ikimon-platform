@@ -17,12 +17,14 @@ Foundation v2のSource、Identity、Claim、Rights、Resolution、Publicationを
 PostgreSQL:
 
 - `0145_zukan_foundation_v2_records.sql`
+- `0146_zukan_foundation_v2_record_claim_value_scopes.sql`
 
-`0140`〜`0144`は並行PR #1497のAI usage persistenceに予約されているため、衝突回避のため`0145`を使用する。#1497が未統合の間はmigration baselineに0140〜0144のgapを明示する。
+`0140`〜`0144`は並行PR #1497のAI usage persistenceに予約されているため、衝突回避のため`0145`以降を使用する。#1497が未統合の間はmigration baselineに0140〜0144のgapを明示する。
 
 D1 CORE_DB:
 
 - `0015_zukan_foundation_v2_records.sql`
+- `0016_zukan_foundation_v2_record_claim_value_scopes.sql`
 
 追加するもの:
 
@@ -30,6 +32,7 @@ D1 CORE_DB:
 - monotonic Record sequence
 - Record payloadを参照する独立ValueArtifact
 - payload artifactとtenant/workspaceを固定するappend-only scope binding
+- Claim value artifactとtenant/workspaceを固定するappend-only scope binding
 - append-only Record-to-Subject link
 - append-only Record-to-SourceEdition link
 - append-only ClaimRevision-to-Record link
@@ -54,13 +57,15 @@ Claimは「そのRecordを根拠に対象について何を主張するか」を
 
 Record payloadとClaim valueは別ValueArtifactとする。Claim訂正やReviewで元Recordを更新しない。
 
-Record payload用ValueArtifactは`zukan_record_payload_scopes`へ先に登録し、Recordのtenant/workspaceと完全一致する場合だけ参照できる。global ValueArtifact IDだけを根拠に別tenantへ接続しない。
+Record payload用ValueArtifactは`zukan_record_payload_scopes`へ先に登録し、Recordのtenant/workspaceと完全一致する場合だけ参照できる。ClaimRevisionをRecordへ接続する場合、そのvalue artifactも`zukan_claim_value_scopes`で同一scopeへ固定する。global ValueArtifact IDだけを根拠に別tenantへ接続しない。
 
 SourceEditionはRecordへ参照接続し、Source本文、画像、紙面をRecord payloadへ複製しない。Source内位置は`source_selector`へ保持する。
 
 取得日、発行日、更新日はSourceEditionまたはRecordのprovenance metadataである。地域EntityのClaimとして重複保存しない。
 
 人間Review済みClaimは、reviewer Subjectだけでなく明示的な`assertedAt`を必須とする。`assertedAt`は元Recordの`recordedAt`より前にできない。ClaimRevisionの`recorded_at`には元Recordの取得時刻ではなく、明示された主張・Review時刻を使う。
+
+`occurredAt`は過去だけを表さない。将来開催イベントを事前登録できるため、Recordの`recordedAt`より後でもよい。
 
 ## 4. Predicate boundary
 
@@ -95,12 +100,14 @@ npm --prefix platform_v2/cloudflare_shadow run check
 Required evidence:
 
 - PostgreSQL migrationに既存row rewrite、DROP TABLE、DROP COLUMNがない
-- D1 0009〜0015がfresh scratch DBへ適用できる
-- pinned Wrangler/workerdが0015をledger tailとして確認する
+- D1 0009〜0016がfresh scratch DBへ適用できる
+- pinned Wrangler/workerdが0016をledger tailとして確認する
 - Record graphをscratch D1へ挿入できる
-- Recordとpayload scopeのUPDATE/DELETEが拒否される
+- Record、payload scope、Claim value scopeのUPDATE/DELETEが拒否される
 - missing・cross-tenant payload scopeが拒否される
+- missing・cross-tenant Claim value scopeが拒否される
 - cross-tenant Subject、SourceEdition、ClaimRevision linkが拒否される
+- future event Recordを保存できる
 - dry-run mapperがorder-invariantである
 - Record payload artifactとClaim value artifactsが別である
 - SourceEdition timestampsがEntity Claimへ混入しない
@@ -135,8 +142,10 @@ DB適用後はwriter/read pathを無効のまま維持し、tableと監査構造
 - existing Occurrence/Taxon renameが必要になる
 - tenant/workspace scopeをDBで検証できない
 - Record payloadとClaim valueを分離できない
+- RecordまたはClaim value artifactのscopeを具体IDで証明できない
 - SourceEdition metadataを地域EntityのClaimへ重複格納する
 - human Review済みClaimの主張時刻を追跡できない
+- future eventをRecordとして表現できない
 - rights dependencyを具体IDへ解決できない
 - PostgreSQL/D1 visibility差異を暗黙変換しようとする
 - suppression/withdrawalを反映しないpublic readerが先に作られる
