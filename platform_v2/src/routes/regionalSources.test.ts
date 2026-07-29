@@ -27,7 +27,9 @@ test("regional source list preserves v1 and adds explicit edition state", async 
     assert.ok(Array.isArray(body.editions));
     assert.ok(Array.isArray(body.entries));
     assert.equal(body.summary.sourceCount, body.sources.length);
-    assert.equal(body.summary.editionCount, body.editions.length);
+    assert.ok(body.summary.byState);
+    assert.equal(body.extendedSummary.sourceCount, body.sources.length);
+    assert.equal(body.extendedSummary.editionCount, body.editions.length);
   });
 });
 
@@ -40,6 +42,7 @@ test("regional source filters combine and expose the applied filter", async () =
     assert.equal(response.statusCode, 200);
     const body = response.json();
     assert.equal(body.sources.length, 2);
+    assert.equal(body.extendedSummary.sourceCount, 2);
     assert.equal(body.appliedFilter.publisherKind, "municipality");
     assert.equal(body.appliedFilter.acquisitionState, "METADATA_ONLY");
     assert.deepEqual(
