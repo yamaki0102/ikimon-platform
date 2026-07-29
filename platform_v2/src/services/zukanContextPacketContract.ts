@@ -81,6 +81,7 @@ export type ContextPacketReceiptInput = {
   authorization: {
     decisionId: string;
     evaluatedAt: string;
+    validUntil: string;
     allowed: true;
   };
 };
@@ -106,6 +107,7 @@ export type ModelInputEnvelopePayload = {
   modelId: string;
   purpose: "ai_input";
   authorizationDecisionId: string;
+  requestedAt: string;
   segments: Array<{
     claimId: string;
     claimRevision: number;
@@ -215,7 +217,9 @@ export function sealContextPacket(input: {
   }
   const generatedAt = requireTimestamp(receiptInput.generatedAt, "receipt.generated_at");
   const evaluatedAt = requireTimestamp(receiptInput.authorization.evaluatedAt, "receipt.authorization.evaluated_at");
+  const validUntil = requireTimestamp(receiptInput.authorization.validUntil, "receipt.authorization.valid_until");
   if (generatedAt < evaluatedAt) throw new Error("context_packet_receipt_generated_before_authorization");
+  if (validUntil < generatedAt) throw new Error("context_packet_authorization_expired_at_generation");
   requireNonEmpty(payload.derivedFrom.resolutionRunId, "derived_from.resolution_run_id");
   requireNonEmpty(payload.derivedFrom.claimStoreSnapshotToken, "derived_from.claim_store_snapshot_token");
   requireNonNegativeInteger(
@@ -275,10 +279,12 @@ export function buildModelInputEnvelope(input: {
   context: ContextPacketEnvelope;
   provider: string;
   modelId: string;
+  requestedAt: string;
   selectors: ModelInputSegmentSelector[];
 }): ModelInputEnvelope {
   requireNonEmpty(input.provider, "model_input.provider");
   requireNonEmpty(input.modelId, "model_input.model_id");
+  const requestedAt = requireTimestamp(input.requestedAt, "model_input.requested_at");
   const expectedContextSha = sha256(canonicalFoundationJson(input.context.payload));
   if (expectedContextSha !== input.context.payloadSha256) throw new Error("context_packet_digest_mismatch");
   if (input.context.receipt.contextPacketSha256 !== input.context.payloadSha256) {
@@ -286,8 +292,18 @@ export function buildModelInputEnvelope(input: {
   }
   const { receiptSha256, ...receiptForDigest } = input.context.receipt;
   if (sha256(canonicalFoundationJson(receiptForDigest)) !== receiptSha256) {
-    throw new Error("context_packet_receipt_signature_mismatch");
+    throw new Error("context_packet_receipt_digest_mismatch");
   }
+  const authorizationEvaluatedAt = requireTimestamp(
+    input.context.receipt.authorization.evaluatedAt,
+    "receipt.authorization.evaluated_at",
+  );
+  const authorizationValidUntil = requireTimestamp(
+    input.context.receipt.authorization.validUntil,
+    "receipt.authorization.valid_until",
+  );
+  if (requestedAt < authorizationEvaluatedAt) throw new Error("model_input_before_authorization");
+  if (requestedAt > authorizationValidUntil) throw new Error("model_input_authorization_expired");
   const admitted = new Map(
     input.context.payload.facts.map((fact) => [
       `${fact.claimId}:${fact.claimRevision}`,
@@ -325,6 +341,7 @@ export function buildModelInputEnvelope(input: {
     modelId: input.modelId,
     purpose: "ai_input",
     authorizationDecisionId: input.context.receipt.authorization.decisionId,
+    requestedAt: input.requestedAt,
     segments,
   };
   return {
