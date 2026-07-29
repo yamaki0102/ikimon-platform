@@ -16,11 +16,13 @@ const migrations = [
   "0141_ai_usage_control_hardening.sql",
   "0142_ai_usage_metadata_allowlist.sql",
   "0143_ai_usage_contract_v2.sql",
+  "0144_ai_usage_invocation_identity.sql",
 ];
 
 const key = {
   tenantId: "tenant-a", project: "zukan", workspaceId: null, feature: "integration",
   provider: "google", modelId: "gemini-test", operationVersion: "integration/v1",
+  invocationId: "integration-invocation-1",
   canonicalInputDigest: "a".repeat(64), sourceDigest: "b".repeat(64), extractionRunId: null,
   policyVersion: "policy-v1", promptVersion: "prompt-v1", targetTime: null,
 };
