@@ -2,10 +2,11 @@ import { GoogleGenAI, Modality, ThinkingLevel } from "@google/genai";
 import { AiProviderInvocationError, type AiProviderTelemetry } from "../aiExecutionBoundary.js";
 
 export { Modality, ThinkingLevel };
-
 export type GoogleClientOptions = ConstructorParameters<typeof GoogleGenAI>[0];
 export type GoogleGenerateRequest = Parameters<GoogleGenAI["models"]["generateContent"]>[0];
 export type GoogleGenerateResponse = Awaited<ReturnType<GoogleGenAI["models"]["generateContent"]>>;
+
+const DEFAULT_UNRECONCILED_GOOGLE_COST_USD_MICROS = 500_000;
 
 function telemetry(response: GoogleGenerateResponse): AiProviderTelemetry {
   const usage = (response as {
@@ -27,7 +28,9 @@ function telemetry(response: GoogleGenerateResponse): AiProviderTelemetry {
     cachedInputTokens: Number(usage?.cachedContentTokenCount ?? 0),
     cacheWriteTokens: 0,
     outputTokens,
-    costUsdMicros: 0,
+    // Router and Curator replace this reservation with token-priced cost.
+    // Audio and other non-token-priced calls retain it until invoice reconciliation.
+    costUsdMicros: DEFAULT_UNRECONCILED_GOOGLE_COST_USD_MICROS,
     retryCount: 0,
     fallbackDepth: 0,
     providerFailureCount: 0,
