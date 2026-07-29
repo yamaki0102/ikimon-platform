@@ -173,25 +173,32 @@ export function summarizeKubiakaEvidenceCoverage(input: Readonly<{
     return status !== "visible" && status !== "partial";
   });
 
-  const screenable = photoCount > 0 && (
+  const hasAnyVisibleEvidence = roles.some((item) => item.status === "visible" || item.status === "partial");
+  const subjectScreenable = photoCount > 0 && (
     hasVisibleOrPartial(byRole, "adult_insect")
+    || hasVisibleOrPartial(byRole, "adult_detail")
     || hasVisibleOrPartial(byRole, "frass")
     || hasVisibleOrPartial(byRole, "exit_hole")
+    || hasVisibleOrPartial(byRole, "damage_sign")
     || (hasVisibleOrPartial(byRole, "whole_tree")
       && hasVisibleOrPartial(byRole, "trunk")
       && hasVisibleOrPartial(byRole, "base"))
   );
-  const surveyUsable = screenable
+  const broadNoClearSignCoverage = photoCount > 0
+    && hasVisibleOrPartial(byRole, "whole_tree")
+    && hasVisibleOrPartial(byRole, "trunk")
+    && hasVisibleOrPartial(byRole, "base");
+  const surveyUsable = broadNoClearSignCoverage
     && input.effortReported === true
-    && input.protocolSatisfied === true
-    && missingCoreRoles.length === 0;
-  const repeatComparable = screenable && input.hasComparablePreviousRecord === true;
+    && input.protocolSatisfied === true;
+  const repeatComparable = subjectScreenable && input.hasComparablePreviousRecord === true;
 
   let usability: KubiakaRecordUsability;
-  if (photoCount === 0 || !screenable) usability = "insufficient_evidence";
+  if (photoCount === 0 || !hasAnyVisibleEvidence) usability = "insufficient_evidence";
   else if (surveyUsable) usability = "survey_usable";
   else if (repeatComparable) usability = "repeat_comparable";
-  else usability = "screenable_record";
+  else if (subjectScreenable) usability = "screenable_record";
+  else usability = "photo_record";
 
   const limitations = uniqueStrings([
     ...roles.flatMap((item) => item.limitations),
@@ -206,7 +213,7 @@ export function summarizeKubiakaEvidenceCoverage(input: Readonly<{
     partialRoles,
     missingCoreRoles,
     usability,
-    canStatePhotoScopeNoClearSign: screenable,
+    canStatePhotoScopeNoClearSign: broadNoClearSignCoverage,
     canStateSurveyNonDetection: surveyUsable,
     limitations,
   };
