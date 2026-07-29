@@ -39,6 +39,7 @@ class ScriptedPool implements AiUsagePostgresPool {
 const key = {
   tenantId: "tenant-a", project: "zukan", workspaceId: null, feature: "context_packet",
   provider: "google", modelId: "gemini-3.1-flash-lite", operationVersion: "context/v2",
+  invocationId: "invocation-postgres-1",
   canonicalInputDigest: "a".repeat(64), sourceDigest: "b".repeat(64), extractionRunId: null,
   policyVersion: "policy-v1", promptVersion: "prompt-v1", targetTime: null,
 };
@@ -47,6 +48,7 @@ function guardRow() {
     execution_key: "c".repeat(64), tenant_id: key.tenantId, project: key.project,
     workspace_id: key.workspaceId, feature: key.feature, provider: key.provider,
     model_id: key.modelId, operation_version: key.operationVersion,
+    invocation_id: key.invocationId,
     canonical_input_digest: key.canonicalInputDigest, source_digest: key.sourceDigest,
     extraction_run_id: null, policy_version: key.policyVersion, prompt_version: key.promptVersion,
     target_time: null, holder_attempt_id: "attempt-1", lease_generation: "1",
@@ -70,7 +72,7 @@ function usage(overrides: Partial<RecordAiUsageInput> = {}): RecordAiUsageInput 
   };
 }
 
-test("acquire uses database clock, generation fencing, and bounded duration", async () => {
+test("acquire uses database clock generation invocation and bounded duration", async () => {
   const row = guardRow();
   const client = new ScriptedClient([
     { rows: [] }, { rows: [] }, { rows: [{ now: "2026-07-29T00:00:00.000Z" }] },
@@ -80,6 +82,7 @@ test("acquire uses database clock, generation fencing, and bounded duration", as
   const result = await repository.acquire({ key, attemptId: "attempt-1", leaseDurationMs: 60_000 });
   assert.equal(result.acquired, true);
   assert.match(client.calls[2]?.sql ?? "", /clock_timestamp/u);
+  assert.match(client.calls[4]?.sql ?? "", /invocation_id/u);
   assert.match(client.calls[4]?.sql ?? "", /lease_generation/u);
   assert.match(client.calls[4]?.sql ?? "", /interval '1 millisecond'/u);
   assert.equal(client.calls[7]?.sql, "COMMIT");
