@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import {
   REGIONAL_PUBLISHERS,
   REGIONAL_SOURCE_ASSETS,
+  buildRegionalSourceRegistrySummary,
   type RegionalPublisherKind,
   type RegionalSourceFormat,
   type RegionalSourceRightsClass,
@@ -37,12 +38,12 @@ const FOUNDATION_BINDING = {
   projectionEmbedded: false,
 } as const;
 
-const PUBLISHER_KINDS = new Set(REGIONAL_PUBLISHERS.map((publisher) => publisher.kind));
-const SOURCE_FORMATS = new Set(REGIONAL_SOURCE_ASSETS.map((source) => source.format));
-const RIGHTS_CLASSES = new Set(REGIONAL_SOURCE_ASSETS.map((source) => source.rightsClass));
-const SOURCE_STATES = new Set(REGIONAL_SOURCE_ASSETS.map((source) => source.state));
-const ACQUISITION_STATES = new Set(REGIONAL_ACQUISITION_STATES);
-const LIFECYCLES = new Set(REGIONAL_EDITION_LIFECYCLES);
+const PUBLISHER_KINDS: ReadonlySet<string> = new Set(REGIONAL_PUBLISHERS.map((publisher) => publisher.kind));
+const SOURCE_FORMATS: ReadonlySet<string> = new Set(REGIONAL_SOURCE_ASSETS.map((source) => source.format));
+const RIGHTS_CLASSES: ReadonlySet<string> = new Set(REGIONAL_SOURCE_ASSETS.map((source) => source.rightsClass));
+const SOURCE_STATES: ReadonlySet<string> = new Set(REGIONAL_SOURCE_ASSETS.map((source) => source.state));
+const ACQUISITION_STATES: ReadonlySet<string> = new Set(REGIONAL_ACQUISITION_STATES);
+const LIFECYCLES: ReadonlySet<string> = new Set(REGIONAL_EDITION_LIFECYCLES);
 
 function optionalEnum<T extends string>(
   value: string | undefined,
@@ -70,7 +71,7 @@ function parseFilter(query: RegistryQuery): RegionalSourceRegistryFilter {
       "acquisition_state",
     ),
     lifecycle: optionalEnum<RegionalEditionLifecycle>(query.lifecycle, LIFECYCLES, "lifecycle"),
-    updatedAfter: query.updatedAfter,
+    updatedAfter: query.updatedAfter || undefined,
   };
 }
 
@@ -103,7 +104,8 @@ export async function registerRegionalSourceRoutes(app: FastifyInstance): Promis
       generatedAt: "2026-07-30",
       foundationBinding: FOUNDATION_BINDING,
       appliedFilter: filter,
-      summary: buildRegionalSourceRegistrySummaryV2(entries),
+      summary: buildRegionalSourceRegistrySummary(),
+      extendedSummary: buildRegionalSourceRegistrySummaryV2(entries),
       publishers,
       sources,
       editions,
