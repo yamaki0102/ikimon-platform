@@ -4,16 +4,9 @@ import type { AiUsageEvent } from "./aiUsageControl.js";
 
 export type LegacyAiCostProjection =
   | { kind: "loggable"; entry: AiCostLogEntry }
-  | {
-      kind: "requires_event_store";
-      reason: "adjustment_not_supported_by_ai_cost_log";
-      usageEventId: string;
-    };
+  | { kind: "requires_event_store"; reason: "adjustment_not_supported_by_ai_cost_log"; usageEventId: string };
 
-function sha256(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex");
-}
-
+function sha256(value: string): string { return createHash("sha256").update(value, "utf8").digest("hex"); }
 function legacyProvider(provider: string): AiCostProvider {
   if (provider === "gemini" || provider === "google") return "gemini";
   if (provider === "vertex") return "vertex";
@@ -23,21 +16,12 @@ function legacyProvider(provider: string): AiCostProvider {
   return "other";
 }
 
-/**
- * Bounded compatibility projection for the existing append-only ai_cost_log.
- * Negative reconciliation adjustments cannot be represented by the current
- * non-negative schema and therefore must not be silently projected.
- */
 export function projectUsageToLegacyAiCostLog(input: {
   event: AiUsageEvent;
   layer: AiCostLayer;
 }): LegacyAiCostProjection {
   if (input.event.eventKind === "adjustment") {
-    return {
-      kind: "requires_event_store",
-      reason: "adjustment_not_supported_by_ai_cost_log",
-      usageEventId: input.event.eventId,
-    };
+    return { kind: "requires_event_store", reason: "adjustment_not_supported_by_ai_cost_log", usageEventId: input.event.eventId };
   }
   return {
     kind: "loggable",
@@ -53,9 +37,15 @@ export function projectUsageToLegacyAiCostLog(input: {
       cacheHit: input.event.cachedInputTokens > 0,
       metadata: {
         aiUsageEventId: input.event.eventId,
+        aiTenantId: input.event.tenantId,
+        aiProject: input.event.project,
+        aiWorkspaceId: input.event.workspaceId,
+        aiOperationVersion: input.event.operationVersion,
         aiExecutionKey: input.event.executionKey,
         aiAttemptId: input.event.attemptId,
+        aiLeaseGeneration: input.event.leaseGeneration,
         aiProviderRequestId: input.event.providerRequestId,
+        aiProviderAccountId: input.event.providerAccountId,
         aiPricingVersion: input.event.pricingVersion,
         aiPromptVersion: input.event.promptVersion,
         aiCachedInputTokens: input.event.cachedInputTokens,
