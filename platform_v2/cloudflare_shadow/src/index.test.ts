@@ -20499,6 +20499,9 @@ test("production original UI static assets serve materialized bytes from R2 with
   await env.ASSET_BUCKET.put("original-ui/static/assets/brand/zukan-app-icon-192.png", "png-bytes", {
     httpMetadata: { contentType: "image/png" }
   });
+  await env.ASSET_BUCKET.put("original-ui/static/assets/brand/zukan-symbol.svg", "<svg></svg>", {
+    httpMetadata: { contentType: "application/xml" }
+  });
   await env.ASSET_BUCKET.put("original-ui/static/sitemap.xml", "<urlset></urlset>", {
     httpMetadata: { contentType: "application/xml; charset=utf-8" }
   });
@@ -20526,6 +20529,12 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(await response.text(), "png-bytes");
     assert.equal(response.headers.get("content-type"), "image/png");
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+
+    const symbol = await worker.fetch(new Request("https://ikimon.life/assets/brand/zukan-symbol.svg"), productionEnv);
+    assert.equal(symbol.status, 200);
+    assert.equal(await symbol.text(), "<svg></svg>");
+    assert.equal(symbol.headers.get("content-type"), "image/svg+xml");
+    assert.equal(symbol.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
     const sitemap = await worker.fetch(new Request("https://ikimon.life/sitemap.xml"), productionEnv);
     assert.equal(sitemap.status, 200);

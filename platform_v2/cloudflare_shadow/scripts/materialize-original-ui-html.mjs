@@ -286,6 +286,12 @@ function staticContentType(pathname) {
   return "application/octet-stream";
 }
 
+function materializationGatewayContentType(contentType) {
+  // The shared materialization gateway accepts generic XML but not the SVG-specific
+  // media type. R2 responses restore image/svg+xml from the trusted .svg pathname.
+  return contentType === "image/svg+xml" ? "application/xml" : contentType;
+}
+
 async function renderLlmsFull(app) {
   const sections = [
     ["LLM index", "/llms.txt"],
@@ -709,7 +715,7 @@ try {
               op: "put",
               key,
               sha256: item.sha256,
-              content_type: item.contentType,
+              content_type: materializationGatewayContentType(item.contentType),
               body_base64: payload.toString("base64")
             });
             completed.set(key, item.sha256);

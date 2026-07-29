@@ -23198,9 +23198,13 @@ function publicFieldLocationLabel(row: FieldDetailReadmodelRow): string {
 async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): Promise<Response> {
   const object = await getVersionedOriginalUiObject(env, originalUiStaticAssetKey(url.pathname));
   if (object?.body) {
+    const fallbackContentType = contentTypeForOriginalUiStaticAsset(url.pathname);
+    const contentType = url.pathname.endsWith(".svg")
+      ? fallbackContentType
+      : object.httpMetadata?.contentType ?? fallbackContentType;
     return new Response(request.method === "HEAD" ? null : object.body, {
       headers: {
-        "content-type": object.httpMetadata?.contentType ?? contentTypeForOriginalUiStaticAsset(url.pathname),
+        "content-type": contentType,
         "cache-control": cacheControlForOriginalUiStaticAsset(url.pathname),
         "x-ikimon-cloudflare-materialized": "original-ui-static-asset"
       }
@@ -23258,6 +23262,7 @@ function contentTypeForOriginalUiStaticAsset(pathname: string): string {
   if (pathname.endsWith(".ico")) return "image/x-icon";
   if (pathname.endsWith(".png")) return "image/png";
   if (pathname.endsWith(".webp")) return "image/webp";
+  if (pathname.endsWith(".svg")) return "image/svg+xml";
   return "application/octet-stream";
 }
 

@@ -70,6 +70,22 @@ test("ZUKAN vector assets keep smooth curves and circular record markers", async
   assert.doesNotMatch(wordmark, /M341 27 L340 28/, "wordmark must not restore the pixel-traced outline");
 });
 
+test("ZUKAN SVG materialization uses gateway-compatible XML metadata", async () => {
+  const materializer = await readFile(
+    path.join(process.cwd(), "cloudflare_shadow", "scripts", "materialize-original-ui-html.mjs"),
+    "utf8",
+  );
+
+  assert.match(
+    materializer,
+    /contentType === "image\/svg\+xml" \? "application\/xml" : contentType/,
+  );
+  assert.match(
+    materializer,
+    /content_type: materializationGatewayContentType\(item\.contentType\)/,
+  );
+});
+
 test("manifest, runtime paths, MIME types, ICO payload, and maskable safe zone agree", async () => {
   await execFileAsync(process.execPath, [generator]);
   const manifest = JSON.parse(
