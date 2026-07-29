@@ -56,6 +56,7 @@ export type AiUsageEvent = {
   reconciliationStatus: "pending" | "matched" | "adjusted";
   rawUsageJson: string;
   retryOfEventId: string | null;
+  adjustmentOfEventId: string | null;
 };
 
 export type AiBudgetLimits = {
@@ -173,6 +174,52 @@ function nonNegativeInteger(value: number, name: string): number {
   return value;
 }
 
+const forbiddenRawUsageKeys = new Set([
+  "content",
+  "text",
+  "prompt",
+  "completion",
+  "messages",
+  "input",
+  "output",
+  "request_body",
+  "response_body",
+]);
+
+function validateRawUsageValue(value: unknown, depth: number): void {
+  if (depth > 6) throw new Error("ai_raw_usage_json_too_deep");
+  if (typeof value === "string") {
+    if (value.length > 1_024) throw new Error("ai_raw_usage_json_string_too_large");
+    return;
+  }
+  if (Array.isArray(value)) {
+    if (value.length > 256) throw new Error("ai_raw_usage_json_array_too_large");
+    value.forEach((item) => validateRawUsageValue(item, depth + 1));
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length > 256) throw new Error("ai_raw_usage_json_object_too_large");
+  for (const [key, item] of entries) {
+    if (forbiddenRawUsageKeys.has(key.toLowerCase())) throw new Error(`ai_raw_usage_json_forbidden_key:${key}`);
+    validateRawUsageValue(item, depth + 1);
+  }
+}
+
+function validateRawUsageMetadata(rawUsageJson: string): void {
+  if (rawUsageJson.length > 16_384) throw new Error("ai_raw_usage_json_too_large");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawUsageJson);
+  } catch {
+    throw new Error("ai_raw_usage_json_invalid");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("ai_raw_usage_json_must_be_object");
+  }
+  validateRawUsageValue(parsed, 0);
+}
+
 export function evaluateAiBudget(input: {
   projectedRequestUsdMicros: number;
   snapshot: AiBudgetSnapshot;
@@ -227,6 +274,9 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
     const existing = this.guards.get(executionKey);
     if (existing?.state === "succeeded") {
       return { acquired: false, reason: "already_succeeded", guard: { ...existing } };
+    }
+    if (existing?.state === "failed" && existing.holderAttemptId === attemptId) {
+      throw new Error("ai_retry_requires_new_attempt_id");
     }
     if (existing?.state === "active") {
       const existingExpiry = validTimestamp(existing.leaseExpiresAt, "existing_lease");
@@ -315,18 +365,16 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
     required(input.modelId, "usage_model_id");
     required(input.pricingVersion, "usage_pricing_version");
     required(input.promptVersion, "usage_prompt_version");
-    if (input.rawUsageJson.length > 16_384) throw new Error("ai_raw_usage_json_too_large");
-    try {
-      JSON.parse(input.rawUsageJson);
-    } catch {
-      throw new Error("ai_raw_usage_json_invalid");
-    }
+    validateRawUsageMetadata(input.rawUsageJson);
     if (input.eventKind === "adjustment") {
-      if (!input.retryOfEventId) throw new Error("ai_adjustment_requires_target_event");
-      if (!this.usageEventsById.has(input.retryOfEventId)) throw new Error("ai_adjustment_target_not_found");
+      if (input.retryOfEventId) throw new Error("ai_adjustment_must_not_set_retry_target");
+      if (!input.adjustmentOfEventId) throw new Error("ai_adjustment_requires_target_event");
+      const target = this.usageEventsById.get(input.adjustmentOfEventId);
+      if (!target || target.eventKind !== "usage") throw new Error("ai_adjustment_target_not_found");
       if (input.reconciliationStatus !== "adjusted") throw new Error("ai_adjustment_status_mismatch");
-    } else if (input.reconciliationStatus === "adjusted") {
-      throw new Error("ai_usage_status_mismatch");
+    } else {
+      if (input.adjustmentOfEventId) throw new Error("ai_usage_must_not_set_adjustment_target");
+      if (input.reconciliationStatus === "adjusted") throw new Error("ai_usage_status_mismatch");
     }
     const existing = this.usageEventsById.get(eventId);
     if (existing) {
