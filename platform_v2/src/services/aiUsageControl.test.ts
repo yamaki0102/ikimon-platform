@@ -17,7 +17,8 @@ function clock(start = "2026-07-29T00:00:00.000Z") {
 const key: AiExecutionKeyInput = {
   tenantId: "tenant-a", project: "zukan", workspaceId: null, feature: "context_packet",
   provider: "google", modelId: "gemini-3.1-flash-lite", operationVersion: "context/v1",
-  canonicalInputDigest: "b".repeat(64), sourceDigest: "A".repeat(64), extractionRunId: null,
+  invocationId: "invocation-1", canonicalInputDigest: "b".repeat(64),
+  sourceDigest: "A".repeat(64), extractionRunId: null,
   policyVersion: "policy-v1", promptVersion: "prompt-v1", targetTime: "2026-07-29T00:00:00+00:00",
 };
 
@@ -37,12 +38,13 @@ function usage(overrides: Partial<RecordAiUsageInput> = {}): RecordAiUsageInput 
   };
 }
 
-test("execution identity includes project workspace provider operation and canonical input", () => {
+test("execution identity includes scope invocation and canonical input", () => {
   const first = buildAiExecutionKey(key);
   assert.equal(first, buildAiExecutionKey({ ...key, sourceDigest: "a".repeat(64), targetTime: "2026-07-29T00:00:00.000Z" }));
   for (const changed of [
     { project: "iportal" }, { workspaceId: "workspace-a" }, { provider: "anthropic" },
-    { operationVersion: "context/v2" }, { canonicalInputDigest: "c".repeat(64) },
+    { operationVersion: "context/v2" }, { invocationId: "invocation-2" },
+    { canonicalInputDigest: "c".repeat(64) },
   ]) assert.notEqual(first, buildAiExecutionKey({ ...key, ...changed }));
 });
 
