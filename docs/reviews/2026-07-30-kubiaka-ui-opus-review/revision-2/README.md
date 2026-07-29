@@ -34,3 +34,7 @@ The experience should not be named or framed as a cherry-tree campaign. Cherry r
 > サクラや果樹の異変を、地域の記録に。
 
 The initial public surface should explain examples such as cherry, ume, peach, sumomo, and apricot while allowing the contributor to choose `わからない`.
+
+## Source status
+
+The research baseline uses current official sources from MAFF, the Ministry of the Environment, NARO, FFPRI, NIES, Yamanashi Prefecture, and Tochigi Prefecture. The latest MAFF page was updated 2026-07-28.
