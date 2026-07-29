@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from "./providers/googleGenAiSdk.js";
 import { loadConfig } from "../config.js";
 import { logAiCost } from "./aiCostLogger.js";
 import { CURATOR_DEEPSEEK_MODEL, CURATOR_DEFAULT_MODEL, estimateAiCostUsd, pricingForModel } from "./aiModelPricing.js";
