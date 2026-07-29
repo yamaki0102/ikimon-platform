@@ -5,15 +5,12 @@ import type {
   CompleteAiExecutionResult, RecordAiUsageInput, RenewAiExecutionInput, SettleAiExecutionInput,
 } from "./aiUsageTypes.js";
 import {
-  appendAttempt, dbNow, rollback, selectGuard,
+  appendAttempt, dbNow, integer, rollback, selectGuard,
   type AiUsagePostgresPool,
 } from "./aiUsagePostgresCodecV2.js";
 import { AiUsagePostgresRepositoryV2 } from "./aiUsagePostgresRepositoryV2.js";
 
-/**
- * Contract-v2 acquisition path with logical invocation identity.
- * The remaining methods delegate to the transaction-safe v2 implementation.
- */
+/** Contract-v2 acquisition path with logical invocation identity. */
 export class AiUsagePostgresRepositoryV3 implements AiUsageRepository {
   private readonly delegate: AiUsagePostgresRepositoryV2;
 
@@ -109,5 +106,46 @@ export class AiUsagePostgresRepositoryV3 implements AiUsageRepository {
     return this.delegate.completeAttempt(input);
   }
   getGuard(executionKey: string): Promise<AiExecutionGuard | null> { return this.delegate.getGuard(executionKey) }
-  budgetSnapshot(input: AiBudgetSnapshotInput): Promise<AiBudgetSnapshot> { return this.delegate.budgetSnapshot(input) }
+
+  async budgetSnapshot(input: AiBudgetSnapshotInput): Promise<AiBudgetSnapshot> {
+    const result = await this.pool.query<Record<string, string | number>>(`WITH bounds AS (
+      SELECT date_trunc('hour',clock_timestamp(),'UTC') AS hour_start,
+             date_trunc('month',clock_timestamp(),'UTC') AS month_start,
+             clock_timestamp() AS now_at
+    ) SELECT
+      COALESCE(SUM(cost_usd_micros) FILTER (
+        WHERE recorded_at>=bounds.hour_start AND project=$2
+          AND workspace_id IS NOT DISTINCT FROM $3 AND feature=$4
+      ),0)::text AS hourly_usd_micros,
+      COALESCE(SUM(cost_usd_micros) FILTER (
+        WHERE project=$2 AND workspace_id IS NOT DISTINCT FROM $3 AND feature=$4
+      ),0)::text AS feature_monthly_usd_micros,
+      COALESCE(SUM(cost_usd_micros),0)::text AS tenant_monthly_usd_micros,
+      COALESCE(SUM(retry_count) FILTER (
+        WHERE recorded_at>=bounds.hour_start AND project=$2
+          AND workspace_id IS NOT DISTINCT FROM $3 AND feature=$4
+      ),0)::text AS retry_count,
+      COALESCE(MAX(fallback_depth) FILTER (
+        WHERE recorded_at>=bounds.hour_start AND project=$2
+          AND workspace_id IS NOT DISTINCT FROM $3 AND feature=$4
+      ),0)::text AS fallback_depth,
+      COALESCE(SUM(provider_failure_count) FILTER (
+        WHERE recorded_at>=bounds.hour_start AND project=$2
+          AND workspace_id IS NOT DISTINCT FROM $3 AND feature=$4
+      ),0)::text AS provider_failure_count
+    FROM ai_usage_events,bounds
+    WHERE tenant_id=$1 AND event_kind='usage'
+      AND recorded_at>=bounds.month_start AND recorded_at<bounds.now_at`, [
+      input.tenantId, input.project, input.workspaceId, input.feature,
+    ]);
+    const row = result.rows[0] ?? {};
+    return {
+      hourlyUsdMicros: integer(row.hourly_usd_micros ?? 0, "ai_budget_hourly_invalid"),
+      featureMonthlyUsdMicros: integer(row.feature_monthly_usd_micros ?? 0, "ai_budget_feature_monthly_invalid"),
+      tenantMonthlyUsdMicros: integer(row.tenant_monthly_usd_micros ?? 0, "ai_budget_tenant_monthly_invalid"),
+      retryCount: integer(row.retry_count ?? 0, "ai_budget_retry_invalid"),
+      fallbackDepth: integer(row.fallback_depth ?? 0, "ai_budget_fallback_invalid"),
+      providerFailureCount: integer(row.provider_failure_count ?? 0, "ai_budget_failure_invalid"),
+    };
+  }
 }
