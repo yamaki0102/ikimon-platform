@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from "./providers/googleGenAiSdk.js";
 import { loadConfig } from "../config.js";
 import { generateAiTextWithRoleChain } from "./aiModelRouter.js";
 
