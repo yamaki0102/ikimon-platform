@@ -95,12 +95,19 @@ test("persistence plan keeps Record payload and Claim values in separate artifac
   assert.equal(plan.writeEnabled, false);
   assert.deepEqual(plan.blockers, []);
   assert.equal(plan.counts.records, 1);
+  assert.equal(plan.counts.recordPayloadScopes, 1);
   assert.equal(plan.counts.claims, 2);
   assert.equal(plan.counts.claimRevisions, 2);
   assert.equal(plan.counts.claimRecordLinks, 2);
   assert.equal(plan.counts.valueArtifacts, 3);
   assert.equal(plan.counts.subjectLinks, 2);
   assert.equal(plan.counts.sourceLinks, 1);
+  assert.equal(
+    plan.recordPayloadScopes[0]?.payloadArtifactId,
+    plan.records[0]?.payloadArtifactId,
+  );
+  assert.equal(plan.recordPayloadScopes[0]?.tenantId, tenantId);
+  assert.equal(plan.recordPayloadScopes[0]?.workspaceId, null);
   assert.notEqual(plan.records[0]?.payloadArtifactId, plan.claimRevisions[0]?.valueArtifactId);
   assert.ok(plan.claimRecordLinks.every((link) => link.recordId === plan.records[0]?.recordId));
   assert.ok(plan.claimRecordLinks.every((link) => link.linkRole === "reviewed_from"));
@@ -126,6 +133,7 @@ test("persistence plan is invariant to equivalent envelope ordering", () => {
 
   assert.equal(second.payloadSha256, first.payloadSha256);
   assert.deepEqual(second.valueArtifacts, first.valueArtifacts);
+  assert.deepEqual(second.recordPayloadScopes, first.recordPayloadScopes);
   assert.deepEqual(second.claimRevisions, first.claimRevisions);
 });
 
