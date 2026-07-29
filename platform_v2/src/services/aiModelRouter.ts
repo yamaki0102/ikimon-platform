@@ -1,4 +1,4 @@
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "./providers/googleGenAiSdk.js";
 import { loadConfig } from "../config.js";
 import { logAiCost, type AiCostLayer } from "./aiCostLogger.js";
 import { estimateAiCostUsd } from "./aiModelPricing.js";
