@@ -34,6 +34,7 @@ export type RegionalKnowledgeClaimInput = {
   evidenceRefs: readonly string[];
   reviewState: RegionalReviewState;
   accountableReviewerId?: string | null;
+  assertedAt?: string | null;
   specialistConclusion?: boolean;
   visibility: RegionalVisibility;
 };
@@ -101,6 +102,7 @@ export type RegionalKnowledgeClaimCandidate = {
   evidenceRefs: string[];
   reviewState: RegionalReviewState;
   accountableReviewerId: string | null;
+  assertedAt: string | null;
   specialistConclusion: boolean;
   visibility: RegionalVisibility;
 };
@@ -255,11 +257,21 @@ export function planRegionalKnowledgeEnvelope(
         if (!allowedEvidence.has(reference)) blockers.push(`claim_evidence_outside_record:${externalClaimId}:${reference}`);
       }
       const accountableReviewerId = claim.accountableReviewerId?.trim() || null;
+      const assertedAt = canonicalTimestamp(claim.assertedAt ?? null);
+      if (claim.assertedAt !== undefined && claim.assertedAt !== null && !assertedAt) {
+        blockers.push(`claim_asserted_at_invalid:${externalClaimId}`);
+      }
       if (claim.reviewState === "human_reviewed" && !accountableReviewerId) {
         blockers.push(`human_review_requires_accountable_reviewer:${externalClaimId}`);
       }
+      if (claim.reviewState === "human_reviewed" && !assertedAt) {
+        blockers.push(`human_review_requires_asserted_at:${externalClaimId}`);
+      }
+      if (assertedAt && recordedAt && Date.parse(assertedAt) < Date.parse(recordedAt)) {
+        blockers.push(`claim_asserted_before_record:${externalClaimId}`);
+      }
       if (claim.specialistConclusion === true
-        && (claim.reviewState !== "human_reviewed" || !accountableReviewerId)) {
+        && (claim.reviewState !== "human_reviewed" || !accountableReviewerId || !assertedAt)) {
         blockers.push(`specialist_conclusion_requires_accountable_review:${externalClaimId}`);
       }
       return {
@@ -277,6 +289,7 @@ export function planRegionalKnowledgeEnvelope(
         evidenceRefs,
         reviewState: claim.reviewState,
         accountableReviewerId,
+        assertedAt,
         specialistConclusion: claim.specialistConclusion === true,
         visibility: claim.visibility,
       };
