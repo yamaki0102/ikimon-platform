@@ -33,6 +33,7 @@ function heritageFixture(): RegionalKnowledgeEnvelopeInput {
       evidenceRefs: ["source-edition:iwata-cultural-properties:2024-03-26"],
       reviewState: "human_reviewed",
       accountableReviewerId: "publisher:iwata-city:fixture-reviewer",
+      assertedAt: "2026-07-29T01:00:00Z",
       specialistConclusion: false,
       visibility: "public_candidate",
     }],
@@ -59,6 +60,7 @@ test("non-biological Record stays separate from Claim and Publication", () => {
   assert.equal(plan.record.sourceEditionIds[0], "source-edition:iwata-cultural-properties:2024-03-26");
   assert.notEqual(plan.record.recordId, plan.claims[0]?.claimCandidateId);
   assert.equal(plan.claims[0]?.sourceRecordId, plan.record.recordId);
+  assert.equal(plan.claims[0]?.assertedAt, "2026-07-29T01:00:00.000Z");
   assert.deepEqual(plan.publication?.sourceRecordIds, [plan.record.recordId]);
   assert.deepEqual(
     plan.publication?.selectedClaimCandidateIds,
@@ -87,6 +89,7 @@ test("equivalent reference and Claim order produces the same envelope digest", (
       value: "candidate",
       evidenceRefs: ["evidence:b", "evidence:a"],
       reviewState: "ai_candidate",
+      assertedAt: "2026-07-29T00:30:00Z",
       visibility: "workspace",
     },
   ];
@@ -109,6 +112,30 @@ test("equivalent reference and Claim order produces the same envelope digest", (
   assert.equal(second.payloadSha256, first.payloadSha256);
   assert.deepEqual(second.record, first.record);
   assert.deepEqual(second.claims, first.claims);
+});
+
+test("reviewed Claims require a valid assertion time after the source Record", () => {
+  const missing = heritageFixture();
+  missing.publication = null;
+  missing.claims = [{
+    ...missing.claims![0]!,
+    assertedAt: null,
+  }];
+  const missingPlan = planRegionalKnowledgeEnvelope(missing);
+  assert.ok(missingPlan.blockers.includes(
+    "human_review_requires_asserted_at:fixture:iwata:heritage:claim-name-001",
+  ));
+
+  const earlier = heritageFixture();
+  earlier.publication = null;
+  earlier.claims = [{
+    ...earlier.claims![0]!,
+    assertedAt: "2026-07-28T23:59:59Z",
+  }];
+  const earlierPlan = planRegionalKnowledgeEnvelope(earlier);
+  assert.ok(earlierPlan.blockers.includes(
+    "claim_asserted_before_record:fixture:iwata:heritage:claim-name-001",
+  ));
 });
 
 test("emergency and guaranteed-SLA action requests fail closed", () => {
@@ -160,6 +187,7 @@ test("specialist conclusions require an accountable human review", () => {
     evidenceRefs: ["source-edition:iwata-cultural-properties:2024-03-26"],
     reviewState: "ai_candidate",
     accountableReviewerId: null,
+    assertedAt: "2026-07-29T01:00:00Z",
     specialistConclusion: true,
     visibility: "restricted",
   }];
