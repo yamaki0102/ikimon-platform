@@ -5,8 +5,8 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
-const repositoryRoot = path.resolve(moduleDirectory, "../../..");
-const migrationPath = path.join(repositoryRoot, "db/migrations/0140_ai_usage_control.sql");
+const platformRoot = path.resolve(moduleDirectory, "../..");
+const migrationPath = path.join(platformRoot, "db/migrations/0140_ai_usage_control.sql");
 
 function migrationSql(): string {
   return readFileSync(migrationPath, "utf8");
