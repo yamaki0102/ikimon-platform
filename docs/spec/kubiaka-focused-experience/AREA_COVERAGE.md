@@ -1,9 +1,8 @@
-# ZUKAN クビアカツヤカミキリ — Area Coverage Map Contract
+# ZUKAN クビアカツヤカミキリ — Area Coverage Map Contract v2
 
-- Status: active sub-contract
+- Status: second-review candidate
 - Date: 2026-07-29
 - Parent: `SPEC.md`
-- Experience: `kubiaka-watch`
 - Public route: `/kubiaka/area`
 - Operator route: `/ops/kubiaka/coverage`
 
@@ -11,23 +10,21 @@
 
 地図の主役を発見地点にせず、地域のどこで、いつ、どの程度、どの品質で確認が行われたかを示す。
 
-利用者が地図全体を見て、次を判断できる状態を作る。
+利用者が全体を見て次を判断できるようにする。
 
-- まだ記録がほぼない地域
-- 追加の写真が役立つ地域
+- 公開できる調査情報がない地域
+- 追加の記録が役立つ地域
 - 調査が進んでいる地域
 - 今季の確認基準を満たした地域
-- 過去には確認されたが、再訪時期を迎えた地域
+- 過去の調査が古くなり再訪が役立つ地域
 
-この地図は、生息、不在、安全、行政対応完了を断定する地図ではない。
+この地図は生息、不在、安全、行政対応完了を断定しない。
 
-## 2. Claim boundary
+## 2. Strongest allowed claim
 
-表示できる最も強い表現は次である。
+> この範囲は、ZUKANで定めた今季の確認基準を満たしています。生息不在や安全を意味するものではありません。
 
-> この範囲は、ZUKANで定めた今季の確認基準を満たしています。
-
-次の表現は禁止する。
+禁止:
 
 - この地域にはいない
 - 十分調査したので安全
@@ -35,343 +32,396 @@
 - 全ての木を確認済み
 - 行政が確認済み
 
-`確認基準を満たした`は、設定された調査努力量、写真品質、反復、鮮度、明示された分母に対する状態であり、生物学的な不在証明ではない。
+## 3. Reuse existing public-map privacy
 
-## 3. Spatial unit
+既存public map aggregate snapshotを正規基盤とする。
 
-公開地図は個別Record地点を表示しない。
+- Record live queryを公開しない
+- existing gridM ladder / aggregate snapshotを使用
+- 新しいcanonical grid体系をP0で導入しない
+- Publicationは既存`ProjectionSnapshot`または同等のimmutable editionとして扱う
+- suppression / correction / eraseが次editionへ伝播する
 
-集計単位は次のいずれかとする。
+日本標準地域メッシュ等が必要な場合はcrosswalkまたはexport変換として扱い、第二のcanonical gridにしない。
 
-1. privacy-safe aggregate cell
-2. 公開が承認された公園、街区、施設群等のPlace group
-3. 管理主体が提供した対象木台帳の公開可能な集約単位
+## 4. Public states
 
-公開解像度は地域、投稿密度、子ども・学校・自宅・私有地等の感度に応じて変更する。固定の細粒度を全国一律に適用しない。
+公開状態は次だけとする。
 
-投稿数が公開閾値に満たないセルは、隣接セルへ統合するか、状態を非表示にする。少数投稿から個人の行動や撮影地点を推測できる表示は禁止する。
+```text
+no_public_data
+more_observation_useful
+observation_progressing
+current_target_met
+revisit_due
+```
 
-## 4. Coverage dimensions
-
-一つの投稿件数だけで十分性を判定しない。最低限、次を分離する。
-
-### 4.1 Volume
-
-- Record数
-- 写真数
-- `screenable_record`数
-- `survey_usable`数
-
-大量の細部写真だけで、地域全体の確認が進んだとは扱わない。
-
-### 4.2 Spatial breadth
-
-- 記録された集約セル数
-- 記録された公開可能なPlace group数
-- 異なる対象単位数
-- 対象木台帳がある場合の確認済み対象木数
-
-### 4.3 Repeat coverage
-
-- 異なる日付での確認
-- 同じ集約単位への再訪
-- 同じPlaceまたは同一候補木への再訪
-- 季節または重点期間をまたぐ確認
-
-同日・同一場所の連続投稿を、独立した反復調査として水増ししない。
-
-### 4.4 Evidence quality
-
-- 木全体
-- 幹
-- 根元
-- 成虫
-- フラス
-- 脱出孔
-- 被害兆候
-- 写真の明るさ、ぼけ、遮蔽等の制限
-
-通常投稿は自由形式のまま維持し、保存後にevidence coverageを評価する。
-
-### 4.5 Freshness
-
-- 最終記録日
-- 最終`survey_usable`日
-- 今季の重点期間内か
-- protocolで定めた再訪期限を超えていないか
-
-過去に十分な記録があっても、一定期間を過ぎたセルは`再確認時期`へ戻す。
-
-### 4.6 Denominator
-
-分母は明示的に区別する。
-
-#### A. Known target denominator
-
-例:
-
-- 登録済み対象木100本のうち40本
-- 公開公園20か所のうち12か所
-- 管理台帳上の対象区画30区画のうち18区画
-
-この場合に限り、対象範囲を明示して割合を表示できる。
-
-#### B. Effort-only
-
-対象木台帳等の信頼できる分母がない場合。
-
-この場合は、Record数、異なる日数、反復、品質等から`調査努力の進み具合`を示す。地域全体の網羅率として百分率を表示しない。
-
-## 5. Public states
-
-公開セルは次の状態だけを使用する。
-
-### `no_observations`
+### `no_public_data`
 
 表示:
 
-> まだ記録がありません
+> この範囲に公開できる調査情報はまだありません
 
-意味:
+次を公開上区別しない。
 
-- 公開集計対象のRecordがない
-- 対象木が存在しないという意味ではない
+- 本当にRecordがない
+- Recordはあるが少数
+- participant数不足
+- 学校・自宅・私有地等で抑制
+- 隣接セル差分から再識別可能
+- operatorが公開を保留
 
-### `privacy_suppressed`
-
-表示:
-
-> 公開できる集計量に達していません
-
-意味:
-
-- Recordは存在する可能性がある
-- 少数投稿の位置・行動を守るため詳細を表示しない
+`privacy_suppressed`、suppression reason、hidden countをpublic payloadへ出さない。
 
 ### `more_observation_useful`
 
-表示:
-
-> もう少し写真があると状況が分かります
-
-意味:
-
-- Recordはある
-- 質、反復、異なる日、対象範囲等が不足している
+> もう少し記録があると状況が分かります
 
 ### `observation_progressing`
 
-表示:
-
 > 調査が進んでいます
-
-意味:
-
-- 複数の確認条件が進んでいる
-- 今季の基準はまだ全て満たしていない
 
 ### `current_target_met`
 
-表示:
-
 > 今季の確認基準を満たしています
 
-意味:
+凡例とセル詳細に必ず次を併記する。
 
-- protocol versionで定めた条件を満たした
-- 生息不在や安全を意味しない
+> 生息不在や安全を意味するものではありません。
 
 ### `revisit_due`
 
-表示:
-
 > もう一度確認したい時期です
 
-意味:
+## 5. Public payload
 
-- 過去の確認履歴はある
-- protocolの鮮度条件を超えた
-
-## 6. Deterministic classification
-
-Area projection input:
+最小形:
 
 ```ts
-interface KubiakaAreaCoverageInput {
-  recordCount: number;
-  photoCount: number;
-  screenableRecordCount: number;
-  surveyUsableRecordCount: number;
-  uniqueSurveyDays: number;
-  uniqueObservedUnits: number;
-  repeatObservedUnits: number;
-  lastObservedAt: string | null;
-  lastSurveyUsableAt: string | null;
-  asOf: string;
-  publicMinRecords: number;
-  target: {
-    minimumSurveyUsableRecords: number;
-    minimumUniqueSurveyDays: number;
-    minimumRepeatObservedUnits: number;
-    agingAfterDays: number;
-    revisitAfterDays: number;
-    minimumKnownTargetCoverageRatio?: number;
-  };
-  denominator?: {
-    kind: "registered_target_units";
-    totalTargetUnits: number;
-    observedTargetUnits: number;
-  };
+interface PublicAreaCoverageProjection {
+  areaId: string;
+  state:
+    | "no_public_data"
+    | "more_observation_useful"
+    | "observation_progressing"
+    | "current_target_met"
+    | "revisit_due";
+  freshnessBand: "within_2_weeks" | "within_2_months" | "older" | "unknown";
+  nextAction: "record_here" | "add_another_day" | "revisit" | "record_elsewhere" | null;
+  denominatorLabel?: string;
+  denominatorCoverageRatio?: number;
+  protocolVersion: string;
+  projectionEdition: string;
 }
 ```
 
-判定順:
+Public payloadへ出さない:
 
-1. Record 0件なら`no_observations`
-2. 公開閾値未満なら`privacy_suppressed`
-3. 再訪期限超過なら`revisit_due`
-4. protocol条件を全て満たせば`current_target_met`
-5. 条件の半数以上が進んでいれば`observation_progressing`
-6. それ以外は`more_observation_useful`
+- Record IDs
+- participant IDs
+- raw Record / photo counts
+- distinct participant count
+- exact coordinates
+- full address
+- raw `lastObservedAt`
+- exact survey date
+- suppression reason
+- candidate raw count
+- school / home / private-land flag
 
-`current_target_met`には最低限、次を必要とする。
+operator viewだけがraw値を持つ。
 
-- `survey_usable`の最低件数
-- 異なる日の最低数
-- 再訪された対象単位の最低数
-- known denominatorを使用する場合は最低確認率
-- 鮮度条件内
+## 6. Privacy threshold
 
-通常写真が大量にあっても、`survey_usable`、異なる日、反復が不足していれば基準達成にしない。
+公開には少なくとも次の両方を必要とする。
 
-## 7. Cell interaction
+```text
+distinctParticipantCount >= publicMinParticipants
+recordCount >= publicMinRecords
+```
 
-地図を開いた直後は、地域全体の状態を一目で見せる。
+条件はORで抑制する。どちらか一方でも不足すれば`no_public_data`。
 
-セルまたは地域を選ぶと、次を表示する。
+一人の熱心な参加者が多数投稿しても閾値を突破できない。
+
+追加のprivacy floor:
+
+- school / children
+- home nearby
+- private land
+- sensitive place
+- adjacent-cell differencing risk
+- temporal differencing risk
+
+必要に応じて隣接セルへ統合する。セル統合前後でRecordの存在を推測できる場合は公開しない。
+
+## 7. Coverage dimensions
+
+単一スコアを正本にしない。次を分けて持つ。
+
+### Volume
+
+- Record count
+- submitted photo count
+- assessed photo count
+- screenable count
+- Foundation survey count
+
+### Breadth
+
+- unique aggregate areas
+- unique observed target units
+- public Place groups
+- known target ledger coverage
+
+### Repeat
+
+- distinct survey days
+- repeated target units
+- repeated Place candidates
+- seasonal coverage
+
+同日・同participant・同対象の連続投稿を独立調査として水増ししない。
+
+### Quality
+
+- whole tree visible
+- trunk visible
+- base visible
+- adult / frass / exit hole visibility
+- image limitations
+- assessed asset coverage
+
+### Freshness
+
+- latest valid SurveyEvent
+- protocol-defined aging
+- protocol-defined revisit due
+
+新しいcasual photoだけで古い正式Surveyの鮮度を更新しない。
+
+### Denominator
+
+Known denominatorの例:
+
+- registered target trees
+- approved parks
+- management blocks
+
+Required metadata:
+
+- SourceEdition
+- total target units
+- observed target units
+- source updated at
+- imported at
+- validity / review date
+- rights and geographic scope
+
+台帳がstaleの場合、割合をpublicへ出さない。
+
+分母が無い場合は調査努力を示し、地域網羅率を表示しない。
+
+## 8. Survey source of truth
+
+`surveyUsable`と`not_detected`はFoundation v2を正本とする。
+
+Required:
+
+- SurveyEvent
+- protocol / method / effort
+- started / ended
+- subject scope
+- DetectionOutcome
+- CoverageAssessment
+
+自由投稿のKubiaka evidence coverageだけでsurvey non-detectionを生成しない。
+
+## 9. Target contract
+
+```ts
+interface KubiakaAreaTarget {
+  protocolVersion: string;
+  minimumSurveyUsableRecords: number;
+  minimumUniqueSurveyDays: number;
+  minimumRepeatObservedUnits: number;
+  revisitAfterDays: number;
+  minimumKnownTargetCoverageRatio?: number;
+  denominatorMaxAgeDays?: number;
+}
+```
+
+Validation:
+
+- required count fields are finite integers >= 1
+- `revisitAfterDays >= 1`
+- ratio is 0 < r <= 1
+- protocolVersion is non-empty
+- denominator ratio cannot be used without a valid non-stale denominator
+
+Invalid / missing / NaN / zero targetは公開判定をfail closedし、`no_public_data`へ落とす。`required <= 0 => met`は禁止。
+
+## 10. Classification order
+
+1. target invalid → `no_public_data`
+2. privacy threshold / contributor sensitivity fail → `no_public_data`
+3. no valid aggregate data → `no_public_data`
+4. valid prior coverage but revisit overdue → `revisit_due`
+5. all positive target criteria met → `current_target_met`
+6. defined progress criteria met → `observation_progressing`
+7. otherwise → `more_observation_useful`
+
+`current_target_met`には最低限次を必要とする。
+
+- Foundation-backed SurveyEvent
+- survey usable count
+- distinct survey days
+- repeated observed units
+- freshness within target
+- valid denominator ratio when configured
+
+通常写真やRecord数が多いだけでは成立しない。
+
+## 11. Progress definition
+
+`observation_progressing`の定義を曖昧な平均値にしない。
+
+P0では次とする。
+
+- 3つの必須criteriaのうち2つ以上が正の進捗を持つ
+- 少なくとも1件のFoundation-backed SurveyEventがある
+- targetはvalid
+- privacy thresholdを満たす
+
+criteriaごとの不足量をoperator projectionで保持する。
+
+## 12. Cell interaction
+
+Public cell detail:
 
 ```text
 この範囲の見守り状況
 
 調査が進んでいます
+別の日の記録があると、季節や時間による違いを比べやすくなります。
 
-記録: 18件
-確認に使える記録: 9件
-異なる調査日: 3日
-再訪された場所: 2か所
-最終確認: 8日前
-
-今季の基準まで
-- 別の日の記録があと1日
-- 同じ場所の再訪があと1か所
+最終確認: 2週間以内
 
 [このあたりを記録する]
 ```
 
-分母がある場合:
+Raw件数・生日時は出さない。
+
+Known denominatorが公開可能な場合:
 
 ```text
-登録済み対象木 40本のうち 26本を今季確認
+登録済み対象木のうち65%を今季確認
+台帳: ○○市街路樹台帳 2026年版
 ```
 
-分母がない場合:
+Denominatorなし:
 
 ```text
 地域全体の対象木数は未確定です。割合ではなく、集まった調査努力を表示しています。
 ```
 
-## 8. Map layers
+## 13. Map layers
 
-初期表示は`調査の進み具合`とする。
-
-切替可能なレイヤー:
+Default:
 
 1. 調査の進み具合
-2. 最終確認からの期間
-3. 再訪状況
-4. 写真の確認可能範囲
-5. 確認・フィードバック状況
-6. 確認済み候補の集約表示
 
-未確認の候補や少数の候補を、赤い個別ピンで表示しない。
+Optional:
 
-## 9. Visual and accessibility rules
+2. freshness band
+3. repeat status
+4. assessed evidence coverage
+5. Feedback / Review progress
+6. approved aggregate findings
 
-- 色だけで状態を区別しない
-- 塗り、線、模様、アイコン、ラベルを併用する
-- 凡例を常時確認できる
-- 文字200%でもセル詳細とCTAを操作できる
-- keyboardとscreen readerで地域状態を巡回できる
-- 地図が使えない場合は同じ情報を地域一覧で提供する
-- `十分`という単語単体を使わず、`今季の確認基準を満たした`と表示する
+未確認候補や少数候補を赤い個別ピンで表示しない。
 
-## 10. Contributor motivation
+## 14. Contributor feedback
 
-ランキングや発見数競争を使わない。
+投稿後に事実として返す。
 
-選択したセルには、具体的な次の行動を一つ返す。
+Allowed:
 
-- この範囲はまだ記録がありません
-- 木全体が分かる写真が役立ちます
-- 別の日の記録があると比較できます
-- 前回から時間がたったため再確認できます
-- 今季の基準を満たしています。別の範囲も選べます
+> あなたの記録は、この範囲の確認日に追加されました。
 
-利用者の行動が地図へどう反映されたかを、事実として返す。
+ただしpublic threshold未達やprivate contextの場合、公開地図へ出たと断定しない。
 
-例:
+> 記録は保存されました。公開地図への反映は、位置を守るため集計条件が整った場合だけ行います。
 
-> あなたの記録で、この範囲に7月の確認日が1日追加されました。
+ランキング、競争、危険な場所への誘導を行わない。
 
-過剰な称賛、義務感、危険な場所への誘導は行わない。
+## 15. Operator view
 
-## 11. Operator view
+Operator only:
 
-`/ops/kubiaka/coverage`では公開状態に加え、次を確認できる。
-
-- raw countとdeduplicated count
-- `photo_record` / `screenable_record` / `survey_usable`分布
-- evidence role不足
-- 同日・同地点の過剰集中
-- reviewer coverage
-- no-clear-sign判定の無作為監査率
-- public suppression理由
-- denominator sourceと更新日
+- raw / deduplicated counts
+- distinct participants
+- survey / casual separation
+- assessed / submitted photo counts
+- evidence role deficits
+- repeat / temporal concentration
+- privacy suppression reasons
+- adjacent-cell risk
+- denominator SourceEdition / freshness
 - protocol version
-- staleセル
-- candidate集中地域
+- no-clear-sign audit rate
+- candidate concentration
+- projection edition diff
 
-運営者が閾値を変更した場合、protocol versionを更新し、過去のprojectionを上書きせず再計算版を残す。
+## 16. Projection and suppression
 
-## 12. Data and versioning
+Area outputはimmutable ProjectionSnapshotまたは同等の既存map snapshot editionとして保存する。
 
-保存するもの:
+新edition生成時に次を適用する。
 
-- aggregate unit identity
-- projection time
-- protocol version
-- source watermark
-- input counts
-- denominator kind and source
-- classified state
-- missing conditions
-- privacy suppression reason
-- projection digest
+- suppression
+- correction
+- erase-reference policy
+- rights change
+- participant / Record removal
+- protocol version change
+- denominator edition change
 
-同じ入力とprotocol versionから同じ結果を再現できること。
+過去editionを上書きしない。public readerはactive editionだけを読む。
 
-## 13. P0 acceptance criteria
+## 17. Blocking tests
 
-- 発見地点ではなく調査coverageが初期表示される
-- Record数だけで基準達成にならない
-- 通常写真と`survey_usable`が分離される
-- 異なる日と再訪が判定に含まれる
-- 最終確認が古い地域は`revisit_due`になる
-- 分母なしで網羅率を表示しない
-- known denominatorの由来と対象範囲を表示する
-- 少数投稿セルは統合または非表示になる
-- exact coordinates、Record ID、子ども・学校・自宅・私有地を公開しない
-- 色以外でも状態を識別できる
-- 地図と同等の地域一覧を提供する
-- 各セルで不足している次の一手が分かる
-- 生息不在や安全を断定しない
+- empty cell and suppressed cell produce identical public state/payload shape
+- one participant with many Records remains `no_public_data`
+- participant threshold and Record threshold both required
+- raw dates never appear in public JSON/HTML
+- degenerate target fails closed
+- denominator stale → no ratio
+- casual photo cannot refresh formal Survey freshness
+- partial evidence cannot create survey non-detection
+- adjacent-cell differencing fixture
+- school/home/private-land fixture
+- suppression propagates to next edition
+- map and accessible list have equivalent claims
+- legend always includes non-absence disclaimer
+
+## 18. Accessibility
+
+- color alone is insufficient
+- pattern, icon, label, text are combined
+- keyboard and screen reader navigation
+- 200% text
+- map-unavailable list parity
+- no horizontal overflow at 320px
+- selected cell returns focus correctly
+
+## 19. Stop conditions
+
+- public `privacy_suppressed` state exists
+- raw date or raw count is public
+- participant threshold absent
+- target can be zero or NaN
+- Foundation Survey linkage absent
+- denominator staleness not checked
+- suppression cannot propagate
+- second architecture review incomplete
