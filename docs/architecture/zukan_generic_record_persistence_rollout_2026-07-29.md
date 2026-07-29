@@ -60,6 +60,8 @@ SourceEditionはRecordへ参照接続し、Source本文、画像、紙面をReco
 
 取得日、発行日、更新日はSourceEditionまたはRecordのprovenance metadataである。地域EntityのClaimとして重複保存しない。
 
+人間Review済みClaimは、reviewer Subjectだけでなく明示的な`assertedAt`を必須とする。`assertedAt`は元Recordの`recordedAt`より前にできない。ClaimRevisionの`recorded_at`には元Recordの取得時刻ではなく、明示された主張・Review時刻を使う。
+
 ## 4. Predicate boundary
 
 初期の地域Entity共通Predicateは次の3件に限定する。
@@ -102,7 +104,9 @@ Required evidence:
 - dry-run mapperがorder-invariantである
 - Record payload artifactとClaim value artifactsが別である
 - SourceEdition timestampsがEntity Claimへ混入しない
-- public candidateはReviewとRights dependencyなしに進まない
+- Review済みClaimにassertedAtがあり、Record recordedAtより前でない
+- ClaimRevision recorded_atがassertedAtと一致する
+- public candidateはReview、assertedAt、Rights dependencyなしに進まない
 
 ## 7. Activation order
 
@@ -132,6 +136,7 @@ DB適用後はwriter/read pathを無効のまま維持し、tableと監査構造
 - tenant/workspace scopeをDBで検証できない
 - Record payloadとClaim valueを分離できない
 - SourceEdition metadataを地域EntityのClaimへ重複格納する
+- human Review済みClaimの主張時刻を追跡できない
 - rights dependencyを具体IDへ解決できない
 - PostgreSQL/D1 visibility差異を暗黙変換しようとする
 - suppression/withdrawalを反映しないpublic readerが先に作られる
