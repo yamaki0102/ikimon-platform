@@ -2,10 +2,10 @@ export type ZukanRegionalCorePredicate = {
   predicateUri: string;
   predicateVersion: 1;
   status: "active";
-  valueType: "string" | "datetime";
+  valueType: "string";
   cardinality: "one";
   polarityMode: "positive_only";
-  temporalProfile: "atemporal" | "valid_time";
+  temporalProfile: "valid_time";
   valueSchema: Record<string, unknown>;
   authorityProfile: Record<string, unknown>;
   externalMappings: readonly string[];
@@ -47,18 +47,6 @@ export const ZUKAN_REGIONAL_CORE_PREDICATES: readonly ZukanRegionalCorePredicate
     valueSchema: { minLength: 1 },
     authorityProfile: { reviewRequiredForPublic: true },
     externalMappings: ["schema:description"],
-  },
-  {
-    predicateUri: "https://zukan.earth/predicate/source-updated-at",
-    predicateVersion: 1,
-    status: "active",
-    valueType: "datetime",
-    cardinality: "one",
-    polarityMode: "positive_only",
-    temporalProfile: "atemporal",
-    valueSchema: { format: "date-time" },
-    authorityProfile: { sourceEditionEvidenceRequired: true },
-    externalMappings: ["dcterms:modified"],
   },
 ] as const;
 
