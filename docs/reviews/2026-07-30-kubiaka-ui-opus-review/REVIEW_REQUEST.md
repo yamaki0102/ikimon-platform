@@ -1,18 +1,16 @@
-# Opus review request — Kubiaka private-pilot entry UI
+# Opus re-review request — Kubiaka private-pilot entry UI revision 1
 
 ## Decision requested
 
 Return one verdict: `APPROVE`, `APPROVE_WITH_CHANGES`, or `REQUEST_CHANGES`.
 
-Review the product experience, visual hierarchy, copy, accessibility, route behavior, tests, and safety boundary. Prioritize concrete P0/P1 findings over general design commentary.
+The first review returned `REQUEST_CHANGES`. Start with `revision-1/REVIEW_RESOLUTION.md`, then review `revision-1/VISUAL_QA.md` and decode the two revision patch files described in `revision-1/README.md`.
 
-## Intended experience
+## Revision 1 product decision
 
-A person notices a nearby cherry tree and begins with one ordinary photo. They are not asked to identify the insect, take additional photos, or make a report. The first value is that the record was safely received; findings and unknowns remain separate.
+The generic `/record` handoff cannot preserve an honest one-photo experience for an unauthenticated participant without exposing generic login, browse, and public-map actions. Revision 1 therefore removes the active camera CTA and `/kubiaka/record` route from this slice rather than pretending that integration is complete.
 
-Primary copy:
-
-> 近くのサクラを 撮ってみよう。
+The landing now states that participant camera entry is being prepared. A separate participant/auth slice must later preserve `entry=kubiaka_watch`, use minimal chrome, retain the context through login/registration, reuse the existing composer without forking it, and prove that the final path contains no `/map` link.
 
 ## Canonical context
 
@@ -20,78 +18,47 @@ Primary copy:
 - Parent safety PR: `yamaki0102/ikimon-platform#1498`
 - Parent exact head: `fb47e198a828ab37f5935e84c17c30c757b6f186`
 - Superseded PR `#1492` must not be used.
-- This review PR contains the complete proposed source and a self-contained visual reference, but does not wire the proposal into runtime.
+- This remains a review-only proposal and is not wired into runtime.
 
-## Required invariants
+## Required invariants for revision 1
 
-1. One obvious primary CTA.
-2. One photo is enough to begin; no additional photography is assumed.
-3. No expertise, diagnosis, or reporting burden is placed on the contributor.
-4. Submitted location is not published as-is.
-5. AI candidate is not described as confirmed.
-6. No public map or external routing is introduced.
-7. The route is default-off and hidden unless `KUBIAKA_PRIVATE_PILOT_UI_ENABLED=1`; flag any mismatch or typo.
-8. The existing composer is reused rather than forked.
-9. `source=kubiaka_watch` is only a UI handoff marker, not a durable Record link.
-10. The receipt preview must not imply that receipt persistence is complete.
+1. There is no active participant camera link in this slice.
+2. `/kubiaka/record` remains unavailable even when the landing feature is enabled.
+3. The page does not expose `/map`, public records, generic navigation, or external routing.
+4. The receipt is visibly and semantically an unavailable example, not a functioning backend state.
+5. Planned/future wording is consistent in JA / EN / ES / PT-BR.
+6. Submitted location is not described as published as-is.
+7. AI candidate is not described as confirmed.
+8. All five reviewed paths are hidden through the standard application 404 when the feature is disabled.
+9. The page has one main landmark, accessible visual copy, sufficient contrast, and a visible private-pilot badge on mobile.
+10. Canonical, hreflang, cache, and robot behavior are scoped to the localized Kubiaka path.
 
-## Proposed source files
+## Evidence
 
-Review the mirrored files under `proposed/`. The UI source is split into four consecutive files; concatenate `part00` through `part03` byte-for-byte. `proposed/platform_v2/src/app.ts.diff` contains the required app registration edits.
+- `revision-1/REVIEW_RESOLUTION.md`: response to every P0/P1/P2 finding
+- `revision-1/VISUAL_QA.md`: Playwright/Chromium measurements at 320–1440 px and reduced-motion results
+- `revision-1/revision-1.patch.gz.b64`: complete source revision patch
+- `revision-1/visual-preview-revision-1.patch.gz.b64`: exact self-contained preview revision
 
-## Visual evidence
-
-- `visual-preview.html`: self-contained responsive visual reference
-- `VISUAL_QA.md`: viewport and static-contract evidence
-
-The visual reference follows the same hierarchy, copy, layout, inline artwork, and responsive rules as the proposed source. Repository-native runtime screenshots remain a post-application gate.
-
-## Existing visual checks
-
-| Width | Horizontal overflow | Primary CTA height | Intended hero lines | Reduced motion |
-|---:|---|---:|---|---|
-| 320 | PASS | 60 px | PASS | PASS |
-| 375 | PASS | 60 px | PASS | PASS |
-| 390 | PASS | 60 px | PASS | PASS |
-| 412 | PASS | 60 px | PASS | PASS |
-| 768 | PASS | 58 px | PASS | PASS |
-| 1024 | PASS | 58 px | PASS | PASS |
-| 1440 | PASS | 58 px | PASS | PASS |
-
-Additional static checks: one primary action, no duplicate IDs, no `/map` link, no `/kubiaka/area`, all core anchors present. Full tests, build, authentication return-path verification, and runtime Visual QA remain required after findings are resolved and the source is applied.
+Repository-native typecheck, Node tests, build, authenticated return-path verification, and runtime Visual QA remain post-application gates.
 
 ## Explicit non-goals
 
+- active camera/auth/composer connection
 - durable Kubiaka Record link
-- link outbox
 - participant or guest credential
 - private receipt persistence
-- account claim
 - AI assessment or feedback publication
 - public coverage map
 - external routing or send
 - DB migration or deploy
 
-## Review severity
-
-### P0 — block implementation
-
-Safety/privacy overclaim; accidental routing, publication, map exposure, or AI confirmation; misleading completed-backend representation; unexpected route exposure; mobile failure preventing the main task.
-
-### P1 — correct before pilot
-
-Confusing hierarchy; too much explanation before the camera action; specialist burden; accessibility or overflow defects; locale/base-path defects; tests that fail to protect the invariants.
-
-### P2 — optional refinement
-
-Visual polish and microcopy improvements that do not change the safety boundary.
-
 ## Required response format
 
 1. Verdict
-2. Findings ordered P0 → P1 → P2
+2. Remaining findings ordered P0 → P1 → P2
 3. For each finding: file/section, problem, impact, exact recommended change
-4. What is strong and should be preserved
-5. Minimum change set required before implementation
+4. What should be preserved
+5. Minimum remaining change set before implementation
 
 Do not reopen the settled ZUKAN naming decision or propose a public map for this phase.
