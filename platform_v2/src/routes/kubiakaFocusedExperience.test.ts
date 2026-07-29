@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  KUBIAKA_ACKNOWLEDGEMENT_LABEL,
   KUBIAKA_CONTEXT_VERSION,
   KUBIAKA_EXPERIENCE_KEY,
+  KUBIAKA_GENERIC_UPSERT_PATH,
   KUBIAKA_PROTOCOL_PROFILE,
   KUBIAKA_RECORD_PATH,
   KUBIAKA_UPSERT_PATH,
   buildKubiakaObservationInput,
+  rewriteKubiakaUpsertUrl,
 } from "./kubiakaFocusedExperience.js";
 import type { ObservationUpsertInput } from "../services/observationWrite.js";
 
@@ -84,4 +87,24 @@ test("buildKubiakaObservationInput preserves the observation payload needed by t
   assert.equal(result.longitude, input.longitude);
   assert.equal(result.note, input.note);
   assert.equal(result.taxon, input.taxon);
+});
+
+test("rewriteKubiakaUpsertUrl preserves root and forwarded base paths", () => {
+  assert.equal(
+    rewriteKubiakaUpsertUrl(KUBIAKA_GENERIC_UPSERT_PATH),
+    KUBIAKA_UPSERT_PATH,
+  );
+  assert.equal(
+    rewriteKubiakaUpsertUrl(`/preview${KUBIAKA_GENERIC_UPSERT_PATH}`),
+    `/preview${KUBIAKA_UPSERT_PATH}`,
+  );
+  assert.equal(
+    rewriteKubiakaUpsertUrl("/api/v1/observations/visit/photos/upload"),
+    "/api/v1/observations/visit/photos/upload",
+  );
+});
+
+test("member surface is an acknowledgement, not a durable receipt claim", () => {
+  assert.equal(KUBIAKA_ACKNOWLEDGEMENT_LABEL, "Private acknowledgement");
+  assert.doesNotMatch(KUBIAKA_ACKNOWLEDGEMENT_LABEL, /receipt/i);
 });
