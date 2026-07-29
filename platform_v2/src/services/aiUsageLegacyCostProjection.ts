@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { AiCostLayer, AiCostLogEntry, AiCostProvider } from "./aiCostLogger.js";
 import type { AiUsageEvent } from "./aiUsageControl.js";
 
@@ -8,6 +9,10 @@ export type LegacyAiCostProjection =
       reason: "adjustment_not_supported_by_ai_cost_log";
       usageEventId: string;
     };
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
 
 function legacyProvider(provider: string): AiCostProvider {
   if (provider === "gemini" || provider === "google") return "gemini";
@@ -59,7 +64,7 @@ export function projectUsageToLegacyAiCostLog(input: {
         aiFallbackDepth: input.event.fallbackDepth,
         aiProviderFailureCount: input.event.providerFailureCount,
         aiReconciliationStatus: input.event.reconciliationStatus,
-        aiRawUsageJson: input.event.rawUsageJson,
+        aiRawUsageSha256: sha256(input.event.rawUsageJson),
       },
     },
   };
