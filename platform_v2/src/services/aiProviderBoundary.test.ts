@@ -6,14 +6,36 @@ import { fileURLToPath } from "node:url";
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const googleGenAiModule = ["@", "google/genai"].join("");
-const allowedDirectImports = new Set([
-  "scripts/draftRegionalKnowledgeHooks.ts",
-  "scripts/embedRegionalKnowledgeCards.ts",
-  "services/aiModelRouter.ts",
-  "services/curatorGeminiWorker.ts",
-  "services/guideLiveToken.ts",
-  "services/guideTts.ts",
+const reviewedProviderAdapters = new Set([
+  "services/providers/googleGenAiSdk.ts",
 ]);
+const legacyDirectImports: Record<string, { owner: string; removeBy: string; reason: string }> = {
+  "scripts/draftRegionalKnowledgeHooks.ts": {
+    owner: "knowledge-ingest",
+    removeBy: "2026-09-30",
+    reason: "standalone reviewed draft CLI",
+  },
+  "scripts/embedRegionalKnowledgeCards.ts": {
+    owner: "knowledge-ingest",
+    removeBy: "2026-09-30",
+    reason: "standalone embedding migration CLI",
+  },
+  "services/curatorGeminiWorker.ts": {
+    owner: "curator-runtime",
+    removeBy: "2026-09-30",
+    reason: "legacy curator provider implementation",
+  },
+  "services/guideLiveToken.ts": {
+    owner: "guide-runtime",
+    removeBy: "2026-09-30",
+    reason: "ephemeral-token API not yet routed through provider adapters",
+  },
+  "services/guideTts.ts": {
+    owner: "guide-runtime",
+    removeBy: "2026-09-30",
+    reason: "audio generation API not yet routed through provider adapters",
+  },
+};
 
 function listTypeScriptFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -23,20 +45,33 @@ function listTypeScriptFiles(directory: string): string[] {
   });
 }
 
-test("new direct Google GenAI SDK imports are blocked until routed through the usage boundary", () => {
+function hasDirectImport(source: string): boolean {
+  return source.includes(`from \"${googleGenAiModule}\"`)
+    || source.includes(`from '${googleGenAiModule}'`)
+    || source.includes(`import \"${googleGenAiModule}\"`)
+    || source.includes(`import '${googleGenAiModule}'`);
+}
+
+test("Google GenAI SDK imports are limited to reviewed adapters and bounded legacy debt", () => {
   const directImports = listTypeScriptFiles(sourceRoot)
-    .filter((absolute) => {
-      const source = readFileSync(absolute, "utf8");
-      return source.includes(`from \"${googleGenAiModule}\"`)
-        || source.includes(`from '${googleGenAiModule}'`)
-        || source.includes(`import \"${googleGenAiModule}\"`)
-        || source.includes(`import '${googleGenAiModule}'`);
-    })
+    .filter((absolute) => hasDirectImport(readFileSync(absolute, "utf8")))
     .map((absolute) => path.relative(sourceRoot, absolute).split(path.sep).join("/"))
     .sort();
-
-  assert.deepEqual(directImports, [...allowedDirectImports].sort(), [
+  const expected = [
+    ...reviewedProviderAdapters,
+    ...Object.keys(legacyDirectImports),
+  ].sort();
+  assert.deepEqual(directImports, expected, [
     "Direct provider imports changed.",
-    "Route new calls through the metered provider boundary or explicitly review the baseline.",
+    "Use services/providers or explicitly review and time-bound the legacy debt entry.",
   ].join(" "));
+  assert.equal(directImports.includes("services/aiModelRouter.ts"), false);
+});
+
+test("legacy direct-import debt has an owner reason and removal date", () => {
+  for (const [file, debt] of Object.entries(legacyDirectImports)) {
+    assert.ok(debt.owner.trim(), `${file}:owner`);
+    assert.ok(debt.reason.trim(), `${file}:reason`);
+    assert.match(debt.removeBy, /^\d{4}-\d{2}-\d{2}$/u, `${file}:removeBy`);
+  }
 });
