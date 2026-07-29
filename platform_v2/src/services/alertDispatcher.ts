@@ -16,6 +16,10 @@
 
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
+import {
+  findExperienceManagedTaxon,
+  isExperienceManagedTaxonRoutingEnabled,
+} from "./experienceManagedTaxonScopes.js";
 import { emitInvasiveReportingForOccurrence, isInvasiveReportingTrigger } from "./invasiveReporting.js";
 
 export type EmitAlertsContext = {
@@ -40,6 +44,8 @@ export type EmitAlertsContext = {
   noveltyScore?: number | null;
   /** rare 判定 (redlist_versions 連携で将来拡張) */
   isRare?: boolean;
+  /** Gate 0 は link の有無や状態に依存せず、管理taxonを遮断する。 */
+  experienceRecordLinkState?: string | null;
 };
 
 export type AlertDispatchSummary = {
@@ -50,13 +56,12 @@ export type AlertDispatchSummary = {
   researcherRare: number;
   researcherNovelty: number;
   userTaxonMatches: number;
+  blockedReason: "experience_managed_taxon_denied" | null;
+  managedTaxonScopeKey: string | null;
 };
 
-export async function emitAlertsForOccurrence(
-  ctx: EmitAlertsContext,
-  client?: PoolClient,
-): Promise<AlertDispatchSummary> {
-  const summary: AlertDispatchSummary = {
+function emptyAlertSummary(): AlertDispatchSummary {
+  return {
     municipalityInvasive: 0,
     invasiveReportingMatched: 0,
     invasiveReportingSuppressed: 0,
@@ -64,7 +69,26 @@ export async function emitAlertsForOccurrence(
     researcherRare: 0,
     researcherNovelty: 0,
     userTaxonMatches: 0,
+    blockedReason: null,
+    managedTaxonScopeKey: null,
   };
+}
+
+export async function emitAlertsForOccurrence(
+  ctx: EmitAlertsContext,
+  client?: PoolClient,
+): Promise<AlertDispatchSummary> {
+  const summary = emptyAlertSummary();
+
+  // Gate 0: evaluate the taxon before opening a DB connection or entering any
+  // notification branch. Record link state, law status, confidence, Case, and
+  // recipient configuration must not bypass this source-level interlock.
+  const managedTaxon = findExperienceManagedTaxon(ctx.scientificName);
+  if (managedTaxon && !isExperienceManagedTaxonRoutingEnabled(managedTaxon.scope)) {
+    summary.blockedReason = "experience_managed_taxon_denied";
+    summary.managedTaxonScopeKey = managedTaxon.scope.scopeKey;
+    return summary;
+  }
 
   const exec = async (c: PoolClient): Promise<void> => {
     if (isInvasiveTrigger(ctx.invasiveStatus)) {
