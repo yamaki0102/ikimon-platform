@@ -1,18 +1,18 @@
 # Kubiaka private-pilot UI — Opus review packet
 
-## Review order
+## Current review order
 
 1. `REVIEW_REQUEST.md`
-2. `visual-preview.html`
-3. `VISUAL_QA.md`
-4. `proposed/platform_v2/src/content/kubiakaExperience.ts`
-5. `proposed/platform_v2/src/routes/kubiakaExperience.ts`
-6. `proposed/platform_v2/src/routes/kubiakaExperience.routes.test.ts`
-7. `proposed/platform_v2/src/ui/kubiakaExperience.ts.part00` through `part03`
-8. `proposed/platform_v2/src/app.ts.diff`
-9. `proposed/docs/implementation/kubiaka-private-pilot-ui-slice_2026-07-29.md`
+2. `revision-1/REVIEW_RESOLUTION.md`
+3. `revision-1/VISUAL_QA.md`
+4. `revision-1/README.md`
+5. decode and review the revision patches
 
-The four UI parts are consecutive byte ranges of one proposed file. Concatenate `part00`, `part01`, `part02`, and `part03` in that order to reconstruct `platform_v2/src/ui/kubiakaExperience.ts`.
+The original `proposed/`, `visual-preview.html`, and `VISUAL_QA.md` are retained as first-review evidence. Revision 1 is the current proposal.
+
+## Revision 1 decision
+
+The active camera CTA and `/kubiaka/record` route were removed. The generic `/record` path cannot yet preserve Kubiaka context through authentication without exposing generic browse and public-map actions. That connection is now explicitly reserved for a separate participant/auth slice.
 
 ## Canonical context
 
@@ -23,4 +23,4 @@ The four UI parts are consecutive byte ranges of one proposed file. Concatenate 
 
 ## Boundary
 
-This is a review-only packet. It does not wire the proposed route into runtime, apply a database migration, deploy, activate routing, publish a map, or send data externally.
+This is a review-only packet. It does not wire runtime routes, apply a database migration, deploy, activate routing, publish a map, or send data externally.
