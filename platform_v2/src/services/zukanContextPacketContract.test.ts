@@ -140,6 +140,7 @@ function receipt(overrides: Partial<ContextPacketReceiptInput> = {}): ContextPac
     authorization: {
       decisionId: "authz-1",
       evaluatedAt: "2026-07-29T00:00:00.000Z",
+      validUntil: "2026-07-29T00:10:00.000Z",
       allowed: true,
     },
     ...overrides,
@@ -186,6 +187,7 @@ test("model input is derived only from facts admitted by the sealed context pack
     context,
     provider: "google",
     modelId: "gemini-3.1-flash-lite",
+    requestedAt: "2026-07-29T00:00:02.000Z",
     selectors: [{
       claimId: "claim-1",
       claimRevision: 1,
@@ -199,6 +201,7 @@ test("model input is derived only from facts admitted by the sealed context pack
     context,
     provider: "google",
     modelId: "gemini-3.1-flash-lite",
+    requestedAt: "2026-07-29T00:00:02.000Z",
     selectors: [{
       claimId: "claim-1",
       claimRevision: 1,
@@ -236,8 +239,9 @@ test("model input rejects a tampered authorization receipt", () => {
     context: tampered,
     provider: "google",
     modelId: "gemini-3.1-flash-lite",
+    requestedAt: "2026-07-29T00:00:02.000Z",
     selectors: [{ claimId: "claim-1", claimRevision: 1, rightsEvaluationId: "rights-1" }],
-  }), /context_packet_receipt_signature_mismatch/u);
+  }), /context_packet_receipt_digest_mismatch/u);
 });
 
 test("context receipt must match the semantic tenant and workspace scope", () => {
@@ -252,4 +256,15 @@ test("context receipt must match the semantic tenant and workspace scope", () =>
       },
     }),
   }), /context_packet_receipt_scope_mismatch/u);
+});
+
+test("model input rejects expired authorization", () => {
+  const context = sealContextPacket({ payload: contextPayload(), receipt: receipt() });
+  assert.throws(() => buildModelInputEnvelope({
+    context,
+    provider: "google",
+    modelId: "gemini-3.1-flash-lite",
+    requestedAt: "2026-07-29T00:10:00.001Z",
+    selectors: [{ claimId: "claim-1", claimRevision: 1, rightsEvaluationId: "rights-1" }],
+  }), /model_input_authorization_expired/u);
 });
