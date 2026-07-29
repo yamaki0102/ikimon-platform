@@ -20,6 +20,12 @@ export type GenericRecordValueArtifact = {
   availabilityStatus: "available";
 };
 
+export type GenericRecordPayloadScope = {
+  payloadArtifactId: string;
+  tenantId: string;
+  workspaceId: null;
+};
+
 export type GenericRecordRow = {
   recordId: string;
   tenantId: string;
@@ -84,6 +90,7 @@ export type GenericRecordPersistencePlan = {
   writeEnabled: false;
   predicates: ZukanRegionalCorePredicate[];
   valueArtifacts: GenericRecordValueArtifact[];
+  recordPayloadScopes: GenericRecordPayloadScope[];
   records: GenericRecordRow[];
   recordSubjectLinks: GenericRecordSubjectLink[];
   recordSourceLinks: GenericRecordSourceLink[];
@@ -101,6 +108,7 @@ export type GenericRecordPersistencePlan = {
   payloadSha256: string;
   counts: {
     valueArtifacts: number;
+    recordPayloadScopes: number;
     records: number;
     subjectLinks: number;
     sourceLinks: number;
@@ -181,6 +189,11 @@ export function planGenericRecordPersistence(
     valueJson: record.payloadJson,
     contentSha256: record.payloadSha256,
     availabilityStatus: "available",
+  }];
+  const recordPayloadScopes: GenericRecordPayloadScope[] = [{
+    payloadArtifactId,
+    tenantId,
+    workspaceId: null,
   }];
 
   const records: GenericRecordRow[] = [{
@@ -330,6 +343,7 @@ export function planGenericRecordPersistence(
       left.predicateUri.localeCompare(right.predicateUri)
       || left.predicateVersion - right.predicateVersion),
     valueArtifacts: valueArtifacts.sort((left, right) => left.artifactId.localeCompare(right.artifactId)),
+    recordPayloadScopes,
     records,
     recordSubjectLinks,
     recordSourceLinks,
@@ -349,6 +363,7 @@ export function planGenericRecordPersistence(
     payloadSha256,
     counts: {
       valueArtifacts: planWithoutDigest.valueArtifacts.length,
+      recordPayloadScopes: planWithoutDigest.recordPayloadScopes.length,
       records: planWithoutDigest.records.length,
       subjectLinks: planWithoutDigest.recordSubjectLinks.length,
       sourceLinks: planWithoutDigest.recordSourceLinks.length,
