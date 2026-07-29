@@ -220,6 +220,21 @@ function validateRawUsageMetadata(rawUsageJson: string): void {
   validateRawUsageValue(parsed, 0);
 }
 
+function validateRelatedUsageEvent(
+  input: RecordAiUsageInput,
+  target: AiUsageEvent,
+  relation: "retry" | "adjustment",
+): void {
+  if (target.tenantId !== input.tenantId
+    || target.project !== input.project
+    || target.feature !== input.feature) {
+    throw new Error(`ai_${relation}_target_scope_mismatch`);
+  }
+  if (input.executionKey && target.executionKey && input.executionKey !== target.executionKey) {
+    throw new Error(`ai_${relation}_target_execution_mismatch`);
+  }
+}
+
 export function evaluateAiBudget(input: {
   projectedRequestUsdMicros: number;
   snapshot: AiBudgetSnapshot;
@@ -371,9 +386,15 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
       if (!input.adjustmentOfEventId) throw new Error("ai_adjustment_requires_target_event");
       const target = this.usageEventsById.get(input.adjustmentOfEventId);
       if (!target || target.eventKind !== "usage") throw new Error("ai_adjustment_target_not_found");
+      validateRelatedUsageEvent(input, target, "adjustment");
       if (input.reconciliationStatus !== "adjusted") throw new Error("ai_adjustment_status_mismatch");
     } else {
       if (input.adjustmentOfEventId) throw new Error("ai_usage_must_not_set_adjustment_target");
+      if (input.retryOfEventId) {
+        const target = this.usageEventsById.get(input.retryOfEventId);
+        if (!target || target.eventKind !== "usage") throw new Error("ai_retry_target_not_found");
+        validateRelatedUsageEvent(input, target, "retry");
+      }
       if (input.reconciliationStatus === "adjusted") throw new Error("ai_usage_status_mismatch");
     }
     const existing = this.usageEventsById.get(eventId);
