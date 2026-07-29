@@ -14,7 +14,8 @@ import {
 } from "./zukanRegionalCorePredicates.js";
 
 const tenantId = "tenant-generic-record-fixture";
-const reviewAssertedAt = "2026-07-29T02:00:00Z";
+const reviewAssertedAt = "2026-07-28T18:00:00Z";
+const reviewRecordedAt = "2026-07-29T02:00:00Z";
 
 function id(kind: string, externalId: string): string {
   return deterministicRegionalKnowledgeUuid({ tenantId, entityKind: kind, externalId });
@@ -55,6 +56,7 @@ function reviewedEnvelope(): RegionalKnowledgeEnvelopePlan {
         reviewState: "human_reviewed",
         accountableReviewerId: reviewerId,
         assertedAt: reviewAssertedAt,
+        recordedAt: reviewRecordedAt,
         visibility: "public_candidate",
       },
       {
@@ -67,6 +69,7 @@ function reviewedEnvelope(): RegionalKnowledgeEnvelopePlan {
         reviewState: "human_reviewed",
         accountableReviewerId: reviewerId,
         assertedAt: reviewAssertedAt,
+        recordedAt: reviewRecordedAt,
         visibility: "public_candidate",
       },
     ],
@@ -96,7 +99,7 @@ test("regional core predicates are unique, versioned, and exclude SourceEdition 
   );
 });
 
-test("persistence plan keeps Record payload and Claim values in separate artifacts", () => {
+test("persistence plan keeps Record payload and Claim values in separate scoped artifacts", () => {
   const envelope = reviewedEnvelope();
   const plan = planGenericRecordPersistence(envelope);
 
@@ -105,6 +108,7 @@ test("persistence plan keeps Record payload and Claim values in separate artifac
   assert.deepEqual(plan.blockers, []);
   assert.equal(plan.counts.records, 1);
   assert.equal(plan.counts.recordPayloadScopes, 1);
+  assert.equal(plan.counts.claimValueScopes, 2);
   assert.equal(plan.counts.claims, 2);
   assert.equal(plan.counts.claimRevisions, 2);
   assert.equal(plan.counts.claimRecordLinks, 2);
@@ -117,6 +121,8 @@ test("persistence plan keeps Record payload and Claim values in separate artifac
   );
   assert.equal(plan.recordPayloadScopes[0]?.tenantId, tenantId);
   assert.equal(plan.recordPayloadScopes[0]?.workspaceId, null);
+  assert.equal(plan.claimValueScopes.length, plan.claimRevisions.length);
+  assert.ok(plan.claimValueScopes.every((scope) => scope.tenantId === tenantId));
   assert.notEqual(plan.records[0]?.payloadArtifactId, plan.claimRevisions[0]?.valueArtifactId);
   assert.ok(plan.claimRecordLinks.every((link) => link.recordId === plan.records[0]?.recordId));
   assert.ok(plan.claimRecordLinks.every((link) => link.linkRole === "reviewed_from"));
@@ -124,6 +130,11 @@ test("persistence plan keeps Record payload and Claim values in separate artifac
     revision.recordedAt === "2026-07-29T02:00:00.000Z"));
   assert.ok(plan.claimRevisions.every((revision) =>
     revision.recordedAt !== plan.records[0]?.recordedAt));
+  assert.ok(plan.claimRevisions.every((revision) => {
+    const metadata = JSON.parse(revision.revisionMetadataJson) as Record<string, unknown>;
+    return metadata.assertedAt === "2026-07-28T18:00:00.000Z"
+      && metadata.recordedAt === "2026-07-29T02:00:00.000Z";
+  }));
   assert.ok(plan.warnings.includes(
     "publication_candidate_requires_resolution_snapshot_before_persistence",
   ));
@@ -147,6 +158,7 @@ test("persistence plan is invariant to equivalent envelope ordering", () => {
   assert.equal(second.payloadSha256, first.payloadSha256);
   assert.deepEqual(second.valueArtifacts, first.valueArtifacts);
   assert.deepEqual(second.recordPayloadScopes, first.recordPayloadScopes);
+  assert.deepEqual(second.claimValueScopes, first.claimValueScopes);
   assert.deepEqual(second.claimRevisions, first.claimRevisions);
 });
 
@@ -167,9 +179,10 @@ test("unknown predicates fail closed without creating Claim persistence rows", (
   ));
   assert.equal(plan.counts.claims, 0);
   assert.equal(plan.counts.claimRevisions, 0);
+  assert.equal(plan.counts.claimValueScopes, 0);
 });
 
-test("public candidates require accountable review, assertion time, and rights", () => {
+test("public candidates require accountable review, both times, and rights", () => {
   const envelope = reviewedEnvelope();
   const candidate = envelope.claims[0]!;
   const plan = planGenericRecordPersistence({
@@ -181,6 +194,7 @@ test("public candidates require accountable review, assertion time, and rights",
       reviewState: "ai_candidate",
       accountableReviewerId: null,
       assertedAt: null,
+      recordedAt: null,
     }],
   });
 
