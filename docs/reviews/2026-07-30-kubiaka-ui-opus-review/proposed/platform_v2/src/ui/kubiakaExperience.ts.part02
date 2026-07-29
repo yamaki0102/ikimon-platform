@@ -1,0 +1,206 @@
+y: none;
+    }
+    .kubiaka-hero {
+      grid-template-columns: 1fr;
+      gap: 48px;
+      min-height: auto;
+      padding: 54px 0 78px;
+    }
+    .kubiaka-visual-wrap {
+      min-height: 490px;
+    }
+    .kubiaka-viewfinder {
+      right: 50%;
+      width: min(92%, 410px);
+      transform: translateX(50%) rotate(1.5deg);
+    }
+    .kubiaka-viewfinder {
+      animation: none;
+    }
+    .kubiaka-section-head,
+    .kubiaka-split,
+    .kubiaka-faq-layout {
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+    .kubiaka-flow-grid {
+      grid-template-columns: 1fr;
+    }
+    .kubiaka-flow-card {
+      min-height: auto;
+    }
+    .kubiaka-flow-card h3 {
+      margin-top: 24px;
+    }
+  }
+  @media (max-width: 640px) {
+    .kubiaka-topbar {
+      padding-top: 18px;
+    }
+    .kubiaka-scope {
+      padding: 6px 9px;
+      font-size: 0.68rem;
+    }
+    .kubiaka-hero h1 {
+      font-size: clamp(2.45rem, 11.5vw, 3.35rem);
+    }
+    .kubiaka-hero h1 span {
+    display: block;
+  }
+  .kubiaka-hero-lead {
+      margin-top: 22px;
+      font-size: 0.99rem;
+      line-height: 1.78;
+    }
+    .kubiaka-action-row {
+      align-items: stretch;
+      margin-top: 30px;
+    }
+    .kubiaka-primary-action {
+      width: 100%;
+      min-height: 60px;
+    }
+    .kubiaka-action-note {
+      max-width: none;
+      padding-inline: 4px;
+    }
+    .kubiaka-trust-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .kubiaka-trust-list li:last-child {
+      grid-column: 1 / -1;
+    }
+    .kubiaka-visual-wrap {
+      min-height: 430px;
+    }
+    .kubiaka-viewfinder {
+      width: min(94%, 350px);
+      border-width: 9px;
+      border-radius: 31px;
+    }
+    .kubiaka-section {
+      padding: 76px 0;
+    }
+    .kubiaka-section-head {
+      margin-bottom: 30px;
+    }
+    .kubiaka-about-grid {
+      grid-template-columns: 1fr;
+    }
+    .kubiaka-about-card,
+    .kubiaka-promise-card,
+    .kubiaka-receipt {
+      border-radius: 26px;
+    }
+    .kubiaka-footer {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+`;
+
+type RenderKubiakaExperienceOptions = {
+  copy: KubiakaExperienceCopy;
+  basePath: string;
+  lang: SiteLang;
+};
+
+function localizedHref(basePath: string, href: string, lang: SiteLang): string {
+  return appendLangToHref(withBasePath(basePath, href), lang);
+}
+
+function cameraIcon(): string {
+  return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 8.5h3l1.3-2h7.4l1.3 2h3a1.5 1.5 0 0 1 1.5 1.5v7.5A1.5 1.5 0 0 1 20 19H4a1.5 1.5 0 0 1-1.5-1.5V10A1.5 1.5 0 0 1 4 8.5Z"/>
+    <circle cx="12" cy="13.5" r="3.5"/>
+  </svg>`;
+}
+
+function treeArtwork(id: string): string {
+  const skyId = `${id}-sky`;
+  const barkId = `${id}-bark`;
+  return `<svg class="kubiaka-tree-art" aria-hidden="true" viewBox="0 0 480 620" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="${skyId}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#dfe8df"/>
+        <stop offset="0.58" stop-color="#eef0e8"/>
+        <stop offset="1" stop-color="#c8d1c6"/>
+      </linearGradient>
+      <linearGradient id="${barkId}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#63594c"/>
+        <stop offset="0.48" stop-color="#4e493f"/>
+        <stop offset="1" stop-color="#786a58"/>
+      </linearGradient>
+      <filter id="${id}-blur"><feGaussianBlur stdDeviation="13"/></filter>
+    </defs>
+    <rect width="480" height="620" fill="url(#${skyId})"/>
+    <circle cx="378" cy="112" r="122" fill="#f4ddd9" opacity="0.66" filter="url(#${id}-blur)"/>
+    <circle cx="94" cy="172" r="84" fill="#f7e8e3" opacity="0.62" filter="url(#${id}-blur)"/>
+    <path d="M143 650C174 515 185 395 191 267C196 162 222 80 267-18" fill="none" stroke="url(#${barkId})" stroke-width="77" stroke-linecap="round"/>
+    <path d="M202 350C278 265 339 207 455 161" fill="none" stroke="url(#${barkId})" stroke-width="31" stroke-linecap="round"/>
+    <path d="M207 273C155 215 108 180 34 159" fill="none" stroke="#5e5549" stroke-width="25" stroke-linecap="round"/>
+    <path d="M243 190C285 138 315 92 328 31" fill="none" stroke="#675a4b" stroke-width="20" stroke-linecap="round"/>
+    <g fill="#d89a96" opacity="0.93">
+      <circle cx="342" cy="178" r="14"/><circle cx="372" cy="164" r="12"/><circle cx="398" cy="153" r="15"/>
+      <circle cx="420" cy="141" r="10"/><circle cx="301" cy="211" r="12"/><circle cx="278" cy="228" r="10"/>
+      <circle cx="129" cy="210" r="13"/><circle cx="101" cy="194" r="10"/><circle cx="75" cy="181" r="12"/>
+      <circle cx="310" cy="105" r="12"/><circle cx="323" cy="76" r="10"/>
+    </g>
+    <g fill="#f5e6e2" opacity="0.96">
+      <circle cx="350" cy="169" r="8"/><circle cx="380" cy="157" r="7"/><circle cx="405" cy="146" r="8"/>
+      <circle cx="306" cy="204" r="7"/><circle cx="134" cy="204" r="7"/><circle cx="105" cy="188" r="6"/>
+    </g>
+    <g fill="#71846f" opacity="0.88">
+      <ellipse cx="444" cy="180" rx="17" ry="8" transform="rotate(-24 444 180)"/>
+      <ellipse cx="322" cy="229" rx="17" ry="8" transform="rotate(18 322 229)"/>
+      <ellipse cx="63" cy="164" rx="16" ry="8" transform="rotate(28 63 164)"/>
+      <ellipse cx="294" cy="72" rx="15" ry="7" transform="rotate(-40 294 72)"/>
+    </g>
+    <path d="M173 490c25-13 45-14 68-2" fill="none" stroke="#8b7a67" stroke-width="4" opacity="0.72"/>
+    <path d="M183 427c18-8 38-8 57 0" fill="none" stroke="#342f29" stroke-width="3" opacity="0.48"/>
+    <path d="M190 367c17-5 33-5 49 1" fill="none" stroke="#9b8973" stroke-width="3" opacity="0.65"/>
+  </svg>`;
+}
+
+function renderTrustItems(copy: KubiakaExperienceCopy): string {
+  return `<ul class="kubiaka-trust-list" aria-label="${escapeHtml(copy.scopeLabel)}">
+    ${copy.trustItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+  </ul>`;
+}
+
+function renderFlow(copy: KubiakaExperienceCopy): string {
+  return `<section class="kubiaka-section kubiaka-section--soft" id="how-to" data-kubiaka-how-to>
+    <div class="kubiaka-frame">
+      <div class="kubiaka-section-head">
+        <div>
+          <div class="kubiaka-eyebrow">${escapeHtml(copy.flow.eyebrow)}</div>
+          <h2>${escapeHtml(copy.flow.title)}</h2>
+        </div>
+        <p>${escapeHtml(copy.flow.lead)}</p>
+      </div>
+      <div class="kubiaka-flow-grid">
+        ${copy.flow.steps.map((step) => `<article class="kubiaka-flow-card">
+          <div class="kubiaka-flow-number">${escapeHtml(step.number)}</div>
+          <h3>${escapeHtml(step.title)}</h3>
+          <p>${escapeHtml(step.body)}</p>
+        </article>`).join("")}
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderReceipt(copy: KubiakaExperienceCopy): string {
+  return `<section class="kubiaka-section" id="receipt" data-kubiaka-private-receipt>
+    <div class="kubiaka-frame kubiaka-split">
+      <div class="kubiaka-split-copy">
+        <div class="kubiaka-eyebrow">${escapeHtml(copy.receipt.eyebrow)}</div>
+        <h2>${escapeHtml(copy.receipt.title)}</h2>
+        <p>${escapeHtml(copy.receipt.lead)}</p>
+      </div>
+      <div class="kubiaka-receipt" aria-label="${escapeHtml(copy.receipt.previewLabel)}">
+        <div class="kubiaka-receipt-label">${escapeHtml(copy.receipt.previewLabel)}</div>
+        <div class="kubiaka-receipt-photo">${treeArtwork("kubiaka-receipt")}</div>
+        <div class="kubiaka-receipt-state">
+          <strong>${escapeHtml(copy.receipt.accepted)}</strong>
+          <span class="
