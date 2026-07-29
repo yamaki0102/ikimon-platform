@@ -1,64 +1,56 @@
-# Opus re-review request — Kubiaka private-pilot entry UI revision 1
+# Opus review request — Kubiaka focused experience
 
-## Decision requested
+## Current status
 
-Return one verdict: `APPROVE`, `APPROVE_WITH_CHANGES`, or `REQUEST_CHANGES`.
+The original cherry-tree-only proposal and revision 1 are **superseded as the current product framing**.
 
-The first review returned `REQUEST_CHANGES`. Start with `revision-1/REVIEW_RESOLUTION.md`, then review `revision-1/VISUAL_QA.md` and decode the two revision patch files described in `revision-1/README.md`.
+A second review correctly closed the prior safety P0s but identified remaining packet and copy issues. Before those mechanical fixes were finalized, current official research and July 2026 orchard detections confirmed that the experience must not be bounded to cherry trees.
 
-## Revision 1 product decision
+Start with:
 
-The generic `/record` handoff cannot preserve an honest one-photo experience for an unauthenticated participant without exposing generic login, browse, and public-map actions. Revision 1 therefore removes the active camera CTA and `/kubiaka/record` route from this slice rather than pretending that integration is complete.
+`revision-2/ECOLOGY_AND_PRODUCT_SCOPE.md`
 
-The landing now states that participant camera entry is being prepared. A separate participant/auth slice must later preserve `entry=kubiaka_watch`, use minimal chrome, retain the context through login/registration, reuse the existing composer without forking it, and prove that the final path contains no `/map` link.
+Revision 2 will be reviewed only after complete replacement source files and a complete self-contained visual preview are committed. Do not review patch fragments as the current proposal.
+
+## Product decision
+
+The experience covers Rosaceae street trees and fruit trees, especially cherry, ume, peach, sumomo, and apricot. It must support both public-tree and orchard contexts without requiring the contributor to identify the tree.
+
+The entry will start from observable evidence:
+
+- whole tree / trunk / branches
+- possible frass
+- possible adult beetle
+- hole or bark damage
+- unknown
+
+One photo is enough to start. Additional photography is optional, never required before save. No photo alone is represented as species confirmation or damage diagnosis.
+
+## Safety boundary retained
+
+- no public map in this phase
+- no automatic external reporting or send
+- no AI candidate presented as confirmed
+- no live-specimen transport guidance that conflicts with the Invasive Alien Species Act
+- conditional official guidance when an adult candidate or strong damage sign is selected
+- existing composer reuse only through a dedicated Kubiaka entry context
 
 ## Canonical context
 
 - Strategy: **Receipt-first, Map-later**
 - Parent safety PR: `yamaki0102/ikimon-platform#1498`
 - Parent exact head: `fb47e198a828ab37f5935e84c17c30c757b6f186`
-- Superseded PR `#1492` must not be used.
-- This remains a review-only proposal and is not wired into runtime.
+- Superseded implementation PR `#1492` must not be used.
 
-## Required invariants for revision 1
+## Next review gate
 
-1. There is no active participant camera link in this slice.
-2. `/kubiaka/record` remains unavailable even when the landing feature is enabled.
-3. The page does not expose `/map`, public records, generic navigation, or external routing.
-4. The receipt is visibly and semantically an unavailable example, not a functioning backend state.
-5. Planned/future wording is consistent in JA / EN / ES / PT-BR.
-6. Submitted location is not described as published as-is.
-7. AI candidate is not described as confirmed.
-8. All five reviewed paths are hidden through the standard application 404 when the feature is disabled.
-9. The page has one main landmark, accessible visual copy, sufficient contrast, and a visible private-pilot badge on mobile.
-10. Canonical, hreflang, cache, and robot behavior are scoped to the localized Kubiaka path.
+Revision 2 must contain:
 
-## Evidence
+1. complete current source files
+2. complete current HTML preview
+3. ecology/source note
+4. measured visual and accessibility QA
+5. route and safety tests
+6. no patch reconstruction dependency
 
-- `revision-1/REVIEW_RESOLUTION.md`: response to every P0/P1/P2 finding
-- `revision-1/VISUAL_QA.md`: Playwright/Chromium measurements at 320–1440 px and reduced-motion results
-- `revision-1/revision-1.patch.gz.b64`: complete source revision patch
-- `revision-1/visual-preview-revision-1.patch.gz.b64`: exact self-contained preview revision
-
-Repository-native typecheck, Node tests, build, authenticated return-path verification, and runtime Visual QA remain post-application gates.
-
-## Explicit non-goals
-
-- active camera/auth/composer connection
-- durable Kubiaka Record link
-- participant or guest credential
-- private receipt persistence
-- AI assessment or feedback publication
-- public coverage map
-- external routing or send
-- DB migration or deploy
-
-## Required response format
-
-1. Verdict
-2. Remaining findings ordered P0 → P1 → P2
-3. For each finding: file/section, problem, impact, exact recommended change
-4. What should be preserved
-5. Minimum remaining change set before implementation
-
-Do not reopen the settled ZUKAN naming decision or propose a public map for this phase.
+The requested verdict will again be `APPROVE`, `APPROVE_WITH_CHANGES`, or `REQUEST_CHANGES`, with findings ordered P0 → P1 → P2.
