@@ -80,6 +80,9 @@ function seedRecordGraph(database: DatabaseSync): {
       ('${recordArtifactId}', '{"sourceRecordId":"BB00000003"}', '${hashA}', 'available'),
       ('${claimArtifactId}', '"旧見付学校附磐田文庫"', '${hashB}', 'available');
 
+    INSERT INTO zukan_record_payload_scopes(payload_artifact_id, tenant_id)
+    VALUES ('${recordArtifactId}', 'tenant-a');
+
     INSERT INTO zukan_predicate_definitions(
       predicate_uri, predicate_version, value_type, cardinality,
       polarity_mode, temporal_profile
@@ -127,26 +130,31 @@ function seedRecordGraph(database: DatabaseSync): {
 test("PostgreSQL Record migration is additive, scoped, and append-only", () => {
   assert.doesNotMatch(postgresMigration, /^\s*(?:UPDATE|DELETE\s+FROM|TRUNCATE)\b/im);
   assert.doesNotMatch(postgresMigration, /\bDROP\s+(?:TABLE|COLUMN)\b/i);
+  assert.match(postgresMigration, /CREATE TABLE IF NOT EXISTS zukan_record_payload_scopes/);
   assert.match(postgresMigration, /CREATE TABLE IF NOT EXISTS zukan_records/);
   assert.match(postgresMigration, /recorded_sequence BIGINT GENERATED ALWAYS AS IDENTITY UNIQUE/);
-  assert.match(postgresMigration, /payload_artifact_id UUID NOT NULL REFERENCES zukan_value_artifacts/);
+  assert.match(postgresMigration, /payload_artifact_id UUID NOT NULL REFERENCES zukan_record_payload_scopes/);
   assert.match(postgresMigration, /CREATE TABLE IF NOT EXISTS zukan_record_subject_links/);
   assert.match(postgresMigration, /CREATE TABLE IF NOT EXISTS zukan_record_source_links/);
   assert.match(postgresMigration, /CREATE TABLE IF NOT EXISTS zukan_claim_record_links/);
+  assert.match(postgresMigration, /zukan_record_payload_scope_mismatch/);
   assert.match(postgresMigration, /zukan_record_subject_scope_mismatch/);
   assert.match(postgresMigration, /zukan_record_source_scope_mismatch/);
   assert.match(postgresMigration, /zukan_claim_record_scope_mismatch/);
+  assert.match(postgresMigration, /BEFORE UPDATE OR DELETE ON zukan_record_payload_scopes/);
   assert.match(postgresMigration, /BEFORE UPDATE OR DELETE ON zukan_records/);
 });
 
 test("D1 Record migration has parity tables, scope guards, and immutable triggers", () => {
+  assert.match(d1RecordMigration, /CREATE TABLE IF NOT EXISTS zukan_record_payload_scopes/);
   assert.match(d1RecordMigration, /CREATE TABLE IF NOT EXISTS zukan_records/);
   assert.match(d1RecordMigration, /recorded_sequence INTEGER PRIMARY KEY AUTOINCREMENT/);
   assert.match(d1RecordMigration, /json_type\(source_selector_json\) = 'object'/);
-  assert.match(d1RecordMigration, /zukan_record_payload_artifact_not_available/);
+  assert.match(d1RecordMigration, /zukan_record_payload_scope_mismatch/);
   assert.match(d1RecordMigration, /zukan_record_subject_scope_mismatch/);
   assert.match(d1RecordMigration, /zukan_record_source_scope_mismatch/);
   assert.match(d1RecordMigration, /zukan_claim_record_scope_mismatch/);
+  assert.match(d1RecordMigration, /zukan_record_payload_scopes_immutable/);
   assert.match(d1RecordMigration, /zukan_records_immutable/);
 });
 
@@ -155,27 +163,71 @@ test("D1 scratch DB persists one Record graph and rejects mutation", () => {
   try {
     const seeded = seedRecordGraph(database);
     const row = database.prepare(`
-      SELECT r.record_id, r.record_kind, a.value_json,
+      SELECT r.record_id, r.record_kind, a.value_json, scope.tenant_id AS payload_tenant,
              COUNT(DISTINCT s.subject_id) AS subject_count,
              COUNT(DISTINCT e.source_edition_id) AS source_count,
              COUNT(DISTINCT c.claim_revision_id) AS claim_count
         FROM zukan_records r
         JOIN zukan_value_artifacts a ON a.artifact_id = r.payload_artifact_id
+        JOIN zukan_record_payload_scopes scope ON scope.payload_artifact_id = r.payload_artifact_id
         LEFT JOIN zukan_record_subject_links s ON s.record_id = r.record_id
         LEFT JOIN zukan_record_source_links e ON e.record_id = r.record_id
         LEFT JOIN zukan_claim_record_links c ON c.record_id = r.record_id
        WHERE r.record_id = ?
-       GROUP BY r.record_id, r.record_kind, a.value_json
+       GROUP BY r.record_id, r.record_kind, a.value_json, scope.tenant_id
     `).get(seeded.recordId) as Record<string, unknown>;
 
     assert.equal(row.record_kind, "source_record");
     assert.equal(row.value_json, '{"sourceRecordId":"BB00000003"}');
+    assert.equal(row.payload_tenant, "tenant-a");
     assert.equal(row.subject_count, 2);
     assert.equal(row.source_count, 1);
     assert.equal(row.claim_count, 1);
     assert.throws(
       () => database.exec(`UPDATE zukan_records SET visibility='public' WHERE record_id='${seeded.recordId}'`),
       /zukan_records_immutable/,
+    );
+  } finally {
+    database.close();
+  }
+});
+
+test("D1 scratch DB rejects missing and cross-tenant Record payload scopes", () => {
+  const database = createD1Scratch();
+  try {
+    const missingArtifact = id(60);
+    const wrongScopeArtifact = id(61);
+    database.exec(`
+      INSERT INTO zukan_value_artifacts(artifact_id, value_json, content_sha256)
+      VALUES
+        ('${missingArtifact}', '{}', '${"d".repeat(64)}'),
+        ('${wrongScopeArtifact}', '{}', '${"e".repeat(64)}');
+      INSERT INTO zukan_record_payload_scopes(payload_artifact_id, tenant_id)
+      VALUES ('${wrongScopeArtifact}', 'tenant-b');
+    `);
+    assert.throws(
+      () => database.exec(`
+        INSERT INTO zukan_records(
+          record_id, tenant_id, record_kind, recorded_at,
+          payload_artifact_id, provenance_status, visibility
+        ) VALUES (
+          '${id(62)}', 'tenant-a', 'source_record', '2026-07-28T00:00:00.000Z',
+          '${missingArtifact}', 'unknown', 'workspace'
+        )
+      `),
+      /zukan_record_payload_scope_mismatch/,
+    );
+    assert.throws(
+      () => database.exec(`
+        INSERT INTO zukan_records(
+          record_id, tenant_id, record_kind, recorded_at,
+          payload_artifact_id, provenance_status, visibility
+        ) VALUES (
+          '${id(63)}', 'tenant-a', 'source_record', '2026-07-28T00:00:00.000Z',
+          '${wrongScopeArtifact}', 'unknown', 'workspace'
+        )
+      `),
+      /zukan_record_payload_scope_mismatch/,
     );
   } finally {
     database.close();
@@ -206,6 +258,8 @@ test("D1 scratch DB rejects cross-tenant Subject, Source, and Claim links", () =
     database.exec(`
       INSERT INTO zukan_value_artifacts(artifact_id, value_json, content_sha256)
       VALUES ('${otherRecordArtifact}', '{}', '${"c".repeat(64)}');
+      INSERT INTO zukan_record_payload_scopes(payload_artifact_id, tenant_id)
+      VALUES ('${otherRecordArtifact}', 'tenant-b');
       INSERT INTO zukan_records(
         record_id, tenant_id, record_kind, recorded_at,
         payload_artifact_id, provenance_status, visibility
