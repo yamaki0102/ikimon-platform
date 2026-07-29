@@ -1,6 +1,17 @@
 -- ZUKAN Foundation v2: first-class generic Record persistence for D1.
 -- Additive only. No runtime writer or public reader is enabled by this migration.
 
+CREATE TABLE IF NOT EXISTS zukan_record_payload_scopes (
+  payload_artifact_id TEXT PRIMARY KEY REFERENCES zukan_value_artifacts(artifact_id) ON DELETE RESTRICT,
+  tenant_id TEXT NOT NULL,
+  workspace_id TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CHECK (length(trim(tenant_id)) > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_zukan_record_payload_scopes_tenant
+  ON zukan_record_payload_scopes(tenant_id, workspace_id, payload_artifact_id);
+
 CREATE TABLE IF NOT EXISTS zukan_records (
   recorded_sequence INTEGER PRIMARY KEY AUTOINCREMENT,
   record_id TEXT NOT NULL UNIQUE,
@@ -10,7 +21,7 @@ CREATE TABLE IF NOT EXISTS zukan_records (
   recorded_at TEXT NOT NULL,
   occurred_at TEXT,
   actor_subject_id TEXT REFERENCES zukan_subject_identities(subject_id) ON DELETE SET NULL,
-  payload_artifact_id TEXT NOT NULL REFERENCES zukan_value_artifacts(artifact_id) ON DELETE RESTRICT,
+  payload_artifact_id TEXT NOT NULL REFERENCES zukan_record_payload_scopes(payload_artifact_id) ON DELETE RESTRICT,
   provenance_status TEXT NOT NULL,
   visibility TEXT NOT NULL DEFAULT 'private',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -77,15 +88,20 @@ CREATE TABLE IF NOT EXISTS zukan_claim_record_links (
 CREATE INDEX IF NOT EXISTS idx_zukan_claim_record_links_record
   ON zukan_claim_record_links(record_id, link_role, claim_revision_id);
 
-CREATE TRIGGER IF NOT EXISTS trg_zukan_records_payload_available
+CREATE TRIGGER IF NOT EXISTS trg_zukan_records_payload_scope
 BEFORE INSERT ON zukan_records
 WHEN NOT EXISTS (
-  SELECT 1 FROM zukan_value_artifacts AS a
-   WHERE a.artifact_id = NEW.payload_artifact_id
-     AND a.availability_status = 'available'
+  SELECT 1
+    FROM zukan_record_payload_scopes AS scope
+    JOIN zukan_value_artifacts AS artifact
+      ON artifact.artifact_id = scope.payload_artifact_id
+   WHERE scope.payload_artifact_id = NEW.payload_artifact_id
+     AND scope.tenant_id = NEW.tenant_id
+     AND scope.workspace_id IS NEW.workspace_id
+     AND artifact.availability_status = 'available'
 )
 BEGIN
-  SELECT RAISE(ABORT, 'zukan_record_payload_artifact_not_available');
+  SELECT RAISE(ABORT, 'zukan_record_payload_scope_mismatch');
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_zukan_records_actor_scope
@@ -142,6 +158,17 @@ WHEN NOT EXISTS (
 )
 BEGIN
   SELECT RAISE(ABORT, 'zukan_claim_record_scope_mismatch');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_zukan_record_payload_scopes_no_update
+BEFORE UPDATE ON zukan_record_payload_scopes
+BEGIN
+  SELECT RAISE(ABORT, 'zukan_record_payload_scopes_immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_zukan_record_payload_scopes_no_delete
+BEFORE DELETE ON zukan_record_payload_scopes
+BEGIN
+  SELECT RAISE(ABORT, 'zukan_record_payload_scopes_immutable');
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_zukan_records_no_update
