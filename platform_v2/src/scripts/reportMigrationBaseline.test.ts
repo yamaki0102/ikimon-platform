@@ -13,13 +13,13 @@ const migrationDir = path.resolve(currentDir, "../../db/migrations");
 test("db migration baseline rehearsal locks the current migration head and risk inventory", async () => {
   const report = await buildMigrationBaselineReport({
     migrationDir,
-    generatedAt: "2026-07-28T00:00:00.000Z",
+    generatedAt: "2026-07-29T00:00:00.000Z",
   });
 
   assert.equal(report.schemaVersion, "platform_migration_baseline_rehearsal/v0");
-  assert.equal(report.totalMigrations, 142);
+  assert.equal(report.totalMigrations, 143);
   assert.equal(report.firstMigration, "0001_extensions_and_core.sql");
-  assert.equal(report.headMigration, "0139_zukan_foundation_v2_integrity_hardening.sql");
+  assert.equal(report.headMigration, "0140_zukan_foundation_v2_records.sql");
   assert.deepEqual(report.extensionRequirements, ["timescaledb", "vector"]);
   assert.equal(report.riskSummary.destructiveApproved, 14);
   assert.equal(report.riskSummary.destructiveUnapproved, 1);
@@ -31,7 +31,7 @@ test("db migration baseline rehearsal locks the current migration head and risk 
 test("db migration baseline rehearsal surfaces sequence drift instead of hiding it", async () => {
   const report = await buildMigrationBaselineReport({
     migrationDir,
-    generatedAt: "2026-07-28T00:00:00.000Z",
+    generatedAt: "2026-07-29T00:00:00.000Z",
   });
 
   assert.deepEqual(report.missingSequences, ["0010", "0041", "0042", "0043", "0044", "0078", "0084"]);
@@ -39,15 +39,15 @@ test("db migration baseline rehearsal surfaces sequence drift instead of hiding 
   assert.ok(report.duplicateSequences.some((entry) => entry.sequence === "0119"));
 });
 
-test("db migration baseline rehearsal markdown names the unsafe historical debt and Foundation head", async () => {
+test("db migration baseline rehearsal markdown names the unsafe historical debt and Record head", async () => {
   const report = await buildMigrationBaselineReport({
     migrationDir,
-    generatedAt: "2026-07-28T00:00:00.000Z",
+    generatedAt: "2026-07-29T00:00:00.000Z",
   });
   const markdown = renderMarkdown(report);
 
   assert.match(markdown, /0075_normalize_shizuoka_locality_labels\.sql/);
   assert.match(markdown, /0003_delta_sync_idempotency\.sql/);
-  assert.match(markdown, /0139_zukan_foundation_v2_integrity_hardening\.sql/);
+  assert.match(markdown, /0140_zukan_foundation_v2_records\.sql/);
   assert.match(markdown, /npx tsx src\/scripts\/reportMigrationBaseline\.ts --format=markdown/);
 });
