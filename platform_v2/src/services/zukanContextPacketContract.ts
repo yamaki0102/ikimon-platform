@@ -6,17 +6,6 @@ export type ContextVisibility = "internal" | "tenant" | "public";
 export type ContextPacketPayload = {
   packetVersion: "zukan.context-packet/v1";
   purpose: string;
-  principal: {
-    subjectId: string;
-    tenantId: string;
-    workspaceId: string | null;
-    scopes: string[];
-  };
-  authorization: {
-    decisionId: string;
-    evaluatedAt: string;
-    allowed: true;
-  };
   derivedFrom: {
     resolutionRunId: string;
     claimStoreSnapshotToken: string;
@@ -75,15 +64,38 @@ export type ContextPacketPayload = {
   }>;
 };
 
+export type ContextPacketReceiptInput = {
+  receiptVersion: "zukan.context-packet-receipt/v1";
+  receiptId: string;
+  generatedAt: string;
+  principal: {
+    subjectId: string;
+    tenantId: string;
+    workspaceId: string | null;
+    scopes: string[];
+  };
+  authorization: {
+    decisionId: string;
+    evaluatedAt: string;
+    allowed: true;
+  };
+};
+
+export type ContextPacketReceipt = ContextPacketReceiptInput & {
+  contextPacketSha256: string;
+};
+
 export type ContextPacketEnvelope = {
   schema: "zukan.context-packet-envelope/v1";
   payloadSha256: string;
   payload: ContextPacketPayload;
+  receipt: ContextPacketReceipt;
 };
 
 export type ModelInputEnvelopePayload = {
   envelopeVersion: "zukan.model-input/v1";
   contextPacketSha256: string;
+  contextReceiptId: string;
   provider: string;
   modelId: string;
   purpose: "ai_input";
@@ -116,8 +128,10 @@ function requireNonEmpty(value: string, field: string): void {
   if (value.trim().length === 0) throw new Error(`context_packet_required:${field}`);
 }
 
-function requireTimestamp(value: string, field: string): void {
-  if (!Number.isFinite(Date.parse(value))) throw new Error(`context_packet_invalid_timestamp:${field}`);
+function requireTimestamp(value: string, field: string): number {
+  const epoch = Date.parse(value);
+  if (!Number.isFinite(epoch)) throw new Error(`context_packet_invalid_timestamp:${field}`);
+  return epoch;
 }
 
 function requireNonNegativeInteger(value: number, field: string): void {
@@ -131,12 +145,58 @@ function expectedVisibility(payload: ContextPacketPayload): ContextVisibility | 
   "public");
 }
 
-export function sealContextPacket(payload: ContextPacketPayload): ContextPacketEnvelope {
+function normalizePayload(payload: ContextPacketPayload): ContextPacketPayload {
+  return {
+    ...payload,
+    reproducibility: {
+      ...payload.reproducibility,
+      missingFields: [...new Set(payload.reproducibility.missingFields)].sort(),
+    },
+    completeness: {
+      ...payload.completeness,
+      omissionReasons: [...new Set(payload.completeness.omissionReasons)].sort(),
+    },
+    facts: payload.facts.map((fact) => ({
+      ...fact,
+      authorityAssertionIds: [...new Set(fact.authorityAssertionIds)].sort(),
+      evidenceLinkIds: [...new Set(fact.evidenceLinkIds)].sort(),
+    })).sort((left, right) =>
+      left.claimId.localeCompare(right.claimId) || left.claimRevision - right.claimRevision),
+    conflicts: payload.conflicts.map((conflict) => ({
+      ...conflict,
+      claimRevisionIds: [...new Set(conflict.claimRevisionIds)].sort(),
+    })).sort((left, right) =>
+      left.reasonCode.localeCompare(right.reasonCode)
+      || left.claimRevisionIds.join("\u0000").localeCompare(right.claimRevisionIds.join("\u0000"))),
+    openGovernance: [...payload.openGovernance].sort((left, right) =>
+      left.kind.localeCompare(right.kind) || left.caseId.localeCompare(right.caseId)),
+  };
+}
+
+function normalizeReceipt(receipt: ContextPacketReceiptInput): ContextPacketReceiptInput {
+  return {
+    ...receipt,
+    principal: {
+      ...receipt.principal,
+      scopes: [...new Set(receipt.principal.scopes)].sort(),
+    },
+  };
+}
+
+export function sealContextPacket(input: {
+  payload: ContextPacketPayload;
+  receipt: ContextPacketReceiptInput;
+}): ContextPacketEnvelope {
+  const payload = normalizePayload(input.payload);
+  const receiptInput = normalizeReceipt(input.receipt);
   requireNonEmpty(payload.purpose, "purpose");
-  requireNonEmpty(payload.principal.subjectId, "principal.subject_id");
-  requireNonEmpty(payload.principal.tenantId, "principal.tenant_id");
-  requireNonEmpty(payload.authorization.decisionId, "authorization.decision_id");
-  requireTimestamp(payload.authorization.evaluatedAt, "authorization.evaluated_at");
+  requireNonEmpty(receiptInput.receiptId, "receipt.receipt_id");
+  requireNonEmpty(receiptInput.principal.subjectId, "receipt.principal.subject_id");
+  requireNonEmpty(receiptInput.principal.tenantId, "receipt.principal.tenant_id");
+  requireNonEmpty(receiptInput.authorization.decisionId, "receipt.authorization.decision_id");
+  const generatedAt = requireTimestamp(receiptInput.generatedAt, "receipt.generated_at");
+  const evaluatedAt = requireTimestamp(receiptInput.authorization.evaluatedAt, "receipt.authorization.evaluated_at");
+  if (generatedAt < evaluatedAt) throw new Error("context_packet_receipt_generated_before_authorization");
   requireNonEmpty(payload.derivedFrom.resolutionRunId, "derived_from.resolution_run_id");
   requireNonEmpty(payload.derivedFrom.claimStoreSnapshotToken, "derived_from.claim_store_snapshot_token");
   requireNonNegativeInteger(
@@ -174,10 +234,15 @@ export function sealContextPacket(payload: ContextPacketPayload): ContextPacketE
   if (derivedVisibility !== null && derivedVisibility !== payload.visibility) {
     throw new Error("context_packet_visibility_not_most_restrictive");
   }
+  const payloadSha256 = sha256(canonicalFoundationJson(payload));
   return {
     schema: "zukan.context-packet-envelope/v1",
-    payloadSha256: sha256(canonicalFoundationJson(payload)),
+    payloadSha256,
     payload,
+    receipt: {
+      ...receiptInput,
+      contextPacketSha256: payloadSha256,
+    },
   };
 }
 
@@ -191,6 +256,9 @@ export function buildModelInputEnvelope(input: {
   requireNonEmpty(input.modelId, "model_input.model_id");
   const expectedContextSha = sha256(canonicalFoundationJson(input.context.payload));
   if (expectedContextSha !== input.context.payloadSha256) throw new Error("context_packet_digest_mismatch");
+  if (input.context.receipt.contextPacketSha256 !== input.context.payloadSha256) {
+    throw new Error("context_packet_receipt_digest_mismatch");
+  }
   const admitted = new Map(
     input.context.payload.facts.map((fact) => [
       `${fact.claimId}:${fact.claimRevision}`,
@@ -211,10 +279,11 @@ export function buildModelInputEnvelope(input: {
   const payload: ModelInputEnvelopePayload = {
     envelopeVersion: "zukan.model-input/v1",
     contextPacketSha256: input.context.payloadSha256,
+    contextReceiptId: input.context.receipt.receiptId,
     provider: input.provider,
     modelId: input.modelId,
     purpose: "ai_input",
-    authorizationDecisionId: input.context.payload.authorization.decisionId,
+    authorizationDecisionId: input.context.receipt.authorization.decisionId,
     segments: input.segments,
   };
   return {
