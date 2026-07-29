@@ -13,17 +13,18 @@
    - expiring execution lease with idempotent replay
    - expired or failed execution requires a new attempt ID
    - append-only attempt, usage, and reconciliation events
-   - distinct retry and reconciliation target fields
+   - distinct retry and reconciliation target fields with same-scope validation
    - USD-micro request/hour/feature-month/tenant-month limits
    - retry, fallback-depth, and provider-failure limits
    - raw provider usage metadata rejects prompt/response content and oversized structures
 2. Existing cost-log compatibility
    - bounded projection into existing `ai_cost_log`
-   - provider request ID, pricing version, retry, fallback, and cache evidence retained
+   - provider request ID, pricing version, retry, fallback, cache, and event-lineage evidence retained
    - raw provider usage is represented by SHA-256 only
    - negative reconciliation adjustments fail closed because current `ai_cost_log` forbids negative cost
 3. Source evidence and Context
    - Source Registry evidence remains separate from ContextPacket
+   - unstable, mutating, or rollout-boundary-crossing evidence is rejected
    - rights `unknown` always blocks `ai_input`
    - real `ResolutionRun` identity is mandatory; synthetic runs are unsupported
    - semantic packet is separated from generation/authorization receipt
@@ -35,9 +36,10 @@
    - two standalone knowledge-ingest scripts remain explicitly owned and time-bounded to 2026-09-30
    - static, dynamic, and `require` direct imports are rejected outside the reviewed boundary
 5. Validation
-   - strict TypeScript reconstruction: PASS
-   - changed-contract tests: 19 PASS / 0 FAIL
+   - isolated Node 22 strict TypeScript reconstruction: PASS
+   - changed-contract and source-safety tests: 22 PASS / 0 FAIL
    - provider-boundary tests: 2 PASS / 0 FAIL
+   - total: 24 PASS / 0 FAIL
 
 ## Existing cost infrastructure
 
