@@ -228,17 +228,15 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
     if (existing?.state === "succeeded") {
       return { acquired: false, reason: "already_succeeded", guard: { ...existing } };
     }
-    if (existing?.state === "active" && existing.holderAttemptId === attemptId) {
-      return { acquired: true, guard: { ...existing } };
-    }
-    if (existing?.state === "failed" && existing.holderAttemptId === attemptId) {
-      throw new Error("ai_retry_requires_new_attempt_id");
-    }
-    if (existing?.state === "active" && validTimestamp(existing.leaseExpiresAt, "existing_lease") > nowEpoch) {
-      return { acquired: false, reason: "active_lease", guard: { ...existing } };
-    }
     if (existing?.state === "active") {
-      if (existing.holderAttemptId === attemptId) throw new Error("ai_retry_requires_new_attempt_id");
+      const existingExpiry = validTimestamp(existing.leaseExpiresAt, "existing_lease");
+      if (existing.holderAttemptId === attemptId) {
+        if (existingExpiry > nowEpoch) return { acquired: true, guard: { ...existing } };
+        throw new Error("ai_retry_requires_new_attempt_id");
+      }
+      if (existingExpiry > nowEpoch) {
+        return { acquired: false, reason: "active_lease", guard: { ...existing } };
+      }
       this.attemptEvents.push({
         eventId: randomUUID(),
         executionKey,
@@ -323,8 +321,12 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
     } catch {
       throw new Error("ai_raw_usage_json_invalid");
     }
-    if (input.eventKind === "adjustment" && !input.retryOfEventId) {
-      throw new Error("ai_adjustment_requires_target_event");
+    if (input.eventKind === "adjustment") {
+      if (!input.retryOfEventId) throw new Error("ai_adjustment_requires_target_event");
+      if (!this.usageEventsById.has(input.retryOfEventId)) throw new Error("ai_adjustment_target_not_found");
+      if (input.reconciliationStatus !== "adjusted") throw new Error("ai_adjustment_status_mismatch");
+    } else if (input.reconciliationStatus === "adjusted") {
+      throw new Error("ai_usage_status_mismatch");
     }
     const existing = this.usageEventsById.get(eventId);
     if (existing) {
