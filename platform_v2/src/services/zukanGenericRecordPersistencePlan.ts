@@ -26,6 +26,12 @@ export type GenericRecordPayloadScope = {
   workspaceId: null;
 };
 
+export type GenericClaimValueScope = {
+  valueArtifactId: string;
+  tenantId: string;
+  workspaceId: null;
+};
+
 export type GenericRecordRow = {
   recordId: string;
   tenantId: string;
@@ -91,6 +97,7 @@ export type GenericRecordPersistencePlan = {
   predicates: ZukanRegionalCorePredicate[];
   valueArtifacts: GenericRecordValueArtifact[];
   recordPayloadScopes: GenericRecordPayloadScope[];
+  claimValueScopes: GenericClaimValueScope[];
   records: GenericRecordRow[];
   recordSubjectLinks: GenericRecordSubjectLink[];
   recordSourceLinks: GenericRecordSourceLink[];
@@ -109,6 +116,7 @@ export type GenericRecordPersistencePlan = {
   counts: {
     valueArtifacts: number;
     recordPayloadScopes: number;
+    claimValueScopes: number;
     records: number;
     subjectLinks: number;
     sourceLinks: number;
@@ -195,6 +203,7 @@ export function planGenericRecordPersistence(
     tenantId,
     workspaceId: null,
   }];
+  const claimValueScopes: GenericClaimValueScope[] = [];
 
   const records: GenericRecordRow[] = [{
     recordId: record.recordId,
@@ -289,6 +298,11 @@ export function planGenericRecordPersistence(
       contentSha256: sha256(candidate.valueJson),
       availabilityStatus: "available",
     });
+    claimValueScopes.push({
+      valueArtifactId,
+      tenantId,
+      workspaceId: null,
+    });
     claims.push({
       claimId,
       subjectId: candidate.subjectId,
@@ -347,6 +361,8 @@ export function planGenericRecordPersistence(
       || left.predicateVersion - right.predicateVersion),
     valueArtifacts: valueArtifacts.sort((left, right) => left.artifactId.localeCompare(right.artifactId)),
     recordPayloadScopes,
+    claimValueScopes: claimValueScopes.sort((left, right) =>
+      left.valueArtifactId.localeCompare(right.valueArtifactId)),
     records,
     recordSubjectLinks,
     recordSourceLinks,
@@ -367,6 +383,7 @@ export function planGenericRecordPersistence(
     counts: {
       valueArtifacts: planWithoutDigest.valueArtifacts.length,
       recordPayloadScopes: planWithoutDigest.recordPayloadScopes.length,
+      claimValueScopes: planWithoutDigest.claimValueScopes.length,
       records: planWithoutDigest.records.length,
       subjectLinks: planWithoutDigest.recordSubjectLinks.length,
       sourceLinks: planWithoutDigest.recordSourceLinks.length,
