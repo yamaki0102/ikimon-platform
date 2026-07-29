@@ -6,6 +6,8 @@
 
 ZUKANの有効なプロダクト境界は [`spec/zukan-product-architecture/SPEC.md`](spec/zukan-product-architecture/SPEC.md)、実装順は [`spec/zukan-product-architecture/PLAN.md`](spec/zukan-product-architecture/PLAN.md) を参照します。
 
+クビアカツヤカミキリ見守りの有効な対象専用契約は [`spec/kubiaka-focused-experience/SPEC.md`](spec/kubiaka-focused-experience/SPEC.md)、実装順は [`spec/kubiaka-focused-experience/PLAN.md`](spec/kubiaka-focused-experience/PLAN.md) を参照します。
+
 公開ホームの現行仕様は [`spec/public-home-state-split.md`](spec/public-home-state-split.md)、完了判定は [`operations/public-home-ux-completion-gate.md`](operations/public-home-ux-completion-gate.md) を参照します。
 
 ## 読む順番
@@ -30,6 +32,12 @@ ZUKANの有効なプロダクト境界は [`spec/zukan-product-architecture/SPEC
 [`spec/zukan-product-architecture/SPEC.md`](spec/zukan-product-architecture/SPEC.md)
 
 Knowledge Core、Participation / Workflow、Experience / Publicationの3層と、横断Domain Pack、安全・緊急対応の責任境界を定義します。
+
+### クビアカツヤカミキリ見守り
+
+[`spec/kubiaka-focused-experience/SPEC.md`](spec/kubiaka-focused-experience/SPEC.md)
+
+Receipt-first, Map-laterを採用し、全通知interlock、private receipt、共有端末、submitted／assessed asset、feedback、public mapと外部routingの後段化を定義します。
 
 ### 記録詳細・複数観察・AI解析・環境モニタリング
 
