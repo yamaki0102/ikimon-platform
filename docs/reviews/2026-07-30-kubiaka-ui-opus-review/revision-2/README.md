@@ -26,3 +26,11 @@ Do not approve or implement the original headline, cherry-only evidence model, o
 - no automatic reporting, external send, or public map
 - measured accessibility and visual QA
 - repository-native verification after application
+
+## Product positioning
+
+The experience should not be named or framed as a cherry-tree campaign. Cherry remains an important and familiar example, but the working product promise is:
+
+> サクラや果樹の異変を、地域の記録に。
+
+The initial public surface should explain examples such as cherry, ume, peach, sumomo, and apricot while allowing the contributor to choose `わからない`.
