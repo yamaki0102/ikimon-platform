@@ -9,69 +9,66 @@ const adjacentSourceRoot = path.resolve(moduleDirectory, "..");
 const sourceRoot = existsSync(path.join(adjacentSourceRoot, "services", "aiModelRouter.ts"))
   ? adjacentSourceRoot
   : path.resolve(moduleDirectory, "../../src");
-const googleGenAiModule = ["@", "google/genai"].join("");
-const reviewedProviderAdapters = new Set([
-  "services/providers/googleGenAiSdk.ts",
-]);
-const legacyDirectImports: Record<string, { owner: string; removeBy: string; reason: string }> = {
+const googleModule = ["@", "google/genai"].join("");
+const reviewedProviderImports = new Set(["services/providers/googleGenAiOperations.ts"]);
+const legacyScriptImports: Record<string, { owner: string; removeBy: string; reason: string }> = {
   "scripts/draftRegionalKnowledgeHooks.ts": {
-    owner: "knowledge-ingest",
-    removeBy: "2026-09-30",
-    reason: "standalone reviewed draft CLI",
+    owner: "knowledge-ingest", removeBy: "2026-09-30", reason: "standalone reviewed draft CLI",
   },
   "scripts/embedRegionalKnowledgeCards.ts": {
-    owner: "knowledge-ingest",
-    removeBy: "2026-09-30",
-    reason: "standalone embedding migration CLI",
+    owner: "knowledge-ingest", removeBy: "2026-09-30", reason: "standalone embedding migration CLI",
   },
 };
-
-function listTypeScriptFiles(directory: string): string[] {
+function files(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const absolute = path.join(directory, entry.name);
-    if (entry.isDirectory()) return listTypeScriptFiles(absolute);
+    if (entry.isDirectory()) return files(absolute);
     return entry.isFile() && entry.name.endsWith(".ts") ? [absolute] : [];
   });
 }
-
-function hasDirectImport(source: string): boolean {
-  const quoted = [`"${googleGenAiModule}"`, `'${googleGenAiModule}'`];
-  return quoted.some((moduleLiteral) =>
-    source.includes(`from ${moduleLiteral}`)
-    || source.includes(`import ${moduleLiteral}`)
-    || source.includes(`import(${moduleLiteral})`)
-    || source.includes(`require(${moduleLiteral})`));
+function hasImport(source: string, moduleName: string): boolean {
+  return [`"${moduleName}"`, `'${moduleName}'`].some((literal) =>
+    source.includes(`from ${literal}`)
+    || source.includes(`import ${literal}`)
+    || source.includes(`import(${literal})`)
+    || source.includes(`require(${literal})`));
 }
 
-test("Google GenAI SDK imports are limited to reviewed adapters and bounded script debt", () => {
-  const directImports = listTypeScriptFiles(sourceRoot)
-    .filter((absolute) => hasDirectImport(readFileSync(absolute, "utf8")))
-    .map((absolute) => path.relative(sourceRoot, absolute).split(path.sep).join("/"))
+test("raw Google SDK imports are limited to one provider implementation and bounded scripts", () => {
+  const imports = files(sourceRoot)
+    .filter((file) => hasImport(readFileSync(file, "utf8"), googleModule))
+    .map((file) => path.relative(sourceRoot, file).split(path.sep).join("/"))
     .sort();
-  const expected = [
-    ...reviewedProviderAdapters,
-    ...Object.keys(legacyDirectImports),
-  ].sort();
-  assert.deepEqual(directImports, expected, [
-    "Direct provider imports changed.",
-    "Use services/providers or explicitly review and time-bound the script debt entry.",
-  ].join(" "));
-  for (const runtimeFile of [
-    "services/aiModelRouter.ts",
-    "services/curatorGeminiWorker.ts",
-    "services/guideLiveToken.ts",
-    "services/guideTts.ts",
-  ]) {
-    assert.equal(directImports.includes(runtimeFile), false, runtimeFile);
-  }
+  assert.deepEqual(imports, [...reviewedProviderImports, ...Object.keys(legacyScriptImports)].sort());
+  for (const runtime of [
+    "services/aiModelRouter.ts", "services/aiModelRouterV2.ts",
+    "services/curatorGeminiWorker.ts", "services/curatorGeminiWorkerV2.ts",
+    "services/guideLiveToken.ts", "services/guideLiveTokenV2.ts",
+    "services/guideTts.ts", "services/guideTtsV2.ts",
+  ]) assert.equal(imports.includes(runtime), false, runtime);
 });
 
-test("legacy script direct-import debt has an owner reason and unexpired removal date", () => {
+test("runtime provider operations pass the mandatory metering boundary", () => {
+  for (const file of [
+    "services/aiModelRouterV2.ts",
+    "services/curatorGeminiWorkerV2.ts",
+    "services/guideLiveTokenV2.ts",
+    "services/guideTtsV2.ts",
+  ]) {
+    const source = readFileSync(path.join(sourceRoot, file), "utf8");
+    assert.match(source, /executeMeteredAiOperation/u, file);
+  }
+  const runtime = readFileSync(path.join(sourceRoot, "services/aiUsageRuntime.ts"), "utf8");
+  assert.match(runtime, /AI_USAGE_V2_ENABLED/u);
+  assert.match(runtime, /AiUsagePostgresRepository/u);
+});
+
+test("legacy script imports have an owner reason and unexpired removal date", () => {
   const today = new Date().toISOString().slice(0, 10);
-  for (const [file, debt] of Object.entries(legacyDirectImports)) {
+  for (const [file, debt] of Object.entries(legacyScriptImports)) {
     assert.ok(debt.owner.trim(), `${file}:owner`);
     assert.ok(debt.reason.trim(), `${file}:reason`);
     assert.match(debt.removeBy, /^\d{4}-\d{2}-\d{2}$/u, `${file}:removeBy`);
-    assert.ok(debt.removeBy >= today, `${file}:legacy provider debt expired on ${debt.removeBy}`);
+    assert.ok(debt.removeBy >= today, `${file}:provider debt expired on ${debt.removeBy}`);
   }
 });
