@@ -95,7 +95,7 @@ test("strict metadata rejects unknown keys before a transaction", async () => {
   assert.equal(client.calls.length, 0);
 });
 
-test("budget query is UTC bounded and prefilters tenant gross usage", async () => {
+test("budget query uses database UTC clock and prefilters tenant gross usage", async () => {
   const pool = new ScriptedPool(new ScriptedClient([]), [{ rows: [{
     hourly_usd_micros: "1", feature_monthly_usd_micros: "2", tenant_monthly_usd_micros: "3",
     retry_count: "0", fallback_depth: "0", provider_failure_count: "0",
@@ -103,11 +103,12 @@ test("budget query is UTC bounded and prefilters tenant gross usage", async () =
   const repository = new AiUsagePostgresRepository(pool);
   const snapshot = await repository.budgetSnapshot({
     tenantId: key.tenantId, project: key.project, workspaceId: null,
-    feature: key.feature, now: "2026-07-29T00:10:00.000Z",
+    feature: key.feature, now: "1900-01-01T00:00:00.000Z",
   });
   assert.equal(snapshot.tenantMonthlyUsdMicros, 3);
   const sql = pool.directCalls[0]?.sql ?? "";
-  assert.match(sql, /date_trunc\('month',\$5::timestamptz,'UTC'\)/u);
+  assert.match(sql, /date_trunc\('month',clock_timestamp\(\),'UTC'\)/u);
   assert.match(sql, /WHERE tenant_id=\$1 AND event_kind='usage'/u);
-  assert.match(sql, /occurred_at>=bounds\.month_start/u);
+  assert.match(sql, /recorded_at>=bounds\.month_start/u);
+  assert.doesNotMatch(sql, /\$5::timestamptz/u);
 });
