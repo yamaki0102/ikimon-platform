@@ -34,49 +34,35 @@ function sortedAiValue(value: unknown): unknown {
       .map(([key, item]) => [key, sortedAiValue(item)]),
   );
 }
-
-export function canonicalAiJson(value: unknown): string {
-  return JSON.stringify(sortedAiValue(value));
-}
-
-function sha256(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex");
-}
-
+export function canonicalAiJson(value: unknown): string { return JSON.stringify(sortedAiValue(value)) }
+function sha256(value: string): string { return createHash("sha256").update(value, "utf8").digest("hex") }
 export function required(value: string, name: string): string {
   const normalized = value.trim();
   if (!normalized) throw new Error(`required_ai_field:${name}`);
   return normalized;
 }
-
 export function requireDigest(value: string, name: string): string {
   const digest = required(value, name).toLowerCase();
   if (!/^[0-9a-f]{64}$/u.test(digest)) throw new Error(`invalid_ai_digest:${name}`);
   return digest;
 }
-
 export function validTimestamp(value: string, name: string): number {
   const epoch = Date.parse(value);
   if (!Number.isFinite(epoch)) throw new Error(`invalid_ai_timestamp:${name}`);
   return epoch;
 }
-
 export function nonNegativeInteger(value: number, name: string): number {
   if (!Number.isSafeInteger(value) || value < 0) throw new Error(`invalid_ai_integer:${name}`);
   return value;
 }
-
 export function positiveLeaseDuration(value: number): number {
   if (!Number.isSafeInteger(value) || value <= 0 || value > MAX_AI_LEASE_DURATION_MS) {
     throw new Error("invalid_ai_lease_duration");
   }
   return value;
 }
-
 export function normalizeExecutionKeyInput(input: AiExecutionKeyInput): AiExecutionKeyInput {
-  const targetTime = input.targetTime === null
-    ? null
-    : new Date(validTimestamp(input.targetTime, "target_time")).toISOString();
+  const targetTime = input.targetTime === null ? null : new Date(validTimestamp(input.targetTime, "target_time")).toISOString();
   return {
     tenantId: required(input.tenantId, "tenant_id"),
     project: required(input.project, "project"),
@@ -85,6 +71,7 @@ export function normalizeExecutionKeyInput(input: AiExecutionKeyInput): AiExecut
     provider: required(input.provider, "provider"),
     modelId: required(input.modelId, "model_id"),
     operationVersion: required(input.operationVersion, "operation_version"),
+    invocationId: required(input.invocationId, "invocation_id"),
     canonicalInputDigest: requireDigest(input.canonicalInputDigest, "canonical_input_digest"),
     sourceDigest: requireDigest(input.sourceDigest, "source_digest"),
     extractionRunId: input.extractionRunId === null ? null : required(input.extractionRunId, "extraction_run_id"),
@@ -93,19 +80,15 @@ export function normalizeExecutionKeyInput(input: AiExecutionKeyInput): AiExecut
     targetTime,
   };
 }
-
 export function buildAiExecutionKey(input: AiExecutionKeyInput): string {
   return sha256(canonicalAiJson(normalizeExecutionKeyInput(input)));
 }
-
 function validateUsageMetadataValue(value: unknown, depth: number): void {
   if (depth > 6) throw new Error("ai_raw_usage_json_too_deep");
   if (Array.isArray(value)) {
     if (value.length > 256) throw new Error("ai_raw_usage_json_array_too_large");
     for (const item of value) {
-      if (item !== null && (typeof item !== "object" || Array.isArray(item))) {
-        throw new Error("ai_raw_usage_json_array_item_invalid");
-      }
+      if (item !== null && (typeof item !== "object" || Array.isArray(item))) throw new Error("ai_raw_usage_json_array_item_invalid");
       if (item !== null) validateUsageMetadataValue(item, depth + 1);
     }
     return;
@@ -116,13 +99,9 @@ function validateUsageMetadataValue(value: unknown, depth: number): void {
   for (const [key, item] of entries) {
     const normalizedKey = key.toLowerCase();
     if (countKeys.has(normalizedKey)) {
-      if (item !== null && (typeof item !== "number" || !Number.isFinite(item) || item < 0)) {
-        throw new Error(`ai_raw_usage_json_count_invalid:${key}`);
-      }
+      if (item !== null && (typeof item !== "number" || !Number.isFinite(item) || item < 0)) throw new Error(`ai_raw_usage_json_count_invalid:${key}`);
     } else if (enumKeys.has(normalizedKey)) {
-      if (item !== null && (typeof item !== "string" || item.length > 64)) {
-        throw new Error(`ai_raw_usage_json_enum_invalid:${key}`);
-      }
+      if (item !== null && (typeof item !== "string" || item.length > 64)) throw new Error(`ai_raw_usage_json_enum_invalid:${key}`);
     } else if (containerKeys.has(normalizedKey)) {
       if (item !== null) validateUsageMetadataValue(item, depth + 1);
     } else {
@@ -130,20 +109,16 @@ function validateUsageMetadataValue(value: unknown, depth: number): void {
     }
   }
 }
-
 export function normalizeAiUsageMetadata(rawUsageJson: string): string {
   if (rawUsageJson.length > 16_384) throw new Error("ai_raw_usage_json_too_large");
   let parsed: unknown;
-  try { parsed = JSON.parse(rawUsageJson); } catch { throw new Error("ai_raw_usage_json_invalid"); }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("ai_raw_usage_json_must_be_object");
-  }
+  try { parsed = JSON.parse(rawUsageJson) } catch { throw new Error("ai_raw_usage_json_invalid") }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("ai_raw_usage_json_must_be_object");
   validateUsageMetadataValue(parsed, 0);
   const canonical = canonicalAiJson(parsed);
   if (Buffer.byteLength(canonical, "utf8") > 16_384) throw new Error("ai_raw_usage_json_too_large");
   return canonical;
 }
-
 export function validateRelatedUsageEvent(
   input: RecordAiUsageInput,
   target: AiUsageEvent,
@@ -160,7 +135,6 @@ export function validateRelatedUsageEvent(
     throw new Error(`ai_${relation}_target_scope_mismatch`);
   }
 }
-
 export function evaluateAiBudget(input: {
   projection: AiBudgetProjection;
   snapshot: AiBudgetSnapshot;
@@ -196,8 +170,6 @@ export function evaluateAiBudget(input: {
   if (snapshot.tenantMonthly + projection.request > limits.tenantMonthly) reasons.push("tenant_monthly_limit");
   if (snapshot.retryCount + projection.retryCount > limits.retryCount) reasons.push("retry_limit");
   if (Math.max(snapshot.fallbackDepth, projection.fallbackDepth) > limits.fallbackDepth) reasons.push("fallback_depth_limit");
-  if (snapshot.providerFailureCount + projection.providerFailureCount > limits.providerFailureCount) {
-    reasons.push("provider_failure_limit");
-  }
+  if (snapshot.providerFailureCount + projection.providerFailureCount > limits.providerFailureCount) reasons.push("provider_failure_limit");
   return { allowed: reasons.length === 0, reasons };
 }
