@@ -61,7 +61,7 @@ export function buildSourceImportEvidenceEnvelope(
       status: "required",
       sourceStatus: "unknown",
       aiInputAdmitted: false,
-      warnings: [...new Set(evidence.rights.warnings)].sort(),
+      warnings: [...new Set<string>(evidence.rights.warnings)].sort(),
     },
   };
   return {
