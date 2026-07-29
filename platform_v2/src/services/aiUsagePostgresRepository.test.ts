@@ -85,12 +85,8 @@ function usageInput(): RecordAiUsageInput {
 
 test("Postgres acquire uses a transaction, advisory lock, guard row, and attempt event", async () => {
   const client = new ScriptedClient([
-    { rows: [] },
-    { rows: [] },
-    { rows: [] },
-    { rows: [] },
-    { rows: [] },
-    { rows: [] },
+    { rows: [] }, { rows: [] }, { rows: [] },
+    { rows: [] }, { rows: [] }, { rows: [] },
   ]);
   const repository = new AiUsagePostgresRepository(new ScriptedPool(client));
   const result = await repository.acquire({
@@ -151,11 +147,7 @@ test("Postgres usage insert returns the authoritative recorded sequence", async 
     adjustment_of_event_id: input.adjustmentOfEventId,
   };
   const client = new ScriptedClient([
-    { rows: [] },
-    { rows: [] },
-    { rows: [] },
-    { rows: [row] },
-    { rows: [] },
+    { rows: [] }, { rows: [] }, { rows: [] }, { rows: [row] }, { rows: [] },
   ]);
   const repository = new AiUsagePostgresRepository(new ScriptedPool(client));
   const inserted = await repository.recordUsage(input);
@@ -166,7 +158,18 @@ test("Postgres usage insert returns the authoritative recorded sequence", async 
   assert.equal(client.calls[4]?.sql, "COMMIT");
 });
 
-test("Postgres budget snapshot reads USD-micro and failure windows", async () => {
+test("Postgres persistence rejects prompt or response content before opening a transaction", async () => {
+  const client = new ScriptedClient([]);
+  const repository = new AiUsagePostgresRepository(new ScriptedPool(client));
+  await assert.rejects(() => repository.recordUsage({
+    ...usageInput(),
+    eventId: "usage-sensitive",
+    rawUsageJson: JSON.stringify({ response_body: "secret" }),
+  }), /ai_usage_raw_usage_forbidden_key:response_body/u);
+  assert.equal(client.calls.length, 0);
+});
+
+test("Postgres budget snapshot reads gross usage and excludes reconciliation adjustments", async () => {
   const client = new ScriptedClient([]);
   const pool = new ScriptedPool(client, [{
     rows: [{
@@ -194,6 +197,8 @@ test("Postgres budget snapshot reads USD-micro and failure windows", async () =>
     fallbackDepth: 1,
     providerFailureCount: 3,
   });
-  assert.match(pool.directCalls[0]?.sql ?? "", /date_trunc\('hour'/u);
-  assert.match(pool.directCalls[0]?.sql ?? "", /date_trunc\('month'/u);
+  const sql = pool.directCalls[0]?.sql ?? "";
+  assert.match(sql, /date_trunc\('hour'/u);
+  assert.match(sql, /date_trunc\('month'/u);
+  assert.match(sql, /event_kind = 'usage'/u);
 });
