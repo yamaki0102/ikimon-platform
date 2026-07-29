@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  InMemoryAiUsageControl,
+  InMemoryAiUsageRepository,
   buildAiExecutionKey,
   evaluateAiBudget,
   type AiExecutionKeyInput,
@@ -21,16 +21,16 @@ test("execution key is deterministic and normalizes the source digest", () => {
   assert.equal(buildAiExecutionKey(key), buildAiExecutionKey({ ...key, sourceDigest: "a".repeat(64) }));
 });
 
-test("active and succeeded guards prevent duplicate execution", () => {
-  const control = new InMemoryAiUsageControl();
-  const first = control.acquire({
+test("active and succeeded guards prevent duplicate execution", async () => {
+  const repository = new InMemoryAiUsageRepository();
+  const first = await repository.acquire({
     key,
     attemptId: "attempt-1",
     now: "2026-07-29T00:00:00.000Z",
     leaseExpiresAt: "2026-07-29T00:05:00.000Z",
   });
   assert.equal(first.acquired, true);
-  const duplicate = control.acquire({
+  const duplicate = await repository.acquire({
     key,
     attemptId: "attempt-2",
     now: "2026-07-29T00:01:00.000Z",
@@ -41,13 +41,13 @@ test("active and succeeded guards prevent duplicate execution", () => {
   assert.equal(duplicate.reason, "active_lease");
 
   const executionKey = buildAiExecutionKey(key);
-  control.settle({
+  await repository.settle({
     executionKey,
     attemptId: "attempt-1",
     occurredAt: "2026-07-29T00:02:00.000Z",
     outcome: "succeeded",
   });
-  const afterSuccess = control.acquire({
+  const afterSuccess = await repository.acquire({
     key,
     attemptId: "attempt-3",
     now: "2026-07-29T00:03:00.000Z",
@@ -58,16 +58,16 @@ test("active and succeeded guards prevent duplicate execution", () => {
   assert.equal(afterSuccess.reason, "already_succeeded");
 });
 
-test("failed or expired attempts can be reacquired with append-only attempt events", () => {
-  const control = new InMemoryAiUsageControl();
-  const first = control.acquire({
+test("failed or expired attempts can be reacquired with append-only attempt events", async () => {
+  const repository = new InMemoryAiUsageRepository();
+  const first = await repository.acquire({
     key,
     attemptId: "attempt-1",
     now: "2026-07-29T00:00:00.000Z",
     leaseExpiresAt: "2026-07-29T00:01:00.000Z",
   });
   assert.equal(first.acquired, true);
-  const reacquired = control.acquire({
+  const reacquired = await repository.acquire({
     key,
     attemptId: "attempt-2",
     now: "2026-07-29T00:02:00.000Z",
@@ -75,18 +75,18 @@ test("failed or expired attempts can be reacquired with append-only attempt even
   });
   assert.equal(reacquired.acquired, true);
   assert.deepEqual(
-    control.listAttemptEvents().map((event) => event.kind),
+    (await repository.listAttemptEvents()).map((event) => event.kind),
     ["started", "lease_expired", "started"],
   );
 
-  control.settle({
+  await repository.settle({
     executionKey: buildAiExecutionKey(key),
     attemptId: "attempt-2",
     occurredAt: "2026-07-29T00:02:30.000Z",
     outcome: "failed",
     detail: "provider_timeout",
   });
-  const retry = control.acquire({
+  const retry = await repository.acquire({
     key,
     attemptId: "attempt-3",
     now: "2026-07-29T00:02:40.000Z",
@@ -95,8 +95,8 @@ test("failed or expired attempts can be reacquired with append-only attempt even
   assert.equal(retry.acquired, true);
 });
 
-test("usage and reconciliation adjustments are both retained", () => {
-  const control = new InMemoryAiUsageControl();
+test("usage and reconciliation adjustments are both retained", async () => {
+  const repository = new InMemoryAiUsageRepository();
   const base = {
     occurredAt: "2026-07-29T00:00:00.000Z",
     tenantId: "tenant-a",
@@ -114,17 +114,20 @@ test("usage and reconciliation adjustments are both retained", () => {
     cachedInputTokens: 0,
     cacheWriteTokens: 0,
     outputTokens: 20,
+    retryCount: 0,
+    fallbackDepth: 0,
+    providerFailureCount: 0,
     outcome: "ok" as const,
     rawUsageJson: "{\"promptTokenCount\":100,\"candidatesTokenCount\":20}",
     retryOfEventId: null,
   };
-  const usage = control.recordUsage({
+  const usage = await repository.recordUsage({
     ...base,
     costUsdMicros: 100,
     eventKind: "usage",
     reconciliationStatus: "pending",
   });
-  const adjustment = control.recordUsage({
+  const adjustment = await repository.recordUsage({
     ...base,
     requestId: "reconciliation-1",
     inputTokens: 0,
@@ -136,25 +139,39 @@ test("usage and reconciliation adjustments are both retained", () => {
   });
   assert.equal(usage.recordedSequence, 1);
   assert.equal(adjustment.recordedSequence, 2);
-  assert.equal(control.listUsageEvents().length, 2);
+  assert.equal((await repository.listUsageEvents()).length, 2);
 });
 
-test("budget decision checks request hourly feature and tenant limits", () => {
+test("budget decision checks cost retry fallback and provider-failure limits", () => {
   assert.deepEqual(evaluateAiBudget({
     projectedRequestUsdMicros: 60,
     snapshot: {
       hourlyUsdMicros: 50,
       featureMonthlyUsdMicros: 150,
       tenantMonthlyUsdMicros: 250,
+      retryCount: 3,
+      fallbackDepth: 2,
+      providerFailureCount: 2,
     },
     limits: {
       requestUsdMicros: 50,
       hourlyUsdMicros: 100,
       featureMonthlyUsdMicros: 200,
       tenantMonthlyUsdMicros: 300,
+      retryCount: 2,
+      fallbackDepth: 1,
+      providerFailureCount: 1,
     },
   }), {
     allowed: false,
-    reasons: ["request_limit", "hourly_limit", "feature_monthly_limit", "tenant_monthly_limit"],
+    reasons: [
+      "request_limit",
+      "hourly_limit",
+      "feature_monthly_limit",
+      "tenant_monthly_limit",
+      "retry_limit",
+      "fallback_depth_limit",
+      "provider_failure_limit",
+    ],
   });
 });
