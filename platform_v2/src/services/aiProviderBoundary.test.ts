@@ -50,10 +50,12 @@ function listTypeScriptFiles(directory: string): string[] {
 }
 
 function hasDirectImport(source: string): boolean {
-  return source.includes(`from \"${googleGenAiModule}\"`)
-    || source.includes(`from '${googleGenAiModule}'`)
-    || source.includes(`import \"${googleGenAiModule}\"`)
-    || source.includes(`import '${googleGenAiModule}'`);
+  const quoted = [`"${googleGenAiModule}"`, `'${googleGenAiModule}'`];
+  return quoted.some((moduleLiteral) =>
+    source.includes(`from ${moduleLiteral}`)
+    || source.includes(`import ${moduleLiteral}`)
+    || source.includes(`import(${moduleLiteral})`)
+    || source.includes(`require(${moduleLiteral})`));
 }
 
 test("Google GenAI SDK imports are limited to reviewed adapters and bounded legacy debt", () => {
@@ -72,10 +74,12 @@ test("Google GenAI SDK imports are limited to reviewed adapters and bounded lega
   assert.equal(directImports.includes("services/aiModelRouter.ts"), false);
 });
 
-test("legacy direct-import debt has an owner reason and removal date", () => {
+test("legacy direct-import debt has an owner reason and unexpired removal date", () => {
+  const today = new Date().toISOString().slice(0, 10);
   for (const [file, debt] of Object.entries(legacyDirectImports)) {
     assert.ok(debt.owner.trim(), `${file}:owner`);
     assert.ok(debt.reason.trim(), `${file}:reason`);
     assert.match(debt.removeBy, /^\d{4}-\d{2}-\d{2}$/u, `${file}:removeBy`);
+    assert.ok(debt.removeBy >= today, `${file}:legacy provider debt expired on ${debt.removeBy}`);
   }
 });
