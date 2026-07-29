@@ -16,7 +16,9 @@ Foundation v2のSource、Identity、Claim、Rights、Resolution、Publicationを
 
 PostgreSQL:
 
-- `0140_zukan_foundation_v2_records.sql`
+- `0145_zukan_foundation_v2_records.sql`
+
+`0140`〜`0144`は並行PR #1497のAI usage persistenceに予約されているため、衝突回避のため`0145`を使用する。#1497が未統合の間はmigration baselineに0140〜0144のgapを明示する。
 
 D1 CORE_DB:
 
@@ -27,6 +29,7 @@ D1 CORE_DB:
 - immutable `zukan_records`
 - monotonic Record sequence
 - Record payloadを参照する独立ValueArtifact
+- payload artifactとtenant/workspaceを固定するappend-only scope binding
 - append-only Record-to-Subject link
 - append-only Record-to-SourceEdition link
 - append-only ClaimRevision-to-Record link
@@ -50,6 +53,8 @@ Recordは「何が提出、取得、観察、実行されたか」を保持す�
 Claimは「そのRecordを根拠に対象について何を主張するか」を保持する。
 
 Record payloadとClaim valueは別ValueArtifactとする。Claim訂正やReviewで元Recordを更新しない。
+
+Record payload用ValueArtifactは`zukan_record_payload_scopes`へ先に登録し、Recordのtenant/workspaceと完全一致する場合だけ参照できる。global ValueArtifact IDだけを根拠に別tenantへ接続しない。
 
 SourceEditionはRecordへ参照接続し、Source本文、画像、紙面をRecord payloadへ複製しない。Source内位置は`source_selector`へ保持する。
 
@@ -90,7 +95,8 @@ Required evidence:
 - D1 0009〜0015がfresh scratch DBへ適用できる
 - pinned Wrangler/workerdが0015をledger tailとして確認する
 - Record graphをscratch D1へ挿入できる
-- Record UPDATE/DELETEが拒否される
+- Recordとpayload scopeのUPDATE/DELETEが拒否される
+- missing・cross-tenant payload scopeが拒否される
 - cross-tenant Subject、SourceEdition、ClaimRevision linkが拒否される
 - dry-run mapperがorder-invariantである
 - Record payload artifactとClaim value artifactsが別である
