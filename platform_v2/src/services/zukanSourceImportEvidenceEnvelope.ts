@@ -33,6 +33,20 @@ function sha256(value: string): string {
 export function buildSourceImportEvidenceEnvelope(
   evidence: FoundationSourceRegistryReadOnlyEvidence,
 ): SourceImportEvidenceEnvelope {
+  if (evidence.mode !== "read_only_dry_run") throw new Error("source_evidence_not_read_only_dry_run");
+  if (evidence.source.verification !== "git_head_clean") throw new Error("source_evidence_source_not_verified");
+  if (!evidence.twoRunStability.stable
+    || !evidence.twoRunStability.manifestMatch
+    || !evidence.twoRunStability.payloadMatch
+    || !evidence.twoRunStability.itemDiffMatch) {
+    throw new Error("source_evidence_not_stable");
+  }
+  if (evidence.mutationEvidence.mutationCount !== 0 || !evidence.mutationEvidence.unchanged) {
+    throw new Error("source_evidence_mutation_detected");
+  }
+  if (evidence.rolloutBoundary.publicResponseChanged || evidence.rolloutBoundary.writeMethodsInvoked !== 0) {
+    throw new Error("source_evidence_rollout_boundary_crossed");
+  }
   const payload: SourceImportEvidencePayload = {
     source: evidence.source,
     target: evidence.target,
@@ -47,7 +61,7 @@ export function buildSourceImportEvidenceEnvelope(
       status: "required",
       sourceStatus: "unknown",
       aiInputAdmitted: false,
-      warnings: [...evidence.rights.warnings].sort(),
+      warnings: [...new Set(evidence.rights.warnings)].sort(),
     },
   };
   return {
