@@ -58,14 +58,15 @@ Record payload用ValueArtifactは`zukan_record_payload_scopes`へ先に登録し
 
 SourceEditionはRecordへ参照接続し、Source本文、画像、紙面をRecord payloadへ複製しない。Source内位置は`source_selector`へ保持する。
 
+取得日、発行日、更新日はSourceEditionまたはRecordのprovenance metadataである。地域EntityのClaimとして重複保存しない。
+
 ## 4. Predicate boundary
 
-初期の地域共通Predicateは次の4件に限定する。
+初期の地域Entity共通Predicateは次の3件に限定する。
 
 - `https://zukan.earth/predicate/name@1`
 - `https://zukan.earth/predicate/address@1`
 - `https://zukan.earth/predicate/summary@1`
-- `https://zukan.earth/predicate/source-updated-at@1`
 
 migrationはPredicate rowを自動seedしない。source contractとdry-run planで必要定義を出し、実DB登録はwriter rehearsalの同一change setで明示する。
 
@@ -100,6 +101,7 @@ Required evidence:
 - cross-tenant Subject、SourceEdition、ClaimRevision linkが拒否される
 - dry-run mapperがorder-invariantである
 - Record payload artifactとClaim value artifactsが別である
+- SourceEdition timestampsがEntity Claimへ混入しない
 - public candidateはReviewとRights dependencyなしに進まない
 
 ## 7. Activation order
@@ -129,6 +131,7 @@ DB適用後はwriter/read pathを無効のまま維持し、tableと監査構造
 - existing Occurrence/Taxon renameが必要になる
 - tenant/workspace scopeをDBで検証できない
 - Record payloadとClaim valueを分離できない
+- SourceEdition metadataを地域EntityのClaimへ重複格納する
 - rights dependencyを具体IDへ解決できない
 - PostgreSQL/D1 visibility差異を暗黙変換しようとする
 - suppression/withdrawalを反映しないpublic readerが先に作られる
