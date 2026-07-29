@@ -52,8 +52,30 @@ function limits(overrides: Partial<AiBudgetLimits> = {}): AiBudgetLimits {
     providerFailureCount: overrides.providerFailureCount ?? positiveEnv("AI_USAGE_HOURLY_PROVIDER_FAILURE_LIMIT", 100),
   };
 }
-export function isAiUsageV2Enabled(): boolean {
-  return ["1", "true", "yes", "on"].includes(process.env.AI_USAGE_V2_ENABLED?.trim().toLowerCase() ?? "");
+function enabledFlag(): boolean {
+  return ["1", "true", "yes", "on"].includes(
+    process.env.AI_USAGE_V2_ENABLED?.trim().toLowerCase() ?? "",
+  );
+}
+function enabledFeatures(): Set<string> {
+  return new Set(
+    (process.env.AI_USAGE_V2_FEATURES ?? "")
+      .split(",")
+      .map((feature) => feature.trim())
+      .filter(Boolean),
+  );
+}
+
+/**
+ * Activation is fail-closed. Both the global flag and an explicit feature
+ * allowlist entry are required. `*` is supported only for a reviewed full cutover.
+ */
+export function isAiUsageV2Enabled(feature?: string): boolean {
+  if (!enabledFlag()) return false;
+  const features = enabledFeatures();
+  if (features.size === 0) return false;
+  if (features.has("*")) return true;
+  return typeof feature === "string" && features.has(feature.trim());
 }
 
 export async function executeMeteredAiOperation<T>(input: {
@@ -63,7 +85,7 @@ export async function executeMeteredAiOperation<T>(input: {
   metadata: AiRuntimeMetadata;
   invoke(): Promise<AiProviderInvocationResult<T>>;
 }): Promise<T> {
-  if (!isAiUsageV2Enabled()) return (await input.invoke()).value;
+  if (!isAiUsageV2Enabled(input.metadata.feature)) return (await input.invoke()).value;
   const canonicalInputDigest = sha256(canonicalAiJson(input.canonicalInput));
   const invocationId = input.metadata.invocationId ?? randomUUID();
   return boundary().execute({
