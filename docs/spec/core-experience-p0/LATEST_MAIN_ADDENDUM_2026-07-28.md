@@ -1,9 +1,13 @@
 # Latest main addendum: ZUKAN戦略・磐田View・Source Registry
 
-- 観測日: 2026-07-28
-- strategy main: `09fe199fbc4e42320d6595b9de9c2d1c9b3d98dd`
-- implementation main: `a91861aa6f21cc206fd1cae387b06b75e68f2559`
-- 本文書PR: #1470
+- 観測日: 2026-07-30
+- strategy main: `03285f66b706cc07a9efd5cfae2b1eb8e4420874`
+- implementation main: `10c1c89c296430baa0b39b818cc71af956dc3696`
+- 本文書の採用元: #1470
+- 個人P0部分runtime gate: #1473
+- Source Registry拡張: #1474
+- Foundation現行経路: #1478、#1482、#1484、#1485
+- brand / Home current source: #1488
 - 状態: `STRATEGY_ADOPTED / IWATA_VIEW_SOURCE_IMPLEMENTED / SOURCE_REGISTRY_SOURCE_IMPLEMENTED / RUNTIME_NOT_VERIFIED`
 
 ## 1. 戦略採用
@@ -40,11 +44,13 @@ IKIMON株式会社とZUKANの事業・サービス定義はstrategy PR #32でmai
 
 ## 3. Source Registry source
 
-main `a91861aa...`までに追加済み:
+implementation main `10c1c89c...`で参照する現行経路:
 
 - `platform_v2/src/services/regionalSourceRegistry.ts`
 - `platform_v2/src/services/regionalSourceRegistry.test.ts`
 - `platform_v2/src/routes/regionalSources.ts`
+- `platform_v2/src/services/zukanFoundationV2SourceRegistryImport.ts`
+- `platform_v2/src/scripts/planZukanFoundationV2SourceRegistryImport.ts`
 - site map route registration
 
 実装済みの契約:
@@ -82,15 +88,16 @@ Source Registry sourceが存在しても、個人P0のfresh runtime E2Eがなけ
 ## 5. 後続順
 
 1. 本P0 docsをmainへ採用
-2. latest mainからfresh個人P0 runtime gateを実装
+2. #1473をlatest mainから部分runtime gateとして再構築
 3. exact-SHA stagingでRecord E2EとSource Registry readback
-4. SourceRecord adapterとPlace / Entity / Claim candidate link
-5. Program無料コア
-6. rights-safe Review / View
-7. TaxonInventory等の専門派生
-8. Publication Builder
-9. correction / external writeback
-10. brand / domain release
+4. #1474の有効差分を現行Foundation import / apply経路へ再構築
+5. SourceRecord adapterとPlace / Entity / Claim candidate link
+6. Program無料コア
+7. rights-safe Review / View
+8. TaxonInventory等の専門派生
+9. Publication Builder
+10. correction / external writeback
+11. brand / domain release
 
 ## 6. READY境界
 

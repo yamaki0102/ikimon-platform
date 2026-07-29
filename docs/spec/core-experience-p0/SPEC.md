@@ -1,12 +1,13 @@
 # ZUKAN 個人基本体験 P0仕様
 
 - 状態: `CANONICAL_CONTRACT / SOURCE_PARTIAL / RUNTIME_NOT_VERIFIED`
-- 基準日: 2026-07-28
-- implementation baseline: `3c6f3556c5319821601e6f62b971e8b041e1a31c`
-- strategy baseline: `f21a67cabdf91f7007a9c66d1c44b708e478f34c`
-- strategy candidate: `ikimon-business-strategy#28`
+- 基準日: 2026-07-30
+- implementation baseline: `10c1c89c296430baa0b39b818cc71af956dc3696`
+- strategy baseline: `03285f66b706cc07a9efd5cfae2b1eb8e4420874`
+- strategy refs: `ikimon-business-strategy#32`、`#37`、`#38`、`#41`
 - 親Issue: #1469
-- 関連: #1296、#1365、#1421、#1459
+- 関連: #1296、#1365、#1421、#1473、#1474、#1488
+- Foundation refs: #1478、#1482、#1484、#1485
 - 対象runtime: current app `platform_v2/`とCloudflare projection
 - current URL・技術識別子: `ikimon.life`
 - 公開サービス名: `ZUKAN`
@@ -478,7 +479,11 @@ productionは別の明示承認がある場合のみ。同一SHA、green staging
 - #1421〜#1426: Universal Place Atlas。多くのsourceは実装済みだがcurrent runtimeを再検証する。
 - #1441: 過去AI品質backlog。P1。
 - #1442/#1443: post-capture detail・state UI。P0既存資産。
-- #1459: runtime gate候補。古いbase・旧brandのためlatest mainから再構築する。
+- #1459: 旧runtime gate候補。古いbase・旧brandのため採用せず、#1473へ置換する。
+- #1473: latest main上の独立した部分runtime gate。P0全体READYを宣言しない。
+- #1474: Source RegistryのEdition・取得状態・filterの有効差分を現行Foundation経路へ再構築する。
+- #1478/#1482/#1484/#1485: Foundation永続化、migration、import/apply、regional source追加の現行経路。
+- #1488: ZUKAN brand / photo-first Homeのcurrent source。
 - #1460/#1462/#1466: Place Graph、無料組織コア、有償派生物contract。P0の上位・後続境界。
 - #1469: 本同期Issue。
 
