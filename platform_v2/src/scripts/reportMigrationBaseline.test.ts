@@ -17,13 +17,13 @@ test("db migration baseline rehearsal locks the current migration head and risk 
   });
 
   assert.equal(report.schemaVersion, "platform_migration_baseline_rehearsal/v0");
-  assert.equal(report.totalMigrations, 142);
+  assert.equal(report.totalMigrations, 147);
   assert.equal(report.firstMigration, "0001_extensions_and_core.sql");
-  assert.equal(report.headMigration, "0139_zukan_foundation_v2_integrity_hardening.sql");
+  assert.equal(report.headMigration, "0144_ai_usage_invocation_identity.sql");
   assert.deepEqual(report.extensionRequirements, ["timescaledb", "vector"]);
   assert.equal(report.riskSummary.destructiveApproved, 14);
   assert.equal(report.riskSummary.destructiveUnapproved, 1);
-  assert.equal(report.riskSummary.ownerSensitiveApproved, 36);
+  assert.equal(report.riskSummary.ownerSensitiveApproved, 39);
   assert.equal(report.riskSummary.ownerSensitiveUnapproved, 9);
   assert.ok(report.stopConditions.some((condition) => condition.includes("production DB")));
 });
@@ -48,6 +48,6 @@ test("db migration baseline rehearsal markdown names the unsafe historical debt 
 
   assert.match(markdown, /0075_normalize_shizuoka_locality_labels\.sql/);
   assert.match(markdown, /0003_delta_sync_idempotency\.sql/);
-  assert.match(markdown, /0139_zukan_foundation_v2_integrity_hardening\.sql/);
+  assert.match(markdown, /0144_ai_usage_invocation_identity\.sql/);
   assert.match(markdown, /npx tsx src\/scripts\/reportMigrationBaseline\.ts --format=markdown/);
 });

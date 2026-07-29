@@ -1,14 +1,14 @@
 # DB Migration Baseline Rehearsal
 
-Generated: 2026-07-28T00:00:00.000Z  
-Schema version: platform_migration_baseline_rehearsal/v0  
+Generated: 2026-07-29T00:00:00.000Z  
+Schema version: platform_migration_baseline_rehearsal/v0
 Migration dir: db/migrations
 
 ## Summary
 
-- Total migrations: 142
+- Total migrations: 147
 - First migration: 0001_extensions_and_core.sql
-- Head migration: 0139_zukan_foundation_v2_integrity_hardening.sql
+- Head migration: 0144_ai_usage_invocation_identity.sql
 - Extension requirements: timescaledb, vector
 - Duplicate sequences: 8
 - Missing sequences: 0010, 0041, 0042, 0043, 0044, 0078, 0084
@@ -17,10 +17,12 @@ Migration dir: db/migrations
 
 - Destructive approved: 14
 - Destructive unapproved historical debt: 1
-- Owner-sensitive approved: 36
+- Owner-sensitive approved: 39
 - Owner-sensitive unapproved historical debt: 9
 
 Foundation v2 migrations `0134`–`0139` create the persistence model and harden its invariants. `0139` adds triggers, a named tombstone constraint and the bounded-write receipt table; it does not rename, backfill or delete existing product rows.
+
+AI usage control migrations `0140`–`0144` are one approval-bound telemetry group. `0140` creates `ai_execution_guards`, `ai_execution_attempt_events`, `ai_usage_events` and `ai_usage_budget_overrides`; `0141`, `0143` and `0144` only alter those same tables, so they carry `owner-sensitive-ok` rather than adding historical debt. The group changes no Foundation v2 table and no pre-existing product table.
 
 ## Stop Conditions
 
@@ -44,7 +46,7 @@ Foundation v2 migrations `0134`–`0139` create the persistence model and harden
 | 0109 | 0109_fix_aikan_renri_city.sql, 0109_invasive_reporting_foundation.sql |
 | 0110 | 0110_guide_session_public_summary.sql, 0110_observation_rally_foundation.sql |
 | 0114 | 0114_continuous_visit_windows.sql, 0114_landing_snapshot_media_indexes.sql, 0114_repair_non_biological_subject_labels.sql |
-| 0117 | 0117_glossary_terms.sql, 0117_public_map_snapshots.sql |
+| 0117 | 0117_glossary_terms.sql, 0117_observation_rally_submission_idempotency.sql, 0117_public_map_snapshots.sql |
 | 0119 | 0119_area_sketch_assessments.sql, 0119_taxon_insight_context_key.sql |
 
 ## Unapproved Destructive Historical Debt

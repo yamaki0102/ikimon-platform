@@ -1,4 +1,6 @@
 -- AI usage contract v2 hardening. Apply only after 0140-0142 in the same approval-bound group.
+-- owner-sensitive-ok: migration role owns ai_execution_guards, ai_execution_attempt_events and
+-- ai_usage_events, all created by 0140 in this same group, so no pre-existing rows are touched.
 
 ALTER TABLE ai_execution_guards
     ADD COLUMN project TEXT NOT NULL,

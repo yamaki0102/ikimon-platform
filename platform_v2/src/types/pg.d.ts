@@ -18,6 +18,7 @@ declare module "pg" {
       connectionTimeoutMillis?: number;
       enableChannelBinding?: boolean;
       max?: number;
+      options?: string;
     });
     connect(): Promise<PoolClient>;
     query<T extends QueryResultRow = QueryResultRow>(sql: string, params?: unknown[]): Promise<QueryResult<T>>;

@@ -162,8 +162,11 @@ export class AiUsagePostgresRepositoryV2 implements AiUsageRepository {
     }
   }
 
-  private async recordUsageTx(client: AiUsagePostgresClient, input: RecordAiUsageInput): Promise<AiUsageEvent> {
-    const rawUsageJson = validateUsageInput(input);
+  private async recordUsageTx(
+    client: AiUsagePostgresClient,
+    input: RecordAiUsageInput,
+    rawUsageJson: string,
+  ): Promise<AiUsageEvent> {
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,1495))", [input.eventId]);
     const prior = await client.query<UsageRow>(`SELECT ${USAGE_COLUMNS} FROM ai_usage_events WHERE event_id=$1`, [input.eventId]);
     if (prior.rows[0]) {
@@ -197,10 +200,11 @@ export class AiUsagePostgresRepositoryV2 implements AiUsageRepository {
   }
 
   async recordUsage(input: RecordAiUsageInput): Promise<AiUsageEvent> {
+    const rawUsageJson = validateUsageInput(input);
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      const result = await this.recordUsageTx(client, input);
+      const result = await this.recordUsageTx(client, input, rawUsageJson);
       await client.query("COMMIT");
       return result;
     } catch (error) {
@@ -217,11 +221,12 @@ export class AiUsagePostgresRepositoryV2 implements AiUsageRepository {
       || input.usage.leaseGeneration !== input.settle.leaseGeneration) {
       throw new Error("ai_complete_attempt_relation_mismatch");
     }
+    const rawUsageJson = validateUsageInput(input.usage);
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,1495))", [input.settle.executionKey]);
-      const usage = await this.recordUsageTx(client, input.usage);
+      const usage = await this.recordUsageTx(client, input.usage, rawUsageJson);
       const guard = await this.settleTx(client, input.settle);
       await client.query("COMMIT");
       return { guard, usage };

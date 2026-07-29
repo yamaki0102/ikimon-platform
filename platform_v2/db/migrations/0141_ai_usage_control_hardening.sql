@@ -1,5 +1,7 @@
 -- AI usage control hardening.
 -- Apply only as part of the same approval-bound telemetry migration group as 0140.
+-- owner-sensitive-ok: migration role owns ai_usage_events and ai_usage_budget_overrides,
+-- both created by 0140 in this same group, so no pre-existing rows are touched.
 
 ALTER TABLE ai_usage_events
     ADD CONSTRAINT ai_usage_events_raw_usage_object_chk
