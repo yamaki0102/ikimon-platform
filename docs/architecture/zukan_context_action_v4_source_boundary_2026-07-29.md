@@ -8,25 +8,40 @@
 
 1. `aiUsageControl.ts`
    - deterministic execution key
+   - `AiUsageRepository` persistence boundary
+   - in-memory repository explicitly limited to test/development
    - mutable execution guard with expiring lease
    - append-only attempt events
    - append-only usage and reconciliation adjustment events
    - USD-micro request/hour/feature-month/tenant-month budget decisions
-2. `zukanSourceImportEvidenceEnvelope.ts`
+   - retry count, fallback depth, and provider-failure limits
+2. `aiUsageLegacyCostProjection.ts`
+   - bounded projection into the existing `ai_cost_log` shape
+   - provider request ID, pricing version, raw usage, cache, retry, and fallback details retained in metadata
+   - negative reconciliation adjustments are not silently projected because the existing table forbids negative cost
+3. `zukanSourceImportEvidenceEnvelope.ts`
    - Source Registry read-only evidence is explicitly separated from ContextPacket
    - rights `unknown` always blocks `ai_input`
    - payload digest excludes its own digest field
-3. `zukanContextPacketContract.ts`
+4. `zukanContextPacketContract.ts`
    - real `ResolutionRun` identity is mandatory; synthetic runs are unsupported
-   - principal, tenant/workspace scope, authorization evidence, four time axes, fact-level rights evidence, completeness, conflicts, and governance are retained
-   - AI-facing `ModelInputEnvelope` is separate and can only use admitted facts
-4. Regression tests
+   - reproducible semantic payload is separated from request-specific generation/authorization receipt
+   - four time axes, fact-level rights evidence, completeness, conflicts, and governance are retained
+   - set-like arrays are normalized before hashing
+   - AI-facing `ModelInputEnvelope` is separate and binds both packet digest and receipt ID
+5. Provider boundary
+   - central `aiModelRouter.ts` imports Google SDK symbols through `services/providers/googleGenAiSdk.ts`
+   - new direct SDK imports are rejected by test
+   - five remaining legacy direct imports are explicitly owned, justified, and time-bounded to 2026-09-30
+6. Regression tests
    - lease retry and settled duplicate behavior
    - append-only usage plus reconciliation adjustment
-   - four-layer budget rejection
+   - cost, retry, fallback, and provider-failure budget rejection
    - deterministic Source evidence / Context / ModelInput digests
+   - Context payload / authorization receipt separation
    - fail-closed rights admission
-   - baseline test preventing new direct `@google/genai` imports
+   - bounded legacy cost projection
+   - provider adapter boundary
 
 ## Existing cost infrastructure
 
@@ -39,13 +54,16 @@ Do not create a second authoritative cost ledger. Before persistence work, choos
 1. evolve `ai_cost_log` additively into the authoritative usage/reconciliation event store; or
 2. introduce a replacement store with a bounded compatibility projection and an explicit retirement date for `ai_cost_log`.
 
-Parallel indefinite accounting is prohibited.
+Parallel indefinite accounting is prohibited. The compatibility projection added here is not an authoritative
+second ledger and is not runtime-wired.
 
 ## Deliberately not implemented
 
 - Foundation v2 PostgreSQL `0134`–`0139` or D1 `0009`–`0014` changes
 - AI telemetry migration or migration application
+- durable PostgreSQL/D1 implementation of `AiUsageRepository`
 - changes to existing `ai_cost_log`, `aiCostLogger`, or `aiBudgetGate`
+- runtime wiring of the compatibility projection
 - `SHADOW_READ`, `DUAL_WRITE`, or kill-switch changes
 - Foundation runtime adapter wiring
 - Source Registry write/apply
@@ -58,14 +76,15 @@ Parallel indefinite accounting is prohibited.
 Before persistence or runtime wiring, all of the following are required:
 
 1. TypeScript compile and full node test suite green.
-2. Review confirms the direct-provider import baseline is complete.
+2. Provider boundary test is green and the five legacy direct imports are migrated or their expiry is explicitly re-approved.
 3. The `ai_cost_log` migration/retirement decision is approved; two authoritative ledgers are not allowed.
-4. Storage design is approved as three concerns:
-   - mutable execution guard;
+4. Durable `AiUsageRepository` storage design is approved as three concerns:
+   - atomic mutable execution guard;
    - append-only attempt events;
    - append-only usage/reconciliation events.
 5. Provider request IDs and invoice reconciliation are demonstrated with a real provider sandbox response.
 6. Any telemetry migration is separate from Foundation v2 migrations and receives its own backup, migration, rollback, and exact-SHA approval.
 7. Source Registry evidence remains non-AI-eligible until concrete `RightsEvaluation(purpose=ai_input, basis=allowed)` exists.
+8. Foundation routes, responses, migrations, flags, and runtime wiring remain unchanged by this PR.
 
 This change stops before every production approval boundary.
