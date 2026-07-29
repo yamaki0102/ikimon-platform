@@ -2,6 +2,7 @@
 
 - Status: active plan
 - Contract: `SPEC.md`
+- Area coverage contract: `AREA_COVERAGE.md`
 - Strategy: `yamaki0102/ikimon-business-strategy#43`
 - Parent platform PR: `#1489`
 
@@ -49,6 +50,7 @@ Do not reuse by semantic abuse:
 Files:
 
 - `docs/spec/kubiaka-focused-experience/SPEC.md`
+- `docs/spec/kubiaka-focused-experience/AREA_COVERAGE.md`
 - `docs/spec/kubiaka-focused-experience/PLAN.md`
 - `docs/START_HERE.md`
 - `PROJECT.json`
@@ -57,7 +59,7 @@ Exit:
 
 - source-of-truth links are reachable
 - parent product architecture is explicit
-- route, state, privacy, ownership, and non-goals are fixed
+- route, state, privacy, ownership, non-goals, and area coverage claim boundary are fixed
 
 ### Slice 2 — Experience registry and pure read models
 
@@ -66,6 +68,7 @@ Add:
 - `src/services/focusedExperienceRegistry.ts`
 - `src/services/kubiakaExperience.ts`
 - `src/services/kubiakaReadModels.ts`
+- `src/services/kubiakaAreaCoverage.ts`
 - tests
 
 Registry contract:
@@ -92,13 +95,17 @@ Pure read models:
 - contributor-facing state
 - evidence coverage summary
 - feedback edition
-- privacy-safe area counters
+- privacy-safe area coverage classification
+- explicit-denominator percentage boundary
+- stale/revisit projection
 
 Exit:
 
 - no route or DB write yet
 - deterministic tests
 - no current behavior change
+- Record count alone cannot satisfy an area target
+- public area state never implies species absence
 
 ### Slice 3 — Dedicated shell and public routes
 
@@ -167,6 +174,7 @@ Proposed PostgreSQL entities:
 5. `focused_experience_assessments`
 6. `focused_experience_feedback_editions`
 7. `focused_experience_routing_events`
+8. `focused_experience_area_projection_editions`
 
 Proposed D1 compatibility/runtime equivalents only where the active runtime requires them.
 
@@ -176,6 +184,7 @@ Key rules:
 - opaque IDs
 - tenant and experience scope
 - append-only feedback editions
+- immutable/versioned area projection editions
 - hashed guest secrets
 - idempotency keys
 - explicit authority level
@@ -294,6 +303,9 @@ First operator capabilities:
 - reject candidate
 - escalate to specialist
 - propose routing
+- inspect raw/deduplicated area counts
+- inspect coverage denominator source and freshness
+- inspect privacy suppression and stale cells
 
 A separate operation approves and executes external send.
 
@@ -305,27 +317,44 @@ Exit:
 
 ### Slice 10 — Privacy-safe area view
 
-Start with aggregate coverage, not a detection map.
+Start with aggregate coverage, not a detection map. Implement `AREA_COVERAGE.md` as the active contract.
 
 Inputs:
 
 - aggregate cell or approved Place group
-- record count
-- repeat count
-- evidence quality distribution
-- review state
+- Record and photo count
+- `screenable_record` and `survey_usable` count
+- unique survey days
+- unique observed units and repeat units
+- latest relevant observation time
+- known denominator only when source and scope are explicit
+- protocol version and target thresholds
+- public privacy threshold
 
 Public output:
 
+- `no_observations`
+- `privacy_suppressed`
+- `more_observation_useful`
+- `observation_progressing`
+- `current_target_met`
+- `revisit_due`
 - no Record IDs
 - no exact coordinates
 - no school/home/private land exposure
 - percentages only with explicit denominator
+- one concrete missing condition or next action per selected area
 
 Exit:
 
 - public map privacy contract tests green
-- false impression of completeness avoided
+- Record count alone cannot create `current_target_met`
+- normal photos and survey-usable records remain separate
+- distinct days, repeat units, and freshness affect state
+- stale cells return to `revisit_due`
+- denominator-free cells expose no coverage percentage
+- false impression of completeness or species absence is avoided
+- map-equivalent accessible area list exists
 
 ### Slice 11 — Routing and Case
 
@@ -405,6 +434,10 @@ Do not hard-code a one-year date into the canonical page title or route.
 - state projection
 - feedback authority
 - coverage classification
+- area coverage classification
+- area freshness and revisit state
+- known-denominator percentage boundary
+- privacy suppression
 - seasonal content expiry
 - recipient consent
 - public aggregation
@@ -415,133 +448,106 @@ Do not hard-code a one-year date into the canonical page title or route.
 - cross-dialect semantic fixtures
 - claim transaction
 - append-only feedback
+- immutable area projection editions
 - idempotency
 - rollback
 - tenant isolation
 
-### Route and security
+### Security and privacy
 
-- guest/session matrices
-- receipt bearer isolation
-- CSRF / same-origin mutation
-- login return
-- no-store private responses
-- cache separation
-- suppression
+- guest credential entropy and digest storage
+- cookie flags and scope
+- receipt authorization
+- no token in URL or analytics
+- cross-user isolation
+- minor/shared-device defaults
+- exact location redaction
+- public metadata and link-preview leakage
+- aggregate-cell minimum threshold and neighbor merge
 
-### Browser
+### Browser / UX
 
-- guest landing→save→receipt
-- guest save→login→claim→member detail
-- member save→dedicated detail
-- feedback view
+- guest landing→record→receipt
+- guest receipt→login→claim→member detail
+- member record→dedicated Home
+- feedback ready
 - more evidence
-- logout/shared device
-- public area privacy
-
-### Visual
-
-- 320, 375x667, 390, 412, 768, 1024, 1280, 1440, 1536
+- no-clear-sign limitation copy
+- candidate awaiting specialist
+- public area map default coverage layer
+- selected area shows condition gaps and one CTA
+- accessible non-map area list parity
+- mobile widths 320 / 375 / 390 / 412
+- tablet 768
+- notebook 1024
+- desktop 1280 / 1440
+- wide 1536
 - text 200%
-- reduced motion
-- image missing / slow
-- AI pending / failed / unavailable
-- long Japanese copy
+- keyboard and screen reader order
+- no horizontal overflow
 
-### Accessibility
+### Runtime parity
 
-- keyboard
-- screen reader order
-- labels
-- focus return after photo add/remove
-- non-color status
-- touch target size
+Where current writes or reads occur in Node and Worker:
 
-## 5. Observability
+- context persistence
+- guest access
+- claim
+- receipt
+- state projection
+- public area suppression
+- area coverage classification or shared materialized result
+- no duplicate path-specific behavior
 
-Required operational evidence:
+## 5. Staging gate
 
-- save success/failure
-- assessment queue age
-- feedback ready age
-- more-evidence response
-- claim success/failure
-- route send/acknowledge
-- suppression propagation
-- public projection freshness
+Before any production request:
 
-No raw media, exact location, free text, receipt token, or child identity in analytics.
+1. parent PRs merged in order
+2. exact source SHA fixed
+3. migrations reviewed but production unapplied
+4. staging backup and migration apply
+5. fixtures and rollback rehearsal
+6. Node / Worker parity
+7. guest/member E2E
+8. actual 1–6 photo uploads
+9. delayed assessment simulation
+10. feedback edition publication
+11. public area privacy test with sparse and dense cells
+12. area target, stale revisit, and denominator-free states verified
+13. mobile and accessibility QA
+14. security review
+15. operator runbook rehearsal
+16. runtime identity evidence
 
-## 6. Release gates
+## 6. Production boundary
 
-### Source gate
+Explicit approval is required for:
 
-- typecheck
-- focused tests
-- full Node tests
-- Worker parity tests where changed
-- build
-- secret scan
-- security review
-- diff scope review
-
-### Staging gate
-
-- exact SHA
-- runtime identity
-- migration dry-run and apply evidence if needed
-- guest/member browser QA
-- mobile/desktop visual QA
-- real image upload
-- login return and claim
-- feedback state transitions
-- public location privacy
-
-### Production gate
-
-Requires explicit approval for:
-
+- production migration
 - production deploy
-- PostgreSQL / D1 migration
-- secret
-- recipient routing
-- external send
-- public dataset or findings
+- secret changes
+- recipient registration
+- external notification
+- public aggregate findings
+- public area projection based on live data
+- partner or municipality naming
 
-Production promotion must preserve exact source identity and rollback evidence.
+Launch may proceed without external routing if copy accurately states that records are stored and checked but are not automatically sent.
 
-## 7. Initial PR stack
+## 7. Stop conditions
 
-Recommended ordered stack:
+Stop and return to design if:
 
-1. specification and pointers
-2. registry and read models
-3. shell and public static routes
-4. scoped composer and return path
-5. additive persistence
-6. guest receipt and claim
-7. member workspace
-8. assessment and feedback
-9. operator review
-10. public area coverage
-11. routing and Case
-12. external standards/publication
-
-Each PR should be reviewable, keep current runtime behavior unchanged outside the explicit scope, and state whether it changes DB, runtime, external send, or public projection.
-
-## 8. Stop conditions
-
-Stop before staging or production when any of the following is unresolved:
-
-- ownership isolation
-- duplicate Record risk
-- receipt token exposure
-- unknown-sensitive public media
-- exact location leak
-- AI authority overclaim
-- absence overclaim
-- recipient consent missing or expired
-- migration rollback unavailable
-- current ZUKAN upload regression
-- dedicated experience cannot return through login
-- public area denominator is undefined but presented as coverage percentage
+- guest receipt can be guessed or leaked
+- guest claim duplicates or misattributes a Record
+- focused pages lose the original Record or rights boundary
+- AI result is shown as specialist confirmation
+- free-form upload becomes a scientific absence claim
+- public map leaks exact or inferable sensitive location
+- public map implies completeness without a denominator
+- raw Record volume can satisfy the area target
+- a fresh casual photo incorrectly resets stale survey coverage
+- external send is possible without approved recipient and operator gate
+- summer content becomes the permanent product identity
+- the implementation forks the uploader or account system
