@@ -1,612 +1,721 @@
-# ZUKAN クビアカツヤカミキリ見守り — Implementation Master Plan v2
+# ZUKAN クビアカツヤカミキリ見守り — Final Implementation Master Plan
 
-- Status: second-review candidate / implementation blocked
+- Status: final / external architecture review closed
 - Date: 2026-07-29
 - Product contract: `SPEC.md`
-- Area contract: `AREA_COVERAGE.md`
-- Strategy: `yamaki0102/ikimon-business-strategy#42` → `#43`
-- Superseded implementation: `yamaki0102/ikimon-platform#1492`
+- Coverage contract: `AREA_COVERAGE.md`
+- Ordered plan: `PLAN.md`
+- Strategy:
+  - `yamaki0102/ikimon-business-strategy#42`
+  - `yamaki0102/ikimon-business-strategy#43`
+- Platform parent: `yamaki0102/ikimon-platform#1489`
+- Superseded implementation: `yamaki0102/ikimon-platform#1492` closed, unmerged
+- Cross-project control: `yamaki0102/all-projects-management#886`
 
-## 0. Decision
+## 0. Executive decision
 
-実装は可能だが、特設LPや小規模UI改修ではない。
+本計画は次の順で実装する。
 
-成立に必要なもの:
+> 全通知interlock → private contribution → receipt / claim / member workspace → delayed feedback → closed pilot → operator coverage → 将来public map → approved routing
 
-- existing auto-routing interlock
-- shared composer context
-- durable Record link / outbox
-- private guest receipt
-- receipt-scoped claim
-- orthogonal state projection
-- submitted / assessed asset accounting
-- Foundation-backed Survey / Detection
-- versioned FeedbackEdition
-- privacy-safe aggregate map
-- operator Review workflow
+初期版の中心価値はprivate receiptと誠実なfeedbackである。
 
-旧#1492は中核モデルが本計画と矛盾し、public privacyを退行させるためsupersededとする。branchは参照用に残し、後継実装は最新mainから新規作成する。
+一般公開のcoverage map、survey non-detection、外部routingは初期版から外す。
+
+外部architecture reviewは終了し、以後は本計画、実コード、テスト、staging、closed-pilot evidenceに基づいて判断する。
 
 ## 1. Non-negotiable invariants
 
-1. Account、Record、Media、Placeを二重作成しない
-2. composerをforkしない
-3. Record保存とAI完了を分離する
-4. Record保存とexperience link失敗を`link_pending`で表現する
-5. AI、人、専門家、recipient responseを同じauthorityにしない
-6. submitted photo数とassessed asset数を分ける
-7. free-form photoからsurvey non-detectionを生成しない
-8. Foundation v2 Survey / Detection / Coverageを非検出正本にする
-9. public mapはlive Record queryにしない
-10. empty cellとsuppressed cellを公開上区別しない
-11. distinct participantとRecordの丕方をpublic thresholdにする
-12. raw date / exact location / Record IDをpublic mapへ出さない
-13. invalid targetをfail closedにする
-14. Review確定とexternal sendを同一操作にしない
-15. existing auto-routingをexplicit gateなしで発火させない
-16. suppression / correction / eraseをreceipt、feedback、mapへ反映する
+1. Accountを別管理しない
+2. Record、Media、Placeを複製しない
+3. composerをforkしない
+4. Record保存とAI完了を混同しない
+5. submitted assetとassessed assetを混同しない
+6. AI、trained reviewer、specialist、recipient responseを一つのconfirmedへ畳まない
+7. casual photoからsurvey non-detectionを生成しない
+8. feedbackで元Recordを上書きしない
+9. experience link欠落を通知許可と解釈しない
+10. `link_pending`中にAssessment・feedback公開・外部通知を開始しない
+11. guest端末の過去receiptを既定表示しない
+12. receipt IDだけをbearer accessにしない
+13. public mapをP0へ含めない
+14. external sendをP0〜Release Dへ含めない
+15. law status、AI confidence、candidate、Caseだけで外部送信しない
+16. production、DB、secret、DNS、権限、外部送信は明示承認なしに変更しない
 
-## 2. Corrected PR topology
+## 2. Canonical PR topology
 
-現在:
+### 2.1 Existing PRs
 
 ```text
-strategy #42
-  └─ strategy #43
-
-platform #1489
-  └─ platform #1491
-
-platform #1492 = closed / superseded
+strategy #42  ZUKAN architecture and routing safety
+strategy #43  Kubiaka receipt-first decision
+platform #1489 ZUKAN product architecture contract
+platform #1491 final Kubiaka SPEC / PLAN
+platform #1492 closed / superseded evidence only
 ```
 
-正常化:
+### 2.2 Integration order
 
-1. #42をsecond review対象に含め、routing boundaryを確定
-2. auto-routing interlockを独立した小PRで実装
-3. #1489をstrategy exact SHAへ追従・green後にmainへ統合
-4. #43を最新strategy mainへrebaseし確定
-5. #1491をplatform mainへ付け替え、docs-onlyとして統合
-6. pure contract後継PRを最新mainから作成
+1. strategy #42をmainへ統合
+2. strategy #43を最新mainへrebaseし統合
+3. platform #1489をstrategy main exact SHAへ追従し、検証後mainへ統合
+4. platform #1491を最新mainへrebaseし、docs/spec onlyとして統合
+5. successor runtime PRはlatest mainから新規作成
 
-親子stackは常に一段までとする。#1491と後継実装を長期stackにしない。
+Parent branchを2段以上維持しない。親がmergeされたら子PRをmain baseへ付け替える。
 
-## 3. Release sequence
+### 2.3 Superseded #1492
 
-### Gate 0 — Auto-routing safety
+- closed
+- unmerged
+- current implementation candidateではない
+- branch内容は設計失敗の証跡としてのみ参照
+- successorへcherry-pickしない
+- 必要なpure ideaはlatest mainから再実装する
 
-Scope:
+## 3. Gate 0 — all-alert taxon interlock
 
-- `alertDispatcher` / invasive reporting経路のread-only調査
-- active experience linkを持つOccurrenceのinterlock
-- explicit routing gate absence → deny
-- law status / AI confidence aloneではdeliveryを作らない
-- existing non-experience behaviorを回帰させない
+### 3.1 Purpose
 
-Exit:
+Kubiaka Recordが作られる前に、管理対象taxonが既存通知・deliveryへ流れないことを保証する。
 
-- failing→passing test
-- no external send executed
-- runtime behavior changeはinterlockだけ
-- Record保存・private reviewは継続
+### 3.2 Taxon scope
 
-### Release B — Private contribution foundation
-
-先にA/static previewを独立Releaseとして作らない。public landing / guide / shellはBの一部として、実際のprivate contribution導線と同時に検証する。
-
-Scope:
-
-- `/kubiaka`, `/guide`, `/about`, `/faq`
-- dedicated shell
-- existing composer reuse at `/kubiaka/record`
-- durable experience Record link
-- link outbox / transaction
-- guest credential
-- private receipt
-- receipt-scoped claim
-- `/kubiaka/me`, `/me/records`, `/records/:id`
-
-No:
-
-- public live area map
-- automated Feedback publication
-- external send
-
-Exit:
-
-- 1–6 photo save / retry
-- guest A/B and account A/B isolation
-- shared-device viewing isolation
-- stale cookie / replay / logout
-- link partial failure recovery
-- claim rollback / idempotency
-- Node / Worker parity where applicable
-- staging authenticated and guest browser QA
-
-### Closed pilot B1
-
-- one region
-- invite-controlled entry
-- external send disabled
-- area map fixture only
-- operator can view private Evidence
-- no specialist SLA
-
-Measure:
-
-- save success
-- receipt return
-- claim success
-- shared-device confusion
-- link recovery
-- privacy incidents
-
-### Release C — Delayed feedback beta
-
-Scope:
-
-- assessed asset IDs
-- image role coverage
-- submitted / assessed count
-- asynchronous Assessment
-- immutable FeedbackEdition
-- automated feedback
-- trained reviewer override
-- random no-clear-sign audit
-- more-evidence request
-- `/ops/kubiaka/inbox`
-
-No:
-
-- public area live data
-- specialist SLA
-- external routing
-
-Exit:
-
-- honest assessed count copy
-- failure / stale / published combinations represented
-- capacity backpressure tested
-- Assessment stop does not break receipt
-- false-negative audit process operational
-
-### Release D — Monitoring coverage beta
-
-Scope:
-
-- existing public map snapshot pipeline
-- aggregate edition from Foundation Survey / Detection / Coverage
-- contributor and Record privacy threshold
-- freshness band
-- target validation
-- denominator SourceEdition / staleness
-- `/kubiaka/area`
-- accessible list parity
-- `/ops/kubiaka/coverage`
-
-No:
-
-- exact findings map
-- absence conclusion
-- denominator-free percentage
-
-Exit:
-
-- sparse / one-participant / school / home / stale / no-denominator fixtures
-- empty vs suppressed indistinguishable
-- raw date absent
-- degenerate target fail closed
-- suppression propagation
-
-### Release E — Approved routing
-
-Scope:
-
-- existing invasive reporting recipient / jurisdiction model
-- focused experience interlock gate enablement
-- human Review requirement
-- operator separate approval
-- idempotent send
-- sent / acknowledged / failed / expired
-- Case follow-up
-
-No:
-
-- unregistered recipients
-- emergency guarantee
-- automatic delivery from law status
-
-Exit:
-
-- real recipient identity
-- current consent
-- data allowlist
-- operational owner
-- acknowledgement method
-- rollback / incident runbook
-- explicit production and external-send approval
-
-## 4. State model implementation
-
-### Persistence
+P0 source contract:
 
 ```ts
-type PersistenceState =
-  | "draft"
-  | "saving"
-  | "link_pending"
-  | "saved"
-  | "save_failed"
-  | "suppressed"
-  | "erased_reference_only";
-```
-
-### Assessment
-
-```ts
-type AssessmentState =
-  | "not_started"
-  | "queued"
-  | "running"
-  | "completed"
-  | "failed"
-  | "stale"
-  | "cancelled";
-```
-
-### Feedback
-
-```ts
-type FeedbackState = "none" | "draft" | "published" | "superseded" | "withheld";
-```
-
-### Action
-
-```ts
-type ActionState =
-  | "not_applicable"
-  | "candidate"
-  | "operator_approved"
-  | "sent"
-  | "acknowledged"
-  | "failed"
-  | "expired"
-  | "follow_up_due"
-  | "closed";
-```
-
-### Authority
-
-```ts
-type ReviewAuthority =
-  | "automated"
-  | "trained_reviewer"
-  | "accountable_specialist"
-  | "approved_recipient";
-```
-
-Authority is not inferred from Action or Case state.
-
-Contributor projection input:
-
-```ts
-interface KubiakaContributorProjectionInput {
-  persistence: PersistenceState;
-  assessment: AssessmentState;
-  feedback: FeedbackState;
-  action: ActionState;
-  authority: ReviewAuthority | null;
-  hasUnreadFeedback: boolean;
-  hasMoreEvidenceRequest: boolean;
-  isRevisitDue: boolean;
+interface ExperienceManagedTaxonScope {
+  scopeKey: "kubiaka-watch";
+  acceptedNormalizedScientificNames: readonly string[];
+  status: "deny_external_routing" | "routing_enabled";
+  policyVersion: string;
 }
 ```
 
-Blocking combinations:
+- canonical initial name: `Aromia bungii`
+- approved synonyms are normalized into the same set
+- opaque taxon ID is not assumed to exist
 
-- saved + failed + none
-- saved + stale + published
-- saved + running + published
-- saved + published + sent
-- saved + published + follow_up_due
-- link_pending + not_started + none
+### 3.3 Enforcement point
 
-## 5. Data reuse map
+`emitAlertsForOccurrence` equivalent dispatcher入口で、各branchより前に実行する。
 
-| Need | Source of truth | New object |
-|---|---|---|
-| Original contribution | existing Record / Observation / Media | none |
-| Experience context | durable Record link | link + outbox only |
-| Guest access | existing credential pattern | Kubiaka participant / receipt |
-| Claim | existing transactional pattern | receipt-scoped claim log |
-| Taxon | existing opaque Taxon identity | no scientific-name ID |
-| Survey effort | Foundation v2 SurveyEvent | none |
-| Detection / non-detection | Foundation v2 DetectionOutcome | none |
-| Coverage assessment | Foundation v2 / projection | Kubiaka read projection only |
-| Feedback | contributor-facing edition | Kubiaka FeedbackEdition |
-| Public map | existing ProjectionSnapshot / map snapshot | Kubiaka projection rules |
-| Routing | existing invasive reporting | interlock + approval extension |
+Pseudo contract:
 
-## 6. Minimal additive persistence
+```ts
+const managedScope = findExperienceManagedTaxon(normalizeTaxonName(ctx));
+if (managedScope && managedScope.status !== "routing_enabled") {
+  return emptyAlertSummary("experience_managed_taxon_denied");
+}
+```
 
-Do not create generic `focused_experiences` DB rows in P0.
+Do not query experience Record link as the primary deny predicate.
 
-Candidate objects:
+### 3.4 Paths to block
 
-1. `focused_experience_record_links` or equivalent common link
-2. `focused_experience_link_outbox`
-3. `kubiaka_participants`
-4. `kubiaka_receipts`
-5. `kubiaka_receipt_claims`
-6. `kubiaka_feedback_editions`
+- user taxon matches / subscriptions
+- novelty
+- researcher trigger
+- invasive reporting
+- webhook
+- mail
+- municipality / land-manager delivery
 
-Use existing:
+### 3.5 Gate 0 tests
 
-- SurveyEvent / DetectionOutcome / CoverageAssessment
-- ProjectionSnapshot
-- invasive recipient / delivery
-- suppression / correction machinery
+- managed taxon + no link → all branches denied
+- managed taxon + `link_pending` → all branches denied
+- managed synonym → denied
+- managed taxon + law status priority → denied
+- managed taxon + novelty confidence → denied
+- managed taxon + family / order subscription → denied
+- unmanaged taxon → existing behavior unchanged
+- explicit routing flag cannot be enabled without policy configuration
+- no external delivery rows or sends in test fixture
 
-Migration principles:
+### 3.6 Exit
+
+- independent PR from latest main
+- exact SHA tests green
+- no production deploy
+- no taxon routing activation
+
+## 4. Release B — Private contribution foundation
+
+### 4.1 User value
+
+- guest or member submits 1–6 photos
+- Record is saved before AI
+- guest receives private receipt
+- member returns to dedicated detail
+- dedicated Home shows only relevant continuation
+
+### 4.2 P0 persistence entities
+
+Use Kubiaka-specific names. Do not create generic `focused_experiences` table in P0.
+
+#### `experience_managed_taxa`
+
+Safety configuration for Gate 0.
+
+Fields:
+
+- opaque row ID
+- scope key
+- normalized scientific name
+- accepted synonym flag / canonical name reference
+- routing status
+- policy version
+- created / updated audit
+
+This entity may be source-config backed first; DB activation requires migration approval.
+
+#### `kubiaka_record_links`
+
+- opaque link ID
+- canonical Record reference
+- participant reference nullable while pending
+- entrypoint
+- protocol profile/version
+- seasonal module optional
+- createdAt immutable
+- suppression state
+- idempotency key
+
+#### `kubiaka_link_outbox`
+
+- outbox ID
+- Record reference
+- intended context
+- state
+- retry count
+- next attempt
+- last error class
+- idempotency key
+- completedAt
+
+#### `kubiaka_participants`
+
+- participant ID
+- account user ID nullable
+- guest credential digest nullable
+- session createdAt
+- disabled / claimed state
+- no public participant semantics
+
+#### `kubiaka_receipts`
+
+- receipt ID
+- participant
+- record link
+- current feedback pointer nullable
+- guest access state
+- account owner nullable
+- metadata privacy state
+- createdAt
+
+#### `kubiaka_receipt_claims`
+
+- claim ID
+- receipt ID
+- user ID
+- idempotency key
+- state
+- created / completed / failed
+- replay evidence
+
+### 4.3 Migration rules
 
 - additive only
 - opaque IDs
-- tenant scope
-- hashed guest secret
-- idempotency
-- append-only FeedbackEdition
-- no duplicate Record / asset
-- rollback rehearsal
-- PostgreSQL / D1 only where active runtime requires parity
+- tenant / scope isolation
+- foreign keys or equivalent integrity
+- idempotent apply ledger
+- PostgreSQL and D1 only where active runtime needs parity
+- backup and rollback plan
+- staging apply before production
 - no production apply without explicit approval
 
-## 7. Link outbox contract
+### 4.4 Composer integration
 
-Atomic ideal:
+Preferred route: `/kubiaka/record`.
 
-```text
-BEGIN
-save Record
-save experience link or outbox
-COMMIT
-```
+Reuse existing composer through controller/context injection.
 
-If existing Record service cannot include the link in the same transaction:
+Required:
 
-- write durable outbox before returning success
-- idempotency key = experience + canonical Record ID + participant
-- worker reconciles link and receipt
-- repeated execution is safe
-- `link_pending` is visible privately
-- no public map / Assessment starts before link is ready
-- operator can inspect stalled entries
+- server-authoritative `experience_key`
+- login return path
+- retry preserves context
+- post-save destination scoped
+- global launcher hidden
+- current upload/MIME/EXIF behavior retained after tests
+- one to six images
+- save independent of AI
 
-## 8. Guest and shared-device contract
+Do not store experience context only in query string or analytics.
 
-- one device is not one person
-- private receipt requires scoped credential
-- default guest history = latest receipt only
-- explicit `show other records on this device`
-- persistent `use as another person` action
-- receipt-scoped claim default
-- explicit all-receipt claim
-- logout clears account display without exposing guest history
-- stale guest credential cannot claim
+### 4.5 Outbox behavior
 
-Required tests:
+If Record save succeeds and link write fails:
 
-- guest A → guest B
-- guest → account A
-- account A → logout → account B
-- stale cookie
-- token mismatch
-- replay
-- claim partial failure
-- shared school tablet
-- Blob / large photo recovery
+- Record stays saved
+- receipt can show `link_pending`
+- outbox retries
+- no Assessment starts
+- no feedback publishes
+- Gate 0 still denies notifications by taxon
+- successful retry creates one link only
 
-## 9. Photo and feedback contract
+### 4.6 Guest receipt
+
+- HttpOnly scoped credential
+- receipt ID not sufficient alone
+- private/no-store headers
+- link preview reveals no private data
+- current-session receipt only
+- pre-submit guest view empty
+
+### 4.7 Account claim
+
+- receipt-scoped
+- transaction
+- no duplicate Record/media
+- guest access invalidated after success
+- rollback on partial failure
+- account A/B isolation
+- no claim-all P0
+
+### 4.8 Member workspace
+
+`/kubiaka/me` continuation priority:
+
+1. unread feedback
+2. more evidence request
+3. checking
+4. annual/seasonal revisit
+5. first record
+
+`/kubiaka/me/records`:
+
+- scoped Kubiaka records
+- photo-first compact cards
+- contributor-facing state only
+
+`/kubiaka/records/:recordId`:
+
+- media
+- persistence / assessment / feedback projection
+- safe Place
+- feedback when available
+- provenance disclosure
+
+`/kubiaka/places/:placeId`:
+
+- same-Place timeline
+- identity uncertainty
+- annual / seasonal comparison
+- no `前はいなかった` claim
+
+## 5. Closed pilot B1
+
+### 5.1 Scope
+
+- one region
+- invite or limited entry
+- no external send
+- no public map
+- no survey non-detection
+- feedback can remain disabled or operator-only during initial persistence validation
+
+### 5.2 Metrics
+
+- Record save success
+- upload retry success
+- link outbox recovery
+- receipt return success
+- guest A/B isolation
+- account A/B isolation
+- shared-device confusion
+- claim success / rollback
+- privacy incidents
+- average media size and storage
+
+### 5.3 Exit
+
+- no ownership/privacy blocker
+- retry and outbox evidence green
+- actual user journey can proceed without generic ZUKAN Home interruption
+
+## 6. Release C — Delayed feedback
+
+### 6.1 Asset-aware assessment contract
+
+Modify or replace current `recordPhotoFeedback` integration.
 
 Input:
 
 ```ts
-interface KubiakaAssessmentEdition {
-  submittedAssetIds: string[];
-  assessedAssetIds: string[];
-  coverageItems: CoverageItem[];
-  findings: Finding[];
-  modelOrRuleVersion: string;
-  limitations: string[];
+interface AssessmentAssetInput {
+  assetId: string;
+  mimeType: string;
+  bytesOrReference: unknown;
 }
 ```
 
-Derived:
+Output must retain:
 
-```text
-submittedPhotoCount = distinct submitted photo assets
-assessedPhotoCount = distinct assessed photo assets
-```
+- submittedAssetIds
+- assessedAssetIds
+- failedAssetIds
+- per-asset evidence roles
+- findings linked to asset IDs
+- model/rule version
+- limitations
+- contradictions
+- completedAt
 
-Never accept assessed count as an independent caller number.
+No silent truncation.
 
-Copy tests:
+If model call supports only 3 assets, process deterministic batches and preserve batch provenance. Publish whole-record no-clear-sign only after all intended assets are assessed.
 
-- submitted 6 / assessed 3 → `6枚のうち3枚を確認しました`
-- submitted 6 / assessed 6 → `6枚を確認しました`
-- assessed asset absent from coverage → fail validation
+### 6.2 Evidence flags
 
-## 10. Survey and non-detection mapping
+- isPhotoRecord
+- isScreenable
+- isRepeatComparable
 
-Only Foundation-backed input can set `isSurveyUsable`.
+Do not compute `isSurveyUsable`.
 
-```ts
-interface SurveyBackedEvidence {
-  surveyEventId: string;
-  protocolId: string;
-  protocolVersion: string;
-  effort: unknown;
-  method: unknown;
-  startedAt: string;
-  endedAt: string;
-  outcome: "detected" | "not_detected" | "indeterminate";
-}
-```
+### 6.3 FeedbackEdition
 
-Kubiaka photo coverage must not synthesize this object.
+Store:
 
-Core roles for target protocol must be `visible`; `partial` is a limitation.
+- edition ID
+- Record link
+- submitted asset IDs
+- assessed asset IDs
+- content sections
+- authority
+- source assessment versions
+- limitations
+- publishedAt
+- supersedes edition ID nullable
 
-## 11. Public map privacy contract
+Append-only. Never overwrite prior edition.
 
-Public projection:
+### 6.4 Automatic feedback boundary
 
-```ts
-interface PublicCoverage {
-  state: "no_public_data" | "more_observation_useful" | "observation_progressing" | "current_target_met" | "revisit_due";
-  freshnessBand: "within_2_weeks" | "within_2_months" | "older" | "unknown";
-  nextAction: string | null;
-  protocolVersion: string;
-  projectionEdition: string;
-}
-```
+May auto-publish only when:
 
-Privacy gate:
+- persistence ready
+- asset accounting valid
+- no sensitive content leak
+- limitations present
+- authority=`automated`
+- wording is photo-scope only
+- no unresolved candidate requiring human review
 
-```text
-suppress if participantCount < k_p OR recordCount < k_r
-```
+Candidate, contradiction, severe quality limitation, or policy uncertainty enters operator queue.
 
-`suppress` returns the same public shape/state as empty data.
+### 6.5 Operator inbox
 
-No raw timestamps, counts, IDs, suppression reason.
+Queue groups:
 
-Target validation rejects zero, negative, NaN, missing version, stale denominator.
+- adult candidate
+- frass / exit-hole candidate
+- insufficient or contradictory evidence
+- feedback draft
+- more evidence request
+- audit sample
 
-## 12. Existing auto-routing interlock PR
+No action confirms and sends externally.
 
-Independent scope only:
+### 6.6 Random audit
 
-- identify occurrence experience link
-- default deny invasive delivery for active focused experience
-- allow existing standard behavior for unscoped occurrence
-- explicit test for Aromia-like law status
-- explicit test that operator review alone does not send
-- explicit test that missing recipient consent does not send
+Sample no-clear-sign automated feedback.
 
-Do not mix this safety fix with Kubiaka UI or migrations.
+Pilot target:
 
-## 13. Review and operations model
+- at least 200 samples before claiming measured false-negative performance
+- stratify by adult / frass / exit-hole, device quality, season, region
 
-Automated feedback completes normal records.
+## 7. Closed pilot C1
 
-Review queue receives:
+Measure:
 
-- adult / frass / exit-hole candidate
-- low confidence
-- contradictory evidence
-- insufficient evidence requiring request
-- random no-clear-sign audit
-- routing candidate
-- appeal / correction
+- Review minutes per Record
+- feedback latency p50 / p90 / p99
+- candidate rejection rate
+- false positive rate
+- no-clear-sign false negative audit
+- automated completion rate
+- more-evidence request rate
+- user feedback read rate
+- annual revisit intent baseline
 
-Backpressure:
+Do not promise SLA before these values exist.
 
-- queue over capacity does not reject save
-- Assessment can pause
-- receipt remains available
-- copy does not promise a deadline
-- external routing remains off
+## 8. Release D — Operator coverage only
 
-## 14. Pilot metrics
+### 8.1 Start conditions
 
-Before paid municipal quality claims:
+- Release C pilot data exists
+- operator use case exists
+- privacy owner assigned
+- no public route
 
-1. human Review minutes per Record
-2. no-clear-sign false negative rate, random sample >= 200 when available
-3. frass candidate false positive rate
-4. Feedback latency p50 / p90 / p99
-5. claim success rate
-6. shared-device confusion / privacy incident rate
-7. `current_target_met` field verification agreement
-8. denominator ledger freshness / duplicate / missing rate
+### 8.2 Reuse
 
-## 15. Test matrix
+Reuse existing:
 
-### Unit
+- cell derivation
+- gridM ladder
+- snapshot cadence mechanism
 
-- 4-axis projection
-- link_pending
-- submitted vs assessed
-- partial exclusion
-- target validation
-- denominator staleness
-- registry active/read_only/retired
+Create separate Kubiaka read model. Do not reuse public feature fields containing count/date/centroid.
+
+### 8.3 Inputs
+
+- Record and assessed asset aggregates
+- evidence role distribution
+- unique days
+- Place revisit
+- participant type
+- Review/audit state
+- suppression/erase events
+- optional formal SurveyEvent when real protocol exists
+
+### 8.4 Suppression consumer
+
+New production consumer is required; do not assume it exists.
+
+- read suppression/erase events
+- exclude affected source rows
+- generate immutable new projection edition
+- update serving pointer
+- retain audit evidence
+
+### 8.5 Public map
+
+Not part of Release D.
+
+A separate future Decision must define:
+
+- account-only participant threshold
+- no guest-only publication
+- empty/suppressed indistinguishability
+- freshness masking
+- differencing protection
+- granularity
+- operational owner
+
+## 9. Release E — Approved routing
+
+Not started without explicit approval.
+
+Required:
+
+- real recipient
+- geographic/taxon/purpose scope
+- valid receive consent and expiry
+- allowed fields
+- trained reviewer requirement
+- operator separate approval
+- idempotent send
+- acknowledgement mechanism
+- failed/expired states
+- runbook
+- rollback / kill switch
+
+Gate 0 remains deny until each exact scope is enabled.
+
+## 10. Generic survey platform relationship
+
+Existing/parallel generic survey development remains separate.
+
+Responsibilities:
+
+1. survey recording
+2. save-health notification
+3. coverage navigation
+4. optional AI guide
+
+Walking / vehicle / fixed, offline queue, Wake Lock, 500m mesh, 25–50m subcells are not P0 Kubiaka dependencies.
+
+Later integration points:
+
+- operator coverage
+- formal SurveyEvent
+- annual monitoring protocol
+- partner-led field survey
+
+Do not model a perpetual survey as a fake event.
+
+## 11. Validation matrix
+
+### Unit / contract
+
+- normalized taxon synonym scope
+- Gate 0 path decisions
+- four-axis contributor projection
+- `link_pending`
+- asset accounting
+- evidence reference validation
+- feedback copy rules
+- annual revisit selection
 
 ### Integration
 
-- Record → outbox → link → receipt
-- partial failure recovery
+- Record→outbox→link→receipt
+- outbox idempotency
 - claim transaction
-- Foundation Survey mapping
-- Feedback append-only
-- ProjectionSnapshot generation
-- suppression propagation
+- append-only feedback
+- Assessment failure with saved Record
+- stale Assessment with published feedback
+- suppression→projection regeneration in Release D
 
-### Security / privacy
+### Security
 
-- guest/account isolation
-- shared-device viewing
+- guest A/B
+- account A/B
+- guest/account crossover
+- pre-submit shared-device empty
+- current-session receipt only
+- stale cookie
+- replay
+- CSRF
 - receipt enumeration
-- CSRF / same-origin
-- auto-routing interlock
-- one-participant map suppression
-- empty/suppressed indistinguishability
-- adjacent-cell differencing
+- cache/no-store
+- Gate 0 across all notification branches
 
 ### Browser
 
 - 320 / 375 / 390 / 412 / 768 / 1024 / 1280 / 1440 / 1536
-- 200% text
-- keyboard / screen reader
-- map/list parity
-- six-photo retry
+- text 200%
+- keyboard
+- screen reader
+- 6-photo upload/retry
 - login return
+- camera permission denied
+- offline draft recovery
 
 ### Operations
 
 - queue overload
-- Assessment disabled
-- recipient consent expiry
-- idempotent routing
-- rollback rehearsal
+- Assessment outage
+- receipt survival during outage
+- retry/backpressure
+- incident runbook
+- no external send
 
-## 16. Critical path
+### Model evaluation
 
-1. second architecture review of #42/#43/#1491
-2. resolve all P0 / accepted P1 in source of truth
-3. auto-routing interlock PR
-4. #1489 green and merge
-5. #43 / #1491 rebase and merge
-6. new pure contract PR from main
-7. Migration 1 + Release B staging
-8. closed pilot B1
-9. Release C
-10. Release D
-11. Release E under explicit approval
+- adult precision/recall
+- frass precision/recall
+- exit-hole precision/recall
+- image role classification
+- no-clear-sign audit
+- regional/season/device stratification
 
-## 17. Stop conditions
+## 12. Observability
 
-Stop if any remains:
+Track without private content:
 
-- existing auto-routing can bypass explicit gate
-- state axes inconsistent
-- link recovery undefined
-- guest shared-device viewing leaks
-- assessed count unverifiable
-- survey non-detection can be caller-forced
-- public suppression is distinguishable
-- single participant can publish a cell
-- target can fail open
-- authority inferred from workflow
-- suppression cannot propagate
-- production / external-send approval absent
+- save success/failure class
+- outbox pending age
+- link recovery
+- receipt access success
+- claim success/failure
+- Assessment queue age
+- assessed/submitted ratio
+- feedback latency
+- operator queue age
+- retry counts
+
+Do not log:
+
+- exact coordinates
+- image content
+- raw notes
+- credential
+- receipt access secret
+- child identity
+
+## 13. Rollback
+
+### Gate 0
+
+- kill switch keeps managed taxa denied
+- rollback must never re-enable external sends by default
+
+### Release B
+
+- disable new Kubiaka entry
+- keep existing receipts read-only
+- preserve Records and links
+- continue outbox reconciliation
+
+### Release C
+
+- stop Assessment workers
+- keep save/receipt operational
+- retain published feedback editions
+- mark new feedback withheld
+
+### Release D
+
+- stop projection refresh
+- remove operator view pointer
+- preserve editions for audit
+
+### Release E
+
+- disable exact routing scope
+- stop send worker
+- retain delivery evidence
+- do not delete source Record
+
+## 14. Explicit approval boundaries
+
+Requires explicit approval before execution:
+
+- PostgreSQL / D1 migration apply
+- production deploy
+- taxon routing activation
+- external send
+- recipient registration
+- secret / DNS / permission changes
+- deletion / branch deletion if evidence would be lost
+
+Source-only docs, code, tests, branch, and Draft PR may proceed within repository rules.
+
+## 15. Completion definition
+
+Initial product is complete when:
+
+- Gate 0 is enforced across all notification paths
+- guest/member 1–6 photo save works
+- private receipt survives Assessment outage
+- shared-device history does not leak
+- receipt claim is transactional
+- member stays in dedicated Kubiaka experience
+- submitted/assessed asset accounting is truthful
+- photo-scope feedback is versioned and limited
+- closed pilot metrics are recorded
+- public map and external send remain disabled
+
+## 16. Stop conditions
+
+Stop immediately if:
+
+- any managed-taxon notification branch bypasses Gate 0
+- link failure permits Assessment or send
+- another guest's receipt is shown
+- receipt URL alone grants access
+- feedback claims unassessed media
+- casual photo creates survey non-detection
+- generic public map fields are exposed
+- production/DB/external send lacks explicit approval
+- implementation diverges from strategy Decision
