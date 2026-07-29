@@ -1,6 +1,17 @@
 name: AI Usage v2 Validation
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/ai-usage-v2-validation.yml"
+      - "platform_v2/db/migrations/0140_ai_usage_control.sql"
+      - "platform_v2/db/migrations/0141_ai_usage_control_hardening.sql"
+      - "platform_v2/db/migrations/0142_ai_usage_metadata_allowlist.sql"
+      - "platform_v2/db/migrations/0143_ai_usage_contract_v2.sql"
+      - "platform_v2/db/migrations/0144_ai_usage_invocation_identity.sql"
+      - "platform_v2/src/services/**"
   push:
     branches:
       - codex/zukan-context-ai-usage-v2-20260729
@@ -10,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ai-usage-v2-${{ github.ref }}
+  group: ai-usage-v2-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
