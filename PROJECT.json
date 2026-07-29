@@ -54,6 +54,10 @@
       "repository": "yamaki0102/ikimon-platform",
       "path": "docs/spec/zukan-product-architecture/SPEC.md"
     },
+    "kubiaka_focused_experience": {
+      "repository": "yamaki0102/ikimon-platform",
+      "path": "docs/spec/kubiaka-focused-experience/SPEC.md"
+    },
     "record_observation_spec": {
       "repository": "yamaki0102/ikimon-platform",
       "path": "docs/spec/record-detail-observation/README.md"
