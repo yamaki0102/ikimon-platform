@@ -1,61 +1,133 @@
-# Kubiaka Architecture Review v1 — Resolution Matrix
+# Kubiaka Architecture Reviews — Final Resolution Record
 
 - Date: 2026-07-29
-- Status: corrections prepared / second review pending
-- Source review: external read-only architecture review supplied by project owner
+- Status: closed / decisions incorporated
+- Source: two external read-only architecture reviews supplied by the project owner
+- Active contracts:
+  - `docs/spec/kubiaka-focused-experience/SPEC.md`
+  - `docs/spec/kubiaka-focused-experience/IMPLEMENTATION_MASTER_PLAN.md`
+  - `docs/spec/kubiaka-focused-experience/PLAN.md`
+  - `docs/spec/kubiaka-focused-experience/AREA_COVERAGE.md`
 
-## P0 resolution
+## 1. Final product decision
 
-| Finding | Decision | Correction | Verification gate |
-|---|---|---|---|
-| Existing invasive auto-routing bypass | Accepted | strategy #42 interlock; independent first runtime PR | failing→passing alert/delivery tests |
-| Submitted vs assessed photo count | Accepted | distinct submitted/assessed asset IDs; honest copy | mismatch contract tests; existing model-limit inspection |
-| Public `privacy_suppressed` existence oracle | Accepted | removed from public state; unified `no_public_data` | empty/suppressed indistinguishability |
-| k-threshold uses Record count only | Accepted | participant OR Record insufficiency suppresses; raw date removed | one-participant-many-Records fixture |
-| Degenerate target fail-open | Accepted | positive target validation; invalid→no_public_data | zero/NaN/missing/stale-denominator tests |
-| Shared-device guest history leak | Accepted | latest receipt only; explicit device history/reset; receipt-scoped claim | school tablet browser tests |
-| Linear workflow state | Accepted | Persistence / Assessment / Feedback / Action + `link_pending`; authority separate | six simultaneous-state scenarios |
-| `survey_non_detection` caller boolean | Accepted | Foundation v2 Survey/Detection/Coverage source of truth; `partial` excluded | PG/D1 mapping tests |
-| Case implies specialist authority | Accepted | workflow cannot infer authority | projection/copy tests |
+Adopt:
 
-## P1 resolution
+> Receipt-first, Map-later。返事を完成させてから地図を描く。
 
-| Finding | Decision | Correction / status |
-|---|---|---|
-| Foundation v2 duplication | Accepted | Survey, Detection, Coverage reused; Kubiaka coverage is read projection only |
-| suppression cannot reach new projection | Accepted in design | use existing ProjectionSnapshot/map snapshot; verify propagation before Release D |
-| grid scheme duplication | Accepted | reuse existing gridM ladder; standards crosswalk/export only |
-| species privacy solves wrong threat | Accepted | contributor sensitivity floor added to map/receipt contract; implementation review pending |
-| routing reimplemented | Accepted | extend existing invasive reporting behind interlock; no new routing source of truth |
-| usability enum collapses axes | Accepted | boolean flags instead of exclusive enum |
-| registry disabled breaks receipt rollback | Accepted | next pure contract uses `active | read_only | retired`; lookup remains available |
-| scientific name used as taxon ID | Accepted | require opaque canonical taxon ID; name is display field |
-| PR stack duplicate patch | Accepted | #1492 closed; no successor stack until #1491 merged |
-| outbox underdefined | Accepted | explicit link outbox / idempotency / `link_pending` contract |
+Initial product:
 
-## Simplifications adopted
+- guest/member 1–6 photo save
+- private receipt
+- receipt-scoped claim
+- dedicated member workspace
+- submitted/assessed asset accounting
+- delayed photo-scope feedback
+- operator review queue
 
-- No generic `focused_experiences` DB table in P0.
-- No separate focused-experience survey/non-detection tables.
-- No separate area grid or map publication subsystem.
-- No separate routing subsystem.
-- Kubiaka-specific persistence remains Kubiaka-specific until a second real experience proves commonality.
-- P0 routes exclude settings, config, Case UI and routing UI.
-- Static Release A is folded into private contribution Release B.
-- Old review packet removed from `docs/spec/` and replaced under `docs/reviews/`.
-- #1492 closed as superseded; branch retained.
+Deferred:
 
-## Items requiring second-review confirmation
+- public coverage map
+- survey non-detection
+- public 500m cells
+- external routing
+- specialist SLA
 
-1. Correct enforcement point for auto-routing interlock.
-2. Whether common Record-context link is justified at n=1.
-3. Exact existing suppression propagation coverage.
-4. PostgreSQL / D1 Foundation v2 parity.
-5. Existing composer and assessment image-limit behavior.
-6. Participant/Sybil model for public k-threshold.
-7. Whether existing location privacy hooks can implement contributor sensitivity without another parallel subsystem.
-8. Minimum migration objects for link, receipt and claim.
+## 2. Safety decisions
 
-## Current mutation boundary
+- all managed-taxon notifications are denied at dispatcher entry
+- taxon-side normalized name/synonym scope is used before Record link exists
+- `link_pending` never permits Assessment, feedback publishing, or alerts
+- law status, AI confidence, candidate, or Case alone never permits send
+- external routing remains a later Release with explicit approval
 
-Completed changes are strategy/spec/review docs and closing the unmerged Draft PR #1492. No runtime route, DB, migration, staging, production, secret, DNS, permission or external-send change has been made.
+## 3. Ownership and shared-device decisions
+
+- guest view is empty before current-session submission
+- after submission, only the current-session receipt is shown
+- device history is not a default guest feature
+- `別の人が使う` rotates the guest credential
+- account claim is receipt-scoped
+- no implicit claim-all in P0
+
+## 4. State decisions
+
+Use orthogonal state axes:
+
+- Persistence including `link_pending`
+- Assessment
+- Feedback
+- Action
+
+Review authority remains a FeedbackEdition attribute and cannot be inferred from workflow or Case position.
+
+## 5. Feedback decisions
+
+- `submittedAssetIds`, `assessedAssetIds`, `unassessedAssetIds` are separate
+- counts are derived from asset IDs
+- current `recordPhotoFeedback` requires an asset-aware adapter or modification
+- no silent MAX_IMAGES truncation may be presented as complete assessment
+- whole-Record no-clear-sign wording requires all intended submitted assets to be assessed
+
+## 6. Scientific claim decisions
+
+- P0 supports photo-scope wording only
+- casual photos do not create `survey_non_detection`
+- Foundation v2 SurveyEvent / DetectionOutcome remains the future source of truth
+- formal survey integration starts only with a real partner and versioned protocol
+
+## 7. Coverage decisions
+
+- public map is removed from initial releases
+- operator-only coverage may start after feedback pilot evidence
+- existing map reuses cell derivation and cadence mechanism only
+- existing public feature fields are not reused
+- suppression/erase propagation requires a new Release D consumer
+- future public map requires a separate Decision
+
+## 8. Abstraction decisions
+
+- no generic `focused_experiences` DB platform in P0
+- Kubiaka persistence remains Kubiaka-specific
+- shared skeleton is limited to source registry, Record reuse, and safe routing concepts
+- generalization is reconsidered when a second real experience exists
+
+## 9. PR decisions
+
+- strategy #42: finalize and merge first
+- strategy #43: Receipt-first decision, rebase and merge after #42
+- platform #1489: update strategy SHA, verify, merge
+- platform #1491: final docs/spec, rebase and merge
+- platform #1492: closed and superseded, not an implementation base
+- successor runtime PRs: create from latest main only
+
+## 10. Review-cycle closure
+
+No further external architecture review is required before Gate 0 implementation.
+
+Future decisions are based on:
+
+- code review
+- contract and security tests
+- staging runtime evidence
+- closed-pilot metrics
+- explicit approval boundaries
+
+Review request packets are not active product specifications and have been removed.
+
+## 11. Mutation boundary at closure
+
+Completed:
+
+- strategy/spec/plan updates
+- closing superseded #1492
+- cross-project planning records
+
+Not performed:
+
+- runtime route implementation
+- DB or migration apply
+- staging or production deploy
+- taxon routing activation
+- secret / DNS / permission change
+- external send
