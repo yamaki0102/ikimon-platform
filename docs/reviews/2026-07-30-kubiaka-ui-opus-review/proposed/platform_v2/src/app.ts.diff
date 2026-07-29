@@ -1,0 +1,18 @@
+--- a/platform_v2/src/app.ts
++++ b/platform_v2/src/app.ts
+@@ -14,6 +14,7 @@ import { registerLlmoRoutes } from "./routes/llmo.js";
+ import { registerInvasiveSpeciesRoutes } from "./routes/invasiveSpecies.js";
+ import { registerMapApiRoutes } from "./routes/mapApi.js";
+ import { registerMarketingRoutes } from "./routes/marketing.js";
++import { registerKubiakaExperienceRoutes } from "./routes/kubiakaExperience.js";
+ import { registerOpsRoutes } from "./routes/ops.js";
+ import { registerPlotMonitoringApiRoutes } from "./routes/plotMonitoringApi.js";
+ import { registerReadRoutes } from "./routes/read.js";
+@@ -744,6 +745,7 @@ export function buildApp() {
+   void registerInvasiveSpeciesRoutes(app);
+   void registerMapApiRoutes(app);
+   void registerMarketingRoutes(app);
++  void registerKubiakaExperienceRoutes(app);
+   void registerSampleReportRoute(app);
+   void registerMonitoringBusinessRoutes(app);
+   void registerMonitoringWorkspaceApiRoutes(app);
