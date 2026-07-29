@@ -24,21 +24,6 @@ const legacyDirectImports: Record<string, { owner: string; removeBy: string; rea
     removeBy: "2026-09-30",
     reason: "standalone embedding migration CLI",
   },
-  "services/curatorGeminiWorker.ts": {
-    owner: "curator-runtime",
-    removeBy: "2026-09-30",
-    reason: "legacy curator provider implementation",
-  },
-  "services/guideLiveToken.ts": {
-    owner: "guide-runtime",
-    removeBy: "2026-09-30",
-    reason: "ephemeral-token API not yet routed through provider adapters",
-  },
-  "services/guideTts.ts": {
-    owner: "guide-runtime",
-    removeBy: "2026-09-30",
-    reason: "audio generation API not yet routed through provider adapters",
-  },
 };
 
 function listTypeScriptFiles(directory: string): string[] {
@@ -58,7 +43,7 @@ function hasDirectImport(source: string): boolean {
     || source.includes(`require(${moduleLiteral})`));
 }
 
-test("Google GenAI SDK imports are limited to reviewed adapters and bounded legacy debt", () => {
+test("Google GenAI SDK imports are limited to reviewed adapters and bounded script debt", () => {
   const directImports = listTypeScriptFiles(sourceRoot)
     .filter((absolute) => hasDirectImport(readFileSync(absolute, "utf8")))
     .map((absolute) => path.relative(sourceRoot, absolute).split(path.sep).join("/"))
@@ -69,12 +54,19 @@ test("Google GenAI SDK imports are limited to reviewed adapters and bounded lega
   ].sort();
   assert.deepEqual(directImports, expected, [
     "Direct provider imports changed.",
-    "Use services/providers or explicitly review and time-bound the legacy debt entry.",
+    "Use services/providers or explicitly review and time-bound the script debt entry.",
   ].join(" "));
-  assert.equal(directImports.includes("services/aiModelRouter.ts"), false);
+  for (const runtimeFile of [
+    "services/aiModelRouter.ts",
+    "services/curatorGeminiWorker.ts",
+    "services/guideLiveToken.ts",
+    "services/guideTts.ts",
+  ]) {
+    assert.equal(directImports.includes(runtimeFile), false, runtimeFile);
+  }
 });
 
-test("legacy direct-import debt has an owner reason and unexpired removal date", () => {
+test("legacy script direct-import debt has an owner reason and unexpired removal date", () => {
   const today = new Date().toISOString().slice(0, 10);
   for (const [file, debt] of Object.entries(legacyDirectImports)) {
     assert.ok(debt.owner.trim(), `${file}:owner`);
