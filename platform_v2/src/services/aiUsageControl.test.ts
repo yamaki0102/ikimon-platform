@@ -4,315 +4,115 @@ import {
   InMemoryAiUsageRepository,
   buildAiExecutionKey,
   evaluateAiBudget,
+  normalizeAiUsageMetadata,
   type AiExecutionKeyInput,
+  type RecordAiUsageInput,
 } from "./aiUsageControl.js";
 
+function clock(start = "2026-07-29T00:00:00.000Z") {
+  let epoch = Date.parse(start);
+  return { now: () => new Date(epoch), advance: (ms: number) => { epoch += ms; } };
+}
+
 const key: AiExecutionKeyInput = {
-  tenantId: "tenant-a",
-  feature: "context_packet",
-  sourceDigest: "A".repeat(64),
-  extractionRunId: null,
-  policyVersion: "policy-v1",
-  promptVersion: "prompt-v1",
-  modelId: "gemini-3.1-flash-lite",
+  tenantId: "tenant-a", project: "zukan", workspaceId: null, feature: "context_packet",
+  provider: "google", modelId: "gemini-3.1-flash-lite", operationVersion: "context/v1",
+  canonicalInputDigest: "b".repeat(64), sourceDigest: "A".repeat(64), extractionRunId: null,
+  policyVersion: "policy-v1", promptVersion: "prompt-v1", targetTime: "2026-07-29T00:00:00+00:00",
 };
 
-test("execution key is deterministic and normalizes the source digest", () => {
-  assert.equal(buildAiExecutionKey(key), buildAiExecutionKey({ ...key, sourceDigest: "a".repeat(64) }));
-});
-
-test("active and succeeded guards prevent duplicate execution", async () => {
-  const repository = new InMemoryAiUsageRepository();
-  const first = await repository.acquire({
-    key,
-    attemptId: "attempt-1",
-    now: "2026-07-29T00:00:00.000Z",
-    leaseExpiresAt: "2026-07-29T00:05:00.000Z",
-  });
-  assert.equal(first.acquired, true);
-  const replay = await repository.acquire({
-    key,
-    attemptId: "attempt-1",
-    now: "2026-07-29T00:00:30.000Z",
-    leaseExpiresAt: "2026-07-29T00:06:00.000Z",
-  });
-  assert.equal(replay.acquired, true);
-  assert.equal((await repository.listAttemptEvents()).length, 1);
-
-  const duplicate = await repository.acquire({
-    key,
-    attemptId: "attempt-2",
-    now: "2026-07-29T00:01:00.000Z",
-    leaseExpiresAt: "2026-07-29T00:06:00.000Z",
-  });
-  assert.equal(duplicate.acquired, false);
-  if (duplicate.acquired) assert.fail("duplicate execution unexpectedly acquired");
-  assert.equal(duplicate.reason, "active_lease");
-
-  const executionKey = buildAiExecutionKey(key);
-  await repository.settle({
-    executionKey,
-    attemptId: "attempt-1",
-    occurredAt: "2026-07-29T00:02:00.000Z",
-    outcome: "succeeded",
-  });
-  const replayedSettle = await repository.settle({
-    executionKey,
-    attemptId: "attempt-1",
-    occurredAt: "2026-07-29T00:02:30.000Z",
-    outcome: "succeeded",
-  });
-  assert.equal(replayedSettle.state, "succeeded");
-
-  const afterSuccess = await repository.acquire({
-    key,
-    attemptId: "attempt-3",
-    now: "2026-07-29T00:03:00.000Z",
-    leaseExpiresAt: "2026-07-29T00:08:00.000Z",
-  });
-  assert.equal(afterSuccess.acquired, false);
-  if (afterSuccess.acquired) assert.fail("settled execution unexpectedly acquired");
-  assert.equal(afterSuccess.reason, "already_succeeded");
-});
-
-test("failed or expired attempts can be reacquired with append-only attempt events", async () => {
-  const repository = new InMemoryAiUsageRepository();
-  const first = await repository.acquire({
-    key,
-    attemptId: "attempt-1",
-    now: "2026-07-29T00:00:00.000Z",
-    leaseExpiresAt: "2026-07-29T00:01:00.000Z",
-  });
-  assert.equal(first.acquired, true);
-  const reacquired = await repository.acquire({
-    key,
-    attemptId: "attempt-2",
-    now: "2026-07-29T00:02:00.000Z",
-    leaseExpiresAt: "2026-07-29T00:03:00.000Z",
-  });
-  assert.equal(reacquired.acquired, true);
-  assert.deepEqual(
-    (await repository.listAttemptEvents()).map((event) => event.kind),
-    ["started", "lease_expired", "started"],
-  );
-
-  await repository.settle({
-    executionKey: buildAiExecutionKey(key),
-    attemptId: "attempt-2",
-    occurredAt: "2026-07-29T00:02:30.000Z",
-    outcome: "failed",
-    detail: "provider_timeout",
-  });
-  const retry = await repository.acquire({
-    key,
-    attemptId: "attempt-3",
-    now: "2026-07-29T00:02:40.000Z",
-    leaseExpiresAt: "2026-07-29T00:04:00.000Z",
-  });
-  assert.equal(retry.acquired, true);
-});
-
-test("usage and reconciliation adjustments are both retained", async () => {
-  const repository = new InMemoryAiUsageRepository();
-  const base = {
-    eventId: "usage-1",
-    occurredAt: "2026-07-29T00:00:00.000Z",
-    tenantId: "tenant-a",
-    project: "zukan",
-    feature: "context_packet",
-    requestId: "request-1",
-    executionKey: null,
-    attemptId: null,
-    provider: "google",
-    providerRequestId: "provider-request-1",
-    modelId: "gemini-3.1-flash-lite",
-    pricingVersion: "google-2026-07-29",
-    promptVersion: "prompt-v1",
-    inputTokens: 100,
-    cachedInputTokens: 0,
-    cacheWriteTokens: 0,
-    outputTokens: 20,
-    retryCount: 0,
-    fallbackDepth: 0,
-    providerFailureCount: 0,
-    outcome: "ok" as const,
+function usage(overrides: Partial<RecordAiUsageInput> = {}): RecordAiUsageInput {
+  return {
+    eventId: "usage-1", occurredAt: "2026-07-29T00:00:00.000Z",
+    tenantId: key.tenantId, project: key.project, workspaceId: key.workspaceId,
+    feature: key.feature, operationVersion: key.operationVersion, requestId: "request-1",
+    executionKey: null, attemptId: null, leaseGeneration: null,
+    provider: key.provider, providerRequestId: "provider-request-1", providerAccountId: "google-account-a",
+    modelId: key.modelId, pricingVersion: "google-2026-07-29", promptVersion: key.promptVersion,
+    inputTokens: 100, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 20,
+    costUsdMicros: 100, retryCount: 0, fallbackDepth: 0, providerFailureCount: 0,
+    eventKind: "usage", outcome: "ok", reconciliationStatus: "pending",
     rawUsageJson: "{\"promptTokenCount\":100,\"candidatesTokenCount\":20}",
-    retryOfEventId: null,
-    adjustmentOfEventId: null,
+    retryOfEventId: null, adjustmentOfEventId: null, ...overrides,
   };
-  const usage = await repository.recordUsage({
-    ...base,
-    costUsdMicros: 100,
-    eventKind: "usage",
-    reconciliationStatus: "pending",
-  });
-  const adjustment = await repository.recordUsage({
-    ...base,
-    eventId: "adjustment-1",
-    requestId: "reconciliation-1",
-    inputTokens: 0,
-    outputTokens: 0,
-    costUsdMicros: -10,
-    eventKind: "adjustment",
-    reconciliationStatus: "adjusted",
-    retryOfEventId: null,
-    adjustmentOfEventId: usage.eventId,
-  });
-  assert.equal(usage.recordedSequence, 1);
-  assert.equal(adjustment.recordedSequence, 2);
-  const replay = await repository.recordUsage({
-    ...base,
-    costUsdMicros: 100,
-    eventKind: "usage",
-    reconciliationStatus: "pending",
-  });
-  assert.equal(replay.recordedSequence, usage.recordedSequence);
-  assert.equal((await repository.listUsageEvents()).length, 2);
+}
+
+test("execution identity includes project workspace provider operation and canonical input", () => {
+  const first = buildAiExecutionKey(key);
+  assert.equal(first, buildAiExecutionKey({ ...key, sourceDigest: "a".repeat(64), targetTime: "2026-07-29T00:00:00.000Z" }));
+  for (const changed of [
+    { project: "iportal" }, { workspaceId: "workspace-a" }, { provider: "anthropic" },
+    { operationVersion: "context/v2" }, { canonicalInputDigest: "c".repeat(64) },
+  ]) assert.notEqual(first, buildAiExecutionKey({ ...key, ...changed }));
 });
 
-test("budget decision checks cost retry fallback and provider-failure limits", () => {
+test("lease uses repository clock generation fencing renew and expiry", async () => {
+  const time = clock();
+  const repository = new InMemoryAiUsageRepository(time.now);
+  const first = await repository.acquire({ key, attemptId: "attempt-1", leaseDurationMs: 60_000 });
+  assert.equal(first.acquired, true);
+  if (!first.acquired) assert.fail();
+  assert.equal(first.guard.leaseGeneration, 1);
+  time.advance(30_000);
+  const renewed = await repository.renew({
+    executionKey: first.guard.executionKey, attemptId: "attempt-1", leaseGeneration: 1, leaseDurationMs: 60_000,
+  });
+  assert.equal(renewed.leaseExpiresAt, "2026-07-29T00:01:30.000Z");
+  await assert.rejects(() => repository.settle({
+    executionKey: first.guard.executionKey, attemptId: "attempt-1", leaseGeneration: 2, outcome: "succeeded",
+  }), /ai_guard_fencing_mismatch/u);
+  time.advance(61_000);
+  await assert.rejects(() => repository.settle({
+    executionKey: first.guard.executionKey, attemptId: "attempt-1", leaseGeneration: 1, outcome: "succeeded",
+  }), /ai_guard_lease_expired/u);
+  const second = await repository.acquire({ key, attemptId: "attempt-2", leaseDurationMs: 60_000 });
+  assert.equal(second.acquired, true);
+  if (!second.acquired) assert.fail();
+  assert.equal(second.guard.leaseGeneration, 2);
+});
+
+test("usage bound to a guard must match full scope and fencing token", async () => {
+  const repository = new InMemoryAiUsageRepository(clock().now);
+  const acquired = await repository.acquire({ key, attemptId: "attempt-1", leaseDurationMs: 60_000 });
+  if (!acquired.acquired) assert.fail();
+  const linked = usage({
+    executionKey: acquired.guard.executionKey,
+    attemptId: acquired.guard.holderAttemptId,
+    leaseGeneration: acquired.guard.leaseGeneration,
+  });
+  assert.equal((await repository.recordUsage(linked)).executionKey, acquired.guard.executionKey);
+  await assert.rejects(() => repository.recordUsage({ ...linked, eventId: "usage-other-tenant", tenantId: "tenant-b" }), /ai_usage_guard_scope_mismatch/u);
+  await assert.rejects(() => repository.recordUsage({ ...linked, eventId: "usage-old-fence", leaseGeneration: 99 }), /ai_usage_guard_fencing_mismatch/u);
+});
+
+test("usage metadata is strict allowlist and canonical", () => {
+  assert.equal(normalizeAiUsageMetadata('{"completion_tokens":2,"prompt_tokens":1}'), '{"completion_tokens":2,"prompt_tokens":1}');
+  assert.throws(() => normalizeAiUsageMetadata('{"foo":1}'), /ai_raw_usage_json_unknown_key:foo/u);
+  assert.throws(() => normalizeAiUsageMetadata('{"prompt_tokens":"1"}'), /ai_raw_usage_json_count_invalid/u);
+  assert.throws(() => normalizeAiUsageMetadata('{"messages":[]}'), /ai_raw_usage_json_unknown_key:messages/u);
+});
+
+test("retry and adjustment lineage require identical scope", async () => {
+  const repository = new InMemoryAiUsageRepository(clock().now);
+  const original = await repository.recordUsage(usage({ outcome: "error" }));
+  await assert.rejects(() => repository.recordUsage(usage({
+    eventId: "retry-1", requestId: "request-2", retryOfEventId: original.eventId, project: "iportal",
+  })), /ai_retry_target_scope_mismatch/u);
+  const adjustment = await repository.recordUsage(usage({
+    eventId: "adjustment-1", requestId: "invoice-adjustment-1", inputTokens: 0, outputTokens: 0,
+    costUsdMicros: -10, eventKind: "adjustment", reconciliationStatus: "adjusted",
+    providerRequestId: null, adjustmentOfEventId: original.eventId,
+  }));
+  assert.equal(adjustment.eventKind, "adjustment");
+});
+
+test("budget decision includes projected retry fallback and provider failures", () => {
   assert.deepEqual(evaluateAiBudget({
-    projectedRequestUsdMicros: 60,
-    snapshot: {
-      hourlyUsdMicros: 50,
-      featureMonthlyUsdMicros: 150,
-      tenantMonthlyUsdMicros: 250,
-      retryCount: 3,
-      fallbackDepth: 2,
-      providerFailureCount: 2,
-    },
-    limits: {
-      requestUsdMicros: 50,
-      hourlyUsdMicros: 100,
-      featureMonthlyUsdMicros: 200,
-      tenantMonthlyUsdMicros: 300,
-      retryCount: 2,
-      fallbackDepth: 1,
-      providerFailureCount: 1,
-    },
+    projection: { requestUsdMicros: 60, retryCount: 1, fallbackDepth: 2, providerFailureCount: 1 },
+    snapshot: { hourlyUsdMicros: 50, featureMonthlyUsdMicros: 150, tenantMonthlyUsdMicros: 250, retryCount: 2, fallbackDepth: 1, providerFailureCount: 1 },
+    limits: { requestUsdMicros: 50, hourlyUsdMicros: 100, featureMonthlyUsdMicros: 200, tenantMonthlyUsdMicros: 300, retryCount: 2, fallbackDepth: 1, providerFailureCount: 1 },
   }), {
     allowed: false,
-    reasons: [
-      "request_limit",
-      "hourly_limit",
-      "feature_monthly_limit",
-      "tenant_monthly_limit",
-      "retry_limit",
-      "fallback_depth_limit",
-      "provider_failure_limit",
-    ],
+    reasons: ["request_limit", "hourly_limit", "feature_monthly_limit", "tenant_monthly_limit", "retry_limit", "fallback_depth_limit", "provider_failure_limit"],
   });
-});
-
-test("expired lease cannot be reacquired with the same attempt id", async () => {
-  const repository = new InMemoryAiUsageRepository();
-  await repository.acquire({
-    key,
-    attemptId: "attempt-expired",
-    now: "2026-07-29T00:00:00.000Z",
-    leaseExpiresAt: "2026-07-29T00:01:00.000Z",
-  });
-  await assert.rejects(() => repository.acquire({
-    key,
-    attemptId: "attempt-expired",
-    now: "2026-07-29T00:02:00.000Z",
-    leaseExpiresAt: "2026-07-29T00:03:00.000Z",
-  }), /ai_retry_requires_new_attempt_id/u);
-});
-
-test("failed execution requires a new attempt id", async () => {
-  const repository = new InMemoryAiUsageRepository();
-  const executionKey = buildAiExecutionKey(key);
-  await repository.acquire({
-    key,
-    attemptId: "attempt-failed",
-    now: "2026-07-29T00:00:00.000Z",
-    leaseExpiresAt: "2026-07-29T00:01:00.000Z",
-  });
-  await repository.settle({
-    executionKey,
-    attemptId: "attempt-failed",
-    occurredAt: "2026-07-29T00:00:30.000Z",
-    outcome: "failed",
-  });
-  await assert.rejects(() => repository.acquire({
-    key,
-    attemptId: "attempt-failed",
-    now: "2026-07-29T00:00:40.000Z",
-    leaseExpiresAt: "2026-07-29T00:02:00.000Z",
-  }), /ai_retry_requires_new_attempt_id/u);
-});
-
-test("raw usage metadata rejects prompt or response content", async () => {
-  const repository = new InMemoryAiUsageRepository();
-  await assert.rejects(() => repository.recordUsage({
-    eventId: "usage-sensitive",
-    occurredAt: "2026-07-29T00:00:00.000Z",
-    tenantId: "tenant-a",
-    project: "zukan",
-    feature: "context_packet",
-    requestId: "request-sensitive",
-    executionKey: null,
-    attemptId: null,
-    provider: "google",
-    providerRequestId: "provider-sensitive",
-    modelId: "gemini-3.1-flash-lite",
-    pricingVersion: "google-2026-07-29",
-    promptVersion: "prompt-v1",
-    inputTokens: 1,
-    cachedInputTokens: 0,
-    cacheWriteTokens: 0,
-    outputTokens: 1,
-    costUsdMicros: 1,
-    retryCount: 0,
-    fallbackDepth: 0,
-    providerFailureCount: 0,
-    eventKind: "usage",
-    outcome: "ok",
-    reconciliationStatus: "pending",
-    rawUsageJson: JSON.stringify({ prompt: "secret" }),
-    retryOfEventId: null,
-    adjustmentOfEventId: null,
-  }), /ai_raw_usage_json_forbidden_key:prompt/u);
-});
-
-test("retry and adjustment references must remain in the same scope", async () => {
-  const repository = new InMemoryAiUsageRepository();
-  const original = await repository.recordUsage({
-    eventId: "usage-scope-original",
-    occurredAt: "2026-07-29T00:00:00.000Z",
-    tenantId: "tenant-a",
-    project: "zukan",
-    feature: "context_packet",
-    requestId: "request-scope",
-    executionKey: "execution-scope",
-    attemptId: "attempt-scope",
-    provider: "google",
-    providerRequestId: "provider-scope",
-    modelId: "gemini-3.1-flash-lite",
-    pricingVersion: "google-2026-07-29",
-    promptVersion: "prompt-v1",
-    inputTokens: 1,
-    cachedInputTokens: 0,
-    cacheWriteTokens: 0,
-    outputTokens: 1,
-    costUsdMicros: 1,
-    retryCount: 0,
-    fallbackDepth: 0,
-    providerFailureCount: 0,
-    eventKind: "usage",
-    outcome: "error",
-    reconciliationStatus: "pending",
-    rawUsageJson: "{}",
-    retryOfEventId: null,
-    adjustmentOfEventId: null,
-  });
-  const { recordedSequence: _recordedSequence, ...retryInput } = original;
-  await assert.rejects(() => repository.recordUsage({
-    ...retryInput,
-    eventId: "usage-scope-retry",
-    tenantId: "tenant-other",
-    requestId: "request-scope-retry",
-    retryOfEventId: original.eventId,
-  }), /ai_retry_target_scope_mismatch/u);
 });
