@@ -12,9 +12,11 @@ export const KUBIAKA_EXPERIENCE_KEY = "kubiaka-watch";
 export const KUBIAKA_ENTRY_PATH = "/kubiaka";
 export const KUBIAKA_RECORD_PATH = "/kubiaka/record";
 export const KUBIAKA_MEMBER_PATH = "/kubiaka/me";
+export const KUBIAKA_GENERIC_UPSERT_PATH = "/api/v1/observations/upsert";
 export const KUBIAKA_UPSERT_PATH = "/api/v1/kubiaka/observations/upsert";
 export const KUBIAKA_CONTEXT_VERSION = "kubiaka-private-entry-v1";
 export const KUBIAKA_PROTOCOL_PROFILE = "casual-sakura-photo-v1";
+export const KUBIAKA_ACKNOWLEDGEMENT_LABEL = "Private acknowledgement";
 
 const PAGE_STYLES = `
 .kubiaka-page{display:grid;gap:22px;max-width:820px;margin:0 auto;padding:12px 0 72px}
@@ -35,7 +37,7 @@ const PAGE_STYLES = `
 .kubiaka-note{padding:16px 18px;border-left:4px solid #8b3d31;background:#fff8f1;border-radius:12px;color:#5d504a;line-height:1.75}
 .kubiaka-record-page .global-record-launcher{display:none!important}
 .kubiaka-record-page .site-core-nav .is-capture{display:none!important}
-.kubiaka-receipt-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere;background:#f7f7f3;border-radius:12px;padding:12px;margin-top:14px;color:#37423c}
+.kubiaka-record-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere;background:#f7f7f3;border-radius:12px;padding:12px;margin-top:14px;color:#37423c}
 .kubiaka-private{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;font-weight:800;color:#143f2e}
 @media(max-width:680px){.kubiaka-steps{grid-template-columns:1fr}.kubiaka-hero,.kubiaka-card{border-radius:22px}.kubiaka-actions>*{width:100%}}
 `;
@@ -130,6 +132,12 @@ function objectRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+export function rewriteKubiakaUpsertUrl(url: string): string {
+  return url.includes(KUBIAKA_GENERIC_UPSERT_PATH)
+    ? url.replace(KUBIAKA_GENERIC_UPSERT_PATH, KUBIAKA_UPSERT_PATH)
+    : url;
+}
+
 export function buildKubiakaObservationInput(
   input: ObservationUpsertInput,
   userId: string,
@@ -172,21 +180,18 @@ export function buildKubiakaObservationInput(
 }
 
 function recordContextScript(basePath: string, lang: SiteLang): string {
-  const genericSuffix = "/api/v1/observations/upsert";
-  const dedicatedPath = withBasePath(basePath, KUBIAKA_UPSERT_PATH);
   const memberPath = localizedHref(basePath, KUBIAKA_MEMBER_PATH, lang);
   return `<script>
 (function(){
   var nativeFetch = window.fetch.bind(window);
   var lastRecord = null;
+  var genericSuffix = ${JSON.stringify(KUBIAKA_GENERIC_UPSERT_PATH)};
+  var dedicatedSuffix = ${JSON.stringify(KUBIAKA_UPSERT_PATH)};
   window.fetch = async function(input, init){
     var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-    var target = url;
-    if (url && url.indexOf(${JSON.stringify(genericSuffix)}) >= 0) {
-      target = url.replace(${JSON.stringify(genericSuffix)}, ${JSON.stringify(dedicatedPath)});
-    }
+    var target = url && url.indexOf(genericSuffix) >= 0 ? url.replace(genericSuffix, dedicatedSuffix) : url;
     var response = await nativeFetch(target || input, init);
-    if (target && target.indexOf(${JSON.stringify(KUBIAKA_UPSERT_PATH)}) >= 0) {
+    if (target && target.indexOf(dedicatedSuffix) >= 0) {
       response.clone().json().then(function(data){
         if (!data || !data.ok) return;
         lastRecord = String(data.occurrenceId || data.visitId || '');
@@ -195,24 +200,24 @@ function recordContextScript(basePath: string, lang: SiteLang): string {
     }
     return response;
   };
-  function addReceiptLink(){
+  function addAcknowledgementLink(){
     var status = document.querySelector('[data-global-record-camera-status]');
-    if (!status || status.querySelector('[data-kubiaka-receipt-link]')) return;
+    if (!status || status.querySelector('[data-kubiaka-acknowledgement-link]')) return;
     if (status.textContent.indexOf('保存しました') < 0 && status.textContent.indexOf('saved') < 0) return;
     var id = lastRecord;
     try { id = id || sessionStorage.getItem('kubiaka:last-record') || ''; } catch (_) {}
     var link = document.createElement('a');
-    link.setAttribute('data-kubiaka-receipt-link', 'true');
+    link.setAttribute('data-kubiaka-acknowledgement-link', 'true');
     link.className = 'kubiaka-secondary';
     link.href = ${JSON.stringify(memberPath)} + (id ? '?record=' + encodeURIComponent(id) : '');
-    link.textContent = ${JSON.stringify(lang === "ja" ? "受付内容を見る" : "View receipt")};
+    link.textContent = ${JSON.stringify(lang === "ja" ? "受付内容を見る" : "View acknowledgement")};
     status.appendChild(link);
   }
   document.addEventListener('DOMContentLoaded', function(){
     var start = document.querySelector('[data-kubiaka-capture-start]');
     if (start && new URL(location.href).searchParams.get('start') === 'photo') start.click();
     var status = document.querySelector('[data-global-record-camera-status]');
-    if (status) new MutationObserver(addReceiptLink).observe(status, {childList:true,subtree:true,characterData:true});
+    if (status) new MutationObserver(addAcknowledgementLink).observe(status, {childList:true,subtree:true,characterData:true});
   });
 })();
 </script>`;
@@ -267,10 +272,10 @@ function memberHtml(basePath: string, lang: SiteLang, recordId: string | null): 
   const copy = copyFor(lang);
   return `<div class="kubiaka-page">
     <section class="kubiaka-hero">
-      <div class="kubiaka-eyebrow">Private receipt</div>
+      <div class="kubiaka-eyebrow">${escapeHtml(KUBIAKA_ACKNOWLEDGEMENT_LABEL)}</div>
       <h1>${escapeHtml(copy.memberTitle)}</h1>
       <p>${escapeHtml(copy.memberLead)}</p>
-      ${recordId ? `<div class="kubiaka-receipt-id">Record: ${escapeHtml(recordId)}</div>` : ""}
+      ${recordId ? `<div class="kubiaka-record-id">Record: ${escapeHtml(recordId)}</div>` : ""}
       <div class="kubiaka-actions">
         <a class="kubiaka-primary" href="${escapeHtml(localizedHref(basePath, `${KUBIAKA_RECORD_PATH}?start=photo`, lang))}">${escapeHtml(lang === "ja" ? "もう一度撮る" : "Photograph another")}</a>
         <a class="kubiaka-secondary" href="${escapeHtml(localizedHref(basePath, "/records?view=mine", lang))}">${escapeHtml(lang === "ja" ? "自分の記録を見る" : "My records")}</a>
