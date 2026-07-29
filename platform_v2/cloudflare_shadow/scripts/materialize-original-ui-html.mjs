@@ -147,8 +147,13 @@ const staticAssetPaths = [
   "/assets/brand/zukan-app-icon-192-maskable.png",
   "/assets/brand/zukan-app-icon-512.png",
   "/assets/brand/zukan-app-icon-512-maskable.png",
+  "/assets/brand/zukan-app-icon.svg",
+  "/assets/brand/zukan-app-icon-maskable.svg",
   "/assets/brand/zukan-apple-touch-icon.png",
   "/assets/brand/zukan-favicon-32.png",
+  "/assets/brand/zukan-lockup.svg",
+  "/assets/brand/zukan-symbol.svg",
+  "/assets/brand/zukan-wordmark.svg",
   "/assets/brand/zukan-ogp-default.png",
   "/assets/img/landing/home-community-hero.webp",
   "/assets/img/landing/home-school-learning.webp",
@@ -277,6 +282,7 @@ function staticContentType(pathname) {
   if (pathname.endsWith(".ico")) return "image/x-icon";
   if (pathname.endsWith(".png")) return "image/png";
   if (pathname.endsWith(".webp")) return "image/webp";
+  if (pathname.endsWith(".svg")) return "image/svg+xml";
   return "application/octet-stream";
 }
 

@@ -21237,6 +21237,7 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"\)/);
+  assert.match(materializerSource, /pathname\.endsWith\("\.svg"\).*"image\/svg\+xml"/);
   assert.match(materializerSource, /view-needs-id/);
   assert.match(materializerSource, /includes\("\.\.\.ORIGINAL_UI_HTML_CORE_PATHS"\)/);
   assert.doesNotMatch(materializerSource, /const\s+corePaths\s*=\s*\[/);
@@ -21247,8 +21248,13 @@ test("materialized original UI core entry registry is single-sourced from the Wo
     "/assets/brand/zukan-app-icon-192-maskable.png",
     "/assets/brand/zukan-app-icon-512.png",
     "/assets/brand/zukan-app-icon-512-maskable.png",
+    "/assets/brand/zukan-app-icon.svg",
+    "/assets/brand/zukan-app-icon-maskable.svg",
     "/assets/brand/zukan-apple-touch-icon.png",
     "/assets/brand/zukan-favicon-32.png",
+    "/assets/brand/zukan-lockup.svg",
+    "/assets/brand/zukan-symbol.svg",
+    "/assets/brand/zukan-wordmark.svg",
     "/assets/brand/zukan-ogp-default.png"
   ]) {
     assert.match(materializerSource, new RegExp(assetPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
