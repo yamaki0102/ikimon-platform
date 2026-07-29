@@ -48,6 +48,9 @@ export type AiUsageEvent = {
   cacheWriteTokens: number;
   outputTokens: number;
   costUsdMicros: number;
+  retryCount: number;
+  fallbackDepth: number;
+  providerFailureCount: number;
   eventKind: "usage" | "adjustment";
   outcome: "ok" | "error" | "timeout" | "refused" | "aborted";
   reconciliationStatus: "pending" | "matched" | "adjusted";
@@ -60,18 +63,71 @@ export type AiBudgetLimits = {
   hourlyUsdMicros: number;
   featureMonthlyUsdMicros: number;
   tenantMonthlyUsdMicros: number;
+  retryCount: number;
+  fallbackDepth: number;
+  providerFailureCount: number;
 };
 
 export type AiBudgetSnapshot = {
   hourlyUsdMicros: number;
   featureMonthlyUsdMicros: number;
   tenantMonthlyUsdMicros: number;
+  retryCount: number;
+  fallbackDepth: number;
+  providerFailureCount: number;
 };
+
+export type AiBudgetReason =
+  | "request_limit"
+  | "hourly_limit"
+  | "feature_monthly_limit"
+  | "tenant_monthly_limit"
+  | "retry_limit"
+  | "fallback_depth_limit"
+  | "provider_failure_limit";
 
 export type AiBudgetDecision = {
   allowed: boolean;
-  reasons: Array<"request_limit" | "hourly_limit" | "feature_monthly_limit" | "tenant_monthly_limit">;
+  reasons: AiBudgetReason[];
 };
+
+export type AcquireAiExecutionInput = {
+  key: AiExecutionKeyInput;
+  attemptId: string;
+  now: string;
+  leaseExpiresAt: string;
+};
+
+export type AcquireAiExecutionResult =
+  | { acquired: true; guard: AiExecutionGuard }
+  | {
+      acquired: false;
+      reason: "active_lease" | "already_succeeded";
+      guard: AiExecutionGuard;
+    };
+
+export type SettleAiExecutionInput = {
+  executionKey: string;
+  attemptId: string;
+  occurredAt: string;
+  outcome: "succeeded" | "failed";
+  detail?: string | null;
+};
+
+export type RecordAiUsageInput = Omit<AiUsageEvent, "eventId" | "recordedSequence">;
+
+/**
+ * Persistence boundary. Production implementations must make acquire() atomic
+ * across workers and persist attempt/usage events durably.
+ */
+export interface AiUsageRepository {
+  acquire(input: AcquireAiExecutionInput): Promise<AcquireAiExecutionResult>;
+  settle(input: SettleAiExecutionInput): Promise<AiExecutionGuard>;
+  recordUsage(input: RecordAiUsageInput): Promise<AiUsageEvent>;
+  getGuard(executionKey: string): Promise<AiExecutionGuard | null>;
+  listAttemptEvents(): Promise<AiExecutionAttemptEvent[]>;
+  listUsageEvents(): Promise<AiUsageEvent[]>;
+}
 
 function sortedAiValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortedAiValue);
@@ -129,37 +185,41 @@ export function evaluateAiBudget(input: {
     hourly: nonNegativeInteger(input.snapshot.hourlyUsdMicros, "snapshot_hourly_usd_micros"),
     featureMonthly: nonNegativeInteger(input.snapshot.featureMonthlyUsdMicros, "snapshot_feature_monthly_usd_micros"),
     tenantMonthly: nonNegativeInteger(input.snapshot.tenantMonthlyUsdMicros, "snapshot_tenant_monthly_usd_micros"),
+    retryCount: nonNegativeInteger(input.snapshot.retryCount, "snapshot_retry_count"),
+    fallbackDepth: nonNegativeInteger(input.snapshot.fallbackDepth, "snapshot_fallback_depth"),
+    providerFailureCount: nonNegativeInteger(input.snapshot.providerFailureCount, "snapshot_provider_failure_count"),
   };
   const limits = {
     request: nonNegativeInteger(input.limits.requestUsdMicros, "limit_request_usd_micros"),
     hourly: nonNegativeInteger(input.limits.hourlyUsdMicros, "limit_hourly_usd_micros"),
     featureMonthly: nonNegativeInteger(input.limits.featureMonthlyUsdMicros, "limit_feature_monthly_usd_micros"),
     tenantMonthly: nonNegativeInteger(input.limits.tenantMonthlyUsdMicros, "limit_tenant_monthly_usd_micros"),
+    retryCount: nonNegativeInteger(input.limits.retryCount, "limit_retry_count"),
+    fallbackDepth: nonNegativeInteger(input.limits.fallbackDepth, "limit_fallback_depth"),
+    providerFailureCount: nonNegativeInteger(input.limits.providerFailureCount, "limit_provider_failure_count"),
   };
-  const reasons: AiBudgetDecision["reasons"] = [];
+  const reasons: AiBudgetReason[] = [];
   if (projected > limits.request) reasons.push("request_limit");
   if (snapshot.hourly + projected > limits.hourly) reasons.push("hourly_limit");
   if (snapshot.featureMonthly + projected > limits.featureMonthly) reasons.push("feature_monthly_limit");
   if (snapshot.tenantMonthly + projected > limits.tenantMonthly) reasons.push("tenant_monthly_limit");
+  if (snapshot.retryCount > limits.retryCount) reasons.push("retry_limit");
+  if (snapshot.fallbackDepth > limits.fallbackDepth) reasons.push("fallback_depth_limit");
+  if (snapshot.providerFailureCount > limits.providerFailureCount) reasons.push("provider_failure_limit");
   return { allowed: reasons.length === 0, reasons };
 }
 
-export class InMemoryAiUsageControl {
+/**
+ * Test/development repository only. It deliberately does not provide
+ * cross-process safety; production wiring must use a durable implementation.
+ */
+export class InMemoryAiUsageRepository implements AiUsageRepository {
   private readonly guards = new Map<string, AiExecutionGuard>();
   private readonly attemptEvents: AiExecutionAttemptEvent[] = [];
   private readonly usageEvents: AiUsageEvent[] = [];
   private recordedSequence = 0;
 
-  acquire(input: {
-    key: AiExecutionKeyInput;
-    attemptId: string;
-    now: string;
-    leaseExpiresAt: string;
-  }): { acquired: true; guard: AiExecutionGuard } | {
-    acquired: false;
-    reason: "active_lease" | "already_succeeded";
-    guard: AiExecutionGuard;
-  } {
+  async acquire(input: AcquireAiExecutionInput): Promise<AcquireAiExecutionResult> {
     const attemptId = required(input.attemptId, "attempt_id");
     const nowEpoch = validTimestamp(input.now, "now");
     const expiryEpoch = validTimestamp(input.leaseExpiresAt, "lease_expires_at");
@@ -202,28 +262,24 @@ export class InMemoryAiUsageControl {
     return { acquired: true, guard: { ...guard } };
   }
 
-  settle(input: {
-    executionKey: string;
-    attemptId: string;
-    occurredAt: string;
-    outcome: "succeeded" | "failed";
-    detail?: string | null;
-  }): AiExecutionGuard {
+  async settle(input: SettleAiExecutionInput): Promise<AiExecutionGuard> {
     validTimestamp(input.occurredAt, "settled_at");
-    const guard = this.guards.get(required(input.executionKey, "execution_key"));
+    const executionKey = required(input.executionKey, "execution_key");
+    const attemptId = required(input.attemptId, "attempt_id");
+    const guard = this.guards.get(executionKey);
     if (!guard) throw new Error("ai_guard_not_found");
-    if (guard.holderAttemptId !== required(input.attemptId, "attempt_id")) throw new Error("ai_guard_holder_mismatch");
+    if (guard.holderAttemptId !== attemptId) throw new Error("ai_guard_holder_mismatch");
     if (guard.state !== "active") throw new Error("ai_guard_not_active");
     const settled: AiExecutionGuard = {
       ...guard,
       state: input.outcome,
       settledAt: input.occurredAt,
     };
-    this.guards.set(input.executionKey, settled);
+    this.guards.set(executionKey, settled);
     this.attemptEvents.push({
       eventId: randomUUID(),
-      executionKey: input.executionKey,
-      attemptId: input.attemptId,
+      executionKey,
+      attemptId,
       occurredAt: input.occurredAt,
       kind: input.outcome,
       detail: input.detail ?? null,
@@ -231,12 +287,15 @@ export class InMemoryAiUsageControl {
     return { ...settled };
   }
 
-  recordUsage(input: Omit<AiUsageEvent, "eventId" | "recordedSequence">): AiUsageEvent {
+  async recordUsage(input: RecordAiUsageInput): Promise<AiUsageEvent> {
     validTimestamp(input.occurredAt, "usage_occurred_at");
     nonNegativeInteger(input.inputTokens, "input_tokens");
     nonNegativeInteger(input.cachedInputTokens, "cached_input_tokens");
     nonNegativeInteger(input.cacheWriteTokens, "cache_write_tokens");
     nonNegativeInteger(input.outputTokens, "output_tokens");
+    nonNegativeInteger(input.retryCount, "retry_count");
+    nonNegativeInteger(input.fallbackDepth, "fallback_depth");
+    nonNegativeInteger(input.providerFailureCount, "provider_failure_count");
     if (!Number.isSafeInteger(input.costUsdMicros)) throw new Error("invalid_ai_integer:cost_usd_micros");
     if (input.eventKind === "usage" && input.costUsdMicros < 0) throw new Error("ai_usage_cost_must_not_be_negative");
     required(input.tenantId, "usage_tenant_id");
@@ -257,16 +316,19 @@ export class InMemoryAiUsageControl {
     return { ...event };
   }
 
-  getGuard(executionKey: string): AiExecutionGuard | null {
-    const guard = this.guards.get(executionKey);
+  async getGuard(executionKey: string): Promise<AiExecutionGuard | null> {
+    const guard = this.guards.get(required(executionKey, "execution_key"));
     return guard ? { ...guard } : null;
   }
 
-  listAttemptEvents(): AiExecutionAttemptEvent[] {
+  async listAttemptEvents(): Promise<AiExecutionAttemptEvent[]> {
     return this.attemptEvents.map((event) => ({ ...event }));
   }
 
-  listUsageEvents(): AiUsageEvent[] {
+  async listUsageEvents(): Promise<AiUsageEvent[]> {
     return this.usageEvents.map((event) => ({ ...event }));
   }
 }
+
+/** @deprecated Use InMemoryAiUsageRepository; retained for source compatibility. */
+export class InMemoryAiUsageControl extends InMemoryAiUsageRepository {}
