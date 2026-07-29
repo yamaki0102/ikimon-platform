@@ -3,6 +3,17 @@
 -- Record rows and links are append-only. Privacy erasure remains on the linked
 -- ValueArtifact and future status-event projections; no direct Record mutation is allowed.
 
+CREATE TABLE IF NOT EXISTS zukan_record_payload_scopes (
+    payload_artifact_id UUID PRIMARY KEY REFERENCES zukan_value_artifacts(artifact_id) ON DELETE RESTRICT,
+    tenant_id TEXT NOT NULL,
+    workspace_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (length(trim(tenant_id)) > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_zukan_record_payload_scopes_tenant
+    ON zukan_record_payload_scopes (tenant_id, workspace_id, payload_artifact_id);
+
 CREATE TABLE IF NOT EXISTS zukan_records (
     record_id UUID PRIMARY KEY,
     recorded_sequence BIGINT GENERATED ALWAYS AS IDENTITY UNIQUE,
@@ -12,7 +23,7 @@ CREATE TABLE IF NOT EXISTS zukan_records (
     recorded_at TIMESTAMPTZ NOT NULL,
     occurred_at TIMESTAMPTZ,
     actor_subject_id UUID REFERENCES zukan_subject_identities(subject_id) ON DELETE SET NULL,
-    payload_artifact_id UUID NOT NULL REFERENCES zukan_value_artifacts(artifact_id) ON DELETE RESTRICT,
+    payload_artifact_id UUID NOT NULL REFERENCES zukan_record_payload_scopes(payload_artifact_id) ON DELETE RESTRICT,
     provenance_status TEXT NOT NULL,
     visibility TEXT NOT NULL DEFAULT 'private',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -81,19 +92,27 @@ CREATE INDEX IF NOT EXISTS idx_zukan_claim_record_links_record
 CREATE OR REPLACE FUNCTION zukan_validate_record_insert() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
     payload_status TEXT;
+    payload_tenant TEXT;
+    payload_workspace TEXT;
     actor_tenant TEXT;
     actor_workspace TEXT;
 BEGIN
-    SELECT availability_status
-      INTO payload_status
-      FROM zukan_value_artifacts
-     WHERE artifact_id = NEW.payload_artifact_id
-     FOR KEY SHARE;
+    SELECT artifact.availability_status, scope.tenant_id, scope.workspace_id
+      INTO payload_status, payload_tenant, payload_workspace
+      FROM zukan_record_payload_scopes scope
+      JOIN zukan_value_artifacts artifact
+        ON artifact.artifact_id = scope.payload_artifact_id
+     WHERE scope.payload_artifact_id = NEW.payload_artifact_id
+     FOR KEY SHARE OF scope, artifact;
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'zukan_record_payload_artifact_not_found' USING ERRCODE = '23503';
+        RAISE EXCEPTION 'zukan_record_payload_scope_not_found' USING ERRCODE = '23503';
     END IF;
     IF payload_status <> 'available' THEN
         RAISE EXCEPTION 'zukan_record_payload_artifact_not_available' USING ERRCODE = '23514';
+    END IF;
+    IF payload_tenant IS DISTINCT FROM NEW.tenant_id
+       OR payload_workspace IS DISTINCT FROM NEW.workspace_id THEN
+        RAISE EXCEPTION 'zukan_record_payload_scope_mismatch' USING ERRCODE = '23514';
     END IF;
 
     IF NEW.actor_subject_id IS NOT NULL THEN
@@ -207,6 +226,11 @@ DROP TRIGGER IF EXISTS trg_zukan_claim_record_links_validate ON zukan_claim_reco
 CREATE TRIGGER trg_zukan_claim_record_links_validate
 BEFORE INSERT ON zukan_claim_record_links
 FOR EACH ROW EXECUTE FUNCTION zukan_validate_claim_record_link();
+
+DROP TRIGGER IF EXISTS trg_zukan_record_payload_scopes_no_update ON zukan_record_payload_scopes;
+CREATE TRIGGER trg_zukan_record_payload_scopes_no_update
+BEFORE UPDATE OR DELETE ON zukan_record_payload_scopes
+FOR EACH ROW EXECUTE FUNCTION zukan_reject_row_mutation();
 
 DROP TRIGGER IF EXISTS trg_zukan_records_no_update ON zukan_records;
 CREATE TRIGGER trg_zukan_records_no_update
