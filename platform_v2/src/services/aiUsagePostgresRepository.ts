@@ -1,4 +1,4 @@
-export { AiUsagePostgresRepositoryV2 as AiUsagePostgresRepository } from "./aiUsagePostgresRepositoryV2.js";
+export { AiUsagePostgresRepositoryV3 as AiUsagePostgresRepository } from "./aiUsagePostgresRepositoryV3.js";
 export type {
   AiUsagePostgresClient,
   AiUsagePostgresPool,
