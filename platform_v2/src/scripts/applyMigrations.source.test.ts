@@ -3,21 +3,15 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const source = readFileSync(new URL("./applyMigrations.ts", import.meta.url), "utf8");
+const transactionSource = readFileSync(new URL("./applyMigration.ts", import.meta.url), "utf8");
 
-test("owner-sensitive privilege errors fail closed without recording false application", () => {
-  assert.match(source, /OWNER_SENSITIVE_APPROVAL/);
-  assert.match(source, /code === "42501"/);
-  assert.match(source, /Owner-sensitive migration blocked/);
-  assert.match(source, /migration was not recorded as applied/);
+test("migration CLI delegates each pending migration to the transactional runner", () => {
+  assert.match(source, /applyMigrationTransaction\(client,\s*\{\s*filename,\s*checksum,\s*sql\s*\}\)/);
   assert.doesNotMatch(source, /skip owner-sensitive migration/);
   assert.doesNotMatch(source, /on conflict \(filename\) do nothing/);
-
-  const ownerPrivilegeBranch = source.match(
-    /if \(OWNER_SENSITIVE_APPROVAL\.test\(sql\) && isOwnerPrivilegeError\(error\)\) \{([\s\S]*?)\n\s*\}/,
-  )?.[1];
-  assert.ok(ownerPrivilegeBranch);
-  assert.match(ownerPrivilegeBranch, /throw new Error/);
-  assert.doesNotMatch(ownerPrivilegeBranch, /insert into schema_migrations/);
+  assert.match(transactionSource, /code === "42501"/);
+  assert.match(transactionSource, /database role lacks object ownership or required privileges/);
+  assert.match(transactionSource, /approved migration role/);
 });
 
 test("local extension compatibility is explicit and localhost-only", () => {
