@@ -83,14 +83,25 @@ test("free-form photos may support photo-scope feedback but never become survey 
 });
 
 
-test("a close-up alone remains insufficient for a broad no-clear-sign statement", () => {
+test("a useful close-up stays screenable without supporting a broad no-clear-sign statement", () => {
   const summary = summarizeKubiakaEvidenceCoverage({
     photoCount: 1,
     items: [coverage("adult_detail")],
   });
-  assert.equal(summary.usability, "insufficient_evidence");
+  assert.equal(summary.usability, "screenable_record");
   assert.equal(summary.canStatePhotoScopeNoClearSign, false);
   assert.deepEqual(summary.missingCoreRoles, ["base", "trunk", "whole_tree"]);
+});
+
+
+test("a broad context photo remains a valid photo record even when it is not yet screenable", () => {
+  const summary = summarizeKubiakaEvidenceCoverage({
+    photoCount: 1,
+    items: [coverage("surroundings")],
+  });
+  assert.equal(summary.usability, "photo_record");
+  assert.equal(summary.canStatePhotoScopeNoClearSign, false);
+  assert.equal(summary.canStateSurveyNonDetection, false);
 });
 
 
