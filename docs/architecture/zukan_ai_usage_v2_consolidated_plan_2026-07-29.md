@@ -9,8 +9,24 @@
 
 1. `ai_usage_events` is the single authoritative USD-micro usage and reconciliation store.
 2. Existing `ai_cost_log` is a temporary compatibility projection only. It must not remain a second authority.
-3. `AI_USAGE_V2_ENABLED=1` is the explicit runtime activation gate. It remains disabled until migrations and staging evidence are approved.
-4. Foundation v2 migrations, routes, flags, writers, and data remain unchanged.
+3. Runtime activation is fail-closed and requires both:
+   - `AI_USAGE_V2_ENABLED=1`
+   - an explicit `AI_USAGE_V2_FEATURES` comma-separated allowlist
+4. Missing or empty feature allowlist means disabled. `*` is prohibited until a separately reviewed full cutover.
+5. Foundation v2 migrations, routes, flags, writers, and data remain unchanged.
+
+## Initial staged feature set
+
+Only the following migrated features may enter the first staging allowlist after all gates pass:
+
+- `guide_tts_audio`
+- `guide_tts_text`
+- `guide_live_token`
+- `curator_*`
+- router endpoint names explicitly reviewed in the deployment packet
+- `deepseek_flash` / `relationship_score_narrative`
+
+`profile_note_digest` is excluded from the first allowlist. Its existing monthly budget path remains unchanged until its final direct DeepSeek call is migrated and independently tested.
 
 ## Implemented
 
@@ -51,10 +67,11 @@
 ### Provider boundary
 
 - low-level Google SDK access is isolated in `services/providers/googleGenAiOperations.ts`
-- router, TTS, Live token, Gemini Curator, and DeepSeek Curator calls use `executeMeteredAiOperation`
+- router, TTS, Live token, Gemini Curator, DeepSeek Curator, and DeepSeek Flash calls use `executeMeteredAiOperation`
 - every enabled provider attempt records success, error, timeout, refusal, retry, and fallback evidence
 - legacy `ai_cost_log` projection remains success-only and non-authoritative
 - two standalone knowledge-ingest scripts remain time-bounded migration debt until 2026-09-30
+- Profile Notebook remains excluded from the activation allowlist until its direct call is removed
 
 ### Persistence
 
@@ -76,6 +93,7 @@ The group must be applied as one operation before any runtime writes.
 - disposable PostgreSQL integration harness added; it runs only when both:
   - `AI_USAGE_TEST_ALLOW_MUTATION=1`
   - `AI_USAGE_TEST_DATABASE_URL` points to an explicitly disposable PostgreSQL database
+- exact-SHA central dry-run requested at `all-projects-management#897`
 
 ## Remaining approval gates
 
@@ -85,15 +103,25 @@ The group must be applied as one operation before any runtime writes.
 4. Direct SQL tests for cross-tenant linkage, provider-request duplication, metadata allowlist, and append-only enforcement.
 5. Provider sandbox request ID and invoice reconciliation evidence.
 6. Backup, recovery, migration SHA-256, and staging approval.
-7. Enable `AI_USAGE_V2_ENABLED=1` only after the above gates are green.
-8. Remove or migrate the two remaining standalone script imports by 2026-09-30.
-9. Stop authoritative reads/writes to `ai_cost_log` by 2026-10-31; no destructive deletion is included.
+7. Apply `0140`–`0144` in staging while `AI_USAGE_V2_ENABLED=0`.
+8. Run read-only schema and runtime smoke checks.
+9. Enable `AI_USAGE_V2_ENABLED=1` with the bounded staging feature allowlist only.
+10. Verify success, failure, timeout, retry, fallback, budget rejection, and legacy fallback behavior.
+11. Remove or migrate the two remaining standalone script imports by 2026-09-30.
+12. Stop authoritative reads/writes to `ai_cost_log` by 2026-10-31; no destructive deletion is included.
+
+## Rollback
+
+- Before activation: leave the feature flag off; new tables are unused.
+- After allowlisted activation: remove affected feature names from `AI_USAGE_V2_FEATURES` first.
+- If necessary, set `AI_USAGE_V2_ENABLED=0`; existing provider calls continue through their pre-v2 behavior.
+- Do not drop telemetry tables during incident response. Preserve evidence and reconcile later.
 
 ## Explicitly excluded
 
-- migration application
-- staging or production data mutation
-- feature-flag activation
+- migration application by this PR
+- production data mutation
+- unbounded `*` feature activation
 - Foundation v2 changes
 - D1/Durable Object implementation
-- Action Plane, external send, publication, merge, or deploy
+- Action Plane, external send, publication, merge, or production deploy
