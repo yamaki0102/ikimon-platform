@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 const postgresMigration = readFileSync(
-  new URL("../../db/migrations/0140_zukan_foundation_v2_records.sql", import.meta.url),
+  new URL("../../db/migrations/0145_zukan_foundation_v2_records.sql", import.meta.url),
   "utf8",
 );
 const d1MigrationNames = [
