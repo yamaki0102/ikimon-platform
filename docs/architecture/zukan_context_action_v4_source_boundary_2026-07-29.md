@@ -28,10 +28,24 @@
    - fail-closed rights admission
    - baseline test preventing new direct `@google/genai` imports
 
+## Existing cost infrastructure
+
+The repository already contains PostgreSQL `ai_cost_log`, `aiCostLogger.ts`, and `aiBudgetGate.ts`.
+They are not replaced or modified by this source-only change. The existing implementation is JPY-led,
+logs mainly successful calls, and the budget gate has no confirmed runtime call site.
+
+Do not create a second authoritative cost ledger. Before persistence work, choose and document one path:
+
+1. evolve `ai_cost_log` additively into the authoritative usage/reconciliation event store; or
+2. introduce a replacement store with a bounded compatibility projection and an explicit retirement date for `ai_cost_log`.
+
+Parallel indefinite accounting is prohibited.
+
 ## Deliberately not implemented
 
 - Foundation v2 PostgreSQL `0134`–`0139` or D1 `0009`–`0014` changes
-- new remote migration or migration application
+- AI telemetry migration or migration application
+- changes to existing `ai_cost_log`, `aiCostLogger`, or `aiBudgetGate`
 - `SHADOW_READ`, `DUAL_WRITE`, or kill-switch changes
 - Foundation runtime adapter wiring
 - Source Registry write/apply
@@ -45,12 +59,13 @@ Before persistence or runtime wiring, all of the following are required:
 
 1. TypeScript compile and full node test suite green.
 2. Review confirms the direct-provider import baseline is complete.
-3. Storage design is approved as three concerns:
+3. The `ai_cost_log` migration/retirement decision is approved; two authoritative ledgers are not allowed.
+4. Storage design is approved as three concerns:
    - mutable execution guard;
    - append-only attempt events;
    - append-only usage/reconciliation events.
-4. Provider request IDs and invoice reconciliation are demonstrated with a real provider sandbox response.
-5. Any new telemetry migration is separate from Foundation v2 migrations and receives its own backup, migration, rollback, and exact-SHA approval.
-6. Source Registry evidence remains non-AI-eligible until concrete `RightsEvaluation(purpose=ai_input, basis=allowed)` exists.
+5. Provider request IDs and invoice reconciliation are demonstrated with a real provider sandbox response.
+6. Any telemetry migration is separate from Foundation v2 migrations and receives its own backup, migration, rollback, and exact-SHA approval.
+7. Source Registry evidence remains non-AI-eligible until concrete `RightsEvaluation(purpose=ai_input, basis=allowed)` exists.
 
 This change stops before every production approval boundary.
