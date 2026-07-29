@@ -259,7 +259,9 @@ export function planGenericRecordPersistence(
       blockers.push(`d1_restricted_claim_visibility_not_supported:${candidate.externalClaimId}`);
     }
     if (candidate.visibility === "public_candidate"
-      && (candidate.reviewState !== "human_reviewed" || !candidate.accountableReviewerId)) {
+      && (candidate.reviewState !== "human_reviewed"
+        || !candidate.accountableReviewerId
+        || !candidate.assertedAt)) {
       blockers.push(`public_claim_requires_accountable_review:${candidate.externalClaimId}`);
     }
     if (candidate.visibility === "public_candidate" && rightsBasisIds.length === 0) {
@@ -305,12 +307,13 @@ export function planGenericRecordPersistence(
       assertedBySubjectId: candidate.accountableReviewerId,
       polarity: "positive",
       observedAt: record.occurredAt,
-      recordedAt: record.recordedAt,
+      recordedAt: candidate.assertedAt ?? record.recordedAt,
       visibility: candidate.visibility,
       revisionMetadataJson: canonicalFoundationJson({
         externalClaimId: candidate.externalClaimId,
         sourceRecordId: record.recordId,
         reviewState: candidate.reviewState,
+        assertedAt: candidate.assertedAt,
         specialistConclusion: candidate.specialistConclusion,
         evidenceRefs: uniqueSorted(candidate.evidenceRefs),
       }),
