@@ -17,9 +17,9 @@ test("db migration baseline rehearsal locks the current migration head and risk 
   });
 
   assert.equal(report.schemaVersion, "platform_migration_baseline_rehearsal/v0");
-  assert.equal(report.totalMigrations, 143);
+  assert.equal(report.totalMigrations, 144);
   assert.equal(report.firstMigration, "0001_extensions_and_core.sql");
-  assert.equal(report.headMigration, "0145_zukan_foundation_v2_records.sql");
+  assert.equal(report.headMigration, "0146_zukan_foundation_v2_record_claim_value_scopes.sql");
   assert.deepEqual(report.extensionRequirements, ["timescaledb", "vector"]);
   assert.equal(report.riskSummary.destructiveApproved, 14);
   assert.equal(report.riskSummary.destructiveUnapproved, 1);
@@ -52,7 +52,7 @@ test("db migration baseline rehearsal surfaces sequence drift and reserved paral
   assert.ok(report.duplicateSequences.some((entry) => entry.sequence === "0119"));
 });
 
-test("db migration baseline rehearsal markdown names the unsafe historical debt and Record head", async () => {
+test("db migration baseline rehearsal markdown names the unsafe historical debt and Record heads", async () => {
   const report = await buildMigrationBaselineReport({
     migrationDir,
     generatedAt: "2026-07-29T00:00:00.000Z",
@@ -62,5 +62,6 @@ test("db migration baseline rehearsal markdown names the unsafe historical debt 
   assert.match(markdown, /0075_normalize_shizuoka_locality_labels\.sql/);
   assert.match(markdown, /0003_delta_sync_idempotency\.sql/);
   assert.match(markdown, /0145_zukan_foundation_v2_records\.sql/);
+  assert.match(markdown, /0146_zukan_foundation_v2_record_claim_value_scopes\.sql/);
   assert.match(markdown, /npx tsx src\/scripts\/reportMigrationBaseline\.ts --format=markdown/);
 });
