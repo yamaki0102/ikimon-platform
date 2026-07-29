@@ -126,7 +126,7 @@ require_not_contains "${map_body}" '<div class="me-enjoy-strip"' "Map shell"
 require_contains "${map_body}" "global-record-launcher" "Map shell"
 
 app_sw="$(fetch_body "https://ikimon.life/app-sw.js?deploy_smoke=${EXPECTED_SHA}")"
-for marker in "ikimon-app-v8" "MAP_NAV_RE" "PERSONAL_NAV_RE" "REFRESH_NAV_RE" "cache: 'no-store'" "client.navigate"; do
+for marker in "ikimon-app-v9" "MAP_NAV_RE" "PERSONAL_NAV_RE" "REFRESH_NAV_RE" "cache: 'no-store'" "client.navigate"; do
   require_contains "${app_sw}" "${marker}" "PWA service worker"
 done
 

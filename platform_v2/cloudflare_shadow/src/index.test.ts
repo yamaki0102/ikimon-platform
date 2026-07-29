@@ -9288,8 +9288,8 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /data-cloudflare-observation-detail="1"/);
   assert.match(pageHtml, /data-observation-visibility="public"/);
   assert.match(pageHtml, /obs-vps-image-detail-body/);
-  assert.match(pageHtml, /\/assets\/brand\/app-icon-192\.png/);
-  assert.match(pageHtml, /\/assets\/brand\/ikimon-wordmark-black\.png/);
+  assert.match(pageHtml, /\/assets\/brand\/zukan-app-icon-192\.png/);
+  assert.match(pageHtml, /\/assets\/brand\/zukan-wordmark\.svg/);
   assert.match(pageHtml, /obs-reading-hero/);
   assert.match(pageHtml, /obs-read-progress/);
   assert.match(pageHtml, /obs-media-ledger/);
@@ -20496,7 +20496,7 @@ test("production original UI static assets serve materialized bytes from R2 with
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
-  await env.ASSET_BUCKET.put("original-ui/static/assets/brand/app-icon-192.png", "png-bytes", {
+  await env.ASSET_BUCKET.put("original-ui/static/assets/brand/zukan-app-icon-192.png", "png-bytes", {
     httpMetadata: { contentType: "image/png" }
   });
   await env.ASSET_BUCKET.put("original-ui/static/sitemap.xml", "<urlset></urlset>", {
@@ -20514,10 +20514,6 @@ test("production original UI static assets serve materialized bytes from R2 with
   await env.ASSET_BUCKET.put("original-ui/static/assets/img/invasive/invasive-plant-thumb.webp", "webp-bytes", {
     httpMetadata: { contentType: "image/webp" }
   });
-  await env.ASSET_BUCKET.put("original-ui/static/assets/img/landing/home-school-learning.webp", "landing-webp-bytes", {
-    httpMetadata: { contentType: "image/webp" }
-  });
-
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
   globalThis.fetch = (async () => {
@@ -20525,7 +20521,7 @@ test("production original UI static assets serve materialized bytes from R2 with
     return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
-    const response = await worker.fetch(new Request("https://ikimon.life/assets/brand/app-icon-192.png"), productionEnv);
+    const response = await worker.fetch(new Request("https://ikimon.life/assets/brand/zukan-app-icon-192.png"), productionEnv);
     assert.equal(response.status, 200);
     assert.equal(await response.text(), "png-bytes");
     assert.equal(response.headers.get("content-type"), "image/png");
@@ -20562,12 +20558,6 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(await invasive.text(), "webp-bytes");
     assert.equal(invasive.headers.get("content-type"), "image/webp");
     assert.equal(invasive.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
-
-    const landing = await worker.fetch(new Request("https://ikimon.life/assets/img/landing/home-school-learning.webp"), productionEnv);
-    assert.equal(landing.status, 200);
-    assert.equal(await landing.text(), "landing-webp-bytes");
-    assert.equal(landing.headers.get("content-type"), "image/webp");
-    assert.equal(landing.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
@@ -22490,8 +22480,8 @@ test("production language-prefixed observation detail stays native and public-sa
     assert.equal(response.status, 200, body);
     assert.match(body, /data-cloudflare-observation-detail="1"/);
     assert.match(body, /obs-vps-image-detail-body/);
-    assert.match(body, /\/assets\/brand\/app-icon-192\.png/);
-    assert.match(body, /\/assets\/brand\/ikimon-wordmark-black\.png/);
+    assert.match(body, /\/assets\/brand\/zukan-app-icon-192\.png/);
+    assert.match(body, /\/assets\/brand\/zukan-wordmark\.svg/);
     assert.match(body, /obs-reading-hero/);
     assert.match(body, /obs-read-progress/);
     assert.match(body, /obs-media-ledger/);

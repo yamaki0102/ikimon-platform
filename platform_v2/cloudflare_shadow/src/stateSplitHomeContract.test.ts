@@ -14,8 +14,9 @@ const template = `<!doctype html><html lang="ja"><head></head><body>
 <div class="home-state-view is-member" data-home-view="member" hidden>
 <!-- ikimon-home-section:member-primary:start --><section>template-first-state</section><!-- ikimon-home-section:member-primary:end -->
 <!-- ikimon-home-section:member-recent:start --><!-- ikimon-home-section:member-recent:end -->
-<!-- ikimon-home-section:member-discovery:start --><!-- ikimon-home-section:member-discovery:end -->
-<!-- ikimon-home-section:member-place:start --><!-- ikimon-home-section:member-place:end -->
+<!-- ikimon-home-section:member-discovery:start --><section data-canonical-discovery>same place and season</section><!-- ikimon-home-section:member-discovery:end -->
+<!-- ikimon-home-section:member-place:start --><section data-canonical-place>place changes</section><!-- ikimon-home-section:member-place:end -->
+<!-- ikimon-home-section:member-next:start --><section data-canonical-next>next action</section><!-- ikimon-home-section:member-next:end -->
 </div></div></main><div data-app-install-prompt></div></body></html>`;
 
 function mockEnv() {
@@ -46,26 +47,67 @@ function mockEnv() {
 
 test("state split worker injects owner data into the actual canonical Home renderer", async () => {
   const strings = getStrings("ja");
-  const rendered = renderLandingTopSections({ basePath: "", lang: "ja", copy: strings.landing, fieldLoop: strings.fieldLoop, isLoggedIn: false, snapshot: { viewerUserId: null, stats: { observationCount: 0, speciesCount: 0, placeCount: 0 }, feed: [], myFeed: [], myPlaces: [], nearbyFields: [], nearbyEvents: [], mapPreviewCells: [], ambient: [], habit: null, dailyDashboard: null } });
+  const rendered = renderLandingTopSections({
+    basePath: "",
+    lang: "ja",
+    copy: strings.landing,
+    fieldLoop: strings.fieldLoop,
+    isLoggedIn: false,
+    snapshot: {
+      viewerUserId: null,
+      stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
+      feed: [],
+      myFeed: [],
+      myPlaces: [],
+      nearbyFields: [],
+      nearbyEvents: [],
+      mapPreviewCells: [],
+      ambient: [],
+      habit: null,
+      dailyDashboard: null,
+    },
+  });
   const canonicalHtml = `<!doctype html><html lang="ja"><head></head><body>${rendered.heroHtml}${rendered.dailyDashboardHtml}</body></html>`;
   assert.match(canonicalHtml, /ikimon-home-section:member-primary:start/);
   assert.match(canonicalHtml, /ikimon-home-section:member-recent:start/);
+  assert.match(canonicalHtml, /ikimon-home-section:member-discovery:start/);
   assert.match(canonicalHtml, /ikimon-home-section:member-place:start/);
+  assert.match(canonicalHtml, /ikimon-home-section:member-next:start/);
   const injected = await injectStateSplitHome(canonicalHtml, { userId: "viewer", banned: false } as never, new URL("https://staging.ikimon.life/ja/"), mockEnv());
   assert.doesNotMatch(injected, /data-home-primary-state="first_record"[^>]*data-home-primary-active="true"/);
   assert.match(injected, /data-home-primary-state="recent_memory"/);
   assert.match(injected, /川沿いの夕景/);
   assert.match(injected, /owner-discovery/);
-  assert.match(injected, /場所から見つける/);
+  assert.match(injected, /ZUKAN/);
+  assert.doesNotMatch(injected, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
 });
 
 test("guest Home uses a neutral ZUKAN placeholder instead of synthetic lifestyle photography", async () => {
   const strings = getStrings("ja");
-  const rendered = renderLandingTopSections({ basePath: "", lang: "ja", copy: strings.landing, fieldLoop: strings.fieldLoop, isLoggedIn: false, snapshot: { viewerUserId: null, stats: { observationCount: 0, speciesCount: 0, placeCount: 0 }, feed: [], myFeed: [], myPlaces: [], nearbyFields: [], nearbyEvents: [], mapPreviewCells: [], ambient: [], habit: null, dailyDashboard: null } });
+  const rendered = renderLandingTopSections({
+    basePath: "",
+    lang: "ja",
+    copy: strings.landing,
+    fieldLoop: strings.fieldLoop,
+    isLoggedIn: false,
+    snapshot: {
+      viewerUserId: null,
+      stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
+      feed: [],
+      myFeed: [],
+      myPlaces: [],
+      nearbyFields: [],
+      nearbyEvents: [],
+      mapPreviewCells: [],
+      ambient: [],
+      habit: null,
+      dailyDashboard: null,
+    },
+  });
   const canonicalHtml = `<!doctype html><html lang="ja"><head></head><body>${rendered.heroHtml}${rendered.dailyDashboardHtml}</body></html>`;
   const injected = await injectStateSplitHome(canonicalHtml, null, new URL("https://staging.ikimon.life/ja/"), mockEnv());
   assert.match(injected, /\/assets\/brand\/zukan-symbol\.svg/);
-  assert.match(injected, /home-guest-proof is-empty/);
+  assert.match(injected, /home-guest-proof is-count-0 is-empty/);
   assert.doesNotMatch(injected, /home-generated-badge|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(injected, /\/media\/derived\/public%2Fpublic-1\.webp/);
 });
@@ -81,14 +123,18 @@ test("state split worker turns owner history into a memory-first Home with a pla
   assert.match(html, /data-global-record-trigger="photo"/);
   assert.match(html, /最近の記録/);
   assert.doesNotMatch(html, /写真からわかったこと|カワセミ かもしれません|近くで残された記録/);
-  assert.match(html, /場所から見つける/);
-  assert.match(html, /href="\/ja\/map\?tab=places"/);
+  assert.match(html, /data-canonical-discovery/);
+  assert.match(html, /data-canonical-place/);
+  assert.match(html, /data-canonical-next/);
+  assert.match(html, /same place and season|place changes|next action/);
+  assert.match(html, /ZUKAN/);
   const member = html.slice(html.indexOf('data-home-view="member"'));
   assert.equal((member.match(/data-home-record-id="owner-latest"/g) || []).length, 1);
   assert.equal((member.match(/data-home-record-id="owner-discovery"/g) || []).length, 1);
   assert.equal((member.match(/data-home-record-id="public-1"/g) || []).length, 0);
   assert.doesNotMatch(member, /latitude|longitude|public_cell|safe-cell/);
   assert.doesNotMatch(member, /autoplay|<video/);
+  assert.doesNotMatch(member, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
 });
 
 test("state split contract bypasses all legacy home rewrites", () => {

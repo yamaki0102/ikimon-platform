@@ -32,20 +32,20 @@ async function withEnv(
   }
 }
 
-test("landing Top photo assets are served from the canonical project asset root", async () => {
+test("ZUKAN raster brand assets are served from the canonical project asset root", async () => {
   const app = buildApp();
   try {
-    for (const url of [
-      "/assets/img/landing/home-community-hero.webp",
-      "/assets/img/landing/home-school-learning.webp",
-    ]) {
+    for (const [url, width, height] of [
+      ["/assets/brand/zukan-app-icon-192.png", 192, 192],
+      ["/assets/brand/zukan-ogp-default.png", 1200, 630],
+    ] as const) {
       const response = await app.inject({ method: "GET", url });
       assert.equal(response.statusCode, 200);
-      assert.equal(response.headers["content-type"], "image/webp");
+      assert.equal(response.headers["content-type"], "image/png");
       const metadata = await sharp(response.rawPayload).metadata();
-      assert.equal(metadata.format, "webp");
-      assert.equal(metadata.width, 1280);
-      assert.equal(metadata.height, 720);
+      assert.equal(metadata.format, "png");
+      assert.equal(metadata.width, width);
+      assert.equal(metadata.height, height);
     }
   } finally {
     await app.close();

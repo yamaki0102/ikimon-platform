@@ -33,7 +33,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /data-snap/);
     assert.match(html, /me-discovery-preview/);
     assert.match(html, /pickDiscoveryPreviewRecords/);
-    assert.match(html, /<title>ikimon - 皆で作る地域図鑑 \| ikimon/);
+    assert.match(html, /<title>ZUKAN - 皆で作る地域図鑑 \| ZUKAN/);
     assert.match(html, /<meta name="description" content="近くの記録を、場所から見返す地図。"/);
     assert.doesNotMatch(html, /地域図鑑マップ/);
     assert.match(html, /aria-label="近くの記録"/);
@@ -163,7 +163,7 @@ test("place station read route returns fixed point empty state from its lane", a
     });
 
     assert.equal(response.statusCode, 404);
-    assert.match(response.body, /<title>定点ページ \| ikimon<\/title>/);
+    assert.match(response.body, /<title>定点ページ \| ZUKAN<\/title>/);
     assert.match(response.body, /定点ページが見つかりません/);
     assert.match(response.body, /この場所の記録をまだ束ねられません/);
   } finally {

@@ -24182,28 +24182,28 @@ function stateHomeCopy(lang: StateHomeLang) {
       publicRecords: "地域に残っている記録", recent: "最近の記録", recentAll: "すべて見る",
       memory: "この前の記録", memoryLead: "前の写真を見返すと、次に残したいことが見つかります。", captureToday: "今日の記録を撮る",
       places: "場所から見つける", placesBody: "記録が残っている場所や、参加できる活動を地図から見られます。", placesCta: "場所を見る",
-      open: "この記録を見る", unknown: "記録した写真", safePlace: "地域の記録", imageLabel: "イメージ",
+      open: "この記録を見る", unknown: "記録した写真", safePlace: "地域の記録",
       photo: "写真", video: "動画", audio: "音声", memo: "メモ"
     },
     en: {
       publicRecords: "Records from the community", recent: "Recent records", recentAll: "View all",
       memory: "Your last record", memoryLead: "Looking back at a photo can suggest what to keep next.", captureToday: "Capture today",
       places: "Explore by place", placesBody: "See places with records and activities you can join.", placesCta: "View places",
-      open: "Open this record", unknown: "Saved photo", safePlace: "Community record", imageLabel: "Illustrative image",
+      open: "Open this record", unknown: "Saved photo", safePlace: "Community record",
       photo: "Photo", video: "Video", audio: "Audio", memo: "Note"
     },
     es: {
       publicRecords: "Registros de la comunidad", recent: "Registros recientes", recentAll: "Ver todos",
       memory: "Tu último registro", memoryLead: "Volver a una foto puede mostrarte qué guardar después.", captureToday: "Capturar hoy",
       places: "Explorar por lugar", placesBody: "Descubre lugares con registros y actividades en las que participar.", placesCta: "Ver lugares",
-      open: "Abrir este registro", unknown: "Foto guardada", safePlace: "Registro de la comunidad", imageLabel: "Imagen ilustrativa",
+      open: "Abrir este registro", unknown: "Foto guardada", safePlace: "Registro de la comunidad",
       photo: "Foto", video: "Video", audio: "Audio", memo: "Nota"
     },
     "pt-br": {
       publicRecords: "Registros da comunidade", recent: "Registros recentes", recentAll: "Ver todos",
       memory: "Seu último registro", memoryLead: "Rever uma foto pode mostrar o que guardar a seguir.", captureToday: "Registrar hoje",
       places: "Explorar por lugar", placesBody: "Veja lugares com registros e atividades das quais participar.", placesCta: "Ver lugares",
-      open: "Abrir este registro", unknown: "Foto salva", safePlace: "Registro da comunidade", imageLabel: "Imagem ilustrativa",
+      open: "Abrir este registro", unknown: "Foto salva", safePlace: "Registro da comunidade",
       photo: "Foto", video: "Vídeo", audio: "Áudio", memo: "Nota"
     }
   } as const;
@@ -24270,6 +24270,7 @@ function stateHomeOwnerPrimary(item: OwnerHomeRecordItem, lang: StateHomeLang): 
   return `<section class="home-member-primary is-memory" data-home-primary-state="recent_memory" data-home-primary-active="true" data-home-record-id="${escapeHtml(item.visitId)}">
     <a class="home-member-primary-media" href="${recordHref}" aria-label="${escapeHtml(copy.open)}">${stateHomeMedia(item, lang, true)}</a>
     <div class="home-member-primary-copy">
+      <span class="home-product-kicker">ZUKAN</span>
       <span class="home-member-eyebrow">${escapeHtml(copy.memory)}</span>
       <h1>${escapeHtml(stateHomeTitle(item, lang))}</h1>
       <p class="home-member-meta">${escapeHtml(stateHomeObservedAt(item.observedAt, lang))}</p>
@@ -24285,19 +24286,6 @@ function stateHomeOwnerPrimary(item: OwnerHomeRecordItem, lang: StateHomeLang): 
 function stateHomeOwnerCard(item: OwnerHomeRecordItem, lang: StateHomeLang): string {
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   return `<a class="home-recent-card" href="${prefix}/observations/${encodeURIComponent(item.visitId)}" data-home-record-id="${escapeHtml(item.visitId)}">${stateHomeMedia(item, lang)}<span class="home-card-copy"><strong>${escapeHtml(stateHomeTitle(item, lang))}</strong><span>${escapeHtml(stateHomeObservedAt(item.observedAt, lang))}</span></span></a>`;
-}
-
-function stateHomePlaceSection(publicItems: Array<ReturnType<typeof publicMapObservationItem>>, lang: StateHomeLang): string {
-  const copy = stateHomeCopy(lang);
-  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  const visualItem = publicItems.find((item) => Boolean(item.photoUrl));
-  const visual = visualItem
-    ? `<div class="home-place-visual">${stateHomeMedia(visualItem, lang)}</div>`
-    : `<div class="home-place-visual"><span class="home-card-media is-generated"><img src="/assets/img/landing/home-daily-place.webp" alt="" width="1280" height="720" loading="lazy" decoding="async"><span class="home-generated-badge">${escapeHtml(copy.imageLabel)}</span></span></div>`;
-  return `<section class="home-section home-place-section">
-    ${visual}
-    <div><h2>${escapeHtml(copy.places)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button" href="${prefix}/map?tab=places" data-kpi-event="top_place_tap" data-kpi-action="home_member_place">${escapeHtml(copy.placesCta)}</a></div>
-  </section>`;
 }
 
 export async function injectStateSplitHome(html: string, session: SessionSnapshot | null, url: URL, env: Env): Promise<string> {
@@ -24328,9 +24316,6 @@ export async function injectStateSplitHome(html: string, session: SessionSnapsho
     ? `<section class="home-section home-recent-section"><div class="home-section-heading"><h2>${escapeHtml(copy.recent)}</h2><a href="${prefix}/records?view=mine">${escapeHtml(copy.recentAll)}</a></div><div class="home-recent-grid">${recentItems.map((item) => stateHomeOwnerCard(item, lang)).join("")}</div></section>`
     : "";
   next = replaceStateHomeMarker(next, "section", "member-recent", recentSection);
-  next = replaceStateHomeMarker(next, "section", "member-discovery", "");
-  next = replaceStateHomeMarker(next, "section", "member-place", stateHomePlaceSection(publicItems, lang));
-  next = replaceStateHomeMarker(next, "section", "member-nearby", "");
   return next;
 }
 
@@ -34505,7 +34490,7 @@ function renderPublicObservationDetailHtml(
       </div>
     </section>`;
   const headerBlock = polish?.headerBlock ?? `<header class="site-header">
-  <a class="brand" href="/"><span class="brand-mark"><img src="/assets/brand/app-icon-192.png" alt=""></span><span class="brand-wordmark" aria-label="ikimon"><img class="brand-wordmark-img" src="/assets/brand/ikimon-wordmark-black.png" alt=""></span></a>
+  <a class="brand" href="/"><span class="brand-mark"><img src="/assets/brand/zukan-app-icon-192.png" alt=""></span><span class="brand-wordmark" aria-label="ZUKAN"><img class="brand-wordmark-img" src="/assets/brand/zukan-wordmark.svg" alt=""></span></a>
   <details class="header-menu">
     <summary aria-label="メニュー" title="メニュー"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
     <nav class="header-menu-panel" aria-label="主要リンク">
@@ -35821,8 +35806,8 @@ function renderVpsImageHeader(): string {
       </button>
       <a class="brand" href="/ja/">
         <span class="brand-logo-lockup">
-          <span class="brand-mark"><img src="/assets/brand/app-icon-192.png" alt=""></span>
-          <span class="brand-wordmark" aria-label="ikimon"><img class="brand-wordmark-img" src="/assets/brand/ikimon-wordmark-black.png" alt=""></span>
+          <span class="brand-mark"><img src="/assets/brand/zukan-app-icon-192.png" alt=""></span>
+          <span class="brand-wordmark" aria-label="ZUKAN"><img class="brand-wordmark-img" src="/assets/brand/zukan-wordmark.svg" alt=""></span>
         </span>
       </a>
     </div>

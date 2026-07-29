@@ -7,7 +7,7 @@ export type LandingStrings = {
       primaryCta: string;
       secondaryCta: string;
       categoriesTitle: string;
-      imageLabel: string;
+      proofEmpty: string;
       categories: Array<{ title: string; body: string }>;
       flowTitle: string;
       flowItems: Array<{ title: string; body: string }>;
@@ -58,6 +58,7 @@ export type LandingStrings = {
       aiCandidateSuffix: string;
       fromRecord: string;
       multipleMedia: string;
+      operatorStatement: string;
       media: Record<"photo" | "video" | "audio" | "memo", string>;
       navigation: Record<"home" | "record" | "discover" | "profile", string>;
     };

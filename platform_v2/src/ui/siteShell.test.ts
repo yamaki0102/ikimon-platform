@@ -36,16 +36,17 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /credentials: 'same-origin'/);
   assert.match(html, /マイページ/);
   assert.match(html, /rel="manifest" href="\/manifest\.webmanifest\?lang=ja"/);
-  assert.match(html, /rel="apple-touch-icon" href="\/assets\/brand\/apple-touch-icon\.png"/);
-  assert.match(html, /rel="icon" type="image\/png" sizes="32x32" href="\/assets\/brand\/favicon-32\.png"/);
-  assert.match(html, /rel="icon" type="image\/png" sizes="192x192" href="\/assets\/brand\/app-icon-192\.png"/);
+  assert.match(html, /rel="apple-touch-icon" sizes="180x180" href="\/assets\/brand\/zukan-apple-touch-icon\.png"/);
+  assert.match(html, /rel="icon" type="image\/png" sizes="32x32" href="\/assets\/brand\/zukan-favicon-32\.png"/);
+  assert.match(html, /rel="icon" type="image\/x-icon" sizes="32x32" href="\/favicon\.ico"/);
+  assert.match(html, /rel="icon" type="image\/png" sizes="192x192" href="\/assets\/brand\/zukan-app-icon-192\.png"/);
   assert.match(html, /navigator\.languages/);
   assert.match(html, /beforeinstallprompt/);
   assert.match(html, /navigator\.serviceWorker\.register\('\/app-sw\.js'/);
   assert.match(html, /updateViaCache: 'none'/);
   assert.match(html, /registration\.update\(\)/);
   assert.match(html, /data-app-install-prompt/);
-  assert.match(html, /<meta name="theme-color" content="#d8efe3" \/>/);
+  assert.match(html, /<meta name="theme-color" content="#143f2e" \/>/);
   assert.match(html, /data-app-launch-screen/);
   assert.match(html, /ikimon:app-launch-screen-shown-v1/);
   assert.match(html, /is-app-launch-screen-eligible/);
@@ -116,9 +117,9 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /www\.clarity\.ms\/tag/);
   assert.match(html, /wl2ezvfqbh/);
   assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
-  assert.match(html, /<span class="brand-wordmark" aria-label="ikimon">/);
-  assert.match(html, /<img class="brand-wordmark-img" src="\/assets\/brand\/ikimon-wordmark-black\.png" alt="" \/>/);
-  assert.match(html, /<span class="brand-mark"><img src="\/assets\/brand\/app-icon-192\.png" alt="" \/><\/span>/);
+  assert.match(html, /<span class="brand-wordmark" aria-label="ZUKAN">/);
+  assert.match(html, /<img class="brand-wordmark-img" src="\/assets\/brand\/zukan-wordmark\.svg" alt="" \/>/);
+  assert.match(html, /<span class="brand-mark"><img src="\/assets\/brand\/zukan-app-icon-192\.png" alt="" \/><\/span>/);
   assert.match(html, /\.brand-logo-lockup \{[\s\S]*align-items: center;[\s\S]*gap: 7px;/);
   assert.match(html, /\.brand-wordmark \{[\s\S]*flex: 0 0 auto;[\s\S]*width: auto;[\s\S]*height: 16px;[\s\S]*aspect-ratio: 711 \/ 222;/);
   assert.match(html, /\.brand-wordmark-img \{[\s\S]*width: auto;[\s\S]*height: 100%;[\s\S]*max-width: none;/);
@@ -132,12 +133,19 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-wordmark \{[\s\S]*width: auto;[\s\S]*height: 15px;[\s\S]*aspect-ratio: 711 \/ 222;/);
   assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);
-  assert.match(html, /<meta name="application-name" content="ikimon" \/>/);
-  assert.match(html, /<meta property="og:site_name" content="ikimon" \/>/);
-  assert.match(html, /<meta property="og:image" content="https:\/\/ikimon\.life\/assets\/brand\/ikimon-ogp-default\.png" \/>/);
+  assert.match(html, /<meta name="application-name" content="ZUKAN" \/>/);
+  assert.match(html, /<meta name="apple-mobile-web-app-title" content="ZUKAN" \/>/);
+  assert.match(html, /<meta property="og:site_name" content="ZUKAN" \/>/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/ikimon\.life\/assets\/brand\/zukan-ogp-default\.png" \/>/);
+  assert.match(html, /<meta property="og:image:type" content="image\/png" \/>/);
+  assert.match(html, /<meta property="og:image:width" content="1200" \/>/);
+  assert.match(html, /<meta property="og:image:height" content="630" \/>/);
+  assert.match(html, /<meta property="og:image:alt" content="ZUKAN" \/>/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/" \/>/);
   assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/);
-  assert.match(html, /<meta name="twitter:image" content="https:\/\/ikimon\.life\/assets\/brand\/ikimon-ogp-default\.png" \/>/);
-  assert.match(html, /<span>ikimon<\/span>\s*<span>皆で作る地域図鑑<\/span>/);
+  assert.match(html, /<meta name="twitter:image" content="https:\/\/ikimon\.life\/assets\/brand\/zukan-ogp-default\.png" \/>/);
+  assert.match(html, /<span>ZUKAN<\/span>\s*<span>皆で作る地域図鑑<\/span>/);
+  assert.doesNotMatch(html, /aria-label="ikimon"|application-name" content="ikimon|apple-mobile-web-app-title" content="ikimon|og:site_name" content="ikimon|og:image:alt" content="ikimon"/i);
 });
 
 test("site shell replaces existing and empty script nonce attributes with the active CSP nonce", () => {
@@ -217,9 +225,9 @@ test("site shell normalizes service name in visible page titles", () => {
     lang: "ja",
   });
 
-  assert.match(html, /<title>地域カード管理 — ikimon<\/title>/);
-  assert.match(html, /<meta property="og:title" content="地域カード管理 — ikimon" \/>/);
-  assert.match(html, /<meta name="twitter:title" content="地域カード管理 — ikimon" \/>/);
+  assert.match(html, /<title>地域カード管理 — ZUKAN<\/title>/);
+  assert.match(html, /<meta property="og:title" content="地域カード管理 — ZUKAN" \/>/);
+  assert.match(html, /<meta name="twitter:title" content="地域カード管理 — ZUKAN" \/>/);
   assert.doesNotMatch(html, /<title>[^<]*ikimon\.life/);
 });
 
@@ -234,7 +242,7 @@ test("browser language handling asks before switching away from Japanese SEO ent
 
   assert.match(html, /data-language-suggestion/);
   assert.match(html, /data-language-suggestion-dismiss aria-label="閉じる"/);
-  assert.match(html, /Use ikimon in English\?/);
+  assert.match(html, /Use ZUKAN in English\?/);
   assert.match(html, /Cambiar a español/);
   assert.match(html, /Mudar para português/);
   assert.match(html, /ikimon:locale-suggestion-dismissed-v1/);

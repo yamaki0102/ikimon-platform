@@ -11,9 +11,10 @@ type AppInstallCopy = {
   dismissAction: string;
   offlineTitle: string;
   offlineBody: string;
-  offlineGuide: string;
-  offlineRecord: string;
-  offlineMap: string;
+  offlineCapture: string;
+  offlinePlaces: string;
+  offlineRecords: string;
+  offlineSelf: string;
   retry: string;
 };
 
@@ -31,9 +32,10 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     dismissAction: "あとで",
     offlineTitle: "オフラインです",
     offlineBody: "接続が戻るまで、最後に開いた記録・場所・ガイドを端末から再表示します。",
-    offlineGuide: "ガイドを開く",
-    offlineRecord: "記録を開く",
-    offlineMap: "場所を開く",
+    offlineCapture: "撮る",
+    offlinePlaces: "場所",
+    offlineRecords: "記録",
+    offlineSelf: "自分",
     retry: "再接続を試す",
   },
   en: {
@@ -46,9 +48,10 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     dismissAction: "Later",
     offlineTitle: "You are offline",
     offlineBody: "Until the connection returns, ZUKAN can reopen cached Records, Places, and Guides.",
-    offlineGuide: "Open Guide",
-    offlineRecord: "Open Records",
-    offlineMap: "Open Places",
+    offlineCapture: "Capture",
+    offlinePlaces: "Places",
+    offlineRecords: "Records",
+    offlineSelf: "Me",
     retry: "Try again",
   },
   es: {
@@ -61,9 +64,10 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     dismissAction: "Luego",
     offlineTitle: "Sin conexión",
     offlineBody: "Hasta que vuelva la conexión, ZUKAN puede reabrir Registros, Lugares y Guías guardados.",
-    offlineGuide: "Abrir Guía",
-    offlineRecord: "Abrir Registros",
-    offlineMap: "Abrir Lugares",
+    offlineCapture: "Capturar",
+    offlinePlaces: "Lugares",
+    offlineRecords: "Registros",
+    offlineSelf: "Yo",
     retry: "Intentar de nuevo",
   },
   "pt-BR": {
@@ -76,9 +80,10 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     dismissAction: "Depois",
     offlineTitle: "Você está offline",
     offlineBody: "Até a conexão voltar, o ZUKAN pode reabrir Registros, Lugares e Guias salvos.",
-    offlineGuide: "Abrir Guia",
-    offlineRecord: "Abrir Registros",
-    offlineMap: "Abrir Lugares",
+    offlineCapture: "Capturar",
+    offlinePlaces: "Lugares",
+    offlineRecords: "Registros",
+    offlineSelf: "Eu",
     retry: "Tentar novamente",
   },
 };
@@ -106,15 +111,16 @@ export function buildWebManifest(lang: SiteLang): Record<string, unknown> {
     categories: ["education", "lifestyle", "utilities"],
     prefer_related_applications: false,
     icons: [
-      { src: BRAND_ASSETS.mark192, sizes: "any", type: "image/svg+xml", purpose: "any" },
-      { src: BRAND_ASSETS.mark512, sizes: "any", type: "image/svg+xml", purpose: "any" },
-      { src: BRAND_ASSETS.mark192Maskable, sizes: "any", type: "image/svg+xml", purpose: "maskable" },
-      { src: BRAND_ASSETS.mark512Maskable, sizes: "any", type: "image/svg+xml", purpose: "maskable" },
+      { src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: BRAND_ASSETS.mark512, sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: BRAND_ASSETS.mark192Maskable, sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: BRAND_ASSETS.mark512Maskable, sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "Guide", short_name: "Guide", url: `${prefix}/guide`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "any", type: "image/svg+xml" }] },
-      { name: "Record", short_name: "Record", url: `${prefix}/record`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "any", type: "image/svg+xml" }] },
-      { name: "Map", short_name: "Map", url: `${prefix}/map`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "any", type: "image/svg+xml" }] },
+      { name: copy.offlineCapture, short_name: copy.offlineCapture, url: `${prefix}/record`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png" }] },
+      { name: copy.offlinePlaces, short_name: copy.offlinePlaces, url: `${prefix}/map?tab=places`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png" }] },
+      { name: copy.offlineRecords, short_name: copy.offlineRecords, url: `${prefix}/records?view=mine`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png" }] },
+      { name: copy.offlineSelf, short_name: copy.offlineSelf, url: `${prefix}/profile`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png" }] },
     ],
     orientation: "portrait-primary",
   };
@@ -140,9 +146,10 @@ export function buildOfflineHtml(lang: SiteLang): string {
     <h1>${copy.offlineTitle}</h1>
     <p>${copy.offlineBody}</p>
     <div class="links">
-      <a href="${prefix}/guide">${copy.offlineGuide}</a>
-      <a href="${prefix}/record">${copy.offlineRecord}</a>
-      <a href="${prefix}/map">${copy.offlineMap}</a>
+      <a href="${prefix}/record">${copy.offlineCapture}</a>
+      <a href="${prefix}/map?tab=places">${copy.offlinePlaces}</a>
+      <a href="${prefix}/records?view=mine">${copy.offlineRecords}</a>
+      <a href="${prefix}/profile">${copy.offlineSelf}</a>
       <button class="retry" type="button" onclick="location.reload()">${copy.retry}</button>
     </div>
   </main>
@@ -170,6 +177,8 @@ const STATIC_ASSETS = [
   '${BRAND_ASSETS.mark192}',
   '${BRAND_ASSETS.mark192Maskable}',
   '${BRAND_ASSETS.mark512}',
+  '${BRAND_ASSETS.mark512Maskable}',
+  '${BRAND_ASSETS.appleTouchIcon}',
   '${BRAND_ASSETS.favicon32}'
 ];
 const MAP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?map\\/?$/;

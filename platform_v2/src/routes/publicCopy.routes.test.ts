@@ -177,7 +177,7 @@ test("root home page uses the state-split guest surface", async () => {
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /<title>地域の記録から始める \| ikimon<\/title>/);
+    assert.match(response.body, /<title>地域の記録から始める \| ZUKAN<\/title>/);
     assert.doesNotMatch(response.body, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
     assert.match(response.body, /data-home-contract="state-split-v1"/);
     assert.match(response.body, /data-home-view="guest"/);
@@ -445,7 +445,7 @@ test("map page localizes the browser title in English", async () => {
     const response = await app.inject({ method: "GET", url: "/en/map", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /<html lang="en">/);
-    assert.match(response.body, /<title>Life map \| ikimon<\/title>/);
+    assert.match(response.body, /<title>Life map \| ZUKAN<\/title>/);
     assert.doesNotMatch(response.body, /<title>地域のいのちマップ \| ikimon<\/title>/);
   } finally {
     await app.close();

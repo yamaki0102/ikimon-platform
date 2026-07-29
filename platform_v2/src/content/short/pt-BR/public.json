@@ -1,10 +1,10 @@
 {
   "landing": {
-    "title": "ikimon — Enjoy Life | Curtir e registrar a natureza próxima",
+    "title": "ZUKAN — Enjoy Life | Curtir e registrar a natureza próxima",
     "home": {
       "guest": {
         "heroHeading": "Vamos cultivar juntos a memória local.", "heroLead": "Festas, trabalho, paisagens e descobertas do dia a dia. Fotos e vídeos viram memória do lugar e um caminho para a próxima atividade.",
-        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar", "imageLabel": "Imagem ilustrativa",
+        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar", "proofEmpty": "Ainda não há fotos disponíveis para mostrar.",
         "categories": [
           { "title": "Escola e aprendizado", "body": "Aulas, projetos e experiências de trabalho." },
           { "title": "Comunidade e eventos", "body": "Festas, feiras e encontros locais." },
@@ -37,6 +37,7 @@
       },
       "shared": {
         "openRecord": "Ver registro", "unknownRecord": "Registro aguardando um nome", "safePlaceFallback": "Registro da comunidade", "aiCandidateSuffix": "pode ser", "fromRecord": "Deste registro", "multipleMedia": "itens de mídia",
+        "operatorStatement": "O ZUKAN é operado pela IKIMON Inc. e atualmente está disponível em ikimon.life.",
         "media": { "photo": "Foto", "video": "Vídeo", "audio": "Áudio", "memo": "Nota" },
         "navigation": { "home": "Início", "record": "Registrar", "discover": "Descobrir", "profile": "Minha página" }
       }

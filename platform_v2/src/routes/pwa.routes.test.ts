@@ -19,17 +19,29 @@ test("manifest is app-first and localized from device or query language", async 
       display: string;
       background_color: string;
       theme_color: string;
-      shortcuts: Array<{ url: string }>;
-      icons: Array<{ src: string; purpose?: string }>;
+      shortcuts: Array<{ url: string; icons: Array<{ src: string; sizes: string; type: string }> }>;
+      icons: Array<{ src: string; sizes: string; type: string; purpose?: string }>;
     };
-    assert.equal(manifest.name, "ikimon");
-    assert.equal(manifest.short_name, "ikimon");
+    assert.equal(manifest.name, "ZUKAN");
+    assert.equal(manifest.short_name, "ZUKAN");
     assert.equal(manifest.start_url, "/en/?source=pwa");
     assert.equal(manifest.display, "standalone");
-    assert.equal(manifest.background_color, "#f5fbf7");
-    assert.equal(manifest.theme_color, "#d8efe3");
-    assert.deepEqual(manifest.shortcuts.map((shortcut) => shortcut.url), ["/en/guide", "/en/record", "/en/map"]);
-    assert.ok(manifest.icons.some((icon) => icon.src === "/assets/brand/app-icon-512-maskable.png" && icon.purpose === "maskable"));
+    assert.equal(manifest.background_color, "#f7f7f3");
+    assert.equal(manifest.theme_color, "#143f2e");
+    assert.deepEqual(
+      manifest.shortcuts.map((shortcut) => shortcut.url),
+      ["/en/record", "/en/map?tab=places", "/en/records?view=mine", "/en/profile"],
+    );
+    assert.deepEqual(
+      manifest.icons.map(({ src, sizes, type, purpose }) => ({ src, sizes, type, purpose })),
+      [
+        { src: "/assets/brand/zukan-app-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: "/assets/brand/zukan-app-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+        { src: "/assets/brand/zukan-app-icon-192-maskable.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+        { src: "/assets/brand/zukan-app-icon-512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      ],
+    );
+    assert.ok(manifest.shortcuts.every((shortcut) => shortcut.icons.every((icon) => icon.sizes === "192x192" && icon.type === "image/png")));
   } finally {
     await app.close();
   }
@@ -42,14 +54,14 @@ test("app service worker keeps authenticated navigation out of shared caches wit
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] as string, /application\/javascript/);
     assert.equal(response.headers["service-worker-allowed"], "/");
-    assert.match(response.body, /ikimon-app-v8/);
+    assert.match(response.body, /ikimon-app-v9/);
     assert.match(response.body, /networkFirstNavigation/);
     assert.doesNotThrow(() => new Function(response.body));
     assert.doesNotMatch(response.body, /APP_NAV_RE|SHELL_CACHE/);
     assert.match(response.body, /OFFLINE_URLS/);
     assert.match(response.body, /offline\.html\?lang=en/);
-    assert.match(response.body, /\/assets\/brand\/app-icon-192\.png/);
-    assert.match(response.body, /\/assets\/brand\/favicon-32\.png/);
+    assert.match(response.body, /\/assets\/brand\/zukan-app-icon-192\.png/);
+    assert.match(response.body, /\/assets\/brand\/zukan-favicon-32\.png/);
     assert.match(response.body, /MAP_NAV_RE/);
     assert.match(response.body, /PERSONAL_NAV_RE/);
     assert.doesNotMatch(response.body, /REFRESH_NAV_RE/);
@@ -121,7 +133,7 @@ test("app refresh page rejects external redirect targets", async () => {
   }
 });
 
-test("offline fallback page links the three field-first app surfaces", async () => {
+test("offline fallback page links the four primary app surfaces", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -131,9 +143,11 @@ test("offline fallback page links the three field-first app surfaces", async () 
     });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /<html lang="pt-BR">/);
-    assert.match(response.body, /href="\/pt-br\/guide"/);
     assert.match(response.body, /href="\/pt-br\/record"/);
-    assert.match(response.body, /href="\/pt-br\/map"/);
+    assert.match(response.body, /href="\/pt-br\/map\?tab=places"/);
+    assert.match(response.body, /href="\/pt-br\/records\?view=mine"/);
+    assert.match(response.body, /href="\/pt-br\/profile"/);
+    assert.match(response.body, /alt="ZUKAN"/);
   } finally {
     await app.close();
   }
@@ -152,7 +166,7 @@ test("app outbox debug page is noindexed and reads the client outbox", async () 
     assert.match(response.body, /data-outbox-debug/);
     assert.match(response.body, /window\.ikimonAppOutbox\.all/);
     assert.match(response.body, /ikimonRequestAppOutboxSync/);
-    assert.match(response.body, /App outbox debug \| ikimon/);
+    assert.match(response.body, /App outbox debug \| ZUKAN/);
   } finally {
     await app.close();
   }

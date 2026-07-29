@@ -22,7 +22,7 @@ test("production command-bus verification follows the current app service worker
   );
   const version = appInstall.match(/const VERSION = '([^']+)'/)?.[1];
 
-  assert.equal(version, "ikimon-app-v8");
+  assert.equal(version, "ikimon-app-v9");
   assert.equal(deployManifest.strategy, "cloudflare_executor_primary");
   assert.equal(deployManifest.portableVerifyScript, "scripts/verify_cloudflare_production_release.sh");
   assert.equal(deployManifest.githubActionsDependency?.required, false);
@@ -31,7 +31,7 @@ test("production command-bus verification follows the current app service worker
   assert.equal(deployManifest.executionLanes?.primary?.immutableShaRequired, true);
   assert.ok(deployManifest.executionLanes?.primary?.actions?.includes("verify"));
   assert.match(verificationScript, new RegExp(version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.doesNotMatch(verificationScript, /ikimon-app-v6/);
+  assert.doesNotMatch(verificationScript, /ikimon-app-v8/);
   for (const retiredWorkflow of ["deploy.yml", "deploy-staging.yml"]) {
     assert.equal(
       existsSync(path.join(repoRoot, ".github", "workflows", retiredWorkflow)),
