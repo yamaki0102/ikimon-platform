@@ -124,7 +124,9 @@ function uniqueSorted(values: readonly string[]): string[] {
 
 function sourceSelectorJson(payloadJson: string): string {
   try {
-    const payload = JSON.parse(payloadJson) as Record<string, unknown>;
+    const parsed = JSON.parse(payloadJson) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "{}";
+    const payload = parsed as Record<string, unknown>;
     const locator = payload.sourceRecordLocator ?? payload.sourceLocator ?? null;
     return canonicalFoundationJson(locator === null ? {} : { locator: String(locator) });
   } catch {
@@ -154,15 +156,17 @@ export function planGenericRecordPersistence(
     blockers.push(`record_id_not_canonical_uuid:${record.recordId}`);
   }
 
+  const placeSubjectIds = uniqueSorted(record.placeSubjectIds);
+  const entitySubjectIds = uniqueSorted(record.entitySubjectIds);
+  const sourceEditionIds = uniqueSorted(record.sourceEditionIds);
+  const rightsBasisIds = uniqueSorted(record.rightsBasisIds);
   const subjectIds = uniqueSorted([
-    ...record.placeSubjectIds,
-    ...record.entitySubjectIds,
+    ...placeSubjectIds,
+    ...entitySubjectIds,
     ...envelope.claims.map((claim) => claim.subjectId),
     ...envelope.claims.flatMap((claim) =>
       claim.accountableReviewerId ? [claim.accountableReviewerId] : []),
   ]);
-  const sourceEditionIds = uniqueSorted(record.sourceEditionIds);
-  const rightsBasisIds = uniqueSorted(record.rightsBasisIds);
   requireCanonicalIds("subject_id", subjectIds, blockers);
   requireCanonicalIds("source_edition_id", sourceEditionIds, blockers);
   requireCanonicalIds("rights_basis_id", rightsBasisIds, blockers);
@@ -193,13 +197,13 @@ export function planGenericRecordPersistence(
   }];
 
   const recordSubjectLinks: GenericRecordSubjectLink[] = [
-    ...record.placeSubjectIds.map((subjectId, ordinal) => ({
+    ...placeSubjectIds.map((subjectId, ordinal) => ({
       recordId: record.recordId,
       subjectId,
       subjectRole: "place" as const,
       ordinal,
     })),
-    ...record.entitySubjectIds.map((subjectId, ordinal) => ({
+    ...entitySubjectIds.map((subjectId, ordinal) => ({
       recordId: record.recordId,
       subjectId,
       subjectRole: "entity" as const,
@@ -295,7 +299,7 @@ export function planGenericRecordPersistence(
         sourceRecordId: record.recordId,
         reviewState: candidate.reviewState,
         specialistConclusion: candidate.specialistConclusion,
-        evidenceRefs: candidate.evidenceRefs,
+        evidenceRefs: uniqueSorted(candidate.evidenceRefs),
       }),
     });
     claimRecordLinks.push({
