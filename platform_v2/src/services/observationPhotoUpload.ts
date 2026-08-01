@@ -14,6 +14,8 @@ import {
   type MediaObjectVisibility,
 } from "./mediaObjectStore.js";
 
+export const KUBIAKA_PRIVATE_UPLOAD_AUTHORIZATION = Symbol("kubiaka-private-upload-authorization");
+
 export type ObservationPhotoUploadInput = {
   observationId: string;
   filename: string;
@@ -21,6 +23,7 @@ export type ObservationPhotoUploadInput = {
   base64Data: string;
   mediaRole?: MediaRole | string | null;
   facePrivacy?: FacePrivacySummary | null;
+  [KUBIAKA_PRIVATE_UPLOAD_AUTHORIZATION]?: true;
 };
 
 export type FacePrivacySummary = {
@@ -31,6 +34,8 @@ export type FacePrivacySummary = {
 };
 
 const ALLOWED_OBSERVATION_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+export const KUBIAKA_PRIVATE_PHOTO_EXPERIENCE_KEY = "kubiaka-watch";
+export const KUBIAKA_PRIVATE_PHOTO_MAX_COUNT = 6;
 
 export type ObservationPhotoUploadResult = {
   visitId: string;
@@ -50,6 +55,13 @@ type CreatedMediaObject = {
   storagePath: string;
 };
 
+type ObservationPhotoTarget = {
+  visit_id: string;
+  occurrence_id: string;
+  public_visibility: string | null;
+  source_payload: Record<string, unknown> | null;
+};
+
 export function observationPhotoUploadTargetIds(observationId: string): string[] {
   const primary = observationId.trim();
   if (!primary) return [];
@@ -59,6 +71,24 @@ export function observationPhotoUploadTargetIds(observationId: string): string[]
     candidates.push(occurrenceMatch[1]);
   }
   return [...new Set(candidates)];
+}
+
+export function isKubiakaPrivatePhotoSourcePayload(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return String((value as Record<string, unknown>).experience_key ?? "").trim() === KUBIAKA_PRIVATE_PHOTO_EXPERIENCE_KEY;
+}
+
+export function assertKubiakaPrivatePhotoCapacity(
+  existingPhotoCount: number,
+  duplicateAlreadyExists: boolean,
+): void {
+  if (duplicateAlreadyExists) return;
+  if (!Number.isInteger(existingPhotoCount) || existingPhotoCount < 0) {
+    throw new Error("kubiaka_photo_count_invalid");
+  }
+  if (existingPhotoCount >= KUBIAKA_PRIVATE_PHOTO_MAX_COUNT) {
+    throw new Error("kubiaka_photo_limit_exceeded");
+  }
 }
 
 function sanitizeFilename(filename: string): string {
@@ -219,6 +249,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   let occurrenceId = "";
   let relativePath = "";
   let originalRelativePath = "";
+  let privateKubiakaUpload = false;
   const createdMediaObjects: CreatedMediaObject[] = [];
   const client = await pool.connect();
 
@@ -226,13 +257,12 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     await client.query("begin");
 
     const targetIds = observationPhotoUploadTargetIds(input.observationId);
-    const targetResult = await client.query<{
-      visit_id: string;
-      occurrence_id: string;
-    }>(
+    const targetResult = await client.query<ObservationPhotoTarget>(
       `select
           v.visit_id,
-          o.occurrence_id
+          o.occurrence_id,
+          v.public_visibility,
+          v.source_payload
        from visits v
        join occurrences o on o.visit_id = v.visit_id
        where v.visit_id = any($1::text[])
@@ -255,8 +285,27 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
 
     visitId = target.visit_id;
     occurrenceId = target.occurrence_id;
-    relativePath = path.posix.join("uploads", "v2-observations", visitId, fileName);
+    privateKubiakaUpload = isKubiakaPrivatePhotoSourcePayload(target.source_payload);
+    if (privateKubiakaUpload && input[KUBIAKA_PRIVATE_UPLOAD_AUTHORIZATION] !== true) {
+      throw new Error("kubiaka_private_upload_endpoint_required");
+    }
+    if (privateKubiakaUpload && target.public_visibility !== "hidden") {
+      throw new Error("kubiaka_private_visibility_required");
+    }
+    relativePath = path.posix.join(
+      privateKubiakaUpload ? "private-photos" : "uploads",
+      "v2-observations",
+      visitId,
+      fileName,
+    );
     originalRelativePath = path.posix.join("photo-originals", "v2-observations", visitId, fileName);
+
+    if (privateKubiakaUpload) {
+      await client.query(
+        "select pg_advisory_xact_lock(hashtextextended($1, 0))",
+        [`observation-photo-count:${visitId}`],
+      );
+    }
 
     // Serialise identical observation/hash uploads. The lock remains held until
     // commit/rollback, so cleanup cannot race a successful retry of the same file.
@@ -265,8 +314,28 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       [`observation-photo:${visitId}:${sha256}`],
     );
 
-    const originalInput = {
-      visibility: "private" as const,
+    const legacyAssetKey = `observation_photo:${visitId}:upload:${sha256}`;
+    if (privateKubiakaUpload) {
+      const capacityResult = await client.query<{
+        photo_count: string | number;
+        duplicate_exists: boolean;
+      }>(
+        `select count(*)::int as photo_count,
+                coalesce(bool_or(legacy_asset_key = $2), false) as duplicate_exists
+           from evidence_assets
+          where visit_id = $1
+            and asset_role = 'observation_photo'`,
+        [visitId, legacyAssetKey],
+      );
+      const capacity = capacityResult.rows[0];
+      assertKubiakaPrivatePhotoCapacity(
+        Number(capacity?.photo_count ?? 0),
+        capacity?.duplicate_exists === true,
+      );
+    }
+
+    const originalInput: CreatedMediaObject = {
+      visibility: "private",
       storagePath: originalRelativePath,
     };
     const originalExisted = await mediaObjectStore.exists(originalInput);
@@ -278,8 +347,10 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       originalObject = await mediaObjectStore.write({ ...originalInput, buffer });
     }
 
-    const publicInput = {
-      visibility: "public" as const,
+    // Kubiaka display copies stay in the private store. Non-managed observations
+    // retain the existing public display-copy behavior.
+    const publicInput: CreatedMediaObject = {
+      visibility: privateKubiakaUpload ? "private" : "public",
       storagePath: relativePath,
     };
     const publicExisted = await mediaObjectStore.exists(publicInput);
@@ -306,9 +377,10 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         visit_id: visitId,
         media_role: mediaRole,
         face_privacy: facePrivacy,
-        privacy_processing_status: "pending",
+        privacy_processing_status: privateKubiakaUpload ? "private_no_public_processing" : "pending",
         private_storage_root: "legacy_data",
         display_relative_path: relativePath,
+        private_experience: privateKubiakaUpload,
         normalized_max_edge_px: 2560,
         original_bytes: originalBuffer.byteLength,
       },
@@ -339,9 +411,10 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
           filename: input.filename,
           media_role: mediaRole,
           face_privacy: facePrivacy,
-          privacy_processing_status: "pending",
+          privacy_processing_status: privateKubiakaUpload ? "private_no_public_processing" : "pending",
           private_storage_root: "legacy_data",
           display_relative_path: relativePath,
+          private_experience: privateKubiakaUpload,
         }),
       ],
     );
@@ -357,19 +430,20 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       widthPx: normalizedImage.widthPx,
       heightPx: normalizedImage.heightPx,
       sourcePayload: {
-        source: "v2_photo_upload",
+        source: privateKubiakaUpload ? "kubiaka_private_photo_upload" : "v2_photo_upload",
         visit_id: visitId,
         media_role: mediaRole,
         face_privacy: facePrivacy,
-        privacy_processing_status: "pending",
+        privacy_processing_status: privateKubiakaUpload ? "private_no_public_processing" : "pending",
         original_relative_path: originalRelativePath,
         original_storage_backend: originalObject.storageBackend,
+        private_experience: privateKubiakaUpload,
+        public_delivery_allowed: !privateKubiakaUpload,
         normalized_max_edge_px: 2560,
         original_bytes: originalBuffer.byteLength,
       },
     });
 
-    const legacyAssetKey = `observation_photo:${visitId}:upload:${sha256}`;
     const assetResult = await client.query<{ asset_id: string }>(
       `insert into evidence_assets (
           asset_id, blob_id, occurrence_id, visit_id, asset_role, legacy_asset_key, legacy_relative_path, source_payload
@@ -391,12 +465,14 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         legacyAssetKey,
         relativePath,
         JSON.stringify({
-          source: "v2_photo_upload",
+          source: privateKubiakaUpload ? "kubiaka_private_photo_upload" : "v2_photo_upload",
           filename: input.filename,
           media_role: mediaRole,
           face_privacy: facePrivacy,
-          privacy_processing_status: "pending",
+          privacy_processing_status: privateKubiakaUpload ? "private_no_public_processing" : "pending",
           original_relative_path: originalRelativePath,
+          private_experience: privateKubiakaUpload,
+          public_delivery_allowed: !privateKubiakaUpload,
         }),
       ],
     );
@@ -412,17 +488,20 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       mediaRole,
       mediaRoleSource: "user",
       sourcePayload: {
-        source: "v2_photo_upload",
+        source: privateKubiakaUpload ? "kubiaka_private_photo_upload" : "v2_photo_upload",
         filename: input.filename,
-        face_privacy: facePrivacy,
-        privacy_processing_status: "pending",
+        facePrivacy,
+        privacy_processing_status: privateKubiakaUpload ? "private_no_public_processing" : "pending",
         original_relative_path: originalRelativePath,
+        private_experience: privateKubiakaUpload,
       },
     });
 
     await client.query(
       `update visits
           set public_visibility = case
+                when coalesce(source_payload->>'experience_key', '') = $2
+                then 'hidden'
                 when visit_id like 'prod-media-smoke-%'
                   or coalesce(source_payload->>'source', '') = 'prod_media_smoke'
                 then 'hidden'
@@ -450,7 +529,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
               end,
               updated_at = now()
         where visit_id = $1`,
-      [visitId],
+      [visitId, KUBIAKA_PRIVATE_PHOTO_EXPERIENCE_KEY],
     );
 
     await client.query(
@@ -472,7 +551,8 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
                   select 1 from visits v
                    where v.visit_id = observation_quality_reviews.visit_id
                      and (
-                       v.visit_id like 'prod-media-smoke-%'
+                       coalesce(v.source_payload->>'experience_key', '') = $2
+                       or v.visit_id like 'prod-media-smoke-%'
                        or coalesce(v.source_payload->>'source', '') = 'prod_media_smoke'
                      )
                 )
@@ -484,7 +564,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         where visit_id = $1
           and reason_code = 'native_no_photo'
           and review_status = 'needs_review'`,
-      [visitId],
+      [visitId, KUBIAKA_PRIVATE_PHOTO_EXPERIENCE_KEY],
     );
 
     await client.query("commit");
@@ -509,12 +589,12 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   }
 
   const compatibility = {
-    attempted: config.compatibilityWriteEnabled,
+    attempted: config.compatibilityWriteEnabled && !privateKubiakaUpload,
     succeeded: false,
     error: undefined as string | undefined,
   };
 
-  if (config.compatibilityWriteEnabled) {
+  if (compatibility.attempted) {
     try {
       await writeLegacyObservation(visitId, {
         legacyDataRoot: config.legacyDataRoot,
@@ -534,32 +614,34 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     }
   }
 
-  try {
-    await enqueueMediaProcessingJobsStandalone([{
-      mediaKind: "photo",
-      mediaUid: occurrenceId,
-      observationId: visitId,
-      occurrenceId,
-      jobType: "photo_ready_reassess",
-      sourcePayload: {
-        source: "v2_photo_upload",
-        uploaded_observation_id: input.observationId,
-        media_role: mediaRole,
-        face_privacy: facePrivacy,
-        relative_path: relativePath,
-        original_relative_path: originalRelativePath,
-        privacy_processing_status: "pending",
-      },
-    }]);
-  } catch {
-    // Media jobs are a best-effort follow-up; the photo itself is already durable.
+  if (!privateKubiakaUpload) {
+    try {
+      await enqueueMediaProcessingJobsStandalone([{
+        mediaKind: "photo",
+        mediaUid: occurrenceId,
+        observationId: visitId,
+        occurrenceId,
+        jobType: "photo_ready_reassess",
+        sourcePayload: {
+          source: "v2_photo_upload",
+          uploaded_observation_id: input.observationId,
+          media_role: mediaRole,
+          face_privacy: facePrivacy,
+          relative_path: relativePath,
+          original_relative_path: originalRelativePath,
+          privacy_processing_status: "pending",
+        },
+      }]);
+    } catch {
+      // Media jobs are a best-effort follow-up; the photo itself is already durable.
+    }
   }
 
   return {
     visitId,
     occurrenceId,
     relativePath,
-    publicUrl: `/${relativePath}`,
+    publicUrl: privateKubiakaUpload ? "" : `/${relativePath}`,
     compatibility,
     facePrivacy,
   };

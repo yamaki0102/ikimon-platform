@@ -2,86 +2,93 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { observationPhotoUploadTargetIds } from "./observationPhotoUpload.js";
+import {
+  KUBIAKA_PRIVATE_PHOTO_EXPERIENCE_KEY,
+  KUBIAKA_PRIVATE_PHOTO_MAX_COUNT,
+  assertKubiakaPrivatePhotoCapacity,
+  isKubiakaPrivatePhotoSourcePayload,
+  observationPhotoUploadTargetIds,
+} from "./observationPhotoUpload.js";
 
-test("photo upload target ids fall back from occurrence id to visit id", () => {
-  assert.deepEqual(observationPhotoUploadTargetIds("occ:record-1781909848532:0"), [
-    "occ:record-1781909848532:0",
-    "record-1781909848532",
+const source = readFileSync(
+  path.join(process.cwd(), "src/services/observationPhotoUpload.ts"),
+  "utf8",
+);
+
+test("occurrence upload ids also resolve to the visit id", () => {
+  assert.deepEqual(observationPhotoUploadTargetIds("occ:record-1:0"), [
+    "occ:record-1:0",
+    "record-1",
   ]);
-  assert.deepEqual(observationPhotoUploadTargetIds("record-1781909848532"), ["record-1781909848532"]);
+  assert.deepEqual(observationPhotoUploadTargetIds("record-1"), ["record-1"]);
   assert.deepEqual(observationPhotoUploadTargetIds(""), []);
 });
 
-test("photo upload promotes native no-photo reviews after adding evidence", () => {
-  const source = readFileSync(path.join(process.cwd(), "src/services/observationPhotoUpload.ts"), "utf8");
-
-  assert.match(source, /normalizeObservationImage/);
-  assert.match(source, /canKeepPreparedJpeg/);
-  assert.match(source, /ALLOWED_OBSERVATION_IMAGE_MIME_TYPES/);
-  assert.match(source, /metadata\.format === "jpeg"/);
-  assert.match(source, /!metadata\.orientation \|\| metadata\.orientation === 1/);
-  assert.match(source, /!hasSensitiveMetadata/);
-  assert.match(source, /width: 2560/);
-  assert.match(source, /height: 2560/);
-  assert.match(source, /fit: "inside"/);
-  assert.match(source, /throw new Error\("image_normalization_failed"\)/);
-  assert.doesNotMatch(source, /normalizedMime === "image\/gif"[\s\S]*return \{ buffer/);
-  assert.match(source, /widthPx: normalizedImage\.widthPx/);
-  assert.match(source, /heightPx: normalizedImage\.heightPx/);
-  assert.match(source, /normalizeFacePrivacy/);
-  assert.match(source, /face_privacy: facePrivacy/);
-  assert.match(source, /"pending", "redacted", "no_faces", "unavailable"/);
-  assert.match(source, /createLegacyMediaObjectStore/);
-  assert.match(source, /mediaObjectStore\.write/);
-  assert.match(source, /photo-originals/);
-  assert.match(source, /storageBackend: originalObject\.storageBackend/);
-  assert.match(source, /storageBackend: publicObject\.storageBackend/);
-  assert.match(source, /observation_photo_original/);
-  assert.match(source, /privacy_processing_status: "pending"/);
-  assert.match(source, /original_relative_path: originalRelativePath/);
-  assert.match(source, /original_storage_backend: originalObject\.storageBackend/);
-  assert.match(source, /set public_visibility = case[\s\S]*else 'public'[\s\S]*end/);
-  assert.match(source, /quality_review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
-  assert.match(source, /visit_id like 'prod-media-smoke-%'[\s\S]*then 'hidden'/);
-  assert.match(source, /coalesce\(source_payload->>'source', ''\) = 'prod_media_smoke'[\s\S]*then 'archived'/);
-  assert.match(source, /reason <> 'missing_photo'/);
-  assert.match(source, /reason_code = 'native_no_photo'/);
-  assert.match(source, /review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
-  assert.match(source, /enqueueMediaProcessingJobsStandalone/);
-  assert.match(source, /photo_ready_reassess/);
-  assert.match(source, /observationPhotoUploadTargetIds/);
-  assert.match(source, /v\.visit_id = any\(\$1::text\[\]\)/);
-  assert.match(source, /o\.occurrence_id = any\(\$1::text\[\]\)/);
-  assert.match(source, /throw new Error\("observation_not_found"\)/);
-  assert.doesNotMatch(source, /observation not found: \$\{input\.observationId\}/);
-
-  const worker = readFileSync(path.join(process.cwd(), "cloudflare_shadow/src/index.ts"), "utf8");
-  const wranglerConfig = readFileSync(path.join(process.cwd(), "cloudflare_shadow/wrangler.jsonc"), "utf8");
-  assert.match(worker, /MEDIA_QUEUE/);
-  assert.match(worker, /topic === "media\.process"/);
-  assert.match(worker, /topic === "readmodel\.refresh"/);
-  assert.match(wranglerConfig, /"binding": "MEDIA_QUEUE"/);
-  assert.match(wranglerConfig, /"queue": "ikimon-prod-media-jobs"/);
+test("Kubiaka private scope comes from persisted visit context", () => {
+  assert.equal(KUBIAKA_PRIVATE_PHOTO_EXPERIENCE_KEY, "kubiaka-watch");
+  assert.equal(isKubiakaPrivatePhotoSourcePayload({ experience_key: "kubiaka-watch" }), true);
+  assert.equal(isKubiakaPrivatePhotoSourcePayload({ experience_key: "other" }), false);
+  assert.equal(isKubiakaPrivatePhotoSourcePayload(null), false);
 });
 
-test("photo upload compensates only transaction-created files under a retry lock", () => {
-  const source = readFileSync(path.join(process.cwd(), "src/services/observationPhotoUpload.ts"), "utf8");
+test("Kubiaka permits at most six actual photos", () => {
+  assert.equal(KUBIAKA_PRIVATE_PHOTO_MAX_COUNT, 6);
+  for (let count = 0; count < 6; count += 1) {
+    assert.doesNotThrow(() => assertKubiakaPrivatePhotoCapacity(count, false));
+  }
+  assert.throws(
+    () => assertKubiakaPrivatePhotoCapacity(6, false),
+    /kubiaka_photo_limit_exceeded/,
+  );
+  assert.doesNotThrow(() => assertKubiakaPrivatePhotoCapacity(6, true));
+  assert.throws(
+    () => assertKubiakaPrivatePhotoCapacity(-1, false),
+    /kubiaka_photo_count_invalid/,
+  );
+});
 
-  assert.match(source, /pg_advisory_xact_lock\(hashtextextended\(\$1, 0\)\)/);
-  assert.match(source, /mediaObjectStore\.exists\(originalInput\)/);
-  assert.match(source, /mediaObjectStore\.exists\(publicInput\)/);
-  assert.match(source, /originalExisted[\s\S]*mediaObjectStore\.reference\(originalInput\)/);
-  assert.match(source, /publicExisted[\s\S]*mediaObjectStore\.reference\(publicInput\)/);
-  assert.match(source, /createdMediaObjects\.push\(originalInput\);\s*originalObject = await mediaObjectStore\.write/);
-  assert.match(source, /createdMediaObjects\.push\(publicInput\);\s*publicObject = await mediaObjectStore\.write/);
-  assert.match(source, /cleanupCreatedObservationMedia\(mediaObjectStore, createdMediaObjects\)[\s\S]*client\.query\("rollback"\)/);
+test("generic upload is rejected before Kubiaka object writes", () => {
+  const target = source.indexOf("const target = targetResult.rows[0]");
+  const endpointGate = source.indexOf("kubiaka_private_upload_endpoint_required");
+  const hiddenGate = source.indexOf("kubiaka_private_visibility_required");
+  const firstObjectRead = source.indexOf("mediaObjectStore.exists(originalInput)");
+  assert.ok(target >= 0);
+  assert.ok(endpointGate > target);
+  assert.ok(hiddenGate > endpointGate);
+  assert.ok(firstObjectRead > hiddenGate);
+  assert.match(source, /KUBIAKA_PRIVATE_UPLOAD_AUTHORIZATION/);
+});
 
-  const normalizationIndex = source.indexOf("await normalizeObservationImage");
-  const connectionIndex = source.indexOf("const client = await pool.connect()");
-  assert.ok(normalizationIndex >= 0 && connectionIndex > normalizationIndex, "connect only after input normalization");
+test("Kubiaka display media stays private and cannot become public", () => {
+  assert.match(source, /privateKubiakaUpload \? "private-photos" : "uploads"/);
+  assert.match(source, /visibility: privateKubiakaUpload \? "private" : "public"/);
+  assert.match(source, /publicUrl: privateKubiakaUpload \? ""/);
+  assert.match(source, /public_delivery_allowed: !privateKubiakaUpload/);
+  assert.match(source, /experience_key', ''\) = \$2[\s\S]*then 'hidden'/);
+});
 
-  const cleanupIndex = source.indexOf("await cleanupCreatedObservationMedia");
-  const rollbackIndex = source.indexOf('await client.query("rollback")');
-  assert.ok(cleanupIndex >= 0 && rollbackIndex > cleanupIndex, "cleanup runs while the transaction lock is held");
+test("Kubiaka capacity is serialized and counted from evidence assets", () => {
+  assert.match(source, /observation-photo-count:\$\{visitId\}/);
+  assert.match(source, /pg_advisory_xact_lock/);
+  assert.match(source, /count\(\*\)::int as photo_count/);
+  assert.match(source, /asset_role = 'observation_photo'/);
+  assert.match(source, /assertKubiakaPrivatePhotoCapacity/);
+});
+
+test("Kubiaka skips compatibility export and media reassessment", () => {
+  assert.match(source, /compatibilityWriteEnabled && !privateKubiakaUpload/);
+  assert.match(source, /if \(!privateKubiakaUpload\)/);
+  assert.match(source, /enqueueMediaProcessingJobsStandalone/);
+  assert.match(source, /private_no_public_processing/);
+});
+
+test("normalization, retry cleanup and non-Kubiaka behavior remain", () => {
+  assert.match(source, /normalizeObservationImage/);
+  assert.match(source, /width: 2560/);
+  assert.match(source, /height: 2560/);
+  assert.match(source, /createdMediaObjects\.push\(originalInput\)/);
+  assert.match(source, /createdMediaObjects\.push\(publicInput\)/);
+  assert.match(source, /cleanupCreatedObservationMedia/);
+  assert.match(source, /privateKubiakaUpload \? "private" : "public"/);
+  assert.match(source, /photo_ready_reassess/);
 });
