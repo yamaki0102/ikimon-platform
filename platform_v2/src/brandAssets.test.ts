@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import sharp from "sharp";
-import { BRAND_ASSETS } from "./brandAssets.js";
+import { BRAND_ASSETS, zukanOgpDefaultAssetUrl } from "./brandAssets.js";
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.join(process.cwd(), "..");
@@ -34,6 +34,15 @@ async function assetHashes(): Promise<Record<string, string>> {
     ),
   );
 }
+
+test("ZUKAN OGP assets use the staging host only during staging materialization", () => {
+  assert.equal(zukanOgpDefaultAssetUrl(undefined), "/assets/brand/zukan-ogp-default.png");
+  assert.equal(
+    zukanOgpDefaultAssetUrl("materialize-admin-preview"),
+    "https://staging.ikimon.life/assets/brand/zukan-ogp-default.png",
+  );
+  assert.equal(zukanOgpDefaultAssetUrl("other-token"), "/assets/brand/zukan-ogp-default.png");
+});
 
 test("generated ZUKAN raster assets are deterministic PNGs with declared dimensions", async () => {
   await execFileAsync(process.execPath, [generator]);
