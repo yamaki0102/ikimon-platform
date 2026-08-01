@@ -10,6 +10,13 @@ import {
 
 const KUBIAKA_PRIVATE_UPLOAD_ROUTE = `${KUBIAKA_PRIVATE_PHOTO_UPLOAD_PREFIX}/:id/photos/upload`;
 
+function appDbQuery<T extends Record<string, unknown>>(
+  text: string,
+  values: unknown[],
+): Promise<{ rows: T[] }> {
+  return getPool().query<T>(text, values);
+}
+
 export async function assertOwnedKubiakaPrivateUploadTarget(
   query: KubiakaDbQuery,
   recordId: string,
@@ -46,18 +53,10 @@ export async function registerKubiakaPrivateUploadGuard(app: FastifyInstance): P
       if (!session) throw new Error("session_required");
       const recordId = String((request.params as { id?: unknown } | null)?.id ?? "").trim();
       if (!recordId) throw new Error("kubiaka_private_upload_scope_required");
-      await assertOwnedKubiakaPrivateUploadTarget(
-        (text, values) => getPool().query(text, values),
-        recordId,
-        session.userId,
-      );
+      await assertOwnedKubiakaPrivateUploadTarget(appDbQuery, recordId, session.userId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "kubiaka_private_upload_scope_required";
-      const status = message === "session_required"
-        ? 401
-        : message === "same_origin_required"
-          ? 403
-          : 403;
+      const status = message === "session_required" ? 401 : 403;
       return reply.code(status).send({ ok: false, error: message });
     }
   });
