@@ -1,0 +1,74 @@
+{
+  "schema": "ikimon.chat-development-contract/v1",
+  "project_id": "ikimon-life",
+  "repository": "yamaki0102/ikimon-platform",
+  "base_ref": "main",
+  "source_root": "platform_v2",
+  "implementation": {
+    "default_lane": "chatgpt_github_connector",
+    "branch_prefix": "chatgpt/",
+    "max_chat_patch_files": 30,
+    "max_chat_patch_content_bytes": 1000000,
+    "atomic_patchset_required": true,
+    "codex": {
+      "mode": "exception_only",
+      "max_chat_repair_attempts_before_escalation": 3,
+      "requires_context_pack": true,
+      "allowed_reasons": [
+        "more_than_50_mechanical_files",
+        "long_running_exploratory_execution",
+        "local_only_reproduction",
+        "binary_or_huge_data",
+        "chat_repairs_exhausted"
+      ]
+    }
+  },
+  "validation": {
+    "executor": "cloudflare_command_bus",
+    "organization_scope": "ikimon-development",
+    "profile_id": "ikimon-record-observation-pr-a",
+    "operation": "validate_repository",
+    "exact_sha_required": true,
+    "environment": "staging",
+    "github_actions_allowed": false,
+    "production_allowed": false,
+    "database_write_allowed": false,
+    "secret_access": "none",
+    "levels": {
+      "R0": ["exact_sha", "repository_guards", "typecheck"],
+      "R1": ["registered_target_tests", "build"],
+      "R2": ["full_registered_profile", "staging_verification"]
+    }
+  },
+  "review": {
+    "provider": "pixel_claude_subscription",
+    "control_repository": "yamaki0102/ikimon-intake-hub",
+    "request_label": "pixel-review-request-v1",
+    "exact_sha_required": true,
+    "allow_write": false,
+    "codex_on_pixel": false,
+    "repository_mutation": "fail_closed"
+  },
+  "staging": {
+    "entrypoint": "IKIMON_MOBILE_STAGING_REQUEST_V1",
+    "release_controller": "release_commander",
+    "merged_commit_only": true,
+    "approval_required": false,
+    "production_mutation": false
+  },
+  "protected_mutations": {
+    "production": "separate_policy_boundary",
+    "database": "separate_policy_boundary",
+    "secret": "forbidden",
+    "dns": "forbidden",
+    "permission": "forbidden",
+    "customer_send": "forbidden"
+  },
+  "work_ledger": {
+    "schema": "ikimon.chat-development-work/v1",
+    "control_repository": "yamaki0102/ikimon-intake-hub",
+    "one_work_one_branch": true,
+    "one_work_one_pull_request": true,
+    "exact_sha_evidence_required": true
+  }
+}
