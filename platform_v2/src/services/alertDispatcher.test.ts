@@ -12,10 +12,13 @@ import { emitAlertsForOccurrence } from "./alertDispatcher.js";
 
 type Query = { text: string; values: unknown[] };
 
-function makeMockClient(history: Query[]) {
+function makeMockClient(history: Query[], canonicalScientificName = "Procyon lotor") {
   return {
     query: async (text: string, values?: unknown[]) => {
       history.push({ text, values: values ?? [] });
+      if (text.includes("notification_gate_canonical_taxon")) {
+        return { rows: [{ scientific_name: canonicalScientificName }] };
+      }
       return { rows: [] as Array<{ recipient_id?: string; subscription_id?: string }> };
     },
   } as unknown as import("pg").PoolClient;
@@ -77,6 +80,48 @@ test("emitAlertsForOccurrence: managed synonym stays denied during link_pending"
   assert.equal(summary.blockedReason, "experience_managed_taxon_denied");
   assert.equal(summary.managedTaxonScopeKey, "kubiaka-watch");
   assert.equal(history.length, 0, "managed taxon must not query or create delivery rows");
+});
+
+test("emitAlertsForOccurrence: canonical managed taxon cannot be hidden by an unmanaged context", async () => {
+  const history: Query[] = [];
+  const client = makeMockClient(history, "Aromia bungii");
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000105",
+      visitId: "00000000-0000-0000-0000-000000000106",
+      invasiveStatus: null,
+      scientificName: "Procyon lotor",
+      vernacularName: "アライグマ",
+    },
+    client,
+  );
+  assert.equal(summary.blockedReason, "experience_managed_taxon_denied");
+  assert.equal(summary.managedTaxonScopeKey, "kubiaka-watch");
+  assert.equal(history.length, 1);
+  assert.doesNotMatch(history[0]?.text ?? "", /INSERT INTO alert_deliveries/i);
+});
+
+test("emitAlertsForOccurrence: canonical species read failure creates no delivery row", async () => {
+  const history: Query[] = [];
+  const client = {
+    query: async (text: string, values?: unknown[]) => {
+      history.push({ text, values: values ?? [] });
+      throw new Error("db_read_failed");
+    },
+  } as unknown as import("pg").PoolClient;
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000107",
+      visitId: "00000000-0000-0000-0000-000000000108",
+      invasiveStatus: "iaspecified",
+      scientificName: "Procyon lotor",
+      vernacularName: "アライグマ",
+    },
+    client,
+  );
+  assert.equal(summary.blockedReason, "notification_gate_error");
+  assert.equal(history.length, 1);
+  assert.doesNotMatch(history[0]?.text ?? "", /INSERT INTO alert_deliveries/i);
 });
 
 test("emitAlertsForOccurrence: in-trigger invasive issues municipality + researcher inserts", async () => {

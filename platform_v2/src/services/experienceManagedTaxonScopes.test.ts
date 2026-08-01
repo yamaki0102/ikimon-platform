@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   EXPERIENCE_MANAGED_TAXON_SCOPES,
+  evaluateExperienceManagedTaxonNotificationEligibility,
   findExperienceManagedTaxon,
   isExperienceManagedTaxonRoutingEnabled,
   normalizeManagedScientificName,
@@ -75,4 +76,19 @@ test("version-matched explicit approval is required to enable routing", () => {
     },
   };
   assert.equal(isExperienceManagedTaxonRoutingEnabled(scope), true);
+  const decision = evaluateExperienceManagedTaxonNotificationEligibility("fixture species", [scope]);
+  assert.equal(decision.allowed, true);
+  assert.equal(decision.managedTaxonScopeKey, "fixture");
+});
+
+test("notification eligibility fails closed when species identity is absent", () => {
+  const decision = evaluateExperienceManagedTaxonNotificationEligibility(null);
+  assert.equal(decision.allowed, false);
+  assert.equal(decision.reason, "species_unresolved");
+});
+
+test("notification eligibility fails closed when the managed-taxon policy is missing", () => {
+  const decision = evaluateExperienceManagedTaxonNotificationEligibility("Procyon lotor", []);
+  assert.equal(decision.allowed, false);
+  assert.equal(decision.reason, "notification_gate_unavailable");
 });

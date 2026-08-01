@@ -152,14 +152,14 @@ test("record fallback targets stay in the dedicated Kubiaka context", () => {
   ].join("|");
   const rootOutput = rewriteKubiakaRecordDocument(rootInput, "", "ja");
   assert.doesNotMatch(rootOutput, /\"\/record\?start=/);
-  assert.equal(rootOutput.split(JSON.stringify("/kubiaka/record?start=photo")).length - 1, 3);
+  assert.equal(rootOutput.split(JSON.stringify("/ja/kubiaka/record?start=photo")).length - 1, 3);
 
   const prefixed = rewriteKubiakaRecordDocument(
     JSON.stringify("/preview/record?start=gallery"),
     "/preview",
     "ja",
   );
-  assert.equal(prefixed, JSON.stringify("/preview/kubiaka/record?start=photo"));
+  assert.equal(prefixed, JSON.stringify("/ja/preview/kubiaka/record?start=photo"));
 });
 
 test("current path does not duplicate a forwarded base prefix", () => {

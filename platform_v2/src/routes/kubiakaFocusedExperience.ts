@@ -236,8 +236,14 @@ export function rewriteKubiakaRecordDocument(
 ): string {
   const dedicatedTarget = localizedHref(basePath, `${KUBIAKA_RECORD_PATH}?start=photo`, lang);
   return ["photo", "video", "gallery"].reduce((result, kind) => {
-    const genericTarget = localizedHref(basePath, `/record?start=${kind}`, lang);
-    return result.split(JSON.stringify(genericTarget)).join(JSON.stringify(dedicatedTarget));
+    const genericTargets = [
+      localizedHref(basePath, `/record?start=${kind}`, lang),
+      withBasePath(basePath, `/record?start=${kind}`),
+    ];
+    return genericTargets.reduce(
+      (next, genericTarget) => next.split(JSON.stringify(genericTarget)).join(JSON.stringify(dedicatedTarget)),
+      result,
+    );
   }, html);
 }
 

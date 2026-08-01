@@ -29,6 +29,7 @@ const explicitAllowlist = [
   "platform_v2/src/routes/guideRecordsDebug.ts",
   "platform_v2/src/routes/invasiveSpecies.ts",
   "platform_v2/src/routes/iwataOpenData.ts",
+  "platform_v2/src/routes/kubiakaFocusedExperience.ts",
   "platform_v2/src/routes/marketing.ts",
   "platform_v2/src/routes/meSubscriptionsApi.ts",
   "platform_v2/src/routes/monitoringBusiness.ts",

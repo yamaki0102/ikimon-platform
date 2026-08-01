@@ -17,10 +17,11 @@
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
 import {
-  findExperienceManagedTaxon,
-  isExperienceManagedTaxonRoutingEnabled,
+  evaluateExperienceManagedTaxonNotificationEligibility,
+  type ExperienceManagedTaxonNotificationBlockReason,
 } from "./experienceManagedTaxonScopes.js";
 import { emitInvasiveReportingForOccurrence, isInvasiveReportingTrigger } from "./invasiveReporting.js";
+import { readCanonicalNotificationEligibility } from "./notificationEligibility.js";
 
 export type EmitAlertsContext = {
   occurrenceId: string;
@@ -56,7 +57,7 @@ export type AlertDispatchSummary = {
   researcherRare: number;
   researcherNovelty: number;
   userTaxonMatches: number;
-  blockedReason: "experience_managed_taxon_denied" | null;
+  blockedReason: ExperienceManagedTaxonNotificationBlockReason | "experience_managed_taxon_denied" | null;
   managedTaxonScopeKey: string | null;
 };
 
@@ -74,23 +75,38 @@ function emptyAlertSummary(): AlertDispatchSummary {
   };
 }
 
+function legacyAlertBlockReason(
+  reason: ExperienceManagedTaxonNotificationBlockReason | null,
+): AlertDispatchSummary["blockedReason"] {
+  return reason === "managed_taxon_gate_denied" ? "experience_managed_taxon_denied" : reason;
+}
+
 export async function emitAlertsForOccurrence(
   ctx: EmitAlertsContext,
   client?: PoolClient,
 ): Promise<AlertDispatchSummary> {
   const summary = emptyAlertSummary();
 
-  // Gate 0: evaluate the taxon before opening a DB connection or entering any
-  // notification branch. Record link state, law status, confidence, Case, and
-  // recipient configuration must not bypass this source-level interlock.
-  const managedTaxon = findExperienceManagedTaxon(ctx.scientificName);
-  if (managedTaxon && !isExperienceManagedTaxonRoutingEnabled(managedTaxon.scope)) {
-    summary.blockedReason = "experience_managed_taxon_denied";
-    summary.managedTaxonScopeKey = managedTaxon.scope.scopeKey;
+  // Gate 0: reject an unsafe context before opening a DB connection. This is
+  // only an early deny; an apparently unmanaged context must still be checked
+  // against the canonical occurrence row before any notification branch.
+  const contextGate = evaluateExperienceManagedTaxonNotificationEligibility(ctx.scientificName);
+  if (!contextGate.allowed) {
+    summary.blockedReason = legacyAlertBlockReason(contextGate.reason);
+    summary.managedTaxonScopeKey = contextGate.managedTaxonScopeKey;
     return summary;
   }
 
   const exec = async (c: PoolClient): Promise<void> => {
+    const canonicalGate = await readCanonicalNotificationEligibility(c, {
+      occurrenceId: ctx.occurrenceId,
+      visitId: ctx.visitId,
+    });
+    if (!canonicalGate.allowed) {
+      summary.blockedReason = legacyAlertBlockReason(canonicalGate.reason);
+      summary.managedTaxonScopeKey = canonicalGate.managedTaxonScopeKey;
+      return;
+    }
     if (isInvasiveTrigger(ctx.invasiveStatus)) {
       const invasiveReporting = await emitInvasiveReportingForOccurrence(c, ctx);
       summary.invasiveReportingMatched = invasiveReporting.matchedRules;
@@ -113,7 +129,12 @@ export async function emitAlertsForOccurrence(
     const pool = getPool();
     const c = await pool.connect();
     try {
+      await c.query("begin");
       await exec(c);
+      await c.query("commit");
+    } catch (error) {
+      await c.query("rollback").catch(() => undefined);
+      throw error;
     } finally {
       c.release();
     }

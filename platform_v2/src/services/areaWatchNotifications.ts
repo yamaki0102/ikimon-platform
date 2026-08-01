@@ -1,5 +1,9 @@
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
+import {
+  readCanonicalNotificationEligibility,
+} from "./notificationEligibility.js";
+import type { ExperienceManagedTaxonNotificationBlockReason } from "./experienceManagedTaxonScopes.js";
 
 export type EmitAreaWatchNotificationInput = {
   occurrenceId: string;
@@ -8,6 +12,7 @@ export type EmitAreaWatchNotificationInput = {
 
 export type AreaWatchNotificationSummary = {
   areaWatchNotifications: number;
+  blockedReason: ExperienceManagedTaxonNotificationBlockReason | null;
 };
 
 export type AreaWatchParticipationSummary = {
@@ -24,9 +29,16 @@ export async function emitAreaWatchNotificationForObservation(
 ): Promise<AreaWatchNotificationSummary> {
   const occurrenceId = cleanId(input.occurrenceId);
   const visitId = cleanId(input.visitId);
-  if (!occurrenceId || !visitId) return { areaWatchNotifications: 0 };
+  if (!occurrenceId || !visitId) return { areaWatchNotifications: 0, blockedReason: null };
 
   const exec = async (c: PoolClient): Promise<AreaWatchNotificationSummary> => {
+    // The occurrence/visit pair and species identity come from the server-side
+    // canonical rows. Do this before matching subscriptions or constructing the
+    // sent area_watch row; link state and request flags cannot bypass Gate 0.
+    const gate = await readCanonicalNotificationEligibility(c, { occurrenceId, visitId });
+    if (!gate.allowed) {
+      return { areaWatchNotifications: 0, blockedReason: gate.reason };
+    }
     const result = await c.query<{ delivery_id: string }>(
       `with new_visit as (
           select v.visit_id,
@@ -138,14 +150,20 @@ export async function emitAreaWatchNotificationForObservation(
         returning delivery_id::text`,
       [occurrenceId, visitId],
     );
-    return { areaWatchNotifications: result.rows.length };
+    return { areaWatchNotifications: result.rows.length, blockedReason: null };
   };
 
   if (client) return await exec(client);
   const pool = getPool();
   const c = await pool.connect();
   try {
-    return await exec(c);
+    await c.query("begin");
+    const result = await exec(c);
+    await c.query("commit");
+    return result;
+  } catch (error) {
+    await c.query("rollback").catch(() => undefined);
+    throw error;
   } finally {
     c.release();
   }
