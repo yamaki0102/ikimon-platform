@@ -101,6 +101,28 @@ test("emitAlertsForOccurrence: canonical managed taxon cannot be hidden by an un
   assert.doesNotMatch(history.map((query) => query.text).join("\n"), /INSERT INTO alert_deliveries/i);
 });
 
+test("emitAlertsForOccurrence: canonical gate resolves persisted AI assessment identity", async () => {
+  const history: Query[] = [];
+  const client = makeMockClient(history, "Procyon lotor");
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000111",
+      visitId: "00000000-0000-0000-0000-000000000112",
+      invasiveStatus: null,
+      scientificName: "Procyon lotor",
+      vernacularName: "アライグマ",
+    },
+    client,
+  );
+
+  assert.equal(summary.blockedReason, null);
+  const gateQuery = history.find((query) => query.text.includes("notification_gate_canonical_taxon"));
+  assert.ok(gateQuery);
+  assert.match(gateQuery.text, /observation_ai_assessments/i);
+  assert.match(gateQuery.text, /visual_subject_candidates/i);
+  assert.match(gateQuery.text, /recommended_scientific_name/i);
+});
+
 test("emitAlertsForOccurrence: canonical species read failure creates no delivery row", async () => {
   const history: Query[] = [];
   const client = {
