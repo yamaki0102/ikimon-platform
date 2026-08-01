@@ -14,7 +14,9 @@ import {
   enforceKubiakaVisitPrivate,
   findOwnedKubiakaAcknowledgement,
   isKubiakaFocusedExperienceEnabled,
+  resolveKubiakaCurrentPath,
   resolveKubiakaMediaCount,
+  rewriteKubiakaRecordDocument,
   rewriteKubiakaUpsertUrl,
   type KubiakaDbQuery,
 } from "./kubiakaFocusedExperience.js";
@@ -70,7 +72,9 @@ function fixture(mediaCount: number = 1): ObservationUpsertInput {
 }
 
 test("buildKubiakaObservationInput fixes the dedicated private context", () => {
-  const result = buildKubiakaObservationInput(fixture(), "session-user");
+  const input = fixture();
+  input.photos = [{ path: "client-controlled-photo.jpg" }];
+  const result = buildKubiakaObservationInput(input, "session-user");
 
   assert.equal(result.userId, "session-user");
   assert.equal(result.visitMode, "manual");
@@ -79,6 +83,10 @@ test("buildKubiakaObservationInput fixes the dedicated private context", () => {
   assert.equal(result.taxon, null);
   assert.deepEqual(result.subjects, [{ isPrimary: true, roleHint: "primary" }]);
   assert.equal(result.aiAssessmentStatus, "not_requested");
+  assert.equal(result.observationId, undefined);
+  assert.equal(result.legacyObservationId, undefined);
+  assert.equal(result.photos, undefined);
+  assert.equal(result.clientSubmissionId, "submission-fixture");
   assert.equal(result.sourcePayload?.source, "kubiaka_private_entry");
   assert.equal(result.sourcePayload?.experience_key, KUBIAKA_EXPERIENCE_KEY);
   assert.equal(result.sourcePayload?.experience_context_version, KUBIAKA_CONTEXT_VERSION);
@@ -120,10 +128,7 @@ test("photo count requires 1 to 6", () => {
 
 test("inline photo count must match the declared count", () => {
   const input = fixture(1);
-  input.photos = [
-    { path: "photo-1.jpg" },
-    { path: "photo-2.jpg" },
-  ];
+  input.photos = [{ path: "photo-1.jpg" }, { path: "photo-2.jpg" }];
   assert.throws(() => resolveKubiakaMediaCount(input), /kubiaka_photo_count_mismatch/);
 });
 
@@ -137,6 +142,30 @@ test("rewriteKubiakaUpsertUrl preserves root and forwarded base paths", () => {
     rewriteKubiakaUpsertUrl("/api/v1/observations/visit/photos/upload"),
     "/api/v1/observations/visit/photos/upload",
   );
+});
+
+test("record fallback targets stay in the dedicated Kubiaka context", () => {
+  const rootInput = [
+    JSON.stringify("/record?start=photo"),
+    JSON.stringify("/record?start=video"),
+    JSON.stringify("/record?start=gallery"),
+  ].join("|");
+  const rootOutput = rewriteKubiakaRecordDocument(rootInput, "", "ja");
+  assert.doesNotMatch(rootOutput, /\"\/record\?start=/);
+  assert.equal(rootOutput.split(JSON.stringify("/kubiaka/record?start=photo")).length - 1, 3);
+
+  const prefixed = rewriteKubiakaRecordDocument(
+    JSON.stringify("/preview/record?start=gallery"),
+    "/preview",
+    "ja",
+  );
+  assert.equal(prefixed, JSON.stringify("/preview/kubiaka/record?start=photo"));
+});
+
+test("current path does not duplicate a forwarded base prefix", () => {
+  assert.equal(resolveKubiakaCurrentPath("", "/kubiaka?lang=ja"), "/kubiaka?lang=ja");
+  assert.equal(resolveKubiakaCurrentPath("/preview", "/kubiaka?lang=ja"), "/preview/kubiaka?lang=ja");
+  assert.equal(resolveKubiakaCurrentPath("/preview", "/preview/kubiaka?lang=ja"), "/preview/kubiaka?lang=ja");
 });
 
 test("feature flag fails closed when explicitly disabled", () => {
@@ -183,14 +212,11 @@ test("acknowledgement lookup requires owner, hidden scope and 1 to 6 actual phot
   }) as KubiakaDbQuery;
 
   const result = await findOwnedKubiakaAcknowledgement(query, "occurrence-1", "user-1");
-  assert.deepEqual(result, {
-    recordId: "occurrence-1",
-    visitId: "visit-1",
-    photoCount: 2,
-  });
+  assert.deepEqual(result, { recordId: "occurrence-1", visitId: "visit-1", photoCount: 2 });
   assert.match(calls[0]!.text, /v\.user_id = \$2/);
   assert.match(calls[0]!.text, /public_visibility = 'hidden'/);
   assert.match(calls[0]!.text, /experience_key/);
+  assert.match(calls[0]!.text, /asset_role = 'observation_photo'/);
   assert.match(calls[0]!.text, /between 1 and \$4/);
   assert.deepEqual(calls[0]!.values, [
     "occurrence-1",
@@ -202,10 +228,7 @@ test("acknowledgement lookup requires owner, hidden scope and 1 to 6 actual phot
 
 test("acknowledgement lookup does not expose another user's record", async () => {
   const query = (async () => ({ rows: [] })) as KubiakaDbQuery;
-  assert.equal(
-    await findOwnedKubiakaAcknowledgement(query, "occurrence-other", "user-1"),
-    null,
-  );
+  assert.equal(await findOwnedKubiakaAcknowledgement(query, "occurrence-other", "user-1"), null);
 });
 
 test("member surface is an acknowledgement, not a durable receipt claim", () => {
