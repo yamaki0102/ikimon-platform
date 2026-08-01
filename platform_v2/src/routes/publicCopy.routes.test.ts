@@ -354,7 +354,7 @@ test("records saved arrival preserves the saved id and shows a focused return st
 });
 
 test("records source contract keeps guest public-first and actionable empty states", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const source = await readFile(path.join(process.cwd(), "src", "routes", "personalLibrary.ts"), "utf8");
   assert.match(source, /return hasViewer \? "mine" : "public"/);
   assert.match(source, /data-records-public-intro/);
   assert.match(source, /みんなの公開記録/);
@@ -478,7 +478,7 @@ test("identification queue is a records workbench tab", async () => {
 });
 
 test("identification workbench panel keeps continuous actions in the records surface", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const source = await readFile(path.join(process.cwd(), "src", "routes", "personalLibrary.ts"), "utf8");
   assert.match(source, /data-identify-panel-action="support"/);
   assert.match(source, /data-identify-panel-action="alternative"/);
   assert.match(source, /data-identify-panel-action="needs_more_evidence"/);
@@ -537,7 +537,7 @@ test("records mine tab keeps source lanes and library controls", async () => {
 });
 
 test("records owner cards separate return-place memory from public metadata", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const source = await readFile(path.join(process.cwd(), "src", "routes", "personalLibrary.ts"), "utf8");
 
   assert.match(source, /function recordsPostMemoryLine/);
   assert.match(source, /options\.locationMode !== "owner"/);

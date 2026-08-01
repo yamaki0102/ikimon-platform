@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { buildApp } from "../app.js";
 
@@ -25,7 +26,7 @@ async function withEnv(
 
 function assertHtmlResponse(response: {
   statusCode: number;
-  headers: Record<string, string | string[] | undefined>;
+  headers: Record<string, unknown>;
   body: string;
 }, lang: "ja" | "en"): void {
   assert.equal(response.statusCode, 200);
@@ -41,6 +42,19 @@ test("personal library read route remains registered as GET /records", async () 
   } finally {
     await app.close();
   }
+});
+
+test("personal library route composition stays outside the read composition root", async () => {
+  const readRoute = await readFile(new URL("./read.ts", import.meta.url), "utf8");
+  const personalLibraryRoute = await readFile(new URL("./personalLibrary.ts", import.meta.url), "utf8");
+
+  assert.match(readRoute, /registerPersonalLibraryReadRoutes\(app\)/);
+  assert.doesNotMatch(readRoute, /app\.get[^\n]*\("\/records"/);
+  assert.match(personalLibraryRoute, /app\.get[^\n]*\("\/records"/);
+  assert.match(personalLibraryRoute, /function renderRecordsWorkbench/);
+  assert.match(personalLibraryRoute, /function renderNotesLibraryScript/);
+  assert.match(personalLibraryRoute, /const NOTES_LIBRARY_STYLES/);
+  assert.match(personalLibraryRoute, /const RECORDS_WORKBENCH_STYLES/);
 });
 
 test("public records route keeps the ja and en HTML contracts", async () => {
@@ -74,7 +88,7 @@ test("signed-in personal library keeps private caching and language behavior", a
         headers: { accept: "text/html" },
       });
       assertHtmlResponse(ja, "ja");
-      assert.equal(ja.headers["cache-control"], "private, no-store");
+      assert.equal(ja.headers["cache-control"], "private, no-cache, must-revalidate");
 
       const en = await app.inject({
         method: "GET",
@@ -82,7 +96,7 @@ test("signed-in personal library keeps private caching and language behavior", a
         headers: { accept: "text/html" },
       });
       assertHtmlResponse(en, "en");
-      assert.equal(en.headers["cache-control"], "private, no-store");
+      assert.equal(en.headers["cache-control"], "private, no-cache, must-revalidate");
     } finally {
       await app.close();
     }
@@ -103,8 +117,8 @@ test("personal library keeps forwarded base paths in generated navigation", asyn
       });
 
       assertHtmlResponse(response, "ja");
-      assert.equal(response.headers["cache-control"], "private, no-store");
-      assert.match(response.body, /(?:href|action)=["']\/v2\//);
+      assert.equal(response.headers["cache-control"], "private, no-cache, must-revalidate");
+      assert.match(response.body, /data-records-lazy-endpoint=["']\/v2\/api\/v1\/records\/mine-page["']/);
       assert.doesNotMatch(response.body, /\/v2\/v2\//);
     } finally {
       await app.close();
