@@ -1,5 +1,7 @@
 # ZUKAN chat-first development
 
+この文書は運用ガイドです。機械判定の正本は [`.ikimon/development-contract.json`](../.ikimon/development-contract.json) であり、内容が食い違う場合はJSON contractを優先します。
+
 通常のZUKAN開発は、スマホのChatGPTチャットから次の固定経路で進めます。
 
 ```text
@@ -28,6 +30,8 @@ INTAKE → IMPLEMENTING → VALIDATING → REVIEWING → STAGING → VERIFIED �
 
 ChatGPTはmainのexact SHAを確認し、`chatgpt/`branchへ変更します。update/deleteはcurrent blob SHAを照合し、複数ファイルは1つのtree/commitとして反映します。
 
+1 patchsetの上限は、JSON contractどおり**30ファイル、content合計1,000,000 bytes**です。上限を超える場合は作業を意味のある単位へ分割し、Codexへ自動移行しません。
+
 Issueやpatchsetから任意shell、args、URL、secret、environment、deploy指示を受け付けません。
 
 ## 3. Validation
@@ -40,7 +44,7 @@ Issueやpatchsetから任意shell、args、URL、secret、environment、deploy�
 
 `yamaki0102/ikimon-intake-hub`へ`pixel-review-request-v1` Issueを作り、Pixel上のClaude Codeをサブスクリプション認証で実行します。
 
-レビュー前後でHEAD、worktree、tracked SHA-256、remoteを比較し、変化時は出力を破棄します。
+HEAD、worktree、tracked SHA-256、remoteの前後比較と、変化時の出力破棄は、このrepositoryではなく外部の正本`yamaki0102/ikimon-intake-hub:tools/pixel-review-worker/`が実装・検証します。
 
 ## 5. Staging
 
