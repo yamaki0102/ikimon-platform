@@ -14,6 +14,8 @@ import {
   type MediaObjectVisibility,
 } from "./mediaObjectStore.js";
 
+export const KUBIAKA_PRIVATE_UPLOAD_AUTHORIZATION = Symbol("kubiaka-private-upload-authorization");
+
 export type ObservationPhotoUploadInput = {
   observationId: string;
   filename: string;
@@ -21,6 +23,7 @@ export type ObservationPhotoUploadInput = {
   base64Data: string;
   mediaRole?: MediaRole | string | null;
   facePrivacy?: FacePrivacySummary | null;
+  [KUBIAKA_PRIVATE_UPLOAD_AUTHORIZATION]?: true;
 };
 
 export type FacePrivacySummary = {
@@ -283,6 +286,9 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     visitId = target.visit_id;
     occurrenceId = target.occurrence_id;
     privateKubiakaUpload = isKubiakaPrivatePhotoSourcePayload(target.source_payload);
+    if (privateKubiakaUpload && input[KUBIAKA_PRIVATE_UPLOAD_AUTHORIZATION] !== true) {
+      throw new Error("kubiaka_private_upload_endpoint_required");
+    }
     if (privateKubiakaUpload && target.public_visibility !== "hidden") {
       throw new Error("kubiaka_private_visibility_required");
     }
@@ -484,7 +490,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       sourcePayload: {
         source: privateKubiakaUpload ? "kubiaka_private_photo_upload" : "v2_photo_upload",
         filename: input.filename,
-        face_privacy: facePrivacy,
+        facePrivacy,
         privacy_processing_status: privateKubiakaUpload ? "private_no_public_processing" : "pending",
         original_relative_path: originalRelativePath,
         private_experience: privateKubiakaUpload,
