@@ -246,9 +246,7 @@ export function resolveKubiakaMediaCount(input: ObservationUpsertInput): number 
   const inlineCount = Array.isArray(input.photos) ? input.photos.length : 0;
   const hasDeclaredCount = sourcePayload.media_count !== undefined && sourcePayload.media_count !== null;
   const declaredCount = hasDeclaredCount ? Number(sourcePayload.media_count) : inlineCount;
-  if (!Number.isInteger(declaredCount) || declaredCount < 1) {
-    throw new Error("kubiaka_photo_required");
-  }
+  if (!Number.isInteger(declaredCount) || declaredCount < 1) throw new Error("kubiaka_photo_required");
   if (declaredCount > KUBIAKA_MAX_PHOTOS || inlineCount > KUBIAKA_MAX_PHOTOS) {
     throw new Error("kubiaka_photo_limit_exceeded");
   }
@@ -264,18 +262,7 @@ export function buildKubiakaObservationInput(
 ): ObservationUpsertInput {
   const sourcePayload = objectRecord(input.sourcePayload);
   const mediaCount = resolveKubiakaMediaCount(input);
-  const observationId = input.observationId === undefined ? null : safeRecordId(input.observationId);
-  if (input.observationId !== undefined && !observationId) {
-    throw new Error("kubiaka_observation_id_invalid");
-  }
-  const legacyObservationId = input.legacyObservationId == null
-    ? input.legacyObservationId
-    : safeRecordId(input.legacyObservationId);
-  if (input.legacyObservationId != null && !legacyObservationId) {
-    throw new Error("kubiaka_legacy_observation_id_invalid");
-  }
-
-  const result: ObservationUpsertInput = {
+  return {
     userId,
     observedAt: String(input.observedAt ?? ""),
     latitude: typeof input.latitude === "number" ? input.latitude : null,
@@ -291,6 +278,7 @@ export function buildKubiakaObservationInput(
     taxon: null,
     subjects: [{ isPrimary: true, roleHint: "primary" }],
     aiAssessmentStatus: "not_requested",
+    clientSubmissionId: input.clientSubmissionId,
     sourcePayload: {
       source: "kubiaka_private_entry",
       record_mode: "quick",
@@ -325,19 +313,12 @@ export function buildKubiakaObservationInput(
       publicProfileAttributionMode: "hidden",
       consentSource: "default",
       sourcePayload: {
-        experience_key: KUBIAAKA_EXPERIENCE_KEY,
+        experience_key: KUBIAKA_EXPERIENCE_KEY,
         protocol_profile: KUBIAKA_PROTOCOL_PROFILE,
         enforced_by: KUBIAKA_UPSERT_PATH,
       },
     },
   };
-  if (observationId) result.observationId = observationId;
-  if (legacyObservationId !== undefined) result.legacyObservationId = legacyObservationId;
-  if (input.clientSubmissionId !== undefined) result.clientSubmissionId = input.clientSubmissionId;
-  if (Array.isArray(input.photos) && input.photos.length > 0) {
-    result.photos = input.photos.slice(0, KUBIAKA_MAX_PHOTOS);
-  }
-  return result;
 }
 
 export async function enforceKubiakaVisitPrivate(
@@ -413,17 +394,13 @@ function recordContextScript(basePath: string, lang: SiteLang): string {
   var acknowledgementAction = ${JSON.stringify(copy.acknowledgementAction)};
   var restoreFailure = ${JSON.stringify(copy.restoreFailure)};
 
-  function rewrittenUrl(url){
-    return url && url.indexOf(genericSuffix) >= 0 ? url.replace(genericSuffix, dedicatedSuffix) : url;
-  }
+  function rewrittenUrl(url){ return url && url.indexOf(genericSuffix) >= 0 ? url.replace(genericSuffix, dedicatedSuffix) : url; }
 
   window.fetch = async function(input, init){
     var sourceUrl = typeof input === 'string' ? input : (input && input.url ? input.url : '');
     var targetUrl = rewrittenUrl(sourceUrl);
     var targetInput = input;
-    if (targetUrl && targetUrl !== sourceUrl) {
-      targetInput = typeof input === 'string' ? targetUrl : new Request(targetUrl, input);
-    }
+    if (targetUrl && targetUrl !== sourceUrl) targetInput = typeof input === 'string' ? targetUrl : new Request(targetUrl, input);
     var response = await nativeFetch(targetInput, init);
     if (targetUrl && targetUrl.indexOf(dedicatedSuffix) >= 0) {
       response.clone().json().then(function(data){
@@ -442,9 +419,14 @@ function recordContextScript(basePath: string, lang: SiteLang): string {
 
   function renderPrivateSavedState(){
     var status = document.querySelector('[data-global-record-camera-status]');
-    if (!status || status.getAttribute('data-kubiaka-saved') === 'true') return;
+    if (!status) return;
     var text = String(status.textContent || '');
-    if (text.indexOf('記録を保存しました。') < 0 && text.indexOf('Record saved') < 0) return;
+    var isCompleted = text.indexOf('記録を保存しました。') >= 0 || text.indexOf('Record saved') >= 0;
+    if (!isCompleted) {
+      status.removeAttribute('data-kubiaka-saved');
+      return;
+    }
+    if (status.getAttribute('data-kubiaka-saved') === 'true') return;
     var id = lastRecord;
     try { id = id || sessionStorage.getItem('kubiaka:last-record') || ''; } catch (_) {}
     if (!id) return;
@@ -527,16 +509,8 @@ function landingHtml(basePath: string, lang: SiteLang, signedIn: boolean): strin
     ? localizedHref(basePath, KUBIAKA_MEMBER_PATH, lang)
     : localizedHref(basePath, `/login?redirect=${encodeURIComponent(localizedHref(basePath, KUBIAKA_MEMBER_PATH, lang))}`, lang);
   const steps = lang === "ja"
-    ? [
-        ["サクラを見る", "幹と根元を安全な場所から見ます。"],
-        ["1〜6枚撮る", "1枚だけでも大丈夫です。"],
-        ["非公開で保存", "虫の名前を決める必要はありません。"],
-      ]
-    : [
-        ["Look at the tree", "Observe the trunk and base from a safe place."],
-        ["Take 1–6 photos", "One photo is enough."],
-        ["Save privately", "No identification is required."],
-      ];
+    ? [["サクラを見る", "幹と根元を安全な場所から見ます。"], ["1〜6枚撮る", "1枚だけでも大丈夫です。"], ["非公開で保存", "虫の名前を決める必要はありません。"]]
+    : [["Look at the tree", "Observe the trunk and base from a safe place."], ["Take 1–6 photos", "One photo is enough."], ["Save privately", "No identification is required."]];
   return `<div class="kubiaka-page">
     <section class="kubiaka-hero">
       <div class="kubiaka-eyebrow">ZUKAN / Kubiaka watch</div>
@@ -574,11 +548,7 @@ function recordHtml(basePath: string, lang: SiteLang): string {
   </div>${recordContextScript(basePath, lang)}`;
 }
 
-function memberHtml(
-  basePath: string,
-  lang: SiteLang,
-  acknowledgement: OwnedKubiakaAcknowledgement | null,
-): string {
+function memberHtml(basePath: string, lang: SiteLang, acknowledgement: OwnedKubiakaAcknowledgement | null): string {
   const copy = copyFor(lang);
   const title = acknowledgement ? copy.receivedTitle : copy.emptyTitle;
   const lead = acknowledgement ? copy.receivedLead : copy.emptyLead;
@@ -657,10 +627,11 @@ export async function registerKubiakaFocusedExperienceRoutes(app: FastifyInstanc
     const basePath = basePathFor(request as unknown as { headers: Record<string, unknown> });
     const rawUrl = requestUrl(request);
     const lang = detectLangFromUrl(rawUrl);
-    const session = await requireSession(request);
-    if (!session) return reply.redirect(signInRedirect(basePath, KUBIAKA_MEMBER_PATH, lang));
-
     const suppliedRecordId = request.query.record === undefined ? null : safeRecordId(request.query.record);
+    const session = await requireSession(request);
+    const memberTarget = suppliedRecordId ? `${KUBIAKA_MEMBER_PATH}?record=${encodeURIComponent(suppliedRecordId)}` : KUBIAKA_MEMBER_PATH;
+    if (!session) return reply.redirect(signInRedirect(basePath, memberTarget, lang));
+
     let acknowledgement: OwnedKubiakaAcknowledgement | null = null;
     if (request.query.record !== undefined && !suppliedRecordId) {
       reply.code(404);
