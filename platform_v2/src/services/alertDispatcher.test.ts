@@ -97,8 +97,8 @@ test("emitAlertsForOccurrence: canonical managed taxon cannot be hidden by an un
   );
   assert.equal(summary.blockedReason, "experience_managed_taxon_denied");
   assert.equal(summary.managedTaxonScopeKey, "kubiaka-watch");
-  assert.equal(history.length, 1);
-  assert.doesNotMatch(history[0]?.text ?? "", /INSERT INTO alert_deliveries/i);
+  assert.equal(history.filter((query) => query.text.includes("notification_gate_canonical_taxon")).length, 1);
+  assert.doesNotMatch(history.map((query) => query.text).join("\n"), /INSERT INTO alert_deliveries/i);
 });
 
 test("emitAlertsForOccurrence: canonical species read failure creates no delivery row", async () => {
@@ -120,8 +120,42 @@ test("emitAlertsForOccurrence: canonical species read failure creates no deliver
     client,
   );
   assert.equal(summary.blockedReason, "notification_gate_error");
-  assert.equal(history.length, 1);
-  assert.doesNotMatch(history[0]?.text ?? "", /INSERT INTO alert_deliveries/i);
+  assert.match(history.map((query) => query.text).join("\n"), /rollback to savepoint notification_gate_read/i);
+  assert.doesNotMatch(history.map((query) => query.text).join("\n"), /INSERT INTO alert_deliveries/i);
+});
+
+test("emitAlertsForOccurrence: canonical read failure rolls back only the gate savepoint", async () => {
+  const history: Query[] = [];
+  let transactionAborted = false;
+  const client = {
+    query: async (text: string, values?: unknown[]) => {
+      history.push({ text, values: values ?? [] });
+      if (text.includes("notification_gate_canonical_taxon")) {
+        transactionAborted = true;
+        throw new Error("db_read_failed");
+      }
+      if (text.includes("rollback to savepoint notification_gate_read")) {
+        transactionAborted = false;
+        return { rows: [] };
+      }
+      if (transactionAborted) throw new Error("transaction_aborted");
+      return { rows: [] };
+    },
+  } as unknown as import("pg").PoolClient;
+
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000109",
+      visitId: "00000000-0000-0000-0000-000000000110",
+      invasiveStatus: null,
+      scientificName: "Procyon lotor",
+      vernacularName: "アライグマ",
+    },
+    client,
+  );
+  assert.equal(summary.blockedReason, "notification_gate_error");
+  await client.query("select after_gate");
+  assert.equal(transactionAborted, false);
 });
 
 test("emitAlertsForOccurrence: in-trigger invasive issues municipality + researcher inserts", async () => {

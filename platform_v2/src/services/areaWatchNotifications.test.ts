@@ -39,7 +39,8 @@ test("emitAreaWatchNotificationForObservation targets active area followers with
   assert.match(sql, /'none'/);
   assert.match(sql, /見守りエリアに新しい記録/);
   assert.match(sql, /s\.user_id <> v\.user_id/);
-  assert.deepEqual(history[0]?.values, ["occ-1", "visit-1"]);
+  const canonicalGateQuery = history.find((query) => query.text.includes("notification_gate_canonical_taxon"));
+  assert.deepEqual(canonicalGateQuery?.values, ["occ-1", "visit-1"]);
 });
 
 test("emitAreaWatchNotificationForObservation blocks Kubiaka before any area_watch delivery row", async () => {
@@ -59,7 +60,7 @@ test("emitAreaWatchNotificationForObservation blocks Kubiaka before any area_wat
     blockedReason: "managed_taxon_gate_denied",
   });
   assert.deepEqual(replay, first);
-  assert.equal(history.length, 2, "each retry may re-read the canonical gate but must not write");
+  assert.equal(history.filter((query) => query.text.includes("notification_gate_canonical_taxon")).length, 2, "each retry may re-read the canonical gate but must not write");
   const sql = history.map((query) => query.text).join("\n");
   assert.doesNotMatch(sql, /insert into alert_deliveries/i);
   assert.doesNotMatch(sql, /'area_watch'|'sent'|delivered_at/i);
@@ -77,8 +78,7 @@ test("emitAreaWatchNotificationForObservation fails closed when species identity
     areaWatchNotifications: 0,
     blockedReason: "species_unresolved",
   });
-  assert.equal(history.length, 1);
-  assert.doesNotMatch(history[0]?.text ?? "", /insert into alert_deliveries/i);
+  assert.doesNotMatch(history.map((query) => query.text).join("\n"), /insert into alert_deliveries/i);
 });
 
 test("emitAreaWatchNotificationForObservation fails closed on the canonical species read error", async () => {
@@ -98,8 +98,8 @@ test("emitAreaWatchNotificationForObservation fails closed on the canonical spec
     areaWatchNotifications: 0,
     blockedReason: "notification_gate_error",
   });
-  assert.equal(history.length, 1);
-  assert.doesNotMatch(history[0]?.text ?? "", /insert into alert_deliveries/i);
+  assert.match(history.map((query) => query.text).join("\n"), /rollback to savepoint notification_gate_read/i);
+  assert.doesNotMatch(history.map((query) => query.text).join("\n"), /insert into alert_deliveries/i);
 });
 
 test("emitAreaWatchNotificationForObservation ignores blank ids", async () => {
