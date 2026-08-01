@@ -31,6 +31,26 @@ export type OwnedKubiakaAcknowledgement = {
   photoCount: number;
 };
 
+type KubiakaCopy = {
+  landingTitle: string;
+  landingLead: string;
+  landingAction: string;
+  landingSecondary: string;
+  recordTitle: string;
+  recordLead: string;
+  captureAction: string;
+  receivedTitle: string;
+  receivedLead: string;
+  emptyTitle: string;
+  emptyLead: string;
+  privateLabel: string;
+  safetyNote: string;
+  locationNote: string;
+  acknowledgementAction: string;
+  savedNotice: string;
+  restoreFailure: string;
+};
+
 const PAGE_STYLES = `
 .kubiaka-page{display:grid;gap:22px;max-width:820px;margin:0 auto;padding:12px 0 72px;min-width:0}
 .kubiaka-hero,.kubiaka-card{min-width:0;border:1px solid rgba(20,63,46,.12);border-radius:28px;background:#fff;padding:clamp(22px,5vw,42px);box-shadow:0 18px 50px rgba(20,63,46,.07)}
@@ -49,31 +69,13 @@ const PAGE_STYLES = `
 .kubiaka-step{min-width:0;padding:18px;border-radius:20px;background:#f7f7f3}
 .kubiaka-step strong{display:block;margin-bottom:6px;color:#17211b}
 .kubiaka-note{padding:16px 18px;border-left:4px solid #8b3d31;background:#fff8f1;border-radius:12px;color:#5d504a;line-height:1.75}
-.kubiaka-record-page .global-record-launcher{display:none!important}
-.kubiaka-record-page .site-core-nav .is-capture{display:none!important}
 .kubiaka-record-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere;background:#f7f7f3;border-radius:12px;padding:12px;margin-top:14px;color:#37423c}
 .kubiaka-private{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;font-weight:800;color:#143f2e}
+.global-record-launcher,.site-core-nav,[data-global-record-mode="video"]{display:none!important}
+.global-record-camera-sheet{max-width:min(720px,calc(100vw - 20px))!important}
 @media(max-width:680px){.kubiaka-steps{grid-template-columns:1fr}.kubiaka-hero,.kubiaka-card{border-radius:22px}.kubiaka-actions>*{width:100%}}
 @media(prefers-reduced-motion:reduce){.kubiaka-page *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 `;
-
-type KubiakaCopy = {
-  landingTitle: string;
-  landingLead: string;
-  landingAction: string;
-  landingSecondary: string;
-  recordTitle: string;
-  recordLead: string;
-  captureAction: string;
-  receivedTitle: string;
-  receivedLead: string;
-  emptyTitle: string;
-  emptyLead: string;
-  privateLabel: string;
-  safetyNote: string;
-  locationNote: string;
-  acknowledgementAction: string;
-};
 
 function copyFor(lang: SiteLang): KubiakaCopy {
   const localized: Record<SiteLang, KubiakaCopy> = {
@@ -90,9 +92,11 @@ function copyFor(lang: SiteLang): KubiakaCopy {
       emptyTitle: "まだ受付はありません",
       emptyLead: "サクラを撮って非公開保存すると、受付内容をここで確認できます。",
       privateLabel: "非公開・外部送信なし",
-      safetyNote: "道路にはみ出す場所、立入禁止・私有地、足元が危険な場所には入らず、安全な場所から撮ってください。木や虫には触れません。",
+      safetyNote: "道路、立入禁止・私有地、足元が危険な場所には入らず、安全な場所から撮ってください。木や虫には触れません。",
       locationNote: "位置情報は記録場所の保存だけに使います。公開地図や外部機関には送りません。",
       acknowledgementAction: "受付内容を見る",
+      savedNotice: "写真を非公開で保存しました。外部には送信していません。",
+      restoreFailure: "写真の下書きを復元できませんでした。もう一度、カメラまたは写真を開いてください。",
     },
     en: {
       landingTitle: "Photograph a cherry tree today.",
@@ -110,6 +114,8 @@ function copyFor(lang: SiteLang): KubiakaCopy {
       safetyNote: "Stay out of roads, restricted or private land, and unsafe areas. Photograph from a safe place and do not touch the tree or insects.",
       locationNote: "Location is used only to save the record. It is not sent to a public map or an external recipient.",
       acknowledgementAction: "View acknowledgement",
+      savedNotice: "Photos were saved privately. Nothing was sent to an external recipient.",
+      restoreFailure: "The photo draft could not be restored. Open the camera or photos again.",
     },
     es: {
       landingTitle: "Fotografia hoy un cerezo.",
@@ -127,6 +133,8 @@ function copyFor(lang: SiteLang): KubiakaCopy {
       safetyNote: "No entres en carreteras, zonas restringidas, propiedad privada ni lugares peligrosos. Toma fotos desde un lugar seguro y no toques el arbol ni los insectos.",
       locationNote: "La ubicacion se usa solo para guardar el registro. No se envia a un mapa publico ni a destinatarios externos.",
       acknowledgementAction: "Ver confirmacion",
+      savedNotice: "Las fotos se guardaron de forma privada. No se enviaron a destinatarios externos.",
+      restoreFailure: "No se pudo restaurar el borrador. Abre de nuevo la camara o las fotos.",
     },
     "pt-BR": {
       landingTitle: "Fotografe uma cerejeira hoje.",
@@ -144,6 +152,8 @@ function copyFor(lang: SiteLang): KubiakaCopy {
       safetyNote: "Nao entre em ruas, areas restritas, propriedade privada ou locais perigosos. Fotografe de um lugar seguro e nao toque na arvore nem nos insetos.",
       locationNote: "A localizacao e usada somente para salvar o registro. Nao e enviada a mapa publico nem a destinatarios externos.",
       acknowledgementAction: "Ver confirmacao",
+      savedNotice: "As fotos foram salvas de forma privada. Nada foi enviado a destinatarios externos.",
+      restoreFailure: "Nao foi possivel restaurar o rascunho. Abra novamente a camera ou as fotos.",
     },
   };
   return localized[lang] ?? localized.ja;
@@ -159,6 +169,20 @@ function basePathFor(request: { headers: Record<string, unknown> }): string {
 
 function localizedHref(basePath: string, path: string, lang: SiteLang): string {
   return appendLangToHref(withBasePath(basePath, path), lang);
+}
+
+export function resolveKubiakaCurrentPath(basePath: string, url: string): string {
+  const normalizedUrl = String(url || "/");
+  const normalizedBase = String(basePath || "").replace(/\/$/, "");
+  if (!normalizedBase) return normalizedUrl;
+  if (
+    normalizedUrl === normalizedBase
+    || normalizedUrl.startsWith(`${normalizedBase}/`)
+    || normalizedUrl.startsWith(`${normalizedBase}?`)
+  ) {
+    return normalizedUrl;
+  }
+  return withBasePath(normalizedBase, normalizedUrl);
 }
 
 function safeRecordId(value: unknown): string | null {
@@ -187,6 +211,13 @@ function safePhotoHashes(value: unknown): string[] {
     .slice(0, KUBIAKA_MAX_PHOTOS);
 }
 
+function appDbQuery<T extends Record<string, unknown>>(
+  text: string,
+  values: unknown[],
+): Promise<{ rows: T[] }> {
+  return getPool().query<T>(text, values);
+}
+
 export function isKubiakaFocusedExperienceEnabled(rawValue = process.env.KUBIAKA_FOCUSED_EXPERIENCE_ENABLED): boolean {
   const normalized = String(rawValue ?? "").trim().toLowerCase();
   return !["0", "false", "off", "no"].includes(normalized);
@@ -196,6 +227,18 @@ export function rewriteKubiakaUpsertUrl(url: string): string {
   return url.includes(KUBIAKA_GENERIC_UPSERT_PATH)
     ? url.replace(KUBIAKA_GENERIC_UPSERT_PATH, KUBIAKA_UPSERT_PATH)
     : url;
+}
+
+export function rewriteKubiakaRecordDocument(
+  html: string,
+  basePath: string,
+  lang: SiteLang,
+): string {
+  const dedicatedTarget = localizedHref(basePath, `${KUBIAKA_RECORD_PATH}?start=photo`, lang);
+  return ["photo", "video", "gallery"].reduce((result, kind) => {
+    const genericTarget = localizedHref(basePath, `/record?start=${kind}`, lang);
+    return result.split(JSON.stringify(genericTarget)).join(JSON.stringify(dedicatedTarget));
+  }, html);
 }
 
 export function resolveKubiakaMediaCount(input: ObservationUpsertInput): number {
@@ -282,7 +325,7 @@ export function buildKubiakaObservationInput(
       publicProfileAttributionMode: "hidden",
       consentSource: "default",
       sourcePayload: {
-        experience_key: KUBIAKA_EXPERIENCE_KEY,
+        experience_key: KUBIAAKA_EXPERIENCE_KEY,
         protocol_profile: KUBIAKA_PROTOCOL_PROFILE,
         enforced_by: KUBIAKA_UPSERT_PATH,
       },
@@ -291,7 +334,9 @@ export function buildKubiakaObservationInput(
   if (observationId) result.observationId = observationId;
   if (legacyObservationId !== undefined) result.legacyObservationId = legacyObservationId;
   if (input.clientSubmissionId !== undefined) result.clientSubmissionId = input.clientSubmissionId;
-  if (Array.isArray(input.photos) && input.photos.length > 0) result.photos = input.photos.slice(0, KUBIAKA_MAX_PHOTOS);
+  if (Array.isArray(input.photos) && input.photos.length > 0) {
+    result.photos = input.photos.slice(0, KUBIAKA_MAX_PHOTOS);
+  }
   return result;
 }
 
@@ -320,9 +365,7 @@ export async function enforceKubiakaVisitPrivate(
       returning visit_id::text`,
     [visitId, userId, KUBIAKA_EXPERIENCE_KEY, KUBIAKA_PROTOCOL_PROFILE],
   );
-  if (result.rows.length !== 1) {
-    throw new Error("kubiaka_private_enforcement_failed");
-  }
+  if (result.rows.length !== 1) throw new Error("kubiaka_private_enforcement_failed");
 }
 
 export async function findOwnedKubiakaAcknowledgement(
@@ -338,7 +381,7 @@ export async function findOwnedKubiakaAcknowledgement(
        left join evidence_assets ea
          on ea.visit_id = v.visit_id
         and ea.asset_role = 'observation_photo'
-      where (v.visit_id = $1 or o.occurrence_id = $1)
+      where (v.visit_id::text = $1 or o.occurrence_id::text = $1)
         and v.user_id = $2
         and v.public_visibility = 'hidden'
         and v.source_payload ->> 'experience_key' = $3
@@ -356,6 +399,7 @@ export async function findOwnedKubiakaAcknowledgement(
 
 function recordContextScript(basePath: string, lang: SiteLang): string {
   const memberPath = localizedHref(basePath, KUBIAKA_MEMBER_PATH, lang);
+  const sessionPath = withBasePath(basePath, "/api/v1/auth/session");
   const copy = copyFor(lang);
   return `<script>
 (function(){
@@ -363,11 +407,25 @@ function recordContextScript(basePath: string, lang: SiteLang): string {
   var lastRecord = null;
   var genericSuffix = ${JSON.stringify(KUBIAKA_GENERIC_UPSERT_PATH)};
   var dedicatedSuffix = ${JSON.stringify(KUBIAKA_UPSERT_PATH)};
+  var memberPath = ${JSON.stringify(memberPath)};
+  var sessionPath = ${JSON.stringify(sessionPath)};
+  var savedNotice = ${JSON.stringify(copy.savedNotice)};
+  var acknowledgementAction = ${JSON.stringify(copy.acknowledgementAction)};
+  var restoreFailure = ${JSON.stringify(copy.restoreFailure)};
+
+  function rewrittenUrl(url){
+    return url && url.indexOf(genericSuffix) >= 0 ? url.replace(genericSuffix, dedicatedSuffix) : url;
+  }
+
   window.fetch = async function(input, init){
-    var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-    var target = url && url.indexOf(genericSuffix) >= 0 ? url.replace(genericSuffix, dedicatedSuffix) : url;
-    var response = await nativeFetch(target || input, init);
-    if (target && target.indexOf(dedicatedSuffix) >= 0) {
+    var sourceUrl = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+    var targetUrl = rewrittenUrl(sourceUrl);
+    var targetInput = input;
+    if (targetUrl && targetUrl !== sourceUrl) {
+      targetInput = typeof input === 'string' ? targetUrl : new Request(targetUrl, input);
+    }
+    var response = await nativeFetch(targetInput, init);
+    if (targetUrl && targetUrl.indexOf(dedicatedSuffix) >= 0) {
       response.clone().json().then(function(data){
         if (!data || !data.ok) return;
         lastRecord = String(data.occurrenceId || data.visitId || '');
@@ -376,25 +434,87 @@ function recordContextScript(basePath: string, lang: SiteLang): string {
     }
     return response;
   };
-  function addAcknowledgementLink(){
+
+  function setRestoreFailure(){
     var status = document.querySelector('[data-global-record-camera-status]');
-    if (!status || status.querySelector('[data-kubiaka-acknowledgement-link]')) return;
-    if (status.textContent.indexOf('保存しました') < 0 && status.textContent.toLowerCase().indexOf('saved') < 0) return;
+    if (status) status.textContent = restoreFailure;
+  }
+
+  function renderPrivateSavedState(){
+    var status = document.querySelector('[data-global-record-camera-status]');
+    if (!status || status.getAttribute('data-kubiaka-saved') === 'true') return;
+    var text = String(status.textContent || '');
+    if (text.indexOf('記録を保存しました。') < 0 && text.indexOf('Record saved') < 0) return;
     var id = lastRecord;
     try { id = id || sessionStorage.getItem('kubiaka:last-record') || ''; } catch (_) {}
     if (!id) return;
+    status.setAttribute('data-kubiaka-saved', 'true');
+    status.replaceChildren();
+    var message = document.createElement('span');
+    message.textContent = savedNotice;
     var link = document.createElement('a');
     link.setAttribute('data-kubiaka-acknowledgement-link', 'true');
     link.className = 'kubiaka-secondary';
-    link.href = ${JSON.stringify(memberPath)} + '?record=' + encodeURIComponent(id);
-    link.textContent = ${JSON.stringify(copy.acknowledgementAction)};
-    status.appendChild(link);
+    link.href = memberPath + (memberPath.indexOf('?') >= 0 ? '&' : '?') + 'record=' + encodeURIComponent(id);
+    link.textContent = acknowledgementAction;
+    status.append(message, link);
   }
+
+  function openDraftDb(){
+    return new Promise(function(resolve, reject){
+      if (!('indexedDB' in window)) return reject(new Error('indexeddb_unavailable'));
+      var request = indexedDB.open('ikimon-record-draft', 1);
+      request.onerror = function(){ reject(request.error || new Error('indexeddb_open_failed')); };
+      request.onsuccess = function(){ resolve(request.result); };
+    });
+  }
+
+  async function currentUserId(){
+    var response = await nativeFetch(sessionPath, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+    var json = await response.json().catch(function(){ return null; });
+    if (!response.ok || !json || !json.ok || !json.session || !json.session.userId) throw new Error('session_required');
+    return String(json.session.userId);
+  }
+
+  async function restoreDraft(){
+    var params = new URL(location.href).searchParams;
+    if (params.get('draft') !== '1') return false;
+    var userId = await currentUserId();
+    var db = await openDraftDb();
+    var draft = await new Promise(function(resolve, reject){
+      var transaction = db.transaction('drafts', 'readonly');
+      var request = transaction.objectStore('drafts').get('latest:user:' + userId);
+      request.onerror = function(){ reject(request.error || new Error('indexeddb_read_failed')); };
+      request.onsuccess = function(){ resolve(request.result || null); };
+    });
+    try { db.close(); } catch (_) {}
+    var sourceFiles = draft && Array.isArray(draft.files) ? draft.files : (draft && draft.file ? [draft.file] : []);
+    var files = sourceFiles.filter(function(file){ return file && typeof file.type === 'string' && file.type.indexOf('image/') === 0; }).slice(0, ${KUBIAKA_MAX_PHOTOS});
+    if (!files.length || typeof DataTransfer === 'undefined') throw new Error('draft_empty');
+    var input = document.querySelector('[data-global-record-input="gallery"]');
+    if (!input) throw new Error('gallery_input_missing');
+    var transfer = new DataTransfer();
+    files.forEach(function(file){ transfer.items.add(file); });
+    input.setAttribute('data-global-record-input', 'photo');
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.setAttribute('data-global-record-input', 'gallery');
+    return true;
+  }
+
   document.addEventListener('DOMContentLoaded', function(){
-    var start = document.querySelector('[data-kubiaka-capture-start]');
-    if (start && new URL(location.href).searchParams.get('start') === 'photo') start.click();
+    document.querySelectorAll('[data-global-record-mode="video"]').forEach(function(node){ node.remove(); });
     var status = document.querySelector('[data-global-record-camera-status]');
-    if (status) new MutationObserver(addAcknowledgementLink).observe(status, {childList:true,subtree:true,characterData:true});
+    if (status) new MutationObserver(renderPrivateSavedState).observe(status, { childList: true, subtree: true, characterData: true });
+    var params = new URL(location.href).searchParams;
+    if (params.get('draft') === '1') {
+      restoreDraft().catch(setRestoreFailure);
+      return;
+    }
+    if (params.get('start') === 'photo') {
+      var start = document.querySelector('[data-kubiaka-capture-start]');
+      if (start) start.click();
+    }
   });
 })();
 </script>`;
@@ -406,6 +526,17 @@ function landingHtml(basePath: string, lang: SiteLang, signedIn: boolean): strin
   const memberTarget = signedIn
     ? localizedHref(basePath, KUBIAKA_MEMBER_PATH, lang)
     : localizedHref(basePath, `/login?redirect=${encodeURIComponent(localizedHref(basePath, KUBIAKA_MEMBER_PATH, lang))}`, lang);
+  const steps = lang === "ja"
+    ? [
+        ["サクラを見る", "幹と根元を安全な場所から見ます。"],
+        ["1〜6枚撮る", "1枚だけでも大丈夫です。"],
+        ["非公開で保存", "虫の名前を決める必要はありません。"],
+      ]
+    : [
+        ["Look at the tree", "Observe the trunk and base from a safe place."],
+        ["Take 1–6 photos", "One photo is enough."],
+        ["Save privately", "No identification is required."],
+      ];
   return `<div class="kubiaka-page">
     <section class="kubiaka-hero">
       <div class="kubiaka-eyebrow">ZUKAN / Kubiaka watch</div>
@@ -420,11 +551,7 @@ function landingHtml(basePath: string, lang: SiteLang, signedIn: boolean): strin
     <section class="kubiaka-card">
       <div class="kubiaka-eyebrow">3 steps</div>
       <h2>${escapeHtml(lang === "ja" ? "見つけなくても、記録になる" : "A useful record without an identification")}</h2>
-      <div class="kubiaka-steps">
-        <div class="kubiaka-step"><strong>1. ${escapeHtml(lang === "ja" ? "サクラを見る" : "Look at the tree")}</strong><p>${escapeHtml(lang === "ja" ? "幹と根元を安全な場所から見ます。" : "Observe the trunk and base from a safe place.")}</p></div>
-        <div class="kubiaka-step"><strong>2. ${escapeHtml(lang === "ja" ? "1〜6枚撮る" : "Take 1–6 photos")}</strong><p>${escapeHtml(lang === "ja" ? "1枚だけでも大丈夫です。" : "One photo is enough.")}</p></div>
-        <div class="kubiaka-step"><strong>3. ${escapeHtml(lang === "ja" ? "非公開で保存" : "Save privately")}</strong><p>${escapeHtml(lang === "ja" ? "虫の名前を決める必要はありません。" : "No identification is required.")}</p></div>
-      </div>
+      <div class="kubiaka-steps">${steps.map(([title, body], index) => `<div class="kubiaka-step"><strong>${index + 1}. ${escapeHtml(title ?? "")}</strong><p>${escapeHtml(body ?? "")}</p></div>`).join("")}</div>
     </section>
     <p class="kubiaka-note">${escapeHtml(copy.safetyNote)}</p>
   </div>`;
@@ -485,7 +612,8 @@ export async function registerKubiakaFocusedExperienceRoutes(app: FastifyInstanc
 
   app.get(KUBIAKA_ENTRY_PATH, async (request, reply) => {
     const basePath = basePathFor(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(requestUrl(request));
+    const rawUrl = requestUrl(request);
+    const lang = detectLangFromUrl(rawUrl);
     const session = await requireSession(request);
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
@@ -493,7 +621,7 @@ export async function registerKubiakaFocusedExperienceRoutes(app: FastifyInstanc
       title: copyFor(lang).landingTitle,
       description: copyFor(lang).landingLead,
       lang,
-      currentPath: withBasePath(basePath, requestUrl(request)),
+      currentPath: resolveKubiakaCurrentPath(basePath, rawUrl),
       canonicalPath: KUBIAKA_ENTRY_PATH,
       shellClassName: "shell-layout-narrow kubiaka-experience",
       extraStyles: PAGE_STYLES,
@@ -504,29 +632,31 @@ export async function registerKubiakaFocusedExperienceRoutes(app: FastifyInstanc
 
   app.get(KUBIAKA_RECORD_PATH, async (request, reply) => {
     const basePath = basePathFor(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(requestUrl(request));
+    const rawUrl = requestUrl(request);
+    const lang = detectLangFromUrl(rawUrl);
     const session = await requireSession(request);
     if (!session) return reply.redirect(signInRedirect(basePath, KUBIAKA_RECORD_PATH, lang));
     reply.type("text/html; charset=utf-8").header("Cache-Control", "private, no-store").header("Vary", "Cookie");
-    return renderSiteDocument({
+    const document = renderSiteDocument({
       basePath,
       title: copyFor(lang).recordTitle,
       description: copyFor(lang).recordLead,
       lang,
-      currentPath: withBasePath(basePath, requestUrl(request)),
+      currentPath: resolveKubiakaCurrentPath(basePath, rawUrl),
       noindex: true,
       minimalChrome: true,
-      hideGlobalRecordLauncher: true,
       shellClassName: "shell-layout-narrow kubiaka-record-page",
       extraStyles: PAGE_STYLES,
       body: recordHtml(basePath, lang),
       footerNote: "ZUKAN / Kubiaka watch",
     });
+    return rewriteKubiakaRecordDocument(document, basePath, lang);
   });
 
   app.get<{ Querystring: { record?: string } }>(KUBIAKA_MEMBER_PATH, async (request, reply) => {
     const basePath = basePathFor(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(requestUrl(request));
+    const rawUrl = requestUrl(request);
+    const lang = detectLangFromUrl(rawUrl);
     const session = await requireSession(request);
     if (!session) return reply.redirect(signInRedirect(basePath, KUBIAKA_MEMBER_PATH, lang));
 
@@ -535,11 +665,7 @@ export async function registerKubiakaFocusedExperienceRoutes(app: FastifyInstanc
     if (request.query.record !== undefined && !suppliedRecordId) {
       reply.code(404);
     } else if (suppliedRecordId) {
-      acknowledgement = await findOwnedKubiakaAcknowledgement(
-        (text, values) => getPool().query(text, values),
-        suppliedRecordId,
-        session.userId,
-      );
+      acknowledgement = await findOwnedKubiakaAcknowledgement(appDbQuery, suppliedRecordId, session.userId);
       if (!acknowledgement) reply.code(404);
     }
 
@@ -549,7 +675,7 @@ export async function registerKubiakaFocusedExperienceRoutes(app: FastifyInstanc
       title: acknowledgement ? copyFor(lang).receivedTitle : copyFor(lang).emptyTitle,
       description: acknowledgement ? copyFor(lang).receivedLead : copyFor(lang).emptyLead,
       lang,
-      currentPath: withBasePath(basePath, requestUrl(request)),
+      currentPath: resolveKubiakaCurrentPath(basePath, rawUrl),
       noindex: true,
       minimalChrome: true,
       hideGlobalRecordLauncher: true,
@@ -568,11 +694,7 @@ export async function registerKubiakaFocusedExperienceRoutes(app: FastifyInstanc
       await assertAuthRateLimit(["kubiaka-observation-upsert", resolvedSession.userId, request.ip], 20, 10 * 60 * 1000);
       const input = buildKubiakaObservationInput(request.body, resolvedSession.userId);
       const result = await upsertObservation(input);
-      await enforceKubiakaVisitPrivate(
-        (text, values) => getPool().query(text, values),
-        result.visitId,
-        resolvedSession.userId,
-      );
+      await enforceKubiakaVisitPrivate(appDbQuery, result.visitId, resolvedSession.userId);
       invalidateUserVisibleSnapshots();
       return {
         ok: true,
