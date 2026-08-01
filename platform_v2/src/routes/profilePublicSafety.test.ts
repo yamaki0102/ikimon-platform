@@ -7,7 +7,7 @@ test("public profile route uses public visibility and never owner mode for signe
   const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
   const publicProfileBody = readRoute.slice(
     readRoute.indexOf("function renderProfileSnapshotBody"),
-    readRoute.indexOf("function notesEntryDate"),
+    readRoute.indexOf("function formatProfilePublicObservedAt"),
   );
   const publicProfileRoute = readRoute.slice(
     readRoute.indexOf('app.get<{ Params: { userId: string } }>("/profile/:userId"'),
