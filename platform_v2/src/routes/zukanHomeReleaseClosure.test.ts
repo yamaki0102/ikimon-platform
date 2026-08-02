@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "../app.js";
-import { addStagingRobotsMeta } from "./siteMapRoutes.js";
+import { addStagingRobotsMeta, isStagingRequest } from "./siteMapRoutes.js";
+
+test("staging classification uses host or explicit public origin, never an auth token", () => {
+  assert.equal(isStagingRequest({ headers: { host: "staging.ikimon.life" } }, "https://ikimon.life"), true);
+  assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, "https://staging.ikimon.life"), true);
+  assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, "https://ikimon.life"), false);
+  assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, "materialize-admin-preview"), false);
+});
 
 test("staging robots metadata replaces any contradictory index directive", () => {
   assert.equal(
