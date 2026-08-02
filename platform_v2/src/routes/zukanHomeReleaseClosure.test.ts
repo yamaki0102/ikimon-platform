@@ -87,6 +87,10 @@ test("staging robots onSend hook leaves streamed assets single-finalized", async
     reply.type("application/octet-stream");
     return Readable.from([Buffer.from("stream-safe")]);
   });
+  app.get("/__zukan-on-send-svg-test", async (_request, reply) => {
+    reply.type("image/svg+xml");
+    return "<svg/>";
+  });
   try {
     const response = await app.inject({
       method: "GET",
@@ -96,6 +100,16 @@ test("staging robots onSend hook leaves streamed assets single-finalized", async
     assert.equal(response.statusCode, 200);
     assert.equal(response.body, "stream-safe");
     assert.equal(response.headers["x-robots-tag"], "noindex, nofollow");
+
+    const svgResponse = await app.inject({
+      method: "GET",
+      url: "/__zukan-on-send-svg-test",
+      headers: { host: "staging.ikimon.life", "x-forwarded-proto": "https" },
+    });
+    assert.equal(svgResponse.statusCode, 200);
+    assert.equal(svgResponse.body, "<svg/>");
+    assert.doesNotMatch(svgResponse.body, /<meta name="robots"/);
+    assert.equal(svgResponse.headers["x-robots-tag"], "noindex, nofollow");
   } finally {
     await app.close();
   }
