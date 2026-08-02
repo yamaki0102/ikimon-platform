@@ -5,16 +5,17 @@ import { runProcess, safeCodexEnvironment, writePrivateLog } from './process.mjs
 export async function invokeCodex({ lane, worktree, prompt, passNumber, logsDir }, options = {}) {
   const runner = options.runProcess ?? runProcess;
   const envSource = options.env ?? process.env;
-  const executable = envSource.IKIMON_CODEX_BIN || 'codex';
+  const platform = options.platform ?? process.platform;
+  const executable = envSource.IKIMON_CODEX_BIN || (platform === 'win32' ? 'codex.exe' : 'codex');
   const model = lane === 'local_codex_terra'
-    ? (envSource.IKIMON_CODEX_TERRA_MODEL || 'terra')
-    : (envSource.IKIMON_CODEX_LUNA_MODEL || 'luna');
+    ? (envSource.IKIMON_CODEX_TERRA_MODEL || 'gpt-5.6-terra')
+    : (envSource.IKIMON_CODEX_LUNA_MODEL || 'gpt-5.6-luna');
   const argv = [
     executable,
+    '-c', 'approval_policy="never"',
     'exec',
     '--cd', worktree,
     '--model', model,
-    '--ask' + '-for-approval', 'never',
     '--sandbox', 'workspace-write',
     prompt,
   ];
