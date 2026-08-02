@@ -34,13 +34,17 @@ export function addStagingRobotsMeta(payload: string): string {
 }
 
 export async function registerSiteMapRoutes(app: FastifyInstance): Promise<void> {
-  app.addHook("onSend", async (request, reply, payload) => {
-    if (!isStagingRequest(request as unknown as { headers: Record<string, unknown> })) return payload;
+  app.addHook("onSend", (request, reply, payload, done) => {
+    if (!isStagingRequest(request as unknown as { headers: Record<string, unknown> })) {
+      done(null, payload);
+      return;
+    }
     reply.header("X-Robots-Tag", "noindex, nofollow");
     const contentType = String(reply.getHeader("content-type") ?? "").toLowerCase();
-    return contentType.startsWith("text/html") && typeof payload === "string"
+    const nextPayload = contentType.startsWith("text/html") && typeof payload === "string"
       ? addStagingRobotsMeta(payload)
       : payload;
+    done(null, nextPayload);
   });
 
   await registerIwataOpenDataRoutes(app);
