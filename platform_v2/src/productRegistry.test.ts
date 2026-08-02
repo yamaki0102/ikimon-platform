@@ -38,9 +38,19 @@ test("ZUKAN product registry is internally consistent and matches implemented ro
 
 test("registry rejects a transition to an unknown surface", () => {
   const registry = cloneRegistry();
-  registry.surfaces[0]?.transitions.push({ action: "broken", target: "zukan.missing.surface" });
+  registry.surfaces[0]?.transitions.push({ action: "broken", target: "zukan.missing.surface", status: "planned" });
   const errors = validateProductRegistry(registry, implementationRoutes());
   assert.ok(errors.some((error) => error.includes("transitions to unknown surface zukan.missing.surface")));
+});
+
+test("registry rejects entry points without a matching source transition", () => {
+  const registry = cloneRegistry();
+  const landing = registry.surfaces.find((surface) => surface.id === "zukan.kubiaka.landing");
+  const home = registry.surfaces.find((surface) => surface.id === "zukan.home.public");
+  if (!landing || !home) throw new Error("entry point fixtures are missing");
+  home.transitions = home.transitions.filter((transition) => transition.target !== landing.id);
+  const errors = validateProductRegistry(registry, implementationRoutes());
+  assert.ok(errors.some((error) => error.includes("entry point zukan.home.public has no transition")));
 });
 
 test("registry rejects owner-only surfaces without an explicit denied state", () => {
@@ -52,6 +62,17 @@ test("registry rejects owner-only surfaces without an explicit denied state", ()
   assert.ok(errors.some((error) => error.includes("is owner-only but has no denied state")));
 });
 
+test("registry rejects partial surfaces without explicit gaps and candidate refs", () => {
+  const registry = cloneRegistry();
+  const partial = registry.surfaces.find((surface) => surface.id === "zukan.kubiaka.member-records");
+  if (!partial) throw new Error("partial fixture surface is missing");
+  partial.known_gaps = [];
+  partial.implementation_candidates = [];
+  const errors = validateProductRegistry(registry, implementationRoutes());
+  assert.ok(errors.some((error) => error.includes("partial surface requires known_gaps")));
+  assert.ok(errors.some((error) => error.includes("partial surface requires implementation_candidates")));
+});
+
 test("registry rejects write capabilities without retry contracts", () => {
   const registry = cloneRegistry();
   const writeCapability = registry.capabilities.find((capability) => capability.id === "zukan.kubiaka.save-private");
@@ -59,6 +80,24 @@ test("registry rejects write capabilities without retry contracts", () => {
   delete writeCapability.retry_contract;
   const errors = validateProductRegistry(registry, implementationRoutes());
   assert.ok(errors.some((error) => error.includes("write capability lacks retry_contract")));
+});
+
+test("registry rejects unknown design inheritance", () => {
+  const registry = cloneRegistry();
+  const design = registry.designContracts.find((contract) => contract.id === "design.zukan.home-public");
+  if (!design) throw new Error("design fixture is missing");
+  design.brand = "brand.missing";
+  const errors = validateProductRegistry(registry, implementationRoutes());
+  assert.ok(errors.some((error) => error.includes("references unknown brand brand.missing")));
+});
+
+test("registry rejects content canonical drift", () => {
+  const registry = cloneRegistry();
+  const content = registry.contentContracts.find((contract) => contract.id === "content.zukan.records");
+  if (!content) throw new Error("content fixture is missing");
+  content.seo.canonical_path = "/wrong";
+  const errors = validateProductRegistry(registry, implementationRoutes());
+  assert.ok(errors.some((error) => error.includes("canonical path /wrong does not match /records")));
 });
 
 test("registry rejects route drift from implementation", () => {
