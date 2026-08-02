@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { link, mkdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export function sha256(value) {
@@ -13,17 +13,8 @@ export function stableStringify(value) {
 export async function writeEvidence(outDir, result, secrets) {
   await mkdir(outDir, { recursive: true, mode: 0o700 });
   const safeResult = JSON.parse(JSON.stringify(result));
-  const capsule = {
-    schema: 'ikimon.debug-capsule/v1',
-    run_id: result.run_id,
-    source_sha: result.source_sha,
-    manifest_sha256: result.manifest_sha256,
-    identity_start: result.identity_start,
-    identity_end: result.identity_end,
-    probe_ids: result.probes.map((probe) => probe.id),
-  };
-  const report = render(safeResult);
-  const joined = `${JSON.stringify(safeResult)}\n${JSON.stringify(capsule)}\n${report}`;
+  const initialCapsule = capsuleFor(safeResult);
+  const joined = `${JSON.stringify(safeResult)}\n${JSON.stringify(initialCapsule)}\n${render(safeResult)}`;
   for (const [name, value] of Object.entries(secrets)) {
     if (typeof value === 'string' && value.length >= 4 && joined.includes(value)) {
       safeResult.status = 'UNSAFE';
@@ -31,15 +22,30 @@ export async function writeEvidence(outDir, result, secrets) {
       break;
     }
   }
+  const capsule = capsuleFor(safeResult);
   const paths = {
     result: path.join(outDir, 'result.json'),
     capsule: path.join(outDir, 'capsule.json'),
     report: path.join(outDir, 'debug-report.md'),
   };
-  await atomic(paths.result, `${JSON.stringify(safeResult, null, 2)}\n`);
-  await atomic(paths.capsule, `${JSON.stringify(capsule, null, 2)}\n`);
-  await atomic(paths.report, render(safeResult));
-  return paths;
+  await atomicExclusive(paths.result, `${JSON.stringify(safeResult, null, 2)}\n`);
+  await atomicExclusive(paths.capsule, `${JSON.stringify(capsule, null, 2)}\n`);
+  await atomicExclusive(paths.report, render(safeResult));
+  return Object.freeze({ paths: Object.freeze(paths), result: Object.freeze(safeResult) });
+}
+
+function capsuleFor(result) {
+  return {
+    schema: 'ikimon.debug-capsule/v1',
+    run_id: result.run_id,
+    source_sha: result.source_sha,
+    manifest_sha256: result.manifest_sha256,
+    status: result.status,
+    classification: result.classification,
+    identity_start: result.identity_start,
+    identity_end: result.identity_end,
+    probe_ids: result.probes.map((probe) => probe.id),
+  };
 }
 
 function render(result) {
@@ -55,10 +61,14 @@ function render(result) {
   return `${lines.join('\n')}\n`;
 }
 
-async function atomic(file, content) {
+async function atomicExclusive(file, content) {
   const temp = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
   await writeFile(temp, content, { mode: 0o600, flag: 'wx' });
-  await rename(temp, file);
+  try {
+    await link(temp, file);
+  } finally {
+    await unlink(temp).catch(() => undefined);
+  }
 }
 
 function sort(value) {
