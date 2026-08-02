@@ -66,8 +66,19 @@ test("oauth callback origin rejects client-supplied forwarded host and proto", (
     "https://staging.ikimon.life/auth/oauth/twitter/callback",
   );
 
+  const unmarkedOriginHop = request({
+    host: "internal-origin.invalid",
+    "x-forwarded-host": "staging.ikimon.life",
+    "x-forwarded-proto": "http",
+  });
+  assert.equal(
+    oauthRedirectUri(unmarkedOriginHop, "twitter"),
+    "http://localhost:3200/auth/oauth/twitter/callback",
+  );
+
   const workerOriginHop = request({
     host: "internal-origin.invalid",
+    "x-ikimon-cloudflare-fallback": "origin",
     "x-forwarded-host": "staging.ikimon.life",
     "x-forwarded-proto": "http",
   });
