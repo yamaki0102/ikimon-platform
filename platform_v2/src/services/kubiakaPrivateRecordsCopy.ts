@@ -133,6 +133,96 @@ const japaneseCopy: KubiakaPrivateRecordsCopy = {
   photoAlt: (index, total) => `非公開記録の写真 ${index}/${total}`,
 };
 
+const spanishCopy: KubiakaPrivateRecordsCopy = {
+  languageLabel: "Idioma",
+  skipToContent: "Saltar al contenido",
+  privateLabel: "Registro privado",
+  homeTitle: "Mis registros de Kubiaka",
+  homeLead: "Aquí puedes volver a ver tus registros privados de fotos de cerezos.",
+  countLabel: (count) => `${count} registro${count === 1 ? "" : "s"} privado${count === 1 ? "" : "s"}`,
+  latestTitle: "Registro más reciente",
+  nextTitle: "Siguiente paso",
+  nextLead: "Vuelve después de otra observación segura o revisa las fotos que ya guardaste.",
+  emptyTitle: "Aún no hay registros privados",
+  emptyLead: "Toma de una a seis fotos de un cerezo para crear tu primer registro privado.",
+  captureAction: "Fotografiar un cerezo",
+  recordsAction: "Ver todos los registros",
+  detailAction: "Ver registro",
+  guideAction: "Ver guía",
+  recordsTitle: "Historial de registros privados",
+  recordsLead: "Solo se muestran tus registros de Kubiaka, del más reciente al más antiguo.",
+  limitedNotice: (limit) => `Se muestran los ${limit} registros más recientes.`,
+  detailTitle: "Detalle del registro privado",
+  detailLead: "Este registro sigue siendo privado. Esta pantalla no lo publica, comparte ni comunica externamente.",
+  savedLabel: "Guardado",
+  photoCountLabel: (count) => `${count} foto${count === 1 ? "" : "s"}`,
+  aiLabel: "Procesamiento con IA",
+  aiStates: {
+    complete: "Completado",
+    working: "En curso",
+    failed: "No se pudo completar",
+    not_started: "No iniciado",
+    unknown: "Comprobando el estado",
+  },
+  acknowledgementTitle: "Fotos recibidas",
+  acknowledgementLead: "El enlace de recepción sigue siendo válido. El registro está incluido en tu historial privado.",
+  acknowledgementAction: "Abrir el registro guardado",
+  notFoundTitle: "Registro no encontrado",
+  notFoundLead: "Este registro privado no está disponible o no pertenece a la cuenta conectada.",
+  backAction: "Volver a mis registros",
+  photoAlt: (index, total) => `Foto ${index} de ${total} del registro privado`,
+};
+
+const portugueseBrazilCopy: KubiakaPrivateRecordsCopy = {
+  languageLabel: "Idioma",
+  skipToContent: "Pular para o conteúdo",
+  privateLabel: "Registro privado",
+  homeTitle: "Meus registros de Kubiaka",
+  homeLead: "Seus registros privados de fotos de cerejeiras ficam guardados aqui para você rever depois.",
+  countLabel: (count) => `${count} registro${count === 1 ? "" : "s"} privado${count === 1 ? "" : "s"}`,
+  latestTitle: "Registro mais recente",
+  nextTitle: "Próxima ação",
+  nextLead: "Volte depois de outra observação segura ou reveja as fotos já salvas.",
+  emptyTitle: "Ainda não há registros privados",
+  emptyLead: "Tire de uma a seis fotos de uma cerejeira para criar seu primeiro registro privado.",
+  captureAction: "Fotografar uma cerejeira",
+  recordsAction: "Ver todos os registros",
+  detailAction: "Ver registro",
+  guideAction: "Ver guia",
+  recordsTitle: "Histórico de registros privados",
+  recordsLead: "Somente seus registros de Kubiaka são exibidos, do mais recente para o mais antigo.",
+  limitedNotice: (limit) => `Exibindo os ${limit} registros mais recentes.`,
+  detailTitle: "Detalhes do registro privado",
+  detailLead: "Este registro permanece privado. Esta tela não publica, compartilha nem envia o registro para fora.",
+  savedLabel: "Salvo em",
+  photoCountLabel: (count) => `${count} foto${count === 1 ? "" : "s"}`,
+  aiLabel: "Processamento por IA",
+  aiStates: {
+    complete: "Concluído",
+    working: "Em andamento",
+    failed: "Não foi possível concluir",
+    not_started: "Não iniciado",
+    unknown: "Verificando o status",
+  },
+  acknowledgementTitle: "Fotos recebidas",
+  acknowledgementLead: "O link de confirmação continua válido. O registro está incluído no seu histórico privado.",
+  acknowledgementAction: "Abrir registro salvo",
+  notFoundTitle: "Registro não encontrado",
+  notFoundLead: "Este registro privado não está disponível ou não pertence à conta conectada.",
+  backAction: "Voltar aos meus registros",
+  photoAlt: (index, total) => `Foto ${index} de ${total} do registro privado`,
+};
+
 export function kubiakaPrivateRecordsCopy(lang: SiteLang): KubiakaPrivateRecordsCopy {
-  return lang === "ja" ? japaneseCopy : englishCopy;
+  switch (lang) {
+    case "ja":
+      return japaneseCopy;
+    case "es":
+      return spanishCopy;
+    case "pt-BR":
+      return portugueseBrazilCopy;
+    case "en":
+    default:
+      return englishCopy;
+  }
 }
