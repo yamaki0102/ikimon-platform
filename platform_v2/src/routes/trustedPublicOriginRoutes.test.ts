@@ -37,6 +37,27 @@ test("production robots and LLM discovery keep production canonical links under 
   }
 });
 
+test("unmarked internal forwarded host cannot select staging presentation", async () => {
+  const app = buildApp();
+  try {
+    const llms = await app.inject({
+      method: "GET",
+      url: "/llms.txt",
+      headers: {
+        host: "internal-origin.invalid",
+        "x-forwarded-host": "staging.ikimon.life",
+        "x-forwarded-proto": "http",
+      },
+    });
+    assert.equal(llms.statusCode, 200);
+    assert.equal(llms.headers["x-robots-tag"], undefined);
+    assert.match(llms.body, /https:\/\/ikimon\.life\/llms\/guide\.md/);
+    assert.doesNotMatch(llms.body, /staging\.ikimon\.life/);
+  } finally {
+    await app.close();
+  }
+});
+
 test("staging LLM discovery uses staging origin on the trusted Worker-to-origin hop", async () => {
   const app = buildApp();
   try {
@@ -45,6 +66,7 @@ test("staging LLM discovery uses staging origin on the trusted Worker-to-origin 
       url: "/llms.txt",
       headers: {
         host: "internal-origin.invalid",
+        "x-ikimon-cloudflare-fallback": "origin",
         "x-forwarded-host": "staging.ikimon.life",
         "x-forwarded-proto": "http",
       },
