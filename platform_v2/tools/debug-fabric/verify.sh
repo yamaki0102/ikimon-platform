@@ -2,10 +2,10 @@
 set -Eeuo pipefail
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)
 cd "$SCRIPT_DIR"
-for file in run.mjs analyze-control-plane.mjs lib/*.mjs tests/*.mjs; do node --check "$file"; done
+for file in run.mjs analyze-control-plane.mjs plan-execution.mjs lib/*.mjs tests/*.mjs; do node --check "$file"; done
 node --test tests/*.test.mjs
-for profile in profiles/*.json; do
-  node -e 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"))' "$profile"
+for file in profiles/*.json policy/*.json; do
+  node -e 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"))' "$file"
 done
 if grep -RInE '(gh[pousr]_[A-Za-z0-9_]{12,}|sk-[A-Za-z0-9_-]{12,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY)' .; then
   echo 'credential-shaped text found' >&2
