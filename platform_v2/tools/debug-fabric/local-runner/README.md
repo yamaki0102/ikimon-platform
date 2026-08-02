@@ -7,18 +7,18 @@ This runner is the local execution engine for IKIMON Debug Fabric. It is intenti
 - validates a closed `ikimon.local-debug-task/v1` task;
 - resolves one local repository and one immutable 40-character base SHA;
 - creates a dedicated `debug/*` branch in an isolated Git worktree;
-- keeps run state in an append-only event ledger and resumes interrupted `running` runs;
-- invokes Codex with Luna by default and Terra only after the shared escalation policy is satisfied;
+- acquires a per-task lock before initialization, keeps run state in an append-only event ledger, and resumes interrupted `running` runs;
+- accounts each Codex pass before invocation, uses Luna by default, and escalates to Terra only after the shared failure-signature policy is satisfied;
 - passes the prompt as an explicit argument with stdin closed by the process adapter;
-- removes GitHub, Cloudflare, public-cloud, and API-key credential surfaces from the child environment;
-- blocks Git push credentials and redirects GitHub/Cloudflare CLI configuration to an isolated guard directory;
-- runs deterministic checks without a shell, with a closed executable policy and an isolated HOME;
-- blocks common proxy-based outbound traffic for deterministic checks while preserving localhost tests;
+- removes GitHub, Cloudflare, public-cloud, and API-key credential surfaces from the child environment and redacts common credential shapes from local logs;
+- blocks Git push credentials, disables repository commit hooks, redirects GitHub/Cloudflare CLI configuration to an isolated guard directory, and detects repository-local config or ref mutation;
+- runs deterministic checks without a command shell, with a closed executable policy and an isolated HOME;
+- blocks common proxy-based outbound traffic for deterministic checks while preserving localhost tests, rejects inline interpreter commands, and constrains script paths to the worktree;
 - clusters repeat failures by a normalized SHA-256 signature;
-- rejects Codex commits, staging, or branch movement before the runner-owned final commit;
+- rejects Codex commits, staging, branch movement, changed symlinks, unsafe file types, and path escapes before the runner-owned final commit;
 - enforces changed-file count and optional path-prefix limits;
-- creates one local candidate commit only after all checks pass;
-- writes immutable local evidence bound to the base SHA, candidate SHA, tree SHA, patch hash, checks, and pass counts.
+- creates one hook-free local candidate commit only after all checks pass, then reruns checks on the exact committed candidate;
+- recovers the narrow candidate-finalization crash window and writes immutable local evidence bound to the base SHA, candidate SHA, tree SHA, patch hash, checks, and pass counts.
 
 This slice does **not** push a branch, create a pull request, poll GitHub Issues, deploy to Cloudflare, or modify production. Those are separate adapters after the local candidate and evidence exist.
 
@@ -66,8 +66,9 @@ Set `IKIMON_DEBUG_RUNS_ROOT` or pass `--runs-root` to use a different private lo
   state.json
   events.jsonl
   run.lock
+  repository-guard.json
   isolated-home/
-  codex-guard/
+  git-guard/
   logs/
   artifacts/local-evidence.json
   worktree/
@@ -80,6 +81,8 @@ A successful result prints a local candidate SHA. The candidate remains local an
 Re-run the same task file. The persisted task hash must match exactly.
 
 - `running` runs resume from the current isolated worktree;
+- a pass is counted before Codex starts, so a process crash cannot create unbounded free retries;
+- a candidate committed immediately before interruption is recovered only when it is the one direct child of the exact base SHA and the worktree is clean;
 - `pass`, `failed`, `blocked`, and `unsafe` runs are terminal and do not rerun automatically;
 - stale lock files are recovered only when the recorded process no longer exists;
 - logs are append-only and receive retry suffixes instead of being overwritten;
@@ -89,6 +92,6 @@ A changed objective, SHA, check, path policy, or pass limit requires a new task 
 
 ## Safety boundary
 
-The runner strips known credential variables and relocates CLI configuration, but Codex itself still needs network access to reach its model service. The authoritative host isolation boundary remains WSLC/Codex sandboxing plus the runner's no-credential, no-push, no-deploy contracts. Deterministic checks receive an isolated HOME and blocked proxy defaults.
+The runner strips known credential variables and relocates CLI configuration, but Codex itself still needs network access to reach its model service. The authoritative host isolation boundary remains WSLC/Codex sandboxing plus the runner's no-credential, no-push, no-deploy contracts. Deterministic checks receive an isolated HOME and blocked proxy defaults. Proxy variables are defense in depth, not a substitute for a network namespace.
 
 Repository text and task text are treated as untrusted input and cannot override the fixed runner boundaries.
