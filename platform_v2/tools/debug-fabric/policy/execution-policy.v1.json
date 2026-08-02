@@ -1,0 +1,49 @@
+{
+  "schema": "ikimon.debug-execution-policy/v1",
+  "policy_id": "local-luna-first-20260802",
+  "primary_lane": "local_codex_luna",
+  "lanes": {
+    "local_codex_luna": {
+      "purpose": "default exploration, test generation, fault injection, fix loops, and repeated regression runs",
+      "cloud_mutation": false,
+      "production_mutation": false
+    },
+    "local_codex_terra": {
+      "purpose": "conditional escalation only after repeated Luna passes leave the same cross-service failure unresolved",
+      "minimum_luna_passes": 3,
+      "minimum_same_signature_failures": 2,
+      "cloud_mutation": false,
+      "production_mutation": false
+    },
+    "pixel_opus_review": {
+      "purpose": "independent read-only review after a candidate patch or full-diff snapshot exists",
+      "cloud_mutation": false,
+      "production_mutation": false
+    },
+    "cloudflare_final_proof": {
+      "purpose": "exact-SHA staging identity, real binding and credential scope, deploy-verify, and rollback proof only",
+      "requires_local_green": true,
+      "max_deploy_runs_per_sha": 1,
+      "max_rollback_runs_per_sha": 1,
+      "debug_iterations_allowed": 0,
+      "production_mutation": false
+    }
+  },
+  "forbidden_defaults": [
+    "github_actions",
+    "cloudflare_debug_loop",
+    "ai_api_billing",
+    "production_write",
+    "customer_send",
+    "production_database_write",
+    "production_secret_write",
+    "production_dns_write"
+  ],
+  "decision_order": [
+    "chatgpt_github_small_patch",
+    "local_codex_luna",
+    "local_codex_terra_after_threshold",
+    "pixel_opus_review",
+    "cloudflare_final_proof_after_local_green"
+  ]
+}

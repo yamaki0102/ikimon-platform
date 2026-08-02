@@ -1,0 +1,16 @@
+{
+  "schema": "ikimon.debug-execution-request/v1",
+  "task_id": "ai-commander-control-plane-debug",
+  "scope": "full_control_plane",
+  "risk": "p0",
+  "repository_count": 3,
+  "local_state": "not_started",
+  "luna_passes": 0,
+  "same_signature_failures": 0,
+  "real_runtime_dependency": true,
+  "final_candidate_sha": null,
+  "requested_lane": "auto",
+  "cloud_deploy_runs_used": 0,
+  "cloud_rollback_runs_used": 0,
+  "rollback_proof_required": true
+}
