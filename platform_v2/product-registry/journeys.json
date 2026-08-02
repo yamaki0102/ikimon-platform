@@ -60,6 +60,12 @@
         "空状態から撮影へ進める",
         "保存失敗・権限拒否・記録不在を区別する"
       ],
+      "requirement_refs": [
+        "quality.zukan.kubiaka-member-records.owner-return",
+        "quality.zukan.kubiaka-member-records.owner-isolation",
+        "quality.zukan.kubiaka-capture.prohibited-side-effects",
+        "quality.zukan.kubiaka-member-records.staging-identity"
+      ],
       "required_states": ["unauthenticated", "empty", "populated", "submitting", "success", "upload-error", "offline", "retrying", "denied", "record-missing"]
     }
   ]
