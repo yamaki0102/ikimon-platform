@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { resolveZukanPublicAssetOrigin } from "../brandAssets.js";
 import { buildRobotsTxt, buildXmlSitemap } from "../siteMap.js";
 import { buildReflectionLoopManifest } from "../services/reflectionLoopManifest.js";
-import { PRODUCTION_PUBLIC_ORIGIN, resolveTrustedPublicOrigin, STAGING_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
+import { PRODUCTION_PUBLIC_ORIGIN, resolvePresentationPublicOrigin, STAGING_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { registerIwataOpenDataRoutes } from "./iwataOpenData.js";
 import { registerKubiakaFocusedExperienceRoutes } from "./kubiakaFocusedExperience.js";
 import { registerKubiakaPrivateUploadGuard } from "./kubiakaPrivateUploadGuard.js";
@@ -15,7 +15,7 @@ function requestOrigin(
   request: { headers: Record<string, unknown>; protocol?: string },
   publicAssetOrigin: string = resolveZukanPublicAssetOrigin(),
 ): string {
-  return resolveTrustedPublicOrigin(request, { explicitOrigin: publicAssetOrigin }) ?? PRODUCTION_PUBLIC_ORIGIN;
+  return resolvePresentationPublicOrigin(request, { explicitOrigin: publicAssetOrigin }) ?? PRODUCTION_PUBLIC_ORIGIN;
 }
 
 export function isStagingRequest(

@@ -12,23 +12,43 @@ const PUBLIC_ORIGIN_BY_HOST = new Map([
   ["staging.ikimon.life", STAGING_PUBLIC_ORIGIN],
 ]);
 
+const LOCAL_DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
 export type PublicOriginRequest = {
   headers: Record<string, unknown>;
   protocol?: string;
 };
 
-function headerFirst(value: unknown): string {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return String(raw ?? "").split(",")[0]?.trim() ?? "";
+type ParsedHost = {
+  raw: string;
+  hostname: string;
+  port: string;
+};
+
+function strictHeaderValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.length === 1 ? strictHeaderValue(value[0]) : "";
+  }
+  if (typeof value !== "string") return "";
+  const normalized = value.trim();
+  return normalized && !normalized.includes(",") ? normalized : "";
 }
 
-function normalizedHostname(value: unknown): string {
-  const raw = headerFirst(value);
-  if (!raw) return "";
+function parsedHost(value: unknown): ParsedHost | null {
+  const raw = strictHeaderValue(value);
+  if (!raw || /[\/\\?#@\s]/.test(raw)) return null;
   try {
-    return new URL(`https://${raw}`).hostname.toLowerCase();
+    const parsed = new URL(`https://${raw}`);
+    if (parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash) {
+      return null;
+    }
+    return {
+      raw,
+      hostname: parsed.hostname.replace(/^\[|\]$/g, "").toLowerCase(),
+      port: parsed.port,
+    };
   } catch {
-    return "";
+    return null;
   }
 }
 
@@ -38,19 +58,20 @@ export function normalizeExplicitPublicOrigin(value: unknown): string {
 }
 
 export function publicOriginFromHost(value: unknown): string {
-  return PUBLIC_ORIGIN_BY_HOST.get(normalizedHostname(value)) ?? "";
+  const parsed = parsedHost(value);
+  if (!parsed || parsed.port) return "";
+  return PUBLIC_ORIGIN_BY_HOST.get(parsed.hostname) ?? "";
 }
 
 function localDevelopmentOrigin(request: PublicOriginRequest): string {
-  const host = headerFirst(request.headers.host);
-  const hostname = normalizedHostname(host);
-  if (hostname !== "localhost" && hostname !== "127.0.0.1" && hostname !== "::1") return "";
-  const protocol = request.protocol === "https" ? "https" : "http";
-  return `${protocol}://${host}`;
+  const parsed = parsedHost(request.headers.host);
+  if (!parsed || !LOCAL_DEVELOPMENT_HOSTS.has(parsed.hostname)) return "";
+  if (request.protocol !== "http" && request.protocol !== "https") return "";
+  return `${request.protocol}://${parsed.raw}`;
 }
 
-function hasTrustedWorkerFallbackMarker(request: PublicOriginRequest): boolean {
-  return headerFirst(request.headers["x-ikimon-cloudflare-fallback"]).toLowerCase() === "origin";
+function hasPresentationWorkerFallbackMarker(request: PublicOriginRequest): boolean {
+  return strictHeaderValue(request.headers["x-ikimon-cloudflare-fallback"]).toLowerCase() === "origin";
 }
 
 export function resolveTrustedPublicOrigin(
@@ -63,18 +84,35 @@ export function resolveTrustedPublicOrigin(
   const explicitOrigin = normalizeExplicitPublicOrigin(options.explicitOrigin);
   if (explicitOrigin) return explicitOrigin;
 
-  // A public or local Host is authoritative. Forwarded host is accepted only
-  // on the Worker-owned fallback hop, where the Worker overwrites both the
-  // marker and X-Forwarded-Host from the public request URL.
   const directOrigin = publicOriginFromHost(request.headers.host);
   if (directOrigin) return directOrigin;
 
   if (options.allowLocalDevelopment) {
     const localOrigin = localDevelopmentOrigin(request);
     if (localOrigin) return localOrigin;
+    throw new Error("public_origin_untrusted");
   }
 
-  if (!hasTrustedWorkerFallbackMarker(request)) return null;
-  const forwardedOrigin = publicOriginFromHost(request.headers["x-forwarded-host"]);
-  return forwardedOrigin || null;
+  return null;
+}
+
+export function resolvePresentationPublicOrigin(
+  request: PublicOriginRequest,
+  options: {
+    explicitOrigin?: unknown;
+    allowLocalDevelopment?: boolean;
+  } = {},
+): string | null {
+  let trustedOrigin: string | null = null;
+  try {
+    trustedOrigin = resolveTrustedPublicOrigin(request, options);
+  } catch {
+    trustedOrigin = null;
+  }
+  if (trustedOrigin) return trustedOrigin;
+
+  // This unsigned marker is presentation-only. OAuth and CSRF must use
+  // resolveTrustedPublicOrigin and must never derive identity from this hop.
+  if (!hasPresentationWorkerFallbackMarker(request)) return null;
+  return publicOriginFromHost(request.headers["x-forwarded-host"]) || null;
 }

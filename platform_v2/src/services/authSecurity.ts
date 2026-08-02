@@ -16,10 +16,14 @@ function headerFirst(value: string | string[] | undefined): string {
 }
 
 function expectedOrigin(request: FastifyRequest): string | null {
-  return resolveTrustedPublicOrigin(
-    request as unknown as { headers: Record<string, unknown>; protocol?: string },
-    { allowLocalDevelopment: true },
-  );
+  try {
+    return resolveTrustedPublicOrigin(
+      request as unknown as { headers: Record<string, unknown>; protocol?: string },
+      { allowLocalDevelopment: process.env.NODE_ENV !== "production" },
+    );
+  } catch {
+    return null;
+  }
 }
 
 function sameOriginError(): HttpError {

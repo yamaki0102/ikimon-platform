@@ -45,16 +45,19 @@ test("google oauth uses the registered legacy-compatible callback URI", () => {
   );
 });
 
-test("oauth callback origin rejects client-supplied forwarded host and proto", () => {
-  const production = request({
-    host: "ikimon.life",
-    "x-forwarded-host": "staging.ikimon.life",
-    "x-forwarded-proto": "javascript",
-  });
-  assert.equal(
-    oauthRedirectUri(production, "google"),
-    "https://ikimon.life/oauth_callback.php?provider=google",
-  );
+test("oauth callback origin rejects client-supplied forwarded host, proto, and unsigned marker", () => {
+  for (const forwardedProto of ["http", "javascript", "https,http"]) {
+    const production = request({
+      host: "ikimon.life",
+      "x-forwarded-host": "staging.ikimon.life",
+      "x-forwarded-proto": forwardedProto,
+      "x-ikimon-cloudflare-fallback": "origin",
+    });
+    assert.equal(
+      oauthRedirectUri(production, "google"),
+      "https://ikimon.life/oauth_callback.php?provider=google",
+    );
+  }
 
   const stagingPublic = request({
     host: "staging.ikimon.life",
@@ -66,37 +69,64 @@ test("oauth callback origin rejects client-supplied forwarded host and proto", (
     "https://staging.ikimon.life/auth/oauth/twitter/callback",
   );
 
-  const unmarkedOriginHop = request({
-    host: "internal-origin.invalid",
-    "x-forwarded-host": "staging.ikimon.life",
-    "x-forwarded-proto": "http",
-  });
-  assert.equal(
-    oauthRedirectUri(unmarkedOriginHop, "twitter"),
-    "http://localhost:3200/auth/oauth/twitter/callback",
-  );
-
-  const workerOriginHop = request({
-    host: "internal-origin.invalid",
-    "x-ikimon-cloudflare-fallback": "origin",
-    "x-forwarded-host": "staging.ikimon.life",
-    "x-forwarded-proto": "http",
-  });
-  assert.equal(
-    oauthRedirectUri(workerOriginHop, "twitter"),
-    "https://staging.ikimon.life/auth/oauth/twitter/callback",
-  );
+  for (const headers of [
+    {
+      host: "internal-origin.invalid",
+      "x-forwarded-host": "staging.ikimon.life",
+      "x-forwarded-proto": "http",
+    },
+    {
+      host: "internal-origin.invalid",
+      "x-ikimon-cloudflare-fallback": "origin",
+      "x-forwarded-host": "staging.ikimon.life",
+      "x-forwarded-proto": "http",
+    },
+  ]) {
+    assert.throws(
+      () => oauthRedirectUri(request(headers), "twitter"),
+      /public_origin_untrusted/,
+    );
+  }
 });
 
-test("unrecognized hosts fail closed to the local development origin", () => {
-  const req = request({
-    host: "internal-origin.invalid",
-    "x-forwarded-host": "evil.example",
-    "x-forwarded-proto": "https",
-  });
+test("unrecognized and malformed OAuth hosts fail closed before local fallback", () => {
+  for (const host of [
+    "internal-origin.invalid",
+    "ikimon.life.attacker.example",
+    "staging.ikimon.life.attacker.example",
+    "attacker-ikimon.life",
+    "ikimon.life,attacker.example",
+    "attacker.example@ikimon.life",
+    "ikimon.life/path",
+    "ikimon.life:444",
+  ]) {
+    assert.throws(
+      () => oauthRedirectUri(request({
+        host,
+        "x-forwarded-host": "ikimon.life",
+        "x-forwarded-proto": "https",
+      }), "google"),
+      /public_origin_untrusted/,
+      host,
+    );
+  }
+});
+
+test("OAuth local development requires an exact local Host", () => {
   assert.equal(
-    oauthRedirectUri(req, "google"),
+    oauthRedirectUri(request({ host: "localhost:3200" }), "google"),
     "http://localhost:3200/oauth_callback.php?provider=google",
+  );
+  assert.equal(
+    oauthRedirectUri(request({ host: "127.0.0.1:3200" }), "twitter"),
+    "http://127.0.0.1:3200/auth/oauth/twitter/callback",
+  );
+  assert.throws(
+    () => oauthRedirectUri(request({
+      host: "internal-origin.invalid",
+      "x-forwarded-host": "localhost:3200",
+    }), "google"),
+    /public_origin_untrusted/,
   );
 });
 
