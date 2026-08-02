@@ -19,7 +19,8 @@
       "transitions": [
         { "action": "撮る", "target": "zukan.capture.start", "status": "implemented" },
         { "action": "記録を見る", "target": "zukan.records.public", "status": "implemented" },
-        { "action": "場所を見る", "target": "zukan.map.public", "status": "implemented" }
+        { "action": "場所を見る", "target": "zukan.map.public", "status": "implemented" },
+        { "action": "クビアカを見る", "target": "zukan.kubiaka.landing", "status": "planned" }
       ],
       "states": ["guest", "member", "empty", "populated", "loading", "degraded", "error"],
       "design_contract": "design.zukan.home-public",
