@@ -15,7 +15,8 @@ function requestOrigin(
   request: { headers: Record<string, unknown>; protocol?: string },
   publicAssetOrigin: string = resolveZukanPublicAssetOrigin(),
 ): string {
-  return resolveTrustedPublicOrigin(request, { explicitOrigin: publicAssetOrigin }) ?? PRODUCTION_PUBLIC_ORIGIN;
+  // Unknown origin identity must never silently become production-indexable.
+  return resolveTrustedPublicOrigin(request, { explicitOrigin: publicAssetOrigin }) ?? STAGING_PUBLIC_ORIGIN;
 }
 
 export function isStagingRequest(
