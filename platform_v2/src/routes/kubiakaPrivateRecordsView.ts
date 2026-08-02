@@ -28,7 +28,7 @@ a{color:inherit}
 .kpr-site-header-inner{width:min(1040px,calc(100% - 32px));min-height:64px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px}
 .kpr-brand{font-size:20px;font-weight:950;letter-spacing:.04em;text-decoration:none;color:var(--kpr-green)}
 .kpr-language{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.kpr-language a{min-width:38px;min-height:38px;padding:8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-size:12px;font-weight:900;color:#5f6964}
+.kpr-language a{min-width:56px;min-height:56px;padding:8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-size:12px;font-weight:900;color:#5f6964}
 .kpr-language a[aria-current="page"]{background:var(--kpr-green);color:#fff}
 .kpr-main{width:min(1040px,calc(100% - 32px));margin:0 auto;padding:24px 0 0}
 .kpr-site-footer{width:min(1040px,calc(100% - 32px));margin:0 auto;padding:20px 0 36px;color:#68736d;font-size:12px}
@@ -56,7 +56,7 @@ export const KUBIAKA_PRIVATE_RECORDS_STYLES = `
 .kpr-count{display:inline-flex;margin-top:18px;padding:9px 14px;border-radius:999px;background:#143f2e;color:#fff;font-weight:900}
 .kpr-private{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:900;color:#143f2e}.kpr-private:before{content:"";width:9px;height:9px;border-radius:50%;background:#143f2e}
 .kpr-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
-.kpr-primary,.kpr-secondary{min-height:50px;max-width:100%;padding:0 21px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;text-align:center;font-weight:900}
+.kpr-primary,.kpr-secondary{min-height:56px;max-width:100%;padding:0 21px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;text-align:center;font-weight:900}
 .kpr-primary{background:#8b3d31;color:#fff}.kpr-secondary{border:1px solid rgba(20,63,46,.2);background:#fff;color:#143f2e}
 .kpr-primary:focus-visible,.kpr-secondary:focus-visible,.kpr-record-card:focus-visible{outline:3px solid #143f2e;outline-offset:3px}
 .kpr-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.kpr-record-card{display:grid;grid-template-columns:138px minmax(0,1fr);overflow:hidden;text-decoration:none;color:inherit}
@@ -72,7 +72,7 @@ export const KUBIAKA_PRIVATE_RECORDS_STYLES = `
 `;
 
 function localizedHref(basePath: string, path: string, lang: SiteLang): string {
-  return appendLangToHref(withBasePath(basePath, path), lang);
+  return withBasePath(basePath, appendLangToHref(path, lang));
 }
 
 function detailHref(basePath: string, lang: SiteLang, visitId: string): string {
@@ -86,10 +86,24 @@ function mediaHref(basePath: string, visitId: string, photoIndex: number): strin
   );
 }
 
+function dateLocale(lang: SiteLang): string {
+  switch (lang) {
+    case "ja":
+      return "ja-JP";
+    case "es":
+      return "es-ES";
+    case "pt-BR":
+      return "pt-BR";
+    case "en":
+    default:
+      return "en-US";
+  }
+}
+
 function formatSavedAt(value: string, lang: SiteLang): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(lang === "ja" ? "ja-JP" : "en-US", {
+  return new Intl.DateTimeFormat(dateLocale(lang), {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -160,7 +174,7 @@ export function renderKubiakaPrivateDocument(input: {
     ["es", "ES"],
     ["pt-BR", "PT"],
   ] as const).map(([code, label]) => {
-    const href = appendLangToHref(withBasePath(basePath, currentPath), code);
+    const href = withBasePath(basePath, appendLangToHref(currentPath, code));
     const current = code === lang ? ' aria-current="page"' : "";
     return `<a href="${escapeHtml(href)}" hreflang="${escapeHtml(code)}" lang="${escapeHtml(code)}"${current}>${label}</a>`;
   }).join("");
