@@ -41,6 +41,8 @@ describe("ZUKAN Home release closure", () => {
     expect(patched).toContain('id="zukan-home-state-split-release-closure"');
     expect(patched).toContain(`home-guest-proof.is-count-${count}`);
     expect(patched).toContain("home-guest-proof.is-empty img{display:none}");
+    expect(patched).toContain("home-category-index{color:var(--home-green)}");
+    expect(patched).toContain("focus-visible{outline:3px solid var(--home-green)");
     expect(patched).not.toContain("イメージ");
   });
 });
