@@ -6,6 +6,13 @@ export type KubiakaPrivateRecordsCopy = {
   languageLabel: string;
   skipToContent: string;
   privateLabel: string;
+  latestEyebrow: string;
+  acknowledgementEyebrow: string;
+  nextEyebrow: string;
+  startEyebrow: string;
+  historyEyebrow: string;
+  detailEyebrow: string;
+  recordEyebrow: string;
   homeTitle: string;
   homeLead: string;
   countLabel: (count: number) => string;
@@ -57,6 +64,13 @@ const englishCopy: KubiakaPrivateRecordsCopy = {
   languageLabel: "Language",
   skipToContent: "Skip to content",
   privateLabel: "Private record",
+  latestEyebrow: "Latest",
+  acknowledgementEyebrow: "Acknowledgement",
+  nextEyebrow: "Next",
+  startEyebrow: "Start",
+  historyEyebrow: "Private history",
+  detailEyebrow: "Private detail",
+  recordEyebrow: "Private record",
   homeTitle: "My Kubiaka records",
   homeLead: "Your private cherry-tree photo records are kept here for you to revisit.",
   countLabel: (count) => `${count} private record${count === 1 ? "" : "s"}`,
@@ -97,6 +111,13 @@ const japaneseCopy: KubiakaPrivateRecordsCopy = {
   languageLabel: "表示言語",
   skipToContent: "本文へ移動",
   privateLabel: "非公開記録",
+  latestEyebrow: "最新",
+  acknowledgementEyebrow: "受付確認",
+  nextEyebrow: "次にできること",
+  startEyebrow: "はじめる",
+  historyEyebrow: "非公開履歴",
+  detailEyebrow: "非公開詳細",
+  recordEyebrow: "非公開記録",
   homeTitle: "自分のクビアカ記録",
   homeLead: "サクラを撮って保存した非公開記録を、あとからここで見返せます。",
   countLabel: (count) => `非公開記録 ${count}件`,
@@ -137,6 +158,13 @@ const spanishCopy: KubiakaPrivateRecordsCopy = {
   languageLabel: "Idioma",
   skipToContent: "Saltar al contenido",
   privateLabel: "Registro privado",
+  latestEyebrow: "Más reciente",
+  acknowledgementEyebrow: "Confirmación",
+  nextEyebrow: "Siguiente paso",
+  startEyebrow: "Empezar",
+  historyEyebrow: "Historial privado",
+  detailEyebrow: "Detalle privado",
+  recordEyebrow: "Registro privado",
   homeTitle: "Mis registros de Kubiaka",
   homeLead: "Aquí puedes volver a ver tus registros privados de fotos de cerezos.",
   countLabel: (count) => `${count} registro${count === 1 ? "" : "s"} privado${count === 1 ? "" : "s"}`,
@@ -177,6 +205,13 @@ const portugueseBrazilCopy: KubiakaPrivateRecordsCopy = {
   languageLabel: "Idioma",
   skipToContent: "Pular para o conteúdo",
   privateLabel: "Registro privado",
+  latestEyebrow: "Mais recente",
+  acknowledgementEyebrow: "Confirmação",
+  nextEyebrow: "Próximo passo",
+  startEyebrow: "Começar",
+  historyEyebrow: "Histórico privado",
+  detailEyebrow: "Detalhes privados",
+  recordEyebrow: "Registro privado",
   homeTitle: "Meus registros de Kubiaka",
   homeLead: "Seus registros privados de fotos de cerejeiras ficam guardados aqui para você rever depois.",
   countLabel: (count) => `${count} registro${count === 1 ? "" : "s"} privado${count === 1 ? "" : "s"}`,
