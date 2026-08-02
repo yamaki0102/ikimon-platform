@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "../app.js";
+import { addStagingRobotsMeta } from "./siteMapRoutes.js";
+
+test("staging robots metadata replaces any contradictory index directive", () => {
+  assert.equal(
+    addStagingRobotsMeta('<html><head><meta name="robots" content="index, follow"></head></html>'),
+    '<html><head><meta name="robots" content="noindex, nofollow" /></head></html>',
+  );
+  assert.equal(
+    addStagingRobotsMeta("<html><head></head></html>"),
+    '<html><head>  <meta name="robots" content="noindex, nofollow" />\n</head></html>',
+  );
+});
 
 test("staging denies indexing while production remains indexable", async () => {
   const app = buildApp();
