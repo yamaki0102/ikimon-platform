@@ -12,7 +12,12 @@ test("staging classification uses explicit origin or trusted public host, never 
   assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, ""), false);
   assert.equal(isStagingRequest({ headers: { host: "ikimon.life", "x-forwarded-host": "staging.ikimon.life" } }, ""), false);
   assert.equal(isStagingRequest({ headers: { host: "staging.ikimon.life", "x-forwarded-host": "ikimon.life" } }, ""), true);
-  assert.equal(isStagingRequest({ headers: { host: "internal-origin.invalid", "x-forwarded-host": "staging.ikimon.life" } }, ""), true);
+  assert.equal(isStagingRequest({ headers: { host: "internal-origin.invalid", "x-forwarded-host": "staging.ikimon.life" } }, ""), false);
+  assert.equal(isStagingRequest({ headers: {
+    host: "internal-origin.invalid",
+    "x-ikimon-cloudflare-fallback": "origin",
+    "x-forwarded-host": "staging.ikimon.life",
+  } }, ""), true);
 
   assert.equal(isStagingRequest({ headers: { "x-forwarded-host": "staging.ikimon.life.attacker.example", host: "ikimon.life" } }, ""), false);
   assert.equal(isStagingRequest({ headers: { "x-forwarded-host": "ikimon.life", host: "staging.ikimon.life.attacker.example" } }, ""), false);
@@ -81,6 +86,7 @@ test("staging denies indexing while production remains indexable and ignores for
     assert.equal(productionRobots.statusCode, 200);
     assert.equal(productionRobots.headers["x-robots-tag"], undefined);
     assert.match(productionRobots.body, /Sitemap: https:\/\/ikimon\.life\/sitemap\.xml/);
+    assert.match(productionRobots.body, /LLMs: https:\/\/ikimon\.life\/llms\.txt/);
     assert.doesNotMatch(productionRobots.body, /staging\.ikimon\.life/);
   } finally {
     await app.close();
