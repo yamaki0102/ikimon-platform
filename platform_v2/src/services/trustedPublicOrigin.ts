@@ -59,17 +59,19 @@ export function resolveTrustedPublicOrigin(
   const explicitOrigin = normalizeExplicitPublicOrigin(options.explicitOrigin);
   if (explicitOrigin) return explicitOrigin;
 
-  // A public Host is authoritative. Forwarded headers can only provide a
-  // fallback for the private Worker-to-origin hop and can never override the
-  // public request host or select an arbitrary origin/protocol.
+  // A public or local Host is authoritative. Forwarded headers can only
+  // provide a fallback for the private Worker-to-origin hop and can never
+  // override the direct request host or select an arbitrary origin/protocol.
   const directOrigin = publicOriginFromHost(request.headers.host);
   if (directOrigin) return directOrigin;
+
+  if (options.allowLocalDevelopment) {
+    const localOrigin = localDevelopmentOrigin(request);
+    if (localOrigin) return localOrigin;
+  }
 
   const forwardedOrigin = publicOriginFromHost(request.headers["x-forwarded-host"]);
   if (forwardedOrigin) return forwardedOrigin;
 
-  if (options.allowLocalDevelopment) {
-    return localDevelopmentOrigin(request) || null;
-  }
   return null;
 }
