@@ -8,6 +8,7 @@ import { registerKubiakaPrivateUploadGuard } from "./kubiakaPrivateUploadGuard.j
 import { registerRegionalSourceRoutes } from "./regionalSources.js";
 
 const STAGING_ORIGIN = "https://staging.ikimon.life";
+const PRODUCTION_ORIGIN = "https://ikimon.life";
 const STAGING_ROBOTS_META = '<meta name="robots" content="noindex, nofollow" />';
 const ROBOTS_META_PATTERN = /<meta\b[^>]*\bname=["']robots["'][^>]*>/i;
 
@@ -26,6 +27,10 @@ export function isStagingRequest(
     ?.trim()
     .toLowerCase();
   return host === "staging.ikimon.life" || publicAssetOrigin === STAGING_ORIGIN;
+}
+
+export function stagingRobotsTxt(): string {
+  return `User-agent: *\nDisallow: /\n# production-canonical-origin: ${PRODUCTION_ORIGIN}\n`;
 }
 
 export function addStagingRobotsMeta(payload: string): string {
@@ -65,7 +70,7 @@ export async function registerSiteMapRoutes(app: FastifyInstance): Promise<void>
     reply.type("text/plain; charset=utf-8");
     if (isStagingRequest(request as unknown as { headers: Record<string, unknown> })) {
       reply.header("Cache-Control", "no-store");
-      return "User-agent: *\nDisallow: /\n";
+      return stagingRobotsTxt();
     }
     return buildRobotsTxt(requestOrigin(request as unknown as { headers: Record<string, unknown> }));
   });
