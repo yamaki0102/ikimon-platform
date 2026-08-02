@@ -12,12 +12,14 @@
       "personas": ["visitor", "member"],
       "auth": "public",
       "privacy": "public-filtered",
+      "implementation_status": "implemented",
+      "known_gaps": [],
       "capabilities": ["zukan.home.view-public", "zukan.capture.start"],
       "entry_points": ["external"],
       "transitions": [
-        { "action": "撮る", "target": "zukan.capture.start" },
-        { "action": "記録を見る", "target": "zukan.records.public" },
-        { "action": "場所を見る", "target": "zukan.map.public" }
+        { "action": "撮る", "target": "zukan.capture.start", "status": "implemented" },
+        { "action": "記録を見る", "target": "zukan.records.public", "status": "implemented" },
+        { "action": "場所を見る", "target": "zukan.map.public", "status": "implemented" }
       ],
       "states": ["guest", "member", "empty", "populated", "loading", "degraded", "error"],
       "design_contract": "design.zukan.home-public",
@@ -35,11 +37,13 @@
       "personas": ["visitor", "member"],
       "auth": "session-or-start-guide",
       "privacy": "private-draft",
+      "implementation_status": "implemented",
+      "known_gaps": [],
       "capabilities": ["zukan.capture.start", "zukan.record.save-private"],
       "entry_points": ["zukan.home.public", "zukan.home.member", "zukan.records.public"],
       "transitions": [
-        { "action": "保存成功", "target": "zukan.home.member" },
-        { "action": "公開記録へ戻る", "target": "zukan.records.public" }
+        { "action": "保存成功", "target": "zukan.home.member", "status": "candidate" },
+        { "action": "公開記録へ戻る", "target": "zukan.records.public", "status": "implemented" }
       ],
       "states": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying"],
       "design_contract": "design.zukan.capture",
@@ -57,11 +61,13 @@
       "personas": ["visitor", "member"],
       "auth": "public",
       "privacy": "public-filtered",
+      "implementation_status": "implemented",
+      "known_gaps": [],
       "capabilities": ["zukan.records.browse-public", "zukan.capture.start"],
       "entry_points": ["zukan.home.public", "zukan.home.member", "zukan.map.public"],
       "transitions": [
-        { "action": "撮る", "target": "zukan.capture.start" },
-        { "action": "場所を見る", "target": "zukan.map.public" }
+        { "action": "撮る", "target": "zukan.capture.start", "status": "implemented" },
+        { "action": "場所を見る", "target": "zukan.map.public", "status": "implemented" }
       ],
       "states": ["empty", "populated", "searching", "no-results", "loading", "error"],
       "design_contract": "design.zukan.records",
@@ -79,11 +85,13 @@
       "personas": ["visitor", "member"],
       "auth": "public",
       "privacy": "public-filtered-location",
+      "implementation_status": "implemented",
+      "known_gaps": [],
       "capabilities": ["zukan.map.explore-public", "zukan.capture.start"],
       "entry_points": ["zukan.home.public", "zukan.records.public"],
       "transitions": [
-        { "action": "記録を見る", "target": "zukan.records.public" },
-        { "action": "撮る", "target": "zukan.capture.start" }
+        { "action": "記録を見る", "target": "zukan.records.public", "status": "implemented" },
+        { "action": "撮る", "target": "zukan.capture.start", "status": "implemented" }
       ],
       "states": ["loading", "populated", "empty", "location-denied", "map-unavailable", "error"],
       "design_contract": "design.zukan.map",
@@ -101,12 +109,14 @@
       "personas": ["member"],
       "auth": "session",
       "privacy": "mixed-owner-and-public",
+      "implementation_status": "implemented",
+      "known_gaps": [],
       "capabilities": ["zukan.home.view-member", "zukan.capture.start"],
       "entry_points": ["zukan.capture.start", "zukan.kubiaka.member-records"],
       "transitions": [
-        { "action": "撮る", "target": "zukan.capture.start" },
-        { "action": "公開記録を見る", "target": "zukan.records.public" },
-        { "action": "クビアカ受付を見る", "target": "zukan.kubiaka.member-records" }
+        { "action": "撮る", "target": "zukan.capture.start", "status": "implemented" },
+        { "action": "公開記録を見る", "target": "zukan.records.public", "status": "implemented" },
+        { "action": "クビアカ受付を見る", "target": "zukan.kubiaka.member-records", "status": "planned" }
       ],
       "states": ["unauthenticated", "empty", "populated", "loading", "degraded", "error"],
       "design_contract": "design.zukan.home-member",
@@ -124,11 +134,13 @@
       "personas": ["visitor", "member"],
       "auth": "public",
       "privacy": "public",
+      "implementation_status": "implemented",
+      "known_gaps": [],
       "capabilities": ["zukan.kubiaka.enter"],
       "entry_points": ["external", "zukan.home.public"],
       "transitions": [
-        { "action": "サクラを撮る", "target": "zukan.kubiaka.capture" },
-        { "action": "自分の受付を見る", "target": "zukan.kubiaka.member-records" }
+        { "action": "サクラを撮る", "target": "zukan.kubiaka.capture", "status": "implemented" },
+        { "action": "自分の受付を見る", "target": "zukan.kubiaka.member-records", "status": "implemented" }
       ],
       "states": ["ready", "disabled", "error"],
       "design_contract": "design.zukan.kubiaka-landing",
@@ -146,11 +158,13 @@
       "personas": ["member"],
       "auth": "session",
       "privacy": "owner-only-sensitive-location",
+      "implementation_status": "implemented",
+      "known_gaps": [],
       "capabilities": ["zukan.kubiaka.capture", "zukan.kubiaka.save-private"],
       "entry_points": ["zukan.kubiaka.landing", "zukan.kubiaka.member-records"],
       "transitions": [
-        { "action": "保存成功", "target": "zukan.kubiaka.member-records" },
-        { "action": "戻る", "target": "zukan.kubiaka.landing" }
+        { "action": "保存成功", "target": "zukan.kubiaka.member-records", "status": "implemented" },
+        { "action": "戻る", "target": "zukan.kubiaka.landing", "status": "implemented" }
       ],
       "states": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying", "denied"],
       "design_contract": "design.zukan.kubiaka-capture",
@@ -168,11 +182,17 @@
       "personas": ["member"],
       "auth": "session",
       "privacy": "owner-only-sensitive-location",
+      "implementation_status": "partial",
+      "known_gaps": [
+        "current mainはrecord queryで指定した1件の受付確認と空状態までで、履歴一覧・詳細・private media表示は未実装",
+        "owner dashboard、最大24件の履歴一覧、owner-only detailはPR #1518のcandidateで未merge"
+      ],
+      "implementation_candidates": ["yamaki0102/ikimon-platform#1518"],
       "capabilities": ["zukan.kubiaka.view-own-records", "zukan.kubiaka.capture"],
       "entry_points": ["zukan.kubiaka.landing", "zukan.kubiaka.capture", "zukan.home.member"],
       "transitions": [
-        { "action": "新しく撮る", "target": "zukan.kubiaka.capture" },
-        { "action": "ZUKAN Homeへ戻る", "target": "zukan.home.member" }
+        { "action": "新しく撮る", "target": "zukan.kubiaka.capture", "status": "implemented" },
+        { "action": "ZUKAN Homeへ戻る", "target": "zukan.home.member", "status": "planned" }
       ],
       "states": ["unauthenticated", "empty", "populated", "loading", "error", "denied", "record-missing"],
       "design_contract": "design.zukan.kubiaka-member-records",
