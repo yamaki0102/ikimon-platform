@@ -7,16 +7,18 @@
 ```text
 ChatGPT GitHub implementation
 → Cloudflare exact-SHA validation
-→ Pixel Claude read-only review
+→ ChatGPT exact-head / full-diff self-review
 → normal merge
 → Release Commander staging
 ```
+
+Pixel Reviewは既定では使用しません。リポジトリ所有者がその作業について明示的に指示した場合だけ、補助的なread-only reviewとして起票できます。Pixelの結果は明示指定がない限りrelease gateにしません。
 
 GitHub Actionsと常時起動PCは使用しません。Codexは大量機械変更、長時間探索、ローカル固有再現、巨大データ、またはchat修正3回失敗の場合だけです。
 
 ## 1. Work ID
 
-作業開始時に`ZUKAN-YYYYMMDD-NNN`を発行し、目的、base SHA、branch、PR、validation、review、stagingを同じレコードへ紐付けます。
+作業開始時に`ZUKAN-YYYYMMDD-NNN`を発行し、目的、base SHA、branch、PR、validation、self-review、stagingを同じレコードへ紐付けます。
 
 状態は次に限定します。
 
@@ -40,15 +42,22 @@ Issueやpatchsetから任意shell、args、URL、secret、environment、deploy�
 
 このprofileはfresh isolated checkoutで、登録済みのinstall、typecheck、Node tests、build、Cloudflare shadow checks、repository guardを実行します。target repositoryへのwrite、production、DB write、secret accessはありません。
 
-## 4. Independent review
+## 4. Self-review
 
-`yamaki0102/ikimon-intake-hub`へ`pixel-review-request-v1` Issueを作り、Pixel上のClaude Codeをサブスクリプション認証で実行します。
+ChatGPTがexact headとbaseの全差分をread-onlyで確認し、PRへ次を記録します。
 
-HEAD、worktree、tracked SHA-256、remoteの前後比較と、変化時の出力破棄は、このrepositoryではなく外部の正本`yamaki0102/ikimon-intake-hub:tools/pixel-review-worker/`が実装・検証します。
+- exact base/head SHA
+- 全変更ファイルとscope drift
+- P0/P1/P2 findingと採否
+- セキュリティ・プライバシー・異常系・rollback境界
+- 未解決finding数
+- mutation ledger
+
+source修正が入った場合はheadを更新し、最新headで再度full-diff self-reviewを行います。Pixel Reviewは所有者の明示指示がある場合だけ別レーンで実施します。
 
 ## 5. Staging
 
-validationとClaude reviewが通った通常PRはmerge後、既存`IKIMON_MOBILE_STAGING_REQUEST_V1`入口からRelease Commanderへ渡します。stagingは承認不要、production・DB・secret・DNS・顧客送信は別境界です。
+validationとself-reviewが通った通常PRはmerge後、既存`IKIMON_MOBILE_STAGING_REQUEST_V1`入口からRelease Commanderへ渡します。stagingは承認不要、production・DB・secret・DNS・顧客送信は別境界です。
 
 ## 6. Completion report
 
@@ -60,7 +69,7 @@ state: STAGING_VERIFIED
 PR: #...
 source_sha: ...
 validation: PASS
-pixel_claude: PASS
+self_review: PASS
 staging: PASS
 production: unchanged
 ```
