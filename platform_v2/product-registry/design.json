@@ -1,0 +1,179 @@
+{
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "foundations": [
+    {
+      "id": "foundation.universal-web-v1",
+      "rules": {
+        "minimum_touch_target_px": 44,
+        "normal_text_contrast_ratio": 4.5,
+        "large_text_contrast_ratio": 3.0,
+        "maximum_horizontal_overflow_px": 1,
+        "focus_visible_required": true,
+        "reduced_motion_supported": true,
+        "responsive_viewports": [320, 375, 390, 412, 768, 1024, 1440],
+        "spacing_scale_px": [4, 8, 12, 16, 24, 32, 40, 56],
+        "freehand_color_values_allowed": false,
+        "surface_specific_css_requires_exception": true
+      }
+    }
+  ],
+  "brands": [
+    {
+      "id": "brand.zukan-v1",
+      "foundation": "foundation.universal-web-v1",
+      "voice": ["身近", "観察を急いで確定しない", "行動を具体的にする", "不安を煽らない"],
+      "navigation_labels": ["撮る", "場所", "記録", "自分"],
+      "tokens": {
+        "text_primary": "#17211b",
+        "text_secondary": "#55615a",
+        "brand_primary": "#143f2e",
+        "surface": "#ffffff",
+        "surface_soft": "#f7f7f3",
+        "focus_ring": "#143f2e"
+      }
+    }
+  ],
+  "archetypes": [
+    {
+      "id": "archetype.marketing-home",
+      "required_regions": ["value-proposition", "primary-action", "proof-or-live-content", "secondary-paths"],
+      "rules": ["ログイン前は価値提示を優先する", "主CTAは撮影開始とする", "複数CTAを同じ強さにしない"]
+    },
+    {
+      "id": "archetype.capture-flow",
+      "required_regions": ["current-step", "capture-or-select", "privacy-context", "primary-action", "recovery-action"],
+      "rules": ["片手操作を優先する", "送信中と成功を区別する", "通信失敗後に再試行できる"]
+    },
+    {
+      "id": "archetype.public-browser",
+      "required_regions": ["search-or-filter", "result-context", "results", "empty-state", "capture-entry"],
+      "rules": ["公開範囲だけを表示する", "0件と障害を区別する", "検索条件を解除できる"]
+    },
+    {
+      "id": "archetype.map-explorer",
+      "required_regions": ["map", "privacy-context", "fallback", "records-entry"],
+      "rules": ["位置精度を過剰に示さない", "地図が使えなくても記録一覧へ移動できる"]
+    },
+    {
+      "id": "archetype.personal-library",
+      "required_regions": ["owner-context", "primary-action", "records", "empty-state", "error-recovery"],
+      "rules": ["本人限定か公開混在かを明示する", "空状態から新規記録へ進める", "他人のprivate dataを表示しない"]
+    },
+    {
+      "id": "archetype.campaign-landing",
+      "required_regions": ["single-message", "safety-context", "primary-action", "owner-return-path"],
+      "rules": ["一つの対象と一つの主行動に絞る", "通報・自動公開・AI確定と誤認させない"]
+    }
+  ],
+  "surface_contracts": [
+    {
+      "id": "design.zukan.home-public",
+      "surface": "zukan.home.public",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.marketing-home",
+      "layout": "home",
+      "density": "comfortable",
+      "navigation": "public-zukan",
+      "responsive": { "mobile": "single-column", "desktop": "feed-with-navigation" },
+      "state_presentations": ["guest", "member", "empty", "populated", "loading", "degraded", "error"]
+    },
+    {
+      "id": "design.zukan.capture",
+      "surface": "zukan.capture.start",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.capture-flow",
+      "layout": "narrow",
+      "density": "comfortable",
+      "navigation": "capture-focused",
+      "responsive": { "mobile": "single-column-sticky-action", "desktop": "centered-narrow" },
+      "state_presentations": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying"]
+    },
+    {
+      "id": "design.zukan.records",
+      "surface": "zukan.records.public",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.public-browser",
+      "layout": "wide",
+      "density": "comfortable",
+      "navigation": "public-zukan",
+      "responsive": { "mobile": "single-column", "desktop": "filter-and-grid" },
+      "state_presentations": ["empty", "populated", "searching", "no-results", "loading", "error"]
+    },
+    {
+      "id": "design.zukan.map",
+      "surface": "zukan.map.public",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.map-explorer",
+      "layout": "immersive",
+      "density": "compact-controls",
+      "navigation": "public-zukan",
+      "responsive": { "mobile": "map-with-bottom-sheet", "desktop": "map-with-side-panel" },
+      "state_presentations": ["loading", "populated", "empty", "location-denied", "map-unavailable", "error"]
+    },
+    {
+      "id": "design.zukan.home-member",
+      "surface": "zukan.home.member",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.personal-library",
+      "layout": "wide",
+      "density": "comfortable",
+      "navigation": "member-zukan",
+      "responsive": { "mobile": "single-column-camera-first", "desktop": "sidebar-and-feed" },
+      "state_presentations": ["unauthenticated", "empty", "populated", "loading", "degraded", "error"]
+    },
+    {
+      "id": "design.zukan.kubiaka-landing",
+      "surface": "zukan.kubiaka.landing",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.campaign-landing",
+      "layout": "narrow",
+      "density": "comfortable",
+      "navigation": "campaign-focused",
+      "responsive": { "mobile": "single-column-full-width-actions", "desktop": "centered-narrow" },
+      "state_presentations": ["ready", "disabled", "error"]
+    },
+    {
+      "id": "design.zukan.kubiaka-capture",
+      "surface": "zukan.kubiaka.capture",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.capture-flow",
+      "layout": "narrow",
+      "density": "comfortable",
+      "navigation": "campaign-focused",
+      "responsive": { "mobile": "single-column-full-width-actions", "desktop": "centered-narrow" },
+      "state_presentations": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying", "denied"]
+    },
+    {
+      "id": "design.zukan.kubiaka-member-records",
+      "surface": "zukan.kubiaka.member-records",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.personal-library",
+      "layout": "narrow",
+      "density": "comfortable",
+      "navigation": "campaign-focused",
+      "responsive": { "mobile": "single-column-full-width-actions", "desktop": "centered-narrow" },
+      "state_presentations": ["unauthenticated", "empty", "populated", "loading", "error", "denied", "record-missing"]
+    }
+  ],
+  "exceptions": [
+    {
+      "id": "design-exception.kubiaka-focused-chrome",
+      "surfaces": ["zukan.kubiaka.landing", "zukan.kubiaka.capture", "zukan.kubiaka.member-records"],
+      "rule": "surface_specific_css_requires_exception",
+      "reason": "撮影と本人受付確認に集中させるため、通常のglobal record launcherと一部navigationを抑制している",
+      "owner": "IKIMON development lane",
+      "expires_at": "2026-10-01",
+      "review_action": "共通campaign/capture componentへ移行できるか確認する"
+    },
+    {
+      "id": "design-exception.kubiaka-accent",
+      "surfaces": ["zukan.kubiaka.landing", "zukan.kubiaka.capture", "zukan.kubiaka.member-records"],
+      "rule": "freehand_color_values_allowed",
+      "reason": "クビアカ特化面の注意喚起とサクラ調査の区別に既存の赤茶accentを使用している",
+      "owner": "IKIMON development lane",
+      "expires_at": "2026-10-01",
+      "review_action": "brand tokenへ昇格するか標準ZUKAN tokenへ戻す"
+    }
+  ]
+}

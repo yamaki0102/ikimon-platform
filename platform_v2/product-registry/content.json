@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "contracts": [
+    {
+      "id": "content.zukan.home-public",
+      "surface": "zukan.home.public",
+      "audience": "地域の自然やまちの変化を身近に記録したい人",
+      "user_intent": "何のサービスか理解し、撮る・場所・記録のいずれかを始める",
+      "primary_message": "撮ると、まちの今が図鑑になる。",
+      "primary_cta": "撮る",
+      "secondary_actions": ["場所を見る", "記録を見る"],
+      "prohibited_claims": ["AIが種名を自動確定する", "すべての投稿が自動公開される", "公開範囲が常に正確な位置を示す"],
+      "seo": { "index": true, "canonical_path": "/" },
+      "analytics": { "primary_event": "record_start_clicked" }
+    },
+    {
+      "id": "content.zukan.capture",
+      "surface": "zukan.capture.start",
+      "audience": "現地で写真を残す訪問者・会員",
+      "user_intent": "写真・場所・時間・メモを確認し、安全に保存する",
+      "primary_message": "名前が分からなくても、まず記録として残せる。",
+      "primary_cta": "保存する",
+      "secondary_actions": ["戻る", "公開記録を見る"],
+      "prohibited_claims": ["未保存の記録が保存済みである", "AI候補が確定同定である", "非公開記録が公開済みである"],
+      "seo": { "index": false, "canonical_path": "/record" },
+      "analytics": { "primary_event": "record_saved" }
+    },
+    {
+      "id": "content.zukan.records",
+      "surface": "zukan.records.public",
+      "audience": "地域の公開記録を探す人",
+      "user_intent": "公開可能な記録、名前待ち、場所を検索・閲覧する",
+      "primary_message": "まちに残された記録を見る。",
+      "primary_cta": "記録を探す",
+      "secondary_actions": ["撮る", "場所を見る"],
+      "prohibited_claims": ["非公開記録を検索できる", "表示件数が地域の生物総数を示す", "位置が採取・接触を許可する"],
+      "seo": { "index": true, "canonical_path": "/records" },
+      "analytics": { "primary_event": "records_searched" }
+    },
+    {
+      "id": "content.zukan.map",
+      "surface": "zukan.map.public",
+      "audience": "記録が集まる場所や次に歩く場所を探す人",
+      "user_intent": "公開可能な粒度で場所と記録の関係を見る",
+      "primary_message": "場所から、まちの記録をたどる。",
+      "primary_cta": "場所を見る",
+      "secondary_actions": ["記録を見る", "撮る"],
+      "prohibited_claims": ["正確な私有地位置を示す", "地図上の空白が不在を証明する", "表示地点への立入を許可する"],
+      "seo": { "index": true, "canonical_path": "/map" },
+      "analytics": { "primary_event": "map_explored" }
+    },
+    {
+      "id": "content.zukan.home-member",
+      "surface": "zukan.home.member",
+      "audience": "自分の観察を続ける会員",
+      "user_intent": "最近の記録、場所、再訪候補を確認し、次の撮影へ進む",
+      "primary_message": "自分の記録から、次に撮る理由を見つける。",
+      "primary_cta": "撮る",
+      "secondary_actions": ["自分の記録を見る", "クビアカ受付を見る"],
+      "prohibited_claims": ["処理中のAI候補が確定済みである", "非公開記録が公開済みである"],
+      "seo": { "index": false, "canonical_path": "/home" },
+      "analytics": { "primary_event": "member_record_start_clicked" }
+    },
+    {
+      "id": "content.zukan.kubiaka-landing",
+      "surface": "zukan.kubiaka.landing",
+      "audience": "浜松周辺でサクラを見かける親子・市民",
+      "user_intent": "虫を見つけていなくてもサクラの撮影を始める",
+      "primary_message": "サクラの今を、写真で残そう。",
+      "primary_cta": "サクラを撮る",
+      "secondary_actions": ["自分の受付を見る"],
+      "prohibited_claims": ["写真が行政への通報になる", "AIがクビアカを確定する", "撮影写真が自動公開される", "外部機関へ自動送信される"],
+      "seo": { "index": true, "canonical_path": "/kubiaka" },
+      "analytics": { "primary_event": "kubiaka_capture_started" }
+    },
+    {
+      "id": "content.zukan.kubiaka-capture",
+      "surface": "zukan.kubiaka.capture",
+      "audience": "サクラの幹や根元を撮影する会員",
+      "user_intent": "1〜6枚を確認し、位置情報を本人限定記録として保存する",
+      "primary_message": "虫の名前を決めず、サクラの幹や根元を残す。",
+      "primary_cta": "非公開で保存する",
+      "secondary_actions": ["戻る"],
+      "prohibited_claims": ["通報済み", "提出済み", "公開済み", "外部送信済み", "永続的な公的受付証明"],
+      "seo": { "index": false, "canonical_path": "/kubiaka/record" },
+      "analytics": { "primary_event": "kubiaka_private_record_saved" }
+    },
+    {
+      "id": "content.zukan.kubiaka-member-records",
+      "surface": "zukan.kubiaka.member-records",
+      "audience": "自分が保存したクビアカ調査記録を確認する会員",
+      "user_intent": "過去の本人限定受付記録を確認し、新しい撮影またはHomeへ戻る",
+      "primary_message": "あなたの非公開受付記録。",
+      "primary_cta": "新しく撮る",
+      "secondary_actions": ["ZUKAN Homeへ戻る"],
+      "prohibited_claims": ["行政受理済み", "外部送信済み", "公開地図へ反映済み", "永久保存を保証する"],
+      "seo": { "index": false, "canonical_path": "/kubiaka/me" },
+      "analytics": { "primary_event": "kubiaka_private_records_viewed" }
+    }
+  ]
+}

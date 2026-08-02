@@ -1,0 +1,146 @@
+{
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "global_invariants": [
+    "検証対象source SHAとstaging runtime identityが一致する",
+    "private・blurred・blocked_public・missing-gate・unknown・errorは公開面でfail closedとなる",
+    "owner-only surfaceは本人以外のreadを拒否する",
+    "write capabilityは失敗・再試行・二重送信を検証する",
+    "desktopとmobileで横スクロール、主要CTA、focus、空状態、error状態を検証する",
+    "Visual baseline更新には理由と関連Decisionを残す",
+    "production、DB、secret、DNS、外部送信は個別の高影響gateを維持する"
+  ],
+  "contracts": [
+    {
+      "id": "quality.zukan.home-public",
+      "surface": "zukan.home.public",
+      "required_states": ["guest", "member", "empty", "populated", "loading", "degraded", "error"],
+      "acceptance": [
+        "guest Homeはpublic eligibleな記録だけを表示する",
+        "主CTAから撮影開始へ到達できる",
+        "価値提示、公開記録、場所の導線が競合しない"
+      ],
+      "tests": [
+        { "locator": "platform_v2/e2e/home.staging.spec.ts", "kind": "journey", "status": "canonical" },
+        { "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts", "kind": "visual", "status": "canonical" },
+        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
+      ]
+    },
+    {
+      "id": "quality.zukan.capture",
+      "surface": "zukan.capture.start",
+      "required_states": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying"],
+      "acceptance": [
+        "未ログイン・入力不足・upload失敗・保存失敗を成功扱いしない",
+        "再試行で二重登録を発生させない",
+        "保存後に本人の記録へ戻れる"
+      ],
+      "tests": [
+        { "locator": "platform_v2/e2e/record-funnel.staging.spec.ts", "kind": "journey", "status": "canonical" },
+        { "locator": "platform_v2/e2e/record-feedback-loop.staging.spec.ts", "kind": "journey", "status": "canonical" },
+        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
+      ]
+    },
+    {
+      "id": "quality.zukan.records",
+      "surface": "zukan.records.public",
+      "required_states": ["empty", "populated", "searching", "no-results", "loading", "error"],
+      "acceptance": [
+        "非公開記録を表示しない",
+        "0件と障害を区別する",
+        "検索条件を解除し撮影または場所へ移動できる"
+      ],
+      "tests": [
+        { "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts", "kind": "visual", "status": "canonical" },
+        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
+      ]
+    },
+    {
+      "id": "quality.zukan.map",
+      "surface": "zukan.map.public",
+      "required_states": ["loading", "populated", "empty", "location-denied", "map-unavailable", "error"],
+      "acceptance": [
+        "公開可能な位置精度だけを表示する",
+        "地図が利用できない場合も記録一覧へ移動できる",
+        "mobileとdesktopで操作不能や横スクロールがない"
+      ],
+      "tests": [
+        { "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts", "kind": "visual", "status": "canonical" },
+        { "locator": "platform_v2/e2e/map-performance.staging.spec.ts", "kind": "performance", "status": "canonical" },
+        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
+      ]
+    },
+    {
+      "id": "quality.zukan.home-member",
+      "surface": "zukan.home.member",
+      "required_states": ["unauthenticated", "empty", "populated", "loading", "degraded", "error"],
+      "acceptance": [
+        "本人の記録と公開記録を混同しない",
+        "empty stateから撮影へ進める",
+        "クビアカ本人受付へ戻れる"
+      ],
+      "tests": [
+        { "locator": "platform_v2/e2e/home.staging.spec.ts", "kind": "journey", "status": "canonical" },
+        { "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts", "kind": "visual", "status": "canonical" },
+        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
+      ]
+    },
+    {
+      "id": "quality.zukan.kubiaka-landing",
+      "surface": "zukan.kubiaka.landing",
+      "required_states": ["ready", "disabled", "error"],
+      "acceptance": [
+        "虫を発見・同定しなくても撮影を開始できる",
+        "安全注意、非公開、外部送信なしを誤解なく表示する",
+        "撮影と本人受付の二つの導線がある"
+      ],
+      "tests": [
+        { "locator": "platform_v2/src/routes/kubiakaFocusedExperience.test.ts", "kind": "unit-contract", "status": "canonical" },
+        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
+      ]
+    },
+    {
+      "id": "quality.zukan.kubiaka-capture",
+      "surface": "zukan.kubiaka.capture",
+      "required_states": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying", "denied"],
+      "acceptance": [
+        "写真は1〜6枚だけ受け付ける",
+        "本人限定・Gate 0 fail closedで保存する",
+        "公開地図、外部送信、Gate 0前通知を発生させない",
+        "保存成功後に本人受付へ移動する"
+      ],
+      "tests": [
+        { "locator": "platform_v2/src/routes/kubiakaFocusedExperience.test.ts", "kind": "unit-contract", "status": "canonical" },
+        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" },
+        { "locator": "platform_v2/e2e/kubiaka-private-receipt.staging.spec.ts", "kind": "journey", "status": "planned" }
+      ]
+    },
+    {
+      "id": "quality.zukan.kubiaka-member-records",
+      "surface": "zukan.kubiaka.member-records",
+      "required_states": ["unauthenticated", "empty", "populated", "loading", "error", "denied", "record-missing"],
+      "acceptance": [
+        "本人以外へ非公開記録を表示しない",
+        "空状態から新しく撮影できる",
+        "記録不在、権限拒否、読込失敗を区別する",
+        "Homeまたは新しい撮影へ戻れる"
+      ],
+      "tests": [
+        { "locator": "platform_v2/src/routes/kubiakaFocusedExperience.test.ts", "kind": "unit-contract", "status": "canonical" },
+        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" },
+        { "locator": "platform_v2/e2e/kubiaka-private-receipt.staging.spec.ts", "kind": "journey", "status": "planned" }
+      ]
+    }
+  ],
+  "release_gates": [
+    "registry invariant test",
+    "typecheck and node tests",
+    "exact-SHA source validation",
+    "independent full-diff review P0=0 P1=0",
+    "exact-SHA staging deploy and runtime identity read-back",
+    "journey E2E for write and owner-only paths",
+    "state and viewport Visual QA",
+    "rollback locator",
+    "merged-SHA revalidation before production"
+  ]
+}
