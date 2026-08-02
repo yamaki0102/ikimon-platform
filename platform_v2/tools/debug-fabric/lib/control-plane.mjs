@@ -71,6 +71,24 @@ const FAILURE_CODES = Object.freeze({
   ]),
 });
 
+const RETRYABLE_FAILURE_CODES = new Set([
+  'command_enqueue_failed',
+  'queue_publish_failed',
+  'queue_delivery_timeout',
+  'queue_ack_failed',
+  'executor_checkout_failed',
+  'executor_lease_stale',
+  'executor_evidence_upload_failed',
+  'release_authorization_not_found',
+  'release_reconcile_failed',
+  'release_create_failed',
+  'release_bridge_authorization_failed',
+  'release_bridge_operation_failed',
+  'target_deploy_failed',
+  'target_rollback_failed',
+  'github_source_unhealthy',
+]);
+
 class ControlPlaneError extends Error {
   constructor(status, classification, responsibleLayer = null) {
     super(classification);
@@ -123,6 +141,10 @@ function validateRun(raw) {
   const target = targetSpec(raw.target);
   const expectedLayers = layerList(raw.expected_layers);
   const expectedRuntimeIdentities = runtimeIdentities(raw.expected_runtime_identities, expectedLayers);
+  if (expectedLayers.includes('target_runtime')
+      && expectedRuntimeIdentities.target_runtime !== target.exact_source_sha) {
+    throw new ControlPlaneError('UNSAFE', 'target_runtime_expected_sha_mismatch', 'target_runtime');
+  }
   const observations = observationList(raw.observations, raw.trace_id, expectedLayers);
 
   return Object.freeze({
@@ -313,6 +335,10 @@ function observationList(raw, traceId, expectedLayers) {
       }
       if (!FAILURE_CODES[entry.layer].has(entry.failure_code)) {
         throw new ControlPlaneError('UNSAFE', 'unknown_failure_code_for_layer', entry.layer);
+      }
+      const expectedRetryable = RETRYABLE_FAILURE_CODES.has(entry.failure_code);
+      if (entry.retryable !== expectedRetryable) {
+        throw new ControlPlaneError('UNSAFE', 'failure_retryability_mismatch', entry.layer);
       }
     }
 
