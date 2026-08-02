@@ -16,7 +16,7 @@ function sourceBetween(start: string, end: string): string {
 
 describe("ZUKAN Home release closure", () => {
   test("does not query or replace the removed guest-public slot", () => {
-    const injector = sourceBetween("export async function injectStateSplitHome", "function originalUiVersionPointerKey");
+    const injector = sourceBetween("export async function injectStateSplitHome", "async function injectHomeObservationRecords");
     assert.doesNotMatch(injector, /recentPublicRecordCards/);
     assert.doesNotMatch(injector, /guest-public/);
   });
