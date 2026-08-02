@@ -7,6 +7,7 @@ import { safeRedirectPath } from "./authSecurity.js";
 export type OAuthProvider = "google" | "twitter";
 
 const OAUTH_STATE_COOKIE = "ikimon_oauth_state";
+const PUBLIC_OAUTH_HOSTS = new Set(["ikimon.life", "www.ikimon.life", "staging.ikimon.life"]);
 
 type OAuthStatePayload = {
   provider: OAuthProvider;
@@ -90,13 +91,40 @@ function headerFirst(value: string | string[] | undefined): string {
   return raw?.split(",")[0]?.trim() ?? "";
 }
 
-export function requestPublicOrigin(request: FastifyRequest): string {
-  const host = headerFirst(request.headers["x-forwarded-host"]) || headerFirst(request.headers.host);
-  const proto = headerFirst(request.headers["x-forwarded-proto"]) || (loadConfig().nodeEnv === "production" ? "https" : request.protocol || "http");
-  if (!host) {
-    return "http://localhost:3200";
+function normalizedHost(value: string): string {
+  try {
+    return new URL(`https://${value}`).hostname.toLowerCase();
+  } catch {
+    return "";
   }
-  return `${proto}://${host}`;
+}
+
+function publicOAuthOriginFromHost(value: string): string | null {
+  const host = normalizedHost(value);
+  return PUBLIC_OAUTH_HOSTS.has(host) ? `https://${host}` : null;
+}
+
+function localDevelopmentOrigin(request: FastifyRequest): string | null {
+  if (loadConfig().nodeEnv === "production") return null;
+  const host = headerFirst(request.headers.host);
+  const hostname = normalizedHost(host);
+  if (hostname !== "localhost" && hostname !== "127.0.0.1" && hostname !== "::1") return null;
+  const protocol = request.protocol === "https" ? "https" : "http";
+  return `${protocol}://${host}`;
+}
+
+export function requestPublicOrigin(request: FastifyRequest): string {
+  // The Worker reconstructs X-Forwarded-Host from its public request URL, but
+  // the origin still validates that value against the explicit public-host
+  // allowlist. A client-controlled forwarded header can never choose an
+  // arbitrary OAuth callback origin, including on a direct-origin path.
+  const forwardedOrigin = publicOAuthOriginFromHost(headerFirst(request.headers["x-forwarded-host"]));
+  if (forwardedOrigin) return forwardedOrigin;
+
+  const directOrigin = publicOAuthOriginFromHost(headerFirst(request.headers.host));
+  if (directOrigin) return directOrigin;
+
+  return localDevelopmentOrigin(request) ?? "http://localhost:3200";
 }
 
 export function oauthRedirectUri(request: FastifyRequest, provider: OAuthProvider): string {
