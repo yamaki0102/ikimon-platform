@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "capabilities": [
+    {
+      "id": "zukan.home.view-public",
+      "title": "公開Homeを見る",
+      "actor": "visitor",
+      "operation": "read",
+      "privacy": "public",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.capture.start",
+      "title": "撮影を開始する",
+      "actor": "visitor_or_member",
+      "operation": "read",
+      "privacy": "private-draft",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.record.save-private",
+      "title": "記録を非公開保存する",
+      "actor": "member",
+      "operation": "write",
+      "privacy": "owner-only",
+      "side_effects": ["database-write", "media-upload", "snapshot-invalidation"],
+      "failure_contract": "入力・認証・保存・media upload失敗を表示し、未確定状態を成功扱いしない",
+      "retry_contract": "同一送信の再試行で二重登録を発生させない"
+    },
+    {
+      "id": "zukan.records.browse-public",
+      "title": "公開記録を見る",
+      "actor": "visitor_or_member",
+      "operation": "read",
+      "privacy": "public-filtered",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.map.explore-public",
+      "title": "公開範囲の場所と記録を見る",
+      "actor": "visitor_or_member",
+      "operation": "read",
+      "privacy": "public-filtered-location",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.home.view-member",
+      "title": "自分のHomeを見る",
+      "actor": "member",
+      "operation": "read",
+      "privacy": "mixed-owner-and-public",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.kubiaka.enter",
+      "title": "クビアカ調査導線を開く",
+      "actor": "visitor_or_member",
+      "operation": "read",
+      "privacy": "public",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.kubiaka.capture",
+      "title": "サクラの写真を1〜6枚選ぶ",
+      "actor": "member",
+      "operation": "read",
+      "privacy": "private-draft",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.kubiaka.save-private",
+      "title": "クビアカ調査写真を非公開保存する",
+      "actor": "member",
+      "operation": "write",
+      "privacy": "owner-only-sensitive-location",
+      "side_effects": ["database-write", "media-upload", "snapshot-invalidation"],
+      "prohibited_side_effects": ["public-map", "external-delivery", "area-watch-notification-before-gate0"],
+      "failure_contract": "DB、media、Gate判定の不確実状態はfail closedとし、受付成功や外部送信済みを表示しない",
+      "retry_contract": "再送・再試行で重複受付、公開、通知を発生させない"
+    },
+    {
+      "id": "zukan.kubiaka.view-own-records",
+      "title": "自分のクビアカ受付記録を見る",
+      "actor": "member",
+      "operation": "read",
+      "privacy": "owner-only",
+      "side_effects": []
+    }
+  ]
+}
