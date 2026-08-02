@@ -45,7 +45,7 @@ test("trusted public origin cannot be switched by forwarded headers", () => {
     null,
   );
   assert.equal(
-    resolveTrustedPublicOrigin(request({ host: "localhost:3200", "x-forwarded-host": "evil.example" }), { allowLocalDevelopment: true }),
+    resolveTrustedPublicOrigin(request({ host: "localhost:3200", "x-forwarded-host": "staging.ikimon.life" }), { allowLocalDevelopment: true }),
     "http://localhost:3200",
   );
 });
