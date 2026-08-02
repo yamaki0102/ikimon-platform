@@ -3,11 +3,11 @@ import type { FastifyRequest } from "fastify";
 import { loadConfig } from "../config.js";
 import type { OAuthProfile } from "./authUsers.js";
 import { safeRedirectPath } from "./authSecurity.js";
+import { resolveTrustedPublicOrigin } from "./trustedPublicOrigin.js";
 
 export type OAuthProvider = "google" | "twitter";
 
 const OAUTH_STATE_COOKIE = "ikimon_oauth_state";
-const PUBLIC_OAUTH_HOSTS = new Set(["ikimon.life", "www.ikimon.life", "staging.ikimon.life"]);
 
 type OAuthStatePayload = {
   provider: OAuthProvider;
@@ -86,45 +86,11 @@ export function readOAuthState(cookieHeader: string | undefined): OAuthStatePayl
   return decodeOAuthState(raw ? decodeURIComponent(raw) : undefined);
 }
 
-function headerFirst(value: string | string[] | undefined): string {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return raw?.split(",")[0]?.trim() ?? "";
-}
-
-function normalizedHost(value: string): string {
-  try {
-    return new URL(`https://${value}`).hostname.toLowerCase();
-  } catch {
-    return "";
-  }
-}
-
-function publicOAuthOriginFromHost(value: string): string | null {
-  const host = normalizedHost(value);
-  return PUBLIC_OAUTH_HOSTS.has(host) ? `https://${host}` : null;
-}
-
-function localDevelopmentOrigin(request: FastifyRequest): string | null {
-  if (loadConfig().nodeEnv === "production") return null;
-  const host = headerFirst(request.headers.host);
-  const hostname = normalizedHost(host);
-  if (hostname !== "localhost" && hostname !== "127.0.0.1" && hostname !== "::1") return null;
-  const protocol = request.protocol === "https" ? "https" : "http";
-  return `${protocol}://${host}`;
-}
-
 export function requestPublicOrigin(request: FastifyRequest): string {
-  // A public Host header is authoritative and cannot be overridden by a
-  // client-supplied X-Forwarded-Host. The forwarded value is only a fallback
-  // for the private Worker-to-origin hop, and is still constrained to the
-  // explicit public-host allowlist. Public callback origins are always HTTPS.
-  const directOrigin = publicOAuthOriginFromHost(headerFirst(request.headers.host));
-  if (directOrigin) return directOrigin;
-
-  const forwardedOrigin = publicOAuthOriginFromHost(headerFirst(request.headers["x-forwarded-host"]));
-  if (forwardedOrigin) return forwardedOrigin;
-
-  return localDevelopmentOrigin(request) ?? "http://localhost:3200";
+  return resolveTrustedPublicOrigin(
+    request as unknown as { headers: Record<string, unknown>; protocol?: string },
+    { allowLocalDevelopment: true },
+  ) ?? "http://localhost:3200";
 }
 
 export function oauthRedirectUri(request: FastifyRequest, provider: OAuthProvider): string {
