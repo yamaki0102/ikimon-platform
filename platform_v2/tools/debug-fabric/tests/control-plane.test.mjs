@@ -85,6 +85,16 @@ test('runtime SHA mismatch is blocked at the first mismatched layer', () => {
   assert.deepEqual(result.runtime_mismatches, [{ layer: 'executor', expected_sha: SHA, observed_sha: OTHER_SHA }]);
 });
 
+test('target runtime expected SHA is bound to the target exact source SHA', () => {
+  const raw = run();
+  raw.expected_runtime_identities = { ...raw.expected_runtime_identities, target_runtime: OTHER_SHA };
+  raw.observations[6] = { ...raw.observations[6], runtime_sha: OTHER_SHA };
+  const result = analyzeControlPlaneRun(raw);
+  assert.equal(result.status, 'UNSAFE');
+  assert.equal(result.classification, 'target_runtime_expected_sha_mismatch');
+  assert.equal(result.responsible_layer, 'target_runtime');
+});
+
 test('trace gap identifies the first service that failed to emit evidence', () => {
   const raw = run();
   raw.observations = raw.observations.slice(0, 3);
@@ -134,6 +144,21 @@ test('unknown failure code is unsafe and cannot be silently accepted', () => {
   assert.equal(result.status, 'UNSAFE');
   assert.equal(result.classification, 'unknown_failure_code_for_layer');
   assert.equal(result.responsible_layer, 'release_command_bus');
+});
+
+test('retryability is owned by the analyzer, not the emitting service', () => {
+  const raw = run();
+  raw.observations = raw.observations.slice(0, 5);
+  raw.observations[4] = {
+    ...raw.observations[4],
+    state: 'blocked',
+    failure_code: 'release_authorization_not_found',
+    retryable: false,
+  };
+  const result = analyzeControlPlaneRun(raw);
+  assert.equal(result.status, 'UNSAFE');
+  assert.equal(result.classification, 'failure_retryability_mismatch');
+  assert.equal(result.responsible_layer, 'release_commander');
 });
 
 test('missing immutable evidence digest is unsafe', () => {
