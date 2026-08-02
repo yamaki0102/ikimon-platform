@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "journeys": [
+    {
+      "id": "journey.zukan.guest-to-capture",
+      "title": "公開Homeから撮影開始",
+      "actor": "visitor",
+      "goal": "ZUKANの価値を理解し、撮影開始またはログイン案内まで迷わず進む",
+      "start_surface": "zukan.home.public",
+      "success_surface": "zukan.capture.start",
+      "steps": [
+        { "surface": "zukan.home.public", "action": "撮る" },
+        { "surface": "zukan.capture.start", "action": "撮影開始またはログイン案内を確認" }
+      ],
+      "required_outcomes": [
+        "主CTAが初期表示または1操作以内にある",
+        "未ログイン時に保存成功を装わない",
+        "戻り先として公開Homeまたは公開記録がある"
+      ],
+      "required_states": ["guest", "unauthenticated", "error"]
+    },
+    {
+      "id": "journey.zukan.capture-to-personal-return",
+      "title": "撮影から本人への記録返却",
+      "actor": "member",
+      "goal": "撮影した記録を安全に保存し、自分の記録として確認する",
+      "start_surface": "zukan.home.member",
+      "success_surface": "zukan.home.member",
+      "steps": [
+        { "surface": "zukan.home.member", "action": "撮る" },
+        { "surface": "zukan.capture.start", "action": "写真・場所・時間を確認して保存" },
+        { "surface": "zukan.home.member", "action": "保存された記録を確認" }
+      ],
+      "required_outcomes": [
+        "二重登録を発生させない",
+        "保存失敗時に成功画面へ進まない",
+        "保存後に本人が記録を見つけられる",
+        "公開可否が未確定の記録を公開面へ出さない"
+      ],
+      "required_states": ["empty", "populated", "submitting", "success", "upload-error", "offline", "retrying"]
+    },
+    {
+      "id": "journey.zukan.kubiaka-private-receipt",
+      "title": "クビアカ撮影から非公開受付記録確認",
+      "actor": "member",
+      "goal": "サクラを撮影し、外部送信や公開をせず本人の受付記録として確認する",
+      "start_surface": "zukan.kubiaka.landing",
+      "success_surface": "zukan.kubiaka.member-records",
+      "steps": [
+        { "surface": "zukan.kubiaka.landing", "action": "サクラを撮る" },
+        { "surface": "zukan.kubiaka.capture", "action": "1〜6枚を選び非公開保存" },
+        { "surface": "zukan.kubiaka.member-records", "action": "受付内容を確認" },
+        { "surface": "zukan.kubiaka.member-records", "action": "新しく撮るまたはHomeへ戻る" }
+      ],
+      "required_outcomes": [
+        "本人以外へ非公開記録を表示しない",
+        "Gate 0前の公開地図・通知・外部送信を発生させない",
+        "位置情報は本人限定記録の保存目的に限定する",
+        "空状態から撮影へ進める",
+        "保存失敗・権限拒否・記録不在を区別する"
+      ],
+      "required_states": ["unauthenticated", "empty", "populated", "submitting", "success", "upload-error", "offline", "retrying", "denied", "record-missing"]
+    }
+  ]
+}
