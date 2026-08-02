@@ -3,7 +3,7 @@ const PUBLIC_ASSET_ORIGIN_BY_TARGET_ENV = {
   production: "https://ikimon.life",
   staging: "https://staging.ikimon.life",
 } as const;
-const ALLOWED_PUBLIC_ASSET_ORIGINS = new Set(Object.values(PUBLIC_ASSET_ORIGIN_BY_TARGET_ENV));
+const ALLOWED_PUBLIC_ASSET_ORIGINS: ReadonlySet<string> = new Set(Object.values(PUBLIC_ASSET_ORIGIN_BY_TARGET_ENV));
 
 export function resolveZukanPublicAssetOrigin(
   configuredOrigin: string | undefined = process.env.ZUKAN_PUBLIC_ASSET_ORIGIN,
