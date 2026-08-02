@@ -69,7 +69,7 @@ test("oauth callback origin rejects forwarded identity and accepts the nginx-bou
     "https://staging.ikimon.life/auth/oauth/twitter/callback",
   );
 
-  for (const headers of [
+  const malformedHeaders: Array<Record<string, string>> = [
     {
       host: "internal-origin.invalid",
       "x-forwarded-host": "staging.ikimon.life",
@@ -81,7 +81,8 @@ test("oauth callback origin rejects forwarded identity and accepts the nginx-bou
       "x-forwarded-host": "staging.ikimon.life",
       "x-forwarded-proto": "http",
     },
-  ]) {
+  ];
+  for (const headers of malformedHeaders) {
     assert.throws(
       () => oauthRedirectUri(request(headers), "twitter"),
       /public_origin_untrusted/,

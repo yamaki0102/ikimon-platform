@@ -474,7 +474,7 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /Open the saved record right away. You can also return from your records list or My page later/);
         assert.match(response.body, /successSavedCardEyebrow: "Saved record"/);
         assert.match(response.body, /successSavedCardFallbackTitle: "Record still being organized"/);
-        assert.match(response.body, /<meta name="robots" content="noindex,follow" \/>/);
+        assert.match(response.body, /<meta name="robots" content="noindex, nofollow" \/>/);
         assert.doesNotMatch(response.body, /<h2>写真で記録する<\/h2>/);
         assert.doesNotMatch(response.body, /写真を撮るか選ぶだけで始められます/);
         assert.doesNotMatch(response.body, />観察した日時</);

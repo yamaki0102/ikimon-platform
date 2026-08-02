@@ -94,7 +94,7 @@ test("learn index can switch UI language while keeping Japanese SEO canonical", 
     assert.match(response.body, /Start here/);
     assert.match(response.body, /Use records/);
     assert.match(response.body, /Find by term/);
-    assert.match(response.body, /<meta name="robots" content="noindex,follow" \/>/);
+    assert.match(response.body, /<meta name="robots" content="noindex, nofollow" \/>/);
     assert.match(response.body, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/learn" \/>/);
     assert.match(response.body, /\/en\/learn\/field-loop/);
     assert.doesNotMatch(response.body, /読みもの索引/);
@@ -197,7 +197,7 @@ test("language-prefixed marketing pages stay usable while SEO remains Japanese",
     });
     assert.equal(localized.statusCode, 200);
     assert.match(localized.body, /<html lang="en"/);
-    assert.match(localized.body, /name="robots" content="noindex,follow"/);
+    assert.match(localized.body, /name="robots" content="noindex, nofollow"/);
     assert.match(localized.body, /rel="canonical" href="https:\/\/ikimon\.life\/ja\/community"/);
     assert.doesNotMatch(localized.body, /"@type":"Article"/);
 
@@ -215,7 +215,7 @@ test("language-prefixed marketing pages stay usable while SEO remains Japanese",
       headers: { accept: "text/html" },
     });
     assert.equal(legacyFallback.statusCode, 200);
-    assert.match(legacyFallback.body, /name="robots" content="noindex,follow"/);
+    assert.match(legacyFallback.body, /name="robots" content="noindex, nofollow"/);
     assert.match(legacyFallback.body, /rel="canonical" href="https:\/\/ikimon\.life\/ja\/about"/);
   } finally {
     await app.close();
