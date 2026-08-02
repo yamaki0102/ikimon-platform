@@ -11,6 +11,10 @@ const ALLOWED_EXECUTABLES = new Set([
   'node','npm','npm.cmd','npx','npx.cmd','pnpm','pnpm.cmd','yarn','yarn.cmd',
   'bash','sh','php','composer','python','python3','powershell','pwsh','git',
 ]);
+const SAFE_NPX_BINARIES = new Set([
+  'vitest','jest','tsc','eslint','prettier','playwright','tsx','mocha','ava','c8','nyc',
+]);
+const FORBIDDEN_SCRIPT_TOKEN = /(?:^|[._/-])(?:deploy|publish|rollback|production|prod|migrate|migration|secret|dns|access|permission|customer-send|external-send)(?:[._/-]|$)/u;
 
 export function validateLocalDebugTask(raw) {
   object(raw, 'task');
@@ -41,7 +45,7 @@ export function validateLocalDebugTask(raw) {
   const allowTerra = raw.allow_terra !== false;
   if (!allowTerra && maxTerraPasses !== 0 && raw.max_terra_passes !== undefined) throw new Error('max_terra_passes requires allow_terra');
   const maxChangedFiles = integer(raw.max_changed_files ?? 50, 1, 500, 'max_changed_files');
-  if (!Array.isArray(raw.allowed_path_prefixes ?? [] ) || (raw.allowed_path_prefixes ?? []).length > 40) throw new Error('invalid allowed_path_prefixes');
+  if (!Array.isArray(raw.allowed_path_prefixes ?? []) || (raw.allowed_path_prefixes ?? []).length > 40) throw new Error('invalid allowed_path_prefixes');
   const allowedPathPrefixes = (raw.allowed_path_prefixes ?? []).map(validateRelativePrefix);
   const commitMessage = text(raw.commit_message ?? `debug(${raw.task_id}): local candidate`, 5, 160, 'commit_message');
   if (/[\r\n]/u.test(commitMessage)) throw new Error('commit_message must be single line');
@@ -74,7 +78,8 @@ function validateCheck(raw, seen) {
   seen.add(raw.id);
   if (!Array.isArray(raw.argv) || raw.argv.length < 1 || raw.argv.length > 32) throw new Error('invalid check argv');
   const argv = raw.argv.map((value) => text(value, 1, 2048, 'check arg'));
-  const executable = path.basename(argv[0]).toLowerCase();
+  if (argv[0] !== path.basename(argv[0]) || /[\\/]/u.test(argv[0])) throw new Error('check executable must be a command name');
+  const executable = argv[0].toLowerCase();
   if (!EXECUTABLE.test(executable) || !ALLOWED_EXECUTABLES.has(executable)) throw new Error('check executable not allowed');
   enforceCommandPolicy(executable, argv.slice(1));
   const cwd = validateRelativePath(raw.cwd ?? '.');
@@ -97,17 +102,44 @@ function enforceCommandPolicy(executable, args) {
   if (['npm','npm.cmd','pnpm','pnpm.cmd','yarn','yarn.cmd'].includes(executable)) {
     const command = lower[0] ?? '';
     const script = command === 'run' ? (lower[1] ?? '') : command;
-    if (/^(?:deploy|publish|rollback|prod|production)(?::|$)/u.test(script)
-        || /^(?:migrate|migration):(?:apply|up|run)(?::|$)/u.test(script)) {
-      throw new Error(`forbidden check script:${script}`);
+    if (FORBIDDEN_SCRIPT_TOKEN.test(script)) throw new Error(`forbidden check script:${script}`);
+    return;
+  }
+  if (['npx','npx.cmd'].includes(executable)) {
+    const binary = lower.find((value) => !value.startsWith('-')) ?? '';
+    if (!SAFE_NPX_BINARIES.has(binary)) throw new Error(`npx check binary not allowed:${binary || 'missing'}`);
+    return;
+  }
+  if (executable === 'bash' || executable === 'sh') {
+    if (args.length < 1 || args[0].startsWith('-')) throw new Error('shell check requires a relative script path');
+    validateSafeScriptPath(args[0]);
+    return;
+  }
+  if (executable === 'powershell' || executable === 'pwsh') {
+    if (lower.some((value) => ['-command','-c','-encodedcommand','-enc'].includes(value))) throw new Error('inline powershell check forbidden');
+    const fileIndex = lower.indexOf('-file');
+    if (fileIndex < 0 || !args[fileIndex + 1]) throw new Error('powershell check requires -File');
+    validateSafeScriptPath(args[fileIndex + 1]);
+    return;
+  }
+  if (executable === 'node') {
+    if (lower.some((value) => ['-e','--eval','-p','--print'].includes(value))) throw new Error('inline node check forbidden');
+    return;
+  }
+  if (executable === 'python' || executable === 'python3') {
+    if (lower.includes('-c')) throw new Error('inline python check forbidden');
+    const moduleIndex = lower.indexOf('-m');
+    if (moduleIndex >= 0 && !['pytest','unittest','compileall'].includes(lower[moduleIndex + 1] ?? '')) {
+      throw new Error('python module check not allowed');
     }
+    return;
   }
-  if (['npx','npx.cmd'].includes(executable) && lower[0] === 'wrangler') {
-    throw new Error('wrangler check executable forbidden');
-  }
-  if ((executable === 'bash' || executable === 'sh' || executable === 'powershell' || executable === 'pwsh') && args.length < 1) {
-    throw new Error('shell check requires a script path');
-  }
+  if (executable === 'php' && lower.includes('-r')) throw new Error('inline php check forbidden');
+}
+
+function validateSafeScriptPath(value) {
+  const normalized = validateRelativePath(value);
+  if (normalized === '.' || FORBIDDEN_SCRIPT_TOKEN.test(normalized.toLowerCase())) throw new Error('unsafe check script path');
 }
 
 function validateRelativePath(value) {
