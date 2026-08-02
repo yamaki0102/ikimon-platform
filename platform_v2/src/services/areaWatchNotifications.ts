@@ -13,11 +13,14 @@ export type EmitAreaWatchNotificationInput = {
 export type AreaWatchNotificationSummary = {
   areaWatchNotifications: number;
   blockedReason: ExperienceManagedTaxonNotificationBlockReason | null;
+  managedTaxonScopeKey: string | null;
 };
 
 export type AreaWatchParticipationSummary = {
   followedAreas: number;
 };
+
+const AREA_WATCH_NOTIFICATION_SAVEPOINT = "area_watch_notification_dispatch";
 
 function cleanId(value: string): string {
   return value.trim();
@@ -29,7 +32,13 @@ export async function emitAreaWatchNotificationForObservation(
 ): Promise<AreaWatchNotificationSummary> {
   const occurrenceId = cleanId(input.occurrenceId);
   const visitId = cleanId(input.visitId);
-  if (!occurrenceId || !visitId) return { areaWatchNotifications: 0, blockedReason: null };
+  if (!occurrenceId || !visitId) {
+    return {
+      areaWatchNotifications: 0,
+      blockedReason: null,
+      managedTaxonScopeKey: null,
+    };
+  }
 
   const exec = async (c: PoolClient): Promise<AreaWatchNotificationSummary> => {
     // The occurrence/visit pair and species identity come from the server-side
@@ -37,7 +46,11 @@ export async function emitAreaWatchNotificationForObservation(
     // sent area_watch row; link state and request flags cannot bypass Gate 0.
     const gate = await readCanonicalNotificationEligibility(c, { occurrenceId, visitId });
     if (!gate.allowed) {
-      return { areaWatchNotifications: 0, blockedReason: gate.reason };
+      return {
+        areaWatchNotifications: 0,
+        blockedReason: gate.reason,
+        managedTaxonScopeKey: gate.managedTaxonScopeKey,
+      };
     }
     const result = await c.query<{ delivery_id: string }>(
       `with new_visit as (
@@ -150,10 +163,29 @@ export async function emitAreaWatchNotificationForObservation(
         returning delivery_id::text`,
       [occurrenceId, visitId],
     );
-    return { areaWatchNotifications: result.rows.length, blockedReason: null };
+    return {
+      areaWatchNotifications: result.rows.length,
+      blockedReason: null,
+      managedTaxonScopeKey: gate.managedTaxonScopeKey,
+    };
   };
 
-  if (client) return await exec(client);
+  if (client) {
+    // Reassessment owns this transaction. Protect the complete optional
+    // area-watch branch, not only its gate read, so an INSERT failure can be
+    // rolled back without aborting the persisted AI assessment.
+    await client.query(`savepoint ${AREA_WATCH_NOTIFICATION_SAVEPOINT}`);
+    try {
+      const result = await exec(client);
+      await client.query(`release savepoint ${AREA_WATCH_NOTIFICATION_SAVEPOINT}`);
+      return result;
+    } catch (error) {
+      await client.query(`rollback to savepoint ${AREA_WATCH_NOTIFICATION_SAVEPOINT}`).catch(() => undefined);
+      await client.query(`release savepoint ${AREA_WATCH_NOTIFICATION_SAVEPOINT}`).catch(() => undefined);
+      throw error;
+    }
+  }
+
   const pool = getPool();
   const c = await pool.connect();
   try {
