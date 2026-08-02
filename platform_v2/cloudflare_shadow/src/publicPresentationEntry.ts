@@ -22,8 +22,9 @@ const delegatedWorker = baseWorker as DelegatedWorker;
 export default {
   ...delegatedWorker,
   async fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
-    if (!authorizeBrowserOAuthStart(request, env as OAuthBoundaryEnv)) {
-      return oauthErrorRedirect(request);
+    const oauthEnv = env as OAuthBoundaryEnv;
+    if (!authorizeBrowserOAuthStart(request, oauthEnv)) {
+      return oauthErrorRedirect(request, oauthEnv);
     }
 
     let response: Response;
@@ -31,7 +32,7 @@ export default {
       response = await delegatedWorker.fetch.call(delegatedWorker, request, env, ctx);
     } catch (error) {
       if (isBrowserOAuthStart(request)) {
-        return oauthErrorRedirect(request);
+        return oauthErrorRedirect(request, oauthEnv);
       }
       throw error;
     }
