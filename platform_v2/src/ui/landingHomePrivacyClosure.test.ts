@@ -70,6 +70,7 @@ function assertHidden(record: LandingObservation): void {
 
 test("guest Home requires an explicit successful public-feed gate", () => {
   assertHidden(proof());
+  assertHidden(proof({ publicFeedEligible: true }));
 
   const html = render([proof({ publicFeedEligible: true, publicFeedGateStatus: "public_eligible" })]);
   assert.match(html, /home-guest-proof is-count-1/);
