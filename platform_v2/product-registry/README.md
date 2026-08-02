@@ -7,10 +7,13 @@ This directory is the machine-readable product contract for ZUKAN's main user-fa
 - `product.json`: product identity, required surfaces, global registry rules
 - `surfaces.json`: pages/screens, roles, privacy, capabilities, states, entry points, transitions
 - `capabilities.json`: user/system abilities, write failure and retry contracts, prohibited side effects
-- `journeys.json`: end-to-end user goals and required outcomes
+- `journeys.json`: end-to-end user goals, required outcomes and stable requirement references
 - `design.json`: foundation, brand, archetype, surface design contracts, time-bounded exceptions
 - `content.json`: audience, message, CTA, prohibited claims, SEO and analytics contracts
-- `quality.json`: acceptance criteria, state coverage, tests and release gates
+- `quality.json`: acceptance criteria, stable requirement references, state coverage, tests and release gates
+- `requirements.json`: product-owned stable requirement IDs and human-readable acceptance meaning
+
+Requirement meaning belongs here. Evidence claim IDs, Collector authority and SHA-binding rules belong to the central Universal Outcome Resolver and are intentionally not duplicated in this repository.
 
 ## Validation
 
@@ -18,10 +21,10 @@ This directory is the machine-readable product contract for ZUKAN's main user-fa
 cd platform_v2
 npx tsx src/scripts/checkProductRegistry.ts
 npm run typecheck
-npm run test:node -- --test-name-pattern="product registry|kubiaka"
+npm run test:node -- --test-name-pattern="product registry|Kubiaka requirements|quality contracts"
 ```
 
-`src/productRegistry.test.ts` runs under the normal `test:node` glob and fails when:
+`src/productRegistry.test.ts` and `src/productRegistryRequirements.test.ts` run under the normal `test:node` glob and fail when:
 
 - a required surface is missing
 - a registered route does not exist in `siteMap.ts` or the Kubiaka route constants
@@ -30,10 +33,11 @@ npm run test:node -- --test-name-pattern="product registry|kubiaka"
 - write capabilities omit failure or retry contracts
 - design or quality contracts omit a registered state
 - a Journey points to unknown surfaces or states
+- a stable requirement is duplicated, empty, references an unknown quality contract or is not referenced by quality/journey data
 - a design exception lacks a rule, reason, owner or expiry
 
 ## Update rule
 
-Any change to a main route, CTA, privacy boundary, user-visible state, campaign message, design exception, or release test must update this registry in the same PR.
+Any change to a main route, CTA, privacy boundary, user-visible state, campaign message, design exception, stable requirement, or release test must update this registry in the same PR.
 
 The registry does not replace source code or runtime evidence. Source code remains the implementation truth; exact-SHA staging and runtime read-back remain the release truth. This registry is the contract that makes drift between intent, implementation, design and tests detectable.
