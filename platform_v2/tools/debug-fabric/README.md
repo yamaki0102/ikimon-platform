@@ -2,12 +2,37 @@
 
 This directory is the first executable slice of the debugging system for ZUKAN, AI Commander, the release control plane, and later iPortal.
 
-The Pixel is the control, review, and notification device. The authoritative test execution belongs in Sandbox Executor or another isolated container. Shared staging is used only to prove behavior against an exact deployed runtime.
+The Pixel is the control, review, and notification device. Repeated debugging, fault injection, test generation, and fix loops run locally through Codex Luna in an isolated WSLC worktree. Terra is a conditional escalation lane only after repeated Luna passes leave the same cross-service failure unresolved. Cloudflare is not a debugging loop: it is reserved for one exact-SHA staging deploy/verify proof and, when required, one rollback proof after local green.
+
+## Permanent execution policy
+
+The source of truth is `policy/execution-policy.v1.json` and the deterministic selector in `lib/execution-policy.mjs`.
+
+- default lane: `local_codex_luna`;
+- Terra threshold: at least three Luna passes, at least two failures with the same signature, and a multi-repository fault/fix/control-plane scope;
+- Pixel Opus: independent read-only review after a candidate patch or full-diff snapshot exists;
+- Cloudflare: local green + exact candidate SHA + real runtime dependency only;
+- Cloudflare debugging iterations: zero;
+- per-SHA Cloudflare budget: one staging deploy/verify and one rollback proof;
+- GitHub Actions: forbidden as an execution dependency;
+- AI API billing: forbidden;
+- production writes, customer sends, production DB/secret/DNS/permission changes: forbidden.
+
+Plan a task before execution:
+
+```bash
+node platform_v2/tools/debug-fabric/plan-execution.mjs \
+  --input /tmp/debug-execution-request.json \
+  --out /tmp/debug-execution-plan.json
+```
+
+A request for Cloudflare before local green is returned as `BLOCKED`. A request for Terra before the escalation threshold is also returned as `BLOCKED`. This prevents the system from drifting back to Cloudflare-first debugging when limits or context change.
 
 ## Implemented now
 
 - strict `ikimon.debug-run/v1` manifest;
 - strict `ikimon.control-plane-run/v1` cross-service trace contract;
+- strict `ikimon.debug-execution-request/v1` lane-selection contract;
 - `PASS`, `FAIL`, `BLOCKED`, `UNSAFE` terminal states;
 - exact source SHA verification before, during, and after a run;
 - per-layer runtime SHA verification across the control plane;
@@ -64,10 +89,10 @@ The result identifies the first responsible layer, missing trace layers, runtime
 
 ## Next reviewed slices
 
-1. Emit the shared trace contract from Intake, Command Bus, Queue, Executor, Release Commander, Release Command Bus, and target Workers.
-2. Executor-only staging persona/session issuance; no public session-mint route.
-3. Single-writer `debug_run_id` lease, resource ledger, cleanup, and zero-residue gate.
-4. Default-deny side-effect sink for mail, LINE, push, Area Watch, publication, payment, and external AI intent.
-5. Signed `debug-run/v1` dispatch through the existing Command Bus and Release Commander evidence index.
+1. Add a resumable WSLC Local Luna runner that consumes the execution plan, creates an isolated worktree, runs deterministic tests, clusters failures, and writes a compact result ledger.
+2. Emit the shared trace contract from Intake, Command Bus, Queue, Executor, Release Commander, Release Command Bus, and target Workers.
+3. Executor-only staging persona/session issuance; no public session-mint route.
+4. Single-writer `debug_run_id` lease, resource ledger, cleanup, and zero-residue gate.
+5. Default-deny side-effect sink for mail, LINE, push, Area Watch, publication, payment, and external AI intent.
 6. Failure report snapshot to Pixel Review Worker Opus analysis and Android notification.
-7. Browser-only checks in an Executor container after the HTTP critical pack is stable.
+7. Browser-only checks in a local WSLC container after the HTTP critical pack is stable.
