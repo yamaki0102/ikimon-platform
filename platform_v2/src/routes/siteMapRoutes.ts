@@ -9,24 +9,52 @@ import { registerRegionalSourceRoutes } from "./regionalSources.js";
 
 const STAGING_ORIGIN = "https://staging.ikimon.life";
 const PRODUCTION_ORIGIN = "https://ikimon.life";
+const ALLOWED_PUBLIC_ORIGINS = new Set([STAGING_ORIGIN, PRODUCTION_ORIGIN]);
+const PUBLIC_ORIGIN_BY_HOST = new Map([
+  ["staging.ikimon.life", STAGING_ORIGIN],
+  ["ikimon.life", PRODUCTION_ORIGIN],
+  ["www.ikimon.life", PRODUCTION_ORIGIN],
+]);
 const STAGING_ROBOTS_META = '<meta name="robots" content="noindex, nofollow" />';
 const ROBOTS_META_PATTERN = /<meta\b[^>]*\bname=["']robots["'][^>]*>/gi;
 
-function requestOrigin(request: { headers: Record<string, unknown> }): string {
-  const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "ikimon.life");
-  const proto = String(request.headers["x-forwarded-proto"] ?? "https").split(",")[0]?.trim() || "https";
-  return `${proto}://${host}`;
+function headerFirst(value: unknown): string {
+  return String(value ?? "").split(",")[0]?.trim() ?? "";
+}
+
+function publicOriginFromHost(value: unknown): string {
+  try {
+    const host = new URL(`https://${headerFirst(value)}`).hostname.toLowerCase();
+    return PUBLIC_ORIGIN_BY_HOST.get(host) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function explicitPublicOrigin(value: string): string {
+  const normalized = String(value ?? "").trim().replace(/\/+$/, "");
+  return ALLOWED_PUBLIC_ORIGINS.has(normalized) ? normalized : "";
+}
+
+function requestOrigin(
+  request: { headers: Record<string, unknown> },
+  publicAssetOrigin: string = resolveZukanPublicAssetOrigin(),
+): string {
+  const configuredOrigin = explicitPublicOrigin(publicAssetOrigin);
+  if (configuredOrigin) return configuredOrigin;
+
+  const directOrigin = publicOriginFromHost(request.headers.host);
+  if (directOrigin) return directOrigin;
+
+  const forwardedOrigin = publicOriginFromHost(request.headers["x-forwarded-host"]);
+  return forwardedOrigin || PRODUCTION_ORIGIN;
 }
 
 export function isStagingRequest(
   request: { headers: Record<string, unknown> },
   publicAssetOrigin: string = resolveZukanPublicAssetOrigin(),
 ): boolean {
-  const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "")
-    .split(",")[0]
-    ?.trim()
-    .toLowerCase();
-  return host === "staging.ikimon.life" || publicAssetOrigin === STAGING_ORIGIN;
+  return requestOrigin(request, publicAssetOrigin) === STAGING_ORIGIN;
 }
 
 export function stagingRobotsTxt(): string {
