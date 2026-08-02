@@ -1,0 +1,34 @@
+{
+  "schema": "ikimon.local-debug-task/v1",
+  "task_id": "ai-commander-control-plane-debug",
+  "repository_path": "/absolute/path/to/local/repository",
+  "base_sha": "0000000000000000000000000000000000000000",
+  "branch_name": "debug/ai-commander-control-plane",
+  "scope": "full_control_plane",
+  "risk": "p0",
+  "repository_count": 3,
+  "objective": "Find and repair the local source defects that prevent the AI Commander and release control plane from completing exact-SHA staging validation. Reproduce authorization, registry, queue, executor, credential, reconcile, runtime-identity, and evidence failures locally before any Cloudflare proof.",
+  "acceptance_criteria": [
+    "All configured local deterministic checks pass from the exact base SHA.",
+    "Known authorization-before-create and authorization-before-reconcile failures have regression coverage.",
+    "Missing or insufficient credentials fail with a layer-specific code and never become an opaque failed state.",
+    "No production, Cloudflare deployment, GitHub Actions, secret, DNS, Access, database, customer-send, or external-send mutation occurs.",
+    "The runner creates one local candidate commit and immutable local evidence bound to that exact candidate SHA."
+  ],
+  "checks": [
+    {
+      "id": "debug-fabric-verify",
+      "argv": ["bash", "platform_v2/tools/debug-fabric/verify.sh"],
+      "cwd": ".",
+      "timeout_seconds": 1800,
+      "max_output_bytes": 1048576
+    }
+  ],
+  "max_luna_passes": 3,
+  "max_terra_passes": 1,
+  "allow_terra": true,
+  "max_changed_files": 50,
+  "allowed_path_prefixes": ["platform_v2/tools/debug-fabric"],
+  "allow_no_changes": false,
+  "commit_message": "feat(debug-fabric): add local AI Commander debug candidate"
+}

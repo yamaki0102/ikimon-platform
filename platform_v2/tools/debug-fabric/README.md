@@ -34,6 +34,14 @@ A request for Cloudflare before local green is returned as `BLOCKED`. A request 
 - strict `ikimon.debug-run/v1` manifest;
 - strict `ikimon.control-plane-run/v1` cross-service trace contract;
 - strict `ikimon.debug-execution-request/v1` lane-selection contract;
+- strict `ikimon.local-debug-task/v1` Local Luna task contract;
+- resumable WSLC Local Luna runner with an isolated exact-SHA Git worktree;
+- Luna-first execution and bounded Terra escalation using normalized failure signatures;
+- append-only state/events/log evidence and one runner-owned local candidate commit;
+- credential-stripped deterministic checks and Codex guard configuration;
+- Git config/ref guards, disabled runner-owned commit hooks, and closed push/deploy surfaces;
+- changed-file, file-type, symlink, script-path, and path-prefix gates before candidate creation;
+- candidate commit and evidence crash-window recovery;
 - `PASS`, `FAIL`, `BLOCKED`, `UNSAFE` terminal states;
 - exact source SHA verification before, during, and after a run;
 - per-layer runtime SHA verification across the control plane;
@@ -52,6 +60,22 @@ A request for Cloudflare before local green is returned as `BLOCKED`. A request 
 ```bash
 bash platform_v2/tools/debug-fabric/verify.sh
 ```
+
+## Run a local Luna task
+
+The Local Runner requires Node.js 22+, Git, and Codex CLI already signed in through the user's ChatGPT subscription. It explicitly removes `OPENAI_API_KEY` and does not use a usage-billed AI API.
+
+```bash
+cp platform_v2/tools/debug-fabric/local-runner/profiles/ai-commander-local-debug.template.json \
+  /tmp/ai-commander-local-debug.json
+
+node platform_v2/tools/debug-fabric/local-runner/run-local.mjs \
+  --task /tmp/ai-commander-local-debug.json
+```
+
+The runner creates its private ledger and worktree under `~/.ikimon-debug-fabric/runs/` by default. A successful run creates a local `debug/*` candidate commit and immutable `local-evidence.json`. It does not push, create a pull request, deploy, or modify production.
+
+See `local-runner/README.md` for the task schema, result layout, resume behavior, and safety boundary.
 
 ## Run against ZUKAN staging
 
@@ -90,7 +114,7 @@ The result identifies the first responsible layer, missing trace layers, runtime
 
 ## Next reviewed slices
 
-1. Add a resumable WSLC Local Luna runner that consumes the execution plan, creates an isolated worktree, runs deterministic tests, clusters failures, and writes a compact result ledger.
+1. Add the GitHub Issue intake and candidate publisher adapters: map repository identity to a local path, run the Local Luna task, push only an evidence-bound `debug/*` candidate, create a Draft PR, and post a compact result.
 2. Emit the shared trace contract from Intake, Command Bus, Queue, Executor, Release Commander, Release Command Bus, and target Workers.
 3. Executor-only staging persona/session issuance; no public session-mint route.
 4. Single-writer `debug_run_id` lease, resource ledger, cleanup, and zero-residue gate.
