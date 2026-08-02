@@ -67,16 +67,24 @@ export async function runDebugFabric(rawManifest, options = {}) {
   const finished = new Date();
   result.finished_at = finished.toISOString();
   result.duration_ms = Math.max(0, finished.getTime() - started.getTime());
-  const paths = await writeEvidence(outDir, result, secrets);
-  return { result, paths };
+  const evidence = await writeEvidence(outDir, result, secrets);
+  return { result: evidence.result, paths: evidence.paths };
 }
 
 async function identity(manifest, secrets, fetchImpl) {
   const response = await request(manifest, { method: 'GET', path: manifest.identity.path, headers_profile: 'public' }, secrets, fetchImpl);
+  const deploymentId = manifest.identity.deployment_id_header
+    ? response.headers[manifest.identity.deployment_id_header] ?? null
+    : null;
+  const schemaDigest = manifest.identity.schema_digest_header
+    ? response.headers[manifest.identity.schema_digest_header] ?? null
+    : null;
+  if (manifest.identity.deployment_id_header && !deploymentId) throw new DebugError('BLOCKED', 'deployment_id_missing');
+  if (manifest.identity.schema_digest_header && !schemaDigest) throw new DebugError('BLOCKED', 'schema_digest_missing');
   return {
     source_sha: response.headers[manifest.identity.source_sha_header] ?? null,
-    deployment_id: manifest.identity.deployment_id_header ? response.headers[manifest.identity.deployment_id_header] ?? null : null,
-    schema_digest: manifest.identity.schema_digest_header ? response.headers[manifest.identity.schema_digest_header] ?? null : null,
+    deployment_id: deploymentId,
+    schema_digest: schemaDigest,
   };
 }
 
@@ -109,14 +117,19 @@ async function executeProbe(manifest, probe, secrets, fetchImpl) {
 function evaluate(assertion, response, secrets) {
   switch (assertion.type) {
     case 'status': return { pass: response.status === assertion.equals, code: 'status_mismatch' };
-    case 'contains_secret': return { pass: response.bodyText.includes(secrets[assertion.secret]), code: 'required_secret_missing' };
-    case 'excludes_secret': return { pass: !response.bodyText.includes(secrets[assertion.secret]), code: 'forbidden_secret_found' };
+    case 'contains_secret': return { pass: response.bodyText.includes(resolvedSecret(secrets, assertion.secret)), code: 'required_secret_missing' };
+    case 'excludes_secret': return { pass: !response.bodyText.includes(resolvedSecret(secrets, assertion.secret)), code: 'forbidden_secret_found' };
     case 'contains_text': return { pass: response.bodyText.includes(assertion.text), code: 'required_text_missing' };
     case 'excludes_text': return { pass: !response.bodyText.includes(assertion.text), code: 'forbidden_text_found' };
     case 'header_present': return { pass: Object.hasOwn(response.headers, assertion.header), code: 'required_header_missing' };
     case 'header_equals': return { pass: response.headers[assertion.header] === assertion.value, code: 'header_value_mismatch' };
     default: return { pass: false, code: 'unsupported_assertion' };
   }
+}
+
+function resolvedSecret(secrets, name) {
+  if (!Object.hasOwn(secrets, name)) throw new DebugError('BLOCKED', 'assertion_secret_unresolved');
+  return secrets[name];
 }
 
 function baseResult(runId, started) {
