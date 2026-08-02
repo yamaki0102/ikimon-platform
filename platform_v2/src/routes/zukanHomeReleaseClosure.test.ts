@@ -17,14 +17,18 @@ test("staging robots stay deny-all while satisfying canonical static-origin audi
   assert.doesNotMatch(robots, /Sitemap:|LLMs:/);
 });
 
-test("staging robots metadata replaces any contradictory index directive", () => {
+test("staging robots metadata normalizes every contradictory directive", () => {
   assert.equal(
-    addStagingRobotsMeta('<html><head><meta name="robots" content="index, follow"></head></html>'),
-    '<html><head><meta name="robots" content="noindex, nofollow" /></head></html>',
+    addStagingRobotsMeta('<html><head><meta name="robots" content="index"><meta content="follow" name="robots"></head></html>'),
+    '<html><head>  <meta name="robots" content="noindex, nofollow" />\n</head></html>',
   );
   assert.equal(
     addStagingRobotsMeta("<html><head></head></html>"),
     '<html><head>  <meta name="robots" content="noindex, nofollow" />\n</head></html>',
+  );
+  assert.equal(
+    addStagingRobotsMeta("<main>no head</main>"),
+    '<meta name="robots" content="noindex, nofollow" />\n<main>no head</main>',
   );
 });
 
@@ -39,6 +43,7 @@ test("staging denies indexing while production remains indexable", async () => {
     assert.equal(stagingRoot.statusCode, 200);
     assert.equal(stagingRoot.headers["x-robots-tag"], "noindex, nofollow");
     assert.match(stagingRoot.body, /<meta name="robots" content="noindex, nofollow" \/>/);
+    assert.equal((stagingRoot.body.match(/name="robots"/g) ?? []).length, 1);
 
     const stagingRobots = await app.inject({
       method: "GET",
