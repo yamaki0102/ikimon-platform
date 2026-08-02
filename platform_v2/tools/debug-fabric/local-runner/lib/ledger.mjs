@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { appendFile, mkdir, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export function sha256(value) {
@@ -13,34 +13,42 @@ export function stableStringify(value) {
 export async function openRunLedger(runDir, task) {
   const absolute = path.resolve(runDir);
   await mkdir(absolute, { recursive: true, mode: 0o700 });
-  const taskHash = sha256(stableStringify(task));
-  const statePath = path.join(absolute, 'state.json');
-  const taskPath = path.join(absolute, 'task.json');
-  let state;
-  try {
-    state = JSON.parse(await readFile(statePath, 'utf8'));
-    const persistedTask = JSON.parse(await readFile(taskPath, 'utf8'));
-    if (sha256(stableStringify(persistedTask)) !== taskHash) throw new Error('task_hash_mismatch_on_resume');
-  } catch (error) {
-    if (error?.code !== 'ENOENT') throw error;
-    await writeExclusive(taskPath, `${JSON.stringify(task, null, 2)}\n`);
-    state = initialState(taskHash);
-    await atomicJson(statePath, state);
-  }
   const releaseLock = await acquireLock(path.join(absolute, 'run.lock'));
-  return Object.freeze({
-    run_dir: absolute,
-    state_path: statePath,
-    task_path: taskPath,
-    events_path: path.join(absolute, 'events.jsonl'),
-    logs_dir: path.join(absolute, 'logs'),
-    artifacts_dir: path.join(absolute, 'artifacts'),
-    home_dir: path.join(absolute, 'isolated-home'),
-    worktree_dir: path.join(absolute, 'worktree'),
-    task_hash: taskHash,
-    state,
-    release_lock: releaseLock,
-  });
+  try {
+    const taskHash = sha256(stableStringify(task));
+    const statePath = path.join(absolute, 'state.json');
+    const taskPath = path.join(absolute, 'task.json');
+    let state;
+    try {
+      state = JSON.parse(await readFile(statePath, 'utf8'));
+      const persistedTask = JSON.parse(await readFile(taskPath, 'utf8'));
+      if (sha256(stableStringify(persistedTask)) !== taskHash) throw new Error('task_hash_mismatch_on_resume');
+      if (state.task_hash !== taskHash) throw new Error('state_task_hash_mismatch_on_resume');
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+      await writeExclusive(taskPath, `${JSON.stringify(task, null, 2)}\n`);
+      state = initialState(taskHash);
+      await atomicJson(statePath, state);
+    }
+    return Object.freeze({
+      run_dir: absolute,
+      state_path: statePath,
+      task_path: taskPath,
+      events_path: path.join(absolute, 'events.jsonl'),
+      logs_dir: path.join(absolute, 'logs'),
+      artifacts_dir: path.join(absolute, 'artifacts'),
+      home_dir: path.join(absolute, 'isolated-home'),
+      git_guard_dir: path.join(absolute, 'git-guard'),
+      repository_guard_path: path.join(absolute, 'repository-guard.json'),
+      worktree_dir: path.join(absolute, 'worktree'),
+      task_hash: taskHash,
+      state,
+      release_lock: releaseLock,
+    });
+  } catch (error) {
+    await releaseLock();
+    throw error;
+  }
 }
 
 export async function appendEvent(ledger, type, detail = {}) {
@@ -67,6 +75,11 @@ export async function updateState(ledger, patch) {
   return next;
 }
 
+export async function readJsonIfExists(file) {
+  try { return JSON.parse(await readFile(file, 'utf8')); }
+  catch (error) { if (error?.code === 'ENOENT') return null; throw error; }
+}
+
 export async function writeExclusiveJson(file, value) {
   await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
   await writeExclusive(file, `${JSON.stringify(value, null, 2)}\n`);
@@ -84,7 +97,12 @@ async function acquireLock(file) {
     await rename(file, `${file}.stale-${Math.round(info.mtimeMs)}-${randomBytes(3).toString('hex')}`);
     await writeExclusive(file, `${JSON.stringify({ pid: process.pid, acquired_at: new Date().toISOString(), recovered: true })}\n`);
   }
-  return async () => { await rm(file, { force: true }); };
+  let released = false;
+  return async () => {
+    if (released) return;
+    released = true;
+    await rm(file, { force: true });
+  };
 }
 
 function processAlive(pid) {
@@ -102,6 +120,9 @@ function initialState(taskHash) {
     terra_passes: 0,
     same_signature_failures: 0,
     last_failure_signature: null,
+    last_failure_summary: null,
+    active_lane: null,
+    active_pass: null,
     candidate_sha: null,
     evidence_sha256: null,
     created_at: now,
