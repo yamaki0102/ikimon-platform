@@ -1,7 +1,0 @@
-﻿{
-    "task_id":  "zukan-pr1514-gate0-20260802",
-    "status":  "complete",
-    "claude_model":  "claude-opus-4-8",
-    "gemini_model":  "gemini-2.5-flash",
-    "adoption_status":  "pending_reconciliation"
-}
