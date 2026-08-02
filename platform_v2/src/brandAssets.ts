@@ -1,10 +1,15 @@
 const OGP_DEFAULT_PATH = "/assets/brand/zukan-ogp-default.png";
+const ALLOWED_PUBLIC_ASSET_ORIGINS = new Set([
+  "https://ikimon.life",
+  "https://staging.ikimon.life",
+]);
 
 export function zukanOgpDefaultAssetUrl(
-  materializationToken: string | undefined = process.env.DEV_DUMMY_ADMIN_TOKEN,
+  publicAssetOrigin: string | undefined = process.env.ZUKAN_PUBLIC_ASSET_ORIGIN,
 ): string {
-  return materializationToken === "materialize-admin-preview"
-    ? `https://staging.ikimon.life${OGP_DEFAULT_PATH}`
+  const normalizedOrigin = String(publicAssetOrigin ?? "").trim().replace(/\/+$/, "");
+  return ALLOWED_PUBLIC_ASSET_ORIGINS.has(normalizedOrigin)
+    ? `${normalizedOrigin}${OGP_DEFAULT_PATH}`
     : OGP_DEFAULT_PATH;
 }
 
