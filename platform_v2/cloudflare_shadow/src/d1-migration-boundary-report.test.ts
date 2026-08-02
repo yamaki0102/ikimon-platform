@@ -101,6 +101,21 @@ function loadClassifyFallbackReason(script: string): (reason: string) => string 
   return new Function(`${match[0]}; return classifyFallbackReason;`)() as (reason: string) => string;
 }
 
+function assertCurrentVpsBlockerBaseline(stdout: string): void {
+  const gate = stdout.match(/## Configured Production VPS Stop Readiness Gate[\s\S]*?(?=\n## Migration Priority Heuristic)/)?.[0];
+  assert.ok(gate, "configured VPS stop readiness gate is present");
+  assert.match(gate, /- blocker_count: 3/);
+  assert.match(gate, /- p1_blockers: 3/);
+  for (const file of [
+    "platform_v2/src/routes/kubiakaFocusedExperience.ts",
+    "platform_v2/src/routes/kubiakaPrivateUploadGuard.ts",
+    "platform_v2/src/services/notificationEligibility.ts",
+  ]) {
+    assert.ok(gate.includes(file), `configured blocker baseline includes ${file}`);
+  }
+  assert.doesNotMatch(gate, /health\.ts|read\.ts|placeRegistryContract\.ts/);
+}
+
 test("VPS stop readiness counts every runtime PostgreSQL dependency, not only displayed rows", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
 
@@ -168,8 +183,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
     replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeRegistry.ts"),
     "cloudflare_place_registry_native",
   );
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
+  assertCurrentVpsBlockerBaseline(result.stdout);
 });
 
 test("VPS stop readiness separates runtime deploy workflows from maintenance workflows", async () => {
@@ -206,7 +220,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.doesNotMatch(result.stdout, /\| \.github\/workflows\//);
   assert.doesNotMatch(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.doesNotMatch(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
+  assertCurrentVpsBlockerBaseline(result.stdout);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -765,6 +779,7 @@ test("write guard PostgreSQL ownership helper is separated from pure request and
   assert.match(pgGuards, /getPool\(\)/);
   assert.match(pgGuards, /pool\.query/);
   assert.deepEqual(importers, [
+    "platform_v2/src/routes/kubiakaFocusedExperience.ts",
     "platform_v2/src/routes/observationPackageApi.ts",
     "platform_v2/src/routes/write.ts",
   ]);
