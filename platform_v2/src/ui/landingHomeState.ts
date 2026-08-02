@@ -140,7 +140,7 @@ function renderGuestPhotoTile(options: LandingHomeStateOptions, item: LandingObs
 function isGuestVisibleRecord(item: LandingObservation): boolean {
   if (item.publicFeedEligible !== true || item.publicLocation?.scope === "blurred") return false;
   const status = item.publicFeedGateStatus;
-  return !status || status === "public_eligible" || status === "public_limited";
+  return status === "public_eligible" || status === "public_limited";
 }
 
 function renderGuestProof(options: LandingHomeStateOptions, publicItems: LandingObservation[]): string {
@@ -388,8 +388,10 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
 export function renderLandingHomeState(options: LandingHomeStateOptions): { heroHtml: string; bodyHtml: string } {
   const ownItems = unique(options.snapshot.myFeed.filter((item) => item.entryType !== "identification"));
   const ownKeys = new Set(ownItems.map(observationKey));
-  const publicItems = unique([...(options.snapshot.publicProofFeed || []), ...options.snapshot.feed])
-    .filter((item) => isGuestVisibleRecord(item) && !ownKeys.has(observationKey(item)));
+  const publicItems = unique(
+    [...(options.snapshot.publicProofFeed || []), ...options.snapshot.feed]
+      .filter((item) => isGuestVisibleRecord(item) && !ownKeys.has(observationKey(item))),
+  );
   return {
     heroHtml: `<div class="home-state-root" data-home-contract="state-split-v1" data-home-auth-state="${options.isLoggedIn ? "member" : "guest"}">${renderGuest(options, publicItems)}`,
     bodyHtml: `${renderMember(options, ownItems)}</div>`,
