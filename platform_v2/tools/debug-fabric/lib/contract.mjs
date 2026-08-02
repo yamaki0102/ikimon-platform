@@ -1,8 +1,9 @@
 export const STATUS_PRIORITY = Object.freeze({ PASS: 0, FAIL: 1, BLOCKED: 2, UNSAFE: 3 });
-const SHA40 = /^[0-9a-f]{40}$/;
-const IDENTIFIER = /^[a-z][a-z0-9._-]{0,63}$/;
-const ENV_NAME = /^[A-Z][A-Z0-9_]{1,95}$/;
-const HEADER_NAME = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const SHA40 = /^[0-9a-f]{40}$/u;
+const IDENTIFIER = /^[a-z][a-z0-9._-]{0,63}$/u;
+const ENV_NAME = /^[A-Z][A-Z0-9_]{1,95}$/u;
+const HEADER_NAME = /^[a-z0-9][a-z0-9-]{0,63}$/u;
+const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 const SENSITIVE = new Set(['authorization', 'cookie', 'proxy-authorization', 'x-api-key']);
 
 export class DebugError extends Error {
@@ -56,7 +57,7 @@ export function resolveSecrets(specs, env) {
       if (spec.required) missing.push(spec.env);
       continue;
     }
-    if (typeof value !== 'string' || value.length > 8192 || /[\0\r\n]/.test(value)) throw new DebugError('UNSAFE', 'secret_value_invalid');
+    if (typeof value !== 'string' || value.length > 8192 || /[\0\r\n]/u.test(value)) throw new DebugError('UNSAFE', 'secret_value_invalid');
     values[name] = value;
   }
   return { values, missing: missing.sort() };
@@ -64,15 +65,17 @@ export function resolveSecrets(specs, env) {
 
 export function safePath(value) {
   const text = String(value ?? '');
-  if (!text.startsWith('/') || text.startsWith('//') || text.includes('\\') || /[\r\n]/.test(text)) throw new DebugError('UNSAFE', 'unsafe_path');
+  if (!text.startsWith('/') || text.startsWith('//') || text.includes('\\') || /[\r\n]/u.test(text)) throw new DebugError('UNSAFE', 'unsafe_path');
   if (text.split('?')[0].split('/').some((part) => part === '.' || part === '..')) throw new DebugError('UNSAFE', 'path_traversal_forbidden');
   return text;
 }
 
 export function normalizeHost(value) {
   const text = String(value ?? '').toLowerCase();
-  if (text === '::1') return text;
-  if (text.includes('*') || text.length > 253 || !/^([a-z0-9-]+\.)*[a-z0-9-]+$/.test(text)) throw new Error('invalid host');
+  if (text === '::1' || text === '[::1]') return '::1';
+  if (text.includes('*') || text.length > 253) throw new Error('invalid host');
+  const labels = text.split('.');
+  if (labels.length < 1 || labels.some((label) => !DNS_LABEL.test(label))) throw new Error('invalid host');
   return text;
 }
 
@@ -84,7 +87,7 @@ export function normalizeHeader(value) {
 
 export function safeHeaderValue(value) {
   const text = String(value ?? '');
-  if (text.length > 4096 || /[\0\r\n]/.test(text)) throw new DebugError('UNSAFE', 'header_injection_forbidden');
+  if (text.length > 4096 || /[\0\r\n]/u.test(text)) throw new DebugError('UNSAFE', 'header_injection_forbidden');
   return text;
 }
 
@@ -103,9 +106,15 @@ function base(value, allowed, allowLocal) {
     if (!allowLocal || url.protocol !== 'http:') throw new DebugError('UNSAFE', 'localhost_not_explicitly_allowed');
   } else {
     if (url.protocol !== 'https:') throw new DebugError('UNSAFE', 'staging_requires_https');
-    if (!name.includes('staging')) throw new DebugError('UNSAFE', 'host_not_staging_named');
+    if (!isStagingNamedHost(name)) throw new DebugError('UNSAFE', 'host_not_staging_named');
+    if (url.port && url.port !== '443') throw new DebugError('UNSAFE', 'staging_nonstandard_port_forbidden');
   }
   return `${url.protocol}//${url.host}`;
+}
+
+function isStagingNamedHost(name) {
+  const firstLabel = name.split('.')[0];
+  return firstLabel === 'staging' || firstLabel.endsWith('-staging');
 }
 
 function identitySpec(raw) {
