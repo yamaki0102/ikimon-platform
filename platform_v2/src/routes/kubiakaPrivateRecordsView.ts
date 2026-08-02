@@ -22,7 +22,7 @@ const KUBIAKA_PRIVATE_DOCUMENT_STYLES = `
 html{background:var(--kpr-paper);font-family:Inter,"Noto Sans JP","Hiragino Sans",system-ui,sans-serif;color:var(--kpr-ink)}
 body{min-height:100vh;margin:0;background:linear-gradient(180deg,#fbfdfb,var(--kpr-paper))}
 a{color:inherit}
-.kpr-skip{position:fixed;z-index:10;left:12px;top:12px;transform:translateY(-160%);padding:10px 14px;border-radius:12px;background:#fff;color:var(--kpr-green);font-weight:900}
+.kpr-skip{position:fixed;z-index:10;left:12px;top:12px;transform:translateY(-160%);min-height:56px;padding:10px 14px;border-radius:12px;display:inline-flex;align-items:center;background:#fff;color:var(--kpr-green);font-weight:900}
 .kpr-skip:focus{transform:none}
 .kpr-site-header{border-bottom:1px solid rgba(20,63,46,.12);background:rgba(255,255,255,.96)}
 .kpr-site-header-inner{width:min(1040px,calc(100% - 32px));min-height:64px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px}
@@ -82,7 +82,7 @@ function detailHref(basePath: string, lang: SiteLang, visitId: string): string {
 function mediaHref(basePath: string, visitId: string, photoIndex: number): string {
   return withBasePath(
     basePath,
-    `${KUBIAKA_PRIVATE_RECORD_MEDIA_PREFIX}/${encodeURIComponent(visitId)}/photos/${photoIndex}`,
+    `${KUBIAAKA_PRIVATE_RECORD_MEDIA_PREFIX}/${encodeURIComponent(visitId)}/photos/${photoIndex}`,
   );
 }
 
