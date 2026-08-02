@@ -1,0 +1,31 @@
+{
+  "schema": "ikimon.control-plane-run/v1",
+  "environment": "staging",
+  "debug_run_id": "debug-ai-commander-template",
+  "trace_id": "trace-ai-commander-template",
+  "target": {
+    "project_id": "ai-mail-commander",
+    "repository": "yamaki0102/ai-mail-commander",
+    "exact_source_sha": "0000000000000000000000000000000000000000",
+    "action": "validate_repository"
+  },
+  "expected_layers": [
+    "intake",
+    "command_bus",
+    "queue",
+    "executor",
+    "release_commander",
+    "release_command_bus",
+    "target_runtime"
+  ],
+  "expected_runtime_identities": {
+    "intake": "0000000000000000000000000000000000000000",
+    "command_bus": "0000000000000000000000000000000000000000",
+    "queue": "0000000000000000000000000000000000000000",
+    "executor": "0000000000000000000000000000000000000000",
+    "release_commander": "0000000000000000000000000000000000000000",
+    "release_command_bus": "0000000000000000000000000000000000000000",
+    "target_runtime": "0000000000000000000000000000000000000000"
+  },
+  "observations": []
+}

@@ -1,0 +1,63 @@
+{
+  "schema": "ikimon.debug-execution-policy/v1",
+  "policy_id": "local-luna-first-20260802",
+  "primary_lane": "local_codex_luna",
+  "thresholds": {
+    "terra_minimum_luna_passes": 3,
+    "terra_minimum_same_signature_failures": 2,
+    "terra_minimum_repository_count": 2,
+    "cloud_minimum_luna_passes": 1
+  },
+  "local_green_contract": {
+    "requires_verified_sha": true,
+    "requires_evidence_sha256": true,
+    "verified_sha_must_equal_candidate_sha": true
+  },
+  "lanes": {
+    "local_codex_luna": {
+      "purpose": "default exploration, test generation, fault injection, fix loops, and repeated regression runs",
+      "cloud_mutation": false,
+      "production_mutation": false
+    },
+    "local_codex_terra": {
+      "purpose": "conditional escalation only after repeated Luna passes leave the same cross-service failure unresolved",
+      "cloud_mutation": false,
+      "production_mutation": false
+    },
+    "pixel_opus_review": {
+      "purpose": "independent read-only review after a candidate patch or full-diff snapshot exists",
+      "cloud_mutation": false,
+      "production_mutation": false
+    },
+    "cloudflare_final_proof": {
+      "purpose": "exact-SHA staging identity, real binding and credential scope, deploy-verify, and rollback proof only",
+      "requires_local_green": true,
+      "max_deploy_runs_per_sha": 1,
+      "max_rollback_runs_per_sha": 1,
+      "debug_iterations_allowed": 0,
+      "production_mutation": false
+    }
+  },
+  "forbidden_defaults": [
+    "github_actions",
+    "cloudflare_debug_loop",
+    "ai_api_billing",
+    "production_write",
+    "database_write",
+    "migration",
+    "secret_read",
+    "secret_write",
+    "dns_write",
+    "access_write",
+    "permission_write",
+    "customer_send",
+    "external_send"
+  ],
+  "decision_order": [
+    "chatgpt_github_small_patch",
+    "local_codex_luna",
+    "local_codex_terra_after_threshold",
+    "pixel_opus_review",
+    "cloudflare_final_proof_after_local_green"
+  ]
+}
