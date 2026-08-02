@@ -36,11 +36,11 @@ function proof(overrides: Partial<LandingObservation> = {}): LandingObservation 
   };
 }
 
-function render(publicProofFeed: LandingObservation[]): string {
+function render(publicProofFeed: LandingObservation[], feed: LandingObservation[] = []): string {
   const snapshot: LandingSnapshot = {
     viewerUserId: null,
     stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
-    feed: [],
+    feed,
     publicProofFeed,
     myFeed: [],
     myPlaces: [],
@@ -75,6 +75,16 @@ test("guest Home requires an explicit successful public-feed gate", () => {
   const html = render([proof({ publicFeedEligible: true, publicFeedGateStatus: "public_eligible" })]);
   assert.match(html, /home-guest-proof is-count-1/);
   assert.match(html, /data-home-public-record="public-proof"/);
+});
+
+test("a gate-missing proof copy cannot shadow the eligible feed copy of the same record", () => {
+  const html = render(
+    [proof()],
+    [proof({ publicFeedEligible: true, publicFeedGateStatus: "public_eligible" })],
+  );
+  assert.match(html, /home-guest-proof is-count-1/);
+  assert.equal((html.match(/data-home-public-record="public-proof"/g) || []).length, 1);
+  assert.match(html, /\/media\/public-proof\.jpg/);
 });
 
 test("private, blurred, and blocked_public records never reach guest Home", () => {
