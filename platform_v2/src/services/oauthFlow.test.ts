@@ -48,7 +48,7 @@ test("google oauth uses the registered legacy-compatible callback URI", () => {
 test("oauth callback origin rejects client-supplied forwarded host and proto", () => {
   const production = request({
     host: "ikimon.life",
-    "x-forwarded-host": "evil.example",
+    "x-forwarded-host": "staging.ikimon.life",
     "x-forwarded-proto": "javascript",
   });
   assert.equal(
@@ -56,13 +56,23 @@ test("oauth callback origin rejects client-supplied forwarded host and proto", (
     "https://ikimon.life/oauth_callback.php?provider=google",
   );
 
-  const staging = request({
+  const stagingPublic = request({
+    host: "staging.ikimon.life",
+    "x-forwarded-host": "ikimon.life",
+    "x-forwarded-proto": "http",
+  });
+  assert.equal(
+    oauthRedirectUri(stagingPublic, "twitter"),
+    "https://staging.ikimon.life/auth/oauth/twitter/callback",
+  );
+
+  const workerOriginHop = request({
     host: "internal-origin.invalid",
     "x-forwarded-host": "staging.ikimon.life",
     "x-forwarded-proto": "http",
   });
   assert.equal(
-    oauthRedirectUri(staging, "twitter"),
+    oauthRedirectUri(workerOriginHop, "twitter"),
     "https://staging.ikimon.life/auth/oauth/twitter/callback",
   );
 });
