@@ -13,6 +13,7 @@ import {
   renderKubiakaPrivateDocument,
   renderKubiakaPrivateRecordDetail,
   renderKubiakaPrivateRecordList,
+  renderKubiakaPrivateRecordNotFound,
   renderKubiakaPrivateRecordsHome,
 } from "./kubiakaPrivateRecordsView.js";
 
@@ -84,6 +85,52 @@ test("Spanish and Brazilian Portuguese use dedicated private-record copy", () =>
   assert.notEqual(portuguese.recordsLead, english.recordsLead);
   assert.match(spanish.detailLead, /privado/i);
   assert.match(portuguese.detailLead, /privado/i);
+});
+
+test("Spanish and Brazilian Portuguese render every private-record section label without English fallback", () => {
+  const detail: KubiakaPrivateRecordDetail = {
+    ...record(),
+    photos: [{ photoIndex: 1, mimeType: "image/jpeg", widthPx: 1200, heightPx: 900 }],
+  };
+  for (const lang of ["es", "pt-BR"] as const) {
+    const copy = kubiakaPrivateRecordsCopy(lang);
+    const surfaces = [
+      renderKubiakaPrivateRecordsHome({
+        basePath: "/preview",
+        lang,
+        overview: { totalCount: 1, latest: record() },
+        acknowledgement: { recordId: "occ:visit-1:0", visitId: "visit-1", photoCount: 1 },
+      }),
+      renderKubiakaPrivateRecordsHome({
+        basePath: "/preview",
+        lang,
+        overview: { totalCount: 0, latest: null },
+        acknowledgement: null,
+      }),
+      renderKubiakaPrivateRecordList({
+        basePath: "/preview",
+        lang,
+        page: { totalCount: 1, limit: 24, hasMore: false, records: [record()] },
+      }),
+      renderKubiakaPrivateRecordDetail({ basePath: "/preview", lang, detail }),
+      renderKubiakaPrivateRecordNotFound("/preview", lang),
+    ].join("\n");
+    for (const label of [
+      copy.latestEyebrow,
+      copy.acknowledgementEyebrow,
+      copy.nextEyebrow,
+      copy.startEyebrow,
+      copy.historyEyebrow,
+      copy.detailEyebrow,
+      copy.recordEyebrow,
+    ]) {
+      assert.ok(surfaces.includes(`class="kpr-eyebrow">${label}</div>`));
+    }
+    assert.doesNotMatch(
+      surfaces,
+      /class="kpr-eyebrow">(?:Latest|Acknowledgement|Next|Start|Private history|Private detail|Private record)<\/div>/,
+    );
+  }
 });
 
 test("home renders zero, one and multiple record states", () => {
