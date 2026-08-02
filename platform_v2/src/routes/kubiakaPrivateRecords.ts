@@ -179,10 +179,13 @@ async function sendMemberHome(
 
   const overview = await dependencies.readOverview(session.userId);
   const copy = kubiakaPrivateRecordsCopy(lang);
+  const currentPath = acknowledgement && suppliedRecord
+    ? `${KUBIAKA_MEMBER_PATH}?record=${encodeURIComponent(suppliedRecord)}`
+    : KUBIAKA_MEMBER_PATH;
   privateHtmlHeaders(reply).send(renderPrivateDocument({
     basePath,
     lang,
-    currentPath: KUBIAKA_MEMBER_PATH,
+    currentPath,
     title: acknowledgement ? copy.acknowledgementTitle : copy.homeTitle,
     description: acknowledgement ? copy.acknowledgementLead : copy.homeLead,
     body: renderKubiakaPrivateRecordsHome({ basePath, lang, overview, acknowledgement }),
