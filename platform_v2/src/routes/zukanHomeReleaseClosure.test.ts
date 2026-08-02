@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Readable } from "node:stream";
 import test from "node:test";
 import { buildApp } from "../app.js";
 import { addStagingRobotsMeta, isStagingRequest, stagingRobotsTxt } from "./siteMapRoutes.js";
@@ -75,6 +76,26 @@ test("staging denies indexing while production remains indexable", async () => {
     assert.equal(productionRobots.statusCode, 200);
     assert.equal(productionRobots.headers["x-robots-tag"], undefined);
     assert.match(productionRobots.body, /Sitemap: https:\/\/ikimon\.life\/sitemap\.xml/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("staging robots onSend hook leaves streamed assets single-finalized", async () => {
+  const app = buildApp();
+  app.get("/__zukan-on-send-stream-test", async (_request, reply) => {
+    reply.type("application/octet-stream");
+    return Readable.from([Buffer.from("stream-safe")]);
+  });
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/__zukan-on-send-stream-test",
+      headers: { host: "staging.ikimon.life", "x-forwarded-proto": "https" },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body, "stream-safe");
+    assert.equal(response.headers["x-robots-tag"], "noindex, nofollow");
   } finally {
     await app.close();
   }
