@@ -114,15 +114,15 @@ function localDevelopmentOrigin(request: FastifyRequest): string | null {
 }
 
 export function requestPublicOrigin(request: FastifyRequest): string {
-  // The Worker reconstructs X-Forwarded-Host from its public request URL, but
-  // the origin still validates that value against the explicit public-host
-  // allowlist. A client-controlled forwarded header can never choose an
-  // arbitrary OAuth callback origin, including on a direct-origin path.
-  const forwardedOrigin = publicOAuthOriginFromHost(headerFirst(request.headers["x-forwarded-host"]));
-  if (forwardedOrigin) return forwardedOrigin;
-
+  // A public Host header is authoritative and cannot be overridden by a
+  // client-supplied X-Forwarded-Host. The forwarded value is only a fallback
+  // for the private Worker-to-origin hop, and is still constrained to the
+  // explicit public-host allowlist. Public callback origins are always HTTPS.
   const directOrigin = publicOAuthOriginFromHost(headerFirst(request.headers.host));
   if (directOrigin) return directOrigin;
+
+  const forwardedOrigin = publicOAuthOriginFromHost(headerFirst(request.headers["x-forwarded-host"]));
+  if (forwardedOrigin) return forwardedOrigin;
 
   return localDevelopmentOrigin(request) ?? "http://localhost:3200";
 }
