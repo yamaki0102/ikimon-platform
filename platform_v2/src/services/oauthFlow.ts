@@ -87,10 +87,14 @@ export function readOAuthState(cookieHeader: string | undefined): OAuthStatePayl
 }
 
 export function requestPublicOrigin(request: FastifyRequest): string {
-  return resolveTrustedPublicOrigin(
+  const origin = resolveTrustedPublicOrigin(
     request as unknown as { headers: Record<string, unknown>; protocol?: string },
-    { allowLocalDevelopment: true },
-  ) ?? "http://localhost:3200";
+    { allowLocalDevelopment: loadConfig().nodeEnv !== "production" },
+  );
+  if (!origin) {
+    throw new Error("public_origin_untrusted");
+  }
+  return origin;
 }
 
 export function oauthRedirectUri(request: FastifyRequest, provider: OAuthProvider): string {
