@@ -61,7 +61,7 @@ test("private document shell has no public navigation or external analytics", ()
   assert.doesNotMatch(html, /\/preview\/preview\//);
 });
 
-test("brand, language and primary actions meet the 56px touch-target contract", () => {
+test("skip, brand, language and primary actions meet the 56px touch-target contract", () => {
   const html = renderKubiakaPrivateDocument({
     basePath: "",
     lang: "en",
@@ -70,6 +70,7 @@ test("brand, language and primary actions meet the 56px touch-target contract", 
     description: "Private records",
     body: `<a class="kpr-primary" href="/next">Next</a><a class="kpr-secondary" href="/back">Back</a>`,
   });
+  assert.match(html, /\.kpr-skip\{[^}]*min-height:56px;[^}]*display:inline-flex;[^}]*align-items:center/);
   assert.match(html, /\.kpr-brand\{[^}]*min-height:56px;[^}]*display:inline-flex;[^}]*align-items:center/);
   assert.match(html, /\.kpr-language a\{[^}]*min-width:56px;min-height:56px/);
   assert.match(KUBIAKA_PRIVATE_RECORDS_STYLES, /\.kpr-primary,\.kpr-secondary\{[^}]*min-height:56px/);
