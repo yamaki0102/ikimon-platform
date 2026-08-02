@@ -2,15 +2,16 @@
 
 This directory is the first executable slice of the debugging system for ZUKAN, AI Commander, the release control plane, and later iPortal.
 
-The Pixel is the control, review, and notification device. Repeated debugging, fault injection, test generation, and fix loops run locally through Codex Luna in an isolated WSLC worktree. Terra is a conditional escalation lane only after repeated Luna passes leave the same cross-service failure unresolved. Cloudflare is not a debugging loop: it is reserved for one exact-SHA staging deploy/verify proof and, when required, one rollback proof after local green.
+ChatGPT is the chat control and default source-review surface. Repeated debugging, fault injection, test generation, and fix loops run locally through Codex Luna in an isolated WSLC worktree. Terra is a conditional escalation lane only after repeated Luna passes leave the same cross-service failure unresolved. Cloudflare is not a debugging loop: it is reserved for one exact-SHA staging deploy/verify proof and, when required, one rollback proof after local green. Pixel Review is disabled by default and may be used only after an explicit repository-owner instruction.
 
 ## Permanent execution policy
 
 The source of truth is `policy/execution-policy.v1.json` and the deterministic selector in `lib/execution-policy.mjs`.
 
-- default lane: `local_codex_luna`;
+- default execution lane: `local_codex_luna`;
 - Terra threshold: at least three Luna passes, at least two failures with the same signature, and a multi-repository fault/fix/control-plane scope;
-- Pixel Opus: independent read-only review after a candidate patch or full-diff snapshot exists;
+- default review: ChatGPT exact-head and full-diff self-review recorded on the pull request;
+- Pixel Review: owner-explicit opt-in only and not a release gate by default;
 - Cloudflare: local green + exact candidate SHA + real runtime dependency only;
 - Cloudflare debugging iterations: zero;
 - per-SHA Cloudflare budget: one staging deploy/verify and one rollback proof;
@@ -38,7 +39,9 @@ A request for Cloudflare before local green is returned as `BLOCKED`. A request 
 - Luna-first execution and bounded Terra escalation using normalized failure signatures;
 - append-only state/events/log evidence and one runner-owned local candidate commit;
 - credential-stripped deterministic checks and Codex guard configuration;
-- changed-file and path-prefix limits before candidate creation;
+- Git config/ref guards, disabled runner-owned commit hooks, and closed push/deploy surfaces;
+- changed-file, file-type, symlink, script-path, and path-prefix gates before candidate creation;
+- candidate commit and evidence crash-window recovery;
 - `PASS`, `FAIL`, `BLOCKED`, `UNSAFE` terminal states;
 - exact source SHA verification before, during, and after a run;
 - per-layer runtime SHA verification across the control plane;
@@ -60,7 +63,7 @@ bash platform_v2/tools/debug-fabric/verify.sh
 
 ## Run a local Luna task
 
-The Local Runner requires Node.js 22+, Git, and Codex CLI already signed in through the user's ChatGPT subscription. It does not use `OPENAI_API_KEY`.
+The Local Runner requires Node.js 22+, Git, and Codex CLI already signed in through the user's ChatGPT subscription. It explicitly removes `OPENAI_API_KEY` and does not use a usage-billed AI API.
 
 ```bash
 cp platform_v2/tools/debug-fabric/local-runner/profiles/ai-commander-local-debug.template.json \
@@ -70,7 +73,7 @@ node platform_v2/tools/debug-fabric/local-runner/run-local.mjs \
   --task /tmp/ai-commander-local-debug.json
 ```
 
-The runner creates its private ledger and worktree under `~/.ikimon-debug-fabric/runs/` by default. A successful run creates a local `debug/*` candidate commit and immutable `local-evidence.json`. It does not push, create a PR, deploy, or modify production.
+The runner creates its private ledger and worktree under `~/.ikimon-debug-fabric/runs/` by default. A successful run creates a local `debug/*` candidate commit and immutable `local-evidence.json`. It does not push, create a pull request, deploy, or modify production.
 
 See `local-runner/README.md` for the task schema, result layout, resume behavior, and safety boundary.
 
@@ -116,5 +119,5 @@ The result identifies the first responsible layer, missing trace layers, runtime
 3. Executor-only staging persona/session issuance; no public session-mint route.
 4. Single-writer `debug_run_id` lease, resource ledger, cleanup, and zero-residue gate.
 5. Default-deny side-effect sink for mail, LINE, push, Area Watch, publication, payment, and external AI intent.
-6. Failure report snapshot to Pixel Review Worker Opus analysis and Android notification after Worker input isolation is repaired.
+6. Failure report snapshot for ChatGPT self-review and Android notification; Pixel analysis remains owner-explicit opt-in only.
 7. Browser-only checks in a local WSLC container after the HTTP critical pack is stable.
