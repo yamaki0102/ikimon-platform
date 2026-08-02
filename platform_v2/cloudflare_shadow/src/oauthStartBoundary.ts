@@ -3,11 +3,14 @@ const STAGING_ORIGIN = "https://staging.ikimon.life";
 const PRODUCTION_HOSTS = new Set(["ikimon.life", "www.ikimon.life"]);
 const STAGING_HOSTS = new Set(["staging.ikimon.life"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
-const OAUTH_START_PATH = /^\/auth\/oauth\/(google|twitter)\/start\/?$/u;
+const BROWSER_OAUTH_START_PATH = /^\/auth\/oauth\/(google|twitter)\/start\/?$/u;
+const APP_OAUTH_START_PATH = /^\/app_oauth_start\.php\/?$/u;
 
 export type OAuthBoundaryEnv = {
   ENVIRONMENT?: unknown;
 };
+
+export type OAuthStartKind = "browser" | "app" | null;
 
 function environmentName(env: OAuthBoundaryEnv): string {
   return String(env.ENVIRONMENT ?? "").trim().toLowerCase();
@@ -36,27 +39,44 @@ function safeErrorOrigin(request: Request, env: OAuthBoundaryEnv): string {
   return PRODUCTION_ORIGIN;
 }
 
-export function isBrowserOAuthStart(request: Request): boolean {
-  return OAUTH_START_PATH.test(new URL(request.url).pathname);
+export function oauthStartKind(request: Request): OAuthStartKind {
+  const pathname = new URL(request.url).pathname;
+  if (BROWSER_OAUTH_START_PATH.test(pathname)) return "browser";
+  if (APP_OAUTH_START_PATH.test(pathname)) return "app";
+  return null;
 }
 
-export function oauthErrorRedirect(request: Request, env: OAuthBoundaryEnv): Response {
-  const target = new URL("/login?error=oauth", safeErrorOrigin(request, env));
+export function oauthErrorResponse(
+  request: Request,
+  env: OAuthBoundaryEnv,
+  kind: OAuthStartKind = oauthStartKind(request),
+): Response {
+  let location: string;
+  if (kind === "app") {
+    const target = new URL("ikimonfieldscan://auth/callback");
+    target.searchParams.set("error", "oauth");
+    target.searchParams.set("message", "ソーシャルログインに失敗した");
+    location = target.toString();
+  } else {
+    location = new URL("/login?error=oauth", safeErrorOrigin(request, env)).toString();
+  }
+
   return new Response(null, {
     status: 303,
     headers: {
-      location: target.toString(),
+      location,
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
     },
   });
 }
 
-export function authorizeBrowserOAuthStart(
+export function authorizeOAuthStart(
   request: Request,
   env: OAuthBoundaryEnv,
+  kind: OAuthStartKind = oauthStartKind(request),
 ): boolean {
-  if (!isBrowserOAuthStart(request)) return true;
+  if (kind === null) return true;
 
   const url = new URL(request.url);
   const environment = environmentName(env);
