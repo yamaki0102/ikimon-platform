@@ -6,7 +6,7 @@
 
 ## Goal
 
-Prove one non-biological regional Record through the common semantic boundary without changing the current public runtime, database state or biodiversity behavior.
+Prove one non-biological regional Record through the common semantic boundary without changing the current public runtime, production data or biodiversity behavior.
 
 ## Stage 0 — Product contract
 
@@ -37,6 +37,8 @@ The planner must:
 - keep Record and Claim objects separate
 - keep Source and Evidence as references
 - reject claims whose subject or evidence is outside the Record boundary
+- require explicit assertion time for human-reviewed Claims
+- reject a reviewed Claim asserted before its source Record was ingested
 - reject emergency or guaranteed-SLA action requests
 - emit `mode=shadow_only`
 - remain stable when equivalent input arrays are reordered
@@ -47,36 +49,97 @@ First fixture:
 - one name or status Claim supported by a SourceEdition reference
 - one Publication candidate
 
-The fixture is synthetic contract data and must not be presented as a verified real-world heritage fact.
-
 Exit:
 
 - targeted node tests pass
 - no runtime route imports the planner
 - no DB write is possible from the planner
 
-## Stage 2 — Existing Foundation mapping
+## Stage 2A — Additive generic Record schema
 
-After Stage 1 review, map the envelope to the already-expanded Foundation v2 schema.
+Add first-class persistence primitives without enabling a writer or reader.
+
+Required schema:
+
+- immutable `zukan_records`
+- append-only Record-to-Subject links
+- append-only Record-to-SourceEdition links with source selector
+- append-only ClaimRevision-to-Record links
+- monotonic Record sequence
+- tenant/workspace scope checks
+- Record payload stored as a distinct erasable ValueArtifact
+- Record payload ValueArtifact scope binding
+- Claim value ValueArtifact scope binding when linked to a Record
 
 Rules:
 
-- additive writer behind explicit feature flag and tenant allowlist
-- a dedicated operation and idempotency key
-- shadow tenant only
-- no current public reader
-- no existing Occurrence or biodiversity row migration
-- SourceEdition and Evidence references must already exist or fail closed
-- Claim predicate/version must exist or fail closed
+- PostgreSQL and D1 must express the same semantic boundary
+- existing Occurrence, Taxon, Observation and biodiversity rows are not migrated
+- SourceEdition is referenced; source bytes and layouts are not copied into Record
+- Record payload and Claim values remain separate artifacts
+- Record and Claim value artifacts cannot cross tenant/workspace boundaries
+- `occurred_at` may be later than `recorded_at` for future events announced in advance
+- schema application alone cannot activate writes or public reads
+- Record governance/public projection remains blocked until status-event and reader contracts exist
 
 Required evidence:
 
-- dry-run diff
-- deterministic replay
-- conflict behavior
-- transaction rollback
-- tenant isolation
-- PostgreSQL and D1 parity or an explicit decision to use only one store
+- migration source checks
+- D1 scratch apply and insert
+- mutation rejection
+- missing and cross-tenant artifact-scope rejection
+- cross-tenant Subject, Source and Claim-link rejection
+- future event Record acceptance
+- pinned workerd migration apply
+- migration baseline head update
+
+## Stage 2B — Dry-run Foundation mapping
+
+Map the Stage 1 envelope to the Stage 2A schema without applying it.
+
+The plan must produce:
+
+- Record payload ValueArtifact
+- Record payload scope binding
+- Record row
+- Subject links
+- SourceEdition links
+- Claim value artifacts
+- Claim value scope bindings
+- Claims and first ClaimRevisions
+- ClaimRevision-to-Record links
+- explicit dependencies for Subject, SourceEdition, Predicate and Rights rows
+
+Rules:
+
+- `writeEnabled=false`
+- only registered predicate URI/version pairs are accepted
+- SourceEdition metadata remains provenance and is not duplicated as an Entity Claim
+- human-reviewed ClaimRevision `recorded_at` uses explicit `assertedAt`
+- public candidates require accountable Review, assertion time and Rights dependencies
+- unsupported PostgreSQL/D1 semantic drift fails closed
+- Publication candidates do not bypass ResolutionRun and ProjectionSnapshot
+
+Exit:
+
+- deterministic dry-run plan
+- Record and Claim artifacts are distinct
+- every persisted Claim value has an exact tenant/workspace scope binding
+- equivalent ordering produces the same digest
+- unknown predicates and non-canonical references are blocked
+
+## Stage 2C — Shadow writer rehearsal
+
+Only after Stage 2A and 2B are independently green:
+
+- implement an explicit operation and idempotency key
+- use a dedicated shadow tenant allowlist
+- keep kill switch active by default
+- write PostgreSQL scratch first
+- add D1 only when a real runtime projection requires it
+- prove replay, conflict, rollback and tenant isolation
+
+No staging or production DB application is authorized by this plan alone.
 
 ## Stage 3 — Read-only regional View
 
@@ -123,6 +186,7 @@ Source change verification:
 ```bash
 npm --prefix platform_v2 run typecheck
 npm --prefix platform_v2 run test:node
+npm --prefix platform_v2/cloudflare_shadow run check
 ```
 
 Targeted tests must cover:
@@ -131,6 +195,11 @@ Targeted tests must cover:
 - Record/Claim separation
 - Source/Evidence reference integrity
 - reorder invariance
+- migration parity and append-only behavior
+- tenant/workspace scope rejection for Record and Claim artifacts
+- future event occurrence time
+- human Review assertion-time ordering
+- unknown predicate and rights gates
 - emergency action rejection
 - specialist conclusion rejection without an accountable reviewer
 - unknown provenance represented explicitly rather than invented
@@ -139,7 +208,9 @@ Targeted tests must cover:
 
 Before merge, close the branch.
 
-After merge, the Stage 1 planner is unused by runtime routes and has no database side effect. Reverting its files and documentation restores the previous source state. Foundation migrations and existing runtime data are not changed by this plan.
+After merge but before any DB apply, revert the source PR.
+
+After an additive migration is applied, disable every Record writer/reader and retain the audit-bearing tables. Do not drop populated Record tables as the normal rollback.
 
 ## Stop conditions
 
@@ -151,3 +222,7 @@ Stop before enabling a writer when any of the following is true:
 - a Case would become the owner of evidence or canonical truth
 - the use requires emergency response guarantees
 - the accountable reviewer or publication owner is unknown
+- Record or Claim value artifact scope cannot be proven
+- reviewed Claim assertion time cannot be reproduced
+- Record suppression/withdrawal cannot be propagated before a public reader exists
+- PostgreSQL and D1 semantics diverge without an explicit single-store decision

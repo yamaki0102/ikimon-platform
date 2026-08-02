@@ -88,7 +88,7 @@ test("exact D1 migrations apply through the pinned workerd runtime", { timeout: 
     }>;
     assert.equal(response[0]?.success, true);
     assert.deepEqual(
-      response[0]?.results.slice(-6).map((row) => row.name),
+      response[0]?.results.slice(-8).map((row) => row.name),
       [
         "0009_zukan_foundation_v2_source_identity.sql",
         "0010_zukan_foundation_v2_predicate_claims.sql",
@@ -96,6 +96,8 @@ test("exact D1 migrations apply through the pinned workerd runtime", { timeout: 
         "0012_zukan_foundation_v2_governance_rights.sql",
         "0013_zukan_foundation_v2_disputes_coverage.sql",
         "0014_zukan_foundation_v2_integrity_hardening.sql",
+        "0015_zukan_foundation_v2_records.sql",
+        "0016_zukan_foundation_v2_record_claim_value_scopes.sql",
       ],
     );
   } finally {

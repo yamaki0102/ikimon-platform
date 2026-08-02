@@ -34,6 +34,8 @@ export type RegionalKnowledgeClaimInput = {
   evidenceRefs: readonly string[];
   reviewState: RegionalReviewState;
   accountableReviewerId?: string | null;
+  assertedAt?: string | null;
+  recordedAt?: string | null;
   specialistConclusion?: boolean;
   visibility: RegionalVisibility;
 };
@@ -101,6 +103,8 @@ export type RegionalKnowledgeClaimCandidate = {
   evidenceRefs: string[];
   reviewState: RegionalReviewState;
   accountableReviewerId: string | null;
+  assertedAt: string | null;
+  recordedAt: string | null;
   specialistConclusion: boolean;
   visibility: RegionalVisibility;
 };
@@ -255,11 +259,34 @@ export function planRegionalKnowledgeEnvelope(
         if (!allowedEvidence.has(reference)) blockers.push(`claim_evidence_outside_record:${externalClaimId}:${reference}`);
       }
       const accountableReviewerId = claim.accountableReviewerId?.trim() || null;
+      const assertedAt = canonicalTimestamp(claim.assertedAt ?? null);
+      const claimRecordedAt = canonicalTimestamp(claim.recordedAt ?? null);
+      if (claim.assertedAt !== undefined && claim.assertedAt !== null && !assertedAt) {
+        blockers.push(`claim_asserted_at_invalid:${externalClaimId}`);
+      }
+      if (claim.recordedAt !== undefined && claim.recordedAt !== null && !claimRecordedAt) {
+        blockers.push(`claim_recorded_at_invalid:${externalClaimId}`);
+      }
       if (claim.reviewState === "human_reviewed" && !accountableReviewerId) {
         blockers.push(`human_review_requires_accountable_reviewer:${externalClaimId}`);
       }
+      if (claim.reviewState === "human_reviewed" && !assertedAt) {
+        blockers.push(`human_review_requires_asserted_at:${externalClaimId}`);
+      }
+      if (claim.reviewState === "human_reviewed" && !claimRecordedAt) {
+        blockers.push(`human_review_requires_recorded_at:${externalClaimId}`);
+      }
+      if (claimRecordedAt && recordedAt && Date.parse(claimRecordedAt) < Date.parse(recordedAt)) {
+        blockers.push(`claim_recorded_before_record:${externalClaimId}`);
+      }
+      if (assertedAt && claimRecordedAt && Date.parse(assertedAt) > Date.parse(claimRecordedAt)) {
+        blockers.push(`claim_asserted_after_recording:${externalClaimId}`);
+      }
       if (claim.specialistConclusion === true
-        && (claim.reviewState !== "human_reviewed" || !accountableReviewerId)) {
+        && (claim.reviewState !== "human_reviewed"
+          || !accountableReviewerId
+          || !assertedAt
+          || !claimRecordedAt)) {
         blockers.push(`specialist_conclusion_requires_accountable_review:${externalClaimId}`);
       }
       return {
@@ -277,6 +304,8 @@ export function planRegionalKnowledgeEnvelope(
         evidenceRefs,
         reviewState: claim.reviewState,
         accountableReviewerId,
+        assertedAt,
+        recordedAt: claimRecordedAt,
         specialistConclusion: claim.specialistConclusion === true,
         visibility: claim.visibility,
       };
