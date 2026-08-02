@@ -1,0 +1,75 @@
+export const PRODUCTION_PUBLIC_ORIGIN = "https://ikimon.life";
+export const STAGING_PUBLIC_ORIGIN = "https://staging.ikimon.life";
+
+const ALLOWED_PUBLIC_ORIGINS = new Set([
+  PRODUCTION_PUBLIC_ORIGIN,
+  STAGING_PUBLIC_ORIGIN,
+]);
+
+const PUBLIC_ORIGIN_BY_HOST = new Map([
+  ["ikimon.life", PRODUCTION_PUBLIC_ORIGIN],
+  ["www.ikimon.life", PRODUCTION_PUBLIC_ORIGIN],
+  ["staging.ikimon.life", STAGING_PUBLIC_ORIGIN],
+]);
+
+export type PublicOriginRequest = {
+  headers: Record<string, unknown>;
+  protocol?: string;
+};
+
+function headerFirst(value: unknown): string {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return String(raw ?? "").split(",")[0]?.trim() ?? "";
+}
+
+function normalizedHostname(value: unknown): string {
+  const raw = headerFirst(value);
+  if (!raw) return "";
+  try {
+    return new URL(`https://${raw}`).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+export function normalizeExplicitPublicOrigin(value: unknown): string {
+  const normalized = String(value ?? "").trim().replace(/\/+$/, "");
+  return ALLOWED_PUBLIC_ORIGINS.has(normalized) ? normalized : "";
+}
+
+export function publicOriginFromHost(value: unknown): string {
+  return PUBLIC_ORIGIN_BY_HOST.get(normalizedHostname(value)) ?? "";
+}
+
+function localDevelopmentOrigin(request: PublicOriginRequest): string {
+  const host = headerFirst(request.headers.host);
+  const hostname = normalizedHostname(host);
+  if (hostname !== "localhost" && hostname !== "127.0.0.1" && hostname !== "::1") return "";
+  const protocol = request.protocol === "https" ? "https" : "http";
+  return `${protocol}://${host}`;
+}
+
+export function resolveTrustedPublicOrigin(
+  request: PublicOriginRequest,
+  options: {
+    explicitOrigin?: unknown;
+    allowLocalDevelopment?: boolean;
+  } = {},
+): string | null {
+  const explicitOrigin = normalizeExplicitPublicOrigin(options.explicitOrigin);
+  if (explicitOrigin) return explicitOrigin;
+
+  // A public Host is authoritative. Forwarded headers can only provide a
+  // fallback for the private Worker-to-origin hop and can never override the
+  // public request host or select an arbitrary origin/protocol.
+  const directOrigin = publicOriginFromHost(request.headers.host);
+  if (directOrigin) return directOrigin;
+
+  const forwardedOrigin = publicOriginFromHost(request.headers["x-forwarded-host"]);
+  if (forwardedOrigin) return forwardedOrigin;
+
+  if (options.allowLocalDevelopment) {
+    return localDevelopmentOrigin(request) || null;
+  }
+  return null;
+}
