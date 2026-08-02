@@ -1,5 +1,11 @@
 import baseWorker from "./index";
 import { enforceCameraFirstHomeCta } from "./cameraFirstHomeCta";
+import {
+  authorizeBrowserOAuthStart,
+  isBrowserOAuthStart,
+  oauthErrorRedirect,
+  type OAuthBoundaryEnv,
+} from "./oauthStartBoundary";
 import { enforcePostCaptureValueLoopCompatibility } from "./postCaptureValueLoopCompatibilityPatch";
 import { enhancePostCaptureValueLoop } from "./postCaptureValueLoopPatch";
 import { polishPublicHomeUx } from "./publicHomeUxPolish";
@@ -16,7 +22,21 @@ const delegatedWorker = baseWorker as DelegatedWorker;
 export default {
   ...delegatedWorker,
   async fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
-    const response = await delegatedWorker.fetch.call(delegatedWorker, request, env, ctx);
+    const oauthEnv = env as OAuthBoundaryEnv;
+    if (!authorizeBrowserOAuthStart(request, oauthEnv)) {
+      return oauthErrorRedirect(request, oauthEnv);
+    }
+
+    let response: Response;
+    try {
+      response = await delegatedWorker.fetch.call(delegatedWorker, request, env, ctx);
+    } catch (error) {
+      if (isBrowserOAuthStart(request)) {
+        return oauthErrorRedirect(request, oauthEnv);
+      }
+      throw error;
+    }
+
     const presented = await patchPublicHomePresentation(request, response);
     const cameraFirst = await enforceCameraFirstHomeCta(request, presented);
     const polished = await polishPublicHomeUx(request, cameraFirst);

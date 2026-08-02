@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { buildLlmoFaqMarkdown, buildLlmoGuideMarkdown, buildLlmoResearcherMarkdown, buildLlmoTermsMarkdown, buildLlmsTxt } from "../llmo.js";
-import { PRODUCTION_PUBLIC_ORIGIN, resolvePresentationPublicOrigin } from "../services/trustedPublicOrigin.js";
+import { resolvePresentationPublicOrigin, STAGING_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 
 function requestOrigin(request: { headers: Record<string, unknown>; protocol?: string }): string {
-  return resolvePresentationPublicOrigin(request) ?? PRODUCTION_PUBLIC_ORIGIN;
+  // Unknown origin identity is non-indexable by default.
+  return resolvePresentationPublicOrigin(request) ?? STAGING_PUBLIC_ORIGIN;
 }
 
 export async function registerLlmoRoutes(app: FastifyInstance): Promise<void> {

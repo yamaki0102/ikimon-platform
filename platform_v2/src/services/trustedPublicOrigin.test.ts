@@ -3,6 +3,7 @@ import test from "node:test";
 import type { FastifyRequest } from "fastify";
 import { assertSameOriginRequest } from "./authSecurity.js";
 import {
+  RUNTIME_PUBLIC_ORIGIN_HEADER,
   resolvePresentationPublicOrigin,
   resolveTrustedPublicOrigin,
 } from "./trustedPublicOrigin.js";
@@ -11,10 +12,25 @@ function request(headers: Record<string, string>, protocol = "http"): FastifyReq
   return { headers, protocol } as FastifyRequest;
 }
 
-test("security origin uses only explicit, direct allowlisted, or explicit local identity", () => {
+test("security origin uses only explicit, bound runtime, direct allowlisted, or exact local identity", () => {
   assert.equal(resolveTrustedPublicOrigin(request({ host: "ikimon.life" })), "https://ikimon.life");
   assert.equal(resolveTrustedPublicOrigin(request({ host: "www.ikimon.life" })), "https://ikimon.life");
   assert.equal(resolveTrustedPublicOrigin(request({ host: "staging.ikimon.life" })), "https://staging.ikimon.life");
+
+  assert.equal(
+    resolveTrustedPublicOrigin(request({
+      host: "staging.ikimon.life",
+      [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://ikimon.life",
+    })),
+    "https://ikimon.life",
+  );
+  assert.equal(
+    resolveTrustedPublicOrigin(request({
+      host: "internal-origin.invalid",
+      [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://staging.ikimon.life",
+    })),
+    "https://staging.ikimon.life",
+  );
 
   for (const host of [
     "ikimon.life.attacker.example",
@@ -30,7 +46,10 @@ test("security origin uses only explicit, direct allowlisted, or explicit local 
 
   assert.equal(
     resolveTrustedPublicOrigin(
-      request({ host: "attacker.example" }),
+      request({
+        host: "attacker.example",
+        [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://ikimon.life",
+      }),
       { explicitOrigin: "https://staging.ikimon.life/" },
     ),
     "https://staging.ikimon.life",
@@ -49,38 +68,44 @@ test("security origin uses only explicit, direct allowlisted, or explicit local 
   );
 });
 
-test("unsigned Worker marker is presentation-only and forwarded proto is never trusted", () => {
-  const workerHop = {
+test("unsigned marker and forwarded identity are ignored for security and presentation", () => {
+  const workerHop = request({
     host: "internal-origin.invalid",
     "x-ikimon-cloudflare-fallback": "origin",
     "x-forwarded-host": "staging.ikimon.life",
-  };
+    "x-forwarded-proto": "https",
+  });
+  assert.equal(resolveTrustedPublicOrigin(workerHop), null);
+  assert.equal(resolvePresentationPublicOrigin(workerHop), null);
 
-  for (const forwardedProto of ["http", "javascript", "https,http"]) {
-    const req = request({ ...workerHop, "x-forwarded-proto": forwardedProto });
-    assert.equal(resolveTrustedPublicOrigin(req), null);
-    assert.equal(resolvePresentationPublicOrigin(req), "https://staging.ikimon.life");
-  }
+  const boundWorkerHop = request({
+    host: "internal-origin.invalid",
+    [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://staging.ikimon.life",
+    "x-ikimon-cloudflare-fallback": "origin",
+    "x-forwarded-host": "ikimon.life",
+    "x-forwarded-proto": "javascript",
+  });
+  assert.equal(resolveTrustedPublicOrigin(boundWorkerHop), "https://staging.ikimon.life");
+  assert.equal(resolvePresentationPublicOrigin(boundWorkerHop), "https://staging.ikimon.life");
 
-  for (const forwardedHost of [
-    "ikimon.life.attacker.example",
-    "staging.ikimon.life.attacker.example",
-    "attacker-ikimon.life",
-    "ikimon.life,attacker.example",
+  for (const runtimeOrigin of [
+    "https://evil.example",
+    "https://ikimon.life.evil.example",
+    "http://ikimon.life",
+    "https://ikimon.life/path",
   ]) {
     assert.equal(
       resolvePresentationPublicOrigin(request({
         host: "internal-origin.invalid",
-        "x-ikimon-cloudflare-fallback": "origin",
-        "x-forwarded-host": forwardedHost,
+        [RUNTIME_PUBLIC_ORIGIN_HEADER]: runtimeOrigin,
       })),
       null,
-      forwardedHost,
+      runtimeOrigin,
     );
   }
 });
 
-test("same-origin auth checks ignore unsigned marker and forwarded identity", () => {
+test("same-origin auth checks use the nginx-bound origin and ignore unsigned marker", () => {
   const production = request({
     host: "ikimon.life",
     origin: "https://ikimon.life",
@@ -99,6 +124,16 @@ test("same-origin auth checks ignore unsigned marker and forwarded identity", ()
   });
   assert.throws(() => assertSameOriginRequest(forwardedEnvironmentSpoof), /same_origin_required/);
 
+  const boundStagingRuntime = request({
+    host: "internal-origin.invalid",
+    origin: "https://staging.ikimon.life",
+    [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://staging.ikimon.life",
+    "x-ikimon-cloudflare-fallback": "origin",
+    "x-forwarded-host": "ikimon.life",
+    "sec-fetch-site": "same-origin",
+  });
+  assert.doesNotThrow(() => assertSameOriginRequest(boundStagingRuntime));
+
   const unsignedWorkerHop = request({
     host: "internal-origin.invalid",
     origin: "https://staging.ikimon.life",
@@ -108,11 +143,11 @@ test("same-origin auth checks ignore unsigned marker and forwarded identity", ()
   });
   assert.throws(() => assertSameOriginRequest(unsignedWorkerHop), /same_origin_required/);
 
-  const unmarkedWorkerHop = request({
-    host: "internal-origin.invalid",
+  const productionBindingOverridesSpoofedHost = request({
+    host: "staging.ikimon.life",
     origin: "https://staging.ikimon.life",
-    "x-forwarded-host": "staging.ikimon.life",
+    [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://ikimon.life",
     "sec-fetch-site": "same-origin",
   });
-  assert.throws(() => assertSameOriginRequest(unmarkedWorkerHop), /same_origin_required/);
+  assert.throws(() => assertSameOriginRequest(productionBindingOverridesSpoofedHost), /same_origin_required/);
 });
