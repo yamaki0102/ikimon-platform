@@ -9,8 +9,8 @@ test("native URL-encoded logout clears the session cookie and redirects", async 
       method: "POST",
       url: "/logout",
       headers: {
-        host: "ikimon.local",
-        origin: "http://ikimon.local",
+        host: "localhost:80",
+        origin: "http://localhost",
         "sec-fetch-site": "same-origin",
         "content-type": "application/x-www-form-urlencoded",
       },
@@ -36,7 +36,7 @@ test("cross-site logout is rejected without clearing the cookie", async () => {
       method: "POST",
       url: "/logout",
       headers: {
-        host: "ikimon.local",
+        host: "localhost:80",
         origin: "https://attacker.example",
         "sec-fetch-site": "cross-site",
         "content-type": "application/x-www-form-urlencoded",
