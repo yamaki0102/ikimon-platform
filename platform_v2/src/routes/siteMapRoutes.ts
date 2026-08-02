@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { resolveZukanPublicAssetOrigin } from "../brandAssets.js";
 import { buildRobotsTxt, buildXmlSitemap } from "../siteMap.js";
 import { buildReflectionLoopManifest } from "../services/reflectionLoopManifest.js";
 import { registerIwataOpenDataRoutes } from "./iwataOpenData.js";
@@ -6,7 +7,7 @@ import { registerKubiakaFocusedExperienceRoutes } from "./kubiakaFocusedExperien
 import { registerKubiakaPrivateUploadGuard } from "./kubiakaPrivateUploadGuard.js";
 import { registerRegionalSourceRoutes } from "./regionalSources.js";
 
-const STAGING_MATERIALIZATION_TOKEN = "materialize-admin-preview";
+const STAGING_ORIGIN = "https://staging.ikimon.life";
 const STAGING_ROBOTS_META = '<meta name="robots" content="noindex, nofollow" />';
 const ROBOTS_META_PATTERN = /<meta\b[^>]*\bname=["']robots["'][^>]*>/i;
 
@@ -16,12 +17,15 @@ function requestOrigin(request: { headers: Record<string, unknown> }): string {
   return `${proto}://${host}`;
 }
 
-function isStagingRequest(request: { headers: Record<string, unknown> }): boolean {
+export function isStagingRequest(
+  request: { headers: Record<string, unknown> },
+  publicAssetOrigin: string = resolveZukanPublicAssetOrigin(),
+): boolean {
   const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "")
     .split(",")[0]
     ?.trim()
     .toLowerCase();
-  return host === "staging.ikimon.life" || process.env.DEV_DUMMY_ADMIN_TOKEN === STAGING_MATERIALIZATION_TOKEN;
+  return host === "staging.ikimon.life" || publicAssetOrigin === STAGING_ORIGIN;
 }
 
 export function addStagingRobotsMeta(payload: string): string {
