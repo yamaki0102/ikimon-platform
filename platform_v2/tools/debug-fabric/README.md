@@ -2,15 +2,16 @@
 
 This directory is the first executable slice of the debugging system for ZUKAN, AI Commander, the release control plane, and later iPortal.
 
-The Pixel is the control, review, and notification device. Repeated debugging, fault injection, test generation, and fix loops run locally through Codex Luna in an isolated WSLC worktree. Terra is a conditional escalation lane only after repeated Luna passes leave the same cross-service failure unresolved. Cloudflare is not a debugging loop: it is reserved for one exact-SHA staging deploy/verify proof and, when required, one rollback proof after local green.
+ChatGPT is the chat control and default source-review surface. Repeated debugging, fault injection, test generation, and fix loops run locally through Codex Luna in an isolated WSLC worktree. Terra is a conditional escalation lane only after repeated Luna passes leave the same cross-service failure unresolved. Cloudflare is not a debugging loop: it is reserved for one exact-SHA staging deploy/verify proof and, when required, one rollback proof after local green. Pixel Review is disabled by default and may be used only after an explicit repository-owner instruction.
 
 ## Permanent execution policy
 
 The source of truth is `policy/execution-policy.v1.json` and the deterministic selector in `lib/execution-policy.mjs`.
 
-- default lane: `local_codex_luna`;
+- default execution lane: `local_codex_luna`;
 - Terra threshold: at least three Luna passes, at least two failures with the same signature, and a multi-repository fault/fix/control-plane scope;
-- Pixel Opus: independent read-only review after a candidate patch or full-diff snapshot exists;
+- default review: ChatGPT exact-head and full-diff self-review recorded on the pull request;
+- Pixel Review: owner-explicit opt-in only and not a release gate by default;
 - Cloudflare: local green + exact candidate SHA + real runtime dependency only;
 - Cloudflare debugging iterations: zero;
 - per-SHA Cloudflare budget: one staging deploy/verify and one rollback proof;
@@ -94,5 +95,5 @@ The result identifies the first responsible layer, missing trace layers, runtime
 3. Executor-only staging persona/session issuance; no public session-mint route.
 4. Single-writer `debug_run_id` lease, resource ledger, cleanup, and zero-residue gate.
 5. Default-deny side-effect sink for mail, LINE, push, Area Watch, publication, payment, and external AI intent.
-6. Failure report snapshot to Pixel Review Worker Opus analysis and Android notification.
+6. Failure report snapshot for ChatGPT self-review and Android notification; Pixel analysis remains owner-explicit opt-in only.
 7. Browser-only checks in a local WSLC container after the HTTP critical pack is stable.
