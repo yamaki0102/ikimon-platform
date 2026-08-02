@@ -31,6 +31,15 @@ test("trusted public origin cannot be switched by forwarded headers", () => {
       "x-forwarded-host": "staging.ikimon.life",
       "x-forwarded-proto": "http",
     })),
+    null,
+  );
+  assert.equal(
+    resolveTrustedPublicOrigin(request({
+      host: "internal-origin.invalid",
+      "x-ikimon-cloudflare-fallback": "origin",
+      "x-forwarded-host": "staging.ikimon.life",
+      "x-forwarded-proto": "http",
+    })),
     "https://staging.ikimon.life",
   );
   assert.equal(
@@ -41,7 +50,11 @@ test("trusted public origin cannot be switched by forwarded headers", () => {
     "https://staging.ikimon.life",
   );
   assert.equal(
-    resolveTrustedPublicOrigin(request({ host: "internal-origin.invalid", "x-forwarded-host": "evil.example" })),
+    resolveTrustedPublicOrigin(request({
+      host: "internal-origin.invalid",
+      "x-ikimon-cloudflare-fallback": "origin",
+      "x-forwarded-host": "evil.example",
+    })),
     null,
   );
   assert.equal(
@@ -72,15 +85,25 @@ test("same-origin auth checks use the trusted public origin", () => {
   const trustedWorkerHop = request({
     host: "internal-origin.invalid",
     origin: "https://staging.ikimon.life",
+    "x-ikimon-cloudflare-fallback": "origin",
     "x-forwarded-host": "staging.ikimon.life",
     "x-forwarded-proto": "http",
     "sec-fetch-site": "same-origin",
   });
   assert.doesNotThrow(() => assertSameOriginRequest(trustedWorkerHop));
 
+  const unmarkedWorkerHop = request({
+    host: "internal-origin.invalid",
+    origin: "https://staging.ikimon.life",
+    "x-forwarded-host": "staging.ikimon.life",
+    "sec-fetch-site": "same-origin",
+  });
+  assert.throws(() => assertSameOriginRequest(unmarkedWorkerHop), /same_origin_required/);
+
   const arbitraryForwardedOrigin = request({
     host: "internal-origin.invalid",
     origin: "https://evil.example",
+    "x-ikimon-cloudflare-fallback": "origin",
     "x-forwarded-host": "evil.example",
     "sec-fetch-site": "same-origin",
   });
