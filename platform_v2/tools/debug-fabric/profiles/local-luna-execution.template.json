@@ -9,6 +9,8 @@
   "same_signature_failures": 0,
   "real_runtime_dependency": true,
   "final_candidate_sha": null,
+  "local_verified_sha": null,
+  "local_evidence_sha256": null,
   "requested_lane": "auto",
   "cloud_deploy_runs_used": 0,
   "cloud_rollback_runs_used": 0,
