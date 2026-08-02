@@ -12,7 +12,7 @@ async function source(relative: string): Promise<string> {
 test("ZUKAN runtime runner is exact-SHA, staging-only, materialization-bound, and honest about remaining P0", async () => {
   const runner = await source("scripts/runZukanRuntimeQa.mjs");
 
-  assert.match(runner, /https:\/\/staging\.ikimon\.life/);
+  assert.match(runner, /https:\/\/staging\.zukan\.earth/);
   assert.match(runner, /IKIMON_EXPECTED_GIT_SHA/);
   assert.match(runner, /ZUKAN_MATERIALIZATION_NOT_BEFORE/);
   assert.match(runner, /runtime SHA mismatch/);
@@ -94,7 +94,7 @@ test("runtime Playwright profile is pinned and does not retain credential-bearin
   const config = await source("playwright.zukan-runtime.config.ts");
 
   assert.match(config, /PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is required/);
-  assert.match(config, /pinned to https:\/\/staging\.ikimon\.life/);
+  assert.match(config, /pinned to https:\/\/staging\.zukan\.earth/);
   assert.match(config, /report must stay under platform_v2\/\.deploy/);
   assert.match(config, /serviceWorkers: "block"/);
   assert.match(config, /--no-sandbox/);

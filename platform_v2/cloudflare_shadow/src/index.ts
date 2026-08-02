@@ -224,6 +224,7 @@ interface Env {
   ZUKAN_FOUNDATION_V2_MAX_ENTITIES?: string;
   ORIGIN_FALLBACK_BASE_URL?: string;
   ORIGIN_FALLBACK_RESOLVE_OVERRIDE?: string;
+  LEGACY_HOST_REDIRECT_MODE?: string;
   PUBLIC_WRITE_MODE?: string;
   PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE?: string;
   PUBLIC_DERIVED_IMAGE_TRANSFORM_MODE?: string;
@@ -1747,7 +1748,14 @@ const PUBLIC_MAP_EXACT_COORDINATE_GATE = Object.freeze({
 });
 const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
 const WORKER_BUILD_MARKER = "one-month-sprint-evidence-gate-20260705";
-const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life", "staging.ikimon.life"]);
+const PUBLIC_CUSTOM_HOSTS = new Set([
+  "zukan.earth",
+  "ikimon.life",
+  "www.ikimon.life",
+  "staging.zukan.earth",
+  "staging.ikimon.life"
+]);
+const PUBLIC_CANONICAL_ORIGIN = "https://zukan.earth";
 const HAMAMATSU_CITY_HERITAGE_URL = "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html";
 const JMA_NOWCAST_TARGET_N1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
 const JMA_NOWCAST_TARGET_N2 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json";
@@ -3312,15 +3320,20 @@ export const worker = {
 };
 
 function canonicalPublicHostRedirect(request: Request, url: URL, env: Env): Response | null {
-  if (env.ENVIRONMENT !== "production" || url.hostname !== "www.ikimon.life") {
+  if (env.ENVIRONMENT !== "production" || !["ikimon.life", "www.ikimon.life"].includes(url.hostname)) {
     return null;
   }
+  const redirectMode = String(env.LEGACY_HOST_REDIRECT_MODE ?? "disabled").trim().toLowerCase() === "enabled";
+  if (url.hostname === "ikimon.life" && !redirectMode) return null;
   if (request.method !== "GET" && request.method !== "HEAD") {
+    return null;
+  }
+  if (!isSafeLegacyPublicPagePath(url.pathname)) {
     return null;
   }
   const target = new URL(request.url);
   target.protocol = "https:";
-  target.hostname = "ikimon.life";
+  target.hostname = redirectMode ? "zukan.earth" : "ikimon.life";
   const cspNonce = createHtmlCspNonce();
   return new Response(null, {
     status: 308,
@@ -3330,6 +3343,28 @@ function canonicalPublicHostRedirect(request: Request, url: URL, env: Env): Resp
       "cache-control": "no-store"
     }
   });
+}
+
+function isSafeLegacyPublicPagePath(pathname: string): boolean {
+  const localizedPath = pathname.replace(/^\/(?:ja|en|es|pt-br)(?=\/|$)/i, "") || "/";
+  if (!localizedPath.startsWith("/") || localizedPath.includes("\\") || localizedPath.includes("\u0000")) return false;
+  if (localizedPath.split("/").at(-1)?.includes(".")) return false;
+  return ![
+    "/api",
+    "/assets",
+    "/media",
+    "/uploads",
+    "/thumb",
+    "/auth",
+    "/oauth",
+    "/login",
+    "/register",
+    "/callback",
+    "/webhook",
+    "/ops",
+    "/internal",
+    "/.well-known"
+  ].some((prefix) => localizedPath === prefix || localizedPath.startsWith(`${prefix}/`));
 }
 
 export default worker;
@@ -3526,6 +3561,7 @@ const SYNTHETIC_RENRI_BROWSER_QA_ROUTES = Object.freeze({
 });
 const SYNTHETIC_RENRI_BROWSER_QA_ROUTE_SET = new Set<string>(Object.values(SYNTHETIC_RENRI_BROWSER_QA_ROUTES));
 const SYNTHETIC_RENRI_BROWSER_QA_HOST_SET = new Set([
+  "staging.zukan.earth",
   "staging.ikimon.life",
   "ikimon-life-cloudflare-staging.yamaki0102.workers.dev"
 ]);
@@ -11468,7 +11504,7 @@ function alertEmailText(row: AlertDeliveryCandidateRow, payload: Record<string, 
   const title = alertEmailSubject(row, payload);
   const body = normalizeOptionalText(payload.body) ?? normalizeOptionalText(payload.message) ?? "ikimonで通知対象の記録が見つかりました。";
   const href = normalizeOptionalText(payload.href) ?? `/observations/${encodeURIComponent(row.occurrence_id)}`;
-  const absoluteHref = href.startsWith("http://") || href.startsWith("https://") ? href : `https://ikimon.life${href.startsWith("/") ? href : `/${href}`}`;
+  const absoluteHref = href.startsWith("http://") || href.startsWith("https://") ? href : `${PUBLIC_CANONICAL_ORIGIN}${href.startsWith("/") ? href : `/${href}`}`;
   return [
     title,
     "",
@@ -22845,7 +22881,7 @@ function fieldPublicProfileEvidenceContract(row: FieldDetailReadmodelRow, placeT
     rights: {
       licenseScope: "ikimon_public_profile_policy",
       attribution: "ikimon.life",
-      attributionUrl: `https://ikimon.life/fields/${encodeURIComponent(row.field_id)}`,
+      attributionUrl: `${PUBLIC_CANONICAL_ORIGIN}/fields/${encodeURIComponent(row.field_id)}`,
       commercialUse: "internal_policy_required",
       thirdPartyMediaUsed: false
     },
@@ -23420,7 +23456,7 @@ function browserSecurityHeaders(cspNonce: string, isProduction: boolean): Record
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org https://tiles.openfreemap.org",
-    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://cloudflareinsights.com https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
+    "connect-src 'self' https://ikimon.life https://zukan.earth https://staging.ikimon.life https://staging.zukan.earth https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://cloudflareinsights.com https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
     "frame-src 'self' https://iframe.videodelivery.net",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
@@ -24056,7 +24092,7 @@ function renderCloudflareProfileRecordCard(
   },
   lang: "ja" | "en" | "es" | "pt-br"
 ): string {
-  const title = homeRecordDisplayTitle(item, ownerHomeRecordsCopy(new URL(`https://ikimon.life/${lang === "ja" ? "ja" : lang}/`)), lang);
+  const title = homeRecordDisplayTitle(item, ownerHomeRecordsCopy(new URL(`${PUBLIC_CANONICAL_ORIGIN}/${lang === "ja" ? "ja" : lang}/`)), lang);
   const observedAt = formatHomeRecordObservedAt(item.observedAt, lang);
   const href = `/${lang === "ja" ? "ja" : lang}/observations/${encodeURIComponent(item.visitId)}`;
   const media = item.photoUrl
@@ -32468,8 +32504,8 @@ async function shadowRouteChangeRehearsalProof(url: URL, env: Env): Promise<Resp
     "production_imported_data_r2_inventory",
     "auth_record_photo_video_map_detail"
   ];
-  const productionHosts = ["ikimon.life", "www.ikimon.life"];
-  const stagingHost = url.searchParams.get("staging_host") ?? "staging.ikimon.life";
+  const productionHosts = ["zukan.earth", "ikimon.life", "www.ikimon.life"];
+  const stagingHost = url.searchParams.get("staging_host") ?? "staging.zukan.earth";
 
   const routeMatrix = [
     {
@@ -32499,6 +32535,14 @@ async function shadowRouteChangeRehearsalProof(url: URL, env: Env): Promise<Resp
     {
       host: "ikimon.life",
       path: "/health",
+      currentExpectedStatus: null,
+      postCutoverExpectedStatus: 200,
+      target: "cloudflare_managed_app_health",
+      productionHost: true
+    },
+    {
+      host: "zukan.earth",
+      path: "/",
       currentExpectedStatus: null,
       postCutoverExpectedStatus: 200,
       target: "cloudflare_managed_app_health",
@@ -36209,8 +36253,10 @@ function getReflectionLoopManifest(url: URL, env: Env): Response {
         public_html_path_count: publicHtmlPaths.length,
         public_html_paths: publicHtmlPaths,
         worker_routes: [
+          "zukan.earth/*",
           "ikimon.life/*",
           "www.ikimon.life/*",
+          "staging.zukan.earth/*",
           "staging.ikimon.life/*"
         ],
         smoke_paths: [

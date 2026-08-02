@@ -49,7 +49,7 @@ import { registerPlaceMemoryApiRoutes } from "./routes/placeMemoryApi.js";
 import { registerReferenceRoutes } from "./routes/references.js";
 import { startQuestScheduler } from "./services/observationEventQuestEngine.js";
 import { startPublicMapSnapshotScheduler } from "./services/publicMapSnapshotScheduler.js";
-import { registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
+import { addStagingRobotsMeta, registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
 import { registerSampleReportRoute } from "./routes/sampleReport.js";
 import { registerStewardshipActionRoutes } from "./routes/stewardshipActions.js";
 import { registerMonitoringBusinessRoutes } from "./routes/monitoringBusiness.js";
@@ -69,6 +69,7 @@ import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
 import { buildObserverProfileHref } from "./services/observerProfileLink.js";
 import { getStrings } from "./i18n/index.js";
+import { isSafeLegacyPageRequest, normalizePublicHost } from "./publicOrigin.js";
 import type { LandingSnapshot } from "./services/readModels.js";
 import { DEMO_LOGIN_BANNER_STYLES, renderDemoLoginBanner } from "./ui/demoLoginBanner.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "./ui/landingTop.js";
@@ -261,13 +262,25 @@ async function getLandingSnapshotForRoot(userId: string | null): Promise<Landing
 
 function canonicalHostRedirectUrl(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }): string | null {
   const rawHost = Array.isArray(request.headers.host) ? request.headers.host[0] : request.headers.host;
-  const host = typeof rawHost === "string" ? rawHost.split(",")[0]?.trim().toLowerCase().replace(/:\d+$/, "") : "";
-  if (host !== "www.ikimon.life") {
+  const host = normalizePublicHost(rawHost);
+  if (host !== "www.ikimon.life" && host !== "ikimon.life") return null;
+  const redirectMode = process.env.ZUKAN_LEGACY_REDIRECT_MODE?.trim().toLowerCase() === "enabled";
+  const url = requestUrl(request);
+  let parsed: URL;
+  try {
+    parsed = new URL(url, `https://${host}`);
+  } catch {
     return null;
   }
-  const url = requestUrl(request);
-  const path = url.startsWith("/") ? url : `/${url}`;
-  return `https://ikimon.life${path}`;
+  parsed.protocol = "https:";
+  if (host === "www.ikimon.life" && !redirectMode) {
+    parsed.hostname = "ikimon.life";
+    return parsed.toString();
+  }
+  if (host === "ikimon.life" && !redirectMode) return null;
+  if (!isSafeLegacyPageRequest("GET", parsed.pathname)) return null;
+  parsed.hostname = "zukan.earth";
+  return parsed.toString();
 }
 
 function setHeaderIfMissing(reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown }, name: string, value: string): void {
@@ -292,7 +305,7 @@ function applySecurityHeaders(
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org https://tiles.openfreemap.org",
-    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
+    "connect-src 'self' https://ikimon.life https://zukan.earth https://staging.ikimon.life https://staging.zukan.earth https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
     "frame-src 'self' https://iframe.videodelivery.net",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
@@ -326,7 +339,7 @@ function requestHost(request: { headers: Record<string, unknown> }): string {
 
 function isPublicProductionHost(request: { headers: Record<string, unknown> }): boolean {
   const host = requestHost(request);
-  return host === "ikimon.life" || host === "www.ikimon.life";
+  return host === "ikimon.life" || host === "www.ikimon.life" || host === "zukan.earth";
 }
 
 function localizedNavHome(lang: SiteLang): string {
@@ -695,7 +708,9 @@ export function buildApp() {
     const cspNonce = createCspNonce();
     runWithCspNonce(cspNonce, () => {
       applySecurityHeaders(reply, config.nodeEnv === "production", cspNonce);
-      const redirectUrl = canonicalHostRedirectUrl(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
+      const redirectUrl = request.method === "GET" || request.method === "HEAD"
+        ? canonicalHostRedirectUrl(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } })
+        : null;
       if (redirectUrl) {
         reply.code(308).header("location", redirectUrl).send();
         return;
@@ -708,10 +723,19 @@ export function buildApp() {
   // Without an explicit Cache-Control header, browsers fall back to the
   // RFC 7234 "heuristic freshness" rule and serve stale HTML on a normal
   // reload — stranding users on a pre-deploy bundle until a hard reload.
-  app.addHook("onSend", async (_request, reply, payload) => {
+  app.addHook("onSend", async (request, reply, payload) => {
     const contentType = String(reply.getHeader("content-type") ?? "");
     if (contentType.startsWith("text/html") && !reply.getHeader("cache-control")) {
       reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    }
+    if (
+      contentType.startsWith("text/html") &&
+      (requestHost(request as unknown as { headers: Record<string, unknown> }) === "staging.ikimon.life" ||
+        requestHost(request as unknown as { headers: Record<string, unknown> }) === "staging.zukan.earth") &&
+      typeof payload === "string"
+    ) {
+      reply.header("X-Robots-Tag", "noindex, nofollow");
+      return addStagingRobotsMeta(payload);
     }
     return payload;
   });

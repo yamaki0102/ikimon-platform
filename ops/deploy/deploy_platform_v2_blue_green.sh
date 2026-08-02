@@ -15,7 +15,7 @@ ENV_FILE="${ENV_FILE:-/etc/ikimon/production-v2.env}"
 NGINX_TEMPLATE="${NGINX_TEMPLATE:-${REPO_DIR}/platform_v2/ops/nginx/ikimon.life-v2-cutover.conf}"
 LIVE_AVAILABLE="${LIVE_AVAILABLE:-/etc/nginx/sites-available/ikimon.life}"
 LIVE_ENABLED="${LIVE_ENABLED:-/etc/nginx/sites-enabled/ikimon.life}"
-PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-https://ikimon.life}"
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-https://zukan.earth}"
 PM2_NAME="${PM2_NAME:-ikimon-v2-production-api}"
 
 BLUE_PORT=3201
@@ -125,6 +125,7 @@ pm2_name = sys.argv[2]
 pm2_dump = Path("/root/.pm2/dump.pm2")
 fixed = {
     "NODE_ENV": "production",
+    "ZUKAN_PUBLIC_ORIGIN": "https://zukan.earth",
     "ALLOW_QUERY_USER_ID": "0",
     "AI_OBSERVATION_IMAGE_MAX_EDGE": "1024",
     "AI_OBSERVATION_VISUAL_LITE_FIRST": "1",

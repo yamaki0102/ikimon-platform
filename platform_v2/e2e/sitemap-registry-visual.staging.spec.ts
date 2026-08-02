@@ -109,7 +109,7 @@ test.describe("sitemap registry visual smoke", () => {
           const status = response?.status() ?? 0;
           const allowed = qa.allowStatus ?? [200];
           expect(allowed, `${href} allowed statuses`).toContain(status);
-          expect(withoutDefaultLocalePrefix(new URL(page.url()).pathname)).toBe(new URL(href, "https://staging.ikimon.life").pathname);
+          expect(withoutDefaultLocalePrefix(new URL(page.url()).pathname)).toBe(new URL(href, "https://staging.zukan.earth").pathname);
 
           if (qa.readySelector) {
             await page.locator(qa.readySelector).first().waitFor({ state: "visible" });

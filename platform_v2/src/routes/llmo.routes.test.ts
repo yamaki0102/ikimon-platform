@@ -13,9 +13,9 @@ test("llms.txt exposes Japanese canonical markdown references", async () => {
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] as string, /text\/plain/);
     assert.match(response.body, /ikimon\.life は/);
-    assert.match(response.body, /https:\/\/staging\.ikimon\.life\/llms\/guide\.md/);
-    assert.match(response.body, /https:\/\/staging\.ikimon\.life\/llms\/terms\.md/);
-    assert.match(response.body, /https:\/\/staging\.ikimon\.life\/ja\/learn\/biomonweek/);
+    assert.match(response.body, /https:\/\/staging\.zukan\.earth\/llms\/guide\.md/);
+    assert.match(response.body, /https:\/\/staging\.zukan\.earth\/llms\/terms\.md/);
+    assert.match(response.body, /https:\/\/staging\.zukan\.earth\/ja\/learn\/biomonweek/);
     assert.match(response.body, /Use the Japanese pages as canonical source material/);
   } finally {
     await app.close();

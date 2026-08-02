@@ -3,6 +3,7 @@ import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, langFromPathPrefix, type SiteLang } from "../i18n.js";
 import { getShortCopy, renderLongformPage } from "../content/index.js";
 import { createContactProof } from "../services/contactSubmit.js";
+import { resolveConfiguredPublicOrigin } from "../publicOrigin.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import {
   legacyRedirectEntries,
@@ -570,20 +571,21 @@ function scriptJson(value: unknown): string {
 }
 
 function renderStructuredData(meta: MarketingPageMeta, page: SitePageDefinition, lang: SiteLang, canonicalPath: string, headings: DocHeading[]): string {
-  const url = `https://ikimon.life${canonicalPath}`;
+  const origin = resolveConfiguredPublicOrigin();
+  const url = `${origin}${canonicalPath}`;
   const pageType = meta.bodyPageId === "faq" ? "FAQPage" : "Article";
   const graph = [
     {
       "@type": "WebSite",
-      "@id": "https://ikimon.life/#website",
-      name: "ikimon.life",
-      url: "https://ikimon.life/",
+      "@id": `${origin}/#website`,
+      name: "ZUKAN",
+      url: `${origin}/`,
       inLanguage: lang,
     },
     {
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "ikimon.life", item: "https://ikimon.life/" },
+        { "@type": "ListItem", position: 1, name: "ZUKAN", item: `${origin}/` },
         { "@type": "ListItem", position: 2, name: sitePageLabel(page, lang), item: url },
       ],
     },
@@ -595,8 +597,8 @@ function renderStructuredData(meta: MarketingPageMeta, page: SitePageDefinition,
       name: meta.title,
       url,
       inLanguage: lang,
-      isPartOf: { "@id": "https://ikimon.life/#website" },
-      publisher: { "@type": "Organization", name: "ikimon.life", url: "https://ikimon.life/" },
+      isPartOf: { "@id": `${origin}/#website` },
+      publisher: { "@type": "Organization", name: "ZUKAN", url: `${origin}/` },
       about: headings.slice(0, 8).map((heading) => heading.text),
     },
   ];

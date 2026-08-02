@@ -148,6 +148,22 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.doesNotMatch(html, /aria-label="ikimon"|application-name" content="ikimon|apple-mobile-web-app-title" content="ikimon|og:site_name" content="ikimon|og:image:alt" content="ikimon"/i);
 });
 
+test("site shell emits the configured ZUKAN canonical origin across SEO and OGP metadata", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Domain readiness",
+    body: "<p>body</p>",
+    lang: "ja",
+    publicOrigin: "https://zukan.earth",
+  });
+  const head = html.slice(0, html.indexOf("</head>"));
+  assert.match(head, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/" \/>/);
+  assert.match(head, /<meta property="og:url" content="https:\/\/zukan\.earth\/ja\/" \/>/);
+  assert.match(head, /<meta property="og:image" content="https:\/\/zukan\.earth\/assets\/brand\/zukan-ogp-default\.png" \/>/);
+  assert.match(head, /<meta name="twitter:image" content="https:\/\/zukan\.earth\/assets\/brand\/zukan-ogp-default\.png" \/>/);
+  assert.match(head, /<link rel="manifest" href="\/manifest\.webmanifest\?lang=ja" \/>/);
+});
+
 test("site shell replaces existing and empty script nonce attributes with the active CSP nonce", () => {
   const html = runWithCspNonce("shell-test-nonce", () => renderSiteDocument({
     basePath: "",

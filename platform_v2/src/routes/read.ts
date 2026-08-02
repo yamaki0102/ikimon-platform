@@ -32,6 +32,7 @@ import {
   formatTaxonDisplayName,
 } from "../services/localizedDisplay.js";
 import { toThumbnailUrl } from "../services/thumbnailUrl.js";
+import { resolveConfiguredPublicOrigin } from "../publicOrigin.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
 import { isOpenCandidate, rankProminentAiCandidates } from "../ui/observationCandidatePresentation.js";
@@ -9236,7 +9237,7 @@ export function renderLocalObservationPolishScript(): string {
   })();</script>`;
 }
 
-const PUBLIC_ORIGIN = "https://ikimon.life";
+const PUBLIC_ORIGIN = resolveConfiguredPublicOrigin();
 
 function publicAbsoluteUrl(value: string): string {
   if (value.startsWith("http://") || value.startsWith("https://")) return value;

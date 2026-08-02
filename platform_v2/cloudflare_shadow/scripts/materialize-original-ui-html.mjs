@@ -11,14 +11,10 @@ const productionBucket = "ikimon-prod-media";
 const stagingBucket = "ikimon-shadow-media";
 const materializeManifestSchemaVersion = "original-ui-materialize/v1";
 const uploadCacheControl = "no-store";
-const canonicalOrigin = "https://ikimon.life";
-const canonicalRenderHeaders = {
-  accept: "*/*",
-  "cache-control": "no-store",
-  host: "ikimon.life",
-  "x-forwarded-host": "ikimon.life",
-  "x-forwarded-proto": "https"
-};
+const canonicalOriginByTargetEnv = Object.freeze({
+  production: "https://zukan.earth",
+  staging: "https://staging.zukan.earth"
+});
 const allowedArgs = new Set([
   "--execute",
   "--approval",
@@ -73,6 +69,18 @@ const materializationSecret = targetEnv === "production"
 delete process.env.IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET;
 delete process.env.IKIMON_AUTOMATION_PUSH_SECRET;
 const materializationGatewayUrl = resolveMaterializationGatewayUrl();
+
+const canonicalOrigin = canonicalOriginByTargetEnv[targetEnv] ?? "https://zukan.earth";
+const canonicalHost = new URL(canonicalOrigin).host;
+const canonicalRenderHeaders = {
+  accept: "*/*",
+  "cache-control": "no-store",
+  host: canonicalHost,
+  "x-forwarded-host": canonicalHost,
+  "x-forwarded-proto": "https"
+};
+process.env.ZUKAN_PUBLIC_ORIGIN = canonicalOrigin;
+process.env.ZUKAN_PUBLIC_ASSET_ORIGIN = canonicalOrigin;
 
 if (!["production", "staging"].includes(targetEnv)) {
   throw new Error("--target-env must be one of: production, staging.");
@@ -329,7 +337,10 @@ async function renderStaticAsset(app, pathname) {
 function auditCanonicalStaticOrigin(pathname, payload) {
   if (!["/sitemap.xml", "/robots.txt", "/llms.txt", "/llms-full.txt"].includes(pathname)) return;
   const text = Buffer.isBuffer(payload) ? payload.toString("utf8") : String(payload);
-  if (!text.includes(canonicalOrigin) || /https?:\/\/(?:localhost|127\.0\.0\.1|ikimon-materialize\.local)(?::\d+)?/i.test(text)) {
+  const acceptedOrigins = pathname === "/robots.txt" && targetEnv === "staging"
+    ? [canonicalOrigin, canonicalOriginByTargetEnv.production]
+    : [canonicalOrigin];
+  if (!acceptedOrigins.some((origin) => text.includes(origin)) || /https?:\/\/(?:localhost|127\.0\.0\.1|ikimon-materialize\.local)(?::\d+)?/i.test(text)) {
     throw new Error(`canonical_static_origin_mismatch:${pathname}`);
   }
 }
@@ -610,6 +621,9 @@ try {
       headers: {
         accept: "text/html",
         "cache-control": "no-store",
+        host: canonicalHost,
+        "x-forwarded-host": canonicalHost,
+        "x-forwarded-proto": "https"
       }
     });
     const contentType = String(response.headers["content-type"] ?? "");

@@ -9,6 +9,7 @@ User=ikimon-staging
 Group=www-data
 WorkingDirectory=/var/www/ikimon.life-staging/repo/platform_v2
 Environment=NODE_ENV=production
+Environment=ZUKAN_PUBLIC_ORIGIN=https://staging.zukan.earth
 EnvironmentFile=/etc/ikimon/staging-v2.env
 ExecStart=/usr/bin/env node dist/server.js
 Restart=always

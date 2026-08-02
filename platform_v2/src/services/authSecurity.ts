@@ -1,4 +1,5 @@
 import type { FastifyRequest } from "fastify";
+import { isZukanPublicHost, normalizePublicHost } from "../publicOrigin.js";
 
 type RateBucket = {
   count: number;
@@ -15,11 +16,13 @@ function headerFirst(value: string | string[] | undefined): string {
 }
 
 function expectedOrigin(request: FastifyRequest): string | null {
-  const host = headerFirst(request.headers["x-forwarded-host"]) || headerFirst(request.headers.host);
+  const host = normalizePublicHost(headerFirst(request.headers["x-forwarded-host"]) || headerFirst(request.headers.host));
   if (!host) {
     return null;
   }
-  const proto = headerFirst(request.headers["x-forwarded-proto"]) || (request.protocol || "http");
+  const proto = isZukanPublicHost(host)
+    ? "https"
+    : headerFirst(request.headers["x-forwarded-proto"]) || (request.protocol || "http");
   return `${proto}://${host}`;
 }
 

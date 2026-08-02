@@ -25,12 +25,12 @@ test("sitemap and robots are generated from canonical v2 pages", async () => {
     });
     assert.equal(sitemap.statusCode, 200);
     assert.match(sitemap.headers["content-type"] as string, /application\/xml/);
-    assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/ja\/community/);
-    assert.doesNotMatch(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/community/);
+    assert.match(sitemap.body, /https:\/\/staging\.zukan\.earth\/ja\/community/);
+    assert.doesNotMatch(sitemap.body, /https:\/\/staging\.zukan\.earth\/en\/community/);
     assert.doesNotMatch(sitemap.body, /hreflang="en"/);
-    assert.match(sitemap.body, /hreflang="x-default" href="https:\/\/staging\.ikimon\.life\/ja\/community"/);
-    assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/ja\/for-business/);
-    assert.doesNotMatch(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/for-business/);
+    assert.match(sitemap.body, /hreflang="x-default" href="https:\/\/staging\.zukan\.earth\/ja\/community"/);
+    assert.match(sitemap.body, /https:\/\/staging\.zukan\.earth\/ja\/for-business/);
+    assert.doesNotMatch(sitemap.body, /https:\/\/staging\.zukan\.earth\/en\/for-business/);
     assert.doesNotMatch(sitemap.body, /:id|:userId/);
 
     const robots = await app.inject({
@@ -39,8 +39,35 @@ test("sitemap and robots are generated from canonical v2 pages", async () => {
       headers: { host: "staging.ikimon.life", "x-forwarded-proto": "https" },
     });
     assert.equal(robots.statusCode, 200);
-    assert.match(robots.body, /Sitemap: https:\/\/staging\.ikimon\.life\/sitemap\.xml/);
-    assert.match(robots.body, /LLMs: https:\/\/staging\.ikimon\.life\/llms\.txt/);
+    assert.match(robots.body, /Disallow: \//);
+    assert.doesNotMatch(robots.body, /Sitemap: https:\/\/staging\.zukan\.earth\/sitemap\.xml/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("staging HTML stays noindex on both staging hosts while production HTML keeps its public robots policy", async () => {
+  const app = buildApp();
+  try {
+    for (const host of ["staging.zukan.earth", "staging.ikimon.life"]) {
+      const response = await app.inject({
+        method: "GET",
+        url: "/learn?lang=ja",
+        headers: { host, "x-forwarded-proto": "https", accept: "text/html" },
+      });
+      assert.equal(response.statusCode, 200, host);
+      assert.equal(response.headers["x-robots-tag"], "noindex, nofollow", host);
+      assert.match(response.body, /<meta name="robots" content="noindex, nofollow" \/>/, host);
+    }
+
+    const production = await app.inject({
+      method: "GET",
+      url: "/learn?lang=ja",
+      headers: { host: "zukan.earth", "x-forwarded-proto": "https", accept: "text/html" },
+    });
+    assert.equal(production.statusCode, 200);
+    assert.equal(production.headers["x-robots-tag"], undefined);
+    assert.doesNotMatch(production.body, /<meta name="robots" content="noindex, nofollow" \/>/);
   } finally {
     await app.close();
   }
@@ -94,7 +121,7 @@ test("reflection loop manifest exposes route registry and measurement config wit
     };
 
     assert.equal(manifest.schema_version, 1);
-    assert.equal(manifest.origin, "https://ikimon.life");
+    assert.equal(manifest.origin, "https://zukan.earth");
     assert.equal(manifest.loop_contract.no_personal_data, true);
     assert.match(manifest.loop_contract.production_mutation_boundary, /GitHub Actions/);
     assert.equal(manifest.analytics.ga4_measurement_id, "G-NCL0M1VJZ2");

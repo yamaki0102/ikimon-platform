@@ -10966,9 +10966,9 @@ test("shadow route-change rehearsal proves cutover matrix without mutating DNS o
   assert.equal(payload.mode, "dry_run_no_dns_or_route_mutation");
   assert.deepEqual(payload.hosts, {
     staging: "staging.example.test",
-    production: ["ikimon.life", "www.ikimon.life"]
+    production: ["zukan.earth", "ikimon.life", "www.ikimon.life"]
   });
-  assert.equal(payload.routeMatrix.length, 5);
+  assert.equal(payload.routeMatrix.length, 6);
   assert.equal(payload.requiredStagingGates.length, 8);
   assert.equal(payload.rollback.productionDataMutation, false);
   assert.equal(payload.rollback.dnsMutationPerformed, false);

@@ -15,10 +15,13 @@ test("original UI materializer pins discovery documents to the public canonical 
 
   assert.match(materializer, /"\/llms\.txt"/);
   assert.match(materializer, /"\/llms-full\.txt"/);
-  assert.match(materializer, /"x-forwarded-host":\s*"ikimon\.life"/);
+  assert.match(materializer, /production:\s*"https:\/\/zukan\.earth"/);
+  assert.match(materializer, /["']x-forwarded-host["']:\s*canonicalHost/);
   assert.match(materializer, /"x-forwarded-proto":\s*"https"/);
   assert.match(materializer, /renderStaticAsset\(app, pathname\)/);
   assert.match(materializer, /headers:\s*canonicalRenderHeaders/);
+  assert.match(materializer, /pathname === "\/robots\.txt" && targetEnv === "staging"/);
+  assert.match(materializer, /acceptedOrigins\.some\(\(origin\) => text\.includes\(origin\)\)/);
   assert.match(materializer, /canonical_static_origin_mismatch/);
   assert.match(materializer, /renderLlmsFull/);
   assert.match(materializer, /createHmac\("sha256", materializationSecret\)/);

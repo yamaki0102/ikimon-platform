@@ -72,7 +72,7 @@ function parseArgs(argv: string[]): SmokeOptions {
   const options: SmokeOptions = {
     apply: false,
     confirm: process.env.PUBLIC_MAP_SNAPSHOT_STAGING_SMOKE_CONFIRM?.trim() ?? "",
-    baseUrl: process.env.V2_BASE_URL?.trim() || "https://staging.ikimon.life",
+    baseUrl: process.env.V2_BASE_URL?.trim() || "https://staging.zukan.earth",
     backdateHours: Number(process.env.PUBLIC_MAP_SNAPSHOT_SMOKE_BACKDATE_HOURS ?? 8),
     mode: "stale",
     webhookUrl: process.env.IKIMON_OPS_STALENESS_WEBHOOK_URL?.trim()
@@ -163,7 +163,7 @@ function assertSafeSmokeTarget(options: SmokeOptions): void {
   }
   const isLocal = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
   const isStaging = hostname.includes("staging") || hostname.includes("localhost") || hostname === "127.0.0.1";
-  const isProductionHost = hostname === "ikimon.life" || hostname === "www.ikimon.life";
+  const isProductionHost = hostname === "zukan.earth" || hostname === "ikimon.life" || hostname === "www.ikimon.life";
   if (isProductionHost) {
     throw new Error("Refusing to run public map snapshot alert smoke against production host.");
   }

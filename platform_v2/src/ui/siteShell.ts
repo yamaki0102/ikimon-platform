@@ -3,6 +3,7 @@ import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js"
 import { getShortCopy } from "../content/index.js";
 import { APP_LAUNCH_BACKGROUND_COLOR, APP_THEME_COLOR, appInstallCopy } from "../appInstall.js";
 import { BRAND_ASSETS } from "../brandAssets.js";
+import { resolveConfiguredPublicOrigin } from "../publicOrigin.js";
 import { IKIMON_CLARITY_PROJECT_ID, IKIMON_GA4_MEASUREMENT_ID } from "../services/analyticsConfig.js";
 import { getCspNonce } from "../services/cspNonce.js";
 import {
@@ -60,6 +61,8 @@ export type SiteShellOptions = {
   minimalChrome?: boolean;
   /** State-aware home header. Both safe shells are emitted so the Cloudflare materialized runtime can switch without JS. */
   homeChrome?: "guest" | "member";
+  /** Explicit canonical origin for materialization/tests; production uses ZUKAN_PUBLIC_ORIGIN. */
+  publicOrigin?: string;
 };
 
 type ShellCopy = {
@@ -3589,19 +3592,17 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
 </script>`;
 }
 
-const PUBLIC_ORIGIN = "https://ikimon.life";
-
 function stripFragment(path: string): string {
   const hashIndex = path.indexOf("#");
   return hashIndex >= 0 ? path.slice(0, hashIndex) : path;
 }
 
-function absolutePublicUrl(path: string): string {
+function absolutePublicUrl(path: string, origin: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
   const rooted = path.startsWith("/") ? path : `/${path}`;
-  return `${PUBLIC_ORIGIN}${rooted}`;
+  return `${origin}${rooted}`;
 }
 
 function ogLocale(lang: SiteLang): string {
@@ -3622,14 +3623,15 @@ function displayPageTitle(title: string): string {
 
 export function renderSiteDocument(options: SiteShellOptions): string {
   const lang = options.lang ?? "ja";
+  const publicOrigin = resolveConfiguredPublicOrigin(options.publicOrigin);
   const pageTitle = displayPageTitle(options.title);
   const currentPath = options.currentPath ?? withBasePath(options.basePath, "/");
   const uiLangs = options.alternateLangs?.length ? options.alternateLangs : supportedLanguages.map((language) => language.code);
   const seoAlternateLangs: SiteLang[] = ["ja"];
   const description = options.description ?? options.hero?.lead ?? options.footerNote ?? shellCopyFor(lang).brandTagline;
   const canonicalPath = stripFragment(appendLangToHref(options.canonicalPath ?? currentPath, "ja"));
-  const canonicalUrl = absolutePublicUrl(canonicalPath);
-  const defaultOgpImageUrl = absolutePublicUrl(BRAND_ASSETS.ogpDefault);
+  const canonicalUrl = absolutePublicUrl(canonicalPath, publicOrigin);
+  const defaultOgpImageUrl = absolutePublicUrl(BRAND_ASSETS.ogpDefault, publicOrigin);
   const structuredDataHtml = options.structuredDataHtml ?? "";
   const hasCustomOgImage = /property=["']og:image["']/.test(structuredDataHtml);
   const hasCustomTwitterCard = /name=["']twitter:card["']/.test(structuredDataHtml);
@@ -3645,11 +3647,11 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const twitterImageMeta = hasCustomTwitterImage ? "" : `\n  <meta name="twitter:image" content="${escapeHtml(defaultOgpImageUrl)}" />`;
   const alternateLinks = seoAlternateLangs
     .map((alternateLang) => {
-      const href = absolutePublicUrl(stripFragment(appendLangToHref(canonicalPath, alternateLang)));
+      const href = absolutePublicUrl(stripFragment(appendLangToHref(canonicalPath, alternateLang)), publicOrigin);
       return `  <link rel="alternate" hreflang="${escapeHtml(alternateLang)}" href="${escapeHtml(href)}" />`;
     })
     .join("\n");
-  const xDefaultHref = absolutePublicUrl(stripFragment(appendLangToHref(canonicalPath, "ja")));
+  const xDefaultHref = absolutePublicUrl(stripFragment(appendLangToHref(canonicalPath, "ja")), publicOrigin);
   const robotsMeta = options.noindex || lang !== "ja" ? `\n  <meta name="robots" content="noindex,follow" />` : "";
   const uiKpiEndpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
   const skipLabel = shellCopyFor(lang).skipToContent;

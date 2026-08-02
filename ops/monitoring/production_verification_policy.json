@@ -17,7 +17,7 @@
     "automaticUninstallAllowed": false,
     "shadowComparisonHours": 48
   },
-  "target": "https://ikimon.life",
+  "target": "https://zukan.earth",
   "defaultMode": "targeted",
   "recommendedCadenceMinutes": 15,
   "fullVerification": {

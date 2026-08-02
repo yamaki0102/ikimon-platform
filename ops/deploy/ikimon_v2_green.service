@@ -10,6 +10,7 @@ Group=www-data
 WorkingDirectory=/var/www/ikimon.life/runtime/green
 EnvironmentFile=/etc/ikimon/production-v2.env
 Environment=NODE_ENV=production
+Environment=ZUKAN_PUBLIC_ORIGIN=https://zukan.earth
 Environment=PORT=3202
 ExecStart=/usr/bin/env node dist/server.js
 Restart=always

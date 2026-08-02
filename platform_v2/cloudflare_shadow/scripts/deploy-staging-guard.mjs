@@ -7,7 +7,7 @@ import { waitForExactStagingRuntimeVersion } from "./staging-runtime-smoke.mjs";
 
 const requiredApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
 const stagingWorkerUrl = "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev";
-const stagingPublicUrl = "https://staging.ikimon.life";
+const stagingPublicUrl = "https://staging.zukan.earth";
 const defaultPreflightReportPath = ".deploy/staging-preflight-latest.json";
 const allowedArgs = new Set(["--execute", "--approval", "--write-preflight-report", "--test-profile"]);
 const args = new Map();

@@ -105,6 +105,69 @@ test("canonical www host redirect still short-circuits with security headers", a
   }
 });
 
+test("legacy host migration redirects only safe pages when explicitly enabled", async () => {
+  const previousMode = process.env.ZUKAN_LEGACY_REDIRECT_MODE;
+  process.env.ZUKAN_LEGACY_REDIRECT_MODE = "enabled";
+  const app = buildApp();
+  try {
+    const page = await app.inject({
+      method: "GET",
+      url: "/ja/records?view=public",
+      headers: { host: "ikimon.life" },
+    });
+    assert.equal(page.statusCode, 308);
+    assert.equal(page.headers.location, "https://zukan.earth/ja/records?view=public");
+
+    const api = await app.inject({
+      method: "GET",
+      url: "/api/v1/not-a-route",
+      headers: { host: "ikimon.life", accept: "application/json" },
+    });
+    assert.notEqual(api.statusCode, 308);
+    assert.equal(api.headers.location, undefined);
+
+    const media = await app.inject({
+      method: "GET",
+      url: "/assets/brand/zukan-ogp-default.png",
+      headers: { host: "ikimon.life" },
+    });
+    assert.notEqual(media.statusCode, 308);
+    assert.equal(media.headers.location, undefined);
+  } finally {
+    await app.close();
+    if (previousMode === undefined) delete process.env.ZUKAN_LEGACY_REDIRECT_MODE;
+    else process.env.ZUKAN_LEGACY_REDIRECT_MODE = previousMode;
+  }
+});
+
+test("legacy domain redirects are limited to GET and HEAD page navigations", async () => {
+  const previousMode = process.env.ZUKAN_LEGACY_REDIRECT_MODE;
+  process.env.ZUKAN_LEGACY_REDIRECT_MODE = "enabled";
+  const app = buildApp();
+  try {
+    const head = await app.inject({
+      method: "HEAD",
+      url: "/ja/records",
+      headers: { host: "ikimon.life" },
+    });
+    assert.equal(head.statusCode, 308);
+    assert.equal(head.headers.location, "https://zukan.earth/ja/records");
+
+    const post = await app.inject({
+      method: "POST",
+      url: "/ja/records",
+      headers: { host: "ikimon.life", "content-type": "application/json" },
+      payload: {},
+    });
+    assert.notEqual(post.statusCode, 308);
+    assert.equal(post.headers.location, undefined);
+  } finally {
+    await app.close();
+    if (previousMode === undefined) delete process.env.ZUKAN_LEGACY_REDIRECT_MODE;
+    else process.env.ZUKAN_LEGACY_REDIRECT_MODE = previousMode;
+  }
+});
+
 test("legacy service worker cleanup also clears app shell caches", async () => {
   const app = buildApp();
   try {

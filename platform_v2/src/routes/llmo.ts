@@ -1,35 +1,30 @@
 import type { FastifyInstance } from "fastify";
 import { buildLlmoFaqMarkdown, buildLlmoGuideMarkdown, buildLlmoResearcherMarkdown, buildLlmoTermsMarkdown, buildLlmsTxt } from "../llmo.js";
-
-function requestOrigin(request: { headers: Record<string, unknown> }): string {
-  const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "ikimon.life");
-  const proto = String(request.headers["x-forwarded-proto"] ?? "https").split(",")[0]?.trim() || "https";
-  return `${proto}://${host}`;
-}
+import { canonicalPublicOriginFromHeaders } from "../publicOrigin.js";
 
 export async function registerLlmoRoutes(app: FastifyInstance): Promise<void> {
   app.get("/llms.txt", async (request, reply) => {
     reply.type("text/plain; charset=utf-8").header("Cache-Control", "public, max-age=3600");
-    return buildLlmsTxt(requestOrigin(request as unknown as { headers: Record<string, unknown> }));
+    return buildLlmsTxt(canonicalPublicOriginFromHeaders(request.headers as unknown as Record<string, unknown>));
   });
 
-  app.get("/llms/guide.md", async (_request, reply) => {
+  app.get("/llms/guide.md", async (request, reply) => {
     reply.type("text/markdown; charset=utf-8").header("Cache-Control", "public, max-age=3600");
-    return buildLlmoGuideMarkdown();
+    return buildLlmoGuideMarkdown(canonicalPublicOriginFromHeaders(request.headers as unknown as Record<string, unknown>));
   });
 
-  app.get("/llms/faq.md", async (_request, reply) => {
+  app.get("/llms/faq.md", async (request, reply) => {
     reply.type("text/markdown; charset=utf-8").header("Cache-Control", "public, max-age=3600");
-    return buildLlmoFaqMarkdown();
+    return buildLlmoFaqMarkdown(canonicalPublicOriginFromHeaders(request.headers as unknown as Record<string, unknown>));
   });
 
-  app.get("/llms/researcher.md", async (_request, reply) => {
+  app.get("/llms/researcher.md", async (request, reply) => {
     reply.type("text/markdown; charset=utf-8").header("Cache-Control", "public, max-age=3600");
-    return buildLlmoResearcherMarkdown();
+    return buildLlmoResearcherMarkdown(canonicalPublicOriginFromHeaders(request.headers as unknown as Record<string, unknown>));
   });
 
-  app.get("/llms/terms.md", async (_request, reply) => {
+  app.get("/llms/terms.md", async (request, reply) => {
     reply.type("text/markdown; charset=utf-8").header("Cache-Control", "public, max-age=3600");
-    return buildLlmoTermsMarkdown();
+    return buildLlmoTermsMarkdown(canonicalPublicOriginFromHeaders(request.headers as unknown as Record<string, unknown>));
   });
 }

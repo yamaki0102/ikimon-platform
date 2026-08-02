@@ -8,7 +8,7 @@ const args = new Map(process.argv.slice(2).map((item) => {
   return [key, rest.join("=") || "true"];
 }));
 const execute = args.get("--execute") === "true";
-const baseUrl = String(args.get("--base-url") || process.env.STAGING_BASE_URL || "https://staging.ikimon.life").replace(/\/$/, "");
+const baseUrl = String(args.get("--base-url") || process.env.STAGING_BASE_URL || "https://staging.zukan.earth").replace(/\/$/, "");
 const durationSeconds = Number(args.get("--duration-seconds") || 600);
 const evidencePath = String(args.get("--evidence") || "").trim();
 const writeKey = String(process.env.V2_PRIVILEGED_WRITE_API_KEY || "").trim();
@@ -20,7 +20,7 @@ function assertTargetGuard() {
   const allowLocal = process.env.RENRI_LOAD_ALLOW_LOCAL === "1" && ["localhost", "127.0.0.1"].includes(url.hostname);
   if (url.protocol !== "https:" && !allowLocal) throw new Error("https_staging_target_required");
   if (url.hostname === "ikimon.life" || url.hostname === "www.ikimon.life") throw new Error("production_target_forbidden");
-  if (url.hostname !== "staging.ikimon.life" && !allowLocal) throw new Error("staging_target_required");
+  if (url.hostname !== "staging.zukan.earth" && url.hostname !== "staging.ikimon.life" && !allowLocal) throw new Error("staging_target_required");
   if (!Number.isFinite(durationSeconds) || durationSeconds < 1 || durationSeconds > 900) throw new Error("invalid_duration_seconds");
   if (execute && durationSeconds < 600 && process.env.RENRI_LOAD_ALLOW_SHORT !== "1") {
     throw new Error("execute_requires_600_seconds");
