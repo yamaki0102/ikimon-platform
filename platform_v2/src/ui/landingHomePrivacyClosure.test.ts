@@ -89,7 +89,7 @@ test("private, blurred, and blocked_public records never reach guest Home", () =
       radiusM: null,
       centroidLat: null,
       centroidLng: null,
-      displayMode: "hidden",
+      displayMode: "area",
     },
   }));
   assertHidden(proof({ publicFeedEligible: true, publicFeedGateStatus: "blocked_public" }));
