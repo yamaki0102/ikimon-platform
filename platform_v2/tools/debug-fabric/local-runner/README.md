@@ -38,7 +38,17 @@ export IKIMON_CODEX_TERRA_MODEL='terra'
 
 `OPENAI_API_KEY` is explicitly removed. The runner is designed for the subscription/OAuth login already stored by Codex CLI, not API billing.
 
-## Run
+## One-command WSLC smoke
+
+This creates a private throwaway repository, asks the real signed-in Codex Luna to create one synthetic file, runs the deterministic check, commits the local candidate, and reads back `local-evidence.json`.
+
+```bash
+node platform_v2/tools/debug-fabric/local-runner/smoke-wslc.mjs
+```
+
+It does not use a project repository, push, deploy, or contact Cloudflare/GitHub. The retained smoke path is printed at completion under `~/.ikimon-debug-fabric/smoke/`.
+
+## Run a real task
 
 Copy the template outside the repository and replace its placeholder path and SHA.
 
