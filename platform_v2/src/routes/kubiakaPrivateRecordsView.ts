@@ -82,7 +82,7 @@ function detailHref(basePath: string, lang: SiteLang, visitId: string): string {
 function mediaHref(basePath: string, visitId: string, photoIndex: number): string {
   return withBasePath(
     basePath,
-    `${KUBIAAKA_PRIVATE_RECORD_MEDIA_PREFIX}/${encodeURIComponent(visitId)}/photos/${photoIndex}`,
+    `${KUBIAKA_PRIVATE_RECORD_MEDIA_PREFIX}/${encodeURIComponent(visitId)}/photos/${photoIndex}`,
   );
 }
 
