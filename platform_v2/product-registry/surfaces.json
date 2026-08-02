@@ -1,0 +1,184 @@
+{
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "surfaces": [
+    {
+      "id": "zukan.home.public",
+      "route": "/",
+      "route_source": "site-map",
+      "kind": "website-home",
+      "area": "start",
+      "purpose": "ZUKANの価値を理解し、撮影または地域の記録閲覧を始める",
+      "personas": ["visitor", "member"],
+      "auth": "public",
+      "privacy": "public-filtered",
+      "capabilities": ["zukan.home.view-public", "zukan.capture.start"],
+      "entry_points": ["external"],
+      "transitions": [
+        { "action": "撮る", "target": "zukan.capture.start" },
+        { "action": "記録を見る", "target": "zukan.records.public" },
+        { "action": "場所を見る", "target": "zukan.map.public" }
+      ],
+      "states": ["guest", "member", "empty", "populated", "loading", "degraded", "error"],
+      "design_contract": "design.zukan.home-public",
+      "content_contract": "content.zukan.home-public",
+      "quality_contract": "quality.zukan.home-public",
+      "implementation_ref": "platform_v2/src/siteMap.ts"
+    },
+    {
+      "id": "zukan.capture.start",
+      "route": "/record",
+      "route_source": "site-map",
+      "kind": "capture-flow",
+      "area": "capture",
+      "purpose": "写真・場所・時間・メモを記録し、未ログイン時は安全に開始案内へ分岐する",
+      "personas": ["visitor", "member"],
+      "auth": "session-or-start-guide",
+      "privacy": "private-draft",
+      "capabilities": ["zukan.capture.start", "zukan.record.save-private"],
+      "entry_points": ["zukan.home.public", "zukan.home.member", "zukan.records.public"],
+      "transitions": [
+        { "action": "保存成功", "target": "zukan.home.member" },
+        { "action": "公開記録へ戻る", "target": "zukan.records.public" }
+      ],
+      "states": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying"],
+      "design_contract": "design.zukan.capture",
+      "content_contract": "content.zukan.capture",
+      "quality_contract": "quality.zukan.capture",
+      "implementation_ref": "platform_v2/src/siteMap.ts"
+    },
+    {
+      "id": "zukan.records.public",
+      "route": "/records",
+      "route_source": "site-map",
+      "kind": "public-browser",
+      "area": "records",
+      "purpose": "公開観察、名前待ち、証拠メディア、場所を一つの入口から探す",
+      "personas": ["visitor", "member"],
+      "auth": "public",
+      "privacy": "public-filtered",
+      "capabilities": ["zukan.records.browse-public", "zukan.capture.start"],
+      "entry_points": ["zukan.home.public", "zukan.home.member", "zukan.map.public"],
+      "transitions": [
+        { "action": "撮る", "target": "zukan.capture.start" },
+        { "action": "場所を見る", "target": "zukan.map.public" }
+      ],
+      "states": ["empty", "populated", "searching", "no-results", "loading", "error"],
+      "design_contract": "design.zukan.records",
+      "content_contract": "content.zukan.records",
+      "quality_contract": "quality.zukan.records",
+      "implementation_ref": "platform_v2/src/siteMap.ts"
+    },
+    {
+      "id": "zukan.map.public",
+      "route": "/map",
+      "route_source": "site-map",
+      "kind": "map-explorer",
+      "area": "places",
+      "purpose": "公開可能な範囲で記録が集まる場所と次に歩く理由を見る",
+      "personas": ["visitor", "member"],
+      "auth": "public",
+      "privacy": "public-filtered-location",
+      "capabilities": ["zukan.map.explore-public", "zukan.capture.start"],
+      "entry_points": ["zukan.home.public", "zukan.records.public"],
+      "transitions": [
+        { "action": "記録を見る", "target": "zukan.records.public" },
+        { "action": "撮る", "target": "zukan.capture.start" }
+      ],
+      "states": ["loading", "populated", "empty", "location-denied", "map-unavailable", "error"],
+      "design_contract": "design.zukan.map",
+      "content_contract": "content.zukan.map",
+      "quality_contract": "quality.zukan.map",
+      "implementation_ref": "platform_v2/src/siteMap.ts"
+    },
+    {
+      "id": "zukan.home.member",
+      "route": "/home",
+      "route_source": "site-map",
+      "kind": "personal-library",
+      "area": "self",
+      "purpose": "自分の観察、場所、再訪候補を確認し、撮影へすぐ戻る",
+      "personas": ["member"],
+      "auth": "session",
+      "privacy": "mixed-owner-and-public",
+      "capabilities": ["zukan.home.view-member", "zukan.capture.start"],
+      "entry_points": ["zukan.capture.start", "zukan.kubiaka.member-records"],
+      "transitions": [
+        { "action": "撮る", "target": "zukan.capture.start" },
+        { "action": "公開記録を見る", "target": "zukan.records.public" },
+        { "action": "クビアカ受付を見る", "target": "zukan.kubiaka.member-records" }
+      ],
+      "states": ["unauthenticated", "empty", "populated", "loading", "degraded", "error"],
+      "design_contract": "design.zukan.home-member",
+      "content_contract": "content.zukan.home-member",
+      "quality_contract": "quality.zukan.home-member",
+      "implementation_ref": "platform_v2/src/siteMap.ts"
+    },
+    {
+      "id": "zukan.kubiaka.landing",
+      "route": "/kubiaka",
+      "route_source": "kubiaka-focused-experience",
+      "kind": "campaign-landing",
+      "area": "campaign",
+      "purpose": "親子を含む市民が、虫の同定を求められずサクラの撮影を始める",
+      "personas": ["visitor", "member"],
+      "auth": "public",
+      "privacy": "public",
+      "capabilities": ["zukan.kubiaka.enter"],
+      "entry_points": ["external", "zukan.home.public"],
+      "transitions": [
+        { "action": "サクラを撮る", "target": "zukan.kubiaka.capture" },
+        { "action": "自分の受付を見る", "target": "zukan.kubiaka.member-records" }
+      ],
+      "states": ["ready", "disabled", "error"],
+      "design_contract": "design.zukan.kubiaka-landing",
+      "content_contract": "content.zukan.kubiaka-landing",
+      "quality_contract": "quality.zukan.kubiaka-landing",
+      "implementation_ref": "platform_v2/src/routes/kubiakaFocusedExperience.ts"
+    },
+    {
+      "id": "zukan.kubiaka.capture",
+      "route": "/kubiaka/record",
+      "route_source": "kubiaka-focused-experience",
+      "kind": "capture-flow",
+      "area": "campaign",
+      "purpose": "サクラの幹や根元を1〜6枚撮り、位置とともに本人限定で保存する",
+      "personas": ["member"],
+      "auth": "session",
+      "privacy": "owner-only-sensitive-location",
+      "capabilities": ["zukan.kubiaka.capture", "zukan.kubiaka.save-private"],
+      "entry_points": ["zukan.kubiaka.landing", "zukan.kubiaka.member-records"],
+      "transitions": [
+        { "action": "保存成功", "target": "zukan.kubiaka.member-records" },
+        { "action": "戻る", "target": "zukan.kubiaka.landing" }
+      ],
+      "states": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying", "denied"],
+      "design_contract": "design.zukan.kubiaka-capture",
+      "content_contract": "content.zukan.kubiaka-capture",
+      "quality_contract": "quality.zukan.kubiaka-capture",
+      "implementation_ref": "platform_v2/src/routes/kubiakaFocusedExperience.ts"
+    },
+    {
+      "id": "zukan.kubiaka.member-records",
+      "route": "/kubiaka/me",
+      "route_source": "kubiaka-focused-experience",
+      "kind": "personal-library",
+      "area": "self",
+      "purpose": "本人が過去の非公開受付記録を確認し、撮影へ戻る",
+      "personas": ["member"],
+      "auth": "session",
+      "privacy": "owner-only-sensitive-location",
+      "capabilities": ["zukan.kubiaka.view-own-records", "zukan.kubiaka.capture"],
+      "entry_points": ["zukan.kubiaka.landing", "zukan.kubiaka.capture", "zukan.home.member"],
+      "transitions": [
+        { "action": "新しく撮る", "target": "zukan.kubiaka.capture" },
+        { "action": "ZUKAN Homeへ戻る", "target": "zukan.home.member" }
+      ],
+      "states": ["unauthenticated", "empty", "populated", "loading", "error", "denied", "record-missing"],
+      "design_contract": "design.zukan.kubiaka-member-records",
+      "content_contract": "content.zukan.kubiaka-member-records",
+      "quality_contract": "quality.zukan.kubiaka-member-records",
+      "implementation_ref": "platform_v2/src/routes/kubiakaFocusedExperience.ts"
+    }
+  ]
+}
