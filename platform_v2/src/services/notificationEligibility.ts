@@ -11,6 +11,7 @@ type CanonicalNotificationTaxonRow = {
   scientific_name: string | null;
   occurrence_scientific_name?: string | null;
   persisted_scientific_name?: string | null;
+  persisted_scientific_names?: string[] | null;
 };
 
 export type CanonicalNotificationObservationInput = {
@@ -18,33 +19,46 @@ export type CanonicalNotificationObservationInput = {
   visitId: string;
 };
 
+function cleanScientificNames(values: unknown[]): string[] {
+  return values
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+}
+
 function evaluatePersistedNotificationIdentity(
   row: CanonicalNotificationTaxonRow,
 ): ExperienceManagedTaxonNotificationDecision {
   const occurrenceScientificName = row.occurrence_scientific_name ?? null;
-  const persistedScientificName = row.persisted_scientific_name ?? null;
-  const persistedEvidence = [persistedScientificName, occurrenceScientificName]
-    .filter((name): name is string => typeof name === "string" && name.trim().length > 0);
+  const persistedScientificNames = cleanScientificNames([
+    ...(Array.isArray(row.persisted_scientific_names) ? row.persisted_scientific_names : []),
+    row.persisted_scientific_name,
+  ]);
+  const persistedEvidence = cleanScientificNames([
+    ...persistedScientificNames,
+    occurrenceScientificName,
+  ]);
 
-  // A managed identity in either persisted source must not be hidden by an
-  // unmanaged original/client-supplied value or a later appended assessment.
-  // Evaluate every persisted identity conservatively before selecting the
-  // latest AI identity as the ordinary unmanaged routing identity.
+  // A managed identity in any persisted source must not be hidden by an
+  // unmanaged original/client-supplied value, another primary candidate, or a
+  // later appended assessment. Evaluate every server-side identity
+  // conservatively before selecting the latest AI identity for ordinary
+  // unmanaged routing.
   for (const scientificName of new Set(persistedEvidence)) {
     const decision = evaluateExperienceManagedTaxonNotificationEligibility(scientificName);
     if (!decision.allowed) return decision;
   }
 
   return evaluateExperienceManagedTaxonNotificationEligibility(
-    persistedScientificName ?? occurrenceScientificName ?? row.scientific_name,
+    persistedScientificNames[0] ?? occurrenceScientificName ?? row.scientific_name,
   );
 }
 
 /**
- * Resolve the notification species identity only from persisted server-side
- * records. The original occurrence remains immutable; the latest persisted AI
- * assessment/primary candidate is the normal routing identity, while a managed
- * identity in either persisted source keeps Gate 0 closed.
+ * Resolve notification eligibility only from persisted server-side records.
+ * The original occurrence remains immutable. Every primary identity on the
+ * latest persisted assessment is evaluated; a managed identity in any
+ * persisted source keeps Gate 0 closed.
  *
  * Client flags, transient AI context, and experience link state are not
  * accepted as the source of this decision.
@@ -72,11 +86,11 @@ export async function readCanonicalNotificationEligibility(
     const result = await client.query<CanonicalNotificationTaxonRow>(
       `/* notification_gate_canonical_taxon */
        select coalesce(
-                persisted_identity.scientific_name,
+                persisted_identity.scientific_names[1],
                 nullif(btrim(o.scientific_name), '')
               ) as scientific_name,
               nullif(btrim(o.scientific_name), '') as occurrence_scientific_name,
-              persisted_identity.scientific_name as persisted_scientific_name
+              persisted_identity.scientific_names as persisted_scientific_names
          from occurrences o
          join visits v on v.visit_id = o.visit_id
          left join lateral (
@@ -87,18 +101,25 @@ export async function readCanonicalNotificationEligibility(
             limit 1
          ) latest_assessment on true
          left join lateral (
-           select max(nullif(btrim(c.scientific_name), '')) as scientific_name
+           select coalesce(
+                    array_agg(distinct nullif(btrim(c.scientific_name), ''))
+                      filter (where nullif(btrim(c.scientific_name), '') is not null),
+                    '{}'::text[]
+                  ) as scientific_names
              from visual_subject_candidates c
             where c.assessment_id = latest_assessment.assessment_id
               and c.occurrence_id = o.occurrence_id
               and c.subject_role = 'primary'
          ) latest_primary on true
          left join lateral (
-           select coalesce(
-                    latest_primary.scientific_name,
-                    nullif(btrim(latest_assessment.raw_json #>> '{parsed,taxonomic_rank_guard,final_scientific_name}'), ''),
-                    nullif(btrim(latest_assessment.raw_json #>> '{parsed,recommended_scientific_name}'), '')
-                  ) as scientific_name
+           select array_remove(
+                    coalesce(latest_primary.scientific_names, '{}'::text[])
+                    || array[
+                         nullif(btrim(latest_assessment.raw_json #>> '{parsed,taxonomic_rank_guard,final_scientific_name}'), ''),
+                         nullif(btrim(latest_assessment.raw_json #>> '{parsed,recommended_scientific_name}'), '')
+                       ]::text[],
+                    null
+                  ) as scientific_names
          ) persisted_identity on true
         where o.occurrence_id = $1
           and v.visit_id = $2
