@@ -12203,6 +12203,10 @@ async function fetchOriginFallback(request: Request, url: URL, env: Env, reason 
   const headers = new Headers(request.headers);
   headers.set("x-ikimon-cloudflare-fallback", "origin");
   headers.set("x-ikimon-cloudflare-fallback-reason", reason);
+  // The public URL is the only trusted origin identity at the Worker edge.
+  // Never forward a client-supplied X-Forwarded-* value into the origin app.
+  headers.set("x-forwarded-host", url.host);
+  headers.set("x-forwarded-proto", url.protocol.replace(":", ""));
   headers.delete("cf-connecting-ip");
   headers.delete("cf-ipcountry");
   headers.delete("cf-ray");
