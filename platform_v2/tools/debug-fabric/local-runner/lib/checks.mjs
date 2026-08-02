@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { runProcess, safeCheckEnvironment, writePrivateLog } from './process.mjs';
 import { sha256 } from './ledger.mjs';
@@ -6,10 +6,14 @@ import { sha256 } from './ledger.mjs';
 export async function runChecks(task, worktree, ledger, options = {}) {
   const runner = options.runProcess ?? runProcess;
   await mkdir(ledger.home_dir, { recursive: true, mode: 0o700 });
+  const root = await realpath(worktree);
   const results = [];
   for (const check of task.checks) {
-    const cwd = path.resolve(worktree, check.cwd);
-    if (!within(worktree, cwd)) throw new Error('check_cwd_outside_worktree');
+    const requestedCwd = path.resolve(root, check.cwd);
+    if (!within(root, requestedCwd)) throw new Error('check_cwd_outside_worktree');
+    const cwd = await realpath(requestedCwd);
+    if (!within(root, cwd)) throw new Error('check_cwd_symlink_escape');
+    await assertScriptArgumentsInsideWorktree(check.argv, cwd, root);
     const result = await runner(check.argv, {
       cwd,
       env: safeCheckEnvironment(ledger.home_dir, options.env ?? process.env),
@@ -55,11 +59,33 @@ export function failureSummary(results) {
     .slice(0, 24000);
 }
 
+async function assertScriptArgumentsInsideWorktree(argv, cwd, root) {
+  const executable = argv[0].toLowerCase();
+  let candidate = null;
+  if (executable === 'bash' || executable === 'sh') candidate = argv[1] ?? null;
+  else if (executable === 'powershell' || executable === 'pwsh') {
+    const index = argv.findIndex((value) => value.toLowerCase() === '-file');
+    candidate = index >= 0 ? argv[index + 1] : null;
+  } else if (executable === 'python' || executable === 'python3' || executable === 'php') {
+    candidate = argv.slice(1).find((value, index, values) => {
+      if (value.startsWith('-')) return false;
+      if (index > 0 && values[index - 1] === '-m') return false;
+      return true;
+    }) ?? null;
+  } else if (executable === 'node') {
+    candidate = argv.slice(1).find((value) => !value.startsWith('-') && /\.(?:c?js|mjs|ts|tsx)$/u.test(value)) ?? null;
+  }
+  if (!candidate || path.isAbsolute(candidate)) {
+    if (candidate && path.isAbsolute(candidate)) throw new Error('check_script_must_be_relative');
+    return;
+  }
+  const resolved = await realpath(path.resolve(cwd, candidate));
+  if (!within(root, resolved)) throw new Error('check_script_symlink_escape');
+}
+
 function sanitizeTail(value) {
   return String(value)
     .replace(/\x1b\[[0-9;]*m/gu, '')
-    .replace(/(?:gh[pousr]|github_pat)_[A-Za-z0-9_]+/gu, '[REDACTED_TOKEN]')
-    .replace(/sk-[A-Za-z0-9_-]{12,}/gu, '[REDACTED_TOKEN]')
     .split(/\r?\n/u).slice(-60).join('\n').slice(-16000);
 }
 function normalize(value) {
