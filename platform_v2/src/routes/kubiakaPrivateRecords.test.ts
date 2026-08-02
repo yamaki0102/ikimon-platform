@@ -102,7 +102,7 @@ test("existing /kubiaka/me route is replaced without breaking acknowledgement li
     });
     assert.equal(acknowledgement.statusCode, 200);
     assert.match(acknowledgement.body, /写真を受け付けました/);
-    assert.match(acknowledgement.body, /\/kubiaka\/records\/visit-owner-a/);
+    assert.match(acknowledgement.body, /\/ja\/kubiaka\/records\/visit-owner-a/);
     assert.doesNotMatch(acknowledgement.body, /occ(?::|%3A)visit-owner-a/i);
   });
 });
@@ -111,7 +111,8 @@ test("private pages redirect signed-out users and set private no-store headers f
   await withApp(async (app) => {
     const signedOut = await app.inject({ method: "GET", url: "/kubiaka/me/records?lang=ja" });
     assert.equal(signedOut.statusCode, 302);
-    assert.match(String(signedOut.headers.location), /\/login/);
+    assert.match(String(signedOut.headers.location), /\/ja\/login/);
+    assert.match(decodeURIComponent(String(signedOut.headers.location)), /redirect=\/ja\/kubiaka\/me\/records/);
     assert.equal(signedOut.headers["cache-control"], "private, no-store");
     assert.equal(signedOut.headers.vary, "Cookie");
 
@@ -187,7 +188,7 @@ test("private photos are owner-gated and never converted to public URLs", async 
   });
 });
 
-test("forwarded base paths appear exactly once", async () => {
+test("forwarded base paths precede locale for pages and sign-in redirects", async () => {
   await withApp(async (app) => {
     const response = await app.inject({
       method: "GET",
@@ -195,8 +196,22 @@ test("forwarded base paths appear exactly once", async () => {
       headers: { "x-test-user": "owner-a", "x-forwarded-prefix": "/preview" },
     });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /\/preview\/kubiaka\/records\/visit-owner-a/);
+    assert.match(response.body, /\/preview\/en\/kubiaka\/records\/visit-owner-a/);
+    assert.match(response.body, /\/preview\/es\/kubiaka\/me\/records/);
+    assert.match(response.body, /\/preview\/pt-br\/kubiaka\/me\/records/);
+    assert.doesNotMatch(response.body, /\/(?:en|es|pt-br)\/preview\//);
     assert.doesNotMatch(response.body, /\/preview\/preview\//);
+
+    const signedOut = await app.inject({
+      method: "GET",
+      url: "/kubiaka/me/records?lang=en",
+      headers: { "x-forwarded-prefix": "/preview" },
+    });
+    assert.equal(signedOut.statusCode, 302);
+    const location = decodeURIComponent(String(signedOut.headers.location));
+    assert.match(location, /^\/preview\/en\/login\?/);
+    assert.match(location, /redirect=\/preview\/en\/kubiaka\/me\/records/);
+    assert.doesNotMatch(location, /\/en\/preview\//);
   });
 });
 
