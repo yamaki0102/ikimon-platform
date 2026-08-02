@@ -103,7 +103,11 @@ test("existing /kubiaka/me route is replaced without breaking acknowledgement li
     assert.equal(acknowledgement.statusCode, 200);
     assert.match(acknowledgement.body, /写真を受け付けました/);
     assert.match(acknowledgement.body, /\/ja\/kubiaka\/records\/visit-owner-a/);
-    assert.doesNotMatch(acknowledgement.body, /occ(?::|%3A)visit-owner-a/i);
+    assert.match(acknowledgement.body, /href="\/en\/kubiaka\/me\?record=occ%3Avisit-owner-a%3A0"/);
+    assert.match(acknowledgement.body, /href="\/es\/kubiaka\/me\?record=occ%3Avisit-owner-a%3A0"/);
+    assert.match(acknowledgement.body, /href="\/pt-br\/kubiaka\/me\?record=occ%3Avisit-owner-a%3A0"/);
+    assert.doesNotMatch(acknowledgement.body, /record=occ:visit-owner-a:0/i);
+    assert.doesNotMatch(acknowledgement.body, />[^<]*occ(?::|%3A)visit-owner-a[^<]*</i);
   });
 });
 
