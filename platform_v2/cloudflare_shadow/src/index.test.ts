@@ -16726,6 +16726,31 @@ test("production oauth start keeps original provider redirect contracts without 
   assert.ok(twitterLocation.searchParams.get("code_challenge"));
 });
 
+test("worker oauth origin ignores inbound forwarded headers and fallback markers", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    GOOGLE_CLIENT_ID: "google-client",
+    GOOGLE_CLIENT_SECRET: "google-secret",
+    V2_OAUTH_STATE_SECRET: "state-secret"
+  };
+
+  const response = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start?redirect=/record", {
+    headers: {
+      "x-forwarded-host": "staging.ikimon.life",
+      "x-forwarded-proto": "http",
+      "x-ikimon-cloudflare-fallback": "origin"
+    }
+  }), productionEnv);
+  assert.equal(response.status, 303);
+  const location = new URL(response.headers.get("location") ?? "");
+  assert.equal(location.searchParams.get("redirect_uri"), "https://ikimon.life/oauth_callback.php?provider=google");
+});
+
 test("production oauth callback creates Cloudflare-native session from provider profile", async () => {
   const { env, core } = createEnv();
   const productionEnv = {

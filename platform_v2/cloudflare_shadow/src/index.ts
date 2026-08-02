@@ -69,6 +69,7 @@ import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus";
+import { resolveTrustedPublicOrigin } from "../../src/services/trustedPublicOrigin";
 import {
   normalizePlaceAtlasRef,
   PLACE_ATLAS_PROFILE_VERSION,
@@ -26850,9 +26851,16 @@ function buildClearedOAuthStateCookie(env: Env): string {
 
 function requestPublicOrigin(request: Request): string {
   const url = new URL(request.url);
-  const forwardedHost = headerFirst(request.headers.get("x-forwarded-host"));
-  const forwardedProto = headerFirst(request.headers.get("x-forwarded-proto"));
-  return `${forwardedProto || url.protocol.replace(":", "")}://${forwardedHost || url.host}`;
+  // The Worker is the public trust boundary. Inbound forwarded headers and the
+  // origin-fallback marker are only meaningful on the Worker-to-origin hop;
+  // they must never let a client select the OAuth callback origin at the edge.
+  return resolveTrustedPublicOrigin(
+    {
+      headers: { host: request.headers.get("host") ?? url.host },
+      protocol: url.protocol.replace(":", ""),
+    },
+    { allowLocalDevelopment: true },
+  ) ?? "http://localhost:3200";
 }
 
 function oauthRedirectUri(request: Request, provider: OAuthProvider): string {
