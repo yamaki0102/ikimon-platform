@@ -73,12 +73,30 @@ test("non-OAuth routes are not restricted by the OAuth-specific wrapper", () => 
   assert.equal(authorizeBrowserOAuthStart(candidate, { ENVIRONMENT: "production" }), true);
 });
 
-test("OAuth boundary errors return a friendly no-store redirect", async () => {
-  const candidate = request("https://ikimon.life/auth/oauth/google/start", "localhost");
-  const response = oauthErrorRedirect(candidate);
-  assert.equal(response.status, 303);
-  assert.equal(response.headers.get("location"), "https://ikimon.life/login?error=oauth");
-  assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
-  assert.equal(await response.text(), "");
+test("OAuth boundary errors use an environment-pinned friendly redirect", async () => {
+  const productionSpoof = request(
+    "https://evil.example/auth/oauth/google/start",
+    "localhost",
+  );
+  const productionResponse = oauthErrorRedirect(productionSpoof, { ENVIRONMENT: "production" });
+  assert.equal(productionResponse.status, 303);
+  assert.equal(productionResponse.headers.get("location"), "https://ikimon.life/login?error=oauth");
+  assert.equal(productionResponse.headers.get("cache-control"), "no-store");
+  assert.equal(productionResponse.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(await productionResponse.text(), "");
+
+  const stagingSpoof = request(
+    "https://evil.example/auth/oauth/google/start",
+    "staging.ikimon.life",
+  );
+  assert.equal(
+    oauthErrorRedirect(stagingSpoof, { ENVIRONMENT: "staging" }).headers.get("location"),
+    "https://staging.ikimon.life/login?error=oauth",
+  );
+
+  const local = request("http://localhost:8787/auth/oauth/google/start", "localhost:8787");
+  assert.equal(
+    oauthErrorRedirect(local, { ENVIRONMENT: "shadow" }).headers.get("location"),
+    "http://localhost:8787/login?error=oauth",
+  );
 });
