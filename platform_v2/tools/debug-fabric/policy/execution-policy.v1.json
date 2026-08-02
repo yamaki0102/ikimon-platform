@@ -1,6 +1,6 @@
 {
   "schema": "ikimon.debug-execution-policy/v1",
-  "policy_id": "local-luna-first-20260802",
+  "policy_id": "local-luna-first-self-review-20260802",
   "primary_lane": "local_codex_luna",
   "thresholds": {
     "terra_minimum_luna_passes": 3,
@@ -13,6 +13,16 @@
     "requires_evidence_sha256": true,
     "verified_sha_must_equal_candidate_sha": true
   },
+  "review": {
+    "default_provider": "chatgpt_self_review",
+    "exact_sha_required": true,
+    "full_diff_required": true,
+    "pixel_review": {
+      "mode": "owner_explicit_only",
+      "enabled_by_default": false,
+      "release_gate_by_default": false
+    }
+  },
   "lanes": {
     "local_codex_luna": {
       "purpose": "default exploration, test generation, fault injection, fix loops, and repeated regression runs",
@@ -24,8 +34,16 @@
       "cloud_mutation": false,
       "production_mutation": false
     },
-    "pixel_opus_review": {
-      "purpose": "independent read-only review after a candidate patch or full-diff snapshot exists",
+    "chatgpt_self_review": {
+      "purpose": "default exact-head and full-diff source review recorded on the pull request",
+      "cloud_mutation": false,
+      "production_mutation": false
+    },
+    "pixel_review_opt_in": {
+      "purpose": "optional read-only review only after an explicit repository-owner instruction",
+      "owner_explicit_instruction_required": true,
+      "enabled_by_default": false,
+      "release_gate_by_default": false,
       "cloud_mutation": false,
       "production_mutation": false
     },
@@ -41,6 +59,7 @@
   "forbidden_defaults": [
     "github_actions",
     "cloudflare_debug_loop",
+    "pixel_review_without_owner_instruction",
     "ai_api_billing",
     "production_write",
     "database_write",
@@ -57,7 +76,7 @@
     "chatgpt_github_small_patch",
     "local_codex_luna",
     "local_codex_terra_after_threshold",
-    "pixel_opus_review",
+    "chatgpt_self_review",
     "cloudflare_final_proof_after_local_green"
   ]
 }

@@ -6,7 +6,7 @@ Date: 2026-08-02
 
 Extend the existing Release Commander, Command Bus, and Sandbox Executor instead of creating a second release system or running heavy tests on the Pixel.
 
-The Pixel remains the chat, review, and notification terminal. Deterministic execution runs in an isolated container. Shared staging provides the final exact-runtime proof.
+ChatGPT remains the chat control and default source-review surface. Deterministic execution runs in an isolated container. Shared staging provides the final exact-runtime proof. Pixel Review is disabled by default and may be used only after an explicit repository-owner instruction; it is not a release gate by default.
 
 ## This slice
 
@@ -18,7 +18,9 @@ The Pixel remains the chat, review, and notification terminal. Deterministic exe
 - read-only HTTP probes;
 - evidence minimisation and secret-leak protection;
 - ZUKAN private/public boundary profile;
-- deliberate red proof.
+- deliberate red proof;
+- ChatGPT exact-head/full-diff self-review as the default review contract;
+- Pixel Review fenced behind owner-explicit opt-in.
 
 ## Next slices
 
@@ -26,5 +28,6 @@ The Pixel remains the chat, review, and notification terminal. Deterministic exe
 - `debug_run_id` lease, resource ledger, cleanup, and residue blocking;
 - default-deny side-effect sink;
 - signed Command Bus dispatch and Release Commander evidence indexing;
-- failure-only Pixel Opus analysis;
+- failure snapshot for ChatGPT self-review and Android notification;
+- optional Pixel analysis only after explicit owner instruction;
 - browser checks in Executor containers only.

@@ -41,13 +41,20 @@
     }
   },
   "review": {
-    "provider": "pixel_claude_subscription",
-    "control_repository": "yamaki0102/ikimon-intake-hub",
-    "request_label": "pixel-review-request-v1",
+    "provider": "chatgpt_self_review",
     "exact_sha_required": true,
-    "allow_write": false,
-    "codex_on_pixel": false,
-    "repository_mutation": "fail_closed"
+    "full_diff_required": true,
+    "record_surface": "pull_request_comment",
+    "allow_write_during_review": false,
+    "repository_mutation": "fail_closed",
+    "pixel_review": {
+      "mode": "owner_explicit_only",
+      "enabled_by_default": false,
+      "release_gate_by_default": false,
+      "control_repository": "yamaki0102/ikimon-intake-hub",
+      "request_label": "pixel-review-request-v1",
+      "codex_on_pixel": false
+    }
   },
   "staging": {
     "entrypoint": "IKIMON_MOBILE_STAGING_REQUEST_V1",
