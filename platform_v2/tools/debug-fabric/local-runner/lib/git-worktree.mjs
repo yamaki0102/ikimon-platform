@@ -36,6 +36,11 @@ export async function prepareWorktree(task, ledger, options = {}) {
   const persistedMatches = ledger.state.candidate_sha === inspected.head_sha;
   const phaseAllowsRecovery = RECOVERABLE_CANDIDATE_PHASES.has(ledger.state.phase);
   if (parent !== task.base_sha || (!persistedMatches && !phaseAllowsRecovery)) throw new Error('worktree_head_moved_before_runner_commit');
+  const commitIdentity = await gitText(ledger.worktree_dir, ['show','-s','--format=%ae%x00%ce%x00%s',inspected.head_sha], context);
+  const [authorEmail, committerEmail, subject] = commitIdentity.split('\0');
+  if (authorEmail !== 'local-debug@ikimon.invalid' || committerEmail !== 'local-debug@ikimon.invalid' || subject !== task.commit_message) {
+    throw new Error('candidate_recovery_identity_mismatch');
+  }
   if (!inspected.clean || inspected.staged) throw new Error('candidate_recovery_worktree_not_clean');
   return Object.freeze({ repo_root: repoRoot, worktree: ledger.worktree_dir, branch: task.branch_name, head_sha: inspected.head_sha, candidate_sha: inspected.head_sha });
 }
