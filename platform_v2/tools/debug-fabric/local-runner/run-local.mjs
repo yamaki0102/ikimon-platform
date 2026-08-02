@@ -169,6 +169,19 @@ async function evaluateCurrentChanges(task, state, ledger, worktree, options) {
 
 async function finalizeCandidate(task, state, ledger, worktree, candidateSha, options) {
   state = await updateState({ ...ledger, state }, { phase: 'finalizing_candidate', candidate_sha: candidateSha });
+  const gitOptions = runnerGitOptions(ledger, options);
+  const changes = await (options.collectCommittedChanges ?? collectCommittedChanges)(task, worktree, candidateSha, gitOptions);
+  const identity = await (options.readCandidateIdentity ?? readCandidateIdentity)(worktree, candidateSha, gitOptions);
+  const persisted = await recoverPersistedEvidence(task, ledger, candidateSha, identity, changes.entries);
+  if (persisted) {
+    state = await updateState({ ...ledger, state }, {
+      status: 'pass', phase: 'completed', classification: 'local_candidate_green',
+      candidate_sha: candidateSha, evidence_sha256: persisted.evidence_sha256,
+    });
+    await appendEvent(ledger, 'local_candidate_evidence_recovered', { candidate_sha: candidateSha, evidence_sha256: persisted.evidence_sha256 });
+    return { state, outcome: outcome(state, ledger) };
+  }
+
   const passNumber = state.active_pass ?? state.luna_passes + state.terra_passes;
   const checks = await (options.runChecks ?? runChecks)(task, worktree, { ...ledger, state }, { ...options, passNumber });
   const signature = failureSignature(checks);
@@ -180,12 +193,9 @@ async function finalizeCandidate(task, state, ledger, worktree, candidateSha, op
     await appendEvent(ledger, 'candidate_post_commit_check_failed', { candidate_sha: candidateSha, failure_signature: signature });
     return { state, outcome: outcome(state, ledger) };
   }
-  const gitOptions = runnerGitOptions(ledger, options);
-  const changes = await (options.collectCommittedChanges ?? collectCommittedChanges)(task, worktree, candidateSha, gitOptions);
-  const identity = await (options.readCandidateIdentity ?? readCandidateIdentity)(worktree, candidateSha, gitOptions);
   const evidenceCore = buildEvidence(task, state, ledger, candidateSha, identity, changes.entries, checks);
   const evidenceHash = sha256(stableStringify(evidenceCore));
-  await persistOrVerifyEvidence(ledger, evidenceCore, evidenceHash);
+  await persistEvidence(ledger, evidenceCore, evidenceHash);
   state = await updateState({ ...ledger, state }, {
     status: 'pass', phase: 'completed', classification: 'local_candidate_green',
     candidate_sha: candidateSha, evidence_sha256: evidenceHash,
@@ -197,9 +207,18 @@ async function finalizeCandidate(task, state, ledger, worktree, candidateSha, op
 async function finalizeNoChange(task, state, ledger, worktree, checks, options) {
   const gitOptions = runnerGitOptions(ledger, options);
   const identity = await (options.readCandidateIdentity ?? readCandidateIdentity)(worktree, task.base_sha, gitOptions);
-  const evidenceCore = buildEvidence(task, state, ledger, task.base_sha, { ...identity, patch: '' }, [], checks);
+  const noChangeIdentity = { ...identity, patch: '' };
+  const persisted = await recoverPersistedEvidence(task, ledger, task.base_sha, noChangeIdentity, []);
+  if (persisted) {
+    state = await updateState({ ...ledger, state }, {
+      status: 'pass', phase: 'completed', classification: 'local_no_change_green',
+      candidate_sha: task.base_sha, evidence_sha256: persisted.evidence_sha256,
+    });
+    return { state, outcome: outcome(state, ledger) };
+  }
+  const evidenceCore = buildEvidence(task, state, ledger, task.base_sha, noChangeIdentity, [], checks);
   const evidenceHash = sha256(stableStringify(evidenceCore));
-  await persistOrVerifyEvidence(ledger, evidenceCore, evidenceHash);
+  await persistEvidence(ledger, evidenceCore, evidenceHash);
   state = await updateState({ ...ledger, state }, {
     status: 'pass', phase: 'completed', classification: 'local_no_change_green',
     candidate_sha: task.base_sha, evidence_sha256: evidenceHash,
@@ -232,16 +251,38 @@ function buildEvidence(task, state, ledger, candidateSha, identity, entries, che
   };
 }
 
-async function persistOrVerifyEvidence(ledger, evidenceCore, evidenceHash) {
+async function recoverPersistedEvidence(task, ledger, candidateSha, identity, entries) {
   const file = path.join(ledger.artifacts_dir, 'local-evidence.json');
   const existing = await readJsonIfExists(file);
-  if (existing) {
-    const { evidence_sha256: persistedHash, ...persistedCore } = existing;
-    if (persistedHash !== evidenceHash || stableStringify(persistedCore) !== stableStringify(evidenceCore)) {
-      throw new Error('persisted_local_evidence_mismatch');
-    }
-    return;
+  if (!existing) return null;
+  const { evidence_sha256: persistedHash, ...core } = existing;
+  if (typeof persistedHash !== 'string' || sha256(stableStringify(core)) !== persistedHash) throw new Error('persisted_local_evidence_hash_invalid');
+  const expectedStatic = {
+    task_id: task.task_id,
+    task_hash: ledger.task_hash,
+    status: 'PASS',
+    repository_path_hash: sha256(task.repository_path),
+    base_sha: task.base_sha,
+    candidate_sha: candidateSha,
+    branch_name: task.branch_name,
+    tree_sha: identity.tree_sha,
+    patch_sha256: sha256(identity.patch),
+    changed_files: entries,
+    protected_mutations: 0,
+    cloud_debug_iterations: 0,
+  };
+  for (const [key, value] of Object.entries(expectedStatic)) {
+    if (stableStringify(core[key]) !== stableStringify(value)) throw new Error(`persisted_local_evidence_mismatch:${key}`);
   }
+  if (!Array.isArray(core.checks) || core.checks.length !== task.checks.length
+      || core.checks.some((entry, index) => entry.id !== task.checks[index].id || entry.status !== 'PASS')) {
+    throw new Error('persisted_local_evidence_checks_invalid');
+  }
+  return Object.freeze({ evidence_sha256: persistedHash });
+}
+
+async function persistEvidence(ledger, evidenceCore, evidenceHash) {
+  const file = path.join(ledger.artifacts_dir, 'local-evidence.json');
   await writeExclusiveJson(file, { ...evidenceCore, evidence_sha256: evidenceHash });
 }
 
