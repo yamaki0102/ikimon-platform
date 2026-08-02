@@ -46,7 +46,7 @@ test("registry rejects a transition to an unknown surface", () => {
 test("registry rejects owner-only surfaces without an explicit denied state", () => {
   const registry = cloneRegistry();
   const ownerOnly = registry.surfaces.find((surface) => surface.id === "zukan.kubiaka.member-records");
-  assert.ok(ownerOnly);
+  if (!ownerOnly) throw new Error("owner-only fixture surface is missing");
   ownerOnly.states = ownerOnly.states.filter((state) => state !== "denied");
   const errors = validateProductRegistry(registry, implementationRoutes());
   assert.ok(errors.some((error) => error.includes("is owner-only but has no denied state")));
@@ -55,7 +55,7 @@ test("registry rejects owner-only surfaces without an explicit denied state", ()
 test("registry rejects write capabilities without retry contracts", () => {
   const registry = cloneRegistry();
   const writeCapability = registry.capabilities.find((capability) => capability.id === "zukan.kubiaka.save-private");
-  assert.ok(writeCapability);
+  if (!writeCapability) throw new Error("write capability fixture is missing");
   delete writeCapability.retry_contract;
   const errors = validateProductRegistry(registry, implementationRoutes());
   assert.ok(errors.some((error) => error.includes("write capability lacks retry_contract")));
