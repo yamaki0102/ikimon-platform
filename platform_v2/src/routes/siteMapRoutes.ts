@@ -10,7 +10,7 @@ import { registerRegionalSourceRoutes } from "./regionalSources.js";
 const STAGING_ORIGIN = "https://staging.ikimon.life";
 const PRODUCTION_ORIGIN = "https://ikimon.life";
 const STAGING_ROBOTS_META = '<meta name="robots" content="noindex, nofollow" />';
-const ROBOTS_META_PATTERN = /<meta\b[^>]*\bname=["']robots["'][^>]*>/i;
+const ROBOTS_META_PATTERN = /<meta\b[^>]*\bname=["']robots["'][^>]*>/gi;
 
 function requestOrigin(request: { headers: Record<string, unknown> }): string {
   const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "ikimon.life");
@@ -34,12 +34,10 @@ export function stagingRobotsTxt(): string {
 }
 
 export function addStagingRobotsMeta(payload: string): string {
-  if (ROBOTS_META_PATTERN.test(payload)) {
-    return payload.replace(ROBOTS_META_PATTERN, STAGING_ROBOTS_META);
-  }
-  return payload.includes("</head>")
-    ? payload.replace("</head>", `  ${STAGING_ROBOTS_META}\n</head>`)
-    : payload;
+  const withoutRobotsMeta = payload.replace(ROBOTS_META_PATTERN, "");
+  return withoutRobotsMeta.includes("</head>")
+    ? withoutRobotsMeta.replace("</head>", `  ${STAGING_ROBOTS_META}\n</head>`)
+    : `${STAGING_ROBOTS_META}\n${withoutRobotsMeta}`;
 }
 
 export async function registerSiteMapRoutes(app: FastifyInstance): Promise<void> {
