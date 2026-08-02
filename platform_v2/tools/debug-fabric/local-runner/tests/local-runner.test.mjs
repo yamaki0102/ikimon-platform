@@ -6,7 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import test from 'node:test';
 import { runLocalDebugTask } from '../run-local.mjs';
-import { invokeCodex } from '../lib/codex-adapter.mjs';
+import { invokeCodex, resolveCodexInvocation } from '../lib/codex-adapter.mjs';
 import { safeCheckEnvironment, safeCodexEnvironment, writePrivateLog } from '../lib/process.mjs';
 import { validateLocalDebugTask } from '../lib/task.mjs';
 
@@ -180,7 +180,7 @@ test('Codex adapter invokes the current Luna model with closed credential surfac
     lane: 'local_codex_luna', worktree: dir, prompt: 'test prompt', passNumber: 1, logsDir: path.join(dir, 'logs'),
   }, {
     platform: 'win32',
-    env: { PATH: process.env.PATH ?? '', HOME: '/home/test', GH_TOKEN: 'secret', CLOUDFLARE_API_TOKEN: 'secret' },
+    env: { PATH: '', HOME: '/home/test', GH_TOKEN: 'secret', CLOUDFLARE_API_TOKEN: 'secret' },
     runProcess: async (argv, options) => {
       captured = { argv, env: options.env, cwd: options.cwd };
       return { exit_code: 0, timed_out: false, output_truncated: false, duration_ms: 1, stdout: 'done', stderr: '' };
@@ -199,6 +199,22 @@ test('Codex adapter invokes the current Luna model with closed credential surfac
   assert.equal(captured.env.CLOUDFLARE_API_TOKEN, '');
   assert.equal(captured.env.GH_CONFIG_DIR, path.join(dir, 'codex-guard', 'gh'));
   assert.equal(result.model, 'gpt-5.6-luna');
+});
+
+test('Windows Codex launcher resolves to a direct executable without a shell', async (t) => {
+  if (process.platform !== 'win32') return;
+  const root = await mkdtemp(path.join(os.tmpdir(), 'codex-launcher-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const launcherDir = path.join(root, 'npm');
+  const entrypoint = path.join(launcherDir, 'node_modules', '@openai', 'codex', 'bin', 'codex.js');
+  await mkdir(path.dirname(entrypoint), { recursive: true });
+  const launcher = path.join(launcherDir, 'codex.cmd');
+  await writeFile(launcher, '@ECHO off\n', { mode: 0o600 });
+  await writeFile(entrypoint, 'console.log("test");\n', { mode: 0o600 });
+
+  const resolved = resolveCodexInvocation(launcher, { PATH: '' }, 'win32');
+  assert.equal(resolved.executable, process.execPath);
+  assert.deepEqual(resolved.prefixArgs, [entrypoint]);
 });
 
 test('task validation rejects deployment-bearing deterministic checks', async (t) => {
