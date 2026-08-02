@@ -18,6 +18,7 @@ export async function runWslcSmoke(options = {}) {
   const repository = path.join(root, 'fixture-repository');
   const runDir = path.join(root, 'run');
   await mkdir(path.join(repository, 'src'), { recursive: true, mode: 0o700 });
+  await writeFile(path.join(repository, 'src', '.gitkeep'), '', { mode: 0o600, flag: 'wx' });
   await writeFile(path.join(repository, 'README.md'), '# IKIMON Local Luna smoke fixture\n', { mode: 0o600, flag: 'wx' });
   await writeFile(path.join(repository, 'check.mjs'), "import { readFileSync } from 'node:fs';\nif (readFileSync('src/result.txt','utf8').trim() !== 'fixed') process.exit(2);\n", { mode: 0o600, flag: 'wx' });
   await git(repository, ['init','-b','main']);
