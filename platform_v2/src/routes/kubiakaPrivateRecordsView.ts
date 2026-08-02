@@ -144,7 +144,7 @@ function latestRecord(
 ): string {
   const copy = kubiakaPrivateRecordsCopy(lang);
   return `<section class="kpr-panel">
-    <div class="kpr-eyebrow">Latest</div>
+    <div class="kpr-eyebrow">${escapeHtml(copy.latestEyebrow)}</div>
     <h2>${escapeHtml(copy.latestTitle)}</h2>
     <div class="kpr-latest">
       <div class="kpr-latest-media"><img src="${escapeHtml(mediaHref(basePath, record.visitId, 1))}" alt="${escapeHtml(copy.photoAlt(1, record.photoCount))}" /></div>
@@ -219,12 +219,12 @@ export function renderKubiakaPrivateRecordsHome(input: {
   const recordsHref = localizedHref(basePath, KUBIAKA_PRIVATE_RECORDS_PATH, lang);
   const guideHref = localizedHref(basePath, "/kubiaka", lang);
   const acknowledgementBlock = acknowledgement
-    ? `<section class="kpr-panel"><div class="kpr-eyebrow">Acknowledgement</div><h2>${escapeHtml(copy.acknowledgementTitle)}</h2><p>${escapeHtml(copy.acknowledgementLead)}</p><div class="kpr-actions"><a class="kpr-primary" href="${escapeHtml(detailHref(basePath, lang, acknowledgement.visitId))}">${escapeHtml(copy.acknowledgementAction)}</a></div></section>`
+    ? `<section class="kpr-panel"><div class="kpr-eyebrow">${escapeHtml(copy.acknowledgementEyebrow)}</div><h2>${escapeHtml(copy.acknowledgementTitle)}</h2><p>${escapeHtml(copy.acknowledgementLead)}</p><div class="kpr-actions"><a class="kpr-primary" href="${escapeHtml(detailHref(basePath, lang, acknowledgement.visitId))}">${escapeHtml(copy.acknowledgementAction)}</a></div></section>`
     : "";
   const body = overview.latest
     ? `${latestRecord(basePath, lang, overview.latest)}
-       <section class="kpr-panel"><div class="kpr-eyebrow">Next</div><h2>${escapeHtml(copy.nextTitle)}</h2><p>${escapeHtml(copy.nextLead)}</p><div class="kpr-actions"><a class="kpr-primary" href="${escapeHtml(captureHref)}">${escapeHtml(copy.captureAction)}</a><a class="kpr-secondary" href="${escapeHtml(recordsHref)}">${escapeHtml(copy.recordsAction)}</a></div></section>`
-    : `<section class="kpr-panel"><div class="kpr-eyebrow">Start</div><h2>${escapeHtml(copy.emptyTitle)}</h2><p>${escapeHtml(copy.emptyLead)}</p><div class="kpr-actions"><a class="kpr-primary" href="${escapeHtml(captureHref)}">${escapeHtml(copy.captureAction)}</a><a class="kpr-secondary" href="${escapeHtml(guideHref)}">${escapeHtml(copy.guideAction)}</a></div></section>`;
+       <section class="kpr-panel"><div class="kpr-eyebrow">${escapeHtml(copy.nextEyebrow)}</div><h2>${escapeHtml(copy.nextTitle)}</h2><p>${escapeHtml(copy.nextLead)}</p><div class="kpr-actions"><a class="kpr-primary" href="${escapeHtml(captureHref)}">${escapeHtml(copy.captureAction)}</a><a class="kpr-secondary" href="${escapeHtml(recordsHref)}">${escapeHtml(copy.recordsAction)}</a></div></section>`
+    : `<section class="kpr-panel"><div class="kpr-eyebrow">${escapeHtml(copy.startEyebrow)}</div><h2>${escapeHtml(copy.emptyTitle)}</h2><p>${escapeHtml(copy.emptyLead)}</p><div class="kpr-actions"><a class="kpr-primary" href="${escapeHtml(captureHref)}">${escapeHtml(copy.captureAction)}</a><a class="kpr-secondary" href="${escapeHtml(guideHref)}">${escapeHtml(copy.guideAction)}</a></div></section>`;
   return `<div class="kpr-page">
     <section class="kpr-hero"><div class="kpr-eyebrow">ZUKAN / Kubiaka</div><h1>${escapeHtml(copy.homeTitle)}</h1><p>${escapeHtml(copy.homeLead)}</p><span class="kpr-count">${escapeHtml(copy.countLabel(overview.totalCount))}</span></section>
     ${acknowledgementBlock}${body}
@@ -244,7 +244,7 @@ export function renderKubiakaPrivateRecordList(input: {
     ? `<div class="kpr-grid">${page.records.map((record) => recordCard(basePath, lang, record)).join("")}</div>`
     : `<section class="kpr-panel"><h2>${escapeHtml(copy.emptyTitle)}</h2><p>${escapeHtml(copy.emptyLead)}</p><div class="kpr-actions"><a class="kpr-primary" href="${escapeHtml(captureHref)}">${escapeHtml(copy.captureAction)}</a></div></section>`;
   return `<div class="kpr-page">
-    <section class="kpr-hero"><div class="kpr-eyebrow">Private history</div><h1>${escapeHtml(copy.recordsTitle)}</h1><p>${escapeHtml(copy.recordsLead)}</p><span class="kpr-count">${escapeHtml(copy.countLabel(page.totalCount))}</span><div class="kpr-actions"><a class="kpr-secondary" href="${escapeHtml(homeHref)}">${escapeHtml(copy.backAction)}</a></div></section>
+    <section class="kpr-hero"><div class="kpr-eyebrow">${escapeHtml(copy.historyEyebrow)}</div><h1>${escapeHtml(copy.recordsTitle)}</h1><p>${escapeHtml(copy.recordsLead)}</p><span class="kpr-count">${escapeHtml(copy.countLabel(page.totalCount))}</span><div class="kpr-actions"><a class="kpr-secondary" href="${escapeHtml(homeHref)}">${escapeHtml(copy.backAction)}</a></div></section>
     ${page.hasMore ? `<p class="kpr-notice">${escapeHtml(copy.limitedNotice(page.limit))}</p>` : ""}
     ${records}
   </div>`;
@@ -260,12 +260,12 @@ export function renderKubiakaPrivateRecordDetail(input: {
   const backHref = localizedHref(basePath, KUBIAKA_PRIVATE_RECORDS_PATH, lang);
   const photos = detail.photos.map((photo) => `<figure><img src="${escapeHtml(mediaHref(basePath, detail.visitId, photo.photoIndex))}" alt="${escapeHtml(copy.photoAlt(photo.photoIndex, detail.photoCount))}" loading="${photo.photoIndex === 1 ? "eager" : "lazy"}" decoding="async" /></figure>`).join("");
   return `<div class="kpr-page">
-    <section class="kpr-hero"><div class="kpr-eyebrow">Private detail</div><h1>${escapeHtml(copy.detailTitle)}</h1><p>${escapeHtml(copy.detailLead)}</p><span class="kpr-private">${escapeHtml(copy.privateLabel)}</span><dl class="kpr-meta"><div><dt>${escapeHtml(copy.savedLabel)}</dt><dd>${escapeHtml(formatSavedAt(detail.savedAt, lang))}</dd></div><div><dt>${escapeHtml(copy.aiLabel)}</dt><dd>${escapeHtml(aiLabel(lang, detail.aiAssessmentStatus))}</dd></div></dl><div class="kpr-actions"><a class="kpr-secondary" href="${escapeHtml(backHref)}">${escapeHtml(copy.backAction)}</a></div></section>
+    <section class="kpr-hero"><div class="kpr-eyebrow">${escapeHtml(copy.detailEyebrow)}</div><h1>${escapeHtml(copy.detailTitle)}</h1><p>${escapeHtml(copy.detailLead)}</p><span class="kpr-private">${escapeHtml(copy.privateLabel)}</span><dl class="kpr-meta"><div><dt>${escapeHtml(copy.savedLabel)}</dt><dd>${escapeHtml(formatSavedAt(detail.savedAt, lang))}</dd></div><div><dt>${escapeHtml(copy.aiLabel)}</dt><dd>${escapeHtml(aiLabel(lang, detail.aiAssessmentStatus))}</dd></div></dl><div class="kpr-actions"><a class="kpr-secondary" href="${escapeHtml(backHref)}">${escapeHtml(copy.backAction)}</a></div></section>
     <section class="kpr-panel"><h2>${escapeHtml(copy.photoCountLabel(detail.photoCount))}</h2><div class="kpr-photo-grid">${photos}</div></section>
   </div>`;
 }
 
 export function renderKubiakaPrivateRecordNotFound(basePath: string, lang: SiteLang): string {
   const copy = kubiakaPrivateRecordsCopy(lang);
-  return `<div class="kpr-page"><section class="kpr-hero"><div class="kpr-eyebrow">Private record</div><h1>${escapeHtml(copy.notFoundTitle)}</h1><p>${escapeHtml(copy.notFoundLead)}</p><div class="kpr-actions"><a class="kpr-secondary" href="${escapeHtml(localizedHref(basePath, "/kubiaka/me", lang))}">${escapeHtml(copy.backAction)}</a></div></section></div>`;
+  return `<div class="kpr-page"><section class="kpr-hero"><div class="kpr-eyebrow">${escapeHtml(copy.recordEyebrow)}</div><h1>${escapeHtml(copy.notFoundTitle)}</h1><p>${escapeHtml(copy.notFoundLead)}</p><div class="kpr-actions"><a class="kpr-secondary" href="${escapeHtml(localizedHref(basePath, "/kubiaka/me", lang))}">${escapeHtml(copy.backAction)}</a></div></section></div>`;
 }
