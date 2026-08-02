@@ -3,6 +3,7 @@ import { buildRobotsTxt, buildXmlSitemap } from "../siteMap.js";
 import { buildReflectionLoopManifest } from "../services/reflectionLoopManifest.js";
 import { registerIwataOpenDataRoutes } from "./iwataOpenData.js";
 import { registerKubiakaFocusedExperienceRoutes } from "./kubiakaFocusedExperience.js";
+import { registerKubiakaPrivateRecordRoutes } from "./kubiakaPrivateRecords.js";
 import { registerKubiakaPrivateUploadGuard } from "./kubiakaPrivateUploadGuard.js";
 import { registerRegionalSourceRoutes } from "./regionalSources.js";
 
@@ -15,6 +16,7 @@ function requestOrigin(request: { headers: Record<string, unknown> }): string {
 export async function registerSiteMapRoutes(app: FastifyInstance): Promise<void> {
   await registerIwataOpenDataRoutes(app);
   await registerKubiakaPrivateUploadGuard(app);
+  await registerKubiakaPrivateRecordRoutes(app);
   await registerKubiakaFocusedExperienceRoutes(app);
   await registerRegionalSourceRoutes(app);
 
