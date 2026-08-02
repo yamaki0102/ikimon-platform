@@ -5,6 +5,9 @@ import { addStagingRobotsMeta, isStagingRequest, stagingRobotsTxt } from "./site
 
 test("staging classification uses host or explicit public origin, never an auth token", () => {
   assert.equal(isStagingRequest({ headers: { host: "staging.ikimon.life" } }, "https://ikimon.life"), true);
+  assert.equal(isStagingRequest({ headers: { "x-forwarded-host": "staging.ikimon.life" } }, "https://ikimon.life"), true);
+  assert.equal(isStagingRequest({ headers: { "x-forwarded-host": "staging.ikimon.life.attacker.example", host: "ikimon.life" } }, "https://ikimon.life"), false);
+  assert.equal(isStagingRequest({ headers: { "x-forwarded-host": "ikimon.life", host: "staging.ikimon.life.attacker.example" } }, "https://ikimon.life"), false);
   assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, "https://staging.ikimon.life"), true);
   assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, "https://ikimon.life"), false);
   assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, "materialize-admin-preview"), false);

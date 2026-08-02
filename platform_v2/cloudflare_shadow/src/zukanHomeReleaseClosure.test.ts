@@ -36,7 +36,7 @@ describe("ZUKAN Home release closure", () => {
     assert.equal(hardenSvgResponse(original), original);
   });
 
-  for (const count of [0, 1, 2, 3, 5]) {
+  for (const count of [0, 1, 2, 3, 4, 5]) {
     test(`injects stable state-split layout rules for ${count} photos`, () => {
       const html = `<html><head></head><body><div data-home-contract="state-split-v1"><div class="home-guest-proof is-count-${count}"></div></div></body></html>`;
       const patched = applyStateSplitHomeResponsive(html);
