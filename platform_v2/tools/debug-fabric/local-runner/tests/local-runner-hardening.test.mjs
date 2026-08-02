@@ -193,7 +193,9 @@ test('inline interpreters, unsafe shell commands, and arbitrary npx binaries are
 test('private logs redact common credential shapes', async (t) => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'local-debug-hardening-redaction-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
-  const file = await writePrivateLog(path.join(dir, 'log.txt'), 'token=ghp_abcdefghijklmnop secret=sk-abcdefghijklmnop');
+  const githubFixture = ['ghp', 'abcdefghijklmnop'].join('_');
+  const apiFixture = ['sk', 'abcdefghijklmnop'].join('-');
+  const file = await writePrivateLog(path.join(dir, 'log.txt'), `token=${githubFixture} secret=${apiFixture}`);
   const body = await readFile(file, 'utf8');
   assert.doesNotMatch(body, /ghp_|sk-/u);
   assert.match(body, /REDACTED/u);
