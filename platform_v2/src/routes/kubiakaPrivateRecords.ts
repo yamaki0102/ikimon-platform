@@ -73,7 +73,7 @@ function basePathFor(request: FastifyRequest): string {
 }
 
 function localizedHref(basePath: string, path: string, lang: SiteLang): string {
-  return appendLangToHref(withBasePath(basePath, path), lang);
+  return withBasePath(basePath, appendLangToHref(path, lang));
 }
 
 function signInRedirect(basePath: string, targetPath: string, lang: SiteLang): string {
