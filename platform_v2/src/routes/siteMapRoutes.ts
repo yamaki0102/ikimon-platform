@@ -8,6 +8,7 @@ import { registerRegionalSourceRoutes } from "./regionalSources.js";
 
 const STAGING_MATERIALIZATION_TOKEN = "materialize-admin-preview";
 const STAGING_ROBOTS_META = '<meta name="robots" content="noindex, nofollow" />';
+const ROBOTS_META_PATTERN = /<meta\b[^>]*\bname=["']robots["'][^>]*>/i;
 
 function requestOrigin(request: { headers: Record<string, unknown> }): string {
   const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "ikimon.life");
@@ -23,8 +24,10 @@ function isStagingRequest(request: { headers: Record<string, unknown> }): boolea
   return host === "staging.ikimon.life" || process.env.DEV_DUMMY_ADMIN_TOKEN === STAGING_MATERIALIZATION_TOKEN;
 }
 
-function addStagingRobotsMeta(payload: string): string {
-  if (/name=["']robots["']/i.test(payload)) return payload;
+export function addStagingRobotsMeta(payload: string): string {
+  if (ROBOTS_META_PATTERN.test(payload)) {
+    return payload.replace(ROBOTS_META_PATTERN, STAGING_ROBOTS_META);
+  }
   return payload.includes("</head>")
     ? payload.replace("</head>", `  ${STAGING_ROBOTS_META}\n</head>`)
     : payload;
