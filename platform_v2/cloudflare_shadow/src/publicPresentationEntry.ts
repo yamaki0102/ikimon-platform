@@ -1,9 +1,9 @@
 import baseWorker from "./index";
 import { enforceCameraFirstHomeCta } from "./cameraFirstHomeCta";
 import {
-  authorizeBrowserOAuthStart,
-  isBrowserOAuthStart,
-  oauthErrorRedirect,
+  authorizeOAuthStart,
+  oauthErrorResponse,
+  oauthStartKind,
   type OAuthBoundaryEnv,
 } from "./oauthStartBoundary";
 import { enforcePostCaptureValueLoopCompatibility } from "./postCaptureValueLoopCompatibilityPatch";
@@ -23,16 +23,17 @@ export default {
   ...delegatedWorker,
   async fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
     const oauthEnv = env as OAuthBoundaryEnv;
-    if (!authorizeBrowserOAuthStart(request, oauthEnv)) {
-      return oauthErrorRedirect(request, oauthEnv);
+    const oauthKind = oauthStartKind(request);
+    if (!authorizeOAuthStart(request, oauthEnv, oauthKind)) {
+      return oauthErrorResponse(request, oauthEnv, oauthKind);
     }
 
     let response: Response;
     try {
       response = await delegatedWorker.fetch.call(delegatedWorker, request, env, ctx);
     } catch (error) {
-      if (isBrowserOAuthStart(request)) {
-        return oauthErrorRedirect(request, oauthEnv);
+      if (oauthKind !== null) {
+        return oauthErrorResponse(request, oauthEnv, oauthKind);
       }
       throw error;
     }
