@@ -29,14 +29,16 @@ This slice does **not** push a branch, create a pull request, poll GitHub Issues
 - Codex CLI signed in with the user's ChatGPT subscription;
 - a local repository containing the requested exact base SHA.
 
-The default model aliases are `luna` and `terra`. Override them when the local CLI uses different names:
+The default model slugs are `gpt-5.6-luna` and `gpt-5.6-terra`. Override them only when the installed Codex CLI exposes different model names:
 
 ```bash
-export IKIMON_CODEX_LUNA_MODEL='luna'
-export IKIMON_CODEX_TERRA_MODEL='terra'
+export IKIMON_CODEX_LUNA_MODEL='gpt-5.6-luna'
+export IKIMON_CODEX_TERRA_MODEL='gpt-5.6-terra'
 ```
 
-`OPENAI_API_KEY` is explicitly removed. The runner is designed for the subscription/OAuth login already stored by Codex CLI, not API billing.
+The default executable is `codex` on Linux/macOS and `codex.exe` on Windows. Set `IKIMON_CODEX_BIN` when the installed CLI uses another absolute executable path.
+
+The adapter supplies the schema-backed `approval_policy="never"` override before the `exec` subcommand and keeps the Codex sandbox at `workspace-write`. `OPENAI_API_KEY` is explicitly removed. The runner is designed for the subscription/OAuth login already stored by Codex CLI, not API billing.
 
 ## One-command WSLC smoke
 
