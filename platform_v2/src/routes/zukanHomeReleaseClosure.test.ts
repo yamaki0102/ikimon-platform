@@ -29,6 +29,15 @@ test("staging classification uses explicit or bound origin and fails closed on u
     "x-ikimon-runtime-public-origin": "https://ikimon.life",
   } }, ""), false);
 
+  assert.equal(isStagingRequest({ headers: {
+    host: "ikimon.life",
+    "x-ikimon-runtime-public-origin": "https://staging.ikimon.life",
+  } }, "https://ikimon.life"), true);
+  assert.equal(isStagingRequest({ headers: {
+    host: "staging.ikimon.life",
+    "x-ikimon-runtime-public-origin": "https://ikimon.life",
+  } }, "https://staging.ikimon.life"), false);
+
   assert.equal(isStagingRequest({ headers: { "x-forwarded-host": "staging.ikimon.life.attacker.example", host: "ikimon.life" } }, ""), false);
   assert.equal(isStagingRequest({ headers: { "x-forwarded-host": "ikimon.life", host: "staging.ikimon.life.attacker.example" } }, ""), true);
   assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, "materialize-admin-preview"), false);

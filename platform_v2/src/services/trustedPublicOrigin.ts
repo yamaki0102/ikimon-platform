@@ -82,14 +82,15 @@ export function resolveTrustedPublicOrigin(
     allowLocalDevelopment?: boolean;
   } = {},
 ): string | null {
-  const explicitOrigin = normalizeExplicitPublicOrigin(options.explicitOrigin);
-  if (explicitOrigin) return explicitOrigin;
-
   // Fastify binds to localhost. nginx overwrites this header with the fixed
   // identity of the selected production or staging server block before the
-  // request reaches the runtime, so it overrides a client-controlled Host.
+  // request reaches the runtime. Runtime identity therefore outranks static
+  // config and a client-controlled Host, preventing cross-environment drift.
   const boundRuntimeOrigin = runtimePublicOrigin(request);
   if (boundRuntimeOrigin) return boundRuntimeOrigin;
+
+  const explicitOrigin = normalizeExplicitPublicOrigin(options.explicitOrigin);
+  if (explicitOrigin) return explicitOrigin;
 
   const directOrigin = publicOriginFromHost(request.headers.host);
   if (directOrigin) return directOrigin;
