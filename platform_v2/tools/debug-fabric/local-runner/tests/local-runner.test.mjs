@@ -172,27 +172,33 @@ test('private logs remain append-only across resumed attempts', async (t) => {
   assert.equal(await readFile(second, 'utf8'), 'second');
 });
 
-test('Codex adapter invokes the selected model with closed credential surfaces', async (t) => {
+test('Codex adapter invokes the current Luna model with closed credential surfaces on Windows', async (t) => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'codex-adapter-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   let captured;
   const result = await invokeCodex({
     lane: 'local_codex_luna', worktree: dir, prompt: 'test prompt', passNumber: 1, logsDir: path.join(dir, 'logs'),
   }, {
-    env: { PATH: process.env.PATH ?? '', HOME: '/home/test', IKIMON_CODEX_BIN: 'codex-custom', IKIMON_CODEX_LUNA_MODEL: 'luna-custom', GH_TOKEN: 'secret', CLOUDFLARE_API_TOKEN: 'secret' },
+    platform: 'win32',
+    env: { PATH: process.env.PATH ?? '', HOME: '/home/test', GH_TOKEN: 'secret', CLOUDFLARE_API_TOKEN: 'secret' },
     runProcess: async (argv, options) => {
       captured = { argv, env: options.env, cwd: options.cwd };
       return { exit_code: 0, timed_out: false, output_truncated: false, duration_ms: 1, stdout: 'done', stderr: '' };
     },
   });
-  const approvalFlag = '--ask' + '-for-approval';
-  assert.deepEqual(captured.argv.slice(0, 8), ['codex-custom','exec','--cd',dir,'--model','luna-custom',approvalFlag,'never']);
-  assert.equal(captured.argv.at(-2), 'workspace-write');
-  assert.equal(captured.argv.at(-1), 'test prompt');
+  assert.deepEqual(captured.argv, [
+    'codex.exe',
+    '-c', 'approval_policy="never"',
+    'exec',
+    '--cd', dir,
+    '--model', 'gpt-5.6-luna',
+    '--sandbox', 'workspace-write',
+    'test prompt',
+  ]);
   assert.equal(captured.env.GH_TOKEN, '');
   assert.equal(captured.env.CLOUDFLARE_API_TOKEN, '');
   assert.equal(captured.env.GH_CONFIG_DIR, path.join(dir, 'codex-guard', 'gh'));
-  assert.equal(result.model, 'luna-custom');
+  assert.equal(result.model, 'gpt-5.6-luna');
 });
 
 test('task validation rejects deployment-bearing deterministic checks', async (t) => {
