@@ -31,9 +31,18 @@ export function getForwardedBasePath(headers: Record<string, unknown>): string {
 }
 
 export function withBasePath(basePath: string, path: string): string {
+  const normalizedBasePath = normalizeBasePath(basePath);
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  if (!basePath) {
+  if (!normalizedBasePath) {
     return normalizedPath;
   }
-  return `${basePath}${normalizedPath}`;
+  if (
+    normalizedPath === normalizedBasePath
+    || normalizedPath.startsWith(`${normalizedBasePath}/`)
+    || normalizedPath.startsWith(`${normalizedBasePath}?`)
+    || normalizedPath.startsWith(`${normalizedBasePath}#`)
+  ) {
+    return normalizedPath;
+  }
+  return `${normalizedBasePath}${normalizedPath}`;
 }
