@@ -20,6 +20,11 @@ function readJson<T>(name: string): T {
   ) as T;
 }
 
+const productDocument = readJson<{
+  schema_version: string;
+  product_id: string;
+  registries: Record<string, string>;
+}>("product.json");
 const requirementDocument = readJson<{
   schema_version: string;
   product_id: string;
@@ -34,6 +39,12 @@ const expectedKubiakaRequirements = [
   "quality.zukan.kubiaka-member-records.owner-return",
   "quality.zukan.kubiaka-member-records.staging-identity",
 ].sort();
+
+test("requirements document is registered by the product root", () => {
+  assert.equal(productDocument.schema_version, "1.0.0");
+  assert.equal(productDocument.product_id, "zukan");
+  assert.equal(productDocument.registries.requirements, "requirements.json");
+});
 
 test("Kubiaka requirements have stable product-owned identities", () => {
   assert.equal(requirementDocument.schema_version, "1.0.0");
