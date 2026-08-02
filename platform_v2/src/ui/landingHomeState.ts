@@ -140,7 +140,7 @@ function renderGuestPhotoTile(options: LandingHomeStateOptions, item: LandingObs
 function isGuestVisibleRecord(item: LandingObservation): boolean {
   if (item.publicFeedEligible !== true || item.publicLocation?.scope === "blurred") return false;
   const status = item.publicFeedGateStatus;
-  return !status || status === "public_eligible" || status === "public_limited";
+  return status === "public_eligible" || status === "public_limited";
 }
 
 function renderGuestProof(options: LandingHomeStateOptions, publicItems: LandingObservation[]): string {
