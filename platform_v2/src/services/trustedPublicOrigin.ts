@@ -1,5 +1,6 @@
 export const PRODUCTION_PUBLIC_ORIGIN = "https://ikimon.life";
 export const STAGING_PUBLIC_ORIGIN = "https://staging.ikimon.life";
+export const RUNTIME_PUBLIC_ORIGIN_HEADER = "x-ikimon-runtime-public-origin";
 
 const ALLOWED_PUBLIC_ORIGINS = new Set([
   PRODUCTION_PUBLIC_ORIGIN,
@@ -49,8 +50,8 @@ function localDevelopmentOrigin(request: PublicOriginRequest): string {
   return `${protocol}://${host}`;
 }
 
-function hasTrustedWorkerFallbackMarker(request: PublicOriginRequest): boolean {
-  return headerFirst(request.headers["x-ikimon-cloudflare-fallback"]).toLowerCase() === "origin";
+function runtimePublicOrigin(request: PublicOriginRequest): string {
+  return normalizeExplicitPublicOrigin(request.headers[RUNTIME_PUBLIC_ORIGIN_HEADER]);
 }
 
 export function resolveTrustedPublicOrigin(
@@ -63,9 +64,13 @@ export function resolveTrustedPublicOrigin(
   const explicitOrigin = normalizeExplicitPublicOrigin(options.explicitOrigin);
   if (explicitOrigin) return explicitOrigin;
 
-  // A public or local Host is authoritative. Forwarded host is accepted only
-  // on the Worker-owned fallback hop, where the Worker overwrites both the
-  // marker and X-Forwarded-Host from the public request URL.
+  // The origin runtime is bound to localhost and reached through nginx. nginx
+  // overwrites this header with the server block's fixed public origin, so it
+  // takes precedence over a client-controlled Host on the origin-facing hop.
+  const boundRuntimeOrigin = runtimePublicOrigin(request);
+  if (boundRuntimeOrigin) return boundRuntimeOrigin;
+
+  // At the public Worker edge, the actual public Host remains authoritative.
   const directOrigin = publicOriginFromHost(request.headers.host);
   if (directOrigin) return directOrigin;
 
@@ -74,7 +79,8 @@ export function resolveTrustedPublicOrigin(
     if (localOrigin) return localOrigin;
   }
 
-  if (!hasTrustedWorkerFallbackMarker(request)) return null;
-  const forwardedOrigin = publicOriginFromHost(request.headers["x-forwarded-host"]);
-  return forwardedOrigin || null;
+  // Forwarded host and the legacy fallback marker are intentionally ignored.
+  // They are ordinary HTTP headers and cannot establish a trust boundary when
+  // the public origin IP is directly reachable.
+  return null;
 }
