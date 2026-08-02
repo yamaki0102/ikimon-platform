@@ -159,7 +159,7 @@ test("record fallback targets stay in the dedicated Kubiaka context", () => {
     "/preview",
     "ja",
   );
-  assert.equal(prefixed, JSON.stringify("/ja/preview/kubiaka/record?start=photo"));
+  assert.equal(prefixed, JSON.stringify("/preview/ja/kubiaka/record?start=photo"));
 });
 
 test("current path does not duplicate a forwarded base prefix", () => {

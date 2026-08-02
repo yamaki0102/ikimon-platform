@@ -26,3 +26,8 @@
 - `git diff --check`: PASS
 - `npm run wrangler:check:staging`: PASS
 - Cloudflare Shadow全体testは、PR差分外の既存D1境界テスト3件が現行main由来でFAIL。これはPR #1514のNode gateとは分離して記録する。
+
+## 追加レビュー対応
+
+- 後続のexact-headレビューで、`x-forwarded-prefix=/preview`配下のlocale URLが`/ja/preview/...`へ崩れるP1を確認した。
+- `localizedHref`を「locale付与後にforwarded base pathを付与」する順序へ修正し、`/preview/ja/kubiaka/record?...`を回帰テストで確認した。

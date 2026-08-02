@@ -142,7 +142,9 @@ function requestUrl(request: { url?: string; raw?: { url?: string; originalUrl?:
   return String(request.raw?.originalUrl ?? request.raw?.url ?? request.url ?? "");
 }
 function basePathFor(request: { headers: Record<string, unknown> }): string { return getForwardedBasePath(request.headers); }
-function localizedHref(basePath: string, path: string, lang: SiteLang): string { return appendLangToHref(withBasePath(basePath, path), lang); }
+function localizedHref(basePath: string, path: string, lang: SiteLang): string {
+  return withBasePath(basePath, appendLangToHref(path, lang));
+}
 
 export function resolveKubiakaCurrentPath(basePath: string, url: string): string {
   const normalizedUrl = String(url || "/");
