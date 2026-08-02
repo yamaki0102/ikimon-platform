@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
+import { applyMigrationTransaction } from "./applyMigration.js";
 
 type MigrationRecord = {
   filename: string;
@@ -22,7 +23,6 @@ const DESTRUCTIVE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /^\s*update\b/im, label: "UPDATE" },
 ];
 const EXPLICIT_DESTRUCTIVE_APPROVAL = /destructive-ok:\s*.{12,}/i;
-const OWNER_SENSITIVE_APPROVAL = /owner-sensitive-ok:\s*.{12,}/i;
 
 function checksumFor(content: string): string {
   let hash = 0;
@@ -107,10 +107,6 @@ function assertSafeMigration(filename: string, sql: string, options: MigrationOp
   );
 }
 
-function isOwnerPrivilegeError(error: unknown): boolean {
-  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "42501");
-}
-
 async function ensureSchemaMigrationsTable() {
   const pool = getPool();
   await pool.query(`
@@ -175,25 +171,8 @@ async function main() {
 
     const client = await pool.connect();
     try {
-      await client.query("begin");
-      await client.query(sql);
-      await client.query(
-        "insert into schema_migrations (filename, checksum) values ($1, $2)",
-        [filename, checksum],
-      );
-      await client.query("commit");
+      await applyMigrationTransaction(client, { filename, checksum, sql });
       console.log(`apply ${filename}`);
-    } catch (error) {
-      await client.query("rollback");
-      if (OWNER_SENSITIVE_APPROVAL.test(sql) && isOwnerPrivilegeError(error)) {
-        await pool.query(
-          "insert into schema_migrations (filename, checksum) values ($1, $2) on conflict (filename) do nothing",
-          [filename, checksum],
-        );
-        console.warn(`skip owner-sensitive migration ${filename}: database role does not own the target object`);
-        continue;
-      }
-      throw error;
     } finally {
       client.release();
     }
