@@ -49,6 +49,10 @@ function localDevelopmentOrigin(request: PublicOriginRequest): string {
   return `${protocol}://${host}`;
 }
 
+function hasTrustedWorkerFallbackMarker(request: PublicOriginRequest): boolean {
+  return headerFirst(request.headers["x-ikimon-cloudflare-fallback"]).toLowerCase() === "origin";
+}
+
 export function resolveTrustedPublicOrigin(
   request: PublicOriginRequest,
   options: {
@@ -59,9 +63,9 @@ export function resolveTrustedPublicOrigin(
   const explicitOrigin = normalizeExplicitPublicOrigin(options.explicitOrigin);
   if (explicitOrigin) return explicitOrigin;
 
-  // A public or local Host is authoritative. Forwarded headers can only
-  // provide a fallback for the private Worker-to-origin hop and can never
-  // override the direct request host or select an arbitrary origin/protocol.
+  // A public or local Host is authoritative. Forwarded host is accepted only
+  // on the Worker-owned fallback hop, where the Worker overwrites both the
+  // marker and X-Forwarded-Host from the public request URL.
   const directOrigin = publicOriginFromHost(request.headers.host);
   if (directOrigin) return directOrigin;
 
@@ -70,8 +74,7 @@ export function resolveTrustedPublicOrigin(
     if (localOrigin) return localOrigin;
   }
 
+  if (!hasTrustedWorkerFallbackMarker(request)) return null;
   const forwardedOrigin = publicOriginFromHost(request.headers["x-forwarded-host"]);
-  if (forwardedOrigin) return forwardedOrigin;
-
-  return null;
+  return forwardedOrigin || null;
 }
