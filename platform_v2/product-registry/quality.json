@@ -109,6 +109,9 @@
         "公開地図、外部送信、Gate 0前通知を発生させない",
         "保存成功後に本人受付へ移動する"
       ],
+      "requirement_refs": [
+        "quality.zukan.kubiaka-capture.prohibited-side-effects"
+      ],
       "tests": [
         { "locator": "platform_v2/src/routes/kubiakaFocusedExperience.test.ts", "kind": "unit-contract", "status": "canonical" },
         { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" },
@@ -124,6 +127,11 @@
         "空状態から新しく撮影できる",
         "記録不在、権限拒否、読込失敗を区別する",
         "Homeまたは新しい撮影へ戻れる"
+      ],
+      "requirement_refs": [
+        "quality.zukan.kubiaka-member-records.owner-return",
+        "quality.zukan.kubiaka-member-records.owner-isolation",
+        "quality.zukan.kubiaka-member-records.staging-identity"
       ],
       "tests": [
         { "locator": "platform_v2/src/routes/kubiakaFocusedExperience.test.ts", "kind": "unit-contract", "status": "canonical" },
