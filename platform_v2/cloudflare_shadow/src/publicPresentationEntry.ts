@@ -5,6 +5,7 @@ import { enhancePostCaptureValueLoop } from "./postCaptureValueLoopPatch";
 import { polishPublicHomeUx } from "./publicHomeUxPolish";
 import { patchPublicHomePresentation } from "./publicPresentationPatch";
 import { hardenSvgResponse } from "./svgResponseSecurity";
+import { ensureStateSplitHomeResponsive } from "./stateSplitHomeResponsive";
 
 type DelegatedWorker = Record<string, unknown> & {
   fetch(request: Request, env: unknown, ctx: unknown): Response | Promise<Response>;
@@ -19,7 +20,8 @@ export default {
     const presented = await patchPublicHomePresentation(request, response);
     const cameraFirst = await enforceCameraFirstHomeCta(request, presented);
     const polished = await polishPublicHomeUx(request, cameraFirst);
-    const valueLoop = await enhancePostCaptureValueLoop(request, polished);
+    const responsive = await ensureStateSplitHomeResponsive(polished);
+    const valueLoop = await enhancePostCaptureValueLoop(request, responsive);
     const compatible = await enforcePostCaptureValueLoopCompatibility(request, valueLoop);
     return hardenSvgResponse(compatible);
   },
