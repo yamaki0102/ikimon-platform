@@ -1,4 +1,5 @@
 import type { FastifyRequest } from "fastify";
+import { resolveTrustedPublicOrigin } from "./trustedPublicOrigin.js";
 
 type RateBucket = {
   count: number;
@@ -15,12 +16,10 @@ function headerFirst(value: string | string[] | undefined): string {
 }
 
 function expectedOrigin(request: FastifyRequest): string | null {
-  const host = headerFirst(request.headers["x-forwarded-host"]) || headerFirst(request.headers.host);
-  if (!host) {
-    return null;
-  }
-  const proto = headerFirst(request.headers["x-forwarded-proto"]) || (request.protocol || "http");
-  return `${proto}://${host}`;
+  return resolveTrustedPublicOrigin(
+    request as unknown as { headers: Record<string, unknown>; protocol?: string },
+    { allowLocalDevelopment: true },
+  );
 }
 
 function sameOriginError(): HttpError {

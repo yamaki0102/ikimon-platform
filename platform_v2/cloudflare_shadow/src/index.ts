@@ -12203,6 +12203,10 @@ async function fetchOriginFallback(request: Request, url: URL, env: Env, reason 
   const headers = new Headers(request.headers);
   headers.set("x-ikimon-cloudflare-fallback", "origin");
   headers.set("x-ikimon-cloudflare-fallback-reason", reason);
+  // The public URL is the only trusted origin identity at the Worker edge.
+  // Never forward a client-supplied X-Forwarded-* value into the origin app.
+  headers.set("x-forwarded-host", url.host);
+  headers.set("x-forwarded-proto", url.protocol.replace(":", ""));
   headers.delete("cf-connecting-ip");
   headers.delete("cf-ipcountry");
   headers.delete("cf-ray");
@@ -24184,31 +24188,31 @@ type StateHomeLang = "ja" | "en" | "es" | "pt-br";
 function stateHomeCopy(lang: StateHomeLang) {
   const all = {
     ja: {
-      publicRecords: "地域に残っている記録", recent: "最近の記録", recentAll: "すべて見る",
+      recent: "最近の記録", recentAll: "すべて見る",
       memory: "この前の記録", memoryLead: "前の写真を見返すと、次に残したいことが見つかります。", captureToday: "今日の記録を撮る",
       places: "場所から見つける", placesBody: "記録が残っている場所や、参加できる活動を地図から見られます。", placesCta: "場所を見る",
-      open: "この記録を見る", unknown: "記録した写真", safePlace: "地域の記録",
+      open: "この記録を見る", unknown: "記録した写真",
       photo: "写真", video: "動画", audio: "音声", memo: "メモ"
     },
     en: {
-      publicRecords: "Records from the community", recent: "Recent records", recentAll: "View all",
+      recent: "Recent records", recentAll: "View all",
       memory: "Your last record", memoryLead: "Looking back at a photo can suggest what to keep next.", captureToday: "Capture today",
       places: "Explore by place", placesBody: "See places with records and activities you can join.", placesCta: "View places",
-      open: "Open this record", unknown: "Saved photo", safePlace: "Community record",
+      open: "Open this record", unknown: "Saved photo",
       photo: "Photo", video: "Video", audio: "Audio", memo: "Note"
     },
     es: {
-      publicRecords: "Registros de la comunidad", recent: "Registros recientes", recentAll: "Ver todos",
+      recent: "Registros recientes", recentAll: "Ver todos",
       memory: "Tu último registro", memoryLead: "Volver a una foto puede mostrarte qué guardar después.", captureToday: "Capturar hoy",
       places: "Explorar por lugar", placesBody: "Descubre lugares con registros y actividades en las que participar.", placesCta: "Ver lugares",
-      open: "Abrir este registro", unknown: "Foto guardada", safePlace: "Registro de la comunidad",
+      open: "Abrir este registro", unknown: "Foto guardada",
       photo: "Foto", video: "Video", audio: "Audio", memo: "Nota"
     },
     "pt-br": {
-      publicRecords: "Registros da comunidade", recent: "Registros recentes", recentAll: "Ver todos",
+      recent: "Registros recentes", recentAll: "Ver todos",
       memory: "Seu último registro", memoryLead: "Rever uma foto pode mostrar o que guardar a seguir.", captureToday: "Registrar hoje",
       places: "Explorar por lugar", placesBody: "Veja lugares com registros e atividades das quais participar.", placesCta: "Ver lugares",
-      open: "Abrir este registro", unknown: "Foto salva", safePlace: "Registro da comunidade",
+      open: "Abrir este registro", unknown: "Foto salva",
       photo: "Foto", video: "Vídeo", audio: "Áudio", memo: "Nota"
     }
   } as const;
@@ -24259,15 +24263,6 @@ function stateHomeTitle(item: ReturnType<typeof publicMapObservationItem>, lang:
   return !value || item.isAwaitingId ? copy.unknown : value;
 }
 
-function stateHomePublicCard(item: ReturnType<typeof publicMapObservationItem>, lang: StateHomeLang): string {
-  const copy = stateHomeCopy(lang);
-  const title = stateHomeTitle(item, lang);
-  const place = normalizeOptionalText(item.publicAreaLabel) ?? copy.safePlace;
-  const meta = [place, stateHomeObservedAt(item.observedAt, lang)].filter(Boolean).join(" · ");
-  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  return `<a class="home-public-card" href="${prefix}/observations/${encodeURIComponent(item.visitId)}" data-home-record-id="${escapeHtml(item.visitId)}">${stateHomeMedia(item, lang)}<span class="home-card-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(meta)}</span></span></a>`;
-}
-
 function stateHomeOwnerPrimary(item: OwnerHomeRecordItem, lang: StateHomeLang): string {
   const copy = stateHomeCopy(lang);
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
@@ -24297,15 +24292,7 @@ export async function injectStateSplitHome(html: string, session: SessionSnapsho
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: StateHomeLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
   const member = Boolean(session && !session.banned);
-  const publicItems = await recentPublicRecordCards(env, 16).catch(() => []);
   let next = setStateHomeAuth(html, member);
-  if (publicItems.length > 0) {
-    // A merely recent public photo is not automatically suitable as the
-    // service hero. Keep the curated canonical hero until a dedicated,
-    // quality-screened public-photo slot is introduced.
-    const guestCards = `<div class="home-horizontal-list" role="region" aria-label="${escapeHtml(stateHomeCopy(lang).publicRecords)}">${publicItems.slice(0, 8).map((item) => stateHomePublicCard(item, lang)).join("")}</div>`;
-    next = replaceStateHomeMarker(next, "slot", "guest-public", guestCards);
-  }
   if (!member || !session) return next;
 
   const ownerItems = await ownerHomeRecordCards(session.userId, env, 24).catch(() => []);
