@@ -14,7 +14,8 @@
     "journeys": "journeys.json",
     "design": "design.json",
     "content": "content.json",
-    "quality": "quality.json"
+    "quality": "quality.json",
+    "requirements": "requirements.json"
   },
   "required_surface_ids": [
     "zukan.home.public",
