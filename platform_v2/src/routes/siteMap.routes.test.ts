@@ -15,7 +15,7 @@ function extractInternalHrefs(html: string): string[] {
   return [...hrefs];
 }
 
-test("sitemap and robots are generated from canonical v2 pages", async () => {
+test("sitemap stays canonical while staging robots deny crawling", async () => {
   const app = buildApp();
   try {
     const sitemap = await app.inject({
@@ -25,6 +25,7 @@ test("sitemap and robots are generated from canonical v2 pages", async () => {
     });
     assert.equal(sitemap.statusCode, 200);
     assert.match(sitemap.headers["content-type"] as string, /application\/xml/);
+    assert.equal(sitemap.headers["x-robots-tag"], "noindex, nofollow");
     assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/ja\/community/);
     assert.doesNotMatch(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/community/);
     assert.doesNotMatch(sitemap.body, /hreflang="en"/);
@@ -33,14 +34,26 @@ test("sitemap and robots are generated from canonical v2 pages", async () => {
     assert.doesNotMatch(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/for-business/);
     assert.doesNotMatch(sitemap.body, /:id|:userId/);
 
-    const robots = await app.inject({
+    const stagingRobots = await app.inject({
       method: "GET",
       url: "/robots.txt",
       headers: { host: "staging.ikimon.life", "x-forwarded-proto": "https" },
     });
-    assert.equal(robots.statusCode, 200);
-    assert.match(robots.body, /Sitemap: https:\/\/staging\.ikimon\.life\/sitemap\.xml/);
-    assert.match(robots.body, /LLMs: https:\/\/staging\.ikimon\.life\/llms\.txt/);
+    assert.equal(stagingRobots.statusCode, 200);
+    assert.equal(stagingRobots.headers["x-robots-tag"], "noindex, nofollow");
+    assert.match(stagingRobots.body, /^User-agent: \*\nDisallow: \/\n/);
+    assert.match(stagingRobots.body, /# production-canonical-origin: https:\/\/ikimon\.life/);
+    assert.doesNotMatch(stagingRobots.body, /Sitemap:|LLMs:/);
+
+    const productionRobots = await app.inject({
+      method: "GET",
+      url: "/robots.txt",
+      headers: { host: "ikimon.life", "x-forwarded-proto": "https" },
+    });
+    assert.equal(productionRobots.statusCode, 200);
+    assert.equal(productionRobots.headers["x-robots-tag"], undefined);
+    assert.match(productionRobots.body, /Sitemap: https:\/\/ikimon\.life\/sitemap\.xml/);
+    assert.match(productionRobots.body, /LLMs: https:\/\/ikimon\.life\/llms\.txt/);
   } finally {
     await app.close();
   }
