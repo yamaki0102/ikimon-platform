@@ -12,7 +12,7 @@ function request(headers: Record<string, string>, protocol = "http"): FastifyReq
   return { headers, protocol } as FastifyRequest;
 }
 
-test("security origin uses only explicit, bound runtime, direct allowlisted, or exact local identity", () => {
+test("security origin prioritizes bound runtime, then explicit config, direct host, or exact local identity", () => {
   assert.equal(resolveTrustedPublicOrigin(request({ host: "ikimon.life" })), "https://ikimon.life");
   assert.equal(resolveTrustedPublicOrigin(request({ host: "www.ikimon.life" })), "https://ikimon.life");
   assert.equal(resolveTrustedPublicOrigin(request({ host: "staging.ikimon.life" })), "https://staging.ikimon.life");
@@ -50,6 +50,13 @@ test("security origin uses only explicit, bound runtime, direct allowlisted, or 
         host: "attacker.example",
         [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://ikimon.life",
       }),
+      { explicitOrigin: "https://staging.ikimon.life/" },
+    ),
+    "https://ikimon.life",
+  );
+  assert.equal(
+    resolveTrustedPublicOrigin(
+      request({ host: "attacker.example" }),
       { explicitOrigin: "https://staging.ikimon.life/" },
     ),
     "https://staging.ikimon.life",
