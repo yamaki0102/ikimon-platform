@@ -1,5 +1,6 @@
 export const PRODUCTION_PUBLIC_ORIGIN = "https://ikimon.life";
 export const STAGING_PUBLIC_ORIGIN = "https://staging.ikimon.life";
+export const RUNTIME_PUBLIC_ORIGIN_HEADER = "x-ikimon-runtime-public-origin";
 
 const ALLOWED_PUBLIC_ORIGINS = new Set([
   PRODUCTION_PUBLIC_ORIGIN,
@@ -70,8 +71,8 @@ function localDevelopmentOrigin(request: PublicOriginRequest): string {
   return `${request.protocol}://${parsed.raw}`;
 }
 
-function hasPresentationWorkerFallbackMarker(request: PublicOriginRequest): boolean {
-  return strictHeaderValue(request.headers["x-ikimon-cloudflare-fallback"]).toLowerCase() === "origin";
+function runtimePublicOrigin(request: PublicOriginRequest): string {
+  return normalizeExplicitPublicOrigin(request.headers[RUNTIME_PUBLIC_ORIGIN_HEADER]);
 }
 
 export function resolveTrustedPublicOrigin(
@@ -83,6 +84,12 @@ export function resolveTrustedPublicOrigin(
 ): string | null {
   const explicitOrigin = normalizeExplicitPublicOrigin(options.explicitOrigin);
   if (explicitOrigin) return explicitOrigin;
+
+  // Fastify binds to localhost. nginx overwrites this header with the fixed
+  // identity of the selected production or staging server block before the
+  // request reaches the runtime, so it overrides a client-controlled Host.
+  const boundRuntimeOrigin = runtimePublicOrigin(request);
+  if (boundRuntimeOrigin) return boundRuntimeOrigin;
 
   const directOrigin = publicOriginFromHost(request.headers.host);
   if (directOrigin) return directOrigin;
@@ -103,16 +110,9 @@ export function resolvePresentationPublicOrigin(
     allowLocalDevelopment?: boolean;
   } = {},
 ): string | null {
-  let trustedOrigin: string | null = null;
   try {
-    trustedOrigin = resolveTrustedPublicOrigin(request, options);
+    return resolveTrustedPublicOrigin(request, options);
   } catch {
-    trustedOrigin = null;
+    return null;
   }
-  if (trustedOrigin) return trustedOrigin;
-
-  // This unsigned marker is presentation-only. OAuth and CSRF must use
-  // resolveTrustedPublicOrigin and must never derive identity from this hop.
-  if (!hasPresentationWorkerFallbackMarker(request)) return null;
-  return publicOriginFromHost(request.headers["x-forwarded-host"]) || null;
 }
