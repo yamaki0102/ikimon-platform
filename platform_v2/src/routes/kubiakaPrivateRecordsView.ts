@@ -26,7 +26,7 @@ a{color:inherit}
 .kpr-skip:focus{transform:none}
 .kpr-site-header{border-bottom:1px solid rgba(20,63,46,.12);background:rgba(255,255,255,.96)}
 .kpr-site-header-inner{width:min(1040px,calc(100% - 32px));min-height:64px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px}
-.kpr-brand{font-size:20px;font-weight:950;letter-spacing:.04em;text-decoration:none;color:var(--kpr-green)}
+.kpr-brand{min-height:56px;display:inline-flex;align-items:center;font-size:20px;font-weight:950;letter-spacing:.04em;text-decoration:none;color:var(--kpr-green)}
 .kpr-language{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .kpr-language a{min-width:56px;min-height:56px;padding:8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-size:12px;font-weight:900;color:#5f6964}
 .kpr-language a[aria-current="page"]{background:var(--kpr-green);color:#fff}
