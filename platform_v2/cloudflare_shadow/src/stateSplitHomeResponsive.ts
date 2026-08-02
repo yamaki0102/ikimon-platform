@@ -2,6 +2,7 @@ const STATE_SPLIT_STYLE_ID = "zukan-home-state-split-release-closure";
 
 const STATE_SPLIT_STYLE = `<style id="${STATE_SPLIT_STYLE_ID}">
 .home-state-root :is(a,button):focus-visible{outline:3px solid var(--home-green);outline-offset:3px}
+.home-category-index{color:var(--home-green)}
 .home-guest-proof.is-count-0{grid-template-columns:1fr;grid-template-rows:1fr}
 .home-guest-proof.is-empty{background:#f3f5f2}
 .home-guest-proof.is-empty img{display:none}
