@@ -1,75 +1,75 @@
 # ikimon-db-mcp
 
-MCP (Model Context Protocol) server that exposes the ikimon platform_v2
-PostgreSQL database to historical Biodiversity Freshness OS curator agents
-under a strict allowlist.
+Historical MCP contract artifact for the former Biodiversity Freshness OS curator-agent design.
 
 ## Status
 
-Archived. Sprint 7 v2.2 moved curator execution to the Node dispatcher at
+**Retired. Do not run or migrate this path in place.**
+
+Sprint 7 v2.2 moved curator execution to the Node dispatcher at
 `platform_v2/src/scripts/cron/runCurator.ts`. Node now owns source fetch,
 snapshot checks, deterministic validation, SQL generation, and receiver POST.
 LLMs are called directly by Node only for structured extraction.
 
-## Why a separate MCP server
+The previous Claude Managed Agents path is retired. The remaining source is
+kept only to document the old allowlist and trust boundary, and to prevent old
+references from being mistaken for the current runtime.
 
-The old design ran curators as Claude Managed Agents. That path is retired;
-this README remains only to document the previous allowlist model and to keep
-old references from being mistaken for the current runtime.
+The `startStdioMcp()` entry point fails closed. There is no active MCP
+transport, package, service, or approved deployment path here.
 
-## Permission model
+## Historical permission model
 
-`permissions.json` maps `agent_id` → allowed operations:
+`permissions.json` mapped `agent_id` to allowed operations:
 
 ```json
 {
   "invasive-law": {
-    "read":            ["invasive_status_versions", "taxa_gbif_cache", "freshness_registry", "source_snapshots"],
-    "write_proposal":  ["invasive_status_versions", "source_snapshots"],
-    "write_direct":    ["freshness_registry", "ai_curator_runs"]
+    "read": ["invasive_status_versions", "taxa_gbif_cache", "freshness_registry", "source_snapshots"],
+    "write_proposal": ["invasive_status_versions", "source_snapshots"],
+    "write_direct": ["freshness_registry", "ai_curator_runs"]
   }
-  ...
 }
 ```
 
-Operations:
+Historical operations:
 
-- `read` — `query_readonly` tool may SELECT from these tables only.
-- `write_proposal` — `propose_write` tool emits SQL files to
-  `out/proposals/<run_id>.sql`. **Never touches the database.**
-  GitHub Action `agent-curator-pr.yml` picks them up and opens a PR.
-- `write_direct` — limited tables that bypass the PR loop
-  (`freshness_registry` status, `ai_curator_runs` log, etc.).
+- `read` — `query_readonly` could SELECT from allowlisted tables only
+- `write_proposal` — `propose_write` emitted SQL proposals and did not directly mutate the target data
+- `write_direct` — limited operational status tables bypassed the proposal loop
 
-Trust boundary §1.5 is enforced in code: any proposed `knowledge_claims`
-INSERT is rewritten with `use_in_feedback=false` and
-`human_review_status='pending'` regardless of what the agent asked for.
+The historical trust boundary forced proposed `knowledge_claims` rows to
+`use_in_feedback=false` and `human_review_status='pending'`.
 
-## Tools exposed (MCP)
+## Historical tools
 
-| Tool | Purpose |
+| Tool | Historical purpose |
 |---|---|
-| `query_readonly` | `SELECT … FROM <allowed table> WHERE …` (no joins to denied tables) |
-| `propose_write` | Append a row spec to `out/proposals/<run_id>.sql` |
-| `schema_introspect` | Returns column list + constraints for an allowed table |
-| `record_run_status` | UPSERT into `ai_curator_runs` (status, cost_jpy, error) |
-| `register_snapshot` | INSERT into `source_snapshots` (raw artifact ledger) |
+| `query_readonly` | Read allowlisted tables |
+| `propose_write` | Emit a SQL proposal |
+| `schema_introspect` | Return allowed table metadata |
+| `record_run_status` | Record curator-run status |
+| `register_snapshot` | Register an immutable source snapshot |
 
-## Running
+These functions are not an active MCP surface.
 
-Local dev:
+## Retirement enforcement
 
-```bash
-cd platform_v2/mcp_servers/ikimon-db-mcp
-npm install
-DATABASE_URL=postgres://... AGENT_ID=invasive-law npm run dev
-```
-
-Production (per-curator systemd):
+From `platform_v2`:
 
 ```bash
-# /etc/systemd/system/ikimon-mcp-invasive-law.service
-ExecStart=/usr/bin/env AGENT_ID=invasive-law node dist/server.js
+npm run test:archived-mcp-contract
 ```
 
-Do not revive this MCP path without a fresh architecture review.
+The platform build runs this contract and verifies that:
+
+- the path remains classified as retired
+- the entry point refuses startup
+- no Model Context Protocol SDK import is introduced
+- in-place migration and a legacy lane remain forbidden
+
+## Future MCP work
+
+Any future MCP endpoint must begin with a fresh architecture review. It must
+use the then-current portfolio-approved MCP SDK v2 profile and must not treat
+this retired path as a migration base.

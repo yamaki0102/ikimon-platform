@@ -1,18 +1,24 @@
-// ikimon-db-mcp — stdio MCP server skeleton.
+// ikimon-db-mcp — retired MCP contract artifact.
 //
-// Sprint 4 lands the contract (allowlist enforcement + PR emission). The
-// MCP wire format integration with @modelcontextprotocol/sdk is wired
-// to a placeholder — replace startStdioMcp() with the SDK transport once
-// the first curator is scheduled to run.
-//
-// Run:
-//   AGENT_ID=invasive-law DATABASE_URL=postgres://... node dist/server.js
+// Sprint 7 moved curator execution to the Node dispatcher. No MCP transport is
+// active here. Do not migrate or reactivate this path in place. Any future MCP
+// endpoint requires a fresh architecture review and the then-current portfolio
+// MCP SDK v2 profile.
 
 import { readFile, mkdir, appendFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
+
+export const MCP_RETIREMENT_POLICY = Object.freeze({
+  implementationStatus: "retired",
+  activeTransport: false,
+  revival: "fresh_architecture_review_required",
+  inPlaceMigration: "forbidden",
+  legacyLane: "forbidden",
+  stateBoundary: "none",
+} as const);
 
 type AgentId = "invasive-law" | "redlist" | "paper-research" | "satellite-update";
 
@@ -123,13 +129,11 @@ function applyConstraints(
   for (const [key, expected] of Object.entries(constraints)) {
     const [tbl, col] = key.split(".");
     if (tbl !== table) continue;
-    if (col === "claim_text" || col === "citation_span") continue; // handled below
+    if (col === "claim_text" || col === "citation_span") continue;
     if (col && (typeof expected === "string" || typeof expected === "boolean" || typeof expected === "number")) {
-      // Force the constrained value regardless of what the agent asked for.
       out[col] = expected as string | number | boolean;
     }
   }
-  // Length constraints
   const claimMaxLen = (constraints["knowledge_claims.claim_text.maxLength"] as number | undefined) ?? null;
   if (table === "knowledge_claims" && typeof out.claim_text === "string" && claimMaxLen !== null) {
     if (out.claim_text.length > claimMaxLen) {
@@ -175,7 +179,6 @@ export async function proposeWrite(
     if (input.changeType === "insert" || input.changeType === "version_close") {
       return `INSERT INTO "${safeTable}" (${colList}) VALUES (${valList});`;
     }
-    // update — assume row contains a primary key column whose name is `<table_singular>_id` or `version_id`
     const keyCol = cols.find((c) => c.endsWith("_id")) ?? cols[0];
     if (!keyCol) throw new Error(`update proposal needs a key column for ${safeTable}`);
     const sets = cols
@@ -258,8 +261,6 @@ export async function registerSnapshot(
   input: RegisterSnapshotInput,
 ): Promise<{ snapshotId: string; deduplicated: boolean }> {
   await assertCanProposeWrite(agentId, "source_snapshots");
-  // Source snapshots are append-only. (source_kind, content_sha256) UNIQUE
-  // dedupes silently.
   const result = await pool.query<{ snapshot_id: string; existed: boolean }>(
     `WITH ins AS (
        INSERT INTO source_snapshots (
@@ -292,35 +293,19 @@ export async function registerSnapshot(
   return { snapshotId: row.snapshot_id, deduplicated: row.existed };
 }
 
-// ---------- stdio entry point ----------
+// ---------- retired entry point ----------
 
-export async function startStdioMcp(): Promise<void> {
-  const agentId = getAgentId();
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) throw new Error("DATABASE_URL is required");
-  const pool = new Pool({ connectionString: databaseUrl, application_name: `ikimon-db-mcp/${agentId}` });
-
-  // PLACEHOLDER: integrate @modelcontextprotocol/sdk Server here once a
-  // curator is actually scheduled to run. The exported tool functions
-  // (queryReadonly / proposeWrite / schemaIntrospect / recordRunStatus /
-  // registerSnapshot) are the wire-level API.
-  // eslint-disable-next-line no-console
-  console.log(`[ikimon-db-mcp] agent=${agentId} ready (skeleton — MCP transport pending integration)`);
-
-  // Keep the process alive so systemd treats this as a long-running service.
-  // Real MCP transport will block on stdin instead.
-  await new Promise<void>(() => {
-    // never resolves — operator stops via systemctl
-  });
-
-  // unreachable, but keeps the linter happy if the placeholder is removed
-  await pool.end();
+export async function startStdioMcp(): Promise<never> {
+  getAgentId();
+  throw new Error(
+    "ikimon-db-mcp is retired; use the Node curator dispatcher or complete a fresh MCP architecture review",
+  );
 }
 
 if (process.argv[1] && process.argv[1].endsWith("server.js")) {
   void startStdioMcp().catch((error) => {
     // eslint-disable-next-line no-console
-    console.error("[ikimon-db-mcp] startup failed:", error);
+    console.error("[ikimon-db-mcp] startup refused:", error);
     process.exit(1);
   });
 }

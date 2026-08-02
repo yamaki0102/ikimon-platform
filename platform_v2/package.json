@@ -9,11 +9,12 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npm run check:prompt-schema-leakage && npm run check:observation-copy && npm run check:area-encyclopedia-copy && npm run sync:face-privacy-assets && tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
+    "build": "npm run test:archived-mcp-contract && npm run check:prompt-schema-leakage && npm run check:observation-copy && npm run check:area-encyclopedia-copy && npm run sync:face-privacy-assets && tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
     "build:server": "npm run sync:face-privacy-assets && tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test:node": "tsx --test \"src/**/*.test.ts\"",
+    "test:archived-mcp-contract": "tsx --test \"mcp_servers/**/*.test.ts\"",
     "security:audit": "npm audit --omit=dev",
     "test:curator": "tsx --test src/services/aiModelPricing.test.ts src/services/curatorTrustBoundary.test.ts src/services/curatorSqlBuilder.test.ts src/scripts/curatorModelBakeoff.test.ts",
     "eval:navigable-os:generate": "tsx src/scripts/generateNavigableBiodiversityOsEvalCandidate.ts",
@@ -132,7 +133,7 @@
     "generate:guide-hypothesis-improvements": "tsx src/scripts/generateGuideHypothesisPromptImprovements.ts",
     "postdeploy:guide-environment": "tsx src/scripts/runGuideEnvironmentPostDeploy.ts",
     "backfill:guide-non-biological-species": "tsx src/scripts/backfillGuideNonBiologicalSpecies.ts",
-    "export:guide-correction-eval": "tsx src/scripts/exportGuideCorrectionEval.ts",
+    "export:guide-correction-eval": "tsx src/scripts/exportGuideCorrectionEvalSet.ts",
     "export:guide-hypothesis-eval": "tsx src/scripts/exportGuideHypothesisEvalSet.ts",
     "rebuild:guide-environment-mesh": "tsx src/scripts/rebuildGuideEnvironmentMesh.ts"
   },
