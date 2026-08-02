@@ -6,9 +6,15 @@ export async function request(manifest, spec, secrets, fetchImpl) {
   const url = new URL(safePath(spec.path), manifest.base_url);
   if (!manifest.allowed_hosts.includes(normalizeHost(url.hostname))) throw new DebugError('UNSAFE', 'probe_host_not_allowlisted');
   const profile = manifest.header_profiles[spec.headers_profile];
+  if (!profile) throw new DebugError('UNSAFE', 'header_profile_missing');
   const headers = { accept: '*/*', 'cache-control': 'no-store', 'user-agent': 'ikimon-debug-fabric/1' };
   for (const [name, source] of Object.entries(profile.headers)) {
-    headers[name] = source.type === 'literal' ? source.value : `${source.prefix}${safeHeaderValue(secrets[source.secret])}`;
+    if (source.type === 'literal') {
+      headers[name] = source.value;
+      continue;
+    }
+    if (!Object.hasOwn(secrets, source.secret)) throw new DebugError('BLOCKED', 'header_secret_unresolved');
+    headers[name] = `${source.prefix}${safeHeaderValue(secrets[source.secret])}`;
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), manifest.timeout_ms);
