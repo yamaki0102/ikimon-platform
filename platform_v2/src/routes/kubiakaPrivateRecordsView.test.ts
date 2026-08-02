@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { classifyKubiakaAiStatus } from "../services/kubiakaPrivateRecordsCopy.js";
+import {
+  classifyKubiakaAiStatus,
+  kubiakaPrivateRecordsCopy,
+} from "../services/kubiakaPrivateRecordsCopy.js";
 import type {
   KubiakaPrivateRecordDetail,
   KubiakaPrivateRecordSummary,
 } from "../services/kubiakaPrivateRecordsReadModel.js";
 import {
+  KUBIAKA_PRIVATE_RECORDS_STYLES,
   renderKubiakaPrivateDocument,
   renderKubiakaPrivateRecordDetail,
   renderKubiakaPrivateRecordList,
@@ -45,11 +49,40 @@ test("private document shell has no public navigation or external analytics", ()
   assert.match(html, /^<!doctype html>/);
   assert.match(html, /<meta name="robots" content="noindex,nofollow,noarchive"/);
   assert.match(html, /<meta name="referrer" content="no-referrer"/);
-  assert.match(html, /href="\/preview(?:\/ja)?\/kubiaka\/records\/visit-private"/);
+  assert.match(html, /href="\/preview\/ja\/kubiaka\/records\/visit-private"/);
+  assert.match(html, /href="\/preview\/en\/kubiaka\/records\/visit-private"/);
+  assert.match(html, /href="\/preview\/es\/kubiaka\/records\/visit-private"/);
+  assert.match(html, /href="\/preview\/pt-br\/kubiaka\/records\/visit-private"/);
+  assert.doesNotMatch(html, /\/(?:ja|en|es|pt-br)\/preview\//);
   assert.doesNotMatch(html, /<script\b|googletagmanager|clarity\.ms|google-analytics/i);
   assert.doesNotMatch(html, /href="[^"]*(?:\/map|share|report)/i);
   assert.doesNotMatch(html, /data-global-record|api\/v1\/ui-kpi/i);
   assert.doesNotMatch(html, /\/preview\/preview\//);
+});
+
+test("language and primary actions meet the 56px touch-target contract", () => {
+  const html = renderKubiakaPrivateDocument({
+    basePath: "",
+    lang: "en",
+    currentPath: "/kubiaka/me",
+    title: "Private records",
+    description: "Private records",
+    body: `<a class="kpr-primary" href="/next">Next</a><a class="kpr-secondary" href="/back">Back</a>`,
+  });
+  assert.match(html, /\.kpr-language a\{[^}]*min-width:56px;min-height:56px/);
+  assert.match(KUBIAKA_PRIVATE_RECORDS_STYLES, /\.kpr-primary,\.kpr-secondary\{[^}]*min-height:56px/);
+});
+
+test("Spanish and Brazilian Portuguese use dedicated private-record copy", () => {
+  const english = kubiakaPrivateRecordsCopy("en");
+  const spanish = kubiakaPrivateRecordsCopy("es");
+  const portuguese = kubiakaPrivateRecordsCopy("pt-BR");
+  assert.equal(spanish.homeTitle, "Mis registros de Kubiaka");
+  assert.equal(portuguese.homeTitle, "Meus registros de Kubiaka");
+  assert.notEqual(spanish.recordsLead, english.recordsLead);
+  assert.notEqual(portuguese.recordsLead, english.recordsLead);
+  assert.match(spanish.detailLead, /privado/i);
+  assert.match(portuguese.detailLead, /privado/i);
 });
 
 test("home renders zero, one and multiple record states", () => {
@@ -60,7 +93,7 @@ test("home renders zero, one and multiple record states", () => {
     acknowledgement: null,
   });
   assert.match(empty, /0件/);
-  assert.match(empty, /\/kubiaka\/record\?start=photo/);
+  assert.match(empty, /\/ja\/kubiaka\/record\?start=photo/);
 
   const one = renderKubiakaPrivateRecordsHome({
     basePath: "",
@@ -69,7 +102,7 @@ test("home renders zero, one and multiple record states", () => {
     acknowledgement: null,
   });
   assert.match(one, /1件/);
-  assert.match(one, /\/kubiaka\/records\/visit-1/);
+  assert.match(one, /\/ja\/kubiaka\/records\/visit-1/);
 
   const multiple = renderKubiakaPrivateRecordsHome({
     basePath: "",
@@ -78,7 +111,7 @@ test("home renders zero, one and multiple record states", () => {
     acknowledgement: null,
   });
   assert.match(multiple, /3件/);
-  assert.match(multiple, /\/kubiaka\/me\/records/);
+  assert.match(multiple, /\/ja\/kubiaka\/me\/records/);
 });
 
 test("acknowledgement compatibility points to the saved private record", () => {
@@ -89,7 +122,7 @@ test("acknowledgement compatibility points to the saved private record", () => {
     acknowledgement: { recordId: "occ:visit-1:0", visitId: "visit-1", photoCount: 1 },
   });
   assert.match(html, /Acknowledgement/);
-  assert.match(html, /\/kubiaka\/records\/visit-1/);
+  assert.match(html, /\/en\/kubiaka\/records\/visit-1/);
   assert.doesNotMatch(html, /occ:visit-1:0/);
 });
 
@@ -141,7 +174,7 @@ test("detail renders one to six owner-gated photo endpoints without sensitive fi
   }
 });
 
-test("renderers escape visit IDs and never duplicate forwarded base paths", () => {
+test("renderers escape visit IDs and preserve locale after forwarded base paths", () => {
   const hostile = record({ visitId: `visit-1\"><script>alert(1)</script>` });
   const root = renderKubiakaPrivateRecordsHome({
     basePath: "",
@@ -158,6 +191,7 @@ test("renderers escape visit IDs and never duplicate forwarded base paths", () =
     overview: { totalCount: 1, latest: record() },
     acknowledgement: null,
   });
-  assert.match(prefixed, /\/preview\/kubiaka\/records\/visit-1/);
+  assert.match(prefixed, /\/preview\/en\/kubiaka\/records\/visit-1/);
+  assert.doesNotMatch(prefixed, /\/en\/preview\//);
   assert.doesNotMatch(prefixed, /\/preview\/preview\//);
 });
