@@ -41,7 +41,8 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     });
     assert.equal(stagingRobots.statusCode, 200);
     assert.equal(stagingRobots.headers["x-robots-tag"], "noindex, nofollow");
-    assert.equal(stagingRobots.body, "User-agent: *\nDisallow: /\n");
+    assert.match(stagingRobots.body, /^User-agent: \*\nDisallow: \/\n/);
+    assert.match(stagingRobots.body, /# production-canonical-origin: https:\/\/ikimon\.life/);
     assert.doesNotMatch(stagingRobots.body, /Sitemap:|LLMs:/);
 
     const productionRobots = await app.inject({
