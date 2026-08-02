@@ -7,20 +7,23 @@
  *    地点に紐づく市区町村受信者 (alert_recipients.recipient_type='municipality') へ通報
  *  - `invasive` / `rare` / `novelty`: 研究者・機関 (recipient_type='researcher'|'agency') へ通報
  *  - `taxon_match`: ユーザー購読 (taxon_alert_subscriptions) のマッチング
+ *  - `area_watch`: 再評価後に解決した永続identityで未通知のArea Watchを再評価
  *
  * 設計:
  *  - 実際のメール送信は Cloudflare Worker の Cron / Queue / ALERT_EMAIL で処理する
- *  - dispatcher は **DB に pending 行を書くだけ**。失敗しても reassess の主処理を巻き込まない
+ *  - dispatcher は **DB に通知行を書くだけ**。失敗しても reassess の主処理を巻き込まない
  *  - 重複送信は migration 0063 の partial UNIQUE で抑止 (ON CONFLICT DO NOTHING)
  */
 
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
 import {
-  findExperienceManagedTaxon,
-  isExperienceManagedTaxonRoutingEnabled,
+  evaluateExperienceManagedTaxonNotificationEligibility,
+  type ExperienceManagedTaxonNotificationBlockReason,
 } from "./experienceManagedTaxonScopes.js";
 import { emitInvasiveReportingForOccurrence, isInvasiveReportingTrigger } from "./invasiveReporting.js";
+import { readCanonicalNotificationEligibility } from "./notificationEligibility.js";
+import { emitAreaWatchNotificationForObservation } from "./areaWatchNotifications.js";
 
 export type EmitAlertsContext = {
   occurrenceId: string;
@@ -49,6 +52,7 @@ export type EmitAlertsContext = {
 };
 
 export type AlertDispatchSummary = {
+  areaWatchNotifications: number;
   municipalityInvasive: number;
   invasiveReportingMatched: number;
   invasiveReportingSuppressed: number;
@@ -56,12 +60,13 @@ export type AlertDispatchSummary = {
   researcherRare: number;
   researcherNovelty: number;
   userTaxonMatches: number;
-  blockedReason: "experience_managed_taxon_denied" | null;
+  blockedReason: ExperienceManagedTaxonNotificationBlockReason | "experience_managed_taxon_denied" | null;
   managedTaxonScopeKey: string | null;
 };
 
 function emptyAlertSummary(): AlertDispatchSummary {
   return {
+    areaWatchNotifications: 0,
     municipalityInvasive: 0,
     invasiveReportingMatched: 0,
     invasiveReportingSuppressed: 0,
@@ -74,23 +79,60 @@ function emptyAlertSummary(): AlertDispatchSummary {
   };
 }
 
+function legacyAlertBlockReason(
+  reason: ExperienceManagedTaxonNotificationBlockReason | null,
+): AlertDispatchSummary["blockedReason"] {
+  return reason === "managed_taxon_gate_denied" ? "experience_managed_taxon_denied" : reason;
+}
+
 export async function emitAlertsForOccurrence(
   ctx: EmitAlertsContext,
   client?: PoolClient,
 ): Promise<AlertDispatchSummary> {
   const summary = emptyAlertSummary();
 
-  // Gate 0: evaluate the taxon before opening a DB connection or entering any
-  // notification branch. Record link state, law status, confidence, Case, and
-  // recipient configuration must not bypass this source-level interlock.
-  const managedTaxon = findExperienceManagedTaxon(ctx.scientificName);
-  if (managedTaxon && !isExperienceManagedTaxonRoutingEnabled(managedTaxon.scope)) {
-    summary.blockedReason = "experience_managed_taxon_denied";
-    summary.managedTaxonScopeKey = managedTaxon.scope.scopeKey;
+  // Gate 0: a managed transient context is an immediate deny. An unresolved
+  // transient context must continue to the canonical persisted read because a
+  // photo-only/vernacular-only reassessment may have just persisted identity.
+  const contextGate = evaluateExperienceManagedTaxonNotificationEligibility(ctx.scientificName);
+  if (!contextGate.allowed && contextGate.reason !== "species_unresolved") {
+    summary.blockedReason = legacyAlertBlockReason(contextGate.reason);
+    summary.managedTaxonScopeKey = contextGate.managedTaxonScopeKey;
     return summary;
   }
 
   const exec = async (c: PoolClient): Promise<void> => {
+    const canonicalGate = await readCanonicalNotificationEligibility(c, {
+      occurrenceId: ctx.occurrenceId,
+      visitId: ctx.visitId,
+    });
+    if (!canonicalGate.allowed) {
+      summary.blockedReason = legacyAlertBlockReason(canonicalGate.reason);
+      summary.managedTaxonScopeKey = canonicalGate.managedTaxonScopeKey;
+      return;
+    }
+
+    // `emitAlertsForOccurrence` is called after the reassessment assessment and
+    // primary visual-subject identity have been persisted. Reuse the existing
+    // Area Watch writer here so initially-unresolved observations are retried
+    // without duplicating its SQL, Gate 0 logic, or idempotency contract.
+    try {
+      const areaWatch = await emitAreaWatchNotificationForObservation(
+        { occurrenceId: ctx.occurrenceId, visitId: ctx.visitId },
+        c,
+      );
+      summary.areaWatchNotifications = areaWatch.areaWatchNotifications;
+      if (areaWatch.blockedReason) {
+        summary.blockedReason = legacyAlertBlockReason(areaWatch.blockedReason);
+        summary.managedTaxonScopeKey = areaWatch.managedTaxonScopeKey;
+        return;
+      }
+    } catch (error) {
+      // The Area Watch function restores its savepoint before throwing. Keep
+      // legacy unmanaged notifications available and let reassessment commit.
+      console.error("[alerts] area watch dispatch failed:", error instanceof Error ? error.message : error);
+    }
+
     if (isInvasiveTrigger(ctx.invasiveStatus)) {
       const invasiveReporting = await emitInvasiveReportingForOccurrence(c, ctx);
       summary.invasiveReportingMatched = invasiveReporting.matchedRules;
@@ -113,7 +155,12 @@ export async function emitAlertsForOccurrence(
     const pool = getPool();
     const c = await pool.connect();
     try {
+      await c.query("begin");
       await exec(c);
+      await c.query("commit");
+    } catch (error) {
+      await c.query("rollback").catch(() => undefined);
+      throw error;
     } finally {
       c.release();
     }

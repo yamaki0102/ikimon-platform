@@ -22,6 +22,19 @@ export type ExperienceManagedTaxonMatch = {
   matchedNormalizedScientificName: string;
 };
 
+export type ExperienceManagedTaxonNotificationBlockReason =
+  | "managed_taxon_gate_denied"
+  | "species_unresolved"
+  | "notification_gate_unavailable"
+  | "notification_gate_error";
+
+export type ExperienceManagedTaxonNotificationDecision = {
+  allowed: boolean;
+  reason: ExperienceManagedTaxonNotificationBlockReason | null;
+  managedTaxonScopeKey: string | null;
+  normalizedScientificName: string | null;
+};
+
 /**
  * Source-only Gate 0 registry. External routing remains denied until a later,
  * explicitly approved release adds a version-matched routing approval.
@@ -108,4 +121,89 @@ export function isExperienceManagedTaxonRoutingEnabled(
   return approval.allowExternalRouting === true
     && approval.approvedPolicyVersion === scope.policyVersion
     && approval.approvalRef.trim().length > 0;
+}
+
+function deniedNotificationDecision(
+  reason: ExperienceManagedTaxonNotificationBlockReason,
+  normalizedScientificName: string | null = null,
+  managedTaxonScopeKey: string | null = null,
+): ExperienceManagedTaxonNotificationDecision {
+  return {
+    allowed: false,
+    reason,
+    managedTaxonScopeKey,
+    normalizedScientificName,
+  };
+}
+
+function isValidScopeConfiguration(
+  scopes: readonly ExperienceManagedTaxonScope[],
+): boolean {
+  if (!Array.isArray(scopes) || scopes.length === 0) return false;
+  return scopes.every((scope) => {
+    if (!scope || typeof scope.scopeKey !== "string" || scope.scopeKey.trim() === "") return false;
+    if (!Array.isArray(scope.acceptedNormalizedScientificNames) || scope.acceptedNormalizedScientificNames.length === 0) {
+      return false;
+    }
+    if (scope.acceptedNormalizedScientificNames.some((name: unknown) => typeof name !== "string" || name.trim() === "")) {
+      return false;
+    }
+    if (scope.status !== "deny_external_routing" && scope.status !== "routing_enabled") return false;
+    if (typeof scope.policyVersion !== "string" || scope.policyVersion.trim() === "") return false;
+    if (scope.routingApproval === undefined) return true;
+    return scope.routingApproval.allowExternalRouting === true
+      && typeof scope.routingApproval.approvedPolicyVersion === "string"
+      && typeof scope.routingApproval.approvalRef === "string"
+      && scope.routingApproval.approvedPolicyVersion.trim() !== ""
+      && scope.routingApproval.approvalRef.trim() !== "";
+  });
+}
+
+/**
+ * Shared notification boundary for every managed-taxon delivery path.
+ *
+ * An absent/invalid policy or an unresolvable species is not treated as an
+ * unmanaged taxon. That distinction is what keeps an incomplete Gate 0
+ * configuration from reopening a notification sink.
+ */
+export function evaluateExperienceManagedTaxonNotificationEligibility(
+  scientificName: string | null | undefined,
+  scopes: readonly ExperienceManagedTaxonScope[] = EXPERIENCE_MANAGED_TAXON_SCOPES,
+): ExperienceManagedTaxonNotificationDecision {
+  try {
+    if (!isValidScopeConfiguration(scopes)) {
+      return deniedNotificationDecision("notification_gate_unavailable");
+    }
+    if (typeof scientificName !== "string") {
+      return deniedNotificationDecision("species_unresolved");
+    }
+    const normalizedScientificName = normalizeManagedScientificName(scientificName);
+    if (!normalizedScientificName) {
+      return deniedNotificationDecision("species_unresolved");
+    }
+    const match = findExperienceManagedTaxon(scientificName, scopes);
+    if (!match) {
+      return {
+        allowed: true,
+        reason: null,
+        managedTaxonScopeKey: null,
+        normalizedScientificName,
+      };
+    }
+    if (!isExperienceManagedTaxonRoutingEnabled(match.scope)) {
+      return deniedNotificationDecision(
+        "managed_taxon_gate_denied",
+        normalizedScientificName,
+        match.scope.scopeKey,
+      );
+    }
+    return {
+      allowed: true,
+      reason: null,
+      managedTaxonScopeKey: match.scope.scopeKey,
+      normalizedScientificName,
+    };
+  } catch {
+    return deniedNotificationDecision("notification_gate_error");
+  }
 }

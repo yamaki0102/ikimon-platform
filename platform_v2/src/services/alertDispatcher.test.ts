@@ -11,11 +11,31 @@ import { emitAlertsForOccurrence } from "./alertDispatcher.js";
  */
 
 type Query = { text: string; values: unknown[] };
+type CanonicalTaxonRow = {
+  scientific_name: string | null;
+  occurrence_scientific_name?: string | null;
+  persisted_scientific_name?: string | null;
+};
 
-function makeMockClient(history: Query[]) {
+function asCanonicalRow(value: string | null | CanonicalTaxonRow): CanonicalTaxonRow {
+  if (typeof value === "object" && value !== null) return value;
+  return {
+    scientific_name: value,
+    occurrence_scientific_name: value,
+    persisted_scientific_name: null,
+  };
+}
+
+function makeMockClient(
+  history: Query[],
+  canonicalScientificName: string | null | CanonicalTaxonRow = "Procyon lotor",
+) {
   return {
     query: async (text: string, values?: unknown[]) => {
       history.push({ text, values: values ?? [] });
+      if (text.includes("notification_gate_canonical_taxon")) {
+        return { rows: [asCanonicalRow(canonicalScientificName)] };
+      }
       return { rows: [] as Array<{ recipient_id?: string; subscription_id?: string }> };
     },
   } as unknown as import("pg").PoolClient;
@@ -39,6 +59,7 @@ test("emitAlertsForOccurrence: managed taxon is denied before DB connection", as
   });
 
   assert.deepEqual(summary, {
+    areaWatchNotifications: 0,
     municipalityInvasive: 0,
     invasiveReportingMatched: 0,
     invasiveReportingSuppressed: 0,
@@ -76,7 +97,222 @@ test("emitAlertsForOccurrence: managed synonym stays denied during link_pending"
 
   assert.equal(summary.blockedReason, "experience_managed_taxon_denied");
   assert.equal(summary.managedTaxonScopeKey, "kubiaka-watch");
+  assert.equal(summary.areaWatchNotifications, 0);
   assert.equal(history.length, 0, "managed taxon must not query or create delivery rows");
+});
+
+test("emitAlertsForOccurrence: canonical managed taxon cannot be hidden by an unmanaged context", async () => {
+  const history: Query[] = [];
+  const client = makeMockClient(history, "Aromia bungii");
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000105",
+      visitId: "00000000-0000-0000-0000-000000000106",
+      invasiveStatus: null,
+      scientificName: "Procyon lotor",
+      vernacularName: "アライグマ",
+    },
+    client,
+  );
+  assert.equal(summary.blockedReason, "experience_managed_taxon_denied");
+  assert.equal(summary.managedTaxonScopeKey, "kubiaka-watch");
+  assert.equal(summary.areaWatchNotifications, 0);
+  assert.equal(history.filter((query) => query.text.includes("notification_gate_canonical_taxon")).length, 1);
+  assert.doesNotMatch(history.map((query) => query.text).join("\n"), /INSERT INTO alert_deliveries/i);
+});
+
+test("emitAlertsForOccurrence: appended managed assessment overrides original unmanaged identity", async () => {
+  const history: Query[] = [];
+  const client = makeMockClient(history, {
+    scientific_name: "Aromia bungii",
+    occurrence_scientific_name: "Procyon lotor",
+    persisted_scientific_name: "Aromia bungii",
+  });
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000113",
+      visitId: "00000000-0000-0000-0000-000000000114",
+      invasiveStatus: null,
+      scientificName: "Procyon lotor",
+      vernacularName: "アライグマ",
+    },
+    client,
+  );
+
+  assert.equal(summary.blockedReason, "experience_managed_taxon_denied");
+  assert.equal(summary.managedTaxonScopeKey, "kubiaka-watch");
+  assert.equal(summary.areaWatchNotifications, 0);
+  assert.doesNotMatch(history.map((query) => query.text).join("\n"), /INSERT INTO alert_deliveries/i);
+});
+
+test("emitAlertsForOccurrence: canonical gate resolves persisted AI assessment identity", async () => {
+  const history: Query[] = [];
+  const client = makeMockClient(history, {
+    scientific_name: "Procyon lotor",
+    occurrence_scientific_name: null,
+    persisted_scientific_name: "Procyon lotor",
+  });
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000111",
+      visitId: "00000000-0000-0000-0000-000000000112",
+      invasiveStatus: null,
+      scientificName: null,
+      vernacularName: "アライグマ",
+    },
+    client,
+  );
+
+  assert.equal(summary.blockedReason, null);
+  const gateQuery = history.find((query) => query.text.includes("notification_gate_canonical_taxon"));
+  assert.ok(gateQuery);
+  assert.match(gateQuery.text, /observation_ai_assessments/i);
+  assert.match(gateQuery.text, /visual_subject_candidates/i);
+  assert.match(gateQuery.text, /recommended_scientific_name/i);
+  assert.match(gateQuery.text, /persisted_scientific_name/i);
+});
+
+test("emitAlertsForOccurrence: reassessment replays initially unresolved area watch exactly once", async () => {
+  const history: Query[] = [];
+  let areaWatchInsertAttempts = 0;
+  const client = {
+    query: async (text: string, values?: unknown[]) => {
+      history.push({ text, values: values ?? [] });
+      if (text.includes("notification_gate_canonical_taxon")) {
+        return { rows: [asCanonicalRow({
+          scientific_name: "Procyon lotor",
+          occurrence_scientific_name: null,
+          persisted_scientific_name: "Procyon lotor",
+        })] };
+      }
+      if (/insert into alert_deliveries/i.test(text) && /'area_watch'/i.test(text)) {
+        areaWatchInsertAttempts += 1;
+        return { rows: areaWatchInsertAttempts === 1 ? [{ delivery_id: "area-watch-1" }] : [] };
+      }
+      return { rows: [] };
+    },
+  } as unknown as import("pg").PoolClient;
+  const context = {
+    occurrenceId: "00000000-0000-0000-0000-000000000115",
+    visitId: "00000000-0000-0000-0000-000000000116",
+    invasiveStatus: null,
+    scientificName: null,
+    vernacularName: "アライグマ",
+  };
+
+  const first = await emitAlertsForOccurrence(context, client);
+  const replay = await emitAlertsForOccurrence(context, client);
+
+  assert.equal(first.blockedReason, null);
+  assert.equal(first.areaWatchNotifications, 1);
+  assert.equal(replay.blockedReason, null);
+  assert.equal(replay.areaWatchNotifications, 0);
+  assert.equal(areaWatchInsertAttempts, 2);
+  assert.match(history.map((query) => query.text).join("\n"), /on conflict \(occurrence_id, user_id, area_subscription_id, trigger_kind\)/i);
+});
+
+test("emitAlertsForOccurrence: canonical species read failure creates no delivery row", async () => {
+  const history: Query[] = [];
+  const client = {
+    query: async (text: string, values?: unknown[]) => {
+      history.push({ text, values: values ?? [] });
+      throw new Error("db_read_failed");
+    },
+  } as unknown as import("pg").PoolClient;
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000107",
+      visitId: "00000000-0000-0000-0000-000000000108",
+      invasiveStatus: "iaspecified",
+      scientificName: "Procyon lotor",
+      vernacularName: "アライグマ",
+    },
+    client,
+  );
+  assert.equal(summary.blockedReason, "notification_gate_error");
+  assert.equal(summary.areaWatchNotifications, 0);
+  assert.match(history.map((query) => query.text).join("\n"), /rollback to savepoint notification_gate_read/i);
+  assert.doesNotMatch(history.map((query) => query.text).join("\n"), /INSERT INTO alert_deliveries/i);
+});
+
+test("emitAlertsForOccurrence: canonical read failure rolls back only the gate savepoint", async () => {
+  const history: Query[] = [];
+  let transactionAborted = false;
+  const client = {
+    query: async (text: string, values?: unknown[]) => {
+      history.push({ text, values: values ?? [] });
+      if (text.includes("notification_gate_canonical_taxon")) {
+        transactionAborted = true;
+        throw new Error("db_read_failed");
+      }
+      if (text.includes("rollback to savepoint notification_gate_read")) {
+        transactionAborted = false;
+        return { rows: [] };
+      }
+      if (transactionAborted) throw new Error("transaction_aborted");
+      return { rows: [] };
+    },
+  } as unknown as import("pg").PoolClient;
+
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000109",
+      visitId: "00000000-0000-0000-0000-000000000110",
+      invasiveStatus: null,
+      scientificName: "Procyon lotor",
+      vernacularName: "アライグマ",
+    },
+    client,
+  );
+  assert.equal(summary.blockedReason, "notification_gate_error");
+  await client.query("select after_gate");
+  assert.equal(transactionAborted, false);
+});
+
+test("emitAlertsForOccurrence: area watch write error does not abort reassessment or legacy alerts", async () => {
+  const history: Query[] = [];
+  let transactionAborted = false;
+  const client = {
+    query: async (text: string, values?: unknown[]) => {
+      history.push({ text, values: values ?? [] });
+      if (text.includes("notification_gate_canonical_taxon")) {
+        return { rows: [asCanonicalRow("Procyon lotor")] };
+      }
+      if (/insert into alert_deliveries/i.test(text) && /'area_watch'/i.test(text)) {
+        transactionAborted = true;
+        throw new Error("area_watch_write_failed");
+      }
+      if (text.includes("rollback to savepoint area_watch_notification_dispatch")) {
+        transactionAborted = false;
+        return { rows: [] };
+      }
+      if (transactionAborted) throw new Error("transaction_aborted");
+      return { rows: [] };
+    },
+  } as unknown as import("pg").PoolClient;
+
+  const summary = await emitAlertsForOccurrence(
+    {
+      occurrenceId: "00000000-0000-0000-0000-000000000117",
+      visitId: "00000000-0000-0000-0000-000000000118",
+      invasiveStatus: "iaspecified",
+      scientificName: "Procyon lotor",
+      vernacularName: "アライグマ",
+      genus: "Procyon",
+      family: "Procyonidae",
+      prefecture: "東京都",
+      municipality: "町田市",
+    },
+    client,
+  );
+
+  assert.equal(summary.blockedReason, null);
+  assert.equal(summary.areaWatchNotifications, 0);
+  assert.equal(transactionAborted, false);
+  await client.query("select after_alert_dispatch");
+  const allText = history.map((query) => query.text).join("\n");
+  assert.match(allText, /rollback to savepoint area_watch_notification_dispatch/i);
+  assert.match(allText, /invasive_reporting_rules/i);
 });
 
 test("emitAlertsForOccurrence: in-trigger invasive issues municipality + researcher inserts", async () => {
@@ -107,6 +343,7 @@ test("emitAlertsForOccurrence: in-trigger invasive issues municipality + researc
   assert.match(allText, /alert_recipients/);
   assert.match(allText, /researcher/);
   assert.match(allText, /taxon_alert_subscriptions/);
+  assert.match(allText, /'area_watch'/);
 });
 
 test("emitAlertsForOccurrence: native subject does NOT emit municipality_invasive", async () => {

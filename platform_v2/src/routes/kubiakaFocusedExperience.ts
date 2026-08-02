@@ -142,7 +142,9 @@ function requestUrl(request: { url?: string; raw?: { url?: string; originalUrl?:
   return String(request.raw?.originalUrl ?? request.raw?.url ?? request.url ?? "");
 }
 function basePathFor(request: { headers: Record<string, unknown> }): string { return getForwardedBasePath(request.headers); }
-function localizedHref(basePath: string, path: string, lang: SiteLang): string { return appendLangToHref(withBasePath(basePath, path), lang); }
+function localizedHref(basePath: string, path: string, lang: SiteLang): string {
+  return withBasePath(basePath, appendLangToHref(path, lang));
+}
 
 export function resolveKubiakaCurrentPath(basePath: string, url: string): string {
   const normalizedUrl = String(url || "/");
@@ -173,8 +175,14 @@ export function rewriteKubiakaPhotoUploadUrl(url: string): string {
 export function rewriteKubiakaRecordDocument(html: string, basePath: string, lang: SiteLang): string {
   const dedicatedTarget = localizedHref(basePath, `${KUBIAKA_RECORD_PATH}?start=photo`, lang);
   return ["photo", "video", "gallery"].reduce((result, kind) => {
-    const genericTarget = localizedHref(basePath, `/record?start=${kind}`, lang);
-    return result.split(JSON.stringify(genericTarget)).join(JSON.stringify(dedicatedTarget));
+    const genericTargets = [
+      localizedHref(basePath, `/record?start=${kind}`, lang),
+      withBasePath(basePath, `/record?start=${kind}`),
+    ];
+    return genericTargets.reduce(
+      (next, genericTarget) => next.split(JSON.stringify(genericTarget)).join(JSON.stringify(dedicatedTarget)),
+      result,
+    );
   }, html);
 }
 
