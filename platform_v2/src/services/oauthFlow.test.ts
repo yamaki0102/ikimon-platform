@@ -29,8 +29,8 @@ async function withEnv(
   }
 }
 
-function request(headers: Record<string, string>): FastifyRequest {
-  return { headers, protocol: "http" } as FastifyRequest;
+function request(headers: Record<string, string>, protocol = "http"): FastifyRequest {
+  return { headers, protocol } as FastifyRequest;
 }
 
 test("google oauth uses the registered legacy-compatible callback URI", () => {
@@ -42,6 +42,40 @@ test("google oauth uses the registered legacy-compatible callback URI", () => {
   assert.equal(
     oauthRedirectUri(req, "twitter"),
     "https://ikimon.life/auth/oauth/twitter/callback",
+  );
+});
+
+test("oauth callback origin rejects client-supplied forwarded host and proto", () => {
+  const production = request({
+    host: "ikimon.life",
+    "x-forwarded-host": "evil.example",
+    "x-forwarded-proto": "javascript",
+  });
+  assert.equal(
+    oauthRedirectUri(production, "google"),
+    "https://ikimon.life/oauth_callback.php?provider=google",
+  );
+
+  const staging = request({
+    host: "internal-origin.invalid",
+    "x-forwarded-host": "staging.ikimon.life",
+    "x-forwarded-proto": "http",
+  });
+  assert.equal(
+    oauthRedirectUri(staging, "twitter"),
+    "https://staging.ikimon.life/auth/oauth/twitter/callback",
+  );
+});
+
+test("unrecognized hosts fail closed to the local development origin", () => {
+  const req = request({
+    host: "internal-origin.invalid",
+    "x-forwarded-host": "evil.example",
+    "x-forwarded-proto": "https",
+  });
+  assert.equal(
+    oauthRedirectUri(req, "google"),
+    "http://localhost:3200/oauth_callback.php?provider=google",
   );
 });
 
