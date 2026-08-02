@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "../app.js";
-import { addStagingRobotsMeta, isStagingRequest } from "./siteMapRoutes.js";
+import { addStagingRobotsMeta, isStagingRequest, stagingRobotsTxt } from "./siteMapRoutes.js";
 
 test("staging classification uses host or explicit public origin, never an auth token", () => {
   assert.equal(isStagingRequest({ headers: { host: "staging.ikimon.life" } }, "https://ikimon.life"), true);
   assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, "https://staging.ikimon.life"), true);
   assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, "https://ikimon.life"), false);
   assert.equal(isStagingRequest({ headers: { host: "ikimon.life" } }, "materialize-admin-preview"), false);
+});
+
+test("staging robots stay deny-all while satisfying canonical static-origin audit", () => {
+  const robots = stagingRobotsTxt();
+  assert.match(robots, /^User-agent: \*\nDisallow: \/\n/);
+  assert.match(robots, /# production-canonical-origin: https:\/\/ikimon\.life/);
+  assert.doesNotMatch(robots, /Sitemap:|LLMs:/);
 });
 
 test("staging robots metadata replaces any contradictory index directive", () => {
@@ -39,7 +46,7 @@ test("staging denies indexing while production remains indexable", async () => {
       headers: { host: "staging.ikimon.life", "x-forwarded-proto": "https" },
     });
     assert.equal(stagingRobots.statusCode, 200);
-    assert.equal(stagingRobots.body, "User-agent: *\nDisallow: /\n");
+    assert.match(stagingRobots.body, /^User-agent: \*\nDisallow: \/\n/);
     assert.equal(stagingRobots.headers["x-robots-tag"], "noindex, nofollow");
     assert.doesNotMatch(stagingRobots.body, /Sitemap:|LLMs:/);
 
