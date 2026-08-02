@@ -45,7 +45,7 @@ test("google oauth uses the registered legacy-compatible callback URI", () => {
   );
 });
 
-test("oauth callback origin rejects client-supplied forwarded host, proto, and unsigned marker", () => {
+test("oauth callback origin rejects forwarded identity and accepts the nginx-bound runtime origin", () => {
   for (const forwardedProto of ["http", "javascript", "https,http"]) {
     const production = request({
       host: "ikimon.life",
@@ -87,6 +87,27 @@ test("oauth callback origin rejects client-supplied forwarded host, proto, and u
       /public_origin_untrusted/,
     );
   }
+
+  const boundStagingRuntime = request({
+    host: "internal-origin.invalid",
+    "x-ikimon-runtime-public-origin": "https://staging.ikimon.life",
+    "x-ikimon-cloudflare-fallback": "origin",
+    "x-forwarded-host": "ikimon.life",
+    "x-forwarded-proto": "http",
+  });
+  assert.equal(
+    oauthRedirectUri(boundStagingRuntime, "twitter"),
+    "https://staging.ikimon.life/auth/oauth/twitter/callback",
+  );
+
+  const productionBindingOverridesSpoofedHost = request({
+    host: "staging.ikimon.life",
+    "x-ikimon-runtime-public-origin": "https://ikimon.life",
+  });
+  assert.equal(
+    oauthRedirectUri(productionBindingOverridesSpoofedHost, "google"),
+    "https://ikimon.life/oauth_callback.php?provider=google",
+  );
 });
 
 test("unrecognized and malformed OAuth hosts fail closed before local fallback", () => {
