@@ -1,3 +1,5 @@
+const PRODUCTION_ORIGIN = "https://ikimon.life";
+const STAGING_ORIGIN = "https://staging.ikimon.life";
 const PRODUCTION_HOSTS = new Set(["ikimon.life", "www.ikimon.life"]);
 const STAGING_HOSTS = new Set(["staging.ikimon.life"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -7,6 +9,10 @@ export type OAuthBoundaryEnv = {
   ENVIRONMENT?: unknown;
 };
 
+function environmentName(env: OAuthBoundaryEnv): string {
+  return String(env.ENVIRONMENT ?? "").trim().toLowerCase();
+}
+
 function strictHostHeader(request: Request): string | null {
   const value = request.headers.get("host");
   if (!value) return null;
@@ -14,12 +20,28 @@ function strictHostHeader(request: Request): string | null {
   return normalized && !normalized.includes(",") ? normalized : null;
 }
 
+function safeErrorOrigin(request: Request, env: OAuthBoundaryEnv): string {
+  const environment = environmentName(env);
+  if (environment === "production") return PRODUCTION_ORIGIN;
+  if (environment === "staging") return STAGING_ORIGIN;
+
+  const url = new URL(request.url);
+  const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (LOCAL_HOSTS.has(hostname)
+      || (url.protocol === "https:"
+        && !url.port
+        && (PRODUCTION_HOSTS.has(hostname) || STAGING_HOSTS.has(hostname)))) {
+    return url.origin;
+  }
+  return PRODUCTION_ORIGIN;
+}
+
 export function isBrowserOAuthStart(request: Request): boolean {
   return OAUTH_START_PATH.test(new URL(request.url).pathname);
 }
 
-export function oauthErrorRedirect(request: Request): Response {
-  const target = new URL("/login?error=oauth", request.url);
+export function oauthErrorRedirect(request: Request, env: OAuthBoundaryEnv): Response {
+  const target = new URL("/login?error=oauth", safeErrorOrigin(request, env));
   return new Response(null, {
     status: 303,
     headers: {
@@ -37,7 +59,7 @@ export function authorizeBrowserOAuthStart(
   if (!isBrowserOAuthStart(request)) return true;
 
   const url = new URL(request.url);
-  const environment = String(env.ENVIRONMENT ?? "").trim().toLowerCase();
+  const environment = environmentName(env);
   const urlHostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
   const rawHost = strictHostHeader(request);
   if (!rawHost || rawHost !== url.host.toLowerCase()) return false;
