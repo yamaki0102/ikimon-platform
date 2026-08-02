@@ -1,9 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { buildLlmoFaqMarkdown, buildLlmoGuideMarkdown, buildLlmoResearcherMarkdown, buildLlmoTermsMarkdown, buildLlmsTxt } from "../llmo.js";
-import { PRODUCTION_PUBLIC_ORIGIN, resolveTrustedPublicOrigin } from "../services/trustedPublicOrigin.js";
+import { resolveTrustedPublicOrigin, STAGING_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 
 function requestOrigin(request: { headers: Record<string, unknown>; protocol?: string }): string {
-  return resolveTrustedPublicOrigin(request) ?? PRODUCTION_PUBLIC_ORIGIN;
+  // Unknown origin identity is treated as staging so discovery links and the
+  // global presentation hook stay non-indexable instead of defaulting to prod.
+  return resolveTrustedPublicOrigin(request) ?? STAGING_PUBLIC_ORIGIN;
 }
 
 export async function registerLlmoRoutes(app: FastifyInstance): Promise<void> {
