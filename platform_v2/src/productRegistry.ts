@@ -168,7 +168,9 @@ function missingValues(required: Iterable<string>, actual: ReadonlySet<string>):
 }
 
 function nonEmptyStrings(values: unknown): values is string[] {
-  return Array.isArray(values) && values.every((value) => typeof value === "string" && value.trim().length > 0);
+  return Array.isArray(values)
+    && values.length > 0
+    && values.every((value) => typeof value === "string" && value.trim().length > 0);
 }
 
 function validExpiry(value: string): boolean {
