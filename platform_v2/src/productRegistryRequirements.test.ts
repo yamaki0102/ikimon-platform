@@ -8,6 +8,9 @@ type Requirement = {
   title: string;
   acceptance: string;
   environments: string[];
+  evidence_lanes: Array<"machine" | "design" | "human">;
+  verification_levels: Array<"contract" | "source" | "deterministic" | "integration" | "staging" | "design" | "human">;
+  invalidation_keys: string[];
   status: "partial" | "planned" | "implemented";
 };
 
@@ -61,9 +64,21 @@ test("Kubiaka requirements have stable product-owned identities", () => {
     assert.ok(requirement.acceptance.trim().length > 0);
     assert.ok(requirement.environments.length > 0);
     assert.equal(new Set(requirement.environments).size, requirement.environments.length);
+    assert.ok(requirement.evidence_lanes.length > 0);
+    assert.equal(new Set(requirement.evidence_lanes).size, requirement.evidence_lanes.length);
+    assert.ok(requirement.verification_levels.length > 0);
+    assert.equal(new Set(requirement.verification_levels).size, requirement.verification_levels.length);
+    assert.ok(requirement.invalidation_keys.length > 0);
+    assert.equal(new Set(requirement.invalidation_keys).size, requirement.invalidation_keys.length);
+    for (const key of requirement.invalidation_keys) assert.match(key, /^[a-z0-9][a-z0-9._:/-]{2,199}$/u);
     assert.ok(["partial", "planned", "implemented"].includes(requirement.status));
     assert.equal("claim_id" in requirement, false, "claim contracts belong to the central resolver binding");
   }
+  const ownerReturn = requirementDocument.requirements.find(
+    (requirement) => requirement.id === "quality.zukan.kubiaka-member-records.owner-return",
+  );
+  assert.deepEqual(ownerReturn?.evidence_lanes, ["machine", "design", "human"]);
+  assert.ok(ownerReturn?.invalidation_keys.includes("design:kubiaka-owner-return"));
 });
 
 test("quality contracts and the Kubiaka journey reference only defined requirements", () => {

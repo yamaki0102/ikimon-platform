@@ -14,11 +14,14 @@ Prove one non-biological regional Record through the common semantic boundary wi
 - fix Record, Claim, Source, Place, Publication and Case responsibilities
 - make biodiversity a Domain Pack, not the service boundary
 - record the non-emergency and specialist-liability boundary
+- load stable requirements through the normal Product Registry loader
+- validate evidence lanes, verification levels, invalidation keys and quality/journey references
 
 Exit:
 
 - the contract is linked from `docs/START_HERE.md` and `PROJECT.json`
 - a regression test rejects a return to the biodiversity-only product framing
+- Product Registry tests reject unknown evidence lanes and incomplete invalidation contracts
 
 ## Stage 1 — Source-only shadow envelope
 
@@ -123,6 +126,7 @@ Source change verification:
 ```bash
 npm --prefix platform_v2 run typecheck
 npm --prefix platform_v2 run test:node
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_zukan_product_registry.ps1
 ```
 
 Targeted tests must cover:
@@ -140,6 +144,8 @@ Targeted tests must cover:
 Before merge, close the branch.
 
 After merge, the Stage 1 planner is unused by runtime routes and has no database side effect. Reverting its files and documentation restores the previous source state. Foundation migrations and existing runtime data are not changed by this plan.
+
+The evidence interoperability slice is also source-only. Reverting the requirement fields, loader validation, tests and ADR restores the earlier Product Registry without changing runtime or stored data.
 
 ## Stop conditions
 

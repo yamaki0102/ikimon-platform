@@ -107,3 +107,25 @@ test("registry rejects route drift from implementation", () => {
   const errors = validateProductRegistry(registry, routes);
   assert.ok(errors.some((error) => error.includes("route /records is absent from site-map")));
 });
+
+test("registry loads requirement evidence contracts and rejects unsupported lanes", () => {
+  const registry = cloneRegistry();
+  assert.equal(registry.requirements.length, 4);
+  const ownerReturn = registry.requirements.find(
+    (requirement) => requirement.id === "quality.zukan.kubiaka-member-records.owner-return",
+  );
+  if (!ownerReturn) throw new Error("owner-return requirement fixture is missing");
+  assert.deepEqual(ownerReturn.evidence_lanes, ["machine", "design", "human"]);
+  ownerReturn.evidence_lanes = ["machine", "unsupported" as never];
+  const errors = validateProductRegistry(registry, implementationRoutes());
+  assert.ok(errors.some((error) => error.includes("has invalid evidence_lanes")));
+});
+
+test("registry rejects incomplete selective invalidation contracts", () => {
+  const registry = cloneRegistry();
+  const requirement = registry.requirements[0];
+  if (!requirement) throw new Error("requirement fixture is missing");
+  requirement.invalidation_keys = [];
+  const errors = validateProductRegistry(registry, implementationRoutes());
+  assert.ok(errors.some((error) => error.includes("has invalid invalidation_keys")));
+});

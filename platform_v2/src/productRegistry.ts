@@ -50,6 +50,7 @@ type Journey = {
   success_surface: string;
   steps: Array<{ surface: string; action: string }>;
   required_states: string[];
+  requirement_refs?: string[];
 };
 
 type DesignFoundation = { id: string };
@@ -90,6 +91,22 @@ type QualityContract = {
   surface: string;
   required_states: string[];
   tests: Array<{ locator: string; kind: string; status: "canonical" | "candidate" | "planned" }>;
+  requirement_refs?: string[];
+};
+
+export type EvidenceLane = "machine" | "design" | "human";
+export type VerificationLevel = "contract" | "source" | "deterministic" | "integration" | "staging" | "design" | "human";
+
+export type ProductRequirement = {
+  id: string;
+  quality_contract: string;
+  title: string;
+  acceptance: string;
+  environments: Array<"source" | "staging" | "production" | "operation">;
+  evidence_lanes: EvidenceLane[];
+  verification_levels: VerificationLevel[];
+  invalidation_keys: string[];
+  status: ImplementationStatus;
 };
 
 export type ProductRegistry = {
@@ -104,6 +121,7 @@ export type ProductRegistry = {
   designExceptions: DesignException[];
   contentContracts: ContentContract[];
   qualityContracts: QualityContract[];
+  requirements: ProductRequirement[];
 };
 
 export type ImplementationRouteRegistry = Record<RegistryRouteSource, ReadonlySet<string>>;
@@ -132,6 +150,7 @@ export function loadProductRegistry(): ProductRegistry {
   }>("design.json");
   const contentContracts = readJson<{ contracts: ContentContract[] }>("content.json").contracts;
   const qualityContracts = readJson<{ contracts: QualityContract[] }>("quality.json").contracts;
+  const requirements = readJson<{ requirements: ProductRequirement[] }>("requirements.json").requirements;
   return {
     product,
     capabilities,
@@ -144,6 +163,7 @@ export function loadProductRegistry(): ProductRegistry {
     designExceptions: design.exceptions,
     contentContracts,
     qualityContracts,
+    requirements,
   };
 }
 
@@ -198,7 +218,41 @@ export function validateProductRegistry(
   const designs = addUniqueIds(errors, "design contracts", registry.designContracts);
   const contents = addUniqueIds(errors, "content contracts", registry.contentContracts);
   const qualities = addUniqueIds(errors, "quality contracts", registry.qualityContracts);
+  const requirements = addUniqueIds(errors, "requirements", registry.requirements);
   addUniqueIds(errors, "design exceptions", registry.designExceptions);
+
+  const evidenceLanes = new Set<EvidenceLane>(["machine", "design", "human"]);
+  const verificationLevels = new Set<VerificationLevel>([
+    "contract", "source", "deterministic", "integration", "staging", "design", "human",
+  ]);
+  const referencedRequirements = new Set<string>();
+  for (const requirement of registry.requirements) {
+    if (!qualities.has(requirement.quality_contract)) {
+      errors.push(`${requirement.id} references unknown quality contract ${requirement.quality_contract}`);
+    }
+    if (!requirement.title?.trim() || !requirement.acceptance?.trim()) {
+      errors.push(`${requirement.id} requires title and acceptance`);
+    }
+    if (!nonEmptyStrings(requirement.environments)
+      || new Set(requirement.environments).size !== requirement.environments.length) {
+      errors.push(`${requirement.id} requires unique environments`);
+    }
+    if (!nonEmptyStrings(requirement.evidence_lanes)
+      || new Set(requirement.evidence_lanes).size !== requirement.evidence_lanes.length
+      || requirement.evidence_lanes.some((lane) => !evidenceLanes.has(lane))) {
+      errors.push(`${requirement.id} has invalid evidence_lanes`);
+    }
+    if (!nonEmptyStrings(requirement.verification_levels)
+      || new Set(requirement.verification_levels).size !== requirement.verification_levels.length
+      || requirement.verification_levels.some((level) => !verificationLevels.has(level))) {
+      errors.push(`${requirement.id} has invalid verification_levels`);
+    }
+    if (!nonEmptyStrings(requirement.invalidation_keys)
+      || new Set(requirement.invalidation_keys).size !== requirement.invalidation_keys.length
+      || requirement.invalidation_keys.some((key) => !/^[a-z0-9][a-z0-9._:/-]{2,199}$/u.test(key))) {
+      errors.push(`${requirement.id} has invalid invalidation_keys`);
+    }
+  }
 
   const requiredSurfaceIds = new Set(registry.product.required_surface_ids);
   if (requiredSurfaceIds.size !== registry.product.required_surface_ids.length) {
@@ -335,6 +389,10 @@ export function validateProductRegistry(
     for (const state of journey.required_states) {
       if (!allSurfaceStates.has(state)) errors.push(`${journey.id} requires unknown state ${state}`);
     }
+    for (const requirementRef of journey.requirement_refs ?? []) {
+      if (!requirements.has(requirementRef)) errors.push(`${journey.id} references unknown requirement ${requirementRef}`);
+      else referencedRequirements.add(requirementRef);
+    }
   }
 
   for (const exception of registry.designExceptions) {
@@ -356,6 +414,20 @@ export function validateProductRegistry(
   }
   for (const [id, quality] of qualities) {
     if (!surfaces.has(quality.surface)) errors.push(`${id} references unknown surface ${quality.surface}`);
+    for (const requirementRef of quality.requirement_refs ?? []) {
+      const requirement = requirements.get(requirementRef);
+      if (!requirement) errors.push(`${id} references unknown requirement ${requirementRef}`);
+      else {
+        referencedRequirements.add(requirementRef);
+        if (requirement.quality_contract !== id) {
+          errors.push(`${requirementRef} belongs to ${requirement.quality_contract}, not ${id}`);
+        }
+      }
+    }
+  }
+
+  for (const requirementId of requirements.keys()) {
+    if (!referencedRequirements.has(requirementId)) errors.push(`${requirementId} is not referenced by a quality contract or journey`);
   }
 
   if (journeys.size === 0) errors.push("at least one journey is required");

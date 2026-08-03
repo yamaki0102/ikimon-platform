@@ -11,9 +11,9 @@ This directory is the machine-readable product contract for ZUKAN's main user-fa
 - `design.json`: foundation, brand, archetype, surface design contracts, time-bounded exceptions
 - `content.json`: audience, message, CTA, prohibited claims, SEO and analytics contracts
 - `quality.json`: acceptance criteria, stable requirement references, state coverage, tests and release gates
-- `requirements.json`: product-owned stable requirement IDs and human-readable acceptance meaning
+- `requirements.json`: product-owned stable requirement IDs, acceptance meaning, required evidence lanes, verification levels and selective-invalidation keys
 
-Requirement meaning belongs here. Evidence claim IDs, Collector authority and SHA-binding rules belong to the central Universal Outcome Resolver and are intentionally not duplicated in this repository.
+Requirement meaning and the evidence categories affected by a product change belong here. Evidence claim IDs, Collector authority, freshness, evidence identity and SHA-binding rules belong to the central Universal Outcome Resolver and are intentionally not duplicated in this repository.
 
 ## Validation
 
@@ -34,6 +34,7 @@ npm run test:node -- --test-name-pattern="product registry|Kubiaka requirements|
 - design or quality contracts omit a registered state
 - a Journey points to unknown surfaces or states
 - a stable requirement is duplicated, empty, references an unknown quality contract or is not referenced by quality/journey data
+- a requirement has an unknown/duplicate evidence lane or verification level, or an empty/invalid selective-invalidation key
 - a design exception lacks a rule, reason, owner or expiry
 
 ## Update rule
