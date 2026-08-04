@@ -228,3 +228,15 @@ The first non-biological slice is source-only and shadow-only:
 6. leave runtime routes, DB writes and production unchanged
 
 This slice proves the semantic boundary before enabling a writer or public reader.
+
+## 14. Evidence interoperability
+
+Stable Product Registry requirements are the product-owned bridge into the shared execution resolver.
+
+- `requirements.json` owns the acceptance meaning, required `machine` / `design` / `human` evidence lanes, verification levels and the product dependency keys that invalidate prior evidence.
+- The central resolver owns Claim IDs, Collector authority, exact-SHA identity, freshness, evidence reuse and every resolved state transition.
+- Product Registry data must not contain caller-selected resolved status or central Claim IDs.
+- Human and design evidence are independent lanes. They do not become valid because a machine test passed and must remain bound to the same exact source identity in the central resolver.
+- Human View and AI Context Pack consume the central resolver projection; this repository does not create a competing state calculation.
+
+This contract is source-only. It does not enable a runtime route, database writer, production mutation or customer communication.

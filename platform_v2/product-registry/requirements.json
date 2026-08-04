@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "requirements": [
+    {
+      "id": "quality.zukan.kubiaka-member-records.owner-return",
+      "quality_contract": "quality.zukan.kubiaka-member-records",
+      "title": "本人への記録返却",
+      "acceptance": "保存済みのクビアカ受付記録を、本人が後日一覧と詳細で確認でき、Homeまたは新しい撮影へ戻れる",
+      "environments": ["source", "staging", "operation"],
+      "evidence_lanes": ["machine", "design", "human"],
+      "verification_levels": ["contract", "source", "design", "human"],
+      "invalidation_keys": [
+        "product-registry:requirements",
+        "source:platform_v2",
+        "design:kubiaka-owner-return",
+        "human:kubiaka-owner-return"
+      ],
+      "status": "partial"
+    },
+    {
+      "id": "quality.zukan.kubiaka-member-records.owner-isolation",
+      "quality_contract": "quality.zukan.kubiaka-member-records",
+      "title": "本人以外への非公開",
+      "acceptance": "本人以外の利用者は非公開受付記録の一覧・詳細・位置情報を取得できない",
+      "environments": ["source", "staging"],
+      "evidence_lanes": ["machine"],
+      "verification_levels": ["deterministic"],
+      "invalidation_keys": ["source:platform_v2/repository"],
+      "status": "partial"
+    },
+    {
+      "id": "quality.zukan.kubiaka-capture.prohibited-side-effects",
+      "quality_contract": "quality.zukan.kubiaka-capture",
+      "title": "Gate 0前の副作用禁止",
+      "acceptance": "Gate 0承認前に公開地図、通常通知、Area Watch、再試行通知、外部送信を発生させない",
+      "environments": ["source", "staging"],
+      "evidence_lanes": ["machine"],
+      "verification_levels": ["deterministic"],
+      "invalidation_keys": ["source:platform_v2/capture"],
+      "status": "partial"
+    },
+    {
+      "id": "quality.zukan.kubiaka-member-records.staging-identity",
+      "quality_contract": "quality.zukan.kubiaka-member-records",
+      "title": "staging実体同一性",
+      "acceptance": "受入試験対象のstaging runtime identityが、検証済みexact source SHAと一致する",
+      "environments": ["staging"],
+      "evidence_lanes": ["machine"],
+      "verification_levels": ["staging"],
+      "invalidation_keys": ["runtime:staging"],
+      "status": "planned"
+    }
+  ]
+}
