@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "review_kind": "architecture",
+  "brief_path": "docs/reviews/unite2026-southern-alps-citizen-monitoring-opus-review-2026-08-05.md",
+  "required_files": [
+    "platform_v2/docs/ikimon_monitoring_current_state_and_requirements_2026-05-05.md",
+    "platform_v2/docs/monitoring_commercial_readiness_gap_review_2026-05-24.md",
+    "docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md"
+  ],
+  "github_refs": [],
+  "output_contract": "architecture_review_v1"
+}
