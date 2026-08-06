@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import { buildCodexPrompt } from '../lib/prompt.mjs';
 import { validateLocalDebugTask } from '../lib/task.mjs';
 
 const base = {
   task_id: 'contract-v2-test',
-  repository_path: '/tmp/example-repository',
+  repository_path: path.join(os.tmpdir(), 'example-repository'),
   base_sha: '0123456789abcdef0123456789abcdef01234567',
   branch_name: 'debug/contract-v2-test',
   scope: 'fix_loop',
