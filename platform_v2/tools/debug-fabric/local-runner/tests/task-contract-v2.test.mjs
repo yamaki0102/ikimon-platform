@@ -28,6 +28,11 @@ const base = {
 test('v1 remains backward compatible without changing the normalized task shape', () => {
   const task = validateLocalDebugTask({ schema: 'ikimon.local-debug-task/v1', ...base });
   assert.equal(task.schema, 'ikimon.local-debug-task/v1');
+  assert.deepEqual(Object.keys(task), [
+    'schema', 'task_id', 'repository_path', 'base_sha', 'branch_name', 'scope', 'risk', 'repository_count',
+    'objective', 'acceptance_criteria', 'checks', 'max_luna_passes', 'max_terra_passes', 'allow_terra',
+    'max_changed_files', 'allowed_path_prefixes', 'allow_no_changes', 'commit_message',
+  ]);
   assert.equal(Object.hasOwn(task, 'interfaces'), false);
   assert.equal(Object.hasOwn(task, 'constraints'), false);
   assert.equal(Object.hasOwn(task, 'starting_state'), false);
