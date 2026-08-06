@@ -4,11 +4,13 @@ This runner is the local execution engine for IKIMON Debug Fabric. It is intenti
 
 ## What this slice does
 
-- validates a closed `ikimon.local-debug-task/v1` task;
+- validates a closed `ikimon.local-debug-task/v1` or `ikimon.local-debug-task/v2` task, with v2 preferred for new work;
+- turns v2 into a complete implementation packet containing objective, machine-enforced file ownership, interfaces, constraints, starting state, acceptance criteria, verification, and a structured return contract;
 - resolves one local repository and one immutable 40-character base SHA;
 - creates a dedicated `debug/*` branch in an isolated Git worktree;
 - acquires a per-task lock before initialization, keeps run state in an append-only event ledger, and resumes interrupted `running` runs;
 - accounts each Codex pass before invocation, uses Luna by default, and escalates to Terra only after the shared failure-signature policy is satisfied;
+- keeps every correction in the same task and worktree, carries the previous deterministic failure into the next prompt, and instructs the worker to preserve valid prior-pass edits;
 - passes the prompt as an explicit argument with stdin closed by the process adapter;
 - removes GitHub, Cloudflare, public-cloud, and API-key credential surfaces from the child environment and redacts common credential shapes from local logs;
 - blocks Git push credentials, disables repository commit hooks, redirects GitHub/Cloudflare CLI configuration to an isolated guard directory, and detects repository-local config or ref mutation;
@@ -18,9 +20,32 @@ This runner is the local execution engine for IKIMON Debug Fabric. It is intenti
 - rejects Codex commits, staging, branch movement, changed symlinks, unsafe file types, and path escapes before the runner-owned final commit;
 - enforces changed-file count and optional path-prefix limits;
 - creates one hook-free local candidate commit only after all checks pass, then reruns checks on the exact committed candidate;
-- recovers the narrow candidate-finalization crash window and writes immutable local evidence bound to the base SHA, candidate SHA, tree SHA, patch hash, checks, and pass counts.
+- recovers the narrow candidate-finalization crash window and writes immutable local evidence bound to the task hash, base SHA, candidate SHA, tree SHA, patch hash, checks, and pass counts.
 
 This slice does **not** push a branch, create a pull request, poll GitHub Issues, deploy to Cloudflare, or modify production. Those are separate adapters after the local candidate and evidence exist.
+
+## Task contract v2
+
+Use `ikimon.local-debug-task/v2` for new tasks. It keeps the v1 machine gates and additionally requires:
+
+- `interfaces`: compatibility obligations, schemas, commands, signatures, and behavior that must remain stable;
+- `constraints`: settled architecture, safety boundaries, and explicitly excluded scope;
+- `starting_state`: the exact starting assumptions and how prior-pass work should be treated.
+
+`allowed_path_prefixes` is the machine-enforced Files and Ownership section. The generated prompt combines these fields with the objective, acceptance criteria, deterministic checks, fixed safety boundaries, and this exact return shape:
+
+```text
+IMPLEMENTATION REPORT
+STATUS: complete | partial | blocked
+OBJECTIVE: ...
+CHANGES: ...
+VERIFIED: ...
+JUDGMENT CALLS: ...
+GAPS: ...
+NEXT PASS: needed | not-needed
+```
+
+The report is not acceptance. The runner independently inspects repository state, executes the deterministic checks after each pass, and executes them again on the committed candidate. Existing v1 tasks remain valid and retain their prior normalized task shape so an in-progress v1 run is not invalidated merely by upgrading the runner.
 
 ## Requirements
 
@@ -52,7 +77,7 @@ It does not use a project repository, push, deploy, or contact Cloudflare/GitHub
 
 ## Run a real task
 
-Copy the template outside the repository and replace its placeholder path and SHA.
+Copy the v2 template outside the repository and replace its placeholder path and SHA.
 
 ```bash
 cp platform_v2/tools/debug-fabric/local-runner/profiles/ai-commander-local-debug.template.json \
@@ -94,13 +119,14 @@ Re-run the same task file. The persisted task hash must match exactly.
 
 - `running` runs resume from the current isolated worktree;
 - a pass is counted before Codex starts, so a process crash cannot create unbounded free retries;
+- correction prompts include the previous deterministic failure and retain the same task/worktree;
 - a candidate committed immediately before interruption is recovered only when it is the one direct child of the exact base SHA and the worktree is clean;
 - `pass`, `failed`, `blocked`, and `unsafe` runs are terminal and do not rerun automatically;
 - stale lock files are recovered only when the recorded process no longer exists;
 - logs are append-only and receive retry suffixes instead of being overwritten;
 - evidence is written once and cannot overwrite a previous candidate.
 
-A changed objective, SHA, check, path policy, or pass limit requires a new task ID or run directory.
+A changed objective, SHA, interface, constraint, starting state, check, path policy, or pass limit requires a new task ID or run directory.
 
 ## Safety boundary
 
