@@ -1,5 +1,5 @@
 {
-  "schema": "ikimon.local-debug-task/v1",
+  "schema": "ikimon.local-debug-task/v2",
   "task_id": "ai-commander-control-plane-debug",
   "repository_path": "/absolute/path/to/local/repository",
   "base_sha": "0000000000000000000000000000000000000000",
@@ -8,6 +8,16 @@
   "risk": "p0",
   "repository_count": 3,
   "objective": "Find and repair the local source defects that prevent the AI Commander and release control plane from completing exact-SHA staging validation. Reproduce authorization, registry, queue, executor, credential, reconcile, runtime-identity, and evidence failures locally before any Cloudflare proof.",
+  "interfaces": [
+    "Preserve existing command, registry, queue, executor, reconcile, runtime-identity, and immutable-evidence schemas unless an additive compatible change is explicitly required.",
+    "Keep exact-SHA identity and failure classifications machine-readable and backward compatible."
+  ],
+  "constraints": [
+    "ChatGPT remains the top-level command center; the Local Runner implements, checks, and returns evidence without becoming a second command center.",
+    "Do not change model selection, model routing, GitHub Actions, Cloudflare deployment, production, databases, migrations, secrets, DNS, Access, permissions, customer sends, or external sends.",
+    "Continue corrections in the same task and isolated worktree; preserve valid prior-pass edits and never restart merely to hide a failed pass."
+  ],
+  "starting_state": "Start from the exact base SHA in a clean isolated worktree. Existing source and contracts are authoritative unless the objective and acceptance criteria explicitly require a bounded compatible change.",
   "acceptance_criteria": [
     "All configured local deterministic checks pass from the exact base SHA.",
     "Known authorization-before-create and authorization-before-reconcile failures have regression coverage.",

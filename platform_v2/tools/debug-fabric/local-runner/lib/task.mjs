@@ -7,6 +7,14 @@ const CHECK_ID = /^[a-z][a-z0-9._-]{1,63}$/u;
 const EXECUTABLE = /^[A-Za-z0-9._+-]{1,64}$/u;
 const SCOPES = new Set(['source_analysis','test_generation','fault_injection','fix_loop','full_control_plane']);
 const RISKS = new Set(['p0','p1','p2','p3']);
+const SCHEMA_V1 = 'ikimon.local-debug-task/v1';
+const SCHEMA_V2 = 'ikimon.local-debug-task/v2';
+const COMMON_KEYS = [
+  'schema','task_id','repository_path','base_sha','branch_name','scope','risk','repository_count','objective',
+  'acceptance_criteria','checks','max_luna_passes','max_terra_passes','allow_terra',
+  'max_changed_files','allowed_path_prefixes','allow_no_changes','commit_message',
+];
+const V2_KEYS = [...COMMON_KEYS, 'interfaces', 'constraints', 'starting_state'];
 const ALLOWED_EXECUTABLES = new Set([
   'node','npm','npm.cmd','npx','npx.cmd','pnpm','pnpm.cmd','yarn','yarn.cmd',
   'bash','sh','php','composer','python','python3','powershell','pwsh','git',
@@ -18,12 +26,9 @@ const FORBIDDEN_SCRIPT_TOKEN = /(?:^|[._/-])(?:deploy|publish|rollback|productio
 
 export function validateLocalDebugTask(raw) {
   object(raw, 'task');
-  keys(raw, [
-    'schema','task_id','repository_path','base_sha','branch_name','scope','risk','repository_count','objective',
-    'acceptance_criteria','checks','max_luna_passes','max_terra_passes','allow_terra',
-    'max_changed_files','allowed_path_prefixes','allow_no_changes','commit_message',
-  ], 'task');
-  if (raw.schema !== 'ikimon.local-debug-task/v1') throw new Error('unsupported task schema');
+  const schema = raw.schema;
+  if (schema !== SCHEMA_V1 && schema !== SCHEMA_V2) throw new Error('unsupported task schema');
+  keys(raw, schema === SCHEMA_V2 ? V2_KEYS : COMMON_KEYS, 'task');
   if (!ID.test(raw.task_id ?? '')) throw new Error('invalid task_id');
   if (typeof raw.repository_path !== 'string' || !path.isAbsolute(raw.repository_path)) throw new Error('repository_path must be absolute');
   if (!SHA40.test(raw.base_sha ?? '')) throw new Error('invalid base_sha');
@@ -49,8 +54,8 @@ export function validateLocalDebugTask(raw) {
   const allowedPathPrefixes = (raw.allowed_path_prefixes ?? []).map(validateRelativePrefix);
   const commitMessage = text(raw.commit_message ?? `debug(${raw.task_id}): local candidate`, 5, 160, 'commit_message');
   if (/[\r\n]/u.test(commitMessage)) throw new Error('commit_message must be single line');
-  return Object.freeze({
-    schema: raw.schema,
+  const baseTask = {
+    schema,
     task_id: raw.task_id,
     repository_path: path.resolve(raw.repository_path),
     base_sha: raw.base_sha,
@@ -68,6 +73,13 @@ export function validateLocalDebugTask(raw) {
     allowed_path_prefixes: Object.freeze(allowedPathPrefixes),
     allow_no_changes: raw.allow_no_changes === true,
     commit_message: commitMessage,
+  };
+  if (schema === SCHEMA_V1) return Object.freeze(baseTask);
+  return Object.freeze({
+    ...baseTask,
+    interfaces: Object.freeze(textList(raw.interfaces, 1, 30, 3, 1000, 'interfaces')),
+    constraints: Object.freeze(textList(raw.constraints, 1, 40, 3, 1000, 'constraints')),
+    starting_state: text(raw.starting_state, 10, 4000, 'starting_state'),
   });
 }
 
@@ -167,6 +179,10 @@ function keys(value, allowed, label) {
 function integer(value, min, max, label) {
   if (!Number.isSafeInteger(value) || value < min || value > max) throw new Error(`invalid ${label}`);
   return value;
+}
+function textList(value, minItems, maxItems, minLength, maxLength, label) {
+  if (!Array.isArray(value) || value.length < minItems || value.length > maxItems) throw new Error(`invalid ${label}`);
+  return value.map((entry) => text(entry, minLength, maxLength, label.slice(0, -1)));
 }
 function text(value, min, max, label) {
   if (typeof value !== 'string' || value.length < min || value.length > max || value.includes('\0')) throw new Error(`invalid ${label}`);
