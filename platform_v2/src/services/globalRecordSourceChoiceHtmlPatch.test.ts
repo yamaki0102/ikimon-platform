@@ -27,6 +27,11 @@ function shellFixture(lang = "ja"): string {
     };
     const openSheet = (kind, options) => {
     setStatus(kind === 'photo' && options && options.reviewOnly ? '写真を確認しています。追加撮影してから記録へ進めます。' : 'カメラを起動しています...');
+    if (kind === 'photo') {
+      latestCaptureLocation = null;
+      latestCaptureLocationAt = 0;
+      void requestCaptureLocation(true);
+    }
     if (!(options && options.reviewOnly)) void startCamera();
     };
   document.querySelectorAll('[data-global-record-gallery-select]').forEach((button) => {
@@ -47,7 +52,7 @@ function shellFixture(lang = "ja"): string {
 </html>`;
 }
 
-test("photo source choice exposes native camera without auto-starting web camera", () => {
+test("photo source choice exposes native camera without pre-requesting camera or location", () => {
   const patched = patchGlobalRecordSourceChoiceHtml(shellFixture());
   assert.match(patched, /data-global-record-input="photo"[^>]*capture="environment"/);
   assert.match(patched, /data-global-record-os-camera>標準カメラ<\/button>/);
@@ -57,6 +62,8 @@ test("photo source choice exposes native camera without auto-starting web camera
   assert.match(patched, /標準カメラ、接写カメラ、写真から選ぶ/);
   assert.match(patched, /clickFallbackInput\('photo'\)/);
   assert.match(patched, /native_camera_tap/);
+  assert.match(patched, /latestCaptureLocationAt = 0;\n    }\n    if \(!\(options && options\.reviewOnly\) && kind !== 'photo'\) void startCamera\(\)/);
+  assert.doesNotMatch(patched, /latestCaptureLocationAt = 0;\n      void requestCaptureLocation\(true\);/);
 });
 
 test("patch anchors stay compatible with the real site shell output", () => {
@@ -76,6 +83,7 @@ test("patch anchors stay compatible with the real site shell output", () => {
   assert.match(patched, /data-global-record-os-camera>標準カメラ<\/button>/);
   assert.match(patched, /kind !== 'photo'\) void startCamera\(\)/);
   assert.match(patched, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
+  assert.match(patched, /latestCaptureLocationAt = 0;\n    }\n    if \(!\(options && options\.reviewOnly\) && kind !== 'photo'\) void startCamera\(\)/);
 });
 
 test("native camera and photo library both enter the existing immediate-preview path", () => {
