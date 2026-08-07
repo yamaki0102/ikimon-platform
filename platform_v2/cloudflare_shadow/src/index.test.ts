@@ -11077,8 +11077,11 @@ test("production origin session probe is opt-in and disabled by default", async 
   };
   const originalFetch = globalThis.fetch;
   const originFetches: string[] = [];
-  globalThis.fetch = (async (input: RequestInfo | URL) => {
-    originFetches.push(String(input));
+  const originRequests: Request[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const forwarded = new Request(input, init);
+    originFetches.push(forwarded.url);
+    originRequests.push(forwarded);
     return Response.json({
       ok: true,
       session: {
@@ -11111,6 +11114,8 @@ test("production origin session probe is opt-in and disabled by default", async 
     assert.equal(enabledPayload.session.userId, "origin-session-user");
     assert.equal(enabledPayload.session.tokenHash, tokenHash);
     assert.equal(originFetches.length, 1);
+    assert.equal(originRequests[0]?.headers.get("x-forwarded-host"), "ikimon.life");
+    assert.equal(originRequests[0]?.headers.get("x-forwarded-proto"), "https");
     assert.equal(core.authSessions.has(tokenHash), true);
     assert.equal(core.operationAudit.length, 1);
     assert.equal(core.operationAudit[0]?.operation_type, "origin_fallback");
