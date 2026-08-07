@@ -31,6 +31,7 @@
 ## 実機監査の主要残存物
 
 監査artifact `vps-readonly-audit-20260807.txt`、`vps-readonly-audit-repeat-20260807.txt`、`vps-data-metadata-20260807.txt`を正本証跡とする。2026-08-07 19:36 JSTの再確認でも、`birdnet-v3`、`ikimon-ai`、`ikimon-v2-blue/green/staging`、VOICEVOX、PostgreSQL、nginx/PHP-FPM、DockerのRustDesk、Discord bot、複数のtimer/cronが稼働または有効化され、80/443/3001/8081/3200-3202/4315/21115-21119等のlistenと、PostgreSQL、persistent、staging mirror/data、AI/BirdNET/Perch/VOICEVOX等の固有データが残っていた。主な観測対象は、PostgreSQL cluster、nginx、PHP-FPM、Docker/containerd、RustDesk、PM2、BirdNET、Perch、VOICEVOX、IKIMON AI、intake hub、alert/media/audio/report/curator/timer/cron、uploads/persistent/data/mirrors/backupsである。
+- runtime/data分類表（所有者未確定面と現行サイズを含む）: `artifacts/vps-runtime-classification-20260807.md`。
 
 ## 停止・解約境界
 
