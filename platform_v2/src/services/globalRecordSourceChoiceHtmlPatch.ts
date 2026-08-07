@@ -22,6 +22,15 @@ const PHOTO_SOURCE_STATUS = `    setStatus(kind === 'photo'
         ? '写真を確認しています。追加撮影してから記録へ進めます。'
         : '標準カメラ、接写カメラ、写真から選ぶ、のいずれかを選んでください。'
       : 'カメラを起動しています...');`;
+const PHOTO_LOCATION_PREFETCH = `    if (kind === 'photo') {
+      latestCaptureLocation = null;
+      latestCaptureLocationAt = 0;
+      void requestCaptureLocation(true);
+    }`;
+const PHOTO_LOCATION_DEFERRED = `    if (kind === 'photo') {
+      latestCaptureLocation = null;
+      latestCaptureLocationAt = 0;
+    }`;
 const AUTO_START_CAMERA = `    if (!(options && options.reviewOnly)) void startCamera();`;
 const PHOTO_MANUAL_START = `    if (!(options && options.reviewOnly) && kind !== 'photo') void startCamera();`;
 const INPUT_HANDLER = `      const kind = input.getAttribute('data-global-record-input') || 'gallery';
@@ -82,6 +91,7 @@ export function patchGlobalRecordSourceChoiceHtml(html: string): string {
   patched = addNativeCameraListener(patched);
   if (patched.includes(PHOTO_LABELS)) patched = patched.replace(PHOTO_LABELS, PHOTO_LABELS_WITH_MACRO);
   if (patched.includes(PHOTO_OPEN_STATUS)) patched = patched.replace(PHOTO_OPEN_STATUS, PHOTO_SOURCE_STATUS);
+  if (patched.includes(PHOTO_LOCATION_PREFETCH)) patched = patched.replace(PHOTO_LOCATION_PREFETCH, PHOTO_LOCATION_DEFERRED);
   if (patched.includes(AUTO_START_CAMERA)) patched = patched.replace(AUTO_START_CAMERA, PHOTO_MANUAL_START);
   if (patched.includes(INPUT_HANDLER)) patched = patched.replace(INPUT_HANDLER, INPUT_HANDLER_WITH_PREVIEW);
   return patched;
