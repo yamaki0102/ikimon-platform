@@ -3,6 +3,7 @@ import type { FastifyRequest } from "fastify";
 import { loadConfig } from "../config.js";
 import type { OAuthProfile } from "./authUsers.js";
 import { safeRedirectPath } from "./authSecurity.js";
+import { resolveTrustedPublicOrigin } from "./trustedPublicOrigin.js";
 
 export type OAuthProvider = "google" | "twitter";
 
@@ -85,18 +86,11 @@ export function readOAuthState(cookieHeader: string | undefined): OAuthStatePayl
   return decodeOAuthState(raw ? decodeURIComponent(raw) : undefined);
 }
 
-function headerFirst(value: string | string[] | undefined): string {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return raw?.split(",")[0]?.trim() ?? "";
-}
-
 export function requestPublicOrigin(request: FastifyRequest): string {
-  const host = headerFirst(request.headers["x-forwarded-host"]) || headerFirst(request.headers.host);
-  const proto = headerFirst(request.headers["x-forwarded-proto"]) || (loadConfig().nodeEnv === "production" ? "https" : request.protocol || "http");
-  if (!host) {
-    return "http://localhost:3200";
-  }
-  return `${proto}://${host}`;
+  return resolveTrustedPublicOrigin(
+    request as unknown as { headers: Record<string, unknown>; protocol?: string },
+    { allowLocalDevelopment: true },
+  ) ?? "http://localhost:3200";
 }
 
 export function oauthRedirectUri(request: FastifyRequest, provider: OAuthProvider): string {
