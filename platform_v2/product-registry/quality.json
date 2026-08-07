@@ -35,6 +35,14 @@
         "再試行で二重登録を発生させない",
         "保存後に本人の記録へ戻れる"
       ],
+      "requirement_refs": [
+        "quality.zukan.capture.source-choice",
+        "quality.zukan.capture.immediate-preview",
+        "quality.zukan.capture.draft-recovery",
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.capture.owner-return",
+        "quality.zukan.capture.truthful-status"
+      ],
       "tests": [
         { "locator": "platform_v2/e2e/record-funnel.staging.spec.ts", "kind": "journey", "status": "canonical" },
         { "locator": "platform_v2/e2e/record-feedback-loop.staging.spec.ts", "kind": "journey", "status": "canonical" },
