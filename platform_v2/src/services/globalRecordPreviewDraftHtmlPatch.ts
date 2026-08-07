@@ -79,22 +79,19 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
         await window.ikimonAppOutbox.remove('record:' + String(context.draftKey)).catch(() => undefined);
       }
     } catch (_) {
-      // The marker is cleared below for an explicit local discard/success even if cleanup is best-effort.
+      // Best-effort cleanup; explicit discard/success has already retired the history marker.
     }
-    clearPreviewDraftMarker();
   };
   const queuePhotoPreviewDraftClear = () => {
+    clearPreviewDraftMarker();
     previewDraftWriteChain = previewDraftWriteChain.catch(() => undefined).then(() => removePersistedPhotoPreviewDraft());
     return previewDraftWriteChain;
   };
   const persistPhotoPreviewDraft = (files) => {
     const draftFiles = normalizeDraftFiles(files).filter((file) => file.type && file.type.indexOf('image/') === 0);
+    if (!draftFiles.length) return queuePhotoPreviewDraftClear();
     const metadata = capturedReviewMeta && typeof capturedReviewMeta === 'object' ? Object.assign({}, capturedReviewMeta) : {};
     previewDraftWriteChain = previewDraftWriteChain.catch(() => undefined).then(async () => {
-      if (!draftFiles.length) {
-        await removePersistedPhotoPreviewDraft();
-        return;
-      }
       const savedAt = Date.now();
       const [primaryFile = null] = draftFiles;
       const context = await saveDraft({
