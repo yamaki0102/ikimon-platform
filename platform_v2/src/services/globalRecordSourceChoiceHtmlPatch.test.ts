@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { renderSiteDocument } from "../ui/siteShell.js";
 import { patchGlobalRecordSourceChoiceHtml } from "./globalRecordSourceChoiceHtmlPatch.js";
 
 function shellFixture(lang = "ja"): string {
@@ -56,6 +57,25 @@ test("photo source choice exposes native camera without auto-starting web camera
   assert.match(patched, /標準カメラ、接写カメラ、写真から選ぶ/);
   assert.match(patched, /clickFallbackInput\('photo'\)/);
   assert.match(patched, /native_camera_tap/);
+});
+
+test("patch anchors stay compatible with the real site shell output", () => {
+  const original = renderSiteDocument({
+    basePath: "",
+    title: "ZUKAN source choice contract",
+    body: "<main>fixture</main>",
+    lang: "ja",
+    currentPath: "/",
+  });
+  assert.match(original, /data-global-record-camera-sheet/);
+  assert.doesNotMatch(original, /data-global-record-os-camera/);
+
+  const patched = patchGlobalRecordSourceChoiceHtml(original);
+  assert.notEqual(patched, original, "site-shell drift must not silently turn the source-choice patch into a no-op");
+  assert.match(patched, /data-global-record-input="photo"[^>]*capture="environment"/);
+  assert.match(patched, /data-global-record-os-camera>標準カメラ<\/button>/);
+  assert.match(patched, /kind !== 'photo'\) void startCamera\(\)/);
+  assert.match(patched, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
 });
 
 test("native camera and photo library both enter the existing immediate-preview path", () => {
