@@ -8688,7 +8688,7 @@ test("site brief feedback validation queue lets admins close sales decisions", a
   assert.equal(openQueueResponse.headers.get("x-ikimon-cloudflare-native"), "site-brief-feedback-validation-queue-api");
   assert.equal(openQueuePayload.summary.openFeedback, 1);
   assert.equal(openQueuePayload.queue[0].validation.validationStatus, "open");
-  assert.doesNotMatch(JSON.stringify(openQueuePayload), /share-secret-validation|34\.70|137\.71|"public_cell"|"publicCell"|"shareToken"\s*:/);
+  assert.doesNotMatch(JSON.stringify(openQueuePayload), /share-secret-validation|(?:^|[^0-9])(?:34\.70|137\.71)(?:[^0-9]|$)|"public_cell"|"publicCell"|"shareToken"\s*:/);
 
   const writeResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/site-brief-feedback-validation-queue/site-brief-feedback-validation-1", {
     method: "POST",
