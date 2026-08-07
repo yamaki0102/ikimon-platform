@@ -1,4 +1,6 @@
-# ikimon.life 本番カットオーバー Runbook
+# [退役アーカイブ] ikimon.life 本番カットオーバー Runbook
+
+> **RETired / no normal use (2026-08-07):** This runbook describes the former VPS blue/green cutover lane. Current production is Cloudflare Worker `ikimon-life-cloudflare-prod` and current staging is Cloudflare Worker `ikimon-life-cloudflare-staging`. Do not execute its SSH, systemd, nginx, PostgreSQL, or GitHub Actions steps as a release path. Keep this file only for rollback/restore evidence while `ikimon-vps` (`162.43.44.131`) is retired. `i-kan-xserver` / `sv1102.xserver.jp` is a separate shared server and is never in scope.
 
 staging.ikimon.life (platform_v2 Node) → 本番 ikimon.life に切り替える手順。
 

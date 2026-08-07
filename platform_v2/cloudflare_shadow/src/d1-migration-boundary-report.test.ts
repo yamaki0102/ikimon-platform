@@ -101,20 +101,14 @@ function loadClassifyFallbackReason(script: string): (reason: string) => string 
   return new Function(`${match[0]}; return classifyFallbackReason;`)() as (reason: string) => string;
 }
 
-function assertCurrentVpsBlockerBaseline(stdout: string): void {
+function assertCurrentVpsStopReadiness(stdout: string): void {
   const gate = stdout.match(/## Configured Production VPS Stop Readiness Gate[\s\S]*?(?=\n## Migration Priority Heuristic)/)?.[0];
   assert.ok(gate, "configured VPS stop readiness gate is present");
-  assert.match(gate, /- blocker_count: 4/);
-  assert.match(gate, /- p1_blockers: 4/);
-  for (const file of [
-    "platform_v2/src/routes/kubiakaFocusedExperience.ts",
-    "platform_v2/src/routes/kubiakaPrivateUploadGuard.ts",
-    "platform_v2/src/services/kubiakaPrivateRecordsReadModel.ts",
-    "platform_v2/src/services/notificationEligibility.ts",
-  ]) {
-    assert.ok(gate.includes(file), `configured blocker baseline includes ${file}`);
-  }
-  assert.doesNotMatch(gate, /health\.ts|read\.ts|placeRegistryContract\.ts/);
+  assert.match(gate, /- status: ready/);
+  assert.match(gate, /- blocker_count: 0/);
+  assert.match(gate, /- p0_blockers: 0/);
+  assert.match(gate, /- p1_blockers: 0/);
+  assert.match(gate, /- p2_blockers: 0/);
 }
 
 test("VPS stop readiness counts every runtime PostgreSQL dependency, not only displayed rows", async () => {
@@ -184,7 +178,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
     replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeRegistry.ts"),
     "cloudflare_place_registry_native",
   );
-  assertCurrentVpsBlockerBaseline(result.stdout);
+  assertCurrentVpsStopReadiness(result.stdout);
 });
 
 test("VPS stop readiness separates runtime deploy workflows from maintenance workflows", async () => {
@@ -221,7 +215,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.doesNotMatch(result.stdout, /\| \.github\/workflows\//);
   assert.doesNotMatch(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.doesNotMatch(result.stdout, /manual_import_or_repair_workflow/);
-  assertCurrentVpsBlockerBaseline(result.stdout);
+  assertCurrentVpsStopReadiness(result.stdout);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -757,9 +751,10 @@ test("legacy write route boundary is covered by Cloudflare app write runtimes", 
   assert.match(workerSource, /updateCompatibleOccurrenceDetail/);
   assert.match(workerSource, /occurrenceDetailEditMatch/);
   assert.match(workerSource, /environment-record/);
-  assert.match(workerSource, /isPublicAppWriteCandidatePath\(url\)/);
-  assert.match(workerTests, /production occurrence detail edit APIs write to D1 without origin fallback/);
-  assert.match(workerTests, /production occurrence detail edit APIs reject non owners before mutation/);
+  assert.match(workerSource, /handleKubiakaNativeRuntime/);
+  assert.match(workerSource, /kubiaka_private_records/);
+  assert.doesNotMatch(workerSource, /fetchOriginFallback|ORIGIN_FALLBACK_BASE_URL|ORIGIN_SESSION_IMPORT_MODE/);
+  assert.match(workerTests, /Kubiaka native/);
 });
 
 test("write guard PostgreSQL ownership helper is separated from pure request and session guards", async () => {
@@ -780,7 +775,6 @@ test("write guard PostgreSQL ownership helper is separated from pure request and
   assert.match(pgGuards, /getPool\(\)/);
   assert.match(pgGuards, /pool\.query/);
   assert.deepEqual(importers, [
-    "platform_v2/src/routes/kubiakaFocusedExperience.ts",
     "platform_v2/src/routes/observationPackageApi.ts",
     "platform_v2/src/routes/write.ts",
   ]);
@@ -870,11 +864,12 @@ test("VPS stop readiness reports ready P0 capability dispositions", async () => 
   assert.match(result.stdout, /p0_blockers: 0/);
 });
 
-test("public custom domain origin fallback is not registered twice", async () => {
+test("public custom domain origin fallback is fully retired", async () => {
   const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
   const publicDomainFallbackCalls = workerSource.match(/fetchOriginFallback\([^)]*"public_custom_domain_path"/g) ?? [];
 
-  assert.equal(publicDomainFallbackCalls.length, 1);
+  assert.equal(publicDomainFallbackCalls.length, 0);
+  assert.doesNotMatch(workerSource, /ORIGIN_FALLBACK_BASE_URL|PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE/);
 });
 
 test("production legacy PHP public entrypoints cannot use origin fallback", async () => {
@@ -882,10 +877,10 @@ test("production legacy PHP public entrypoints cannot use origin fallback", asyn
   const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
 
   assert.match(workerSource, /function isLegacyPhpPublicEntrypointPath\(pathname: string\): boolean/);
-  assert.match(workerSource, /if \(isLegacyPhpPublicEntrypointPath\(url\.pathname\)\) return false;/);
   assert.match(workerSource, /nativePathname === "\/app_oauth_start\.php"/);
   assert.match(workerSource, /nativePathname === "\/oauth_callback\.php"/);
-  assert.match(workerTests, /production legacy PHP public entrypoints cannot use origin fallback/);
+  assert.doesNotMatch(workerSource, /fetchOriginFallback|ORIGIN_FALLBACK_BASE_URL|PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE/);
+  assert.match(workerTests, /production legacy PHP public entrypoints are retired without origin fallback/);
 });
 
 test("legacy observation event API fallback is retired from Worker source", async () => {
@@ -895,7 +890,7 @@ test("legacy observation event API fallback is retired from Worker source", asyn
 
   assert.equal(classifyFallbackReason("legacy_observation_event_api_origin_fallback"), "api_origin_fallback");
   assert.doesNotMatch(workerSource, /legacy_observation_event_api_origin_fallback/);
-  assert.match(script, /inactive_public_custom_domain_origin_fallback_disabled/);
+  assert.match(script, /origin fallback runtime: removed/);
 });
 
 test("map area polygon origin geometry fallback is retired from Worker source", async () => {
@@ -952,18 +947,14 @@ test("thumb materialized miss origin fallback is retired from Worker source", as
   assert.doesNotMatch(workerSource, /thumb_materialized_miss/);
 });
 
-test("production origin session probe is opt-in and disabled by default", async () => {
+test("production origin session bridge is retired", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
   const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
 
-  assert.match(workerSource, /const mode = \(env\.ORIGIN_SESSION_IMPORT_MODE \?\? "disabled"\)\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(workerSource, /return mode === "enabled" \? "enabled" : "disabled"/);
-  assert.match(script, /const originSessionImportMode = String\(productionVars\.ORIGIN_SESSION_IMPORT_MODE \?\? "disabled"\)/);
-  assert.match(script, /item\.reason === "origin_session_probe" && originSessionImportMode === "disabled"/);
-  assert.match(script, /inactive_origin_session_import_disabled/);
-  assert.match(script, /ORIGIN_SESSION_IMPORT_MODE/);
-  assert.match(workerTests, /production origin session probe is opt-in and disabled by default/);
+  assert.doesNotMatch(workerSource, /ORIGIN_SESSION_IMPORT_MODE|fetchOriginFallback|origin_session_probe/);
+  assert.doesNotMatch(script, /ORIGIN_SESSION_IMPORT_MODE|origin_session_probe/);
+  assert.match(workerTests, /production origin session bridge is retired/);
 });
 
 test("PostgreSQL signal classifier does not count JavaScript listener or Array helpers", async () => {

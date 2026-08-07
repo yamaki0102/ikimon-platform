@@ -120,7 +120,7 @@ async function readShadowConfigSummary() {
 
   if (shadow?.name !== "ikimon-life-cloudflare-shadow-lab") failures.push("unexpected_shadow_worker_name");
   if (vars.ENVIRONMENT !== "shadow") failures.push("shadow_environment_var_missing");
-  if (vars.PUBLIC_WRITE_MODE !== "origin_fallback") failures.push("shadow_public_write_mode_must_remain_origin_fallback");
+  if (vars.PUBLIC_WRITE_MODE !== "cloudflare_native") failures.push("shadow_public_write_mode_must_be_cloudflare_native");
   if (routes.length > 0) failures.push("shadow_env_must_not_define_routes");
   if (config.env?.production?.name !== "ikimon-life-cloudflare-prod") failures.push("production_env_missing_but_not_targeted");
 
@@ -153,14 +153,14 @@ async function hashFiles(files) {
 }
 
 async function hashDeployInputs() {
-  const listed = await gitText(["ls-files", "--", "src", "scripts/deploy-shadow-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const listed = await gitText(["ls-files", "--", "src", "migrations", "scripts/deploy-shadow-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   const files = listed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).sort();
   return hashFiles(files);
 }
 
 async function currentDeployState() {
   const gitHead = await gitText(["rev-parse", "HEAD"]);
-  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "scripts/deploy-shadow-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "migrations", "scripts/deploy-shadow-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   return {
     gitHead,
     gitStatus,

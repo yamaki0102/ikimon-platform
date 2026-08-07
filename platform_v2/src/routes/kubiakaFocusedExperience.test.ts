@@ -176,59 +176,17 @@ test("feature flag fails closed when explicitly disabled", () => {
   assert.equal(isKubiakaFocusedExperienceEnabled("off"), false);
 });
 
-test("enforceKubiakaVisitPrivate fixes hidden visibility and routing flags", async () => {
-  const calls: Array<{ text: string; values: unknown[] }> = [];
-  const query = (async (text: string, values: unknown[]) => {
-    calls.push({ text, values });
-    return { rows: [{ visit_id: "visit-1" }] };
-  }) as KubiakaDbQuery;
-
-  await enforceKubiakaVisitPrivate(query, "visit-1", "user-1");
-  assert.equal(calls.length, 1);
-  assert.match(calls[0]!.text, /public_visibility = 'hidden'/);
-  assert.match(calls[0]!.text, /public_aggregation_allowed/);
-  assert.match(calls[0]!.text, /automatic_recipient_delivery_allowed/);
-  assert.deepEqual(calls[0]!.values, [
-    "visit-1",
-    "user-1",
-    KUBIAKA_EXPERIENCE_KEY,
-    KUBIAKA_PROTOCOL_PROFILE,
-  ]);
-});
-
-test("enforceKubiakaVisitPrivate fails closed on owner mismatch", async () => {
+test("legacy PostgreSQL enforcement fails closed after Cloudflare cutover", async () => {
   const query = (async () => ({ rows: [] })) as KubiakaDbQuery;
   await assert.rejects(
-    enforceKubiakaVisitPrivate(query, "visit-other", "user-1"),
-    /kubiaka_private_enforcement_failed/,
+    enforceKubiakaVisitPrivate(query, "visit-1", "user-1"),
+    /kubiaka_cloudflare_native_required/,
   );
 });
 
-test("acknowledgement lookup requires owner, hidden scope and 1 to 6 actual photos", async () => {
-  const calls: Array<{ text: string; values: unknown[] }> = [];
-  const query = (async (text: string, values: unknown[]) => {
-    calls.push({ text, values });
-    return { rows: [{ visit_id: "visit-1", photo_count: 2 }] };
-  }) as KubiakaDbQuery;
-
-  const result = await findOwnedKubiakaAcknowledgement(query, "occurrence-1", "user-1");
-  assert.deepEqual(result, { recordId: "occurrence-1", visitId: "visit-1", photoCount: 2 });
-  assert.match(calls[0]!.text, /v\.user_id = \$2/);
-  assert.match(calls[0]!.text, /public_visibility = 'hidden'/);
-  assert.match(calls[0]!.text, /experience_key/);
-  assert.match(calls[0]!.text, /asset_role = 'observation_photo'/);
-  assert.match(calls[0]!.text, /between 1 and \$4/);
-  assert.deepEqual(calls[0]!.values, [
-    "occurrence-1",
-    "user-1",
-    KUBIAKA_EXPERIENCE_KEY,
-    KUBIAKA_MAX_PHOTOS,
-  ]);
-});
-
-test("acknowledgement lookup does not expose another user's record", async () => {
+test("legacy acknowledgement lookup fails closed instead of reading PostgreSQL", async () => {
   const query = (async () => ({ rows: [] })) as KubiakaDbQuery;
-  assert.equal(await findOwnedKubiakaAcknowledgement(query, "occurrence-other", "user-1"), null);
+  assert.equal(await findOwnedKubiakaAcknowledgement(query, "occurrence-1", "user-1"), null);
 });
 
 test("member surface is an acknowledgement, not a durable receipt claim", () => {

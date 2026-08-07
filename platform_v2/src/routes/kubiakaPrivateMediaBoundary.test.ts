@@ -25,17 +25,19 @@ test("photo upload URL stays in the dedicated Kubiaka endpoint", () => {
   assert.equal(KUBIAKA_PRIVATE_PHOTO_UPLOAD_PREFIX, "/api/v1/kubiaka/observations");
 });
 
-test("dedicated route uses server-only authorization and omits external hooks", () => {
+test("legacy adapter fails closed after the Cloudflare-native cutover", () => {
   const routeSource = readFileSync(
     path.join(process.cwd(), "src/routes/kubiakaFocusedExperience.ts"),
     "utf8",
   );
-  assert.match(routeSource, /KUBIAKA_PRIVATE_UPLOAD_AUTHORIZATION/);
-  assert.match(routeSource, /assertSameOriginRequest/);
-  assert.match(routeSource, /assertObservationOwnedByUser/);
-  assert.match(routeSource, /kubiaka-private-photo-upload/);
-  assert.match(routeSource, /externalRouting: "denied"/);
-  assert.match(routeSource, /automaticRecipientDelivery: "denied"/);
+  assert.match(routeSource, /kubiaka_cloudflare_native_required/);
+  assert.match(routeSource, /return null/);
+  assert.match(routeSource, /void app/);
+  assert.match(routeSource, /private_record: true/);
+  assert.match(routeSource, /external_routing_allowed: false/);
+  assert.match(routeSource, /automatic_recipient_delivery_allowed: false/);
+  assert.doesNotMatch(routeSource, /KUBIAKA_PRIVATE_UPLOAD_AUTHORIZATION/);
+  assert.doesNotMatch(routeSource, /assertObservationOwnedByUser/);
   assert.doesNotMatch(routeSource, /emitAreaWatchNotificationForObservation/);
   assert.doesNotMatch(routeSource, /kickPlaceMemoryPhotoProcessingForVisit/);
 });
