@@ -18,19 +18,24 @@ ikimon.life の通常deployは、`all-projects-management` の構造化Issueか�
 通常の release 経路で使わない。旧VPS deploy 資産は互換調査・退役作業の参照実装として
 保持し、Cloudflare production workflow の代替にしない。
 
+## VPS retirement boundary（2026-08-07）
+
+- `ikimon-vps` / `162.43.44.131` は legacy / retirement 対象であり、現行 production、staging、origin fallback、通常releaseの実行先ではない。
+- 愛管・LENRI等の共有サーバー `i-kan-xserver` / `sv1102.xserver.jp` は別資産であり、VPS退役の停止・削除・解約対象に含めない。
+- この文書のVPS、systemd、nginx、SSH、GitHub Actions deploy記述は rollback/restore evidence のための退役アーカイブ。現行操作手順として実行しない。
+
 ## Source of Truth
 
 - low-token deploy entry: `docs/DEPLOY_LOW_TOKEN_PROTOCOL.md`
-- deploy manifest: `ops/deploy/deploy_manifest.json`
-- server deploy reference: `ops/deploy/production_deploy_reference.sh`
-- production platform blue/green deploy script: `ops/deploy/deploy_platform_v2_blue_green.sh`
-- production platform systemd units: `ops/deploy/ikimon_v2_blue.service`, `ops/deploy/ikimon_v2_green.service`
+- central deploy registry / Release Commander: `all-projects-management/operations/deploy_standard/service_deploy_registry.json`
+- current Worker deploy manifest: `ops/deploy/deploy_manifest.json`
+- retired VPS deploy reference (archive only): `ops/deploy/production_deploy_reference.sh`
+- retired blue/green deploy script (archive only): `ops/deploy/deploy_platform_v2_blue_green.sh`
+- retired VPS systemd units (archive only): `ops/deploy/ikimon_v2_blue.service`, `ops/deploy/ikimon_v2_green.service`
 - staging manifest: `ops/deploy/staging_manifest.json`
 - release candidate guard: `scripts/check_release_candidate.ps1`
 - staging deploy reference: `ops/deploy/staging_deploy_reference.sh`
-- production workflow: `.github/workflows/deploy.yml`
-- staging workflow: `.github/workflows/deploy-cloudflare-staging.yml`
-- legacy VPS staging workflow: `.github/workflows/deploy-staging.yml`
+- production/staging workflow references: retired archive; use Cloudflare command bus / Release Commander
 - production deploy timing: `docs/PRODUCTION_DEPLOY_TIMING.md`
 - branch hygiene audit workflow: `.github/workflows/branch-hygiene-audit.yml`
 - CI guardrail: `scripts/check_deploy_guardrails.ps1`
@@ -41,7 +46,7 @@ ikimon.life の通常deployは、`all-projects-management` の構造化Issueか�
 - fresh release worktree: `scripts/new_release_worktree.ps1`
 - resumable release autopilot: `scripts/release_autopilot.ps1`
 - deploy timing summary: `scripts/summarize_deploy_timing.ps1`
-- VPS prepare timing summary: `scripts/summarize_prepare_timing.ps1`
+- retired VPS prepare timing summary (archive only): `scripts/summarize_prepare_timing.ps1`
 - branch hygiene audit: `scripts/branch_hygiene_audit.ps1`
 
 ## Persistent Paths
@@ -56,7 +61,7 @@ ikimon.life の通常deployは、`all-projects-management` の構造化Issueか�
 これらは repo の通常変更フローに混ぜない。  
 「消さないように注意する」ではなく、「変更を CI で止める」が基本。
 
-VPS 側 deploy script では、上記のうち runtime に存在する `data/` と
+退役アーカイブのVPS deploy scriptでは、上記のうち runtime に存在する `data/` と
 `config.php` / `oauth_config.php` / `secret.php` をバックアップしてから
 `git reset --hard` を行い、その後に復元する。
 
@@ -177,12 +182,14 @@ rollback plan をPR本文または incident / runbook に残す。
 
 ## Server Script Reference
 
+> **退役アーカイブ:** 以下は旧VPS runtimeの復旧・証拠確認用の参照実装であり、現行Cloudflare production/stagingのdeploy、fallback、migration適用には使用しない。
+
 repo 外の実体は `/var/www/ikimon.life/deploy.sh` だが、参照実装を repo に置いた。  
 サーバ側を変更するときは `ops/deploy/production_deploy_reference.sh` も同時に更新する。
 
-本番 platform runtime は blue/green systemd unit と
+旧VPS platform runtime は blue/green systemd unit と
 `/etc/ikimon/production-v2.env` を正本にする。旧 `pm2 ikimon-v2-production-api` は
-既存 env の移行元であり、通常 deploy の実行単位ではない。
+既存 env の移行元であり、通常 deploy の実行単位ではない。現行本番の正本はCloudflare Workerである。
 
 ## Deploy Speed Guardrails
 

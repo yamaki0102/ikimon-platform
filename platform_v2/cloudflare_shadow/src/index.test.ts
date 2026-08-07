@@ -342,7 +342,7 @@ interface SubjectMediaRegionTestRow {
 
 interface OutboxRow {
   outbox_id: string;
-  topic: "media.process" | "readmodel.refresh";
+  topic: "media.process" | "readmodel.refresh" | "observation.reassess";
   target_id: string;
   payload_json: string;
   partition_month: string | null;
@@ -1862,6 +1862,26 @@ class FakeD1 {
   fieldscanAudioSegments = new Map<string, FieldscanAudioSegmentTestRow>();
   fieldscanAudioDetections: FieldscanAudioDetectionTestRow[] = [];
   observationDataRights = new Map<string, ObservationDataRightsRow>();
+  kubiakaPrivateRecords = new Map<string, {
+    visit_id: string;
+    owner_user_id: string;
+    experience_key: string;
+    protocol_profile: string;
+    privacy_state: string;
+    updated_at: string;
+  }>();
+  kubiakaPrivateRecordMedia = new Map<string, {
+    media_id: string;
+    visit_id: string;
+    asset_id: string;
+    owner_user_id: string;
+    photo_index: number;
+    object_key: string;
+    mime_type: string;
+    bytes: number;
+    sha256: string | null;
+    created_at: string;
+  }>();
   observationRallyCourses = new Map<string, ObservationRallyCourseTestRow>();
   observationRallyStations = new Map<string, ObservationRallyStationTestRow>();
   observationRallyMissions = new Map<string, ObservationRallyMissionTestRow>();
@@ -3122,6 +3142,36 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO kubiaka_private_records")) {
+      const now = new Date().toISOString();
+      const existing = this.db.kubiakaPrivateRecords.get(string(v[0]));
+      this.db.kubiakaPrivateRecords.set(string(v[0]), {
+        visit_id: string(v[0]),
+        owner_user_id: string(v[1]),
+        experience_key: string(v[2]),
+        protocol_profile: string(v[3]),
+        privacy_state: "private",
+        updated_at: existing?.updated_at ?? now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO kubiaka_private_record_media")) {
+      this.db.kubiakaPrivateRecordMedia.set(string(v[0]), {
+        media_id: string(v[0]),
+        visit_id: string(v[1]),
+        asset_id: string(v[2]),
+        owner_user_id: string(v[3]),
+        photo_index: number(v[4]),
+        object_key: string(v[5]),
+        mime_type: string(v[6]),
+        bytes: number(v[7]),
+        sha256: nullableString(v[8]),
+        created_at: new Date().toISOString()
+      });
+      return {};
+    }
+
     if (normalized.startsWith("INSERT INTO civic_observation_contexts")) {
       this.db.civicObservationContexts.set(string(v[1]), {
         context_id: string(v[0]),
@@ -3523,15 +3573,19 @@ class FakeStatement {
 
     if (normalized.startsWith("INSERT INTO observation_reassessment_requests")) {
       const now = new Date().toISOString();
-      const key = `${string(v[1])}:${string(v[2])}:${string(v[3])}`;
+      const literalKind = normalized.includes("'kubiaka_private'");
+      const requestKind = literalKind ? "kubiaka_private" : string(v[2]);
+      const actorUserId = string(v[literalKind ? 2 : 3]);
+      const sourcePayload = string(v[literalKind ? 3 : 4]);
+      const key = `${string(v[1])}:${requestKind}:${actorUserId}`;
       const existing = this.db.observationReassessmentRequests.get(key);
       this.db.observationReassessmentRequests.set(key, {
         request_id: existing?.request_id ?? string(v[0]),
         observation_id: string(v[1]),
-        request_kind: string(v[2]),
-        actor_user_id: string(v[3]),
+        request_kind: requestKind,
+        actor_user_id: actorUserId,
         request_state: "pending",
-        source_payload_json: string(v[4]),
+        source_payload_json: sourcePayload,
         created_at: existing?.created_at ?? now,
         updated_at: now
       });
@@ -3601,12 +3655,17 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("INSERT INTO outbox")) {
+      const literalTopic = normalized.match(/VALUES \(\?, '([^']+)'/);
+      const topic = literalTopic?.[1] ?? string(v[1]);
+      const targetIndex = literalTopic ? 1 : 2;
+      const payloadIndex = literalTopic ? 2 : 3;
+      const partitionIndex = literalTopic ? 3 : 4;
       this.db.outbox.set(string(v[0]), {
         outbox_id: string(v[0]),
-        topic: string(v[1]) as OutboxRow["topic"],
-        target_id: string(v[2]),
-        payload_json: string(v[3]),
-        partition_month: nullableString(v[4]),
+        topic: topic as OutboxRow["topic"],
+        target_id: string(v[targetIndex]),
+        payload_json: string(v[payloadIndex]),
+        partition_month: nullableString(v[partitionIndex]),
         dispatch_state: "pending",
         attempts: 0,
         last_error: null
@@ -5027,6 +5086,39 @@ class FakeStatement {
       return (this.db.drafts.get(string(v[0])) as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT visit_id FROM kubiaka_private_records")) {
+      const row = this.db.kubiakaPrivateRecords.get(string(v[0]));
+      return row ? ({ visit_id: row.visit_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS photo_count FROM kubiaka_private_record_media")) {
+      const count = [...this.db.kubiakaPrivateRecordMedia.values()].filter((row) =>
+        row.visit_id === string(v[0]) && row.owner_user_id === string(v[1])
+      ).length;
+      return ({ photo_count: count } as T);
+    }
+
+    if (normalized.startsWith("SELECT o.draft_id, o.owner_user_id, o.partition_month")) {
+      const observation = this.db.observations.get(string(v[0]));
+      const record = this.db.kubiakaPrivateRecords.get(string(v[0]));
+      if (!observation || !record || observation.owner_user_id !== string(v[1]) || record.owner_user_id !== string(v[1])) return null;
+      return ({ draft_id: observation.draft_id, owner_user_id: observation.owner_user_id, partition_month: observation.partition_month } as T);
+    }
+
+    if (normalized.startsWith("SELECT k.visit_id, o.observed_at, k.updated_at")) {
+      const record = this.db.kubiakaPrivateRecords.get(string(v[0]));
+      const observation = this.db.observations.get(string(v[0]));
+      if (!record || !observation || record.owner_user_id !== string(v[1]) || observation.owner_user_id !== string(v[1])) return null;
+      return ({ visit_id: record.visit_id, observed_at: observation.observed_at, updated_at: record.updated_at } as T);
+    }
+
+    if (normalized.startsWith("SELECT m.object_key, m.mime_type")) {
+      const row = [...this.db.kubiakaPrivateRecordMedia.values()].find((candidate) =>
+        candidate.visit_id === string(v[0]) && candidate.photo_index === number(v[1]) && candidate.owner_user_id === string(v[2])
+      );
+      return row ? ({ object_key: row.object_key, mime_type: row.mime_type } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT card_id, visit_id, visibility FROM record_reading_cards")) {
       const row = this.db.recordReadingCards.get(string(v[0]));
       return (row ? {
@@ -6016,6 +6108,41 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+
+    if (normalized.startsWith("SELECT k.visit_id, o.observed_at, k.updated_at")) {
+      const rows = [...this.db.kubiakaPrivateRecords.values()]
+        .filter((record) => record.owner_user_id === string(v[0]))
+        .map((record) => {
+          const observation = this.db.observations.get(record.visit_id);
+          return observation ? { visit_id: record.visit_id, observed_at: observation.observed_at, updated_at: record.updated_at } : null;
+        })
+        .filter((row): row is { visit_id: string; observed_at: string; updated_at: string } => row !== null)
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+      return { results: rows.slice(0, 24) as T[] };
+    }
+
+    if (normalized.startsWith("SELECT photo_index, mime_type, object_key, bytes, sha256")) {
+      const rows = [...this.db.kubiakaPrivateRecordMedia.values()]
+        .filter((row) => row.visit_id === string(v[0]) && row.owner_user_id === string(v[1]))
+        .sort((a, b) => a.photo_index - b.photo_index)
+        .slice(0, 6)
+        .map((row) => ({ photo_index: row.photo_index, mime_type: row.mime_type, object_key: row.object_key, bytes: row.bytes, sha256: row.sha256 }));
+      return { results: rows as T[] };
+    }
+
+    if (normalized.startsWith("SELECT o.observation_id, o.taxon_label, art.scientific_name")) {
+      const observation = this.db.observations.get(string(v[0]));
+      if (!observation) return { results: [] };
+      const target = this.db.observationAiReviewTargets.get(`occ:${observation.observation_id}:0`);
+      return { results: [{
+        observation_id: observation.observation_id,
+        taxon_label: observation.taxon_label,
+        scientific_name: target?.scientific_name ?? null,
+        candidate_scientific_name: target?.candidate_scientific_name ?? null,
+        ai_recommended_taxon_name: target?.ai_recommended_taxon_name ?? null
+      }] as T[] };
+    }
+
     if (normalized.endsWith("/* renri_fixture_scope */")) {
       if (normalized.startsWith("SELECT session_id, organizer_user_id FROM observation_event_sessions")) {
         const fixturePrefix = string(v[0]);
@@ -7496,7 +7623,7 @@ function createEnv(queue = new FakeQueue()) {
       INTERNAL_AUTH_TOKEN,
       OBSERVATION_DB_NAME: "ikimon_shadow_observations_2026_06",
       OBSERVATION_ARCHIVE_TARGET: "r2_sql_export_by_partition_month",
-      PUBLIC_WRITE_MODE: "origin_fallback",
+      PUBLIC_WRITE_MODE: "cloudflare_native",
       V2_PRIVILEGED_WRITE_API_KEY: "write-key",
       CLOUDFLARE_STREAM_WEBHOOK_SECRET: undefined as string | undefined,
       MPC_DISABLED: undefined as string | undefined,
@@ -7667,24 +7794,10 @@ test("internal endpoints require an explicit bearer token in shadow", async () =
   assert.equal(missingSecret.status, 403);
   assert.deepEqual(await missingSecret.json(), { error: "internal_auth_not_configured" });
 
-  core.operationAudit.push({
-    audit_id: "audit-1",
-    operation_type: "origin_fallback",
-    target_id: "unit",
-    payload_json: JSON.stringify({
-      reason: "unit_reason",
-      method: "GET",
-      host: "ikimon.life",
-      routePattern: "/unit",
-      publicWriteMode: "cloudflare_native",
-      environment: "production"
-    }),
-    created_at: "2026-06-16T00:00:00.000Z"
-  });
-  const telemetry = await worker.fetch(internalRequest("/internal/origin-fallback-telemetry"), env);
-  const telemetryPayload = await telemetry.json() as any;
-  assert.equal(telemetry.ok, true, JSON.stringify(telemetryPayload));
-  assert.equal(telemetryPayload.byReason.unit_reason, 1);
+  const retiredTelemetry = await worker.fetch(internalRequest("/internal/origin-fallback-telemetry"), env);
+  assert.equal(retiredTelemetry.status, 404);
+  assert.deepEqual(await retiredTelemetry.json(), { error: "not_found" });
+  assert.equal(core.operationAudit.length, 0);
 });
 
 test("r2 inventory is limited to shadow environment and bounded prefixes", async () => {
@@ -11063,64 +11176,29 @@ test("v1 auth session keeps current optional guest and cookie session contract",
   assert.match(logoutResponse.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970 00:00:00 GMT/);
 });
 
-test("production origin session probe is opt-in and disabled by default", async () => {
+test("production origin session bridge is retired", async () => {
   const { env, core } = createEnv();
-  const rawToken = "origin-session-opt-in-token";
-  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const rawToken = "retired-origin-session-token";
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
-  const originFetches: string[] = [];
-  const originRequests: Request[] = [];
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const forwarded = new Request(input, init);
-    originFetches.push(forwarded.url);
-    originRequests.push(forwarded);
-    return Response.json({
-      ok: true,
-      session: {
-        tokenHash,
-        userId: "origin-session-user",
-        displayName: "Origin Session User",
-        roleName: "Observer",
-        rankLabel: "Migration",
-        banned: false,
-        expiresAt
-      }
-    });
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return Response.json({ ok: true, session: { userId: "must-not-import" } });
   }) as typeof fetch;
   try {
-    const disabledResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session?optional=1", {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session?optional=1", {
       headers: { cookie: `ikimon_v2_session=${rawToken}` }
     }), productionEnv);
-    assert.equal(disabledResponse.status, 200);
-    assert.deepEqual(await disabledResponse.json(), { ok: false, error: "session_not_found", session: null });
-    assert.equal(originFetches.length, 0);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: false, error: "session_not_found", session: null });
+    assert.equal(fetchCalls, 0);
     assert.equal(core.authSessions.size, 0);
     assert.equal(core.operationAudit.length, 0);
-
-    const enabledResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session?optional=1", {
-      headers: { cookie: `ikimon_v2_session=${rawToken}` }
-    }), { ...productionEnv, ORIGIN_SESSION_IMPORT_MODE: "enabled" });
-    const enabledPayload = await enabledResponse.json() as any;
-    assert.equal(enabledResponse.status, 200, JSON.stringify(enabledPayload));
-    assert.equal(enabledPayload.ok, true);
-    assert.equal(enabledPayload.session.userId, "origin-session-user");
-    assert.equal(enabledPayload.session.tokenHash, tokenHash);
-    assert.equal(originFetches.length, 1);
-    assert.equal(originRequests[0]?.headers.get("x-forwarded-host"), "ikimon.life");
-    assert.equal(originRequests[0]?.headers.get("x-forwarded-proto"), "https");
-    assert.equal(core.authSessions.has(tokenHash), true);
-    assert.equal(core.operationAudit.length, 1);
-    assert.equal(core.operationAudit[0]?.operation_type, "origin_fallback");
-    const audit = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(audit.reason, "origin_session_probe");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -12005,7 +12083,7 @@ test("production auth login fails closed when the D1 auth user store is unavaila
       })
     }), { ...productionEnv, CORE_DB: brokenCore });
     const payload = await response.json() as any;
-    assert.equal(response.status, 503);
+    assert.equal(response.status, 503, JSON.stringify(payload));
     assert.deepEqual(payload, { ok: false, error: "auth_store_unavailable" });
   } finally {
     globalThis.fetch = originalFetch;
@@ -12166,7 +12244,11 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
 
     const createTaxonResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/subscriptions", {
       method: "POST",
-      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      headers: {
+        "content-type": "application/json",
+        cookie: `ikimon_v2_session=${rawToken}`,
+        origin: "https://ikimon.life"
+      },
       body: JSON.stringify({
         scientificName: "Haliaeetus albicilla",
         taxonRank: "species",
@@ -14979,6 +15061,22 @@ test("production runtime generates record reading cards natively without origin 
     occurrence_id: "occ-reading-1",
     asset_role: "observation_photo"
   });
+  obs.observations.set("visit-reading-1", {
+    observation_id: "visit-reading-1",
+    draft_id: "draft-reading-1",
+    owner_user_id: "reading-user",
+    observed_at: "2026-06-25T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: "シロツメクサ",
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "34.700,137.800",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
@@ -16250,44 +16348,27 @@ test("production runtime returns 404 for unknown observation API paths without o
   }
 });
 
-test("production origin fallback protects observation write paths when broad public-detail routing is enabled", async () => {
+test("production public writes fail closed without origin fallback", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
-  const seen: { url?: string; method?: string; resolveOverride?: string; body?: string } = {};
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.method = init?.method;
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
-    seen.body = init?.body ? await new Response(init.body).text() : undefined;
-    return new Response(JSON.stringify({ ok: false, error: "origin_write_auth_required" }), {
-      status: 401,
-      headers: { "content-type": "application/json" }
-    });
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response("origin fallback must not be called", { status: 599 });
   }) as typeof fetch;
   try {
-    const body = {
-      observationId: "must-not-write-cloudflare",
-      userId: "user",
-      observedAt: "2026-06-16T00:00:00.000Z",
-      latitude: 34.71234,
-      longitude: 137.81234
-    };
     const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ observationId: "must-not-write-cloudflare" })
     }), productionEnv);
     assert.equal(response.status, 401);
-    assert.equal(seen.url, "https://ikimon.life/api/v1/observations/upsert");
-    assert.equal(seen.method, "POST");
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen.body, JSON.stringify(body));
+    assert.equal(fetchCalls, 0);
     assert.equal(obs.observations.has("must-not-write-cloudflare"), false);
   } finally {
     globalThis.fetch = originalFetch;
@@ -16295,7 +16376,7 @@ test("production origin fallback protects observation write paths when broad pub
 });
 
 test("production public write-disabled mode blocks mutating app writes without touching origin or D1", async () => {
-  const { env, obs } = createEnv();
+  const { env, obs, core } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
@@ -16303,6 +16384,18 @@ test("production public write-disabled mode blocks mutating app writes without t
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
     PUBLIC_WRITE_MODE: "write_disabled"
   };
+  const rawToken = "write-disabled-session-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "write-disabled-user",
+    display_name: "Write Disabled User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2999-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
   globalThis.fetch = (async () => {
@@ -16312,7 +16405,11 @@ test("production public write-disabled mode blocks mutating app writes without t
   try {
     const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        cookie: `ikimon_v2_session=${rawToken}`,
+        origin: "https://ikimon.life"
+      },
       body: JSON.stringify({
         observationId: "write-disabled-must-not-write",
         userId: "user",
@@ -16480,35 +16577,19 @@ test("production public cloudflare-native mode rejects photo upload auth failure
   assert.equal(obs.rollbackLedger.size, 0);
 });
 
-test("production public cloudflare-native mode lazily imports valid origin sessions only when explicitly enabled", async () => {
+test("production Cloudflare-native mode never imports an origin session", async () => {
   const { env, core, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_SESSION_IMPORT_MODE: "enabled"
+    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const rawOriginToken = "origin-login-raw-token";
-  const tokenHash = createHash("sha256").update(rawOriginToken).digest("hex");
   const originalFetch = globalThis.fetch;
-  const seen: string[] = [];
-  globalThis.fetch = (async (input: RequestInfo | URL) => {
-    const request = input instanceof Request ? input : new Request(input);
-    seen.push(new URL(request.url).pathname + new URL(request.url).search);
-    return Response.json({
-      ok: true,
-      session: {
-        userId: "lazy-origin-user",
-        displayName: "Lazy Origin User",
-        roleName: "Observer",
-        rankLabel: null,
-        banned: false,
-        expiresAt: "2999-01-01T00:00:00.000Z",
-        tokenHash
-      }
-    });
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return Response.json({ ok: true, session: { userId: "must-not-import" } });
   }) as typeof fetch;
   try {
     const upsertResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
@@ -16524,11 +16605,11 @@ test("production public cloudflare-native mode lazily imports valid origin sessi
       })
     }), productionEnv);
     const payload = await upsertResponse.json() as any;
-    assert.equal(upsertResponse.status, 201);
-    assert.equal(payload.ok, true);
-    assert.deepEqual(seen, ["/api/v1/auth/session?optional=1"]);
-    assert.equal(core.authSessions.get(tokenHash)?.user_id, "lazy-origin-user");
-    assert.equal(obs.observations.get("lazy-origin-session-observation")?.owner_user_id, "lazy-origin-user");
+    assert.equal(upsertResponse.status, 401);
+    assert.equal(payload.error, "session_required");
+    assert.equal(fetchCalls, 0);
+    assert.equal(core.authSessions.size, 0);
+    assert.equal(obs.observations.has("lazy-origin-session-observation"), false);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -17102,59 +17183,36 @@ test("production public UI routes avoid legacy PHP fallback by default", async (
   }
 });
 
-test("production legacy PHP fallback is an explicit archive bridge", async () => {
+test("production legacy PHP fallback is retired", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "enabled"
+    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
-  const seen: Array<{ url: string; method?: string; resolveOverride?: string; reason?: string | null }> = [];
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.push({
-      url: String(input),
-      method: init?.method,
-      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride,
-      reason: new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason")
-    });
-    return new Response("<!doctype html><title>legacy archive bridge</title>", {
-      status: 200,
-      headers: { "content-type": "text/html; charset=utf-8" }
-    });
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response("legacy fallback must not be called", { status: 599 });
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request("https://ikimon.life/some-old-unmapped-path"), productionEnv);
-    assert.equal(response.status, 200);
-    assert.equal(await response.text(), "<!doctype html><title>legacy archive bridge</title>");
-    assert.deepEqual(seen, [{
-      url: "https://ikimon.life/some-old-unmapped-path",
-      method: "GET",
-      resolveOverride: "origin.ikimon.test",
-      reason: "public_custom_domain_path"
-    }]);
-    assert.equal(core.operationAudit.length, 1);
-    const audit = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(audit.reason, "public_custom_domain_path");
-    assert.equal(audit.publicWriteMode, "cloudflare_native");
-    assert.equal(audit.routePattern, "/some-old-unmapped-path");
+    assert.notEqual(response.status, 599);
+    assert.doesNotMatch(await response.text(), /legacy archive bridge/);
+    assert.equal(fetchCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test("production legacy PHP public entrypoints cannot use origin fallback", async () => {
+test("production legacy PHP public entrypoints are retired without origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "enabled"
+    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   const originalError = console.error;
@@ -24418,6 +24476,169 @@ test("production reflection loop manifest is served by Cloudflare instead of ori
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("Kubiaka native private flow stays owner-scoped and never creates public media or notifications", async () => {
+  const { env, core, obs, queue } = createEnv();
+
+  const landing = await worker.fetch(new Request("https://shadow.test/kubiaka"), env);
+  assert.equal(landing.status, 200);
+  const landingHtml = await landing.text();
+  assert.match(landingHtml, /非公開記録/);
+  assert.match(landingHtml, /\/kubiaka\/record/);
+  assert.doesNotMatch(landingHtml, /origin|fallback/i);
+
+  const ownerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "kubiaka-owner", displayName: "Kubiaka Owner", ttlHours: 1 })
+  }), env);
+  const ownerCookie = ownerIssue.headers.get("set-cookie") ?? "";
+  assert.match(ownerCookie, /^ikimon_v2_session=/);
+
+  const upsert = await worker.fetch(new Request("https://shadow.test/api/v1/kubiaka/observations/upsert", {
+    method: "POST",
+    headers: {
+      origin: "https://shadow.test",
+      cookie: ownerCookie,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      observedAt: "2026-08-07T00:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      locationAccuracyM: 12,
+      sourcePayload: { media_count: 1 }
+    })
+  }), env);
+  const upsertPayload = await upsert.json() as any;
+  assert.equal(upsert.status, 201, JSON.stringify(upsertPayload));
+  assert.equal(upsertPayload.experience.key, "kubiaka-watch");
+  assert.equal(upsertPayload.experience.privacy, "private");
+  assert.equal(upsertPayload.experience.publicAggregation, "denied");
+  assert.equal(upsertPayload.experience.externalRouting, "denied");
+  assert.equal(upsertPayload.experience.automaticRecipientDelivery, "denied");
+  const visitId = String(upsertPayload.visitId);
+  assert.match(visitId, /^[A-Za-z0-9:._-]+$/);
+
+  const observation = obs.observations.get(visitId);
+  assert.equal(observation?.owner_user_id, "kubiaka-owner");
+  assert.equal(observation?.visibility, "private");
+  const privateRecord = obs.kubiakaPrivateRecords.get(visitId);
+  assert.equal(privateRecord?.owner_user_id, "kubiaka-owner");
+  assert.equal(privateRecord?.privacy_state, "private");
+  assert.equal(obs.productionVisits.has(visitId), false);
+
+  const photo = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/kubiaka/observations/" + encodeURIComponent(visitId) + "/photos/upload",
+    {
+      method: "POST",
+      headers: {
+        origin: "https://shadow.test",
+        cookie: ownerCookie,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        filename: "sakura.png",
+        mimeType: "image/png",
+        base64Data: tinyPngBase64()
+      })
+    }
+  ), env);
+  const photoPayload = await photo.json() as any;
+  assert.equal(photo.status, 201, JSON.stringify(photoPayload));
+  assert.equal(photoPayload.privacy, "private");
+  assert.equal(photoPayload.externalRouting, "denied");
+  assert.equal(Object.hasOwn(photoPayload, "objectKey"), false);
+  assert.equal(Object.hasOwn(photoPayload, "publicUrl"), false);
+  assert.equal(obs.kubiakaPrivateRecordMedia.size, 1);
+  const privateMedia = [...obs.kubiakaPrivateRecordMedia.values()][0];
+  assert.ok(privateMedia);
+  assert.match(privateMedia.object_key, /^private\/kubiaka\//);
+  assert.equal(obs.assets.get(privateMedia.asset_id)?.public_derivative_key, null);
+  assert.equal([...obs.outbox.values()].some((row) =>
+    row.topic === "media.process" || row.topic === "readmodel.refresh"
+  ), false);
+  assert.equal([...obs.outbox.values()].filter((row) => row.topic === "observation.reassess").length, 1);
+  assert.equal(queue.messages.some((message: any) =>
+    message?.topic === "media.process" || message?.topic === "readmodel.refresh"
+  ), false);
+
+  obs.productionVisits.set(visitId, {
+    visit_id: visitId,
+    legacy_observation_id: visitId,
+    user_id: "kubiaka-owner",
+    public_visibility: "public",
+    observed_at: "2026-08-07T00:00:00.000Z"
+  });
+  obs.productionOccurrences.set("occ:" + visitId + ":0", {
+    occurrence_id: "occ:" + visitId + ":0",
+    visit_id: visitId,
+    scientific_name: "Trifolium repens",
+    vernacular_name: "シロツメクサ",
+    taxon_rank: "species",
+    created_at: "2026-08-07T00:00:01.000Z"
+  });
+  obs.productionEvidenceAssets.push({
+    asset_id: "asset-kubiaka-reading",
+    visit_id: visitId,
+    occurrence_id: "occ:" + visitId + ":0",
+    asset_role: "observation_photo"
+  });
+
+  const readingCards = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/observations/" + encodeURIComponent("occ:" + visitId + ":0") + "/reading-cards",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: ownerCookie },
+      body: "{}"
+    }
+  ), env);
+  const readingPayload = await readingCards.clone().json() as any;
+  assert.equal(readingCards.status, 200, JSON.stringify(readingPayload));
+  assert.equal(core.alertDeliveries.size, 0);
+
+  const member = await worker.fetch(new Request("https://shadow.test/kubiaka/me", {
+    headers: { cookie: ownerCookie }
+  }), env);
+  assert.equal(member.status, 200);
+  const memberHtml = await member.text();
+  assert.ok(memberHtml.includes(visitId));
+
+  const detail = await worker.fetch(new Request(
+    "https://shadow.test/kubiaka/records/" + encodeURIComponent(visitId),
+    { headers: { cookie: ownerCookie } }
+  ), env);
+  assert.equal(detail.status, 200);
+  const detailHtml = await detail.text();
+  assert.match(detailHtml, /Cloudflare D1 \/ R2 private scope/);
+  assert.match(detailHtml, /\/kubiaka\/records\/.*\/photos\/1/);
+  assert.doesNotMatch(detailHtml, /publicUrl|origin|fallback/i);
+
+  const media = await worker.fetch(new Request(
+    "https://shadow.test/kubiaka/records/" + encodeURIComponent(visitId) + "/photos/1",
+    { headers: { cookie: ownerCookie } }
+  ), env);
+  assert.equal(media.status, 200);
+  assert.equal(media.headers.get("content-type"), "image/png");
+  assert.equal(media.headers.get("cache-control"), "private, no-store");
+
+  const otherIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "kubiaka-other", displayName: "Kubiaka Other", ttlHours: 1 })
+  }), env);
+  const otherCookie = otherIssue.headers.get("set-cookie") ?? "";
+  const otherDetail = await worker.fetch(new Request(
+    "https://shadow.test/kubiaka/records/" + encodeURIComponent(visitId),
+    { headers: { cookie: otherCookie } }
+  ), env);
+  assert.equal(otherDetail.status, 404);
+  const otherMedia = await worker.fetch(new Request(
+    "https://shadow.test/kubiaka/records/" + encodeURIComponent(visitId) + "/photos/1",
+    { headers: { cookie: otherCookie } }
+  ), env);
+  assert.equal(otherMedia.status, 404);
 });
 
 async function post(path: string, env: ReturnType<typeof createEnv>["env"], body: unknown): Promise<any> {

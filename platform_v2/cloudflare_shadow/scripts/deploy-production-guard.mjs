@@ -178,7 +178,7 @@ async function gitText(args) {
 
 async function currentDeployState() {
   const gitHead = await gitText(["rev-parse", "HEAD"]);
-  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "scripts/deploy-production-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "migrations", "scripts/deploy-production-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   const worktreeGitStatus = await gitText(["status", "--porcelain"]);
   const deployInputSha256 = await hashDeployInputs();
   const packageLockSha256 = await hashFiles(["package.json", "package-lock.json"]);
@@ -196,7 +196,7 @@ async function currentDeployState() {
 }
 
 async function hashDeployInputs() {
-  const listed = await gitText(["ls-files", "--", "src", "scripts/deploy-production-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const listed = await gitText(["ls-files", "--", "src", "migrations", "scripts/deploy-production-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   const files = listed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).sort();
   return hashFiles(files);
 }

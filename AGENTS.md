@@ -16,7 +16,7 @@ Citizen-science biodiversity platform. The current app is the Node runtime under
 - Treat older docs, handovers, and catch-up notes that point to PHP files as historical unless this guide explicitly says otherwise.
 - Default `rg` searches intentionally skip `upload_package/` and `docs/archive/` through root `.ignore`; use `rg -uuu` only when compatibility or historical evidence is explicitly needed.
 - `staging` by itself means the staging deployment of the current app.
-- Use `ops/CUTOVER_RUNBOOK.md` and `ops/deploy/staging_ikimon_life_tls_reference.conf` for staging/runtime deployment facts.
+- Use `docs/DEPLOYMENT.md` and the central deploy registry for current staging/runtime deployment facts. `ops/CUTOVER_RUNBOOK.md` is a retired VPS cutover archive.
 - The physical directory name `platform_v2/` is a deployment contract. Human-facing guidance should call it the current app/current runtime, not a separate product generation.
 
 ## Tech Stack
@@ -27,7 +27,7 @@ Citizen-science biodiversity platform. The current app is the Node runtime under
 | Compatibility archive | PHP 8.2 (`upload_package`, explicit legacy work only) |
 | Frontend | Alpine.js + Tailwind CSS (CDN) + Lucide Icons |
 | Maps | MapLibre GL JS + OpenStreetMap tiles |
-| Data | PostgreSQL canonical store + compatibility data bridge |
+| Data | Cloudflare D1/R2/Queues canonical runtime (legacy PostgreSQL compatibility only) |
 | Auth | Session-based + UUID guest accounts |
 
 ## Current App Entry Points
@@ -109,6 +109,13 @@ php tools/lint.php
 - GitHub Actionsはbuild、test、deploy、verify、Visual QA、rollbackの実行backendに使わない。GitHubはsource、PR、immutable SHA、Issue command、監査証跡に限定する。
 - manual emergencyも同じportable release/verification scriptを再利用するが、通常のCloudflare command busを管理PCやActionsへ迂回させない。
 
+### VPS retirement boundary（2026-08-07）
+
+- 現行 production 正本は Cloudflare Worker `ikimon-life-cloudflare-prod`、staging 正本は Cloudflare Worker `ikimon-life-cloudflare-staging`。
+- `ikimon-vps` / `162.43.44.131` は legacy / retirement 対象であり、通常のrelease、fallback、origin、stagingとして扱わない。
+- 愛管・LENRI等の共有サーバー `i-kan-xserver` / `sv1102.xserver.jp` は別資産であり、このVPS退役作業の停止・削除・解約対象ではない。
+- 以下に残る GitHub Actions、blue/green、VPSディレクトリ、SSH deploy の記述は、rollback/restoreに必要な退役アーカイブとして保存するだけで、現行操作手順ではない。
+
 ### Codex のデプロイフロー（必読）
 
 **Codex は main に直接 pushできない（Protected Branch）。**
@@ -133,17 +140,17 @@ php tools/lint.php
 - ユーザーが「反映して」「マージして」「本番へ進めて」と明示した場合、Codex は GitHub 管理者権限で進める前提でよい
 - PR が `MERGEABLE` かつ required checks が通過済みで、止まっている理由が `REVIEW_REQUIRED` のみなら、`gh pr merge --admin` で owner review 待ちを bypass してよい
 - ただし、失敗中の CI / deploy guardrail / migration guardrail / production smoke を管理者権限で無視してはいけない
-- `main` への直接 push は引き続き禁止。管理者権限を使う場合も、`codex/<task-name>` → PR → admin merge → GitHub Actions deploy の順序を守る
+- `main` への直接 push は引き続き禁止。管理者権限を使う場合も、`codex/<task-name>` → PR → admin merge → Cloudflare command bus の順序を守る
 
-**Codex がデプロイのために手動SSHで追加作業することは原則ない。** PR を作り、必要なら admin merge し、GitHub Actions の結果を確認する。
-本番反映をユーザーが依頼した場合は、PR 作成や merge で止めず、該当する GitHub Actions deploy workflow が `success` / `failure` などの最終状態になるまで監視し、失敗時はログ確認と止血まで継続する。
+**Codex がデプロイのために手動SSHで追加作業することは原則ない。** PR を作り、必要なら admin merge し、Cloudflare command bus / Release Commander の exact-SHA 結果を確認する。
+本番反映をユーザーが依頼した場合は、PR 作成や merge で止めず、同じSHAの Cloudflare staging、required checks、production command-bus gate が最終状態になるまで監視する。GitHub Actions の旧VPS deploy workflowを復活させない。
 `deploy.sh` はローカルの preflight 用であり、本番 deploy はしない。
 
 ### Deploy Source of Truth
 
 - low-token deploy entry: `docs/DEPLOY_LOW_TOKEN_PROTOCOL.md`
 - deploy manifest: `ops/deploy/deploy_manifest.json`
-- server deploy reference: `ops/deploy/production_deploy_reference.sh`
+- retired VPS deploy reference (archive only): `ops/deploy/production_deploy_reference.sh`
 - deploy guide: `docs/DEPLOYMENT.md`
 - guardrail check: `scripts/check_deploy_guardrails.ps1`
 - sync check: `scripts/check_deploy_manifest_sync.ps1`
@@ -171,7 +178,10 @@ php tools/lint.php
 - `upload_package/config/oauth_config.php`
 - `upload_package/config/config.php`
 
-### GitHub Actions（自動デプロイ）
+### GitHub Actions / VPS lane（退役アーカイブ・現行操作禁止）
+
+この節は、`ikimon-vps` の過去の復旧・証拠確認に必要な記録を保持するためのもの。
+現行 production/staging の deploy backend ではなく、通常releaseから参照しない。
 
 | 項目 | 値 |
 |------|-----|
@@ -183,7 +193,9 @@ php tools/lint.php
 
 merge 前に `scripts/check_deploy_guardrails.ps1` が CI で必ず通ること。
 
-### 本番 VPS ディレクトリ構造
+### 旧VPSディレクトリ構造（退役・復旧証拠専用）
+
+この構造を現役origin、fallback、staging、deploy先として再利用してはならない。
 
 ```
 /var/www/ikimon.life/

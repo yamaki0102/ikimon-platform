@@ -27,8 +27,8 @@
 | Current runtime | Node.js / Fastify |
 | Frontend | Alpine.js + Tailwind CSS + Lucide Icons |
 | Map | MapLibre GL JS + OpenStreetMap |
-| Data | PostgreSQL canonical store + compatibility data bridge |
-| Deploy | GitHub Actions + VPS blue/green runtime |
+| Data | Cloudflare D1/R2/Queues canonical runtime (legacy PostgreSQL compatibility only) |
+| Deploy | Cloudflare command bus + Release Commander (exact-SHA) |
 
 ## ローカル開発
 
@@ -53,7 +53,7 @@ npm --prefix platform_v2 run dev
 
 ## デプロイ
 
-本番反映は `codex/<task-name>` ブランチから PR を作り、`main` merge 後の GitHub Actions で VPS へ反映する。ローカルから本番へ直接 SSH deploy しない。詳細は `docs/DEPLOYMENT.md` と `ops/deploy/deploy_manifest.json` を正本にする。
+本番反映は `codex/<task-name>` ブランチから PR を作り、exact-SHA を固定して `all-projects-management` の Cloudflare command bus / Release Commander から行う。GitHub Actions、VPS SSH、blue/green VPS runtime は通常経路ではない。詳細は `docs/DEPLOYMENT.md` と中央 deploy registry を正本にする。
 
 ## 旧PHPの扱い
 

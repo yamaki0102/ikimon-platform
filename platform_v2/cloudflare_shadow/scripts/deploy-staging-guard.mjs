@@ -204,14 +204,14 @@ async function hashFiles(files) {
 }
 
 async function hashDeployInputs() {
-  const listed = await gitText(["ls-files", "--", "src", "scripts/deploy-staging-guard.mjs", "scripts/staging-deploy-state-gate.mjs", "scripts/staging-runtime-smoke.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const listed = await gitText(["ls-files", "--", "src", "migrations", "scripts/deploy-staging-guard.mjs", "scripts/staging-deploy-state-gate.mjs", "scripts/staging-runtime-smoke.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   const files = listed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).sort();
   return hashFiles(files);
 }
 
 async function currentDeployState() {
   const gitHead = await gitText(["rev-parse", "HEAD"]);
-  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "scripts/deploy-staging-guard.mjs", "scripts/staging-deploy-state-gate.mjs", "scripts/staging-runtime-smoke.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "migrations", "scripts/deploy-staging-guard.mjs", "scripts/staging-deploy-state-gate.mjs", "scripts/staging-runtime-smoke.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   return {
     gitHead,
     gitStatus,
