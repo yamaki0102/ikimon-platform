@@ -1,4 +1,5 @@
 import type { FastifyRequest } from "fastify";
+import { resolveTrustedPublicOrigin } from "./trustedPublicOrigin.js";
 
 type RateBucket = {
   count: number;
@@ -9,18 +10,24 @@ type HttpError = Error & { statusCode: number };
 
 const buckets = new Map<string, RateBucket>();
 
-function headerFirst(value: string | string[] | undefined): string {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return raw?.split(",")[0]?.trim() ?? "";
+function strictHeaderValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value.length === 1 ? strictHeaderValue(value[0]) : null;
+  }
+  if (value === undefined) return "";
+  const normalized = value.trim();
+  return normalized.includes(",") ? null : normalized;
 }
 
 function expectedOrigin(request: FastifyRequest): string | null {
-  const host = headerFirst(request.headers["x-forwarded-host"]) || headerFirst(request.headers.host);
-  if (!host) {
+  try {
+    return resolveTrustedPublicOrigin(
+      request as unknown as { headers: Record<string, unknown>; protocol?: string },
+      { allowLocalDevelopment: process.env.NODE_ENV !== "production" },
+    );
+  } catch {
     return null;
   }
-  const proto = headerFirst(request.headers["x-forwarded-proto"]) || (request.protocol || "http");
-  return `${proto}://${host}`;
 }
 
 function sameOriginError(): HttpError {
@@ -53,12 +60,19 @@ export function safeRedirectPath(value: unknown, fallback = "/record"): string {
 }
 
 export function assertSameOriginRequest(request: FastifyRequest): void {
-  const secFetchSite = headerFirst(request.headers["sec-fetch-site"]).toLowerCase();
+  const secFetchSiteValue = strictHeaderValue(request.headers["sec-fetch-site"]);
+  if (secFetchSiteValue === null) {
+    throw sameOriginError();
+  }
+  const secFetchSite = secFetchSiteValue.toLowerCase();
   if (secFetchSite && secFetchSite !== "same-origin" && secFetchSite !== "none") {
     throw sameOriginError();
   }
 
-  const origin = headerFirst(request.headers.origin);
+  const origin = strictHeaderValue(request.headers.origin);
+  if (origin === null) {
+    throw sameOriginError();
+  }
   if (!origin) {
     return;
   }
