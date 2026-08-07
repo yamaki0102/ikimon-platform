@@ -5,6 +5,7 @@ import { buildReflectionLoopManifest } from "../services/reflectionLoopManifest.
 import { PRODUCTION_PUBLIC_ORIGIN, resolvePresentationPublicOrigin, STAGING_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { registerIwataOpenDataRoutes } from "./iwataOpenData.js";
 import { registerKubiakaFocusedExperienceRoutes } from "./kubiakaFocusedExperience.js";
+import { registerKubiakaPrivateRecordRoutes } from "./kubiakaPrivateRecords.js";
 import { registerKubiakaPrivateUploadGuard } from "./kubiakaPrivateUploadGuard.js";
 import { registerRegionalSourceRoutes } from "./regionalSources.js";
 
@@ -53,6 +54,7 @@ export async function registerSiteMapRoutes(app: FastifyInstance): Promise<void>
 
   await registerIwataOpenDataRoutes(app);
   await registerKubiakaPrivateUploadGuard(app);
+  await registerKubiakaPrivateRecordRoutes(app);
   await registerKubiakaFocusedExperienceRoutes(app);
   await registerRegionalSourceRoutes(app);
 
