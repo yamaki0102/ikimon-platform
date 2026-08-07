@@ -29,14 +29,26 @@
       "success_surface": "zukan.home.member",
       "steps": [
         { "surface": "zukan.home.member", "action": "撮る" },
-        { "surface": "zukan.capture.start", "action": "写真・場所・時間を確認して保存" },
-        { "surface": "zukan.home.member", "action": "保存された記録を確認" }
+        { "surface": "zukan.capture.start", "action": "撮影方法を選び、写真・場所・時間を確認して保存" },
+        { "surface": "zukan.home.member", "action": "保存された記録と処理状態を確認" }
       ],
       "required_outcomes": [
+        "OS標準カメラ、接写カメラ、写真ライブラリの撮影経路を選べる",
+        "撮影直後にuploadを待たず写真を確認できる",
+        "通信断やreloadから下書きを復旧できる",
         "二重登録を発生させない",
         "保存失敗時に成功画面へ進まない",
         "保存後に本人が記録を見つけられる",
+        "写真処理とAI確認の状態を記録保存状態と混同しない",
         "公開可否が未確定の記録を公開面へ出さない"
+      ],
+      "requirement_refs": [
+        "quality.zukan.capture.source-choice",
+        "quality.zukan.capture.immediate-preview",
+        "quality.zukan.capture.draft-recovery",
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.capture.owner-return",
+        "quality.zukan.capture.truthful-status"
       ],
       "required_states": ["empty", "populated", "submitting", "success", "upload-error", "offline", "retrying"]
     },
