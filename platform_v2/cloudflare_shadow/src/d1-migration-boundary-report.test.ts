@@ -104,11 +104,12 @@ function loadClassifyFallbackReason(script: string): (reason: string) => string 
 function assertCurrentVpsBlockerBaseline(stdout: string): void {
   const gate = stdout.match(/## Configured Production VPS Stop Readiness Gate[\s\S]*?(?=\n## Migration Priority Heuristic)/)?.[0];
   assert.ok(gate, "configured VPS stop readiness gate is present");
-  assert.match(gate, /- blocker_count: 3/);
-  assert.match(gate, /- p1_blockers: 3/);
+  assert.match(gate, /- blocker_count: 4/);
+  assert.match(gate, /- p1_blockers: 4/);
   for (const file of [
     "platform_v2/src/routes/kubiakaFocusedExperience.ts",
     "platform_v2/src/routes/kubiakaPrivateUploadGuard.ts",
+    "platform_v2/src/services/kubiakaPrivateRecordsReadModel.ts",
     "platform_v2/src/services/notificationEligibility.ts",
   ]) {
     assert.ok(gate.includes(file), `configured blocker baseline includes ${file}`);
