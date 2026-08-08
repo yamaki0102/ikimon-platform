@@ -1,4 +1,5 @@
 import { getLongformMarkdown } from "./content/index.js";
+import { PRODUCTION_PUBLIC_ORIGIN } from "./services/trustedPublicOrigin.js";
 
 type LlmoSource = {
   title: string;
@@ -17,17 +18,29 @@ function normalizeExcerpt(markdown: string, maxChars = 4200): string {
   return `${normalized.slice(0, maxChars).trim()}\n\n...(continued on the canonical public page)`;
 }
 
-function sourceSection(source: LlmoSource): string {
+function sourcePublicUrl(source: LlmoSource, origin: string): string {
+  try {
+    const parsed = new URL(source.publicUrl);
+    if (["zukan.earth", "ikimon.life", "www.ikimon.life", "staging.zukan.earth", "staging.ikimon.life"].includes(parsed.hostname)) {
+      return `${origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    // Static source definitions are covered by generated output tests.
+  }
+  return source.publicUrl;
+}
+
+function sourceSection(source: LlmoSource, origin: string): string {
   return [
     `## Source: ${source.title}`,
     "",
-    `Canonical URL: ${source.publicUrl}`,
+    `Canonical URL: ${sourcePublicUrl(source, origin)}`,
     "",
     normalizeExcerpt(getLongformMarkdown("ja", source.pageId)),
   ].join("\n");
 }
 
-function buildFromSources(title: string, purpose: string, sources: LlmoSource[]): string {
+function buildFromSources(title: string, purpose: string, sources: LlmoSource[], origin = PRODUCTION_PUBLIC_ORIGIN): string {
   return [
     `# ${title}`,
     "",
@@ -35,22 +48,28 @@ function buildFromSources(title: string, purpose: string, sources: LlmoSource[])
     "",
     "この Markdown は既存の日本語 longform コンテンツから生成しています。編集時は元ページを更新し、この出力を正準参照用の薄いビューとして扱います。",
     "",
-    ...sources.map(sourceSection),
+    ...sources.map((source) => sourceSection(source, origin)),
     "",
   ].join("\n");
 }
 
-function sourceSectionWithLimit(source: LlmoSource, maxChars: number): string {
+function sourceSectionWithLimit(source: LlmoSource, maxChars: number, origin: string): string {
   return [
     `## Source: ${source.title}`,
     "",
-    `Canonical URL: ${source.publicUrl}`,
+    `Canonical URL: ${sourcePublicUrl(source, origin)}`,
     "",
     normalizeExcerpt(getLongformMarkdown("ja", source.pageId), maxChars),
   ].join("\n");
 }
 
-function buildFromSourcesWithLimit(title: string, purpose: string, sources: LlmoSource[], maxChars: number): string {
+function buildFromSourcesWithLimit(
+  title: string,
+  purpose: string,
+  sources: LlmoSource[],
+  maxChars: number,
+  origin = PRODUCTION_PUBLIC_ORIGIN,
+): string {
   return [
     `# ${title}`,
     "",
@@ -58,12 +77,12 @@ function buildFromSourcesWithLimit(title: string, purpose: string, sources: Llmo
     "",
     "この Markdown は既存の日本語 longform コンテンツから生成しています。編集時は元ページを更新し、この出力を正準参照用の薄いビューとして扱います。",
     "",
-    ...sources.map((source) => sourceSectionWithLimit(source, maxChars)),
+    ...sources.map((source) => sourceSectionWithLimit(source, maxChars, origin)),
     "",
   ].join("\n");
 }
 
-export function buildLlmsTxt(origin = "https://ikimon.life"): string {
+export function buildLlmsTxt(origin = PRODUCTION_PUBLIC_ORIGIN): string {
   const base = origin.replace(/\/+$/, "");
   return [
     "# ikimon.life",
@@ -115,16 +134,17 @@ const TERM_SOURCES: LlmoSource[] = [
   { title: "Natural capital", pageId: "term-natural-capital", publicUrl: "https://ikimon.life/ja/learn/terms/natural-capital" },
 ];
 
-export function buildLlmoTermsMarkdown(): string {
+export function buildLlmoTermsMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): string {
   return buildFromSourcesWithLimit(
     "ikimon.life Terms",
     "自然観察、生物多様性、同定、研究利用、政策・企業活動の用語を LLM が誤用しないための正準資料です。",
     TERM_SOURCES,
     1500,
+    origin,
   );
 }
 
-export function buildLlmoGuideMarkdown(): string {
+export function buildLlmoGuideMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): string {
   return buildFromSources(
     "ikimon.life Guide",
     "Guide / Record / Map のアプリ体験を理解するための LLM 向け正準資料です。",
@@ -133,10 +153,11 @@ export function buildLlmoGuideMarkdown(): string {
       { title: "Identification Basics", pageId: "learn-identification-basics", publicUrl: "https://ikimon.life/ja/learn/identification-basics" },
       { title: "About", pageId: "about", publicUrl: "https://ikimon.life/ja/about" },
     ],
+    origin,
   );
 }
 
-export function buildLlmoFaqMarkdown(): string {
+export function buildLlmoFaqMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): string {
   return buildFromSources(
     "ikimon.life FAQ",
     "利用者・学校・地域団体・LLM がよく参照する質問を、既存 FAQ と関連ページから束ねた正準資料です。",
@@ -145,10 +166,11 @@ export function buildLlmoFaqMarkdown(): string {
       { title: "Privacy", pageId: "privacy", publicUrl: "https://ikimon.life/ja/privacy" },
       { title: "Terms", pageId: "terms", publicUrl: "https://ikimon.life/ja/terms" },
     ],
+    origin,
   );
 }
 
-export function buildLlmoResearcherMarkdown(): string {
+export function buildLlmoResearcherMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): string {
   return buildFromSources(
     "ikimon.life for Researchers",
     "研究利用、同定品質、公開位置、Evidence Tier を説明するための LLM 向け正準資料です。",
@@ -157,5 +179,6 @@ export function buildLlmoResearcherMarkdown(): string {
       { title: "Methodology", pageId: "learn-methodology", publicUrl: "https://ikimon.life/ja/learn/methodology" },
       { title: "Field Loop", pageId: "learn-field-loop", publicUrl: "https://ikimon.life/ja/learn/field-loop" },
     ],
+    origin,
   );
 }
