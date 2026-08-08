@@ -1,5 +1,6 @@
 import baseWorker from "./index";
 import { enforceCameraFirstHomeCta } from "./cameraFirstHomeCta";
+import { patchCanonicalDomainPresentation, type DomainPresentationEnv } from "./domainPresentationPatch";
 import {
   authorizeOAuthStart,
   oauthErrorResponse,
@@ -18,7 +19,7 @@ type DelegatedWorker = Record<string, unknown> & {
   fetch(request: Request, env: unknown, ctx: unknown): Response | Promise<Response>;
 };
 
-type PublicPresentationEnv = OAuthBoundaryEnv & LegacyDomainRedirectEnv;
+type PublicPresentationEnv = OAuthBoundaryEnv & LegacyDomainRedirectEnv & DomainPresentationEnv;
 
 const delegatedWorker = baseWorker as DelegatedWorker;
 
@@ -50,6 +51,7 @@ export default {
     const responsive = await ensureStateSplitHomeResponsive(polished);
     const valueLoop = await enhancePostCaptureValueLoop(request, responsive);
     const compatible = await enforcePostCaptureValueLoopCompatibility(request, valueLoop);
-    return hardenSvgResponse(compatible);
+    const canonicalDomain = await patchCanonicalDomainPresentation(request, compatible, presentationEnv);
+    return hardenSvgResponse(canonicalDomain);
   },
 };
