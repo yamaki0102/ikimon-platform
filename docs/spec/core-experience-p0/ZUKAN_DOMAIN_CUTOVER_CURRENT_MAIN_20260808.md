@@ -22,7 +22,9 @@ Request origin and presentation origin are deliberately separate during migratio
 
 `LEGACY_HOST_REDIRECT_MODE` is fail-closed and disabled unless explicitly set to `enabled` in production.
 
-When enabled, only exact HTTPS `GET`/`HEAD` requests to legacy production hosts and safe page paths redirect to `zukan.earth`. API, media, assets, authentication, login/register, callbacks, webhooks, operations/internal paths, `.well-known`, PWA/static/dotted files and write methods never enter the redirect lane.
+When enabled, only exact HTTPS `GET`/`HEAD` requests to legacy production hosts and safe public page paths redirect to `zukan.earth`. API, media, assets, authentication, login/register, callbacks, webhooks, operations/internal paths, `.well-known`, PWA/static/dotted files and write methods never enter the redirect lane.
+
+The initial redirect phase also excludes session-bound or personalized surfaces such as Home, capture/Record, Profile/account/settings/notifications, Guide, app/debug, admin/specialist and `me` paths. Legacy host-only cookies are not silently migrated between domains. These paths stay on the receiving legacy host until a separately verified session-migration contract exists.
 
 Do not enable the redirect before the canonical production custom domain has passed exact-runtime verification and rollback remains proven.
 
@@ -37,7 +39,8 @@ Do not enable the redirect before the canonical production custom domain has pas
 7. Production deploy occurs through the protected release path with exact source identity and rollback locator.
 8. `zukan.earth` is verified while `ikimon.life` still serves rollback-compatible behavior.
 9. Only after the preceding gates pass may `LEGACY_HOST_REDIRECT_MODE=enabled` be approved.
-10. Post-cutover verification checks 1:1 path/query preservation, authentication exclusions, SEO canonicals, crawl controls and external monitoring.
+10. Post-cutover verification checks public 1:1 path/query preservation, authentication/session exclusions, SEO canonicals, crawl controls and external monitoring.
+11. Session-bound legacy paths are migrated only under a separate verified cookie/session strategy; they are not implicitly folded into the public redirect switch.
 
 ## Current external blocker
 
