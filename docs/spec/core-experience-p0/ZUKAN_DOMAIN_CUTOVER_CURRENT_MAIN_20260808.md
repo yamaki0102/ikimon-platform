@@ -28,6 +28,17 @@ The initial redirect phase also excludes session-bound or personalized surfaces 
 
 Do not enable the redirect before the canonical production custom domain has passed exact-runtime verification and rollback remains proven.
 
+## Remaining source reconciliation
+
+The current-main migration intentionally does not claim complete removal of every legacy-host literal. Before production cutover, reconcile these remaining source-level surfaces against current `main`, using historical PR #1520 only as a reference and never as a merge source:
+
+- `platform_v2/src/app.ts`: production/staging public-host identity, CSP and origin-dependent runtime configuration.
+- `platform_v2/src/ui/siteShell.ts`: static `PUBLIC_ORIGIN` and canonical/alternate/OGP/structured-data generation. The Worker final-presentation patch currently protects runtime SEO output, but source ownership should still move to the canonical-origin contract.
+- `platform_v2/cloudflare_shadow/src/index.ts`: public custom-host allowlists, CSP/connect-src, write-host gating, reporting/attribution URLs, production shadow origin and staging QA host. This file is large and must be reconciled with a repository execution surface that can safely read, patch and test the exact current file.
+- `platform_v2/cloudflare_shadow/wrangler.jsonc` and release/runtime configuration: make custom-domain routing and the disabled-by-default legacy redirect contract explicit without bypassing Release Commander.
+
+A source literal is not changed merely because it contains `ikimon.life`: product copy, historical identifiers, rollback contracts and host-bound security references may intentionally remain. Only transport/canonical/configuration ownership moves to `zukan.earth`.
+
 ## Cutover gates
 
 1. Current PR exact head is validated by the canonical repository execution lane.
