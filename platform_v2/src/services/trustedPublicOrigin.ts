@@ -1,16 +1,31 @@
-export const PRODUCTION_PUBLIC_ORIGIN = "https://ikimon.life";
-export const STAGING_PUBLIC_ORIGIN = "https://staging.ikimon.life";
+export const PRODUCTION_PUBLIC_ORIGIN = "https://zukan.earth";
+export const LEGACY_PRODUCTION_PUBLIC_ORIGIN = "https://ikimon.life";
+export const STAGING_PUBLIC_ORIGIN = "https://staging.zukan.earth";
+export const LEGACY_STAGING_PUBLIC_ORIGIN = "https://staging.ikimon.life";
 export const RUNTIME_PUBLIC_ORIGIN_HEADER = "x-ikimon-runtime-public-origin";
 
 const ALLOWED_PUBLIC_ORIGINS = new Set([
   PRODUCTION_PUBLIC_ORIGIN,
+  LEGACY_PRODUCTION_PUBLIC_ORIGIN,
   STAGING_PUBLIC_ORIGIN,
+  LEGACY_STAGING_PUBLIC_ORIGIN,
 ]);
 
+// Security-sensitive request origin stays bound to the host/environment that
+// actually received the request. Presentation URLs are canonicalized later.
 const PUBLIC_ORIGIN_BY_HOST = new Map([
-  ["ikimon.life", PRODUCTION_PUBLIC_ORIGIN],
-  ["www.ikimon.life", PRODUCTION_PUBLIC_ORIGIN],
-  ["staging.ikimon.life", STAGING_PUBLIC_ORIGIN],
+  ["zukan.earth", PRODUCTION_PUBLIC_ORIGIN],
+  ["ikimon.life", LEGACY_PRODUCTION_PUBLIC_ORIGIN],
+  ["www.ikimon.life", LEGACY_PRODUCTION_PUBLIC_ORIGIN],
+  ["staging.zukan.earth", STAGING_PUBLIC_ORIGIN],
+  ["staging.ikimon.life", LEGACY_STAGING_PUBLIC_ORIGIN],
+]);
+
+const PRESENTATION_ORIGIN_BY_REQUEST_ORIGIN = new Map([
+  [PRODUCTION_PUBLIC_ORIGIN, PRODUCTION_PUBLIC_ORIGIN],
+  [LEGACY_PRODUCTION_PUBLIC_ORIGIN, PRODUCTION_PUBLIC_ORIGIN],
+  [STAGING_PUBLIC_ORIGIN, STAGING_PUBLIC_ORIGIN],
+  [LEGACY_STAGING_PUBLIC_ORIGIN, STAGING_PUBLIC_ORIGIN],
 ]);
 
 const LOCAL_DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -112,7 +127,9 @@ export function resolvePresentationPublicOrigin(
   } = {},
 ): string | null {
   try {
-    return resolveTrustedPublicOrigin(request, options);
+    const trustedOrigin = resolveTrustedPublicOrigin(request, options);
+    if (!trustedOrigin) return null;
+    return PRESENTATION_ORIGIN_BY_REQUEST_ORIGIN.get(trustedOrigin) ?? trustedOrigin;
   } catch {
     return null;
   }
