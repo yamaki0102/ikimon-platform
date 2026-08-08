@@ -13,23 +13,23 @@ export async function registerLlmoRoutes(app: FastifyInstance): Promise<void> {
     return buildLlmsTxt(requestOrigin(request as unknown as { headers: Record<string, unknown>; protocol?: string }));
   });
 
-  app.get("/llms/guide.md", async (_request, reply) => {
+  app.get("/llms/guide.md", async (request, reply) => {
     reply.type("text/markdown; charset=utf-8").header("Cache-Control", "public, max-age=3600");
-    return buildLlmoGuideMarkdown();
+    return buildLlmoGuideMarkdown(requestOrigin(request as unknown as { headers: Record<string, unknown>; protocol?: string }));
   });
 
-  app.get("/llms/faq.md", async (_request, reply) => {
+  app.get("/llms/faq.md", async (request, reply) => {
     reply.type("text/markdown; charset=utf-8").header("Cache-Control", "public, max-age=3600");
-    return buildLlmoFaqMarkdown();
+    return buildLlmoFaqMarkdown(requestOrigin(request as unknown as { headers: Record<string, unknown>; protocol?: string }));
   });
 
-  app.get("/llms/researcher.md", async (_request, reply) => {
+  app.get("/llms/researcher.md", async (request, reply) => {
     reply.type("text/markdown; charset=utf-8").header("Cache-Control", "public, max-age=3600");
-    return buildLlmoResearcherMarkdown();
+    return buildLlmoResearcherMarkdown(requestOrigin(request as unknown as { headers: Record<string, unknown>; protocol?: string }));
   });
 
-  app.get("/llms/terms.md", async (_request, reply) => {
+  app.get("/llms/terms.md", async (request, reply) => {
     reply.type("text/markdown; charset=utf-8").header("Cache-Control", "public, max-age=3600");
-    return buildLlmoTermsMarkdown();
+    return buildLlmoTermsMarkdown(requestOrigin(request as unknown as { headers: Record<string, unknown>; protocol?: string }));
   });
 }
