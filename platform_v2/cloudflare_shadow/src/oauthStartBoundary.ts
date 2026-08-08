@@ -1,7 +1,7 @@
-const PRODUCTION_ORIGIN = "https://ikimon.life";
-const STAGING_ORIGIN = "https://staging.ikimon.life";
-const PRODUCTION_HOSTS = new Set(["ikimon.life", "www.ikimon.life"]);
-const STAGING_HOSTS = new Set(["staging.ikimon.life"]);
+const PRODUCTION_CANONICAL_ORIGIN = "https://zukan.earth";
+const STAGING_CANONICAL_ORIGIN = "https://staging.zukan.earth";
+const PRODUCTION_HOSTS = new Set(["zukan.earth", "ikimon.life", "www.ikimon.life"]);
+const STAGING_HOSTS = new Set(["staging.zukan.earth", "staging.ikimon.life"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 const BROWSER_OAUTH_START_PATH = /^\/auth\/oauth\/(google|twitter)\/start\/?$/u;
 const APP_OAUTH_START_PATH = /^\/app_oauth_start\.php\/?$/u;
@@ -23,10 +23,23 @@ function strictHostHeader(request: Request): string | null {
   return normalized && !normalized.includes(",") ? normalized : null;
 }
 
+function exactAllowedRequestOrigin(request: Request, allowedHosts: ReadonlySet<string>): string | null {
+  const url = new URL(request.url);
+  const rawHost = strictHostHeader(request);
+  const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (!rawHost || rawHost !== url.host.toLowerCase()) return null;
+  if (url.protocol !== "https:" || url.port || !allowedHosts.has(hostname)) return null;
+  return url.origin;
+}
+
 function safeErrorOrigin(request: Request, env: OAuthBoundaryEnv): string {
   const environment = environmentName(env);
-  if (environment === "production") return PRODUCTION_ORIGIN;
-  if (environment === "staging") return STAGING_ORIGIN;
+  if (environment === "production") {
+    return exactAllowedRequestOrigin(request, PRODUCTION_HOSTS) ?? PRODUCTION_CANONICAL_ORIGIN;
+  }
+  if (environment === "staging") {
+    return exactAllowedRequestOrigin(request, STAGING_HOSTS) ?? STAGING_CANONICAL_ORIGIN;
+  }
 
   const url = new URL(request.url);
   const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
@@ -36,7 +49,7 @@ function safeErrorOrigin(request: Request, env: OAuthBoundaryEnv): string {
         && (PRODUCTION_HOSTS.has(hostname) || STAGING_HOSTS.has(hostname)))) {
     return url.origin;
   }
-  return PRODUCTION_ORIGIN;
+  return PRODUCTION_CANONICAL_ORIGIN;
 }
 
 export function oauthStartKind(request: Request): OAuthStartKind {
