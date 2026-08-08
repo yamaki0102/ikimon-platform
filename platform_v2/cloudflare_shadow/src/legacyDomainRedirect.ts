@@ -20,6 +20,10 @@ export function isSafeLegacyPublicPagePath(pathname: string): boolean {
   const path = normalizedPathname(pathname);
   if (!path.startsWith("/") || path.includes("\\") || path.includes("\u0000")) return false;
   if (path.split("/").at(-1)?.includes(".")) return false;
+
+  // Legacy host-only sessions are intentionally not moved between domains.
+  // Keep account, capture, personalized guide and administration surfaces on
+  // the receiving host until an explicit session-migration contract exists.
   return ![
     "/api",
     "/assets",
@@ -35,6 +39,18 @@ export function isSafeLegacyPublicPagePath(pathname: string): boolean {
     "/ops",
     "/internal",
     "/.well-known",
+    "/home",
+    "/record",
+    "/profile",
+    "/account",
+    "/settings",
+    "/notifications",
+    "/guide",
+    "/app",
+    "/debug",
+    "/admin",
+    "/specialist",
+    "/me",
   ].some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 
