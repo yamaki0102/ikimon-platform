@@ -1,9 +1,20 @@
 const OGP_DEFAULT_PATH = "/assets/brand/zukan-ogp-default.png";
 const PUBLIC_ASSET_ORIGIN_BY_TARGET_ENV = {
-  production: "https://ikimon.life",
-  staging: "https://staging.ikimon.life",
+  production: "https://zukan.earth",
+  staging: "https://staging.zukan.earth",
 } as const;
-const ALLOWED_PUBLIC_ASSET_ORIGINS: ReadonlySet<string> = new Set(Object.values(PUBLIC_ASSET_ORIGIN_BY_TARGET_ENV));
+const LEGACY_PUBLIC_ASSET_ORIGIN_TO_CANONICAL = new Map([
+  ["https://ikimon.life", PUBLIC_ASSET_ORIGIN_BY_TARGET_ENV.production],
+  ["https://staging.ikimon.life", PUBLIC_ASSET_ORIGIN_BY_TARGET_ENV.staging],
+]);
+const ALLOWED_PUBLIC_ASSET_ORIGINS: ReadonlySet<string> = new Set([
+  ...Object.values(PUBLIC_ASSET_ORIGIN_BY_TARGET_ENV),
+  ...LEGACY_PUBLIC_ASSET_ORIGIN_TO_CANONICAL.keys(),
+]);
+
+function canonicalAssetOrigin(value: string): string {
+  return LEGACY_PUBLIC_ASSET_ORIGIN_TO_CANONICAL.get(value) ?? value;
+}
 
 export function resolveZukanPublicAssetOrigin(
   configuredOrigin: string | undefined = process.env.ZUKAN_PUBLIC_ASSET_ORIGIN,
@@ -12,7 +23,7 @@ export function resolveZukanPublicAssetOrigin(
   const rawConfiguredOrigin = String(configuredOrigin ?? "").trim();
   if (rawConfiguredOrigin) {
     const normalizedOrigin = rawConfiguredOrigin.replace(/\/+$/, "");
-    return ALLOWED_PUBLIC_ASSET_ORIGINS.has(normalizedOrigin) ? normalizedOrigin : "";
+    return ALLOWED_PUBLIC_ASSET_ORIGINS.has(normalizedOrigin) ? canonicalAssetOrigin(normalizedOrigin) : "";
   }
 
   const targetEnvIndex = argv.lastIndexOf("--target-env");
@@ -27,7 +38,7 @@ export function zukanOgpDefaultAssetUrl(
 ): string {
   const normalizedOrigin = String(publicAssetOrigin ?? "").trim().replace(/\/+$/, "");
   return ALLOWED_PUBLIC_ASSET_ORIGINS.has(normalizedOrigin)
-    ? `${normalizedOrigin}${OGP_DEFAULT_PATH}`
+    ? `${canonicalAssetOrigin(normalizedOrigin)}${OGP_DEFAULT_PATH}`
     : OGP_DEFAULT_PATH;
 }
 
