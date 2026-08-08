@@ -14,11 +14,12 @@ test("legacy redirect remains fail-closed until the production switch is enabled
   }), null);
 });
 
-test("enabled legacy redirect preserves locale, path, and query on safe GET/HEAD pages", () => {
+test("enabled legacy redirect preserves locale, path, and query on safe public GET/HEAD pages", () => {
   for (const [url, method, expected] of [
     ["https://ikimon.life/", "GET", "https://zukan.earth/"],
     ["https://ikimon.life/ja/map?from=qr&x=1", "GET", "https://zukan.earth/ja/map?from=qr&x=1"],
     ["https://www.ikimon.life/en/learn?q=bird", "HEAD", "https://zukan.earth/en/learn?q=bird"],
+    ["https://ikimon.life/ja/observations/visit-1", "GET", "https://zukan.earth/ja/observations/visit-1"],
   ] as const) {
     const response = legacyDomainRedirect(request(url, method), {
       ENVIRONMENT: "production",
@@ -30,7 +31,7 @@ test("enabled legacy redirect preserves locale, path, and query on safe GET/HEAD
   }
 });
 
-test("redirect never captures writes, auth, API, media, static, callback, or operations surfaces", () => {
+test("redirect never captures writes, auth, API, media, static, callback, operations, or session-bound surfaces", () => {
   for (const [method, path] of [
     ["POST", "/record"],
     ["PUT", "/records/1"],
@@ -46,6 +47,16 @@ test("redirect never captures writes, auth, API, media, static, callback, or ope
     ["GET", "/manifest.webmanifest"],
     ["GET", "/robots.txt"],
     ["GET", "/sitemap.xml"],
+    ["GET", "/home"],
+    ["GET", "/ja/home"],
+    ["GET", "/record"],
+    ["GET", "/ja/record/photo"],
+    ["GET", "/profile/me"],
+    ["GET", "/settings"],
+    ["GET", "/notifications"],
+    ["GET", "/guide"],
+    ["GET", "/admin"],
+    ["GET", "/specialist/id-workbench"],
   ] as const) {
     assert.equal(
       legacyDomainRedirect(request(`https://ikimon.life${path}`, method), {
@@ -75,10 +86,13 @@ test("host spoofing and non-HTTPS requests fail closed", () => {
   );
 });
 
-test("safe path classifier keeps the page/static boundary explicit", () => {
+test("safe path classifier keeps public pages separate from static and session-bound surfaces", () => {
   assert.equal(isSafeLegacyPublicPagePath("/ja/map"), true);
   assert.equal(isSafeLegacyPublicPagePath("/records/abc"), true);
+  assert.equal(isSafeLegacyPublicPagePath("/observations/abc"), true);
   assert.equal(isSafeLegacyPublicPagePath("/api/records"), false);
   assert.equal(isSafeLegacyPublicPagePath("/ja/auth/oauth/google/start"), false);
+  assert.equal(isSafeLegacyPublicPagePath("/ja/home"), false);
+  assert.equal(isSafeLegacyPublicPagePath("/profile/me"), false);
   assert.equal(isSafeLegacyPublicPagePath("/app-sw.js"), false);
 });
