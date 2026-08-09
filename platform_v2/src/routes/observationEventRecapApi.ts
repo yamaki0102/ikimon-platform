@@ -89,7 +89,7 @@ export async function registerObservationEventRecapRoutes(app: FastifyInstance):
       if (!canAccessOfficialEventOutputs(report.session, auth?.userId ?? null)) {
         return reply.status(403).send({ error: "public plan or organizer required" });
       }
-      const filename = `ikimon-event-${report.session.sessionId}-species.csv`;
+      const filename = `zukan-event-${report.session.sessionId}-species.csv`;
       reply
         .header("Content-Type", "text/csv; charset=utf-8")
         .header("Content-Disposition", `attachment; filename="${filename}"`);

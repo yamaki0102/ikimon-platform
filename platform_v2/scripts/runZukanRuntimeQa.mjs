@@ -14,7 +14,7 @@ const materializationReportPath = path.join(
   "cloudflare_shadow",
   "materialize-staging-original-ui.json",
 );
-const stagingBaseUrl = (process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life").replace(/\/+$/u, "");
+const stagingBaseUrl = (process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth").replace(/\/+$/u, "");
 const expectedSha = String(process.env.IKIMON_EXPECTED_GIT_SHA ?? "").trim();
 const chromiumExecutable = String(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ?? "").trim();
 const materializationNotBefore = String(process.env.ZUKAN_MATERIALIZATION_NOT_BEFORE ?? "").trim();
@@ -31,8 +31,8 @@ const MAP_KEYS = Object.freeze({
 });
 
 function assertConfiguration() {
-  if (stagingBaseUrl !== "https://staging.ikimon.life") {
-    throw new Error("ZUKAN runtime QA is pinned to https://staging.ikimon.life");
+  if (stagingBaseUrl !== "https://staging.zukan.earth") {
+    throw new Error("ZUKAN runtime QA is pinned to https://staging.zukan.earth");
   }
   if (!/^[a-f0-9]{40}$/u.test(expectedSha)) {
     throw new Error("IKIMON_EXPECTED_GIT_SHA must be an exact lowercase 40-character SHA");

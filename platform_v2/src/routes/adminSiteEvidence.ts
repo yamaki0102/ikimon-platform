@@ -326,7 +326,7 @@ export async function registerAdminSiteEvidenceRoutes(app: FastifyInstance): Pro
       reply.code(403);
       return renderSiteDocument({
         basePath: "",
-        title: "月次 site evidence report — ikimon.life",
+        title: "月次 site evidence report — ZUKAN",
         extraStyles: SITE_EVIDENCE_STYLES,
         body: loginGate("/admin/site-evidence"),
       });
@@ -337,7 +337,7 @@ export async function registerAdminSiteEvidenceRoutes(app: FastifyInstance): Pro
       reply.code(fieldId ? 404 : 200);
       return renderSiteDocument({
         basePath: "",
-        title: "月次 site evidence report — ikimon.life",
+        title: "月次 site evidence report — ZUKAN",
         extraStyles: SITE_EVIDENCE_STYLES,
         body: emptyState(fieldId ? "指定fieldのレポートを生成できませんでした。" : "表示できるfieldがまだありません。"),
       });
@@ -345,7 +345,7 @@ export async function registerAdminSiteEvidenceRoutes(app: FastifyInstance): Pro
 
     return renderSiteDocument({
       basePath: "",
-      title: "月次 site evidence report — ikimon.life",
+      title: "月次 site evidence report — ZUKAN",
       extraStyles: SITE_EVIDENCE_STYLES,
       body: renderReportBody(report, month),
     });
@@ -358,7 +358,7 @@ export async function registerAdminSiteEvidenceRoutes(app: FastifyInstance): Pro
       reply.code(403);
       return renderSiteDocument({
         basePath: "",
-        title: "月次 site evidence report 印刷 — ikimon.life",
+        title: "月次 site evidence report 印刷 — ZUKAN",
         extraStyles: SITE_EVIDENCE_STYLES,
         body: loginGate("/admin/site-evidence/print"),
       });
@@ -369,7 +369,7 @@ export async function registerAdminSiteEvidenceRoutes(app: FastifyInstance): Pro
       reply.code(fieldId ? 404 : 200);
       return renderSiteDocument({
         basePath: "",
-        title: "月次 site evidence report 印刷 — ikimon.life",
+        title: "月次 site evidence report 印刷 — ZUKAN",
         extraStyles: SITE_EVIDENCE_STYLES,
         shellClassName: "print-surface",
         body: emptyState(fieldId ? "指定fieldの印刷用レポートを生成できませんでした。" : "表示できるfieldがまだありません。"),
@@ -378,7 +378,7 @@ export async function registerAdminSiteEvidenceRoutes(app: FastifyInstance): Pro
 
     return renderSiteDocument({
       basePath: "",
-      title: "月次 site evidence report 印刷 — ikimon.life",
+      title: "月次 site evidence report 印刷 — ZUKAN",
       extraStyles: SITE_EVIDENCE_STYLES,
       shellClassName: "print-surface",
       body: renderPrintBody(report),

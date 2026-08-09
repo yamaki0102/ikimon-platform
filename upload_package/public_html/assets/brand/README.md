@@ -1,27 +1,34 @@
-# ZUKAN Brand Assets
+# ZUKAN brand assets
 
-Canonical current-app assets for the public service **ZUKAN**. The legal/operator identity remains IKIMON株式会社 and the technical runtime identifiers remain `ikimon.life`.
+The authoritative ZUKAN artwork in this directory is copied without redesign or recoloring from:
 
-## Current assets
+- Repository: `yamaki0102/all-projects-management`
+- Source commit: `c2833f0185fad87ce8ce16d853f74d57447a4898`
+- Canonical directory: `docs/zukan/brand/final/`
+- Canonical index: `docs/brand-assets/CODEX_BRAND_ASSETS.md`
 
-- `zukan-symbol.svg`: standalone ZUKAN mark.
-- `zukan-wordmark.svg`: ZUKAN wordmark.
-- `zukan-lockup.svg`: horizontal mark and wordmark.
-- `zukan-app-icon.svg`: standard browser/PWA icon.
-- `zukan-app-icon-maskable.svg`: maskable PWA icon with a larger safe zone.
-- `zukan-app-icon-192.png` / `zukan-app-icon-512.png`: PWA `any` icons.
-- `zukan-app-icon-192-maskable.png` / `zukan-app-icon-512-maskable.png`: PWA maskable icons with the artwork kept inside the 40% safe-zone radius.
-- `zukan-apple-touch-icon.png`: 180×180 Apple touch icon.
-- `zukan-favicon-32.png`: 32×32 browser favicon.
-- `zukan-ogp-default.png`: opaque 1200×630 social preview.
-- `/favicon.ico`: 32px ZUKAN PNG wrapped in an ICO container.
+`brand-manifest.json` records the canonical path and SHA-256 digest for every source SVG. The primary message defined by the source is「撮ると、まちの今が図鑑になる。」.
 
-Regenerate the committed raster derivatives deterministically from the SVG sources:
+## Usage
+
+- `zukan-primary.svg`: horizontal primary logo for headers and wide surfaces.
+- `zukan-icon.svg`: standard standalone icon.
+- `zukan-app-icon.svg`: app/PWA icon and favicon source at every generated browser size.
+- `zukan-icon-small.svg`: preferred source only for 16–24px inline UI surfaces.
+- `zukan-icon-mono.svg` / `zukan-primary-mono.svg`: monochrome-only use.
+- `brand-tokens.json`: canonical color and usage tokens.
+
+The four older SVG route names are retained only as byte-for-byte compatibility aliases to canonical artwork. They must not be used by new UI:
+
+- `zukan-symbol.svg` → `zukan-icon.svg`
+- `zukan-wordmark.svg` → `zukan-primary.svg`
+- `zukan-lockup.svg` → `zukan-primary.svg`
+- `zukan-app-icon-maskable.svg` → `zukan-app-icon.svg`
+
+Raster, OGP, and multi-size favicon files are deterministically generated from the canonical SVGs:
 
 ```bash
 node platform_v2/scripts/generate-zukan-brand-assets.mjs
 ```
 
-The assets were reconstructed from the adopted source image recorded in `ikimon-business-strategy/decisions/2026-07-28-zukan-logo-source-assets.md`. The SVG geometry uses smooth vector curves and true circles; do not replace it with pixel-traced polygon steps. Do not change the symbol concept, colors, or four-dot order without updating the strategy decision first.
-
-Legacy `ikimon-*` files remain available for rollback and compatibility. New current-app references must use the ZUKAN files above.
+Legacy `ikimon-*` files remain for rollback compatibility. Current ZUKAN UI must use only the canonical ZUKAN routes above.

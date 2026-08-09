@@ -180,7 +180,7 @@ function buildLocalDigest(userId: string, context: DigestContext, sourceObservat
 
 function buildDigestPrompt(context: DigestContext, localDigest: ProfileNoteDigest): string {
   const payload = {
-    task: "ikimon.life profile notebook digest",
+    task: "ZUKAN profile notebook digest",
     constraints: [
       "Japanese only",
       "Do not encourage posting or writing",

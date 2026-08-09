@@ -6,7 +6,7 @@ import {
   suppressMapLibreForSmoke,
 } from "./support/staging.js";
 
-const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life";
+const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth";
 const STAGING_ORIGIN = new URL(STAGING_BASE_URL).origin;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const FIELD_ID = "d50678d0-ba57-4d3d-a713-2fe441d646ab";

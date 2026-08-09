@@ -21,7 +21,7 @@ const ASSETS_TO_CACHE = [
     'assets/css/style.css',
     'assets/css/skeleton.css',
     'assets/css/input.css',
-    'assets/img/pwa-icon-192.png',
+    'assets/brand/zukan-app-icon-192.png',
     'manifest.php'
 ];
 

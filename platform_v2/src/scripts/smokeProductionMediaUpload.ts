@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
+import { isCanonicalOrLegacyProductionHost } from "../services/zukanPublicHost.js";
 
 type SmokeOptions = {
   baseUrl: string;
@@ -65,7 +66,7 @@ type JsonResponse = {
   body: unknown;
 };
 
-const DEFAULT_BASE_URL = "https://ikimon.life";
+const DEFAULT_BASE_URL = "https://zukan.earth";
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
 const SAFE_FIXTURE_PREFIX_RE = /^prod-media-smoke-[A-Za-z0-9_-]{6,96}$/;
 
@@ -124,7 +125,7 @@ function parseArgs(argv: string[]): SmokeOptions {
 function isProductionBaseUrl(baseUrl: string): boolean {
   try {
     const hostname = new URL(baseUrl).hostname.toLowerCase();
-    return hostname === "ikimon.life" || hostname === "www.ikimon.life";
+    return isCanonicalOrLegacyProductionHost(hostname);
   } catch {
     return false;
   }

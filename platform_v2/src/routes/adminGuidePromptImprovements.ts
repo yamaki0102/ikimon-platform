@@ -195,7 +195,7 @@ export async function registerAdminGuidePromptImprovementRoutes(app: FastifyInst
       reply.code(403);
       return renderSiteDocument({
         basePath: "",
-        title: "ガイド改善レビュー — ikimon.life",
+        title: "ガイド改善レビュー — ZUKAN",
         extraStyles: STYLES,
         body: loginGate(),
       });
@@ -228,7 +228,7 @@ export async function registerAdminGuidePromptImprovementRoutes(app: FastifyInst
 <script>${SCRIPT}</script>`;
     return renderSiteDocument({
       basePath: "",
-      title: "ガイド改善レビュー — ikimon.life",
+      title: "ガイド改善レビュー — ZUKAN",
       extraStyles: STYLES,
       body,
     });

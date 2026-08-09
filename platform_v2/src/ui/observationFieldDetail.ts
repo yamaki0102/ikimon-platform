@@ -30,9 +30,12 @@ function isIkimonUrl(url: string): boolean {
   if (!value) return false;
   try {
     const parsed = new URL(value);
-    return parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
+    return parsed.hostname === "zukan.earth"
+      || parsed.hostname.endsWith(".zukan.earth")
+      || parsed.hostname === "ikimon.life"
+      || parsed.hostname.endsWith(".ikimon.life");
   } catch {
-    return /^https?:\/\/(?:[^/]+\.)?ikimon\.life(?:[/:?#]|$)/i.test(value);
+    return /^https?:\/\/(?:[^/]+\.)?(?:zukan\.earth|ikimon\.life)(?:[/:?#]|$)/i.test(value);
   }
 }
 

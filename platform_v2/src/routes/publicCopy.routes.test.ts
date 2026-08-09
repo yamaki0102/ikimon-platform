@@ -229,7 +229,7 @@ test("home page gives guests a clear place-first path without competing with foo
   assert.match(html, /フッターから記録/);
   assert.match(html, /地域の記録や地図から、次に歩く場所を選べます。/);
   assert.match(html, /みんなの最近の観察/);
-  assert.match(html, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/home" \/>/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/home" \/>/);
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
 });
 
@@ -289,7 +289,7 @@ test("home page keeps the signed-in desktop dashboard compact", () => {
   assert.match(html, /名前を確かめる/);
   assert.match(html, /home-continue-strip/);
   assert.match(html, /今日の入口/);
-  assert.match(html, /ikimon\.lifeの流れ/);
+  assert.match(html, /ZUKANの流れ/);
   assert.match(html, /記録する/);
   assert.match(html, /地図で見る/);
   assert.match(html, /フッターから記録/);

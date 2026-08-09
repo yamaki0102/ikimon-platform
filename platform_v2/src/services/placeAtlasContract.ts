@@ -1,3 +1,5 @@
+import { isCanonicalOrLegacyPublicHost } from "./zukanPublicHost.js";
+
 export const PLACE_ATLAS_PROFILE_VERSION = "place_atlas_profile/v1" as const;
 export const PLACE_ATLAS_DEFAULT_MIN_PUBLIC_RECORDS = 3;
 
@@ -258,8 +260,12 @@ function safeMediaUrl(value: unknown): string | null {
   }
   try {
     const parsed = new URL(url);
-    const allowedHost = parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
-    return parsed.protocol === "https:" && allowedHost ? parsed.toString() : null;
+    return parsed.protocol === "https:"
+      && parsed.username === ""
+      && parsed.password === ""
+      && isCanonicalOrLegacyPublicHost(parsed.hostname)
+      ? parsed.toString()
+      : null;
   } catch {
     return null;
   }

@@ -30,7 +30,7 @@ if (!$site) {
 CspNonce::sendHeader();
 
 // Ensure the site has a sponsor to display (though we display it either way for MVP)
-$sponsorName = $site['sponsor']['name'] ?? 'ikimon.life Community';
+$sponsorName = $site['sponsor']['name'] ?? 'ZUKAN Community';
 
 // Fetch stats using the monitoring reference scorer.
 $stats = MonitoringReferenceScorer::calculateSiteStats($siteId);
@@ -46,7 +46,7 @@ $textColor = $theme === 'light' ? 'text-gray-800' : 'text-[#1a2e1f]';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ikimon.life Living Data Feed</title>
+    <title>ZUKAN Living Data Feed</title>
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script src="https://unpkg.com/lucide@0.477.0/dist/umd/lucide.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
@@ -170,14 +170,14 @@ $textColor = $theme === 'light' ? 'text-gray-800' : 'text-[#1a2e1f]';
         <!-- Footer / Branding -->
         <div class="pt-3 border-t border-gray-100 flex items-center justify-between">
             <div class="flex flex-col">
-                <a href="https://ikimon.life/site_dashboard.php?site=<?php echo urlencode($siteId); ?>" target="_blank" rel="noopener noreferrer" class="text-[10px] text-gray-400 hover:text-emerald-500 transition font-bold flex items-center gap-1">
+                <a href="https://zukan.earth/site_dashboard.php?site=<?php echo urlencode($siteId); ?>" target="_blank" rel="noopener noreferrer" class="text-[10px] text-gray-400 hover:text-emerald-500 transition font-bold flex items-center gap-1">
                     詳細レポートを見る <i data-lucide="external-link" class="w-3 h-3"></i>
                 </a>
                 <span class="text-[8px] text-gray-400 mt-0.5 leading-tight">*市民観測に基づく参考データ</span>
             </div>
-            <a href="https://ikimon.life" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition pl-2">
-                <img src="https://ikimon.life/assets/images/logo_icon.svg" alt="ikimon.life" class="w-4 h-4" onerror="this.style.display='none'">
-                <span class="text-[10px] font-black text-gray-800 tracking-tight stat-number">ikimon.life</span>
+            <a href="https://zukan.earth" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition pl-2">
+                <img src="https://zukan.earth/assets/brand/zukan-icon-small.svg" alt="ZUKAN" class="w-4 h-4">
+                <span class="text-[10px] font-black text-gray-800 tracking-tight stat-number">ZUKAN</span>
             </a>
         </div>
     </div>

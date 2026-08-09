@@ -20,6 +20,11 @@ test("guide spot copy is sourced and summarized instead of copied as long offici
     assert.ok(spot.script.length < 360);
     assert.ok(spot.sourceLinks.every((link) => /^https:\/\/www\.city\.hamamatsu\.shizuoka\.jp\//.test(link.url) || /^https:\/\/i-kan\.co\.jp\//.test(link.url)));
   }
+
+  const heritageProgramSpot = MAP_GUIDE_SPOTS.find((spot) => spot.id === "hamamatsu-heritage-system");
+  assert.ok(heritageProgramSpot);
+  assert.match(heritageProgramSpot.storyPoints.join("\n"), /ZUKANのガイド/);
+  assert.doesNotMatch(heritageProgramSpot.storyPoints.join("\n"), /ikimonのガイド/);
 });
 
 test("guide spots carry P0 unlock safety and relay program metadata", () => {

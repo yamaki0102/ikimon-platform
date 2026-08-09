@@ -14,7 +14,9 @@ ZUKAN connects regional photographs, documents, observations, activities, events
 
 Public message:
 
-> 地域の記録を、みんなで育てる。
+> 撮ると、まちの今が図鑑になる。
+
+Brand source: `yamaki0102/all-projects-management@c2833f0185fad87ce8ce16d853f74d57447a4898` / `docs/zukan/brand/final/README.md`
 
 Product definition:
 

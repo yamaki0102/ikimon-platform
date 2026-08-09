@@ -1,6 +1,6 @@
 # Entrada de comunidad
 
-ikimon empieza con observaciones que una persona puede hacer sola. Mirar el mismo lugar con otras personas añade otra capa: las diferencias que una persona puede pasar por alto se vuelven más fáciles de notar y revisar.
+ZUKAN empieza con observaciones que una persona puede hacer sola. Mirar el mismo lugar con otras personas añade otra capa: las diferencias que una persona puede pasar por alto se vuelven más fáciles de notar y revisar.
 
 ## Qué vive aquí
 

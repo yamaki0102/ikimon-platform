@@ -72,8 +72,7 @@ $primaryNavItems = [
         <div class="min-w-0 flex flex-1 items-center gap-3 xl:gap-4">
             <!-- Logo -->
             <a href="/" class="flex shrink-0 items-center gap-2 group whitespace-nowrap">
-                <img src="/assets/img/icon-192.png" alt="ikimon" class="w-8 h-8 rounded-md shadow-md group-hover:scale-105 transition duration-500">
-                <span class="text-lg font-black tracking-tight font-heading text-text">ikimon</span>
+                <img src="/assets/brand/zukan-primary.svg" alt="ZUKAN" class="h-8 w-auto transition duration-500 group-hover:scale-[1.02]">
             <?php if (defined('IS_STAGING_SITE') && IS_STAGING_SITE): ?>
                 <span class="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black tracking-[0.18em] text-amber-900">
                     STAGING
@@ -789,7 +788,7 @@ $primaryNavItems = [
         <span class="text-2xl">🌿</span>
     </div>
     <div class="flex-1 min-w-0">
-        <p class="text-sm font-bold text-text"><?php echo __('nav.pwa_install_title', 'Install ikimon'); ?></p>
+        <p class="text-sm font-bold text-text"><?php echo __('nav.pwa_install_title', 'Install ZUKAN'); ?></p>
         <p class="text-xs text-muted"><?php echo __('nav.pwa_install_body', 'Launch quickly from your home screen.'); ?></p>
     </div>
     <div class="flex gap-2 shrink-0">

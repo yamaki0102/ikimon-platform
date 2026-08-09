@@ -273,7 +273,7 @@ const DEFAULT_CLAIM_BOUNDARY = [
 const SHIZUOKA_SOURCE_REFERENCE: MunicipalWalkMapSourceReferenceV0 = {
   label: "静岡市 いきもの散策マップ",
   url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
-  note: "静岡市公式ページを出典として、ikimon.life用に再構成したサンプル。PDF本文や図版は転載していません。",
+  note: "静岡市公式ページを出典として、ZUKAN用に再構成したサンプル。PDF本文や図版は転載していません。",
 };
 const VALID_THEMES: readonly MunicipalWalkMapThemeV0[] = [
   "seasonal_walk",
@@ -346,7 +346,7 @@ const DEFAULT_CREATOR_PROFILE: MunicipalWalkMapCreatorProfileV0 = {
 const STATIC_SAMPLE_PUBLICATION_REVIEW: MunicipalWalkMapPublicationReviewV0 = {
   publicAccessAttested: true,
   sourceRightsAttested: true,
-  permissionAttestedBy: "ikimon.life curated sample",
+  permissionAttestedBy: "ZUKAN curated sample",
   permissionAttestedAt: "2026-06-24",
   publishApprovedByUserId: "system:static-sample",
   publishApprovedAt: "2026-06-24",
@@ -757,7 +757,7 @@ export const STATIC_MUNICIPAL_WALK_MAPS_V0: MunicipalWalkMapConfigV0[] = [
     schemaVersion: "municipal_walk_map_config/v0",
     walkMapId: DEFAULT_WALK_MAP_ID,
     municipality: "静岡市",
-    creatorName: "ikimon.life model",
+    creatorName: "ZUKAN model",
     creatorProfile: {
       creatorId: "municipality:shizuoka-city",
       registrationKind: "municipality",
@@ -1364,7 +1364,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
     officialPageUrl: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
     affinityScore: 21,
-    cue: "コースと見つかる生きものを同時に見せる型。ikimon.lifeでは立ち寄り先と記録CTAに分ける。",
+    cue: "コースと見つかる生きものを同時に見せる型。ZUKANでは立ち寄り先と記録CTAに分ける。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1400,7 +1400,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.yokohama.lg.jp/kurashi/machizukuri-kankyo/midori-koen/midori_up/1mori/forest/guidemap.html",
     officialPageUrl: "https://www.city.yokohama.lg.jp/kurashi/machizukuri-kankyo/midori-koen/midori_up/1mori/forest/guidemap.html",
     affinityScore: 16,
-    cue: "道、入口、注意事項が強い型。ikimon.lifeでは外れても戻れる手がかりと立入条件を前に出す。",
+    cue: "道、入口、注意事項が強い型。ZUKANでは外れても戻れる手がかりと立入条件を前に出す。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1448,7 +1448,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.okazaki.lg.jp/kurashi/gomi/1002429/1002431/1002427.html",
     officialPageUrl: "https://www.city.okazaki.lg.jp/kurashi/gomi/1002429/1002431/1002427.html",
     affinityScore: 25,
-    cue: "市民投稿と分類集計が中心の型。ikimon.lifeでは投稿前の安全確認と公開範囲の調整を足す。",
+    cue: "市民投稿と分類集計が中心の型。ZUKANでは投稿前の安全確認と公開範囲の調整を足す。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1472,7 +1472,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.funabashi.lg.jp/machi/kankyou/010/p082326.html",
     officialPageUrl: "https://www.city.funabashi.lg.jp/machi/kankyou/010/p082326.html",
     affinityScore: 27,
-    cue: "季節ごとの指標種を探す継続調査型。ikimon.lifeでは対象カード、記録場所、公開範囲を分けて扱う。",
+    cue: "季節ごとの指標種を探す継続調査型。ZUKANでは対象カード、記録場所、公開範囲を分けて扱う。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1484,7 +1484,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.machida.tokyo.jp/kurashi/kankyo/kankyo/midori/ibent/chosa/ikimonohakkenreport.html",
     officialPageUrl: "https://www.city.machida.tokyo.jp/kurashi/kankyo/kankyo/midori/ibent/chosa/ikimonohakkenreport.html",
     affinityScore: 23,
-    cue: "報告手順が明確な型。ikimon.lifeでは記録導線と管理者確認に置き換えやすい。",
+    cue: "報告手順が明確な型。ZUKANでは記録導線と管理者確認に置き換えやすい。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1508,7 +1508,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.akita.lg.jp/kurashi/recycle/1006075/1044957.html",
     officialPageUrl: "https://www.city.akita.lg.jp/kurashi/recycle/1006075/1044957.html",
     affinityScore: 18,
-    cue: "季節ごとの対象種とLINE報告の型。ikimon.lifeではアプリ内記録と公開判断に置き換える。",
+    cue: "季節ごとの対象種とLINE報告の型。ZUKANではアプリ内記録と公開判断に置き換える。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1544,7 +1544,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.funabashi.lg.jp/machi/kankyou/010/p035951.html",
     officialPageUrl: "https://www.city.funabashi.lg.jp/machi/kankyou/010/p035951.html",
     affinityScore: 24,
-    cue: "複数地区の散策PDF型。ikimon.lifeでは地区別の入口、公開範囲、現地で見える対象を分けて管理する。",
+    cue: "複数地区の散策PDF型。ZUKANでは地区別の入口、公開範囲、現地で見える対象を分けて管理する。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1568,7 +1568,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.kankyoportal.city.kita.lg.jp/library",
     officialPageUrl: "https://www.kankyoportal.city.kita.lg.jp/library",
     affinityScore: 22,
-    cue: "散策PDF、河川調査、できること資料が同居するポータル型。ikimon.lifeでは地図、記録、資料リンクを一画面につなぐ。",
+    cue: "散策PDF、河川調査、できること資料が同居するポータル型。ZUKANでは地図、記録、資料リンクを一画面につなぐ。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1628,7 +1628,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.machida.tokyo.jp/kurashi/kankyo/kankyo/midori/shikankyo_ikimono/ikimonomap.html",
     officialPageUrl: "https://www.city.machida.tokyo.jp/kurashi/kankyo/kankyo/midori/shikankyo_ikimono/ikimonomap.html",
     affinityScore: 22,
-    cue: "投稿結果を地図化する型。ikimon.lifeではLINEや紙の報告をアプリ内記録と公開粒度に置き換える。",
+    cue: "投稿結果を地図化する型。ZUKANではLINEや紙の報告をアプリ内記録と公開粒度に置き換える。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1664,7 +1664,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.setagaya.lg.jp/02074/4725.html",
     officialPageUrl: "https://www.city.setagaya.lg.jp/02074/4725.html",
     affinityScore: 24,
-    cue: "公園ごとの季節ガイドPDF型。ikimon.lifeでは施設スポット、季節の観察対象、写真記録を同じ地図面から選べるようにする。",
+    cue: "公園ごとの季節ガイドPDF型。ZUKANでは施設スポット、季節の観察対象、写真記録を同じ地図面から選べるようにする。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1688,7 +1688,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.handa.lg.jp/machi/kankyo/1002994/1003007.html",
     officialPageUrl: "https://www.city.handa.lg.jp/machi/kankyo/1002994/1003007.html",
     affinityScore: 24,
-    cue: "水辺マップと水生生物資料を分ける型。ikimon.lifeでは水辺の安全カードと観察対象カードを分ける。",
+    cue: "水辺マップと水生生物資料を分ける型。ZUKANでは水辺の安全カードと観察対象カードを分ける。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1724,7 +1724,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.osaka.lg.jp/kankyo/page/0000067896.html",
     officialPageUrl: "https://www.city.osaka.lg.jp/kankyo/page/0000067896.html",
     affinityScore: 23,
-    cue: "大都市の啓発、調査、外部アプリ導入が同居する型。ikimon.lifeではキャンペーン管理と公開粒度を一体で扱う。",
+    cue: "大都市の啓発、調査、外部アプリ導入が同居する型。ZUKANではキャンペーン管理と公開粒度を一体で扱う。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1748,7 +1748,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.sapporo.jp/kankyo/biodiversity/chosa.html",
     officialPageUrl: "https://www.city.sapporo.jp/kankyo/biodiversity/chosa.html",
     affinityScore: 27,
-    cue: "継続年次調査とミニ図鑑、結果ページが同居する型。ikimon.lifeでは季節ごとの対象、結果ページ、次回募集を同じ地域導線で扱う。",
+    cue: "継続年次調査とミニ図鑑、結果ページが同居する型。ZUKANでは季節ごとの対象、結果ページ、次回募集を同じ地域導線で扱う。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1760,7 +1760,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.kobe.lg.jp/a66324/kurashi/recycle/biodiversity/biomequest2025.html",
     officialPageUrl: "https://www.city.kobe.lg.jp/a66324/kurashi/recycle/biodiversity/biomequest2025.html",
     affinityScore: 26,
-    cue: "Biomeのミッション型。外来種、夜、展示施設など複数ミッションを、ikimon.lifeでは地域キャンペーンと確認待ちレーンに分ける。",
+    cue: "Biomeのミッション型。外来種、夜、展示施設など複数ミッションを、ZUKANでは地域キャンペーンと確認待ちレーンに分ける。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1784,7 +1784,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.tama.lg.jp/kurashi/kankyo/hozen/event/1017494.html",
     officialPageUrl: "https://www.city.tama.lg.jp/kurashi/kankyo/hozen/event/1017494.html",
     affinityScore: 26,
-    cue: "iNaturalistの研究用グレードを活用する型。ikimon.lifeでは同定状態、専門確認、自治体向け出力を分ける。",
+    cue: "iNaturalistの研究用グレードを活用する型。ZUKANでは同定状態、専門確認、自治体向け出力を分ける。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1796,7 +1796,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.iwaki.lg.jp/www/contents/1739336926201/index.html",
     officialPageUrl: "https://www.city.iwaki.lg.jp/www/contents/1739336926201/index.html",
     affinityScore: 25,
-    cue: "地区別の結果PDFが多い型。ikimon.lifeでは地区別ページと年度レポート出力に向く。",
+    cue: "地区別の結果PDFが多い型。ZUKANでは地区別ページと年度レポート出力に向く。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1844,7 +1844,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.kawasaki.jp/300/page/0000085873.html",
     officialPageUrl: "https://www.city.kawasaki.jp/300/page/0000085873.html",
     affinityScore: 27,
-    cue: "季節テーマ、冊子、投稿地図が同居する型。ikimon.lifeでは季節カード、記録、公開地図を同じ地域導線にまとめる。",
+    cue: "季節テーマ、冊子、投稿地図が同居する型。ZUKANでは季節カード、記録、公開地図を同じ地域導線にまとめる。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1856,7 +1856,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.saitama.lg.jp/001/009/017/003/p006268.html",
     officialPageUrl: "https://www.city.saitama.lg.jp/001/009/017/003/p006268.html",
     affinityScore: 24,
-    cue: "施設内の自然庭園、季節の草花、生きもの、貸出備品が同居する型。ikimon.lifeでは施設スポットと観察カードを分ける。",
+    cue: "施設内の自然庭園、季節の草花、生きもの、貸出備品が同居する型。ZUKANでは施設スポットと観察カードを分ける。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1868,7 +1868,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.yokosuka.kanagawa.jp/0880/kaiganshokubutu/mijikanasizen.html",
     officialPageUrl: "https://www.city.yokosuka.kanagawa.jp/0880/kaiganshokubutu/mijikanasizen.html",
     affinityScore: 28,
-    cue: "海、川、山の地域別PDFとガイドブックを束ねる型。ikimon.lifeでは地域スポットを loose stops と写真記録の入口にする。",
+    cue: "海、川、山の地域別PDFとガイドブックを束ねる型。ZUKANでは地域スポットを loose stops と写真記録の入口にする。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1880,7 +1880,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.yokosuka.kanagawa.jp/5540/maedagawa/index.html",
     officialPageUrl: "https://www.city.yokosuka.kanagawa.jp/5540/maedagawa/index.html",
     affinityScore: 25,
-    cue: "遊歩道、ポイント、通行止め注意、川の生きものが一体の型。ikimon.lifeでは本筋から外れても戻りやすい案内を重視する。",
+    cue: "遊歩道、ポイント、通行止め注意、川の生きものが一体の型。ZUKANでは本筋から外れても戻りやすい案内を重視する。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1892,7 +1892,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.adachi.tokyo.jp/documents/74972/2025zukann.pdf",
     officialPageUrl: "https://www.city.adachi.tokyo.jp/documents/74972/2025zukann.pdf",
     affinityScore: 24,
-    cue: "季節の図鑑と発見マップを一体で出す型。ikimon.lifeではPDF転載ではなく、季節対象と公式引用元を分けて下書き化する。",
+    cue: "季節の図鑑と発見マップを一体で出す型。ZUKANではPDF転載ではなく、季節対象と公式引用元を分けて下書き化する。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1904,7 +1904,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.kitakyushu.lg.jp/page/walkingmap/kokurakita/kokurakita40.pdf",
     officialPageUrl: "https://www.city.kitakyushu.lg.jp/page/walkingmap/kokurakita/kokurakita40.pdf",
     affinityScore: 23,
-    cue: "市公式ウォーキングマップ内で、自然と生きものの見どころをコース化する型。ikimon.lifeでは厳密な順路ではなく、立ち寄り先と戻る手がかりに分ける。",
+    cue: "市公式ウォーキングマップ内で、自然と生きものの見どころをコース化する型。ZUKANでは厳密な順路ではなく、立ち寄り先と戻る手がかりに分ける。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1916,7 +1916,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.nagoya.jp/kurashi/kankyou/1012463/1034795/1012526.html",
     officialPageUrl: "https://www.city.nagoya.jp/kurashi/kankyou/1012463/1034795/1012526.html",
     affinityScore: 23,
-    cue: "すみかを分類して街の自然を読む型。ikimon.lifeでは種名だけでなく、緑地、水辺、街路樹などの環境カードから記録へつなぐ。",
+    cue: "すみかを分類して街の自然を読む型。ZUKANでは種名だけでなく、緑地、水辺、街路樹などの環境カードから記録へつなぐ。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1928,7 +1928,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.soka.saitama.jp/cont/s1701/030/010/010/040/PAGE000000000000053060.html",
     officialPageUrl: "https://www.city.soka.saitama.jp/cont/s1701/030/010/010/040/PAGE000000000000053060.html",
     affinityScore: 24,
-    cue: "紙調査票と環境省いきものログを併用する型。ikimon.lifeでは自治体キャンペーン、外部提出、年度結果を同じ管理画面に寄せる比較対象にする。",
+    cue: "紙調査票と環境省いきものログを併用する型。ZUKANでは自治体キャンペーン、外部提出、年度結果を同じ管理画面に寄せる比較対象にする。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1952,7 +1952,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.toda.saitama.jp/site/saiko/kyo-saiko-publish-kansatumap.html",
     officialPageUrl: "https://www.city.toda.saitama.jp/site/saiko/kyo-saiko-publish-kansatumap.html",
     affinityScore: 27,
-    cue: "水辺の観察ポイントと生きものハンドブックが連動する型。ikimon.lifeでは水辺安全、観察対象、写真記録を分けて軽く出す。",
+    cue: "水辺の観察ポイントと生きものハンドブックが連動する型。ZUKANでは水辺安全、観察対象、写真記録を分けて軽く出す。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -1964,7 +1964,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.fukui.lg.jp/kurasi/kankyo/study/pamphlet_1.html",
     officialPageUrl: "https://www.city.fukui.lg.jp/kurasi/kankyo/study/pamphlet_1.html",
     affinityScore: 27,
-    cue: "里、川辺、山地を季節で歩く型。ikimon.lifeでは車移動や温泉拠点も含め、順路固定ではなく立ち寄り先として扱う。",
+    cue: "里、川辺、山地を季節で歩く型。ZUKANでは車移動や温泉拠点も含め、順路固定ではなく立ち寄り先として扱う。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -2012,7 +2012,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.oita.oita.jp/o141/oita-mijikanasizen-guide.html",
     officialPageUrl: "https://www.city.oita.oita.jp/o141/oita-mijikanasizen-guide.html",
     affinityScore: 26,
-    cue: "複数コース、自然環境マップ、観察前注意を分冊で持つ型。ikimon.lifeでは初回画面にコース候補と安全確認を同時に出す。",
+    cue: "複数コース、自然環境マップ、観察前注意を分冊で持つ型。ZUKANでは初回画面にコース候補と安全確認を同時に出す。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -2024,7 +2024,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.kasukabe.lg.jp/material/files/group/31/tyousainmanyuaru2023.pdf",
     officialPageUrl: "https://www.city.kasukabe.lg.jp/kurashi/kankyoshisaku/kankyokyoiku_gakushu/index.html",
     affinityScore: 28,
-    cue: "公開型GISと紙調査票を併用する型。ikimon.lifeでは投稿、確認待ち、公開地図を一つの運用レーンにまとめる比較対象にする。",
+    cue: "公開型GISと紙調査票を併用する型。ZUKANでは投稿、確認待ち、公開地図を一つの運用レーンにまとめる比較対象にする。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -2048,7 +2048,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.ichikawa.lg.jp/page/2301.html",
     officialPageUrl: "https://www.city.ichikawa.lg.jp/page/2301.html",
     affinityScore: 29,
-    cue: "モニタリング調査員からの写真、発見日、場所を公開マップへ出す型。ikimon.lifeでは投稿、確認、公開粒度、缶バッジのような返礼を同じ運用に寄せる。",
+    cue: "モニタリング調査員からの写真、発見日、場所を公開マップへ出す型。ZUKANでは投稿、確認、公開粒度、缶バッジのような返礼を同じ運用に寄せる。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -2072,7 +2072,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.kawaguchi.lg.jp/soshiki/01100/021/ecosystem/27320.html",
     officialPageUrl: "https://www.city.kawaguchi.lg.jp/soshiki/01100/021/ecosystem/27320.html",
     affinityScore: 27,
-    cue: "紙調査票といきものログ団体登録を併用する通年型。ikimon.lifeでは初回記録を軽くしつつ、行政向けには調査員、指標種、年度結果を残す。",
+    cue: "紙調査票といきものログ団体登録を併用する通年型。ZUKANでは初回記録を軽くしつつ、行政向けには調査員、指標種、年度結果を残す。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -2096,7 +2096,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.town.iijima.lg.jp/soshikiichiran/juminzeimuka/kankyoukyouseienerugikakari/kankyoeisei/NaturePositive/5145.html",
     officialPageUrl: "https://www.town.iijima.lg.jp/soshikiichiran/juminzeimuka/kankyoukyouseienerugikakari/kankyoeisei/NaturePositive/5145.html",
     affinityScore: 28,
-    cue: "町のネイチャーポジティブ戦略づくりとBiome調査を接続する型。ikimon.lifeでは地域戦略、対象種、観察イベント、成果出力を一つの自治体画面に束ねる。",
+    cue: "町のネイチャーポジティブ戦略づくりとBiome調査を接続する型。ZUKANでは地域戦略、対象種、観察イベント、成果出力を一つの自治体画面に束ねる。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -2108,7 +2108,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.katori.lg.jp/living/ahiminkatsudo/shiminkyodo/omigawatyuuou.files/20230415naturemap.pdf",
     officialPageUrl: "https://www.city.katori.lg.jp/living/ahiminkatsudo/shiminkyodo/omigawatyuuou.files/20230415naturemap.pdf",
     affinityScore: 23,
-    cue: "公園内の植物観察ポイントと採取禁止を明示するPDF単体型。ikimon.lifeでは施設スポットに安全メモと写真記録入口を足す余地が大きい。",
+    cue: "公園内の植物観察ポイントと採取禁止を明示するPDF単体型。ZUKANでは施設スポットに安全メモと写真記録入口を足す余地が大きい。",
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -2132,7 +2132,7 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     sourceUrl: "https://www.city.chiba.jp/kankyo/kankyohozen/hozen/r1_ikimonosagashi.html",
     officialPageUrl: "https://www.city.chiba.jp/kankyo/kankyohozen/hozen/r1_ikimonosagashi.html",
     affinityScore: 25,
-    cue: "身近な生き物を探すキャンペーンと結果公開の型。ikimon.lifeでは投稿終了後も地域ページに結果と次回入口を残す比較対象にする。",
+    cue: "身近な生き物を探すキャンペーンと結果公開の型。ZUKANでは投稿終了後も地域ページに結果と次回入口を残す比較対象にする。",
   },
 ];
 
@@ -2257,13 +2257,14 @@ export function sourceAccessModelV0(source: MunicipalWalkMapSourceCatalogEntryV0
     downloadKind: "official_page_with_links",
     label: "公式ページ",
     downloadUrl: null,
-    rightsNote: "公式ページ内のPDFや地図リンクを確認し、ikimon.life側には引用元URLと再構成した立ち寄り先だけを入れる。",
+    rightsNote: "公式ページ内のPDFや地図リンクを確認し、ZUKAN側には引用元URLと再構成した立ち寄り先だけを入れる。",
     importPolicy: "citation_only_no_body_copy",
   };
 }
 
 export function sourceRiskModelV0(source: MunicipalWalkMapSourceCatalogEntryV0): MunicipalWalkMapSourceRiskModelV0 {
   const access = sourceAccessModelV0(source);
+  const cueForRiskAnalysis = source.cue.replace(/\bZUKAN\b/gi, " ");
   const haystack = [
     source.sourceId,
     source.templateId,
@@ -2272,7 +2273,7 @@ export function sourceRiskModelV0(source: MunicipalWalkMapSourceCatalogEntryV0):
     source.title,
     source.sourceUrl,
     source.officialPageUrl,
-    source.cue,
+    cueForRiskAnalysis,
   ].join(" ").toLowerCase();
   const flags = new Set<string>();
   if (access.downloadKind === "direct_pdf") flags.add("direct_pdf_rights_check");
@@ -2413,7 +2414,7 @@ export function buildMunicipalWalkMapConfigFromSourceCatalogV0(sourceId: string)
     municipality: source.municipality,
     creatorName: source.municipality,
     title: `${source.title} 下書き`.slice(0, 120),
-    summary: `${source.municipality}の公式ページを引用元に、公開範囲、立入条件、記録項目をikimon.life用に整理する下書きです。`.slice(0, 240),
+    summary: `${source.municipality}の公式ページを引用元に、公開範囲、立入条件、記録項目をZUKAN用に整理する下書きです。`.slice(0, 240),
     sourceReferences: [
       {
         label: source.title,

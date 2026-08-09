@@ -126,7 +126,7 @@ export function fallbackRecordPhotoFeedbackSentence(
 }
 
 function buildRecordPhotoFeedbackPrompt(context: RecordPhotoFeedbackContext): string {
-  return `ikimon.life の観察記録フォームで、ユーザーが選んだ写真を見て「次にどう撮ると観察データとして良くなるか」を日本語で1文だけ返してください。
+  return `ZUKANの観察記録フォームで、ユーザーが選んだ写真を見て「次にどう撮ると観察データとして良くなるか」を日本語で1文だけ返してください。
 
 目的:
 - 種名の確定ではなく、撮り方・記録の質を上げる助言に限定する。

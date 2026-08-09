@@ -13,6 +13,7 @@
     "build:server": "npm run sync:face-privacy-assets && tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
+    "test": "npm run test:node",
     "test:node": "tsx --test \"src/**/*.test.ts\"",
     "test:product-registry": "tsx --test src/productRegistry.test.ts src/productRegistryRequirements.test.ts",
     "security:audit": "npm audit --omit=dev",

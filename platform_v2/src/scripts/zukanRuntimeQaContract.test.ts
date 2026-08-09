@@ -12,7 +12,8 @@ async function source(relative: string): Promise<string> {
 test("ZUKAN runtime runner is exact-SHA, staging-only, materialization-bound, and honest about remaining P0", async () => {
   const runner = await source("scripts/runZukanRuntimeQa.mjs");
 
-  assert.match(runner, /https:\/\/staging\.ikimon\.life/);
+  assert.match(runner, /https:\/\/staging\.zukan\.earth/);
+  assert.doesNotMatch(runner, /pinned to https:\/\/staging\.ikimon\.life/);
   assert.match(runner, /IKIMON_EXPECTED_GIT_SHA/);
   assert.match(runner, /ZUKAN_MATERIALIZATION_NOT_BEFORE/);
   assert.match(runner, /runtime SHA mismatch/);
@@ -94,7 +95,7 @@ test("runtime Playwright profile is pinned and does not retain credential-bearin
   const config = await source("playwright.zukan-runtime.config.ts");
 
   assert.match(config, /PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is required/);
-  assert.match(config, /pinned to https:\/\/staging\.ikimon\.life/);
+  assert.match(config, /pinned to https:\/\/staging\.zukan\.earth/);
   assert.match(config, /report must stay under platform_v2\/\.deploy/);
   assert.match(config, /serviceWorkers: "block"/);
   assert.match(config, /--no-sandbox/);
@@ -102,6 +103,21 @@ test("runtime Playwright profile is pinned and does not retain credential-bearin
   assert.match(config, /trace: "off"/);
   assert.match(config, /video: "off"/);
   assert.doesNotMatch(config, /retain-on-failure/);
+});
+
+test("general staging browser defaults to the canonical ZUKAN host", async () => {
+  const config = await source("playwright.staging.config.ts");
+  const support = await source("e2e/support/staging.ts");
+  const placeRuntime = await source("e2e/place-atlas-runtime.zukan.staging.spec.ts");
+  const captureRuntime = await source("e2e/record-capture-retry.zukan.staging.spec.ts");
+  const manualRuntime = await source("e2e/universal-place-atlas-live.manual.spec.ts");
+  const readiness = await source("src/scripts/replacementReadinessReport.ts");
+
+  for (const sourceText of [config, support, placeRuntime, captureRuntime, manualRuntime, readiness]) {
+    assert.match(sourceText, /https:\/\/staging\.zukan\.earth/);
+    assert.doesNotMatch(sourceText, /\?\? "https:\/\/staging\.ikimon\.life"/);
+  }
+  assert.match(readiness, /https:\/\/zukan\.earth/);
 });
 
 test("partial runtime gate stays explicit and does not alter the global staging release", async () => {

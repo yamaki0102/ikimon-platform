@@ -1,7 +1,7 @@
 <?php
 
 /**
- * ikimon Global Configuration
+ * ZUKAN Global Configuration
  */
 
 // Guard against duplicate inclusion (PHP 9: redefining constants is a fatal error)
@@ -13,7 +13,7 @@ if (file_exists(__DIR__ . '/secret.php')) {
 }
 
 // Basic Settings
-define('APP_NAME', 'ikimon');
+define('APP_NAME', 'ZUKAN');
 define('APP_VERSION', '0.4.0');
 define('NOINDEX_SITE', defined('NOINDEX_SITE_OVERRIDE') ? NOINDEX_SITE_OVERRIDE : true);
 
@@ -54,7 +54,7 @@ $appBasePath = '';
 if (preg_match('#^/(v[0-9]+)(?:/|$)#i', $requestPath, $matches) === 1) {
     $appBasePath = '/' . strtolower($matches[1]);
 }
-if (strpos($host, 'ikimon.life') !== false) {
+if (in_array($normalizedHost, ['zukan.earth', 'www.zukan.earth', 'ikimon.life', 'www.ikimon.life'], true)) {
     $protocol = 'https';
 }
 define('BASE_ORIGIN', $protocol . '://' . $host);

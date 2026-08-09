@@ -105,7 +105,7 @@ if ($currentUser) {
 $allPublicSurveyors = SurveyorManager::listPublicSurveyors();
 $featuredSurveyors = array_slice($allPublicSurveyors, 0, 3);
 $publicSurveyorCount = count($allPublicSurveyors);
-$meta_title = __('landing.meta_title', 'ikimon — Save nearby nature and revisit it later');
+$meta_title = __('landing.meta_title', 'ZUKAN — Save nearby nature and revisit it later');
 $meta_description = __('landing.meta_description', 'See a little more each time you walk. Keep going in the same place and seasonal differences and local character become easier to notice.');
 $recordHref = $currentUser ? 'post.php' : 'login.php?redirect=post.php';
 $recordLabel = $currentUser ? __('landing.primary_cta_user', 'Save what caught your eye') : __('landing.primary_cta_guest', 'Sign in to save');
@@ -148,7 +148,7 @@ $homeUiText = [
     'feed_empty_body' => __('home.feed_empty_body', 'There are no records in this area yet. The first one becomes the start of that place’s story.'),
     'feed_empty_cta' => __('home.feed_empty_cta', 'Record it'),
     'feed_more_cta' => __('home.feed_more_cta', 'See more records'),
-    'numbers_title' => __('home.numbers_title', 'ikimon by the numbers'),
+    'numbers_title' => __('home.numbers_title', 'ZUKAN by the numbers'),
     'numbers_observations' => __('home.numbers_observations', 'Observation records'),
     'numbers_species' => __('home.numbers_species', 'Confirmed species'),
     'numbers_stable' => __('home.numbers_stable', 'Stable records'),
@@ -202,21 +202,21 @@ $homeUiText = [
         {
             "@context": "https://schema.org",
             "@type": "WebSite",
-            "name": "ikimon.life",
-            "alternateName": <?= json_encode(__('meta.organization_alt_name', 'ikimon'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
-            "url": "https://ikimon.life/",
+            "name": "ZUKAN",
+            "alternateName": <?= json_encode(__('meta.organization_alt_name', 'ZUKAN'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+            "url": "https://zukan.earth/",
             "description": <?= json_encode(__('meta.website_description', 'A place to save nearby nature records and revisit them later by place.'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
             "inLanguage": <?= json_encode($documentLang, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
             "potentialAction": {
                 "@type": "SearchAction",
-                "target": "https://ikimon.life/zukan.php?q={search_term_string}",
+                "target": "https://zukan.earth/zukan.php?q={search_term_string}",
                 "query-input": "required name=search_term_string"
             },
             "publisher": {
                 "@type": "Organization",
-                "name": "ikimon Project",
-                "url": "https://ikimon.life/",
-                "logo": "https://ikimon.life/assets/img/icon-512.png"
+                "name": "IKIMON株式会社",
+                "url": "https://zukan.earth/",
+                "logo": "https://zukan.earth/assets/brand/zukan-app-icon.svg"
             }
         }
     </script>

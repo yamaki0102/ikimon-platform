@@ -24,7 +24,7 @@ export type ContactSubmitResult = {
 };
 
 const ADMIN_TO = "yamaki0102@gmail.com";
-const NOREPLY_FROM = "ikimon <noreply@ikimon.life>";
+const NOREPLY_FROM = "ZUKAN <noreply@ikimon.life>";
 const CONTACT_PROOF_VERSION = "v1";
 const CONTACT_PROOF_MIN_AGE_MS = 2_500;
 const CONTACT_PROOF_MAX_AGE_MS = 2 * 60 * 60 * 1000;
@@ -151,7 +151,7 @@ function buildAdminNotification(input: ContactSubmitInput, submissionId: string)
   const emailLine = input.email?.trim() || "未入力";
   const body = [
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "  ikimon お問い合わせ通知",
+    "  ZUKAN お問い合わせ通知",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     "",
     `カテゴリ : ${meta.icon} ${meta.label}`,
@@ -172,7 +172,7 @@ function buildAdminNotification(input: ContactSubmitInput, submissionId: string)
     "",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
   ].join("\n");
-  const subject = `[ikimon] ${meta.icon} ${meta.label}: ${input.message.slice(0, 40)}`;
+  const subject = `[ZUKAN] ${meta.icon} ${meta.label}: ${input.message.slice(0, 40)}`;
   return {
     subject,
     body,
@@ -202,16 +202,22 @@ function buildAutoReply(input: ContactSubmitInput, submissionId: string): { subj
     "──────────────────────────────────────────",
     "",
     "※ このメールは自動送信です。このメールへの返信は受け付けていません。",
-    "   お問い合わせは https://ikimon.life/contact からお願いします。",
+    "   お問い合わせは https://zukan.earth/contact からお願いします。",
     "",
-    "ikimon 運営チーム",
-    "https://ikimon.life",
+    "ZUKAN 運営チーム",
+    "https://zukan.earth",
   ].join("\n");
   return {
-    subject: "[ikimon] お問い合わせを受け付けました",
+    subject: "[ZUKAN] お問い合わせを受け付けました",
     body,
   };
 }
+
+export const __test__ = {
+  buildAdminNotification,
+  buildAutoReply,
+  noreplyFrom: NOREPLY_FROM,
+};
 
 export async function submitContact(rawInput: ContactSubmitInput): Promise<ContactSubmitResult> {
   const category = sanitize(rawInput.category, 32);

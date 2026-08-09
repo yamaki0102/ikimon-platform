@@ -263,7 +263,8 @@ function recoveryStyles(): string {
     *{box-sizing:border-box}
     body{margin:0;background:linear-gradient(180deg,#f5fbf8 0,#fff 72%);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
     .cf-recovery-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
-    .cf-recovery-brand{font-weight:900;text-decoration:none;color:var(--ink);font-size:20px}
+    .cf-recovery-brand{display:inline-flex;align-items:center;min-height:44px;text-decoration:none}
+    .cf-recovery-brand img{display:block;width:auto;height:34px;max-width:112px}
     .cf-recovery-profile{color:var(--muted);font-size:13px;font-weight:800;overflow-wrap:anywhere;text-align:right}
     .cf-recovery-shell{width:min(760px,calc(100% - 24px));margin:22px auto 48px}
     .cf-recovery-card{padding:clamp(20px,5vw,36px);border:1px solid rgba(5,143,130,.22);border-radius:24px;background:linear-gradient(145deg,#fff,#effbf6);box-shadow:0 22px 60px rgba(16,37,26,.1)}
@@ -293,7 +294,7 @@ function recoveryStyles(): string {
     .cf-recovery-coordinates summary{cursor:pointer;padding:10px 12px;font-weight:900}
     .cf-recovery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
     .cf-recovery-status{min-height:28px;margin-top:12px;color:var(--teal);font-weight:900}
-    @media(max-width:520px){.cf-recovery-shell{width:calc(100% - 16px);margin-top:14px}.cf-recovery-grid{grid-template-columns:1fr}.cf-recovery-actions>*{flex:1 1 100%}.cf-recovery-header{padding:11px 12px}.cf-recovery-profile{max-width:52%;font-size:12px}}
+    @media(max-width:520px){.cf-recovery-shell{width:calc(100% - 16px);margin-top:14px}.cf-recovery-grid{grid-template-columns:1fr}.cf-recovery-actions>*{flex:1 1 100%}.cf-recovery-header{padding:11px 12px}.cf-recovery-brand img{height:32px;max-width:102px}.cf-recovery-profile{max-width:52%;font-size:12px}}
   `;
 }
 
@@ -307,11 +308,11 @@ export function renderCloudflareRecordRecoveryGuestHtml(url: URL, cspNonce: stri
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escapeHtml(copy.pageTitle)} - ikimon</title>
+  <title>${escapeHtml(copy.pageTitle)} - ZUKAN</title>
   <style>${recoveryStyles()}</style>
 </head>
 <body>
-  <header class="cf-recovery-header"><a class="cf-recovery-brand" href="${escapeHtml(prefix)}/">ikimon</a></header>
+  <header class="cf-recovery-header"><a class="cf-recovery-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN"><img src="/assets/brand/zukan-primary.svg" alt=""></a></header>
   <main class="cf-recovery-shell" data-record-recovery-start>
     <section class="cf-recovery-card">
       <span class="cf-recovery-eyebrow">${escapeHtml(copy.eyebrow)}</span>
@@ -351,12 +352,12 @@ export function renderCloudflareRecordRecoverySignedHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escapeHtml(copy.pageTitle)} - ikimon</title>
+  <title>${escapeHtml(copy.pageTitle)} - ZUKAN</title>
   <style>${recoveryStyles()}</style>
 </head>
 <body data-record-start="${escapeHtml(state.start)}" data-record-recovery-page="1" data-recovery-source="${escapeHtml(state.source)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   <header class="cf-recovery-header">
-    <a class="cf-recovery-brand" href="${escapeHtml(prefix)}/">ikimon</a>
+    <a class="cf-recovery-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN"><img src="/assets/brand/zukan-primary.svg" alt=""></a>
     <div class="cf-recovery-profile">${escapeHtml(session.displayName || session.userId)}</div>
   </header>
   <main class="cf-recovery-shell">

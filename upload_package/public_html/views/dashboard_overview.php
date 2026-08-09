@@ -254,7 +254,7 @@ $latestObs = is_array($obsData) ? array_slice(array_reverse($obsData), 0, 6) : [
             <?php foreach ($latestObs as $obs):
                 $taxon = $obs['taxon']['name'] ?? '未同定';
                 $type = $obs['taxon']['rank'] ?? 'species';
-                $img = $obs['photos'][0] ?? 'assets/img/icon-192.png';
+                $img = $obs['photos'][0] ?? '/assets/brand/zukan-app-icon-192.png';
                 $user = $obs['user_name'] ?? 'Observer';
                 $time = $obs['observed_at'] ?? '';
                 $tagClass = 'bg-green-100 text-green-700';

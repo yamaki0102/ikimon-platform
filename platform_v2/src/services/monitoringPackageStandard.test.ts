@@ -14,6 +14,10 @@ test("monitoring package blueprints cover BioMonWeek/Biodiversa monitoring lanes
   assert.ok(ids.includes("insect_monitoring"));
   assert.ok(ids.includes("ias_route_camera"));
   assert.ok(MONITORING_PACKAGE_BLUEPRINTS.every((blueprint) => blueprint.requiredBasis.includes("method")));
+  const ednaReference = MONITORING_PACKAGE_BLUEPRINTS.find((blueprint) => blueprint.packageId === "edna_reference");
+  assert.ok(ednaReference);
+  assert.match(ednaReference.description, /ZUKAN内では/);
+  assert.doesNotMatch(ednaReference.description, /ikimon内では/);
 });
 
 test("inferMonitoringPackageId routes methods without making AI claims authoritative", () => {

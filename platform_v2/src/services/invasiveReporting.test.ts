@@ -150,6 +150,10 @@ test("buildInvasiveReportingPayload keeps multilingual rule guidance and detaile
   assert.match(JSON.stringify(payload), /AI候補であり、確定同定ではありません/);
   assert.match(JSON.stringify(payload), /34\.9756/);
   assert.match(JSON.stringify(payload), /fire-ant\.jpg/);
+  assert.equal(
+    (payload.observation as Record<string, unknown>).publicUrl,
+    "https://zukan.earth/observations/visit-1",
+  );
 });
 
 test("listInvasiveReportingVisibility exposes permission status without creating deliveries", async () => {

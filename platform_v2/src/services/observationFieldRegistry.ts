@@ -15,6 +15,7 @@ import {
   normalizeFieldName,
   validateAreaPolygon,
 } from "./observationEventAreaGeometry.js";
+import { isCanonicalOrLegacyHttpsUrl } from "./zukanPublicHost.js";
 
 export type FieldSource =
   | "user_defined"
@@ -61,15 +62,9 @@ function cleanUrl(value: string | undefined | null): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function isIkimonUrl(value: string): boolean {
+function isProductStoryUrl(value: string): boolean {
   const url = cleanUrl(value);
-  if (!url) return false;
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
-  } catch {
-    return /^https?:\/\/(?:[^/]+\.)?ikimon\.life(?:[/:?#]|$)/i.test(url);
-  }
+  return Boolean(url) && isCanonicalOrLegacyHttpsUrl(url);
 }
 
 function clampSourceConfidence(value: number | null | undefined): number | null {
@@ -87,17 +82,17 @@ function normalizeSourceLinks(input: SourceLinkInput, fallback: SourceLinkFallba
   const fallbackStory = cleanUrl(fallback.storyUrl);
   const fallbackCertification = cleanUrl(fallback.certificationUrl);
 
-  const storyUrl = explicitStory || (isIkimonUrl(explicitOfficial) ? explicitOfficial : "") || fallbackStory;
+  const storyUrl = explicitStory || (isProductStoryUrl(explicitOfficial) ? explicitOfficial : "") || fallbackStory;
   const certificationUrl = explicitCertification || fallbackCertification;
   const ownerUrl =
     explicitOwner ||
-    (!certificationUrl && !storyUrl && explicitOfficial && !isIkimonUrl(explicitOfficial) ? explicitOfficial : "") ||
+    (!certificationUrl && !storyUrl && explicitOfficial && !isProductStoryUrl(explicitOfficial) ? explicitOfficial : "") ||
     fallbackOwner;
   const officialUrl =
-    (explicitOfficial && !isIkimonUrl(explicitOfficial) ? explicitOfficial : "") ||
+    (explicitOfficial && !isProductStoryUrl(explicitOfficial) ? explicitOfficial : "") ||
     ownerUrl ||
     certificationUrl ||
-    (fallbackOfficial && !isIkimonUrl(fallbackOfficial) ? fallbackOfficial : "");
+    (fallbackOfficial && !isProductStoryUrl(fallbackOfficial) ? fallbackOfficial : "");
 
   const explicitConfidence = clampSourceConfidence(input.sourceConfidence);
   const fallbackConfidence = clampSourceConfidence(fallback.sourceConfidence);
@@ -119,6 +114,10 @@ function normalizeSourceLinks(input: SourceLinkInput, fallback: SourceLinkFallba
     sourceConfidence: explicitConfidence ?? Math.max(fallbackConfidence ?? 0, inferredConfidence),
   };
 }
+
+export const __test__ = {
+  normalizeSourceLinks,
+};
 
 function bboxColumnsFromPolygon(polygon: Record<string, unknown> | null | undefined): {
   minLat: number | null;

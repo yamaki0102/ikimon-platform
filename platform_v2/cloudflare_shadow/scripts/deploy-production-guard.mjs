@@ -144,12 +144,22 @@ async function readProductionConfigSummary() {
   const vars = production?.vars ?? {};
   const d1Names = (production?.d1_databases ?? []).map((item) => item.database_name).sort();
   const r2Buckets = (production?.r2_buckets ?? []).map((item) => item.bucket_name).sort();
-  const requiredRoutes = [
+  const requiredLegacyRoutes = [
     "ikimon.life/*",
     "www.ikimon.life/*"
   ];
-  const missingRoutes = requiredRoutes.filter((route) => !routes.includes(route));
-  const stagingRoutes = routes.filter((route) => String(route).startsWith("staging.ikimon.life/"));
+  const routePattern = (route) => typeof route === "string" ? route : String(route?.pattern ?? "");
+  const hasCanonicalCustomDomain = routes.some((route) => (
+    typeof route === "object"
+    && route !== null
+    && route.pattern === "zukan.earth"
+    && route.custom_domain === true
+  ));
+  const missingRoutes = requiredLegacyRoutes.filter((route) => !routes.includes(route));
+  const stagingRoutes = routes.filter((route) => {
+    const pattern = routePattern(route);
+    return pattern === "staging.zukan.earth" || pattern.startsWith("staging.ikimon.life/");
+  });
   const failures = [];
   if (production?.name !== "ikimon-life-cloudflare-prod") failures.push("unexpected_production_worker_name");
   if (vars.ENVIRONMENT !== "production") failures.push("production_environment_var_missing");
@@ -157,8 +167,9 @@ async function readProductionConfigSummary() {
   if (!d1Names.includes("ikimon_prod_core")) failures.push("missing_prod_core_d1");
   if (!d1Names.includes("ikimon_prod_observations_2026_06")) failures.push("missing_prod_observations_d1");
   if (!r2Buckets.includes("ikimon-prod-media")) failures.push("missing_prod_r2_bucket");
+  if (!hasCanonicalCustomDomain) failures.push("missing_route:zukan.earth:custom_domain");
   failures.push(...missingRoutes.map((route) => `missing_route:${route}`));
-  failures.push(...stagingRoutes.map((route) => `production_must_not_own_staging_route:${route}`));
+  failures.push(...stagingRoutes.map((route) => `production_must_not_own_staging_route:${routePattern(route)}`));
   if (failures.length) {
     throw new Error(`Production Cloudflare config safety check failed: ${failures.join(", ")}`);
   }

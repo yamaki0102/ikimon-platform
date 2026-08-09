@@ -39,7 +39,7 @@ export async function createGuideLiveToken(opts: {
         config: {
           responseModalities: [Modality.TEXT],
           systemInstruction: [
-            "You are a low-latency field guide helper for ikimon.life.",
+            "You are a low-latency field guide helper for ZUKAN.",
             "Return only brief observation hints. Do not narrate aloud or claim delayed results are current.",
             `Preferred language: ${lang}.`,
           ].join(" "),

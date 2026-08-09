@@ -112,7 +112,7 @@ function parsePlaceArea(raw: string): { city: string; area_ha: number | null } {
 // Nominatim geocoder (1 req/s rate limit)
 // --------------------------------------------------------------------------
 
-const GEOCODE_UA = "ikimon.life field-importer/1.0 (https://ikimon.life; yamaki0102@gmail.com)";
+const GEOCODE_UA = "ZUKAN field-importer/1.0 (https://zukan.earth; yamaki0102@gmail.com)";
 
 async function geocode(name: string, prefecture: string, city: string): Promise<{ lat: number; lng: number } | null> {
   const queries = [

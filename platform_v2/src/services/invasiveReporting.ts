@@ -257,7 +257,7 @@ export function buildInvasiveReportingPayload(
       note: detail?.note ?? null,
       individualCount: detail?.individualCount ?? null,
       photoUrls: detail?.photoUrls ?? [],
-      publicUrl: `https://ikimon.life/observations/${encodeURIComponent(ctx.visitId)}`,
+      publicUrl: `https://zukan.earth/observations/${encodeURIComponent(ctx.visitId)}`,
     },
     invasiveStatus: ctx.invasiveStatus,
     reporting: {

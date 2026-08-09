@@ -26,12 +26,7 @@ $_fBase = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
     <div class="mx-auto max-w-6xl">
         <div class="grid gap-12 border-b border-slate-200 pb-12 lg:grid-cols-[1.25fr_1fr_1fr_1fr]">
             <section class="max-w-sm">
-                <div class="flex items-center gap-2">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                        <span class="text-sm font-black">i</span>
-                    </div>
-                    <span class="font-heading text-lg font-black text-slate-900">ikimon</span>
-                </div>
+                <img src="/assets/brand/zukan-primary.svg" alt="ZUKAN" class="h-9 w-auto">
                 <p class="mt-4 text-sm leading-7 text-slate-600">
                     <?= htmlspecialchars(__('footer.summary', 'Save what you found nearby and review it later, place by place.')) ?>
                 </p>

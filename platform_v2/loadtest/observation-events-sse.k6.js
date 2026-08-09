@@ -2,7 +2,7 @@
  * k6 負荷スクリプト: 観察会 SSE 接続を 5000 同時に張り、平均接続維持時間と切断率を測る。
  *
  * 実行例:
- *   k6 run -e BASE_URL=https://staging.ikimon.life -e SESSION_ID=<uuid> loadtest/observation-events-sse.k6.js
+ *   k6 run -e BASE_URL=https://staging.zukan.earth -e SESSION_ID=<uuid> loadtest/observation-events-sse.k6.js
  *
  * シナリオ:
  *   - 6 段階ランプアップ(0 → 1000 → 3000 → 5000 → 5000 → 0)で SSE 接続。

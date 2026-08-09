@@ -37,8 +37,10 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /マイページ/);
   assert.match(html, /rel="manifest" href="\/manifest\.webmanifest\?lang=ja"/);
   assert.match(html, /rel="apple-touch-icon" sizes="180x180" href="\/assets\/brand\/zukan-apple-touch-icon\.png"/);
+  assert.match(html, /rel="icon" type="image\/png" sizes="16x16" href="\/assets\/brand\/zukan-favicon-16\.png"/);
+  assert.match(html, /rel="icon" type="image\/png" sizes="24x24" href="\/assets\/brand\/zukan-favicon-24\.png"/);
   assert.match(html, /rel="icon" type="image\/png" sizes="32x32" href="\/assets\/brand\/zukan-favicon-32\.png"/);
-  assert.match(html, /rel="icon" type="image\/x-icon" sizes="32x32" href="\/favicon\.ico"/);
+  assert.match(html, /rel="icon" type="image\/x-icon" sizes="16x16 24x24 32x32" href="\/favicon\.ico"/);
   assert.match(html, /rel="icon" type="image\/png" sizes="192x192" href="\/assets\/brand\/zukan-app-icon-192\.png"/);
   assert.match(html, /navigator\.languages/);
   assert.match(html, /beforeinstallprompt/);
@@ -46,7 +48,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /updateViaCache: 'none'/);
   assert.match(html, /registration\.update\(\)/);
   assert.match(html, /data-app-install-prompt/);
-  assert.match(html, /<meta name="theme-color" content="#143f2e" \/>/);
+  assert.match(html, /<meta name="theme-color" content="#0F4A2F" \/>/);
   assert.match(html, /data-app-launch-screen/);
   assert.match(html, /ikimon:app-launch-screen-shown-v1/);
   assert.match(html, /is-app-launch-screen-eligible/);
@@ -116,13 +118,11 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /window\.clarity\('set', 'ikimon_action', params\.action_key\)/);
   assert.match(html, /www\.clarity\.ms\/tag/);
   assert.match(html, /wl2ezvfqbh/);
-  assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
-  assert.match(html, /<span class="brand-wordmark" aria-label="ZUKAN">/);
-  assert.match(html, /<img class="brand-wordmark-img" src="\/assets\/brand\/zukan-wordmark\.svg" alt="" \/>/);
-  assert.match(html, /<span class="brand-mark"><img src="\/assets\/brand\/zukan-app-icon-192\.png" alt="" \/><\/span>/);
-  assert.match(html, /\.brand-logo-lockup \{[\s\S]*align-items: center;[\s\S]*gap: 7px;/);
-  assert.match(html, /\.brand-wordmark \{[\s\S]*flex: 0 0 auto;[\s\S]*width: auto;[\s\S]*height: 16px;[\s\S]*aspect-ratio: 711 \/ 222;/);
-  assert.match(html, /\.brand-wordmark-img \{[\s\S]*width: auto;[\s\S]*height: 100%;[\s\S]*max-width: none;/);
+  assert.match(html, /host !== 'zukan\.earth' && host !== 'www\.zukan\.earth' && host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
+  assert.match(html, /<a class="brand"[^>]+aria-label="ZUKAN"[^>]*>\s*<span class="brand-logo-lockup"><img class="brand-primary-img" src="\/assets\/brand\/zukan-primary\.svg" alt="" \/><\/span>\s*<\/a>/);
+  assert.doesNotMatch(html, /brand-logo-lockup" aria-label="ZUKAN"/);
+  assert.doesNotMatch(html, /zukan-wordmark\.svg|zukan-symbol\.svg/);
+  assert.match(html, /\.brand-primary-img \{[\s\S]*width: auto;[\s\S]*height: 36px;[\s\S]*max-width: 112px;/);
   assert.match(html, /--ikimon-header-brand-w: max\(var\(--ikimon-desktop-sidebar-w\), 154px\);/);
   assert.match(html, /body\.is-desktop-side-nav-collapsed \{[\s\S]*--ikimon-header-brand-w: 154px;/);
   assert.match(html, /grid-template-columns: var\(--ikimon-header-brand-w\) minmax\(280px, 640px\) minmax\(0, 1fr\);/);
@@ -130,21 +130,21 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /\.site-header-actions-desktop \{[\s\S]*grid-column: 3;[\s\S]*justify-self: end;/);
   assert.match(html, /@media \(min-width: 1161px\) \{[\s\S]*\.site-header-actions-mobile \{[\s\S]*display: none !important;/);
   assert.match(html, /@media \(max-width: 1160px\) \{[\s\S]*\.desktop-side-nav-toggle \{[\s\S]*display: none !important;/);
-  assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-wordmark \{[\s\S]*width: auto;[\s\S]*height: 15px;[\s\S]*aspect-ratio: 711 \/ 222;/);
+  assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-primary-img \{[\s\S]*height: 32px;[\s\S]*max-width: 102px;/);
   assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);
   assert.match(html, /<meta name="application-name" content="ZUKAN" \/>/);
   assert.match(html, /<meta name="apple-mobile-web-app-title" content="ZUKAN" \/>/);
   assert.match(html, /<meta property="og:site_name" content="ZUKAN" \/>/);
-  assert.match(html, /<meta property="og:image" content="https:\/\/ikimon\.life\/assets\/brand\/zukan-ogp-default\.png" \/>/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/zukan\.earth\/assets\/brand\/zukan-ogp-default\.png" \/>/);
   assert.match(html, /<meta property="og:image:type" content="image\/png" \/>/);
   assert.match(html, /<meta property="og:image:width" content="1200" \/>/);
   assert.match(html, /<meta property="og:image:height" content="630" \/>/);
   assert.match(html, /<meta property="og:image:alt" content="ZUKAN" \/>/);
-  assert.match(html, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/" \/>/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/" \/>/);
   assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/);
-  assert.match(html, /<meta name="twitter:image" content="https:\/\/ikimon\.life\/assets\/brand\/zukan-ogp-default\.png" \/>/);
-  assert.match(html, /<span>ZUKAN<\/span>\s*<span>皆で作る地域図鑑<\/span>/);
+  assert.match(html, /<meta name="twitter:image" content="https:\/\/zukan\.earth\/assets\/brand\/zukan-ogp-default\.png" \/>/);
+  assert.match(html, /<span>ZUKAN<\/span>\s*<span>撮ると、まちの今が図鑑になる。<\/span>/);
   assert.doesNotMatch(html, /aria-label="ikimon"|application-name" content="ikimon|apple-mobile-web-app-title" content="ikimon|og:site_name" content="ikimon|og:image:alt" content="ikimon"/i);
 });
 
@@ -210,7 +210,7 @@ test("language switch is user-facing while SEO stays Japanese canonical", () => 
   assert.match(html, /\.lang-switch::after/);
   assert.match(html, /\.lang-switch:hover::after,\s*\.lang-switch:focus-within::after/);
   assert.match(html, /aria-current="true"/);
-  assert.match(head, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/" \/>/);
+  assert.match(head, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/" \/>/);
   assert.match(head, /<meta name="robots" content="noindex,follow" \/>/);
   assert.match(head, /hreflang="ja"/);
   assert.match(head, /hreflang="x-default"/);
@@ -564,7 +564,7 @@ test("logo is the auth-aware home entry and exposes its privacy-safe KPI", () =>
     lang: "ja",
     currentPath: "/ja/records",
   });
-  assert.match(html, /<a class="brand" href="\/ja\/" data-kpi-event="logo_home_tap"/);
+  assert.match(html, /<a class="brand" href="\/ja\/"[^>]*data-kpi-event="logo_home_tap"/);
   assert.doesNotMatch(html, /<footer[^>]*>[\s\S]*>ホーム</);
 });
 

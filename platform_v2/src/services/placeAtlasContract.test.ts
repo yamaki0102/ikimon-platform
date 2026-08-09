@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  __test__,
   buildPlaceAtlasProfile,
   dedupePlaceAtlasRecords,
   normalizePlaceAtlasRef,
@@ -218,6 +219,23 @@ test("rejects unsafe media URLs instead of rendering them", () => {
   assert.deepEqual(profile.place.representativeMedia.map((media) => media.url), ["https://media.ikimon.life/x.jpg"]);
   assert.equal(profile.recentRecords.find((record) => record.recordId === "record-5")?.mediaUrl, null);
   assert.equal(profile.recentRecords.find((record) => record.recordId === "record-6")?.mediaUrl, null);
+});
+
+test("media URL allowlist accepts ZUKAN and legacy hosts but rejects evil suffixes", () => {
+  assert.equal(
+    __test__.safeMediaUrl("https://zukan.earth/derived/record/display.webp"),
+    "https://zukan.earth/derived/record/display.webp",
+  );
+  assert.equal(
+    __test__.safeMediaUrl("https://media.zukan.earth/uploads/record/photo.webp"),
+    "https://media.zukan.earth/uploads/record/photo.webp",
+  );
+  assert.equal(
+    __test__.safeMediaUrl("https://media.ikimon.life/derived/record/display.webp"),
+    "https://media.ikimon.life/derived/record/display.webp",
+  );
+  assert.equal(__test__.safeMediaUrl("https://zukan.earth.evil.example/derived/photo.webp"), null);
+  assert.equal(__test__.safeMediaUrl("https://ikimon.life.evil.example/derived/photo.webp"), null);
 });
 
 test("connects guide, memories, and facilities to place-atlas facets without fake Occurrences", () => {

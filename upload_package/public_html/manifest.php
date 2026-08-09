@@ -5,40 +5,40 @@ header('Content-Type: application/manifest+json; charset=UTF-8');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 
 $manifest = [
-    'name' => 'ikimon.life - いきもの図鑑',
-    'short_name' => 'ikimon',
+    'name' => 'ZUKAN - 撮ると、まちの今が図鑑になる。',
+    'short_name' => 'ZUKAN',
     'id' => '/?source=pwa',
     'start_url' => '/index.php',
     'scope' => '/',
     'display' => 'standalone',
     'prefer_related_applications' => false,
-    'background_color' => '#ffffff',
-    'theme_color' => '#10b981',
-    'description' => '身近な生き物を発見・記録・図鑑化。市民参加型の生物多様性プラットフォーム。',
+    'background_color' => '#f7f7f3',
+    'theme_color' => '#0F4A2F',
+    'description' => '撮ると、まちの今が図鑑になる。地域の写真や観察を、場所と時間の記録として残せます。',
     'lang' => 'ja',
     'dir' => 'ltr',
     'categories' => ['education', 'lifestyle', 'social'],
     'icons' => [
         [
-            'src' => "/assets/img/pwa-icon-192.png",
+            'src' => "/assets/brand/zukan-app-icon-192.png",
             'sizes' => '192x192',
             'type' => 'image/png',
             'purpose' => 'any',
         ],
         [
-            'src' => "/assets/img/pwa-icon-512.png",
+            'src' => "/assets/brand/zukan-app-icon-512.png",
             'sizes' => '512x512',
             'type' => 'image/png',
             'purpose' => 'any',
         ],
         [
-            'src' => "/assets/img/pwa-icon-192-maskable.png",
+            'src' => "/assets/brand/zukan-app-icon-192-maskable.png",
             'sizes' => '192x192',
             'type' => 'image/png',
             'purpose' => 'maskable',
         ],
         [
-            'src' => "/assets/img/pwa-icon-512-maskable.png",
+            'src' => "/assets/brand/zukan-app-icon-512-maskable.png",
             'sizes' => '512x512',
             'type' => 'image/png',
             'purpose' => 'maskable',
@@ -51,7 +51,7 @@ $manifest = [
             'url' => '/post.php',
             'icons' => [
                 [
-                    'src' => "/assets/img/pwa-icon-192.png",
+                    'src' => "/assets/brand/zukan-app-icon-192.png",
                     'sizes' => '192x192',
                 ],
             ],
@@ -62,7 +62,7 @@ $manifest = [
             'url' => '/zukan.php',
             'icons' => [
                 [
-                    'src' => "/assets/img/pwa-icon-192.png",
+                    'src' => "/assets/brand/zukan-app-icon-192.png",
                     'sizes' => '192x192',
                 ],
             ],
@@ -73,7 +73,7 @@ $manifest = [
             'url' => '/compass.php',
             'icons' => [
                 [
-                    'src' => "/assets/img/pwa-icon-192.png",
+                    'src' => "/assets/brand/zukan-app-icon-192.png",
                     'sizes' => '192x192',
                 ],
             ],

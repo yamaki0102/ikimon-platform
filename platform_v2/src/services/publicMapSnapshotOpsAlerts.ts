@@ -204,7 +204,7 @@ async function notifyPendingPublicMapAlerts(client: Queryable): Promise<{ sent: 
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          text: `[ikimon.life ops] ${row.registry_key} ${row.severity}\n${row.notes}`,
+          text: `[ZUKAN ops] ${row.registry_key} ${row.severity}\n${row.notes}`,
           registryKey: row.registry_key,
           severity: row.severity,
           notes: row.notes,

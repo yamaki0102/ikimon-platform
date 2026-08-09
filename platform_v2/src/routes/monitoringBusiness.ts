@@ -194,7 +194,7 @@ export async function registerMonitoringBusinessRoutes(app: FastifyInstance): Pr
     return renderSiteDocument({
       basePath,
       lang,
-      title: "IKIMON Monitoring 先行相談 — ikimon.life",
+      title: "IKIMON Monitoring 先行相談 — ZUKAN",
       description: "地域・企業・自治体向け IKIMON Monitoring の提供準備中ページと先行相談フォーム。",
       currentPath: "/for-business/monitoring/apply",
       extraStyles: MONITORING_STYLES,

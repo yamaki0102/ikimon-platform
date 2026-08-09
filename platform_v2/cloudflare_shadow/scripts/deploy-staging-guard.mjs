@@ -7,7 +7,8 @@ import { waitForExactStagingRuntimeVersion } from "./staging-runtime-smoke.mjs";
 
 const requiredApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
 const stagingWorkerUrl = "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev";
-const stagingPublicUrl = "https://staging.ikimon.life";
+const stagingCanonicalUrl = "https://staging.zukan.earth";
+const stagingLegacyRollbackUrl = "https://staging.ikimon.life";
 const defaultPreflightReportPath = ".deploy/staging-preflight-latest.json";
 const allowedArgs = new Set(["--execute", "--approval", "--write-preflight-report", "--test-profile"]);
 const args = new Map();
@@ -152,9 +153,17 @@ async function readStagingConfigSummary() {
   const producerQueues = (staging?.queues?.producers ?? []).map((item) => item.queue).sort();
   const consumerQueues = (staging?.queues?.consumers ?? []).map((item) => item.queue).sort();
   const failures = [];
+  const routePattern = (route) => typeof route === "string" ? route : String(route?.pattern ?? "");
+  const hasCustomDomain = (pattern) => routes.some((route) => (
+    typeof route === "object"
+    && route !== null
+    && route.pattern === pattern
+    && route.custom_domain === true
+  ));
 
   if (staging?.name !== "ikimon-life-cloudflare-staging") failures.push("unexpected_staging_worker_name");
-  if (!routes.includes("staging.ikimon.life/*")) failures.push("missing_staging_route");
+  if (!hasCustomDomain("staging.zukan.earth")) failures.push("missing_staging_canonical_custom_domain");
+  if (!routes.includes("staging.ikimon.life/*")) failures.push("missing_staging_legacy_rollback_route");
   if (vars.ENVIRONMENT !== "staging") failures.push("staging_environment_var_missing");
   if (vars.PUBLIC_WRITE_MODE !== "cloudflare_native") failures.push("staging_public_write_mode_not_cloudflare_native");
   if (!d1Names.includes("ikimon_shadow_core")) failures.push("missing_nonproduction_core_d1");
@@ -165,8 +174,9 @@ async function readStagingConfigSummary() {
   if (producerQueues.includes("ikimon-prod-media-jobs") || consumerQueues.includes("ikimon-prod-media-jobs")) failures.push("staging_must_not_use_production_queue");
   if (producerQueues.includes("ikimon-shadow-media-jobs") || consumerQueues.includes("ikimon-shadow-media-jobs")) failures.push("staging_must_not_share_shadow_queue_consumer");
   for (const route of productionRoutes) {
-    if (String(route).startsWith("staging.ikimon.life/")) {
-      failures.push(`production_must_not_own_staging_route:${route}`);
+    const pattern = routePattern(route);
+    if (pattern === "staging.zukan.earth" || pattern.startsWith("staging.ikimon.life/")) {
+      failures.push(`production_must_not_own_staging_route:${pattern}`);
     }
   }
 
@@ -183,7 +193,10 @@ async function readStagingConfigSummary() {
     r2Buckets,
     producerQueues,
     consumerQueues,
-    productionStagingRouteCount: productionRoutes.filter((route) => String(route).startsWith("staging.ikimon.life/")).length
+    productionStagingRouteCount: productionRoutes.filter((route) => {
+      const pattern = routePattern(route);
+      return pattern === "staging.zukan.earth" || pattern.startsWith("staging.ikimon.life/");
+    }).length
   };
 }
 
@@ -300,7 +313,8 @@ try {
       console.warn(JSON.stringify(triggerWarning, null, 2));
     }
     await smoke(stagingWorkerUrl, state.gitHead);
-    await smoke(stagingPublicUrl, state.gitHead);
+    await smoke(stagingCanonicalUrl, state.gitHead);
+    await smoke(stagingLegacyRollbackUrl, state.gitHead);
   }
 
   const report = {
@@ -311,7 +325,8 @@ try {
     executedAt: execute ? new Date().toISOString() : null,
     testProfile,
     stagingWorkerUrl,
-    stagingPublicUrl,
+    stagingCanonicalUrl,
+    stagingLegacyRollbackUrl,
     triggerWarning,
     noProductionDataMutation: true,
     noVpsSsh: true,
@@ -330,7 +345,8 @@ try {
     checkedAt: startedAt,
     testProfile,
     stagingWorkerUrl,
-    stagingPublicUrl,
+    stagingCanonicalUrl,
+    stagingLegacyRollbackUrl,
     noProductionDataMutation: true,
     noVpsSsh: true,
     error: error instanceof Error ? error.message : String(error),

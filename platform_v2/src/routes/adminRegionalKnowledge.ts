@@ -234,7 +234,7 @@ export async function registerAdminRegionalKnowledgeRoutes(app: FastifyInstance)
       reply.code(403);
       return renderSiteDocument({
         basePath: "",
-        title: "地域カード管理 — ikimon.life",
+        title: "地域カード管理 — ZUKAN",
         extraStyles: STYLES,
         body: loginGate(),
       });
@@ -260,7 +260,7 @@ export async function registerAdminRegionalKnowledgeRoutes(app: FastifyInstance)
 <script>${SCRIPT}</script>`;
     return renderSiteDocument({
       basePath: "",
-      title: "地域カード管理 — ikimon.life",
+      title: "地域カード管理 — ZUKAN",
       extraStyles: STYLES,
       body,
     });

@@ -395,7 +395,7 @@ export const MAP_GUIDE_SPOTS: MapGuideSpot[] = [
     storyPoints: [
       "制度は、地域に残る文化資源をゆるやかに認め、活用するための入口になる。",
       "所有者や地域の同意、文化財保護審議会の意見を経て認定される。",
-      "ikimonのガイドでは、出典を明示しながら現地で聞ける形に変換する。",
+      "ZUKANのガイドでは、出典を明示しながら現地で聞ける形に変換する。",
     ],
     triggerRadiusM: 300,
     unlockedRadiusM: 120,

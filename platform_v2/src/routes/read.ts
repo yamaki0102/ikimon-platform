@@ -4772,7 +4772,7 @@ type RecordFormCopy = {
 function recordStartCopy(lang: SiteLang): RecordStartCopy {
   const localized: Record<SiteLang, RecordStartCopy> = {
     ja: {
-      title: "記録する準備 | ikimon",
+      title: "記録する準備 | ZUKAN",
       activeNav: "記録",
       footerNote: "写真・動画・メモを先に残し、説明や分類はあとから育てられます。",
       heroEyebrow: "記録入口",
@@ -4803,7 +4803,7 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
       startStateItems: ["場所", "時刻", "あとでヒント"],
     },
     en: {
-      title: "Start saving | ikimon",
+      title: "Start saving | ZUKAN",
       activeNav: "Record",
       footerNote: "Read the guide when you want more detail.",
       heroEyebrow: "Save the scene",
@@ -4834,7 +4834,7 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
       startStateItems: ["Place", "Time", "Later hints"],
     },
     es: {
-      title: "Empezar a guardar | ikimon",
+      title: "Empezar a guardar | ZUKAN",
       activeNav: "Registro",
       footerNote: "Lee la guia cuando quieras mas detalle.",
       heroEyebrow: "Guardar el paisaje",
@@ -4865,7 +4865,7 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
       startStateItems: ["Lugar", "Hora", "Pistas luego"],
     },
     "pt-BR": {
-      title: "Comecar a salvar | ikimon",
+      title: "Comecar a salvar | ZUKAN",
       activeNav: "Registrar",
       footerNote: "Leia o guia quando quiser mais detalhes.",
       heroEyebrow: "Salvar a cena",
@@ -4903,7 +4903,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
   const start = recordStartCopy(lang);
   const localized: Record<SiteLang, RecordPageCopy> = {
     ja: {
-      title: "記録する準備 | ikimon",
+      title: "記録する準備 | ZUKAN",
       activeNav: "記録",
       footerNote: "先に残した記録に、あとからAIのヒントや地域の意味が返ってきます。",
       heading: "記録を始める",
@@ -4951,7 +4951,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       },
     },
     en: {
-      title: "Record | ikimon",
+      title: "Record | ZUKAN",
       activeNav: "Record",
       footerNote: "Save nearby nature in a form you can revisit later.",
       heading: "Record",
@@ -4999,7 +4999,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       },
     },
     es: {
-      title: "Registrar | ikimon",
+      title: "Registrar | ZUKAN",
       activeNav: "Registro",
       footerNote: "Guarda la naturaleza cercana para volver a verla despues.",
       heading: "Registrar",
@@ -5047,7 +5047,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       },
     },
     "pt-BR": {
-      title: "Registrar | ikimon",
+      title: "Registrar | ZUKAN",
       activeNav: "Registrar",
       footerNote: "Salve a natureza por perto para rever depois.",
       heading: "Registrar",
@@ -9236,7 +9236,7 @@ export function renderLocalObservationPolishScript(): string {
   })();</script>`;
 }
 
-const PUBLIC_ORIGIN = "https://ikimon.life";
+const PUBLIC_ORIGIN = "https://zukan.earth";
 
 function publicAbsoluteUrl(value: string): string {
   if (value.startsWith("http://") || value.startsWith("https://")) return value;
@@ -9274,7 +9274,7 @@ function renderObservationDetailStructuredHead(options: {
       description: options.description,
       inLanguage: "ja-JP",
       datePublished: options.snapshot.observedAt,
-      isPartOf: { "@type": "WebSite", name: "ikimon", url: PUBLIC_ORIGIN },
+      isPartOf: { "@type": "WebSite", name: "ZUKAN", url: PUBLIC_ORIGIN },
       about: {
         "@type": "Thing",
         name: options.subject.aiAssessment?.recommendedTaxonName || options.subject.displayName || options.snapshot.displayName,
@@ -9284,7 +9284,7 @@ function renderObservationDetailStructuredHead(options: {
     {
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "ikimon", item: `${PUBLIC_ORIGIN}/ja/` },
+        { "@type": "ListItem", position: 1, name: "ZUKAN", item: `${PUBLIC_ORIGIN}/ja/` },
         { "@type": "ListItem", position: 2, name: "観察", item: `${PUBLIC_ORIGIN}/ja/records` },
         { "@type": "ListItem", position: 3, name: options.title, item: canonicalUrl },
       ],
@@ -10334,7 +10334,7 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
   const placeCountLabel = isPersonalHome
     ? `${formatProfileNumber(snapshot.myPlaces.length)} か所`
     : "地域";
-  const heroTitle = isPersonalHome ? "観察ノート" : "今日のikimon.life";
+  const heroTitle = isPersonalHome ? "観察ノート" : "今日のZUKAN";
   const heroLead = isPersonalHome
     ? "自分が見た場所、前回の発見、名前を確かめたい記録を、続きから読み返すための個人ホームです。"
     : "見つけた自然を残し、地域の記録から次に歩く場所を選べます。";
@@ -10465,7 +10465,7 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
           </div>
         </div>
       </div>
-      <div class="home-mypage-rail" aria-label="ikimon.lifeの流れ">
+      <div class="home-mypage-rail" aria-label="ZUKANの流れ">
         <a href="${escapeHtml(withBasePath(basePath, "/record"))}"><span>フッターから</span><strong>記録する</strong></a>
         <a href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}"><span>${escapeHtml(recordCountLabel)}</span><strong>自分の記録</strong></a>
         <a href="${escapeHtml(placeHref)}"><span>${escapeHtml(placeCountLabel)}</span><strong>地図・場所</strong></a>
@@ -10515,7 +10515,7 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
   const recentHref = snapshot.viewerUserId ? "/records?view=mine" : "/records";
   return layout(
     basePath,
-    snapshot.viewerUserId ? "マイページ | ikimon" : "ホーム | ikimon",
+    snapshot.viewerUserId ? "マイページ | ZUKAN" : "ホーム | ZUKAN",
     `${renderHomeChannelDashboard(basePath, snapshot)}
       <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>${escapeHtml(recentHeading)}</h2></div><a class="section-link" href="${escapeHtml(withBasePath(basePath, recentHref))}">すべて見る</a></div><div class="home-grid">${cards}</div></section>
       ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">場所</div><h2>再訪したい場所</h2></div><a class="section-link" href="${escapeHtml(withBasePath(basePath, "/records?view=places"))}">場所を見る</a></div><div class="list">${myPlaces}</div></section>` : ""}`,
@@ -13336,9 +13336,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const geolocationFailureMessage = (error) => {
           const message = error && error.message ? error.message : 'geolocation_failed';
-          if (message === 'geolocation_denied') return '位置情報の利用が拒否されています。ブラウザまたはOSのサイト設定で ikimon.life の位置情報を許可してから、もう一度押してください。';
+          if (message === 'geolocation_denied') return '位置情報の利用が拒否されています。ブラウザまたはOSのサイト設定でZUKANの位置情報を許可してから、もう一度押してください。';
           if (message === 'geolocation_timeout') return '位置情報の取得が時間切れになりました。屋外や窓際で少し待ってからもう一度押すか、座標を手動で入力してください。';
-          if (message === 'geolocation_insecure_context') return '位置情報はHTTPSで開いたページだけ使えます。https://ikimon.life/record を開き直してください。';
+          if (message === 'geolocation_insecure_context') return '位置情報はHTTPSで開いたページだけ使えます。https://zukan.earth/record を開き直してください。';
           if (message === 'geolocation_unavailable') return 'このブラウザでは位置情報を利用できません。別のブラウザで開くか、座標を手動で入力してください。';
           return '位置情報の取得に失敗しました。ブラウザまたはOSの位置情報設定を確認するか、座標を手動で入力してください。';
         };
@@ -17008,7 +17008,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const html = layout(
       basePath,
-      `${pageTitle} | ikimon`,
+      `${pageTitle} | ZUKAN`,
       `<section class="observations-page${activeFilter === "needs_id" ? " is-identify" : ""}" data-testid="observations-index" data-observations-page>
         <header class="observations-titlebar">
           <div>
@@ -17491,7 +17491,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         reply.type("text/html; charset=utf-8");
         return layout(
           basePath,
-          "記録を準備中 | ikimon",
+          "記録を準備中 | ZUKAN",
           stateCard(
             "保存済み",
             "記録は残っています。詳細表示を準備しています",
@@ -17521,7 +17521,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         reply.type("text/html; charset=utf-8");
         return layout(
           basePath,
-          "記録を準備中 | ikimon",
+          "記録を準備中 | ZUKAN",
           stateCard(
             "保存済み",
             "記録は残っています。詳細表示を準備しています",
@@ -18654,7 +18654,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${recordTitle} | ikimon`,
+      `${recordTitle} | ZUKAN`,
       detailBody,
       "みつける",
       undefined,
@@ -18684,7 +18684,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${snapshot.displayName} notebook | ikimon`,
+      `${snapshot.displayName} notebook | ZUKAN`,
       renderProfileSnapshotBody(basePath, lang, viewerSession?.userId ?? null, snapshot, "guest", "public"),
       "ホーム",
       {
@@ -18716,7 +18716,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${snapshot.displayName} | ikimon`,
+      `${snapshot.displayName} | ZUKAN`,
       renderProfileSnapshotBody(basePath, lang, null, snapshot, "registered", "public"),
       "ホーム",
       {
@@ -18746,7 +18746,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "マイページ | ikimon",
+        "マイページ | ZUKAN",
         stateCard(
           copy.eyebrow,
           copy.title,
@@ -18770,7 +18770,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${snapshot.displayName} | ikimon`,
+      `${snapshot.displayName} | ZUKAN`,
       renderSelfProfileHub(basePath, lang, snapshot),
       "自分",
       undefined,
@@ -18789,7 +18789,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "プロフィール編集 | ikimon",
+        "プロフィール編集 | ZUKAN",
         stateCard(
           "プロフィール編集",
           "プロフィール編集にはログインが必要です",
@@ -18804,12 +18804,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const snapshot = await getProfileSnapshot(session.userId, { visibility: "owner" });
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "プロフィール編集 | ikimon", stateCard("プロフィールなし", "編集できるプロフィールがありません", "記録を 1 つでも残すとプロフィールが育ち始めます。"), "ホーム");
+      return layout(basePath, "プロフィール編集 | ZUKAN", stateCard("プロフィールなし", "編集できるプロフィールがありません", "記録を 1 つでも残すとプロフィールが育ち始めます。"), "ホーム");
     }
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "プロフィール編集 | ikimon",
+      "プロフィール編集 | ZUKAN",
       renderProfileSettingsForm(basePath, snapshot),
       "ホーム",
       {
@@ -18852,7 +18852,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Authority recommendations | ikimon",
+      "Authority recommendations | ZUKAN",
       `<section class="section"><div class="card"><div class="card-body">
           <div class="row">
             <div>
@@ -18958,7 +18958,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "専門家レビューの入口 | ikimon",
+        "専門家レビューの入口 | ZUKAN",
         stateCard(
           "専門家レビュー",
           "この画面は、担当範囲が確認された reviewer 向けです",
@@ -19029,7 +19029,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${laneTitle} | ikimon`,
+      `${laneTitle} | ZUKAN`,
       `<section class="section"><div class="card is-soft"><div class="card-body stack">
           <div class="row">
             <div>
@@ -19179,7 +19179,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "専門家推薦の入口 | ikimon",
+        "専門家推薦の入口 | ZUKAN",
         stateCard(
           "専門家レビュー",
           "この画面は、担当範囲が確認された reviewer 向けです",
@@ -19207,7 +19207,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Specialist recommendations | ikimon",
+      "Specialist recommendations | ZUKAN",
       `<section class="section"><div class="card is-soft"><div class="card-body stack">
           <div class="row">
             <div>
@@ -19401,7 +19401,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Authority audit | ikimon",
+      "Authority audit | ZUKAN",
       `<section class="section"><div class="card"><div class="card-body">
           <div class="row">
             <div>
@@ -19478,7 +19478,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Authority Admin | ikimon",
+      "Authority Admin | ZUKAN",
       `<section class="section"><div class="card"><div class="card-body">
           <div class="eyebrow">Grant authority</div>
           <h2>分類群 authority を付与する</h2>
@@ -19631,7 +19631,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "レビューキューの入口 | ikimon",
+        "レビューキューの入口 | ZUKAN",
         stateCard(
           "専門家レビュー",
           "この画面は、担当範囲が確認された reviewer 向けです",
@@ -19671,7 +19671,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Review Queue | ikimon",
+      "Review Queue | ZUKAN",
       `<section class="section"><div class="card is-soft"><div class="card-body stack">
           <div class="row">
             <div>

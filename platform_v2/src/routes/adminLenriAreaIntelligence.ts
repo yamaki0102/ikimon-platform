@@ -378,7 +378,7 @@ export async function registerAdminLenriAreaIntelligenceRoutes(app: FastifyInsta
       reply.code(403);
       return renderSiteDocument({
         basePath: "",
-        title: "Lenri area intelligence — ikimon.life",
+        title: "Lenri area intelligence — ZUKAN",
         extraStyles: LENRI_AREA_INTELLIGENCE_STYLES,
         body: loginGate("/admin/lenri-area-intelligence"),
         noindex: true,
@@ -387,7 +387,7 @@ export async function registerAdminLenriAreaIntelligenceRoutes(app: FastifyInsta
 
     return renderSiteDocument({
       basePath: "",
-      title: "Lenri area intelligence — ikimon.life",
+      title: "Lenri area intelligence — ZUKAN",
       extraStyles: LENRI_AREA_INTELLIGENCE_STYLES,
       body: renderBody(await getLenriAreaIntelligenceSnapshotWithLiveEffort()),
       noindex: true,

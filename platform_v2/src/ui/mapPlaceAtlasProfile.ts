@@ -284,7 +284,10 @@ function atlasSafeImageUrl(value: unknown, width: AtlasImageWidth): string {
   if (url.startsWith("/")) return allowedLocalPath ? url : "";
   try {
     const parsed = new URL(url);
-    const allowedHost = parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
+    const allowedHost = parsed.hostname === "zukan.earth"
+      || parsed.hostname.endsWith(".zukan.earth")
+      || parsed.hostname === "ikimon.life"
+      || parsed.hostname.endsWith(".ikimon.life");
     return parsed.protocol === "https:" && allowedHost ? parsed.toString() : "";
   } catch {
     return "";

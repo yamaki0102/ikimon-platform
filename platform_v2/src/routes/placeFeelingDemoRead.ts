@@ -22,7 +22,7 @@ export async function registerPlaceFeelingDemoReadRoutes(app: FastifyInstance): 
       .type("text/html")
       .send(renderSiteDocument({
         basePath,
-        title: lang === "ja" ? "ひとことタグ デモ | ikimon" : "Place feeling tag demo | ikimon",
+        title: lang === "ja" ? "ひとことタグ デモ | ZUKAN" : "Place feeling tag demo | ZUKAN",
         activeNav: "記録する",
         lang,
         body: renderPlaceFeelingTagDemo({ lang, recordHref }),

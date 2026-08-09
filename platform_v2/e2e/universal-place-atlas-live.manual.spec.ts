@@ -16,7 +16,7 @@ if (!/^[0-9a-f]{40}$/.test(EXPECTED_SHA)) {
     "PLACE_ATLAS_EXPECTED_SHA must be the exact 40-character staging SHA",
   );
 }
-const BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life";
+const BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth";
 const EVIDENCE_DIR = path.resolve(
   process.cwd(),
   `../docs/spec/universal-place-atlas/evidence/staging-${EXPECTED_SHA.slice(0, 12)}`,

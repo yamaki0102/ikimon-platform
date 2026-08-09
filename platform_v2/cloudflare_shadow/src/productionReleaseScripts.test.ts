@@ -15,7 +15,7 @@ test("original UI materializer pins discovery documents to the public canonical 
 
   assert.match(materializer, /"\/llms\.txt"/);
   assert.match(materializer, /"\/llms-full\.txt"/);
-  assert.match(materializer, /"x-forwarded-host":\s*"ikimon\.life"/);
+  assert.match(materializer, /"x-forwarded-host":\s*"zukan\.earth"/);
   assert.match(materializer, /"x-forwarded-proto":\s*"https"/);
   assert.match(materializer, /renderStaticAsset\(app, pathname\)/);
   assert.match(materializer, /headers:\s*canonicalRenderHeaders/);
@@ -71,6 +71,11 @@ test("production deploy guard remains a secretless preflight guard", async () =>
   const guard = await source("../scripts/deploy-production-guard.mjs");
 
   assert.match(guard, /production_execute_phase_entrypoint_required/);
+  assert.match(guard, /zukan\.earth/);
+  assert.match(guard, /custom_domain/);
+  assert.match(guard, /ikimon\.life\/\*/);
+  assert.match(guard, /www\.ikimon\.life\/\*/);
+  assert.match(guard, /staging\.zukan\.earth/);
   assert.match(guard, /eventCommandLine/);
   assert.match(guard, /eventCommandLine:\s*"npx wrangler deploy --env production --dry-run"/);
   assert.match(guard, /const requiredCommands = \["npm run check", testCommandForProfile\(profile\)\.commandLine, "npx wrangler deploy --env production --dry-run"\]/);
@@ -261,6 +266,12 @@ test("staging execute rejects dirty or changed deploy inputs before mutation", a
   await assert.rejects(runGate(true, clean, { ...clean, packageLockSha256: "lock-b" }), /staging_execute_state_changed:pre-deploy:packageLockSha256/u);
 
   const guard = await source("../scripts/deploy-staging-guard.mjs");
+  assert.match(guard, /const stagingCanonicalUrl = "https:\/\/staging\.zukan\.earth"/u);
+  assert.match(guard, /const stagingLegacyRollbackUrl = "https:\/\/staging\.ikimon\.life"/u);
+  assert.match(guard, /custom_domain/u);
+  assert.match(guard, /missing_staging_canonical_custom_domain/u);
+  assert.match(guard, /await smoke\(stagingCanonicalUrl, state\.gitHead\)/u);
+  assert.match(guard, /await smoke\(stagingLegacyRollbackUrl, state\.gitHead\)/u);
   assert.match(guard, /scripts\/staging-runtime-smoke\.mjs/u);
   assert.match(guard, /scripts\/staging-deploy-state-gate\.mjs/u);
   assert.match(guard, /assertStagingExecuteState/u);

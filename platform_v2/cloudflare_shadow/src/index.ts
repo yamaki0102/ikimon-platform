@@ -562,7 +562,7 @@ interface ResearchExportRecord {
   associatedMedia: string | null;
   associatedMediaRole: string | null;
   basisOfRecord: "HumanObservation";
-  datasetName: "ikimon Field Loop";
+  datasetName: "ZUKAN Field Loop";
   license: string;
   consensusStatus: string;
   identificationVerificationStatus: string;
@@ -1748,7 +1748,14 @@ const PUBLIC_MAP_EXACT_COORDINATE_GATE = Object.freeze({
 });
 const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
 const WORKER_BUILD_MARKER = "one-month-sprint-evidence-gate-20260705";
-const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life", "staging.ikimon.life"]);
+const PUBLIC_CANONICAL_ORIGIN = "https://zukan.earth";
+const PUBLIC_CUSTOM_HOSTS = new Set([
+  "zukan.earth",
+  "ikimon.life",
+  "www.ikimon.life",
+  "staging.zukan.earth",
+  "staging.ikimon.life"
+]);
 const HAMAMATSU_CITY_HERITAGE_URL = "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html";
 const JMA_NOWCAST_TARGET_N1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
 const JMA_NOWCAST_TARGET_N2 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json";
@@ -2113,7 +2120,7 @@ const SHADOW_MAP_GUIDE_SPOTS: ShadowMapGuideSpot[] = [
     storyPoints: [
       "制度は、地域に残る文化資源をゆるやかに認め、活用するための入口になる。",
       "所有者や地域の同意、文化財保護審議会の意見を経て認定される。",
-      "ikimonのガイドでは、出典を明示しながら現地で聞ける形に変換する。"
+      "ZUKANのガイドでは、出典を明示しながら現地で聞ける形に変換する。"
     ],
     triggerRadiusM: 300,
     unlockedRadiusM: 120,
@@ -3527,6 +3534,7 @@ const SYNTHETIC_RENRI_BROWSER_QA_ROUTES = Object.freeze({
 });
 const SYNTHETIC_RENRI_BROWSER_QA_ROUTE_SET = new Set<string>(Object.values(SYNTHETIC_RENRI_BROWSER_QA_ROUTES));
 const SYNTHETIC_RENRI_BROWSER_QA_HOST_SET = new Set([
+  "staging.zukan.earth",
   "staging.ikimon.life",
   "ikimon-life-cloudflare-staging.yamaki0102.workers.dev"
 ]);
@@ -3691,7 +3699,7 @@ function syntheticRenriBrowserQaPageHtml(
   </style>
 </head>
 <body data-synthetic-browser-qa="renri-v1" data-synthetic-state="${escapeHtml(state)}">
-  <header class="qa-header"><div class="qa-header-inner"><span class="qa-brand">ikimon.life / 連理</span><span class="qa-marker">合成QA・staging限定</span></div></header>
+  <header class="qa-header"><div class="qa-header-inner"><span class="qa-brand">ZUKAN / 連理</span><span class="qa-marker">合成QA・staging限定</span></div></header>
   <nav class="qa-nav" aria-label="合成QA状態">
     ${(["join", "rally", "live", "recap"] as const).map((item) => `<a href="${escapeHtml(SYNTHETIC_RENRI_BROWSER_QA_ROUTES[item])}"${item === state ? ' aria-current="page"' : ""}>${escapeHtml({ join: "参加", rally: "ラリー", live: "ライブ", recap: "振り返り" }[item])}</a>`).join("")}
   </nav>
@@ -4129,7 +4137,7 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escapeHtml(title)} - ikimon.life</title>
+  <title>${escapeHtml(title)} - ZUKAN</title>
   <style>
     body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f7faf8;color:#17231b}
     main{max-width:980px;margin:0 auto;padding:24px 18px 48px}
@@ -4138,7 +4146,7 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
     .site-header-inner{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 18px}
     .site-brand-cluster{display:flex;align-items:center;gap:8px;min-width:0}.desktop-side-nav-toggle{display:none}
     .brand{display:inline-flex;align-items:center;min-width:0;color:#17231b;text-decoration:none;font-weight:900}
-    .brand-logo-lockup{display:inline-flex;align-items:center;gap:7px;min-width:0}.brand-mark{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:#fff;box-shadow:0 7px 16px rgba(15,23,42,.1)}.brand-mark img{width:100%;height:100%;object-fit:cover}.brand-wordmark{display:inline-flex;align-items:center;height:16px;aspect-ratio:711/222}.brand-wordmark-img{display:block;width:auto;height:100%;object-fit:contain}
+    .brand-logo-lockup{display:inline-flex;align-items:center;min-width:0}.brand-primary-img{display:block;width:auto;height:34px;max-width:108px;object-fit:contain;object-position:left center}
     .site-nav{display:flex;align-items:center;gap:6px}.site-nav-link{min-height:38px;display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;color:#42574c;text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap}.site-nav-link:hover{background:#e8f1ed}
     .site-search{min-width:200px;max-width:300px;height:38px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;border-radius:999px;background:#fff;border:1px solid #d6e3dc}.site-search-input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#17231b;font:inherit;font-size:13px}.site-search-icon{font-size:13px;opacity:.72}
     .site-header-actions{display:flex;align-items:center;gap:8px}.site-header-actions-mobile{display:none}.site-record-link{min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;background:#0b6b54;color:#fff;text-decoration:none;font-size:13px;font-weight:900;box-shadow:0 8px 18px rgba(11,107,84,.14)}.lang-switch-label,.site-account-icons{display:inline-flex;align-items:center;border:1px solid #d6e3dc;background:#fff;color:#315241}.lang-switch-label{gap:5px;min-height:34px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900}.site-account-icons{gap:4px;padding:3px;border-radius:999px}.site-account-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:#315241;text-decoration:none}.desktop-side-nav-icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -4148,7 +4156,7 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
     button.btn{border:0;cursor:pointer;font:inherit}.area-sketch-card{margin-top:14px}.area-sketch-label,.area-sketch-cover label{display:grid;gap:6px;font-weight:700;color:#315241}.area-sketch-label input,.area-sketch-cover input,textarea[data-area-sketch-polygon]{width:100%;box-sizing:border-box;border:1px solid #cbd8d0;border-radius:6px;padding:9px 10px;font:inherit;background:#fff;color:#17231b}.area-sketch-map{height:420px;min-height:320px;border:1px solid #cbd8d0;border-radius:8px;overflow:hidden;background:#dce6df;margin:12px 0}.area-sketch-cover{margin-top:12px}
     .btn.secondary{background:#e8f1ed;color:#174c3d}.btn.rally-record-cta{min-height:44px}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
     pre{white-space:pre-wrap;word-break:break-word;background:#102018;color:#f3fff8;border-radius:8px;padding:12px}
-    @media(max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}}
+    @media(max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-primary-img{height:32px;max-width:102px}.site-record-link{min-height:38px;padding:8px 11px}}
   </style>
 </head>
 <body>
@@ -8309,7 +8317,7 @@ const MONITORING_PACKAGE_BLUEPRINTS_NATIVE = [
   {
     packageId: "edna_reference",
     label: "eDNA reference",
-    description: "eDNA等の外部検査・参照証拠。ikimon内ではsample metadataとtaxonomic resolutionを保持する。",
+    description: "eDNA等の外部検査・参照証拠。ZUKAN内ではsample metadataとtaxonomic resolutionを保持する。",
     observationMethods: ["edna_reference"],
     targetScopes: ["waterbody", "soil", "multi_taxa"],
     requiredBasis: ["site", "time", "method", "quality", "review", "rights", "external_taxon_id"],
@@ -11459,17 +11467,17 @@ function alertEmailFrom(env: Env): string {
 function alertEmailSubject(row: AlertDeliveryCandidateRow, payload: Record<string, unknown>): string {
   const title = normalizeOptionalText(payload.title) ?? normalizeOptionalText(payload.subject);
   if (title) return title.slice(0, 120);
-  if (row.trigger_kind === "municipality_invasive") return "ikimon: 外来種らしき記録の通知";
-  if (row.trigger_kind === "taxon_match") return "ikimon: フォロー中の生きものの記録";
-  if (row.trigger_kind === "subject_proposal") return "ikimon: 記録の候補が届きました";
-  return "ikimon: 新しい通知";
+  if (row.trigger_kind === "municipality_invasive") return "ZUKAN: 外来種らしき記録の通知";
+  if (row.trigger_kind === "taxon_match") return "ZUKAN: フォロー中の生きものの記録";
+  if (row.trigger_kind === "subject_proposal") return "ZUKAN: 記録の候補が届きました";
+  return "ZUKAN: 新しい通知";
 }
 
 function alertEmailText(row: AlertDeliveryCandidateRow, payload: Record<string, unknown>): string {
   const title = alertEmailSubject(row, payload);
-  const body = normalizeOptionalText(payload.body) ?? normalizeOptionalText(payload.message) ?? "ikimonで通知対象の記録が見つかりました。";
+  const body = normalizeOptionalText(payload.body) ?? normalizeOptionalText(payload.message) ?? "ZUKANで通知対象の記録が見つかりました。";
   const href = normalizeOptionalText(payload.href) ?? `/observations/${encodeURIComponent(row.occurrence_id)}`;
-  const absoluteHref = href.startsWith("http://") || href.startsWith("https://") ? href : `https://ikimon.life${href.startsWith("/") ? href : `/${href}`}`;
+  const absoluteHref = href.startsWith("http://") || href.startsWith("https://") ? href : `${PUBLIC_CANONICAL_ORIGIN}${href.startsWith("/") ? href : `/${href}`}`;
   return [
     title,
     "",
@@ -11477,7 +11485,7 @@ function alertEmailText(row: AlertDeliveryCandidateRow, payload: Record<string, 
     "",
     absoluteHref,
     "",
-    "このメールはikimonの通知設定にもとづいて送信されています。"
+    "このメールはZUKANの通知設定にもとづいて送信されています。"
   ].join("\n");
 }
 
@@ -11822,7 +11830,7 @@ async function sendContactEmailsBestEffort(
     await env.ALERT_EMAIL.send({
       from: alertEmailFrom(env),
       to: normalizeOptionalText(env.CONTACT_ADMIN_TO) ?? "yamaki0102@gmail.com",
-      subject: `ikimon contact: ${input.category}`,
+      subject: `ZUKAN contact: ${input.category}`,
       text: [
         `submission: ${input.submissionId}`,
         `name: ${input.name ?? ""}`,
@@ -11841,7 +11849,7 @@ async function sendContactEmailsBestEffort(
       await env.ALERT_EMAIL.send({
         from: alertEmailFrom(env),
         to: input.email,
-        subject: "ikimonへのお問い合わせを受け付けました",
+        subject: "ZUKANへのお問い合わせを受け付けました",
         text: "お問い合わせを受け付けました。内容を確認して必要に応じて返信します。"
       });
       autoReplySent = true;
@@ -12365,7 +12373,7 @@ async function handleResearchExportApi(request: Request, url: URL, env: Env): Pr
       headers: {
         ...researchExportHeaders("csv"),
         "content-type": "text/csv; charset=utf-8",
-        "content-disposition": "attachment; filename=\"ikimon-darwin-core-v0.csv\"",
+        "content-disposition": "attachment; filename=\"zukan-darwin-core-v0.csv\"",
         "x-ikimon-export-format": "darwin_core_csv_v0",
         "x-ikimon-export-ready-only": "true"
       }
@@ -12521,7 +12529,7 @@ function toResearchExportRecord(row: ResearchExportD1Row): ResearchExportRecord 
     associatedMedia: row.media_ref,
     associatedMediaRole: row.media_role,
     basisOfRecord: "HumanObservation",
-    datasetName: "ikimon Field Loop",
+    datasetName: "ZUKAN Field Loop",
     license: exportReady ? "CC-BY-4.0-compatible" : "not_export_ready",
     consensusStatus: reviewReady ? "authority_backed" : "tier_gate",
     identificationVerificationStatus: reviewReady ? "authority_reviewed" : "needs_more_evidence",
@@ -14698,7 +14706,7 @@ async function fetchLiveNamedAreaPolygonsWhenRequested(
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           "Accept": "application/json",
-          "User-Agent": "ikimon.life universal place atlas contact: https://ikimon.life",
+          "User-Agent": "ZUKAN universal place atlas contact: https://zukan.earth",
           "X-Ikimon-Client": "ikimon.life-named-area-polygons"
         },
         body,
@@ -14906,7 +14914,7 @@ async function fetchLiveSchoolAreaPolygons(
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           "Accept": "application/json",
-          "User-Agent": "ikimon.life area polygon repair contact: https://ikimon.life",
+          "User-Agent": "ZUKAN area polygon repair contact: https://zukan.earth",
           "X-Ikimon-Client": "ikimon.life-area-polygons"
         },
         body,
@@ -15161,7 +15169,7 @@ const STATIC_MUNICIPAL_WALK_MAP_SOURCE_CATALOG = [
     sourceUrl: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
     officialPageUrl: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
     affinityScore: 21,
-    cue: "コースと見つかる生きものを同時に見せる型。ikimon.lifeでは立ち寄り先と記録CTAに分ける。"
+    cue: "コースと見つかる生きものを同時に見せる型。ZUKANでは立ち寄り先と記録CTAに分ける。"
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
@@ -15544,14 +15552,14 @@ function renderMunicipalWalkMapPublicDetailHtml(detail: Awaited<ReturnType<typeo
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)} - ikimon</title>
+<title>${escapeHtml(title)} - ZUKAN</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f6faf7;font-size:16px;line-height:1.6}
 a{color:inherit}
 .wm-detail-topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:13px;min-height:64px;padding:10px 16px;background:rgba(255,255,255,.94);border-bottom:1px solid #dbe7e2;backdrop-filter:blur(14px)}
 .wm-detail-brand{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:900}
-.wm-detail-logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#10d6c7 0%,#2ddf73 62%,#ecfdf5 100%);box-shadow:0 8px 22px rgba(16,185,129,.22)}
+.wm-detail-logo{display:block;width:auto;height:34px;max-width:108px;object-fit:contain;object-position:left center}
 .wm-detail-topbar-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 14px;border:1px solid #cfe5dc;border-radius:999px;background:#eefcf4;color:#0f6f61;font-weight:900;text-decoration:none}
 .wm-detail{max-width:1080px;margin:0 auto;padding:21px 16px 34px}
 .wm-detail-hero{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:21px;align-items:stretch;margin-bottom:21px}
@@ -15593,12 +15601,12 @@ a{color:inherit}
 .wm-detail-actions{display:flex;gap:12px;justify-content:center;max-width:640px;margin:0 auto 24px;padding:0 14px 10px;background:transparent}
 .wm-detail-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:52px;width:min(46%,240px);padding:10px 16px;border-radius:999px;border:1px solid #cfe5dc;background:#fff;color:#0f5f55;font-weight:900;text-decoration:none}
 .wm-detail-actions a.is-primary{background:#10b981;border-color:#10b981;color:#fff}
-@media(max-width:760px){.wm-detail-topbar{padding:9px 14px}.wm-detail{padding:16px 12px 24px}.wm-detail-hero,.wm-detail-grid{grid-template-columns:1fr}.wm-detail-hero{gap:13px}.wm-detail-hero-copy{padding:10px 0}.wm-detail-hero h1{font-size:28px}.wm-detail-hero p{font-size:16px}.wm-detail-map-card{order:-1}.wm-detail-map-visual{min-height:150px}.wm-detail-panel{position:static}.wm-detail-stop-head{display:grid}.wm-detail-stop-actions{display:grid}.wm-detail-stop-actions a{width:100%}.wm-detail-actions{padding:0 12px 18px}.wm-detail-actions a{width:50%;font-size:15px}}
+@media(max-width:760px){.wm-detail-topbar{padding:9px 14px}.wm-detail-logo{height:32px;max-width:102px}.wm-detail{padding:16px 12px 24px}.wm-detail-hero,.wm-detail-grid{grid-template-columns:1fr}.wm-detail-hero{gap:13px}.wm-detail-hero-copy{padding:10px 0}.wm-detail-hero h1{font-size:28px}.wm-detail-hero p{font-size:16px}.wm-detail-map-card{order:-1}.wm-detail-map-visual{min-height:150px}.wm-detail-panel{position:static}.wm-detail-stop-head{display:grid}.wm-detail-stop-actions{display:grid}.wm-detail-stop-actions a{width:100%}.wm-detail-actions{padding:0 12px 18px}.wm-detail-actions a{width:50%;font-size:15px}}
 </style>
 </head>
 <body>
 <header class="wm-detail-topbar">
-  <a class="wm-detail-brand" href="/ja/" aria-label="ikimon ホーム"><span class="wm-detail-logo" aria-hidden="true"></span><strong>ikimon</strong></a>
+  <a class="wm-detail-brand" href="/ja/" aria-label="ZUKAN"><img class="wm-detail-logo" src="/assets/brand/zukan-primary.svg" alt=""></a>
   <a class="wm-detail-topbar-link" href="${escapeHtml(backMapHref)}" data-kpi-action="walk_map_detail:top_back_to_map">地図に戻る</a>
 </header>
 <main class="wm-detail">
@@ -15666,7 +15674,7 @@ function getNativePlaceLandingPage(slug: string, request: Request): Response {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>浜松のガイド地点 - ikimon</title>
+<title>浜松のガイド地点 - ZUKAN</title>
 <style>
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
 .place{max-width:1040px;margin:0 auto;padding:24px 16px 72px}
@@ -15716,7 +15724,7 @@ function getNativeNotFoundPage(request: Request): Response {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ページが見つかりません - ikimon</title>
+<title>ページが見つかりません - ZUKAN</title>
 <style>
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
 .nf{max-width:720px;margin:0 auto;padding:48px 16px 72px;display:grid;gap:14px}
@@ -15776,7 +15784,7 @@ function renderMunicipalWalkMapListHtml(summaries: unknown[]): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>散策マップ - ikimon</title>
+<title>散策マップ - ZUKAN</title>
 <style>
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
 .wm-list{max-width:1120px;margin:0 auto;padding:24px 16px 72px}
@@ -15837,7 +15845,7 @@ function renderMunicipalWalkMapSourceDraftHtml(source: Record<string, unknown>):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)} - ikimon</title>
+<title>${escapeHtml(title)} - ZUKAN</title>
 <style>
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
 .wm-source{max-width:960px;margin:0 auto;padding:24px 16px 72px}
@@ -18080,7 +18088,7 @@ function renderGuideOutcomesHtml(summaries: Array<Record<string, D1Value>>): str
       <p class="guide-meta">${escapeHtml(String(row.public_location_label ?? ""))}${subjectText ? ` / ${escapeHtml(subjectText)}` : ""}</p>
     </article>`;
   }).join("");
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ガイド成果 - ikimon</title><style>body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f8fafc}.guide-page{max-width:1040px;margin:0 auto;padding:24px 16px 72px}.guide-page h1{margin:0 0 12px;font-size:28px;letter-spacing:0}.guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.guide-card{background:#fff;border:1px solid #d8e5df;border-radius:8px;padding:14px}.guide-card h2{margin:0 0 8px;font-size:18px}.guide-card p{line-height:1.65;color:#475569}.guide-kicker{font-size:12px;font-weight:900;color:#0f766e}.guide-meta{font-size:13px}</style></head><body><main class="guide-page" data-cloudflare-source="guide-outcomes-d1"><h1>ガイド成果</h1><section class="guide-grid">${cards || "<p>保存済みのガイド記録はまだありません。</p>"}</section></main></body></html>`;
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ガイド成果 - ZUKAN</title><style>body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f8fafc}.guide-page{max-width:1040px;margin:0 auto;padding:24px 16px 72px}.guide-page h1{margin:0 0 12px;font-size:28px;letter-spacing:0}.guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.guide-card{background:#fff;border:1px solid #d8e5df;border-radius:8px;padding:14px}.guide-card h2{margin:0 0 8px;font-size:18px}.guide-card p{line-height:1.65;color:#475569}.guide-kicker{font-size:12px;font-weight:900;color:#0f766e}.guide-meta{font-size:13px}</style></head><body><main class="guide-page" data-cloudflare-source="guide-outcomes-d1"><h1>ガイド成果</h1><section class="guide-grid">${cards || "<p>保存済みのガイド記録はまだありません。</p>"}</section></main></body></html>`;
 }
 
 async function getGuideOutcomesPage(request: Request, url: URL, env: Env): Promise<Response> {
@@ -18263,7 +18271,7 @@ async function createGuideRecordCorrection(request: Request, guideRecordId: stri
 }
 
 function guideProgramShell(title: string, body: string): Response {
-  return html(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} - ikimon</title><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f8fafc}.guide-admin{max-width:1120px;margin:0 auto;padding:24px 16px 72px}.guide-admin h1{font-size:26px;line-height:1.25;margin:0 0 12px}.guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.guide-card{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:14px}.guide-card h2{font-size:17px;margin:0 0 8px}.guide-card p{line-height:1.65;color:#475569}.guide-chip{display:inline-flex;border-radius:999px;background:#e0f2fe;color:#075985;font-size:12px;font-weight:900;padding:3px 8px}</style></head><body><main class="guide-admin">${body}</main></body></html>`, 200, nativeGuideHeaders("guide-admin-html"));
+  return html(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} - ZUKAN</title><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f8fafc}.guide-admin{max-width:1120px;margin:0 auto;padding:24px 16px 72px}.guide-admin h1{font-size:26px;line-height:1.25;margin:0 0 12px}.guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.guide-card{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:14px}.guide-card h2{font-size:17px;margin:0 0 8px}.guide-card p{line-height:1.65;color:#475569}.guide-chip{display:inline-flex;border-radius:999px;background:#e0f2fe;color:#075985;font-size:12px;font-weight:900;padding:3px 8px}</style></head><body><main class="guide-admin">${body}</main></body></html>`, 200, nativeGuideHeaders("guide-admin-html"));
 }
 
 async function getGuideProgramsAdminPage(request: Request, env: Env): Promise<Response> {
@@ -18506,7 +18514,7 @@ function renderMunicipalWalkMapAdminShellHtml(input: {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(input.title)} - ikimon admin</title>
+<title>${escapeHtml(input.title)} - ZUKAN admin</title>
 <style>
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
 .wm-admin{max-width:1180px;margin:0 auto;padding:22px 16px 72px}
@@ -19208,7 +19216,7 @@ function renderMunicipalWalkMapPreviewHtml(config: ReturnType<typeof normalizeMu
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(config.title)} - ikimon</title>
+<title>${escapeHtml(config.title)} - ZUKAN</title>
 <style>
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
 .wm-preview{max-width:1080px;margin:0 auto;padding:28px 18px 72px}
@@ -19604,7 +19612,7 @@ function renderStewardshipActionFormPage(placeId: string, url: URL, signedIn: bo
     ["other", "その他 / Other"]
   ].map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join("");
 
-  return `<!doctype html><html lang="${lang === "pt-BR" ? "pt-BR" : escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} - ikimon</title><style>
+  return `<!doctype html><html lang="${lang === "pt-BR" ? "pt-BR" : escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} - ZUKAN</title><style>
 body{margin:0;background:#f6faf8;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.sa{max-width:720px;margin:0 auto;padding:28px 16px 72px}.sa-card{background:#fff;border:1px solid #dce8e3;border-radius:8px;padding:18px;box-shadow:0 10px 28px rgba(15,23,42,.08)}h1{font-size:26px;line-height:1.25;margin:0 0 8px}p{color:#475569;line-height:1.7}.sa-msg{border-radius:8px;background:#e7f7f1;color:#065f46;padding:10px 12px;font-weight:800}.sa-msg[data-error="true"]{background:#fff1f2;color:#9f1239}label{display:block;font-weight:800;margin:16px 0 6px}input,select,textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:8px;padding:11px;font:inherit;background:#fff}textarea{min-height:112px;resize:vertical}.sa-actions{display:flex;gap:10px;align-items:center;margin-top:18px}button{border:0;border-radius:999px;background:#008f7a;color:#fff;font-weight:900;padding:12px 18px;min-height:44px}.sa-note{font-size:13px;color:#64748b}</style></head><body><main class="sa"><section class="sa-card"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p>${message ? `<p class="sa-msg" data-error="${messageKey === "ok" ? "false" : "true"}">${escapeHtml(message)}</p>` : ""}<form method="post" action="${escapeHtml(action)}">
 <input type="hidden" name="lang" value="${escapeHtml(lang)}">
 <label for="occurred_at">日時</label><input id="occurred_at" name="occurred_at" type="datetime-local" required>
@@ -21102,7 +21110,7 @@ const AREA_SKETCH_CLAIM_BOUNDARY = {
     "第三者の私有地、学校敷地、子どもの活動場所を公開用資料として無条件に出力できません。",
     "航空写真や外部地図の利用条件を超えた転載・二次利用はできません。"
   ],
-  requiredDisclaimer: "この結果はikimon.lifeによる事前診断・資料整理支援の概算です。正式申請、測量、行政判断、認定取得を保証するものではありません。",
+  requiredDisclaimer: "この結果はZUKANによる事前診断・資料整理支援の概算です。正式申請、測量、行政判断、認定取得を保証するものではありません。",
   prohibitedPhrases: ["申請できます", "認定されます", "正式面積", "測量済み", "保証"]
 };
 
@@ -22418,7 +22426,7 @@ function buildD1FixedPointYearlyTimeline(visits: D1FixedPointStationVisit[], act
 }
 
 function renderFixedPointStationNotFoundHtml(placeId: string): string {
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>定点ページ | ikimon</title></head><body><main><h1>定点ページが見つかりません</h1><p>${escapeHtml(placeId)} の公開記録はまだありません。</p><p><a href="/map">地図へ</a></p></main></body></html>`;
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>定点ページ | ZUKAN</title></head><body><main><h1>定点ページが見つかりません</h1><p>${escapeHtml(placeId)} の公開記録はまだありません。</p><p><a href="/map">地図へ</a></p></main></body></html>`;
 }
 
 function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
@@ -22443,12 +22451,12 @@ function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escapeHtml(station.name)} | 定点ページ | ikimon</title>
+  <title>${escapeHtml(station.name)} | 定点ページ | ZUKAN</title>
   <style>
     :root { color-scheme: light; --ink:#0f172a; --muted:#64748b; --line:rgba(15,23,42,.1); --green:#047857; --shell:min(1100px, calc(100% - 28px)); }
     * { box-sizing: border-box; } body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--ink); background:#f8fafc; }
     header { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px clamp(14px,3vw,32px); border-bottom:1px solid var(--line); background:#fff; }
-    header a { color:inherit; text-decoration:none; font-weight:900; } main { width:var(--shell); margin:0 auto; padding:22px 0 56px; }
+    header a { color:inherit; text-decoration:none; font-weight:900; } .fps-brand { display:inline-flex; align-items:center; min-width:0; } .fps-brand img { display:block; width:auto; height:34px; max-width:108px; object-fit:contain; object-position:left center; } main { width:var(--shell); margin:0 auto; padding:22px 0 56px; }
     .fps-hero { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; align-items:end; padding:24px; border-radius:10px; background:linear-gradient(135deg,#ecfdf5,#eff6ff); border:1px solid var(--line); }
     .fps-hero h1 { margin:6px 0; font-size:clamp(28px,5vw,48px); line-height:1.08; letter-spacing:0; } .fps-hero p { margin:0; color:var(--muted); font-weight:750; line-height:1.65; }
     .fps-hero a { min-height:44px; display:inline-flex; align-items:center; padding:0 15px; border-radius:8px; background:var(--green); color:#fff; text-decoration:none; font-weight:900; }
@@ -22457,11 +22465,11 @@ function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
     .fps-stat strong { display:block; color:#064e3b; font-size:28px; line-height:1; } .fps-stat span, .fps-card span, .fps-row span, .fps-row time { color:var(--muted); font-size:12px; font-weight:850; }
     section { margin-top:24px; } h2 { margin:0 0 10px; font-size:clamp(21px,3vw,30px); letter-spacing:0; } .fps-card p { margin:8px 0 0; color:#334155; line-height:1.55; font-weight:720; }
     .fps-row { display:grid; grid-template-columns:110px minmax(0,1fr) 90px auto; gap:10px; align-items:center; margin-bottom:8px; } .fps-row a { color:var(--green); font-weight:900; text-decoration:none; }
-    @media (max-width:760px) { .fps-hero, .fps-stats, .fps-grid, .fps-row { grid-template-columns:1fr; } .fps-hero a { justify-self:start; } }
+    @media (max-width:760px) { .fps-brand img { height:32px; max-width:102px; } .fps-hero, .fps-stats, .fps-grid, .fps-row { grid-template-columns:1fr; } .fps-hero a { justify-self:start; } }
   </style>
 </head>
 <body>
-<header><a href="/">ikimon</a><nav><a href="/map">地図へ</a></nav></header>
+<header><a class="fps-brand" href="/" aria-label="ZUKAN"><img src="/assets/brand/zukan-primary.svg" alt=""></a><nav><a href="/map">地図へ</a></nav></header>
 <main data-cloudflare-fixed-point-station="1" data-place-id="${escapeHtml(station.placeId)}">
   <section class="fps-hero"><div><span>定点ページ</span><h1>${escapeHtml(station.name)}</h1><p>${escapeHtml(station.locationLabel)}。同じ場所の公開記録と手入れの履歴を年ごとに並べます。</p></div><a href="${escapeHtml(recordHref)}">この場所を記録</a></section>
   <div class="fps-stats"><div class="fps-stat"><strong>${station.visits.length}</strong><span>公開記録</span></div><div class="fps-stat"><strong>${station.yearlyTimeline.length}</strong><span>年</span></div><div class="fps-stat"><strong>${station.actions.length}</strong><span>手入れ</span></div></div>
@@ -22849,8 +22857,8 @@ function fieldPublicProfileEvidenceContract(row: FieldDetailReadmodelRow, placeT
     sourceTypes: ["cloudflare_field_detail_readmodel", "ikimon_place_registry"],
     rights: {
       licenseScope: "ikimon_public_profile_policy",
-      attribution: "ikimon.life",
-      attributionUrl: `https://ikimon.life/fields/${encodeURIComponent(row.field_id)}`,
+      attribution: "ZUKAN",
+      attributionUrl: `${PUBLIC_CANONICAL_ORIGIN}/fields/${encodeURIComponent(row.field_id)}`,
       commercialUse: "internal_policy_required",
       thirdPartyMediaUsed: false
     },
@@ -23274,6 +23282,9 @@ function contentTypeForOriginalUiStaticAsset(pathname: string): string {
 function cacheControlForOriginalUiStaticAsset(pathname: string): string {
   if (pathname === "/app-sw.js" || pathname === "/offline.html") return "no-cache, no-store, must-revalidate";
   if (pathname === "/manifest.webmanifest") return "public, max-age=300";
+  if (pathname === "/favicon.ico" || pathname.startsWith("/assets/brand/")) {
+    return "public, max-age=0, must-revalidate";
+  }
   return "public, max-age=31536000, immutable";
 }
 
@@ -23425,7 +23436,7 @@ function browserSecurityHeaders(cspNonce: string, isProduction: boolean): Record
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org https://tiles.openfreemap.org",
-    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://cloudflareinsights.com https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
+    "connect-src 'self' https://zukan.earth https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://cloudflareinsights.com https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
     "frame-src 'self' https://iframe.videodelivery.net",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
@@ -23573,13 +23584,14 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escapeHtml(title)} - ikimon</title>
+  <title>${escapeHtml(title)} - ZUKAN</title>
   <style>
     :root{color-scheme:light;--ink:#10251a;--muted:#52635d;--line:#d8eae4;--mint:#eefbf6;--teal:#058f82;--leaf:#54c86f;--paper:#fbfdfb}
     *{box-sizing:border-box}
     body{margin:0;background:linear-gradient(180deg,#f5fbf8 0,#fff 72%);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
     .cf-record-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
-    .cf-record-brand{font-weight:900;text-decoration:none;color:var(--ink);font-size:20px;letter-spacing:0}
+    .cf-record-brand{display:inline-flex;align-items:center;min-width:0;text-decoration:none;color:var(--ink)}
+    .cf-record-brand img{display:block;width:auto;height:34px;max-width:108px;object-fit:contain;object-position:left center}
     .cf-record-profile{color:var(--muted);font-size:13px;font-weight:800;overflow-wrap:anywhere;text-align:right}
     .cf-record-shell{width:min(720px,calc(100% - 24px));margin:18px auto 42px}
     .cf-record-hero{margin:0 0 14px}
@@ -23600,12 +23612,12 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
     .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--leaf));color:#fff;font-weight:900;font-size:16px}
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
-    @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:54%;font-size:12px}}
+    @media (max-width:520px){.cf-record-brand img{height:32px;max-width:102px}.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:54%;font-size:12px}}
   </style>
 </head>
 <body data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   <header class="cf-record-header">
-    <a class="cf-record-brand" href="${escapeHtml(prefix)}/">ikimon</a>
+    <a class="cf-record-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN"><img src="/assets/brand/zukan-primary.svg" alt=""></a>
     <div class="cf-record-profile">${escapeHtml(session.displayName || session.userId)}</div>
   </header>
   <main class="cf-record-shell">
@@ -23944,7 +23956,7 @@ function renderCloudflareProfileHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title} - ikimon</title>
+  <title>${title} - ZUKAN</title>
   <style>
     :root{color-scheme:light;--ink:#10251a;--muted:#475569;--line:#d9e8e2;--surface:#fff;--soft:#f5faf7;--mint:#e8f7ef;--sky:#e0f2fe;--amber:#fef3c7;--teal:#047857;--blue:#0369a1;--gold:#92400e}
     *{box-sizing:border-box}
@@ -23954,11 +23966,8 @@ function renderCloudflareProfileHtml(
     .site-brand-cluster{display:flex;align-items:center;gap:8px;min-width:0}
     .desktop-side-nav-toggle{display:none}
     .brand{display:inline-flex;align-items:center;min-width:0;color:var(--ink);text-decoration:none;font-weight:900}
-    .brand-logo-lockup{display:inline-flex;align-items:center;gap:7px;min-width:0}
-    .brand-mark{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:#fff;box-shadow:0 7px 16px rgba(15,23,42,.1)}
-    .brand-mark img{width:100%;height:100%;object-fit:cover;display:block}
-    .brand-wordmark{display:inline-flex;align-items:center;height:16px;aspect-ratio:711/222}
-    .brand-wordmark-img{display:block;width:auto;height:100%;object-fit:contain}
+    .brand-logo-lockup{display:inline-flex;align-items:center;min-width:0}
+    .brand-primary-img{display:block;width:auto;height:34px;max-width:108px;object-fit:contain;object-position:left center}
     .site-nav{display:flex;align-items:center;gap:6px}
     .site-nav-link{min-height:38px;display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;color:#42574c;text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap}
     .site-nav-link:hover{background:#e8f1ed}
@@ -24027,7 +24036,7 @@ function renderCloudflareProfileHtml(
     .cf-profile-settings dt{color:var(--muted);font-size:13px;font-weight:850}
     .cf-profile-settings dd{margin:4px 0 0;font-weight:950;overflow-wrap:anywhere}
     .cf-profile-settings a{color:var(--blue);font-weight:950}
-    @media (max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}.cf-profile-hero{grid-template-columns:1fr}.cf-profile-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-profile-settings dl{grid-template-columns:1fr}}
+    @media (max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-primary-img{height:32px;max-width:102px}.site-record-link{min-height:38px;padding:8px 11px}.cf-profile-hero{grid-template-columns:1fr}.cf-profile-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-profile-settings dl{grid-template-columns:1fr}}
     @media (max-width:720px){.cf-profile-shell{width:calc(100% - 20px);margin:16px auto calc(116px + env(safe-area-inset-bottom))}.cf-profile-hero-copy{padding:20px;border-radius:16px}.cf-profile-hero-copy h1{font-size:28px}.cf-profile-primary-actions,.cf-profile-control-grid{grid-template-columns:1fr;gap:9px}.cf-profile-action{min-height:78px;padding:12px}.cf-profile-account{display:grid}.cf-profile-account-actions{justify-content:flex-start}.cf-profile-record-grid{grid-template-columns:1fr;gap:9px}.cf-profile-record{grid-template-columns:124px minmax(0,1fr);min-height:128px;padding:8px;gap:12px}.cf-profile-record-media{width:124px;height:112px;border-radius:11px}.cf-profile-record>span:last-child{min-width:0}.cf-profile-record>span:last-child strong{font-size:15px;line-height:1.35}.cf-profile-record>span:last-child span{font-size:13px;line-height:1.45}.cf-profile-flow ol{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
@@ -24061,7 +24070,7 @@ function renderCloudflareProfileRecordCard(
   },
   lang: "ja" | "en" | "es" | "pt-br"
 ): string {
-  const title = homeRecordDisplayTitle(item, ownerHomeRecordsCopy(new URL(`https://ikimon.life/${lang === "ja" ? "ja" : lang}/`)), lang);
+  const title = homeRecordDisplayTitle(item, ownerHomeRecordsCopy(new URL(`https://zukan.earth/${lang === "ja" ? "ja" : lang}/`)), lang);
   const observedAt = formatHomeRecordObservedAt(item.observedAt, lang);
   const href = `/${lang === "ja" ? "ja" : lang}/observations/${encodeURIComponent(item.visitId)}`;
   const media = item.photoUrl
@@ -26522,7 +26531,7 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
       appUrl.searchParams.set("user_id", user.user_id);
       appUrl.searchParams.set("name", user.display_name);
       if (user.email) appUrl.searchParams.set("email", user.email);
-      appUrl.searchParams.set("message", "ikimon.life アカウントでログインしました");
+      appUrl.searchParams.set("message", "ZUKANアカウントでログインしました");
       const headers = new Headers({
         location: appUrl.toString(),
         "cache-control": "no-store"
@@ -26643,7 +26652,7 @@ async function exchangeMobileAppOAuthCode(request: Request, env: Env): Promise<R
           displayName: exchange.displayName
         },
         email: exchange.email,
-        message: "ikimon.life アカウントでログインしました"
+        message: "ZUKANアカウントでログインしました"
       }
     }, 200, { "cache-control": "no-store" });
   } catch (error) {
@@ -27042,7 +27051,7 @@ async function findOrCreateOAuthUser(profile: OAuthProfile, env: Env): Promise<A
   const authUser = email ? await findAuthUserByEmail(email, env) : null;
   if (authUser?.banned) throw new Error("account_disabled");
   const userId = authUser?.user_id ?? `user_${crypto.randomUUID()}`;
-  const displayName = authUser?.display_name ?? normalizeOptionalText(profile.name) ?? "ikimon user";
+  const displayName = authUser?.display_name ?? normalizeOptionalText(profile.name) ?? "ZUKAN user";
   const roleName = authUser?.role_name ?? "Observer";
   const rankLabel = authUser?.rank_label ?? "観察者";
   await env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId).run();
@@ -32463,8 +32472,8 @@ async function shadowRouteChangeRehearsalProof(url: URL, env: Env): Promise<Resp
     "production_imported_data_r2_inventory",
     "auth_record_photo_video_map_detail"
   ];
-  const productionHosts = ["ikimon.life", "www.ikimon.life"];
-  const stagingHost = url.searchParams.get("staging_host") ?? "staging.ikimon.life";
+  const productionHosts = ["zukan.earth", "ikimon.life", "www.ikimon.life"];
+  const stagingHost = url.searchParams.get("staging_host") ?? "staging.zukan.earth";
 
   const routeMatrix = [
     {
@@ -32494,6 +32503,14 @@ async function shadowRouteChangeRehearsalProof(url: URL, env: Env): Promise<Resp
     {
       host: "ikimon.life",
       path: "/health",
+      currentExpectedStatus: null,
+      postCutoverExpectedStatus: 200,
+      target: "cloudflare_managed_app_health",
+      productionHost: true
+    },
+    {
+      host: "zukan.earth",
+      path: "/",
       currentExpectedStatus: null,
       postCutoverExpectedStatus: 200,
       target: "cloudflare_managed_app_health",
@@ -34173,11 +34190,11 @@ function renderObservationUnavailableHtml(): string {
 
 function shadowDerivativeSvg(assetId: string): string {
   const safeAssetId = escapeHtml(assetId).slice(0, 72);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-label="ikimon shadow derivative">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-label="public image preview">
   <rect width="640" height="480" fill="#e8eee9"/>
   <circle cx="320" cy="190" r="72" fill="#176b45" opacity="0.18"/>
   <path d="M178 330c82-90 174-108 284-18 22 18 42 28 60 30v50H118v-42c18-4 38-10 60-20z" fill="#176b45" opacity="0.28"/>
-  <text x="320" y="222" text-anchor="middle" font-family="system-ui, sans-serif" font-size="34" font-weight="700" fill="#176b45">ikimon</text>
+  <text x="320" y="222" text-anchor="middle" font-family="system-ui, sans-serif" font-size="34" font-weight="700" fill="#176b45">PHOTO PREVIEW</text>
   <text x="320" y="266" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" fill="#53615a">shadow public derivative</text>
   <text x="320" y="432" text-anchor="middle" font-family="monospace" font-size="14" fill="#53615a">${safeAssetId}</text>
 </svg>`;
@@ -34189,7 +34206,7 @@ function renderShadowRecordSmokeHtml(): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ikimon Cloudflare shadow flow smoke</title>
+  <title>ZUKAN Cloudflare shadow flow smoke</title>
   <style>
     body { margin: 0; font-family: system-ui, sans-serif; color: #17201a; background: #f6f8f5; }
     main { max-width: 920px; margin: 0 auto; padding: 28px 16px 54px; }
@@ -34307,7 +34324,7 @@ function renderShadowMapSmokeHtml(url: URL): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ikimon Cloudflare shadow map smoke</title>
+  <title>ZUKAN Cloudflare shadow map smoke</title>
   <style>
     body { margin: 0; font-family: system-ui, sans-serif; color: #17201a; background: #f6f8f5; }
     main { max-width: 920px; margin: 0 auto; padding: 28px 16px 54px; }
@@ -34490,7 +34507,7 @@ function renderPublicObservationDetailHtml(
       </div>
     </section>`;
   const headerBlock = polish?.headerBlock ?? `<header class="site-header">
-  <a class="brand" href="/"><span class="brand-mark"><img src="/assets/brand/zukan-app-icon-192.png" alt=""></span><span class="brand-wordmark" aria-label="ZUKAN"><img class="brand-wordmark-img" src="/assets/brand/zukan-wordmark.svg" alt=""></span></a>
+  <a class="brand" href="/" aria-label="ZUKAN"><span class="brand-logo-lockup"><img class="brand-primary-img" src="/assets/brand/zukan-primary.svg" alt=""></span></a>
   <details class="header-menu">
     <summary aria-label="メニュー" title="メニュー"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
     <nav class="header-menu-panel" aria-label="主要リンク">
@@ -34508,7 +34525,7 @@ function renderPublicObservationDetailHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escapeHtml(displayName)} - ikimon</title>
+  <title>${escapeHtml(displayName)} - ZUKAN</title>
   <style>
     :root { color-scheme: light; --ink: #0f172a; --muted: #64748b; --line: rgba(15,23,42,.1); --teal: #0f766e; --mint: #ecfdf5; --sky: #eff6ff; --paper: rgba(255,255,255,.94); --shell: min(1180px, calc(100% - 28px)); --content: min(860px, calc(100vw - 28px)); }
     * { box-sizing: border-box; }
@@ -34516,10 +34533,8 @@ function renderPublicObservationDetailHtml(
     a { color: inherit; }
     .site-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px clamp(14px, 3vw, 32px); border-bottom: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.86); backdrop-filter: blur(14px); }
     .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-weight: 950; }
-    .brand-mark { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 34px; overflow: hidden; border-radius: 10px; background: #fff; box-shadow: 0 7px 16px rgba(15,23,42,.10); }
-    .brand-mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
-    .brand-wordmark { display: inline-flex; align-items: center; height: 16px; aspect-ratio: 711 / 222; line-height: 1; }
-    .brand-wordmark-img { display: block; width: auto; height: 100%; object-fit: contain; object-position: left center; }
+    .brand-logo-lockup { display: inline-flex; align-items: center; min-width: 0; }
+    .brand-primary-img { display: block; width: auto; height: 36px; max-width: 112px; object-fit: contain; object-position: left center; }
     .header-menu { position: relative; margin-left: auto; }
     .header-menu summary { width: 46px; height: 46px; display: grid; place-content: center; gap: 5px; list-style: none; cursor: pointer; border: 1px solid rgba(15,23,42,.1); border-radius: 999px; background: #fff; color: var(--ink); box-shadow: 0 10px 24px rgba(15,23,42,.08); }
     .header-menu summary::-webkit-details-marker { display: none; }
@@ -34724,11 +34739,8 @@ function renderPublicObservationDetailHtml(
     body.obs-vps-image-detail-body .desktop-side-nav-toggle-lines::before { top: -6px; }
     body.obs-vps-image-detail-body .desktop-side-nav-toggle-lines::after { top: 6px; }
     body.obs-vps-image-detail-body .brand { flex: 1 1 220px; min-width: 0; max-width: 300px; gap: 10px; font-size: 18px; letter-spacing: 0; }
-    body.obs-vps-image-detail-body .brand-logo-lockup { min-height: 44px; display: inline-flex; align-items: center; flex: 0 0 auto; gap: 7px; padding: 3px 8px 3px 2px; border-radius: 999px; color: #0f172a; }
-    body.obs-vps-image-detail-body .brand-logo-lockup .brand-mark { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 10px; padding: 0; overflow: hidden; background: #fff; box-shadow: 0 7px 16px rgba(15,23,42,.10); }
-    body.obs-vps-image-detail-body .brand-logo-lockup .brand-mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
-    body.obs-vps-image-detail-body .brand-wordmark { display: inline-flex; align-items: center; flex: 0 0 auto; width: auto; height: 16px; aspect-ratio: 711 / 222; line-height: 1; }
-    body.obs-vps-image-detail-body .brand-wordmark-img { display: block; width: auto; height: 100%; max-width: none; object-fit: contain; object-position: left center; }
+    body.obs-vps-image-detail-body .brand-logo-lockup { min-height: 44px; display: inline-flex; align-items: center; flex: 0 0 auto; padding: 3px 8px 3px 2px; border-radius: 999px; color: #0f172a; }
+    body.obs-vps-image-detail-body .brand-primary-img { display: block; width: auto; height: 36px; max-width: 112px; object-fit: contain; object-position: left center; }
     body.obs-vps-image-detail-body .site-nav { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
     body.obs-vps-image-detail-body .site-nav-link { min-height: 40px; display: inline-flex; align-items: center; padding: 9px 10px; border-radius: 999px; color: #475569; text-decoration: none; font-size: 13.5px; line-height: 1; font-weight: 800; white-space: nowrap; }
     body.obs-vps-image-detail-body .site-nav-link:hover { background: rgba(15,23,42,.04); }
@@ -34848,9 +34860,8 @@ function renderPublicObservationDetailHtml(
       body.obs-vps-image-detail-body .site-header-inner { gap: 8px; padding: 9px 0; }
       body.obs-vps-image-detail-body .desktop-side-nav-toggle { display: none; }
       body.obs-vps-image-detail-body .brand { flex: 1 1 auto; max-width: none; min-width: 0; }
-      body.obs-vps-image-detail-body .brand-logo-lockup { gap: 6px; padding-right: 6px; }
-      body.obs-vps-image-detail-body .brand-logo-lockup .brand-mark { width: 32px; height: 32px; flex-basis: 32px; border-radius: 10px; }
-      body.obs-vps-image-detail-body .brand-wordmark { height: 15px; }
+      body.obs-vps-image-detail-body .brand-logo-lockup { padding-right: 6px; }
+      body.obs-vps-image-detail-body .brand-primary-img { height: 32px; max-width: 102px; }
       body.obs-vps-image-detail-body .site-nav-desktop, body.obs-vps-image-detail-body .site-search-desktop, body.obs-vps-image-detail-body .site-header-actions-desktop { display: none; }
       body.obs-vps-image-detail-body .site-header-actions-mobile { display: flex; align-items: center; gap: 7px; }
       body.obs-vps-image-detail-body.is-reading-surface .site-header-actions-mobile .site-record-link { display: none; }
@@ -35804,12 +35815,7 @@ function renderVpsImageHeader(): string {
       <button class="desktop-side-nav-toggle" type="button" aria-label="左メニューを切り替える" aria-pressed="true" title="左メニューを広げる">
         <span class="desktop-side-nav-toggle-lines" aria-hidden="true"></span>
       </button>
-      <a class="brand" href="/ja/">
-        <span class="brand-logo-lockup">
-          <span class="brand-mark"><img src="/assets/brand/zukan-app-icon-192.png" alt=""></span>
-          <span class="brand-wordmark" aria-label="ZUKAN"><img class="brand-wordmark-img" src="/assets/brand/zukan-wordmark.svg" alt=""></span>
-        </span>
-      </a>
+      <a class="brand" href="/ja/" aria-label="ZUKAN"><span class="brand-logo-lockup"><img class="brand-primary-img" src="/assets/brand/zukan-primary.svg" alt=""></span></a>
     </div>
     <nav class="site-nav site-nav-desktop"><a class="site-nav-link" href="/ja/map">地図</a><a class="site-nav-link" href="/ja/records">記録を見る</a><a class="site-nav-link" href="/ja/learn">使い方と考え方</a><a class="site-nav-link" href="/ja/community">みんなで調べる</a></nav>
     <form class="site-search site-search-desktop" role="search" action="/ja/records" method="get" aria-label="サイト内検索">
@@ -36204,8 +36210,10 @@ function getReflectionLoopManifest(url: URL, env: Env): Response {
         public_html_path_count: publicHtmlPaths.length,
         public_html_paths: publicHtmlPaths,
         worker_routes: [
+          "zukan.earth/*",
           "ikimon.life/*",
           "www.ikimon.life/*",
+          "staging.zukan.earth/*",
           "staging.ikimon.life/*"
         ],
         smoke_paths: [

@@ -1167,7 +1167,7 @@ function buildRegionalStoryGeminiPrompt(
 ): string {
   return JSON.stringify({
     task: "regional_story_compose",
-    role: "Rewrite an already-grounded regional story for ikimon.life. The output is a 'reason to revisit' panel shown on an observation page; it must motivate the reader to walk the same place again with a clearer eye, giving concrete actionable revisit advice — not abstract pep talk.",
+    role: "Rewrite an already-grounded regional story for ZUKAN. The output is a 'reason to revisit' panel shown on an observation page; it must motivate the reader to walk the same place again with a clearer eye, giving concrete actionable revisit advice — not abstract pep talk.",
     constraints: [
       "Japanese only",
       "Do not add historical facts, species names, or numbers that are not present in cards",

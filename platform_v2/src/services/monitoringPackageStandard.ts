@@ -145,7 +145,7 @@ export const MONITORING_PACKAGE_BLUEPRINTS: MonitoringPackageBlueprint[] = [
   {
     packageId: "edna_reference",
     label: "eDNA reference",
-    description: "eDNA等の外部検査・参照証拠。ikimon内ではsample metadataとtaxonomic resolutionを保持する。",
+    description: "eDNA等の外部検査・参照証拠。ZUKAN内ではsample metadataとtaxonomic resolutionを保持する。",
     observationMethods: ["edna_reference"],
     targetScopes: ["waterbody", "soil", "multi_taxa"],
     requiredBasis: ["site", "time", "method", "quality", "review", "rights", "external_taxon_id"],

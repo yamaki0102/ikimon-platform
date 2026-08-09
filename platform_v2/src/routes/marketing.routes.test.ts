@@ -95,7 +95,7 @@ test("learn index can switch UI language while keeping Japanese SEO canonical", 
     assert.match(response.body, /Use records/);
     assert.match(response.body, /Find by term/);
     assert.match(response.body, /<meta name="robots" content="noindex, nofollow" \/>/);
-    assert.match(response.body, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/learn" \/>/);
+    assert.match(response.body, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/learn" \/>/);
     assert.match(response.body, /\/en\/learn\/field-loop/);
     assert.doesNotMatch(response.body, /読みもの索引/);
     assert.doesNotMatch(response.body, /用語から探す/);
@@ -146,7 +146,7 @@ test("glossary and term pages expose one-topic SEO pages", async () => {
     assert.match(biomonweek.body, /BioMonWeekとは/);
     assert.match(biomonweek.body, /2026年5月4日から8日/);
     assert.match(biomonweek.body, /欧州会議/);
-    assert.match(biomonweek.body, /ikimon\.life の独自イベント名ではありません/);
+    assert.match(biomonweek.body, /ZUKANの独自イベント名ではありません/);
     assert.match(biomonweek.body, /\/ja\/learn\/biomonweek/);
     assert.match(biomonweek.body, /\/learn\/terms\/biomonweek/);
     assert.doesNotMatch(biomonweek.body, /class="hero-panel/);
@@ -198,7 +198,7 @@ test("language-prefixed marketing pages stay usable while SEO remains Japanese",
     assert.equal(localized.statusCode, 200);
     assert.match(localized.body, /<html lang="en"/);
     assert.match(localized.body, /name="robots" content="noindex, nofollow"/);
-    assert.match(localized.body, /rel="canonical" href="https:\/\/ikimon\.life\/ja\/community"/);
+    assert.match(localized.body, /rel="canonical" href="https:\/\/zukan\.earth\/ja\/community"/);
     assert.doesNotMatch(localized.body, /"@type":"Article"/);
 
     const missing = await app.inject({
@@ -216,7 +216,7 @@ test("language-prefixed marketing pages stay usable while SEO remains Japanese",
     });
     assert.equal(legacyFallback.statusCode, 200);
     assert.match(legacyFallback.body, /name="robots" content="noindex, nofollow"/);
-    assert.match(legacyFallback.body, /rel="canonical" href="https:\/\/ikimon\.life\/ja\/about"/);
+    assert.match(legacyFallback.body, /rel="canonical" href="https:\/\/zukan\.earth\/ja\/about"/);
   } finally {
     await app.close();
   }
@@ -331,7 +331,7 @@ test("field loop keeps a minimal english fallback", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /Why ikimon takes this shape/);
+    assert.match(response.body, /Why ZUKAN takes this shape/);
     assert.match(response.body, /place-first observatory/);
   } finally {
     await app.close();

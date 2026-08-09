@@ -6,7 +6,7 @@ const deployRoot = path.resolve(platformRoot, ".deploy");
 const basicAuthUser = process.env.STAGING_BASIC_AUTH_USER ?? "";
 const basicAuthPass = process.env.STAGING_BASIC_AUTH_PASS ?? "";
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim();
-const baseURL = (process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life").replace(/\/+$/u, "");
+const baseURL = (process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth").replace(/\/+$/u, "");
 const jsonReport = path.resolve(
   platformRoot,
   process.env.ZUKAN_RUNTIME_QA_PLAYWRIGHT_REPORT?.trim()
@@ -16,8 +16,8 @@ const jsonReport = path.resolve(
 if (!executablePath) {
   throw new Error("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is required for staging runtime QA");
 }
-if (baseURL !== "https://staging.ikimon.life") {
-  throw new Error("ZUKAN runtime Playwright is pinned to https://staging.ikimon.life");
+if (baseURL !== "https://staging.zukan.earth") {
+  throw new Error("ZUKAN runtime Playwright is pinned to https://staging.zukan.earth");
 }
 if (jsonReport !== deployRoot && !jsonReport.startsWith(`${deployRoot}${path.sep}`)) {
   throw new Error("ZUKAN runtime Playwright report must stay under platform_v2/.deploy");

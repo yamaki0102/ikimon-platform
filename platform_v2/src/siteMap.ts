@@ -112,7 +112,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
     title: { ja: "トップ", en: "Home" },
-    summary: { ja: "ikimon - 写真・動画の記録フィードから、地域の自然・風景・水・土・農・季節・活動に出会う入口。", en: "A record-feed entry point for discovering local nature, places, seasons, and field activity." },
+    summary: { ja: "ZUKAN - 写真・動画の記録フィードから、地域の自然・風景・水・土・農・季節・活動に出会う入口。", en: "A record-feed entry point for discovering local nature, places, seasons, and field activity." },
     primaryAction: { href: "/record", label: { ja: "記録する", en: "Record" } },
     legacyRedirects: ["/index.php"],
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "地域の記録" }, readySelector: "[data-record-feed]", screenshot: { baselineName: "registry-top" } },
@@ -253,8 +253,8 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
-    title: { ja: "ikimon について", en: "About" },
-    summary: { ja: "Enjoy Life と、身近な観察から自然との関係を取り戻す理由。", en: "Why ikimon starts with enjoying life through nature." },
+    title: { ja: "ZUKANについて", en: "About" },
+    summary: { ja: "Enjoy Life と、身近な観察から自然との関係を取り戻す理由。", en: "Why ZUKAN starts with enjoying life through nature." },
     marketing: { pageKey: "about" },
     legacyRedirects: ["/about.php"],
   },
@@ -343,7 +343,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
     title: { ja: "外来種の情報提供", en: "Invasive species reporting" },
-    summary: { ja: "外来種候補を見つけたとき、どこが何を求めているかと自動情報提供の境界を読む。", en: "What agencies need from invasive species sightings and when ikimon can share reports." },
+    summary: { ja: "外来種候補を見つけたとき、どこが何を求めているかと自動情報提供の境界を読む。", en: "What agencies need from invasive species sightings and when ZUKAN can share reports." },
     marketing: { pageKey: "learnInvasiveSpeciesReporting" },
   },
   {
@@ -377,7 +377,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
     title: { ja: "用語集", en: "Glossary" },
-    summary: { ja: "説明に出てくる言葉を、やさしい言い方で確認する。", en: "Plain-language glossary for terms used in ikimon." },
+    summary: { ja: "説明に出てくる言葉を、やさしい言い方で確認する。", en: "Plain-language glossary for terms used in ZUKAN." },
     marketing: { pageKey: "learnGlossary" },
   },
   {
@@ -917,7 +917,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
     title: { ja: "社会実装と影響", en: "Impact" },
-    summary: { ja: "ikimon.life がどの段階で地域・企業・自治体の行動につながるかを、言いすぎず整理する。", en: "How ikimon.life can support local and business action without overclaiming." },
+    summary: { ja: "ZUKANがどの段階で地域・企業・自治体の行動につながるかを、言いすぎず整理する。", en: "How ZUKAN can support local and business action without overclaiming." },
     marketing: { pageKey: "impact" },
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "小さな観察を、次の行動の材料へ" }, readySelector: "body", screenshot: { baselineName: "registry-impact" } },
   },
@@ -1241,7 +1241,7 @@ function escapeXml(value: string): string {
 }
 
 export function buildXmlSitemap(origin: string, today = new Date()): string {
-  const base = normalizeOrigin(origin || "https://ikimon.life");
+  const base = normalizeOrigin(origin || "https://zukan.earth");
   const lastmod = today.toISOString().slice(0, 10);
   const staticUrls = xmlSitemapPages()
     .flatMap((page) => {
@@ -1279,7 +1279,7 @@ ${urls}
 }
 
 export function buildRobotsTxt(origin: string): string {
-  const base = normalizeOrigin(origin || "https://ikimon.life");
+  const base = normalizeOrigin(origin || "https://zukan.earth");
   return `User-agent: *
 Allow: /
 

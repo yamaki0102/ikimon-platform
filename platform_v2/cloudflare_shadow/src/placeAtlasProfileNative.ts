@@ -1308,7 +1308,7 @@ async function resolveOsmPlace(
       headers: {
         "content-type": "application/x-www-form-urlencoded",
         "accept": "application/json",
-        "user-agent": "ikimon.life place atlas contact: https://ikimon.life",
+        "user-agent": "ZUKAN place atlas contact: https://zukan.earth",
         "x-ikimon-client": "ikimon.life-place-atlas",
       },
       body: `data=${encodeURIComponent(query)}`,

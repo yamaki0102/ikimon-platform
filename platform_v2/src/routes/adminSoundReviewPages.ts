@@ -54,7 +54,7 @@ export async function registerAdminSoundReviewPagesRoutes(
       reply.code(403);
       return renderSiteDocument({
         basePath: "",
-        title: "音声クラスタレビュー — ikimon.life",
+        title: "音声クラスタレビュー — ZUKAN",
         extraStyles: SOUND_REVIEW_STYLES,
         body: loginGate(),
       });
@@ -81,7 +81,7 @@ export async function registerAdminSoundReviewPagesRoutes(
 
     return renderSiteDocument({
       basePath: "",
-      title: "音声クラスタレビュー — ikimon.life",
+      title: "音声クラスタレビュー — ZUKAN",
       extraStyles: SOUND_REVIEW_STYLES,
       body: `${body}<script>${SOUND_REVIEW_SCRIPT}</script>`,
     });

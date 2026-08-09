@@ -9288,8 +9288,10 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /data-cloudflare-observation-detail="1"/);
   assert.match(pageHtml, /data-observation-visibility="public"/);
   assert.match(pageHtml, /obs-vps-image-detail-body/);
-  assert.match(pageHtml, /\/assets\/brand\/zukan-app-icon-192\.png/);
-  assert.match(pageHtml, /\/assets\/brand\/zukan-wordmark\.svg/);
+  assert.equal((pageHtml.match(/\/assets\/brand\/zukan-primary\.svg/g) ?? []).length, 1);
+  assert.match(pageHtml, /<a class="brand"[^>]+aria-label="ZUKAN"[^>]*><span class="brand-logo-lockup"><img class="brand-primary-img"[^>]+alt=""><\/span><\/a>/);
+  assert.doesNotMatch(pageHtml, /brand-logo-lockup" aria-label="ZUKAN"/);
+  assert.doesNotMatch(pageHtml, /\/assets\/brand\/(?:zukan-app-icon-192\.png|zukan-wordmark\.svg)/);
   assert.match(pageHtml, /obs-reading-hero/);
   assert.match(pageHtml, /obs-read-progress/);
   assert.match(pageHtml, /obs-media-ledger/);
@@ -10966,9 +10968,9 @@ test("shadow route-change rehearsal proves cutover matrix without mutating DNS o
   assert.equal(payload.mode, "dry_run_no_dns_or_route_mutation");
   assert.deepEqual(payload.hosts, {
     staging: "staging.example.test",
-    production: ["ikimon.life", "www.ikimon.life"]
+    production: ["zukan.earth", "ikimon.life", "www.ikimon.life"]
   });
-  assert.equal(payload.routeMatrix.length, 5);
+  assert.equal(payload.routeMatrix.length, 6);
   assert.equal(payload.requiredStagingGates.length, 8);
   assert.equal(payload.rollback.productionDataMutation, false);
   assert.equal(payload.rollback.dnsMutationPerformed, false);
@@ -10999,6 +11001,15 @@ test("shadow route-change rehearsal proves cutover matrix without mutating DNS o
     route.path === "/cloudflare-shadow/health" &&
     route.postCutoverExpectedStatus === 404
   ));
+  assert.ok(payload.routeMatrix.some((route: any) =>
+    route.host === "zukan.earth" &&
+    route.path === "/" &&
+    route.postCutoverExpectedStatus === 200
+  ));
+
+  const defaultResponse = await worker.fetch(new Request("https://shadow.test/shadow-smoke/route-change-rehearsal-proof"), env);
+  const defaultPayload = await defaultResponse.json() as any;
+  assert.equal(defaultPayload.hosts.staging, "staging.zukan.earth");
 
   const productionResponse = await worker.fetch(new Request("https://shadow.test/shadow-smoke/route-change-rehearsal-proof"), {
     ...env,
@@ -12941,6 +12952,7 @@ test("internal alert delivery drain sends pending email delivery from Cloudflare
   assert.equal(payload.sent, 1);
   assert.equal(email.messages.length, 1);
   assert.equal(email.messages[0]?.to, "city@example.test");
+  assert.match(email.messages[0]?.text ?? "", /https:\/\/zukan\.earth\/observations\/occ-1/);
   assert.equal(email.messages[0]?.headers?.["X-Ikimon-Alert-Delivery-Id"], "delivery-1");
   assert.equal(core.alertDeliveries.get("delivery-1")?.delivery_status, "sent");
   assert.equal(core.alertDeliveries.get("delivery-1")?.delivered_at !== null, true);
@@ -20532,6 +20544,12 @@ test("production original UI static assets serve materialized bytes from R2 with
   await env.ASSET_BUCKET.put("original-ui/static/assets/brand/zukan-symbol.svg", "<svg></svg>", {
     httpMetadata: { contentType: "application/xml" }
   });
+  await env.ASSET_BUCKET.put("original-ui/static/assets/brand/zukan-primary.svg", "<svg id=\"primary\"></svg>", {
+    httpMetadata: { contentType: "application/xml" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/static/assets/brand/brand-tokens.json", "{\"brand\":\"ZUKAN\"}", {
+    httpMetadata: { contentType: "application/json" }
+  });
   await env.ASSET_BUCKET.put("original-ui/static/sitemap.xml", "<urlset></urlset>", {
     httpMetadata: { contentType: "application/xml; charset=utf-8" }
   });
@@ -20558,13 +20576,26 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(response.status, 200);
     assert.equal(await response.text(), "png-bytes");
     assert.equal(response.headers.get("content-type"), "image/png");
+    assert.equal(response.headers.get("cache-control"), "public, max-age=0, must-revalidate");
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
     const symbol = await worker.fetch(new Request("https://ikimon.life/assets/brand/zukan-symbol.svg"), productionEnv);
     assert.equal(symbol.status, 200);
     assert.equal(await symbol.text(), "<svg></svg>");
     assert.equal(symbol.headers.get("content-type"), "image/svg+xml");
+    assert.equal(symbol.headers.get("cache-control"), "public, max-age=0, must-revalidate");
     assert.equal(symbol.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+
+    const primary = await worker.fetch(new Request("https://zukan.earth/assets/brand/zukan-primary.svg"), productionEnv);
+    assert.equal(primary.status, 200);
+    assert.equal(await primary.text(), "<svg id=\"primary\"></svg>");
+    assert.equal(primary.headers.get("content-type"), "image/svg+xml");
+    assert.equal(primary.headers.get("cache-control"), "public, max-age=0, must-revalidate");
+
+    const tokens = await worker.fetch(new Request("https://zukan.earth/assets/brand/brand-tokens.json"), productionEnv);
+    assert.equal(tokens.status, 200);
+    assert.equal(await tokens.text(), "{\"brand\":\"ZUKAN\"}");
+    assert.equal(tokens.headers.get("content-type"), "application/json");
 
     const sitemap = await worker.fetch(new Request("https://ikimon.life/sitemap.xml"), productionEnv);
     assert.equal(sitemap.status, 200);
@@ -20987,6 +21018,44 @@ test("production public www host redirects to the canonical apex host", async ()
   assert.equal(response.status, 308);
   assert.equal(response.headers.get("location"), "https://ikimon.life/records?view=public");
   cspNonceFrom(response);
+  const csp = response.headers.get("content-security-policy") ?? "";
+  assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/zukan\.earth/);
+  assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/ikimon\.life/);
+  assert.doesNotMatch(csp, /connect-src 'self'[^;]*https:\/\/staging\.zukan\.earth/);
+  assert.doesNotMatch(csp, /connect-src 'self'[^;]*https:\/\/staging\.ikimon\.life/);
+});
+
+test("canonical ZUKAN hosts share the public and write-host safety allowlist", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+
+  const notFound = await worker.fetch(new Request("https://zukan.earth/not-a-public-route"), productionEnv);
+  assert.equal(notFound.status, 404);
+  assert.equal(notFound.headers.get("x-ikimon-cloudflare-native"), "not-found");
+
+  const sessionIssue = await worker.fetch(new Request("https://zukan.earth/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}"
+  }), productionEnv);
+  assert.equal(sessionIssue.status, 404);
+  assert.deepEqual(await sessionIssue.json(), { ok: false, error: "not_available" });
+});
+
+test("synthetic Renri browser QA accepts the canonical staging host", async () => {
+  const { env } = createEnv();
+  const response = await worker.fetch(new Request("https://staging.zukan.earth/__ops/browser-qa/renri/manifest.json"), {
+    ...env,
+    ENVIRONMENT: "staging"
+  });
+  const payload = await response.json() as any;
+  assert.equal(response.status, 200);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.staging_only, true);
 });
 
 test("production original UI html serves localized auth and guest profile shells from R2", async () => {
@@ -21282,6 +21351,8 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.doesNotMatch(materializerSource, /const\s+corePaths\s*=\s*\[/);
   assert.match(workerSource, /const ORIGINAL_UI_HTML_STATIC_PATHS = new Set\(\[\s*\.\.\.ORIGINAL_UI_HTML_CORE_PATHS,/);
   assert.match(workerSource, /\.\.\.ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS,/);
+  assert.match(materializerSource, /const canonicalOrigin = "https:\/\/zukan\.earth";/);
+  assert.match(materializerSource, /host: "zukan\.earth",\s*"x-forwarded-host": "zukan\.earth"/);
   for (const assetPath of [
     "/assets/brand/zukan-app-icon-192.png",
     "/assets/brand/zukan-app-icon-192-maskable.png",
@@ -21290,7 +21361,16 @@ test("materialized original UI core entry registry is single-sourced from the Wo
     "/assets/brand/zukan-app-icon.svg",
     "/assets/brand/zukan-app-icon-maskable.svg",
     "/assets/brand/zukan-apple-touch-icon.png",
+    "/assets/brand/zukan-favicon-16.png",
+    "/assets/brand/zukan-favicon-24.png",
     "/assets/brand/zukan-favicon-32.png",
+    "/assets/brand/zukan-primary.svg",
+    "/assets/brand/zukan-icon.svg",
+    "/assets/brand/zukan-icon-small.svg",
+    "/assets/brand/zukan-icon-mono.svg",
+    "/assets/brand/zukan-primary-mono.svg",
+    "/assets/brand/brand-tokens.json",
+    "/assets/brand/brand-manifest.json",
     "/assets/brand/zukan-lockup.svg",
     "/assets/brand/zukan-symbol.svg",
     "/assets/brand/zukan-wordmark.svg",
@@ -22536,8 +22616,10 @@ test("production language-prefixed observation detail stays native and public-sa
     assert.equal(response.status, 200, body);
     assert.match(body, /data-cloudflare-observation-detail="1"/);
     assert.match(body, /obs-vps-image-detail-body/);
-    assert.match(body, /\/assets\/brand\/zukan-app-icon-192\.png/);
-    assert.match(body, /\/assets\/brand\/zukan-wordmark\.svg/);
+    assert.equal((body.match(/\/assets\/brand\/zukan-primary\.svg/g) ?? []).length, 1);
+    assert.match(body, /<a class="brand"[^>]+aria-label="ZUKAN"[^>]*><span class="brand-logo-lockup"><img class="brand-primary-img"[^>]+alt=""><\/span><\/a>/);
+    assert.doesNotMatch(body, /brand-logo-lockup" aria-label="ZUKAN"/);
+    assert.doesNotMatch(body, /\/assets\/brand\/(?:zukan-app-icon-192\.png|zukan-wordmark\.svg)/);
     assert.match(body, /obs-reading-hero/);
     assert.match(body, /obs-read-progress/);
     assert.match(body, /obs-media-ledger/);
@@ -23929,6 +24011,8 @@ test("production field detail public-profile API exposes Site Intelligence witho
   assert.equal(payload.evidenceContract.sourceProvider, "ikimon");
   assert.deepEqual(payload.evidenceContract.sourceTypes, ["cloudflare_field_detail_readmodel", "ikimon_place_registry"]);
   assert.equal(payload.evidenceContract.rights.licenseScope, "ikimon_public_profile_policy");
+  assert.equal(payload.evidenceContract.rights.attribution, "ZUKAN");
+  assert.equal(payload.evidenceContract.rights.attributionUrl, `https://zukan.earth/fields/${fieldId}`);
   assert.equal(payload.evidenceContract.rights.commercialUse, "internal_policy_required");
   assert.equal(payload.evidenceContract.rights.thirdPartyMediaUsed, false);
   assert.equal(payload.evidenceContract.location.publicLocationMode, "area_or_public_place");
@@ -24407,6 +24491,13 @@ test("production reflection loop manifest is served by Cloudflare instead of ori
     assert.equal(payload.analytics.ga4_measurement_id, "G-NCL0M1VJZ2");
     assert.equal(payload.analytics.clarity_project_id, "wl2ezvfqbh");
     assert.equal(payload.coverage.cloudflare_worker.public_html_path_count > 50, true);
+    assert.deepEqual(payload.coverage.cloudflare_worker.worker_routes, [
+      "zukan.earth/*",
+      "ikimon.life/*",
+      "www.ikimon.life/*",
+      "staging.zukan.earth/*",
+      "staging.ikimon.life/*"
+    ]);
     assert.equal(payload.coverage.cloudflare_worker.smoke_paths.includes("/api/v1/runtime/version"), true);
     assert.equal(payload.coverage.cloudflare_worker.smoke_paths.includes("/qa/reflection-loop.json"), true);
     assert.equal(payload.coverage.node_platform.registry_source, "platform_v2/src/siteMap.ts");

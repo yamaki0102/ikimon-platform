@@ -1,11 +1,13 @@
 import baseWorker from "./index";
 import { enforceCameraFirstHomeCta } from "./cameraFirstHomeCta";
+import { patchCanonicalDomainPresentation, type DomainPresentationEnv } from "./domainPresentationPatch";
 import {
   authorizeOAuthStart,
   oauthErrorResponse,
   oauthStartKind,
   type OAuthBoundaryEnv,
 } from "./oauthStartBoundary";
+import { legacyDomainRedirect, type LegacyDomainRedirectEnv } from "./legacyDomainRedirect";
 import { enforcePostCaptureValueLoopCompatibility } from "./postCaptureValueLoopCompatibilityPatch";
 import { enhancePostCaptureValueLoop } from "./postCaptureValueLoopPatch";
 import { polishPublicHomeUx } from "./publicHomeUxPolish";
@@ -17,15 +19,20 @@ type DelegatedWorker = Record<string, unknown> & {
   fetch(request: Request, env: unknown, ctx: unknown): Response | Promise<Response>;
 };
 
+type PublicPresentationEnv = OAuthBoundaryEnv & LegacyDomainRedirectEnv & DomainPresentationEnv;
+
 const delegatedWorker = baseWorker as DelegatedWorker;
 
 export default {
   ...delegatedWorker,
   async fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
-    const oauthEnv = env as OAuthBoundaryEnv;
+    const presentationEnv = env as PublicPresentationEnv;
+    const redirect = legacyDomainRedirect(request, presentationEnv);
+    if (redirect) return redirect;
+
     const oauthKind = oauthStartKind(request);
-    if (!authorizeOAuthStart(request, oauthEnv, oauthKind)) {
-      return oauthErrorResponse(request, oauthEnv, oauthKind);
+    if (!authorizeOAuthStart(request, presentationEnv, oauthKind)) {
+      return oauthErrorResponse(request, presentationEnv, oauthKind);
     }
 
     let response: Response;
@@ -33,7 +40,7 @@ export default {
       response = await delegatedWorker.fetch.call(delegatedWorker, request, env, ctx);
     } catch (error) {
       if (oauthKind !== null) {
-        return oauthErrorResponse(request, oauthEnv, oauthKind);
+        return oauthErrorResponse(request, presentationEnv, oauthKind);
       }
       throw error;
     }
@@ -44,6 +51,7 @@ export default {
     const responsive = await ensureStateSplitHomeResponsive(polished);
     const valueLoop = await enhancePostCaptureValueLoop(request, responsive);
     const compatible = await enforcePostCaptureValueLoopCompatibility(request, valueLoop);
-    return hardenSvgResponse(compatible);
+    const canonicalDomain = await patchCanonicalDomainPresentation(request, compatible, presentationEnv);
+    return hardenSvgResponse(canonicalDomain);
   },
 };
