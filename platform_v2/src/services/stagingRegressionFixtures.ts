@@ -517,7 +517,7 @@ async function upsertFixtureReference(
   },
 ): Promise<RegressionFixtureReferenceSummary> {
   const title = `Regression Field Guide ${input.fixturePrefix}`;
-  const url = `https://staging.ikimon.life/fixtures/${encodeURIComponent(input.fixturePrefix)}/regression-field-guide`;
+  const url = `https://staging.zukan.earth/fixtures/${encodeURIComponent(input.fixturePrefix)}/regression-field-guide`;
   const sourcePayload = {
     source: "staging_regression_reference",
     fixture_prefix: input.fixturePrefix,

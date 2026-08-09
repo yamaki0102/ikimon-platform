@@ -1,0 +1,20 @@
+{
+  "brand": "ZUKAN",
+  "status": "selected-working-final",
+  "tagline": "撮ると、まちの今が図鑑になる。",
+  "concept": "strong Z + open field guide + discovery point",
+  "colors": {
+    "forest_green": "#0F4A2F",
+    "forest_green_dark": "#0B3D27",
+    "gold": "#C9A227",
+    "black": "#111111",
+    "white": "#FFFFFF"
+  },
+  "usage": {
+    "primary": "zukan-primary.svg",
+    "icon": "zukan-icon.svg",
+    "app_icon": "zukan-app-icon.svg",
+    "small_icon": "zukan-icon-small.svg",
+    "monochrome": "zukan-icon-mono.svg"
+  }
+}

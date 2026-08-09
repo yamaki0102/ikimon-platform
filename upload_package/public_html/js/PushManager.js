@@ -98,17 +98,17 @@ const IkimonPush = {
                 .then(r => r.json())
                 .then(data => {
                     if (data.today_complete) return; // Already completed
-                    new Notification('ikimon — ストリーク継続', {
+                    new Notification('ZUKAN — ストリーク継続', {
                         body: `${streakDays}日連続が途切れる前に、1分メモだけでもOK！`,
-                        icon: '/assets/img/pwa-icon-192.png',
+                        icon: '/assets/brand/zukan-app-icon-192.png',
                         tag: 'streak-reminder',
                     });
                 })
                 .catch(() => {
                     // Offline or error — show anyway
-                    new Notification('ikimon — ストリーク継続', {
+                    new Notification('ZUKAN — ストリーク継続', {
                         body: `${streakDays}日連続を守ろう！1つだけでいい。`,
-                        icon: '/assets/img/pwa-icon-192.png',
+                        icon: '/assets/brand/zukan-app-icon-192.png',
                         tag: 'streak-reminder',
                     });
                 });

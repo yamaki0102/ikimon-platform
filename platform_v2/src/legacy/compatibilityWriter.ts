@@ -351,7 +351,7 @@ export async function writeLegacyObservation(
     ...basePayload,
     id: legacyObservationId,
     user_id: visit.user_id,
-    user_name: visit.user_name ?? (basePayload.user_name as string | undefined) ?? "ikimon user",
+    user_name: visit.user_name ?? (basePayload.user_name as string | undefined) ?? "ZUKAN user",
     user_avatar:
       visit.user_avatar ??
       (basePayload.user_avatar as string | undefined) ??
@@ -398,7 +398,7 @@ export async function writeLegacyObservation(
     identifications: identificationResult.rows.map((row, index) => ({
       id: `compat_${index + 1}_${legacyObservationId}`,
       user_id: row.actor_user_id,
-      user_name: row.actor_name ?? "ikimon user",
+      user_name: row.actor_name ?? "ZUKAN user",
       user_avatar:
         row.actor_avatar ?? (row.actor_user_id ? `https://i.pravatar.cc/150?u=${row.actor_user_id}` : ""),
       taxon_name: row.proposed_name,

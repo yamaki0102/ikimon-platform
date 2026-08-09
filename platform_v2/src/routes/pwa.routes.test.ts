@@ -27,7 +27,7 @@ test("manifest is app-first and localized from device or query language", async 
     assert.equal(manifest.start_url, "/en/?source=pwa");
     assert.equal(manifest.display, "standalone");
     assert.equal(manifest.background_color, "#f7f7f3");
-    assert.equal(manifest.theme_color, "#143f2e");
+    assert.equal(manifest.theme_color, "#0F4A2F");
     assert.deepEqual(
       manifest.shortcuts.map((shortcut) => shortcut.url),
       ["/en/record", "/en/map?tab=places", "/en/records?view=mine", "/en/profile"],
@@ -104,6 +104,9 @@ test("app refresh page unregisters stale service workers without clearing client
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["cache-control"] as string, /no-store/);
     assert.match(response.headers["x-robots-tag"] as string, /noindex/);
+    assert.match(response.body, /<title>ZUKAN app refresh<\/title>/);
+    assert.match(response.body, /<img class="mark" src="\/assets\/brand\/zukan-app-icon\.svg" alt="" \/>/);
+    assert.doesNotMatch(response.body, /<div class="mark">i<\/div>|<title>ikimon app refresh<\/title>/);
     assert.match(response.body, /navigator\.serviceWorker\.getRegistrations/);
     assert.match(response.body, /registration\.unregister/);
     assert.match(response.body, /caches\.keys/);

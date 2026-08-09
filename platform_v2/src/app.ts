@@ -292,7 +292,7 @@ function applySecurityHeaders(
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org https://tiles.openfreemap.org",
-    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
+    "connect-src 'self' https://zukan.earth https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
     "frame-src 'self' https://iframe.videodelivery.net",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
@@ -326,7 +326,7 @@ function requestHost(request: { headers: Record<string, unknown> }): string {
 
 function isPublicProductionHost(request: { headers: Record<string, unknown> }): boolean {
   const host = requestHost(request);
-  return host === "ikimon.life" || host === "www.ikimon.life";
+  return host === "zukan.earth" || host === "ikimon.life" || host === "www.ikimon.life";
 }
 
 function localizedNavHome(lang: SiteLang): string {
@@ -534,7 +534,7 @@ function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath
 
   return renderSiteDocument({
     basePath: options.basePath,
-    title: "サイトマップ (運用向け) | ikimon",
+    title: "サイトマップ (運用向け) | ZUKAN",
     description: "Canonical route registry から生成した、ステージング確認と公開面QAのためのサイトマップです。",
     activeNav: localizedNavHome(lang),
     lang,

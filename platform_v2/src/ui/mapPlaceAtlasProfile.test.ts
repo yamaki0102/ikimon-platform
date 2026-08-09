@@ -261,6 +261,21 @@ test("place atlas media allowlist rejects same-origin API and traversal-shaped i
   assert.doesNotMatch(html, /uploads\/\.\.\/api/);
 });
 
+test("place atlas media allowlist accepts canonical ZUKAN asset hosts", () => {
+  const canonicalUrl = "https://zukan.earth/derived/example/display.webp";
+  const stagingUrl = "https://staging.zukan.earth/uploads/example.jpg";
+  const html = renderMapPlaceAtlasProfile(fixture({
+    place: {
+      ...fixture().place,
+      representativeMedia: [{ url: canonicalUrl, recordId: "canonical", kind: "photo" }],
+    },
+    recentRecords: [{ ...fixture().recentRecords[0]!, mediaUrl: stagingUrl }],
+  }), options);
+
+  assert.match(html, /https:\/\/zukan\.earth\/derived\/example\/display\.webp/);
+  assert.match(html, /https:\/\/staging\.zukan\.earth\/uploads\/example\.jpg/);
+});
+
 test("place atlas renderer never turns unknown counts into zero or a false empty claim", () => {
   const profile = fixture({
     summary: {

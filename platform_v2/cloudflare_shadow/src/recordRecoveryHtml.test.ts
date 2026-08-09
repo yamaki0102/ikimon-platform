@@ -39,6 +39,9 @@ test("guest recovery keeps the draft on-device and preserves the recovery redire
   assert.match(html, /登録して続ける/);
   assert.match(html, /redirect=%2Fja%2Frecord%3Fdraft%3D1%26start%3Dphoto%26source%3Dlogin_required/);
   assert.match(html, /nonce="nonce-value"/);
+  assert.match(html, /<title>下書きから記録を続ける - ZUKAN<\/title>/);
+  assert.match(html, /<a class="cf-recovery-brand"[^>]*aria-label="ZUKAN"><img src="\/assets\/brand\/zukan-primary\.svg" alt=""><\/a>/);
+  assert.doesNotMatch(html, />ikimon<\/a>| - ikimon<\/title>/);
   assert.doesNotMatch(html, /filename\.jpg|latitude=|longitude=/);
 });
 
@@ -68,6 +71,9 @@ test("signed recovery resumes the same record and only unfinished media", () => 
   assert.match(html, /data-record-recovery-location/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /record:latest/);
+  assert.match(html, /<title>下書きから記録を続ける - ZUKAN<\/title>/);
+  assert.match(html, /<a class="cf-recovery-brand"[^>]*aria-label="ZUKAN"><img src="\/assets\/brand\/zukan-primary\.svg" alt=""><\/a>/);
+  assert.doesNotMatch(html, />ikimon<\/a>| - ikimon<\/title>/);
   assert.doesNotMatch(html, /fetchOriginFallback|ORIGIN_FALLBACK_BASE_URL/);
 });
 

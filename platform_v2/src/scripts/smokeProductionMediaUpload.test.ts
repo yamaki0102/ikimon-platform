@@ -28,17 +28,21 @@ test("production media smoke verifies duplicate post guard", async () => {
 
 test("production media smoke refuses unsafe production cleanup settings", () => {
   const safeOptions = __test__.parseArgs([
-    "--base-url=https://ikimon.life",
+    "--base-url=https://zukan.earth",
     "--fixture-prefix=prod-media-smoke-contract",
     "--video-file=fixtures/smoke.mp4",
   ]);
   assert.doesNotThrow(() => __test__.assertSafeSmokeOptions(safeOptions));
+  assert.equal(__test__.isProductionBaseUrl("https://zukan.earth"), true);
   assert.equal(__test__.isProductionBaseUrl("https://ikimon.life"), true);
   assert.equal(__test__.isProductionBaseUrl("https://www.ikimon.life"), true);
+  assert.equal(__test__.isProductionBaseUrl("https://staging.zukan.earth"), false);
+  assert.equal(__test__.isProductionBaseUrl("https://zukan.earth.evil.example"), false);
+  assert.equal(__test__.isProductionBaseUrl("https://ikimon.life.evil.example"), false);
   assert.equal(__test__.isProductionBaseUrl("http://127.0.0.1:3200"), false);
 
   const unsafeNoCleanup = __test__.parseArgs([
-    "--base-url=https://ikimon.life",
+    "--base-url=https://zukan.earth",
     "--fixture-prefix=prod-media-smoke-contract",
     "--video-file=fixtures/smoke.mp4",
     "--no-cleanup",
@@ -49,7 +53,7 @@ test("production media smoke refuses unsafe production cleanup settings", () => 
   );
 
   const unsafePrefix = __test__.parseArgs([
-    "--base-url=https://ikimon.life",
+    "--base-url=https://zukan.earth",
     "--fixture-prefix=smoke-ui-contract",
     "--video-file=fixtures/smoke.mp4",
   ]);

@@ -1,3 +1,5 @@
+import { isCanonicalOrLegacyPublicHost } from "./zukanPublicHost.js";
+
 export const PLACE_TIMELINE_VERSION = 1 as const;
 
 export type PlaceTimelineState = "empty" | "single_period" | "timeline";
@@ -198,9 +200,10 @@ function normalizePublicMediaUrl(value: unknown): string | null {
 
   try {
     const parsed = new URL(normalized);
-    const allowedHost = parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
     return parsed.protocol === "https:"
-      && allowedHost
+      && parsed.username === ""
+      && parsed.password === ""
+      && isCanonicalOrLegacyPublicHost(parsed.hostname)
       && allowedPublicMediaPath(parsed.pathname)
       ? parsed.toString()
       : null;

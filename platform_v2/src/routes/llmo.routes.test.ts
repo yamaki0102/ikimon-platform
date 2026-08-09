@@ -13,7 +13,9 @@ test("llms.txt exposes staging canonical markdown references from either staging
       });
       assert.equal(response.statusCode, 200);
       assert.match(response.headers["content-type"] as string, /text\/plain/);
-      assert.match(response.body, /ikimon\.life は/);
+      assert.match(response.body, /^# ZUKAN/m);
+      assert.match(response.body, /ZUKANは/);
+      assert.doesNotMatch(response.body, /ikimon\.life は/);
       assert.match(response.body, /https:\/\/staging\.zukan\.earth\/llms\/guide\.md/);
       assert.match(response.body, /https:\/\/staging\.zukan\.earth\/llms\/terms\.md/);
       assert.match(response.body, /https:\/\/staging\.zukan\.earth\/ja\/learn\/biomonweek/);
@@ -32,7 +34,7 @@ test("llmo markdown routes return zukan.earth canonical source URLs", async () =
       const response = await app.inject({ method: "GET", url, headers: { host: "zukan.earth" } });
       assert.equal(response.statusCode, 200, `${url} should render`);
       assert.match(response.headers["content-type"] as string, /text\/markdown/);
-      assert.match(response.body, /^# /);
+      assert.match(response.body, /^# ZUKAN/);
       assert.match(response.body, /既存の日本語 longform コンテンツから生成/);
       assert.match(response.body, /Canonical URL: https:\/\/zukan\.earth\/ja\//);
       assert.doesNotMatch(response.body, /Canonical URL: https:\/\/ikimon\.life\/ja\//);

@@ -52,7 +52,7 @@ $regionalMessaging = BrandMessaging::regionalRevitalization();
 $meta_title = $lp['meta_title'] ?? 'ikimon for Business — Support nearby nature as an organization';
 $meta_description = $regionalMessaging['business_meta_description'];
 $meta_canonical = rtrim(BASE_URL, '/') . '/for-business/';
-$meta_image = rtrim(BASE_URL, '/') . '/assets/img/ogp_default.png';
+$meta_image = rtrim(BASE_URL, '/') . '/assets/brand/zukan-ogp-default.png';
 
 $features = $lp['features'] ?? [];
 $personas = $lp['personas'] ?? [];
@@ -617,9 +617,8 @@ $supportPolicies = $regionalMessaging['support_policies'];
     <header class="lp-header">
         <div class="lp-container lp-header-inner">
             <a href="../" class="lp-brand">
-                <img src="/assets/img/icon-192.png" alt="ikimon" style="width:32px;height:32px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.15)">
+                <img src="/assets/brand/zukan-primary.svg" alt="ZUKAN" style="width:auto;height:32px">
                 <span class="lp-brand-text">
-                    <span class="lp-brand-name">ikimon</span>
                     <span class="lp-brand-sub"><?= htmlspecialchars(__('business_lp.subbrand', 'for Business')) ?></span>
                 </span>
             </a>

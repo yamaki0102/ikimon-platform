@@ -462,7 +462,7 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
         basePath,
         lang,
         activeNav: "ホーム",
-        title: "参照資料ライブラリ | ikimon",
+        title: "参照資料ライブラリ | ZUKAN",
         body: loginCard(basePath, "/references"),
         currentPath: appendLangToHref(withBasePath(basePath, "/references"), lang),
       });
@@ -481,7 +481,7 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
       basePath,
       lang,
       activeNav: "ホーム",
-      title: "参照資料ライブラリ | ikimon",
+      title: "参照資料ライブラリ | ZUKAN",
       hero: {
         eyebrow: "References",
         heading: "参照資料ライブラリ",
@@ -508,7 +508,7 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
         basePath,
         lang,
         activeNav: "ホーム",
-        title: "参照資料を登録 | ikimon",
+        title: "参照資料を登録 | ZUKAN",
         body: loginCard(basePath, `/references/capture?returnTo=${encodeURIComponent(query.returnTo)}${query.taxonHint ? `&taxonHint=${encodeURIComponent(query.taxonHint)}` : ""}`),
         currentPath: appendLangToHref(withBasePath(basePath, `/references/capture?returnTo=${encodeURIComponent(query.returnTo)}`), lang),
       });
@@ -518,7 +518,7 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
       basePath,
       lang,
       activeNav: "ホーム",
-      title: "参照資料を登録 | ikimon",
+      title: "参照資料を登録 | ZUKAN",
       hero: {
         eyebrow: "Capture",
         heading: "表紙を連続登録",
@@ -544,7 +544,7 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
         basePath,
         lang,
         activeNav: "ホーム",
-        title: "参照資料 | ikimon",
+        title: "参照資料 | ZUKAN",
         body: loginCard(basePath, `/references/${encodeURIComponent(request.params.sourceId)}`),
       });
     }
@@ -561,7 +561,7 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
         basePath,
         lang,
         activeNav: "ホーム",
-        title: "参照資料なし | ikimon",
+        title: "参照資料なし | ZUKAN",
         body: `<section class="section"><div class="onboarding-empty"><div class="eyebrow">Reference</div><h3>資料が見つかりません</h3><p>共有カタログから確認してください。</p></div></section>`,
         extraStyles: REFERENCE_STYLES,
       });
@@ -583,7 +583,7 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
       basePath,
       lang,
       activeNav: "ホーム",
-      title: `${card.title} | 参照資料 | ikimon`,
+      title: `${card.title} | 参照資料 | ZUKAN`,
       body: `<section class="section"><div class="ref-grid">${renderReferenceCard(card, basePath)}</div></section>${correctionHtml}`,
       extraStyles: REFERENCE_STYLES,
       currentPath: appendLangToHref(withBasePath(basePath, `/references/${encodeURIComponent(card.sourceId)}`), lang),

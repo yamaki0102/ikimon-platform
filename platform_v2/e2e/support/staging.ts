@@ -12,7 +12,7 @@ import type {
 import { expect } from "@playwright/test";
 
 export const DEFAULT_STAGING_MAP_PATH = "/map?tab=markers&bm=esri&lng=137.8589&lat=34.7219&z=10.6";
-export const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life";
+export const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth";
 
 export type SeededRegressionFixture = {
   visitId: string;

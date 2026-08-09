@@ -204,7 +204,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       reply.type("text/html; charset=utf-8");
       return renderSiteDocument({
         basePath: "",
-        title: `${snapshot.field.name} — この場所のいま — ikimon.life`,
+        title: `${snapshot.field.name} — この場所のいま — ZUKAN`,
         description: `${snapshot.field.name}の観察データ、季節、仮説、次の一手を1枚で読む場所のスナップショットです。`,
         extraStyles: `${PLACE_SNAPSHOT_STYLES}\n${FIELD_DETAIL_ALBUM_STYLES}`,
         lang,
@@ -226,7 +226,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     reply.type("text/html; charset=utf-8");
     return pageDocument({
       basePath: "",
-      title: `${strings.listCreateCta} — ikimon.life`,
+      title: `${strings.listCreateCta} — ZUKAN`,
       currentPath: currentPathOf(request),
       body: renderEventCreateBody({ isAuthenticated: Boolean(auth), strings }),
       extraScript: eventCreateScript(),
@@ -272,7 +272,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       reply.type("text/html; charset=utf-8");
       return pageDocument({
         basePath: "",
-        title: `${session.title || "観察会"} 編集 — ikimon.life`,
+        title: `${session.title || "観察会"} 編集 — ZUKAN`,
         currentPath: currentPathOf(request),
         body: renderEventEditBody({ session, strings }),
         extraScript: eventEditScript(),
@@ -325,7 +325,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
 
     const html = pageDocument({
       basePath: "",
-      title: "フィールド — ikimon.life",
+      title: "フィールド — ZUKAN",
       currentPath: currentPathOf(request),
       body: renderFieldListBody({
         fields,
@@ -379,7 +379,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       reply.type("text/html; charset=utf-8");
       return pageDocument({
         basePath: "",
-        title: `${field.name} — エリア図鑑 — ikimon.life`,
+        title: `${field.name} — エリア図鑑 — ZUKAN`,
         currentPath: currentPathOf(request),
         body: renderFieldDetailBody({ field, stats, snapshot }),
         extraStyles: `${PLACE_SNAPSHOT_STYLES}\n${FIELD_DETAIL_ALBUM_STYLES}`,
@@ -396,7 +396,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     const strings = getStrings(lang).observationEvent;
     const html = pageDocument({
       basePath: "",
-      title: `${strings.listEyebrow} — ikimon.life`,
+      title: `${strings.listEyebrow} — ZUKAN`,
       currentPath: currentPathOf(request),
       body: renderEventListBody(sessions, strings, lang),
       lang,
@@ -441,7 +441,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       const teams = await loadTeamsLite(session.sessionId).catch(() => []);
       const html = pageDocument({
         basePath: "",
-        title: `${session.title || "観察会"} に参加 — ikimon.life`,
+        title: `${session.title || "観察会"} に参加 — ZUKAN`,
         currentPath: currentPathOf(request),
         body: renderCheckinBody({ session, teams, isAuthenticated: Boolean(auth) }),
         extraScript: checkinScript(),
@@ -479,7 +479,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       }
       const html = pageDocument({
         basePath: "",
-        title: `${session.title || "観察会"} ライブ — ikimon.life`,
+        title: `${session.title || "観察会"} ライブ — ZUKAN`,
         currentPath: currentPathOf(request),
         body: renderObservationEventLiveBody({
           session,
@@ -521,7 +521,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       }
       const html = pageDocument({
         basePath: "",
-        title: `${session.title || "観察会"} 観察ラリー — ikimon.life`,
+        title: `${session.title || "観察会"} 観察ラリー — ZUKAN`,
         currentPath: currentPathOf(request),
         body: renderObservationRallyBody({
           session,
@@ -569,7 +569,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       }
       const html = pageDocument({
         basePath: "",
-        title: `${session.title || "観察会"} 管制塔 — ikimon.life`,
+        title: `${session.title || "観察会"} 管制塔 — ZUKAN`,
         currentPath: currentPathOf(request),
         body: renderOrganizerConsoleBody(session),
         extraScript: organizerConsoleScript(),
@@ -621,7 +621,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       }
       const html = pageDocument({
         basePath: "",
-        title: `${recap.session.title || "観察会"} の振り返り — ikimon.life`,
+        title: `${recap.session.title || "観察会"} の振り返り — ZUKAN`,
         currentPath: currentPathOf(request),
         body: renderRecapBody(recap),
         extraScript: recapScript(),
@@ -667,7 +667,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       reply.type("text/html; charset=utf-8");
       return pageDocument({
         basePath: "",
-        title: `${report.session.title || "観察会"} 公式出力 — ikimon.life`,
+        title: `${report.session.title || "観察会"} 公式出力 — ZUKAN`,
         currentPath: currentPathOf(request),
         body: renderObservationEventOfficialReportBody(report),
       });

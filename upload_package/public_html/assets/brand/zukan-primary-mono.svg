@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 512" role="img" aria-label="ZUKAN monochrome">
+  <g fill="#111111">
+    <path d="M80 72h364v78L252 316h192v88H298c-31 0-56 11-72 38-16-27-41-38-72-38H80v-88l192-166H80V72z"/>
+    <text x="536" y="326" font-family="Inter, Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="156" font-weight="700" letter-spacing="18">ZUKAN</text>
+  </g>
+</svg>

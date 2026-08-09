@@ -3,8 +3,8 @@
   "application": "zukan",
   "environment": "staging",
   "source_sha": "0000000000000000000000000000000000000000",
-  "base_url": "https://staging.ikimon.life",
-  "allowed_hosts": ["staging.ikimon.life"],
+  "base_url": "https://staging.zukan.earth",
+  "allowed_hosts": ["staging.zukan.earth"],
   "timeout_ms": 10000,
   "max_response_bytes": 1048576,
   "identity": {

@@ -392,7 +392,7 @@ export async function registerAdminMonitoringWorkspaceRoutes(app: FastifyInstanc
       reply.code(403);
       return renderSiteDocument({
         basePath: "",
-        title: "Monitoring Workspace — ikimon.life",
+        title: "Monitoring Workspace — ZUKAN",
         extraStyles: MONITORING_WORKSPACE_STYLES,
         body: loginGate("/admin/monitoring-workspace"),
       });
@@ -401,7 +401,7 @@ export async function registerAdminMonitoringWorkspaceRoutes(app: FastifyInstanc
     const fieldId = await resolveFieldId(request.query.field_id);
     return renderSiteDocument({
       basePath: "",
-      title: "Monitoring Workspace — ikimon.life",
+      title: "Monitoring Workspace — ZUKAN",
       extraStyles: MONITORING_WORKSPACE_STYLES,
       body: renderBody(request.query, fieldId),
     });

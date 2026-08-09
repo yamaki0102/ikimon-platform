@@ -35,6 +35,10 @@ test("app sends browser security headers on every response", async () => {
     assert.match(csp, /form-action 'self'/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/nominatim\.openstreetmap\.org/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/tiles\.openfreemap\.org/);
+    assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/zukan\.earth/);
+    assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/ikimon\.life/);
+    assert.doesNotMatch(csp, /connect-src 'self'[^;]*https:\/\/staging\.zukan\.earth/);
+    assert.doesNotMatch(csp, /connect-src 'self'[^;]*https:\/\/staging\.ikimon\.life/);
     assert.match(csp, /font-src 'self'[\s\S]*https:\/\/tiles\.openfreemap\.org/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/www\.google\.com/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/\*\.google-analytics\.com/);
@@ -67,17 +71,19 @@ test("root HTML scripts carry the CSP nonce from the response header", async () 
   }
 });
 
-test("preview media proxy stays disabled on the public production host", async () => {
+test("preview media proxy stays disabled on canonical and rollback production hosts", async () => {
   const previousOrigin = process.env.IKIMON_PUBLIC_MEDIA_ORIGIN;
   process.env.IKIMON_PUBLIC_MEDIA_ORIGIN = "https://ikimon.life";
   const app = buildApp();
   try {
-    const response = await app.inject({
-      method: "GET",
-      url: "/__preview-media/uploads/example.jpg",
-      headers: { host: "ikimon.life" },
-    });
-    assert.equal(response.statusCode, 404);
+    for (const host of ["zukan.earth", "ikimon.life"]) {
+      const response = await app.inject({
+        method: "GET",
+        url: "/__preview-media/uploads/example.jpg",
+        headers: { host },
+      });
+      assert.equal(response.statusCode, 404, host);
+    }
   } finally {
     await app.close();
     if (previousOrigin === undefined) {

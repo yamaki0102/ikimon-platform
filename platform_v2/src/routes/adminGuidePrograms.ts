@@ -292,7 +292,7 @@ export async function registerAdminGuideProgramRoutes(app: FastifyInstance): Pro
       reply.code(403);
       return renderSiteDocument({
         basePath: "",
-        title: "ガイドリレー企画 — ikimon.life",
+        title: "ガイドリレー企画 — ZUKAN",
         extraStyles: STYLES,
         body: loginGate(),
       });
@@ -315,7 +315,7 @@ export async function registerAdminGuideProgramRoutes(app: FastifyInstance): Pro
 <script>${SCRIPT}</script>`;
     return renderSiteDocument({
       basePath: "",
-      title: "ガイドリレー企画 — ikimon.life",
+      title: "ガイドリレー企画 — ZUKAN",
       extraStyles: STYLES,
       body,
     });
@@ -328,7 +328,7 @@ export async function registerAdminGuideProgramRoutes(app: FastifyInstance): Pro
       reply.code(403);
       return renderSiteDocument({
         basePath: "",
-        title: "ガイドリレー企画 recap — ikimon.life",
+        title: "ガイドリレー企画 recap — ZUKAN",
         extraStyles: STYLES,
         body: loginGate(),
       });
@@ -338,14 +338,14 @@ export async function registerAdminGuideProgramRoutes(app: FastifyInstance): Pro
       reply.code(404);
       return renderSiteDocument({
         basePath: "",
-        title: "ガイドリレー企画 recap — ikimon.life",
+        title: "ガイドリレー企画 recap — ZUKAN",
         extraStyles: STYLES,
         body: `<main class="gpe-recap"><section class="gpe-recap-note">このガイドリレー企画は見つかりません。</section></main>`,
       });
     }
     return renderSiteDocument({
       basePath: "",
-      title: `${recap.program.title} recap — ikimon.life`,
+      title: `${recap.program.title} recap — ZUKAN`,
       extraStyles: STYLES,
       body: renderGuideProgramRecap(recap),
     });

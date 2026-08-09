@@ -18,7 +18,7 @@ function configuredBasePath(): string {
   }
 
   // Default is "" (root). Set APP_BASE_PATH=/v2 only when proxied under /v2/.
-  // After staging cutover (v2 -> / on staging.ikimon.life), no prefix is required.
+  // After staging cutover (v2 -> / on staging.zukan.earth), no prefix is required.
   return "";
 }
 

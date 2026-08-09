@@ -92,7 +92,7 @@ export type ObservationFirstRecordDetailCopy = {
 };
 
 const ja: ObservationFirstRecordDetailCopy = {
-  documentSuffix: "ikimon", back: "戻る", menu: "メニュー", records: "記録を見る", home: "ホーム", language: "言語",
+  documentSuffix: "ZUKAN", back: "戻る", menu: "メニュー", records: "記録を見る", home: "ホーム", language: "言語",
   media: "写真・動画・音", enlargePhoto: "写真を大きく見る", openVideo: "動画を開く", openAudio: "音声を開く", mediaNavigation: "メディアを切り替える",
   natureRecord: "自然の記録", publicLocation: "安全な場所", visibility: { public: "公開", limited: "限定公開", private: "非公開" },
   edit: "編集", share: "共有", updatedNotice: "変更を記録しました。", found: "この記録で見つかったもの", aiFound: "AIが見つけたもの", learning: "わかること", aiCandidate: "AIが見つけた候補", communityProposalAvailable: "名前の提案があります", candidateTemplate: "{name}かもしれません",
@@ -122,7 +122,7 @@ const ja: ObservationFirstRecordDetailCopy = {
 
 const en: ObservationFirstRecordDetailCopy = {
   ...ja,
-  documentSuffix: "ikimon", back: "Back", menu: "Menu", records: "Records", home: "Home", language: "Language",
+  documentSuffix: "ZUKAN", back: "Back", menu: "Menu", records: "Records", home: "Home", language: "Language",
   media: "Photos, video and sound", enlargePhoto: "View full-size photo", openVideo: "Open video", openAudio: "Open audio", mediaNavigation: "Choose media",
   natureRecord: "Nature record", publicLocation: "Safe location", visibility: { public: "Public", limited: "Limited", private: "Private" }, edit: "Detailed edit", share: "Share", updatedNotice: "Changes saved.",
   found: "Found in this record", aiFound: "What AI found", learning: "What this can tell us", aiCandidate: "Candidate found by AI", communityProposalAvailable: "Name suggestions are available", candidateTemplate: "Possibly {name}", openDetails: "View details", openAll: "View all", recordName: "Name for this record", photoCandidate: "Candidate from the photo",

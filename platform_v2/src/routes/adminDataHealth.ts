@@ -912,7 +912,7 @@ export async function registerAdminDataHealthRoutes(app: FastifyInstance): Promi
       reply.code(403);
       return renderSiteDocument({
         basePath: "",
-        title: "データ健康診断 — ikimon.life",
+        title: "データ健康診断 — ZUKAN",
         body: loginGate(),
       });
     }
@@ -921,7 +921,7 @@ export async function registerAdminDataHealthRoutes(app: FastifyInstance): Promi
       const body = await renderDashboard();
       return renderSiteDocument({
         basePath: "",
-        title: "データ健康診断 — ikimon.life",
+        title: "データ健康診断 — ZUKAN",
         body,
       });
     } catch (error) {
@@ -929,7 +929,7 @@ export async function registerAdminDataHealthRoutes(app: FastifyInstance): Promi
       const errMsg = error instanceof Error ? error.message : String(error);
       return renderSiteDocument({
         basePath: "",
-        title: "データ健康診断 (エラー) — ikimon.life",
+        title: "データ健康診断 (エラー) — ZUKAN",
         body: `<div style="max-width:640px;margin:64px auto;padding:24px;font-family:-apple-system,system-ui,sans-serif;"><h2 style="color:#ef4444;">読み込みエラー</h2><pre style="background:#f9fafb;padding:12px;border-radius:6px;font-size:12px;color:#374151;white-space:pre-wrap;">${escapeHtml(errMsg)}</pre></div>`,
       });
     }

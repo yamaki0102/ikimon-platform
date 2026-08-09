@@ -295,7 +295,7 @@ export async function findOrCreateOAuthUser(profile: OAuthProfile): Promise<Auth
 
     if (!userRow) {
       const newUserId = `user_${randomUUID()}`;
-      const displayName = profile.name.trim() || "ikimon user";
+      const displayName = profile.name.trim() || "ZUKAN user";
       const inserted = await client.query<AuthUserRow>(
         `insert into users (
             user_id, legacy_user_id, display_name, email, password_hash,

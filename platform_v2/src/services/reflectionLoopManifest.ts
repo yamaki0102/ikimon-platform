@@ -15,7 +15,7 @@ type ReflectionRoute = {
 };
 
 function normalizeOrigin(origin: string): string {
-  return (origin || "https://ikimon.life").replace(/\/+$/, "");
+  return (origin || "https://zukan.earth").replace(/\/+$/, "");
 }
 
 export function buildReflectionLoopManifest(origin: string, now = new Date()) {
@@ -59,7 +59,7 @@ export function buildReflectionLoopManifest(origin: string, now = new Date()) {
     analytics: {
       ga4_measurement_id: IKIMON_GA4_MEASUREMENT_ID,
       clarity_project_id: IKIMON_CLARITY_PROJECT_ID,
-      production_hosts: ["ikimon.life", "www.ikimon.life"],
+      production_hosts: ["zukan.earth", "ikimon.life", "www.ikimon.life"],
     },
     coverage: {
       route_count: routes.length,

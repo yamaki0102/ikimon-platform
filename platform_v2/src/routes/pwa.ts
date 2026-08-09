@@ -58,8 +58,8 @@ export async function registerPwaRoutes(app: FastifyInstance): Promise<void> {
       currentPath: "/debug/app-outbox",
       canonicalPath: "/debug/app-outbox",
       noindex: true,
-      title: "App outbox debug | ikimon.life",
-      description: "端末内に保存された ikimon app outbox の状態確認ページ。",
+      title: "App outbox debug | ZUKAN",
+      description: "端末内に保存されたZUKAN app outboxの状態確認ページ。",
       activeNav: "",
       body,
       shellClassName: "app-outbox-debug-shell",
@@ -73,8 +73,8 @@ function safeAppRefreshTarget(value: unknown): string {
   if (!raw) return "/map";
   if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/map";
   try {
-    const parsed = new URL(raw, "https://ikimon.life");
-    if (parsed.origin !== "https://ikimon.life") return "/map";
+    const parsed = new URL(raw, "https://zukan.earth");
+    if (parsed.origin !== "https://zukan.earth") return "/map";
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return "/map";
@@ -89,14 +89,14 @@ function renderAppRefreshHtml(target: string): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>ikimon app refresh</title>
+  <title>ZUKAN app refresh</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5fbf7;color:#0f172a}.panel{width:min(420px,100%);display:grid;gap:14px}.mark{width:56px;height:56px;border-radius:16px;background:#ecfdf5;display:grid;place-items:center;color:#047857;font-weight:950;font-size:24px}.panel h1{margin:0;font-size:24px;line-height:1.25}.panel p{margin:0;color:#475569;line-height:1.7}.status{min-height:40px;border-radius:8px;background:#fff;border:1px solid rgba(15,23,42,.08);display:flex;align-items:center;padding:0 12px;font-size:13px;font-weight:850;color:#334155}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions a,.actions button{min-height:44px;border-radius:8px;border:0;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:inherit;font-weight:900;cursor:pointer}.actions button{background:#10b981;color:#fff}.actions a{background:#e2e8f0;color:#0f172a}
+    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5fbf7;color:#0f172a}.panel{width:min(420px,100%);display:grid;gap:14px}.mark{display:block;width:56px;height:56px;border-radius:16px;object-fit:contain}.panel h1{margin:0;font-size:24px;line-height:1.25}.panel p{margin:0;color:#475569;line-height:1.7}.status{min-height:40px;border-radius:8px;background:#fff;border:1px solid rgba(15,23,42,.08);display:flex;align-items:center;padding:0 12px;font-size:13px;font-weight:850;color:#334155}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions a,.actions button{min-height:44px;border-radius:8px;border:0;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:inherit;font-weight:900;cursor:pointer}.actions button{background:#10b981;color:#fff}.actions a{background:#e2e8f0;color:#0f172a}
   </style>
 </head>
 <body>
   <main class="panel">
-    <div class="mark">i</div>
+    <img class="mark" src="/assets/brand/zukan-app-icon.svg" alt="" />
     <h1>アプリ表示を更新しています</h1>
     <p>端末内の古いService Workerとアプリ表示キャッシュだけを解除して、最新の地図を読み直します。未同期の記録データは消しません。</p>
     <div class="status" data-status>準備中...</div>

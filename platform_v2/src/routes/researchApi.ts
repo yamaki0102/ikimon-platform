@@ -152,7 +152,7 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
       claimLimit: machineStatus === "reviewer_verified" ? "reviewed_machine_observation" : "not_a_confirmed_species_record",
       calibrationDecision: row.calibration_decision ?? null,
     } : null,
-    datasetName:          "ikimon Field Loop",
+    datasetName:          "ZUKAN Field Loop",
     license:              row.dataset_license ?? "not_export_ready",
     consensusStatus:      row.consensus_status,
     identificationVerificationStatus: row.identification_verification_status,
@@ -621,7 +621,7 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
         associatedMedia:      row.photo_url,
         associatedMediaRole:  row.media_role,
         basisOfRecord:        "HumanObservation",
-        datasetName:          "ikimon Field Loop",
+        datasetName:          "ZUKAN Field Loop",
         license:              row.dataset_license ?? "not_export_ready",
         consensusStatus:      row.consensus_status,
         identificationVerificationStatus: row.identification_verification_status,
@@ -712,7 +712,7 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
       reply
         .header("Cache-Control", "private, max-age=60")
         .header("Content-Type", "text/csv; charset=utf-8")
-        .header("Content-Disposition", "attachment; filename=\"ikimon-darwin-core-v0.csv\"")
+        .header("Content-Disposition", "attachment; filename=\"zukan-darwin-core-v0.csv\"")
         .header("X-Ikimon-Export-Format", "darwin_core_csv_v0")
         .header("X-Ikimon-Export-Ready-Only", "true");
       return reply.send(toDarwinCoreCsvV0(records));

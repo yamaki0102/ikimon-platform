@@ -349,7 +349,7 @@ type LearnHubCopy = {
 const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
   ja: {
     ariaLabel: "読み物ハブ",
-    summary: "ikimon.life の読み物は、観察の始め方、名前の確かめ方、地域や研究で活かすための考え方を、1テーマ1ページで整理しています。",
+    summary: "ZUKANの読み物は、観察の始め方、名前の確かめ方、地域や研究で活かすための考え方を、1テーマ1ページで整理しています。",
     sections: [
       {
         title: "はじめて使う",
@@ -372,7 +372,7 @@ const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
   },
   en: {
     ariaLabel: "Reading hub",
-    summary: "ikimon.life reading pages are organized as one topic per page: how to start observing, how to check names, and how records can support places, research, and everyday learning.",
+    summary: "ZUKAN reading pages are organized as one topic per page: how to start observing, how to check names, and how records can support places, research, and everyday learning.",
     sections: [
       {
         title: "Start here",
@@ -395,7 +395,7 @@ const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
   },
   es: {
     ariaLabel: "Centro de lectura",
-    summary: "Las lecturas de ikimon.life están organizadas como un tema por página: cómo empezar a observar, cómo revisar nombres y cómo usar registros en lugares, investigación y aprendizaje cotidiano.",
+    summary: "Las lecturas de ZUKAN están organizadas como un tema por página: cómo empezar a observar, cómo revisar nombres y cómo usar registros en lugares, investigación y aprendizaje cotidiano.",
     sections: [
       {
         title: "Empezar",
@@ -418,7 +418,7 @@ const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
   },
   "pt-BR": {
     ariaLabel: "Centro de leitura",
-    summary: "As leituras de ikimon.life são organizadas como um tema por página: como começar a observar, como conferir nomes e como usar registros em lugares, pesquisa e aprendizagem cotidiana.",
+    summary: "As leituras de ZUKAN são organizadas como um tema por página: como começar a observar, como conferir nomes e como usar registros em lugares, pesquisa e aprendizagem cotidiana.",
     sections: [
       {
         title: "Começar",
@@ -570,20 +570,20 @@ function scriptJson(value: unknown): string {
 }
 
 function renderStructuredData(meta: MarketingPageMeta, page: SitePageDefinition, lang: SiteLang, canonicalPath: string, headings: DocHeading[]): string {
-  const url = `https://ikimon.life${canonicalPath}`;
+  const url = `https://zukan.earth${canonicalPath}`;
   const pageType = meta.bodyPageId === "faq" ? "FAQPage" : "Article";
   const graph = [
     {
       "@type": "WebSite",
-      "@id": "https://ikimon.life/#website",
-      name: "ikimon.life",
-      url: "https://ikimon.life/",
+      "@id": "https://zukan.earth/#website",
+      name: "ZUKAN",
+      url: "https://zukan.earth/",
       inLanguage: lang,
     },
     {
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "ikimon.life", item: "https://ikimon.life/" },
+        { "@type": "ListItem", position: 1, name: "ZUKAN", item: "https://zukan.earth/" },
         { "@type": "ListItem", position: 2, name: sitePageLabel(page, lang), item: url },
       ],
     },
@@ -595,8 +595,8 @@ function renderStructuredData(meta: MarketingPageMeta, page: SitePageDefinition,
       name: meta.title,
       url,
       inLanguage: lang,
-      isPartOf: { "@id": "https://ikimon.life/#website" },
-      publisher: { "@type": "Organization", name: "ikimon.life", url: "https://ikimon.life/" },
+      isPartOf: { "@id": "https://zukan.earth/#website" },
+      publisher: { "@type": "Organization", name: "IKIMON株式会社" },
       about: headings.slice(0, 8).map((heading) => heading.text),
     },
   ];
@@ -636,7 +636,7 @@ const LEGACY_LEARNING_REDIRECTS: Record<string, string> = {
 };
 
 function legacyLearningTarget(url: string): string {
-  const parsed = new URL(url, "https://ikimon.life");
+  const parsed = new URL(url, "https://zukan.earth");
   const category = parsed.searchParams.get("category") ?? "";
   const slug = parsed.searchParams.get("slug") ?? "";
   return LEGACY_LEARNING_REDIRECTS[`${category}/${slug}`] ?? "/learn";
@@ -1085,7 +1085,7 @@ function renderChangelogBody(_basePath: string, _lang: SiteLang): string {
   return `<div class="cl-wrap">
     <section class="cl-hero">
       <p class="cl-eyebrow">Changelog</p>
-      <h1 class="cl-h1">ikimon に最近起きた変化</h1>
+      <h1 class="cl-h1">ZUKANに最近起きた変化</h1>
       <p class="cl-lead">使う人に関係する変化だけを記録します。内部の実装名ではなく、見える変化で書く方針です。</p>
       ${latest ? `<div class="cl-latest">
         <div class="cl-live"></div>

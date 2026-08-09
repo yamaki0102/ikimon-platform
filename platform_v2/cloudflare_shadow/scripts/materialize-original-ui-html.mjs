@@ -11,12 +11,12 @@ const productionBucket = "ikimon-prod-media";
 const stagingBucket = "ikimon-shadow-media";
 const materializeManifestSchemaVersion = "original-ui-materialize/v1";
 const uploadCacheControl = "no-store";
-const canonicalOrigin = "https://ikimon.life";
+const canonicalOrigin = "https://zukan.earth";
 const canonicalRenderHeaders = {
   accept: "*/*",
   "cache-control": "no-store",
-  host: "ikimon.life",
-  "x-forwarded-host": "ikimon.life",
+  host: "zukan.earth",
+  "x-forwarded-host": "zukan.earth",
   "x-forwarded-proto": "https"
 };
 const allowedArgs = new Set([
@@ -150,7 +150,16 @@ const staticAssetPaths = [
   "/assets/brand/zukan-app-icon.svg",
   "/assets/brand/zukan-app-icon-maskable.svg",
   "/assets/brand/zukan-apple-touch-icon.png",
+  "/assets/brand/zukan-favicon-16.png",
+  "/assets/brand/zukan-favicon-24.png",
   "/assets/brand/zukan-favicon-32.png",
+  "/assets/brand/zukan-primary.svg",
+  "/assets/brand/zukan-icon.svg",
+  "/assets/brand/zukan-icon-small.svg",
+  "/assets/brand/zukan-icon-mono.svg",
+  "/assets/brand/zukan-primary-mono.svg",
+  "/assets/brand/brand-tokens.json",
+  "/assets/brand/brand-manifest.json",
   "/assets/brand/zukan-lockup.svg",
   "/assets/brand/zukan-symbol.svg",
   "/assets/brand/zukan-wordmark.svg",

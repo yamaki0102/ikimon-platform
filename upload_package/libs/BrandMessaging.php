@@ -6,13 +6,13 @@ final class BrandMessaging
     {
         if (class_exists('Lang') && method_exists('Lang', 'get')) {
             return [
-                'about_meta_description' => __('regional_messaging.about_meta_description', '自然観察を通じた地域創生。消滅可能性自治体への無償提供、原体験から生まれたビジョン。ikimon.lifeが目指す未来。'),
+                'about_meta_description' => __('regional_messaging.about_meta_description', '自然観察を通じた地域創生。消滅可能性自治体への無償提供、原体験から生まれたビジョン。ZUKANが目指す未来。'),
                 'business_meta_description' => __('regional_messaging.business_meta_description', '学校・地域団体は無料で運営開始。消滅可能性自治体には出力を含めて無償提供。企業・大規模自治体はPublicで継続運用を支えます。'),
                 'disappearing_section_heading' => __('regional_messaging.disappearing_section_heading', '744の自治体が、消えるかもしれない'),
                 'disappearing_population_copy' => __('regional_messaging.disappearing_population_copy', '2050年までに、20〜39歳の女性人口が50%以上減少すると推計される自治体——'),
                 'disappearing_count_copy' => __('regional_messaging.disappearing_count_copy', 'いわゆる「消滅可能性自治体」が、全国で744。'),
                 'disappearing_ratio_copy' => __('regional_messaging.disappearing_ratio_copy', '全自治体の、43%にあたります。'),
-                'priority_lead' => __('regional_messaging.priority_lead', '最も危機的な自治体に、ikimon.lifeを届けたい。'),
+                'priority_lead' => __('regional_messaging.priority_lead', '最も危機的な自治体に、ZUKANを届けたい。'),
                 'eligibility_copy' => __('regional_messaging.eligibility_copy', '若年女性人口の減少率が80%を超える自治体——'),
                 'support_model_summary' => __('regional_messaging.support_model_summary', '企業や大規模自治体向けのPublicプランの収益で、この無償提供を支えます。'),
                 'free_plan' => [
@@ -49,13 +49,13 @@ final class BrandMessaging
         }
 
         return [
-            'about_meta_description' => '自然観察を通じた地域創生。消滅可能性自治体への無償提供、原体験から生まれたビジョン。ikimon.lifeが目指す未来。',
+            'about_meta_description' => '自然観察を通じた地域創生。消滅可能性自治体への無償提供、原体験から生まれたビジョン。ZUKANが目指す未来。',
             'business_meta_description' => '学校・地域団体は無料で運営開始。消滅可能性自治体には出力を含めて無償提供。企業・大規模自治体はPublicで継続運用を支えます。',
             'disappearing_section_heading' => '744の自治体が、消えるかもしれない',
             'disappearing_population_copy' => '2050年までに、20〜39歳の女性人口が50%以上減少すると推計される自治体——',
             'disappearing_count_copy' => 'いわゆる「消滅可能性自治体」が、全国で744。',
             'disappearing_ratio_copy' => '全自治体の、43%にあたります。',
-            'priority_lead' => '最も危機的な自治体に、ikimon.lifeを届けたい。',
+            'priority_lead' => '最も危機的な自治体に、ZUKANを届けたい。',
             'eligibility_copy' => '若年女性人口の減少率が80%を超える自治体——',
             'support_model_summary' => '企業や大規模自治体向けのPublicプランの収益で、この無償提供を支えます。',
             'free_plan' => [

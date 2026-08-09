@@ -27,10 +27,10 @@
       "tokens": {
         "text_primary": "#17211b",
         "text_secondary": "#55615a",
-        "brand_primary": "#143f2e",
+        "brand_primary": "#0F4A2F",
         "surface": "#ffffff",
         "surface_soft": "#f7f7f3",
-        "focus_ring": "#143f2e"
+        "focus_ring": "#0F4A2F"
       }
     }
   ],

@@ -105,8 +105,8 @@ test("guest Home uses a neutral ZUKAN placeholder instead of synthetic lifestyle
     },
   });
   const canonicalHtml = `<!doctype html><html lang="ja"><head></head><body>${rendered.heroHtml}${rendered.dailyDashboardHtml}</body></html>`;
-  const injected = await injectStateSplitHome(canonicalHtml, null, new URL("https://staging.ikimon.life/ja/"), mockEnv());
-  assert.match(injected, /\/assets\/brand\/zukan-symbol\.svg/);
+  const injected = await injectStateSplitHome(canonicalHtml, null, new URL("https://staging.zukan.earth/ja/"), mockEnv());
+  assert.match(injected, /\/assets\/brand\/zukan-icon\.svg/);
   assert.match(injected, /home-guest-proof is-count-0 is-empty/);
   assert.doesNotMatch(injected, /home-generated-badge|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(injected, /\/media\/derived\/public%2Fpublic-1\.webp/);

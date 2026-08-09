@@ -1,9 +1,55 @@
 {
   "brand": "ZUKAN",
   "canonicalPath": "/assets/brand/",
-  "mark": "/assets/brand/zukan-symbol.svg",
-  "wordmark": "/assets/brand/zukan-wordmark.svg",
-  "lockup": "/assets/brand/zukan-lockup.svg",
+  "source": {
+    "repository": "yamaki0102/all-projects-management",
+    "commit": "c2833f0185fad87ce8ce16d853f74d57447a4898",
+    "canonicalDirectory": "docs/zukan/brand/final",
+    "files": {
+      "zukan-primary.svg": {
+        "path": "docs/zukan/brand/final/zukan-primary.svg",
+        "sha256": "79d7f07492a95a9f5a6e8dc6f62e7424a449e20840b652e417cdac4cb9575cd7"
+      },
+      "zukan-icon.svg": {
+        "path": "docs/zukan/brand/final/zukan-icon.svg",
+        "sha256": "a851e5844e7bd99e7b54127745ac5274dc1fef8426b56bbad5a922cb714d36b8"
+      },
+      "zukan-app-icon.svg": {
+        "path": "docs/zukan/brand/final/zukan-app-icon.svg",
+        "sha256": "b9a57fb1c880d848ff5867c4cc5a0daa478313cdd462f7aad9641acf2629c177"
+      },
+      "zukan-icon-small.svg": {
+        "path": "docs/zukan/brand/final/zukan-icon-small.svg",
+        "sha256": "fc1f7d011fb3c659cf55882118432f23e213f807a4c01a8daa18bff78fa92bfa"
+      },
+      "zukan-icon-mono.svg": {
+        "path": "docs/zukan/brand/final/zukan-icon-mono.svg",
+        "sha256": "5486a874b48389b13ec04c9fa688844ed22d59b08a268d5fe5591c27d62b562c"
+      },
+      "zukan-primary-mono.svg": {
+        "path": "docs/zukan/brand/final/zukan-primary-mono.svg",
+        "sha256": "4e9e6bb45c6b1d4b25ed086d84f78fdb2292ec66bdd08f66c2f1c67f41c073f1"
+      },
+      "brand-tokens.json": {
+        "path": "docs/zukan/brand/final/brand-tokens.json",
+        "sha256": "0fb9f2ab22a61d180c0843d5647366285b1d6d233cb4720bd2791b4289830d1f"
+      }
+    }
+  },
+  "primary": "/assets/brand/zukan-primary.svg",
+  "icon": "/assets/brand/zukan-icon.svg",
+  "smallIcon": "/assets/brand/zukan-icon-small.svg",
+  "appIcon": "/assets/brand/zukan-app-icon.svg",
+  "monochrome": {
+    "primary": "/assets/brand/zukan-primary-mono.svg",
+    "icon": "/assets/brand/zukan-icon-mono.svg"
+  },
+  "legacyAliases": {
+    "zukan-symbol.svg": "zukan-icon.svg",
+    "zukan-wordmark.svg": "zukan-primary.svg",
+    "zukan-lockup.svg": "zukan-primary.svg",
+    "zukan-app-icon-maskable.svg": "zukan-app-icon.svg"
+  },
   "ogpDefault": "/assets/brand/zukan-ogp-default.png",
   "pwaIcons": {
     "any192": "/assets/brand/zukan-app-icon-192.png",
@@ -13,6 +59,8 @@
   },
   "browserIcons": {
     "appleTouch": "/assets/brand/zukan-apple-touch-icon.png",
+    "favicon16": "/assets/brand/zukan-favicon-16.png",
+    "favicon24": "/assets/brand/zukan-favicon-24.png",
     "favicon32": "/assets/brand/zukan-favicon-32.png"
   },
   "rootFavicon": "/favicon.ico"

@@ -18,7 +18,7 @@ header('X-API-Version: 2.0');
 
 // CORS（同一ドメイン + localhost 開発用）
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-$allowedOrigins = ['https://ikimon.life', 'http://localhost:8899'];
+$allowedOrigins = ['https://zukan.earth', 'https://www.zukan.earth', 'https://staging.zukan.earth', 'https://ikimon.life', 'http://localhost:8899'];
 if (in_array($origin, $allowedOrigins, true)) {
     header("Access-Control-Allow-Origin: {$origin}");
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');

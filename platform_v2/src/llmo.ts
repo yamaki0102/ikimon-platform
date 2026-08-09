@@ -85,9 +85,9 @@ function buildFromSourcesWithLimit(
 export function buildLlmsTxt(origin = PRODUCTION_PUBLIC_ORIGIN): string {
   const base = origin.replace(/\/+$/, "");
   return [
-    "# ikimon.life",
+    "# ZUKAN",
     "",
-    "ikimon.life は、Enjoy Life を中心思想に、市民・企業・自治体が一緒に自然の変化を見守り、その記録を環境保全や企業活動に活かしていく、世界でもまだ確立されていない仕組みに挑む日本語正準の市民参加型プラットフォームです。",
+    "ZUKANは、Enjoy Life を中心思想に、市民・企業・自治体が一緒に自然の変化を見守り、その記録を環境保全や企業活動に活かしていく、世界でもまだ確立されていない仕組みに挑む日本語正準の市民参加型プラットフォームです。",
     "",
     "## Primary Japanese References",
     `- Guide: ${base}/llms/guide.md`,
@@ -111,32 +111,32 @@ export function buildLlmsTxt(origin = PRODUCTION_PUBLIC_ORIGIN): string {
 }
 
 const TERM_SOURCES: LlmoSource[] = [
-  { title: "Glossary", pageId: "learn-glossary", publicUrl: "https://ikimon.life/ja/learn/glossary" },
-  { title: "BioMonWeek field guide", pageId: "learn-biomonweek", publicUrl: "https://ikimon.life/ja/learn/biomonweek" },
-  { title: "Biodiversity", pageId: "term-biodiversity", publicUrl: "https://ikimon.life/ja/learn/terms/biodiversity" },
-  { title: "Nature connectedness", pageId: "term-nature-connectedness", publicUrl: "https://ikimon.life/ja/learn/terms/nature-connectedness" },
-  { title: "Attention Restoration Theory", pageId: "term-attention-restoration-theory", publicUrl: "https://ikimon.life/ja/learn/terms/attention-restoration-theory" },
-  { title: "Identification", pageId: "term-identification", publicUrl: "https://ikimon.life/ja/learn/terms/identification" },
-  { title: "AI candidate", pageId: "term-ai-candidate", publicUrl: "https://ikimon.life/ja/learn/terms/ai-candidate" },
-  { title: "BioMonWeek", pageId: "term-biomonweek", publicUrl: "https://ikimon.life/ja/learn/terms/biomonweek" },
-  { title: "Biodiversity monitoring", pageId: "term-biodiversity-monitoring", publicUrl: "https://ikimon.life/ja/learn/terms/biodiversity-monitoring" },
-  { title: "Participatory monitoring", pageId: "term-participatory-monitoring", publicUrl: "https://ikimon.life/ja/learn/terms/participatory-monitoring" },
-  { title: "Sampling effort", pageId: "term-sampling-effort", publicUrl: "https://ikimon.life/ja/learn/terms/sampling-effort" },
-  { title: "Baseline", pageId: "term-baseline", publicUrl: "https://ikimon.life/ja/learn/terms/baseline" },
-  { title: "Evidence Tier", pageId: "term-evidence-tier", publicUrl: "https://ikimon.life/ja/learn/terms/evidence-tier" },
-  { title: "Open dispute", pageId: "term-open-dispute", publicUrl: "https://ikimon.life/ja/learn/terms/open-dispute" },
-  { title: "Environmental DNA", pageId: "term-environmental-dna", publicUrl: "https://ikimon.life/ja/learn/terms/environmental-dna" },
-  { title: "GBIF", pageId: "term-gbif", publicUrl: "https://ikimon.life/ja/learn/terms/gbif" },
-  { title: "Darwin Core", pageId: "term-darwin-core", publicUrl: "https://ikimon.life/ja/learn/terms/darwin-core" },
-  { title: "TNFD", pageId: "term-tnfd", publicUrl: "https://ikimon.life/ja/learn/terms/tnfd" },
-  { title: "Nature symbiosis site", pageId: "term-nature-symbiosis-site", publicUrl: "https://ikimon.life/ja/learn/terms/nature-symbiosis-site" },
-  { title: "OECM", pageId: "term-oecm", publicUrl: "https://ikimon.life/ja/learn/terms/oecm" },
-  { title: "Natural capital", pageId: "term-natural-capital", publicUrl: "https://ikimon.life/ja/learn/terms/natural-capital" },
+  { title: "Glossary", pageId: "learn-glossary", publicUrl: "https://zukan.earth/ja/learn/glossary" },
+  { title: "BioMonWeek field guide", pageId: "learn-biomonweek", publicUrl: "https://zukan.earth/ja/learn/biomonweek" },
+  { title: "Biodiversity", pageId: "term-biodiversity", publicUrl: "https://zukan.earth/ja/learn/terms/biodiversity" },
+  { title: "Nature connectedness", pageId: "term-nature-connectedness", publicUrl: "https://zukan.earth/ja/learn/terms/nature-connectedness" },
+  { title: "Attention Restoration Theory", pageId: "term-attention-restoration-theory", publicUrl: "https://zukan.earth/ja/learn/terms/attention-restoration-theory" },
+  { title: "Identification", pageId: "term-identification", publicUrl: "https://zukan.earth/ja/learn/terms/identification" },
+  { title: "AI candidate", pageId: "term-ai-candidate", publicUrl: "https://zukan.earth/ja/learn/terms/ai-candidate" },
+  { title: "BioMonWeek", pageId: "term-biomonweek", publicUrl: "https://zukan.earth/ja/learn/terms/biomonweek" },
+  { title: "Biodiversity monitoring", pageId: "term-biodiversity-monitoring", publicUrl: "https://zukan.earth/ja/learn/terms/biodiversity-monitoring" },
+  { title: "Participatory monitoring", pageId: "term-participatory-monitoring", publicUrl: "https://zukan.earth/ja/learn/terms/participatory-monitoring" },
+  { title: "Sampling effort", pageId: "term-sampling-effort", publicUrl: "https://zukan.earth/ja/learn/terms/sampling-effort" },
+  { title: "Baseline", pageId: "term-baseline", publicUrl: "https://zukan.earth/ja/learn/terms/baseline" },
+  { title: "Evidence Tier", pageId: "term-evidence-tier", publicUrl: "https://zukan.earth/ja/learn/terms/evidence-tier" },
+  { title: "Open dispute", pageId: "term-open-dispute", publicUrl: "https://zukan.earth/ja/learn/terms/open-dispute" },
+  { title: "Environmental DNA", pageId: "term-environmental-dna", publicUrl: "https://zukan.earth/ja/learn/terms/environmental-dna" },
+  { title: "GBIF", pageId: "term-gbif", publicUrl: "https://zukan.earth/ja/learn/terms/gbif" },
+  { title: "Darwin Core", pageId: "term-darwin-core", publicUrl: "https://zukan.earth/ja/learn/terms/darwin-core" },
+  { title: "TNFD", pageId: "term-tnfd", publicUrl: "https://zukan.earth/ja/learn/terms/tnfd" },
+  { title: "Nature symbiosis site", pageId: "term-nature-symbiosis-site", publicUrl: "https://zukan.earth/ja/learn/terms/nature-symbiosis-site" },
+  { title: "OECM", pageId: "term-oecm", publicUrl: "https://zukan.earth/ja/learn/terms/oecm" },
+  { title: "Natural capital", pageId: "term-natural-capital", publicUrl: "https://zukan.earth/ja/learn/terms/natural-capital" },
 ];
 
 export function buildLlmoTermsMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): string {
   return buildFromSourcesWithLimit(
-    "ikimon.life Terms",
+    "ZUKAN Terms",
     "自然観察、生物多様性、同定、研究利用、政策・企業活動の用語を LLM が誤用しないための正準資料です。",
     TERM_SOURCES,
     1500,
@@ -146,12 +146,12 @@ export function buildLlmoTermsMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): strin
 
 export function buildLlmoGuideMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): string {
   return buildFromSources(
-    "ikimon.life Guide",
+    "ZUKAN Guide",
     "Guide / Record / Map のアプリ体験を理解するための LLM 向け正準資料です。",
     [
-      { title: "Field Loop", pageId: "learn-field-loop", publicUrl: "https://ikimon.life/ja/learn/field-loop" },
-      { title: "Identification Basics", pageId: "learn-identification-basics", publicUrl: "https://ikimon.life/ja/learn/identification-basics" },
-      { title: "About", pageId: "about", publicUrl: "https://ikimon.life/ja/about" },
+      { title: "Field Loop", pageId: "learn-field-loop", publicUrl: "https://zukan.earth/ja/learn/field-loop" },
+      { title: "Identification Basics", pageId: "learn-identification-basics", publicUrl: "https://zukan.earth/ja/learn/identification-basics" },
+      { title: "About", pageId: "about", publicUrl: "https://zukan.earth/ja/about" },
     ],
     origin,
   );
@@ -159,12 +159,12 @@ export function buildLlmoGuideMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): strin
 
 export function buildLlmoFaqMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): string {
   return buildFromSources(
-    "ikimon.life FAQ",
+    "ZUKAN FAQ",
     "利用者・学校・地域団体・LLM がよく参照する質問を、既存 FAQ と関連ページから束ねた正準資料です。",
     [
-      { title: "FAQ", pageId: "faq", publicUrl: "https://ikimon.life/ja/faq" },
-      { title: "Privacy", pageId: "privacy", publicUrl: "https://ikimon.life/ja/privacy" },
-      { title: "Terms", pageId: "terms", publicUrl: "https://ikimon.life/ja/terms" },
+      { title: "FAQ", pageId: "faq", publicUrl: "https://zukan.earth/ja/faq" },
+      { title: "Privacy", pageId: "privacy", publicUrl: "https://zukan.earth/ja/privacy" },
+      { title: "Terms", pageId: "terms", publicUrl: "https://zukan.earth/ja/terms" },
     ],
     origin,
   );
@@ -172,12 +172,12 @@ export function buildLlmoFaqMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): string 
 
 export function buildLlmoResearcherMarkdown(origin = PRODUCTION_PUBLIC_ORIGIN): string {
   return buildFromSources(
-    "ikimon.life for Researchers",
+    "ZUKAN for Researchers",
     "研究利用、同定品質、公開位置、Evidence Tier を説明するための LLM 向け正準資料です。",
     [
-      { title: "For Researcher Apply", pageId: "for-researcher-apply", publicUrl: "https://ikimon.life/ja/for-researcher/apply" },
-      { title: "Methodology", pageId: "learn-methodology", publicUrl: "https://ikimon.life/ja/learn/methodology" },
-      { title: "Field Loop", pageId: "learn-field-loop", publicUrl: "https://ikimon.life/ja/learn/field-loop" },
+      { title: "For Researcher Apply", pageId: "for-researcher-apply", publicUrl: "https://zukan.earth/ja/for-researcher/apply" },
+      { title: "Methodology", pageId: "learn-methodology", publicUrl: "https://zukan.earth/ja/learn/methodology" },
+      { title: "Field Loop", pageId: "learn-field-loop", publicUrl: "https://zukan.earth/ja/learn/field-loop" },
     ],
     origin,
   );

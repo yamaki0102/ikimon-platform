@@ -87,6 +87,7 @@ test("staging smoke backdates, alerts, verifies admin, refreshes, and resolves",
   assert.match(smokeSource, /--apply/);
   assert.match(smokeSource, /--confirm=public-map-snapshot-staging-smoke/);
   assert.match(smokeSource, /Refusing to run public map snapshot alert smoke against production host/);
+  assert.match(smokeSource, /isCanonicalOrLegacyProductionHost\(hostname\)/);
   assert.match(smokeSource, /--capture-webhook/);
   assert.match(smokeSource, /startWebhookCapture/);
   assert.match(smokeSource, /required webhook capture did not receive a staleness notification/);

@@ -645,6 +645,25 @@ test("municipal walk map source catalog builds a draft config without copying PD
   assert.equal(validation.ok, true);
 });
 
+test("ZUKAN service branding in source cues does not create a photo reuse risk", () => {
+  const source = listMunicipalWalkMapSourceCatalogV0()
+    .find((entry) => entry.sourceId === "yokosuka-maedagawa-riverside-walk");
+  assert.ok(source);
+
+  const withoutServiceBrand = {
+    ...source,
+    cue: source.cue.replace(/\bZUKAN\b/g, ""),
+  };
+  assert.deepEqual(sourceRiskModelV0(source), sourceRiskModelV0(withoutServiceBrand));
+  assert.doesNotMatch(sourceRiskModelV0(source).reviewFlags.join("\n"), /photo_or_illustration_reuse_check/);
+
+  const withPhotoMaterial = {
+    ...withoutServiceBrand,
+    cue: `${withoutServiceBrand.cue} 写真素材を含む。`,
+  };
+  assert.match(sourceRiskModelV0(withPhotoMaterial).reviewFlags.join("\n"), /photo_or_illustration_reuse_check/);
+});
+
 test("Shizuoka source catalog draft preserves multiple reviewed stops without copying PDF body", () => {
   const config = buildMunicipalWalkMapConfigFromSourceCatalogV0("shizuoka-ikimono-walk-route");
   const validation = validateMunicipalWalkMapConfigV0(config);

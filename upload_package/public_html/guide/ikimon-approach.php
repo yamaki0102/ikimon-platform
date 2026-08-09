@@ -5,7 +5,7 @@
  */
 $meta_title = 'ikimon のアプローチ — 100年後の生態系のために';
 $meta_description = '日本は世界36の生物多様性ホットスポットの1つ。固有種3,200種以上。GBIFデータの80%が市民科学由来。ikimonの設計思想、ネイチャーツーリズムとの連携、そして地域創生への道をエビデンスで解説。';
-$meta_image = 'https://ikimon.life/assets/img/ogp-default.png';
+$meta_image = 'https://zukan.earth/assets/brand/zukan-ogp-default.png';
 $meta_canonical = 'https://ikimon.life/guide/ikimon-approach.php';
 
 require_once __DIR__ . '/../../libs/Auth.php';

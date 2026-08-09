@@ -186,7 +186,7 @@ function landingPreviewMediaUrl(url: string | null): string | null {
   if (!url || /^https?:\/\//i.test(url)) return url;
   const origin = (
     process.env.IKIMON_PUBLIC_MEDIA_ORIGIN
-    || (process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203" ? "https://ikimon.life" : "")
+    || (process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203" ? "https://zukan.earth" : "")
   ).trim().replace(/\/+$/, "");
   if (!origin || !/^\/(?:thumb|uploads|data\/uploads)\//.test(url)) return url;
   if (process.env.PORT === "3203" || process.env.ALLOW_QUERY_USER_ID === "1") {
@@ -976,7 +976,7 @@ function renderLandingGuestPlaceIntro(options: LandingTopRenderOptions): string 
   const awaitingCount = snapshot.feed.filter((obs) => !hasSpecificLandingContentName(obs)).length;
   const copy = lang === "ja"
     ? {
-        eyebrow: "ikimon.life",
+        eyebrow: "ZUKAN",
         title: "地域の記録から始める",
         lead: "地図、フィールド、みんなの公開記録から、今日歩く場所やあとで見返す手がかりを探せます。名前が分からない記録も、地域の記憶として残ります。",
         primary: "地域の記録を見る",
@@ -991,7 +991,7 @@ function renderLandingGuestPlaceIntro(options: LandingTopRenderOptions): string 
         notes: ["地域の記録から入る", "名前は後で確かめる", "位置はぼかして表示"],
       }
     : {
-        eyebrow: "ikimon.life",
+        eyebrow: "ZUKAN",
         title: "Start from local records",
         lead: "Browse public records, the map, and fields to choose where to walk today and what to revisit later.",
         primary: "Community records",
@@ -1996,7 +1996,7 @@ function renderNatureCapitalGoalSection(options: LandingTopRenderOptions): strin
     <div class="prototype-nature-os-copy">
       <span>NATURE CAPITAL OS</span>
       <h2 id="prototype-nature-os-heading">自然資本を、地図で見て終わりにしない。</h2>
-      <p>衛星、天気、大気質、花粉、既存データは、その場所を読むための外部文脈として添えます。ikimon.life では、写真・音・場所・人の確認に、草刈りや植栽などの管理行為と再訪をつなぎ、次の判断に使える形で残します。</p>
+      <p>衛星、天気、大気質、花粉、既存データは、その場所を読むための外部文脈として添えます。ZUKANでは、写真・音・場所・人の確認に、草刈りや植栽などの管理行為と再訪をつなぎ、次の判断に使える形で残します。</p>
       <div class="prototype-nature-os-actions">
         <a href="${escapeHtml(businessHref)}" data-kpi-action="landing:nature-os:business">企業・地域で使う</a>
         <a href="${escapeHtml(learnHref)}" data-kpi-action="landing:nature-os:learn">政策との関係を見る</a>
@@ -2158,7 +2158,7 @@ function renderCommunitySection(basePath: string, lang: SiteLang): string {
     <div>
       <div class="prototype-eyebrow">地域・企業で使う</div>
       <h2 id="prototype-community-heading">個人の発見を、地域のアクションへ。</h2>
-      <p>ikimon.life は、記録を集めるだけの場所ではなく、地域の自然を見つけ、確かめ、残し、また歩くための基盤。個人、学校、研究者、自治体、企業が同じ記録を別の視点で参照しやすくする。</p>
+      <p>ZUKANは、記録を集めるだけの場所ではなく、地域の自然を見つけ、確かめ、残し、また歩くための基盤。個人、学校、研究者、自治体、企業が同じ記録を別の視点で参照しやすくする。</p>
       <div class="prototype-actions">
         <a class="prototype-btn prototype-btn-primary" href="${escapeHtml(landingHref(basePath, lang, "/community"))}" data-kpi-action="landing:community:community">みんなで観察する</a>
         <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/for-business"))}" data-kpi-action="landing:community:business">企業で活用する</a>

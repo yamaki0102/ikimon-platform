@@ -43,14 +43,19 @@ export function zukanOgpDefaultAssetUrl(
 }
 
 export const BRAND_ASSETS = {
+  primary: "/assets/brand/zukan-primary.svg",
+  icon: "/assets/brand/zukan-icon.svg",
+  smallIcon: "/assets/brand/zukan-icon-small.svg",
+  primaryMono: "/assets/brand/zukan-primary-mono.svg",
+  iconMono: "/assets/brand/zukan-icon-mono.svg",
   mark192: "/assets/brand/zukan-app-icon-192.png",
   mark512: "/assets/brand/zukan-app-icon-512.png",
   mark192Maskable: "/assets/brand/zukan-app-icon-192-maskable.png",
   mark512Maskable: "/assets/brand/zukan-app-icon-512-maskable.png",
   appleTouchIcon: "/assets/brand/zukan-apple-touch-icon.png",
+  favicon16: "/assets/brand/zukan-favicon-16.png",
+  favicon24: "/assets/brand/zukan-favicon-24.png",
   favicon32: "/assets/brand/zukan-favicon-32.png",
-  wordmarkBlack: "/assets/brand/zukan-wordmark.svg",
-  lockupBlack: "/assets/brand/zukan-lockup.svg",
   get ogpDefault(): string {
     return zukanOgpDefaultAssetUrl();
   },

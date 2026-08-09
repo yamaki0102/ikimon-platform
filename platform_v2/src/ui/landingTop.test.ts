@@ -72,7 +72,7 @@ test("guest Top stays useful without public data and never invents record cards"
   assert.match(html, /home-guest-hero-visual/);
   assert.match(html, /home-guest-proof is-count-0 is-empty/);
   assert.match(html, /<p>公開できる写真は、まだありません。<\/p>/);
-  assert.match(html, /\/assets\/brand\/zukan-symbol\.svg/);
+  assert.match(html, /\/assets\/brand\/zukan-icon\.svg/);
   assert.match(html, /home-place-visual is-placeholder/);
   assert.doesNotMatch(html, /home-generated-badge|イメージ|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(html, /class="home-public-card"/);

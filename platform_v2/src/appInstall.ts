@@ -19,7 +19,7 @@ type AppInstallCopy = {
 };
 
 export const APP_LAUNCH_BACKGROUND_COLOR = "#f7f7f3";
-export const APP_THEME_COLOR = "#143f2e";
+export const APP_THEME_COLOR = "#0F4A2F";
 
 export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
   ja: {
@@ -137,7 +137,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
   <meta name="theme-color" content="${APP_THEME_COLOR}" />
   <title>${copy.offlineTitle} | ZUKAN</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:${APP_LAUNCH_BACKGROUND_COLOR};color:#17211b}.offline{width:min(420px,100%);display:grid;gap:16px}.mark{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;overflow:hidden}.mark img{width:100%;height:100%;display:block}.offline h1{margin:0;font-size:26px;line-height:1.2}.offline p{margin:0;color:#69716c;line-height:1.7}.links{display:grid;gap:10px;margin-top:6px}.links a,.retry{min-height:48px;border-radius:999px;border:1px solid rgba(20,63,46,.16);display:flex;align-items:center;justify-content:center;padding:0 14px;text-decoration:none;font-weight:850;color:#143f2e;background:#fff}.retry{background:#143f2e;color:#fff;border:0;font:inherit;cursor:pointer}
+    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:${APP_LAUNCH_BACKGROUND_COLOR};color:#17211b}.offline{width:min(420px,100%);display:grid;gap:16px}.mark{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;overflow:hidden}.mark img{width:100%;height:100%;display:block}.offline h1{margin:0;font-size:26px;line-height:1.2}.offline p{margin:0;color:#69716c;line-height:1.7}.links{display:grid;gap:10px;margin-top:6px}.links a,.retry{min-height:48px;border-radius:999px;border:1px solid rgba(15,74,47,.16);display:flex;align-items:center;justify-content:center;padding:0 14px;text-decoration:none;font-weight:850;color:#0F4A2F;background:#fff}.retry{background:#0F4A2F;color:#fff;border:0;font:inherit;cursor:pointer}
   </style>
 </head>
 <body>

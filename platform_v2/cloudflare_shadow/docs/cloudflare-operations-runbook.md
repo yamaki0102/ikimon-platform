@@ -15,12 +15,13 @@ Scope:
 Cloudflare staging:
 
 - Worker: `ikimon-life-cloudflare-staging`
-- Public domain: `https://staging.ikimon.life`
+- Canonical public domain: `https://staging.zukan.earth`
+- Legacy rollback domain: `https://staging.ikimon.life`
 - Data plane: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`, `ikimon-shadow-media`, `ikimon-staging-media-jobs`
 - Routine staging entrypoint: GitHub Actions `Deploy Cloudflare Staging`, Cloudflare-only.
 - Materialized UI target: `npm run materialize:original-ui -- --target-env staging`
 
-Cloudflare staging is the promotion gate for Cloudflare production changes. It owns `staging.ikimon.life/*` and must not use VPS SSH, `/var/www/ikimon.life-staging`, or `VPS_SSH_KEY`. The legacy VPS staging workflow remains only for old integration jobs until those jobs are migrated or retired. Production Worker config must not own `staging.ikimon.life` routes; `deploy-production-guard.mjs` fails when a production route begins with `staging.ikimon.life/`.
+Cloudflare staging is the promotion gate for Cloudflare production changes. Its primary smoke target is the `staging.zukan.earth` custom domain; `staging.ikimon.life/*` remains a separately checked rollback route. It must not use VPS SSH, `/var/www/ikimon.life-staging`, or `VPS_SSH_KEY`. The legacy VPS staging workflow remains only for old integration jobs until those jobs are migrated or retired. Production Worker config must not own either staging route; `deploy-production-guard.mjs` fails closed for both.
 
 Hard boundaries:
 

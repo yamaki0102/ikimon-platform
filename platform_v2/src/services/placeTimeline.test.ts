@@ -135,7 +135,10 @@ test("unsafe public media URLs are removed", () => {
   const result = buildPlaceTimeline([
     record({ recordId: "relative-api", publicMediaUrl: "/api/v1/auth/session" }),
     record({ recordId: "absolute-api", publicMediaUrl: "https://ikimon.life/api/v1/auth/session" }),
+    record({ recordId: "zukan-media", publicMediaUrl: "https://media.zukan.earth/derived/example/display.webp" }),
     record({ recordId: "allowed-media", publicMediaUrl: "https://media.ikimon.life/derived/example/display.webp" }),
+    record({ recordId: "evil-zukan-suffix", publicMediaUrl: "https://zukan.earth.evil.example/derived/example/display.webp" }),
+    record({ recordId: "evil-legacy-suffix", publicMediaUrl: "https://ikimon.life.evil.example/derived/example/display.webp" }),
   ], { now: NOW });
   assert.equal(result.periods[0]?.items.find((item) => item.recordId === "relative-api")?.publicMediaUrl, null);
   assert.equal(result.periods[0]?.items.find((item) => item.recordId === "absolute-api")?.publicMediaUrl, null);
@@ -143,6 +146,12 @@ test("unsafe public media URLs are removed", () => {
     result.periods[0]?.items.find((item) => item.recordId === "allowed-media")?.publicMediaUrl,
     "https://media.ikimon.life/derived/example/display.webp",
   );
+  assert.equal(
+    result.periods[0]?.items.find((item) => item.recordId === "zukan-media")?.publicMediaUrl,
+    "https://media.zukan.earth/derived/example/display.webp",
+  );
+  assert.equal(result.periods[0]?.items.find((item) => item.recordId === "evil-zukan-suffix")?.publicMediaUrl, null);
+  assert.equal(result.periods[0]?.items.find((item) => item.recordId === "evil-legacy-suffix")?.publicMediaUrl, null);
 });
 
 test("periods are ordered by observation date even when timezone instants cross", () => {

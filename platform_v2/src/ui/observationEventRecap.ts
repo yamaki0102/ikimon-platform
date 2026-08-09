@@ -225,7 +225,7 @@ export function recapScript(): string {
   document.querySelectorAll("[data-share]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const kind = btn.getAttribute("data-share");
-      const text = heading + " — ikimon.life で振り返り";
+      const text = heading + " — ZUKANで振り返り";
       if (kind === "x"){
         window.open("https://twitter.com/intent/tweet?text=" + encodeURIComponent(text) + "&url=" + encodeURIComponent(url), "_blank");
       } else if (kind === "line"){

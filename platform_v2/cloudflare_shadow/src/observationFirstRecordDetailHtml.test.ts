@@ -156,6 +156,22 @@ test("guest HTML omits owner management and keeps proposals on demand", () => {
   assert.doesNotMatch(rendered, /data-media-dedup-notice|similar photos|似た写真/);
 });
 
+test("record detail fallback share URL uses the canonical ZUKAN origin", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
+    lang: "ja",
+    title: "公開記録",
+    observedLabel: "2026年8月9日",
+    note: null,
+    media: [],
+    actionNonce: "nonce-canonical-fallback",
+    viewerAuthenticated: false,
+  });
+
+  assert.match(rendered, /https%3A%2F%2Fzukan\.earth%2Fja%2Fobservations%2Fvisit-ui-contract/);
+  assert.match(rendered, /<title>公開記録 \| ZUKAN<\/title>/);
+  assert.doesNotMatch(rendered, /https%3A%2F%2Fikimon\.life%2Fja%2Fobservations/);
+});
+
 test("accepted human identification suppresses the provisional AI comparison", () => {
   const acceptedDetail: ObservationFirstRecordDetail = {
     ...detail,

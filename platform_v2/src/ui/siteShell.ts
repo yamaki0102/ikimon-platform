@@ -382,7 +382,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "更新情報",
       },
       personalizedEmpty: "ログインすると、フォロー中の分類群や観察エリアをここに固定します。",
-      legalTagline: "皆で作る地域図鑑",
+      legalTagline: "撮ると、まちの今が図鑑になる。",
     },
     en: {
       primaryTitle: "Daily",
@@ -761,8 +761,7 @@ function renderHeaderCoreNavigation(basePath: string, lang: SiteLang, currentPat
 function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: string | undefined, availableLangs: SiteLang[], minimalChrome = false, homeChrome?: "guest" | "member"): string {
   const copy = shellCopyFor(lang);
   const accountCopy = accountUiCopy(lang);
-  const brandMarkSrc = BRAND_ASSETS.mark192;
-  const brandWordmarkSrc = BRAND_ASSETS.wordmarkBlack;
+  const brandPrimarySrc = BRAND_ASSETS.primary;
   const navLinks = renderHeaderCoreNavigation(basePath, lang, currentPath, homeChrome);
   const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop", currentPath);
   const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile", currentPath);
@@ -787,8 +786,8 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
     return `<header class="site-header site-header-home" data-home-header data-home-auth-state="${homeChrome}">
     <div class="site-header-inner">
       <div class="site-brand-cluster">
-        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup"><span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span><span class="brand-wordmark" aria-label="ZUKAN"><img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" /></span></span>
+        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
+          <span class="brand-logo-lockup"><img class="brand-primary-img" src="${escapeHtml(brandPrimarySrc)}" alt="" /></span>
         </a>
       </div>
       ${navLinks}
@@ -802,13 +801,8 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
     return `<header class="site-header site-header-minimal">
     <div class="site-header-inner">
       <div class="site-brand-cluster">
-        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup">
-            <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
-            <span class="brand-wordmark" aria-label="ZUKAN">
-              <img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" />
-            </span>
-          </span>
+        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
+          <span class="brand-logo-lockup"><img class="brand-primary-img" src="${escapeHtml(brandPrimarySrc)}" alt="" /></span>
         </a>
       </div>
       ${navLinks}
@@ -832,13 +826,8 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
         <button class="desktop-side-nav-toggle" type="button" aria-label="左メニューを切り替える" aria-pressed="false" data-desktop-side-nav-toggle>
           <span class="desktop-side-nav-toggle-lines" aria-hidden="true"></span>
         </button>
-        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup">
-            <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
-            <span class="brand-wordmark" aria-label="ZUKAN">
-              <img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" />
-            </span>
-          </span>
+        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
+          <span class="brand-logo-lockup"><img class="brand-primary-img" src="${escapeHtml(brandPrimarySrc)}" alt="" /></span>
         </a>
       </div>
       ${navLinks}
@@ -914,10 +903,10 @@ function renderFooterLinks(basePath: string, lang: SiteLang, pages: SitePageDefi
 
 function operatorStatement(lang: SiteLang): string {
   const copy: Record<SiteLang, string> = {
-    ja: "ZUKANはIKIMON株式会社が運営しています。現在はikimon.lifeで提供しています。",
-    en: "ZUKAN is operated by IKIMON Inc. and is currently available at ikimon.life.",
-    es: "ZUKAN es operado por IKIMON Inc. y actualmente se ofrece en ikimon.life.",
-    "pt-BR": "O ZUKAN é operado pela IKIMON Inc. e atualmente está disponível em ikimon.life.",
+    ja: "ZUKANはIKIMON株式会社が運営しています。zukan.earthで提供しています。",
+    en: "ZUKAN is operated by IKIMON Inc. and is available at zukan.earth.",
+    es: "ZUKAN es operado por IKIMON Inc. y se ofrece en zukan.earth.",
+    "pt-BR": "O ZUKAN é operado pela IKIMON Inc. e está disponível em zukan.earth.",
   };
   return copy[lang];
 }
@@ -933,12 +922,9 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
       <section class="footer-hero" aria-label="フッター案内">
         <div class="footer-brand-panel">
           <div>
-          <div class="brand brand-footer">
-            <span class="brand-mark"><img src="${BRAND_ASSETS.mark192}" alt="ZUKAN symbol" /></span>
-            <span>
-              <strong>ZUKAN</strong>
-              <small>${escapeHtml(copy.footer.tagline)}</small>
-            </span>
+          <div class="brand-footer">
+            <span class="brand-footer-primary" role="img" aria-label="ZUKAN"><img src="${BRAND_ASSETS.primary}" alt="" /></span>
+            <small>${escapeHtml(copy.footer.tagline)}</small>
           </div>
             <div class="footer-kicker">生きものを楽しむ。暮らしを楽しむ。</div>
             <h2>小さな発見を、<br>観察レコードへ。</h2>
@@ -949,7 +935,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
             </div>
           </div>
           <p class="footer-operator">${escapeHtml(operatorStatement(lang))}</p>
-          <div class="footer-chip-row" aria-label="ZUKAN の価値">
+          <div class="footer-chip-row" aria-label="ZUKANの価値">
             <span>名前が分からなくても残せる</span>
             <span>公開範囲を安全側で制御</span>
             <span>学校・研究・企業活動へ接続</span>
@@ -997,7 +983,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
       </section>
 
       <div class="footer-bottom">
-        <span>ZUKAN｜皆で作る地域図鑑</span>
+        <span>ZUKAN｜撮ると、まちの今が図鑑になる。</span>
         <span><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>・<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a></span>
       </div>
     </div>
@@ -3589,7 +3575,7 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
 </script>`;
 }
 
-const PUBLIC_ORIGIN = "https://ikimon.life";
+const PUBLIC_ORIGIN = "https://zukan.earth";
 
 function stripFragment(path: string): string {
   const hashIndex = path.indexOf("#");
@@ -3802,7 +3788,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const analyticsHeadScript = `<script>
 (function () {
   const host = window.location.hostname;
-  if (host !== 'ikimon.life' && host !== 'www.ikimon.life') return;
+  if (host !== 'zukan.earth' && host !== 'www.zukan.earth' && host !== 'ikimon.life' && host !== 'www.ikimon.life') return;
 
   const googleTagId = ${JSON.stringify(IKIMON_GA4_MEASUREMENT_ID)};
   const sanitizeDimension = (value, fallback) => {
@@ -4184,8 +4170,10 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   <meta name="apple-mobile-web-app-title" content="ZUKAN" />
   <link rel="manifest" href="${escapeHtml(manifestHref)}" />
   <link rel="apple-touch-icon" sizes="180x180" href="${BRAND_ASSETS.appleTouchIcon}" />
+  <link rel="icon" type="image/png" sizes="16x16" href="${BRAND_ASSETS.favicon16}" />
+  <link rel="icon" type="image/png" sizes="24x24" href="${BRAND_ASSETS.favicon24}" />
   <link rel="icon" type="image/png" sizes="32x32" href="${BRAND_ASSETS.favicon32}" />
-  <link rel="icon" type="image/x-icon" sizes="32x32" href="/favicon.ico" />
+  <link rel="icon" type="image/x-icon" sizes="16x16 24x24 32x32" href="/favicon.ico" />
   <link rel="icon" type="image/png" sizes="192x192" href="${BRAND_ASSETS.mark192}" />
   <title>${escapeHtml(pageTitle)}</title>
   <meta name="description" content="${escapeHtml(description)}" />${robotsMeta}
@@ -4429,7 +4417,6 @@ ${alternateLinks}
       display: inline-flex;
       align-items: center;
       flex: 0 0 auto;
-      gap: 7px;
       padding: 3px 8px 3px 2px;
       border-radius: 999px;
       color: #0f172a;
@@ -4438,33 +4425,11 @@ ${alternateLinks}
     .brand:hover .brand-logo-lockup {
       background: rgba(15,23,42,.04);
     }
-    .brand-mark { width: 38px; height: 38px; flex: 0 0 38px; aspect-ratio: 1 / 1; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 8px 18px rgba(15,23,42,.07); background: white; }
-    .brand-mark img { width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; }
-    .brand-logo-lockup .brand-mark {
-      width: 36px;
-      height: 36px;
-      flex-basis: 36px;
-      border-radius: 10px;
-      padding: 0;
-      box-shadow: 0 7px 16px rgba(15,23,42,.10);
-    }
-    .brand-wordmark {
-      display: inline-flex;
-      align-items: center;
-      flex: 0 0 auto;
-      min-width: 0;
-      width: auto;
-      height: 16px;
-      aspect-ratio: 711 / 222;
-      line-height: 1;
-      white-space: nowrap;
-      letter-spacing: 0;
-    }
-    .brand-wordmark-img {
+    .brand-primary-img {
       display: block;
       width: auto;
-      height: 100%;
-      max-width: none;
+      height: 36px;
+      max-width: 112px;
       object-fit: contain;
       object-position: left center;
     }
@@ -5893,12 +5858,30 @@ ${alternateLinks}
       align-content: space-between;
       gap: 26px;
     }
-    .site-footer .brand { color: #ffffff; }
-    .site-footer .brand-mark {
-      background: #ecfdf5;
+    .brand-footer {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      width: fit-content;
+    }
+    .brand-footer-primary {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 5px 12px;
+      border-radius: 12px;
+      background: #f7f7f3;
       box-shadow: 0 12px 30px rgba(0,0,0,.16);
     }
-    .site-footer .brand small { color: rgba(236,253,245,.76); }
+    .brand-footer-primary img {
+      display: block;
+      width: auto;
+      height: 34px;
+      max-width: 112px;
+      object-fit: contain;
+    }
+    .brand-footer small { color: rgba(236,253,245,.76); }
     .footer-kicker {
       width: fit-content;
       min-height: 34px;
@@ -6822,11 +6805,6 @@ ${alternateLinks}
         min-height: 40px;
         padding: 2px 8px 2px 0;
       }
-      .brand-logo-lockup .brand-mark {
-        width: 32px;
-        height: 32px;
-        flex-basis: 32px;
-      }
       .site-nav-desktop {
         display: none;
       }
@@ -6943,9 +6921,6 @@ ${alternateLinks}
       }
       .site-shell.is-immersive-surface .site-brand-cluster {
         width: 204px;
-      }
-      body.is-desktop-side-nav-collapsed .site-shell.is-immersive-surface .brand-wordmark {
-        display: inline-flex;
       }
       body.is-desktop-side-nav-collapsed .site-shell.is-immersive-surface .brand-logo-lockup {
         padding-right: 8px;
@@ -7239,14 +7214,12 @@ ${alternateLinks}
         max-width: none;
       }
       .brand-logo-lockup {
-        gap: 6px;
         padding-right: 6px;
       }
-      .brand-logo-lockup .brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
-      .brand-wordmark {
+      .brand-primary-img {
         width: auto;
-        height: 15px;
-        aspect-ratio: 711 / 222;
+        height: 32px;
+        max-width: 102px;
       }
       .brand-name { font-size: 16px; }
       .brand-domain { font-size: 11px; }

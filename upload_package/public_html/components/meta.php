@@ -18,14 +18,14 @@ CspNonce::sendHeader();
 $default_title = __('meta_title');
 $default_desc = __('meta.website_description', 'A place to save nearby nature records and revisit them later by place.');
 $orgDescription = __('meta.organization_description', 'Citizen science biodiversity platform. Build a long-term archive of nearby nature through observation records.');
-$orgAltName = __('meta.organization_alt_name', 'ikimon');
-$default_image = BASE_URL . "/assets/img/ogp_default.png";
+$orgAltName = __('meta.organization_alt_name', 'ZUKAN');
+$default_image = BASE_URL . "/assets/brand/zukan-ogp-default.png";
 
 $title = $default_title;
 if (!empty($meta_title)) {
     $title = $meta_title;
-    if (stripos($title, 'ikimon') === false) {
-        $title .= " | ikimon";
+    if (stripos($title, 'ZUKAN') === false) {
+        $title .= " | ZUKAN";
     }
 }
 if (defined('IS_STAGING_SITE') && IS_STAGING_SITE) {
@@ -72,16 +72,18 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <meta name="description" content="<?php echo htmlspecialchars($desc); ?>">
 
 <!-- PWA Meta Tags (Design System v2) -->
-<meta name="theme-color" content="#10b981">
+<meta name="theme-color" content="#0F4A2F">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="ikimon">
+<meta name="apple-mobile-web-app-title" content="ZUKAN">
 <link rel="manifest" href="/manifest.php">
-<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/zukan-apple-touch-icon.png">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/assets/img/icon-192.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/brand/zukan-favicon-16.png">
+<link rel="icon" type="image/png" sizes="24x24" href="/assets/brand/zukan-favicon-24.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/zukan-favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/brand/zukan-app-icon-192.png">
 
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content="website">
@@ -105,9 +107,10 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "name": "ikimon",
-  "url": "https://ikimon.life",
-  "logo": "https://ikimon.life/assets/img/icon-192.png",
+  "name": "IKIMON株式会社",
+  "alternateName": "ZUKAN",
+  "url": "https://zukan.earth",
+  "logo": "https://zukan.earth/assets/brand/zukan-app-icon.svg",
   "description": <?= json_encode($orgDescription, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
   "sameAs": []
 }
