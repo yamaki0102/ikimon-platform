@@ -1,0 +1,31 @@
+{
+  "contractVersion": "ikimon.mobile-platform/v1",
+  "exchangeId": "fixture_exchange_forbidden_01",
+  "sourceProduct": "nocosil",
+  "targetProduct": "zukan",
+  "targetState": "private_intake",
+  "sourceEdition": {
+    "objectId": "record_fixture_02",
+    "revision": "rev_7",
+    "evidenceDigest": "sha256:fixture-forbidden"
+  },
+  "approval": {
+    "mode": "one_tap",
+    "approvedAt": "2026-08-13T08:34:00+09:00",
+    "revocable": true
+  },
+  "privacyTransform": {
+    "location": "coarsened",
+    "face": "removed",
+    "privateProperty": "not_applicable",
+    "rights": "cleared"
+  },
+  "payload": {
+    "observation": {
+      "mediaRef": "exchange-media-fixture-02",
+      "nested": {
+        "refresh_token": "must-never-cross-product-boundary"
+      }
+    }
+  }
+}
