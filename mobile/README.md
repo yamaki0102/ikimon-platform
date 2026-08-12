@@ -1,133 +1,138 @@
-# ikimon.life モバイルアプリ
+# ZUKAN / IKIMON モバイル資産
 
-## 2つのモード
+> Current architecture note: `docs/spec/mobile-product-family/IMPLEMENTATION_SLICE_V1.md`
 
-| モード | プラットフォーム | 機能 |
-|---|---|---|
-| **スキャン** (iOS) | iPhone 13 Pro | カメラで生物をリアルタイム検出・マッピング |
-| **ポケット** (Android) | Pixel 10 Pro | 歩くだけで鳥声・虫声を自動検出 |
+このディレクトリには、ZUKANの将来のprimary appへ再利用できる既存ネイティブ資産があります。
+
+これらを「完成済みのZUKAN本体」や「捨てる旧実装」とは扱いません。カメラ、音声、位置情報、端末内AI、background処理などの**native capability実装**として評価し、新しいMobile Product Familyから必要に応じて再利用します。
+
+## 現在の2つの専門ネイティブ実装
+
+| 実装 | プラットフォーム | 主な能力 | 現在の扱い |
+|---|---|---|---|
+| **IkimonScan** | iOS / Swift | カメラ、Vision/Core ML、ARKit、位置・motion | native capability資産。transport更新が必要 |
+| **ikimon-pocket / FieldScan** | Android / Kotlin | CameraX、音声AI、GPS/sensor、WorkManager、端末内ML | native capability資産。current runtime API実装あり |
+
+## 目標アーキテクチャ
+
+ZUKANは近い将来installed appを主役にする方向です。同時にNOCOSILもcamera/photo/PDF/text/voiceを起点とするため、モバイル実装は製品ファミリーで再利用できる形を優先します。
+
+ただしNOCOSILとZUKANの信頼状態は統合しません。
+
+```text
+shared mobile implementation
+        |
+   +----+----+
+   |         |
+ZUKAN       NOCOSIL
+app         app
+   |         |
+separate auth / DB / keys / release
+   |         |
+native capability ports
+   |         |
+Swift / Kotlin specialized modules
+        |
+versioned product contract
+        |
+Cloudflare OS adapter / product backend
+```
+
+現在の第一仮説は、共有UI・routing・sync clientにExpo/React Nativeを検証しつつ、既存のSwift/Kotlin能力をnative moduleとして残す構成です。Expoはまだ確定ではありません。NOCOSILのsecurity/background要件や既存native codeとの接続コストを含むpaired vertical sliceで決定します。
 
 ## iOS: IkimonScan
 
 ### セットアップ
 
 ```bash
-# XcodeGen でプロジェクト生成
 brew install xcodegen
 cd mobile/ios/IkimonScan
 xcodegen generate
-
-# Xcode で開く
 open IkimonScan.xcodeproj
 ```
 
-### 構成
+### 主な構成
 
-```
+```text
 IkimonScan/
 ├── Sources/
-│   ├── App/          # SwiftUI App + ContentView
-│   ├── Scan/         # カメラ + スキャン画面
-│   ├── Detection/    # Vision + Core ML 推論
-│   ├── API/          # ikimon.life API クライアント
-│   └── Models/       # データモデル
-├── Resources/        # Info.plist
-└── project.yml       # XcodeGen 設定
+│   ├── App/
+│   ├── Scan/         # camera / scan UI
+│   ├── Detection/    # Vision / Core ML
+│   ├── API/
+│   └── Models/
+├── Resources/
+└── project.yml
 ```
 
-### 必要な環境
-- Xcode 15+
-- iOS 16+ (iPhone 13 Pro 推奨)
-- Apple Developer Account (実機テスト用)
+Frameworks include AVFoundation, Vision, CoreML, ARKit, CoreLocation and CoreMotion.
 
-## Android: ikimon-pocket
+### transport boundary
+
+`IkimonAPIClient.swift` は現在 `https://ikimon.life/api/v2` のlegacy PHP-compatible endpointを利用しています。capture/detection能力は再利用候補ですが、このtransportを新しいproduct-family APIの正本にはしません。
+
+新しいprimary appへ組み込む前に `ikimon.mobile-platform/v1` / versioned product contract側へadapterを移します。
+
+## Android: ikimon-pocket / FieldScan
 
 ### セットアップ
 
-```bash
-# Android Studio で開く
-# File > Open > mobile/android/ikimon-pocket/
+Android Studioから `mobile/android/ikimon-pocket/` を開きます。
 
-# BirdNET モデル配置
-# app/src/main/assets/birdnet_lite.tflite
-# app/src/main/assets/birdnet_labels.txt
-```
+### 主な構成
 
-### 構成
-
-```
+```text
 ikimon-pocket/
-├── app/src/main/
-│   ├── kotlin/life/ikimon/
-│   │   ├── IkimonApp.kt         # Application (通知チャネル)
-│   │   ├── ui/MainActivity.kt   # ホーム画面 (Compose)
-│   │   ├── pocket/
-│   │   │   ├── PocketService.kt     # Foreground Service
-│   │   │   ├── AudioClassifier.kt   # BirdNET TFLite 推論
-│   │   │   ├── LocationTracker.kt   # GPS 追跡
-│   │   │   └── SensorCollector.kt   # 加速度 + 気圧
-│   │   ├── api/
-│   │   │   └── UploadWorker.kt      # WorkManager バッチ送信
-│   │   └── data/
-│   │       ├── DetectionEvent.kt    # イベントモデル
-│   │       └── EventBuffer.kt      # ローカルバッファ
-│   ├── assets/                      # TFLite モデル
-│   └── res/
-└── build.gradle.kts
+└── app/src/main/kotlin/life/ikimon/
+    ├── api/          # auth, current-runtime client, upload/recovery
+    ├── context/
+    ├── data/
+    ├── pocket/       # passive audio / field collection
+    ├── spatial/
+    ├── store/
+    └── ui/
 ```
 
-### 必要な環境
-- Android Studio Ladybug+
-- Android SDK 35
-- Pixel 10 Pro (実機推奨) or エミュレータ
+現在のGradle構成にはCompose、Location、CameraX、WorkManager、ONNX Runtime、TensorFlow Lite、および端末内GenAI surfaceが含まれています。
 
-### BirdNET モデル
+Android側のfield-session clientはcurrent Node runtimeの `/api/v1/mobile/field-sessions` を利用する実装へ移っています。一方、旧pending JSON用 `UploadWorker` は明示的に停止されており、長期のdurable outboxとみなしてはいけません。
 
-1. https://github.com/kahst/BirdNET-Analyzer から TFLite モデルをダウンロード
-2. `app/src/main/assets/birdnet_lite.tflite` に配置
-3. ラベルファイルを `app/src/main/assets/birdnet_labels.txt` に配置
+## 新しいMobile Platform Contract
 
-## サーバー API
+current runtime側に次のread-only discoveryを追加する実装を進めています。
 
-両アプリ共通のバックエンド API:
-
-| エンドポイント | 用途 |
-|---|---|
-| `POST /api/v2/passive_event.php` | ポケットモード: 音声+GPS バッチ送信 |
-| `POST /api/v2/scan_detection.php` | スキャンモード: 写真付き検出送信 |
-| `GET /api/v2/observations.php` | 観察データ取得 |
-
-## アーキテクチャ
-
+```text
+GET /.well-known/ikimon-platform
+GET /api/v1/mobile/capabilities
 ```
-iPhone 13 Pro (Swift)          Pixel 10 Pro (Kotlin)
-┌──────────────┐              ┌──────────────┐
-│ CameraX      │              │ AudioRecord  │
-│ Vision       │              │ BirdNET Lite │
-│ Core ML      │              │ GPS Tracker  │
-│ ARKit/LiDAR  │              │ Sensors      │
-└──────┬───────┘              └──────┬───────┘
-       │                             │
-       │    JSON over HTTPS          │
-       └──────────┬──────────────────┘
-                  │
-                  ▼
-        ┌─────────────────┐
-        │ ikimon.life     │
-        │ API v2          │
-        │ (PHP 8.2)       │
-        └────────┬────────┘
-                 │
-                 ▼
-        ┌─────────────────┐
-        │ Passive         │
-        │ Observation     │
-        │ Engine          │
-        └────────┬────────┘
-                 │
-                 ▼
-        ┌─────────────────┐
-        │ DataStore       │
-        │ (JSON + SQLite) │
-        └─────────────────┘
+
+mobile contract version:
+
+```text
+ikimon.mobile-platform/v1
 ```
+
+モバイルからCloudflareのR2/D1/Queues等へ直接依存させません。クライアントはversioned capability / API contractだけを参照し、Cloudflare resourceはserver-side adapterに隠します。
+
+## 再利用ルール
+
+既存native codeは以下の単位でport化を検討します。
+
+- camera / scan;
+- audio inference;
+- location / sensor capture;
+- on-device ML;
+- background scheduling;
+- media preparation;
+- secure device capability.
+
+API URL、auth token、local DB、product policyなどのtrust stateは共通native moduleへ持ち込みません。NOCOSILとZUKANは別app・別認証・別local DB・別鍵・別releaseを維持します。
+
+## 開発判断
+
+1. 既存native codeを削除しない。
+2. 先にversioned contractとnegative testを固定する。
+3. native capabilityを1つずつport化する。
+4. その上でshared shellを小さく試す。
+5. Expo/native-module構成が実測で不適なら、該当理由に限定してKotlin Multiplatform等を比較する。
+6. production/store releaseは別gateで扱う。
