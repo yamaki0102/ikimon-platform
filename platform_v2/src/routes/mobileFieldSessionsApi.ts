@@ -1,11 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { ZUKAN_MOBILE_CAPABILITY_MANIFEST, ZUKAN_PLATFORM_DISCOVERY } from "../mobilePlatform/capabilities.js";
+import { buildZukanCapabilityResponse, buildZukanPlatformDescriptor } from "../mobilePlatform/capabilities.js";
 import { getSessionFromMobileAuth } from "../services/authSession.js";
 import {
   getMobileFieldSessionRecap,
   normalizeMobileSceneDigestBody,
   saveMobileSceneDigest,
 } from "../services/mobileFieldSessions.js";
+import { resolvePresentationPublicOrigin } from "../services/trustedPublicOrigin.js";
 
 function statusForMobileError(message: string): number {
   if (message.endsWith("_required") || message === "lat_lng_required") return 400;
@@ -13,14 +14,21 @@ function statusForMobileError(message: string): number {
 }
 
 export async function registerMobileFieldSessionsApiRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/.well-known/ikimon-platform", async (_request, reply) => {
-    reply.header("Cache-Control", "public, max-age=300");
-    return ZUKAN_PLATFORM_DISCOVERY;
+  app.get("/.well-known/ikimon-platform", async (request, reply) => {
+    const origin = resolvePresentationPublicOrigin(request, { allowLocalDevelopment: true });
+    if (!origin) {
+      reply.code(400);
+      return { error: "public_origin_untrusted" };
+    }
+    reply.header("Cache-Control", "public, max-age=60");
+    return buildZukanPlatformDescriptor(origin);
   });
 
-  app.get("/api/v1/mobile/capabilities", async (_request, reply) => {
-    reply.header("Cache-Control", "public, max-age=300");
-    return ZUKAN_MOBILE_CAPABILITY_MANIFEST;
+  app.get("/v1/capabilities", async (_request, reply) => {
+    // This response may become session/domain-specific as mobile auth is standardized.
+    // Keep it no-store now so clients never rely on a cache rule that would later leak scope.
+    reply.header("Cache-Control", "no-store");
+    return buildZukanCapabilityResponse();
   });
 
   app.post("/api/v1/mobile/field-sessions/start", async (request) => {
