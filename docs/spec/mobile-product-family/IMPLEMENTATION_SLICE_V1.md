@@ -12,7 +12,7 @@ This document is an implementation projection for `yamaki0102/ikimon-platform`. 
 
 Advance the app-primary direction without rewriting verified ZUKAN backend/data and without prematurely selecting Expo, Kotlin Multiplatform, Flutter, or another client stack.
 
-The first implementation slice establishes a provider-opaque mobile contract and proves the minimum cross-product invariants before any new product shell is allowed to become canonical.
+The first implementation slice establishes canonical-contract-aligned mobile primitives and proves the minimum cross-product invariants before any new product shell is allowed to become canonical.
 
 ## 2. Existing native assets discovered on current main
 
@@ -46,7 +46,7 @@ Current source includes Swift/SwiftUI plus:
 - CoreLocation;
 - CoreMotion.
 
-Its API client still targets legacy `/api/v2/*.php` endpoints. The native capture/detection capability is useful, but its transport adapter is not the target product-family contract.
+Its historical API client still targets legacy `/api/v2/*.php` endpoints. The native capture/detection capability is useful, but that transport adapter is not the target product-family contract.
 
 ## 3. Refined architecture hypothesis: Pattern A-prime
 
@@ -96,44 +96,67 @@ NOCOSIL and ZUKAN must keep separate:
 
 A shared module may operate only on caller-provided, already-authorized product data. Shared code must not hold a cross-product credential cache or a cross-product local database.
 
-## 5. Contract introduced by this slice
+## 5. Canonical contract convergence
 
-`platform_v2/src/mobilePlatform/productFamilyContract.ts` introduces `ikimon.mobile-platform/v1`.
+The source in this branch is an implementation of the already-adopted strategy contract, not a second mobile specification.
 
-It currently defines:
+Canonical contract family:
 
-- product/security-domain scoped sync commands;
-- command id + idempotency key + payload digest replay semantics;
-- provider-neutral upload intent/capability ports;
-- sync receipts;
-- explicit NOCOSIL -> ZUKAN exchange envelope;
-- revocable approval requirement;
-- privacy/rights transform requirement;
-- forbidden private trust-state fields;
-- provider-opaque capability manifests.
+```text
+ikimon.mobile-platform.v1
+```
 
-This contract is intentionally not tied to R2, D1, Workers, Durable Objects, Hyperdrive, Expo, Kotlin, Swift, or a particular database.
+Canonical discovery:
+
+```text
+GET /.well-known/ikimon-platform
+  -> PlatformDescriptor
+  -> capability_endpoint: /v1/capabilities
+
+GET /v1/capabilities
+  -> CapabilityResponse
+```
+
+The first draft in this branch briefly used a separate `/api/v1/mobile/capabilities` preview shape. That divergence was detected before merge and removed. The branch now uses the canonical field names, endpoint and capability states from `NOCOSIL_ZUKAN_MOBILE_PLATFORM_CONTRACTS_v1.md`.
+
+`platform_v2/src/mobilePlatform/productFamilyContract.ts` now implements selected canonical v1 types/invariants for:
+
+- `SyncCommand` command/idempotency/payload-digest semantics;
+- canonical command receipt statuses;
+- upload-intent and finalize interfaces;
+- the v1 NOCOSIL -> ZUKAN `KnowledgeExchangePackageV1`;
+- revocable authority, rights/transform/signature requirements;
+- prohibited cross-product private fields;
+- canonical `PlatformDescriptor` and `CapabilityResponse` shapes;
+- provider-resource-opaque capability identifiers.
+
+It intentionally does not expose R2 buckets, D1 databases, Queue bindings, Durable Object identities, Hyperdrive configuration, Expo, Swift/Kotlin implementation paths, or provider credentials.
 
 ## 6. Read-only discovery surface
 
-The current runtime exposes two read-only discovery routes through the existing mobile route registration:
+The branch adds two read-only routes through the existing mobile route registration:
 
 - `GET /.well-known/ikimon-platform`
-- `GET /api/v1/mobile/capabilities`
+- `GET /v1/capabilities`
 
-Capabilities are explicitly stateful:
+The descriptor identifies the platform as `ikimon-cloudflare-os` as required by the canonical contract while keeping resource/binding detail out of mobile capability IDs.
 
-- `available` means the current runtime already exposes the capability;
-- `preview` means an implementation exists but is not normal production contract;
-- `contract_only` means the contract is reserved but the runtime must not claim it works yet.
+Canonical capability states are:
 
-The first manifest marks current field-session flows available while sync-push, upload-intent and NOCOSIL->ZUKAN knowledge exchange remain `contract_only`.
+- `available`;
+- `degraded`;
+- `read_only`;
+- `disabled`.
 
-This prevents design documents from being mistaken for live runtime readiness.
+The first response marks the already-existing field-session flows `available`. Canonical sync, media-upload, notification, deep-link, private-observation and NOCOSIL-exchange capabilities are explicitly `disabled` until their real server-side implementation is verified.
+
+This prevents a design document or reserved contract from being mistaken for live runtime capability.
+
+The capability response is `no-store` from the beginning because later responses may become session/domain-specific. The well-known descriptor has only a short public cache lifetime.
 
 ## 7. Cloudflare OS boundary
 
-Mobile clients must depend on product capability contracts, not Cloudflare resource names.
+Mobile clients depend on product/platform capability contracts, not Cloudflare resource names.
 
 Target interaction:
 
@@ -145,9 +168,18 @@ mobile app
   -> storage / queue / workflow / notification implementation
 ```
 
-For large media, a future upload-intent adapter may issue a short-lived object-scoped upload capability. The mobile contract sees only `targetUrl`, required headers, expiry, upload id and finalize token. It must not receive permanent storage credentials or provider control-plane identifiers.
+For large media, the canonical future upload flow is:
 
-Success of an HTTP upload is not canonical acceptance. A finalize operation must verify server-side ownership, digest/size and materialization before a verified receipt is issued.
+```text
+POST /v1/media/upload-intents
+→ bounded single/multipart/server-mediated capability
+→ upload bytes
+→ POST /v1/media/upload-intents/{intent}/finalize
+→ server ownership/size/type/digest verification
+→ verified receipt
+```
+
+A successful storage PUT is not canonical acceptance. Permanent storage credentials and provider control-plane IDs never enter the mobile contract.
 
 ## 8. Existing app migration rule
 
@@ -162,15 +194,19 @@ Refactor reusable pieces behind native ports in this order:
 3. sensor/location collection;
 4. background scheduling;
 5. on-device model runtime;
-6. existing auth/install identity only after the new contract defines its replacement.
+6. existing auth/install identity only after the canonical auth/device contracts replace it.
 
-The disabled legacy `UploadWorker` must not be treated as a working durable outbox. A new outbox needs explicit persisted command state, idempotency keys and server receipts.
+The disabled legacy `UploadWorker` must not be treated as a working durable outbox. A new outbox needs exact encoded commands, persistent command state, idempotency keys, payload digests and server receipts.
+
+A new `MobilePlatformDiscoveryClient.kt` has been added without wiring it into normal product behavior. It reads only the canonical well-known/capability contract and validates provider-resource opacity.
 
 ### iOS
 
 Do not delete `IkimonScan` while the replacement shell is unverified.
 
 Preserve Vision/CoreML/ARKit/camera capabilities, but replace the direct legacy PHP transport with the versioned product contract before it becomes part of the new primary app.
+
+A new `MobilePlatformDiscoveryClient.swift` has been added without changing the legacy capture path. It reads the same canonical discovery/capability contract as Android and does not know Cloudflare resource bindings.
 
 ## 9. Paired vertical slice
 
@@ -200,7 +236,7 @@ The stack is selected only after one thin slice passes on both product shapes.
 6. force-kill recovery of correction/undo/outbox state;
 7. Evidence + temporal revision integrity;
 8. passkey/biometric/session recovery behavior;
-9. explicit NOCOSIL -> ZUKAN exchange with approval/privacy transform;
+9. canonical signed NOCOSIL -> ZUKAN exchange package with approval/rights/privacy transform;
 10. negative proof that ZUKAN cannot read NOCOSIL local/private state.
 
 ## 10. Stack decision gate
@@ -226,16 +262,24 @@ Do not run a full Flutter or KMP rewrite merely for preference comparison.
 
 ## 11. Immediate next implementation sequence
 
-1. Land and test `ikimon.mobile-platform/v1` invariants.
-2. Land read-only capability discovery.
-3. Add language-neutral conformance fixtures for Swift/Kotlin/TypeScript.
-4. Implement durable ZUKAN outbox state machine against the new command contract.
-5. Add upload-intent/finalize adapter behind the product contract in staging only.
-6. Refactor one existing Android native capability behind a stable port.
-7. Refactor one existing iOS native capability behind the same semantic port.
-8. Build the smallest shared shell spike.
-9. Run paired ZUKAN/NOCOSIL negative tests.
-10. Select or reject Expo with evidence.
+Completed in this branch so far:
+
+1. canonical v1 contract invariants in TypeScript;
+2. canonical read-only descriptor/capability endpoints;
+3. language-neutral positive/negative NOCOSIL -> ZUKAN exchange fixtures;
+4. Android canonical discovery client;
+5. iOS canonical discovery client;
+6. source-level negative tests for provider-resource leakage and private-field exchange leakage.
+
+Next implementation order after verification of this slice:
+
+1. durable ZUKAN outbox state machine using canonical `SyncCommand`;
+2. staging-only upload-intent/finalize adapter;
+3. first Android native capability behind a stable product-neutral port;
+4. first iOS native capability behind the same semantic port;
+5. smallest shared-shell spike;
+6. paired ZUKAN/NOCOSIL negative tests;
+7. evidence-based Expo selection or KMP comparison trigger.
 
 ## 12. Done definition for this slice
 
@@ -245,10 +289,11 @@ Minimum closure requires:
 
 - platform typecheck pass;
 - relevant Node tests pass;
-- provider-leak negative tests pass;
+- Android contract tests pass where the Android toolchain is available;
+- provider-resource leak negative tests pass;
 - NOCOSIL->ZUKAN private-field negative tests pass;
 - discovery endpoint tests pass;
 - no production mutation;
-- no claim that `contract_only` capabilities are live.
+- no claim that `disabled` capabilities are live.
 
-The next phase may then request a staging release of the exact merged source through the normal Release Commander / Cloudflare command path.
+The next phase may request a staging release of the exact merged source only through the normal Release Commander / Cloudflare command path.
