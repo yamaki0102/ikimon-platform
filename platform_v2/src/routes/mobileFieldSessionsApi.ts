@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { ZUKAN_MOBILE_CAPABILITY_MANIFEST, ZUKAN_PLATFORM_DISCOVERY } from "../mobilePlatform/capabilities.js";
 import { getSessionFromMobileAuth } from "../services/authSession.js";
 import {
   getMobileFieldSessionRecap,
@@ -12,6 +13,16 @@ function statusForMobileError(message: string): number {
 }
 
 export async function registerMobileFieldSessionsApiRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/.well-known/ikimon-platform", async (_request, reply) => {
+    reply.header("Cache-Control", "public, max-age=300");
+    return ZUKAN_PLATFORM_DISCOVERY;
+  });
+
+  app.get("/api/v1/mobile/capabilities", async (_request, reply) => {
+    reply.header("Cache-Control", "public, max-age=300");
+    return ZUKAN_MOBILE_CAPABILITY_MANIFEST;
+  });
+
   app.post("/api/v1/mobile/field-sessions/start", async (request) => {
     const session = await getSessionFromMobileAuth(request).catch(() => null);
     const body = request.body as Record<string, unknown> | undefined;
