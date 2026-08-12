@@ -1,49 +1,93 @@
 import Foundation
 
 struct MobilePlatformDiscoveryDocument: Decodable, Equatable {
-    let schema: String
+    let platform: String
+    let environment: String
     let product: String
-    let mobileContractVersion: String
-    let capabilities: String
-    let providerOpaque: Bool
+    let capabilityEndpoint: String
+    let authorizationIssuer: String
+    let supportedPlatformContracts: [String]
+    let serverTime: String
+    let descriptorDigest: String
+
+    enum CodingKeys: String, CodingKey {
+        case platform
+        case environment
+        case product
+        case capabilityEndpoint = "capability_endpoint"
+        case authorizationIssuer = "authorization_issuer"
+        case supportedPlatformContracts = "supported_platform_contracts"
+        case serverTime = "server_time"
+        case descriptorDigest = "descriptor_digest"
+    }
 }
 
 struct MobilePlatformCapability: Decodable, Equatable {
-    let id: String
+    let capabilityId: String
     let version: String
     let state: String
+    let validUntil: String
+
+    enum CodingKeys: String, CodingKey {
+        case capabilityId = "capability_id"
+        case version
+        case state
+        case validUntil = "valid_until"
+    }
 }
 
-struct MobilePlatformCapabilityManifest: Decodable, Equatable {
-    let contractVersion: String
-    let product: String
+struct MobilePlatformContractRange: Decodable, Equatable {
+    let min: String
+    let max: String
+}
+
+struct MobilePlatformContractRanges: Decodable, Equatable {
+    let platform: MobilePlatformContractRange
+}
+
+struct MobilePlatformCapabilityResponse: Decodable, Equatable {
+    let maintenanceMode: String
+    let contracts: MobilePlatformContractRanges
     let capabilities: [MobilePlatformCapability]
+    let configDigest: String
+    let validUntil: String
+
+    enum CodingKeys: String, CodingKey {
+        case maintenanceMode = "maintenance_mode"
+        case contracts
+        case capabilities
+        case configDigest = "config_digest"
+        case validUntil = "valid_until"
+    }
 }
 
 struct MobilePlatformDiscoveryResult: Equatable {
     let discovery: MobilePlatformDiscoveryDocument
-    let manifest: MobilePlatformCapabilityManifest
+    let capabilities: MobilePlatformCapabilityResponse
 }
 
 enum MobilePlatformDiscoveryError: Error, Equatable {
-    case invalidOrigin
     case invalidCapabilitiesPath
     case transportStatus(Int)
-    case unsupportedSchema
+    case platformMismatch
+    case environmentInvalid
     case productMismatch
     case contractMismatch
-    case providerOpacityRequired
+    case authorizationIssuerRequired
+    case descriptorDigestInvalid
+    case configDigestInvalid
     case invalidCapability
-    case providerDetailLeak
+    case providerResourceLeak
 }
 
-/// Read-only client for the provider-opaque mobile product contract.
+/// Read-only client for the canonical mobile product contract.
 ///
-/// The client intentionally has no Cloudflare/R2/D1/Queue knowledge. The same semantic
-/// discovery shape can therefore be used by a future shared shell or a full-native client.
+/// The descriptor identifies IKIMON Cloudflare OS, while capability identifiers contain
+/// no R2/D1/Queue/DO binding detail. The client therefore remains valid if backend adapters
+/// are replaced and can be called from a future shared shell or a full-native client.
 struct MobilePlatformDiscoveryClient {
-    static let expectedSchema = "ikimon.platform-discovery/v1"
-    static let expectedContractVersion = "ikimon.mobile-platform/v1"
+    static let expectedPlatform = "ikimon-cloudflare-os"
+    static let expectedPlatformContract = "1.0"
     static let expectedProduct = "zukan"
 
     let origin: URL
@@ -59,47 +103,61 @@ struct MobilePlatformDiscoveryClient {
         let discovery: MobilePlatformDiscoveryDocument = try await get(discoveryURL)
         try Self.validate(discovery: discovery)
 
-        guard let capabilitiesURL = Self.resolveRelativePath(discovery.capabilities, against: origin) else {
+        guard let capabilitiesURL = Self.resolveRelativePath(discovery.capabilityEndpoint, against: origin) else {
             throw MobilePlatformDiscoveryError.invalidCapabilitiesPath
         }
-        let manifest: MobilePlatformCapabilityManifest = try await get(capabilitiesURL)
-        try Self.validate(manifest: manifest)
-        return MobilePlatformDiscoveryResult(discovery: discovery, manifest: manifest)
+        let capabilities: MobilePlatformCapabilityResponse = try await get(capabilitiesURL)
+        try Self.validate(capabilities: capabilities)
+        return MobilePlatformDiscoveryResult(discovery: discovery, capabilities: capabilities)
     }
 
     static func validate(discovery: MobilePlatformDiscoveryDocument) throws {
-        guard discovery.schema == expectedSchema else {
-            throw MobilePlatformDiscoveryError.unsupportedSchema
+        guard discovery.platform == expectedPlatform else {
+            throw MobilePlatformDiscoveryError.platformMismatch
+        }
+        guard ["development", "staging", "production"].contains(discovery.environment) else {
+            throw MobilePlatformDiscoveryError.environmentInvalid
         }
         guard discovery.product == expectedProduct else {
             throw MobilePlatformDiscoveryError.productMismatch
         }
-        guard discovery.mobileContractVersion == expectedContractVersion else {
+        guard discovery.supportedPlatformContracts.contains(expectedPlatformContract) else {
             throw MobilePlatformDiscoveryError.contractMismatch
         }
-        guard discovery.providerOpaque else {
-            throw MobilePlatformDiscoveryError.providerOpacityRequired
+        guard !discovery.authorizationIssuer.isEmpty else {
+            throw MobilePlatformDiscoveryError.authorizationIssuerRequired
         }
-        guard isSafeRelativeAPIPath(discovery.capabilities) else {
+        guard discovery.descriptorDigest.hasPrefix("sha256:") else {
+            throw MobilePlatformDiscoveryError.descriptorDigestInvalid
+        }
+        guard isSafeRelativeAPIPath(discovery.capabilityEndpoint) else {
             throw MobilePlatformDiscoveryError.invalidCapabilitiesPath
         }
     }
 
-    static func validate(manifest: MobilePlatformCapabilityManifest) throws {
-        guard manifest.contractVersion == expectedContractVersion else {
+    static func validate(capabilities response: MobilePlatformCapabilityResponse) throws {
+        guard ["none", "read_only", "unavailable"].contains(response.maintenanceMode) else {
+            throw MobilePlatformDiscoveryError.invalidCapability
+        }
+        guard !response.contracts.platform.min.isEmpty,
+              !response.contracts.platform.max.isEmpty else {
             throw MobilePlatformDiscoveryError.contractMismatch
         }
-        guard manifest.product == expectedProduct else {
-            throw MobilePlatformDiscoveryError.productMismatch
+        guard response.configDigest.hasPrefix("sha256:") else {
+            throw MobilePlatformDiscoveryError.configDigestInvalid
         }
-        for capability in manifest.capabilities {
-            guard !capability.id.isEmpty,
+        guard !response.validUntil.isEmpty else {
+            throw MobilePlatformDiscoveryError.invalidCapability
+        }
+        for capability in response.capabilities {
+            guard !capability.capabilityId.isEmpty,
                   !capability.version.isEmpty,
-                  ["available", "preview", "contract_only"].contains(capability.state) else {
+                  !capability.validUntil.isEmpty,
+                  ["available", "degraded", "read_only", "disabled"].contains(capability.state) else {
                 throw MobilePlatformDiscoveryError.invalidCapability
             }
-            if containsProviderImplementationName(capability.id) {
-                throw MobilePlatformDiscoveryError.providerDetailLeak
+            if containsProviderResourceName(capability.capabilityId) {
+                throw MobilePlatformDiscoveryError.providerResourceLeak
             }
         }
     }
@@ -123,9 +181,9 @@ struct MobilePlatformDiscoveryClient {
         return components.url
     }
 
-    private static func containsProviderImplementationName(_ value: String) -> Bool {
+    private static func containsProviderResourceName(_ value: String) -> Bool {
         let normalized = value.lowercased()
-        return ["cloudflare", "r2_bucket", "d1_database", "durable_object", "hyperdrive_config"]
+        return ["r2_bucket", "d1_database", "durable_object", "hyperdrive_config", "queue_binding"]
             .contains { normalized.contains($0) }
     }
 
