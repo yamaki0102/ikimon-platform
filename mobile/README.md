@@ -10,7 +10,7 @@
 
 | 実装 | プラットフォーム | 主な能力 | 現在の扱い |
 |---|---|---|---|
-| **IkimonScan** | iOS / Swift | カメラ、Vision/Core ML、ARKit、位置・motion | native capability資産。transport更新が必要 |
+| **IkimonScan** | iOS / Swift | カメラ、Vision/Core ML、ARKit、位置・motion | native capability資産。legacy transportの置換が必要 |
 | **ikimon-pocket / FieldScan** | Android / Kotlin | CameraX、音声AI、GPS/sensor、WorkManager、端末内ML | native capability資産。current runtime API実装あり |
 
 ## 目標アーキテクチャ
@@ -38,7 +38,7 @@ versioned product contract
 Cloudflare OS adapter / product backend
 ```
 
-現在の第一仮説は、共有UI・routing・sync clientにExpo/React Nativeを検証しつつ、既存のSwift/Kotlin能力をnative moduleとして残す構成です。Expoはまだ確定ではありません。NOCOSILのsecurity/background要件や既存native codeとの接続コストを含むpaired vertical sliceで決定します。
+現在の第一仮説は、共有UI・routing・sync clientにExpo/React Nativeを検証しつつ、既存のSwift/Kotlin能力をnative moduleとして残す **Pattern A-prime** です。Expoはまだ確定ではありません。NOCOSILのsecurity/background要件や既存native codeとの接続コストを含むpaired vertical sliceで決定します。
 
 ## iOS: IkimonScan
 
@@ -71,7 +71,7 @@ Frameworks include AVFoundation, Vision, CoreML, ARKit, CoreLocation and CoreMot
 
 `IkimonAPIClient.swift` は現在 `https://ikimon.life/api/v2` のlegacy PHP-compatible endpointを利用しています。capture/detection能力は再利用候補ですが、このtransportを新しいproduct-family APIの正本にはしません。
 
-新しいprimary appへ組み込む前に `ikimon.mobile-platform/v1` / versioned product contract側へadapterを移します。
+このbranchでは、通常のcapture pathを変えずに `MobilePlatformDiscoveryClient.swift` を追加し、canonical well-known / capability contractを読む独立clientを用意しています。legacy transportの置換はpaired sliceの後続Workです。
 
 ## Android: ikimon-pocket / FieldScan
 
@@ -97,22 +97,31 @@ ikimon-pocket/
 
 Android側のfield-session clientはcurrent Node runtimeの `/api/v1/mobile/field-sessions` を利用する実装へ移っています。一方、旧pending JSON用 `UploadWorker` は明示的に停止されており、長期のdurable outboxとみなしてはいけません。
 
-## 新しいMobile Platform Contract
+このbranchでは `MobilePlatformDiscoveryClient.kt` を追加し、current runtime originからcanonical descriptor/capability responseを読む実装を分離しています。通常のfield-session pathはまだ切り替えません。
 
-current runtime側に次のread-only discoveryを追加する実装を進めています。
+## Canonical Mobile Platform Contract
+
+Strategy正本の契約へ合わせます。implementation repo独自の第2規格は作りません。
+
+Contract family:
+
+```text
+ikimon.mobile-platform.v1
+```
+
+Read-only discovery:
 
 ```text
 GET /.well-known/ikimon-platform
-GET /api/v1/mobile/capabilities
+  -> capability_endpoint: /v1/capabilities
+
+GET /v1/capabilities
+  -> canonical CapabilityResponse
 ```
 
-mobile contract version:
+Capability stateは正本どおり `available | degraded | read_only | disabled`。現在実在するfield-sessionだけを`available`とし、sync/upload/exchange等は実装・検証前なので`disabled`です。
 
-```text
-ikimon.mobile-platform/v1
-```
-
-モバイルからCloudflareのR2/D1/Queues等へ直接依存させません。クライアントはversioned capability / API contractだけを参照し、Cloudflare resourceはserver-side adapterに隠します。
+モバイルからCloudflareのR2/D1/Queues等へ直接依存させません。descriptorではplatform identityとして`ikimon-cloudflare-os`を宣言しますが、resource/binding名やcredentialはcapability/API contractへ出しません。
 
 ## 再利用ルール
 
@@ -131,7 +140,7 @@ API URL、auth token、local DB、product policyなどのtrust stateは共通nat
 ## 開発判断
 
 1. 既存native codeを削除しない。
-2. 先にversioned contractとnegative testを固定する。
+2. canonical versioned contractとnegative testを先に固定する。
 3. native capabilityを1つずつport化する。
 4. その上でshared shellを小さく試す。
 5. Expo/native-module構成が実測で不適なら、該当理由に限定してKotlin Multiplatform等を比較する。
