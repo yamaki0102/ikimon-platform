@@ -1,31 +1,55 @@
 {
-  "contractVersion": "ikimon.mobile-platform/v1",
-  "exchangeId": "fixture_exchange_forbidden_01",
-  "sourceProduct": "nocosil",
-  "targetProduct": "zukan",
-  "targetState": "private_intake",
-  "sourceEdition": {
-    "objectId": "record_fixture_02",
-    "revision": "rev_7",
-    "evidenceDigest": "sha256:fixture-forbidden"
+  "package_id": "fixture_exchange_forbidden_01",
+  "package_version": "1.0",
+  "source_product": "nocosil",
+  "target_product": "zukan",
+  "idempotency_key": "fixture_exchange_forbidden_idem_01",
+  "created_at": "2026-08-13T08:34:00+09:00",
+  "source_digest": "sha256:fixture-forbidden-source",
+  "transformed_payload_digest": "sha256:fixture-forbidden-transformed",
+  "classification_before": "private",
+  "classification_after": "public_safe",
+  "transform": {
+    "policy_id": "fixture-publication-transform",
+    "policy_version": "1",
+    "implementation_version": "1",
+    "transformation_receipt_refs": ["transform-receipt-02"]
   },
-  "approval": {
-    "mode": "one_tap",
-    "approvedAt": "2026-08-13T08:34:00+09:00",
+  "authority": {
+    "mode": "one_tap_approval",
+    "decision_ref": "decision-fixture-02",
     "revocable": true
   },
-  "privacyTransform": {
-    "location": "coarsened",
-    "face": "removed",
-    "privateProperty": "not_applicable",
-    "rights": "cleared"
+  "rights": {
+    "license_ref": "license-fixture-02",
+    "consent_refs": ["consent-fixture-02"],
+    "restrictions": []
   },
-  "payload": {
-    "observation": {
-      "mediaRef": "exchange-media-fixture-02",
+  "observation": {
+    "media_refs": [
+      {
+        "exchange_media_ref": "exchange-media-fixture-02",
+        "digest": "sha256:fixture-forbidden-media"
+      }
+    ],
+    "observed_time": {
+      "value": "2026-08-13",
+      "precision": "day"
+    },
+    "public_safe_location": {
+      "value": {
+        "area_ref": "opaque-grid-cell"
+      },
+      "precision": "area"
+    },
+    "identification_candidate": {
+      "candidate": "safe-looking",
       "nested": {
         "refresh_token": "must-never-cross-product-boundary"
       }
     }
-  }
+  },
+  "prohibited_private_fields_absent": true,
+  "signature": "fixture-signature",
+  "signing_key_id": "fixture-signing-key"
 }
