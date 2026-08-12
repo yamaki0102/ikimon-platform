@@ -4,12 +4,12 @@ import test from "node:test";
 import {
   MobileContractError,
   assertValidNocosilToZukanExchange,
-  type NocosilToZukanExchange,
+  type KnowledgeExchangePackageV1,
 } from "./productFamilyContract.js";
 
-async function readExchangeFixture(name: string): Promise<NocosilToZukanExchange> {
+async function readExchangeFixture(name: string): Promise<KnowledgeExchangePackageV1> {
   const raw = await readFile(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
-  return JSON.parse(raw) as NocosilToZukanExchange;
+  return JSON.parse(raw) as KnowledgeExchangePackageV1;
 }
 
 test("language-neutral safe exchange fixture is accepted", async () => {
@@ -23,6 +23,6 @@ test("language-neutral fixture proves private credential leakage is rejected", a
     () => assertValidNocosilToZukanExchange(exchange),
     (error: unknown) => error instanceof MobileContractError
       && error.code === "EXCHANGE_FORBIDDEN_FIELD"
-      && error.path === "payload.observation.nested.refresh_token",
+      && error.path === "package.observation.identification_candidate.nested.refresh_token",
   );
 });
