@@ -55,7 +55,7 @@ struct MobilePlatformDiscoveryClient {
     }
 
     func discover() async throws -> MobilePlatformDiscoveryResult {
-        let discoveryURL = origin.appending(path: ".well-known/ikimon-platform")
+        let discoveryURL = origin.appendingPathComponent(".well-known/ikimon-platform")
         let discovery: MobilePlatformDiscoveryDocument = try await get(discoveryURL)
         try Self.validate(discovery: discovery)
 
