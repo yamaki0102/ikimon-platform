@@ -10,21 +10,22 @@ class MobilePlatformDiscoveryContractTest {
         .first { File(it, "app/src/main/kotlin").exists() }
 
     @Test
-    fun discoveryClientUsesVersionedProviderOpaqueContract() {
+    fun discoveryClientUsesCanonicalVersionedContract() {
         val source = File(
             projectRoot,
             "app/src/main/kotlin/life/ikimon/api/MobilePlatformDiscoveryClient.kt",
         ).readText()
 
-        assertContains(source, "ikimon.platform-discovery/v1")
-        assertContains(source, "ikimon.mobile-platform/v1")
+        assertContains(source, "ikimon-cloudflare-os")
+        assertContains(source, "EXPECTED_PLATFORM_CONTRACT = \"1.0\"")
         assertContains(source, "/.well-known/ikimon-platform")
-        assertContains(source, "providerOpaque")
+        assertContains(source, "capability_endpoint")
         assertContains(source, "MobileApiConfig.currentRuntimeOrigin(context)")
+        assertContains(source, "setOf(\"available\", \"degraded\", \"read_only\", \"disabled\")")
     }
 
     @Test
-    fun discoveryClientDoesNotContainProviderCredentialsOrBindings() {
+    fun discoveryClientDoesNotContainProviderCredentialsOrBindingValues() {
         val source = File(
             projectRoot,
             "app/src/main/kotlin/life/ikimon/api/MobilePlatformDiscoveryClient.kt",
@@ -35,5 +36,6 @@ class MobilePlatformDiscoveryContractTest {
         assertFalse(source.contains("bucket_name"))
         assertFalse(source.contains("database_id"))
         assertFalse(source.contains("queue_name"))
+        assertFalse(source.contains("workers.dev"))
     }
 }
