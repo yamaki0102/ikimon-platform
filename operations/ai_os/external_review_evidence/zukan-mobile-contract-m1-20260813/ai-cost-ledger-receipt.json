@@ -128,10 +128,10 @@
     "implementationDiff": "728 added lines before ledger evidence; LUNA final review made only minimal contract hardening fixes and conformance assertions.",
     "finalDiffSize": {
       "files": 3,
-      "addedLines": 971,
+      "addedLines": 973,
       "deletedLines": 0,
       "implementationAddedLines": 728,
-      "ledgerEvidenceAddedLines": 243
+      "ledgerEvidenceAddedLines": 245
     },
     "credentialAndScopeReview": {
       "credentialExposure": 0,
