@@ -89,7 +89,14 @@ function sortedCanonicalValue(value: unknown): unknown {
     if (!Number.isFinite(value)) throw new TypeError("non_finite_number");
     return value;
   }
-  if (Array.isArray(value)) return value.map(sortedCanonicalValue);
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      if (!Object.prototype.hasOwnProperty.call(value, index)) {
+        throw new TypeError("non_json_array_hole");
+      }
+    }
+    return value.map(sortedCanonicalValue);
+  }
   if (!isRecord(value)) throw new TypeError("non_json_value");
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) {
@@ -179,15 +186,19 @@ function assertRuntimeMetadata(
   const runtimeId = assertString(metadata.runtimeId, `${context}.runtimeId`, blockers);
   const runtimeVersion = assertString(metadata.runtimeVersion, `${context}.runtimeVersion`, blockers);
   const environment = assertEnvironment(metadata.environment, `${context}.environment`, blockers);
+  const hasBuildIdentity = Object.prototype.hasOwnProperty.call(metadata, "buildIdentity");
   const buildIdentity = metadata.buildIdentity;
-  if (buildIdentity !== null && buildIdentity !== undefined && typeof buildIdentity !== "string") {
+  if (!hasBuildIdentity) {
+    blockers.push(`missing_field:${context}.buildIdentity`);
+  } else if (buildIdentity !== null && typeof buildIdentity !== "string") {
     blockers.push(`invalid_string:${context}.buildIdentity`);
   }
   if (
     metadata.schema !== ZUKAN_MOBILE_PLATFORM_RUNTIME_METADATA_SCHEMA ||
     !runtimeId ||
     !runtimeVersion ||
-    !environment
+    !environment ||
+    !hasBuildIdentity
   ) {
     return null;
   }

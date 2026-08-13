@@ -96,11 +96,13 @@
     "cacheSavingsUsd": 0.0080080896,
     "costBasis": "provider_usage_pricing_snapshot"
   },
-  "conservativeUpperBound": {
+  "reservationEstimate": {
     "uncapturedCallReservationUsdEach": 0.00532,
     "uncapturedCallsCostUsd": 0.01064,
-    "totalCostUsdAtMost": 0.0172124904,
-    "costPerSuccessfulDevelopmentTaskUsdAtMost": 0.0172124904,
+    "recordedCostPlusReservationEstimateUsd": 0.0172124904,
+    "exactProviderTotalAvailable": false,
+    "note": "This is the runner's pre-call reservation estimate for the two calls whose provider usage was not persisted, not an exact provider total.",
+    "costPerSuccessfulDevelopmentTaskReservationEstimateUsd": 0.0172124904,
     "targetUsd": 0.1,
     "softStopUsd": 0.25,
     "absoluteStopUsd": 0.5
@@ -113,22 +115,22 @@
     "p1FindingsAfterLunaReview": 0,
     "deepseekImplementationOwner": true,
     "deepseekGeneratedCodeRetention": {
-      "ratio": 0.937,
+      "ratio": 0.901,
       "retainedLinesEstimate": 656,
-      "finalImplementationLines": 700,
-      "lunaReviewDeltaLines": 44,
-      "method": "manual provenance count across final implementation files; conservative estimate after UUID, replay-digest, canonicalization, environment, and conformance hardening"
+      "finalImplementationLines": 728,
+      "lunaReviewDeltaLines": 72,
+      "method": "manual provenance count across final implementation files; conservative estimate after UUID, replay-digest, canonicalization, environment, required-field, array-hole, and conformance hardening"
     },
     "implementationChangedPaths": [
       "platform_v2/src/services/zukanMobilePlatformContract.ts",
       "platform_v2/src/services/zukanMobilePlatformContract.test.ts"
     ],
-    "implementationDiff": "700 added lines before ledger evidence; LUNA final review made only minimal contract hardening fixes and conformance assertions.",
+    "implementationDiff": "728 added lines before ledger evidence; LUNA final review made only minimal contract hardening fixes and conformance assertions.",
     "finalDiffSize": {
       "files": 3,
-      "addedLines": 943,
+      "addedLines": 971,
       "deletedLines": 0,
-      "implementationAddedLines": 700,
+      "implementationAddedLines": 728,
       "ledgerEvidenceAddedLines": 243
     },
     "credentialAndScopeReview": {
@@ -139,8 +141,8 @@
     },
     "tests": {
       "typecheck": "PASS",
-      "targetContractTests": "13/13 PASS",
-      "fullNodeSuite": "1734/1734 PASS"
+      "targetContractTests": "14/14 PASS",
+      "fullNodeSuite": "1735/1735 PASS"
     }
   },
   "receiptChainVerification": {

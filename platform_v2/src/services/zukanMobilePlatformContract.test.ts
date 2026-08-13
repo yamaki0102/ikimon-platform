@@ -238,6 +238,17 @@ test("runtime metadata build identity may be explicitly unknown", async () => {
   assert.equal(plan.runtimeMetadata.buildIdentity, null);
 });
 
+test("runtime metadata rejects a missing build identity", async () => {
+  const { buildIdentity: _buildIdentity, ...runtimeMetadata } = fixtureRequest().runtimeMetadata;
+  const plan = await planMobilePlatformRequest({
+    ...fixtureRequest(),
+    runtimeMetadata,
+  });
+  assert.equal(plan.ok, false);
+  if (plan.ok) return;
+  assert.ok(plan.blockers.includes("missing_field:request.runtimeMetadata.buildIdentity"));
+});
+
 test("canonical JSON serialization is deterministic and permutation-invariant", () => {
   const left = canonicalMobilePlatformJson({ b: 1, a: { d: 2, c: 3 } });
   const right = canonicalMobilePlatformJson({ a: { c: 3, d: 2 }, b: 1 });
@@ -253,5 +264,11 @@ test("canonical JSON serialization rejects malformed values", () => {
   assert.throws(
     () => canonicalMobilePlatformJson({ invalid: Number.NaN }),
     /non_finite_number/u,
+  );
+  const hole: unknown[] = [];
+  hole.length = 1;
+  assert.throws(
+    () => canonicalMobilePlatformJson(hole),
+    /non_json_array_hole/u,
   );
 });
