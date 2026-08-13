@@ -1,0 +1,243 @@
+{
+  "schemaVersion": "nexus-deepseek-real-development-cost-ledger.v1",
+  "taskId": "zukan-mobile-contract-m1-20260813",
+  "repository": "yamaki0102/ikimon-platform",
+  "branch": "codex/zukan-mobile-contract-m1",
+  "sourceIdentity": {
+    "sha": "4e6e290476b3e9e2e3187a5e1911b366602250ce",
+    "tree": "ed3b83084c7a0ea44a01fd5bc2503677573cea29"
+  },
+  "provider": "deepseek",
+  "model": "deepseek-v4-flash",
+  "providerProfileId": "deepseek-v4-flash-low-risk-v1",
+  "providerProfileDigest": "sha256:39bdca96fd8d53f2534381e20529527d78ae215ce38e0d48e1e4e73c4f70972a",
+  "policyDigest": "sha256:7004509065606343f8342289710bb5ae1e5cf0aa23c308ea6339b9ce090277cb",
+  "dataClass": "C1_INTERNAL_LOW",
+  "environment": "staging",
+  "route": "benchmark",
+  "billingLane": "VARIABLE_EXCEPTION",
+  "credentialExposure": 0,
+  "productionMutation": 0,
+  "deployMutation": 0,
+  "cloudflareMutation": 0,
+  "d1Migration": 0,
+  "billingMutation": 0,
+  "githubActions": 0,
+  "apiCalls": 5,
+  "callTelemetry": [
+    {
+      "phase": "initial",
+      "response": "non_json_parse_failure",
+      "inputTokens": null,
+      "cachedInputTokens": null,
+      "uncachedInputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "latencyMs": null
+    },
+    {
+      "phase": "initial_retry",
+      "response": "success",
+      "inputTokens": 19570,
+      "cachedInputTokens": 19456,
+      "uncachedInputTokens": 114,
+      "outputTokens": 6375,
+      "costUsd": 0.0018554368,
+      "latencyMs": 34174
+    },
+    {
+      "phase": "repair_1",
+      "response": "non_json_parse_failure",
+      "inputTokens": null,
+      "cachedInputTokens": null,
+      "uncachedInputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "latencyMs": null
+    },
+    {
+      "phase": "repair_2",
+      "response": "success",
+      "inputTokens": 25032,
+      "cachedInputTokens": 19456,
+      "uncachedInputTokens": 5576,
+      "outputTokens": 8083,
+      "costUsd": 0.0030983568,
+      "latencyMs": 37899
+    },
+    {
+      "phase": "repair_3",
+      "response": "success",
+      "inputTokens": 26475,
+      "cachedInputTokens": 19456,
+      "uncachedInputTokens": 7019,
+      "outputTokens": 2077,
+      "costUsd": 0.0016186968,
+      "latencyMs": 11950
+    }
+  ],
+  "usageTelemetry": {
+    "complete": false,
+    "providerUsageCapturedCalls": 3,
+    "providerUsageUncapturedCalls": 2,
+    "uncapturedPhases": ["initial", "repair_1"],
+    "reason": "The temporary runner rejected two non-JSON model outputs before persisting provider usage. No raw provider error body or credential was persisted."
+  },
+  "capturedUsage": {
+    "inputTokens": 71077,
+    "cachedInputTokens": 58368,
+    "uncachedInputTokens": 12709,
+    "outputTokens": 16535,
+    "cacheHitRatio": 0.8211939164568004,
+    "totalCostUsd": 0.0065724904,
+    "costPerSuccessfulDevelopmentTaskUsd": 0.0065724904,
+    "latencyP50Ms": 34174,
+    "latencyP95Ms": 37899,
+    "cacheSavingsUsd": 0.0080080896,
+    "costBasis": "provider_usage_pricing_snapshot"
+  },
+  "conservativeUpperBound": {
+    "uncapturedCallReservationUsdEach": 0.00532,
+    "uncapturedCallsCostUsd": 0.01064,
+    "totalCostUsdAtMost": 0.0172124904,
+    "costPerSuccessfulDevelopmentTaskUsdAtMost": 0.0172124904,
+    "targetUsd": 0.1,
+    "softStopUsd": 0.25,
+    "absoluteStopUsd": 0.5
+  },
+  "developmentOutcome": {
+    "firstResponseOnlyPassed": false,
+    "repairIterations": 3,
+    "successfulDevelopmentTasks": 1,
+    "p0FindingsAfterLunaReview": 0,
+    "p1FindingsAfterLunaReview": 0,
+    "deepseekImplementationOwner": true,
+    "deepseekGeneratedCodeRetention": {
+      "ratio": 0.937,
+      "retainedLinesEstimate": 656,
+      "finalImplementationLines": 700,
+      "lunaReviewDeltaLines": 44,
+      "method": "manual provenance count across final implementation files; conservative estimate after UUID, replay-digest, canonicalization, environment, and conformance hardening"
+    },
+    "implementationChangedPaths": [
+      "platform_v2/src/services/zukanMobilePlatformContract.ts",
+      "platform_v2/src/services/zukanMobilePlatformContract.test.ts"
+    ],
+    "implementationDiff": "700 added lines before ledger evidence; LUNA final review made only minimal contract hardening fixes and conformance assertions.",
+    "finalDiffSize": {
+      "files": 3,
+      "addedLines": 943,
+      "deletedLines": 0,
+      "implementationAddedLines": 700,
+      "ledgerEvidenceAddedLines": 243
+    },
+    "credentialAndScopeReview": {
+      "credentialExposure": 0,
+      "c2C3SecretExposure": 0,
+      "githubActions": 0,
+      "deployOrProductionMutation": 0
+    },
+    "tests": {
+      "typecheck": "PASS",
+      "targetContractTests": "13/13 PASS",
+      "fullNodeSuite": "1734/1734 PASS"
+    }
+  },
+  "receiptChainVerification": {
+    "valid": true,
+    "receiptCount": 2,
+    "headDigest": "sha256:f1f7e93ad0c88ba313bca242c3a836cb526368aebdaa6462df9d9f348046820f"
+  },
+  "receipts": [
+    {
+      "schemaVersion": "nexus-ai-cost-ledger-receipt.v1",
+      "sequence": 0,
+      "previousReceiptDigest": null,
+      "recordDigest": "sha256:7603ab3ade6d42b5906aabff1c22b81643e49452da803f099969d6bf3debb888",
+      "record": {
+        "schemaVersion": "nexus-ai-cost-ledger.v1",
+        "recordId": "zukan-m1-deepseek-captured-usage",
+        "observedAt": "2026-08-13T04:07:06.000Z",
+        "sourceSha": "4e6e290476b3e9e2e3187a5e1911b366602250ce",
+        "sourceTree": "ed3b83084c7a0ea44a01fd5bc2503677573cea29",
+        "providerProfileDigest": "sha256:39bdca96fd8d53f2534381e20529527d78ae215ce38e0d48e1e4e73c4f70972a",
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "project": "zukan",
+        "workload": "coding",
+        "dataClass": "C1",
+        "environment": "staging",
+        "route": "benchmark",
+        "billingLane": "VARIABLE_EXCEPTION",
+        "gateway": "deepseek_direct_broker",
+        "costSource": "nexus_reconstructed",
+        "costBasis": "provider_usage_pricing_snapshot",
+        "requestCount": 3,
+        "successfulTasks": 1,
+        "failedTasks": 0,
+        "fallbackCount": 0,
+        "inputTokens": 71077,
+        "cachedInputTokens": 58368,
+        "uncachedInputTokens": 12709,
+        "outputTokens": 16535,
+        "totalCostUsd": 0.0065724904,
+        "retryCount": 0,
+        "denialEscalationCount": 0,
+        "cacheSavingsUsd": 0.0080080896,
+        "fallbackCostUsd": 0,
+        "latencyMsSamples": [34174, 37899, 11950],
+        "cacheHitRatio": 0.8211939164568004,
+        "averageCostPerRequestUsd": 0.0021908301333333335,
+        "costPerSuccessfulTaskUsd": 0.0065724904,
+        "p50LatencyMs": 34174,
+        "p95LatencyMs": 37899
+      },
+      "receiptDigest": "sha256:6f155a059fc51d54a480bc30797e3e07ebd50438c04de0bf74727b21c67d64de"
+    },
+    {
+      "schemaVersion": "nexus-ai-cost-ledger-receipt.v1",
+      "sequence": 1,
+      "previousReceiptDigest": "sha256:6f155a059fc51d54a480bc30797e3e07ebd50438c04de0bf74727b21c67d64de",
+      "recordDigest": "sha256:a3d3c59a586c72188670b613b68c98480e5fe47931acbd2a8ca08c80bc244e5c",
+      "record": {
+        "schemaVersion": "nexus-ai-cost-ledger.v1",
+        "recordId": "zukan-m1-deepseek-uncaptured-usage-upper-bound",
+        "observedAt": "2026-08-13T04:07:06.000Z",
+        "sourceSha": "4e6e290476b3e9e2e3187a5e1911b366602250ce",
+        "sourceTree": "ed3b83084c7a0ea44a01fd5bc2503677573cea29",
+        "providerProfileDigest": "sha256:39bdca96fd8d53f2534381e20529527d78ae215ce38e0d48e1e4e73c4f70972a",
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "project": "zukan",
+        "workload": "coding",
+        "dataClass": "C1",
+        "environment": "staging",
+        "route": "benchmark",
+        "billingLane": "VARIABLE_EXCEPTION",
+        "gateway": "deepseek_direct_broker",
+        "costSource": "nexus_reconstructed",
+        "costBasis": "conservative_upper_bound",
+        "requestCount": 2,
+        "successfulTasks": 0,
+        "failedTasks": 2,
+        "fallbackCount": 0,
+        "inputTokens": 0,
+        "cachedInputTokens": 0,
+        "uncachedInputTokens": 0,
+        "outputTokens": 0,
+        "totalCostUsd": 0.01064,
+        "retryCount": 0,
+        "denialEscalationCount": 0,
+        "cacheSavingsUsd": 0,
+        "fallbackCostUsd": 0,
+        "latencyMsSamples": [],
+        "cacheHitRatio": null,
+        "averageCostPerRequestUsd": 0.00532,
+        "costPerSuccessfulTaskUsd": null,
+        "p50LatencyMs": null,
+        "p95LatencyMs": null
+      },
+      "receiptDigest": "sha256:f1f7e93ad0c88ba313bca242c3a836cb526368aebdaa6462df9d9f348046820f"
+    }
+  ]
+}
