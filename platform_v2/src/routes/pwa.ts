@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { appLangFromLocale, buildAppServiceWorker, buildOfflineHtml, buildWebManifest } from "../appInstall.js";
 import { detectLangFromUrl, normalizeLang } from "../i18n.js";
 import { getForwardedBasePath } from "../httpBasePath.js";
+import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { renderSiteDocument } from "../ui/siteShell.js";
 
 function requestLang(request: { query?: { lang?: string }; headers: Record<string, unknown> }) {
@@ -73,8 +74,8 @@ function safeAppRefreshTarget(value: unknown): string {
   if (!raw) return "/map";
   if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/map";
   try {
-    const parsed = new URL(raw, "https://ikimon.life");
-    if (parsed.origin !== "https://ikimon.life") return "/map";
+    const parsed = new URL(raw, PRODUCTION_PUBLIC_ORIGIN);
+    if (parsed.origin !== PRODUCTION_PUBLIC_ORIGIN) return "/map";
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return "/map";

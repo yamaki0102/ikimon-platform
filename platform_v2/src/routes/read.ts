@@ -5,6 +5,7 @@ import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
 import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
 import { getSessionFromCookie, type SessionSnapshot } from "../services/authSession.js";
+import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import {
   getReviewerAccessContext,
@@ -9236,7 +9237,7 @@ export function renderLocalObservationPolishScript(): string {
   })();</script>`;
 }
 
-const PUBLIC_ORIGIN = "https://ikimon.life";
+const PUBLIC_ORIGIN = PRODUCTION_PUBLIC_ORIGIN;
 
 function publicAbsoluteUrl(value: string): string {
   if (value.startsWith("http://") || value.startsWith("https://")) return value;
@@ -13336,9 +13337,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const geolocationFailureMessage = (error) => {
           const message = error && error.message ? error.message : 'geolocation_failed';
-          if (message === 'geolocation_denied') return '位置情報の利用が拒否されています。ブラウザまたはOSのサイト設定で ikimon.life の位置情報を許可してから、もう一度押してください。';
+          if (message === 'geolocation_denied') return '位置情報の利用が拒否されています。ブラウザまたはOSのサイト設定で zukan.earth の位置情報を許可してから、もう一度押してください。';
           if (message === 'geolocation_timeout') return '位置情報の取得が時間切れになりました。屋外や窓際で少し待ってからもう一度押すか、座標を手動で入力してください。';
-          if (message === 'geolocation_insecure_context') return '位置情報はHTTPSで開いたページだけ使えます。https://ikimon.life/record を開き直してください。';
+          if (message === 'geolocation_insecure_context') return '位置情報はHTTPSで開いたページだけ使えます。https://zukan.earth/record を開き直してください。';
           if (message === 'geolocation_unavailable') return 'このブラウザでは位置情報を利用できません。別のブラウザで開くか、座標を手動で入力してください。';
           return '位置情報の取得に失敗しました。ブラウザまたはOSの位置情報設定を確認するか、座標を手動で入力してください。';
         };

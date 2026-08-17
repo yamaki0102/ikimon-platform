@@ -46,7 +46,7 @@ test("staging classification uses explicit or bound origin and fails closed on u
 test("staging robots stay deny-all while satisfying canonical static-origin audit", () => {
   const robots = stagingRobotsTxt();
   assert.match(robots, /^User-agent: \*\nDisallow: \/\n/);
-  assert.match(robots, /# production-canonical-origin: https:\/\/ikimon\.life/);
+  assert.match(robots, /# production-canonical-origin: https:\/\/zukan\.earth/);
   assert.doesNotMatch(robots, /Sitemap:|LLMs:/);
 });
 
@@ -104,8 +104,8 @@ test("staging denies indexing while production remains indexable and ignores for
     });
     assert.equal(productionRobots.statusCode, 200);
     assert.equal(productionRobots.headers["x-robots-tag"], undefined);
-    assert.match(productionRobots.body, /Sitemap: https:\/\/ikimon\.life\/sitemap\.xml/);
-    assert.match(productionRobots.body, /LLMs: https:\/\/ikimon\.life\/llms\.txt/);
+    assert.match(productionRobots.body, /Sitemap: https:\/\/zukan\.earth\/sitemap\.xml/);
+    assert.match(productionRobots.body, /LLMs: https:\/\/zukan\.earth\/llms\.txt/);
     assert.doesNotMatch(productionRobots.body, /staging\.ikimon\.life/);
   } finally {
     await app.close();

@@ -69,7 +69,7 @@ import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus";
-import { resolveTrustedPublicOrigin } from "../../src/services/trustedPublicOrigin";
+import { PRODUCTION_PUBLIC_ORIGIN, STAGING_PUBLIC_ORIGIN, resolveTrustedPublicOrigin } from "../../src/services/trustedPublicOrigin";
 import {
   normalizePlaceAtlasRef,
   PLACE_ATLAS_PROFILE_VERSION,
@@ -223,6 +223,7 @@ interface Env {
   ZUKAN_FOUNDATION_V2_ALLOWED_TENANTS?: string;
   ZUKAN_FOUNDATION_V2_ALLOWED_OPERATIONS?: string;
   ZUKAN_FOUNDATION_V2_MAX_ENTITIES?: string;
+  LEGACY_HOST_REDIRECT_MODE?: string;
   ORIGIN_FALLBACK_BASE_URL?: string;
   ORIGIN_FALLBACK_RESOLVE_OVERRIDE?: string;
   PUBLIC_WRITE_MODE?: string;
@@ -1748,7 +1749,14 @@ const PUBLIC_MAP_EXACT_COORDINATE_GATE = Object.freeze({
 });
 const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
 const WORKER_BUILD_MARKER = "one-month-sprint-evidence-gate-20260705";
-const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life", "staging.ikimon.life"]);
+const PUBLIC_CUSTOM_HOSTS = new Set([
+  "zukan.earth",
+  "www.zukan.earth",
+  "staging.zukan.earth",
+  "ikimon.life",
+  "www.ikimon.life",
+  "staging.ikimon.life",
+]);
 const HAMAMATSU_CITY_HERITAGE_URL = "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html";
 const JMA_NOWCAST_TARGET_N1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
 const JMA_NOWCAST_TARGET_N2 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json";
@@ -3312,16 +3320,29 @@ export const worker = {
   }
 };
 
-function canonicalPublicHostRedirect(request: Request, url: URL, env: Env): Response | null {
-  if (env.ENVIRONMENT !== "production" || url.hostname !== "www.ikimon.life") {
+export function canonicalPublicHostRedirect(request: Request, url: URL, env: Env): Response | null {
+  const isCanonicalWww = url.hostname === "www.zukan.earth";
+  const isLegacyHost = ["ikimon.life", "www.ikimon.life"].includes(url.hostname);
+  if (env.ENVIRONMENT !== "production" || (!isCanonicalWww && !isLegacyHost)) {
     return null;
   }
   if (request.method !== "GET" && request.method !== "HEAD") {
     return null;
   }
+  const redirectMode = String(env.LEGACY_HOST_REDIRECT_MODE ?? "disabled").trim().toLowerCase();
+  const excludedPath = /^\/(?:api(?:\/|$)|auth(?:\/|$)|oauth_callback\.php(?:\/|$)|app_oauth_start\.php(?:\/|$)|webhooks?(?:\/|$)|media(?:\/|$)|uploads?(?:\/|$)|__preview-media(?:\/|$)|ops(?:\/|$)|admin(?:\/|$))/iu;
+  if (!isCanonicalWww && redirectMode === "enabled" && excludedPath.test(url.pathname)) {
+    return null;
+  }
   const target = new URL(request.url);
   target.protocol = "https:";
-  target.hostname = "ikimon.life";
+  if (isCanonicalWww || redirectMode === "enabled") {
+    target.hostname = "zukan.earth";
+  } else if (url.hostname === "www.ikimon.life") {
+    target.hostname = "ikimon.life";
+  } else {
+    return null;
+  }
   const cspNonce = createHtmlCspNonce();
   return new Response(null, {
     status: 308,
@@ -11469,7 +11490,7 @@ function alertEmailText(row: AlertDeliveryCandidateRow, payload: Record<string, 
   const title = alertEmailSubject(row, payload);
   const body = normalizeOptionalText(payload.body) ?? normalizeOptionalText(payload.message) ?? "ikimonで通知対象の記録が見つかりました。";
   const href = normalizeOptionalText(payload.href) ?? `/observations/${encodeURIComponent(row.occurrence_id)}`;
-  const absoluteHref = href.startsWith("http://") || href.startsWith("https://") ? href : `https://ikimon.life${href.startsWith("/") ? href : `/${href}`}`;
+  const absoluteHref = href.startsWith("http://") || href.startsWith("https://") ? href : `${PRODUCTION_PUBLIC_ORIGIN}${href.startsWith("/") ? href : `/${href}`}`;
   return [
     title,
     "",
@@ -14698,7 +14719,7 @@ async function fetchLiveNamedAreaPolygonsWhenRequested(
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           "Accept": "application/json",
-          "User-Agent": "ikimon.life universal place atlas contact: https://ikimon.life",
+          "User-Agent": "ZUKAN universal place atlas contact: https://zukan.earth",
           "X-Ikimon-Client": "ikimon.life-named-area-polygons"
         },
         body,
@@ -14906,7 +14927,7 @@ async function fetchLiveSchoolAreaPolygons(
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           "Accept": "application/json",
-          "User-Agent": "ikimon.life area polygon repair contact: https://ikimon.life",
+          "User-Agent": "ZUKAN area polygon repair contact: https://zukan.earth",
           "X-Ikimon-Client": "ikimon.life-area-polygons"
         },
         body,
@@ -22849,8 +22870,8 @@ function fieldPublicProfileEvidenceContract(row: FieldDetailReadmodelRow, placeT
     sourceTypes: ["cloudflare_field_detail_readmodel", "ikimon_place_registry"],
     rights: {
       licenseScope: "ikimon_public_profile_policy",
-      attribution: "ikimon.life",
-      attributionUrl: `https://ikimon.life/fields/${encodeURIComponent(row.field_id)}`,
+      attribution: "ZUKAN",
+      attributionUrl: `${PRODUCTION_PUBLIC_ORIGIN}/fields/${encodeURIComponent(row.field_id)}`,
       commercialUse: "internal_policy_required",
       thirdPartyMediaUsed: false
     },
@@ -23207,7 +23228,13 @@ async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): P
     const contentType = url.pathname.endsWith(".svg")
       ? fallbackContentType
       : object.httpMetadata?.contentType ?? fallbackContentType;
-    return new Response(request.method === "HEAD" ? null : object.body, {
+    const shouldRewrite = ["/offline.html", "/robots.txt", "/sitemap.xml", "/app-sw.js", "/manifest.webmanifest"].includes(url.pathname);
+    const body = request.method === "HEAD"
+      ? null
+      : shouldRewrite
+        ? rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env)
+        : object.body;
+    return new Response(body, {
       headers: {
         "content-type": contentType,
         "cache-control": cacheControlForOriginalUiStaticAsset(url.pathname),
@@ -23425,7 +23452,7 @@ function browserSecurityHeaders(cspNonce: string, isProduction: boolean): Record
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org https://tiles.openfreemap.org",
-    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://cloudflareinsights.com https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
+    `connect-src 'self' ${PRODUCTION_PUBLIC_ORIGIN} ${STAGING_PUBLIC_ORIGIN} https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://cloudflareinsights.com https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com`,
     "frame-src 'self' https://iframe.videodelivery.net",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
@@ -23443,8 +23470,16 @@ function browserSecurityHeaders(cspNonce: string, isProduction: boolean): Record
   };
 }
 
+export function rewriteCanonicalPublicOrigins(value: string, env: Env): string {
+  const canonicalOrigin = env.ENVIRONMENT === "staging" ? STAGING_PUBLIC_ORIGIN : PRODUCTION_PUBLIC_ORIGIN;
+  return value
+    .replaceAll("https://www.ikimon.life", canonicalOrigin)
+    .replaceAll("https://ikimon.life", canonicalOrigin)
+    .replaceAll("https://staging.ikimon.life", canonicalOrigin);
+}
+
 async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Request, url: URL, env: Env): Promise<ReadableStream | string | null> {
-  const text = await new Response(object.body).text();
+  const text = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   const shouldReadSession = text.includes("site-header-actions") || (isHomeHtmlPath(url.pathname) && text.includes("data-record-feed"));
   const session = shouldReadSession ? await readCompatibleSessionWithOriginFallback(request, env).catch(() => null) : null;
   if (isHomeHtmlPath(url.pathname)) {
@@ -24061,7 +24096,7 @@ function renderCloudflareProfileRecordCard(
   },
   lang: "ja" | "en" | "es" | "pt-br"
 ): string {
-  const title = homeRecordDisplayTitle(item, ownerHomeRecordsCopy(new URL(`https://ikimon.life/${lang === "ja" ? "ja" : lang}/`)), lang);
+  const title = homeRecordDisplayTitle(item, ownerHomeRecordsCopy(new URL(`${PRODUCTION_PUBLIC_ORIGIN}/${lang === "ja" ? "ja" : lang}/`)), lang);
   const observedAt = formatHomeRecordObservedAt(item.observedAt, lang);
   const href = `/${lang === "ja" ? "ja" : lang}/observations/${encodeURIComponent(item.visitId)}`;
   const media = item.photoUrl
@@ -26522,7 +26557,7 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
       appUrl.searchParams.set("user_id", user.user_id);
       appUrl.searchParams.set("name", user.display_name);
       if (user.email) appUrl.searchParams.set("email", user.email);
-      appUrl.searchParams.set("message", "ikimon.life アカウントでログインしました");
+      appUrl.searchParams.set("message", "ZUKAN アカウントでログインしました");
       const headers = new Headers({
         location: appUrl.toString(),
         "cache-control": "no-store"
@@ -26643,7 +26678,7 @@ async function exchangeMobileAppOAuthCode(request: Request, env: Env): Promise<R
           displayName: exchange.displayName
         },
         email: exchange.email,
-        message: "ikimon.life アカウントでログインしました"
+        message: "ZUKAN アカウントでログインしました"
       }
     }, 200, { "cache-control": "no-store" });
   } catch (error) {
@@ -32463,8 +32498,8 @@ async function shadowRouteChangeRehearsalProof(url: URL, env: Env): Promise<Resp
     "production_imported_data_r2_inventory",
     "auth_record_photo_video_map_detail"
   ];
-  const productionHosts = ["ikimon.life", "www.ikimon.life"];
-  const stagingHost = url.searchParams.get("staging_host") ?? "staging.ikimon.life";
+  const productionHosts = ["zukan.earth", "www.zukan.earth"];
+  const stagingHost = url.searchParams.get("staging_host") ?? "staging.zukan.earth";
 
   const routeMatrix = [
     {
@@ -32484,7 +32519,7 @@ async function shadowRouteChangeRehearsalProof(url: URL, env: Env): Promise<Resp
       productionHost: false
     },
     {
-      host: "ikimon.life",
+      host: "zukan.earth",
       path: "/cloudflare-shadow/health",
       currentExpectedStatus: 404,
       postCutoverExpectedStatus: 404,
@@ -32492,7 +32527,7 @@ async function shadowRouteChangeRehearsalProof(url: URL, env: Env): Promise<Resp
       productionHost: true
     },
     {
-      host: "ikimon.life",
+      host: "zukan.earth",
       path: "/health",
       currentExpectedStatus: null,
       postCutoverExpectedStatus: 200,
@@ -32500,7 +32535,7 @@ async function shadowRouteChangeRehearsalProof(url: URL, env: Env): Promise<Resp
       productionHost: true
     },
     {
-      host: "www.ikimon.life",
+      host: "www.zukan.earth",
       path: "/",
       currentExpectedStatus: null,
       postCutoverExpectedStatus: 308,
@@ -32516,7 +32551,7 @@ async function shadowRouteChangeRehearsalProof(url: URL, env: Env): Promise<Resp
     mutationPerformed: false,
     productionTrafficAffected: false,
     stagingShadowProxyOnly: routeMatrix.filter((route) => route.target === "staging_shadow_proxy").every((route) => !route.productionHost),
-    productionShadowProxyClosed: routeMatrix.some((route) => route.host === "ikimon.life" && route.path === "/cloudflare-shadow/health" && route.postCutoverExpectedStatus === 404),
+    productionShadowProxyClosed: routeMatrix.some((route) => route.host === "zukan.earth" && route.path === "/cloudflare-shadow/health" && route.postCutoverExpectedStatus === 404),
     apexAndWwwPostCutoverDefined: productionHosts.every((host) => routeMatrix.some((route) => route.host === host && route.productionHost)),
     requiredGatesEnumerated: requiredStagingGates.length === 8,
     rollbackRouteDocumented: true,

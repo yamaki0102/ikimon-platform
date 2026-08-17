@@ -3,6 +3,7 @@ import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, langFromPathPrefix, type SiteLang } from "../i18n.js";
 import { getShortCopy, renderLongformPage } from "../content/index.js";
 import { createContactProof } from "../services/contactSubmit.js";
+import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import {
   legacyRedirectEntries,
@@ -570,20 +571,20 @@ function scriptJson(value: unknown): string {
 }
 
 function renderStructuredData(meta: MarketingPageMeta, page: SitePageDefinition, lang: SiteLang, canonicalPath: string, headings: DocHeading[]): string {
-  const url = `https://ikimon.life${canonicalPath}`;
+  const url = `${PRODUCTION_PUBLIC_ORIGIN}${canonicalPath}`;
   const pageType = meta.bodyPageId === "faq" ? "FAQPage" : "Article";
   const graph = [
     {
       "@type": "WebSite",
-      "@id": "https://ikimon.life/#website",
-      name: "ikimon.life",
-      url: "https://ikimon.life/",
+      "@id": `${PRODUCTION_PUBLIC_ORIGIN}/#website`,
+      name: "ZUKAN",
+      url: `${PRODUCTION_PUBLIC_ORIGIN}/`,
       inLanguage: lang,
     },
     {
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "ikimon.life", item: "https://ikimon.life/" },
+        { "@type": "ListItem", position: 1, name: "ZUKAN", item: `${PRODUCTION_PUBLIC_ORIGIN}/` },
         { "@type": "ListItem", position: 2, name: sitePageLabel(page, lang), item: url },
       ],
     },
@@ -595,8 +596,8 @@ function renderStructuredData(meta: MarketingPageMeta, page: SitePageDefinition,
       name: meta.title,
       url,
       inLanguage: lang,
-      isPartOf: { "@id": "https://ikimon.life/#website" },
-      publisher: { "@type": "Organization", name: "ikimon.life", url: "https://ikimon.life/" },
+      isPartOf: { "@id": `${PRODUCTION_PUBLIC_ORIGIN}/#website` },
+      publisher: { "@type": "Organization", name: "ZUKAN", url: `${PRODUCTION_PUBLIC_ORIGIN}/` },
       about: headings.slice(0, 8).map((heading) => heading.text),
     },
   ];
@@ -636,7 +637,7 @@ const LEGACY_LEARNING_REDIRECTS: Record<string, string> = {
 };
 
 function legacyLearningTarget(url: string): string {
-  const parsed = new URL(url, "https://ikimon.life");
+  const parsed = new URL(url, PRODUCTION_PUBLIC_ORIGIN);
   const category = parsed.searchParams.get("category") ?? "";
   const slug = parsed.searchParams.get("slug") ?? "";
   return LEGACY_LEARNING_REDIRECTS[`${category}/${slug}`] ?? "/learn";

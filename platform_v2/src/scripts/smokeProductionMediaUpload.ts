@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
+import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 
 type SmokeOptions = {
   baseUrl: string;
@@ -65,7 +66,7 @@ type JsonResponse = {
   body: unknown;
 };
 
-const DEFAULT_BASE_URL = "https://ikimon.life";
+const DEFAULT_BASE_URL = PRODUCTION_PUBLIC_ORIGIN;
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
 const SAFE_FIXTURE_PREFIX_RE = /^prod-media-smoke-[A-Za-z0-9_-]{6,96}$/;
 

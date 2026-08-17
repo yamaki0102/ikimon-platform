@@ -1,7 +1,9 @@
+import { normalizeExplicitPublicOrigin, PRODUCTION_PUBLIC_ORIGIN, STAGING_PUBLIC_ORIGIN } from "./services/trustedPublicOrigin.js";
+
 const OGP_DEFAULT_PATH = "/assets/brand/zukan-ogp-default.png";
 const PUBLIC_ASSET_ORIGIN_BY_TARGET_ENV = {
-  production: "https://ikimon.life",
-  staging: "https://staging.ikimon.life",
+  production: PRODUCTION_PUBLIC_ORIGIN,
+  staging: STAGING_PUBLIC_ORIGIN,
 } as const;
 const ALLOWED_PUBLIC_ASSET_ORIGINS: ReadonlySet<string> = new Set(Object.values(PUBLIC_ASSET_ORIGIN_BY_TARGET_ENV));
 
@@ -11,8 +13,7 @@ export function resolveZukanPublicAssetOrigin(
 ): string {
   const rawConfiguredOrigin = String(configuredOrigin ?? "").trim();
   if (rawConfiguredOrigin) {
-    const normalizedOrigin = rawConfiguredOrigin.replace(/\/+$/, "");
-    return ALLOWED_PUBLIC_ASSET_ORIGINS.has(normalizedOrigin) ? normalizedOrigin : "";
+    return normalizeExplicitPublicOrigin(rawConfiguredOrigin);
   }
 
   const targetEnvIndex = argv.lastIndexOf("--target-env");
@@ -26,8 +27,9 @@ export function zukanOgpDefaultAssetUrl(
   publicAssetOrigin: string | undefined = resolveZukanPublicAssetOrigin(),
 ): string {
   const normalizedOrigin = String(publicAssetOrigin ?? "").trim().replace(/\/+$/, "");
-  return ALLOWED_PUBLIC_ASSET_ORIGINS.has(normalizedOrigin)
-    ? `${normalizedOrigin}${OGP_DEFAULT_PATH}`
+  const canonicalOrigin = normalizeExplicitPublicOrigin(normalizedOrigin);
+  return ALLOWED_PUBLIC_ASSET_ORIGINS.has(canonicalOrigin)
+    ? `${canonicalOrigin}${OGP_DEFAULT_PATH}`
     : OGP_DEFAULT_PATH;
 }
 

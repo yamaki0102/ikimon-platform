@@ -883,7 +883,7 @@ test("app OAuth start redirects to Google with an Android callback state", async
         assert.equal(response.statusCode, 303);
         assert.match(String(response.headers.location), /^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?/);
         const location = new URL(String(response.headers.location));
-        assert.equal(location.searchParams.get("redirect_uri"), "https://staging.ikimon.life/oauth_callback.php?provider=google");
+        assert.equal(location.searchParams.get("redirect_uri"), "https://staging.zukan.earth/oauth_callback.php?provider=google");
         assert.match(String(response.headers["set-cookie"]), /^ikimon_oauth_state=/);
       } finally {
         await app.close();

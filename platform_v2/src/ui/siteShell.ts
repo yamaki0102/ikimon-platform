@@ -5,6 +5,7 @@ import { APP_LAUNCH_BACKGROUND_COLOR, APP_THEME_COLOR, appInstallCopy } from "..
 import { BRAND_ASSETS } from "../brandAssets.js";
 import { IKIMON_CLARITY_PROJECT_ID, IKIMON_GA4_MEASUREMENT_ID } from "../services/analyticsConfig.js";
 import { getCspNonce } from "../services/cspNonce.js";
+import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import {
   getSiteShellLayoutForPath,
   listPagesByLane,
@@ -914,10 +915,10 @@ function renderFooterLinks(basePath: string, lang: SiteLang, pages: SitePageDefi
 
 function operatorStatement(lang: SiteLang): string {
   const copy: Record<SiteLang, string> = {
-    ja: "ZUKANはIKIMON株式会社が運営しています。現在はikimon.lifeで提供しています。",
-    en: "ZUKAN is operated by IKIMON Inc. and is currently available at ikimon.life.",
-    es: "ZUKAN es operado por IKIMON Inc. y actualmente se ofrece en ikimon.life.",
-    "pt-BR": "O ZUKAN é operado pela IKIMON Inc. e atualmente está disponível em ikimon.life.",
+    ja: "ZUKANはIKIMON株式会社が運営しています。現在はzukan.earthで提供しています。",
+    en: "ZUKAN is operated by IKIMON Inc. and is currently available at zukan.earth.",
+    es: "ZUKAN es operado por IKIMON Inc. y actualmente se ofrece en zukan.earth.",
+    "pt-BR": "O ZUKAN é operado pela IKIMON Inc. e atualmente está disponível em zukan.earth.",
   };
   return copy[lang];
 }
@@ -3589,7 +3590,7 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
 </script>`;
 }
 
-const PUBLIC_ORIGIN = "https://ikimon.life";
+const PUBLIC_ORIGIN = PRODUCTION_PUBLIC_ORIGIN;
 
 function stripFragment(path: string): string {
   const hashIndex = path.indexOf("#");
@@ -3802,7 +3803,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const analyticsHeadScript = `<script>
 (function () {
   const host = window.location.hostname;
-  if (host !== 'ikimon.life' && host !== 'www.ikimon.life') return;
+  if (host !== 'zukan.earth' && host !== 'www.zukan.earth' && host !== 'ikimon.life' && host !== 'www.ikimon.life') return;
 
   const googleTagId = ${JSON.stringify(IKIMON_GA4_MEASUREMENT_ID)};
   const sanitizeDimension = (value, fallback) => {

@@ -3,6 +3,7 @@ import { getPool } from "../db.js";
 import { issueSession } from "../services/authSession.js";
 import { refreshPublicMapSnapshot } from "../services/mapSnapshot.js";
 import { runCacheInvalidateOnce } from "./cron/runCacheInvalidate.js";
+import { STAGING_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 
 type SmokeMode = "stale" | "critical";
 
@@ -72,7 +73,7 @@ function parseArgs(argv: string[]): SmokeOptions {
   const options: SmokeOptions = {
     apply: false,
     confirm: process.env.PUBLIC_MAP_SNAPSHOT_STAGING_SMOKE_CONFIRM?.trim() ?? "",
-    baseUrl: process.env.V2_BASE_URL?.trim() || "https://staging.ikimon.life",
+    baseUrl: process.env.V2_BASE_URL?.trim() || STAGING_PUBLIC_ORIGIN,
     backdateHours: Number(process.env.PUBLIC_MAP_SNAPSHOT_SMOKE_BACKDATE_HOURS ?? 8),
     mode: "stale",
     webhookUrl: process.env.IKIMON_OPS_STALENESS_WEBHOOK_URL?.trim()

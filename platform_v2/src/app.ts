@@ -22,6 +22,7 @@ import { registerWriteRoutes } from "./routes/write.js";
 import { registerUiKpiRoutes } from "./routes/uiKpi.js";
 import { registerGuideApiRoutes } from "./routes/guideApi.js";
 import { registerGuideRecordsDebugRoutes } from "./routes/guideRecordsDebug.js";
+import { PRODUCTION_PUBLIC_ORIGIN, PRODUCTION_PUBLIC_HOSTS } from "./services/trustedPublicOrigin.js";
 import { registerWalkApiRoutes } from "./routes/walkApi.js";
 import { registerResearchApiRoutes } from "./routes/researchApi.js";
 import { registerFieldscanApiRoutes } from "./routes/fieldscanApi.js";
@@ -262,12 +263,17 @@ async function getLandingSnapshotForRoot(userId: string | null): Promise<Landing
 function canonicalHostRedirectUrl(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }): string | null {
   const rawHost = Array.isArray(request.headers.host) ? request.headers.host[0] : request.headers.host;
   const host = typeof rawHost === "string" ? rawHost.split(",")[0]?.trim().toLowerCase().replace(/:\d+$/, "") : "";
-  if (host !== "www.ikimon.life") {
+  const targetOrigin = host === "www.zukan.earth"
+    ? PRODUCTION_PUBLIC_ORIGIN
+    : host === "www.ikimon.life"
+      ? "https://ikimon.life"
+      : "";
+  if (!targetOrigin) {
     return null;
   }
   const url = requestUrl(request);
   const path = url.startsWith("/") ? url : `/${url}`;
-  return `https://ikimon.life${path}`;
+  return `${targetOrigin}${path}`;
 }
 
 function setHeaderIfMissing(reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown }, name: string, value: string): void {
@@ -292,7 +298,7 @@ function applySecurityHeaders(
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org https://tiles.openfreemap.org",
-    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
+    `connect-src 'self' ${PRODUCTION_PUBLIC_ORIGIN} https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com`,
     "frame-src 'self' https://iframe.videodelivery.net",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
@@ -326,7 +332,7 @@ function requestHost(request: { headers: Record<string, unknown> }): string {
 
 function isPublicProductionHost(request: { headers: Record<string, unknown> }): boolean {
   const host = requestHost(request);
-  return host === "ikimon.life" || host === "www.ikimon.life";
+  return PRODUCTION_PUBLIC_HOSTS.has(host);
 }
 
 function localizedNavHome(lang: SiteLang): string {
@@ -729,7 +735,7 @@ export function buildApp() {
   app.get<{ Params: { "*": string } }>("/__preview-media/*", async (request, reply) => {
     const enabled = !isPublicProductionHost(request as unknown as { headers: Record<string, unknown> }) &&
       (process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203");
-    const origin = (process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || "https://ikimon.life").trim().replace(/\/+$/, "");
+    const origin = (process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || PRODUCTION_PUBLIC_ORIGIN).trim().replace(/\/+$/, "");
     const rel = request.params["*"] ?? "";
     if (!enabled || !rel || rel.includes("..") || !/^(?:thumb|uploads|data\/uploads)\//.test(rel)) {
       reply.code(404).type("text/plain").send("not found");

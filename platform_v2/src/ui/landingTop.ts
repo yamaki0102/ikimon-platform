@@ -1,4 +1,5 @@
 import { withBasePath } from "../httpBasePath.js";
+import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import type { FieldLoopStrings, LandingStrings } from "../i18n/strings.js";
 import { findInvasiveSpeciesByName, invasiveSpeciesDetailPath, INVASIVE_SPECIES_LIST_PATH } from "../services/invasiveSpeciesCatalog.js";
@@ -186,7 +187,7 @@ function landingPreviewMediaUrl(url: string | null): string | null {
   if (!url || /^https?:\/\//i.test(url)) return url;
   const origin = (
     process.env.IKIMON_PUBLIC_MEDIA_ORIGIN
-    || (process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203" ? "https://ikimon.life" : "")
+    || (process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203" ? PRODUCTION_PUBLIC_ORIGIN : "")
   ).trim().replace(/\/+$/, "");
   if (!origin || !/^\/(?:thumb|uploads|data\/uploads)\//.test(url)) return url;
   if (process.env.PORT === "3203" || process.env.ALLOW_QUERY_USER_ID === "1") {

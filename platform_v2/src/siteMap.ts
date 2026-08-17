@@ -1,6 +1,7 @@
 import { appendLangToHref, supportedLanguages, type SiteLang } from "./i18n.js";
 import { getShortCopy, hasLocalizedLongform, hasLocalizedShortCopy } from "./content/index.js";
 import { invasiveSpeciesDetailPath, INVASIVE_SPECIES_LIST_PATH, listInvasiveSpecies } from "./services/invasiveSpeciesCatalog.js";
+import { PRODUCTION_PUBLIC_ORIGIN } from "./services/trustedPublicOrigin.js";
 
 export type RouteLane =
   | "start"
@@ -1241,7 +1242,7 @@ function escapeXml(value: string): string {
 }
 
 export function buildXmlSitemap(origin: string, today = new Date()): string {
-  const base = normalizeOrigin(origin || "https://ikimon.life");
+  const base = normalizeOrigin(origin || PRODUCTION_PUBLIC_ORIGIN);
   const lastmod = today.toISOString().slice(0, 10);
   const staticUrls = xmlSitemapPages()
     .flatMap((page) => {
@@ -1279,7 +1280,7 @@ ${urls}
 }
 
 export function buildRobotsTxt(origin: string): string {
-  const base = normalizeOrigin(origin || "https://ikimon.life");
+  const base = normalizeOrigin(origin || PRODUCTION_PUBLIC_ORIGIN);
   return `User-agent: *
 Allow: /
 
