@@ -5,6 +5,7 @@ import { assertSameOriginRequest } from "./authSecurity.js";
 import {
   RUNTIME_PUBLIC_ORIGIN_HEADER,
   resolvePresentationPublicOrigin,
+  resolveTrustedRequestOrigin,
   resolveTrustedPublicOrigin,
 } from "./trustedPublicOrigin.js";
 
@@ -110,6 +111,22 @@ test("unsigned marker and forwarded identity are ignored for security and presen
       runtimeOrigin,
     );
   }
+});
+
+test("edge request origin preserves an allowlisted host alias for OAuth callbacks", () => {
+  assert.equal(resolveTrustedRequestOrigin(request({ host: "ikimon.life" })), "https://ikimon.life");
+  assert.equal(resolveTrustedRequestOrigin(request({ host: "www.ikimon.life" })), "https://www.ikimon.life");
+  assert.equal(resolveTrustedRequestOrigin(request({ host: "staging.ikimon.life" })), "https://staging.ikimon.life");
+  assert.equal(resolveTrustedRequestOrigin(request({ host: "www.zukan.earth" })), "https://www.zukan.earth");
+  assert.equal(resolveTrustedRequestOrigin(request({
+    host: "ikimon.life",
+    "x-forwarded-host": "staging.ikimon.life",
+    [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://staging.ikimon.life",
+  })), "https://ikimon.life");
+  assert.equal(resolveTrustedRequestOrigin(request({
+    host: "internal-origin.invalid",
+    [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://ikimon.life",
+  })), null);
 });
 
 test("same-origin auth checks use the nginx-bound origin and ignore unsigned marker", () => {

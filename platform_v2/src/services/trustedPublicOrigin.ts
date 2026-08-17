@@ -37,6 +37,15 @@ const PUBLIC_ORIGIN_BY_HOST = new Map([
   ["staging.ikimon.life", STAGING_PUBLIC_ORIGIN],
 ]);
 
+const PUBLIC_REQUEST_ORIGIN_BY_HOST = new Map([
+  ["zukan.earth", "https://zukan.earth"],
+  ["www.zukan.earth", "https://www.zukan.earth"],
+  ["staging.zukan.earth", "https://staging.zukan.earth"],
+  ["ikimon.life", "https://ikimon.life"],
+  ["www.ikimon.life", "https://www.ikimon.life"],
+  ["staging.ikimon.life", "https://staging.ikimon.life"],
+]);
+
 const PUBLIC_ORIGIN_ALIASES = new Map([
   [PRODUCTION_PUBLIC_ORIGIN, PRODUCTION_PUBLIC_ORIGIN],
   ["https://www.zukan.earth", PRODUCTION_PUBLIC_ORIGIN],
@@ -97,6 +106,12 @@ export function publicOriginFromHost(value: unknown): string {
   return PUBLIC_ORIGIN_BY_HOST.get(parsed.hostname) ?? "";
 }
 
+export function publicRequestOriginFromHost(value: unknown): string {
+  const parsed = parsedHost(value);
+  if (!parsed || parsed.port) return "";
+  return PUBLIC_REQUEST_ORIGIN_BY_HOST.get(parsed.hostname) ?? "";
+}
+
 function localDevelopmentOrigin(request: PublicOriginRequest): string {
   const parsed = parsedHost(request.headers.host);
   if (!parsed || !LOCAL_DEVELOPMENT_HOSTS.has(parsed.hostname)) return "";
@@ -126,6 +141,34 @@ export function resolveTrustedPublicOrigin(
   if (explicitOrigin) return explicitOrigin;
 
   const directOrigin = publicOriginFromHost(request.headers.host);
+  if (directOrigin) return directOrigin;
+
+  if (options.allowLocalDevelopment) {
+    const localOrigin = localDevelopmentOrigin(request);
+    if (localOrigin) return localOrigin;
+    throw new Error("public_origin_untrusted");
+  }
+
+  return null;
+}
+
+/**
+ * Resolve the origin bound to the public request itself.
+ *
+ * The edge OAuth boundary must keep an allowlisted legacy host in its
+ * provider callback URI so the state cookie and callback stay on the same
+ * host. Presentation metadata uses resolveTrustedPublicOrigin instead and
+ * deliberately canonicalizes aliases to zukan.earth. This resolver therefore
+ * ignores forwarded and runtime-marker headers; the edge caller supplies only
+ * the transport-bound Host and protocol.
+ */
+export function resolveTrustedRequestOrigin(
+  request: PublicOriginRequest,
+  options: {
+    allowLocalDevelopment?: boolean;
+  } = {},
+): string | null {
+  const directOrigin = publicRequestOriginFromHost(request.headers.host);
   if (directOrigin) return directOrigin;
 
   if (options.allowLocalDevelopment) {
