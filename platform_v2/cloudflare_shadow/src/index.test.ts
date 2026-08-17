@@ -10966,7 +10966,7 @@ test("shadow route-change rehearsal proves cutover matrix without mutating DNS o
   assert.equal(payload.mode, "dry_run_no_dns_or_route_mutation");
   assert.deepEqual(payload.hosts, {
     staging: "staging.example.test",
-    production: ["ikimon.life", "www.ikimon.life"]
+    production: ["zukan.earth", "www.zukan.earth"]
   });
   assert.equal(payload.routeMatrix.length, 5);
   assert.equal(payload.requiredStagingGates.length, 8);
@@ -10995,7 +10995,7 @@ test("shadow route-change rehearsal proves cutover matrix without mutating DNS o
     "auth_record_photo_video_map_detail"
   ]);
   assert.ok(payload.routeMatrix.some((route: any) =>
-    route.host === "ikimon.life" &&
+    route.host === "zukan.earth" &&
     route.path === "/cloudflare-shadow/health" &&
     route.postCutoverExpectedStatus === 404
   ));

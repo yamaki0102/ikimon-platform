@@ -69,7 +69,7 @@ import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus";
-import { PRODUCTION_PUBLIC_ORIGIN, STAGING_PUBLIC_ORIGIN, resolveTrustedPublicOrigin } from "../../src/services/trustedPublicOrigin";
+import { PRODUCTION_PUBLIC_ORIGIN, STAGING_PUBLIC_ORIGIN, resolveTrustedRequestOrigin } from "../../src/services/trustedPublicOrigin";
 import {
   normalizePlaceAtlasRef,
   PLACE_ATLAS_PROFILE_VERSION,
@@ -26889,7 +26889,7 @@ function requestPublicOrigin(request: Request): string {
   // The Worker is the public trust boundary. Inbound forwarded headers and the
   // origin-fallback marker are only meaningful on the Worker-to-origin hop;
   // they must never let a client select the OAuth callback origin at the edge.
-  return resolveTrustedPublicOrigin(
+  return resolveTrustedRequestOrigin(
     {
       headers: { host: request.headers.get("host") ?? url.host },
       protocol: url.protocol.replace(":", ""),
