@@ -1,4 +1,5 @@
 import { IKIMON_CLARITY_PROJECT_ID, IKIMON_GA4_MEASUREMENT_ID } from "./analyticsConfig.js";
+import { PRODUCTION_PUBLIC_ORIGIN, PRODUCTION_PUBLIC_HOSTS } from "./trustedPublicOrigin.js";
 import { listPagesByVisibility, listSitePages, listVisualQaPages, xmlSitemapPages } from "../siteMap.js";
 
 type ReflectionRoute = {
@@ -15,7 +16,7 @@ type ReflectionRoute = {
 };
 
 function normalizeOrigin(origin: string): string {
-  return (origin || "https://ikimon.life").replace(/\/+$/, "");
+  return (origin || PRODUCTION_PUBLIC_ORIGIN).replace(/\/+$/, "");
 }
 
 export function buildReflectionLoopManifest(origin: string, now = new Date()) {
@@ -59,7 +60,7 @@ export function buildReflectionLoopManifest(origin: string, now = new Date()) {
     analytics: {
       ga4_measurement_id: IKIMON_GA4_MEASUREMENT_ID,
       clarity_project_id: IKIMON_CLARITY_PROJECT_ID,
-      production_hosts: ["ikimon.life", "www.ikimon.life"],
+      production_hosts: [...PRODUCTION_PUBLIC_HOSTS].filter((host) => host.endsWith("zukan.earth")),
     },
     coverage: {
       route_count: routes.length,

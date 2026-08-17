@@ -4,6 +4,7 @@ import {
   type ObservationFirstRecordDetailCopy,
   type ObservationRecordLang,
 } from "./observationFirstRecordDetailI18n";
+import { PRODUCTION_PUBLIC_ORIGIN } from "../../src/services/trustedPublicOrigin";
 
 export type ObservationFirstMediaPresentation = {
   mediaId: string;
@@ -366,7 +367,7 @@ export function renderObservationFirstRecordDetailHtml(
   const media = safeMedia(presentation.media);
   const title = presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title) ? copy.natureRecord : presentation.title;
   const action = `/api/v1/records/${encodeURIComponent(detail.recordId)}/observation-actions`;
-  const canonicalUrl = presentation.canonicalUrl ?? `https://ikimon.life/${lang}/observations/${encodeURIComponent(detail.recordId)}`;
+  const canonicalUrl = presentation.canonicalUrl ?? `${PRODUCTION_PUBLIC_ORIGIN}/${lang}/observations/${encodeURIComponent(detail.recordId)}`;
   const prefix = langPrefix(lang);
   const cleanStatus = presentation.processingMessage && !forbiddenEmptyCopy.test(presentation.processingMessage) ? presentation.processingMessage : null;
   const duplicateNotice = detail.owner && presentation.mediaDedup && presentation.mediaDedup.excludedPhotoCount > 0

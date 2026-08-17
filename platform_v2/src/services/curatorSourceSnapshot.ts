@@ -27,7 +27,7 @@ export async function fetchSourceSnapshot(input: {
   const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? 30_000);
   try {
     const response = await fetch(input.url, {
-      headers: { "user-agent": "ikimon-curator/7.2 (+https://ikimon.life)" },
+      headers: { "user-agent": "zukan-curator/7.2 (+https://zukan.earth)" },
       signal: controller.signal,
     });
     if (!response.ok) {

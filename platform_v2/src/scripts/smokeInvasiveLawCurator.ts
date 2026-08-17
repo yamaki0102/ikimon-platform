@@ -46,7 +46,7 @@ function parsePositiveInt(raw: string | undefined, fallback: number): number {
 async function main(): Promise<void> {
   const maxChars = parsePositiveInt(process.env.CURATOR_SMOKE_MAX_CHARS, 30_000);
   const response = await fetch(SOURCE_URL, {
-    headers: { "user-agent": "ikimon-curator-smoke/1.0 (+https://ikimon.life)" },
+    headers: { "user-agent": "zukan-curator-smoke/1.0 (+https://zukan.earth)" },
   });
   if (!response.ok) {
     throw new Error(`source_fetch_failed:${response.status}`);

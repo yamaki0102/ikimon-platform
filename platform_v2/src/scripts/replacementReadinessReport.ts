@@ -11,8 +11,8 @@ type EndpointCheck = {
   match: boolean;
 };
 
-const STAGING_BASE = process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life";
-const PRODUCTION_BASE = process.env.PRODUCTION_BASE_URL ?? "https://ikimon.life";
+const STAGING_BASE = process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth";
+const PRODUCTION_BASE = process.env.PRODUCTION_BASE_URL ?? "https://zukan.earth";
 
 const ENDPOINTS: string[] = [
   "/",

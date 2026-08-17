@@ -207,7 +207,7 @@ async function fetchOverpassOnce(url: string, query: string): Promise<OverpassRe
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       "Accept": "application/json",
-      "User-Agent": "ikimon.life-importer (https://ikimon.life - contact: yamaki0102@gmail.com)",
+      "User-Agent": "ZUKAN-importer (https://zukan.earth - contact: yamaki0102@gmail.com)",
     },
     body: `data=${encodeURIComponent(query)}`,
   });

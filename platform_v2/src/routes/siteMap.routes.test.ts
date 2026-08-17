@@ -26,12 +26,12 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     assert.equal(sitemap.statusCode, 200);
     assert.match(sitemap.headers["content-type"] as string, /application\/xml/);
     assert.equal(sitemap.headers["x-robots-tag"], "noindex, nofollow");
-    assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/ja\/community/);
-    assert.doesNotMatch(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/community/);
+    assert.match(sitemap.body, /https:\/\/staging\.zukan\.earth\/ja\/community/);
+    assert.doesNotMatch(sitemap.body, /https:\/\/staging\.zukan\.earth\/en\/community/);
     assert.doesNotMatch(sitemap.body, /hreflang="en"/);
-    assert.match(sitemap.body, /hreflang="x-default" href="https:\/\/staging\.ikimon\.life\/ja\/community"/);
-    assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/ja\/for-business/);
-    assert.doesNotMatch(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/for-business/);
+    assert.match(sitemap.body, /hreflang="x-default" href="https:\/\/staging\.zukan\.earth\/ja\/community"/);
+    assert.match(sitemap.body, /https:\/\/staging\.zukan\.earth\/ja\/for-business/);
+    assert.doesNotMatch(sitemap.body, /https:\/\/staging\.zukan\.earth\/en\/for-business/);
     assert.doesNotMatch(sitemap.body, /:id|:userId/);
 
     const stagingRobots = await app.inject({
@@ -42,7 +42,7 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     assert.equal(stagingRobots.statusCode, 200);
     assert.equal(stagingRobots.headers["x-robots-tag"], "noindex, nofollow");
     assert.match(stagingRobots.body, /^User-agent: \*\nDisallow: \/\n/);
-    assert.match(stagingRobots.body, /# production-canonical-origin: https:\/\/ikimon\.life/);
+    assert.match(stagingRobots.body, /# production-canonical-origin: https:\/\/zukan\.earth/);
     assert.doesNotMatch(stagingRobots.body, /Sitemap:|LLMs:/);
 
     const productionRobots = await app.inject({
@@ -52,8 +52,8 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     });
     assert.equal(productionRobots.statusCode, 200);
     assert.equal(productionRobots.headers["x-robots-tag"], undefined);
-    assert.match(productionRobots.body, /Sitemap: https:\/\/ikimon\.life\/sitemap\.xml/);
-    assert.match(productionRobots.body, /LLMs: https:\/\/ikimon\.life\/llms\.txt/);
+    assert.match(productionRobots.body, /Sitemap: https:\/\/zukan\.earth\/sitemap\.xml/);
+    assert.match(productionRobots.body, /LLMs: https:\/\/zukan\.earth\/llms\.txt/);
   } finally {
     await app.close();
   }
@@ -107,7 +107,7 @@ test("reflection loop manifest exposes route registry and measurement config wit
     };
 
     assert.equal(manifest.schema_version, 1);
-    assert.equal(manifest.origin, "https://ikimon.life");
+    assert.equal(manifest.origin, "https://zukan.earth");
     assert.equal(manifest.loop_contract.no_personal_data, true);
     assert.match(manifest.loop_contract.production_mutation_boundary, /GitHub Actions/);
     assert.equal(manifest.analytics.ga4_measurement_id, "G-NCL0M1VJZ2");

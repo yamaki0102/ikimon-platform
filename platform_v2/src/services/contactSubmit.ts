@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { getPool } from "../db.js";
+import { PRODUCTION_PUBLIC_ORIGIN } from "./trustedPublicOrigin.js";
 
 export type ContactSubmitInput = {
   category: string;
@@ -202,10 +203,10 @@ function buildAutoReply(input: ContactSubmitInput, submissionId: string): { subj
     "──────────────────────────────────────────",
     "",
     "※ このメールは自動送信です。このメールへの返信は受け付けていません。",
-    "   お問い合わせは https://ikimon.life/contact からお願いします。",
+    `   お問い合わせは ${PRODUCTION_PUBLIC_ORIGIN}/contact からお願いします。`,
     "",
     "ikimon 運営チーム",
-    "https://ikimon.life",
+    PRODUCTION_PUBLIC_ORIGIN,
   ].join("\n");
   return {
     subject: "[ikimon] お問い合わせを受け付けました",

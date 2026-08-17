@@ -16,6 +16,7 @@ test("production browser and app OAuth starts require exact HTTPS public URL and
   for (const candidate of [
     request("https://ikimon.life/auth/oauth/google/start", "ikimon.life"),
     request("https://www.ikimon.life/auth/oauth/twitter/start", "www.ikimon.life"),
+    request("https://zukan.earth/auth/oauth/google/start", "zukan.earth"),
     request("https://ikimon.life/app_oauth_start.php?provider=google", "ikimon.life"),
   ]) {
     assert.notEqual(oauthStartKind(candidate), null);
@@ -75,7 +76,7 @@ test("browser OAuth failures use an environment-pinned friendly redirect", async
   );
   const productionResponse = oauthErrorResponse(productionSpoof, { ENVIRONMENT: "production" });
   assert.equal(productionResponse.status, 303);
-  assert.equal(productionResponse.headers.get("location"), "https://ikimon.life/login?error=oauth");
+  assert.equal(productionResponse.headers.get("location"), "https://zukan.earth/login?error=oauth");
   assert.equal(productionResponse.headers.get("cache-control"), "no-store");
   assert.equal(productionResponse.headers.get("x-content-type-options"), "nosniff");
   assert.equal(await productionResponse.text(), "");
@@ -86,7 +87,7 @@ test("browser OAuth failures use an environment-pinned friendly redirect", async
   );
   assert.equal(
     oauthErrorResponse(stagingSpoof, { ENVIRONMENT: "staging" }).headers.get("location"),
-    "https://staging.ikimon.life/login?error=oauth",
+    "https://staging.zukan.earth/login?error=oauth",
   );
 
   const local = request("http://localhost:8787/auth/oauth/google/start", "localhost:8787");

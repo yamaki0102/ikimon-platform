@@ -37,11 +37,11 @@ test("google oauth uses the registered legacy-compatible callback URI", () => {
   const req = request({ host: "ikimon.life", "x-forwarded-proto": "https" });
   assert.equal(
     oauthRedirectUri(req, "google"),
-    "https://ikimon.life/oauth_callback.php?provider=google",
+    "https://zukan.earth/oauth_callback.php?provider=google",
   );
   assert.equal(
     oauthRedirectUri(req, "twitter"),
-    "https://ikimon.life/auth/oauth/twitter/callback",
+    "https://zukan.earth/auth/oauth/twitter/callback",
   );
 });
 
@@ -55,7 +55,7 @@ test("oauth callback origin rejects forwarded identity and accepts the nginx-bou
     });
     assert.equal(
       oauthRedirectUri(production, "google"),
-      "https://ikimon.life/oauth_callback.php?provider=google",
+      "https://zukan.earth/oauth_callback.php?provider=google",
     );
   }
 
@@ -66,7 +66,7 @@ test("oauth callback origin rejects forwarded identity and accepts the nginx-bou
   });
   assert.equal(
     oauthRedirectUri(stagingPublic, "twitter"),
-    "https://staging.ikimon.life/auth/oauth/twitter/callback",
+    "https://staging.zukan.earth/auth/oauth/twitter/callback",
   );
 
   const malformedHeaders: Array<Record<string, string>> = [
@@ -98,7 +98,7 @@ test("oauth callback origin rejects forwarded identity and accepts the nginx-bou
   });
   assert.equal(
     oauthRedirectUri(boundStagingRuntime, "twitter"),
-    "https://staging.ikimon.life/auth/oauth/twitter/callback",
+    "https://staging.zukan.earth/auth/oauth/twitter/callback",
   );
 
   const productionBindingOverridesSpoofedHost = request({
@@ -107,7 +107,7 @@ test("oauth callback origin rejects forwarded identity and accepts the nginx-bou
   });
   assert.equal(
     oauthRedirectUri(productionBindingOverridesSpoofedHost, "google"),
-    "https://ikimon.life/oauth_callback.php?provider=google",
+    "https://zukan.earth/oauth_callback.php?provider=google",
   );
 });
 
@@ -166,7 +166,7 @@ test("google oauth start sends the registered redirect_uri to Google", async () 
 
       assert.equal(authUrl.origin, "https://accounts.google.com");
       assert.equal(authUrl.searchParams.get("client_id"), "google-client");
-      assert.equal(authUrl.searchParams.get("redirect_uri"), "https://ikimon.life/oauth_callback.php?provider=google");
+      assert.equal(authUrl.searchParams.get("redirect_uri"), "https://zukan.earth/oauth_callback.php?provider=google");
       assert.match(start.cookie, /^ikimon_oauth_state=/);
     },
   );
@@ -213,7 +213,7 @@ test("app oauth start stores the whitelisted Android return URI in state", async
       const parsed = readOAuthState(freshCookiePair);
       const authUrl = new URL(start.authorizationUrl);
 
-      assert.equal(authUrl.searchParams.get("redirect_uri"), "https://staging.ikimon.life/oauth_callback.php?provider=google");
+      assert.equal(authUrl.searchParams.get("redirect_uri"), "https://staging.zukan.earth/oauth_callback.php?provider=google");
       assert.equal(parsed?.provider, "google");
       assert.equal(parsed?.appReturnUri, "ikimonfieldscan://auth/callback");
       assert.equal(parsed?.appInstallId, "install-1");

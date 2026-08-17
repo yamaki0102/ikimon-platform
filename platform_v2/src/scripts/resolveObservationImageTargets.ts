@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 
 type FetchResponse = {
   ok: boolean;
@@ -44,7 +45,7 @@ export type ResolveObservationImageTargetsResult = {
   targets: ObservationImageTarget[];
 };
 
-const DEFAULT_BASE_URL = "https://ikimon.life";
+const DEFAULT_BASE_URL = PRODUCTION_PUBLIC_ORIGIN;
 const DEFAULT_BBOX = "122.9,24.0,146.0,45.6";
 const DEFAULT_ZOOM = 6;
 const DEFAULT_LIMIT = 1500;
