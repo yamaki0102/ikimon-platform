@@ -11,18 +11,7 @@ const PHOTO_LABELS = `    photo: {
       start: 'カメラを起動',
       capture: '写真を撮る',
     },`;
-const PHOTO_LABELS_WITH_MACRO = `    photo: {
-      title: '撮影方法を選ぶ',
-      help: '',
-      start: '接写カメラ',
-      capture: '写真を撮る',
-    },`;
 const PHOTO_OPEN_STATUS = `    setStatus(kind === 'photo' && options && options.reviewOnly ? '写真を確認しています。追加撮影してから記録へ進めます。' : 'カメラを起動しています...');`;
-const PHOTO_SOURCE_STATUS = `    setStatus(kind === 'photo'
-      ? options && options.reviewOnly
-        ? '写真を確認しています。追加撮影してから記録へ進めます。'
-        : '標準カメラ、接写カメラ、写真から選ぶ、のいずれかを選んでください。'
-      : 'カメラを起動しています...');`;
 const PHOTO_LOCATION_PREFETCH = `    if (kind === 'photo') {
       latestCaptureLocation = null;
       latestCaptureLocationAt = 0;
@@ -69,11 +58,51 @@ const SHEET_KIND_WITH_SOURCE_VISIBILITY = `${SHEET_KIND_SOURCE_VISIBILITY_ANCHOR
     });`;
 const SOURCE_CHOICE_INJECT_PATCH_FLAG = "__ikimonGlobalRecordSourceChoiceInjectPatched";
 
-const SOURCE_LABELS: Record<SourceChoiceLang, { native: string }> = {
-  ja: { native: "標準カメラ" },
-  en: { native: "Device camera" },
-  es: { native: "Cámara del dispositivo" },
-  "pt-BR": { native: "Câmera do aparelho" },
+const SOURCE_LABELS: Record<SourceChoiceLang, {
+  native: string;
+  title: string;
+  macro: string;
+  capture: string;
+  review: string;
+  chooser: string;
+  camera: string;
+}> = {
+  ja: {
+    native: "標準カメラ",
+    title: "撮影方法を選ぶ",
+    macro: "接写カメラ",
+    capture: "写真を撮る",
+    review: "写真を確認しています。追加撮影してから記録へ進めます。",
+    chooser: "標準カメラ、接写カメラ、写真から選ぶ、のいずれかを選んでください。",
+    camera: "カメラを起動しています...",
+  },
+  en: {
+    native: "Device camera",
+    title: "Choose a photo source",
+    macro: "Macro camera",
+    capture: "Take photo",
+    review: "Review the photo, add another, then continue to record.",
+    chooser: "Choose a device camera, macro camera, or photo library.",
+    camera: "Starting camera...",
+  },
+  es: {
+    native: "Cámara del dispositivo",
+    title: "Elige cómo tomar la foto",
+    macro: "Cámara macro",
+    capture: "Tomar foto",
+    review: "Revisa la foto, añade otra y continúa para registrarla.",
+    chooser: "Elige la cámara del dispositivo, la cámara macro o la biblioteca de fotos.",
+    camera: "Iniciando la cámara...",
+  },
+  "pt-BR": {
+    native: "Câmera do aparelho",
+    title: "Escolha como tirar a foto",
+    macro: "Câmera macro",
+    capture: "Tirar foto",
+    review: "Revise a foto, adicione outra e continue para registrar.",
+    chooser: "Escolha a câmera do aparelho, a câmera macro ou a biblioteca de fotos.",
+    camera: "Iniciando a câmera...",
+  },
 };
 
 function resolveLang(html: string): SourceChoiceLang {
@@ -85,6 +114,25 @@ function resolveLang(html: string): SourceChoiceLang {
 function nativeCameraButton(html: string): string {
   const label = SOURCE_LABELS[resolveLang(html)].native;
   return `<button type="button" class="global-record-camera-action" data-global-record-os-camera>${label}</button>`;
+}
+
+function localizedPhotoLabelsWithMacro(lang: SourceChoiceLang): string {
+  const copy = SOURCE_LABELS[lang];
+  return `    photo: {
+      title: ${JSON.stringify(copy.title)},
+      help: '',
+      start: ${JSON.stringify(copy.macro)},
+      capture: ${JSON.stringify(copy.capture)},
+    },`;
+}
+
+function localizedPhotoSourceStatus(lang: SourceChoiceLang): string {
+  const copy = SOURCE_LABELS[lang];
+  return `    setStatus(kind === 'photo'
+      ? options && options.reviewOnly
+        ? ${JSON.stringify(copy.review)}
+        : ${JSON.stringify(copy.chooser)}
+      : ${JSON.stringify(copy.camera)});`;
 }
 
 function addSourceChoiceButton(html: string): string {
@@ -117,8 +165,9 @@ export function patchGlobalRecordSourceChoiceHtml(html: string): string {
   }
   patched = addSourceChoiceButton(patched);
   patched = addNativeCameraListener(patched);
-  if (patched.includes(PHOTO_LABELS)) patched = patched.replace(PHOTO_LABELS, PHOTO_LABELS_WITH_MACRO);
-  if (patched.includes(PHOTO_OPEN_STATUS)) patched = patched.replace(PHOTO_OPEN_STATUS, PHOTO_SOURCE_STATUS);
+  const lang = resolveLang(patched);
+  if (patched.includes(PHOTO_LABELS)) patched = patched.replace(PHOTO_LABELS, localizedPhotoLabelsWithMacro(lang));
+  if (patched.includes(PHOTO_OPEN_STATUS)) patched = patched.replace(PHOTO_OPEN_STATUS, localizedPhotoSourceStatus(lang));
   if (patched.includes(PHOTO_LOCATION_PREFETCH)) patched = patched.replace(PHOTO_LOCATION_PREFETCH, PHOTO_LOCATION_DEFERRED);
   if (patched.includes(AUTO_START_CAMERA)) patched = patched.replace(AUTO_START_CAMERA, PHOTO_MANUAL_START);
   if (patched.includes(INPUT_HANDLER)) patched = patched.replace(INPUT_HANDLER, INPUT_HANDLER_WITH_PREVIEW);
