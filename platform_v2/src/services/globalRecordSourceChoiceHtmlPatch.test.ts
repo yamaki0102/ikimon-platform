@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import Fastify from "fastify";
 import { renderSiteDocument } from "../ui/siteShell.js";
-import { patchGlobalRecordSourceChoiceHtml } from "./globalRecordSourceChoiceHtmlPatch.js";
+import { patchGlobalRecordSourceChoiceHtml, registerGlobalRecordSourceChoiceHtmlPatch } from "./globalRecordSourceChoiceHtmlPatch.js";
 
 function shellFixture(lang = "ja"): string {
   return `<html lang="${lang}">
@@ -84,6 +85,22 @@ test("patch anchors stay compatible with the real site shell output", () => {
   assert.match(patched, /kind !== 'photo'\) void startCamera\(\)/);
   assert.match(patched, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
   assert.match(patched, /latestCaptureLocationAt = 0;\n    }\n    if \(!\(options && options\.reviewOnly\) && kind !== 'photo'\) void startCamera\(\)/);
+  assert.match(patched, /captureSource: 'gallery'/);
+  assert.match(patched, /metadata && metadata\.captureSource === 'gallery'/);
+});
+
+test("gallery selections do not infer capture time or current location", () => {
+  const original = renderSiteDocument({
+    basePath: "",
+    title: "ZUKAN gallery metadata contract",
+    body: "<main>fixture</main>",
+    lang: "ja",
+    currentPath: "/",
+  });
+  const patched = patchGlobalRecordSourceChoiceHtml(original);
+
+  assert.match(patched, /const metadata = kind === 'gallery'[\s\S]*capturedAt: null,[\s\S]*location: null,[\s\S]*locationPending: true/);
+  assert.match(patched, /if \(metadata && metadata\.captureSource === 'gallery'\) \{[\s\S]*navigateWithDraft\(files, 'photo', metadata, 'global_capture'\)/);
 });
 
 test("native camera and photo library both enter the existing immediate-preview path", () => {
@@ -103,6 +120,29 @@ test("source choice patch is idempotent", () => {
   assert.equal(patchGlobalRecordSourceChoiceHtml(once), once);
   assert.equal((once.match(/data-global-record-os-camera/g) ?? []).length, 2, "button and listener selector only");
   assert.equal((once.match(/capture="environment"/g) ?? []).length, 1);
+});
+
+test("source choice patch reaches the root route materialization", async () => {
+  const app = Fastify();
+  const rootHtml = renderSiteDocument({
+    basePath: "",
+    title: "ZUKAN root source choice contract",
+    body: "<main>fixture</main>",
+    lang: "ja",
+    currentPath: "/",
+  });
+  app.get("/", async (_request, reply) => reply.type("text/html").send(rootHtml));
+  registerGlobalRecordSourceChoiceHtmlPatch(app);
+
+  try {
+    const root = await app.inject({ method: "GET", url: "/" });
+    assert.equal(root.statusCode, 200);
+    assert.match(root.body, /data-global-record-input="photo"[^>]*capture="environment"/);
+    assert.match(root.body, /data-global-record-os-camera>標準カメラ<\/button>/);
+    assert.match(root.body, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
+  } finally {
+    await app.close();
+  }
 });
 
 test("source choice patch leaves pages without the global camera sheet unchanged", () => {
