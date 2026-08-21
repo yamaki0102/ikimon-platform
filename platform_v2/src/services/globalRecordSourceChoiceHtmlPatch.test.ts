@@ -84,6 +84,22 @@ test("patch anchors stay compatible with the real site shell output", () => {
   assert.match(patched, /kind !== 'photo'\) void startCamera\(\)/);
   assert.match(patched, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
   assert.match(patched, /latestCaptureLocationAt = 0;\n    }\n    if \(!\(options && options\.reviewOnly\) && kind !== 'photo'\) void startCamera\(\)/);
+  assert.match(patched, /captureSource: 'gallery'/);
+  assert.match(patched, /metadata && metadata\.captureSource === 'gallery'/);
+});
+
+test("gallery selections do not infer capture time or current location", () => {
+  const original = renderSiteDocument({
+    basePath: "",
+    title: "ZUKAN gallery metadata contract",
+    body: "<main>fixture</main>",
+    lang: "ja",
+    currentPath: "/",
+  });
+  const patched = patchGlobalRecordSourceChoiceHtml(original);
+
+  assert.match(patched, /const metadata = kind === 'gallery'[\s\S]*capturedAt: null,[\s\S]*location: null,[\s\S]*locationPending: true/);
+  assert.match(patched, /if \(metadata && metadata\.captureSource === 'gallery'\) \{[\s\S]*navigateWithDraft\(files, 'photo', metadata, 'global_capture'\)/);
 });
 
 test("native camera and photo library both enter the existing immediate-preview path", () => {

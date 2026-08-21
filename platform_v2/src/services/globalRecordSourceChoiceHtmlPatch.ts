@@ -39,6 +39,26 @@ const INPUT_HANDLER = `      const kind = input.getAttribute('data-global-record
 const INPUT_HANDLER_WITH_PREVIEW = `      const kind = input.getAttribute('data-global-record-input') || 'gallery';
       if (!files.length) return;
       if (kind === 'photo' || kind === 'gallery') {`;
+const GALLERY_METADATA_INPUT = `        const metadata = buildCaptureMetadata();
+        addPhotoDraftFiles(files, metadata);`;
+const GALLERY_METADATA_INPUT_WITHOUT_INFERENCE = `        const metadata = kind === 'gallery'
+          ? {
+              captureSource: 'gallery',
+              capturedAt: null,
+              location: null,
+              locationPending: true,
+            }
+          : buildCaptureMetadata();
+        addPhotoDraftFiles(files, metadata);`;
+const DIRECT_POST_METADATA_GUARD = `    const metadata = capturedReviewMeta || {};
+    if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {`;
+const DIRECT_POST_METADATA_GUARD_WITH_GALLERY_HANDOFF = `    const metadata = capturedReviewMeta || {};
+    if (metadata && metadata.captureSource === 'gallery') {
+      setStatus('写真の撮影時刻と場所を確認するため、記録画面へ移動します。');
+      await navigateWithDraft(files, 'photo', metadata, 'global_capture');
+      return;
+    }
+    if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {`;
 const GALLERY_LISTENER = `  document.querySelectorAll('[data-global-record-gallery-select]').forEach((button) => {`;
 
 const SOURCE_LABELS: Record<SourceChoiceLang, { native: string }> = {
@@ -94,6 +114,12 @@ export function patchGlobalRecordSourceChoiceHtml(html: string): string {
   if (patched.includes(PHOTO_LOCATION_PREFETCH)) patched = patched.replace(PHOTO_LOCATION_PREFETCH, PHOTO_LOCATION_DEFERRED);
   if (patched.includes(AUTO_START_CAMERA)) patched = patched.replace(AUTO_START_CAMERA, PHOTO_MANUAL_START);
   if (patched.includes(INPUT_HANDLER)) patched = patched.replace(INPUT_HANDLER, INPUT_HANDLER_WITH_PREVIEW);
+  if (patched.includes(GALLERY_METADATA_INPUT)) {
+    patched = patched.replace(GALLERY_METADATA_INPUT, GALLERY_METADATA_INPUT_WITHOUT_INFERENCE);
+  }
+  if (patched.includes(DIRECT_POST_METADATA_GUARD)) {
+    patched = patched.replace(DIRECT_POST_METADATA_GUARD, DIRECT_POST_METADATA_GUARD_WITH_GALLERY_HANDOFF);
+  }
   return patched;
 }
 
