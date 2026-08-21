@@ -57,7 +57,7 @@ test("photo source choice exposes native camera without pre-requesting camera or
   const patched = patchGlobalRecordSourceChoiceHtml(shellFixture());
   assert.match(patched, /data-global-record-input="photo"[^>]*capture="environment"/);
   assert.match(patched, /data-global-record-os-camera>標準カメラ<\/button>/);
-  assert.match(patched, /start: '接写カメラ'/);
+  assert.match(patched, /start: ["']接写カメラ["']/);
   assert.match(patched, /kind !== 'photo'\) void startCamera\(\)/);
   assert.match(patched, /撮影方法を選ぶ/);
   assert.match(patched, /標準カメラ、接写カメラ、写真から選ぶ/);
@@ -125,6 +125,20 @@ test("source choice patch keeps localized native-camera labels", () => {
   assert.match(patchGlobalRecordSourceChoiceHtml(shellFixture("en")), /data-global-record-os-camera>Device camera<\/button>/);
   assert.match(patchGlobalRecordSourceChoiceHtml(shellFixture("es")), /data-global-record-os-camera>Cámara del dispositivo<\/button>/);
   assert.match(patchGlobalRecordSourceChoiceHtml(shellFixture("pt-BR")), /data-global-record-os-camera>Câmera do aparelho<\/button>/);
+});
+
+test("source choice patch localizes the macro path and chooser status", () => {
+  const expectations = [
+    ["en", "Choose a photo source", "Macro camera", "Choose a device camera, macro camera, or photo library."],
+    ["es", "Elige cómo tomar la foto", "Cámara macro", "Elige la cámara del dispositivo, la cámara macro o la biblioteca de fotos."],
+    ["pt-BR", "Escolha como tirar a foto", "Câmera macro", "Escolha a câmera do aparelho, a câmera macro ou a biblioteca de fotos."],
+  ] as const;
+  for (const [lang, title, macro, chooser] of expectations) {
+    const patched = patchGlobalRecordSourceChoiceHtml(shellFixture(lang));
+    assert.match(patched, new RegExp(`title: ${JSON.stringify(title)}`));
+    assert.match(patched, new RegExp(`start: ${JSON.stringify(macro)}`));
+    assert.match(patched, new RegExp(chooser.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
 });
 
 test("source choice patch is idempotent", () => {
