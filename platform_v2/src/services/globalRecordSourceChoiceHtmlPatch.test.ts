@@ -87,6 +87,7 @@ test("patch anchors stay compatible with the real site shell output", () => {
   assert.match(patched, /latestCaptureLocationAt = 0;\n    }\n    if \(!\(options && options\.reviewOnly\) && kind !== 'photo'\) void startCamera\(\)/);
   assert.match(patched, /captureSource: 'gallery'/);
   assert.match(patched, /metadata && metadata\.captureSource === 'gallery'/);
+  assert.match(patched, /button\.hidden = kind !== 'photo'/);
 });
 
 test("gallery selections do not infer capture time or current location", () => {
@@ -107,6 +108,17 @@ test("native camera and photo library both enter the existing immediate-preview 
   const patched = patchGlobalRecordSourceChoiceHtml(shellFixture());
   assert.match(patched, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
   assert.match(patched, /openSheet\('photo', \{ reviewOnly: true, keepReview: true \}\)/);
+});
+
+test("native camera is hidden while the shared sheet is in video mode", () => {
+  const patched = patchGlobalRecordSourceChoiceHtml(renderSiteDocument({
+    basePath: "",
+    title: "ZUKAN video source choice contract",
+    body: "<main>fixture</main>",
+    lang: "ja",
+    currentPath: "/",
+  }));
+  assert.match(patched, /document\.querySelectorAll\('\[data-global-record-os-camera\]'\)[\s\S]*button\.hidden = kind !== 'photo'/);
 });
 
 test("source choice patch keeps localized native-camera labels", () => {

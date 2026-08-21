@@ -61,6 +61,12 @@ const DIRECT_POST_METADATA_GUARD_WITH_GALLERY_HANDOFF = `    const metadata = ca
     }
     if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {`;
 const GALLERY_LISTENER = `  document.querySelectorAll('[data-global-record-gallery-select]').forEach((button) => {`;
+const SHEET_KIND_SOURCE_VISIBILITY_ANCHOR = `    if (kind) sheet.setAttribute('data-active-kind', kind);
+    else sheet.removeAttribute('data-active-kind');`;
+const SHEET_KIND_WITH_SOURCE_VISIBILITY = `${SHEET_KIND_SOURCE_VISIBILITY_ANCHOR}
+    document.querySelectorAll('[data-global-record-os-camera]').forEach((button) => {
+      button.hidden = kind !== 'photo';
+    });`;
 const SOURCE_CHOICE_INJECT_PATCH_FLAG = "__ikimonGlobalRecordSourceChoiceInjectPatched";
 
 const SOURCE_LABELS: Record<SourceChoiceLang, { native: string }> = {
@@ -121,6 +127,9 @@ export function patchGlobalRecordSourceChoiceHtml(html: string): string {
   }
   if (patched.includes(DIRECT_POST_METADATA_GUARD)) {
     patched = patched.replace(DIRECT_POST_METADATA_GUARD, DIRECT_POST_METADATA_GUARD_WITH_GALLERY_HANDOFF);
+  }
+  if (patched.includes(SHEET_KIND_SOURCE_VISIBILITY_ANCHOR)) {
+    patched = patched.replace(SHEET_KIND_SOURCE_VISIBILITY_ANCHOR, SHEET_KIND_WITH_SOURCE_VISIBILITY);
   }
   return patched;
 }
