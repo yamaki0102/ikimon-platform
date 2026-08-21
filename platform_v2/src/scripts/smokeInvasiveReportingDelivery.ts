@@ -91,7 +91,7 @@ async function seedAndEmit(prefix: string, to: string): Promise<Record<string, u
           recipient_type, display_name, email, prefecture, municipality,
           interest_invasive, source_url, notes
        )
-       VALUES ('municipality', $1, $2, '静岡県', '浜松市', true, 'https://ikimon.life/for-business/invasive-reporting', $3)
+       VALUES ('municipality', $1, $2, '静岡県', '浜松市', true, 'https://zukan.earth/for-business/invasive-reporting', $3)
        RETURNING recipient_id::text`,
       [`外来種通報 smoke ${prefix}`, to, `temporary invasive reporting smoke ${prefix}`],
     );
@@ -103,7 +103,7 @@ async function seedAndEmit(prefix: string, to: string): Promise<Record<string, u
        )
        VALUES ($1::uuid, $2::uuid, 'ikimon.life smoke recipient', '外来種通報テスト', 'municipality',
                'email', $3, 'approved', '["ja","en"]'::jsonb,
-               'https://ikimon.life/for-business/invasive-reporting', 'temporary smoke', CURRENT_DATE,
+               'https://zukan.earth/for-business/invasive-reporting', 'temporary smoke', CURRENT_DATE,
                'temporary test contact; remove after smoke', $4::jsonb)
        RETURNING contact_id::text`,
       [
@@ -166,7 +166,7 @@ async function seedAndEmit(prefix: string, to: string): Promise<Record<string, u
        RETURNING blob_id::text`,
       [
         `smoke/${prefix}.jpg`,
-        `https://ikimon.life/uploads/smoke/${prefix}.jpg`,
+        `https://zukan.earth/uploads/smoke/${prefix}.jpg`,
         JSON.stringify({ smokePrefix: prefix }),
       ],
     );

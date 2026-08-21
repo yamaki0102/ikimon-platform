@@ -5,6 +5,7 @@ import { assertSameOriginRequest } from "./authSecurity.js";
 import {
   RUNTIME_PUBLIC_ORIGIN_HEADER,
   resolvePresentationPublicOrigin,
+  resolveTrustedRequestOrigin,
   resolveTrustedPublicOrigin,
 } from "./trustedPublicOrigin.js";
 
@@ -13,23 +14,23 @@ function request(headers: Record<string, string>, protocol = "http"): FastifyReq
 }
 
 test("security origin prioritizes bound runtime, then explicit config, direct host, or exact local identity", () => {
-  assert.equal(resolveTrustedPublicOrigin(request({ host: "ikimon.life" })), "https://ikimon.life");
-  assert.equal(resolveTrustedPublicOrigin(request({ host: "www.ikimon.life" })), "https://ikimon.life");
-  assert.equal(resolveTrustedPublicOrigin(request({ host: "staging.ikimon.life" })), "https://staging.ikimon.life");
+  assert.equal(resolveTrustedPublicOrigin(request({ host: "ikimon.life" })), "https://zukan.earth");
+  assert.equal(resolveTrustedPublicOrigin(request({ host: "www.ikimon.life" })), "https://zukan.earth");
+  assert.equal(resolveTrustedPublicOrigin(request({ host: "staging.ikimon.life" })), "https://staging.zukan.earth");
 
   assert.equal(
     resolveTrustedPublicOrigin(request({
       host: "staging.ikimon.life",
       [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://ikimon.life",
     })),
-    "https://ikimon.life",
+    "https://zukan.earth",
   );
   assert.equal(
     resolveTrustedPublicOrigin(request({
       host: "internal-origin.invalid",
       [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://staging.ikimon.life",
     })),
-    "https://staging.ikimon.life",
+    "https://staging.zukan.earth",
   );
 
   for (const host of [
@@ -52,14 +53,14 @@ test("security origin prioritizes bound runtime, then explicit config, direct ho
       }),
       { explicitOrigin: "https://staging.ikimon.life/" },
     ),
-    "https://ikimon.life",
+    "https://zukan.earth",
   );
   assert.equal(
     resolveTrustedPublicOrigin(
       request({ host: "attacker.example" }),
       { explicitOrigin: "https://staging.ikimon.life/" },
     ),
-    "https://staging.ikimon.life",
+    "https://staging.zukan.earth",
   );
   assert.equal(
     resolveTrustedPublicOrigin(request({ host: "localhost:3200" }), { allowLocalDevelopment: true }),
@@ -92,8 +93,8 @@ test("unsigned marker and forwarded identity are ignored for security and presen
     "x-forwarded-host": "ikimon.life",
     "x-forwarded-proto": "javascript",
   });
-  assert.equal(resolveTrustedPublicOrigin(boundWorkerHop), "https://staging.ikimon.life");
-  assert.equal(resolvePresentationPublicOrigin(boundWorkerHop), "https://staging.ikimon.life");
+  assert.equal(resolveTrustedPublicOrigin(boundWorkerHop), "https://staging.zukan.earth");
+  assert.equal(resolvePresentationPublicOrigin(boundWorkerHop), "https://staging.zukan.earth");
 
   for (const runtimeOrigin of [
     "https://evil.example",
@@ -110,6 +111,22 @@ test("unsigned marker and forwarded identity are ignored for security and presen
       runtimeOrigin,
     );
   }
+});
+
+test("edge request origin preserves an allowlisted host alias for OAuth callbacks", () => {
+  assert.equal(resolveTrustedRequestOrigin(request({ host: "ikimon.life" })), "https://ikimon.life");
+  assert.equal(resolveTrustedRequestOrigin(request({ host: "www.ikimon.life" })), "https://www.ikimon.life");
+  assert.equal(resolveTrustedRequestOrigin(request({ host: "staging.ikimon.life" })), "https://staging.ikimon.life");
+  assert.equal(resolveTrustedRequestOrigin(request({ host: "www.zukan.earth" })), "https://www.zukan.earth");
+  assert.equal(resolveTrustedRequestOrigin(request({
+    host: "ikimon.life",
+    "x-forwarded-host": "staging.ikimon.life",
+    [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://staging.ikimon.life",
+  })), "https://ikimon.life");
+  assert.equal(resolveTrustedRequestOrigin(request({
+    host: "internal-origin.invalid",
+    [RUNTIME_PUBLIC_ORIGIN_HEADER]: "https://ikimon.life",
+  })), null);
 });
 
 test("same-origin auth checks use the nginx-bound origin and ignore unsigned marker", () => {

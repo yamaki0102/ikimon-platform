@@ -3,6 +3,104 @@
   "product_id": "zukan",
   "requirements": [
     {
+      "id": "quality.zukan.capture.source-choice",
+      "quality_contract": "quality.zukan.capture",
+      "title": "撮影方法の明示選択",
+      "acceptance": "撮影開始時にOS標準カメラ、接写カメラ、写真ライブラリの3経路を明示し、未対応経路は安全な代替手段へ戻れる",
+      "environments": ["source", "staging"],
+      "evidence_lanes": ["machine", "human"],
+      "verification_levels": ["contract", "source", "staging", "human"],
+      "invalidation_keys": [
+        "product-registry:requirements",
+        "source:platform_v2/capture",
+        "runtime:staging",
+        "human:capture-source-choice"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "quality.zukan.capture.immediate-preview",
+      "quality_contract": "quality.zukan.capture",
+      "title": "撮影直後のローカル確認",
+      "acceptance": "OSカメラ、接写カメラ、または写真ライブラリから画像を取得した直後、upload完了を待たずに本人が画像を確認し、撮り直し・削除・続行を選べる",
+      "environments": ["source", "staging"],
+      "evidence_lanes": ["machine", "human"],
+      "verification_levels": ["contract", "source", "staging", "human"],
+      "invalidation_keys": [
+        "product-registry:requirements",
+        "source:platform_v2/capture",
+        "runtime:staging",
+        "human:capture-immediate-preview"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "quality.zukan.capture.draft-recovery",
+      "quality_contract": "quality.zukan.capture",
+      "title": "下書きと通信断からの復旧",
+      "acceptance": "撮影後の通信断、reload、認証復帰があっても写真をURLへ載せず下書きとして保持し、同じ記録作成フローへ安全に復帰できる",
+      "environments": ["source", "staging"],
+      "evidence_lanes": ["machine"],
+      "verification_levels": ["contract", "source", "integration", "staging"],
+      "invalidation_keys": [
+        "product-registry:requirements",
+        "source:platform_v2/capture",
+        "source:platform_v2/recovery",
+        "runtime:staging"
+      ],
+      "status": "partial"
+    },
+    {
+      "id": "quality.zukan.capture.idempotent-save",
+      "quality_contract": "quality.zukan.capture",
+      "title": "再試行時の重複防止",
+      "acceptance": "保存ボタン連打、通信再試行、同一capture sessionの再送でも記録とmediaを重複作成せず、保存失敗を成功表示しない",
+      "environments": ["source", "staging"],
+      "evidence_lanes": ["machine"],
+      "verification_levels": ["contract", "integration", "staging"],
+      "invalidation_keys": [
+        "product-registry:requirements",
+        "source:platform_v2/capture",
+        "source:platform_v2/repository",
+        "runtime:staging"
+      ],
+      "status": "partial"
+    },
+    {
+      "id": "quality.zukan.capture.owner-return",
+      "quality_contract": "quality.zukan.capture",
+      "title": "保存後の本人返却",
+      "acceptance": "保存成功後に作成した記録を本人が一覧または詳細で確認でき、新しい撮影またはHomeへ戻れる",
+      "environments": ["source", "staging", "operation"],
+      "evidence_lanes": ["machine", "design", "human"],
+      "verification_levels": ["contract", "source", "staging", "design", "human"],
+      "invalidation_keys": [
+        "product-registry:requirements",
+        "source:platform_v2/capture",
+        "design:capture-owner-return",
+        "human:capture-owner-return",
+        "runtime:staging"
+      ],
+      "status": "partial"
+    },
+    {
+      "id": "quality.zukan.capture.truthful-status",
+      "quality_contract": "quality.zukan.capture",
+      "title": "保存・写真・AI状態の正確な表示",
+      "acceptance": "記録保存、写真upload・処理、AI確認の状態を分離し、AI障害や写真処理失敗を記録保存成功と混同せず本人へ表示する",
+      "environments": ["source", "staging"],
+      "evidence_lanes": ["machine", "human"],
+      "verification_levels": ["contract", "source", "staging", "human"],
+      "invalidation_keys": [
+        "product-registry:requirements",
+        "source:platform_v2/capture",
+        "source:platform_v2/record-status",
+        "runtime:staging",
+        "human:capture-truthful-status"
+      ],
+      "status": "planned"
+    },
+    {
       "id": "quality.zukan.kubiaka-member-records.owner-return",
       "quality_contract": "quality.zukan.kubiaka-member-records",
       "title": "本人への記録返却",

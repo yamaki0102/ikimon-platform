@@ -36,11 +36,25 @@ const requirementDocument = readJson<{
 const qualityDocument = readJson<{ contracts: QualityContract[] }>("quality.json");
 const journeyDocument = readJson<{ journeys: Journey[] }>("journeys.json");
 
+const expectedCaptureRequirements = [
+  "quality.zukan.capture.draft-recovery",
+  "quality.zukan.capture.idempotent-save",
+  "quality.zukan.capture.immediate-preview",
+  "quality.zukan.capture.owner-return",
+  "quality.zukan.capture.source-choice",
+  "quality.zukan.capture.truthful-status",
+].sort();
+
 const expectedKubiakaRequirements = [
   "quality.zukan.kubiaka-capture.prohibited-side-effects",
   "quality.zukan.kubiaka-member-records.owner-isolation",
   "quality.zukan.kubiaka-member-records.owner-return",
   "quality.zukan.kubiaka-member-records.staging-identity",
+].sort();
+
+const expectedRequirements = [
+  ...expectedCaptureRequirements,
+  ...expectedKubiakaRequirements,
 ].sort();
 
 test("requirements document is registered by the product root", () => {
@@ -49,12 +63,12 @@ test("requirements document is registered by the product root", () => {
   assert.equal(productDocument.registries.requirements, "requirements.json");
 });
 
-test("Kubiaka requirements have stable product-owned identities", () => {
+test("requirements have stable product-owned identities", () => {
   assert.equal(requirementDocument.schema_version, "1.0.0");
   assert.equal(requirementDocument.product_id, "zukan");
   const ids = requirementDocument.requirements.map((requirement) => requirement.id);
   assert.equal(new Set(ids).size, ids.length);
-  assert.deepEqual([...ids].sort(), expectedKubiakaRequirements);
+  assert.deepEqual([...ids].sort(), expectedRequirements);
 
   const qualityIds = new Set(qualityDocument.contracts.map((contract) => contract.id));
   for (const requirement of requirementDocument.requirements) {
@@ -79,9 +93,15 @@ test("Kubiaka requirements have stable product-owned identities", () => {
   );
   assert.deepEqual(ownerReturn?.evidence_lanes, ["machine", "design", "human"]);
   assert.ok(ownerReturn?.invalidation_keys.includes("design:kubiaka-owner-return"));
+
+  const captureOwnerReturn = requirementDocument.requirements.find(
+    (requirement) => requirement.id === "quality.zukan.capture.owner-return",
+  );
+  assert.deepEqual(captureOwnerReturn?.evidence_lanes, ["machine", "design", "human"]);
+  assert.ok(captureOwnerReturn?.invalidation_keys.includes("design:capture-owner-return"));
 });
 
-test("quality contracts and the Kubiaka journey reference only defined requirements", () => {
+test("quality contracts and journeys reference only defined requirements", () => {
   const known = new Set(requirementDocument.requirements.map((requirement) => requirement.id));
   const referenced = new Set<string>();
   for (const quality of qualityDocument.contracts) {
@@ -96,5 +116,10 @@ test("quality contracts and the Kubiaka journey reference only defined requireme
       referenced.add(requirementRef);
     }
   }
-  assert.deepEqual([...referenced].sort(), expectedKubiakaRequirements);
+  assert.deepEqual([...referenced].sort(), expectedRequirements);
+
+  const captureContract = qualityDocument.contracts.find((contract) => contract.id === "quality.zukan.capture");
+  assert.deepEqual([...(captureContract?.requirement_refs ?? [])].sort(), expectedCaptureRequirements);
+  const captureJourney = journeyDocument.journeys.find((journey) => journey.id === "journey.zukan.capture-to-personal-return");
+  assert.deepEqual([...(captureJourney?.requirement_refs ?? [])].sort(), expectedCaptureRequirements);
 });

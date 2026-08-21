@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
 import { buildPlaceId, buildPlaceName, makeOccurrenceId, normalizeTimestamp } from "./writeSupport.js";
 import { upsertAssetBlob } from "./writeSupportPg.js";
+import { STAGING_PUBLIC_ORIGIN } from "./trustedPublicOrigin.js";
 
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
 const FIXTURE_PREFIX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{2,80}$/;
@@ -517,7 +518,7 @@ async function upsertFixtureReference(
   },
 ): Promise<RegressionFixtureReferenceSummary> {
   const title = `Regression Field Guide ${input.fixturePrefix}`;
-  const url = `https://staging.ikimon.life/fixtures/${encodeURIComponent(input.fixturePrefix)}/regression-field-guide`;
+  const url = `${STAGING_PUBLIC_ORIGIN}/fixtures/${encodeURIComponent(input.fixturePrefix)}/regression-field-guide`;
   const sourcePayload = {
     source: "staging_regression_reference",
     fixture_prefix: input.fixturePrefix,

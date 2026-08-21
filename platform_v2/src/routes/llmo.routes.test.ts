@@ -12,10 +12,10 @@ test("llms.txt exposes Japanese canonical markdown references", async () => {
     });
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] as string, /text\/plain/);
-    assert.match(response.body, /ikimon\.life は/);
-    assert.match(response.body, /https:\/\/staging\.ikimon\.life\/llms\/guide\.md/);
-    assert.match(response.body, /https:\/\/staging\.ikimon\.life\/llms\/terms\.md/);
-    assert.match(response.body, /https:\/\/staging\.ikimon\.life\/ja\/learn\/biomonweek/);
+    assert.match(response.body, /ZUKAN は/);
+    assert.match(response.body, /https:\/\/staging\.zukan\.earth\/llms\/guide\.md/);
+    assert.match(response.body, /https:\/\/staging\.zukan\.earth\/llms\/terms\.md/);
+    assert.match(response.body, /https:\/\/staging\.zukan\.earth\/ja\/learn\/biomonweek/);
     assert.match(response.body, /Use the Japanese pages as canonical source material/);
   } finally {
     await app.close();
@@ -31,14 +31,14 @@ test("llmo markdown routes return compact Japanese source material", async () =>
       assert.match(response.headers["content-type"] as string, /text\/markdown/);
       assert.match(response.body, /^# /);
       assert.match(response.body, /既存の日本語 longform コンテンツから生成/);
-      assert.match(response.body, /Canonical URL: https:\/\/ikimon\.life\/ja\//);
+      assert.match(response.body, /Canonical URL: https:\/\/zukan\.earth\/ja\//);
     }
     const terms = await app.inject({ method: "GET", url: "/llms/terms.md" });
     assert.match(terms.body, /BioMonWeek/);
     assert.match(terms.body, /観察努力量/);
     assert.match(terms.body, /自然とのつながり/);
     assert.match(terms.body, /AI候補/);
-    assert.match(terms.body, /Canonical URL: https:\/\/ikimon\.life\/ja\/learn\/terms\/environmental-dna/);
+    assert.match(terms.body, /Canonical URL: https:\/\/zukan\.earth\/ja\/learn\/terms\/environmental-dna/);
   } finally {
     await app.close();
   }

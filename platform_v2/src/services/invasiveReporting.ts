@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 import type { EmitAlertsContext } from "./alertDispatcher.js";
+import { PRODUCTION_PUBLIC_ORIGIN } from "./trustedPublicOrigin.js";
 
 type ReportingQueryClient = Pick<PoolClient, "query">;
 
@@ -257,7 +258,7 @@ export function buildInvasiveReportingPayload(
       note: detail?.note ?? null,
       individualCount: detail?.individualCount ?? null,
       photoUrls: detail?.photoUrls ?? [],
-      publicUrl: `https://ikimon.life/observations/${encodeURIComponent(ctx.visitId)}`,
+      publicUrl: `${PRODUCTION_PUBLIC_ORIGIN}/observations/${encodeURIComponent(ctx.visitId)}`,
     },
     invasiveStatus: ctx.invasiveStatus,
     reporting: {

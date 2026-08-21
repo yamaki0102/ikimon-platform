@@ -110,7 +110,12 @@ test("registry rejects route drift from implementation", () => {
 
 test("registry loads requirement evidence contracts and rejects unsupported lanes", () => {
   const registry = cloneRegistry();
-  assert.equal(registry.requirements.length, 4);
+  assert.equal(registry.requirements.length, 10);
+  const immediatePreview = registry.requirements.find(
+    (requirement) => requirement.id === "quality.zukan.capture.immediate-preview",
+  );
+  if (!immediatePreview) throw new Error("immediate-preview requirement fixture is missing");
+  assert.match(immediatePreview.acceptance, /OSカメラ、接写カメラ、または写真ライブラリ/);
   const ownerReturn = registry.requirements.find(
     (requirement) => requirement.id === "quality.zukan.kubiaka-member-records.owner-return",
   );

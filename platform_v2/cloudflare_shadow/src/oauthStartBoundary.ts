@@ -1,7 +1,9 @@
-const PRODUCTION_ORIGIN = "https://ikimon.life";
-const STAGING_ORIGIN = "https://staging.ikimon.life";
-const PRODUCTION_HOSTS = new Set(["ikimon.life", "www.ikimon.life"]);
-const STAGING_HOSTS = new Set(["staging.ikimon.life"]);
+import {
+  PRODUCTION_PUBLIC_ORIGIN as PRODUCTION_ORIGIN,
+  PRODUCTION_PUBLIC_HOSTS as PRODUCTION_HOSTS,
+  STAGING_PUBLIC_ORIGIN as STAGING_ORIGIN,
+  STAGING_PUBLIC_HOSTS as STAGING_HOSTS,
+} from "../../src/services/trustedPublicOrigin";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 const BROWSER_OAUTH_START_PATH = /^\/auth\/oauth\/(google|twitter)\/start\/?$/u;
 const APP_OAUTH_START_PATH = /^\/app_oauth_start\.php\/?$/u;

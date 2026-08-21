@@ -1,5 +1,5 @@
 import type { FastifyRequest } from "fastify";
-import { resolveTrustedPublicOrigin } from "./trustedPublicOrigin.js";
+import { normalizeExplicitPublicOrigin, resolveTrustedPublicOrigin } from "./trustedPublicOrigin.js";
 
 type RateBucket = {
   count: number;
@@ -91,7 +91,9 @@ export function assertSameOriginRequest(request: FastifyRequest): void {
     throw sameOriginError();
   }
 
-  if (incoming.protocol !== expectedUrl.protocol || incoming.host !== expectedUrl.host) {
+  const incomingCanonical = normalizeExplicitPublicOrigin(incoming.origin) || incoming.origin;
+  const expectedCanonical = normalizeExplicitPublicOrigin(expectedUrl.origin) || expectedUrl.origin;
+  if (incomingCanonical !== expectedCanonical) {
     throw sameOriginError();
   }
 }

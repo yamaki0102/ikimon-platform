@@ -1,6 +1,27 @@
-export const PRODUCTION_PUBLIC_ORIGIN = "https://ikimon.life";
-export const STAGING_PUBLIC_ORIGIN = "https://staging.ikimon.life";
+export const PRODUCTION_PUBLIC_ORIGIN = "https://zukan.earth";
+export const STAGING_PUBLIC_ORIGIN = "https://staging.zukan.earth";
 export const RUNTIME_PUBLIC_ORIGIN_HEADER = "x-ikimon-runtime-public-origin";
+
+export const PRODUCTION_PUBLIC_HOSTS = new Set([
+  "zukan.earth",
+  "www.zukan.earth",
+  "ikimon.life",
+  "www.ikimon.life",
+]);
+
+export const STAGING_PUBLIC_HOSTS = new Set([
+  "staging.zukan.earth",
+  "staging.ikimon.life",
+]);
+
+export const LEGACY_PRODUCTION_PUBLIC_ORIGINS = Object.freeze([
+  "https://ikimon.life",
+  "https://www.ikimon.life",
+]);
+
+export const LEGACY_STAGING_PUBLIC_ORIGINS = Object.freeze([
+  "https://staging.ikimon.life",
+]);
 
 const ALLOWED_PUBLIC_ORIGINS = new Set([
   PRODUCTION_PUBLIC_ORIGIN,
@@ -8,9 +29,30 @@ const ALLOWED_PUBLIC_ORIGINS = new Set([
 ]);
 
 const PUBLIC_ORIGIN_BY_HOST = new Map([
+  ["zukan.earth", PRODUCTION_PUBLIC_ORIGIN],
+  ["www.zukan.earth", PRODUCTION_PUBLIC_ORIGIN],
+  ["staging.zukan.earth", STAGING_PUBLIC_ORIGIN],
   ["ikimon.life", PRODUCTION_PUBLIC_ORIGIN],
   ["www.ikimon.life", PRODUCTION_PUBLIC_ORIGIN],
   ["staging.ikimon.life", STAGING_PUBLIC_ORIGIN],
+]);
+
+const PUBLIC_REQUEST_ORIGIN_BY_HOST = new Map([
+  ["zukan.earth", "https://zukan.earth"],
+  ["www.zukan.earth", "https://www.zukan.earth"],
+  ["staging.zukan.earth", "https://staging.zukan.earth"],
+  ["ikimon.life", "https://ikimon.life"],
+  ["www.ikimon.life", "https://www.ikimon.life"],
+  ["staging.ikimon.life", "https://staging.ikimon.life"],
+]);
+
+const PUBLIC_ORIGIN_ALIASES = new Map([
+  [PRODUCTION_PUBLIC_ORIGIN, PRODUCTION_PUBLIC_ORIGIN],
+  ["https://www.zukan.earth", PRODUCTION_PUBLIC_ORIGIN],
+  ["https://ikimon.life", PRODUCTION_PUBLIC_ORIGIN],
+  ["https://www.ikimon.life", PRODUCTION_PUBLIC_ORIGIN],
+  [STAGING_PUBLIC_ORIGIN, STAGING_PUBLIC_ORIGIN],
+  ["https://staging.ikimon.life", STAGING_PUBLIC_ORIGIN],
 ]);
 
 const LOCAL_DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -55,13 +97,19 @@ function parsedHost(value: unknown): ParsedHost | null {
 
 export function normalizeExplicitPublicOrigin(value: unknown): string {
   const normalized = String(value ?? "").trim().replace(/\/+$/, "");
-  return ALLOWED_PUBLIC_ORIGINS.has(normalized) ? normalized : "";
+  return PUBLIC_ORIGIN_ALIASES.get(normalized) ?? "";
 }
 
 export function publicOriginFromHost(value: unknown): string {
   const parsed = parsedHost(value);
   if (!parsed || parsed.port) return "";
   return PUBLIC_ORIGIN_BY_HOST.get(parsed.hostname) ?? "";
+}
+
+export function publicRequestOriginFromHost(value: unknown): string {
+  const parsed = parsedHost(value);
+  if (!parsed || parsed.port) return "";
+  return PUBLIC_REQUEST_ORIGIN_BY_HOST.get(parsed.hostname) ?? "";
 }
 
 function localDevelopmentOrigin(request: PublicOriginRequest): string {
@@ -93,6 +141,34 @@ export function resolveTrustedPublicOrigin(
   if (explicitOrigin) return explicitOrigin;
 
   const directOrigin = publicOriginFromHost(request.headers.host);
+  if (directOrigin) return directOrigin;
+
+  if (options.allowLocalDevelopment) {
+    const localOrigin = localDevelopmentOrigin(request);
+    if (localOrigin) return localOrigin;
+    throw new Error("public_origin_untrusted");
+  }
+
+  return null;
+}
+
+/**
+ * Resolve the origin bound to the public request itself.
+ *
+ * The edge OAuth boundary must keep an allowlisted legacy host in its
+ * provider callback URI so the state cookie and callback stay on the same
+ * host. Presentation metadata uses resolveTrustedPublicOrigin instead and
+ * deliberately canonicalizes aliases to zukan.earth. This resolver therefore
+ * ignores forwarded and runtime-marker headers; the edge caller supplies only
+ * the transport-bound Host and protocol.
+ */
+export function resolveTrustedRequestOrigin(
+  request: PublicOriginRequest,
+  options: {
+    allowLocalDevelopment?: boolean;
+  } = {},
+): string | null {
+  const directOrigin = publicRequestOriginFromHost(request.headers.host);
   if (directOrigin) return directOrigin;
 
   if (options.allowLocalDevelopment) {

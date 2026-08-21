@@ -136,14 +136,14 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /<meta name="application-name" content="ZUKAN" \/>/);
   assert.match(html, /<meta name="apple-mobile-web-app-title" content="ZUKAN" \/>/);
   assert.match(html, /<meta property="og:site_name" content="ZUKAN" \/>/);
-  assert.match(html, /<meta property="og:image" content="https:\/\/ikimon\.life\/assets\/brand\/zukan-ogp-default\.png" \/>/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/zukan\.earth\/assets\/brand\/zukan-ogp-default\.png" \/>/);
   assert.match(html, /<meta property="og:image:type" content="image\/png" \/>/);
   assert.match(html, /<meta property="og:image:width" content="1200" \/>/);
   assert.match(html, /<meta property="og:image:height" content="630" \/>/);
   assert.match(html, /<meta property="og:image:alt" content="ZUKAN" \/>/);
-  assert.match(html, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/" \/>/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/" \/>/);
   assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/);
-  assert.match(html, /<meta name="twitter:image" content="https:\/\/ikimon\.life\/assets\/brand\/zukan-ogp-default\.png" \/>/);
+  assert.match(html, /<meta name="twitter:image" content="https:\/\/zukan\.earth\/assets\/brand\/zukan-ogp-default\.png" \/>/);
   assert.match(html, /<span>ZUKAN<\/span>\s*<span>皆で作る地域図鑑<\/span>/);
   assert.doesNotMatch(html, /aria-label="ikimon"|application-name" content="ikimon|apple-mobile-web-app-title" content="ikimon|og:site_name" content="ikimon|og:image:alt" content="ikimon"/i);
 });
@@ -210,7 +210,7 @@ test("language switch is user-facing while SEO stays Japanese canonical", () => 
   assert.match(html, /\.lang-switch::after/);
   assert.match(html, /\.lang-switch:hover::after,\s*\.lang-switch:focus-within::after/);
   assert.match(html, /aria-current="true"/);
-  assert.match(head, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/" \/>/);
+  assert.match(head, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/" \/>/);
   assert.match(head, /<meta name="robots" content="noindex,follow" \/>/);
   assert.match(head, /hreflang="ja"/);
   assert.match(head, /hreflang="x-default"/);

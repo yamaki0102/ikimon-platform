@@ -565,7 +565,7 @@ async function handleOAuthCallback(
       appUrl.searchParams.set("user_id", user.userId);
       appUrl.searchParams.set("name", user.displayName);
       if (user.email) appUrl.searchParams.set("email", user.email);
-      appUrl.searchParams.set("message", "ikimon.life アカウントでログインしました");
+      appUrl.searchParams.set("message", "ZUKAN アカウントでログインしました");
       reply.code(303).redirect(appUrl.toString());
       return;
     }
@@ -683,7 +683,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
             displayName: exchange.displayName,
           },
           email: exchange.email,
-          message: "ikimon.life アカウントでログインしました",
+          message: "ZUKAN アカウントでログインしました",
         },
       };
     } catch (error) {

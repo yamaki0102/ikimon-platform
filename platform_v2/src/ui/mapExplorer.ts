@@ -5507,7 +5507,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!text) return false;
     try {
       var parsed = new URL(text, window.location.origin);
-      return parsed.hostname === 'ikimon.life' || /\\.ikimon\\.life$/.test(parsed.hostname);
+      return parsed.hostname === 'zukan.earth' || parsed.hostname.endsWith('.zukan.earth') || parsed.hostname === 'ikimon.life' || /\\.ikimon\\.life$/.test(parsed.hostname);
     } catch (_) {
       return /^https?:\\/\\/(?:[^/]+\\.)?ikimon\\.life(?:[/:?#]|$)/i.test(text);
     }
