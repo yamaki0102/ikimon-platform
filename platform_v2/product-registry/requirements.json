@@ -22,7 +22,7 @@
       "id": "quality.zukan.capture.immediate-preview",
       "quality_contract": "quality.zukan.capture",
       "title": "撮影直後のローカル確認",
-      "acceptance": "OSカメラまたは写真ライブラリから画像を取得した直後、upload完了を待たずに本人が画像を確認し、撮り直し・削除・続行を選べる",
+      "acceptance": "OSカメラ、接写カメラ、または写真ライブラリから画像を取得した直後、upload完了を待たずに本人が画像を確認し、撮り直し・削除・続行を選べる",
       "environments": ["source", "staging"],
       "evidence_lanes": ["machine", "human"],
       "verification_levels": ["contract", "source", "staging", "human"],
