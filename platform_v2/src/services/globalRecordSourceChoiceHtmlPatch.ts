@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { registerMaterializationInjectPatch } from "./lightPostingHtmlPatch.js";
 
 type SourceChoiceLang = "ja" | "en" | "es" | "pt-BR";
 
@@ -60,6 +61,7 @@ const DIRECT_POST_METADATA_GUARD_WITH_GALLERY_HANDOFF = `    const metadata = ca
     }
     if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {`;
 const GALLERY_LISTENER = `  document.querySelectorAll('[data-global-record-gallery-select]').forEach((button) => {`;
+const SOURCE_CHOICE_INJECT_PATCH_FLAG = "__ikimonGlobalRecordSourceChoiceInjectPatched";
 
 const SOURCE_LABELS: Record<SourceChoiceLang, { native: string }> = {
   ja: { native: "標準カメラ" },
@@ -124,6 +126,12 @@ export function patchGlobalRecordSourceChoiceHtml(html: string): string {
 }
 
 export function registerGlobalRecordSourceChoiceHtmlPatch(app: FastifyInstance): void {
+  registerMaterializationInjectPatch(
+    app,
+    (html) => patchGlobalRecordSourceChoiceHtml(html),
+    SOURCE_CHOICE_INJECT_PATCH_FLAG,
+  );
+
   app.addHook("onSend", (_request, reply, payload, done) => {
     const contentType = String(reply.getHeader("content-type") ?? "").toLowerCase();
     if (!contentType.includes("text/html")) {

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import Fastify from "fastify";
 import { renderSiteDocument } from "../ui/siteShell.js";
-import { patchGlobalRecordSourceChoiceHtml } from "./globalRecordSourceChoiceHtmlPatch.js";
+import { patchGlobalRecordSourceChoiceHtml, registerGlobalRecordSourceChoiceHtmlPatch } from "./globalRecordSourceChoiceHtmlPatch.js";
 
 function shellFixture(lang = "ja"): string {
   return `<html lang="${lang}">
@@ -119,6 +120,29 @@ test("source choice patch is idempotent", () => {
   assert.equal(patchGlobalRecordSourceChoiceHtml(once), once);
   assert.equal((once.match(/data-global-record-os-camera/g) ?? []).length, 2, "button and listener selector only");
   assert.equal((once.match(/capture="environment"/g) ?? []).length, 1);
+});
+
+test("source choice patch reaches the root route materialization", async () => {
+  const app = Fastify();
+  const rootHtml = renderSiteDocument({
+    basePath: "",
+    title: "ZUKAN root source choice contract",
+    body: "<main>fixture</main>",
+    lang: "ja",
+    currentPath: "/",
+  });
+  app.get("/", async (_request, reply) => reply.type("text/html").send(rootHtml));
+  registerGlobalRecordSourceChoiceHtmlPatch(app);
+
+  try {
+    const root = await app.inject({ method: "GET", url: "/" });
+    assert.equal(root.statusCode, 200);
+    assert.match(root.body, /data-global-record-input="photo"[^>]*capture="environment"/);
+    assert.match(root.body, /data-global-record-os-camera>標準カメラ<\/button>/);
+    assert.match(root.body, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
+  } finally {
+    await app.close();
+  }
 });
 
 test("source choice patch leaves pages without the global camera sheet unchanged", () => {
