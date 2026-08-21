@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import Fastify from "fastify";
 import { renderSiteDocument } from "../ui/siteShell.js";
-import { patchGlobalRecordPreviewDraftHtml } from "./globalRecordPreviewDraftHtmlPatch.js";
+import { patchGlobalRecordPreviewDraftHtml, registerGlobalRecordPreviewDraftHtmlPatch } from "./globalRecordPreviewDraftHtmlPatch.js";
 
 function realShell(): string {
   return renderSiteDocument({
@@ -68,4 +69,20 @@ test("preview draft patch is idempotent and leaves unrelated HTML unchanged", ()
 
   const unrelated = '<html lang="ja"><body><main>plain page</main></body></html>';
   assert.equal(patchGlobalRecordPreviewDraftHtml(unrelated), unrelated);
+});
+
+test("preview draft patch reaches the root route materialization", async () => {
+  const app = Fastify();
+  const rootHtml = realShell();
+  app.get("/", async (_request, reply) => reply.type("text/html").send(rootHtml));
+  registerGlobalRecordPreviewDraftHtmlPatch(app);
+
+  try {
+    const root = await app.inject({ method: "GET", url: "/" });
+    assert.equal(root.statusCode, 200);
+    assert.match(root.body, /ikimonRecordPreviewDraftV1/);
+    assert.match(root.body, /void persistPhotoPreviewDraft\(files\)/);
+  } finally {
+    await app.close();
+  }
 });

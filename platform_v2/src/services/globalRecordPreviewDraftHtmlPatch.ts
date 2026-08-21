@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { registerMaterializationInjectPatch } from "./lightPostingHtmlPatch.js";
 
 const SYNC_ANCHOR = `  const syncPhotoDraftControls = (message) => {
     const files = selectedPhotoDraftFiles();
@@ -143,6 +144,7 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
   window.addEventListener('pageshow', () => { void restorePhotoPreviewDraft(); }, { once: true });
   window.addEventListener('online', () => { void restorePhotoPreviewDraft(); });
 `;
+const PREVIEW_DRAFT_INJECT_PATCH_FLAG = "__ikimonGlobalRecordPreviewDraftInjectPatched";
 
 export function patchGlobalRecordPreviewDraftHtml(html: string): string {
   if (!html.includes("data-global-record-camera-sheet")) return html;
@@ -158,6 +160,12 @@ export function patchGlobalRecordPreviewDraftHtml(html: string): string {
 }
 
 export function registerGlobalRecordPreviewDraftHtmlPatch(app: FastifyInstance): void {
+  registerMaterializationInjectPatch(
+    app,
+    (html) => patchGlobalRecordPreviewDraftHtml(html),
+    PREVIEW_DRAFT_INJECT_PATCH_FLAG,
+  );
+
   app.addHook("onSend", (_request, reply, payload, done) => {
     const contentType = String(reply.getHeader("content-type") ?? "").toLowerCase();
     if (!contentType.includes("text/html")) {
