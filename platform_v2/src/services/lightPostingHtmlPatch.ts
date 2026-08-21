@@ -58,6 +58,8 @@ type MutableInjectResponse = {
   rawPayload?: unknown;
 };
 
+type MaterializationHtmlPatch = (html: string, urlValue: string) => string;
+
 function removePassiveIdentificationPressure(html: string): string {
   return html
     .replace(/\s*<div class="obs-card-species[^"]*\bis-awaiting\b[^"]*">[\s\S]*?<\/div>/g, "")
@@ -116,15 +118,13 @@ function setMutableResponseValue(response: MutableInjectResponse, key: "body" | 
   }
 }
 
-function patchInjectedHtmlResponse(value: unknown, urlValue: string): unknown {
+function patchInjectedHtmlResponse(value: unknown, urlValue: string, patchHtml: MaterializationHtmlPatch): unknown {
   if (!value || typeof value !== "object") return value;
   const response = value as MutableInjectResponse;
   const contentType = String(response.headers?.["content-type"] ?? response.headers?.["Content-Type"] ?? "").toLowerCase();
   if (!contentType.includes("text/html") || typeof response.body !== "string") return value;
 
-  const patched = patchLightPostingHtml(response.body, {
-    suppressPassiveIdentification: shouldSuppressPassiveIdentification(urlValue),
-  });
+  const patched = patchHtml(response.body, urlValue);
   if (patched === response.body) return value;
 
   const rawPayload = Buffer.from(patched, "utf8");
@@ -137,10 +137,14 @@ function patchInjectedHtmlResponse(value: unknown, urlValue: string): unknown {
   return value;
 }
 
-function registerMaterializationInjectPatch(app: FastifyInstance): void {
+export function registerMaterializationInjectPatch(
+  app: FastifyInstance,
+  patchHtml: MaterializationHtmlPatch,
+  patchFlag: string,
+): void {
   const patchableApp = app as FastifyInstance & Record<string, unknown>;
-  if (patchableApp[INJECT_PATCH_FLAG]) return;
-  patchableApp[INJECT_PATCH_FLAG] = true;
+  if (patchableApp[patchFlag]) return;
+  patchableApp[patchFlag] = true;
 
   const originalInject = app.inject.bind(app) as (...args: unknown[]) => unknown;
   const wrappedInject = (...args: unknown[]): unknown => {
@@ -153,14 +157,14 @@ function registerMaterializationInjectPatch(app: FastifyInstance): void {
       const callbackArgs = [...args];
       callbackArgs[callbackIndex] = (error: unknown, response: unknown) => callback(
         error,
-        error ? response : patchInjectedHtmlResponse(response, urlValue),
+        error ? response : patchInjectedHtmlResponse(response, urlValue, patchHtml),
       );
       return originalInject(...callbackArgs);
     }
 
     const result = originalInject(...args);
     if (result && typeof result === "object" && "then" in result && typeof (result as { then?: unknown }).then === "function") {
-      return (result as Promise<unknown>).then((response) => patchInjectedHtmlResponse(response, urlValue));
+      return (result as Promise<unknown>).then((response) => patchInjectedHtmlResponse(response, urlValue, patchHtml));
     }
     return result;
   };
@@ -194,7 +198,13 @@ export function registerLightPostingHtmlPatch(app: FastifyInstance): void {
   // therefore cannot retroactively attach to it. Production HTML is materialized via
   // app.inject(), so patch that path as well while keeping the normal onSend hook for
   // routes registered after this function.
-  registerMaterializationInjectPatch(app);
+  registerMaterializationInjectPatch(
+    app,
+    (html, urlValue) => patchLightPostingHtml(html, {
+      suppressPassiveIdentification: shouldSuppressPassiveIdentification(urlValue),
+    }),
+    INJECT_PATCH_FLAG,
+  );
 
   app.addHook("onSend", (request, reply, payload, done) => {
     const contentType = String(reply.getHeader("content-type") ?? "").toLowerCase();
