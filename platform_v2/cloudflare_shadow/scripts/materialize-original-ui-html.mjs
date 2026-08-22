@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PRODUCTION_PUBLIC_ORIGIN } from "../../src/services/trustedPublicOrigin.ts";
 
 const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
@@ -11,7 +12,7 @@ const productionBucket = "ikimon-prod-media";
 const stagingBucket = "ikimon-shadow-media";
 const materializeManifestSchemaVersion = "original-ui-materialize/v1";
 const uploadCacheControl = "no-store";
-const canonicalOrigin = "https://ikimon.life";
+const canonicalOrigin = PRODUCTION_PUBLIC_ORIGIN;
 const canonicalRenderHeaders = {
   accept: "*/*",
   "cache-control": "no-store",
