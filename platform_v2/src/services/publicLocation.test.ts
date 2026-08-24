@@ -113,6 +113,47 @@ test("buildPublicLocationSummary keeps label but drops geometry when coordinates
   assert.equal(summary.centroidLng, null);
 });
 
+test("buildPublicLocationSummary accepts coordinate range boundaries", () => {
+  for (const coordinates of [
+    { latitude: -90, longitude: -180 },
+    { latitude: 90, longitude: 180 },
+  ]) {
+    const summary = buildPublicLocationSummary({
+      municipality: "境界地点",
+      prefecture: "境界県",
+      ...coordinates,
+    });
+
+    assert.equal(summary.label, "境界地点");
+    assert.ok(summary.cellId);
+    assert.ok(typeof summary.centroidLat === "number");
+    assert.ok(typeof summary.centroidLng === "number");
+  }
+});
+
+test("buildPublicLocationSummary drops cell and geometry for out-of-range coordinates", () => {
+  for (const coordinates of [
+    { latitude: -90.000001, longitude: 0 },
+    { latitude: 90.000001, longitude: 0 },
+    { latitude: 0, longitude: -180.000001 },
+    { latitude: 0, longitude: 180.000001 },
+  ]) {
+    const summary = buildPublicLocationSummary({
+      municipality: "浜松市",
+      prefecture: "静岡県",
+      ...coordinates,
+    });
+
+    assert.equal(summary.label, "浜松市");
+    assert.equal(summary.scope, "municipality");
+    assert.equal(summary.cellId, null);
+    assert.equal(summary.gridM, null);
+    assert.equal(summary.radiusM, null);
+    assert.equal(summary.centroidLat, null);
+    assert.equal(summary.centroidLng, null);
+  }
+});
+
 test("buildPublicLocationSummary infers Okinawa prefecture from coordinates when locality is missing", () => {
   const summary = buildPublicLocationSummary({
     latitude: 26.2124,

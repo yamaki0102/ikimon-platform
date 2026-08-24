@@ -276,8 +276,8 @@ export function buildPublicLocationSummary(input: PublicLocalityInput & {
   gridM?: number;
 }): PublicLocationSummary {
   const locality = resolvePublicLocalityLabel(input);
-  const latitude = typeof input.latitude === "number" && Number.isFinite(input.latitude) ? input.latitude : null;
-  const longitude = typeof input.longitude === "number" && Number.isFinite(input.longitude) ? input.longitude : null;
+  const latitude = isFiniteLatitude(input.latitude) ? input.latitude : null;
+  const longitude = isFiniteLongitude(input.longitude) ? input.longitude : null;
 
   if (latitude === null || longitude === null) {
     return {
