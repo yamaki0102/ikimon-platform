@@ -82,6 +82,9 @@ const SPOT_TYPES: ReadonlySet<string> = new Set(Object.keys(AREA_SPOT_TYPE_LABEL
 export const AREA_SPOT_PUBLIC_COORDINATE_GRID_M = 500;
 export const AREA_SPOT_MIN_PUBLIC_RECORDS = 5;
 export const AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS = 3;
+const PUBLIC_SPOT_PRECISIONS: ReadonlySet<string> = new Set(["site", "mesh", "municipality"]);
+const PUBLIC_SPOT_LOCATION_PRIVACY: ReadonlySet<string> = new Set(["public", "coarse"]);
+const PUBLIC_SPOT_RISK_LANES: ReadonlySet<string> = new Set(["normal"]);
 const GUIDE_TEMPLATE_KEYS: ReadonlySet<string> = new Set([
   "basic_park",
   "seasonal_entry",
@@ -232,9 +235,9 @@ function safePublicSpotCoordinates(input: {
   if (!isFiniteLatitude(input.lat) || !isFiniteLongitude(input.lng)) return null;
   if (input.publicRecordCount < AREA_SPOT_MIN_PUBLIC_RECORDS) return null;
   if (input.publicContributorCount < AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS) return null;
-  if (input.riskLane === "rare_sensitive" || input.riskLane === "sensitive") return null;
-  if (input.locationPrivacy === "private" || input.locationPrivacy === "hidden") return null;
-  if (input.publicPrecision === "hidden" || input.publicPrecision === "exact_private") return null;
+  if (!PUBLIC_SPOT_PRECISIONS.has(input.publicPrecision)) return null;
+  if (!PUBLIC_SPOT_LOCATION_PRIVACY.has(input.locationPrivacy)) return null;
+  if (!PUBLIC_SPOT_RISK_LANES.has(input.riskLane)) return null;
 
   const coarsened = coarsenPublicCoordinateToCell(input.lat, input.lng, AREA_SPOT_PUBLIC_COORDINATE_GRID_M);
   return coarsened ? { lat: coarsened.lat, lng: coarsened.lng } : null;

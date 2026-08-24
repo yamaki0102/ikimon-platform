@@ -23,6 +23,9 @@ test("area encyclopedia payload normalizes optional P0 data safely", () => {
           lng: "137.600456",
           public_record_count: AREA_SPOT_MIN_PUBLIC_RECORDS,
           public_contributor_count: AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS,
+          public_precision: "municipality",
+          location_privacy: "public",
+          risk_lane: "normal",
         },
         { id: "bad-type", name: "使わない", type: "ranking" },
         { id: "", name: "使わない", type: "food" },
@@ -116,6 +119,9 @@ test("area encyclopedia spot coordinates require k-anonymity and coarsening", ()
           lng: 137.750456,
           public_record_count: AREA_SPOT_MIN_PUBLIC_RECORDS,
           public_contributor_count: AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS,
+          public_precision: "mesh",
+          location_privacy: "coarse",
+          risk_lane: "normal",
         },
       ],
     },
@@ -127,6 +133,35 @@ test("area encyclopedia spot coordinates require k-anonymity and coarsening", ()
   assert.equal(AREA_SPOT_PUBLIC_COORDINATE_GRID_M, 500);
   assert.notEqual(publicSpots[0]?.lat, 34.750123);
   assert.notEqual(publicSpots[0]?.lng, 137.750456);
+});
+
+test("area encyclopedia spot coordinates fail closed without explicit public safety metadata", () => {
+  const metadataCases = [
+    {},
+    { location_privacy: "public", risk_lane: "normal" },
+    { public_precision: "municipality", risk_lane: "normal" },
+    { public_precision: "municipality", location_privacy: "public" },
+    { public_precision: "unrecognized", location_privacy: "public", risk_lane: "normal" },
+    { public_precision: "municipality", location_privacy: "unrecognized", risk_lane: "normal" },
+    { public_precision: "municipality", location_privacy: "public", risk_lane: "unrecognized" },
+  ];
+  const payload = normalizeAreaEncyclopediaPayload({
+    area_encyclopedia: {
+      spots: metadataCases.map((metadata, index) => ({
+        id: `unsafe-${index}`,
+        name: `公開制御不足${index}`,
+        type: "observation_point",
+        lat: 34.76 + index / 100,
+        lng: 137.76 + index / 100,
+        public_record_count: AREA_SPOT_MIN_PUBLIC_RECORDS,
+        public_contributor_count: AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS,
+        ...metadata,
+      })),
+    },
+  });
+
+  assert.deepEqual(payload.spots.filter(spotHasPublicCoordinates).map((spot) => spot.id), []);
+  assert.deepEqual(payload.spots.map((spot) => ({ lat: spot.lat, lng: spot.lng })), metadataCases.map(() => ({ lat: null, lng: null })));
 });
 
 test("area encyclopedia payload stays empty when the extension data is absent", () => {
