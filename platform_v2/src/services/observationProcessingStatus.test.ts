@@ -37,6 +37,37 @@ test("processing status distinguishes saved media and an AI candidate", () => {
   assert.match(status.action?.href ?? "", /#identify$/);
 });
 
+test("completed identification takes precedence over a stale candidate count", () => {
+  for (const aiAssessmentStatus of ["ai_judgement", "candidate_ready"]) {
+    const status = deriveObservationProcessingStatus({
+      ...baseFacts,
+      candidateCount: 3,
+      identificationCount: 1,
+      aiAssessmentStatus,
+    });
+
+    assert.equal(status.aiState, "completed", aiAssessmentStatus);
+    assert.equal(status.action, null, aiAssessmentStatus);
+    assert.doesNotMatch(status.message, /候補を確認できます/);
+  }
+});
+
+test("completed assessment takes precedence over contradictory candidate signals", () => {
+  const completedAssessments = ["completed", "identified", "accepted", "reviewed"];
+
+  for (const aiAssessmentStatus of completedAssessments) {
+    const status = deriveObservationProcessingStatus({
+      ...baseFacts,
+      candidateCount: 2,
+      identificationCount: 0,
+      aiAssessmentStatus,
+    });
+
+    assert.equal(status.aiState, "completed", aiAssessmentStatus);
+    assert.equal(status.action, null, aiAssessmentStatus);
+  }
+});
+
 test("processing status does not claim AI completion when the provider is unavailable", () => {
   const status = deriveObservationProcessingStatus({
     ...baseFacts,

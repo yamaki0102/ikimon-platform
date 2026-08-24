@@ -73,10 +73,10 @@ export function deriveObservationProcessingStatus(facts: ObservationProcessingFa
   }
 
   let aiState: ObservationAiProcessingState;
-  if (facts.candidateCount > 0 || assessment === "ai_judgement" || assessment === "candidate_ready") {
-    aiState = "candidate_ready";
-  } else if (facts.identificationCount > 0 || isCompletedStatus(assessment)) {
+  if (facts.identificationCount > 0 || isCompletedStatus(assessment)) {
     aiState = "completed";
+  } else if (facts.candidateCount > 0 || assessment === "ai_judgement" || assessment === "candidate_ready") {
+    aiState = "candidate_ready";
   } else if (isFailedStatus(requestStatus) || isFailedStatus(assessment)) {
     aiState = "failed_retryable";
   } else if (isRunningStatus(requestStatus) || isRunningStatus(assessment)) {
