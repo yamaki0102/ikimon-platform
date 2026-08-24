@@ -69,6 +69,60 @@ class SqliteD1Database implements FoundationD1Database {
   }
 }
 
+class ReceiptReadBarrierStatement implements FoundationD1PreparedStatement {
+  constructor(
+    private readonly statement: FoundationD1PreparedStatement,
+    private readonly waitForReaders: () => Promise<void>,
+  ) {}
+
+  bind(...values: SqliteValue[]): ReceiptReadBarrierStatement {
+    this.statement.bind(...values);
+    return this;
+  }
+
+  async first<T>(): Promise<T | null> {
+    await this.waitForReaders();
+    return this.statement.first<T>();
+  }
+
+  all<T>(): Promise<{ results: T[] }> {
+    return this.statement.all<T>();
+  }
+
+  run(): Promise<unknown> {
+    return this.statement.run();
+  }
+}
+
+class ConcurrentReceiptReadDatabase implements FoundationD1Database {
+  private readers = 0;
+  private releaseReaders!: () => void;
+  private readonly readersReleased = new Promise<void>((resolve) => {
+    this.releaseReaders = resolve;
+  });
+
+  constructor(private readonly database: FoundationD1Database) {}
+
+  prepare(query: string): FoundationD1PreparedStatement {
+    const statement = this.database.prepare(query);
+    if (
+      query.includes("SELECT tenant_id, operation, payload_sha256")
+      && query.includes("FROM zukan_foundation_v2_write_receipts")
+    ) {
+      return new ReceiptReadBarrierStatement(statement, async () => {
+        this.readers += 1;
+        if (this.readers === 2) this.releaseReaders();
+        await this.readersReleased;
+      });
+    }
+    return statement;
+  }
+
+  batch(statements: FoundationD1PreparedStatement[]): Promise<unknown[]> {
+    return this.database.batch(statements);
+  }
+}
+
 function createDatabase(): SqliteD1Database {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys = ON");
@@ -225,6 +279,98 @@ test("D1 adapter applies one atomic bounded import and replays without duplicate
     ).get() as { availability_status: string }).availability_status,
     "available",
   );
+  database.sqlite.close();
+});
+
+test("D1 adapter closes the ZUK-019 concurrent replay race and rejects key reuse", async () => {
+  const source = REGIONAL_SOURCE_ASSETS[0];
+  assert.ok(source);
+  const plan = planRegionalSourceFoundationImport({
+    tenantId: "tenant-a",
+    sourceAssets: [source],
+  });
+  const batch = withVerifiedContent(plan);
+  const database = createDatabase();
+  const repository = new ZukanFoundationV2D1Repository(
+    new ConcurrentReceiptReadDatabase(database),
+  );
+  const idempotencyKey = "regional-source:run-zuk-019-race";
+  const policy = {
+    enabled: true,
+    killSwitch: false,
+    allowedTenants: ["tenant-a", "tenant-b"],
+    allowedOperations: ["source_registry_import_v1"] as const,
+    maxEntities: 16,
+  };
+  const request = { batch, idempotencyKey, policy };
+
+  const outcomes = await Promise.all([
+    repository.applySourceImport(request),
+    repository.applySourceImport(request),
+  ]);
+  assert.deepEqual(outcomes.map((outcome) => outcome.status).sort(), [
+    "replayed",
+    "succeeded",
+  ]);
+  assert.equal(
+    (database.sqlite.prepare(
+      "SELECT count(*) AS count FROM zukan_foundation_v2_write_receipts",
+    ).get() as { count: number }).count,
+    1,
+  );
+
+  const writeTables = [
+    "zukan_foundation_v2_write_receipts",
+    "zukan_subject_identities",
+    "zukan_source_works",
+    "zukan_source_editions",
+    "zukan_content_fixity_events",
+    "zukan_content_objects",
+    "zukan_public_identifiers",
+  ];
+  const countsBeforeKeyReuse = new Map(
+    writeTables.map((table) => [
+      table,
+      (database.sqlite.prepare(`SELECT count(*) AS count FROM ${table}`).get() as { count: number }).count,
+    ]),
+  );
+
+  const otherTenantBatch = withVerifiedContent(planRegionalSourceFoundationImport({
+    tenantId: "tenant-b",
+    sourceAssets: [source],
+  }));
+  await assert.rejects(
+    repository.applySourceImport({
+      batch: otherTenantBatch,
+      idempotencyKey,
+      policy: { ...policy, allowedTenants: ["tenant-b"] },
+    }),
+    /foundation_idempotency_key_payload_mismatch/,
+  );
+
+  const anotherPayloadWithoutDigest = {
+    ...batch,
+    subjects: batch.subjects.map((subject, index) => index === 0
+      ? { ...subject, metadataJson: '{"changed":true}' }
+      : subject),
+  };
+  const anotherPayload = {
+    ...anotherPayloadWithoutDigest,
+    payloadSha256: createHash("sha256")
+      .update(canonicalFoundationJson(foundationSourceImportPayloadForDigest(anotherPayloadWithoutDigest)))
+      .digest("hex"),
+  };
+  await assert.rejects(
+    repository.applySourceImport({ batch: anotherPayload, idempotencyKey, policy }),
+    /foundation_idempotency_key_payload_mismatch/,
+  );
+  for (const table of writeTables) {
+    assert.equal(
+      (database.sqlite.prepare(`SELECT count(*) AS count FROM ${table}`).get() as { count: number }).count,
+      countsBeforeKeyReuse.get(table),
+      `unexpected write in ${table}`,
+    );
+  }
   database.sqlite.close();
 });
 
