@@ -15,6 +15,9 @@ test("original UI materializer pins discovery documents to the public canonical 
 
   assert.match(materializer, /"\/llms\.txt"/);
   assert.match(materializer, /"\/llms-full\.txt"/);
+  assert.match(materializer, /import \{ PRODUCTION_PUBLIC_ORIGIN \} from "\.\.\/\.\.\/src\/services\/trustedPublicOrigin\.ts"/);
+  assert.match(materializer, /const canonicalOrigin = PRODUCTION_PUBLIC_ORIGIN/);
+  assert.equal(materializer.includes('const canonicalOrigin = "https://ikimon.life"'), false);
   assert.match(materializer, /"x-forwarded-host":\s*"ikimon\.life"/);
   assert.match(materializer, /"x-forwarded-proto":\s*"https"/);
   assert.match(materializer, /renderStaticAsset\(app, pathname\)/);
