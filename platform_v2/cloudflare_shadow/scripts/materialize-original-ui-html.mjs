@@ -31,7 +31,8 @@ const allowedArgs = new Set([
   "--skip-if-unchanged",
   "--manifest-key",
   "--phase-result",
-  "--direct-staging-r2"
+  "--direct-staging-r2",
+  "--direct-production-r2"
 ]);
 const args = new Map();
 const explicitPaths = [];
@@ -64,6 +65,8 @@ const emitPhaseResult = args.get("--phase-result") === "true";
 const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 8);
 const skipIfUnchanged = args.get("--skip-if-unchanged") === "true";
 const directStagingR2 = args.get("--direct-staging-r2") === "true";
+const directProductionR2 = args.get("--direct-production-r2") === "true";
+const directR2 = directStagingR2 || directProductionR2;
 const checkpointInterval = 25;
 const materializationJobId = String(process.env.IKIMON_OPS_JOB_ID || "");
 const materializationSourceSha = String(process.env.IKIMON_EXPECTED_GIT_SHA || "");
@@ -104,14 +107,22 @@ if (execute && targetEnv === "staging" && approval !== stagingApproval) {
 if (directStagingR2 && (targetEnv !== "staging" || bucket !== stagingBucket)) {
   throw new Error("--direct-staging-r2 is restricted to the fixed staging bucket.");
 }
+if (directProductionR2 && (targetEnv !== "production" || bucket !== productionBucket)) {
+  throw new Error("--direct-production-r2 is restricted to the fixed production bucket.");
+}
+if (directStagingR2 && directProductionR2) {
+  throw new Error("Only one direct R2 transport may be selected.");
+}
 
 const scriptDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const workerSourcePath = join(scriptDir, "..", "src", "index.ts");
-if (execute && directStagingR2) {
+if (execute && directR2) {
   const currentHead = execFileSync("git", ["-C", repoRoot, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   if (!/^[a-f0-9]{40}$/u.test(materializationSourceSha) || materializationSourceSha !== currentHead) {
-    throw new Error("direct_staging_materialization_exact_sha_mismatch");
+    throw new Error(targetEnv === "production"
+      ? "direct_production_materialization_exact_sha_mismatch"
+      : "direct_staging_materialization_exact_sha_mismatch");
   }
 }
 const events = [];
@@ -447,9 +458,9 @@ async function gatewayRequest(payload) {
   throw lastError;
 }
 
-function wranglerR2Put(key, filePath, contentType) {
+function wranglerR2Put(bucketName, key, filePath, contentType) {
   const wranglerCliPath = join(scriptDir, "..", "node_modules", "wrangler", "bin", "wrangler.js");
-  const objectPath = `${stagingBucket}/${normalizeR2ObjectKey(key)}`;
+  const objectPath = `${bucketName}/${normalizeR2ObjectKey(key)}`;
   const commandArgs = [
     wranglerCliPath,
     "r2",
@@ -486,11 +497,11 @@ function wranglerR2Put(key, filePath, contentType) {
   });
 }
 
-async function directStagingR2Sync(allItems, tempDirPath) {
+async function directR2Sync(allItems, tempDirPath, bucketName) {
   const versionPrefix = `original-ui/versions/${bundleHash}`;
   await runPool(allItems, concurrency, async (item) => {
     const relativeKey = item.key.replace(/^original-ui\//, "");
-    await wranglerR2Put(`${versionPrefix}/${relativeKey}`, item.filePath, item.contentType);
+    await wranglerR2Put(bucketName, `${versionPrefix}/${relativeKey}`, item.filePath, item.contentType);
     uploadSummary.updated += 1;
   });
 
@@ -511,17 +522,19 @@ async function directStagingR2Sync(allItems, tempDirPath) {
   const manifestPayload = `${JSON.stringify(manifest, null, 2)}\n`;
   const manifestPath = join(tempDirPath, "materialize-manifest.json");
   await writeFile(manifestPath, manifestPayload, "utf8");
-  await wranglerR2Put(`${versionPrefix}/manifest.json`, manifestPath, "application/json");
-  await wranglerR2Put(manifestKey, manifestPath, "application/json");
+  await wranglerR2Put(bucketName, `${versionPrefix}/manifest.json`, manifestPath, "application/json");
+  await wranglerR2Put(bucketName, manifestKey, manifestPath, "application/json");
 
-  const pointerKey = "original-ui/current/staging.json";
-  const pointerPath = join(tempDirPath, "current-staging.json");
+  const pointerKey = targetEnv === "production"
+    ? "original-ui/current/production.json"
+    : "original-ui/current/staging.json";
+  const pointerPath = join(tempDirPath, `current-${targetEnv}.json`);
   await writeFile(pointerPath, `${JSON.stringify({
     manifest_hash: bundleHash,
     version_prefix: versionPrefix,
     source_sha: materializationSourceSha
   }, null, 2)}\n`, "utf8");
-  await wranglerR2Put(pointerKey, pointerPath, "application/json");
+  await wranglerR2Put(bucketName, pointerKey, pointerPath, "application/json");
 
   return {
     ok: true,
@@ -677,9 +690,9 @@ try {
   if (execute) {
     const uploadStartedAt = Date.now();
     const allItems = [...rendered, ...renderedStatic];
-    if (directStagingR2) {
-      manifestUpload = await directStagingR2Sync(allItems, tempDir);
-      skipReason = "direct_staging_r2";
+    if (directR2) {
+      manifestUpload = await directR2Sync(allItems, tempDir, bucket);
+      skipReason = `direct_${targetEnv}_r2`;
     } else {
       const state = await gatewayRequest({ op: "state" });
       previousManifestSummary = {
@@ -751,7 +764,7 @@ try {
     }
     uploadSummary.durationMs = Date.now() - uploadStartedAt;
     events.push({
-      command: `${directStagingR2 ? "direct staging wrangler r2" : "signed r2 gateway"} sync objects=${bundleEntries.length} concurrency=${concurrency}`,
+      command: `${directR2 ? `direct ${targetEnv} wrangler r2` : "signed r2 gateway"} sync objects=${bundleEntries.length} concurrency=${concurrency}`,
       exitCode: 0,
       durationMs: uploadSummary.durationMs,
       ...uploadSummary
@@ -770,7 +783,7 @@ const result = {
   bucket,
   targetEnv,
   scope,
-  transport: directStagingR2 ? "wrangler-r2" : "signed-gateway",
+  transport: directR2 ? "wrangler-r2" : "signed-gateway",
   concurrency,
   skipIfUnchanged,
   manifestKey,
