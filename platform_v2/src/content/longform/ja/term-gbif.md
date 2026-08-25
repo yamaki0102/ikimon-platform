@@ -10,9 +10,9 @@ GBIF は Global Biodiversity Information Facility の略称です。世界中の
 
 ただし、GBIF に載ることは、すべての記録が完全に正しいことを意味しません。データの品質、同定、位置精度、ライセンスはそれぞれ確認が必要です。
 
-## ikimon.lifeでの扱い
+## ZUKANでの扱い
 
-ikimon.life では、GBIF へ接続し得る標準的なデータの考え方を重視します。外部公開するときは、Darwin Core、DwC-A、Evidence Tier、位置情報の安全性を合わせて見るべきだと考えています。
+ZUKAN では、GBIF へ接続し得る標準的なデータの考え方を重視します。外部公開するときは、Darwin Core、DwC-A、Evidence Tier、位置情報の安全性を合わせて見るべきだと考えています。
 
 ## 関連ページ
 

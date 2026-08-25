@@ -918,7 +918,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
     title: { ja: "社会実装と影響", en: "Impact" },
-    summary: { ja: "ikimon.life がどの段階で地域・企業・自治体の行動につながるかを、言いすぎず整理する。", en: "How ikimon.life can support local and business action without overclaiming." },
+    summary: { ja: "ZUKAN がどの段階で地域・企業・自治体の行動につながるかを、言いすぎず整理する。", en: "How ZUKAN can support local and business action without overclaiming." },
     marketing: { pageKey: "impact" },
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "小さな観察を、次の行動の材料へ" }, readySelector: "body", screenshot: { baselineName: "registry-impact" } },
   },

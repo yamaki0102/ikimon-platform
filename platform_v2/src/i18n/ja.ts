@@ -4,7 +4,7 @@ import { getObservationEventStrings } from "./observationEventStrings.js";
 
 export const ja: PartialAppStrings = {
   landing: {
-    title: "ikimon | 生きものを手がかりに、この場所の今を残す",
+    title: "ZUKAN | 生きものを手がかりに、この場所の今を残す",
     heroEyebrow: "Enjoy Life",
     heroHeading: "生きものを手がかりに、<br><span class=\"hero-emphasis\">この場所の今を残す。</span>",
     heroHeadingPlain: "生きものを手がかりに、この場所の今を残す。",

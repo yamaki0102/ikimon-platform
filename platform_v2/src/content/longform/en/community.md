@@ -1,6 +1,6 @@
 # Community entry
 
-ikimon starts with observations that one person can make alone. Looking at the same place with others adds another layer: differences that one person may miss become easier to notice and revisit.
+ZUKAN starts with observations that one person can make alone. Looking at the same place with others adds another layer: differences that one person may miss become easier to notice and revisit.
 
 ## What belongs here
 

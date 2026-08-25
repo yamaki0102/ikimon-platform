@@ -10,6 +10,6 @@
 
 ## モニタリングでの意味
 
-BioMonWeek 2026 が扱うような生物多様性モニタリングでは、最初に測った状態があとから重要になります。ikimon.life でも、地域の記録を継続して見るなら、初年度や初回調査をベースラインとして扱うべきだと考えています。
+BioMonWeek 2026 が扱うような生物多様性モニタリングでは、最初に測った状態があとから重要になります。ZUKAN でも、地域の記録を継続して見るなら、初年度や初回調査をベースラインとして扱うべきだと考えています。
 
 関連: [BioMonWeek](/learn/terms/biomonweek), [定点観察](/learn/terms/fixed-point-observation), [観察努力量](/learn/terms/sampling-effort)
