@@ -28611,7 +28611,11 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       return current;
     };
     const replayExistingIdempotency = async (existing: LegacyObservationIdempotencyRow): Promise<Response> => {
-      const occurrenceId = normalizeOptionalId(existing.occurrence_id) ?? `occ:${existing.visit_id}:0`;
+      const visitId = normalizeOptionalId(existing.visit_id);
+      if (!visitId) {
+        return json({ ok: false, error: "duplicate_submission_in_progress" }, 409);
+      }
+      const occurrenceId = normalizeOptionalId(existing.occurrence_id) ?? `occ:${visitId}:0`;
       const occurrenceIds = parseLegacyOccurrenceIds(existing.occurrence_ids, occurrenceId);
       await env.OBS_DB.prepare(
         `UPDATE observation_write_idempotency
@@ -28628,7 +28632,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       const registrationBridge = await claimObservationEventRegistrationBridge(request, env, input, authenticatedSession);
       await recordObservationEventRegistrationBridgeMetric(env, registrationBridge);
       return json(buildLegacyCompatibleObservationResponse({
-        visitId: existing.visit_id,
+        visitId,
         occurrenceId,
         occurrenceIds,
         placeId,
