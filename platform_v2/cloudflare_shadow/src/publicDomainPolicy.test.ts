@@ -1,8 +1,24 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { canonicalPublicHostRedirect, rewriteCanonicalPublicOrigins } from "./index";
 
 const env = (mode: string): any => ({ ENVIRONMENT: "production", LEGACY_HOST_REDIRECT_MODE: mode });
+const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+const envStart = wrangler.indexOf('"env": {');
+const shadowStart = wrangler.indexOf('"shadow": {', envStart);
+const stagingStart = wrangler.indexOf('"staging": {', shadowStart);
+const productionStart = wrangler.indexOf('"production": {', stagingStart);
+const environmentBlocks = {
+  staging: wrangler.slice(stagingStart, productionStart),
+  production: wrangler.slice(productionStart),
+};
+
+test("legacy redirect mode is enabled only in production configuration", () => {
+  assert.ok(envStart >= 0 && shadowStart > envStart && stagingStart > shadowStart && productionStart > stagingStart);
+  assert.match(environmentBlocks.production, /"LEGACY_HOST_REDIRECT_MODE": "enabled"/);
+  assert.match(environmentBlocks.staging, /"LEGACY_HOST_REDIRECT_MODE": "disabled"/);
+});
 
 test("legacy redirect remains disabled until the production binding is verified", () => {
   const response = canonicalPublicHostRedirect(
