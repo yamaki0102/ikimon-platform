@@ -289,7 +289,7 @@ test("home page keeps the signed-in desktop dashboard compact", () => {
   assert.match(html, /名前を確かめる/);
   assert.match(html, /home-continue-strip/);
   assert.match(html, /今日の入口/);
-  assert.match(html, /ikimon\.lifeの流れ/);
+  assert.match(html, /ZUKANの流れ/);
   assert.match(html, /記録する/);
   assert.match(html, /地図で見る/);
   assert.match(html, /フッターから記録/);

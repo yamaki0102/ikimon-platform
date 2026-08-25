@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { buildApp } from "./app.js";
 
 const sourceRoot = fileURLToPath(new URL(".", import.meta.url));
+const siteMapSource = readFileSync(join(sourceRoot, "siteMap.ts"), "utf8");
 
 function publicContentFiles(root: string): string[] {
   const files: string[] = [];
@@ -31,18 +32,40 @@ function visibleText(html: string): string {
 test("primary public surfaces expose ZUKAN without a visible legacy service name", async () => {
   const app = buildApp();
   try {
-    for (const url of ["/", "/login?lang=ja", "/register?lang=ja", "/record?lang=ja", "/map?lang=ja", "/records?view=public&lang=ja", "/settings"]) {
+    for (const url of [
+      "/",
+      "/about?lang=ja",
+      "/login?lang=ja",
+      "/register?lang=ja",
+      "/record?lang=ja",
+      "/map?lang=ja",
+      "/records?view=public&lang=ja",
+      "/guide?lang=ja",
+      "/guide/outcomes?lang=ja",
+      "/community/events/new?lang=ja",
+      "/for-business/monitoring/apply?lang=ja",
+      "/settings",
+      "/app-refresh?to=/map",
+      "/debug/app-outbox?lang=ja",
+    ]) {
       const response = await app.inject({ method: "GET", url, headers: { accept: "text/html" } });
-      assert.ok(response.statusCode === 200 || response.statusCode === 404, `${url}: unexpected ${response.statusCode}`);
+      assert.ok([200, 401, 404].includes(response.statusCode), `${url}: unexpected ${response.statusCode}`);
       const text = visibleText(response.body)
         .replace(/IKIMON株式会社/gu, "")
-        .replace(/IKIMON Inc\.?/giu, "");
+        .replace(/IKIMON Inc\.?/giu, "")
+        .replace(/IKIMONから/gu, "")
+        .replace(/IKIMON管理者/gu, "");
       assert.doesNotMatch(text, /\bikimon(?:\.life)?\b/iu, `${url}: visible legacy service name`);
       assert.match(response.body, /ZUKAN/iu, `${url}: canonical service name missing`);
     }
   } finally {
     await app.close();
   }
+});
+
+test("public route registry has no visible legacy service presentation name", () => {
+  const publicRegistry = siteMapSource.replaceAll("https://ikimon.local", "");
+  assert.doesNotMatch(publicRegistry, /\bikimon(?:\.life)?\b/iu);
 });
 
 test("public content sources contain no lowercase legacy service presentation name", () => {

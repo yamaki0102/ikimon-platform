@@ -19,7 +19,7 @@ export function renderEventCreateBody(args: {
   <article class="evt-card">
     <span class="evt-eyebrow">${escapeHtml(strings.listCreateCta)}</span>
     <h1 class="evt-heading">主催者アカウントでログインしてください</h1>
-    <p class="evt-lead">観察会を作成するには、主催者として ikimon にログインする必要があります。</p>
+    <p class="evt-lead">観察会を作成するには、主催者としてZUKANにログインする必要があります。</p>
     <div style="display:flex; gap:8px; margin-top:12px;">
       <a class="evt-btn evt-btn-primary" href="/auth?redirect=${encodeURIComponent("/community/events/new")}">ログイン</a>
       <a class="evt-btn evt-btn-ghost" href="/community/events">一覧に戻る</a>

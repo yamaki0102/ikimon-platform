@@ -49,9 +49,9 @@ function renderMonitoringLeadForm(contactProof: string): string {
 <main class="mb-wrap">
   <section class="mb-hero">
     <div>
-      <p class="mb-eyebrow">IKIMON Monitoring</p>
+      <p class="mb-eyebrow">ZUKAN Monitoring</p>
       <h1>地域の観察記録を、<span class="mb-nowrap">継続できるモニタリングへ。</span></h1>
-      <p class="mb-lead">IKIMON Monitoring は、地域・企業・自治体の観察記録を、根拠付き確定記録、候補記録、観察努力量、次のモニタリング計画へ整理するためのサービスとして準備中です。</p>
+      <p class="mb-lead">ZUKAN Monitoring は、地域・企業・自治体の観察記録を、根拠付き確定記録、候補記録、観察努力量、次のモニタリング計画へ整理するためのサービスとして準備中です。</p>
     </div>
     <aside class="mb-price" aria-label="価格">
       <div class="mb-notice"><strong>提供準備中・先行相談受付</strong><br>このフォームは契約申込みの正式受付、請求、地域育成価格の承認ではありません。内容を確認し、準備状況や個別相談についてIKIMONからメールでご連絡します。</div>
@@ -134,7 +134,7 @@ function leadScript(): string {
     event.preventDefault();
     if (status) status.textContent = '送信中です';
     var message = [
-      'IKIMON Monitoring 先行相談',
+      'ZUKAN Monitoring 先行相談',
       '',
       lines([
         ['組織種別', value('applicantKind')],
@@ -194,8 +194,8 @@ export async function registerMonitoringBusinessRoutes(app: FastifyInstance): Pr
     return renderSiteDocument({
       basePath,
       lang,
-      title: "IKIMON Monitoring 先行相談 — ikimon.life",
-      description: "地域・企業・自治体向け IKIMON Monitoring の提供準備中ページと先行相談フォーム。",
+      title: "ZUKAN Monitoring 先行相談 — ZUKAN",
+      description: "地域・企業・自治体向け ZUKAN Monitoring の提供準備中ページと先行相談フォーム。",
       currentPath: "/for-business/monitoring/apply",
       extraStyles: MONITORING_STYLES,
       body: renderMonitoringLeadForm(createContactProof()),
