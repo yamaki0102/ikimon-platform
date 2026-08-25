@@ -7401,6 +7401,43 @@ class FakeStatement {
   }
 }
 
+class ReceiptReadBarrierStatement extends FakeStatement {
+  constructor(
+    db: FakeD1,
+    query: string,
+    private readonly waitForReaders: () => Promise<void>,
+  ) {
+    super(db, query);
+  }
+
+  override async first<T>(): Promise<T | null> {
+    await this.waitForReaders();
+    return super.first<T>();
+  }
+}
+
+class ConcurrentObservationReceiptD1 extends FakeD1 {
+  private readers = 0;
+  private releaseReaders!: () => void;
+  private readonly readersReleased = new Promise<void>((resolve) => {
+    this.releaseReaders = resolve;
+  });
+
+  override prepare(query: string): FakeStatement {
+    const normalized = normalize(query);
+    if (
+      normalized.startsWith("SELECT user_id, visit_id, occurrence_id, occurrence_ids, place_id, request_fingerprint, write_status FROM observation_write_idempotency")
+    ) {
+      return new ReceiptReadBarrierStatement(this, query, async () => {
+        this.readers += 1;
+        if (this.readers === 2) this.releaseReaders();
+        await this.readersReleased;
+      });
+    }
+    return super.prepare(query);
+  }
+}
+
 class FakeQueue {
   messages: unknown[] = [];
   fail = false;
@@ -7509,6 +7546,16 @@ function createEnv(queue = new FakeQueue()) {
     core,
     obs,
     queue
+  };
+}
+
+function createConcurrentObservationEnv() {
+  const base = createEnv();
+  const obs = new ConcurrentObservationReceiptD1();
+  return {
+    ...base,
+    env: { ...base.env, OBS_DB: obs },
+    obs,
   };
 }
 
@@ -9802,6 +9849,50 @@ test("research export APIs read Cloudflare D1 canonical import without origin fa
   assert.equal(summaryResponse.headers.get("x-ikimon-cloudflare-native"), "research-export-runtime");
   assert.equal(summaryPayload.roles[0].mediaRole, "observation_photo");
   assert.equal(summaryPayload.roles[0].assetCount, 1);
+});
+
+test("v1 observation upsert converges concurrent equivalent submissions to one replay", async () => {
+  const { env, obs } = createConcurrentObservationEnv();
+  const baseBody = {
+    clientSubmissionId: "capture-race:photo-001",
+    userId: "capture-race-user",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "private",
+    note: "concurrent capture race contract",
+    taxon: { vernacularName: "race plant", rank: "species" },
+    sourcePayload: {
+      source: "capture_race_contract",
+      client_photo_sha256s: ["photo-sha256-race"],
+    },
+  };
+  const request = (observationId: string) => worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...baseBody, observationId }),
+  }), env);
+
+  const responses = await Promise.all([
+    request("capture-race-original"),
+    request("capture-race-duplicate"),
+  ]);
+  const payloads = await Promise.all(responses.map((response) => response.json() as Promise<Record<string, any>>));
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 201]);
+  assert.deepEqual(new Set(payloads.map((payload) => payload.visitId)), new Set(["capture-race-original"]));
+  assert.equal(obs.observations.has("capture-race-original"), true);
+  assert.equal(obs.observations.has("capture-race-duplicate"), false);
+  assert.equal(obs.observationWriteIdempotency.size, 1);
+  assert.equal(obs.observationWriteIdempotency.get("capture-race:photo-001")?.duplicate_count, 1);
+
+  const conflict = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...baseBody, note: "payload mismatch must fail closed", observationId: "capture-race-conflict" }),
+  }), env);
+  assert.equal(conflict.status, 409);
+  assert.equal((await conflict.json() as Record<string, unknown>).error, "client_submission_id_conflict");
+  assert.equal(obs.observations.size, 1);
 });
 
 test("v1 observation upsert returns the current Fastify-compatible ok contract", async () => {

@@ -28371,6 +28371,9 @@ type LegacyObservationIdempotencyRow = {
   write_status: string;
 };
 
+const LEGACY_IDEMPOTENCY_WAIT_ATTEMPTS = 40;
+const LEGACY_IDEMPOTENCY_WAIT_MS = 25;
+
 function normalizeCompatibleClientSubmissionId(value: unknown): string | null {
   const text = normalizeOptionalText(value);
   if (!text) return null;
@@ -28405,15 +28408,11 @@ async function legacyObservationRequestFingerprint(input: LegacyObservationUpser
   const clientPhotoHashes = Array.isArray(input.sourcePayload?.client_photo_sha256s)
     ? input.sourcePayload?.client_photo_sha256s.filter((value): value is string => typeof value === "string")
     : null;
+  const fingerprintPayload = Object.fromEntries(
+    Object.entries(input).filter(([key]) => key !== "observationId" && key !== "clientSubmissionId" && key !== "sourcePayload"),
+  );
   return sha256Hex(textToArrayBuffer(stableJson({
-    userId: input.userId,
-    observedAt: input.observedAt,
-    latitude: input.latitude,
-    longitude: input.longitude,
-    siteId: normalizeOptionalText(input.siteId),
-    siteName: normalizeOptionalText(input.siteName),
-    municipality: normalizeOptionalText(input.municipality),
-    prefecture: normalizeOptionalText(input.prefecture),
+    ...fingerprintPayload,
     clientPhotoHashes,
     subjects,
     taxon: input.taxon ?? null
@@ -28586,18 +28585,20 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     ? await legacyObservationRequestFingerprint(input)
     : null;
   if (clientSubmissionId && idempotencyFingerprint) {
-    const existing = await env.OBS_DB.prepare(
+    const readExistingIdempotency = () => env.OBS_DB.prepare(
       `SELECT user_id, visit_id, occurrence_id, occurrence_ids, place_id, request_fingerprint, write_status
          FROM observation_write_idempotency
         WHERE client_submission_id = ?`
     ).bind(clientSubmissionId).first<LegacyObservationIdempotencyRow>();
-    if (existing) {
-      if (existing.user_id !== input.userId || existing.request_fingerprint !== idempotencyFingerprint) {
-        return json({ ok: false, error: "client_submission_id_conflict" }, 409);
+    const waitForCompletedIdempotency = async (initial: LegacyObservationIdempotencyRow): Promise<LegacyObservationIdempotencyRow> => {
+      let current = initial;
+      for (let attempt = 0; attempt < LEGACY_IDEMPOTENCY_WAIT_ATTEMPTS && !current.visit_id; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, LEGACY_IDEMPOTENCY_WAIT_MS));
+        current = await readExistingIdempotency() ?? current;
       }
-      if (!existing.visit_id) {
-        return json({ ok: false, error: "duplicate_submission_in_progress" }, 409);
-      }
+      return current;
+    };
+    const replayExistingIdempotency = async (existing: LegacyObservationIdempotencyRow): Promise<Response> => {
       const occurrenceId = normalizeOptionalId(existing.occurrence_id) ?? `occ:${existing.visit_id}:0`;
       const occurrenceIds = parseLegacyOccurrenceIds(existing.occurrence_ids, occurrenceId);
       await env.OBS_DB.prepare(
@@ -28624,8 +28625,22 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         clientSubmissionId,
         idempotencyReused: true
       }, input), 200, await observationEventRegistrationBridgeResponseHeaders(registrationBridge));
+    };
+    const replayOrRejectExisting = async (initial: LegacyObservationIdempotencyRow): Promise<Response> => {
+      if (initial.user_id !== input.userId || initial.request_fingerprint !== idempotencyFingerprint) {
+        return json({ ok: false, error: "client_submission_id_conflict" }, 409);
+      }
+      const existing = initial.visit_id ? initial : await waitForCompletedIdempotency(initial);
+      if (!existing.visit_id) {
+        return json({ ok: false, error: "duplicate_submission_in_progress" }, 409);
+      }
+      return replayExistingIdempotency(existing);
+    };
+    const existing = await readExistingIdempotency();
+    if (existing) {
+      return replayOrRejectExisting(existing);
     }
-    await env.OBS_DB.prepare(
+    const reservation = await env.OBS_DB.prepare(
       `INSERT OR IGNORE INTO observation_write_idempotency (
          client_submission_id, user_id, request_fingerprint, write_status, source_payload,
          created_at, updated_at, last_seen_at
@@ -28642,6 +28657,17 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
           : []
       })
     ).run();
+    const reservationChanges = Number((reservation as { meta?: { changes?: unknown } } | null)?.meta?.changes);
+    if (!Number.isFinite(reservationChanges)) {
+      return json({ ok: false, error: "idempotency_reservation_unknown" }, 503, { "cache-control": "no-store" });
+    }
+    if (reservationChanges !== 1) {
+      const concurrent = await readExistingIdempotency();
+      if (!concurrent) {
+        return json({ ok: false, error: "duplicate_submission_in_progress" }, 409);
+      }
+      return replayOrRejectExisting(concurrent);
+    }
   }
 
   const draftId = newId("draft");
