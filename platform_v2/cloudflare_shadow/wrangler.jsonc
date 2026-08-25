@@ -273,7 +273,7 @@
         "ZUKAN_FOUNDATION_V2_MAX_ENTITIES": "64",
         "PUBLIC_WRITE_MODE": "cloudflare_native",
         "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE": "disabled",
-        "LEGACY_HOST_REDIRECT_MODE": "disabled",
+        "LEGACY_HOST_REDIRECT_MODE": "enabled",
         "ORIGIN_SESSION_IMPORT_MODE": "disabled",
         "ORIGIN_FALLBACK_BASE_URL": "https://ikimon.life",
         "ORIGIN_FALLBACK_RESOLVE_OVERRIDE": "staging.ikimon.life",
