@@ -41,6 +41,24 @@ test("preview draft restore remains owner-scoped and fail-closed", () => {
   assert.match(patched, /Keep the marker so a signed-in draft can retry after connectivity\/session recovery/);
 });
 
+test("guest preview drafts hand off through the existing record claim flow after session recovery", () => {
+  const patched = patchGlobalRecordPreviewDraftHtml(realShell());
+  assert.match(patched, /markerOwnerKey\.startsWith\('guest:'\)/);
+  assert.match(patched, /contextOwnerKey\.startsWith\('user:'\)/);
+  assert.match(patched, /withDraftParams\(RECORD_TARGETS\.photo, 'photo', 'login_required', marker\.continuationToken\)/);
+  assert.match(patched, /window\.location\.href = withDraftParams\(RECORD_TARGETS\.photo/);
+  assert.match(patched, /marker\.draftKey === 'latest:guest:' \+ String\(marker\.continuationToken \|\| ''\)/);
+});
+
+test("preview draft restore retries after visibility or focus changes without duplicating the preview", () => {
+  const patched = patchGlobalRecordPreviewDraftHtml(realShell());
+  assert.match(patched, /let previewDraftRestoredInPage = false/);
+  assert.match(patched, /if \(previewDraftRestoredInPage\) return/);
+  assert.match(patched, /previewDraftRestoredInPage = true/);
+  assert.match(patched, /window\.addEventListener\('visibilitychange', \(\) => \{ if \(document\.visibilityState === 'visible'\) void restorePhotoPreviewDraft\(\); \}\)/);
+  assert.match(patched, /window\.addEventListener\('focus', \(\) => \{ void restorePhotoPreviewDraft\(\); \}\)/);
+});
+
 test("history state stores only a draft locator, never media or coordinates", () => {
   const patched = patchGlobalRecordPreviewDraftHtml(realShell());
   const markerStart = patched.indexOf("state[PREVIEW_DRAFT_HISTORY_KEY] = {");
