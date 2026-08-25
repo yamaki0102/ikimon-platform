@@ -64,7 +64,10 @@ ROLLBACK_VERSION_ID="$(node --input-type=module - "${BEFORE_FILE}" <<'NODE'
 import { readFileSync } from "node:fs";
 const value = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const rows = Array.isArray(value) ? value : value?.deployments ?? value?.result?.deployments ?? [];
-const deployment = rows[0];
+const deployment = rows
+  .filter((item) => typeof item?.created_on === "string" && Number.isFinite(Date.parse(item.created_on)))
+  .sort((left, right) => Date.parse(right.created_on) - Date.parse(left.created_on))[0];
+if (!deployment) throw new Error("production_baseline_deployment_missing");
 const versions = deployment?.versions;
 if (!Array.isArray(versions) || versions.length !== 1) throw new Error("production_baseline_topology_not_single_version");
 const version = versions[0];
