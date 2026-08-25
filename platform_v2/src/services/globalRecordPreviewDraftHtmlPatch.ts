@@ -110,7 +110,8 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
     if (previewDraftRestoreInFlight) return;
     const marker = previewDraftMarker();
     if (!marker || !marker.draftKey || !marker.ownerKey) return;
-    if (/\/record\/?$/.test(window.location.pathname) && new URLSearchParams(window.location.search).get('draft') === '1') return;
+    if ((window.location.pathname === '/record' || window.location.pathname === '/record/')
+      && new URLSearchParams(window.location.search).get('draft') === '1') return;
     previewDraftRestoreInFlight = true;
     try {
       const context = await draftOwnerContext();

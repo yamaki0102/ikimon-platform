@@ -18,7 +18,7 @@ async function handleFixtureRoute(route: Route, sessionMode: SessionMode): Promi
   const request = route.request();
   const url = new URL(request.url());
   const method = request.method().toUpperCase();
-  if (url.pathname === "/api/v1/session") {
+  if (url.pathname === "/api/v1/auth/session") {
     if (sessionMode.kind === "offline") {
       await route.abort("internetdisconnected");
       return;
@@ -38,7 +38,7 @@ async function handleFixtureRoute(route: Route, sessionMode: SessionMode): Promi
 }
 
 async function openGalleryDraft(page: Page): Promise<void> {
-  await page.locator('[data-global-record-trigger="photo"]').click();
+  await page.locator('[data-global-record-trigger="photo"]:visible').first().click();
   await page.locator('[data-global-record-input="gallery"]').setInputFiles(fixtureImage);
   const sheet = page.locator("[data-global-record-camera-sheet]");
   await expect(sheet).toBeVisible();
@@ -82,7 +82,7 @@ test.describe("ZUKAN preview draft reload recovery", () => {
     const removeButton = page.locator("[data-global-record-photo-remove]").first();
     await expect(removeButton).toBeVisible();
     await removeButton.click();
-    await expect(sheet).toHaveAttribute("data-photo-draft", "false");
+    await expect(sheet).not.toHaveAttribute("data-photo-draft");
     await expect.poll(() => readMarker(page)).toBeNull();
 
     await page.reload({ waitUntil: "domcontentloaded" });
