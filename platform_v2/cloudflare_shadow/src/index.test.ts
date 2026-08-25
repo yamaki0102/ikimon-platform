@@ -2946,6 +2946,30 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT OR IGNORE INTO asset_ledger") && normalized.includes("(asset_id, draft_id, observation_id,")) {
+      const assetId = string(v[0]);
+      if (this.db.assets.has(assetId)) return { meta: { changes: 0 } };
+      this.db.assets.set(assetId, {
+        asset_id: assetId,
+        draft_id: string(v[1]),
+        observation_id: string(v[2]),
+        owner_user_id: string(v[3]),
+        object_key: string(v[4]),
+        partition_month: nullableString(v[9]),
+        sha256: nullableString(v[5]),
+        mime: string(v[6]),
+        bytes: number(v[7]),
+        processing_state: "uploaded",
+        public_derivative_key: null,
+        public_derivative_sha256: null,
+        public_derivative_verified_at: null,
+        public_derivative_metadata_json: null,
+        exif_scrub_state: "not_started",
+        public_ready_at: null
+      });
+      return { meta: { changes: 1 } };
+    }
+
     if (normalized.startsWith("INSERT INTO asset_ledger") && normalized.includes("(asset_id, draft_id, observation_id,")) {
       this.db.assets.set(string(v[0]), {
         asset_id: string(v[0]),
@@ -3600,6 +3624,22 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT OR IGNORE INTO outbox")) {
+      const outboxId = string(v[0]);
+      if (this.db.outbox.has(outboxId)) return { meta: { changes: 0 } };
+      this.db.outbox.set(outboxId, {
+        outbox_id: outboxId,
+        topic: string(v[1]) as OutboxRow["topic"],
+        target_id: string(v[2]),
+        payload_json: string(v[3]),
+        partition_month: nullableString(v[4]),
+        dispatch_state: "pending",
+        attempts: 0,
+        last_error: null
+      });
+      return { meta: { changes: 1 } };
+    }
+
     if (normalized.startsWith("INSERT INTO outbox")) {
       this.db.outbox.set(string(v[0]), {
         outbox_id: string(v[0]),
@@ -3612,6 +3652,23 @@ class FakeStatement {
         last_error: null
       });
       return {};
+    }
+
+    if (normalized.startsWith("INSERT OR IGNORE INTO rollback_write_ledger")) {
+      const ledgerId = string(v[0]);
+      if (this.db.rollbackLedger.has(ledgerId)) return { meta: { changes: 0 } };
+      this.db.rollbackLedger.set(ledgerId, {
+        ledger_id: ledgerId,
+        event_type: string(v[1]),
+        target_id: string(v[2]),
+        partition_month: nullableString(v[3]),
+        source_endpoint: string(v[4]),
+        payload_json: string(v[5]),
+        replay_sql: string(v[6]),
+        replay_status: "pending",
+        created_at: new Date().toISOString()
+      });
+      return { meta: { changes: 1 } };
     }
 
     if (normalized.startsWith("INSERT INTO rollback_write_ledger")) {
@@ -4983,6 +5040,26 @@ class FakeStatement {
     if (normalized.startsWith("SELECT object_key, mime FROM asset_ledger")) {
       const asset = this.db.assets.get(string(v[0]));
       return asset ? ({ object_key: asset.object_key, mime: asset.mime } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT asset_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state FROM asset_ledger")) {
+      const asset = this.db.assets.get(string(v[0]));
+      return asset ? ({
+        asset_id: asset.asset_id,
+        observation_id: asset.observation_id,
+        owner_user_id: asset.owner_user_id,
+        object_key: asset.object_key,
+        sha256: asset.sha256,
+        mime: asset.mime,
+        bytes: asset.bytes,
+        visibility: "private",
+        processing_state: asset.processing_state
+      } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT request_state FROM observation_reassessment_requests")) {
+      const row = this.db.observationReassessmentRequests.get(`${string(v[0])}:standard:${string(v[1])}`);
+      return row ? ({ request_state: row.request_state } as T) : null;
     }
 
     if (normalized.startsWith("INSERT INTO place_management_policies")) {
@@ -10442,6 +10519,75 @@ test("v1 photo upload stores base64 media in R2 and returns the shared ok contra
     ),
     true,
   );
+});
+
+test("v1 photo upload converges equivalent concurrent retries to one asset and one dispatch set", async () => {
+  const { env, obs, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-photo-idempotency-race",
+    userId: "user-photo",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.7,
+    longitude: 137.8
+  });
+
+  const body = JSON.stringify({
+    filename: "same-photo-retry.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("same-photo-bytes").toString("base64"),
+    mediaRole: "primary",
+    facePrivacy: "no_faces"
+  });
+  const upload = () => worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-photo-idempotency-race/photos/upload", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body
+  }), env);
+
+  const responses = await Promise.all([upload(), upload()]);
+  const payloads = await Promise.all(responses.map((response) => response.json() as Promise<Record<string, any>>));
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 200]);
+  assert.deepEqual(payloads.map((payload) => payload.idempotency?.reused).sort(), [false, true]);
+  assert.equal(new Set(payloads.map((payload) => payload.relativePath)).size, 1);
+  assert.equal(obs.assets.size, 1);
+  assert.equal(obs.outbox.size, 3);
+  assert.equal([...obs.rollbackLedger.values()].filter((row) => row.event_type === "asset.photo.upload").length, 1);
+  assert.equal(obs.observationReassessmentRequests.size, 1);
+  assert.equal(queue.messages.length, 3);
+  assert.equal((env.ASSET_BUCKET as unknown as FakeBucket).objects.size, 1);
+});
+
+test("v1 photo upload fails closed when an existing durable asset loses its object", async () => {
+  const { env, obs, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-photo-integrity-missing",
+    userId: "user-photo",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.7,
+    longitude: 137.8
+  });
+  const first = await post("/api/v1/observations/visit-photo-integrity-missing/photos/upload", env, {
+    filename: "integrity-photo.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("integrity-photo-bytes").toString("base64")
+  });
+  (env.ASSET_BUCKET as unknown as FakeBucket).objects.delete(first.relativePath);
+
+  const retry = await worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-photo-integrity-missing/photos/upload", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      filename: "integrity-photo.jpg",
+      mimeType: "image/jpeg",
+      base64Data: Buffer.from("integrity-photo-bytes").toString("base64")
+    })
+  }), env);
+  assert.equal(retry.status, 503);
+  assert.deepEqual(await retry.json(), { ok: false, error: "media_integrity_missing" });
+  assert.equal(obs.assets.size, 1);
+  assert.equal(obs.outbox.size, 3);
+  assert.equal([...obs.rollbackLedger.values()].filter((row) => row.event_type === "asset.photo.upload").length, 1);
+  assert.equal(queue.messages.length, 3);
 });
 
 test("staging photo upload rejects MIME spoofing, extension mismatch, and unsupported image types before R2", async () => {
