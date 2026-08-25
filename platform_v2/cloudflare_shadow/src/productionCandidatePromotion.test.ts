@@ -18,8 +18,8 @@ test("production candidate upload creates an unserved Worker Version", async () 
 test("production promotion discovers rollback version and automatically restores it on failed readback", async () => {
   const script = await source("../../../scripts/run_cloudflare_production_worker_promote.sh");
   assert.match(script, /deployments list --name "\$\{WORKER_NAME\}" --json/);
-  assert.match(script, /Date\.parse\(right\.created_on\) - Date\.parse\(left\.created_on\)/);
-  assert.doesNotMatch(script, /const deployment = rows\[0\]/);
+  assert.equal((script.match(/Date\.parse\(right\.created_on\) - Date\.parse\(left\.created_on\)/g) ?? []).length, 2);
+  assert.doesNotMatch(script, /rows\[0\]/);
   assert.match(script, /ROLLBACK_VERSION_ID/);
   assert.match(script, /versions view "\$\{IKIMON_PRODUCTION_CANDIDATE_VERSION_ID\}"/);
   assert.match(script, /production_candidate_source_mismatch/);

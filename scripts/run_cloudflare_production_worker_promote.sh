@@ -110,7 +110,10 @@ rollback() {
 import { readFileSync } from "node:fs";
 const value = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const rows = Array.isArray(value) ? value : value?.deployments ?? value?.result?.deployments ?? [];
-const versions = rows[0]?.versions ?? [];
+const deployment = rows
+  .filter((item) => typeof item?.created_on === "string" && Number.isFinite(Date.parse(item.created_on)))
+  .sort((left, right) => Date.parse(right.created_on) - Date.parse(left.created_on))[0];
+const versions = deployment?.versions ?? [];
 const active = versions.length === 1 && Number(versions[0]?.percentage ?? versions[0]?.percent) === 100
   ? versions[0]?.version_id ?? versions[0]?.versionId ?? versions[0]?.id
   : "";
