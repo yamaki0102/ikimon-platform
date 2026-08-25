@@ -80,7 +80,7 @@ async function blockWrites(route: Route): Promise<void> {
 
 async function openPhotoSourceChoice(page: Page): Promise<void> {
   await page.goto(new URL("/?lang=ja", STAGING_BASE_URL).toString(), { waitUntil: "domcontentloaded" });
-  const trigger = page.locator('[data-global-record-trigger="photo"]');
+  const trigger = page.locator('[data-global-record-trigger="photo"]:visible').first();
   await expect(trigger).toBeVisible();
   await trigger.click();
   await expect(page.locator("[data-global-record-camera-sheet]")).toBeVisible();
@@ -95,7 +95,7 @@ test.describe("ZUKAN photo source choice staging contract", () => {
     await expect.poll(() => permissionCalls(page)).toEqual({ cameraCalls: 0, locationCalls: 0 });
     await expect(page.locator("[data-global-record-os-camera]")).toContainText("標準カメラ");
     await expect(page.locator("[data-global-record-camera-start]")).toContainText("接写カメラ");
-    await expect(page.locator("[data-global-record-gallery-select]").first()).toBeVisible();
+    await expect(page.locator("[data-global-record-camera-sheet] [data-global-record-gallery-select]").first()).toBeVisible();
     await expect(page.locator('[data-global-record-input="photo"]')).toHaveAttribute("capture", "environment");
 
     await page.locator("[data-global-record-camera-start]").click();
