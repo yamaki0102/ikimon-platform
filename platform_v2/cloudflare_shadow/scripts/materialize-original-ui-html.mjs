@@ -11,12 +11,12 @@ const productionBucket = "ikimon-prod-media";
 const stagingBucket = "ikimon-shadow-media";
 const materializeManifestSchemaVersion = "original-ui-materialize/v1";
 const uploadCacheControl = "no-store";
-const canonicalOrigin = "https://ikimon.life";
+const canonicalOrigin = "https://zukan.earth";
 const canonicalRenderHeaders = {
   accept: "*/*",
   "cache-control": "no-store",
-  host: "ikimon.life",
-  "x-forwarded-host": "ikimon.life",
+  host: "zukan.earth",
+  "x-forwarded-host": "zukan.earth",
   "x-forwarded-proto": "https"
 };
 const allowedArgs = new Set([
