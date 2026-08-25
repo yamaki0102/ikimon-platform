@@ -15,7 +15,7 @@ test("original UI materializer pins discovery documents to the public canonical 
 
   assert.match(materializer, /"\/llms\.txt"/);
   assert.match(materializer, /"\/llms-full\.txt"/);
-  assert.match(materializer, /"x-forwarded-host":\s*"ikimon\.life"/);
+  assert.match(materializer, /"x-forwarded-host":\s*"zukan\.earth"/);
   assert.match(materializer, /"x-forwarded-proto":\s*"https"/);
   assert.match(materializer, /renderStaticAsset\(app, pathname\)/);
   assert.match(materializer, /headers:\s*canonicalRenderHeaders/);
