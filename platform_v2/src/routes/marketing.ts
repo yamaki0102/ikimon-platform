@@ -350,7 +350,7 @@ type LearnHubCopy = {
 const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
   ja: {
     ariaLabel: "読み物ハブ",
-    summary: "ikimon.life の読み物は、観察の始め方、名前の確かめ方、地域や研究で活かすための考え方を、1テーマ1ページで整理しています。",
+    summary: "ZUKAN の読み物は、観察の始め方、名前の確かめ方、地域や研究で活かすための考え方を、1テーマ1ページで整理しています。",
     sections: [
       {
         title: "はじめて使う",
@@ -373,7 +373,7 @@ const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
   },
   en: {
     ariaLabel: "Reading hub",
-    summary: "ikimon.life reading pages are organized as one topic per page: how to start observing, how to check names, and how records can support places, research, and everyday learning.",
+    summary: "ZUKAN reading pages are organized as one topic per page: how to start observing, how to check names, and how records can support places, research, and everyday learning.",
     sections: [
       {
         title: "Start here",
@@ -396,7 +396,7 @@ const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
   },
   es: {
     ariaLabel: "Centro de lectura",
-    summary: "Las lecturas de ikimon.life están organizadas como un tema por página: cómo empezar a observar, cómo revisar nombres y cómo usar registros en lugares, investigación y aprendizaje cotidiano.",
+    summary: "Las lecturas de ZUKAN están organizadas como un tema por página: cómo empezar a observar, cómo revisar nombres y cómo usar registros en lugares, investigación y aprendizaje cotidiano.",
     sections: [
       {
         title: "Empezar",
@@ -419,7 +419,7 @@ const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
   },
   "pt-BR": {
     ariaLabel: "Centro de leitura",
-    summary: "As leituras de ikimon.life são organizadas como um tema por página: como começar a observar, como conferir nomes e como usar registros em lugares, pesquisa e aprendizagem cotidiana.",
+    summary: "As leituras de ZUKAN são organizadas como um tema por página: como começar a observar, como conferir nomes e como usar registros em lugares, pesquisa e aprendizagem cotidiana.",
     sections: [
       {
         title: "Começar",
@@ -915,7 +915,7 @@ const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     title: "Androidアプリ公開 + 世界11,560種の鳴き声AI同定",
     tags: ["feature"],
     items: [
-      { label: "Androidアプリ（ikimon Pocket）を公開", body: "カメラ検出・音声同定・ウォークモードをネイティブアプリとして使えます。" },
+      { label: "Androidアプリ（ZUKAN Pocket）を公開", body: "カメラ検出・音声同定・ウォークモードをネイティブアプリとして使えます。" },
       { label: "世界11,560種の鳥を端末上で同定", body: "BirdNET V3.0搭載。Pixelではハードウェア加速で高速処理できます。" },
       { label: "カメラ・音声・環境センサーを同時動作", body: "3つのAIを並列で動かし、検出精度を高めます。" },
       { label: "音声ガイド話者を追加", body: "ずんだもん・もち子さん・青山龍星から選べます。Bluetooth出力にも対応しました。" },
@@ -1086,7 +1086,7 @@ function renderChangelogBody(_basePath: string, _lang: SiteLang): string {
   return `<div class="cl-wrap">
     <section class="cl-hero">
       <p class="cl-eyebrow">Changelog</p>
-      <h1 class="cl-h1">ikimon に最近起きた変化</h1>
+      <h1 class="cl-h1">ZUKAN に最近起きた変化</h1>
       <p class="cl-lead">使う人に関係する変化だけを記録します。内部の実装名ではなく、見える変化で書く方針です。</p>
       ${latest ? `<div class="cl-latest">
         <div class="cl-live"></div>

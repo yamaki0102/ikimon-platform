@@ -1,6 +1,6 @@
 # Entrada da comunidade
 
-O ikimon começa com observações que uma pessoa pode fazer sozinha. Olhar o mesmo lugar com outras pessoas acrescenta outra camada: diferenças que uma pessoa poderia não notar ficam mais fáceis de perceber e revisitar.
+O ZUKAN começa com observações que uma pessoa pode fazer sozinha. Olhar o mesmo lugar com outras pessoas acrescenta outra camada: diferenças que uma pessoa poderia não notar ficam mais fáceis de perceber e revisitar.
 
 ## O que entra aqui
 

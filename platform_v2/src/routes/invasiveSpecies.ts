@@ -71,7 +71,7 @@ function renderActionSources(item: InvasiveSpeciesCatalogItem): string {
       status: "自治体・管理者",
     },
     {
-      source: "ikimon.life",
+      source: "ZUKAN",
       action: "投稿が外来種候補になり、地域と受け取り許可が合う団体がある場合だけ、その団体へ情報が届きます。関係ない団体へ勝手に送ることはありません。",
       status: "条件つき",
     },
@@ -103,7 +103,7 @@ function renderReportingVisibility(basePath: string, item: InvasiveSpeciesCatalo
     <div class="invasive-section-head">
       <span>投稿したあと</span>
       <h2>この投稿は、どこへ届く？</h2>
-      <p>ikimon.life では、受け取りを許可している自治体・研究機関・管理団体がある地域だけ、外来種候補の投稿情報を自動で届けます。連携先がない地域では、自動送信はしません。</p>
+      <p>ZUKAN では、受け取りを許可している自治体・研究機関・管理団体がある地域だけ、外来種候補の投稿情報を自動で届けます。連携先がない地域では、自動送信はしません。</p>
     </div>
     <div class="invasive-reporting-board">
       <article class="invasive-reporting-slot is-active">
@@ -318,7 +318,7 @@ function renderListPage(basePath: string, lang: SiteLang): string {
     ${renderCommonSafety()}
     <section class="invasive-summary">
       <strong class="invasive-total">全${escapeHtml(String(species.length))}件</strong>
-      <p>この一覧は ikimon.life の外来種 seed を正本に、観察時の安全行動と公式情報への導線をまとめたものです。外来種かどうか、地域で何を求められるかは状況で変わるため、最終判断は公式情報と自治体・管理者の案内で確認してください。</p>
+      <p>この一覧は ZUKAN の外来種 seed を正本に、観察時の安全行動と公式情報への導線をまとめたものです。外来種かどうか、地域で何を求められるかは状況で変わるため、最終判断は公式情報と自治体・管理者の案内で確認してください。</p>
       ${renderOfficialSources()}
     </section>
     ${groupHtml}
@@ -459,7 +459,7 @@ function renderNotFound(basePath: string, lang: SiteLang, currentPath: string): 
     basePath,
     lang,
     activeNav: "学ぶ",
-    title: "外来種ページが見つかりません | ikimon",
+    title: "外来種ページが見つかりません | ZUKAN",
     description: "指定された外来種ページは見つかりませんでした。",
     currentPath,
     canonicalPath: INVASIVE_SPECIES_LIST_PATH,
@@ -515,7 +515,7 @@ export async function registerInvasiveSpeciesRoutes(app: FastifyInstance): Promi
       basePath,
       lang,
       activeNav: "学ぶ",
-      title: "外来種一覧 | ikimon",
+    title: "外来種一覧 | ZUKAN",
       description: "外来種候補を見つけたときの安全行動と、公式情報への導線をまとめます。",
       currentPath: requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }),
       canonicalPath: INVASIVE_SPECIES_LIST_PATH,
@@ -547,7 +547,7 @@ export async function registerInvasiveSpeciesRoutes(app: FastifyInstance): Promi
       basePath,
       lang,
       activeNav: "学ぶ",
-      title: `${item.vernacularName} | 外来種メモ | ikimon`,
+    title: `${item.vernacularName} | 外来種メモ | ZUKAN`,
       description: `${item.vernacularName}を見つけたときの安全行動、法的注意、公式情報への導線をまとめます。`,
       currentPath,
       canonicalPath,
