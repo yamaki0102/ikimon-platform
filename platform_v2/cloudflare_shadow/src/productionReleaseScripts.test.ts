@@ -32,9 +32,13 @@ test("original UI materializer pins discovery documents to the public canonical 
   assert.match(materializer, /gatewayMaxAttempts = 5/);
   assert.match(materializer, /signed r2 gateway/);
   assert.match(materializer, /"--direct-staging-r2"/);
+  assert.match(materializer, /"--direct-production-r2"/);
   assert.match(materializer, /--direct-staging-r2 is restricted to the fixed staging bucket/);
+  assert.match(materializer, /--direct-production-r2 is restricted to the fixed production bucket/);
   assert.match(materializer, /direct_staging_materialization_exact_sha_mismatch/);
+  assert.match(materializer, /direct_production_materialization_exact_sha_mismatch/);
   assert.match(materializer, /"original-ui\/current\/staging\.json"/);
+  assert.match(materializer, /"original-ui\/current\/production\.json"/);
   assert.match(materializer, /"node_modules",\s*"wrangler",\s*"bin",\s*"wrangler\.js"/);
   assert.match(materializer, /"r2",\s*"object",\s*"put"/);
   const stagingRelease = await source("../../../scripts/run_cloudflare_staging_release.sh");
