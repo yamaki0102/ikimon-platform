@@ -619,6 +619,18 @@ interface LegacyPhotoUploadInput {
   facePrivacy?: string | null;
 }
 
+interface LegacyPhotoAssetRow {
+  asset_id: string;
+  observation_id: string | null;
+  owner_user_id: string;
+  object_key: string;
+  sha256: string | null;
+  mime: string;
+  bytes: number;
+  visibility: string;
+  processing_state: string;
+}
+
 interface LegacyAudioUploadInput {
   filename?: string | null;
   mimeType?: string | null;
@@ -29524,21 +29536,75 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const partitionMonth = observation.partition_month ?? partitionMonthFromDate(new Date().toISOString());
 
   const sha256 = await sha256Hex(body);
-  const assetId = newId("asset");
-  const outboxMediaId = newId("outbox");
-  const outboxReadModelId = newId("outbox");
-  const outboxAiId = newId("outbox");
+  const idempotencyKey = `v1-photo:${observationId}:${sha256}`;
+  const assetId = `asset_${await sha256Hex(textToArrayBuffer(idempotencyKey))}`;
+  const outboxMediaId = `outbox_${assetId}_media`;
+  const outboxReadModelId = `outbox_${assetId}_readmodel`;
+  const outboxAiId = `outbox_${assetId}_ai`;
   const reassessmentRequestId = `reassess:${observationId}:standard:${observation.owner_user_id}`;
-  const objectKey = `original/v1-compat/${observationId}/${assetId}-${filename}`;
+  const objectKey = `original/v1-compat/${observationId}/${assetId}`;
   const relativePath = objectKey;
   const occurrenceId = `occ:${observationId}:0`;
   const facePrivacy = normalizeFacePrivacy(input.facePrivacy);
 
+  const readReassessmentState = async (): Promise<string> => {
+    const row = await env.OBS_DB.prepare(
+      `SELECT request_state
+       FROM observation_reassessment_requests
+       WHERE observation_id = ? AND request_kind = 'standard' AND actor_user_id = ?`
+    ).bind(observationId, observation.owner_user_id).first<{ request_state: string }>();
+    return normalizeOptionalText(row?.request_state) ?? "pending";
+  };
+
+  const replayExistingPhoto = async (asset: LegacyPhotoAssetRow): Promise<Response> => {
+    if (
+      asset.observation_id !== observationId
+      || asset.owner_user_id !== observation.owner_user_id
+      || asset.sha256 !== sha256
+      || asset.mime !== mimeType
+      || asset.bytes !== body.byteLength
+    ) {
+      return json({ ok: false, error: "media_idempotency_conflict" }, 409, { "cache-control": "no-store" });
+    }
+    if (asset.processing_state !== "uploaded") {
+      return json({ ok: false, error: "duplicate_media_in_progress" }, 409, { "cache-control": "no-store" });
+    }
+    const existingObject = await env.ASSET_BUCKET.head(asset.object_key);
+    if (!existingObject || existingObject.size !== body.byteLength) {
+      return json({ ok: false, error: "media_integrity_missing" }, 503, { "cache-control": "no-store" });
+    }
+    return json({
+      ok: true,
+      visitId: observationId,
+      occurrenceId,
+      relativePath: asset.object_key,
+      publicUrl: `/${asset.object_key}`,
+      compatibility: { attempted: false, succeeded: false },
+      facePrivacy,
+      idempotency: { key: idempotencyKey, reused: true },
+      reassessment: {
+        state: await readReassessmentState(),
+        kind: "standard",
+        source: "cloudflare_photo_upload_atomic_reassessment"
+      },
+      dispatch: { sent: 0, pending: 0, errors: [] }
+    }, 200, { "cache-control": "no-store" });
+  };
+
+  const existingAsset = await env.OBS_DB.prepare(
+    `SELECT asset_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state
+     FROM asset_ledger
+     WHERE asset_id = ?`
+  ).bind(assetId).first<LegacyPhotoAssetRow>();
+  if (existingAsset) {
+    return replayExistingPhoto(existingAsset);
+  }
+
   await env.ASSET_BUCKET.put(objectKey, body, { httpMetadata: { contentType: mimeType } });
   try {
-    await env.OBS_DB.batch([
+    const batchResults = await env.OBS_DB.batch([
     env.OBS_DB.prepare(
-      `INSERT INTO asset_ledger
+      `INSERT OR IGNORE INTO asset_ledger
        (asset_id, draft_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state, uploaded_at, partition_month)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', CURRENT_TIMESTAMP, ?)`
     ).bind(
@@ -29554,13 +29620,13 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       partitionMonth
     ),
     env.OBS_DB.prepare(
-      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxMediaId, "media.process", observationId, JSON.stringify({ observationId, assetId }), partitionMonth),
     env.OBS_DB.prepare(
-      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxReadModelId, "readmodel.refresh", observationId, JSON.stringify({ observationId }), partitionMonth),
     env.OBS_DB.prepare(
-      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxAiId, "observation.reassess", observationId, JSON.stringify({ observationId, assetId }), partitionMonth),
     env.OBS_DB.prepare(
       `INSERT INTO observation_reassessment_requests (
@@ -29585,6 +29651,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       })
     ),
     rollbackLedgerInsert(env, {
+      ledgerId: `rollback_${assetId}`,
       eventType: "asset.photo.upload",
       targetId: assetId,
       partitionMonth,
@@ -29604,6 +29671,21 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       replaySql: postgresAssetReplaySql(assetId, observationId, observation.owner_user_id, objectKey, sha256, mimeType, body.byteLength, "private")
     })
     ]);
+    const assetReservationChanges = Number((batchResults[0] as { meta?: { changes?: unknown } } | undefined)?.meta?.changes);
+    if (!Number.isFinite(assetReservationChanges)) {
+      return json({ ok: false, error: "media_idempotency_reservation_unknown" }, 503, { "cache-control": "no-store" });
+    }
+    if (assetReservationChanges !== 1) {
+      const concurrentAsset = await env.OBS_DB.prepare(
+        `SELECT asset_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state
+         FROM asset_ledger
+         WHERE asset_id = ?`
+      ).bind(assetId).first<LegacyPhotoAssetRow>();
+      if (!concurrentAsset) {
+        return json({ ok: false, error: "media_idempotency_reservation_missing" }, 503, { "cache-control": "no-store" });
+      }
+      return replayExistingPhoto(concurrentAsset);
+    }
   } catch (error) {
     // R2 and D1 cannot share a transaction. A metadata failure must not leave
     // an orphaned object that could later be mistaken for a completed upload.
@@ -29630,6 +29712,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       succeeded: false
     },
     facePrivacy,
+    idempotency: { key: idempotencyKey, reused: false },
     reassessment: {
       state: "pending",
       kind: "standard",
@@ -33687,6 +33770,7 @@ async function markUploadedAssetsPublicReady(observationId: string, env: Env): P
 }
 
 function rollbackLedgerInsert(env: Env, input: {
+  ledgerId?: string;
   eventType: string;
   targetId: string;
   partitionMonth: string | null;
@@ -33695,11 +33779,11 @@ function rollbackLedgerInsert(env: Env, input: {
   replaySql: string;
 }): D1PreparedStatement {
   return env.OBS_DB.prepare(
-    `INSERT INTO rollback_write_ledger
+    `INSERT OR IGNORE INTO rollback_write_ledger
      (ledger_id, event_type, target_id, partition_month, source_endpoint, payload_json, replay_sql)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   ).bind(
-    newId("rollback"),
+    input.ledgerId ?? newId("rollback"),
     input.eventType,
     input.targetId,
     input.partitionMonth,
