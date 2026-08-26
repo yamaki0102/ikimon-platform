@@ -55,32 +55,44 @@ A challenger is ineligible when any of these fail:
 
 Quality wins first. Cost and p95 latency are tie-breakers only when quality is within one percentage point.
 
-## Commands
+## Fast path
 
 Run from `platform_v2`.
 
-Freeze the fixed 24-post Core dataset:
+The one-time Smoke freeze reads the canonical research occurrence projection directly; it does not crawl the map. It fails before downloading images unless at least eight records have human consensus, `externalExportAllowed=true`, and `withdrawalStatus=active`.
 
 ```bash
-npx tsx src/scripts/zukanModelBench.ts freeze
+npm run bench:zukan -- prepare-smoke
 ```
 
-The command refuses to overwrite an existing v2 manifest. A new dataset requires a new version/path rather than re-sampling the old one.
-
-Rights-vet the same frozen posts:
+After that immutable manifest is committed, each Cloudflare GLM Smoke is one command:
 
 ```bash
-npx tsx src/scripts/zukanModelBench.ts vet-rights \
+ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 npm run bench:zukan -- smoke-glm
+```
+
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` must already be configured in the execution environment. The command fixes the model to `@cf/zai-org/glm-5.3-flash`, the dataset to the eight-post Smoke manifest, output to 1,024 tokens/post, and Cloudflare's 2026-08-26 published token rates ($0.15/M input, $0.50/M output). A conservative $0.35 safety cap stops further calls; no fallback model is configured.
+
+## Explicit commands
+
+Freeze the fixed 24-post Core dataset through the legacy public candidate path:
+
+```bash
+npm run bench:zukan -- freeze
+```
+
+Then rights-vet it directly against canonical `ObservationDataRights`:
+
+```bash
+npm run bench:zukan -- vet-rights \
   --manifest=ops/model-bench/fixtures/zukan-public-post-core-v2.json
 ```
 
-This writes `ops/model-bench/fixtures/zukan-public-post-core-v2.external.json`.
-
-Smoke test a model on the fixed first 8 posts:
+Run an explicitly selected model on a frozen manifest:
 
 ```bash
 ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
-npx tsx src/scripts/zukanModelBench.ts run \
+npm run bench:zukan -- run \
   --model=gemini:gemini-3.5-flash \
   --manifest=ops/model-bench/fixtures/zukan-public-post-core-v2.external.json \
   --limit=8
@@ -90,7 +102,7 @@ Core baseline uses all fixed 24 posts:
 
 ```bash
 ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
-npx tsx src/scripts/zukanModelBench.ts run \
+npm run bench:zukan -- run \
   --model=gemini:gemini-3.5-flash \
   --manifest=ops/model-bench/fixtures/zukan-public-post-core-v2.external.json
 ```
@@ -101,7 +113,7 @@ Run Cloudflare Workers AI GLM-5.3-Flash on that exact same manifest:
 ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
 CLOUDFLARE_ACCOUNT_ID=... \
 CLOUDFLARE_API_TOKEN=... \
-npx tsx src/scripts/zukanModelBench.ts run \
+npm run bench:zukan -- run \
   --model=openai-compatible:@cf/zai-org/glm-5.3-flash \
   --manifest=ops/model-bench/fixtures/zukan-public-post-core-v2.external.json \
   --input-usd-per-1m=0.15 \
@@ -112,8 +124,8 @@ npx tsx src/scripts/zukanModelBench.ts run \
 Compare reports with the first report as baseline:
 
 ```bash
-npx tsx src/scripts/zukanModelBench.ts compare \
+npm run bench:zukan -- compare \
   --reports=ops/model-bench/reports/baseline.json,ops/model-bench/reports/challenger.json
 ```
 
-Verdict: `KEEP`, `SWITCH`, `REJECT_CHALLENGER`, or `INSUFFICIENT_GOLD`.
+Verdict: `KEEP`, `SWITCH`, `REJECT_CHALLENGER`, `INSUFFICIENT_GOLD`, or `BASELINE_INVALID`. The last state explicitly approves no model.
