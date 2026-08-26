@@ -1620,6 +1620,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const current = currentGuideConsentSnapshot();
     return Boolean(current[key] === true && hasCapturedConsent(item, key));
   }
+  function canReplayCapturedScene(item) {
+    return Boolean(item && item.type === 'scene' && hasCapturedConsent(item, 'camera'));
+  }
   function hasActiveCurrentConsent() {
     const current = currentGuideConsentSnapshot();
     return Boolean(current.camera || current.audio || current.location);
@@ -2887,9 +2890,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   }
   async function replayOfflineItem(item) {
     if (isOfflineItemExpired(item, Date.now())) return 'dropped';
-    if (!hasActiveCurrentConsent()) return 'deferred';
     if (item.type === 'scene') {
-      if (!canReplayWithCurrentConsent(item, 'camera')) return 'dropped';
+      if (!canReplayCapturedScene(item)) return 'dropped';
       const canReplayAudio = Boolean(item.audioBlob && canReplayWithCurrentConsent(item, 'audio'));
       const sceneRes = await postScenePayload({
         clientSceneId: item.clientSceneId,
@@ -2920,6 +2922,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       handleAcceptedScene(sceneRes);
       return 'replayed';
     }
+    if (!hasActiveCurrentConsent()) return 'deferred';
     if (item.type === 'audio') {
       if (!canReplayWithCurrentConsent(item, 'audio')) return 'dropped';
       await postAudioPayload({
@@ -2959,7 +2962,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         if (!isOnlineNow()) break;
         try {
           const replayState = await replayOfflineItem(item);
-          if (replayState === 'deferred') break;
+          if (replayState === 'deferred') continue;
           await deleteOfflineItem(item.id);
           removeAppOutboxItem(item.id);
         } catch (error) {
