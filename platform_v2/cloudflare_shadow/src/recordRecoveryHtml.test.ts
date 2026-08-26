@@ -54,6 +54,8 @@ test("signed recovery resumes the same record and only unfinished media", () => 
   assert.match(html, /objectStore\("drafts"\)\.get\("latest"\)/);
   assert.match(html, /async function persistDraftProgress/);
   assert.match(html, /recoverySubmissionId/);
+  assert.match(html, /const isRetry = Boolean\(pendingRetryTarget\)/);
+  assert.match(html, /if \(!isRetry\) \{[\s\S]*\/api\/v1\/observations\/upsert/);
   assert.match(html, /await persistDraftProgress\(\{[\s\S]*recoverySubmissionId[\s\S]*const observationId/);
   assert.match(html, /pendingMediaRetryVisitId: visitId/);
   assert.match(html, /completedPhotoIndexes\.has\(index\)[\s\S]*completedPhotoIndexes\.add\(index\)/);

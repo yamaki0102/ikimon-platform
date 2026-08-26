@@ -133,7 +133,10 @@ interface R2Object {
 interface R2ObjectBody {
   body: ReadableStream | null;
   httpMetadata?: { contentType?: string };
+  checksums?: { sha256?: string | ArrayBuffer };
 }
+
+type MaterializedR2ObjectBody = R2ObjectBody & { materializedSourceSha256?: string };
 
 interface R2ListResult {
   objects: R2ObjectSummary[];
@@ -23271,11 +23274,13 @@ function originalUiStaticAssetKey(pathname: string): string {
   return `original-ui/static/${pathname.replace(/^\/+/, "")}`;
 }
 
-async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promise<R2ObjectBody | null> {
+async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promise<MaterializedR2ObjectBody | null> {
   const pinnedManifestHash = env.IKIMON_UI_MANIFEST_HASH?.trim() ?? "";
   if (/^[a-f0-9]{64}$/.test(pinnedManifestHash)) {
     const relativeKey = legacyKey.replace(/^original-ui\//, "");
-    return await env.ASSET_BUCKET.get(`original-ui/versions/${pinnedManifestHash}/${relativeKey}`);
+    const versionPrefix = `original-ui/versions/${pinnedManifestHash}`;
+    const versioned = await env.ASSET_BUCKET.get(`${versionPrefix}/${relativeKey}`);
+    return await bindMaterializedSourceSha256(env, versionPrefix, relativeKey, versioned);
   }
 
   const targetEnv = env.ENVIRONMENT === "production" ? "production" : "staging";
@@ -23287,13 +23292,54 @@ async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promis
       if (/^original-ui\/versions\/[a-f0-9]{64}$/.test(prefix)) {
         const relativeKey = legacyKey.replace(/^original-ui\//, "");
         const versioned = await env.ASSET_BUCKET.get(`${prefix}/${relativeKey}`);
-        if (versioned?.body) return versioned;
+        if (versioned?.body) return await bindMaterializedSourceSha256(env, prefix, relativeKey, versioned);
       }
     } catch {
       // An invalid or partially written pointer never replaces the legacy key.
     }
   }
-  return await env.ASSET_BUCKET.get(legacyKey);
+  const legacy = await env.ASSET_BUCKET.get(legacyKey);
+  return await bindMaterializedSourceSha256(env, "", legacyKey.replace(/^original-ui\//, ""), legacy);
+}
+
+async function bindMaterializedSourceSha256(
+  env: Env,
+  versionPrefix: string,
+  relativeKey: string,
+  object: R2ObjectBody | null,
+): Promise<MaterializedR2ObjectBody | null> {
+  if (!object?.body) return object;
+  const manifestSha256 = versionPrefix
+    ? await readMaterializedManifestSha256(env, versionPrefix, relativeKey)
+    : "";
+  const sourceSha256 = manifestSha256 || r2Sha256Checksum(object);
+  return sourceSha256 ? { ...object, materializedSourceSha256: sourceSha256 } : object;
+}
+
+async function readMaterializedManifestSha256(env: Env, versionPrefix: string, relativeKey: string): Promise<string> {
+  const manifest = await env.ASSET_BUCKET.get(`${versionPrefix}/manifest.json`);
+  if (!manifest?.body) return "";
+  try {
+    const payload = await new Response(manifest.body).json() as { items?: Array<{ key?: unknown; sha256?: unknown }> };
+    const item = payload.items?.find((entry) => String(entry?.key ?? "") === relativeKey);
+    const sha256 = String(item?.sha256 ?? "").toLowerCase();
+    return /^[a-f0-9]{64}$/.test(sha256) ? sha256 : "";
+  } catch {
+    return "";
+  }
+}
+
+function r2Sha256Checksum(object: R2ObjectBody | null): string {
+  const value = object?.checksums?.sha256;
+  if (typeof value === "string") {
+    const sha256 = value.toLowerCase();
+    return /^[a-f0-9]{64}$/.test(sha256) ? sha256 : "";
+  }
+  if (value instanceof ArrayBuffer) {
+    const sha256 = Array.from(new Uint8Array(value), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return /^[a-f0-9]{64}$/.test(sha256) ? sha256 : "";
+  }
+  return "";
 }
 
 function contentTypeForOriginalUiStaticAsset(pathname: string): string {
@@ -23405,7 +23451,7 @@ function publicDerivativeContentType(key: string, mime: string | null): string {
 }
 
 async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
-  let object: R2ObjectBody | null = null;
+  let object: MaterializedR2ObjectBody | null = null;
   for (const key of originalUiHtmlKeysForRequest(url)) {
     object = await getVersionedOriginalUiObject(env, key);
     if (object?.body) break;
@@ -23423,6 +23469,7 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
         "expires": "0",
         "vary": "cookie, authorization",
         "x-ikimon-cloudflare-materialized": "original-ui-html",
+        ...materializedSourceSha256Headers(object),
         ...releaseIdentityHeaders(env)
       }
     });
@@ -23439,6 +23486,13 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
   }
 
   return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
+}
+
+function materializedSourceSha256Headers(object: MaterializedR2ObjectBody | null): Record<string, string> {
+  const sha256 = object?.materializedSourceSha256 || r2Sha256Checksum(object);
+  return /^[a-f0-9]{64}$/.test(sha256)
+    ? { "x-ikimon-cloudflare-materialized-sha256": sha256 }
+    : {};
 }
 
 function createHtmlCspNonce(): string {
@@ -23685,6 +23739,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     const submitPanel = document.getElementById("record-submit-panel");
     const photoInput = document.getElementById("record-media-photo");
     const videoInput = document.getElementById("record-media-video");
+    const recordPrefix = ${JSON.stringify(prefix)};
     const eventContext = {
       eventCode: document.body.dataset.eventCode || "",
       eventSessionId: document.body.dataset.eventSessionId || "",
@@ -23700,6 +23755,85 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     function selectedFile() {
       const input = mediaKind === "video" ? videoInput : photoInput;
       return input && input.files && input.files[0] ? input.files[0] : null;
+    }
+    function openRecordDraftDb() {
+      return new Promise((resolve, reject) => {
+        if (!("indexedDB" in window)) return reject(new Error("indexeddb_unavailable"));
+        const request = indexedDB.open("ikimon-record-draft", 1);
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains("drafts")) request.result.createObjectStore("drafts");
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("indexeddb_open_failed"));
+      });
+    }
+    async function writeRecordDraft(draft) {
+      const db = await openRecordDraftDb();
+      try {
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction("drafts", "readwrite");
+          tx.objectStore("drafts").put(draft, "latest");
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => reject(tx.error || new Error("indexeddb_write_failed"));
+        });
+      } finally {
+        db.close();
+      }
+    }
+    async function deleteRecordDraft() {
+      const db = await openRecordDraftDb();
+      try {
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction("drafts", "readwrite");
+          tx.objectStore("drafts").delete("latest");
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => reject(tx.error || new Error("indexeddb_delete_failed"));
+        });
+      } finally {
+        db.close();
+      }
+    }
+    function recordRecoveryHref() {
+      const target = new URL(recordPrefix + "/record", window.location.origin);
+      target.searchParams.set("retry", "media");
+      target.searchParams.set("start", mediaKind);
+      target.searchParams.set("source", "upload_failed");
+      for (const [key, value] of Object.entries({
+        event: eventContext.eventCode,
+        eventSessionId: eventContext.eventSessionId,
+        teamId: eventContext.teamId,
+        participantRole: eventContext.participantRole
+      })) {
+        if (value) target.searchParams.set(key, value);
+      }
+      return target.pathname + target.search;
+    }
+    let recoverySubmissionId = "";
+    let pendingVideoUid = "";
+    let pendingVideoUploadUrl = "";
+    let pendingVideoBodyUploaded = false;
+    async function persistRecordDraftProgress(formData, patch = {}) {
+      const file = selectedFile();
+      if (!file) throw new Error("record_draft_media_missing");
+      const latitude = String(formData.get("latitude") || "").trim();
+      const longitude = String(formData.get("longitude") || "").trim();
+      await writeRecordDraft({
+        file,
+        files: [file],
+        kind: mediaKind,
+        savedAt: Date.now(),
+        metadata: {
+          ...patch,
+          recoverySubmissionId,
+          eventContext,
+          formValues: {
+            note: String(formData.get("note") || ""),
+            latitude,
+            longitude
+          },
+          location: { latitude, longitude }
+        }
+      });
     }
     function reveal(kind) {
       mediaKind = kind;
@@ -23773,14 +23907,23 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       const latitude = Number(latitudeText);
       const longitude = Number(longitudeText);
       const userId = form.dataset.userId || "";
-      const observationId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        setStatus(copy.failed, true);
+        return;
+      }
+      if (!recoverySubmissionId) recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      const observationId = recoverySubmissionId;
       let observationStored = false;
+      let visitId = "";
       setStatus(copy.saving, false);
       void eventMetric("event_observation_submit_started");
       try {
-        if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-          throw new Error("invalid_coordinates");
-        }
+        await persistRecordDraftProgress(formData, {
+          pendingMediaRetryVisitId: "",
+          pendingMediaRetryVideoUid: "",
+          pendingMediaRetryVideoUploadUrl: "",
+          pendingMediaRetryVideoBodyUploaded: false
+        });
         const observation = await postJson("/api/v1/observations/upsert", {
           observationId,
           clientSubmissionId: observationId + "-cloudflare-record-form",
@@ -23805,7 +23948,12 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           }
         });
         observationStored = true;
-        const visitId = String(observation.visitId || observation.observationId || observationId);
+        visitId = String(observation.visitId || observation.observationId || observationId);
+        try {
+          await persistRecordDraftProgress(formData, { pendingMediaRetryVisitId: visitId });
+        } catch (draftError) {
+          console.error(draftError);
+        }
         if (mediaKind === "photo") {
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
             filename: file.name || "record-photo.jpg",
@@ -23814,6 +23962,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
             mediaRole: "primary",
             facePrivacy: "no_faces"
           });
+          await deleteRecordDraft();
           setStatus(copy.saved + " " + copy.photoSaved, false);
           return;
         }
@@ -23826,23 +23975,58 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           maxDurationSeconds: 60
         });
         if (!direct.uploadUrl || !direct.uid) throw new Error("video_direct_upload_failed");
+        pendingVideoUid = String(direct.uid);
+        pendingVideoUploadUrl = String(direct.uploadUrl);
+        pendingVideoBodyUploaded = false;
+        await persistRecordDraftProgress(formData, {
+          pendingMediaRetryVisitId: visitId,
+          pendingMediaRetryVideoUid: pendingVideoUid,
+          pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
+          pendingMediaRetryVideoBodyUploaded: false
+        });
         const bodyResponse = await fetch(String(direct.uploadUrl || ""), {
           method: "PUT",
           credentials: "same-origin",
           headers: { "content-type": file.type || "video/mp4" },
           body: file
         });
-        if (!bodyResponse.ok) throw new Error("video_body_upload_failed");
+        if (!bodyResponse.ok) {
+          pendingVideoUid = "";
+          pendingVideoUploadUrl = "";
+          pendingVideoBodyUploaded = false;
+          throw new Error("video_body_upload_failed");
+        }
+        pendingVideoBodyUploaded = true;
+        await persistRecordDraftProgress(formData, {
+          pendingMediaRetryVisitId: visitId,
+          pendingMediaRetryVideoUid: pendingVideoUid,
+          pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
+          pendingMediaRetryVideoBodyUploaded: true
+        });
         await postJson("/api/v1/videos/" + encodeURIComponent(String(direct.uid || "")) + "/finalize", {
           observationId: visitId,
           durationMs: 1000,
           readyToStream: true
         });
+        await deleteRecordDraft();
         setStatus(copy.saved + " " + copy.videoSaved, false);
       } catch (error) {
         console.error(error);
         if (!observationStored) {
           void eventMetric("event_observation_failed", { result_reason: observationFailureReason(error) });
+        }
+        try {
+          await persistRecordDraftProgress(formData, {
+            pendingMediaRetryVisitId: visitId,
+            pendingMediaRetryVideoUid: pendingVideoUid,
+            pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
+            pendingMediaRetryVideoBodyUploaded: pendingVideoBodyUploaded
+          });
+          void eventMetric("event_media_retry_queued", { retry_kind: mediaKind });
+          location.assign(recordRecoveryHref());
+          return;
+        } catch (draftError) {
+          console.error(draftError);
         }
         setStatus(copy.failed, true);
       }

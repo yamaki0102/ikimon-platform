@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { test, expect, type Browser, type Page, type Route } from "@playwright/test";
 import {
   installMapLibreStubForSmoke,
@@ -6,7 +5,7 @@ import {
   suppressMapLibreForSmoke,
 } from "./support/staging.js";
 
-const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life";
+const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth";
 const STAGING_ORIGIN = new URL(STAGING_BASE_URL).origin;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const FIELD_ID = "d50678d0-ba57-4d3d-a713-2fe441d646ab";
@@ -316,8 +315,7 @@ async function openProfile(browser: Browser, localePath: string, locale: string,
   expect(response?.status() ?? 0).toBeLessThan(400);
   expect(response?.headers()["x-ikimon-cloudflare-materialized"]).toBe("original-ui-html");
   expect(String(response?.headers()["cf-cache-status"] ?? "").toUpperCase()).not.toBe("HIT");
-  const body = await response?.body();
-  expect(createHash("sha256").update(body ?? Buffer.alloc(0)).digest("hex")).toBe(EXPECTED_MAP_HASHES[localePath]);
+  expect(response?.headers()["x-ikimon-cloudflare-materialized-sha256"]).toBe(EXPECTED_MAP_HASHES[localePath]);
   await expect(page.locator("[data-maplibre-smoke-stub='1']")).toBeVisible();
   await page.locator("#me-locate-fab").click();
   const marker = page.locator(".me-nearby-area-marker", { hasText: "常磐公園" });
