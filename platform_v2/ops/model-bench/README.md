@@ -4,19 +4,21 @@ Status: source implementation. No paid model call or production mutation is perf
 
 ## Goal
 
-Compare current and future vision models on exactly the same ZUKAN observation images. Quality is gated before price or latency.
+Compare current and future vision models on exactly the same ZUKAN observation image bytes. Quality is gated before price or latency.
 
 ## Fixture policy
 
-- Source only from ZUKAN's production public observation surface.
-- Reuse the existing public observation quality gate/resolver; do not query private posts for benchmark selection.
+- Discover candidates only from ZUKAN's production public observation surface.
+- Reuse the existing public observation quality gate/resolver; do not query private posts for benchmark discovery.
 - Freeze each source image by URL, MIME, byte length, and SHA-256. Every model run re-fetches the image and aborts if the bytes no longer match.
 - Do not commit image bytes to Git. The manifest contains references and hashes only.
 - Freeze the benchmark prompt together with the manifest and verify its SHA-256 on every run.
 - Hide existing label, exact location, observer identity, and profile context from the model prompt so the test measures the image model rather than metadata leakage.
 - Treat only human-backed `community_consensus` / `authority_reviewed` or an equivalent durable public identified state as gold. Existing AI output is never gold.
 - Public labels without verified human consensus are retained only for review and do not affect automatic model switching.
-- A frozen v1 dataset is immutable. If rights, source identity, image bytes, or benchmark policy changes, create a new dataset version rather than overwriting history.
+- Public visibility is not permission to send media to a new AI provider. Before any model run, create a rights-vetted manifest. Only observations whose canonical `ObservationDataRights.externalExportAllowed` resolves to true and whose withdrawal state is active remain eligible.
+- A frozen dataset is immutable. Rights vetting creates a separate `.external.json` manifest; it does not overwrite the public-source snapshot.
+- If rights, source identity, image bytes, or benchmark policy changes, create a new dataset version and rerun every compared model.
 
 ## Hard gates
 
@@ -33,21 +35,33 @@ Quality is ranked first. Cost and p95 latency are tie-breakers only when quality
 
 ## Commands
 
-Freeze 80 public ZUKAN images and the current production reassessment prompt:
+Run from `platform_v2`.
+
+Freeze 80 public ZUKAN images and the current production reassessment prompt. This is read-only against the public site and does not send images to an AI provider:
 
 ```bash
 npx tsx src/scripts/zukanModelBench.ts freeze --count=80
 ```
 
-Run the current visual baseline:
+In a read-only runtime connected to the canonical production rights database, produce the externally-processable subset:
 
 ```bash
-npx tsx src/scripts/zukanModelBench.ts run \
-  --model=gemini:gemini-3.5-flash \
+npx tsx src/scripts/zukanModelBench.ts vet-rights \
   --manifest=ops/model-bench/fixtures/zukan-public-core-v1.json
 ```
 
-Run Cloudflare Workers AI GLM-5.3-Flash after the external-provider/cost boundary is intentionally enabled:
+This writes `ops/model-bench/fixtures/zukan-public-core-v1.external.json`.
+
+Run the current visual baseline on that exact rights-vetted manifest:
+
+```bash
+ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
+npx tsx src/scripts/zukanModelBench.ts run \
+  --model=gemini:gemini-3.5-flash \
+  --manifest=ops/model-bench/fixtures/zukan-public-core-v1.external.json
+```
+
+Run Cloudflare Workers AI GLM-5.3-Flash on the same manifest after the external-provider/cost boundary is intentionally enabled:
 
 ```bash
 ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
@@ -55,6 +69,7 @@ CLOUDFLARE_ACCOUNT_ID=... \
 CLOUDFLARE_API_TOKEN=... \
 npx tsx src/scripts/zukanModelBench.ts run \
   --model=openai-compatible:@cf/zai-org/glm-5.3-flash \
+  --manifest=ops/model-bench/fixtures/zukan-public-core-v1.external.json \
   --input-usd-per-1m=0.15 \
   --output-usd-per-1m=0.50 \
   --pricing-source=cloudflare-workers-ai-2026-08-27
