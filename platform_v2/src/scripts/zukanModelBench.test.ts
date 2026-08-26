@@ -7,6 +7,7 @@ import {
   compareZukanBenchReports,
   detailHasHumanConsensus,
   extractOrderedPostPhotoUrls,
+  rightsVettedTargetsFromResearchPayload,
   scoreZukanBenchResponse,
   selectDeterministicPostTargets,
   type ZukanBenchFixture,
@@ -64,6 +65,26 @@ test("post selection is deterministic and deduped by visit", () => {
   const second = selectDeterministicPostTargets([c, a2, b, a], 3).map((item) => item.visitId);
   assert.deepEqual(first, second);
   assert.equal(new Set(first).size, 3);
+});
+
+test("research API candidates require canonical export rights and human consensus", () => {
+  const accepted = {
+    eventID: "record-1",
+    occurrenceID: "occ:record-1:0",
+    eventDate: "2026-08-01T00:00:00Z",
+    scientificName: "Anax nigrofasciatus",
+    vernacularName: "クロスジギンヤンマ",
+    taxonRank: "species",
+    consensusStatus: "community_consensus",
+    associatedMedia: "/photo.jpg",
+    licenseStatus: { mediaLicense: "CC-BY-4.0", externalExportAllowed: true, withdrawalStatus: "active" },
+  };
+  const targets = rightsVettedTargetsFromResearchPayload({
+    records: [accepted, { ...accepted, eventID: "record-2", licenseStatus: { ...accepted.licenseStatus, externalExportAllowed: false } }],
+  });
+  assert.equal(targets.length, 1);
+  assert.equal(targets[0]?.gold.status, "human_consensus");
+  assert.equal(targets[0]?.mediaLicense, "CC-BY-4.0");
 });
 
 test("all photos in one post are extracted in post order", () => {
@@ -125,10 +146,14 @@ function report(model: string, goldPostCount: number): ZukanBenchModelReport {
     postCount: 24,
     imageCount: 48,
     successCount: 24,
+    successRatePct: 100,
     schemaValidRatePct: 100,
     goldPostCount,
     taxonScorePct: 95,
     criticalFailurePostCount: 0,
+    highConfidenceWrongPostCount: 0,
+    overprecisionPostCount: 0,
+    locationHallucinationPostCount: 0,
     p50LatencyMs: 100,
     p95LatencyMs: 200,
     totalInputTokens: 1,
@@ -142,4 +167,12 @@ function report(model: string, goldPostCount: number): ZukanBenchModelReport {
 test("automatic switching is refused without enough human gold posts", () => {
   const tooFew = ZUKAN_BENCH_MIN_GOLD_POSTS - 1;
   assert.equal(compareZukanBenchReports([report("baseline", tooFew), report("challenger", tooFew)]).decision, "INSUFFICIENT_GOLD");
+});
+
+test("an invalid baseline is never treated as approved", () => {
+  const baseline = { ...report("baseline", 8), successCount: 23, successRatePct: 95.83 };
+  const challenger = { ...report("challenger", 8), schemaValidRatePct: 95 };
+  const comparison = compareZukanBenchReports([baseline, challenger]);
+  assert.equal(comparison.decision, "BASELINE_INVALID");
+  assert.equal(comparison.winnerModel, "");
 });
