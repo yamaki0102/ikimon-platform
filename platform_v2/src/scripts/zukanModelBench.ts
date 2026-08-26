@@ -6,11 +6,12 @@ import { AI_MODEL_CHAIN_ENV_KEYS } from "../services/aiModels.js";
 import { generateAiTextWithRoleChain, type AiRouterPart } from "../services/aiModelRouter.js";
 import { getObservationDataRights } from "../services/observationDataRights.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
-import { resolveObservationImageTargets, type ObservationImageTarget } from "./resolveObservationImageTargets.js";
+import { observationImageTargetPath, resolveObservationImageTargets, type ObservationImageTarget } from "./resolveObservationImageTargets.js";
 
 export const ZUKAN_MODEL_BENCH_VERSION = "zukan-post-model-bench-v2";
 export const ZUKAN_MODEL_BENCH_PROMPT_VERSION = "observation-reassess-post-cold-start-v2";
 export const DEFAULT_ZUKAN_BENCH_MANIFEST = "ops/model-bench/fixtures/zukan-public-post-core-v2.json";
+export const DEFAULT_ZUKAN_BENCH_SMOKE_MANIFEST = "ops/model-bench/fixtures/zukan-public-post-smoke-v2.external.json";
 export const DEFAULT_ZUKAN_BENCH_REPORT_DIR = "ops/model-bench/reports";
 export const ZUKAN_BENCH_CORE_POST_COUNT = 24;
 export const ZUKAN_BENCH_SMOKE_POST_COUNT = 8;
@@ -76,6 +77,13 @@ export type ZukanBenchFixtureScore = {
   schemaValid: boolean;
   taxonScore: number | null;
   criticalFailures: string[];
+  recommendedTaxonName?: string;
+  recommendedRank?: string;
+  confidenceBand?: string;
+  geographicContext?: string;
+  latencyMs?: number;
+  inputTokens?: number;
+  outputTokens?: number;
 };
 
 export type ZukanBenchModelReport = {
@@ -91,10 +99,14 @@ export type ZukanBenchModelReport = {
   postCount: number;
   imageCount: number;
   successCount: number;
+  successRatePct: number;
   schemaValidRatePct: number;
   goldPostCount: number;
   taxonScorePct: number | null;
   criticalFailurePostCount: number;
+  highConfidenceWrongPostCount: number;
+  overprecisionPostCount: number;
+  locationHallucinationPostCount: number;
   p50LatencyMs: number;
   p95LatencyMs: number;
   totalInputTokens: number;
@@ -116,6 +128,30 @@ type BenchPricing = {
   inputUsdPer1M: number;
   outputUsdPer1M: number;
   source: string;
+};
+
+type ResearchOccurrenceCandidate = {
+  eventID?: unknown;
+  occurrenceID?: unknown;
+  eventDate?: unknown;
+  scientificName?: unknown;
+  vernacularName?: unknown;
+  taxonRank?: unknown;
+  consensusStatus?: unknown;
+  identificationVerificationStatus?: unknown;
+  associatedMedia?: unknown;
+  licenseStatus?: {
+    mediaLicense?: unknown;
+    externalExportAllowed?: unknown;
+    withdrawalStatus?: unknown;
+    rightsPolicyVersion?: unknown;
+  } | null;
+};
+
+type RightsVettedTarget = ObservationImageTarget & {
+  gold: ZukanBenchGold;
+  mediaLicense: string | null;
+  rightsPolicyVersion: string | null;
 };
 
 function clean(value: unknown): string {
@@ -183,13 +219,65 @@ function selectionKey(visitId: string): string {
 
 export function selectDeterministicPostTargets(targets: ObservationImageTarget[], count: number): ObservationImageTarget[] {
   const byVisit = new Map<string, ObservationImageTarget>();
-  for (const target of targets) {
+  for (const target of [...targets].sort((a, b) => a.occurrenceId.localeCompare(b.occurrenceId))) {
     if (!eligibleTarget(target) || byVisit.has(target.visitId)) continue;
     byVisit.set(target.visitId, target);
   }
   return [...byVisit.values()]
     .sort((a, b) => selectionKey(a.visitId).localeCompare(selectionKey(b.visitId)) || a.visitId.localeCompare(b.visitId))
     .slice(0, Math.max(0, Math.floor(count)));
+}
+
+function humanConsensusRecord(record: ResearchOccurrenceCandidate): boolean {
+  const consensus = clean(record.consensusStatus);
+  const verification = clean(record.identificationVerificationStatus);
+  return consensus === "authority_backed"
+    || consensus === "community_consensus"
+    || verification === "authority_reviewed"
+    || verification === "community_consensus";
+}
+
+export function rightsVettedTargetsFromResearchPayload(payload: unknown): RightsVettedTarget[] {
+  const records = payload && typeof payload === "object" && Array.isArray((payload as { records?: unknown }).records)
+    ? (payload as { records: ResearchOccurrenceCandidate[] }).records
+    : [];
+  return records.flatMap((record): RightsVettedTarget[] => {
+    const visitId = clean(record.eventID);
+    const occurrenceId = clean(record.occurrenceID);
+    const photoUrl = clean(record.associatedMedia);
+    const label = meaningfulLabel(clean(record.vernacularName)) ?? meaningfulLabel(clean(record.scientificName));
+    const rights = record.licenseStatus;
+    if (!visitId || !occurrenceId || !photoUrl || !label || !humanConsensusRecord(record)) return [];
+    if (rights?.externalExportAllowed !== true || clean(rights.withdrawalStatus) !== "active") return [];
+    const scientificName = meaningfulLabel(clean(record.scientificName));
+    return [{
+      path: observationImageTargetPath({ visitId, occurrenceId }),
+      visitId,
+      occurrenceId,
+      observedAt: clean(record.eventDate),
+      displayName: label,
+      photoUrl,
+      source: /^record-\d+$/u.test(visitId) ? "record-path" : "occurrence-path",
+      gold: {
+        label,
+        aliases: scientificName && normalizeTaxon(scientificName) !== normalizeTaxon(label) ? [scientificName] : [],
+        rank: meaningfulLabel(clean(record.taxonRank)),
+        status: "human_consensus",
+      },
+      mediaLicense: meaningfulLabel(clean(rights.mediaLicense)),
+      rightsPolicyVersion: meaningfulLabel(clean(rights.rightsPolicyVersion)),
+    }];
+  });
+}
+
+async function fetchRightsVettedResearchTargets(baseUrl: string): Promise<RightsVettedTarget[]> {
+  const url = new URL("/api/v1/research/occurrences", baseUrl);
+  url.searchParams.set("export_ready_only", "true");
+  url.searchParams.set("tier_gte", "1");
+  url.searchParams.set("limit", "1000");
+  const response = await fetch(url, { headers: { accept: "application/json", "cache-control": "no-store" } });
+  if (!response.ok) throw new Error(`zukan_bench_research_api_failed:${response.status}:${url}`);
+  return rightsVettedTargetsFromResearchPayload(await response.json());
 }
 
 function meaningfulLabel(value: string): string | null {
@@ -312,6 +400,7 @@ export async function freezeZukanBenchManifest(options: {
   baseUrl?: string;
   count?: number;
   outputPath?: string;
+  rightsVettedResearchApi?: boolean;
 } = {}): Promise<ZukanBenchManifest> {
   const baseUrl = (options.baseUrl ?? PRODUCTION_PUBLIC_ORIGIN).replace(/\/+$/u, "");
   const count = Math.max(1, Math.floor(options.count ?? ZUKAN_BENCH_CORE_POST_COUNT));
@@ -321,9 +410,13 @@ export async function freezeZukanBenchManifest(options: {
   await assertNewFile(promptPath);
 
   const discoveryCount = Math.max(count * 2, count + 8);
-  const resolved = await resolveObservationImageTargets({ baseUrl, count: discoveryCount });
-  const selected = selectDeterministicPostTargets(resolved.targets, count);
-  if (selected.length < count) throw new Error(`zukan_bench_not_enough_unique_posts:${selected.length}/${count}`);
+  const directTargets = options.rightsVettedResearchApi ? await fetchRightsVettedResearchTargets(baseUrl) : null;
+  const resolved = directTargets ? null : await resolveObservationImageTargets({ baseUrl, count: discoveryCount });
+  const selected = selectDeterministicPostTargets(directTargets ?? resolved?.targets ?? [], count);
+  if (selected.length < count) {
+    const reason = options.rightsVettedResearchApi ? "zukan_bench_not_enough_rights_vetted_human_consensus_posts" : "zukan_bench_not_enough_unique_posts";
+    throw new Error(`${reason}:${selected.length}/${count}`);
+  }
 
   const prompt = await readFile(DEFAULT_PROMPT_SOURCE, "utf8");
   const fixtures: ZukanBenchFixture[] = [];
@@ -344,6 +437,7 @@ export async function freezeZukanBenchManifest(options: {
         mimeType: image.mimeType,
       });
     }
+    const vettedTarget = options.rightsVettedResearchApi ? target as RightsVettedTarget : null;
     fixtures.push({
       fixtureId: `zukan-post-${target.visitId}`,
       visitId: target.visitId,
@@ -352,11 +446,11 @@ export async function freezeZukanBenchManifest(options: {
       observedAt: target.observedAt,
       images,
       postInputSha256: canonicalImageDigest(images),
-      gold: inferGold(target, detailHtml),
-      externalExportAllowed: null,
-      mediaLicense: null,
-      rightsPolicyVersion: null,
-      withdrawalStatus: null,
+      gold: vettedTarget?.gold ?? inferGold(target, detailHtml),
+      externalExportAllowed: vettedTarget ? true : null,
+      mediaLicense: vettedTarget?.mediaLicense ?? null,
+      rightsPolicyVersion: vettedTarget?.rightsPolicyVersion ?? null,
+      withdrawalStatus: vettedTarget ? "active" : null,
     });
   }
 
@@ -371,7 +465,7 @@ export async function freezeZukanBenchManifest(options: {
     datasetSha256: canonicalFixtureDigest(fixtures),
     promptPath,
     promptSha256: sha256(prompt),
-    externalProcessingVettedAt: null,
+    externalProcessingVettedAt: options.rightsVettedResearchApi ? new Date().toISOString() : null,
     fixtures,
   };
   await mkdir(path.dirname(outputPath), { recursive: true });
@@ -533,6 +627,10 @@ export function scoreZukanBenchResponse(fixture: ZukanBenchFixture, rawText: str
     schemaValid,
     taxonScore,
     criticalFailures: [...new Set(criticalFailures)],
+    recommendedTaxonName: recommended,
+    recommendedRank: rank,
+    confidenceBand: confidence,
+    geographicContext: geography,
   };
 }
 
@@ -578,6 +676,7 @@ export async function runZukanModelBench(options: {
   reportDir?: string;
   pricing?: BenchPricing | null;
   limit?: number;
+  maxEstimatedCostUsd?: number;
 }): Promise<ZukanBenchModelReport> {
   const manifestPath = options.manifestPath ?? defaultRightsManifestPath(DEFAULT_ZUKAN_BENCH_MANIFEST);
   const reportDir = options.reportDir ?? DEFAULT_ZUKAN_BENCH_REPORT_DIR;
@@ -599,6 +698,11 @@ export async function runZukanModelBench(options: {
 
   try {
     for (const fixture of fixtures) {
+      const spentBeforeCall = estimatedCost(totalInputTokens, totalOutputTokens, options.pricing ?? null);
+      const averageCompletedCost = spentBeforeCall !== null && fixtureScores.length > 0 ? spentBeforeCall / fixtureScores.length : 0;
+      if (spentBeforeCall !== null && options.maxEstimatedCostUsd !== undefined && spentBeforeCall + averageCompletedCost > options.maxEstimatedCostUsd) {
+        throw new Error(`zukan_bench_cost_cap_preflight:${spentBeforeCall.toFixed(8)}/${options.maxEstimatedCostUsd.toFixed(8)}`);
+      }
       const parts: AiRouterPart[] = [];
       const verifiedImages: ZukanBenchImage[] = [];
       for (const imageRef of fixture.images) {
@@ -622,16 +726,23 @@ export async function runZukanModelBench(options: {
           responseMimeType: "application/json",
           thinkingConfig: { thinkingLevel: "minimal" },
           temperature: 0,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 1024,
           retriesPerModel: 1,
         });
-        latencies.push(Date.now() - started);
         totalInputTokens += result.inputTokens;
         totalOutputTokens += result.outputTokens;
-        fixtureScores.push(scoreZukanBenchResponse(fixture, result.text));
+        const latencyMs = Date.now() - started;
+        latencies.push(latencyMs);
+        fixtureScores.push({
+          ...scoreZukanBenchResponse(fixture, result.text),
+          latencyMs,
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+        });
         successCount += 1;
       } catch (error) {
-        latencies.push(Date.now() - started);
+        const latencyMs = Date.now() - started;
+        latencies.push(latencyMs);
         fixtureScores.push({
           fixtureId: fixture.fixtureId,
           visitId: fixture.visitId,
@@ -639,7 +750,12 @@ export async function runZukanModelBench(options: {
           schemaValid: false,
           taxonScore: fixture.gold.status === "human_consensus" ? 0 : null,
           criticalFailures: [`model_error:${error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180)}`],
+          latencyMs,
         });
+      }
+      const spentAfterCall = estimatedCost(totalInputTokens, totalOutputTokens, options.pricing ?? null);
+      if (spentAfterCall !== null && options.maxEstimatedCostUsd !== undefined && spentAfterCall > options.maxEstimatedCostUsd) {
+        throw new Error(`zukan_bench_cost_cap_reached:${spentAfterCall.toFixed(8)}/${options.maxEstimatedCostUsd.toFixed(8)}`);
       }
     }
   } finally {
@@ -661,12 +777,16 @@ export async function runZukanModelBench(options: {
     postCount: fixtures.length,
     imageCount: fixtures.reduce((sum, fixture) => sum + fixture.images.length, 0),
     successCount,
+    successRatePct: Number(((successCount / Math.max(1, fixtures.length)) * 100).toFixed(2)),
     schemaValidRatePct: Number(((fixtureScores.filter((score) => score.schemaValid).length / Math.max(1, fixtures.length)) * 100).toFixed(2)),
     goldPostCount: goldScores.length,
     taxonScorePct: goldScores.length
       ? Number(((goldScores.reduce((sum, score) => sum + (score.taxonScore ?? 0), 0) / goldScores.length) * 100).toFixed(2))
       : null,
     criticalFailurePostCount: fixtureScores.filter((score) => score.criticalFailures.length > 0).length,
+    highConfidenceWrongPostCount: fixtureScores.filter((score) => score.criticalFailures.includes("high_confidence_wrong_species")).length,
+    overprecisionPostCount: fixtureScores.filter((score) => score.criticalFailures.includes("overprecise_beyond_human_gold")).length,
+    locationHallucinationPostCount: fixtureScores.filter((score) => score.criticalFailures.includes("location_hallucination")).length,
     p50LatencyMs: percentile(latencies, 0.5),
     p95LatencyMs: percentile(latencies, 0.95),
     totalInputTokens,
@@ -686,7 +806,7 @@ export async function runZukanModelBench(options: {
 export type ZukanBenchComparison = {
   datasetSha256: string;
   promptSha256: string;
-  decision: "KEEP" | "SWITCH" | "REJECT_CHALLENGER" | "INSUFFICIENT_GOLD";
+  decision: "KEEP" | "SWITCH" | "REJECT_CHALLENGER" | "INSUFFICIENT_GOLD" | "BASELINE_INVALID";
   baselineModel: string;
   winnerModel: string;
   reason: string;
@@ -719,6 +839,14 @@ export function compareZukanBenchReports(reports: ZukanBenchModelReport[]): Zuka
 
   const eligible = reports.filter(hardGatePass);
   const challengerEligible = eligible.filter((report) => report.model !== baseline.model);
+  if (!hardGatePass(baseline) && !challengerEligible.length) return {
+    datasetSha256: baseline.datasetSha256,
+    promptSha256: baseline.promptSha256,
+    decision: "BASELINE_INVALID",
+    baselineModel: baseline.model,
+    winnerModel: "",
+    reason: "Baseline and all challengers failed reliability hard gates; no model is approved.",
+  };
   if (!challengerEligible.length) return {
     datasetSha256: baseline.datasetSha256,
     promptSha256: baseline.promptSha256,
@@ -778,6 +906,16 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({ status: "FROZEN", postCount: manifest.postCount, imageCount: manifest.imageCount, datasetSha256: manifest.datasetSha256 }, null, 2));
     return;
   }
+  if (command === "prepare-smoke") {
+    const manifest = await freezeZukanBenchManifest({
+      baseUrl: stringArg(args, "base-url"),
+      count: ZUKAN_BENCH_SMOKE_POST_COUNT,
+      outputPath: stringArg(args, "out") ?? DEFAULT_ZUKAN_BENCH_SMOKE_MANIFEST,
+      rightsVettedResearchApi: true,
+    });
+    console.log(JSON.stringify({ status: "RIGHTS_VETTED_SMOKE_FROZEN", postCount: manifest.postCount, imageCount: manifest.imageCount, datasetSha256: manifest.datasetSha256, promptSha256: manifest.promptSha256 }, null, 2));
+    return;
+  }
   if (command === "vet-rights") {
     const manifest = await vetZukanBenchRights({
       manifestPath: stringArg(args, "manifest"),
@@ -799,6 +937,17 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(report, null, 2));
     return;
   }
+  if (command === "smoke-glm") {
+    const report = await runZukanModelBench({
+      model: "openai-compatible:@cf/zai-org/glm-5.3-flash",
+      manifestPath: stringArg(args, "manifest") ?? DEFAULT_ZUKAN_BENCH_SMOKE_MANIFEST,
+      reportDir: stringArg(args, "report-dir"),
+      pricing: { inputUsdPer1M: 0.15, outputUsdPer1M: 0.50, source: "cloudflare-workers-ai-2026-08-26" },
+      maxEstimatedCostUsd: 0.35,
+    });
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
   if (command === "compare") {
     const reportPaths = (stringArg(args, "reports") ?? "").split(",").map((value) => value.trim()).filter(Boolean);
     if (reportPaths.length < 2) throw new Error("--reports requires at least baseline.json,challenger.json");
@@ -806,7 +955,7 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(compareZukanBenchReports(reports), null, 2));
     return;
   }
-  throw new Error(`unknown command:${command}; use freeze, vet-rights, run, or compare`);
+  throw new Error(`unknown command:${command}; use prepare-smoke, smoke-glm, freeze, vet-rights, run, or compare`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
