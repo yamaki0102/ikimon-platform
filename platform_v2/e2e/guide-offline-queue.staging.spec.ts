@@ -1,6 +1,29 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { newStagingContext } from "./support/staging.js";
+import { renderGuideFlow } from "../src/ui/guideFlow.js";
+
+async function installLocalGuidePage(page: Page): Promise<void> {
+  const html = `<!doctype html><html lang="ja"><body>${renderGuideFlow("", "ja")}</body></html>`;
+  await page.route(/\/guide\?lang=ja$/, async (route) => {
+    await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: html });
+  });
+}
+
+async function countQueuedGuideScenes(page: Page): Promise<number> {
+  return page.evaluate(async () => new Promise<number>((resolve, reject) => {
+    const request = indexedDB.open("ikimon-guide-offline-v1", 1);
+    request.onerror = () => reject(request.error ?? new Error("indexeddb_open_failed"));
+    request.onsuccess = () => {
+      const db = request.result;
+      const tx = db.transaction("queue", "readonly");
+      const getAll = tx.objectStore("queue").getAll();
+      getAll.onerror = () => reject(getAll.error ?? new Error("indexeddb_read_failed"));
+      getAll.onsuccess = () => resolve(getAll.result.filter((item) => item?.type === "scene").length);
+      tx.oncomplete = () => db.close();
+    };
+  }));
+}
 
 async function installGuideOfflineMocks(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -95,9 +118,14 @@ test("guide queues a camera scene offline and syncs it after reconnect", async (
     hasTouch: true,
   });
   const page = await context.newPage();
+  let scenePostCount = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === "/api/v1/guide/scene") scenePostCount += 1;
+  });
 
   try {
     await installGuideOfflineMocks(page);
+    await installLocalGuidePage(page);
     await page.goto("/guide?lang=ja", { waitUntil: "domcontentloaded" });
 
     await context.setOffline(true);
@@ -109,11 +137,16 @@ test("guide queues a camera scene offline and syncs it after reconnect", async (
     await expect(page.locator("#guide-offline-queued")).toContainText("未同期 1件", { timeout: 15_000 });
     await expect(page.locator("#guide-discovery-list")).toContainText("端末に一時保存中");
 
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("#guide-offline-state")).toContainText("オフライン中");
+    expect(await countQueuedGuideScenes(page)).toBe(1);
+
     await context.setOffline(false);
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
 
-    await expect(page.locator("#guide-offline-queued")).toBeHidden({ timeout: 20_000 });
+    await expect.poll(() => countQueuedGuideScenes(page), { timeout: 20_000 }).toBe(0);
     await expect(page.locator("#guide-discovery-list .gdi-autosave.is-saved").first()).toContainText("記録済み");
+    expect(scenePostCount).toBe(1);
   } finally {
     await context.close();
   }
@@ -130,6 +163,7 @@ test("guide audio-only offline mode does not request camera video", async ({ bro
 
   try {
     await installGuideOfflineMocks(page);
+    await installLocalGuidePage(page);
     await page.goto("/guide?lang=ja", { waitUntil: "domcontentloaded" });
     await context.setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event("offline")));
