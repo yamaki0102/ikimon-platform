@@ -264,6 +264,7 @@ async function runPlaywright(name, args, extraEnv = {}) {
         PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: chromiumExecutable,
         ...extraEnv,
       },
+      shell: process.platform === "win32",
       stdio: ["ignore", "pipe", "pipe"],
     });
     const timeout = setTimeout(() => {

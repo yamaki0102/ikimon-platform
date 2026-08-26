@@ -33,3 +33,7 @@ test("native Worker QA does not require routes outside the registered runtime sc
   assert.match(source, /record-preview-draft-recovery\.zukan\.staging\.spec\.ts/u);
   assert.doesNotMatch(source, /record-capture-retry\.zukan\.staging\.spec\.ts/u);
 });
+
+test("native Worker QA launches the Windows Playwright shim through a shell", () => {
+  assert.match(source, /shell:\s*process\.platform\s*===\s*"win32"/u);
+});
