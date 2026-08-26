@@ -1,23 +1,22 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AI_MODEL_CHAIN_ENV_KEYS } from "../services/aiModels.js";
 import { generateAiTextWithRoleChain, type AiRouterPart } from "../services/aiModelRouter.js";
 import { getObservationDataRights } from "../services/observationDataRights.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
-import {
-  observationImageTargetPath,
-  resolveObservationImageTargets,
-  type ObservationImageTarget,
-} from "./resolveObservationImageTargets.js";
+import { resolveObservationImageTargets, type ObservationImageTarget } from "./resolveObservationImageTargets.js";
 
-export const ZUKAN_MODEL_BENCH_VERSION = "zukan-model-bench-v1";
-export const ZUKAN_MODEL_BENCH_PROMPT_VERSION = "observation-reassess-cold-start-v1";
-export const DEFAULT_ZUKAN_BENCH_MANIFEST = "ops/model-bench/fixtures/zukan-public-core-v1.json";
+export const ZUKAN_MODEL_BENCH_VERSION = "zukan-post-model-bench-v2";
+export const ZUKAN_MODEL_BENCH_PROMPT_VERSION = "observation-reassess-post-cold-start-v2";
+export const DEFAULT_ZUKAN_BENCH_MANIFEST = "ops/model-bench/fixtures/zukan-public-post-core-v2.json";
 export const DEFAULT_ZUKAN_BENCH_REPORT_DIR = "ops/model-bench/reports";
+export const ZUKAN_BENCH_CORE_POST_COUNT = 24;
+export const ZUKAN_BENCH_SMOKE_POST_COUNT = 8;
+export const ZUKAN_BENCH_MIN_GOLD_POSTS = 8;
 const DEFAULT_PROMPT_SOURCE = "src/prompts/observation_reassess.md";
-const DEFAULT_FIXTURE_COUNT = 80;
+const SELECTION_SEED = "zukan-public-post-core-v2-seed-1";
 const MODEL_CHAIN_ENV = AI_MODEL_CHAIN_ENV_KEYS.observationVisualExtract;
 const VALID_RANKS = new Set(["species", "genus", "family", "order", "lifeform"]);
 const VALID_CONFIDENCE = new Set(["high", "medium", "low"]);
@@ -32,16 +31,22 @@ export type ZukanBenchGold = {
   status: "human_consensus" | "public_label" | "unknown";
 };
 
+export type ZukanBenchImage = {
+  index: number;
+  url: string;
+  sha256: string;
+  bytes: number;
+  mimeType: string;
+};
+
 export type ZukanBenchFixture = {
   fixtureId: string;
   visitId: string;
   occurrenceId: string;
   detailPath: string;
   observedAt: string;
-  imageUrl: string;
-  imageSha256: string;
-  imageBytes: number;
-  imageMimeType: string;
+  images: ZukanBenchImage[];
+  postInputSha256: string;
   gold: ZukanBenchGold;
   externalExportAllowed?: boolean | null;
   mediaLicense?: string | null;
@@ -53,7 +58,10 @@ export type ZukanBenchManifest = {
   version: typeof ZUKAN_MODEL_BENCH_VERSION;
   sourceOrigin: string;
   frozenAt: string;
-  fixtureCount: number;
+  selectionPolicy: "deterministic_seeded_visit_order";
+  selectionSeed: string;
+  postCount: number;
+  imageCount: number;
   datasetSha256: string;
   promptPath: string;
   promptSha256: string;
@@ -63,6 +71,8 @@ export type ZukanBenchManifest = {
 
 export type ZukanBenchFixtureScore = {
   fixtureId: string;
+  visitId: string;
+  imageCount: number;
   schemaValid: boolean;
   taxonScore: number | null;
   criticalFailures: string[];
@@ -78,12 +88,13 @@ export type ZukanBenchModelReport = {
   datasetSha256: string;
   startedAt: string;
   completedAt: string;
-  fixtureCount: number;
+  postCount: number;
+  imageCount: number;
   successCount: number;
   schemaValidRatePct: number;
-  goldFixtureCount: number;
+  goldPostCount: number;
   taxonScorePct: number | null;
-  criticalFailureFixtureCount: number;
+  criticalFailurePostCount: number;
   p50LatencyMs: number;
   p95LatencyMs: number;
   totalInputTokens: number;
@@ -124,27 +135,61 @@ function normalizeTaxon(value: unknown): string {
     .toLowerCase();
 }
 
-function canonicalFixtureDigest(fixtures: ZukanBenchFixture[]): string {
-  return sha256(JSON.stringify(fixtures.map((fixture) => ({
-    fixtureId: fixture.fixtureId,
-    visitId: fixture.visitId,
-    occurrenceId: fixture.occurrenceId,
-    detailPath: fixture.detailPath,
-    observedAt: fixture.observedAt,
-    imageUrl: fixture.imageUrl,
-    imageSha256: fixture.imageSha256,
-    imageBytes: fixture.imageBytes,
-    imageMimeType: fixture.imageMimeType,
-    gold: fixture.gold,
-    externalExportAllowed: fixture.externalExportAllowed ?? null,
-    mediaLicense: fixture.mediaLicense ?? null,
-    rightsPolicyVersion: fixture.rightsPolicyVersion ?? null,
-    withdrawalStatus: fixture.withdrawalStatus ?? null,
-  }))));
-}
-
 function fullUrl(baseUrl: string, value: string): string {
   return new URL(value, `${baseUrl.replace(/\/+$/u, "")}/`).toString();
+}
+
+function decodeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&amp;/gu, "&")
+    .replace(/&quot;/gu, "\"")
+    .replace(/&#39;|&apos;/gu, "'")
+    .replace(/&lt;/gu, "<")
+    .replace(/&gt;/gu, ">");
+}
+
+function htmlAttribute(tag: string, name: string): string {
+  const match = tag.match(new RegExp(`${name}="([^"]*)"`, "u"));
+  return match ? decodeHtmlAttribute(match[1] ?? "") : "";
+}
+
+export function extractOrderedPostPhotoUrls(detailHtml: string): string[] {
+  const thumbRows = [...detailHtml.matchAll(/<button\b[^>]*>/gu)]
+    .map((match) => match[0])
+    .filter((tag) => /\bobs-hero-thumb\b/u.test(tag))
+    .map((tag) => ({
+      index: Number(htmlAttribute(tag, "data-obs-thumb-index")),
+      url: htmlAttribute(tag, "data-obs-thumb-full-src"),
+    }))
+    .filter((row) => Number.isFinite(row.index) && Boolean(row.url))
+    .sort((a, b) => a.index - b.index);
+  if (thumbRows.length > 0) {
+    return [...new Set(thumbRows.map((row) => row.url))];
+  }
+  const preview = [...detailHtml.matchAll(/<img\b[^>]*>/gu)]
+    .map((match) => match[0])
+    .find((tag) => /\bdata-obs-preview-img\b/u.test(tag));
+  const previewUrl = preview ? htmlAttribute(preview, "data-obs-full-src") || htmlAttribute(preview, "src") : "";
+  return previewUrl ? [previewUrl] : [];
+}
+
+function eligibleTarget(target: ObservationImageTarget): boolean {
+  return Boolean(target.photoUrl) && !NON_PUBLIC_ID_RE.test(`${target.visitId} ${target.occurrenceId} ${target.photoUrl}`);
+}
+
+function selectionKey(visitId: string): string {
+  return sha256(`${SELECTION_SEED}|${visitId}`);
+}
+
+export function selectDeterministicPostTargets(targets: ObservationImageTarget[], count: number): ObservationImageTarget[] {
+  const byVisit = new Map<string, ObservationImageTarget>();
+  for (const target of targets) {
+    if (!eligibleTarget(target) || byVisit.has(target.visitId)) continue;
+    byVisit.set(target.visitId, target);
+  }
+  return [...byVisit.values()]
+    .sort((a, b) => selectionKey(a.visitId).localeCompare(selectionKey(b.visitId)) || a.visitId.localeCompare(b.visitId))
+    .slice(0, Math.max(0, Math.floor(count)));
 }
 
 function meaningfulLabel(value: string): string | null {
@@ -156,16 +201,28 @@ export function detailHasHumanConsensus(html: string): boolean {
   const normalized = html.replace(/\s+/gu, " ");
   if (/(?:authority_reviewed|community_consensus)/u.test(normalized)) return true;
   if (/同定ルールにより同定されています/u.test(normalized)) return true;
-  return /同定済/u.test(normalized) && !/未同定/u.test(normalized);
+  if (/同定済み/u.test(normalized)) return true;
+  return /同定済/u.test(normalized) && !/(?:未同定|同定されていません)/u.test(normalized);
 }
 
-function scientificAliases(html: string): string[] {
-  const text = html.replace(/<[^>]+>/gu, " ").replace(/&nbsp;/gu, " ");
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function scientificAliases(html: string, label: string): string[] {
+  const text = html.replace(/<[^>]+>/gu, " ").replace(/&nbsp;/gu, " ").replace(/\s+/gu, " ");
   const found = new Set<string>();
-  for (const match of text.matchAll(/\b([A-Z][a-z]{2,}\s+[a-z][a-z.-]{2,})\b/gu)) {
+  const labelPattern = new RegExp(`\\b([A-Z][a-z]{2,}(?:\\s+[a-z][a-z.-]{2,}){1,2})\\s*[（(]\\s*${escapeRegExp(label)}\\s*[）)]`, "gu");
+  for (const match of text.matchAll(labelPattern)) {
     const value = clean(match[1]);
     if (value) found.add(value);
-    if (found.size >= 4) break;
+  }
+  if (found.size === 0) {
+    for (const match of text.matchAll(/\b([A-Z][a-z]{2,}\s+[a-z][a-z.-]{2,})\b/gu)) {
+      const value = clean(match[1]);
+      if (value) found.add(value);
+      if (found.size >= 3) break;
+    }
   }
   return [...found];
 }
@@ -181,7 +238,7 @@ function inferGold(target: ObservationImageTarget, detailHtml: string): ZukanBen
   const label = meaningfulLabel(target.displayName);
   if (!label) return { label: null, aliases: [], rank: null, status: "unknown" };
   const human = detailHasHumanConsensus(detailHtml);
-  const aliases = human ? scientificAliases(detailHtml) : [];
+  const aliases = human ? scientificAliases(detailHtml, label) : [];
   return {
     label,
     aliases,
@@ -206,8 +263,41 @@ async function fetchImage(url: string): Promise<{ bytes: Buffer; mimeType: strin
   return { bytes, mimeType };
 }
 
-function eligibleTarget(target: ObservationImageTarget): boolean {
-  return Boolean(target.photoUrl) && !NON_PUBLIC_ID_RE.test(`${target.visitId} ${target.occurrenceId} ${target.photoUrl}`);
+function canonicalImageDigest(images: ZukanBenchImage[]): string {
+  return sha256(JSON.stringify(images.map((image) => ({
+    index: image.index,
+    url: image.url,
+    sha256: image.sha256,
+    bytes: image.bytes,
+    mimeType: image.mimeType,
+  }))));
+}
+
+function canonicalFixtureDigest(fixtures: ZukanBenchFixture[]): string {
+  return sha256(JSON.stringify(fixtures.map((fixture) => ({
+    fixtureId: fixture.fixtureId,
+    visitId: fixture.visitId,
+    occurrenceId: fixture.occurrenceId,
+    detailPath: fixture.detailPath,
+    observedAt: fixture.observedAt,
+    images: fixture.images,
+    postInputSha256: fixture.postInputSha256,
+    gold: fixture.gold,
+    externalExportAllowed: fixture.externalExportAllowed ?? null,
+    mediaLicense: fixture.mediaLicense ?? null,
+    rightsPolicyVersion: fixture.rightsPolicyVersion ?? null,
+    withdrawalStatus: fixture.withdrawalStatus ?? null,
+  }))));
+}
+
+async function assertNewFile(filePath: string): Promise<void> {
+  try {
+    await access(filePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  throw new Error(`zukan_bench_manifest_already_exists:${filePath}`);
 }
 
 function defaultPromptSnapshotPath(manifestPath: string): string {
@@ -224,33 +314,44 @@ export async function freezeZukanBenchManifest(options: {
   outputPath?: string;
 } = {}): Promise<ZukanBenchManifest> {
   const baseUrl = (options.baseUrl ?? PRODUCTION_PUBLIC_ORIGIN).replace(/\/+$/u, "");
-  const count = Math.max(1, Math.floor(options.count ?? DEFAULT_FIXTURE_COUNT));
+  const count = Math.max(1, Math.floor(options.count ?? ZUKAN_BENCH_CORE_POST_COUNT));
   const outputPath = options.outputPath ?? DEFAULT_ZUKAN_BENCH_MANIFEST;
-  const resolved = await resolveObservationImageTargets({ baseUrl, count });
-  const selected = resolved.targets.filter(eligibleTarget).slice(0, count);
-  if (selected.length < count) throw new Error(`zukan_bench_not_enough_public_images:${selected.length}/${count}`);
+  const promptPath = defaultPromptSnapshotPath(outputPath);
+  await assertNewFile(outputPath);
+  await assertNewFile(promptPath);
+
+  const discoveryCount = Math.max(count * 2, count + 8);
+  const resolved = await resolveObservationImageTargets({ baseUrl, count: discoveryCount });
+  const selected = selectDeterministicPostTargets(resolved.targets, count);
+  if (selected.length < count) throw new Error(`zukan_bench_not_enough_unique_posts:${selected.length}/${count}`);
 
   const prompt = await readFile(DEFAULT_PROMPT_SOURCE, "utf8");
-  const promptPath = defaultPromptSnapshotPath(outputPath);
-  await mkdir(path.dirname(outputPath), { recursive: true });
-  await writeFile(promptPath, prompt, "utf8");
-
   const fixtures: ZukanBenchFixture[] = [];
-  for (const [index, target] of selected.entries()) {
-    const detailPath = target.path || observationImageTargetPath(target);
+  for (const target of selected) {
+    const detailPath = target.path;
     const detailHtml = await fetchText(fullUrl(baseUrl, detailPath));
-    const imageUrl = fullUrl(baseUrl, target.photoUrl);
-    const image = await fetchImage(imageUrl);
+    const sourceUrls = extractOrderedPostPhotoUrls(detailHtml);
+    const orderedUrls = sourceUrls.length > 0 ? sourceUrls : [target.photoUrl];
+    const images: ZukanBenchImage[] = [];
+    for (const [index, rawUrl] of orderedUrls.entries()) {
+      const url = fullUrl(baseUrl, rawUrl);
+      const image = await fetchImage(url);
+      images.push({
+        index,
+        url,
+        sha256: sha256(image.bytes),
+        bytes: image.bytes.byteLength,
+        mimeType: image.mimeType,
+      });
+    }
     fixtures.push({
-      fixtureId: `zukan-public-${String(index + 1).padStart(3, "0")}`,
+      fixtureId: `zukan-post-${target.visitId}`,
       visitId: target.visitId,
       occurrenceId: target.occurrenceId,
       detailPath,
       observedAt: target.observedAt,
-      imageUrl,
-      imageSha256: sha256(image.bytes),
-      imageBytes: image.bytes.byteLength,
-      imageMimeType: image.mimeType,
+      images,
+      postInputSha256: canonicalImageDigest(images),
       gold: inferGold(target, detailHtml),
       externalExportAllowed: null,
       mediaLicense: null,
@@ -263,13 +364,18 @@ export async function freezeZukanBenchManifest(options: {
     version: ZUKAN_MODEL_BENCH_VERSION,
     sourceOrigin: baseUrl,
     frozenAt: new Date().toISOString(),
-    fixtureCount: fixtures.length,
+    selectionPolicy: "deterministic_seeded_visit_order",
+    selectionSeed: SELECTION_SEED,
+    postCount: fixtures.length,
+    imageCount: fixtures.reduce((sum, fixture) => sum + fixture.images.length, 0),
     datasetSha256: canonicalFixtureDigest(fixtures),
     promptPath,
     promptSha256: sha256(prompt),
     externalProcessingVettedAt: null,
     fixtures,
   };
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  await writeFile(promptPath, prompt, "utf8");
   await writeFile(outputPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   return manifest;
 }
@@ -278,6 +384,14 @@ export async function loadZukanBenchManifest(manifestPath: string): Promise<Zuka
   const parsed = JSON.parse(await readFile(manifestPath, "utf8")) as ZukanBenchManifest;
   if (parsed.version !== ZUKAN_MODEL_BENCH_VERSION || !Array.isArray(parsed.fixtures) || parsed.fixtures.length === 0) {
     throw new Error("zukan_bench_manifest_invalid");
+  }
+  if (parsed.fixtures.some((fixture) => !Array.isArray(fixture.images) || fixture.images.length === 0)) {
+    throw new Error("zukan_bench_manifest_post_without_images");
+  }
+  for (const fixture of parsed.fixtures) {
+    if (canonicalImageDigest(fixture.images) !== fixture.postInputSha256) {
+      throw new Error(`zukan_bench_post_digest_mismatch:${fixture.fixtureId}`);
+    }
   }
   const digest = canonicalFixtureDigest(parsed.fixtures);
   if (digest !== parsed.datasetSha256) throw new Error(`zukan_bench_manifest_digest_mismatch:${digest}:${parsed.datasetSha256}`);
@@ -293,6 +407,8 @@ export async function vetZukanBenchRights(options: {
 } = {}): Promise<ZukanBenchManifest> {
   const manifestPath = options.manifestPath ?? DEFAULT_ZUKAN_BENCH_MANIFEST;
   const manifest = await loadZukanBenchManifest(manifestPath);
+  const outputPath = options.outputPath ?? defaultRightsManifestPath(manifestPath);
+  await assertNewFile(outputPath);
   const eligible: ZukanBenchFixture[] = [];
   for (const fixture of manifest.fixtures) {
     const rights = await getObservationDataRights(fixture.visitId);
@@ -305,20 +421,15 @@ export async function vetZukanBenchRights(options: {
       withdrawalStatus: rights.withdrawalStatus,
     });
   }
-  if (!eligible.length) throw new Error("zukan_bench_no_external_export_eligible_fixtures");
-  const fixtures = eligible.map((fixture, index) => ({
-    ...fixture,
-    fixtureId: `zukan-public-${String(index + 1).padStart(3, "0")}`,
-  }));
+  if (eligible.length === 0) throw new Error("zukan_bench_no_external_export_eligible_posts");
   const vetted: ZukanBenchManifest = {
     ...manifest,
-    fixtureCount: fixtures.length,
-    datasetSha256: canonicalFixtureDigest(fixtures),
+    postCount: eligible.length,
+    imageCount: eligible.reduce((sum, fixture) => sum + fixture.images.length, 0),
+    datasetSha256: canonicalFixtureDigest(eligible),
     externalProcessingVettedAt: new Date().toISOString(),
-    fixtures,
+    fixtures: eligible,
   };
-  const outputPath = options.outputPath ?? defaultRightsManifestPath(manifestPath);
-  await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(vetted, null, 2)}\n`, "utf8");
   return vetted;
 }
@@ -333,11 +444,11 @@ function renderColdStartPrompt(template: string, fixture: ZukanBenchFixture): st
     existingLabel: "未入力",
     siteBriefLabel: "不明",
     profileDigestSummary: "なし",
-    observationPackageSummary: "写真1枚のみ。位置情報・既存同定・観察者個人情報は評価から除外。",
+    observationPackageSummary: `同一投稿の写真${fixture.images.length}枚。写真順は投稿順。位置情報・既存同定・観察者個人情報は評価から除外。`,
     knowledgeClaimsContext: "なし",
   };
   const rendered = template.replace(/\$\{([A-Za-z0-9_]+)\}/gu, (_match, key: string) => substitutions[key] ?? "不明");
-  return `${rendered}\n\n## ベンチマーク追加条件\nこれはcold-start画像評価です。既存ラベル、位置、観察者情報は与えられていません。画像だけで種まで確定できない場合は必ず粗いrankで止め、位置を推測しないでください。JSONのみ返してください。`;
+  return `${rendered}\n\n## ベンチマーク追加条件\nこれは同一投稿を1ケースとするcold-start評価です。上の${fixture.images.length}枚は同じ投稿の写真で、投稿順です。写真群をまとめて判断してください。既存ラベル、位置、観察者情報は与えられていません。画像群だけで種まで確定できない場合は粗いrankで止め、位置を推測しないでください。JSONのみ返してください。`;
 }
 
 function parseJsonObject(raw: string): BenchResponse | null {
@@ -368,30 +479,28 @@ function candidateNames(value: unknown): string[] {
 
 function matchesGold(value: string, gold: ZukanBenchGold): boolean {
   const candidate = normalizeTaxon(value);
-  if (!candidate) return false;
-  return [gold.label, ...gold.aliases].some((alias) => alias && normalizeTaxon(alias) === candidate);
+  return Boolean(candidate) && [gold.label, ...gold.aliases].some((alias) => Boolean(alias) && normalizeTaxon(alias) === candidate);
 }
 
 function sameGenus(value: string, gold: ZukanBenchGold): boolean {
   const candidateGenus = normalizeTaxon(value).split(" ")[0] ?? "";
-  if (!candidateGenus) return false;
-  return gold.aliases.some((alias) => normalizeTaxon(alias).split(" ")[0] === candidateGenus);
+  return Boolean(candidateGenus) && gold.aliases.some((alias) => normalizeTaxon(alias).split(" ")[0] === candidateGenus);
 }
 
 function rankDepth(rank: string): number {
-  const order = ["lifeform", "order", "family", "genus", "species"];
-  return order.indexOf(rank);
+  return ["lifeform", "order", "family", "genus", "species"].indexOf(rank);
 }
 
 export function scoreZukanBenchResponse(fixture: ZukanBenchFixture, rawText: string): ZukanBenchFixtureScore {
   const parsed = parseJsonObject(rawText);
   if (!parsed) return {
     fixtureId: fixture.fixtureId,
+    visitId: fixture.visitId,
+    imageCount: fixture.images.length,
     schemaValid: false,
     taxonScore: fixture.gold.status === "human_consensus" ? 0 : null,
     criticalFailures: ["invalid_json"],
   };
-
   const recommended = clean(parsed.recommended_taxon_name);
   const rank = clean(parsed.recommended_rank).toLowerCase();
   const confidence = clean(parsed.confidence_band).toLowerCase();
@@ -409,16 +518,22 @@ export function scoreZukanBenchResponse(fixture: ZukanBenchFixture, rawText: str
     else if (candidates.some((candidate) => matchesGold(candidate, fixture.gold))) taxonScore = 0.8;
     else if (sameGenus(recommended, fixture.gold)) taxonScore = 0.5;
     else taxonScore = 0;
-
     if (confidence === "high" && rank === "species" && !matchesGold(recommended, fixture.gold)) {
       criticalFailures.push("high_confidence_wrong_species");
     }
-    if (fixture.gold.rank && rankDepth(rank) > rankDepth(fixture.gold.rank) && confidence === "high") {
+    if (fixture.gold.rank && confidence === "high" && rankDepth(rank) > rankDepth(fixture.gold.rank)) {
       criticalFailures.push("overprecise_beyond_human_gold");
     }
   }
   if (!schemaValid) criticalFailures.push("schema_invalid");
-  return { fixtureId: fixture.fixtureId, schemaValid, taxonScore, criticalFailures: [...new Set(criticalFailures)] };
+  return {
+    fixtureId: fixture.fixtureId,
+    visitId: fixture.visitId,
+    imageCount: fixture.images.length,
+    schemaValid,
+    taxonScore,
+    criticalFailures: [...new Set(criticalFailures)],
+  };
 }
 
 function percentile(values: number[], quantile: number): number {
@@ -464,7 +579,7 @@ export async function runZukanModelBench(options: {
   pricing?: BenchPricing | null;
   limit?: number;
 }): Promise<ZukanBenchModelReport> {
-  const manifestPath = options.manifestPath ?? DEFAULT_ZUKAN_BENCH_MANIFEST;
+  const manifestPath = options.manifestPath ?? defaultRightsManifestPath(DEFAULT_ZUKAN_BENCH_MANIFEST);
   const reportDir = options.reportDir ?? DEFAULT_ZUKAN_BENCH_REPORT_DIR;
   const manifest = await loadZukanBenchManifest(manifestPath);
   assertExternalProcessingAllowed(manifest);
@@ -484,18 +599,21 @@ export async function runZukanModelBench(options: {
 
   try {
     for (const fixture of fixtures) {
-      const image = await fetchImage(fixture.imageUrl);
-      const actualDigest = sha256(image.bytes);
-      if (actualDigest !== fixture.imageSha256) {
-        throw new Error(`zukan_bench_image_digest_mismatch:${fixture.fixtureId}:${actualDigest}:${fixture.imageSha256}`);
+      const parts: AiRouterPart[] = [];
+      const verifiedImages: ZukanBenchImage[] = [];
+      for (const imageRef of fixture.images) {
+        const image = await fetchImage(imageRef.url);
+        const actualDigest = sha256(image.bytes);
+        if (actualDigest !== imageRef.sha256 || image.bytes.byteLength !== imageRef.bytes || image.mimeType !== imageRef.mimeType) {
+          throw new Error(`zukan_bench_image_identity_mismatch:${fixture.fixtureId}:${imageRef.index}`);
+        }
+        verifiedImages.push(imageRef);
+        parts.push({ inlineData: { mimeType: imageRef.mimeType, data: image.bytes.toString("base64") } });
       }
-      if (image.bytes.byteLength !== fixture.imageBytes || image.mimeType !== fixture.imageMimeType) {
-        throw new Error(`zukan_bench_image_identity_mismatch:${fixture.fixtureId}`);
+      if (canonicalImageDigest(verifiedImages) !== fixture.postInputSha256) {
+        throw new Error(`zukan_bench_post_identity_mismatch:${fixture.fixtureId}`);
       }
-      const parts: AiRouterPart[] = [
-        { inlineData: { mimeType: fixture.imageMimeType, data: image.bytes.toString("base64") } },
-        { text: renderColdStartPrompt(promptTemplate, fixture) },
-      ];
+      parts.push({ text: renderColdStartPrompt(promptTemplate, fixture) });
       const started = Date.now();
       try {
         const result = await generateAiTextWithRoleChain({
@@ -516,6 +634,8 @@ export async function runZukanModelBench(options: {
         latencies.push(Date.now() - started);
         fixtureScores.push({
           fixtureId: fixture.fixtureId,
+          visitId: fixture.visitId,
+          imageCount: fixture.images.length,
           schemaValid: false,
           taxonScore: fixture.gold.status === "human_consensus" ? 0 : null,
           criticalFailures: [`model_error:${error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180)}`],
@@ -538,14 +658,15 @@ export async function runZukanModelBench(options: {
     datasetSha256: manifest.datasetSha256,
     startedAt,
     completedAt: new Date().toISOString(),
-    fixtureCount: fixtures.length,
+    postCount: fixtures.length,
+    imageCount: fixtures.reduce((sum, fixture) => sum + fixture.images.length, 0),
     successCount,
     schemaValidRatePct: Number(((fixtureScores.filter((score) => score.schemaValid).length / Math.max(1, fixtures.length)) * 100).toFixed(2)),
-    goldFixtureCount: goldScores.length,
+    goldPostCount: goldScores.length,
     taxonScorePct: goldScores.length
       ? Number(((goldScores.reduce((sum, score) => sum + (score.taxonScore ?? 0), 0) / goldScores.length) * 100).toFixed(2))
       : null,
-    criticalFailureFixtureCount: fixtureScores.filter((score) => score.criticalFailures.length > 0).length,
+    criticalFailurePostCount: fixtureScores.filter((score) => score.criticalFailures.length > 0).length,
     p50LatencyMs: percentile(latencies, 0.5),
     p95LatencyMs: percentile(latencies, 0.95),
     totalInputTokens,
@@ -556,7 +677,8 @@ export async function runZukanModelBench(options: {
   };
   await mkdir(reportDir, { recursive: true });
   const safeModel = options.model.replace(/[^a-z0-9._-]+/giu, "-").replace(/^-+|-+$/gu, "").slice(0, 90);
-  const reportPath = path.join(reportDir, `${new Date().toISOString().slice(0, 10)}-${safeModel}.json`);
+  const suffix = fixtures.length === ZUKAN_BENCH_SMOKE_POST_COUNT ? "smoke" : "core";
+  const reportPath = path.join(reportDir, `${new Date().toISOString().slice(0, 10)}-${safeModel}-${suffix}.json`);
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   return report;
 }
@@ -571,8 +693,8 @@ export type ZukanBenchComparison = {
 };
 
 function hardGatePass(report: ZukanBenchModelReport): boolean {
-  const successRatePct = (report.successCount / Math.max(1, report.fixtureCount)) * 100;
-  const criticalRatePct = (report.criticalFailureFixtureCount / Math.max(1, report.fixtureCount)) * 100;
+  const successRatePct = (report.successCount / Math.max(1, report.postCount)) * 100;
+  const criticalRatePct = (report.criticalFailurePostCount / Math.max(1, report.postCount)) * 100;
   return successRatePct >= 99 && report.schemaValidRatePct >= 99 && criticalRatePct <= 2;
 }
 
@@ -583,16 +705,16 @@ export function compareZukanBenchReports(reports: ZukanBenchModelReport[]): Zuka
   for (const report of reports) {
     if (report.datasetSha256 !== baseline.datasetSha256) throw new Error("zukan_bench_compare_dataset_mismatch");
     if (report.promptSha256 !== baseline.promptSha256) throw new Error("zukan_bench_compare_prompt_mismatch");
-    if (report.fixtureCount !== baseline.fixtureCount) throw new Error("zukan_bench_compare_fixture_count_mismatch");
+    if (report.postCount !== baseline.postCount || report.imageCount !== baseline.imageCount) throw new Error("zukan_bench_compare_input_shape_mismatch");
   }
-  const maxGold = Math.max(...reports.map((report) => report.goldFixtureCount));
-  if (maxGold < 10) return {
+  const maxGold = Math.max(...reports.map((report) => report.goldPostCount));
+  if (maxGold < ZUKAN_BENCH_MIN_GOLD_POSTS) return {
     datasetSha256: baseline.datasetSha256,
     promptSha256: baseline.promptSha256,
     decision: "INSUFFICIENT_GOLD",
     baselineModel: baseline.model,
     winnerModel: baseline.model,
-    reason: `Human-consensus gold fixtures are ${maxGold}; at least 10 are required for automatic switching.`,
+    reason: `Human-consensus gold posts are ${maxGold}; at least ${ZUKAN_BENCH_MIN_GOLD_POSTS} are required for automatic switching.`,
   };
 
   const eligible = reports.filter(hardGatePass);
@@ -623,7 +745,7 @@ export function compareZukanBenchReports(reports: ZukanBenchModelReport[]): Zuka
     winnerModel: winner.model,
     reason: winner.model === baseline.model
       ? "Baseline remains best after hard gates; quality wins first, then cost and p95 latency within a 1-point quality tie."
-      : "Challenger passed hard gates and ranked best by taxon quality, then cost and p95 latency within a 1-point quality tie.",
+      : "Challenger passed hard gates and ranked best by post-level taxon quality, then cost and p95 latency within a 1-point quality tie.",
   };
 }
 
@@ -653,7 +775,7 @@ async function main(): Promise<void> {
       count: numericArg(args, "count"),
       outputPath: stringArg(args, "out"),
     });
-    console.log(JSON.stringify({ status: "FROZEN", fixtureCount: manifest.fixtureCount, datasetSha256: manifest.datasetSha256 }, null, 2));
+    console.log(JSON.stringify({ status: "FROZEN", postCount: manifest.postCount, imageCount: manifest.imageCount, datasetSha256: manifest.datasetSha256 }, null, 2));
     return;
   }
   if (command === "vet-rights") {
@@ -661,7 +783,7 @@ async function main(): Promise<void> {
       manifestPath: stringArg(args, "manifest"),
       outputPath: stringArg(args, "out"),
     });
-    console.log(JSON.stringify({ status: "RIGHTS_VETTED", fixtureCount: manifest.fixtureCount, datasetSha256: manifest.datasetSha256 }, null, 2));
+    console.log(JSON.stringify({ status: "RIGHTS_VETTED", postCount: manifest.postCount, imageCount: manifest.imageCount, datasetSha256: manifest.datasetSha256 }, null, 2));
     return;
   }
   if (command === "run") {
