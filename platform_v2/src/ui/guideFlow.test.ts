@@ -46,10 +46,13 @@ test("guide flow keeps the live guide plumbing while simplifying the entry UI", 
   assert.match(html, /const OFFLINE_TELEMETRY_TTL_MS = 24 \* 60 \* 60 \* 1000/);
   assert.match(html, /function captureGuideConsentSnapshot\(\)/);
   assert.match(html, /function hasActiveCurrentConsent\(\)/);
+  assert.match(html, /function canReplayCapturedScene\(item\)/);
+  assert.match(html, /if \(!canReplayCapturedScene\(item\)\) return 'dropped';/);
   assert.match(html, /capturedConsentSnapshot: captureGuideConsentSnapshot\(\)/);
   assert.match(html, /return 'deferred'/);
+  assert.match(html, /if \(replayState === 'deferred'\) continue;/);
   assert.match(html, /canReplayWithCurrentConsent\(item, 'audio'\)/);
-  assert.match(html, /canReplayWithCurrentConsent\(item, 'camera'\)/);
+  assert.match(html, /hasCapturedConsent\(item, 'camera'\)/);
   assert.match(html, /canReplayWithCurrentConsent\(item, 'location'\)/);
   assert.match(html, /window\.addEventListener\('ikimon-guide-consent-reset'/);
   assert.match(html, /window\.addEventListener\('ikimon-auth-logout'/);
