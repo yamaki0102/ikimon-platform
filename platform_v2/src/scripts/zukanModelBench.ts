@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AI_MODEL_CHAIN_ENV_KEYS } from "../services/aiModels.js";
 import { generateAiTextWithRoleChain, type AiRouterPart } from "../services/aiModelRouter.js";
+import { getObservationDataRights } from "../services/observationDataRights.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import {
   observationImageTargetPath,
@@ -42,6 +43,10 @@ export type ZukanBenchFixture = {
   imageBytes: number;
   imageMimeType: string;
   gold: ZukanBenchGold;
+  externalExportAllowed?: boolean | null;
+  mediaLicense?: string | null;
+  rightsPolicyVersion?: string | null;
+  withdrawalStatus?: string | null;
 };
 
 export type ZukanBenchManifest = {
@@ -52,6 +57,7 @@ export type ZukanBenchManifest = {
   datasetSha256: string;
   promptPath: string;
   promptSha256: string;
+  externalProcessingVettedAt?: string | null;
   fixtures: ZukanBenchFixture[];
 };
 
@@ -130,6 +136,10 @@ function canonicalFixtureDigest(fixtures: ZukanBenchFixture[]): string {
     imageBytes: fixture.imageBytes,
     imageMimeType: fixture.imageMimeType,
     gold: fixture.gold,
+    externalExportAllowed: fixture.externalExportAllowed ?? null,
+    mediaLicense: fixture.mediaLicense ?? null,
+    rightsPolicyVersion: fixture.rightsPolicyVersion ?? null,
+    withdrawalStatus: fixture.withdrawalStatus ?? null,
   }))));
 }
 
@@ -145,6 +155,7 @@ function meaningfulLabel(value: string): string | null {
 export function detailHasHumanConsensus(html: string): boolean {
   const normalized = html.replace(/\s+/gu, " ");
   if (/(?:authority_reviewed|community_consensus)/u.test(normalized)) return true;
+  if (/同定ルールにより同定されています/u.test(normalized)) return true;
   return /同定済/u.test(normalized) && !/未同定/u.test(normalized);
 }
 
@@ -159,14 +170,22 @@ function scientificAliases(html: string): string[] {
   return [...found];
 }
 
+function inferRank(label: string, aliases: string[]): string | null {
+  if (/属(?:の一種)?$/u.test(label)) return "genus";
+  if (/科(?:の一種)?$/u.test(label)) return "family";
+  if (/目(?:の一種)?$/u.test(label)) return "order";
+  return aliases.length > 0 ? "species" : null;
+}
+
 function inferGold(target: ObservationImageTarget, detailHtml: string): ZukanBenchGold {
   const label = meaningfulLabel(target.displayName);
   if (!label) return { label: null, aliases: [], rank: null, status: "unknown" };
   const human = detailHasHumanConsensus(detailHtml);
+  const aliases = human ? scientificAliases(detailHtml) : [];
   return {
     label,
-    aliases: human ? scientificAliases(detailHtml) : [],
-    rank: null,
+    aliases,
+    rank: human ? inferRank(label, aliases) : null,
     status: human ? "human_consensus" : "public_label",
   };
 }
@@ -193,6 +212,10 @@ function eligibleTarget(target: ObservationImageTarget): boolean {
 
 function defaultPromptSnapshotPath(manifestPath: string): string {
   return manifestPath.replace(/\.json$/u, ".prompt.md");
+}
+
+function defaultRightsManifestPath(manifestPath: string): string {
+  return manifestPath.replace(/\.json$/u, ".external.json");
 }
 
 export async function freezeZukanBenchManifest(options: {
@@ -229,6 +252,10 @@ export async function freezeZukanBenchManifest(options: {
       imageBytes: image.bytes.byteLength,
       imageMimeType: image.mimeType,
       gold: inferGold(target, detailHtml),
+      externalExportAllowed: null,
+      mediaLicense: null,
+      rightsPolicyVersion: null,
+      withdrawalStatus: null,
     });
   }
 
@@ -240,6 +267,7 @@ export async function freezeZukanBenchManifest(options: {
     datasetSha256: canonicalFixtureDigest(fixtures),
     promptPath,
     promptSha256: sha256(prompt),
+    externalProcessingVettedAt: null,
     fixtures,
   };
   await writeFile(outputPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
@@ -257,6 +285,42 @@ export async function loadZukanBenchManifest(manifestPath: string): Promise<Zuka
   const promptDigest = sha256(prompt);
   if (promptDigest !== parsed.promptSha256) throw new Error(`zukan_bench_prompt_digest_mismatch:${promptDigest}:${parsed.promptSha256}`);
   return parsed;
+}
+
+export async function vetZukanBenchRights(options: {
+  manifestPath?: string;
+  outputPath?: string;
+} = {}): Promise<ZukanBenchManifest> {
+  const manifestPath = options.manifestPath ?? DEFAULT_ZUKAN_BENCH_MANIFEST;
+  const manifest = await loadZukanBenchManifest(manifestPath);
+  const eligible: ZukanBenchFixture[] = [];
+  for (const fixture of manifest.fixtures) {
+    const rights = await getObservationDataRights(fixture.visitId);
+    if (!rights || rights.withdrawalStatus !== "active" || rights.externalExportAllowed !== true) continue;
+    eligible.push({
+      ...fixture,
+      externalExportAllowed: true,
+      mediaLicense: rights.mediaLicense,
+      rightsPolicyVersion: rights.rightsPolicyVersion,
+      withdrawalStatus: rights.withdrawalStatus,
+    });
+  }
+  if (!eligible.length) throw new Error("zukan_bench_no_external_export_eligible_fixtures");
+  const fixtures = eligible.map((fixture, index) => ({
+    ...fixture,
+    fixtureId: `zukan-public-${String(index + 1).padStart(3, "0")}`,
+  }));
+  const vetted: ZukanBenchManifest = {
+    ...manifest,
+    fixtureCount: fixtures.length,
+    datasetSha256: canonicalFixtureDigest(fixtures),
+    externalProcessingVettedAt: new Date().toISOString(),
+    fixtures,
+  };
+  const outputPath = options.outputPath ?? defaultRightsManifestPath(manifestPath);
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, `${JSON.stringify(vetted, null, 2)}\n`, "utf8");
+  return vetted;
 }
 
 function renderColdStartPrompt(template: string, fixture: ZukanBenchFixture): string {
@@ -314,6 +378,11 @@ function sameGenus(value: string, gold: ZukanBenchGold): boolean {
   return gold.aliases.some((alias) => normalizeTaxon(alias).split(" ")[0] === candidateGenus);
 }
 
+function rankDepth(rank: string): number {
+  const order = ["lifeform", "order", "family", "genus", "species"];
+  return order.indexOf(rank);
+}
+
 export function scoreZukanBenchResponse(fixture: ZukanBenchFixture, rawText: string): ZukanBenchFixtureScore {
   const parsed = parseJsonObject(rawText);
   if (!parsed) return {
@@ -344,6 +413,9 @@ export function scoreZukanBenchResponse(fixture: ZukanBenchFixture, rawText: str
     if (confidence === "high" && rank === "species" && !matchesGold(recommended, fixture.gold)) {
       criticalFailures.push("high_confidence_wrong_species");
     }
+    if (fixture.gold.rank && rankDepth(rank) > rankDepth(fixture.gold.rank) && confidence === "high") {
+      criticalFailures.push("overprecise_beyond_human_gold");
+    }
   }
   if (!schemaValid) criticalFailures.push("schema_invalid");
   return { fixtureId: fixture.fixtureId, schemaValid, taxonScore, criticalFailures: [...new Set(criticalFailures)] };
@@ -365,11 +437,17 @@ function modelProvider(model: string): string {
   return separator > 0 ? model.slice(0, separator) : "unknown";
 }
 
-function configureExternalProvider(model: string): void {
-  if (!model.startsWith("openai-compatible:")) return;
+function assertExternalProcessingAllowed(manifest: ZukanBenchManifest): void {
+  if (!manifest.externalProcessingVettedAt || manifest.fixtures.some((fixture) => fixture.externalExportAllowed !== true || fixture.withdrawalStatus !== "active")) {
+    throw new Error("zukan_bench_rights_vetted_manifest_required");
+  }
   if (process.env.ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING !== "1") {
     throw new Error("zukan_bench_external_provider_not_acknowledged");
   }
+}
+
+function configureModelProvider(model: string): void {
+  if (!model.startsWith("openai-compatible:")) return;
   const modelId = model.slice("openai-compatible:".length);
   if (!modelId.startsWith("@cf/")) return;
   const accountId = clean(process.env.CLOUDFLARE_ACCOUNT_ID);
@@ -386,10 +464,11 @@ export async function runZukanModelBench(options: {
   pricing?: BenchPricing | null;
   limit?: number;
 }): Promise<ZukanBenchModelReport> {
-  configureExternalProvider(options.model);
   const manifestPath = options.manifestPath ?? DEFAULT_ZUKAN_BENCH_MANIFEST;
   const reportDir = options.reportDir ?? DEFAULT_ZUKAN_BENCH_REPORT_DIR;
   const manifest = await loadZukanBenchManifest(manifestPath);
+  assertExternalProcessingAllowed(manifest);
+  configureModelProvider(options.model);
   const promptTemplate = await readFile(manifest.promptPath, "utf8");
   const fixtures = typeof options.limit === "number" && options.limit > 0
     ? manifest.fixtures.slice(0, Math.floor(options.limit))
@@ -577,6 +656,14 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({ status: "FROZEN", fixtureCount: manifest.fixtureCount, datasetSha256: manifest.datasetSha256 }, null, 2));
     return;
   }
+  if (command === "vet-rights") {
+    const manifest = await vetZukanBenchRights({
+      manifestPath: stringArg(args, "manifest"),
+      outputPath: stringArg(args, "out"),
+    });
+    console.log(JSON.stringify({ status: "RIGHTS_VETTED", fixtureCount: manifest.fixtureCount, datasetSha256: manifest.datasetSha256 }, null, 2));
+    return;
+  }
   if (command === "run") {
     const model = stringArg(args, "model");
     if (!model) throw new Error("--model is required; example: --model=openai-compatible:@cf/zai-org/glm-5.3-flash");
@@ -597,7 +684,7 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(compareZukanBenchReports(reports), null, 2));
     return;
   }
-  throw new Error(`unknown command:${command}; use freeze, run, or compare`);
+  throw new Error(`unknown command:${command}; use freeze, vet-rights, run, or compare`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
