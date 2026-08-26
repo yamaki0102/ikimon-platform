@@ -32013,6 +32013,8 @@ function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
 
+const SHADOW_VALID_JPEG_BASE64 = "/9j/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAACAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAABgf/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCcgKKCP//Z";
+
 async function shadowTakedownProof(url: URL, env: Env): Promise<Response> {
   if (env.ENVIRONMENT !== "shadow") {
     return json({ error: "not_available" }, 404);
@@ -32043,7 +32045,7 @@ async function shadowTakedownProof(url: URL, env: Env): Promise<Response> {
     body: JSON.stringify({
       filename: "takedown-proof.jpg",
       mimeType: "image/jpeg",
-      base64Data: btoa("shadow-takedown-image")
+      base64Data: SHADOW_VALID_JPEG_BASE64
     })
   }), env);
   if (!photoResponse.ok) {
@@ -33103,7 +33105,7 @@ async function shadowUpdateDeleteReplayProof(url: URL, env: Env): Promise<Respon
     body: JSON.stringify({
       filename: "update-delete-proof.jpg",
       mimeType: "image/jpeg",
-      base64Data: btoa("shadow-update-delete-image"),
+      base64Data: SHADOW_VALID_JPEG_BASE64,
       facePrivacy: "no_faces"
     })
   }), env);
@@ -33235,7 +33237,7 @@ async function shadowRollbackRestoreSmoke(url: URL, env: Env): Promise<Response>
     body: JSON.stringify({
       filename: "rollback-restore-proof.jpg",
       mimeType: "image/jpeg",
-      base64Data: btoa("shadow-rollback-restore-image"),
+      base64Data: SHADOW_VALID_JPEG_BASE64,
       facePrivacy: "no_faces"
     })
   }), env);
