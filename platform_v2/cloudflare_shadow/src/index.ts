@@ -136,7 +136,8 @@ interface R2ObjectBody {
   checksums?: { sha256?: string | ArrayBuffer };
 }
 
-type MaterializedR2ObjectBody = R2ObjectBody & { materializedSourceSha256?: string };
+type MaterializedR2ObjectBody = R2ObjectBody;
+const MATERIALIZED_SOURCE_SHA256 = new WeakMap<MaterializedR2ObjectBody, string>();
 
 interface R2ListResult {
   objects: R2ObjectSummary[];
@@ -23313,7 +23314,8 @@ async function bindMaterializedSourceSha256(
     ? await readMaterializedManifestSha256(env, versionPrefix, relativeKey)
     : "";
   const sourceSha256 = manifestSha256 || r2Sha256Checksum(object);
-  return sourceSha256 ? { ...object, materializedSourceSha256: sourceSha256 } : object;
+  if (sourceSha256) MATERIALIZED_SOURCE_SHA256.set(object, sourceSha256);
+  return object;
 }
 
 async function readMaterializedManifestSha256(env: Env, versionPrefix: string, relativeKey: string): Promise<string> {
@@ -23489,7 +23491,7 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
 }
 
 function materializedSourceSha256Headers(object: MaterializedR2ObjectBody | null): Record<string, string> {
-  const sha256 = object?.materializedSourceSha256 || r2Sha256Checksum(object);
+  const sha256 = (object ? MATERIALIZED_SOURCE_SHA256.get(object) : "") || r2Sha256Checksum(object);
   return /^[a-f0-9]{64}$/.test(sha256)
     ? { "x-ikimon-cloudflare-materialized-sha256": sha256 }
     : {};
