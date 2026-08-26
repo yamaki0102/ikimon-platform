@@ -1,0 +1,53 @@
+{
+  "recordedAt": "2026-08-26T23:08:58Z",
+  "status": "BLOCKED_BY_NO_CANONICAL_RIGHTS_VETTABLE_SMOKE_SET",
+  "benchVersion": "zukan-post-model-bench-v2",
+  "branch": "codex/zukan-model-bench-v1-20260827",
+  "startingHeadSha": "19980288713450855e153db5bc1fe7af3e939fa4",
+  "freshMainSha": "a67bb3debf261f19b81cf761b9bf09ef0f30c4d2",
+  "noahContractBlobSha": "b1752c143e4958975ad593ecfa8435cc8d47bfbc",
+  "preflight": {
+    "method": "GET canonical research occurrences projection; no map crawl",
+    "url": "https://zukan.earth/api/v1/research/occurrences?export_ready_only=true&tier_gte=1&limit=1000",
+    "httpStatus": 200,
+    "response": {
+      "totalReturned": 0,
+      "offset": 0,
+      "records": []
+    },
+    "responseSha256": "0f3a1c51d68ccc7c75a25bb0139e3041a20a7e4dd933f5c7966dc9f9a0cd163b",
+    "exportReadyReturnedPostCount": 0,
+    "unfilteredRecordsChecked": 1000,
+    "unfilteredRecordsWithLicenseStatusProjection": 0,
+    "eligibleHumanConsensusPostCount": 0,
+    "requiredSmokePostCount": 8
+  },
+  "fixture": {
+    "fixtureIds": [],
+    "postCount": 0,
+    "imageCount": 0,
+    "datasetSha256": null,
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "rightsVettedManifestCreated": false
+  },
+  "execution": {
+    "glmModel": "@cf/zai-org/glm-5.3-flash",
+    "glmMaxOutputTokensPerPost": 1024,
+    "glmSafetyCapUsd": 0.35,
+    "glmRequestsSent": 0,
+    "baselineRequestsSent": 0,
+    "fallbackUsed": false,
+    "additionalCostUsd": 0,
+    "additionalCostJpy": 0,
+    "reason": "The canonical export-ready projection returned zero records, and the deployed unfiltered endpoint did not expose licenseStatus for exact two-field vetting. The rights boundary therefore stopped execution before image download or external AI processing. Cloudflare credentials were also unavailable in this Work session."
+  },
+  "verification": {
+    "typecheck": "PASS",
+    "targetedTests": {
+      "passed": 12,
+      "failed": 0
+    },
+    "cloudflareWranglerAuthenticated": false,
+    "cloudflareDashboard": "challenge_loop"
+  }
+}
