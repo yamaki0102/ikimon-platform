@@ -5174,6 +5174,33 @@ class FakeStatement {
       } as T) : null;
     }
 
+    if (normalized.startsWith("SELECT owner_user_id, emergency_hidden FROM observations")) {
+      const observation = this.db.observations.get(string(v[0]));
+      return observation ? ({
+        owner_user_id: observation.owner_user_id,
+        emergency_hidden: observation.emergency_hidden
+      } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT user_id FROM production_import_visits WHERE visit_id = ? LIMIT 1")) {
+      const visit = this.db.productionVisits.get(string(v[0]));
+      return visit ? ({ user_id: visit.user_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT visit_id, record_consent, research_use_consent, dataset_license, media_license, external_export_allowed, withdrawal_status, source_payload_json FROM observation_data_rights")) {
+      const rights = this.db.observationDataRights.get(string(v[0]));
+      return rights ? ({
+        visit_id: rights.visit_id,
+        record_consent: rights.record_consent,
+        research_use_consent: rights.research_use_consent,
+        dataset_license: rights.dataset_license,
+        media_license: rights.media_license,
+        external_export_allowed: rights.external_export_allowed,
+        withdrawal_status: rights.withdrawal_status,
+        source_payload_json: rights.source_payload_json
+      } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT structured_json FROM observation_environment_records")) {
       const row = this.db.observationEnvironmentRecords
         .filter((candidate) => candidate.occurrence_id === string(v[0]))
@@ -24418,6 +24445,128 @@ test("production reflection loop manifest is served by Cloudflare instead of ori
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("owner data rights endpoint is read-only, owner-scoped, and returns the five-field contract", async () => {
+  const { env, core, obs } = createEnv();
+  const ownerUserId = "rights-owner";
+  const nativeVisitId = "rights-native-visit";
+  const importedVisitId = "rights-imported-visit";
+  const disallowedVisitId = "rights-disallowed-visit";
+  const makeObservation = (observationId: string, userId: string, emergencyHidden = 0): ObservationRow => ({
+    observation_id: observationId,
+    draft_id: `draft-${observationId}`,
+    owner_user_id: userId,
+    observed_at: "2026-08-27T00:00:00.000Z",
+    partition_month: "2026-08",
+    taxon_label: null,
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "",
+    visibility: "private",
+    emergency_hidden: emergencyHidden,
+    processing_state: "accepted"
+  });
+  const makeRights = (visitId: string, eligible: boolean, policyVersion?: string): ObservationDataRightsRow => ({
+    visit_id: visitId,
+    occurrence_id: `occ:${visitId}:0`,
+    record_consent: eligible ? "external_export" : "private_only",
+    research_use_consent: eligible ? "public_export" : "none",
+    enterprise_report_consent: "none",
+    dataset_license: eligible ? "CC-BY-4.0" : null,
+    media_license: eligible ? "CC-BY-NC-4.0" : "all_rights_reserved",
+    external_export_allowed: eligible ? 1 : 0,
+    withdrawal_status: eligible ? "active" : "withdrawn",
+    source_payload_json: policyVersion ? JSON.stringify({ rightsPolicyVersion: policyVersion }) : "not-json"
+  });
+
+  obs.observations.set(nativeVisitId, makeObservation(nativeVisitId, ownerUserId));
+  obs.observations.set(disallowedVisitId, makeObservation(disallowedVisitId, ownerUserId));
+  obs.productionVisits.set(importedVisitId, {
+    visit_id: importedVisitId,
+    legacy_observation_id: null,
+    user_id: ownerUserId,
+    public_visibility: "public",
+    observed_at: "2026-08-27T00:00:00.000Z"
+  });
+  obs.observationDataRights.set(nativeVisitId, makeRights(nativeVisitId, true, "site_intelligence_p0_v1"));
+  obs.observationDataRights.set(importedVisitId, makeRights(importedVisitId, true));
+  obs.observationDataRights.set(disallowedVisitId, makeRights(disallowedVisitId, false, "site_intelligence_p0_v1"));
+
+  const ownerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: ownerUserId, ttlHours: 1 })
+  }), env);
+  const ownerCookie = ownerIssue.headers.get("set-cookie") ?? "";
+  assert.equal(ownerIssue.ok, true);
+  const ownerSession = [...core.authSessions.values()].find((row) => row.user_id === ownerUserId);
+  assert.ok(ownerSession);
+  assert.equal(ownerSession.last_used_at, null);
+
+  const nativeResponse = await worker.fetch(new Request(
+    `https://shadow.test/api/v1/observations/${nativeVisitId}/data-rights`,
+    { headers: { cookie: ownerCookie } }
+  ), env);
+  const nativePayload = await nativeResponse.json() as any;
+  assert.equal(nativeResponse.status, 200, JSON.stringify(nativePayload));
+  assert.deepEqual(nativePayload, {
+    visitId: nativeVisitId,
+    externalExportAllowed: true,
+    withdrawalStatus: "active",
+    mediaLicense: "CC-BY-NC-4.0",
+    rightsPolicyVersion: "site_intelligence_p0_v1"
+  });
+  assert.equal(nativeResponse.headers.get("cache-control"), "private, no-store");
+  assert.equal(ownerSession.last_used_at, null);
+
+  const importedResponse = await worker.fetch(new Request(
+    `https://shadow.test/api/v1/observations/${importedVisitId}/data-rights`,
+    { headers: { cookie: ownerCookie } }
+  ), env);
+  const importedPayload = await importedResponse.json() as any;
+  assert.equal(importedResponse.status, 200, JSON.stringify(importedPayload));
+  assert.deepEqual(importedPayload, {
+    visitId: importedVisitId,
+    externalExportAllowed: true,
+    withdrawalStatus: "active",
+    mediaLicense: "CC-BY-NC-4.0",
+    rightsPolicyVersion: "site_intelligence_p0_v1"
+  });
+
+  const disallowedResponse = await worker.fetch(new Request(
+    `https://shadow.test/api/v1/observations/${disallowedVisitId}/data-rights`,
+    { headers: { cookie: ownerCookie } }
+  ), env);
+  const disallowedPayload = await disallowedResponse.json() as any;
+  assert.equal(disallowedResponse.status, 200, JSON.stringify(disallowedPayload));
+  assert.deepEqual(disallowedPayload, {
+    visitId: disallowedVisitId,
+    externalExportAllowed: false,
+    withdrawalStatus: "withdrawn",
+    mediaLicense: "all_rights_reserved",
+    rightsPolicyVersion: "site_intelligence_p0_v1"
+  });
+
+  const unauthenticatedResponse = await worker.fetch(new Request(
+    `https://shadow.test/api/v1/observations/${nativeVisitId}/data-rights`
+  ), env);
+  assert.equal(unauthenticatedResponse.status, 401);
+
+  const otherIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "rights-other", ttlHours: 1 })
+  }), env);
+  const otherCookie = otherIssue.headers.get("set-cookie") ?? "";
+  const otherResponse = await worker.fetch(new Request(
+    `https://shadow.test/api/v1/observations/${nativeVisitId}/data-rights`,
+    { headers: { cookie: otherCookie } }
+  ), env);
+  assert.equal(otherResponse.status, 404);
+  assert.equal(ownerSession.last_used_at, null);
 });
 
 async function post(path: string, env: ReturnType<typeof createEnv>["env"], body: unknown): Promise<any> {
