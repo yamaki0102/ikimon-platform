@@ -1,0 +1,37 @@
+{
+  "visitId": "record-1781252770584",
+  "occurrenceId": "occ:record-1781252770584:0",
+  "imageCount": 3,
+  "postInputSha256": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2",
+  "images": [
+    {"index": 0, "sha256": "2ab79c70ea5572c683301dc76daa7dd755722e2f49c5b1f8c759de48f26763ba", "observations": {"primary_subject": "robust brown scarab-like beetle", "secondary_subjects": [], "visible_features": ["strongly convex oval body", "reddish/copper-brown elytra", "distinct longitudinal elytral grooves/striae", "darker brown pronotal/head region", "stout legs"], "image_quality_notes": ["close dorsal/posterior view"], "limits": ["antennae and mouthparts poorly shown", "no reliable size scale", "ventral surface absent"]}},
+    {"index": 1, "sha256": "58e3f4310ce35d70cc89722799f74ca5ef9923de565016ae4e03cc23afcb20f3", "observations": {"primary_subject": "same beetle", "secondary_subjects": [], "visible_features": ["oval scarab body plan", "reddish-brown elytra with longitudinal striae", "dark pronotum/head", "stout legs"], "image_quality_notes": ["oblique dorsal view; whole body outline visible"], "limits": ["head details and antennal club unresolved"]}},
+    {"index": 2, "sha256": "3c2283e9733f882b651397bc0c39fb666a6d90eb613c642a94a56a12ead1df3a", "observations": {"primary_subject": "same beetle", "secondary_subjects": [], "visible_features": ["dark pronotum/head contrasted with reddish elytra", "convex compact body", "foreleg/tibia shape broadly scarab-like"], "image_quality_notes": ["front-oblique angle adds pronotal/head information but remains soft"], "limits": ["fine punctation, antennal lamellae, clypeus, underside and exact body length unavailable"]}}
+  ],
+  "post_level": {
+    "combined_observations": ["All views support Scarabaeidae: compact convex oval form, stout legs and striate elytra.", "The images are sufficient for a scarab-family identification but not for a defensible species determination."],
+    "diagnostic_features": ["convex oval scarab body", "stout legs", "reddish-brown longitudinally striate elytra", "dark pronotal/head region"],
+    "missing_features": ["antenna/lamellar club", "clypeus/head close-up", "ventral characters", "tibial teeth detail", "exact body length", "genitalic characters"],
+    "likely_confusions": ["brown Melolonthinae chafers", "brown Rutelinae/other scarabs", "multiple visually similar Japanese/Asian scarab genera if geography were known"],
+    "next_photos_to_take": ["head and antenna from front/side", "underside", "fore tibia and tarsi", "dorsal shot with ruler", "sharp macro of pronotum/elytral punctation"]
+  },
+  "taxonomic_assessment": {
+    "recommended_taxon_name": "Scarabaeidae (brown chafer; Melolonthinae-like)",
+    "recommended_rank": "family",
+    "confidence_band": "high",
+    "candidates": [
+      {"taxon_name": "Melolonthinae", "rank": "subfamily", "confidence_band": "medium", "rationale": ["non-metallic brown convex chafer form and elytral sculpture are compatible"]},
+      {"taxon_name": "Rutelinae or another brown scarab lineage", "rank": "subfamily", "confidence_band": "low", "rationale": ["some brown ruteline scarabs overlap in dorsal appearance"]},
+      {"taxon_name": "Scarabaeidae", "rank": "family", "confidence_band": "high", "rationale": ["overall morphology is strongly scarab-like"]}
+    ],
+    "why_not_more_specific": ["Critical antennal, head, ventral, size and fine-sculpture characters are absent or blurred.", "Many brown chafers are extremely similar dorsally."]
+  },
+  "support_map": [
+    {"claim": "The insect is a scarab beetle (Scarabaeidae).", "support_level": "SUPPORTED", "evidence": [{"image_index": 0, "evidence_text": "convex oval beetle with stout scarab-like legs and striate elytra"}, {"image_index": 2, "evidence_text": "pronotal/head and body form remain consistent with scarab"}]},
+    {"claim": "It belongs to a Melolonthinae-like brown chafer group.", "support_level": "PLAUSIBLE", "evidence": [{"image_index": 1, "evidence_text": "non-metallic brown chafer habitus"}]},
+    {"claim": "A particular species can be identified from these dorsal photographs alone.", "support_level": "OVERSTATED", "evidence": [{"image_index": 2, "evidence_text": "antennae/head/ventral diagnostic details are unresolved"}]}
+  ],
+  "safe_context": ["beetle photographed on a hard paved/stone surface"],
+  "risk_notes": ["Do not infer body size from the paving without a calibrated scale.", "Color can be altered by flash/white balance.", "A species-level scarab ID from these views would carry a high hallucination risk."],
+  "raw_final_content": "The three images show the same robust, strongly convex, oval beetle with reddish- to copper-brown elytra, clear longitudinal elytral grooves/striae, a darker pronotum/head region and stout legs. That combination strongly supports Scarabaeidae (a scarab/chafer).\n\nI would not force a species or even a genus from these photographs. A Melolonthinae-like brown chafer is plausible, but the features that normally separate similar scarabs—antenna and lamellar club, clypeus/head shape, ventral characters, tibial details, exact size and fine punctation—are either hidden or too soft. The correct high-confidence statement is “brown scarab beetle, family Scarabaeidae”; anything more specific should be marked provisional.\n\nA front/side macro of the head and antenna, an underside shot, a sharp fore-tibia image and a ruler-scale dorsal photograph would dramatically improve identification."
+}
