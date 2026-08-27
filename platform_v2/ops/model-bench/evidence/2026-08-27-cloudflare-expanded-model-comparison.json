@@ -10,7 +10,7 @@
     "draftAtRecord": true,
     "productionModelChanged": false,
     "sourceHeadAtRun": "de2e21102ea8daa8e875a97618118b8b971fe9e2",
-    "implementationCommit": "pending-post-run-commit"
+    "implementationCommit": "63e8ac3d7791e72eb6ef5344d005585c2608babc"
   },
   "fixedInput": {
     "manifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
