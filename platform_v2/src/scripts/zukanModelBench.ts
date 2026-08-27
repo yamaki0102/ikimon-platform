@@ -1317,10 +1317,13 @@ export async function runZukanModelBench(options: {
   return report;
 }
 
+export type ZukanBenchFinalVerdict = "KEEP_GEMINI" | "SWITCH_TO_GLM" | "INSUFFICIENT_GOLD" | "BASELINE_INVALID";
+
 export type ZukanBenchComparison = {
   datasetSha256: string;
   promptSha256: string;
   decision: "KEEP" | "SWITCH" | "REJECT_CHALLENGER" | "INSUFFICIENT_GOLD" | "BASELINE_INVALID";
+  finalVerdict?: ZukanBenchFinalVerdict;
   baselineModel: string;
   winnerModel: string;
   reason: string;
@@ -1346,6 +1349,7 @@ export function compareZukanBenchReports(reports: ZukanBenchModelReport[]): Zuka
     datasetSha256: baseline.datasetSha256,
     promptSha256: baseline.promptSha256,
     decision: "INSUFFICIENT_GOLD",
+    finalVerdict: "INSUFFICIENT_GOLD",
     baselineModel: baseline.model,
     winnerModel: baseline.model,
     reason: `Human-consensus gold posts are ${maxGold}; at least ${ZUKAN_BENCH_MIN_GOLD_POSTS} are required for automatic switching.`,
@@ -1357,6 +1361,7 @@ export function compareZukanBenchReports(reports: ZukanBenchModelReport[]): Zuka
     datasetSha256: baseline.datasetSha256,
     promptSha256: baseline.promptSha256,
     decision: "BASELINE_INVALID",
+    finalVerdict: "BASELINE_INVALID",
     baselineModel: baseline.model,
     winnerModel: "",
     reason: "Baseline and all challengers failed reliability hard gates; no model is approved.",
@@ -1365,6 +1370,7 @@ export function compareZukanBenchReports(reports: ZukanBenchModelReport[]): Zuka
     datasetSha256: baseline.datasetSha256,
     promptSha256: baseline.promptSha256,
     decision: "REJECT_CHALLENGER",
+    finalVerdict: baseline.model === ZUKAN_PRODUCTION_VISION_BASELINE_MODEL ? "KEEP_GEMINI" : undefined,
     baselineModel: baseline.model,
     winnerModel: baseline.model,
     reason: "No challenger passed the success/schema/critical-failure hard gates.",
@@ -1379,10 +1385,16 @@ export function compareZukanBenchReports(reports: ZukanBenchModelReport[]): Zuka
     return a.p95LatencyMs - b.p95LatencyMs;
   });
   const winner = ranked[0] ?? baseline;
+  const finalVerdict: ZukanBenchFinalVerdict | undefined = winner.model === CLOUDFLARE_GLM_5_3_FLASH_MODEL
+    ? "SWITCH_TO_GLM"
+    : winner.model === ZUKAN_PRODUCTION_VISION_BASELINE_MODEL
+      ? "KEEP_GEMINI"
+      : undefined;
   return {
     datasetSha256: baseline.datasetSha256,
     promptSha256: baseline.promptSha256,
     decision: winner.model === baseline.model ? "KEEP" : "SWITCH",
+    finalVerdict,
     baselineModel: baseline.model,
     winnerModel: winner.model,
     reason: winner.model === baseline.model

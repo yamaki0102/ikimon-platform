@@ -2,6 +2,20 @@
 
 Status: source implementation. `zukan-post-model-bench-v2` supersedes the earlier image-per-fixture draft.
 
+## Current PR #1582 state (2026-08-27)
+
+The current comparison reuses the immutable owner-derived 7-post / 21-image manifest:
+
+- dataset SHA-256: `db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff`
+- prompt SHA-256: `6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9`
+- visit IDs and ordered image digests: `fixtures/zukan-owner-post-smoke-v2-7.external.json`
+- Gemini baseline: `gemini-3.5-flash-lite`, provider-native `responseJsonSchema`, 2048 output tokens, minimal thinking, one request/post, retry 0, fallback 0
+- GLM challenger: `@cf/zai-org/glm-5.3-flash`, official Workers AI REST, 8192 completion tokens, one request/post, retry 0, fallback 0
+
+Gemini's previous 1/7 schema result was a benchmark-adapter omission: the model-router call set JSON MIME type but did not pass `responseJsonSchema`; the router already supported it, and the production Gemini implementation already used a native response schema. The canary passed after this minimum adapter fix, and the same seven posts then passed 7/7 schema validation. Full safe final content and parsed JSON are retained per post in the Evidence report; private reasoning is never stored.
+
+The seven-post run has no human-consensus gold. The final verdict is therefore `INSUFFICIENT_GOLD`; no model adoption decision is made. See the latest Evidence summary and its linked per-model reports for the measured comparison and the exact gold shortage.
+
 ## Goal
 
 Compare current and future vision models on the smallest useful fixed ZUKAN dataset, using exactly the same posts, the same ordered photo sets, and the same prompt.
@@ -9,7 +23,7 @@ Compare current and future vision models on the smallest useful fixed ZUKAN data
 ## Dataset size
 
 - Core: **24 posts**.
-- Smoke: **the first fixed 8 posts of that same Core manifest**.
+- Smoke: **the first fixed 8 posts of that same Core manifest**. PR #1582's current owner-derived comparison is a separately frozen 7-post / 21-image manifest because one source candidate was excluded by owner scope; it does not rewrite the v2 Core or 8-post freeze.
 - Automatic model switching requires at least **8 human-consensus gold posts**.
 - Do not grow the suite unless the 24-post Core cannot discriminate models reliably.
 
@@ -75,6 +89,8 @@ This creates a source-only manifest. It still must pass `vet-rights` before any 
 
 The benchmark never treats an owner attestation, public visibility, or a prior report as a substitute for canonical rights. The run reads `ObservationDataRights` for every selected post and stops before image download or model calls if any row is missing or does not have the required consent, license, and active withdrawal state.
 
+The current Gemini baseline uses the existing `model-router` path with Gemini's provider-native `responseJsonSchema` for the scored output keys (`recommended_taxon_name`, `recommended_rank`, and `confidence_band`). Optional final-output fields remain allowed and are persisted for later human or judge review. This changes only the benchmark adapter request configuration; production model, traffic, secrets, schema, and permissions are unchanged.
+
 The Cloudflare GLM Smoke uses the official Workers AI REST API. It sends exactly one request per post, with all ordered photos in that request; it has no retry, fallback model, or Playground path:
 
 ```bash
@@ -82,7 +98,7 @@ ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 npm run bench:zukan -- smoke
   --manifest=ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json
 ```
 
-`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` must already be configured in the execution environment. The command fixes the model to `@cf/zai-org/glm-5.3-flash`, the dataset to the eight-post / 24-image manifest (`datasetSha256=5636ef685524c59813449c3c9afffbeaee4be062d80834f3f86bc3ee185b251b`, `promptSha256=6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9`), output to 1,024 tokens/post, and Cloudflare's 2026-08-26 published token rates ($0.15/M input, $0.50/M output). A conservative $0.35 safety cap stops further calls. Reports include request count, provider usage, cost estimate, post-level scores, and p50/p95 latency.
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` must already be configured in the execution environment. The historical command above used the original eight-post / 24-image freeze (`datasetSha256=5636ef685524c59813449c3c9afffbeaee4be062d80834f3f86bc3ee185b251b`, `promptSha256=6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9`). The current PR #1582 run uses the separate immutable seven-post / 21-image SHA listed above, `max_completion_tokens=8192`, and Cloudflare's 2026-08-26 published token rates ($0.15/M input, $0.50/M output). Reports include request count, provider usage, cost estimate, post-level scores, full safe final output, and p50/p95 latency; no retry or fallback is permitted.
 
 ## Explicit commands
 
@@ -139,4 +155,4 @@ npm run bench:zukan -- compare \
   --reports=ops/model-bench/reports/baseline.json,ops/model-bench/reports/challenger.json
 ```
 
-Verdict: `KEEP`, `SWITCH`, `REJECT_CHALLENGER`, `INSUFFICIENT_GOLD`, or `BASELINE_INVALID`. The last state explicitly approves no model.
+The legacy `decision` field remains for compatibility. Current Gemini-vs-GLM Evidence uses the governed `finalVerdict`: `KEEP_GEMINI`, `SWITCH_TO_GLM`, `INSUFFICIENT_GOLD`, or `BASELINE_INVALID`. The last state explicitly approves no model.

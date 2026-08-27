@@ -380,7 +380,17 @@ function report(model: string, goldPostCount: number): ZukanBenchModelReport {
 
 test("automatic switching is refused without enough human gold posts", () => {
   const tooFew = ZUKAN_BENCH_MIN_GOLD_POSTS - 1;
-  assert.equal(compareZukanBenchReports([report("baseline", tooFew), report("challenger", tooFew)]).decision, "INSUFFICIENT_GOLD");
+  const comparison = compareZukanBenchReports([report("baseline", tooFew), report("challenger", tooFew)]);
+  assert.equal(comparison.decision, "INSUFFICIENT_GOLD");
+  assert.equal(comparison.finalVerdict, "INSUFFICIENT_GOLD");
+});
+
+test("current Gemini and GLM pair exposes the governed final verdict", () => {
+  const comparison = compareZukanBenchReports([
+    report("gemini-3.5-flash-lite", 8),
+    report("@cf/zai-org/glm-5.3-flash", 8),
+  ]);
+  assert.equal(comparison.finalVerdict, "KEEP_GEMINI");
 });
 
 test("an invalid baseline is never treated as approved", () => {
