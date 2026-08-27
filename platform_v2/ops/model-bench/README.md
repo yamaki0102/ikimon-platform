@@ -65,6 +65,33 @@ The one-time Smoke freeze reads the canonical research occurrence projection dir
 npm run bench:zukan -- prepare-smoke
 ```
 
+To freeze a specific owner's posts without sending them externally, provide that owner's fixed candidate IDs. The same versioned seed deterministically selects eight posts from the list:
+
+```bash
+npm run bench:zukan -- freeze-owner-smoke --visit-ids=record-1,record-2,...
+```
+
+This creates a source-only manifest. It still must pass `vet-rights` before any model call.
+
+For an explicitly confirmed owner-only benchmark when production `ObservationDataRights` cannot be written from the test environment, keep the source manifest immutable and derive a separate attested manifest:
+
+```bash
+npm run bench:zukan -- attest-owner-rights \
+  --manifest=ops/model-bench/fixtures/zukan-owner-post-smoke-v2.json \
+  --attestation=ops/model-bench/fixtures/zukan-owner-post-smoke-v2.rights-attestation.json
+```
+
+The attestation must name the exact frozen fixture set and declare `recordConsent=external_export`, `researchUseConsent=public_export`, `externalExportAllowed=true`, and `withdrawalStatus=active`. This is benchmark evidence; it does not mutate or claim to replace production canonical rights.
+
+The account-free official Cloudflare Playground transport is available for diagnostic Smoke runs:
+
+```bash
+ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 npm run bench:zukan -- smoke-glm-playground \
+  --manifest=ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json
+```
+
+It deterministically chunks prompts at 5,000 Unicode characters to stay below the Playground per-message limit while preserving the full prompt text and SHA. It never changes the requested model or retries another model.
+
 After that immutable manifest is committed, each Cloudflare GLM Smoke is one command:
 
 ```bash

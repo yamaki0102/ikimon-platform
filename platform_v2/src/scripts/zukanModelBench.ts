@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +12,7 @@ export const ZUKAN_MODEL_BENCH_VERSION = "zukan-post-model-bench-v2";
 export const ZUKAN_MODEL_BENCH_PROMPT_VERSION = "observation-reassess-post-cold-start-v2";
 export const DEFAULT_ZUKAN_BENCH_MANIFEST = "ops/model-bench/fixtures/zukan-public-post-core-v2.json";
 export const DEFAULT_ZUKAN_BENCH_SMOKE_MANIFEST = "ops/model-bench/fixtures/zukan-public-post-smoke-v2.external.json";
+export const DEFAULT_ZUKAN_OWNER_BENCH_SMOKE_MANIFEST = "ops/model-bench/fixtures/zukan-owner-post-smoke-v2.json";
 export const DEFAULT_ZUKAN_BENCH_REPORT_DIR = "ops/model-bench/reports";
 export const ZUKAN_BENCH_CORE_POST_COUNT = 24;
 export const ZUKAN_BENCH_SMOKE_POST_COUNT = 8;
@@ -84,6 +85,7 @@ export type ZukanBenchFixtureScore = {
   latencyMs?: number;
   inputTokens?: number;
   outputTokens?: number;
+  rawResponseText?: string;
 };
 
 export type ZukanBenchModelReport = {
@@ -113,7 +115,25 @@ export type ZukanBenchModelReport = {
   totalOutputTokens: number;
   estimatedCostUsd: number | null;
   pricing: { inputUsdPer1M: number; outputUsdPer1M: number; source: string } | null;
+  transport?: "model-router" | "cloudflare-official-playground";
+  usageMeasurement?: "provider-reported" | "not-exposed-by-playground";
+  observedAdditionalCostUsd?: number | null;
   fixtureScores: ZukanBenchFixtureScore[];
+};
+
+type OwnerRightsAttestation = {
+  version: "zukan-owner-rights-attestation-v1";
+  attestedAt: string;
+  ownerUserId: string;
+  evidenceSource: "chatgpt-work-user-confirmation";
+  fixtureIds: string[];
+  recordConsent: "external_export";
+  researchUseConsent: "public_export";
+  datasetLicense: string;
+  mediaLicense: string;
+  externalExportAllowed: true;
+  withdrawalStatus: "active";
+  rightsPolicyVersion: string;
 };
 
 type BenchResponse = {
@@ -158,6 +178,16 @@ function clean(value: unknown): string {
   return typeof value === "string" ? value.replace(/\s+/gu, " ").trim() : "";
 }
 
+function compactError(value: unknown): string {
+  const direct = clean(value);
+  if (direct) return direct;
+  try {
+    return JSON.stringify(value).slice(0, 500);
+  } catch {
+    return String(value).slice(0, 500);
+  }
+}
+
 function sha256(bytes: Uint8Array | string): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
@@ -190,6 +220,12 @@ function htmlAttribute(tag: string, name: string): string {
 }
 
 export function extractOrderedPostPhotoUrls(detailHtml: string): string[] {
+  const observationFirstRows = [...detailHtml.matchAll(/<figure\b[^>]*class="[^"]*\bof-media-slide\b[^"]*"[^>]*>[\s\S]*?<\/figure>/gu)]
+    .map((match) => match[0])
+    .map((figure) => figure.match(/<img\b[^>]*>/u)?.[0] ?? "")
+    .map((tag) => htmlAttribute(tag, "src"))
+    .filter(Boolean);
+  if (observationFirstRows.length > 0) return [...new Set(observationFirstRows)];
   const thumbRows = [...detailHtml.matchAll(/<button\b[^>]*>/gu)]
     .map((match) => match[0])
     .filter((tag) => /\bobs-hero-thumb\b/u.test(tag))
@@ -401,6 +437,7 @@ export async function freezeZukanBenchManifest(options: {
   count?: number;
   outputPath?: string;
   rightsVettedResearchApi?: boolean;
+  ownerVisitIds?: string[];
 } = {}): Promise<ZukanBenchManifest> {
   const baseUrl = (options.baseUrl ?? PRODUCTION_PUBLIC_ORIGIN).replace(/\/+$/u, "");
   const count = Math.max(1, Math.floor(options.count ?? ZUKAN_BENCH_CORE_POST_COUNT));
@@ -410,9 +447,18 @@ export async function freezeZukanBenchManifest(options: {
   await assertNewFile(promptPath);
 
   const discoveryCount = Math.max(count * 2, count + 8);
-  const directTargets = options.rightsVettedResearchApi ? await fetchRightsVettedResearchTargets(baseUrl) : null;
-  const resolved = directTargets ? null : await resolveObservationImageTargets({ baseUrl, count: discoveryCount });
-  const selected = selectDeterministicPostTargets(directTargets ?? resolved?.targets ?? [], count);
+  const ownerTargets = options.ownerVisitIds?.map((visitId): ObservationImageTarget => ({
+    path: `/observations/${encodeURIComponent(visitId)}`,
+    visitId,
+    occurrenceId: `occ:${visitId}:0`,
+    observedAt: "",
+    displayName: "名前待ち",
+    photoUrl: `/observations/${encodeURIComponent(visitId)}`,
+    source: "record-path",
+  })) ?? null;
+  const directTargets = !ownerTargets && options.rightsVettedResearchApi ? await fetchRightsVettedResearchTargets(baseUrl) : null;
+  const resolved = ownerTargets || directTargets ? null : await resolveObservationImageTargets({ baseUrl, count: discoveryCount });
+  const selected = selectDeterministicPostTargets(ownerTargets ?? directTargets ?? resolved?.targets ?? [], count);
   if (selected.length < count) {
     const reason = options.rightsVettedResearchApi ? "zukan_bench_not_enough_rights_vetted_human_consensus_posts" : "zukan_bench_not_enough_unique_posts";
     throw new Error(`${reason}:${selected.length}/${count}`);
@@ -524,6 +570,51 @@ export async function vetZukanBenchRights(options: {
     externalProcessingVettedAt: new Date().toISOString(),
     fixtures: eligible,
   };
+  await writeFile(outputPath, `${JSON.stringify(vetted, null, 2)}\n`, "utf8");
+  return vetted;
+}
+
+export async function applyOwnerRightsAttestation(options: {
+  manifestPath: string;
+  attestationPath: string;
+  outputPath?: string;
+}): Promise<ZukanBenchManifest> {
+  const manifest = await loadZukanBenchManifest(options.manifestPath);
+  const attestation = JSON.parse(await readFile(options.attestationPath, "utf8")) as OwnerRightsAttestation;
+  if (
+    attestation.version !== "zukan-owner-rights-attestation-v1"
+    || attestation.evidenceSource !== "chatgpt-work-user-confirmation"
+    || !clean(attestation.ownerUserId)
+    || attestation.recordConsent !== "external_export"
+    || attestation.researchUseConsent !== "public_export"
+    || attestation.externalExportAllowed !== true
+    || attestation.withdrawalStatus !== "active"
+    || !clean(attestation.datasetLicense)
+    || !clean(attestation.mediaLicense)
+    || !clean(attestation.rightsPolicyVersion)
+    || !Number.isFinite(Date.parse(attestation.attestedAt))
+  ) {
+    throw new Error("zukan_bench_owner_rights_attestation_invalid");
+  }
+  const manifestIds = manifest.fixtures.map((fixture) => fixture.fixtureId);
+  if (new Set(attestation.fixtureIds).size !== manifestIds.length || manifestIds.some((id) => !attestation.fixtureIds.includes(id))) {
+    throw new Error("zukan_bench_owner_rights_attestation_fixture_mismatch");
+  }
+  const fixtures = manifest.fixtures.map((fixture): ZukanBenchFixture => ({
+    ...fixture,
+    externalExportAllowed: true,
+    mediaLicense: attestation.mediaLicense,
+    rightsPolicyVersion: attestation.rightsPolicyVersion,
+    withdrawalStatus: "active",
+  }));
+  const vetted: ZukanBenchManifest = {
+    ...manifest,
+    datasetSha256: canonicalFixtureDigest(fixtures),
+    externalProcessingVettedAt: attestation.attestedAt,
+    fixtures,
+  };
+  const outputPath = options.outputPath ?? defaultRightsManifestPath(options.manifestPath);
+  await assertNewFile(outputPath);
   await writeFile(outputPath, `${JSON.stringify(vetted, null, 2)}\n`, "utf8");
   return vetted;
 }
@@ -670,6 +761,127 @@ function configureModelProvider(model: string): void {
   process.env.OPENAI_COMPATIBLE_CHAT_COMPLETIONS_URL = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/chat/completions`;
 }
 
+type CloudflarePlaygroundPart =
+  | { type: "file"; mediaType: string; filename: string; url: string }
+  | { type: "text"; text: string };
+
+async function generateWithCloudflareOfficialPlayground(options: {
+  model: string;
+  parts: CloudflarePlaygroundPart[];
+  timeoutMs?: number;
+}): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
+  const timeoutMs = options.timeoutMs ?? 180_000;
+  const room = `playground-zukan-bench-${randomUUID()}`;
+  const websocketUrl = `wss://playground.ai.cloudflare.com/agents/playground/${room}?model=${encodeURIComponent(options.model)}&_pk=${randomUUID()}`;
+  return await new Promise((resolve, reject) => {
+    const websocket = new WebSocket(websocketUrl);
+    const rpcId = randomUUID();
+    const requestId = randomUUID().replaceAll("-", "").slice(0, 8);
+    let requestSent = false;
+    let configRpcSucceeded = false;
+    let configuredModelConfirmed = false;
+    let settled = false;
+    let text = "";
+    let streamError = "";
+    const responseFrames: string[] = [];
+    const finish = (error?: Error): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      websocket.close();
+      if (error) reject(error);
+      else resolve({ text, inputTokens: 0, outputTokens: 0 });
+    };
+    const timer = setTimeout(() => finish(new Error(`cloudflare_playground_timeout:${timeoutMs}`)), timeoutMs);
+    websocket.addEventListener("open", () => {
+      websocket.send(JSON.stringify({
+        args: [{
+          model: options.model,
+          temperature: 0,
+          stream: true,
+          system: "",
+          useExternalProvider: false,
+          externalProvider: "openai",
+          generativeUI: false,
+        }],
+        id: rpcId,
+        method: "setConfig",
+        type: "rpc",
+      }));
+    });
+    websocket.addEventListener("message", (event) => {
+      let message: Record<string, unknown>;
+      try {
+        message = JSON.parse(String(event.data)) as Record<string, unknown>;
+      } catch {
+        return;
+      }
+      const sendRequestIfReady = (): void => {
+        if (requestSent || !configRpcSucceeded || !configuredModelConfirmed) return;
+        requestSent = true;
+        const fileParts = options.parts.filter((part): part is Extract<CloudflarePlaygroundPart, { type: "file" }> => part.type === "file");
+        const promptText = options.parts.filter((part): part is Extract<CloudflarePlaygroundPart, { type: "text" }> => part.type === "text").map((part) => part.text).join("");
+        const promptCharacters = Array.from(promptText);
+        const promptChunks: string[] = [];
+        for (let index = 0; index < promptCharacters.length; index += 5_000) {
+          promptChunks.push(promptCharacters.slice(index, index + 5_000).join(""));
+        }
+        websocket.send(JSON.stringify({
+          id: requestId,
+          init: {
+            method: "POST",
+            body: JSON.stringify({
+              messages: promptChunks.map((promptChunk, index) => ({
+                id: randomUUID(),
+                role: "user",
+                parts: [...(index === 0 ? fileParts : []), { type: "text", text: promptChunk }],
+              })),
+              trigger: "submit-message",
+            }),
+          },
+          type: "cf_agent_use_chat_request",
+        }));
+      };
+      if (message.type === "cf_agent_state" && message.state && typeof message.state === "object") {
+        configuredModelConfirmed = (message.state as Record<string, unknown>).model === options.model;
+        sendRequestIfReady();
+        return;
+      }
+      if (message.type === "rpc" && message.id === rpcId && !requestSent) {
+        if (message.success !== true) {
+          finish(new Error(`cloudflare_playground_config_failed:${compactError(message.error) || "unknown"}`));
+          return;
+        }
+        configRpcSucceeded = true;
+        sendRequestIfReady();
+        return;
+      }
+      if (message.type !== "cf_agent_use_chat_response" || message.id !== requestId) return;
+      if (typeof message.body === "string" && message.body) {
+        responseFrames.push(message.body.slice(0, 400));
+        if (responseFrames.length > 8) responseFrames.shift();
+        try {
+          const chunk = JSON.parse(message.body) as Record<string, unknown>;
+          if (chunk.type === "text-delta" && typeof chunk.delta === "string") text += chunk.delta;
+          if (chunk.type === "error") streamError = compactError(chunk.errorText ?? chunk.error ?? chunk);
+        } catch {
+          // Ignore non-data-stream websocket frames.
+        }
+      }
+      if (message.error) {
+        const frameEvidence = responseFrames.length ? responseFrames.join("|") : "";
+        finish(new Error(`cloudflare_playground_model_error:${streamError || frameEvidence || compactError(message) || "unknown"}`));
+      } else if (message.done === true) {
+        finish();
+      }
+    });
+    websocket.addEventListener("error", () => finish(new Error("cloudflare_playground_websocket_error")));
+    websocket.addEventListener("close", () => {
+      if (!settled) finish(new Error("cloudflare_playground_closed_before_done"));
+    });
+  });
+}
+
 export async function runZukanModelBench(options: {
   model: string;
   manifestPath?: string;
@@ -677,12 +889,14 @@ export async function runZukanModelBench(options: {
   pricing?: BenchPricing | null;
   limit?: number;
   maxEstimatedCostUsd?: number;
+  transport?: "model-router" | "cloudflare-official-playground";
 }): Promise<ZukanBenchModelReport> {
   const manifestPath = options.manifestPath ?? defaultRightsManifestPath(DEFAULT_ZUKAN_BENCH_MANIFEST);
   const reportDir = options.reportDir ?? DEFAULT_ZUKAN_BENCH_REPORT_DIR;
   const manifest = await loadZukanBenchManifest(manifestPath);
   assertExternalProcessingAllowed(manifest);
-  configureModelProvider(options.model);
+  const transport = options.transport ?? "model-router";
+  if (transport === "model-router") configureModelProvider(options.model);
   const promptTemplate = await readFile(manifest.promptPath, "utf8");
   const fixtures = typeof options.limit === "number" && options.limit > 0
     ? manifest.fixtures.slice(0, Math.floor(options.limit))
@@ -703,32 +917,46 @@ export async function runZukanModelBench(options: {
       if (spentBeforeCall !== null && options.maxEstimatedCostUsd !== undefined && spentBeforeCall + averageCompletedCost > options.maxEstimatedCostUsd) {
         throw new Error(`zukan_bench_cost_cap_preflight:${spentBeforeCall.toFixed(8)}/${options.maxEstimatedCostUsd.toFixed(8)}`);
       }
-      const parts: AiRouterPart[] = [];
-      const verifiedImages: ZukanBenchImage[] = [];
-      for (const imageRef of fixture.images) {
+      const verified = await Promise.all(fixture.images.map(async (imageRef) => {
         const image = await fetchImage(imageRef.url);
         const actualDigest = sha256(image.bytes);
         if (actualDigest !== imageRef.sha256 || image.bytes.byteLength !== imageRef.bytes || image.mimeType !== imageRef.mimeType) {
           throw new Error(`zukan_bench_image_identity_mismatch:${fixture.fixtureId}:${imageRef.index}`);
         }
-        verifiedImages.push(imageRef);
-        parts.push({ inlineData: { mimeType: imageRef.mimeType, data: image.bytes.toString("base64") } });
-      }
+        return { ref: imageRef, bytes: image.bytes };
+      }));
+      const verifiedImages = verified.map((item) => item.ref);
       if (canonicalImageDigest(verifiedImages) !== fixture.postInputSha256) {
         throw new Error(`zukan_bench_post_identity_mismatch:${fixture.fixtureId}`);
       }
-      parts.push({ text: renderColdStartPrompt(promptTemplate, fixture) });
+      const renderedPrompt = renderColdStartPrompt(promptTemplate, fixture);
       const started = Date.now();
       try {
-        const result = await generateAiTextWithRoleChain({
-          chainName: "observationVisualExtract",
-          parts,
-          responseMimeType: "application/json",
-          thinkingConfig: { thinkingLevel: "minimal" },
-          temperature: 0,
-          maxOutputTokens: 1024,
-          retriesPerModel: 1,
-        });
+        const result = transport === "cloudflare-official-playground"
+          ? await generateWithCloudflareOfficialPlayground({
+            model: options.model,
+            parts: [
+              ...verified.map((item) => ({
+                type: "file" as const,
+                mediaType: item.ref.mimeType,
+                filename: `${fixture.fixtureId}-${item.ref.index}.webp`,
+                url: item.ref.url,
+              })),
+              { type: "text" as const, text: renderedPrompt },
+            ],
+          })
+          : await generateAiTextWithRoleChain({
+            chainName: "observationVisualExtract",
+            parts: [
+              ...verified.map((item): AiRouterPart => ({ inlineData: { mimeType: item.ref.mimeType, data: item.bytes.toString("base64") } })),
+              { text: renderedPrompt },
+            ],
+            responseMimeType: "application/json",
+            thinkingConfig: { thinkingLevel: "minimal" },
+            temperature: 0,
+            maxOutputTokens: 1024,
+            retriesPerModel: 1,
+          });
         totalInputTokens += result.inputTokens;
         totalOutputTokens += result.outputTokens;
         const latencyMs = Date.now() - started;
@@ -738,6 +966,7 @@ export async function runZukanModelBench(options: {
           latencyMs,
           inputTokens: result.inputTokens,
           outputTokens: result.outputTokens,
+          rawResponseText: result.text,
         });
         successCount += 1;
       } catch (error) {
@@ -749,7 +978,7 @@ export async function runZukanModelBench(options: {
           imageCount: fixture.images.length,
           schemaValid: false,
           taxonScore: fixture.gold.status === "human_consensus" ? 0 : null,
-          criticalFailures: [`model_error:${error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180)}`],
+          criticalFailures: [`model_error:${error instanceof Error ? error.message.slice(0, 1000) : String(error).slice(0, 1000)}`],
           latencyMs,
         });
       }
@@ -769,7 +998,7 @@ export async function runZukanModelBench(options: {
     promptVersion: ZUKAN_MODEL_BENCH_PROMPT_VERSION,
     promptSha256: manifest.promptSha256,
     model: options.model,
-    provider: modelProvider(options.model),
+    provider: transport === "cloudflare-official-playground" ? "cloudflare-workers-ai-playground" : modelProvider(options.model),
     manifestPath,
     datasetSha256: manifest.datasetSha256,
     startedAt,
@@ -793,6 +1022,9 @@ export async function runZukanModelBench(options: {
     totalOutputTokens,
     estimatedCostUsd: estimatedCost(totalInputTokens, totalOutputTokens, options.pricing ?? null),
     pricing: options.pricing ?? null,
+    transport,
+    usageMeasurement: transport === "cloudflare-official-playground" ? "not-exposed-by-playground" : "provider-reported",
+    observedAdditionalCostUsd: transport === "cloudflare-official-playground" ? 0 : null,
     fixtureScores,
   };
   await mkdir(reportDir, { recursive: true });
@@ -916,12 +1148,36 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({ status: "RIGHTS_VETTED_SMOKE_FROZEN", postCount: manifest.postCount, imageCount: manifest.imageCount, datasetSha256: manifest.datasetSha256, promptSha256: manifest.promptSha256 }, null, 2));
     return;
   }
+  if (command === "freeze-owner-smoke") {
+    const ownerVisitIds = (stringArg(args, "visit-ids") ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+    if (ownerVisitIds.length < ZUKAN_BENCH_SMOKE_POST_COUNT) throw new Error("--visit-ids requires at least 8 owner visit IDs");
+    const manifest = await freezeZukanBenchManifest({
+      baseUrl: stringArg(args, "base-url"),
+      count: ZUKAN_BENCH_SMOKE_POST_COUNT,
+      outputPath: stringArg(args, "out") ?? DEFAULT_ZUKAN_OWNER_BENCH_SMOKE_MANIFEST,
+      ownerVisitIds,
+    });
+    console.log(JSON.stringify({ status: "OWNER_SMOKE_FROZEN", postCount: manifest.postCount, imageCount: manifest.imageCount, datasetSha256: manifest.datasetSha256, promptSha256: manifest.promptSha256, fixtureIds: manifest.fixtures.map((fixture) => fixture.fixtureId) }, null, 2));
+    return;
+  }
   if (command === "vet-rights") {
     const manifest = await vetZukanBenchRights({
       manifestPath: stringArg(args, "manifest"),
       outputPath: stringArg(args, "out"),
     });
     console.log(JSON.stringify({ status: "RIGHTS_VETTED", postCount: manifest.postCount, imageCount: manifest.imageCount, datasetSha256: manifest.datasetSha256 }, null, 2));
+    return;
+  }
+  if (command === "attest-owner-rights") {
+    const manifestPath = stringArg(args, "manifest") ?? DEFAULT_ZUKAN_OWNER_BENCH_SMOKE_MANIFEST;
+    const attestationPath = stringArg(args, "attestation");
+    if (!attestationPath) throw new Error("--attestation is required");
+    const manifest = await applyOwnerRightsAttestation({
+      manifestPath,
+      attestationPath,
+      outputPath: stringArg(args, "out"),
+    });
+    console.log(JSON.stringify({ status: "OWNER_RIGHTS_ATTESTED", postCount: manifest.postCount, imageCount: manifest.imageCount, datasetSha256: manifest.datasetSha256, promptSha256: manifest.promptSha256 }, null, 2));
     return;
   }
   if (command === "run") {
@@ -948,6 +1204,18 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(report, null, 2));
     return;
   }
+  if (command === "smoke-glm-playground") {
+    const report = await runZukanModelBench({
+      model: "@cf/zai-org/glm-5.3-flash",
+      manifestPath: stringArg(args, "manifest") ?? defaultRightsManifestPath(DEFAULT_ZUKAN_OWNER_BENCH_SMOKE_MANIFEST),
+      reportDir: stringArg(args, "report-dir"),
+      pricing: null,
+      transport: "cloudflare-official-playground",
+      limit: numericArg(args, "limit"),
+    });
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
   if (command === "compare") {
     const reportPaths = (stringArg(args, "reports") ?? "").split(",").map((value) => value.trim()).filter(Boolean);
     if (reportPaths.length < 2) throw new Error("--reports requires at least baseline.json,challenger.json");
@@ -955,7 +1223,7 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(compareZukanBenchReports(reports), null, 2));
     return;
   }
-  throw new Error(`unknown command:${command}; use prepare-smoke, smoke-glm, freeze, vet-rights, run, or compare`);
+  throw new Error(`unknown command:${command}; use prepare-smoke, freeze-owner-smoke, attest-owner-rights, smoke-glm, smoke-glm-playground, freeze, vet-rights, run, or compare`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

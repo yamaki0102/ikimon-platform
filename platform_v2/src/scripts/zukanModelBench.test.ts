@@ -95,6 +95,14 @@ test("all photos in one post are extracted in post order", () => {
   assert.deepEqual(extractOrderedPostPhotoUrls(html), ["/photo-a.jpg", "/photo-b.jpg", "/photo-c.jpg"]);
 });
 
+test("observation-first gallery photos are extracted without related records", () => {
+  const html = `
+    <figure class="of-media-slide" id="record-media-1"><img src="/photo-a.webp" alt="写真 1"></figure>
+    <figure class="of-media-slide" id="record-media-2"><img src="/photo-b.webp" alt="写真 2"></figure>
+    <section class="of-related"><img src="/related.webp"></section>`;
+  assert.deepEqual(extractOrderedPostPhotoUrls(html), ["/photo-a.webp", "/photo-b.webp"]);
+});
+
 test("single-photo post falls back to preview image", () => {
   const html = `<img src="/display.webp" data-obs-full-src="/original.jpg" data-obs-preview-img />`;
   assert.deepEqual(extractOrderedPostPhotoUrls(html), ["/original.jpg"]);
