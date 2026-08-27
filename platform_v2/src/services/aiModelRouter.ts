@@ -70,6 +70,40 @@ function responseFormatForOpenAi(request: AiRouterGenerateRequest): Record<strin
   return request.responseMimeType === "application/json" ? { type: "json_object" } : undefined;
 }
 
+function isCloudflareUnifiedAiEndpoint(endpoint: string): boolean {
+  try {
+    const url = new URL(endpoint);
+    return url.protocol === "https:"
+      && url.hostname.toLowerCase() === "api.cloudflare.com"
+      && /^\/client\/v4\/accounts\/[^/]+\/ai\/v1\/(?:chat\/completions|responses)\/?$/u.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+export function openAiCompatibleRequestHeaders(
+  apiKey: string,
+  endpoint: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    authorization: `Bearer ${apiKey}`,
+    "content-type": "application/json",
+  };
+  if (!isCloudflareUnifiedAiEndpoint(endpoint)) return headers;
+
+  const gatewayId = env.CLOUDFLARE_AI_GATEWAY_ID?.trim() ?? "";
+  if (!gatewayId) return headers;
+  if (gatewayId === "default") {
+    throw new Error("cloudflare_ai_gateway_default_disallowed");
+  }
+  if (gatewayId.length > 64 || /[\r\n]/u.test(gatewayId)) {
+    throw new Error("cloudflare_ai_gateway_id_invalid");
+  }
+  headers["cf-aig-gateway-id"] = gatewayId;
+  return headers;
+}
+
 function isRetriable(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
   return /429|500|502|503|504|UNAVAILABLE|RESOURCE_EXHAUSTED|rate|quota|timeout|network/i.test(msg);
@@ -247,10 +281,7 @@ async function callOpenAiCompatible(
 
   const response = await fetch(endpoint, {
     method: "POST",
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      "content-type": "application/json",
-    },
+    headers: openAiCompatibleRequestHeaders(apiKey, endpoint),
     body: JSON.stringify(body),
   });
   if (!response.ok) {
