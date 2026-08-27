@@ -383,6 +383,11 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /top: calc\(max\(12px, env\(safe-area-inset-top\)\) \+ var\(--global-record-visual-top, 0px\)\)/);
   assert.match(html, /height: clamp\(260px, min\(72dvh, calc\(var\(--global-record-visual-height, 100dvh\) - 212px\)\), 760px\)/);
   assert.match(html, /height: clamp\(240px, min\(70dvh, calc\(var\(--global-record-visual-height, 100dvh\) - 214px\)\), 640px\)/);
+  assert.match(html, /global-record-camera-sheet\[data-active-kind="photo"\]:not\(\[data-camera-active="true"\]\):not\(\[data-photo-draft="true"\]\):not\(\[data-camera-error="true"\]\)/);
+  assert.match(html, /global-record-camera-sheet\[data-active-kind="photo"\][\s\S]+\.global-record-camera-preview \{\s+display: none;/);
+  assert.match(html, /global-record-camera-sheet\[data-active-kind="photo"\][\s\S]+\.global-record-camera-actions \{\s+position: static;/);
+  assert.match(html, /grid-template-columns: 1fr;\s+gap: 8px;\s+padding: 0;/);
+  assert.match(html, /\.global-record-camera-action \{\s+min-height: 56px;\s+white-space: normal;/);
   assert.match(html, /navigator\.mediaDevices\.getUserMedia/);
   assert.match(html, /track\.getCapabilities/);
   assert.match(html, /capabilities && capabilities\.zoom/);
