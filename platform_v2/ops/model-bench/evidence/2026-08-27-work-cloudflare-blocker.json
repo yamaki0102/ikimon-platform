@@ -1,6 +1,6 @@
 {
   "version": "zukan-post-model-bench-v2-execution-evidence-v1",
-  "recordedAt": "2026-08-27T00:19:56.402Z",
+  "recordedAt": "2026-08-27T00:20:46.184Z",
   "status": "BLOCKED_RIGHTS_AND_CLOUDFLARE_ACCESS",
   "source": {
     "operatingContractBlobSha": "b1752c143e4958975ad593ecfa8435cc8d47bfbc",
@@ -73,13 +73,15 @@
   },
   "rights": {
     "canonicalService": "platform_v2/src/services/observationDataRights.ts",
-    "exportReadyQueryRows": 0,
+    "canonicalServiceRead": "unavailable_in_work_session_no_authorized_db_or_read_only_rights_endpoint",
+    "publicProjectionExportReadyQueryRows": 0,
     "readOnlyUnfilteredEndpoint": "/api/v1/research/occurrences?include_machine_observations=true&tier_gte=1",
-    "rowsScanned": 1248,
-    "rowsWithNonNullRightsProjection": 0,
-    "canonicalEligiblePosts": 0,
-    "gate": "externalExportAllowed === true && withdrawalStatus === active",
+    "publicProjectionRowsScanned": 1248,
+    "publicProjectionRowsWithNonNullRights": 0,
+    "publicProjectionEligiblePosts": 0,
+    "requiredGate": "externalExportAllowed === true && withdrawalStatus === active",
     "rightsVettedManifestCreated": false,
+    "rightsVettedCount": 0,
     "ownerAttestationNotAcceptedAsCanonicalRights": true
   },
   "targetModels": {
