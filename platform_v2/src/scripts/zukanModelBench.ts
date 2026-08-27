@@ -96,6 +96,7 @@ export type ZukanBenchFixtureScore = {
   recommendedRank?: string;
   confidenceBand?: string;
   geographicContext?: string;
+  responseField?: string;
   latencyMs?: number;
   inputTokens?: number;
   outputTokens?: number;
@@ -737,7 +738,8 @@ export function buildCloudflareOfficialRestPayload(parts: CloudflareOfficialRest
   return {
     messages: [{ role: "user", content: parts }],
     temperature: 0,
-    max_tokens: 1024,
+    max_completion_tokens: 4096,
+    reasoning_effort: "low",
     stream: false,
     response_format: { type: "json_object" },
   } as const;
@@ -755,32 +757,54 @@ function optionalFiniteNumber(value: unknown): number | null {
 
 function responseContentText(value: unknown): string {
   if (typeof value === "string") return value;
-  if (!Array.isArray(value)) return "";
-  return value.map((part) => {
-    const row = asRecord(part);
-    return typeof row.text === "string" ? row.text : typeof row.content === "string" ? row.content : "";
-  }).join("");
+  if (Array.isArray(value)) return value.map((part) => responseContentText(part)).join("");
+  if (!value || typeof value !== "object") return "";
+  const row = asRecord(value);
+  if (typeof row.text === "string") return row.text;
+  if (typeof row.output_text === "string") return row.output_text;
+  if (row.content !== undefined) return responseContentText(row.content);
+  return "";
 }
 
 function parseCloudflareOfficialRestResponse(payload: unknown): {
   text: string;
+  responseField: string;
   inputTokens: number;
   outputTokens: number;
   usageReported: boolean;
 } {
   const root = asRecord(payload);
-  const result = asRecord(root.result);
-  const directText = responseContentText(result.response) || responseContentText(root.response);
-  const choices = Array.isArray(result.choices) ? result.choices : Array.isArray(root.choices) ? root.choices : [];
-  const choice = asRecord(choices[0]);
-  const message = asRecord(choice.message);
-  const text = directText || responseContentText(message.content) || responseContentText(choice.text);
+  const resultValue = root.result;
+  const result = asRecord(resultValue);
+  const resultChoices = Array.isArray(result.choices) ? result.choices : [];
+  const rootChoices = Array.isArray(root.choices) ? root.choices : [];
+  const candidates: Array<{ field: string; value: unknown }> = [];
+  for (const source of [
+    { prefix: "result.choices[0]", choice: resultChoices[0] },
+    { prefix: "choices[0]", choice: rootChoices[0] },
+  ]) {
+    const choice = asRecord(source.choice);
+    const message = asRecord(choice.message);
+    candidates.push(
+      { field: `${source.prefix}.message.content`, value: message.content },
+      { field: `${source.prefix}.message.reasoning_content`, value: message.reasoning_content },
+      { field: `${source.prefix}.text`, value: choice.text },
+    );
+  }
+  candidates.push(
+    { field: "result.response", value: result.response },
+    { field: "response", value: root.response },
+    { field: "result", value: resultValue },
+  );
+  const selected = candidates.map((candidate) => ({ ...candidate, text: responseContentText(candidate.value) }))
+    .find((candidate) => candidate.text.length > 0);
   const usage = asRecord(result.usage ?? root.usage);
   const inputTokens = optionalFiniteNumber(usage.prompt_tokens ?? usage.input_tokens);
   const outputTokens = optionalFiniteNumber(usage.completion_tokens ?? usage.output_tokens);
-  if (!text) throw new Error("cloudflare_official_rest_empty_response");
+  if (!selected) throw new Error("cloudflare_official_rest_empty_response");
   return {
-    text,
+    text: selected.text,
+    responseField: selected.field,
     inputTokens: inputTokens ?? 0,
     outputTokens: outputTokens ?? 0,
     usageReported: inputTokens !== null && outputTokens !== null,
@@ -791,7 +815,7 @@ export async function generateWithCloudflareOfficialRest(options: {
   model: string;
   parts: CloudflareOfficialRestPart[];
   timeoutMs?: number;
-}): Promise<{ text: string; inputTokens: number; outputTokens: number; usageReported: boolean }> {
+}): Promise<{ text: string; responseField?: string; inputTokens: number; outputTokens: number; usageReported: boolean }> {
   if (!options.model.startsWith("@cf/")) throw new Error("cloudflare_official_rest_model_invalid");
   const accountId = clean(process.env.CLOUDFLARE_ACCOUNT_ID);
   const token = clean(process.env.CLOUDFLARE_API_TOKEN ?? process.env.CLOUDFLARE_AUTH_TOKEN);
@@ -830,6 +854,7 @@ export async function runZukanModelBench(options: {
   maxEstimatedCostUsd?: number;
   transport?: "model-router" | "cloudflare-official-rest";
   requireFixedOwnerSmoke?: boolean;
+  requireCanarySuccess?: boolean;
   canonicalRightsSnapshot?: ReadonlyMap<string, ZukanBenchCanonicalRightsSnapshot>;
 }): Promise<ZukanBenchModelReport> {
   const manifestPath = options.manifestPath ?? defaultRightsManifestPath(DEFAULT_ZUKAN_BENCH_MANIFEST);
@@ -872,6 +897,7 @@ export async function runZukanModelBench(options: {
 
   try {
     for (const fixture of fixtures) {
+      const isCanary = fixtureScores.length === 0;
       const spentBeforeCall = estimatedCost(totalInputTokens, totalOutputTokens, options.pricing ?? null);
       const averageCompletedCost = spentBeforeCall !== null && fixtureScores.length > 0 ? spentBeforeCall / fixtureScores.length : 0;
       if (spentBeforeCall !== null && options.maxEstimatedCostUsd !== undefined && spentBeforeCall + averageCompletedCost > options.maxEstimatedCostUsd) {
@@ -891,6 +917,7 @@ export async function runZukanModelBench(options: {
       }
       const renderedPrompt = renderColdStartPrompt(promptTemplate, fixture);
       const started = Date.now();
+      let canarySchemaValid = true;
       try {
         modelRequestCount += 1;
         const result = transport === "cloudflare-official-rest"
@@ -925,12 +952,15 @@ export async function runZukanModelBench(options: {
         totalOutputTokens += result.outputTokens;
         const latencyMs = Date.now() - started;
         latencies.push(latencyMs);
+        const scored = scoreZukanBenchResponse(fixture, result.text);
+        canarySchemaValid = scored.schemaValid;
         fixtureScores.push({
-          ...scoreZukanBenchResponse(fixture, result.text),
+          ...scored,
+          responseField: result.responseField,
           latencyMs,
           inputTokens: result.inputTokens,
           outputTokens: result.outputTokens,
-          rawResponseText: result.text,
+          rawResponseText: result.responseField?.includes("reasoning_content") ? undefined : result.text,
         });
         successCount += 1;
       } catch (error) {
@@ -945,6 +975,12 @@ export async function runZukanModelBench(options: {
           criticalFailures: [`model_error:${error instanceof Error ? error.message.slice(0, 1000) : String(error).slice(0, 1000)}`],
           latencyMs,
         });
+        if (options.requireCanarySuccess && isCanary) {
+          throw new Error(`zukan_bench_canary_failed:${error instanceof Error ? error.message.slice(0, 200) : "unknown"}`);
+        }
+      }
+      if (options.requireCanarySuccess && isCanary && !canarySchemaValid) {
+        throw new Error("zukan_bench_canary_schema_invalid");
       }
       const spentAfterCall = estimatedCost(totalInputTokens, totalOutputTokens, options.pricing ?? null);
       if (spentAfterCall !== null && options.maxEstimatedCostUsd !== undefined && spentAfterCall > options.maxEstimatedCostUsd) {

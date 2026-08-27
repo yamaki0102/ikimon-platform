@@ -107,7 +107,9 @@ test("official REST payload keeps every post photo in one ordered user message",
   assert.equal(payload.messages.length, 1);
   assert.equal(payload.messages[0]?.role, "user");
   assert.deepEqual(payload.messages[0]?.content.map((part) => part.type), ["image_url", "image_url", "image_url", "text"]);
-  assert.equal(payload.max_tokens, 1024);
+  assert.equal(payload.max_completion_tokens, 4096);
+  assert.equal("max_tokens" in payload, false);
+  assert.equal(payload.reasoning_effort, "low");
   assert.equal(payload.stream, false);
   assert.deepEqual(payload.response_format, { type: "json_object" });
 });
@@ -143,6 +145,69 @@ test("official REST model call performs exactly one native request and reads pro
     assert.deepEqual(JSON.parse(requestBody).messages[0].content.map((part: { type: string }) => part.type), ["image_url", "text"]);
     assert.equal(result.inputTokens, 11);
     assert.equal(result.outputTokens, 7);
+    assert.equal(result.usageReported, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousAccountId === undefined) delete process.env.CLOUDFLARE_ACCOUNT_ID;
+    else process.env.CLOUDFLARE_ACCOUNT_ID = previousAccountId;
+    if (previousToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = previousToken;
+  }
+});
+
+test("official REST parser accepts nested reasoning content and structured text content", async () => {
+  const originalFetch = globalThis.fetch;
+  const previousAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const previousToken = process.env.CLOUDFLARE_API_TOKEN;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    success: true,
+    result: {
+      choices: [{
+        message: { content: { type: "text", text: "{}" }, reasoning_content: "internal reasoning" },
+        finish_reason: "stop",
+      }],
+      usage: { prompt_tokens: 13, completion_tokens: 9 },
+    },
+  }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+  process.env.CLOUDFLARE_ACCOUNT_ID = "0".repeat(32);
+  process.env.CLOUDFLARE_API_TOKEN = "test-token";
+  try {
+    const result = await generateWithCloudflareOfficialRest({
+      model: "@cf/zai-org/glm-5.3-flash",
+      parts: [{ type: "text", text: "prompt" }],
+    });
+    assert.equal(result.inputTokens, 13);
+    assert.equal(result.outputTokens, 9);
+    assert.equal(result.usageReported, true);
+    assert.equal(result.responseField, "result.choices[0].message.content");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousAccountId === undefined) delete process.env.CLOUDFLARE_ACCOUNT_ID;
+    else process.env.CLOUDFLARE_ACCOUNT_ID = previousAccountId;
+    if (previousToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = previousToken;
+  }
+});
+
+test("official REST parser falls back to nested reasoning content when final content is empty", async () => {
+  const originalFetch = globalThis.fetch;
+  const previousAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const previousToken = process.env.CLOUDFLARE_API_TOKEN;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    success: true,
+    result: {
+      choices: [{ message: { content: "", reasoning_content: "{}" }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 5, completion_tokens: 3 },
+    },
+  }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+  process.env.CLOUDFLARE_ACCOUNT_ID = "0".repeat(32);
+  process.env.CLOUDFLARE_API_TOKEN = "test-token";
+  try {
+    const result = await generateWithCloudflareOfficialRest({
+      model: "@cf/zai-org/glm-5.3-flash",
+      parts: [{ type: "text", text: "prompt" }],
+    });
+    assert.equal(result.responseField, "result.choices[0].message.reasoning_content");
     assert.equal(result.usageReported, true);
   } finally {
     globalThis.fetch = originalFetch;
