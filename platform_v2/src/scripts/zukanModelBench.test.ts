@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   ZUKAN_BENCH_CORE_POST_COUNT,
+  ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
   ZUKAN_BENCH_MIN_GOLD_POSTS,
   ZUKAN_BENCH_SMOKE_POST_COUNT,
   buildZukanBenchFinalOutputRecord,
@@ -58,6 +59,22 @@ test("core and smoke sizes stay intentionally small", () => {
   assert.equal(ZUKAN_BENCH_CORE_POST_COUNT, 24);
   assert.equal(ZUKAN_BENCH_SMOKE_POST_COUNT, 8);
   assert.equal(ZUKAN_BENCH_MIN_GOLD_POSTS, 8);
+});
+
+test("Gemini benchmark uses the native schema for scored fields while allowing full final output", () => {
+  assert.deepEqual(ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA.required, [
+    "confidence_band",
+    "recommended_rank",
+    "recommended_taxon_name",
+  ]);
+  assert.equal(ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA.additionalProperties, true);
+  assert.deepEqual(ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA.properties.recommended_rank.enum, [
+    "species",
+    "genus",
+    "family",
+    "order",
+    "lifeform",
+  ]);
 });
 
 test("post selection is deterministic and deduped by visit", () => {

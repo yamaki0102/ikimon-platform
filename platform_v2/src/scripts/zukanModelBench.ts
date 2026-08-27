@@ -23,6 +23,16 @@ export const ZUKAN_OWNER_BENCH_SMOKE_PROMPT_SHA256 = "6d0cc93200ad45142713287f81
 export const CLOUDFLARE_GLM_5_3_FLASH_MODEL = "@cf/zai-org/glm-5.3-flash";
 export const ZUKAN_PRODUCTION_VISION_BASELINE_MODEL = "gemini-3.5-flash-lite";
 export const ZUKAN_BENCH_REPORT_SCHEMA_VERSION = "zukan-model-bench-report-v1";
+export const ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    confidence_band: { type: "string", enum: ["high", "medium", "low"] },
+    recommended_rank: { type: "string", enum: ["species", "genus", "family", "order", "lifeform"] },
+    recommended_taxon_name: { type: "string" },
+  },
+  required: ["confidence_band", "recommended_rank", "recommended_taxon_name"],
+  additionalProperties: true,
+} as const;
 const DEFAULT_PROMPT_SOURCE = "src/prompts/observation_reassess.md";
 const SELECTION_SEED = "zukan-public-post-core-v2-seed-1";
 const MODEL_CHAIN_ENV = AI_MODEL_CHAIN_ENV_KEYS.observationVisualExtract;
@@ -98,6 +108,7 @@ export type ZukanBenchRequestConfig = {
   modalities: "omitted";
   response_format?: { type: "json_object" };
   response_mime_type?: "application/json";
+  response_schema_mode?: "provider-native" | "parser-only";
   output_schema: "zukan-model-bench-parser-v1";
   attempts_per_model: 1;
   fallback_count: 0;
@@ -1102,6 +1113,7 @@ export async function runZukanModelBench(options: {
       stream: false,
       modalities: "omitted",
       response_mime_type: "application/json",
+      response_schema_mode: modelProvider(options.model) === "gemini" ? "provider-native" : "parser-only",
       output_schema: "zukan-model-bench-parser-v1",
       attempts_per_model: 1,
       fallback_count: 0,
@@ -1165,6 +1177,9 @@ export async function runZukanModelBench(options: {
               thinkingConfig: { thinkingLevel: options.thinkingLevel ?? "minimal" },
               temperature: requestConfig.temperature,
               maxOutputTokens: requestConfig.max_output_tokens,
+              responseJsonSchema: modelProvider(options.model) === "gemini"
+                ? ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA
+                : undefined,
               retriesPerModel: 1,
             })),
             usageReported: true,

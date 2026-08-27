@@ -51,6 +51,7 @@
         "modalities": { "const": "omitted" },
         "response_format": { "type": "object", "properties": { "type": { "const": "json_object" } }, "required": ["type"] },
         "response_mime_type": { "const": "application/json" },
+        "response_schema_mode": { "enum": ["provider-native", "parser-only"] },
         "output_schema": { "const": "zukan-model-bench-parser-v1" },
         "attempts_per_model": { "const": 1 },
         "fallback_count": { "const": 0 }
