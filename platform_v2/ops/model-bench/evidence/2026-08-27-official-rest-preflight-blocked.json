@@ -20,6 +20,7 @@
     "imagesBindingPresent": true,
     "rightsEndpointSourceCommit": "e3ad4065a04e3a55486cd9c3d3c68fe8a4462830",
     "rightsEndpointDeployedToProduction": false,
+    "anonymousEndpointProbeStatus": 404,
     "releaseControl": {
       "productionMutationAvailability": false,
       "stagingStart": "BLOCKED",
