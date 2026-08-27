@@ -1,0 +1,578 @@
+{
+  "version": "zukan-post-model-bench-v2-7post-glm-8192-baseline-comparison-evidence-v1",
+  "recordedAt": "2026-08-27T07:33:18.077Z",
+  "status": "COMPLETED_GLM_8192_CANARY_FINAL_AND_PRODUCTION_BASELINE_COMPARISON",
+  "source": {
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "implementationCommit": "24c80dab2adbca2e08aedc06ebd871ac6113b1b1",
+    "prNumber": 1582,
+    "prStateAtRecord": "open",
+    "draftAtRecord": true,
+    "productionModelChanged": false
+  },
+  "fixedInput": {
+    "sourceManifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json",
+    "derivedManifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+    "visitIds": [
+      "record-1784366489892",
+      "record-1784430741938",
+      "record-1781252770584",
+      "record-1784430374598",
+      "record-1784430118720",
+      "record-1784431188621",
+      "record-1784430530197"
+    ],
+    "excludedVisitId": "record-1786965869920",
+    "postCount": 7,
+    "imageCount": 21,
+    "imagesPerPost": 3,
+    "orderedPhotosPerPost": true,
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "resampled": false,
+    "sourceManifestModified": false,
+    "existingLabelsLocationsObserversAndAiResultsHidden": true
+  },
+  "rightsGate": {
+    "canonicalPredicate": {
+      "externalExportAllowed": "external_export_allowed == 1 AND record_consent == external_export AND research_use_consent == public_export AND dataset_license == CC-BY-4.0 AND media_license == CC-BY-NC-4.0 AND withdrawal_status == active"
+    },
+    "required": {
+      "recordConsent": "external_export",
+      "researchUseConsent": "public_export",
+      "datasetLicense": "CC-BY-4.0",
+      "mediaLicense": "CC-BY-NC-4.0",
+      "withdrawalStatus": "active",
+      "externalExportAllowed": true
+    },
+    "productionD1": {
+      "database": "ikimon_prod_observations_2026_06",
+      "databaseId": "c879eef6-009c-4710-a964-be343d96f3eb",
+      "operation": "SELECT only",
+      "readBack": "7/7 canonical rights and owner scope matched",
+      "rightsChangedThisRun": false
+    }
+  },
+  "diagnostics": {
+    "canary": {
+      "visitId": "record-1784430118720",
+      "requestCount": 1,
+      "httpStatus": 200,
+      "contentType": "application/json",
+      "responseJsonParsed": true,
+      "rootKeys": [
+        "errors",
+        "messages",
+        "result",
+        "success"
+      ],
+      "resultKeys": [
+        "choices",
+        "created",
+        "id",
+        "model",
+        "object",
+        "usage"
+      ],
+      "candidateFieldPath": "result.choices[0].message.content",
+      "finishReasonFieldPath": "result.choices[0].finish_reason",
+      "usageKeys": [
+        "completion_tokens",
+        "neurons",
+        "prompt_tokens",
+        "prompt_tokens_details",
+        "total_tokens"
+      ],
+      "errorField": "errors",
+      "errorArrayLength": 0,
+      "rawEnvelopeValuesPersisted": false,
+      "schemaValid": true,
+      "finishReason": "stop",
+      "inputTokens": 22760,
+      "outputTokens": 4649,
+      "latencyMs": 69648,
+      "estimatedCostUsd": 0.0057385
+    },
+    "rootCause": [
+      "Cloudflare returned a populated Workers AI Chat Completions envelope under result.choices; the previous parser did not reliably unwrap the nested result choice content and classified it as empty.",
+      "The prior low-token request could exhaust on GLM reasoning before final content; the requested low reasoning effort plus max_completion_tokens=8192 removed the output-budget failure for the canary and final run.",
+      "The response parser now records the field path and supports the official envelope candidate order: result.choices[0].message.content, result.choices[0].message.reasoning_content, result.choices[0].text, result.response, result."
+    ],
+    "payloadReview": {
+      "stream": false,
+      "modalities": "omitted",
+      "maxCompletionTokens": 8192,
+      "reasoningEffort": "low",
+      "responseFormat": {
+        "type": "json_object"
+      },
+      "multimodalContentPartTypes": [
+        "image_url",
+        "image_url",
+        "image_url",
+        "text"
+      ],
+      "retryCount": 0,
+      "fallbackCount": 0
+    }
+  },
+  "executions": {
+    "glmCanary": {
+      "model": "@cf/zai-org/glm-5.3-flash",
+      "provider": "cloudflare-workers-ai",
+      "transport": "cloudflare-official-rest",
+      "postCount": 1,
+      "imageCount": 3,
+      "modelRequestCount": 1,
+      "successCount": 1,
+      "successRatePct": 100,
+      "schemaValidCount": 1,
+      "schemaValidRatePct": 100,
+      "accuracyStatus": "INSUFFICIENT_GOLD",
+      "requestConfig": {
+        "transport": "cloudflare-official-rest",
+        "temperature": 0,
+        "max_completion_tokens": 8192,
+        "reasoning_effort": "low",
+        "stream": false,
+        "modalities": "omitted",
+        "response_format": {
+          "type": "json_object"
+        },
+        "output_schema": "zukan-model-bench-parser-v1",
+        "attempts_per_model": 1,
+        "fallback_count": 0
+      },
+      "perPost": [
+        {
+          "visitId": "record-1784430118720",
+          "imageCount": 3,
+          "schemaValid": true,
+          "recommendedTaxon": "ツタ属（ノブドウ類）",
+          "recommendedRank": "genus",
+          "confidence": "medium",
+          "finishReason": "stop",
+          "latencyMs": 69648,
+          "inputTokens": 22760,
+          "outputTokens": 4649,
+          "responseField": "result.choices[0].message.content",
+          "rawFinalContentPersisted": true,
+          "parsedJsonPersisted": true,
+          "internalReasoningSaved": false
+        }
+      ]
+    },
+    "glmFinal": {
+      "model": "@cf/zai-org/glm-5.3-flash",
+      "provider": "cloudflare-workers-ai",
+      "transport": "cloudflare-official-rest",
+      "postCount": 7,
+      "imageCount": 21,
+      "modelRequestCount": 7,
+      "successCount": 7,
+      "successRatePct": 100,
+      "schemaValidCount": 7,
+      "schemaValidRatePct": 100,
+      "criticalFailurePostCount": 0,
+      "highConfidenceWrongPostCount": 0,
+      "overprecisionPostCount": 0,
+      "locationHallucinationPostCount": 0,
+      "accuracyStatus": "INSUFFICIENT_GOLD",
+      "totalInputTokens": 153402,
+      "totalOutputTokens": 26359,
+      "p50LatencyMs": 53996,
+      "p95LatencyMs": 64073,
+      "estimatedCostUsd": 0.0361898,
+      "requestConfig": {
+        "transport": "cloudflare-official-rest",
+        "temperature": 0,
+        "max_completion_tokens": 8192,
+        "reasoning_effort": "low",
+        "stream": false,
+        "modalities": "omitted",
+        "response_format": {
+          "type": "json_object"
+        },
+        "output_schema": "zukan-model-bench-parser-v1",
+        "attempts_per_model": 1,
+        "fallback_count": 0
+      },
+      "finishReasons": [
+        "stop",
+        "stop",
+        "stop",
+        "stop",
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "perPost": [
+        {
+          "visitId": "record-1784366489892",
+          "imageCount": 3,
+          "schemaValid": true,
+          "recommendedTaxon": "ムラサキバレンギク属（Erigeron属）の幼苗",
+          "recommendedRank": "genus",
+          "confidence": "low",
+          "finishReason": "stop",
+          "latencyMs": 62921,
+          "inputTokens": 22760,
+          "outputTokens": 3866,
+          "responseField": "result.choices[0].message.content",
+          "rawFinalContentPersisted": true,
+          "parsedJsonPersisted": true,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1784430741938",
+          "imageCount": 3,
+          "schemaValid": true,
+          "recommendedTaxon": "カタバミ（オックスalis類）",
+          "recommendedRank": "species",
+          "confidence": "medium",
+          "finishReason": "stop",
+          "latencyMs": 56638,
+          "inputTokens": 22760,
+          "outputTokens": 3740,
+          "responseField": "result.choices[0].message.content",
+          "rawFinalContentPersisted": true,
+          "parsedJsonPersisted": true,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1781252770584",
+          "imageCount": 3,
+          "schemaValid": true,
+          "recommendedTaxon": "コガネムシ科の大型甲虫（Melolontha属候補）",
+          "recommendedRank": "genus",
+          "confidence": "low",
+          "finishReason": "stop",
+          "latencyMs": 48667,
+          "inputTokens": 16843,
+          "outputTokens": 3529,
+          "responseField": "result.choices[0].message.content",
+          "rawFinalContentPersisted": false,
+          "parsedJsonPersisted": false,
+          "rawContentRedacted": true,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1784430374598",
+          "imageCount": 3,
+          "schemaValid": true,
+          "recommendedTaxon": "アカリファ・ヒスピダ（猫しっぽ）",
+          "recommendedRank": "species",
+          "confidence": "high",
+          "finishReason": "stop",
+          "latencyMs": 53801,
+          "inputTokens": 22760,
+          "outputTokens": 3661,
+          "responseField": "result.choices[0].message.content",
+          "rawFinalContentPersisted": true,
+          "parsedJsonPersisted": true,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1784430118720",
+          "imageCount": 3,
+          "schemaValid": true,
+          "recommendedTaxon": "ノブドウ属（ツタ類）",
+          "recommendedRank": "genus",
+          "confidence": "low",
+          "finishReason": "stop",
+          "latencyMs": 64073,
+          "inputTokens": 22760,
+          "outputTokens": 4460,
+          "responseField": "result.choices[0].message.content",
+          "rawFinalContentPersisted": false,
+          "parsedJsonPersisted": false,
+          "rawContentRedacted": true,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1784431188621",
+          "imageCount": 3,
+          "schemaValid": true,
+          "recommendedTaxon": "スズメ",
+          "recommendedRank": "species",
+          "confidence": "medium",
+          "finishReason": "stop",
+          "latencyMs": 53996,
+          "inputTokens": 22759,
+          "outputTokens": 3559,
+          "responseField": "result.choices[0].message.content",
+          "rawFinalContentPersisted": false,
+          "parsedJsonPersisted": false,
+          "rawContentRedacted": true,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1784430530197",
+          "imageCount": 3,
+          "schemaValid": true,
+          "recommendedTaxon": "ツグミ科の一種（鳥類）",
+          "recommendedRank": "family",
+          "confidence": "low",
+          "finishReason": "stop",
+          "latencyMs": 53117,
+          "inputTokens": 22760,
+          "outputTokens": 3544,
+          "responseField": "result.choices[0].message.content",
+          "rawFinalContentPersisted": true,
+          "parsedJsonPersisted": true,
+          "internalReasoningSaved": false
+        }
+      ],
+      "rawFinalContentPersistedPosts": 4,
+      "parsedJsonPersistedPosts": 4,
+      "privacyGuardRedactedPosts": 3
+    },
+    "productionVisionBaseline": {
+      "sourceModel": "gemini-3.5-flash-lite",
+      "sourceLocator": [
+        "platform_v2/cloudflare_shadow/src/cloudflareObservationAi.ts:OBSERVATION_VISION_MODEL",
+        "platform_v2/cloudflare_shadow/src/geminiObservationBatch.ts:GEMINI_PRIMARY_MODEL"
+      ],
+      "provider": "gemini",
+      "transport": "model-router",
+      "postCount": 7,
+      "imageCount": 21,
+      "modelRequestCount": 7,
+      "successCount": 7,
+      "successRatePct": 100,
+      "schemaValidCount": 1,
+      "schemaValidRatePct": 14.29,
+      "criticalFailurePostCount": 6,
+      "accuracyStatus": "INSUFFICIENT_GOLD",
+      "totalInputTokens": 82845,
+      "totalOutputTokens": 14217,
+      "p50LatencyMs": 9012,
+      "p95LatencyMs": 12781,
+      "estimatedCostUsd": 0.060396,
+      "requestConfig": {
+        "transport": "model-router",
+        "temperature": 0.1,
+        "max_output_tokens": 2048,
+        "thinking_level": "minimal",
+        "stream": false,
+        "modalities": "omitted",
+        "response_mime_type": "application/json",
+        "output_schema": "zukan-model-bench-parser-v1",
+        "attempts_per_model": 1,
+        "fallback_count": 0
+      },
+      "finishReasons": [
+        "MAX_TOKENS",
+        "MAX_TOKENS",
+        "STOP",
+        "MAX_TOKENS",
+        "MAX_TOKENS",
+        "MAX_TOKENS",
+        "MAX_TOKENS"
+      ],
+      "perPost": [
+        {
+          "visitId": "record-1784366489892",
+          "imageCount": 3,
+          "schemaValid": false,
+          "recommendedTaxon": null,
+          "recommendedRank": null,
+          "confidence": null,
+          "finishReason": "MAX_TOKENS",
+          "latencyMs": 10945,
+          "inputTokens": 11835,
+          "outputTokens": 2041,
+          "criticalFailures": [
+            "invalid_json"
+          ],
+          "rawFinalContentPersisted": true,
+          "parsedJsonPersisted": false,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1784430741938",
+          "imageCount": 3,
+          "schemaValid": false,
+          "recommendedTaxon": null,
+          "recommendedRank": null,
+          "confidence": null,
+          "finishReason": "MAX_TOKENS",
+          "latencyMs": 12781,
+          "inputTokens": 11835,
+          "outputTokens": 2044,
+          "criticalFailures": [
+            "invalid_json"
+          ],
+          "rawFinalContentPersisted": true,
+          "parsedJsonPersisted": false,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1781252770584",
+          "imageCount": 3,
+          "schemaValid": true,
+          "recommendedTaxon": "コガネムシ科",
+          "recommendedRank": "family",
+          "confidence": "medium",
+          "finishReason": "STOP",
+          "latencyMs": 7946,
+          "inputTokens": 11835,
+          "outputTokens": 1956,
+          "criticalFailures": [],
+          "rawFinalContentPersisted": false,
+          "parsedJsonPersisted": false,
+          "rawContentRedacted": true,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1784430374598",
+          "imageCount": 3,
+          "schemaValid": false,
+          "recommendedTaxon": null,
+          "recommendedRank": null,
+          "confidence": null,
+          "finishReason": "MAX_TOKENS",
+          "latencyMs": 9012,
+          "inputTokens": 11835,
+          "outputTokens": 2044,
+          "criticalFailures": [
+            "invalid_json"
+          ],
+          "rawFinalContentPersisted": true,
+          "parsedJsonPersisted": false,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1784430118720",
+          "imageCount": 3,
+          "schemaValid": false,
+          "recommendedTaxon": null,
+          "recommendedRank": null,
+          "confidence": null,
+          "finishReason": "MAX_TOKENS",
+          "latencyMs": 8711,
+          "inputTokens": 11835,
+          "outputTokens": 2044,
+          "criticalFailures": [
+            "invalid_json"
+          ],
+          "rawFinalContentPersisted": true,
+          "parsedJsonPersisted": false,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1784431188621",
+          "imageCount": 3,
+          "schemaValid": false,
+          "recommendedTaxon": null,
+          "recommendedRank": null,
+          "confidence": null,
+          "latencyMs": 8803,
+          "inputTokens": 11835,
+          "outputTokens": 2044,
+          "criticalFailures": [
+            "invalid_json"
+          ],
+          "rawFinalContentPersisted": false,
+          "parsedJsonPersisted": false,
+          "rawContentRedacted": true,
+          "internalReasoningSaved": false
+        },
+        {
+          "visitId": "record-1784430530197",
+          "imageCount": 3,
+          "schemaValid": false,
+          "recommendedTaxon": null,
+          "recommendedRank": null,
+          "confidence": null,
+          "finishReason": "MAX_TOKENS",
+          "latencyMs": 11083,
+          "inputTokens": 11835,
+          "outputTokens": 2044,
+          "criticalFailures": [
+            "invalid_json"
+          ],
+          "rawFinalContentPersisted": true,
+          "parsedJsonPersisted": false,
+          "internalReasoningSaved": false
+        }
+      ],
+      "rawFinalContentPersistedPosts": 5,
+      "parsedJsonPersistedPosts": 0,
+      "privacyGuardRedactedPosts": 2
+    }
+  },
+  "comparison": {
+    "accuracyDecision": "INSUFFICIENT_GOLD",
+    "humanGoldPosts": 0,
+    "accuracyWinner": null,
+    "goldRequirement": 8,
+    "criticalFailureWinner": "@cf/zai-org/glm-5.3-flash",
+    "schemaWinner": "@cf/zai-org/glm-5.3-flash",
+    "latencyWinner": "gemini-3.5-flash-lite",
+    "costWinner": "@cf/zai-org/glm-5.3-flash",
+    "combinedEstimatedCostUsd": 0.1023243,
+    "estimatedJpyAtUsd150": 15.348645,
+    "budgetCapJpy": 100,
+    "pricingNote": "Estimated from provider-reported tokens; USD-to-JPY is an internal comparison assumption of 150 JPY/USD, not a billing read-back.",
+    "perPostComparisonArtifact": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-baseline-report.json"
+  },
+  "outputPersistence": {
+    "reportSchemaVersion": "zukan-model-bench-report-v1",
+    "schemaPath": "platform_v2/ops/model-bench/schemas/zukan-model-bench-report-v1.schema.json",
+    "finalContentRule": "Persist raw final content and parsed JSON when safe; omit internal reasoning, secrets, authentication material, and personal information.",
+    "currentGlm8192FinalContentAvailablePosts": 4,
+    "currentGlm8192ParsedJsonAvailablePosts": 4,
+    "baselineFinalContentAvailablePosts": 5,
+    "baselineParsedJsonAvailablePosts": 0,
+    "historicalGlm4096FinalContentAvailablePosts": 6,
+    "futureHumanOrJudgeFields": [
+      "visual_grounding",
+      "hallucinated_features",
+      "useful_observations",
+      "missing_observations",
+      "taxonomic_reasonableness",
+      "abstention_quality",
+      "explanation_quality"
+    ],
+    "internalReasoningSaved": false,
+    "rawHttpEnvelopePersisted": false
+  },
+  "artifacts": {
+    "canaryReport": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-canary-report.json",
+    "glmFinalReport": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json",
+    "baselineReport": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-baseline-report.json",
+    "historicalGlm4096FinalContent": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-4096-historical-final-content.json"
+  },
+  "runtimeSafety": {
+    "releaseControlUsed": false,
+    "productionDeployUsed": false,
+    "endpointDeployUsed": false,
+    "databaseMutationUsed": false,
+    "trafficChanged": false,
+    "dnsChanged": false,
+    "secretValuesReadOrPersisted": false,
+    "databaseUrlReadOrPersisted": false,
+    "personalInformationPersisted": false,
+    "playgroundUsed": false,
+    "retryCount": 0,
+    "fallbackCount": 0
+  },
+  "verification": {
+    "productionBaselineSourceFreshRead": "PASS",
+    "fixedDatasetAndPromptSha": "PASS",
+    "rightsReadback": "7/7 PASS",
+    "canaryGate": "PASS; remaining 6 executed once",
+    "glmOfficialRestRequests": "8 total including canary; 7 final",
+    "baselineRequests": "7",
+    "typecheck": "PASS",
+    "targetedTests": "19/19 PASS",
+    "gitDiffCheck": "PASS",
+    "reportSchemaJsonParse": "PASS",
+    "accuracy": "INSUFFICIENT_GOLD"
+  },
+  "officialReferences": {
+    "cloudflareModel": "https://developers.cloudflare.com/workers-ai/models/glm-5.3-flash/",
+    "googlePricing": "https://ai.google.dev/gemini-api/docs/pricing"
+  }
+}

@@ -1,0 +1,952 @@
+{
+  "version": "zukan-post-model-bench-v2",
+  "promptVersion": "observation-reassess-post-cold-start-v2",
+  "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+  "model": "@cf/zai-org/glm-5.3-flash",
+  "provider": "cloudflare-workers-ai",
+  "manifestPath": "ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+  "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+  "startedAt": "2026-08-27T07:21:42.031Z",
+  "completedAt": "2026-08-27T07:22:52.201Z",
+  "postCount": 1,
+  "imageCount": 3,
+  "successCount": 1,
+  "modelRequestCount": 1,
+  "successRatePct": 100,
+  "schemaValidRatePct": 100,
+  "goldPostCount": 0,
+  "taxonScorePct": null,
+  "criticalFailurePostCount": 0,
+  "highConfidenceWrongPostCount": 0,
+  "overprecisionPostCount": 0,
+  "locationHallucinationPostCount": 0,
+  "p50LatencyMs": 69648,
+  "p95LatencyMs": 69648,
+  "totalInputTokens": 22760,
+  "totalOutputTokens": 4649,
+  "estimatedCostUsd": 0.0057385,
+  "pricing": {
+    "inputUsdPer1M": 0.15,
+    "outputUsdPer1M": 0.5,
+    "source": "cloudflare-workers-ai-2026-08-26"
+  },
+  "transport": "cloudflare-official-rest",
+  "usageMeasurement": "provider-reported",
+  "observedAdditionalCostUsd": null,
+  "reportSchemaVersion": "zukan-model-bench-report-v1",
+  "requestConfig": {
+    "transport": "cloudflare-official-rest",
+    "temperature": 0,
+    "max_completion_tokens": 8192,
+    "reasoning_effort": "low",
+    "stream": false,
+    "modalities": "omitted",
+    "response_format": {
+      "type": "json_object"
+    },
+    "output_schema": "zukan-model-bench-parser-v1",
+    "attempts_per_model": 1,
+    "fallback_count": 0
+  },
+  "accuracyStatus": "INSUFFICIENT_GOLD",
+  "fixtureScores": [
+    {
+      "fixtureId": "zukan-post-record-1784430118720",
+      "visitId": "record-1784430118720",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "ツタ属（ノブドウ類）",
+      "recommendedRank": "genus",
+      "confidenceBand": "medium",
+      "geographicContext": "位置情報が未取得のため地域分布は評価保留。日本の市街地・公園の縁石や植栽帯でよく見られる類型の生え場所ではある。",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": "stop",
+      "latencyMs": 69648,
+      "inputTokens": 22760,
+      "outputTokens": 4649,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"ツタ属（ノブドウ類）\",\n  \"recommended_scientific_name\": \"Parthenocissus\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"ツタ（ノブドウ）\",\n      \"scientific_name\": \"Parthenocissus tricuspidata\",\n      \"rank\": \"species\",\n      \"probability\": 0.5,\n      \"diagnostic_features_observed\": [\"若葉期の3小葉からなる複葉\", \"鋸歯縁の葉\", \"巻きひげの存在\"],\n      \"diagnostic_features_missing\": [\"成熟葉の単葉形（3裂の有無）\", \"吸盤の有無\", \"果実\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"アメリカヅタ（セイヨウツタ）\",\n      \"scientific_name\": \"Parthenocissus quinquefolia\",\n      \"rank\": \"species\",\n      \"probability\": 0.3,\n      \"diagnostic_features_observed\": [\"掌状の小葉配置\", \"鋸歯縁\", \"赤みを帯びた葉柄・新芽\"],\n      \"diagnostic_features_missing\": [\"小葉数の確認（5小葉か3小葉か）\", \"巻きひげの分枝形態\"],\n      \"visual_contradictions\": [\"一部の葉は3小葉で、5小葉が定数の本種とはやや不一致の可能性\"]\n    },\n    {\n      \"taxon_name\": \"ブドウ科のつる植物\",\n      \"scientific_name\": \"Vitaceae\",\n      \"rank\": \"family\",\n      \"probability\": 0.85,\n      \"diagnostic_features_observed\": [\"つる性\", \"巻きひげ\", \"鋸歯のある葉\"],\n      \"diagnostic_features_missing\": [\"花・果実\"],\n      \"visual_contradictions\": []\n    }\n  ],\n  \"rank_decision_reason\": \"若い個体で小葉数・成熟葉形・吸盤が確認できず、種確定の決定形質が不足するため属レベルで止める。\",\n  \"diagnostic_features_observed\": [\n    \"つる性で巻きひげを持つ\",\n    \"掌状に配置する鋸歯縁の小葉\",\n    \"新芽・葉柄に赤みを帯びる個体がある\",\n    \"石積み・柱の根元に自生するつる植物\"\n  ],\n  \"diagnostic_features_missing\": [\n    \"成熟葉の形（単葉3裂か複葉か）\",\n    \"巻きひげ先端の吸盤の有無\",\n    \"小葉の定数（3または5）の安定確認\",\n    \"花・果実\"\n  ],\n  \"confusable_groups\": [\n    {\"group_name\": \"ブドウ属（Vitis）\", \"distinction_point\": \"ブドウ属は巻きひげに吸盤がなく葉裏に毛が多い。ツタ属は巻きひげ先端に吸盤をつけることが多い\"},\n    {\"group_name\": \"キウイ（マタタビ属）\", \"distinction_point\": \"マタタビ属は葉裏の星状毛と樹皮の点紋で区別\"}\n  ],\n  \"visual_contradictions\": [],\n  \"best_specific_taxon_name\": \"\",\n  \"narrative\": \"3枚とも、石礫の縁や柱の根元に這うつる植物で、鋸歯のある掌状複葉と巻きひげが見え、ブドウ科ツタ属と判断できる。若葉期の3小葉が中心で、ツタ（ノブドウ）の幼株に典型的な姿だが、アメリカヅタも混同し得るため種の断定は保留。成熟葉の形と吸盤の確認が次の決め手。\",\n  \"simple_summary\": \"石の上を這うツタの若苗。巻きひげと鋸歯葉からツタ属とみられます。\",\n  \"observer_boost\": \"手で葉を持ち上げて裏面と葉柄まで写した1枚目が、複葉の構造確認にとても役立っています。\",\n  \"next_step_text\": \"数週間後に同じ株へ再訪し、成熟葉を表裏から撮影して単葉3裂か複葉か、吸盤の有無を記録すると種が絞れる。\",\n  \"stop_reason\": \"若葉のみで成熟葉形・吸盤・果実が確認できず種まで絞れない\",\n  \"fun_fact\": \"ツタ（ノブドウ）は巻きひげの先に吸盤をつけ、コンクリート壁や石を傷つけずに吸着して登ることができる。\",\n  \"fun_fact_grounded\": true,\n  \"diagnostic_features_seen\": [\"鋸歯縁の小葉\", \"巻きひげ\", \"つる性の茎\", \"赤みを帯びた新芽・葉柄\"],\n  \"missing_evidence\": [\"成熟葉の形\", \"吸盤の有無\", \"小葉数の定数\", \"花・果実\"],\n  \"similar_taxa\": [\n    {\"name\": \"ツタ（ノブドウ）\", \"rank\": \"species\"},\n    {\"name\": \"アメリカヅタ\", \"rank\": \"species\"},\n    {\"name\": \"ブドウ属\", \"rank\": \"genus\"}\n  ],\n  \"distinguishing_tips\": [\n    \"ツタは成熟すると単葉の3裂葉が混じり、巻きひげ先端に吸盤をもつ\",\n    \"アメリカヅタは掌状複葉が5小葉で、吸盤は分枝の先に小さくつく\",\n    \"ブドウ属は巻きひげに吸盤がなく、葉裏に毛が多い\"\n  ],\n  \"confirm_more\": [\n    \"秋（10月頃）に再訪し、葉が紅色に変わる様子と成熟葉の形（単葉3裂か5小葉複葉か）を撮ると種が確定する\",\n    \"巻きひげの先端をマクロで撮り、吸盤の有無を確認する（ツタ属の決定形質）\",\n    \"同じ株を月1回撮り続け、若葉から成熟葉への変化を記録すると幼株の同定経過が残る\",\n    \"つるが登っている基質（石・柱・壁）ごと撮ると、吸着の様子と生え場所の文脈が説明しやすくなる\"\n  ],\n  \"claim_refs_used\": [],\n  \"geographic_context\": \"位置情報が未取得のため地域分布は評価保留。日本の市街地・公園の縁石や植栽帯でよく見られる類型の生え場所ではある。\",\n  \"seasonal_context\": \"観察日時が不明のため季節評価は保留。葉が若く柔らかそうで、生育初期の可能性がある。\",\n  \"area_inference\": {\n    \"vegetation_structure_candidates\": [{\"label\": \"縁石・石礫の草本縁\", \"why\": \"玉石敷きと草地の境界に自生\", \"confidence\": 0.7}],\n    \"succession_stage_candidates\": [{\"label\": \"撹乱地の先駆段階\", \"why\": \"礫地に先駆的つる植物が進入\", \"confidence\": 0.5}],\n    \"human_influence_candidates\": [{\"label\": \"管理された植栽帯・歩道近接\", \"why\": \"玉石敷きと柱基礎が整備されている\", \"confidence\": 0.7}],\n    \"moisture_regime_candidates\": [{\"label\": \"中生\", \"why\": \"礫地だが草本が繁茂\", \"confidence\": 0.5}],\n    \"management_hint_candidates\": [{\"label\": \"玉石敷きの整備地\", \"why\": \"玉石が規則的に敷かれている\", \"confidence\": 0.6}]\n  },\n  \"management_action_candidates\": [\n    {\n      \"action_kind\": \"bare_ground\",\n      \"label\": \"玉石敷きの裸地部分が写っています\",\n      \"why\": \"礫が敷き詰められ土壌が露出\",\n      \"confidence\": 0.6,\n      \"source\": \"photo\",\n      \"source_asset_id\": \"\",\n      \"confirm_state\": \"suggested\"\n    }\n  ],\n  \"shot_suggestions\": [\n    {\"role\": \"close_up_organ\", \"target\": \"巻きひげ先端の吸盤\", \"rationale\": \"吸盤の有無が残るとツタ属とブドウ属の区別を後から確実に説明できる\", \"priority\": \"high\"},\n    {\"role\": \"close_up_organ\", \"target\": \"成熟葉の表裏\", \"rationale\": \"単葉3裂か複葉かが残ると、ツタとアメリカヅタの見分けを季節をまたいで比べられる\", \"priority\": \"high\"},\n    {\"role\": \"habitat_wide\", \"target\": \"柱と石礫周辺の全景\", \"rationale\": \"生え場所の基質が残ると、別地点のツタ記録と生息環境を比べやすくなる\", \"priority\": \"medium\"}\n  ],\n  \"candidate_readings\": [\n    {\n      \"name\": \"ツタ属（ノブドウ類）\",\n      \"scientific_name\": \"Parthenocissus\",\n      \"rank\": \"genus\",\n      \"role\": \"代表候補\",\n      \"visible_features\": [\"鋸歯縁の掌状複葉（3小葉中心）\", \"巻きひげ\", \"赤みを帯びた新芽・葉柄\", \"石礫・柱の根元を這うつる\"],\n      \"weak_points\": [\"成熟葉の形が未確認\", \"吸盤の有無が見えない\", \"小葉数の定数が安定して確認できない\"],\n      \"shooting_tips\": [\"巻きひげ先端をマクロで撮る\", \"成熟葉を表裏から撮る\", \"つるの基部から先端まで一連で撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。市街地の縁石・植栽帯の礫地に進入する典型的な場面ではある。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 10.0,\n        \"observed_size_estimate_cm\": 6.0,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"若苗で小さい\",\n        \"basis\": \"手指との比較から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"ツタ（ノブドウ）\",\n      \"scientific_name\": \"Parthenocissus tricuspidata\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"若葉期の3小葉複葉\", \"鋸歯縁\"],\n      \"weak_points\": [\"成熟葉の単葉3裂形が未確認\", \"吸盤が見えない\"],\n      \"shooting_tips\": [\"秋に成熟葉と紅葉を撮る\", \"壁や石に吸着した巻きひげを撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。日本の在来種で人為地の縁にもよく出る。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 10.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"若苗段階\",\n        \"basis\": \"スケールは手指から概ね推定可\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"アメリカヅタ（セイヨウツタ）\",\n      \"scientific_name\": \"Parthenocissus quinquefolia\",\n      \"rank\": \"species\",\n      \"role\": \"別候補\",\n      \"visible_features\": [\"掌状複葉\", \"鋸歯縁\", \"赤みのある葉柄\"],\n      \"weak_points\": [\"5小葉の定数が確認できない\", \"巻きひげの分枝形態が見えない\"],\n      \"shooting_tips\": [\"1枚の葉の小葉数を数えて撮る\", \"巻きひげ全体を接写する\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。植栽・逸出が多い外来種で、植栽帯では出現可能性がある。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 12.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"若苗段階\",\n        \"basis\": \"スケール不明瞭\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"ブドウ科のつる植物\",\n      \"scientific_name\": \"Vitaceae\",\n      \"rank\": \"family\",\n      \"role\": \"分類上の上位候補\",\n      \"visible_features\": [\"つる性\", \"巻きひげ\", \"鋸歯葉\"],\n      \"weak_points\": [\"花・果実がなく属への絞り込みは形態依存\"],\n      \"shooting_tips\": [\"花や果実がついたら撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": null,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"つるの長さは不明\",\n        \"basis\": \"スケール不明瞭\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"イネ科草本（スズメノヒエ類）\",\n      \"scientific_name\": \"Poaceae\",\n      \"rank\": \"family\",\n      \"role\": \"一緒に写るもの\",\n      \"visible_features\": [\"細長い線形の葉\", \"叢生する草\"],\n      \"weak_points\": [\"穂がないため属種不明\"],\n      \"shooting_tips\": [\"抽穂したら穂を接写する\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。管理地の縁に普通に見られる草相。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 30.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"草丈は中程度\",\n        \"basis\": \"スケール不明瞭\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"キク科の越年草（オオバコ・タバココナギ類含む低草）\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"role\": \"一緒に写るもの\",\n      \"visible_features\": [\"地面に張り付くロゼット葉\", \"毛のある楕円葉\"],\n      \"weak_points\": [\"花がないため種不明\"],\n      \"shooting_tips\": [\"開花株を探して花を正面から撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。礫地の隙間に生える典型的な低草。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 8.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"低草\",\n        \"basis\": \"スケール不明瞭\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    }\n  ],\n  \"recommended_media_regions\": [\n    {\"asset_index\": 0, \"rect\": {\"x\": 0.15, \"y\": 0.15, \"width\": 0.5, \"height\": 0.45}, \"frame_time_ms\": 0, \"confidence\": 0.85, \"note\": \"手に持ったツタの葉\"},\n    {\"asset_index\": 1, \"rect\": {\"x\": 0.25, \"y\": 0.35, \"width\": 0.6, \"height\": 0.35}, \"frame_time_ms\": 0, \"confidence\": 0.8, \"note\": \"柱の根元のツタ若苗\"},\n    {\"asset_index\": 2, \"rect\": {\"x\": 0.3, \"y\": 0.0, \"width\": 0.5, \"height\": 0.35}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"上段のツタの葉と巻きひげ\"}\n  ],\n  \"coexisting_taxa\": [\n    {\n      \"name\": \"イネ科草本\",\n      \"scientific_name\": \"Poaceae\",\n      \"rank\": \"family\",\n      \"confidence\": 0.7,\n      \"note\": \"細長い葉の草地。種は未確定\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [{\"asset_index\": 1, \"rect\": {\"x\": 0.6, \"y\": 0.55, \"width\": 0.4, \"height\": 0.4}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"右下の草地\"}]\n    },\n    {\n      \"name\": \"キク科の低草\",\n      \"scientific_name\": \"Asteraceae\",\n      \"rank\": \"family\",\n      \"confidence\": 0.5,\n      \"note\": \"ロゼット状の越年草。黄色い小花が見える株もある\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [{\"asset_index\": 1, \"rect\": {\"x\": 0.45, \"y\": 0.62, \"width\": 0.2, \"height\": 0.15}, \"frame_time_ms\": 0, \"confidence\": 0.5, \"note\": \"中央下の低草\"}]\n    },\n    {\n      \"name\": \"オオバコ類\",\n      \"scientific_name\": \"Plantago\",\n      \"rank\": \"genus\",\n      \"confidence\": 0.4,\n      \"note\": \"地面に張り付く楕円葉。花が無いため属までの推定\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [{\"asset_index\": 2, \"rect\": {\"x\": 0.35, \"y\": 0.45, \"width\": 0.3, \"height\": 0.3}, \"frame_time_ms\": 0, \"confidence\": 0.4, \"note\": \"中央の毛のある葉\"}]\n    }\n  ],\n  \"size_assessment\": {\n    \"typical_size_cm\": 10.0,\n    \"observed_size_estimate_cm\": 6.0,\n    \"size_class\": \"small\",\n    \"ranking_hint\": \"若苗で小さい\",\n    \"basis\": \"手指との比較から推定\",\n    \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n  },\n  \"invasive_response\": {\n    \"is_invasive\": false,\n    \"mhlw_category\": null,\n    \"recommended_action\": null,\n    \"action_basis\": \"\",\n    \"regional_caveat\": null,\n    \"legal_warning\": \"\",\n    \"hedge\": \"\"\n  }\n}",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "genus",
+          "recommended_taxon_name": "ツタ属（ノブドウ類）",
+          "recommended_scientific_name": "Parthenocissus",
+          "taxonomic_candidates": [
+            {
+              "taxon_name": "ツタ（ノブドウ）",
+              "scientific_name": "Parthenocissus tricuspidata",
+              "rank": "species",
+              "probability": 0.5,
+              "diagnostic_features_observed": [
+                "若葉期の3小葉からなる複葉",
+                "鋸歯縁の葉",
+                "巻きひげの存在"
+              ],
+              "diagnostic_features_missing": [
+                "成熟葉の単葉形（3裂の有無）",
+                "吸盤の有無",
+                "果実"
+              ],
+              "visual_contradictions": []
+            },
+            {
+              "taxon_name": "アメリカヅタ（セイヨウツタ）",
+              "scientific_name": "Parthenocissus quinquefolia",
+              "rank": "species",
+              "probability": 0.3,
+              "diagnostic_features_observed": [
+                "掌状の小葉配置",
+                "鋸歯縁",
+                "赤みを帯びた葉柄・新芽"
+              ],
+              "diagnostic_features_missing": [
+                "小葉数の確認（5小葉か3小葉か）",
+                "巻きひげの分枝形態"
+              ],
+              "visual_contradictions": [
+                "一部の葉は3小葉で、5小葉が定数の本種とはやや不一致の可能性"
+              ]
+            },
+            {
+              "taxon_name": "ブドウ科のつる植物",
+              "scientific_name": "Vitaceae",
+              "rank": "family",
+              "probability": 0.85,
+              "diagnostic_features_observed": [
+                "つる性",
+                "巻きひげ",
+                "鋸歯のある葉"
+              ],
+              "diagnostic_features_missing": [
+                "花・果実"
+              ],
+              "visual_contradictions": []
+            }
+          ],
+          "rank_decision_reason": "若い個体で小葉数・成熟葉形・吸盤が確認できず、種確定の決定形質が不足するため属レベルで止める。",
+          "diagnostic_features_observed": [
+            "つる性で巻きひげを持つ",
+            "掌状に配置する鋸歯縁の小葉",
+            "新芽・葉柄に赤みを帯びる個体がある",
+            "石積み・柱の根元に自生するつる植物"
+          ],
+          "diagnostic_features_missing": [
+            "成熟葉の形（単葉3裂か複葉か）",
+            "巻きひげ先端の吸盤の有無",
+            "小葉の定数（3または5）の安定確認",
+            "花・果実"
+          ],
+          "confusable_groups": [
+            {
+              "group_name": "ブドウ属（Vitis）",
+              "distinction_point": "ブドウ属は巻きひげに吸盤がなく葉裏に毛が多い。ツタ属は巻きひげ先端に吸盤をつけることが多い"
+            },
+            {
+              "group_name": "キウイ（マタタビ属）",
+              "distinction_point": "マタタビ属は葉裏の星状毛と樹皮の点紋で区別"
+            }
+          ],
+          "visual_contradictions": [],
+          "best_specific_taxon_name": "",
+          "narrative": "3枚とも、石礫の縁や柱の根元に這うつる植物で、鋸歯のある掌状複葉と巻きひげが見え、ブドウ科ツタ属と判断できる。若葉期の3小葉が中心で、ツタ（ノブドウ）の幼株に典型的な姿だが、アメリカヅタも混同し得るため種の断定は保留。成熟葉の形と吸盤の確認が次の決め手。",
+          "simple_summary": "石の上を這うツタの若苗。巻きひげと鋸歯葉からツタ属とみられます。",
+          "observer_boost": "手で葉を持ち上げて裏面と葉柄まで写した1枚目が、複葉の構造確認にとても役立っています。",
+          "next_step_text": "数週間後に同じ株へ再訪し、成熟葉を表裏から撮影して単葉3裂か複葉か、吸盤の有無を記録すると種が絞れる。",
+          "stop_reason": "若葉のみで成熟葉形・吸盤・果実が確認できず種まで絞れない",
+          "fun_fact": "ツタ（ノブドウ）は巻きひげの先に吸盤をつけ、コンクリート壁や石を傷つけずに吸着して登ることができる。",
+          "fun_fact_grounded": true,
+          "diagnostic_features_seen": [
+            "鋸歯縁の小葉",
+            "巻きひげ",
+            "つる性の茎",
+            "赤みを帯びた新芽・葉柄"
+          ],
+          "missing_evidence": [
+            "成熟葉の形",
+            "吸盤の有無",
+            "小葉数の定数",
+            "花・果実"
+          ],
+          "similar_taxa": [
+            {
+              "name": "ツタ（ノブドウ）",
+              "rank": "species"
+            },
+            {
+              "name": "アメリカヅタ",
+              "rank": "species"
+            },
+            {
+              "name": "ブドウ属",
+              "rank": "genus"
+            }
+          ],
+          "distinguishing_tips": [
+            "ツタは成熟すると単葉の3裂葉が混じり、巻きひげ先端に吸盤をもつ",
+            "アメリカヅタは掌状複葉が5小葉で、吸盤は分枝の先に小さくつく",
+            "ブドウ属は巻きひげに吸盤がなく、葉裏に毛が多い"
+          ],
+          "confirm_more": [
+            "秋（10月頃）に再訪し、葉が紅色に変わる様子と成熟葉の形（単葉3裂か5小葉複葉か）を撮ると種が確定する",
+            "巻きひげの先端をマクロで撮り、吸盤の有無を確認する（ツタ属の決定形質）",
+            "同じ株を月1回撮り続け、若葉から成熟葉への変化を記録すると幼株の同定経過が残る",
+            "つるが登っている基質（石・柱・壁）ごと撮ると、吸着の様子と生え場所の文脈が説明しやすくなる"
+          ],
+          "claim_refs_used": [],
+          "geographic_context": "位置情報が未取得のため地域分布は評価保留。日本の市街地・公園の縁石や植栽帯でよく見られる類型の生え場所ではある。",
+          "seasonal_context": "観察日時が不明のため季節評価は保留。葉が若く柔らかそうで、生育初期の可能性がある。",
+          "area_inference": {
+            "vegetation_structure_candidates": [
+              {
+                "label": "縁石・石礫の草本縁",
+                "why": "玉石敷きと草地の境界に自生",
+                "confidence": 0.7
+              }
+            ],
+            "succession_stage_candidates": [
+              {
+                "label": "撹乱地の先駆段階",
+                "why": "礫地に先駆的つる植物が進入",
+                "confidence": 0.5
+              }
+            ],
+            "human_influence_candidates": [
+              {
+                "label": "管理された植栽帯・歩道近接",
+                "why": "玉石敷きと柱基礎が整備されている",
+                "confidence": 0.7
+              }
+            ],
+            "moisture_regime_candidates": [
+              {
+                "label": "中生",
+                "why": "礫地だが草本が繁茂",
+                "confidence": 0.5
+              }
+            ],
+            "management_hint_candidates": [
+              {
+                "label": "玉石敷きの整備地",
+                "why": "玉石が規則的に敷かれている",
+                "confidence": 0.6
+              }
+            ]
+          },
+          "management_action_candidates": [
+            {
+              "action_kind": "bare_ground",
+              "label": "玉石敷きの裸地部分が写っています",
+              "why": "礫が敷き詰められ土壌が露出",
+              "confidence": 0.6,
+              "source": "photo",
+              "source_asset_id": "",
+              "confirm_state": "suggested"
+            }
+          ],
+          "shot_suggestions": [
+            {
+              "role": "close_up_organ",
+              "target": "巻きひげ先端の吸盤",
+              "rationale": "吸盤の有無が残るとツタ属とブドウ属の区別を後から確実に説明できる",
+              "priority": "high"
+            },
+            {
+              "role": "close_up_organ",
+              "target": "成熟葉の表裏",
+              "rationale": "単葉3裂か複葉かが残ると、ツタとアメリカヅタの見分けを季節をまたいで比べられる",
+              "priority": "high"
+            },
+            {
+              "role": "habitat_wide",
+              "target": "柱と石礫周辺の全景",
+              "rationale": "生え場所の基質が残ると、別地点のツタ記録と生息環境を比べやすくなる",
+              "priority": "medium"
+            }
+          ],
+          "candidate_readings": [
+            {
+              "name": "ツタ属（ノブドウ類）",
+              "scientific_name": "Parthenocissus",
+              "rank": "genus",
+              "role": "代表候補",
+              "visible_features": [
+                "鋸歯縁の掌状複葉（3小葉中心）",
+                "巻きひげ",
+                "赤みを帯びた新芽・葉柄",
+                "石礫・柱の根元を這うつる"
+              ],
+              "weak_points": [
+                "成熟葉の形が未確認",
+                "吸盤の有無が見えない",
+                "小葉数の定数が安定して確認できない"
+              ],
+              "shooting_tips": [
+                "巻きひげ先端をマクロで撮る",
+                "成熟葉を表裏から撮る",
+                "つるの基部から先端まで一連で撮る"
+              ],
+              "regional_read": "位置情報がないため地域読みは保留。市街地の縁石・植栽帯の礫地に進入する典型的な場面ではある。",
+              "size_assessment": {
+                "typical_size_cm": 10,
+                "observed_size_estimate_cm": 6,
+                "size_class": "small",
+                "ranking_hint": "若苗で小さい",
+                "basis": "手指との比較から推定",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "ツタ（ノブドウ）",
+              "scientific_name": "Parthenocissus tricuspidata",
+              "rank": "species",
+              "role": "比較候補",
+              "visible_features": [
+                "若葉期の3小葉複葉",
+                "鋸歯縁"
+              ],
+              "weak_points": [
+                "成熟葉の単葉3裂形が未確認",
+                "吸盤が見えない"
+              ],
+              "shooting_tips": [
+                "秋に成熟葉と紅葉を撮る",
+                "壁や石に吸着した巻きひげを撮る"
+              ],
+              "regional_read": "位置情報がないため地域読みは保留。日本の在来種で人為地の縁にもよく出る。",
+              "size_assessment": {
+                "typical_size_cm": 10,
+                "observed_size_estimate_cm": null,
+                "size_class": "small",
+                "ranking_hint": "若苗段階",
+                "basis": "スケールは手指から概ね推定可",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "アメリカヅタ（セイヨウツタ）",
+              "scientific_name": "Parthenocissus quinquefolia",
+              "rank": "species",
+              "role": "別候補",
+              "visible_features": [
+                "掌状複葉",
+                "鋸歯縁",
+                "赤みのある葉柄"
+              ],
+              "weak_points": [
+                "5小葉の定数が確認できない",
+                "巻きひげの分枝形態が見えない"
+              ],
+              "shooting_tips": [
+                "1枚の葉の小葉数を数えて撮る",
+                "巻きひげ全体を接写する"
+              ],
+              "regional_read": "位置情報がないため地域読みは保留。植栽・逸出が多い外来種で、植栽帯では出現可能性がある。",
+              "size_assessment": {
+                "typical_size_cm": 12,
+                "observed_size_estimate_cm": null,
+                "size_class": "small",
+                "ranking_hint": "若苗段階",
+                "basis": "スケール不明瞭",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "ブドウ科のつる植物",
+              "scientific_name": "Vitaceae",
+              "rank": "family",
+              "role": "分類上の上位候補",
+              "visible_features": [
+                "つる性",
+                "巻きひげ",
+                "鋸歯葉"
+              ],
+              "weak_points": [
+                "花・果実がなく属への絞り込みは形態依存"
+              ],
+              "shooting_tips": [
+                "花や果実がついたら撮る"
+              ],
+              "regional_read": "位置情報がないため地域読みは保留。",
+              "size_assessment": {
+                "typical_size_cm": null,
+                "observed_size_estimate_cm": null,
+                "size_class": "typical",
+                "ranking_hint": "つるの長さは不明",
+                "basis": "スケール不明瞭",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "イネ科草本（スズメノヒエ類）",
+              "scientific_name": "Poaceae",
+              "rank": "family",
+              "role": "一緒に写るもの",
+              "visible_features": [
+                "細長い線形の葉",
+                "叢生する草"
+              ],
+              "weak_points": [
+                "穂がないため属種不明"
+              ],
+              "shooting_tips": [
+                "抽穂したら穂を接写する"
+              ],
+              "regional_read": "位置情報がないため地域読みは保留。管理地の縁に普通に見られる草相。",
+              "size_assessment": {
+                "typical_size_cm": 30,
+                "observed_size_estimate_cm": null,
+                "size_class": "typical",
+                "ranking_hint": "草丈は中程度",
+                "basis": "スケール不明瞭",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "キク科の越年草（オオバコ・タバココナギ類含む低草）",
+              "scientific_name": "",
+              "rank": "lifeform",
+              "role": "一緒に写るもの",
+              "visible_features": [
+                "地面に張り付くロゼット葉",
+                "毛のある楕円葉"
+              ],
+              "weak_points": [
+                "花がないため種不明"
+              ],
+              "shooting_tips": [
+                "開花株を探して花を正面から撮る"
+              ],
+              "regional_read": "位置情報がないため地域読みは保留。礫地の隙間に生える典型的な低草。",
+              "size_assessment": {
+                "typical_size_cm": 8,
+                "observed_size_estimate_cm": null,
+                "size_class": "small",
+                "ranking_hint": "低草",
+                "basis": "スケール不明瞭",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            }
+          ],
+          "recommended_media_regions": [
+            {
+              "asset_index": 0,
+              "rect": {
+                "x": 0.15,
+                "y": 0.15,
+                "width": 0.5,
+                "height": 0.45
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.85,
+              "note": "手に持ったツタの葉"
+            },
+            {
+              "asset_index": 1,
+              "rect": {
+                "x": 0.25,
+                "y": 0.35,
+                "width": 0.6,
+                "height": 0.35
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.8,
+              "note": "柱の根元のツタ若苗"
+            },
+            {
+              "asset_index": 2,
+              "rect": {
+                "x": 0.3,
+                "y": 0,
+                "width": 0.5,
+                "height": 0.35
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.7,
+              "note": "上段のツタの葉と巻きひげ"
+            }
+          ],
+          "coexisting_taxa": [
+            {
+              "name": "イネ科草本",
+              "scientific_name": "Poaceae",
+              "rank": "family",
+              "confidence": 0.7,
+              "note": "細長い葉の草地。種は未確定",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 1,
+                  "rect": {
+                    "x": 0.6,
+                    "y": 0.55,
+                    "width": 0.4,
+                    "height": 0.4
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.7,
+                  "note": "右下の草地"
+                }
+              ]
+            },
+            {
+              "name": "キク科の低草",
+              "scientific_name": "Asteraceae",
+              "rank": "family",
+              "confidence": 0.5,
+              "note": "ロゼット状の越年草。黄色い小花が見える株もある",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 1,
+                  "rect": {
+                    "x": 0.45,
+                    "y": 0.62,
+                    "width": 0.2,
+                    "height": 0.15
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.5,
+                  "note": "中央下の低草"
+                }
+              ]
+            },
+            {
+              "name": "オオバコ類",
+              "scientific_name": "Plantago",
+              "rank": "genus",
+              "confidence": 0.4,
+              "note": "地面に張り付く楕円葉。花が無いため属までの推定",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 2,
+                  "rect": {
+                    "x": 0.35,
+                    "y": 0.45,
+                    "width": 0.3,
+                    "height": 0.3
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.4,
+                  "note": "中央の毛のある葉"
+                }
+              ]
+            }
+          ],
+          "size_assessment": {
+            "typical_size_cm": 10,
+            "observed_size_estimate_cm": 6,
+            "size_class": "small",
+            "ranking_hint": "若苗で小さい",
+            "basis": "手指との比較から推定",
+            "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+          },
+          "invasive_response": {
+            "is_invasive": false,
+            "mhlw_category": null,
+            "recommended_action": null,
+            "action_basis": "",
+            "regional_caveat": null,
+            "legal_warning": "",
+            "hedge": ""
+          }
+        },
+        "recommended_taxon": "ツタ属（ノブドウ類）",
+        "recommended_rank": "genus",
+        "confidence": "medium",
+        "candidates": [
+          {
+            "taxon_name": "ツタ（ノブドウ）",
+            "scientific_name": "Parthenocissus tricuspidata",
+            "rank": "species",
+            "probability": 0.5,
+            "diagnostic_features_observed": [
+              "若葉期の3小葉からなる複葉",
+              "鋸歯縁の葉",
+              "巻きひげの存在"
+            ],
+            "diagnostic_features_missing": [
+              "成熟葉の単葉形（3裂の有無）",
+              "吸盤の有無",
+              "果実"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "アメリカヅタ（セイヨウツタ）",
+            "scientific_name": "Parthenocissus quinquefolia",
+            "rank": "species",
+            "probability": 0.3,
+            "diagnostic_features_observed": [
+              "掌状の小葉配置",
+              "鋸歯縁",
+              "赤みを帯びた葉柄・新芽"
+            ],
+            "diagnostic_features_missing": [
+              "小葉数の確認（5小葉か3小葉か）",
+              "巻きひげの分枝形態"
+            ],
+            "visual_contradictions": [
+              "一部の葉は3小葉で、5小葉が定数の本種とはやや不一致の可能性"
+            ]
+          },
+          {
+            "taxon_name": "ブドウ科のつる植物",
+            "scientific_name": "Vitaceae",
+            "rank": "family",
+            "probability": 0.85,
+            "diagnostic_features_observed": [
+              "つる性",
+              "巻きひげ",
+              "鋸歯のある葉"
+            ],
+            "diagnostic_features_missing": [
+              "花・果実"
+            ],
+            "visual_contradictions": []
+          }
+        ],
+        "observed_features": {
+          "diagnostic_features_observed": [
+            "つる性で巻きひげを持つ",
+            "掌状に配置する鋸歯縁の小葉",
+            "新芽・葉柄に赤みを帯びる個体がある",
+            "石積み・柱の根元に自生するつる植物"
+          ],
+          "diagnostic_features_seen": [
+            "鋸歯縁の小葉",
+            "巻きひげ",
+            "つる性の茎",
+            "赤みを帯びた新芽・葉柄"
+          ]
+        },
+        "diagnostic_features": {
+          "diagnostic_features_observed": [
+            "つる性で巻きひげを持つ",
+            "掌状に配置する鋸歯縁の小葉",
+            "新芽・葉柄に赤みを帯びる個体がある",
+            "石積み・柱の根元に自生するつる植物"
+          ],
+          "diagnostic_features_seen": [
+            "鋸歯縁の小葉",
+            "巻きひげ",
+            "つる性の茎",
+            "赤みを帯びた新芽・葉柄"
+          ]
+        },
+        "missing_features": {
+          "diagnostic_features_missing": [
+            "成熟葉の形（単葉3裂か複葉か）",
+            "巻きひげ先端の吸盤の有無",
+            "小葉の定数（3または5）の安定確認",
+            "花・果実"
+          ],
+          "missing_evidence": [
+            "成熟葉の形",
+            "吸盤の有無",
+            "小葉数の定数",
+            "花・果実"
+          ]
+        },
+        "uncertain_features": null,
+        "geographic_context": "位置情報が未取得のため地域分布は評価保留。日本の市街地・公園の縁石や植栽帯でよく見られる類型の生え場所ではある。",
+        "context_fields": {
+          "seasonal_context": "観察日時が不明のため季節評価は保留。葉が若く柔らかそうで、生育初期の可能性がある。",
+          "area_inference": {
+            "vegetation_structure_candidates": [
+              {
+                "label": "縁石・石礫の草本縁",
+                "why": "玉石敷きと草地の境界に自生",
+                "confidence": 0.7
+              }
+            ],
+            "succession_stage_candidates": [
+              {
+                "label": "撹乱地の先駆段階",
+                "why": "礫地に先駆的つる植物が進入",
+                "confidence": 0.5
+              }
+            ],
+            "human_influence_candidates": [
+              {
+                "label": "管理された植栽帯・歩道近接",
+                "why": "玉石敷きと柱基礎が整備されている",
+                "confidence": 0.7
+              }
+            ],
+            "moisture_regime_candidates": [
+              {
+                "label": "中生",
+                "why": "礫地だが草本が繁茂",
+                "confidence": 0.5
+              }
+            ],
+            "management_hint_candidates": [
+              {
+                "label": "玉石敷きの整備地",
+                "why": "玉石が規則的に敷かれている",
+                "confidence": 0.6
+              }
+            ]
+          },
+          "management_action_candidates": [
+            {
+              "action_kind": "bare_ground",
+              "label": "玉石敷きの裸地部分が写っています",
+              "why": "礫が敷き詰められ土壌が露出",
+              "confidence": 0.6,
+              "source": "photo",
+              "source_asset_id": "",
+              "confirm_state": "suggested"
+            }
+          ],
+          "confirm_more": [
+            "秋（10月頃）に再訪し、葉が紅色に変わる様子と成熟葉の形（単葉3裂か5小葉複葉か）を撮ると種が確定する",
+            "巻きひげの先端をマクロで撮り、吸盤の有無を確認する（ツタ属の決定形質）",
+            "同じ株を月1回撮り続け、若葉から成熟葉への変化を記録すると幼株の同定経過が残る",
+            "つるが登っている基質（石・柱・壁）ごと撮ると、吸着の様子と生え場所の文脈が説明しやすくなる"
+          ]
+        },
+        "other_final_output_fields": {
+          "recommended_scientific_name": "Parthenocissus",
+          "rank_decision_reason": "若い個体で小葉数・成熟葉形・吸盤が確認できず、種確定の決定形質が不足するため属レベルで止める。",
+          "confusable_groups": [
+            {
+              "group_name": "ブドウ属（Vitis）",
+              "distinction_point": "ブドウ属は巻きひげに吸盤がなく葉裏に毛が多い。ツタ属は巻きひげ先端に吸盤をつけることが多い"
+            },
+            {
+              "group_name": "キウイ（マタタビ属）",
+              "distinction_point": "マタタビ属は葉裏の星状毛と樹皮の点紋で区別"
+            }
+          ],
+          "visual_contradictions": [],
+          "best_specific_taxon_name": "",
+          "narrative": "3枚とも、石礫の縁や柱の根元に這うつる植物で、鋸歯のある掌状複葉と巻きひげが見え、ブドウ科ツタ属と判断できる。若葉期の3小葉が中心で、ツタ（ノブドウ）の幼株に典型的な姿だが、アメリカヅタも混同し得るため種の断定は保留。成熟葉の形と吸盤の確認が次の決め手。",
+          "simple_summary": "石の上を這うツタの若苗。巻きひげと鋸歯葉からツタ属とみられます。",
+          "observer_boost": "手で葉を持ち上げて裏面と葉柄まで写した1枚目が、複葉の構造確認にとても役立っています。",
+          "next_step_text": "数週間後に同じ株へ再訪し、成熟葉を表裏から撮影して単葉3裂か複葉か、吸盤の有無を記録すると種が絞れる。",
+          "stop_reason": "若葉のみで成熟葉形・吸盤・果実が確認できず種まで絞れない",
+          "fun_fact": "ツタ（ノブドウ）は巻きひげの先に吸盤をつけ、コンクリート壁や石を傷つけずに吸着して登ることができる。",
+          "fun_fact_grounded": true,
+          "similar_taxa": [
+            {
+              "name": "ツタ（ノブドウ）",
+              "rank": "species"
+            },
+            {
+              "name": "アメリカヅタ",
+              "rank": "species"
+            },
+            {
+              "name": "ブドウ属",
+              "rank": "genus"
+            }
+          ],
+          "distinguishing_tips": [
+            "ツタは成熟すると単葉の3裂葉が混じり、巻きひげ先端に吸盤をもつ",
+            "アメリカヅタは掌状複葉が5小葉で、吸盤は分枝の先に小さくつく",
+            "ブドウ属は巻きひげに吸盤がなく、葉裏に毛が多い"
+          ],
+          "claim_refs_used": [],
+          "shot_suggestions": [
+            {
+              "role": "close_up_organ",
+              "target": "巻きひげ先端の吸盤",
+              "rationale": "吸盤の有無が残るとツタ属とブドウ属の区別を後から確実に説明できる",
+              "priority": "high"
+            },
+            {
+              "role": "close_up_organ",
+              "target": "成熟葉の表裏",
+              "rationale": "単葉3裂か複葉かが残ると、ツタとアメリカヅタの見分けを季節をまたいで比べられる",
+              "priority": "high"
+            },
+            {
+              "role": "habitat_wide",
+              "target": "柱と石礫周辺の全景",
+              "rationale": "生え場所の基質が残ると、別地点のツタ記録と生息環境を比べやすくなる",
+              "priority": "medium"
+            }
+          ],
+          "recommended_media_regions": [
+            {
+              "asset_index": 0,
+              "rect": {
+                "x": 0.15,
+                "y": 0.15,
+                "width": 0.5,
+                "height": 0.45
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.85,
+              "note": "手に持ったツタの葉"
+            },
+            {
+              "asset_index": 1,
+              "rect": {
+                "x": 0.25,
+                "y": 0.35,
+                "width": 0.6,
+                "height": 0.35
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.8,
+              "note": "柱の根元のツタ若苗"
+            },
+            {
+              "asset_index": 2,
+              "rect": {
+                "x": 0.3,
+                "y": 0,
+                "width": 0.5,
+                "height": 0.35
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.7,
+              "note": "上段のツタの葉と巻きひげ"
+            }
+          ],
+          "coexisting_taxa": [
+            {
+              "name": "イネ科草本",
+              "scientific_name": "Poaceae",
+              "rank": "family",
+              "confidence": 0.7,
+              "note": "細長い葉の草地。種は未確定",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 1,
+                  "rect": {
+                    "x": 0.6,
+                    "y": 0.55,
+                    "width": 0.4,
+                    "height": 0.4
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.7,
+                  "note": "右下の草地"
+                }
+              ]
+            },
+            {
+              "name": "キク科の低草",
+              "scientific_name": "Asteraceae",
+              "rank": "family",
+              "confidence": 0.5,
+              "note": "ロゼット状の越年草。黄色い小花が見える株もある",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 1,
+                  "rect": {
+                    "x": 0.45,
+                    "y": 0.62,
+                    "width": 0.2,
+                    "height": 0.15
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.5,
+                  "note": "中央下の低草"
+                }
+              ]
+            },
+            {
+              "name": "オオバコ類",
+              "scientific_name": "Plantago",
+              "rank": "genus",
+              "confidence": 0.4,
+              "note": "地面に張り付く楕円葉。花が無いため属までの推定",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 2,
+                  "rect": {
+                    "x": 0.35,
+                    "y": 0.45,
+                    "width": 0.3,
+                    "height": 0.3
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.4,
+                  "note": "中央の毛のある葉"
+                }
+              ]
+            }
+          ],
+          "size_assessment": {
+            "typical_size_cm": 10,
+            "observed_size_estimate_cm": 6,
+            "size_class": "small",
+            "ranking_hint": "若苗で小さい",
+            "basis": "手指との比較から推定",
+            "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+          },
+          "invasive_response": {
+            "is_invasive": false,
+            "mhlw_category": null,
+            "recommended_action": null,
+            "action_basis": "",
+            "regional_caveat": null,
+            "legal_warning": "",
+            "hedge": ""
+          }
+        },
+        "finish_reason": "stop",
+        "token_usage": {
+          "input_tokens": 22760,
+          "output_tokens": 4649
+        },
+        "latency_ms": 69648,
+        "model": "@cf/zai-org/glm-5.3-flash",
+        "provider": "cloudflare-workers-ai",
+        "config": {
+          "transport": "cloudflare-official-rest",
+          "temperature": 0,
+          "max_completion_tokens": 8192,
+          "reasoning_effort": "low",
+          "stream": false,
+          "modalities": "omitted",
+          "response_format": {
+            "type": "json_object"
+          },
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f",
+        "image_sha256": [
+          "2ad88d0a7540a55efc44db13cc62ea2af275eacd85ac73184d8a0c037f782448",
+          "a0b8eb2d83d485960b855d88f0bf1e4d50d5af171109502b62c9064548832564",
+          "43a999fc83fd12397e32d1ec211ca71d9311e77d49560fd7c5bc53f9f490afc3"
+        ],
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": "result.choices[0].message.content",
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    }
+  ]
+}

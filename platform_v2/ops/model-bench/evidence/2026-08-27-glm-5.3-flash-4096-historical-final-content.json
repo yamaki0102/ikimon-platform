@@ -1,0 +1,2091 @@
+{
+  "version": "zukan-post-model-bench-v2-historical-final-content-v1",
+  "sourceReport": "2026-08-27-7post-glm-parser-fixed-smoke.json",
+  "sourceRun": "2026-08-27 parser-fixed GLM smoke with max_completion_tokens=4096",
+  "model": "@cf/zai-org/glm-5.3-flash",
+  "provider": "cloudflare-workers-ai",
+  "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+  "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+  "postCount": 7,
+  "imageCount": 21,
+  "finalOutputs": [
+    {
+      "visitId": "record-1784366489892",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": null,
+      "latencyMs": 60170,
+      "inputTokens": 22760,
+      "outputTokens": 4093,
+      "schemaValid": true,
+      "raw_final_content": "{\n  \"confidence_band\": \"low\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"ムラサキツメクサ属（Erigeron属）の幼苗\",\n  \"recommended_scientific_name\": \"Erigeron\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"ムラサキツメクサ属の一種（ヒメジョオン・オオアレチノギク類）\",\n      \"scientific_name\": \"Erigeron\",\n      \"rank\": \"genus\",\n      \"probability\": 0.5,\n      \"diagnostic_features_observed\": [\"茎と葉に目立つ開出毛\", \"披針形で全縁に近い互生葉\", \"ロゼット期を過ぎた茎立ち苗\"],\n      \"diagnostic_features_missing\": [\"花（頭花）の色と大きさ\", \"根生葉の形と毛の密度\", \"冠毛の様子\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"オオアレチノギク\",\n      \"scientific_name\": \"Erigeron sumatrensis\",\n      \"rank\": \"species\",\n      \"probability\": 0.3,\n      \"diagnostic_features_observed\": [\"路傍・コンクリート隙間に出る典型的な生息場所\", \"有毛の茎\"],\n      \"diagnostic_features_missing\": [\"頭花\", \"葉の細長さと数\", \"株の高さ\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"ヒメジョオン\",\n      \"scientific_name\": \"Erigeron annuus\",\n      \"rank\": \"species\",\n      \"probability\": 0.2,\n      \"diagnostic_features_observed\": [\"有毛茎\", \"互生の披針葉\"],\n      \"diagnostic_features_missing\": [\"頭花（白〜淡紅色の舌状花）\", \"葉の鋸歯と基部の形状\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"セイタカアワダチソウ類\",\n      \"scientific_name\": \"Solidago\",\n      \"rank\": \"genus\",\n      \"probability\": 0.15,\n      \"diagnostic_features_observed\": [\"路傍の礫地に生育\", \"披針形葉\"],\n      \"diagnostic_features_missing\": [\"葉の三主脈の有無\", \"頭花と花序\", \"茎毛の様式\"],\n      \"visual_contradictions\": []\n    }\n  ],\n  \"rank_decision_reason\": \"幼苗で花（頭花）がなく、キク科の有毛草本であることしか確定材料がない。Erigeron属の幼苗の可能性が高いが、Solidagoなど他属とも似るため属レベルで止める。\",\n  \"diagnostic_features_observed\": [\"茎全体に開出する長毛\", \"互生する披針形〜楕円形の全縁葉\", \"頂部に密集した若葉（ロゼットから茎立ちへの移行期）\"],\n  \"diagnostic_features_missing\": [\"頭花の形・色・大きさ\", \"根生葉の形状と毛の分布\", \"葉の鋸歯・三主脈の有無\", \"冠毛の色\"],\n  \"confusable_groups\": [\n    {\"group_name\": \"キク科その他の路傍草本（セイタカアワダチソウ類・ヨモギ類）\", \"distinction_point\": \"葉の主脈数・毛の様子・頭花の形で判別\"},\n    {\"group_name\": \"ヒメジョオン／オオアレチノギクの仲間\", \"distinction_point\": \"頭花の大きさと舌状花の色、茎の高さで分ける\"}\n  ],\n  \"visual_contradictions\": [],\n  \"best_specific_taxon_name\": \"\",\n  \"narrative\": \"コンクリート擁壁の根元の礫地に生えるキク科の幼苗。茎と葉に明瞭な開出毛があり、互生の披針形葉からErigeron属（ヒメジョオン・オオアレチノギク類）の幼苗が最有力だが、花が無いためSolidago属なども排除できない。位置情報未取得のため地域読みは保留。頭花の観察が確定の鍵。\",\n  \"simple_summary\": \"壁のそばに芽を出したキク科の若苗のようです。花が咲けばもっと絞り込めます。\",\n  \"observer_boost\": \"苗全体の毛の様子と葉の付き方がはっきり撮れており、成長後の比較記録として使いやすい。\",\n  \"next_step_text\": \"初夏（5〜7月）に同じ株へ再訪し、頭花を正面と側面から撮影して舌状花の色・大きさを記録すると種が確定する。\",\n  \"stop_reason\": \"幼苗で生殖器官（頭花）が未確認のため、種レベルの決定形質が画像から読み取れない。\",\n  \"fun_fact\": \"ヒメジョオンやオオアレチノギクは北米原産の帰化植物で、コンクリートの隙間や礫地など撹乱された場所に真っ先に定着する。\",\n  \"fun_fact_grounded\": true,\n  \"diagnostic_features_seen\": [\"茎の開出毛\", \"互生の披針形葉\", \"頂部の若葉の密集\"],\n  \"missing_evidence\": [\"頭花（花の色・大きさ）\", \"根生葉の形\", \"成熟株の高さ\", \"位置情報\"],\n  \"similar_taxa\": [\n    {\"name\": \"ヒメジョオン\", \"rank\": \"species\"},\n    {\"name\": \"オオアレチノギク\", \"rank\": \"species\"},\n    {\"name\": \"セイタカアワダチソウ\", \"rank\": \"species\"}\n  ],\n  \"distinguishing_tips\": [\n    \"ヒメジョオンは白〜淡紅色の舌状花が多く、葉に粗い鋸歯がある\",\n    \"オオアレチノギクは頭花が小さく、茎がよく分枝して高くなる\",\n    \"セイタカアワダチソウ類は葉に明瞭な三主脈があり、黄色い頭花をつける\"\n  ],\n  \"confirm_more\": [\n    \"5〜7月に同じ株へ再訪し、頭花を正面から撮って舌状花の色と数を記録する\",\n    \"根元の根生葉を真上から撮影し、葉形と毛の密度を記録する（幼苗期の葉形は種判別に有効）\",\n    \"成熟株の草丈と分枝の様子を秋まで月1回撮り続け、フェノロジーを残す\",\n    \"周囲の礫地・壁面の環境ごと撮り、定着場所の記録として残す\"\n  ],\n  \"claim_refs_used\": [],\n  \"geographic_context\": \"位置情報が未取得のため地域分布は評価保留。生息環境はコンクリート擁壁の根元の礫地で、撹乱地に典型的。\",\n  \"seasonal_context\": \"観察日時が不明のため季節評価は保留。苗立ち期の姿からは春〜初夏の可能性も考えられるが断定しない。\",\n  \"area_inference\": {\n    \"vegetation_structure_candidates\": [{\"label\": \"裸地〜礫地の先駆植生\", \"why\": \"壁根の礫地に散在する草本のみ\", \"confidence\": 0.7}],\n    \"succession_stage_candidates\": [{\"label\": \"遷移初期\", \"why\": \"裸地性草本の定着段階\", \"confidence\": 0.6}],\n    \"human_influence_candidates\": [{\"label\": \"歩道・構造物近接\", \"why\": \"コンクリート擁壁と舗装が写る\", \"confidence\": 0.8}],\n    \"moisture_regime_candidates\": [{\"label\": \"乾性\", \"why\": \"礫地で排水が良い環境\", \"confidence\": 0.5}],\n    \"management_hint_candidates\": [{\"label\": \"踏圧・清掃管理地\", \"why\": \"壁根にゴミ・枯草が散在\", \"confidence\": 0.4}]\n  },\n  \"management_action_candidates\": [\n    {\n      \"action_kind\": \"bare_ground\",\n      \"label\": \"壁根の裸地・礫地が写っています\",\n      \"why\": \"擁壁の根元に礫と裸地が広がる\",\n      \"confidence\": 0.6,\n      \"source\": \"photo\",\n      \"source_asset_id\": \"\",\n      \"confirm_state\": \"suggested\"\n    }\n  ],\n  \"shot_suggestions\": [\n    {\"role\": \"close_up_organ\", \"target\": \"頭花（開花時）\", \"rationale\": \"舌状花の色・大きさが残るとヒメジョオンとオオアレチノギクの見分けを後から説明しやすくなる\", \"priority\": \"high\"},\n    {\"role\": \"close_up_organ\", \"target\": \"根生葉と茎の毛\", \"rationale\": \"毛の様子と葉形が残ると幼苗期の比較候補を分けて考えやすくなる\", \"priority\": \"medium\"},\n    {\"role\": \"habitat_wide\", \"target\": \"壁根の礫地全体\", \"rationale\": \"定着環境が残ると別地点・別季節の記録と比べやすくなる\", \"priority\": \"medium\"},\n    {\"role\": \"scale_reference\", \"target\": \"株全体と手や定規\", \"rationale\": \"草丈の推移が残ると成長速度や個体の経時変化を追いやすくなる\", \"priority\": \"medium\"}\n  ],\n  \"candidate_readings\": [\n    {\n      \"name\": \"ムラサキツメクサ属（Erigeron属）の幼苗\",\n      \"scientific_name\": \"Erigeron\",\n      \"rank\": \"genus\",\n      \"role\": \"代表候補\",\n      \"visible_features\": [\"茎と葉に開出する長毛\", \"互生の披針形葉\", \"頂部に密集した若葉\"],\n      \"weak_points\": [\"頭花が未確認\", \"根生葉の形が不明瞭\", \"Solidago属など他のキク科幼苗とも似る\"],\n      \"shooting_tips\": [\"開花時に頭花を正面と側面から撮る\", \"根元の根生葉を真上からマクロで撮る\"],\n      \"regional_read\": \"位置情報未取得のため地域読みは保留。壁根・礫地という場所性は帰化キク科の定着地として典型的。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 10.0,\n        \"observed_size_estimate_cm\": 8.0,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"幼苗としては標準的\",\n        \"basis\": \"壁面ブロックの寸法感から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"オオアレチノギク\",\n      \"scientific_name\": \"Erigeron sumatrensis\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"有毛の茎\", \"路傍の礫地に生育\"],\n      \"weak_points\": [\"頭花・冠毛が見えない\", \"葉の細長さが確認できない\"],\n      \"shooting_tips\": [\"開花時の頭花と茎の分枝を撮る\", \"成熟株の草丈を記録する\"],\n      \"regional_read\": \"位置情報未取得のため地域読みは保留。都市構造物の壁根は本種の好適地とされるが断定しない。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 60.0,\n        \"observed_size_estimate_cm\": 8.0,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"成熟株に比べ幼苗段階\",\n        \"basis\": \"壁面ブロックの寸法感から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"ヒメジョオン\",\n      \"scientific_name\": \"Erigeron annuus\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"有毛茎\", \"互生の披針形葉\"],\n      \"weak_points\": [\"舌状花の色が未確認\", \"葉の鋸歯が不明瞭\"],\n      \"shooting_tips\": [\"開花時に花の色と大きさを撮る\", \"葉の鋸歯を接写する\"],\n      \"regional_read\": \"位置情報未取得のため地域読みは保留。撹乱地に広く見られる帰化種。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 60.0,\n        \"observed_size_estimate_cm\": 8.0,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"成熟株に比べ幼苗段階\",\n        \"basis\": \"壁面ブロックの寸法感から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"セイタカアワダチソウ類\",\n      \"scientific_name\": \"Solidago\",\n      \"rank\": \"genus\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"路傍礫地に生育\", \"披針形葉\"],\n      \"weak_points\": [\"三主脈の有無が確認できない\", \"黄色い頭花が未確認\"],\n      \"shooting_tips\": [\"葉を透かして主脈を撮る\", \"開花時の花序を撮る\"],\n      \"regional_read\": \"位置情報未取得のため地域読みは保留。壁根・礫地でErigeron属と混生しやすい。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 150.0,\n        \"observed_size_estimate_cm\": 8.0,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"成熟株に比べ幼苗段階\",\n        \"basis\": \"壁面ブロックの寸法感から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    }\n  ],\n  \"recommended_media_regions\": [\n    {\"asset_index\": 0, \"rect\": {\"x\": 0.2, \"y\": 0.05, \"width\": 0.6, \"height\": 0.75}, \"frame_time_ms\": 0, \"confidence\": 0.9, \"note\": \"中央の幼苗\"},\n    {\"asset_index\": 1, \"rect\": {\"x\": 0.55, \"y\": 0.42, \"width\": 0.12, \"height\": 0.05}, \"frame_time_ms\": 0, \"confidence\": 0.6, \"note\": \"壁根の同様の苗\"},\n    {\"asset_index\": 2, \"rect\": {\"x\": 0.0, \"y\": 0.3, \"width\": 0.6, \"height\": 0.5}, \"frame_time_ms\": 0, \"confidence\": 0.85, \"note\": \"引き抜いた苗の茎と毛\"}\n  ],\n  \"coexisting_taxa\": [\n    {\n      \"name\": \"イネ科植物（幼苗）\",\n      \"scientific_name\": \"Poaceae\",\n      \"rank\": \"family\",\n      \"confidence\": 0.6,\n      \"note\": \"壁根に細長い葉の草が見える\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [{\"asset_index\": 1, \"rect\": {\"x\": 0.22, \"y\": 0.44, \"width\": 0.1, \"height\": 0.06}, \"frame_time_ms\": 0, \"confidence\": 0.55, \"note\": \"左端の細長葉\"}]\n    },\n    {\n      \"name\": \"広葉草本（幼苗・複数）\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"confidence\": 0.5,\n      \"note\": \"壁根に同様の広葉苗が散在\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [{\"asset_index\": 1, \"rect\": {\"x\": 0.33, \"y\": 0.43, \"width\": 0.08, \"height\": 0.05}, \"frame_time_ms\": 0, \"confidence\": 0.5, \"note\": \"中央左の苗\"}]\n    }\n  ],\n  \"size_assessment\": {\n    \"typical_size_cm\": 10.0,\n    \"observed_size_estimate_cm\": 8.0,\n    \"size_class\": \"small\",\n    \"ranking_hint\": \"幼苗としては標準的\",\n    \"basis\": \"壁面ブロックの寸法感から推定\",\n    \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n  },\n  \"invasive_response\": {\n    \"is_invasive\": false,\n    \"mhlw_category\": null,\n    \"recommended_action\": null,\n    \"action_basis\": \"\",\n    \"regional_caveat\": null,\n    \"legal_warning\": \"\",\n    \"hedge\": \"\"\n  }\n}",
+      "parsed_json": {
+        "confidence_band": "low",
+        "recommended_rank": "genus",
+        "recommended_taxon_name": "ムラサキツメクサ属（Erigeron属）の幼苗",
+        "recommended_scientific_name": "Erigeron",
+        "taxonomic_candidates": [
+          {
+            "taxon_name": "ムラサキツメクサ属の一種（ヒメジョオン・オオアレチノギク類）",
+            "scientific_name": "Erigeron",
+            "rank": "genus",
+            "probability": 0.5,
+            "diagnostic_features_observed": [
+              "茎と葉に目立つ開出毛",
+              "披針形で全縁に近い互生葉",
+              "ロゼット期を過ぎた茎立ち苗"
+            ],
+            "diagnostic_features_missing": [
+              "花（頭花）の色と大きさ",
+              "根生葉の形と毛の密度",
+              "冠毛の様子"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "オオアレチノギク",
+            "scientific_name": "Erigeron sumatrensis",
+            "rank": "species",
+            "probability": 0.3,
+            "diagnostic_features_observed": [
+              "路傍・コンクリート隙間に出る典型的な生息場所",
+              "有毛の茎"
+            ],
+            "diagnostic_features_missing": [
+              "頭花",
+              "葉の細長さと数",
+              "株の高さ"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "ヒメジョオン",
+            "scientific_name": "Erigeron annuus",
+            "rank": "species",
+            "probability": 0.2,
+            "diagnostic_features_observed": [
+              "有毛茎",
+              "互生の披針葉"
+            ],
+            "diagnostic_features_missing": [
+              "頭花（白〜淡紅色の舌状花）",
+              "葉の鋸歯と基部の形状"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "セイタカアワダチソウ類",
+            "scientific_name": "Solidago",
+            "rank": "genus",
+            "probability": 0.15,
+            "diagnostic_features_observed": [
+              "路傍の礫地に生育",
+              "披針形葉"
+            ],
+            "diagnostic_features_missing": [
+              "葉の三主脈の有無",
+              "頭花と花序",
+              "茎毛の様式"
+            ],
+            "visual_contradictions": []
+          }
+        ],
+        "rank_decision_reason": "幼苗で花（頭花）がなく、キク科の有毛草本であることしか確定材料がない。Erigeron属の幼苗の可能性が高いが、Solidagoなど他属とも似るため属レベルで止める。",
+        "diagnostic_features_observed": [
+          "茎全体に開出する長毛",
+          "互生する披針形〜楕円形の全縁葉",
+          "頂部に密集した若葉（ロゼットから茎立ちへの移行期）"
+        ],
+        "diagnostic_features_missing": [
+          "頭花の形・色・大きさ",
+          "根生葉の形状と毛の分布",
+          "葉の鋸歯・三主脈の有無",
+          "冠毛の色"
+        ],
+        "confusable_groups": [
+          {
+            "group_name": "キク科その他の路傍草本（セイタカアワダチソウ類・ヨモギ類）",
+            "distinction_point": "葉の主脈数・毛の様子・頭花の形で判別"
+          },
+          {
+            "group_name": "ヒメジョオン／オオアレチノギクの仲間",
+            "distinction_point": "頭花の大きさと舌状花の色、茎の高さで分ける"
+          }
+        ],
+        "visual_contradictions": [],
+        "best_specific_taxon_name": "",
+        "narrative": "コンクリート擁壁の根元の礫地に生えるキク科の幼苗。茎と葉に明瞭な開出毛があり、互生の披針形葉からErigeron属（ヒメジョオン・オオアレチノギク類）の幼苗が最有力だが、花が無いためSolidago属なども排除できない。位置情報未取得のため地域読みは保留。頭花の観察が確定の鍵。",
+        "simple_summary": "壁のそばに芽を出したキク科の若苗のようです。花が咲けばもっと絞り込めます。",
+        "observer_boost": "苗全体の毛の様子と葉の付き方がはっきり撮れており、成長後の比較記録として使いやすい。",
+        "next_step_text": "初夏（5〜7月）に同じ株へ再訪し、頭花を正面と側面から撮影して舌状花の色・大きさを記録すると種が確定する。",
+        "stop_reason": "幼苗で生殖器官（頭花）が未確認のため、種レベルの決定形質が画像から読み取れない。",
+        "fun_fact": "ヒメジョオンやオオアレチノギクは北米原産の帰化植物で、コンクリートの隙間や礫地など撹乱された場所に真っ先に定着する。",
+        "fun_fact_grounded": true,
+        "diagnostic_features_seen": [
+          "茎の開出毛",
+          "互生の披針形葉",
+          "頂部の若葉の密集"
+        ],
+        "missing_evidence": [
+          "頭花（花の色・大きさ）",
+          "根生葉の形",
+          "成熟株の高さ",
+          "位置情報"
+        ],
+        "similar_taxa": [
+          {
+            "name": "ヒメジョオン",
+            "rank": "species"
+          },
+          {
+            "name": "オオアレチノギク",
+            "rank": "species"
+          },
+          {
+            "name": "セイタカアワダチソウ",
+            "rank": "species"
+          }
+        ],
+        "distinguishing_tips": [
+          "ヒメジョオンは白〜淡紅色の舌状花が多く、葉に粗い鋸歯がある",
+          "オオアレチノギクは頭花が小さく、茎がよく分枝して高くなる",
+          "セイタカアワダチソウ類は葉に明瞭な三主脈があり、黄色い頭花をつける"
+        ],
+        "confirm_more": [
+          "5〜7月に同じ株へ再訪し、頭花を正面から撮って舌状花の色と数を記録する",
+          "根元の根生葉を真上から撮影し、葉形と毛の密度を記録する（幼苗期の葉形は種判別に有効）",
+          "成熟株の草丈と分枝の様子を秋まで月1回撮り続け、フェノロジーを残す",
+          "周囲の礫地・壁面の環境ごと撮り、定着場所の記録として残す"
+        ],
+        "claim_refs_used": [],
+        "geographic_context": "位置情報が未取得のため地域分布は評価保留。生息環境はコンクリート擁壁の根元の礫地で、撹乱地に典型的。",
+        "seasonal_context": "観察日時が不明のため季節評価は保留。苗立ち期の姿からは春〜初夏の可能性も考えられるが断定しない。",
+        "area_inference": {
+          "vegetation_structure_candidates": [
+            {
+              "label": "裸地〜礫地の先駆植生",
+              "why": "壁根の礫地に散在する草本のみ",
+              "confidence": 0.7
+            }
+          ],
+          "succession_stage_candidates": [
+            {
+              "label": "遷移初期",
+              "why": "裸地性草本の定着段階",
+              "confidence": 0.6
+            }
+          ],
+          "human_influence_candidates": [
+            {
+              "label": "歩道・構造物近接",
+              "why": "コンクリート擁壁と舗装が写る",
+              "confidence": 0.8
+            }
+          ],
+          "moisture_regime_candidates": [
+            {
+              "label": "乾性",
+              "why": "礫地で排水が良い環境",
+              "confidence": 0.5
+            }
+          ],
+          "management_hint_candidates": [
+            {
+              "label": "踏圧・清掃管理地",
+              "why": "壁根にゴミ・枯草が散在",
+              "confidence": 0.4
+            }
+          ]
+        },
+        "management_action_candidates": [
+          {
+            "action_kind": "bare_ground",
+            "label": "壁根の裸地・礫地が写っています",
+            "why": "擁壁の根元に礫と裸地が広がる",
+            "confidence": 0.6,
+            "source": "photo",
+            "source_asset_id": "",
+            "confirm_state": "suggested"
+          }
+        ],
+        "shot_suggestions": [
+          {
+            "role": "close_up_organ",
+            "target": "頭花（開花時）",
+            "rationale": "舌状花の色・大きさが残るとヒメジョオンとオオアレチノギクの見分けを後から説明しやすくなる",
+            "priority": "high"
+          },
+          {
+            "role": "close_up_organ",
+            "target": "根生葉と茎の毛",
+            "rationale": "毛の様子と葉形が残ると幼苗期の比較候補を分けて考えやすくなる",
+            "priority": "medium"
+          },
+          {
+            "role": "habitat_wide",
+            "target": "壁根の礫地全体",
+            "rationale": "定着環境が残ると別地点・別季節の記録と比べやすくなる",
+            "priority": "medium"
+          },
+          {
+            "role": "scale_reference",
+            "target": "株全体と手や定規",
+            "rationale": "草丈の推移が残ると成長速度や個体の経時変化を追いやすくなる",
+            "priority": "medium"
+          }
+        ],
+        "candidate_readings": [
+          {
+            "name": "ムラサキツメクサ属（Erigeron属）の幼苗",
+            "scientific_name": "Erigeron",
+            "rank": "genus",
+            "role": "代表候補",
+            "visible_features": [
+              "茎と葉に開出する長毛",
+              "互生の披針形葉",
+              "頂部に密集した若葉"
+            ],
+            "weak_points": [
+              "頭花が未確認",
+              "根生葉の形が不明瞭",
+              "Solidago属など他のキク科幼苗とも似る"
+            ],
+            "shooting_tips": [
+              "開花時に頭花を正面と側面から撮る",
+              "根元の根生葉を真上からマクロで撮る"
+            ],
+            "regional_read": "位置情報未取得のため地域読みは保留。壁根・礫地という場所性は帰化キク科の定着地として典型的。",
+            "size_assessment": {
+              "typical_size_cm": 10,
+              "observed_size_estimate_cm": 8,
+              "size_class": "small",
+              "ranking_hint": "幼苗としては標準的",
+              "basis": "壁面ブロックの寸法感から推定",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "オオアレチノギク",
+            "scientific_name": "Erigeron sumatrensis",
+            "rank": "species",
+            "role": "比較候補",
+            "visible_features": [
+              "有毛の茎",
+              "路傍の礫地に生育"
+            ],
+            "weak_points": [
+              "頭花・冠毛が見えない",
+              "葉の細長さが確認できない"
+            ],
+            "shooting_tips": [
+              "開花時の頭花と茎の分枝を撮る",
+              "成熟株の草丈を記録する"
+            ],
+            "regional_read": "位置情報未取得のため地域読みは保留。都市構造物の壁根は本種の好適地とされるが断定しない。",
+            "size_assessment": {
+              "typical_size_cm": 60,
+              "observed_size_estimate_cm": 8,
+              "size_class": "small",
+              "ranking_hint": "成熟株に比べ幼苗段階",
+              "basis": "壁面ブロックの寸法感から推定",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "ヒメジョオン",
+            "scientific_name": "Erigeron annuus",
+            "rank": "species",
+            "role": "比較候補",
+            "visible_features": [
+              "有毛茎",
+              "互生の披針形葉"
+            ],
+            "weak_points": [
+              "舌状花の色が未確認",
+              "葉の鋸歯が不明瞭"
+            ],
+            "shooting_tips": [
+              "開花時に花の色と大きさを撮る",
+              "葉の鋸歯を接写する"
+            ],
+            "regional_read": "位置情報未取得のため地域読みは保留。撹乱地に広く見られる帰化種。",
+            "size_assessment": {
+              "typical_size_cm": 60,
+              "observed_size_estimate_cm": 8,
+              "size_class": "small",
+              "ranking_hint": "成熟株に比べ幼苗段階",
+              "basis": "壁面ブロックの寸法感から推定",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "セイタカアワダチソウ類",
+            "scientific_name": "Solidago",
+            "rank": "genus",
+            "role": "比較候補",
+            "visible_features": [
+              "路傍礫地に生育",
+              "披針形葉"
+            ],
+            "weak_points": [
+              "三主脈の有無が確認できない",
+              "黄色い頭花が未確認"
+            ],
+            "shooting_tips": [
+              "葉を透かして主脈を撮る",
+              "開花時の花序を撮る"
+            ],
+            "regional_read": "位置情報未取得のため地域読みは保留。壁根・礫地でErigeron属と混生しやすい。",
+            "size_assessment": {
+              "typical_size_cm": 150,
+              "observed_size_estimate_cm": 8,
+              "size_class": "small",
+              "ranking_hint": "成熟株に比べ幼苗段階",
+              "basis": "壁面ブロックの寸法感から推定",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          }
+        ],
+        "recommended_media_regions": [
+          {
+            "asset_index": 0,
+            "rect": {
+              "x": 0.2,
+              "y": 0.05,
+              "width": 0.6,
+              "height": 0.75
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.9,
+            "note": "中央の幼苗"
+          },
+          {
+            "asset_index": 1,
+            "rect": {
+              "x": 0.55,
+              "y": 0.42,
+              "width": 0.12,
+              "height": 0.05
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.6,
+            "note": "壁根の同様の苗"
+          },
+          {
+            "asset_index": 2,
+            "rect": {
+              "x": 0,
+              "y": 0.3,
+              "width": 0.6,
+              "height": 0.5
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.85,
+            "note": "引き抜いた苗の茎と毛"
+          }
+        ],
+        "coexisting_taxa": [
+          {
+            "name": "イネ科植物（幼苗）",
+            "scientific_name": "Poaceae",
+            "rank": "family",
+            "confidence": 0.6,
+            "note": "壁根に細長い葉の草が見える",
+            "invasive_lite": {
+              "is_invasive": false,
+              "mhlw_category": null
+            },
+            "media_regions": [
+              {
+                "asset_index": 1,
+                "rect": {
+                  "x": 0.22,
+                  "y": 0.44,
+                  "width": 0.1,
+                  "height": 0.06
+                },
+                "frame_time_ms": 0,
+                "confidence": 0.55,
+                "note": "左端の細長葉"
+              }
+            ]
+          },
+          {
+            "name": "広葉草本（幼苗・複数）",
+            "scientific_name": "",
+            "rank": "lifeform",
+            "confidence": 0.5,
+            "note": "壁根に同様の広葉苗が散在",
+            "invasive_lite": {
+              "is_invasive": false,
+              "mhlw_category": null
+            },
+            "media_regions": [
+              {
+                "asset_index": 1,
+                "rect": {
+                  "x": 0.33,
+                  "y": 0.43,
+                  "width": 0.08,
+                  "height": 0.05
+                },
+                "frame_time_ms": 0,
+                "confidence": 0.5,
+                "note": "中央左の苗"
+              }
+            ]
+          }
+        ],
+        "size_assessment": {
+          "typical_size_cm": 10,
+          "observed_size_estimate_cm": 8,
+          "size_class": "small",
+          "ranking_hint": "幼苗としては標準的",
+          "basis": "壁面ブロックの寸法感から推定",
+          "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+        },
+        "invasive_response": {
+          "is_invasive": false,
+          "mhlw_category": null,
+          "recommended_action": null,
+          "action_basis": "",
+          "regional_caveat": null,
+          "legal_warning": "",
+          "hedge": ""
+        }
+      },
+      "raw_content_redacted": false,
+      "internal_reasoning_saved": false
+    },
+    {
+      "visitId": "record-1784430741938",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": null,
+      "latencyMs": 58290,
+      "inputTokens": 22760,
+      "outputTokens": 4028,
+      "schemaValid": true,
+      "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"カタバミ属の一種\",\n  \"recommended_scientific_name\": \"Oxalis\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"オックスalis・コルニクラータ（イモカタバミ）\",\n      \"scientific_name\": \"Oxalis corniculata\",\n      \"rank\": \"species\",\n      \"probability\": 0.45,\n      \"diagnostic_features_observed\": [\"3小葉からなる心臓形の葉\", \"黄色い小花\", \"地面を這う茎\"],\n      \"diagnostic_features_missing\": [\"毛の有無\", \"茎の色（赤紫か緑か）\", \"地下茎・鱗茎の構造\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"オッキイモカタバミ（オキザリス・デブリス系）\",\n      \"scientific_name\": \"Oxalis debilis\",\n      \"rank\": \"species\",\n      \"probability\": 0.2,\n      \"diagnostic_features_observed\": [\"黄色い花\"],\n      \"diagnostic_features_missing\": [\"花の大きさ\", \"鱗茎\", \"葉の大きさ\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"ムラサキカタバミ\",\n      \"scientific_name\": \"Oxalis debilis var. corymbosa\",\n      \"rank\": \"species\",\n      \"probability\": 0.1,\n      \"diagnostic_features_observed\": [],\n      \"diagnostic_features_missing\": [\"花色（ピンク）\", \"葉色\"],\n      \"visual_contradictions\": [\"花が黄色でピンク色の花冠が見えない\"]\n    }\n  ],\n  \"rank_decision_reason\": \"3小葉の心臓形の葉と黄色い小花からカタバミ属と判断できるが、種レベルの決定には毛の有無・茎の色・花の詳細・地下部が不足のため属で止めた。\",\n  \"diagnostic_features_observed\": [\"3小葉からなる倒心形の葉が多数\", \"黄色い小花を咲かせる\", \"地面を這うように伸びる茎\", \"手との比較で小葉が1cm前後と小型\"],\n  \"diagnostic_features_missing\": [\"花の正面からの詳細（萼・花弁の形）\", \"茎・葉柄の毛の有無\", \"地下部（根・鱗茎）\", \"葉の赤紫色の程度\"],\n  \"confusable_groups\": [\n    {\"group_name\": \"シャクジソウ・クローバー類（マメ科シャクジソウ属）\", \"distinction_point\": \"カタバミは小葉の先が深く凹む倒心形。クローバーは楕円形に近い\"},\n    {\"group_name\": \"イモカタバミとオッキイモカタバミ\", \"distinction_point\": \"花の大きさと地下の鱗茎の大きさで判別\"}\n  ],\n  \"visual_contradictions\": [],\n  \"best_specific_taxon_name\": \"カタバミ（Oxalis corniculata）\",\n  \"narrative\": \"3枚の写真すべてで、3小葉の倒心形の葉を持ち黄色い小花を咲かせるカタバミ属植物が主対象。手との比較で小葉は1cm前後と小型で、茎が地表を這う姿からカタバミ（Oxalis corniculata）が最有力。ただしイモカタバミ類との区別には花の正面像・毛の有無・地下部の確認が必要。防鳥ネット沿いの草地に群生しており、管理された環境の縁に見られる。\",\n  \"simple_summary\": \"黄色い小さな花が咲く、三つ葉のカタバミの仲間が群生しています。\",\n  \"observer_boost\": \"指をスケールとして添えた2枚目のおかげで、小葉の実寸が読み取れる貴重な記録になっています。\",\n  \"next_step_text\": \"開花株の花を真横・正面からマクロで撮影し、萼と花弁の形・毛の有無を記録すると種が確定する。\",\n  \"stop_reason\": \"花の正面詳細・茎の毛・地下部が写っておらず、種レベルの決定形質が確認できない。\",\n  \"fun_fact\": \"カタバミの葉は酸っぱく、昔の子どもは「すっぱ草」と呼んで食べた。シュウ酸によるもので、食べすぎは注意。\",\n  \"fun_fact_grounded\": true,\n  \"diagnostic_features_seen\": [\"倒心形の3小葉\", \"黄色い小花\", \"地表を這う茎\", \"小葉の小型さ（指との比較）\"],\n  \"missing_evidence\": [\"花の正面・側面からの詳細\", \"茎・葉柄の毛の有無\", \"地下部（鱗茎・根）\", \"開花時期の記録\"],\n  \"similar_taxa\": [\n    {\"name\": \"カタバミ\", \"rank\": \"species\"},\n    {\"name\": \"イモカタバミ\", \"rank\": \"species\"},\n    {\"name\": \"オッキイモカタバミ\", \"rank\": \"species\"}\n  ],\n  \"distinguishing_tips\": [\n    \"カタバミは茎が地表を這い、毛が多く茎が赤紫色を帯びやすい\",\n    \"イモカタバミは直立気味で地下に小さな鱗茎（イモ）を持つ\",\n    \"オッキイモカタバミは花・葉ともに大きく、地下に大きな鱗茎がある\",\n    \"花の大きさ（カタバミは花径8mm前後）と萼の毛で判別できる\"\n  ],\n  \"confirm_more\": [\n    \"開花株の花を真横からマクロ撮影し、花径と萼の毛の有無を記録する（カタバミとイモカタバミの判別点）\",\n    \"葉柄と茎の接根部を引き抜かずに地面すれすれから撮り、茎が這うか直立するか・赤紫色かを確認する\",\n    \"同じ株を月1回撮り続け、開花時期と結実（蒴果の形）を記録すると種の確定とフェノロジー記録になる\",\n    \"午前中の開花時間帯に再訪し、花が開いた状態の正面像を撮る（花は日中・明るい時に開く）\"\n  ],\n  \"claim_refs_used\": [],\n  \"geographic_context\": \"位置情報が未取得のため地域分布は評価保留。防鳥ネットと管理された草地の組み合わせから、公園・果樹園・家庭菜園周辺など人為管理地の縁と推察される。\",\n  \"seasonal_context\": \"観察日時が不明のため季節評価は保留。ただし活発な開花と繁茂から暖候期の撮影と推察される。\",\n  \"area_inference\": {\n    \"vegetation_structure_candidates\": [{\"label\": \"低い草地\", \"why\": \"草丈の低い草本が優占\", \"confidence\": 0.8}],\n    \"succession_stage_candidates\": [{\"label\": \"撹乱地の初期遷移\", \"why\": \"陽性草本の群生\", \"confidence\": 0.6}],\n    \"human_influence_candidates\": [{\"label\": \"管理地の縁\", \"why\": \"防鳥ネット・シート・石敷きが見える\", \"confidence\": 0.8}],\n    \"moisture_regime_candidates\": [{\"label\": \"中生\", \"why\": \"乾き気味の地表と緑葉の共存\", \"confidence\": 0.5}],\n    \"management_hint_candidates\": [{\"label\": \"刈払・踏圧\", \"why\": \"低い草丈とネット沿いの配置\", \"confidence\": 0.5}]\n  },\n  \"management_action_candidates\": [\n    {\n      \"action_kind\": \"mowing\",\n      \"label\": \"草が低く保たれているように見えます\",\n      \"why\": \"草丈が短く均一でネット沿いに低草地が続く\",\n      \"confidence\": 0.5,\n      \"source\": \"photo\",\n      \"source_asset_id\": \"\",\n      \"confirm_state\": \"suggested\"\n    },\n    {\n      \"action_kind\": \"bare_ground\",\n      \"label\": \"ネット際に裸地・石敷き部分が写っています\",\n      \"why\": \"3枚目にシート下の石と露出地が見える\",\n      \"confidence\": 0.6,\n      \"source\": \"photo\",\n      \"source_asset_id\": \"\",\n      \"confirm_state\": \"suggested\"\n    }\n  ],\n  \"shot_suggestions\": [\n    {\"role\": \"close_up_organ\", \"target\": \"花の正面と側面\", \"rationale\": \"花径・萼の毛・花弁の形が残るとカタバミとイモカタバミの判別や季節差の比較がしやすくなる\", \"priority\": \"high\"},\n    {\"role\": \"close_up_organ\", \"target\": \"茎と葉柄の毛\", \"rationale\": \"毛の有無・茎の色が残ると似た仲間の見分けを後から説明しやすくなる\", \"priority\": \"high\"},\n    {\"role\": \"substrate\", \"target\": \"株元の地表と地下部\", \"rationale\": \"這う茎か鱗茎かが分かると種の確定と増え方の理解につながる\", \"priority\": \"medium\"},\n    {\"role\": \"scale_reference\", \"target\": \"小葉と指・コイン\", \"rationale\": \"実寸が残ると別地点・別個体の記録とサイズを比べやすくなる\", \"priority\": \"medium\"}\n  ],\n  \"candidate_readings\": [\n    {\n      \"name\": \"カタバミ属の一種\",\n      \"scientific_name\": \"Oxalis\",\n      \"rank\": \"genus\",\n      \"role\": \"代表候補\",\n      \"visible_features\": [\"倒心形の3小葉が密に群生\", \"黄色い小花を数個咲かせる\", \"地表を這う細い茎\", \"小葉は指と比べ1cm前後\"],\n      \"weak_points\": [\"花の正面詳細が見えない\", \"茎の毛・色が判別できない\", \"地下部が不明\"],\n      \"shooting_tips\": [\"開花株の花を真横からマクロで撮る\", \"茎の根元を地面すれすれの角度で撮る\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留。防鳥ネット沿いの管理地縁に群生する姿は、人為的撹乱地に強いカタバミ類の生態と整合的。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 10.0,\n        \"observed_size_estimate_cm\": 8.0,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"草丈としては小型〜普通\",\n        \"basis\": \"2枚目の指との比較から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"カタバミ\",\n      \"scientific_name\": \"Oxalis corniculata\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"這う茎\", \"小型の黄色い花\", \"倒心形の3小葉\"],\n      \"weak_points\": [\"茎の赤紫色・毛の有無が確認できない\", \"蒴果（実）が見えない\"],\n      \"shooting_tips\": [\"茎全体を俯瞰で撮り這い方を記録\", \"萼の毛をマクロで撮る\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留。世界広布種で人為地・道端に普通に見られる。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 10.0,\n        \"observed_size_estimate_cm\": 8.0,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"平均的サイズ\",\n        \"basis\": \"指との比較から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"イモカタバミ\",\n      \"scientific_name\": \"Oxalis corniculata f. trichophylla または近縁\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"黄色い小花\"],\n      \"weak_points\": [\"地下の鱗茎が確認できない\", \"花の大きさが測れない\"],\n      \"shooting_tips\": [\"株元を掘らずに土際から撮る\", \"花径をスケール付きで撮る\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留。温暖地の道端・畑地に普通。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 15.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"参考値\",\n        \"basis\": \"スケール参照が不十分\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"イネ科・単子葉の草地\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"role\": \"一緒に写るもの\",\n      \"visible_features\": [\"細長い葉の草本が下層に混生\", \"一部乾燥した草\"],\n      \"weak_points\": [\"種の判別材料（穂・葉舌）が見えない\"],\n      \"shooting_tips\": [\"穂が出た株を近接で撮る\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留。管理草地に典型的な構成。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": null,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"参考値\",\n        \"basis\": \"スケール不明\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    }\n  ],\n  \"recommended_media_regions\": [\n    {\"asset_index\": 0, \"rect\": {\"x\": 0.1, \"y\": 0.1, \"width\": 0.8, \"height\": 0.7}, \"frame_time_ms\": 0, \"confidence\": 0.85, \"note\": \"画面全体にカタバミ属の葉と花が広がる\"},\n    {\"asset_index\": 1, \"rect\": {\"x\": 0.3, \"y\": 0.35, \"width\": 0.5, \"height\": 0.4}, \"frame_time_ms\": 0, \"confidence\": 0.8, \"note\": \"指の先付近の株と黄色い花\"},\n    {\"asset_index\": 2, \"rect\": {\"x\": 0.25, \"y\": 0.35, \"width\": 0.75, \"height\": 0.15}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"ネット沿いの群生帯\"}\n  ],\n  \"coexisting_taxa\": [\n    {\n      \"name\": \"イネ科植物\",\n      \"scientific_name\": \"Poaceae\",\n      \"rank\": \"family\",\n      \"confidence\": 0.7,\n      \"note\": \"細長い葉の草地構成種\",\n      \"invasive_lite\": { \"is_invasive\": false, \"mhlw_category\": null },\n      \"media_regions\": [{\"asset_index\": 0, \"rect\": {\"x\": 0.0, \"y\": 0.6, \"width\": 1.0, \"height\": 0.4}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"画面下部の細長い葉\"}]\n    },\n    {\n      \"name\": \"草本群落（低草地）\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"confidence\": 0.8,\n      \"note\": \"管理された草地の縁\",\n      \"invasive_lite\": { \"is_invasive\": false, \"mhlw_category\": null },\n      \"media_regions\": [{\"asset_index\": 2, \"rect\": {\"x\": 0.0, \"y\": 0.35, \"width\": 1.0, \"height\": 0.2}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"ネット沿いの帯状草地\"}]\n    }\n  ],\n  \"size_assessment\": {\n    \"typical_size_cm\": 10.0,\n    \"observed_size_estimate_cm\": 8.0,\n    \"size_class\": \"small\",\n    \"ranking_hint\": \"草丈としては小型\",\n    \"basis\": \"2枚目の指との比較から推定\",\n    \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n  },\n  \"invasive_response\": {\n    \"is_invasive\": false,\n    \"mhlw_category\": null,\n    \"recommended_action\": null,\n    \"action_basis\": \"\",\n    \"regional_caveat\": null,\n    \"legal_warning\": \"\",\n    \"hedge\": \"\"\n  }\n}",
+      "parsed_json": {
+        "confidence_band": "medium",
+        "recommended_rank": "genus",
+        "recommended_taxon_name": "カタバミ属の一種",
+        "recommended_scientific_name": "Oxalis",
+        "taxonomic_candidates": [
+          {
+            "taxon_name": "オックスalis・コルニクラータ（イモカタバミ）",
+            "scientific_name": "Oxalis corniculata",
+            "rank": "species",
+            "probability": 0.45,
+            "diagnostic_features_observed": [
+              "3小葉からなる心臓形の葉",
+              "黄色い小花",
+              "地面を這う茎"
+            ],
+            "diagnostic_features_missing": [
+              "毛の有無",
+              "茎の色（赤紫か緑か）",
+              "地下茎・鱗茎の構造"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "オッキイモカタバミ（オキザリス・デブリス系）",
+            "scientific_name": "Oxalis debilis",
+            "rank": "species",
+            "probability": 0.2,
+            "diagnostic_features_observed": [
+              "黄色い花"
+            ],
+            "diagnostic_features_missing": [
+              "花の大きさ",
+              "鱗茎",
+              "葉の大きさ"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "ムラサキカタバミ",
+            "scientific_name": "Oxalis debilis var. corymbosa",
+            "rank": "species",
+            "probability": 0.1,
+            "diagnostic_features_observed": [],
+            "diagnostic_features_missing": [
+              "花色（ピンク）",
+              "葉色"
+            ],
+            "visual_contradictions": [
+              "花が黄色でピンク色の花冠が見えない"
+            ]
+          }
+        ],
+        "rank_decision_reason": "3小葉の心臓形の葉と黄色い小花からカタバミ属と判断できるが、種レベルの決定には毛の有無・茎の色・花の詳細・地下部が不足のため属で止めた。",
+        "diagnostic_features_observed": [
+          "3小葉からなる倒心形の葉が多数",
+          "黄色い小花を咲かせる",
+          "地面を這うように伸びる茎",
+          "手との比較で小葉が1cm前後と小型"
+        ],
+        "diagnostic_features_missing": [
+          "花の正面からの詳細（萼・花弁の形）",
+          "茎・葉柄の毛の有無",
+          "地下部（根・鱗茎）",
+          "葉の赤紫色の程度"
+        ],
+        "confusable_groups": [
+          {
+            "group_name": "シャクジソウ・クローバー類（マメ科シャクジソウ属）",
+            "distinction_point": "カタバミは小葉の先が深く凹む倒心形。クローバーは楕円形に近い"
+          },
+          {
+            "group_name": "イモカタバミとオッキイモカタバミ",
+            "distinction_point": "花の大きさと地下の鱗茎の大きさで判別"
+          }
+        ],
+        "visual_contradictions": [],
+        "best_specific_taxon_name": "カタバミ（Oxalis corniculata）",
+        "narrative": "3枚の写真すべてで、3小葉の倒心形の葉を持ち黄色い小花を咲かせるカタバミ属植物が主対象。手との比較で小葉は1cm前後と小型で、茎が地表を這う姿からカタバミ（Oxalis corniculata）が最有力。ただしイモカタバミ類との区別には花の正面像・毛の有無・地下部の確認が必要。防鳥ネット沿いの草地に群生しており、管理された環境の縁に見られる。",
+        "simple_summary": "黄色い小さな花が咲く、三つ葉のカタバミの仲間が群生しています。",
+        "observer_boost": "指をスケールとして添えた2枚目のおかげで、小葉の実寸が読み取れる貴重な記録になっています。",
+        "next_step_text": "開花株の花を真横・正面からマクロで撮影し、萼と花弁の形・毛の有無を記録すると種が確定する。",
+        "stop_reason": "花の正面詳細・茎の毛・地下部が写っておらず、種レベルの決定形質が確認できない。",
+        "fun_fact": "カタバミの葉は酸っぱく、昔の子どもは「すっぱ草」と呼んで食べた。シュウ酸によるもので、食べすぎは注意。",
+        "fun_fact_grounded": true,
+        "diagnostic_features_seen": [
+          "倒心形の3小葉",
+          "黄色い小花",
+          "地表を這う茎",
+          "小葉の小型さ（指との比較）"
+        ],
+        "missing_evidence": [
+          "花の正面・側面からの詳細",
+          "茎・葉柄の毛の有無",
+          "地下部（鱗茎・根）",
+          "開花時期の記録"
+        ],
+        "similar_taxa": [
+          {
+            "name": "カタバミ",
+            "rank": "species"
+          },
+          {
+            "name": "イモカタバミ",
+            "rank": "species"
+          },
+          {
+            "name": "オッキイモカタバミ",
+            "rank": "species"
+          }
+        ],
+        "distinguishing_tips": [
+          "カタバミは茎が地表を這い、毛が多く茎が赤紫色を帯びやすい",
+          "イモカタバミは直立気味で地下に小さな鱗茎（イモ）を持つ",
+          "オッキイモカタバミは花・葉ともに大きく、地下に大きな鱗茎がある",
+          "花の大きさ（カタバミは花径8mm前後）と萼の毛で判別できる"
+        ],
+        "confirm_more": [
+          "開花株の花を真横からマクロ撮影し、花径と萼の毛の有無を記録する（カタバミとイモカタバミの判別点）",
+          "葉柄と茎の接根部を引き抜かずに地面すれすれから撮り、茎が這うか直立するか・赤紫色かを確認する",
+          "同じ株を月1回撮り続け、開花時期と結実（蒴果の形）を記録すると種の確定とフェノロジー記録になる",
+          "午前中の開花時間帯に再訪し、花が開いた状態の正面像を撮る（花は日中・明るい時に開く）"
+        ],
+        "claim_refs_used": [],
+        "geographic_context": "位置情報が未取得のため地域分布は評価保留。防鳥ネットと管理された草地の組み合わせから、公園・果樹園・家庭菜園周辺など人為管理地の縁と推察される。",
+        "seasonal_context": "観察日時が不明のため季節評価は保留。ただし活発な開花と繁茂から暖候期の撮影と推察される。",
+        "area_inference": {
+          "vegetation_structure_candidates": [
+            {
+              "label": "低い草地",
+              "why": "草丈の低い草本が優占",
+              "confidence": 0.8
+            }
+          ],
+          "succession_stage_candidates": [
+            {
+              "label": "撹乱地の初期遷移",
+              "why": "陽性草本の群生",
+              "confidence": 0.6
+            }
+          ],
+          "human_influence_candidates": [
+            {
+              "label": "管理地の縁",
+              "why": "防鳥ネット・シート・石敷きが見える",
+              "confidence": 0.8
+            }
+          ],
+          "moisture_regime_candidates": [
+            {
+              "label": "中生",
+              "why": "乾き気味の地表と緑葉の共存",
+              "confidence": 0.5
+            }
+          ],
+          "management_hint_candidates": [
+            {
+              "label": "刈払・踏圧",
+              "why": "低い草丈とネット沿いの配置",
+              "confidence": 0.5
+            }
+          ]
+        },
+        "management_action_candidates": [
+          {
+            "action_kind": "mowing",
+            "label": "草が低く保たれているように見えます",
+            "why": "草丈が短く均一でネット沿いに低草地が続く",
+            "confidence": 0.5,
+            "source": "photo",
+            "source_asset_id": "",
+            "confirm_state": "suggested"
+          },
+          {
+            "action_kind": "bare_ground",
+            "label": "ネット際に裸地・石敷き部分が写っています",
+            "why": "3枚目にシート下の石と露出地が見える",
+            "confidence": 0.6,
+            "source": "photo",
+            "source_asset_id": "",
+            "confirm_state": "suggested"
+          }
+        ],
+        "shot_suggestions": [
+          {
+            "role": "close_up_organ",
+            "target": "花の正面と側面",
+            "rationale": "花径・萼の毛・花弁の形が残るとカタバミとイモカタバミの判別や季節差の比較がしやすくなる",
+            "priority": "high"
+          },
+          {
+            "role": "close_up_organ",
+            "target": "茎と葉柄の毛",
+            "rationale": "毛の有無・茎の色が残ると似た仲間の見分けを後から説明しやすくなる",
+            "priority": "high"
+          },
+          {
+            "role": "substrate",
+            "target": "株元の地表と地下部",
+            "rationale": "這う茎か鱗茎かが分かると種の確定と増え方の理解につながる",
+            "priority": "medium"
+          },
+          {
+            "role": "scale_reference",
+            "target": "小葉と指・コイン",
+            "rationale": "実寸が残ると別地点・別個体の記録とサイズを比べやすくなる",
+            "priority": "medium"
+          }
+        ],
+        "candidate_readings": [
+          {
+            "name": "カタバミ属の一種",
+            "scientific_name": "Oxalis",
+            "rank": "genus",
+            "role": "代表候補",
+            "visible_features": [
+              "倒心形の3小葉が密に群生",
+              "黄色い小花を数個咲かせる",
+              "地表を這う細い茎",
+              "小葉は指と比べ1cm前後"
+            ],
+            "weak_points": [
+              "花の正面詳細が見えない",
+              "茎の毛・色が判別できない",
+              "地下部が不明"
+            ],
+            "shooting_tips": [
+              "開花株の花を真横からマクロで撮る",
+              "茎の根元を地面すれすれの角度で撮る"
+            ],
+            "regional_read": "場所情報がないため地域読みは保留。防鳥ネット沿いの管理地縁に群生する姿は、人為的撹乱地に強いカタバミ類の生態と整合的。",
+            "size_assessment": {
+              "typical_size_cm": 10,
+              "observed_size_estimate_cm": 8,
+              "size_class": "small",
+              "ranking_hint": "草丈としては小型〜普通",
+              "basis": "2枚目の指との比較から推定",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "カタバミ",
+            "scientific_name": "Oxalis corniculata",
+            "rank": "species",
+            "role": "比較候補",
+            "visible_features": [
+              "這う茎",
+              "小型の黄色い花",
+              "倒心形の3小葉"
+            ],
+            "weak_points": [
+              "茎の赤紫色・毛の有無が確認できない",
+              "蒴果（実）が見えない"
+            ],
+            "shooting_tips": [
+              "茎全体を俯瞰で撮り這い方を記録",
+              "萼の毛をマクロで撮る"
+            ],
+            "regional_read": "場所情報がないため地域読みは保留。世界広布種で人為地・道端に普通に見られる。",
+            "size_assessment": {
+              "typical_size_cm": 10,
+              "observed_size_estimate_cm": 8,
+              "size_class": "typical",
+              "ranking_hint": "平均的サイズ",
+              "basis": "指との比較から推定",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "イモカタバミ",
+            "scientific_name": "Oxalis corniculata f. trichophylla または近縁",
+            "rank": "species",
+            "role": "比較候補",
+            "visible_features": [
+              "黄色い小花"
+            ],
+            "weak_points": [
+              "地下の鱗茎が確認できない",
+              "花の大きさが測れない"
+            ],
+            "shooting_tips": [
+              "株元を掘らずに土際から撮る",
+              "花径をスケール付きで撮る"
+            ],
+            "regional_read": "場所情報がないため地域読みは保留。温暖地の道端・畑地に普通。",
+            "size_assessment": {
+              "typical_size_cm": 15,
+              "observed_size_estimate_cm": null,
+              "size_class": "typical",
+              "ranking_hint": "参考値",
+              "basis": "スケール参照が不十分",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "イネ科・単子葉の草地",
+            "scientific_name": "",
+            "rank": "lifeform",
+            "role": "一緒に写るもの",
+            "visible_features": [
+              "細長い葉の草本が下層に混生",
+              "一部乾燥した草"
+            ],
+            "weak_points": [
+              "種の判別材料（穂・葉舌）が見えない"
+            ],
+            "shooting_tips": [
+              "穂が出た株を近接で撮る"
+            ],
+            "regional_read": "場所情報がないため地域読みは保留。管理草地に典型的な構成。",
+            "size_assessment": {
+              "typical_size_cm": null,
+              "observed_size_estimate_cm": null,
+              "size_class": "typical",
+              "ranking_hint": "参考値",
+              "basis": "スケール不明",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          }
+        ],
+        "recommended_media_regions": [
+          {
+            "asset_index": 0,
+            "rect": {
+              "x": 0.1,
+              "y": 0.1,
+              "width": 0.8,
+              "height": 0.7
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.85,
+            "note": "画面全体にカタバミ属の葉と花が広がる"
+          },
+          {
+            "asset_index": 1,
+            "rect": {
+              "x": 0.3,
+              "y": 0.35,
+              "width": 0.5,
+              "height": 0.4
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.8,
+            "note": "指の先付近の株と黄色い花"
+          },
+          {
+            "asset_index": 2,
+            "rect": {
+              "x": 0.25,
+              "y": 0.35,
+              "width": 0.75,
+              "height": 0.15
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.7,
+            "note": "ネット沿いの群生帯"
+          }
+        ],
+        "coexisting_taxa": [
+          {
+            "name": "イネ科植物",
+            "scientific_name": "Poaceae",
+            "rank": "family",
+            "confidence": 0.7,
+            "note": "細長い葉の草地構成種",
+            "invasive_lite": {
+              "is_invasive": false,
+              "mhlw_category": null
+            },
+            "media_regions": [
+              {
+                "asset_index": 0,
+                "rect": {
+                  "x": 0,
+                  "y": 0.6,
+                  "width": 1,
+                  "height": 0.4
+                },
+                "frame_time_ms": 0,
+                "confidence": 0.7,
+                "note": "画面下部の細長い葉"
+              }
+            ]
+          },
+          {
+            "name": "草本群落（低草地）",
+            "scientific_name": "",
+            "rank": "lifeform",
+            "confidence": 0.8,
+            "note": "管理された草地の縁",
+            "invasive_lite": {
+              "is_invasive": false,
+              "mhlw_category": null
+            },
+            "media_regions": [
+              {
+                "asset_index": 2,
+                "rect": {
+                  "x": 0,
+                  "y": 0.35,
+                  "width": 1,
+                  "height": 0.2
+                },
+                "frame_time_ms": 0,
+                "confidence": 0.7,
+                "note": "ネット沿いの帯状草地"
+              }
+            ]
+          }
+        ],
+        "size_assessment": {
+          "typical_size_cm": 10,
+          "observed_size_estimate_cm": 8,
+          "size_class": "small",
+          "ranking_hint": "草丈としては小型",
+          "basis": "2枚目の指との比較から推定",
+          "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+        },
+        "invasive_response": {
+          "is_invasive": false,
+          "mhlw_category": null,
+          "recommended_action": null,
+          "action_basis": "",
+          "regional_caveat": null,
+          "legal_warning": "",
+          "hedge": ""
+        }
+      },
+      "raw_content_redacted": false,
+      "internal_reasoning_saved": false
+    },
+    {
+      "visitId": "record-1781252770584",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": null,
+      "latencyMs": 60641,
+      "inputTokens": 16843,
+      "outputTokens": 3950,
+      "schemaValid": true,
+      "raw_final_content": null,
+      "parsed_json": null,
+      "raw_content_redacted": true,
+      "internal_reasoning_saved": false
+    },
+    {
+      "visitId": "record-1784430374598",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": null,
+      "latencyMs": 56194,
+      "inputTokens": 22760,
+      "outputTokens": 3586,
+      "schemaValid": true,
+      "raw_final_content": "{\n  \"confidence_band\": \"high\",\n  \"recommended_rank\": \"species\",\n  \"recommended_taxon_name\": \"チリベッコウ（アカリファ・ヒスピダ）\",\n  \"recommended_scientific_name\": \"Acalypha hispida\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"チリベッコウ\",\n      \"scientific_name\": \"Acalypha hispida\",\n      \"rank\": \"species\",\n      \"probability\": 0.85,\n      \"diagnostic_features_observed\": [\n        \"鮮紅色の柔毛に覆われた下垂する穂状花序（猫の尾状）\",\n        \"卵形で鋸歯縁の葉、3〜5本の掌状脈\",\n        \"花序が長さ10cm前後で多数咲く\"\n      ],\n      \"diagnostic_features_missing\": [\n        \"雌花の鱗片状苞の詳細\",\n        \"白花品種（A. hispida 'Alba'）との色比較は不要だが花序基部の構造\"\n      ],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"アカリファ属の他種\",\n      \"scientific_name\": \"Acalypha\",\n      \"rank\": \"genus\",\n      \"probability\": 0.1,\n      \"diagnostic_features_observed\": [\"葉形・葉脈はアカリファ属と整合\"],\n      \"diagnostic_features_missing\": [\"花序の形がヒスピダ特有で他種は否定的\"],\n      \"visual_contradictions\": []\n    }\n  ],\n  \"rank_decision_reason\": \"下垂する鮮紅色の柔毛穂と鋸歯のある掌状脈葉は Acalypha hispida の決定形質で、種レベルまで絞れる。\",\n  \"diagnostic_features_observed\": [\n    \"紅色の長い毛に覆われた下垂する穂状花序\",\n    \"鋸歯縁・掌状脈の卵形葉\",\n    \"花序が葉腋から下垂して多数つく\"\n  ],\n  \"diagnostic_features_missing\": [\"花の拡大（雌花の苞・子房）\", \"茎の毛の有無の接写\"],\n  \"confusable_groups\": [\n    {\"group_name\": \"ケイトウ（ヒユ科）\", \"distinction_point\": \"ケイトウは鶏冠状・羽状の花序で葉は互生の全縁寄り。本種は尾状の柔毛穂で掌状脈\"},\n    {\"group_name\": \"ブラッシングジンジャー等のショウガ科\", \"distinction_point\": \"ショウガ科は花序が鱗片状苞の重なりで毛穂ではない\"}\n  ],\n  \"visual_contradictions\": [],\n  \"best_specific_taxon_name\": \"チリベッコウ\",\n  \"narrative\": \"鮮紅色の柔毛に覆われた下垂する尾状花序と、鋸歯のある掌状脈の卵形葉からトウダイグサ科アカリファ属のチリベッコウ（Acalypha hispida）と推定する。熱帯アジア原産の観賞用低木で、日本では暖地の庭や公園に植栽される。3枚目の広角では株全体が低く茂って咲いており、植栽・半野生状態と読める。位置情報がないため分布評価は保留。周囲にハッカ類やフェンネルらしき草本が混生している。\",\n  \"simple_summary\": \"赤い毛のふわふわした尾みたいな花が特徴的な熱帯の庭木です。\",\n  \"observer_boost\": \"花序の全体・接写・株全体の3枚構成で、葉形と花序の形が同時に確認でき同定しやすい記録です。\",\n  \"next_step_text\": \"花序を真横から接写し、基部の雌花の苞と茎の毛を撮ると品種・状態の記録が確実になる。\",\n  \"stop_reason\": \"花序と葉の決定形質が揃っており種レベルで十分。花の微細構造は観賞目的では不要。\",\n  \"fun_fact\": \"チリベッコウの赤いふわふわの部分は花びらではなく、無数の雌花が集まった花序。名前は「塵帚（ちりぼうき）」に似ていることに由来する。\",\n  \"fun_fact_grounded\": true,\n  \"diagnostic_features_seen\": [\n    \"鮮紅色の柔毛に覆われた下垂する尾状花序\",\n    \"鋸歯縁・掌状3〜5脈の卵形葉\",\n    \"花序が葉腋から垂れ下がる\"\n  ],\n  \"missing_evidence\": [\"雌花の苞の拡大写真\", \"茎・葉柄の毛の有無\", \"開花期の記録（日時不明）\"],\n  \"similar_taxa\": [\n    {\"name\": \"ケイトウ\", \"rank\": \"species\"},\n    {\"name\": \"アカリファ・ウィルケシアナ\", \"rank\": \"species\"}\n  ],\n  \"distinguishing_tips\": [\n    \"ケイトウは鶏冠状や羽状の花序で、本種は細長い尾状の柔毛穂\",\n    \"本種の葉は掌状脈が明瞭で鋸歯が目立つ。ケイトウの葉は全縁に近い\",\n    \"白花の園芸品種（シロバナチリベッコウ）は花序の色だけで区別\"\n  ],\n  \"confirm_more\": [\n    \"花序の基部を接写し、雌花の小さな苞と柱頭の形を撮る（開花期に真横から）\",\n    \"葉の表裏をマクロで撮り、葉面の毛と鋸歯の様子を記録すると株の状態比較ができる\",\n    \"同じ株を月1回撮り続け、花序の数と長さの季節変化（暖地ではほぼ周年開花）を残す\",\n    \"周囲のハッカ類・フェンネルなど混生草本も一緒に撮ると、この場所の植栽構成が後から説明しやすくなる\"\n  ],\n  \"claim_refs_used\": [],\n  \"geographic_context\": \"位置情報が未取得のため地域分布は評価保留。熱帯原産の観賞樹で、日本では暖地・植栽地で見られる。\",\n  \"seasonal_context\": \"観察日時が不明。暖地では周年開花するが、温暖期に最も花序が充実する。\",\n  \"area_inference\": {\n    \"vegetation_structure_candidates\": [\n      {\"label\": \"植栽低木帯\", \"why\": \"観賞用低木がまとめて茂る\", \"confidence\": 0.7}\n    ],\n    \"succession_stage_candidates\": [],\n    \"human_influence_candidates\": [\n      {\"label\": \"庭・公園的植栽\", \"why\": \"観賞植物と香草が混植\", \"confidence\": 0.7}\n    ],\n    \"moisture_regime_candidates\": [\n      {\"label\": \"中生\", \"why\": \"草本性植物が良く茂る\", \"confidence\": 0.5}\n    ],\n    \"management_hint_candidates\": [\n      {\"label\": \"管理された植栽地\", \"why\": \"複数種が整然と混植\", \"confidence\": 0.5}\n    ]\n  },\n  \"management_action_candidates\": [],\n  \"shot_suggestions\": [\n    {\"role\": \"close_up_organ\", \"target\": \"花序基部の雌花\", \"rationale\": \"苞や柱頭の形が残ると開花状態や時期の比較ができ、経時記録で花序の伸長が追える\", \"priority\": \"medium\"},\n    {\"role\": \"habitat_wide\", \"target\": \"株全体と混生草本\", \"rationale\": \"周囲のハッカ類やフェンネルが残ると、この場所の植栽構成を別地点・別季節の記録と比べやすくなる\", \"priority\": \"medium\"},\n    {\"role\": \"scale_reference\", \"target\": \"花序の長さ（物差し併記）\", \"rationale\": \"花序長が残ると個体間・季節間の比較や生育状態の説明がしやすくなる\", \"priority\": \"medium\"}\n  ],\n  \"candidate_readings\": [\n    {\n      \"name\": \"チリベッコウ（アカリファ・ヒスピダ）\",\n      \"scientific_name\": \"Acalypha hispida\",\n      \"rank\": \"species\",\n      \"role\": \"代表候補\",\n      \"visible_features\": [\n        \"鮮紅色の柔毛に覆われた下垂する尾状花序（長さ10cm前後）\",\n        \"鋸歯縁で掌状脈の明瞭な卵形葉\",\n        \"花序が複数つき株全体で繰り返し見える\"\n      ],\n      \"weak_points\": [\"雌花の微細構造は未撮影\", \"観察日時・位置が不明\"],\n      \"shooting_tips\": [\"花序を真横から接写\", \"葉裏の毛をマクロで撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。観賞用植栽が野生化・維持されている場面と読める。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 12.0,\n        \"observed_size_estimate_cm\": 10.0,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"花序長としては標準的\",\n        \"basis\": \"指との比較から花序長を推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"ハッカ類（シソ科の香草）\",\n      \"scientific_name\": \"Mentha\",\n      \"rank\": \"genus\",\n      \"role\": \"一緒に写るもの\",\n      \"visible_features\": [\n        \"対生の鋸歯ある卵形葉で葉面に皺縮（3枚目）\",\n        \"茎が地上を這う・立ち上がる草本\"\n      ],\n      \"weak_points\": [\"花が見えず種確定不可\", \"レモンバーム等の近縁香草との区別は葉の香りが必要\"],\n      \"shooting_tips\": [\"花序と葉の付き方を接写\", \"葉を揉んだ香りの記録を添える\"],\n      \"regional_read\": \"植栽・半野生の香草が混生しており、庭や公園的な管理地の読みにつながる。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 30.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"草丈30cm前後の草本\",\n        \"basis\": \"スケール参照が不鮮明\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"フェンネル\",\n      \"scientific_name\": \"Foeniculum vulgare\",\n      \"rank\": \"species\",\n      \"role\": \"一緒に写るもの\",\n      \"visible_features\": [\"糸状に細裂した葉（3枚目上部）\", \"太い中空の茎\"],\n      \"weak_points\": [\"花・果実が見えない\", \"ディル等との区別は未確定\"],\n      \"shooting_tips\": [\"傘形の花と果実を撮る\", \"茎の色と粉白の有無を確認\"],\n      \"regional_read\": \"香草の混植から管理された植栽地の可能性。帰化・逸出の評価は位置情報がないため保留。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 150.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"large\",\n        \"ranking_hint\": \"高性草本\",\n        \"basis\": \"スケール参照が不鮮明\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    }\n  ],\n  \"recommended_media_regions\": [\n    {\"asset_index\": 0, \"rect\": {\"x\": 0.2, \"y\": 0.18, \"width\": 0.25, \"height\": 0.28}, \"frame_time_ms\": 0, \"confidence\": 0.9, \"note\": \"左上の主花序\"},\n    {\"asset_index\": 1, \"rect\": {\"x\": 0.35, \"y\": 0.0, \"width\": 0.35, \"height\": 0.25}, \"frame_time_ms\": 0, \"confidence\": 0.9, \"note\": \"上部の花序接写\"}\n  ],\n  \"coexisting_taxa\": [\n    {\n      \"name\": \"ハッカ類（シソ科の香草）\",\n      \"scientific_name\": \"Mentha\",\n      \"rank\": \"genus\",\n      \"confidence\": 0.6,\n      \"note\": \"植栽または半野生の香草。種確定は花が必要\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [\n        {\"asset_index\": 2, \"rect\": {\"x\": 0.2, \"y\": 0.45, \"width\": 0.4, \"height\": 0.35}, \"frame_time_ms\": 0, \"confidence\": 0.6, \"note\": \"皺のある対生葉の草本\"}\n      ]\n    },\n    {\n      \"name\": \"フェンネル\",\n      \"scientific_name\": \"Foeniculum vulgare\",\n      \"rank\": \"species\",\n      \"confidence\": 0.5,\n      \"note\": \"細裂葉と中空茎から推定。花で確定可\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [\n        {\"asset_index\": 2, \"rect\": {\"x\": 0.3, \"y\": 0.05, \"width\": 0.5, \"height\": 0.3}, \"frame_time_ms\": 0, \"confidence\": 0.55, \"note\": \"上部の糸状葉\"}\n      ]\n    }\n  ],\n  \"size_assessment\": {\n    \"typical_size_cm\": 12.0,\n    \"observed_size_estimate_cm\": 10.0,\n    \"size_class\": \"typical\",\n    \"ranking_hint\": \"花序長としては標準的\",\n    \"basis\": \"2枚目の指との比較から推定\",\n    \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n  },\n  \"invasive_response\": {\n    \"is_invasive\": false,\n    \"mhlw_category\": null,\n    \"recommended_action\": null,\n    \"action_basis\": \"\",\n    \"regional_caveat\": null,\n    \"legal_warning\": null,\n    \"hedge\": \"AI判定です。駆除前に自治体・環境省にご確認ください。\"\n  }\n}",
+      "parsed_json": {
+        "confidence_band": "high",
+        "recommended_rank": "species",
+        "recommended_taxon_name": "チリベッコウ（アカリファ・ヒスピダ）",
+        "recommended_scientific_name": "Acalypha hispida",
+        "taxonomic_candidates": [
+          {
+            "taxon_name": "チリベッコウ",
+            "scientific_name": "Acalypha hispida",
+            "rank": "species",
+            "probability": 0.85,
+            "diagnostic_features_observed": [
+              "鮮紅色の柔毛に覆われた下垂する穂状花序（猫の尾状）",
+              "卵形で鋸歯縁の葉、3〜5本の掌状脈",
+              "花序が長さ10cm前後で多数咲く"
+            ],
+            "diagnostic_features_missing": [
+              "雌花の鱗片状苞の詳細",
+              "白花品種（A. hispida 'Alba'）との色比較は不要だが花序基部の構造"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "アカリファ属の他種",
+            "scientific_name": "Acalypha",
+            "rank": "genus",
+            "probability": 0.1,
+            "diagnostic_features_observed": [
+              "葉形・葉脈はアカリファ属と整合"
+            ],
+            "diagnostic_features_missing": [
+              "花序の形がヒスピダ特有で他種は否定的"
+            ],
+            "visual_contradictions": []
+          }
+        ],
+        "rank_decision_reason": "下垂する鮮紅色の柔毛穂と鋸歯のある掌状脈葉は Acalypha hispida の決定形質で、種レベルまで絞れる。",
+        "diagnostic_features_observed": [
+          "紅色の長い毛に覆われた下垂する穂状花序",
+          "鋸歯縁・掌状脈の卵形葉",
+          "花序が葉腋から下垂して多数つく"
+        ],
+        "diagnostic_features_missing": [
+          "花の拡大（雌花の苞・子房）",
+          "茎の毛の有無の接写"
+        ],
+        "confusable_groups": [
+          {
+            "group_name": "ケイトウ（ヒユ科）",
+            "distinction_point": "ケイトウは鶏冠状・羽状の花序で葉は互生の全縁寄り。本種は尾状の柔毛穂で掌状脈"
+          },
+          {
+            "group_name": "ブラッシングジンジャー等のショウガ科",
+            "distinction_point": "ショウガ科は花序が鱗片状苞の重なりで毛穂ではない"
+          }
+        ],
+        "visual_contradictions": [],
+        "best_specific_taxon_name": "チリベッコウ",
+        "narrative": "鮮紅色の柔毛に覆われた下垂する尾状花序と、鋸歯のある掌状脈の卵形葉からトウダイグサ科アカリファ属のチリベッコウ（Acalypha hispida）と推定する。熱帯アジア原産の観賞用低木で、日本では暖地の庭や公園に植栽される。3枚目の広角では株全体が低く茂って咲いており、植栽・半野生状態と読める。位置情報がないため分布評価は保留。周囲にハッカ類やフェンネルらしき草本が混生している。",
+        "simple_summary": "赤い毛のふわふわした尾みたいな花が特徴的な熱帯の庭木です。",
+        "observer_boost": "花序の全体・接写・株全体の3枚構成で、葉形と花序の形が同時に確認でき同定しやすい記録です。",
+        "next_step_text": "花序を真横から接写し、基部の雌花の苞と茎の毛を撮ると品種・状態の記録が確実になる。",
+        "stop_reason": "花序と葉の決定形質が揃っており種レベルで十分。花の微細構造は観賞目的では不要。",
+        "fun_fact": "チリベッコウの赤いふわふわの部分は花びらではなく、無数の雌花が集まった花序。名前は「塵帚（ちりぼうき）」に似ていることに由来する。",
+        "fun_fact_grounded": true,
+        "diagnostic_features_seen": [
+          "鮮紅色の柔毛に覆われた下垂する尾状花序",
+          "鋸歯縁・掌状3〜5脈の卵形葉",
+          "花序が葉腋から垂れ下がる"
+        ],
+        "missing_evidence": [
+          "雌花の苞の拡大写真",
+          "茎・葉柄の毛の有無",
+          "開花期の記録（日時不明）"
+        ],
+        "similar_taxa": [
+          {
+            "name": "ケイトウ",
+            "rank": "species"
+          },
+          {
+            "name": "アカリファ・ウィルケシアナ",
+            "rank": "species"
+          }
+        ],
+        "distinguishing_tips": [
+          "ケイトウは鶏冠状や羽状の花序で、本種は細長い尾状の柔毛穂",
+          "本種の葉は掌状脈が明瞭で鋸歯が目立つ。ケイトウの葉は全縁に近い",
+          "白花の園芸品種（シロバナチリベッコウ）は花序の色だけで区別"
+        ],
+        "confirm_more": [
+          "花序の基部を接写し、雌花の小さな苞と柱頭の形を撮る（開花期に真横から）",
+          "葉の表裏をマクロで撮り、葉面の毛と鋸歯の様子を記録すると株の状態比較ができる",
+          "同じ株を月1回撮り続け、花序の数と長さの季節変化（暖地ではほぼ周年開花）を残す",
+          "周囲のハッカ類・フェンネルなど混生草本も一緒に撮ると、この場所の植栽構成が後から説明しやすくなる"
+        ],
+        "claim_refs_used": [],
+        "geographic_context": "位置情報が未取得のため地域分布は評価保留。熱帯原産の観賞樹で、日本では暖地・植栽地で見られる。",
+        "seasonal_context": "観察日時が不明。暖地では周年開花するが、温暖期に最も花序が充実する。",
+        "area_inference": {
+          "vegetation_structure_candidates": [
+            {
+              "label": "植栽低木帯",
+              "why": "観賞用低木がまとめて茂る",
+              "confidence": 0.7
+            }
+          ],
+          "succession_stage_candidates": [],
+          "human_influence_candidates": [
+            {
+              "label": "庭・公園的植栽",
+              "why": "観賞植物と香草が混植",
+              "confidence": 0.7
+            }
+          ],
+          "moisture_regime_candidates": [
+            {
+              "label": "中生",
+              "why": "草本性植物が良く茂る",
+              "confidence": 0.5
+            }
+          ],
+          "management_hint_candidates": [
+            {
+              "label": "管理された植栽地",
+              "why": "複数種が整然と混植",
+              "confidence": 0.5
+            }
+          ]
+        },
+        "management_action_candidates": [],
+        "shot_suggestions": [
+          {
+            "role": "close_up_organ",
+            "target": "花序基部の雌花",
+            "rationale": "苞や柱頭の形が残ると開花状態や時期の比較ができ、経時記録で花序の伸長が追える",
+            "priority": "medium"
+          },
+          {
+            "role": "habitat_wide",
+            "target": "株全体と混生草本",
+            "rationale": "周囲のハッカ類やフェンネルが残ると、この場所の植栽構成を別地点・別季節の記録と比べやすくなる",
+            "priority": "medium"
+          },
+          {
+            "role": "scale_reference",
+            "target": "花序の長さ（物差し併記）",
+            "rationale": "花序長が残ると個体間・季節間の比較や生育状態の説明がしやすくなる",
+            "priority": "medium"
+          }
+        ],
+        "candidate_readings": [
+          {
+            "name": "チリベッコウ（アカリファ・ヒスピダ）",
+            "scientific_name": "Acalypha hispida",
+            "rank": "species",
+            "role": "代表候補",
+            "visible_features": [
+              "鮮紅色の柔毛に覆われた下垂する尾状花序（長さ10cm前後）",
+              "鋸歯縁で掌状脈の明瞭な卵形葉",
+              "花序が複数つき株全体で繰り返し見える"
+            ],
+            "weak_points": [
+              "雌花の微細構造は未撮影",
+              "観察日時・位置が不明"
+            ],
+            "shooting_tips": [
+              "花序を真横から接写",
+              "葉裏の毛をマクロで撮る"
+            ],
+            "regional_read": "位置情報がないため地域読みは保留。観賞用植栽が野生化・維持されている場面と読める。",
+            "size_assessment": {
+              "typical_size_cm": 12,
+              "observed_size_estimate_cm": 10,
+              "size_class": "typical",
+              "ranking_hint": "花序長としては標準的",
+              "basis": "指との比較から花序長を推定",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "ハッカ類（シソ科の香草）",
+            "scientific_name": "Mentha",
+            "rank": "genus",
+            "role": "一緒に写るもの",
+            "visible_features": [
+              "対生の鋸歯ある卵形葉で葉面に皺縮（3枚目）",
+              "茎が地上を這う・立ち上がる草本"
+            ],
+            "weak_points": [
+              "花が見えず種確定不可",
+              "レモンバーム等の近縁香草との区別は葉の香りが必要"
+            ],
+            "shooting_tips": [
+              "花序と葉の付き方を接写",
+              "葉を揉んだ香りの記録を添える"
+            ],
+            "regional_read": "植栽・半野生の香草が混生しており、庭や公園的な管理地の読みにつながる。",
+            "size_assessment": {
+              "typical_size_cm": 30,
+              "observed_size_estimate_cm": null,
+              "size_class": "typical",
+              "ranking_hint": "草丈30cm前後の草本",
+              "basis": "スケール参照が不鮮明",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "フェンネル",
+            "scientific_name": "Foeniculum vulgare",
+            "rank": "species",
+            "role": "一緒に写るもの",
+            "visible_features": [
+              "糸状に細裂した葉（3枚目上部）",
+              "太い中空の茎"
+            ],
+            "weak_points": [
+              "花・果実が見えない",
+              "ディル等との区別は未確定"
+            ],
+            "shooting_tips": [
+              "傘形の花と果実を撮る",
+              "茎の色と粉白の有無を確認"
+            ],
+            "regional_read": "香草の混植から管理された植栽地の可能性。帰化・逸出の評価は位置情報がないため保留。",
+            "size_assessment": {
+              "typical_size_cm": 150,
+              "observed_size_estimate_cm": null,
+              "size_class": "large",
+              "ranking_hint": "高性草本",
+              "basis": "スケール参照が不鮮明",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          }
+        ],
+        "recommended_media_regions": [
+          {
+            "asset_index": 0,
+            "rect": {
+              "x": 0.2,
+              "y": 0.18,
+              "width": 0.25,
+              "height": 0.28
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.9,
+            "note": "左上の主花序"
+          },
+          {
+            "asset_index": 1,
+            "rect": {
+              "x": 0.35,
+              "y": 0,
+              "width": 0.35,
+              "height": 0.25
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.9,
+            "note": "上部の花序接写"
+          }
+        ],
+        "coexisting_taxa": [
+          {
+            "name": "ハッカ類（シソ科の香草）",
+            "scientific_name": "Mentha",
+            "rank": "genus",
+            "confidence": 0.6,
+            "note": "植栽または半野生の香草。種確定は花が必要",
+            "invasive_lite": {
+              "is_invasive": false,
+              "mhlw_category": null
+            },
+            "media_regions": [
+              {
+                "asset_index": 2,
+                "rect": {
+                  "x": 0.2,
+                  "y": 0.45,
+                  "width": 0.4,
+                  "height": 0.35
+                },
+                "frame_time_ms": 0,
+                "confidence": 0.6,
+                "note": "皺のある対生葉の草本"
+              }
+            ]
+          },
+          {
+            "name": "フェンネル",
+            "scientific_name": "Foeniculum vulgare",
+            "rank": "species",
+            "confidence": 0.5,
+            "note": "細裂葉と中空茎から推定。花で確定可",
+            "invasive_lite": {
+              "is_invasive": false,
+              "mhlw_category": null
+            },
+            "media_regions": [
+              {
+                "asset_index": 2,
+                "rect": {
+                  "x": 0.3,
+                  "y": 0.05,
+                  "width": 0.5,
+                  "height": 0.3
+                },
+                "frame_time_ms": 0,
+                "confidence": 0.55,
+                "note": "上部の糸状葉"
+              }
+            ]
+          }
+        ],
+        "size_assessment": {
+          "typical_size_cm": 12,
+          "observed_size_estimate_cm": 10,
+          "size_class": "typical",
+          "ranking_hint": "花序長としては標準的",
+          "basis": "2枚目の指との比較から推定",
+          "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+        },
+        "invasive_response": {
+          "is_invasive": false,
+          "mhlw_category": null,
+          "recommended_action": null,
+          "action_basis": "",
+          "regional_caveat": null,
+          "legal_warning": null,
+          "hedge": "AI判定です。駆除前に自治体・環境省にご確認ください。"
+        }
+      },
+      "raw_content_redacted": false,
+      "internal_reasoning_saved": false
+    },
+    {
+      "visitId": "record-1784430118720",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": null,
+      "latencyMs": 62670,
+      "inputTokens": 22760,
+      "outputTokens": 4096,
+      "schemaValid": false,
+      "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"ツタ属（ノブドウ類）\",\n  \"recommended_scientific_name\": \"Parthenocissus\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"ツタ（ニシキツタ）\",\n      \"scientific_name\": \"Parthenocissus tricuspidata\",\n      \"rank\": \"species\",\n      \"probability\": 0.55,\n      \"diagnostic_features_observed\": [\"つる性で巻きひげがある\", \"葉が3小葉〜単葉で混在し縁に粗い鋸歯\", \"若葉が赤褐色の茎から出る\"],\n      \"diagnostic_features_missing\": [\"巻きひげ先端の吸盤の有無\", \"成熟葉の形（3裂〜5裂）の揃い\", \"花・果実\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"アメリカヅタ（セイヨウツタ）\",\n      \"scientific_name\": \"Parthenocissus quinquefolia\",\n      \"rank\": \"species\",\n      \"probability\": 0.25,\n      \"diagnostic_features_observed\": [\"掌状の複葉で小葉に鋸歯\", \"つる性\"],\n      \"diagnostic_features_missing\": [\"小葉数が安定して5枚かの確認\", \"葉柄・巻きひげの詳細\"],\n      \"visual_contradictions\": [\"多くの葉が3小葉で、5小葉の明確な個体が確認しづらい\"]\n    },\n    {\n      \"taxon_name\": \"ノブドウ\",\n      \"scientific_name\": \"Ampelopsis glandulosa\",\n      \"rank\": \"species\",\n      \"probability\": 0.15,\n      \"diagnostic_features_observed\": [\"つる性で複葉\"],\n      \"diagnostic_features_missing\": [\"巻きひげと花序の対生配置\", \"果実の色\"],\n      \"visual_contradictions\": [\"葉縁の鋸歯が鋭く大きく、ノブドウの鈍い歯縁とはやや異なる印象\"]\n    }\n  ],\n  \"rank_decision_reason\": \"つる性・掌状複葉・鋸歯のある小葉からブドウ科ツタ属までは絞れるが、吸盤付き巻きひげや小葉数の安定性が写っておらず、ツタとアメリカヅタの種判別は保留。\",\n  \"diagnostic_features_observed\": [\"手で持った葉の裏に明瞭な側脈と細かい網目\", \"小葉の縁に粗い鋸歯\", \"赤みのあるつる茎と巻きひげ\", \"コンクリート柱の基部から這い出すつる性の生育\"],\n  \"diagnostic_features_missing\": [\"巻きひげ先端の吸盤\", \"成熟葉の葉形の揃い\", \"花・果実\", \"葉柄基部の細部\"],\n  \"confusable_groups\": [\n    {\"group_name\": \"ノブドウ属（Ampelopsis）\", \"distinction_point\": \"巻きひげと花序が対生するのはノブドウ属。ツタ属は巻きひげのみ\"},\n    {\"group_name\": \"ブドウ属（Vitis）\", \"distinction_point\": \"ブドウ属は巻きひげに吸盤がなく樹皮が剥がれる\"}\n  ],\n  \"visual_contradictions\": [],\n  \"best_specific_taxon_name\": \"\",\n  \"narrative\": \"3枚とも、コンクリート柱の基部や礫の間から這い出すつる性植物で、掌状の複葉（多くは3小葉）と粗い鋸歯、赤みのある茎が見え、ブドウ科ツタ属と判断できる。若い個体では単葉と複葉が混在するのがツタの特徴だが、巻きひげの吸盤や成熟葉の形が確認できず、在来のツタか外来のアメリカヅタかは種レベルで保留。位置情報がないため分布からの裏付けも取れない。\",\n  \"simple_summary\": \"石の間から伸びるツタの仲間。巻きひげの先を見れば種類まで絞り込めます。\",\n  \"observer_boost\": \"葉裏の脈がはっきり写る1枚目と、生育環境が分かる2枚目の組み合わせで、形質と生息文脈を同時に確認できています。\",\n  \"next_step_text\": \"つるの先端の巻きひげを接写し、先端に小さな吸盤があるかを撮るとツタかアメリカヅタかが判別できます。\",\n  \"stop_reason\": \"巻きひげの吸盤・成熟葉形・花果が写っておらず種確定の決定形質が不足\",\n  \"fun_fact\": \"ツタの巻きひげの先端には吸盤ができ、壁やコンクリートに強く接着して高所まで登ることができる。\",\n  \"fun_fact_grounded\": true,\n  \"diagnostic_features_seen\": [\"掌状の3小葉性複葉\", \"小葉縁の粗い鋸歯\", \"葉裏の明瞭な掌状脈と網目\", \"赤みのあるつる茎と巻きひげ\"],\n  \"missing_evidence\": [\"巻きひげ先端の吸盤の有無\", \"成熟葉の葉形（3裂〜5裂）\", \"花・果実\", \"小葉数の安定性\"],\n  \"similar_taxa\": [\n    {\"name\": \"ツタ\", \"rank\": \"species\"},\n    {\"name\": \"アメリカヅタ\", \"rank\": \"species\"},\n    {\"name\": \"ノブドウ\", \"rank\": \"species\"}\n  ],\n  \"distinguishing_tips\": [\n    \"巻きひげの先に吸盤があればツタ属（ツタまたはアメリカヅタ）\",\n    \"小葉が安定して5枚ならアメリカヅタの可能性が高い\",\n    \"巻きひげと花序が対生していればノブドウ属\",\n    \"若葉で単葉と複葉が混在するのはツタに典型的\"\n  ],\n  \"confirm_more\": [\n    \"つるの先端の巻きひげをマクロで撮り、先端の吸盤の有無を確認する（ツタ vs アメリカヅタの決め手）\",\n    \"同じ株の成熟葉を数枚、表裏とも撮り、小葉数と葉形の揃いを記録する\",\n    \"秋（10〜11月）に再訪し、葉の紅葉と果実の色を撮る。果実の色で属の確認ができる\",\n    \"同じ株を月1回撮り続け、這い出しから展葉・紅葉までのフェノロジーを残す\"\n  ],\n  \"claim_refs_used\": [],\n  \"geographic_context\": \"位置情報が未取得のため地域分布は評価保留。コンクリート柱・礫敷きの人工的な縁辺環境である点のみ読み取れる。\",\n  \"seasonal_context\": \"季節情報が未取得。葉が展開した緑葉状態から生育期（晩春〜夏）と推察されるに留まる。\",\n  \"area_inference\": {\n    \"vegetation_structure_candidates\": [{\"label\": \"縁辺のつる植物帯\", \"why\": \"柱基部に這うつる性草本\", \"confidence\": 0.7}],\n    \"succession_stage_candidates\": [{\"label\": \"初期遷移\", \"why\": \"礫地に低草とつるが先駆\", \"confidence\": 0.5}],\n    \"human_influence_candidates\": [{\"label\": \"人工構造物周辺\", \"why\": \"コンクリート柱と玉石敷き\", \"confidence\": 0.85}],\n    \"moisture_regime_candidates\": [{\"label\": \"中生\", \"why\": \"礫間だが湿り気は不明\", \"confidence\": 0.4}],\n    \"management_hint_candidates\": [{\"label\": \"玉石敷きの管理地\", \"why\": \"玉石が意図的に敷かれている\", \"confidence\": 0.6}]\n  },\n  \"management_action_candidates\": [\n    {\n      \"action_kind\": \"bare_ground\",\n      \"label\": \"礫・玉石が敷かれた管理地のように見えます\",\n      \"why\": \"玉石が均一に敷き詰められ土面が露出\",\n      \"confidence\": 0.6,\n      \"source\": \"photo\",\n      \"source_asset_id\": \"\",\n      \"confirm_state\": \"suggested\"\n    }\n  ],\n  \"shot_suggestions\": [\n    {\"role\": \"close_up_organ\", \"target\": \"巻きひげ先端\", \"rationale\": \"吸盤の有無が残るとツタとアメリカヅタを後から確実に見分けられる\", \"priority\": \"high\"},\n    {\"role\": \"full_body\", \"target\": \"株全体（つるの這い方）\", \"rationale\": \"つるの伸び方と葉形の変化が残ると成長段階の比較や別株との見比べがしやすくなる\", \"priority\": \"medium\"},\n    {\"role\": \"scale_reference\", \"target\": \"手と葉の比較\", \"rationale\": \"1枚目のような手との比較が残ると葉サイズを時期や別記録と比べやすくなる\", \"priority\": \"medium\"}\n  ],\n  \"candidate_readings\": [\n    {\n      \"name\": \"ツタ属（ノブドウ類）\",\n      \"scientific_name\": \"Parthenocissus\",\n      \"rank\": \"genus\",\n      \"role\": \"代表候補\",\n      \"visible_features\": [\"掌状の3小葉性複葉\", \"小葉縁の粗い鋸歯\", \"赤みのあるつる茎と巻きひげ\", \"柱基部から這い出す生育\"],\n      \"weak_points\": [\"巻きひげの吸盤が見えない\", \"成熟葉の葉形が未確認\", \"花・果実がない\"],\n      \"shooting_tips\": [\"つる先端の巻きひげをマクロで撮る\", \"成熟葉を表裏から撮る\", \"株全体を引きで撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。人工構造物の縁辺につくつる性植物として一般的な場面。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 8.0,\n        \"observed_size_estimate_cm\": 9.0,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"小葉は平均的な大きさ\",\n        \"basis\": \"1枚目の手指との比較から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"ツタ（ニシキツタ）\",\n      \"scientific_name\": \"Parthenocissus tricuspidata\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"若葉で単葉と複葉が混在しうる\", \"鋸歯の粗い小葉\"],\n      \"weak_points\": [\"吸盤の確認なし\", \"成熟葉の3〜5裂の形が未確認\"],\n      \"shooting_tips\": [\"巻きひげ先端の吸盤を接写\", \"成熟葉を数枚撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。在来種で人工物によく登る。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 8.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"平均的\",\n        \"basis\": \"スケール比較は1枚目のみ\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"アメリカヅタ（セイヨウツタ）\",\n      \"scientific_name\": \"Parthenocissus quinquefolia\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"掌状複葉\", \"つる性\"],\n      \"weak_points\": [\"小葉が5枚の安定した葉が確認できない\", \"外来種かの判断材料なし\"],\n      \"shooting_tips\": [\"小葉数を数えられる葉を平置きで撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。帰化・植栽由来の個体も人工縁辺ではありうる。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 10.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"平均的\",\n        \"basis\": \"スケール参照が限定的\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"ノブドウ\",\n      \"scientific_name\": \"Ampelopsis glandulosa\",\n      \"rank\": \"species\",\n      \"role\": \"別候補\",\n      \"visible_features\": [\"つる性で複葉\"],\n      \"weak_points\": [\"巻きひげと花序の対生が見えない\", \"果実がない\"],\n      \"shooting_tips\": [\"巻きひげの付け根に花序があるか撮る\", \"秋に果実の色を撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。縁辺地に普通に見られる在来つる植物。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 8.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"平均的\",\n        \"basis\": \"スケール参照が限定的\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"イネ科・低草の草本群落\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"role\": \"一緒に写るもの\",\n      \"visible_features\": [\"細長い葉の草が全面に繁茂\", \"小葉の雑草が混生\"],\n      \"weak_points\": [\"種判別に花・穂が見えない\"],\n      \"shooting_tips\": [\"抽穗した穂を接写する\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。管理された縁辺地の草地。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 30.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"低草\",\n        \"basis\": \"柱との相対比較から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"雑草の低草（葉が皺縮するもの）\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"role\": \"一緒に写るもの\",\n      \"visible_features\": [\"3枚目中央に皺のある楕円葉の低草\", \"根生葉状に展開\"],\n      \"weak_points\": [\"花がないため科・属の判別不可\"],\n      \"shooting_tips\": [\"花茎が出たら花と葉を一緒に撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。礫間の撹乱地に典型的な雑草。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 10.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"小型の低草\",\n        \"basis\": \"玉石との相対比較から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    }\n  ],\n  \"recommended_media_regions\": [\n    {\"asset_index\": 0, \"rect\": {\"x\": 0.15, \"y\": 0.18, \"width\": 0.45, \"height\": 0.35}, \"frame_time_ms\": 0, \"confidence\": 0.85, \"note\": \"手に持った葉\"},\n    {\"asset_index\": 1, \"rect\": {\"x\": 0.25, \"y\": 0.38, \"width\": 0.6, \"height\": 0.3}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"柱基部のつる葉\"},\n    {\"asset_index\": 2, \"rect\": {\"x\": 0.0, \"y\": 0.0, \"width\": 0.35, \"height\": 0.35}, \"frame_time_ms\": 0, \"confidence\": 0.6, \"note\": \"左上のつる葉\"}\n  ],\n  \"coexisting_taxa\": [\n    {\n      \"name\": \"イネ科植物\",\n      \"scientific_name\": \"Poaceae",
+      "parsed_json": null,
+      "raw_content_redacted": false,
+      "internal_reasoning_saved": false
+    },
+    {
+      "visitId": "record-1784431188621",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": null,
+      "latencyMs": 56256,
+      "inputTokens": 22759,
+      "outputTokens": 3967,
+      "schemaValid": true,
+      "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"species\",\n  \"recommended_taxon_name\": \"スズメ\",\n  \"recommended_scientific_name\": \"Passer montanus\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"スズメ\",\n      \"scientific_name\": \"Passer montanus\",\n      \"rank\": \"species\",\n      \"probability\": 0.8,\n      \"diagnostic_features_observed\": [\"頬の白い斑に黒い斑点が見える\", \"赤褐色の頭部と背の縞模様\", \"小形でずんぐりしたスズメ型の体型\"],\n      \"diagnostic_features_missing\": [\"嘴の形状・色の鮮明な拡大\", \"翼帯の本数の確認\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"イエスズメ（外来系）\",\n      \"scientific_name\": \"Passer domesticus\",\n      \"rank\": \"species\",\n      \"probability\": 0.1,\n      \"diagnostic_features_observed\": [\"体色・体型は近い\"],\n      \"diagnostic_features_missing\": [\"雄の喉の黒斑の有無\", \"頭頂の灰色の有無\"],\n      \"visual_contradictions\": [\"頬に黒点が見え、これはスズメの特徴でイエスズメにはない\"]\n    },\n    {\n      \"taxon_name\": \"スズメ科の一種\",\n      \"scientific_name\": \"Passeridae\",\n      \"rank\": \"family\",\n      \"probability\": 0.1,\n      \"diagnostic_features_observed\": [\"太い円錐形の嘴、褐色の縞羽\"],\n      \"diagnostic_features_missing\": [],\n      \"visual_contradictions\": []\n    }\n  ],\n  \"rank_decision_reason\": \"2枚目で頬の黒斑と赤褐色頭部が読み取れ、スズメの決定形質を支持するため種まで踏み込んだ。ただし画像がやや不鮮明なため confidence は medium。\",\n  \"diagnostic_features_observed\": [\"頬の白斑中の黒点\", \"頭部の赤褐色\", \"背の暗色縞\", \"太い円錐形の嘴\"],\n  \"diagnostic_features_missing\": [\"嘴と眼の鮮明なクローズアップ\", \"翼の羽衣の詳細\", \"性・年齢の判別\"],\n  \"confusable_groups\": [\n    {\"group_name\": \"イエスズメ\", \"distinction_point\": \"頬の黒点の有無。イエスズメは頬に黒点がない\"},\n    {\"group_name\": \"アトリ・カワラヒワなど\", \"distinction_point\": \"嘴の形状（スズメは太い円錐形）と羽衣の縞模様\"}\n  ],\n  \"visual_contradictions\": [],\n  \"best_specific_taxon_name\": \"スズメ\",\n  \"narrative\": \"2枚目の写真で頬の白斑に黒点が入り、頭部が赤褐色、背に暗色縞がある。これらはスズメの決定形質で、2羽が枝に並んでいる様子からもスズメと判断できる。1枚目は1羽のみ、3枚目は周囲の針葉樹（モミ・トウヒ類と見える植栽）と庭園環境で、主対象の生息文脈を補う。嘴の拡大や翼の詳細があれば確度がさらに上がる。\",\n  \"simple_summary\": \"枝に止まっているのは、日本でなじみ深い小鳥スズメと見られます。\",\n  \"observer_boost\": \"2羽の並びと頬の黒点が写り、同定に使える決定的模様が記録できています。\",\n  \"next_step_text\": \"次に見かけたら嘴と頬の黒点を近距離で撮影し、枝や葉を基準に体長スケールも残すと確定しやすい。\",\n  \"stop_reason\": \"画像がやや不鮮明で嘴・翼の詳細が読み取れないが、頬の黒点から種レベルの推定は可能。\",\n  \"fun_fact\": \"スズメは都市から農村まで幅広く生息するが、近年は個体数が減少傾向にあるとされる。雛はほぼ昆虫で育てられ、繁殖期には害虫駆除の役割も果たす。\",\n  \"fun_fact_grounded\": true,\n  \"diagnostic_features_seen\": [\"頬の白斑中の黒点\", \"頭部の赤褐色\", \"背の暗色縞模様\"],\n  \"missing_evidence\": [\"嘴の形状・色の拡大写真\", \"翼の羽衣詳細\", \"体長のスケール参照\"],\n  \"similar_taxa\": [\n    {\"name\": \"イエスズメ\", \"rank\": \"species\"},\n    {\"name\": \"スズメ科の一種\", \"rank\": \"family\"}\n  ],\n  \"distinguishing_tips\": [\n    \"頬に黒い点があればスズメ、なければイエスズメの可能性\",\n    \"雄イエスズメは喉から胸上に黒斑、頭頂が灰色になる\",\n    \"スズメは雌雄同色で頬の黒点が雌雄ともにある\"\n  ],\n  \"confirm_more\": [\n    \"嘴と頬の黒点を近距離・順光で撮影すると、スズメとイエスズメの区別が確実になる\",\n    \"枝や葉と一緒に写して体長スケールを残すと、後からサイズ比較や記録の検証がしやすくなる\",\n    \"繁殖期（3〜7月）に巣材運びや給餌行動を観察すれば、この場所での繁殖記録として価値が高まる\",\n    \"周囲の針葉樹（モミ・トウヒ類）の球果の有無を季節ごとに記録すると、環境変化の指標になる\"\n  ],\n  \"claim_refs_used\": [],\n  \"geographic_context\": \"位置情報が未取得のため地域分布は評価保留。スズメは日本全国に分布する普通種であり、地域による矛盾はない。\",\n  \"seasonal_context\": \"観察日時が不明のため季節評価は保留。写真の緑の濃い植生から生育期（晩春〜夏）の可能性がある。\",\n  \"area_inference\": {\n    \"vegetation_structure_candidates\": [{\"label\": \"植栽針葉樹の庭園\", \"why\": \"モミ・トウヒ類の整然とした植栽が見える\", \"confidence\": 0.6}],\n    \"succession_stage_candidates\": [],\n    \"human_influence_candidates\": [{\"label\": \"管理された庭園・農地周辺\", \"why\": \"芝地・水栓・農業用マルチが見える\", \"confidence\": 0.7}],\n    \"moisture_regime_candidates\": [{\"label\": \"中生\", \"why\": \"芝地と畑的植生が混在\", \"confidence\": 0.5}],\n    \"management_hint_candidates\": [{\"label\": \"定期的な草管理\", \"why\": \"芝が短く均一に保たれている\", \"confidence\": 0.5}]\n  },\n  \"management_action_candidates\": [\n    {\n      \"action_kind\": \"water_management\",\n      \"label\": \"水栓・給水設備のある管理地のように見えます\",\n      \"why\": \"ホースリールと給水柱が写る\",\n      \"confidence\": 0.6,\n      \"source\": \"photo\",\n      \"source_asset_id\": \"\",\n      \"confirm_state\": \"suggested\"\n    },\n    {\n      \"action_kind\": \"mowing\",\n      \"label\": \"芝が刈られて管理されている可能性があります\",\n      \"why\": \"草丈が短く均一な芝地が広がる\",\n      \"confidence\": 0.55,\n      \"source\": \"photo\",\n      \"source_asset_id\": \"\",\n      \"confirm_state\": \"suggested\"\n    }\n  ],\n  \"shot_suggestions\": [\n    {\"role\": \"close_up_organ\", \"target\": \"嘴と頬の黒点\", \"rationale\": \"嘴の形と頬斑の黒点が残ると、スズメとイエスズメの区別を後から確実に検証できる\", \"priority\": \"high\"},\n    {\"role\": \"scale_reference\", \"target\": \"枝と鳥のスケール\", \"rationale\": \"既知の枝径と一緒に写すと体長推定ができ、別個体・別地点の記録と比べやすくなる\", \"priority\": \"medium\"},\n    {\"role\": \"habitat_wide\", \"target\": \"周囲の針葉樹と草地\", \"rationale\": \"植栽構成が残ると、スズメが利用する環境の季節変化を追える\", \"priority\": \"medium\"}\n  ],\n  \"candidate_readings\": [\n    {\n      \"name\": \"スズメ\",\n      \"scientific_name\": \"Passer montanus\",\n      \"rank\": \"species\",\n      \"role\": \"代表候補\",\n      \"visible_features\": [\"頬の白斑に黒点\", \"頭部の赤褐色\", \"背の暗色縞\", \"枝に並んで止まる2羽\"],\n      \"weak_points\": [\"嘴の詳細が不鮮明\", \"翼の羽衣が読み取りにくい\"],\n      \"shooting_tips\": [\"順光で嘴と顔をクローズアップ\", \"枝を基準に全身を撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。庭園・農地周辺はスズメがよく利用する環境。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 14.5,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"平均的サイズ\",\n        \"basis\": \"スケール参照が読み取れないため個体推定は保留\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"イエスズメ（外来系）\",\n      \"scientific_name\": \"Passer domesticus\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"体型・体色は近い\"],\n      \"weak_points\": [\"頬の黒点が見え、イエスズメとは矛盾\", \"喉の黒斑・頭頂色が確認できない\"],\n      \"shooting_tips\": [\"雄であれば喉の黒斑の有無を撮る\"],\n      \"regional_read\": \"位置情報がないため地域読みは保留。日本では分布が限定的。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 15.5,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"平均的サイズ\",\n        \"basis\": \"スケール参照なし\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"モミ・トウヒ類（針葉樹）\",\n      \"scientific_name\": \"Abies\",\n      \"rank\": \"genus\",\n      \"role\": \"背景の木・植栽\",\n      \"visible_features\": [\"整った円錐形の樹形\", \"針葉が密生する枝\", \"庭園・畑地に列状に植わる\"],\n      \"weak_points\": [\"球果・葉の詳細が見えずモミ属かトウヒ属か判別できない\"],\n      \"shooting_tips\": [\"枝先の針葉と芽を接写\", \"球果があれば上下から撮る\"],\n      \"regional_read\": \"植栽と見られる整然樹形から、庭園・農地の防風帯や庭木の可能性。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": null,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"large\",\n        \"ranking_hint\": \"高木（数m〜10m超）\",\n        \"basis\": \"樹木のため体長概念は不適\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"管理草地・畑的植生\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"role\": \"一緒に写るもの\",\n      \"visible_features\": [\"短く均一な芝地\", \"マルチフィルム上のつる性作物\", \"水栓・ホース設備\"],\n      \"weak_points\": [\"草種の同定には穂や葉の接写が必要\"],\n      \"shooting_tips\": [\"芝の穂が出る時期に接写\", \"畝の作物の葉を撮る\"],\n      \"regional_read\": \"管理された庭園・家庭菜園的な環境を示唆する。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": null,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"低い草地\",\n        \"basis\": \"スケール参照なし\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    }\n  ],\n  \"recommended_media_regions\": [\n    {\"asset_index\": 0, \"rect\": {\"x\": 0.3, \"y\": 0.24, \"width\": 0.25, \"height\": 0.28}, \"frame_time_ms\": 0, \"confidence\": 0.85, \"note\": \"枝上の1羽\"},\n    {\"asset_index\": 1, \"rect\": {\"x\": 0.42, \"y\": 0.18, \"width\": 0.55, \"height\": 0.25}, \"frame_time_ms\": 0, \"confidence\": 0.85, \"note\": \"枝上の2羽\"}\n  ],\n  \"coexisting_taxa\": [\n    {\n      \"name\": \"モミ・トウヒ類（針葉樹）\",\n      \"scientific_name\": \"Abies / Picea\",\n      \"rank\": \"genus\",\n      \"confidence\": 0.5,\n      \"note\": \"植栽と見られる針葉樹。属の確定には球果・芽の詳細が必要\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [\n        {\"asset_index\": 2, \"rect\": {\"x\": 0.0, \"y\": 0.15, \"width\": 1.0, \"height\": 0.45}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"背景の針葉樹列\"}\n      ]\n    },\n    {\n      \"name\": \"管理草地（芝）\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"confidence\": 0.6,\n      \"note\": \"短く刈られた芝地\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [\n        {\"asset_index\": 2, \"rect\": {\"x\": 0.0, \"y\": 0.5, \"width\": 1.0, \"height\": 0.5}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"芝地\"}\n      ]\n    },\n    {\n      \"name\": \"つる性作物（カボチャ・ウリ類か）\",\n      \"scientific_name\": \"Cucurbita\",\n      \"rank\": \"genus\",\n      \"confidence\": 0.4,\n      \"note\": \"マルチフィルム上のつると大型葉。確定には花・果実が必要\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [\n        {\"asset_index\": 2, \"rect\": {\"x\": 0.55, \"y\": 0.6, \"width\": 0.45, \"height\": 0.4}, \"frame_time_ms\": 0, \"confidence\": 0.5, \"note\": \"マルチ上のつる\"}\n      ]\n    }\n  ],\n  \"size_assessment\": {\n    \"typical_size_cm\": 14.5,\n    \"observed_size_estimate_cm\": null,\n    \"size_class\": \"small\",\n    \"ranking_hint\": \"平均的サイズ\",\n    \"basis\": \"スケール参照が読み取れないため個体推定は保留\",\n    \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n  },\n  \"invasive_response\": {\n    \"is_invasive\": false,\n    \"mhlw_category\": null,\n    \"recommended_action\": null,\n    \"action_basis\": \"\",\n    \"regional_caveat\": null,\n    \"legal_warning\": null,\n    \"hedge\": \"AI判定です。\"\n  }\n}",
+      "parsed_json": {
+        "confidence_band": "medium",
+        "recommended_rank": "species",
+        "recommended_taxon_name": "スズメ",
+        "recommended_scientific_name": "Passer montanus",
+        "taxonomic_candidates": [
+          {
+            "taxon_name": "スズメ",
+            "scientific_name": "Passer montanus",
+            "rank": "species",
+            "probability": 0.8,
+            "diagnostic_features_observed": [
+              "頬の白い斑に黒い斑点が見える",
+              "赤褐色の頭部と背の縞模様",
+              "小形でずんぐりしたスズメ型の体型"
+            ],
+            "diagnostic_features_missing": [
+              "嘴の形状・色の鮮明な拡大",
+              "翼帯の本数の確認"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "イエスズメ（外来系）",
+            "scientific_name": "Passer domesticus",
+            "rank": "species",
+            "probability": 0.1,
+            "diagnostic_features_observed": [
+              "体色・体型は近い"
+            ],
+            "diagnostic_features_missing": [
+              "雄の喉の黒斑の有無",
+              "頭頂の灰色の有無"
+            ],
+            "visual_contradictions": [
+              "頬に黒点が見え、これはスズメの特徴でイエスズメにはない"
+            ]
+          },
+          {
+            "taxon_name": "スズメ科の一種",
+            "scientific_name": "Passeridae",
+            "rank": "family",
+            "probability": 0.1,
+            "diagnostic_features_observed": [
+              "太い円錐形の嘴、褐色の縞羽"
+            ],
+            "diagnostic_features_missing": [],
+            "visual_contradictions": []
+          }
+        ],
+        "rank_decision_reason": "2枚目で頬の黒斑と赤褐色頭部が読み取れ、スズメの決定形質を支持するため種まで踏み込んだ。ただし画像がやや不鮮明なため confidence は medium。",
+        "diagnostic_features_observed": [
+          "頬の白斑中の黒点",
+          "頭部の赤褐色",
+          "背の暗色縞",
+          "太い円錐形の嘴"
+        ],
+        "diagnostic_features_missing": [
+          "嘴と眼の鮮明なクローズアップ",
+          "翼の羽衣の詳細",
+          "性・年齢の判別"
+        ],
+        "confusable_groups": [
+          {
+            "group_name": "イエスズメ",
+            "distinction_point": "頬の黒点の有無。イエスズメは頬に黒点がない"
+          },
+          {
+            "group_name": "アトリ・カワラヒワなど",
+            "distinction_point": "嘴の形状（スズメは太い円錐形）と羽衣の縞模様"
+          }
+        ],
+        "visual_contradictions": [],
+        "best_specific_taxon_name": "スズメ",
+        "narrative": "2枚目の写真で頬の白斑に黒点が入り、頭部が赤褐色、背に暗色縞がある。これらはスズメの決定形質で、2羽が枝に並んでいる様子からもスズメと判断できる。1枚目は1羽のみ、3枚目は周囲の針葉樹（モミ・トウヒ類と見える植栽）と庭園環境で、主対象の生息文脈を補う。嘴の拡大や翼の詳細があれば確度がさらに上がる。",
+        "simple_summary": "枝に止まっているのは、日本でなじみ深い小鳥スズメと見られます。",
+        "observer_boost": "2羽の並びと頬の黒点が写り、同定に使える決定的模様が記録できています。",
+        "next_step_text": "次に見かけたら嘴と頬の黒点を近距離で撮影し、枝や葉を基準に体長スケールも残すと確定しやすい。",
+        "stop_reason": "画像がやや不鮮明で嘴・翼の詳細が読み取れないが、頬の黒点から種レベルの推定は可能。",
+        "fun_fact": "スズメは都市から農村まで幅広く生息するが、近年は個体数が減少傾向にあるとされる。雛はほぼ昆虫で育てられ、繁殖期には害虫駆除の役割も果たす。",
+        "fun_fact_grounded": true,
+        "diagnostic_features_seen": [
+          "頬の白斑中の黒点",
+          "頭部の赤褐色",
+          "背の暗色縞模様"
+        ],
+        "missing_evidence": [
+          "嘴の形状・色の拡大写真",
+          "翼の羽衣詳細",
+          "体長のスケール参照"
+        ],
+        "similar_taxa": [
+          {
+            "name": "イエスズメ",
+            "rank": "species"
+          },
+          {
+            "name": "スズメ科の一種",
+            "rank": "family"
+          }
+        ],
+        "distinguishing_tips": [
+          "頬に黒い点があればスズメ、なければイエスズメの可能性",
+          "雄イエスズメは喉から胸上に黒斑、頭頂が灰色になる",
+          "スズメは雌雄同色で頬の黒点が雌雄ともにある"
+        ],
+        "confirm_more": [
+          "嘴と頬の黒点を近距離・順光で撮影すると、スズメとイエスズメの区別が確実になる",
+          "枝や葉と一緒に写して体長スケールを残すと、後からサイズ比較や記録の検証がしやすくなる",
+          "繁殖期（3〜7月）に巣材運びや給餌行動を観察すれば、この場所での繁殖記録として価値が高まる",
+          "周囲の針葉樹（モミ・トウヒ類）の球果の有無を季節ごとに記録すると、環境変化の指標になる"
+        ],
+        "claim_refs_used": [],
+        "geographic_context": "位置情報が未取得のため地域分布は評価保留。スズメは日本全国に分布する普通種であり、地域による矛盾はない。",
+        "seasonal_context": "観察日時が不明のため季節評価は保留。写真の緑の濃い植生から生育期（晩春〜夏）の可能性がある。",
+        "area_inference": {
+          "vegetation_structure_candidates": [
+            {
+              "label": "植栽針葉樹の庭園",
+              "why": "モミ・トウヒ類の整然とした植栽が見える",
+              "confidence": 0.6
+            }
+          ],
+          "succession_stage_candidates": [],
+          "human_influence_candidates": [
+            {
+              "label": "管理された庭園・農地周辺",
+              "why": "芝地・水栓・農業用マルチが見える",
+              "confidence": 0.7
+            }
+          ],
+          "moisture_regime_candidates": [
+            {
+              "label": "中生",
+              "why": "芝地と畑的植生が混在",
+              "confidence": 0.5
+            }
+          ],
+          "management_hint_candidates": [
+            {
+              "label": "定期的な草管理",
+              "why": "芝が短く均一に保たれている",
+              "confidence": 0.5
+            }
+          ]
+        },
+        "management_action_candidates": [
+          {
+            "action_kind": "water_management",
+            "label": "水栓・給水設備のある管理地のように見えます",
+            "why": "ホースリールと給水柱が写る",
+            "confidence": 0.6,
+            "source": "photo",
+            "source_asset_id": "",
+            "confirm_state": "suggested"
+          },
+          {
+            "action_kind": "mowing",
+            "label": "芝が刈られて管理されている可能性があります",
+            "why": "草丈が短く均一な芝地が広がる",
+            "confidence": 0.55,
+            "source": "photo",
+            "source_asset_id": "",
+            "confirm_state": "suggested"
+          }
+        ],
+        "shot_suggestions": [
+          {
+            "role": "close_up_organ",
+            "target": "嘴と頬の黒点",
+            "rationale": "嘴の形と頬斑の黒点が残ると、スズメとイエスズメの区別を後から確実に検証できる",
+            "priority": "high"
+          },
+          {
+            "role": "scale_reference",
+            "target": "枝と鳥のスケール",
+            "rationale": "既知の枝径と一緒に写すと体長推定ができ、別個体・別地点の記録と比べやすくなる",
+            "priority": "medium"
+          },
+          {
+            "role": "habitat_wide",
+            "target": "周囲の針葉樹と草地",
+            "rationale": "植栽構成が残ると、スズメが利用する環境の季節変化を追える",
+            "priority": "medium"
+          }
+        ],
+        "candidate_readings": [
+          {
+            "name": "スズメ",
+            "scientific_name": "Passer montanus",
+            "rank": "species",
+            "role": "代表候補",
+            "visible_features": [
+              "頬の白斑に黒点",
+              "頭部の赤褐色",
+              "背の暗色縞",
+              "枝に並んで止まる2羽"
+            ],
+            "weak_points": [
+              "嘴の詳細が不鮮明",
+              "翼の羽衣が読み取りにくい"
+            ],
+            "shooting_tips": [
+              "順光で嘴と顔をクローズアップ",
+              "枝を基準に全身を撮る"
+            ],
+            "regional_read": "位置情報がないため地域読みは保留。庭園・農地周辺はスズメがよく利用する環境。",
+            "size_assessment": {
+              "typical_size_cm": 14.5,
+              "observed_size_estimate_cm": null,
+              "size_class": "small",
+              "ranking_hint": "平均的サイズ",
+              "basis": "スケール参照が読み取れないため個体推定は保留",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "イエスズメ（外来系）",
+            "scientific_name": "Passer domesticus",
+            "rank": "species",
+            "role": "比較候補",
+            "visible_features": [
+              "体型・体色は近い"
+            ],
+            "weak_points": [
+              "頬の黒点が見え、イエスズメとは矛盾",
+              "喉の黒斑・頭頂色が確認できない"
+            ],
+            "shooting_tips": [
+              "雄であれば喉の黒斑の有無を撮る"
+            ],
+            "regional_read": "位置情報がないため地域読みは保留。日本では分布が限定的。",
+            "size_assessment": {
+              "typical_size_cm": 15.5,
+              "observed_size_estimate_cm": null,
+              "size_class": "small",
+              "ranking_hint": "平均的サイズ",
+              "basis": "スケール参照なし",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "モミ・トウヒ類（針葉樹）",
+            "scientific_name": "Abies",
+            "rank": "genus",
+            "role": "背景の木・植栽",
+            "visible_features": [
+              "整った円錐形の樹形",
+              "針葉が密生する枝",
+              "庭園・畑地に列状に植わる"
+            ],
+            "weak_points": [
+              "球果・葉の詳細が見えずモミ属かトウヒ属か判別できない"
+            ],
+            "shooting_tips": [
+              "枝先の針葉と芽を接写",
+              "球果があれば上下から撮る"
+            ],
+            "regional_read": "植栽と見られる整然樹形から、庭園・農地の防風帯や庭木の可能性。",
+            "size_assessment": {
+              "typical_size_cm": null,
+              "observed_size_estimate_cm": null,
+              "size_class": "large",
+              "ranking_hint": "高木（数m〜10m超）",
+              "basis": "樹木のため体長概念は不適",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "管理草地・畑的植生",
+            "scientific_name": "",
+            "rank": "lifeform",
+            "role": "一緒に写るもの",
+            "visible_features": [
+              "短く均一な芝地",
+              "マルチフィルム上のつる性作物",
+              "水栓・ホース設備"
+            ],
+            "weak_points": [
+              "草種の同定には穂や葉の接写が必要"
+            ],
+            "shooting_tips": [
+              "芝の穂が出る時期に接写",
+              "畝の作物の葉を撮る"
+            ],
+            "regional_read": "管理された庭園・家庭菜園的な環境を示唆する。",
+            "size_assessment": {
+              "typical_size_cm": null,
+              "observed_size_estimate_cm": null,
+              "size_class": "typical",
+              "ranking_hint": "低い草地",
+              "basis": "スケール参照なし",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          }
+        ],
+        "recommended_media_regions": [
+          {
+            "asset_index": 0,
+            "rect": {
+              "x": 0.3,
+              "y": 0.24,
+              "width": 0.25,
+              "height": 0.28
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.85,
+            "note": "枝上の1羽"
+          },
+          {
+            "asset_index": 1,
+            "rect": {
+              "x": 0.42,
+              "y": 0.18,
+              "width": 0.55,
+              "height": 0.25
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.85,
+            "note": "枝上の2羽"
+          }
+        ],
+        "coexisting_taxa": [
+          {
+            "name": "モミ・トウヒ類（針葉樹）",
+            "scientific_name": "Abies / Picea",
+            "rank": "genus",
+            "confidence": 0.5,
+            "note": "植栽と見られる針葉樹。属の確定には球果・芽の詳細が必要",
+            "invasive_lite": {
+              "is_invasive": false,
+              "mhlw_category": null
+            },
+            "media_regions": [
+              {
+                "asset_index": 2,
+                "rect": {
+                  "x": 0,
+                  "y": 0.15,
+                  "width": 1,
+                  "height": 0.45
+                },
+                "frame_time_ms": 0,
+                "confidence": 0.7,
+                "note": "背景の針葉樹列"
+              }
+            ]
+          },
+          {
+            "name": "管理草地（芝）",
+            "scientific_name": "",
+            "rank": "lifeform",
+            "confidence": 0.6,
+            "note": "短く刈られた芝地",
+            "invasive_lite": {
+              "is_invasive": false,
+              "mhlw_category": null
+            },
+            "media_regions": [
+              {
+                "asset_index": 2,
+                "rect": {
+                  "x": 0,
+                  "y": 0.5,
+                  "width": 1,
+                  "height": 0.5
+                },
+                "frame_time_ms": 0,
+                "confidence": 0.7,
+                "note": "芝地"
+              }
+            ]
+          },
+          {
+            "name": "つる性作物（カボチャ・ウリ類か）",
+            "scientific_name": "Cucurbita",
+            "rank": "genus",
+            "confidence": 0.4,
+            "note": "マルチフィルム上のつると大型葉。確定には花・果実が必要",
+            "invasive_lite": {
+              "is_invasive": false,
+              "mhlw_category": null
+            },
+            "media_regions": [
+              {
+                "asset_index": 2,
+                "rect": {
+                  "x": 0.55,
+                  "y": 0.6,
+                  "width": 0.45,
+                  "height": 0.4
+                },
+                "frame_time_ms": 0,
+                "confidence": 0.5,
+                "note": "マルチ上のつる"
+              }
+            ]
+          }
+        ],
+        "size_assessment": {
+          "typical_size_cm": 14.5,
+          "observed_size_estimate_cm": null,
+          "size_class": "small",
+          "ranking_hint": "平均的サイズ",
+          "basis": "スケール参照が読み取れないため個体推定は保留",
+          "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+        },
+        "invasive_response": {
+          "is_invasive": false,
+          "mhlw_category": null,
+          "recommended_action": null,
+          "action_basis": "",
+          "regional_caveat": null,
+          "legal_warning": null,
+          "hedge": "AI判定です。"
+        }
+      },
+      "raw_content_redacted": false,
+      "internal_reasoning_saved": false
+    },
+    {
+      "visitId": "record-1784430530197",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": null,
+      "latencyMs": 66379,
+      "inputTokens": 22760,
+      "outputTokens": 3486,
+      "schemaValid": true,
+      "raw_final_content": "{\n  \"confidence_band\": \"low\",\n  \"recommended_rank\": \"order\",\n  \"recommended_taxon_name\": \"スズメ目の小鳥（幼鳥の可能性）\",\n  \"recommended_scientific_name\": \"Passeriformes\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"ヒヨドリ（幼鳥）\",\n      \"scientific_name\": \"Hypsipetes amaurotis\",\n      \"rank\": \"species\",\n      \"probability\": 0.3,\n      \"diagnostic_features_observed\": [\"全体に暗褐色で単色っぽい\", \"やや細長い体型\"],\n      \"diagnostic_features_missing\": [\"頭部の灰色み\", \"頬の褐色斑\", \"翼の模様\"],\n      \"visual_contradictions\": [\"画像がぼやけ、体型の特徴が確認できない\"]\n    },\n    {\n      \"taxon_name\": \"ツグミ類\",\n      \"scientific_name\": \"Turdus\",\n      \"rank\": \"genus\",\n      \"probability\": 0.25,\n      \"diagnostic_features_observed\": [\"褐色の体色\", \"樹上の枝に静止する姿勢\"],\n      \"diagnostic_features_missing\": [\"胸の斑紋\", \"翼鏡の有無\", \"くちばしの形状詳細\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"ヒタキ科・ウグイス類などの小型鳥\",\n      \"scientific_name\": \"Muscicapidae / Cettiidae\",\n      \"rank\": \"family\",\n      \"probability\": 0.2,\n      \"diagnostic_features_observed\": [\"小型〜中型の樹上性鳥\"],\n      \"diagnostic_features_missing\": [\"体サイズの基準\", \"尾の長さ比率\", \"羽衣の詳細\"],\n      \"visual_contradictions\": []\n    }\n  ],\n  \"rank_decision_reason\": \"画像が大きくぼやけており、羽衣・体型・サイズの決定形質が読み取れないため、目レベルで止める\",\n  \"diagnostic_features_observed\": [\"樹木の枝に止まる小型の鳥\", \"全体に褐色系の羽衣\", \"くちばしが細めに見える\"],\n  \"diagnostic_features_missing\": [\"胸腹部の斑紋\", \"頭部・翼の模様\", \"隣接物とのサイズ比較\", \"くちばしの形状と長さ\"],\n  \"confusable_groups\": [\n    {\"group_name\": \"ヒヨドリ\", \"distinction_point\": \"頭部の灰色みと頬の褐色斑、鳴き声\"},\n    {\"group_name\": \"ツグミ類\", \"distinction_point\": \"胸の斑紋と飛翔時の翼下色\"},\n    {\"group_name\": \"メジロ・ウグイス類\", \"distinction_point\": \"体色の緑・黄色みと目の周りの模様\"}\n  ],\n  \"visual_contradictions\": [\"解像度不足で候補間の判別材料がほぼ得られない\"],\n  \"best_specific_taxon_name\": \"\",\n  \"narrative\": \"3枚とも樹冠内の小鳥を写したもので、中央の枝に止まる褐色の鳥が主対象。ただし焦点が甘く、羽衣の斑紋や体型の比率が読めないため、スズメ目以上には絞れない。幼鳥・亜成鳥の可能性もあるが断定は避ける。次回は枝の下側・側面からシャッター速度を上げて撮ると胸の斑紋とくちばし形状が判別材料になる。\",\n  \"simple_summary\": \"木の枝に止まっている小鳥のようですが、写真がぼやけていて種名までは分かりません。\",\n  \"observer_boost\": \"同じ個体を3枚の異なるアングルで追えており、枝上での姿勢の変化が比較できる記録になっています。\",\n  \"next_step_text\": \"再訪時は側面から胸の斑紋とくちばし形状が分かるよう、シャッター速度1/1000以上で接写すると種が絞れます。\",\n  \"stop_reason\": \"画像のぼやけにより羽衣・体型の決定形質が読み取れない\",\n  \"fun_fact\": \"スズメ目は鳥類の中で最も種数が多く、世界の鳥種の6割近くを占めます。\",\n  \"fun_fact_grounded\": true,\n  \"diagnostic_features_seen\": [\"褐色系の羽衣\", \"枝に止まる樹上性の姿勢\", \"細めのくちばし\"],\n  \"missing_evidence\": [\"胸腹部の斑紋の有無\", \"頭部・翼の模様\", \"サイズの基準となる隣接物\", \"鳴き声・行動の記録\"],\n  \"similar_taxa\": [\n    {\"name\": \"ヒヨドリ\", \"rank\": \"species\"},\n    {\"name\": \"ツグミ\", \"rank\": \"species\"},\n    {\"name\": \"ウグイス\", \"rank\": \"species\"}\n  ],\n  \"distinguishing_tips\": [\n    \"ヒヨドリは頭部が灰色がかり、頬に褐色斑がある\",\n    \"ツグミ類は胸に縦斑があり、飛ぶと翼下が白〜橙色\",\n    \"ウグイスはオリーブ緑がかり、眉斑が目立つ\"\n  ],\n  \"confirm_more\": [\n    \"側面・正面の2方向から胸と腹の斑紋を撮る（朝方の柔らかい光が望ましい）\",\n    \"枝や葉と一緒に写して体サイズの基準を残す\",\n    \"鳴き声を録音またはメモに残す（種判別の強い手がかりになる）\",\n    \"同じ場所を数週間おきに訪れ、幼鳥が成鳥羽へ換羽する過程を記録する\"\n  ],\n  \"claim_refs_used\": [],\n  \"geographic_context\": \"位置情報が未取得のため地域分布は評価保留\",\n  \"seasonal_context\": \"観察日時が不明のため季節評価は保留\",\n  \"area_inference\": {\n    \"vegetation_structure_candidates\": [{\"label\": \"樹冠の発達した樹林\", \"why\": \"太い幹と密な葉層が見える\", \"confidence\": 0.6}],\n    \"succession_stage_candidates\": [{\"label\": \"遷移中〜後期の樹林\", \"why\": \"幹が太く林冠が閉じている\", \"confidence\": 0.5}],\n    \"human_influence_candidates\": [{\"label\": \"公園・管理地周辺\", \"why\": \"フェンスや管理された植生が写る\", \"confidence\": 0.4}],\n    \"moisture_regime_candidates\": [{\"label\": \"中生環境\", \"why\": \"葉の艶と緑の濃さから湿り気のある林\", \"confidence\": 0.4}],\n    \"management_hint_candidates\": []\n  },\n  \"management_action_candidates\": [],\n  \"shot_suggestions\": [\n    {\"role\": \"close_up_organ\", \"target\": \"胸腹の斑紋とくちばし\", \"rationale\": \"斑紋とくちばし形状が残るとヒヨドリ・ツグミ・ウグイス類の見分けを後から検証できる\", \"priority\": \"high\"},\n    {\"role\": \"scale_reference\", \"target\": \"枝と鳥の同框\", \"rationale\": \"既知の枝径と一緒に写ると体サイズが推定でき、候補種の絞り込みがしやすくなる\", \"priority\": \"high\"},\n    {\"role\": \"habitat_wide\", \"target\": \"周辺の樹林全体\", \"rationale\": \"林の構造が残ると、その鳥がどんな環境で見られたかを別地点・別季節の記録と比べられる\", \"priority\": \"medium\"}\n  ],\n  \"candidate_readings\": [\n    {\n      \"name\": \"スズメ目の小鳥（幼鳥の可能性）\",\n      \"scientific_name\": \"Passeriformes\",\n      \"rank\": \"order\",\n      \"role\": \"代表候補\",\n      \"visible_features\": [\"枝に止まる褐色の小鳥\", \"細めのくちばし\", \"単色に近い羽衣\"],\n      \"weak_points\": [\"画像がぼやけ斑紋が読めない\", \"サイズの基準がない\", \"幼鳥か成鳥か不明\"],\n      \"shooting_tips\": [\"側面から胸の斑紋を接写\", \"シャッター速度を上げて手ブレを防ぐ\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 15,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"小型〜中型の鳥の範囲\",\n        \"basis\": \"スケール参照がなく推定不能\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"ヒヨドリ（幼鳥）\",\n      \"scientific_name\": \"Hypsipetes amaurotis\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"褐色系の単色っぽい羽衣\"],\n      \"weak_points\": [\"頭部の灰色み・頬の斑が確認できない\", \"体型の比率が読めない\"],\n      \"shooting_tips\": [\"頭部と頬を正面から撮る\", \"鳴き声を記録する\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 28,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"参考値のみ\",\n        \"basis\": \"スケール参照がなく推定不能\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"ツグミ類\",\n      \"scientific_name\": \"Turdus\",\n      \"rank\": \"genus\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"褐色の体色\", \"樹上静止の姿勢\"],\n      \"weak_points\": [\"胸の縦斑が確認できない\", \"翼の模様が読めない\"],\n      \"shooting_tips\": [\"胸腹部を斜め前から撮る\", \"飛び立つ瞬間の翼下も狙う\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 24,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"参考値のみ\",\n        \"basis\": \"スケール参照がなく推定不能\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"広葉樹の樹冠（樹種未確定）\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"role\": \"背景の木・植栽\",\n      \"visible_features\": [\"太い幹と粗い樹皮\", \"密な葉層\", \"一部に枯れ枝\"],\n      \"weak_points\": [\"葉の形がぼやけ樹種を判別できない\"],\n      \"shooting_tips\": [\"葉を単独で接写\", \"樹皮のテクスチャを撮る\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留\",\n      \"size_assessment\": {\n        \"typical_size_cm\": null,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"large\",\n        \"ranking_hint\": \"高木の可能性\",\n        \"basis\": \"幹の太さからの推察\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    }\n  ],\n  \"recommended_media_regions\": [\n    {\"asset_index\": 0, \"rect\": {\"x\": 0.38, \"y\": 0.32, \"width\": 0.2, \"height\": 0.22}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"中央やや上の枝上\"},\n    {\"asset_index\": 1, \"rect\": {\"x\": 0.47, \"y\": 0.26, \"width\": 0.08, \"height\": 0.08}, \"frame_time_ms\": 0, \"confidence\": 0.5, \"note\": \"上部中央の小さな鳥\"},\n    {\"asset_index\": 2, \"rect\": {\"x\": 0.42, \"y\": 0.28, \"width\": 0.18, \"height\": 0.2}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"中央の枝上\"}\n  ],\n  \"coexisting_taxa\": [\n    {\n      \"name\": \"広葉樹の樹冠（樹種未確定）\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"confidence\": 0.6,\n      \"note\": \"落葉広葉樹とみられる\",\n      \"invasive_lite\": { \"is_invasive\": false, \"mhlw_category\": null },\n      \"media_regions\": [\n        {\"asset_index\": 0, \"rect\": {\"x\": 0.0, \"y\": 0.0, \"width\": 1.0, \"height\": 1.0}, \"frame_time_ms\": 0, \"confidence\": 0.8, \"note\": \"画面全体\"}\n      ]\n    }\n  ],\n  \"size_assessment\": {\n    \"typical_size_cm\": 15,\n    \"observed_size_estimate_cm\": null,\n    \"size_class\": \"small\",\n    \"ranking_hint\": \"小型〜中型のスズメ目\",\n    \"basis\": \"スケール参照がなく推定不能\",\n    \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n  },\n  \"invasive_response\": {\n    \"is_invasive\": false,\n    \"mhlw_category\": null,\n    \"recommended_action\": null,\n    \"action_basis\": \"\",\n    \"regional_caveat\": null,\n    \"legal_warning\": \"\",\n    \"hedge\": \"AI判定です。\"\n  }\n}",
+      "parsed_json": {
+        "confidence_band": "low",
+        "recommended_rank": "order",
+        "recommended_taxon_name": "スズメ目の小鳥（幼鳥の可能性）",
+        "recommended_scientific_name": "Passeriformes",
+        "taxonomic_candidates": [
+          {
+            "taxon_name": "ヒヨドリ（幼鳥）",
+            "scientific_name": "Hypsipetes amaurotis",
+            "rank": "species",
+            "probability": 0.3,
+            "diagnostic_features_observed": [
+              "全体に暗褐色で単色っぽい",
+              "やや細長い体型"
+            ],
+            "diagnostic_features_missing": [
+              "頭部の灰色み",
+              "頬の褐色斑",
+              "翼の模様"
+            ],
+            "visual_contradictions": [
+              "画像がぼやけ、体型の特徴が確認できない"
+            ]
+          },
+          {
+            "taxon_name": "ツグミ類",
+            "scientific_name": "Turdus",
+            "rank": "genus",
+            "probability": 0.25,
+            "diagnostic_features_observed": [
+              "褐色の体色",
+              "樹上の枝に静止する姿勢"
+            ],
+            "diagnostic_features_missing": [
+              "胸の斑紋",
+              "翼鏡の有無",
+              "くちばしの形状詳細"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "ヒタキ科・ウグイス類などの小型鳥",
+            "scientific_name": "Muscicapidae / Cettiidae",
+            "rank": "family",
+            "probability": 0.2,
+            "diagnostic_features_observed": [
+              "小型〜中型の樹上性鳥"
+            ],
+            "diagnostic_features_missing": [
+              "体サイズの基準",
+              "尾の長さ比率",
+              "羽衣の詳細"
+            ],
+            "visual_contradictions": []
+          }
+        ],
+        "rank_decision_reason": "画像が大きくぼやけており、羽衣・体型・サイズの決定形質が読み取れないため、目レベルで止める",
+        "diagnostic_features_observed": [
+          "樹木の枝に止まる小型の鳥",
+          "全体に褐色系の羽衣",
+          "くちばしが細めに見える"
+        ],
+        "diagnostic_features_missing": [
+          "胸腹部の斑紋",
+          "頭部・翼の模様",
+          "隣接物とのサイズ比較",
+          "くちばしの形状と長さ"
+        ],
+        "confusable_groups": [
+          {
+            "group_name": "ヒヨドリ",
+            "distinction_point": "頭部の灰色みと頬の褐色斑、鳴き声"
+          },
+          {
+            "group_name": "ツグミ類",
+            "distinction_point": "胸の斑紋と飛翔時の翼下色"
+          },
+          {
+            "group_name": "メジロ・ウグイス類",
+            "distinction_point": "体色の緑・黄色みと目の周りの模様"
+          }
+        ],
+        "visual_contradictions": [
+          "解像度不足で候補間の判別材料がほぼ得られない"
+        ],
+        "best_specific_taxon_name": "",
+        "narrative": "3枚とも樹冠内の小鳥を写したもので、中央の枝に止まる褐色の鳥が主対象。ただし焦点が甘く、羽衣の斑紋や体型の比率が読めないため、スズメ目以上には絞れない。幼鳥・亜成鳥の可能性もあるが断定は避ける。次回は枝の下側・側面からシャッター速度を上げて撮ると胸の斑紋とくちばし形状が判別材料になる。",
+        "simple_summary": "木の枝に止まっている小鳥のようですが、写真がぼやけていて種名までは分かりません。",
+        "observer_boost": "同じ個体を3枚の異なるアングルで追えており、枝上での姿勢の変化が比較できる記録になっています。",
+        "next_step_text": "再訪時は側面から胸の斑紋とくちばし形状が分かるよう、シャッター速度1/1000以上で接写すると種が絞れます。",
+        "stop_reason": "画像のぼやけにより羽衣・体型の決定形質が読み取れない",
+        "fun_fact": "スズメ目は鳥類の中で最も種数が多く、世界の鳥種の6割近くを占めます。",
+        "fun_fact_grounded": true,
+        "diagnostic_features_seen": [
+          "褐色系の羽衣",
+          "枝に止まる樹上性の姿勢",
+          "細めのくちばし"
+        ],
+        "missing_evidence": [
+          "胸腹部の斑紋の有無",
+          "頭部・翼の模様",
+          "サイズの基準となる隣接物",
+          "鳴き声・行動の記録"
+        ],
+        "similar_taxa": [
+          {
+            "name": "ヒヨドリ",
+            "rank": "species"
+          },
+          {
+            "name": "ツグミ",
+            "rank": "species"
+          },
+          {
+            "name": "ウグイス",
+            "rank": "species"
+          }
+        ],
+        "distinguishing_tips": [
+          "ヒヨドリは頭部が灰色がかり、頬に褐色斑がある",
+          "ツグミ類は胸に縦斑があり、飛ぶと翼下が白〜橙色",
+          "ウグイスはオリーブ緑がかり、眉斑が目立つ"
+        ],
+        "confirm_more": [
+          "側面・正面の2方向から胸と腹の斑紋を撮る（朝方の柔らかい光が望ましい）",
+          "枝や葉と一緒に写して体サイズの基準を残す",
+          "鳴き声を録音またはメモに残す（種判別の強い手がかりになる）",
+          "同じ場所を数週間おきに訪れ、幼鳥が成鳥羽へ換羽する過程を記録する"
+        ],
+        "claim_refs_used": [],
+        "geographic_context": "位置情報が未取得のため地域分布は評価保留",
+        "seasonal_context": "観察日時が不明のため季節評価は保留",
+        "area_inference": {
+          "vegetation_structure_candidates": [
+            {
+              "label": "樹冠の発達した樹林",
+              "why": "太い幹と密な葉層が見える",
+              "confidence": 0.6
+            }
+          ],
+          "succession_stage_candidates": [
+            {
+              "label": "遷移中〜後期の樹林",
+              "why": "幹が太く林冠が閉じている",
+              "confidence": 0.5
+            }
+          ],
+          "human_influence_candidates": [
+            {
+              "label": "公園・管理地周辺",
+              "why": "フェンスや管理された植生が写る",
+              "confidence": 0.4
+            }
+          ],
+          "moisture_regime_candidates": [
+            {
+              "label": "中生環境",
+              "why": "葉の艶と緑の濃さから湿り気のある林",
+              "confidence": 0.4
+            }
+          ],
+          "management_hint_candidates": []
+        },
+        "management_action_candidates": [],
+        "shot_suggestions": [
+          {
+            "role": "close_up_organ",
+            "target": "胸腹の斑紋とくちばし",
+            "rationale": "斑紋とくちばし形状が残るとヒヨドリ・ツグミ・ウグイス類の見分けを後から検証できる",
+            "priority": "high"
+          },
+          {
+            "role": "scale_reference",
+            "target": "枝と鳥の同框",
+            "rationale": "既知の枝径と一緒に写ると体サイズが推定でき、候補種の絞り込みがしやすくなる",
+            "priority": "high"
+          },
+          {
+            "role": "habitat_wide",
+            "target": "周辺の樹林全体",
+            "rationale": "林の構造が残ると、その鳥がどんな環境で見られたかを別地点・別季節の記録と比べられる",
+            "priority": "medium"
+          }
+        ],
+        "candidate_readings": [
+          {
+            "name": "スズメ目の小鳥（幼鳥の可能性）",
+            "scientific_name": "Passeriformes",
+            "rank": "order",
+            "role": "代表候補",
+            "visible_features": [
+              "枝に止まる褐色の小鳥",
+              "細めのくちばし",
+              "単色に近い羽衣"
+            ],
+            "weak_points": [
+              "画像がぼやけ斑紋が読めない",
+              "サイズの基準がない",
+              "幼鳥か成鳥か不明"
+            ],
+            "shooting_tips": [
+              "側面から胸の斑紋を接写",
+              "シャッター速度を上げて手ブレを防ぐ"
+            ],
+            "regional_read": "場所情報がないため地域読みは保留",
+            "size_assessment": {
+              "typical_size_cm": 15,
+              "observed_size_estimate_cm": null,
+              "size_class": "small",
+              "ranking_hint": "小型〜中型の鳥の範囲",
+              "basis": "スケール参照がなく推定不能",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "ヒヨドリ（幼鳥）",
+            "scientific_name": "Hypsipetes amaurotis",
+            "rank": "species",
+            "role": "比較候補",
+            "visible_features": [
+              "褐色系の単色っぽい羽衣"
+            ],
+            "weak_points": [
+              "頭部の灰色み・頬の斑が確認できない",
+              "体型の比率が読めない"
+            ],
+            "shooting_tips": [
+              "頭部と頬を正面から撮る",
+              "鳴き声を記録する"
+            ],
+            "regional_read": "場所情報がないため地域読みは保留",
+            "size_assessment": {
+              "typical_size_cm": 28,
+              "observed_size_estimate_cm": null,
+              "size_class": "typical",
+              "ranking_hint": "参考値のみ",
+              "basis": "スケール参照がなく推定不能",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "ツグミ類",
+            "scientific_name": "Turdus",
+            "rank": "genus",
+            "role": "比較候補",
+            "visible_features": [
+              "褐色の体色",
+              "樹上静止の姿勢"
+            ],
+            "weak_points": [
+              "胸の縦斑が確認できない",
+              "翼の模様が読めない"
+            ],
+            "shooting_tips": [
+              "胸腹部を斜め前から撮る",
+              "飛び立つ瞬間の翼下も狙う"
+            ],
+            "regional_read": "場所情報がないため地域読みは保留",
+            "size_assessment": {
+              "typical_size_cm": 24,
+              "observed_size_estimate_cm": null,
+              "size_class": "typical",
+              "ranking_hint": "参考値のみ",
+              "basis": "スケール参照がなく推定不能",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          },
+          {
+            "name": "広葉樹の樹冠（樹種未確定）",
+            "scientific_name": "",
+            "rank": "lifeform",
+            "role": "背景の木・植栽",
+            "visible_features": [
+              "太い幹と粗い樹皮",
+              "密な葉層",
+              "一部に枯れ枝"
+            ],
+            "weak_points": [
+              "葉の形がぼやけ樹種を判別できない"
+            ],
+            "shooting_tips": [
+              "葉を単独で接写",
+              "樹皮のテクスチャを撮る"
+            ],
+            "regional_read": "場所情報がないため地域読みは保留",
+            "size_assessment": {
+              "typical_size_cm": null,
+              "observed_size_estimate_cm": null,
+              "size_class": "large",
+              "ranking_hint": "高木の可能性",
+              "basis": "幹の太さからの推察",
+              "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+            }
+          }
+        ],
+        "recommended_media_regions": [
+          {
+            "asset_index": 0,
+            "rect": {
+              "x": 0.38,
+              "y": 0.32,
+              "width": 0.2,
+              "height": 0.22
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.7,
+            "note": "中央やや上の枝上"
+          },
+          {
+            "asset_index": 1,
+            "rect": {
+              "x": 0.47,
+              "y": 0.26,
+              "width": 0.08,
+              "height": 0.08
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.5,
+            "note": "上部中央の小さな鳥"
+          },
+          {
+            "asset_index": 2,
+            "rect": {
+              "x": 0.42,
+              "y": 0.28,
+              "width": 0.18,
+              "height": 0.2
+            },
+            "frame_time_ms": 0,
+            "confidence": 0.7,
+            "note": "中央の枝上"
+          }
+        ],
+        "coexisting_taxa": [
+          {
+            "name": "広葉樹の樹冠（樹種未確定）",
+            "scientific_name": "",
+            "rank": "lifeform",
+            "confidence": 0.6,
+            "note": "落葉広葉樹とみられる",
+            "invasive_lite": {
+              "is_invasive": false,
+              "mhlw_category": null
+            },
+            "media_regions": [
+              {
+                "asset_index": 0,
+                "rect": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 1,
+                  "height": 1
+                },
+                "frame_time_ms": 0,
+                "confidence": 0.8,
+                "note": "画面全体"
+              }
+            ]
+          }
+        ],
+        "size_assessment": {
+          "typical_size_cm": 15,
+          "observed_size_estimate_cm": null,
+          "size_class": "small",
+          "ranking_hint": "小型〜中型のスズメ目",
+          "basis": "スケール参照がなく推定不能",
+          "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+        },
+        "invasive_response": {
+          "is_invasive": false,
+          "mhlw_category": null,
+          "recommended_action": null,
+          "action_basis": "",
+          "regional_caveat": null,
+          "legal_warning": "",
+          "hedge": "AI判定です。"
+        }
+      },
+      "raw_content_redacted": false,
+      "internal_reasoning_saved": false
+    }
+  ],
+  "rawFinalContentAvailablePosts": 6,
+  "internalReasoningSaved": false,
+  "note": "Historical final-content recovery artifact. Current 8192 run is stored separately; no model rerun was performed."
+}
