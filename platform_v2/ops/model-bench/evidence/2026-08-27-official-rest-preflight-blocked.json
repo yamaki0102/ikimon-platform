@@ -1,0 +1,116 @@
+{
+  "version": "zukan-post-model-bench-v2-execution-evidence-v1",
+  "recordedAt": "2026-08-27T01:23:05.4493345Z",
+  "status": "BLOCKED_BEFORE_MODEL_CALL",
+  "source": {
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "commit": "ed162b9d119c6862bf4241487e5f4a6ae23f5f2d",
+    "prNumber": 1582,
+    "prState": "open",
+    "draft": true
+  },
+  "fixedInput": {
+    "manifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json",
+    "manifestFileSha256": "0e27a691ded2fbed6333985676ccc002f1a072189cd0c7a2fb82cb3148814652",
+    "postCount": 8,
+    "imageCount": 24,
+    "datasetSha256": "5636ef685524c59813449c3c9afffbeaee4be062d80834f3f86bc3ee185b251b",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "orderedPhotosPerPost": true,
+    "hiddenFromModel": [
+      "existing_label",
+      "exact_location",
+      "observer_identity",
+      "existing_ai_result"
+    ]
+  },
+  "target": {
+    "model": "@cf/zai-org/glm-5.3-flash",
+    "transport": "cloudflare-official-rest",
+    "requestContract": "one_post_per_request"
+  },
+  "rightsGate": {
+    "canonicalService": "platform_v2/src/services/observationDataRights.ts",
+    "required": {
+      "externalExportAllowed": true,
+      "withdrawalStatus": "active",
+      "recordConsent": "external_export",
+      "researchUseConsent": "public_export",
+      "datasetLicense": "CC-BY-4.0",
+      "mediaLicense": "CC-BY-NC-4.0"
+    },
+    "status": "UNAVAILABLE",
+    "firstPostAttempted": "record-1786965869920",
+    "remainingPostsNotReached": 7,
+    "error": "DATABASE_URL is required",
+    "checkedBeforeImageDownload": true,
+    "ownerAttestationSubstituted": false,
+    "publicProjectionSubstituted": false,
+    "directSql": false,
+    "unsafeFullObservationUpsert": false
+  },
+  "execution": {
+    "providerRequests": 0,
+    "imageSends": 0,
+    "retryCount": 0,
+    "fallbackCount": 0,
+    "playgroundCount": 0,
+    "baseline": "NOT_RUN_SAME_RIGHTS_GATE",
+    "observedCostUsd": 0,
+    "observedCostJpy": 0,
+    "budgetCapJpy": 100
+  },
+  "metrics": {
+    "successRatePct": null,
+    "schemaValidRatePct": null,
+    "goldAccuracyPct": null,
+    "wrongIdentificationCount": null,
+    "overprecisionCount": null,
+    "locationHallucinationCount": null,
+    "inputTokens": null,
+    "outputTokens": null,
+    "p50LatencyMs": null,
+    "p95LatencyMs": null,
+    "perPost": [
+      {
+        "visitId": "record-1786965869920",
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_READ_UNAVAILABLE"
+      },
+      {
+        "visitId": "record-1784366489892",
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+      },
+      {
+        "visitId": "record-1784430741938",
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+      },
+      {
+        "visitId": "record-1781252770584",
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+      },
+      {
+        "visitId": "record-1784430374598",
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+      },
+      {
+        "visitId": "record-1784430118720",
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+      },
+      {
+        "visitId": "record-1784431188621",
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+      },
+      {
+        "visitId": "record-1784430530197",
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+      }
+    ]
+  },
+  "verification": {
+    "typecheck": "PASS",
+    "fullNodeTests": "1759/1759 PASS",
+    "targetedModelBenchTests": "15/15 PASS",
+    "diffCheck": "PASS",
+    "worktreeCloseGate": "PASS"
+  }
+}
