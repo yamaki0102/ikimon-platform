@@ -73,32 +73,16 @@ npm run bench:zukan -- freeze-owner-smoke --visit-ids=record-1,record-2,...
 
 This creates a source-only manifest. It still must pass `vet-rights` before any model call.
 
-For an explicitly confirmed owner-only benchmark when production `ObservationDataRights` cannot be written from the test environment, keep the source manifest immutable and derive a separate attested manifest:
+The benchmark never treats an owner attestation, public visibility, or a prior report as a substitute for canonical rights. The run reads `ObservationDataRights` for every selected post and stops before image download or model calls if any row is missing or does not have the required consent, license, and active withdrawal state.
+
+The Cloudflare GLM Smoke uses the official Workers AI REST API. It sends exactly one request per post, with all ordered photos in that request; it has no retry, fallback model, or Playground path:
 
 ```bash
-npm run bench:zukan -- attest-owner-rights \
-  --manifest=ops/model-bench/fixtures/zukan-owner-post-smoke-v2.json \
-  --attestation=ops/model-bench/fixtures/zukan-owner-post-smoke-v2.rights-attestation.json
-```
-
-The attestation must name the exact frozen fixture set and declare `recordConsent=external_export`, `researchUseConsent=public_export`, `externalExportAllowed=true`, and `withdrawalStatus=active`. This is benchmark evidence; it does not mutate or claim to replace production canonical rights.
-
-The account-free official Cloudflare Playground transport is available for diagnostic Smoke runs:
-
-```bash
-ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 npm run bench:zukan -- smoke-glm-playground \
+ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 npm run bench:zukan -- smoke-glm \
   --manifest=ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json
 ```
 
-It deterministically chunks prompts at 5,000 Unicode characters to stay below the Playground per-message limit while preserving the full prompt text and SHA. It never changes the requested model or retries another model.
-
-After that immutable manifest is committed, each Cloudflare GLM Smoke is one command:
-
-```bash
-ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 npm run bench:zukan -- smoke-glm
-```
-
-`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` must already be configured in the execution environment. The command fixes the model to `@cf/zai-org/glm-5.3-flash`, the dataset to the eight-post Smoke manifest, output to 1,024 tokens/post, and Cloudflare's 2026-08-26 published token rates ($0.15/M input, $0.50/M output). A conservative $0.35 safety cap stops further calls; no fallback model is configured.
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` must already be configured in the execution environment. The command fixes the model to `@cf/zai-org/glm-5.3-flash`, the dataset to the eight-post / 24-image manifest (`datasetSha256=5636ef685524c59813449c3c9afffbeaee4be062d80834f3f86bc3ee185b251b`, `promptSha256=6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9`), output to 1,024 tokens/post, and Cloudflare's 2026-08-26 published token rates ($0.15/M input, $0.50/M output). A conservative $0.35 safety cap stops further calls. Reports include request count, provider usage, cost estimate, post-level scores, and p50/p95 latency.
 
 ## Explicit commands
 

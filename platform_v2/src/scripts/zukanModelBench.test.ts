@@ -7,6 +7,8 @@ import {
   compareZukanBenchReports,
   detailHasHumanConsensus,
   extractOrderedPostPhotoUrls,
+  buildCloudflareOfficialRestPayload,
+  generateWithCloudflareOfficialRest,
   rightsVettedTargetsFromResearchPayload,
   scoreZukanBenchResponse,
   selectDeterministicPostTargets,
@@ -95,6 +97,62 @@ test("all photos in one post are extracted in post order", () => {
   assert.deepEqual(extractOrderedPostPhotoUrls(html), ["/photo-a.jpg", "/photo-b.jpg", "/photo-c.jpg"]);
 });
 
+test("official REST payload keeps every post photo in one ordered user message", () => {
+  const payload = buildCloudflareOfficialRestPayload([
+    { type: "image_url", image_url: { url: "data:image/webp;base64,AAA" } },
+    { type: "image_url", image_url: { url: "data:image/webp;base64,BBB" } },
+    { type: "image_url", image_url: { url: "data:image/webp;base64,CCC" } },
+    { type: "text", text: "cold-start prompt" },
+  ]);
+  assert.equal(payload.messages.length, 1);
+  assert.equal(payload.messages[0]?.role, "user");
+  assert.deepEqual(payload.messages[0]?.content.map((part) => part.type), ["image_url", "image_url", "image_url", "text"]);
+  assert.equal(payload.max_tokens, 1024);
+  assert.equal(payload.stream, false);
+  assert.deepEqual(payload.response_format, { type: "json_object" });
+});
+
+test("official REST model call performs exactly one native request and reads provider usage", async () => {
+  const originalFetch = globalThis.fetch;
+  const previousAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const previousToken = process.env.CLOUDFLARE_API_TOKEN;
+  let requestCount = 0;
+  let requestUrl = "";
+  let requestBody = "";
+  globalThis.fetch = (async (input, init) => {
+    requestCount += 1;
+    requestUrl = String(input);
+    requestBody = String(init?.body ?? "");
+    return new Response(JSON.stringify({
+      success: true,
+      result: {
+        response: "{\"recommended_taxon_name\":\"unknown\"}",
+        usage: { prompt_tokens: 11, completion_tokens: 7 },
+      },
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  process.env.CLOUDFLARE_ACCOUNT_ID = "0".repeat(32);
+  process.env.CLOUDFLARE_API_TOKEN = "test-token";
+  try {
+    const result = await generateWithCloudflareOfficialRest({
+      model: "@cf/zai-org/glm-5.3-flash",
+      parts: [{ type: "image_url", image_url: { url: "data:image/webp;base64,AAA" } }, { type: "text", text: "prompt" }],
+    });
+    assert.equal(requestCount, 1);
+    assert.equal(requestUrl, "https://api.cloudflare.com/client/v4/accounts/" + "0".repeat(32) + "/ai/run/@cf/zai-org/glm-5.3-flash");
+    assert.deepEqual(JSON.parse(requestBody).messages[0].content.map((part: { type: string }) => part.type), ["image_url", "text"]);
+    assert.equal(result.inputTokens, 11);
+    assert.equal(result.outputTokens, 7);
+    assert.equal(result.usageReported, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousAccountId === undefined) delete process.env.CLOUDFLARE_ACCOUNT_ID;
+    else process.env.CLOUDFLARE_ACCOUNT_ID = previousAccountId;
+    if (previousToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = previousToken;
+  }
+});
+
 test("observation-first gallery photos are extracted without related records", () => {
   const html = `
     <figure class="of-media-slide" id="record-media-1"><img src="/photo-a.webp" alt="写真 1"></figure>
@@ -154,6 +212,7 @@ function report(model: string, goldPostCount: number): ZukanBenchModelReport {
     postCount: 24,
     imageCount: 48,
     successCount: 24,
+    modelRequestCount: 24,
     successRatePct: 100,
     schemaValidRatePct: 100,
     goldPostCount,
