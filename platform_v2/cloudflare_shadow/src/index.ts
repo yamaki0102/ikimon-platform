@@ -29758,7 +29758,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const outboxReadModelId = `outbox_${assetId}_readmodel`;
   const outboxAiId = `outbox_${assetId}_ai`;
   const reassessmentRequestId = `reassess:${observationId}:standard:${observation.owner_user_id}`;
-  const objectKey = `original/v1-compat/${observationId}/${assetId}`;
+  const objectKey = `original/v1-compat/${observationId}/${assetId}-${newId("upload")}`;
   const relativePath = objectKey;
   const occurrenceId = `occ:${observationId}:0`;
   const facePrivacy = normalizeFacePrivacy(input.facePrivacy);

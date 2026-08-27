@@ -10648,6 +10648,63 @@ test("v1 photo upload converges equivalent concurrent retries to one asset and o
   assert.equal((env.ASSET_BUCKET as unknown as FakeBucket).objects.size, 1);
 });
 
+test("v1 photo upload keeps the committed R2 object when a concurrent equivalent upload fails its D1 batch", async () => {
+  const { env, obs, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-photo-compensation-race",
+    userId: "user-photo",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.7,
+    longitude: 137.8
+  });
+
+  const body = JSON.stringify({
+    filename: "same-photo-compensation-race.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("same-photo-compensation-race").toString("base64"),
+    mediaRole: "primary",
+    facePrivacy: "no_faces"
+  });
+  let releaseFirstBatch!: () => void;
+  const firstBatchReleased = new Promise<void>((resolve) => {
+    releaseFirstBatch = resolve;
+  });
+  let batchCalls = 0;
+  const originalBatch = obs.batch.bind(obs);
+  obs.batch = async (statements) => {
+    const batchCall = ++batchCalls;
+    if (batchCall === 1) await firstBatchReleased;
+    if (batchCall === 2) {
+      releaseFirstBatch();
+      throw new Error("simulated_d1_race_failure");
+    }
+    return originalBatch(statements);
+  };
+
+  const upload = () => worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-photo-compensation-race/photos/upload", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body
+  }), env);
+
+  try {
+    const results = await Promise.allSettled([upload(), upload()]);
+    const success = results.find((result): result is PromiseFulfilledResult<Response> => result.status === "fulfilled");
+    const failure = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+    assert.ok(success);
+    assert.ok(failure);
+    assert.equal(success.value.status, 200);
+    assert.match(String(failure.reason), /simulated_d1_race_failure/);
+    assert.equal(obs.assets.size, 1);
+    assert.equal(queue.messages.length, 3);
+    const committedAsset = [...obs.assets.values()][0];
+    assert.ok(committedAsset);
+    assert.equal((env.ASSET_BUCKET as unknown as FakeBucket).objects.has(committedAsset.object_key), true);
+  } finally {
+    obs.batch = originalBatch;
+  }
+});
+
 test("v1 photo upload fails closed when an existing durable asset loses its object", async () => {
   const { env, obs, queue } = createEnv();
   await post("/api/v1/observations/upsert", env, {
