@@ -21,6 +21,9 @@ export const ZUKAN_BENCH_MIN_GOLD_POSTS = 8;
 export const ZUKAN_OWNER_BENCH_SMOKE_DATASET_SHA256 = "5636ef685524c59813449c3c9afffbeaee4be062d80834f3f86bc3ee185b251b";
 export const ZUKAN_OWNER_BENCH_SMOKE_PROMPT_SHA256 = "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9";
 export const CLOUDFLARE_GLM_5_3_FLASH_MODEL = "@cf/zai-org/glm-5.3-flash";
+export const CLOUDFLARE_QWEN_3_8_27B_MODEL = "@cf/qwen/qwen3.8-27b";
+export const CLOUDFLARE_LLAMA_3_2_11B_VISION_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";
+export const CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL = "openai/gpt-5.6-luna";
 export const ZUKAN_PRODUCTION_VISION_BASELINE_MODEL = "gemini-3.5-flash-lite";
 export const ZUKAN_BENCH_REPORT_SCHEMA_VERSION = "zukan-model-bench-report-v1";
 export const ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA = {
@@ -97,8 +100,34 @@ export type ZukanBenchCanonicalRightsSnapshot = Pick<ObservationDataRights,
   | "withdrawalStatus"
 >;
 
+export type ZukanBenchProviderResultMeta = {
+  http_status: number | null;
+  content_type: string | null;
+  response_shape: "chat_completions" | "responses" | "error" | "unknown";
+  root_fields: string[];
+  envelope_fields: string[];
+  response_fields: string[];
+  usage_fields: string[];
+  finish_reason: string | null;
+  status: string | null;
+  provider_error_fields: string[];
+  provider_error_code: string | null;
+  model: string | null;
+};
+
+export type ZukanBenchHumanReviewFields = {
+  visual_grounding?: unknown;
+  hallucinated_features?: unknown;
+  useful_observations?: unknown;
+  missing_observations?: unknown;
+  taxonomic_reasonableness?: unknown;
+  abstention_quality?: unknown;
+  explanation_quality?: unknown;
+  human_reviewer_notes?: unknown;
+};
+
 export type ZukanBenchRequestConfig = {
-  transport: "model-router" | "cloudflare-official-rest";
+  transport: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest";
   temperature: number;
   max_completion_tokens?: number;
   max_output_tokens?: number;
@@ -106,7 +135,7 @@ export type ZukanBenchRequestConfig = {
   thinking_level?: "minimal";
   stream: false;
   modalities: "omitted";
-  response_format?: { type: "json_object" };
+  response_format?: { type: "json_object" } | { type: "json_schema"; json_schema: unknown };
   response_mime_type?: "application/json";
   response_schema_mode?: "provider-native" | "parser-only";
   output_schema: "zukan-model-bench-parser-v1";
@@ -139,6 +168,10 @@ export type ZukanBenchFinalOutputRecord = {
   image_sha256: string[];
   prompt_sha256: string;
   response_field: string | null;
+  http_status?: number | null;
+  content_type?: string | null;
+  provider_result_meta?: ZukanBenchProviderResultMeta | null;
+  human_review?: ZukanBenchHumanReviewFields | null;
   internal_reasoning_saved: false;
   raw_content_redacted: boolean;
 };
@@ -191,12 +224,13 @@ export type ZukanBenchModelReport = {
   totalOutputTokens: number;
   estimatedCostUsd: number | null;
   pricing: { inputUsdPer1M: number; outputUsdPer1M: number; source: string } | null;
-  transport?: "model-router" | "cloudflare-official-rest";
+  transport?: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest";
   usageMeasurement?: "provider-reported" | "not-exposed";
   observedAdditionalCostUsd?: number | null;
   reportSchemaVersion?: typeof ZUKAN_BENCH_REPORT_SCHEMA_VERSION;
   requestConfig?: ZukanBenchRequestConfig;
   accuracyStatus?: "INSUFFICIENT_GOLD" | "MEASURED";
+  reportPath?: string;
   fixtureScores: ZukanBenchFixtureScore[];
 };
 
@@ -735,6 +769,9 @@ export function buildZukanBenchFinalOutputRecord(input: {
   inputTokens?: number | null;
   outputTokens?: number | null;
   usageReported: boolean;
+  httpStatus?: number | null;
+  contentType?: string | null;
+  providerResultMeta?: ZukanBenchProviderResultMeta | null;
   model: string;
   provider: string;
   config: ZukanBenchRequestConfig;
@@ -775,6 +812,10 @@ export function buildZukanBenchFinalOutputRecord(input: {
     image_sha256: input.fixture.images.map((image) => image.sha256),
     prompt_sha256: input.promptSha256,
     response_field: input.responseField ?? null,
+    http_status: input.httpStatus ?? null,
+    content_type: input.contentType ?? null,
+    provider_result_meta: input.providerResultMeta ?? null,
+    human_review: null,
     internal_reasoning_saved: false,
     raw_content_redacted: persisted.redacted,
   };
@@ -868,6 +909,8 @@ function modelProvider(model: string): string {
   if (separator > 0) return model.slice(0, separator);
   if (model.startsWith("gemini-")) return "gemini";
   if (model.startsWith("deepseek-")) return "deepseek";
+  if (model.startsWith("@cf/")) return "cloudflare-workers-ai";
+  if (model === CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL) return "cloudflare-openai";
   return "unknown";
 }
 
@@ -918,6 +961,71 @@ export type CloudflareOfficialRestPart =
   | { type: "image_url"; image_url: { url: string } }
   | { type: "text"; text: string };
 
+export class CloudflareAiProviderError extends Error {
+  constructor(message: string, public readonly providerResultMeta: ZukanBenchProviderResultMeta) {
+    super(message);
+    this.name = "CloudflareAiProviderError";
+  }
+}
+
+function objectFieldNames(value: unknown): string[] {
+  return value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value as Record<string, unknown>) : [];
+}
+
+function safeProviderErrorCode(value: unknown): string | null {
+  if (typeof value === "string" && /^[A-Za-z0-9_.-]{1,80}$/u.test(value)) return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return null;
+}
+
+function providerErrorCode(root: Record<string, unknown>, envelope: Record<string, unknown>): string | null {
+  const candidates = [root.error, envelope.error, root.errors, envelope.errors];
+  for (const candidate of candidates) {
+    const first = Array.isArray(candidate) ? candidate[0] : candidate;
+    const row = asRecord(first);
+    const code = safeProviderErrorCode(row.code ?? row.type ?? row.error_code);
+    if (code) return code;
+  }
+  return null;
+}
+
+function providerErrorFields(root: Record<string, unknown>, envelope: Record<string, unknown>): string[] {
+  return [
+    root.error !== undefined ? "error" : null,
+    root.errors !== undefined ? "errors" : null,
+    envelope.error !== undefined ? "result.error" : null,
+    envelope.errors !== undefined ? "result.errors" : null,
+  ].filter((value): value is string => Boolean(value));
+}
+
+function providerResultMeta(input: {
+  httpStatus: number | null;
+  contentType: string | null;
+  responseShape: ZukanBenchProviderResultMeta["response_shape"];
+  root: Record<string, unknown>;
+  envelope?: Record<string, unknown>;
+  responseFields?: string[];
+  finishReason?: string | null;
+  status?: string | null;
+}): ZukanBenchProviderResultMeta {
+  const envelope = input.envelope ?? {};
+  const usage = asRecord(envelope.usage ?? input.root.usage);
+  return {
+    http_status: input.httpStatus,
+    content_type: input.contentType,
+    response_shape: input.responseShape,
+    root_fields: objectFieldNames(input.root),
+    envelope_fields: objectFieldNames(input.envelope),
+    response_fields: input.responseFields ?? [],
+    usage_fields: objectFieldNames(usage),
+    finish_reason: input.finishReason ?? null,
+    status: input.status ?? (typeof input.root.status === "string" ? input.root.status : null),
+    provider_error_fields: providerErrorFields(input.root, envelope),
+    provider_error_code: providerErrorCode(input.root, envelope),
+    model: typeof (envelope.model ?? input.root.model) === "string" ? String(envelope.model ?? input.root.model) : null,
+  };
+}
+
 export function buildCloudflareOfficialRestPayload(parts: CloudflareOfficialRestPart[]) {
   return {
     messages: [{ role: "user", content: parts }],
@@ -926,6 +1034,46 @@ export function buildCloudflareOfficialRestPayload(parts: CloudflareOfficialRest
     reasoning_effort: "low",
     stream: false,
     response_format: { type: "json_object" },
+  } as const;
+}
+
+export function buildCloudflareAiChatPayload(model: string, parts: CloudflareOfficialRestPart[], maxCompletionTokens = 8192) {
+  const payload: Record<string, unknown> = {
+    model,
+    messages: [{ role: "user", content: parts }],
+    temperature: 0,
+    max_completion_tokens: maxCompletionTokens,
+    stream: false,
+    response_format: {
+      type: "json_schema",
+      json_schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+    },
+  };
+  if (model === CLOUDFLARE_QWEN_3_8_27B_MODEL) payload.reasoning_effort = "low";
+  return payload;
+}
+
+export function buildCloudflareResponsesPayload(model: string, parts: CloudflareOfficialRestPart[], maxOutputTokens = 8192) {
+  return {
+    model,
+    input: [{
+      role: "user",
+      content: parts.map((part) => part.type === "image_url"
+        ? { type: "input_image", image_url: part.image_url.url }
+        : { type: "input_text", text: part.text }),
+    }],
+    reasoning: { effort: "low" },
+    max_output_tokens: maxOutputTokens,
+    stream: false,
+    store: false,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "zukan-model-bench-parser-v1",
+        strict: true,
+        schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+      },
+    },
   } as const;
 }
 
@@ -999,11 +1147,226 @@ function parseCloudflareOfficialRestResponse(payload: unknown): {
   };
 }
 
+type CloudflareAiGenerationResult = {
+  text: string;
+  responseField: string;
+  finishReason: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  usageReported: boolean;
+  providerResultMeta: ZukanBenchProviderResultMeta;
+};
+
+function cloudflareResponseContentCandidates(root: Record<string, unknown>, envelope: Record<string, unknown>): Array<{ field: string; value: unknown }> {
+  const candidates: Array<{ field: string; value: unknown }> = [];
+  for (const source of [
+    { prefix: "result.choices[0]", choice: Array.isArray(envelope.choices) ? envelope.choices[0] : undefined },
+    { prefix: "choices[0]", choice: Array.isArray(root.choices) ? root.choices[0] : undefined },
+  ]) {
+    const choice = asRecord(source.choice);
+    const message = asRecord(choice.message);
+    candidates.push(
+      { field: `${source.prefix}.message.content`, value: message.content },
+      { field: `${source.prefix}.message.reasoning_content`, value: message.reasoning_content },
+      { field: `${source.prefix}.text`, value: choice.text },
+    );
+  }
+  candidates.push(
+    { field: "result.response", value: envelope.response },
+    { field: "response", value: root.response },
+  );
+  return candidates;
+}
+
+function parseCloudflareAiChatResponse(payload: unknown, httpStatus: number, contentType: string | null): CloudflareAiGenerationResult {
+  const root = asRecord(payload);
+  const envelope = asRecord(root.result);
+  const candidates = cloudflareResponseContentCandidates(root, envelope);
+  const selected = candidates
+    .map((candidate) => ({ ...candidate, text: responseContentText(candidate.value) }))
+    .find((candidate) => candidate.text.length > 0);
+  const choice = asRecord((Array.isArray(envelope.choices) ? envelope.choices[0] : undefined)
+    ?? (Array.isArray(root.choices) ? root.choices[0] : undefined));
+  const usage = asRecord(envelope.usage ?? root.usage);
+  const inputTokens = optionalFiniteNumber(usage.prompt_tokens ?? usage.input_tokens);
+  const outputTokens = optionalFiniteNumber(usage.completion_tokens ?? usage.output_tokens);
+  const finishReasonValue = choice.finish_reason ?? envelope.finish_reason ?? root.finish_reason;
+  const finishReason = typeof finishReasonValue === "string" ? finishReasonValue : null;
+  const responseFields = candidates.filter((candidate) => candidate.value !== undefined).map((candidate) => candidate.field);
+  const meta = providerResultMeta({
+    httpStatus,
+    contentType,
+    responseShape: "chat_completions",
+    root,
+    envelope,
+    responseFields,
+    finishReason,
+  });
+  if (!selected) throw new CloudflareAiProviderError("cloudflare_ai_empty_response", meta);
+  return {
+    text: selected.text,
+    responseField: selected.field,
+    finishReason,
+    inputTokens: inputTokens ?? 0,
+    outputTokens: outputTokens ?? 0,
+    usageReported: inputTokens !== null && outputTokens !== null,
+    providerResultMeta: meta,
+  };
+}
+
+function parseCloudflareResponsesResponse(payload: unknown, httpStatus: number, contentType: string | null): CloudflareAiGenerationResult {
+  const root = asRecord(payload);
+  const envelope = asRecord(root.result);
+  const output = Array.isArray(envelope.output) ? envelope.output : Array.isArray(root.output) ? root.output : [];
+  const responseFields: string[] = [];
+  let text = "";
+  let responseField = "";
+  for (const [outputIndex, itemValue] of output.entries()) {
+    const item = asRecord(itemValue);
+    const content = Array.isArray(item.content) ? item.content : [];
+    for (const [contentIndex, contentValue] of content.entries()) {
+      const contentItem = asRecord(contentValue);
+      if (contentItem.type === "output_text" && typeof contentItem.text === "string") {
+        responseFields.push(`output[${outputIndex}].content[${contentIndex}].text`);
+        text += contentItem.text;
+        if (!responseField) responseField = `output[${outputIndex}].content[${contentIndex}].text`;
+      }
+    }
+  }
+  if (!text && typeof envelope.output_text === "string") {
+    text = envelope.output_text;
+    responseField = "result.output_text";
+    responseFields.push(responseField);
+  }
+  if (!text && typeof root.output_text === "string") {
+    text = root.output_text;
+    responseField = "output_text";
+    responseFields.push(responseField);
+  }
+  const usage = asRecord(envelope.usage ?? root.usage);
+  const inputTokens = optionalFiniteNumber(usage.input_tokens ?? usage.prompt_tokens);
+  const outputTokens = optionalFiniteNumber(usage.output_tokens ?? usage.completion_tokens);
+  const incompleteDetails = asRecord(envelope.incomplete_details ?? root.incomplete_details);
+  const statusValue = envelope.status ?? root.status;
+  const status = typeof statusValue === "string" ? statusValue : null;
+  const finishReasonValue = incompleteDetails.reason ?? envelope.finish_reason ?? root.finish_reason;
+  const finishReason = typeof finishReasonValue === "string" ? finishReasonValue : null;
+  const meta = providerResultMeta({
+    httpStatus,
+    contentType,
+    responseShape: "responses",
+    root,
+    envelope,
+    responseFields,
+    finishReason,
+    status,
+  });
+  if (!text) throw new CloudflareAiProviderError("cloudflare_ai_empty_response", meta);
+  return {
+    text,
+    responseField,
+    finishReason,
+    inputTokens: inputTokens ?? 0,
+    outputTokens: outputTokens ?? 0,
+    usageReported: inputTokens !== null && outputTokens !== null,
+    providerResultMeta: meta,
+  };
+}
+
+async function fetchCloudflareAiJson(options: {
+  model: string;
+  payload: unknown;
+  responsesApi: boolean;
+  timeoutMs?: number;
+}): Promise<CloudflareAiGenerationResult> {
+  const accountId = clean(process.env.CLOUDFLARE_ACCOUNT_ID);
+  const token = clean(process.env.CLOUDFLARE_API_TOKEN ?? process.env.CLOUDFLARE_AUTH_TOKEN);
+  if (!accountId || !token) throw new Error("zukan_bench_cloudflare_credentials_missing");
+  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/${options.responsesApi ? "responses" : "chat/completions"}`;
+  const timeoutMs = options.timeoutMs ?? 180_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    let response: Response;
+    try {
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(options.payload),
+        signal: controller.signal,
+      });
+    } catch {
+      throw new Error("cloudflare_ai_transport_error");
+    }
+    const contentType = clean(response.headers.get("content-type") ?? "").split(";", 1)[0] || null;
+    let body: unknown = null;
+    try {
+      body = await response.json();
+    } catch {
+      const meta = providerResultMeta({
+        httpStatus: response.status,
+        contentType,
+        responseShape: response.ok ? "unknown" : "error",
+        root: {},
+      });
+      throw new CloudflareAiProviderError("cloudflare_ai_invalid_json_response", meta);
+    }
+    const root = asRecord(body);
+    const envelope = asRecord(root.result);
+    if (!response.ok) {
+      const meta = providerResultMeta({
+        httpStatus: response.status,
+        contentType,
+        responseShape: "error",
+        root,
+        envelope,
+      });
+      const code = meta.provider_error_code ?? "unknown";
+      throw new CloudflareAiProviderError(`cloudflare_ai_request_failed:${response.status}:${code}`, meta);
+    }
+    return options.responsesApi
+      ? parseCloudflareResponsesResponse(body, response.status, contentType)
+      : parseCloudflareAiChatResponse(body, response.status, contentType);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function generateWithCloudflareAiRest(options: {
+  model: string;
+  parts: CloudflareOfficialRestPart[];
+  maxCompletionTokens?: number;
+  timeoutMs?: number;
+}): Promise<CloudflareAiGenerationResult> {
+  const maxTokens = options.maxCompletionTokens ?? 8192;
+  if (options.model.startsWith("@cf/")) {
+    return fetchCloudflareAiJson({
+      model: options.model,
+      payload: buildCloudflareAiChatPayload(options.model, options.parts, maxTokens),
+      responsesApi: false,
+      timeoutMs: options.timeoutMs,
+    });
+  }
+  if (options.model === CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL) {
+    return fetchCloudflareAiJson({
+      model: options.model,
+      payload: buildCloudflareResponsesPayload(options.model, options.parts, maxTokens),
+      responsesApi: true,
+      timeoutMs: options.timeoutMs,
+    });
+  }
+  throw new Error("cloudflare_ai_model_invalid");
+}
+
 export async function generateWithCloudflareOfficialRest(options: {
   model: string;
   parts: CloudflareOfficialRestPart[];
   timeoutMs?: number;
-}): Promise<{ text: string; responseField?: string; finishReason?: string | null; inputTokens: number; outputTokens: number; usageReported: boolean }> {
+}): Promise<{ text: string; responseField?: string; finishReason?: string | null; inputTokens: number; outputTokens: number; usageReported: boolean; providerResultMeta?: ZukanBenchProviderResultMeta | null }> {
   if (!options.model.startsWith("@cf/")) throw new Error("cloudflare_official_rest_model_invalid");
   const accountId = clean(process.env.CLOUDFLARE_ACCOUNT_ID);
   const token = clean(process.env.CLOUDFLARE_API_TOKEN ?? process.env.CLOUDFLARE_AUTH_TOKEN);
@@ -1058,10 +1421,11 @@ export async function runZukanModelBench(options: {
   pricing?: BenchPricing | null;
   limit?: number;
   maxEstimatedCostUsd?: number;
-  transport?: "model-router" | "cloudflare-official-rest";
+  transport?: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest";
   maxOutputTokens?: number;
   temperature?: number;
   thinkingLevel?: "minimal";
+  reportLabel?: string;
   fixtureVisitIds?: readonly string[];
   requireFixedOwnerSmoke?: boolean;
   requireCanarySuccess?: boolean;
@@ -1091,7 +1455,11 @@ export async function runZukanModelBench(options: {
     throw new Error("zukan_bench_fixed_owner_smoke_target_mismatch");
   }
   await assertCanonicalObservationDataRights(fixtures, options.canonicalRightsSnapshot);
-  const provider = transport === "cloudflare-official-rest" ? "cloudflare-workers-ai" : modelProvider(options.model);
+  const provider = transport === "cloudflare-official-rest"
+    ? "cloudflare-workers-ai"
+    : transport === "cloudflare-ai-rest"
+      ? options.model.startsWith("@cf/") ? "cloudflare-workers-ai" : "cloudflare-ai-openai"
+      : modelProvider(options.model);
   const requestConfig: ZukanBenchRequestConfig = transport === "cloudflare-official-rest"
     ? {
       transport,
@@ -1105,6 +1473,24 @@ export async function runZukanModelBench(options: {
       attempts_per_model: 1,
       fallback_count: 0,
     }
+    : transport === "cloudflare-ai-rest"
+      ? {
+        transport,
+        temperature: 0,
+        ...(options.model.startsWith("@cf/")
+          ? { max_completion_tokens: options.maxOutputTokens ?? 8192 }
+          : { max_output_tokens: options.maxOutputTokens ?? 8192 }),
+        ...(options.model === CLOUDFLARE_QWEN_3_8_27B_MODEL || options.model === CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL
+          ? { reasoning_effort: "low" as const }
+          : {}),
+        stream: false,
+        modalities: "omitted",
+        response_format: { type: "json_schema", json_schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA },
+        response_schema_mode: "provider-native",
+        output_schema: "zukan-model-bench-parser-v1",
+        attempts_per_model: 1,
+        fallback_count: 0,
+      }
     : {
       transport,
       temperature: options.temperature ?? 0,
@@ -1166,6 +1552,18 @@ export async function runZukanModelBench(options: {
               { type: "text", text: renderedPrompt },
             ],
           })
+          : transport === "cloudflare-ai-rest"
+            ? await generateWithCloudflareAiRest({
+              model: options.model,
+              maxCompletionTokens: options.maxOutputTokens ?? 8192,
+              parts: [
+                ...verified.map((item): CloudflareOfficialRestPart => ({
+                  type: "image_url",
+                  image_url: { url: `data:${item.ref.mimeType};base64,${item.bytes.toString("base64")}` },
+                })),
+                { type: "text", text: renderedPrompt },
+              ],
+            })
           : {
             ...(await generateAiTextWithRoleChain({
               chainName: "observationVisualExtract",
@@ -1202,6 +1600,9 @@ export async function runZukanModelBench(options: {
           inputTokens: result.inputTokens,
           outputTokens: result.outputTokens,
           usageReported: result.usageReported,
+          httpStatus: result.providerResultMeta?.http_status ?? null,
+          contentType: result.providerResultMeta?.content_type ?? null,
+          providerResultMeta: result.providerResultMeta ?? null,
           model: options.model,
           provider,
           config: requestConfig,
@@ -1244,6 +1645,9 @@ export async function runZukanModelBench(options: {
             inputTokens: null,
             outputTokens: null,
             usageReported: false,
+            providerResultMeta: error instanceof CloudflareAiProviderError ? error.providerResultMeta : null,
+            httpStatus: error instanceof CloudflareAiProviderError ? error.providerResultMeta.http_status : null,
+            contentType: error instanceof CloudflareAiProviderError ? error.providerResultMeta.content_type : null,
             model: options.model,
             provider,
             config: requestConfig,
@@ -1251,13 +1655,9 @@ export async function runZukanModelBench(options: {
             promptSha256: manifest.promptSha256,
           }),
         });
-        if (options.requireCanarySuccess && isCanary) {
-          throw new Error(`zukan_bench_canary_failed:${error instanceof Error ? error.message.slice(0, 200) : "unknown"}`);
-        }
+        if (options.requireCanarySuccess && isCanary) break;
       }
-      if (options.requireCanarySuccess && isCanary && !canarySchemaValid) {
-        throw new Error("zukan_bench_canary_schema_invalid");
-      }
+      if (options.requireCanarySuccess && isCanary && !canarySchemaValid) break;
       const spentAfterCall = estimatedCost(totalInputTokens, totalOutputTokens, options.pricing ?? null);
       if (spentAfterCall !== null && options.maxEstimatedCostUsd !== undefined && spentAfterCall > options.maxEstimatedCostUsd) {
         throw new Error(`zukan_bench_cost_cap_reached:${spentAfterCall.toFixed(8)}/${options.maxEstimatedCostUsd.toFixed(8)}`);
@@ -1271,6 +1671,10 @@ export async function runZukanModelBench(options: {
   }
 
   const goldScores = fixtureScores.filter((score) => score.taxonScore !== null);
+  const safeModel = options.model.replace(/[^a-z0-9._-]+/giu, "-").replace(/^-+|-+$/gu, "").slice(0, 90);
+  const suffix = fixtures.length === ZUKAN_BENCH_SMOKE_POST_COUNT ? "smoke" : "core";
+  const reportPath = path.join(reportDir, `${new Date().toISOString().slice(0, 10)}-${safeModel}-${options.reportLabel ?? suffix}.json`);
+  const reportLocator = path.relative(process.cwd(), reportPath).replace(/\\/gu, "/");
   const report: ZukanBenchModelReport = {
     version: ZUKAN_MODEL_BENCH_VERSION,
     promptVersion: ZUKAN_MODEL_BENCH_PROMPT_VERSION,
@@ -1307,12 +1711,10 @@ export async function runZukanModelBench(options: {
     reportSchemaVersion: ZUKAN_BENCH_REPORT_SCHEMA_VERSION,
     requestConfig,
     accuracyStatus: goldScores.length > 0 ? "MEASURED" : "INSUFFICIENT_GOLD",
+    reportPath: reportLocator,
     fixtureScores,
   };
   await mkdir(reportDir, { recursive: true });
-  const safeModel = options.model.replace(/[^a-z0-9._-]+/giu, "-").replace(/^-+|-+$/gu, "").slice(0, 90);
-  const suffix = fixtures.length === ZUKAN_BENCH_SMOKE_POST_COUNT ? "smoke" : "core";
-  const reportPath = path.join(reportDir, `${new Date().toISOString().slice(0, 10)}-${safeModel}-${suffix}.json`);
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   return report;
 }
@@ -1421,6 +1823,13 @@ function pricingFromArgs(args: string[]): BenchPricing | null {
   return { inputUsdPer1M, outputUsdPer1M, source: stringArg(args, "pricing-source") ?? "manual-cli" };
 }
 
+function transportFromArgs(args: string[]): "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | undefined {
+  const value = stringArg(args, "transport");
+  if (value === undefined) return undefined;
+  if (value === "model-router" || value === "cloudflare-official-rest" || value === "cloudflare-ai-rest") return value;
+  throw new Error(`invalid_transport:${value}`);
+}
+
 async function main(): Promise<void> {
   const [command = "run", ...args] = process.argv.slice(2);
   if (command === "freeze") {
@@ -1471,6 +1880,9 @@ async function main(): Promise<void> {
       reportDir: stringArg(args, "report-dir"),
       pricing: pricingFromArgs(args),
       limit: numericArg(args, "limit"),
+      transport: transportFromArgs(args),
+      maxOutputTokens: numericArg(args, "max-output-tokens"),
+      reportLabel: stringArg(args, "report-label"),
     });
     console.log(JSON.stringify(report, null, 2));
     return;

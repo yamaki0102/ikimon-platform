@@ -5,12 +5,17 @@ import {
   ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
   ZUKAN_BENCH_MIN_GOLD_POSTS,
   ZUKAN_BENCH_SMOKE_POST_COUNT,
+  CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL,
+  CLOUDFLARE_QWEN_3_8_27B_MODEL,
+  buildCloudflareAiChatPayload,
+  buildCloudflareResponsesPayload,
   buildZukanBenchFinalOutputRecord,
   compareZukanBenchReports,
   detailHasHumanConsensus,
   extractOrderedPostPhotoUrls,
   buildCloudflareOfficialRestPayload,
   generateWithCloudflareOfficialRest,
+  generateWithCloudflareAiRest,
   rightsVettedTargetsFromResearchPayload,
   scoreZukanBenchResponse,
   selectDeterministicPostTargets,
@@ -131,6 +136,70 @@ test("official REST payload keeps every post photo in one ordered user message",
   assert.equal(payload.reasoning_effort, "low");
   assert.equal(payload.stream, false);
   assert.deepEqual(payload.response_format, { type: "json_object" });
+});
+
+test("Cloudflare AI REST adapters preserve ordered multimodal input and native schema", async () => {
+  const originalFetch = globalThis.fetch;
+  const previousAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const previousToken = process.env.CLOUDFLARE_API_TOKEN;
+  const parts = [
+    { type: "image_url" as const, image_url: { url: "data:image/webp;base64,AAA" } },
+    { type: "image_url" as const, image_url: { url: "data:image/webp;base64,BBB" } },
+    { type: "image_url" as const, image_url: { url: "data:image/webp;base64,CCC" } },
+    { type: "text" as const, text: "cold-start prompt" },
+  ];
+  let requestCount = 0;
+  let requestUrl = "";
+  let requestBody: Record<string, unknown> = {};
+  globalThis.fetch = (async (input, init) => {
+    requestCount += 1;
+    requestUrl = String(input);
+    requestBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+    return new Response(JSON.stringify({
+      id: "chatcmpl-test",
+      model: CLOUDFLARE_QWEN_3_8_27B_MODEL,
+      choices: [{ message: { content: JSON.stringify({ recommended_taxon_name: "unknown", recommended_rank: "lifeform", confidence_band: "low" }) }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 31, completion_tokens: 17 },
+    }), { status: 200, headers: { "content-type": "application/json; charset=utf-8" } });
+  }) as typeof fetch;
+  process.env.CLOUDFLARE_ACCOUNT_ID = "0".repeat(32);
+  process.env.CLOUDFLARE_API_TOKEN = "test-token";
+  try {
+    const payload = buildCloudflareAiChatPayload(CLOUDFLARE_QWEN_3_8_27B_MODEL, parts, 8192);
+    const payloadMessages = (payload.messages as Array<{ content: Array<{ type: string }> }>);
+    assert.equal(payloadMessages[0]?.content.map((part) => part.type).join(","), "image_url,image_url,image_url,text");
+    assert.deepEqual(payload.response_format, { type: "json_schema", json_schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA });
+    const result = await generateWithCloudflareAiRest({ model: CLOUDFLARE_QWEN_3_8_27B_MODEL, parts });
+    assert.equal(requestCount, 1);
+    assert.equal(requestUrl, "https://api.cloudflare.com/client/v4/accounts/" + "0".repeat(32) + "/ai/v1/chat/completions");
+    assert.equal(requestBody.model, CLOUDFLARE_QWEN_3_8_27B_MODEL);
+    assert.equal(result.inputTokens, 31);
+    assert.equal(result.outputTokens, 17);
+    assert.equal(result.providerResultMeta.http_status, 200);
+    assert.equal(result.providerResultMeta.content_type, "application/json");
+    assert.equal(result.providerResultMeta.response_shape, "chat_completions");
+
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      object: "response",
+      status: "completed",
+      model: "gpt-5.6-luna",
+      output: [{ type: "message", status: "completed", content: [{ type: "output_text", text: JSON.stringify({ recommended_taxon_name: "unknown", recommended_rank: "lifeform", confidence_band: "low" }) }] }],
+      usage: { input_tokens: 41, output_tokens: 19, total_tokens: 60 },
+    }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+    const responsePayload = buildCloudflareResponsesPayload(CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL, parts, 8192);
+    assert.deepEqual((responsePayload.input[0]?.content as Array<{ type: string }>).map((part) => part.type), ["input_image", "input_image", "input_image", "input_text"]);
+    const responseResult = await generateWithCloudflareAiRest({ model: CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL, parts });
+    assert.equal(responseResult.inputTokens, 41);
+    assert.equal(responseResult.outputTokens, 19);
+    assert.equal(responseResult.responseField, "output[0].content[0].text");
+    assert.equal(responseResult.providerResultMeta.response_shape, "responses");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousAccountId === undefined) delete process.env.CLOUDFLARE_ACCOUNT_ID;
+    else process.env.CLOUDFLARE_ACCOUNT_ID = previousAccountId;
+    if (previousToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = previousToken;
+  }
 });
 
 test("official REST model call performs exactly one native request and reads provider usage", async () => {

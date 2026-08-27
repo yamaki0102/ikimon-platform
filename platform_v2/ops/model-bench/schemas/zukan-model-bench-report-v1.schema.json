@@ -41,7 +41,7 @@
       "type": "object",
       "required": ["transport", "temperature", "stream", "modalities", "output_schema", "attempts_per_model", "fallback_count"],
       "properties": {
-        "transport": { "enum": ["model-router", "cloudflare-official-rest"] },
+        "transport": { "enum": ["model-router", "cloudflare-official-rest", "cloudflare-ai-rest"] },
         "temperature": { "type": "number", "minimum": 0 },
         "max_completion_tokens": { "type": "integer", "minimum": 1 },
         "max_output_tokens": { "type": "integer", "minimum": 1 },
@@ -49,7 +49,14 @@
         "thinking_level": { "const": "minimal" },
         "stream": { "const": false },
         "modalities": { "const": "omitted" },
-        "response_format": { "type": "object", "properties": { "type": { "const": "json_object" } }, "required": ["type"] },
+        "response_format": {
+          "type": "object",
+          "properties": {
+            "type": { "enum": ["json_object", "json_schema"] },
+            "json_schema": {}
+          },
+          "required": ["type"]
+        },
         "response_mime_type": { "const": "application/json" },
         "response_schema_mode": { "enum": ["provider-native", "parser-only"] },
         "output_schema": { "const": "zukan-model-bench-parser-v1" },
@@ -134,13 +141,43 @@
         "image_sha256": { "type": "array", "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" } },
         "prompt_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "response_field": { "type": ["string", "null"] },
-        "internal_reasoning_saved": { "const": false },
-        "raw_content_redacted": { "type": "boolean" },
+        "http_status": { "type": ["integer", "null"], "minimum": 100, "maximum": 599 },
+        "content_type": { "type": ["string", "null"] },
+        "provider_result_meta": {
+          "type": ["object", "null"],
+          "properties": {
+            "http_status": { "type": ["integer", "null"], "minimum": 100, "maximum": 599 },
+            "content_type": { "type": ["string", "null"] },
+            "response_shape": { "enum": ["chat_completions", "responses", "error", "unknown"] },
+            "root_fields": { "type": "array", "items": { "type": "string" } },
+            "envelope_fields": { "type": "array", "items": { "type": "string" } },
+            "response_fields": { "type": "array", "items": { "type": "string" } },
+            "usage_fields": { "type": "array", "items": { "type": "string" } },
+            "finish_reason": { "type": ["string", "null"] },
+            "status": { "type": ["string", "null"] },
+            "provider_error_fields": { "type": "array", "items": { "type": "string" } },
+            "provider_error_code": { "type": ["string", "null"] },
+            "model": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
         "human_review": {
           "type": ["object", "null"],
-          "description": "Optional post-model judge fields for later visual and taxonomic reassessment.",
-          "additionalProperties": true
-        }
+          "properties": {
+            "visual_grounding": {},
+            "hallucinated_features": {},
+            "useful_observations": {},
+            "missing_observations": {},
+            "taxonomic_reasonableness": {},
+            "abstention_quality": {},
+            "explanation_quality": {},
+            "human_reviewer_notes": {}
+          },
+          "additionalProperties": true,
+          "description": "Optional post-model judge fields for later visual and taxonomic reassessment."
+        },
+        "internal_reasoning_saved": { "const": false },
+        "raw_content_redacted": { "type": "boolean" }
       },
       "additionalProperties": true
     }

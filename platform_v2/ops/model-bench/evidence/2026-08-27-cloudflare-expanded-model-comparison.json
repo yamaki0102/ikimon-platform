@@ -1,0 +1,632 @@
+{
+  "version": "zukan-post-model-bench-v2-cloudflare-expanded-evidence-v1",
+  "recordedAt": "2026-08-27T09:02:38.368Z",
+  "status": "COMPLETED_CLOUDFLARE_EXPANDED_MODEL_BENCH",
+  "source": {
+    "repository": "yamaki0102/ikimon-platform",
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "prNumber": 1582,
+    "prStateAtRecord": "open",
+    "draftAtRecord": true,
+    "productionModelChanged": false,
+    "sourceHeadAtRun": "de2e21102ea8daa8e875a97618118b8b971fe9e2",
+    "implementationCommit": "pending-post-run-commit"
+  },
+  "fixedInput": {
+    "manifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+    "visitIds": [
+      "record-1784366489892",
+      "record-1784430741938",
+      "record-1781252770584",
+      "record-1784430374598",
+      "record-1784430118720",
+      "record-1784431188621",
+      "record-1784430530197"
+    ],
+    "postCount": 7,
+    "imageCount": 21,
+    "orderedPhotosPerPost": true,
+    "imagesPerPost": 3,
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "manifestModified": false,
+    "sourceLabelsLocationsObserversAndExistingAiResultsHidden": true
+  },
+  "rightsGate": {
+    "canonicalPredicate": "external_export_allowed == 1 AND record_consent == external_export AND research_use_consent == public_export AND dataset_license == CC-BY-4.0 AND media_license == CC-BY-NC-4.0 AND withdrawal_status == active",
+    "productionD1": {
+      "database": "ikimon_prod_observations_2026_06",
+      "databaseId": "c879eef6-009c-4710-a964-be343d96f3eb",
+      "operation": "SELECT only",
+      "readBack": [
+        {
+          "visitId": "record-1781252770584",
+          "recordConsent": "external_export",
+          "researchUseConsent": "public_export",
+          "datasetLicense": "CC-BY-4.0",
+          "mediaLicense": "CC-BY-NC-4.0",
+          "externalExportAllowed": true,
+          "withdrawalStatus": "active"
+        },
+        {
+          "visitId": "record-1784366489892",
+          "recordConsent": "external_export",
+          "researchUseConsent": "public_export",
+          "datasetLicense": "CC-BY-4.0",
+          "mediaLicense": "CC-BY-NC-4.0",
+          "externalExportAllowed": true,
+          "withdrawalStatus": "active"
+        },
+        {
+          "visitId": "record-1784430118720",
+          "recordConsent": "external_export",
+          "researchUseConsent": "public_export",
+          "datasetLicense": "CC-BY-4.0",
+          "mediaLicense": "CC-BY-NC-4.0",
+          "externalExportAllowed": true,
+          "withdrawalStatus": "active"
+        },
+        {
+          "visitId": "record-1784430374598",
+          "recordConsent": "external_export",
+          "researchUseConsent": "public_export",
+          "datasetLicense": "CC-BY-4.0",
+          "mediaLicense": "CC-BY-NC-4.0",
+          "externalExportAllowed": true,
+          "withdrawalStatus": "active"
+        },
+        {
+          "visitId": "record-1784430530197",
+          "recordConsent": "external_export",
+          "researchUseConsent": "public_export",
+          "datasetLicense": "CC-BY-4.0",
+          "mediaLicense": "CC-BY-NC-4.0",
+          "externalExportAllowed": true,
+          "withdrawalStatus": "active"
+        },
+        {
+          "visitId": "record-1784430741938",
+          "recordConsent": "external_export",
+          "researchUseConsent": "public_export",
+          "datasetLicense": "CC-BY-4.0",
+          "mediaLicense": "CC-BY-NC-4.0",
+          "externalExportAllowed": true,
+          "withdrawalStatus": "active"
+        },
+        {
+          "visitId": "record-1784431188621",
+          "recordConsent": "external_export",
+          "researchUseConsent": "public_export",
+          "datasetLicense": "CC-BY-4.0",
+          "mediaLicense": "CC-BY-NC-4.0",
+          "externalExportAllowed": true,
+          "withdrawalStatus": "active"
+        }
+      ],
+      "fixedPostsRightsReadBack": "7/7",
+      "rightsChangedThisRun": false,
+      "databaseUrlReadOrPersisted": false,
+      "sourcePayloadPersisted": false
+    }
+  },
+  "executionContract": {
+    "transport": "Cloudflare official REST only",
+    "cloudflareEndpoints": {
+      "workersAiChatCompletions": "/accounts/{account_id}/ai/v1/chat/completions",
+      "responsesApi": "/accounts/{account_id}/ai/v1/responses"
+    },
+    "onePostPerRequest": true,
+    "allOrderedImagesInOneRequest": true,
+    "stream": false,
+    "attemptsPerModel": 1,
+    "retryCount": 0,
+    "fallbackCount": 0,
+    "playgroundUsed": false,
+    "productionTrafficChanged": false
+  },
+  "budget": {
+    "capUsd": 1.8,
+    "conservativePreflightInputTokensPerPost": 50000,
+    "maxOutputTokensPerRequest": 8192,
+    "projectedTotalUsd": 0.61252288,
+    "actualEstimatedTotalUsd": 0,
+    "withinCap": true,
+    "pricingNote": "Qwen and Llama use Cloudflare model-page rates. Luna uses the published OpenAI rate for usage-based estimate; Cloudflare billing read-back is not exposed in the response."
+  },
+  "models": [
+    {
+      "model": "@cf/qwen/qwen3.8-27b",
+      "provider": "cloudflare-workers-ai",
+      "pricing": {
+        "inputUsdPer1M": 0.45,
+        "outputUsdPer1M": 3.2,
+        "source": "cloudflare-workers-ai-qwen3.8-27b-2026-08-27"
+      },
+      "canary": {
+        "pass": false,
+        "status": "CANARY_FAIL",
+        "visitId": "record-1784366489892",
+        "requestCount": 1,
+        "success": false,
+        "schemaValid": false,
+        "criticalFailures": [
+          "model_error:cloudflare_ai_request_failed:408:3046"
+        ],
+        "responseShape": "error",
+        "httpStatus": 408,
+        "contentType": "application/json",
+        "rootFields": [
+          "errors",
+          "success",
+          "result",
+          "messages"
+        ],
+        "envelopeFields": [],
+        "responseFields": [],
+        "usageFields": [],
+        "finishReason": null,
+        "providerErrorFields": [
+          "errors"
+        ],
+        "providerErrorCode": "3046",
+        "rawFinalContentStored": false,
+        "parsedJsonStored": false,
+        "estimatedCostUsd": 0,
+        "latencyMs": 121353,
+        "inputTokens": null,
+        "outputTokens": null,
+        "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-cf-qwen-qwen3.8-27b-canary-v1.json"
+      },
+      "final": null,
+      "blocker": "CANARY_FAILED_NO_FULL_RUN"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "provider": "cloudflare-ai-openai",
+      "pricing": {
+        "inputUsdPer1M": 0.2,
+        "outputUsdPer1M": 1.2,
+        "source": "openai-gpt-5.6-luna-published-rate-via-cloudflare-2026-08-27"
+      },
+      "canary": {
+        "pass": false,
+        "status": "CANARY_FAIL",
+        "visitId": "record-1784366489892",
+        "requestCount": 1,
+        "success": false,
+        "schemaValid": false,
+        "criticalFailures": [
+          "model_error:cloudflare_ai_request_failed:402:invalid_prompt"
+        ],
+        "responseShape": "error",
+        "httpStatus": 402,
+        "contentType": "application/json",
+        "rootFields": [
+          "error"
+        ],
+        "envelopeFields": [],
+        "responseFields": [],
+        "usageFields": [],
+        "finishReason": null,
+        "providerErrorFields": [
+          "error"
+        ],
+        "providerErrorCode": "invalid_prompt",
+        "rawFinalContentStored": false,
+        "parsedJsonStored": false,
+        "estimatedCostUsd": 0,
+        "latencyMs": 6084,
+        "inputTokens": null,
+        "outputTokens": null,
+        "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-openai-gpt-5.6-luna-canary-v1.json"
+      },
+      "final": null,
+      "blocker": "CANARY_FAILED_NO_FULL_RUN"
+    },
+    {
+      "model": "@cf/meta/llama-3.2-11b-vision-instruct",
+      "provider": "cloudflare-workers-ai",
+      "pricing": {
+        "inputUsdPer1M": 0.049,
+        "outputUsdPer1M": 0.68,
+        "source": "cloudflare-workers-ai-llama-3.2-11b-vision-instruct-2026-08-27"
+      },
+      "canary": {
+        "pass": false,
+        "status": "BLOCKED_LICENSE",
+        "visitId": "record-1784366489892",
+        "requestCount": 1,
+        "success": false,
+        "schemaValid": false,
+        "criticalFailures": [
+          "model_error:cloudflare_ai_request_failed:403:5016"
+        ],
+        "responseShape": "error",
+        "httpStatus": 403,
+        "contentType": "application/json",
+        "rootFields": [
+          "errors",
+          "success",
+          "result",
+          "messages"
+        ],
+        "envelopeFields": [],
+        "responseFields": [],
+        "usageFields": [],
+        "finishReason": null,
+        "providerErrorFields": [
+          "errors"
+        ],
+        "providerErrorCode": "5016",
+        "rawFinalContentStored": false,
+        "parsedJsonStored": false,
+        "estimatedCostUsd": 0,
+        "latencyMs": 875,
+        "inputTokens": null,
+        "outputTokens": null,
+        "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-cf-meta-llama-3.2-11b-vision-instruct-canary-v1.json"
+      },
+      "final": null,
+      "blocker": "BLOCKED_LICENSE"
+    }
+  ],
+  "integratedComparison": {
+    "sourceReports": [
+      "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json",
+      "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json"
+    ],
+    "sameDatasetSha256": true,
+    "samePromptSha256": true,
+    "sameOrderedImageInput": true,
+    "reports": [
+      {
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "postCount": 7,
+        "imageCount": 21,
+        "success": "7/7",
+        "schemaValid": "7/7",
+        "successRatePct": 100,
+        "schemaValidRatePct": 100,
+        "criticalFailurePostCount": 0,
+        "p50LatencyMs": 2582,
+        "p95LatencyMs": 4831,
+        "inputTokens": 82845,
+        "outputTokens": 2238,
+        "estimatedCostUsd": 0.0304485,
+        "rankDistribution": {
+          "family": 3,
+          "genus": 3,
+          "species": 1
+        },
+        "confidenceDistribution": {
+          "low": 2,
+          "high": 2,
+          "medium": 3
+        },
+        "abstentionCount": 2,
+        "outputLengthChars": {
+          "min": 109,
+          "max": 1237,
+          "p50": 468
+        },
+        "rawFinalContentStored": 7,
+        "parsedJsonStored": 7,
+        "finishReasons": [
+          "STOP"
+        ],
+        "criticalFailures": [],
+        "perPost": [
+          {
+            "visitId": "record-1784366489892",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "キク科の一種または近縁の双子葉植物子株 (Asteraceae / order Asterales などの一種として発芽初期段階の個体ですが、葉や茎の毛、対生または互生の初期配列などの決定的形質がまだ十分に展開していません。画像からはキク科などの幼植物の可能性がありますが、種レベルへの踏み込みは不十分です。)",
+            "recommendedRank": "family",
+            "confidence": "low",
+            "latencyMs": 2571,
+            "inputTokens": 11835,
+            "outputTokens": 118,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json"
+          },
+          {
+            "visitId": "record-1784430741938",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "カタバミ属の一種（カタバミ等）",
+            "recommendedRank": "genus",
+            "confidence": "high",
+            "latencyMs": 2582,
+            "inputTokens": 11835,
+            "outputTokens": 46,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json"
+          },
+          {
+            "visitId": "record-1781252770584",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "コガネムシ科の一種あるいはスジコガネ属などコガネムシ亜科の甲虫類です。赤褐色の上翅と平行な筋（条溝）を持つ体型が特徴ですが、種レベルの同定には頭部や腹面の詳細な特徴が必要です。コガネムシ科の総称として捉えるのが無難です。",
+            "recommendedRank": "family",
+            "confidence": "medium",
+            "latencyMs": 1927,
+            "inputTokens": 11835,
+            "outputTokens": 112,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json"
+          },
+          {
+            "visitId": "record-1784430374598",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "アカリファ属（キャットテール）の一種子孫・近縁種またはヒスイカズラ類等ではなくエノキグサ属 (Acalypha) の園芸種キャットテール等の一種に類似した植物群の一例等として、エノキグサ属の一種であるアカネ科やトウダイグサ科などの形質を持つ植物に酷似する花序（Acalypha hispidaなど）の一種群と考えられるが、一般的な鑑賞用キャットテール（Acalypha hispida）を第一候補とする群としての命名が可能だが、ここでは genus または species レベルで表現します：Acalypha属（アカリファ属）の一種（代表例: キャットテール / Acalypha hispida 等）等、ただし種レベルでの園芸品種が多彩なため属レベルを推奨するケースもあるが、特徴的な赤い尾状の花穂から Acalypha hispida が最も有力）と推定される。しかし安全に属レベルとする：Acalypha属の一種としてアカリファ・ヒスピダ（Acalypha hispida）等が疑われるが安全に属レベル名とする：Acalypha属の一種とするべきか species とすべきか。写真のフサフサとした赤い穂状花序と鋸歯のある卵形の葉は、トウダイグサ科アカリファ属（Acalypha）の代表種であるキャットテール（アカリファ・ヒスピダ）に非常に一致する。園芸種として栽培されるほか、熱帯では逸出することもある。確度の高い種名として Acalypha hispida を挙げられるが、近縁な園芸品種も存在するため属または種としてアカリファ・ヒスピダを提示する。正確な種確定には花序の細かい構造や栽培環境の確認が望ましい。ここでは推奨 taxon 名として「アカリファ・ヒスピダ」を挙げつつ rank を species とする。実際に写真の鮮やかな赤いブラシ状の穂と鋸歯状の葉は典型的なキャットテールの形態を示しているため、確信度高く species レベルで提示できる。ただし、安全を期すため、学名は Acalypha hispida、推薦ランクを species とするが、確信度は高めである。以下に出力する：推奨学名 Acalypha hispida、推奨種名 キャットテール（アカリファ・ヒスピダ）。写真の赤いブラシ状の花穂や鋸歯のある葉、対生あるいは互生の葉の付き方からトウダイグサ科アカリファ属のキャットテール（Acalypha hispida）と判断できる。ただし、同属の他種や品種の可能性も完全に否定できないため、ここでは種レベルまたは属レベルでの慎重な扱いとしてアカリファ属の代表種として提示する。一般的な園芸種であるキャットテールとして鑑賞されることが多い。",
+            "recommendedRank": "genus",
+            "confidence": "high",
+            "latencyMs": 4831,
+            "inputTokens": 11835,
+            "outputTokens": 669,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json"
+          },
+          {
+            "visitId": "record-1784430118720",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "キイチゴ属の一種（モミジイチゴ等）またはキイチゴ類（バラ科）の若葉・茎の可能性があります。トゲや掌状の葉脈パターンが特徴的です。」として分類します。写真では明確な種確定に必要な花や果実が不足しています。同定は慎重に属レベルで行います。葉の形状や鋸歯からバラ科キイチゴ属（Rubus属）などが疑われます。追加の全体像や花・果実を確認してください。」として扱うのが妥当です。位置情報が未取得のため地域分布は評価保留。季節・時期情報は提供されていないため季節特有の動態は推測できません。場所情報がないため地域読みは保留とします。バラ科キイチゴ属は日本各地の林縁や道端に広く自生します。AIによる目測のため誤差大。確定値ではありません。新種判定はAIにはできません。可能性の示唆に留まります。AI判定です。駆除前に自治体・環境省にご確認ください。」",
+            "recommendedRank": "genus",
+            "confidence": "medium",
+            "latencyMs": 2518,
+            "inputTokens": 11835,
+            "outputTokens": 257,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json"
+          },
+          {
+            "visitId": "record-1784431188621",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "スズメ または ホオジロ類等（画像不鮮明のため要確認）の鳥類の一種 (Passer montanus等に近いが遠景のため要検証・スズメ科の一種として扱うべき可能性あり。ここではスズメ科の一種とするか、スズメ Passer montanus を第一候補とするが自信は中程度。確実に同定するため仮の候補としてスズメを置く。ここではスズメとする。学名: Passer montanus, ランク: species として暫定提示するが慎重に検証が必要。指示に従い形質を確認する。ここでは信頼度を高めるため rank=family, Passeridae スズメ科、あるいは rank=species Passer montanus を置く。写真では全体的に茶色っぽい頭部・体色と枝にとまる姿がスズメ科を想起させる。しかし解像度が低いため同定に限界がある。一般的なスズメ Passer montanus を推奨taxonとするが、慎重を期して低めの評価にする。画像中の鳥はスズメ科の特徴（ずんぐりした体型、円錐形のくちばし）を持つ。ただ種確定には不十分なため、スズメ科の一種にするかスズメとするか迷うところ。指示のフォーマットに合わせるため recommended_taxon_name は「スズメ」とする。学名は Passer montanus。)",
+            "recommendedRank": "species",
+            "confidence": "medium",
+            "latencyMs": 3239,
+            "inputTokens": 11835,
+            "outputTokens": 332,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json"
+          },
+          {
+            "visitId": "record-1784430530197",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "スズメ科の一種または類似の小鳥類の一種あるいは幼鳥等モズ科等可能性あり要詳細検討必要証拠不足のため保留群はハッカチョウ科などとも比較要するがシルエットや樹木中の環境から小鳥類の一種として科または目レベルで検討するが位置特定不可のため断定を避ける必要ありここではスズメ目の一種や一般的な鳴禽類の一種として保留し追加証拠が必須である点に注意を払うことが安全であるためスズメ目の一種あるいは科レベルでの一般候補とするがここでは分かりやすくスズメ目として表現する代わりに一般的な鳥類の一種とするのが適切か確認を要するがスズメ目の一種を推奨するべきか検討した結果スズメ目の一種とするのが安全であるためスズメ目の一種として記載する形が望ましいがより具体的にスズメ科の一種とするかあるいはモズ科の一種とするか判断を留保しスズメ目の一種とするのが最も無難であるためスズメ目の一種とするがシステム上科レベルまたは目レベルが望ましいためスズメ目とするのが安全であるためスズメ目とするが指示に従い科レベルとしてスズメ科の一種とするかモズ科を置くスズメ目の一種とするのが無難であるからスズメ目の一種としておくが項目ルールに従いスズメ目の一種とするのが良いかあるいはモズ科の一種とするか検討しスズメ目鳥類の一種としておくのが安全であるためスズメ目の一種とするが指定のランクfamilyに対応させるためカラス科やヒヨドリ科などの可能性も含めスズメ目の一種とするべきところを一般的なスズメ目の一種としておく。具体的にどの科か断定できないためスズメ目の一種とするのが適切だがrankをfamilyにする必要があるためスズメ科の一種とするかヒヨドリ科の一種とするか不明でありしかしシルエットから小型の鳴禽類の一種として一般的なスズメ目の一種として登録するわけにいかないためヒヨドリ科またはスズメ科の一種として記載するがここではスズメ目の一種としつつ推奨ランクをfamilyにしておくためスズメ科の一種として記載するのが安全かもしれないが断定を避けてスズメ目の一種とするためにランクをorderにすべきか指定はfamilyのためスズメ科の一種とするが不確実性が高いためスズメ科の一種として扱うこととするが正確にはスズメ目の一種とするべきであるものの形式に合わせてスズメ科の一種として記載する事とするがより正確な表現としてスズメ目の一種とするのが妥当でありしかし指示された制約からスズメ科の一種とする。さらにモズ科の一種という可能性もあるためスズメ目の一種としておくのが無難であるが指定のフォーマットに準拠するためスズメ科の一種とする。詳細を記載し不確実性を明記する。実質的に種同定は困難である。正確にはスズメ目の一種。",
+            "recommendedRank": "family",
+            "confidence": "low",
+            "latencyMs": 4752,
+            "inputTokens": 11835,
+            "outputTokens": 704,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json"
+          }
+        ],
+        "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json"
+      },
+      {
+        "model": "@cf/zai-org/glm-5.3-flash",
+        "provider": "cloudflare-workers-ai",
+        "postCount": 7,
+        "imageCount": 21,
+        "success": "7/7",
+        "schemaValid": "7/7",
+        "successRatePct": 100,
+        "schemaValidRatePct": 100,
+        "criticalFailurePostCount": 0,
+        "p50LatencyMs": 53996,
+        "p95LatencyMs": 64073,
+        "inputTokens": 153402,
+        "outputTokens": 26359,
+        "estimatedCostUsd": 0.0361898,
+        "rankDistribution": {
+          "genus": 3,
+          "species": 3,
+          "family": 1
+        },
+        "confidenceDistribution": {
+          "low": 4,
+          "medium": 2,
+          "high": 1
+        },
+        "abstentionCount": 4,
+        "outputLengthChars": {
+          "min": 7173,
+          "max": 8531,
+          "p50": 7688
+        },
+        "rawFinalContentStored": 4,
+        "parsedJsonStored": 4,
+        "finishReasons": [
+          "stop"
+        ],
+        "criticalFailures": [],
+        "perPost": [
+          {
+            "visitId": "record-1784366489892",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "ムラサキバレンギク属（Erigeron属）の幼苗",
+            "recommendedRank": "genus",
+            "confidence": "low",
+            "latencyMs": 62921,
+            "inputTokens": 22760,
+            "outputTokens": 3866,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json"
+          },
+          {
+            "visitId": "record-1784430741938",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "カタバミ（オックスalis類）",
+            "recommendedRank": "species",
+            "confidence": "medium",
+            "latencyMs": 56638,
+            "inputTokens": 22760,
+            "outputTokens": 3740,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json"
+          },
+          {
+            "visitId": "record-1781252770584",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "コガネムシ科の大型甲虫（Melolontha属候補）",
+            "recommendedRank": "genus",
+            "confidence": "low",
+            "latencyMs": 48667,
+            "inputTokens": 16843,
+            "outputTokens": 3529,
+            "rawFinalContentStored": false,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json"
+          },
+          {
+            "visitId": "record-1784430374598",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "アカリファ・ヒスピダ（猫しっぽ）",
+            "recommendedRank": "species",
+            "confidence": "high",
+            "latencyMs": 53801,
+            "inputTokens": 22760,
+            "outputTokens": 3661,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json"
+          },
+          {
+            "visitId": "record-1784430118720",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "ノブドウ属（ツタ類）",
+            "recommendedRank": "genus",
+            "confidence": "low",
+            "latencyMs": 64073,
+            "inputTokens": 22760,
+            "outputTokens": 4460,
+            "rawFinalContentStored": false,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json"
+          },
+          {
+            "visitId": "record-1784431188621",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "スズメ",
+            "recommendedRank": "species",
+            "confidence": "medium",
+            "latencyMs": 53996,
+            "inputTokens": 22759,
+            "outputTokens": 3559,
+            "rawFinalContentStored": false,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json"
+          },
+          {
+            "visitId": "record-1784430530197",
+            "imageCount": 3,
+            "success": true,
+            "schemaValid": true,
+            "recommendedTaxon": "ツグミ科の一種（鳥類）",
+            "recommendedRank": "family",
+            "confidence": "low",
+            "latencyMs": 53117,
+            "inputTokens": 22760,
+            "outputTokens": 3544,
+            "rawFinalContentStored": true,
+            "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json"
+          }
+        ],
+        "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json"
+      }
+    ],
+    "comparison": {
+      "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+      "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+      "decision": "INSUFFICIENT_GOLD",
+      "finalVerdict": "INSUFFICIENT_GOLD",
+      "baselineModel": "gemini-3.5-flash-lite",
+      "winnerModel": "gemini-3.5-flash-lite",
+      "reason": "Human-consensus gold posts are 0; at least 8 are required for automatic switching."
+    },
+    "qualityDecision": "NOT_MEASURABLE_NO_HUMAN_GOLD",
+    "accuracyWinner": null,
+    "finalVerdict": "INSUFFICIENT_GOLD"
+  },
+  "outputPersistence": {
+    "reportSchemaVersion": "zukan-model-bench-report-v1",
+    "rawFinalContentRule": "Per post and model raw final content is retained when it contains no private reasoning or sensitive values.",
+    "rawFinalContentStored": [
+      {
+        "model": "@cf/qwen/qwen3.8-27b",
+        "canary": 0,
+        "final": 0
+      },
+      {
+        "model": "openai/gpt-5.6-luna",
+        "canary": 0,
+        "final": 0
+      },
+      {
+        "model": "@cf/meta/llama-3.2-11b-vision-instruct",
+        "canary": 0,
+        "final": 0
+      }
+    ],
+    "parsedJsonStored": [
+      {
+        "model": "@cf/qwen/qwen3.8-27b",
+        "canary": 0,
+        "final": 0
+      },
+      {
+        "model": "openai/gpt-5.6-luna",
+        "canary": 0,
+        "final": 0
+      },
+      {
+        "model": "@cf/meta/llama-3.2-11b-vision-instruct",
+        "canary": 0,
+        "final": 0
+      }
+    ],
+    "futureHumanOrJudgeFields": [
+      "visual_grounding",
+      "hallucinated_features",
+      "useful_observations",
+      "missing_observations",
+      "taxonomic_reasonableness",
+      "abstention_quality",
+      "explanation_quality",
+      "human_reviewer_notes"
+    ],
+    "privateReasoningSaved": false,
+    "rawProviderEnvelopePersisted": false,
+    "providerResultStructureOnly": true
+  },
+  "goldGate": {
+    "fixedDatasetPosts": 7,
+    "requiredHumanGoldPosts": 8,
+    "humanGoldAvailable": 0,
+    "accuracyWinnerAllowed": false,
+    "verdict": "INSUFFICIENT_GOLD"
+  }
+}

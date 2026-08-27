@@ -100,6 +100,14 @@ ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 npm run bench:zukan -- smoke
 
 `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` must already be configured in the execution environment. The historical command above used the original eight-post / 24-image freeze (`datasetSha256=5636ef685524c59813449c3c9afffbeaee4be062d80834f3f86bc3ee185b251b`, `promptSha256=6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9`). The current PR #1582 run uses the separate immutable seven-post / 21-image SHA listed above, `max_completion_tokens=8192`, and Cloudflare's 2026-08-26 published token rates ($0.15/M input, $0.50/M output). Reports include request count, provider usage, cost estimate, post-level scores, full safe final output, and p50/p95 latency; no retry or fallback is permitted.
 
+The 2026-08-27 expanded Cloudflare-only canary is recorded in `platform_v2/ops/model-bench/evidence/2026-08-27-cloudflare-expanded-model-comparison.json`. It reused the same seven-post / 21-image manifest, prompt, rights snapshot, and ordered image inputs:
+
+- `@cf/qwen/qwen3.8-27b`: one canary request returned HTTP 408 / provider code `3046` after 121353 ms; classified as a provider timeout and stopped before the seven-post run.
+- `openai/gpt-5.6-luna`: one Cloudflare Responses request returned HTTP 402 / `invalid_prompt` for the unchanged multimodal input; stopped before the seven-post run.
+- `@cf/meta/llama-3.2-11b-vision-instruct`: one request returned HTTP 403 / `5016` (Meta model terms not accepted); no license agreement request was sent and the model is `BLOCKED_LICENSE`.
+
+All three canaries used Cloudflare authentication and official REST endpoints, with one request, no retry, no fallback, `stream=false`, and the same native ZUKAN output schema. Because no new model passed canary, no expanded model completed a seven-post run. Existing Gemini and GLM reports remain the only full-run comparison inputs; the verdict remains `INSUFFICIENT_GOLD`. Cloudflare's `openai/gpt-5.6-luna` route uses the Responses API and does not require a local OpenAI API key.
+
 ## Explicit commands
 
 Freeze the fixed 24-post Core dataset through the legacy public candidate path:
@@ -146,6 +154,20 @@ npm run bench:zukan -- run \
   --input-usd-per-1m=0.15 \
   --output-usd-per-1m=0.50 \
   --pricing-source=cloudflare-workers-ai-2026-08-27
+```
+
+The expanded adapter is also available for Cloudflare REST models. It preserves the same ordered multimodal post input and native ZUKAN schema; canary gating is performed by the bounded runner used for the Evidence above:
+
+```bash
+ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
+npm run bench:zukan -- run \
+  --transport=cloudflare-ai-rest \
+  --model=@cf/qwen/qwen3.8-27b \
+  --manifest=ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json \
+  --max-output-tokens=8192 \
+  --input-usd-per-1m=0.45 \
+  --output-usd-per-1m=3.20 \
+  --pricing-source=cloudflare-workers-ai-qwen3.8-27b-2026-08-27
 ```
 
 Compare reports with the first report as baseline:
