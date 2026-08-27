@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AI_MODEL_CHAIN_ENV_KEYS } from "../services/aiModels.js";
 import { generateAiTextWithRoleChain, type AiRouterPart } from "../services/aiModelRouter.js";
-import { getObservationDataRights } from "../services/observationDataRights.js";
+import { getObservationDataRights, type ObservationDataRights } from "../services/observationDataRights.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { observationImageTargetPath, resolveObservationImageTargets, type ObservationImageTarget } from "./resolveObservationImageTargets.js";
 
@@ -74,6 +74,16 @@ export type ZukanBenchManifest = {
   externalProcessingVettedAt?: string | null;
   fixtures: ZukanBenchFixture[];
 };
+
+export type ZukanBenchCanonicalRightsSnapshot = Pick<ObservationDataRights,
+  | "visitId"
+  | "recordConsent"
+  | "researchUseConsent"
+  | "datasetLicense"
+  | "mediaLicense"
+  | "externalExportAllowed"
+  | "withdrawalStatus"
+>;
 
 export type ZukanBenchFixtureScore = {
   fixtureId: string;
@@ -685,10 +695,15 @@ function assertExternalProcessingAllowed(manifest: ZukanBenchManifest): void {
   }
 }
 
-async function assertCanonicalObservationDataRights(fixtures: ZukanBenchFixture[]): Promise<void> {
+async function assertCanonicalObservationDataRights(
+  fixtures: ZukanBenchFixture[],
+  snapshot?: ReadonlyMap<string, ZukanBenchCanonicalRightsSnapshot>,
+): Promise<void> {
   const blockers: string[] = [];
   for (const fixture of fixtures) {
-    const rights = await getObservationDataRights(fixture.visitId);
+    const rights = snapshot === undefined
+      ? await getObservationDataRights(fixture.visitId)
+      : snapshot.get(fixture.visitId) ?? null;
     if (!rights) {
       blockers.push(`${fixture.visitId}:missing`);
       continue;
@@ -815,6 +830,7 @@ export async function runZukanModelBench(options: {
   maxEstimatedCostUsd?: number;
   transport?: "model-router" | "cloudflare-official-rest";
   requireFixedOwnerSmoke?: boolean;
+  canonicalRightsSnapshot?: ReadonlyMap<string, ZukanBenchCanonicalRightsSnapshot>;
 }): Promise<ZukanBenchModelReport> {
   const manifestPath = options.manifestPath ?? defaultRightsManifestPath(DEFAULT_ZUKAN_BENCH_MANIFEST);
   const reportDir = options.reportDir ?? DEFAULT_ZUKAN_BENCH_REPORT_DIR;
@@ -841,7 +857,7 @@ export async function runZukanModelBench(options: {
   )) {
     throw new Error("zukan_bench_fixed_owner_smoke_target_mismatch");
   }
-  await assertCanonicalObservationDataRights(fixtures);
+  await assertCanonicalObservationDataRights(fixtures, options.canonicalRightsSnapshot);
   const previousChain = process.env[MODEL_CHAIN_ENV];
   if (transport === "model-router") process.env[MODEL_CHAIN_ENV] = options.model;
   const startedAt = new Date().toISOString();
