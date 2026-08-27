@@ -1,13 +1,31 @@
 {
   "version": "zukan-post-model-bench-v2-execution-evidence-v1",
-  "recordedAt": "2026-08-27T01:23:05.4493345Z",
-  "status": "BLOCKED_BEFORE_MODEL_CALL",
+  "recordedAt": "2026-08-27T01:51:37.0211988Z",
+  "status": "BLOCKED_BEFORE_RUNTIME_RIGHTS",
   "source": {
     "branch": "codex/zukan-model-bench-v1-20260827",
-    "commit": "ed162b9d119c6862bf4241487e5f4a6ae23f5f2d",
+    "commit": "e3ad4065a04e3a55486cd9c3d3c68fe8a4462830",
     "prNumber": 1582,
     "prState": "open",
-    "draft": true
+    "draft": true,
+    "priorEvidenceCommit": "0f28a1b53aca6edd2afb438c6dddc2e0a975ac46"
+  },
+  "runtimeInspection": {
+    "provider": "cloudflare",
+    "worker": "ikimon-life-cloudflare-prod",
+    "productionDeploymentVersionId": "4b44cbfa-50e3-456b-99cb-128b0e091d96",
+    "databaseUrlSecretPresent": false,
+    "d1BindingsPresent": ["CORE_DB", "OBS_DB"],
+    "aiBindingPresent": true,
+    "imagesBindingPresent": true,
+    "rightsEndpointSourceCommit": "e3ad4065a04e3a55486cd9c3d3c68fe8a4462830",
+    "rightsEndpointDeployedToProduction": false,
+    "releaseControl": {
+      "productionMutationAvailability": false,
+      "stagingStart": "BLOCKED",
+      "blockerCode": "TRANSIENT_UPSTREAM",
+      "retryable": false
+    }
   },
   "fixedInput": {
     "manifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json",
@@ -39,10 +57,13 @@
       "datasetLicense": "CC-BY-4.0",
       "mediaLicense": "CC-BY-NC-4.0"
     },
-    "status": "UNAVAILABLE",
-    "firstPostAttempted": "record-1786965869920",
-    "remainingPostsNotReached": 7,
-    "error": "DATABASE_URL is required",
+    "status": "NOT_REACHED_PRODUCTION_RUNTIME",
+    "method": "owner-session-read-only-worker-d1-endpoint",
+    "endpointPath": "/api/v1/observations/:visitId/data-rights",
+    "firstPostAttempted": null,
+    "remainingPostsNotReached": 8,
+    "localCanonicalDbError": "DATABASE_URL is required",
+    "error": "production_rights_endpoint_not_deployed",
     "checkedBeforeImageDownload": true,
     "ownerAttestationSubstituted": false,
     "publicProjectionSubstituted": false,
@@ -55,7 +76,7 @@
     "retryCount": 0,
     "fallbackCount": 0,
     "playgroundCount": 0,
-    "baseline": "NOT_RUN_SAME_RIGHTS_GATE",
+    "baseline": "NOT_RUN_RUNTIME_RIGHTS_GATE",
     "observedCostUsd": 0,
     "observedCostJpy": 0,
     "budgetCapJpy": 100
@@ -74,43 +95,46 @@
     "perPost": [
       {
         "visitId": "record-1786965869920",
-        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_READ_UNAVAILABLE"
+        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_ENDPOINT_UNAVAILABLE"
       },
       {
         "visitId": "record-1784366489892",
-        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
       },
       {
         "visitId": "record-1784430741938",
-        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
       },
       {
         "visitId": "record-1781252770584",
-        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
       },
       {
         "visitId": "record-1784430374598",
-        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
       },
       {
         "visitId": "record-1784430118720",
-        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
       },
       {
         "visitId": "record-1784431188621",
-        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
       },
       {
         "visitId": "record-1784430530197",
-        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
       }
     ]
   },
   "verification": {
-    "typecheck": "PASS",
-    "fullNodeTests": "1759/1759 PASS",
-    "targetedModelBenchTests": "15/15 PASS",
+    "cloudflareShadowTypecheck": "PASS",
+    "targetedRightsEndpointTest": "PASS",
+    "cloudflareShadowDryRun": "PASS",
+    "rootTypecheck": "PASS",
+    "relevantNodeTests": "20/20 PASS",
+    "fullCloudflareShadowTests": "451/452 PASS; 1 existing workerd temporary-module test failure",
     "diffCheck": "PASS",
-    "worktreeCloseGate": "PASS"
+    "worktreeClean": true
   }
 }
