@@ -133,7 +133,11 @@ interface R2Object {
 interface R2ObjectBody {
   body: ReadableStream | null;
   httpMetadata?: { contentType?: string };
+  checksums?: { sha256?: string | ArrayBuffer };
 }
+
+type MaterializedR2ObjectBody = R2ObjectBody;
+const MATERIALIZED_SOURCE_SHA256 = new WeakMap<MaterializedR2ObjectBody, string>();
 
 interface R2ListResult {
   objects: R2ObjectSummary[];
@@ -617,6 +621,18 @@ interface LegacyPhotoUploadInput {
   base64Data?: string | null;
   mediaRole?: string | null;
   facePrivacy?: string | null;
+}
+
+interface LegacyPhotoAssetRow {
+  asset_id: string;
+  observation_id: string | null;
+  owner_user_id: string;
+  object_key: string;
+  sha256: string | null;
+  mime: string;
+  bytes: number;
+  visibility: string;
+  processing_state: string;
 }
 
 interface LegacyAudioUploadInput {
@@ -23259,11 +23275,13 @@ function originalUiStaticAssetKey(pathname: string): string {
   return `original-ui/static/${pathname.replace(/^\/+/, "")}`;
 }
 
-async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promise<R2ObjectBody | null> {
+async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promise<MaterializedR2ObjectBody | null> {
   const pinnedManifestHash = env.IKIMON_UI_MANIFEST_HASH?.trim() ?? "";
   if (/^[a-f0-9]{64}$/.test(pinnedManifestHash)) {
     const relativeKey = legacyKey.replace(/^original-ui\//, "");
-    return await env.ASSET_BUCKET.get(`original-ui/versions/${pinnedManifestHash}/${relativeKey}`);
+    const versionPrefix = `original-ui/versions/${pinnedManifestHash}`;
+    const versioned = await env.ASSET_BUCKET.get(`${versionPrefix}/${relativeKey}`);
+    return await bindMaterializedSourceSha256(env, versionPrefix, relativeKey, versioned);
   }
 
   const targetEnv = env.ENVIRONMENT === "production" ? "production" : "staging";
@@ -23275,13 +23293,55 @@ async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promis
       if (/^original-ui\/versions\/[a-f0-9]{64}$/.test(prefix)) {
         const relativeKey = legacyKey.replace(/^original-ui\//, "");
         const versioned = await env.ASSET_BUCKET.get(`${prefix}/${relativeKey}`);
-        if (versioned?.body) return versioned;
+        if (versioned?.body) return await bindMaterializedSourceSha256(env, prefix, relativeKey, versioned);
       }
     } catch {
       // An invalid or partially written pointer never replaces the legacy key.
     }
   }
-  return await env.ASSET_BUCKET.get(legacyKey);
+  const legacy = await env.ASSET_BUCKET.get(legacyKey);
+  return await bindMaterializedSourceSha256(env, "", legacyKey.replace(/^original-ui\//, ""), legacy);
+}
+
+async function bindMaterializedSourceSha256(
+  env: Env,
+  versionPrefix: string,
+  relativeKey: string,
+  object: R2ObjectBody | null,
+): Promise<MaterializedR2ObjectBody | null> {
+  if (!object?.body) return object;
+  const manifestSha256 = versionPrefix
+    ? await readMaterializedManifestSha256(env, versionPrefix, relativeKey)
+    : "";
+  const sourceSha256 = manifestSha256 || r2Sha256Checksum(object);
+  if (sourceSha256) MATERIALIZED_SOURCE_SHA256.set(object, sourceSha256);
+  return object;
+}
+
+async function readMaterializedManifestSha256(env: Env, versionPrefix: string, relativeKey: string): Promise<string> {
+  const manifest = await env.ASSET_BUCKET.get(`${versionPrefix}/manifest.json`);
+  if (!manifest?.body) return "";
+  try {
+    const payload = await new Response(manifest.body).json() as { items?: Array<{ key?: unknown; sha256?: unknown }> };
+    const item = payload.items?.find((entry) => String(entry?.key ?? "") === relativeKey);
+    const sha256 = String(item?.sha256 ?? "").toLowerCase();
+    return /^[a-f0-9]{64}$/.test(sha256) ? sha256 : "";
+  } catch {
+    return "";
+  }
+}
+
+function r2Sha256Checksum(object: R2ObjectBody | null): string {
+  const value = object?.checksums?.sha256;
+  if (typeof value === "string") {
+    const sha256 = value.toLowerCase();
+    return /^[a-f0-9]{64}$/.test(sha256) ? sha256 : "";
+  }
+  if (value instanceof ArrayBuffer) {
+    const sha256 = Array.from(new Uint8Array(value), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return /^[a-f0-9]{64}$/.test(sha256) ? sha256 : "";
+  }
+  return "";
 }
 
 function contentTypeForOriginalUiStaticAsset(pathname: string): string {
@@ -23393,7 +23453,7 @@ function publicDerivativeContentType(key: string, mime: string | null): string {
 }
 
 async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
-  let object: R2ObjectBody | null = null;
+  let object: MaterializedR2ObjectBody | null = null;
   for (const key of originalUiHtmlKeysForRequest(url)) {
     object = await getVersionedOriginalUiObject(env, key);
     if (object?.body) break;
@@ -23411,6 +23471,7 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
         "expires": "0",
         "vary": "cookie, authorization",
         "x-ikimon-cloudflare-materialized": "original-ui-html",
+        ...materializedSourceSha256Headers(object),
         ...releaseIdentityHeaders(env)
       }
     });
@@ -23427,6 +23488,13 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
   }
 
   return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
+}
+
+function materializedSourceSha256Headers(object: MaterializedR2ObjectBody | null): Record<string, string> {
+  const sha256 = (object ? MATERIALIZED_SOURCE_SHA256.get(object) : "") || r2Sha256Checksum(object);
+  return /^[a-f0-9]{64}$/.test(sha256)
+    ? { "x-ikimon-cloudflare-materialized-sha256": sha256 }
+    : {};
 }
 
 function createHtmlCspNonce(): string {
@@ -23673,6 +23741,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     const submitPanel = document.getElementById("record-submit-panel");
     const photoInput = document.getElementById("record-media-photo");
     const videoInput = document.getElementById("record-media-video");
+    const recordPrefix = ${JSON.stringify(prefix)};
     const eventContext = {
       eventCode: document.body.dataset.eventCode || "",
       eventSessionId: document.body.dataset.eventSessionId || "",
@@ -23688,6 +23757,85 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     function selectedFile() {
       const input = mediaKind === "video" ? videoInput : photoInput;
       return input && input.files && input.files[0] ? input.files[0] : null;
+    }
+    function openRecordDraftDb() {
+      return new Promise((resolve, reject) => {
+        if (!("indexedDB" in window)) return reject(new Error("indexeddb_unavailable"));
+        const request = indexedDB.open("ikimon-record-draft", 1);
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains("drafts")) request.result.createObjectStore("drafts");
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("indexeddb_open_failed"));
+      });
+    }
+    async function writeRecordDraft(draft) {
+      const db = await openRecordDraftDb();
+      try {
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction("drafts", "readwrite");
+          tx.objectStore("drafts").put(draft, "latest");
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => reject(tx.error || new Error("indexeddb_write_failed"));
+        });
+      } finally {
+        db.close();
+      }
+    }
+    async function deleteRecordDraft() {
+      const db = await openRecordDraftDb();
+      try {
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction("drafts", "readwrite");
+          tx.objectStore("drafts").delete("latest");
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => reject(tx.error || new Error("indexeddb_delete_failed"));
+        });
+      } finally {
+        db.close();
+      }
+    }
+    function recordRecoveryHref() {
+      const target = new URL(recordPrefix + "/record", window.location.origin);
+      target.searchParams.set("retry", "media");
+      target.searchParams.set("start", mediaKind);
+      target.searchParams.set("source", "upload_failed");
+      for (const [key, value] of Object.entries({
+        event: eventContext.eventCode,
+        eventSessionId: eventContext.eventSessionId,
+        teamId: eventContext.teamId,
+        participantRole: eventContext.participantRole
+      })) {
+        if (value) target.searchParams.set(key, value);
+      }
+      return target.pathname + target.search;
+    }
+    let recoverySubmissionId = "";
+    let pendingVideoUid = "";
+    let pendingVideoUploadUrl = "";
+    let pendingVideoBodyUploaded = false;
+    async function persistRecordDraftProgress(formData, patch = {}) {
+      const file = selectedFile();
+      if (!file) throw new Error("record_draft_media_missing");
+      const latitude = String(formData.get("latitude") || "").trim();
+      const longitude = String(formData.get("longitude") || "").trim();
+      await writeRecordDraft({
+        file,
+        files: [file],
+        kind: mediaKind,
+        savedAt: Date.now(),
+        metadata: {
+          ...patch,
+          recoverySubmissionId,
+          eventContext,
+          formValues: {
+            note: String(formData.get("note") || ""),
+            latitude,
+            longitude
+          },
+          location: { latitude, longitude }
+        }
+      });
     }
     function reveal(kind) {
       mediaKind = kind;
@@ -23761,14 +23909,23 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       const latitude = Number(latitudeText);
       const longitude = Number(longitudeText);
       const userId = form.dataset.userId || "";
-      const observationId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        setStatus(copy.failed, true);
+        return;
+      }
+      if (!recoverySubmissionId) recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      const observationId = recoverySubmissionId;
       let observationStored = false;
+      let visitId = "";
       setStatus(copy.saving, false);
       void eventMetric("event_observation_submit_started");
       try {
-        if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-          throw new Error("invalid_coordinates");
-        }
+        await persistRecordDraftProgress(formData, {
+          pendingMediaRetryVisitId: "",
+          pendingMediaRetryVideoUid: "",
+          pendingMediaRetryVideoUploadUrl: "",
+          pendingMediaRetryVideoBodyUploaded: false
+        });
         const observation = await postJson("/api/v1/observations/upsert", {
           observationId,
           clientSubmissionId: observationId + "-cloudflare-record-form",
@@ -23793,7 +23950,12 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           }
         });
         observationStored = true;
-        const visitId = String(observation.visitId || observation.observationId || observationId);
+        visitId = String(observation.visitId || observation.observationId || observationId);
+        try {
+          await persistRecordDraftProgress(formData, { pendingMediaRetryVisitId: visitId });
+        } catch (draftError) {
+          console.error(draftError);
+        }
         if (mediaKind === "photo") {
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
             filename: file.name || "record-photo.jpg",
@@ -23802,6 +23964,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
             mediaRole: "primary",
             facePrivacy: "no_faces"
           });
+          await deleteRecordDraft();
           setStatus(copy.saved + " " + copy.photoSaved, false);
           return;
         }
@@ -23814,23 +23977,58 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           maxDurationSeconds: 60
         });
         if (!direct.uploadUrl || !direct.uid) throw new Error("video_direct_upload_failed");
+        pendingVideoUid = String(direct.uid);
+        pendingVideoUploadUrl = String(direct.uploadUrl);
+        pendingVideoBodyUploaded = false;
+        await persistRecordDraftProgress(formData, {
+          pendingMediaRetryVisitId: visitId,
+          pendingMediaRetryVideoUid: pendingVideoUid,
+          pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
+          pendingMediaRetryVideoBodyUploaded: false
+        });
         const bodyResponse = await fetch(String(direct.uploadUrl || ""), {
           method: "PUT",
           credentials: "same-origin",
           headers: { "content-type": file.type || "video/mp4" },
           body: file
         });
-        if (!bodyResponse.ok) throw new Error("video_body_upload_failed");
+        if (!bodyResponse.ok) {
+          pendingVideoUid = "";
+          pendingVideoUploadUrl = "";
+          pendingVideoBodyUploaded = false;
+          throw new Error("video_body_upload_failed");
+        }
+        pendingVideoBodyUploaded = true;
+        await persistRecordDraftProgress(formData, {
+          pendingMediaRetryVisitId: visitId,
+          pendingMediaRetryVideoUid: pendingVideoUid,
+          pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
+          pendingMediaRetryVideoBodyUploaded: true
+        });
         await postJson("/api/v1/videos/" + encodeURIComponent(String(direct.uid || "")) + "/finalize", {
           observationId: visitId,
           durationMs: 1000,
           readyToStream: true
         });
+        await deleteRecordDraft();
         setStatus(copy.saved + " " + copy.videoSaved, false);
       } catch (error) {
         console.error(error);
         if (!observationStored) {
           void eventMetric("event_observation_failed", { result_reason: observationFailureReason(error) });
+        }
+        try {
+          await persistRecordDraftProgress(formData, {
+            pendingMediaRetryVisitId: visitId,
+            pendingMediaRetryVideoUid: pendingVideoUid,
+            pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
+            pendingMediaRetryVideoBodyUploaded: pendingVideoBodyUploaded
+          });
+          void eventMetric("event_media_retry_queued", { retry_kind: mediaKind });
+          location.assign(recordRecoveryHref());
+          return;
+        } catch (draftError) {
+          console.error(draftError);
         }
         setStatus(copy.failed, true);
       }
@@ -28371,6 +28569,9 @@ type LegacyObservationIdempotencyRow = {
   write_status: string;
 };
 
+const LEGACY_IDEMPOTENCY_WAIT_ATTEMPTS = 40;
+const LEGACY_IDEMPOTENCY_WAIT_MS = 25;
+
 function normalizeCompatibleClientSubmissionId(value: unknown): string | null {
   const text = normalizeOptionalText(value);
   if (!text) return null;
@@ -28405,15 +28606,11 @@ async function legacyObservationRequestFingerprint(input: LegacyObservationUpser
   const clientPhotoHashes = Array.isArray(input.sourcePayload?.client_photo_sha256s)
     ? input.sourcePayload?.client_photo_sha256s.filter((value): value is string => typeof value === "string")
     : null;
+  const fingerprintPayload = Object.fromEntries(
+    Object.entries(input).filter(([key]) => key !== "observationId" && key !== "clientSubmissionId" && key !== "sourcePayload"),
+  );
   return sha256Hex(textToArrayBuffer(stableJson({
-    userId: input.userId,
-    observedAt: input.observedAt,
-    latitude: input.latitude,
-    longitude: input.longitude,
-    siteId: normalizeOptionalText(input.siteId),
-    siteName: normalizeOptionalText(input.siteName),
-    municipality: normalizeOptionalText(input.municipality),
-    prefecture: normalizeOptionalText(input.prefecture),
+    ...fingerprintPayload,
     clientPhotoHashes,
     subjects,
     taxon: input.taxon ?? null
@@ -28586,19 +28783,25 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     ? await legacyObservationRequestFingerprint(input)
     : null;
   if (clientSubmissionId && idempotencyFingerprint) {
-    const existing = await env.OBS_DB.prepare(
+    const readExistingIdempotency = () => env.OBS_DB.prepare(
       `SELECT user_id, visit_id, occurrence_id, occurrence_ids, place_id, request_fingerprint, write_status
          FROM observation_write_idempotency
         WHERE client_submission_id = ?`
     ).bind(clientSubmissionId).first<LegacyObservationIdempotencyRow>();
-    if (existing) {
-      if (existing.user_id !== input.userId || existing.request_fingerprint !== idempotencyFingerprint) {
-        return json({ ok: false, error: "client_submission_id_conflict" }, 409);
+    const waitForCompletedIdempotency = async (initial: LegacyObservationIdempotencyRow): Promise<LegacyObservationIdempotencyRow> => {
+      let current = initial;
+      for (let attempt = 0; attempt < LEGACY_IDEMPOTENCY_WAIT_ATTEMPTS && !current.visit_id; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, LEGACY_IDEMPOTENCY_WAIT_MS));
+        current = await readExistingIdempotency() ?? current;
       }
-      if (!existing.visit_id) {
+      return current;
+    };
+    const replayExistingIdempotency = async (existing: LegacyObservationIdempotencyRow): Promise<Response> => {
+      const visitId = normalizeOptionalId(existing.visit_id);
+      if (!visitId) {
         return json({ ok: false, error: "duplicate_submission_in_progress" }, 409);
       }
-      const occurrenceId = normalizeOptionalId(existing.occurrence_id) ?? `occ:${existing.visit_id}:0`;
+      const occurrenceId = normalizeOptionalId(existing.occurrence_id) ?? `occ:${visitId}:0`;
       const occurrenceIds = parseLegacyOccurrenceIds(existing.occurrence_ids, occurrenceId);
       await env.OBS_DB.prepare(
         `UPDATE observation_write_idempotency
@@ -28615,7 +28818,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       const registrationBridge = await claimObservationEventRegistrationBridge(request, env, input, authenticatedSession);
       await recordObservationEventRegistrationBridgeMetric(env, registrationBridge);
       return json(buildLegacyCompatibleObservationResponse({
-        visitId: existing.visit_id,
+        visitId,
         occurrenceId,
         occurrenceIds,
         placeId,
@@ -28624,8 +28827,22 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         clientSubmissionId,
         idempotencyReused: true
       }, input), 200, await observationEventRegistrationBridgeResponseHeaders(registrationBridge));
+    };
+    const replayOrRejectExisting = async (initial: LegacyObservationIdempotencyRow): Promise<Response> => {
+      if (initial.user_id !== input.userId || initial.request_fingerprint !== idempotencyFingerprint) {
+        return json({ ok: false, error: "client_submission_id_conflict" }, 409);
+      }
+      const existing = initial.visit_id ? initial : await waitForCompletedIdempotency(initial);
+      if (!existing.visit_id) {
+        return json({ ok: false, error: "duplicate_submission_in_progress" }, 409);
+      }
+      return replayExistingIdempotency(existing);
+    };
+    const existing = await readExistingIdempotency();
+    if (existing) {
+      return replayOrRejectExisting(existing);
     }
-    await env.OBS_DB.prepare(
+    const reservation = await env.OBS_DB.prepare(
       `INSERT OR IGNORE INTO observation_write_idempotency (
          client_submission_id, user_id, request_fingerprint, write_status, source_payload,
          created_at, updated_at, last_seen_at
@@ -28642,6 +28859,17 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
           : []
       })
     ).run();
+    const reservationChanges = Number((reservation as { meta?: { changes?: unknown } } | null)?.meta?.changes);
+    if (!Number.isFinite(reservationChanges)) {
+      return json({ ok: false, error: "idempotency_reservation_unknown" }, 503, { "cache-control": "no-store" });
+    }
+    if (reservationChanges !== 1) {
+      const concurrent = await readExistingIdempotency();
+      if (!concurrent) {
+        return json({ ok: false, error: "duplicate_submission_in_progress" }, 409);
+      }
+      return replayOrRejectExisting(concurrent);
+    }
   }
 
   const draftId = newId("draft");
@@ -29524,21 +29752,75 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const partitionMonth = observation.partition_month ?? partitionMonthFromDate(new Date().toISOString());
 
   const sha256 = await sha256Hex(body);
-  const assetId = newId("asset");
-  const outboxMediaId = newId("outbox");
-  const outboxReadModelId = newId("outbox");
-  const outboxAiId = newId("outbox");
+  const idempotencyKey = `v1-photo:${observationId}:${sha256}`;
+  const assetId = `asset_${await sha256Hex(textToArrayBuffer(idempotencyKey))}`;
+  const outboxMediaId = `outbox_${assetId}_media`;
+  const outboxReadModelId = `outbox_${assetId}_readmodel`;
+  const outboxAiId = `outbox_${assetId}_ai`;
   const reassessmentRequestId = `reassess:${observationId}:standard:${observation.owner_user_id}`;
-  const objectKey = `original/v1-compat/${observationId}/${assetId}-${filename}`;
+  const objectKey = `original/v1-compat/${observationId}/${assetId}`;
   const relativePath = objectKey;
   const occurrenceId = `occ:${observationId}:0`;
   const facePrivacy = normalizeFacePrivacy(input.facePrivacy);
 
+  const readReassessmentState = async (): Promise<string> => {
+    const row = await env.OBS_DB.prepare(
+      `SELECT request_state
+       FROM observation_reassessment_requests
+       WHERE observation_id = ? AND request_kind = 'standard' AND actor_user_id = ?`
+    ).bind(observationId, observation.owner_user_id).first<{ request_state: string }>();
+    return normalizeOptionalText(row?.request_state) ?? "pending";
+  };
+
+  const replayExistingPhoto = async (asset: LegacyPhotoAssetRow): Promise<Response> => {
+    if (
+      asset.observation_id !== observationId
+      || asset.owner_user_id !== observation.owner_user_id
+      || asset.sha256 !== sha256
+      || asset.mime !== mimeType
+      || asset.bytes !== body.byteLength
+    ) {
+      return json({ ok: false, error: "media_idempotency_conflict" }, 409, { "cache-control": "no-store" });
+    }
+    if (asset.processing_state !== "uploaded") {
+      return json({ ok: false, error: "duplicate_media_in_progress" }, 409, { "cache-control": "no-store" });
+    }
+    const existingObject = await env.ASSET_BUCKET.head(asset.object_key);
+    if (!existingObject || existingObject.size !== body.byteLength) {
+      return json({ ok: false, error: "media_integrity_missing" }, 503, { "cache-control": "no-store" });
+    }
+    return json({
+      ok: true,
+      visitId: observationId,
+      occurrenceId,
+      relativePath: asset.object_key,
+      publicUrl: `/${asset.object_key}`,
+      compatibility: { attempted: false, succeeded: false },
+      facePrivacy,
+      idempotency: { key: idempotencyKey, reused: true },
+      reassessment: {
+        state: await readReassessmentState(),
+        kind: "standard",
+        source: "cloudflare_photo_upload_atomic_reassessment"
+      },
+      dispatch: { sent: 0, pending: 0, errors: [] }
+    }, 200, { "cache-control": "no-store" });
+  };
+
+  const existingAsset = await env.OBS_DB.prepare(
+    `SELECT asset_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state
+     FROM asset_ledger
+     WHERE asset_id = ?`
+  ).bind(assetId).first<LegacyPhotoAssetRow>();
+  if (existingAsset) {
+    return replayExistingPhoto(existingAsset);
+  }
+
   await env.ASSET_BUCKET.put(objectKey, body, { httpMetadata: { contentType: mimeType } });
   try {
-    await env.OBS_DB.batch([
+    const batchResults = await env.OBS_DB.batch([
     env.OBS_DB.prepare(
-      `INSERT INTO asset_ledger
+      `INSERT OR IGNORE INTO asset_ledger
        (asset_id, draft_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state, uploaded_at, partition_month)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', CURRENT_TIMESTAMP, ?)`
     ).bind(
@@ -29554,13 +29836,13 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       partitionMonth
     ),
     env.OBS_DB.prepare(
-      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxMediaId, "media.process", observationId, JSON.stringify({ observationId, assetId }), partitionMonth),
     env.OBS_DB.prepare(
-      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxReadModelId, "readmodel.refresh", observationId, JSON.stringify({ observationId }), partitionMonth),
     env.OBS_DB.prepare(
-      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxAiId, "observation.reassess", observationId, JSON.stringify({ observationId, assetId }), partitionMonth),
     env.OBS_DB.prepare(
       `INSERT INTO observation_reassessment_requests (
@@ -29585,6 +29867,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       })
     ),
     rollbackLedgerInsert(env, {
+      ledgerId: `rollback_${assetId}`,
       eventType: "asset.photo.upload",
       targetId: assetId,
       partitionMonth,
@@ -29604,6 +29887,21 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       replaySql: postgresAssetReplaySql(assetId, observationId, observation.owner_user_id, objectKey, sha256, mimeType, body.byteLength, "private")
     })
     ]);
+    const assetReservationChanges = Number((batchResults[0] as { meta?: { changes?: unknown } } | undefined)?.meta?.changes);
+    if (!Number.isFinite(assetReservationChanges)) {
+      return json({ ok: false, error: "media_idempotency_reservation_unknown" }, 503, { "cache-control": "no-store" });
+    }
+    if (assetReservationChanges !== 1) {
+      const concurrentAsset = await env.OBS_DB.prepare(
+        `SELECT asset_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state
+         FROM asset_ledger
+         WHERE asset_id = ?`
+      ).bind(assetId).first<LegacyPhotoAssetRow>();
+      if (!concurrentAsset) {
+        return json({ ok: false, error: "media_idempotency_reservation_missing" }, 503, { "cache-control": "no-store" });
+      }
+      return replayExistingPhoto(concurrentAsset);
+    }
   } catch (error) {
     // R2 and D1 cannot share a transaction. A metadata failure must not leave
     // an orphaned object that could later be mistaken for a completed upload.
@@ -29630,6 +29928,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       succeeded: false
     },
     facePrivacy,
+    idempotency: { key: idempotencyKey, reused: false },
     reassessment: {
       state: "pending",
       kind: "standard",
@@ -31900,6 +32199,8 @@ function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
 
+const SHADOW_VALID_JPEG_BASE64 = "/9j/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAACAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAABgf/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCcgKKCP//Z";
+
 async function shadowTakedownProof(url: URL, env: Env): Promise<Response> {
   if (env.ENVIRONMENT !== "shadow") {
     return json({ error: "not_available" }, 404);
@@ -31930,7 +32231,7 @@ async function shadowTakedownProof(url: URL, env: Env): Promise<Response> {
     body: JSON.stringify({
       filename: "takedown-proof.jpg",
       mimeType: "image/jpeg",
-      base64Data: btoa("shadow-takedown-image")
+      base64Data: SHADOW_VALID_JPEG_BASE64
     })
   }), env);
   if (!photoResponse.ok) {
@@ -32990,7 +33291,7 @@ async function shadowUpdateDeleteReplayProof(url: URL, env: Env): Promise<Respon
     body: JSON.stringify({
       filename: "update-delete-proof.jpg",
       mimeType: "image/jpeg",
-      base64Data: btoa("shadow-update-delete-image"),
+      base64Data: SHADOW_VALID_JPEG_BASE64,
       facePrivacy: "no_faces"
     })
   }), env);
@@ -33122,7 +33423,7 @@ async function shadowRollbackRestoreSmoke(url: URL, env: Env): Promise<Response>
     body: JSON.stringify({
       filename: "rollback-restore-proof.jpg",
       mimeType: "image/jpeg",
-      base64Data: btoa("shadow-rollback-restore-image"),
+      base64Data: SHADOW_VALID_JPEG_BASE64,
       facePrivacy: "no_faces"
     })
   }), env);
@@ -33687,6 +33988,7 @@ async function markUploadedAssetsPublicReady(observationId: string, env: Env): P
 }
 
 function rollbackLedgerInsert(env: Env, input: {
+  ledgerId?: string;
   eventType: string;
   targetId: string;
   partitionMonth: string | null;
@@ -33695,11 +33997,11 @@ function rollbackLedgerInsert(env: Env, input: {
   replaySql: string;
 }): D1PreparedStatement {
   return env.OBS_DB.prepare(
-    `INSERT INTO rollback_write_ledger
+    `INSERT OR IGNORE INTO rollback_write_ledger
      (ledger_id, event_type, target_id, partition_month, source_endpoint, payload_json, replay_sql)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   ).bind(
-    newId("rollback"),
+    input.ledgerId ?? newId("rollback"),
     input.eventType,
     input.targetId,
     input.partitionMonth,

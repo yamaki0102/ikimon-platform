@@ -2,7 +2,7 @@ import type { PartialAppStrings } from "./strings.js";
 
 export const ptBR: PartialAppStrings = {
   landing: {
-    title: "ikimon — Enjoy Life | Curtir e registrar a natureza proxima",
+    title: "ZUKAN — Enjoy Life | Curtir e registrar a natureza proxima",
     heroEyebrow: "feel the field.",
     heroHeading: "Sua caminhada de sempre <span class=\"hero-emphasis\">vira uma aventura.</span>",
     heroHeadingPlain: "Sua caminhada de sempre vira uma aventura.",
@@ -68,12 +68,12 @@ export const ptBR: PartialAppStrings = {
     mapEmpty: "Ainda não há observações no mapa",
     bizEyebrow: "Para organizações",
     bizTitle: "Entrada de parceria regional baseada em motivos para visitar e voltar",
-    bizBody: "Para escolas, prefeituras e empresas, o ikimon começa com place stewardship e laços repetíveis de observação antes de prometer um workspace profundo.",
+    bizBody: "Para escolas, prefeituras e empresas, o ZUKAN começa com place stewardship e laços repetíveis de observação antes de prometer um workspace profundo.",
     bizCta: "Para organizações",
-    footerNote: "ikimon — Enjoy Life.",
+    footerNote: "ZUKAN — Enjoy Life.",
   },
   fieldLoop: {
-    eyebrow: "como o ikimon funciona",
+    eyebrow: "como o ZUKAN funciona",
     title: "Field Loop",
     lead: "Mire pelo satélite, confira a pé, anote no caderno. Quanto mais você repete esse ciclo, mais diferente parece o mesmo caminho.",
     primaryCta: "Ver o Field Loop em detalhes",

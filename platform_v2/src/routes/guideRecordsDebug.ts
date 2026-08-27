@@ -1298,7 +1298,7 @@ async function renderEnvironmentDashboard(reply: { type: (value: string) => void
 </div><script>${SCRIPT.replace("/api/v1/me/guide-records/route-layer.geojson?limit=500", "/api/v1/guide/environment-mesh.geojson?limit=1000&public=1").replace("guide-route-layer", "guide-route-layer")}</script>`;
   return renderSiteDocument({
     basePath: "",
-    title: "地域環境メッシュ — ikimon.life",
+    title: "地域環境メッシュ — ZUKAN",
     extraStyles: STYLES,
     body,
   });
@@ -1317,7 +1317,7 @@ async function renderPage(
     reply.code(401);
     return renderSiteDocument({
       basePath: "",
-      title: options.title ?? "ガイド記録 — ikimon.life",
+      title: options.title ?? "ガイド記録 — ZUKAN",
       activeNav: "記録",
       currentPath: options.nextPath ?? "/me/guide-records",
       extraStyles: STYLES,
@@ -1367,7 +1367,7 @@ async function renderPage(
 </div><script>${SCRIPT}</script>`;
   return renderSiteDocument({
     basePath: "",
-    title: options.title ?? "自分のガイド記録 — ikimon.life",
+    title: options.title ?? "自分のガイド記録 — ZUKAN",
     activeNav: "記録",
     currentPath: options.nextPath ?? "/me/guide-records",
     extraStyles: STYLES,
@@ -1380,7 +1380,7 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
   app.get<{ Querystring: { limit?: string } }>("/admin/debug/guide-records", async (request, reply) => renderPage(request, reply));
   app.get<{ Querystring: { limit?: string; filter?: string } }>("/guide/outcomes", async (request, reply) => renderPage(request, reply, {
     nextPath: "/guide/outcomes",
-    title: "ガイド成果 — ikimon.life",
+    title: "ガイド成果 — ZUKAN",
     heading: "ガイド成果",
     lead: "ライブガイドで見つけたことを、今日できたことと次の一歩だけに絞って見返します。",
     simpleOutcomes: true,

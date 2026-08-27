@@ -405,3 +405,20 @@ test("runtime is valid JavaScript and styles cover touch, focus, mobile peek, an
   assert.match(MAP_PLACE_ATLAS_PROFILE_STYLES, /@media \(max-width: 900px\)/);
   assert.doesNotMatch(MAP_PLACE_ATLAS_PROFILE_STYLES, /@platform_v2|observationMedia\.ts/);
 });
+
+test("serialized browser runtime binds theme cards without compiler-only helpers", () => {
+  const context = vm.createContext({ URL });
+  new vm.Script(MAP_PLACE_ATLAS_PROFILE_RUNTIME).runInContext(context);
+  const runtime = (context as any).MapPlaceAtlasProfile as {
+    bind: (root: unknown) => void;
+  };
+  const card = {
+    addEventListener: () => undefined,
+  };
+  const root = {
+    querySelectorAll: (selector: string) => selector === "[data-place-atlas-theme]" ? [card] : [],
+  };
+
+  assert.doesNotThrow(() => runtime.bind(root));
+  assert.doesNotMatch(MAP_PLACE_ATLAS_PROFILE_RUNTIME, /\b__name\s*\(/);
+});

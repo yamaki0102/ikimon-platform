@@ -82,7 +82,7 @@ type NotesLibraryCopy = {
 export function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
   const localized: Record<SiteLang, NotesLibraryCopy> = {
     ja: {
-      pageTitle: "記録ライブラリ | ikimon",
+      pageTitle: "記録ライブラリ | ZUKAN",
       activeNav: "記録ライブラリ",
       heroEyebrow: "記録ライブラリ",
       heroTitle: "記録ライブラリ",
@@ -162,7 +162,7 @@ export function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
       footerNote: "記録の棚はこのページ、成長や地域への効き方はマイページに分けています。",
     },
     en: {
-      pageTitle: "Observation Library | ikimon",
+      pageTitle: "Observation Library | ZUKAN",
       activeNav: "Notes",
       heroEyebrow: "Observation Library",
       heroTitle: "Observation Library",
@@ -242,7 +242,7 @@ export function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
       footerNote: "Observation shelves live here. Growth and local contribution stay on your profile.",
     },
     es: {
-      pageTitle: "Biblioteca de observaciones | ikimon",
+      pageTitle: "Biblioteca de observaciones | ZUKAN",
       activeNav: "Notes",
       heroEyebrow: "Biblioteca de observaciones",
       heroTitle: "Biblioteca de observaciones",
@@ -322,7 +322,7 @@ export function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
       footerNote: "Los registros viven aquí. El crecimiento y la contribución local quedan en tu perfil.",
     },
     "pt-BR": {
-      pageTitle: "Biblioteca de observações | ikimon",
+      pageTitle: "Biblioteca de observações | ZUKAN",
       activeNav: "Notes",
       heroEyebrow: "Biblioteca de observações",
       heroTitle: "Biblioteca de observações",

@@ -1020,7 +1020,7 @@ const NOTES_LIBRARY_STYLES = `
 function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
   const localized: Record<SiteLang, RecordsWorkbenchCopy> = {
     ja: {
-      title: "記録を見る | ikimon",
+      title: "記録を見る | ZUKAN",
       activeNav: "記録を見る",
       searchLabel: "記録を探す",
       mapLabel: "地図",
@@ -1043,7 +1043,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       },
     },
     en: {
-      title: "Records | ikimon",
+      title: "Records | ZUKAN",
       activeNav: "Records",
       searchLabel: "Search records",
       mapLabel: "Map",
@@ -1066,7 +1066,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       },
     },
     es: {
-      title: "Registros | ikimon",
+      title: "Registros | ZUKAN",
       activeNav: "Registros",
       searchLabel: "Buscar registros",
       mapLabel: "Mapa",
@@ -1089,7 +1089,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       },
     },
     "pt-BR": {
-      title: "Registros | ikimon",
+      title: "Registros | ZUKAN",
       activeNav: "Registros",
       searchLabel: "Buscar registros",
       mapLabel: "Mapa",
@@ -2704,7 +2704,7 @@ type IdentificationSummaryCopy = {
 function identificationSummaryCopy(lang: SiteLang): IdentificationSummaryCopy {
   if (lang === "ja") {
     return {
-      title: "名前確認 | ikimon",
+      title: "名前確認 | ZUKAN",
       activeNav: "名前確認",
       lead: "名前待ちの記録と、根拠が足りない記録を整理します。",
       continueAction: "名前確認を続ける",
@@ -2746,7 +2746,7 @@ function identificationSummaryCopy(lang: SiteLang): IdentificationSummaryCopy {
     };
   }
   return {
-    title: "Identification summary | ikimon",
+    title: "Identification summary | ZUKAN",
     activeNav: "ID summary",
     lead: "Organize records waiting for names and evidence before opening the workbench.",
     continueAction: "Continue identifying",

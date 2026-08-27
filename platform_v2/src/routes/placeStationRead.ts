@@ -46,7 +46,7 @@ export async function registerPlaceStationReadRoutes(app: FastifyInstance): Prom
       reply.code(404).type("text/html; charset=utf-8");
       return renderPlaceStationDocument(
         basePath,
-        "定点ページ | ikimon",
+        "定点ページ | ZUKAN",
         stationStateCard("定点ページが見つかりません", "この場所の記録をまだ束ねられません", "観察詳細やマップから、同じ場所の再記録を作ると定点ページが育ちます。"),
         appendLangToHref(withBasePath(basePath, `/places/${encodeURIComponent(request.params.placeId)}/station`), lang),
       );
@@ -54,7 +54,7 @@ export async function registerPlaceStationReadRoutes(app: FastifyInstance): Prom
     reply.type("text/html; charset=utf-8");
     return renderPlaceStationDocument(
       basePath,
-      `定点ページ | ${station.place.name} | ikimon`,
+      `定点ページ | ${station.place.name} | ZUKAN`,
       renderFixedPointStationBody(station, basePath),
       appendLangToHref(withBasePath(basePath, `/places/${encodeURIComponent(station.place.placeId)}/station`), lang),
       FIXED_POINT_STATION_STYLES,

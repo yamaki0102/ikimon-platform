@@ -37,7 +37,7 @@
       },
       "shared": {
         "openRecord": "Open record", "unknownRecord": "Record awaiting a name", "safePlaceFallback": "Community record", "aiCandidateSuffix": "may be the match", "fromRecord": "From this record", "multipleMedia": "media items",
-        "operatorStatement": "ZUKAN is operated by IKIMON Inc. and is currently available at ikimon.life.",
+        "operatorStatement": "ZUKAN is operated by IKIMON Inc. and is currently available at zukan.earth.",
         "media": { "photo": "Photo", "video": "Video", "audio": "Audio", "memo": "Note" },
         "navigation": { "home": "Home", "record": "Record", "discover": "Discover", "profile": "My page" }
       }
@@ -149,7 +149,7 @@
   "marketing": {
     "pages": {
       "community": {
-        "title": "Community | ikimon",
+        "title": "Community | ZUKAN",
         "eyebrow": "Community",
         "heading": "Join walks and themed surveys",
         "lead": "Start with a solo walk, then sometimes look at the same place with others. Community events, themed surveys, and small local programs live here.",
@@ -161,7 +161,7 @@
         ]
       },
       "learnIndex": {
-        "title": "Reading index | ikimon.life",
+        "title": "Reading index | ZUKAN",
         "eyebrow": "Read",
         "heading": "Reading index",
         "lead": "One topic per page: how to start observing, check names, and keep records useful later.",
@@ -172,7 +172,7 @@
   },
   "read": {
     "map": {
-      "title": "Life map | ikimon.life",
+      "title": "Life map | ZUKAN",
       "activeNav": "home",
       "footerNote": "Zoom in to see where records, species, parks, and water-side clues are gathering."
     }

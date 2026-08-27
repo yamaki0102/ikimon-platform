@@ -14,6 +14,7 @@ const RESET_ANCHOR = `  const resetPhotoDraftAfterDirectPost = (message) => {
 const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecordPreviewDraftV1';
   let previewDraftWriteChain = Promise.resolve();
   let previewDraftRestoreInFlight = false;
+  let previewDraftRestoredInPage = false;
   const previewDraftMarker = () => {
     const state = history.state && typeof history.state === 'object' ? history.state : {};
     const marker = state[PREVIEW_DRAFT_HISTORY_KEY];
@@ -108,6 +109,7 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
   };
   const restorePhotoPreviewDraft = async () => {
     if (previewDraftRestoreInFlight) return;
+    if (previewDraftRestoredInPage) return;
     const marker = previewDraftMarker();
     if (!marker || !marker.draftKey || !marker.ownerKey) return;
     if ((window.location.pathname === '/record' || window.location.pathname === '/record/')
@@ -116,6 +118,17 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
     try {
       const context = await draftOwnerContext();
       if (!markerMatchesContext(marker, context)) {
+        const markerOwnerKey = String(marker.ownerKey || '');
+        const contextOwnerKey = String(context.ownerKey || '');
+        const continuationToken = String(marker.continuationToken || '');
+        if (markerOwnerKey.startsWith('guest:')
+          && contextOwnerKey.startsWith('user:')
+          && continuationToken
+          && marker.ownerKey === 'guest:' + continuationToken
+          && marker.draftKey === 'latest:guest:' + String(marker.continuationToken || '')) {
+          window.location.href = withDraftParams(RECORD_TARGETS.photo, 'photo', 'login_required', marker.continuationToken);
+          return;
+        }
         if (String(marker.ownerKey || '').startsWith('user:') && String(context.ownerKey || '').startsWith('user:')) clearPreviewDraftMarker();
         return;
       }
@@ -135,6 +148,7 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
       capturedReviewMeta = candidate.metadata && typeof candidate.metadata === 'object' ? candidate.metadata : {};
       openSheet('photo', { reviewOnly: true, keepReview: true });
       addPhotoDraftFiles(files, capturedReviewMeta);
+      previewDraftRestoredInPage = true;
       setStatus('端末に残っていた写真を復元しました。内容を確認して記録へ進めます。');
     } catch (_) {
       // Keep the marker so a signed-in draft can retry after connectivity/session recovery.
@@ -144,6 +158,8 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
   };
   window.addEventListener('pageshow', () => { void restorePhotoPreviewDraft(); }, { once: true });
   window.addEventListener('online', () => { void restorePhotoPreviewDraft(); });
+  window.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void restorePhotoPreviewDraft(); });
+  window.addEventListener('focus', () => { void restorePhotoPreviewDraft(); });
 `;
 const PREVIEW_DRAFT_INJECT_PATCH_FLAG = "__ikimonGlobalRecordPreviewDraftInjectPatched";
 

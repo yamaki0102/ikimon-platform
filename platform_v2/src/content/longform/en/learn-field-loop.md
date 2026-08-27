@@ -1,6 +1,6 @@
-# Why ikimon takes this shape
+# Why ZUKAN takes this shape
 
-ikimon is a place-first observatory. It is designed around a loop: notice something, save it, revisit the same place, and let the differences accumulate.
+ZUKAN is a place-first observatory. It is designed around a loop: notice something, save it, revisit the same place, and let the differences accumulate.
 
 ## Why a loop instead of one-shot certainty
 

@@ -194,7 +194,7 @@ const TAB_STYLES = `
 
 function monitoringApplyCta(basePath: string): string {
   return `<div class="rs-monitoring-cta">
-    <div><strong>IKIMON Monitoring の先行相談</strong><span>提供準備中です。年100万円、地域育成価格候補50万円。契約前に価格と適用条件を確認します。</span></div>
+    <div><strong>ZUKAN Monitoring の先行相談</strong><span>提供準備中です。年100万円、地域育成価格候補50万円。契約前に価格と適用条件を確認します。</span></div>
     <a href="${escapeHtml(withBasePath(basePath, "/for-business/monitoring/apply"))}">先行相談へ</a>
   </div>`;
 }

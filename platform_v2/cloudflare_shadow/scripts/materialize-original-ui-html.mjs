@@ -777,6 +777,7 @@ try {
 
 const result = {
   ok: true,
+  sourceSha: materializationSourceSha,
   mode: execute ? "execute" : "dry-run",
   r2WritesRequested: execute,
   r2WritesExecuted: execute && !materializeSkipped,

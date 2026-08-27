@@ -146,7 +146,7 @@ test("glossary and term pages expose one-topic SEO pages", async () => {
     assert.match(biomonweek.body, /BioMonWeekとは/);
     assert.match(biomonweek.body, /2026年5月4日から8日/);
     assert.match(biomonweek.body, /欧州会議/);
-    assert.match(biomonweek.body, /ikimon\.life の独自イベント名ではありません/);
+    assert.match(biomonweek.body, /ZUKAN の独自イベント名ではありません/);
     assert.match(biomonweek.body, /\/ja\/learn\/biomonweek/);
     assert.match(biomonweek.body, /\/learn\/terms\/biomonweek/);
     assert.doesNotMatch(biomonweek.body, /class="hero-panel/);
@@ -331,7 +331,7 @@ test("field loop keeps a minimal english fallback", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /Why ikimon takes this shape/);
+    assert.match(response.body, /Why ZUKAN takes this shape/);
     assert.match(response.body, /place-first observatory/);
   } finally {
     await app.close();

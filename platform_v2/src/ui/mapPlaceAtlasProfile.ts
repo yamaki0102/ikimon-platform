@@ -623,6 +623,19 @@ export function renderMapPlaceAtlasError(lang: SiteLang): string {
   return `<section class="me-place-atlas-state is-error" data-place-atlas-state="error" role="status"><strong>${atlasEscapeHtml(copy.errorTitle)}</strong><p>${atlasEscapeHtml(copy.errorBody)}</p></section>`;
 }
 
+function toggleMapPlaceAtlasTheme(card: HTMLElement): void {
+  const isOpen = card.getAttribute("aria-pressed") === "true";
+  card.setAttribute("aria-pressed", isOpen ? "false" : "true");
+  card.classList.toggle("is-selected", !isOpen);
+  card.dispatchEvent(new CustomEvent("ikimon:place-atlas-theme-open", {
+    bubbles: true,
+    detail: {
+      theme: card.getAttribute("data-place-atlas-theme") || "unknown",
+      open: !isOpen,
+    },
+  }));
+}
+
 function bindMapPlaceAtlasImages(root: ParentNode | null): void {
   root?.querySelectorAll<HTMLImageElement>("[data-place-atlas-image]").forEach((image) => {
     image.addEventListener("error", () => {
@@ -638,23 +651,11 @@ function bindMapPlaceAtlasImages(root: ParentNode | null): void {
     }, { once: true });
   });
   root?.querySelectorAll<HTMLElement>("[data-place-atlas-theme]").forEach((card) => {
-    const activate = () => {
-      const isOpen = card.getAttribute("aria-pressed") === "true";
-      card.setAttribute("aria-pressed", isOpen ? "false" : "true");
-      card.classList.toggle("is-selected", !isOpen);
-      card.dispatchEvent(new CustomEvent("ikimon:place-atlas-theme-open", {
-        bubbles: true,
-        detail: {
-          theme: card.getAttribute("data-place-atlas-theme") || "unknown",
-          open: !isOpen,
-        },
-      }));
-    };
-    card.addEventListener("click", activate);
+    card.addEventListener("click", () => toggleMapPlaceAtlasTheme(card));
     card.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      activate();
+      toggleMapPlaceAtlasTheme(card);
     });
   });
 }
@@ -1197,6 +1198,7 @@ const MAP_PLACE_ATLAS_RUNTIME_HELPERS = [
   renderMapPlaceAtlasProfile,
   renderMapPlaceAtlasLoading,
   renderMapPlaceAtlasError,
+  toggleMapPlaceAtlasTheme,
   bindMapPlaceAtlasImages,
 ];
 

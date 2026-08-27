@@ -41,7 +41,7 @@
       },
       "shared": {
         "openRecord": "記録を見る", "unknownRecord": "名前を調べている記録", "safePlaceFallback": "地域の記録", "aiCandidateSuffix": "かもしれません", "fromRecord": "この記録から", "multipleMedia": "件のメディア",
-        "operatorStatement": "ZUKANはIKIMON株式会社が運営しています。現在はikimon.lifeで提供しています。",
+        "operatorStatement": "ZUKANはIKIMON株式会社が運営しています。現在はzukan.earthで提供しています。",
         "media": { "photo": "写真", "video": "動画", "audio": "音声", "memo": "メモ" },
         "navigation": { "home": "ホーム", "record": "記録", "discover": "見つける", "profile": "マイページ" }
       }
@@ -158,10 +158,10 @@
   "marketing": {
     "pages": {
       "about": {
-        "title": "Enjoy Life の考え方 | ikimon.life",
+        "title": "Enjoy Life の考え方 | ZUKAN",
         "eyebrow": "考え方",
         "heading": "生きものを楽しむことから始める。",
-        "lead": "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。ikimon.life は、身近な観察から自然との関係を取り戻すための場所です。",
+        "lead": "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。ZUKAN は、身近な観察から自然との関係を取り戻すための場所です。",
         "activeNav": "learn",
         "bodyPageId": "about",
         "afterActions": [
@@ -170,7 +170,7 @@
         ]
       },
       "learnIndex": {
-        "title": "自然観察を楽しむための読みもの | ikimon.life",
+        "title": "自然観察を楽しむための読みもの | ZUKAN",
         "eyebrow": "読みもの",
         "heading": "読みもの索引",
         "lead": "観察の始め方、名前の確かめ方、自然やデータの考え方を、1テーマ1ページで読めるように整理しています。気になる言葉は用語ページからたどれます。",
@@ -178,7 +178,7 @@
         "bodyPageId": "learn-index"
       },
       "learnFieldLoop": {
-        "title": "観察の流れ | ikimon.life",
+        "title": "観察の流れ | ZUKAN",
         "eyebrow": "読む",
         "heading": "見つける、記録する、また歩く",
         "lead": "観察は 1 回で終わりません。見つけたことを記録し、あとで学び、また同じ場所へ戻る流れを説明します。",
@@ -189,7 +189,7 @@
         ]
       },
       "learnGlossary": {
-        "title": "自然観察・生物多様性の用語集 | ikimon.life",
+        "title": "自然観察・生物多様性の用語集 | ZUKAN",
         "eyebrow": "読む",
         "heading": "用語から探す",
         "lead": "用語集は入口です。SEOで読ませたい言葉や論文由来の概念は、1語ずつ個別ページへ分けています。",
@@ -197,10 +197,10 @@
         "bodyPageId": "learn-glossary"
       },
       "learnBiomonweek": {
-        "title": "BioMonWeek 2026を読む | ikimon.life",
+        "title": "BioMonWeek 2026を読む | ZUKAN",
         "eyebrow": "BioMonWeek",
         "heading": "BioMonWeek 2026を、生物多様性モニタリングから読む",
-        "lead": "BioMonWeek 2026は、2026年5月4日から8日にフランスのモンペリエで開かれる欧州の生物多様性モニタリング会議です。ikimon.lifeでは、公式事実と私たちの読み方を分けて整理します。",
+        "lead": "BioMonWeek 2026は、2026年5月4日から8日にフランスのモンペリエで開かれる欧州の生物多様性モニタリング会議です。ZUKANでは、公式事実と私たちの読み方を分けて整理します。",
         "activeNav": "learn",
         "bodyPageId": "learn-biomonweek",
         "afterActions": [
@@ -209,7 +209,7 @@
         ]
       },
       "termBiodiversity": {
-        "title": "生物多様性とは | ikimon.life用語集",
+        "title": "生物多様性とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "生物多様性とは",
         "lead": "生態系、種、遺伝子の多様さを合わせて見る考え方です。身近な観察では、名前だけでなく場所や季節も一緒に残すことが入口になります。",
@@ -221,7 +221,7 @@
         ]
       },
       "termEcosystemServices": {
-        "title": "生態系サービスとは | ikimon.life用語集",
+        "title": "生態系サービスとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "生態系サービスとは",
         "lead": "自然が人の暮らしや社会を支える働きです。食べ物や水だけでなく、景観、学び、遊び、気持ちの落ち着きにも関係します。",
@@ -233,7 +233,7 @@
         ]
       },
       "termNaturePositive": {
-        "title": "ネイチャーポジティブとは | ikimon.life用語集",
+        "title": "ネイチャーポジティブとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "ネイチャーポジティブとは",
         "lead": "自然の損失を止め、回復へ向ける考え方です。観察記録は、回復を自動で証明するものではなく、次の確認や活動の材料です。",
@@ -245,7 +245,7 @@
         ]
       },
       "term30by30": {
-        "title": "30by30とは | ikimon.life用語集",
+        "title": "30by30とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "30by30とは",
         "lead": "2030年までに陸と海の少なくとも30%を保全・保護する目標として語られる言葉です。日本では自然共生サイトやOECMの文脈と関係します。",
@@ -257,7 +257,7 @@
         ]
       },
       "termNatureSymbiosisSite": {
-        "title": "自然共生サイトとは | ikimon.life用語集",
+        "title": "自然共生サイトとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "自然共生サイトとは",
         "lead": "民間や地域の取り組みによって生物多様性の保全が図られている場所を、国が認定する制度です。継続的な記録と管理の説明が重要になります。",
@@ -269,7 +269,7 @@
         ]
       },
       "termOecm": {
-        "title": "OECMとは | ikimon.life用語集",
+        "title": "OECMとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "OECMとは",
         "lead": "OECMは、国立公園のような保護区ではなくても、生物多様性の保全に実効的に貢献している地域を評価する考え方です。",
@@ -281,7 +281,7 @@
         ]
       },
       "termTnfd": {
-        "title": "TNFDとは | ikimon.life用語集",
+        "title": "TNFDとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "TNFDとは",
         "lead": "企業や金融機関が、自然への依存、影響、リスク、機会を把握し、開示するための枠組みです。観察記録だけで準拠を保証するものではありません。",
@@ -293,7 +293,7 @@
         ]
       },
       "termNaturalCapital": {
-        "title": "自然資本とは | ikimon.life用語集",
+        "title": "自然資本とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "自然資本とは",
         "lead": "自然資本は、森林、水、土壌、生きものなどの自然を、社会や経済を支える資本として見る考え方です。",
@@ -305,7 +305,7 @@
         ]
       },
       "termBiodiversityCredits": {
-        "title": "生物多様性クレジットとは | ikimon.life用語集",
+        "title": "生物多様性クレジットとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "生物多様性クレジットとは",
         "lead": "生物多様性クレジットは、自然の保全や回復を資金化する仕組みとして議論される考え方です。場所性が強いため、単純な代替には注意が必要です。",
@@ -317,7 +317,7 @@
         ]
       },
       "termKunmingMontrealGbf": {
-        "title": "昆明・モントリオール生物多様性枠組みとは | ikimon.life用語集",
+        "title": "昆明・モントリオール生物多様性枠組みとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "昆明・モントリオール生物多様性枠組みとは",
         "lead": "昆明・モントリオール生物多様性枠組みは、2030年へ向けた国際的な生物多様性目標をまとめた枠組みです。",
@@ -329,7 +329,7 @@
         ]
       },
       "termCitizenScience": {
-        "title": "市民科学とは | ikimon.life用語集",
+        "title": "市民科学とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "市民科学とは",
         "lead": "一般の人が観察、記録、分類、確認に参加する科学の進め方です。価値が出るのは、記録条件や確認状態があとから分かるときです。",
@@ -341,7 +341,7 @@
         ]
       },
       "termBiomonweek": {
-        "title": "BioMonWeekとは | ikimon.life用語集",
+        "title": "BioMonWeekとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "BioMonWeekとは",
         "lead": "BioMonWeekは、Biodiversity Monitoring Weekの略称です。2026年は5月4日から8日にフランスのモンペリエで開かれる、生物多様性モニタリングの欧州会議として案内されています。",
@@ -354,7 +354,7 @@
         ]
       },
       "termBiodiversityMonitoring": {
-        "title": "生物多様性モニタリングとは | ikimon.life用語集",
+        "title": "生物多様性モニタリングとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "生物多様性モニタリングとは",
         "lead": "生物多様性モニタリングは、同じ場所や条件で生きものの記録を重ね、変化を見守ることです。単発の発見より、継続と条件の記録が重要になります。",
@@ -366,7 +366,7 @@
         ]
       },
       "termParticipatoryMonitoring": {
-        "title": "市民参加型モニタリングとは | ikimon.life用語集",
+        "title": "市民参加型モニタリングとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "市民参加型モニタリングとは",
         "lead": "市民参加型モニタリングは、地域の人や参加者が継続的に観察を残す仕組みです。専門調査だけでは拾いにくい場所や季節の変化を補えます。",
@@ -378,7 +378,7 @@
         ]
       },
       "termFixedPointObservation": {
-        "title": "定点観察とは | ikimon.life用語集",
+        "title": "定点観察とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "定点観察とは",
         "lead": "定点観察は、同じ場所をくり返し見て、季節や年ごとの変化を残す観察です。場所、日時、見た範囲をそろえるほど比較しやすくなります。",
@@ -390,7 +390,7 @@
         ]
       },
       "termSamplingEffort": {
-        "title": "観察努力量とは | ikimon.life用語集",
+        "title": "観察努力量とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "観察努力量とは",
         "lead": "観察努力量は、どれくらい探したかを表す情報です。時間、人数、距離、範囲が分かると、見つかった数や見つからなかったことを読みやすくなります。",
@@ -402,7 +402,7 @@
         ]
       },
       "termBaseline": {
-        "title": "ベースラインとは | ikimon.life用語集",
+        "title": "ベースラインとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "ベースラインとは",
         "lead": "ベースラインは、あとで変化を比べるための基準時点の状態です。初年度の記録は、将来の増減や季節変化を見る土台になります。",
@@ -414,7 +414,7 @@
         ]
       },
       "termIdentification": {
-        "title": "同定とは | ikimon.life用語集",
+        "title": "同定とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "同定とは",
         "lead": "同定は、見つけた生きものの名前や分類を、写真、音声、形、行動、専門知識などの根拠と一緒に確かめることです。",
@@ -426,7 +426,7 @@
         ]
       },
       "termAiCandidate": {
-        "title": "AI候補とは | ikimon.life用語集",
+        "title": "AI候補とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "AI候補とは",
         "lead": "AI候補は、AIが出す名前や見分け方のヒントです。観察を進める入口であり、確定名ではありません。",
@@ -438,7 +438,7 @@
         ]
       },
       "termQuickCapture": {
-        "title": "ふだんの記録とは | ikimon.life用語集",
+        "title": "ふだんの記録とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "ふだんの記録とは",
         "lead": "散歩や旅先で見つけた1件を、写真、場所、時刻、メモでまず残す軽い記録です。調査ではなく、発見を逃さない入口です。",
@@ -450,7 +450,7 @@
         ]
       },
       "termSurvey": {
-        "title": "しっかり記録とは | ikimon.life用語集",
+        "title": "しっかり記録とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "しっかり記録とは",
         "lead": "対象、範囲、時間、努力量をそろえて残す調査に近い記録です。見つからなかったことも、条件つきで意味を持ちます。",
@@ -462,7 +462,7 @@
         ]
       },
       "termEvidenceTier": {
-        "title": "Evidence Tierとは | ikimon.life用語集",
+        "title": "Evidence Tierとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "Evidence Tierとは",
         "lead": "観察記録をどの強さで研究やレポートに使えるかを分ける信頼段階です。写真、同定、反対意見、専門確認などが関係します。",
@@ -474,7 +474,7 @@
         ]
       },
       "termOpenDispute": {
-        "title": "open disputeとは | ikimon.life用語集",
+        "title": "open disputeとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "open disputeとは",
         "lead": "open disputeは、別分類、証拠不足、生物ではない可能性、位置や日付の疑問など、まだ解決していない反対意見です。",
@@ -486,7 +486,7 @@
         ]
       },
       "termLocationData": {
-        "title": "位置情報とは | ikimon.life用語集",
+        "title": "位置情報とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "位置情報とは",
         "lead": "位置情報は、観察した場所の情報です。公開時は、希少種や個人の行動が見えすぎないように精度を落とす場合があります。",
@@ -498,7 +498,7 @@
         ]
       },
       "termRareSpecies": {
-        "title": "希少種とは | ikimon.life用語集",
+        "title": "希少種とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "希少種とは",
         "lead": "希少種は、保護上、位置情報や公開範囲に配慮が必要な生きものです。観察の公開が採集や攪乱につながらないように扱います。",
@@ -510,7 +510,7 @@
         ]
       },
       "termEnvironmentalDna": {
-        "title": "環境DNAとは | ikimon.life用語集",
+        "title": "環境DNAとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "環境DNAとは",
         "lead": "環境DNAは、水、土、空気などに残る生物由来のDNAを調べる技術です。強力な補助資料ですが、採取方法や確認条件と一緒に扱う必要があります。",
@@ -522,7 +522,7 @@
         ]
       },
       "termGbif": {
-        "title": "GBIFとは | ikimon.life用語集",
+        "title": "GBIFとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "GBIFとは",
         "lead": "GBIFは、世界中の生物多様性データを共有する国際的な情報基盤です。観察や標本をoccurrence dataとして扱います。",
@@ -534,7 +534,7 @@
         ]
       },
       "termDarwinCore": {
-        "title": "Darwin Coreとは | ikimon.life用語集",
+        "title": "Darwin Coreとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "Darwin Coreとは",
         "lead": "Darwin Coreは、生物多様性データを交換しやすくするための標準語彙です。分類名、日付、場所、証拠などの項目をそろえます。",
@@ -546,7 +546,7 @@
         ]
       },
       "termDwca": {
-        "title": "DwC-Aとは | ikimon.life用語集",
+        "title": "DwC-Aとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "DwC-Aとは",
         "lead": "DwC-Aは、Darwin Core形式のデータをまとめて配布するためのアーカイブ形式です。研究利用や外部共有の文脈で使われます。",
@@ -558,7 +558,7 @@
         ]
       },
       "termTaxonomyName": {
-        "title": "分類名とは | ikimon.life用語集",
+        "title": "分類名とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "分類名とは",
         "lead": "分類名は、生きものを分類体系の中で扱うための名前です。和名、学名、科、属、種などを、根拠と一緒に扱います。",
@@ -570,7 +570,7 @@
         ]
       },
       "termDataset": {
-        "title": "データセットとは | ikimon.life用語集",
+        "title": "データセットとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "データセットとは",
         "lead": "データセットは、一定の目的や形式でまとめられた観察、標本、音声、画像などのデータ群です。品質や条件が分かるほど再利用しやすくなります。",
@@ -582,7 +582,7 @@
         ]
       },
       "termNatureConnectedness": {
-        "title": "自然とのつながりとは | ikimon.life用語集",
+        "title": "自然とのつながりとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "自然とのつながりとは",
         "lead": "自分が自然から切り離された存在ではなく、自然の一部だと感じる主観的な関係性です。自然とのつながり尺度の研究文脈でも使われます。",
@@ -594,7 +594,7 @@
         ]
       },
       "termAttentionRestorationTheory": {
-        "title": "注意回復理論とは | ikimon.life用語集",
+        "title": "注意回復理論とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "注意回復理論とは",
         "lead": "集中や抑制に使う注意が疲れたとき、自然環境のような穏やかに注意を引く対象が回復を助ける可能性を説明する理論です。",
@@ -606,10 +606,10 @@
         ]
       },
       "termBiophiliaHypothesis": {
-        "title": "バイオフィリア仮説とは | ikimon.life用語集",
+        "title": "バイオフィリア仮説とは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "バイオフィリア仮説とは",
-        "lead": "人には生命や自然へ向かう傾向があるとする考え方です。ikimon.lifeでは、効能の断定ではなく、自然を楽しむ入口として扱います。",
+        "lead": "人には生命や自然へ向かう傾向があるとする考え方です。ZUKANでは、効能の断定ではなく、自然を楽しむ入口として扱います。",
         "activeNav": "learn",
         "bodyPageId": "term-biophilia-hypothesis",
         "afterActions": [
@@ -618,7 +618,7 @@
         ]
       },
       "termOneHealth": {
-        "title": "One Healthとは | ikimon.life用語集",
+        "title": "One Healthとは | ZUKAN用語集",
         "eyebrow": "用語",
         "heading": "One Healthとは",
         "lead": "人、動物、環境の健康がつながっているという考え方です。感染症、環境劣化、動物の健康、地域の暮らしを別々に扱わない視点です。",
@@ -630,7 +630,7 @@
         ]
       },
       "learnIdentificationBasics": {
-        "title": "同定の基本 | ikimon",
+        "title": "同定の基本 | ZUKAN",
         "eyebrow": "読む",
         "heading": "名前が分からないときの基本",
         "lead": "その場で全部決めなくても、あとで確かめやすい記録は残せます。写真とメモの取り方を、やさしい前提でまとめています。",
@@ -638,15 +638,15 @@
         "bodyPageId": "learn-identification-basics"
       },
       "learnBiodiversity": {
-        "title": "生物多様性の基礎 | ikimon.life",
+        "title": "生物多様性の基礎 | ZUKAN",
         "eyebrow": "基礎解説",
         "heading": "生物多様性を、暮らしの言葉で理解する",
-        "lead": "生きものの種類だけでなく、生態系、遺伝子、暮らしを支える自然の働きまでを、ikimon.life の観察体験につながる形で整理します。",
+        "lead": "生きものの種類だけでなく、生態系、遺伝子、暮らしを支える自然の働きまでを、ZUKAN の観察体験につながる形で整理します。",
         "activeNav": "learn",
         "bodyPageId": "learn-biodiversity"
       },
       "learnCitizenScience": {
-        "title": "市民科学と観察 | ikimon.life",
+        "title": "市民科学と観察 | ZUKAN",
         "eyebrow": "市民科学",
         "heading": "散歩の記録が、科学の入口になる条件",
         "lead": "市民の発見を軽視せず、同時に研究利用で言いすぎないために、観察、確認、努力量、専門レビューの役割を分けて説明します。",
@@ -654,7 +654,7 @@
         "bodyPageId": "learn-citizen-science"
       },
       "learnPolicyBusiness": {
-        "title": "政策・企業活動と自然 | ikimon.life",
+        "title": "政策・企業活動と自然 | ZUKAN",
         "eyebrow": "政策と企業",
         "heading": "30by30、自然共生サイト、TNFDを一つの流れで読む",
         "lead": "国際目標、国内制度、企業活動、レポート活用を、重複した用語集ではなく、自然の変化を見守る実務の流れとして整理します。",
@@ -662,7 +662,7 @@
         "bodyPageId": "learn-policy-business"
       },
       "learnWellbeing": {
-        "title": "自然とウェルビーイング | ikimon.life",
+        "title": "自然とウェルビーイング | ZUKAN",
         "eyebrow": "ウェルビーイング",
         "heading": "自然を楽しむことが、暮らしに戻ってくる",
         "lead": "自然とのつながり、注意回復、観察の楽しさを扱います。健康効果を保証せず、研究で示唆される範囲を読みやすく整理します。",
@@ -670,7 +670,7 @@
         "bodyPageId": "learn-wellbeing"
       },
       "learnTechnology": {
-        "title": "自然観察とテクノロジー | ikimon.life",
+        "title": "自然観察とテクノロジー | ZUKAN",
         "eyebrow": "テクノロジー",
         "heading": "AIは自然を決める道具ではなく、観察を育てる補助線",
         "lead": "生物特化AI、環境DNA、分類名、データセットの話を、AIが確定する物語ではなく、人が確認できる観察データを増やす話として整理します。",
@@ -678,7 +678,7 @@
         "bodyPageId": "learn-technology"
       },
       "learnInvasiveSpeciesReporting": {
-        "title": "外来種の情報提供 | ikimon",
+        "title": "外来種の情報提供 | ZUKAN",
         "eyebrow": "外来種",
         "heading": "外来種候補を見つけたとき、どこへ何を伝えるか",
         "lead": "静岡県内の窓口を起点に、緊急通報、写真・発見情報提供、防除相談、違法行為、年度事業を分けて、求められる情報と触らないための注意を整理します。",
@@ -691,7 +691,7 @@
         ]
       },
       "learnMethodology": {
-        "title": "記録・データ・信頼性 | ikimon.life",
+        "title": "記録・データ・信頼性 | ZUKAN",
         "eyebrow": "研究と信頼性",
         "heading": "研究・データ・信頼性について",
         "lead": "楽しく集まる観察記録を、研究・地域活動・レポートで扱いやすくするために、AI と人の役割、同定の信頼レーン、言いすぎない線引きをまとめています。",
@@ -699,7 +699,7 @@
         "bodyPageId": "learn-methodology"
       },
       "learnUpdates": {
-        "title": "アップデート | ikimon",
+        "title": "アップデート | ZUKAN",
         "eyebrow": "読む",
         "heading": "アップデート",
         "lead": "何が変わったかを、観察の始めやすさ、見返しやすさ、地域で活かしやすくなった点としてまとめています。",
@@ -707,7 +707,7 @@
         "bodyPageId": "learn-updates"
       },
       "faq": {
-        "title": "FAQ | ikimon",
+        "title": "FAQ | ZUKAN",
         "eyebrow": "よくある質問",
         "heading": "よくある質問",
         "lead": "個人で観察を始めるときに迷いやすい点と、学校・地域・企業で使う前に確認したい点をまとめています。",
@@ -715,7 +715,7 @@
         "bodyPageId": "faq"
       },
       "privacy": {
-        "title": "プライバシー | ikimon",
+        "title": "プライバシー | ZUKAN",
         "eyebrow": "安心して記録する",
         "heading": "プライバシーポリシー",
         "lead": "記録を残すために必要なデータを扱いながら、希少種や個人の行動が見えすぎないよう公開範囲を分けています。",
@@ -723,7 +723,7 @@
         "bodyPageId": "privacy"
       },
       "terms": {
-        "title": "利用規約 | ikimon",
+        "title": "利用規約 | ZUKAN",
         "eyebrow": "安心して使うために",
         "heading": "利用規約",
         "lead": "安全に記録を残し、他の人や生きものに不利益が出ないように使っていただくための要点です。",
@@ -731,15 +731,15 @@
         "bodyPageId": "terms"
       },
       "contact": {
-        "title": "お問い合わせ | ikimon",
+        "title": "お問い合わせ | ZUKAN",
         "eyebrow": "お問い合わせ",
         "heading": "お問い合わせ",
-        "lead": "ikimon.life に関するご質問を受け付けています。個人の利用相談に加えて、学校・地域・企業で観察を始めたい方向けの窓口も案内しています。",
+        "lead": "ZUKAN に関するご質問を受け付けています。個人の利用相談に加えて、学校・地域・企業で観察を始めたい方向けの窓口も案内しています。",
         "activeNav": "learn",
         "bodyPageId": "contact"
       },
       "community": {
-        "title": "みんなで観察する | ikimon.life",
+        "title": "みんなで観察する | ZUKAN",
         "eyebrow": "みんなで調べる",
         "heading": "小さな発見を、みんなで残す",
         "lead": "一人で歩く楽しさを入口にしながら、同じ場所をみんなで見直します。観察会やテーマ調査は、地域のいのちの記録を育てるための入口です。",
@@ -751,7 +751,7 @@
         ]
       },
       "forBusiness": {
-        "title": "企業・自治体・団体で活用する | ikimon.life",
+        "title": "企業・自治体・団体で活用する | ZUKAN",
         "eyebrow": "企業・自治体・団体へ",
         "heading": "自然資本を、現場から見直す",
         "lead": "衛星や環境データだけでは見えない小さな変化を、観察、管理行為、再訪の記録で補います。企業・自治体・団体が、まず始めて、続けて、説明できる状態をつくるための入口です。",
@@ -762,10 +762,10 @@
         ]
       },
       "impact": {
-        "title": "社会実装と影響 | ikimon.life",
+        "title": "社会実装と影響 | ZUKAN",
         "eyebrow": "Impact",
         "heading": "小さな観察を、次の行動の材料へ",
-        "lead": "ikimon.life は、観察データだけで改善や適合を保証するものではありません。地域の自然を見直し、次の調査・学び・企業活動を考えるための材料を育てます。",
+        "lead": "ZUKAN は、観察データだけで改善や適合を保証するものではありません。地域の自然を見直し、次の調査・学び・企業活動を考えるための材料を育てます。",
         "activeNav": "business",
         "bodyPageId": "impact",
         "afterActions": [
@@ -775,10 +775,10 @@
         ]
       },
       "cases": {
-        "title": "活用例 | ikimon.life",
+        "title": "活用例 | ZUKAN",
         "eyebrow": "Cases",
         "heading": "使い方は、場所と目的から決める",
-        "lead": "ikimon.life は、観察会、学校・地域活動、企業や自治体の自然関連対応に、段階的に使えます。最初から大きな制度対応を約束せず、記録の流れを現場に合わせます。",
+        "lead": "ZUKAN は、観察会、学校・地域活動、企業や自治体の自然関連対応に、段階的に使えます。最初から大きな制度対応を約束せず、記録の流れを現場に合わせます。",
         "activeNav": "business",
         "bodyPageId": "cases",
         "afterActions": [
@@ -788,7 +788,7 @@
         ]
       },
       "forBusinessPricing": {
-        "title": "連携の始め方 | ikimon.life",
+        "title": "連携の始め方 | ZUKAN",
         "eyebrow": "企業・地域で活用",
         "heading": "連携の始め方",
         "lead": "まず対象場所と参加者を決め、楽しんで続けられる観察体験から始めます。必要に応じて、レポート・可視化・発信を段階的に足します。",
@@ -796,7 +796,7 @@
         "bodyPageId": "for-business-pricing"
       },
       "forBusinessInvasiveReporting": {
-        "title": "外来種自動情報提供 | ikimon.life",
+        "title": "外来種自動情報提供 | ZUKAN",
         "eyebrow": "自治体・機関向け",
         "heading": "外来種候補の自動情報提供を、許可制で受け取る",
         "lead": "AI判定後に自動で届く条件、共有される情報、詳細位置の扱い、AI判定の限界、受信開始・停止方法を説明します。",
@@ -808,7 +808,7 @@
         ]
       },
       "forBusinessFieldPrograms": {
-        "title": "地域フィールドプログラム | ikimon.life",
+        "title": "地域フィールドプログラム | ZUKAN",
         "eyebrow": "自治体・企業・DMO向け",
         "heading": "地域の見どころを、参加と成果物につなげる",
         "lead": "参加者向けのガイド体験とは分けて、自治体・企業・DMOが地域企画、観察会、匿名recapとして使う場合の考え方を説明します。",
@@ -820,7 +820,7 @@
         ]
       },
       "forBusinessDemo": {
-        "title": "団体向け画面デモ | ikimon.life",
+        "title": "団体向け画面デモ | ZUKAN",
         "eyebrow": "企業・地域で活用",
         "heading": "実際の画面で、始め方を確認する",
         "lead": "実際に公開している画面で、参加者が観察し、記録を見返し、地域の自然を共有する流れを確認できます。",
@@ -828,7 +828,7 @@
         "bodyPageId": "for-business-demo"
       },
       "forBusinessStatus": {
-        "title": "相談前の確認 | ikimon",
+        "title": "相談前の確認 | ZUKAN",
         "eyebrow": "企業・地域で活用",
         "heading": "相談前に知っておきたいこと",
         "lead": "企業・自治体・団体で始める前に、今使える入口、継続運用、レポートや可視化へ広げる順番をまとめています。",
@@ -836,7 +836,7 @@
         "bodyPageId": "for-business-status"
       },
       "forBusinessApply": {
-        "title": "企業・地域相談フォーム | ikimon.life",
+        "title": "企業・地域相談フォーム | ZUKAN",
         "eyebrow": "企業・地域で活用",
         "heading": "企業・地域で観察を始める相談窓口",
         "lead": "導入相談、共同実証、対象場所の選定、初回観察導線、レポート活用の相談を受け付けています。個人利用と無料開始には申し込み不要です。",
@@ -844,7 +844,7 @@
         "bodyPageId": "for-business-apply"
       },
       "forResearcherApply": {
-        "title": "研究・レポート利用申請 | ikimon.life",
+        "title": "研究・レポート利用申請 | ZUKAN",
         "eyebrow": "For Researchers",
         "heading": "観察データを研究やレポートに活かす",
         "lead": "Evidence Tier 3+ の観察を対象に、Darwin Core 形式での取得、DOI 発行、共同研究、TNFD・30by30 文脈のレポート活用について相談を受け付けています。",
@@ -889,7 +889,7 @@
   },
   "read": {
     "record": {
-      "title": "記録する | ikimon.life",
+      "title": "記録する | ZUKAN",
       "activeNav": "記録",
       "footerNote": "いつもの道で見つけた場面を、地域の観察レコードへ育てる。",
       "hero": {
@@ -899,7 +899,7 @@
       }
     },
     "explore": {
-      "title": "身近な自然を見つける | ikimon.life",
+      "title": "身近な自然を見つける | ZUKAN",
       "activeNav": "みつける",
       "footerNote": "歩いて見つけた自然を、あとで見返せる形に残す。",
       "hero": {
@@ -918,7 +918,7 @@
       }
     },
     "notes": {
-      "title": "記録ライブラリ | ikimon.life",
+      "title": "記録ライブラリ | ZUKAN",
       "activeNav": "記録ライブラリ",
       "footerNote": "歩いて見つけた自然を、あとで観察レコードへ育てられる形で残す。",
       "hero": {
@@ -939,7 +939,7 @@
       }
     },
     "lens": {
-      "title": "その場で観察する | ikimon.life",
+      "title": "その場で観察する | ZUKAN",
       "activeNav": "ホーム",
       "footerNote": "AI は候補と見分けるヒントを返します。決めるのは人です。",
       "hero": {
@@ -999,7 +999,7 @@
       ]
     },
     "scan": {
-      "title": "次の自然を見つける | ikimon.life",
+      "title": "次の自然を見つける | ZUKAN",
       "activeNav": "ホーム",
       "footerNote": "地図を拡大すると、観察レコードの多い場所や公園・水辺の手がかりが見えてきます。",
       "hero": {
@@ -1052,12 +1052,12 @@
       ]
     },
     "map": {
-      "title": "ikimon - 皆で作る地域図鑑 | ikimon.life",
+      "title": "ZUKAN - 皆で作る地域図鑑 | ZUKAN",
       "activeNav": "ホーム",
       "footerNote": "近くの記録を、場所から見返す地図。"
     },
     "guide": {
-      "title": "ライブガイド | ikimon",
+      "title": "ライブガイド | ZUKAN",
       "activeNav": "ライブガイド",
       "footerNote": "映像と音声で、土地の自然と暮らしの手がかりを聴く。"
     }

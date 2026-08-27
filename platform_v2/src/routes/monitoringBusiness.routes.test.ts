@@ -52,6 +52,6 @@ test("monitoring business route is registered without adding write endpoints", (
 test("monitoring business entry points do not present the form as contract application", () => {
   assert.match(sampleReportSource, /先行相談へ/);
   assert.doesNotMatch(sampleReportSource, /申込みへ/);
-  assert.match(siteMapSource, /IKIMON Monitoring 先行相談/);
+  assert.match(siteMapSource, /ZUKAN Monitoring 先行相談/);
   assert.doesNotMatch(siteMapSource, /モニタリング契約申込み/);
 });

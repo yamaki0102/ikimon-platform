@@ -538,8 +538,8 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(script, /map:rain:refresh/);
   assert.doesNotMatch(script, /map_rain_toggle/);
   assert.match(script, /rainAttribution/);
-  assert.match(script, /ikimon独自予報ではありません/);
-  assert.match(script, /出典: 気象庁。ikimon独自予報ではありません/);
+  assert.match(script, /ZUKAN独自予報ではありません/);
+  assert.match(script, /出典: 気象庁。ZUKAN独自予報ではありません/);
   assert.match(script, /強い雨・雷は公式情報も確認してください/);
   assert.match(script, /6時間先/);
   assert.match(script, /rainIndeterminate/);

@@ -540,7 +540,7 @@ function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath
 
   return renderSiteDocument({
     basePath: options.basePath,
-    title: "サイトマップ (運用向け) | ikimon",
+    title: "サイトマップ (運用向け) | ZUKAN",
     description: "Canonical route registry から生成した、ステージング確認と公開面QAのためのサイトマップです。",
     activeNav: localizedNavHome(lang),
     lang,

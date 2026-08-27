@@ -37,7 +37,7 @@
       },
       "shared": {
         "openRecord": "Ver registro", "unknownRecord": "Registro pendiente de nombre", "safePlaceFallback": "Registro de la comunidad", "aiCandidateSuffix": "podría ser", "fromRecord": "De este registro", "multipleMedia": "elementos multimedia",
-        "operatorStatement": "ZUKAN es operado por IKIMON Inc. y actualmente se ofrece en ikimon.life.",
+        "operatorStatement": "ZUKAN es operado por IKIMON Inc. y actualmente se ofrece en zukan.earth.",
         "media": { "photo": "Foto", "video": "Video", "audio": "Audio", "memo": "Nota" },
         "navigation": { "home": "Inicio", "record": "Registrar", "discover": "Descubrir", "profile": "Mi página" }
       }
@@ -145,7 +145,7 @@
   "marketing": {
     "pages": {
       "community": {
-        "title": "Comunidad | ikimon",
+        "title": "Comunidad | ZUKAN",
         "eyebrow": "Comunidad",
         "heading": "Participar en caminatas y estudios temáticos",
         "lead": "La entrada sigue siendo disfrutar la naturaleza, pero a veces mirar el mismo lugar con otras personas crea mejores registros.",
@@ -157,7 +157,7 @@
         ]
       },
       "learnIndex": {
-        "title": "Índice de lecturas | ikimon.life",
+        "title": "Índice de lecturas | ZUKAN",
         "eyebrow": "Leer",
         "heading": "Índice de lecturas",
         "lead": "Un tema por página: cómo empezar a observar, revisar nombres y conservar registros útiles.",
@@ -168,7 +168,7 @@
   },
   "read": {
     "map": {
-      "title": "Mapa de vida | ikimon.life",
+      "title": "Mapa de vida | ZUKAN",
       "activeNav": "inicio",
       "footerNote": "Acerca el mapa para ver dónde se reúnen registros, especies, parques y pistas junto al agua."
     }
