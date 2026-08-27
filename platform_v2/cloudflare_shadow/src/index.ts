@@ -29900,6 +29900,11 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       if (!concurrentAsset) {
         return json({ ok: false, error: "media_idempotency_reservation_missing" }, 503, { "cache-control": "no-store" });
       }
+      if (concurrentAsset.object_key !== objectKey) {
+        await env.ASSET_BUCKET.delete(objectKey).catch((cleanupError) => {
+          console.error("[photo-upload] R2 compensation failed after reservation loss", cleanupError);
+        });
+      }
       return replayExistingPhoto(concurrentAsset);
     }
   } catch (error) {

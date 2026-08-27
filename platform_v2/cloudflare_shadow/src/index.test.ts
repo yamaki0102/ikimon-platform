@@ -10648,6 +10648,104 @@ test("v1 photo upload converges equivalent concurrent retries to one asset and o
   assert.equal((env.ASSET_BUCKET as unknown as FakeBucket).objects.size, 1);
 });
 
+test("v1 photo upload compensates the R2 object when an equivalent retry loses the D1 reservation", async () => {
+  const { env, obs, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-photo-reservation-loss",
+    userId: "user-photo",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.7,
+    longitude: 137.8
+  });
+
+  const body = JSON.stringify({
+    filename: "same-photo-reservation-loss.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("same-photo-reservation-loss").toString("base64"),
+    mediaRole: "primary",
+    facePrivacy: "no_faces"
+  });
+  let releaseFirstBatch!: () => void;
+  const firstBatchReleased = new Promise<void>((resolve) => {
+    releaseFirstBatch = resolve;
+  });
+  let firstBatchStarted!: () => void;
+  const firstBatchReady = new Promise<void>((resolve) => {
+    firstBatchStarted = resolve;
+  });
+  let batchCalls = 0;
+  const originalBatch = obs.batch.bind(obs);
+  obs.batch = async (statements) => {
+    const batchCall = ++batchCalls;
+    if (batchCall === 1) {
+      firstBatchStarted();
+      await firstBatchReleased;
+      return originalBatch(statements);
+    }
+    if (batchCall === 2) {
+      const result = await originalBatch(statements);
+      releaseFirstBatch();
+      return result;
+    }
+    return originalBatch(statements);
+  };
+
+  const upload = () => worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-photo-reservation-loss/photos/upload", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body
+  }), env);
+
+  try {
+    const losingUpload = upload();
+    await firstBatchReady;
+    const winningUpload = upload();
+    const responses = await Promise.all([losingUpload, winningUpload]);
+    const payloads = await Promise.all(responses.map((response) => response.json() as Promise<Record<string, any>>));
+    assert.deepEqual(responses.map((response) => response.status), [200, 200]);
+    assert.deepEqual(payloads.map((payload) => payload.idempotency?.reused), [true, false]);
+    assert.equal(new Set(payloads.map((payload) => payload.relativePath)).size, 1);
+    assert.equal(obs.assets.size, 1);
+    assert.equal(queue.messages.length, 3);
+    assert.equal((env.ASSET_BUCKET as unknown as FakeBucket).objects.size, 1);
+  } finally {
+    obs.batch = originalBatch;
+  }
+});
+
+test("v1 photo upload preserves the candidate R2 object when the D1 reservation result is unknown", async () => {
+  const { env, obs } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-photo-reservation-unknown",
+    userId: "user-photo",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.7,
+    longitude: 137.8
+  });
+
+  const originalBatch = obs.batch.bind(obs);
+  obs.batch = async () => [{}];
+  try {
+    const response = await worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-photo-reservation-unknown/photos/upload", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        filename: "reservation-unknown.jpg",
+        mimeType: "image/jpeg",
+        base64Data: Buffer.from("reservation-unknown").toString("base64"),
+        mediaRole: "primary",
+        facePrivacy: "no_faces"
+      })
+    }), env);
+    const payload = await response.json() as Record<string, any>;
+    assert.equal(response.status, 503);
+    assert.equal(payload.error, "media_idempotency_reservation_unknown");
+    assert.equal((env.ASSET_BUCKET as unknown as FakeBucket).objects.size, 1);
+  } finally {
+    obs.batch = originalBatch;
+  }
+});
+
 test("v1 photo upload keeps the committed R2 object when a concurrent equivalent upload fails its D1 batch", async () => {
   const { env, obs, queue } = createEnv();
   await post("/api/v1/observations/upsert", env, {
