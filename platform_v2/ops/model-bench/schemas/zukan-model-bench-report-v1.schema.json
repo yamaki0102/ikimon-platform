@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zukan.earth/schemas/zukan-model-bench-report-v1.schema.json",
+  "title": "ZUKAN Model Bench report v1",
+  "type": "object",
+  "required": [
+    "version",
+    "reportSchemaVersion",
+    "model",
+    "provider",
+    "datasetSha256",
+    "promptSha256",
+    "postCount",
+    "imageCount",
+    "successCount",
+    "schemaValidRatePct",
+    "fixtureScores"
+  ],
+  "properties": {
+    "version": { "type": "string" },
+    "reportSchemaVersion": { "const": "zukan-model-bench-report-v1" },
+    "model": { "type": "string" },
+    "provider": { "type": "string" },
+    "datasetSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "promptSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "postCount": { "type": "integer", "minimum": 1 },
+    "imageCount": { "type": "integer", "minimum": 1 },
+    "successCount": { "type": "integer", "minimum": 0 },
+    "modelRequestCount": { "type": "integer", "minimum": 0 },
+    "successRatePct": { "type": "number", "minimum": 0, "maximum": 100 },
+    "schemaValidRatePct": { "type": "number", "minimum": 0, "maximum": 100 },
+    "accuracyStatus": { "enum": ["INSUFFICIENT_GOLD", "MEASURED"] },
+    "requestConfig": { "$ref": "#/$defs/requestConfig" },
+    "fixtureScores": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fixtureScore" }
+    }
+  },
+  "$defs": {
+    "requestConfig": {
+      "type": "object",
+      "required": ["transport", "temperature", "stream", "modalities", "output_schema", "attempts_per_model", "fallback_count"],
+      "properties": {
+        "transport": { "enum": ["model-router", "cloudflare-official-rest"] },
+        "temperature": { "type": "number", "minimum": 0 },
+        "max_completion_tokens": { "type": "integer", "minimum": 1 },
+        "max_output_tokens": { "type": "integer", "minimum": 1 },
+        "reasoning_effort": { "const": "low" },
+        "thinking_level": { "const": "minimal" },
+        "stream": { "const": false },
+        "modalities": { "const": "omitted" },
+        "response_format": { "type": "object", "properties": { "type": { "const": "json_object" } }, "required": ["type"] },
+        "response_mime_type": { "const": "application/json" },
+        "output_schema": { "const": "zukan-model-bench-parser-v1" },
+        "attempts_per_model": { "const": 1 },
+        "fallback_count": { "const": 0 }
+      },
+      "additionalProperties": true
+    },
+    "fixtureScore": {
+      "type": "object",
+      "required": ["fixtureId", "visitId", "imageCount", "schemaValid", "criticalFailures", "finalOutput"],
+      "properties": {
+        "fixtureId": { "type": "string" },
+        "visitId": { "type": "string" },
+        "imageCount": { "type": "integer", "minimum": 1 },
+        "schemaValid": { "type": "boolean" },
+        "criticalFailures": { "type": "array", "items": { "type": "string" } },
+        "finalOutput": { "$ref": "#/$defs/finalOutput" }
+      },
+      "additionalProperties": true
+    },
+    "finalOutput": {
+      "type": "object",
+      "required": [
+        "raw_final_content",
+        "parsed_json",
+        "recommended_taxon",
+        "recommended_rank",
+        "confidence",
+        "candidates",
+        "observed_features",
+        "diagnostic_features",
+        "missing_features",
+        "uncertain_features",
+        "geographic_context",
+        "context_fields",
+        "other_final_output_fields",
+        "finish_reason",
+        "token_usage",
+        "latency_ms",
+        "model",
+        "provider",
+        "config",
+        "dataset_sha256",
+        "post_sha256",
+        "image_sha256",
+        "prompt_sha256",
+        "response_field",
+        "internal_reasoning_saved",
+        "raw_content_redacted"
+      ],
+      "properties": {
+        "raw_final_content": { "type": ["string", "null"] },
+        "parsed_json": { "type": ["object", "null"], "additionalProperties": true },
+        "recommended_taxon": { "type": ["string", "null"] },
+        "recommended_rank": { "type": ["string", "null"] },
+        "confidence": { "type": ["string", "null"] },
+        "candidates": {},
+        "observed_features": {},
+        "diagnostic_features": {},
+        "missing_features": {},
+        "uncertain_features": {},
+        "geographic_context": {},
+        "context_fields": { "type": "object", "additionalProperties": true },
+        "other_final_output_fields": { "type": "object", "additionalProperties": true },
+        "finish_reason": { "type": ["string", "null"] },
+        "token_usage": {
+          "type": "object",
+          "required": ["input_tokens", "output_tokens"],
+          "properties": {
+            "input_tokens": { "type": ["integer", "null"], "minimum": 0 },
+            "output_tokens": { "type": ["integer", "null"], "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "latency_ms": { "type": ["integer", "null"], "minimum": 0 },
+        "model": { "type": "string" },
+        "provider": { "type": "string" },
+        "config": { "$ref": "#/$defs/requestConfig" },
+        "dataset_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "post_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "image_sha256": { "type": "array", "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" } },
+        "prompt_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "response_field": { "type": ["string", "null"] },
+        "internal_reasoning_saved": { "const": false },
+        "raw_content_redacted": { "type": "boolean" },
+        "human_review": {
+          "type": ["object", "null"],
+          "description": "Optional post-model judge fields for later visual and taxonomic reassessment.",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

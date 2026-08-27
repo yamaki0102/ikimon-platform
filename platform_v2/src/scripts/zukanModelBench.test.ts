@@ -4,6 +4,7 @@ import {
   ZUKAN_BENCH_CORE_POST_COUNT,
   ZUKAN_BENCH_MIN_GOLD_POSTS,
   ZUKAN_BENCH_SMOKE_POST_COUNT,
+  buildZukanBenchFinalOutputRecord,
   compareZukanBenchReports,
   detailHasHumanConsensus,
   extractOrderedPostPhotoUrls,
@@ -12,6 +13,7 @@ import {
   rightsVettedTargetsFromResearchPayload,
   scoreZukanBenchResponse,
   selectDeterministicPostTargets,
+  selectZukanBenchFixtures,
   type ZukanBenchFixture,
   type ZukanBenchModelReport,
 } from "./zukanModelBench.js";
@@ -107,7 +109,7 @@ test("official REST payload keeps every post photo in one ordered user message",
   assert.equal(payload.messages.length, 1);
   assert.equal(payload.messages[0]?.role, "user");
   assert.deepEqual(payload.messages[0]?.content.map((part) => part.type), ["image_url", "image_url", "image_url", "text"]);
-  assert.equal(payload.max_completion_tokens, 4096);
+  assert.equal(payload.max_completion_tokens, 8192);
   assert.equal("max_tokens" in payload, false);
   assert.equal(payload.reasoning_effort, "low");
   assert.equal(payload.stream, false);
@@ -216,6 +218,69 @@ test("official REST parser falls back to nested reasoning content when final con
     if (previousToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
     else process.env.CLOUDFLARE_API_TOKEN = previousToken;
   }
+});
+
+test("fixture selection can isolate the requested canary without changing manifest order", () => {
+  const manifest = {
+    fixtures: [
+      { ...baseFixture, fixtureId: "a", visitId: "record-a" },
+      { ...baseFixture, fixtureId: "b", visitId: "record-b" },
+      { ...baseFixture, fixtureId: "c", visitId: "record-c" },
+    ],
+  } as Parameters<typeof selectZukanBenchFixtures>[0];
+  assert.deepEqual(selectZukanBenchFixtures(manifest, { fixtureVisitIds: ["record-b"] }).map((fixture) => fixture.visitId), ["record-b"]);
+  assert.deepEqual(selectZukanBenchFixtures(manifest).map((fixture) => fixture.visitId), ["record-a", "record-b", "record-c"]);
+});
+
+test("final output record keeps final content and parsed fields while omitting reasoning-only content", () => {
+  const raw = response("Anax nigrofasciatus") .replace(/\}\s*$/u, ',"diagnostic_features_observed":["翅脈"],"extra_final_field":"kept"}');
+  const record = buildZukanBenchFinalOutputRecord({
+    fixture: baseFixture,
+    rawText: raw,
+    responseField: "result.choices[0].message.content",
+    finishReason: "stop",
+    latencyMs: 123,
+    inputTokens: 10,
+    outputTokens: 20,
+    usageReported: true,
+    model: "@cf/zai-org/glm-5.3-flash",
+    provider: "cloudflare-workers-ai",
+    config: {
+      transport: "cloudflare-official-rest",
+      temperature: 0,
+      max_completion_tokens: 8192,
+      reasoning_effort: "low",
+      stream: false,
+      modalities: "omitted",
+      response_format: { type: "json_object" },
+      output_schema: "zukan-model-bench-parser-v1",
+      attempts_per_model: 1,
+      fallback_count: 0,
+    },
+    datasetSha256: "d".repeat(64),
+    promptSha256: "p".repeat(64),
+  });
+  assert.equal(record.raw_final_content, raw);
+  assert.equal(record.parsed_json?.extra_final_field, "kept");
+  assert.deepEqual(record.observed_features, { diagnostic_features_observed: ["翅脈"] });
+  assert.equal(record.finish_reason, "stop");
+  assert.deepEqual(record.token_usage, { input_tokens: 10, output_tokens: 20 });
+  assert.equal(record.internal_reasoning_saved, false);
+
+  const reasoningOnly = buildZukanBenchFinalOutputRecord({
+    fixture: baseFixture,
+    rawText: "{\"recommended_taxon_name\":\"hidden\"}",
+    responseField: "result.choices[0].message.reasoning_content",
+    usageReported: true,
+    model: "@cf/zai-org/glm-5.3-flash",
+    provider: "cloudflare-workers-ai",
+    config: record.config,
+    datasetSha256: "d".repeat(64),
+    promptSha256: "p".repeat(64),
+  });
+  assert.equal(reasoningOnly.raw_final_content, null);
+  assert.equal(reasoningOnly.parsed_json, null);
+  assert.equal(reasoningOnly.internal_reasoning_saved, false);
 });
 
 test("observation-first gallery photos are extracted without related records", () => {

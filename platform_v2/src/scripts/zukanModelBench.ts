@@ -21,6 +21,8 @@ export const ZUKAN_BENCH_MIN_GOLD_POSTS = 8;
 export const ZUKAN_OWNER_BENCH_SMOKE_DATASET_SHA256 = "5636ef685524c59813449c3c9afffbeaee4be062d80834f3f86bc3ee185b251b";
 export const ZUKAN_OWNER_BENCH_SMOKE_PROMPT_SHA256 = "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9";
 export const CLOUDFLARE_GLM_5_3_FLASH_MODEL = "@cf/zai-org/glm-5.3-flash";
+export const ZUKAN_PRODUCTION_VISION_BASELINE_MODEL = "gemini-3.5-flash-lite";
+export const ZUKAN_BENCH_REPORT_SCHEMA_VERSION = "zukan-model-bench-report-v1";
 const DEFAULT_PROMPT_SOURCE = "src/prompts/observation_reassess.md";
 const SELECTION_SEED = "zukan-public-post-core-v2-seed-1";
 const MODEL_CHAIN_ENV = AI_MODEL_CHAIN_ENV_KEYS.observationVisualExtract;
@@ -85,6 +87,51 @@ export type ZukanBenchCanonicalRightsSnapshot = Pick<ObservationDataRights,
   | "withdrawalStatus"
 >;
 
+export type ZukanBenchRequestConfig = {
+  transport: "model-router" | "cloudflare-official-rest";
+  temperature: number;
+  max_completion_tokens?: number;
+  max_output_tokens?: number;
+  reasoning_effort?: "low";
+  thinking_level?: "minimal";
+  stream: false;
+  modalities: "omitted";
+  response_format?: { type: "json_object" };
+  response_mime_type?: "application/json";
+  output_schema: "zukan-model-bench-parser-v1";
+  attempts_per_model: 1;
+  fallback_count: 0;
+};
+
+export type ZukanBenchFinalOutputRecord = {
+  raw_final_content: string | null;
+  parsed_json: Record<string, unknown> | null;
+  recommended_taxon: string | null;
+  recommended_rank: string | null;
+  confidence: string | null;
+  candidates: unknown;
+  observed_features: unknown;
+  diagnostic_features: unknown;
+  missing_features: unknown;
+  uncertain_features: unknown;
+  geographic_context: unknown;
+  context_fields: Record<string, unknown>;
+  other_final_output_fields: Record<string, unknown>;
+  finish_reason: string | null;
+  token_usage: { input_tokens: number | null; output_tokens: number | null };
+  latency_ms: number | null;
+  model: string;
+  provider: string;
+  config: ZukanBenchRequestConfig;
+  dataset_sha256: string;
+  post_sha256: string;
+  image_sha256: string[];
+  prompt_sha256: string;
+  response_field: string | null;
+  internal_reasoning_saved: false;
+  raw_content_redacted: boolean;
+};
+
 export type ZukanBenchFixtureScore = {
   fixtureId: string;
   visitId: string;
@@ -101,6 +148,8 @@ export type ZukanBenchFixtureScore = {
   inputTokens?: number;
   outputTokens?: number;
   rawResponseText?: string;
+  finishReason?: string | null;
+  finalOutput?: ZukanBenchFinalOutputRecord;
 };
 
 export type ZukanBenchModelReport = {
@@ -134,10 +183,13 @@ export type ZukanBenchModelReport = {
   transport?: "model-router" | "cloudflare-official-rest";
   usageMeasurement?: "provider-reported" | "not-exposed";
   observedAdditionalCostUsd?: number | null;
+  reportSchemaVersion?: typeof ZUKAN_BENCH_REPORT_SCHEMA_VERSION;
+  requestConfig?: ZukanBenchRequestConfig;
+  accuracyStatus?: "INSUFFICIENT_GOLD" | "MEASURED";
   fixtureScores: ZukanBenchFixtureScore[];
 };
 
-type BenchResponse = {
+type BenchResponse = Record<string, unknown> & {
   recommended_taxon_name?: unknown;
   recommended_rank?: unknown;
   confidence_band?: unknown;
@@ -599,6 +651,124 @@ function parseJsonObject(raw: string): BenchResponse | null {
   }
 }
 
+const INTERNAL_REASONING_KEY_RE = /^(?:reasoning(?:_content|Content)?|thoughts?(?:_content|Content)?|thinking(?:_content|Content)?)$/iu;
+const INTERNAL_REASONING_FIELD_RE = /["'](?:reasoning(?:_content|Content)?|thoughts?(?:_content|Content)?|thinking(?:_content|Content)?)["']\s*:/iu;
+const SENSITIVE_OUTPUT_RE = /(?:\bbearer\s+[A-Za-z0-9._~+/=-]{12,}\b|\b(?:sk|AIza|xox[baprs]-)[A-Za-z0-9_-]{12,}\b|\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b|(?:email|e-mail|phone|telephone|tel|電話番号|携帯番号)\s*[:：]?\s*\+?[0-9][0-9 -]{7,}[0-9])/iu;
+const FINAL_OUTPUT_PROJECTION_KEYS = new Set([
+  "recommended_taxon_name",
+  "recommended_rank",
+  "confidence_band",
+  "taxonomic_candidates",
+  "candidate_readings",
+  "candidates",
+  "diagnostic_features_observed",
+  "diagnostic_features_seen",
+  "observed_features",
+  "visible_features",
+  "diagnostic_features",
+  "diagnostic_features_missing",
+  "missing_evidence",
+  "missing_features",
+  "uncertain_features",
+  "uncertain_evidence",
+  "geographic_context",
+  "seasonal_context",
+  "area_inference",
+  "management_action_candidates",
+  "confirm_more",
+  "weak_points",
+]);
+
+function sanitizeFinalOutputValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeFinalOutputValue);
+  if (!value || typeof value !== "object") {
+    if (typeof value === "string" && SENSITIVE_OUTPUT_RE.test(value)) return "[REDACTED]";
+    return value;
+  }
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .filter(([key]) => !INTERNAL_REASONING_KEY_RE.test(key))
+    .map(([key, item]) => [key, sanitizeFinalOutputValue(item)]));
+}
+
+function outputField(parsed: Record<string, unknown> | null, keys: string[]): unknown {
+  if (!parsed) return null;
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(parsed, key)) return parsed[key];
+  }
+  return null;
+}
+
+function outputFieldProjection(parsed: Record<string, unknown> | null, keys: string[]): Record<string, unknown> | null {
+  if (!parsed) return null;
+  const projected = Object.fromEntries(keys
+    .filter((key) => Object.prototype.hasOwnProperty.call(parsed, key))
+    .map((key) => [key, parsed[key]]));
+  return Object.keys(projected).length > 0 ? projected : null;
+}
+
+function persistedFinalContent(rawText: string | null | undefined, responseField: string | null | undefined): {
+  text: string | null;
+  redacted: boolean;
+} {
+  if (!rawText || responseField?.includes("reasoning_content")) return { text: null, redacted: false };
+  if (INTERNAL_REASONING_FIELD_RE.test(rawText) || SENSITIVE_OUTPUT_RE.test(rawText)) return { text: null, redacted: true };
+  return { text: rawText, redacted: false };
+}
+
+export function buildZukanBenchFinalOutputRecord(input: {
+  fixture: ZukanBenchFixture;
+  rawText?: string | null;
+  responseField?: string | null;
+  finishReason?: string | null;
+  latencyMs?: number | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  usageReported: boolean;
+  model: string;
+  provider: string;
+  config: ZukanBenchRequestConfig;
+  datasetSha256: string;
+  promptSha256: string;
+}): ZukanBenchFinalOutputRecord {
+  const persisted = persistedFinalContent(input.rawText, input.responseField);
+  const parsedSource = persisted.text === null ? null : parseJsonObject(input.rawText ?? "");
+  const parsed = parsedSource && sanitizeFinalOutputValue(parsedSource) as Record<string, unknown>;
+  const otherFinalOutputFields = parsed
+    ? Object.fromEntries(Object.entries(parsed).filter(([key]) => !FINAL_OUTPUT_PROJECTION_KEYS.has(key)))
+    : {};
+  const token = (value: number | null | undefined): number | null => (
+    input.usageReported && typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null
+  );
+  return {
+    raw_final_content: persisted.text,
+    parsed_json: parsed,
+    recommended_taxon: clean(parsed?.recommended_taxon_name) || null,
+    recommended_rank: clean(parsed?.recommended_rank).toLowerCase() || null,
+    confidence: clean(parsed?.confidence_band).toLowerCase() || null,
+    candidates: outputField(parsed, ["taxonomic_candidates", "candidate_readings", "candidates", "similar_taxa"]),
+    observed_features: outputFieldProjection(parsed, ["observed_features", "diagnostic_features_observed", "diagnostic_features_seen", "visible_features"]),
+    diagnostic_features: outputFieldProjection(parsed, ["diagnostic_features", "diagnostic_features_observed", "diagnostic_features_seen"]),
+    missing_features: outputFieldProjection(parsed, ["missing_features", "diagnostic_features_missing", "missing_evidence"]),
+    uncertain_features: outputFieldProjection(parsed, ["uncertain_features", "uncertain_evidence", "weak_points"]),
+    geographic_context: outputField(parsed, ["geographic_context"]),
+    context_fields: outputFieldProjection(parsed, ["seasonal_context", "area_inference", "management_action_candidates", "confirm_more"]) ?? {},
+    other_final_output_fields: otherFinalOutputFields,
+    finish_reason: input.finishReason ?? null,
+    token_usage: { input_tokens: token(input.inputTokens), output_tokens: token(input.outputTokens) },
+    latency_ms: input.latencyMs ?? null,
+    model: input.model,
+    provider: input.provider,
+    config: input.config,
+    dataset_sha256: input.datasetSha256,
+    post_sha256: input.fixture.postInputSha256,
+    image_sha256: input.fixture.images.map((image) => image.sha256),
+    prompt_sha256: input.promptSha256,
+    response_field: input.responseField ?? null,
+    internal_reasoning_saved: false,
+    raw_content_redacted: persisted.redacted,
+  };
+}
+
 function candidateNames(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
@@ -684,7 +854,10 @@ function estimatedCost(inputTokens: number, outputTokens: number, pricing: Bench
 
 function modelProvider(model: string): string {
   const separator = model.indexOf(":");
-  return separator > 0 ? model.slice(0, separator) : "unknown";
+  if (separator > 0) return model.slice(0, separator);
+  if (model.startsWith("gemini-")) return "gemini";
+  if (model.startsWith("deepseek-")) return "deepseek";
+  return "unknown";
 }
 
 function assertExternalProcessingAllowed(manifest: ZukanBenchManifest): void {
@@ -738,7 +911,7 @@ export function buildCloudflareOfficialRestPayload(parts: CloudflareOfficialRest
   return {
     messages: [{ role: "user", content: parts }],
     temperature: 0,
-    max_completion_tokens: 4096,
+    max_completion_tokens: 8192,
     reasoning_effort: "low",
     stream: false,
     response_format: { type: "json_object" },
@@ -769,6 +942,7 @@ function responseContentText(value: unknown): string {
 function parseCloudflareOfficialRestResponse(payload: unknown): {
   text: string;
   responseField: string;
+  finishReason: string | null;
   inputTokens: number;
   outputTokens: number;
   usageReported: boolean;
@@ -802,9 +976,12 @@ function parseCloudflareOfficialRestResponse(payload: unknown): {
   const inputTokens = optionalFiniteNumber(usage.prompt_tokens ?? usage.input_tokens);
   const outputTokens = optionalFiniteNumber(usage.completion_tokens ?? usage.output_tokens);
   if (!selected) throw new Error("cloudflare_official_rest_empty_response");
+  const selectedChoice = asRecord(resultChoices[0] ?? rootChoices[0]);
+  const finishReasonValue = selectedChoice.finish_reason ?? result.finish_reason ?? root.finish_reason;
   return {
     text: selected.text,
     responseField: selected.field,
+    finishReason: typeof finishReasonValue === "string" ? finishReasonValue : null,
     inputTokens: inputTokens ?? 0,
     outputTokens: outputTokens ?? 0,
     usageReported: inputTokens !== null && outputTokens !== null,
@@ -815,7 +992,7 @@ export async function generateWithCloudflareOfficialRest(options: {
   model: string;
   parts: CloudflareOfficialRestPart[];
   timeoutMs?: number;
-}): Promise<{ text: string; responseField?: string; inputTokens: number; outputTokens: number; usageReported: boolean }> {
+}): Promise<{ text: string; responseField?: string; finishReason?: string | null; inputTokens: number; outputTokens: number; usageReported: boolean }> {
   if (!options.model.startsWith("@cf/")) throw new Error("cloudflare_official_rest_model_invalid");
   const accountId = clean(process.env.CLOUDFLARE_ACCOUNT_ID);
   const token = clean(process.env.CLOUDFLARE_API_TOKEN ?? process.env.CLOUDFLARE_AUTH_TOKEN);
@@ -845,6 +1022,24 @@ export async function generateWithCloudflareOfficialRest(options: {
   }
 }
 
+export function selectZukanBenchFixtures(
+  manifest: ZukanBenchManifest,
+  options: { limit?: number; fixtureVisitIds?: readonly string[] } = {},
+): ZukanBenchFixture[] {
+  if (options.fixtureVisitIds !== undefined) {
+    if (options.fixtureVisitIds.length === 0) throw new Error("zukan_bench_fixture_visit_ids_empty");
+    const requested = [...options.fixtureVisitIds];
+    if (new Set(requested).size !== requested.length) throw new Error("zukan_bench_fixture_visit_ids_duplicate");
+    const byVisitId = new Map(manifest.fixtures.map((fixture) => [fixture.visitId, fixture]));
+    const missing = requested.filter((visitId) => !byVisitId.has(visitId));
+    if (missing.length > 0) throw new Error(`zukan_bench_fixture_visit_id_missing:${missing.join(",")}`);
+    return requested.map((visitId) => byVisitId.get(visitId)!);
+  }
+  return typeof options.limit === "number" && options.limit > 0
+    ? manifest.fixtures.slice(0, Math.floor(options.limit))
+    : manifest.fixtures;
+}
+
 export async function runZukanModelBench(options: {
   model: string;
   manifestPath?: string;
@@ -853,6 +1048,10 @@ export async function runZukanModelBench(options: {
   limit?: number;
   maxEstimatedCostUsd?: number;
   transport?: "model-router" | "cloudflare-official-rest";
+  maxOutputTokens?: number;
+  temperature?: number;
+  thinkingLevel?: "minimal";
+  fixtureVisitIds?: readonly string[];
   requireFixedOwnerSmoke?: boolean;
   requireCanarySuccess?: boolean;
   canonicalRightsSnapshot?: ReadonlyMap<string, ZukanBenchCanonicalRightsSnapshot>;
@@ -873,9 +1072,7 @@ export async function runZukanModelBench(options: {
   }
   if (transport === "model-router") configureModelProvider(options.model);
   const promptTemplate = await readFile(manifest.promptPath, "utf8");
-  const fixtures = typeof options.limit === "number" && options.limit > 0
-    ? manifest.fixtures.slice(0, Math.floor(options.limit))
-    : manifest.fixtures;
+  const fixtures = selectZukanBenchFixtures(manifest, options);
   if (options.requireFixedOwnerSmoke && (
     fixtures.length !== ZUKAN_BENCH_SMOKE_POST_COUNT
     || fixtures.reduce((sum, fixture) => sum + fixture.images.length, 0) !== 24
@@ -883,6 +1080,32 @@ export async function runZukanModelBench(options: {
     throw new Error("zukan_bench_fixed_owner_smoke_target_mismatch");
   }
   await assertCanonicalObservationDataRights(fixtures, options.canonicalRightsSnapshot);
+  const provider = transport === "cloudflare-official-rest" ? "cloudflare-workers-ai" : modelProvider(options.model);
+  const requestConfig: ZukanBenchRequestConfig = transport === "cloudflare-official-rest"
+    ? {
+      transport,
+      temperature: 0,
+      max_completion_tokens: 8192,
+      reasoning_effort: "low",
+      stream: false,
+      modalities: "omitted",
+      response_format: { type: "json_object" },
+      output_schema: "zukan-model-bench-parser-v1",
+      attempts_per_model: 1,
+      fallback_count: 0,
+    }
+    : {
+      transport,
+      temperature: options.temperature ?? 0,
+      max_output_tokens: options.maxOutputTokens ?? 1024,
+      thinking_level: options.thinkingLevel ?? "minimal",
+      stream: false,
+      modalities: "omitted",
+      response_mime_type: "application/json",
+      output_schema: "zukan-model-bench-parser-v1",
+      attempts_per_model: 1,
+      fallback_count: 0,
+    };
   const previousChain = process.env[MODEL_CHAIN_ENV];
   if (transport === "model-router") process.env[MODEL_CHAIN_ENV] = options.model;
   const startedAt = new Date().toISOString();
@@ -939,9 +1162,9 @@ export async function runZukanModelBench(options: {
                 { text: renderedPrompt },
               ],
               responseMimeType: "application/json",
-              thinkingConfig: { thinkingLevel: "minimal" },
-              temperature: 0,
-              maxOutputTokens: 1024,
+              thinkingConfig: { thinkingLevel: options.thinkingLevel ?? "minimal" },
+              temperature: requestConfig.temperature,
+              maxOutputTokens: requestConfig.max_output_tokens,
               retriesPerModel: 1,
             })),
             usageReported: true,
@@ -953,14 +1176,36 @@ export async function runZukanModelBench(options: {
         const latencyMs = Date.now() - started;
         latencies.push(latencyMs);
         const scored = scoreZukanBenchResponse(fixture, result.text);
-        canarySchemaValid = scored.schemaValid;
-        fixtureScores.push({
-          ...scored,
-          responseField: result.responseField,
+        const finalContentAvailable = !result.responseField?.includes("reasoning_content");
+        canarySchemaValid = scored.schemaValid && finalContentAvailable;
+        const finalOutput = buildZukanBenchFinalOutputRecord({
+          fixture,
+          rawText: result.text,
+          responseField: result.responseField ?? null,
+          finishReason: result.finishReason ?? null,
           latencyMs,
           inputTokens: result.inputTokens,
           outputTokens: result.outputTokens,
-          rawResponseText: result.responseField?.includes("reasoning_content") ? undefined : result.text,
+          usageReported: result.usageReported,
+          model: options.model,
+          provider,
+          config: requestConfig,
+          datasetSha256: manifest.datasetSha256,
+          promptSha256: manifest.promptSha256,
+        });
+        const finalFailures = finalContentAvailable
+          ? scored.criticalFailures
+          : [...scored.criticalFailures, "reasoning_only_response"];
+        fixtureScores.push({
+          ...scored,
+          schemaValid: canarySchemaValid,
+          criticalFailures: [...new Set(finalFailures)],
+          responseField: result.responseField,
+          finishReason: result.finishReason ?? null,
+          latencyMs,
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+          finalOutput,
         });
         successCount += 1;
       } catch (error) {
@@ -974,6 +1219,22 @@ export async function runZukanModelBench(options: {
           taxonScore: fixture.gold.status === "human_consensus" ? 0 : null,
           criticalFailures: [`model_error:${error instanceof Error ? error.message.slice(0, 1000) : String(error).slice(0, 1000)}`],
           latencyMs,
+          finishReason: null,
+          finalOutput: buildZukanBenchFinalOutputRecord({
+            fixture,
+            rawText: null,
+            responseField: null,
+            finishReason: null,
+            latencyMs,
+            inputTokens: null,
+            outputTokens: null,
+            usageReported: false,
+            model: options.model,
+            provider,
+            config: requestConfig,
+            datasetSha256: manifest.datasetSha256,
+            promptSha256: manifest.promptSha256,
+          }),
         });
         if (options.requireCanarySuccess && isCanary) {
           throw new Error(`zukan_bench_canary_failed:${error instanceof Error ? error.message.slice(0, 200) : "unknown"}`);
@@ -1000,7 +1261,7 @@ export async function runZukanModelBench(options: {
     promptVersion: ZUKAN_MODEL_BENCH_PROMPT_VERSION,
     promptSha256: manifest.promptSha256,
     model: options.model,
-    provider: transport === "cloudflare-official-rest" ? "cloudflare-workers-ai" : modelProvider(options.model),
+    provider,
     manifestPath,
     datasetSha256: manifest.datasetSha256,
     startedAt,
@@ -1028,6 +1289,9 @@ export async function runZukanModelBench(options: {
     transport,
     usageMeasurement: usageObserved && usageComplete ? "provider-reported" : "not-exposed",
     observedAdditionalCostUsd: null,
+    reportSchemaVersion: ZUKAN_BENCH_REPORT_SCHEMA_VERSION,
+    requestConfig,
+    accuracyStatus: goldScores.length > 0 ? "MEASURED" : "INSUFFICIENT_GOLD",
     fixtureScores,
   };
   await mkdir(reportDir, { recursive: true });
