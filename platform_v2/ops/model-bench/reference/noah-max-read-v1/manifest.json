@@ -54,47 +54,12 @@
     "note": "ChatGPT session-level token/cost/latency telemetry is not exposed to the assistant; null is recorded rather than inventing values."
   },
   "postFiles": [
-    {
-      "visitId": "record-1784366489892",
-      "path": "posts/record-1784366489892.json",
-      "sha256": "9d1454ba473216d2492d5f5c432b5580c6a415a47ca270119efb7aa03ee88309",
-      "postInputSha256": "0a2d87197bf3368f3c27b7790457e047de286ebc98835f0f03c7603e597231e0"
-    },
-    {
-      "visitId": "record-1784430741938",
-      "path": "posts/record-1784430741938.json",
-      "sha256": "8d5d357807fe0f63cdd495ad1337a87a575ab81760c5dfe41e9e6b22b42ff215",
-      "postInputSha256": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752"
-    },
-    {
-      "visitId": "record-1781252770584",
-      "path": "posts/record-1781252770584.json",
-      "sha256": "ad20b0f8ca60bc922c4ddf0f009895bc0d5704e7996b7d8311f1a33cfd95723a",
-      "postInputSha256": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2"
-    },
-    {
-      "visitId": "record-1784430374598",
-      "path": "posts/record-1784430374598.json",
-      "sha256": "fbe209caf580bc8264030888cfb7ae47ff54fcf730f83f8236e4214b18743d71",
-      "postInputSha256": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267"
-    },
-    {
-      "visitId": "record-1784430118720",
-      "path": "posts/record-1784430118720.json",
-      "sha256": "c56310df727fe826e19d6b250f1394dee74cba28356b0f9e3d543d59858bbd4e",
-      "postInputSha256": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f"
-    },
-    {
-      "visitId": "record-1784431188621",
-      "path": "posts/record-1784431188621.json",
-      "sha256": "da2f6bb7a88bc656cd82b7abfbf921c1dd60bd150d2c1881d511ff2a1ff1a775",
-      "postInputSha256": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5"
-    },
-    {
-      "visitId": "record-1784430530197",
-      "path": "posts/record-1784430530197.json",
-      "sha256": "b11d14b180d7e70aa8a40456813cef4fca5d976b2f25771e802e00be3939dc76",
-      "postInputSha256": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0"
-    }
+    {"visitId": "record-1784366489892", "path": "posts/record-1784366489892.json", "postInputSha256": "0a2d87197bf3368f3c27b7790457e047de286ebc98835f0f03c7603e597231e0"},
+    {"visitId": "record-1784430741938", "path": "posts/record-1784430741938.json", "postInputSha256": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752"},
+    {"visitId": "record-1781252770584", "path": "posts/record-1781252770584.json", "postInputSha256": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2"},
+    {"visitId": "record-1784430374598", "path": "posts/record-1784430374598.json", "postInputSha256": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267"},
+    {"visitId": "record-1784430118720", "path": "posts/record-1784430118720.json", "postInputSha256": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f"},
+    {"visitId": "record-1784431188621", "path": "posts/record-1784431188621.json", "postInputSha256": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5"},
+    {"visitId": "record-1784430530197", "path": "posts/record-1784430530197.json", "postInputSha256": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0"}
   ]
 }
