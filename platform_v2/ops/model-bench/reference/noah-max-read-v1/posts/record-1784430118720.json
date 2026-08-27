@@ -1,0 +1,38 @@
+{
+  "visitId": "record-1784430118720",
+  "occurrenceId": "occ:record-1784430118720:0",
+  "imageCount": 3,
+  "postInputSha256": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f",
+  "images": [
+    {"index": 0, "sha256": "2ad88d0a7540a55efc44db13cc62ea2af275eacd85ac73184d8a0c037f782448", "observations": {"primary_subject": "serrate-leaved herb", "secondary_subjects": ["grass", "other small herbs"], "visible_features": ["serrate ovate-to-lanceolate leaf/leaflet", "reddish-green stem/petiole", "curving secondary veins on leaf underside", "leaf damage/spotting"], "image_quality_notes": ["close underside view"], "limits": ["full leaf architecture not obvious in this frame", "flower structure absent/obscured"]}},
+    {"index": 1, "sha256": "a0b8eb2d83d485960b855d88f0bf1e4d50d5af171109502b62c9064548832564", "observations": {"primary_subject": "same herb in situ", "secondary_subjects": ["grass", "rounded stones", "other weeds"], "visible_features": ["several serrate leaves/leaflets on slender stems", "paired/opposite-looking nodes on target shoot", "low juvenile herb"], "image_quality_notes": ["whole-plant context"], "limits": ["overlap with neighboring vegetation makes leaf assignment harder"]}},
+    {"index": 2, "sha256": "43a999fc83fd12397e32d1ec211ca71d9311e77d49560fd7c5bc53f9f490afc3", "observations": {"primary_subject": "same herb with developing reproductive structure", "secondary_subjects": ["grass", "other broadleaf weeds"], "visible_features": ["serrate leaves/leaflets", "slender reddish-green stem", "small developing head/bud on a thin hairy peduncle", "several elongated green outer bract-like structures around the developing head"], "image_quality_notes": ["most informative frame for genus-level placement; crop inspection used"], "limits": ["head not open", "mature achenes absent", "leaflet number not perfectly shown"]}}
+  ],
+  "post_level": {
+    "combined_observations": ["The plant shows serrate leaves/leaflets and a developing Asteraceae-like head on a hairy peduncle.", "The apparent opposite leaf placement/compound-looking foliage plus elongated outer involucral bracts make Bidens (beggar-ticks) a strong candidate.", "Species-level separation is premature before an open/mature head and fruit."],
+    "diagnostic_features": ["serrate leaves/leaflets", "opposite/paired-looking foliage on target stem", "developing head with elongated green outer bracts", "hairy slender peduncle"],
+    "missing_features": ["open flower head", "ray-floret state", "mature achenes and awns", "unobscured full compound leaf"],
+    "likely_confusions": ["Bidens frondosa", "Bidens pilosa complex", "other Bidens/related Heliantheae at an immature stage"],
+    "next_photos_to_take": ["open flower head face-on", "side view of involucre", "mature black achenes/awns", "one complete leaf showing all leaflets", "whole plant"]
+  },
+  "taxonomic_assessment": {
+    "recommended_taxon_name": "Bidens sp. (likely B. frondosa-type beggar-ticks)",
+    "recommended_rank": "genus",
+    "confidence_band": "medium-high",
+    "candidates": [
+      {"taxon_name": "Bidens frondosa", "rank": "species", "confidence_band": "medium", "rationale": ["developing head appears to have conspicuous elongated outer bracts; foliage/habit are compatible"]},
+      {"taxon_name": "Bidens pilosa complex", "rank": "species", "confidence_band": "low-medium", "rationale": ["serrate compound/opposite-looking foliage and capitulum are compatible, but involucral/flower/fruit details are insufficient"]},
+      {"taxon_name": "another Bidens species", "rank": "genus", "confidence_band": "medium", "rationale": ["genus-level morphology is stronger than species-level evidence"]}
+    ],
+    "why_not_more_specific": ["The head is immature, and ray florets/fruit/awns are not available.", "A complete unobscured leaf is needed to characterize leaflet number and shape."]
+  },
+  "support_map": [
+    {"claim": "The target has serrate leaves/leaflets.", "support_level": "SUPPORTED", "evidence": [{"image_index": 0, "evidence_text": "serrate leaf margin clearly shown"}, {"image_index": 2, "evidence_text": "multiple serrate target leaves visible"}]},
+    {"claim": "A developing head with elongated green bracts is present.", "support_level": "SUPPORTED", "evidence": [{"image_index": 2, "evidence_text": "small green head/bud on hairy peduncle with projecting bract-like structures"}]},
+    {"claim": "The plant is Bidens frondosa specifically.", "support_level": "PLAUSIBLE", "evidence": [{"image_index": 2, "evidence_text": "outer-bract appearance is compatible but immature"}]},
+    {"claim": "Leaf spots/holes are diagnostic for species.", "support_level": "OVERSTATED", "evidence": [{"image_index": 0, "evidence_text": "damage is present but nonspecific"}]}
+  ],
+  "safe_context": ["small herb growing among grass and stones in a managed/disturbed edge"],
+  "risk_notes": ["Overlapping vegetation can cause a model to merge leaves from different plants.", "The immature head makes species-level certainty especially risky.", "Do not treat leaf damage as a diagnostic taxonomic feature."],
+  "raw_final_content": "The target herb has serrate ovate-to-lanceolate leaves or leaflets on a slender partly reddish stem. The most useful feature appears in the third image: a small developing flower head/bud on a thin hairy peduncle, surrounded by several elongated green outer bract-like structures. Together with the paired/opposite-looking, serrate foliage, this points strongly toward Bidens (beggar-ticks / センダングサ属).\n\nBidens frondosa is my leading species candidate because its heads can show conspicuous leaf-like outer involucral bracts, but the head here is immature and the full leaf architecture is partly obscured. Bidens pilosa and other Bidens remain realistic alternatives. I would therefore record Bidens sp., with B. frondosa as a medium-confidence candidate rather than a confirmed species.\n\nThe next decisive evidence would be an open capitulum, a side view of the involucre, a complete leaf showing leaflet number, and especially mature achenes/awns."
+}
