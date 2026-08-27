@@ -1,10 +1,10 @@
 {
   "version": "zukan-post-model-bench-v2-execution-evidence-v1",
-  "recordedAt": "2026-08-27T01:51:37.0211988Z",
-  "status": "BLOCKED_BEFORE_RUNTIME_RIGHTS",
+  "recordedAt": "2026-08-27T02:58:21.2269312Z",
+  "status": "BLOCKED_RIGHTS_NOT_ELIGIBLE",
   "source": {
     "branch": "codex/zukan-model-bench-v1-20260827",
-    "commit": "e3ad4065a04e3a55486cd9c3d3c68fe8a4462830",
+    "commit": "faf1487238eaf8a3c2084f3dab49c29ccba47756",
     "prNumber": 1582,
     "prState": "open",
     "draft": true,
@@ -21,11 +21,19 @@
     "rightsEndpointSourceCommit": "e3ad4065a04e3a55486cd9c3d3c68fe8a4462830",
     "rightsEndpointDeployedToProduction": false,
     "anonymousEndpointProbeStatus": 404,
-    "releaseControl": {
+    "endpointDeploymentUsed": false,
+    "priorReleaseControlAttempt": {
       "productionMutationAvailability": false,
       "stagingStart": "BLOCKED",
       "blockerCode": "TRANSIENT_UPSTREAM",
       "retryable": false
+    },
+    "directD1Read": {
+      "binding": "OBS_DB",
+      "databaseId": "c879eef6-009c-4710-a964-be343d96f3eb",
+      "operation": "SELECT",
+      "rowCount": 8,
+      "rawSourcePayloadPersisted": false
     }
   },
   "fixedInput": {
@@ -58,17 +66,30 @@
       "datasetLicense": "CC-BY-4.0",
       "mediaLicense": "CC-BY-NC-4.0"
     },
-    "status": "NOT_REACHED_PRODUCTION_RUNTIME",
-    "method": "owner-session-read-only-worker-d1-endpoint",
-    "endpointPath": "/api/v1/observations/:visitId/data-rights",
+    "status": "COMPLETE_NO_ELIGIBLE_POSTS",
+    "method": "wrangler-d1-execute-remote-select-only",
+    "endpointPath": null,
     "firstPostAttempted": null,
-    "remainingPostsNotReached": 8,
+    "remainingPostsNotReached": 0,
+    "evaluatedPosts": 8,
+    "eligiblePosts": 0,
     "localCanonicalDbError": "DATABASE_URL is required",
-    "error": "production_rights_endpoint_not_deployed",
+    "error": "no_posts_meet_canonical_external_export_gate",
     "checkedBeforeImageDownload": true,
     "ownerAttestationSubstituted": false,
     "publicProjectionSubstituted": false,
-    "directSql": false,
+    "directD1Select": true,
+    "directSqlMutation": false,
+    "rows": [
+      { "visitId": "record-1786965869920", "externalExportAllowed": false, "withdrawalStatus": "active", "mediaLicense": null, "rightsPolicyVersion": "site_intelligence_p0_v1", "recordConsent": "private", "researchUseConsent": "none", "datasetLicense": null, "externalExportAllowedRaw": 0 },
+      { "visitId": "record-1784366489892", "externalExportAllowed": false, "withdrawalStatus": "active", "mediaLicense": null, "rightsPolicyVersion": "site_intelligence_p0_v1", "recordConsent": "private", "researchUseConsent": "none", "datasetLicense": null, "externalExportAllowedRaw": 0 },
+      { "visitId": "record-1784430741938", "externalExportAllowed": false, "withdrawalStatus": "active", "mediaLicense": null, "rightsPolicyVersion": "site_intelligence_p0_v1", "recordConsent": "private", "researchUseConsent": "none", "datasetLicense": null, "externalExportAllowedRaw": 0 },
+      { "visitId": "record-1781252770584", "externalExportAllowed": false, "withdrawalStatus": "active", "mediaLicense": null, "rightsPolicyVersion": "site_intelligence_p0_v1", "recordConsent": "public_summary", "researchUseConsent": "none", "datasetLicense": null, "externalExportAllowedRaw": 0 },
+      { "visitId": "record-1784430374598", "externalExportAllowed": false, "withdrawalStatus": "active", "mediaLicense": null, "rightsPolicyVersion": "site_intelligence_p0_v1", "recordConsent": "private", "researchUseConsent": "none", "datasetLicense": null, "externalExportAllowedRaw": 0 },
+      { "visitId": "record-1784430118720", "externalExportAllowed": false, "withdrawalStatus": "active", "mediaLicense": null, "rightsPolicyVersion": "site_intelligence_p0_v1", "recordConsent": "private", "researchUseConsent": "none", "datasetLicense": null, "externalExportAllowedRaw": 0 },
+      { "visitId": "record-1784431188621", "externalExportAllowed": false, "withdrawalStatus": "active", "mediaLicense": null, "rightsPolicyVersion": "site_intelligence_p0_v1", "recordConsent": "private", "researchUseConsent": "none", "datasetLicense": null, "externalExportAllowedRaw": 0 },
+      { "visitId": "record-1784430530197", "externalExportAllowed": false, "withdrawalStatus": "active", "mediaLicense": null, "rightsPolicyVersion": "site_intelligence_p0_v1", "recordConsent": "private", "researchUseConsent": "none", "datasetLicense": null, "externalExportAllowedRaw": 0 }
+    ],
     "unsafeFullObservationUpsert": false
   },
   "execution": {
@@ -77,7 +98,7 @@
     "retryCount": 0,
     "fallbackCount": 0,
     "playgroundCount": 0,
-    "baseline": "NOT_RUN_RUNTIME_RIGHTS_GATE",
+    "baseline": "NOT_RUN_NO_ELIGIBLE_RIGHTS",
     "observedCostUsd": 0,
     "observedCostJpy": 0,
     "budgetCapJpy": 100
@@ -96,35 +117,35 @@
     "perPost": [
       {
         "visitId": "record-1786965869920",
-        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_ENDPOINT_UNAVAILABLE"
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_NOT_ELIGIBLE"
       },
       {
         "visitId": "record-1784366489892",
-        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_NOT_ELIGIBLE"
       },
       {
         "visitId": "record-1784430741938",
-        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_NOT_ELIGIBLE"
       },
       {
         "visitId": "record-1781252770584",
-        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_NOT_ELIGIBLE"
       },
       {
         "visitId": "record-1784430374598",
-        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_NOT_ELIGIBLE"
       },
       {
         "visitId": "record-1784430118720",
-        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_NOT_ELIGIBLE"
       },
       {
         "visitId": "record-1784431188621",
-        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_NOT_ELIGIBLE"
       },
       {
         "visitId": "record-1784430530197",
-        "status": "NOT_EVALUATED_PRODUCTION_RUNTIME_RIGHTS_CHECK_NOT_REACHED"
+        "status": "NOT_EVALUATED_CANONICAL_RIGHTS_NOT_ELIGIBLE"
       }
     ]
   },
