@@ -6628,6 +6628,40 @@ ${alternateLinks}
         min-height: 70px;
         font-size: 15px;
       }
+      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) {
+        --global-record-camera-actions-space: 0px;
+        grid-template-rows: auto auto auto auto;
+        align-content: start;
+        padding-bottom: 10px;
+      }
+      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-preview {
+        display: none;
+      }
+      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-actions {
+        position: static;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        z-index: auto;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-action {
+        min-height: 56px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-status {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
       .global-record-photo-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
