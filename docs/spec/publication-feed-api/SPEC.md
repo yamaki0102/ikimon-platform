@@ -1,6 +1,6 @@
 # ZUKAN Publication Feed API v1
 
-Status: `DRAFT / SOURCE-ONLY`
+Status: `IMPLEMENTED / SOURCE-ONLY`
 
 ## Purpose
 
