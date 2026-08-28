@@ -30797,7 +30797,7 @@ async function submitGeminiObservationReassessmentGroup(rows: ObservationReasses
     const nextPayload = reassessmentPayloadWithResult(item.request.source_payload_json, {
       executionStatus: "processing",
       attemptCount: reassessmentAttemptCount(item.request.source_payload_json) + 1,
-      modelStack: [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+      modelStack: [GEMINI_PRIMARY_MODEL],
       modelPlan: {
         primary: GEMINI_PRIMARY_MODEL,
         census: GEMINI_ANALYSIS_MODEL,
@@ -31291,9 +31291,7 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
     reassessmentPayloadWithResult(request.source_payload_json, {
       executionStatus: "completed",
       aiRunId,
-      models: specialistApplied
-        ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
-        : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+      models: [GEMINI_PRIMARY_MODEL],
       promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
       ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
       recordClass: merged.recordClass,
