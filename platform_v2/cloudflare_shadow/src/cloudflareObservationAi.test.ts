@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   observationAiQuestion,
+  observationAiSpeciesHighSafe,
   observationAiSubjects,
   parseObservationAiCandidate,
 } from "./cloudflareObservationAi.js";
@@ -13,6 +14,9 @@ test("AI prompt requires candidate language and coarse ranks when evidence is we
   assert.match(prompt, /Return JSON only/);
   assert.match(prompt, /coexistingSubjects/);
   assert.match(prompt, /separate organism or plant/u);
+  assert.match(prompt, /accepted identification, consensus, or verification status/);
+  assert.match(prompt, /species-specific decisive evidence/);
+  assert.match(prompt, /taxon-specific hardcoded rules/);
 });
 
 test("AI candidate parser accepts a fenced response but returns bounded data", () => {
@@ -26,9 +30,10 @@ test("AI candidate parser accepts a fenced response but returns bounded data", (
     "nonBiological":false
   }\n\`\`\``);
   assert.equal(candidate.vernacularName, "ヒサカキ");
-  assert.equal(candidate.rank, "species");
-  assert.equal(candidate.confidence, 1);
-  assert.deepEqual(candidate.needsMoreEvidence, ["花または果実"]);
+  assert.equal(candidate.rank, "genus");
+  assert.equal(candidate.scientificName, "Eurya");
+  assert.equal(candidate.confidence, 0.79);
+  assert.deepEqual(candidate.needsMoreEvidence, ["花または果実", "種固有の決定形質が画像で明確に確認できる追加証拠"]);
   assert.deepEqual(candidate.coexistingSubjects, []);
 });
 
@@ -64,6 +69,34 @@ test("AI parser preserves multiple visual subjects and stable subject locators",
   assert.deepEqual(subjects[1]?.candidate.subjectLocator, {
     rect: { x: 0.02, y: 0.45, width: 0.58, height: 0.5 },
   });
+});
+
+test("AI species/high safety requires generic visible decisive evidence and no missing evidence", () => {
+  const safe = parseObservationAiCandidate(JSON.stringify({
+    vernacularName: "モンシロチョウ",
+    scientificName: "Pieris rapae",
+    rank: "species",
+    confidence: 0.91,
+    visualEvidence: ["species-specific decisive evidence: 前翅の黒斑形状", "後翅の脈配置"],
+    needsMoreEvidence: [],
+    nonBiological: false,
+  }));
+  assert.equal(safe.rank, "species");
+  assert.equal(observationAiSpeciesHighSafe(safe), true);
+
+  const downgraded = parseObservationAiCandidate(JSON.stringify({
+    vernacularName: "モンシロチョウ",
+    scientificName: "Pieris rapae",
+    rank: "species",
+    confidence: 0.98,
+    visualEvidence: ["白い翅"],
+    needsMoreEvidence: ["翅の斑紋の接写"],
+    nonBiological: false,
+  }));
+  assert.equal(downgraded.rank, "genus");
+  assert.equal(downgraded.scientificName, "Pieris");
+  assert.equal(downgraded.confidence, 0.79);
+  assert.equal(observationAiSpeciesHighSafe(downgraded), false);
 });
 
 test("AI subject keys are deterministic when a provider omits candidateKey", () => {

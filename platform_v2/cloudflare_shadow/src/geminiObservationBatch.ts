@@ -1,14 +1,18 @@
 import {
+  applyObservationAiCandidateSafetyGate,
+  OBSERVATION_AI_CANDIDATE_SAFETY_INSTRUCTION,
+  OBSERVATION_AI_PROMPT_VERSION,
+  OBSERVATION_AI_RULE_VERSION,
   type ObservationAiCandidate,
   type ObservationAiSubjectCandidate,
 } from "./cloudflareObservationAi";
 
 export const GEMINI_PRIMARY_MODEL = "gemini-3.5-flash-lite";
-export const GEMINI_ANALYSIS_MODEL = "gemini-3.1-flash-lite";
-export const GEMINI_SPECIALIST_MODEL = "gemini-3.5-flash-lite";
-export const GEMINI_SUMMARY_MODEL = "gemini-3.1-flash-lite";
-export const GEMINI_OBSERVATION_PROMPT_VERSION = "observation-triple-lane/v3";
-export const GEMINI_OBSERVATION_RULE_VERSION = "record-observation-gemini-batch/v2";
+export const GEMINI_ANALYSIS_MODEL = GEMINI_PRIMARY_MODEL;
+export const GEMINI_SPECIALIST_MODEL = GEMINI_PRIMARY_MODEL;
+export const GEMINI_SUMMARY_MODEL = GEMINI_PRIMARY_MODEL;
+export const GEMINI_OBSERVATION_PROMPT_VERSION = OBSERVATION_AI_PROMPT_VERSION;
+export const GEMINI_OBSERVATION_RULE_VERSION = OBSERVATION_AI_RULE_VERSION;
 export const GEMINI_CANDIDATE_FUSION_RULE_VERSION = "candidate-fusion/v1";
 export const GEMINI_BATCH_MAX_RECORDS = 10;
 export const GEMINI_BATCH_MAX_INLINE_BYTES = 12 * 1024 * 1024;
@@ -304,18 +308,18 @@ const generationConfig = (schema: JsonSchema, maxOutputTokens: number, temperatu
 });
 
 export function buildGeminiPrimaryRequest(recordId: string, observedAt: string | null, images: GeminiObservationImage[]) {
-  const prompt = `あなたはikimon.lifeの公開記録写真から、主対象と写真全体の分類を短く構造化する視覚抽出器です。\n記録ID:${recordId}\n観察日:${observedAt ?? "不明"}\n画像数:${images.length}\n\n全画像を比較し、同じ対象は統合してください。主対象は1件だけprimaryにし、別生物も見落とさないでください。種の識別特徴が足りなければ属・科・目・生活型で止めます。人物、食べ物、環境風景、物、文書もrecord_classへ分類しますが、人物の容姿・属性・個人情報は記述しません。非生物をsubjectsへ入れません。information_stateは、判読できる情報があればinformative、何も有用に読めなければnot_informative、画質等で判定不能ならnot_assessableです。領域は正規化座標で返し、日本語、JSONのみを返してください。`;
-  return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_PRIMARY_SCHEMA, 2048, 0.1) };
+  const prompt = `あなたはikimon.lifeの公開記録写真から、主対象と写真全体の分類を短く構造化する視覚抽出器です。\n記録ID:${recordId}\n観察日:${observedAt ?? "不明"}\n画像数:${images.length}\n\n全画像を比較し、同じ対象は統合してください。主対象は1件だけprimaryにし、別生物も見落とさないでください。種の識別特徴が足りなければ属・科・目・生活型で止めます。人物、食べ物、環境風景、物、文書もrecord_classへ分類しますが、人物の容姿・属性・個人情報は記述しません。非生物をsubjectsへ入れません。information_stateは、判読できる情報があればinformative、何も有用に読めなければnot_informative、画質等で判定不能ならnot_assessableです。領域は正規化座標で返し、日本語、JSONのみを返してください。${OBSERVATION_AI_CANDIDATE_SAFETY_INSTRUCTION}`;
+  return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_PRIMARY_SCHEMA, 2048, 0) };
 }
 
 export function buildGeminiCensusRequest(recordId: string, images: GeminiObservationImage[]) {
-  const prompt = `公開された市民科学写真の「個体・別生物の棚卸し」だけをしてください。長い分類解説は不要です。\n記録ID:${recordId}\n画像数:${images.length}\n\n全画像を横断し、同じ個体は1 groupへ統合します。同分類群の複数個体はscope=group、分かる範囲でcountへ。主対象以外の独立した昆虫、鳥、植物、菌、痕跡、寄主植物、異なる形態の背景植物もotherへ入れます。同じ対象の別名候補は別groupにせず、石、舗装、フェンス、建物、影、食べ物、人物はgroupにしません。画像から支持できるname、scientific、rankを返し、種名を無理につけず属・科・目・綱・生活型の見える粒度に止めます。supporting_featuresは見える決定形質、missing_featuresは確認できない比較点、contradictionsは候補と矛盾する形質です。primaryは1 groupだけ、領域をasset_index付きで返してください。判定不能と不在を区別し、日本語、JSONのみを返してください。`;
-  return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_CENSUS_SCHEMA, 2048, 0.1) };
+  const prompt = `公開された市民科学写真の「個体・別生物の棚卸し」だけをしてください。長い分類解説は不要です。\n記録ID:${recordId}\n画像数:${images.length}\n\n全画像を横断し、同じ個体は1 groupへ統合します。同分類群の複数個体はscope=group、分かる範囲でcountへ。主対象以外の独立した昆虫、鳥、植物、菌、痕跡、寄主植物、異なる形態の背景植物もotherへ入れます。同じ対象の別名候補は別groupにせず、石、舗装、フェンス、建物、影、食べ物、人物はgroupにしません。画像から支持できるname、scientific、rankを返し、種名を無理につけず属・科・目・綱・生活型の見える粒度に止めます。supporting_featuresは見える決定形質、missing_featuresは確認できない比較点、contradictionsは候補と矛盾する形質です。primaryは1 groupだけ、領域をasset_index付きで返してください。判定不能と不在を区別し、日本語、JSONのみを返してください。${OBSERVATION_AI_CANDIDATE_SAFETY_INSTRUCTION}`;
+  return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_CENSUS_SCHEMA, 2048, 0) };
 }
 
 export function buildGeminiEnvironmentRequest(recordId: string, images: GeminiObservationImage[]) {
-  const prompt = `公開写真から、環境・場所の「写っている証拠」だけを棚卸ししてください。生物同定や一般知識による生息地推測は不要です。\n記録ID:${recordId}\n画像数:${images.length}\n\n全画像を比較し、植生構造、地表、水分、人為物、管理痕跡を具体的な画像証拠とasset_index付きで返してください。地域、土壌性質、長期的な湿潤状態、管理主体を推測しません。人物の属性や個人情報を書きません。fieldsは画像から支持できる選択肢だけを選び、根拠がなければunknownです。不在と画質等による判定不能をassessment_stateで分け、日本語、JSONのみを返してください。`;
-  return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_ENVIRONMENT_SCHEMA, 2048, 0.1) };
+  const prompt = `公開写真から、環境・場所の「写っている証拠」だけを棚卸ししてください。生物同定や一般知識による生息地推測は不要です。\n記録ID:${recordId}\n画像数:${images.length}\n\n全画像を比較し、植生構造、地表、水分、人為物、管理痕跡を具体的な画像証拠とasset_index付きで返してください。地域、土壌性質、長期的な湿潤状態、管理主体を推測しません。人物の属性や個人情報を書きません。fieldsは画像から支持できる選択肢だけを選び、根拠がなければunknownです。不在と画質等による判定不能をassessment_stateで分け、日本語、JSONのみを返してください。${OBSERVATION_AI_CANDIDATE_SAFETY_INSTRUCTION}`;
+  return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_ENVIRONMENT_SCHEMA, 2048, 0) };
 }
 
 const specialistTraits: Record<GeminiSpecialistKind, string> = {
@@ -337,17 +341,17 @@ export function buildGeminiSpecialistRequest(
     qualityFlags: merged.qualityFlags,
     reviewReasons: merged.reviewReasons,
   };
-  const prompt = `公開された市民科学写真の同一主対象について、候補比較だけをしてください。別名候補を別個体・別subjectとして扱いません。\n記録ID:${recordId}\n専門分類:${specialistKind}\n画像数:${images.length}\n前段証拠:${JSON.stringify(evidence)}\n\n${specialistTraits[specialistKind]}\n最大5候補を、支持形質、不足形質、矛盾点とともに返してください。粗い汎用名だけで終えず、証拠が足りなければ無理に種へ固定せず適切なrankで止めます。人物の属性や個人情報、画像にない地域・季節情報を推測せず、AI候補であって確定同定ではない前提を守り、日本語、JSONのみを返してください。`;
+  const prompt = `公開された市民科学写真の同一主対象について、候補比較だけをしてください。別名候補を別個体・別subjectとして扱いません。\n記録ID:${recordId}\n専門分類:${specialistKind}\n画像数:${images.length}\n前段証拠:${JSON.stringify(evidence)}\n\n${specialistTraits[specialistKind]}\n最大5候補を、支持形質、不足形質、矛盾点とともに返してください。粗い汎用名だけで終えず、証拠が足りなければ無理に種へ固定せず適切なrankで止めます。人物の属性や個人情報、画像にない地域・季節情報を推測せず、日本語、JSONのみを返してください。${OBSERVATION_AI_CANDIDATE_SAFETY_INSTRUCTION}`;
   return {
     contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }],
-    generationConfig: generationConfig(GEMINI_SPECIALIST_SCHEMA, 2048, 0.1),
+    generationConfig: generationConfig(GEMINI_SPECIALIST_SCHEMA, 2048, 0),
   };
 }
 
 export function buildGeminiSummaryRequest(recordId: string, merged: GeminiMergedObservation) {
   const evidence = { ...merged, candidate: merged.candidate, summary: undefined };
-  const prompt = `以下は3つの専門レーン（主対象、別生物、環境）を決定的に統合した写真証拠JSONです。このJSONだけでikimon.life記録ページ向けの短い日本語説明を作ってください。新しい名前や事実を足さず、primaryと別対象を混ぜず、確定同定を避けます。各subjectを1件ずつ説明し、不確実性と次に撮る部位・角度を具体的にしてください。環境は写真で見える範囲に限定します。\n記録ID:${recordId}\n証拠JSON:${JSON.stringify(evidence)}`;
-  return { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: generationConfig(GEMINI_SUMMARY_SCHEMA, 2048, 0.15) };
+  const prompt = `以下は3つの専門レーン（主対象、別生物、環境）を決定的に統合した写真証拠JSONです。このJSONだけでikimon.life記録ページ向けの短い日本語説明を作ってください。新しい名前や事実を足さず、primaryと別対象を混ぜず、確定同定を避けます。各subjectを1件ずつ説明し、不確実性と次に撮る部位・角度を具体的にしてください。環境は写真で見える範囲に限定します。${OBSERVATION_AI_CANDIDATE_SAFETY_INSTRUCTION}\n記録ID:${recordId}\n証拠JSON:${JSON.stringify(evidence)}`;
+  return { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: generationConfig(GEMINI_SUMMARY_SCHEMA, 2048, 0) };
 }
 
 export type GeminiBatchRequest = { request: Record<string, unknown>; metadata: Record<string, unknown> };
@@ -665,12 +669,12 @@ export function mergeGeminiObservationEvidence(primary: GeminiPrimaryEvidence, c
   }
   const detectionState = main || coexisting.length > 0 ? "detected" : census.detection_state === "not_assessable" || primary.information_state === "not_assessable" ? "not_assessable" : "not_detected";
   return {
-    candidate: {
+    candidate: applyObservationAiCandidateSafetyGate({
       candidateKey: main?.candidateKey ?? null, vernacularName: main?.vernacularName ?? null, scientificName: main?.scientificName ?? null,
       rank: main?.rank ?? "unknown", confidence: main?.confidence ?? 0, visualEvidence: main?.visualEvidence ?? [], needsMoreEvidence: main?.needsMoreEvidence ?? [],
       assetIndex: main?.assetIndex ?? 0, subjectLocator: main?.subjectLocator ?? {}, sourceModel: main?.sourceModel ?? GEMINI_PRIMARY_MODEL,
-      nonBiological: !main && coexisting.length === 0, coexistingSubjects: coexisting.slice(0, 7),
-    },
+      nonBiological: !main && coexisting.length === 0, coexistingSubjects: coexisting.slice(0, 6),
+    }),
     topCandidates,
     genericCandidateOnly: topCandidates.length > 0 && topCandidates.every((candidate) => isGenericCandidateName(candidate.name ?? candidate.scientificName)),
     candidateFusionRuleVersion: GEMINI_CANDIDATE_FUSION_RULE_VERSION,
@@ -772,12 +776,12 @@ export function applyGeminiSpecialistEvidence(
   const birdComparison = topCandidates.some((candidate) => /(鳥|ドリ|ツグミ|スズメ)/u.test(candidate.name ?? ""));
   return {
     ...merged,
-    candidate: {
+    candidate: applyObservationAiCandidateSafetyGate({
       ...merged.candidate,
       ...main,
       nonBiological: false,
       coexistingSubjects: merged.candidate.coexistingSubjects,
-    },
+    }),
     topCandidates,
     genericCandidateOnly: topCandidates.every((candidate) => isGenericCandidateName(candidate.name ?? candidate.scientificName)),
     needsReview: merged.needsReview || specialist.needs_review,
@@ -801,7 +805,15 @@ export function applyGeminiObservationSummary(merged: GeminiMergedObservation, s
     };
   };
   const main = enrich(merged.candidate);
-  return { ...merged, candidate: { ...merged.candidate, ...main, coexistingSubjects: merged.candidate.coexistingSubjects.map(enrich) }, summary };
+  return {
+    ...merged,
+    candidate: applyObservationAiCandidateSafetyGate({
+      ...merged.candidate,
+      ...main,
+      coexistingSubjects: merged.candidate.coexistingSubjects.map(enrich),
+    }),
+    summary,
+  };
 }
 
 export function geminiBatchDisplayName(claimId: string, lane: "primary" | "analysis" | "specialist" | "summary"): string {
