@@ -108,6 +108,8 @@ The 2026-08-27 expanded Cloudflare-only canary is recorded in `platform_v2/ops/m
 
 All three canaries used Cloudflare authentication and official REST endpoints, with one request, no retry, no fallback, `stream=false`, and the same native ZUKAN output schema. Because no new model passed canary, no expanded model completed a seven-post run. Existing Gemini and GLM reports remain the only full-run operational inputs; their saved final content is compared in the bounded 2026-08-28 grounding Evidence. Cloudflare's `openai/gpt-5.6-luna` route uses the Responses API and does not require a local OpenAI API key.
 
+The 2026-08-28 Luna route diagnostic tried the unchanged three-image canary once on each official Cloudflare path: `/ai/v1/responses` with the provider-native Responses payload and `/ai/run` with the model-specific Responses input. Both returned HTTP 402 before final content or usage (`invalid_prompt` and provider code `2021` respectively); no seven-post run was started. This is a provider/account entitlement boundary, not a parser or model-quality result. The benchmark adapter now accepts an explicit existing named `CLOUDFLARE_AI_GATEWAY_ID` and rejects missing or `default` gateway selection, so a future run cannot implicitly create a new Gateway. See `evidence/2026-08-28-cloudflare-luna-vision-route-diagnostic.json` and the two linked canary reports.
+
 The 2026-08-28 grounding comparison did not call any model. It re-opened the fixed 21 images, verified their manifest SHA-256 values, and compared saved final content against the immutable `NOAH_MAX_READ_V1` visual reference. The blind artifact preserves full safe `raw_final_content`, full `parsed_json`, claim-level labels, scores, and nullable later-human-review fields. The GLM beetle post has no saved final content and is excluded from score means rather than scored as zero. See:
 
 - `evidence/2026-08-28-blind-grounding-per-post.json`
@@ -179,6 +181,24 @@ npm run bench:zukan -- run \
   --pricing-source=cloudflare-workers-ai-qwen3.8-27b-2026-08-27
 ```
 
+For an existing Cloudflare Gateway, set its named ID in the already-authorized execution environment before a canary. `default` is intentionally rejected because Cloudflare may auto-create it. The current adapter does not create or mutate a Gateway, provider key, billing setting, production binding, or deployment; the diagnostic requests above did not send a named Gateway header, so their Gateway state is not inferred.
+
+The Cloudflare Luna path is invoked only with that existing named Gateway:
+
+```bash
+ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
+CLOUDFLARE_AI_GATEWAY_ID=<existing-named-gateway-id> \
+npm run bench:zukan -- run \
+  --transport=cloudflare-ai-run \
+  --model=openai/gpt-5.6-luna \
+  --manifest=ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json \
+  --max-output-tokens=8192 \
+  --limit=1 \
+  --report-label=cloudflare-luna-canary
+```
+
+Run the remaining six posts only after that one-post canary passes schema validation. The runner still performs the canonical rights gate before every run. Cloudflare account credits and model capability remain provider-side prerequisites; they are not created or changed by this command.
+
 Compare reports with the first report as baseline:
 
 ```bash
@@ -187,4 +207,3 @@ npm run bench:zukan -- compare \
 ```
 
 The legacy `decision` field remains for compatibility. Historical Gemini-vs-GLM Evidence uses the governed `finalVerdict`: `KEEP_GEMINI`, `SWITCH_TO_GLM`, `INSUFFICIENT_GOLD`, or `BASELINE_INVALID`. The new bounded content comparison uses separate `BEST_GROUNDING`, `BEST_OPERATIONAL`, `BEST_BALANCED`, and `NO_CLEAR_WINNER` fields; it does not approve a biological accuracy winner or change the production model.
-

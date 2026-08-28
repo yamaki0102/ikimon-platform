@@ -8,12 +8,15 @@ import {
   CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL,
   CLOUDFLARE_QWEN_3_8_27B_MODEL,
   buildCloudflareAiChatPayload,
+  buildCloudflareAiRequestHeaders,
+  buildCloudflareAiRunPayload,
   buildCloudflareResponsesPayload,
   buildZukanBenchFinalOutputRecord,
   compareZukanBenchReports,
   detailHasHumanConsensus,
   extractOrderedPostPhotoUrls,
   buildCloudflareOfficialRestPayload,
+  generateWithCloudflareAiRun,
   generateWithCloudflareOfficialRest,
   generateWithCloudflareAiRest,
   rightsVettedTargetsFromResearchPayload,
@@ -142,6 +145,7 @@ test("Cloudflare AI REST adapters preserve ordered multimodal input and native s
   const originalFetch = globalThis.fetch;
   const previousAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const previousToken = process.env.CLOUDFLARE_API_TOKEN;
+  const previousGatewayId = process.env.CLOUDFLARE_AI_GATEWAY_ID;
   const parts = [
     { type: "image_url" as const, image_url: { url: "data:image/webp;base64,AAA" } },
     { type: "image_url" as const, image_url: { url: "data:image/webp;base64,BBB" } },
@@ -151,9 +155,11 @@ test("Cloudflare AI REST adapters preserve ordered multimodal input and native s
   let requestCount = 0;
   let requestUrl = "";
   let requestBody: Record<string, unknown> = {};
+  let requestHeaders = new Headers();
   globalThis.fetch = (async (input, init) => {
     requestCount += 1;
     requestUrl = String(input);
+    requestHeaders = new Headers(init?.headers);
     requestBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
     return new Response(JSON.stringify({
       id: "chatcmpl-test",
@@ -164,6 +170,7 @@ test("Cloudflare AI REST adapters preserve ordered multimodal input and native s
   }) as typeof fetch;
   process.env.CLOUDFLARE_ACCOUNT_ID = "0".repeat(32);
   process.env.CLOUDFLARE_API_TOKEN = "test-token";
+  process.env.CLOUDFLARE_AI_GATEWAY_ID = "zukan-existing-gateway";
   try {
     const payload = buildCloudflareAiChatPayload(CLOUDFLARE_QWEN_3_8_27B_MODEL, parts, 8192);
     const payloadMessages = (payload.messages as Array<{ content: Array<{ type: string }> }>);
@@ -172,6 +179,7 @@ test("Cloudflare AI REST adapters preserve ordered multimodal input and native s
     const result = await generateWithCloudflareAiRest({ model: CLOUDFLARE_QWEN_3_8_27B_MODEL, parts });
     assert.equal(requestCount, 1);
     assert.equal(requestUrl, "https://api.cloudflare.com/client/v4/accounts/" + "0".repeat(32) + "/ai/v1/chat/completions");
+    assert.equal(requestHeaders.get("cf-aig-gateway-id"), "zukan-existing-gateway");
     assert.equal(requestBody.model, CLOUDFLARE_QWEN_3_8_27B_MODEL);
     assert.equal(result.inputTokens, 31);
     assert.equal(result.outputTokens, 17);
@@ -188,18 +196,65 @@ test("Cloudflare AI REST adapters preserve ordered multimodal input and native s
     }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
     const responsePayload = buildCloudflareResponsesPayload(CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL, parts, 8192);
     assert.deepEqual((responsePayload.input[0]?.content as Array<{ type: string }>).map((part) => part.type), ["input_image", "input_image", "input_image", "input_text"]);
+    assert.equal(responsePayload.text.format.strict, false);
+    const universalPayload = buildCloudflareAiRunPayload(CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL, parts, 8192);
+    assert.equal(universalPayload.model, CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL);
+    assert.deepEqual((universalPayload.input.input[0]?.content as Array<{ type: string }>).map((part) => part.type), ["input_image", "input_image", "input_image", "input_text"]);
+    assert.equal(universalPayload.input.text.format.strict, false);
     const responseResult = await generateWithCloudflareAiRest({ model: CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL, parts });
     assert.equal(responseResult.inputTokens, 41);
     assert.equal(responseResult.outputTokens, 19);
     assert.equal(responseResult.responseField, "output[0].content[0].text");
     assert.equal(responseResult.providerResultMeta.response_shape, "responses");
+
+    globalThis.fetch = (async (input, init) => {
+      requestCount += 1;
+      requestUrl = String(input);
+      requestHeaders = new Headers(init?.headers);
+      requestBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        result: {
+          object: "response",
+          status: "completed",
+          model: "gpt-5.6-luna",
+          output: [{ type: "message", status: "completed", content: [{ type: "output_text", text: JSON.stringify({ recommended_taxon_name: "unknown", recommended_rank: "lifeform", confidence_band: "low" }) }] }],
+          usage: { input_tokens: 41, output_tokens: 19, total_tokens: 60 },
+        },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    const runResult = await generateWithCloudflareAiRun({ model: CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL, parts });
+    assert.equal(requestCount, 2);
+    assert.equal(requestUrl, "https://api.cloudflare.com/client/v4/accounts/" + "0".repeat(32) + "/ai/run");
+    assert.equal(requestHeaders.get("cf-aig-gateway-id"), "zukan-existing-gateway");
+    assert.equal(requestBody.model, CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL);
+    assert.deepEqual((requestBody.input as { input: Array<{ content: Array<{ type: string }> }> }).input[0]?.content.map((part) => part.type), ["input_image", "input_image", "input_image", "input_text"]);
+    assert.equal(runResult.inputTokens, 41);
+    assert.equal(runResult.outputTokens, 19);
+    assert.equal(runResult.responseField, "output[0].content[0].text");
   } finally {
     globalThis.fetch = originalFetch;
     if (previousAccountId === undefined) delete process.env.CLOUDFLARE_ACCOUNT_ID;
     else process.env.CLOUDFLARE_ACCOUNT_ID = previousAccountId;
     if (previousToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
     else process.env.CLOUDFLARE_API_TOKEN = previousToken;
+    if (previousGatewayId === undefined) delete process.env.CLOUDFLARE_AI_GATEWAY_ID;
+    else process.env.CLOUDFLARE_AI_GATEWAY_ID = previousGatewayId;
   }
+});
+
+test("Cloudflare benchmark requests require an explicit existing named gateway", () => {
+  assert.deepEqual(
+    buildCloudflareAiRequestHeaders({ CLOUDFLARE_AI_GATEWAY_ID: "zukan-existing-gateway" }, true),
+    { "cf-aig-gateway-id": "zukan-existing-gateway" },
+  );
+  assert.throws(
+    () => buildCloudflareAiRequestHeaders({}, true),
+    /zukan_bench_cloudflare_existing_gateway_required/u,
+  );
+  assert.throws(
+    () => buildCloudflareAiRequestHeaders({ CLOUDFLARE_AI_GATEWAY_ID: "default" }, true),
+    /cloudflare_ai_gateway_default_disallowed/u,
+  );
 });
 
 test("official REST model call performs exactly one native request and reads provider usage", async () => {

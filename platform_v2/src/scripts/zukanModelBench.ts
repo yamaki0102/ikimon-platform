@@ -127,7 +127,7 @@ export type ZukanBenchHumanReviewFields = {
 };
 
 export type ZukanBenchRequestConfig = {
-  transport: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest";
+  transport: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run";
   temperature: number;
   max_completion_tokens?: number;
   max_output_tokens?: number;
@@ -139,6 +139,7 @@ export type ZukanBenchRequestConfig = {
   response_mime_type?: "application/json";
   response_schema_mode?: "provider-native" | "parser-only";
   output_schema: "zukan-model-bench-parser-v1";
+  gateway_selection?: "explicit-existing-named-gateway-only";
   attempts_per_model: 1;
   fallback_count: 0;
 };
@@ -224,7 +225,7 @@ export type ZukanBenchModelReport = {
   totalOutputTokens: number;
   estimatedCostUsd: number | null;
   pricing: { inputUsdPer1M: number; outputUsdPer1M: number; source: string } | null;
-  transport?: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest";
+  transport?: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run";
   usageMeasurement?: "provider-reported" | "not-exposed";
   observedAdditionalCostUsd?: number | null;
   reportSchemaVersion?: typeof ZUKAN_BENCH_REPORT_SCHEMA_VERSION;
@@ -1070,11 +1071,59 @@ export function buildCloudflareResponsesPayload(model: string, parts: Cloudflare
       format: {
         type: "json_schema",
         name: "zukan-model-bench-parser-v1",
-        strict: true,
+        // The shared benchmark schema deliberately allows optional final-output
+        // fields for later review. Cloudflare's Responses adapter rejects that
+        // schema when strict Structured Outputs are requested, so keep the
+        // provider-native JSON-schema hint while letting the local validator
+        // enforce the required benchmark keys.
+        strict: false,
         schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
       },
     },
   } as const;
+}
+
+export function buildCloudflareAiRunPayload(model: string, parts: CloudflareOfficialRestPart[], maxOutputTokens = 8192) {
+  return {
+    model,
+    input: {
+      input: [{
+        role: "user",
+        content: parts.map((part) => part.type === "image_url"
+          ? { type: "input_image", image_url: part.image_url.url }
+          : { type: "input_text", text: part.text }),
+      }],
+      reasoning: { effort: "low" },
+      max_output_tokens: maxOutputTokens,
+      stream: false,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "zukan-model-bench-parser-v1",
+          strict: false,
+          schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+        },
+      },
+    },
+  } as const;
+}
+
+export function buildCloudflareAiRequestHeaders(
+  env: NodeJS.ProcessEnv = process.env,
+  requireExistingGateway = false,
+): Record<string, string> {
+  const gatewayId = typeof env.CLOUDFLARE_AI_GATEWAY_ID === "string"
+    ? env.CLOUDFLARE_AI_GATEWAY_ID.trim()
+    : "";
+  if (gatewayId === "default") throw new Error("cloudflare_ai_gateway_default_disallowed");
+  if (gatewayId.length > 64 || /[\r\n]/u.test(gatewayId)) {
+    throw new Error("cloudflare_ai_gateway_id_invalid");
+  }
+  if (requireExistingGateway && !gatewayId) {
+    throw new Error("zukan_bench_cloudflare_existing_gateway_required");
+  }
+  return gatewayId ? { "cf-aig-gateway-id": gatewayId } : {};
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -1277,12 +1326,16 @@ async function fetchCloudflareAiJson(options: {
   model: string;
   payload: unknown;
   responsesApi: boolean;
+  universalRun?: boolean;
+  requireExistingGateway?: boolean;
   timeoutMs?: number;
 }): Promise<CloudflareAiGenerationResult> {
   const accountId = clean(process.env.CLOUDFLARE_ACCOUNT_ID);
   const token = clean(process.env.CLOUDFLARE_API_TOKEN ?? process.env.CLOUDFLARE_AUTH_TOKEN);
   if (!accountId || !token) throw new Error("zukan_bench_cloudflare_credentials_missing");
-  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/${options.responsesApi ? "responses" : "chat/completions"}`;
+  const endpoint = options.universalRun
+    ? `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run`
+    : `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/${options.responsesApi ? "responses" : "chat/completions"}`;
   const timeoutMs = options.timeoutMs ?? 180_000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -1295,6 +1348,7 @@ async function fetchCloudflareAiJson(options: {
           accept: "application/json",
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
+          ...buildCloudflareAiRequestHeaders(process.env, options.requireExistingGateway ?? false),
         },
         body: JSON.stringify(options.payload),
         signal: controller.signal,
@@ -1340,6 +1394,7 @@ export async function generateWithCloudflareAiRest(options: {
   model: string;
   parts: CloudflareOfficialRestPart[];
   maxCompletionTokens?: number;
+  requireExistingGateway?: boolean;
   timeoutMs?: number;
 }): Promise<CloudflareAiGenerationResult> {
   const maxTokens = options.maxCompletionTokens ?? 8192;
@@ -1348,6 +1403,7 @@ export async function generateWithCloudflareAiRest(options: {
       model: options.model,
       payload: buildCloudflareAiChatPayload(options.model, options.parts, maxTokens),
       responsesApi: false,
+      requireExistingGateway: options.requireExistingGateway,
       timeoutMs: options.timeoutMs,
     });
   }
@@ -1356,15 +1412,35 @@ export async function generateWithCloudflareAiRest(options: {
       model: options.model,
       payload: buildCloudflareResponsesPayload(options.model, options.parts, maxTokens),
       responsesApi: true,
+      requireExistingGateway: options.requireExistingGateway,
       timeoutMs: options.timeoutMs,
     });
   }
   throw new Error("cloudflare_ai_model_invalid");
 }
 
+export async function generateWithCloudflareAiRun(options: {
+  model: string;
+  parts: CloudflareOfficialRestPart[];
+  maxOutputTokens?: number;
+  requireExistingGateway?: boolean;
+  timeoutMs?: number;
+}): Promise<CloudflareAiGenerationResult> {
+  if (options.model !== CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL) throw new Error("cloudflare_ai_run_model_invalid");
+  return fetchCloudflareAiJson({
+    model: options.model,
+    payload: buildCloudflareAiRunPayload(options.model, options.parts, options.maxOutputTokens ?? 8192),
+    responsesApi: true,
+    universalRun: true,
+    requireExistingGateway: options.requireExistingGateway,
+    timeoutMs: options.timeoutMs,
+  });
+}
+
 export async function generateWithCloudflareOfficialRest(options: {
   model: string;
   parts: CloudflareOfficialRestPart[];
+  requireExistingGateway?: boolean;
   timeoutMs?: number;
 }): Promise<{ text: string; responseField?: string; finishReason?: string | null; inputTokens: number; outputTokens: number; usageReported: boolean; providerResultMeta?: ZukanBenchProviderResultMeta | null }> {
   if (!options.model.startsWith("@cf/")) throw new Error("cloudflare_official_rest_model_invalid");
@@ -1382,6 +1458,7 @@ export async function generateWithCloudflareOfficialRest(options: {
         accept: "application/json",
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
+        ...buildCloudflareAiRequestHeaders(process.env, options.requireExistingGateway ?? false),
       },
       body: JSON.stringify(buildCloudflareOfficialRestPayload(options.parts)),
       signal: controller.signal,
@@ -1421,7 +1498,7 @@ export async function runZukanModelBench(options: {
   pricing?: BenchPricing | null;
   limit?: number;
   maxEstimatedCostUsd?: number;
-  transport?: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest";
+  transport?: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run";
   maxOutputTokens?: number;
   temperature?: number;
   thinkingLevel?: "minimal";
@@ -1455,9 +1532,12 @@ export async function runZukanModelBench(options: {
     throw new Error("zukan_bench_fixed_owner_smoke_target_mismatch");
   }
   await assertCanonicalObservationDataRights(fixtures, options.canonicalRightsSnapshot);
+  if (transport === "cloudflare-official-rest" || transport === "cloudflare-ai-rest" || transport === "cloudflare-ai-run") {
+    buildCloudflareAiRequestHeaders(process.env, true);
+  }
   const provider = transport === "cloudflare-official-rest"
     ? "cloudflare-workers-ai"
-    : transport === "cloudflare-ai-rest"
+    : transport === "cloudflare-ai-rest" || transport === "cloudflare-ai-run"
       ? options.model.startsWith("@cf/") ? "cloudflare-workers-ai" : "cloudflare-ai-openai"
       : modelProvider(options.model);
   const requestConfig: ZukanBenchRequestConfig = transport === "cloudflare-official-rest"
@@ -1470,10 +1550,11 @@ export async function runZukanModelBench(options: {
       modalities: "omitted",
       response_format: { type: "json_object" },
       output_schema: "zukan-model-bench-parser-v1",
+      gateway_selection: "explicit-existing-named-gateway-only",
       attempts_per_model: 1,
       fallback_count: 0,
     }
-    : transport === "cloudflare-ai-rest"
+    : transport === "cloudflare-ai-rest" || transport === "cloudflare-ai-run"
       ? {
         transport,
         temperature: 0,
@@ -1488,6 +1569,7 @@ export async function runZukanModelBench(options: {
         response_format: { type: "json_schema", json_schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA },
         response_schema_mode: "provider-native",
         output_schema: "zukan-model-bench-parser-v1",
+        gateway_selection: "explicit-existing-named-gateway-only",
         attempts_per_model: 1,
         fallback_count: 0,
       }
@@ -1544,6 +1626,7 @@ export async function runZukanModelBench(options: {
         const result = transport === "cloudflare-official-rest"
           ? await generateWithCloudflareOfficialRest({
             model: options.model,
+            requireExistingGateway: true,
             parts: [
               ...verified.map((item): CloudflareOfficialRestPart => ({
                 type: "image_url",
@@ -1555,6 +1638,7 @@ export async function runZukanModelBench(options: {
           : transport === "cloudflare-ai-rest"
             ? await generateWithCloudflareAiRest({
               model: options.model,
+              requireExistingGateway: true,
               maxCompletionTokens: options.maxOutputTokens ?? 8192,
               parts: [
                 ...verified.map((item): CloudflareOfficialRestPart => ({
@@ -1563,8 +1647,21 @@ export async function runZukanModelBench(options: {
                 })),
                 { type: "text", text: renderedPrompt },
               ],
-            })
-          : {
+              })
+            : transport === "cloudflare-ai-run"
+              ? await generateWithCloudflareAiRun({
+                model: options.model,
+                requireExistingGateway: true,
+                maxOutputTokens: options.maxOutputTokens ?? 8192,
+                parts: [
+                  ...verified.map((item): CloudflareOfficialRestPart => ({
+                    type: "image_url",
+                    image_url: { url: `data:${item.ref.mimeType};base64,${item.bytes.toString("base64")}` },
+                  })),
+                  { type: "text", text: renderedPrompt },
+                ],
+              })
+            : {
             ...(await generateAiTextWithRoleChain({
               chainName: "observationVisualExtract",
               parts: [
@@ -1823,10 +1920,10 @@ function pricingFromArgs(args: string[]): BenchPricing | null {
   return { inputUsdPer1M, outputUsdPer1M, source: stringArg(args, "pricing-source") ?? "manual-cli" };
 }
 
-function transportFromArgs(args: string[]): "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | undefined {
+function transportFromArgs(args: string[]): "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run" | undefined {
   const value = stringArg(args, "transport");
   if (value === undefined) return undefined;
-  if (value === "model-router" || value === "cloudflare-official-rest" || value === "cloudflare-ai-rest") return value;
+  if (value === "model-router" || value === "cloudflare-official-rest" || value === "cloudflare-ai-rest" || value === "cloudflare-ai-run") return value;
   throw new Error(`invalid_transport:${value}`);
 }
 
