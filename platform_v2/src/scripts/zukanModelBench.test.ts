@@ -96,6 +96,11 @@ test("benchmark prompt source defaults to the manifest prompt and supports an ex
   assert.notEqual(defaultPrompt.sha256, minimalPrompt.sha256);
   assert.match(minimalPrompt.text, /recommended_taxon_name/iu);
   assert.match(minimalPrompt.text, /名前だけ/u);
+  assert.match(minimalPrompt.text, /画像から直接支持できる分類群だけ/u);
+  assert.match(minimalPrompt.text, /種に固有の視覚的な決定形質/u);
+  assert.match(minimalPrompt.text, /属の証拠も弱ければ科・目・生活形/u);
+  assert.match(minimalPrompt.text, /候補であるだけなら採用しない/u);
+  assert.match(minimalPrompt.text, /決定形質が明瞭で、画像内に矛盾がない/u);
 });
 
 test("post selection is deterministic and deduped by visit", () => {
