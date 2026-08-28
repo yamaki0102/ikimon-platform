@@ -1,0 +1,283 @@
+{
+  "version": "zukan-post-model-bench-v2-gemini-minimal-prompt-human-gold-scoring-v1",
+  "recordedAt": "2026-08-28T17:50:02+09:00",
+  "status": "SCORING_ARTIFACT_READY_NO_CANONICAL_HUMAN_GOLD",
+  "source": {
+    "repository": "yamaki0102/ikimon-platform",
+    "pullRequest": 1582,
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "sourceHeadBeforeArtifact": "381a52dd20f538ff8b81ed6875f5dad8280f2032",
+    "comparisonEvidence": "platform_v2/ops/model-bench/evidence/2026-08-28-gemini-3.5-flash-lite-minimal-prompt-comparison.json"
+  },
+  "fixedInput": {
+    "manifest": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+    "manifestSha256": "0e6c5b32a9300b91c2a56ebe446ea3bd2cc5a11a52d5bbd84a6623c06f8dd545",
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "postCount": 7,
+    "imageCount": 21,
+    "visitIds": [
+      "record-1784366489892",
+      "record-1784430741938",
+      "record-1781252770584",
+      "record-1784430374598",
+      "record-1784430118720",
+      "record-1784431188621",
+      "record-1784430530197"
+    ],
+    "samePostAndOrderedImageInput": true
+  },
+  "savedOutputs": {
+    "baselineFull": {
+      "report": "2026-08-28-gemini-3.5-flash-lite-baseline-full.json",
+      "localEvidencePath": "../../../zukan-gemini-minimal-bench-20260828/reports/2026-08-28-gemini-3.5-flash-lite-baseline-full.json",
+      "sha256": "eadd3716de98160b920ac46e17b10fd2c59a35549155107a70051aec9409d4ad",
+      "rawFinalContentCopiedHere": false
+    },
+    "optimizedFull": {
+      "report": "2026-08-28-gemini-3.5-flash-lite-optimized-full.json",
+      "localEvidencePath": "../../../zukan-gemini-minimal-bench-20260828/reports/2026-08-28-gemini-3.5-flash-lite-optimized-full.json",
+      "sha256": "0bd4b5750b1451fb2959eb16bfb7c53ab20986c5b94d5bfaae917dc704b9e51f",
+      "rawFinalContentCopiedHere": false
+    },
+    "scoringInputs": "Per-post parsed response metadata and name digests are retained below; raw final content remains only in the saved reports above."
+  },
+  "canonicalGoldReadback": {
+    "source": "Cloudflare production D1 canonical observation read model",
+    "database": "ikimon_prod_observations_2026_06",
+    "databaseId": "c879eef6-009c-4710-a964-be343d96f3eb",
+    "operation": "SELECT only",
+    "targetKey": "record_id exact match against the seven fixed visit IDs",
+    "targetPostsWithOwnerConfirmedRecordState": 7,
+    "recordsWithAcceptedIdentification": 0,
+    "acceptedCommunityOrCuratorClaims": 0,
+    "activeIdentificationProjections": 0,
+    "legacyIdentificationRows": 0,
+    "manifestGoldStatuses": {
+      "unknown": 7,
+      "humanConsensus": 0
+    },
+    "goldPolicy": "owner_confirmed is record-level provenance, not taxonomic gold; only an explicit accepted human identification or community/curator consensus with durable projection is scoreable",
+    "excludedReference": "NOAH_MAX_READ_V1 is a visual reference and is not human gold",
+    "humanGoldCount": 0,
+    "humanGoldCountDisplay": "0/7",
+    "biologicalAccuracyProven": false
+  },
+  "scoring": {
+    "metric": "exact normalized taxon-name match against canonical human gold, with rank/critical-failure review",
+    "baseline": {
+      "scoredPosts": 0,
+      "correctPosts": null,
+      "accuracy": null,
+      "accuracyDisplay": "NOT_SCORED"
+    },
+    "optimized": {
+      "scoredPosts": 0,
+      "correctPosts": null,
+      "accuracy": null,
+      "accuracyDisplay": "NOT_SCORED"
+    },
+    "comparison": "UNDETERMINED_NO_HUMAN_GOLD",
+    "mismatchedPosts": [],
+    "mismatchStatus": "NOT_DETERMINABLE_WITHOUT_HUMAN_GOLD",
+    "humanReviewTargets": [
+      {
+        "visitId": "record-1784366489892",
+        "reason": "No canonical taxonomic human gold; review taxon name and supported rank"
+      },
+      {
+        "visitId": "record-1784430741938",
+        "reason": "No canonical taxonomic human gold; review taxon name and supported rank"
+      },
+      {
+        "visitId": "record-1781252770584",
+        "reason": "No canonical taxonomic human gold; review taxon name and supported rank"
+      },
+      {
+        "visitId": "record-1784430374598",
+        "reason": "No canonical taxonomic human gold; review taxon name and supported rank"
+      },
+      {
+        "visitId": "record-1784430118720",
+        "reason": "No canonical taxonomic human gold; review taxon name and supported rank"
+      },
+      {
+        "visitId": "record-1784431188621",
+        "reason": "No canonical taxonomic human gold; review taxon name and supported rank"
+      },
+      {
+        "visitId": "record-1784430530197",
+        "reason": "No canonical taxonomic human gold; review taxon name and supported rank"
+      }
+    ]
+  },
+  "perPost": [
+    {
+      "visitId": "record-1784366489892",
+      "baseline": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "genus",
+        "confidenceBand": "low",
+        "recommendedTaxonNameOnly": false,
+        "recommendedTaxonNameSha256": "dd42a1462b4ad0297fd2855532dd93696e79dd63ebd3cc9d6aec815f03a07a3d"
+      },
+      "optimized": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "family",
+        "confidenceBand": "low",
+        "recommendedTaxonNameOnly": true,
+        "recommendedTaxonName": "Asteraceae",
+        "recommendedTaxonNameSha256": "d34bfdeb0d26d532bbfa56ae7edc571f3be5221eb1c4fd19450eaab4d42195c3"
+      },
+      "baselineCorrect": null,
+      "optimizedCorrect": null,
+      "status": "needs_human_review"
+    },
+    {
+      "visitId": "record-1784430741938",
+      "baseline": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "genus",
+        "confidenceBand": "high",
+        "recommendedTaxonNameOnly": false,
+        "recommendedTaxonNameSha256": "612f3ca98c0a698b9003060109715509a6443a1ee8cf2ff5fc99952989a6a2d6"
+      },
+      "optimized": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "genus",
+        "confidenceBand": "high",
+        "recommendedTaxonNameOnly": true,
+        "recommendedTaxonName": "Oxalis",
+        "recommendedTaxonNameSha256": "eb7c1cf4cd7c05ee2ccdee6d0ce91d9111d8e6b190110011efafdf16bceb62cf"
+      },
+      "baselineCorrect": null,
+      "optimizedCorrect": null,
+      "status": "needs_human_review"
+    },
+    {
+      "visitId": "record-1781252770584",
+      "baseline": {
+        "schemaValid": false,
+        "criticalFailures": ["invalid_json"],
+        "recommendedRank": null,
+        "confidenceBand": null,
+        "recommendedTaxonNameOnly": false,
+        "recommendedTaxonNameSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "optimized": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "family",
+        "confidenceBand": "low",
+        "recommendedTaxonNameOnly": true,
+        "recommendedTaxonName": "Scarabaeidae",
+        "recommendedTaxonNameSha256": "ec17d4e5dbfb7f190dc3a124faf0bac6734463fcb58ea30b48d588d474e61316"
+      },
+      "baselineCorrect": null,
+      "optimizedCorrect": null,
+      "status": "needs_human_review"
+    },
+    {
+      "visitId": "record-1784430374598",
+      "baseline": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "genus",
+        "confidenceBand": "medium",
+        "recommendedTaxonNameOnly": false,
+        "recommendedTaxonNameSha256": "31a0f139bce344be424951569e1fe46470d8505b8c0caa31e9748219ee05f24d"
+      },
+      "optimized": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "species",
+        "confidenceBand": "high",
+        "recommendedTaxonNameOnly": true,
+        "recommendedTaxonName": "Acalypha reptans",
+        "recommendedTaxonNameSha256": "a824c3f212180d674c148031bd3e12db028d7dfc73cd0f9fb6b4d365f055fd07"
+      },
+      "baselineCorrect": null,
+      "optimizedCorrect": null,
+      "status": "needs_human_review"
+    },
+    {
+      "visitId": "record-1784430118720",
+      "baseline": {
+        "schemaValid": false,
+        "criticalFailures": ["model_error:gemini_empty_response:gemini-3.5-flash-lite"],
+        "recommendedRank": null,
+        "confidenceBand": null,
+        "recommendedTaxonNameOnly": false,
+        "recommendedTaxonNameSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "optimized": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "genus",
+        "confidenceBand": "low",
+        "recommendedTaxonNameOnly": true,
+        "recommendedTaxonName": "Rubus",
+        "recommendedTaxonNameSha256": "4427795c725dc9ccb80e1ef0c69c61001735012939c4860007afb1f49133aca5"
+      },
+      "baselineCorrect": null,
+      "optimizedCorrect": null,
+      "status": "needs_human_review"
+    },
+    {
+      "visitId": "record-1784431188621",
+      "baseline": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "species",
+        "confidenceBand": "medium",
+        "recommendedTaxonNameOnly": false,
+        "recommendedTaxonNameSha256": "4eaa136edf9dd551e22b3c51a01232f060013c89dcda3f4233f79d03a2022efc"
+      },
+      "optimized": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "species",
+        "confidenceBand": "high",
+        "recommendedTaxonNameOnly": true,
+        "recommendedTaxonName": "Passer montanus",
+        "recommendedTaxonNameSha256": "8832735c7802c7d03ff09f7551e96223d2a47cb9eb4d15c0825050b5b19a328f"
+      },
+      "baselineCorrect": null,
+      "optimizedCorrect": null,
+      "status": "needs_human_review"
+    },
+    {
+      "visitId": "record-1784430530197",
+      "baseline": {
+        "schemaValid": false,
+        "criticalFailures": ["invalid_json"],
+        "recommendedRank": null,
+        "confidenceBand": null,
+        "recommendedTaxonNameOnly": false,
+        "recommendedTaxonNameSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "optimized": {
+        "schemaValid": true,
+        "criticalFailures": [],
+        "recommendedRank": "lifeform",
+        "confidenceBand": "low",
+        "recommendedTaxonNameOnly": true,
+        "recommendedTaxonName": "bird",
+        "recommendedTaxonNameSha256": "7a5179eecc0fe18760ba615f92603372ae3fe302860098a019e15927551fee3b"
+      },
+      "baselineCorrect": null,
+      "optimizedCorrect": null,
+      "status": "needs_human_review"
+    }
+  ],
+  "decision": {
+    "verdict": "KEEP_BENCH_ONLY",
+    "reason": "Human gold is 0/7, so optimized biological accuracy cannot be shown to be equal to or better than baseline. Operational reliability gains do not satisfy the accuracy promotion gate.",
+    "nextProductionDeltaIfPromoted": null,
+    "requiredNextDelta": "Obtain canonical taxonomic human gold for the seven fixed posts, fill the per-post gold fields, and rescore the saved outputs without rerunning the model unless the fixed input or prompt changes.",
+    "productionDeployment": "NOT_RUN"
+  }
+}
