@@ -1,0 +1,624 @@
+{
+  "version": "zukan-cross-model-grounding-comparison-v1",
+  "generatedAt": "2026-08-28",
+  "purpose": "Compare saved Gemini/GLM final content against fixed images and immutable NOAH_MAX_READ_V1 visual reference; not a biological accuracy benchmark.",
+  "noModelRerun": true,
+  "fixedInput": {
+    "manifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "postCount": 7,
+    "imageCount": 21,
+    "visitOrder": [
+      "record-1784366489892",
+      "record-1784430741938",
+      "record-1781252770584",
+      "record-1784430374598",
+      "record-1784430118720",
+      "record-1784431188621",
+      "record-1784430530197"
+    ],
+    "imageSha256ByVisitId": {
+      "record-1784366489892": [
+        "ee6e3a54d816c4d4ed8f67721d6c8283db87f43ba24d0a0d01cbed82ae565753",
+        "40efc9e830cef93f0b3183ad1654f9ec86c158846b6e1c52da8fc3367dd99726",
+        "4d9f7de05d09ee33f30296aefa60095e57b7f0143eb1d7cf2c79456cfed5ca87"
+      ],
+      "record-1784430741938": [
+        "2c01f57184968e56efb6965ce2bf1d0e11396942bc07f7b3af11bff7597c031b",
+        "68fc1ccfdc5a799222351454478a0025275f55f9f8b6d22c6c162e2b703fb51e",
+        "faef3ead9e273c0465ca59a9f97ba9ba2e077542f4ab99cc8c175600c8f56583"
+      ],
+      "record-1781252770584": [
+        "2ab79c70ea5572c683301dc76daa7dd755722e2f49c5b1f8c759de48f26763ba",
+        "58e3f4310ce35d70cc89722799f74ca5ef9923de565016ae4e03cc23afcb20f3",
+        "3c2283e9733f882b651397bc0c39fb666a6d90eb613c642a94a56a12ead1df3a"
+      ],
+      "record-1784430374598": [
+        "0b52d058750744cae5f747b73de92164656c17b96e8d9256fa93d323f1359141",
+        "1ca42989720be07b654b25eb5fd71b6b9d4ecd49245c2d3dc2543419fa1d99b0",
+        "62336f09742d9fd2dede9a85ca5db68c4b4743ccb5ff3c1048d4f5b1f5b49057"
+      ],
+      "record-1784430118720": [
+        "2ad88d0a7540a55efc44db13cc62ea2af275eacd85ac73184d8a0c037f782448",
+        "a0b8eb2d83d485960b855d88f0bf1e4d50d5af171109502b62c9064548832564",
+        "43a999fc83fd12397e32d1ec211ca71d9311e77d49560fd7c5bc53f9f490afc3"
+      ],
+      "record-1784431188621": [
+        "dccfcdb4ab4b2de32d648e4cef9ff69d1867cb5fcb9d6a3b0da62193cc498316",
+        "ba8d7ae0fa64d1adc3e2c3ee6eebdbe0ac4af41f2c649b39f1b3090ebbee22cf",
+        "bfd9311b1a64827412539c6963582dc92bec85e8d462af5ed8729e160ba910be"
+      ],
+      "record-1784430530197": [
+        "a743b4e9e7c2e68b8524395d685fc3bcf55c5da9809535a2830fe66d8e57eeb8",
+        "e36214a4bf6ee8c9051b0452c3baac9a7dabdeff341b79c8313b57684208e7f0",
+        "ddc0e79182114a3550940337b5ddb7437829aae06e8bf1f4007568217dc86ccb"
+      ]
+    },
+    "postSha256ByVisitId": {
+      "record-1784366489892": "0a2d87197bf3368f3c27b7790457e047de286ebc98835f0f03c7603e597231e0",
+      "record-1784430741938": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752",
+      "record-1781252770584": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2",
+      "record-1784430374598": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267",
+      "record-1784430118720": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f",
+      "record-1784431188621": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5",
+      "record-1784430530197": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0"
+    },
+    "rights": "canonical 7/7 verified before existing runs; unchanged in this comparison"
+  },
+  "reference": {
+    "id": "NOAH_MAX_READ_V1",
+    "path": "platform_v2/ops/model-bench/reference/noah-max-read-v1/",
+    "role": "high_resolution_visual_reference_only_not_gold",
+    "notGold": true,
+    "immutable": true,
+    "actualImageReview": "All 21 fixed manifest images were re-opened for this review; manifest image SHA-256 values were verified."
+  },
+  "claimLabels": [
+    "SUPPORTED",
+    "PLAUSIBLE",
+    "OVERSTATED",
+    "NOT_VISIBLE",
+    "MISSED"
+  ],
+  "scoreScale": {
+    "range": "0-100",
+    "direction": "higher_is_better",
+    "rateFields": "*_rate_pct are percentages where lower is better",
+    "missingContent": "null; excluded from aggregate means; never converted to zero"
+  },
+  "modelMapping": {
+    "blindA": {
+      "blindModelId": "blind-A",
+      "model": "gemini-3.5-flash-lite",
+      "provider": "gemini",
+      "summaryFile": "2026-08-28-gemini-grounding-summary.json"
+    },
+    "blindB": {
+      "blindModelId": "blind-B",
+      "model": "@cf/zai-org/glm-5.3-flash",
+      "provider": "cloudflare-workers-AI",
+      "summaryFile": "2026-08-28-glm-grounding-summary.json"
+    }
+  },
+  "operationalReuse": {
+    "Gemini": {
+      "model": "gemini-3.5-flash-lite",
+      "provider": "gemini",
+      "sourceReport": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json",
+      "successRatePct": 100,
+      "schemaValidRatePct": 100,
+      "p50LatencyMs": 2582,
+      "p95LatencyMs": 4831,
+      "totalInputTokens": 82845,
+      "totalOutputTokens": 2238,
+      "estimatedCostUsd": 0.0304485
+    },
+    "GLM": {
+      "model": "@cf/zai-org/glm-5.3-flash",
+      "provider": "cloudflare-workers-ai",
+      "sourceReport": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json",
+      "successRatePct": 100,
+      "schemaValidRatePct": 100,
+      "p50LatencyMs": 53996,
+      "p95LatencyMs": 64073,
+      "totalInputTokens": 153402,
+      "totalOutputTokens": 26359,
+      "estimatedCostUsd": 0.0361898
+    },
+    "note": "Operational metrics are reused from the existing 7-post reports; no Gemini or GLM request was made in this comparison."
+  },
+  "groundingAggregate": {
+    "Gemini": {
+      "visible_feature_recall": 59,
+      "diagnostic_feature_recall": 49.4,
+      "multi_image_integration": 47.6,
+      "subject_separation": 64,
+      "taxonomic_stopping_rank": 69.3,
+      "abstention_quality": 68.4,
+      "useful_observations": 45.4,
+      "unsupported_claims_score": 64.3,
+      "hallucinated_features_score": 65,
+      "overprecision_score": 72.3,
+      "rank_discipline": 67.1
+    },
+    "GLM": {
+      "visible_feature_recall": 79.5,
+      "diagnostic_feature_recall": 67.2,
+      "multi_image_integration": 74.7,
+      "subject_separation": 74.5,
+      "taxonomic_stopping_rank": 75.7,
+      "abstention_quality": 73.2,
+      "useful_observations": 75.3,
+      "unsupported_claims_score": 64,
+      "hallucinated_features_score": 65,
+      "overprecision_score": 71.8,
+      "rank_discipline": 74.3
+    }
+  },
+  "qualityAggregate": {
+    "Gemini": {
+      "unsupportedClaims": 13,
+      "hallucinatedFeatures": 8,
+      "overprecision": 4,
+      "claimCount": 31,
+      "scoredPostCount": 7,
+      "unsupportedClaimRatePct": 41.9,
+      "hallucinatedFeatureRatePct": 25.8,
+      "overprecisionClaimRatePct": 12.9,
+      "unsupportedPostRatePct": 71.4,
+      "hallucinatedPostRatePct": 71.4,
+      "overprecisionPostRatePct": 42.9
+    },
+    "GLM": {
+      "unsupportedClaims": 14,
+      "hallucinatedFeatures": 8,
+      "overprecision": 3,
+      "claimCount": 30,
+      "scoredPostCount": 6,
+      "unsupportedClaimRatePct": 46.7,
+      "hallucinatedFeatureRatePct": 26.7,
+      "overprecisionClaimRatePct": 10,
+      "unsupportedPostRatePct": 83.3,
+      "hallucinatedPostRatePct": 50,
+      "overprecisionPostRatePct": 33.3
+    }
+  },
+  "perPost": [
+    {
+      "postIndex": 1,
+      "visitId": "record-1784366489892",
+      "imageCount": 3,
+      "blindA": {
+        "recommendedTaxon": "キク科の一種または近縁の双子葉植物子株 (Asteraceae / order Asterales などの一種として発芽初期段階の個体ですが、葉や茎の毛、対生または互生の初期配列などの決定的形質がまだ十分に展開していません。画像からはキク科などの幼植物の可能性がありますが、種レベルへの踏み込みは不十分です。)",
+        "recommendedRank": "family",
+        "confidence": "low",
+        "rawFinalContentStatus": "available",
+        "scores": {
+          "visible_feature_recall": 35,
+          "diagnostic_feature_recall": 25,
+          "multi_image_integration": 20,
+          "subject_separation": 60,
+          "taxonomic_stopping_rank": 72,
+          "abstention_quality": 82,
+          "useful_observations": 35,
+          "unsupported_claims_score": 72,
+          "hallucinated_features_score": 78,
+          "overprecision_score": 95,
+          "rank_discipline": 72
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 1,
+          "hallucinatedFeatures": 1,
+          "overprecision": 0
+        }
+      },
+      "blindB": {
+        "recommendedTaxon": "ムラサキバレンギク属（Erigeron属）の幼苗",
+        "recommendedRank": "genus",
+        "confidence": "low",
+        "rawFinalContentStatus": "available",
+        "sourceRunClass": "current_full_8192",
+        "scores": {
+          "visible_feature_recall": 88,
+          "diagnostic_feature_recall": 84,
+          "multi_image_integration": 90,
+          "subject_separation": 92,
+          "taxonomic_stopping_rank": 95,
+          "abstention_quality": 92,
+          "useful_observations": 92,
+          "unsupported_claims_score": 84,
+          "hallucinated_features_score": 88,
+          "overprecision_score": 95,
+          "rank_discipline": 96
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 1,
+          "hallucinatedFeatures": 0,
+          "overprecision": 0
+        }
+      },
+      "crossModelAgreement": {
+        "level": "PARTIAL_DIRECTIONAL",
+        "statement": "両者とも有毛の幼苗を見ているが、Aは科止まり、BはErigeron属方向まで進む。"
+      },
+      "contentComparison": "B exposes stronger leaf/hair/context evidence; A is conservative but underspecified."
+    },
+    {
+      "postIndex": 2,
+      "visitId": "record-1784430741938",
+      "imageCount": 3,
+      "blindA": {
+        "recommendedTaxon": "カタバミ属の一種（カタバミ等）",
+        "recommendedRank": "genus",
+        "confidence": "high",
+        "rawFinalContentStatus": "available",
+        "scores": {
+          "visible_feature_recall": 48,
+          "diagnostic_feature_recall": 55,
+          "multi_image_integration": 45,
+          "subject_separation": 72,
+          "taxonomic_stopping_rank": 85,
+          "abstention_quality": 86,
+          "useful_observations": 38,
+          "unsupported_claims_score": 96,
+          "hallucinated_features_score": 96,
+          "overprecision_score": 100,
+          "rank_discipline": 88
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 0,
+          "hallucinatedFeatures": 0,
+          "overprecision": 0
+        }
+      },
+      "blindB": {
+        "recommendedTaxon": "カタバミ（オックスalis類）",
+        "recommendedRank": "species",
+        "confidence": "medium",
+        "rawFinalContentStatus": "available",
+        "sourceRunClass": "current_full_8192",
+        "scores": {
+          "visible_feature_recall": 96,
+          "diagnostic_feature_recall": 94,
+          "multi_image_integration": 96,
+          "subject_separation": 94,
+          "taxonomic_stopping_rank": 91,
+          "abstention_quality": 90,
+          "useful_observations": 94,
+          "unsupported_claims_score": 82,
+          "hallucinated_features_score": 86,
+          "overprecision_score": 86,
+          "rank_discipline": 90
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 2,
+          "hallucinatedFeatures": 0,
+          "overprecision": 0
+        }
+      },
+      "crossModelAgreement": {
+        "level": "STRONG_DIRECTIONAL",
+        "statement": "両者ともOxalis方向。Bは三出葉・黄色花・匍匐性を明示し、Aは出力が疎。"
+      },
+      "contentComparison": "B integrates the three diagnostic signals and reaches Oxalis corniculata plausibly; A points to Oxalis but omits most visible evidence."
+    },
+    {
+      "postIndex": 3,
+      "visitId": "record-1781252770584",
+      "imageCount": 3,
+      "blindA": {
+        "recommendedTaxon": "コガネムシ科の一種あるいはスジコガネ属などコガネムシ亜科の甲虫類です。赤褐色の上翅と平行な筋（条溝）を持つ体型が特徴ですが、種レベルの同定には頭部や腹面の詳細な特徴が必要です。コガネムシ科の総称として捉えるのが無難です。",
+        "recommendedRank": "family",
+        "confidence": "medium",
+        "rawFinalContentStatus": "available",
+        "scores": {
+          "visible_feature_recall": 78,
+          "diagnostic_feature_recall": 75,
+          "multi_image_integration": 65,
+          "subject_separation": 92,
+          "taxonomic_stopping_rank": 96,
+          "abstention_quality": 92,
+          "useful_observations": 60,
+          "unsupported_claims_score": 92,
+          "hallucinated_features_score": 94,
+          "overprecision_score": 96,
+          "rank_discipline": 96
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 0,
+          "hallucinatedFeatures": 0,
+          "overprecision": 0
+        }
+      },
+      "blindB": {
+        "recommendedTaxon": null,
+        "recommendedRank": null,
+        "confidence": null,
+        "rawFinalContentStatus": "unavailable_in_existing_evidence",
+        "sourceRunClass": "no_saved_final_content",
+        "scores": null,
+        "qualityCounts": null
+      },
+      "crossModelAgreement": {
+        "level": "NOT_COMPARABLE",
+        "statement": "Bに保存済みfinal contentがなく、cross-model agreementは判定しない。"
+      },
+      "contentComparison": "A provides a defensible Scarabaeidae-family stop; B has no saved final content, so no content comparison."
+    },
+    {
+      "postIndex": 4,
+      "visitId": "record-1784430374598",
+      "imageCount": 3,
+      "blindA": {
+        "recommendedTaxon": "アカリファ属（キャットテール）の一種子孫・近縁種またはヒスイカズラ類等ではなくエノキグサ属 (Acalypha) の園芸種キャットテール等の一種に類似した植物群の一例等として、エノキグサ属の一種であるアカネ科やトウダイグサ科などの形質を持つ植物に酷似する花序（Acalypha hispidaなど）の一種群と考えられるが、一般的な鑑賞用キャットテール（Acalypha hispida）を第一候補とする群としての命名が可能だが、ここでは genus または species レベルで表現します：Acalypha属（アカリファ属）の一種（代表例: キャットテール / Acalypha hispida 等）等、ただし種レベルでの園芸品種が多彩なため属レベルを推奨するケースもあるが、特徴的な赤い尾状の花穂から Acalypha hispida が最も有力）と推定される。しかし安全に属レベルとする：Acalypha属の一種としてアカリファ・ヒスピダ（Acalypha hispida）等が疑われるが安全に属レベル名とする：Acalypha属の一種とするべきか species とすべきか。写真のフサフサとした赤い穂状花序と鋸歯のある卵形の葉は、トウダイグサ科アカリファ属（Acalypha）の代表種であるキャットテール（アカリファ・ヒスピダ）に非常に一致する。園芸種として栽培されるほか、熱帯では逸出することもある。確度の高い種名として Acalypha hispida を挙げられるが、近縁な園芸品種も存在するため属または種としてアカリファ・ヒスピダを提示する。正確な種確定には花序の細かい構造や栽培環境の確認が望ましい。ここでは推奨 taxon 名として「アカリファ・ヒスピダ」を挙げつつ rank を species とする。実際に写真の鮮やかな赤いブラシ状の穂と鋸歯状の葉は典型的なキャットテールの形態を示しているため、確信度高く species レベルで提示できる。ただし、安全を期すため、学名は Acalypha hispida、推薦ランクを species とするが、確信度は高めである。以下に出力する：推奨学名 Acalypha hispida、推奨種名 キャットテール（アカリファ・ヒスピダ）。写真の赤いブラシ状の花穂や鋸歯のある葉、対生あるいは互生の葉の付き方からトウダイグサ科アカリファ属のキャットテール（Acalypha hispida）と判断できる。ただし、同属の他種や品種の可能性も完全に否定できないため、ここでは種レベルまたは属レベルでの慎重な扱いとしてアカリファ属の代表種として提示する。一般的な園芸種であるキャットテールとして鑑賞されることが多い。",
+        "recommendedRank": "genus",
+        "confidence": "high",
+        "rawFinalContentStatus": "available",
+        "scores": {
+          "visible_feature_recall": 78,
+          "diagnostic_feature_recall": 68,
+          "multi_image_integration": 60,
+          "subject_separation": 35,
+          "taxonomic_stopping_rank": 24,
+          "abstention_quality": 18,
+          "useful_observations": 28,
+          "unsupported_claims_score": 18,
+          "hallucinated_features_score": 18,
+          "overprecision_score": 8,
+          "rank_discipline": 18
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 5,
+          "hallucinatedFeatures": 2,
+          "overprecision": 2
+        }
+      },
+      "blindB": {
+        "recommendedTaxon": "アカリファ・ヒスピダ（猫しっぽ）",
+        "recommendedRank": "species",
+        "confidence": "high",
+        "rawFinalContentStatus": "available",
+        "sourceRunClass": "current_full_8192",
+        "scores": {
+          "visible_feature_recall": 75,
+          "diagnostic_feature_recall": 62,
+          "multi_image_integration": 68,
+          "subject_separation": 46,
+          "taxonomic_stopping_rank": 12,
+          "abstention_quality": 18,
+          "useful_observations": 62,
+          "unsupported_claims_score": 28,
+          "hallucinated_features_score": 22,
+          "overprecision_score": 5,
+          "rank_discipline": 12
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 5,
+          "hallucinatedFeatures": 3,
+          "overprecision": 2
+        }
+      },
+      "crossModelAgreement": {
+        "level": "STRONG_BUT_OVERPRECISE",
+        "statement": "両者ともAcalypha方向かつAcalypha hispidaへ寄せたが、矮性Acalyphaとの重要差を共有して見落とす。"
+      },
+      "contentComparison": "Both recognize Acalypha direction but both overcommit to A. hispida; neither adequately separates the dwarf target from neighboring plants."
+    },
+    {
+      "postIndex": 5,
+      "visitId": "record-1784430118720",
+      "imageCount": 3,
+      "blindA": {
+        "recommendedTaxon": "キイチゴ属の一種（モミジイチゴ等）またはキイチゴ類（バラ科）の若葉・茎の可能性があります。トゲや掌状の葉脈パターンが特徴的です。」として分類します。写真では明確な種確定に必要な花や果実が不足しています。同定は慎重に属レベルで行います。葉の形状や鋸歯からバラ科キイチゴ属（Rubus属）などが疑われます。追加の全体像や花・果実を確認してください。」として扱うのが妥当です。位置情報が未取得のため地域分布は評価保留。季節・時期情報は提供されていないため季節特有の動態は推測できません。場所情報がないため地域読みは保留とします。バラ科キイチゴ属は日本各地の林縁や道端に広く自生します。AIによる目測のため誤差大。確定値ではありません。新種判定はAIにはできません。可能性の示唆に留まります。AI判定です。駆除前に自治体・環境省にご確認ください。」",
+        "recommendedRank": "genus",
+        "confidence": "medium",
+        "rawFinalContentStatus": "available",
+        "scores": {
+          "visible_feature_recall": 42,
+          "diagnostic_feature_recall": 20,
+          "multi_image_integration": 18,
+          "subject_separation": 35,
+          "taxonomic_stopping_rank": 72,
+          "abstention_quality": 58,
+          "useful_observations": 40,
+          "unsupported_claims_score": 48,
+          "hallucinated_features_score": 42,
+          "overprecision_score": 72,
+          "rank_discipline": 68
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 3,
+          "hallucinatedFeatures": 2,
+          "overprecision": 1
+        }
+      },
+      "blindB": {
+        "recommendedTaxon": "ツタ属（ノブドウ類）",
+        "recommendedRank": "genus",
+        "confidence": "medium",
+        "rawFinalContentStatus": "available",
+        "sourceRunClass": "current_canary_same_config",
+        "scores": {
+          "visible_feature_recall": 42,
+          "diagnostic_feature_recall": 15,
+          "multi_image_integration": 20,
+          "subject_separation": 28,
+          "taxonomic_stopping_rank": 72,
+          "abstention_quality": 58,
+          "useful_observations": 38,
+          "unsupported_claims_score": 32,
+          "hallucinated_features_score": 30,
+          "overprecision_score": 60,
+          "rank_discipline": 66
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 4,
+          "hallucinatedFeatures": 3,
+          "overprecision": 1
+        }
+      },
+      "crossModelAgreement": {
+        "level": "LOW_DIRECTIONAL",
+        "statement": "両者とも鋸歯葉は拾うが、AはRubus、BはParthenocissusで、Bidensの未成熟頭花を共に見落とす。"
+      },
+      "contentComparison": "Both notice serrate foliage but miss the small developing head/bud and choose unsupported alternatives; this is the clearest shared visual miss."
+    },
+    {
+      "postIndex": 6,
+      "visitId": "record-1784431188621",
+      "imageCount": 3,
+      "blindA": {
+        "recommendedTaxon": "スズメ または ホオジロ類等（画像不鮮明のため要確認）の鳥類の一種 (Passer montanus等に近いが遠景のため要検証・スズメ科の一種として扱うべき可能性あり。ここではスズメ科の一種とするか、スズメ Passer montanus を第一候補とするが自信は中程度。確実に同定するため仮の候補としてスズメを置く。ここではスズメとする。学名: Passer montanus, ランク: species として暫定提示するが慎重に検証が必要。指示に従い形質を確認する。ここでは信頼度を高めるため rank=family, Passeridae スズメ科、あるいは rank=species Passer montanus を置く。写真では全体的に茶色っぽい頭部・体色と枝にとまる姿がスズメ科を想起させる。しかし解像度が低いため同定に限界がある。一般的なスズメ Passer montanus を推奨taxonとするが、慎重を期して低めの評価にする。画像中の鳥はスズメ科の特徴（ずんぐりした体型、円錐形のくちばし）を持つ。ただ種確定には不十分なため、スズメ科の一種にするかスズメとするか迷うところ。指示のフォーマットに合わせるため recommended_taxon_name は「スズメ」とする。学名は Passer montanus。)",
+        "recommendedRank": "species",
+        "confidence": "medium",
+        "rawFinalContentStatus": "available",
+        "scores": {
+          "visible_feature_recall": 68,
+          "diagnostic_feature_recall": 58,
+          "multi_image_integration": 65,
+          "subject_separation": 72,
+          "taxonomic_stopping_rank": 48,
+          "abstention_quality": 55,
+          "useful_observations": 52,
+          "unsupported_claims_score": 62,
+          "hallucinated_features_score": 62,
+          "overprecision_score": 45,
+          "rank_discipline": 42
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 2,
+          "hallucinatedFeatures": 1,
+          "overprecision": 1
+        }
+      },
+      "blindB": {
+        "recommendedTaxon": "スズメ",
+        "recommendedRank": "species",
+        "confidence": "medium",
+        "rawFinalContentStatus": "available",
+        "sourceRunClass": "historical_fixed_input_4096",
+        "scores": {
+          "visible_feature_recall": 94,
+          "diagnostic_feature_recall": 92,
+          "multi_image_integration": 96,
+          "subject_separation": 96,
+          "taxonomic_stopping_rank": 94,
+          "abstention_quality": 92,
+          "useful_observations": 90,
+          "unsupported_claims_score": 92,
+          "hallucinated_features_score": 94,
+          "overprecision_score": 95,
+          "rank_discipline": 94
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 0,
+          "hallucinatedFeatures": 0,
+          "overprecision": 0
+        }
+      },
+      "crossModelAgreement": {
+        "level": "STRONG_DIRECTIONAL",
+        "statement": "両者ともPasser方向。Bは頭部模様・個体分離まで明示し、Aは構造化出力が疎。"
+      },
+      "contentComparison": "B is materially better grounded in head pattern, upperparts, and two-bird/context separation; A remains sparse and rank-inconsistent."
+    },
+    {
+      "postIndex": 7,
+      "visitId": "record-1784430530197",
+      "imageCount": 3,
+      "blindA": {
+        "recommendedTaxon": "スズメ科の一種または類似の小鳥類の一種あるいは幼鳥等モズ科等可能性あり要詳細検討必要証拠不足のため保留群はハッカチョウ科などとも比較要するがシルエットや樹木中の環境から小鳥類の一種として科または目レベルで検討するが位置特定不可のため断定を避ける必要ありここではスズメ目の一種や一般的な鳴禽類の一種として保留し追加証拠が必須である点に注意を払うことが安全であるためスズメ目の一種あるいは科レベルでの一般候補とするがここでは分かりやすくスズメ目として表現する代わりに一般的な鳥類の一種とするのが適切か確認を要するがスズメ目の一種を推奨するべきか検討した結果スズメ目の一種とするのが安全であるためスズメ目の一種として記載する形が望ましいがより具体的にスズメ科の一種とするかあるいはモズ科の一種とするか判断を留保しスズメ目の一種とするのが最も無難であるためスズメ目の一種とするがシステム上科レベルまたは目レベルが望ましいためスズメ目とするのが安全であるためスズメ目とするが指示に従い科レベルとしてスズメ科の一種とするかモズ科を置くスズメ目の一種とするのが無難であるからスズメ目の一種としておくが項目ルールに従いスズメ目の一種とするのが良いかあるいはモズ科の一種とするか検討しスズメ目鳥類の一種としておくのが安全であるためスズメ目の一種とするが指定のランクfamilyに対応させるためカラス科やヒヨドリ科などの可能性も含めスズメ目の一種とするべきところを一般的なスズメ目の一種としておく。具体的にどの科か断定できないためスズメ目の一種とするのが適切だがrankをfamilyにする必要があるためスズメ科の一種とするかヒヨドリ科の一種とするか不明でありしかしシルエットから小型の鳴禽類の一種として一般的なスズメ目の一種として登録するわけにいかないためヒヨドリ科またはスズメ科の一種として記載するがここではスズメ目の一種としつつ推奨ランクをfamilyにしておくためスズメ科の一種として記載するのが安全かもしれないが断定を避けてスズメ目の一種とするためにランクをorderにすべきか指定はfamilyのためスズメ科の一種とするが不確実性が高いためスズメ科の一種として扱うこととするが正確にはスズメ目の一種とするべきであるものの形式に合わせてスズメ科の一種として記載する事とするがより正確な表現としてスズメ目の一種とするのが妥当でありしかし指示された制約からスズメ科の一種とする。さらにモズ科の一種という可能性もあるためスズメ目の一種としておくのが無難であるが指定のフォーマットに準拠するためスズメ科の一種とする。詳細を記載し不確実性を明記する。実質的に種同定は困難である。正確にはスズメ目の一種。",
+        "recommendedRank": "family",
+        "confidence": "low",
+        "rawFinalContentStatus": "available",
+        "scores": {
+          "visible_feature_recall": 64,
+          "diagnostic_feature_recall": 45,
+          "multi_image_integration": 60,
+          "subject_separation": 82,
+          "taxonomic_stopping_rank": 88,
+          "abstention_quality": 88,
+          "useful_observations": 65,
+          "unsupported_claims_score": 62,
+          "hallucinated_features_score": 65,
+          "overprecision_score": 90,
+          "rank_discipline": 86
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 2,
+          "hallucinatedFeatures": 2,
+          "overprecision": 0
+        }
+      },
+      "blindB": {
+        "recommendedTaxon": "ツグミ科の一種（鳥類）",
+        "recommendedRank": "family",
+        "confidence": "low",
+        "rawFinalContentStatus": "available",
+        "sourceRunClass": "current_full_8192",
+        "scores": {
+          "visible_feature_recall": 82,
+          "diagnostic_feature_recall": 56,
+          "multi_image_integration": 78,
+          "subject_separation": 91,
+          "taxonomic_stopping_rank": 90,
+          "abstention_quality": 89,
+          "useful_observations": 76,
+          "unsupported_claims_score": 66,
+          "hallucinated_features_score": 70,
+          "overprecision_score": 90,
+          "rank_discipline": 88
+        },
+        "qualityCounts": {
+          "unsupportedClaims": 2,
+          "hallucinatedFeatures": 2,
+          "overprecision": 0
+        }
+      },
+      "crossModelAgreement": {
+        "level": "PARTIAL_DIRECTIONAL",
+        "statement": "両者とも低解像度からTurdidae/科レベルに抑えたが、NOAH referenceのHypsipetes方向とは異なる。"
+      },
+      "contentComparison": "Both abstain at broad rank and avoid exact location, which is appropriate for the blur; both lean to Turdidae rather than the NOAH Hypsipetes direction."
+    }
+  ],
+  "blockedModels": [
+    {
+      "model": "@cf/qwen/qwen3.8-27b",
+      "status": "CANARY_BLOCKED",
+      "existingCanary": "HTTP 408 / provider code 3046",
+      "fullRun": "not executed",
+      "retryCount": 0,
+      "note": "Existing canary is retained; no retry."
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "status": "CANARY_BLOCKED",
+      "existingCanary": "HTTP 402 / invalid_prompt",
+      "fullRun": "not executed",
+      "retryCount": 0,
+      "note": "Existing canary is retained; no retry."
+    },
+    {
+      "model": "@cf/meta/llama-3.2-11b-vision-instruct",
+      "status": "CANARY_BLOCKED",
+      "existingCanary": "HTTP 403 / model terms not accepted",
+      "fullRun": "not executed",
+      "retryCount": 0,
+      "note": "No license acceptance was performed."
+    }
+  ],
+  "verdict": {
+    "BEST_GROUNDING": "NO_CLEAR_WINNER",
+    "BEST_OPERATIONAL": "gemini-3.5-flash-lite",
+    "BEST_BALANCED": "gemini-3.5-flash-lite",
+    "biologicalAccuracyWinner": null,
+    "rationale": [
+      "GLM has stronger explicit feature recall and multi-image integration on several reviewable posts, especially the Oxalis and sparrow cases.",
+      "Both models share a material failure on the Bidens-like post; both overcommit on the dwarf Acalypha case, with GLM's extra detail not resolving the taxonomic stop.",
+      "Gemini is 7/7 operationally, about 21x faster at p50, about 13x faster at p95, and slightly cheaper on the existing run while remaining more conservative overall.",
+      "NOAH_MAX_READ_V1 is a visual reference only; it is not human gold and cannot establish biological accuracy."
+    ]
+  }
+}

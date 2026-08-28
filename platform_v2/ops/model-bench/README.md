@@ -14,7 +14,7 @@ The current comparison reuses the immutable owner-derived 7-post / 21-image mani
 
 Gemini's previous 1/7 schema result was a benchmark-adapter omission: the model-router call set JSON MIME type but did not pass `responseJsonSchema`; the router already supported it, and the production Gemini implementation already used a native response schema. The canary passed after this minimum adapter fix, and the same seven posts then passed 7/7 schema validation. Full safe final content and parsed JSON are retained per post in the Evidence report; private reasoning is never stored.
 
-The seven-post run has no human-consensus gold. The final verdict is therefore `INSUFFICIENT_GOLD`; no model adoption decision is made. See the latest Evidence summary and its linked per-model reports for the measured comparison and the exact gold shortage.
+The current grounding comparison intentionally does not use human gold. `NOAH_MAX_READ_V1` is an immutable high-resolution visual reference only, not taxonomic gold. Saved Gemini/GLM final content was reviewed with model names hidden; the comparison verdicts are `BEST_GROUNDING`, `BEST_OPERATIONAL`, and `BEST_BALANCED`, with no biological accuracy winner. See the 2026-08-28 grounding Evidence below. The historical human-gold gate remains unchanged for automatic model switching and is not converted into a zero score for this content comparison.
 
 ## Goal
 
@@ -106,7 +106,16 @@ The 2026-08-27 expanded Cloudflare-only canary is recorded in `platform_v2/ops/m
 - `openai/gpt-5.6-luna`: one Cloudflare Responses request returned HTTP 402 / `invalid_prompt` for the unchanged multimodal input; stopped before the seven-post run.
 - `@cf/meta/llama-3.2-11b-vision-instruct`: one request returned HTTP 403 / `5016` (Meta model terms not accepted); no license agreement request was sent and the model is `BLOCKED_LICENSE`.
 
-All three canaries used Cloudflare authentication and official REST endpoints, with one request, no retry, no fallback, `stream=false`, and the same native ZUKAN output schema. Because no new model passed canary, no expanded model completed a seven-post run. Existing Gemini and GLM reports remain the only full-run comparison inputs; the verdict remains `INSUFFICIENT_GOLD`. Cloudflare's `openai/gpt-5.6-luna` route uses the Responses API and does not require a local OpenAI API key.
+All three canaries used Cloudflare authentication and official REST endpoints, with one request, no retry, no fallback, `stream=false`, and the same native ZUKAN output schema. Because no new model passed canary, no expanded model completed a seven-post run. Existing Gemini and GLM reports remain the only full-run operational inputs; their saved final content is compared in the bounded 2026-08-28 grounding Evidence. Cloudflare's `openai/gpt-5.6-luna` route uses the Responses API and does not require a local OpenAI API key.
+
+The 2026-08-28 grounding comparison did not call any model. It re-opened the fixed 21 images, verified their manifest SHA-256 values, and compared saved final content against the immutable `NOAH_MAX_READ_V1` visual reference. The blind artifact preserves full safe `raw_final_content`, full `parsed_json`, claim-level labels, scores, and nullable later-human-review fields. The GLM beetle post has no saved final content and is excluded from score means rather than scored as zero. See:
+
+- `evidence/2026-08-28-blind-grounding-per-post.json`
+- `evidence/2026-08-28-gemini-grounding-summary.json`
+- `evidence/2026-08-28-glm-grounding-summary.json`
+- `evidence/2026-08-28-grounding-cross-model-comparison.json`
+- `evidence/2026-08-28-grounding-cross-model-comparison.md`
+- `schemas/zukan-grounding-comparison-v1.schema.json`
 
 ## Explicit commands
 
@@ -177,4 +186,5 @@ npm run bench:zukan -- compare \
   --reports=ops/model-bench/reports/baseline.json,ops/model-bench/reports/challenger.json
 ```
 
-The legacy `decision` field remains for compatibility. Current Gemini-vs-GLM Evidence uses the governed `finalVerdict`: `KEEP_GEMINI`, `SWITCH_TO_GLM`, `INSUFFICIENT_GOLD`, or `BASELINE_INVALID`. The last state explicitly approves no model.
+The legacy `decision` field remains for compatibility. Historical Gemini-vs-GLM Evidence uses the governed `finalVerdict`: `KEEP_GEMINI`, `SWITCH_TO_GLM`, `INSUFFICIENT_GOLD`, or `BASELINE_INVALID`. The new bounded content comparison uses separate `BEST_GROUNDING`, `BEST_OPERATIONAL`, `BEST_BALANCED`, and `NO_CLEAR_WINNER` fields; it does not approve a biological accuracy winner or change the production model.
+
