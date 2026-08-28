@@ -20,6 +20,7 @@ import {
   generateWithCloudflareOfficialRest,
   generateWithCloudflareAiRest,
   rightsVettedTargetsFromResearchPayload,
+  loadZukanBenchPrompt,
   scoreZukanBenchResponse,
   selectDeterministicPostTargets,
   selectZukanBenchFixtures,
@@ -83,6 +84,18 @@ test("Gemini benchmark uses the native schema for scored fields while allowing f
     "order",
     "lifeform",
   ]);
+});
+
+test("benchmark prompt source defaults to the manifest prompt and supports an explicit override", async () => {
+  const manifest = { promptPath: "src/prompts/observation_reassess.md" };
+  const defaultPrompt = await loadZukanBenchPrompt(manifest);
+  const minimalPrompt = await loadZukanBenchPrompt(manifest, "src/prompts/observation_reassess_bench_minimal.md");
+
+  assert.equal(defaultPrompt.sourcePath, manifest.promptPath);
+  assert.equal(minimalPrompt.sourcePath, "src/prompts/observation_reassess_bench_minimal.md");
+  assert.notEqual(defaultPrompt.sha256, minimalPrompt.sha256);
+  assert.match(minimalPrompt.text, /recommended_taxon_name/iu);
+  assert.match(minimalPrompt.text, /名前だけ/u);
 });
 
 test("post selection is deterministic and deduped by visit", () => {

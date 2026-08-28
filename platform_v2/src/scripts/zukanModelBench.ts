@@ -521,6 +521,21 @@ function defaultRightsManifestPath(manifestPath: string): string {
   return manifestPath.replace(/\.json$/u, ".external.json");
 }
 
+export type ZukanBenchPrompt = {
+  sourcePath: string;
+  text: string;
+  sha256: string;
+};
+
+export async function loadZukanBenchPrompt(
+  manifest: Pick<ZukanBenchManifest, "promptPath">,
+  promptSource?: string,
+): Promise<ZukanBenchPrompt> {
+  const sourcePath = promptSource?.trim() || manifest.promptPath;
+  const text = await readFile(sourcePath, "utf8");
+  return { sourcePath, text, sha256: sha256(text) };
+}
+
 export async function freezeZukanBenchManifest(options: {
   baseUrl?: string;
   count?: number;
@@ -1502,6 +1517,7 @@ export async function runZukanModelBench(options: {
   maxOutputTokens?: number;
   temperature?: number;
   thinkingLevel?: "minimal";
+  promptSource?: string;
   reportLabel?: string;
   fixtureVisitIds?: readonly string[];
   requireFixedOwnerSmoke?: boolean;
@@ -1523,7 +1539,8 @@ export async function runZukanModelBench(options: {
     throw new Error("zukan_bench_fixed_owner_smoke_manifest_mismatch");
   }
   if (transport === "model-router") configureModelProvider(options.model);
-  const promptTemplate = await readFile(manifest.promptPath, "utf8");
+  const prompt = await loadZukanBenchPrompt(manifest, options.promptSource);
+  const promptTemplate = prompt.text;
   const fixtures = selectZukanBenchFixtures(manifest, options);
   if (options.requireFixedOwnerSmoke && (
     fixtures.length !== ZUKAN_BENCH_SMOKE_POST_COUNT
@@ -1675,7 +1692,7 @@ export async function runZukanModelBench(options: {
               responseJsonSchema: modelProvider(options.model) === "gemini"
                 ? ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA
                 : undefined,
-              retriesPerModel: 1,
+              retriesPerModel: 0,
             })),
             usageReported: true,
           };
@@ -1704,7 +1721,7 @@ export async function runZukanModelBench(options: {
           provider,
           config: requestConfig,
           datasetSha256: manifest.datasetSha256,
-          promptSha256: manifest.promptSha256,
+          promptSha256: prompt.sha256,
         });
         const finalFailures = finalContentAvailable
           ? scored.criticalFailures
@@ -1749,7 +1766,7 @@ export async function runZukanModelBench(options: {
             provider,
             config: requestConfig,
             datasetSha256: manifest.datasetSha256,
-            promptSha256: manifest.promptSha256,
+            promptSha256: prompt.sha256,
           }),
         });
         if (options.requireCanarySuccess && isCanary) break;
@@ -1775,7 +1792,7 @@ export async function runZukanModelBench(options: {
   const report: ZukanBenchModelReport = {
     version: ZUKAN_MODEL_BENCH_VERSION,
     promptVersion: ZUKAN_MODEL_BENCH_PROMPT_VERSION,
-    promptSha256: manifest.promptSha256,
+    promptSha256: prompt.sha256,
     model: options.model,
     provider,
     manifestPath,
@@ -1979,6 +1996,7 @@ async function main(): Promise<void> {
       limit: numericArg(args, "limit"),
       transport: transportFromArgs(args),
       maxOutputTokens: numericArg(args, "max-output-tokens"),
+      promptSource: stringArg(args, "prompt-source"),
       reportLabel: stringArg(args, "report-label"),
     });
     console.log(JSON.stringify(report, null, 2));

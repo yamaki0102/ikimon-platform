@@ -1,0 +1,118 @@
+{
+  "version": "zukan-post-model-bench-v2-gemini-minimal-prompt-comparison-evidence-v1",
+  "recordedAt": "2026-08-28T17:34:35+09:00",
+  "status": "COMPLETED",
+  "source": {
+    "repository": "yamaki0102/ikimon-platform",
+    "pullRequest": 1582,
+    "headBeforePersistence": "b4bd6b5d188db02674169bba4ebde1484c43f3a5",
+    "branch": "codex/zukan-model-bench-v1-20260827"
+  },
+  "fixedInput": {
+    "manifest": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+    "manifestSha256": "0e6c5b32a9300b91c2a56ebe446ea3bd2cc5a11a52d5bbd84a6623c06f8dd545",
+    "postCount": 7,
+    "imageCount": 21,
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "postAndImageHashesIdenticalAcrossRuns": true,
+    "canonicalRightsReadback": {
+      "operation": "SELECT only",
+      "eligibleRows": 7,
+      "changes": 0,
+      "rowsWritten": 0,
+      "predicate": "external_export_allowed == 1 AND withdrawal_status == active AND record_consent == external_export AND research_use_consent == public_export AND dataset_license == CC-BY-4.0 AND media_license == CC-BY-NC-4.0"
+    }
+  },
+  "comparison": {
+    "promptOnlyIntendedChange": true,
+    "baselinePrompt": {
+      "source": "ops/model-bench/fixtures/zukan-owner-post-smoke-v2.prompt.md",
+      "sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9"
+    },
+    "optimizedPrompt": {
+      "source": "src/prompts/observation_reassess_bench_minimal.md",
+      "sha256": "029a1e6b53478d7105745755ee583a2a2829d874f2d7ac9040190943f85caf10"
+    },
+    "requestConfig": {
+      "model": "gemini-3.5-flash-lite",
+      "provider": "gemini",
+      "thinkingLevel": "minimal",
+      "temperature": 0,
+      "maxOutputTokens": 2048,
+      "responseJsonSchema": "provider-native",
+      "retry": 0,
+      "fallback": 0,
+      "providerReportedUsage": true
+    },
+    "outputContract": {
+      "keys": [
+        "confidence_band",
+        "recommended_rank",
+        "recommended_taxon_name"
+      ],
+      "recommendedTaxonNameMustBeNameOnly": true
+    },
+    "canary": {
+      "baseline": {
+        "posts": "1/1",
+        "success": "1/1",
+        "schema": "1/1",
+        "criticalFailures": 0,
+        "taxonNameOnly": "0/1"
+      },
+      "optimized": {
+        "posts": "1/1",
+        "success": "1/1",
+        "schema": "1/1",
+        "criticalFailures": 0,
+        "taxonNameOnly": "1/1"
+      },
+      "fullRunStartedOnlyAfterCanaryPass": true
+    },
+    "fullRun": {
+      "baseline": {
+        "success": "6/7 (85.71%)",
+        "schema": "4/7 (57.14%)",
+        "totalInputTokens": 71010,
+        "totalOutputTokens": 5502,
+        "estimatedCostUsd": 0.035058,
+        "p50LatencyMs": 7075,
+        "p95LatencyMs": 75380,
+        "criticalFailures": "3 posts: 2 invalid_json, 1 empty response",
+        "taxonNameOnly": "0/7"
+      },
+      "optimized": {
+        "success": "7/7 (100%)",
+        "schema": "7/7 (100%)",
+        "totalInputTokens": 25361,
+        "totalOutputTokens": 260,
+        "estimatedCostUsd": 0.0082583,
+        "p50LatencyMs": 2825,
+        "p95LatencyMs": 3508,
+        "criticalFailures": "0 posts",
+        "taxonNameOnly": "7/7"
+      }
+    },
+    "deltaOptimizedVsBaseline": {
+      "successRatePercentagePoints": 14.29,
+      "schemaRatePercentagePoints": 42.86,
+      "inputTokens": -45649,
+      "inputTokenReductionPct": 64.29,
+      "outputTokens": -5242,
+      "outputTokenReductionPct": 95.27,
+      "estimatedCostUsd": -0.0267997,
+      "estimatedCostReductionPct": 76.44,
+      "p50LatencyMs": -4250,
+      "p95LatencyMs": -71872,
+      "criticalFailurePosts": -3,
+      "taxonNameOnlyPosts": 7
+    }
+  },
+  "accuracy": {
+    "status": "INSUFFICIENT_GOLD",
+    "humanGoldPosts": 0,
+    "biologicalAccuracyProven": false
+  },
+  "verdict": "PROMOTE_OPTIMIZED_PROMPT",
+  "productionDeployment": "NOT_RUN"
+}
