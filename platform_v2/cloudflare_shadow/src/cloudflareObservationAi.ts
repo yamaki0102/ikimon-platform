@@ -122,6 +122,7 @@ const applySubjectSafetyGate = (candidate: ObservationAiSubjectCandidate): Obser
 export function applyObservationAiCandidateSafetyGate(candidate: ObservationAiCandidate): ObservationAiCandidate {
   return {
     ...applySubjectSafetyGate(candidate),
+    nonBiological: candidate.nonBiological,
     coexistingSubjects: candidate.coexistingSubjects.map(applySubjectSafetyGate),
   };
 }
