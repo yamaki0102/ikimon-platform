@@ -119,6 +119,8 @@ The 2026-08-28 grounding comparison did not call any model. It re-opened the fix
 - `evidence/2026-08-28-grounding-cross-model-comparison.md`
 - `schemas/zukan-grounding-comparison-v1.schema.json`
 
+The 2026-08-28 `gemini-3.1-flash-lite` run was stopped at the one-post canary. Production D1 native read-only SELECT confirmed all seven fixed posts satisfied the canonical external-export predicate. The official Gemini Generate Content path accepted the unchanged three-image input and native schema, but the canary ended with `MAX_TOKENS` and invalid JSON at output caps 8192, 16384, and 32768; each raw final response was preserved, and no seven-post run was started. This is recorded as `CANARY_BLOCKED` rather than a model-quality score. The final raw output remained an unclosed `recommended_taxon_name` string, so the failure is provider-native structured-output truncation, not a parser-only failure. See `evidence/2026-08-28-gemini-3.1-flash-lite-canary-diagnostic.json` and its three linked per-attempt reports.
+
 ## Explicit commands
 
 Freeze the fixed 24-post Core dataset through the legacy public candidate path:
