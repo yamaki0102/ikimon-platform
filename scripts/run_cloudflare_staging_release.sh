@@ -24,11 +24,6 @@ case "${SYNC_STAGING_WRITE_SECRET}" in true|false) ;; *) echo "SYNC_STAGING_WRIT
 case "${APPLY_STAGING_MIGRATIONS}" in true|false) ;; *) echo "APPLY_STAGING_MIGRATIONS must be true or false" >&2; exit 2 ;; esac
 case "${PLAYWRIGHT_INSTALL_WITH_DEPS}" in true|false) ;; *) echo "PLAYWRIGHT_INSTALL_WITH_DEPS must be true or false" >&2; exit 2 ;; esac
 
-if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
-  echo "CLOUDFLARE_API_TOKEN is required for Cloudflare staging preflight/deploy." >&2
-  exit 2
-fi
-
 if [[ "${BROWSER_QA}" != "none" && -z "${V2_PRIVILEGED_WRITE_API_KEY:-}" ]]; then
   echo "V2_PRIVILEGED_WRITE_API_KEY is required when BROWSER_QA is targeted or full." >&2
   exit 2
@@ -41,6 +36,18 @@ GIT_SHA="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
 run_npm_ci() {
   local directory="$1"
   npm --prefix "${directory}" ci --prefer-offline
+}
+
+prove_cloudflare_provider_auth() {
+  local wrangler="${WORKER_DIR}/node_modules/.bin/wrangler"
+  if [[ ! -x "${wrangler}" ]]; then
+    echo "Cloudflare provider auth preflight unavailable: pinned Wrangler is missing." >&2
+    exit 2
+  fi
+  if ! (cd "${WORKER_DIR}" && CI=1 "${wrangler}" whoami --json --env staging >/dev/null); then
+    echo "Cloudflare provider auth unavailable. Use an existing Wrangler OAuth session or a valid CLOUDFLARE_API_TOKEN; do not treat token-env absence alone as the blocker." >&2
+    exit 2
+  fi
 }
 
 write_summary() {
@@ -77,12 +84,17 @@ on_exit() {
 }
 trap on_exit EXIT
 
+echo "== Install Cloudflare staging Worker toolchain =="
+run_npm_ci "${WORKER_DIR}"
+
+echo "== Prove Cloudflare provider auth (OAuth session or API token) =="
+prove_cloudflare_provider_auth
+
 echo "== Install and build current app =="
 run_npm_ci "${PLATFORM_DIR}"
 npm --prefix "${PLATFORM_DIR}" run build
 
-echo "== Install and preflight Cloudflare staging Worker =="
-run_npm_ci "${WORKER_DIR}"
+echo "== Preflight Cloudflare staging Worker =="
 npm --prefix "${WORKER_DIR}" run deploy:staging:dry-run -- \
   --test-profile "${TEST_PROFILE}" \
   --write-preflight-report .deploy/staging-preflight-latest.json
