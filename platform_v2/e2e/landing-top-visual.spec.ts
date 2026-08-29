@@ -73,7 +73,8 @@ function pageHtml(lang: SiteLang, member: boolean, sparse = false): string {
     shellClassName: "shell-bleed prototype-shell", extraStyles: LANDING_TOP_STYLES, homeChrome: member ? "member" : "guest",
   })
     .replaceAll("/assets/brand/app-icon-192.png", fixtureBrandMark)
-    .replaceAll("/assets/brand/ikimon-wordmark-black.png", fixtureWordmark);
+    .replaceAll("/assets/brand/ikimon-wordmark-black.png", fixtureWordmark)
+    .replaceAll("/assets/img/landing/yamaki.webp", fixturePhoto("guest-owner"));
 }
 
 const widths = [320, 375, 390, 768, 1280, 1440];
@@ -188,11 +189,14 @@ for (const width of widths) {
       await expect(page.locator(".site-core-nav")).toBeVisible();
     }
     await expect(page.locator(".home-bottom-nav")).toHaveCount(0);
-    const metrics = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth, heroBottom: Math.round(document.querySelector(".home-guest-hero")?.getBoundingClientRect().bottom || 0), categoriesTop: Math.round(document.querySelector(".home-category-section")?.getBoundingClientRect().top || 0) }));
+    await expect(page.locator(".home-guest-owner-photo img")).toHaveAttribute("src", /^data:image\/svg\+xml/);
+    await expect(page.locator(".home-guest-loop")).toBeVisible();
+    const metrics = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth, heroBottom: Math.round(document.querySelector(".home-guest-hero")?.getBoundingClientRect().bottom || 0), loopTop: Math.round(document.querySelector(".home-guest-loop")?.getBoundingClientRect().top || 0) }));
     expect(metrics.scrollWidth).toBe(metrics.clientWidth);
     if (width <= 390) {
-      expect(metrics.heroBottom).toBeLessThan(760);
-      expect(metrics.categoriesTop).toBeLessThan(800);
+      expect(metrics.heroBottom).toBeLessThan(840);
+      expect(metrics.loopTop).toBeGreaterThan(metrics.heroBottom);
+      expect(metrics.loopTop).toBeLessThan(980);
     }
     await capture(page, `guest-ja-${width}`);
     await page.close();
@@ -200,7 +204,7 @@ for (const width of widths) {
 }
 
 for (const width of widths) {
-  test(`member ${width}px prioritizes a personal memory, places, and next activity`, async ({ browser }) => {
+  test(`member ${width}px keeps personal memory and places separate`, async ({ browser }) => {
     const page = await browser.newPage({ viewport: { width, height: width < 700 ? 844 : 900 } });
     await page.setContent(pageHtml("ja", true), { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-home-view="member"]')).toBeVisible();
@@ -215,7 +219,7 @@ for (const width of widths) {
     await expect(page.locator('[data-home-primary-state="draft_resume"]')).toBeHidden();
     await expect(page.getByRole("heading", { name: "最近の記録" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "関わっている場所" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "次の活動" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "次の活動" })).toHaveCount(0);
     await expect(page.getByText("写真からわかったこと")).toHaveCount(0);
     await expect(page.getByText("近くで残された記録")).toHaveCount(0);
     const memberIds = await page.locator('[data-home-view="member"] [data-home-record-id]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-home-record-id")));
@@ -275,9 +279,9 @@ test("no-JS home preserves the place route and semantic explanation", async ({ b
   const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 375, height: 844 } });
   const page = await context.newPage();
   await page.setContent(pageHtml("ja", false), { waitUntil: "domcontentloaded" });
-  await expect(page.locator('.home-secondary-link[href="/ja/map?tab=places"]')).toBeVisible();
+  await expect(page.locator('.home-guest-hero .home-secondary-link[href="/ja/map?tab=places"]')).toBeVisible();
   await expect(page.locator(".home-primary-button").first()).toHaveText("撮る");
-  await expect(page.locator(".home-category-section")).toBeVisible();
+  await expect(page.locator(".home-guest-loop")).toBeVisible();
   await context.close();
 });
 
