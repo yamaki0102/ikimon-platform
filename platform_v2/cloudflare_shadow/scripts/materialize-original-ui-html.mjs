@@ -51,6 +51,9 @@ const execute = args.get("--execute") === "true";
 const approval = args.get("--approval") ?? process.env.IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL ?? "";
 const targetEnv = args.get("--target-env") ?? "production";
 const canonicalOrigin = targetEnv === "staging" ? "https://staging.zukan.earth" : "https://zukan.earth";
+const canonicalAuditOrigins = targetEnv === "staging"
+  ? [canonicalOrigin, "https://zukan.earth"]
+  : [canonicalOrigin];
 const canonicalHost = new URL(canonicalOrigin).hostname;
 const canonicalRenderHeaders = {
   accept: "*/*",
@@ -341,7 +344,8 @@ async function renderStaticAsset(app, pathname) {
 function auditCanonicalStaticOrigin(pathname, payload) {
   if (!["/sitemap.xml", "/robots.txt", "/llms.txt", "/llms-full.txt"].includes(pathname)) return;
   const text = Buffer.isBuffer(payload) ? payload.toString("utf8") : String(payload);
-  if (!text.includes(canonicalOrigin) || /https?:\/\/(?:localhost|127\.0\.0\.1|ikimon-materialize\.local)(?::\d+)?/i.test(text)) {
+  if (!canonicalAuditOrigins.some((origin) => text.includes(origin))
+      || /https?:\/\/(?:localhost|127\.0\.0\.1|ikimon-materialize\.local)(?::\d+)?/i.test(text)) {
     throw new Error(`canonical_static_origin_mismatch:${pathname}`);
   }
 }
