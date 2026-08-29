@@ -1,0 +1,22 @@
+{
+  "schema": "ikimon.cloudflare-r2-static-release/v1",
+  "object_key_root": "game-test/taisho115",
+  "shared_public_base": "/slides/",
+  "index_public_paths": [
+    "/slides/index.html",
+    "/slides-demo/index.html"
+  ],
+  "immutable_directories": [
+    "assets/formal-canonical-20260829",
+    "assets/narration-canonical-20260829",
+    "assets/demo-narration-canonical-20260829"
+  ],
+  "immutable_asset_extensions": [
+    ".css",
+    ".js"
+  ],
+  "max_file_count": 100,
+  "max_total_bytes": 83886080,
+  "index_cache_control": "no-store",
+  "immutable_cache_control": "public, max-age=31536000, immutable"
+}
