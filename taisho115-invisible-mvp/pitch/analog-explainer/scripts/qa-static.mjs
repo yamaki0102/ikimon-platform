@@ -14,6 +14,7 @@ const required = [
   "src/app.css",
   "src/analytics.ts",
   "src/slides.json",
+  "r2-release-manifest.json",
   "public/assets/narration/slide-manifest.json"
 ];
 
@@ -145,6 +146,23 @@ if (manifest?.slides) {
 const app = fs.readFileSync(path.join(root, "src", "App.svelte"), "utf8");
 const css = fs.readFileSync(path.join(root, "src", "app.css"), "utf8");
 const narrationScript = fs.readFileSync(path.join(root, "scripts", "generate-slide-narration.mjs"), "utf8");
+const builtIndexPath = path.join(root, "dist", "index.html");
+if (fs.existsSync(builtIndexPath)) {
+  const builtIndex = fs.readFileSync(builtIndexPath, "utf8");
+  if (!builtIndex.includes('src="/slides/assets/') || !builtIndex.includes('href="/slides/assets/')) {
+    errors.push("production build must share immutable assets from /slides/assets/");
+  }
+}
+try {
+  const r2Release = JSON.parse(fs.readFileSync(path.join(root, "r2-release-manifest.json"), "utf8"));
+  if (r2Release.schema !== "ikimon.cloudflare-r2-static-release/v1") errors.push("R2 release manifest schema mismatch");
+  if (r2Release.shared_public_base !== "/slides/") errors.push("R2 shared public base must be /slides/");
+  if (JSON.stringify(r2Release.index_public_paths) !== JSON.stringify(["/slides/index.html", "/slides-demo/index.html"])) {
+    errors.push("R2 release manifest must promote both public deck entrypoints");
+  }
+} catch {
+  errors.push("R2 release manifest is not valid JSON");
+}
 if (!app.includes("<svelte:options runes={true} />")) errors.push("Svelte runes mode is not enabled");
 if (!app.includes("startViewTransition")) errors.push("View Transitions hook is missing");
 if (!app.includes("bind:this={audioElement}")) errors.push("audio element binding missing");
