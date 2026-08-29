@@ -9,7 +9,7 @@ import type {
   PublicationFeedResponse,
 } from "../../src/services/publicationFeed";
 
-const PUBLICATION_FEED_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300";
+const PUBLICATION_FEED_CACHE_CONTROL = "public, max-age=30, must-revalidate";
 const PUBLICATION_FEED_DEFAULT_LIMIT = 12;
 const PUBLICATION_FEED_MAX_LIMIT = 24;
 const PUBLICATION_FEED_QUERY_LIMIT = 96;
@@ -271,18 +271,20 @@ function pointInGeometry(lng: unknown, lat: unknown, geometry: SupportedGeometry
     : geometry.coordinates.some((polygon) => pointInPolygon(lng, lat, polygon));
 }
 
-function metadataHasFace(value: string | null): boolean {
+function metadataProvesPublicFaceSafety(value: string | null): boolean {
   if (!value) return false;
   try {
     const metadata = JSON.parse(value) as Record<string, unknown>;
     const facePrivacy = metadata.facePrivacy;
+    if (facePrivacy === "no_faces" || facePrivacy === "redacted") return true;
     if (facePrivacy && typeof facePrivacy === "object" && !Array.isArray(facePrivacy)) {
-      const hasFace = (facePrivacy as Record<string, unknown>).hasFace;
-      if (hasFace === true || hasFace === 1 || hasFace === "true") return true;
+      const status = cleanText((facePrivacy as Record<string, unknown>).status);
+      if (status === "no_faces" || status === "redacted") return true;
     }
-    return metadata.hasFace === true || metadata.hasFace === 1 || metadata.hasFace === "true";
+    const status = cleanText(metadata.facePrivacyStatus ?? metadata.face_privacy_status);
+    return status === "no_faces" || status === "redacted";
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -332,7 +334,7 @@ function nativeItems(row: PublicationFeedNativeRow, origin: string): NativeItem[
   const items: NativeItem[] = [];
 
   const livingKey = safeDerivedKey(row.living_derivative_key);
-  if (livingKey && title && isMeaningfulPublicObservationLabel(title) && !metadataHasFace(row.living_metadata_json)) {
+  if (livingKey && title && isMeaningfulPublicObservationLabel(title) && metadataProvesPublicFaceSafety(row.living_metadata_json)) {
     items.push({
       id: `living:${row.observation_id}`,
       record_id: row.observation_id,
@@ -356,7 +358,7 @@ function nativeItems(row: PublicationFeedNativeRow, origin: string): NativeItem[
   }
 
   const communityKey = safeDerivedKey(row.community_derivative_key);
-  if (communityKey && !metadataHasFace(row.community_metadata_json)) {
+  if (communityKey && metadataProvesPublicFaceSafety(row.community_metadata_json)) {
     items.push({
       id: `community_photo:${row.observation_id}`,
       record_id: row.observation_id,

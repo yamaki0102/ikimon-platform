@@ -33,11 +33,11 @@ const baseRow = {
   living_derivative_key: "derived/visit-public-1/display.webp",
   living_width: 1600,
   living_height: 1200,
-  living_metadata_json: "{}",
+  living_metadata_json: JSON.stringify({ facePrivacy: { status: "no_faces" } }),
   community_derivative_key: "derived/visit-public-1/context.webp",
   community_width: 1600,
   community_height: 1200,
-  community_metadata_json: "{}",
+  community_metadata_json: JSON.stringify({ facePrivacy: "no_faces" }),
   ai_assessment_status: null,
   ai_candidate_label: null,
   ai_confidence: null,
@@ -49,6 +49,7 @@ function database(rows: PublicationFeedNativeRow[]): PublicationFeedNativeDataba
     prepare(sql) {
       assert.match(sql, /observation_data_rights/);
       assert.match(sql, /production_import_area_polygon_readmodel/);
+      assert.match(sql, /media\.role = 'context'/);
       return {
         bind() {
           return this;
@@ -72,6 +73,8 @@ test("returns the existing v1 contract with living and community-photo channels"
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("access-control-allow-origin"), "https://lenrinokinoshitade-top-staging.pages.dev");
   assert.match(response.headers.get("etag") ?? "", /^"[a-f0-9]{64}"$/);
+  assert.equal(response.headers.get("cache-control"), "public, max-age=30, must-revalidate");
+  assert.equal(response.headers.get("vary"), "Origin");
   const payload = await response.json() as {
     api_version: string;
     feed: { feed_key: string };
@@ -118,10 +121,16 @@ test("keeps AI candidate machine-readable and excludes rights/privacy unsafe row
     living_derivative_key: "derived/visit-face/display.webp",
     living_metadata_json: JSON.stringify({ facePrivacy: { hasFace: true } }),
   } satisfies PublicationFeedNativeRow;
+  const uncheckedFaceRow = {
+    ...baseRow,
+    observation_id: "visit-face-unchecked",
+    living_derivative_key: "derived/visit-face-unchecked/display.webp",
+    living_metadata_json: "{}",
+  } satisfies PublicationFeedNativeRow;
 
   const response = await handlePublicationFeedNativeRequest(
     new Request("https://staging.zukan.earth/api/v1/publication-feeds/miyakoda-renri-area?channel=living"),
-    database([candidate, privateRow, withdrawnRow, faceRow]),
+    database([candidate, privateRow, withdrawnRow, faceRow, uncheckedFaceRow]),
   );
   assert.ok(response);
   assert.equal(response.status, 200);
