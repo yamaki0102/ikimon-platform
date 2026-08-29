@@ -369,6 +369,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeSnapshot.ts"), "cloudflare_place_snapshot_readmodel");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/fixedPointStation.ts"), "cloudflare_fixed_point_station_readmodel");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationDataRights.ts"), "cloudflare_observation_data_rights_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/publicationFeed.ts"), "cloudflare_publication_feed_native_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/civicNatureContext.ts"), "cloudflare_civic_observation_context_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/scripts/runSentinelEnvironmentWorker.ts"), "cloudflare_sentinel_environment_snapshot_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/environmentSnapshotWriter.ts"), "cloudflare_sentinel_environment_snapshot_runtime");

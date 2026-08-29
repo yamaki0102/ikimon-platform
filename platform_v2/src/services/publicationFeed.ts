@@ -13,6 +13,7 @@ import {
 import { loadAreaSnapshotVisitIds } from "./areaSnapshotVisitScope.js";
 import { decidePublicCoord, isSensitive, loadSensitiveSpeciesIndex } from "./sensitiveSpeciesMasking.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "./trustedPublicOrigin.js";
+import { PUBLICATION_FEED_DEFINITIONS } from "./publicationFeedDefinitions.js";
 
 type Queryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
 
@@ -51,16 +52,6 @@ export type PublicationFeedConfig = {
   publicationPolicyVersion: string;
   updatedAt: string;
   allowedConsumerOrigins?: readonly string[];
-};
-
-const japaneseChannelLabels: Record<PublicationFeedKnownChannelKey, string> = {
-  living: "この場所の生きもの",
-  community_photo: "みんなのフォト",
-};
-
-const englishChannelLabels: Record<PublicationFeedKnownChannelKey, string> = {
-  living: "Living things here",
-  community_photo: "Community photos",
 };
 
 function localizedText(value: LocalizedPublicationText, locale: PublicationFeedLocale): string {
@@ -130,25 +121,7 @@ function scopeConfig(
 }
 
 export const PUBLICATION_FEED_CONFIGS: Readonly<Record<string, PublicationFeedConfig>> = Object.freeze({
-  "miyakoda-renri-area": scopeConfig({
-    feedKey: "miyakoda-renri-area",
-    title: "この場所で見つけたもの",
-    scopeLabel: "浜松・都田",
-    locale: "ja",
-    scopeKind: "area",
-    scope: [{ kind: "entity", id: "ikimon:aikan:renri-no-ki" }],
-    channels: [
-      { key: "living", label: { ja: japaneseChannelLabels.living, en: englishChannelLabels.living } },
-      { key: "community_photo", label: { ja: japaneseChannelLabels.community_photo, en: englishChannelLabels.community_photo } },
-    ],
-    updatedAt: "2026-08-28T00:00:00.000Z",
-    allowedConsumerOrigins: [
-      "https://lenrinokinoshitade.com",
-      "https://lenrinokinoshitade-top-staging.pages.dev",
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-    ],
-  }),
+  "miyakoda-renri-area": scopeConfig(PUBLICATION_FEED_DEFINITIONS["miyakoda-renri-area"]),
 });
 
 export function definePublicationFeedConfig(
