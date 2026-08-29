@@ -217,6 +217,7 @@ test("home CSS enforces guest editorial layout, touch targets, focus and reduced
   assert.match(LANDING_TOP_STYLES, /word-break:auto-phrase/);
   assert.match(LANDING_TOP_STYLES, /prefers-reduced-motion/);
   assert.match(LANDING_TOP_STYLES, /@media\(max-width:359px\)/);
+  assert.match(LANDING_TOP_STYLES, /\.home-guest-owner-photo img\{aspect-ratio:1\/1\}/);
   assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-1 \.is-item-1\{grid-column:1\/13/);
   assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-2 \.is-item-2\{grid-column:7\/13/);
   assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-5 \.is-item-5\{grid-column:10\/13/);
