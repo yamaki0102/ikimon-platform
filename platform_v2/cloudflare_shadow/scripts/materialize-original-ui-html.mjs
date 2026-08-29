@@ -11,14 +11,6 @@ const productionBucket = "ikimon-prod-media";
 const stagingBucket = "ikimon-shadow-media";
 const materializeManifestSchemaVersion = "original-ui-materialize/v1";
 const uploadCacheControl = "no-store";
-const canonicalOrigin = "https://zukan.earth";
-const canonicalRenderHeaders = {
-  accept: "*/*",
-  "cache-control": "no-store",
-  host: "zukan.earth",
-  "x-forwarded-host": "zukan.earth",
-  "x-forwarded-proto": "https"
-};
 const allowedArgs = new Set([
   "--execute",
   "--approval",
@@ -58,6 +50,15 @@ for (let index = 2; index < process.argv.length; index += 1) {
 const execute = args.get("--execute") === "true";
 const approval = args.get("--approval") ?? process.env.IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL ?? "";
 const targetEnv = args.get("--target-env") ?? "production";
+const canonicalOrigin = targetEnv === "staging" ? "https://staging.zukan.earth" : "https://zukan.earth";
+const canonicalHost = new URL(canonicalOrigin).hostname;
+const canonicalRenderHeaders = {
+  accept: "*/*",
+  "cache-control": "no-store",
+  host: canonicalHost,
+  "x-forwarded-host": canonicalHost,
+  "x-forwarded-proto": "https"
+};
 const scope = args.get("--scope") ?? "core";
 const bucket = args.get("--bucket") ?? (targetEnv === "staging" ? stagingBucket : productionBucket);
 const outputPath = args.get("--output") ?? "";

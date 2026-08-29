@@ -15,7 +15,9 @@ test("original UI materializer pins discovery documents to the public canonical 
 
   assert.match(materializer, /"\/llms\.txt"/);
   assert.match(materializer, /"\/llms-full\.txt"/);
-  assert.match(materializer, /"x-forwarded-host":\s*"zukan\.earth"/);
+  assert.match(materializer, /targetEnv === "staging"\s*\?\s*"https:\/\/staging\.zukan\.earth"\s*:\s*"https:\/\/zukan\.earth"/);
+  assert.match(materializer, /const canonicalHost = new URL\(canonicalOrigin\)\.hostname/);
+  assert.match(materializer, /"x-forwarded-host":\s*canonicalHost/);
   assert.match(materializer, /"x-forwarded-proto":\s*"https"/);
   assert.match(materializer, /renderStaticAsset\(app, pathname\)/);
   assert.match(materializer, /headers:\s*canonicalRenderHeaders/);
