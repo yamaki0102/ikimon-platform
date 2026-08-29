@@ -1,0 +1,26 @@
+{
+  "name": "taisho115-analog-explainer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "node ./scripts/stage-versioned-assets.mjs && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "check": "tsc --noEmit && npm run build",
+    "audio:sapi": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-narration.ps1",
+    "audio:gemini": "node ./scripts/generate-gemini-narration.mjs",
+    "audio:slides": "node ./scripts/generate-slide-narration.mjs",
+    "audio:normalize": "node ./scripts/normalize-narration.mjs",
+    "demo:voicevox:deploy": "powershell -ExecutionPolicy Bypass -File ./scripts/rebuild-demo-voicevox-deploy.ps1",
+    "qa": "node ./scripts/qa-static.mjs"
+  },
+  "dependencies": {
+    "@lucide/svelte": "^1.17.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "svelte": "^5.56.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.14"
+  },
+  "devDependencies": {}
+}
