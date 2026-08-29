@@ -3,23 +3,39 @@
     "title": "ZUKAN — Enjoy Life | Curtir e registrar a natureza próxima",
     "home": {
       "guest": {
-        "heroHeading": "Vamos cultivar juntos a memória local.", "heroLead": "Festas, trabalho, paisagens e descobertas do dia a dia. Fotos e vídeos viram memória do lugar e um caminho para a próxima atividade.",
-        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar", "proofEmpty": "Ainda não há fotos disponíveis para mostrar.",
-        "categories": [
-          { "title": "Escola e aprendizado", "body": "Aulas, projetos e experiências de trabalho." },
-          { "title": "Comunidade e eventos", "body": "Festas, feiras e encontros locais." },
-          { "title": "Trabalho e cultura", "body": "Lojas, produtores, técnicas, produtos e tradições." },
-          { "title": "Cotidiano e natureza", "body": "Paisagens, caminhos, estações, seres vivos e memórias." }
-        ],
-        "flowTitle": "Como um registro cresce",
-        "flowItems": [
+        "heroHeading": "Tire uma foto, e o presente de um lugar vira um guia vivo.", "heroLead": "Guarde o que encontrar em uma caminhada comum, começando com uma única foto.",
+        "primaryCta": "Capturar", "secondaryCta": "Ver lugares",
+        "ownerPhotoAlt": "Takeshi Yamaki ao ar livre",
+        "ownerPhotoTitle": "Takeshi Yamaki",
+        "ownerPhotoBody": "Caminhar, perceber, deixar um registro.",
+        "recordsTitle": "Registros compartilhados", "proofEmpty": "Ainda não há registros públicos para mostrar.",
+        "loopTitle": "Uma foto vira memória de um lugar.",
+        "loopBody": "Uma foto começa como lembrança e vira um registro ao qual você pode voltar por lugar e tempo.",
+        "loopItems": [
           { "title": "Capturar", "body": "Guarde na hora o que chamou sua atenção." },
-          { "title": "Fica no lugar", "body": "Hora e lugar transformam isso no seu registro." },
-          { "title": "Leva ao próximo passo", "body": "Reveja, confirme algo ou participe de novo." }
+          { "title": "Ver por lugar", "body": "Veja com uma área segura e o momento a que pertence." },
+          { "title": "Continuar", "body": "Faça da próxima descoberta o próximo registro." }
         ],
-        "placesTitle": "Explorar por lugar", "placesBody": "Acompanhe fotos e atividades do mesmo lugar para ver mudanças e o que vem depois.",
-        "privacyTitle": "Sua localização exata não é publicada", "privacyBody": "Escolha a visibilidade de cada registro. Casas e locais de espécies sensíveis recebem proteção maior.",
-        "finalTitle": "Guarde algo que chamou sua atenção hoje", "finalCta": "Capturar"
+        "audiencesTitle": "Um próximo passo para quem se relaciona com um lugar.",
+        "audiences": [
+          { "title": "Pessoas", "body": "Guarde suas próprias descobertas do dia a dia." },
+          { "title": "Escolas", "body": "Passe a pesquisa e o trabalho de campo para a próxima turma." },
+          { "title": "Grupos locais", "body": "Mantenha lugar, evidências e histórico de correções mesmo com a troca da equipe." },
+          { "title": "Empresas", "body": "Devolva à região a atividade de um local. Relatórios especializados são pagos." },
+          { "title": "Municípios", "body": "Complete as lacunas dos dados públicos com registros locais." }
+        ],
+        "boundaryTitle": "Comece com uma foto.",
+        "freeCoreLabel": "Núcleo gratuito",
+        "freeCoreBody": "Capture, salve e veja por lugar. A preservação e a migração do registro original também estão incluídas.",
+        "paidDerivativeLabel": "Derivados pagos",
+        "paidDerivativeBody": "Relatórios especializados, listas de espécies, agregações e saídas para entrega em CSV, Excel, PDF ou API.",
+        "trustTitle": "As pessoas decidem o que se torna público.",
+        "trustItems": [
+          { "title": "Mostre uma área, não um ponto", "body": "A localização exata permanece privada; o público vê uma área segura." },
+          { "title": "A IA só sugere", "body": "Ela pode sugerir nome ou conteúdo, mas não confirma nada." },
+          { "title": "Escolha a visibilidade", "body": "Considere casas, escolas, pessoas e espécies sensíveis antes de compartilhar." }
+        ],
+        "placesTitle": "Explorar por lugar", "placesBody": "Acompanhe registros do mesmo lugar para ver o que havia antes e o que você percebe depois."
       },
       "member": {
         "actionTitle": "O que você vai guardar hoje?", "actionLead": "Capture algo que chamou sua atenção para começar seu próprio registro.", "primaryCta": "Capturar",

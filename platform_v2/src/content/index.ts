@@ -367,12 +367,13 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
   assertObject(value.home, `${path}.home`);
   assertObject(value.home.guest, `${path}.home.guest`);
   for (const key of [
-    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "categoriesTitle", "proofEmpty", "flowTitle",
-    "placesTitle", "placesBody", "privacyTitle", "privacyBody", "finalTitle", "finalCta",
+    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "ownerPhotoAlt", "ownerPhotoTitle", "ownerPhotoBody",
+    "recordsTitle", "proofEmpty", "loopTitle", "loopBody", "audiencesTitle", "boundaryTitle", "freeCoreLabel",
+    "freeCoreBody", "paidDerivativeLabel", "paidDerivativeBody", "trustTitle", "placesTitle", "placesBody",
   ] as const) {
     assertString(value.home.guest[key], `${path}.home.guest.${key}`);
   }
-  for (const collection of ["categories", "flowItems"] as const) {
+  for (const collection of ["loopItems", "audiences", "trustItems"] as const) {
     const items = value.home.guest[collection];
     if (!Array.isArray(items)) throw new Error(`${path}.home.guest.${collection} must be an array`);
     for (const [index, item] of items.entries()) {

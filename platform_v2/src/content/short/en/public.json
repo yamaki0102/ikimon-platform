@@ -3,23 +3,39 @@
     "title": "A regional field guide built together | ZUKAN",
     "home": {
       "guest": {
-        "heroHeading": "Grow the community record together.", "heroLead": "Festivals, work, scenery, and everyday discoveries. What you save in photos and videos becomes a memory of the place and a path to what happens next.",
-        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "proofEmpty": "No photos are available to show yet.",
-        "categories": [
-          { "title": "School & learning", "body": "Classes, projects, and workplace learning." },
-          { "title": "Community & events", "body": "Festivals, markets, and local gatherings." },
-          { "title": "Work & culture", "body": "Shops, makers, skills, products, and traditions." },
-          { "title": "Daily life & nature", "body": "Scenery, roads, seasons, wildlife, and memories." }
+        "heroHeading": "Take a photo, and the present of a place becomes a field guide.", "heroLead": "Keep what you find on an ordinary walk as a record, starting with one photo.",
+        "primaryCta": "Capture", "secondaryCta": "View places",
+        "ownerPhotoAlt": "Takeshi Yamaki outdoors",
+        "ownerPhotoTitle": "Takeshi Yamaki",
+        "ownerPhotoBody": "Walk, notice, leave a record.",
+        "recordsTitle": "Records already shared", "proofEmpty": "No public records are available to show yet.",
+        "loopTitle": "One photo becomes a record of a place.",
+        "loopBody": "A photo starts as someone’s memory, then becomes a record you can return to by place and time.",
+        "loopItems": [
+          { "title": "Capture", "body": "Keep what catches your eye, right where you are." },
+          { "title": "View by place", "body": "See it with a safe area and the time it belongs to." },
+          { "title": "Keep going", "body": "Let what you notice next become the next record." }
         ],
-        "flowTitle": "How a record grows",
-        "flowItems": [
-          { "title": "Capture", "body": "Keep what caught your attention, right where you are." },
-          { "title": "Keep it with the place", "body": "Time and place turn it into your own record." },
-          { "title": "Take the next step", "body": "Look back, check again, or join in another time." }
+        "audiencesTitle": "A next step for everyone connected to a place.",
+        "audiences": [
+          { "title": "Individuals", "body": "Keep nearby discoveries as records of your own." },
+          { "title": "Schools", "body": "Pass fieldwork and inquiry from one class to the next." },
+          { "title": "Community groups", "body": "Keep place, evidence, and correction history beyond staff changes." },
+          { "title": "Companies", "body": "Return activity around a site to the region. Specialist reports are paid." },
+          { "title": "Municipalities", "body": "Use local records to fill what public data cannot show." }
         ],
-        "placesTitle": "Explore by place", "placesBody": "Follow photos and activities kept at the same place to see what changed and what comes next.",
-        "privacyTitle": "Your exact location is not made public", "privacyBody": "Choose the visibility of every record. Homes and sensitive wildlife locations receive stronger protection.",
-        "finalTitle": "Keep something that caught your attention today", "finalCta": "Capture"
+        "boundaryTitle": "Start with one photo.",
+        "freeCoreLabel": "Free core",
+        "freeCoreBody": "Capture, save, and view by place. Original records can also be preserved and moved at no charge.",
+        "paidDerivativeLabel": "Paid derivatives",
+        "paidDerivativeBody": "Specialist reports, species lists, aggregates, and submission-ready CSV, Excel, PDF, or API outputs.",
+        "trustTitle": "People decide what becomes public.",
+        "trustItems": [
+          { "title": "Show an area, not a point", "body": "Exact locations stay private; public records use a safe area." },
+          { "title": "AI stops at candidates", "body": "It can suggest a name or content, but it does not confirm it." },
+          { "title": "Choose the visibility", "body": "Consider homes, schools, people, and sensitive species before sharing." }
+        ],
+        "placesTitle": "Explore by place", "placesBody": "Follow records kept at the same place to see what was there before and what you notice next."
       },
       "member": {
         "actionTitle": "What will you keep today?", "actionLead": "Capture something that caught your attention to start your own record.", "primaryCta": "Capture",

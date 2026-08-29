@@ -17,6 +17,8 @@ export type LandingHomeStateOptions = {
 
 type HomeMediaKind = "photo" | "video" | "audio" | "memo";
 
+const GUEST_OWNER_PHOTO_PATH = "/assets/img/landing/yamaki.webp";
+
 const genericNames = new Set(["", "unknown", "unidentified"]);
 
 function href(options: LandingHomeStateOptions, path: string): string {
@@ -130,11 +132,21 @@ function renderGuestPhotoTile(options: LandingHomeStateOptions, item: LandingObs
   const imageUrl = item.photoUrl ? toThumbnailUrl(item.photoUrl, index === 0 ? "lg" : "md") : null;
   if (!imageUrl) return "";
   const name = displayName(item, options.copy);
-  const meta = [safePlace(item, options.copy), dateLabel(item, options.lang)].filter(Boolean).join(" · ");
+  const place = safePlace(item, options.copy);
+  const date = dateLabel(item, options.lang);
+  const timestamp = date ? escapeHtml(item.observedAt) : "";
   return `<a class="home-guest-proof-item is-item-${index + 1}" href="${escapeHtml(detailHref(options, item))}" data-home-public-record="${escapeHtml(observationKey(item))}">
-    <img src="${escapeHtml(imageUrl)}" alt="" width="900" height="900" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""} />
-    <span class="home-guest-proof-caption"><strong>${escapeHtml(name)}</strong>${meta ? `<small>${escapeHtml(meta)}</small>` : ""}</span>
+    <span class="home-guest-proof-image"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(name)}" width="900" height="900" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""} /></span>
+    <span class="home-guest-proof-caption"><strong>${escapeHtml(name)}</strong><small class="home-guest-proof-place">${escapeHtml(place)}</small>${date ? `<time class="home-guest-proof-date" datetime="${timestamp}">${escapeHtml(date)}</time>` : ""}</span>
   </a>`;
+}
+
+function renderGuestOwnerPhoto(options: LandingHomeStateOptions): string {
+  const copy = options.copy.home.guest;
+  return `<figure class="home-guest-owner-photo" data-home-owner-photo>
+    <img src="${GUEST_OWNER_PHOTO_PATH}" alt="${escapeHtml(copy.ownerPhotoAlt)}" width="512" height="512" loading="eager" fetchpriority="high" decoding="async" />
+    <figcaption><strong>${escapeHtml(copy.ownerPhotoTitle)}</strong><span>${escapeHtml(copy.ownerPhotoBody)}</span></figcaption>
+  </figure>`;
 }
 
 function isGuestVisibleRecord(item: LandingObservation): boolean {
@@ -156,37 +168,49 @@ function renderGuestProof(options: LandingHomeStateOptions, publicItems: Landing
 
 function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObservation[]): string {
   const copy = options.copy.home.guest;
-  const placeItem = publicItems.find((item) => Boolean(item.photoUrl) && isGuestVisibleRecord(item)) ?? null;
-  const categoryItems = copy.categories
-    .map((item, index) => `<li><span class="home-category-index">${String(index + 1).padStart(2, "0")}</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.body)}</small></span></li>`)
-    .join("");
-  const flowItems = copy.flowItems.map((item, index) => `<li><span class="home-value-icon" aria-hidden="true">${index + 1}</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.body)}</small></span></li>`).join("");
-  const placeVisual = placeItem ? `<a class="home-place-visual" href="${escapeHtml(detailHref(options, placeItem))}">${renderMedia(placeItem, options.copy)}</a>` : `<div class="home-place-visual is-placeholder"><img src="/assets/brand/zukan-symbol.svg" alt="" width="180" height="180" /></div>`;
+  const loopItems = copy.loopItems.map((item) => `<li><span class="home-guest-loop-dot" aria-hidden="true"></span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.body)}</small></span></li>`).join("");
+  const audienceItems = copy.audiences.map((item) => `<li><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.body)}</span></li>`).join("");
+  const trustItems = copy.trustItems.map((item) => `<li><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.body)}</span></li>`).join("");
   const placeHref = href(options, "/map?tab=places");
   return `<div class="home-state-view is-guest" data-home-view="guest"${options.isLoggedIn ? " hidden" : ""}>
-    <section class="home-guest-hero has-visual">
+    <section class="home-guest-hero has-visual" aria-labelledby="home-guest-heading">
       <div class="home-guest-hero-copy">
         <span class="home-product-kicker">ZUKAN</span>
-        <h1>${renderHeroHeading(options.lang, copy.heroHeading)}</h1>
+        <h1 id="home-guest-heading">${renderHeroHeading(options.lang, copy.heroHeading)}</h1>
         <p>${escapeHtml(copy.heroLead)}</p>
         <div class="home-hero-actions">
           ${captureButton(copy.primaryCta, "home-primary-button", "top_capture")}
           <a class="home-secondary-link" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place">${escapeHtml(copy.secondaryCta)}</a>
         </div>
       </div>
-      ${slot("guest-hero", `<div class="home-guest-hero-visual">${renderGuestProof(options, publicItems)}</div>`)}
+      ${slot("guest-hero", `<div class="home-guest-hero-visual">${renderGuestOwnerPhoto(options)}</div>`)}
     </section>
-    <section class="home-section home-category-section">
-      <div class="home-section-heading"><h2>${escapeHtml(copy.categoriesTitle)}</h2></div>
-      <ul>${categoryItems}</ul>
+    <section class="home-section home-guest-loop" aria-labelledby="home-guest-loop-heading">
+      <div class="home-guest-section-intro"><h2 id="home-guest-loop-heading">${escapeHtml(copy.loopTitle)}</h2><p>${escapeHtml(copy.loopBody)}</p></div>
+      <ol class="home-guest-loop-list">${loopItems}</ol>
     </section>
-    <section class="home-section home-value-section"><h2>${escapeHtml(copy.flowTitle)}</h2><ol>${flowItems}</ol></section>
-    <section class="home-section home-place-section" id="home-places">
-      ${placeVisual}
-      <div><span class="home-product-kicker">PLACE</span><h2>${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
+    <section class="home-section home-guest-records" aria-labelledby="home-guest-records-heading">
+      <div class="home-section-heading"><h2 id="home-guest-records-heading">${escapeHtml(copy.recordsTitle)}</h2></div>
+      ${renderGuestProof(options, publicItems)}
     </section>
-    <section class="home-section home-privacy-section"><span class="home-privacy-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><div><h2>${escapeHtml(copy.privacyTitle)}</h2><p>${escapeHtml(copy.privacyBody)}</p></div></section>
-    <section class="home-section home-final-section"><h2>${escapeHtml(copy.finalTitle)}</h2>${captureButton(copy.finalCta, "home-secondary-button", "top_capture_final")}</section>
+    <section class="home-section home-guest-audiences" aria-labelledby="home-guest-audiences-heading">
+      <div class="home-guest-section-intro"><h2 id="home-guest-audiences-heading">${escapeHtml(copy.audiencesTitle)}</h2></div>
+      <ul class="home-guest-audience-list">${audienceItems}</ul>
+    </section>
+    <section class="home-section home-guest-boundary" aria-labelledby="home-guest-boundary-heading">
+      <div class="home-guest-section-intro"><h2 id="home-guest-boundary-heading">${escapeHtml(copy.boundaryTitle)}</h2></div>
+      <dl class="home-guest-boundary-list">
+        <div><dt>${escapeHtml(copy.freeCoreLabel)}</dt><dd>${escapeHtml(copy.freeCoreBody)}</dd></div>
+        <div><dt>${escapeHtml(copy.paidDerivativeLabel)}</dt><dd>${escapeHtml(copy.paidDerivativeBody)}</dd></div>
+      </dl>
+    </section>
+    <section class="home-section home-guest-trust" aria-labelledby="home-guest-trust-heading">
+      <div class="home-guest-section-intro"><h2 id="home-guest-trust-heading">${escapeHtml(copy.trustTitle)}</h2></div>
+      <ul class="home-guest-trust-list">${trustItems}</ul>
+    </section>
+    <section class="home-section home-place-section" id="home-places" aria-labelledby="home-places-heading">
+      <div class="home-place-copy"><h2 id="home-places-heading">${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-link" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
+    </section>
     <p class="home-operator-statement">${escapeHtml(options.copy.home.shared.operatorStatement)}</p>
   </div>`;
 }
@@ -403,4 +427,61 @@ body{background:#fff;color:#17211b}.shell.shell-bleed.prototype-shell{box-sizing
 .home-guest-proof.is-count-0{grid-template-columns:1fr;grid-template-rows:1fr}.home-guest-proof.is-empty p{max-width:24rem;margin:0;padding:0 20px;color:var(--home-green);font-weight:800;text-align:center}.home-operator-statement{margin:0;color:var(--home-muted);font-size:.75rem;line-height:1.65}
 @media(max-width:959px){.home-guest-proof-item.is-item-4,.home-guest-proof-item.is-item-5{display:block}.home-guest-proof.is-count-1,.home-guest-proof.is-count-2{grid-template-rows:minmax(260px,1fr)}.home-guest-proof.is-count-1 .is-item-1{grid-column:1/13;grid-row:1/2}.home-guest-proof.is-count-2 .is-item-1{grid-column:1/7;grid-row:1/2}.home-guest-proof.is-count-2 .is-item-2{grid-column:7/13;grid-row:1/2}.home-guest-proof.is-count-3{grid-template-rows:repeat(2,minmax(120px,1fr))}.home-guest-proof.is-count-3 .is-item-1{grid-column:1/9;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-2{grid-column:9/13;grid-row:1/2}.home-guest-proof.is-count-3 .is-item-3{grid-column:9/13;grid-row:2/3}.home-guest-proof.is-count-4,.home-guest-proof.is-count-5{grid-template-rows:repeat(3,minmax(100px,1fr))}.home-guest-proof.is-count-4 .is-item-1,.home-guest-proof.is-count-5 .is-item-1{grid-column:1/9;grid-row:1/3}.home-guest-proof.is-count-4 .is-item-2,.home-guest-proof.is-count-5 .is-item-2{grid-column:9/13;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-3,.home-guest-proof.is-count-5 .is-item-3{grid-column:9/13;grid-row:2/3}.home-guest-proof.is-count-4 .is-item-4{grid-column:1/13;grid-row:3/4}.home-guest-proof.is-count-5 .is-item-4{grid-column:1/7;grid-row:3/4}.home-guest-proof.is-count-5 .is-item-5{grid-column:7/13;grid-row:3/4}}
 @media(min-width:960px){.home-guest-proof.is-count-1 .is-item-1{grid-column:1/13;grid-row:1/3}.home-guest-proof.is-count-2 .is-item-1{grid-column:1/7;grid-row:1/3}.home-guest-proof.is-count-2 .is-item-2{grid-column:7/13;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-1{grid-column:1/8;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-2{grid-column:8/13;grid-row:1/2}.home-guest-proof.is-count-3 .is-item-3{grid-column:8/13;grid-row:2/3}.home-guest-proof.is-count-4 .is-item-1,.home-guest-proof.is-count-5 .is-item-1{grid-column:1/7;grid-row:1/3}.home-guest-proof.is-count-4 .is-item-2,.home-guest-proof.is-count-5 .is-item-2{grid-column:7/10;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-3,.home-guest-proof.is-count-5 .is-item-3{grid-column:10/13;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-4{grid-column:7/13;grid-row:2/3}.home-guest-proof.is-count-5 .is-item-4{grid-column:7/10;grid-row:2/3}.home-guest-proof.is-count-5 .is-item-5{grid-column:10/13;grid-row:2/3}}
+/* Guest home editorial layer: one real photograph, quiet rules, and no card grid for the story. */
+.home-state-view.is-guest{gap:clamp(52px,8vw,104px);padding:clamp(18px,3vw,38px) 0 56px}
+.home-state-view.is-guest .home-guest-hero{min-height:auto;align-content:initial;gap:clamp(30px,5vw,72px)}
+.home-state-view.is-guest .home-guest-hero-copy{align-content:center;gap:24px}
+.home-state-view.is-guest .home-guest-hero h1{max-width:12em;font-size:clamp(2.25rem,7.2vw,5.7rem);line-height:1.04;letter-spacing:-.065em}
+.home-state-view.is-guest .home-guest-hero p{max-width:30rem;font-size:1.08rem;line-height:1.85;color:#46564c}
+.home-state-view.is-guest .home-guest-hero-visual{display:grid;gap:16px;min-width:0}
+.home-state-view.is-guest .home-guest-owner-photo{display:grid;gap:10px;margin:0;min-width:0}
+.home-state-view.is-guest .home-guest-owner-photo img{display:block;width:100%;height:auto;aspect-ratio:4/5;max-height:680px;object-fit:cover;object-position:center 42%;border-radius:3px;background:#e7eee8}
+.home-state-view.is-guest .home-guest-owner-photo figcaption{display:grid;gap:2px;padding:0 0 0 12px;border-left:2px solid var(--home-yellow);color:var(--home-green-dark)}
+.home-state-view.is-guest .home-guest-owner-photo figcaption strong{font-size:.92rem;line-height:1.4}
+.home-state-view.is-guest .home-guest-owner-photo figcaption span{color:var(--home-muted);font-size:.82rem;line-height:1.5}
+.home-state-view.is-guest .home-primary-button,.home-state-view.is-guest .home-secondary-button{border-radius:3px}
+.home-state-view.is-guest .home-primary-button{min-width:112px}
+.home-state-view.is-guest .home-section{gap:26px}
+.home-state-view.is-guest .home-guest-section-intro{display:grid;gap:10px;max-width:48rem}
+.home-state-view.is-guest .home-guest-section-intro h2{max-width:20em}
+.home-state-view.is-guest .home-guest-section-intro p{max-width:42rem;margin:0;color:var(--home-muted);font-size:1rem;line-height:1.8}
+.home-state-view.is-guest .home-guest-loop,.home-state-view.is-guest .home-guest-records,.home-state-view.is-guest .home-guest-audiences,.home-state-view.is-guest .home-guest-boundary,.home-state-view.is-guest .home-guest-trust{padding-top:clamp(28px,4vw,48px);border-top:1px solid var(--home-border)}
+.home-state-view.is-guest .home-guest-loop-list{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin:0;padding:0;list-style:none}
+.home-state-view.is-guest .home-guest-loop-list::before{content:"";position:absolute;top:5px;left:8px;right:8px;border-top:1px solid rgba(20,63,46,.28)}
+.home-state-view.is-guest .home-guest-loop-list li{position:relative;display:grid;grid-template-columns:16px minmax(0,1fr);gap:12px;min-width:0}
+.home-state-view.is-guest .home-guest-loop-dot{z-index:1;width:10px;height:10px;margin-top:1px;border:1px solid var(--home-green);border-radius:50%;background:#fff}
+.home-state-view.is-guest .home-guest-loop-list li>span:last-child{display:grid;gap:6px}
+.home-state-view.is-guest .home-guest-loop-list strong,.home-state-view.is-guest .home-guest-audience-list strong,.home-state-view.is-guest .home-guest-trust-list strong{font-size:1rem;line-height:1.45}
+.home-state-view.is-guest .home-guest-loop-list small{color:var(--home-muted);font-size:.88rem;line-height:1.65}
+.home-state-view.is-guest .home-guest-records .home-section-heading{align-items:baseline}
+.home-state-view.is-guest .home-guest-proof{min-height:0;overflow:visible;border-radius:0;background:transparent}
+.home-state-view.is-guest .home-guest-proof-item{position:static;display:grid;align-content:start;gap:9px;overflow:visible;color:var(--home-green-dark);background:transparent}
+.home-state-view.is-guest .home-guest-proof-item:hover img{transform:none}
+.home-state-view.is-guest .home-guest-proof-image{display:block;min-width:0;overflow:hidden;aspect-ratio:4/3;background:#e7eee8}
+.home-state-view.is-guest .home-guest-proof-item.is-item-1 .home-guest-proof-image{aspect-ratio:5/4}
+.home-state-view.is-guest .home-guest-proof-item img{width:100%;height:100%;object-fit:cover}
+.home-state-view.is-guest .home-guest-proof-caption{position:static;display:grid;gap:2px;padding:0;background:transparent;text-shadow:none}
+.home-state-view.is-guest .home-guest-proof-caption strong{font-size:.92rem;line-height:1.4}
+.home-state-view.is-guest .home-guest-proof-caption small,.home-state-view.is-guest .home-guest-proof-caption time{color:var(--home-muted);font-size:.78rem;line-height:1.45}
+.home-state-view.is-guest .home-guest-proof.is-empty{display:flex;align-items:center;justify-content:flex-start;gap:14px;min-height:126px;padding:18px 0;border-top:1px solid var(--home-border);border-bottom:1px solid var(--home-border);background:#f4f7f3}
+.home-state-view.is-guest .home-guest-proof.is-empty img{width:72px;height:72px;object-fit:contain}
+.home-state-view.is-guest .home-guest-proof.is-empty p{max-width:24rem;margin:0;padding:0;color:var(--home-green);font-size:.9rem;line-height:1.6;text-align:left}
+.home-state-view.is-guest .home-guest-audience-list,.home-state-view.is-guest .home-guest-trust-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin:0;padding:0;list-style:none;border-top:1px solid var(--home-border)}
+.home-state-view.is-guest .home-guest-audience-list li,.home-state-view.is-guest .home-guest-trust-list li{display:grid;align-content:start;gap:8px;min-width:0;padding:18px 18px 18px 0;border-bottom:1px solid var(--home-border)}
+.home-state-view.is-guest .home-guest-audience-list li+li,.home-state-view.is-guest .home-guest-trust-list li+li{padding-left:18px;border-left:1px solid var(--home-border)}
+.home-state-view.is-guest .home-guest-audience-list span,.home-state-view.is-guest .home-guest-trust-list span{color:var(--home-muted);font-size:.84rem;line-height:1.65;overflow-wrap:anywhere}
+.home-state-view.is-guest .home-guest-boundary-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:0;border-top:1px solid var(--home-border)}
+.home-state-view.is-guest .home-guest-boundary-list>div{display:grid;gap:8px;padding:20px 24px 20px 0;border-bottom:1px solid var(--home-border)}
+.home-state-view.is-guest .home-guest-boundary-list>div+div{padding-left:24px;border-left:1px solid var(--home-border)}
+.home-state-view.is-guest .home-guest-boundary-list dt{font-weight:850;color:var(--home-green-dark)}
+.home-state-view.is-guest .home-guest-boundary-list dd{margin:0;color:var(--home-muted);font-size:.9rem;line-height:1.7}
+.home-state-view.is-guest .home-guest-trust-list{grid-template-columns:repeat(3,minmax(0,1fr))}
+.home-state-view.is-guest .home-place-section{display:block;overflow:visible;padding:clamp(28px,4vw,48px) 0;border:0;border-top:1px solid var(--home-border);border-bottom:1px solid var(--home-border);border-radius:0;background:transparent}
+.home-state-view.is-guest .home-place-copy{display:grid;gap:12px;max-width:48rem}
+.home-state-view.is-guest .home-place-copy h2{margin:0}
+.home-state-view.is-guest .home-place-copy p{margin:0}
+.home-state-view.is-guest .home-operator-statement{max-width:42rem}
+@media(min-width:960px){.home-state-view.is-guest .home-guest-hero{grid-template-columns:minmax(260px,.72fr) minmax(420px,1fr);align-items:center;gap:clamp(42px,6vw,84px)}.home-state-view.is-guest .home-guest-hero-copy{padding-bottom:4px}.home-state-view.is-guest .home-guest-owner-photo{max-width:560px;margin-left:auto}.home-state-view.is-guest .home-guest-records .home-guest-proof.is-count-1 .is-item-1{grid-column:1/13;grid-row:1}.home-state-view.is-guest .home-guest-records .home-guest-proof.is-count-2 .is-item-1,.home-state-view.is-guest .home-guest-records .home-guest-proof.is-count-2 .is-item-2{grid-row:1}.home-state-view.is-guest .home-guest-records .home-guest-proof.is-count-3 .is-item-1,.home-state-view.is-guest .home-guest-records .home-guest-proof.is-count-3 .is-item-2,.home-state-view.is-guest .home-guest-records .home-guest-proof.is-count-3 .is-item-3{grid-row:auto}}
+@media(max-width:767px){.home-state-view.is-guest .home-guest-loop-list{grid-template-columns:1fr;gap:0;padding-left:22px}.home-state-view.is-guest .home-guest-loop-list::before{top:5px;bottom:5px;left:4px;right:auto;border-top:0;border-left:1px solid rgba(20,63,46,.28)}.home-state-view.is-guest .home-guest-loop-list li{grid-template-columns:16px minmax(0,1fr);padding:0 0 24px}.home-state-view.is-guest .home-guest-loop-list li:last-child{padding-bottom:0}.home-state-view.is-guest .home-guest-audience-list,.home-state-view.is-guest .home-guest-trust-list{grid-template-columns:repeat(2,minmax(0,1fr))}.home-state-view.is-guest .home-guest-audience-list li:nth-child(odd),.home-state-view.is-guest .home-guest-trust-list li:nth-child(odd){padding-left:0}.home-state-view.is-guest .home-guest-audience-list li:nth-child(even),.home-state-view.is-guest .home-guest-trust-list li:nth-child(even){padding-left:16px;border-left:1px solid var(--home-border)}.home-state-view.is-guest .home-guest-boundary-list{grid-template-columns:1fr}.home-state-view.is-guest .home-guest-boundary-list>div+div{padding-left:0;border-left:0}.home-state-view.is-guest .home-guest-trust-list{grid-template-columns:1fr}.home-state-view.is-guest .home-guest-trust-list li:nth-child(even),.home-state-view.is-guest .home-guest-trust-list li:nth-child(odd){padding-left:0;border-left:0}.home-state-view.is-guest .home-guest-records .home-guest-proof{grid-template-rows:none}.home-state-view.is-guest .home-guest-records .home-guest-proof-item{grid-column:1/13;grid-row:auto}.home-state-view.is-guest .home-guest-records .home-guest-proof-item+.home-guest-proof-item{margin-top:12px}}
+@media(max-width:359px){.home-state-view.is-guest .home-guest-hero h1{font-size:2.2rem}.home-state-view.is-guest .home-guest-hero p{font-size:1rem}.home-state-view.is-guest .home-guest-audience-list{grid-template-columns:1fr}.home-state-view.is-guest .home-guest-audience-list li:nth-child(even){padding-left:0;border-left:0}.home-state-view.is-guest .home-guest-owner-photo img{aspect-ratio:5/6}}
 `;

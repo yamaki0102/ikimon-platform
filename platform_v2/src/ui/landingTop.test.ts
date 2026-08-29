@@ -45,16 +45,26 @@ function render(lang: SiteLang, data: LandingSnapshot, isLoggedIn = Boolean(data
   return `${result.heroHtml}${result.dailyDashboardHtml}`;
 }
 
-test("guest Top leads with a broad regional-record promise and concrete actions", () => {
+test("guest Top leads with a real photograph and a concrete record action", () => {
   const html = render("ja", snapshot({ feed: [observation("public-1")] }));
   assert.match(html, /data-home-contract="state-split-v1"/);
   assert.match(html, /data-home-auth-state="guest"/);
-  assert.match(html, /<span class="home-hero-phrase">地域の記録を、<\/span><span class="home-hero-phrase">みんなで育てる。<\/span>/);
-  assert.match(html, /祭りも、仕事も、風景も、日常の発見も/);
-  assert.match(html, /何を残せるか/);
-  assert.match(html, /記録が育つ流れ/);
+  assert.match(html, /<span class="home-hero-phrase">撮ると、<\/span><span class="home-hero-phrase">まちの今が図鑑になる。<\/span>/);
+  assert.match(html, /いつもの道で見つけたものを、写真1枚から残せます。/);
+  assert.match(html, /data-home-owner-photo/);
+  assert.match(html, /\/assets\/img\/landing\/yamaki\.webp/);
+  assert.match(html, /ZUKANをつくる八巻毅の写真/);
+  assert.match(html, /一枚が、場所の記録になる。/);
+  assert.match(html, /撮る.*場所で見る.*また残す/s);
+  assert.match(html, /個人.*学校.*地域団体.*企業.*自治体/s);
+  assert.match(html, /無料コア/);
+  assert.match(html, /有償派生/);
+  assert.match(html, /専門report.*CSV.*Excel.*PDF.*API/s);
+  assert.match(html, /位置は大まかに/);
+  assert.match(html, /AIは候補まで/);
+  assert.match(html, /公開範囲を選べる/);
+  assert.doesNotMatch(html, /何を残せるか|記録が育つ流れ|home-category-section|home-value-section/);
   assert.match(html, /場所から見る/);
-  assert.match(html, /正確な位置は公開しません/);
   assert.match(html, /ikimon-home-slot:guest-hero:start/);
   assert.match(html, /home-guest-hero-visual/);
   assert.match(html, /fetchpriority="high"/);
@@ -70,10 +80,12 @@ test("guest Top stays useful without public data and never invents record cards"
   const html = render("ja", snapshot());
   assert.match(html, /map\?tab=places/);
   assert.match(html, /home-guest-hero-visual/);
+  assert.match(html, /data-home-owner-photo/);
+  assert.match(html, /\/assets\/img\/landing\/yamaki\.webp/);
   assert.match(html, /home-guest-proof is-count-0 is-empty/);
-  assert.match(html, /<p>公開できる写真は、まだありません。<\/p>/);
+  assert.match(html, /<p>公開できる記録は、まだありません。<\/p>/);
   assert.match(html, /\/assets\/brand\/zukan-symbol\.svg/);
-  assert.match(html, /home-place-visual is-placeholder/);
+  assert.match(html, /home-place-copy/);
   assert.doesNotMatch(html, /home-generated-badge|イメージ|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(html, /class="home-public-card"/);
   assert.doesNotMatch(html, /sample|placeholder\.jpg|0件|未記録|場所から見る<\/p>/);
@@ -196,7 +208,7 @@ for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
   });
 }
 
-test("home CSS enforces mobile card sizing, touch targets, focus and reduced motion", () => {
+test("home CSS enforces guest editorial layout, touch targets, focus and reduced motion", () => {
   assert.match(LANDING_TOP_STYLES, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(LANDING_TOP_STYLES, /min-height:52px/);
   assert.match(LANDING_TOP_STYLES, /min-height:44px/);
@@ -208,17 +220,25 @@ test("home CSS enforces mobile card sizing, touch targets, focus and reduced mot
   assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-1 \.is-item-1\{grid-column:1\/13/);
   assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-2 \.is-item-2\{grid-column:7\/13/);
   assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-5 \.is-item-5\{grid-column:10\/13/);
+  assert.match(LANDING_TOP_STYLES, /\.home-state-view\.is-guest \.home-guest-owner-photo img/);
+  assert.match(LANDING_TOP_STYLES, /\.home-state-view\.is-guest \.home-guest-loop-list::before/);
+  assert.match(LANDING_TOP_STYLES, /\.home-state-view\.is-guest \.home-guest-boundary-list/);
+  assert.match(LANDING_TOP_STYLES, /@media\(max-width:767px\)/);
 });
 
-test("guest Top explains broad regional records and starts with the shared camera action", () => {
+test("guest Top explains who it is for and starts with the shared camera action", () => {
   const html = render("ja", snapshot({ feed: [observation("public-1")] }));
-  assert.match(html, /<span class="home-hero-phrase">地域の記録を、<\/span><span class="home-hero-phrase">みんなで育てる。<\/span>/);
-  assert.match(html, /学校・学び/);
-  assert.match(html, /地域・イベント/);
-  assert.match(html, /仕事・文化/);
-  assert.match(html, /暮らし・自然/);
-  assert.match(html, /home-category-index/);
+  assert.match(html, /<span class="home-hero-phrase">撮ると、<\/span><span class="home-hero-phrase">まちの今が図鑑になる。<\/span>/);
+  assert.match(html, /個人/);
+  assert.match(html, /学校/);
+  assert.match(html, /地域団体/);
+  assert.match(html, /企業/);
+  assert.match(html, /自治体/);
+  assert.match(html, /home-guest-audience-list/);
+  assert.match(html, /home-guest-boundary-list/);
+  assert.match(html, /home-guest-trust-list/);
   assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
+  assert.doesNotMatch(html, /home-category-index|home-value-icon/);
   assert.doesNotMatch(html, /placeholder\.jpg|home-category-photo/);
   assert.match(html, /data-global-record-trigger="photo"/);
   assert.match(html, /data-kpi-event="top_place_tap"/);
