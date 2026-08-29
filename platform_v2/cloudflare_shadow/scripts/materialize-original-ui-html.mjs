@@ -166,6 +166,7 @@ const staticAssetPaths = [
   "/assets/brand/zukan-symbol.svg",
   "/assets/brand/zukan-wordmark.svg",
   "/assets/brand/zukan-ogp-default.png",
+  "/assets/img/landing/yamaki.webp",
   "/assets/img/landing/home-community-hero.webp",
   "/assets/img/landing/home-school-learning.webp",
   "/assets/img/landing/home-community-event.webp",
