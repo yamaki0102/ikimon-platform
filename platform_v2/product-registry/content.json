@@ -57,46 +57,10 @@
       "user_intent": "最近の記録、場所、再訪候補を確認し、次の撮影へ進む",
       "primary_message": "自分の記録から、次に撮る理由を見つける。",
       "primary_cta": "撮る",
-      "secondary_actions": ["自分の記録を見る", "クビアカ受付を見る"],
+      "secondary_actions": ["自分の記録を見る"],
       "prohibited_claims": ["処理中のAI候補が確定済みである", "非公開記録が公開済みである"],
       "seo": { "index": false, "canonical_path": "/home" },
       "analytics": { "primary_event": "member_record_start_clicked" }
-    },
-    {
-      "id": "content.zukan.kubiaka-landing",
-      "surface": "zukan.kubiaka.landing",
-      "audience": "浜松周辺でサクラを見かける親子・市民",
-      "user_intent": "虫を見つけていなくてもサクラの撮影を始める",
-      "primary_message": "サクラの今を、写真で残そう。",
-      "primary_cta": "サクラを撮る",
-      "secondary_actions": ["自分の受付を見る"],
-      "prohibited_claims": ["写真が行政への通報になる", "AIがクビアカを確定する", "撮影写真が自動公開される", "外部機関へ自動送信される"],
-      "seo": { "index": true, "canonical_path": "/kubiaka" },
-      "analytics": { "primary_event": "kubiaka_capture_started" }
-    },
-    {
-      "id": "content.zukan.kubiaka-capture",
-      "surface": "zukan.kubiaka.capture",
-      "audience": "サクラの幹や根元を撮影する会員",
-      "user_intent": "1〜6枚を確認し、位置情報を本人限定記録として保存する",
-      "primary_message": "虫の名前を決めず、サクラの幹や根元を残す。",
-      "primary_cta": "非公開で保存する",
-      "secondary_actions": ["戻る"],
-      "prohibited_claims": ["通報済み", "提出済み", "公開済み", "外部送信済み", "永続的な公的受付証明"],
-      "seo": { "index": false, "canonical_path": "/kubiaka/record" },
-      "analytics": { "primary_event": "kubiaka_private_record_saved" }
-    },
-    {
-      "id": "content.zukan.kubiaka-member-records",
-      "surface": "zukan.kubiaka.member-records",
-      "audience": "自分が保存したクビアカ調査記録を確認する会員",
-      "user_intent": "過去の本人限定受付記録を確認し、新しい撮影またはHomeへ戻る",
-      "primary_message": "あなたの非公開受付記録。",
-      "primary_cta": "新しく撮る",
-      "secondary_actions": ["ZUKAN Homeへ戻る"],
-      "prohibited_claims": ["行政受理済み", "外部送信済み", "公開地図へ反映済み", "永久保存を保証する"],
-      "seo": { "index": false, "canonical_path": "/kubiaka/me" },
-      "analytics": { "primary_event": "kubiaka_private_records_viewed" }
     }
   ]
 }

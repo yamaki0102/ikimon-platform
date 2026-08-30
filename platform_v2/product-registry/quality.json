@@ -84,67 +84,12 @@
       "required_states": ["unauthenticated", "empty", "populated", "loading", "degraded", "error"],
       "acceptance": [
         "本人の記録と公開記録を混同しない",
-        "empty stateから撮影へ進める",
-        "クビアカ本人受付へ戻れる"
+        "empty stateから撮影へ進める"
       ],
       "tests": [
         { "locator": "platform_v2/e2e/home.staging.spec.ts", "kind": "journey", "status": "canonical" },
         { "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts", "kind": "visual", "status": "canonical" },
         { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
-      ]
-    },
-    {
-      "id": "quality.zukan.kubiaka-landing",
-      "surface": "zukan.kubiaka.landing",
-      "required_states": ["ready", "disabled", "error"],
-      "acceptance": [
-        "虫を発見・同定しなくても撮影を開始できる",
-        "安全注意、非公開、外部送信なしを誤解なく表示する",
-        "撮影と本人受付の二つの導線がある"
-      ],
-      "tests": [
-        { "locator": "platform_v2/src/routes/kubiakaFocusedExperience.test.ts", "kind": "unit-contract", "status": "canonical" },
-        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
-      ]
-    },
-    {
-      "id": "quality.zukan.kubiaka-capture",
-      "surface": "zukan.kubiaka.capture",
-      "required_states": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying", "denied"],
-      "acceptance": [
-        "写真は1〜6枚だけ受け付ける",
-        "本人限定・Gate 0 fail closedで保存する",
-        "公開地図、外部送信、Gate 0前通知を発生させない",
-        "保存成功後に本人受付へ移動する"
-      ],
-      "requirement_refs": [
-        "quality.zukan.kubiaka-capture.prohibited-side-effects"
-      ],
-      "tests": [
-        { "locator": "platform_v2/src/routes/kubiakaFocusedExperience.test.ts", "kind": "unit-contract", "status": "canonical" },
-        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" },
-        { "locator": "platform_v2/e2e/kubiaka-private-receipt.staging.spec.ts", "kind": "journey", "status": "planned" }
-      ]
-    },
-    {
-      "id": "quality.zukan.kubiaka-member-records",
-      "surface": "zukan.kubiaka.member-records",
-      "required_states": ["unauthenticated", "empty", "populated", "loading", "error", "denied", "record-missing"],
-      "acceptance": [
-        "本人以外へ非公開記録を表示しない",
-        "空状態から新しく撮影できる",
-        "記録不在、権限拒否、読込失敗を区別する",
-        "Homeまたは新しい撮影へ戻れる"
-      ],
-      "requirement_refs": [
-        "quality.zukan.kubiaka-member-records.owner-return",
-        "quality.zukan.kubiaka-member-records.owner-isolation",
-        "quality.zukan.kubiaka-member-records.staging-identity"
-      ],
-      "tests": [
-        { "locator": "platform_v2/src/routes/kubiakaFocusedExperience.test.ts", "kind": "unit-contract", "status": "canonical" },
-        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" },
-        { "locator": "platform_v2/e2e/kubiaka-private-receipt.staging.spec.ts", "kind": "journey", "status": "planned" }
       ]
     }
   ],

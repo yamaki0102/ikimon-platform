@@ -17,12 +17,7 @@
 
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
-import {
-  evaluateExperienceManagedTaxonNotificationEligibility,
-  type ExperienceManagedTaxonNotificationBlockReason,
-} from "./experienceManagedTaxonScopes.js";
 import { emitInvasiveReportingForOccurrence, isInvasiveReportingTrigger } from "./invasiveReporting.js";
-import { readCanonicalNotificationEligibility } from "./notificationEligibility.js";
 import { emitAreaWatchNotificationForObservation } from "./areaWatchNotifications.js";
 
 export type EmitAlertsContext = {
@@ -47,8 +42,6 @@ export type EmitAlertsContext = {
   noveltyScore?: number | null;
   /** rare 判定 (redlist_versions 連携で将来拡張) */
   isRare?: boolean;
-  /** Gate 0 は link の有無や状態に依存せず、管理taxonを遮断する。 */
-  experienceRecordLinkState?: string | null;
 };
 
 export type AlertDispatchSummary = {
@@ -60,8 +53,6 @@ export type AlertDispatchSummary = {
   researcherRare: number;
   researcherNovelty: number;
   userTaxonMatches: number;
-  blockedReason: ExperienceManagedTaxonNotificationBlockReason | "experience_managed_taxon_denied" | null;
-  managedTaxonScopeKey: string | null;
 };
 
 function emptyAlertSummary(): AlertDispatchSummary {
@@ -74,15 +65,7 @@ function emptyAlertSummary(): AlertDispatchSummary {
     researcherRare: 0,
     researcherNovelty: 0,
     userTaxonMatches: 0,
-    blockedReason: null,
-    managedTaxonScopeKey: null,
   };
-}
-
-function legacyAlertBlockReason(
-  reason: ExperienceManagedTaxonNotificationBlockReason | null,
-): AlertDispatchSummary["blockedReason"] {
-  return reason === "managed_taxon_gate_denied" ? "experience_managed_taxon_denied" : reason;
 }
 
 export async function emitAlertsForOccurrence(
@@ -91,42 +74,17 @@ export async function emitAlertsForOccurrence(
 ): Promise<AlertDispatchSummary> {
   const summary = emptyAlertSummary();
 
-  // Gate 0: a managed transient context is an immediate deny. An unresolved
-  // transient context must continue to the canonical persisted read because a
-  // photo-only/vernacular-only reassessment may have just persisted identity.
-  const contextGate = evaluateExperienceManagedTaxonNotificationEligibility(ctx.scientificName);
-  if (!contextGate.allowed && contextGate.reason !== "species_unresolved") {
-    summary.blockedReason = legacyAlertBlockReason(contextGate.reason);
-    summary.managedTaxonScopeKey = contextGate.managedTaxonScopeKey;
-    return summary;
-  }
-
   const exec = async (c: PoolClient): Promise<void> => {
-    const canonicalGate = await readCanonicalNotificationEligibility(c, {
-      occurrenceId: ctx.occurrenceId,
-      visitId: ctx.visitId,
-    });
-    if (!canonicalGate.allowed) {
-      summary.blockedReason = legacyAlertBlockReason(canonicalGate.reason);
-      summary.managedTaxonScopeKey = canonicalGate.managedTaxonScopeKey;
-      return;
-    }
-
     // `emitAlertsForOccurrence` is called after the reassessment assessment and
     // primary visual-subject identity have been persisted. Reuse the existing
     // Area Watch writer here so initially-unresolved observations are retried
-    // without duplicating its SQL, Gate 0 logic, or idempotency contract.
+    // without duplicating its SQL or idempotency contract.
     try {
       const areaWatch = await emitAreaWatchNotificationForObservation(
         { occurrenceId: ctx.occurrenceId, visitId: ctx.visitId },
         c,
       );
       summary.areaWatchNotifications = areaWatch.areaWatchNotifications;
-      if (areaWatch.blockedReason) {
-        summary.blockedReason = legacyAlertBlockReason(areaWatch.blockedReason);
-        summary.managedTaxonScopeKey = areaWatch.managedTaxonScopeKey;
-        return;
-      }
     } catch (error) {
       // The Area Watch function restores its savepoint before throwing. Keep
       // legacy unmanaged notifications available and let reassessment commit.

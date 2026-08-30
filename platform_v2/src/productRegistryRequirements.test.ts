@@ -45,17 +45,7 @@ const expectedCaptureRequirements = [
   "quality.zukan.capture.truthful-status",
 ].sort();
 
-const expectedKubiakaRequirements = [
-  "quality.zukan.kubiaka-capture.prohibited-side-effects",
-  "quality.zukan.kubiaka-member-records.owner-isolation",
-  "quality.zukan.kubiaka-member-records.owner-return",
-  "quality.zukan.kubiaka-member-records.staging-identity",
-].sort();
-
-const expectedRequirements = [
-  ...expectedCaptureRequirements,
-  ...expectedKubiakaRequirements,
-].sort();
+const expectedRequirements = [...expectedCaptureRequirements];
 
 test("requirements document is registered by the product root", () => {
   assert.equal(productDocument.schema_version, "1.0.0");
@@ -88,12 +78,6 @@ test("requirements have stable product-owned identities", () => {
     assert.ok(["partial", "planned", "implemented"].includes(requirement.status));
     assert.equal("claim_id" in requirement, false, "claim contracts belong to the central resolver binding");
   }
-  const ownerReturn = requirementDocument.requirements.find(
-    (requirement) => requirement.id === "quality.zukan.kubiaka-member-records.owner-return",
-  );
-  assert.deepEqual(ownerReturn?.evidence_lanes, ["machine", "design", "human"]);
-  assert.ok(ownerReturn?.invalidation_keys.includes("design:kubiaka-owner-return"));
-
   const captureOwnerReturn = requirementDocument.requirements.find(
     (requirement) => requirement.id === "quality.zukan.capture.owner-return",
   );

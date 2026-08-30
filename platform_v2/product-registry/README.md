@@ -21,13 +21,13 @@ Requirement meaning and the evidence categories affected by a product change bel
 cd platform_v2
 npx tsx src/scripts/checkProductRegistry.ts
 npm run typecheck
-npm run test:node -- --test-name-pattern="product registry|Kubiaka requirements|quality contracts"
+npm run test:node -- --test-name-pattern="product registry|requirements|quality contracts"
 ```
 
 `src/productRegistry.test.ts` and `src/productRegistryRequirements.test.ts` run under the normal `test:node` glob and fail when:
 
 - a required surface is missing
-- a registered route does not exist in `siteMap.ts` or the Kubiaka route constants
+- a registered route does not exist in `siteMap.ts`
 - a capability, transition, entry point, design/content/quality contract points to an unknown ID
 - owner-only surfaces omit the denied state
 - write capabilities omit failure or retry contracts

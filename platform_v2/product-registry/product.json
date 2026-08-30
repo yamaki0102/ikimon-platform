@@ -22,10 +22,7 @@
     "zukan.capture.start",
     "zukan.records.public",
     "zukan.map.public",
-    "zukan.home.member",
-    "zukan.kubiaka.landing",
-    "zukan.kubiaka.capture",
-    "zukan.kubiaka.member-records"
+    "zukan.home.member"
   ],
   "rules": {
     "all_surfaces_require_design_contract": true,

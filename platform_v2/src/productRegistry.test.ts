@@ -1,10 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  KUBIAKA_ENTRY_PATH,
-  KUBIAKA_MEMBER_PATH,
-  KUBIAKA_RECORD_PATH,
-} from "./routes/kubiakaFocusedExperience.js";
 import { SITE_PAGE_DEFINITIONS } from "./siteMap.js";
 import {
   assertValidProductRegistry,
@@ -17,11 +12,6 @@ import {
 function implementationRoutes(): ImplementationRouteRegistry {
   return {
     "site-map": new Set(SITE_PAGE_DEFINITIONS.map((page) => page.path)),
-    "kubiaka-focused-experience": new Set([
-      KUBIAKA_ENTRY_PATH,
-      KUBIAKA_RECORD_PATH,
-      KUBIAKA_MEMBER_PATH,
-    ]),
   };
 }
 
@@ -45,7 +35,7 @@ test("registry rejects a transition to an unknown surface", () => {
 
 test("registry rejects entry points without a matching source transition", () => {
   const registry = cloneRegistry();
-  const landing = registry.surfaces.find((surface) => surface.id === "zukan.kubiaka.landing");
+  const landing = registry.surfaces.find((surface) => surface.id === "zukan.capture.start");
   const home = registry.surfaces.find((surface) => surface.id === "zukan.home.public");
   if (!landing || !home) throw new Error("entry point fixtures are missing");
   home.transitions = home.transitions.filter((transition) => transition.target !== landing.id);
@@ -55,8 +45,9 @@ test("registry rejects entry points without a matching source transition", () =>
 
 test("registry rejects owner-only surfaces without an explicit denied state", () => {
   const registry = cloneRegistry();
-  const ownerOnly = registry.surfaces.find((surface) => surface.id === "zukan.kubiaka.member-records");
+  const ownerOnly = registry.surfaces.find((surface) => surface.id === "zukan.capture.start");
   if (!ownerOnly) throw new Error("owner-only fixture surface is missing");
+  ownerOnly.privacy = "owner-only";
   ownerOnly.states = ownerOnly.states.filter((state) => state !== "denied");
   const errors = validateProductRegistry(registry, implementationRoutes());
   assert.ok(errors.some((error) => error.includes("is owner-only but has no denied state")));
@@ -64,8 +55,9 @@ test("registry rejects owner-only surfaces without an explicit denied state", ()
 
 test("registry rejects partial surfaces without explicit gaps and candidate refs", () => {
   const registry = cloneRegistry();
-  const partial = registry.surfaces.find((surface) => surface.id === "zukan.kubiaka.member-records");
+  const partial = registry.surfaces.find((surface) => surface.id === "zukan.capture.start");
   if (!partial) throw new Error("partial fixture surface is missing");
+  partial.implementation_status = "partial";
   partial.known_gaps = [];
   partial.implementation_candidates = [];
   const errors = validateProductRegistry(registry, implementationRoutes());
@@ -75,7 +67,7 @@ test("registry rejects partial surfaces without explicit gaps and candidate refs
 
 test("registry rejects write capabilities without retry contracts", () => {
   const registry = cloneRegistry();
-  const writeCapability = registry.capabilities.find((capability) => capability.id === "zukan.kubiaka.save-private");
+  const writeCapability = registry.capabilities.find((capability) => capability.id === "zukan.record.save-private");
   if (!writeCapability) throw new Error("write capability fixture is missing");
   delete writeCapability.retry_contract;
   const errors = validateProductRegistry(registry, implementationRoutes());
@@ -110,20 +102,24 @@ test("registry rejects route drift from implementation", () => {
 
 test("registry loads requirement evidence contracts and rejects unsupported lanes", () => {
   const registry = cloneRegistry();
-  assert.equal(registry.requirements.length, 10);
+  assert.equal(registry.requirements.length, 6);
   const immediatePreview = registry.requirements.find(
     (requirement) => requirement.id === "quality.zukan.capture.immediate-preview",
   );
   if (!immediatePreview) throw new Error("immediate-preview requirement fixture is missing");
   assert.match(immediatePreview.acceptance, /OSカメラ、接写カメラ、または写真ライブラリ/);
-  const ownerReturn = registry.requirements.find(
-    (requirement) => requirement.id === "quality.zukan.kubiaka-member-records.owner-return",
-  );
+  const ownerReturn = registry.requirements.find((requirement) => requirement.id === "quality.zukan.capture.owner-return");
   if (!ownerReturn) throw new Error("owner-return requirement fixture is missing");
   assert.deepEqual(ownerReturn.evidence_lanes, ["machine", "design", "human"]);
   ownerReturn.evidence_lanes = ["machine", "unsupported" as never];
   const errors = validateProductRegistry(registry, implementationRoutes());
   assert.ok(errors.some((error) => error.includes("has invalid evidence_lanes")));
+});
+
+test("registry contains no retired focused-experience identity", () => {
+  const registry = cloneRegistry();
+  const serialized = JSON.stringify(registry);
+  assert.doesNotMatch(serialized, /kubiaka/iu);
 });
 
 test("registry rejects incomplete selective invalidation contracts", () => {

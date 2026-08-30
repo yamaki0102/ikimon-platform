@@ -51,41 +51,6 @@
       "operation": "read",
       "privacy": "mixed-owner-and-public",
       "side_effects": []
-    },
-    {
-      "id": "zukan.kubiaka.enter",
-      "title": "クビアカ調査導線を開く",
-      "actor": "visitor_or_member",
-      "operation": "read",
-      "privacy": "public",
-      "side_effects": []
-    },
-    {
-      "id": "zukan.kubiaka.capture",
-      "title": "サクラの写真を1〜6枚選ぶ",
-      "actor": "member",
-      "operation": "read",
-      "privacy": "private-draft",
-      "side_effects": []
-    },
-    {
-      "id": "zukan.kubiaka.save-private",
-      "title": "クビアカ調査写真を非公開保存する",
-      "actor": "member",
-      "operation": "write",
-      "privacy": "owner-only-sensitive-location",
-      "side_effects": ["database-write", "media-upload", "snapshot-invalidation"],
-      "prohibited_side_effects": ["public-map", "external-delivery", "area-watch-notification-before-gate0"],
-      "failure_contract": "DB、media、Gate判定の不確実状態はfail closedとし、受付成功や外部送信済みを表示しない",
-      "retry_contract": "再送・再試行で重複受付、公開、通知を発生させない"
-    },
-    {
-      "id": "zukan.kubiaka.view-own-records",
-      "title": "自分のクビアカ受付記録を見る",
-      "actor": "member",
-      "operation": "read",
-      "privacy": "owner-only",
-      "side_effects": []
     }
   ]
 }
