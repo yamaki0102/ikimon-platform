@@ -4991,7 +4991,7 @@ ${alternateLinks}
       display: grid;
       gap: 3px;
       padding: 12px 14px 2px;
-      color: #94a3b8;
+      color: #64748b;
       font-size: 11px;
       line-height: 1.45;
       font-weight: 750;

@@ -18,6 +18,8 @@ test("desktop shell controls keep a real 44px target contract", () => {
   assert.match(html, /\.desktop-side-nav-text-link \{[\s\S]*?min-height: 44px;/);
   assert.match(html, /\.side-nav-collapsible-summary \{[\s\S]*?min-height: 44px;/);
   assert.match(html, /\.desktop-side-nav-mini-summary \{[\s\S]*?min-height: 44px;/);
+  assert.match(html, /\.desktop-side-nav-legal \{[^}]*color: #64748b;/);
+  assert.doesNotMatch(html, /\.desktop-side-nav-legal \{[^}]*color: #94a3b8;/);
   assert.match(html, /@media \(min-width: 1161px\) \{[\s\S]*?\.brand-logo-lockup \{[\s\S]*?min-height: 44px;/);
 });
 
