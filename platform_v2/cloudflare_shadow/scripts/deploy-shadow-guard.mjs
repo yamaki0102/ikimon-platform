@@ -110,17 +110,33 @@ function stripJsonComments(source) {
   return output;
 }
 
+const retiredOriginFallbackVars = [
+  "ORIGIN_FALLBACK_BASE_URL",
+  "ORIGIN_FALLBACK_RESOLVE_OVERRIDE",
+  "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE",
+  "ORIGIN_SESSION_IMPORT_MODE",
+  "PUBLIC_WRITE_MODE"
+];
+
+function configuredRetiredOriginFallbackVars(config) {
+  const scopes = [["default", config.vars ?? {}], ...Object.entries(config.env ?? {}).map(([name, value]) => [name, value?.vars ?? {}])];
+  return scopes.flatMap(([scope, vars]) => retiredOriginFallbackVars
+    .filter((key) => Object.hasOwn(vars, key))
+    .map((key) => `${scope}:${key}`));
+}
+
 async function readShadowConfigSummary() {
   const raw = await readFile("wrangler.jsonc", "utf8");
   const config = JSON.parse(stripJsonComments(raw));
   const shadow = config.env?.shadow;
   const routes = shadow?.routes ?? [];
   const vars = shadow?.vars ?? {};
+  const legacyOriginFallbackVars = configuredRetiredOriginFallbackVars(config);
   const failures = [];
 
   if (shadow?.name !== "ikimon-life-cloudflare-shadow-lab") failures.push("unexpected_shadow_worker_name");
   if (vars.ENVIRONMENT !== "shadow") failures.push("shadow_environment_var_missing");
-  if (vars.PUBLIC_WRITE_MODE !== "origin_fallback") failures.push("shadow_public_write_mode_must_remain_origin_fallback");
+  failures.push(...legacyOriginFallbackVars.map((key) => `retired_origin_fallback_var_present:${key}`));
   if (routes.length > 0) failures.push("shadow_env_must_not_define_routes");
   if (config.env?.production?.name !== "ikimon-life-cloudflare-prod") failures.push("production_env_missing_but_not_targeted");
 
@@ -131,7 +147,7 @@ async function readShadowConfigSummary() {
   return {
     workerName: shadow.name,
     environment: vars.ENVIRONMENT,
-    publicWriteMode: vars.PUBLIC_WRITE_MODE,
+    legacyOriginFallbackVars,
     routeCount: routes.length
   };
 }

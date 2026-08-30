@@ -3876,15 +3876,14 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("INSERT INTO auth_sessions")) {
-      const hasExplicitBanned = normalized.includes("origin-session-lazy-import");
       this.db.authSessions.set(string(v[0]), {
         token_hash: string(v[0]),
         user_id: string(v[1]),
         display_name: string(v[2]),
         role_name: string(v[3]),
         rank_label: nullableString(v[4]),
-        banned: hasExplicitBanned ? number(v[5]) : 0,
-        expires_at: hasExplicitBanned ? string(v[6]) : string(v[5]),
+        banned: 0,
+        expires_at: string(v[5]),
         last_used_at: null
       });
       return {};
@@ -7638,7 +7637,6 @@ function createEnv(queue = new FakeQueue()) {
       INTERNAL_AUTH_TOKEN,
       OBSERVATION_DB_NAME: "ikimon_shadow_observations_2026_06",
       OBSERVATION_ARCHIVE_TARGET: "r2_sql_export_by_partition_month",
-      PUBLIC_WRITE_MODE: "origin_fallback",
       V2_PRIVILEGED_WRITE_API_KEY: "write-key",
       CLOUDFLARE_STREAM_WEBHOOK_SECRET: undefined as string | undefined,
       MPC_DISABLED: undefined as string | undefined,
@@ -7806,7 +7804,7 @@ test("synthetic 10k daily profile creates one durable observation and three medi
 });
 
 test("internal endpoints require an explicit bearer token in shadow", async () => {
-  const { env, core } = createEnv();
+  const { env } = createEnv();
 
   const missingHeader = await worker.fetch(new Request("https://shadow.test/internal/r2-inventory"), env);
   assert.equal(missingHeader.status, 401);
@@ -7819,24 +7817,6 @@ test("internal endpoints require an explicit bearer token in shadow", async () =
   assert.equal(missingSecret.status, 403);
   assert.deepEqual(await missingSecret.json(), { error: "internal_auth_not_configured" });
 
-  core.operationAudit.push({
-    audit_id: "audit-1",
-    operation_type: "origin_fallback",
-    target_id: "unit",
-    payload_json: JSON.stringify({
-      reason: "unit_reason",
-      method: "GET",
-      host: "ikimon.life",
-      routePattern: "/unit",
-      publicWriteMode: "cloudflare_native",
-      environment: "production"
-    }),
-    created_at: "2026-06-16T00:00:00.000Z"
-  });
-  const telemetry = await worker.fetch(internalRequest("/internal/origin-fallback-telemetry"), env);
-  const telemetryPayload = await telemetry.json() as any;
-  assert.equal(telemetry.ok, true, JSON.stringify(telemetryPayload));
-  assert.equal(telemetryPayload.byReason.unit_reason, 1);
 });
 
 test("r2 inventory is limited to shadow environment and bounded prefixes", async () => {
@@ -9197,8 +9177,6 @@ test("production map area polygons stay native while guide spots stay native", a
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -11483,76 +11461,11 @@ test("v1 auth session keeps current optional guest and cookie session contract",
   assert.match(logoutResponse.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970 00:00:00 GMT/);
 });
 
-test("production origin session probe is opt-in and disabled by default", async () => {
-  const { env, core } = createEnv();
-  const rawToken = "origin-session-opt-in-token";
-  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-  const productionEnv = {
-    ...env,
-    ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
-  };
-  const originalFetch = globalThis.fetch;
-  const originFetches: string[] = [];
-  const originRequests: Request[] = [];
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const forwarded = new Request(input, init);
-    originFetches.push(forwarded.url);
-    originRequests.push(forwarded);
-    return Response.json({
-      ok: true,
-      session: {
-        tokenHash,
-        userId: "origin-session-user",
-        displayName: "Origin Session User",
-        roleName: "Observer",
-        rankLabel: "Migration",
-        banned: false,
-        expiresAt
-      }
-    });
-  }) as typeof fetch;
-  try {
-    const disabledResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session?optional=1", {
-      headers: { cookie: `ikimon_v2_session=${rawToken}` }
-    }), productionEnv);
-    assert.equal(disabledResponse.status, 200);
-    assert.deepEqual(await disabledResponse.json(), { ok: false, error: "session_not_found", session: null });
-    assert.equal(originFetches.length, 0);
-    assert.equal(core.authSessions.size, 0);
-    assert.equal(core.operationAudit.length, 0);
-
-    const enabledResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session?optional=1", {
-      headers: { cookie: `ikimon_v2_session=${rawToken}` }
-    }), { ...productionEnv, ORIGIN_SESSION_IMPORT_MODE: "enabled" });
-    const enabledPayload = await enabledResponse.json() as any;
-    assert.equal(enabledResponse.status, 200, JSON.stringify(enabledPayload));
-    assert.equal(enabledPayload.ok, true);
-    assert.equal(enabledPayload.session.userId, "origin-session-user");
-    assert.equal(enabledPayload.session.tokenHash, tokenHash);
-    assert.equal(originFetches.length, 1);
-    assert.equal(originRequests[0]?.headers.get("x-forwarded-host"), "ikimon.life");
-    assert.equal(originRequests[0]?.headers.get("x-forwarded-proto"), "https");
-    assert.equal(core.authSessions.has(tokenHash), true);
-    assert.equal(core.operationAudit.length, 1);
-    assert.equal(core.operationAudit[0]?.operation_type, "origin_fallback");
-    const audit = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(audit.reason, "origin_session_probe");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
 test("production occurrence detail edit APIs write to D1 without origin fallback", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   obs.observations.set("occ-edit-1", {
     observation_id: "occ-edit-1",
@@ -11679,8 +11592,6 @@ test("production occurrence environment edits return a JSON 503 when storage mig
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   obs.environmentRecordTablesAvailable = false;
   obs.observations.set("occ-edit-missing-storage", {
@@ -11770,7 +11681,6 @@ test("native observation upsert persists photo feedback environment draft", asyn
   const response = await worker.fetch(new Request("https://ikimon.life/observations/record-auto-env-draft"), {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   });
   const body = await response.text();
   assert.equal(response.status, 200, body);
@@ -11787,8 +11697,6 @@ test("production occurrence detail edit APIs reject non owners before mutation",
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   obs.observations.set("occ-owned-1", {
     observation_id: "occ-owned-1",
@@ -11826,7 +11734,7 @@ test("production occurrence detail edit APIs reject non owners before mutation",
 
 test("production place management policy API writes to D1 without origin fallback", async () => {
   const { env, obs } = createEnv();
-  const productionEnv = { ...env, ENVIRONMENT: "production", ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test" };
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
 
   const guest = await worker.fetch(new Request("https://ikimon.life/api/v1/places/place%3Apolicy/management-policy", {
     method: "POST",
@@ -12091,9 +11999,6 @@ test("production contact/profile/remember/data-rights writes stay Cloudflare-nat
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
     V2_PRIVILEGED_WRITE_API_KEY: "write-key",
     CONTACT_FORM_SECRET: "contact-secret",
     ALERT_EMAIL: email,
@@ -12344,9 +12249,6 @@ test("production auth login rejects D1 misses without origin fallback", async ()
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fetchCalls = 0;
@@ -12390,9 +12292,6 @@ test("production auth login fails closed when the D1 auth user store is unavaila
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const brokenCore = {
     prepare(query: string) {
@@ -12444,9 +12343,6 @@ test("production personal runtime returns native guest auth boundary without ori
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -12486,9 +12382,6 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const rawToken = "signed-in-cloudflare-token";
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
@@ -12626,9 +12519,6 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const rawToken = "signed-in-guide-token";
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
@@ -13081,9 +12971,6 @@ test("production fieldscan audio runtime stores private R2 audio, detection call
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
     V2_PRIVILEGED_WRITE_API_KEY: "write-key"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
@@ -13209,9 +13096,6 @@ test("production guide admin runtime manages programs and prompt review in Cloud
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const rawToken = "signed-in-guide-admin-token";
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
@@ -13660,7 +13544,6 @@ test("production runtime honors private visibility before public readmodel refre
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const workerOrigin = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
 
@@ -13722,9 +13605,6 @@ test("production custom-domain register can create a private post without public
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -13806,9 +13686,6 @@ test("production custom-domain observation upsert reuses D1 idempotency before c
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () => new Response("fallback should not be called", { status: 599 })) as typeof fetch;
@@ -13888,7 +13765,6 @@ test("staging runtime uses Cloudflare app shell without exposing shadow diagnost
   const stagingEnv = {
     ...env,
     ENVIRONMENT: "staging",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   await env.ASSET_BUCKET.put("original-ui/html/demo/place-feeling-tags.html", "<!doctype html><title>ひとことタグ デモ</title><main>実データではありません place_feeling_tags</main>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -13921,10 +13797,6 @@ test("production stewardship action form and post are D1-native without origin f
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    ORIGIN_SESSION_IMPORT_MODE: "disabled",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const rawToken = "stewardship-action-token";
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
@@ -14004,9 +13876,6 @@ test("production candidate action routes write D1 requests without origin fallba
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const rawOwnerToken = "candidate-action-owner-token";
   const ownerTokenHash = createHash("sha256").update(rawOwnerToken).digest("hex");
@@ -14096,9 +13965,6 @@ test("production management candidate confirmation is D1-native for Cloudflare-o
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const rawToken = "management-confirm-token";
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
@@ -14194,9 +14060,6 @@ test("production observation reassess routes write D1 requests without origin fa
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const rawToken = "reassess-request-token";
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
@@ -14266,9 +14129,6 @@ test("production reference candidates route is native and never probes origin fa
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    ORIGIN_SESSION_IMPORT_MODE: "disabled"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -14318,9 +14178,6 @@ test("reference library runtime stores D1 metadata and serves list candidates co
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    ORIGIN_SESSION_IMPORT_MODE: "disabled"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -14443,9 +14300,6 @@ test("production runtime handles observation reactions natively without origin f
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -14507,9 +14361,6 @@ test("production runtime records observation identifications natively without or
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -14577,9 +14428,6 @@ test("production runtime records identification workbench holds natively without
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -14657,9 +14505,6 @@ test("production runtime records observation AI reviews natively without origin 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -14759,9 +14604,6 @@ test("production public claim readmodel gate keeps AI-sourced authority-looking 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -14818,9 +14660,6 @@ test("production runtime records observation disputes natively without origin fa
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -14897,9 +14736,6 @@ test("production runtime resolves identification disputes natively for specialis
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const observerIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -14974,9 +14810,6 @@ test("production runtime records specialist occurrence reviews natively for spec
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const observerIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -15066,9 +14899,6 @@ test("production specialist authority runtime manages D1 authority and recommend
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    ORIGIN_SESSION_IMPORT_MODE: "disabled"
   };
   const adminToken = "authority-admin-token";
   const specialistToken = "authority-specialist-token";
@@ -15195,9 +15025,6 @@ test("production runtime records walk sessions natively without origin fallback"
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -15298,9 +15125,6 @@ test("production runtime records track upserts natively without origin fallback"
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -15402,9 +15226,6 @@ test("production runtime generates record reading cards natively without origin 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -15504,9 +15325,6 @@ test("production runtime connects native records to ready feedback notifications
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const workerOrigin = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
   const issueResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/auth/session/issue`, {
@@ -15974,7 +15792,7 @@ test("staging Renri fixture endpoints reject production, unauthorized, and broad
 
 test("staging Renri fixture inventory and cleanup stay scoped to the exact fixture prefix", async () => {
   const state = createEnv();
-  const stagingEnv = { ...state.env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...state.env, ENVIRONMENT: "staging" };
   const targetPrefix = "renri-e2e-20260716093000-a1b2c3d4";
   const neighborPrefix = "renri-e2e-20260716093000-b2c3d4e5";
   const target = await seedRenriFixture(state, targetPrefix, "target");
@@ -16028,7 +15846,7 @@ test("staging Renri fixture inventory and cleanup stay scoped to the exact fixtu
 
 test("staging Renri fixture cleanup fails closed when an R2 deletion fails", async () => {
   const state = createEnv();
-  const stagingEnv = { ...state.env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...state.env, ENVIRONMENT: "staging" };
   const fixturePrefix = "renri-e2e-20260716101500-c3d4e5f6";
   const fixture = await seedRenriFixture(state, fixturePrefix, "r2-failure");
   const bucket = stagingEnv.ASSET_BUCKET as FakeBucket;
@@ -16053,7 +15871,6 @@ test("staging record feedback loop cleanup removes only prefixed D1 smoke rows",
   const stagingEnv = {
     ...env,
     ENVIRONMENT: "staging",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
     V2_PRIVILEGED_WRITE_API_KEY: "write-key"
   };
   const fixturePrefix = "record-feedback-loop-cleanup";
@@ -16177,8 +15994,6 @@ test("production runtime returns monitoring package blueprints natively without 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fetchCalls = 0;
@@ -16239,9 +16054,6 @@ test("production runtime returns owner observation package from D1 without origi
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -16298,9 +16110,6 @@ test("production runtime rejects non-owner observation package reads", async () 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -16339,10 +16148,7 @@ test("production runtime allows privileged observation package read without sess
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
     V2_PRIVILEGED_WRITE_API_KEY: "write-key",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fetchCalls = 0;
@@ -16397,9 +16203,6 @@ test("production runtime hides record reading cards natively without origin fall
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -16464,9 +16267,6 @@ test("production runtime rejects record reading card hide from non-owner before 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -16506,9 +16306,6 @@ test("production runtime rejects unknown observation reaction targets before ori
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -16555,9 +16352,6 @@ test("production observation reactions fail closed when the D1 session store is 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -16606,8 +16400,6 @@ test("production runtime rejects invalid observation reactions before origin fal
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fetchCalls = 0;
@@ -16639,8 +16431,6 @@ test("production runtime returns 404 for unknown observation API paths without o
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fetchCalls = 0;
@@ -16670,96 +16460,11 @@ test("production runtime returns 404 for unknown observation API paths without o
   }
 });
 
-test("production origin fallback protects observation write paths when broad public-detail routing is enabled", async () => {
-  const { env, obs } = createEnv();
-  const productionEnv = {
-    ...env,
-    ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
-  };
-  const originalFetch = globalThis.fetch;
-  const seen: { url?: string; method?: string; resolveOverride?: string; body?: string } = {};
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.method = init?.method;
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
-    seen.body = init?.body ? await new Response(init.body).text() : undefined;
-    return new Response(JSON.stringify({ ok: false, error: "origin_write_auth_required" }), {
-      status: 401,
-      headers: { "content-type": "application/json" }
-    });
-  }) as typeof fetch;
-  try {
-    const body = {
-      observationId: "must-not-write-cloudflare",
-      userId: "user",
-      observedAt: "2026-06-16T00:00:00.000Z",
-      latitude: 34.71234,
-      longitude: 137.81234
-    };
-    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body)
-    }), productionEnv);
-    assert.equal(response.status, 401);
-    assert.equal(seen.url, "https://ikimon.life/api/v1/observations/upsert");
-    assert.equal(seen.method, "POST");
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen.body, JSON.stringify(body));
-    assert.equal(obs.observations.has("must-not-write-cloudflare"), false);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("production public write-disabled mode blocks mutating app writes without touching origin or D1", async () => {
-  const { env, obs } = createEnv();
-  const productionEnv = {
-    ...env,
-    ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "write_disabled"
-  };
-  const originalFetch = globalThis.fetch;
-  let fallbackCalls = 0;
-  globalThis.fetch = (async () => {
-    fallbackCalls += 1;
-    return new Response("fallback should not be called", { status: 599 });
-  }) as typeof fetch;
-  try {
-    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        observationId: "write-disabled-must-not-write",
-        userId: "user",
-        observedAt: "2026-06-16T00:00:00.000Z",
-        latitude: 34.71234,
-        longitude: 137.81234
-      })
-    }), productionEnv);
-    const payload = await response.json() as any;
-    assert.equal(response.status, 503);
-    assert.equal(payload.error, "write_temporarily_disabled");
-    assert.equal(response.headers.get("x-ikimon-cloudflare-write-mode"), "write_disabled");
-    assert.equal(fallbackCalls, 0);
-    assert.equal(obs.observations.has("write-disabled-must-not-write"), false);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("production public cloudflare-native mode allows explicit custom-domain app writes", async () => {
+test("production public runtime allows Cloudflare-native custom-domain app writes", async () => {
   const { env, core, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const rawOriginToken = "origin-compatible-raw-token";
   const tokenHash = createHash("sha256").update(rawOriginToken).digest("hex");
@@ -16810,9 +16515,6 @@ test("production public cloudflare-native mode rejects unauthenticated upserts b
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
     method: "POST",
@@ -16847,9 +16549,6 @@ test("production public cloudflare-native mode rejects photo upload auth failure
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const issueOtherResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
@@ -16900,69 +16599,11 @@ test("production public cloudflare-native mode rejects photo upload auth failure
   assert.equal(obs.rollbackLedger.size, 0);
 });
 
-test("production public cloudflare-native mode lazily imports valid origin sessions only when explicitly enabled", async () => {
+test("production session authentication is D1-only and never probes an external origin", async () => {
   const { env, core, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_SESSION_IMPORT_MODE: "enabled"
-  };
-  const rawOriginToken = "origin-login-raw-token";
-  const tokenHash = createHash("sha256").update(rawOriginToken).digest("hex");
-  const originalFetch = globalThis.fetch;
-  const seen: string[] = [];
-  globalThis.fetch = (async (input: RequestInfo | URL) => {
-    const request = input instanceof Request ? input : new Request(input);
-    seen.push(new URL(request.url).pathname + new URL(request.url).search);
-    return Response.json({
-      ok: true,
-      session: {
-        userId: "lazy-origin-user",
-        displayName: "Lazy Origin User",
-        roleName: "Observer",
-        rankLabel: null,
-        banned: false,
-        expiresAt: "2999-01-01T00:00:00.000Z",
-        tokenHash
-      }
-    });
-  }) as typeof fetch;
-  try {
-    const upsertResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
-      method: "POST",
-      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawOriginToken}` },
-      body: JSON.stringify({
-        observationId: "lazy-origin-session-observation",
-        userId: "lazy-origin-user",
-        observedAt: "2026-06-16T00:00:00.000Z",
-        latitude: 34.71234,
-        longitude: 137.81234,
-        taxon: { vernacularName: "lazy origin plant", rank: "species" }
-      })
-    }), productionEnv);
-    const payload = await upsertResponse.json() as any;
-    assert.equal(upsertResponse.status, 201);
-    assert.equal(payload.ok, true);
-    assert.deepEqual(seen, ["/api/v1/auth/session?optional=1"]);
-    assert.equal(core.authSessions.get(tokenHash)?.user_id, "lazy-origin-user");
-    assert.equal(obs.observations.get("lazy-origin-session-observation")?.owner_user_id, "lazy-origin-user");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("production origin session import mode disabled does not probe origin sessions", async () => {
-  const { env, core, obs } = createEnv();
-  const productionEnv = {
-    ...env,
-    ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    ORIGIN_SESSION_IMPORT_MODE: "disabled"
   };
   const rawOriginToken = "disabled-origin-import-token";
   const originalFetch = globalThis.fetch;
@@ -17004,57 +16645,11 @@ test("production origin session import mode disabled does not probe origin sessi
   }
 });
 
-test("production public cloudflare-native mode rejects mismatched origin session hashes", async () => {
-  const { env, core, obs } = createEnv();
-  const productionEnv = {
-    ...env,
-    ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
-  };
-  const rawOriginToken = "origin-login-mismatch-token";
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async () => Response.json({
-    ok: true,
-    session: {
-      userId: "mismatch-origin-user",
-      displayName: "Mismatch Origin User",
-      roleName: "Observer",
-      rankLabel: null,
-      banned: false,
-      expiresAt: "2999-01-01T00:00:00.000Z",
-      tokenHash: "not-the-cookie-token-hash"
-    }
-  })) as typeof fetch;
-  try {
-    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
-      method: "POST",
-      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawOriginToken}` },
-      body: JSON.stringify({
-        observationId: "mismatch-origin-session-observation",
-        userId: "mismatch-origin-user",
-        observedAt: "2026-06-16T00:00:00.000Z",
-        latitude: 34.71234,
-        longitude: 137.81234
-      })
-    }), productionEnv);
-    const payload = await response.json() as any;
-    assert.equal(response.status, 401);
-    assert.equal(payload.error, "session_required");
-    assert.equal(core.authSessions.size, 0);
-    assert.equal(obs.observations.has("mismatch-origin-session-observation"), false);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
 test("production workers.dev compatible session issue requires privileged write key", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
     V2_PRIVILEGED_WRITE_API_KEY: "write-key"
   };
   const requestBody = {
@@ -17090,9 +16685,6 @@ test("production public cloudflare-native mode rejects custom-domain session iss
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
     V2_PRIVILEGED_WRITE_API_KEY: "write-key"
   };
 
@@ -17114,9 +16706,6 @@ test("production oauth start keeps original provider redirect contracts without 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
     GOOGLE_CLIENT_ID: "google-client",
     GOOGLE_CLIENT_SECRET: "google-secret",
     TWITTER_CLIENT_ID: "twitter-client",
@@ -17146,14 +16735,11 @@ test("production oauth start keeps original provider redirect contracts without 
   assert.ok(twitterLocation.searchParams.get("code_challenge"));
 });
 
-test("worker oauth origin ignores inbound forwarded headers and fallback markers", async () => {
+test("worker OAuth origin ignores inbound forwarded headers", async () => {
   const { env } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
     GOOGLE_CLIENT_ID: "google-client",
     GOOGLE_CLIENT_SECRET: "google-secret",
     V2_OAUTH_STATE_SECRET: "state-secret"
@@ -17162,8 +16748,7 @@ test("worker oauth origin ignores inbound forwarded headers and fallback markers
   const response = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start?redirect=/record", {
     headers: {
       "x-forwarded-host": "staging.ikimon.life",
-      "x-forwarded-proto": "http",
-      "x-ikimon-cloudflare-fallback": "origin"
+      "x-forwarded-proto": "http"
     }
   }), productionEnv);
   assert.equal(response.status, 303);
@@ -17176,9 +16761,6 @@ test("production oauth callback creates Cloudflare-native session from provider 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
     GOOGLE_CLIENT_ID: "google-client",
     GOOGLE_CLIENT_SECRET: "google-secret",
     V2_OAUTH_STATE_SECRET: "state-secret"
@@ -17240,9 +16822,6 @@ test("production app oauth returns an exchange code instead of a raw session tok
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
     GOOGLE_CLIENT_ID: "google-client",
     GOOGLE_CLIENT_SECRET: "google-secret",
     V2_OAUTH_STATE_SECRET: "state-secret"
@@ -17327,9 +16906,6 @@ test("production oauth start fails closed when provider secrets are not configur
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   const originalError = console.error;
@@ -17363,9 +16939,6 @@ test("production oauth callback fails closed when provider secrets are not confi
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   const originalError = console.error;
@@ -17400,18 +16973,13 @@ test("production public UI routes avoid legacy PHP fallback by default", async (
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
-  const seen: Array<{ url: string; method?: string; resolveOverride?: string; reason?: string | null }> = [];
+  const seen: Array<{ url: string; method?: string }> = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     seen.push({
       url: String(input),
-      method: init?.method,
-      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride,
-      reason: new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason")
+      method: init?.method
     });
     return new Response("<!doctype html><title>origin UI</title><meta name=\"x-origin-ui\" content=\"1\">", {
       status: 200,
@@ -17519,59 +17087,11 @@ test("production public UI routes avoid legacy PHP fallback by default", async (
   }
 });
 
-test("production legacy PHP fallback is an explicit archive bridge", async () => {
-  const { env, core } = createEnv();
-  const productionEnv = {
-    ...env,
-    ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "enabled"
-  };
-  const originalFetch = globalThis.fetch;
-  const seen: Array<{ url: string; method?: string; resolveOverride?: string; reason?: string | null }> = [];
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.push({
-      url: String(input),
-      method: init?.method,
-      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride,
-      reason: new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason")
-    });
-    return new Response("<!doctype html><title>legacy archive bridge</title>", {
-      status: 200,
-      headers: { "content-type": "text/html; charset=utf-8" }
-    });
-  }) as typeof fetch;
-  try {
-    const response = await worker.fetch(new Request("https://ikimon.life/some-old-unmapped-path"), productionEnv);
-    assert.equal(response.status, 200);
-    assert.equal(await response.text(), "<!doctype html><title>legacy archive bridge</title>");
-    assert.deepEqual(seen, [{
-      url: "https://ikimon.life/some-old-unmapped-path",
-      method: "GET",
-      resolveOverride: "origin.ikimon.test",
-      reason: "public_custom_domain_path"
-    }]);
-    assert.equal(core.operationAudit.length, 1);
-    const audit = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(audit.reason, "public_custom_domain_path");
-    assert.equal(audit.publicWriteMode, "cloudflare_native");
-    assert.equal(audit.routePattern, "/some-old-unmapped-path");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
 test("production legacy PHP public entrypoints cannot use origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "enabled"
   };
   const originalFetch = globalThis.fetch;
   const originalError = console.error;
@@ -17858,11 +17378,6 @@ test("observation event guest checkin keeps credentials server-side and location
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "disabled",
-    ORIGIN_SESSION_IMPORT_MODE: "disabled"
   };
   const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
     method: "POST",
@@ -18162,11 +17677,6 @@ test("observation event analytics stays allowlisted and registration bridge clai
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "disabled",
-    ORIGIN_SESSION_IMPORT_MODE: "disabled"
   };
   const issueSession = async (userId: string, displayName: string) => {
     const response = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
@@ -18532,11 +18042,6 @@ test("production observation event APIs run location and rally routes on D1 with
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "disabled",
-    ORIGIN_SESSION_IMPORT_MODE: "disabled"
   };
   const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
     method: "POST",
@@ -19185,9 +18690,6 @@ test("production map area polygons filter D1 geometry without origin fallback", 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -19250,9 +18752,6 @@ test("production map area polygons show certified radius approximations while hi
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const response = await worker.fetch(new Request(
     "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=12&sources=tsunag%2Cschool"
@@ -19273,7 +18772,6 @@ test("production map area polygons discover generic named facilities and dedupe 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let call = 0;
@@ -19375,9 +18873,6 @@ test("production map area polygons supplement live OSM school polygons when nati
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let overpassCalls = 0;
@@ -19444,9 +18939,6 @@ test("production map area polygons complement registered school polygons with mi
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let overpassCalls = 0;
@@ -19532,9 +19024,6 @@ test("production map area polygons expand low legacy limits for human-scale scho
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let overpassCalls = 0;
@@ -19588,9 +19077,6 @@ test("production map area polygons skip live OSM school fallback below human-sca
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let overpassCalls = 0;
@@ -19633,9 +19119,6 @@ test("production map area polygons bounds live OSM school latency to one endpoin
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
     OVERPASS_API_URL: "https://slow-overpass.test/api/interpreter"
   };
   const originalFetch = globalThis.fetch;
@@ -19726,9 +19209,6 @@ test("production map area polygons use field detail radius fallback for non-scho
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const response = await worker.fetch(new Request(
     "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=tsunag%2Cschool"
@@ -19821,9 +19301,6 @@ test("production map area polygons use native polygon readmodel without origin f
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -19864,9 +19341,6 @@ test("production map area polygons return available native features when request
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -19895,9 +19369,6 @@ test("production UI KPI events stay native before public custom-domain origin fa
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -19934,8 +19405,6 @@ test("production area snapshot serves materialized original UI payloads from R2 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put(`original-ui/area-snapshots/${fieldId}.json`, JSON.stringify({
     snapshot: {
@@ -19971,8 +19440,6 @@ test("production area snapshot uses D1 field detail readmodel when not materiali
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   obs.productionFieldDetails.set(fieldId, {
     field_id: fieldId,
@@ -20035,9 +19502,6 @@ test("production observation field registry runtime creates lists updates and ch
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   obs.productionFieldDetails.set("certified-near-field", {
     field_id: "certified-near-field",
@@ -20236,9 +19700,6 @@ test("production area sketch assessment runtime stores draft diagnostics in D1 w
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const fieldId = "renri-area-sketch-field";
   obs.productionFieldDetails.set(fieldId, {
@@ -20350,9 +19811,6 @@ test("production area sketch draft boundary keeps public visibility and near-thr
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const fieldId = "renri-area-sketch-threshold-field";
   obs.productionFieldDetails.set(fieldId, {
@@ -20479,9 +19937,6 @@ test("production area sketch public release gate blocks school children home-nea
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const fieldId = "renri-area-sketch-sensitive-field";
   obs.productionFieldDetails.set(fieldId, {
@@ -20669,8 +20124,6 @@ test("field manager D1 role is reflected in area snapshot viewer context without
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   obs.productionFieldDetails.set(fieldId, {
     field_id: fieldId,
@@ -20748,8 +20201,6 @@ test("production fixed point station page is D1-native without origin fallback",
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   obs.productionFieldDetails.set(fieldId, {
     field_id: fieldId,
@@ -20852,8 +20303,6 @@ test("production area snapshot returns 404 when neither R2 nor D1 readmodel has 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -20880,8 +20329,6 @@ test("production area snapshot marks school readmodel rows as permission require
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   obs.productionFieldDetails.set(fieldId, {
     field_id: fieldId,
@@ -20941,8 +20388,6 @@ test("production original UI static assets serve materialized bytes from R2 with
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/static/assets/brand/zukan-app-icon-192.png", "png-bytes", {
     httpMetadata: { contentType: "image/png" }
@@ -21028,8 +20473,6 @@ test("production original UI static asset misses return 404 without origin fallb
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -21053,8 +20496,6 @@ test("production original UI thumbnails serve materialized bytes from R2 without
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/thumb/md/v2-observations/record-1/photo.jpg", "jpg-bytes", {
     httpMetadata: { contentType: "image/jpeg" }
@@ -21084,8 +20525,6 @@ test("production public derived media uses bounded cache headers and HEAD withou
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("derived/import/20260615/observation_photo/asset-public-cache/display.webp", "webp-bytes", {
     httpMetadata: { contentType: "image/webp" }
@@ -21139,8 +20578,6 @@ test("production public derived image transform route is bounded and copy-free",
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   const fetchCalls: Array<{ input: unknown; init: RequestInit & { cf?: { image?: { width?: number; fit?: string; format?: string; quality?: number } } } }> = [];
@@ -21206,8 +20643,6 @@ test("production legacy observation thumbnails resolve to public derivatives wit
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   env.OBS_DB.assets.set("asset-legacy-thumb", {
     asset_id: "asset-legacy-thumb",
@@ -21260,8 +20695,6 @@ test("production original UI thumbnail misses return 404 without origin fallback
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -21285,8 +20718,6 @@ test("production original UI html serves materialized anonymous pages from R2 wi
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><title>ikimon / 生きものを手がかりに、この場所の今を残す</title><script nonce=\"stale-materialized-nonce\">ikimon-stale-nonce</script><script nonce=\"\">ikimon-app-outbox-v1</script><script>ikimon-missing-nonce</script>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -21397,8 +20828,6 @@ test("production public www host redirects to the canonical apex host", async ()
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
 
   const response = await worker.fetch(new Request("https://www.ikimon.life/records?view=public"), productionEnv);
@@ -21412,8 +20841,6 @@ test("production original UI html serves localized auth and guest profile shells
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/en/login.html", "<!doctype html><title>Log in | ikimon</title><h1>Log in to My page</h1>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -21468,8 +20895,6 @@ test("production records query variants serve dedicated materialized HTML", asyn
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><title>記録を見る | ikimon</title><main>public records</main>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -21530,8 +20955,6 @@ test("production public entry redirects are native and do not require materializ
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
 
   const originalFetch = globalThis.fetch;
@@ -21577,8 +21000,6 @@ test("production lens query route serves localized materialized html without ori
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja/lens.html", "<!doctype html><title>生きものレンズ | ikimon</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -21607,8 +21028,6 @@ test("production guide read entry routes serve localized materialized html witho
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja/guide-programs.html", "<!doctype html><title>ガイドリレー企画 | ikimon</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -21909,8 +21328,6 @@ test("production home collapses materialized header actions into a hamburger men
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
     "<!doctype html><head></head><body>",
@@ -21940,8 +21357,6 @@ test("production materialized app shells collapse header actions and respect sig
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const shell = (body: string) => [
     "<!doctype html><head></head><body>",
@@ -21995,8 +21410,6 @@ test("production records materialized html includes recent Cloudflare D1 records
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><body><main><h1>記録を見る</h1></main></body>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -22220,8 +21633,6 @@ test("production home shows only precomputed safe public area labels", async () 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
     "<!doctype html><head></head><body>",
@@ -22274,8 +21685,6 @@ test("production home keeps public record feed within the initial DOM budget", a
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
     "<!doctype html><head></head><body>",
@@ -22339,8 +21748,6 @@ test("production home keeps the newest card first while surfacing repeat video s
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
     "<!doctype html><head></head><body>",
@@ -22425,7 +21832,6 @@ test("staging audio upload route creates a real public audio home card state", a
   const stagingEnv = {
     ...env,
     ENVIRONMENT: "staging",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
     "<!doctype html><head></head><body>",
@@ -22514,7 +21920,7 @@ test("staging audio upload route creates a real public audio home card state", a
     method: "POST",
     headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({})
-  }), { ...env, ENVIRONMENT: "production", PUBLIC_WRITE_MODE: "cloudflare_native" });
+  }), { ...env, ENVIRONMENT: "production" });
   assert.equal(productionResponse.status, 404);
 });
 
@@ -22523,8 +21929,6 @@ test("production home prioritizes signed-in owner records over public feed recor
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
     "<!doctype html><head></head><body>",
@@ -22690,8 +22094,6 @@ test("production app refresh page serves materialized reset shell from R2", asyn
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const appRefreshHtml = "<!doctype html><title>ikimon app refresh</title><script>new URLSearchParams(window.location.search);registration.unregister();caches.keys()</script>";
   await env.ASSET_BUCKET.put("original-ui/html/app-refresh.html", appRefreshHtml, {
@@ -22728,8 +22130,6 @@ test("production original UI html serves whitelisted public reading routes from 
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja/learn/glossary.html", "<!doctype html><title>用語集 / ikimon</title><script>ikimon-app-outbox-v1</script>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -22849,14 +22249,11 @@ test("production original UI html serves whitelisted public reading routes from 
   }
 });
 
-test("production public fallback blocks suspicious probe paths instead of forwarding to origin", async () => {
+test("production suspicious probe paths return Cloudflare-native 404 without external fetch", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -22947,9 +22344,6 @@ test("production language-prefixed observation detail stays native and public-sa
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
 
   const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
@@ -23219,9 +22613,6 @@ test("production original UI app shells serve materialized HTML even with sessio
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    ORIGIN_SESSION_IMPORT_MODE: "disabled"
   };
   await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><title>materialized home</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -23249,7 +22640,7 @@ test("production original UI app shells serve materialized HTML even with sessio
   let fallbackCalls = 0;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     fallbackCalls += 1;
-    return new Response(`fallback should not be called: ${String(input)} ${new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason")}`, { status: 599 });
+    return new Response(`external fetch should not be called: ${String(input)} ${init?.method ?? "GET"}`, { status: 599 });
   }) as typeof fetch;
   try {
     const homeResponse = await worker.fetch(new Request("https://ikimon.life/?source=pwa", {
@@ -23319,8 +22710,6 @@ test("production record shell renders signed-in Cloudflare form for valid sessio
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja/record.html", "<!doctype html><title>materialized record</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -23363,8 +22752,6 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const materializedProfileShell = (page: string) => `<!doctype html>
     <html lang="ja">
@@ -23497,8 +22884,6 @@ test("municipal walk map HTML pages are Worker-native and admin pages require se
   const stagingEnv = {
     ...env,
     ENVIRONMENT: "staging",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   obs.municipalWalkMapCreators.set("shizuoka-city", {
     creator_id: "shizuoka-city",
@@ -24195,8 +23580,6 @@ test("production field detail can render from Cloudflare public readmodel withou
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const fieldId = "535cccb1-c3d1-4a35-ab9f-2ed811f5abb5";
   obs.productionFieldDetails.set(fieldId, {
@@ -24275,8 +23658,6 @@ test("production field detail misses return 404 when readmodel table is unavaila
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const response = await worker.fetch(
     new Request("https://ikimon.life/ja/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5"),
@@ -24292,8 +23673,6 @@ test("production field detail public-detail API exposes public-safe readmodel on
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const fieldId = "84577038-21e9-4d57-92bd-d48b5ff407c0";
   obs.productionFieldDetails.set(fieldId, {
@@ -24345,8 +23724,6 @@ test("production field detail public-profile API exposes Site Intelligence witho
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const fieldId = "84577038-21e9-4d57-92bd-d48b5ff407c0";
   obs.productionFieldDetails.set(fieldId, {
@@ -24434,8 +23811,6 @@ test("production field public-profile API prefers dedicated profile readmodel sn
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const fieldId = "dedicated-public-profile-field";
   obs.productionFieldDetails.set(fieldId, {
@@ -24581,8 +23956,6 @@ test("production field detail HTML renders Site Intelligence section from D1 rea
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const fieldId = "535cccb1-c3d1-4a35-ab9f-2ed811f5abb5";
   obs.productionFieldDetails.set(fieldId, {
@@ -24634,8 +24007,6 @@ test("production original UI html misses return 404 without origin fallback", as
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const fieldId = "535cccb1-c3d1-4a35-ab9f-2ed811f5abb5";
   const originalFetch = globalThis.fetch;
@@ -24660,8 +24031,6 @@ test("production place snapshot renders from D1 readmodel without origin fallbac
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const fieldId = "84577038-21e9-4d57-92bd-d48b5ff407c0";
   env.OBS_DB.productionFieldDetails.set(fieldId, {
@@ -24727,8 +24096,6 @@ test("production materialized auth html personalizes redirect query without orig
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put("original-ui/html/en/register.html", [
     "<!doctype html><title>Register</title>",
@@ -24810,7 +24177,7 @@ function stagingAccessContext(identity: Record<string, unknown> | undefined) {
 
 test("staging Access identity creates one invited ZUKAN session without OAuth secrets", async () => {
   const { env, core } = createEnv();
-  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
@@ -24829,7 +24196,7 @@ test("staging Access identity creates one invited ZUKAN session without OAuth se
 
 test("staging Access identity links only an existing verified Google user", async () => {
   const { env, core } = createEnv();
-  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
   core.users.add("existing-user");
   core.oauthAccounts.set("google:google-existing-1", {
     user_id: "existing-user",
@@ -24857,7 +24224,7 @@ test("staging Access identity links only an existing verified Google user", asyn
 
 test("staging Access never links an unverified preclaimed password account", async () => {
   const { env, core } = createEnv();
-  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
   core.authUsers.set("victim@example.test", {
     user_id: "preclaimed-user",
     email: "victim@example.test",
@@ -24883,7 +24250,7 @@ test("staging Access never links an unverified preclaimed password account", asy
 
 test("concurrent first Access requests converge on one deterministic user", async () => {
   const { env, core } = createEnv();
-  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
@@ -24900,7 +24267,7 @@ test("concurrent first Access requests converge on one deterministic user", asyn
 
 test("staging Access rejects missing identity context and disabled accounts", async () => {
   const { env, core } = createEnv();
-  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
@@ -24934,7 +24301,7 @@ test("staging Access rejects missing identity context and disabled accounts", as
 
 test("staging Access replaces a stale cookie and reuses the valid session on revisit", async () => {
   const { env, core } = createEnv();
-  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>member home</main></body>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
@@ -24956,7 +24323,7 @@ test("staging Access replaces a stale cookie and reuses the valid session on rev
 
 test("Workers dev stays guest even with Access context, and production never creates Access sessions", async () => {
   const { env, core } = createEnv();
-  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
@@ -24967,7 +24334,7 @@ test("Workers dev stays guest even with Access context, and production never cre
   assert.equal(response.status, 200);
   assert.equal(core.authSessions.size, 0);
   assert.equal(core.oauthAccounts.size, 0);
-  const productionEnv = { ...env, ENVIRONMENT: "production", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
   const production = await fetchWithContext(new Request("https://ikimon.life/ja/", {
     headers: { accept: "text/html" }
   }), productionEnv, stagingAccessContext({ email: "production@example.test", user_uuid: "access-production-1" }));
@@ -24978,7 +24345,7 @@ test("Workers dev stays guest even with Access context, and production never cre
 
 test("native public Records filters one product list by search query without duplicated materialized content", async () => {
   const { env, obs } = createEnv();
-  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
   await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><html><head></head><body><header><form class=\"site-search site-search-desktop\"><input name=\"q\"></form><form class=\"site-search site-search-mobile\"><input name=\"q\"></form></header><main id=\"main-content\">legacy records</main></body></html>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
@@ -25019,7 +24386,7 @@ test("native public Records filters one product list by search query without dup
 
 test("guest cannot open the member Records view", async () => {
   const { env } = createEnv();
-  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
   const response = await worker.fetch(new Request("https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/ja/records?view=mine"), stagingEnv);
   assert.equal(response.status, 303);
   assert.match(response.headers.get("location") ?? "", /^\/ja\/login\?redirect=/);
@@ -25027,7 +24394,7 @@ test("guest cannot open the member Records view", async () => {
 
 test("native member Records shows the owner's private record once", async () => {
   const { env, core, obs } = createEnv();
-  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
   await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><html><head></head><body><main id=\"main-content\">legacy records</main></body></html>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
@@ -25106,8 +24473,6 @@ test("production public health endpoints are served by Cloudflare instead of ori
     IKIMON_UI_BUNDLE_HASH: "bundle-hash",
     IKIMON_UI_MANIFEST_HASH: "manifest-hash",
     IKIMON_DEPLOYED_AT: "2026-07-10T05:29:27Z",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -25161,8 +24526,6 @@ test("production reflection loop manifest is served by Cloudflare instead of ori
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;

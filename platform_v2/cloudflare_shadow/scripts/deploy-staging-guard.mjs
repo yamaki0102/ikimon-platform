@@ -119,6 +119,21 @@ function stripJsonComments(source) {
   return output;
 }
 
+const retiredOriginFallbackVars = [
+  "ORIGIN_FALLBACK_BASE_URL",
+  "ORIGIN_FALLBACK_RESOLVE_OVERRIDE",
+  "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE",
+  "ORIGIN_SESSION_IMPORT_MODE",
+  "PUBLIC_WRITE_MODE"
+];
+
+function configuredRetiredOriginFallbackVars(config) {
+  const scopes = [["default", config.vars ?? {}], ...Object.entries(config.env ?? {}).map(([name, value]) => [name, value?.vars ?? {}])];
+  return scopes.flatMap(([scope, vars]) => retiredOriginFallbackVars
+    .filter((key) => Object.hasOwn(vars, key))
+    .map((key) => `${scope}:${key}`));
+}
+
 function isWranglerStagingTriggerWarning(error) {
   const output = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
   return output.includes("Uploaded ikimon-life-cloudflare-staging")
@@ -147,6 +162,7 @@ async function readStagingConfigSummary() {
   const routes = staging?.routes ?? [];
   const productionRoutes = production?.routes ?? [];
   const vars = staging?.vars ?? {};
+  const legacyOriginFallbackVars = configuredRetiredOriginFallbackVars(config);
   const d1Names = (staging?.d1_databases ?? []).map((item) => item.database_name).sort();
   const r2Buckets = (staging?.r2_buckets ?? []).map((item) => item.bucket_name).sort();
   const producerQueues = (staging?.queues?.producers ?? []).map((item) => item.queue).sort();
@@ -156,7 +172,7 @@ async function readStagingConfigSummary() {
   if (staging?.name !== "ikimon-life-cloudflare-staging") failures.push("unexpected_staging_worker_name");
   if (!routes.includes("staging.ikimon.life/*")) failures.push("missing_staging_route");
   if (vars.ENVIRONMENT !== "staging") failures.push("staging_environment_var_missing");
-  if (vars.PUBLIC_WRITE_MODE !== "cloudflare_native") failures.push("staging_public_write_mode_not_cloudflare_native");
+  failures.push(...legacyOriginFallbackVars.map((key) => `retired_origin_fallback_var_present:${key}`));
   if (!d1Names.includes("ikimon_shadow_core")) failures.push("missing_nonproduction_core_d1");
   if (!d1Names.includes("ikimon_shadow_observations_2026_06")) failures.push("missing_nonproduction_observations_d1");
   if (!r2Buckets.includes("ikimon-shadow-media")) failures.push("missing_nonproduction_r2_bucket");
@@ -178,7 +194,7 @@ async function readStagingConfigSummary() {
     workerName: staging.name,
     routes,
     environment: vars.ENVIRONMENT,
-    publicWriteMode: vars.PUBLIC_WRITE_MODE,
+    legacyOriginFallbackVars,
     d1Names,
     r2Buckets,
     producerQueues,

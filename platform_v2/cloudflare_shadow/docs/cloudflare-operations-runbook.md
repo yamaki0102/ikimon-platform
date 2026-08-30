@@ -102,7 +102,7 @@ Stop and rollback if:
 
 - healthz or readyz fails on either workers.dev or public domain
 - auth/session, record creation, map, or field detail routes regress in smoke
-- origin fallback telemetry unexpectedly increases for a route that should be native
+- the migration boundary report or Wrangler bindings show any retired origin fallback call or variable
 
 ## 2. Emergency Rollback
 
