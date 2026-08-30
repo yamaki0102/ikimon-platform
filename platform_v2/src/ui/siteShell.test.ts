@@ -9,6 +9,18 @@ test("site shell keeps the keyboard skip link at the 44px target contract", () =
   assert.match(html, /\.skip-link \{[\s\S]*?min-height: 44px;[\s\S]*?display: inline-flex;[\s\S]*?align-items: center;/);
 });
 
+test("desktop shell controls keep a real 44px target contract", () => {
+  const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
+  assert.match(html, /\.desktop-side-nav-toggle \{[\s\S]*?width: 44px;[\s\S]*?height: 44px;[\s\S]*?flex: 0 0 44px;/);
+  assert.match(html, /\.site-search \{[\s\S]*?min-height: 44px;[\s\S]*?padding: 0 14px;/);
+  assert.match(html, /\.site-search-input \{[\s\S]*?min-height: 44px;/);
+  assert.match(html, /\.desktop-side-nav-link \{[\s\S]*?min-height: 44px;/);
+  assert.match(html, /\.desktop-side-nav-text-link \{[\s\S]*?min-height: 44px;/);
+  assert.match(html, /\.side-nav-collapsible-summary \{[\s\S]*?min-height: 44px;/);
+  assert.match(html, /\.desktop-side-nav-mini-summary \{[\s\S]*?min-height: 44px;/);
+  assert.match(html, /@media \(min-width: 1161px\) \{[\s\S]*?\.brand-logo-lockup \{[\s\S]*?min-height: 44px;/);
+});
+
 test("site shell hydrates the login link from the v2 session endpoint", () => {
   const html = renderSiteDocument({
     basePath: "",
