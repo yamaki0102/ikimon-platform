@@ -10,6 +10,12 @@ const demoNarrationAssetDir = releaseAssets.demoNarration;
 const outDir = process.env.QA_OUT_DIR ? path.resolve(process.env.QA_OUT_DIR) : path.resolve(__dirname, "..", ".runtime", "screenshots-demo-feedback");
 fs.mkdirSync(outDir, { recursive: true });
 
+async function openDeck(page) {
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await page.waitForSelector(".slide.active", { state: "visible", timeout: 15000 });
+  await page.waitForTimeout(250);
+}
+
 (async () => {
   const browser = await chromium.launch({ channel: "chrome", headless: true }).catch(() =>
     chromium.launch({ channel: "msedge", headless: true })
@@ -39,15 +45,18 @@ fs.mkdirSync(outDir, { recursive: true });
     { name: "landscape", width: 667, height: 375 }
   ]) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.goto(url, { waitUntil: "networkidle" });
+    await openDeck(page);
     const count = await page.locator("[data-slide]").count();
     if (count !== demoSlides.length) failures.push(`${viewport.name}: slide count ${count} !== ${demoSlides.length}`);
 
     let currentIndex = 0;
-    const targetIndexes = viewport.name === "mobile" ? demoSlides.map((_, index) => index) : [1, 4, 8, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
+    const targetIndexes = viewport.name === "mobile"
+      ? demoSlides.map((_, index) => index)
+      : [1, 4, 8, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26].filter((index) => index < demoSlides.length);
     for (const targetIndex of targetIndexes) {
       while (currentIndex < targetIndex) {
-        await page.getByLabel("次のスライド").click();
+        if (viewport.name === "landscape") await page.keyboard.press("ArrowRight");
+        else await page.getByLabel("次のスライド").click();
         currentIndex += 1;
         await page.waitForTimeout(180);
       }
@@ -57,6 +66,7 @@ fs.mkdirSync(outDir, { recursive: true });
         const shell = document.querySelector(".deck-shell");
         const toolbar = document.querySelector(".deck-toolbar");
         const prompt = document.querySelector(".mobile-fullscreen-prompt");
+        const entrySummary = document.querySelector(".mobile-entry-summary");
         const viewport = document.querySelector(".slides-viewport");
         const stage = active?.querySelector(".demo-stage");
         const board = active?.querySelector(".demo-board");
@@ -64,6 +74,7 @@ fs.mkdirSync(outDir, { recursive: true });
         const slideRect = active?.getBoundingClientRect();
         const toolbarRect = toolbar?.getBoundingClientRect();
         const promptRect = prompt?.getBoundingClientRect();
+        const entrySummaryRect = entrySummary?.getBoundingClientRect();
         const viewportRect = viewport?.getBoundingClientRect();
         const stageRect = stage?.getBoundingClientRect();
         const boardRect = board?.getBoundingClientRect();
@@ -107,6 +118,8 @@ fs.mkdirSync(outDir, { recursive: true });
           slideRect: slideRect ? { top: slideRect.top, bottom: slideRect.bottom, width: slideRect.width, height: slideRect.height } : null,
           toolbarRect: toolbarRect ? { top: toolbarRect.top, bottom: toolbarRect.bottom, width: toolbarRect.width, height: toolbarRect.height } : null,
           promptRect: promptRect ? { top: promptRect.top, bottom: promptRect.bottom, width: promptRect.width, height: promptRect.height } : null,
+          entrySummaryRect: entrySummaryRect ? { top: entrySummaryRect.top, bottom: entrySummaryRect.bottom, width: entrySummaryRect.width, height: entrySummaryRect.height } : null,
+          entrySummaryText: entrySummary?.textContent || "",
           viewportRect: viewportRect ? { top: viewportRect.top, bottom: viewportRect.bottom, width: viewportRect.width, height: viewportRect.height } : null,
           stageRect: stageRect ? { left: stageRect.left, right: stageRect.right, top: stageRect.top, bottom: stageRect.bottom, width: stageRect.width, height: stageRect.height } : null,
           boardRect: boardRect ? { left: boardRect.left, right: boardRect.right, top: boardRect.top, bottom: boardRect.bottom, width: boardRect.width, height: boardRect.height } : null,
@@ -127,7 +140,7 @@ fs.mkdirSync(outDir, { recursive: true });
       if (metrics.scrollW > metrics.innerW + 2) failures.push(`${viewport.name} ${metrics.slideId}: horizontal overflow ${metrics.scrollW}/${metrics.innerW}`);
       if (viewport.name === "mobile") {
         if (!metrics.portraitPreview) failures.push(`${viewport.name} ${metrics.slideId}: portrait preview mode missing`);
-        if (!metrics.toolbarRect || metrics.toolbarRect.height > 92) {
+        if (!metrics.toolbarRect || metrics.toolbarRect.height > 96) {
           failures.push(`${viewport.name} ${metrics.slideId}: portrait toolbar too tall ${JSON.stringify(metrics.toolbarRect)}`);
         }
         if (!metrics.promptRect || metrics.promptRect.height > 48) {
@@ -136,7 +149,10 @@ fs.mkdirSync(outDir, { recursive: true });
         if (metrics.visibleSecondaryControls > 0) {
           failures.push(`${viewport.name} ${metrics.slideId}: secondary controls visible in portrait ${metrics.visibleSecondaryControls}`);
         }
-        if (!metrics.viewportRect || metrics.viewportRect.top > 158) {
+        if (!metrics.entrySummaryRect || metrics.entrySummaryRect.height > 120 || !metrics.entrySummaryText.includes("異なる10地点") || !metrics.entrySummaryText.includes("突入で逮捕")) {
+          failures.push(`${viewport.name} ${metrics.slideId}: compact win-condition summary is missing ${JSON.stringify({ rect: metrics.entrySummaryRect, text: metrics.entrySummaryText })}`);
+        }
+        if (!metrics.viewportRect || metrics.viewportRect.top > 300) {
           failures.push(`${viewport.name} ${metrics.slideId}: portrait preview starts too low ${JSON.stringify(metrics.viewportRect)}`);
         }
         if (!metrics.viewportRect || metrics.viewportRect.height > 260) {
@@ -192,7 +208,7 @@ fs.mkdirSync(outDir, { recursive: true });
 
   const r7RaidIndex = demoSlides.findIndex((slide) => slide.id === "demo-round-7-raid");
   await page.setViewportSize({ width: 1366, height: 768 });
-  await page.goto(url, { waitUntil: "networkidle" });
+  await openDeck(page);
   for (let index = 0; index < r7RaidIndex; index += 1) {
     await page.getByLabel("次のスライド").click();
     await page.waitForTimeout(80);
@@ -225,7 +241,7 @@ fs.mkdirSync(outDir, { recursive: true });
     failures.push(`R7 raid point is visible before the raid is narrated: ${JSON.stringify(earlyR7Direction)}`);
   }
 
-  await page.goto(url, { waitUntil: "networkidle" });
+  await openDeck(page);
   await page.evaluate(() => {
     window.__narrationPlayStarts = [];
   });
@@ -250,7 +266,7 @@ fs.mkdirSync(outDir, { recursive: true });
   }
 
   await page.setViewportSize({ width: 1280, height: 606 });
-  await page.goto(url, { waitUntil: "networkidle" });
+  await openDeck(page);
   for (let index = 0; index < 7; index += 1) {
     await page.getByLabel("次のスライド").click();
     await page.waitForTimeout(80);
@@ -305,7 +321,7 @@ fs.mkdirSync(outDir, { recursive: true });
     }
   }
 
-  await page.goto(url, { waitUntil: "networkidle" });
+  await openDeck(page);
   const assetChecks = await page.evaluate(async (assetDir) => {
     const manifestUrl = new URL(`${assetDir}/slide-manifest.json`, window.location.href);
     const manifestRes = await fetch(manifestUrl);
@@ -320,7 +336,9 @@ fs.mkdirSync(outDir, { recursive: true });
     const r7Move = byId("demo-round-7-move");
     const r7Raid = byId("demo-round-7-raid");
     const r8Move = byId("demo-round-8-move");
-    const capture = byId("demo-capture");
+    const cover = byId("demo-cover");
+    const finalDecision = byId("demo-final-decision");
+    const summary = byId("demo-summary");
     const wavRes = await fetch(new URL(`${assetDir}/slides/slide-18.wav`, window.location.href));
     return {
       manifestOk: manifestRes.ok,
@@ -341,8 +359,11 @@ fs.mkdirSync(outDir, { recursive: true });
       r7RaidHasFootstepAnswer: r7Raid.segments.some((segment) => segment.text.includes("まだ通っていない")),
       r8UsesNormalMove: r8Move.segments.some((segment) => segment.text.includes("通常移動")),
       r8ReachesTen: r8Move.segments.some((segment) => segment.text.includes("足跡は十枚")),
-      captureHasRedundantReview: capture.segments.some((segment) => segment.text.includes("R8の突入は近かった") || segment.text.includes("疲弊が重くなったぶん")),
-      captureSegments: capture.segments.length,
+      coverHasWinCondition: cover.segments.some((segment) => segment.text.includes("重複しない十の街") && segment.text.includes("最後の警察手番")),
+      removedEndingIdsRemain: manifest.slides.some((slide) => slide.slideId === "demo-network-final" || slide.slideId === "demo-capture"),
+      finalDecisionHasR6: finalDecision.segments.some((segment) => segment.text.includes("R6") && segment.text.includes("透明化")),
+      summaryHasExactRules: summary.segments.some((segment) => segment.text.includes("異なる十の街") && segment.text.includes("最後の警察手番")) && summary.segments.some((segment) => segment.text.includes("タレコミ") && segment.text.includes("内偵")),
+      redundantEndingDialogue: manifest.slides.some((slide) => slide.segments.some((segment) => segment.text.includes("警察手番終了。捕まえられなかったので") || segment.text.includes("R8の突入は近かった"))),
       wavOk: wavRes.ok,
       wavBytes: Number(wavRes.headers.get("content-length") || "0")
     };
@@ -366,7 +387,9 @@ fs.mkdirSync(outDir, { recursive: true });
     failures.push(`R7 normal move and raid not reflected in manifest: ${JSON.stringify(assetChecks)}`);
   }
   if (!assetChecks.r8UsesNormalMove || !assetChecks.r8ReachesTen) failures.push(`R8 ten-card normal move not reflected in manifest: ${JSON.stringify(assetChecks)}`);
-  if (assetChecks.captureHasRedundantReview || assetChecks.captureSegments !== 1) failures.push(`redundant capture review remains in manifest: ${JSON.stringify(assetChecks)}`);
+  if (!assetChecks.coverHasWinCondition) failures.push(`win condition is not explained before setup: ${JSON.stringify(assetChecks)}`);
+  if (assetChecks.removedEndingIdsRemain || assetChecks.redundantEndingDialogue) failures.push(`redundant ending remains in manifest: ${JSON.stringify(assetChecks)}`);
+  if (!assetChecks.finalDecisionHasR6 || !assetChecks.summaryHasExactRules) failures.push(`final decision or summary lost the core rule explanation: ${JSON.stringify(assetChecks)}`);
   if (!assetChecks.wavOk || assetChecks.wavBytes < 100000) failures.push(`R6 WAV fetch failed or too small: ${JSON.stringify(assetChecks)}`);
 
   await browser.close();

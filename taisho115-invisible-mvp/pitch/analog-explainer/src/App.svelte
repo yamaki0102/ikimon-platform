@@ -65,7 +65,7 @@
   let playbackSerial = 0;
   const rulesNarrationPlaybackRate = 1.15;
   const demoNarrationPlaybackRate = 1.2;
-  const demoNarrationVersion = "20260829-r6-crisis-route-v1";
+  const demoNarrationVersion = "20260830-mobile-clarity-v1";
   const slideCompleteHoldMs = 2000;
   const slideChangeNarrationDelayMs = 1400;
   const segmentCueDelaySeconds = 0.32;
@@ -385,11 +385,12 @@
   const landscapeFitActive = $derived(
     !presentationActive && viewportWidth <= 1180 && viewportWidth > viewportHeight && viewportHeight <= 620
   );
+  const chromeManagedActive = $derived(presentationActive || landscapeFitActive);
   const fullscreenLabel = $derived(presentationActive ? "戻る" : "全画面");
   const deckShellClass = $derived(
     `deck-shell ${deckMode === "demo" ? "demo-deck" : "rules-deck"}${demoV2 ? " demo-v2" : ""}${presentationMode ? " presentation-mode" : ""}${fullscreenActive ? " fullscreen-active" : ""}${
-      presentationActive && presentationChromeVisible ? " presentation-chrome-visible" : ""
-    }${presentationActive && !presentationChromeVisible ? " presentation-chrome-hidden" : ""}${portraitPreviewActive ? " portrait-preview-mode" : ""}${
+      chromeManagedActive && presentationChromeVisible ? " presentation-chrome-visible" : ""
+    }${chromeManagedActive && !presentationChromeVisible ? " presentation-chrome-hidden" : ""}${portraitPreviewActive ? " portrait-preview-mode" : ""}${
       landscapeFitActive ? " fullscreen-active landscape-fit-mode" : ""
     }`
   );
@@ -621,7 +622,7 @@
   }
 
   function revealPresentationChrome() {
-    if (!presentationActive) return;
+    if (!chromeManagedActive) return;
     presentationChromeVisible = true;
     clearChromeTimer();
     chromeHideTimer = window.setTimeout(() => {
@@ -631,7 +632,7 @@
   }
 
   function handlePresentationPointerMove(event: PointerEvent) {
-    if (!presentationActive || event.pointerType === "touch") return;
+    if (!chromeManagedActive || event.pointerType === "touch") return;
     if (lastChromePointer) {
       const dx = Math.abs(event.clientX - lastChromePointer.x);
       const dy = Math.abs(event.clientY - lastChromePointer.y);
@@ -642,7 +643,7 @@
   }
 
   function handlePresentationTap(event: PointerEvent) {
-    if (!presentationActive) return;
+    if (!chromeManagedActive) return;
     const target = event.target as HTMLElement | null;
     if (target?.closest("button, a, input, label")) return;
     revealPresentationChrome();
@@ -1226,28 +1227,16 @@
         options: "大きい出目 - 疲弊 = 上限枚数",
         next: "本命の捜査網へ"
       },
-      "demo-network-final": {
-        turn: "警察の見え方",
-        action: "R6の透明化から最後の1枚質問までを確認",
-        options: "R6透明化 / R7先回り / R8質問",
-        next: "透明人間側の判断へ"
-      },
       "demo-final-decision": {
-        turn: "透明人間の判断",
-        action: "R6で透明化を切り、その後は通常移動で10枚へ",
+        turn: "勝負を分けた判断",
+        action: "R6で透明化を切り、その後は通常移動で10地点へ",
         options: "危機回避 / 経路維持 / 最終質問回避",
-        next: "勝利判定へ"
-      },
-      "demo-capture": {
-        turn: "ラウンド8 決着",
-        action: "警察の最終質問が外れ、足跡10枚が確定",
-        options: "手番終了 / 透明人間の勝利",
-        next: "流れを振り返る"
+        next: "要点まとめへ"
       },
       "demo-summary": {
         turn: "まとめ",
-        action: "現在地・足跡・方角・ゲージを分ける",
-        options: "迷ったら4つの情報を分けて考える",
+        action: "両者の勝ち方と透明化を三点で整理",
+        options: "10地点 / 突入 / 透明化",
         next: "コンセプト説明スライドへ戻る"
       }
     };
@@ -1644,6 +1633,12 @@
       <FileDown size={18} />
     </button>
   </header>
+
+  <aside class="mobile-entry-summary" aria-label="このゲームの勝ち方">
+    <strong>先に、勝ち方だけ</strong>
+    <p><span>透明人間</span>異なる10地点＋最終手番を回避</p>
+    <p><span>警察</span>捜査網で絞り、突入で逮捕</p>
+  </aside>
 
   <button type="button" class="mobile-fullscreen-prompt" onclick={() => void enterPresentationMode("mobile_prompt")}>
     <span><Maximize2 size={18} />横長フルスクリーンで見る</span>

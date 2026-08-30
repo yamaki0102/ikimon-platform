@@ -8,8 +8,8 @@
   ],
   "immutable_directories": [
     "assets/formal-canonical-20260829",
-    "assets/narration-canonical-20260829",
-    "assets/demo-narration-canonical-20260829"
+    "assets/narration-canonical-20260830-mobile-clarity-v1",
+    "assets/demo-narration-canonical-20260830-mobile-clarity-v1"
   ],
   "immutable_asset_extensions": [
     ".css",

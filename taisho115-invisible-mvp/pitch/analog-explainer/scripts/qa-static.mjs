@@ -252,9 +252,10 @@ if (demoManifest?.slides) {
 }
 
 const restSlide = demoSlides.find((slide) => slide.id === "demo-rest");
+const demoCoverSlide = demoSlides.find((slide) => slide.id === "demo-cover");
 const earlyRaidSlide = demoSlides.find((slide) => slide.id === "demo-raid-miss");
 const finalGaugeSlide = demoSlides.find((slide) => slide.id === "demo-gauge-final");
-const finalNetworkSlide = demoSlides.find((slide) => slide.id === "demo-network-final");
+const finalDecisionSlide = demoSlides.find((slide) => slide.id === "demo-final-decision");
 const round6Stealth1Slide = demoSlides.find((slide) => slide.id === "demo-round-6-stealth-1");
 const round6Trace1Slide = demoSlides.find((slide) => slide.id === "demo-round-6-trace-1");
 const round6Stealth2Slide = demoSlides.find((slide) => slide.id === "demo-round-6-stealth-2");
@@ -263,9 +264,11 @@ const round6IntelSlide = demoSlides.find((slide) => slide.id === "demo-round-6-i
 const round7MoveSlide = demoSlides.find((slide) => slide.id === "demo-round-7-move");
 const round7RaidSlide = demoSlides.find((slide) => slide.id === "demo-round-7-raid");
 const round8MoveSlide = demoSlides.find((slide) => slide.id === "demo-round-8-move");
-const captureSlide = demoSlides.find((slide) => slide.id === "demo-capture");
 const summarySlide = demoSlides.find((slide) => slide.id === "demo-summary");
-if (demoSlides.length < 29) errors.push(`demo slide count ${demoSlides.length} is too short for the full play script`);
+if (demoSlides.length !== 27) errors.push(`demo slide count ${demoSlides.length} must be 27 after redundant ending removal`);
+if (!demoCoverSlide?.body?.includes("異なる10地点") || !demoCoverSlide?.body?.includes("最後の警察手番")) {
+  errors.push("demo cover must explain the invisible-player win condition before setup");
+}
 if (restSlide?.demo?.gauge?.fatigue !== "1") errors.push("demo-rest must recover fatigue from 2 to 1, not 0");
 if (!restSlide?.demo?.status?.some((item) => item.includes("2 -> 1") || item.includes("疲弊2を1"))) {
   errors.push("demo-rest must show fatigue 2 -> 1");
@@ -282,8 +285,8 @@ if (finalGaugeSlide?.demo?.gauge?.search !== "3 - 2 = 1枚まで") {
 if (JSON.stringify(finalGaugeSlide?.demo?.search ?? []) !== JSON.stringify([2]) || finalGaugeSlide?.demo?.answer !== "いない") {
   errors.push("final police turn must ask 阿三 and miss before the game ends");
 }
-if (!finalNetworkSlide?.dialogue?.some((item) => item.text.includes("R6") && item.text.includes("透明化") && item.text.includes("宇三丁目"))) {
-  errors.push("final police view must explain that R6 stealth shifted the current position before the endgame");
+if (!finalDecisionSlide?.dialogue?.some((item) => item.text.includes("R6") && item.text.includes("透明化"))) {
+  errors.push("final decision must explain that R6 stealth created the winning one-step gap");
 }
 if (!round6IntelSlide?.dialogue?.some((item) => item.text.includes("過去に通ったことはありますか"))) {
   errors.push("round 6 intel must ask whether the selected card was passed in the past");
@@ -337,16 +340,26 @@ if (!round8MoveSlide?.dialogue?.some((item) => item.text.includes("通常移動"
 if (round8MoveSlide?.dialogue?.some((item) => item.text.includes("勝利なのだ") || item.text.includes("ぼくの勝ち"))) {
   errors.push("round 8 move must not declare victory before the final police turn");
 }
-if (captureSlide?.demo?.answer !== "逃げ切り") errors.push("demo capture slide must now resolve as an invisible-player escape");
-if (!captureSlide?.dialogue?.some((item) => item.text.includes("警察手番"))) {
-  errors.push("capture slide must declare victory only after the police turn ends");
-}
 if (!summarySlide?.dialogue?.some((item) => item.text.includes("タレコミ"))) errors.push("closing summary must mention tip-off gauge");
 if (!summarySlide?.dialogue?.some((item) => item.text.includes("R6の透明化") && item.text.includes("痕跡ダイス") && item.text.includes("危機"))) {
   errors.push("closing summary must close on R6 stealth and per-move trace dice as crisis avoidance");
 }
-if (captureSlide?.dialogue?.some((item) => item.text.includes("R8の突入は近かった") || item.text.includes("疲弊が重くなったぶん")) || (captureSlide?.dialogue?.length ?? 0) !== 1) {
-  errors.push("capture slide still contains the redundant closing review called out by feedback");
+if (demoSlides.some((slide) => slide.id === "demo-network-final" || slide.id === "demo-capture")) {
+  errors.push("redundant police-view or victory-declaration ending slide remains");
+}
+if (JSON.stringify(demoSlides).includes("警察手番終了。捕まえられなかったので") || JSON.stringify(demoSlides).includes("R8の突入は近かった")) {
+  errors.push("the reviewer-annotated redundant ending dialogue remains");
+}
+
+const conceptSlide = slides.find((slide) => slide.id === "game-concept");
+if (!conceptSlide?.body?.includes("異なる10の街") || !conceptSlide?.body?.includes("最後の警察手番")) {
+  errors.push("concept deck must state the same exact win condition as the demo deck");
+}
+if (JSON.stringify(conceptSlide).includes("宝を回収しながら逃げ切る")) {
+  errors.push("concept deck still presents treasure collection as a different win condition");
+}
+if (!app.includes("mobile-entry-summary") || !css.includes("min-height: 48px") || !css.includes("presentation-chrome-visible .slides-viewport")) {
+  errors.push("mobile clarity summary, 48px entry CTA, or chrome-safe landscape layout is missing");
 }
 if (JSON.stringify(demoSlides).includes("2 -> 0")) {
   errors.push("demo slides still contain obsolete rest/full-recovery wording");
