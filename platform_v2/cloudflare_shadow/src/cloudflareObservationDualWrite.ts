@@ -661,6 +661,83 @@ export async function buildRecordProposalPolicyPlan(input: {
   };
 }
 
+export async function buildRecordVisibilityPlan(input: {
+  recordId: string;
+  ownerUserId: string;
+  previousVisibility: "public" | "limited" | "private";
+  visibility: "public" | "private";
+  operationId: string;
+}): Promise<ObservationDualWritePlan> {
+  const operationKey = `record_visibility:${input.operationId}`;
+  const observationId = await observationIdForRecord(input.recordId);
+  const eventId = await deterministicUuid(`record-observation-event:${operationKey}`);
+  const ledgerId = await deterministicUuid(`record-observation-ledger:${operationKey}`);
+  const sourceDigest = await sha256Hex(JSON.stringify({ visibility: input.previousVisibility }));
+  const targetDigest = await sha256Hex(JSON.stringify({ visibility: input.visibility }));
+  return {
+    observationId,
+    mutations: [
+      {
+        sql: `UPDATE observations SET
+          visibility = ?,
+          public_area_label = CASE WHEN ? = 'private' THEN NULL ELSE public_area_label END
+        WHERE observation_id = ? AND owner_user_id = ?`,
+        values: [input.visibility, input.visibility, input.recordId, input.ownerUserId],
+      },
+      {
+        sql: `UPDATE asset_ledger SET visibility = ?
+          WHERE observation_id = ? AND owner_user_id = ?`,
+        values: [input.visibility, input.recordId, input.ownerUserId],
+      },
+      {
+        sql: `UPDATE observation_data_rights SET
+          record_consent = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE visit_id = ?`,
+        values: [input.visibility, input.recordId],
+      },
+      {
+        sql: `INSERT INTO record_observation_policies (
+          record_runtime, record_id, owner_user_id, visibility,
+          accepts_identification_proposals, default_source, updated_by_actor_id, created_at, updated_at
+        ) VALUES ('cloudflare_d1', ?, ?, ?, ?, 'owner_override', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(record_runtime, record_id) DO UPDATE SET
+          owner_user_id = excluded.owner_user_id,
+          visibility = excluded.visibility,
+          accepts_identification_proposals = CASE
+            WHEN excluded.visibility = 'private' THEN 0
+            ELSE record_observation_policies.accepts_identification_proposals
+          END,
+          default_source = 'owner_override',
+          updated_by_actor_id = excluded.owner_user_id,
+          row_version = record_observation_policies.row_version + 1,
+          updated_at = CURRENT_TIMESTAMP`,
+        values: [input.recordId, input.ownerUserId, input.visibility, input.visibility === "public" ? 1 : 0, input.ownerUserId],
+      },
+      {
+        sql: `INSERT OR IGNORE INTO observation_lifecycle_events (
+          event_id, observation_id, event_kind, actor_kind, actor_id, reason_code,
+          before_json, after_json, related_observation_ids_json, source_key, created_at
+        ) VALUES (?, ?, 'data_use_scope_changed', 'owner', ?, 'visibility_changed', ?, ?, '[]', ?, CURRENT_TIMESTAMP)`,
+        values: [eventId, observationId, input.ownerUserId, JSON.stringify({ visibility: input.previousVisibility }), JSON.stringify({ visibility: input.visibility }), operationKey],
+      },
+      {
+        sql: `INSERT INTO record_observation_consistency_ledger (
+          ledger_id, operation_key, record_runtime, record_id, observation_id,
+          operation_kind, legacy_write_refs_json, target_write_refs_json,
+          source_digest, target_digest, consistency_state, reason_codes_json,
+          attempt_count, created_at, updated_at, resolved_at
+        ) VALUES (?, ?, 'cloudflare_d1', ?, ?, 'human_edit', ?, ?, ?, ?,
+          'matched', '[]', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(operation_key) DO UPDATE SET target_digest = excluded.target_digest,
+          consistency_state = 'matched', reason_codes_json = '[]',
+          attempt_count = MIN(record_observation_consistency_ledger.attempt_count + 1, 100),
+          updated_at = CURRENT_TIMESTAMP, resolved_at = CURRENT_TIMESTAMP`,
+        values: [ledgerId, operationKey, input.recordId, observationId, JSON.stringify({ visibility: input.previousVisibility }), JSON.stringify({ visibility: input.visibility }), sourceDigest, targetDigest],
+      },
+    ],
+  };
+}
+
 export async function buildMediaReassignmentDualWritePlan(input: {
   recordId: string;
   mediaId: string;

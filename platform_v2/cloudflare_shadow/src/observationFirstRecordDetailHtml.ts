@@ -329,10 +329,11 @@ function renderOwnerManagement(
   const mediaAssignment = media.length > 0 && active.length > 0
     ? `<section><h3>${escapeHtml(copy.assignMedia)}</h3><p>${escapeHtml(copy.assignMediaLead)}</p>${media.map((item, index) => `<form method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "media_reassign")}${hidden("media_id", item.mediaId)}${hidden("operation_id", `${presentation.actionNonce}-media-${index}`)}<label>${escapeHtml(mediaLabel(item.mediaKind, copy))}<select name="target_observation_id">${active.map((card) => `<option value="${escapeHtml(card.observationId)}">${escapeHtml(observationName(card, copy).text)}</option>`).join("")}</select></label><button type="submit">${escapeHtml(copy.assign)}</button></form>`).join("")}</section>`
     : "";
+  const visibilitySettings = `<section><h3>${escapeHtml(copy.visibilitySettings)}</h3><p>${escapeHtml(copy.visibilityLead)}</p><form method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "set_visibility")}${hidden("operation_id", `${presentation.actionNonce}-visibility-${detail.visibility}`)}<label>${escapeHtml(copy.visibilitySettings)}<select name="visibility">${selectOptions({ public: copy.visibility.public, private: copy.visibility.private }, detail.visibility === "public" ? "public" : "private")}</select></label><button type="submit">${escapeHtml(copy.saveVisibility)}</button></form></section>`;
   const policy = detail.visibility !== "private"
     ? `<section><form method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "set_proposal_policy")}${hidden("accepts_identification_proposals", detail.proposalPolicy.identification ? "0" : "1")}${hidden("operation_id", `${presentation.actionNonce}-policy-${detail.proposalPolicy.identification ? "off" : "on"}`)}<button class="is-secondary" type="submit">${escapeHtml(detail.proposalPolicy.identification ? copy.pauseProposals : copy.receiveProposals)}</button></form></section>`
     : "";
-  return `<details class="of-manage" id="manage"><summary>${escapeHtml(copy.manage)}</summary><p class="of-manage-lead">${escapeHtml(copy.manageLead)}</p><div class="of-manage-body">${add}${cards}${mediaAssignment}${policy}</div></details>`;
+  return `<details class="of-manage" id="manage"><summary>${escapeHtml(copy.manage)}</summary><p class="of-manage-lead">${escapeHtml(copy.manageLead)}</p><div class="of-manage-body">${visibilitySettings}${add}${cards}${mediaAssignment}${policy}</div></details>`;
 }
 
 function renderCaptureInfo(

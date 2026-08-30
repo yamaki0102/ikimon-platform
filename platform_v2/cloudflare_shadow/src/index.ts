@@ -55,6 +55,7 @@ import {
   buildObservationLifecyclePlan,
   buildOwnerObservationUpsertPlan,
   buildRecordProposalPolicyPlan,
+  buildRecordVisibilityPlan,
   type ObservationDualWritePlan,
 } from "./cloudflareObservationDualWrite";
 import {
@@ -26321,6 +26322,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   if (!container) return json({ ok: false, error: "record_not_found" }, 404, { "cache-control": "no-store" });
   const owner = container.owner_user_id === session.userId;
   let plan: ObservationDualWritePlan;
+  let refreshVisibility = false;
   if (action === "add") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const subjectType = String(form.get("subject_type") ?? "unknown_subject");
@@ -26337,6 +26339,21 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
       captiveContext: captiveContext as "wild" | "captive" | "cultivated" | "pet" | "unknown",
       displayName,
     });
+  } else if (action === "set_visibility") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const visibility = String(form.get("visibility") ?? "");
+    if (visibility !== "public" && visibility !== "private") {
+      return json({ ok: false, error: "visibility_input_invalid" }, 400, { "cache-control": "no-store" });
+    }
+    const previousVisibility = container.visibility === "public" || container.visibility === "limited" ? container.visibility : "private";
+    plan = await buildRecordVisibilityPlan({
+      recordId,
+      ownerUserId: session.userId,
+      previousVisibility,
+      visibility,
+      operationId,
+    });
+    refreshVisibility = true;
   } else if (action === "set_proposal_policy") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const accepts = String(form.get("accepts_identification_proposals") ?? "");
@@ -26431,6 +26448,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
     return json({ ok: false, error: "observation_action_invalid" }, 400, { "cache-control": "no-store" });
   }
   await env.OBS_DB.batch(plan.mutations.map((mutation) => env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)));
+  if (refreshVisibility) await refreshPublicReadmodel(recordId, env);
   return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
 }
 

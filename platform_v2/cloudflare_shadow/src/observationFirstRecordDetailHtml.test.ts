@@ -103,11 +103,15 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   });
 
   assert.match(rendered, /data-observation-first-record-detail="1"/);
+  assert.match(rendered, /<title>庭の観察 \| ZUKAN<\/title>/);
   assert.ok(rendered.indexOf("of-media-stage") < rendered.indexOf("of-record-info"));
   assert.equal((rendered.match(/<img[^>]+https:\/\/media\.example\/safe\.jpg/g) ?? []).length, 1);
   assert.match(rendered, /この記録で見つかったもの|AIが見つけたもの/);
   assert.match(rendered, /<details class="of-manage"/);
   assert.match(rendered, /<summary[^>]*>記録に情報を追加<\/summary>/);
+  assert.match(rendered, /name="action" value="set_visibility"/);
+  assert.match(rendered, /name="visibility"[\s\S]*<option value="public" selected>公開<\/option>/);
+  assert.match(rendered, /公開範囲を保存/);
   assert.match(rendered, /見つけた生きものや、環境、気づき、写真の整理を追加できます/);
   assert.match(rendered, /<summary[^>]*>名前を提案する<\/summary>/);
   assert.match(rendered, /見分けるポイント/);
@@ -136,6 +140,7 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.ok(operationIds.includes("nonce-contract-0-accept-0"));
   assert.ok(operationIds.includes("nonce-contract-add"));
   assert.ok(operationIds.includes("nonce-contract-policy-off"));
+  assert.ok(operationIds.includes("nonce-contract-visibility-public"));
 });
 
 test("guest HTML omits owner management and keeps proposals on demand", () => {
