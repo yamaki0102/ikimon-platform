@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { AI_MODEL_CHAIN_ENV_KEYS } from "../services/aiModels.js";
-import { generateAiTextWithRoleChain, type AiRouterPart } from "../services/aiModelRouter.js";
+import { generateAiTextWithRoleChain, googleResponseText, type AiRouterPart } from "../services/aiModelRouter.js";
 import { getObservationDataRights, type ObservationDataRights } from "../services/observationDataRights.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { observationImageTargetPath, resolveObservationImageTargets, type ObservationImageTarget } from "./resolveObservationImageTargets.js";
@@ -24,6 +25,9 @@ export const CLOUDFLARE_GLM_5_3_FLASH_MODEL = "@cf/zai-org/glm-5.3-flash";
 export const CLOUDFLARE_QWEN_3_8_27B_MODEL = "@cf/qwen/qwen3.8-27b";
 export const CLOUDFLARE_LLAMA_3_2_11B_VISION_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";
 export const CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL = "openai/gpt-5.6-luna";
+export const CLOUDFLARE_GOOGLE_GEMINI_3_7_FLASH_MODEL = "google-ai-studio/gemini-3.7-flash";
+export const CLOUDFLARE_XAI_GROK_4_6_MODEL = "grok/grok-4.6";
+export const XAI_GROK_4_6_MODEL = "grok-4.6";
 export const ZUKAN_PRODUCTION_VISION_BASELINE_MODEL = "gemini-3.5-flash-lite";
 export const ZUKAN_BENCH_REPORT_SCHEMA_VERSION = "zukan-model-bench-report-v1";
 export const ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA = {
@@ -127,12 +131,12 @@ export type ZukanBenchHumanReviewFields = {
 };
 
 export type ZukanBenchRequestConfig = {
-  transport: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run";
+  transport: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run" | "cloudflare-google-native" | "cloudflare-xai-native";
   temperature: number;
   max_completion_tokens?: number;
   max_output_tokens?: number;
   reasoning_effort?: "low";
-  thinking_level?: "minimal";
+  thinking_level?: "minimal" | "low" | "medium" | "high";
   stream: false;
   modalities: "omitted";
   response_format?: { type: "json_object" } | { type: "json_schema"; json_schema: unknown };
@@ -225,7 +229,7 @@ export type ZukanBenchModelReport = {
   totalOutputTokens: number;
   estimatedCostUsd: number | null;
   pricing: { inputUsdPer1M: number; outputUsdPer1M: number; source: string } | null;
-  transport?: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run";
+  transport?: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run" | "cloudflare-google-native" | "cloudflare-xai-native";
   usageMeasurement?: "provider-reported" | "not-exposed";
   observedAdditionalCostUsd?: number | null;
   reportSchemaVersion?: typeof ZUKAN_BENCH_REPORT_SCHEMA_VERSION;
@@ -920,6 +924,14 @@ function estimatedCost(inputTokens: number, outputTokens: number, pricing: Bench
   return Number((((inputTokens / 1_000_000) * pricing.inputUsdPer1M) + ((outputTokens / 1_000_000) * pricing.outputUsdPer1M)).toFixed(8));
 }
 
+export function benchmarkThinkingLevel(
+  model: string,
+  requested?: "minimal" | "low" | "medium" | "high",
+): "minimal" | "low" | "medium" | "high" {
+  if (requested) return requested;
+  return model === "gemini-3.7-flash" ? "low" : "minimal";
+}
+
 function modelProvider(model: string): string {
   const separator = model.indexOf(":");
   if (separator > 0) return model.slice(0, separator);
@@ -1054,6 +1066,9 @@ export function buildCloudflareOfficialRestPayload(parts: CloudflareOfficialRest
 }
 
 export function buildCloudflareAiChatPayload(model: string, parts: CloudflareOfficialRestPart[], maxCompletionTokens = 8192) {
+  const thirdPartyStructuredModel = model === CLOUDFLARE_GOOGLE_GEMINI_3_7_FLASH_MODEL
+    || model === CLOUDFLARE_XAI_GROK_4_6_MODEL
+    || model === XAI_GROK_4_6_MODEL;
   const payload: Record<string, unknown> = {
     model,
     messages: [{ role: "user", content: parts }],
@@ -1062,10 +1077,21 @@ export function buildCloudflareAiChatPayload(model: string, parts: CloudflareOff
     stream: false,
     response_format: {
       type: "json_schema",
-      json_schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+      json_schema: thirdPartyStructuredModel
+        ? {
+          name: "zukan-model-bench-parser-v1",
+          strict: false,
+          schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+        }
+        : ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
     },
   };
-  if (model === CLOUDFLARE_QWEN_3_8_27B_MODEL) payload.reasoning_effort = "low";
+  if (
+    model === CLOUDFLARE_QWEN_3_8_27B_MODEL
+    || model === CLOUDFLARE_GOOGLE_GEMINI_3_7_FLASH_MODEL
+    || model === CLOUDFLARE_XAI_GROK_4_6_MODEL
+    || model === XAI_GROK_4_6_MODEL
+  ) payload.reasoning_effort = "low";
   return payload;
 }
 
@@ -1131,7 +1157,9 @@ export function buildCloudflareAiRequestHeaders(
   const gatewayId = typeof env.CLOUDFLARE_AI_GATEWAY_ID === "string"
     ? env.CLOUDFLARE_AI_GATEWAY_ID.trim()
     : "";
-  if (gatewayId === "default") throw new Error("cloudflare_ai_gateway_default_disallowed");
+  if (gatewayId === "default" && env.ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY !== "1") {
+    throw new Error("cloudflare_ai_gateway_default_unverified");
+  }
   if (gatewayId.length > 64 || /[\r\n]/u.test(gatewayId)) {
     throw new Error("cloudflare_ai_gateway_id_invalid");
   }
@@ -1139,6 +1167,22 @@ export function buildCloudflareAiRequestHeaders(
     throw new Error("zukan_bench_cloudflare_existing_gateway_required");
   }
   return gatewayId ? { "cf-aig-gateway-id": gatewayId } : {};
+}
+
+export function cloudflareGoogleAiStudioBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const accountId = clean(env.CLOUDFLARE_ACCOUNT_ID);
+  const gatewayId = clean(env.CLOUDFLARE_AI_GATEWAY_ID);
+  if (!/^[a-f0-9]{32}$/u.test(accountId)) throw new Error("zukan_bench_cloudflare_account_id_invalid");
+  buildCloudflareAiRequestHeaders(env, true);
+  return `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio`;
+}
+
+export function cloudflareXaiBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const accountId = clean(env.CLOUDFLARE_ACCOUNT_ID);
+  const gatewayId = clean(env.CLOUDFLARE_AI_GATEWAY_ID);
+  if (!/^[a-f0-9]{32}$/u.test(accountId)) throw new Error("zukan_bench_cloudflare_account_id_invalid");
+  buildCloudflareAiRequestHeaders(env, true);
+  return `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/grok`;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -1220,6 +1264,131 @@ type CloudflareAiGenerationResult = {
   usageReported: boolean;
   providerResultMeta: ZukanBenchProviderResultMeta;
 };
+
+export async function generateWithCloudflareGoogleAiStudio(options: {
+  model: string;
+  parts: AiRouterPart[];
+  maxOutputTokens?: number;
+  env?: NodeJS.ProcessEnv;
+}): Promise<CloudflareAiGenerationResult> {
+  const env = options.env ?? process.env;
+  const apiKey = clean(env.GEMINI_API_KEY);
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+  const gatewayToken = clean(env.CLOUDFLARE_AI_GATEWAY_TOKEN);
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      baseUrl: cloudflareGoogleAiStudioBaseUrl(env),
+      ...(gatewayToken ? { headers: { "cf-aig-authorization": `Bearer ${gatewayToken}` } } : {}),
+    },
+  });
+  const response = await ai.models.generateContent({
+    model: options.model,
+    contents: [{ role: "user", parts: options.parts }],
+    config: {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      temperature: 0,
+      maxOutputTokens: options.maxOutputTokens ?? 8192,
+      responseMimeType: "application/json",
+      responseJsonSchema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+    },
+  });
+  const usage = (response as {
+    usageMetadata?: {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+      thoughtsTokenCount?: number;
+    };
+  }).usageMetadata;
+  const inputTokens = optionalFiniteNumber(usage?.promptTokenCount) ?? 0;
+  const candidateTokens = optionalFiniteNumber(usage?.candidatesTokenCount) ?? 0;
+  const thoughtsTokens = optionalFiniteNumber(usage?.thoughtsTokenCount) ?? 0;
+  const outputTokens = candidateTokens + thoughtsTokens;
+  const text = googleResponseText(response);
+  const finishReasonValue = response.candidates?.[0]?.finishReason;
+  const finishReason = typeof finishReasonValue === "string"
+    ? finishReasonValue
+    : finishReasonValue ? String(finishReasonValue) : null;
+  const root = asRecord(response);
+  const meta = providerResultMeta({
+    httpStatus: null,
+    contentType: "application/json",
+    responseShape: "unknown",
+    root,
+    responseFields: text ? ["candidates[0].content.parts"] : [],
+    finishReason,
+    status: finishReason,
+  });
+  if (!text.trim()) throw new CloudflareAiProviderError("cloudflare_google_ai_studio_empty_response", meta);
+  return {
+    text,
+    responseField: "candidates[0].content.parts",
+    finishReason,
+    inputTokens,
+    outputTokens,
+    usageReported: usage?.promptTokenCount !== undefined && usage?.candidatesTokenCount !== undefined,
+    providerResultMeta: meta,
+  };
+}
+
+export async function generateWithCloudflareXai(options: {
+  model: string;
+  parts: CloudflareOfficialRestPart[];
+  maxCompletionTokens?: number;
+  env?: NodeJS.ProcessEnv;
+  timeoutMs?: number;
+}): Promise<CloudflareAiGenerationResult> {
+  const env = options.env ?? process.env;
+  const gatewayToken = clean(env.CLOUDFLARE_AI_GATEWAY_TOKEN);
+  if (!gatewayToken) throw new Error("zukan_bench_cloudflare_gateway_token_missing");
+  const providerKey = clean(env.XAI_API_KEY);
+  const endpoint = `${cloudflareXaiBaseUrl(env)}/v1/chat/completions`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 180_000);
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        "cf-aig-authorization": `Bearer ${gatewayToken}`,
+        ...(providerKey ? { authorization: `Bearer ${providerKey}` } : {}),
+      },
+      body: JSON.stringify(buildCloudflareAiChatPayload(options.model, options.parts, options.maxCompletionTokens ?? 8192)),
+      signal: controller.signal,
+    });
+    const contentType = clean(response.headers.get("content-type") ?? "").split(";", 1)[0] || null;
+    let body: unknown = null;
+    try {
+      body = await response.json();
+    } catch {
+      const meta = providerResultMeta({
+        httpStatus: response.status,
+        contentType,
+        responseShape: response.ok ? "unknown" : "error",
+        root: {},
+      });
+      throw new CloudflareAiProviderError("cloudflare_xai_invalid_json_response", meta);
+    }
+    if (!response.ok) {
+      const root = asRecord(body);
+      const meta = providerResultMeta({
+        httpStatus: response.status,
+        contentType,
+        responseShape: "error",
+        root,
+        envelope: asRecord(root.result),
+      });
+      throw new CloudflareAiProviderError(
+        `cloudflare_xai_request_failed:${response.status}:${meta.provider_error_code ?? "unknown"}`,
+        meta,
+      );
+    }
+    return parseCloudflareAiChatResponse(body, response.status, contentType);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function cloudflareResponseContentCandidates(root: Record<string, unknown>, envelope: Record<string, unknown>): Array<{ field: string; value: unknown }> {
   const candidates: Array<{ field: string; value: unknown }> = [];
@@ -1413,7 +1582,11 @@ export async function generateWithCloudflareAiRest(options: {
   timeoutMs?: number;
 }): Promise<CloudflareAiGenerationResult> {
   const maxTokens = options.maxCompletionTokens ?? 8192;
-  if (options.model.startsWith("@cf/")) {
+  if (
+    options.model.startsWith("@cf/")
+    || options.model === CLOUDFLARE_GOOGLE_GEMINI_3_7_FLASH_MODEL
+    || options.model === CLOUDFLARE_XAI_GROK_4_6_MODEL
+  ) {
     return fetchCloudflareAiJson({
       model: options.model,
       payload: buildCloudflareAiChatPayload(options.model, options.parts, maxTokens),
@@ -1513,10 +1686,10 @@ export async function runZukanModelBench(options: {
   pricing?: BenchPricing | null;
   limit?: number;
   maxEstimatedCostUsd?: number;
-  transport?: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run";
+  transport?: "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run" | "cloudflare-google-native" | "cloudflare-xai-native";
   maxOutputTokens?: number;
   temperature?: number;
-  thinkingLevel?: "minimal";
+  thinkingLevel?: "minimal" | "low" | "medium" | "high";
   promptSource?: string;
   reportLabel?: string;
   fixtureVisitIds?: readonly string[];
@@ -1549,15 +1722,69 @@ export async function runZukanModelBench(options: {
     throw new Error("zukan_bench_fixed_owner_smoke_target_mismatch");
   }
   await assertCanonicalObservationDataRights(fixtures, options.canonicalRightsSnapshot);
-  if (transport === "cloudflare-official-rest" || transport === "cloudflare-ai-rest" || transport === "cloudflare-ai-run") {
+  if (transport === "cloudflare-google-native") {
+    cloudflareGoogleAiStudioBaseUrl(process.env);
+  } else if (transport === "cloudflare-xai-native") {
+    cloudflareXaiBaseUrl(process.env);
+    if (!clean(process.env.CLOUDFLARE_AI_GATEWAY_TOKEN)) {
+      throw new Error("zukan_bench_cloudflare_gateway_token_missing");
+    }
+  } else if (transport === "cloudflare-official-rest" || transport === "cloudflare-ai-rest" || transport === "cloudflare-ai-run") {
     buildCloudflareAiRequestHeaders(process.env, true);
   }
-  const provider = transport === "cloudflare-official-rest"
+  const provider = transport === "cloudflare-google-native"
+    ? "cloudflare-google-ai-studio"
+    : transport === "cloudflare-xai-native"
+      ? "cloudflare-xai"
+    : transport === "cloudflare-official-rest"
     ? "cloudflare-workers-ai"
     : transport === "cloudflare-ai-rest" || transport === "cloudflare-ai-run"
-      ? options.model.startsWith("@cf/") ? "cloudflare-workers-ai" : "cloudflare-ai-openai"
+      ? options.model.startsWith("@cf/")
+        ? "cloudflare-workers-ai"
+        : options.model === CLOUDFLARE_GOOGLE_GEMINI_3_7_FLASH_MODEL
+          ? "cloudflare-google-ai-studio"
+          : options.model === CLOUDFLARE_XAI_GROK_4_6_MODEL
+            ? "cloudflare-xai"
+            : "cloudflare-ai-openai"
       : modelProvider(options.model);
-  const requestConfig: ZukanBenchRequestConfig = transport === "cloudflare-official-rest"
+  const requestConfig: ZukanBenchRequestConfig = transport === "cloudflare-google-native"
+    ? {
+      transport,
+      temperature: 0,
+      max_output_tokens: options.maxOutputTokens ?? 8192,
+      thinking_level: "low",
+      stream: false,
+      modalities: "omitted",
+      response_mime_type: "application/json",
+      response_schema_mode: "provider-native",
+      output_schema: "zukan-model-bench-parser-v1",
+      gateway_selection: "explicit-existing-named-gateway-only",
+      attempts_per_model: 1,
+      fallback_count: 0,
+    }
+    : transport === "cloudflare-xai-native"
+      ? {
+        transport,
+        temperature: 0,
+        max_completion_tokens: options.maxOutputTokens ?? 8192,
+        reasoning_effort: "low",
+        stream: false,
+        modalities: "omitted",
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "zukan-model-bench-parser-v1",
+            strict: false,
+            schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+          },
+        },
+        response_schema_mode: "provider-native",
+        output_schema: "zukan-model-bench-parser-v1",
+        gateway_selection: "explicit-existing-named-gateway-only",
+        attempts_per_model: 1,
+        fallback_count: 0,
+      }
+    : transport === "cloudflare-official-rest"
     ? {
       transport,
       temperature: 0,
@@ -1575,10 +1802,14 @@ export async function runZukanModelBench(options: {
       ? {
         transport,
         temperature: 0,
-        ...(options.model.startsWith("@cf/")
-          ? { max_completion_tokens: options.maxOutputTokens ?? 8192 }
-          : { max_output_tokens: options.maxOutputTokens ?? 8192 }),
-        ...(options.model === CLOUDFLARE_QWEN_3_8_27B_MODEL || options.model === CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL
+        ...(options.model === CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL
+          ? { max_output_tokens: options.maxOutputTokens ?? 8192 }
+          : { max_completion_tokens: options.maxOutputTokens ?? 8192 }),
+        ...(
+          options.model === CLOUDFLARE_QWEN_3_8_27B_MODEL
+          || options.model === CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL
+          || options.model === CLOUDFLARE_GOOGLE_GEMINI_3_7_FLASH_MODEL
+          || options.model === CLOUDFLARE_XAI_GROK_4_6_MODEL
           ? { reasoning_effort: "low" as const }
           : {}),
         stream: false,
@@ -1594,7 +1825,7 @@ export async function runZukanModelBench(options: {
       transport,
       temperature: options.temperature ?? 0,
       max_output_tokens: options.maxOutputTokens ?? 1024,
-      thinking_level: options.thinkingLevel ?? "minimal",
+      thinking_level: benchmarkThinkingLevel(options.model, options.thinkingLevel),
       stream: false,
       modalities: "omitted",
       response_mime_type: "application/json",
@@ -1640,7 +1871,28 @@ export async function runZukanModelBench(options: {
       let canarySchemaValid = true;
       try {
         modelRequestCount += 1;
-        const result = transport === "cloudflare-official-rest"
+        const result = transport === "cloudflare-google-native"
+          ? await generateWithCloudflareGoogleAiStudio({
+            model: options.model,
+            maxOutputTokens: options.maxOutputTokens ?? 8192,
+            parts: [
+              ...verified.map((item): AiRouterPart => ({ inlineData: { mimeType: item.ref.mimeType, data: item.bytes.toString("base64") } })),
+              { text: renderedPrompt },
+            ],
+          })
+          : transport === "cloudflare-xai-native"
+            ? await generateWithCloudflareXai({
+              model: options.model,
+              maxCompletionTokens: options.maxOutputTokens ?? 8192,
+              parts: [
+                ...verified.map((item): CloudflareOfficialRestPart => ({
+                  type: "image_url",
+                  image_url: { url: `data:${item.ref.mimeType};base64,${item.bytes.toString("base64")}` },
+                })),
+                { type: "text", text: renderedPrompt },
+              ],
+            })
+          : transport === "cloudflare-official-rest"
           ? await generateWithCloudflareOfficialRest({
             model: options.model,
             requireExistingGateway: true,
@@ -1686,7 +1938,7 @@ export async function runZukanModelBench(options: {
                 { text: renderedPrompt },
               ],
               responseMimeType: "application/json",
-              thinkingConfig: { thinkingLevel: options.thinkingLevel ?? "minimal" },
+              thinkingConfig: { thinkingLevel: benchmarkThinkingLevel(options.model, options.thinkingLevel) },
               temperature: requestConfig.temperature,
               maxOutputTokens: requestConfig.max_output_tokens,
               responseJsonSchema: modelProvider(options.model) === "gemini"
@@ -1937,11 +2189,25 @@ function pricingFromArgs(args: string[]): BenchPricing | null {
   return { inputUsdPer1M, outputUsdPer1M, source: stringArg(args, "pricing-source") ?? "manual-cli" };
 }
 
-function transportFromArgs(args: string[]): "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run" | undefined {
+function transportFromArgs(args: string[]): "model-router" | "cloudflare-official-rest" | "cloudflare-ai-rest" | "cloudflare-ai-run" | "cloudflare-google-native" | "cloudflare-xai-native" | undefined {
   const value = stringArg(args, "transport");
   if (value === undefined) return undefined;
-  if (value === "model-router" || value === "cloudflare-official-rest" || value === "cloudflare-ai-rest" || value === "cloudflare-ai-run") return value;
+  if (
+    value === "model-router"
+    || value === "cloudflare-official-rest"
+    || value === "cloudflare-ai-rest"
+    || value === "cloudflare-ai-run"
+    || value === "cloudflare-google-native"
+    || value === "cloudflare-xai-native"
+  ) return value;
   throw new Error(`invalid_transport:${value}`);
+}
+
+function thinkingLevelFromArgs(args: string[]): "minimal" | "low" | "medium" | "high" | undefined {
+  const value = stringArg(args, "thinking-level");
+  if (value === undefined) return undefined;
+  if (value === "minimal" || value === "low" || value === "medium" || value === "high") return value;
+  throw new Error(`invalid_thinking_level:${value}`);
 }
 
 async function main(): Promise<void> {
@@ -1996,6 +2262,7 @@ async function main(): Promise<void> {
       limit: numericArg(args, "limit"),
       transport: transportFromArgs(args),
       maxOutputTokens: numericArg(args, "max-output-tokens"),
+      thinkingLevel: thinkingLevelFromArgs(args),
       promptSource: stringArg(args, "prompt-source"),
       reportLabel: stringArg(args, "report-label"),
     });

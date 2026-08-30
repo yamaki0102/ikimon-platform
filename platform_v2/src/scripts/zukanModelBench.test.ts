@@ -5,11 +5,17 @@ import {
   ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
   ZUKAN_BENCH_MIN_GOLD_POSTS,
   ZUKAN_BENCH_SMOKE_POST_COUNT,
+  CLOUDFLARE_GOOGLE_GEMINI_3_7_FLASH_MODEL,
   CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL,
   CLOUDFLARE_QWEN_3_8_27B_MODEL,
+  CLOUDFLARE_XAI_GROK_4_6_MODEL,
+  XAI_GROK_4_6_MODEL,
+  benchmarkThinkingLevel,
   buildCloudflareAiChatPayload,
   buildCloudflareAiRequestHeaders,
   buildCloudflareAiRunPayload,
+  cloudflareGoogleAiStudioBaseUrl,
+  cloudflareXaiBaseUrl,
   buildCloudflareResponsesPayload,
   buildZukanBenchFinalOutputRecord,
   compareZukanBenchReports,
@@ -17,6 +23,7 @@ import {
   extractOrderedPostPhotoUrls,
   buildCloudflareOfficialRestPayload,
   generateWithCloudflareAiRun,
+  generateWithCloudflareXai,
   generateWithCloudflareOfficialRest,
   generateWithCloudflareAiRest,
   rightsVettedTargetsFromResearchPayload,
@@ -84,6 +91,12 @@ test("Gemini benchmark uses the native schema for scored fields while allowing f
     "order",
     "lifeform",
   ]);
+});
+
+test("Gemini 3.7 defaults to supported low thinking while older Gemini keeps minimal", () => {
+  assert.equal(benchmarkThinkingLevel("gemini-3.7-flash"), "low");
+  assert.equal(benchmarkThinkingLevel("gemini-3.5-flash-lite"), "minimal");
+  assert.equal(benchmarkThinkingLevel("gemini-3.7-flash", "high"), "high");
 });
 
 test("benchmark prompt source defaults to the manifest prompt and supports an explicit override", async () => {
@@ -260,7 +273,84 @@ test("Cloudflare AI REST adapters preserve ordered multimodal input and native s
   }
 });
 
-test("Cloudflare benchmark requests require an explicit existing named gateway", () => {
+test("Cloudflare Unified Billing payloads support Gemini 3.7 and Grok 4.6 without tools", () => {
+  const parts = [
+    { type: "image_url" as const, image_url: { url: "data:image/webp;base64,AAA" } },
+    { type: "image_url" as const, image_url: { url: "data:image/webp;base64,BBB" } },
+    { type: "image_url" as const, image_url: { url: "data:image/webp;base64,CCC" } },
+    { type: "text" as const, text: "cold-start prompt" },
+  ];
+  for (const model of [CLOUDFLARE_GOOGLE_GEMINI_3_7_FLASH_MODEL, CLOUDFLARE_XAI_GROK_4_6_MODEL]) {
+    const payload = buildCloudflareAiChatPayload(model, parts, 8192);
+    const messages = payload.messages as Array<{ content: Array<{ type: string }> }>;
+    assert.equal(payload.model, model);
+    assert.deepEqual(messages[0]?.content.map((part) => part.type), ["image_url", "image_url", "image_url", "text"]);
+    assert.equal(payload.reasoning_effort, "low");
+    assert.equal("tools" in payload, false);
+    assert.deepEqual(payload.response_format, {
+      type: "json_schema",
+      json_schema: {
+        name: "zukan-model-bench-parser-v1",
+        strict: false,
+        schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+      },
+    });
+  }
+});
+
+test("Cloudflare Unified Billing sends Gemini 3.7 and Grok 4.6 through verified default", async () => {
+  const originalFetch = globalThis.fetch;
+  const previousAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const previousToken = process.env.CLOUDFLARE_API_TOKEN;
+  const previousGatewayId = process.env.CLOUDFLARE_AI_GATEWAY_ID;
+  const previousVerifiedDefault = process.env.ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY;
+  const parts = [
+    { type: "image_url" as const, image_url: { url: "data:image/webp;base64,AAA" } },
+    { type: "text" as const, text: "cold-start prompt" },
+  ];
+  let requestCount = 0;
+  let requestModel = "";
+  let requestGateway = "";
+  globalThis.fetch = (async (_input, init) => {
+    requestCount += 1;
+    requestModel = String((JSON.parse(String(init?.body ?? "{}")) as { model?: unknown }).model ?? "");
+    requestGateway = new Headers(init?.headers).get("cf-aig-gateway-id") ?? "";
+    return new Response(JSON.stringify({
+      model: requestModel,
+      choices: [{
+        message: { content: JSON.stringify({ recommended_taxon_name: "unknown", recommended_rank: "lifeform", confidence_band: "low" }) },
+        finish_reason: "stop",
+      }],
+      usage: { prompt_tokens: 23, completion_tokens: 11 },
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  process.env.CLOUDFLARE_ACCOUNT_ID = "0".repeat(32);
+  process.env.CLOUDFLARE_API_TOKEN = "test-token";
+  process.env.CLOUDFLARE_AI_GATEWAY_ID = "default";
+  process.env.ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY = "1";
+  try {
+    for (const model of [CLOUDFLARE_GOOGLE_GEMINI_3_7_FLASH_MODEL, CLOUDFLARE_XAI_GROK_4_6_MODEL]) {
+      const result = await generateWithCloudflareAiRest({ model, parts, requireExistingGateway: true });
+      assert.equal(requestModel, model);
+      assert.equal(requestGateway, "default");
+      assert.equal(result.inputTokens, 23);
+      assert.equal(result.outputTokens, 11);
+    }
+    assert.equal(requestCount, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousAccountId === undefined) delete process.env.CLOUDFLARE_ACCOUNT_ID;
+    else process.env.CLOUDFLARE_ACCOUNT_ID = previousAccountId;
+    if (previousToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = previousToken;
+    if (previousGatewayId === undefined) delete process.env.CLOUDFLARE_AI_GATEWAY_ID;
+    else process.env.CLOUDFLARE_AI_GATEWAY_ID = previousGatewayId;
+    if (previousVerifiedDefault === undefined) delete process.env.ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY;
+    else process.env.ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY = previousVerifiedDefault;
+  }
+});
+
+test("Cloudflare benchmark requests require an existing gateway and allow verified default", () => {
   assert.deepEqual(
     buildCloudflareAiRequestHeaders({ CLOUDFLARE_AI_GATEWAY_ID: "zukan-existing-gateway" }, true),
     { "cf-aig-gateway-id": "zukan-existing-gateway" },
@@ -271,8 +361,74 @@ test("Cloudflare benchmark requests require an explicit existing named gateway",
   );
   assert.throws(
     () => buildCloudflareAiRequestHeaders({ CLOUDFLARE_AI_GATEWAY_ID: "default" }, true),
-    /cloudflare_ai_gateway_default_disallowed/u,
+    /cloudflare_ai_gateway_default_unverified/u,
   );
+  assert.deepEqual(
+    buildCloudflareAiRequestHeaders({
+      CLOUDFLARE_AI_GATEWAY_ID: "default",
+      ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY: "1",
+    }, true),
+    { "cf-aig-gateway-id": "default" },
+  );
+  assert.equal(
+    cloudflareGoogleAiStudioBaseUrl({
+      CLOUDFLARE_ACCOUNT_ID: "0".repeat(32),
+      CLOUDFLARE_AI_GATEWAY_ID: "default",
+      ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY: "1",
+    }),
+    `https://gateway.ai.cloudflare.com/v1/${"0".repeat(32)}/default/google-ai-studio`,
+  );
+  assert.equal(
+    cloudflareXaiBaseUrl({
+      CLOUDFLARE_ACCOUNT_ID: "0".repeat(32),
+      CLOUDFLARE_AI_GATEWAY_ID: "default",
+      ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY: "1",
+    }),
+    `https://gateway.ai.cloudflare.com/v1/${"0".repeat(32)}/default/grok`,
+  );
+});
+
+test("Cloudflare xAI native adapter uses Gateway token and Unified Billing credential precedence", async () => {
+  const originalFetch = globalThis.fetch;
+  let requestUrl = "";
+  let requestHeaders = new Headers();
+  let requestBody: Record<string, unknown> = {};
+  globalThis.fetch = (async (input, init) => {
+    requestUrl = String(input);
+    requestHeaders = new Headers(init?.headers);
+    requestBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+    return new Response(JSON.stringify({
+      model: XAI_GROK_4_6_MODEL,
+      choices: [{
+        message: { content: JSON.stringify({ recommended_taxon_name: "unknown", recommended_rank: "lifeform", confidence_band: "low" }) },
+        finish_reason: "stop",
+      }],
+      usage: { prompt_tokens: 29, completion_tokens: 13 },
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const result = await generateWithCloudflareXai({
+      model: XAI_GROK_4_6_MODEL,
+      parts: [
+        { type: "image_url", image_url: { url: "data:image/webp;base64,AAA" } },
+        { type: "text", text: "cold-start prompt" },
+      ],
+      env: {
+        CLOUDFLARE_ACCOUNT_ID: "0".repeat(32),
+        CLOUDFLARE_AI_GATEWAY_ID: "default",
+        ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY: "1",
+        CLOUDFLARE_AI_GATEWAY_TOKEN: "gateway-test-token",
+      },
+    });
+    assert.equal(requestUrl, `https://gateway.ai.cloudflare.com/v1/${"0".repeat(32)}/default/grok/v1/chat/completions`);
+    assert.equal(requestHeaders.get("cf-aig-authorization"), "Bearer gateway-test-token");
+    assert.equal(requestHeaders.has("authorization"), false);
+    assert.equal(requestBody.model, XAI_GROK_4_6_MODEL);
+    assert.equal(result.inputTokens, 29);
+    assert.equal(result.outputTokens, 13);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("official REST model call performs exactly one native request and reads provider usage", async () => {
