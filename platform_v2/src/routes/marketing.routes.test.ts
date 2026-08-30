@@ -105,6 +105,20 @@ test("learn index can switch UI language while keeping Japanese SEO canonical", 
   }
 });
 
+test("community is a product page without internal route documentation", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/community?lang=ja" });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /小さな発見を、みんなで残す/);
+    assert.match(response.body, /記録する/);
+    assert.match(response.body, /観察会を見る/);
+    assert.doesNotMatch(response.body, />CANONICAL<|>canonical<|>NEXT ROUTE<|>next route<|\/community<\/strong>|公式解説|読み物ナビゲーション/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("glossary and term pages expose one-topic SEO pages", async () => {
   const app = buildApp();
   try {

@@ -5089,6 +5089,18 @@ class FakeStatement {
       } as T);
     }
 
+    if (normalized.startsWith("SELECT a.owner_user_id AS asset_owner_user_id,")) {
+      const asset = [...this.db.assets.values()].find((candidate) => candidate.public_derivative_key === string(v[0]));
+      if (!asset) return null;
+      const observation = asset.observation_id ? this.db.observations.get(asset.observation_id) : null;
+      return ({
+        asset_owner_user_id: asset.owner_user_id,
+        observation_owner_user_id: observation?.owner_user_id ?? null,
+        visibility: observation?.visibility ?? null,
+        emergency_hidden: observation?.emergency_hidden ?? null
+      } as T);
+    }
+
     if (normalized.startsWith("SELECT user_id, email, password_hash, display_name, role_name, rank_label, banned FROM auth_users")) {
       if (normalized.includes("WHERE user_id = ?")) {
         return ([...this.db.authUsers.values()].find((candidate) => candidate.user_id === string(v[0])) as T | undefined) ?? null;
@@ -5096,7 +5108,20 @@ class FakeStatement {
       return (this.db.authUsers.get(string(v[0]).toLowerCase()) as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT user_id, provider, provider_user_id, provider_email, display_name, role_name, rank_label, banned, profile_json FROM oauth_accounts")) {
+      return ([...this.db.oauthAccounts.values()].find((candidate) =>
+        candidate.provider === "google"
+        && candidate.provider_email?.toLowerCase() === string(v[0]).toLowerCase()
+      ) as T | undefined) ?? null;
+    }
+
     if (normalized.startsWith("SELECT user_id, provider, provider_user_id, provider_email, display_name, role_name, rank_label, banned FROM oauth_accounts")) {
+      if (normalized.includes("WHERE lower(provider_email) = lower(?)")) {
+        return ([...this.db.oauthAccounts.values()].find((candidate) => candidate.provider_email?.toLowerCase() === string(v[0]).toLowerCase()) as T | undefined) ?? null;
+      }
+      if (normalized.includes("WHERE provider = 'cloudflare-access'")) {
+        return (this.db.oauthAccounts.get(`cloudflare-access:${string(v[0])}`) as T | undefined) ?? null;
+      }
       return (this.db.oauthAccounts.get(`${string(v[0])}:${string(v[1])}`) as T | undefined) ?? null;
     }
 
@@ -21423,8 +21448,8 @@ test("production original UI html serves localized auth and guest profile shells
     assert.equal(queryRecords.status, 200);
     const queryRecordsBody = await queryRecords.text();
     assert.match(queryRecordsBody, /Records \| ikimon/);
-    assert.match(queryRecordsBody, /data-cloudflare-records-live/);
-    assert.match(queryRecordsBody, /No recent public records yet/);
+    assert.match(queryRecordsBody, /data-cloudflare-records-native/);
+    assert.match(queryRecordsBody, /No records yet/);
     assert.match(queryRecordsBody, /beforeinstallprompt/);
     assert.equal(queryRecords.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
@@ -21484,8 +21509,8 @@ test("production records query variants serve dedicated materialized HTML", asyn
     assert.equal(normalRecords.status, 200);
     const normalRecordsBody = await normalRecords.text();
     assert.match(normalRecordsBody, /記録を見る \| ikimon/);
-    assert.match(normalRecordsBody, /data-cloudflare-records-live/);
-    assert.match(normalRecordsBody, /public records/);
+    assert.match(normalRecordsBody, /data-cloudflare-records-native/);
+    assert.doesNotMatch(normalRecordsBody, /public records/);
     assert.doesNotMatch(normalRecordsBody, /summary records/);
     assert.doesNotMatch(normalRecordsBody, /needs id records/);
     assert.equal(normalRecords.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
@@ -21769,8 +21794,13 @@ test("Cloudflare staging QA sitemap smoke materialization scope covers only publ
   };
 
   const stagingQaSmokePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS");
+  const corePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_CORE_PATHS");
   assert.match(materializerSource, /scope === "staging-qa"/);
   assert.match(materializerSource, /targetEnv !== "staging"/);
+
+  for (const path of ["/community", "/community/events", "/ja/community", "/ja/community/events"]) {
+    assert.ok(corePaths.includes(path), `${path} must remain in the normal product materialization scope`);
+  }
 
   for (const path of [
     "/learn",
@@ -21921,7 +21951,7 @@ test("production materialized app shells collapse header actions and respect sig
   assert.match(recordsBody, /href="\/ja\/record\?start=photo" data-global-record-trigger="photo" data-record-target="\/ja\/record\?start=photo" data-kpi-action="header_record_photo"/);
   assert.match(recordsBody, />マイページ</);
   assert.match(recordsBody, />設定</);
-  assert.match(recordsBody, /data-cloudflare-records-live/);
+  assert.match(recordsBody, /data-cloudflare-records-native/);
 
   const loginResponse = await worker.fetch(new Request("https://ikimon.life/ja/login?redirect=%2Fprofile"), productionEnv);
   const loginBody = await loginResponse.text();
@@ -21929,8 +21959,7 @@ test("production materialized app shells collapse header actions and respect sig
   assert.match(loginBody, /data-cloudflare-header-menu/);
   assert.match(loginBody, /href="\/ja\/login\?redirect=%2Fprofile"/);
   assert.match(loginBody, />ログイン</);
-  assert.match(loginBody, /\/auth\/oauth\/google\/start\?redirect=%2Fprofile/);
-  assert.doesNotMatch(loginBody, /は設定中/);
+  assert.doesNotMatch(loginBody, /\/auth\/oauth\/google\/start|は設定中/);
   assert.equal(core.operationAudit.length, 0);
 });
 
@@ -22066,12 +22095,12 @@ test("production records materialized html includes recent Cloudflare D1 records
   const response = await worker.fetch(new Request("https://ikimon.life/ja/records"), productionEnv);
   const body = await response.text();
   assert.equal(response.status, 200);
-  assert.match(body, /data-cloudflare-records-live/);
+  assert.match(body, /data-cloudflare-records-native/);
   assert.match(body, /最近の投稿テスト/);
   assert.match(body, /record-live-materialized/);
   assert.match(body, /\/derived\/.+\/display\.webp/);
   assert.match(body, /\/derived\/[^"\s]+\/display\.webp/);
-  assert.match(body, /地域の記録/);
+  assert.match(body, /位置を保護/);
   assert.doesNotMatch(body, /record-shadow-materialized/);
   assert.doesNotMatch(body, /cell:34\.81,137\.73/);
   assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
@@ -23365,7 +23394,7 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
     const checks: Array<{ path: string; expected: string; native?: "profile" | "record" }> = [
       { path: "/ja/profile", expected: "八巻テスト", native: "profile" },
       { path: "/ja/profile/settings", expected: "プロフィール設定", native: "profile" },
-      { path: "/ja/records", expected: "materialized records" },
+      { path: "/ja/records", expected: "みんなの記録" },
       { path: "/ja/record", expected: "record-form", native: "record" }
     ];
     for (const check of checks) {
@@ -24679,7 +24708,7 @@ test("production materialized auth html personalizes redirect query without orig
     assert.equal(explicitResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
     assert.match(explicitHtml, /data-redirect="\/record\?start=note"/);
     assert.match(explicitHtml, /\/en\/login\?redirect=%2Frecord%3Fstart%3Dnote/);
-    assert.match(explicitHtml, /\/auth\/oauth\/google\/start\?redirect=%2Frecord%3Fstart%3Dnote/);
+    assert.doesNotMatch(explicitHtml, /\/auth\/oauth\/google\/start/);
 
     const bareResponse = await worker.fetch(new Request("https://ikimon.life/register?redirect=%2Frecord&lang=en"), productionEnv);
     const bareHtml = await bareResponse.text();
@@ -24690,10 +24719,19 @@ test("production materialized auth html personalizes redirect query without orig
     const loginResponse = await worker.fetch(new Request("https://ikimon.life/ja/login?redirect=%2Fprofile"), productionEnv);
     const loginHtml = await loginResponse.text();
     assert.equal(loginResponse.status, 200);
-    assert.match(loginHtml, /href="\/auth\/oauth\/google\/start\?redirect=%2Fprofile"/);
-    assert.match(loginHtml, /href="\/auth\/oauth\/twitter\/start\?redirect=%2Fprofile"/);
-    assert.doesNotMatch(loginHtml, /auth-social-disabled/);
-    assert.doesNotMatch(loginHtml, /設定中/);
+    assert.doesNotMatch(loginHtml, /\/auth\/oauth\/(?:google|twitter)\/start/);
+    assert.doesNotMatch(loginHtml, /auth-social-disabled|設定中/);
+
+    const configuredLoginResponse = await worker.fetch(new Request("https://ikimon.life/ja/login?redirect=%2Fprofile"), {
+      ...productionEnv,
+      GOOGLE_CLIENT_ID: "google-client",
+      GOOGLE_CLIENT_SECRET: "google-secret",
+      TWITTER_CLIENT_ID: "twitter-client",
+      TWITTER_CLIENT_SECRET: "twitter-secret"
+    });
+    const configuredLoginHtml = await configuredLoginResponse.text();
+    assert.match(configuredLoginHtml, /href="\/auth\/oauth\/google\/start\?redirect=%2Fprofile"/);
+    assert.match(configuredLoginHtml, /href="\/auth\/oauth\/twitter\/start\?redirect=%2Fprofile"/);
 
     const oauthStart = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start?redirect=%2Fprofile"), {
       ...productionEnv,
@@ -24708,6 +24746,306 @@ test("production materialized auth html personalizes redirect query without orig
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+function stagingAccessContext(identity: Record<string, unknown> | undefined) {
+  return {
+    waitUntil() {},
+    access: {
+      aud: "zukan-staging-aud",
+      async getIdentity() {
+        return identity;
+      }
+    }
+  };
+}
+
+test("staging Access identity creates one invited ZUKAN session without OAuth secrets", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const fetchWithContext = worker.fetch as unknown as (request: Request, env: typeof stagingEnv, ctx: unknown) => Promise<Response>;
+  const response = await fetchWithContext(new Request("https://staging.zukan.earth/ja/", {
+    headers: { accept: "text/html" }
+  }), stagingEnv, stagingAccessContext({ email: "invited@example.test", name: "Invited User", user_uuid: "access-user-1" }));
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("location"), "/ja/");
+  assert.match(response.headers.get("set-cookie") ?? "", /^ikimon_v2_session=.*HttpOnly; SameSite=Lax; Secure;/);
+  assert.equal(core.authSessions.size, 1);
+  const linked = core.oauthAccounts.get("cloudflare-access:access-user-1");
+  assert.equal(linked?.provider_email, "invited@example.test");
+  assert.equal(core.users.has(linked?.user_id ?? ""), true);
+});
+
+test("staging Access identity links only an existing verified Google user", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  core.users.add("existing-user");
+  core.oauthAccounts.set("google:google-existing-1", {
+    user_id: "existing-user",
+    provider: "google",
+    provider_user_id: "google-existing-1",
+    provider_email: "existing@example.test",
+    display_name: "Existing User",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    profile_json: JSON.stringify({ verified_email: true }),
+    linked_at: "2026-08-01T00:00:00.000Z"
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const fetchWithContext = worker.fetch as unknown as (request: Request, env: typeof stagingEnv, ctx: unknown) => Promise<Response>;
+  const response = await fetchWithContext(new Request("https://staging.zukan.earth/ja/", {
+    headers: { accept: "text/html" }
+  }), stagingEnv, stagingAccessContext({ email: "existing@example.test", name: "Existing User", user_uuid: "access-existing-1" }));
+  assert.equal(response.status, 303);
+  assert.equal(core.oauthAccounts.get("cloudflare-access:access-existing-1")?.user_id, "existing-user");
+  assert.equal(core.authSessions.size, 1);
+});
+
+test("staging Access never links an unverified preclaimed password account", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  core.authUsers.set("victim@example.test", {
+    user_id: "preclaimed-user",
+    email: "victim@example.test",
+    password_hash: "attacker-controlled",
+    display_name: "Preclaimed",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    last_login_at: null
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const fetchWithContext = worker.fetch as unknown as (request: Request, env: typeof stagingEnv, ctx: unknown) => Promise<Response>;
+  const response = await fetchWithContext(new Request("https://staging.zukan.earth/ja/", {
+    headers: { accept: "text/html" }
+  }), stagingEnv, stagingAccessContext({ email: "victim@example.test", name: "Victim", user_uuid: "access-victim-1" }));
+  assert.equal(response.status, 303);
+  const linkedUserId = core.oauthAccounts.get("cloudflare-access:access-victim-1")?.user_id ?? "";
+  assert.notEqual(linkedUserId, "preclaimed-user");
+  assert.match(linkedUserId, /^user_access_[a-f0-9]{24}$/);
+});
+
+test("concurrent first Access requests converge on one deterministic user", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const fetchWithContext = worker.fetch as unknown as (request: Request, env: typeof stagingEnv, ctx: unknown) => Promise<Response>;
+  const identity = { email: "parallel@example.test", name: "Parallel", user_uuid: "access-parallel-1" };
+  const responses = await Promise.all([1, 2].map(() => fetchWithContext(new Request("https://staging.zukan.earth/ja/", {
+    headers: { accept: "text/html" }
+  }), stagingEnv, stagingAccessContext(identity))));
+  assert.deepEqual(responses.map((response) => response.status), [303, 303]);
+  const linkedUserId = core.oauthAccounts.get("cloudflare-access:access-parallel-1")?.user_id ?? "";
+  assert.match(linkedUserId, /^user_access_[a-f0-9]{24}$/);
+  assert.deepEqual(new Set([...core.authSessions.values()].map((session) => session.user_id)), new Set([linkedUserId]));
+});
+
+test("staging Access rejects missing identity context and disabled accounts", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const missingContext = await worker.fetch(new Request("https://staging.zukan.earth/ja/", {
+    headers: { accept: "text/html" }
+  }), stagingEnv);
+  assert.equal(missingContext.status, 403);
+  const fetchWithContext = worker.fetch as unknown as (request: Request, env: typeof stagingEnv, ctx: unknown) => Promise<Response>;
+  const missingIdentity = await fetchWithContext(new Request("https://staging.zukan.earth/ja/", {
+    headers: { accept: "text/html" }
+  }), stagingEnv, stagingAccessContext(undefined));
+  assert.equal(missingIdentity.status, 403);
+  core.oauthAccounts.set("cloudflare-access:access-disabled-1", {
+    user_id: "disabled-user",
+    provider: "cloudflare-access",
+    provider_user_id: "access-disabled-1",
+    provider_email: "disabled@example.test",
+    display_name: "Disabled",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 1,
+    profile_json: "{}",
+    linked_at: "2026-08-01T00:00:00.000Z"
+  });
+  const disabled = await fetchWithContext(new Request("https://staging.zukan.earth/ja/", {
+    headers: { accept: "text/html" }
+  }), stagingEnv, stagingAccessContext({ email: "disabled@example.test", user_uuid: "access-disabled-1" }));
+  assert.equal(disabled.status, 403);
+  assert.equal(core.authSessions.size, 0);
+});
+
+test("staging Access replaces a stale cookie and reuses the valid session on revisit", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>member home</main></body>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const fetchWithContext = worker.fetch as unknown as (request: Request, env: typeof stagingEnv, ctx: unknown) => Promise<Response>;
+  const ctx = stagingAccessContext({ email: "returning@example.test", name: "Returning", user_uuid: "access-returning-1" });
+  const first = await fetchWithContext(new Request("https://staging.zukan.earth/ja/", {
+    headers: { accept: "text/html", cookie: "ikimon_v2_session=stale" }
+  }), stagingEnv, ctx);
+  assert.equal(first.status, 303);
+  const sessionCookie = (first.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  assert.match(sessionCookie, /^ikimon_v2_session=/);
+  const second = await fetchWithContext(new Request("https://staging.zukan.earth/ja/", {
+    headers: { accept: "text/html", cookie: sessionCookie }
+  }), stagingEnv, ctx);
+  assert.equal(second.status, 200);
+  assert.equal(await second.text().then((body) => body.includes("member home")), true);
+  assert.equal(core.authSessions.size, 1);
+});
+
+test("Workers dev stays guest even with Access context, and production never creates Access sessions", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const fetchWithContext = worker.fetch as unknown as (request: Request, env: typeof stagingEnv, ctx: unknown) => Promise<Response>;
+  const response = await fetchWithContext(new Request("https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/ja/", {
+    headers: { accept: "text/html" }
+  }), stagingEnv, stagingAccessContext({ email: "workers@example.test", user_uuid: "access-workers-1" }));
+  assert.equal(response.status, 200);
+  assert.equal(core.authSessions.size, 0);
+  assert.equal(core.oauthAccounts.size, 0);
+  const productionEnv = { ...env, ENVIRONMENT: "production", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const production = await fetchWithContext(new Request("https://ikimon.life/ja/", {
+    headers: { accept: "text/html" }
+  }), productionEnv, stagingAccessContext({ email: "production@example.test", user_uuid: "access-production-1" }));
+  assert.equal(production.status, 200);
+  assert.equal(core.authSessions.size, 0);
+  assert.equal(core.oauthAccounts.size, 0);
+});
+
+test("native public Records filters one product list by search query without duplicated materialized content", async () => {
+  const { env, obs } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><html><head></head><body><header><form class=\"site-search site-search-desktop\"><input name=\"q\"></form><form class=\"site-search site-search-mobile\"><input name=\"q\"></form></header><main id=\"main-content\">legacy records</main></body></html>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  env.OBS_DB.publicMapSnapshotRecords.push(
+    { visit_id: "public-tonbo", cell_1000: "34.81,137.73", observed_at: "2026-08-20T09:00:00.000Z", display_name: "アキアカネ", asset_count: 1, public_area_label: "浜松市" },
+    { visit_id: "public-frog", cell_1000: "34.82,137.74", observed_at: "2026-08-19T09:00:00.000Z", display_name: "ニホンアマガエル", asset_count: 1, public_area_label: "浜松市" }
+  );
+  for (const [observationId, assetId] of [["public-tonbo", "asset-public-tonbo"], ["public-frog", "asset-public-frog"]] as const) {
+    obs.assets.set(assetId, {
+      asset_id: assetId,
+      draft_id: `draft-${assetId}`,
+      observation_id: observationId,
+      owner_user_id: "public-user",
+      object_key: `original/${observationId}/photo.jpg`,
+      partition_month: "2026-08",
+      sha256: `${assetId}-sha`,
+      mime: "image/jpeg",
+      bytes: 1234,
+      processing_state: "uploaded",
+      public_derivative_key: `derived/${observationId}/display.webp`,
+      public_derivative_sha256: `${assetId}-public-sha`,
+      public_derivative_verified_at: "2026-08-20T09:10:00.000Z",
+      public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+      exif_scrub_state: "scrubbed",
+      public_ready_at: "2026-08-20T09:10:00.000Z"
+    });
+  }
+  const response = await worker.fetch(new Request("https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/ja/records?view=public&q=%E3%82%A2%E3%82%AD%E3%82%A2%E3%82%AB%E3%83%8D"), stagingEnv);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /data-cloudflare-records-native/);
+  assert.match(html, /data-records-mode="public"/);
+  assert.match(html, /value="アキアカネ"/);
+  assert.match(html, /アキアカネ/);
+  assert.equal((html.match(/name="q"/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /ニホンアマガエル|data-cloudflare-records-live|最近の投稿/);
+});
+
+test("guest cannot open the member Records view", async () => {
+  const { env } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  const response = await worker.fetch(new Request("https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/ja/records?view=mine"), stagingEnv);
+  assert.equal(response.status, 303);
+  assert.match(response.headers.get("location") ?? "", /^\/ja\/login\?redirect=/);
+});
+
+test("native member Records shows the owner's private record once", async () => {
+  const { env, core, obs } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", PUBLIC_WRITE_MODE: "cloudflare_native" };
+  await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><html><head></head><body><main id=\"main-content\">legacy records</main></body></html>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "owner-private-records",
+    userId: "records-owner",
+    observedAt: "2026-08-21T09:00:00.000Z",
+    latitude: 34.81,
+    longitude: 137.73,
+    taxon: { vernacularName: "自分だけの記録", rank: "species" }
+  });
+  const observation = obs.observations.get("owner-private-records");
+  if (observation) observation.visibility = "private";
+  const privateDerivativeKey = "derived/owner-private-records/display.webp";
+  obs.assets.set("asset-owner-private-records", {
+    asset_id: "asset-owner-private-records",
+    draft_id: "draft-owner-private-records",
+    observation_id: "owner-private-records",
+    owner_user_id: "records-owner",
+    object_key: "original/owner-private-records/photo.jpg",
+    partition_month: "2026-08",
+    sha256: "asset-owner-private-records-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: privateDerivativeKey,
+    public_derivative_sha256: "asset-owner-private-records-public-sha",
+    public_derivative_verified_at: "2026-08-21T09:10:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-08-21T09:10:00.000Z"
+  });
+  await env.ASSET_BUCKET.put(privateDerivativeKey, "private-webp", {
+    httpMetadata: { contentType: "image/webp" }
+  });
+  const rawToken = "records-owner-session";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "records-owner",
+    display_name: "Records Owner",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  const response = await worker.fetch(new Request("https://staging.zukan.earth/ja/records?view=mine", {
+    headers: { cookie: `ikimon_v2_session=${rawToken}` }
+  }), stagingEnv);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /data-cloudflare-records-native/);
+  assert.match(html, /data-records-mode="mine"/);
+  assert.equal((html.match(/自分だけの記録/g) ?? []).length, 1);
+  assert.match(html, /非公開/);
+  assert.doesNotMatch(html, /derived\/owner-private-records/);
+  assert.doesNotMatch(html, /data-cloudflare-records-live|最近の投稿/);
+  const unauthenticatedMedia = await worker.fetch(new Request(`https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/${privateDerivativeKey}`), stagingEnv);
+  assert.equal(unauthenticatedMedia.status, 404);
+  const ownerMedia = await worker.fetch(new Request(`https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/${privateDerivativeKey}`, {
+    headers: { cookie: `ikimon_v2_session=${rawToken}` }
+  }), stagingEnv);
+  assert.equal(ownerMedia.status, 200);
+  assert.equal(await ownerMedia.text(), "private-webp");
+  assert.equal(ownerMedia.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
 });
 
 test("production public health endpoints are served by Cloudflare instead of origin fallback", async () => {

@@ -17,6 +17,15 @@ test("map explorer desktop chrome hides legacy mobile menu affordances", () => {
   assert.match(styles, /@media \(min-width: 1161px\) \{[\s\S]*\.cf-header-menu,\s+\.site-header-actions-mobile,\s+\.site-mobile-menu \{\s*display: none !important;/);
 });
 
+test("map explorer keeps controls touchable and hides internal provenance labels", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  assert.match(MAP_EXPLORER_STYLES, /\.map-explorer :where\(button,a\)\{min-height:44px/);
+  assert.match(MAP_EXPLORER_STYLES, /input:not\(\[type=checkbox\]\):not\(\[type=radio\]\):not\(\[type=range\]\)\{min-height:44px/);
+  assert.match(MAP_EXPLORER_STYLES, /\.maplibregl-ctrl button\{width:44px!important;height:44px!important/);
+  assert.doesNotMatch(script, /profile=' \+ String\(stats\.markerProfile|visible manual=|excluded legacy=|suppressed counts hidden/);
+  assert.match(script, /位置を保護した集計を表示しています/);
+});
+
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const outlineStart = script.indexOf("id: 'area-polygon-outline'");
@@ -85,6 +94,7 @@ test("map explorer localizes English fallback and failure chrome", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "en" });
 
   assert.match(html, /aria-label="Expand details"/);
+  assert.match(html, /aria-label="Explore places on the map"/);
   assert.match(script, /Could not load the map library/);
   assert.match(script, /Map-selected point/);
   assert.match(script, /OSM park or green space/);
@@ -98,6 +108,7 @@ test("map explorer localizes English fallback and failure chrome", () => {
   assert.doesNotMatch(script, /エリア情報を読み込み中/);
   assert.doesNotMatch(script, /AI候補/);
   assert.doesNotMatch(html, /詳細を広げる/);
+  assert.doesNotMatch(html, /地図で場所を探す/);
 });
 
 test("selected raw points keep site brief while stable cells use place atlas", () => {

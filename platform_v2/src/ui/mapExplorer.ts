@@ -1505,8 +1505,15 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           ? "Veja de agora até seis horas à frente."
           : "View now through six hours ahead.",
   };
+  const mapRegionLabel = lang === "ja"
+    ? "地図で場所を探す"
+    : lang === "es"
+      ? "Explorar lugares en el mapa"
+      : lang === "pt-BR"
+        ? "Explorar locais no mapa"
+        : "Explore places on the map";
 
-  return `<section class="section me-section" data-side="rail" aria-label="Map Explorer">
+  return `<section class="section me-section map-explorer" data-side="rail" aria-label="${escapeHtml(mapRegionLabel)}">
     <div class="me-topbar">
       <div class="me-topbar-primary">
         <span class="me-map-kicker">${escapeHtml(lang === "ja" ? "探索する" : lang === "es" ? "Guia regional" : lang === "pt-BR" ? "Guia regional" : "Regional guide")}</span>
@@ -3499,26 +3506,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!stats || !stats.provenance) return '';
     var privacy = stats.privacy || null;
     if (privacy && privacy.policy === 'k_anonymous_cell_aggregate') {
-      return [
-        'profile=' + String(stats.markerProfile || 'all_research_artifacts'),
-        'public aggregate k>=' + String(privacy.minCellRecords || 3),
-        'suppressed counts hidden'
-      ].join(' | ');
+      return '位置を保護した集計を表示しています';
     }
     var visible = stats.provenance.visible || {};
-    var excluded = stats.provenance.excluded || {};
-    var sampleLabel = stats.provenance.sampled ? ('sample ' + String(stats.provenance.sampleSize || 0)) : 'full';
-    return [
-      'profile=' + String(stats.markerProfile || 'all_research_artifacts'),
-      'visible manual=' + String(visible.manual || 0),
-      'legacy=' + String(visible.legacy || 0),
-      'track=' + String(visible.track || 0),
-      'other=' + String(visible.other || 0),
-      'excluded legacy=' + String(excluded.legacy || 0),
-      'track=' + String(excluded.track || 0),
-      'other=' + String(excluded.other || 0),
-      sampleLabel,
-    ].join(' | ');
+    var total = Number(visible.manual || 0) + Number(visible.legacy || 0) + Number(visible.track || 0) + Number(visible.other || 0);
+    return total > 0 ? 'この範囲の記録を表示しています' : '';
   }
 
   function shouldUseBottomSheet() {
@@ -14539,4 +14531,8 @@ export const MAP_EXPLORER_STYLES = `
       grid-template-columns: 1fr;
     }
   }
+  .map-explorer :where(button,a){min-height:44px}
+  .map-explorer :where(button){min-width:44px}
+  .map-explorer input:not([type=checkbox]):not([type=radio]):not([type=range]){min-height:44px}
+  .map-explorer .maplibregl-ctrl button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}
 `;

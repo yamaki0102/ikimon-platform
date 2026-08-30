@@ -643,7 +643,7 @@ test("registration safety copy matches the explicit duplicate-email API contract
       assert.doesNotMatch(response.body, /メール有無が分からない|do not reveal whether an email exists|no revelan si existe un correo|nao revelam se um e-mail existe/i);
     }
     const ja = await app.inject({ method: "GET", url: "/ja/register?redirect=/profile" });
-    assert.match(ja.body, /登録済みのメールアドレスはログインへ案内/);
+    assert.match(ja.body, /登録済みの場合は、同じ記録へ戻れます/);
   } finally {
     await app.close();
   }

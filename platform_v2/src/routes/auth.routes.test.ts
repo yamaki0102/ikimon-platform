@@ -88,3 +88,28 @@ test("register self-redirect protection still lands on the record photo start", 
     await app.close();
   }
 });
+
+test("login copy contains only user-facing ZUKAN language in every locale", async () => {
+  const app = buildApp();
+  try {
+    for (const url of [
+      "/login?lang=ja&redirect=/profile",
+      "/login?lang=en&redirect=/profile",
+      "/login?lang=es&redirect=/profile",
+      "/login?lang=pt-BR&redirect=/profile",
+    ]) {
+      const response = await app.inject({ method: "GET", url });
+      assert.equal(response.statusCode, 200, url);
+      assert.match(response.body, /ZUKAN/, url);
+      const authSurface = response.body.match(/<div class="auth-wrap">[\s\S]*?<\/aside>\s*<\/div>/)?.[0] ?? "";
+      assert.match(authSurface, /auth-panel/, url);
+      assert.doesNotMatch(
+        authSurface,
+        /record lane|>account<|>sign in<|Life List|HttpOnly|SameSite|production Secure|external origins?|origenes externos|origens externas|外部 origin/i,
+        url,
+      );
+    }
+  } finally {
+    await app.close();
+  }
+});
