@@ -194,6 +194,7 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/rememberTokenWrite.ts": "cloudflare_remember_token_api",
     "platform_v2/src/routes/write.ts": "cloudflare_app_write_route_boundary",
     "platform_v2/src/services/observationDataRights.ts": "cloudflare_observation_data_rights_api",
+    "platform_v2/src/services/publicationFeed.ts": "cloudflare_publication_feed_native_runtime",
     "platform_v2/src/services/civicNatureContext.ts": "cloudflare_civic_observation_context_runtime",
     "platform_v2/src/services/evidenceAssetMediaRole.ts": "cloudflare_observation_media_role_dependency",
     "platform_v2/src/services/mediaProcessingJobs.ts": "cloudflare_media_processing_queue_dependency",

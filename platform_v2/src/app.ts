@@ -41,6 +41,7 @@ import { registerKnowledgeNavigationApiRoutes } from "./routes/knowledgeNavigati
 import { registerCuratorProposalsRoutes } from "./routes/curatorProposalsApi.js";
 import { registerObservationEventApiRoutes } from "./routes/observationEventApi.js";
 import { registerMeSubscriptionsApiRoutes } from "./routes/meSubscriptionsApi.js";
+import { registerPublicationFeedRoutes } from "./routes/publicationFeeds.js";
 import { registerObservationEventRecapRoutes } from "./routes/observationEventRecapApi.js";
 import { registerObservationEventPagesRoutes } from "./routes/observationEventPages.js";
 import { registerObservationFieldsApiRoutes } from "./routes/observationFieldsApi.js";
@@ -840,6 +841,7 @@ export function buildApp() {
   void registerObservationPackageApiRoutes(app);
   void registerPlaceManagementPolicyApiRoutes(app);
   void registerMeSubscriptionsApiRoutes(app);
+  void registerPublicationFeedRoutes(app);
 
   app.setNotFoundHandler(async (request, reply) => {
     const accept = String(request.headers.accept ?? "");

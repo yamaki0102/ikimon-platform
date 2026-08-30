@@ -93,6 +93,7 @@ import {
 import {
   loadCloudflarePlaceAtlasProfile,
 } from "./placeAtlasProfileNative";
+import { handlePublicationFeedNativeRequest } from "./publicationFeedNative";
 import {
   listD1PublicPlaceChildren,
   searchD1PublicPlaces,
@@ -2487,6 +2488,11 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/cells") {
         return getPublicMapCells(url, env);
+      }
+
+      if (request.method === "GET" && nativePathname.startsWith("/api/v1/publication-feeds/")) {
+        const response = await handlePublicationFeedNativeRequest(request, env.OBS_DB, nativePathname);
+        if (response) return response;
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/observations") {
