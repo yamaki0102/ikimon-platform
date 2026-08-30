@@ -4,6 +4,11 @@ import { runWithCspNonce } from "../services/cspNonce.js";
 import { getSiteShellLayoutForPath } from "../siteMap.js";
 import { renderSiteDocument } from "./siteShell.js";
 
+test("site shell keeps the keyboard skip link at the 44px target contract", () => {
+  const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
+  assert.match(html, /\.skip-link \{[\s\S]*?min-height: 44px;[\s\S]*?display: inline-flex;[\s\S]*?align-items: center;/);
+});
+
 test("site shell hydrates the login link from the v2 session endpoint", () => {
   const html = renderSiteDocument({
     basePath: "",

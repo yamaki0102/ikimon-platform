@@ -23435,6 +23435,10 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
       if (check.native === "record") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session", check.path);
         assert.doesNotMatch(body, /materialized record/, check.path);
+        assert.match(body, /<title>記録する \| ZUKAN<\/title>/, check.path);
+        assert.match(body, /class="cf-record-brand"[^>]*>ZUKAN<\/a>/, check.path);
+        assert.match(body, /カメラ・写真ライブラリ/, check.path);
+        assert.doesNotMatch(body, />ikimon<| - ikimon<|<span>image\/|<span>video\//, check.path);
       }
     }
     assert.equal(fallbackCalls, 0);

@@ -14535,4 +14535,9 @@ export const MAP_EXPLORER_STYLES = `
   .map-explorer :where(button){min-width:44px}
   .map-explorer input:not([type=checkbox]):not([type=radio]):not([type=range]){min-height:44px}
   .map-explorer .maplibregl-ctrl button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}
+  .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt){min-width:44px;min-height:44px}
+  .map-explorer input[type=range]{min-height:44px}
+  .map-explorer .me-start-panel.is-collapsed .me-start-panel-close{width:44px!important;min-width:44px!important;max-width:44px!important;height:44px!important;min-height:44px!important}
+  .map-explorer .me-legend.is-collapsed .me-legend-toggle{width:44px;min-width:44px;min-height:44px}
+  .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt):has(input:focus-visible){outline:3px solid rgba(14,165,233,.42);outline-offset:2px}
 `;
