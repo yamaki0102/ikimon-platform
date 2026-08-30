@@ -30,6 +30,7 @@ export type SitePageDefinition = {
     pageKey: string;
     prepend?: "contactForm";
   };
+  htmlMaterialization?: "fastify";
   visualQa?: {
     smoke: boolean;
     viewports: VisualQaViewportName[];
@@ -335,6 +336,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     navVisibility: ["footer", "qa", "xml"],
     title: { ja: "外来種一覧", en: "Invasive species" },
     summary: { ja: "外来種を見つけたときの安全行動と公式情報への導線。", en: "Safety notes and official sources for invasive species." },
+    htmlMaterialization: "fastify",
   },
   {
     path: "/learn/invasive-species-reporting",
@@ -1018,6 +1020,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     title: { ja: "ZUKAN Monitoring 先行相談", en: "ZUKAN Monitoring early consultation" },
     summary: { ja: "地域・企業・自治体向けのモニタリングサービス提供準備中ページ。", en: "Preparation-stage consultation page for ZUKAN Monitoring." },
     primaryAction: { href: "/for-business/monitoring/apply", label: { ja: "先行相談する", en: "Request consultation" } },
+    htmlMaterialization: "fastify",
   },
   {
     path: "/for-researcher/apply",
