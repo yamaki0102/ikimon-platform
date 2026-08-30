@@ -196,6 +196,8 @@ test("owner visibility changes are replay-safe and keep canonical rights aligned
     CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, visibility TEXT NOT NULL, public_area_label TEXT);
     CREATE TABLE asset_ledger (asset_id TEXT PRIMARY KEY, observation_id TEXT NOT NULL, owner_user_id TEXT NOT NULL, visibility TEXT NOT NULL);
     CREATE TABLE observation_data_rights (visit_id TEXT PRIMARY KEY, record_consent TEXT NOT NULL, updated_at TEXT);
+    CREATE TABLE readmodel_public_observations (observation_id TEXT PRIMARY KEY);
+    CREATE TABLE public_map_snapshot_records_v1 (snapshot_key TEXT NOT NULL, occurrence_id TEXT NOT NULL, PRIMARY KEY (snapshot_key, occurrence_id));
     INSERT INTO observations VALUES ('record-visibility', 'owner-1', 'private', NULL);
     INSERT INTO asset_ledger VALUES ('asset-visibility', 'record-visibility', 'owner-1', 'private');
     INSERT INTO observation_data_rights VALUES ('record-visibility', 'private', CURRENT_TIMESTAMP);
@@ -215,6 +217,8 @@ test("owner visibility changes are replay-safe and keep canonical rights aligned
     default_source: "owner_override",
   });
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM observation_lifecycle_events WHERE reason_code = 'visibility_changed'").get()?.count, 1);
+  db.prepare("INSERT INTO readmodel_public_observations VALUES (?)").run("record-visibility");
+  db.prepare("INSERT INTO public_map_snapshot_records_v1 VALUES ('public-map:v1:global', ?)").run("occ:record-visibility:0");
 
   const privatize = await buildRecordVisibilityPlan({ recordId: "record-visibility", ownerUserId: "owner-1", previousVisibility: "public", visibility: "private", operationId: "visibility-private-1" });
   applyPlan(db, privatize);
@@ -222,6 +226,8 @@ test("owner visibility changes are replay-safe and keep canonical rights aligned
   assert.equal(db.prepare("SELECT visibility FROM asset_ledger").get()?.visibility, "private");
   assert.equal(db.prepare("SELECT record_consent FROM observation_data_rights").get()?.record_consent, "private");
   assert.equal(db.prepare("SELECT visibility FROM record_observation_policies").get()?.visibility, "private");
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM readmodel_public_observations").get()?.count, 0);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM public_map_snapshot_records_v1").get()?.count, 0);
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
   db.close();
 });

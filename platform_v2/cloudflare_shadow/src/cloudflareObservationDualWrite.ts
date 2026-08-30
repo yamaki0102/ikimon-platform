@@ -713,6 +713,16 @@ export async function buildRecordVisibilityPlan(input: {
           updated_at = CURRENT_TIMESTAMP`,
         values: [input.recordId, input.ownerUserId, input.visibility, input.visibility === "public" ? 1 : 0, input.ownerUserId],
       },
+      ...(input.visibility === "private" ? [
+        {
+          sql: "DELETE FROM readmodel_public_observations WHERE observation_id = ?",
+          values: [input.recordId],
+        },
+        {
+          sql: "DELETE FROM public_map_snapshot_records_v1 WHERE snapshot_key = 'public-map:v1:global' AND occurrence_id = ?",
+          values: [`occ:${input.recordId}:0`],
+        },
+      ] : []),
       {
         sql: `INSERT OR IGNORE INTO observation_lifecycle_events (
           event_id, observation_id, event_kind, actor_kind, actor_id, reason_code,
