@@ -1,0 +1,54 @@
+{
+  "version": "zukan-luna-verified-default-gateway-canary-v2",
+  "status": "CANARY_BLOCKED_CLOUDFLARE_402",
+  "executed_at": "2026-08-30",
+  "fixed_input": {
+    "visit_id": "record-1784366489892",
+    "image_count": 3,
+    "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9"
+  },
+  "rights_gate": {
+    "canonical_eligible_rows": 7,
+    "database_mutation": false
+  },
+  "gateway_read_back": {
+    "gateway_id": "default",
+    "gateway_exists": true,
+    "verification_flag": "ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY=1",
+    "new_gateway_created": false
+  },
+  "canary": {
+    "model": "openai/gpt-5.6-luna",
+    "provider": "cloudflare-ai-openai",
+    "transport": "cloudflare-ai-rest",
+    "request_count": 1,
+    "post_count": 1,
+    "image_count": 3,
+    "http_status": 402,
+    "provider_error_code": "invalid_prompt",
+    "latency_ms": 1428,
+    "input_tokens": null,
+    "output_tokens": null,
+    "schema_valid": false,
+    "raw_final_content_saved": false,
+    "full_run_started": false,
+    "report_path": "platform_v2/ops/model-bench/evidence/2026-08-30-openai-gpt-5.6-luna-cloudflare-default-gateway-canary-v2.json"
+  },
+  "diagnosis": {
+    "same_as_default_gateway_false_rejection": false,
+    "parser_root_cause": false,
+    "schema_root_cause": false,
+    "gateway_selection_root_cause": false,
+    "root_cause_class": "cloudflare_luna_provider_account_entitlement_or_responses_payload_boundary_before_model_output",
+    "previous_402_reproduced_with_verified_gateway": true
+  },
+  "contract": {
+    "retry_count": 0,
+    "fallback_count": 0,
+    "playground_used": false,
+    "secret_values_logged": false,
+    "private_reasoning_saved": false,
+    "production_changed": false
+  }
+}
