@@ -9,7 +9,11 @@
   "source": {
     "latestMainMerged": "9a663b8eab99c9bd6201258444510369057f869d",
     "preImplementationMergeCommit": "f0fd5340e6579db5552b46bc8d4f88a14f01ae62",
-    "exactFinalCommit": "PR_HEAD_READBACK_REQUIRED_AFTER_SCOPED_COMMIT"
+    "implementationCommits": [
+      "dab0b36626937603c12abc0806850dd4a4a917b6",
+      "1c2d4f01515f062ef43bf5c89143948187264689"
+    ],
+    "finalPrHeadAuthority": "fresh GitHub PR read-back after this capsule commit"
   },
   "completed": [
     "compact-v2 closed structured-output contract and compact-v3 prompt",
