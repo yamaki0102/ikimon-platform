@@ -8,6 +8,8 @@ export type LandingStrings = {
       secondaryCta: string;
       categoriesTitle: string;
       proofEmpty: string;
+      proofEmptyNote: string;
+      inviteNote: string;
       categories: Array<{ title: string; body: string }>;
       flowTitle: string;
       flowItems: Array<{ title: string; body: string }>;
@@ -40,6 +42,11 @@ export type LandingStrings = {
       emptyBody: string;
       galleryCta: string;
       emptyPlaceCta: string;
+      routesTitle: string;
+      routeRecord: string;
+      routeSearch: string;
+      routePrivacy: string;
+      routeCollaboration: string;
       p0: {
         samePlaceTitle: string;
         sameSeasonTitle: string;

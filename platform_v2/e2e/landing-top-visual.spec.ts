@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getStrings } from "../src/i18n/index.js";
 import type { SiteLang } from "../src/i18n.js";
@@ -11,6 +11,10 @@ import { renderSiteDocument } from "../src/ui/siteShell.js";
 
 function svgDataUrl(svg: string): string {
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function rasterDataUrl(path: string, mimeType: string): string {
+  return `data:${mimeType};base64,${readFileSync(path).toString("base64")}`;
 }
 
 function fixturePhoto(id: string): string {
@@ -26,6 +30,13 @@ function fixturePhoto(id: string): string {
 
 const fixtureBrandMark = svgDataUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="18" fill="#177b50"/><path d="M17 38c10-21 25-23 32-19-1 17-12 29-27 27 5-8 11-13 19-18-10 2-17 6-24 10z" fill="#fff"/></svg>');
 const fixtureWordmark = svgDataUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 60"><text x="2" y="45" fill="#17211b" font-family="Arial,sans-serif" font-size="48" font-weight="700">ikimon</text></svg>');
+const fixtureBrandDir = join(process.cwd(), "..", "upload_package", "public_html", "assets", "brand");
+const fixtureZukanSymbol = svgDataUrl(readFileSync(join(fixtureBrandDir, "zukan-symbol.svg"), "utf8"));
+const fixtureZukanWordmark = svgDataUrl(readFileSync(join(fixtureBrandDir, "zukan-wordmark.svg"), "utf8"));
+const fixtureZukanLockup = svgDataUrl(readFileSync(join(fixtureBrandDir, "zukan-lockup.svg"), "utf8"));
+const fixtureZukanAppIcon = rasterDataUrl(join(fixtureBrandDir, "zukan-app-icon-192.png"), "image/png");
+const fixtureZukanAppIconMaskable = rasterDataUrl(join(fixtureBrandDir, "zukan-app-icon-192-maskable.png"), "image/png");
+const fixtureEmptyIllustration = `data:image/webp;base64,${readFileSync(join(process.cwd(), "assets", "img", "landing", "zukan-empty-illustration.webp")).toString("base64")}`;
 
 function obs(id: string, overrides: Partial<LandingObservation> = {}): LandingObservation {
   return {
@@ -73,7 +84,13 @@ function pageHtml(lang: SiteLang, member: boolean, sparse = false): string {
     shellClassName: "shell-bleed prototype-shell", extraStyles: LANDING_TOP_STYLES, homeChrome: member ? "member" : "guest",
   })
     .replaceAll("/assets/brand/app-icon-192.png", fixtureBrandMark)
-    .replaceAll("/assets/brand/ikimon-wordmark-black.png", fixtureWordmark);
+    .replaceAll("/assets/brand/ikimon-wordmark-black.png", fixtureWordmark)
+    .replaceAll("/assets/brand/zukan-app-icon-192-maskable.png", fixtureZukanAppIconMaskable)
+    .replaceAll("/assets/brand/zukan-app-icon-192.png", fixtureZukanAppIcon)
+    .replaceAll("/assets/brand/zukan-wordmark.svg", fixtureZukanWordmark)
+    .replaceAll("/assets/brand/zukan-lockup.svg", fixtureZukanLockup)
+    .replaceAll("/assets/brand/zukan-symbol.svg", fixtureZukanSymbol)
+    .replaceAll("/assets/img/landing/zukan-empty-illustration.webp", fixtureEmptyIllustration);
 }
 
 const widths = [320, 375, 390, 768, 1280, 1440];
@@ -90,6 +107,31 @@ async function prepareIndexedDbOrigin(page: import("@playwright/test").Page): Pr
     await route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>visual qa</title>" });
   });
   await page.goto("/__visual-indexeddb-origin", { waitUntil: "domcontentloaded" });
+}
+
+type BrowserIntegrityCapture = {
+  consoleErrors: string[];
+  pageErrors: string[];
+  failedRequests: string[];
+};
+
+function captureBrowserIntegrity(page: import("@playwright/test").Page): BrowserIntegrityCapture {
+  const result: BrowserIntegrityCapture = { consoleErrors: [], pageErrors: [], failedRequests: [] };
+  page.on("console", (message) => {
+    if (message.type() === "error") result.consoleErrors.push(message.text());
+  });
+  page.on("pageerror", (error) => result.pageErrors.push(error.message));
+  page.on("requestfailed", (request) => result.failedRequests.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText || "unknown"}`));
+  return result;
+}
+
+async function assertBrowserIntegrity(page: import("@playwright/test").Page, capture: BrowserIntegrityCapture): Promise<void> {
+  await expect.poll(async () => page.locator("img").evaluateAll((images) => images
+    .filter((image) => !image.hidden && (!image.getAttribute("src")?.trim() || !image.complete || image.naturalWidth === 0))
+    .map((image) => image.getAttribute("src") || "unknown"))).toEqual([]);
+  expect(capture.consoleErrors).toEqual([]);
+  expect(capture.pageErrors).toEqual([]);
+  expect(capture.failedRequests).toEqual([]);
 }
 
 function selfSnapshot(): ProfileSnapshot {
@@ -131,7 +173,12 @@ function selfPageHtml(): string {
     currentPath: "/ja/profile",
   })
     .replaceAll("/assets/brand/app-icon-192.png", fixtureBrandMark)
-    .replaceAll("/assets/brand/ikimon-wordmark-black.png", fixtureWordmark);
+    .replaceAll("/assets/brand/ikimon-wordmark-black.png", fixtureWordmark)
+    .replaceAll("/assets/brand/zukan-app-icon-192-maskable.png", fixtureZukanAppIconMaskable)
+    .replaceAll("/assets/brand/zukan-app-icon-192.png", fixtureZukanAppIcon)
+    .replaceAll("/assets/brand/zukan-wordmark.svg", fixtureZukanWordmark)
+    .replaceAll("/assets/brand/zukan-lockup.svg", fixtureZukanLockup)
+    .replaceAll("/assets/brand/zukan-symbol.svg", fixtureZukanSymbol);
 }
 
 for (const width of [375, 390, 768, 1440]) {
@@ -178,6 +225,7 @@ for (const width of [390, 1440]) {
 for (const width of widths) {
   test(`guest ${width}px keeps the value flow readable`, async ({ browser }) => {
     const page = await browser.newPage({ viewport: { width, height: width < 700 ? 844 : 900 } });
+    const browserIntegrity = captureBrowserIntegrity(page);
     await page.setContent(pageHtml("ja", false), { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-home-view="guest"]')).toBeVisible();
     await expect(page.locator('[data-home-view="member"]')).toBeHidden();
@@ -194,6 +242,7 @@ for (const width of widths) {
       expect(metrics.heroBottom).toBeLessThan(760);
       expect(metrics.categoriesTop).toBeLessThan(800);
     }
+    await assertBrowserIntegrity(page, browserIntegrity);
     await capture(page, `guest-ja-${width}`);
     await page.close();
   });
@@ -202,6 +251,7 @@ for (const width of widths) {
 for (const width of widths) {
   test(`member ${width}px prioritizes a personal memory, places, and next activity`, async ({ browser }) => {
     const page = await browser.newPage({ viewport: { width, height: width < 700 ? 844 : 900 } });
+    const browserIntegrity = captureBrowserIntegrity(page);
     await page.setContent(pageHtml("ja", true), { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-home-view="member"]')).toBeVisible();
     await expect(page.locator('[data-home-view="guest"]')).toBeHidden();
@@ -221,6 +271,7 @@ for (const width of widths) {
     const memberIds = await page.locator('[data-home-view="member"] [data-home-record-id]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-home-record-id")));
     expect(new Set(memberIds).size).toBe(memberIds.length);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    await assertBrowserIntegrity(page, browserIntegrity);
     await capture(page, `member-ja-${width}`);
     await page.close();
   });
@@ -275,7 +326,7 @@ test("no-JS home preserves the place route and semantic explanation", async ({ b
   const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 375, height: 844 } });
   const page = await context.newPage();
   await page.setContent(pageHtml("ja", false), { waitUntil: "domcontentloaded" });
-  await expect(page.locator('.home-secondary-link[href="/ja/map?tab=places"]')).toBeVisible();
+  await expect(page.locator('.home-guest-hero .home-secondary-link[href="/ja/map?tab=places"]')).toBeVisible();
   await expect(page.locator(".home-primary-button").first()).toHaveText("撮る");
   await expect(page.locator(".home-category-section")).toBeVisible();
   await context.close();

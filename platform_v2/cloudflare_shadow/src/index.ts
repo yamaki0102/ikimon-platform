@@ -4209,13 +4209,16 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
 }
 
 function renderObservationEventCreatePage(auth: SessionSnapshot | null, initialFieldId: string): string {
+  if (!auth) {
+    return `<section class="card event-auth-required"><h1>観察会を作成</h1><p class="muted">招待された主催者が、参加する人と歩くためのページです。</p><p>観察会を作成するには、ZUKANにログインしてください。</p><div class="actions"><a class="btn" href="/login?redirect=/community/events/new">ログイン</a><a class="btn secondary" href="/community/events">観察会を見る</a></div></section>`;
+  }
   const initialFieldIdJson = JSON.stringify(initialFieldId).replace(/</g, "\\u003c");
-  return `<section class="card"><h1>観察会を作成</h1><p class="muted">このページはWorker/D1 runtimeです。作成はD1 APIへ送信します。</p>${auth ? `<p>ログイン中: ${escapeHtml(auth.displayName)}</p>` : `<p>作成にはログインが必要です。</p>`}<div class="actions"><a class="btn" href="/login?redirect=/community/events/new">ログイン</a><a class="btn secondary" href="/api/v1/observation-events">API</a></div></section>
+  return `<section class="card"><h1>観察会を作成</h1><p class="muted">招待された主催者が、参加する人と歩くためのページです。</p><p>ログイン中: ${escapeHtml(auth.displayName)}</p><div class="actions"><a class="btn secondary" href="/community/events">観察会を見る</a></div></section>
 <section class="card area-sketch-card" data-area-sketch-assist>
-  <h2>Area Sketch Assist</h2>
-  <p class="muted">衛星地図上で区域候補をざっくりなぞり、緑地割合と不足資料を下書き診断として保存します。正式申請や認定保証ではありません。</p>
+  <h2>歩く範囲を決める</h2>
+  <p class="muted">地図でおおまかな範囲を決め、あとで見直せるメモを残します。正式な境界や申請を決めるものではありません。</p>
   <label class="area-sketch-label">フィールドID<input data-area-sketch-field-id value="${escapeHtml(initialFieldId)}" placeholder="例: renri-area-sketch-field"></label>
-  <div class="area-sketch-map" data-area-sketch-map aria-label="Area Sketch Assist satellite map"></div>
+  <div class="area-sketch-map" data-area-sketch-map aria-label="開催エリアを指定する地図"></div>
   <div class="actions">
     <button type="button" class="btn" data-area-sketch-close>閉じて整える</button>
     <button type="button" class="btn secondary" data-area-sketch-undo>1点戻す</button>
@@ -4234,7 +4237,7 @@ function renderObservationEventCreatePage(auth: SessionSnapshot | null, initialF
     <label>不明<input type="number" min="0" max="100" step="1" value="10" data-cover-category="unknown"></label>
   </div>
   <div class="actions"><button type="button" class="btn" data-area-sketch-save>下書き診断を保存</button></div>
-  <pre data-area-sketch-preview>保存後に、概算面積・緑地割合・不足資料リストをここに表示します。</pre>
+  <pre data-area-sketch-preview>保存後に、範囲の見込みと追加で確認することをここに表示します。</pre>
 </section>
 <script>
 (function(){
@@ -4367,8 +4370,12 @@ function renderObservationEventCreatePage(auth: SessionSnapshot | null, initialF
 }
 
 function renderObservationEventListPage(sessions: Array<NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>>, auth: SessionSnapshot | null): string {
-  const items = sessions.map((session) => `<article class="card"><h2>${escapeHtml(session.title)}</h2><p class="muted">${escapeHtml(session.startedAt)} / ${escapeHtml(session.plan)}</p><p>${session.targetSpecies.map((item) => `<span class="pill">${escapeHtml(item)}</span>`).join("") || "<span class=\"muted\">対象種未設定</span>"}</p><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/live">ライブ</a><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/recap">振り返り</a>${session.eventCode ? `<a class="btn secondary" href="/community/events/${encodeURIComponent(session.eventCode)}/join">参加</a>` : ""}</div></article>`).join("");
-  return `<section><h1>観察会</h1><p class="muted">${auth ? `${escapeHtml(auth.displayName)} として表示中` : "公開D1セッションを表示中"}</p><div class="grid">${items || observationEventEmptyState("観察会はまだありません", "新しい観察会を作成してください。")}</div></section>`;
+  const items = sessions.map((session) => {
+    const accessLabel = session.plan === "public" ? "公開" : "参加者限定";
+    const targets = session.targetSpecies.map((item) => `<span class="pill">${escapeHtml(item)}</span>`).join("");
+    return `<article class="card"><h2>${escapeHtml(session.title)}</h2><p class="muted">${escapeHtml(session.startedAt)} / ${accessLabel}</p>${targets ? `<p>${targets}</p>` : ""}<div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/live">観察画面</a><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/recap">振り返り</a>${session.eventCode ? `<a class="btn secondary" href="/community/events/${encodeURIComponent(session.eventCode)}/join">参加する</a>` : ""}</div></article>`;
+  }).join("");
+  return `<section><h1>観察会</h1><p class="muted">${auth ? `${escapeHtml(auth.displayName)}の観察会` : "招待された観察会を表示しています"}</p><div class="grid">${items || observationEventEmptyState("観察会はまだありません", "招待された観察会がここに表示されます。")}</div></section>`;
 }
 
 function renderObservationEventJoinPage(

@@ -1027,11 +1027,11 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       recordLabel: "記録",
       empty: "表示できる記録がまだありません。",
       tabs: {
-        mine: "自分",
-        public: "みんな",
-        identification_summary: "名前の流れ",
-        needs_id: "名前待ち",
-        media: "メディア",
+        mine: "自分の記録",
+        public: "公開記録",
+        identification_summary: "名前を整理",
+        needs_id: "名前を確認",
+        media: "写真・動画",
         places: "場所",
       },
       side: {
@@ -1050,11 +1050,11 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       recordLabel: "Record",
       empty: "No records are ready to show yet.",
       tabs: {
-        mine: "Mine",
-        public: "Everyone",
-        identification_summary: "ID summary",
-        needs_id: "Needs ID",
-        media: "Media",
+        mine: "My records",
+        public: "Public records",
+        identification_summary: "Name review",
+        needs_id: "Names to check",
+        media: "Photos and more",
         places: "Places",
       },
       side: {
@@ -1073,11 +1073,11 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       recordLabel: "Registrar",
       empty: "Aun no hay registros listos para mostrar.",
       tabs: {
-        mine: "Mios",
-        public: "Todos",
-        identification_summary: "Resumen ID",
-        needs_id: "Por revisar",
-        media: "Medios",
+        mine: "Mis registros",
+        public: "Registros públicos",
+        identification_summary: "Revisar nombres",
+        needs_id: "Nombres por revisar",
+        media: "Fotos y más",
         places: "Lugares",
       },
       side: {
@@ -1096,11 +1096,11 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       recordLabel: "Registrar",
       empty: "Ainda nao ha registros prontos para mostrar.",
       tabs: {
-        mine: "Meus",
-        public: "Todos",
-        identification_summary: "Resumo ID",
-        needs_id: "Revisar",
-        media: "Midia",
+        mine: "Meus registros",
+        public: "Registros públicos",
+        identification_summary: "Revisar nomes",
+        needs_id: "Nomes para conferir",
+        media: "Fotos e mais",
         places: "Lugares",
       },
       side: {
@@ -1362,12 +1362,18 @@ function renderRecordsViewTabs(
   lang: SiteLang,
   activeView: RecordsWorkbenchView,
   copy: RecordsWorkbenchCopy,
+  hasViewer: boolean,
 ): string {
   const views: RecordsWorkbenchView[] = ["mine", "public", "identification_summary", "needs_id", "media", "places"];
   return `<nav class="records-view-tabs" aria-label="${escapeHtml(copy.searchLabel)}">
-    ${views.map((view) => `<a class="${view === activeView ? "is-active" : ""}" href="${escapeHtml(recordsViewHref(basePath, lang, view))}">
+    ${views.map((view) => {
+      const href = view === "mine" && !hasViewer
+        ? appendLangToHref(withBasePath(basePath, `/login?redirect=${encodeURIComponent("/records?view=mine")}`), lang)
+        : recordsViewHref(basePath, lang, view);
+      return `<a class="${view === activeView ? "is-active" : ""}" href="${escapeHtml(href)}"${view === "mine" && !hasViewer ? " data-records-auth-required=\"true\"" : ""}>
       <span>${escapeHtml(copy.tabs[view])}</span>
-    </a>`).join("")}
+    </a>`;
+    }).join("")}
   </nav>`;
 }
 
@@ -3001,7 +3007,7 @@ function renderIdentificationSummary(
       <div class="records-topbar-brand">
         <strong>${escapeHtml(copy.activeNav)}</strong>
       </div>
-      ${renderRecordsViewTabs(basePath, lang, "identification_summary", recordsWorkbenchCopy(lang))}
+      ${renderRecordsViewTabs(basePath, lang, "identification_summary", recordsWorkbenchCopy(lang), Boolean(snapshot.viewerUserId))}
       <div class="records-actions" aria-label="${escapeHtml(observationIndexCopy(lang).relatedActionsAria)}">
         <a href="${escapeHtml(libraryHref)}">${escapeHtml(copy.libraryAction)}</a>
         <a class="is-primary" href="${escapeHtml(workbenchHref)}">${escapeHtml(copy.continueAction)}</a>
@@ -3169,7 +3175,7 @@ function renderRecordsWorkbench(
       <div class="records-topbar-brand">
         <strong>${escapeHtml(copy.activeNav)}</strong>
       </div>
-      ${renderRecordsViewTabs(basePath, lang, view, copy)}
+      ${renderRecordsViewTabs(basePath, lang, view, copy, Boolean(snapshot.viewerUserId))}
       <div class="records-actions" aria-label="${escapeHtml(observationIndexCopy(lang).relatedActionsAria)}">
         <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}">${escapeHtml(copy.mapLabel)}</a>
         <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}" aria-label="${escapeHtml(observationIndexCopy(lang).recordActionAria)}">${escapeHtml(copy.recordLabel)}</a>

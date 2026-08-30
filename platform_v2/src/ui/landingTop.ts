@@ -5480,4 +5480,9 @@ const LEGACY_LANDING_TOP_STYLES = `
 // Keep the legacy renderer in this file until downstream references are retired, but do not
 // ship its large CSS payload on the active home route.
 void LEGACY_LANDING_TOP_STYLES;
-export const LANDING_TOP_STYLES = LANDING_HOME_STATE_STYLES;
+export const LANDING_TOP_STYLES = `${LANDING_HOME_STATE_STYLES}
+.home-place-section>.home-place-visual{width:100%}
+.home-place-section>div:last-child{min-width:0}
+.home-category-section li>span:last-child,.home-value-section li>span:last-child{min-width:0}
+.home-state-root :where(strong,small){overflow-wrap:anywhere}
+@media(max-width:767px){.site-header-home .brand-logo-lockup{min-width:0;flex:0 1 auto}.site-header-home .brand-wordmark{display:none}}`;

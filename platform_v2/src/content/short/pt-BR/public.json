@@ -3,8 +3,8 @@
     "title": "ZUKAN — Enjoy Life | Curtir e registrar a natureza próxima",
     "home": {
       "guest": {
-        "heroHeading": "Vamos cultivar juntos a memória local.", "heroLead": "Festas, trabalho, paisagens e descobertas do dia a dia. Fotos e vídeos viram memória do lugar e um caminho para a próxima atividade.",
-        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar", "proofEmpty": "Ainda não há fotos disponíveis para mostrar.",
+        "heroHeading": "Para pessoas convidadas. Comece com uma foto.", "heroLead": "O ZUKAN guarda fotos e momentos locais junto ao lugar a que pertencem.",
+        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar", "proofEmpty": "Ainda não há registros públicos.", "proofEmptyNote": "Esta ilustração mostra a página antes de um registro ser adicionado.", "inviteNote": "Esta experiência está disponível para pessoas convidadas.",
         "categories": [
           { "title": "Escola e aprendizado", "body": "Aulas, projetos e experiências de trabalho." },
           { "title": "Comunidade e eventos", "body": "Festas, feiras e encontros locais." },
@@ -29,9 +29,10 @@
         "recentTitle": "Registros recentes", "recentCta": "Ver todos", "placesTitle": "Lugares com que você se envolve", "placesCta": "Ver mapa", "nextTitle": "Próxima atividade",
         "emptyTitle": "Deixe seu primeiro registro", "emptyBody": "Tire uma foto e guarde-a como seu registro com a hora e o lugar.",
         "galleryCta": "Escolher do dispositivo", "emptyPlaceCta": "Explorar por lugar",
+        "routesTitle": "Para onde ir agora", "routeRecord": "Guardar um registro", "routeSearch": "Buscar meus registros", "routePrivacy": "Ver visibilidade", "routeCollaboration": "Ver caminhadas em grupo",
         "p0": {
           "samePlaceTitle": "Antes neste lugar", "sameSeasonTitle": "Da mesma estação", "placeChangesTitle": "Locais que você pode comparar",
-          "comparableRecordsTemplate": "{count} registros para comparar", "nextActionTitle": "Um próximo passo",
+          "comparableRecordsTemplate": "{count} registros para comparar", "nextActionTitle": "Próxima atividade",
           "nextFocusTemplate": "Procure {focus} na próxima visita", "nextFallback": "Registre uma pequena diferença na próxima visita.", "captureNow": "Registrar agora"
         }
       },

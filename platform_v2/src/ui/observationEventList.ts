@@ -47,11 +47,11 @@ export function renderEventListBody(sessions: ObservationEventSessionRow[], stri
     return `
       <article class="evt-card" style="display:grid; gap:6px;">
         <header style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-          <span class="${badgeCls}">${isLive ? strings.badgeLive : strings.badgeEnded} • ${escapeHtml(modeLabel)}</span>
+          <span class="${badgeCls}">${isLive ? strings.badgeLive : strings.badgeEnded} / ${escapeHtml(modeLabel)}</span>
           <span class="evt-eyebrow">${escapeHtml(formatStartedAt(s.startedAt, lang))}</span>
         </header>
         <h3 class="evt-heading" style="margin:0; font-size:18px;">${escapeHtml(s.title || "")}</h3>
-        <p class="evt-lead">${(s.targetSpecies ?? []).slice(0, 4).map(escapeHtml).join("、") || "—"}</p>
+        ${(s.targetSpecies ?? []).length > 0 ? `<p class="evt-lead">${(s.targetSpecies ?? []).slice(0, 4).map(escapeHtml).join("、")}</p>` : ""}
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
           <a class="evt-btn evt-btn-${isLive ? "primary" : "ghost"}" href="${detailHref}">
             ${isLive ? strings.joinCta : strings.recapCta}

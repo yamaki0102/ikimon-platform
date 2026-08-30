@@ -45,12 +45,13 @@ function render(lang: SiteLang, data: LandingSnapshot, isLoggedIn = Boolean(data
   return `${result.heroHtml}${result.dailyDashboardHtml}`;
 }
 
-test("guest Top leads with a broad regional-record promise and concrete actions", () => {
+test("guest Top leads with an invited-member promise and concrete actions", () => {
   const html = render("ja", snapshot({ feed: [observation("public-1")] }));
   assert.match(html, /data-home-contract="state-split-v1"/);
   assert.match(html, /data-home-auth-state="guest"/);
-  assert.match(html, /<span class="home-hero-phrase">地域の記録を、<\/span><span class="home-hero-phrase">みんなで育てる。<\/span>/);
-  assert.match(html, /祭りも、仕事も、風景も、日常の発見も/);
+  assert.match(html, /<span class="home-hero-phrase">招待された方へ。見つけたことを、<\/span><span class="home-hero-phrase">写真1枚から。<\/span>/);
+  assert.match(html, /ZUKANは、写真や出来事を場所と一緒に残すサービスです。/);
+  assert.match(html, /現在は、招待された方をご案内しています。/);
   assert.match(html, /何を残せるか/);
   assert.match(html, /記録が育つ流れ/);
   assert.match(html, /場所から見る/);
@@ -71,12 +72,25 @@ test("guest Top stays useful without public data and never invents record cards"
   assert.match(html, /map\?tab=places/);
   assert.match(html, /home-guest-hero-visual/);
   assert.match(html, /home-guest-proof is-count-0 is-empty/);
-  assert.match(html, /<p>公開できる写真は、まだありません。<\/p>/);
+  assert.match(html, /<strong>公開できる記録は、まだありません。<\/strong>/);
   assert.match(html, /\/assets\/brand\/zukan-symbol\.svg/);
+  assert.match(html, /data-home-empty-illustration="true"/);
+  assert.match(html, /\/assets\/img\/landing\/zukan-empty-illustration\.webp/);
   assert.match(html, /home-place-visual is-placeholder/);
-  assert.doesNotMatch(html, /home-generated-badge|イメージ|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
+  assert.match(html, /この絵は記録ではなく、表示例です。/);
+  assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(html, /class="home-public-card"/);
   assert.doesNotMatch(html, /sample|placeholder\.jpg|0件|未記録|場所から見る<\/p>/);
+});
+
+test("guest empty visual is explicitly non-record content and keeps the official symbol asset", () => {
+  const html = render("ja", snapshot());
+  assert.match(html, /<div class="home-guest-proof is-count-0 is-empty"[^>]*data-home-empty-proof="true"/);
+  assert.match(html, /<img[^>]+alt=""[^>]+data-home-empty-illustration="true"/);
+  assert.match(html, /<img[^>]+src="\/assets\/brand\/zukan-symbol\.svg"[^>]+alt=""/);
+  assert.match(html, /公開できる記録は、まだありません。/);
+  assert.match(html, /この絵は記録ではなく、表示例です。/);
+  assert.doesNotMatch(html, /data-home-public-record=/);
 });
 
 test("member Home shows only the viewer's recent records as its main record section", () => {
@@ -115,6 +129,20 @@ test("member empty state stays compact and hides internal processing state", () 
   assert.doesNotMatch(member, /まだありません|0件|未記録|名前待ち/);
   const processingHtml = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [observation("processing", { observerUserId: "viewer", aiAssessmentStatus: "processing" })] }), true);
   assert.doesNotMatch(processingHtml, /写真からわかることを調べています/);
+});
+
+test("member Home exposes clear record, search, privacy, and collaboration paths", () => {
+  const html = render("ja", snapshot({ viewerUserId: "viewer" }), true);
+  const member = html.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || html;
+  assert.match(member, /data-home-member-routes="record search privacy collaboration"/);
+  assert.match(member, /href="\/ja\/record"[^>]*data-home-member-route="record"/);
+  assert.match(member, /href="\/ja\/records\?view=mine"[^>]*data-home-member-route="search"/);
+  assert.match(member, /href="\/ja\/profile\/settings"[^>]*data-home-member-route="privacy"/);
+  assert.match(member, /href="\/ja\/community\/events"[^>]*data-home-member-route="collaboration"/);
+  assert.match(member, /記録する/);
+  assert.match(member, /自分の記録を探す/);
+  assert.match(member, /公開範囲を確認/);
+  assert.match(member, /観察会を見る/);
 });
 
 test("member recent records render photo, video, audio, memo, and multiple media accessibly", () => {
@@ -210,9 +238,10 @@ test("home CSS enforces mobile card sizing, touch targets, focus and reduced mot
   assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-5 \.is-item-5\{grid-column:10\/13/);
 });
 
-test("guest Top explains broad regional records and starts with the shared camera action", () => {
+test("guest Top explains the invited entry and starts with the shared camera action", () => {
   const html = render("ja", snapshot({ feed: [observation("public-1")] }));
-  assert.match(html, /<span class="home-hero-phrase">地域の記録を、<\/span><span class="home-hero-phrase">みんなで育てる。<\/span>/);
+  assert.match(html, /<span class="home-hero-phrase">招待された方へ。見つけたことを、<\/span><span class="home-hero-phrase">写真1枚から。<\/span>/);
+  assert.match(html, /現在は、招待された方をご案内しています。/);
   assert.match(html, /学校・学び/);
   assert.match(html, /地域・イベント/);
   assert.match(html, /仕事・文化/);
@@ -274,11 +303,11 @@ test("member Home is personal, continuation-oriented, and compact when empty", (
   }), true);
   assert.match(populated, /この前の記録/);
   assert.match(populated, /関わっている場所の変化/);
-  assert.match(populated, /次の一手/);
+  assert.match(populated, /次の活動/);
   assert.match(populated, /今を撮る/);
   assert.match(populated, /data-home-primary-state="recent_memory"/);
   const populatedMember = populated.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || populated;
-  assert.doesNotMatch(populatedMember, /都田夏祭り|次の活動|data-home-primary-state="active_context"/);
+  assert.doesNotMatch(populatedMember, /都田夏祭り|data-home-primary-state="active_context"/);
   assert.doesNotMatch(populatedMember, /近くで残された記録/);
 });
 

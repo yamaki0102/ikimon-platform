@@ -11,7 +11,7 @@ const strings = {
     effort_maximize: "Effort",
     bingo: "Bingo",
     absence_confirm: "Absence",
-    ai_quest: "AI Quest",
+    ai_quest: "おすすめ",
   },
 } as ObservationEventStrings;
 
@@ -93,13 +93,21 @@ test("event create script keeps map drafts before MapLibre initialization", () =
   assert.match(script, /focusPendingArea/);
 });
 
-test("event create AI suggestions expose baseline undo and shape previews", () => {
+test("event create area suggestions expose baseline undo and shape previews", () => {
   const script = eventCreateScript();
 
   assert.match(script, /aiBaseline/);
-  assert.match(script, /AIで整える前の範囲に戻しました/);
+  assert.match(script, /範囲を整える前の範囲に戻しました/);
   assert.match(script, /evt-area-preview/);
   assert.match(script, /setAiProgress/);
+});
+
+test("event create visible copy stays free of runtime and internal tool names", () => {
+  const html = renderEventCreateBody({ isAuthenticated: true, strings });
+
+  assert.doesNotMatch(html, /Worker|D1|Cloudflare|API|Area Sketch Assist|AIで|AI候補|センサースキャン/);
+  assert.match(html, /範囲を整える/);
+  assert.match(html, /振り返りの下書きを作る/);
 });
 
 test("event create area planner can save an Area Sketch Assist draft assessment", () => {
@@ -164,7 +172,7 @@ test("event create land-cover panel has stable responsive controls", () => {
   assert.match(styles, /@media \(max-width: 720px\) \{[\s\S]*\.evt-area-sketch-preview-summary \{ grid-template-columns: 1fr; \}/);
 });
 
-test("event create flow generates announcement copy from selected place and AI area", () => {
+test("event create flow generates announcement copy from selected place and area", () => {
   const html = renderEventCreateBody({ isAuthenticated: true, strings });
   const script = eventCreateScript();
 
