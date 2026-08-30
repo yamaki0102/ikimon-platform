@@ -55,6 +55,8 @@ const COPY = {
     errorBody: "写真・動画を選び直すか、ブラウザのサイトデータ設定を確認してください。",
     photo: "写真",
     video: "動画",
+    photoHint: "カメラ・写真ライブラリ",
+    videoHint: "端末の動画",
     note: "メモ",
     coord: "場所を確認・編集",
     lat: "緯度",
@@ -100,6 +102,8 @@ const COPY = {
     errorBody: "Select the media again or check this browser's site-data settings.",
     photo: "Photo",
     video: "Video",
+    photoHint: "Camera or photo library",
+    videoHint: "Video on this device",
     note: "Note",
     coord: "Check or edit place",
     lat: "Latitude",
@@ -145,6 +149,8 @@ const COPY = {
     errorBody: "Selecciona los archivos otra vez o revisa los datos del sitio.",
     photo: "Foto",
     video: "Video",
+    photoHint: "Cámara o galería",
+    videoHint: "Vídeo del dispositivo",
     note: "Nota",
     coord: "Revisar o editar lugar",
     lat: "Latitud",
@@ -190,6 +196,8 @@ const COPY = {
     errorBody: "Selecione a mídia novamente ou verifique os dados do site.",
     photo: "Foto",
     video: "Vídeo",
+    photoHint: "Câmera ou galeria",
+    videoHint: "Vídeo do dispositivo",
     note: "Nota",
     coord: "Revisar ou editar local",
     lat: "Latitude",
@@ -263,7 +271,7 @@ function recoveryStyles(): string {
     *{box-sizing:border-box}
     body{margin:0;background:linear-gradient(180deg,#f5fbf8 0,#fff 72%);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
     .cf-recovery-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
-    .cf-recovery-brand{font-weight:900;text-decoration:none;color:var(--ink);font-size:20px}
+    .cf-recovery-brand{min-width:44px;min-height:44px;display:inline-flex;align-items:center;font-weight:900;text-decoration:none;color:var(--ink);font-size:20px;letter-spacing:.02em}
     .cf-recovery-profile{color:var(--muted);font-size:13px;font-weight:800;overflow-wrap:anywhere;text-align:right}
     .cf-recovery-shell{width:min(760px,calc(100% - 24px));margin:22px auto 48px}
     .cf-recovery-card{padding:clamp(20px,5vw,36px);border:1px solid rgba(5,143,130,.22);border-radius:24px;background:linear-gradient(145deg,#fff,#effbf6);box-shadow:0 22px 60px rgba(16,37,26,.1)}
@@ -287,12 +295,13 @@ function recoveryStyles(): string {
     .cf-recovery-form[hidden]{display:none!important}
     .cf-recovery-field{display:block;margin-bottom:12px;font-weight:900}
     .cf-recovery-field span{display:block;margin-bottom:6px;color:var(--muted);font-size:12px}
-    .cf-recovery-field textarea,.cf-recovery-field input{width:100%;min-height:42px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:inherit}
+    .cf-recovery-field textarea,.cf-recovery-field input{width:100%;min-height:44px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:inherit}
     .cf-recovery-field textarea{min-height:82px;resize:vertical}
     .cf-recovery-coordinates{margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--mint);overflow:hidden}
-    .cf-recovery-coordinates summary{cursor:pointer;padding:10px 12px;font-weight:900}
+    .cf-recovery-coordinates summary{min-height:44px;display:flex;align-items:center;cursor:pointer;padding:10px 12px;font-weight:900}
     .cf-recovery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
     .cf-recovery-status{min-height:28px;margin-top:12px;color:var(--teal);font-weight:900}
+    .cf-recovery-brand:focus-visible,.cf-recovery-pick:has(input:focus-visible),.cf-recovery-field :is(input,textarea):focus-visible,.cf-recovery-coordinates summary:focus-visible,.cf-recovery-actions :is(a,button):focus-visible{outline:3px solid #0ea5e9;outline-offset:3px}
     @media(max-width:520px){.cf-recovery-shell{width:calc(100% - 16px);margin-top:14px}.cf-recovery-grid{grid-template-columns:1fr}.cf-recovery-actions>*{flex:1 1 100%}.cf-recovery-header{padding:11px 12px}.cf-recovery-profile{max-width:52%;font-size:12px}}
   `;
 }
@@ -307,11 +316,11 @@ export function renderCloudflareRecordRecoveryGuestHtml(url: URL, cspNonce: stri
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escapeHtml(copy.pageTitle)} - ikimon</title>
+  <title>${escapeHtml(copy.pageTitle)} | ZUKAN</title>
   <style>${recoveryStyles()}</style>
 </head>
 <body>
-  <header class="cf-recovery-header"><a class="cf-recovery-brand" href="${escapeHtml(prefix)}/">ikimon</a></header>
+  <header class="cf-recovery-header"><a class="cf-recovery-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN Home">ZUKAN</a></header>
   <main class="cf-recovery-shell" data-record-recovery-start>
     <section class="cf-recovery-card">
       <span class="cf-recovery-eyebrow">${escapeHtml(copy.eyebrow)}</span>
@@ -351,12 +360,12 @@ export function renderCloudflareRecordRecoverySignedHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escapeHtml(copy.pageTitle)} - ikimon</title>
+  <title>${escapeHtml(copy.pageTitle)} | ZUKAN</title>
   <style>${recoveryStyles()}</style>
 </head>
 <body data-record-start="${escapeHtml(state.start)}" data-record-recovery-page="1" data-recovery-source="${escapeHtml(state.source)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   <header class="cf-recovery-header">
-    <a class="cf-recovery-brand" href="${escapeHtml(prefix)}/">ikimon</a>
+    <a class="cf-recovery-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN Home">ZUKAN</a>
     <div class="cf-recovery-profile">${escapeHtml(session.displayName || session.userId)}</div>
   </header>
   <main class="cf-recovery-shell">
@@ -373,8 +382,8 @@ export function renderCloudflareRecordRecoverySignedHtml(
       </div>
     </section>
     <div class="cf-recovery-picker" aria-label="${escapeHtml(copy.pageTitle)}">
-      <label class="cf-recovery-pick">${escapeHtml(copy.photo)}<span>image/jpeg, image/png</span><input id="record-media-photo" type="file" accept="image/*" multiple></label>
-      <label class="cf-recovery-pick">${escapeHtml(copy.video)}<span>video/mp4</span><input id="record-media-video" type="file" accept="video/*"></label>
+      <label class="cf-recovery-pick">${escapeHtml(copy.photo)}<span>${escapeHtml(copy.photoHint)}</span><input id="record-media-photo" type="file" accept="image/*" multiple></label>
+      <label class="cf-recovery-pick">${escapeHtml(copy.video)}<span>${escapeHtml(copy.videoHint)}</span><input id="record-media-video" type="file" accept="video/*"></label>
     </div>
     <form id="record-form" class="cf-recovery-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <label class="cf-recovery-field"><span>${escapeHtml(copy.note)}</span><textarea name="note" rows="3"></textarea></label>
@@ -419,6 +428,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
     let currentDraft = null;
     let pendingRetryTarget = "";
     let recoverySubmissionId = "";
+    let recoveryObservedAt = "";
     let completedPhotoIndexes = new Set();
     let pendingVideoUid = "";
     let pendingVideoUploadUrl = "";
@@ -638,6 +648,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
         ""
       ).trim();
     recoverySubmissionId = String(recoveryMetadata.recoverySubmissionId || "").trim();
+    recoveryObservedAt = String(recoveryMetadata.recoveryObservedAt || "").trim();
     const completed = Array.isArray(recoveryMetadata.completedPhotoIndexes)
       ? recoveryMetadata.completedPhotoIndexes.filter((value) => Number.isInteger(value) && value >= 0)
       : [];
@@ -776,9 +787,12 @@ export function renderCloudflareRecordRecoverySignedHtml(
       try {
       if (!pendingRetryTarget && !recoverySubmissionId) {
         recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+        recoveryObservedAt = new Date().toISOString();
       }
+      if (!recoveryObservedAt) recoveryObservedAt = new Date().toISOString();
       await persistDraftProgress({
         recoverySubmissionId,
+        recoveryObservedAt,
         pendingMediaRetryVisitId: pendingRetryTarget,
         completedPhotoIndexes: Array.from(completedPhotoIndexes).sort((a, b) => a - b),
         pendingMediaRetryVideoUid: pendingVideoUid,
@@ -792,7 +806,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
             observationId,
             clientSubmissionId: observationId + "-cloudflare-record-recovery",
             userId,
-            observedAt: new Date().toISOString(),
+            observedAt: recoveryObservedAt,
             latitude,
             longitude,
             visibility: "private",

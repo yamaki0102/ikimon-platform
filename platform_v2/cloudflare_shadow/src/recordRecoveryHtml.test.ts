@@ -34,6 +34,8 @@ test("guest recovery keeps the draft on-device and preserves the recovery redire
   const url = new URL("https://ikimon.life/ja/record?draft=1&start=photo&source=login_required");
   const html = renderCloudflareRecordRecoveryGuestHtml(url, "nonce-value");
   assert.match(html, /data-record-recovery-start/);
+  assert.match(html, /<title>下書きから記録を続ける \| ZUKAN<\/title>/);
+  assert.match(html, /class="cf-recovery-brand"[^>]*>ZUKAN<\/a>/);
   assert.match(html, /写真・入力内容はこの端末に残っています/);
   assert.match(html, /ログインして続ける/);
   assert.match(html, /登録して続ける/);
@@ -54,6 +56,9 @@ test("signed recovery resumes the same record and only unfinished media", () => 
   assert.match(html, /objectStore\("drafts"\)\.get\("latest"\)/);
   assert.match(html, /async function persistDraftProgress/);
   assert.match(html, /recoverySubmissionId/);
+  assert.match(html, /let recoveryObservedAt = ""/);
+  assert.match(html, /recoveryObservedAt = String\(recoveryMetadata\.recoveryObservedAt/);
+  assert.match(html, /observedAt: recoveryObservedAt/);
   assert.match(html, /const isRetry = Boolean\(pendingRetryTarget\)/);
   assert.match(html, /if \(!isRetry\) \{[\s\S]*\/api\/v1\/observations\/upsert/);
   assert.match(html, /await persistDraftProgress\(\{[\s\S]*recoverySubmissionId[\s\S]*const observationId/);
@@ -68,6 +73,11 @@ test("signed recovery resumes the same record and only unfinished media", () => 
   assert.match(html, /document\.querySelector\("\.cf-recovery-card\[data-record-recovery\]"\)/);
   assert.match(html, /data-record-recovery-pick/);
   assert.match(html, /data-record-recovery-location/);
+  assert.match(html, /カメラ・写真ライブラリ/);
+  assert.match(html, /端末の動画/);
+  assert.doesNotMatch(html, />ikimon<| - ikimon<|<span>image\/|<span>video\//);
+  assert.match(html, /\.cf-recovery-brand\{min-width:44px;min-height:44px/);
+  assert.match(html, /\.cf-recovery-field textarea,\.cf-recovery-field input\{width:100%;min-height:44px/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /record:latest/);
   assert.doesNotMatch(html, /fetchOriginFallback|ORIGIN_FALLBACK_BASE_URL/);

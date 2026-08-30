@@ -23850,6 +23850,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       return target.pathname + target.search;
     }
     let recoverySubmissionId = "";
+    let recoveryObservedAt = "";
     let pendingVideoUid = "";
     let pendingVideoUploadUrl = "";
     let pendingVideoBodyUploaded = false;
@@ -23866,6 +23867,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
         metadata: {
           ...patch,
           recoverySubmissionId,
+          recoveryObservedAt,
           eventContext,
           formValues: {
             note: String(formData.get("note") || ""),
@@ -23952,7 +23954,11 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
         setStatus(copy.failed, true);
         return;
       }
-      if (!recoverySubmissionId) recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      if (!recoverySubmissionId) {
+        recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+        recoveryObservedAt = new Date().toISOString();
+      }
+      if (!recoveryObservedAt) recoveryObservedAt = new Date().toISOString();
       const observationId = recoverySubmissionId;
       let observationStored = false;
       let visitId = "";
@@ -23969,7 +23975,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           observationId,
           clientSubmissionId: observationId + "-cloudflare-record-form",
           userId,
-          observedAt: new Date().toISOString(),
+          observedAt: recoveryObservedAt,
           latitude,
           longitude,
           visibility: "private",
