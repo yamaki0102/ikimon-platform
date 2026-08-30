@@ -185,7 +185,9 @@ test("root home page uses the state-split guest surface", async () => {
     assert.doesNotMatch(response.body, /<h1>記録を見る<\/h1>/);
     assert.match(response.body, /何を残せるか/);
     assert.match(response.body, /正確な位置は公開しません/);
-    assert.match(response.body, /<span class="home-hero-phrase">地域の記録を、<\/span><span class="home-hero-phrase">みんなで育てる。<\/span>/);
+    assert.match(response.body, /<span class="home-hero-phrase">招待された方へ。見つけたことを、<\/span><span class="home-hero-phrase">写真1枚から。<\/span>/);
+    assert.match(response.body, /data-home-empty-illustration="true"/);
+    assert.match(response.body, /現在は、招待された方をご案内しています。/);
     assert.match(response.body, /<nav class="global-record-launcher"/);
     assert.match(response.body, /data-global-record-trigger="photo"/);
     assert.doesNotMatch(response.body, /data-record-feed/);
@@ -310,10 +312,10 @@ test("records workbench unifies personal library and public observations", async
     assert.match(response.body, /<body class="is-desktop-side-nav-collapsed">/);
     assert.match(response.body, /data-testid="records-workbench"/);
     assert.match(response.body, /記録を見る/);
-    assert.match(response.body, /自分/);
-    assert.match(response.body, /みんな/);
-    assert.match(response.body, /名前待ち/);
-    assert.match(response.body, /メディア/);
+    assert.match(response.body, /自分の記録/);
+    assert.match(response.body, /公開記録/);
+    assert.match(response.body, /名前を確認/);
+    assert.match(response.body, /写真・動画/);
     assert.match(response.body, /場所/);
     assert.match(response.body, /data-library-search/);
     assert.match(response.body, /<label class="sr-only" for="records-library-search">[^<]+<\/label>/);
@@ -323,6 +325,20 @@ test("records workbench unifies personal library and public observations", async
     assert.match(response.body, /records-post-grid/);
     assert.equal((response.body.match(/<main\b/g) ?? []).length, 1);
     assert.doesNotMatch(response.body, /data-testid="observations-index"/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("guest view=mine makes the authentication boundary explicit", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/records?view=mine&lang=ja", headers: { accept: "text/html" } });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /data-records-public-intro/);
+    assert.match(response.body, /自分の記録/);
+    assert.match(response.body, /href="\/ja\/login\?redirect=%2Frecords%3Fview%3Dmine"/);
+    assert.match(response.body, /公開記録/);
   } finally {
     await app.close();
   }
@@ -371,9 +387,9 @@ test("records workbench localizes the unified chrome in English", async () => {
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /<html lang="en">/);
     assert.match(response.body, /Records/);
-    assert.match(response.body, /Mine/);
-    assert.match(response.body, /Everyone/);
-    assert.match(response.body, /Needs ID/);
+    assert.match(response.body, /My records/);
+    assert.match(response.body, /Public records/);
+    assert.match(response.body, /Names to check/);
     assert.match(response.body, /Search by name or place/);
     assert.doesNotMatch(response.body, /記録を見る/);
     assert.doesNotMatch(response.body, /確認待ち/);

@@ -175,6 +175,7 @@ const staticAssetPaths = [
   "/assets/img/landing/home-community-event.webp",
   "/assets/img/landing/home-work-culture.webp",
   "/assets/img/landing/home-daily-place.webp",
+  "/assets/img/landing/zukan-empty-illustration.webp",
   "/assets/img/invasive/invasive-aquatic-plant-thumb.webp",
   "/assets/img/invasive/invasive-aquatic-plant.png",
   "/assets/img/invasive/invasive-bird-thumb.webp",

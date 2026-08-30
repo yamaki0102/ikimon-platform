@@ -17464,17 +17464,14 @@ test("production public UI routes avoid legacy PHP fallback by default", async (
     assert.equal(eventCreatePage.status, 200);
     assert.equal(eventCreatePage.headers.get("x-ikimon-cloudflare-native"), "event-page-create");
     const eventCreatePageHtml = await eventCreatePage.text();
-    assert.match(eventCreatePageHtml, /Worker\/D1 runtime/);
+    const eventCreateVisibleHtml = eventCreatePageHtml.replace(/<script[\s\S]*?<\/script>/giu, "");
+    assert.match(eventCreateVisibleHtml, /観察会を作成するには、ZUKANにログインしてください/);
     assert.match(eventCreatePageHtml, /<header class="site-header">/);
     assert.match(eventCreatePageHtml, /site-nav-link" href="\/ja\/map"/);
     assert.match(eventCreatePageHtml, /site-record-link" href="\/ja\/record"/);
     assert.doesNotMatch(eventCreatePageHtml, /ikimon\.life 観察会/);
-    assert.match(eventCreatePageHtml, /Area Sketch Assist/);
-    assert.match(eventCreatePageHtml, /data-area-sketch-map/);
-    assert.match(eventCreatePageHtml, /tile\.openstreetmap\.org/);
-    assert.match(eventCreatePageHtml, /World_Imagery/);
-    assert.match(eventCreatePageHtml, /衛星画像/);
-    assert.match(eventCreatePageHtml, /area-sketch-assessments/);
+    assert.doesNotMatch(eventCreateVisibleHtml, /Worker|D1|Cloudflare|API|Area Sketch Assist|AI/);
+    assert.doesNotMatch(eventCreateVisibleHtml, /data-area-sketch-map|tile\.openstreetmap\.org|World_Imagery|area-sketch-assessments/);
     assert.equal(seen.length, 0);
 
     const eventAreaSuggestion = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/area-suggestions", {
@@ -17691,6 +17688,7 @@ test("observation event public flow reuses the QR for participant-only recap, br
   const publicEventListHtml = await publicEventList.text();
   assert.match(publicEventListHtml, /親子サイエンスアドベンチャー/);
   assert.doesNotMatch(publicEventListHtml, /PR973 prod rally|夏の自然観察/);
+  assert.doesNotMatch(publicEventListHtml, /公開D1セッション|Worker|Cloudflare|API|Observation Event OS/);
   const organizerEventList = await worker.fetch(new Request("https://ikimon.life/community/events", {
     headers: { cookie: organizerCookie }
   }), env);
@@ -22770,7 +22768,8 @@ test("production original UI html serves whitelisted public reading routes from 
       assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), null, path);
       assert.equal(response.headers.get("set-cookie"), null, path);
       const body = await response.text();
-      assert.equal(body.includes("Worker/D1 runtime"), true, path);
+      assert.equal(body.includes("招待された主催者が、参加する人と歩くためのページです。"), true, path);
+      assert.equal(/Worker|D1|Cloudflare|API|Area Sketch Assist|AIで|AI候補|センサースキャン/i.test(body.replace(/<script[\s\S]*?<\/script>/giu, "")), false, path);
       assert.equal(/csrf/i.test(body), false, path);
       assert.equal(/ikimon_v2_session|data-user-id|current_user|viewerUserId/i.test(body), false, path);
     }

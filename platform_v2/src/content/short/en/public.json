@@ -3,8 +3,8 @@
     "title": "A regional field guide built together | ZUKAN",
     "home": {
       "guest": {
-        "heroHeading": "Grow the community record together.", "heroLead": "Festivals, work, scenery, and everyday discoveries. What you save in photos and videos becomes a memory of the place and a path to what happens next.",
-        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "proofEmpty": "No photos are available to show yet.",
+        "heroHeading": "For invited members. Start with one photo.", "heroLead": "ZUKAN keeps photos and local moments with the places they belong to.",
+        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "proofEmpty": "No public records yet.", "proofEmptyNote": "This illustration shows the page before a record is added.", "inviteNote": "This experience is currently for invited members.",
         "categories": [
           { "title": "School & learning", "body": "Classes, projects, and workplace learning." },
           { "title": "Community & events", "body": "Festivals, markets, and local gatherings." },
@@ -29,9 +29,10 @@
         "recentTitle": "Recent records", "recentCta": "View all", "placesTitle": "Places you are involved with", "placesCta": "View map", "nextTitle": "What comes next",
         "emptyTitle": "Leave your first record", "emptyBody": "Take one photo and keep it as your record with its time and place.",
         "galleryCta": "Choose from this device", "emptyPlaceCta": "Explore by place",
+        "routesTitle": "Where to go next", "routeRecord": "Record something", "routeSearch": "Find my records", "routePrivacy": "Check visibility", "routeCollaboration": "See group walks",
         "p0": {
           "samePlaceTitle": "Earlier at this place", "sameSeasonTitle": "From the same season", "placeChangesTitle": "Places you can compare",
-          "comparableRecordsTemplate": "{count} records to compare", "nextActionTitle": "One next step",
+          "comparableRecordsTemplate": "{count} records to compare", "nextActionTitle": "Next activity",
           "nextFocusTemplate": "Look for {focus} next", "nextFallback": "Capture one small difference on your next visit.", "captureNow": "Capture now"
         }
       },

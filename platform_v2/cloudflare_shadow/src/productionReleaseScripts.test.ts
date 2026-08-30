@@ -13,6 +13,7 @@ async function source(relativeUrl: string): Promise<string> {
 test("original UI materializer pins discovery documents to the public canonical origin", async () => {
   const materializer = await source("../scripts/materialize-original-ui-html.mjs");
 
+  assert.match(materializer, /"\/assets\/img\/landing\/zukan-empty-illustration\.webp"/);
   assert.match(materializer, /"\/llms\.txt"/);
   assert.match(materializer, /"\/llms-full\.txt"/);
   assert.match(materializer, /targetEnv === "staging"\s*\?\s*"https:\/\/staging\.zukan\.earth"\s*:\s*"https:\/\/zukan\.earth"/);

@@ -17,6 +17,8 @@ export type LandingHomeStateOptions = {
 
 type HomeMediaKind = "photo" | "video" | "audio" | "memo";
 
+const GUEST_EMPTY_ILLUSTRATION_PATH = "/assets/img/landing/zukan-empty-illustration.webp";
+
 const genericNames = new Set(["", "unknown", "unidentified"]);
 
 function href(options: LandingHomeStateOptions, path: string): string {
@@ -146,9 +148,15 @@ function isGuestVisibleRecord(item: LandingObservation): boolean {
 function renderGuestProof(options: LandingHomeStateOptions, publicItems: LandingObservation[]): string {
   const photos = publicItems.filter((item) => Boolean(item.photoUrl) && isGuestVisibleRecord(item)).slice(0, 5);
   if (photos.length === 0) {
-    return `<div class="home-guest-proof is-count-0 is-empty">
-      <img src="/assets/brand/zukan-symbol.svg" alt="" width="220" height="220" />
-      <p>${escapeHtml(options.copy.home.guest.proofEmpty)}</p>
+    return `<div class="home-guest-proof is-count-0 is-empty" data-home-empty-proof="true">
+      <div class="home-empty-proof-art">
+        <img src="${GUEST_EMPTY_ILLUSTRATION_PATH}" alt="" aria-hidden="true" data-home-empty-illustration="true" width="1200" height="800" loading="eager" fetchpriority="high" decoding="async" />
+      </div>
+      <div class="home-empty-proof-copy">
+        <img src="/assets/brand/zukan-symbol.svg" alt="" aria-hidden="true" width="48" height="48" />
+        <strong>${escapeHtml(options.copy.home.guest.proofEmpty)}</strong>
+        <p>${escapeHtml(options.copy.home.guest.proofEmptyNote)}</p>
+      </div>
     </div>`;
   }
   return `<div class="home-guest-proof is-count-${photos.length}">${photos.map((item, index) => renderGuestPhotoTile(options, item, index)).join("")}</div>`;
@@ -169,6 +177,7 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
         <span class="home-product-kicker">ZUKAN</span>
         <h1>${renderHeroHeading(options.lang, copy.heroHeading)}</h1>
         <p>${escapeHtml(copy.heroLead)}</p>
+        <p class="home-invite-note" data-home-invite-note>${escapeHtml(copy.inviteNote)}</p>
         <div class="home-hero-actions">
           ${captureButton(copy.primaryCta, "home-primary-button", "top_capture")}
           <a class="home-secondary-link" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place">${escapeHtml(copy.secondaryCta)}</a>
@@ -370,6 +379,16 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
         </div>
       </section>`
     : "";
+  const memberRoutes = [
+    { key: "record", href: href(options, "/record"), label: copy.routeRecord },
+    { key: "search", href: href(options, "/records?view=mine"), label: copy.routeSearch },
+    { key: "privacy", href: href(options, "/profile/settings"), label: copy.routePrivacy },
+    { key: "collaboration", href: href(options, "/community/events"), label: copy.routeCollaboration },
+  ].map((route) => `<li><a class="home-member-route-link" href="${escapeHtml(route.href)}" data-home-member-route="${escapeHtml(route.key)}"><strong>${escapeHtml(route.label)}</strong></a></li>`).join("");
+  const memberRoutesSection = `<section class="home-section home-member-routes" data-home-member-routes="record search privacy collaboration" aria-labelledby="home-member-routes-heading">
+    <h2 id="home-member-routes-heading">${escapeHtml(copy.routesTitle)}</h2>
+    <nav aria-label="${escapeHtml(copy.routesTitle)}"><ul>${memberRoutes}</ul></nav>
+  </section>`;
   const viewerUserId = options.snapshot.viewerUserId ?? "";
   return `<div class="home-state-view is-member" data-home-view="member" data-home-draft-owner="${escapeHtml(viewerUserId)}" data-home-base-state="${baseState}"${options.isLoggedIn ? "" : " hidden"}>
     <section class="home-member-primary is-draft" data-home-primary-state="draft_resume" data-home-primary-active="false" hidden>
@@ -377,6 +396,7 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
     </section>
     ${sectionSlot("member-primary", baseHero)}
     ${renderHomeContinuationScript(viewerUserId)}
+    ${sectionSlot("member-routes", memberRoutesSection)}
     ${sectionSlot("member-recent", recentSection)}
     ${sectionSlot("member-discovery", pastSection)}
     ${sectionSlot("member-place", placesSection)}
@@ -403,4 +423,5 @@ body{background:#fff;color:#17211b}.shell.shell-bleed.prototype-shell{box-sizing
 .home-guest-proof.is-count-0{grid-template-columns:1fr;grid-template-rows:1fr}.home-guest-proof.is-empty p{max-width:24rem;margin:0;padding:0 20px;color:var(--home-green);font-weight:800;text-align:center}.home-operator-statement{margin:0;color:var(--home-muted);font-size:.75rem;line-height:1.65}
 @media(max-width:959px){.home-guest-proof-item.is-item-4,.home-guest-proof-item.is-item-5{display:block}.home-guest-proof.is-count-1,.home-guest-proof.is-count-2{grid-template-rows:minmax(260px,1fr)}.home-guest-proof.is-count-1 .is-item-1{grid-column:1/13;grid-row:1/2}.home-guest-proof.is-count-2 .is-item-1{grid-column:1/7;grid-row:1/2}.home-guest-proof.is-count-2 .is-item-2{grid-column:7/13;grid-row:1/2}.home-guest-proof.is-count-3{grid-template-rows:repeat(2,minmax(120px,1fr))}.home-guest-proof.is-count-3 .is-item-1{grid-column:1/9;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-2{grid-column:9/13;grid-row:1/2}.home-guest-proof.is-count-3 .is-item-3{grid-column:9/13;grid-row:2/3}.home-guest-proof.is-count-4,.home-guest-proof.is-count-5{grid-template-rows:repeat(3,minmax(100px,1fr))}.home-guest-proof.is-count-4 .is-item-1,.home-guest-proof.is-count-5 .is-item-1{grid-column:1/9;grid-row:1/3}.home-guest-proof.is-count-4 .is-item-2,.home-guest-proof.is-count-5 .is-item-2{grid-column:9/13;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-3,.home-guest-proof.is-count-5 .is-item-3{grid-column:9/13;grid-row:2/3}.home-guest-proof.is-count-4 .is-item-4{grid-column:1/13;grid-row:3/4}.home-guest-proof.is-count-5 .is-item-4{grid-column:1/7;grid-row:3/4}.home-guest-proof.is-count-5 .is-item-5{grid-column:7/13;grid-row:3/4}}
 @media(min-width:960px){.home-guest-proof.is-count-1 .is-item-1{grid-column:1/13;grid-row:1/3}.home-guest-proof.is-count-2 .is-item-1{grid-column:1/7;grid-row:1/3}.home-guest-proof.is-count-2 .is-item-2{grid-column:7/13;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-1{grid-column:1/8;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-2{grid-column:8/13;grid-row:1/2}.home-guest-proof.is-count-3 .is-item-3{grid-column:8/13;grid-row:2/3}.home-guest-proof.is-count-4 .is-item-1,.home-guest-proof.is-count-5 .is-item-1{grid-column:1/7;grid-row:1/3}.home-guest-proof.is-count-4 .is-item-2,.home-guest-proof.is-count-5 .is-item-2{grid-column:7/10;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-3,.home-guest-proof.is-count-5 .is-item-3{grid-column:10/13;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-4{grid-column:7/13;grid-row:2/3}.home-guest-proof.is-count-5 .is-item-4{grid-column:7/10;grid-row:2/3}.home-guest-proof.is-count-5 .is-item-5{grid-column:10/13;grid-row:2/3}}
+ .home-invite-note{margin:-12px 0 0!important;color:var(--home-green)!important;font-size:.875rem!important;font-weight:750}.home-guest-proof.is-empty{min-height:0;display:grid;grid-template-columns:1fr;grid-template-rows:auto auto;align-content:start;gap:0}.home-guest-proof.is-empty .home-empty-proof-art{width:100%;min-width:0;overflow:hidden;background:#eef4ef}.home-guest-proof.is-empty .home-empty-proof-art img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover}.home-empty-proof-copy{display:grid;grid-template-columns:48px minmax(0,1fr);gap:4px 12px;align-items:center;padding:16px;background:#f7f8f4;color:var(--home-green)}.home-guest-proof.is-empty .home-empty-proof-copy img{grid-row:span 2;width:48px;height:48px;object-fit:contain}.home-empty-proof-copy strong,.home-guest-proof.is-empty .home-empty-proof-copy p{margin:0}.home-empty-proof-copy strong{font-size:.92rem;line-height:1.4}.home-guest-proof.is-empty .home-empty-proof-copy p{max-width:24rem;padding:0;color:var(--home-muted);font-size:.82rem;line-height:1.5;text-align:left}.home-member-routes{gap:16px}.home-member-routes ul{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;min-width:0;margin:0;padding:0;list-style:none}.home-member-route-link{min-width:0;min-height:56px;display:flex;align-items:center;padding:12px 14px;border:1px solid var(--home-border);border-radius:16px;background:#fff;color:var(--home-green-dark);text-decoration:none;line-height:1.4}.home-member-route-link strong{font-size:.875rem;overflow-wrap:anywhere}.home-member-route-link:hover{border-color:rgba(20,63,46,.38);background:#f8faf7}@media(max-width:560px){.home-guest-proof.is-empty .home-empty-proof-art img{height:clamp(132px,45vw,180px);aspect-ratio:auto}.home-state-view{gap:48px}}@media(max-width:767px){.home-member-routes ul{grid-template-columns:repeat(2,minmax(0,1fr))}.home-member-route-link{padding-inline:12px}}@media(max-width:420px){.home-member-route-link{padding-inline:10px}.home-member-route-link strong{font-size:.82rem}}
 `;

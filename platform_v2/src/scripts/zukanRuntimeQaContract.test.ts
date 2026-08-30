@@ -12,14 +12,14 @@ async function source(relative: string): Promise<string> {
 test("ZUKAN runtime runner is exact-SHA, staging-only, materialization-bound, and honest about remaining P0", async () => {
   const runner = await source("scripts/runZukanRuntimeQa.mjs");
 
-  assert.match(runner, /https:\/\/staging\.ikimon\.life/);
+  assert.match(runner, /https:\/\/staging\.zukan\.earth/);
   assert.match(runner, /IKIMON_EXPECTED_GIT_SHA/);
   assert.match(runner, /ZUKAN_MATERIALIZATION_NOT_BEFORE/);
   assert.match(runner, /runtime SHA mismatch/);
   assert.match(runner, /runtime identity environment is not staging/);
   assert.match(runner, /runtime identity is not public-safe/);
   assert.match(runner, /materialization report predates this release/);
-  assert.match(runner, /map artifact SHA does not match the fresh materialization report/);
+  assert.match(runner, /materialized source SHA does not match the fresh materialization report/);
   assert.match(runner, /unexpectedly came from a Cloudflare cache hit/);
   assert.match(runner, /JSON\.stringify\(runtimeAfter\.stable\)/);
   assert.match(runner, /\/api\/v1\/runtime\/version/);
@@ -27,10 +27,10 @@ test("ZUKAN runtime runner is exact-SHA, staging-only, materialization-bound, an
   assert.match(runner, /\/readyz/);
   assert.match(runner, /\/api\/regional-sources/);
   assert.match(runner, /\/iwata/);
-  assert.match(runner, /source:miyakoda:wakuwaku-map:2025/);
-  assert.match(runner, /INDEX_ONLY/);
+  assert.match(runner, /scopeExclusions/);
+  assert.match(runner, /runtimeScope: "cloudflare_worker_native"/);
   assert.match(runner, /place-atlas-runtime\.zukan\.staging\.spec\.ts/);
-  assert.match(runner, /record-capture-retry\.zukan\.staging\.spec\.ts/);
+  assert.match(runner, /record-preview-draft-recovery\.zukan\.staging\.spec\.ts/);
   assert.match(runner, /zukan\.runtime-qa\/v1/);
   assert.match(runner, /p0Ready: false/);
   assert.match(runner, /owner_edit_runtime_readback/);
@@ -50,7 +50,7 @@ test("Place Atlas browser contract explicitly clicks the revisit CTA and rejects
   const spec = await source("e2e/place-atlas-runtime.zukan.staging.spec.ts");
 
   assert.match(spec, /ZUKAN_EXPECTED_MAP_SHA256_BY_PATH/);
-  assert.match(spec, /createHash\("sha256"\)/);
+  assert.match(spec, /x-ikimon-cloudflare-materialized-sha256/);
   assert.match(spec, /x-ikimon-cloudflare-materialized/);
   assert.match(spec, /zukan_runtime_qa=/);
   assert.match(spec, /zukan_runtime_unknown_mutation_rejected/);
@@ -94,7 +94,7 @@ test("runtime Playwright profile is pinned and does not retain credential-bearin
   const config = await source("playwright.zukan-runtime.config.ts");
 
   assert.match(config, /PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is required/);
-  assert.match(config, /pinned to https:\/\/staging\.ikimon\.life/);
+  assert.match(config, /pinned to https:\/\/staging\.zukan\.earth/);
   assert.match(config, /report must stay under platform_v2\/\.deploy/);
   assert.match(config, /serviceWorkers: "block"/);
   assert.match(config, /--no-sandbox/);

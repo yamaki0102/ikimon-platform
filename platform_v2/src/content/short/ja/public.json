@@ -3,11 +3,13 @@
     "title": "地域の記録から始める | ZUKAN",
     "home": {
       "guest": {
-        "heroHeading": "地域の記録を、みんなで育てる。",
-        "heroLead": "祭りも、仕事も、風景も、日常の発見も。写真や動画で残したことが、場所の記憶と次の活動につながります。",
+        "heroHeading": "招待された方へ。見つけたことを、写真1枚から。",
+        "heroLead": "ZUKANは、写真や出来事を場所と一緒に残すサービスです。",
         "primaryCta": "撮る", "secondaryCta": "場所を見る",
         "categoriesTitle": "何を残せるか",
-        "proofEmpty": "公開できる写真は、まだありません。",
+        "proofEmpty": "公開できる記録は、まだありません。",
+        "proofEmptyNote": "この絵は記録ではなく、表示例です。",
+        "inviteNote": "現在は、招待された方をご案内しています。",
         "categories": [
           { "title": "学校・学び", "body": "授業、探究、仕事体験で見つけたこと。" },
           { "title": "地域・イベント", "body": "祭り、マルシェ、地域行事の一場面。" },
@@ -33,9 +35,10 @@
         "recentTitle": "最近の記録", "recentCta": "すべて見る", "placesTitle": "関わっている場所", "placesCta": "地図で見る", "nextTitle": "次の活動",
         "emptyTitle": "最初の記録を残してみましょう", "emptyBody": "写真を1枚撮ると、時間と場所と一緒に自分の記録になります。",
         "galleryCta": "端末の写真から選ぶ", "emptyPlaceCta": "場所から見つける",
+        "routesTitle": "次にできること", "routeRecord": "記録する", "routeSearch": "自分の記録を探す", "routePrivacy": "公開範囲を確認", "routeCollaboration": "観察会を見る",
         "p0": {
           "samePlaceTitle": "同じ場所の過去", "sameSeasonTitle": "同じ季節の記録", "placeChangesTitle": "関わっている場所の変化",
-          "comparableRecordsTemplate": "{count}回の記録を比べられます", "nextActionTitle": "次の一手",
+          "comparableRecordsTemplate": "{count}回の記録を比べられます", "nextActionTitle": "次の活動",
           "nextFocusTemplate": "次は「{focus}」を確かめる", "nextFallback": "次の訪問で、小さな違いを1つ残す", "captureNow": "今を撮る"
         }
       },

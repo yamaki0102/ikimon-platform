@@ -39,7 +39,7 @@ export function renderEventCreateBody(args: {
   <article class="evt-hero">
     <span class="evt-hero-eyebrow">${escapeHtml(strings.listCreateCta)}</span>
     <h1>新しい観察会をひらく</h1>
-    <p>30 秒で告知 → QR で参加 → 班でリアルタイム協力 → 自治体提出。すべての段階を 1 セッションで。</p>
+    <p>場所と日時を決め、参加する人と一緒に記録を残せます。終わったあとに、みんなで振り返れます。</p>
   </article>
 
   <form class="evt-checkin-form" data-evt-create-form>
@@ -73,7 +73,7 @@ export function renderEventCreateBody(args: {
       <input name="ended_at" type="datetime-local" />
     </label>
 
-    <label>参加コード(6 文字英数大文字、空欄なら自動生成)
+    <label>参加コード（空欄なら自動生成）
       <input name="event_code" maxlength="8" pattern="[A-Z0-9]*" placeholder="例: HAMA26"
              style="font-family:'Roboto Mono',monospace; text-transform:uppercase; letter-spacing:.12em;" />
     </label>
@@ -84,7 +84,7 @@ export function renderEventCreateBody(args: {
       </select>
     </label>
 
-    <label>目標種(カンマ区切り、最大 12 種)
+    <label>観察したいもの（カンマ区切り、任意）
       <input name="target_species" placeholder="例: ヤマセミ, エナガ, シジュウカラ" />
     </label>
 
@@ -92,9 +92,9 @@ export function renderEventCreateBody(args: {
       <legend class="evt-eyebrow">当日の入口</legend>
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_record" checked /> 記録する</label>
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_guide" checked /> ガイドで見る</label>
-      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_field_scan" checked /> センサースキャン</label>
+      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_field_scan" checked /> 周辺の様子を見る</label>
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="public_story_enabled" checked /> 公開用ストーリー下書きを作る</label>
-      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="ai_recap_enabled" checked /> AIで振り返り下書きを作る</label>
+      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="ai_recap_enabled" checked /> 振り返りの下書きを作る</label>
     </fieldset>
 
     <fieldset class="evt-area-planner">
@@ -110,7 +110,7 @@ export function renderEventCreateBody(args: {
         <div class="evt-area-toolbar">
           <button type="button" class="evt-btn evt-btn-ghost" data-evt-locate style="min-height:36px; padding:6px 12px;">現在地</button>
           <button type="button" class="evt-btn evt-btn-ghost" data-evt-area-use-center style="min-height:36px; padding:6px 12px;">ここでやる</button>
-          <button type="button" class="evt-btn evt-btn-primary" data-evt-area-suggest style="min-height:36px; padding:6px 12px;">AIで整える</button>
+          <button type="button" class="evt-btn evt-btn-primary" data-evt-area-suggest style="min-height:36px; padding:6px 12px;">範囲を整える</button>
           <button type="button" class="evt-btn evt-btn-ghost" data-evt-area-sketch-save style="min-height:36px; padding:6px 12px;">下書き診断を保存</button>
           <button type="button" class="evt-btn evt-btn-ghost" data-evt-area-undo style="min-height:36px; padding:6px 12px;">元に戻す</button>
         </div>
@@ -144,7 +144,7 @@ export function renderEventCreateBody(args: {
       <section class="evt-land-cover-panel" aria-label="区域内のざっくり分類">
         <header>
           <div>
-            <span class="evt-eyebrow">Area Sketch Assist</span>
+            <span class="evt-eyebrow">範囲の下書き</span>
             <h3>区域内のざっくり分類</h3>
           </div>
           <strong data-evt-land-cover-total>100%</strong>
@@ -164,7 +164,7 @@ export function renderEventCreateBody(args: {
       <section class="evt-area-sketch-preview" data-evt-area-sketch-preview hidden aria-live="polite">
         <header>
           <div>
-            <span class="evt-eyebrow">Area Sketch Assist</span>
+            <span class="evt-eyebrow">範囲の下書き</span>
             <h3>保存後の概算</h3>
           </div>
           <strong data-evt-area-sketch-preview-status>下書き</strong>
@@ -181,7 +181,7 @@ export function renderEventCreateBody(args: {
 
       <div data-evt-field-summary class="evt-card" style="display:none; padding:10px 12px; background:rgba(16,185,129,.06); border-color:rgba(16,185,129,.32);">
         <span class="evt-eyebrow">選択中のフィールド</span>
-        <strong data-evt-field-name style="display:block; margin-top:4px;">—</strong>
+        <strong data-evt-field-name style="display:block; margin-top:4px;">未選択</strong>
         <span data-evt-field-meta class="evt-lead" style="font-size:12px;"></span>
         <button type="button" class="evt-btn evt-btn-ghost" data-evt-field-clear style="min-height:32px; margin-top:6px; padding:4px 10px;">解除</button>
       </div>
@@ -240,7 +240,7 @@ export function renderEventCreateBody(args: {
       <div class="evt-area-head">
         <div>
           <span class="evt-eyebrow">告知文</span>
-          <p class="evt-lead">場所とAI候補を選ぶと、参加者向けの案内文を自動で整えます。</p>
+      <p class="evt-lead">場所と観察したいものを選ぶと、参加者向けの案内文を整えやすくなります。</p>
         </div>
         <button type="button" class="evt-btn evt-btn-ghost" data-evt-announcement-generate style="min-height:36px; padding:6px 12px;">告知文を作る</button>
       </div>
@@ -250,7 +250,7 @@ export function renderEventCreateBody(args: {
     <label>プラン
       <select name="plan">
         <option value="community" selected>コミュニティ(無料)</option>
-        <option value="public">Public(法人・自治体提出対応)</option>
+        <option value="public">公開用（団体向け）</option>
       </select>
     </label>
 
@@ -567,7 +567,7 @@ export function eventCreateScript(): string {
     clearField();
     syncAreaLayer();
     syncSelectedFieldLayer();
-    setAreaStatus("開催エリアを設定しました。必要ならAIで整えるか、手動で調整してください。");
+    setAreaStatus("開催エリアを設定しました。必要なら候補を参考にするか、手動で調整してください。");
   }
   function currentMapCenter(){
     const latI = form.querySelector('[name="location_lat"]');
@@ -903,7 +903,7 @@ export function eventCreateScript(): string {
     if (areaState.aiBaseline) {
       restoreAreaSnapshot(areaState.aiBaseline);
       areaState.aiBaseline = null;
-      setAreaStatus("AIで整える前の範囲に戻しました。");
+      setAreaStatus("範囲を整える前の範囲に戻しました。");
       return;
     }
     const prev = areaState.history.pop();
@@ -1013,7 +1013,7 @@ export function eventCreateScript(): string {
       const data = await r.json();
       renderSuggestions(data.suggestions || []);
       setAiProgress(false, btn);
-      setAreaStatus(data.provider === "gemini" ? "AI候補を3つ作りました。" : "AIが混雑中のため、安全な補正候補を作りました。");
+      setAreaStatus(data.provider === "gemini" ? "候補を3つ作りました。" : "安全な補正候補を作りました。");
     } catch (err) {
       setAiProgress(false, btn);
       setAreaStatus("候補作成に失敗しました。手動範囲のまま作成できます。");
@@ -1432,7 +1432,7 @@ export function eventCreateScript(): string {
     const mode = form.querySelector('[name="primary_mode"]')?.value || "discovery";
     const suggestionLabel = areaState.selectedSuggestion?.id === "safe_walk" ? "歩きやすい範囲" : areaState.selectedSuggestion?.id === "nature_rich" ? "自然観察を広げる範囲" : areaState.selectedSuggestion?.id === "facility" ? "集合しやすい範囲" : "今回歩く範囲";
     const safety = (areaState.selectedSuggestion?.warnings || [])[0] || "立入条件と道路横断は現地で確認しながら進めます。";
-    const modeLine = mode === "bingo" ? "見つけたものをみんなで集めるビンゴ形式です。" : mode === "absence_confirm" ? "見つからないことも大事な記録として残します。" : mode === "effort_maximize" ? "歩いた範囲と見た時間をそろえて、次回と比べやすい記録にします。" : mode === "ai_quest" ? "AIの問いかけを使いながら、見落としやすい環境の手がかりを探します。" : "初参加でも歩きながら見つけやすい観察会です。";
+    const modeLine = mode === "bingo" ? "見つけたものをみんなで集めるビンゴ形式です。" : mode === "absence_confirm" ? "見つからないことも大事な記録として残します。" : mode === "effort_maximize" ? "歩いた範囲と見た時間をそろえて、次回と比べやすい記録にします。" : mode === "ai_quest" ? "今日のヒントを使いながら、見落としやすい環境の手がかりを探します。" : "初参加でも歩きながら見つけやすい観察会です。";
     const heading = title || place + " 観察会";
     return [
       heading,
