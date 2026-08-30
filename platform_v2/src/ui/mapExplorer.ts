@@ -10533,14 +10533,14 @@ export const MAP_EXPLORER_STYLES = `
   }
 
   .site-header .site-nav-link {
-    min-height: 36px;
+    min-height: 44px;
     padding: 7px 8px;
     font-size: 13px;
   }
 
   .site-header .site-search {
-    min-height: 36px;
-    padding: 3px 12px;
+    min-height: 44px;
+    padding: 0 12px;
   }
 
   .site-header .lang-switch {
@@ -10548,19 +10548,19 @@ export const MAP_EXPLORER_STYLES = `
   }
 
   .site-header .lang-switch-link {
-    min-width: 34px;
-    min-height: 34px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 0 8px;
   }
 
   .site-header .btn {
-    min-height: 38px;
+    min-height: 44px;
     padding: 8px 14px;
   }
 
   .site-header .site-mobile-menu-toggle {
-    min-height: 38px;
-    width: 42px;
+    min-height: 44px;
+    width: 44px;
     padding: 0;
   }
 
@@ -10591,7 +10591,7 @@ export const MAP_EXPLORER_STYLES = `
       max-width: none;
     }
     .site-header .brand-logo-lockup {
-      min-height: 40px;
+      min-height: 44px;
       padding: 2px 8px 2px 0;
     }
     .site-header .brand-logo-lockup .brand-mark {
@@ -10607,7 +10607,7 @@ export const MAP_EXPLORER_STYLES = `
       width: min(640px, 100%);
       max-width: none;
       justify-self: center;
-      min-height: 38px;
+      min-height: 44px;
       box-shadow: none;
     }
     .site-header-actions-desktop {
