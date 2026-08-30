@@ -9,12 +9,11 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const platformRoot = path.resolve(scriptDir, "..");
 const reportDir = path.join(platformRoot, ".deploy");
 const reportPath = path.join(reportDir, "zukan-runtime-qa-latest.json");
-const materializationReportPath = path.join(
-  platformRoot,
-  "cloudflare_shadow",
-  "materialize-staging-original-ui.json",
+const materializationReportPath = path.resolve(
+  process.env.ZUKAN_MATERIALIZATION_REPORT_PATH?.trim()
+    || path.join(platformRoot, "cloudflare_shadow", "materialize-staging-original-ui.json"),
 );
-const stagingBaseUrl = (process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life").replace(/\/+$/u, "");
+const stagingBaseUrl = (process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth").replace(/\/+$/u, "");
 const expectedSha = String(process.env.IKIMON_EXPECTED_GIT_SHA ?? "").trim();
 const chromiumExecutable = String(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ?? "").trim();
 const materializationNotBefore = String(process.env.ZUKAN_MATERIALIZATION_NOT_BEFORE ?? "").trim();
@@ -31,8 +30,8 @@ const MAP_KEYS = Object.freeze({
 });
 
 function assertConfiguration() {
-  if (stagingBaseUrl !== "https://staging.ikimon.life") {
-    throw new Error("ZUKAN runtime QA is pinned to https://staging.ikimon.life");
+  if (stagingBaseUrl !== "https://staging.zukan.earth") {
+    throw new Error("ZUKAN runtime QA is pinned to https://staging.zukan.earth");
   }
   if (!/^[a-f0-9]{40}$/u.test(expectedSha)) {
     throw new Error("IKIMON_EXPECTED_GIT_SHA must be an exact lowercase 40-character SHA");
@@ -94,6 +93,7 @@ async function fetchNoStore(pathname, accept = "application/json") {
       "cf-cache-status",
       "etag",
       "x-ikimon-cloudflare-materialized",
+      "x-ikimon-cloudflare-materialized-sha256",
       "x-ikimon-cloudflare-native",
     ].map((name) => [name, response.headers.get(name)])),
     body,
@@ -167,7 +167,9 @@ async function readMaterializationIdentity() {
       || result?.scope !== "staging-qa"
       || result?.manifestKey !== MATERIALIZATION_MANIFEST_KEY
       || !SHA256_RE.test(String(result?.bundleHash ?? ""))
+      || String(result?.sourceSha ?? "") !== expectedSha
       || result?.manifestUpload?.ok !== true
+      || String(result.manifestUpload?.versionPrefix ?? "") !== `original-ui/versions/${result.bundleHash}`
       || result?.manifestUpload?.reason === "explicit_paths_not_finalized") {
     throw new Error("materialization report contract is invalid");
   }
@@ -218,89 +220,21 @@ async function assertMapArtifact(materializationIdentity) {
   if (response.headers["x-ikimon-cloudflare-materialized"] !== "original-ui-html") {
     throw new Error("map artifact is not the materialized original UI");
   }
-  const bodySha256 = createHash("sha256").update(response.body).digest("hex");
-  if (bodySha256 !== materializationIdentity.mapSha256ByPath["/ja/map"]) {
-    throw new Error("map artifact SHA does not match the fresh materialization report");
+  const materializedSourceSha256 = String(response.headers["x-ikimon-cloudflare-materialized-sha256"] ?? "");
+  if (!SHA256_RE.test(materializedSourceSha256)) {
+    throw new Error("map artifact is missing the exact materialized source SHA");
   }
+  if (materializedSourceSha256 !== materializationIdentity.mapSha256ByPath["/ja/map"]) {
+    throw new Error("map artifact materialized source SHA does not match the fresh materialization report");
+  }
+  const transformedBodySha256 = createHash("sha256").update(response.body).digest("hex");
   return {
     status: response.status,
     headers: response.headers,
-    bodySha256,
+    materializedSourceSha256,
+    transformedBodySha256,
     materializationKey: MAP_KEYS["/ja/map"],
     requiredMarkers,
-  };
-}
-
-async function assertIwataView() {
-  const response = await fetchNoStore("/iwata", "text/html");
-  if (!response.ok) throw new Error(`Iwata View HTTP ${response.status}`);
-  assertNotCached(response.headers, "Iwata View");
-  const requiredMarkers = [
-    "いわた地域図鑑",
-    "公開データ実装",
-    "市公式情報そのものではなく",
-    "観光施設",
-    "都市公園",
-    "交流センター",
-    "文化財",
-  ];
-  const missing = requiredMarkers.filter((marker) => !response.body.includes(marker));
-  if (missing.length) throw new Error(`Iwata View markers missing: ${missing.join(",")}`);
-  return {
-    status: response.status,
-    bodySha256: createHash("sha256").update(response.body).digest("hex"),
-    requiredMarkers,
-  };
-}
-
-async function assertRegionalSourceRegistry() {
-  const listResponse = await fetchNoStore("/api/regional-sources");
-  if (!listResponse.ok) throw new Error(`regional source registry HTTP ${listResponse.status}`);
-  assertNotCached(listResponse.headers, "regional source registry");
-  const list = parseJsonResponse(listResponse, "regional source registry");
-  if (list?.schema !== "zukan.regional-source-registry/v1") {
-    throw new Error("regional source registry schema mismatch");
-  }
-  if (!Array.isArray(list?.publishers) || !Array.isArray(list?.sources)) {
-    throw new Error("regional source registry arrays are missing");
-  }
-  const sourceById = new Map(list.sources.map((source) => [String(source?.sourceAssetId ?? ""), source]));
-  const requiredIds = [
-    "source:iwata:tourism-facilities-linkdata",
-    "source:iwata:cultural-properties-linkdata",
-    "source:miyakoda:official-website",
-    "source:miyakoda:wakuwaku-map:2025",
-  ];
-  for (const id of requiredIds) {
-    if (!sourceById.has(id)) throw new Error(`regional source missing: ${id}`);
-  }
-  const miyakodaMap = sourceById.get("source:miyakoda:wakuwaku-map:2025");
-  if (miyakodaMap?.rightsClass !== "INDEX_ONLY" || miyakodaMap?.state !== "DISCOVERED") {
-    throw new Error("MIYAKODA PDF must remain index-only and discovered");
-  }
-  const iwataSource = sourceById.get("source:iwata:tourism-facilities-linkdata");
-  if (iwataSource?.rightsClass !== "ATTRIBUTION_REUSE" || iwataSource?.state !== "PUBLISHED") {
-    throw new Error("Iwata source rights or publication state mismatch");
-  }
-
-  const detailId = "source:miyakoda:wakuwaku-map:2025";
-  const detailResponse = await fetchNoStore(`/api/regional-sources/${encodeURIComponent(detailId)}`);
-  if (!detailResponse.ok) throw new Error(`regional source detail HTTP ${detailResponse.status}`);
-  const detail = parseJsonResponse(detailResponse, "regional source detail");
-  if (detail?.schema !== "zukan.regional-source-registry-item/v1"
-      || detail?.source?.sourceAssetId !== detailId
-      || !Array.isArray(detail?.publishers)
-      || detail.publishers.length < 1) {
-    throw new Error("regional source detail contract mismatch");
-  }
-
-  return {
-    listStatus: listResponse.status,
-    detailStatus: detailResponse.status,
-    publisherCount: list.publishers.length,
-    sourceCount: list.sources.length,
-    summary: list.summary,
-    requiredIds,
   };
 }
 
@@ -330,6 +264,7 @@ async function runPlaywright(name, args, extraEnv = {}) {
         PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: chromiumExecutable,
         ...extraEnv,
       },
+      shell: process.platform === "win32",
       stdio: ["ignore", "pipe", "pipe"],
     });
     const timeout = setTimeout(() => {
@@ -422,8 +357,6 @@ async function main() {
   const health = await readHealth("/healthz");
   const ready = await readHealth("/readyz");
   const mapArtifact = await assertMapArtifact(materializationIdentity);
-  const iwataView = await assertIwataView();
-  const regionalSourceRegistry = await assertRegionalSourceRegistry();
 
   const mapQa = await runPlaywright(
     "place_atlas_runtime",
@@ -439,16 +372,16 @@ async function main() {
     },
   );
 
-  const captureQa = await runPlaywright(
-    "capture_p0_retry",
+  const previewRecoveryQa = await runPlaywright(
+    "preview_draft_recovery_fixture",
     [
       "test",
       "-c",
       "playwright.zukan-runtime.config.ts",
-      "e2e/record-capture-retry.zukan.staging.spec.ts",
+      "e2e/record-preview-draft-recovery.zukan.staging.spec.ts",
     ],
     {
-      ZUKAN_RUNTIME_QA_PLAYWRIGHT_REPORT: path.join(reportDir, "zukan-capture-p0-playwright.json"),
+      ZUKAN_RUNTIME_QA_PLAYWRIGHT_REPORT: path.join(reportDir, "zukan-preview-recovery-playwright.json"),
     },
   );
 
@@ -464,8 +397,12 @@ async function main() {
     health,
     ready,
     mapArtifact,
-    iwataView,
-    regionalSourceRegistry,
+    runtimeScope: "cloudflare_worker_native",
+    scopeExclusions: [
+      { path: "/iwata", reason: "fastify_route_not_registered_in_current_native_worker" },
+      { path: "/api/regional-sources", reason: "fastify_route_not_registered_in_current_native_worker" },
+    ],
+    authenticatedCaptureQa: "unverified_requires_owner_session",
     checks: [
       "exact_sha_runtime_before_and_after",
       "stable_identity_fields_only",
@@ -473,19 +410,13 @@ async function main() {
       "public_safe_runtime_identity",
       "deployment_id_present",
       "fresh_materialization_report",
-      "materialized_map_sha_match",
+      "materialized_source_sha_match",
       "place_atlas_timeline_runtime_fixture",
       "explicit_timeline_cta_click_and_kpi_fixture",
-      "capture_record_saved_once",
-      "photo_upload_retryable_failure",
-      "reload_media_retry",
-      "record_not_duplicated",
-      "iwata_view_readback",
-      "regional_source_registry_list_and_detail_readback",
-      "source_rights_fail_closed",
+      "preview_draft_reload_recovery_fixture",
       "fixture_only_mutations",
     ],
-    playwright: [mapQa, captureQa],
+    playwright: [mapQa, previewRecoveryQa],
   });
 }
 

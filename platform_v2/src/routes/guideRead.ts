@@ -467,7 +467,7 @@ export async function registerGuideReadRoutes(app: FastifyInstance): Promise<voi
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: "ガイドリレー企画 | ikimon.life",
+      title: "ガイドリレー企画 | ZUKAN",
       activeNav: "guide",
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, "/guide-programs"), lang),
@@ -486,7 +486,7 @@ export async function registerGuideReadRoutes(app: FastifyInstance): Promise<voi
       reply.code(404).type("text/html; charset=utf-8");
       return renderSiteDocument({
         basePath,
-        title: "ガイドリレー企画が見つかりません | ikimon.life",
+        title: "ガイドリレー企画が見つかりません | ZUKAN",
         activeNav: "guide",
         lang,
         currentPath: appendLangToHref(withBasePath(basePath, "/guide-programs"), lang),
@@ -499,7 +499,7 @@ export async function registerGuideReadRoutes(app: FastifyInstance): Promise<voi
     const canManage = Boolean(session && !session.banned && isAdminOrAnalystRole(session.roleName, session.rankLabel));
     return renderSiteDocument({
       basePath,
-      title: `${program.title} | ikimon.life`,
+      title: `${program.title} | ZUKAN`,
       activeNav: "guide",
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, `/guide-programs/${program.slug}`), lang),
@@ -533,7 +533,7 @@ export async function registerGuideReadRoutes(app: FastifyInstance): Promise<voi
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: "マイガイド | ikimon.life",
+      title: "マイガイド | ZUKAN",
       activeNav: "guide",
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, "/my-guides"), lang),

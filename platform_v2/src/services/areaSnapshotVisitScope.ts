@@ -1,3 +1,4 @@
+import type { Pool, PoolClient } from "pg";
 import { getPool } from "../db.js";
 import type { ObservationField } from "./observationFieldRegistry.js";
 import { computeBbox } from "./geoJsonBbox.js";
@@ -16,6 +17,8 @@ export type AreaSnapshotScopeField = Pick<
   ObservationField,
   "fieldId" | "lat" | "lng" | "radiusM" | "polygon"
 >;
+
+export type AreaSnapshotQueryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
 
 const AREA_SNAPSHOT_VISIT_SCOPE_SQL = `select v.visit_id,
             v.point_latitude::text as point_latitude,
@@ -80,12 +83,12 @@ export async function loadAreaSnapshotVisitIds(
   field: AreaSnapshotScopeField,
   placeId: string | null,
   options: { observedFrom?: string | null; observedTo?: string | null } = {},
+  queryable: AreaSnapshotQueryable = getPool(),
 ): Promise<string[]> {
   const bbox = fieldSearchBbox(field);
-  const pool = getPool();
   const observedFrom = options.observedFrom ?? null;
   const observedTo = options.observedTo ?? null;
-  const result = await pool.query<CandidateVisitRow>(
+  const result = await queryable.query<CandidateVisitRow>(
     AREA_SNAPSHOT_VISIT_SCOPE_SQL,
     [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng, observedFrom, observedTo],
   );

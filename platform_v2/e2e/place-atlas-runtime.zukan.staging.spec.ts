@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { test, expect, type Browser, type Page, type Route } from "@playwright/test";
 import {
   installMapLibreStubForSmoke,
@@ -6,17 +5,22 @@ import {
   suppressMapLibreForSmoke,
 } from "./support/staging.js";
 
-const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life";
+const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth";
 const STAGING_ORIGIN = new URL(STAGING_BASE_URL).origin;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const FIELD_ID = "d50678d0-ba57-4d3d-a713-2fe441d646ab";
 const KPI_PATH = "/api/v1/ui-kpi/events";
 
+function isExpectedBlockedExternalPost(url: URL): boolean {
+  return (url.hostname === "overpass-api.de" && url.pathname === "/api/interpreter")
+    || (url.origin === STAGING_ORIGIN && url.pathname === "/cdn-cgi/rum");
+}
+
 const LOCALES = [
-  { path: "/ja/map", lang: "ja-JP", timeline: "この場所のうつろい", multiple: "複数の時期の記録", sampled: "公開記録からの標本表示", verified: "確認済み", candidate: "候補", unknown: "未確認", capture: "今を撮る" },
-  { path: "/en/map", lang: "en-US", timeline: "This place over time", multiple: "Records from multiple periods", sampled: "Sample of public records", verified: "Verified", candidate: "Candidate", unknown: "Unknown", capture: "Capture now" },
-  { path: "/es/map", lang: "es-ES", timeline: "Este lugar a través del tiempo", multiple: "Registros de varios periodos", sampled: "Muestra de registros públicos", verified: "Verificado", candidate: "Candidato", unknown: "Sin confirmar", capture: "Capturar ahora" },
-  { path: "/pt-br/map", lang: "pt-BR", timeline: "Este lugar ao longo do tempo", multiple: "Registros de vários períodos", sampled: "Amostra de registros públicos", verified: "Verificado", candidate: "Candidato", unknown: "Não confirmado", capture: "Registrar agora" },
+  { path: "/ja/map", lang: "ja-JP", timeline: "この場所のうつろい", multiple: "複数の時期の記録", sampled: "公開記録からの標本表示", verified: "確認済み", candidate: "候補", unverified: "未確認の場所情報", capture: "今を撮る" },
+  { path: "/en/map", lang: "en-US", timeline: "This place over time", multiple: "Records from multiple periods", sampled: "Sample of public records", verified: "Verified", candidate: "Candidate", unverified: "Unverified place information", capture: "Capture now" },
+  { path: "/es/map", lang: "es-ES", timeline: "Este lugar a través del tiempo", multiple: "Registros de varios periodos", sampled: "Muestra de registros públicos", verified: "Verificado", candidate: "Candidato", unverified: "Información sin verificar", capture: "Capturar ahora" },
+  { path: "/pt-br/map", lang: "pt-BR", timeline: "Este lugar ao longo do tempo", multiple: "Registros de vários períodos", sampled: "Amostra de registros públicos", verified: "Verificado", candidate: "Candidato", unverified: "Informação não verificada", capture: "Registrar agora" },
 ] as const;
 
 const EXPECTED_MAP_HASHES = parseExpectedMapHashes();
@@ -226,6 +230,10 @@ async function installRuntimeFixtures(page: Page, profile: Record<string, unknow
     const method = request.method().toUpperCase();
 
     if (!SAFE_METHODS.has(method)) {
+      if (isExpectedBlockedExternalPost(url)) {
+        await fulfillJson(route, 409, { ok: false, error: "zukan_runtime_external_post_blocked" });
+        return;
+      }
       if (url.origin === STAGING_ORIGIN && /^\/api\/v1\/ui-kpi\/events\/?$/u.test(url.pathname)) {
         mutations.push(`${method} ${url.pathname.replace(/\/$/u, "")}`);
         await fulfillJson(route, 202, { ok: true });
@@ -316,8 +324,7 @@ async function openProfile(browser: Browser, localePath: string, locale: string,
   expect(response?.status() ?? 0).toBeLessThan(400);
   expect(response?.headers()["x-ikimon-cloudflare-materialized"]).toBe("original-ui-html");
   expect(String(response?.headers()["cf-cache-status"] ?? "").toUpperCase()).not.toBe("HIT");
-  const body = await response?.body();
-  expect(createHash("sha256").update(body ?? Buffer.alloc(0)).digest("hex")).toBe(EXPECTED_MAP_HASHES[localePath]);
+  expect(response?.headers()["x-ikimon-cloudflare-materialized-sha256"]).toBe(EXPECTED_MAP_HASHES[localePath]);
   await expect(page.locator("[data-maplibre-smoke-stub='1']")).toBeVisible();
   await page.locator("#me-locate-fab").click();
   const marker = page.locator(".me-nearby-area-marker", { hasText: "常磐公園" });
@@ -339,7 +346,7 @@ test.describe.serial("ZUKAN Place Atlas exact staging runtime", () => {
       await expect(timeline).toContainText(locale.timeline);
       await expect(timeline).toContainText(locale.multiple);
       await expect(timeline).toContainText(locale.sampled);
-      await expect(timeline).toContainText(locale.unknown);
+      await expect(timeline).toContainText(locale.unverified);
       await expect(timeline).toContainText(locale.candidate);
       await expect(timeline).toContainText(locale.verified);
       await expect(timeline).toContainText(locale.capture);
@@ -446,7 +453,10 @@ test.describe.serial("ZUKAN Place Atlas exact staging runtime", () => {
         await expect(atlas).not.toContainText(/987654|987655/u);
         await expect(atlas).not.toContainText(/timeline-hidden-/u);
       }
-      expect(session.mutationEvents.every((event) => event === `POST ${KPI_PATH}`)).toBe(true);
+      expect(
+        session.mutationEvents.every((event) => event === `POST ${KPI_PATH}`),
+        `${item.name}: unexpected mutation events ${JSON.stringify(session.mutationEvents)}`,
+      ).toBe(true);
       await session.page.context().close();
     }
   });

@@ -2,7 +2,7 @@ import type { PartialAppStrings } from "./strings.js";
 
 export const en: PartialAppStrings = {
   landing: {
-    title: "ikimon — Enjoy Life through nearby nature",
+    title: "ZUKAN — Enjoy Life through nearby nature",
     heroEyebrow: "feel the field.",
     heroHeading: "Your usual walk <span class=\"hero-emphasis\">becomes an adventure.</span>",
     heroHeadingPlain: "Your usual walk becomes an adventure.",
@@ -68,12 +68,12 @@ export const en: PartialAppStrings = {
     mapEmpty: "No observations on the map yet",
     bizEyebrow: "For organizations",
     bizTitle: "A regional partnership entry built around reasons to visit and return",
-    bizBody: "For schools, municipalities, and companies, ikimon starts with place stewardship and repeatable observation loops before any deep workspace promise.",
+    bizBody: "For schools, municipalities, and companies, ZUKAN starts with place stewardship and repeatable observation loops before any deep workspace promise.",
     bizCta: "For Business",
-    footerNote: "ikimon — Enjoy Life.",
+    footerNote: "ZUKAN — Enjoy Life.",
   },
   fieldLoop: {
-    eyebrow: "how ikimon works",
+    eyebrow: "how ZUKAN works",
     title: "Field Loop",
     lead: "Aim from the satellite, check it on foot, write it in the notebook. The more you run this cycle, the more the same path looks different.",
     primaryCta: "Learn about Field Loop",
