@@ -5264,6 +5264,9 @@ ${alternateLinks}
     .btn.secondary { background: rgba(255,255,255,.88); border-color: var(--border); color: var(--ink); }
     .skip-link {
       position: absolute;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
       left: 12px;
       top: 0;
       transform: translateY(-150%);

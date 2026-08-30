@@ -21,6 +21,11 @@ test("map explorer keeps controls touchable and hides internal provenance labels
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   assert.match(MAP_EXPLORER_STYLES, /\.map-explorer :where\(button,a\)\{min-height:44px/);
   assert.match(MAP_EXPLORER_STYLES, /input:not\(\[type=checkbox\]\):not\(\[type=radio\]\):not\(\[type=range\]\)\{min-height:44px/);
+  assert.match(MAP_EXPLORER_STYLES, /input\[type=range\]\{min-height:44px/);
+  assert.match(MAP_EXPLORER_STYLES, /:where\(\.me-area-source-opt,\.me-trace-toggle-label,\.me-basemap-opt\)\{min-width:44px;min-height:44px/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-close\{width:44px!important;min-width:44px!important;max-width:44px!important;height:44px!important/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-legend\.is-collapsed \.me-legend-toggle\{width:44px;min-width:44px;min-height:44px/);
+  assert.match(MAP_EXPLORER_STYLES, /:has\(input:focus-visible\)\{outline:3px solid/);
   assert.match(MAP_EXPLORER_STYLES, /\.maplibregl-ctrl button\{width:44px!important;height:44px!important/);
   assert.doesNotMatch(script, /profile=' \+ String\(stats\.markerProfile|visible manual=|excluded legacy=|suppressed counts hidden/);
   assert.match(script, /位置を保護した集計を表示しています/);

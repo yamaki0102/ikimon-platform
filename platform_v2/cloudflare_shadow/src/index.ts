@@ -23669,6 +23669,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     ? {
       photo: "写真",
       video: "動画",
+      photoHint: "カメラ・写真ライブラリ",
+      videoHint: "端末の動画",
       note: "メモ",
       coord: "座標を直接編集",
       lat: "緯度",
@@ -23686,6 +23688,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     : {
       photo: "Photo",
       video: "Video",
+      photoHint: "Camera or photo library",
+      videoHint: "Video on this device",
       note: "Note",
       coord: "Edit coordinates directly",
       lat: "Latitude",
@@ -23710,13 +23714,13 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escapeHtml(title)} - ikimon</title>
+  <title>${escapeHtml(title)} | ZUKAN</title>
   <style>
     :root{color-scheme:light;--ink:#10251a;--muted:#52635d;--line:#d8eae4;--mint:#eefbf6;--teal:#058f82;--leaf:#54c86f;--paper:#fbfdfb}
     *{box-sizing:border-box}
     body{margin:0;background:linear-gradient(180deg,#f5fbf8 0,#fff 72%);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
     .cf-record-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
-    .cf-record-brand{font-weight:900;text-decoration:none;color:var(--ink);font-size:20px;letter-spacing:0}
+    .cf-record-brand{min-width:44px;min-height:44px;display:inline-flex;align-items:center;font-weight:900;text-decoration:none;color:var(--ink);font-size:20px;letter-spacing:.02em}
     .cf-record-profile{color:var(--muted);font-size:13px;font-weight:800;overflow-wrap:anywhere;text-align:right}
     .cf-record-shell{width:min(720px,calc(100% - 24px));margin:18px auto 42px}
     .cf-record-hero{margin:0 0 14px}
@@ -23737,12 +23741,13 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
     .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--leaf));color:#fff;font-weight:900;font-size:16px}
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
+    .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible{outline:3px solid #0ea5e9;outline-offset:3px}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:54%;font-size:12px}}
   </style>
 </head>
 <body data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   <header class="cf-record-header">
-    <a class="cf-record-brand" href="${escapeHtml(prefix)}/">ikimon</a>
+    <a class="cf-record-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN ホーム">ZUKAN</a>
     <div class="cf-record-profile">${escapeHtml(session.displayName || session.userId)}</div>
   </header>
   <main class="cf-record-shell">
@@ -23751,8 +23756,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       <p>${escapeHtml(mediaCopy.prompt)}</p>
     </section>
     <div class="cf-record-picker" aria-label="${escapeHtml(title)}">
-      <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>image/jpeg, image/png</span><input id="record-media-photo" type="file" accept="image/*"></label>
-      <label class="cf-record-pick">${escapeHtml(mediaCopy.video)}<span>video/mp4</span><input id="record-media-video" type="file" accept="video/*"></label>
+      <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>${escapeHtml(mediaCopy.photoHint)}</span><input id="record-media-photo" type="file" accept="image/*"></label>
+      <label class="cf-record-pick">${escapeHtml(mediaCopy.video)}<span>${escapeHtml(mediaCopy.videoHint)}</span><input id="record-media-video" type="file" accept="video/*"></label>
     </div>
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><textarea name="note" rows="3"></textarea></label>
