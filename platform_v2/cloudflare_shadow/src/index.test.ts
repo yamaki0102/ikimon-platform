@@ -4,6 +4,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { deflateSync } from "node:zlib";
 import * as bcrypt from "bcryptjs";
+import {
+  listPublicSiteMapMaterializationPaths,
+} from "../../src/services/originalUiMaterializationRoutes";
 import { worker } from "./index";
 
 type D1Value = string | number | null;
@@ -21784,7 +21787,7 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   }
 });
 
-test("Cloudflare staging QA sitemap smoke materialization scope covers only public visual routes", async () => {
+test("Cloudflare staging QA materialization combines visual smoke paths with the public SiteMap projection", async () => {
   const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
   const materializerSource = await readFile(new URL("../scripts/materialize-original-ui-html.mjs", import.meta.url), "utf8");
   const parseArray = (source: string, constName: string): string[] => {
@@ -21797,6 +21800,30 @@ test("Cloudflare staging QA sitemap smoke materialization scope covers only publ
   const corePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_CORE_PATHS");
   assert.match(materializerSource, /scope === "staging-qa"/);
   assert.match(materializerSource, /targetEnv !== "staging"/);
+  assert.match(materializerSource, /listPublicSiteMapMaterializationPaths/);
+  assert.match(materializerSource, /\.\.\.siteMapPublicMaterializationPaths/);
+
+  const siteMapPaths = listPublicSiteMapMaterializationPaths();
+  for (const path of [
+    "/ja/about",
+    "/ja/learn",
+    "/ja/learn/terms/biodiversity",
+    "/ja/privacy",
+    "/ja/terms",
+    "/ja/contact",
+    "/ja/for-business/pricing",
+    "/ja/for-researcher/apply",
+  ]) {
+    assert.ok(siteMapPaths.includes(path), `${path} must be derived from the current public SiteMap`);
+  }
+  for (const path of [
+    "/ja/profile/:userId",
+    "/ja/observations/:id",
+    "/ja/community/fields/:fieldId",
+    "/ja/qa/site-map",
+  ]) {
+    assert.equal(siteMapPaths.includes(path), false, `${path} stays on its dynamic or operator route`);
+  }
 
   for (const path of ["/community", "/community/events", "/ja/community", "/ja/community/events"]) {
     assert.ok(corePaths.includes(path), `${path} must remain in the normal product materialization scope`);
