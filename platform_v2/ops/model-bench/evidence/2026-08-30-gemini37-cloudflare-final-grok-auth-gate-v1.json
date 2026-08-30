@@ -1,0 +1,103 @@
+{
+  "version": "zukan-gemini37-cloudflare-final-grok-auth-gate-v1",
+  "status": "GEMINI_PARTIAL_SUCCESS_GROK_BLOCKED_XAI_AUTH",
+  "executed_at": "2026-08-30",
+  "fixed_input": {
+    "post_count": 7,
+    "image_count": 21,
+    "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "ordered_images_preserved": true,
+    "random_reselection": false
+  },
+  "rights_gate": {
+    "selected_rows": 7,
+    "canonical_eligible_rows": 7,
+    "database_mutation": false
+  },
+  "credential_recovery": {
+    "exposed_token_revoked": true,
+    "replacement_token_name": "zukan-model-bench-20260830-r2",
+    "replacement_permissions": [
+      "AI Gateway Run"
+    ],
+    "token_value_logged": false,
+    "token_value_committed": false,
+    "local_transfer": "Windows DPAPI encrypted scratch file"
+  },
+  "cloudflare_billing": {
+    "credit_balance_usd": 10,
+    "latest_manual_topup_payment_usd": 11,
+    "latest_manual_topup_fee_usd": 0.55,
+    "latest_manual_topup_status": "paid"
+  },
+  "gemini_3_7_flash": {
+    "provider": "cloudflare-google-ai-studio",
+    "transport": "cloudflare-google-native",
+    "canary": {
+      "request_count": 1,
+      "success_count": 1,
+      "schema_valid_rate_pct": 100,
+      "latency_ms": 8177,
+      "input_tokens": 11835,
+      "output_tokens": 154,
+      "finish_reason": "STOP",
+      "raw_final_content_saved": true,
+      "report_path": "platform_v2/ops/model-bench/evidence/2026-08-30-gemini-3.7-flash-cloudflare-google-native-token-r2-canary-v1.json"
+    },
+    "full_run": {
+      "request_count": 7,
+      "post_count": 7,
+      "image_count": 21,
+      "success_count": 6,
+      "success_rate_pct": 85.71,
+      "schema_valid_rate_pct": 85.71,
+      "p50_latency_ms": 12991,
+      "p95_latency_ms": 14989,
+      "input_tokens": 71010,
+      "output_tokens": 284,
+      "estimated_cost_usd": 0.0543225,
+      "raw_final_content_saved_count": 6,
+      "failed_visit_id": "record-1784430118720",
+      "failed_status": "UNAVAILABLE",
+      "failed_http_status": 503,
+      "retry_count": 0,
+      "report_path": "platform_v2/ops/model-bench/evidence/2026-08-30-gemini-3.7-flash-cloudflare-google-native-token-r2-final-v1.json"
+    }
+  },
+  "grok_4_6": {
+    "provider": "cloudflare-xai",
+    "transport": "cloudflare-xai-native",
+    "before_credit": {
+      "request_count": 1,
+      "success_count": 0,
+      "http_status": 401,
+      "schema_valid_rate_pct": 0,
+      "report_path": "platform_v2/ops/model-bench/evidence/2026-08-30-grok-4.6-cloudflare-xai-native-token-r2-canary-v1.json"
+    },
+    "after_credit": {
+      "request_count": 1,
+      "success_count": 0,
+      "http_status": 401,
+      "schema_valid_rate_pct": 0,
+      "latency_ms": 1446,
+      "report_path": "platform_v2/ops/model-bench/evidence/2026-08-30-grok-4.6-cloudflare-xai-native-token-r2-credit-canary-v2.json"
+    },
+    "diagnosis": "Cloudflare AI Gateway token and Unified Billing credit are valid, but the provider-native xAI route still requires an active xAI provider API key.",
+    "full_run_started": false,
+    "next_gate": "Sign in to xAI Console, create a scoped API key, and fund the xAI API account if required."
+  },
+  "luna": {
+    "status": "CANARY_BLOCKED_CLOUDFLARE_402",
+    "same_root_cause_as_gateway_token": false
+  },
+  "contract": {
+    "retry_count": 0,
+    "fallback_count": 0,
+    "playground_used": false,
+    "production_changed": false,
+    "rights_changed": false,
+    "secret_values_logged": false,
+    "private_reasoning_saved": false
+  }
+}
