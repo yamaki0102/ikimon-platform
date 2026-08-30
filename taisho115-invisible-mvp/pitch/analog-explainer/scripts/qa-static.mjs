@@ -228,6 +228,9 @@ if (!slides.find((slide) => slide.id === "product-overview")?.points?.includes("
 if (!app.includes("landscapeFitActive") || !css.includes(".rules-deck.portrait-preview-mode .slide.active")) {
   errors.push("responsive slide-fit safeguards are missing");
 }
+if (!app.includes("characterAssetDir") || !app.includes("demoBgmAssetDir") || !app.includes("assets/characters") || !app.includes("assets/demo-bgm")) {
+  errors.push("character and demo BGM assets must use immutable release directories");
+}
 
 if (demoManifest?.slides) {
   if (demoManifest.slides.length !== demoSlides.length) {

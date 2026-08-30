@@ -65,7 +65,7 @@
   let playbackSerial = 0;
   const rulesNarrationPlaybackRate = 1.15;
   const demoNarrationPlaybackRate = 1.2;
-  const demoNarrationVersion = "20260830-mobile-clarity-v1";
+  const demoNarrationVersion = "20260830-mobile-clarity-v2";
   const slideCompleteHoldMs = 2000;
   const slideChangeNarrationDelayMs = 1400;
   const segmentCueDelaySeconds = 0.32;
@@ -337,6 +337,8 @@
 
   const assetRoot = import.meta.env.BASE_URL;
   const formalAssetDir = releaseAssets.formal;
+  const characterAssetDir = releaseAssets.characters;
+  const demoBgmAssetDir = releaseAssets.demoBgm;
   const activeSlides = $derived(deckMode === "demo" ? demoSlides : slides);
   const activeSlideSegments = $derived(deckMode === "demo" ? demoSlideSegments : slideSegments);
   const deckTitle = $derived(deckMode === "demo" ? `透明の法則 デモプレイ解説${demoV2 ? " v2" : ""}` : "透明の法則");
@@ -398,7 +400,11 @@
   function assetPath(path: string) {
     const versionedPath = path.startsWith("assets/formal/")
       ? path.replace("assets/formal", formalAssetDir)
-      : path;
+      : path.startsWith("assets/characters/")
+        ? path.replace("assets/characters", characterAssetDir)
+        : path.startsWith("assets/demo-bgm/")
+          ? path.replace("assets/demo-bgm", demoBgmAssetDir)
+          : path;
     return `${assetRoot}${versionedPath}`;
   }
 

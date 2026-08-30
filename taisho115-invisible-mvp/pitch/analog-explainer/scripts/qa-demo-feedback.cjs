@@ -323,7 +323,8 @@ async function openDeck(page) {
 
   await openDeck(page);
   const assetChecks = await page.evaluate(async (assetDir) => {
-    const manifestUrl = new URL(`${assetDir}/slide-manifest.json`, window.location.href);
+    const sharedAssetRoot = new URL(`/slides/${assetDir}/`, window.location.origin);
+    const manifestUrl = new URL("slide-manifest.json", sharedAssetRoot);
     const manifestRes = await fetch(manifestUrl);
     const manifest = await manifestRes.json();
     const byId = (slideId) => manifest.slides.find((slide) => slide.slideId === slideId) || { segments: [] };
@@ -339,7 +340,7 @@ async function openDeck(page) {
     const cover = byId("demo-cover");
     const finalDecision = byId("demo-final-decision");
     const summary = byId("demo-summary");
-    const wavRes = await fetch(new URL(`${assetDir}/slides/slide-18.wav`, window.location.href));
+    const wavRes = await fetch(new URL("slides/slide-18.wav", sharedAssetRoot));
     return {
       manifestOk: manifestRes.ok,
       engine: manifest.engine,
