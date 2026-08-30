@@ -39,11 +39,12 @@ test("record-detail media remains a verified EXIF-scrubbed public derivative", (
 });
 
 test("observation-first owner and community actions are wired without JavaScript", () => {
-  for (const action of ["add", "split", "merge", "exclude", "restore", "media_reassign", "identify", "accept_identification", "set_proposal_policy"]) {
+  for (const action of ["add", "split", "merge", "exclude", "restore", "media_reassign", "identify", "accept_identification", "set_proposal_policy", "set_visibility"]) {
     assert.ok(workerSource.includes(`"${action}"`), `missing action route: ${action}`);
   }
   assert.match(workerSource, /candidate\.proposed_name/);
   assert.match(workerSource, /viewerAuthenticated: Boolean\(session/);
   assert.match(workerSource, /return_lang/);
   assert.match(workerSource, /\/\$\{returnLang\}\/observations\//);
+  assert.match(workerSource, /if \(refreshVisibility\) await refreshPublicReadmodel\(recordId, env\)/);
 });

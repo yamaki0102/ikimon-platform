@@ -78,6 +78,9 @@ export type ObservationFirstRecordDetailCopy = {
   assign: string;
   receiveProposals: string;
   pauseProposals: string;
+  visibilitySettings: string;
+  visibilityLead: string;
+  saveVisibility: string;
   captureInfo: string;
   capturedAt: string;
   place: string;
@@ -92,7 +95,7 @@ export type ObservationFirstRecordDetailCopy = {
 };
 
 const ja: ObservationFirstRecordDetailCopy = {
-  documentSuffix: "ikimon", back: "戻る", menu: "メニュー", records: "記録を見る", home: "ホーム", language: "言語",
+  documentSuffix: "ZUKAN", back: "戻る", menu: "メニュー", records: "記録を見る", home: "ホーム", language: "言語",
   media: "写真・動画・音", enlargePhoto: "写真を大きく見る", openVideo: "動画を開く", openAudio: "音声を開く", mediaNavigation: "メディアを切り替える",
   natureRecord: "自然の記録", publicLocation: "安全な場所", visibility: { public: "公開", limited: "限定公開", private: "非公開" },
   edit: "編集", share: "共有", updatedNotice: "変更を記録しました。", found: "この記録で見つかったもの", aiFound: "AIが見つけたもの", learning: "わかること", aiCandidate: "AIが見つけた候補", communityProposalAvailable: "名前の提案があります", candidateTemplate: "{name}かもしれません",
@@ -116,13 +119,13 @@ const ja: ObservationFirstRecordDetailCopy = {
   contexts: { unknown: "未設定", wild: "野外", pet: "ペット", captive: "飼育", cultivated: "栽培" },
   separateSubject: "別の対象として分ける", separateName: "分ける対象の呼び名", separate: "分ける", notVisible: "この対象は写っていない", restore: "この対象を戻す",
   combineWith: "まとめる対象", combine: "別の対象とまとめる", assignMedia: "写真を対象へ割り当てる", assignMediaLead: "写真・動画・音と対象の関係を整理できます。", assign: "割り当てる",
-  receiveProposals: "名前の提案を受け付ける", pauseProposals: "名前の提案を停止する", captureInfo: "撮影情報", capturedAt: "撮影日時", place: "場所", scope: "公開範囲", mediaCount: "メディア",
+  receiveProposals: "名前の提案を受け付ける", pauseProposals: "名前の提案を停止する", visibilitySettings: "公開範囲", visibilityLead: "公開すると、位置をぼかした記録がみんなの記録に加わります。", saveVisibility: "公開範囲を保存", captureInfo: "撮影情報", capturedAt: "撮影日時", place: "場所", scope: "公開範囲", mediaCount: "メディア",
   photo: "写真", video: "動画", audio: "音声", related: "つながる記録", relatedRecord: "近くの自然の記録", protectedLocation: "位置情報は公開範囲に合わせて保護されています"
 };
 
 const en: ObservationFirstRecordDetailCopy = {
   ...ja,
-  documentSuffix: "ikimon", back: "Back", menu: "Menu", records: "Records", home: "Home", language: "Language",
+  documentSuffix: "ZUKAN", back: "Back", menu: "Menu", records: "Records", home: "Home", language: "Language",
   media: "Photos, video and sound", enlargePhoto: "View full-size photo", openVideo: "Open video", openAudio: "Open audio", mediaNavigation: "Choose media",
   natureRecord: "Nature record", publicLocation: "Safe location", visibility: { public: "Public", limited: "Limited", private: "Private" }, edit: "Detailed edit", share: "Share", updatedNotice: "Changes saved.",
   found: "Found in this record", aiFound: "What AI found", learning: "What this can tell us", aiCandidate: "Candidate found by AI", communityProposalAvailable: "Name suggestions are available", candidateTemplate: "Possibly {name}", openDetails: "View details", openAll: "View all", recordName: "Name for this record", photoCandidate: "Candidate from the photo",
@@ -141,7 +144,7 @@ const en: ObservationFirstRecordDetailCopy = {
   note: "Photo note", manage: "Add information to this record", manageLead: "Add organisms, environment details, notes, or organize the media.", addSubject: "Add something visible", subjectName: "Short name", subjectNameExample: "Example: larva on the leaf", subjectType: "Type", context: "Context", add: "Add",
   subjectTypes: { unknown_subject: "Something visible", organism: "Organism", group: "Group", trace: "Trace", sound: "Sound", pet: "Pet" }, contexts: { unknown: "Not set", wild: "Wild", pet: "Pet", captive: "Captive", cultivated: "Cultivated" },
   separateSubject: "Separate as another subject", separateName: "Name for the new subject", separate: "Separate", notVisible: "This subject is not visible", restore: "Restore this subject", combineWith: "Combine with", combine: "Combine subjects",
-  assignMedia: "Assign media to subjects", assignMediaLead: "Organize how photos, video and sound support each subject.", assign: "Assign", receiveProposals: "Allow name suggestions", pauseProposals: "Pause name suggestions",
+  assignMedia: "Assign media to subjects", assignMediaLead: "Organize how photos, video and sound support each subject.", assign: "Assign", receiveProposals: "Allow name suggestions", pauseProposals: "Pause name suggestions", visibilitySettings: "Visibility", visibilityLead: "Public records appear with an approximate location in community records.", saveVisibility: "Save visibility",
   captureInfo: "Capture information", capturedAt: "Captured", place: "Place", scope: "Visibility", mediaCount: "Media", photo: "Photo", video: "Video", audio: "Audio", related: "Connected records", relatedRecord: "Nearby nature record", protectedLocation: "Location is protected according to the sharing scope"
 };
 
@@ -165,7 +168,7 @@ const es: ObservationFirstRecordDetailCopy = {
   note: "Nota de la foto", manage: "Añadir información al registro", manageLead: "Añade seres vivos, entorno, notas u organiza el contenido.", addSubject: "Añadir algo visible", subjectName: "Nombre breve", subjectNameExample: "Ejemplo: larva sobre la hoja", subjectType: "Tipo", context: "Contexto", add: "Añadir",
   subjectTypes: { unknown_subject: "Algo visible", organism: "Ser vivo", group: "Grupo", trace: "Rastro", sound: "Sonido", pet: "Mascota" }, contexts: { unknown: "Sin definir", wild: "Silvestre", pet: "Mascota", captive: "En cautividad", cultivated: "Cultivado" },
   separateSubject: "Separar como otro sujeto", separateName: "Nombre del nuevo sujeto", separate: "Separar", notVisible: "Este sujeto no aparece", restore: "Restaurar este sujeto", combineWith: "Combinar con", combine: "Combinar sujetos",
-  assignMedia: "Asignar contenido a los sujetos", assignMediaLead: "Organiza la relación de las fotos, vídeos y sonidos con cada sujeto.", assign: "Asignar", receiveProposals: "Permitir propuestas de nombre", pauseProposals: "Pausar propuestas de nombre",
+  assignMedia: "Asignar contenido a los sujetos", assignMediaLead: "Organiza la relación de las fotos, vídeos y sonidos con cada sujeto.", assign: "Asignar", receiveProposals: "Permitir propuestas de nombre", pauseProposals: "Pausar propuestas de nombre", visibilitySettings: "Visibilidad", visibilityLead: "Los registros públicos aparecen con una ubicación aproximada.", saveVisibility: "Guardar visibilidad",
   captureInfo: "Información de captura", capturedAt: "Fecha y hora", place: "Lugar", scope: "Visibilidad", mediaCount: "Contenido", photo: "Foto", video: "Vídeo", audio: "Audio", related: "Registros relacionados", relatedRecord: "Registro natural cercano", protectedLocation: "La ubicación está protegida según el alcance de publicación"
 };
 
@@ -189,7 +192,7 @@ const ptBr: ObservationFirstRecordDetailCopy = {
   note: "Nota da foto", manage: "Adicionar informações ao registro", manageLead: "Adicione seres vivos, ambiente, observações ou organize as mídias.", addSubject: "Adicionar algo visível", subjectName: "Nome curto", subjectNameExample: "Exemplo: larva sobre a folha", subjectType: "Tipo", context: "Contexto", add: "Adicionar",
   subjectTypes: { unknown_subject: "Algo visível", organism: "Ser vivo", group: "Grupo", trace: "Vestígio", sound: "Som", pet: "Animal de estimação" }, contexts: { unknown: "Não definido", wild: "Silvestre", pet: "Animal de estimação", captive: "Em cativeiro", cultivated: "Cultivado" },
   separateSubject: "Separar como outro sujeito", separateName: "Nome do novo sujeito", separate: "Separar", notVisible: "Este sujeito não aparece", restore: "Restaurar este sujeito", combineWith: "Combinar com", combine: "Combinar sujeitos",
-  assignMedia: "Atribuir mídia aos sujeitos", assignMediaLead: "Organize como fotos, vídeos e sons apoiam cada sujeito.", assign: "Atribuir", receiveProposals: "Permitir sugestões de nome", pauseProposals: "Pausar sugestões de nome",
+  assignMedia: "Atribuir mídia aos sujeitos", assignMediaLead: "Organize como fotos, vídeos e sons apoiam cada sujeito.", assign: "Atribuir", receiveProposals: "Permitir sugestões de nome", pauseProposals: "Pausar sugestões de nome", visibilitySettings: "Visibilidade", visibilityLead: "Registros públicos aparecem com localização aproximada.", saveVisibility: "Salvar visibilidade",
   captureInfo: "Informações da captura", capturedAt: "Data e hora", place: "Local", scope: "Visibilidade", mediaCount: "Mídia", photo: "Foto", video: "Vídeo", audio: "Áudio", related: "Registros relacionados", relatedRecord: "Registro natural próximo", protectedLocation: "A localização está protegida de acordo com o nível de compartilhamento"
 };
 

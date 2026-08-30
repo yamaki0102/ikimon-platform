@@ -12,6 +12,7 @@ import {
   buildObservationLifecyclePlan,
   buildOwnerObservationUpsertPlan,
   buildRecordProposalPolicyPlan,
+  buildRecordVisibilityPlan,
 } from "./cloudflareObservationDualWrite.js";
 
 const applyPlan = (db: DatabaseSync, plan: { mutations: Array<{ sql: string; values: Array<string | number | null> }> }): void => {
@@ -184,5 +185,43 @@ test("owner override proposal policy survives record-save replay", async () => {
     accepts_identification_proposals: 0,
     default_source: "owner_override",
   });
+  db.close();
+});
+
+test("owner visibility changes are replay-safe and keep canonical rights aligned", async () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON;");
+  db.exec(readFileSync(path.join(process.cwd(), "migrations", "observations", "0067_record_observation_foundation.sql"), "utf8"));
+  db.exec(`
+    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, visibility TEXT NOT NULL, public_area_label TEXT);
+    CREATE TABLE asset_ledger (asset_id TEXT PRIMARY KEY, observation_id TEXT NOT NULL, owner_user_id TEXT NOT NULL, visibility TEXT NOT NULL);
+    CREATE TABLE observation_data_rights (visit_id TEXT PRIMARY KEY, record_consent TEXT NOT NULL, updated_at TEXT);
+    INSERT INTO observations VALUES ('record-visibility', 'owner-1', 'private', NULL);
+    INSERT INTO asset_ledger VALUES ('asset-visibility', 'record-visibility', 'owner-1', 'private');
+    INSERT INTO observation_data_rights VALUES ('record-visibility', 'private', CURRENT_TIMESTAMP);
+  `);
+  const owner = await buildOwnerObservationUpsertPlan({ recordId: "record-visibility", ownerUserId: "owner-1", visibility: "private", sourceSnapshot: {} });
+  applyPlan(db, owner);
+
+  const publish = await buildRecordVisibilityPlan({ recordId: "record-visibility", ownerUserId: "owner-1", previousVisibility: "private", visibility: "public", operationId: "visibility-public-1" });
+  applyPlan(db, publish);
+  applyPlan(db, publish);
+  assert.equal(db.prepare("SELECT visibility FROM observations").get()?.visibility, "public");
+  assert.equal(db.prepare("SELECT visibility FROM asset_ledger").get()?.visibility, "public");
+  assert.equal(db.prepare("SELECT record_consent FROM observation_data_rights").get()?.record_consent, "public");
+  assert.deepEqual(Object.fromEntries(Object.entries(db.prepare("SELECT visibility, accepts_identification_proposals, default_source FROM record_observation_policies").get() ?? {})), {
+    visibility: "public",
+    accepts_identification_proposals: 0,
+    default_source: "owner_override",
+  });
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM observation_lifecycle_events WHERE reason_code = 'visibility_changed'").get()?.count, 1);
+
+  const privatize = await buildRecordVisibilityPlan({ recordId: "record-visibility", ownerUserId: "owner-1", previousVisibility: "public", visibility: "private", operationId: "visibility-private-1" });
+  applyPlan(db, privatize);
+  assert.equal(db.prepare("SELECT visibility FROM observations").get()?.visibility, "private");
+  assert.equal(db.prepare("SELECT visibility FROM asset_ledger").get()?.visibility, "private");
+  assert.equal(db.prepare("SELECT record_consent FROM observation_data_rights").get()?.record_consent, "private");
+  assert.equal(db.prepare("SELECT visibility FROM record_observation_policies").get()?.visibility, "private");
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
   db.close();
 });
