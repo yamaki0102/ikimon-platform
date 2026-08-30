@@ -50,6 +50,9 @@ function database(rows: PublicationFeedNativeRow[]): PublicationFeedNativeDataba
       assert.match(sql, /observation_data_rights/);
       assert.match(sql, /production_import_area_polygon_readmodel/);
       assert.match(sql, /media\.role = 'context'/);
+      assert.match(sql, /civic\.risk_lane = 'normal'/);
+      assert.match(sql, /publication_source\.ambiguity_state = 'clear'/);
+      assert.match(sql, /publication_record\.verification_status IN/);
       return {
         bind() {
           return this;
@@ -127,10 +130,16 @@ test("keeps AI candidate machine-readable and excludes rights/privacy unsafe row
     living_derivative_key: "derived/visit-face-unchecked/display.webp",
     living_metadata_json: "{}",
   } satisfies PublicationFeedNativeRow;
+  const unprovenRiskRow = {
+    ...baseRow,
+    observation_id: "visit-risk-unproven",
+    risk_lane: null,
+    living_derivative_key: "derived/visit-risk-unproven/display.webp",
+  } satisfies PublicationFeedNativeRow;
 
   const response = await handlePublicationFeedNativeRequest(
     new Request("https://staging.zukan.earth/api/v1/publication-feeds/miyakoda-renri-area?channel=living"),
-    database([candidate, privateRow, withdrawnRow, faceRow, uncheckedFaceRow]),
+    database([candidate, privateRow, withdrawnRow, faceRow, uncheckedFaceRow, unprovenRiskRow]),
   );
   assert.ok(response);
   assert.equal(response.status, 200);

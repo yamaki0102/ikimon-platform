@@ -181,7 +181,17 @@ const PUBLICATION_FEED_NATIVE_SQL = `
      AND rights.withdrawal_status = 'active'
      AND COALESCE(civic.audience_scope, 'public') = 'public'
      AND COALESCE(civic.public_precision, 'municipality') NOT IN ('hidden', 'exact_private')
-     AND COALESCE(civic.risk_lane, 'normal') = 'normal'
+     AND civic.risk_lane = 'normal'
+     AND EXISTS (
+       SELECT 1
+         FROM record_observation_source_map publication_source
+         JOIN record_observations publication_record
+           ON publication_record.observation_id = publication_source.observation_id
+        WHERE publication_source.source_entity_id = o.observation_id
+          AND publication_source.ambiguity_state = 'clear'
+          AND publication_record.lifecycle_status = 'active'
+          AND publication_record.verification_status IN ('owner_confirmed', 'community_review', 'verified')
+     )
    ORDER BY o.observed_at DESC, o.observation_id
    LIMIT ?
 `;
@@ -306,7 +316,7 @@ function isEligible(row: PublicationFeedNativeRow): boolean {
   if (!cleanText(row.dataset_license) || !cleanText(row.media_license) || row.withdrawal_status !== "active") return false;
   if (row.audience_scope && row.audience_scope !== "public") return false;
   if (row.public_precision === "hidden" || row.public_precision === "exact_private") return false;
-  if (row.risk_lane && row.risk_lane !== "normal") return false;
+  if (row.risk_lane !== "normal") return false;
   return pointInGeometry(row.exact_lng, row.exact_lat, parseGeometry(row.boundary_geometry_json));
 }
 
