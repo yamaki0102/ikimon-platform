@@ -683,7 +683,16 @@ const LOWER_PAGE_STYLES = `
   .doc-toc-link:hover { color: #047857; }
   .doc-toc-l3 { padding-left: 14px; font-size: 12px; color: #64748b; }
   .doc-link-strip { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px 14px; margin-top: 16px; }
+  .doc-link-strip a { min-height: 44px; display: inline-flex; align-items: center; }
   .doc-link-strip .link-arrow { color: #047857; font-size: 14px; font-weight: 900; text-decoration: underline; text-underline-offset: 4px; }
+  .doc-reading-layout.is-community-product { grid-template-columns: minmax(0, 760px); justify-content: center; }
+  .community-product-actions { max-width: 760px; margin: 8px auto 0; }
+  .community-product-actions > h2 { margin: 0 0 14px; font-size: clamp(22px, 4vw, 30px); }
+  .community-product-actions > div { display: grid; gap: 10px; }
+  .community-product-actions a { min-height: 72px; display: grid; align-content: center; gap: 4px; padding: 14px 16px; border: 1px solid rgba(15, 23, 42, .1); border-radius: 16px; background: #fff; color: #10251a; text-decoration: none; }
+  .community-product-actions a strong { font-size: 15px; }
+  .community-product-actions a span { color: #64748b; font-size: 13px; line-height: 1.6; }
+  .community-product-actions a:focus-visible { outline: 3px solid #f5b842; outline-offset: 3px; }
   .field-program-demo { display: grid; gap: 18px; max-width: 1040px; margin: 0 auto 18px; padding: 20px 0 28px; border-bottom: 1px solid rgba(15,23,42,.08); }
   .field-program-demo-head { display: grid; gap: 8px; max-width: 760px; }
   .field-program-demo-head span { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
@@ -1290,6 +1299,27 @@ function renderFieldProgramBusinessDemo(basePath: string, lang: SiteLang): strin
   </section>`;
 }
 
+function renderCommunityProductActions(basePath: string, lang: SiteLang): string {
+  const copy = lang === "ja"
+    ? {
+        title: "次にできること",
+        items: [
+          { href: "/record", title: "写真を1件残す", body: "名前が分からなくても、写真と場所から始められます。" },
+          { href: "/community/events", title: "観察会を見る", body: "同じ場所をみんなで見直す活動を探せます。" },
+          { href: "/community/fields", title: "場所から探す", body: "地域の活動や記録が集まる場所を見られます。" },
+        ],
+      }
+    : {
+        title: "What you can do next",
+        items: [
+          { href: "/record", title: "Create one record", body: "Start with a photo and place, even when you do not know the name." },
+          { href: "/community/events", title: "View community events", body: "Find activities that revisit the same place together." },
+          { href: "/community/fields", title: "Explore places", body: "See places where regional activity and records come together." },
+        ],
+      };
+  return `<section class="section community-product-actions"><h2>${escapeHtml(copy.title)}</h2><div>${copy.items.map((item) => `<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, item.href), lang))}"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.body)}</span></a>`).join("")}</div></section>`;
+}
+
 function renderPageDocument(basePath: string, lang: SiteLang, currentPath: string, page: SitePageDefinition, prependHtml = ""): string {
   const pageKey = page.marketing?.pageKey;
   if (!pageKey) {
@@ -1300,6 +1330,7 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   const meta = getShortCopy<MarketingPageMeta>(lang, "public", `marketing.pages.${pageKey}`);
   const plainLearnReader = lang === "ja" && page.lane === "learn" && page.layout === "reading";
   const isLearnIndexHub = meta.bodyPageId === "learn-index";
+  const isCommunityProductPage = page.path === "/community";
 
   const rawBodyHtml = isLearnIndexHub
     ? renderLearnIndexHub(basePath, lang)
@@ -1340,14 +1371,14 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
     body: `<div class="lower-page is-article${isLearnIndexHub ? " is-learn-hub" : ""}">
       ${prependHtml}
       ${fieldProgramDemoHtml}
-      <div class="doc-reading-layout">
+      <div class="doc-reading-layout${isCommunityProductPage ? " is-community-product" : ""}">
         <section class="section doc-article">
           ${plainLearnReader ? renderDocHeader(basePath, lang, meta) : ""}
           <article class="doc-prose${isLearnIndexHub ? " learn-hub-prose" : ""}">${bodyHtml}</article>
         </section>
-        ${renderDocToc(headings, meta, page, lang, plainLearnReader)}
+        ${isCommunityProductPage ? "" : renderDocToc(headings, meta, page, lang, plainLearnReader)}
       </div>
-      ${renderGatewayGrid(basePath, lang, meta, page.path)}
+      ${isCommunityProductPage ? renderCommunityProductActions(basePath, lang) : renderGatewayGrid(basePath, lang, meta, page.path)}
     </div>`,
     footerNote: meta.footerNote ?? getShortCopy<string>(lang, "shared", "footerNotes.public"),
   });

@@ -18,6 +18,7 @@
           { "title": "Take the next step", "body": "Look back, check again, or join in another time." }
         ],
         "placesTitle": "Explore by place", "placesBody": "Follow photos and activities kept at the same place to see what changed and what comes next.",
+        "communityTitle": "Record together", "communityBody": "Find records gathered around the same place through community activities.", "communityCta": "View community activity",
         "privacyTitle": "Your exact location is not made public", "privacyBody": "Choose the visibility of every record. Homes and sensitive wildlife locations receive stronger protection.",
         "finalTitle": "Keep something that caught your attention today", "finalCta": "Capture"
       },

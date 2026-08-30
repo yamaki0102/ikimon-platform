@@ -171,6 +171,15 @@ interface SendEmailBinding {
 
 interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
+  readonly access?: {
+    readonly aud: string;
+    getIdentity(): Promise<{
+      email?: string;
+      name?: string;
+      user_uuid?: string;
+      [key: string]: unknown;
+    } | undefined>;
+  };
 }
 
 interface ScheduledController {
@@ -728,6 +737,7 @@ interface OAuthAccountRow {
   role_name: string | null;
   rank_label: string | null;
   banned: number;
+  profile_json?: string | null;
 }
 
 interface MunicipalWalkMapD1Row {
@@ -2245,7 +2255,11 @@ const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/pt-br/profile/settings",
   "/pt-br/register",
   "/pt-br/record",
-  "/pt-br/records"
+  "/pt-br/records",
+  "/community",
+  "/community/events",
+  "/ja/community",
+  "/ja/community/events"
 ] as const;
 
 const ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS = [
@@ -2430,7 +2444,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
 const ORIGINAL_UI_HTML_CACHE_CONTROL = "no-store, no-cache, must-revalidate, proxy-revalidate";
 
 export const worker = {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext = { waitUntil() {} }): Promise<Response> {
     try {
       const url = new URL(request.url);
       const nativePathname = stripPublicLangPrefix(url.pathname);
@@ -2471,6 +2485,9 @@ export const worker = {
       if (isShadowDiagnosticPath(url.pathname) && env.ENVIRONMENT !== "shadow") {
         return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
       }
+
+      const accessSessionResponse = await issueStagingAccessSessionIfNeeded(request, url, env, ctx);
+      if (accessSessionResponse) return accessSessionResponse;
 
       if (request.method === "GET" && (
         nativePathname === "/api/v1/weather/jma-nowcast/times"
@@ -2786,6 +2803,10 @@ export const worker = {
 
       if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
         return getSessionAwareRecordHtml(request, url, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && isNativeRecordsProductView(url)) {
+        return getNativeRecordsProductHtml(request, url, env);
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
@@ -23572,7 +23593,7 @@ async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Reque
   }
   const headerAdjusted = injectCompactHeaderMenu(text, url, session);
   if (!isAuthHtmlPath(url.pathname)) return headerAdjusted;
-  return personalizeAuthRedirectHtml(activateMaterializedAuthOAuthLinks(headerAdjusted, url), postAuthRedirect(url.searchParams.get("redirect")));
+  return personalizeAuthRedirectHtml(configureMaterializedAuthOAuthLinks(headerAdjusted, url, env), postAuthRedirect(url.searchParams.get("redirect")));
 }
 
 function isAuthHtmlPath(pathname: string): boolean {
@@ -24324,6 +24345,125 @@ function renderCloudflareProfileRecordCard(
 
 function isRecordsHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/records$/.test(pathname);
+}
+
+function isNativeRecordsProductView(url: URL): boolean {
+  if (!isRecordsHtmlPath(url.pathname)) return false;
+  const view = String(url.searchParams.get("view") ?? "").trim();
+  return view === "" || view === "public" || view === "mine";
+}
+
+function recordsProductText(value: unknown): string {
+  return String(value ?? "").normalize("NFKC").toLocaleLowerCase("ja").trim();
+}
+
+function recordsProductItemMatches(item: ReturnType<typeof publicMapObservationItem>, query: string): boolean {
+  if (!query) return true;
+  return recordsProductText([
+    item.displayName,
+    item.publicAreaLabel,
+    item.observedAt,
+    item.mediaKind
+  ].filter(Boolean).join(" ")).includes(query);
+}
+
+function renderRecordsProductCard(
+  item: ReturnType<typeof publicMapObservationItem> | OwnerHomeRecordItem,
+  prefix: string,
+  lang: "ja" | "en" | "es" | "pt-br",
+  mode: "mine" | "public"
+): string {
+  const title = normalizeOptionalText(item.displayName) ?? (lang === "ja" ? "名前を確認中" : "Name pending");
+  const date = formatHomeRecordObservedAt(item.observedAt, lang);
+  const location = mode === "public"
+    ? normalizeOptionalText(item.publicAreaLabel) ?? (lang === "ja" ? "位置を保護" : "Location protected")
+    : lang === "ja" ? "自分の記録" : "Your record";
+  const visibility = mode === "mine" && "ownerVisibility" in item
+    ? (item.ownerVisibility === "public" ? (lang === "ja" ? "公開" : "Public") : (lang === "ja" ? "非公開" : "Private"))
+    : "";
+  const photoUrl = mode === "mine" && "ownerVisibility" in item && item.ownerVisibility !== "public"
+    ? null
+    : item.photoUrl;
+  const media = photoUrl
+    ? `<img src="${escapeHtml(photoUrl)}" alt="" loading="lazy" decoding="async">`
+    : `<span class="cf-records-native-no-media" aria-hidden="true">${escapeHtml(homeRecordMediaLabel(item.mediaKind, lang))}</span>`;
+  return `<a class="cf-records-native-card" href="${escapeHtml(`${prefix}/observations/${encodeURIComponent(item.visitId)}`)}">
+    <span class="cf-records-native-media">${media}</span>
+    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, location].filter(Boolean).join(" · "))}</span>${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
+  </a>`;
+}
+
+function renderRecordsProductSection(
+  items: Array<ReturnType<typeof publicMapObservationItem> | OwnerHomeRecordItem>,
+  url: URL,
+  mode: "mine" | "public",
+  session: SessionSnapshot | null
+): string {
+  const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  const query = String(url.searchParams.get("q") ?? "").trim().slice(0, 80);
+  const isJapanese = lang === "ja";
+  const title = mode === "mine" ? (isJapanese ? "自分の記録" : "Your records") : (isJapanese ? "みんなの記録" : "Community records");
+  const lead = mode === "mine"
+    ? (isJapanese ? "撮った写真やメモを、あとから探して見返せます。" : "Find and revisit your photos and notes.")
+    : (isJapanese ? "公開された写真やメモを、名前や場所から探せます。" : "Find public photos and notes by name or place.");
+  const cards = items.length > 0
+    ? `<div class="cf-records-native-grid">${items.map((item) => renderRecordsProductCard(item, prefix, lang, mode)).join("")}</div>`
+    : `<div class="cf-records-native-empty"><strong>${escapeHtml(query
+      ? (isJapanese ? `「${query}」に合う記録は見つかりませんでした。` : `No records matched “${query}”.`)
+      : (isJapanese ? "まだ記録はありません。" : "No records yet."))}</strong><a href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(isJapanese ? "写真から記録する" : "Create a record")}</a></div>`;
+  return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
+    <style>
+      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#143f2e;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#143f2e;background:#143f2e;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#143f2e;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;min-height:112px;background:#edf3ee}.cf-records-native-media img{width:100%;height:100%;min-height:112px;object-fit:cover}.cf-records-native-no-media{font-size:.75rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.8rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#143f2e;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty a{min-height:44px;display:inline-flex;align-items:center;padding:0 16px;border-radius:999px;background:#143f2e;color:#fff;font-weight:850;text-decoration:none}.cf-records-native :is(a,button,input):focus-visible{outline:3px solid #ebb72f;outline-offset:3px}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media,.cf-records-native-media img{min-height:190px}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    </style>
+    <header class="cf-records-native-head"><div class="cf-records-native-tabs">${session ? `<a href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${isJapanese ? "自分の記録" : "Your records"}</a>` : ""}<a href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${isJapanese ? "みんなの記録" : "Community records"}</a><a href="${prefix}/map?tab=places">${isJapanese ? "場所" : "Places"}</a><a href="${prefix}/community">${isJapanese ? "みんなの活動" : "Community"}</a></div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${isJapanese ? "記録を検索" : "Search records"}" aria-label="${isJapanese ? "記録を検索" : "Search records"}"><button type="submit">${isJapanese ? "探す" : "Search"}</button></form></header>
+    ${cards}
+  </section>`;
+}
+
+async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const requestedMode = url.searchParams.get("view") === "mine" ? "mine" : "public";
+  const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  if (requestedMode === "mine" && (!session || session.banned)) {
+    return redirect303(`${prefix}/login?redirect=${encodeURIComponent(`${prefix}/records?view=mine`)}`, { "cache-control": "no-store" });
+  }
+  let object: MaterializedR2ObjectBody | null = null;
+  for (const key of originalUiHtmlKeysForRequest(new URL(`${url.origin}${prefix}/records`))) {
+    object = await getVersionedOriginalUiObject(env, key);
+    if (object?.body) break;
+  }
+  if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
+  const query = recordsProductText(String(url.searchParams.get("q") ?? "").slice(0, 80));
+  const sourceItems = requestedMode === "mine"
+    ? await ownerHomeRecordCards(session!.userId, env, 120).catch(() => [])
+    : await recentPublicRecordCards(env, 120).catch(() => []);
+  const items = sourceItems.filter((item) => recordsProductItemMatches(item, query));
+  const cspNonce = createHtmlCspNonce();
+  let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
+  html = html.replace(/<form class="site-search\b[^"]*"[\s\S]*?<\/form>/gi, "");
+  const section = renderRecordsProductSection(items, url, requestedMode, session);
+  if (/<main\b[^>]*>[\s\S]*?<\/main>/i.test(html)) {
+    html = html.replace(/<main\b([^>]*)>[\s\S]*?<\/main>/i, `<main$1>${section}</main>`);
+  } else if (/<\/body>/i.test(html)) {
+    html = html.replace(/<\/body>/i, `${section}</body>`);
+  } else {
+    html = `${html}${section}`;
+  }
+  html = applyCspNonceToHtmlScripts(injectCompactHeaderMenu(html, url, session), cspNonce);
+  return new Response(request.method === "HEAD" ? null : html, {
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": object.httpMetadata?.contentType ?? "text/html; charset=utf-8",
+      "cache-control": ORIGINAL_UI_HTML_CACHE_CONTROL,
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-materialized": "original-ui-html",
+      "x-ikimon-cloudflare-native": "records-product",
+      ...materializedSourceSha256Headers(object),
+      ...releaseIdentityHeaders(env)
+    }
+  });
 }
 
 function recordsInjectionCopy(url: URL) {
@@ -25152,14 +25292,26 @@ function renderHomeRecordMediaIcons(mediaKind: HomeRecordMediaKind, lang: "ja" |
   return `<span class="prototype-record-feed-media-icons" aria-label="${escapeHtml(label)}"><span class="prototype-content-icon is-${escapeHtml(icon)}"></span></span>`;
 }
 
-function activateMaterializedAuthOAuthLinks(html: string, url: URL): string {
+function configureMaterializedAuthOAuthLinks(html: string, url: URL, env: Env): string {
   const redirect = postAuthRedirect(url.searchParams.get("redirect"));
-  const googleHref = `/auth/oauth/google/start?redirect=${encodeURIComponent(redirect)}`;
-  const twitterHref = `/auth/oauth/twitter/start?redirect=${encodeURIComponent(redirect)}`;
-  return html
-    .replace(/<span class="auth-social-disabled">([^<]*Google[^<]*)<\/span>/, `<a href="${escapeHtml(googleHref)}">$1</a>`)
-    .replace(/<span class="auth-social-disabled">([^<]*(?:X\(Twitter\)|X)[^<]*)<\/span>/, `<a href="${escapeHtml(twitterHref)}">$1</a>`)
-    .replace(/\s+は設定中(?=<\/a>)/g, "");
+  const providers: Array<{ provider: OAuthProvider; label: RegExp }> = [
+    { provider: "google", label: /Google/i },
+    { provider: "twitter", label: /(?:X\(Twitter\)|X)/i }
+  ];
+  let result = html;
+  for (const { provider, label } of providers) {
+    const href = `/auth/oauth/${provider}/start?redirect=${encodeURIComponent(redirect)}`;
+    const disabledPattern = new RegExp(`<span class="auth-social-disabled">([^<]*${label.source}[^<]*)<\\/span>`, "i");
+    const linkPattern = new RegExp(`<a\\b[^>]*href="[^"]*\\/auth\\/oauth\\/${provider}\\/start\\?redirect=[^"]*"[^>]*>[^<]*<\\/a>`, "gi");
+    if (getOAuthConfig(env, provider)) {
+      result = result.replace(disabledPattern, `<a href="${escapeHtml(href)}">$1</a>`);
+    } else {
+      result = result.replace(disabledPattern, "").replace(linkPattern, "");
+    }
+  }
+  return result
+    .replace(/\s+は設定中(?=<\/a>)/g, "")
+    .replace(/<div class="auth-social"[^>]*>\s*<\/div>/g, "");
 }
 
 function personalizeAuthRedirectHtml(html: string, redirect: string): string {
@@ -25321,11 +25473,45 @@ async function getPublicDerivedImageTransform(request: Request, url: URL): Promi
   });
 }
 
+async function publicDerivedMediaAccess(
+  request: Request,
+  key: string,
+  env: Env
+): Promise<"public" | "owner" | "denied"> {
+  const row = await env.OBS_DB.prepare(
+    `SELECT a.owner_user_id AS asset_owner_user_id,
+            o.owner_user_id AS observation_owner_user_id,
+            o.visibility,
+            o.emergency_hidden
+       FROM asset_ledger a
+       LEFT JOIN observations o ON o.observation_id = a.observation_id
+      WHERE a.public_derivative_key = ?
+      LIMIT 1`
+  ).bind(key).first<{
+    asset_owner_user_id: string | null;
+    observation_owner_user_id: string | null;
+    visibility: string | null;
+    emergency_hidden: number | null;
+  }>();
+  // Historical materialized public assets predate the ledger. Their existing
+  // public contract remains intact; every current ledger-backed asset is gated.
+  if (!row) return "public";
+  if (row.visibility === "public" && row.emergency_hidden === 0) return "public";
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  const ownerUserId = row.observation_owner_user_id ?? row.asset_owner_user_id;
+  return session && !session.banned && ownerUserId === session.userId ? "owner" : "denied";
+}
+
 async function getPublicDerivedMedia(request: Request, url: URL, env: Env): Promise<Response> {
   const key = url.pathname.replace(/^\/+/, "");
   if (!key.startsWith("derived/") || key.includes("..") || key.includes("\\") || /%(?:2e|5c)/i.test(key)) {
     return json({ error: "not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
   }
+  const access = await publicDerivedMediaAccess(request, key, env);
+  if (access === "denied") {
+    return json({ error: "media_not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
+  }
+  const cacheControl = access === "public" ? PUBLIC_DERIVED_MEDIA_CACHE_CONTROL : "private, no-cache, no-store, must-revalidate";
   if (request.method === "HEAD") {
     const object = await env.ASSET_BUCKET.head(key);
     if (!object) {
@@ -25338,7 +25524,7 @@ async function getPublicDerivedMedia(request: Request, url: URL, env: Env): Prom
     }
     const headers: Record<string, string> = {
       "content-type": object.httpMetadata?.contentType ?? "application/octet-stream",
-      "cache-control": PUBLIC_DERIVED_MEDIA_CACHE_CONTROL
+      "cache-control": cacheControl
     };
     if (typeof object.size === "number") headers["content-length"] = String(object.size);
     return new Response(null, { headers });
@@ -25350,7 +25536,7 @@ async function getPublicDerivedMedia(request: Request, url: URL, env: Env): Prom
   return new Response(object.body, {
     headers: {
       "content-type": object.httpMetadata?.contentType ?? "application/octet-stream",
-      "cache-control": PUBLIC_DERIVED_MEDIA_CACHE_CONTROL
+      "cache-control": cacheControl
     }
   });
 }
@@ -27039,6 +27225,136 @@ function getOAuthConfig(env: Env, provider: OAuthProvider): { clientId: string; 
   const clientSecret = provider === "google" ? env.GOOGLE_CLIENT_SECRET : env.TWITTER_CLIENT_SECRET;
   if (!clientId?.trim() || !clientSecret?.trim()) return null;
   return { clientId: clientId.trim(), clientSecret: clientSecret.trim() };
+}
+
+function isStagingAccessDocumentRequest(request: Request, url: URL, env: Env): boolean {
+  if (env.ENVIRONMENT !== "staging" || url.hostname !== new URL(STAGING_PUBLIC_ORIGIN).hostname) return false;
+  if (request.method !== "GET" || !String(request.headers.get("accept") ?? "").toLowerCase().includes("text/html")) return false;
+  if (/^\/(?:api|assets|media|uploads|thumb|healthz?|readyz|internal|ops|cdn-cgi)(?:\/|$)/.test(url.pathname)) return false;
+  if (/^\/(?:favicon\.ico|robots\.txt|sitemap\.xml|manifest\.webmanifest|app-sw\.js)$/.test(url.pathname)) return false;
+  return true;
+}
+
+function hasVerifiedGoogleEmail(account: OAuthAccountRow): boolean {
+  if (account.provider !== "google") return false;
+  try {
+    const profile = JSON.parse(account.profile_json ?? "{}") as Record<string, unknown>;
+    return profile.verified_email === true || profile.email_verified === true;
+  } catch {
+    return false;
+  }
+}
+
+async function findVerifiedOAuthAccountByEmail(email: string, env: Env): Promise<OAuthAccountRow | null> {
+  const account = await env.CORE_DB.prepare(
+    `SELECT user_id, provider, provider_user_id, provider_email, display_name, role_name, rank_label, banned, profile_json
+       FROM oauth_accounts
+      WHERE provider = 'google' AND lower(provider_email) = lower(?)
+      ORDER BY linked_at DESC
+      LIMIT 1`
+  ).bind(email).first<OAuthAccountRow>();
+  return account && hasVerifiedGoogleEmail(account) ? account : null;
+}
+
+async function findAccessAccount(providerUserId: string, env: Env): Promise<OAuthAccountRow | null> {
+  return env.CORE_DB.prepare(
+    `SELECT user_id, provider, provider_user_id, provider_email, display_name, role_name, rank_label, banned
+       FROM oauth_accounts
+      WHERE provider = 'cloudflare-access' AND provider_user_id = ?
+      LIMIT 1`
+  ).bind(providerUserId).first<OAuthAccountRow>();
+}
+
+async function findOrCreateAccessUser(
+  identity: { email?: string; name?: string; user_uuid?: string; [key: string]: unknown },
+  env: Env
+): Promise<AuthUserRow> {
+  const email = normalizeEmail(identity.email);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("access_identity_email_required");
+  const providerUserId = normalizeOptionalText(identity.user_uuid) ?? email;
+  const existingAccess = await findAccessAccount(providerUserId, env);
+  const linkedOAuth = existingAccess ? null : await findVerifiedOAuthAccountByEmail(email, env);
+  const existing = existingAccess ? oauthAccountToAuthUser(existingAccess) : linkedOAuth ? oauthAccountToAuthUser(linkedOAuth) : null;
+  if (existing?.banned) throw new Error("account_disabled");
+
+  const accessUserDigest = await sha256Hex(textToArrayBuffer(providerUserId));
+  const userId = existing?.user_id ?? `user_access_${accessUserDigest.slice(0, 24)}`;
+  const displayName = existing?.display_name ?? normalizeOptionalText(identity.name) ?? email.split("@", 1)[0] ?? "ZUKAN user";
+  const roleName = existing?.role_name ?? "Observer";
+  const rankLabel = existing?.rank_label ?? "観察者";
+  await env.CORE_DB.batch([
+    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId),
+    env.CORE_DB.prepare(
+      `INSERT INTO oauth_accounts
+       (user_id, provider, provider_user_id, provider_email, display_name, role_name, rank_label, banned, profile_json, linked_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(provider, provider_user_id) DO UPDATE SET
+         provider_email = excluded.provider_email,
+         display_name = excluded.display_name,
+         profile_json = excluded.profile_json,
+         linked_at = CURRENT_TIMESTAMP`
+    ).bind(userId, "cloudflare-access", providerUserId, email, displayName, roleName, rankLabel, 0, JSON.stringify({ source: "cloudflare_access" }))
+  ]);
+  const stored = await findAccessAccount(providerUserId, env);
+  if (!stored) throw new Error("access_account_not_persisted");
+  if (stored.banned) throw new Error("account_disabled");
+  return {
+    user_id: stored.user_id,
+    email,
+    password_hash: existing?.password_hash ?? null,
+    display_name: stored.display_name,
+    role_name: stored.role_name,
+    rank_label: stored.rank_label,
+    banned: 0
+  };
+}
+
+async function issueStagingAccessSessionIfNeeded(
+  request: Request,
+  url: URL,
+  env: Env,
+  ctx: ExecutionContext
+): Promise<Response | null> {
+  if (!isStagingAccessDocumentRequest(request, url, env)) return null;
+  if (!ctx.access) {
+    return new Response("ZUKANの招待を確認できませんでした。", {
+      status: 403,
+      headers: { "cache-control": "no-store", "content-type": "text/plain; charset=utf-8" }
+    });
+  }
+  try {
+    const currentSession = await readCompatibleSession(request, env);
+    if (currentSession?.banned) throw new Error("account_disabled");
+    const identity = await ctx.access.getIdentity();
+    if (!identity) return new Response("招待情報を確認できませんでした。", { status: 403, headers: { "cache-control": "no-store" } });
+    const user = await findOrCreateAccessUser(identity, env);
+    if (currentSession?.userId === user.user_id) return null;
+    const session = await issueSessionForAuthUser(request, env, user);
+    return new Response(null, {
+      status: 303,
+      headers: {
+        location: `${url.pathname}${url.search}`,
+        "cache-control": "no-store",
+        "set-cookie": session.cookie
+      }
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "unknown";
+    console.error(JSON.stringify({
+      message: "access_session_bridge_failed",
+      reason
+    }));
+    if (reason === "account_disabled" || reason === "access_identity_email_required") {
+      return new Response("この招待ではZUKANを利用できません。", {
+        status: 403,
+        headers: { "cache-control": "no-store", "content-type": "text/plain; charset=utf-8" }
+      });
+    }
+    return new Response("ZUKANへのログインを完了できませんでした。時間をおいて再読み込みしてください。", {
+      status: 503,
+      headers: { "cache-control": "no-store", "content-type": "text/plain; charset=utf-8" }
+    });
+  }
 }
 
 function oauthStateSecret(env: Env): string {

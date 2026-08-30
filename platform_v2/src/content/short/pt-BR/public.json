@@ -18,6 +18,7 @@
           { "title": "Leva ao próximo passo", "body": "Reveja, confirme algo ou participe de novo." }
         ],
         "placesTitle": "Explorar por lugar", "placesBody": "Acompanhe fotos e atividades do mesmo lugar para ver mudanças e o que vem depois.",
+        "communityTitle": "Registrar juntos", "communityBody": "Encontre registros do mesmo lugar em atividades da comunidade.", "communityCta": "Ver atividades",
         "privacyTitle": "Sua localização exata não é publicada", "privacyBody": "Escolha a visibilidade de cada registro. Casas e locais de espécies sensíveis recebem proteção maior.",
         "finalTitle": "Guarde algo que chamou sua atenção hoje", "finalCta": "Capturar"
       },

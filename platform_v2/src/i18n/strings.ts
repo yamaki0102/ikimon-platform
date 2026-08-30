@@ -15,6 +15,9 @@ export type LandingStrings = {
       flowItems: Array<{ title: string; body: string }>;
       placesTitle: string;
       placesBody: string;
+      communityTitle: string;
+      communityBody: string;
+      communityCta: string;
       privacyTitle: string;
       privacyBody: string;
       finalTitle: string;

@@ -74,11 +74,12 @@ async function expectGuestHome(page: Page): Promise<void> {
     await expect(page.locator('[data-home-auth-state="guest"]')).toHaveCount(2);
     await expect(page.locator('[data-home-view="guest"] .home-primary-button')).toHaveCount(1);
     await expect(page.locator('[data-home-view="guest"] .home-bottom-nav')).toHaveCount(0);
-    await expect(page.locator(".home-category-section")).toBeVisible();
+    await expect(page.locator(".home-category-section, .home-value-section")).toHaveCount(0);
     await expect(page.locator(".home-place-section")).toBeVisible();
+    await expect(page.locator(".home-community-section")).toBeVisible();
     await expect(page.locator("#map-explorer")).toHaveCount(0);
-    await expect(page.locator("body")).toContainText("地域の記録を、");
-    await expect(page.locator("body")).toContainText("みんなで育てる。");
+    await expect(page.locator("body")).toContainText("招待された方へ。見つけたことを、");
+    await expect(page.locator("body")).toContainText("写真1枚から。");
   }).toPass({
     intervals: [1_500, 3_000, 5_000],
     timeout: 45_000,

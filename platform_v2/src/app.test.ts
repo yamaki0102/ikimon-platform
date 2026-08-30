@@ -197,8 +197,9 @@ test("root route serves the state-split guest home HTML even for generic accept 
     assert.match(response.body, /data-home-contract="state-split-v1"/);
     assert.match(response.body, /data-home-auth-state="guest"/);
     assert.match(response.body, /<span class="home-hero-phrase">招待された方へ。見つけたことを、<\/span><span class="home-hero-phrase">写真1枚から。<\/span>/);
-    assert.match(response.body, /何を残せるか/);
+    assert.doesNotMatch(response.body, /<section class="home-section home-(?:category|value)-section"/);
     assert.match(response.body, /場所から見る/);
+    assert.match(response.body, /みんなの活動を見る/);
     assert.match(response.body, /正確な位置は公開しません/);
     assert.doesNotMatch(response.body, /<h1>記録を見る<\/h1>/);
     assert.match(response.body, /class="site-header site-header-home"/);
