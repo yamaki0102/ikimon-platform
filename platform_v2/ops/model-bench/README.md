@@ -141,7 +141,7 @@ Run an explicitly selected model on a frozen manifest:
 ```bash
 ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
 npm run bench:zukan -- run \
-  --model=gemini:gemini-3.5-flash \
+  --model=gemini:gemini-3.5-flash-lite \
   --manifest=ops/model-bench/fixtures/zukan-public-post-core-v2.external.json \
   --limit=8
 ```
@@ -151,7 +151,7 @@ Core baseline uses all fixed 24 posts:
 ```bash
 ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
 npm run bench:zukan -- run \
-  --model=gemini:gemini-3.5-flash \
+  --model=gemini:gemini-3.5-flash-lite \
   --manifest=ops/model-bench/fixtures/zukan-public-post-core-v2.external.json
 ```
 
@@ -219,3 +219,7 @@ After explicit billing authorization, a least-privilege `AI Gateway Run` token n
 The exposed first token was revoked and replaced by least-privilege token `zukan-model-bench-20260830-r2`; its value was transferred locally through a Windows DPAPI-encrypted scratch file and was never committed or logged. Cloudflare provider-native Gemini 3.7 then passed its canary and ran all seven fixed posts once: 6/7 request/schema success, p50/p95 12,991/14,989ms, 71,010/284 input/output tokens, estimated USD 0.0543225, and six complete raw final outputs. `record-1784430118720` received one provider 503 `UNAVAILABLE` and was not retried. After a paid Cloudflare credit top-up, Grok 4.6 still returned provider-native HTTP 401 before model output, proving that this route requires an active xAI provider key rather than only AI Gateway credit. See `evidence/2026-08-30-gemini37-cloudflare-final-grok-auth-gate-v1.json` and its linked reports.
 
 The separate xAI account had zero credit and required an additional provider-side payment. That purchase was cancelled before any charge or API-key creation. The user declined separate xAI billing, so Grok 4.6 is closed as `ABORTED_SEPARATE_BILLING`; its full run was never started. The existing Cloudflare AI Gateway credit remains available for models currently supported by Cloudflare's catalog. See `evidence/2026-08-30-grok-aborted-separate-xai-billing.json`.
+
+The 2026-08-30 resolution experiment kept the same seven posts, ordered 21 source images, dataset SHA, prompt SHA, and canonical rights, while recording deterministic 1024px transmission derivatives separately from the immutable source identities. Gemini 3.5 Flash-Lite physical resizing at default media resolution did not reduce input tokens and produced 6/7 schema-valid outputs. Gemini 3.5 Flash-Lite with `media_resolution=medium` reduced input tokens by 13.28% but also produced 6/7 schema-valid outputs and cost more because output tokens expanded. Cloudflare Workers AI `@cf/zai-org/glm-5.3-flash` stayed 7/7 schema valid and reduced input tokens by 43.10% and estimated cost by 25.76%, but p95 latency rose to 104,051ms and the key Bidens/Acalypha/blurred-bird weaknesses remained. No production image or model setting changed. See `evidence/2026-08-30-1024-resolution-comparison-v1.json` and `.md`.
+
+The benchmark full-run loop used for that Evidence is intentionally simple and sequential; it is not the production ZUKAN execution design. Production uses the `ikimon-prod-media-jobs` Cloudflare Queue, autoscaling consumer invocations, and Gemini provider batch jobs. The benchmark runner now also preserves valid final JSON when sensitive values or private-reasoning fields are present by removing only those fields/values instead of discarding the whole final output.

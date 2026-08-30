@@ -1,0 +1,665 @@
+{
+  "version": "zukan-post-model-bench-v2",
+  "promptVersion": "observation-reassess-post-cold-start-v2",
+  "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+  "model": "gemini-3.5-flash-lite",
+  "provider": "gemini",
+  "manifestPath": "ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+  "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+  "startedAt": "2026-08-30T01:50:40.619Z",
+  "completedAt": "2026-08-30T01:51:07.287Z",
+  "postCount": 7,
+  "imageCount": 21,
+  "successCount": 7,
+  "modelRequestCount": 7,
+  "successRatePct": 100,
+  "schemaValidRatePct": 85.71,
+  "goldPostCount": 0,
+  "taxonScorePct": null,
+  "criticalFailurePostCount": 1,
+  "highConfidenceWrongPostCount": 0,
+  "overprecisionPostCount": 0,
+  "locationHallucinationPostCount": 0,
+  "p50LatencyMs": 2578,
+  "p95LatencyMs": 7496,
+  "totalInputTokens": 82845,
+  "totalOutputTokens": 3290,
+  "estimatedCostUsd": 0.0330785,
+  "pricing": {
+    "inputUsdPer1M": 0.3,
+    "outputUsdPer1M": 2.5,
+    "source": "https://ai.google.dev/gemini-api/docs/pricing"
+  },
+  "transport": "model-router",
+  "usageMeasurement": "provider-reported",
+  "observedAdditionalCostUsd": null,
+  "reportSchemaVersion": "zukan-model-bench-report-v1",
+  "requestConfig": {
+    "transport": "model-router",
+    "temperature": 0.1,
+    "max_output_tokens": 2048,
+    "thinking_level": "minimal",
+    "image_max_edge": 1024,
+    "stream": false,
+    "modalities": "omitted",
+    "response_mime_type": "application/json",
+    "response_schema_mode": "provider-native",
+    "output_schema": "zukan-model-bench-parser-v1",
+    "attempts_per_model": 1,
+    "fallback_count": 0
+  },
+  "accuracyStatus": "INSUFFICIENT_GOLD",
+  "reportPath": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-1024-default-final-v1.json",
+  "fixtureScores": [
+    {
+      "fixtureId": "zukan-post-record-1784366489892",
+      "visitId": "record-1784366489892",
+      "imageCount": 3,
+      "schemaValid": false,
+      "taxonScore": null,
+      "criticalFailures": [
+        "invalid_json"
+      ],
+      "finishReason": "MAX_TOKENS",
+      "latencyMs": 7496,
+      "inputTokens": 11835,
+      "outputTokens": 2032,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"species\",\n  \"recommended_taxon_name\": \"ヒメムカシヨモギあるいはオオアレチノギクの幼植物（キク科）の類い、または類似の帰化タデ・キク科の初期姿（画像からは幼苗段階）かもしれません。正確な同定には開花期・頭状花の形状の確認が必要ですが、壁際の隙間から直立して育つ姿や茎葉の毛や質感はアレチノギク属（Conyza / Erigeron）などの幼植物に似ています。画像はキク科アレチノギク属の一種としてアプローチしてください。本例はアレチノギク属の一種としての検討を推奨します。」（仮にヒメムカシヨモギとするには未成熟）一般的に見られるアレチノギク属（Conyza）の幼苗を示します。正確には花・果実の構造が必要です。暫定的にキク科ムカシヨモギ属の幼植物として扱います。本回答では同定の確度が不十分なためアレチノギク属（Conyza）の幼植物の可能性として扱います。より安全な表現として「アレチノギク属の一種（幼苗）」とします。以下では代表としてアレチノギク属を挙げます。「ヒメムカシヨモギ属（Conyza）」の幼植物と推定します。ここではアレチノギク属（Conyza canadensis等）の可能性が高いですが幼苗のため種確定は困難です。以下の候補としてコンサイザ（Conyza）の仲間を仮に提示します。確実な判定には花序の発達が必要です。本記述では「アレチノギク属の一種」として扱います。以下では「ヒメムカシヨモギ / オオアレチノギクの幼植物」として説明します。ただし幼苗特有の形質のため断定は避けます。本例はキク科の帰化植物であるアレチノギク属の幼苗として記録し、開花時に再確認してください。ここでは代表例としてアレチノギク（Erigeron sumatrensis）またはヒメムカシヨモギ（Erigeron canadensis）の初期生育相を想定します。本回答では同定が困難なため「キク科アレチノギク属の一種（幼苗）」と表記します。確実な決定には頭状花の出現を待つ必要があります。以下の候補に挙げた属のいずれかである可能性が高いです。本記録ではアレチノギク属の幼植物として位置づけます。確実な決定には花や総苞の形態の観察が不可欠です。以下ではヒメムカシヨモギ（Erigeron canadensis）を代表候補として記載します。本例では幼苗状態のため、成長後の花・果実による再確認が必須です。ここではアレチノギク属の一種（幼苗）とします。以下ではヒメムカシヨモギを仮置きの代表として詳細を示します。正確な同定には開花・結実期での再確認が必要です。本観察ではキク科ムカシヨモギ属（Conyza）の幼植物の可能性が示唆されますが、開花前の初期段階のため種レベルの断定はできません。花期に再確認してください。以下はヒメムカシヨモギなどの初期生育相に関する情報です。正確な種名の確定には花や総苞の構造の確認が必要です。本記録ではキク科の帰化植物であるアレチノギク属の幼苗として扱います。以下ではヒメムカシヨモギを仮の代表種として記載します。本例は開花前の幼苗のため、種レベルの同定には開花期・結実期での再訪・再撮影が必須です。ここではアレチノギク属の一種（幼苗）として扱います。正確な同定には花器の確認が必要です。以下の解説はヒメムカシヨモギ（Erigeron canadensis）等の初期姿を想定しています。本観察ではアレチノギク属（Conyza）の幼植物の可能性が高いですが、成長した花序や頭状花を確認するまでは種の断定を避けてください。以下ではヒメムカシヨモギを仮置きの代表として記載します。正確な同定には花・果実期の観察が必要です。本記録はアレチノギク属の一種（幼苗）として位置づけられます。以下では代表候補としてヒメムカシヨモギを挙げますが、未成熟段階であるため確実な決定には開花期への再訪が不可欠です。本例ではキク科アレチノギク属の一種（幼苗）として扱います。確実な種決定には花・総苞の形状の確認が必要です。以下の記述はヒメムカシヨモギ等の初期生育相を参考としています。本観察ではアレチノギク属の幼植物の可能性が考えられますが、開花前の段階では種名の断定ができません。開花期に再確認してください。以下ではヒメムカシヨモギを仮の代表候補として説明します。正確な同定には花期での確認が必要です。本記録はアレチノギク属の一種（幼苗）として扱います。以下ではヒメムカシヨモギを仮置きの代表として詳細を示しますが、未成熟段階のため断定は避けてください。確実な同定には花序の発達を待つ必要があります。本観察ではキク科の帰化植物であるアレチノギク属（Conyza）の幼植物の可能性が示唆されますが、開花前の初期段階のため種レベルの断定はできません。開花期に再確認してください。以下ではヒメムカシヨモギを仮の代表候補として記載します。正確な同定には花器や果実の確認が必要です。本記録ではアレチノギク属の一種（幼苗）として位置づけます。以下ではヒメムカシヨモギを仮置きの代表として説明しますが、未成熟段階のため断定はできません。確実な決定には開花期への再訪が必要です。本例はキク科アレチノギク属の一種（幼苗）として扱います。確実な種決定には花・総苞の形状の確認が必要です。以下の記述はヒメムカシヨモギ等の初期生育相を参考としています。本観察ではアレチノギク属の幼植物の可能性が考えられますが、開花前の段階では種名の断定ができません。開花期に再確認してください。以下ではヒメムカシヨモギを仮の代表候補として説明します。正確な同定には花期での確認が必要です。本記録はアレチノギク属の一種（幼苗）として扱います。以下ではヒメムカシヨモギを仮置きの代表として詳細を示しますが、未成熟段階のため断定は避けてください。確実な同定には花序の発達を待つ必要があります。本観察ではキク科の帰化植物であるアレチノギク属（Conyza）の幼植物の可能性が示唆されますが、開花前の初期段階のため種レベルの断定はできません。開花期に再確認してください。以下ではヒメムカシヨモギを仮の代表候補として記載します。正確な同定には花器や果実の確認が必要です。本記録ではアレチノギク属の一種（幼苗）として位置づけます。以下ではヒメムカシヨモギを仮置きの代表として説明しますが、未成熟段階のため断定はできません。確実な決定には開花期への再訪が必要です。本例はキク科アレチノギク属の一種（幼苗）として扱います。確実な種決定には花・総苞の形状の確認が必要です。以下の記述はヒメムカシヨモギ等の初期生育相を参考としています。本観察ではアレチノギク属の幼植物の可能性が考えられますが、開花前の段階では種名の断定ができません。開花期に再確認してください。以下ではヒメムカシヨモギを仮の代表候補として説明します。正確な同定には花期での確認が必要です。本記録はアレチノギク属の一種（幼苗）として扱います。以下ではヒメムカシヨモギを仮置きの代表として詳細を示しますが、未成熟段階のため断定は避けてください。確実な同定には花序の発達を待つ必要があります。本観察ではキク科の帰化植物であるアレチノギク属（Conyza）の幼植物の可能性が示唆されますが、開花前の初期段階のため種レベルの断定はできません。開花期に再確認してください。以下ではヒメムカシヨモギを仮の代表候補として記載します。正確な同定には花器や果実の確認が必要です。本記録ではアレチノギク属の一種（幼苗",
+        "parsed_json": null,
+        "recommended_taxon": null,
+        "recommended_rank": null,
+        "confidence": null,
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "MAX_TOKENS",
+        "token_usage": {
+          "input_tokens": 11835,
+          "output_tokens": 2032
+        },
+        "latency_ms": 7496,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "0a2d87197bf3368f3c27b7790457e047de286ebc98835f0f03c7603e597231e0",
+        "image_sha256": [
+          "ee6e3a54d816c4d4ed8f67721d6c8283db87f43ba24d0a0d01cbed82ae565753",
+          "40efc9e830cef93f0b3183ad1654f9ec86c158846b6e1c52da8fc3367dd99726",
+          "4d9f7de05d09ee33f30296aefa60095e57b7f0143eb1d7cf2c79456cfed5ca87"
+        ],
+        "transmitted_image_sha256": [
+          "8e08bd5924ba6ab22b12be5d1599a1b8144925751cdfa7e66d70c4121987572e",
+          "ba8c558264d8a04ad86383d1a4a9bba29e6df7b5a01bb9d910c9507bf1a4a106",
+          "fb94575af83e36a875dd9a2bacff6d14b90f766432faee6108f93e34036dcfa1"
+        ],
+        "transmitted_image_bytes": [
+          183637,
+          262452,
+          197336
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "6a0b52fd4818ecd75fe493217867a3dda36c72dc5dca433a5c292d209a256d82",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430741938",
+      "visitId": "record-1784430741938",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "カタバミ属の一種（オッタチカタバミ等）型植物群落の主役群落、カタバミ属（Oxalis）の一種と考えられますが、地下部の塊茎や結実の様子等を確認できていないため属レベルまたは代表種としての評価に留まります。確実な種特定には花や葉の詳細な特徴の確認が推奨されます。一般的なカタバミ（Oxalis corniculata）またはオッタチカタバミ（Oxalis stricta）等の可能性が高く、三出複葉のハート型の小葉と小さな黄色い花が特徴的です。なお位置情報や観察地が不明のため、地域固有の分布特徴や外来種・在来種の厳密な区別は位置確認後におこなってください。周囲にはイネ科の草本等も混生しており、グランドカバー状の植生が広がっています。追加の観察では花の側面や葉の裏側の毛の有無、種子の形を確認することが重要です。この観察では生育している場所の様子がよく捉えられています。Oxalis属の一種としてさらに詳しく調べるには初夏に花や種子を撮影してください。詳細な地域情報が得られないため位置文脈の評価は保留します。時期情報が未設定のため季節的な妥当性判断は保留とします。二次林の周辺や管理草地の縁などの人工的な影響を受ける場所に似た群落が見られます。草刈りの影響や定期的な人の出入りがある環境の可能性があります。花や果実を接写する写真が追加されると研究価値や同定精度がさらに高まります。全体としてカタバミ属特有の葉や花弁が確認できますが、他の似た植物との識別にはより鮮明な接写が必要です。周辺環境の広角撮影をあわせて残すことで、この場所における生育状況を後から正確に比較できるようになります。」,",
+      "recommendedRank": "genus",
+      "confidenceBand": "medium",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 3549,
+      "inputTokens": 11835,
+      "outputTokens": 440,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"カタバミ属の一種（オッタチカタバミ等）型植物群落の主役群落、カタバミ属（Oxalis）の一種と考えられますが、地下部の塊茎や結実の様子等を確認できていないため属レベルまたは代表種としての評価に留まります。確実な種特定には花や葉の詳細な特徴の確認が推奨されます。一般的なカタバミ（Oxalis corniculata）またはオッタチカタバミ（Oxalis stricta）等の可能性が高く、三出複葉のハート型の小葉と小さな黄色い花が特徴的です。なお位置情報や観察地が不明のため、地域固有の分布特徴や外来種・在来種の厳密な区別は位置確認後におこなってください。周囲にはイネ科の草本等も混生しており、グランドカバー状の植生が広がっています。追加の観察では花の側面や葉の裏側の毛の有無、種子の形を確認することが重要です。この観察では生育している場所の様子がよく捉えられています。Oxalis属の一種としてさらに詳しく調べるには初夏に花や種子を撮影してください。詳細な地域情報が得られないため位置文脈の評価は保留します。時期情報が未設定のため季節的な妥当性判断は保留とします。二次林の周辺や管理草地の縁などの人工的な影響を受ける場所に似た群落が見られます。草刈りの影響や定期的な人の出入りがある環境の可能性があります。花や果実を接写する写真が追加されると研究価値や同定精度がさらに高まります。全体としてカタバミ属特有の葉や花弁が確認できますが、他の似た植物との識別にはより鮮明な接写が必要です。周辺環境の広角撮影をあわせて残すことで、この場所における生育状況を後から正確に比較できるようになります。」, \"\n  }",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "genus",
+          "recommended_taxon_name": "カタバミ属の一種（オッタチカタバミ等）型植物群落の主役群落、カタバミ属（Oxalis）の一種と考えられますが、地下部の塊茎や結実の様子等を確認できていないため属レベルまたは代表種としての評価に留まります。確実な種特定には花や葉の詳細な特徴の確認が推奨されます。一般的なカタバミ（Oxalis corniculata）またはオッタチカタバミ（Oxalis stricta）等の可能性が高く、三出複葉のハート型の小葉と小さな黄色い花が特徴的です。なお位置情報や観察地が不明のため、地域固有の分布特徴や外来種・在来種の厳密な区別は位置確認後におこなってください。周囲にはイネ科の草本等も混生しており、グランドカバー状の植生が広がっています。追加の観察では花の側面や葉の裏側の毛の有無、種子の形を確認することが重要です。この観察では生育している場所の様子がよく捉えられています。Oxalis属の一種としてさらに詳しく調べるには初夏に花や種子を撮影してください。詳細な地域情報が得られないため位置文脈の評価は保留します。時期情報が未設定のため季節的な妥当性判断は保留とします。二次林の周辺や管理草地の縁などの人工的な影響を受ける場所に似た群落が見られます。草刈りの影響や定期的な人の出入りがある環境の可能性があります。花や果実を接写する写真が追加されると研究価値や同定精度がさらに高まります。全体としてカタバミ属特有の葉や花弁が確認できますが、他の似た植物との識別にはより鮮明な接写が必要です。周辺環境の広角撮影をあわせて残すことで、この場所における生育状況を後から正確に比較できるようになります。」, "
+        },
+        "recommended_taxon": "カタバミ属の一種（オッタチカタバミ等）型植物群落の主役群落、カタバミ属（Oxalis）の一種と考えられますが、地下部の塊茎や結実の様子等を確認できていないため属レベルまたは代表種としての評価に留まります。確実な種特定には花や葉の詳細な特徴の確認が推奨されます。一般的なカタバミ（Oxalis corniculata）またはオッタチカタバミ（Oxalis stricta）等の可能性が高く、三出複葉のハート型の小葉と小さな黄色い花が特徴的です。なお位置情報や観察地が不明のため、地域固有の分布特徴や外来種・在来種の厳密な区別は位置確認後におこなってください。周囲にはイネ科の草本等も混生しており、グランドカバー状の植生が広がっています。追加の観察では花の側面や葉の裏側の毛の有無、種子の形を確認することが重要です。この観察では生育している場所の様子がよく捉えられています。Oxalis属の一種としてさらに詳しく調べるには初夏に花や種子を撮影してください。詳細な地域情報が得られないため位置文脈の評価は保留します。時期情報が未設定のため季節的な妥当性判断は保留とします。二次林の周辺や管理草地の縁などの人工的な影響を受ける場所に似た群落が見られます。草刈りの影響や定期的な人の出入りがある環境の可能性があります。花や果実を接写する写真が追加されると研究価値や同定精度がさらに高まります。全体としてカタバミ属特有の葉や花弁が確認できますが、他の似た植物との識別にはより鮮明な接写が必要です。周辺環境の広角撮影をあわせて残すことで、この場所における生育状況を後から正確に比較できるようになります。」,",
+        "recommended_rank": "genus",
+        "confidence": "medium",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 11835,
+          "output_tokens": 440
+        },
+        "latency_ms": 3549,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752",
+        "image_sha256": [
+          "2c01f57184968e56efb6965ce2bf1d0e11396942bc07f7b3af11bff7597c031b",
+          "68fc1ccfdc5a799222351454478a0025275f55f9f8b6d22c6c162e2b703fb51e",
+          "faef3ead9e273c0465ca59a9f97ba9ba2e077542f4ab99cc8c175600c8f56583"
+        ],
+        "transmitted_image_sha256": [
+          "07d4317b07d16bebbf75c5803a43606e0825df74bad2df7d54eb184ca4f304ac",
+          "ff190169edc92c69a7196bdd3d471a2bf6afd7566b11e98c278386d79a431a90",
+          "f73a1c9a5fbf7ee392b44c9448bddffaa5031343d285056196c778d9329c7287"
+        ],
+        "transmitted_image_bytes": [
+          242983,
+          193481,
+          316059
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "9f55bb063e77d30fbc43ec5b169f57daba338a3be29339c153d4eb01608e43a2",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1781252770584",
+      "visitId": "record-1781252770584",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "コガネムシ科の一種 (コガネムシ科 / Scarabaeidae - コガネムシ亜科 / Melolonthinae の可能性が高いですが、種や属の断定には体色バリエーション・前胸背板の点刻・触角の節数などを明確に確認する必要があります。ここでは一般特徴のみで断定せず、コガネムシ科・ビロードコガネ属やクロコガネ類などの候補を比較対象として挙げます。写真からは赤褐色の上翅とやや尖った尾部が見えますが、細部（頭部・腹面・脚の形状など）が隠れているため、現時点では科または属レベルの候補にとどめておくのが妥当です。位置情報は不明なため、地域別の出現傾向や固有種の検討は行えません。)",
+      "recommendedRank": "family",
+      "confidenceBand": "low",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 2578,
+      "inputTokens": 11835,
+      "outputTokens": 207,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"low\",\n  \"recommended_rank\": \"family\",\n  \"recommended_taxon_name\": \"コガネムシ科の一種 (コガネムシ科 / Scarabaeidae - コガネムシ亜科 / Melolonthinae の可能性が高いですが、種や属の断定には体色バリエーション・前胸背板の点刻・触角の節数などを明確に確認する必要があります。ここでは一般特徴のみで断定せず、コガネムシ科・ビロードコガネ属やクロコガネ類などの候補を比較対象として挙げます。写真からは赤褐色の上翅とやや尖った尾部が見えますが、細部（頭部・腹面・脚の形状など）が隠れているため、現時点では科または属レベルの候補にとどめておくのが妥当です。位置情報は不明なため、地域別の出現傾向や固有種の検討は行えません。)\"\n}",
+        "parsed_json": {
+          "confidence_band": "low",
+          "recommended_rank": "family",
+          "recommended_taxon_name": "コガネムシ科の一種 (コガネムシ科 / Scarabaeidae - コガネムシ亜科 / Melolonthinae の可能性が高いですが、種や属の断定には体色バリエーション・前胸背板の点刻・触角の節数などを明確に確認する必要があります。ここでは一般特徴のみで断定せず、コガネムシ科・ビロードコガネ属やクロコガネ類などの候補を比較対象として挙げます。写真からは赤褐色の上翅とやや尖った尾部が見えますが、細部（頭部・腹面・脚の形状など）が隠れているため、現時点では科または属レベルの候補にとどめておくのが妥当です。位置情報は不明なため、地域別の出現傾向や固有種の検討は行えません。)"
+        },
+        "recommended_taxon": "コガネムシ科の一種 (コガネムシ科 / Scarabaeidae - コガネムシ亜科 / Melolonthinae の可能性が高いですが、種や属の断定には体色バリエーション・前胸背板の点刻・触角の節数などを明確に確認する必要があります。ここでは一般特徴のみで断定せず、コガネムシ科・ビロードコガネ属やクロコガネ類などの候補を比較対象として挙げます。写真からは赤褐色の上翅とやや尖った尾部が見えますが、細部（頭部・腹面・脚の形状など）が隠れているため、現時点では科または属レベルの候補にとどめておくのが妥当です。位置情報は不明なため、地域別の出現傾向や固有種の検討は行えません。)",
+        "recommended_rank": "family",
+        "confidence": "low",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 11835,
+          "output_tokens": 207
+        },
+        "latency_ms": 2578,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2",
+        "image_sha256": [
+          "2ab79c70ea5572c683301dc76daa7dd755722e2f49c5b1f8c759de48f26763ba",
+          "58e3f4310ce35d70cc89722799f74ca5ef9923de565016ae4e03cc23afcb20f3",
+          "3c2283e9733f882b651397bc0c39fb666a6d90eb613c642a94a56a12ead1df3a"
+        ],
+        "transmitted_image_sha256": [
+          "f25ad6cd8658dacb1db838705208acb8a229c5ed36c86dbe3222346eeb614860",
+          "a6b7d6d804e58aaa3153ef8c3c95d9332a7b35757aab83cdb9da13683bb54e96",
+          "790ca1e86e5c8abcfc24c7ed62c5c32f3c32e9bc77b601907d6879ec7eba3c17"
+        ],
+        "transmitted_image_bytes": [
+          115733,
+          143696,
+          113303
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "2cb312cc21ee211dec4bf8c24866dd58de46b5605183214df7fe32eb023b0dbc",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430374598",
+      "visitId": "record-1784430374598",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "ベニヒモノキ（アカリファ・ヒスピダ）",
+      "recommendedRank": "species",
+      "confidenceBand": "high",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 1698,
+      "inputTokens": 11835,
+      "outputTokens": 48,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"high\",\n  \"recommended_rank\": \"species\",\n  \"recommended_taxon_name\": \"ベニヒモノキ（アカリファ・ヒスピダ）\"\n}",
+        "parsed_json": {
+          "confidence_band": "high",
+          "recommended_rank": "species",
+          "recommended_taxon_name": "ベニヒモノキ（アカリファ・ヒスピダ）"
+        },
+        "recommended_taxon": "ベニヒモノキ（アカリファ・ヒスピダ）",
+        "recommended_rank": "species",
+        "confidence": "high",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 11835,
+          "output_tokens": 48
+        },
+        "latency_ms": 1698,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267",
+        "image_sha256": [
+          "0b52d058750744cae5f747b73de92164656c17b96e8d9256fa93d323f1359141",
+          "1ca42989720be07b654b25eb5fd71b6b9d4ecd49245c2d3dc2543419fa1d99b0",
+          "62336f09742d9fd2dede9a85ca5db68c4b4743ccb5ff3c1048d4f5b1f5b49057"
+        ],
+        "transmitted_image_sha256": [
+          "180e9b497516e133e23dc5060557239dee365fbba537feff66fb4ca5f986b776",
+          "d569bdde5c5110bfcecec8bf159630fff290d914357e117d6155a41d5c14a7f4",
+          "c623a131ee6ecbb1bb5fea50231184f99c49c28493ed061ec57e7b9659980b3c"
+        ],
+        "transmitted_image_bytes": [
+          121502,
+          117312,
+          268465
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "42dc3c5297a801f14c64073e5c1debe434182052d1963cd91424205c454a5907",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430118720",
+      "visitId": "record-1784430118720",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "キイチゴ属の一種 (バラ科の植物の一種、モミジイチゴ類など可能性含む、あるいはクズ・ツル性植物の葉等の可能性もあり形質要確認ですがキイチゴ属様の掌状複葉・トゲが散見されます。画像では複葉の形や鋸歯の様子からバラ科バラ属・キイチゴ属（Rubus属）の若枝・葉が有力です。ただし正確な断定には花や茎全体等の追加情報が不可欠です。ここでは保守的に属レベルで扱います。学名は Rubus を指定します。コエージスティングとして周囲のイネ科草本や広葉雑草等も考えられます。正確を期すため種までの特定は保留します。)",
+      "recommendedRank": "genus",
+      "confidenceBand": "medium",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 2452,
+      "inputTokens": 11835,
+      "outputTokens": 198,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"キイチゴ属の一種 (バラ科の植物の一種、モミジイチゴ類など可能性含む、あるいはクズ・ツル性植物の葉等の可能性もあり形質要確認ですがキイチゴ属様の掌状複葉・トゲが散見されます。画像では複葉の形や鋸歯の様子からバラ科バラ属・キイチゴ属（Rubus属）の若枝・葉が有力です。ただし正確な断定には花や茎全体等の追加情報が不可欠です。ここでは保守的に属レベルで扱います。学名は Rubus を指定します。コエージスティングとして周囲のイネ科草本や広葉雑草等も考えられます。正確を期すため種までの特定は保留します。)\"\n}",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "genus",
+          "recommended_taxon_name": "キイチゴ属の一種 (バラ科の植物の一種、モミジイチゴ類など可能性含む、あるいはクズ・ツル性植物の葉等の可能性もあり形質要確認ですがキイチゴ属様の掌状複葉・トゲが散見されます。画像では複葉の形や鋸歯の様子からバラ科バラ属・キイチゴ属（Rubus属）の若枝・葉が有力です。ただし正確な断定には花や茎全体等の追加情報が不可欠です。ここでは保守的に属レベルで扱います。学名は Rubus を指定します。コエージスティングとして周囲のイネ科草本や広葉雑草等も考えられます。正確を期すため種までの特定は保留します。)"
+        },
+        "recommended_taxon": "キイチゴ属の一種 (バラ科の植物の一種、モミジイチゴ類など可能性含む、あるいはクズ・ツル性植物の葉等の可能性もあり形質要確認ですがキイチゴ属様の掌状複葉・トゲが散見されます。画像では複葉の形や鋸歯の様子からバラ科バラ属・キイチゴ属（Rubus属）の若枝・葉が有力です。ただし正確な断定には花や茎全体等の追加情報が不可欠です。ここでは保守的に属レベルで扱います。学名は Rubus を指定します。コエージスティングとして周囲のイネ科草本や広葉雑草等も考えられます。正確を期すため種までの特定は保留します。)",
+        "recommended_rank": "genus",
+        "confidence": "medium",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 11835,
+          "output_tokens": 198
+        },
+        "latency_ms": 2452,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f",
+        "image_sha256": [
+          "2ad88d0a7540a55efc44db13cc62ea2af275eacd85ac73184d8a0c037f782448",
+          "a0b8eb2d83d485960b855d88f0bf1e4d50d5af171109502b62c9064548832564",
+          "43a999fc83fd12397e32d1ec211ca71d9311e77d49560fd7c5bc53f9f490afc3"
+        ],
+        "transmitted_image_sha256": [
+          "29039062e4d6d840258ae44536b8af3dda8d1d4710d9c66e2e704a9bfdcd547c",
+          "7193052d8e93fab5591aa6c42bb1964ffa453747f60319f50036bc4f68863ba3",
+          "4f9d4bb4ab60e624574e328d0a38f2340ee9ea0108c74e2df8a934a444f3d808"
+        ],
+        "transmitted_image_bytes": [
+          110006,
+          200923,
+          162754
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "27f8672d2c04bac4832e2b5e4a7ea0e4041253b827b19acc685f133237fc5f83",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784431188621",
+      "visitId": "record-1784431188621",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "スズメ (ニュウナイスズメの可能性も含む群れ構成種の一種等、スズメ属の代表種相当としてスズメとするが、遠景のため慎重な判断が必要。ここではスズメとして記載するがスズメ科の鳥類とするか要検討だが一般的なスズメとする。文字数配慮し「スズメ」とする。いや厳密には「スズメ科の一種」または「スズメ」か。写真1・2で特徴（頭部の黒斑や頬の黒斑など）が不鮮明なため慎重に判断)', // 文字数制限等に留意し安全に「スズメ」にするが、不確実性があるためrankをgenusにすべきか？しかし指定に従いspecies=",
+      "recommendedRank": "species",
+      "confidenceBand": "medium",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 2605,
+      "inputTokens": 11835,
+      "outputTokens": 205,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"species\",\n  \"recommended_taxon_name\": \"スズメ (ニュウナイスズメの可能性も含む群れ構成種の一種等、スズメ属の代表種相当としてスズメとするが、遠景のため慎重な判断が必要。ここではスズメとして記載するがスズメ科の鳥類とするか要検討だが一般的なスズメとする。文字数配慮し「スズメ」とする。いや厳密には「スズメ科の一種」または「スズメ」か。写真1・2で特徴（頭部の黒斑や頬の黒斑など）が不鮮明なため慎重に判断)', // 文字数制限等に留意し安全に「スズメ」にするが、不確実性があるためrankをgenusにすべきか？しかし指定に従いspecies=\"\n  }",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "species",
+          "recommended_taxon_name": "スズメ (ニュウナイスズメの可能性も含む群れ構成種の一種等、スズメ属の代表種相当としてスズメとするが、遠景のため慎重な判断が必要。ここではスズメとして記載するがスズメ科の鳥類とするか要検討だが一般的なスズメとする。文字数配慮し「スズメ」とする。いや厳密には「スズメ科の一種」または「スズメ」か。写真1・2で特徴（頭部の黒斑や頬の黒斑など）が不鮮明なため慎重に判断)', // 文字数制限等に留意し安全に「スズメ」にするが、不確実性があるためrankをgenusにすべきか？しかし指定に従いspecies="
+        },
+        "recommended_taxon": "スズメ (ニュウナイスズメの可能性も含む群れ構成種の一種等、スズメ属の代表種相当としてスズメとするが、遠景のため慎重な判断が必要。ここではスズメとして記載するがスズメ科の鳥類とするか要検討だが一般的なスズメとする。文字数配慮し「スズメ」とする。いや厳密には「スズメ科の一種」または「スズメ」か。写真1・2で特徴（頭部の黒斑や頬の黒斑など）が不鮮明なため慎重に判断)', // 文字数制限等に留意し安全に「スズメ」にするが、不確実性があるためrankをgenusにすべきか？しかし指定に従いspecies=",
+        "recommended_rank": "species",
+        "confidence": "medium",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 11835,
+          "output_tokens": 205
+        },
+        "latency_ms": 2605,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5",
+        "image_sha256": [
+          "dccfcdb4ab4b2de32d648e4cef9ff69d1867cb5fcb9d6a3b0da62193cc498316",
+          "ba8d7ae0fa64d1adc3e2c3ee6eebdbe0ac4af41f2c649b39f1b3090ebbee22cf",
+          "bfd9311b1a64827412539c6963582dc92bec85e8d462af5ed8729e160ba910be"
+        ],
+        "transmitted_image_sha256": [
+          "41bbddc23cdade95078748fbbd4c1662454240b89854b8d870002cbc2a987f2c",
+          "abc644796f8b0e293f9c01d3ef04627e9f155547cd488173b036b10775266336",
+          "429f3375c1e81e2b0eef8e6fd18161e966bc46b11f7f6b5a1fa7edc1f6f1dbdc"
+        ],
+        "transmitted_image_bytes": [
+          142774,
+          128167,
+          220552
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "95ceb303ad2f79f7262bb212e5813ef309922f46f2f7c1a59b9ccb6c1f7eefad",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430530197",
+      "visitId": "record-1784430530197",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "ヒヨドリ科 (モズ科などの可能性も含む鳥類の一種またはヒヨドリ属の幼鳥等疑いを含む低解像度の鳥類写真のため科レベル判断に留まる。もしヒヨドリであれば ヒヨドリ科 ヒヨドリ属 の一種。ただし解像度が著しく低いため種確定不可。ここでは便宜上、中型スズメ目鳥類として扱う。学名記載時はHypsipetes amaurotisを比較候補とするが確定はしないためプレースホルダーとする。鳥類一般またはヒヨドリ科の一種としての扱いを推奨)",
+      "recommendedRank": "family",
+      "confidenceBand": "low",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 2438,
+      "inputTokens": 11835,
+      "outputTokens": 160,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"low\",\n  \"recommended_rank\": \"family\",\n  \"recommended_taxon_name\": \"ヒヨドリ科 (モズ科などの可能性も含む鳥類の一種またはヒヨドリ属の幼鳥等疑いを含む低解像度の鳥類写真のため科レベル判断に留まる。もしヒヨドリであれば ヒヨドリ科 ヒヨドリ属 の一種。ただし解像度が著しく低いため種確定不可。ここでは便宜上、中型スズメ目鳥類として扱う。学名記載時はHypsipetes amaurotisを比較候補とするが確定はしないためプレースホルダーとする。鳥類一般またはヒヨドリ科の一種としての扱いを推奨)\"\n}",
+        "parsed_json": {
+          "confidence_band": "low",
+          "recommended_rank": "family",
+          "recommended_taxon_name": "ヒヨドリ科 (モズ科などの可能性も含む鳥類の一種またはヒヨドリ属の幼鳥等疑いを含む低解像度の鳥類写真のため科レベル判断に留まる。もしヒヨドリであれば ヒヨドリ科 ヒヨドリ属 の一種。ただし解像度が著しく低いため種確定不可。ここでは便宜上、中型スズメ目鳥類として扱う。学名記載時はHypsipetes amaurotisを比較候補とするが確定はしないためプレースホルダーとする。鳥類一般またはヒヨドリ科の一種としての扱いを推奨)"
+        },
+        "recommended_taxon": "ヒヨドリ科 (モズ科などの可能性も含む鳥類の一種またはヒヨドリ属の幼鳥等疑いを含む低解像度の鳥類写真のため科レベル判断に留まる。もしヒヨドリであれば ヒヨドリ科 ヒヨドリ属 の一種。ただし解像度が著しく低いため種確定不可。ここでは便宜上、中型スズメ目鳥類として扱う。学名記載時はHypsipetes amaurotisを比較候補とするが確定はしないためプレースホルダーとする。鳥類一般またはヒヨドリ科の一種としての扱いを推奨)",
+        "recommended_rank": "family",
+        "confidence": "low",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 11835,
+          "output_tokens": 160
+        },
+        "latency_ms": 2438,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0",
+        "image_sha256": [
+          "a743b4e9e7c2e68b8524395d685fc3bcf55c5da9809535a2830fe66d8e57eeb8",
+          "e36214a4bf6ee8c9051b0452c3baac9a7dabdeff341b79c8313b57684208e7f0",
+          "ddc0e79182114a3550940337b5ddb7437829aae06e8bf1f4007568217dc86ccb"
+        ],
+        "transmitted_image_sha256": [
+          "c8a5cc222436846b0325d72e7a7d9aa7ce2014923192797b8b6f38a06feca784",
+          "e4cc3b0df87df08c3281c0a8b747d0692c908ccca29f3d92485a5d3df585c22d",
+          "fd248847aa8747e0f9c90abeb31a01afd70aae3cb8a0afc195bbb6e4e0f62787"
+        ],
+        "transmitted_image_bytes": [
+          103537,
+          207654,
+          122654
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "1bb1427dfa83e27693327072a39c164812ca2468e40860e2b2384bdd7094abbc",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    }
+  ]
+}

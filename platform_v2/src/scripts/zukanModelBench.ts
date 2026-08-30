@@ -3,8 +3,9 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import sharp from "sharp";
 import { AI_MODEL_CHAIN_ENV_KEYS } from "../services/aiModels.js";
-import { generateAiTextWithRoleChain, googleResponseText, type AiRouterPart } from "../services/aiModelRouter.js";
+import { generateAiTextWithRoleChain, googleMediaResolution, googleResponseText, type AiRouterPart } from "../services/aiModelRouter.js";
 import { getObservationDataRights, type ObservationDataRights } from "../services/observationDataRights.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { observationImageTargetPath, resolveObservationImageTargets, type ObservationImageTarget } from "./resolveObservationImageTargets.js";
@@ -137,6 +138,8 @@ export type ZukanBenchRequestConfig = {
   max_output_tokens?: number;
   reasoning_effort?: "low";
   thinking_level?: "minimal" | "low" | "medium" | "high";
+  media_resolution?: "low" | "medium" | "high";
+  image_max_edge?: number;
   stream: false;
   modalities: "omitted";
   response_format?: { type: "json_object" } | { type: "json_schema"; json_schema: unknown };
@@ -171,6 +174,10 @@ export type ZukanBenchFinalOutputRecord = {
   dataset_sha256: string;
   post_sha256: string;
   image_sha256: string[];
+  transmitted_image_sha256: string[];
+  transmitted_image_bytes: number[];
+  transmitted_image_mime_types: string[];
+  transmitted_post_sha256: string;
   prompt_sha256: string;
   response_field: string | null;
   http_status?: number | null;
@@ -283,6 +290,33 @@ function clean(value: unknown): string {
 
 function sha256(bytes: Uint8Array | string): string {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+export type ZukanBenchTransmittedImage = {
+  buffer: Buffer;
+  mimeType: string;
+  sha256: string;
+  bytes: number;
+};
+
+export async function prepareZukanBenchImageForTransmission(input: {
+  buffer: Buffer;
+  mimeType: string;
+  maxEdge?: number;
+}): Promise<ZukanBenchTransmittedImage> {
+  const maxEdge = input.maxEdge;
+  if (maxEdge === undefined) {
+    return { buffer: input.buffer, mimeType: input.mimeType, sha256: sha256(input.buffer), bytes: input.buffer.length };
+  }
+  if (!Number.isInteger(maxEdge) || maxEdge < 320 || maxEdge > 4096) {
+    throw new Error(`zukan_bench_image_max_edge_invalid:${maxEdge}`);
+  }
+  const buffer = await sharp(input.buffer, { failOn: "none" })
+    .rotate()
+    .resize({ width: maxEdge, height: maxEdge, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 86, mozjpeg: true })
+    .toBuffer();
+  return { buffer, mimeType: "image/jpeg", sha256: sha256(buffer), bytes: buffer.length };
 }
 
 function normalizeTaxon(value: unknown): string {
@@ -776,7 +810,14 @@ function persistedFinalContent(rawText: string | null | undefined, responseField
   redacted: boolean;
 } {
   if (!rawText || responseField?.includes("reasoning_content")) return { text: null, redacted: false };
-  if (INTERNAL_REASONING_FIELD_RE.test(rawText) || SENSITIVE_OUTPUT_RE.test(rawText)) return { text: null, redacted: true };
+  if (INTERNAL_REASONING_FIELD_RE.test(rawText) || SENSITIVE_OUTPUT_RE.test(rawText)) {
+    const parsed = parseJsonObject(rawText);
+    if (!parsed) return { text: null, redacted: true };
+    return {
+      text: JSON.stringify(sanitizeFinalOutputValue(parsed)),
+      redacted: true,
+    };
+  }
   return { text: rawText, redacted: false };
 }
 
@@ -797,6 +838,7 @@ export function buildZukanBenchFinalOutputRecord(input: {
   config: ZukanBenchRequestConfig;
   datasetSha256: string;
   promptSha256: string;
+  transmittedImages?: ReadonlyArray<Pick<ZukanBenchTransmittedImage, "sha256" | "bytes" | "mimeType">>;
 }): ZukanBenchFinalOutputRecord {
   const persisted = persistedFinalContent(input.rawText, input.responseField);
   const parsedSource = persisted.text === null ? null : parseJsonObject(input.rawText ?? "");
@@ -807,6 +849,11 @@ export function buildZukanBenchFinalOutputRecord(input: {
   const token = (value: number | null | undefined): number | null => (
     input.usageReported && typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null
   );
+  const transmittedImages = input.transmittedImages ?? input.fixture.images.map((image) => ({
+    sha256: image.sha256,
+    bytes: image.bytes,
+    mimeType: image.mimeType,
+  }));
   return {
     raw_final_content: persisted.text,
     parsed_json: parsed,
@@ -830,6 +877,10 @@ export function buildZukanBenchFinalOutputRecord(input: {
     dataset_sha256: input.datasetSha256,
     post_sha256: input.fixture.postInputSha256,
     image_sha256: input.fixture.images.map((image) => image.sha256),
+    transmitted_image_sha256: transmittedImages.map((image) => image.sha256),
+    transmitted_image_bytes: transmittedImages.map((image) => image.bytes),
+    transmitted_image_mime_types: transmittedImages.map((image) => image.mimeType),
+    transmitted_post_sha256: sha256(transmittedImages.map((image, index) => `${index}:${image.sha256}:${image.bytes}:${image.mimeType}`).join("\n")),
     prompt_sha256: input.promptSha256,
     response_field: input.responseField ?? null,
     http_status: input.httpStatus ?? null,
@@ -1269,6 +1320,7 @@ export async function generateWithCloudflareGoogleAiStudio(options: {
   model: string;
   parts: AiRouterPart[];
   maxOutputTokens?: number;
+  mediaResolution?: "low" | "medium" | "high";
   env?: NodeJS.ProcessEnv;
 }): Promise<CloudflareAiGenerationResult> {
   const env = options.env ?? process.env;
@@ -1289,6 +1341,7 @@ export async function generateWithCloudflareGoogleAiStudio(options: {
       thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       temperature: 0,
       maxOutputTokens: options.maxOutputTokens ?? 8192,
+      mediaResolution: googleMediaResolution(options.mediaResolution),
       responseMimeType: "application/json",
       responseJsonSchema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
     },
@@ -1690,6 +1743,8 @@ export async function runZukanModelBench(options: {
   maxOutputTokens?: number;
   temperature?: number;
   thinkingLevel?: "minimal" | "low" | "medium" | "high";
+  mediaResolution?: "low" | "medium" | "high";
+  imageMaxEdge?: number;
   promptSource?: string;
   reportLabel?: string;
   fixtureVisitIds?: readonly string[];
@@ -1753,6 +1808,8 @@ export async function runZukanModelBench(options: {
       temperature: 0,
       max_output_tokens: options.maxOutputTokens ?? 8192,
       thinking_level: "low",
+      ...(options.mediaResolution ? { media_resolution: options.mediaResolution } : {}),
+      ...(options.imageMaxEdge !== undefined ? { image_max_edge: options.imageMaxEdge } : {}),
       stream: false,
       modalities: "omitted",
       response_mime_type: "application/json",
@@ -1768,6 +1825,7 @@ export async function runZukanModelBench(options: {
         temperature: 0,
         max_completion_tokens: options.maxOutputTokens ?? 8192,
         reasoning_effort: "low",
+        ...(options.imageMaxEdge !== undefined ? { image_max_edge: options.imageMaxEdge } : {}),
         stream: false,
         modalities: "omitted",
         response_format: {
@@ -1790,6 +1848,7 @@ export async function runZukanModelBench(options: {
       temperature: 0,
       max_completion_tokens: 8192,
       reasoning_effort: "low",
+      ...(options.imageMaxEdge !== undefined ? { image_max_edge: options.imageMaxEdge } : {}),
       stream: false,
       modalities: "omitted",
       response_format: { type: "json_object" },
@@ -1816,6 +1875,7 @@ export async function runZukanModelBench(options: {
         modalities: "omitted",
         response_format: { type: "json_schema", json_schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA },
         response_schema_mode: "provider-native",
+        ...(options.imageMaxEdge !== undefined ? { image_max_edge: options.imageMaxEdge } : {}),
         output_schema: "zukan-model-bench-parser-v1",
         gateway_selection: "explicit-existing-named-gateway-only",
         attempts_per_model: 1,
@@ -1826,6 +1886,8 @@ export async function runZukanModelBench(options: {
       temperature: options.temperature ?? 0,
       max_output_tokens: options.maxOutputTokens ?? 1024,
       thinking_level: benchmarkThinkingLevel(options.model, options.thinkingLevel),
+      ...(options.mediaResolution ? { media_resolution: options.mediaResolution } : {}),
+      ...(options.imageMaxEdge !== undefined ? { image_max_edge: options.imageMaxEdge } : {}),
       stream: false,
       modalities: "omitted",
       response_mime_type: "application/json",
@@ -1866,6 +1928,14 @@ export async function runZukanModelBench(options: {
       if (canonicalImageDigest(verifiedImages) !== fixture.postInputSha256) {
         throw new Error(`zukan_bench_post_identity_mismatch:${fixture.fixtureId}`);
       }
+      const transmitted = await Promise.all(verified.map(async (item) => ({
+        ref: item.ref,
+        ...(await prepareZukanBenchImageForTransmission({
+          buffer: item.bytes,
+          mimeType: item.ref.mimeType,
+          maxEdge: options.imageMaxEdge,
+        })),
+      })));
       const renderedPrompt = renderColdStartPrompt(promptTemplate, fixture);
       const started = Date.now();
       let canarySchemaValid = true;
@@ -1875,8 +1945,9 @@ export async function runZukanModelBench(options: {
           ? await generateWithCloudflareGoogleAiStudio({
             model: options.model,
             maxOutputTokens: options.maxOutputTokens ?? 8192,
+            mediaResolution: options.mediaResolution,
             parts: [
-              ...verified.map((item): AiRouterPart => ({ inlineData: { mimeType: item.ref.mimeType, data: item.bytes.toString("base64") } })),
+              ...transmitted.map((item): AiRouterPart => ({ inlineData: { mimeType: item.mimeType, data: item.buffer.toString("base64") } })),
               { text: renderedPrompt },
             ],
           })
@@ -1885,9 +1956,9 @@ export async function runZukanModelBench(options: {
               model: options.model,
               maxCompletionTokens: options.maxOutputTokens ?? 8192,
               parts: [
-                ...verified.map((item): CloudflareOfficialRestPart => ({
+                ...transmitted.map((item): CloudflareOfficialRestPart => ({
                   type: "image_url",
-                  image_url: { url: `data:${item.ref.mimeType};base64,${item.bytes.toString("base64")}` },
+                  image_url: { url: `data:${item.mimeType};base64,${item.buffer.toString("base64")}` },
                 })),
                 { type: "text", text: renderedPrompt },
               ],
@@ -1897,9 +1968,9 @@ export async function runZukanModelBench(options: {
             model: options.model,
             requireExistingGateway: true,
             parts: [
-              ...verified.map((item): CloudflareOfficialRestPart => ({
+              ...transmitted.map((item): CloudflareOfficialRestPart => ({
                 type: "image_url",
-                image_url: { url: `data:${item.ref.mimeType};base64,${item.bytes.toString("base64")}` },
+                image_url: { url: `data:${item.mimeType};base64,${item.buffer.toString("base64")}` },
               })),
               { type: "text", text: renderedPrompt },
             ],
@@ -1910,9 +1981,9 @@ export async function runZukanModelBench(options: {
               requireExistingGateway: true,
               maxCompletionTokens: options.maxOutputTokens ?? 8192,
               parts: [
-                ...verified.map((item): CloudflareOfficialRestPart => ({
+                ...transmitted.map((item): CloudflareOfficialRestPart => ({
                   type: "image_url",
-                  image_url: { url: `data:${item.ref.mimeType};base64,${item.bytes.toString("base64")}` },
+                  image_url: { url: `data:${item.mimeType};base64,${item.buffer.toString("base64")}` },
                 })),
                 { type: "text", text: renderedPrompt },
               ],
@@ -1923,9 +1994,9 @@ export async function runZukanModelBench(options: {
                 requireExistingGateway: true,
                 maxOutputTokens: options.maxOutputTokens ?? 8192,
                 parts: [
-                  ...verified.map((item): CloudflareOfficialRestPart => ({
+                  ...transmitted.map((item): CloudflareOfficialRestPart => ({
                     type: "image_url",
-                    image_url: { url: `data:${item.ref.mimeType};base64,${item.bytes.toString("base64")}` },
+                    image_url: { url: `data:${item.mimeType};base64,${item.buffer.toString("base64")}` },
                   })),
                   { type: "text", text: renderedPrompt },
                 ],
@@ -1934,13 +2005,14 @@ export async function runZukanModelBench(options: {
             ...(await generateAiTextWithRoleChain({
               chainName: "observationVisualExtract",
               parts: [
-                ...verified.map((item): AiRouterPart => ({ inlineData: { mimeType: item.ref.mimeType, data: item.bytes.toString("base64") } })),
+                ...transmitted.map((item): AiRouterPart => ({ inlineData: { mimeType: item.mimeType, data: item.buffer.toString("base64") } })),
                 { text: renderedPrompt },
               ],
               responseMimeType: "application/json",
               thinkingConfig: { thinkingLevel: benchmarkThinkingLevel(options.model, options.thinkingLevel) },
               temperature: requestConfig.temperature,
               maxOutputTokens: requestConfig.max_output_tokens,
+              mediaResolution: options.mediaResolution,
               responseJsonSchema: modelProvider(options.model) === "gemini"
                 ? ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA
                 : undefined,
@@ -1974,6 +2046,7 @@ export async function runZukanModelBench(options: {
           config: requestConfig,
           datasetSha256: manifest.datasetSha256,
           promptSha256: prompt.sha256,
+          transmittedImages: transmitted,
         });
         const finalFailures = finalContentAvailable
           ? scored.criticalFailures
@@ -2019,6 +2092,7 @@ export async function runZukanModelBench(options: {
             config: requestConfig,
             datasetSha256: manifest.datasetSha256,
             promptSha256: prompt.sha256,
+            transmittedImages: transmitted,
           }),
         });
         if (options.requireCanarySuccess && isCanary) break;
@@ -2210,6 +2284,13 @@ function thinkingLevelFromArgs(args: string[]): "minimal" | "low" | "medium" | "
   throw new Error(`invalid_thinking_level:${value}`);
 }
 
+function mediaResolutionFromArgs(args: string[]): "low" | "medium" | "high" | undefined {
+  const value = stringArg(args, "media-resolution");
+  if (value === undefined) return undefined;
+  if (value === "low" || value === "medium" || value === "high") return value;
+  throw new Error(`invalid_media_resolution:${value}`);
+}
+
 async function main(): Promise<void> {
   const [command = "run", ...args] = process.argv.slice(2);
   if (command === "freeze") {
@@ -2263,6 +2344,8 @@ async function main(): Promise<void> {
       transport: transportFromArgs(args),
       maxOutputTokens: numericArg(args, "max-output-tokens"),
       thinkingLevel: thinkingLevelFromArgs(args),
+      mediaResolution: mediaResolutionFromArgs(args),
+      imageMaxEdge: numericArg(args, "image-max-edge"),
       promptSource: stringArg(args, "prompt-source"),
       reportLabel: stringArg(args, "report-label"),
     });

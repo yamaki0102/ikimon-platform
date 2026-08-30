@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import sharp from "sharp";
 import {
   ZUKAN_BENCH_CORE_POST_COUNT,
   ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
@@ -28,12 +29,14 @@ import {
   generateWithCloudflareAiRest,
   rightsVettedTargetsFromResearchPayload,
   loadZukanBenchPrompt,
+  prepareZukanBenchImageForTransmission,
   scoreZukanBenchResponse,
   selectDeterministicPostTargets,
   selectZukanBenchFixtures,
   type ZukanBenchFixture,
   type ZukanBenchModelReport,
 } from "./zukanModelBench.js";
+import { googleMediaResolution } from "../services/aiModelRouter.js";
 
 const baseFixture: ZukanBenchFixture = {
   fixtureId: "zukan-post-record-1",
@@ -97,6 +100,28 @@ test("Gemini 3.7 defaults to supported low thinking while older Gemini keeps min
   assert.equal(benchmarkThinkingLevel("gemini-3.7-flash"), "low");
   assert.equal(benchmarkThinkingLevel("gemini-3.5-flash-lite"), "minimal");
   assert.equal(benchmarkThinkingLevel("gemini-3.7-flash", "high"), "high");
+});
+
+test("Gemini media resolution maps to the provider enum without changing unspecified behavior", () => {
+  assert.equal(googleMediaResolution(undefined), undefined);
+  assert.equal(googleMediaResolution("low"), "MEDIA_RESOLUTION_LOW");
+  assert.equal(googleMediaResolution("medium"), "MEDIA_RESOLUTION_MEDIUM");
+  assert.equal(googleMediaResolution("high"), "MEDIA_RESOLUTION_HIGH");
+});
+
+test("1024px benchmark transform is deterministic and records transmitted identity", async () => {
+  const source = await sharp({
+    create: { width: 1600, height: 2133, channels: 3, background: { r: 40, g: 120, b: 80 } },
+  }).jpeg({ quality: 90 }).toBuffer();
+  const first = await prepareZukanBenchImageForTransmission({ buffer: source, mimeType: "image/jpeg", maxEdge: 1024 });
+  const second = await prepareZukanBenchImageForTransmission({ buffer: source, mimeType: "image/jpeg", maxEdge: 1024 });
+  const metadata = await sharp(first.buffer).metadata();
+  assert.equal(Math.max(metadata.width ?? 0, metadata.height ?? 0), 1024);
+  assert.equal(first.mimeType, "image/jpeg");
+  assert.equal(first.sha256, second.sha256);
+  assert.deepEqual(first.buffer, second.buffer);
+  assert.equal(first.sha256.length, 64);
+  assert.equal(first.bytes, first.buffer.length);
 });
 
 test("benchmark prompt source defaults to the manifest prompt and supports an explicit override", async () => {
@@ -574,6 +599,10 @@ test("final output record keeps final content and parsed fields while omitting r
     },
     datasetSha256: "d".repeat(64),
     promptSha256: "p".repeat(64),
+    transmittedImages: [
+      { sha256: "e".repeat(64), bytes: 512, mimeType: "image/jpeg" },
+      { sha256: "f".repeat(64), bytes: 256, mimeType: "image/jpeg" },
+    ],
   });
   assert.equal(record.raw_final_content, raw);
   assert.equal(record.parsed_json?.extra_final_field, "kept");
@@ -581,6 +610,8 @@ test("final output record keeps final content and parsed fields while omitting r
   assert.equal(record.finish_reason, "stop");
   assert.deepEqual(record.token_usage, { input_tokens: 10, output_tokens: 20 });
   assert.equal(record.internal_reasoning_saved, false);
+  assert.deepEqual(record.transmitted_image_sha256, ["e".repeat(64), "f".repeat(64)]);
+  assert.deepEqual(record.transmitted_image_bytes, [512, 256]);
 
   const reasoningOnly = buildZukanBenchFinalOutputRecord({
     fixture: baseFixture,
@@ -596,6 +627,46 @@ test("final output record keeps final content and parsed fields while omitting r
   assert.equal(reasoningOnly.raw_final_content, null);
   assert.equal(reasoningOnly.parsed_json, null);
   assert.equal(reasoningOnly.internal_reasoning_saved, false);
+});
+
+test("final output record removes only sensitive values and private reasoning fields", () => {
+  const record = buildZukanBenchFinalOutputRecord({
+    fixture: baseFixture,
+    rawText: JSON.stringify({
+      recommended_taxon_name: "Bidens",
+      recommended_rank: "genus",
+      confidence_band: "medium",
+      observer_email: "person@example.com",
+      reasoning_content: "private chain of thought",
+      diagnostic_features_observed: ["small developing head"],
+    }),
+    responseField: "result.choices[0].message.content",
+    usageReported: true,
+    model: "@cf/zai-org/glm-5.3-flash",
+    provider: "cloudflare-workers-ai",
+    config: {
+      transport: "cloudflare-official-rest",
+      temperature: 0,
+      max_completion_tokens: 8192,
+      reasoning_effort: "low",
+      stream: false,
+      modalities: "omitted",
+      response_format: { type: "json_object" },
+      output_schema: "zukan-model-bench-parser-v1",
+      attempts_per_model: 1,
+      fallback_count: 0,
+    },
+    datasetSha256: "d".repeat(64),
+    promptSha256: "p".repeat(64),
+  });
+
+  assert.equal(record.raw_content_redacted, true);
+  assert.ok(record.raw_final_content);
+  assert.doesNotMatch(record.raw_final_content, /person@example\.com|private chain of thought|reasoning_content/u);
+  assert.equal(record.parsed_json?.recommended_taxon_name, "Bidens");
+  assert.equal(record.parsed_json?.observer_email, "[REDACTED]");
+  assert.equal(record.parsed_json?.reasoning_content, undefined);
+  assert.deepEqual(record.observed_features, { diagnostic_features_observed: ["small developing head"] });
 });
 
 test("observation-first gallery photos are extracted without related records", () => {

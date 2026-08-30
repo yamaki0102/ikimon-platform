@@ -1,0 +1,2077 @@
+{
+  "version": "zukan-post-model-bench-v2",
+  "promptVersion": "observation-reassess-post-cold-start-v2",
+  "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+  "model": "@cf/zai-org/glm-5.3-flash",
+  "provider": "cloudflare-workers-ai",
+  "manifestPath": "ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+  "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+  "startedAt": "2026-08-30T01:57:30.195Z",
+  "completedAt": "2026-08-30T02:07:12.569Z",
+  "postCount": 7,
+  "imageCount": 21,
+  "successCount": 7,
+  "modelRequestCount": 7,
+  "successRatePct": 100,
+  "schemaValidRatePct": 100,
+  "goldPostCount": 0,
+  "taxonScorePct": null,
+  "criticalFailurePostCount": 0,
+  "highConfidenceWrongPostCount": 0,
+  "overprecisionPostCount": 0,
+  "locationHallucinationPostCount": 0,
+  "p50LatencyMs": 81288,
+  "p95LatencyMs": 104051,
+  "totalInputTokens": 87288,
+  "totalOutputTokens": 27551,
+  "estimatedCostUsd": 0.0268687,
+  "pricing": {
+    "inputUsdPer1M": 0.15,
+    "outputUsdPer1M": 0.5,
+    "source": "cloudflare-workers-ai-2026-08-26"
+  },
+  "transport": "cloudflare-official-rest",
+  "usageMeasurement": "provider-reported",
+  "observedAdditionalCostUsd": null,
+  "reportSchemaVersion": "zukan-model-bench-report-v1",
+  "requestConfig": {
+    "transport": "cloudflare-official-rest",
+    "temperature": 0,
+    "max_completion_tokens": 8192,
+    "reasoning_effort": "low",
+    "image_max_edge": 1024,
+    "stream": false,
+    "modalities": "omitted",
+    "response_format": {
+      "type": "json_object"
+    },
+    "output_schema": "zukan-model-bench-parser-v1",
+    "gateway_selection": "explicit-existing-named-gateway-only",
+    "attempts_per_model": 1,
+    "fallback_count": 0
+  },
+  "accuracyStatus": "INSUFFICIENT_GOLD",
+  "reportPath": "ops/model-bench/evidence/2026-08-30-cf-zai-org-glm-5.3-flash-1024-final-v1.json",
+  "fixtureScores": [
+    {
+      "fixtureId": "zukan-post-record-1784366489892",
+      "visitId": "record-1784366489892",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "ムカシヨモギ属（ヒメジョオン・オオアレチノギク類）",
+      "recommendedRank": "genus",
+      "confidenceBand": "low",
+      "geographicContext": "位置情報が未取得のため地域分布は評価保留。礫地・コンクリート縁という場所性から、撹乱地に生える帰化草本である可能性は読み取れる。",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": "stop",
+      "latencyMs": 81288,
+      "inputTokens": 12470,
+      "outputTokens": 4074,
+      "finalOutput": {
+        "raw_final_content": null,
+        "parsed_json": null,
+        "recommended_taxon": null,
+        "recommended_rank": null,
+        "confidence": null,
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "stop",
+        "token_usage": {
+          "input_tokens": 12470,
+          "output_tokens": 4074
+        },
+        "latency_ms": 81288,
+        "model": "@cf/zai-org/glm-5.3-flash",
+        "provider": "cloudflare-workers-ai",
+        "config": {
+          "transport": "cloudflare-official-rest",
+          "temperature": 0,
+          "max_completion_tokens": 8192,
+          "reasoning_effort": "low",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_format": {
+            "type": "json_object"
+          },
+          "output_schema": "zukan-model-bench-parser-v1",
+          "gateway_selection": "explicit-existing-named-gateway-only",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "0a2d87197bf3368f3c27b7790457e047de286ebc98835f0f03c7603e597231e0",
+        "image_sha256": [
+          "ee6e3a54d816c4d4ed8f67721d6c8283db87f43ba24d0a0d01cbed82ae565753",
+          "40efc9e830cef93f0b3183ad1654f9ec86c158846b6e1c52da8fc3367dd99726",
+          "4d9f7de05d09ee33f30296aefa60095e57b7f0143eb1d7cf2c79456cfed5ca87"
+        ],
+        "transmitted_image_sha256": [
+          "8e08bd5924ba6ab22b12be5d1599a1b8144925751cdfa7e66d70c4121987572e",
+          "ba8c558264d8a04ad86383d1a4a9bba29e6df7b5a01bb9d910c9507bf1a4a106",
+          "fb94575af83e36a875dd9a2bacff6d14b90f766432faee6108f93e34036dcfa1"
+        ],
+        "transmitted_image_bytes": [
+          183637,
+          262452,
+          197336
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "6a0b52fd4818ecd75fe493217867a3dda36c72dc5dca433a5c292d209a256d82",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": "result.choices[0].message.content",
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": true
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430741938",
+      "visitId": "record-1784430741938",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "カタバミ属",
+      "recommendedRank": "genus",
+      "confidenceBand": "medium",
+      "geographicContext": "位置情報が未取得のため地域分布は評価保留。防草シートを用いた管理地の縁に群生する状況は、都市〜郊外を問わず一般的。",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": "stop",
+      "latencyMs": 82949,
+      "inputTokens": 12470,
+      "outputTokens": 3838,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"カタバミ属\",\n  \"recommended_scientific_name\": \"Oxalis\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"カタバミ\",\n      \"scientific_name\": \"Oxalis corniculata\",\n      \"rank\": \"species\",\n      \"probability\": 0.45,\n      \"diagnostic_features_observed\": [\"3小葉からなる心形の葉\", \"地面を這う匍匐茎\", \"小さな黄色い花（蕾含む）\"],\n      \"diagnostic_features_missing\": [\"花の正面（雄しべ・雌しべの長さ差）\", \"葉の毛の有無\", \"果実の形\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"オキザリス（園芸種・帰化）\",\n      \"scientific_name\": \"Oxalis spp.\",\n      \"rank\": \"genus\",\n      \"probability\": 0.3,\n      \"diagnostic_features_observed\": [\"心形3小葉\", \"ネット状の防草シート上に群生\"],\n      \"diagnostic_features_missing\": [\"地下鱗茎・塊茎の有無\", \"花色と花径\"],\n      \"visual_contradictions\": []\n    },\n    {\n      \"taxon_name\": \"イモカタバミ\",\n      \"scientific_name\": \"Oxalis debilis\",\n      \"rank\": \"species\",\n      \"probability\": 0.15,\n      \"diagnostic_features_observed\": [\"やや大型の葉が見える個体あり\"],\n      \"diagnostic_features_missing\": [\"花の色（桃色）\", \"鱗茎\", \"株全体の大きさ\"],\n      \"visual_contradictions\": [\"花が黄色く見える個体が多い\"]\n    }\n  ],\n  \"rank_decision_reason\": \"心形の3小葉と黄色い花蕾からカタバミ属とまでは確実だが、カタバミと帰化種（イモカタバミ等）の区別には花の正面・地下部が見えないため属で止める。\",\n  \"diagnostic_features_observed\": [\"心形の3小葉が互生\", \"匍匐性の茎\", \"黄色い花蕾\", \"防草シートの隙間から群生\"],\n  \"diagnostic_features_missing\": [\"花の開花状態の正面像\", \"雄しべ・雌しべの長短\", \"地下の鱗茎・塊茎\", \"葉の毛の有無\"],\n  \"confusable_groups\": [\n    {\"group_name\": \"シャクジソウ（クローバー類・マメ科）\", \"distinction_point\": \"マメ科のクローバーは小葉が倒卵形で葉脈が弧状。カタバミは心形で小葉に折り畳み運動がある\"},\n    {\"group_name\": \"帰化オキザリス類\", \"distinction_point\": \"イモカタバミは大型で桃色花、ムラサキカタバミは紫花。黄花ならカタバミ群\"}\n  ],\n  \"visual_contradictions\": [],\n  \"best_specific_taxon_name\": \"カタバミ\",\n  \"narrative\": \"3枚とも、防草シートの隙間に群生する心形3小葉の草本で、黄色い花蕾が複数見えることからカタバミ属と判断できる。這う茎の様子から在来のカタバミが有力だが、大型個体や葉色の違いもあり、帰化オキザリス（イモカタバミ等）の混在も排除できない。花の正面と地下部の確認が次の課題。\",\n  \"simple_summary\": \"隙間に広がる三つ葉の草はカタバミの仲間のようです。花を詳しく撮ると種が分かります。\",\n  \"observer_boost\": \"指をスケールに添えた2枚目のおかげで葉の大きさが読み取れ、群生範囲も3枚で把握できる記録になっています。\",\n  \"next_step_text\": \"開花日に黄色い花を真横・正面からマクロで撮影し、雄しべと雌しべの長さ関係を記録すると種が確定する。\",\n  \"stop_reason\": \"花が蕾のまま・地下部が見えず、カタバミと近縁帰化種を区別できる形質が画像から読み取れない。\",\n  \"fun_fact\": \"カタバミの名は「片噛み」に由来し、酸っぱい葉を噛むことに由来するといわれる。酸味はシュウ酸によるもの。\",\n  \"fun_fact_grounded\": true,\n  \"diagnostic_features_seen\": [\"心形の3小葉\", \"匍匐茎\", \"黄色い花蕾\", \"夜・悪条件で葉を閉じる睡眠運動の仲間\"],\n  \"missing_evidence\": [\"開花した花の正面・側面\", \"雄しべ・雌しべの長短\", \"地下の鱗茎・塊茎の有無\", \"葉や茎の毛の有無\"],\n  \"similar_taxa\": [\n    {\"name\": \"カタバミ\", \"rank\": \"species\"},\n    {\"name\": \"イモカタバミ\", \"rank\": \"species\"},\n    {\"name\": \"ムラサキカタバミ\", \"rank\": \"species\"},\n    {\"name\": \"ホソミノカタバミ\", \"rank\": \"species\"}\n  ],\n  \"distinguishing_tips\": [\n    \"カタバミ：黄色い小花、茎這う毛あり、雄しべ10本のうち長短混在\",\n    \"イモカタバミ：桃色の大形花、地中に肥大したイモ状鱗茎\",\n    \"ムラサキカタバミ：紫色の花、地下鱗茎、匍匐茎なし\",\n    \"ホソミノカタバミ：小葉が細く切れ込みが深い、黄色花\"\n  ],\n  \"confirm_more\": [\n    \"開花した花を真横から撮り、花冠の大きさと雄しべ・雌しべの長さ差を記録する（カタバミ群の確定形質）\",\n    \"株を掘らずに茎の根元を撮り、匍匐茎か直立茎か、地中に鱗茎があるかを確認する\",\n    \"葉の表面・裏面をマクロで撮り、毛の有無と小葉の切れ込み具合を記録する\",\n    \"同じ場所を1〜2ヶ月おきに撮り続け、開花時期と果実（蒴果）の形を残すと帰化種との区別が後からつく\"\n  ],\n  \"claim_refs_used\": [],\n  \"geographic_context\": \"位置情報が未取得のため地域分布は評価保留。防草シートを用いた管理地の縁に群生する状況は、都市〜郊外を問わず一般的。\",\n  \"seasonal_context\": \"観察日時が不明のため季節評価は保留。カタバミ類は暖季に連続開花するため、蕾の多さから生育盛期と推測される程度。\",\n  \"area_inference\": {\n    \"vegetation_structure_candidates\": [{\"label\": \"管理地縁の草本帯\", \"why\": \"防草シート上の低草群生\", \"confidence\": 0.7}],\n    \"succession_stage_candidates\": [],\n    \"human_influence_candidates\": [{\"label\": \"防草シート敷設地\", \"why\": \"黒色ネット状シートが全面に見える\", \"confidence\": 0.85}],\n    \"moisture_regime_candidates\": [{\"label\": \"中生\", \"why\": \"シート下で乾燥寄りの地表\", \"confidence\": 0.5}],\n    \"management_hint_candidates\": [{\"label\": \"シートによる除草管理\", \"why\": \"隙間のみ植物が生育\", \"confidence\": 0.7}]\n  },\n  \"management_action_candidates\": [\n    {\n      \"action_kind\": \"unknown\",\n      \"label\": \"防草シートの隙間から植物が生育しています\",\n      \"why\": \"黒色ネット状シートの目の間にカタバミ類が群生\",\n      \"confidence\": 0.7,\n      \"source\": \"photo\",\n      \"source_asset_id\": \"\",\n      \"confirm_state\": \"suggested\"\n    }\n  ],\n  \"shot_suggestions\": [\n    {\"role\": \"close_up_organ\", \"target\": \"開花した花の正面と側面\", \"rationale\": \"雄しべ・雌しべの長さと花冠径が残ると、カタバミと帰化オキザリス類を後から見比べられる\", \"priority\": \"high\"},\n    {\"role\": \"substrate\", \"target\": \"株元の地表と茎の這い方\", \"rationale\": \"匍匐茎か鱗茎由来かが分かり、帰化種の混在を分けて考えやすくなる\", \"priority\": \"high\"},\n    {\"role\": \"scale_reference\", \"target\": \"葉と指・コインの比較\", \"rationale\": \"葉径の記録が残ると季節差や別地点の個体群と比べやすくなる\", \"priority\": \"medium\"}\n  ],\n  \"candidate_readings\": [\n    {\n      \"name\": \"カタバミ属\",\n      \"scientific_name\": \"Oxalis\",\n      \"rank\": \"genus\",\n      \"role\": \"代表候補\",\n      \"visible_features\": [\"心形の3小葉が多数\", \"黄色い花蕾\", \"シートの隙間を這う茎\"],\n      \"weak_points\": [\"花が開いておらず種の決定形質が見えない\", \"地下部不明\"],\n      \"shooting_tips\": [\"開花時に花を正面・真横からマクロ撮影\", \"株元の茎の這い方を低角度で撮る\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留。防草シート管理地の縁に群生する典型的な雑草状況。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 15.0,\n        \"observed_size_estimate_cm\": 10.0,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"草丈としては小型〜普通\",\n        \"basis\": \"2枚目の指の大きさから推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"カタバミ\",\n      \"scientific_name\": \"Oxalis corniculata\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"這う茎\", \"黄色い花蕾\", \"心形3小葉\"],\n      \"weak_points\": [\"花の雄しべ・雌しべの長短が未確認\", \"毛の有無が判別不能\"],\n      \"shooting_tips\": [\"開花株の花を側面から撮る\", \"葉の表面の毛をマクロで撮る\"],\n      \"regional_read\": \"日本全国の道端・管理地に普通。シート隙間の群生は本種に典型的な生え方。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 15.0,\n        \"observed_size_estimate_cm\": 10.0,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"平均的サイズ\",\n        \"basis\": \"指との比較から推定\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"イモカタバミ\",\n      \"scientific_name\": \"Oxalis debilis\",\n      \"rank\": \"species\",\n      \"role\": \"別候補\",\n      \"visible_features\": [\"やや大きく見える葉が一部にある\"],\n      \"weak_points\": [\"桃色の花が確認できない\", \"鱗茎が見えない\"],\n      \"shooting_tips\": [\"大型株の花の色を確認\", \"株元を掘らず根元の膨らみを撮る\"],\n      \"regional_read\": \"暖地の空き地・管理地に帰化。暖かい地域なら混在の可能性がある。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 30.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"カタバミより大型\",\n        \"basis\": \"スケール参照が不十分\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"イネ科草本\",\n      \"scientific_name\": \"Poaceae\",\n      \"rank\": \"family\",\n      \"role\": \"一緒に写るもの\",\n      \"visible_features\": [\"手前側に細長い葉の草地\", \"葉身が細長く平行脈\"],\n      \"weak_points\": [\"穂がなく属種は不明\"],\n      \"shooting_tips\": [\"抽穂期に穂を撮る\"],\n      \"regional_read\": \"管理地の縁に普通に生える草地。場所情報がないため地域読みは保留。\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 20.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"低い草地\",\n        \"basis\": \"スケール不明\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    }\n  ],\n  \"recommended_media_regions\": [\n    {\"asset_index\": 0, \"rect\": {\"x\": 0.1, \"y\": 0.15, \"width\": 0.8, \"height\": 0.6}, \"frame_time_ms\": 0, \"confidence\": 0.85, \"note\": \"画面全体にカタバミ類が群生\"},\n    {\"asset_index\": 1, \"rect\": {\"x\": 0.3, \"y\": 0.2, \"width\": 0.6, \"height\": 0.5}, \"frame_time_ms\": 0, \"confidence\": 0.8, \"note\": \"指の周囲に群生\"},\n    {\"asset_index\": 2, \"rect\": {\"x\": 0.15, \"y\": 0.3, \"width\": 0.8, \"height\": 0.2}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"シート沿いの帯状群生\"}\n  ],\n  \"coexisting_taxa\": [\n    {\n      \"name\": \"イネ科草本\",\n      \"scientific_name\": \"Poaceae\",\n      \"rank\": \"family\",\n      \"confidence\": 0.7,\n      \"note\": \"手前の草地。種不明\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [{\"asset_index\": 0, \"rect\": {\"x\": 0.0, \"y\": 0.6, \"width\": 1.0, \"height\": 0.4}, \"frame_time_ms\": 0, \"confidence\": 0.8, \"note\": \"手前の緑の草\"}]\n    },\n    {\n      \"name\": \"広葉樹の落葉\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"confidence\": 0.5,\n      \"note\": \"褐色の落葉が混在\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [{\"asset_index\": 2, \"rect\": {\"x\": 0.6, \"y\": 0.18, \"width\": 0.4, \"height\": 0.12}, \"frame_time_ms\": 0, \"confidence\": 0.6, \"note\": \"シート上の落葉\"}]\n    }\n  ],\n  \"size_assessment\": {\n    \"typical_size_cm\": 15.0,\n    \"observed_size_estimate_cm\": 10.0,\n    \"size_class\": \"small\",\n    \"ranking_hint\": \"草丈としては小型\",\n    \"basis\": \"2枚目の指の大きさから推定\",\n    \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n  },\n  \"invasive_response\": {\n    \"is_invasive\": false,\n    \"mhlw_category\": null,\n    \"recommended_action\": null,\n    \"action_basis\": \"\",\n    \"regional_caveat\": null,\n    \"legal_warning\": \"\",\n    \"hedge\": \"\"\n  }\n}",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "genus",
+          "recommended_taxon_name": "カタバミ属",
+          "recommended_scientific_name": "Oxalis",
+          "taxonomic_candidates": [
+            {
+              "taxon_name": "カタバミ",
+              "scientific_name": "Oxalis corniculata",
+              "rank": "species",
+              "probability": 0.45,
+              "diagnostic_features_observed": [
+                "3小葉からなる心形の葉",
+                "地面を這う匍匐茎",
+                "小さな黄色い花（蕾含む）"
+              ],
+              "diagnostic_features_missing": [
+                "花の正面（雄しべ・雌しべの長さ差）",
+                "葉の毛の有無",
+                "果実の形"
+              ],
+              "visual_contradictions": []
+            },
+            {
+              "taxon_name": "オキザリス（園芸種・帰化）",
+              "scientific_name": "Oxalis spp.",
+              "rank": "genus",
+              "probability": 0.3,
+              "diagnostic_features_observed": [
+                "心形3小葉",
+                "ネット状の防草シート上に群生"
+              ],
+              "diagnostic_features_missing": [
+                "地下鱗茎・塊茎の有無",
+                "花色と花径"
+              ],
+              "visual_contradictions": []
+            },
+            {
+              "taxon_name": "イモカタバミ",
+              "scientific_name": "Oxalis debilis",
+              "rank": "species",
+              "probability": 0.15,
+              "diagnostic_features_observed": [
+                "やや大型の葉が見える個体あり"
+              ],
+              "diagnostic_features_missing": [
+                "花の色（桃色）",
+                "鱗茎",
+                "株全体の大きさ"
+              ],
+              "visual_contradictions": [
+                "花が黄色く見える個体が多い"
+              ]
+            }
+          ],
+          "rank_decision_reason": "心形の3小葉と黄色い花蕾からカタバミ属とまでは確実だが、カタバミと帰化種（イモカタバミ等）の区別には花の正面・地下部が見えないため属で止める。",
+          "diagnostic_features_observed": [
+            "心形の3小葉が互生",
+            "匍匐性の茎",
+            "黄色い花蕾",
+            "防草シートの隙間から群生"
+          ],
+          "diagnostic_features_missing": [
+            "花の開花状態の正面像",
+            "雄しべ・雌しべの長短",
+            "地下の鱗茎・塊茎",
+            "葉の毛の有無"
+          ],
+          "confusable_groups": [
+            {
+              "group_name": "シャクジソウ（クローバー類・マメ科）",
+              "distinction_point": "マメ科のクローバーは小葉が倒卵形で葉脈が弧状。カタバミは心形で小葉に折り畳み運動がある"
+            },
+            {
+              "group_name": "帰化オキザリス類",
+              "distinction_point": "イモカタバミは大型で桃色花、ムラサキカタバミは紫花。黄花ならカタバミ群"
+            }
+          ],
+          "visual_contradictions": [],
+          "best_specific_taxon_name": "カタバミ",
+          "narrative": "3枚とも、防草シートの隙間に群生する心形3小葉の草本で、黄色い花蕾が複数見えることからカタバミ属と判断できる。這う茎の様子から在来のカタバミが有力だが、大型個体や葉色の違いもあり、帰化オキザリス（イモカタバミ等）の混在も排除できない。花の正面と地下部の確認が次の課題。",
+          "simple_summary": "隙間に広がる三つ葉の草はカタバミの仲間のようです。花を詳しく撮ると種が分かります。",
+          "observer_boost": "指をスケールに添えた2枚目のおかげで葉の大きさが読み取れ、群生範囲も3枚で把握できる記録になっています。",
+          "next_step_text": "開花日に黄色い花を真横・正面からマクロで撮影し、雄しべと雌しべの長さ関係を記録すると種が確定する。",
+          "stop_reason": "花が蕾のまま・地下部が見えず、カタバミと近縁帰化種を区別できる形質が画像から読み取れない。",
+          "fun_fact": "カタバミの名は「片噛み」に由来し、酸っぱい葉を噛むことに由来するといわれる。酸味はシュウ酸によるもの。",
+          "fun_fact_grounded": true,
+          "diagnostic_features_seen": [
+            "心形の3小葉",
+            "匍匐茎",
+            "黄色い花蕾",
+            "夜・悪条件で葉を閉じる睡眠運動の仲間"
+          ],
+          "missing_evidence": [
+            "開花した花の正面・側面",
+            "雄しべ・雌しべの長短",
+            "地下の鱗茎・塊茎の有無",
+            "葉や茎の毛の有無"
+          ],
+          "similar_taxa": [
+            {
+              "name": "カタバミ",
+              "rank": "species"
+            },
+            {
+              "name": "イモカタバミ",
+              "rank": "species"
+            },
+            {
+              "name": "ムラサキカタバミ",
+              "rank": "species"
+            },
+            {
+              "name": "ホソミノカタバミ",
+              "rank": "species"
+            }
+          ],
+          "distinguishing_tips": [
+            "カタバミ：黄色い小花、茎這う毛あり、雄しべ10本のうち長短混在",
+            "イモカタバミ：桃色の大形花、地中に肥大したイモ状鱗茎",
+            "ムラサキカタバミ：紫色の花、地下鱗茎、匍匐茎なし",
+            "ホソミノカタバミ：小葉が細く切れ込みが深い、黄色花"
+          ],
+          "confirm_more": [
+            "開花した花を真横から撮り、花冠の大きさと雄しべ・雌しべの長さ差を記録する（カタバミ群の確定形質）",
+            "株を掘らずに茎の根元を撮り、匍匐茎か直立茎か、地中に鱗茎があるかを確認する",
+            "葉の表面・裏面をマクロで撮り、毛の有無と小葉の切れ込み具合を記録する",
+            "同じ場所を1〜2ヶ月おきに撮り続け、開花時期と果実（蒴果）の形を残すと帰化種との区別が後からつく"
+          ],
+          "claim_refs_used": [],
+          "geographic_context": "位置情報が未取得のため地域分布は評価保留。防草シートを用いた管理地の縁に群生する状況は、都市〜郊外を問わず一般的。",
+          "seasonal_context": "観察日時が不明のため季節評価は保留。カタバミ類は暖季に連続開花するため、蕾の多さから生育盛期と推測される程度。",
+          "area_inference": {
+            "vegetation_structure_candidates": [
+              {
+                "label": "管理地縁の草本帯",
+                "why": "防草シート上の低草群生",
+                "confidence": 0.7
+              }
+            ],
+            "succession_stage_candidates": [],
+            "human_influence_candidates": [
+              {
+                "label": "防草シート敷設地",
+                "why": "黒色ネット状シートが全面に見える",
+                "confidence": 0.85
+              }
+            ],
+            "moisture_regime_candidates": [
+              {
+                "label": "中生",
+                "why": "シート下で乾燥寄りの地表",
+                "confidence": 0.5
+              }
+            ],
+            "management_hint_candidates": [
+              {
+                "label": "シートによる除草管理",
+                "why": "隙間のみ植物が生育",
+                "confidence": 0.7
+              }
+            ]
+          },
+          "management_action_candidates": [
+            {
+              "action_kind": "unknown",
+              "label": "防草シートの隙間から植物が生育しています",
+              "why": "黒色ネット状シートの目の間にカタバミ類が群生",
+              "confidence": 0.7,
+              "source": "photo",
+              "source_asset_id": "",
+              "confirm_state": "suggested"
+            }
+          ],
+          "shot_suggestions": [
+            {
+              "role": "close_up_organ",
+              "target": "開花した花の正面と側面",
+              "rationale": "雄しべ・雌しべの長さと花冠径が残ると、カタバミと帰化オキザリス類を後から見比べられる",
+              "priority": "high"
+            },
+            {
+              "role": "substrate",
+              "target": "株元の地表と茎の這い方",
+              "rationale": "匍匐茎か鱗茎由来かが分かり、帰化種の混在を分けて考えやすくなる",
+              "priority": "high"
+            },
+            {
+              "role": "scale_reference",
+              "target": "葉と指・コインの比較",
+              "rationale": "葉径の記録が残ると季節差や別地点の個体群と比べやすくなる",
+              "priority": "medium"
+            }
+          ],
+          "candidate_readings": [
+            {
+              "name": "カタバミ属",
+              "scientific_name": "Oxalis",
+              "rank": "genus",
+              "role": "代表候補",
+              "visible_features": [
+                "心形の3小葉が多数",
+                "黄色い花蕾",
+                "シートの隙間を這う茎"
+              ],
+              "weak_points": [
+                "花が開いておらず種の決定形質が見えない",
+                "地下部不明"
+              ],
+              "shooting_tips": [
+                "開花時に花を正面・真横からマクロ撮影",
+                "株元の茎の這い方を低角度で撮る"
+              ],
+              "regional_read": "場所情報がないため地域読みは保留。防草シート管理地の縁に群生する典型的な雑草状況。",
+              "size_assessment": {
+                "typical_size_cm": 15,
+                "observed_size_estimate_cm": 10,
+                "size_class": "small",
+                "ranking_hint": "草丈としては小型〜普通",
+                "basis": "2枚目の指の大きさから推定",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "カタバミ",
+              "scientific_name": "Oxalis corniculata",
+              "rank": "species",
+              "role": "比較候補",
+              "visible_features": [
+                "這う茎",
+                "黄色い花蕾",
+                "心形3小葉"
+              ],
+              "weak_points": [
+                "花の雄しべ・雌しべの長短が未確認",
+                "毛の有無が判別不能"
+              ],
+              "shooting_tips": [
+                "開花株の花を側面から撮る",
+                "葉の表面の毛をマクロで撮る"
+              ],
+              "regional_read": "日本全国の道端・管理地に普通。シート隙間の群生は本種に典型的な生え方。",
+              "size_assessment": {
+                "typical_size_cm": 15,
+                "observed_size_estimate_cm": 10,
+                "size_class": "typical",
+                "ranking_hint": "平均的サイズ",
+                "basis": "指との比較から推定",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "イモカタバミ",
+              "scientific_name": "Oxalis debilis",
+              "rank": "species",
+              "role": "別候補",
+              "visible_features": [
+                "やや大きく見える葉が一部にある"
+              ],
+              "weak_points": [
+                "桃色の花が確認できない",
+                "鱗茎が見えない"
+              ],
+              "shooting_tips": [
+                "大型株の花の色を確認",
+                "株元を掘らず根元の膨らみを撮る"
+              ],
+              "regional_read": "暖地の空き地・管理地に帰化。暖かい地域なら混在の可能性がある。",
+              "size_assessment": {
+                "typical_size_cm": 30,
+                "observed_size_estimate_cm": null,
+                "size_class": "typical",
+                "ranking_hint": "カタバミより大型",
+                "basis": "スケール参照が不十分",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "イネ科草本",
+              "scientific_name": "Poaceae",
+              "rank": "family",
+              "role": "一緒に写るもの",
+              "visible_features": [
+                "手前側に細長い葉の草地",
+                "葉身が細長く平行脈"
+              ],
+              "weak_points": [
+                "穂がなく属種は不明"
+              ],
+              "shooting_tips": [
+                "抽穂期に穂を撮る"
+              ],
+              "regional_read": "管理地の縁に普通に生える草地。場所情報がないため地域読みは保留。",
+              "size_assessment": {
+                "typical_size_cm": 20,
+                "observed_size_estimate_cm": null,
+                "size_class": "typical",
+                "ranking_hint": "低い草地",
+                "basis": "スケール不明",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            }
+          ],
+          "recommended_media_regions": [
+            {
+              "asset_index": 0,
+              "rect": {
+                "x": 0.1,
+                "y": 0.15,
+                "width": 0.8,
+                "height": 0.6
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.85,
+              "note": "画面全体にカタバミ類が群生"
+            },
+            {
+              "asset_index": 1,
+              "rect": {
+                "x": 0.3,
+                "y": 0.2,
+                "width": 0.6,
+                "height": 0.5
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.8,
+              "note": "指の周囲に群生"
+            },
+            {
+              "asset_index": 2,
+              "rect": {
+                "x": 0.15,
+                "y": 0.3,
+                "width": 0.8,
+                "height": 0.2
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.7,
+              "note": "シート沿いの帯状群生"
+            }
+          ],
+          "coexisting_taxa": [
+            {
+              "name": "イネ科草本",
+              "scientific_name": "Poaceae",
+              "rank": "family",
+              "confidence": 0.7,
+              "note": "手前の草地。種不明",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 0,
+                  "rect": {
+                    "x": 0,
+                    "y": 0.6,
+                    "width": 1,
+                    "height": 0.4
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.8,
+                  "note": "手前の緑の草"
+                }
+              ]
+            },
+            {
+              "name": "広葉樹の落葉",
+              "scientific_name": "",
+              "rank": "lifeform",
+              "confidence": 0.5,
+              "note": "褐色の落葉が混在",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 2,
+                  "rect": {
+                    "x": 0.6,
+                    "y": 0.18,
+                    "width": 0.4,
+                    "height": 0.12
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.6,
+                  "note": "シート上の落葉"
+                }
+              ]
+            }
+          ],
+          "size_assessment": {
+            "typical_size_cm": 15,
+            "observed_size_estimate_cm": 10,
+            "size_class": "small",
+            "ranking_hint": "草丈としては小型",
+            "basis": "2枚目の指の大きさから推定",
+            "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+          },
+          "invasive_response": {
+            "is_invasive": false,
+            "mhlw_category": null,
+            "recommended_action": null,
+            "action_basis": "",
+            "regional_caveat": null,
+            "legal_warning": "",
+            "hedge": ""
+          }
+        },
+        "recommended_taxon": "カタバミ属",
+        "recommended_rank": "genus",
+        "confidence": "medium",
+        "candidates": [
+          {
+            "taxon_name": "カタバミ",
+            "scientific_name": "Oxalis corniculata",
+            "rank": "species",
+            "probability": 0.45,
+            "diagnostic_features_observed": [
+              "3小葉からなる心形の葉",
+              "地面を這う匍匐茎",
+              "小さな黄色い花（蕾含む）"
+            ],
+            "diagnostic_features_missing": [
+              "花の正面（雄しべ・雌しべの長さ差）",
+              "葉の毛の有無",
+              "果実の形"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "オキザリス（園芸種・帰化）",
+            "scientific_name": "Oxalis spp.",
+            "rank": "genus",
+            "probability": 0.3,
+            "diagnostic_features_observed": [
+              "心形3小葉",
+              "ネット状の防草シート上に群生"
+            ],
+            "diagnostic_features_missing": [
+              "地下鱗茎・塊茎の有無",
+              "花色と花径"
+            ],
+            "visual_contradictions": []
+          },
+          {
+            "taxon_name": "イモカタバミ",
+            "scientific_name": "Oxalis debilis",
+            "rank": "species",
+            "probability": 0.15,
+            "diagnostic_features_observed": [
+              "やや大型の葉が見える個体あり"
+            ],
+            "diagnostic_features_missing": [
+              "花の色（桃色）",
+              "鱗茎",
+              "株全体の大きさ"
+            ],
+            "visual_contradictions": [
+              "花が黄色く見える個体が多い"
+            ]
+          }
+        ],
+        "observed_features": {
+          "diagnostic_features_observed": [
+            "心形の3小葉が互生",
+            "匍匐性の茎",
+            "黄色い花蕾",
+            "防草シートの隙間から群生"
+          ],
+          "diagnostic_features_seen": [
+            "心形の3小葉",
+            "匍匐茎",
+            "黄色い花蕾",
+            "夜・悪条件で葉を閉じる睡眠運動の仲間"
+          ]
+        },
+        "diagnostic_features": {
+          "diagnostic_features_observed": [
+            "心形の3小葉が互生",
+            "匍匐性の茎",
+            "黄色い花蕾",
+            "防草シートの隙間から群生"
+          ],
+          "diagnostic_features_seen": [
+            "心形の3小葉",
+            "匍匐茎",
+            "黄色い花蕾",
+            "夜・悪条件で葉を閉じる睡眠運動の仲間"
+          ]
+        },
+        "missing_features": {
+          "diagnostic_features_missing": [
+            "花の開花状態の正面像",
+            "雄しべ・雌しべの長短",
+            "地下の鱗茎・塊茎",
+            "葉の毛の有無"
+          ],
+          "missing_evidence": [
+            "開花した花の正面・側面",
+            "雄しべ・雌しべの長短",
+            "地下の鱗茎・塊茎の有無",
+            "葉や茎の毛の有無"
+          ]
+        },
+        "uncertain_features": null,
+        "geographic_context": "位置情報が未取得のため地域分布は評価保留。防草シートを用いた管理地の縁に群生する状況は、都市〜郊外を問わず一般的。",
+        "context_fields": {
+          "seasonal_context": "観察日時が不明のため季節評価は保留。カタバミ類は暖季に連続開花するため、蕾の多さから生育盛期と推測される程度。",
+          "area_inference": {
+            "vegetation_structure_candidates": [
+              {
+                "label": "管理地縁の草本帯",
+                "why": "防草シート上の低草群生",
+                "confidence": 0.7
+              }
+            ],
+            "succession_stage_candidates": [],
+            "human_influence_candidates": [
+              {
+                "label": "防草シート敷設地",
+                "why": "黒色ネット状シートが全面に見える",
+                "confidence": 0.85
+              }
+            ],
+            "moisture_regime_candidates": [
+              {
+                "label": "中生",
+                "why": "シート下で乾燥寄りの地表",
+                "confidence": 0.5
+              }
+            ],
+            "management_hint_candidates": [
+              {
+                "label": "シートによる除草管理",
+                "why": "隙間のみ植物が生育",
+                "confidence": 0.7
+              }
+            ]
+          },
+          "management_action_candidates": [
+            {
+              "action_kind": "unknown",
+              "label": "防草シートの隙間から植物が生育しています",
+              "why": "黒色ネット状シートの目の間にカタバミ類が群生",
+              "confidence": 0.7,
+              "source": "photo",
+              "source_asset_id": "",
+              "confirm_state": "suggested"
+            }
+          ],
+          "confirm_more": [
+            "開花した花を真横から撮り、花冠の大きさと雄しべ・雌しべの長さ差を記録する（カタバミ群の確定形質）",
+            "株を掘らずに茎の根元を撮り、匍匐茎か直立茎か、地中に鱗茎があるかを確認する",
+            "葉の表面・裏面をマクロで撮り、毛の有無と小葉の切れ込み具合を記録する",
+            "同じ場所を1〜2ヶ月おきに撮り続け、開花時期と果実（蒴果）の形を残すと帰化種との区別が後からつく"
+          ]
+        },
+        "other_final_output_fields": {
+          "recommended_scientific_name": "Oxalis",
+          "rank_decision_reason": "心形の3小葉と黄色い花蕾からカタバミ属とまでは確実だが、カタバミと帰化種（イモカタバミ等）の区別には花の正面・地下部が見えないため属で止める。",
+          "confusable_groups": [
+            {
+              "group_name": "シャクジソウ（クローバー類・マメ科）",
+              "distinction_point": "マメ科のクローバーは小葉が倒卵形で葉脈が弧状。カタバミは心形で小葉に折り畳み運動がある"
+            },
+            {
+              "group_name": "帰化オキザリス類",
+              "distinction_point": "イモカタバミは大型で桃色花、ムラサキカタバミは紫花。黄花ならカタバミ群"
+            }
+          ],
+          "visual_contradictions": [],
+          "best_specific_taxon_name": "カタバミ",
+          "narrative": "3枚とも、防草シートの隙間に群生する心形3小葉の草本で、黄色い花蕾が複数見えることからカタバミ属と判断できる。這う茎の様子から在来のカタバミが有力だが、大型個体や葉色の違いもあり、帰化オキザリス（イモカタバミ等）の混在も排除できない。花の正面と地下部の確認が次の課題。",
+          "simple_summary": "隙間に広がる三つ葉の草はカタバミの仲間のようです。花を詳しく撮ると種が分かります。",
+          "observer_boost": "指をスケールに添えた2枚目のおかげで葉の大きさが読み取れ、群生範囲も3枚で把握できる記録になっています。",
+          "next_step_text": "開花日に黄色い花を真横・正面からマクロで撮影し、雄しべと雌しべの長さ関係を記録すると種が確定する。",
+          "stop_reason": "花が蕾のまま・地下部が見えず、カタバミと近縁帰化種を区別できる形質が画像から読み取れない。",
+          "fun_fact": "カタバミの名は「片噛み」に由来し、酸っぱい葉を噛むことに由来するといわれる。酸味はシュウ酸によるもの。",
+          "fun_fact_grounded": true,
+          "similar_taxa": [
+            {
+              "name": "カタバミ",
+              "rank": "species"
+            },
+            {
+              "name": "イモカタバミ",
+              "rank": "species"
+            },
+            {
+              "name": "ムラサキカタバミ",
+              "rank": "species"
+            },
+            {
+              "name": "ホソミノカタバミ",
+              "rank": "species"
+            }
+          ],
+          "distinguishing_tips": [
+            "カタバミ：黄色い小花、茎這う毛あり、雄しべ10本のうち長短混在",
+            "イモカタバミ：桃色の大形花、地中に肥大したイモ状鱗茎",
+            "ムラサキカタバミ：紫色の花、地下鱗茎、匍匐茎なし",
+            "ホソミノカタバミ：小葉が細く切れ込みが深い、黄色花"
+          ],
+          "claim_refs_used": [],
+          "shot_suggestions": [
+            {
+              "role": "close_up_organ",
+              "target": "開花した花の正面と側面",
+              "rationale": "雄しべ・雌しべの長さと花冠径が残ると、カタバミと帰化オキザリス類を後から見比べられる",
+              "priority": "high"
+            },
+            {
+              "role": "substrate",
+              "target": "株元の地表と茎の這い方",
+              "rationale": "匍匐茎か鱗茎由来かが分かり、帰化種の混在を分けて考えやすくなる",
+              "priority": "high"
+            },
+            {
+              "role": "scale_reference",
+              "target": "葉と指・コインの比較",
+              "rationale": "葉径の記録が残ると季節差や別地点の個体群と比べやすくなる",
+              "priority": "medium"
+            }
+          ],
+          "recommended_media_regions": [
+            {
+              "asset_index": 0,
+              "rect": {
+                "x": 0.1,
+                "y": 0.15,
+                "width": 0.8,
+                "height": 0.6
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.85,
+              "note": "画面全体にカタバミ類が群生"
+            },
+            {
+              "asset_index": 1,
+              "rect": {
+                "x": 0.3,
+                "y": 0.2,
+                "width": 0.6,
+                "height": 0.5
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.8,
+              "note": "指の周囲に群生"
+            },
+            {
+              "asset_index": 2,
+              "rect": {
+                "x": 0.15,
+                "y": 0.3,
+                "width": 0.8,
+                "height": 0.2
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.7,
+              "note": "シート沿いの帯状群生"
+            }
+          ],
+          "coexisting_taxa": [
+            {
+              "name": "イネ科草本",
+              "scientific_name": "Poaceae",
+              "rank": "family",
+              "confidence": 0.7,
+              "note": "手前の草地。種不明",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 0,
+                  "rect": {
+                    "x": 0,
+                    "y": 0.6,
+                    "width": 1,
+                    "height": 0.4
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.8,
+                  "note": "手前の緑の草"
+                }
+              ]
+            },
+            {
+              "name": "広葉樹の落葉",
+              "scientific_name": "",
+              "rank": "lifeform",
+              "confidence": 0.5,
+              "note": "褐色の落葉が混在",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 2,
+                  "rect": {
+                    "x": 0.6,
+                    "y": 0.18,
+                    "width": 0.4,
+                    "height": 0.12
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.6,
+                  "note": "シート上の落葉"
+                }
+              ]
+            }
+          ],
+          "size_assessment": {
+            "typical_size_cm": 15,
+            "observed_size_estimate_cm": 10,
+            "size_class": "small",
+            "ranking_hint": "草丈としては小型",
+            "basis": "2枚目の指の大きさから推定",
+            "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+          },
+          "invasive_response": {
+            "is_invasive": false,
+            "mhlw_category": null,
+            "recommended_action": null,
+            "action_basis": "",
+            "regional_caveat": null,
+            "legal_warning": "",
+            "hedge": ""
+          }
+        },
+        "finish_reason": "stop",
+        "token_usage": {
+          "input_tokens": 12470,
+          "output_tokens": 3838
+        },
+        "latency_ms": 82949,
+        "model": "@cf/zai-org/glm-5.3-flash",
+        "provider": "cloudflare-workers-ai",
+        "config": {
+          "transport": "cloudflare-official-rest",
+          "temperature": 0,
+          "max_completion_tokens": 8192,
+          "reasoning_effort": "low",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_format": {
+            "type": "json_object"
+          },
+          "output_schema": "zukan-model-bench-parser-v1",
+          "gateway_selection": "explicit-existing-named-gateway-only",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752",
+        "image_sha256": [
+          "2c01f57184968e56efb6965ce2bf1d0e11396942bc07f7b3af11bff7597c031b",
+          "68fc1ccfdc5a799222351454478a0025275f55f9f8b6d22c6c162e2b703fb51e",
+          "faef3ead9e273c0465ca59a9f97ba9ba2e077542f4ab99cc8c175600c8f56583"
+        ],
+        "transmitted_image_sha256": [
+          "07d4317b07d16bebbf75c5803a43606e0825df74bad2df7d54eb184ca4f304ac",
+          "ff190169edc92c69a7196bdd3d471a2bf6afd7566b11e98c278386d79a431a90",
+          "f73a1c9a5fbf7ee392b44c9448bddffaa5031343d285056196c778d9329c7287"
+        ],
+        "transmitted_image_bytes": [
+          242983,
+          193481,
+          316059
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "9f55bb063e77d30fbc43ec5b169f57daba338a3be29339c153d4eb01608e43a2",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": "result.choices[0].message.content",
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1781252770584",
+      "visitId": "record-1781252770584",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "コウロギコガネ属の一種",
+      "recommendedRank": "genus",
+      "confidenceBand": "medium",
+      "geographicContext": "位置情報が未取得のため地域分布は評価保留。",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": "stop",
+      "latencyMs": 72255,
+      "inputTokens": 12469,
+      "outputTokens": 3288,
+      "finalOutput": {
+        "raw_final_content": null,
+        "parsed_json": null,
+        "recommended_taxon": null,
+        "recommended_rank": null,
+        "confidence": null,
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "stop",
+        "token_usage": {
+          "input_tokens": 12469,
+          "output_tokens": 3288
+        },
+        "latency_ms": 72255,
+        "model": "@cf/zai-org/glm-5.3-flash",
+        "provider": "cloudflare-workers-ai",
+        "config": {
+          "transport": "cloudflare-official-rest",
+          "temperature": 0,
+          "max_completion_tokens": 8192,
+          "reasoning_effort": "low",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_format": {
+            "type": "json_object"
+          },
+          "output_schema": "zukan-model-bench-parser-v1",
+          "gateway_selection": "explicit-existing-named-gateway-only",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2",
+        "image_sha256": [
+          "2ab79c70ea5572c683301dc76daa7dd755722e2f49c5b1f8c759de48f26763ba",
+          "58e3f4310ce35d70cc89722799f74ca5ef9923de565016ae4e03cc23afcb20f3",
+          "3c2283e9733f882b651397bc0c39fb666a6d90eb613c642a94a56a12ead1df3a"
+        ],
+        "transmitted_image_sha256": [
+          "f25ad6cd8658dacb1db838705208acb8a229c5ed36c86dbe3222346eeb614860",
+          "a6b7d6d804e58aaa3153ef8c3c95d9332a7b35757aab83cdb9da13683bb54e96",
+          "790ca1e86e5c8abcfc24c7ed62c5c32f3c32e9bc77b601907d6879ec7eba3c17"
+        ],
+        "transmitted_image_bytes": [
+          115733,
+          143696,
+          113303
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "2cb312cc21ee211dec4bf8c24866dd58de46b5605183214df7fe32eb023b0dbc",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": "result.choices[0].message.content",
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": true
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430374598",
+      "visitId": "record-1784430374598",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "キブネウマノスズクナ（アカリファ・ヒスピダ）",
+      "recommendedRank": "species",
+      "confidenceBand": "medium",
+      "geographicContext": "位置情報が未取得のため地域分布は評価保留。熱帯原産の園芸種で、日本では暖地の庭・公園に植栽されることが多い。",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": "stop",
+      "latencyMs": 104051,
+      "inputTokens": 12470,
+      "outputTokens": 4560,
+      "finalOutput": {
+        "raw_final_content": null,
+        "parsed_json": null,
+        "recommended_taxon": null,
+        "recommended_rank": null,
+        "confidence": null,
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "stop",
+        "token_usage": {
+          "input_tokens": 12470,
+          "output_tokens": 4560
+        },
+        "latency_ms": 104051,
+        "model": "@cf/zai-org/glm-5.3-flash",
+        "provider": "cloudflare-workers-ai",
+        "config": {
+          "transport": "cloudflare-official-rest",
+          "temperature": 0,
+          "max_completion_tokens": 8192,
+          "reasoning_effort": "low",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_format": {
+            "type": "json_object"
+          },
+          "output_schema": "zukan-model-bench-parser-v1",
+          "gateway_selection": "explicit-existing-named-gateway-only",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267",
+        "image_sha256": [
+          "0b52d058750744cae5f747b73de92164656c17b96e8d9256fa93d323f1359141",
+          "1ca42989720be07b654b25eb5fd71b6b9d4ecd49245c2d3dc2543419fa1d99b0",
+          "62336f09742d9fd2dede9a85ca5db68c4b4743ccb5ff3c1048d4f5b1f5b49057"
+        ],
+        "transmitted_image_sha256": [
+          "180e9b497516e133e23dc5060557239dee365fbba537feff66fb4ca5f986b776",
+          "d569bdde5c5110bfcecec8bf159630fff290d914357e117d6155a41d5c14a7f4",
+          "c623a131ee6ecbb1bb5fea50231184f99c49c28493ed061ec57e7b9659980b3c"
+        ],
+        "transmitted_image_bytes": [
+          121502,
+          117312,
+          268465
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "42dc3c5297a801f14c64073e5c1debe434182052d1963cd91424205c454a5907",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": "result.choices[0].message.content",
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": true
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430118720",
+      "visitId": "record-1784430118720",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "バラ属の一種（ノイバラ類）",
+      "recommendedRank": "genus",
+      "confidenceBand": "low",
+      "geographicContext": "位置情報が未取得のため地域分布は評価保留。",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": "stop",
+      "latencyMs": 90143,
+      "inputTokens": 12470,
+      "outputTokens": 4249,
+      "finalOutput": {
+        "raw_final_content": null,
+        "parsed_json": null,
+        "recommended_taxon": null,
+        "recommended_rank": null,
+        "confidence": null,
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "stop",
+        "token_usage": {
+          "input_tokens": 12470,
+          "output_tokens": 4249
+        },
+        "latency_ms": 90143,
+        "model": "@cf/zai-org/glm-5.3-flash",
+        "provider": "cloudflare-workers-ai",
+        "config": {
+          "transport": "cloudflare-official-rest",
+          "temperature": 0,
+          "max_completion_tokens": 8192,
+          "reasoning_effort": "low",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_format": {
+            "type": "json_object"
+          },
+          "output_schema": "zukan-model-bench-parser-v1",
+          "gateway_selection": "explicit-existing-named-gateway-only",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f",
+        "image_sha256": [
+          "2ad88d0a7540a55efc44db13cc62ea2af275eacd85ac73184d8a0c037f782448",
+          "a0b8eb2d83d485960b855d88f0bf1e4d50d5af171109502b62c9064548832564",
+          "43a999fc83fd12397e32d1ec211ca71d9311e77d49560fd7c5bc53f9f490afc3"
+        ],
+        "transmitted_image_sha256": [
+          "29039062e4d6d840258ae44536b8af3dda8d1d4710d9c66e2e704a9bfdcd547c",
+          "7193052d8e93fab5591aa6c42bb1964ffa453747f60319f50036bc4f68863ba3",
+          "4f9d4bb4ab60e624574e328d0a38f2340ee9ea0108c74e2df8a934a444f3d808"
+        ],
+        "transmitted_image_bytes": [
+          110006,
+          200923,
+          162754
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "27f8672d2c04bac4832e2b5e4a7ea0e4041253b827b19acc685f133237fc5f83",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": "result.choices[0].message.content",
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": true
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784431188621",
+      "visitId": "record-1784431188621",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "スズメ",
+      "recommendedRank": "species",
+      "confidenceBand": "high",
+      "geographicContext": "位置情報が未取得のため地域分布は評価保留。スズメは日本全国の平地・市街地に普通に分布する。",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": "stop",
+      "latencyMs": 75894,
+      "inputTokens": 12469,
+      "outputTokens": 3911,
+      "finalOutput": {
+        "raw_final_content": null,
+        "parsed_json": null,
+        "recommended_taxon": null,
+        "recommended_rank": null,
+        "confidence": null,
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "stop",
+        "token_usage": {
+          "input_tokens": 12469,
+          "output_tokens": 3911
+        },
+        "latency_ms": 75894,
+        "model": "@cf/zai-org/glm-5.3-flash",
+        "provider": "cloudflare-workers-ai",
+        "config": {
+          "transport": "cloudflare-official-rest",
+          "temperature": 0,
+          "max_completion_tokens": 8192,
+          "reasoning_effort": "low",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_format": {
+            "type": "json_object"
+          },
+          "output_schema": "zukan-model-bench-parser-v1",
+          "gateway_selection": "explicit-existing-named-gateway-only",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5",
+        "image_sha256": [
+          "dccfcdb4ab4b2de32d648e4cef9ff69d1867cb5fcb9d6a3b0da62193cc498316",
+          "ba8d7ae0fa64d1adc3e2c3ee6eebdbe0ac4af41f2c649b39f1b3090ebbee22cf",
+          "bfd9311b1a64827412539c6963582dc92bec85e8d462af5ed8729e160ba910be"
+        ],
+        "transmitted_image_sha256": [
+          "41bbddc23cdade95078748fbbd4c1662454240b89854b8d870002cbc2a987f2c",
+          "abc644796f8b0e293f9c01d3ef04627e9f155547cd488173b036b10775266336",
+          "429f3375c1e81e2b0eef8e6fd18161e966bc46b11f7f6b5a1fa7edc1f6f1dbdc"
+        ],
+        "transmitted_image_bytes": [
+          142774,
+          128167,
+          220552
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "95ceb303ad2f79f7262bb212e5813ef309922f46f2f7c1a59b9ccb6c1f7eefad",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": "result.choices[0].message.content",
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": true
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430530197",
+      "visitId": "record-1784430530197",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "スズメ属の一種",
+      "recommendedRank": "genus",
+      "confidenceBand": "low",
+      "geographicContext": "位置情報が未取得のため地域分布は評価保留",
+      "responseField": "result.choices[0].message.content",
+      "finishReason": "stop",
+      "latencyMs": 71057,
+      "inputTokens": 12470,
+      "outputTokens": 3631,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"low\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"スズメ属の一種\",\n  \"recommended_scientific_name\": \"Passer\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"スズメ\",\n      \"scientific_name\": \"Passer montanus\",\n      \"rank\": \"species\",\n      \"probability\": 0.45,\n      \"diagnostic_features_observed\": [\"小型の褐色の鳥\", \"太めの円錐形と思われる嘴\", \"樹上の枝に止まる姿勢\"],\n      \"diagnostic_features_missing\": [\"頬の黒斑の有無\", \"頭部の赤褐色と背の縞模様\", \"はっきりした拡大画像\"],\n      \"visual_contradictions\": [\"画像が極端にぼやけており斑紋が確認できない\"]\n    },\n    {\n      \"taxon_name\": \"ヒヨドリ\",\n      \"scientific_name\": \"Hypsipetes amaurotis\",\n      \"rank\": \"species\",\n      \"probability\": 0.25,\n      \"diagnostic_features_observed\": [\"灰褐色の体色\", \"樹上性で枝先に止まる\"],\n      \"diagnostic_features_missing\": [\"頭部の灰色みと嘴の太さ\", \"体サイズ感\", \"翼下の色\"],\n      \"visual_contradictions\": [\"見た目の体格がやや小さく見える\"]\n    },\n    {\n      \"taxon_name\": \"シジュウカラ類\",\n      \"scientific_name\": \"Parus\",\n      \"rank\": \"genus\",\n      \"probability\": 0.1,\n      \"diagnostic_features_observed\": [\"小柄な樹上性の鳥\"],\n      \"diagnostic_features_missing\": [\"頭部の黒・白斑紋\", \"腹部の色\"],\n      \"visual_contradictions\": [\"体色が褐色系でカラ類の斑紋が見えない\"]\n    }\n  ],\n  \"rank_decision_reason\": \"画像が強くぼやけ、斑紋・嘴の形状・サイズ基準が読み取れないため種判定は不可能。小型〜中型の褐色の樹上性鳥として属レベルで止める。\",\n  \"diagnostic_features_observed\": [\"褐色系の体色\", \"枝に直立気味に止まる樹上性の姿勢\", \"小型〜中型のスズメ目サイズ\"],\n  \"diagnostic_features_missing\": [\"頬・頭部の斑紋\", \"嘴の形状と太さ\", \"翼の縞や羽縁の色\", \"スケール参照\"],\n  \"confusable_groups\": [\n    {\"group_name\": \"ヒタキ科（ツグミ類・アオジ類）\", \"distinction_point\": \"体色の褐色みと胸部の斑紋の有無を確認\"},\n    {\"group_name\": \"ヒヨドリ（ヒヨドリ科）\", \"distinction_point\": \"頭部の灰色みと嘴の太さ、鳴き声\"},\n    {\"group_name\": \"スズメ（スズメ科）\", \"distinction_point\": \"頬の黒斑と頭側の赤褐色\"}\n  ],\n  \"visual_contradictions\": [\"全体的にぼやけており、どの候補の決定形質も明確に確認できない\"],\n  \"best_specific_taxon_name\": \"\",\n  \"narrative\": \"3枚とも樹冠内の小鳥を捉えているが、ピントが甘く斑紋が読み取れない。褐色系の体色と樹上の枝先に止まる姿勢から、スズメ類またはヒヨドリ類などの小型〜中型スズメ目と推定するのが精一杯。頬の黒斑があればスズメ、頭部の灰色みと大きさがあればヒヨドリと判断できる。次回はピントを合わせた正面・側面の拡大写真が決め手になる。\",\n  \"simple_summary\": \"木の枝に止まる小鳥のようですが、写真がぼやけて種類までは分かりません。\",\n  \"observer_boost\": \"同じ個体を距離と角度を変えて3枚残しており、姿勢や体形を後から見比べられる記録になっています。\",\n  \"next_step_text\": \"再訪時、朝の柔らかい光でピントを合わせた側面の拡大写真を撮り、頬の黒斑と頭部の色を記録すると種が絞れます。\",\n  \"stop_reason\": \"画像のぼやけにより決定形質（斑紋・嘴形状）が読み取れない\",\n  \"fun_fact\": \"スズメは都市部でも観察される身近な鳥で、繁殖期には樹洞や建物の隙間を巣場所として使うことで知られています。\",\n  \"fun_fact_grounded\": true,\n  \"diagnostic_features_seen\": [\"褐色系の体色\", \"枝先に止まる樹上性の姿勢\"],\n  \"missing_evidence\": [\"頬・頭部の斑紋\", \"嘴の形状\", \"体サイズのスケール参照\", \"鳴き声\"],\n  \"similar_taxa\": [\n    {\"name\": \"スズメ\", \"rank\": \"species\"},\n    {\"name\": \"ヒヨドリ\", \"rank\": \"species\"},\n    {\"name\": \"アオジ\", \"rank\": \"species\"}\n  ],\n  \"distinguishing_tips\": [\n    \"頬に黒い斑点があればスズメ\",\n    \"頭部が灰色で体がやや大きければヒヨドリ\",\n    \"頭に条線があり緑褐色ならアオジ類\"\n  ],\n  \"confirm_more\": [\n    \"再訪時にピントを合わせた側面の拡大写真を撮り、頬の黒斑・頭部の色を記録する（朝の逆光を避けた時間帯が有効）\",\n    \"鳴き声を録音またはメモすると、スズメ・ヒヨドリ・ホオジロ類の判別が大きく進む\",\n    \"同じ場所を数日おきに訪れ、飛来時間帯（早朝・夕方）と利用する枝の高さを記録すると行動パターンが残る\"\n  ],\n  \"claim_refs_used\": [],\n  \"geographic_context\": \"位置情報が未取得のため地域分布は評価保留\",\n  \"seasonal_context\": \"観察日時が不明のため季節評価は保留。葉が茂った樹冠から夏〜初秋の可能性も示唆されるが断定しない\",\n  \"area_inference\": {\n    \"vegetation_structure_candidates\": [{\"label\": \"樹林（広葉樹）\", \"why\": \"枝分かれした広葉樹の樹冠が主体\", \"confidence\": 0.6}],\n    \"succession_stage_candidates\": [{\"label\": \"遷移中期\", \"why\": \"亜高木〜高木が混在する樹冠\", \"confidence\": 0.4}],\n    \"human_influence_candidates\": [{\"label\": \"公園・緑地近接\", \"why\": \"フェンスが写り管理された空間の可能性\", \"confidence\": 0.4}],\n    \"moisture_regime_candidates\": [],\n    \"management_hint_candidates\": []\n  },\n  \"management_action_candidates\": [],\n  \"shot_suggestions\": [\n    {\"role\": \"close_up_organ\", \"target\": \"頭部・嘴の拡大\", \"rationale\": \"頬の黒斑や嘴の太さが残ると、スズメかヒヨドリかなど近縁群の見分けを後から説明しやすくなる\", \"priority\": \"high\"},\n    {\"role\": \"full_body\", \"target\": \"全身（ピント優先）\", \"rationale\": \"体形・尾長・腹面の色が残ると、似た褐色の小鳥同士を別地点の記録と比べやすくなる\", \"priority\": \"high\"},\n    {\"role\": \"habitat_wide\", \"target\": \"周辺の樹林とフェンス\", \"rationale\": \"周囲の植生と管理状況が残ると、その場所でどんな鳥が現れていたかを季節比較しやすくなる\", \"priority\": \"medium\"}\n  ],\n  \"candidate_readings\": [\n    {\n      \"name\": \"スズメ属の一種\",\n      \"scientific_name\": \"Passer\",\n      \"rank\": \"genus\",\n      \"role\": \"代表候補\",\n      \"visible_features\": [\"褐色系の体色\", \"枝先に直立気味に止まる姿勢\", \"小型〜中型の体格\"],\n      \"weak_points\": [\"頬の黒斑が確認できない\", \"嘴の形状がぼやけている\", \"スケール参照がない\"],\n      \"shooting_tips\": [\"側面からピントを合わせた拡大写真を撮る\", \"朝の順光で頭部を狙う\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留。市街地〜樹林の広い範囲で見られる群\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 15.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"スズメ類としては平均的と推定\",\n        \"basis\": \"スケール参照が読み取れないため推定不可\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"スズメ\",\n      \"scientific_name\": \"Passer montanus\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"褐色の体色は整合\"],\n      \"weak_points\": [\"頬の黒斑・頭側の赤褐色が確認できない\"],\n      \"shooting_tips\": [\"頭部の正面・側面を拡大で撮る\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 14.5,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"small\",\n        \"ranking_hint\": \"平均的サイズ\",\n        \"basis\": \"スケール不明のため推定不可\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"ヒヨドリ\",\n      \"scientific_name\": \"Hypsipetes amaurotis\",\n      \"rank\": \"species\",\n      \"role\": \"比較候補\",\n      \"visible_features\": [\"灰褐色の体色\", \"樹冠内での止まり姿勢\"],\n      \"weak_points\": [\"頭部の灰色みと体サイズ感が読み取れない\"],\n      \"shooting_tips\": [\"全身が入る構図で隣接枝と比較してサイズを記録する\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留\",\n      \"size_assessment\": {\n        \"typical_size_cm\": 28.0,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"ヒヨドリとしては平均的と推定\",\n        \"basis\": \"スケール不明のため推定不可\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    },\n    {\n      \"name\": \"広葉樹の樹冠\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"role\": \"背景の木・植栽\",\n      \"visible_features\": [\"枝分かれした幹と茂った葉\", \"フェンス越しの樹林\"],\n      \"weak_points\": [\"葉形がぼやけ樹種は判定不能\"],\n      \"shooting_tips\": [\"葉の表裏が分かる1枚を足すと樹種の見当がつく\"],\n      \"regional_read\": \"場所情報がないため地域読みは保留\",\n      \"size_assessment\": {\n        \"typical_size_cm\": null,\n        \"observed_size_estimate_cm\": null,\n        \"size_class\": \"typical\",\n        \"ranking_hint\": \"高木〜亜高木と推定\",\n        \"basis\": \"スケール不明のため推定不可\",\n        \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n      }\n    }\n  ],\n  \"recommended_media_regions\": [\n    {\"asset_index\": 0, \"rect\": {\"x\": 0.38, \"y\": 0.32, \"width\": 0.2, \"height\": 0.22}, \"frame_time_ms\": 0, \"confidence\": 0.75, \"note\": \"中央やや上の枝上の鳥\"},\n    {\"asset_index\": 1, \"rect\": {\"x\": 0.48, \"y\": 0.25, \"width\": 0.08, \"height\": 0.08}, \"frame_time_ms\": 0, \"confidence\": 0.6, \"note\": \"樹冠上部の小さな鳥\"},\n    {\"asset_index\": 2, \"rect\": {\"x\": 0.42, \"y\": 0.27, \"width\": 0.18, \"height\": 0.2}, \"frame_time_ms\": 0, \"confidence\": 0.78, \"note\": \"中央の枝上の鳥\"}\n  ],\n  \"coexisting_taxa\": [\n    {\n      \"name\": \"広葉樹の樹冠\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"confidence\": 0.7,\n      \"note\": \"樹種は判定不能\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [\n        {\"asset_index\": 1, \"rect\": {\"x\": 0.0, \"y\": 0.0, \"width\": 1.0, \"height\": 0.85}, \"frame_time_ms\": 0, \"confidence\": 0.8, \"note\": \"画面全体の樹林\"}\n      ]\n    },\n    {\n      \"name\": \"金網フェンス\",\n      \"scientific_name\": \"\",\n      \"rank\": \"lifeform\",\n      \"confidence\": 0.6,\n      \"note\": \"非生物。公園・緑地の文脈候補\",\n      \"invasive_lite\": {\"is_invasive\": false, \"mhlw_category\": null},\n      \"media_regions\": [\n        {\"asset_index\": 1, \"rect\": {\"x\": 0.0, \"y\": 0.82, \"width\": 1.0, \"height\": 0.18}, \"frame_time_ms\": 0, \"confidence\": 0.7, \"note\": \"画面下部の金網\"}\n      ]\n    }\n  ],\n  \"size_assessment\": {\n    \"typical_size_cm\": 15.0,\n    \"observed_size_estimate_cm\": null,\n    \"size_class\": \"small\",\n    \"ranking_hint\": \"小型のスズメ目鳥類と推定\",\n    \"basis\": \"スケール参照が読み取れないため推定不可\",\n    \"hedge\": \"AIによる目測のため誤差大。確定値ではありません。\"\n  },\n  \"invasive_response\": {\n    \"is_invasive\": false,\n    \"mhlw_category\": null,\n    \"recommended_action\": null,\n    \"action_basis\": \"\",\n    \"regional_caveat\": null,\n    \"legal_warning\": \"\",\n    \"hedge\": \"AI判定です。確定同定前に自治体・環境省にご確認ください。\"\n  }\n}",
+        "parsed_json": {
+          "confidence_band": "low",
+          "recommended_rank": "genus",
+          "recommended_taxon_name": "スズメ属の一種",
+          "recommended_scientific_name": "Passer",
+          "taxonomic_candidates": [
+            {
+              "taxon_name": "スズメ",
+              "scientific_name": "Passer montanus",
+              "rank": "species",
+              "probability": 0.45,
+              "diagnostic_features_observed": [
+                "小型の褐色の鳥",
+                "太めの円錐形と思われる嘴",
+                "樹上の枝に止まる姿勢"
+              ],
+              "diagnostic_features_missing": [
+                "頬の黒斑の有無",
+                "頭部の赤褐色と背の縞模様",
+                "はっきりした拡大画像"
+              ],
+              "visual_contradictions": [
+                "画像が極端にぼやけており斑紋が確認できない"
+              ]
+            },
+            {
+              "taxon_name": "ヒヨドリ",
+              "scientific_name": "Hypsipetes amaurotis",
+              "rank": "species",
+              "probability": 0.25,
+              "diagnostic_features_observed": [
+                "灰褐色の体色",
+                "樹上性で枝先に止まる"
+              ],
+              "diagnostic_features_missing": [
+                "頭部の灰色みと嘴の太さ",
+                "体サイズ感",
+                "翼下の色"
+              ],
+              "visual_contradictions": [
+                "見た目の体格がやや小さく見える"
+              ]
+            },
+            {
+              "taxon_name": "シジュウカラ類",
+              "scientific_name": "Parus",
+              "rank": "genus",
+              "probability": 0.1,
+              "diagnostic_features_observed": [
+                "小柄な樹上性の鳥"
+              ],
+              "diagnostic_features_missing": [
+                "頭部の黒・白斑紋",
+                "腹部の色"
+              ],
+              "visual_contradictions": [
+                "体色が褐色系でカラ類の斑紋が見えない"
+              ]
+            }
+          ],
+          "rank_decision_reason": "画像が強くぼやけ、斑紋・嘴の形状・サイズ基準が読み取れないため種判定は不可能。小型〜中型の褐色の樹上性鳥として属レベルで止める。",
+          "diagnostic_features_observed": [
+            "褐色系の体色",
+            "枝に直立気味に止まる樹上性の姿勢",
+            "小型〜中型のスズメ目サイズ"
+          ],
+          "diagnostic_features_missing": [
+            "頬・頭部の斑紋",
+            "嘴の形状と太さ",
+            "翼の縞や羽縁の色",
+            "スケール参照"
+          ],
+          "confusable_groups": [
+            {
+              "group_name": "ヒタキ科（ツグミ類・アオジ類）",
+              "distinction_point": "体色の褐色みと胸部の斑紋の有無を確認"
+            },
+            {
+              "group_name": "ヒヨドリ（ヒヨドリ科）",
+              "distinction_point": "頭部の灰色みと嘴の太さ、鳴き声"
+            },
+            {
+              "group_name": "スズメ（スズメ科）",
+              "distinction_point": "頬の黒斑と頭側の赤褐色"
+            }
+          ],
+          "visual_contradictions": [
+            "全体的にぼやけており、どの候補の決定形質も明確に確認できない"
+          ],
+          "best_specific_taxon_name": "",
+          "narrative": "3枚とも樹冠内の小鳥を捉えているが、ピントが甘く斑紋が読み取れない。褐色系の体色と樹上の枝先に止まる姿勢から、スズメ類またはヒヨドリ類などの小型〜中型スズメ目と推定するのが精一杯。頬の黒斑があればスズメ、頭部の灰色みと大きさがあればヒヨドリと判断できる。次回はピントを合わせた正面・側面の拡大写真が決め手になる。",
+          "simple_summary": "木の枝に止まる小鳥のようですが、写真がぼやけて種類までは分かりません。",
+          "observer_boost": "同じ個体を距離と角度を変えて3枚残しており、姿勢や体形を後から見比べられる記録になっています。",
+          "next_step_text": "再訪時、朝の柔らかい光でピントを合わせた側面の拡大写真を撮り、頬の黒斑と頭部の色を記録すると種が絞れます。",
+          "stop_reason": "画像のぼやけにより決定形質（斑紋・嘴形状）が読み取れない",
+          "fun_fact": "スズメは都市部でも観察される身近な鳥で、繁殖期には樹洞や建物の隙間を巣場所として使うことで知られています。",
+          "fun_fact_grounded": true,
+          "diagnostic_features_seen": [
+            "褐色系の体色",
+            "枝先に止まる樹上性の姿勢"
+          ],
+          "missing_evidence": [
+            "頬・頭部の斑紋",
+            "嘴の形状",
+            "体サイズのスケール参照",
+            "鳴き声"
+          ],
+          "similar_taxa": [
+            {
+              "name": "スズメ",
+              "rank": "species"
+            },
+            {
+              "name": "ヒヨドリ",
+              "rank": "species"
+            },
+            {
+              "name": "アオジ",
+              "rank": "species"
+            }
+          ],
+          "distinguishing_tips": [
+            "頬に黒い斑点があればスズメ",
+            "頭部が灰色で体がやや大きければヒヨドリ",
+            "頭に条線があり緑褐色ならアオジ類"
+          ],
+          "confirm_more": [
+            "再訪時にピントを合わせた側面の拡大写真を撮り、頬の黒斑・頭部の色を記録する（朝の逆光を避けた時間帯が有効）",
+            "鳴き声を録音またはメモすると、スズメ・ヒヨドリ・ホオジロ類の判別が大きく進む",
+            "同じ場所を数日おきに訪れ、飛来時間帯（早朝・夕方）と利用する枝の高さを記録すると行動パターンが残る"
+          ],
+          "claim_refs_used": [],
+          "geographic_context": "位置情報が未取得のため地域分布は評価保留",
+          "seasonal_context": "観察日時が不明のため季節評価は保留。葉が茂った樹冠から夏〜初秋の可能性も示唆されるが断定しない",
+          "area_inference": {
+            "vegetation_structure_candidates": [
+              {
+                "label": "樹林（広葉樹）",
+                "why": "枝分かれした広葉樹の樹冠が主体",
+                "confidence": 0.6
+              }
+            ],
+            "succession_stage_candidates": [
+              {
+                "label": "遷移中期",
+                "why": "亜高木〜高木が混在する樹冠",
+                "confidence": 0.4
+              }
+            ],
+            "human_influence_candidates": [
+              {
+                "label": "公園・緑地近接",
+                "why": "フェンスが写り管理された空間の可能性",
+                "confidence": 0.4
+              }
+            ],
+            "moisture_regime_candidates": [],
+            "management_hint_candidates": []
+          },
+          "management_action_candidates": [],
+          "shot_suggestions": [
+            {
+              "role": "close_up_organ",
+              "target": "頭部・嘴の拡大",
+              "rationale": "頬の黒斑や嘴の太さが残ると、スズメかヒヨドリかなど近縁群の見分けを後から説明しやすくなる",
+              "priority": "high"
+            },
+            {
+              "role": "full_body",
+              "target": "全身（ピント優先）",
+              "rationale": "体形・尾長・腹面の色が残ると、似た褐色の小鳥同士を別地点の記録と比べやすくなる",
+              "priority": "high"
+            },
+            {
+              "role": "habitat_wide",
+              "target": "周辺の樹林とフェンス",
+              "rationale": "周囲の植生と管理状況が残ると、その場所でどんな鳥が現れていたかを季節比較しやすくなる",
+              "priority": "medium"
+            }
+          ],
+          "candidate_readings": [
+            {
+              "name": "スズメ属の一種",
+              "scientific_name": "Passer",
+              "rank": "genus",
+              "role": "代表候補",
+              "visible_features": [
+                "褐色系の体色",
+                "枝先に直立気味に止まる姿勢",
+                "小型〜中型の体格"
+              ],
+              "weak_points": [
+                "頬の黒斑が確認できない",
+                "嘴の形状がぼやけている",
+                "スケール参照がない"
+              ],
+              "shooting_tips": [
+                "側面からピントを合わせた拡大写真を撮る",
+                "朝の順光で頭部を狙う"
+              ],
+              "regional_read": "場所情報がないため地域読みは保留。市街地〜樹林の広い範囲で見られる群",
+              "size_assessment": {
+                "typical_size_cm": 15,
+                "observed_size_estimate_cm": null,
+                "size_class": "small",
+                "ranking_hint": "スズメ類としては平均的と推定",
+                "basis": "スケール参照が読み取れないため推定不可",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "スズメ",
+              "scientific_name": "Passer montanus",
+              "rank": "species",
+              "role": "比較候補",
+              "visible_features": [
+                "褐色の体色は整合"
+              ],
+              "weak_points": [
+                "頬の黒斑・頭側の赤褐色が確認できない"
+              ],
+              "shooting_tips": [
+                "頭部の正面・側面を拡大で撮る"
+              ],
+              "regional_read": "場所情報がないため地域読みは保留",
+              "size_assessment": {
+                "typical_size_cm": 14.5,
+                "observed_size_estimate_cm": null,
+                "size_class": "small",
+                "ranking_hint": "平均的サイズ",
+                "basis": "スケール不明のため推定不可",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "ヒヨドリ",
+              "scientific_name": "Hypsipetes amaurotis",
+              "rank": "species",
+              "role": "比較候補",
+              "visible_features": [
+                "灰褐色の体色",
+                "樹冠内での止まり姿勢"
+              ],
+              "weak_points": [
+                "頭部の灰色みと体サイズ感が読み取れない"
+              ],
+              "shooting_tips": [
+                "全身が入る構図で隣接枝と比較してサイズを記録する"
+              ],
+              "regional_read": "場所情報がないため地域読みは保留",
+              "size_assessment": {
+                "typical_size_cm": 28,
+                "observed_size_estimate_cm": null,
+                "size_class": "typical",
+                "ranking_hint": "ヒヨドリとしては平均的と推定",
+                "basis": "スケール不明のため推定不可",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            },
+            {
+              "name": "広葉樹の樹冠",
+              "scientific_name": "",
+              "rank": "lifeform",
+              "role": "背景の木・植栽",
+              "visible_features": [
+                "枝分かれした幹と茂った葉",
+                "フェンス越しの樹林"
+              ],
+              "weak_points": [
+                "葉形がぼやけ樹種は判定不能"
+              ],
+              "shooting_tips": [
+                "葉の表裏が分かる1枚を足すと樹種の見当がつく"
+              ],
+              "regional_read": "場所情報がないため地域読みは保留",
+              "size_assessment": {
+                "typical_size_cm": null,
+                "observed_size_estimate_cm": null,
+                "size_class": "typical",
+                "ranking_hint": "高木〜亜高木と推定",
+                "basis": "スケール不明のため推定不可",
+                "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+              }
+            }
+          ],
+          "recommended_media_regions": [
+            {
+              "asset_index": 0,
+              "rect": {
+                "x": 0.38,
+                "y": 0.32,
+                "width": 0.2,
+                "height": 0.22
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.75,
+              "note": "中央やや上の枝上の鳥"
+            },
+            {
+              "asset_index": 1,
+              "rect": {
+                "x": 0.48,
+                "y": 0.25,
+                "width": 0.08,
+                "height": 0.08
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.6,
+              "note": "樹冠上部の小さな鳥"
+            },
+            {
+              "asset_index": 2,
+              "rect": {
+                "x": 0.42,
+                "y": 0.27,
+                "width": 0.18,
+                "height": 0.2
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.78,
+              "note": "中央の枝上の鳥"
+            }
+          ],
+          "coexisting_taxa": [
+            {
+              "name": "広葉樹の樹冠",
+              "scientific_name": "",
+              "rank": "lifeform",
+              "confidence": 0.7,
+              "note": "樹種は判定不能",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 1,
+                  "rect": {
+                    "x": 0,
+                    "y": 0,
+                    "width": 1,
+                    "height": 0.85
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.8,
+                  "note": "画面全体の樹林"
+                }
+              ]
+            },
+            {
+              "name": "金網フェンス",
+              "scientific_name": "",
+              "rank": "lifeform",
+              "confidence": 0.6,
+              "note": "非生物。公園・緑地の文脈候補",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 1,
+                  "rect": {
+                    "x": 0,
+                    "y": 0.82,
+                    "width": 1,
+                    "height": 0.18
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.7,
+                  "note": "画面下部の金網"
+                }
+              ]
+            }
+          ],
+          "size_assessment": {
+            "typical_size_cm": 15,
+            "observed_size_estimate_cm": null,
+            "size_class": "small",
+            "ranking_hint": "小型のスズメ目鳥類と推定",
+            "basis": "スケール参照が読み取れないため推定不可",
+            "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+          },
+          "invasive_response": {
+            "is_invasive": false,
+            "mhlw_category": null,
+            "recommended_action": null,
+            "action_basis": "",
+            "regional_caveat": null,
+            "legal_warning": "",
+            "hedge": "AI判定です。確定同定前に自治体・環境省にご確認ください。"
+          }
+        },
+        "recommended_taxon": "スズメ属の一種",
+        "recommended_rank": "genus",
+        "confidence": "low",
+        "candidates": [
+          {
+            "taxon_name": "スズメ",
+            "scientific_name": "Passer montanus",
+            "rank": "species",
+            "probability": 0.45,
+            "diagnostic_features_observed": [
+              "小型の褐色の鳥",
+              "太めの円錐形と思われる嘴",
+              "樹上の枝に止まる姿勢"
+            ],
+            "diagnostic_features_missing": [
+              "頬の黒斑の有無",
+              "頭部の赤褐色と背の縞模様",
+              "はっきりした拡大画像"
+            ],
+            "visual_contradictions": [
+              "画像が極端にぼやけており斑紋が確認できない"
+            ]
+          },
+          {
+            "taxon_name": "ヒヨドリ",
+            "scientific_name": "Hypsipetes amaurotis",
+            "rank": "species",
+            "probability": 0.25,
+            "diagnostic_features_observed": [
+              "灰褐色の体色",
+              "樹上性で枝先に止まる"
+            ],
+            "diagnostic_features_missing": [
+              "頭部の灰色みと嘴の太さ",
+              "体サイズ感",
+              "翼下の色"
+            ],
+            "visual_contradictions": [
+              "見た目の体格がやや小さく見える"
+            ]
+          },
+          {
+            "taxon_name": "シジュウカラ類",
+            "scientific_name": "Parus",
+            "rank": "genus",
+            "probability": 0.1,
+            "diagnostic_features_observed": [
+              "小柄な樹上性の鳥"
+            ],
+            "diagnostic_features_missing": [
+              "頭部の黒・白斑紋",
+              "腹部の色"
+            ],
+            "visual_contradictions": [
+              "体色が褐色系でカラ類の斑紋が見えない"
+            ]
+          }
+        ],
+        "observed_features": {
+          "diagnostic_features_observed": [
+            "褐色系の体色",
+            "枝に直立気味に止まる樹上性の姿勢",
+            "小型〜中型のスズメ目サイズ"
+          ],
+          "diagnostic_features_seen": [
+            "褐色系の体色",
+            "枝先に止まる樹上性の姿勢"
+          ]
+        },
+        "diagnostic_features": {
+          "diagnostic_features_observed": [
+            "褐色系の体色",
+            "枝に直立気味に止まる樹上性の姿勢",
+            "小型〜中型のスズメ目サイズ"
+          ],
+          "diagnostic_features_seen": [
+            "褐色系の体色",
+            "枝先に止まる樹上性の姿勢"
+          ]
+        },
+        "missing_features": {
+          "diagnostic_features_missing": [
+            "頬・頭部の斑紋",
+            "嘴の形状と太さ",
+            "翼の縞や羽縁の色",
+            "スケール参照"
+          ],
+          "missing_evidence": [
+            "頬・頭部の斑紋",
+            "嘴の形状",
+            "体サイズのスケール参照",
+            "鳴き声"
+          ]
+        },
+        "uncertain_features": null,
+        "geographic_context": "位置情報が未取得のため地域分布は評価保留",
+        "context_fields": {
+          "seasonal_context": "観察日時が不明のため季節評価は保留。葉が茂った樹冠から夏〜初秋の可能性も示唆されるが断定しない",
+          "area_inference": {
+            "vegetation_structure_candidates": [
+              {
+                "label": "樹林（広葉樹）",
+                "why": "枝分かれした広葉樹の樹冠が主体",
+                "confidence": 0.6
+              }
+            ],
+            "succession_stage_candidates": [
+              {
+                "label": "遷移中期",
+                "why": "亜高木〜高木が混在する樹冠",
+                "confidence": 0.4
+              }
+            ],
+            "human_influence_candidates": [
+              {
+                "label": "公園・緑地近接",
+                "why": "フェンスが写り管理された空間の可能性",
+                "confidence": 0.4
+              }
+            ],
+            "moisture_regime_candidates": [],
+            "management_hint_candidates": []
+          },
+          "management_action_candidates": [],
+          "confirm_more": [
+            "再訪時にピントを合わせた側面の拡大写真を撮り、頬の黒斑・頭部の色を記録する（朝の逆光を避けた時間帯が有効）",
+            "鳴き声を録音またはメモすると、スズメ・ヒヨドリ・ホオジロ類の判別が大きく進む",
+            "同じ場所を数日おきに訪れ、飛来時間帯（早朝・夕方）と利用する枝の高さを記録すると行動パターンが残る"
+          ]
+        },
+        "other_final_output_fields": {
+          "recommended_scientific_name": "Passer",
+          "rank_decision_reason": "画像が強くぼやけ、斑紋・嘴の形状・サイズ基準が読み取れないため種判定は不可能。小型〜中型の褐色の樹上性鳥として属レベルで止める。",
+          "confusable_groups": [
+            {
+              "group_name": "ヒタキ科（ツグミ類・アオジ類）",
+              "distinction_point": "体色の褐色みと胸部の斑紋の有無を確認"
+            },
+            {
+              "group_name": "ヒヨドリ（ヒヨドリ科）",
+              "distinction_point": "頭部の灰色みと嘴の太さ、鳴き声"
+            },
+            {
+              "group_name": "スズメ（スズメ科）",
+              "distinction_point": "頬の黒斑と頭側の赤褐色"
+            }
+          ],
+          "visual_contradictions": [
+            "全体的にぼやけており、どの候補の決定形質も明確に確認できない"
+          ],
+          "best_specific_taxon_name": "",
+          "narrative": "3枚とも樹冠内の小鳥を捉えているが、ピントが甘く斑紋が読み取れない。褐色系の体色と樹上の枝先に止まる姿勢から、スズメ類またはヒヨドリ類などの小型〜中型スズメ目と推定するのが精一杯。頬の黒斑があればスズメ、頭部の灰色みと大きさがあればヒヨドリと判断できる。次回はピントを合わせた正面・側面の拡大写真が決め手になる。",
+          "simple_summary": "木の枝に止まる小鳥のようですが、写真がぼやけて種類までは分かりません。",
+          "observer_boost": "同じ個体を距離と角度を変えて3枚残しており、姿勢や体形を後から見比べられる記録になっています。",
+          "next_step_text": "再訪時、朝の柔らかい光でピントを合わせた側面の拡大写真を撮り、頬の黒斑と頭部の色を記録すると種が絞れます。",
+          "stop_reason": "画像のぼやけにより決定形質（斑紋・嘴形状）が読み取れない",
+          "fun_fact": "スズメは都市部でも観察される身近な鳥で、繁殖期には樹洞や建物の隙間を巣場所として使うことで知られています。",
+          "fun_fact_grounded": true,
+          "similar_taxa": [
+            {
+              "name": "スズメ",
+              "rank": "species"
+            },
+            {
+              "name": "ヒヨドリ",
+              "rank": "species"
+            },
+            {
+              "name": "アオジ",
+              "rank": "species"
+            }
+          ],
+          "distinguishing_tips": [
+            "頬に黒い斑点があればスズメ",
+            "頭部が灰色で体がやや大きければヒヨドリ",
+            "頭に条線があり緑褐色ならアオジ類"
+          ],
+          "claim_refs_used": [],
+          "shot_suggestions": [
+            {
+              "role": "close_up_organ",
+              "target": "頭部・嘴の拡大",
+              "rationale": "頬の黒斑や嘴の太さが残ると、スズメかヒヨドリかなど近縁群の見分けを後から説明しやすくなる",
+              "priority": "high"
+            },
+            {
+              "role": "full_body",
+              "target": "全身（ピント優先）",
+              "rationale": "体形・尾長・腹面の色が残ると、似た褐色の小鳥同士を別地点の記録と比べやすくなる",
+              "priority": "high"
+            },
+            {
+              "role": "habitat_wide",
+              "target": "周辺の樹林とフェンス",
+              "rationale": "周囲の植生と管理状況が残ると、その場所でどんな鳥が現れていたかを季節比較しやすくなる",
+              "priority": "medium"
+            }
+          ],
+          "recommended_media_regions": [
+            {
+              "asset_index": 0,
+              "rect": {
+                "x": 0.38,
+                "y": 0.32,
+                "width": 0.2,
+                "height": 0.22
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.75,
+              "note": "中央やや上の枝上の鳥"
+            },
+            {
+              "asset_index": 1,
+              "rect": {
+                "x": 0.48,
+                "y": 0.25,
+                "width": 0.08,
+                "height": 0.08
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.6,
+              "note": "樹冠上部の小さな鳥"
+            },
+            {
+              "asset_index": 2,
+              "rect": {
+                "x": 0.42,
+                "y": 0.27,
+                "width": 0.18,
+                "height": 0.2
+              },
+              "frame_time_ms": 0,
+              "confidence": 0.78,
+              "note": "中央の枝上の鳥"
+            }
+          ],
+          "coexisting_taxa": [
+            {
+              "name": "広葉樹の樹冠",
+              "scientific_name": "",
+              "rank": "lifeform",
+              "confidence": 0.7,
+              "note": "樹種は判定不能",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 1,
+                  "rect": {
+                    "x": 0,
+                    "y": 0,
+                    "width": 1,
+                    "height": 0.85
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.8,
+                  "note": "画面全体の樹林"
+                }
+              ]
+            },
+            {
+              "name": "金網フェンス",
+              "scientific_name": "",
+              "rank": "lifeform",
+              "confidence": 0.6,
+              "note": "非生物。公園・緑地の文脈候補",
+              "invasive_lite": {
+                "is_invasive": false,
+                "mhlw_category": null
+              },
+              "media_regions": [
+                {
+                  "asset_index": 1,
+                  "rect": {
+                    "x": 0,
+                    "y": 0.82,
+                    "width": 1,
+                    "height": 0.18
+                  },
+                  "frame_time_ms": 0,
+                  "confidence": 0.7,
+                  "note": "画面下部の金網"
+                }
+              ]
+            }
+          ],
+          "size_assessment": {
+            "typical_size_cm": 15,
+            "observed_size_estimate_cm": null,
+            "size_class": "small",
+            "ranking_hint": "小型のスズメ目鳥類と推定",
+            "basis": "スケール参照が読み取れないため推定不可",
+            "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+          },
+          "invasive_response": {
+            "is_invasive": false,
+            "mhlw_category": null,
+            "recommended_action": null,
+            "action_basis": "",
+            "regional_caveat": null,
+            "legal_warning": "",
+            "hedge": "AI判定です。確定同定前に自治体・環境省にご確認ください。"
+          }
+        },
+        "finish_reason": "stop",
+        "token_usage": {
+          "input_tokens": 12470,
+          "output_tokens": 3631
+        },
+        "latency_ms": 71057,
+        "model": "@cf/zai-org/glm-5.3-flash",
+        "provider": "cloudflare-workers-ai",
+        "config": {
+          "transport": "cloudflare-official-rest",
+          "temperature": 0,
+          "max_completion_tokens": 8192,
+          "reasoning_effort": "low",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_format": {
+            "type": "json_object"
+          },
+          "output_schema": "zukan-model-bench-parser-v1",
+          "gateway_selection": "explicit-existing-named-gateway-only",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0",
+        "image_sha256": [
+          "a743b4e9e7c2e68b8524395d685fc3bcf55c5da9809535a2830fe66d8e57eeb8",
+          "e36214a4bf6ee8c9051b0452c3baac9a7dabdeff341b79c8313b57684208e7f0",
+          "ddc0e79182114a3550940337b5ddb7437829aae06e8bf1f4007568217dc86ccb"
+        ],
+        "transmitted_image_sha256": [
+          "c8a5cc222436846b0325d72e7a7d9aa7ce2014923192797b8b6f38a06feca784",
+          "e4cc3b0df87df08c3281c0a8b747d0692c908ccca29f3d92485a5d3df585c22d",
+          "fd248847aa8747e0f9c90abeb31a01afd70aae3cb8a0afc195bbb6e4e0f62787"
+        ],
+        "transmitted_image_bytes": [
+          103537,
+          207654,
+          122654
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "1bb1427dfa83e27693327072a39c164812ca2468e40860e2b2384bdd7094abbc",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": "result.choices[0].message.content",
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    }
+  ]
+}

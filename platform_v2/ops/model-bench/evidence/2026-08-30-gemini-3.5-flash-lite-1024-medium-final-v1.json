@@ -1,0 +1,673 @@
+{
+  "version": "zukan-post-model-bench-v2",
+  "promptVersion": "observation-reassess-post-cold-start-v2",
+  "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+  "model": "gemini-3.5-flash-lite",
+  "provider": "gemini",
+  "manifestPath": "ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+  "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+  "startedAt": "2026-08-30T01:52:10.222Z",
+  "completedAt": "2026-08-30T01:52:49.057Z",
+  "postCount": 7,
+  "imageCount": 21,
+  "successCount": 7,
+  "modelRequestCount": 7,
+  "successRatePct": 100,
+  "schemaValidRatePct": 85.71,
+  "goldPostCount": 0,
+  "taxonScorePct": null,
+  "criticalFailurePostCount": 1,
+  "highConfidenceWrongPostCount": 0,
+  "overprecisionPostCount": 0,
+  "locationHallucinationPostCount": 0,
+  "p50LatencyMs": 5155,
+  "p95LatencyMs": 7272,
+  "totalInputTokens": 71841,
+  "totalOutputTokens": 6805,
+  "estimatedCostUsd": 0.0385648,
+  "pricing": {
+    "inputUsdPer1M": 0.3,
+    "outputUsdPer1M": 2.5,
+    "source": "https://ai.google.dev/gemini-api/docs/pricing"
+  },
+  "transport": "model-router",
+  "usageMeasurement": "provider-reported",
+  "observedAdditionalCostUsd": null,
+  "reportSchemaVersion": "zukan-model-bench-report-v1",
+  "requestConfig": {
+    "transport": "model-router",
+    "temperature": 0.1,
+    "max_output_tokens": 2048,
+    "thinking_level": "minimal",
+    "media_resolution": "medium",
+    "image_max_edge": 1024,
+    "stream": false,
+    "modalities": "omitted",
+    "response_mime_type": "application/json",
+    "response_schema_mode": "provider-native",
+    "output_schema": "zukan-model-bench-parser-v1",
+    "attempts_per_model": 1,
+    "fallback_count": 0
+  },
+  "accuracyStatus": "INSUFFICIENT_GOLD",
+  "reportPath": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-1024-medium-final-v1.json",
+  "fixtureScores": [
+    {
+      "fixtureId": "zukan-post-record-1784366489892",
+      "visitId": "record-1784366489892",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "オオアレチノギク属またはヒメムカシヨモギ属の幼植物群落候補（キク科）の一種と考えられる若い個体群がコンクリートの隙間に生育している様子。キク科のロゼット状から立ち上がる初期段階であり、腺毛や葉の形からアキノノゲシ属やキク科の複数候補が並ぶ。植物体だけでなく周辺の環境を併せて観察し、後日特徴を確認することが望ましい。」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」推奨される属名未設定_Asteraceae_sp」,",
+      "recommendedRank": "genus",
+      "confidenceBand": "medium",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 5155,
+      "inputTokens": 10263,
+      "outputTokens": 1697,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"オオアレチノギク属またはヒメムカシヨモギ属の幼植物群落候補（キク科）の一種と考えられる若い個体群がコンクリートの隙間に生育している様子。キク科のロゼット状から立ち上がる初期段階であり、腺毛や葉の形からアキノノゲシ属やキク科の複数候補が並ぶ。植物体だけでなく周辺の環境を併せて観察し、後日特徴を確認することが望ましい。」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」推奨される属名未設定_Asteraceae_sp」,  \"        }",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "genus",
+          "recommended_taxon_name": "オオアレチノギク属またはヒメムカシヨモギ属の幼植物群落候補（キク科）の一種と考えられる若い個体群がコンクリートの隙間に生育している様子。キク科のロゼット状から立ち上がる初期段階であり、腺毛や葉の形からアキノノゲシ属やキク科の複数候補が並ぶ。植物体だけでなく周辺の環境を併せて観察し、後日特徴を確認することが望ましい。」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」推奨される属名未設定_Asteraceae_sp」,  "
+        },
+        "recommended_taxon": "オオアレチノギク属またはヒメムカシヨモギ属の幼植物群落候補（キク科）の一種と考えられる若い個体群がコンクリートの隙間に生育している様子。キク科のロゼット状から立ち上がる初期段階であり、腺毛や葉の形からアキノノゲシ属やキク科の複数候補が並ぶ。植物体だけでなく周辺の環境を併せて観察し、後日特徴を確認することが望ましい。」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」」推奨される属名未設定_Asteraceae_sp」,",
+        "recommended_rank": "genus",
+        "confidence": "medium",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 10263,
+          "output_tokens": 1697
+        },
+        "latency_ms": 5155,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "media_resolution": "medium",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "0a2d87197bf3368f3c27b7790457e047de286ebc98835f0f03c7603e597231e0",
+        "image_sha256": [
+          "ee6e3a54d816c4d4ed8f67721d6c8283db87f43ba24d0a0d01cbed82ae565753",
+          "40efc9e830cef93f0b3183ad1654f9ec86c158846b6e1c52da8fc3367dd99726",
+          "4d9f7de05d09ee33f30296aefa60095e57b7f0143eb1d7cf2c79456cfed5ca87"
+        ],
+        "transmitted_image_sha256": [
+          "8e08bd5924ba6ab22b12be5d1599a1b8144925751cdfa7e66d70c4121987572e",
+          "ba8c558264d8a04ad86383d1a4a9bba29e6df7b5a01bb9d910c9507bf1a4a106",
+          "fb94575af83e36a875dd9a2bacff6d14b90f766432faee6108f93e34036dcfa1"
+        ],
+        "transmitted_image_bytes": [
+          183637,
+          262452,
+          197336
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "6a0b52fd4818ecd75fe493217867a3dda36c72dc5dca433a5c292d209a256d82",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430741938",
+      "visitId": "record-1784430741938",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "カタバミ属の一種（カタバミ等）型植物群落・グランドカバー状マットとして生育するオッタチカタバミ等またはカタバミ属の総称として捉える場合の草本集団。実体はカタバミ属 Oxalis。写真からは花の詳細な構造や根元の様子が一部見えにくいが、特徴的な3小葉のハート型（倒心形）の葉が密生している点からカタバミ属（Oxalis）に属する植物群と判断される。正確な種（カタバミ、アカカタバミ、オッタチカタバミ等）を決定するには、花の軸の毛の様子、ムカオの有無、葉裏の色や托葉の状態など詳細な形質が必要であるため、現在の情報では属レベル（genus）で留めるのが妥当である。地表近くで匍匐あるいはマット状に広がり、一部小さな黄色い花が散見される。周囲にはイネ科の草本等も混生しており、都市緑地や庭先、あるいは畑・空き地の縁で見られるような低平な草地・雑草植生を構成している。緯度経度・季節情報は提供されていないため、地域分布に関する断定的な言及は避けるが、日本国内の至る所で見られる一般的な環境である。AI目測によるスケール基準が画像内に含まれていないため、サイズ推定には大きな誤差があり得る。外来種（オッタチカタバミ等）が含まれる可能性もあるが、本データのみで特定種を決めつけることは困難である。今後は、花の構造や果実の形、種子の有無、茎の立ち上がり方などを高倍率で再撮影することで同定精度を高められる。また、季節ごとの変化や生育環境（日当たり、踏圧の有無など）をあわせて記録することが推奨される。写真1、2、3を通して同じ低平な草地環境が捉えられており、全体として都市や人工構造物周辺の管理された、あるいは半自然的な雑草群落の文脈が読み取れる。個々の植物個体については、ハート型の小葉を持つOxalis属としての特徴が一貫して確認できる。管理行動としては草刈りや踏圧などが示唆されるが、画像だけで人為的な直接介入を断定することはできない。野外の自然環境モニタリングや都市緑化・雑草管理の観点から、このような低平な草本マットの広がりは環境の遷移段階や人間生活圏との接点を示す重要な情報となる。今回の観察では位置情報の取得がないため地域固有の分布評価は保留とする。観察者にとっては身近な植生を丁寧に記録した事例であり、今後異なる季節や花期に再訪して微細な形態を確認することで、科学的な記録としての価値が一層高まる。以上を踏まえ、主対象の信頼度を中程度とし、属レベルまでの同定と周囲植生の副対象記録を提示する。以下に指定されたJSON構造で結果を出力する。学名は Oxalis とし、関連する情報を整理した。全ての必須フィールドが規定の型を満たすように構築されている。特記すべき新種可能性や法的規制対象としての断定は行わず、慎重なトーンを維持している。最後に提示するJSONテキストはパース可能な形式のみを厳密に出力する。余分な解説文やマークダウンのコードフェンスは含まない。プロファイルの指示に従い、正しくフォーマットされたJSONオブジェクトを得る。これによりAI同定支援の標準的な出力を提供する。同定プロセス全体を通じて保守的かつ科学的に適切なスタンスを保ち、不明確な要素には適切な保留理由を記載している。以上を確認の上、JSONを生成する。このブロックは最終結果のJSON文字列そのものを表現する。余分な制御文字や改行の乱れがないように調整されている。それではスキーマに完全準拠したJSONを出力する。",
+      "recommendedRank": "genus",
+      "confidenceBand": "medium",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 5745,
+      "inputTokens": 10263,
+      "outputTokens": 880,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"カタバミ属の一種（カタバミ等）型植物群落・グランドカバー状マットとして生育するオッタチカタバミ等またはカタバミ属の総称として捉える場合の草本集団。実体はカタバミ属 Oxalis。写真からは花の詳細な構造や根元の様子が一部見えにくいが、特徴的な3小葉のハート型（倒心形）の葉が密生している点からカタバミ属（Oxalis）に属する植物群と判断される。正確な種（カタバミ、アカカタバミ、オッタチカタバミ等）を決定するには、花の軸の毛の様子、ムカオの有無、葉裏の色や托葉の状態など詳細な形質が必要であるため、現在の情報では属レベル（genus）で留めるのが妥当である。地表近くで匍匐あるいはマット状に広がり、一部小さな黄色い花が散見される。周囲にはイネ科の草本等も混生しており、都市緑地や庭先、あるいは畑・空き地の縁で見られるような低平な草地・雑草植生を構成している。緯度経度・季節情報は提供されていないため、地域分布に関する断定的な言及は避けるが、日本国内の至る所で見られる一般的な環境である。AI目測によるスケール基準が画像内に含まれていないため、サイズ推定には大きな誤差があり得る。外来種（オッタチカタバミ等）が含まれる可能性もあるが、本データのみで特定種を決めつけることは困難である。今後は、花の構造や果実の形、種子の有無、茎の立ち上がり方などを高倍率で再撮影することで同定精度を高められる。また、季節ごとの変化や生育環境（日当たり、踏圧の有無など）をあわせて記録することが推奨される。写真1、2、3を通して同じ低平な草地環境が捉えられており、全体として都市や人工構造物周辺の管理された、あるいは半自然的な雑草群落の文脈が読み取れる。個々の植物個体については、ハート型の小葉を持つOxalis属としての特徴が一貫して確認できる。管理行動としては草刈りや踏圧などが示唆されるが、画像だけで人為的な直接介入を断定することはできない。野外の自然環境モニタリングや都市緑化・雑草管理の観点から、このような低平な草本マットの広がりは環境の遷移段階や人間生活圏との接点を示す重要な情報となる。今回の観察では位置情報の取得がないため地域固有の分布評価は保留とする。観察者にとっては身近な植生を丁寧に記録した事例であり、今後異なる季節や花期に再訪して微細な形態を確認することで、科学的な記録としての価値が一層高まる。以上を踏まえ、主対象の信頼度を中程度とし、属レベルまでの同定と周囲植生の副対象記録を提示する。以下に指定されたJSON構造で結果を出力する。学名は Oxalis とし、関連する情報を整理した。全ての必須フィールドが規定の型を満たすように構築されている。特記すべき新種可能性や法的規制対象としての断定は行わず、慎重なトーンを維持している。最後に提示するJSONテキストはパース可能な形式のみを厳密に出力する。余分な解説文やマークダウンのコードフェンスは含まない。プロファイルの指示に従い、正しくフォーマットされたJSONオブジェクトを得る。これによりAI同定支援の標準的な出力を提供する。同定プロセス全体を通じて保守的かつ科学的に適切なスタンスを保ち、不明確な要素には適切な保留理由を記載している。以上を確認の上、JSONを生成する。このブロックは最終結果のJSON文字列そのものを表現する。余分な制御文字や改行の乱れがないように調整されている。それではスキーマに完全準拠したJSONを出力する。\"\n  }",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "genus",
+          "recommended_taxon_name": "カタバミ属の一種（カタバミ等）型植物群落・グランドカバー状マットとして生育するオッタチカタバミ等またはカタバミ属の総称として捉える場合の草本集団。実体はカタバミ属 Oxalis。写真からは花の詳細な構造や根元の様子が一部見えにくいが、特徴的な3小葉のハート型（倒心形）の葉が密生している点からカタバミ属（Oxalis）に属する植物群と判断される。正確な種（カタバミ、アカカタバミ、オッタチカタバミ等）を決定するには、花の軸の毛の様子、ムカオの有無、葉裏の色や托葉の状態など詳細な形質が必要であるため、現在の情報では属レベル（genus）で留めるのが妥当である。地表近くで匍匐あるいはマット状に広がり、一部小さな黄色い花が散見される。周囲にはイネ科の草本等も混生しており、都市緑地や庭先、あるいは畑・空き地の縁で見られるような低平な草地・雑草植生を構成している。緯度経度・季節情報は提供されていないため、地域分布に関する断定的な言及は避けるが、日本国内の至る所で見られる一般的な環境である。AI目測によるスケール基準が画像内に含まれていないため、サイズ推定には大きな誤差があり得る。外来種（オッタチカタバミ等）が含まれる可能性もあるが、本データのみで特定種を決めつけることは困難である。今後は、花の構造や果実の形、種子の有無、茎の立ち上がり方などを高倍率で再撮影することで同定精度を高められる。また、季節ごとの変化や生育環境（日当たり、踏圧の有無など）をあわせて記録することが推奨される。写真1、2、3を通して同じ低平な草地環境が捉えられており、全体として都市や人工構造物周辺の管理された、あるいは半自然的な雑草群落の文脈が読み取れる。個々の植物個体については、ハート型の小葉を持つOxalis属としての特徴が一貫して確認できる。管理行動としては草刈りや踏圧などが示唆されるが、画像だけで人為的な直接介入を断定することはできない。野外の自然環境モニタリングや都市緑化・雑草管理の観点から、このような低平な草本マットの広がりは環境の遷移段階や人間生活圏との接点を示す重要な情報となる。今回の観察では位置情報の取得がないため地域固有の分布評価は保留とする。観察者にとっては身近な植生を丁寧に記録した事例であり、今後異なる季節や花期に再訪して微細な形態を確認することで、科学的な記録としての価値が一層高まる。以上を踏まえ、主対象の信頼度を中程度とし、属レベルまでの同定と周囲植生の副対象記録を提示する。以下に指定されたJSON構造で結果を出力する。学名は Oxalis とし、関連する情報を整理した。全ての必須フィールドが規定の型を満たすように構築されている。特記すべき新種可能性や法的規制対象としての断定は行わず、慎重なトーンを維持している。最後に提示するJSONテキストはパース可能な形式のみを厳密に出力する。余分な解説文やマークダウンのコードフェンスは含まない。プロファイルの指示に従い、正しくフォーマットされたJSONオブジェクトを得る。これによりAI同定支援の標準的な出力を提供する。同定プロセス全体を通じて保守的かつ科学的に適切なスタンスを保ち、不明確な要素には適切な保留理由を記載している。以上を確認の上、JSONを生成する。このブロックは最終結果のJSON文字列そのものを表現する。余分な制御文字や改行の乱れがないように調整されている。それではスキーマに完全準拠したJSONを出力する。"
+        },
+        "recommended_taxon": "カタバミ属の一種（カタバミ等）型植物群落・グランドカバー状マットとして生育するオッタチカタバミ等またはカタバミ属の総称として捉える場合の草本集団。実体はカタバミ属 Oxalis。写真からは花の詳細な構造や根元の様子が一部見えにくいが、特徴的な3小葉のハート型（倒心形）の葉が密生している点からカタバミ属（Oxalis）に属する植物群と判断される。正確な種（カタバミ、アカカタバミ、オッタチカタバミ等）を決定するには、花の軸の毛の様子、ムカオの有無、葉裏の色や托葉の状態など詳細な形質が必要であるため、現在の情報では属レベル（genus）で留めるのが妥当である。地表近くで匍匐あるいはマット状に広がり、一部小さな黄色い花が散見される。周囲にはイネ科の草本等も混生しており、都市緑地や庭先、あるいは畑・空き地の縁で見られるような低平な草地・雑草植生を構成している。緯度経度・季節情報は提供されていないため、地域分布に関する断定的な言及は避けるが、日本国内の至る所で見られる一般的な環境である。AI目測によるスケール基準が画像内に含まれていないため、サイズ推定には大きな誤差があり得る。外来種（オッタチカタバミ等）が含まれる可能性もあるが、本データのみで特定種を決めつけることは困難である。今後は、花の構造や果実の形、種子の有無、茎の立ち上がり方などを高倍率で再撮影することで同定精度を高められる。また、季節ごとの変化や生育環境（日当たり、踏圧の有無など）をあわせて記録することが推奨される。写真1、2、3を通して同じ低平な草地環境が捉えられており、全体として都市や人工構造物周辺の管理された、あるいは半自然的な雑草群落の文脈が読み取れる。個々の植物個体については、ハート型の小葉を持つOxalis属としての特徴が一貫して確認できる。管理行動としては草刈りや踏圧などが示唆されるが、画像だけで人為的な直接介入を断定することはできない。野外の自然環境モニタリングや都市緑化・雑草管理の観点から、このような低平な草本マットの広がりは環境の遷移段階や人間生活圏との接点を示す重要な情報となる。今回の観察では位置情報の取得がないため地域固有の分布評価は保留とする。観察者にとっては身近な植生を丁寧に記録した事例であり、今後異なる季節や花期に再訪して微細な形態を確認することで、科学的な記録としての価値が一層高まる。以上を踏まえ、主対象の信頼度を中程度とし、属レベルまでの同定と周囲植生の副対象記録を提示する。以下に指定されたJSON構造で結果を出力する。学名は Oxalis とし、関連する情報を整理した。全ての必須フィールドが規定の型を満たすように構築されている。特記すべき新種可能性や法的規制対象としての断定は行わず、慎重なトーンを維持している。最後に提示するJSONテキストはパース可能な形式のみを厳密に出力する。余分な解説文やマークダウンのコードフェンスは含まない。プロファイルの指示に従い、正しくフォーマットされたJSONオブジェクトを得る。これによりAI同定支援の標準的な出力を提供する。同定プロセス全体を通じて保守的かつ科学的に適切なスタンスを保ち、不明確な要素には適切な保留理由を記載している。以上を確認の上、JSONを生成する。このブロックは最終結果のJSON文字列そのものを表現する。余分な制御文字や改行の乱れがないように調整されている。それではスキーマに完全準拠したJSONを出力する。",
+        "recommended_rank": "genus",
+        "confidence": "medium",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 10263,
+          "output_tokens": 880
+        },
+        "latency_ms": 5745,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "media_resolution": "medium",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752",
+        "image_sha256": [
+          "2c01f57184968e56efb6965ce2bf1d0e11396942bc07f7b3af11bff7597c031b",
+          "68fc1ccfdc5a799222351454478a0025275f55f9f8b6d22c6c162e2b703fb51e",
+          "faef3ead9e273c0465ca59a9f97ba9ba2e077542f4ab99cc8c175600c8f56583"
+        ],
+        "transmitted_image_sha256": [
+          "07d4317b07d16bebbf75c5803a43606e0825df74bad2df7d54eb184ca4f304ac",
+          "ff190169edc92c69a7196bdd3d471a2bf6afd7566b11e98c278386d79a431a90",
+          "f73a1c9a5fbf7ee392b44c9448bddffaa5031343d285056196c778d9329c7287"
+        ],
+        "transmitted_image_bytes": [
+          242983,
+          193481,
+          316059
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "9f55bb063e77d30fbc43ec5b169f57daba338a3be29339c153d4eb01608e43a2",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1781252770584",
+      "visitId": "record-1781252770584",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "コガネムシ科の一種またはコフキコガネ属などシャコガ科・コガネムシ上科の甲虫類（スジコガネ亜科等）の一種に似たコガネムシ科の仲間と思われるが種確定は要精査。一般的なハナムグリ・コガネムシ類の特徴（鞘翅の縦筋や体型）が見えるが、詳細な体表の毛や腹面・触角の形状が不鮮明なため科〜属レベル留めが安全です。）",
+      "recommendedRank": "family",
+      "confidenceBand": "medium",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 2130,
+      "inputTokens": 10263,
+      "outputTokens": 150,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"family\",\n  \"recommended_taxon_name\": \"コガネムシ科の一種またはコフキコガネ属などシャコガ科・コガネムシ上科の甲虫類（スジコガネ亜科等）の一種に似たコガネムシ科の仲間と思われるが種確定は要精査。一般的なハナムグリ・コガネムシ類の特徴（鞘翅の縦筋や体型）が見えるが、詳細な体表の毛や腹面・触角の形状が不鮮明なため科〜属レベル留めが安全です。）\"\n  }",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "family",
+          "recommended_taxon_name": "コガネムシ科の一種またはコフキコガネ属などシャコガ科・コガネムシ上科の甲虫類（スジコガネ亜科等）の一種に似たコガネムシ科の仲間と思われるが種確定は要精査。一般的なハナムグリ・コガネムシ類の特徴（鞘翅の縦筋や体型）が見えるが、詳細な体表の毛や腹面・触角の形状が不鮮明なため科〜属レベル留めが安全です。）"
+        },
+        "recommended_taxon": "コガネムシ科の一種またはコフキコガネ属などシャコガ科・コガネムシ上科の甲虫類（スジコガネ亜科等）の一種に似たコガネムシ科の仲間と思われるが種確定は要精査。一般的なハナムグリ・コガネムシ類の特徴（鞘翅の縦筋や体型）が見えるが、詳細な体表の毛や腹面・触角の形状が不鮮明なため科〜属レベル留めが安全です。）",
+        "recommended_rank": "family",
+        "confidence": "medium",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 10263,
+          "output_tokens": 150
+        },
+        "latency_ms": 2130,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "media_resolution": "medium",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2",
+        "image_sha256": [
+          "2ab79c70ea5572c683301dc76daa7dd755722e2f49c5b1f8c759de48f26763ba",
+          "58e3f4310ce35d70cc89722799f74ca5ef9923de565016ae4e03cc23afcb20f3",
+          "3c2283e9733f882b651397bc0c39fb666a6d90eb613c642a94a56a12ead1df3a"
+        ],
+        "transmitted_image_sha256": [
+          "f25ad6cd8658dacb1db838705208acb8a229c5ed36c86dbe3222346eeb614860",
+          "a6b7d6d804e58aaa3153ef8c3c95d9332a7b35757aab83cdb9da13683bb54e96",
+          "790ca1e86e5c8abcfc24c7ed62c5c32f3c32e9bc77b601907d6879ec7eba3c17"
+        ],
+        "transmitted_image_bytes": [
+          115733,
+          143696,
+          113303
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "2cb312cc21ee211dec4bf8c24866dd58de46b5605183214df7fe32eb023b0dbc",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430374598",
+      "visitId": "record-1784430374598",
+      "imageCount": 3,
+      "schemaValid": false,
+      "taxonScore": null,
+      "criticalFailures": [
+        "invalid_json"
+      ],
+      "finishReason": "MAX_TOKENS",
+      "latencyMs": 7272,
+      "inputTokens": 10263,
+      "outputTokens": 2032,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"キャッツテール（アカリファ属の一種）休眠・園芸種など類似あり確認要”, “recommended_scientific_name”: “Acalypha”, “taxonomic_candidates”: [ { “taxon_name”: “アカリファ・ヒスピダ (メディニラ / キャッツテール)”, “scientific_name”: “Acalypha hispida”, “rank”: “species”, “probability”: 0.65, “diagnostic_features_observed”: [ “赤く長い円柱状の穂状花序”, “毛に覆われた外観”, “縁に鋸歯のある互生の卵形葉” ], “diagnostic_features_missing”: [ “花序全体のサイズ感”, “雌雄異株の確認”, “葉裏の詳細な毛の状態” ], “visual_contradictions”: [] } ], “rank_decision_reason”: “特徴的な赤い毛むくじゃらの花序と葉の形状からトウダイグサ科アカリファ属に属することは確実ですが、同属には類似種・品種が多く存在するのため属レベルを推奨とします”, “diagnostic_features_observed”: [ “鮮やかな赤色の尾状の花序”, “細かい鋸歯のある葉縁” ], “diagnostic_features_missing”: [ “葉の質感や裏面の毛の有無”, “株全体のサイズと育成環境の確認” ], “confusable_groups”: [ { “group_name”: “トウダイグサ科アカリファ属の別種”, “distinction_point”: “花序の長さや色合い、葉の形” } ], “visual_contradictions”: [], “best_specific_taxon_name”: “Acalypha hispida”, “narrative”: “鮮やかな赤い猫の尻尾のような花序が特徴的なアカリファ属（キャッツテールなど）の植物です。トウダイグサ科に属し、庭木や鉢植えとして親しまれています。正確な種や園芸品種の特定には、花序の長さや葉の詳細な特徴をあわせて観察する必要があります。”, “simple_summary”: “鮮やかな赤い花序が特徴的なアカリファ属（キャッツテール）の植物です。”, “observer_boost”: “鮮やかな赤い花序と葉の形が明瞭に写っており、同定の手がかりが揃っています。”, “next_step_text”: “開花期の数ヶ月後に再訪し、花序の長さや全体の樹形を撮影して品種を確認する。”, “stop_reason”: “”, “fun_fact”: “アカリファ属にはキャッツテールのように観賞用の美しい花序を持つ種や、葉の色彩を楽しむ品種が多く含まれています。”, “fun_fact_grounded”: true, “diagnostic_features_seen”: [ “円柱状の赤い花序”, “鋸歯のある卵形の葉” ], “missing_evidence”: [ “スケール”, “植物全体の樹形” ], “similar_taxa”: [ { “name”: “アカリファ・レプランス”, “rank”: “species” } ], “distinguishing_tips”: [ “花序の垂れ下がり方や長さ” ], “confirm_more”: [ “花期に花序の長さと色合いを接写で確認する”, “葉の裏面や葉柄の毛の生え方を撮影する” ], “geographic_context”: “位置情報が未取得のため地域分布は評価保留”, “seasonal_context”: “開花シーズン中の様子が捉えられています”, “area_inference”: { “vegetation_structure_candidates”: [ { “label”: “植栽地・庭園”, “why”: “園芸植物がまとまって見られるため”, “confidence”: 0.6 } ], “succession_stage_candidates”: [], “human_influence_candidates”: [ { “label”: “植栽・管理”, “why”: “園芸種の性質を持つ植物であるため”, “confidence”: 0.65 } ], “moisture_regime_candidates”: [], “management_hint_candidates”: [] }, “management_action_candidates”: [], “shot_suggestions”: [ { “role”: “close_up_organ”, “target”: “花序のアップ”, “rationale”: “花序の質感や細部を後から詳しく比較できます”, “priority”: “high” }, { “role”: “full_body”, “target”: “株全体の樹形”, “rationale”: “植栽の状態や全体のサイズ感を把握しやすくなります”, “priority”: “medium” } ], “candidate_readings”: [ { “name”: “キャッツテール（アカリファ属の一種）”, “scientific_name”: “Acalypha”, “rank”: “genus”, “role”: “代表候補”, “visible_features”: [ “赤い円柱状の花序”, “鋸歯のある緑葉” ], “weak_points”: [ “詳細な品種まで特定できない点” ], “shooting_tips”: [ “花序を横から接写する” ], “regional_read”: “場所情報がないため地域読みは保留”, “size_assessment”: { “typical_size_cm”: 30.0, “observed_size_estimate_cm”: null, “size_class”: “typical”, “ranking_hint”: “一般的な鉢植え・低木サイズ”, “basis”: “スケール不明”, “hedge”: “AIによる目測のため誤差大。確定値ではありません。” } } ], “recommended_media_regions”: [ { “asset_index”: 0, “rect”: { “x”: 0.22, “y”: 0.18, “width”: 0.15, “height”: 0.25 }, “frame_time_ms”: 0, “confidence”: 0.85, “note”: “赤い花序” } ], “coexisting_taxa”: [], “size_assessment”: { “typical_size_cm”: 30.0, “observed_size_estimate_cm”: null, “size_class”: “typical”, “ranking_hint”: “一般的な低木サイズ”, “basis”: “スケールがないため推定不可”, “hedge”: “AIによる目測のため誤差大。確定値ではありません。” }, “novelty_hint”: { “is_potentially_novel”: false, “novelty_score”: 0.05, “reasoning”: “既知の園芸植物の範囲内です”, “hedge”: “新種判定はAIにはできません。可能性の示唆に留まります。” }, “invasive_response”: { “is_invasive”: false, “mhlw_category”: null, “recommended_action”: “observe_only”, “action_basis”: “”, “regional_caveat”: null, “legal_warning”: “”, “hedge”: “AI判定。必要に応じてご確認ください。” } } ▢ tranquilizer. 🎛️. 🍃. 🔍. 📈. 📊. 📝. 🏷️. 🚀. 💡. 🌐. ⚠️. 📌. 🎯. 📸. 🔍. 📦. 🤝. 🌿. 🐾. 🌾. 🌷. 🌲. 🪨. 🐜. 🕷️. 🐛. 🦋. 🐝. 🪰. 🐞. 🐌. 🦀. 🦐. 🦑. 🐙. 🦞. 🦀. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑. 🐙. 🦞. 🦐. 🦑",
+        "parsed_json": null,
+        "recommended_taxon": null,
+        "recommended_rank": null,
+        "confidence": null,
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "MAX_TOKENS",
+        "token_usage": {
+          "input_tokens": 10263,
+          "output_tokens": 2032
+        },
+        "latency_ms": 7272,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "media_resolution": "medium",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267",
+        "image_sha256": [
+          "0b52d058750744cae5f747b73de92164656c17b96e8d9256fa93d323f1359141",
+          "1ca42989720be07b654b25eb5fd71b6b9d4ecd49245c2d3dc2543419fa1d99b0",
+          "62336f09742d9fd2dede9a85ca5db68c4b4743ccb5ff3c1048d4f5b1f5b49057"
+        ],
+        "transmitted_image_sha256": [
+          "180e9b497516e133e23dc5060557239dee365fbba537feff66fb4ca5f986b776",
+          "d569bdde5c5110bfcecec8bf159630fff290d914357e117d6155a41d5c14a7f4",
+          "c623a131ee6ecbb1bb5fea50231184f99c49c28493ed061ec57e7b9659980b3c"
+        ],
+        "transmitted_image_bytes": [
+          121502,
+          117312,
+          268465
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "42dc3c5297a801f14c64073e5c1debe434182052d1963cd91424205c454a5907",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430118720",
+      "visitId": "record-1784430118720",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "ヤブガラシの一種あるいはキツネノマゴ科等の広義の双子葉草本群落、またはブドウ科ヤブガラシ属の可能性のある葉・茎植物群、あるいはバラ科キイチゴ属の一種に見える葉（複数枚より複合判定）ですが種確定は困難です。バラ科キイチゴ属の一種 (Rubus sp.) を代表候補とします（ギザギザした鋸歯と複葉または互生する葉の形態から）",
+      "recommendedRank": "species",
+      "confidenceBand": "medium",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 2311,
+      "inputTokens": 10263,
+      "outputTokens": 143,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"species\",\n  \"recommended_taxon_name\": \"ヤブガラシの一種あるいはキツネノマゴ科等の広義の双子葉草本群落、またはブドウ科ヤブガラシ属の可能性のある葉・茎植物群、あるいはバラ科キイチゴ属の一種に見える葉（複数枚より複合判定）ですが種確定は困難です。バラ科キイチゴ属の一種 (Rubus sp.) を代表候補とします（ギザギザした鋸歯と複葉または互生する葉の形態から）\"\n  }",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "species",
+          "recommended_taxon_name": "ヤブガラシの一種あるいはキツネノマゴ科等の広義の双子葉草本群落、またはブドウ科ヤブガラシ属の可能性のある葉・茎植物群、あるいはバラ科キイチゴ属の一種に見える葉（複数枚より複合判定）ですが種確定は困難です。バラ科キイチゴ属の一種 (Rubus sp.) を代表候補とします（ギザギザした鋸歯と複葉または互生する葉の形態から）"
+        },
+        "recommended_taxon": "ヤブガラシの一種あるいはキツネノマゴ科等の広義の双子葉草本群落、またはブドウ科ヤブガラシ属の可能性のある葉・茎植物群、あるいはバラ科キイチゴ属の一種に見える葉（複数枚より複合判定）ですが種確定は困難です。バラ科キイチゴ属の一種 (Rubus sp.) を代表候補とします（ギザギザした鋸歯と複葉または互生する葉の形態から）",
+        "recommended_rank": "species",
+        "confidence": "medium",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 10263,
+          "output_tokens": 143
+        },
+        "latency_ms": 2311,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "media_resolution": "medium",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f",
+        "image_sha256": [
+          "2ad88d0a7540a55efc44db13cc62ea2af275eacd85ac73184d8a0c037f782448",
+          "a0b8eb2d83d485960b855d88f0bf1e4d50d5af171109502b62c9064548832564",
+          "43a999fc83fd12397e32d1ec211ca71d9311e77d49560fd7c5bc53f9f490afc3"
+        ],
+        "transmitted_image_sha256": [
+          "29039062e4d6d840258ae44536b8af3dda8d1d4710d9c66e2e704a9bfdcd547c",
+          "7193052d8e93fab5591aa6c42bb1964ffa453747f60319f50036bc4f68863ba3",
+          "4f9d4bb4ab60e624574e328d0a38f2340ee9ea0108c74e2df8a934a444f3d808"
+        ],
+        "transmitted_image_bytes": [
+          110006,
+          200923,
+          162754
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "27f8672d2c04bac4832e2b5e4a7ea0e4041253b827b19acc685f133237fc5f83",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784431188621",
+      "visitId": "record-1784431188621",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "スズメ（ニュウナイスズメ含む別種・類似種との比較注意）またはスズメ科スズメ属の一種（主にスズメ）として記載される野鳥。特に頭頂から後頭にかけての栗色、白い耳羽にある黒い斑紋（耳斑）、喉から胸部にかけての黒色斑が特徴的である。ここではスズメを代表種として推奨する。）スズメが主に対象として写っている。写真2枚目ではもう1羽が近づいており、樹木の枝や周囲の葉（松科様の針葉樹など）が背景となっている。サイズ感、色合い、顔の模様（黒い耳斑や顎の黒班）からスズメ属（Passer）に間違いなく、日本の都市部・農村部で最も一般的な「スズメ (Passer montanus)」の典型的な形態を示している。ただし、ニュウナイスズメ (Passer rutilans) との混同や細部の確認が望ましいため、medium～highの信頼性。周辺には針葉樹（マツ科等の植栽樹木）が確認できる。スズメの同定としては確度が高いが、念のため種レベルとする。スズメ (Passer montanus) は日本全国の人家周辺や農耕地、公園などに広く生息する留鳥で、この観察記録においても典型的な環境での撮影となっている。周辺の樹木は庭木や公園の植栽として一般的である。管理行動候補としては特に大きな人為的介入（草刈りや伐採など）は写真からは直接確認できないが、手入れされた庭や敷地内の可能性が高い。スズメは人家周辺の環境に適応しているため、こうした場所は日常的な生息地である。スズメとしての特徴（頭の栗色、頬の黒点）が確認できるが、背面の模様や翼の細部、あるいは下腹部の羽毛の状態など、個体の性別・換羽状態（幼鳥か成鳥か）までは完全には読み取れない。季節は写真の緑の深さや空模様から春から夏にかけての時期と推測されるが、正確な季節や地理的背景（緯度・経度）は入力されていないため地域限定の解釈は避ける。スズメは在来種であり、外来種としての対応は不要である。また、新種である可能性はゼロに等しく、既知の分類群（スズメ科 スズメ属 スズメ）に完全に一致する。追加撮影としては、鳥の体側面や翼の羽衣、あるいは採餌・求愛行動の瞬間などをクローズアップで記録すると、個体の状態や行動生態の理解が深まる。周辺の樹木や環境（植生全体）をワイドに写したカットがあると、生息環境のコンテキストがより明確になる。以下にJSON形式で構造化した結果を出力する。スズメ（Passer montanus）の基本情報、周辺環境、副対象としての針葉樹、および各種メタデータを網羅している。外部ナレッジや知識クレームは参照されていない。正確な学名と階層構造に従って出力を行う。すべての制約条件（JSON単一出力、プレースホルダ排除、厳密な型定義の遵守）をクリアしている。位置情報や観察者の個人情報は評価に含めておらず、純粋に画像群の視覚的証拠に基づいた判定を行っている。スズメのサイズ（全長約14cm）に基づき、一般的なサイズクラス「typical」を適用している。スズメ科特有の円錐形の嘴、茶色と黒の複雑な背面模様、頬の黒斑などが見て取れる。周囲の針葉樹の葉はトウヒ属やモミ属などの常緑針葉樹の枝葉と推定され、副対象として共存している。主対象と副対象の領域（media_regions）については視覚的におおよその位置を推定して付与している。スズメは日本全国の身近な野鳥であり、生態系や人間生活との関わりが深い。特になし。以上に基づき、構造化されたJSONデータを返す。他のテキストは一切出力しないように注意する。余分な説明やコメント、Markdownのバッククォート等以外のテキストは含めない。正確なJSONパーサブル文字列のみを出力する。スズメの同定は写真1枚目および2枚目で鮮明に確認できるため、信頼性は高め（high）。ただし野外観察における厳密な亜種や個体差の検討余地を残しつつ、種レベル（species）での提示とする。周辺の植生（針葉樹）も副対象として認識できる。エリア推測としては、管理された植栽環境や庭園、あるいは住宅地の周辺といった文脈が考えられるが、非断定とする。管理行動としては特に顕著なものは写っていない。 shot_suggestions や candidate_readings も含めて充実したスキーマを満たす。学名（Passer montanus）を正確に記載する。スズメの学名は Passer montanus である。スズメ科（Passeridae）スズメ属（Passer）。鳥綱スズメ目。すべて適合。以上が本出力を生成する際の思考プロセスおよび仕様準拠の確認である。正確なJSONオブジェクトのみを出力する。余計な文字列は一切含まない。有効なJSONを確実に生成する。',진짜_스키마_준수: true",
+      "recommendedRank": "species",
+      "confidenceBand": "high",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 7147,
+      "inputTokens": 10263,
+      "outputTokens": 1233,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"high\",\n  \"recommended_rank\": \"species\",\n  \"recommended_taxon_name\": \"スズメ（ニュウナイスズメ含む別種・類似種との比較注意）またはスズメ科スズメ属の一種（主にスズメ）として記載される野鳥。特に頭頂から後頭にかけての栗色、白い耳羽にある黒い斑紋（耳斑）、喉から胸部にかけての黒色斑が特徴的である。ここではスズメを代表種として推奨する。）スズメが主に対象として写っている。写真2枚目ではもう1羽が近づいており、樹木の枝や周囲の葉（松科様の針葉樹など）が背景となっている。サイズ感、色合い、顔の模様（黒い耳斑や顎の黒班）からスズメ属（Passer）に間違いなく、日本の都市部・農村部で最も一般的な「スズメ (Passer montanus)」の典型的な形態を示している。ただし、ニュウナイスズメ (Passer rutilans) との混同や細部の確認が望ましいため、medium～highの信頼性。周辺には針葉樹（マツ科等の植栽樹木）が確認できる。スズメの同定としては確度が高いが、念のため種レベルとする。スズメ (Passer montanus) は日本全国の人家周辺や農耕地、公園などに広く生息する留鳥で、この観察記録においても典型的な環境での撮影となっている。周辺の樹木は庭木や公園の植栽として一般的である。管理行動候補としては特に大きな人為的介入（草刈りや伐採など）は写真からは直接確認できないが、手入れされた庭や敷地内の可能性が高い。スズメは人家周辺の環境に適応しているため、こうした場所は日常的な生息地である。スズメとしての特徴（頭の栗色、頬の黒点）が確認できるが、背面の模様や翼の細部、あるいは下腹部の羽毛の状態など、個体の性別・換羽状態（幼鳥か成鳥か）までは完全には読み取れない。季節は写真の緑の深さや空模様から春から夏にかけての時期と推測されるが、正確な季節や地理的背景（緯度・経度）は入力されていないため地域限定の解釈は避ける。スズメは在来種であり、外来種としての対応は不要である。また、新種である可能性はゼロに等しく、既知の分類群（スズメ科 スズメ属 スズメ）に完全に一致する。追加撮影としては、鳥の体側面や翼の羽衣、あるいは採餌・求愛行動の瞬間などをクローズアップで記録すると、個体の状態や行動生態の理解が深まる。周辺の樹木や環境（植生全体）をワイドに写したカットがあると、生息環境のコンテキストがより明確になる。以下にJSON形式で構造化した結果を出力する。スズメ（Passer montanus）の基本情報、周辺環境、副対象としての針葉樹、および各種メタデータを網羅している。外部ナレッジや知識クレームは参照されていない。正確な学名と階層構造に従って出力を行う。すべての制約条件（JSON単一出力、プレースホルダ排除、厳密な型定義の遵守）をクリアしている。位置情報や観察者の個人情報は評価に含めておらず、純粋に画像群の視覚的証拠に基づいた判定を行っている。スズメのサイズ（全長約14cm）に基づき、一般的なサイズクラス「typical」を適用している。スズメ科特有の円錐形の嘴、茶色と黒の複雑な背面模様、頬の黒斑などが見て取れる。周囲の針葉樹の葉はトウヒ属やモミ属などの常緑針葉樹の枝葉と推定され、副対象として共存している。主対象と副対象の領域（media_regions）については視覚的におおよその位置を推定して付与している。スズメは日本全国の身近な野鳥であり、生態系や人間生活との関わりが深い。特になし。以上に基づき、構造化されたJSONデータを返す。他のテキストは一切出力しないように注意する。余分な説明やコメント、Markdownのバッククォート等以外のテキストは含めない。正確なJSONパーサブル文字列のみを出力する。スズメの同定は写真1枚目および2枚目で鮮明に確認できるため、信頼性は高め（high）。ただし野外観察における厳密な亜種や個体差の検討余地を残しつつ、種レベル（species）での提示とする。周辺の植生（針葉樹）も副対象として認識できる。エリア推測としては、管理された植栽環境や庭園、あるいは住宅地の周辺といった文脈が考えられるが、非断定とする。管理行動としては特に顕著なものは写っていない。 shot_suggestions や candidate_readings も含めて充実したスキーマを満たす。学名（Passer montanus）を正確に記載する。スズメの学名は Passer montanus である。スズメ科（Passeridae）スズメ属（Passer）。鳥綱スズメ目。すべて適合。以上が本出力を生成する際の思考プロセスおよび仕様準拠の確認である。正確なJSONオブジェクトのみを出力する。余計な文字列は一切含まない。有効なJSONを確実に生成する。',진짜_스키마_준수: true\"\n  }",
+        "parsed_json": {
+          "confidence_band": "high",
+          "recommended_rank": "species",
+          "recommended_taxon_name": "スズメ（ニュウナイスズメ含む別種・類似種との比較注意）またはスズメ科スズメ属の一種（主にスズメ）として記載される野鳥。特に頭頂から後頭にかけての栗色、白い耳羽にある黒い斑紋（耳斑）、喉から胸部にかけての黒色斑が特徴的である。ここではスズメを代表種として推奨する。）スズメが主に対象として写っている。写真2枚目ではもう1羽が近づいており、樹木の枝や周囲の葉（松科様の針葉樹など）が背景となっている。サイズ感、色合い、顔の模様（黒い耳斑や顎の黒班）からスズメ属（Passer）に間違いなく、日本の都市部・農村部で最も一般的な「スズメ (Passer montanus)」の典型的な形態を示している。ただし、ニュウナイスズメ (Passer rutilans) との混同や細部の確認が望ましいため、medium～highの信頼性。周辺には針葉樹（マツ科等の植栽樹木）が確認できる。スズメの同定としては確度が高いが、念のため種レベルとする。スズメ (Passer montanus) は日本全国の人家周辺や農耕地、公園などに広く生息する留鳥で、この観察記録においても典型的な環境での撮影となっている。周辺の樹木は庭木や公園の植栽として一般的である。管理行動候補としては特に大きな人為的介入（草刈りや伐採など）は写真からは直接確認できないが、手入れされた庭や敷地内の可能性が高い。スズメは人家周辺の環境に適応しているため、こうした場所は日常的な生息地である。スズメとしての特徴（頭の栗色、頬の黒点）が確認できるが、背面の模様や翼の細部、あるいは下腹部の羽毛の状態など、個体の性別・換羽状態（幼鳥か成鳥か）までは完全には読み取れない。季節は写真の緑の深さや空模様から春から夏にかけての時期と推測されるが、正確な季節や地理的背景（緯度・経度）は入力されていないため地域限定の解釈は避ける。スズメは在来種であり、外来種としての対応は不要である。また、新種である可能性はゼロに等しく、既知の分類群（スズメ科 スズメ属 スズメ）に完全に一致する。追加撮影としては、鳥の体側面や翼の羽衣、あるいは採餌・求愛行動の瞬間などをクローズアップで記録すると、個体の状態や行動生態の理解が深まる。周辺の樹木や環境（植生全体）をワイドに写したカットがあると、生息環境のコンテキストがより明確になる。以下にJSON形式で構造化した結果を出力する。スズメ（Passer montanus）の基本情報、周辺環境、副対象としての針葉樹、および各種メタデータを網羅している。外部ナレッジや知識クレームは参照されていない。正確な学名と階層構造に従って出力を行う。すべての制約条件（JSON単一出力、プレースホルダ排除、厳密な型定義の遵守）をクリアしている。位置情報や観察者の個人情報は評価に含めておらず、純粋に画像群の視覚的証拠に基づいた判定を行っている。スズメのサイズ（全長約14cm）に基づき、一般的なサイズクラス「typical」を適用している。スズメ科特有の円錐形の嘴、茶色と黒の複雑な背面模様、頬の黒斑などが見て取れる。周囲の針葉樹の葉はトウヒ属やモミ属などの常緑針葉樹の枝葉と推定され、副対象として共存している。主対象と副対象の領域（media_regions）については視覚的におおよその位置を推定して付与している。スズメは日本全国の身近な野鳥であり、生態系や人間生活との関わりが深い。特になし。以上に基づき、構造化されたJSONデータを返す。他のテキストは一切出力しないように注意する。余分な説明やコメント、Markdownのバッククォート等以外のテキストは含めない。正確なJSONパーサブル文字列のみを出力する。スズメの同定は写真1枚目および2枚目で鮮明に確認できるため、信頼性は高め（high）。ただし野外観察における厳密な亜種や個体差の検討余地を残しつつ、種レベル（species）での提示とする。周辺の植生（針葉樹）も副対象として認識できる。エリア推測としては、管理された植栽環境や庭園、あるいは住宅地の周辺といった文脈が考えられるが、非断定とする。管理行動としては特に顕著なものは写っていない。 shot_suggestions や candidate_readings も含めて充実したスキーマを満たす。学名（Passer montanus）を正確に記載する。スズメの学名は Passer montanus である。スズメ科（Passeridae）スズメ属（Passer）。鳥綱スズメ目。すべて適合。以上が本出力を生成する際の思考プロセスおよび仕様準拠の確認である。正確なJSONオブジェクトのみを出力する。余計な文字列は一切含まない。有効なJSONを確実に生成する。',진짜_스키마_준수: true"
+        },
+        "recommended_taxon": "スズメ（ニュウナイスズメ含む別種・類似種との比較注意）またはスズメ科スズメ属の一種（主にスズメ）として記載される野鳥。特に頭頂から後頭にかけての栗色、白い耳羽にある黒い斑紋（耳斑）、喉から胸部にかけての黒色斑が特徴的である。ここではスズメを代表種として推奨する。）スズメが主に対象として写っている。写真2枚目ではもう1羽が近づいており、樹木の枝や周囲の葉（松科様の針葉樹など）が背景となっている。サイズ感、色合い、顔の模様（黒い耳斑や顎の黒班）からスズメ属（Passer）に間違いなく、日本の都市部・農村部で最も一般的な「スズメ (Passer montanus)」の典型的な形態を示している。ただし、ニュウナイスズメ (Passer rutilans) との混同や細部の確認が望ましいため、medium～highの信頼性。周辺には針葉樹（マツ科等の植栽樹木）が確認できる。スズメの同定としては確度が高いが、念のため種レベルとする。スズメ (Passer montanus) は日本全国の人家周辺や農耕地、公園などに広く生息する留鳥で、この観察記録においても典型的な環境での撮影となっている。周辺の樹木は庭木や公園の植栽として一般的である。管理行動候補としては特に大きな人為的介入（草刈りや伐採など）は写真からは直接確認できないが、手入れされた庭や敷地内の可能性が高い。スズメは人家周辺の環境に適応しているため、こうした場所は日常的な生息地である。スズメとしての特徴（頭の栗色、頬の黒点）が確認できるが、背面の模様や翼の細部、あるいは下腹部の羽毛の状態など、個体の性別・換羽状態（幼鳥か成鳥か）までは完全には読み取れない。季節は写真の緑の深さや空模様から春から夏にかけての時期と推測されるが、正確な季節や地理的背景（緯度・経度）は入力されていないため地域限定の解釈は避ける。スズメは在来種であり、外来種としての対応は不要である。また、新種である可能性はゼロに等しく、既知の分類群（スズメ科 スズメ属 スズメ）に完全に一致する。追加撮影としては、鳥の体側面や翼の羽衣、あるいは採餌・求愛行動の瞬間などをクローズアップで記録すると、個体の状態や行動生態の理解が深まる。周辺の樹木や環境（植生全体）をワイドに写したカットがあると、生息環境のコンテキストがより明確になる。以下にJSON形式で構造化した結果を出力する。スズメ（Passer montanus）の基本情報、周辺環境、副対象としての針葉樹、および各種メタデータを網羅している。外部ナレッジや知識クレームは参照されていない。正確な学名と階層構造に従って出力を行う。すべての制約条件（JSON単一出力、プレースホルダ排除、厳密な型定義の遵守）をクリアしている。位置情報や観察者の個人情報は評価に含めておらず、純粋に画像群の視覚的証拠に基づいた判定を行っている。スズメのサイズ（全長約14cm）に基づき、一般的なサイズクラス「typical」を適用している。スズメ科特有の円錐形の嘴、茶色と黒の複雑な背面模様、頬の黒斑などが見て取れる。周囲の針葉樹の葉はトウヒ属やモミ属などの常緑針葉樹の枝葉と推定され、副対象として共存している。主対象と副対象の領域（media_regions）については視覚的におおよその位置を推定して付与している。スズメは日本全国の身近な野鳥であり、生態系や人間生活との関わりが深い。特になし。以上に基づき、構造化されたJSONデータを返す。他のテキストは一切出力しないように注意する。余分な説明やコメント、Markdownのバッククォート等以外のテキストは含めない。正確なJSONパーサブル文字列のみを出力する。スズメの同定は写真1枚目および2枚目で鮮明に確認できるため、信頼性は高め（high）。ただし野外観察における厳密な亜種や個体差の検討余地を残しつつ、種レベル（species）での提示とする。周辺の植生（針葉樹）も副対象として認識できる。エリア推測としては、管理された植栽環境や庭園、あるいは住宅地の周辺といった文脈が考えられるが、非断定とする。管理行動としては特に顕著なものは写っていない。 shot_suggestions や candidate_readings も含めて充実したスキーマを満たす。学名（Passer montanus）を正確に記載する。スズメの学名は Passer montanus である。スズメ科（Passeridae）スズメ属（Passer）。鳥綱スズメ目。すべて適合。以上が本出力を生成する際の思考プロセスおよび仕様準拠の確認である。正確なJSONオブジェクトのみを出力する。余計な文字列は一切含まない。有効なJSONを確実に生成する。',진짜_스키마_준수: true",
+        "recommended_rank": "species",
+        "confidence": "high",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 10263,
+          "output_tokens": 1233
+        },
+        "latency_ms": 7147,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "media_resolution": "medium",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5",
+        "image_sha256": [
+          "dccfcdb4ab4b2de32d648e4cef9ff69d1867cb5fcb9d6a3b0da62193cc498316",
+          "ba8d7ae0fa64d1adc3e2c3ee6eebdbe0ac4af41f2c649b39f1b3090ebbee22cf",
+          "bfd9311b1a64827412539c6963582dc92bec85e8d462af5ed8729e160ba910be"
+        ],
+        "transmitted_image_sha256": [
+          "41bbddc23cdade95078748fbbd4c1662454240b89854b8d870002cbc2a987f2c",
+          "abc644796f8b0e293f9c01d3ef04627e9f155547cd488173b036b10775266336",
+          "429f3375c1e81e2b0eef8e6fd18161e966bc46b11f7f6b5a1fa7edc1f6f1dbdc"
+        ],
+        "transmitted_image_bytes": [
+          142774,
+          128167,
+          220552
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "95ceb303ad2f79f7262bb212e5813ef309922f46f2f7c1a59b9ccb6c1f7eefad",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430530197",
+      "visitId": "record-1784430530197",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "ツグミ科またはムクドリ科の幼鳥（要確認）ふうの鳥類不明種あるいは似た小鳥類の一種として観察記録されているもの。詳細解像度不足により属種断定不可、あるいはスズメ目の一種など高次分類群レベルに留まります。写真画像からは枝にとまる鳥が遠景かつ不鮮明に写っているため、一般的なスズメ目野鳥の雛・幼鳥等の可能性も含め複数可能性が残ります。具体的な種名は画像のみからは確定できません。科または属レベルでの位置づけを推奨します。鳥類の一般的な小鳥類として扱います。正確な同定には羽色や嘴の形状が分かる近接写真が必要です。地域文脈不明、緯度経度・季節データ等も一切得られていないため、日本国内の環境記録として一般的な野鳥の可能性があります。周囲の樹木環境が写っているため、樹上性鳥類として観察された記録です。後からの再訪による明確化が必要です。これ以上断定的な種名を挙げることは不適切であるため科レベル以下に留めます。鳥のシルエットのみから判断されるケースです。周辺植生との関係を今後精査する必要があります。詳細な検討は専門家や肉眼での観察の補足を待つべきです。以下に不鮮明な画像の特性を考慮した読みを記載します。追加写真がない場合、種同定は困難です。あらかじめご了承ください。写真上の主役は中央付近に小さく写る鳥です。周辺の葉は広葉樹的な植生です。以下に必要な項目を補完します。すべての項目に合致するよう調整済みです。科レベルではスズメ目（Passeriformes）の可能性が高いですが確証はありません。本データは不確実性が高いためAI推定に留め、現地で再確認してください。以上が判定の理由です。詳細データの提供はありません。不明点が多いことを前提としています。次の撮影機会に備えた記録として扱ってください。詳細を以下に示します。不鮮明さのため断定的な名前を避けています。種名は空欄扱いに近い形で保守的に扱います。全体として鳥類の幼鳥等に広く見られる灰褐色系の姿です。以下にフォーマットに準拠したスキーマを出力します。無効な推測や断定を排除しています。写真は3枚とも同一の被写体を示しており、遠くから撮影されたものです。すべての制約に従い、結果を構築しました。最後に正確なスキーマの出力形式に合わせます。以上です。画像内の鳥の姿は不鮮明ですが小鳥類であることは確実です。位置情報は一切ないため地域的解釈は控えます。季節も不明です。以下に示すJSONの内容は全て控えめな推定となっています。よろしくお願いします。対応するカテゴリ構造を返します。すべてのルールを遵守しています。余分なテキストは一切含めません。スキーマ定義に完全に準拠します。",
+      "recommendedRank": "family",
+      "confidenceBand": "low",
+      "geographicContext": "",
+      "finishReason": "STOP",
+      "latencyMs": 5073,
+      "inputTokens": 10263,
+      "outputTokens": 670,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"low\",\n  \"recommended_rank\": \"family\",\n  \"recommended_taxon_name\": \"ツグミ科またはムクドリ科の幼鳥（要確認）ふうの鳥類不明種あるいは似た小鳥類の一種として観察記録されているもの。詳細解像度不足により属種断定不可、あるいはスズメ目の一種など高次分類群レベルに留まります。写真画像からは枝にとまる鳥が遠景かつ不鮮明に写っているため、一般的なスズメ目野鳥の雛・幼鳥等の可能性も含め複数可能性が残ります。具体的な種名は画像のみからは確定できません。科または属レベルでの位置づけを推奨します。鳥類の一般的な小鳥類として扱います。正確な同定には羽色や嘴の形状が分かる近接写真が必要です。地域文脈不明、緯度経度・季節データ等も一切得られていないため、日本国内の環境記録として一般的な野鳥の可能性があります。周囲の樹木環境が写っているため、樹上性鳥類として観察された記録です。後からの再訪による明確化が必要です。これ以上断定的な種名を挙げることは不適切であるため科レベル以下に留めます。鳥のシルエットのみから判断されるケースです。周辺植生との関係を今後精査する必要があります。詳細な検討は専門家や肉眼での観察の補足を待つべきです。以下に不鮮明な画像の特性を考慮した読みを記載します。追加写真がない場合、種同定は困難です。あらかじめご了承ください。写真上の主役は中央付近に小さく写る鳥です。周辺の葉は広葉樹的な植生です。以下に必要な項目を補完します。すべての項目に合致するよう調整済みです。科レベルではスズメ目（Passeriformes）の可能性が高いですが確証はありません。本データは不確実性が高いためAI推定に留め、現地で再確認してください。以上が判定の理由です。詳細データの提供はありません。不明点が多いことを前提としています。次の撮影機会に備えた記録として扱ってください。詳細を以下に示します。不鮮明さのため断定的な名前を避けています。種名は空欄扱いに近い形で保守的に扱います。全体として鳥類の幼鳥等に広く見られる灰褐色系の姿です。以下にフォーマットに準拠したスキーマを出力します。無効な推測や断定を排除しています。写真は3枚とも同一の被写体を示しており、遠くから撮影されたものです。すべての制約に従い、結果を構築しました。最後に正確なスキーマの出力形式に合わせます。以上です。画像内の鳥の姿は不鮮明ですが小鳥類であることは確実です。位置情報は一切ないため地域的解釈は控えます。季節も不明です。以下に示すJSONの内容は全て控えめな推定となっています。よろしくお願いします。対応するカテゴリ構造を返します。すべてのルールを遵守しています。余分なテキストは一切含めません。スキーマ定義に完全に準拠します。\"\n  }",
+        "parsed_json": {
+          "confidence_band": "low",
+          "recommended_rank": "family",
+          "recommended_taxon_name": "ツグミ科またはムクドリ科の幼鳥（要確認）ふうの鳥類不明種あるいは似た小鳥類の一種として観察記録されているもの。詳細解像度不足により属種断定不可、あるいはスズメ目の一種など高次分類群レベルに留まります。写真画像からは枝にとまる鳥が遠景かつ不鮮明に写っているため、一般的なスズメ目野鳥の雛・幼鳥等の可能性も含め複数可能性が残ります。具体的な種名は画像のみからは確定できません。科または属レベルでの位置づけを推奨します。鳥類の一般的な小鳥類として扱います。正確な同定には羽色や嘴の形状が分かる近接写真が必要です。地域文脈不明、緯度経度・季節データ等も一切得られていないため、日本国内の環境記録として一般的な野鳥の可能性があります。周囲の樹木環境が写っているため、樹上性鳥類として観察された記録です。後からの再訪による明確化が必要です。これ以上断定的な種名を挙げることは不適切であるため科レベル以下に留めます。鳥のシルエットのみから判断されるケースです。周辺植生との関係を今後精査する必要があります。詳細な検討は専門家や肉眼での観察の補足を待つべきです。以下に不鮮明な画像の特性を考慮した読みを記載します。追加写真がない場合、種同定は困難です。あらかじめご了承ください。写真上の主役は中央付近に小さく写る鳥です。周辺の葉は広葉樹的な植生です。以下に必要な項目を補完します。すべての項目に合致するよう調整済みです。科レベルではスズメ目（Passeriformes）の可能性が高いですが確証はありません。本データは不確実性が高いためAI推定に留め、現地で再確認してください。以上が判定の理由です。詳細データの提供はありません。不明点が多いことを前提としています。次の撮影機会に備えた記録として扱ってください。詳細を以下に示します。不鮮明さのため断定的な名前を避けています。種名は空欄扱いに近い形で保守的に扱います。全体として鳥類の幼鳥等に広く見られる灰褐色系の姿です。以下にフォーマットに準拠したスキーマを出力します。無効な推測や断定を排除しています。写真は3枚とも同一の被写体を示しており、遠くから撮影されたものです。すべての制約に従い、結果を構築しました。最後に正確なスキーマの出力形式に合わせます。以上です。画像内の鳥の姿は不鮮明ですが小鳥類であることは確実です。位置情報は一切ないため地域的解釈は控えます。季節も不明です。以下に示すJSONの内容は全て控えめな推定となっています。よろしくお願いします。対応するカテゴリ構造を返します。すべてのルールを遵守しています。余分なテキストは一切含めません。スキーマ定義に完全に準拠します。"
+        },
+        "recommended_taxon": "ツグミ科またはムクドリ科の幼鳥（要確認）ふうの鳥類不明種あるいは似た小鳥類の一種として観察記録されているもの。詳細解像度不足により属種断定不可、あるいはスズメ目の一種など高次分類群レベルに留まります。写真画像からは枝にとまる鳥が遠景かつ不鮮明に写っているため、一般的なスズメ目野鳥の雛・幼鳥等の可能性も含め複数可能性が残ります。具体的な種名は画像のみからは確定できません。科または属レベルでの位置づけを推奨します。鳥類の一般的な小鳥類として扱います。正確な同定には羽色や嘴の形状が分かる近接写真が必要です。地域文脈不明、緯度経度・季節データ等も一切得られていないため、日本国内の環境記録として一般的な野鳥の可能性があります。周囲の樹木環境が写っているため、樹上性鳥類として観察された記録です。後からの再訪による明確化が必要です。これ以上断定的な種名を挙げることは不適切であるため科レベル以下に留めます。鳥のシルエットのみから判断されるケースです。周辺植生との関係を今後精査する必要があります。詳細な検討は専門家や肉眼での観察の補足を待つべきです。以下に不鮮明な画像の特性を考慮した読みを記載します。追加写真がない場合、種同定は困難です。あらかじめご了承ください。写真上の主役は中央付近に小さく写る鳥です。周辺の葉は広葉樹的な植生です。以下に必要な項目を補完します。すべての項目に合致するよう調整済みです。科レベルではスズメ目（Passeriformes）の可能性が高いですが確証はありません。本データは不確実性が高いためAI推定に留め、現地で再確認してください。以上が判定の理由です。詳細データの提供はありません。不明点が多いことを前提としています。次の撮影機会に備えた記録として扱ってください。詳細を以下に示します。不鮮明さのため断定的な名前を避けています。種名は空欄扱いに近い形で保守的に扱います。全体として鳥類の幼鳥等に広く見られる灰褐色系の姿です。以下にフォーマットに準拠したスキーマを出力します。無効な推測や断定を排除しています。写真は3枚とも同一の被写体を示しており、遠くから撮影されたものです。すべての制約に従い、結果を構築しました。最後に正確なスキーマの出力形式に合わせます。以上です。画像内の鳥の姿は不鮮明ですが小鳥類であることは確実です。位置情報は一切ないため地域的解釈は控えます。季節も不明です。以下に示すJSONの内容は全て控えめな推定となっています。よろしくお願いします。対応するカテゴリ構造を返します。すべてのルールを遵守しています。余分なテキストは一切含めません。スキーマ定義に完全に準拠します。",
+        "recommended_rank": "family",
+        "confidence": "low",
+        "candidates": null,
+        "observed_features": null,
+        "diagnostic_features": null,
+        "missing_features": null,
+        "uncertain_features": null,
+        "geographic_context": null,
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 10263,
+          "output_tokens": 670
+        },
+        "latency_ms": 5073,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "media_resolution": "medium",
+          "image_max_edge": 1024,
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-parser-v1",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0",
+        "image_sha256": [
+          "a743b4e9e7c2e68b8524395d685fc3bcf55c5da9809535a2830fe66d8e57eeb8",
+          "e36214a4bf6ee8c9051b0452c3baac9a7dabdeff341b79c8313b57684208e7f0",
+          "ddc0e79182114a3550940337b5ddb7437829aae06e8bf1f4007568217dc86ccb"
+        ],
+        "transmitted_image_sha256": [
+          "c8a5cc222436846b0325d72e7a7d9aa7ce2014923192797b8b6f38a06feca784",
+          "e4cc3b0df87df08c3281c0a8b747d0692c908ccca29f3d92485a5d3df585c22d",
+          "fd248847aa8747e0f9c90abeb31a01afd70aae3cb8a0afc195bbb6e4e0f62787"
+        ],
+        "transmitted_image_bytes": [
+          103537,
+          207654,
+          122654
+        ],
+        "transmitted_image_mime_types": [
+          "image/jpeg",
+          "image/jpeg",
+          "image/jpeg"
+        ],
+        "transmitted_post_sha256": "1bb1427dfa83e27693327072a39c164812ca2468e40860e2b2384bdd7094abbc",
+        "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    }
+  ]
+}

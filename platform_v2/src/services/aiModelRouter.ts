@@ -1,4 +1,4 @@
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI, MediaResolution, ThinkingLevel } from "@google/genai";
 import { loadConfig } from "../config.js";
 import { logAiCost, type AiCostLayer } from "./aiCostLogger.js";
 import { estimateAiCostUsd } from "./aiModelPricing.js";
@@ -29,6 +29,7 @@ export type AiRouterGenerateRequest = {
   responseJsonSchema?: unknown;
   temperature?: number;
   maxOutputTokens?: number;
+  mediaResolution?: "low" | "medium" | "high";
   retriesPerModel?: number;
   retryDelayMs?: number;
   cost?: {
@@ -131,6 +132,13 @@ function googleThinkingConfig(request: AiRouterGenerateRequest): { thinkingLevel
   return undefined;
 }
 
+export function googleMediaResolution(level: AiRouterGenerateRequest["mediaResolution"]): MediaResolution | undefined {
+  if (level === "low") return MediaResolution.MEDIA_RESOLUTION_LOW;
+  if (level === "medium") return MediaResolution.MEDIA_RESOLUTION_MEDIUM;
+  if (level === "high") return MediaResolution.MEDIA_RESOLUTION_HIGH;
+  return undefined;
+}
+
 export function googleResponseText(response: {
   text?: string;
   candidates?: Array<{
@@ -214,6 +222,7 @@ async function callGoogleGenAi(
       thinkingConfig: googleThinkingConfig(request),
       temperature: request.temperature,
       maxOutputTokens: request.maxOutputTokens,
+      mediaResolution: googleMediaResolution(request.mediaResolution),
       responseMimeType: request.responseMimeType === "text/plain" ? undefined : request.responseMimeType,
       responseJsonSchema: request.responseJsonSchema,
     },

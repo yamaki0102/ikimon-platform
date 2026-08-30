@@ -1,0 +1,264 @@
+{
+  "version": "zukan-vision-resolution-comparison-v1",
+  "createdAt": "2026-08-30T02:12:38.689Z",
+  "verdict": "NO_CLEAR_QUALITY_GAIN",
+  "productionRecommendation": "KEEP_CURRENT_IMAGE_RESOLUTION",
+  "fixedInput": {
+    "postCount": 7,
+    "imageCount": 21,
+    "imagesPerPost": 3,
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "sourceImageBytes": 10598046,
+    "sourceLongEdgePixels": {
+      "minimum": 1600,
+      "median": 2133,
+      "maximum": 2133,
+      "average": 2057
+    },
+    "transmittedDerivative": {
+      "maximumEdgePixels": 1024,
+      "format": "image/jpeg",
+      "quality": 86,
+      "imageBytes": 3674980,
+      "byteReductionPct": 65.32,
+      "sourceImageSha256PreservedAsIdentity": true,
+      "derivativeImageAndPostSha256RecordedSeparately": true
+    },
+    "retryCount": 0,
+    "fallbackCount": 0,
+    "playgroundCount": 0
+  },
+  "canonicalRightsReadback": {
+    "database": "ikimon_prod_observations_2026_06",
+    "databaseId": "c879eef6-009c-4710-a964-be343d96f3eb",
+    "eligibleCount": 7,
+    "postCount": 7,
+    "rowsWritten": 0,
+    "predicate": "external_export_allowed=1 AND record_consent='external_export' AND research_use_consent='public_export' AND dataset_license='CC-BY-4.0' AND media_license='CC-BY-NC-4.0' AND withdrawal_status='active'"
+  },
+  "runs": [
+    {
+      "label": "Gemini 3.5 Flash-Lite original",
+      "provider": "Gemini API",
+      "modelId": "gemini-3.5-flash-lite",
+      "maximumImageEdgePixels": null,
+      "mediaResolution": "default",
+      "canary": "historical-pass",
+      "success": "7/7",
+      "schemaValid": "7/7",
+      "p50LatencyMs": 2582,
+      "p95LatencyMs": 4831,
+      "inputTokens": 82845,
+      "outputTokens": 2238,
+      "estimatedCostUsd": 0.0304485,
+      "rawFinalContentSaved": "7/7",
+      "report": "2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json"
+    },
+    {
+      "label": "Gemini 3.5 Flash-Lite 1024px default media resolution",
+      "provider": "Gemini API",
+      "modelId": "gemini-3.5-flash-lite",
+      "maximumImageEdgePixels": 1024,
+      "mediaResolution": "default",
+      "canary": {
+        "success": "1/1",
+        "schemaValid": "1/1",
+        "latencyMs": 3470,
+        "inputTokens": 11835,
+        "outputTokens": 378,
+        "estimatedCostUsd": 0.0044955
+      },
+      "success": "7/7",
+      "schemaValid": "6/7",
+      "p50LatencyMs": 2578,
+      "p95LatencyMs": 7496,
+      "inputTokens": 82845,
+      "outputTokens": 3290,
+      "estimatedCostUsd": 0.0330785,
+      "deltaVsOriginalPct": {
+        "p50Latency": -0.15,
+        "p95Latency": 55.16,
+        "inputTokens": 0,
+        "outputTokens": 47.01,
+        "estimatedCost": 8.64
+      },
+      "criticalFailures": [
+        "record-1784366489892: MAX_TOKENS / invalid JSON"
+      ],
+      "rawFinalContentSaved": "7/7",
+      "report": "2026-08-30-gemini-3.5-flash-lite-1024-default-final-v1.json"
+    },
+    {
+      "label": "Gemini 3.5 Flash-Lite 1024px medium media resolution",
+      "provider": "Gemini API",
+      "modelId": "gemini-3.5-flash-lite",
+      "maximumImageEdgePixels": 1024,
+      "mediaResolution": "medium",
+      "canary": {
+        "success": "1/1",
+        "schemaValid": "1/1",
+        "latencyMs": 2928,
+        "inputTokens": 10263,
+        "outputTokens": 314,
+        "estimatedCostUsd": 0.0038639
+      },
+      "success": "7/7",
+      "schemaValid": "6/7",
+      "p50LatencyMs": 5155,
+      "p95LatencyMs": 7272,
+      "inputTokens": 71841,
+      "outputTokens": 6805,
+      "estimatedCostUsd": 0.0385648,
+      "deltaVsOriginalPct": {
+        "p50Latency": 99.65,
+        "p95Latency": 50.53,
+        "inputTokens": -13.28,
+        "outputTokens": 204.07,
+        "estimatedCost": 26.66
+      },
+      "criticalFailures": [
+        "record-1784430374598: MAX_TOKENS / invalid JSON"
+      ],
+      "rawFinalContentSaved": "7/7",
+      "report": "2026-08-30-gemini-3.5-flash-lite-1024-medium-final-v1.json"
+    },
+    {
+      "label": "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash original",
+      "provider": "Cloudflare Workers AI",
+      "modelId": "@cf/zai-org/glm-5.3-flash",
+      "maximumImageEdgePixels": null,
+      "canary": "historical-pass",
+      "success": "7/7",
+      "schemaValid": "7/7",
+      "p50LatencyMs": 53996,
+      "p95LatencyMs": 64073,
+      "inputTokens": 153402,
+      "outputTokens": 26359,
+      "estimatedCostUsd": 0.0361898,
+      "rawFinalContentSaved": "4/7",
+      "report": "2026-08-27-glm-5.3-flash-8192-final-report.json"
+    },
+    {
+      "label": "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash 1024px",
+      "provider": "Cloudflare Workers AI",
+      "modelId": "@cf/zai-org/glm-5.3-flash",
+      "maximumImageEdgePixels": 1024,
+      "canary": {
+        "success": "1/1",
+        "schemaValid": "1/1",
+        "latencyMs": 90096,
+        "inputTokens": 12470,
+        "outputTokens": 3651,
+        "estimatedCostUsd": 0.003696
+      },
+      "success": "7/7",
+      "schemaValid": "7/7",
+      "p50LatencyMs": 81288,
+      "p95LatencyMs": 104051,
+      "inputTokens": 87288,
+      "outputTokens": 27551,
+      "estimatedCostUsd": 0.0268687,
+      "deltaVsOriginalPct": {
+        "p50Latency": 50.54,
+        "p95Latency": 62.39,
+        "inputTokens": -43.1,
+        "outputTokens": 4.52,
+        "estimatedCost": -25.76
+      },
+      "criticalFailures": [],
+      "rawFinalContentSaved": "2/7 full run; first-post canary raw also saved",
+      "rawFinalContentCaveat": "Five full-run outputs triggered the previous all-or-nothing sensitive-output guard. Their scored taxon/rank/confidence remain available, but the discarded raw text is not reconstructed or retried.",
+      "report": "2026-08-30-cf-zai-org-glm-5.3-flash-1024-final-v1.json"
+    }
+  ],
+  "referenceRelativePerPost": [
+    {
+      "visitId": "record-1784366489892",
+      "reference": "Erigeron/Conyza group, genus",
+      "Gemini 3.5 Flash-Lite 1024px default": "INVALID_JSON",
+      "Gemini 3.5 Flash-Lite 1024px medium": "REFERENCE_ALIGNED_WITH_OUTPUT_NOISE: Erigeron-like genus",
+      "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash 1024px": "REFERENCE_ALIGNED: Erigeron-like genus, low confidence"
+    },
+    {
+      "visitId": "record-1784430741938",
+      "reference": "Oxalis corniculata, species",
+      "Gemini 3.5 Flash-Lite 1024px default": "CONSERVATIVE_BUT_ALIGNED: Oxalis genus",
+      "Gemini 3.5 Flash-Lite 1024px medium": "CONSERVATIVE_BUT_ALIGNED: Oxalis genus",
+      "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash 1024px": "CONSERVATIVE_BUT_ALIGNED: Oxalis genus"
+    },
+    {
+      "visitId": "record-1781252770584",
+      "reference": "Scarabaeidae, family",
+      "Gemini 3.5 Flash-Lite 1024px default": "REFERENCE_ALIGNED: Scarabaeidae family",
+      "Gemini 3.5 Flash-Lite 1024px medium": "REFERENCE_ALIGNED: Scarabaeidae family",
+      "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash 1024px": "PARENT_DIRECTION_ALIGNED_WITH_OVERPRECISION: scarab genus asserted"
+    },
+    {
+      "visitId": "record-1784430374598",
+      "reference": "dwarf Acalypha reptans/chamaedrifolia complex",
+      "Gemini 3.5 Flash-Lite 1024px default": "OVERPRECISE: Acalypha hispida species",
+      "Gemini 3.5 Flash-Lite 1024px medium": "INVALID_JSON",
+      "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash 1024px": "OVERPRECISE: Acalypha hispida species with nomenclature noise"
+    },
+    {
+      "visitId": "record-1784430118720",
+      "reference": "Bidens genus; small developing head and bracts are decisive",
+      "Gemini 3.5 Flash-Lite 1024px default": "TARGET_MISS: Rubus genus",
+      "Gemini 3.5 Flash-Lite 1024px medium": "TARGET_MISS_AND_OVERPRECISE: Rubus species rank",
+      "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash 1024px": "TARGET_MISS: Rosa genus"
+    },
+    {
+      "visitId": "record-1784431188621",
+      "reference": "Passer montanus, species",
+      "Gemini 3.5 Flash-Lite 1024px default": "REFERENCE_ALIGNED: Passer montanus species",
+      "Gemini 3.5 Flash-Lite 1024px medium": "REFERENCE_ALIGNED: Passer montanus species",
+      "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash 1024px": "REFERENCE_ALIGNED: Passer montanus species"
+    },
+    {
+      "visitId": "record-1784430530197",
+      "reference": "Hypsipetes genus; low-resolution image requires restraint",
+      "Gemini 3.5 Flash-Lite 1024px default": "PARTIALLY_ALIGNED_AND_RESTRAINED: Pycnonotidae family with Hypsipetes amaurotis comparison",
+      "Gemini 3.5 Flash-Lite 1024px medium": "WEAK_DIRECTION: thrush/starling family alternatives, low confidence",
+      "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash 1024px": "TARGET_MISS_BUT_RESTRAINED: Passer genus, low confidence"
+    }
+  ],
+  "qualityInterpretation": {
+    "humanGoldUsed": false,
+    "reference": "NOAH_MAX_READ_V1 visual reference only",
+    "accuracyWinnerDeclared": false,
+    "Gemini 3.5 Flash-Lite 1024px default": "No clear visual-quality gain. The Bidens miss persisted, Acalypha became species-level overprecision, and one new schema failure appeared. The blurred bird direction improved.",
+    "Gemini 3.5 Flash-Lite 1024px medium": "No clear visual-quality gain. Input tokens fell, but output runaway, one schema failure, the Bidens miss, and Acalypha unavailability outweighed the saving.",
+    "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash 1024px": "Reference-relative direction remained broadly similar. Input cost improved, but latency worsened and the Bidens, dwarf Acalypha, and blurred-bird weaknesses remained."
+  },
+  "providerTokenInterpretation": {
+    "Gemini 3.5 Flash-Lite": "Physical 1024px resizing alone left input tokens unchanged because default media resolution still allocates the same image-token tier. media_resolution=medium reduced total input tokens by 13.28%, but did not reduce total cost in this run because output tokens expanded.",
+    "Cloudflare Workers AI @cf/zai-org/glm-5.3-flash": "Physical 1024px resizing reduced provider-reported input tokens by 43.1% and estimated cost by 25.76%, but p95 latency increased by 62.39%."
+  },
+  "productionQueueReadback": {
+    "checkedAt": "2026-08-30T02:10:00Z",
+    "queue": "ikimon-prod-media-jobs",
+    "producer": "ikimon-life-cloudflare-prod",
+    "consumer": "ikimon-life-cloudflare-prod",
+    "batchSize": 25,
+    "maxRetries": 3,
+    "maxWaitTimeMs": 10000,
+    "maxConcurrency": null,
+    "maxConcurrencyMeaning": "Cloudflare automatic horizontal scaling; not one serial consumer invocation",
+    "geminiBatchMaxRecords": 10,
+    "scheduledBacklogDrain": "every 5 minutes",
+    "canonicalD1StateCounts": {
+      "completed": 31,
+      "failed": 7,
+      "pending": 0,
+      "processing": 0
+    },
+    "rowsWritten": 0
+  },
+  "evidenceLimitations": [
+    "This is a seven-post reference-relative visual comparison, not human-backed biological accuracy.",
+    "Model sampling is not deterministic even at the fixed settings; canary PASS did not guarantee all seven Gemini structured outputs would pass.",
+    "The Cloudflare Workers AI @cf/zai-org/glm-5.3-flash full run was executed sequentially by the benchmark runner, while production ZUKAN uses an autoscaling queue and provider batch jobs.",
+    "Five Cloudflare Workers AI @cf/zai-org/glm-5.3-flash 1024px raw outputs were discarded by the pre-fix all-or-nothing sensitive-output guard; no retry was performed."
+  ]
+}
