@@ -239,12 +239,7 @@ interface Env {
   ZUKAN_FOUNDATION_V2_ALLOWED_OPERATIONS?: string;
   ZUKAN_FOUNDATION_V2_MAX_ENTITIES?: string;
   LEGACY_HOST_REDIRECT_MODE?: string;
-  ORIGIN_FALLBACK_BASE_URL?: string;
-  ORIGIN_FALLBACK_RESOLVE_OVERRIDE?: string;
-  PUBLIC_WRITE_MODE?: string;
-  PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE?: string;
   PUBLIC_DERIVED_IMAGE_TRANSFORM_MODE?: string;
-  ORIGIN_SESSION_IMPORT_MODE?: string;
   V2_PRIVILEGED_WRITE_API_KEY?: string;
   GEMINI_API_KEY?: string;
   CONTACT_FORM_SECRET?: string;
@@ -825,19 +820,6 @@ interface FieldManagerGrantRow {
   note: string | null;
 }
 
-interface OriginSessionResponse {
-  ok?: boolean;
-  session?: {
-    userId?: unknown;
-    displayName?: unknown;
-    roleName?: unknown;
-    rankLabel?: unknown;
-    banned?: unknown;
-    expiresAt?: unknown;
-    tokenHash?: unknown;
-  } | null;
-}
-
 interface PersonalAreaSubscriptionRow {
   subscription_id: string;
   target_type: string;
@@ -1152,28 +1134,11 @@ interface RollbackLedgerRow {
   created_at: string;
 }
 
-interface OperationAuditRow {
-  payload_json: string;
-  created_at: string;
-}
-
-interface OriginFallbackTelemetryPayload {
-  reason: string;
-  method: string;
-  host: string;
-  routePattern: string;
-  pathHash: string;
-  originalUiHtmlKeyHash?: string;
-  publicWriteMode: string;
-  environment: string;
-}
-
 interface AuthLoginFailureTelemetryPayload {
   reason: "auth_login_user_missing" | "auth_login_password_mismatch" | "auth_login_store_unavailable";
   method: string;
   host: string;
   routePattern: string;
-  publicWriteMode: string;
   environment: string;
 }
 
@@ -2935,11 +2900,6 @@ export const worker = {
         return fieldscanAudioResponse;
       }
 
-      const appWriteBoundary = handlePublicCustomDomainAppWriteBoundary(request, url, env);
-      if (appWriteBoundary) {
-        return appWriteBoundary;
-      }
-
       const personalRuntimeBoundary = await handleOriginalPersonalRuntimeBoundary(request, url, env);
       if (personalRuntimeBoundary) {
         return personalRuntimeBoundary;
@@ -3129,11 +3089,6 @@ export const worker = {
         );
       }
 
-      const legacyObservationApiFallback = await fetchLegacyObservationApiOriginFallback(request, url, env);
-      if (legacyObservationApiFallback) {
-        return legacyObservationApiFallback;
-      }
-
       const observationEventResponse = await handleObservationEventApi(request, url, env);
       if (observationEventResponse) {
         return observationEventResponse;
@@ -3163,10 +3118,6 @@ export const worker = {
           env,
           url.pathname.endsWith("/cleanup") ? "cleanup" : "inventory"
         );
-      }
-
-      if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
-        return fetchOriginFallback(request, url, env, "public_custom_domain_path");
       }
 
       if (request.method === "POST" && url.pathname === "/api/v0/draft-observations") {
@@ -3288,10 +3239,6 @@ export const worker = {
         return reverseDeltaDryRun(url, env);
       }
 
-      if (request.method === "GET" && url.pathname === "/internal/origin-fallback-telemetry") {
-        return originFallbackTelemetrySummary(url, env);
-      }
-
       if (request.method === "POST" && url.pathname === "/internal/alert-deliveries/drain") {
         return internalAlertDeliveryDrain(url, env);
       }
@@ -3405,8 +3352,7 @@ function getHealthz(env: Env): Response {
     ok: true,
     service: "ikimon-life-cloudflare-worker",
     environment: env.ENVIRONMENT,
-    buildMarker: WORKER_BUILD_MARKER,
-    fallbackOriginConfigured: Boolean(env.ORIGIN_FALLBACK_BASE_URL)
+    buildMarker: WORKER_BUILD_MARKER
   }, 200, { "cache-control": "no-store" });
 }
 
@@ -3436,22 +3382,9 @@ async function getReadyz(env: Env): Promise<Response> {
   }
 }
 
-function handlePublicCustomDomainAppWriteBoundary(request: Request, url: URL, env: Env): Response | Promise<Response> | null {
-  if (!shouldUseOriginFallback(url, env)) return null;
-  if (!isPublicAppWriteCandidatePath(url)) return null;
-
-  const mode = getPublicWriteMode(env);
-  if (mode === "cloudflare_native") return null;
-  if (mode === "write_disabled" && isMutatingMethod(request.method)) {
-    return publicWriteDisabledResponse();
-  }
-
-  return fetchOriginFallback(request, url, env, "public_write_origin_mode");
-}
-
 async function handleOriginalPersonalRuntimeBoundary(request: Request, url: URL, env: Env): Promise<Response | null> {
   if (!isOriginalPersonalRuntimePath(request, url)) return null;
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) {
     return json({ ok: false, error: "auth_required" }, 401, { "cache-control": "no-store" });
   }
@@ -4770,7 +4703,7 @@ function observationEventEmptyState(title: string, description: string): string 
 }
 
 async function suggestObservationEventArea(request: Request, env: Env): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
   const body = await readJson<Record<string, unknown>>(request);
   const center = asPlainObject(body.center);
@@ -4834,7 +4767,7 @@ function observationEventAreaSuggestion(
 }
 
 async function createObservationEventSession(request: Request, env: Env): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
   const body = await readJson<Record<string, unknown>>(request);
   const startedAt = normalizeOptionalText(body.started_at);
@@ -4962,7 +4895,7 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
   if (!isObservationEventCheckinOpen(session)) {
     return json({ error: "event_checkin_closed" }, 409, { "cache-control": "no-store" });
   }
-  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const auth = await readCompatibleSession(request, env);
   const metricContext = serverObservationEventFunnelContext(request, "join", Boolean(auth));
   const browserGuestCredential = await readObservationEventGuestCredential(request.headers.get("cookie"), sessionId);
   if (!auth && !browserGuestCredential) {
@@ -5027,7 +4960,7 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
 }
 
 async function observationEventRequestActor(request: Request, env: Env, sessionId: string) {
-  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const auth = await readCompatibleSession(request, env);
   const guestCredential = auth ? null : await readObservationEventGuestCredential(request.headers.get("cookie"), sessionId);
   const guestToken = guestCredential ? await observationEventGuestCredentialDigest(guestCredential) : null;
   return { auth, guestToken };
@@ -6565,7 +6498,7 @@ function mapObservationEventSession(row: ObservationEventSessionD1Row) {
 }
 
 async function requireObservationEventOrganizer(request: Request, env: Env, sessionId: string): Promise<{ auth: SessionSnapshot; session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>> } | Response> {
-  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const auth = await readCompatibleSession(request, env);
   if (!auth) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
@@ -7837,12 +7770,6 @@ function observationEventMeshCenter(meshKey: string): { lat: number; lng: number
   return { lat: lat + 0.0005, lng: lng + 0.0005 };
 }
 
-async function fetchLegacyObservationApiOriginFallback(request: Request, url: URL, env: Env): Promise<Response | null> {
-  if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return null;
-  if (!shouldUseOriginFallback(url, env)) return null;
-  return null;
-}
-
 async function listCompatibleReferenceCandidates(occurrenceId: string, request: Request, env: Env): Promise<Response> {
   const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
   if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
@@ -7928,7 +7855,7 @@ async function confirmCompatibleManagementCandidate(observationId: string, index
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -8123,7 +8050,7 @@ async function requestCompatibleCandidateAction(
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -8189,7 +8116,7 @@ async function requestCompatibleObservationReassessment(observationId: string, r
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -8446,7 +8373,7 @@ async function getObservationPackageNative(request: Request, url: URL, env: Env,
   const privileged = assertPrivilegedWriteAccessNative(request, env);
   let session: SessionSnapshot | null = null;
   if (privileged instanceof Response) {
-    session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+    session = await readCompatibleSession(request, env).catch(() => null);
     if (!session || session.banned) {
       return json({ ok: false, error: "forbidden_observation_package" }, 403, { "cache-control": "no-store" });
     }
@@ -8844,7 +8771,7 @@ async function submitCompatibleObservationIdentification(occurrenceId: string, r
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -8975,7 +8902,7 @@ async function openCompatibleObservationDispute(occurrenceId: string, request: R
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -9086,7 +9013,7 @@ async function holdCompatibleIdentificationWorkbenchItem(occurrenceId: string, r
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -9146,7 +9073,7 @@ async function submitCompatibleObservationRecordAiReview(occurrenceId: string, r
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -9911,7 +9838,7 @@ async function resolveCompatibleIdentificationDispute(disputeId: string, request
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -10046,7 +9973,7 @@ async function recordCompatibleSpecialistOccurrenceReview(occurrenceId: string, 
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -10244,7 +10171,7 @@ async function generateCompatibleRecordReadingCards(observationId: string, reque
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -10383,7 +10310,7 @@ async function hideCompatibleRecordReadingCard(cardId: string, request: Request,
 
   let session: SessionSnapshot | null = null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -10797,89 +10724,6 @@ function mapAreaPolygonsFallbackLimit(zoom: number | null): number {
 
 function isShadowDiagnosticPath(pathname: string): boolean {
   return pathname.startsWith("/shadow-smoke/") || pathname.startsWith("/shadow/");
-}
-
-function shouldFallbackPublicCustomDomainPathToOrigin(request: Request, url: URL, env: Env): boolean {
-  if (!shouldUseOriginFallback(url, env)) return false;
-  if (getPublicCustomDomainOriginFallbackMode(env) === "disabled") return false;
-  if (url.pathname.startsWith("/internal/")) return false;
-  if (isShadowDiagnosticPath(url.pathname)) return false;
-  if (url.pathname === "/health") return false;
-  if (isSuspiciousPublicProbePath(url.pathname)) return false;
-  if (isLegacyPhpPublicEntrypointPath(url.pathname)) return false;
-  if (/^(?:\/(?:ja|en|es|pt-br))?\/places\/[^/]+$/.test(url.pathname)) return false;
-  if (url.pathname.startsWith("/api/v1/observations/")) return false;
-  if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
-  if (request.method !== "GET" && request.method !== "HEAD") return true;
-  return true;
-}
-
-function shouldUseOriginFallback(url: URL, env: Env): boolean {
-  return Boolean(env.ORIGIN_FALLBACK_BASE_URL) && PUBLIC_CUSTOM_HOSTS.has(url.hostname);
-}
-
-function getPublicCustomDomainOriginFallbackMode(env: Env): "enabled" | "disabled" {
-  const mode = env.PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE?.trim().toLowerCase();
-  return mode === "enabled" ? "enabled" : "disabled";
-}
-
-function isSuspiciousPublicProbePath(pathname: string): boolean {
-  if (pathname.startsWith("/data:")) return true;
-  if (pathname === "/app-ads.txt") return true;
-  if (/^\/(?:\.|api\/\.|app\/\.|backend\/\.|config\/|credentials\/|debug\/|test\/|tests\/|xampp\/|www\/|web\/)/i.test(pathname)) return true;
-  if (/(?:^|\/)(?:wp|wordpress|wp-admin|wp-content|wp-includes|wp-json|wlwmanifest\.xml|xmlrpc\.php)(?:\/|$)/i.test(pathname)) return true;
-  if (/(?:^|\/)(?:phpinfo|updates?\.php|setup-config\.php|install\.php|mock-data)(?:\/|$)/i.test(pathname)) return true;
-  if (/(?:^|\/)(?:client_secrets?|service[-_]?account|firebase[-_]?credentials|firebase[-_]?service[-_]?account|gcp[-_]?credentials|gcloud[-_]?service[-_]?key)\.json$/i.test(pathname)) return true;
-  if (/^\/(?:firebase-adminsdk|firebase|gcp-key|credentials|application_default_credentials)\.json$/i.test(pathname)) return true;
-  if (/^\/appsettings\.(?:json|development\.json|production\.json)$/i.test(pathname)) return true;
-  return false;
-}
-
-function isLegacyPhpPublicEntrypointPath(pathname: string): boolean {
-  return /(?:^|\/)[^/]+\.php(?:\/|$)/i.test(pathname);
-}
-
-function getPublicWriteMode(env: Env): "origin_fallback" | "cloudflare_native" | "write_disabled" {
-  const mode = (env.PUBLIC_WRITE_MODE ?? "origin_fallback").trim().toLowerCase();
-  if (mode === "cloudflare_native") return "cloudflare_native";
-  if (mode === "write_disabled") return "write_disabled";
-  return "origin_fallback";
-}
-
-function isPublicAppWriteCandidatePath(url: URL): boolean {
-  if (url.pathname === "/api/v0/draft-observations") return true;
-  if (url.pathname.startsWith("/api/v0/assets/") && url.pathname.endsWith("/body")) return true;
-  if (url.pathname === "/api/v0/observations/finalize") return true;
-  if (url.pathname === "/api/v1/observations/upsert") return true;
-  if (url.pathname === "/api/v1/auth/session/issue") return true;
-  if (url.pathname === "/api/v1/auth/session") return true;
-  if (url.pathname === "/api/v1/auth/session/logout") return true;
-  if (url.pathname === "/api/v1/auth/login") return true;
-  if (url.pathname === "/api/v1/auth/register") return true;
-  if (url.pathname === "/api/v1/mobile/auth/oauth/exchange") return true;
-  if (url.pathname === "/api/v1/contact/submit") return true;
-  if (url.pathname === "/api/v1/users/upsert") return true;
-  if (url.pathname === "/api/v1/profile/me") return true;
-  if (url.pathname === "/api/v1/auth/remember-tokens/issue") return true;
-  if (url.pathname === "/api/v1/auth/remember-tokens/revoke") return true;
-  if (url.pathname === "/api/v1/videos/direct-upload") return true;
-  if (/^\/api\/v1\/videos\/[^/]+\/body$/.test(url.pathname)) return true;
-  if (url.pathname === "/api/v1/videos/stream-webhook") return true;
-  if (/^\/api\/v1\/videos\/[^/]+\/finalize$/.test(url.pathname)) return true;
-  if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(url.pathname)) return true;
-  if (/^\/api\/v1\/observations\/[^/]+\/audio\/upload$/.test(url.pathname)) return true;
-  if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
-  if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
-  if (/^\/api\/v1\/observations\/[^/]+\/identification-workbench-hold$/.test(url.pathname)) return true;
-  if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
-  if (/^\/api\/v1\/occurrences\/[^/]+\/(?:origin|observed-at|location|environment-field|environment-record)$/.test(url.pathname)) return true;
-  if (/^\/api\/v1\/specialist\/occurrences\/[^/]+\/review$/.test(url.pathname)) return true;
-  if (/^\/api\/v1\/specialist\/disputes\/[^/]+\/resolve$/.test(url.pathname)) return true;
-  if (/^\/api\/v1\/observation-records\/[^/]+\/ai-review$/.test(url.pathname)) return true;
-  if (url.pathname === "/api/v1/walk/session/start") return true;
-  if (url.pathname === "/api/v1/walk/session/end") return true;
-  if (url.pathname === "/api/v1/tracks/upsert") return true;
-  return false;
 }
 
 async function getPersonalAreaSubscriptions(session: SessionSnapshot, env: Env): Promise<Response> {
@@ -11768,29 +11612,8 @@ function parseJsonObject(value: string | null): Record<string, unknown> {
   }
 }
 
-function isMutatingMethod(method: string): boolean {
-  return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
-}
-
-function publicWriteDisabledResponse(): Response {
-  return json({
-    ok: false,
-    error: "write_temporarily_disabled",
-    mode: "read_only_migration_window"
-  }, 503, {
-    "cache-control": "no-store",
-    "retry-after": "300",
-    "x-ikimon-cloudflare-write-mode": "write_disabled"
-  });
-}
-
 async function handleAccountWriteApi(request: Request, url: URL, env: Env): Promise<Response | null> {
   if (!isAccountWritePath(request, url)) return null;
-  if (shouldUseOriginFallback(url, env)) {
-    const mode = getPublicWriteMode(env);
-    if (mode === "origin_fallback") return null;
-    if (mode === "write_disabled") return publicWriteDisabledResponse();
-  }
   if (request.method === "POST" && url.pathname === "/api/v1/contact/submit") return submitContactNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/users/upsert") return upsertUserNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/profile/me") return updateOwnProfileNative(request, env);
@@ -12263,73 +12086,6 @@ function bearerToken(value: string | null): string | null {
   return match?.[1]?.trim() ?? null;
 }
 
-async function fetchOriginFallback(request: Request, url: URL, env: Env, reason = "origin_fallback"): Promise<Response> {
-  const base = new URL(env.ORIGIN_FALLBACK_BASE_URL ?? "");
-  const target = new URL(url.toString());
-  target.protocol = base.protocol;
-  target.host = base.host;
-  const resolveOverride = env.ORIGIN_FALLBACK_RESOLVE_OVERRIDE?.trim();
-  if (target.host === url.host && !resolveOverride) {
-    return json({ error: "origin_fallback_loop_blocked" }, 502, { "cache-control": "no-store" });
-  }
-
-  const headers = new Headers(request.headers);
-  headers.set("x-ikimon-cloudflare-fallback", "origin");
-  headers.set("x-ikimon-cloudflare-fallback-reason", reason);
-  // The public URL is the only trusted origin identity at the Worker edge.
-  // Never forward a client-supplied X-Forwarded-* value into the origin app.
-  headers.set("x-forwarded-host", url.host);
-  headers.set("x-forwarded-proto", url.protocol.replace(":", ""));
-  headers.delete("cf-connecting-ip");
-  headers.delete("cf-ipcountry");
-  headers.delete("cf-ray");
-  headers.delete("cf-visitor");
-
-  const originalUiHtmlKeyForTelemetry = isOriginalUiHtmlPath(url.pathname) ? originalUiHtmlKey(url.pathname) : null;
-  await recordOriginFallbackTelemetry(env, {
-    reason,
-    method: request.method,
-    host: url.hostname,
-    routePattern: fallbackRoutePattern(url.pathname),
-    pathHash: (await sha256Hex(textToArrayBuffer(url.pathname))).slice(0, 16),
-    originalUiHtmlKeyHash: originalUiHtmlKeyForTelemetry ? (await sha256Hex(textToArrayBuffer(originalUiHtmlKeyForTelemetry))).slice(0, 16) : undefined,
-    publicWriteMode: getPublicWriteMode(env),
-    environment: env.ENVIRONMENT
-  });
-
-  const init: RequestInit & { cf?: { resolveOverride?: string } } = {
-    method: request.method,
-    headers,
-    body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
-    redirect: "manual"
-  };
-  if (resolveOverride) {
-    init.cf = { resolveOverride };
-  }
-
-  return fetch(target.toString(), init);
-}
-
-async function recordOriginFallbackTelemetry(env: Env, payload: OriginFallbackTelemetryPayload): Promise<void> {
-  try {
-    await env.CORE_DB.prepare(
-      `INSERT INTO operation_audit (audit_id, operation_type, target_id, payload_json)
-       VALUES (?, 'origin_fallback', ?, ?)`
-    ).bind(
-      `origin-fallback-${crypto.randomUUID()}`,
-      payload.reason,
-      JSON.stringify(payload)
-    ).run();
-  } catch (error) {
-    console.error(JSON.stringify({
-      message: "origin_fallback_telemetry_failed",
-      error: error instanceof Error ? error.message : String(error),
-      reason: payload.reason,
-      routePattern: payload.routePattern
-    }));
-  }
-}
-
 async function recordAuthLoginFailureTelemetry(env: Env, payload: AuthLoginFailureTelemetryPayload): Promise<void> {
   try {
     await env.CORE_DB.prepare(
@@ -12348,40 +12104,6 @@ async function recordAuthLoginFailureTelemetry(env: Env, payload: AuthLoginFailu
       routePattern: payload.routePattern
     }));
   }
-}
-
-async function originFallbackTelemetrySummary(url: URL, env: Env): Promise<Response> {
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "1000"), 1, 5000);
-  const rows = await env.CORE_DB.prepare(
-    `SELECT payload_json, created_at
-     FROM operation_audit
-     WHERE operation_type = 'origin_fallback'
-     ORDER BY created_at DESC
-     LIMIT ?`
-  ).bind(limit).all<OperationAuditRow>();
-  const byReason: Record<string, number> = {};
-  const byRoutePattern: Record<string, number> = {};
-  let parseFailures = 0;
-  for (const row of rows.results) {
-    try {
-      const payload = JSON.parse(row.payload_json) as Partial<OriginFallbackTelemetryPayload>;
-      const reason = normalizeOptionalText(payload.reason) ?? "unknown";
-      const routePattern = normalizeOptionalText(payload.routePattern) ?? "unknown";
-      byReason[reason] = (byReason[reason] ?? 0) + 1;
-      byRoutePattern[routePattern] = (byRoutePattern[routePattern] ?? 0) + 1;
-    } catch {
-      parseFailures += 1;
-    }
-  }
-  return json({
-    ok: true,
-    limit,
-    count: rows.results.length,
-    byReason,
-    byRoutePattern,
-    parseFailures,
-    note: "Telemetry excludes query strings, request bodies, cookies, emails, passwords, and exact observation ids."
-  }, 200, { "cache-control": "no-store" });
 }
 
 function fallbackRoutePattern(pathname: string): string {
@@ -12736,7 +12458,7 @@ async function getPublicMapPlaceProfile(request: Request, url: URL, env: Env): P
     || bearerToken(request.headers.get("authorization"))
   );
   const session = hasCredential
-    ? await readCompatibleSessionWithOriginFallback(request, env).catch(() => null)
+    ? await readCompatibleSession(request, env).catch(() => null)
     : null;
 
   try {
@@ -12881,7 +12603,7 @@ async function getPublicMapPlaceChildren(url: URL, env: Env): Promise<Response> 
 }
 
 async function createPublicMapPlaceCorrectionProposal(request: Request, env: Env): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const session = await readCompatibleSession(request, env).catch(() => null);
   if (!session || session.banned) {
     return json({ error: "authentication_required" }, 401, {
       "cache-control": "no-store",
@@ -16014,7 +15736,7 @@ function isMunicipalWalkMapAdminRole(session: SessionSnapshot): boolean {
 }
 
 async function requireMunicipalWalkMapAdminSession(request: Request, env: Env): Promise<SessionSnapshot> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) throw new HttpError(401, "session_required");
   if (session.banned || !isMunicipalWalkMapAdminRole(session)) throw new HttpError(403, "admin_required");
   return session;
@@ -16087,7 +15809,7 @@ async function handleFieldscanAudioRuntime(request: Request, url: URL, env: Env)
 }
 
 async function submitFieldscanAudioNative(request: Request, env: Env): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   const input = await readJson<Record<string, unknown>>(request);
   const requestedUserId = normalizeOptionalText(input.userId);
   if (session?.userId && requestedUserId && requestedUserId !== session.userId) {
@@ -16292,7 +16014,7 @@ async function recordFieldscanAudioPrivacyDecisionNative(request: Request, env: 
 }
 
 async function getFieldscanAudioPlaybackNative(request: Request, env: Env, segmentId: string): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session?.userId) return json({ ok: false, error: "unauthorized" }, 401, nativeGuideHeaders("fieldscan-audio-runtime"));
   const segment = await env.OBS_DB.prepare(
     `SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng,
@@ -16317,7 +16039,7 @@ async function getFieldscanAudioPlaybackNative(request: Request, env: Env, segme
 }
 
 async function getFieldscanAudioSessionRecapNative(request: Request, env: Env, sessionId: string): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   const rows = (await env.OBS_DB.prepare(
     `SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng,
             storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json
@@ -16891,7 +16613,7 @@ function getGuideSceneEventsStaticNative(sceneId: string, url: URL): Response {
 }
 
 async function requireSignedInGuideSession(request: Request, env: Env): Promise<SessionSnapshot> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) throw new HttpError(401, "auth_required");
   if (session.banned) throw new HttpError(403, "account_unavailable");
   return session;
@@ -16912,7 +16634,7 @@ async function handleWalkRuntime(request: Request, url: URL, env: Env): Promise<
 }
 
 async function resolveWalkUserId(request: Request, env: Env, body: CompatibleWalkSessionInput): Promise<string | Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const session = await readCompatibleSession(request, env).catch(() => null);
   const requested = normalizeOptionalText(body.userId);
   if (session?.banned) return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
   if (session?.userId) {
@@ -16982,7 +16704,7 @@ async function upsertWalkSessionNative(request: Request, env: Env, ending: boole
 }
 
 async function getTodayWalkSummaryNative(request: Request, env: Env): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const session = await readCompatibleSession(request, env).catch(() => null);
   if (!session || session.banned) return json({ error: "unauthorized" }, 401, { "cache-control": "no-store" });
   const today = new Date().toISOString().slice(0, 10);
   const rows = await env.OBS_DB.prepare(
@@ -17029,7 +16751,7 @@ async function upsertTrackNative(request: Request, env: Env): Promise<Response> 
   if (!sessionId) return json({ ok: false, error: "sessionId is required" }, 400, { "cache-control": "no-store" });
   if (!requestedUserId) return json({ ok: false, error: "userId is required" }, 400, { "cache-control": "no-store" });
 
-  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const session = await readCompatibleSession(request, env).catch(() => null);
   if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
   if (session.banned) return json({ ok: false, error: "account_disabled" }, 401, { "cache-control": "no-store" });
   if (session.userId !== requestedUserId) return json({ ok: false, error: "forbidden_user_mismatch" }, 403, { "cache-control": "no-store" });
@@ -19546,7 +19268,7 @@ async function upsertMunicipalWalkMapAdmin(request: Request, pathWalkMapId: stri
 }
 
 async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session || session.banned) {
     return json({ signedIn: false, items: [] }, 200, { "cache-control": "no-store" });
   }
@@ -19554,7 +19276,7 @@ async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Respons
 }
 
 async function getPublicMapMyObservations(request: Request, url: URL, env: Env): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session || session.banned) {
     return json({ signedIn: false, items: [], clusters: [] }, 200, { "cache-control": "private, no-store" });
   }
@@ -19689,7 +19411,7 @@ body{margin:0;background:#f6faf8;color:#172033;font-family:-apple-system,BlinkMa
 }
 
 async function getStewardshipActionFormPage(request: Request, url: URL, env: Env, placeId: string): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   return html(renderStewardshipActionFormPage(placeId, url, Boolean(session && !session.banned)), 200, {
     "cache-control": "no-store",
     "x-ikimon-cloudflare-native": "stewardship-action-form"
@@ -19705,7 +19427,7 @@ async function createStewardshipActionFromForm(request: Request, url: URL, env: 
   const form = await request.formData();
   const lang = stewardshipLang(new URL(stewardshipFormUrl(placeId, formDataText(form, "lang") || stewardshipLang(url)), url.origin));
   const formUrl = stewardshipFormUrl(placeId, lang);
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session?.userId || session.banned) return redirect303(stewardshipFormUrl(placeId, lang, { error: "login_required" }));
 
   const occurredAtRaw = formDataText(form, "occurred_at");
@@ -20850,7 +20572,7 @@ async function upsertPlaceMemoryForObservationNative(
 async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
   const pathname = stripPublicLangPrefix(url.pathname);
   if (!pathname.startsWith("/api/v1/place-memory")) return null;
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
 
   if (pathname === "/api/v1/place-memory/preferences") {
@@ -21696,7 +21418,7 @@ async function listAreaSketchAssessmentsNative(request: Request, url: URL, field
 }
 
 async function requireFieldRegistrySession(request: Request, env: Env): Promise<SessionSnapshot | Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const session = await readCompatibleSession(request, env).catch(() => null);
   if (!session) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
   if (session.banned) return json({ error: "account_unavailable" }, 403, { "cache-control": "no-store" });
   return session;
@@ -22166,7 +21888,7 @@ async function getFieldManagerRoleFromD1(userId: string | null | undefined, fiel
 }
 
 async function getAreaSnapshotViewer(request: Request, fieldId: string, env: Env): Promise<{ isAdminOrAnalyst: boolean; fieldRole: FieldManagerRole | null; userId: string | null }> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const session = await readCompatibleSession(request, env).catch(() => null);
   if (!session) return { isAdminOrAnalyst: false, fieldRole: null, userId: null };
   const isAdminOrAnalyst = isMunicipalWalkMapAdminRole(session);
   const fieldRole = await getFieldManagerRoleFromD1(session.userId, fieldId, env).catch(() => null);
@@ -23584,7 +23306,7 @@ export function rewriteCanonicalPublicOrigins(value: string, env: Env): string {
 async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Request, url: URL, env: Env): Promise<ReadableStream | string | null> {
   const text = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   const shouldReadSession = text.includes("site-header-actions") || (isHomeHtmlPath(url.pathname) && text.includes("data-record-feed"));
-  const session = shouldReadSession ? await readCompatibleSessionWithOriginFallback(request, env).catch(() => null) : null;
+  const session = shouldReadSession ? await readCompatibleSession(request, env).catch(() => null) : null;
   if (isHomeHtmlPath(url.pathname)) {
     return injectHomeObservationRecords(text, session, url, env);
   }
@@ -23623,7 +23345,7 @@ function isProfileHtmlPath(pathname: string): boolean {
 
 async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
   const recovery = resolveCloudflareRecordRecoveryState(url);
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (recovery.active) {
     const cspNonce = createHtmlCspNonce();
     const body = request.method === "HEAD"
@@ -24091,7 +23813,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
 }
 
 async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session || session.banned) {
     return getOriginalUiHtml(request, url, env);
   }
@@ -24439,7 +24161,7 @@ function renderRecordsProductSection(
 }
 
 async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const session = await readCompatibleSession(request, env).catch(() => null);
   const requestedMode = url.searchParams.get("view") === "mine" ? "mine" : "public";
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
@@ -26150,7 +25872,7 @@ async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<
 }
 
 async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env): Promise<Response> {
-  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const session = await readCompatibleSession(request, env).catch(() => null);
   const ownerStatus = session && !session.banned
     ? await loadOwnerObservationProcessingStatusFromD1(env.OBS_DB, {
         observationId: detailIdToVisitId(rawId),
@@ -26305,7 +26027,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   if (request.headers.get("origin") !== requestUrl.origin) {
     return json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" });
   }
-  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const session = await readCompatibleSession(request, env).catch(() => null);
   if (!session || session.banned) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
   const form = await request.formData();
   const action = String(form.get("action") ?? "");
@@ -26460,7 +26182,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
 async function getOwnerObservationProcessingStatusJson(rawId: string, request: Request, env: Env): Promise<Response> {
   let session: SessionSnapshot | null;
   try {
-    session = await readCompatibleSessionWithOriginFallback(request, env);
+    session = await readCompatibleSession(request, env);
   } catch {
     return json({ ok: false, error: "status_unavailable" }, 503, { "cache-control": "no-store" });
   }
@@ -26874,7 +26596,7 @@ function assertCompatibleSessionIssueAccess(request: Request, env: Env): true | 
 
 async function getCompatibleSession(request: Request, url: URL, env: Env): Promise<Response> {
   const optional = url.searchParams.get("optional") === "1" || url.searchParams.get("optional") === "true";
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) {
     return optional
       ? json({ ok: false, error: "session_not_found", session: null })
@@ -27205,7 +26927,6 @@ async function loginWithPassword(request: Request, env: Env): Promise<Response> 
       method: request.method,
       host: url.hostname,
       routePattern: fallbackRoutePattern(url.pathname),
-      publicWriteMode: getPublicWriteMode(env),
       environment: env.ENVIRONMENT
     });
     return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
@@ -27217,7 +26938,6 @@ async function loginWithPassword(request: Request, env: Env): Promise<Response> 
       method: request.method,
       host: url.hostname,
       routePattern: fallbackRoutePattern(url.pathname),
-      publicWriteMode: getPublicWriteMode(env),
       environment: env.ENVIRONMENT
     });
     return json({ ok: false, error: "invalid_credentials" }, 401, { "cache-control": "no-store" });
@@ -27447,9 +27167,8 @@ function buildClearedOAuthStateCookie(env: Env): string {
 
 function requestPublicOrigin(request: Request): string {
   const url = new URL(request.url);
-  // The Worker is the public trust boundary. Inbound forwarded headers and the
-  // origin-fallback marker are only meaningful on the Worker-to-origin hop;
-  // they must never let a client select the OAuth callback origin at the edge.
+  // The Worker is the public trust boundary. Inbound forwarded headers must
+  // never let a client select the OAuth callback origin at the edge.
   return resolveTrustedRequestOrigin(
     {
       headers: { host: request.headers.get("host") ?? url.host },
@@ -27895,100 +27614,11 @@ async function readCompatibleSession(request: Request, env: Env): Promise<Sessio
   };
 }
 
-async function readCompatibleSessionWithOriginFallback(request: Request, env: Env): Promise<SessionSnapshot | null> {
-  const session = await readCompatibleSession(request, env);
-  if (session) return session;
-  return importOriginSessionIfAvailable(request, env);
-}
-
-// Remove this lazy import once the VPS origin is fully stopped.
-async function importOriginSessionIfAvailable(request: Request, env: Env): Promise<SessionSnapshot | null> {
-  if (getOriginSessionImportMode(env) === "disabled") return null;
-  if (!env.ORIGIN_FALLBACK_BASE_URL) return null;
-  const requestUrl = new URL(request.url);
-  if (!PUBLIC_CUSTOM_HOSTS.has(requestUrl.hostname)) return null;
-  const rawToken = readSessionTokenFromCookie(request.headers.get("cookie"));
-  if (!rawToken) return null;
-  const tokenHash = await sha256Hex(textToArrayBuffer(rawToken));
-
-  const originUrl = new URL(request.url);
-  originUrl.pathname = "/api/v1/auth/session";
-  originUrl.search = "?optional=1";
-  const headers = new Headers();
-  const cookie = request.headers.get("cookie");
-  if (cookie) headers.set("cookie", cookie);
-  const userAgent = request.headers.get("user-agent");
-  if (userAgent) headers.set("user-agent", userAgent);
-  headers.set("accept", "application/json");
-
-  const response = await fetchOriginFallback(new Request(originUrl.toString(), {
-    method: "GET",
-    headers
-  }), originUrl, env, "origin_session_probe");
-  if (!response.ok) return null;
-
-  let payload: OriginSessionResponse;
-  try {
-    payload = await response.json() as OriginSessionResponse;
-  } catch {
-    return null;
-  }
-  if (payload.ok !== true || !payload.session) return null;
-  const originTokenHash = normalizeOptionalText(payload.session.tokenHash);
-  if (originTokenHash && originTokenHash !== tokenHash) return null;
-  const userId = normalizeOptionalText(payload.session.userId);
-  const displayName = normalizeOptionalText(payload.session.displayName) ?? userId;
-  const roleName = normalizeOptionalText(payload.session.roleName) ?? "Observer";
-  const rankLabel = normalizeOptionalText(payload.session.rankLabel);
-  const expiresAt = normalizeOptionalText(payload.session.expiresAt);
-  if (!userId || !expiresAt) return null;
-
-  const session: SessionSnapshot = {
-    tokenHash,
-    userId,
-    displayName: displayName ?? userId,
-    roleName,
-    rankLabel,
-    banned: payload.session.banned === true,
-    expiresAt
-  };
-  await env.CORE_DB.batch([
-    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(session.userId),
-    env.CORE_DB.prepare(
-      `INSERT INTO auth_sessions
-       (token_hash, user_id, display_name, role_name, rank_label, banned, expires_at, ip_address, user_agent)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 'origin-session-lazy-import')
-       ON CONFLICT(token_hash) DO UPDATE SET
-         user_id = excluded.user_id,
-         display_name = excluded.display_name,
-         role_name = excluded.role_name,
-         rank_label = excluded.rank_label,
-         banned = excluded.banned,
-         expires_at = excluded.expires_at,
-         user_agent = excluded.user_agent`
-    ).bind(
-      session.tokenHash,
-      session.userId,
-      session.displayName,
-      session.roleName,
-      session.rankLabel,
-      session.banned ? 1 : 0,
-      session.expiresAt
-    )
-  ]);
-  return session;
-}
-
-function getOriginSessionImportMode(env: Env): "enabled" | "disabled" {
-  const mode = (env.ORIGIN_SESSION_IMPORT_MODE ?? "disabled").trim().toLowerCase();
-  return mode === "enabled" ? "enabled" : "disabled";
-}
-
 async function createCompatibleVideoDirectUpload(request: Request, env: Env): Promise<Response> {
   if (!isAppRuntime(env)) {
     return json({ ok: false, error: "not_available" }, 404);
   }
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) {
     return json({ ok: false, error: "session_required" }, 401);
   }
@@ -28165,7 +27795,7 @@ async function finalizeCompatibleVideo(uid: string, request: Request, env: Env):
     return json({ ok: false, error: "not_available" }, 404);
   }
   assertNonEmpty(uid, "uid");
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) {
     return json({ ok: false, error: "session_required" }, 401);
   }
@@ -28370,7 +28000,7 @@ async function updateCompatibleOccurrenceDetail(
   if (!isAppRuntime(env)) {
     return json({ ok: false, error: "not_available" }, 404);
   }
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) {
     return json({ ok: false, error: "session_required" }, 401);
   }
@@ -29114,7 +28744,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   const input = await readJson<LegacyObservationUpsertInput>(request);
   let authenticatedSession: SessionSnapshot | null = null;
   if (env.ENVIRONMENT === "production") {
-    authenticatedSession = await readCompatibleSessionWithOriginFallback(request, env);
+    authenticatedSession = await readCompatibleSession(request, env);
     if (!authenticatedSession) {
       return json({ ok: false, error: "session_required" }, 401);
     }
@@ -29124,7 +28754,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     }
   } else {
     assertNonEmpty(input.userId, "userId");
-    authenticatedSession = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+    authenticatedSession = await readCompatibleSession(request, env).catch(() => null);
   }
   if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) {
     throw new HttpError(400, "missing_location");
@@ -29920,7 +29550,7 @@ async function decideObservationEventQuest(request: Request, env: Env, sessionId
     ? decisionRaw
     : null;
   if (!decision) return json({ error: "invalid decision" }, 400, { "cache-control": "no-store" });
-  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const auth = await readCompatibleSession(request, env);
   const row = await env.OBS_DB.prepare(
     "SELECT quest_id, session_id, team_id, status, payload_json FROM observation_event_quests WHERE quest_id = ? AND session_id = ?"
   ).bind(questId, sessionId).first<{ quest_id: string; session_id: string; team_id: string | null; status: string; payload_json: string }>();
@@ -30078,7 +29708,7 @@ function buildNativeObservationEventQuestCandidates(
 async function uploadLegacyCompatiblePhoto(observationId: string, request: Request, env: Env): Promise<Response> {
   assertNonEmpty(observationId, "observationId");
   const productionSession = env.ENVIRONMENT === "production"
-    ? await readCompatibleSessionWithOriginFallback(request, env)
+    ? await readCompatibleSession(request, env)
     : null;
   if (env.ENVIRONMENT === "production" && !productionSession) {
     return json({ ok: false, error: "session_required" }, 401);
@@ -30379,7 +30009,7 @@ async function uploadStagingCompatibleAudio(observationId: string, request: Requ
     const auth = assertPrivilegedWriteAccessNative(request, env);
     if (auth instanceof Response) return auth;
   } else {
-    const session = await readCompatibleSessionWithOriginFallback(request, env);
+    const session = await readCompatibleSession(request, env);
     if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
     if (session.userId !== observation.owner_user_id) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
   }
@@ -32142,7 +31772,7 @@ async function hideCompatibleObservation(observationId: string, request: Request
     return json({ ok: false, error: "not_available" }, 404);
   }
   assertNonEmpty(observationId, "observationId");
-  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const session = await readCompatibleSession(request, env);
   if (!session) {
     return json({ ok: false, error: "session_required" }, 401);
   }
@@ -36863,7 +36493,7 @@ function getRuntimeVersion(url: URL, env: Env): Response {
       reflectionManifest: REFLECTION_LOOP_MANIFEST_PATH
     },
     featureFlags: {
-      cloudflareNativeWrite: env.PUBLIC_WRITE_MODE === "cloudflare_native",
+      cloudflareNativeWrite: true,
       reflectionLoopManifest: true,
       publicRuntimeVersionEndpoint: true,
       originalUiMaterializedHtml: true

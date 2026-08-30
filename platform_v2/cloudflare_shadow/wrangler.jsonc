@@ -19,7 +19,6 @@
     "ZUKAN_FOUNDATION_V2_ALLOWED_TENANTS": "",
     "ZUKAN_FOUNDATION_V2_ALLOWED_OPERATIONS": "",
     "ZUKAN_FOUNDATION_V2_MAX_ENTITIES": "64",
-    "PUBLIC_WRITE_MODE": "origin_fallback",
     "ALERT_EMAIL_FROM": "notifications@ikimon.co.jp",
     "ALERT_DELIVERY_BATCH_SIZE": "25",
     "ALERT_EMAIL_ALLOWED_RECIPIENTS": "yamaki0102@gmail.com"
@@ -89,7 +88,6 @@
         "ZUKAN_FOUNDATION_V2_ALLOWED_TENANTS": "",
         "ZUKAN_FOUNDATION_V2_ALLOWED_OPERATIONS": "",
         "ZUKAN_FOUNDATION_V2_MAX_ENTITIES": "64",
-        "PUBLIC_WRITE_MODE": "origin_fallback",
         "ALERT_EMAIL_FROM": "notifications@ikimon.co.jp",
         "ALERT_DELIVERY_BATCH_SIZE": "25",
         "ALERT_EMAIL_ALLOWED_RECIPIENTS": "yamaki0102@gmail.com"
@@ -177,12 +175,7 @@
         "ZUKAN_FOUNDATION_V2_ALLOWED_TENANTS": "",
         "ZUKAN_FOUNDATION_V2_ALLOWED_OPERATIONS": "",
         "ZUKAN_FOUNDATION_V2_MAX_ENTITIES": "64",
-        "PUBLIC_WRITE_MODE": "cloudflare_native",
-        "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE": "disabled",
         "LEGACY_HOST_REDIRECT_MODE": "disabled",
-        "ORIGIN_SESSION_IMPORT_MODE": "disabled",
-        "ORIGIN_FALLBACK_BASE_URL": "https://ikimon.life",
-        "ORIGIN_FALLBACK_RESOLVE_OVERRIDE": "staging.ikimon.life",
         "ALERT_EMAIL_FROM": "notifications@ikimon.co.jp",
         "ALERT_DELIVERY_BATCH_SIZE": "25",
         "ALERT_EMAIL_ALLOWED_RECIPIENTS": "yamaki0102@gmail.com"
@@ -271,12 +264,7 @@
         "ZUKAN_FOUNDATION_V2_ALLOWED_TENANTS": "",
         "ZUKAN_FOUNDATION_V2_ALLOWED_OPERATIONS": "",
         "ZUKAN_FOUNDATION_V2_MAX_ENTITIES": "64",
-        "PUBLIC_WRITE_MODE": "cloudflare_native",
-        "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE": "disabled",
         "LEGACY_HOST_REDIRECT_MODE": "enabled",
-        "ORIGIN_SESSION_IMPORT_MODE": "disabled",
-        "ORIGIN_FALLBACK_BASE_URL": "https://ikimon.life",
-        "ORIGIN_FALLBACK_RESOLVE_OVERRIDE": "staging.ikimon.life",
         "ALERT_EMAIL_FROM": "notifications@ikimon.co.jp",
         "ALERT_DELIVERY_BATCH_SIZE": "25",
         "ALERT_EMAIL_ALLOWED_RECIPIENTS": ""

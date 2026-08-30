@@ -543,33 +543,13 @@ function blockerSeverity(item) {
   return "P2";
 }
 
-function configuredStateForFallback(item, productionVars) {
-  const originFallbackConfigured = typeof productionVars.ORIGIN_FALLBACK_BASE_URL === "string"
-    && productionVars.ORIGIN_FALLBACK_BASE_URL.trim() !== "";
-  const publicWriteMode = String(productionVars.PUBLIC_WRITE_MODE ?? "");
-  const publicCustomDomainFallbackMode = String(productionVars.PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE ?? "enabled").trim().toLowerCase();
-  const originSessionImportMode = String(productionVars.ORIGIN_SESSION_IMPORT_MODE ?? "disabled").trim().toLowerCase();
-  if (!originFallbackConfigured) {
-    return { active: false, note: "origin_fallback_not_configured" };
-  }
-  if (item.reason === "origin_session_probe" && originSessionImportMode === "disabled") {
-    return { active: false, note: "inactive_origin_session_import_disabled" };
-  }
-  if (item.reason === "public_custom_domain_path" && publicCustomDomainFallbackMode === "disabled") {
-    return { active: false, note: "inactive_public_custom_domain_origin_fallback_disabled" };
-  }
-  if (item.reason === "public_write_origin_mode" && publicWriteMode !== "origin_fallback") {
-    return { active: false, note: `inactive_public_write_mode_${publicWriteMode || "unset"}` };
-  }
-  if (item.reason === "oauth_provider_not_configured") {
-    return { active: true, note: "active_if_oauth_secret_missing" };
-  }
-  return { active: true, note: "active_in_production_config" };
+function configuredStateForFallback() {
+  return { active: true, note: "origin_fallback_call_present" };
 }
 
-function configuredStateForBlocker(item, productionVars) {
+function configuredStateForBlocker(item) {
   if (item.type !== "origin_fallback") return { active: true, note: "not_config_gated" };
-  return configuredStateForFallback(item, productionVars);
+  return configuredStateForFallback();
 }
 
 function scorePg(flags, text) {
@@ -656,6 +636,14 @@ const wranglerPath = path.join(shadowRoot, "wrangler.jsonc");
 const wrangler = read(wranglerPath);
 const wranglerConfig = parseWranglerConfig(wrangler);
 const productionVars = productionVarsFromWrangler(wranglerConfig);
+const retiredOriginFallbackVars = [
+  "ORIGIN_FALLBACK_BASE_URL",
+  "ORIGIN_FALLBACK_RESOLVE_OVERRIDE",
+  "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE",
+  "ORIGIN_SESSION_IMPORT_MODE",
+  "PUBLIC_WRITE_MODE"
+];
+const configuredRetiredOriginFallbackVars = retiredOriginFallbackVars.filter((key) => Object.hasOwn(productionVars, key));
 const d1Bindings = [...new Map(
   extractD1Bindings(wrangler).map((item) => [`${item.binding}:${item.database}:${item.id}`, item])
 ).values()];
@@ -808,9 +796,18 @@ const stopBlockers = [
   }))
 ];
 
-const configuredStopBlockers = stopBlockers
-  .map((item) => ({ ...item, configured: configuredStateForBlocker(item, productionVars) }))
-  .filter((item) => item.configured.active);
+const configuredStopBlockers = [
+  ...stopBlockers
+    .map((item) => ({ ...item, configured: configuredStateForBlocker(item) }))
+    .filter((item) => item.configured.active),
+  ...configuredRetiredOriginFallbackVars.map((key) => ({
+    type: "origin_fallback_config",
+    key,
+    category: "retired_origin_fallback_var",
+    severity: "P0",
+    configured: { active: true, note: "retired_origin_fallback_var_present" }
+  }))
+];
 
 const p0DispositionManifest = loadP0DispositionManifest();
 const p0DispositionItems = p0DispositionManifest.items;
@@ -921,15 +918,13 @@ const lines = [
   ...originFallbackCalls.map((item) => `| ${item.category} | ${item.reason} | ${item.file} | ${item.line} |`),
   "",
   ...section("Production Fallback Configuration"),
-  `- PUBLIC_WRITE_MODE: ${productionVars.PUBLIC_WRITE_MODE ?? "unset"}`,
-  `- ORIGIN_SESSION_IMPORT_MODE: ${productionVars.ORIGIN_SESSION_IMPORT_MODE ?? "unset"}`,
-  `- ORIGIN_FALLBACK_BASE_URL: ${productionVars.ORIGIN_FALLBACK_BASE_URL ? "configured" : "unset"}`,
-  `- ORIGIN_FALLBACK_RESOLVE_OVERRIDE: ${productionVars.ORIGIN_FALLBACK_RESOLVE_OVERRIDE ? "configured" : "unset"}`,
+  `- retired_origin_fallback_var_count: ${configuredRetiredOriginFallbackVars.length}`,
+  `- retired_origin_fallback_vars: ${configuredRetiredOriginFallbackVars.join(", ") || "none"}`,
   "",
   "| reason | configured_state | note |",
   "|---|---|---|",
   ...originFallbackCalls.map((item) => {
-    const state = configuredStateForFallback(item, productionVars);
+    const state = configuredStateForFallback();
     return `| ${item.reason} | ${state.active ? "active" : "dormant"} | ${state.note} |`;
   }),
   "",

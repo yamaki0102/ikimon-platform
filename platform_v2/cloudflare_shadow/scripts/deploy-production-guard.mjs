@@ -136,12 +136,28 @@ function stripJsonComments(source) {
   return output;
 }
 
+const retiredOriginFallbackVars = [
+  "ORIGIN_FALLBACK_BASE_URL",
+  "ORIGIN_FALLBACK_RESOLVE_OVERRIDE",
+  "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE",
+  "ORIGIN_SESSION_IMPORT_MODE",
+  "PUBLIC_WRITE_MODE"
+];
+
+function configuredRetiredOriginFallbackVars(config) {
+  const scopes = [["default", config.vars ?? {}], ...Object.entries(config.env ?? {}).map(([name, value]) => [name, value?.vars ?? {}])];
+  return scopes.flatMap(([scope, vars]) => retiredOriginFallbackVars
+    .filter((key) => Object.hasOwn(vars, key))
+    .map((key) => `${scope}:${key}`));
+}
+
 async function readProductionConfigSummary() {
   const raw = await readFile("wrangler.jsonc", "utf8");
   const config = JSON.parse(stripJsonComments(raw));
   const production = config.env?.production;
   const routes = production?.routes ?? [];
   const vars = production?.vars ?? {};
+  const legacyOriginFallbackVars = configuredRetiredOriginFallbackVars(config);
   const d1Names = (production?.d1_databases ?? []).map((item) => item.database_name).sort();
   const r2Buckets = (production?.r2_buckets ?? []).map((item) => item.bucket_name).sort();
   const requiredRoutes = [
@@ -153,7 +169,7 @@ async function readProductionConfigSummary() {
   const failures = [];
   if (production?.name !== "ikimon-life-cloudflare-prod") failures.push("unexpected_production_worker_name");
   if (vars.ENVIRONMENT !== "production") failures.push("production_environment_var_missing");
-  if (vars.PUBLIC_WRITE_MODE !== "cloudflare_native") failures.push("public_write_mode_not_cloudflare_native");
+  failures.push(...legacyOriginFallbackVars.map((key) => `retired_origin_fallback_var_present:${key}`));
   if (!d1Names.includes("ikimon_prod_core")) failures.push("missing_prod_core_d1");
   if (!d1Names.includes("ikimon_prod_observations_2026_06")) failures.push("missing_prod_observations_d1");
   if (!r2Buckets.includes("ikimon-prod-media")) failures.push("missing_prod_r2_bucket");
@@ -165,7 +181,7 @@ async function readProductionConfigSummary() {
   return {
     workerName: production.name,
     routes,
-    publicWriteMode: vars.PUBLIC_WRITE_MODE,
+    legacyOriginFallbackVars,
     d1Names,
     r2Buckets
   };
