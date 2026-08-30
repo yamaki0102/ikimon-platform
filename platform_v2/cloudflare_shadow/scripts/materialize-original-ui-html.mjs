@@ -4,6 +4,10 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  listPublicSiteMapLocalizableBasePaths,
+  listPublicSiteMapMaterializationPaths,
+} from "../../src/services/originalUiMaterializationRoutes.ts";
 
 const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
@@ -138,7 +142,12 @@ const stagingOnlyAdminPreviewPaths = [];
 const corePaths = await readWorkerStringArray("ORIGINAL_UI_HTML_CORE_PATHS");
 const queryVariantPaths = await readWorkerStringArray("ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS");
 const stagingQaSmokePaths = await readWorkerStringArray("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS");
-const localizedRenderPaths = new Set(await readWorkerStringArray("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"));
+const siteMapPublicMaterializationPaths = listPublicSiteMapMaterializationPaths();
+const siteMapPublicLocalizableBasePaths = listPublicSiteMapLocalizableBasePaths();
+const localizedRenderPaths = new Set([
+  ...await readWorkerStringArray("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"),
+  ...siteMapPublicLocalizableBasePaths,
+]);
 
 const staticAssetPaths = [
   "/offline.html",
@@ -394,9 +403,20 @@ async function resolveTargetPaths() {
     if (targetEnv !== "staging") {
       throw new Error("--scope staging-qa is only supported with --target-env staging.");
     }
-    return [...new Set([...corePaths, ...queryVariantPaths, ...stagingOnlyAdminPreviewPaths, ...stagingQaSmokePaths])];
+    return [...new Set([
+      ...corePaths,
+      ...queryVariantPaths,
+      ...stagingOnlyAdminPreviewPaths,
+      ...stagingQaSmokePaths,
+      ...siteMapPublicMaterializationPaths,
+    ])];
   }
-  if (scope === "all") return await readAllOriginalUiStaticPaths();
+  if (scope === "all") {
+    return [...new Set([
+      ...await readAllOriginalUiStaticPaths(),
+      ...siteMapPublicMaterializationPaths,
+    ])];
+  }
   throw new Error(`Unsupported materialize scope: ${scope}`);
 }
 
