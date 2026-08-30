@@ -1,9 +1,5 @@
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
-import {
-  readCanonicalNotificationEligibility,
-} from "./notificationEligibility.js";
-import type { ExperienceManagedTaxonNotificationBlockReason } from "./experienceManagedTaxonScopes.js";
 
 export type EmitAreaWatchNotificationInput = {
   occurrenceId: string;
@@ -12,8 +8,6 @@ export type EmitAreaWatchNotificationInput = {
 
 export type AreaWatchNotificationSummary = {
   areaWatchNotifications: number;
-  blockedReason: ExperienceManagedTaxonNotificationBlockReason | null;
-  managedTaxonScopeKey: string | null;
 };
 
 export type AreaWatchParticipationSummary = {
@@ -35,23 +29,10 @@ export async function emitAreaWatchNotificationForObservation(
   if (!occurrenceId || !visitId) {
     return {
       areaWatchNotifications: 0,
-      blockedReason: null,
-      managedTaxonScopeKey: null,
     };
   }
 
   const exec = async (c: PoolClient): Promise<AreaWatchNotificationSummary> => {
-    // The occurrence/visit pair and species identity come from the server-side
-    // canonical rows. Do this before matching subscriptions or constructing the
-    // sent area_watch row; link state and request flags cannot bypass Gate 0.
-    const gate = await readCanonicalNotificationEligibility(c, { occurrenceId, visitId });
-    if (!gate.allowed) {
-      return {
-        areaWatchNotifications: 0,
-        blockedReason: gate.reason,
-        managedTaxonScopeKey: gate.managedTaxonScopeKey,
-      };
-    }
     const result = await c.query<{ delivery_id: string }>(
       `with new_visit as (
           select v.visit_id,
@@ -165,8 +146,6 @@ export async function emitAreaWatchNotificationForObservation(
     );
     return {
       areaWatchNotifications: result.rows.length,
-      blockedReason: null,
-      managedTaxonScopeKey: gate.managedTaxonScopeKey,
     };
   };
 

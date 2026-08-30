@@ -121,59 +121,7 @@
       "navigation": "member-zukan",
       "responsive": { "mobile": "single-column-camera-first", "desktop": "sidebar-and-feed" },
       "state_presentations": ["unauthenticated", "empty", "populated", "loading", "degraded", "error"]
-    },
-    {
-      "id": "design.zukan.kubiaka-landing",
-      "surface": "zukan.kubiaka.landing",
-      "brand": "brand.zukan-v1",
-      "archetype": "archetype.campaign-landing",
-      "layout": "narrow",
-      "density": "comfortable",
-      "navigation": "campaign-focused",
-      "responsive": { "mobile": "single-column-full-width-actions", "desktop": "centered-narrow" },
-      "state_presentations": ["ready", "disabled", "error"]
-    },
-    {
-      "id": "design.zukan.kubiaka-capture",
-      "surface": "zukan.kubiaka.capture",
-      "brand": "brand.zukan-v1",
-      "archetype": "archetype.capture-flow",
-      "layout": "narrow",
-      "density": "comfortable",
-      "navigation": "campaign-focused",
-      "responsive": { "mobile": "single-column-full-width-actions", "desktop": "centered-narrow" },
-      "state_presentations": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying", "denied"]
-    },
-    {
-      "id": "design.zukan.kubiaka-member-records",
-      "surface": "zukan.kubiaka.member-records",
-      "brand": "brand.zukan-v1",
-      "archetype": "archetype.personal-library",
-      "layout": "narrow",
-      "density": "comfortable",
-      "navigation": "campaign-focused",
-      "responsive": { "mobile": "single-column-full-width-actions", "desktop": "centered-narrow" },
-      "state_presentations": ["unauthenticated", "empty", "populated", "loading", "error", "denied", "record-missing"]
     }
   ],
-  "exceptions": [
-    {
-      "id": "design-exception.kubiaka-focused-chrome",
-      "surfaces": ["zukan.kubiaka.landing", "zukan.kubiaka.capture", "zukan.kubiaka.member-records"],
-      "rule": "surface_specific_css_requires_exception",
-      "reason": "撮影と本人受付確認に集中させるため、通常のglobal record launcherと一部navigationを抑制している",
-      "owner": "IKIMON development lane",
-      "expires_at": "2026-10-01",
-      "review_action": "共通campaign/capture componentへ移行できるか確認する"
-    },
-    {
-      "id": "design-exception.kubiaka-accent",
-      "surfaces": ["zukan.kubiaka.landing", "zukan.kubiaka.capture", "zukan.kubiaka.member-records"],
-      "rule": "freehand_color_values_allowed",
-      "reason": "クビアカ特化面の注意喚起とサクラ調査の区別に既存の赤茶accentを使用している",
-      "owner": "IKIMON development lane",
-      "expires_at": "2026-10-01",
-      "review_action": "brand tokenへ昇格するか標準ZUKAN tokenへ戻す"
-    }
-  ]
+  "exceptions": []
 }

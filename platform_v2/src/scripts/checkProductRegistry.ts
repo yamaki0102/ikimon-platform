@@ -1,8 +1,3 @@
-import {
-  KUBIAKA_ENTRY_PATH,
-  KUBIAKA_MEMBER_PATH,
-  KUBIAKA_RECORD_PATH,
-} from "../routes/kubiakaFocusedExperience.js";
 import { SITE_PAGE_DEFINITIONS } from "../siteMap.js";
 import {
   assertValidProductRegistry,
@@ -12,11 +7,6 @@ import {
 
 const implementationRoutes: ImplementationRouteRegistry = {
   "site-map": new Set(SITE_PAGE_DEFINITIONS.map((page) => page.path)),
-  "kubiaka-focused-experience": new Set([
-    KUBIAKA_ENTRY_PATH,
-    KUBIAKA_RECORD_PATH,
-    KUBIAKA_MEMBER_PATH,
-  ]),
 };
 
 const registry = loadProductRegistry();

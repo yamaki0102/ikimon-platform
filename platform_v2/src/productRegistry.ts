@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-export type RegistryRouteSource = "site-map" | "kubiaka-focused-experience";
+export type RegistryRouteSource = "site-map";
 export type ImplementationStatus = "implemented" | "partial" | "planned";
 export type TransitionStatus = "implemented" | "candidate" | "planned";
 
