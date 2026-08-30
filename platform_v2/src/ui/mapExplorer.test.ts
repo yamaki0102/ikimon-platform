@@ -17,6 +17,17 @@ test("map explorer desktop chrome hides legacy mobile menu affordances", () => {
   assert.match(styles, /@media \(min-width: 1161px\) \{[\s\S]*\.cf-header-menu,\s+\.site-header-actions-mobile,\s+\.site-mobile-menu \{\s*display: none !important;/);
 });
 
+test("map header never shrinks shared navigation targets below 44px", () => {
+  const styles = MAP_EXPLORER_STYLES;
+  assert.match(styles, /\.site-header \.site-nav-link \{\s*min-height: 44px;/);
+  assert.match(styles, /\.site-header \.site-search \{\s*min-height: 44px;\s*padding: 0 12px;/);
+  assert.match(styles, /\.site-header \.lang-switch-link \{\s*min-width: 44px;\s*min-height: 44px;/);
+  assert.match(styles, /\.site-header \.btn \{\s*min-height: 44px;/);
+  assert.match(styles, /\.site-header \.site-mobile-menu-toggle \{\s*min-height: 44px;\s*width: 44px;/);
+  assert.match(styles, /\.site-header \.brand-logo-lockup \{\s*min-height: 44px;/);
+  assert.match(styles, /\.site-search-desktop \{[\s\S]*?min-height: 44px;/);
+});
+
 test("map explorer keeps controls touchable and hides internal provenance labels", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   assert.match(MAP_EXPLORER_STYLES, /\.map-explorer :where\(button,a\)\{min-height:44px/);
