@@ -96,6 +96,7 @@ function buildInitialState(query: MonitoringWorkspaceQuery, fieldId: string): st
     purposes: PURPOSE_LABELS,
     queues: QUEUE_LABELS,
     apiPath: "/api/v1/monitoring/workspace/field",
+    observationAiQueueHealthApiPath: "/api/v1/admin/observation-ai/queue-health",
   };
   return JSON.stringify(state).replace(/</g, "\\u003c");
 }
@@ -144,6 +145,14 @@ function renderBody(query: MonitoringWorkspaceQuery, fieldId: string): string {
     </fieldset>
     <button class="mw-button" type="submit">表示</button>
   </form>
+
+  <section class="mw-section">
+    <div class="mw-section-head">
+      <h2>Observation AI Queue</h2>
+      <span class="mw-muted">滞留・失敗・retry exhausted</span>
+    </div>
+    <div class="mw-kpis" data-ai-queue-health><p class="mw-muted">読み込み中</p></div>
+  </section>
 
   <section class="mw-section">
     <div class="mw-section-head">
@@ -201,6 +210,7 @@ function renderBody(query: MonitoringWorkspaceQuery, fieldId: string): string {
   const recordsEl = root.querySelector("[data-records]");
   const workspaceLabel = root.querySelector("[data-workspace-label]");
   const purposeLabel = root.querySelector("[data-purpose-label]");
+  const aiQueueHealthEl = root.querySelector("[data-ai-queue-health]");
 
   const escapeText = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({
     "&": "&amp;",
@@ -239,6 +249,23 @@ function renderBody(query: MonitoringWorkspaceQuery, fieldId: string): string {
       ["出力準備", s.outputPreparationReady ? "ready" : "pending", model.reportReadiness?.purpose || ""],
     ];
     summaryEl.innerHTML = cards.map(([label, value, note]) => '<div class="mw-kpi"><span>' + escapeText(label) + '</span><strong>' + escapeText(value) + '</strong><small>' + escapeText(note) + '</small></div>').join("");
+  }
+
+  function renderObservationAiQueueHealth(payload, responseOk) {
+    if (!responseOk || !payload || !payload.ok || !payload.health) {
+      aiQueueHealthEl.innerHTML = '<p class="mw-error">queue health unavailable</p>';
+      return;
+    }
+    const health = payload.health;
+    const states = health.states || {};
+    const cards = [
+      ["status", health.status || "unknown", health.providerAvailable ? "provider ready" : "provider unavailable"],
+      ["pending", states.pending?.count || 0, "stale " + (states.pending?.staleCount || 0)],
+      ["processing", states.processing?.count || 0, "stale " + (states.processing?.staleCount || 0)],
+      ["failed", states.failed?.count || 0, "recent " + (health.recentFailureCount || 0)],
+      ["retry exhausted", health.exhaustedCount || 0, "operator requeue対象"],
+    ];
+    aiQueueHealthEl.innerHTML = cards.map(([label, value, note]) => '<div class="mw-kpi"><span>' + escapeText(label) + '</span><strong>' + escapeText(value) + '</strong><small>' + escapeText(note) + '</small></div>').join("");
   }
 
   function renderQueues(model) {
@@ -288,8 +315,15 @@ function renderBody(query: MonitoringWorkspaceQuery, fieldId: string): string {
     status.textContent = "読み込み中";
     const url = state.apiPath + "?" + params.toString();
     history.replaceState(null, "", "/admin/monitoring-workspace?" + params.toString());
-    const response = await fetch(url, { headers: { "accept": "application/json" } });
-    const payload = await response.json().catch(() => ({}));
+    const [response, queueHealthResponse] = await Promise.all([
+      fetch(url, { headers: { "accept": "application/json" } }),
+      fetch(state.observationAiQueueHealthApiPath, { headers: { "accept": "application/json" } }),
+    ]);
+    const [payload, queueHealthPayload] = await Promise.all([
+      response.json().catch(() => ({})),
+      queueHealthResponse.json().catch(() => ({})),
+    ]);
+    renderObservationAiQueueHealth(queueHealthPayload, queueHealthResponse.ok);
     if (!response.ok || !payload.ok) {
       status.textContent = "error";
       summaryEl.innerHTML = '<p class="mw-error">' + escapeText(payload.error || response.statusText) + '</p>';
@@ -411,6 +445,7 @@ export async function registerAdminMonitoringWorkspaceRoutes(app: FastifyInstanc
 export const adminMonitoringWorkspaceRouteContract = {
   path: "/admin/monitoring-workspace",
   apiPath: "/api/v1/monitoring/workspace/field",
+  observationAiQueueHealthApiPath: "/api/v1/admin/observation-ai/queue-health",
   queues: Object.keys(QUEUE_LABELS),
   purposes: Object.keys(PURPOSE_LABELS),
   guard: "admin_or_analyst_session",

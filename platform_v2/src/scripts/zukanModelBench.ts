@@ -31,6 +31,7 @@ export const CLOUDFLARE_XAI_GROK_4_6_MODEL = "grok/grok-4.6";
 export const XAI_GROK_4_6_MODEL = "grok-4.6";
 export const ZUKAN_PRODUCTION_VISION_BASELINE_MODEL = "gemini-3.5-flash-lite";
 export const ZUKAN_BENCH_REPORT_SCHEMA_VERSION = "zukan-model-bench-report-v1";
+export type ZukanBenchOutputContractVersion = "legacy-v1" | "compact-v2";
 export const ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA = {
   type: "object",
   properties: {
@@ -40,6 +41,43 @@ export const ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA = {
   },
   required: ["confidence_band", "recommended_rank", "recommended_taxon_name"],
   additionalProperties: true,
+} as const;
+export const ZUKAN_BENCH_COMPACT_RESPONSE_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    confidence_band: { type: "string", enum: ["high", "medium", "low"], description: "Overall visual-evidence confidence." },
+    recommended_rank: { type: "string", enum: ["species", "genus", "family", "order", "lifeform"], description: "Stop at the finest rank supported by visible evidence." },
+    recommended_taxon_name: { type: "string", description: "Taxon name only. Do not include rationale, caveats, prose, location, or observer information." },
+    taxonomic_candidates: {
+      type: "array",
+      maxItems: 4,
+      items: {
+        type: "object",
+        properties: {
+          taxon_name: { type: "string", description: "Candidate taxon name only." },
+          rank: { type: "string", enum: ["species", "genus", "family", "order", "lifeform"] },
+          confidence_band: { type: "string", enum: ["high", "medium", "low"] },
+        },
+        required: ["taxon_name", "rank", "confidence_band"],
+        additionalProperties: false,
+      },
+    },
+    diagnostic_features_observed: { type: "array", maxItems: 8, items: { type: "string" }, description: "Short visible features shared across the ordered images." },
+    diagnostic_features_missing: { type: "array", maxItems: 8, items: { type: "string" }, description: "Short diagnostic features that cannot be verified." },
+    uncertain_features: { type: "array", maxItems: 6, items: { type: "string" }, description: "Short ambiguous or contradictory visual observations." },
+    geographic_context: { type: "string", description: "Use withheld or unknown because location is not provided to the model." },
+  },
+  required: [
+    "confidence_band",
+    "recommended_rank",
+    "recommended_taxon_name",
+    "taxonomic_candidates",
+    "diagnostic_features_observed",
+    "diagnostic_features_missing",
+    "uncertain_features",
+    "geographic_context",
+  ],
+  additionalProperties: false,
 } as const;
 const DEFAULT_PROMPT_SOURCE = "src/prompts/observation_reassess.md";
 const SELECTION_SEED = "zukan-public-post-core-v2-seed-1";
@@ -140,12 +178,16 @@ export type ZukanBenchRequestConfig = {
   thinking_level?: "minimal" | "low" | "medium" | "high";
   media_resolution?: "low" | "medium" | "high";
   image_max_edge?: number;
+  image_fetch_origin?: string;
   stream: false;
   modalities: "omitted";
   response_format?: { type: "json_object" } | { type: "json_schema"; json_schema: unknown };
   response_mime_type?: "application/json";
   response_schema_mode?: "provider-native" | "parser-only";
-  output_schema: "zukan-model-bench-parser-v1";
+  output_schema: "zukan-model-bench-parser-v1" | "zukan-model-bench-compact-v2";
+  output_schema_sha256?: string;
+  execution_concurrency?: number;
+  canary_gate_report?: string;
   gateway_selection?: "explicit-existing-named-gateway-only";
   attempts_per_model: 1;
   fallback_count: 0;
@@ -210,8 +252,12 @@ export type ZukanBenchFixtureScore = {
 
 export type ZukanBenchModelReport = {
   version: typeof ZUKAN_MODEL_BENCH_VERSION;
-  promptVersion: typeof ZUKAN_MODEL_BENCH_PROMPT_VERSION;
+  promptVersion: string;
   promptSha256: string;
+  outputContractVersion?: ZukanBenchOutputContractVersion;
+  outputSchemaSha256?: string;
+  executionConcurrency?: number;
+  canaryReportPath?: string | null;
   model: string;
   provider: string;
   manifestPath: string;
@@ -290,6 +336,67 @@ function clean(value: unknown): string {
 
 function sha256(bytes: Uint8Array | string): string {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+export function zukanBenchResponseSchema(contract: ZukanBenchOutputContractVersion): typeof ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA | typeof ZUKAN_BENCH_COMPACT_RESPONSE_JSON_SCHEMA {
+  return contract === "compact-v2" ? ZUKAN_BENCH_COMPACT_RESPONSE_JSON_SCHEMA : ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA;
+}
+
+export function zukanBenchOutputSchemaSha256(contract: ZukanBenchOutputContractVersion): string {
+  return sha256(JSON.stringify(zukanBenchResponseSchema(contract)));
+}
+
+export async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) {
+    throw new Error(`zukan_bench_concurrency_invalid:${concurrency}`);
+  }
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= items.length) return;
+      results[index] = await worker(items[index]!, index);
+    }
+  }));
+  return results;
+}
+
+export function assertZukanBenchParallelCanary(input: {
+  canary: ZukanBenchModelReport | undefined;
+  model: string;
+  datasetSha256: string;
+  promptSha256: string;
+  outputContract: ZukanBenchOutputContractVersion;
+  outputSchemaSha256: string;
+  fixtureCount: number;
+  maxEstimatedCostUsd: number | undefined;
+}): void {
+  const canary = input.canary;
+  if (!canary || canary.postCount !== 1 || canary.successCount !== 1 || canary.schemaValidRatePct !== 100) {
+    throw new Error("zukan_bench_parallel_canary_invalid");
+  }
+  if (
+    canary.model !== input.model
+    || canary.datasetSha256 !== input.datasetSha256
+    || canary.promptSha256 !== input.promptSha256
+    || (canary.outputContractVersion ?? "legacy-v1") !== input.outputContract
+    || canary.outputSchemaSha256 !== input.outputSchemaSha256
+  ) {
+    throw new Error("zukan_bench_parallel_canary_identity_mismatch");
+  }
+  if (input.maxEstimatedCostUsd === undefined || canary.estimatedCostUsd === null) {
+    throw new Error("zukan_bench_parallel_cost_preflight_required");
+  }
+  const projectedUpperBound = canary.estimatedCostUsd * input.fixtureCount * 2;
+  if (projectedUpperBound > input.maxEstimatedCostUsd) {
+    throw new Error(`zukan_bench_parallel_cost_cap_preflight:${projectedUpperBound.toFixed(8)}/${input.maxEstimatedCostUsd.toFixed(8)}`);
+  }
 }
 
 export type ZukanBenchTransmittedImage = {
@@ -504,14 +611,25 @@ async function fetchText(url: string): Promise<string> {
   return response.text();
 }
 
-async function fetchImage(url: string): Promise<{ bytes: Buffer; mimeType: string }> {
-  const response = await fetch(url, { headers: { accept: "image/*", "cache-control": "no-store" } });
+async function fetchImage(url: string, overrideOrigin?: string): Promise<{ bytes: Buffer; mimeType: string }> {
+  const fetchUrl = resolveZukanBenchImageFetchUrl(url, overrideOrigin);
+  const response = await fetch(fetchUrl, { headers: { accept: "image/*", "cache-control": "no-store" } });
   if (!response.ok) throw new Error(`zukan_bench_image_fetch_failed:${response.status}:${url}`);
   const mimeType = clean(response.headers.get("content-type") ?? "").split(";", 1)[0]?.toLowerCase() ?? "";
   if (!mimeType.startsWith("image/")) throw new Error(`zukan_bench_non_image:${mimeType}:${url}`);
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.byteLength < 512) throw new Error(`zukan_bench_image_too_small:${bytes.byteLength}:${url}`);
   return { bytes, mimeType };
+}
+
+export function resolveZukanBenchImageFetchUrl(frozenUrl: string, overrideOrigin?: string): string {
+  if (!overrideOrigin) return frozenUrl;
+  const frozen = new URL(frozenUrl);
+  const override = new URL(overrideOrigin);
+  if (override.protocol !== "https:" || override.pathname !== "/" || override.search || override.hash || override.username || override.password) {
+    throw new Error("zukan_bench_image_fetch_origin_invalid");
+  }
+  return new URL(`${frozen.pathname}${frozen.search}`, override.origin).toString();
 }
 
 function canonicalImageDigest(images: ZukanBenchImage[]): string {
@@ -915,7 +1033,53 @@ function rankDepth(rank: string): number {
   return ["lifeform", "order", "family", "genus", "species"].indexOf(rank);
 }
 
-export function scoreZukanBenchResponse(fixture: ZukanBenchFixture, rawText: string): ZukanBenchFixtureScore {
+function compactText(value: unknown, maxLength: number): boolean {
+  return typeof value === "string" && value.trim().length > 0 && value.trim().length <= maxLength && !/[\r\n]/u.test(value);
+}
+
+function compactTextArray(value: unknown, maxItems: number, maxLength = 160): boolean {
+  return Array.isArray(value)
+    && value.length <= maxItems
+    && value.every((item) => compactText(item, maxLength));
+}
+
+function compactCandidate(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  const keys = Object.keys(row).sort();
+  return JSON.stringify(keys) === JSON.stringify(["confidence_band", "rank", "taxon_name"])
+    && compactText(row.taxon_name, 120)
+    && VALID_RANKS.has(clean(row.rank).toLowerCase())
+    && VALID_CONFIDENCE.has(clean(row.confidence_band).toLowerCase());
+}
+
+function compactOutputContractValid(parsed: BenchResponse): boolean {
+  const expectedKeys = [
+    "confidence_band",
+    "diagnostic_features_missing",
+    "diagnostic_features_observed",
+    "geographic_context",
+    "recommended_rank",
+    "recommended_taxon_name",
+    "taxonomic_candidates",
+    "uncertain_features",
+  ];
+  return JSON.stringify(Object.keys(parsed).sort()) === JSON.stringify(expectedKeys)
+    && compactText(parsed.recommended_taxon_name, 120)
+    && Array.isArray(parsed.taxonomic_candidates)
+    && parsed.taxonomic_candidates.length <= 4
+    && parsed.taxonomic_candidates.every(compactCandidate)
+    && compactTextArray(parsed.diagnostic_features_observed, 8)
+    && compactTextArray(parsed.diagnostic_features_missing, 8)
+    && compactTextArray(parsed.uncertain_features, 6)
+    && compactText(parsed.geographic_context, 160);
+}
+
+export function scoreZukanBenchResponse(
+  fixture: ZukanBenchFixture,
+  rawText: string,
+  outputContract: ZukanBenchOutputContractVersion = "legacy-v1",
+): ZukanBenchFixtureScore {
   const parsed = parseJsonObject(rawText);
   if (!parsed) return {
     fixtureId: fixture.fixtureId,
@@ -928,7 +1092,12 @@ export function scoreZukanBenchResponse(fixture: ZukanBenchFixture, rawText: str
   const recommended = clean(parsed.recommended_taxon_name);
   const rank = clean(parsed.recommended_rank).toLowerCase();
   const confidence = clean(parsed.confidence_band).toLowerCase();
-  const schemaValid = Boolean(recommended && VALID_RANKS.has(rank) && VALID_CONFIDENCE.has(confidence));
+  const schemaValid = Boolean(
+    recommended
+    && VALID_RANKS.has(rank)
+    && VALID_CONFIDENCE.has(confidence)
+    && (outputContract === "legacy-v1" || compactOutputContractValid(parsed)),
+  );
   const criticalFailures: string[] = [];
   const geography = clean(parsed.geographic_context);
   if (LOCATION_ASSERTION_RE.test(geography) && !/(?:不明|未取得|保留|評価でき|推測しない|特定でき)/u.test(geography)) {
@@ -949,7 +1118,7 @@ export function scoreZukanBenchResponse(fixture: ZukanBenchFixture, rawText: str
       criticalFailures.push("overprecise_beyond_human_gold");
     }
   }
-  if (!schemaValid) criticalFailures.push("schema_invalid");
+  if (!schemaValid) criticalFailures.push(outputContract === "compact-v2" ? "output_contract_invalid" : "schema_invalid");
   return {
     fixtureId: fixture.fixtureId,
     visitId: fixture.visitId,
@@ -1116,7 +1285,13 @@ export function buildCloudflareOfficialRestPayload(parts: CloudflareOfficialRest
   } as const;
 }
 
-export function buildCloudflareAiChatPayload(model: string, parts: CloudflareOfficialRestPart[], maxCompletionTokens = 8192) {
+export function buildCloudflareAiChatPayload(
+  model: string,
+  parts: CloudflareOfficialRestPart[],
+  maxCompletionTokens = 8192,
+  responseSchema: unknown = ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+  schemaName = "zukan-model-bench-parser-v1",
+) {
   const thirdPartyStructuredModel = model === CLOUDFLARE_GOOGLE_GEMINI_3_7_FLASH_MODEL
     || model === CLOUDFLARE_XAI_GROK_4_6_MODEL
     || model === XAI_GROK_4_6_MODEL;
@@ -1130,11 +1305,11 @@ export function buildCloudflareAiChatPayload(model: string, parts: CloudflareOff
       type: "json_schema",
       json_schema: thirdPartyStructuredModel
         ? {
-          name: "zukan-model-bench-parser-v1",
+          name: schemaName,
           strict: false,
-          schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+          schema: responseSchema,
         }
-        : ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+        : responseSchema,
     },
   };
   if (
@@ -1146,7 +1321,13 @@ export function buildCloudflareAiChatPayload(model: string, parts: CloudflareOff
   return payload;
 }
 
-export function buildCloudflareResponsesPayload(model: string, parts: CloudflareOfficialRestPart[], maxOutputTokens = 8192) {
+export function buildCloudflareResponsesPayload(
+  model: string,
+  parts: CloudflareOfficialRestPart[],
+  maxOutputTokens = 8192,
+  responseSchema: unknown = ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+  schemaName = "zukan-model-bench-parser-v1",
+) {
   return {
     model,
     input: [{
@@ -1162,20 +1343,26 @@ export function buildCloudflareResponsesPayload(model: string, parts: Cloudflare
     text: {
       format: {
         type: "json_schema",
-        name: "zukan-model-bench-parser-v1",
+        name: schemaName,
         // The shared benchmark schema deliberately allows optional final-output
         // fields for later review. Cloudflare's Responses adapter rejects that
         // schema when strict Structured Outputs are requested, so keep the
         // provider-native JSON-schema hint while letting the local validator
         // enforce the required benchmark keys.
         strict: false,
-        schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+        schema: responseSchema,
       },
     },
   } as const;
 }
 
-export function buildCloudflareAiRunPayload(model: string, parts: CloudflareOfficialRestPart[], maxOutputTokens = 8192) {
+export function buildCloudflareAiRunPayload(
+  model: string,
+  parts: CloudflareOfficialRestPart[],
+  maxOutputTokens = 8192,
+  responseSchema: unknown = ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+  schemaName = "zukan-model-bench-parser-v1",
+) {
   return {
     model,
     input: {
@@ -1192,9 +1379,9 @@ export function buildCloudflareAiRunPayload(model: string, parts: CloudflareOffi
       text: {
         format: {
           type: "json_schema",
-          name: "zukan-model-bench-parser-v1",
+          name: schemaName,
           strict: false,
-          schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+          schema: responseSchema,
         },
       },
     },
@@ -1321,6 +1508,7 @@ export async function generateWithCloudflareGoogleAiStudio(options: {
   parts: AiRouterPart[];
   maxOutputTokens?: number;
   mediaResolution?: "low" | "medium" | "high";
+  responseJsonSchema?: unknown;
   env?: NodeJS.ProcessEnv;
 }): Promise<CloudflareAiGenerationResult> {
   const env = options.env ?? process.env;
@@ -1343,7 +1531,7 @@ export async function generateWithCloudflareGoogleAiStudio(options: {
       maxOutputTokens: options.maxOutputTokens ?? 8192,
       mediaResolution: googleMediaResolution(options.mediaResolution),
       responseMimeType: "application/json",
-      responseJsonSchema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+      responseJsonSchema: options.responseJsonSchema ?? ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
     },
   });
   const usage = (response as {
@@ -1388,6 +1576,8 @@ export async function generateWithCloudflareXai(options: {
   model: string;
   parts: CloudflareOfficialRestPart[];
   maxCompletionTokens?: number;
+  responseJsonSchema?: unknown;
+  schemaName?: string;
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
 }): Promise<CloudflareAiGenerationResult> {
@@ -1407,7 +1597,13 @@ export async function generateWithCloudflareXai(options: {
         "cf-aig-authorization": `Bearer ${gatewayToken}`,
         ...(providerKey ? { authorization: `Bearer ${providerKey}` } : {}),
       },
-      body: JSON.stringify(buildCloudflareAiChatPayload(options.model, options.parts, options.maxCompletionTokens ?? 8192)),
+      body: JSON.stringify(buildCloudflareAiChatPayload(
+        options.model,
+        options.parts,
+        options.maxCompletionTokens ?? 8192,
+        options.responseJsonSchema,
+        options.schemaName,
+      )),
       signal: controller.signal,
     });
     const contentType = clean(response.headers.get("content-type") ?? "").split(";", 1)[0] || null;
@@ -1631,6 +1827,8 @@ export async function generateWithCloudflareAiRest(options: {
   model: string;
   parts: CloudflareOfficialRestPart[];
   maxCompletionTokens?: number;
+  responseJsonSchema?: unknown;
+  schemaName?: string;
   requireExistingGateway?: boolean;
   timeoutMs?: number;
 }): Promise<CloudflareAiGenerationResult> {
@@ -1642,7 +1840,7 @@ export async function generateWithCloudflareAiRest(options: {
   ) {
     return fetchCloudflareAiJson({
       model: options.model,
-      payload: buildCloudflareAiChatPayload(options.model, options.parts, maxTokens),
+      payload: buildCloudflareAiChatPayload(options.model, options.parts, maxTokens, options.responseJsonSchema, options.schemaName),
       responsesApi: false,
       requireExistingGateway: options.requireExistingGateway,
       timeoutMs: options.timeoutMs,
@@ -1651,7 +1849,7 @@ export async function generateWithCloudflareAiRest(options: {
   if (options.model === CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL) {
     return fetchCloudflareAiJson({
       model: options.model,
-      payload: buildCloudflareResponsesPayload(options.model, options.parts, maxTokens),
+      payload: buildCloudflareResponsesPayload(options.model, options.parts, maxTokens, options.responseJsonSchema, options.schemaName),
       responsesApi: true,
       requireExistingGateway: options.requireExistingGateway,
       timeoutMs: options.timeoutMs,
@@ -1664,13 +1862,21 @@ export async function generateWithCloudflareAiRun(options: {
   model: string;
   parts: CloudflareOfficialRestPart[];
   maxOutputTokens?: number;
+  responseJsonSchema?: unknown;
+  schemaName?: string;
   requireExistingGateway?: boolean;
   timeoutMs?: number;
 }): Promise<CloudflareAiGenerationResult> {
   if (options.model !== CLOUDFLARE_OPENAI_GPT_5_6_LUNA_MODEL) throw new Error("cloudflare_ai_run_model_invalid");
   return fetchCloudflareAiJson({
     model: options.model,
-    payload: buildCloudflareAiRunPayload(options.model, options.parts, options.maxOutputTokens ?? 8192),
+    payload: buildCloudflareAiRunPayload(
+      options.model,
+      options.parts,
+      options.maxOutputTokens ?? 8192,
+      options.responseJsonSchema,
+      options.schemaName,
+    ),
     responsesApi: true,
     universalRun: true,
     requireExistingGateway: options.requireExistingGateway,
@@ -1745,7 +1951,13 @@ export async function runZukanModelBench(options: {
   thinkingLevel?: "minimal" | "low" | "medium" | "high";
   mediaResolution?: "low" | "medium" | "high";
   imageMaxEdge?: number;
+  imageFetchOrigin?: string;
   promptSource?: string;
+  promptVersion?: string;
+  outputContract?: ZukanBenchOutputContractVersion;
+  concurrency?: number;
+  completedCanaryReport?: ZukanBenchModelReport;
+  canaryReportPath?: string;
   reportLabel?: string;
   fixtureVisitIds?: readonly string[];
   requireFixedOwnerSmoke?: boolean;
@@ -1770,6 +1982,32 @@ export async function runZukanModelBench(options: {
   const prompt = await loadZukanBenchPrompt(manifest, options.promptSource);
   const promptTemplate = prompt.text;
   const fixtures = selectZukanBenchFixtures(manifest, options);
+  const outputContract = options.outputContract ?? "legacy-v1";
+  const responseSchema = zukanBenchResponseSchema(outputContract);
+  const schemaName: ZukanBenchRequestConfig["output_schema"] = outputContract === "compact-v2"
+    ? "zukan-model-bench-compact-v2"
+    : "zukan-model-bench-parser-v1";
+  const outputSchemaSha256 = zukanBenchOutputSchemaSha256(outputContract);
+  const concurrency = options.concurrency ?? 1;
+  if (options.imageFetchOrigin && fixtures[0]?.images[0]?.url) {
+    resolveZukanBenchImageFetchUrl(fixtures[0].images[0].url, options.imageFetchOrigin);
+  }
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) {
+    throw new Error(`zukan_bench_concurrency_invalid:${concurrency}`);
+  }
+  if (concurrency > 1) {
+    if (options.requireCanarySuccess !== false) throw new Error("zukan_bench_parallel_requires_completed_canary");
+    assertZukanBenchParallelCanary({
+      canary: options.completedCanaryReport,
+      model: options.model,
+      datasetSha256: manifest.datasetSha256,
+      promptSha256: prompt.sha256,
+      outputContract,
+      outputSchemaSha256,
+      fixtureCount: fixtures.length,
+      maxEstimatedCostUsd: options.maxEstimatedCostUsd,
+    });
+  }
   if (options.requireFixedOwnerSmoke && (
     fixtures.length !== ZUKAN_BENCH_SMOKE_POST_COUNT
     || fixtures.reduce((sum, fixture) => sum + fixture.images.length, 0) !== 24
@@ -1810,11 +2048,15 @@ export async function runZukanModelBench(options: {
       thinking_level: "low",
       ...(options.mediaResolution ? { media_resolution: options.mediaResolution } : {}),
       ...(options.imageMaxEdge !== undefined ? { image_max_edge: options.imageMaxEdge } : {}),
+      ...(options.imageFetchOrigin ? { image_fetch_origin: options.imageFetchOrigin } : {}),
       stream: false,
       modalities: "omitted",
       response_mime_type: "application/json",
       response_schema_mode: "provider-native",
-      output_schema: "zukan-model-bench-parser-v1",
+      output_schema: schemaName,
+      output_schema_sha256: outputSchemaSha256,
+      execution_concurrency: concurrency,
+      ...(options.canaryReportPath ? { canary_gate_report: options.canaryReportPath } : {}),
       gateway_selection: "explicit-existing-named-gateway-only",
       attempts_per_model: 1,
       fallback_count: 0,
@@ -1826,18 +2068,22 @@ export async function runZukanModelBench(options: {
         max_completion_tokens: options.maxOutputTokens ?? 8192,
         reasoning_effort: "low",
         ...(options.imageMaxEdge !== undefined ? { image_max_edge: options.imageMaxEdge } : {}),
+        ...(options.imageFetchOrigin ? { image_fetch_origin: options.imageFetchOrigin } : {}),
         stream: false,
         modalities: "omitted",
         response_format: {
           type: "json_schema",
           json_schema: {
-            name: "zukan-model-bench-parser-v1",
+            name: schemaName,
             strict: false,
-            schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
+            schema: responseSchema,
           },
         },
         response_schema_mode: "provider-native",
-        output_schema: "zukan-model-bench-parser-v1",
+        output_schema: schemaName,
+        output_schema_sha256: outputSchemaSha256,
+        execution_concurrency: concurrency,
+        ...(options.canaryReportPath ? { canary_gate_report: options.canaryReportPath } : {}),
         gateway_selection: "explicit-existing-named-gateway-only",
         attempts_per_model: 1,
         fallback_count: 0,
@@ -1849,10 +2095,14 @@ export async function runZukanModelBench(options: {
       max_completion_tokens: 8192,
       reasoning_effort: "low",
       ...(options.imageMaxEdge !== undefined ? { image_max_edge: options.imageMaxEdge } : {}),
+      ...(options.imageFetchOrigin ? { image_fetch_origin: options.imageFetchOrigin } : {}),
       stream: false,
       modalities: "omitted",
       response_format: { type: "json_object" },
-      output_schema: "zukan-model-bench-parser-v1",
+      output_schema: schemaName,
+      output_schema_sha256: outputSchemaSha256,
+      execution_concurrency: concurrency,
+      ...(options.canaryReportPath ? { canary_gate_report: options.canaryReportPath } : {}),
       gateway_selection: "explicit-existing-named-gateway-only",
       attempts_per_model: 1,
       fallback_count: 0,
@@ -1873,10 +2123,14 @@ export async function runZukanModelBench(options: {
           : {}),
         stream: false,
         modalities: "omitted",
-        response_format: { type: "json_schema", json_schema: ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA },
+        response_format: { type: "json_schema", json_schema: responseSchema },
         response_schema_mode: "provider-native",
         ...(options.imageMaxEdge !== undefined ? { image_max_edge: options.imageMaxEdge } : {}),
-        output_schema: "zukan-model-bench-parser-v1",
+        ...(options.imageFetchOrigin ? { image_fetch_origin: options.imageFetchOrigin } : {}),
+        output_schema: schemaName,
+        output_schema_sha256: outputSchemaSha256,
+        execution_concurrency: concurrency,
+        ...(options.canaryReportPath ? { canary_gate_report: options.canaryReportPath } : {}),
         gateway_selection: "explicit-existing-named-gateway-only",
         attempts_per_model: 1,
         fallback_count: 0,
@@ -1888,11 +2142,15 @@ export async function runZukanModelBench(options: {
       thinking_level: benchmarkThinkingLevel(options.model, options.thinkingLevel),
       ...(options.mediaResolution ? { media_resolution: options.mediaResolution } : {}),
       ...(options.imageMaxEdge !== undefined ? { image_max_edge: options.imageMaxEdge } : {}),
+      ...(options.imageFetchOrigin ? { image_fetch_origin: options.imageFetchOrigin } : {}),
       stream: false,
       modalities: "omitted",
       response_mime_type: "application/json",
       response_schema_mode: modelProvider(options.model) === "gemini" ? "provider-native" : "parser-only",
-      output_schema: "zukan-model-bench-parser-v1",
+      output_schema: schemaName,
+      output_schema_sha256: outputSchemaSha256,
+      execution_concurrency: concurrency,
+      ...(options.canaryReportPath ? { canary_gate_report: options.canaryReportPath } : {}),
       attempts_per_model: 1,
       fallback_count: 0,
     };
@@ -1909,15 +2167,15 @@ export async function runZukanModelBench(options: {
   let usageComplete = true;
 
   try {
-    for (const fixture of fixtures) {
-      const isCanary = fixtureScores.length === 0;
+    const processFixture = async (fixture: ZukanBenchFixture, fixtureIndex: number): Promise<boolean> => {
+      const isCanary = fixtureIndex === 0;
       const spentBeforeCall = estimatedCost(totalInputTokens, totalOutputTokens, options.pricing ?? null);
       const averageCompletedCost = spentBeforeCall !== null && fixtureScores.length > 0 ? spentBeforeCall / fixtureScores.length : 0;
-      if (spentBeforeCall !== null && options.maxEstimatedCostUsd !== undefined && spentBeforeCall + averageCompletedCost > options.maxEstimatedCostUsd) {
+      if (concurrency === 1 && spentBeforeCall !== null && options.maxEstimatedCostUsd !== undefined && spentBeforeCall + averageCompletedCost > options.maxEstimatedCostUsd) {
         throw new Error(`zukan_bench_cost_cap_preflight:${spentBeforeCall.toFixed(8)}/${options.maxEstimatedCostUsd.toFixed(8)}`);
       }
       const verified = await Promise.all(fixture.images.map(async (imageRef) => {
-        const image = await fetchImage(imageRef.url);
+        const image = await fetchImage(imageRef.url, options.imageFetchOrigin);
         const actualDigest = sha256(image.bytes);
         if (actualDigest !== imageRef.sha256 || image.bytes.byteLength !== imageRef.bytes || image.mimeType !== imageRef.mimeType) {
           throw new Error(`zukan_bench_image_identity_mismatch:${fixture.fixtureId}:${imageRef.index}`);
@@ -1946,6 +2204,7 @@ export async function runZukanModelBench(options: {
             model: options.model,
             maxOutputTokens: options.maxOutputTokens ?? 8192,
             mediaResolution: options.mediaResolution,
+            responseJsonSchema: responseSchema,
             parts: [
               ...transmitted.map((item): AiRouterPart => ({ inlineData: { mimeType: item.mimeType, data: item.buffer.toString("base64") } })),
               { text: renderedPrompt },
@@ -1955,6 +2214,8 @@ export async function runZukanModelBench(options: {
             ? await generateWithCloudflareXai({
               model: options.model,
               maxCompletionTokens: options.maxOutputTokens ?? 8192,
+              responseJsonSchema: responseSchema,
+              schemaName,
               parts: [
                 ...transmitted.map((item): CloudflareOfficialRestPart => ({
                   type: "image_url",
@@ -1980,6 +2241,8 @@ export async function runZukanModelBench(options: {
               model: options.model,
               requireExistingGateway: true,
               maxCompletionTokens: options.maxOutputTokens ?? 8192,
+              responseJsonSchema: responseSchema,
+              schemaName,
               parts: [
                 ...transmitted.map((item): CloudflareOfficialRestPart => ({
                   type: "image_url",
@@ -1993,6 +2256,8 @@ export async function runZukanModelBench(options: {
                 model: options.model,
                 requireExistingGateway: true,
                 maxOutputTokens: options.maxOutputTokens ?? 8192,
+                responseJsonSchema: responseSchema,
+                schemaName,
                 parts: [
                   ...transmitted.map((item): CloudflareOfficialRestPart => ({
                     type: "image_url",
@@ -2014,7 +2279,7 @@ export async function runZukanModelBench(options: {
               maxOutputTokens: requestConfig.max_output_tokens,
               mediaResolution: options.mediaResolution,
               responseJsonSchema: modelProvider(options.model) === "gemini"
-                ? ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA
+                ? responseSchema
                 : undefined,
               retriesPerModel: 0,
             })),
@@ -2026,7 +2291,7 @@ export async function runZukanModelBench(options: {
         totalOutputTokens += result.outputTokens;
         const latencyMs = Date.now() - started;
         latencies.push(latencyMs);
-        const scored = scoreZukanBenchResponse(fixture, result.text);
+        const scored = scoreZukanBenchResponse(fixture, result.text, outputContract);
         const finalContentAvailable = !result.responseField?.includes("reasoning_content");
         canarySchemaValid = scored.schemaValid && finalContentAvailable;
         const finalOutput = buildZukanBenchFinalOutputRecord({
@@ -2095,14 +2360,23 @@ export async function runZukanModelBench(options: {
             transmittedImages: transmitted,
           }),
         });
-        if (options.requireCanarySuccess && isCanary) break;
       }
-      if (options.requireCanarySuccess && isCanary && !canarySchemaValid) break;
       const spentAfterCall = estimatedCost(totalInputTokens, totalOutputTokens, options.pricing ?? null);
-      if (spentAfterCall !== null && options.maxEstimatedCostUsd !== undefined && spentAfterCall > options.maxEstimatedCostUsd) {
+      if (concurrency === 1 && spentAfterCall !== null && options.maxEstimatedCostUsd !== undefined && spentAfterCall > options.maxEstimatedCostUsd) {
         throw new Error(`zukan_bench_cost_cap_reached:${spentAfterCall.toFixed(8)}/${options.maxEstimatedCostUsd.toFixed(8)}`);
       }
+      return canarySchemaValid;
+    };
+    if (concurrency === 1) {
+      for (const [fixtureIndex, fixture] of fixtures.entries()) {
+        const schemaValid = await processFixture(fixture, fixtureIndex);
+        if (options.requireCanarySuccess && fixtureIndex === 0 && !schemaValid) break;
+      }
+    } else {
+      await mapWithConcurrency(fixtures, concurrency, processFixture);
     }
+    const fixtureOrder = new Map(fixtures.map((fixture, index) => [fixture.fixtureId, index]));
+    fixtureScores.sort((left, right) => (fixtureOrder.get(left.fixtureId) ?? 0) - (fixtureOrder.get(right.fixtureId) ?? 0));
   } finally {
     if (transport === "model-router") {
       if (previousChain === undefined) delete process.env[MODEL_CHAIN_ENV];
@@ -2117,8 +2391,12 @@ export async function runZukanModelBench(options: {
   const reportLocator = path.relative(process.cwd(), reportPath).replace(/\\/gu, "/");
   const report: ZukanBenchModelReport = {
     version: ZUKAN_MODEL_BENCH_VERSION,
-    promptVersion: ZUKAN_MODEL_BENCH_PROMPT_VERSION,
+    promptVersion: options.promptVersion ?? ZUKAN_MODEL_BENCH_PROMPT_VERSION,
     promptSha256: prompt.sha256,
+    outputContractVersion: outputContract,
+    outputSchemaSha256,
+    executionConcurrency: concurrency,
+    canaryReportPath: options.canaryReportPath ?? null,
     model: options.model,
     provider,
     manifestPath,
@@ -2185,6 +2463,10 @@ export function compareZukanBenchReports(reports: ZukanBenchModelReport[]): Zuka
     if (report.datasetSha256 !== baseline.datasetSha256) throw new Error("zukan_bench_compare_dataset_mismatch");
     if (report.promptSha256 !== baseline.promptSha256) throw new Error("zukan_bench_compare_prompt_mismatch");
     if (report.postCount !== baseline.postCount || report.imageCount !== baseline.imageCount) throw new Error("zukan_bench_compare_input_shape_mismatch");
+    if (
+      (report.outputContractVersion ?? "legacy-v1") !== (baseline.outputContractVersion ?? "legacy-v1")
+      || (report.outputSchemaSha256 ?? null) !== (baseline.outputSchemaSha256 ?? null)
+    ) throw new Error("zukan_bench_compare_output_contract_mismatch");
   }
   const maxGold = Math.max(...reports.map((report) => report.goldPostCount));
   if (maxGold < ZUKAN_BENCH_MIN_GOLD_POSTS) return {
@@ -2291,6 +2573,13 @@ function mediaResolutionFromArgs(args: string[]): "low" | "medium" | "high" | un
   throw new Error(`invalid_media_resolution:${value}`);
 }
 
+function outputContractFromArgs(args: string[]): ZukanBenchOutputContractVersion | undefined {
+  const value = stringArg(args, "output-contract");
+  if (value === undefined) return undefined;
+  if (value === "legacy-v1" || value === "compact-v2") return value;
+  throw new Error(`invalid_output_contract:${value}`);
+}
+
 async function main(): Promise<void> {
   const [command = "run", ...args] = process.argv.slice(2);
   if (command === "freeze") {
@@ -2335,18 +2624,30 @@ async function main(): Promise<void> {
   if (command === "run") {
     const model = stringArg(args, "model");
     if (!model) throw new Error("--model is required; example: --model=@cf/zai-org/glm-5.3-flash");
+    const canaryReportPath = stringArg(args, "canary-report");
+    const completedCanaryReport = canaryReportPath
+      ? JSON.parse(await readFile(canaryReportPath, "utf8")) as ZukanBenchModelReport
+      : undefined;
     const report = await runZukanModelBench({
       model,
       manifestPath: stringArg(args, "manifest"),
       reportDir: stringArg(args, "report-dir"),
       pricing: pricingFromArgs(args),
       limit: numericArg(args, "limit"),
+      maxEstimatedCostUsd: numericArg(args, "max-estimated-cost-usd"),
       transport: transportFromArgs(args),
       maxOutputTokens: numericArg(args, "max-output-tokens"),
       thinkingLevel: thinkingLevelFromArgs(args),
       mediaResolution: mediaResolutionFromArgs(args),
       imageMaxEdge: numericArg(args, "image-max-edge"),
+      imageFetchOrigin: stringArg(args, "image-fetch-origin"),
       promptSource: stringArg(args, "prompt-source"),
+      promptVersion: stringArg(args, "prompt-version"),
+      outputContract: outputContractFromArgs(args),
+      concurrency: numericArg(args, "concurrency"),
+      completedCanaryReport,
+      canaryReportPath,
+      requireCanarySuccess: canaryReportPath ? false : undefined,
       reportLabel: stringArg(args, "report-label"),
     });
     console.log(JSON.stringify(report, null, 2));

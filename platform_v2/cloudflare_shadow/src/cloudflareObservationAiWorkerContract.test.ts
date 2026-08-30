@@ -78,3 +78,15 @@ test("photo upload, queue, cron, Gemini Batch, and review target form one durabl
     assert.match(environmentBlocks.production, new RegExp(`"${flag}": "on"`));
   }
 });
+
+test("admin queue health is read-only and operator requeue is same-origin, role-gated, and compare-and-swap", async () => {
+  const source = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+  assert.match(source, /GET" && nativePathname === "\/api\/v1\/admin\/observation-ai\/queue-health"/u);
+  assert.match(source, /loadObservationAiQueueHealth\(env\.OBS_DB/u);
+  assert.match(source, /POST" && nativePathname === "\/api\/v1\/admin\/observation-ai\/requeue"/u);
+  assert.match(source, /assertSameOriginRequest\(request, true\)/u);
+  assert.match(source, /isSpecialistAuthorityAdminRole\(session\)/u);
+  assert.match(source, /WHERE request_id = \? AND request_state = 'failed' AND source_payload_json = \?/u);
+  assert.match(source, /INSERT INTO outbox \(outbox_id, topic, target_id, payload_json, partition_month\)/u);
+  assert.match(source, /dispatchOutboxBestEffort/u);
+});

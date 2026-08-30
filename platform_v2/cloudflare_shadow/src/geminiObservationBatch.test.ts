@@ -14,6 +14,7 @@ import {
   createGeminiBatch,
   decideGeminiSpecialistEscalation,
   findGeminiBatchByDisplayName,
+  geminiMediaResolutionForLane,
   geminiBatchDisplayName,
   geminiBatchResponseText,
   mergeGeminiObservationEvidence,
@@ -45,6 +46,26 @@ test("production model stack uses the measured exact Flash-Lite IDs and every im
     assert.equal(request.generationConfig.responseMimeType, "application/json");
     assert.equal(request.generationConfig.temperature, 0);
   }
+});
+
+test("adaptive media profile keeps primary lanes economical and specialist evidence high resolution", () => {
+  assert.equal(geminiMediaResolutionForLane("current", "primary"), undefined);
+  assert.equal(geminiMediaResolutionForLane("adaptive-medium-high", "primary"), "MEDIA_RESOLUTION_MEDIUM");
+  assert.equal(geminiMediaResolutionForLane("adaptive-medium-high", "census"), "MEDIA_RESOLUTION_MEDIUM");
+  assert.equal(geminiMediaResolutionForLane("adaptive-medium-high", "environment"), "MEDIA_RESOLUTION_MEDIUM");
+  assert.equal(geminiMediaResolutionForLane("adaptive-medium-high", "specialist"), "MEDIA_RESOLUTION_HIGH");
+  assert.equal(geminiMediaResolutionForLane("adaptive-medium-high", "summary"), undefined);
+
+  const primaryRequest = buildGeminiPrimaryRequest("record-1", null, images, "adaptive-medium-high");
+  assert.equal(primaryRequest.generationConfig.mediaResolution, "MEDIA_RESOLUTION_MEDIUM");
+  const specialistRequest = buildGeminiSpecialistRequest(
+    "record-1",
+    "bird",
+    images,
+    mergeGeminiObservationEvidence(primary, census, environment, 2),
+    "adaptive-medium-high",
+  );
+  assert.equal(specialistRequest.generationConfig.mediaResolution, "MEDIA_RESOLUTION_HIGH");
 });
 
 const primary: GeminiPrimaryEvidence = {

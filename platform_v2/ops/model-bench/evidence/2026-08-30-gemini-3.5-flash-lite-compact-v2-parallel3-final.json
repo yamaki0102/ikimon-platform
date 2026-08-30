@@ -1,0 +1,1118 @@
+{
+  "version": "zukan-post-model-bench-v2",
+  "promptVersion": "observation-reassess-post-compact-v3",
+  "promptSha256": "ba51fce67c344e7555198bb2c01a31feff7dbfe9dc45e0794b4f9c96384167d6",
+  "outputContractVersion": "compact-v2",
+  "outputSchemaSha256": "294cfb4a8cbeeb9353b584937fcfb0000ee746d46f693dcadb79bfcee052a11f",
+  "executionConcurrency": 3,
+  "canaryReportPath": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-compact-v2-canary.json",
+  "model": "gemini-3.5-flash-lite",
+  "provider": "gemini",
+  "manifestPath": "ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+  "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+  "startedAt": "2026-08-30T03:05:44.854Z",
+  "completedAt": "2026-08-30T03:05:53.384Z",
+  "postCount": 7,
+  "imageCount": 21,
+  "successCount": 7,
+  "modelRequestCount": 7,
+  "successRatePct": 100,
+  "schemaValidRatePct": 100,
+  "goldPostCount": 0,
+  "taxonScorePct": null,
+  "criticalFailurePostCount": 0,
+  "highConfidenceWrongPostCount": 0,
+  "overprecisionPostCount": 0,
+  "locationHallucinationPostCount": 0,
+  "p50LatencyMs": 2812,
+  "p95LatencyMs": 2937,
+  "totalInputTokens": 24822,
+  "totalOutputTokens": 1706,
+  "estimatedCostUsd": 0.0117116,
+  "pricing": {
+    "inputUsdPer1M": 0.3,
+    "outputUsdPer1M": 2.5,
+    "source": "https://ai.google.dev/gemini-api/docs/pricing"
+  },
+  "transport": "model-router",
+  "usageMeasurement": "provider-reported",
+  "observedAdditionalCostUsd": null,
+  "reportSchemaVersion": "zukan-model-bench-report-v1",
+  "requestConfig": {
+    "transport": "model-router",
+    "temperature": 0.1,
+    "max_output_tokens": 2048,
+    "thinking_level": "minimal",
+    "image_fetch_origin": "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev",
+    "stream": false,
+    "modalities": "omitted",
+    "response_mime_type": "application/json",
+    "response_schema_mode": "provider-native",
+    "output_schema": "zukan-model-bench-compact-v2",
+    "output_schema_sha256": "294cfb4a8cbeeb9353b584937fcfb0000ee746d46f693dcadb79bfcee052a11f",
+    "execution_concurrency": 3,
+    "canary_gate_report": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-compact-v2-canary.json",
+    "attempts_per_model": 1,
+    "fallback_count": 0
+  },
+  "accuracyStatus": "INSUFFICIENT_GOLD",
+  "reportPath": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-compact-v2-parallel3-final.json",
+  "fixtureScores": [
+    {
+      "fixtureId": "zukan-post-record-1784366489892",
+      "visitId": "record-1784366489892",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "Asteraceae",
+      "recommendedRank": "family",
+      "confidenceBand": "low",
+      "geographicContext": "withheld",
+      "finishReason": "STOP",
+      "latencyMs": 2937,
+      "inputTokens": 3546,
+      "outputTokens": 245,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"low\",\n  \"recommended_rank\": \"family\",\n  \"recommended_taxon_name\": \"Asteraceae\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"Asteraceae\",\n      \"rank\": \"family\",\n      \"confidence_band\": \"medium\"\n    },\n    {\n      \"taxon_name\": \"Erigeron\",\n      \"rank\": \"genus\",\n      \"confidence_band\": \"low\"\n    }\n  ],\n  \"diagnostic_features_observed\": [\n    \"Herbaceous plant growing against concrete wall\",\n    \"Alternate simple leaves\",\n    \"Hairy stem and leaf margins\",\n    \"Lanceolate to oblanceolate leaf shape\"\n  ],\n  \"diagnostic_features_missing\": [\n    \"Mature flowers or inflorescence\",\n    \"Fruit or seed characteristics\",\n    \"Root system details\"\n  ],\n  \"uncertain_features\": [\n    \"Exact genus and species unconfirmable without floral structures\"\n  ],\n  \"geographic_context\": \"withheld\"\n}",
+        "parsed_json": {
+          "confidence_band": "low",
+          "recommended_rank": "family",
+          "recommended_taxon_name": "Asteraceae",
+          "taxonomic_candidates": [
+            {
+              "taxon_name": "Asteraceae",
+              "rank": "family",
+              "confidence_band": "medium"
+            },
+            {
+              "taxon_name": "Erigeron",
+              "rank": "genus",
+              "confidence_band": "low"
+            }
+          ],
+          "diagnostic_features_observed": [
+            "Herbaceous plant growing against concrete wall",
+            "Alternate simple leaves",
+            "Hairy stem and leaf margins",
+            "Lanceolate to oblanceolate leaf shape"
+          ],
+          "diagnostic_features_missing": [
+            "Mature flowers or inflorescence",
+            "Fruit or seed characteristics",
+            "Root system details"
+          ],
+          "uncertain_features": [
+            "Exact genus and species unconfirmable without floral structures"
+          ],
+          "geographic_context": "withheld"
+        },
+        "recommended_taxon": "Asteraceae",
+        "recommended_rank": "family",
+        "confidence": "low",
+        "candidates": [
+          {
+            "taxon_name": "Asteraceae",
+            "rank": "family",
+            "confidence_band": "medium"
+          },
+          {
+            "taxon_name": "Erigeron",
+            "rank": "genus",
+            "confidence_band": "low"
+          }
+        ],
+        "observed_features": {
+          "diagnostic_features_observed": [
+            "Herbaceous plant growing against concrete wall",
+            "Alternate simple leaves",
+            "Hairy stem and leaf margins",
+            "Lanceolate to oblanceolate leaf shape"
+          ]
+        },
+        "diagnostic_features": {
+          "diagnostic_features_observed": [
+            "Herbaceous plant growing against concrete wall",
+            "Alternate simple leaves",
+            "Hairy stem and leaf margins",
+            "Lanceolate to oblanceolate leaf shape"
+          ]
+        },
+        "missing_features": {
+          "diagnostic_features_missing": [
+            "Mature flowers or inflorescence",
+            "Fruit or seed characteristics",
+            "Root system details"
+          ]
+        },
+        "uncertain_features": {
+          "uncertain_features": [
+            "Exact genus and species unconfirmable without floral structures"
+          ]
+        },
+        "geographic_context": "withheld",
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 3546,
+          "output_tokens": 245
+        },
+        "latency_ms": 2937,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_fetch_origin": "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev",
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-compact-v2",
+          "output_schema_sha256": "294cfb4a8cbeeb9353b584937fcfb0000ee746d46f693dcadb79bfcee052a11f",
+          "execution_concurrency": 3,
+          "canary_gate_report": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-compact-v2-canary.json",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "0a2d87197bf3368f3c27b7790457e047de286ebc98835f0f03c7603e597231e0",
+        "image_sha256": [
+          "ee6e3a54d816c4d4ed8f67721d6c8283db87f43ba24d0a0d01cbed82ae565753",
+          "40efc9e830cef93f0b3183ad1654f9ec86c158846b6e1c52da8fc3367dd99726",
+          "4d9f7de05d09ee33f30296aefa60095e57b7f0143eb1d7cf2c79456cfed5ca87"
+        ],
+        "transmitted_image_sha256": [
+          "ee6e3a54d816c4d4ed8f67721d6c8283db87f43ba24d0a0d01cbed82ae565753",
+          "40efc9e830cef93f0b3183ad1654f9ec86c158846b6e1c52da8fc3367dd99726",
+          "4d9f7de05d09ee33f30296aefa60095e57b7f0143eb1d7cf2c79456cfed5ca87"
+        ],
+        "transmitted_image_bytes": [
+          508558,
+          1277944,
+          525732
+        ],
+        "transmitted_image_mime_types": [
+          "image/webp",
+          "image/webp",
+          "image/webp"
+        ],
+        "transmitted_post_sha256": "1799cdec6a4c1e2458efc19d97beb54800c5b3b338571e0c46d52ac2c053e99d",
+        "prompt_sha256": "ba51fce67c344e7555198bb2c01a31feff7dbfe9dc45e0794b4f9c96384167d6",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430741938",
+      "visitId": "record-1784430741938",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "Oxalis",
+      "recommendedRank": "genus",
+      "confidenceBand": "high",
+      "geographicContext": "withheld",
+      "finishReason": "STOP",
+      "latencyMs": 2817,
+      "inputTokens": 3546,
+      "outputTokens": 173,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"high\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"Oxalis\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"Oxalis\",\n      \"rank\": \"genus\",\n      \"confidence_band\": \"high\"\n    }\n  ],\n  \"diagnostic_features_observed\": [\n    \"trifoliate leaves with heart-shaped leaflets\",\n    \"yellow flowers present\",\n    \"herbaceous growth habit\"\n  ],\n  \"diagnostic_features_missing\": [\n    \"detailed seed pod morphology\",\n    \"bulb or taproot structure\"\n  ],\n  \"uncertain_features\": [],\n  \"geographic_context\": \"withheld\"\n}",
+        "parsed_json": {
+          "confidence_band": "high",
+          "recommended_rank": "genus",
+          "recommended_taxon_name": "Oxalis",
+          "taxonomic_candidates": [
+            {
+              "taxon_name": "Oxalis",
+              "rank": "genus",
+              "confidence_band": "high"
+            }
+          ],
+          "diagnostic_features_observed": [
+            "trifoliate leaves with heart-shaped leaflets",
+            "yellow flowers present",
+            "herbaceous growth habit"
+          ],
+          "diagnostic_features_missing": [
+            "detailed seed pod morphology",
+            "bulb or taproot structure"
+          ],
+          "uncertain_features": [],
+          "geographic_context": "withheld"
+        },
+        "recommended_taxon": "Oxalis",
+        "recommended_rank": "genus",
+        "confidence": "high",
+        "candidates": [
+          {
+            "taxon_name": "Oxalis",
+            "rank": "genus",
+            "confidence_band": "high"
+          }
+        ],
+        "observed_features": {
+          "diagnostic_features_observed": [
+            "trifoliate leaves with heart-shaped leaflets",
+            "yellow flowers present",
+            "herbaceous growth habit"
+          ]
+        },
+        "diagnostic_features": {
+          "diagnostic_features_observed": [
+            "trifoliate leaves with heart-shaped leaflets",
+            "yellow flowers present",
+            "herbaceous growth habit"
+          ]
+        },
+        "missing_features": {
+          "diagnostic_features_missing": [
+            "detailed seed pod morphology",
+            "bulb or taproot structure"
+          ]
+        },
+        "uncertain_features": {
+          "uncertain_features": []
+        },
+        "geographic_context": "withheld",
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 3546,
+          "output_tokens": 173
+        },
+        "latency_ms": 2817,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_fetch_origin": "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev",
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-compact-v2",
+          "output_schema_sha256": "294cfb4a8cbeeb9353b584937fcfb0000ee746d46f693dcadb79bfcee052a11f",
+          "execution_concurrency": 3,
+          "canary_gate_report": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-compact-v2-canary.json",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752",
+        "image_sha256": [
+          "2c01f57184968e56efb6965ce2bf1d0e11396942bc07f7b3af11bff7597c031b",
+          "68fc1ccfdc5a799222351454478a0025275f55f9f8b6d22c6c162e2b703fb51e",
+          "faef3ead9e273c0465ca59a9f97ba9ba2e077542f4ab99cc8c175600c8f56583"
+        ],
+        "transmitted_image_sha256": [
+          "2c01f57184968e56efb6965ce2bf1d0e11396942bc07f7b3af11bff7597c031b",
+          "68fc1ccfdc5a799222351454478a0025275f55f9f8b6d22c6c162e2b703fb51e",
+          "faef3ead9e273c0465ca59a9f97ba9ba2e077542f4ab99cc8c175600c8f56583"
+        ],
+        "transmitted_image_bytes": [
+          576238,
+          520982,
+          1451152
+        ],
+        "transmitted_image_mime_types": [
+          "image/webp",
+          "image/webp",
+          "image/webp"
+        ],
+        "transmitted_post_sha256": "dcc5ae545bc6d41ac48db9a7032d476a20d56dac92d5de648b037fbc45ef9486",
+        "prompt_sha256": "ba51fce67c344e7555198bb2c01a31feff7dbfe9dc45e0794b4f9c96384167d6",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1781252770584",
+      "visitId": "record-1781252770584",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "Scarabaeidae",
+      "recommendedRank": "family",
+      "confidenceBand": "medium",
+      "geographicContext": "withheld",
+      "finishReason": "STOP",
+      "latencyMs": 2472,
+      "inputTokens": 3546,
+      "outputTokens": 268,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"family\",\n  \"recommended_taxon_name\": \"Scarabaeidae\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"Scarabaeidae\",\n      \"rank\": \"family\",\n      \"confidence_band\": \"medium\"\n    },\n    {\n      \"taxon_name\": \"Melolonthinae\",\n      \"rank\": \"family\",\n      \"confidence_band\": \"low\"\n    }\n  ],\n  \"diagnostic_features_observed\": [\n    \"Robust oval body shape typical of scarab beetles\",\n    \"Reddish-brown elytra with longitudinal striae\",\n    \"Visible pygidium\",\n    \"Lamellate antennal clubs not clearly visible\"\n  ],\n  \"diagnostic_features_missing\": [\n    \"Detailed antennal club structure\",\n    \"Underside and sternal morphology\",\n    \"Tarsal claws and leg spine details\"\n  ],\n  \"uncertain_features\": [\n    \"Exact species-level identity due to lack of ventral and head detail\"\n  ],\n  \"geographic_context\": \"withheld\"\n}",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "family",
+          "recommended_taxon_name": "Scarabaeidae",
+          "taxonomic_candidates": [
+            {
+              "taxon_name": "Scarabaeidae",
+              "rank": "family",
+              "confidence_band": "medium"
+            },
+            {
+              "taxon_name": "Melolonthinae",
+              "rank": "family",
+              "confidence_band": "low"
+            }
+          ],
+          "diagnostic_features_observed": [
+            "Robust oval body shape typical of scarab beetles",
+            "Reddish-brown elytra with longitudinal striae",
+            "Visible pygidium",
+            "Lamellate antennal clubs not clearly visible"
+          ],
+          "diagnostic_features_missing": [
+            "Detailed antennal club structure",
+            "Underside and sternal morphology",
+            "Tarsal claws and leg spine details"
+          ],
+          "uncertain_features": [
+            "Exact species-level identity due to lack of ventral and head detail"
+          ],
+          "geographic_context": "withheld"
+        },
+        "recommended_taxon": "Scarabaeidae",
+        "recommended_rank": "family",
+        "confidence": "medium",
+        "candidates": [
+          {
+            "taxon_name": "Scarabaeidae",
+            "rank": "family",
+            "confidence_band": "medium"
+          },
+          {
+            "taxon_name": "Melolonthinae",
+            "rank": "family",
+            "confidence_band": "low"
+          }
+        ],
+        "observed_features": {
+          "diagnostic_features_observed": [
+            "Robust oval body shape typical of scarab beetles",
+            "Reddish-brown elytra with longitudinal striae",
+            "Visible pygidium",
+            "Lamellate antennal clubs not clearly visible"
+          ]
+        },
+        "diagnostic_features": {
+          "diagnostic_features_observed": [
+            "Robust oval body shape typical of scarab beetles",
+            "Reddish-brown elytra with longitudinal striae",
+            "Visible pygidium",
+            "Lamellate antennal clubs not clearly visible"
+          ]
+        },
+        "missing_features": {
+          "diagnostic_features_missing": [
+            "Detailed antennal club structure",
+            "Underside and sternal morphology",
+            "Tarsal claws and leg spine details"
+          ]
+        },
+        "uncertain_features": {
+          "uncertain_features": [
+            "Exact species-level identity due to lack of ventral and head detail"
+          ]
+        },
+        "geographic_context": "withheld",
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 3546,
+          "output_tokens": 268
+        },
+        "latency_ms": 2472,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_fetch_origin": "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev",
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-compact-v2",
+          "output_schema_sha256": "294cfb4a8cbeeb9353b584937fcfb0000ee746d46f693dcadb79bfcee052a11f",
+          "execution_concurrency": 3,
+          "canary_gate_report": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-compact-v2-canary.json",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2",
+        "image_sha256": [
+          "2ab79c70ea5572c683301dc76daa7dd755722e2f49c5b1f8c759de48f26763ba",
+          "58e3f4310ce35d70cc89722799f74ca5ef9923de565016ae4e03cc23afcb20f3",
+          "3c2283e9733f882b651397bc0c39fb666a6d90eb613c642a94a56a12ead1df3a"
+        ],
+        "transmitted_image_sha256": [
+          "2ab79c70ea5572c683301dc76daa7dd755722e2f49c5b1f8c759de48f26763ba",
+          "58e3f4310ce35d70cc89722799f74ca5ef9923de565016ae4e03cc23afcb20f3",
+          "3c2283e9733f882b651397bc0c39fb666a6d90eb613c642a94a56a12ead1df3a"
+        ],
+        "transmitted_image_bytes": [
+          159146,
+          230440,
+          167298
+        ],
+        "transmitted_image_mime_types": [
+          "image/webp",
+          "image/webp",
+          "image/webp"
+        ],
+        "transmitted_post_sha256": "113016d908e9a566cbf7e8aaa25c93d25f6c765f6999dc0de3f221a4b00fd50a",
+        "prompt_sha256": "ba51fce67c344e7555198bb2c01a31feff7dbfe9dc45e0794b4f9c96384167d6",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430374598",
+      "visitId": "record-1784430374598",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "Acalypha",
+      "recommendedRank": "genus",
+      "confidenceBand": "medium",
+      "geographicContext": "withheld",
+      "finishReason": "STOP",
+      "latencyMs": 2896,
+      "inputTokens": 3546,
+      "outputTokens": 252,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"Acalypha\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"Acalypha\",\n      \"rank\": \"genus\",\n      \"confidence_band\": \"medium\"\n    },\n    {\n      \"taxon_name\": \"Euphorbiaceae\",\n      \"rank\": \"family\",\n      \"confidence_band\": \"high\"\n    }\n  ],\n  \"diagnostic_features_observed\": [\n    \"Bright red, fuzzy, elongated catkin-like inflorescences\",\n    \"Alternate simple leaves with serrated margins\",\n    \"Net-like venation on the leaf undersides\"\n  ],\n  \"diagnostic_features_missing\": [\n    \"Detailed floral structure and stamens\",\n    \"Fruit and seed morphology\"\n  ],\n  \"uncertain_features\": [\n    \"Exact species-level identity among red-flowered catkin species within the genus\"\n  ],\n  \"geographic_context\": \"withheld\"\n}",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "genus",
+          "recommended_taxon_name": "Acalypha",
+          "taxonomic_candidates": [
+            {
+              "taxon_name": "Acalypha",
+              "rank": "genus",
+              "confidence_band": "medium"
+            },
+            {
+              "taxon_name": "Euphorbiaceae",
+              "rank": "family",
+              "confidence_band": "high"
+            }
+          ],
+          "diagnostic_features_observed": [
+            "Bright red, fuzzy, elongated catkin-like inflorescences",
+            "Alternate simple leaves with serrated margins",
+            "Net-like venation on the leaf undersides"
+          ],
+          "diagnostic_features_missing": [
+            "Detailed floral structure and stamens",
+            "Fruit and seed morphology"
+          ],
+          "uncertain_features": [
+            "Exact species-level identity among red-flowered catkin species within the genus"
+          ],
+          "geographic_context": "withheld"
+        },
+        "recommended_taxon": "Acalypha",
+        "recommended_rank": "genus",
+        "confidence": "medium",
+        "candidates": [
+          {
+            "taxon_name": "Acalypha",
+            "rank": "genus",
+            "confidence_band": "medium"
+          },
+          {
+            "taxon_name": "Euphorbiaceae",
+            "rank": "family",
+            "confidence_band": "high"
+          }
+        ],
+        "observed_features": {
+          "diagnostic_features_observed": [
+            "Bright red, fuzzy, elongated catkin-like inflorescences",
+            "Alternate simple leaves with serrated margins",
+            "Net-like venation on the leaf undersides"
+          ]
+        },
+        "diagnostic_features": {
+          "diagnostic_features_observed": [
+            "Bright red, fuzzy, elongated catkin-like inflorescences",
+            "Alternate simple leaves with serrated margins",
+            "Net-like venation on the leaf undersides"
+          ]
+        },
+        "missing_features": {
+          "diagnostic_features_missing": [
+            "Detailed floral structure and stamens",
+            "Fruit and seed morphology"
+          ]
+        },
+        "uncertain_features": {
+          "uncertain_features": [
+            "Exact species-level identity among red-flowered catkin species within the genus"
+          ]
+        },
+        "geographic_context": "withheld",
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 3546,
+          "output_tokens": 252
+        },
+        "latency_ms": 2896,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_fetch_origin": "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev",
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-compact-v2",
+          "output_schema_sha256": "294cfb4a8cbeeb9353b584937fcfb0000ee746d46f693dcadb79bfcee052a11f",
+          "execution_concurrency": 3,
+          "canary_gate_report": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-compact-v2-canary.json",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267",
+        "image_sha256": [
+          "0b52d058750744cae5f747b73de92164656c17b96e8d9256fa93d323f1359141",
+          "1ca42989720be07b654b25eb5fd71b6b9d4ecd49245c2d3dc2543419fa1d99b0",
+          "62336f09742d9fd2dede9a85ca5db68c4b4743ccb5ff3c1048d4f5b1f5b49057"
+        ],
+        "transmitted_image_sha256": [
+          "0b52d058750744cae5f747b73de92164656c17b96e8d9256fa93d323f1359141",
+          "1ca42989720be07b654b25eb5fd71b6b9d4ecd49245c2d3dc2543419fa1d99b0",
+          "62336f09742d9fd2dede9a85ca5db68c4b4743ccb5ff3c1048d4f5b1f5b49057"
+        ],
+        "transmitted_image_bytes": [
+          270516,
+          256072,
+          1067882
+        ],
+        "transmitted_image_mime_types": [
+          "image/webp",
+          "image/webp",
+          "image/webp"
+        ],
+        "transmitted_post_sha256": "2bbf4ef7593794375c247aec64c92096d6f5ad032abfcfb122b61e325cf596b1",
+        "prompt_sha256": "ba51fce67c344e7555198bb2c01a31feff7dbfe9dc45e0794b4f9c96384167d6",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430118720",
+      "visitId": "record-1784430118720",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "Rubus",
+      "recommendedRank": "genus",
+      "confidenceBand": "medium",
+      "geographicContext": "withheld",
+      "finishReason": "STOP",
+      "latencyMs": 2812,
+      "inputTokens": 3546,
+      "outputTokens": 239,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"medium\",\n  \"recommended_rank\": \"genus\",\n  \"recommended_taxon_name\": \"Rubus\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"Rubus\",\n      \"rank\": \"genus\",\n      \"confidence_band\": \"medium\"\n    },\n    {\n      \"taxon_name\": \"Rosaceae\",\n      \"rank\": \"family\",\n      \"confidence_band\": \"high\"\n    }\n  ],\n  \"diagnostic_features_observed\": [\n    \"alternately arranged compound leaves\",\n    \"serrated leaf margins\",\n    \"prickles present on stems\",\n    \"palmate or pinnate leaflet arrangement\"\n  ],\n  \"diagnostic_features_missing\": [\n    \"mature flowers\",\n    \"ripe fruit morphology\",\n    \"stem cross-section details\"\n  ],\n  \"uncertain_features\": [\n    \"exact leaflet count per leaf varies in young shoots\"\n  ],\n  \"geographic_context\": \"withheld\"\n}",
+        "parsed_json": {
+          "confidence_band": "medium",
+          "recommended_rank": "genus",
+          "recommended_taxon_name": "Rubus",
+          "taxonomic_candidates": [
+            {
+              "taxon_name": "Rubus",
+              "rank": "genus",
+              "confidence_band": "medium"
+            },
+            {
+              "taxon_name": "Rosaceae",
+              "rank": "family",
+              "confidence_band": "high"
+            }
+          ],
+          "diagnostic_features_observed": [
+            "alternately arranged compound leaves",
+            "serrated leaf margins",
+            "prickles present on stems",
+            "palmate or pinnate leaflet arrangement"
+          ],
+          "diagnostic_features_missing": [
+            "mature flowers",
+            "ripe fruit morphology",
+            "stem cross-section details"
+          ],
+          "uncertain_features": [
+            "exact leaflet count per leaf varies in young shoots"
+          ],
+          "geographic_context": "withheld"
+        },
+        "recommended_taxon": "Rubus",
+        "recommended_rank": "genus",
+        "confidence": "medium",
+        "candidates": [
+          {
+            "taxon_name": "Rubus",
+            "rank": "genus",
+            "confidence_band": "medium"
+          },
+          {
+            "taxon_name": "Rosaceae",
+            "rank": "family",
+            "confidence_band": "high"
+          }
+        ],
+        "observed_features": {
+          "diagnostic_features_observed": [
+            "alternately arranged compound leaves",
+            "serrated leaf margins",
+            "prickles present on stems",
+            "palmate or pinnate leaflet arrangement"
+          ]
+        },
+        "diagnostic_features": {
+          "diagnostic_features_observed": [
+            "alternately arranged compound leaves",
+            "serrated leaf margins",
+            "prickles present on stems",
+            "palmate or pinnate leaflet arrangement"
+          ]
+        },
+        "missing_features": {
+          "diagnostic_features_missing": [
+            "mature flowers",
+            "ripe fruit morphology",
+            "stem cross-section details"
+          ]
+        },
+        "uncertain_features": {
+          "uncertain_features": [
+            "exact leaflet count per leaf varies in young shoots"
+          ]
+        },
+        "geographic_context": "withheld",
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 3546,
+          "output_tokens": 239
+        },
+        "latency_ms": 2812,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_fetch_origin": "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev",
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-compact-v2",
+          "output_schema_sha256": "294cfb4a8cbeeb9353b584937fcfb0000ee746d46f693dcadb79bfcee052a11f",
+          "execution_concurrency": 3,
+          "canary_gate_report": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-compact-v2-canary.json",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f",
+        "image_sha256": [
+          "2ad88d0a7540a55efc44db13cc62ea2af275eacd85ac73184d8a0c037f782448",
+          "a0b8eb2d83d485960b855d88f0bf1e4d50d5af171109502b62c9064548832564",
+          "43a999fc83fd12397e32d1ec211ca71d9311e77d49560fd7c5bc53f9f490afc3"
+        ],
+        "transmitted_image_sha256": [
+          "2ad88d0a7540a55efc44db13cc62ea2af275eacd85ac73184d8a0c037f782448",
+          "a0b8eb2d83d485960b855d88f0bf1e4d50d5af171109502b62c9064548832564",
+          "43a999fc83fd12397e32d1ec211ca71d9311e77d49560fd7c5bc53f9f490afc3"
+        ],
+        "transmitted_image_bytes": [
+          208596,
+          673720,
+          378124
+        ],
+        "transmitted_image_mime_types": [
+          "image/webp",
+          "image/webp",
+          "image/webp"
+        ],
+        "transmitted_post_sha256": "b713107ebff7ad1f4166bcf975df21535bf59f08fa44b96ea5327ccac7df6cf3",
+        "prompt_sha256": "ba51fce67c344e7555198bb2c01a31feff7dbfe9dc45e0794b4f9c96384167d6",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784431188621",
+      "visitId": "record-1784431188621",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "Passer montanus",
+      "recommendedRank": "species",
+      "confidenceBand": "high",
+      "geographicContext": "withheld",
+      "finishReason": "STOP",
+      "latencyMs": 2691,
+      "inputTokens": 3546,
+      "outputTokens": 323,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"high\",\n  \"recommended_rank\": \"species\",\n  \"recommended_taxon_name\": \"Passer montanus\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"Passer montanus\",\n      \"rank\": \"species\",\n      \"confidence_band\": \"high\"\n    },\n    {\n      \"taxon_name\": \"Passer domesticus\",\n      \"rank\": \"species\",\n      \"confidence_band\": \"low\"\n    },\n    {\n      \"taxon_name\": \"Passer\",\n      \"rank\": \"genus\",\n      \"confidence_band\": \"high\"\n    },\n    {\n      \"taxon_name\": \"Passeridae\",\n      \"rank\": \"family\",\n      \"confidence_band\": \"high\"\n    }\n  ],\n  \"diagnostic_features_observed\": [\n    \"distinct black cheek patch on white side of head\",\n    \"brown crown and nape\",\n    \"white collar partially visible\",\n    \"streaked brown back and wings\",\n    \"small conical bill\"\n  ],\n  \"diagnostic_features_missing\": [\n    \"close-up view of underparts\",\n    \"clear view of rump and tail feathers\"\n  ],\n  \"uncertain_features\": [\n    \"exact precise body pattern partially obscured by foliage\"\n  ],\n  \"geographic_context\": \"withheld\"\n}",
+        "parsed_json": {
+          "confidence_band": "high",
+          "recommended_rank": "species",
+          "recommended_taxon_name": "Passer montanus",
+          "taxonomic_candidates": [
+            {
+              "taxon_name": "Passer montanus",
+              "rank": "species",
+              "confidence_band": "high"
+            },
+            {
+              "taxon_name": "Passer domesticus",
+              "rank": "species",
+              "confidence_band": "low"
+            },
+            {
+              "taxon_name": "Passer",
+              "rank": "genus",
+              "confidence_band": "high"
+            },
+            {
+              "taxon_name": "Passeridae",
+              "rank": "family",
+              "confidence_band": "high"
+            }
+          ],
+          "diagnostic_features_observed": [
+            "distinct black cheek patch on white side of head",
+            "brown crown and nape",
+            "white collar partially visible",
+            "streaked brown back and wings",
+            "small conical bill"
+          ],
+          "diagnostic_features_missing": [
+            "close-up view of underparts",
+            "clear view of rump and tail feathers"
+          ],
+          "uncertain_features": [
+            "exact precise body pattern partially obscured by foliage"
+          ],
+          "geographic_context": "withheld"
+        },
+        "recommended_taxon": "Passer montanus",
+        "recommended_rank": "species",
+        "confidence": "high",
+        "candidates": [
+          {
+            "taxon_name": "Passer montanus",
+            "rank": "species",
+            "confidence_band": "high"
+          },
+          {
+            "taxon_name": "Passer domesticus",
+            "rank": "species",
+            "confidence_band": "low"
+          },
+          {
+            "taxon_name": "Passer",
+            "rank": "genus",
+            "confidence_band": "high"
+          },
+          {
+            "taxon_name": "Passeridae",
+            "rank": "family",
+            "confidence_band": "high"
+          }
+        ],
+        "observed_features": {
+          "diagnostic_features_observed": [
+            "distinct black cheek patch on white side of head",
+            "brown crown and nape",
+            "white collar partially visible",
+            "streaked brown back and wings",
+            "small conical bill"
+          ]
+        },
+        "diagnostic_features": {
+          "diagnostic_features_observed": [
+            "distinct black cheek patch on white side of head",
+            "brown crown and nape",
+            "white collar partially visible",
+            "streaked brown back and wings",
+            "small conical bill"
+          ]
+        },
+        "missing_features": {
+          "diagnostic_features_missing": [
+            "close-up view of underparts",
+            "clear view of rump and tail feathers"
+          ]
+        },
+        "uncertain_features": {
+          "uncertain_features": [
+            "exact precise body pattern partially obscured by foliage"
+          ]
+        },
+        "geographic_context": "withheld",
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 3546,
+          "output_tokens": 323
+        },
+        "latency_ms": 2691,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_fetch_origin": "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev",
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-compact-v2",
+          "output_schema_sha256": "294cfb4a8cbeeb9353b584937fcfb0000ee746d46f693dcadb79bfcee052a11f",
+          "execution_concurrency": 3,
+          "canary_gate_report": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-compact-v2-canary.json",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5",
+        "image_sha256": [
+          "dccfcdb4ab4b2de32d648e4cef9ff69d1867cb5fcb9d6a3b0da62193cc498316",
+          "ba8d7ae0fa64d1adc3e2c3ee6eebdbe0ac4af41f2c649b39f1b3090ebbee22cf",
+          "bfd9311b1a64827412539c6963582dc92bec85e8d462af5ed8729e160ba910be"
+        ],
+        "transmitted_image_sha256": [
+          "dccfcdb4ab4b2de32d648e4cef9ff69d1867cb5fcb9d6a3b0da62193cc498316",
+          "ba8d7ae0fa64d1adc3e2c3ee6eebdbe0ac4af41f2c649b39f1b3090ebbee22cf",
+          "bfd9311b1a64827412539c6963582dc92bec85e8d462af5ed8729e160ba910be"
+        ],
+        "transmitted_image_bytes": [
+          247628,
+          215158,
+          940410
+        ],
+        "transmitted_image_mime_types": [
+          "image/webp",
+          "image/webp",
+          "image/webp"
+        ],
+        "transmitted_post_sha256": "daa42ad012835ef15817e0168c8c07cb600fcdace027cab16c41458580ba8b2c",
+        "prompt_sha256": "ba51fce67c344e7555198bb2c01a31feff7dbfe9dc45e0794b4f9c96384167d6",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430530197",
+      "visitId": "record-1784430530197",
+      "imageCount": 3,
+      "schemaValid": true,
+      "taxonScore": null,
+      "criticalFailures": [],
+      "recommendedTaxonName": "Aves",
+      "recommendedRank": "family",
+      "confidenceBand": "low",
+      "geographicContext": "withheld",
+      "finishReason": "STOP",
+      "latencyMs": 2304,
+      "inputTokens": 3546,
+      "outputTokens": 206,
+      "finalOutput": {
+        "raw_final_content": "{\n  \"confidence_band\": \"low\",\n  \"recommended_rank\": \"family\",\n  \"recommended_taxon_name\": \"Aves\",\n  \"taxonomic_candidates\": [\n    {\n      \"taxon_name\": \"Aves\",\n      \"rank\": \"family\",\n      \"confidence_band\": \"low\"\n    }\n  ],\n  \"diagnostic_features_observed\": [\n    \"small perching bird silhouette\",\n    \"perched on a thin branch among foliage\"\n  ],\n  \"diagnostic_features_missing\": [\n    \"detailed bill shape and length\",\n    \"plumage coloration and patterns\",\n    \"wing and tail markings\",\n    \"eye color\"\n  ],\n  \"uncertain_features\": [\n    \"heavy digital pixelation obscuring key plumage details\",\n    \"distant perspective limiting anatomical assessment\"\n  ],\n  \"geographic_context\": \"withheld\"\n}",
+        "parsed_json": {
+          "confidence_band": "low",
+          "recommended_rank": "family",
+          "recommended_taxon_name": "Aves",
+          "taxonomic_candidates": [
+            {
+              "taxon_name": "Aves",
+              "rank": "family",
+              "confidence_band": "low"
+            }
+          ],
+          "diagnostic_features_observed": [
+            "small perching bird silhouette",
+            "perched on a thin branch among foliage"
+          ],
+          "diagnostic_features_missing": [
+            "detailed bill shape and length",
+            "plumage coloration and patterns",
+            "wing and tail markings",
+            "eye color"
+          ],
+          "uncertain_features": [
+            "heavy digital pixelation obscuring key plumage details",
+            "distant perspective limiting anatomical assessment"
+          ],
+          "geographic_context": "withheld"
+        },
+        "recommended_taxon": "Aves",
+        "recommended_rank": "family",
+        "confidence": "low",
+        "candidates": [
+          {
+            "taxon_name": "Aves",
+            "rank": "family",
+            "confidence_band": "low"
+          }
+        ],
+        "observed_features": {
+          "diagnostic_features_observed": [
+            "small perching bird silhouette",
+            "perched on a thin branch among foliage"
+          ]
+        },
+        "diagnostic_features": {
+          "diagnostic_features_observed": [
+            "small perching bird silhouette",
+            "perched on a thin branch among foliage"
+          ]
+        },
+        "missing_features": {
+          "diagnostic_features_missing": [
+            "detailed bill shape and length",
+            "plumage coloration and patterns",
+            "wing and tail markings",
+            "eye color"
+          ]
+        },
+        "uncertain_features": {
+          "uncertain_features": [
+            "heavy digital pixelation obscuring key plumage details",
+            "distant perspective limiting anatomical assessment"
+          ]
+        },
+        "geographic_context": "withheld",
+        "context_fields": {},
+        "other_final_output_fields": {},
+        "finish_reason": "STOP",
+        "token_usage": {
+          "input_tokens": 3546,
+          "output_tokens": 206
+        },
+        "latency_ms": 2304,
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini",
+        "config": {
+          "transport": "model-router",
+          "temperature": 0.1,
+          "max_output_tokens": 2048,
+          "thinking_level": "minimal",
+          "image_fetch_origin": "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev",
+          "stream": false,
+          "modalities": "omitted",
+          "response_mime_type": "application/json",
+          "response_schema_mode": "provider-native",
+          "output_schema": "zukan-model-bench-compact-v2",
+          "output_schema_sha256": "294cfb4a8cbeeb9353b584937fcfb0000ee746d46f693dcadb79bfcee052a11f",
+          "execution_concurrency": 3,
+          "canary_gate_report": "ops/model-bench/evidence/2026-08-30-gemini-3.5-flash-lite-compact-v2-canary.json",
+          "attempts_per_model": 1,
+          "fallback_count": 0
+        },
+        "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+        "post_sha256": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0",
+        "image_sha256": [
+          "a743b4e9e7c2e68b8524395d685fc3bcf55c5da9809535a2830fe66d8e57eeb8",
+          "e36214a4bf6ee8c9051b0452c3baac9a7dabdeff341b79c8313b57684208e7f0",
+          "ddc0e79182114a3550940337b5ddb7437829aae06e8bf1f4007568217dc86ccb"
+        ],
+        "transmitted_image_sha256": [
+          "a743b4e9e7c2e68b8524395d685fc3bcf55c5da9809535a2830fe66d8e57eeb8",
+          "e36214a4bf6ee8c9051b0452c3baac9a7dabdeff341b79c8313b57684208e7f0",
+          "ddc0e79182114a3550940337b5ddb7437829aae06e8bf1f4007568217dc86ccb"
+        ],
+        "transmitted_image_bytes": [
+          166712,
+          547952,
+          207786
+        ],
+        "transmitted_image_mime_types": [
+          "image/webp",
+          "image/webp",
+          "image/webp"
+        ],
+        "transmitted_post_sha256": "561fc6fea43c5ce2c9e96e4c84a700eff32f50cc963ab5473e4abc2d512ac0b1",
+        "prompt_sha256": "ba51fce67c344e7555198bb2c01a31feff7dbfe9dc45e0794b4f9c96384167d6",
+        "response_field": null,
+        "http_status": null,
+        "content_type": null,
+        "provider_result_meta": null,
+        "human_review": null,
+        "internal_reasoning_saved": false,
+        "raw_content_redacted": false
+      }
+    }
+  ]
+}

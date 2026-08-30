@@ -222,4 +222,46 @@ The separate xAI account had zero credit and required an additional provider-sid
 
 The 2026-08-30 resolution experiment kept the same seven posts, ordered 21 source images, dataset SHA, prompt SHA, and canonical rights, while recording deterministic 1024px transmission derivatives separately from the immutable source identities. Gemini 3.5 Flash-Lite physical resizing at default media resolution did not reduce input tokens and produced 6/7 schema-valid outputs. Gemini 3.5 Flash-Lite with `media_resolution=medium` reduced input tokens by 13.28% but also produced 6/7 schema-valid outputs and cost more because output tokens expanded. Cloudflare Workers AI `@cf/zai-org/glm-5.3-flash` stayed 7/7 schema valid and reduced input tokens by 43.10% and estimated cost by 25.76%, but p95 latency rose to 104,051ms and the key Bidens/Acalypha/blurred-bird weaknesses remained. No production image or model setting changed. See `evidence/2026-08-30-1024-resolution-comparison-v1.json` and `.md`.
 
-The benchmark full-run loop used for that Evidence is intentionally simple and sequential; it is not the production ZUKAN execution design. Production uses the `ikimon-prod-media-jobs` Cloudflare Queue, autoscaling consumer invocations, and Gemini provider batch jobs. The benchmark runner now also preserves valid final JSON when sensitive values or private-reasoning fields are present by removing only those fields/values instead of discarding the whole final output.
+The historical 1024px Evidence used the benchmark's sequential full-run loop; it is not the production ZUKAN execution design. Production uses the `ikimon-prod-media-jobs` Cloudflare Queue, autoscaling consumer invocations, and Gemini provider batch jobs. The benchmark runner now also preserves valid final JSON when sensitive values or private-reasoning fields are present by removing only those fields/values instead of discarding the whole final output.
+
+## Current mechanism hardening
+
+The versioned `compact-v2` output contract prevents the model from placing an essay in `recommended_taxon_name`. It uses a closed provider-native schema with separate, bounded candidate, observed-feature, missing-feature, uncertain-feature, and withheld-geography fields. Because Gemini Structured Outputs supports `enum`, `additionalProperties`, and array `maxItems` but not string `maxLength`, the runner also validates local string limits. Reports store `outputContractVersion` and `outputSchemaSha256`; comparisons refuse to mix legacy and compact contracts even when dataset and prompt SHAs match. Existing Evidence remains immutable.
+
+Use the compact prompt and contract as a new versioned canary; do not mix it with the historical prompt SHA:
+
+```bash
+ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
+npm run bench:zukan -- run \
+  --model=gemini-3.5-flash-lite \
+  --manifest=ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json \
+  --prompt-source=src/prompts/observation_reassess_bench_compact_v3.md \
+  --prompt-version=observation-reassess-post-compact-v3 \
+  --output-contract=compact-v2 \
+  --image-fetch-origin=https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev \
+  --limit=1 \
+  --report-label=compact-v2-canary
+```
+
+After that exact canary passes request and schema validation, the same fixed dataset can run with bounded concurrency. Parallel execution requires the canary report identity and a cost cap; a conservative 2x canary-cost projection must fit before any full-run request is dispatched:
+
+```bash
+ZUKAN_MODEL_BENCH_ALLOW_EXTERNAL_IMAGE_PROCESSING=1 \
+npm run bench:zukan -- run \
+  --model=gemini-3.5-flash-lite \
+  --manifest=ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json \
+  --prompt-source=src/prompts/observation_reassess_bench_compact_v3.md \
+  --prompt-version=observation-reassess-post-compact-v3 \
+  --output-contract=compact-v2 \
+  --image-fetch-origin=https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev \
+  --canary-report=ops/model-bench/evidence/<exact-canary-report>.json \
+  --concurrency=3 \
+  --max-estimated-cost-usd=1 \
+  --report-label=compact-v2-final
+```
+
+Production's existing conditional specialist lane now supports an opt-in `adaptive-medium-high` media profile: primary/census/environment requests use `MEDIA_RESOLUTION_MEDIUM`, while only posts selected by the existing visual-conflict/coarse-rank/review gate use `MEDIA_RESOLUTION_HIGH` in the specialist request. The default profile remains `current`; no production behavior changes until a separately governed staging canary explicitly sets `AI_OBSERVATION_MEDIA_PROFILE=adaptive-medium-high`.
+
+Cloudflare media Queue consumers now declare retry limit 3 and dedicated shadow/staging/production DLQs while leaving `max_concurrency` unset for platform autoscaling. The existing admin Monitoring Workspace reads `/api/v1/admin/observation-ai/queue-health` for pending/processing/failed/stale/exhausted counts. A same-origin, admin-only compare-and-swap endpoint at `/api/v1/admin/observation-ai/requeue` can reset one failed standard reassessment, preserve failure history, create the existing outbox job, and dispatch through `MEDIA_QUEUE`; it does not alter observation rights or accepted identification. These are source-only changes until a governed Worker deploy creates/attaches the DLQs and activates the routes.
+
+The compact-v2 provider validation completed after canonical rights passed 7/7. The frozen `zukan.earth` derived URLs were retained, while an explicit direct production Worker fetch origin supplied identical SHA-verified bytes because the public hostname currently redirects those image paths to Cloudflare Access. Gemini 3.5 Flash-Lite passed the one-post canary, then the seven-post run completed with concurrency 3: success/schema 7/7, p50/p95 2,812/2,937ms, 24,822/1,706 input/output tokens, estimated USD 0.0117116, full safe raw content 7/7, retry 0, fallback 0, and 8.53s wall time. Against the historical Gemini 3.5 Flash-Lite operational baseline, input tokens fell 70.04%, cost 61.54%, p95 39.21%, and wall time 65.15%. This is a different prompt/output contract and is not mixed into the historical quality comparison. The Bidens/Rubus target miss remained, so the verdict is `OPERATIONAL_IMPROVEMENT_QUALITY_NOT_PROVEN`, not a biological accuracy win. See `evidence/2026-08-30-mechanism-hardening-source-evidence-v1.{json,md}` and the linked compact-v2 reports.

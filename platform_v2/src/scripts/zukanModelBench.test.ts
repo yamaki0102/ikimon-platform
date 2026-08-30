@@ -3,6 +3,7 @@ import test from "node:test";
 import sharp from "sharp";
 import {
   ZUKAN_BENCH_CORE_POST_COUNT,
+  ZUKAN_BENCH_COMPACT_RESPONSE_JSON_SCHEMA,
   ZUKAN_BENCH_MODEL_RESPONSE_JSON_SCHEMA,
   ZUKAN_BENCH_MIN_GOLD_POSTS,
   ZUKAN_BENCH_SMOKE_POST_COUNT,
@@ -11,6 +12,7 @@ import {
   CLOUDFLARE_QWEN_3_8_27B_MODEL,
   CLOUDFLARE_XAI_GROK_4_6_MODEL,
   XAI_GROK_4_6_MODEL,
+  assertZukanBenchParallelCanary,
   benchmarkThinkingLevel,
   buildCloudflareAiChatPayload,
   buildCloudflareAiRequestHeaders,
@@ -28,13 +30,16 @@ import {
   generateWithCloudflareOfficialRest,
   generateWithCloudflareAiRest,
   rightsVettedTargetsFromResearchPayload,
+  resolveZukanBenchImageFetchUrl,
   loadZukanBenchPrompt,
+  mapWithConcurrency,
   prepareZukanBenchImageForTransmission,
   scoreZukanBenchResponse,
   selectDeterministicPostTargets,
   selectZukanBenchFixtures,
   type ZukanBenchFixture,
   type ZukanBenchModelReport,
+  type ZukanBenchOutputContractVersion,
 } from "./zukanModelBench.js";
 import { googleMediaResolution } from "../services/aiModelRouter.js";
 
@@ -96,6 +101,23 @@ test("Gemini benchmark uses the native schema for scored fields while allowing f
   ]);
 });
 
+test("compact v2 output contract separates the taxon name from bounded visual evidence", () => {
+  assert.equal(ZUKAN_BENCH_COMPACT_RESPONSE_JSON_SCHEMA.additionalProperties, false);
+  assert.deepEqual(ZUKAN_BENCH_COMPACT_RESPONSE_JSON_SCHEMA.required, [
+    "confidence_band",
+    "recommended_rank",
+    "recommended_taxon_name",
+    "taxonomic_candidates",
+    "diagnostic_features_observed",
+    "diagnostic_features_missing",
+    "uncertain_features",
+    "geographic_context",
+  ]);
+  assert.equal(ZUKAN_BENCH_COMPACT_RESPONSE_JSON_SCHEMA.properties.taxonomic_candidates.maxItems, 4);
+  assert.equal(ZUKAN_BENCH_COMPACT_RESPONSE_JSON_SCHEMA.properties.diagnostic_features_observed.maxItems, 8);
+  assert.match(ZUKAN_BENCH_COMPACT_RESPONSE_JSON_SCHEMA.properties.recommended_taxon_name.description, /name only/i);
+});
+
 test("Gemini 3.7 defaults to supported low thinking while older Gemini keeps minimal", () => {
   assert.equal(benchmarkThinkingLevel("gemini-3.7-flash"), "low");
   assert.equal(benchmarkThinkingLevel("gemini-3.5-flash-lite"), "minimal");
@@ -122,6 +144,64 @@ test("1024px benchmark transform is deterministic and records transmitted identi
   assert.deepEqual(first.buffer, second.buffer);
   assert.equal(first.sha256.length, 64);
   assert.equal(first.bytes, first.buffer.length);
+});
+
+test("image fetch origin override preserves the frozen path and never changes manifest identity", () => {
+  const frozen = "https://zukan.earth/derived/v1-compat/record-1/asset-1/display.webp";
+  assert.equal(resolveZukanBenchImageFetchUrl(frozen), frozen);
+  assert.equal(
+    resolveZukanBenchImageFetchUrl(frozen, "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev"),
+    "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/derived/v1-compat/record-1/asset-1/display.webp",
+  );
+  assert.throws(() => resolveZukanBenchImageFetchUrl(frozen, "https://example.com/not-root"), /image_fetch_origin_invalid/u);
+});
+
+test("bounded concurrency preserves fixture order and never exceeds the requested workers", async () => {
+  let active = 0;
+  let peak = 0;
+  const results = await mapWithConcurrency([0, 1, 2, 3, 4, 5, 6], 3, async (value) => {
+    active += 1;
+    peak = Math.max(peak, active);
+    await new Promise((resolve) => setTimeout(resolve, (6 - value) * 2));
+    active -= 1;
+    return `post-${value}`;
+  });
+  assert.deepEqual(results, ["post-0", "post-1", "post-2", "post-3", "post-4", "post-5", "post-6"]);
+  assert.equal(peak, 3);
+});
+
+test("parallel full run requires a matching successful canary and bounded projected cost", () => {
+  const canary = {
+    ...report("gemini-3.5-flash-lite", 0, "compact-v2"),
+    postCount: 1,
+    imageCount: 3,
+    successCount: 1,
+    modelRequestCount: 1,
+    schemaValidRatePct: 100,
+    datasetSha256: "d".repeat(64),
+    promptSha256: "p".repeat(64),
+    outputSchemaSha256: "c".repeat(64),
+    estimatedCostUsd: 0.004,
+  };
+  const input = {
+    canary,
+    model: "gemini-3.5-flash-lite",
+    datasetSha256: "d".repeat(64),
+    promptSha256: "p".repeat(64),
+    outputContract: "compact-v2" as const,
+    outputSchemaSha256: "c".repeat(64),
+    fixtureCount: 7,
+    maxEstimatedCostUsd: 0.1,
+  };
+  assert.doesNotThrow(() => assertZukanBenchParallelCanary(input));
+  assert.throws(
+    () => assertZukanBenchParallelCanary({ ...input, promptSha256: "x".repeat(64) }),
+    /zukan_bench_parallel_canary_identity_mismatch/u,
+  );
+  assert.throws(
+    () => assertZukanBenchParallelCanary({ ...input, maxEstimatedCostUsd: 0.01 }),
+    /zukan_bench_parallel_cost_cap_preflight/u,
+  );
 });
 
 test("benchmark prompt source defaults to the manifest prompt and supports an explicit override", async () => {
@@ -696,6 +776,32 @@ test("one post with multiple images receives one full taxon score", () => {
   assert.deepEqual(score.criticalFailures, []);
 });
 
+test("compact v2 rejects prose stuffed into names and unbounded evidence arrays", () => {
+  const valid = JSON.stringify({
+    confidence_band: "medium",
+    recommended_rank: "genus",
+    recommended_taxon_name: "Bidens",
+    taxonomic_candidates: [{ taxon_name: "Bidens", rank: "genus", confidence_band: "medium" }],
+    diagnostic_features_observed: ["small developing head", "hairy peduncle"],
+    diagnostic_features_missing: ["mature achenes"],
+    uncertain_features: ["outer bract count"],
+    geographic_context: "withheld",
+  });
+  assert.equal(scoreZukanBenchResponse(baseFixture, valid, "compact-v2").schemaValid, true);
+
+  const longName = JSON.stringify({
+    ...JSON.parse(valid),
+    recommended_taxon_name: "Bidens ".repeat(40),
+  });
+  assert.equal(scoreZukanBenchResponse(baseFixture, longName, "compact-v2").schemaValid, false);
+
+  const tooManyFeatures = JSON.stringify({
+    ...JSON.parse(valid),
+    diagnostic_features_observed: Array.from({ length: 9 }, (_, index) => `feature-${index}`),
+  });
+  assert.equal(scoreZukanBenchResponse(baseFixture, tooManyFeatures, "compact-v2").schemaValid, false);
+});
+
 test("public label without human consensus is not automatic gold", () => {
   const score = scoreZukanBenchResponse(
     { ...baseFixture, gold: { ...baseFixture.gold, status: "public_label" } },
@@ -714,11 +820,17 @@ test("specific location assertion is critical when location is hidden", () => {
   assert.ok(score.criticalFailures.includes("location_hallucination"));
 });
 
-function report(model: string, goldPostCount: number): ZukanBenchModelReport {
+function report(
+  model: string,
+  goldPostCount: number,
+  outputContractVersion: ZukanBenchOutputContractVersion = "legacy-v1",
+): ZukanBenchModelReport {
   return {
     version: "zukan-post-model-bench-v2",
     promptVersion: "observation-reassess-post-cold-start-v2",
     promptSha256: "p".repeat(64),
+    outputContractVersion,
+    outputSchemaSha256: outputContractVersion === "compact-v2" ? "c".repeat(64) : "l".repeat(64),
     model,
     provider: "test",
     manifestPath: "manifest.external.json",
@@ -768,4 +880,11 @@ test("an invalid baseline is never treated as approved", () => {
   const comparison = compareZukanBenchReports([baseline, challenger]);
   assert.equal(comparison.decision, "BASELINE_INVALID");
   assert.equal(comparison.winnerModel, "");
+});
+
+test("comparison refuses to mix different output contracts", () => {
+  assert.throws(
+    () => compareZukanBenchReports([report("baseline", 8, "legacy-v1"), report("challenger", 8, "compact-v2")]),
+    /zukan_bench_compare_output_contract_mismatch/u,
+  );
 });

@@ -16,6 +16,7 @@ const appSource = readFileSync(
 test("admin monitoring workspace page is registered and role gated", () => {
   assert.equal(adminMonitoringWorkspaceRouteContract.path, "/admin/monitoring-workspace");
   assert.equal(adminMonitoringWorkspaceRouteContract.apiPath, "/api/v1/monitoring/workspace/field");
+  assert.equal(adminMonitoringWorkspaceRouteContract.observationAiQueueHealthApiPath, "/api/v1/admin/observation-ai/queue-health");
   assert.equal(adminMonitoringWorkspaceRouteContract.guard, "admin_or_analyst_session");
   assert.equal(adminMonitoringWorkspaceRouteContract.writesData, false);
   assert.match(appSource, /registerAdminMonitoringWorkspaceRoutes/);
@@ -51,4 +52,11 @@ test("admin monitoring workspace keeps candidate records and readiness visible",
   assert.match(routeSource, /export_ready/);
   assert.match(routeSource, /メッシュ網羅/);
   assert.match(routeSource, /季節カバー/);
+});
+
+test("admin monitoring workspace displays observation AI backlog and exhausted retries read-only", () => {
+  assert.match(routeSource, /data-ai-queue-health/u);
+  assert.match(routeSource, /retry exhausted/u);
+  assert.match(routeSource, /observationAiQueueHealthApiPath/u);
+  assert.match(routeSource, /queueHealthResponse\.json/u);
 });
