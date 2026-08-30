@@ -4393,9 +4393,9 @@ ${alternateLinks}
     .site-brand-cluster { display: inline-flex; align-items: center; gap: 8px; min-width: 0; transition: width .18s ease; }
     .desktop-side-nav-toggle {
       display: none;
-      width: 40px;
-      height: 40px;
-      flex: 0 0 40px;
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
       place-items: center;
       padding: 0;
       border: 0;
@@ -4669,8 +4669,8 @@ ${alternateLinks}
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      min-height: 40px;
-      padding: 4px 14px;
+      min-height: 44px;
+      padding: 0 14px;
       border-radius: 999px;
       background: rgba(255,255,255,.92);
       border: 1px solid rgba(148,163,184,.32);
@@ -4682,6 +4682,7 @@ ${alternateLinks}
     .site-search-icon { font-size: 14px; opacity: .7; }
     .site-search-input {
       flex: 1 1 auto;
+      min-height: 44px;
       min-width: 0;
       border: 0;
       outline: 0;
@@ -4827,6 +4828,7 @@ ${alternateLinks}
     }
     .side-nav-collapsible-summary {
       list-style: none;
+      min-height: 44px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -4847,7 +4849,7 @@ ${alternateLinks}
     .side-nav-collapsible[open] > .side-nav-collapsible-summary::after { transform: rotate(45deg); }
     .side-nav-collapsible-summary:hover { color: #0f172a; }
     .desktop-side-nav-link {
-      min-height: 42px;
+      min-height: 44px;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -4892,7 +4894,7 @@ ${alternateLinks}
       gap: 2px;
     }
     .desktop-side-nav-text-link {
-      min-height: 34px;
+      min-height: 44px;
       display: flex;
       align-items: center;
       padding: 7px 14px;
@@ -4919,7 +4921,7 @@ ${alternateLinks}
       gap: 5px;
     }
     .desktop-side-nav-mini-summary {
-      min-height: 30px;
+      min-height: 44px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -6857,7 +6859,7 @@ ${alternateLinks}
         max-width: none;
       }
       .brand-logo-lockup {
-        min-height: 40px;
+        min-height: 44px;
         padding: 2px 8px 2px 0;
       }
       .brand-logo-lockup .brand-mark {
