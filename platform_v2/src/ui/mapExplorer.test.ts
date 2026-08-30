@@ -329,6 +329,12 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(html, /class="me-tab" role="tab" aria-selected="false" aria-label="雨雲" data-tab="rain"/);
   assert.match(html, /class="me-filter-group me-filter-display-group"/);
   assert.match(html, /<summary class="me-filter-toggle">詳しく絞る<\/summary>/);
+  assert.match(html, /role="group" aria-label="見る人"/);
+  assert.match(html, /data-actor-class="all"[^>]*>[\s\S]*🧭[\s\S]*すべて[\s\S]*<\/button>/);
+  assert.match(html, /data-actor-class="local_steward"[^>]*>[\s\S]*🏡[\s\S]*地域で暮らす人[\s\S]*<\/button>/);
+  assert.match(html, /data-actor-class="traveler"[^>]*>[\s\S]*🧳[\s\S]*訪れた人[\s\S]*<\/button>/);
+  assert.match(html, /data-actor-class="casual"[^>]*>[\s\S]*🚶[\s\S]*散歩中の人[\s\S]*<\/button>/);
+  assert.doesNotMatch(html, /Local steward|Traveler|Casual/);
   assert.match(html, /<span class="me-filter-label">レイヤー<\/span>/);
   assert.match(html, /data-filter-tab="rain" aria-pressed="false">雨雲<\/button>/);
   assert.match(html, /data-filter-tab="frontier" aria-pressed="false">記録の空白<\/button>/);
@@ -1228,6 +1234,8 @@ test("mobile map filters open from the thumb zone above the record launcher", ()
   assert.match(styles, /\.me-filter-panel \{[\s\S]*backdrop-filter: blur\(12px\);/);
   assert.match(styles, /\.me-bottom-sheet \{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ var\(--me-mobile-sheet-clearance\)\);/);
   assert.match(styles, /\.me-locate-fab \{ bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\); \}/);
+  assert.match(styles, /\.me-filter-toggle \{[\s\S]*?min-height: 44px; min-width: 86px;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.me-filter-toggle \{\s*min-width: 96px;\s*min-height: 44px;/);
   assert.match(script, /document\.querySelectorAll\('\.me-filter-tab-chip'\)\.forEach/);
   assert.match(script, /switchMapTab\(t\);[\s\S]*closeFilterDrawer\(\);/);
 });

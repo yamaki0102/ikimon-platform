@@ -22509,6 +22509,17 @@ test("production home prioritizes signed-in owner records over public feed recor
   ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
 
   await post("/api/v1/observations/upsert", env, {
+    observationId: "owner-quarantined-ui-fixture",
+    userId: "owner-home-user",
+    observedAt: "2026-06-26T09:00:00.000Z",
+    latitude: 34.81234,
+    longitude: 137.73234,
+    note: "synthetic UI screenshot fixture"
+  });
+  const quarantinedUiFixture = obs.observations.get("owner-quarantined-ui-fixture");
+  if (quarantinedUiFixture) quarantinedUiFixture.emergency_hidden = 1;
+
+  await post("/api/v1/observations/upsert", env, {
     observationId: "owner-private-home-record",
     userId: "owner-home-user",
     observedAt: "2026-06-24T09:00:00.000Z",
@@ -22633,6 +22644,7 @@ assert.match(homeBody, /data-owner-home-state-v2/);
   assert.match(homeBody, /cf-home-media-affordance is-record/);
   assert.match(homeBody, /aria-label="メモ"/);
   assert.match(homeBody, /自分だけの最新記録/);
+  assert.doesNotMatch(homeBody, /owner-quarantined-ui-fixture|synthetic UI screenshot fixture/);
   assert.match(homeBody, /自分の追加記録10/);
   assert.match(homeBody, /自分の記録/);
   assert.match(homeBody, /asset-owner-home-real-derivative/);
@@ -23436,8 +23448,13 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session", check.path);
         assert.doesNotMatch(body, /materialized record/, check.path);
         assert.match(body, /<title>記録する \| ZUKAN<\/title>/, check.path);
-        assert.match(body, /class="cf-record-brand"[^>]*>ZUKAN<\/a>/, check.path);
+        assert.match(body, /class="cf-record-brand"[^>]*>[\s\S]*zukan-app-icon-192\.png[\s\S]*zukan-wordmark\.svg[\s\S]*<\/a>/, check.path);
         assert.match(body, /カメラ・写真ライブラリ/, check.path);
+        assert.match(body, /\.cf-record-hero p\{[^}]*font-size:16px/);
+        assert.match(body, /\.cf-record-pick span\{[^}]*font-size:14px/);
+        assert.match(body, /\.cf-record-field textarea,\.cf-record-field input\{[^}]*min-height:48px/);
+        assert.match(body, /\.cf-record-coordinates summary\{[^}]*min-height:44px/);
+        assert.match(body, /focus-visible\{outline:3px solid #ebb72f/);
         assert.doesNotMatch(body, />ikimon<| - ikimon<|<span>image\/|<span>video\//, check.path);
       }
     }
