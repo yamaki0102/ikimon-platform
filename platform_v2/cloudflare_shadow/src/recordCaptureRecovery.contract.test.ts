@@ -16,5 +16,8 @@ test("native record capture persists a stable media retry draft", () => {
   assert.match(indexSource, /function renderCloudflareRecordHtml[\s\S]*recordPrefix \+ "\/record"/);
   assert.match(indexSource, /function renderCloudflareRecordHtml[\s\S]*searchParams\.set\("retry", "media"\)/);
   assert.match(indexSource, /function renderCloudflareRecordHtml[\s\S]*const observationId = recoverySubmissionId/);
+  assert.match(indexSource, /function renderCloudflareRecordHtml[\s\S]*let recoveryObservedAt = ""/);
+  assert.match(indexSource, /if \(!recoverySubmissionId\) \{[\s\S]*recoveryObservedAt = new Date\(\)\.toISOString\(\)/);
+  assert.match(indexSource, /observedAt: recoveryObservedAt/);
   assert.match(indexSource, /function renderCloudflareRecordHtml[\s\S]*location\.assign\(recordRecoveryHref\(\)\)/);
 });
