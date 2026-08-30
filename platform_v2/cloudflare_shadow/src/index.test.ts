@@ -21226,11 +21226,13 @@ test("Cloudflare staging QA materialization combines visual smoke paths with the
   for (const path of [
     "/ja/about",
     "/ja/learn",
+    "/ja/learn/invasive-species",
     "/ja/learn/terms/biodiversity",
     "/ja/privacy",
     "/ja/terms",
     "/ja/contact",
     "/ja/for-business/pricing",
+    "/ja/for-business/monitoring/apply",
     "/ja/for-researcher/apply",
   ]) {
     assert.ok(siteMapPaths.includes(path), `${path} must be derived from the current public SiteMap`);
