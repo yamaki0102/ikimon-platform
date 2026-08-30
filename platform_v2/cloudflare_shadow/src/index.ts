@@ -23721,34 +23721,39 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     *{box-sizing:border-box}
     body{margin:0;background:linear-gradient(180deg,#f5fbf8 0,#fff 72%);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
     .cf-record-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
-    .cf-record-brand{min-width:44px;min-height:44px;display:inline-flex;align-items:center;font-weight:900;text-decoration:none;color:var(--ink);font-size:20px;letter-spacing:.02em}
-    .cf-record-profile{color:var(--muted);font-size:13px;font-weight:800;overflow-wrap:anywhere;text-align:right}
+    .cf-record-brand{min-width:44px;min-height:44px;display:inline-flex;align-items:center;text-decoration:none;color:var(--ink)}
+    .cf-record-brand-lockup{display:inline-flex;align-items:center;gap:8px;min-width:0}
+    .cf-record-brand-mark{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:#fff;box-shadow:0 7px 16px rgba(15,23,42,.1)}
+    .cf-record-brand-mark img{display:block;width:100%;height:100%;object-fit:cover}
+    .cf-record-brand-wordmark{display:inline-flex;align-items:center;height:16px;aspect-ratio:711/222}
+    .cf-record-brand-wordmark img{display:block;width:auto;height:100%;object-fit:contain}
+    .cf-record-profile{color:var(--muted);font-size:14px;font-weight:800;overflow-wrap:anywhere;text-align:right}
     .cf-record-shell{width:min(720px,calc(100% - 24px));margin:18px auto 42px}
     .cf-record-hero{margin:0 0 14px}
     .cf-record-hero h1{margin:0 0 6px;font-size:30px;line-height:1.12;letter-spacing:0}
-    .cf-record-hero p{margin:0;color:var(--muted);font-size:14px}
+    .cf-record-hero p{margin:0;color:var(--muted);font-size:16px}
     .cf-record-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 12px}
-    .cf-record-pick{display:block;min-height:86px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(16,37,26,.06);font-weight:900}
+    .cf-record-pick{display:block;min-height:86px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(16,37,26,.06);font-weight:900;cursor:pointer}
     .cf-record-pick input{position:absolute;inline-size:1px;block-size:1px;opacity:.01}
-    .cf-record-pick span{display:block;margin-top:4px;color:var(--muted);font-size:12px;font-weight:800}
+    .cf-record-pick span{display:block;margin-top:4px;color:var(--muted);font-size:14px;font-weight:800}
     .cf-record-form{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 14px 34px rgba(16,37,26,.08)}
     .cf-record-form[hidden],.cf-record-submit[hidden]{display:none!important}
     .cf-record-field{display:block;margin:0 0 12px;font-weight:900}
-    .cf-record-field span{display:block;margin:0 0 6px;color:var(--muted);font-size:12px}
-    .cf-record-field textarea,.cf-record-field input{width:100%;min-height:42px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:inherit}
+    .cf-record-field span{display:block;margin:0 0 6px;color:var(--muted);font-size:14px}
+    .cf-record-field textarea,.cf-record-field input{width:100%;min-height:48px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:inherit}
     .cf-record-field textarea{min-height:86px;resize:vertical}
     .cf-record-coordinates{margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--mint);overflow:hidden}
-    .cf-record-coordinates summary{cursor:pointer;padding:10px 12px;font-weight:900}
+    .cf-record-coordinates summary{min-height:44px;display:flex;align-items:center;cursor:pointer;padding:0 12px;font-weight:900}
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
     .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--leaf));color:#fff;font-weight:900;font-size:16px}
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
-    .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible{outline:3px solid #0ea5e9;outline-offset:3px}
-    @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:54%;font-size:12px}}
+    .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible{outline:3px solid #ebb72f;outline-offset:3px;box-shadow:0 0 0 1px var(--ink)}
+    @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
   </style>
 </head>
 <body data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   <header class="cf-record-header">
-    <a class="cf-record-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN ホーム">ZUKAN</a>
+    <a class="cf-record-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN ホーム"><span class="cf-record-brand-lockup"><span class="cf-record-brand-mark"><img src="/assets/brand/zukan-app-icon-192.png" alt=""></span><span class="cf-record-brand-wordmark"><img src="/assets/brand/zukan-wordmark.svg" alt=""></span></span></a>
     <div class="cf-record-profile">${escapeHtml(session.displayName || session.userId)}</div>
   </header>
   <main class="cf-record-shell">

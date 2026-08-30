@@ -236,6 +236,11 @@ test("home CSS enforces mobile card sizing, touch targets, focus and reduced mot
   assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-1 \.is-item-1\{grid-column:1\/13/);
   assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-2 \.is-item-2\{grid-column:7\/13/);
   assert.match(LANDING_TOP_STYLES, /\.home-guest-proof\.is-count-5 \.is-item-5\{grid-column:10\/13/);
+  assert.doesNotMatch(
+    LANDING_TOP_STYLES,
+    /\.site-header-home \.brand-wordmark\{display:none\}/,
+    "the official ZUKAN wordmark must remain visible on mobile Home",
+  );
 });
 
 test("guest Top explains the invited entry and starts with the shared camera action", () => {

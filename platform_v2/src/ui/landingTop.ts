@@ -5485,4 +5485,4 @@ export const LANDING_TOP_STYLES = `${LANDING_HOME_STATE_STYLES}
 .home-place-section>div:last-child{min-width:0}
 .home-category-section li>span:last-child,.home-value-section li>span:last-child{min-width:0}
 .home-state-root :where(strong,small){overflow-wrap:anywhere}
-@media(max-width:767px){.site-header-home .brand-logo-lockup{min-width:0;flex:0 1 auto}.site-header-home .brand-wordmark{display:none}}`;
+@media(max-width:767px){.site-header-home .brand-logo-lockup{min-width:0;flex:0 1 auto}.site-header-home .brand-wordmark{display:inline-flex;height:15px}}`;

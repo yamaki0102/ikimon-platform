@@ -1085,12 +1085,12 @@ function actorPanelLabels(lang: SiteLang): {
     };
   }
   return {
-    actorLabel: "見る主体",
+    actorLabel: "見る人",
     actors: [
-      { value: "all", label: "All", icon: "🧭" },
-      { value: "local_steward", label: "Local steward", icon: "🏡" },
-      { value: "traveler", label: "Traveler", icon: "🧳" },
-      { value: "casual", label: "Casual", icon: "🚶" },
+      { value: "all", label: "すべて", icon: "🧭" },
+      { value: "local_steward", label: "地域で暮らす人", icon: "🏡" },
+      { value: "traveler", label: "訪れた人", icon: "🧳" },
+      { value: "casual", label: "散歩中の人", icon: "🚶" },
     ],
   };
 }
@@ -2024,11 +2024,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     roleOptions: ambient.roles,
     actorLabel: actor.actorLabel,
     actorOptions: actor.actors,
-    actorLensLabel: props.lang === "ja" ? "主体レンズ" : props.lang === "es" ? "Lente elegido" : props.lang === "pt-BR" ? "Lente ativa" : "Active lens",
-    actor_all: props.lang === "ja" ? "全体" : props.lang === "es" ? "Todo" : props.lang === "pt-BR" ? "Tudo" : "All",
-    actor_local_steward: props.lang === "ja" ? "地元 steward" : props.lang === "es" ? "Cuidador local" : props.lang === "pt-BR" ? "Guardião local" : "Local steward",
-    actor_traveler: props.lang === "ja" ? "Traveler" : props.lang === "es" ? "Viajero" : props.lang === "pt-BR" ? "Viajante" : "Traveler",
-    actor_casual: props.lang === "ja" ? "Casual" : props.lang === "es" ? "Casual" : props.lang === "pt-BR" ? "Casual" : "Casual",
+    actorLensLabel: props.lang === "ja" ? "見る人" : props.lang === "es" ? "Lente elegido" : props.lang === "pt-BR" ? "Lente ativa" : "Active lens",
+    actor_all: props.lang === "ja" ? "すべて" : props.lang === "es" ? "Todo" : props.lang === "pt-BR" ? "Tudo" : "All",
+    actor_local_steward: props.lang === "ja" ? "地域で暮らす人" : props.lang === "es" ? "Cuidador local" : props.lang === "pt-BR" ? "Guardião local" : "Local steward",
+    actor_traveler: props.lang === "ja" ? "訪れた人" : props.lang === "es" ? "Viajero" : props.lang === "pt-BR" ? "Viajante" : "Traveler",
+    actor_casual: props.lang === "ja" ? "散歩中の人" : props.lang === "es" ? "Casual" : props.lang === "pt-BR" ? "Casual" : "Casual",
     actorHint_all: props.lang === "ja" ? "地図全体のまだ知らない場所を眺める" : props.lang === "es" ? "Mirar lugares por conocer en todo el mapa" : props.lang === "pt-BR" ? "Ver lugares a conhecer no mapa todo" : "Browse unknown places across the map",
     actorHint_local_steward: props.lang === "ja" ? "同じ場所を続けて見る" : props.lang === "es" ? "Mirar para volver y cuidar" : props.lang === "pt-BR" ? "Olhar para voltar e cuidar" : "Look as someone who will return",
     actorHint_traveler: props.lang === "ja" ? "一度の訪問で開ける空白を探す" : props.lang === "es" ? "Buscar huecos para una sola visita" : props.lang === "pt-BR" ? "Buscar vazios de visita única" : "Look for gaps to open in one visit",
@@ -10797,7 +10797,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-filter-drawer { position: relative; flex: 0 0 auto; }
   .me-filter-toggle {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    min-height: 36px; min-width: 86px; padding: 0 12px;
+    min-height: 44px; min-width: 86px; padding: 0 12px;
     border-radius: 999px; cursor: pointer; list-style: none;
     background: #fff; border: 1px solid rgba(15,23,42,.1);
     box-shadow: 0 1px 4px rgba(15,23,42,.05);
@@ -13915,8 +13915,9 @@ export const MAP_EXPLORER_STYLES = `
   .me-result-row:focus-visible,
   .me-filter-toggle:focus-visible,
   .me-search-area-btn:focus-visible {
-    outline: 3px solid rgba(14,165,233,.32);
-    outline-offset: 2px;
+    outline: 3px solid #ebb72f;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 1px #0f172a;
   }
 
   @media (max-width: 1200px) {
@@ -14035,7 +14036,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-filter-drawer { flex: 0 0 auto; }
     .me-filter-toggle {
       min-width: 96px;
-      min-height: 38px;
+      min-height: 44px;
       padding: 0 12px;
     }
     .me-filter-drawer[open] .me-filter-toggle {
