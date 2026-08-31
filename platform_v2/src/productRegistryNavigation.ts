@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 export type NavigationMilestone = {
@@ -29,6 +29,11 @@ export type ProductRegistryNavigation = {
 function readJson<T>(name: string): T {
   const path = fileURLToPath(new URL(`../product-registry/${name}`, import.meta.url));
   return JSON.parse(readFileSync(path, "utf8")) as T;
+}
+
+function repositoryFileExists(locator: string): boolean {
+  const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
+  return existsSync(fileURLToPath(new URL(locator, `file://${repositoryRoot.replaceAll("\\", "/")}/`)));
 }
 
 export function loadProductRegistryNavigation(): ProductRegistryNavigation {
@@ -105,6 +110,9 @@ export function validateProductRegistryNavigation(
     if (!roadmapIds.has(task.milestone_id)) errors.push(`${task.id} references unknown milestone ${task.milestone_id}`);
     if (task.requirement_ids.length === 0 || task.requirement_ids.some((id) => !requirementIds.has(id))) errors.push(`${task.id} has invalid requirement_ids`);
     if (task.source_locators.length === 0 || task.negative_eval_ids.length === 0) errors.push(`${task.id} requires source and negative Eval locators`);
+    for (const locator of task.source_locators) {
+      if (!repositoryFileExists(locator)) errors.push(`${task.id} source locator does not exist: ${locator}`);
+    }
   }
   if (navigation.implementation_tasks.some((task) => task.milestone_id === "milestone.m5.live-camera-poc" && task.state === "planned")) {
     errors.push("live-camera POC must remain deferred until M5");
