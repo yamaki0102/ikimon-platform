@@ -10,14 +10,9 @@ import {
 } from "./productRegistry.js";
 
 function implementationRoutes(): ImplementationRouteRegistry {
-  return {
-    "site-map": new Set(SITE_PAGE_DEFINITIONS.map((page) => page.path)),
-  };
+  return { "site-map": new Set(SITE_PAGE_DEFINITIONS.map((page) => page.path)) };
 }
-
-function cloneRegistry(): ProductRegistry {
-  return structuredClone(loadProductRegistry());
-}
+function cloneRegistry(): ProductRegistry { return structuredClone(loadProductRegistry()); }
 
 test("ZUKAN product registry is internally consistent and matches implemented routes", () => {
   const registry = loadProductRegistry();
@@ -100,14 +95,12 @@ test("registry rejects route drift from implementation", () => {
   assert.ok(errors.some((error) => error.includes("route /records is absent from site-map")));
 });
 
-test("registry loads requirement evidence contracts and rejects unsupported lanes", () => {
+test("registry loads expanded requirement evidence contracts and rejects unsupported lanes", () => {
   const registry = cloneRegistry();
-  assert.equal(registry.requirements.length, 6);
-  const immediatePreview = registry.requirements.find(
-    (requirement) => requirement.id === "quality.zukan.capture.immediate-preview",
-  );
+  assert.equal(registry.requirements.length, 24);
+  const immediatePreview = registry.requirements.find((requirement) => requirement.id === "quality.zukan.capture.immediate-preview");
   if (!immediatePreview) throw new Error("immediate-preview requirement fixture is missing");
-  assert.match(immediatePreview.acceptance, /OSカメラ、接写カメラ、または写真ライブラリ/);
+  assert.match(immediatePreview.acceptance, /upload完了を待たず/);
   const ownerReturn = registry.requirements.find((requirement) => requirement.id === "quality.zukan.capture.owner-return");
   if (!ownerReturn) throw new Error("owner-return requirement fixture is missing");
   assert.deepEqual(ownerReturn.evidence_lanes, ["machine", "design", "human"]);
@@ -118,8 +111,7 @@ test("registry loads requirement evidence contracts and rejects unsupported lane
 
 test("registry contains no retired focused-experience identity", () => {
   const registry = cloneRegistry();
-  const serialized = JSON.stringify(registry);
-  assert.doesNotMatch(serialized, /kubiaka/iu);
+  assert.doesNotMatch(JSON.stringify(registry), /kubiaka/iu);
 });
 
 test("registry rejects incomplete selective invalidation contracts", () => {
