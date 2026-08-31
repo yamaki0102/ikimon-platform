@@ -95,9 +95,9 @@ test("registry rejects route drift from implementation", () => {
   assert.ok(errors.some((error) => error.includes("route /records is absent from site-map")));
 });
 
-test("registry loads expanded requirement evidence contracts and rejects unsupported lanes", () => {
+test("registry loads canonical requirement contracts and rejects unsupported lanes", () => {
   const registry = cloneRegistry();
-  assert.equal(registry.requirements.length, 28);
+  assert.equal(registry.requirements.length, 41);
   const immediatePreview = registry.requirements.find((requirement) => requirement.id === "quality.zukan.capture.immediate-preview");
   if (!immediatePreview) throw new Error("immediate-preview requirement fixture is missing");
   assert.match(immediatePreview.acceptance, /upload完了を待たず/);

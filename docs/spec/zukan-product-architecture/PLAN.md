@@ -8,6 +8,18 @@
 
 Prove one non-biological regional Record through the common semantic boundary without changing the current public runtime, database state or biodiversity behavior.
 
+## Product delivery roadmap
+
+The dependency order for the Product Registry and later implementation is:
+
+1. M1 — Personal Record/media integrity
+2. M2 — Safe Publication + rights/data lifecycle
+3. M3 — Program/Event/Quest/Workspace collaboration
+4. M4 — Regional knowledge / PublicationEdition / portability / correction
+5. M5 — Live-camera POC
+
+Live-camera remains deferred until M5. The Registry supplies static navigation only; resolved status and executor eligibility come from `operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus`.
+
 ## Stage 0 — Product contract
 
 - add the three-layer architecture contract

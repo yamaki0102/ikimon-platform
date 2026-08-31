@@ -8,8 +8,20 @@ export type TransitionStatus = "implemented" | "candidate" | "planned";
 type ProductRoot = {
   schema_version: string;
   product_id: string;
+  registries: Record<string, string>;
+  status_authority: { kind: string; locator: string; version: string };
+  canonical_chain: string[];
   required_surface_ids: string[];
   rules: Record<string, boolean>;
+};
+
+type Outcome = { id: string; statement: string; journey_refs: string[] };
+
+type CapabilityMatrixEntry = {
+  domain: string;
+  outcome_ref: string;
+  capability_refs: string[];
+  requirement_refs: string[];
 };
 
 type Capability = {
@@ -46,6 +58,8 @@ type Surface = {
 
 type Journey = {
   id: string;
+  outcome_refs: string[];
+  capability_refs: string[];
   start_surface: string;
   success_surface: string;
   steps: Array<{ surface: string; action: string }>;
@@ -106,11 +120,12 @@ export type ProductRequirement = {
   evidence_lanes: EvidenceLane[];
   verification_levels: VerificationLevel[];
   invalidation_keys: string[];
-  status: ImplementationStatus;
 };
 
 export type ProductRegistry = {
   product: ProductRoot;
+  outcomes: Outcome[];
+  capabilityMatrix: CapabilityMatrixEntry[];
   capabilities: Capability[];
   surfaces: Surface[];
   journeys: Journey[];
@@ -138,7 +153,8 @@ function repositoryFileExists(locator: string): boolean {
 
 export function loadProductRegistry(): ProductRegistry {
   const product = readJson<ProductRoot>("product.json");
-  const capabilities = readJson<{ capabilities: Capability[] }>("capabilities.json").capabilities;
+  const capabilityDocument = readJson<{ matrix: CapabilityMatrixEntry[]; capabilities: Capability[] }>("capabilities.json");
+  const outcomes = readJson<{ outcomes: Outcome[] }>("outcomes.json").outcomes;
   const surfaces = readJson<{ surfaces: Surface[] }>("surfaces.json").surfaces;
   const journeys = readJson<{ journeys: Journey[] }>("journeys.json").journeys;
   const design = readJson<{
@@ -153,7 +169,9 @@ export function loadProductRegistry(): ProductRegistry {
   const requirements = readJson<{ requirements: ProductRequirement[] }>("requirements.json").requirements;
   return {
     product,
-    capabilities,
+    outcomes,
+    capabilityMatrix: capabilityDocument.matrix,
+    capabilities: capabilityDocument.capabilities,
     surfaces,
     journeys,
     designFoundations: design.foundations,
@@ -208,7 +226,14 @@ export function validateProductRegistry(
   const errors: string[] = [];
   if (registry.product.schema_version !== "1.0.0") errors.push("product schema_version must be 1.0.0");
   if (registry.product.product_id !== "zukan") errors.push("product_id must be zukan");
+  if (registry.product.status_authority?.locator !== "operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus") {
+    errors.push("status authority must be the shared verified outcome resolver");
+  }
+  if (registry.product.registries?.evidence || registry.product.registries?.learning) {
+    errors.push("registry must not contain local evidence or learning projections");
+  }
 
+  const outcomes = addUniqueIds(errors, "outcomes", registry.outcomes);
   const capabilities = addUniqueIds(errors, "capabilities", registry.capabilities);
   const surfaces = addUniqueIds(errors, "surfaces", registry.surfaces);
   const journeys = addUniqueIds(errors, "journeys", registry.journeys);
@@ -221,11 +246,31 @@ export function validateProductRegistry(
   const requirements = addUniqueIds(errors, "requirements", registry.requirements);
   addUniqueIds(errors, "design exceptions", registry.designExceptions);
 
+  const capabilityMatrixRequirements = new Set<string>();
+  for (const entry of registry.capabilityMatrix) {
+    if (!outcomes.has(entry.outcome_ref)) errors.push(`${entry.domain} references unknown outcome ${entry.outcome_ref}`);
+    for (const capabilityId of entry.capability_refs) {
+      if (!capabilities.has(capabilityId)) errors.push(`${entry.domain} references unknown capability ${capabilityId}`);
+    }
+    for (const requirementId of entry.requirement_refs) {
+      if (!requirements.has(requirementId)) errors.push(`${entry.domain} references unknown requirement ${requirementId}`);
+      capabilityMatrixRequirements.add(requirementId);
+    }
+  }
+
   const evidenceLanes = new Set<EvidenceLane>(["machine", "design", "human"]);
   const verificationLevels = new Set<VerificationLevel>([
     "contract", "source", "deterministic", "integration", "staging", "design", "human",
   ]);
   const referencedRequirements = new Set<string>();
+  for (const outcome of registry.outcomes) {
+    if (!outcome.statement?.trim() || !nonEmptyStrings(outcome.journey_refs)) {
+      errors.push(`${outcome.id} requires statement and journey_refs`);
+    }
+    for (const journeyId of outcome.journey_refs ?? []) {
+      if (!journeys.has(journeyId)) errors.push(`${outcome.id} references unknown journey ${journeyId}`);
+    }
+  }
   for (const requirement of registry.requirements) {
     if (!qualities.has(requirement.quality_contract)) {
       errors.push(`${requirement.id} references unknown quality contract ${requirement.quality_contract}`);
@@ -373,6 +418,16 @@ export function validateProductRegistry(
 
   const allSurfaceStates = new Set(registry.surfaces.flatMap((surface) => surface.states));
   for (const journey of registry.journeys) {
+    if (!nonEmptyStrings(journey.outcome_refs)) errors.push(`${journey.id} requires outcome_refs`);
+    if (!nonEmptyStrings(journey.capability_refs)) errors.push(`${journey.id} requires capability_refs`);
+    for (const outcomeId of journey.outcome_refs ?? []) {
+      if (!outcomes.has(outcomeId)) errors.push(`${journey.id} references unknown outcome ${outcomeId}`);
+    }
+    const journeyCapabilities = new Set(journey.steps.flatMap((step) => surfaces.get(step.surface)?.capabilities ?? []));
+    for (const capabilityId of journey.capability_refs ?? []) {
+      if (!capabilities.has(capabilityId)) errors.push(`${journey.id} references unknown capability ${capabilityId}`);
+      else if (!journeyCapabilities.has(capabilityId)) errors.push(`${journey.id} capability ${capabilityId} is absent from its surfaces`);
+    }
     if (!surfaces.has(journey.start_surface)) errors.push(`${journey.id} has unknown start surface ${journey.start_surface}`);
     if (!surfaces.has(journey.success_surface)) errors.push(`${journey.id} has unknown success surface ${journey.success_surface}`);
     if (journey.steps.length < 2) errors.push(`${journey.id} must contain at least two steps`);
@@ -428,6 +483,7 @@ export function validateProductRegistry(
 
   for (const requirementId of requirements.keys()) {
     if (!referencedRequirements.has(requirementId)) errors.push(`${requirementId} is not referenced by a quality contract or journey`);
+    if (!capabilityMatrixRequirements.has(requirementId)) errors.push(`${requirementId} is not connected to a capability`);
   }
 
   if (journeys.size === 0) errors.push("at least one journey is required");

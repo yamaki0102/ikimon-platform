@@ -1,58 +1,57 @@
 # ZUKAN Product Experience Registry
 
-This directory is ZUKAN's machine-readable product and delivery contract. It evolves the existing Registry; do not create a parallel product-management framework.
+このディレクトリは、ZUKANのproduct meaning、Acceptance/Eval参照、静的な依存順と実装navigationを保持する正本projectionです。既存のProduct Registryを拡張し、別のproduct-management frameworkは作りません。
 
-Canonical chain:
+Canonical trace:
 
-`Outcome → Golden Journey → Capability → Requirement → Design → Dependency → Roadmap → Task → Acceptance/Eval → Runtime Evidence → Learning`
+`Outcome → Golden Journey → Capability → Requirement → Surface → Design → Dependency → Roadmap → Task → Acceptance/Eval → Shared Status Resolver → Runtime Evidence`
+
+## Authority boundary
+
+- SPEC/ADRはproduct meaning、PLANはdependency/migration orderを定義します。
+- Registryはstable IDs、acceptance、source asset locator、surface navigation、static dependency/roadmapを定義します。
+- resolved status、Claim ID、Collector authority、exact-SHA/freshness、Evidence acceptanceは共有Resolverだけが決めます。
+- Status authority: `operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus` (v1.0.0)
+- Registry内にevidence snapshot、live source audit、learning state、local status resolver、local next-slice selectorは置きません。
 
 ## Files
 
-- `product.json`: identity, canonical chain, required surfaces, registry index
-- `outcomes.json`: North Star, actor jobs, intent/source/runtime/learning truth separation
-- `surfaces.json`: actual user-facing routes/states/transitions and source binding
-- `capabilities.json`: current capabilities plus capture/records/map/home/workspace matrix
-- `journeys.json`: actor-based Golden Journeys, success/recovery and Requirement trace
-- `requirements.json`: stable product/trust/resilience contracts; `status` is legacy source hint only
-- `design.json`: visible states, layout/interaction contracts and bounded exceptions
+- `product.json`: identity、canonical chain、shared Resolver locator、source asset locator
+- `outcomes.json`: North Star、actor jobs、product outcomes and non-goals
+- `surfaces.json`: user-facing routes/states/transitions and implementation references; planned items must not claim a route/runtime
+- `capabilities.json`: capability matrix and stable Requirement references
+- `journeys.json`: actor-based Golden Journeys、success/recovery、Outcome/Capability/Requirement trace
+- `requirements.json`: stable product/trust/resilience contracts、evidence lanes、verification levels、invalidation keys
+- `design.json`: visible states、layout/interaction contracts and bounded exceptions
 - `content.json`: audience/message/CTA/prohibited claims/SEO/analytics contracts
-- `quality.json`: acceptance, existing test binding, negative/property contracts, desktop/mobile Journey evaluator
-- `delivery.json`: Requirement dependency graph, next 1–2 detailed milestones, deterministic next-slice and Luna task rules
-- `evidence.json`: evidence record contract and derived `planned → source-only → staging-verified → production-verified` progression
-- `learning.json`: production learning, evidence invalidation and explicit spec supersession loop
+- `quality.json`: acceptance、test locators、negative/property contracts、desktop/mobile Journey evaluator
+- `delivery.json`: static dependency graph、M1-M5 roadmap、Source/Delta/Done task contract and implementation navigation
 
-## Truth and status
+## Roadmap
 
-- Intent truth: Registry stable contract. It does not imply implementation.
-- Source truth: exact git SHA source/test/build evidence. It does not imply runtime.
-- Runtime truth: exact environment identity plus observed Journey/privacy behavior.
-- Learning truth: production observation. It may invalidate evidence or propose supersession but never silently rewrites stable intent.
+M1 Personal Record/media integrity → M2 Safe Publication + rights/data lifecycle → M3 Program/Event/Quest/Workspace collaboration → M4 Regional knowledge/PublicationEdition/portability/correction → M5 Live-camera POC.
 
-Progression is evidence-derived. `blocked`, `stale`, and `unknown` are orthogonal flags. Production being on the current SHA is runtime-active, not automatically production-verified.
+Live-camera is deferred to M5. Its POC is limited to official/authorized sources, an additive existing MapLibre layer, pin-selection lazy playback, and no frame processing without separate rights.
 
 ## Update flow
 
-1. Change the stable Requirement/Golden Journey first when behavior meaning changes.
-2. Follow `delivery.json` dependencies and select the smallest unmet topological frontier.
-3. Give Luna only `Source / Delta / Done`; do not delegate product strategy, privacy/publication meaning, or scope expansion.
-4. Implement against current source; reuse existing tests/evidence before creating new mechanisms.
-5. Run static/integration/desktop+mobile Journey and negative/property evaluation as required.
-6. Bind exact runtime identity before claiming staging/production verification.
-7. Record production learning; invalidate evidence or supersede the contract explicitly.
-
-Only the next 1–2 milestones are detailed. Later work stays dependency-centered until it becomes the active frontier. Workspace/collaboration is product intent and remains planned until current source/runtime evidence proves otherwise. Do not pre-abstract with NOCOSIL.
+1. SPEC/ADR/PLANでmeaning and orderを確認する。
+2. Registryのstable Requirement、Golden Journey、negative Eval、source locatorを更新する。
+3. `delivery.json`のstatic dependencies/navigationを更新する。Resolved statusを手書きしない。
+4. Shared Resolverのfresh projectionがexecutor eligibilityを示したTaskだけをSource / Delta / Doneで実装する。
+5. exact source identity、Requirement-specific Eval、real browser Journey、staging/runtime Evidenceを別々に検証する。
 
 ## Validation
 
-```bash
-cd platform_v2
-npx tsx src/scripts/checkProductRegistry.ts
-npm run test:product-registry
-npm run typecheck
+```powershell
+npm --prefix platform_v2 run test:product-registry
+npm --prefix platform_v2 run typecheck
+npm --prefix platform_v2 run test:node
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_zukan_product_registry.ps1
 ```
 
-The registry tests fail on route/surface drift, missing state/transition contracts, unsafe write contracts, unknown Requirement references, incomplete Requirement coverage, dependency cycles, roadmap gaps, invalid evidence references, and non-deterministic task-chain drift.
+Tests fail on route/surface drift、missing state/transition contracts、unsafe write contracts、unknown trace references、incomplete Requirement coverage、dependency cycles、roadmap gaps、or local status/evidence/selector reintroduction.
 
 ## Privacy/trust invariants
 
-Private/unknown/rejected/quarantined/blocked content fails closed on public projections. Exact coordinates are not a public projection. Face/person/living-place/private-land risk never silently expands public scope. AI output is a candidate, not human/expert verification. Public reuse permission is not external inference permission. Existing data, visibility, consent and rights are preserved unless an explicit approved migration changes them.
+Private/unknown/rejected/quarantined/blocked content fails closed on public projections. EXIF/GPS、exact coordinates、face/person/living-place/private-land risk、minor/guardian consent、withdrawal/deletion/retention、correction/takedown、PublicationEdition and external-inference permission remain explicit Requirement + negative Eval boundaries. AI output is a candidate, not human/expert verification. Existing data, visibility, consent and rights are preserved unless an explicit approved migration changes them. Basic personal/organizational contribution, viewing, participation, Review and ordinary Publication remain within the free core.
