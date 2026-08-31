@@ -1,36 +1,15 @@
 {
-  "schema_version": "1.0.0",
-  "product_id": "zukan",
-  "name": "ZUKAN",
-  "organization_id": "ikimon",
-  "lifecycle": "active",
-  "purpose": "撮ることで地域の今を記録し、本人と地域へ安全に返す",
-  "primary_outcome": "撮影開始から保存、本人の記録確認、地域の記録閲覧までが一貫した体験として成立する",
-  "canonical_domain": "zukan.earth",
-  "implementation_repository": "yamaki0102/ikimon-platform",
-  "registries": {
-    "surfaces": "surfaces.json",
-    "capabilities": "capabilities.json",
-    "journeys": "journeys.json",
-    "design": "design.json",
-    "content": "content.json",
-    "quality": "quality.json",
-    "requirements": "requirements.json"
-  },
-  "required_surface_ids": [
-    "zukan.home.public",
-    "zukan.capture.start",
-    "zukan.records.public",
-    "zukan.map.public",
-    "zukan.home.member"
-  ],
-  "rules": {
-    "all_surfaces_require_design_contract": true,
-    "all_surfaces_require_content_contract": true,
-    "all_surfaces_require_quality_contract": true,
-    "all_transitions_require_existing_target": true,
-    "owner_only_surfaces_require_denied_state": true,
-    "write_capabilities_require_failure_and_retry_contract": true,
-    "exceptions_require_owner_reason_and_expiry": true
-  }
+  "schema_version":"1.0.0",
+  "product_id":"zukan",
+  "name":"ZUKAN",
+  "organization_id":"ikimon",
+  "lifecycle":"active",
+  "purpose":"撮ることで地域の今を記録し、本人と地域へ安全に返す",
+  "primary_outcome":"人が地域で見つけた今を安全に記録し、本人へ確実に返し、本人が選んだ範囲だけを地域の共有知として再利用できる",
+  "canonical_domain":"zukan.earth",
+  "implementation_repository":"yamaki0102/ikimon-platform",
+  "registries":{"outcomes":"outcomes.json","surfaces":"surfaces.json","capabilities":"capabilities.json","journeys":"journeys.json","requirements":"requirements.json","design":"design.json","content":"content.json","quality":"quality.json","delivery":"delivery.json","evidence":"evidence.json","learning":"learning.json"},
+  "canonical_chain":["Outcome","Golden Journey","Capability","Requirement","Design","Dependency","Roadmap","Task","Acceptance/Eval","Runtime Evidence","Learning"],
+  "required_surface_ids":["zukan.home.public","zukan.capture.start","zukan.records.public","zukan.map.public","zukan.home.member"],
+  "rules":{"all_surfaces_require_design_contract":true,"all_surfaces_require_content_contract":true,"all_surfaces_require_quality_contract":true,"all_transitions_require_existing_target":true,"owner_only_surfaces_require_denied_state":true,"write_capabilities_require_failure_and_retry_contract":true,"exceptions_require_owner_reason_and_expiry":true}
 }
