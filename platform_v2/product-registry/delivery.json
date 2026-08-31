@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "dependency_graph": {
+    "rule": "depends_onを満たさないRequirementは単独sliceに選ばない。blocksは説明用で、selection truthはdepends_on。",
+    "edges": [
+      {"requirement":"req.capture.save-private","depends_on":["req.capture.media","req.capture.location-optional"]},
+      {"requirement":"req.records.owner-reopen","depends_on":["req.capture.save-private"]},
+      {"requirement":"req.trust.explicit-publication","depends_on":["req.capture.save-private","req.trust.private-default"]},
+      {"requirement":"req.trust.public-projection","depends_on":["req.trust.explicit-publication","req.trust.location-minimization","req.trust.face-private-place-safety","req.trust.ai-candidate-not-fact"]},
+      {"requirement":"req.records.public-discovery","depends_on":["req.trust.public-projection"]},
+      {"requirement":"req.map.safe-discovery","depends_on":["req.trust.public-projection"]},
+      {"requirement":"req.home.owner-context","depends_on":["req.records.owner-reopen"]},
+      {"requirement":"req.workspace.membership-authorization","depends_on":["req.trust.private-default"]},
+      {"requirement":"req.workspace.contribution","depends_on":["req.workspace.membership-authorization","req.capture.save-private"]},
+      {"requirement":"req.workspace.review","depends_on":["req.workspace.contribution","req.trust.confirmation-provenance"]},
+      {"requirement":"req.workspace.explicit-publish","depends_on":["req.workspace.review","req.trust.explicit-publication","req.trust.public-projection"]}
+    ]
+  },
+  "roadmap": [
+    {
+      "id": "milestone.m1.personal-record-loop",
+      "detail": "detailed",
+      "outcome": "個人が失敗・再試行を含めて記録し、本人の記録へ戻れる",
+      "target_requirements": ["req.capture.entry","req.capture.media","req.capture.location-optional","req.capture.ai-candidate","req.capture.save-private","req.resilience.capture-retry-idempotent","req.records.owner-reopen","req.home.owner-context"]
+    },
+    {
+      "id": "milestone.m2.safe-public-loop",
+      "detail": "detailed",
+      "outcome": "本人が明示公開した記録だけが安全な位置精度・確認状態でrecords/mapへ出る",
+      "target_requirements": ["req.trust.private-default","req.trust.explicit-publication","req.trust.location-minimization","req.trust.face-private-place-safety","req.trust.ai-candidate-not-fact","req.trust.confirmation-provenance","req.trust.public-projection","req.trust.existing-rights-preserved","req.records.public-discovery","req.map.safe-discovery"]
+    },
+    {
+      "id": "milestone.m3.collaborative-recording",
+      "detail": "dependency-only",
+      "outcome": "学校・団体・企業・自治体が権限とreviewを保って共同記録できる",
+      "target_requirements": ["req.workspace.membership-authorization","req.workspace.contribution","req.workspace.review","req.workspace.explicit-publish"]
+    }
+  ],
+  "next_slice_selection": {
+    "candidate_rule": "active detailed milestone内でtarget progression未達のRequirementのみ",
+    "dependency_rule": "depends_onがtarget progression以上、または同一coherent slice内で先に閉じられること",
+    "exclude": ["unresolved product strategy", "unresolved trust/privacy decision", "protected mutation requiring separate approval"],
+    "order": ["milestone rank asc", "golden-journey criticality desc", "dependency unlock count desc", "requirement priority desc", "requirement id asc"],
+    "slice_rule": "最小のtopological frontierで1つのobservable Journey stepまたはtrust invariantを閉じる"
+  },
+  "luna_task_contract": {
+    "format": ["Source", "Delta", "Done"],
+    "source": "exact baseline SHA、Requirement/Golden Journey ID、canonical registry/source/test/evidence locatorだけを書く",
+    "delta": "実装するobservable behaviorと禁止事項を書く。商品戦略・優先順位・公開判断をLunaに委ねない",
+    "done": "acceptance、negative/property test、persona×viewport、runtime identity/evidence条件を書く",
+    "rules": ["1 task = 1 coherent slice", "既にverifiedなworkを再実装しない", "deterministic failureを同条件retryしない", "新しい重要判断・権限拡大・irreversible mutationで停止する"]
+  }
+}
