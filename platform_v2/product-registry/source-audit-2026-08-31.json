@@ -1,7 +1,7 @@
 {
   "schema_version":"1.0.0",
   "product_id":"zukan",
-  "audited_at":"2026-08-31T15:07:00+09:00",
+  "audited_at":"2026-08-31T16:22:43+09:00",
   "baseline":{"repository":"yamaki0102/ikimon-platform","main_sha":"2127282dd6031afcc7a1710878b1d1d578a30525","previous_main_sha":"27d1e6fe12ba4e7a90d8902f537e300fe896d1e7","main_delta":"1 commit; only platform_v2/cloudflare_shadow/wrangler.jsonc changed, no Product Registry/route/Journey/trust source change","registry":"platform_v2/product-registry/","runtime_source":"platform_v2/"},
   "runtime_observation":{"production":{"domain":"zukan.earth","runtime_revision":"2127282dd6031afcc7a1710878b1d1d578a30525","health":"ok","classification":"runtime-active-not-requirement-verified"},"staging":{"domain":"staging.zukan.earth","observation":"Cloudflare Access 302 prevented runtime identity read-back","classification":"unknown"}},
   "before":{"surfaces":5,"capabilities":6,"golden_journeys":2,"stable_requirements":6,"gaps":["North Star/actor outcomes were implicit","records/map/home source scope exceeded Requirement coverage","school/organization/company/municipality collaboration had no stable Journey/Requirement contract in the Registry","manual planned/partial status was not runtime Evidence-derived","dependency/Roadmap/task-generation/learning layers were absent","privacy/trust source contracts were not fully promoted into stable Requirements"]},
