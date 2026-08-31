@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "loop": [
+    "production observationをevidence付きlearning itemとして記録",
+    "affected Journey/Requirementとinvalidation keyを特定",
+    "実装回帰ならevidenceをstale化しstable Requirementは保持",
+    "product/trust contract変更なら新Requirement/versionを作り旧contractをsupersededへ移行",
+    "dependency graphとnext-sliceを再計算",
+    "staging→productionで新contractを再検証してからcurrentへ昇格"
+  ],
+  "learning_item_contract": {
+    "required_fields": ["id", "observed_at", "evidence_refs", "affected_journey_ids", "affected_requirement_ids", "classification", "disposition"],
+    "classifications": ["runtime-regression", "usability-friction", "trust-privacy-risk", "unmet-job", "source-drift", "external-change"],
+    "dispositions": ["invalidate-evidence", "implementation-slice", "spec-proposal", "no-change"]
+  },
+  "supersession_contract": {
+    "rule": "stable contractを黙って編集せず、意味が変わる場合はnew id/version + supersedesを残す",
+    "preserve": ["old requirement", "decision/evidence lineage", "existing data", "existing publication rights"],
+    "protected": ["public/private meaning", "location precision", "consent/rights", "AI vs human/expert authority", "data deletion/migration"],
+    "auto_apply_forbidden": "protected contractの意味変更や既存データ移行をproduction learningだけで自動実行しない"
+  }
+}
