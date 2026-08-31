@@ -1,107 +1,54 @@
 {
-  "schema_version": "1.0.0",
-  "product_id": "zukan",
-  "global_invariants": [
-    "検証対象source SHAとstaging runtime identityが一致する",
-    "private・blurred・blocked_public・missing-gate・unknown・errorは公開面でfail closedとなる",
-    "owner-only surfaceは本人以外のreadを拒否する",
-    "write capabilityは失敗・再試行・二重送信を検証する",
-    "desktopとmobileで横スクロール、主要CTA、focus、空状態、error状態を検証する",
-    "Visual baseline更新には理由と関連Decisionを残す",
-    "production、DB、secret、DNS、外部送信は個別の高影響gateを維持する"
+  "schema_version":"1.0.0",
+  "product_id":"zukan",
+  "global_invariants":[
+    "検証対象source SHAとruntime identityを一致させる",
+    "private・blocked・unknown・errorはpublic projectionでfail closed",
+    "owner/member/role外のread/write/reviewを拒否する",
+    "writeは失敗・再試行・二重送信を検証する",
+    "AI候補と人/専門家確認を同一視しない",
+    "public reuse permissionとexternal inference permissionを同一視しない",
+    "既存data/visibility/consent/rightsを暗黙変更しない",
+    "外部ライブcameraはsource/owner/embed可否/attribution/死活を確認し、別途権利なしにframe保存・抽出・AI解析しない",
+    "desktop/mobileで主要Journeyの状態・導線・回復を実操作検証する"
   ],
-  "contracts": [
-    {
-      "id": "quality.zukan.home-public",
-      "surface": "zukan.home.public",
-      "required_states": ["guest", "member", "empty", "populated", "loading", "degraded", "error"],
-      "acceptance": [
-        "guest Homeはpublic eligibleな記録だけを表示する",
-        "主CTAから撮影開始へ到達できる",
-        "価値提示、公開記録、場所の導線が競合しない"
-      ],
-      "tests": [
-        { "locator": "platform_v2/e2e/home.staging.spec.ts", "kind": "journey", "status": "canonical" },
-        { "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts", "kind": "visual", "status": "canonical" },
-        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
-      ]
-    },
-    {
-      "id": "quality.zukan.capture",
-      "surface": "zukan.capture.start",
-      "required_states": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying"],
-      "acceptance": [
-        "未ログイン・入力不足・upload失敗・保存失敗を成功扱いしない",
-        "再試行で二重登録を発生させない",
-        "保存後に本人の記録へ戻れる"
-      ],
-      "requirement_refs": [
-        "quality.zukan.capture.source-choice",
-        "quality.zukan.capture.immediate-preview",
-        "quality.zukan.capture.draft-recovery",
-        "quality.zukan.capture.idempotent-save",
-        "quality.zukan.capture.owner-return",
-        "quality.zukan.capture.truthful-status"
-      ],
-      "tests": [
-        { "locator": "platform_v2/e2e/record-funnel.staging.spec.ts", "kind": "journey", "status": "canonical" },
-        { "locator": "platform_v2/e2e/record-feedback-loop.staging.spec.ts", "kind": "journey", "status": "canonical" },
-        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
-      ]
-    },
-    {
-      "id": "quality.zukan.records",
-      "surface": "zukan.records.public",
-      "required_states": ["empty", "populated", "searching", "no-results", "loading", "error"],
-      "acceptance": [
-        "非公開記録を表示しない",
-        "0件と障害を区別する",
-        "検索条件を解除し撮影または場所へ移動できる"
-      ],
-      "tests": [
-        { "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts", "kind": "visual", "status": "canonical" },
-        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
-      ]
-    },
-    {
-      "id": "quality.zukan.map",
-      "surface": "zukan.map.public",
-      "required_states": ["loading", "populated", "empty", "location-denied", "map-unavailable", "error"],
-      "acceptance": [
-        "公開可能な位置精度だけを表示する",
-        "地図が利用できない場合も記録一覧へ移動できる",
-        "mobileとdesktopで操作不能や横スクロールがない"
-      ],
-      "tests": [
-        { "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts", "kind": "visual", "status": "canonical" },
-        { "locator": "platform_v2/e2e/map-performance.staging.spec.ts", "kind": "performance", "status": "canonical" },
-        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
-      ]
-    },
-    {
-      "id": "quality.zukan.home-member",
-      "surface": "zukan.home.member",
-      "required_states": ["unauthenticated", "empty", "populated", "loading", "degraded", "error"],
-      "acceptance": [
-        "本人の記録と公開記録を混同しない",
-        "empty stateから撮影へ進める"
-      ],
-      "tests": [
-        { "locator": "platform_v2/e2e/home.staging.spec.ts", "kind": "journey", "status": "canonical" },
-        { "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts", "kind": "visual", "status": "canonical" },
-        { "locator": "platform_v2/src/productRegistry.test.ts", "kind": "registry", "status": "candidate" }
-      ]
-    }
+  "contracts":[
+    {"id":"quality.zukan.home-public","surface":"zukan.home.public","required_states":["guest","member","empty","populated","loading","degraded","error"],"acceptance":["guest Homeはpublic eligibleのみ表示","主CTAから記録開始へ到達","価値提示/記録/場所の導線が競合しない"],"tests":[{"locator":"platform_v2/e2e/home.staging.spec.ts","kind":"journey","status":"canonical"},{"locator":"platform_v2/e2e/sitemap-registry-visual.staging.spec.ts","kind":"visual","status":"canonical"}]},
+    {"id":"quality.zukan.capture","surface":"zukan.capture.start","required_states":["unauthenticated","ready","capturing","preview","submitting","success","validation-error","upload-error","offline","retrying"],"acceptance":["拒否/入力不足/upload/保存/AI失敗を成功扱いしない","retryでlogical record/mediaを重複作成しない","保存後に本人の記録へ戻れる"],"requirement_refs":["quality.zukan.capture.entry","quality.zukan.capture.source-choice","quality.zukan.capture.immediate-preview","quality.zukan.capture.location-optional","quality.zukan.capture.ai-candidate","quality.zukan.capture.draft-recovery","quality.zukan.capture.idempotent-save","quality.zukan.capture.truthful-status","quality.zukan.capture.owner-return","quality.zukan.record.source-reference-integrity","quality.zukan.record.claim-separation","quality.zukan.rights.exif-minimization"],"tests":[{"locator":"platform_v2/e2e/record-funnel.staging.spec.ts","kind":"journey","status":"canonical"},{"locator":"platform_v2/e2e/record-feedback-loop.staging.spec.ts","kind":"journey","status":"canonical"},{"locator":"platform_v2/e2e/record-capture-retry.zukan.staging.spec.ts","kind":"resilience","status":"canonical"}]},
+    {"id":"quality.zukan.records","surface":"zukan.records.public","required_states":["empty","populated","searching","no-results","loading","error"],"acceptance":["private/blocked/exact-locationを表示しない","0件と障害を区別","AI候補/人/専門家確認の由来を誤表示しない"],"requirement_refs":["quality.zukan.trust.private-default","quality.zukan.trust.explicit-publication","quality.zukan.trust.face-private-place-safety","quality.zukan.trust.ai-candidate-not-fact","quality.zukan.trust.confirmation-provenance","quality.zukan.trust.public-projection","quality.zukan.trust.existing-rights-preserved","quality.zukan.records.public-discovery","quality.zukan.review.provenance","quality.zukan.rights.consent-scope","quality.zukan.rights.minor-guardian-consent","quality.zukan.rights.export-withdrawal-deletion","quality.zukan.rights.retention","quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown","quality.zukan.free-core.boundary"],"tests":[{"locator":"platform_v2/e2e/sitemap-registry-visual.staging.spec.ts","kind":"visual","status":"canonical"},{"locator":"platform_v2/e2e/record-permissions.zukan.staging.spec.ts","kind":"privacy","status":"planned"}]},
+    {"id":"quality.zukan.map","surface":"zukan.map.public","required_states":["loading","populated","empty","location-denied","map-unavailable","error"],"acceptance":["public eligibleかつ許可された位置精度のみ表示","map不能でもrecordsへ退避","mobile/desktopで操作不能や横overflowなし","ライブcameraは権利・死活を確認したsourceだけを補助layerとして出し、playerはpin選択時だけloadする","ライブcameraをZUKAN observation扱いせず、現在映像からpublic eligibleな今日・季節・過去記録へ戻れる"],"requirement_refs":["quality.zukan.trust.location-minimization","quality.zukan.map.safe-discovery","quality.zukan.map.live-camera-source-eligibility","quality.zukan.map.live-camera-health","quality.zukan.map.live-camera-lazy-playback","quality.zukan.map.live-camera-record-context","quality.zukan.place.context-integrity"],"tests":[{"locator":"platform_v2/e2e/sitemap-registry-visual.staging.spec.ts","kind":"visual","status":"canonical"},{"locator":"platform_v2/e2e/map-performance.staging.spec.ts","kind":"performance","status":"canonical"},{"locator":"platform_v2/e2e/live-camera-layer.zukan.staging.spec.ts","kind":"journey-resilience-rights","status":"planned"}]},
+    {"id":"quality.zukan.home-member","surface":"zukan.home.member","required_states":["unauthenticated","empty","populated","loading","degraded","error"],"acceptance":["本人の記録とpublic記録を混同しない","empty/errorから記録開始へ戻れる","共同利用が未実装ならworkspace成功を装わない"],"requirement_refs":["quality.zukan.home.owner-context","quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish","quality.zukan.program-event-quest.lifecycle"],"tests":[{"locator":"platform_v2/e2e/home.staging.spec.ts","kind":"journey","status":"canonical"},{"locator":"platform_v2/e2e/sitemap-registry-visual.staging.spec.ts","kind":"visual","status":"canonical"},{"locator":"platform_v2/e2e/workspace-authz.zukan.staging.spec.ts","kind":"authorization","status":"planned"}]}
   ],
-  "release_gates": [
-    "registry invariant test",
-    "typecheck and node tests",
-    "exact-SHA source validation",
-    "independent full-diff review P0=0 P1=0",
-    "exact-SHA staging deploy and runtime identity read-back",
-    "journey E2E for write and owner-only paths",
-    "state and viewport Visual QA",
-    "rollback locator",
-    "merged-SHA revalidation before production"
-  ]
+  "negative_property_tests":[
+    {"id":"prop.capture.same-intent-one-record","requirements":["quality.zukan.capture.idempotent-save"],"property":"同一capture intentをN回replayしても1 logical observation + 1 logical media setへ収束","current_test":"platform_v2/e2e/record-capture-retry.zukan.staging.spec.ts"},
+    {"id":"prop.capture.same-key-different-payload-conflict","requirements":["quality.zukan.capture.idempotent-save"],"property":"同一idempotency keyの異なるpayloadは既存recordを上書きしない","current_test":"planned"},
+    {"id":"prop.capture.partial-failure-recoverable","requirements":["quality.zukan.capture.draft-recovery","quality.zukan.capture.idempotent-save"],"property":"media/AI/network partial failure後もrecord/draftを失わずretryで重複しない","current_test":"platform_v2/e2e/record-capture-retry.zukan.staging.spec.ts"},
+    {"id":"prop.capture.permission-denial-nondestructive","requirements":["quality.zukan.capture.location-optional","quality.zukan.capture.source-choice"],"property":"camera/location拒否は記録中データを破棄せず代替経路を提示","current_test":"planned"},
+    {"id":"prop.public.no-private-leak","requirements":["quality.zukan.trust.private-default","quality.zukan.trust.public-projection"],"property":"private/rejected/quarantined/blocked mediaはpublic API/HTML/map/feed/cacheの全投影で0件","current_test":"planned"},
+    {"id":"prop.public.no-exact-location","requirements":["quality.zukan.trust.location-minimization","quality.zukan.trust.public-projection"],"property":"public URL/HTML/API/feedにexact coordinatesを含めず許可された粗化位置だけを出す","current_test":"planned"},
+    {"id":"prop.public.scope-monotonic-by-explicit-action","requirements":["quality.zukan.trust.explicit-publication","quality.zukan.trust.existing-rights-preserved"],"property":"権限ある明示操作なしにvisibility scopeが広がらない","current_test":"planned"},
+    {"id":"prop.privacy.face-private-place-fail-closed","requirements":["quality.zukan.trust.face-private-place-safety"],"property":"face/生活場所/私有地riskはsilent public expansionを起こさない","current_test":"planned"},
+    {"id":"prop.ai.failure-never-becomes-fact","requirements":["quality.zukan.capture.ai-candidate","quality.zukan.trust.ai-candidate-not-fact"],"property":"timeout/malformed/low confidenceでも保存継続しAI値をverifiedへ昇格しない","current_test":"planned"},
+    {"id":"prop.provenance.human-not-overwritten-by-ai","requirements":["quality.zukan.trust.confirmation-provenance"],"property":"後続AI処理が人/専門家確認provenanceを上書きしない","current_test":"planned"},
+    {"id":"prop.live-camera.unlicensed-source-not-exposed","requirements":["quality.zukan.map.live-camera-source-eligibility"],"property":"reuse/embed/attribution根拠がunknownまたは不許可のcameraは地図layerへ公開しない","current_test":"planned"},
+    {"id":"prop.live-camera.source-import-idempotent","requirements":["quality.zukan.map.live-camera-source-eligibility","quality.zukan.map.live-camera-health"],"property":"同一provider + source_refをN回取込しても1 logical cameraへ収束し、権利・死活履歴を破壊しない","current_test":"planned"},
+    {"id":"prop.live-camera.dead-never-live","requirements":["quality.zukan.map.live-camera-health"],"property":"deleted/private/ended/unverified sourceをLIVE表示せず、最終確認時刻を偽らない","current_test":"planned"},
+    {"id":"prop.live-camera.player-only-on-selection","requirements":["quality.zukan.map.live-camera-lazy-playback"],"property":"layer OFFまたはcamera未選択/close後はYouTube等のplayer/iframe resourceがactiveでない","current_test":"planned"},
+    {"id":"prop.live-camera.outage-isolated","requirements":["quality.zukan.map.live-camera-health","quality.zukan.map.live-camera-lazy-playback"],"property":"provider timeout/403/404/endedでもMap/Recordsの閲覧・操作を継続できる","current_test":"planned"},
+    {"id":"prop.live-camera.no-frame-processing-without-rights","requirements":["quality.zukan.map.live-camera-source-eligibility"],"property":"別途の権利契約がないcameraからframe snapshot/storage/extraction/AI inferenceを行わない","current_test":"planned"},
+    {"id":"prop.workspace.authz-fail-closed","requirements":["quality.zukan.workspace.membership-authorization","quality.zukan.workspace.review"],"property":"非member/権限外actorはread/write/review不可","current_test":"planned"},
+    {"id":"prop.workspace.retry-converges","requirements":["quality.zukan.workspace.contribution"],"property":"同一contribution/review replayは重複せず同じlogical stateへ収束","current_test":"planned"},
+    {"id":"prop.record.source-and-claim-remain-separate","requirements":["quality.zukan.record.source-reference-integrity","quality.zukan.record.claim-separation"],"property":"RecordはSource/Evidenceを埋め込まず、後続Claim/Reviewで元Recordを上書きしない","current_test":"planned"},
+    {"id":"prop.place.unknown-provenance-is-explicit","requirements":["quality.zukan.place.context-integrity"],"property":"unknown provenance/date/locationは捏造せず、公開位置policyを越えて表示しない","current_test":"planned"},
+    {"id":"prop.review.ai-never-becomes-human","requirements":["quality.zukan.review.provenance","quality.zukan.trust.confirmation-provenance"],"property":"AI候補・低信頼・欠落根拠は人/専門家Reviewへ昇格しない","current_test":"planned"},
+    {"id":"prop.rights.external-inference-is-separate","requirements":["quality.zukan.rights.consent-scope"],"property":"表示/再公開同意なしに保存・分析・外部推論の許可を推測しない","current_test":"planned"},
+    {"id":"prop.media.exif-gps-not-public","requirements":["quality.zukan.rights.exif-minimization"],"property":"公開media/API/HTML/cacheへ不要EXIF/GPSが漏れない","current_test":"planned"},
+    {"id":"prop.minor.guardian-consent-fail-closed","requirements":["quality.zukan.rights.minor-guardian-consent"],"property":"minor/guardian同意がunknown・撤回済みならpublic projectionを拒否する","current_test":"planned"},
+    {"id":"prop.rights.withdrawal-revokes-derived-publication","requirements":["quality.zukan.rights.export-withdrawal-deletion","quality.zukan.publication.correction-takedown"],"property":"撤回・削除・takedown後に派生PublicationEditionが再利用されない","current_test":"planned"},
+    {"id":"prop.retention-does-not-infer-delete","requirements":["quality.zukan.rights.retention"],"property":"retention期限・削除完了・法的保全を観測なしに成功扱いしない","current_test":"planned"},
+    {"id":"prop.publication.edition-is-reproducible","requirements":["quality.zukan.publication.edition-integrity"],"property":"同じ入力watermarkとpolicyから同じPublicationEdition選択・除外理由を再現する","current_test":"planned"},
+    {"id":"prop.free-core.no-billing-gate","requirements":["quality.zukan.free-core.boundary"],"property":"free coreの基本投稿・閲覧・参加・Review・通常Publicationを課金必須へ変換しない","current_test":"planned"}
+  ],
+  "journey_evaluator":{"runner":"platform_v2/scripts/runZukanRuntimeQa.mjs + Playwright existing configs","identity_gate":"behavior前にenvironment runtime revisionをexact read-back","viewports":{"desktop":{"width":1440,"height":1200},"mobile":{"width":390,"height":844}},"required_dimensions":["persona","viewport","start→success transition","failure/recovery branch","privacy projection","back/reload where relevant"],"rule":"page load/screenshotだけをJourney PASSにしない。major Golden Journeyはdesktop/mobile双方、surfaceが明示的にsingle-viewportなら理由をRegistryへ残す。"},
+  "release_gates":["registry invariant test","typecheck and node tests","exact-SHA source validation","independent full-diff review P0=0 P1=0","exact-SHA staging runtime identity read-back","Journey E2E + negative/property gates","desktop/mobile state/transitions/recovery QA","rollback locator","merged-SHA revalidation before production"]
 }

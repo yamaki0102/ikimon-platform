@@ -1,109 +1,78 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
+import { loadProductRegistry, validateProductRegistry } from "./productRegistry.js";
+import { loadProductRegistryNavigation, validateProductRegistryNavigation } from "./productRegistryNavigation.js";
 
-type Requirement = {
-  id: string;
-  quality_contract: string;
-  title: string;
-  acceptance: string;
-  environments: string[];
-  evidence_lanes: Array<"machine" | "design" | "human">;
-  verification_levels: Array<"contract" | "source" | "deterministic" | "integration" | "staging" | "design" | "human">;
-  invalidation_keys: string[];
-  status: "partial" | "planned" | "implemented";
-};
+const registry = loadProductRegistry();
+const registryRoot = new URL("../product-registry/", import.meta.url);
 
-type QualityContract = { id: string; requirement_refs?: string[] };
-type Journey = { id: string; requirement_refs?: string[] };
-
-function readJson<T>(name: string): T {
-  return JSON.parse(
-    readFileSync(new URL(`../product-registry/${name}`, import.meta.url), "utf8"),
-  ) as T;
-}
-
-const productDocument = readJson<{
-  schema_version: string;
-  product_id: string;
-  registries: Record<string, string>;
-}>("product.json");
-const requirementDocument = readJson<{
-  schema_version: string;
-  product_id: string;
-  requirements: Requirement[];
-}>("requirements.json");
-const qualityDocument = readJson<{ contracts: QualityContract[] }>("quality.json");
-const journeyDocument = readJson<{ journeys: Journey[] }>("journeys.json");
-
-const expectedCaptureRequirements = [
-  "quality.zukan.capture.draft-recovery",
-  "quality.zukan.capture.idempotent-save",
-  "quality.zukan.capture.immediate-preview",
-  "quality.zukan.capture.owner-return",
-  "quality.zukan.capture.source-choice",
-  "quality.zukan.capture.truthful-status",
-].sort();
-
-const expectedRequirements = [...expectedCaptureRequirements];
-
-test("requirements document is registered by the product root", () => {
-  assert.equal(productDocument.schema_version, "1.0.0");
-  assert.equal(productDocument.product_id, "zukan");
-  assert.equal(productDocument.registries.requirements, "requirements.json");
+test("canonical registry delegates resolved status and has no local evidence or learning projection", () => {
+  assert.equal(registry.product.status_authority.locator, "operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus");
+  assert.equal(registry.product.status_authority.version, "1.0.0");
+  assert.equal("evidence" in registry.product.registries, false);
+  assert.equal("learning" in registry.product.registries, false);
+  assert.deepEqual(registry.product.canonical_chain.slice(0, 5), ["Outcome", "Golden Journey", "Capability", "Requirement", "Surface"]);
+  for (const filename of ["evidence.json", "learning.json", "source-audit-2026-08-31.json"]) {
+    assert.equal(existsSync(new URL(filename, registryRoot)), false, `${filename} must be removed`);
+  }
 });
 
-test("requirements have stable product-owned identities", () => {
-  assert.equal(requirementDocument.schema_version, "1.0.0");
-  assert.equal(requirementDocument.product_id, "zukan");
-  const ids = requirementDocument.requirements.map((requirement) => requirement.id);
-  assert.equal(new Set(ids).size, ids.length);
-  assert.deepEqual([...ids].sort(), expectedRequirements);
-
-  const qualityIds = new Set(qualityDocument.contracts.map((contract) => contract.id));
-  for (const requirement of requirementDocument.requirements) {
-    assert.match(requirement.id, /^quality\.zukan\.[a-z0-9.-]+$/u);
-    assert.ok(qualityIds.has(requirement.quality_contract));
-    assert.ok(requirement.title.trim().length > 0);
-    assert.ok(requirement.acceptance.trim().length > 0);
-    assert.ok(requirement.environments.length > 0);
-    assert.equal(new Set(requirement.environments).size, requirement.environments.length);
-    assert.ok(requirement.evidence_lanes.length > 0);
-    assert.equal(new Set(requirement.evidence_lanes).size, requirement.evidence_lanes.length);
-    assert.ok(requirement.verification_levels.length > 0);
-    assert.equal(new Set(requirement.verification_levels).size, requirement.verification_levels.length);
+test("requirements preserve the stable contract and cover the complete product scope", () => {
+  assert.equal(registry.requirements.length, 41);
+  assert.equal(new Set(registry.requirements.map((item) => item.id)).size, registry.requirements.length);
+  for (const requirement of registry.requirements) {
+    assert.equal("status" in requirement, false, `${requirement.id} must not carry resolved status`);
     assert.ok(requirement.invalidation_keys.length > 0);
-    assert.equal(new Set(requirement.invalidation_keys).size, requirement.invalidation_keys.length);
-    for (const key of requirement.invalidation_keys) assert.match(key, /^[a-z0-9][a-z0-9._:/-]{2,199}$/u);
-    assert.ok(["partial", "planned", "implemented"].includes(requirement.status));
-    assert.equal("claim_id" in requirement, false, "claim contracts belong to the central resolver binding");
   }
-  const captureOwnerReturn = requirementDocument.requirements.find(
-    (requirement) => requirement.id === "quality.zukan.capture.owner-return",
-  );
-  assert.deepEqual(captureOwnerReturn?.evidence_lanes, ["machine", "design", "human"]);
-  assert.ok(captureOwnerReturn?.invalidation_keys.includes("design:capture-owner-return"));
+  const requiredIds = [
+    "quality.zukan.record.source-reference-integrity",
+    "quality.zukan.record.claim-separation",
+    "quality.zukan.place.context-integrity",
+    "quality.zukan.review.provenance",
+    "quality.zukan.rights.consent-scope",
+    "quality.zukan.rights.exif-minimization",
+    "quality.zukan.rights.minor-guardian-consent",
+    "quality.zukan.rights.export-withdrawal-deletion",
+    "quality.zukan.rights.retention",
+    "quality.zukan.publication.edition-integrity",
+    "quality.zukan.publication.correction-takedown",
+    "quality.zukan.program-event-quest.lifecycle",
+    "quality.zukan.free-core.boundary",
+  ];
+  const ids = new Set(registry.requirements.map((item) => item.id));
+  for (const id of requiredIds) assert.ok(ids.has(id), `missing scope requirement ${id}`);
 });
 
-test("quality contracts and journeys reference only defined requirements", () => {
-  const known = new Set(requirementDocument.requirements.map((requirement) => requirement.id));
-  const referenced = new Set<string>();
-  for (const quality of qualityDocument.contracts) {
-    for (const requirementRef of quality.requirement_refs ?? []) {
-      assert.ok(known.has(requirementRef), `${quality.id} references unknown requirement ${requirementRef}`);
-      referenced.add(requirementRef);
-    }
+test("Outcome to Journey to Capability to Requirement to Surface trace is complete", () => {
+  const errors = validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/map", "/home"]) });
+  assert.deepEqual(errors, []);
+  const journeyIds = new Set(registry.journeys.map((journey) => journey.id));
+  for (const outcome of registry.outcomes) {
+    for (const journeyId of outcome.journey_refs) assert.ok(journeyIds.has(journeyId));
   }
-  for (const journey of journeyDocument.journeys) {
-    for (const requirementRef of journey.requirement_refs ?? []) {
-      assert.ok(known.has(requirementRef), `${journey.id} references unknown requirement ${requirementRef}`);
-      referenced.add(requirementRef);
-    }
-  }
-  assert.deepEqual([...referenced].sort(), expectedRequirements);
+});
 
-  const captureContract = qualityDocument.contracts.find((contract) => contract.id === "quality.zukan.capture");
-  assert.deepEqual([...(captureContract?.requirement_refs ?? [])].sort(), expectedCaptureRequirements);
-  const captureJourney = journeyDocument.journeys.find((journey) => journey.id === "journey.zukan.capture-to-personal-return");
-  assert.deepEqual([...(captureJourney?.requirement_refs ?? [])].sort(), expectedCaptureRequirements);
+test("every required privacy and lifecycle contract has a negative Eval", () => {
+  const quality = JSON.parse(readFileSync(new URL("../product-registry/quality.json", import.meta.url), "utf8")) as { negative_property_tests: Array<{ requirements: string[] }> };
+  const covered = new Set(quality.negative_property_tests.flatMap((item) => item.requirements));
+  for (const id of [
+    "quality.zukan.rights.exif-minimization",
+    "quality.zukan.rights.minor-guardian-consent",
+    "quality.zukan.rights.consent-scope",
+    "quality.zukan.rights.export-withdrawal-deletion",
+    "quality.zukan.rights.retention",
+    "quality.zukan.publication.edition-integrity",
+    "quality.zukan.publication.correction-takedown",
+    "quality.zukan.free-core.boundary",
+  ]) assert.ok(covered.has(id), `${id} needs a negative Eval`);
+});
+
+test("roadmap is static navigation only and defers live-camera to M5", () => {
+  const navigation = loadProductRegistryNavigation();
+  assert.deepEqual(validateProductRegistryNavigation(navigation, new Set(registry.requirements.map((item) => item.id))), []);
+  assert.equal(navigation.roadmap.at(-1)?.id, "milestone.m5.live-camera-poc");
+  assert.equal(navigation.implementation_tasks.at(-1)?.state, "deferred");
+  const source = readFileSync(new URL("./productRegistryNavigation.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /deriveRequirementProgression|selectNextImplementationSlice/u);
 });

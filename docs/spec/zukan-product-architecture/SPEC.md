@@ -56,6 +56,8 @@ A Record does not become an Issue or Case by default. Action workflow is created
 - Resolution / ProjectionSnapshot
 - Publication / PublicationEdition
 
+The minimum product scope preserves Source, Record, Claim, Place, Review, Rights, Publication, Program, Event, Quest and Workspace as distinct responsibilities. Media metadata minimization, minor/guardian consent, publication scope, export, withdrawal, deletion, retention, correction and takedown are lifecycle constraints, not optional implementation details.
+
 The Knowledge Core is a semantic and verification contract. It does not require all tenants, organizations or domains to share one physical database or one generic EAV table.
 
 ## 3. Domain Pack

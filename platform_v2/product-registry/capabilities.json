@@ -1,56 +1,20 @@
 {
-  "schema_version": "1.0.0",
-  "product_id": "zukan",
-  "capabilities": [
-    {
-      "id": "zukan.home.view-public",
-      "title": "公開Homeを見る",
-      "actor": "visitor",
-      "operation": "read",
-      "privacy": "public",
-      "side_effects": []
-    },
-    {
-      "id": "zukan.capture.start",
-      "title": "撮影を開始する",
-      "actor": "visitor_or_member",
-      "operation": "read",
-      "privacy": "private-draft",
-      "side_effects": []
-    },
-    {
-      "id": "zukan.record.save-private",
-      "title": "記録を非公開保存する",
-      "actor": "member",
-      "operation": "write",
-      "privacy": "owner-only",
-      "side_effects": ["database-write", "media-upload", "snapshot-invalidation"],
-      "failure_contract": "入力・認証・保存・media upload失敗を表示し、未確定状態を成功扱いしない",
-      "retry_contract": "同一送信の再試行で二重登録を発生させない"
-    },
-    {
-      "id": "zukan.records.browse-public",
-      "title": "公開記録を見る",
-      "actor": "visitor_or_member",
-      "operation": "read",
-      "privacy": "public-filtered",
-      "side_effects": []
-    },
-    {
-      "id": "zukan.map.explore-public",
-      "title": "公開範囲の場所と記録を見る",
-      "actor": "visitor_or_member",
-      "operation": "read",
-      "privacy": "public-filtered-location",
-      "side_effects": []
-    },
-    {
-      "id": "zukan.home.view-member",
-      "title": "自分のHomeを見る",
-      "actor": "member",
-      "operation": "read",
-      "privacy": "mixed-owner-and-public",
-      "side_effects": []
-    }
+  "schema_version":"1.0.0",
+  "product_id":"zukan",
+  "matrix":[
+    {"domain":"capture","outcome_ref":"outcome.zukan.record-integrity","actors":["individual","school","organization","company","municipality"],"outcome":"地域の記録を失わず保存する","capability_refs":["zukan.capture.start","zukan.record.save-private"],"requirement_refs":["quality.zukan.capture.entry","quality.zukan.capture.source-choice","quality.zukan.capture.immediate-preview","quality.zukan.capture.location-optional","quality.zukan.capture.ai-candidate","quality.zukan.capture.draft-recovery","quality.zukan.capture.idempotent-save","quality.zukan.capture.truthful-status","quality.zukan.capture.owner-return","quality.zukan.record.source-reference-integrity","quality.zukan.record.claim-separation","quality.zukan.place.context-integrity","quality.zukan.rights.exif-minimization"]},
+    {"domain":"records","outcome_ref":"outcome.zukan.safe-publication","actors":["individual","public","school","organization","company","municipality"],"outcome":"本人の記録と公開記録を権利に沿って再発見する","capability_refs":["zukan.records.browse-public","zukan.record.save-private"],"requirement_refs":["quality.zukan.capture.owner-return","quality.zukan.records.public-discovery","quality.zukan.trust.private-default","quality.zukan.trust.explicit-publication","quality.zukan.trust.face-private-place-safety","quality.zukan.trust.ai-candidate-not-fact","quality.zukan.trust.confirmation-provenance","quality.zukan.trust.public-projection","quality.zukan.trust.existing-rights-preserved","quality.zukan.review.provenance","quality.zukan.rights.consent-scope","quality.zukan.rights.minor-guardian-consent","quality.zukan.rights.export-withdrawal-deletion","quality.zukan.rights.retention","quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown","quality.zukan.free-core.boundary"]},
+    {"domain":"map","outcome_ref":"outcome.zukan.regional-portability","actors":["public","individual","school","organization","company","municipality"],"outcome":"安全な位置精度で地域記録を場所から探索する","capability_refs":["zukan.map.explore-public"],"requirement_refs":["quality.zukan.map.safe-discovery","quality.zukan.trust.location-minimization","quality.zukan.trust.public-projection","quality.zukan.place.context-integrity"]},
+    {"domain":"live-camera-context","outcome_ref":"outcome.zukan.live-place-context","actors":["public","individual","school","organization","company","municipality"],"outcome":"外部センサーを補助文脈として扱う","capability_refs":["zukan.map.explore-public"],"requirement_refs":["quality.zukan.map.live-camera-source-eligibility","quality.zukan.map.live-camera-health","quality.zukan.map.live-camera-lazy-playback","quality.zukan.map.live-camera-record-context"],"data_contract":{"fields":["id","name","lat","lng","provider","source_ref","source_url","category","owner","status","last_checked_at","attribution","embed_allowed"],"identity":"provider + source_ref is the stable external identity","initial_acquisition":"浜松・磐田・静岡の公式/認可済みsourceをmanual curate","forbidden":"再利用許諾未確認の第三者集約DBをコピーしない"}},
+    {"domain":"home","outcome_ref":"outcome.zukan.record-integrity","actors":["individual"],"outcome":"自分の記録・場所・次の行動へ戻る","capability_refs":["zukan.home.view-member"],"requirement_refs":["quality.zukan.home.owner-context"]},
+    {"domain":"workspace-collaboration","outcome_ref":"outcome.zukan.collaborative-knowledge","actors":["school","organization","company","municipality"],"outcome":"member/role/reviewを保って共同記録し、選択した範囲だけ共有する","capability_refs":["zukan.capture.start","zukan.record.save-private","zukan.records.browse-public"],"requirement_refs":["quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish","quality.zukan.program-event-quest.lifecycle"]}
+  ],
+  "capabilities":[
+    {"id":"zukan.home.view-public","title":"公開Homeを見る","actor":"visitor","operation":"read","privacy":"public","side_effects":[]},
+    {"id":"zukan.capture.start","title":"記録を開始する","actor":"visitor_or_member","operation":"read","privacy":"private-draft","side_effects":[]},
+    {"id":"zukan.record.save-private","title":"記録を非公開保存する","actor":"member","operation":"write","privacy":"owner-only","side_effects":["database-write","media-upload","snapshot-invalidation"],"failure_contract":"入力・認証・保存・media失敗を表示し未確定を成功扱いしない","retry_contract":"同一intent再試行で一つのlogical record/media setへ収束する"},
+    {"id":"zukan.records.browse-public","title":"公開記録を見る","actor":"visitor_or_member","operation":"read","privacy":"public-filtered","side_effects":[]},
+    {"id":"zukan.map.explore-public","title":"公開範囲の場所と記録を見る","actor":"visitor_or_member","operation":"read","privacy":"public-filtered-location","side_effects":[]},
+    {"id":"zukan.home.view-member","title":"自分のHomeを見る","actor":"member","operation":"read","privacy":"mixed-owner-and-public","side_effects":[]}
   ]
 }

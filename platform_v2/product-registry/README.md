@@ -1,44 +1,57 @@
 # ZUKAN Product Experience Registry
 
-This directory is the machine-readable product contract for ZUKAN's main user-facing experience.
+このディレクトリは、ZUKANのproduct meaning、Acceptance/Eval参照、静的な依存順と実装navigationを保持する正本projectionです。既存のProduct Registryを拡張し、別のproduct-management frameworkは作りません。
+
+Canonical trace:
+
+`Outcome → Golden Journey → Capability → Requirement → Surface → Design → Dependency → Roadmap → Task → Acceptance/Eval → Shared Status Resolver → Runtime Evidence`
+
+## Authority boundary
+
+- SPEC/ADRはproduct meaning、PLANはdependency/migration orderを定義します。
+- Registryはstable IDs、acceptance、source asset locator、surface navigation、static dependency/roadmapを定義します。
+- resolved status、Claim ID、Collector authority、exact-SHA/freshness、Evidence acceptanceは共有Resolverだけが決めます。
+- Status authority: `operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus` (v1.0.0)
+- Registry内にevidence snapshot、live source audit、learning state、local status resolver、local next-slice selectorは置きません。
 
 ## Files
 
-- `product.json`: product identity, required surfaces, global registry rules
-- `surfaces.json`: pages/screens, roles, privacy, capabilities, states, entry points, transitions
-- `capabilities.json`: user/system abilities, write failure and retry contracts, prohibited side effects
-- `journeys.json`: end-to-end user goals, required outcomes and stable requirement references
-- `design.json`: foundation, brand, archetype, surface design contracts, time-bounded exceptions
-- `content.json`: audience, message, CTA, prohibited claims, SEO and analytics contracts
-- `quality.json`: acceptance criteria, stable requirement references, state coverage, tests and release gates
-- `requirements.json`: product-owned stable requirement IDs, acceptance meaning, required evidence lanes, verification levels and selective-invalidation keys
+- `product.json`: identity、canonical chain、shared Resolver locator、source asset locator
+- `outcomes.json`: North Star、actor jobs、product outcomes and non-goals
+- `surfaces.json`: user-facing routes/states/transitions and implementation references; planned items must not claim a route/runtime
+- `capabilities.json`: capability matrix and stable Requirement references
+- `journeys.json`: actor-based Golden Journeys、success/recovery、Outcome/Capability/Requirement trace
+- `requirements.json`: stable product/trust/resilience contracts、evidence lanes、verification levels、invalidation keys
+- `design.json`: visible states、layout/interaction contracts and bounded exceptions
+- `content.json`: audience/message/CTA/prohibited claims/SEO/analytics contracts
+- `quality.json`: acceptance、test locators、negative/property contracts、desktop/mobile Journey evaluator
+- `delivery.json`: static dependency graph、M1-M5 roadmap、Source/Delta/Done task contract and implementation navigation
 
-Requirement meaning and the evidence categories affected by a product change belong here. Evidence claim IDs, Collector authority, freshness, evidence identity and SHA-binding rules belong to the central Universal Outcome Resolver and are intentionally not duplicated in this repository.
+## Roadmap
+
+M1 Personal Record/media integrity → M2 Safe Publication + rights/data lifecycle → M3 Program/Event/Quest/Workspace collaboration → M4 Regional knowledge/PublicationEdition/portability/correction → M5 Live-camera POC.
+
+Live-camera is deferred to M5. Its POC is limited to official/authorized sources, an additive existing MapLibre layer, pin-selection lazy playback, and no frame processing without separate rights.
+
+## Update flow
+
+1. SPEC/ADR/PLANでmeaning and orderを確認する。
+2. Registryのstable Requirement、Golden Journey、negative Eval、source locatorを更新する。
+3. `delivery.json`のstatic dependencies/navigationを更新する。Resolved statusを手書きしない。
+4. Shared Resolverのfresh projectionがexecutor eligibilityを示したTaskだけをSource / Delta / Doneで実装する。
+5. exact source identity、Requirement-specific Eval、real browser Journey、staging/runtime Evidenceを別々に検証する。
 
 ## Validation
 
-```bash
-cd platform_v2
-npx tsx src/scripts/checkProductRegistry.ts
-npm run typecheck
-npm run test:node -- --test-name-pattern="product registry|requirements|quality contracts"
+```powershell
+npm --prefix platform_v2 run test:product-registry
+npm --prefix platform_v2 run typecheck
+npm --prefix platform_v2 run test:node
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_zukan_product_registry.ps1
 ```
 
-`src/productRegistry.test.ts` and `src/productRegistryRequirements.test.ts` run under the normal `test:node` glob and fail when:
+Tests fail on route/surface drift、missing state/transition contracts、unsafe write contracts、unknown trace references、incomplete Requirement coverage、dependency cycles、roadmap gaps、or local status/evidence/selector reintroduction.
 
-- a required surface is missing
-- a registered route does not exist in `siteMap.ts`
-- a capability, transition, entry point, design/content/quality contract points to an unknown ID
-- owner-only surfaces omit the denied state
-- write capabilities omit failure or retry contracts
-- design or quality contracts omit a registered state
-- a Journey points to unknown surfaces or states
-- a stable requirement is duplicated, empty, references an unknown quality contract or is not referenced by quality/journey data
-- a requirement has an unknown/duplicate evidence lane or verification level, or an empty/invalid selective-invalidation key
-- a design exception lacks a rule, reason, owner or expiry
+## Privacy/trust invariants
 
-## Update rule
-
-Any change to a main route, CTA, privacy boundary, user-visible state, campaign message, design exception, stable requirement, or release test must update this registry in the same PR.
-
-The registry does not replace source code or runtime evidence. Source code remains the implementation truth; exact-SHA staging and runtime read-back remain the release truth. This registry is the contract that makes drift between intent, implementation, design and tests detectable.
+Private/unknown/rejected/quarantined/blocked content fails closed on public projections. EXIF/GPS、exact coordinates、face/person/living-place/private-land risk、minor/guardian consent、withdrawal/deletion/retention、correction/takedown、PublicationEdition and external-inference permission remain explicit Requirement + negative Eval boundaries. AI output is a candidate, not human/expert verification. Existing data, visibility, consent and rights are preserved unless an explicit approved migration changes them. Basic personal/organizational contribution, viewing, participation, Review and ordinary Publication remain within the free core.
