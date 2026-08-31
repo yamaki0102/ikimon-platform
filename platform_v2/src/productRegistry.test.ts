@@ -35,7 +35,7 @@ test("registry rejects entry points without a matching source transition", () =>
   if (!landing || !home) throw new Error("entry point fixtures are missing");
   home.transitions = home.transitions.filter((transition) => transition.target !== landing.id);
   const errors = validateProductRegistry(registry, implementationRoutes());
-  assert.ok(errors.some((error) => error.includes("entry point zukan.home.public has no transition")));
+  assert.ok(errors.some((error) => error.includes("entry point zukan.home.public has no transition to this surface")));
 });
 
 test("registry rejects owner-only surfaces without an explicit denied state", () => {
@@ -97,7 +97,7 @@ test("registry rejects route drift from implementation", () => {
 
 test("registry loads expanded requirement evidence contracts and rejects unsupported lanes", () => {
   const registry = cloneRegistry();
-  assert.equal(registry.requirements.length, 24);
+  assert.equal(registry.requirements.length, 28);
   const immediatePreview = registry.requirements.find((requirement) => requirement.id === "quality.zukan.capture.immediate-preview");
   if (!immediatePreview) throw new Error("immediate-preview requirement fixture is missing");
   assert.match(immediatePreview.acceptance, /upload完了を待たず/);
