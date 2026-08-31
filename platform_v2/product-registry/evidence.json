@@ -1,54 +1,13 @@
 {
-  "schema_version": "1.0.0",
-  "product_id": "zukan",
-  "progression": ["planned", "source-only", "staging-verified", "production-verified"],
-  "orthogonal_flags": ["blocked", "stale", "unknown"],
-  "derivation": {
-    "planned": "stable Requirementは存在するが、current exact sourceでacceptanceを満たすqualifying evidenceがない",
-    "source-only": "current exact source revisionで必要なsource/test/build evidenceが通るが、matching runtime Journey evidenceがない",
-    "staging-verified": "staging runtime identityが対象sourceと一致し、Requirementが要求するJourney/persona/viewport/negative gateが通る",
-    "production-verified": "production runtime identityが対象sourceと一致し、Requirementが要求するproduction Journey/trust/privacy gateが通る",
-    "blocked": "権限・外部依存・human boundary等で次のqualifying evidence取得が停止",
-    "stale": "invalidation keyに該当する変更後、以前のevidenceを現状態の証拠として使えない",
-    "unknown": "sourceまたはruntimeを観測できず、より強い状態を証明できない"
-  },
-  "evidence_record_contract": {
-    "required_fields": ["id", "requirement_ids", "kind", "environment", "source_revision", "observed_at", "result", "artifact", "invalidation_keys"],
-    "runtime_fields": ["runtime_revision", "journey_ids", "persona", "viewport"],
-    "result_values": ["pass", "fail", "unknown"],
-    "rule": "manual status文字列をprogression truthとして扱わず、qualifying evidenceの最小到達段階を導出する"
-  },
-  "current_observations": [
-    {
-      "id": "evidence.runtime.production.identity.20260831",
-      "requirement_ids": [],
-      "journey_ids": [],
-      "kind": "runtime-identity",
-      "environment": "production",
-      "source_revision": "27d1e6fe12ba4e7a90d8902f537e300fe896d1e7",
-      "runtime_revision": "27d1e6fe12ba4e7a90d8902f537e300fe896d1e7",
-      "observed_at": "2026-08-31T13:55:00+09:00",
-      "result": "pass",
-      "artifact": "GET https://zukan.earth/api/v1/runtime/version + /healthz; exact SHA and health ok",
-      "invalidation_keys": ["runtime:production", "source:main"]
-    },
-    {
-      "id": "evidence.runtime.staging.access-boundary.20260831",
-      "requirement_ids": [],
-      "journey_ids": [],
-      "kind": "runtime-access",
-      "environment": "staging",
-      "source_revision": "27d1e6fe12ba4e7a90d8902f537e300fe896d1e7",
-      "observed_at": "2026-08-31T13:55:00+09:00",
-      "result": "unknown",
-      "artifact": "GET https://staging.zukan.earth/api/v1/runtime/version returned Cloudflare Access 302; runtime identity not observed",
-      "invalidation_keys": ["runtime:staging"]
-    }
+  "schema_version":"1.0.0",
+  "product_id":"zukan",
+  "progression":["planned","source-only","staging-verified","production-verified"],
+  "orthogonal_flags":["blocked","stale","unknown"],
+  "derivation":{"planned":"stable Requirementは存在するがcurrent exact sourceでacceptanceを満たすqualifying evidenceがない","source-only":"current exact source revisionで必要なsource/test/build evidenceが通るがmatching runtime Journey evidenceがない","staging-verified":"staging runtime identityが対象sourceと一致しRequirementが要求するJourney/persona/viewport/negative gateが通る","production-verified":"production runtime identityが対象sourceと一致しRequirementが要求するproduction Journey/trust/privacy gateが通る","blocked":"権限・外部依存・human boundary等で次のqualifying evidence取得が停止","stale":"invalidation key該当変更後以前のevidenceを現状態の証拠として使えない","unknown":"sourceまたはruntimeを観測できずより強い状態を証明できない"},
+  "evidence_record_contract":{"required_fields":["id","requirement_ids","kind","environment","source_revision","observed_at","result","artifact","invalidation_keys"],"runtime_fields":["runtime_revision","journey_ids","persona","viewport"],"result_values":["pass","fail","unknown"],"rule":"manual status文字列をprogression truthとして扱わずqualifying evidenceの最小到達段階を導出する"},
+  "current_observations":[
+    {"id":"evidence.runtime.production.identity.20260831.1507","requirement_ids":[],"journey_ids":[],"kind":"runtime-identity","environment":"production","source_revision":"2127282dd6031afcc7a1710878b1d1d578a30525","runtime_revision":"2127282dd6031afcc7a1710878b1d1d578a30525","observed_at":"2026-08-31T15:07:00+09:00","result":"pass","artifact":"GET https://zukan.earth/api/v1/runtime/version + /healthz; current main exact SHA and health ok","invalidation_keys":["runtime:production","source:main"]},
+    {"id":"evidence.runtime.staging.access-boundary.20260831","requirement_ids":[],"journey_ids":[],"kind":"runtime-access","environment":"staging","source_revision":"2127282dd6031afcc7a1710878b1d1d578a30525","observed_at":"2026-08-31T15:07:00+09:00","result":"unknown","artifact":"GET https://staging.zukan.earth/api/v1/runtime/version returned Cloudflare Access 302; runtime identity not observed","invalidation_keys":["runtime:staging"]}
   ],
-  "anti_inference_rules": [
-    "productionでSHAがactiveでもRequirementのproduction-verifiedを自動宣言しない",
-    "source test PASSだけでstaging/production-verifiedに上げない",
-    "古いikimon.life runtime evidenceをzukan.earth current runtimeの証拠にしない",
-    "open/draft PRをcurrent main source evidenceとして扱わない"
-  ]
+  "anti_inference_rules":["productionでSHAがactiveでもRequirementのproduction-verifiedを自動宣言しない","source test PASSだけでstaging/production-verifiedに上げない","古いikimon.life runtime evidenceをzukan.earth current runtimeの証拠にしない","open/draft PRをcurrent main source evidenceとして扱わない"]
 }
