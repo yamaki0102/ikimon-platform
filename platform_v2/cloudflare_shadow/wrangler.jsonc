@@ -160,6 +160,10 @@
       "name": "ikimon-life-cloudflare-staging",
       "workers_dev": true,
       "routes": [
+        {
+          "pattern": "staging.zukan.earth",
+          "custom_domain": true
+        },
         "staging.ikimon.life/*"
       ],
       "vars": {
@@ -248,6 +252,14 @@
       "name": "ikimon-life-cloudflare-prod",
       "workers_dev": true,
       "routes": [
+        {
+          "pattern": "zukan.earth",
+          "custom_domain": true
+        },
+        {
+          "pattern": "www.zukan.earth",
+          "custom_domain": true
+        },
         "ikimon.life/*",
         "www.ikimon.life/*"
       ],
