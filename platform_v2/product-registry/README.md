@@ -1,44 +1,58 @@
 # ZUKAN Product Experience Registry
 
-This directory is the machine-readable product contract for ZUKAN's main user-facing experience.
+This directory is ZUKAN's machine-readable product and delivery contract. It evolves the existing Registry; do not create a parallel product-management framework.
+
+Canonical chain:
+
+`Outcome → Golden Journey → Capability → Requirement → Design → Dependency → Roadmap → Task → Acceptance/Eval → Runtime Evidence → Learning`
 
 ## Files
 
-- `product.json`: product identity, required surfaces, global registry rules
-- `surfaces.json`: pages/screens, roles, privacy, capabilities, states, entry points, transitions
-- `capabilities.json`: user/system abilities, write failure and retry contracts, prohibited side effects
-- `journeys.json`: end-to-end user goals, required outcomes and stable requirement references
-- `design.json`: foundation, brand, archetype, surface design contracts, time-bounded exceptions
-- `content.json`: audience, message, CTA, prohibited claims, SEO and analytics contracts
-- `quality.json`: acceptance criteria, stable requirement references, state coverage, tests and release gates
-- `requirements.json`: product-owned stable requirement IDs, acceptance meaning, required evidence lanes, verification levels and selective-invalidation keys
+- `product.json`: identity, canonical chain, required surfaces, registry index
+- `outcomes.json`: North Star, actor jobs, intent/source/runtime/learning truth separation
+- `surfaces.json`: actual user-facing routes/states/transitions and source binding
+- `capabilities.json`: current capabilities plus capture/records/map/home/workspace matrix
+- `journeys.json`: actor-based Golden Journeys, success/recovery and Requirement trace
+- `requirements.json`: stable product/trust/resilience contracts; `status` is legacy source hint only
+- `design.json`: visible states, layout/interaction contracts and bounded exceptions
+- `content.json`: audience/message/CTA/prohibited claims/SEO/analytics contracts
+- `quality.json`: acceptance, existing test binding, negative/property contracts, desktop/mobile Journey evaluator
+- `delivery.json`: Requirement dependency graph, next 1–2 detailed milestones, deterministic next-slice and Luna task rules
+- `evidence.json`: evidence record contract and derived `planned → source-only → staging-verified → production-verified` progression
+- `learning.json`: production learning, evidence invalidation and explicit spec supersession loop
 
-Requirement meaning and the evidence categories affected by a product change belong here. Evidence claim IDs, Collector authority, freshness, evidence identity and SHA-binding rules belong to the central Universal Outcome Resolver and are intentionally not duplicated in this repository.
+## Truth and status
+
+- Intent truth: Registry stable contract. It does not imply implementation.
+- Source truth: exact git SHA source/test/build evidence. It does not imply runtime.
+- Runtime truth: exact environment identity plus observed Journey/privacy behavior.
+- Learning truth: production observation. It may invalidate evidence or propose supersession but never silently rewrites stable intent.
+
+Progression is evidence-derived. `blocked`, `stale`, and `unknown` are orthogonal flags. Production being on the current SHA is runtime-active, not automatically production-verified.
+
+## Update flow
+
+1. Change the stable Requirement/Golden Journey first when behavior meaning changes.
+2. Follow `delivery.json` dependencies and select the smallest unmet topological frontier.
+3. Give Luna only `Source / Delta / Done`; do not delegate product strategy, privacy/publication meaning, or scope expansion.
+4. Implement against current source; reuse existing tests/evidence before creating new mechanisms.
+5. Run static/integration/desktop+mobile Journey and negative/property evaluation as required.
+6. Bind exact runtime identity before claiming staging/production verification.
+7. Record production learning; invalidate evidence or supersede the contract explicitly.
+
+Only the next 1–2 milestones are detailed. Later work stays dependency-centered until it becomes the active frontier. Workspace/collaboration is product intent and remains planned until current source/runtime evidence proves otherwise. Do not pre-abstract with NOCOSIL.
 
 ## Validation
 
 ```bash
 cd platform_v2
 npx tsx src/scripts/checkProductRegistry.ts
+npm run test:product-registry
 npm run typecheck
-npm run test:node -- --test-name-pattern="product registry|requirements|quality contracts"
 ```
 
-`src/productRegistry.test.ts` and `src/productRegistryRequirements.test.ts` run under the normal `test:node` glob and fail when:
+The registry tests fail on route/surface drift, missing state/transition contracts, unsafe write contracts, unknown Requirement references, incomplete Requirement coverage, dependency cycles, roadmap gaps, invalid evidence references, and non-deterministic task-chain drift.
 
-- a required surface is missing
-- a registered route does not exist in `siteMap.ts`
-- a capability, transition, entry point, design/content/quality contract points to an unknown ID
-- owner-only surfaces omit the denied state
-- write capabilities omit failure or retry contracts
-- design or quality contracts omit a registered state
-- a Journey points to unknown surfaces or states
-- a stable requirement is duplicated, empty, references an unknown quality contract or is not referenced by quality/journey data
-- a requirement has an unknown/duplicate evidence lane or verification level, or an empty/invalid selective-invalidation key
-- a design exception lacks a rule, reason, owner or expiry
+## Privacy/trust invariants
 
-## Update rule
-
-Any change to a main route, CTA, privacy boundary, user-visible state, campaign message, design exception, stable requirement, or release test must update this registry in the same PR.
-
-The registry does not replace source code or runtime evidence. Source code remains the implementation truth; exact-SHA staging and runtime read-back remain the release truth. This registry is the contract that makes drift between intent, implementation, design and tests detectable.
+Private/unknown/rejected/quarantined/blocked content fails closed on public projections. Exact coordinates are not a public projection. Face/person/living-place/private-land risk never silently expands public scope. AI output is a candidate, not human/expert verification. Public reuse permission is not external inference permission. Existing data, visibility, consent and rights are preserved unless an explicit approved migration changes them.
