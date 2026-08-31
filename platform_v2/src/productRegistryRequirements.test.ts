@@ -43,7 +43,7 @@ test("product root registers the complete outcome-to-learning chain", () => {
 
 test("stable requirements are unique, evidence-addressable, and fully traced", () => {
   const ids = requirementDocument.requirements.map((requirement) => requirement.id);
-  assert.equal(ids.length, 24);
+  assert.equal(ids.length, 28);
   assert.equal(new Set(ids).size, ids.length);
   const known = new Set(ids);
   const qualityIds = new Set(qualityDocument.contracts.map((contract) => contract.id));
@@ -120,7 +120,7 @@ test("unmet requirements and dependencies select the first coherent slice determ
 
 test("Luna task generator emits strategy-free Source / Delta / Done", () => {
   const registry = loadProductDeliveryRegistry();
-  const task = buildLunaTask(registry, "27d1e6fe12ba4e7a90d8902f537e300fe896d1e7", "quality.zukan.capture.idempotent-save");
+  const task = buildLunaTask(registry, "2127282dd6031afcc7a1710878b1d1d578a30525", "quality.zukan.capture.idempotent-save");
   assert.deepEqual(Object.keys(task), ["Source", "Delta", "Done"]);
   assert.ok(task.Source.some((line) => line.includes("quality.zukan.capture.idempotent-save")));
   assert.ok(task.Delta.some((line) => line.includes("再試行")));
