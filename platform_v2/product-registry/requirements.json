@@ -1,104 +1,31 @@
 {
   "schema_version": "1.0.0",
   "product_id": "zukan",
+  "status_note": "status is a legacy source hint only. Delivery progression is derived from evidence.json.",
   "requirements": [
-    {
-      "id": "quality.zukan.capture.source-choice",
-      "quality_contract": "quality.zukan.capture",
-      "title": "撮影方法の明示選択",
-      "acceptance": "撮影開始時にOS標準カメラ、接写カメラ、写真ライブラリの3経路を明示し、未対応経路は安全な代替手段へ戻れる",
-      "environments": ["source", "staging"],
-      "evidence_lanes": ["machine", "human"],
-      "verification_levels": ["contract", "source", "staging", "human"],
-      "invalidation_keys": [
-        "product-registry:requirements",
-        "source:platform_v2/capture",
-        "runtime:staging",
-        "human:capture-source-choice"
-      ],
-      "status": "planned"
-    },
-    {
-      "id": "quality.zukan.capture.immediate-preview",
-      "quality_contract": "quality.zukan.capture",
-      "title": "撮影直後のローカル確認",
-      "acceptance": "OSカメラ、接写カメラ、または写真ライブラリから画像を取得した直後、upload完了を待たずに本人が画像を確認し、撮り直し・削除・続行を選べる",
-      "environments": ["source", "staging"],
-      "evidence_lanes": ["machine", "human"],
-      "verification_levels": ["contract", "source", "staging", "human"],
-      "invalidation_keys": [
-        "product-registry:requirements",
-        "source:platform_v2/capture",
-        "runtime:staging",
-        "human:capture-immediate-preview"
-      ],
-      "status": "planned"
-    },
-    {
-      "id": "quality.zukan.capture.draft-recovery",
-      "quality_contract": "quality.zukan.capture",
-      "title": "下書きと通信断からの復旧",
-      "acceptance": "撮影後の通信断、reload、認証復帰があっても写真をURLへ載せず下書きとして保持し、同じ記録作成フローへ安全に復帰できる",
-      "environments": ["source", "staging"],
-      "evidence_lanes": ["machine"],
-      "verification_levels": ["contract", "source", "integration", "staging"],
-      "invalidation_keys": [
-        "product-registry:requirements",
-        "source:platform_v2/capture",
-        "source:platform_v2/recovery",
-        "runtime:staging"
-      ],
-      "status": "partial"
-    },
-    {
-      "id": "quality.zukan.capture.idempotent-save",
-      "quality_contract": "quality.zukan.capture",
-      "title": "再試行時の重複防止",
-      "acceptance": "保存ボタン連打、通信再試行、同一capture sessionの再送でも記録とmediaを重複作成せず、保存失敗を成功表示しない",
-      "environments": ["source", "staging"],
-      "evidence_lanes": ["machine"],
-      "verification_levels": ["contract", "integration", "staging"],
-      "invalidation_keys": [
-        "product-registry:requirements",
-        "source:platform_v2/capture",
-        "source:platform_v2/repository",
-        "runtime:staging"
-      ],
-      "status": "partial"
-    },
-    {
-      "id": "quality.zukan.capture.owner-return",
-      "quality_contract": "quality.zukan.capture",
-      "title": "保存後の本人返却",
-      "acceptance": "保存成功後に作成した記録を本人が一覧または詳細で確認でき、新しい撮影またはHomeへ戻れる",
-      "environments": ["source", "staging", "operation"],
-      "evidence_lanes": ["machine", "design", "human"],
-      "verification_levels": ["contract", "source", "staging", "design", "human"],
-      "invalidation_keys": [
-        "product-registry:requirements",
-        "source:platform_v2/capture",
-        "design:capture-owner-return",
-        "human:capture-owner-return",
-        "runtime:staging"
-      ],
-      "status": "partial"
-    },
-    {
-      "id": "quality.zukan.capture.truthful-status",
-      "quality_contract": "quality.zukan.capture",
-      "title": "保存・写真・AI状態の正確な表示",
-      "acceptance": "記録保存、写真upload・処理、AI確認の状態を分離し、AI障害や写真処理失敗を記録保存成功と混同せず本人へ表示する",
-      "environments": ["source", "staging"],
-      "evidence_lanes": ["machine", "human"],
-      "verification_levels": ["contract", "source", "staging", "human"],
-      "invalidation_keys": [
-        "product-registry:requirements",
-        "source:platform_v2/capture",
-        "source:platform_v2/record-status",
-        "runtime:staging",
-        "human:capture-truthful-status"
-      ],
-      "status": "planned"
-    }
+    {"id":"quality.zukan.capture.entry","quality_contract":"quality.zukan.capture","title":"迷わない記録開始","acceptance":"公開Homeまたは本人Homeから1つの主要導線で記録開始へ進め、未認証時は保存成功を装わない","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","staging","human"],"invalidation_keys":["source:platform_v2/site-map","runtime:staging","human:capture-entry"],"status":"partial","priority":100},
+    {"id":"quality.zukan.capture.source-choice","quality_contract":"quality.zukan.capture","title":"撮影方法の明示選択","acceptance":"利用可能な撮影/写真選択経路を明示し、未対応・拒否時も安全な代替へ戻れる","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","staging","human"],"invalidation_keys":["source:platform_v2/capture","runtime:staging","human:capture-source-choice"],"status":"planned","priority":90},
+    {"id":"quality.zukan.capture.immediate-preview","quality_contract":"quality.zukan.capture","title":"撮影直後のローカル確認","acceptance":"画像取得直後にupload完了を待たず本人が確認し、撮り直し・削除・続行を選べる","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","staging","human"],"invalidation_keys":["source:platform_v2/capture","runtime:staging","human:capture-preview"],"status":"planned","priority":80},
+    {"id":"quality.zukan.capture.location-optional","quality_contract":"quality.zukan.capture","title":"位置情報なしでも記録継続","acceptance":"位置権限拒否・取得失敗でも記録を失わず、位置なしまたは安全な手動入力で続行できる","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging"],"invalidation_keys":["source:platform_v2/capture","source:location","runtime:staging"],"status":"partial","priority":95},
+    {"id":"quality.zukan.capture.ai-candidate","quality_contract":"quality.zukan.capture","title":"AI候補を任意の補助として扱う","acceptance":"AI失敗・timeout・低信頼でも記録保存を阻害せず、候補/未確認/確認済みを別状態として表示する","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging","human"],"invalidation_keys":["source:ai","source:platform_v2/capture","runtime:staging"],"status":"partial","priority":85},
+    {"id":"quality.zukan.capture.draft-recovery","quality_contract":"quality.zukan.capture","title":"下書きと通信断からの復旧","acceptance":"通信断・reload・認証復帰でも写真をURLへ載せず下書きを保持し、同じ記録作成へ安全に復帰できる","environments":["source","staging"],"evidence_lanes":["machine"],"verification_levels":["contract","source","integration","staging"],"invalidation_keys":["source:platform_v2/capture","source:platform_v2/recovery","runtime:staging"],"status":"partial","priority":100},
+    {"id":"quality.zukan.capture.idempotent-save","quality_contract":"quality.zukan.capture","title":"再試行時の重複防止","acceptance":"連打・通信再試行・同一capture session再送でも記録/mediaを重複作成せず、同key別payloadは上書きしない","environments":["source","staging"],"evidence_lanes":["machine"],"verification_levels":["contract","deterministic","integration","staging"],"invalidation_keys":["source:platform_v2/capture","source:platform_v2/repository","runtime:staging"],"status":"partial","priority":100},
+    {"id":"quality.zukan.capture.truthful-status","quality_contract":"quality.zukan.capture","title":"保存・写真・AI状態の正確な表示","acceptance":"記録保存、media処理、AI候補の状態を分離し、失敗や未確認を成功/確認済みと表示しない","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","staging","human"],"invalidation_keys":["source:platform_v2/capture","source:record-status","runtime:staging"],"status":"planned","priority":90},
+    {"id":"quality.zukan.capture.owner-return","quality_contract":"quality.zukan.capture","title":"保存後の本人返却","acceptance":"保存成功後に本人が作成記録を一覧または詳細で再発見でき、Home/次の記録へ戻れる","environments":["source","staging","operation"],"evidence_lanes":["machine","design","human"],"verification_levels":["contract","source","staging","design","human"],"invalidation_keys":["source:platform_v2/capture","source:platform_v2/records","design:capture-owner-return","runtime:staging"],"status":"partial","priority":100},
+    {"id":"quality.zukan.trust.private-default","quality_contract":"quality.zukan.records","title":"未確定記録は非公開","acceptance":"新規/復旧/処理途中/公開範囲不明の記録をpublic surface/feed/cacheへ出さない","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging"],"invalidation_keys":["source:publication","source:visibility","runtime:staging"],"status":"partial","priority":100},
+    {"id":"quality.zukan.trust.explicit-publication","quality_contract":"quality.zukan.records","title":"明示的な公開遷移","acceptance":"本人または認可されたreviewerの明示操作なしにprivate/community/public scopeを拡張しない","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging","human"],"invalidation_keys":["source:publication","source:authorization","runtime:staging"],"status":"planned","priority":100},
+    {"id":"quality.zukan.trust.location-minimization","quality_contract":"quality.zukan.map","title":"公開位置の最小化","acceptance":"public projectionにexact座標を出さず、希少種・生活場所等は粗化または非公開とし、位置権限拒否でも利用可能性を保つ","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging"],"invalidation_keys":["source:location","source:publication","runtime:staging"],"status":"partial","priority":100},
+    {"id":"quality.zukan.trust.face-private-place-safety","quality_contract":"quality.zukan.records","title":"人物・生活場所・私有地の公開安全","acceptance":"人物/顔・生活場所・私有地リスクがあるmedia/位置は自動で公開範囲を広げず、必要に応じreview・遮蔽・非公開を選ぶ","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging","human"],"invalidation_keys":["source:face-privacy","source:publication","runtime:staging"],"status":"partial","priority":100},
+    {"id":"quality.zukan.trust.ai-candidate-not-fact","quality_contract":"quality.zukan.records","title":"AI候補は事実扱いしない","acceptance":"AI出力をverified badge/filterや人/専門家確認の代用にせず、候補として由来と状態を保持する","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging"],"invalidation_keys":["source:ai","source:publication","runtime:staging"],"status":"partial","priority":100},
+    {"id":"quality.zukan.trust.confirmation-provenance","quality_contract":"quality.zukan.records","title":"人・専門家確認の由来保持","acceptance":"本人/一般ユーザー/専門家/AIの候補・確認を別provenanceで保持し、後続AI処理が人の確認を上書きしない","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging"],"invalidation_keys":["source:identification","source:ai","runtime:staging"],"status":"partial","priority":90},
+    {"id":"quality.zukan.trust.public-projection","quality_contract":"quality.zukan.records","title":"公開projectionのfail-closed","acceptance":"private/rejected/quarantined/blocked media・exact位置・公開不可権利をpublic API/HTML/map/feed/cacheへ出さない","environments":["source","staging"],"evidence_lanes":["machine"],"verification_levels":["contract","source","deterministic","integration","staging"],"invalidation_keys":["source:publication","source:rights","source:cache","runtime:staging"],"status":"partial","priority":100},
+    {"id":"quality.zukan.trust.existing-rights-preserved","quality_contract":"quality.zukan.records","title":"既存データ・公開権利の保全","acceptance":"Registry/共同利用/公開機能変更で既存投稿・visibility・consent/rightsを暗黙変更せず、削除状態から同意を推測しない","environments":["source","staging","operation"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","human"],"invalidation_keys":["source:rights","source:migration","source:publication"],"status":"partial","priority":100},
+    {"id":"quality.zukan.records.public-discovery","quality_contract":"quality.zukan.records","title":"安全な公開記録探索","acceptance":"records/detailはpublic eligibleのみを表示し、0件/障害を区別し、確認状態とsourceを誤認させない","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","staging","human"],"invalidation_keys":["source:platform_v2/records","source:publication","runtime:staging"],"status":"partial","priority":80},
+    {"id":"quality.zukan.map.safe-discovery","quality_contract":"quality.zukan.map","title":"安全な地図探索","acceptance":"mapはpublic eligibleかつ許可された位置精度だけを表示し、地図不能時もrecords等へ退避できる","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","staging","human"],"invalidation_keys":["source:platform_v2/map","source:publication","runtime:staging"],"status":"partial","priority":80},
+    {"id":"quality.zukan.home.owner-context","quality_contract":"quality.zukan.home-member","title":"本人Homeの文脈返却","acceptance":"本人の最近の記録・場所・再訪導線をpublic記録と混同せず表示し、empty/errorから記録開始へ戻れる","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","staging","human"],"invalidation_keys":["source:platform_v2/home","runtime:staging"],"status":"partial","priority":75},
+    {"id":"quality.zukan.workspace.membership-authorization","quality_contract":"quality.zukan.home-member","title":"共同利用のmembership認可","acceptance":"workspace相当の共同利用ではmember/roleを明示し、非memberまたは権限外のread/write/reviewを拒否する","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging"],"invalidation_keys":["source:workspace","source:authorization","runtime:staging"],"status":"planned","priority":70},
+    {"id":"quality.zukan.workspace.contribution","quality_contract":"quality.zukan.home-member","title":"共同記録の安全な投稿","acceptance":"認可memberが共同目的へ記録を追加でき、個人所有/共同scope/公開scopeを混同しない","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging"],"invalidation_keys":["source:workspace","source:publication","runtime:staging"],"status":"planned","priority":60},
+    {"id":"quality.zukan.workspace.review","quality_contract":"quality.zukan.home-member","title":"共同記録のreview","acceptance":"教員/団体管理者等の認可reviewerが候補を確認でき、review前記録をverified/publicと誤表示しない","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging","human"],"invalidation_keys":["source:workspace","source:review","runtime:staging"],"status":"planned","priority":55},
+    {"id":"quality.zukan.workspace.explicit-publish","quality_contract":"quality.zukan.home-member","title":"共同利用からの明示公開","acceptance":"共同記録は認可reviewと公開操作を通ったものだけpublic projectionへ移り、個人の既存権利を弱めない","environments":["source","staging"],"evidence_lanes":["machine","human"],"verification_levels":["contract","source","integration","staging","human"],"invalidation_keys":["source:workspace","source:publication","source:rights","runtime:staging"],"status":"planned","priority":50}
   ]
 }
