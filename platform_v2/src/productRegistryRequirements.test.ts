@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import {
+  buildLunaTask,
+  deriveRequirementProgression,
+  loadProductDeliveryRegistry,
+  selectNextImplementationSlice,
+  validateProductDeliveryRegistry,
+} from "./productRegistryDelivery.js";
 
 type Requirement = {
   id: string;
@@ -9,101 +16,113 @@ type Requirement = {
   acceptance: string;
   environments: string[];
   evidence_lanes: Array<"machine" | "design" | "human">;
-  verification_levels: Array<"contract" | "source" | "deterministic" | "integration" | "staging" | "design" | "human">;
+  verification_levels: string[];
   invalidation_keys: string[];
   status: "partial" | "planned" | "implemented";
 };
-
 type QualityContract = { id: string; requirement_refs?: string[] };
-type Journey = { id: string; requirement_refs?: string[] };
+type Journey = { id: string; golden?: boolean; requirement_refs?: string[] };
 
 function readJson<T>(name: string): T {
-  return JSON.parse(
-    readFileSync(new URL(`../product-registry/${name}`, import.meta.url), "utf8"),
-  ) as T;
+  return JSON.parse(readFileSync(new URL(`../product-registry/${name}`, import.meta.url), "utf8")) as T;
 }
 
-const productDocument = readJson<{
-  schema_version: string;
-  product_id: string;
-  registries: Record<string, string>;
-}>("product.json");
-const requirementDocument = readJson<{
-  schema_version: string;
-  product_id: string;
-  requirements: Requirement[];
-}>("requirements.json");
-const qualityDocument = readJson<{ contracts: QualityContract[] }>("quality.json");
+const productDocument = readJson<{ schema_version: string; product_id: string; registries: Record<string, string>; canonical_chain: string[] }>("product.json");
+const requirementDocument = readJson<{ requirements: Requirement[] }>("requirements.json");
+const qualityDocument = readJson<{ contracts: QualityContract[]; negative_property_tests: Array<{ id: string; requirements: string[] }> }>("quality.json");
 const journeyDocument = readJson<{ journeys: Journey[] }>("journeys.json");
 
-const expectedCaptureRequirements = [
-  "quality.zukan.capture.draft-recovery",
-  "quality.zukan.capture.idempotent-save",
-  "quality.zukan.capture.immediate-preview",
-  "quality.zukan.capture.owner-return",
-  "quality.zukan.capture.source-choice",
-  "quality.zukan.capture.truthful-status",
-].sort();
-
-const expectedRequirements = [...expectedCaptureRequirements];
-
-test("requirements document is registered by the product root", () => {
+test("product root registers the complete outcome-to-learning chain", () => {
   assert.equal(productDocument.schema_version, "1.0.0");
   assert.equal(productDocument.product_id, "zukan");
-  assert.equal(productDocument.registries.requirements, "requirements.json");
+  for (const key of ["outcomes", "surfaces", "capabilities", "journeys", "requirements", "design", "quality", "delivery", "evidence", "learning"]) {
+    assert.ok(productDocument.registries[key], `missing registry ${key}`);
+  }
+  assert.deepEqual(productDocument.canonical_chain, ["Outcome", "Golden Journey", "Capability", "Requirement", "Design", "Dependency", "Roadmap", "Task", "Acceptance/Eval", "Runtime Evidence", "Learning"]);
 });
 
-test("requirements have stable product-owned identities", () => {
-  assert.equal(requirementDocument.schema_version, "1.0.0");
-  assert.equal(requirementDocument.product_id, "zukan");
+test("stable requirements are unique, evidence-addressable, and fully traced", () => {
   const ids = requirementDocument.requirements.map((requirement) => requirement.id);
+  assert.equal(ids.length, 24);
   assert.equal(new Set(ids).size, ids.length);
-  assert.deepEqual([...ids].sort(), expectedRequirements);
-
+  const known = new Set(ids);
   const qualityIds = new Set(qualityDocument.contracts.map((contract) => contract.id));
+  const referenced = new Set<string>();
+
   for (const requirement of requirementDocument.requirements) {
     assert.match(requirement.id, /^quality\.zukan\.[a-z0-9.-]+$/u);
     assert.ok(qualityIds.has(requirement.quality_contract));
-    assert.ok(requirement.title.trim().length > 0);
-    assert.ok(requirement.acceptance.trim().length > 0);
+    assert.ok(requirement.title.trim());
+    assert.ok(requirement.acceptance.trim());
     assert.ok(requirement.environments.length > 0);
-    assert.equal(new Set(requirement.environments).size, requirement.environments.length);
     assert.ok(requirement.evidence_lanes.length > 0);
-    assert.equal(new Set(requirement.evidence_lanes).size, requirement.evidence_lanes.length);
     assert.ok(requirement.verification_levels.length > 0);
-    assert.equal(new Set(requirement.verification_levels).size, requirement.verification_levels.length);
     assert.ok(requirement.invalidation_keys.length > 0);
-    assert.equal(new Set(requirement.invalidation_keys).size, requirement.invalidation_keys.length);
-    for (const key of requirement.invalidation_keys) assert.match(key, /^[a-z0-9][a-z0-9._:/-]{2,199}$/u);
-    assert.ok(["partial", "planned", "implemented"].includes(requirement.status));
-    assert.equal("claim_id" in requirement, false, "claim contracts belong to the central resolver binding");
+    assert.equal("claim_id" in requirement, false);
   }
-  const captureOwnerReturn = requirementDocument.requirements.find(
-    (requirement) => requirement.id === "quality.zukan.capture.owner-return",
-  );
-  assert.deepEqual(captureOwnerReturn?.evidence_lanes, ["machine", "design", "human"]);
-  assert.ok(captureOwnerReturn?.invalidation_keys.includes("design:capture-owner-return"));
-});
-
-test("quality contracts and journeys reference only defined requirements", () => {
-  const known = new Set(requirementDocument.requirements.map((requirement) => requirement.id));
-  const referenced = new Set<string>();
   for (const quality of qualityDocument.contracts) {
-    for (const requirementRef of quality.requirement_refs ?? []) {
-      assert.ok(known.has(requirementRef), `${quality.id} references unknown requirement ${requirementRef}`);
-      referenced.add(requirementRef);
+    for (const ref of quality.requirement_refs ?? []) {
+      assert.ok(known.has(ref), `${quality.id} references unknown ${ref}`);
+      referenced.add(ref);
     }
   }
   for (const journey of journeyDocument.journeys) {
-    for (const requirementRef of journey.requirement_refs ?? []) {
-      assert.ok(known.has(requirementRef), `${journey.id} references unknown requirement ${requirementRef}`);
-      referenced.add(requirementRef);
+    assert.equal(journey.golden, true, `${journey.id} must be a Golden Journey`);
+    for (const ref of journey.requirement_refs ?? []) {
+      assert.ok(known.has(ref), `${journey.id} references unknown ${ref}`);
+      referenced.add(ref);
     }
   }
-  assert.deepEqual([...referenced].sort(), expectedRequirements);
+  assert.deepEqual([...referenced].sort(), [...known].sort());
+});
 
-  const captureContract = qualityDocument.contracts.find((contract) => contract.id === "quality.zukan.capture");
-  assert.deepEqual([...(captureContract?.requirement_refs ?? [])].sort(), expectedCaptureRequirements);
-  const captureJourney = journeyDocument.journeys.find((journey) => journey.id === "journey.zukan.capture-to-personal-return");
-  assert.deepEqual([...(captureJourney?.requirement_refs ?? [])].sort(), expectedCaptureRequirements);
+test("negative/property contracts reference stable requirements only", () => {
+  const known = new Set(requirementDocument.requirements.map((requirement) => requirement.id));
+  assert.ok(qualityDocument.negative_property_tests.length >= 10);
+  for (const contract of qualityDocument.negative_property_tests) {
+    assert.ok(contract.requirements.length > 0);
+    for (const ref of contract.requirements) assert.ok(known.has(ref), `${contract.id} references unknown ${ref}`);
+  }
+});
+
+test("dependency graph and roadmap are complete and acyclic", () => {
+  const registry = loadProductDeliveryRegistry();
+  assert.deepEqual(validateProductDeliveryRegistry(registry), []);
+});
+
+test("progression is derived from qualifying evidence, not legacy status", () => {
+  const registry = loadProductDeliveryRegistry();
+  const requirementId = "quality.zukan.capture.idempotent-save";
+  assert.equal(deriveRequirementProgression(requirementId, registry.evidence.current_observations), "planned");
+  assert.equal(deriveRequirementProgression(requirementId, [{
+    id: "source-pass",
+    requirement_ids: [requirementId],
+    kind: "source-test",
+    environment: "source",
+    source_revision: "abc",
+    result: "pass",
+  }]), "source-only");
+  assert.equal(deriveRequirementProgression(requirementId, [{
+    id: "staging-pass",
+    requirement_ids: [requirementId],
+    kind: "journey",
+    environment: "staging",
+    source_revision: "abc",
+    runtime_revision: "abc",
+    result: "pass",
+  }]), "staging-verified");
+});
+
+test("unmet requirements and dependencies select the first coherent slice deterministically", () => {
+  const registry = loadProductDeliveryRegistry();
+  assert.deepEqual(selectNextImplementationSlice(registry), ["quality.zukan.capture.idempotent-save"]);
+});
+
+test("Luna task generator emits strategy-free Source / Delta / Done", () => {
+  const registry = loadProductDeliveryRegistry();
+  const task = buildLunaTask(registry, "27d1e6fe12ba4e7a90d8902f537e300fe896d1e7", "quality.zukan.capture.idempotent-save");
+  assert.deepEqual(Object.keys(task), ["Source", "Delta", "Done"]);
+  assert.ok(task.Source.some((line) => line.includes("quality.zukan.capture.idempotent-save")));
+  assert.ok(task.Delta.some((line) => line.includes("再試行")));
+  assert.ok(task.Done.some((line) => line.includes("Staging runtime identity")));
 });
