@@ -17346,7 +17346,7 @@ test("observation event public flow reuses the QR for participant-only recap, br
   assert.equal(recapPayload.highlights.participantCountUnit, "families_or_groups");
   assert.equal(recapPayload.highlights.observationCount, 1);
   assert.equal(recapPayload.photos.length, 1);
-  assert.equal(recapPayload.photos[0].taxonName, "未同定");
+    assert.equal("taxonName" in recapPayload.photos[0], false);
   assert.match(recapPayload.photos[0].photoUrl, new RegExp(`^/api/v1/observation-events/${activeEvent.sessionId}/photos/[a-f0-9]{32}$`));
   assert.equal(JSON.stringify(recapPayload).includes(observationId), false);
   assert.equal(JSON.stringify(recapPayload).includes("event-public-contract-organizer"), false);
@@ -17368,7 +17368,7 @@ test("observation event public flow reuses the QR for participant-only recap, br
   const recapHtml = await recapPage.text();
   assert.match(recapHtml, /参加した家族・グループ/);
   assert.match(recapHtml, /次に調べるヒント/);
-  assert.match(recapHtml, /未同定/);
+  assert.match(recapHtml, /観察写真/);
   assert.match(recapHtml, /data-event-recap-photo/);
   assert.doesNotMatch(recapHtml, /<h2>参加者<\/h2>|13:40/);
 });
@@ -18250,12 +18250,11 @@ test("production observation event APIs run location and rally routes on D1 with
     const recent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent`, { headers: { cookie: guestCookie } }), productionEnv);
     const recentPayload = await recent.json() as any;
     assert.equal(recent.status, 200);
-    assert.deepEqual(Object.keys(recentPayload.session).sort(), ["activeModes", "endedAt", "primaryMode", "startedAt", "status", "targetSpecies", "title"]);
-    assert.deepEqual(Object.keys(recentPayload.summary).sort(), ["eventCount", "observationCount", "uniqueTaxaCount"]);
+    assert.deepEqual(Object.keys(recentPayload.session).sort(), ["activeModes", "endedAt", "primaryMode", "startedAt", "status", "title"]);
+    assert.deepEqual(Object.keys(recentPayload.summary).sort(), ["eventCount", "observationCount"]);
     assert.equal(recentPayload.events.some((event: any) => event.type === "absence_recorded"), true);
     assert.equal(recentPayload.events.some((event: any) => event.type === "observation_added"), true);
     assert.equal(recentPayload.summary.observationCount, 1);
-    assert.equal(recentPayload.summary.uniqueTaxaCount, 1);
     const eventGuestDigest = [...obs.observationEventParticipants.values()].find((row) => row.session_id === created.sessionId && row.guest_token)?.guest_token ?? "";
     assert.ok(eventGuestDigest);
     const recentSerialized = JSON.stringify(recentPayload);
@@ -18280,7 +18279,6 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(recap.status, 200);
     assert.equal(recapPayload.highlights.observationCount, 1);
     assert.equal(recapPayload.highlights.absencesCount, 1);
-    assert.equal(recapPayload.highlights.topTaxa[0].name, "セミ");
     assert.equal(recapPayload.teams[0].name, "水辺チーム");
     assert.equal(recapPayload.teams[0].observationsCount, 1);
     assert.equal(recapPayload.timeline.some((event: any) => event.type === "observation_added"), true);
@@ -18294,9 +18292,8 @@ test("production observation event APIs run location and rally routes on D1 with
 
     const speciesCsv = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/species.csv`), productionEnv);
     const speciesCsvText = await speciesCsv.text();
-    assert.equal(speciesCsv.status, 200);
-    assert.match(speciesCsvText, /taxon_name/);
-    assert.match(speciesCsvText, /セミ/);
+    assert.equal(speciesCsv.status, 403);
+    assert.deepEqual(JSON.parse(speciesCsvText), { error: "professional_report_requires_separate_contract" });
     assert.doesNotMatch(speciesCsvText, /34\.97564/);
     assert.doesNotMatch(speciesCsvText, /138\.38284/);
 
