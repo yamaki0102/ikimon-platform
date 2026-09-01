@@ -45,7 +45,7 @@ test("M6.2 participation is an event-scoped trace over existing Event assets", (
   assert.ok(participation);
   assert.ok(capability);
   assert.ok(capture?.entry_points.includes("zukan.program.participation"));
-  assert.equal(task?.state, "planned");
+  assert.equal(task?.state, "implemented");
   assert.deepEqual(registry.evalContracts.filter((item) => item.requirement_ref === participationRequirementId).map((item) => item.environment).sort(), ["source", "staging"]);
 });
 
