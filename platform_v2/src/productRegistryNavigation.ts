@@ -12,7 +12,7 @@ type DependencyEdge = { requirement: string; depends_on: string[] };
 type ImplementationTask = {
   id: string;
   milestone_id: string;
-  state: "planned" | "deferred";
+  state: "implemented" | "planned" | "deferred";
   requirement_ids: string[];
   source_locators: string[];
   negative_eval_ids: string[];
