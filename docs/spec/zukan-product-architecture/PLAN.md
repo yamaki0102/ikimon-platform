@@ -80,7 +80,9 @@ Required invariants:
 - partial failure never reports completion;
 - unknown or unapproved incoming actor fails closed.
 
-Implementation order after explicit promotion:
+Promotion status (2026-09-02): **M7.0 is explicitly promoted to executor-eligible** after exact-source Wave 0 production `LIVE_VERIFIED` at `ed39ef808b9284b972f82b8b142b1448e12e4323` and completion of the planner promotion conditions. This promotion authorizes only the side-effect-zero deterministic planner and synthetic fixtures. It does not authorize DB persistence, runtime UI, participant/consent/Review/publication-state carry-over, or production mutation.
+
+Implementation order after promotion:
 
 1. `M7.0` side-effect-zero deterministic `ProgramHandover` planner + synthetic fixtures;
 2. `M7.1` persistence/idempotency;
