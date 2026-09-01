@@ -24016,7 +24016,7 @@ function renderCloudflareProfileHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title} - ikimon</title>
+  <title>${title} — ZUKAN</title>
   <style>
     :root{color-scheme:light;--ink:#10251a;--muted:#475569;--line:#d9e8e2;--surface:#fff;--soft:#f5faf7;--mint:#e8f7ef;--sky:#e0f2fe;--amber:#fef3c7;--teal:#047857;--blue:#0369a1;--gold:#92400e}
     *{box-sizing:border-box}
