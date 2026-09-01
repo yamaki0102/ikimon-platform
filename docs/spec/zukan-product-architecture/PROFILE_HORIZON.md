@@ -1,14 +1,15 @@
 # ZUKAN Profile Horizon — Product-local Projection
 
 - Status: `CANONICAL PRODUCT-LOCAL PROJECTION` after merge
-- Date: 2026-09-01
-- Upstream roadmap authority: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
+- Date: 2026-09-02
+- Current execution-roadmap authority: `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md`
+- Broad-scope provenance: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
 - Product architecture authority: `docs/spec/zukan-product-architecture/SPEC.md`
 - Delivery projection: `platform_v2/product-registry/delivery.json`
 
 ## Purpose
 
-This document prevents the successful biodiversity and observation-event implementations from silently narrowing the ZUKAN product.
+This document prevents successful specialist implementations from silently narrowing ZUKAN and fixes the future profile boundaries far enough that later implementation can remain small and reusable.
 
 ZUKAN is a regional knowledge and participation product. Biodiversity is one Domain Pack. `観察会` is one Program profile.
 
@@ -84,27 +85,48 @@ Standard Views remain separate from paid custom production.
 
 A school, municipality, company, DMO/tourism organization or community group can run different participatory regional programs without ZUKAN becoming an observation-event-only product.
 
+### Default implementation priority
+
+After M7/M8 promotion conditions are satisfied, the default order is:
+
+1. `photo_contest` — first non-biological proof with the smallest Core delta;
+2. `mission_town_walk` — prove Quest + Place + bounded participation beyond observation events;
+3. shared school/editorial lane — `children_citizen_editorial` and `sketch_drawing_event` share minor/guardian/Review/selected-Publication invariants before presentation-specific differences;
+4. `tourism_regional_engagement` — composite profile built from already-proven Place + Mission + participation + Publication + multilingual capabilities.
+
+`stamp_rally` initially remains a `mission_town_walk` variation. It does not create a dedicated Core/auth/platform.
+
+This order may change only through a recorded product decision backed by real demand. Executors do not select or reorder profiles autonomously.
+
 ### Profile contracts
 
 #### Photo Contest
 
-Use Record submission + purpose-specific rights + organizer Review + selected Publication.
+Use Record submission + purpose-specific rights + organizer Review/selection + selected Publication.
 
 Required boundaries:
 
-- ordinary public display and promotional reuse are separate rights
-- rejected/private entries stay private
-- withdrawal/correction remains possible according to the Program policy
-- public voting is optional, not a core requirement
-- likes/rankings do not become canonical truth
+- ordinary public display and promotional reuse are separate rights;
+- rejected/private entries stay private;
+- withdrawal/correction remains possible according to the Program policy;
+- public voting is optional, not a core requirement;
+- likes/rankings do not become canonical truth.
+
+Minimum vertical slice:
+
+`Program -> Record submission -> display/promotional rights -> Review/selection -> Publication`.
 
 #### Sketch / Drawing Event
 
-Artwork media is a Record. School/minor/guardian consent remains fail-closed. The Program may connect the artwork to a theme or Place and publish only reviewed/authorized selections.
+Artwork media is a Record. School/minor/guardian consent remains fail-closed. The Program may connect artwork to a theme or Place and publish only reviewed/authorized selections.
 
-#### Mission / Town Walk / Stamp Rally
+#### Mission / Town Walk
 
-Reuse Quest + Place + Record/check-in evidence. Continuous precise-location tracking is not required. QR, bounded check-in or Record evidence may be used depending on the concrete Program. Reward/coupon operation is a separate optional lane.
+Reuse Quest + Place + Record/check-in evidence. Continuous precise-location tracking is not required. QR, bounded check-in or Record evidence may be used depending on the concrete Program.
+
+#### Stamp Rally
+
+Initially a Mission/Town-Walk profile variation. Reward/coupon operation is a separate optional commercial lane; no separate stamp-rally auth, database or platform.
 
 #### Children / Citizen Editorial
 
@@ -124,12 +146,28 @@ The product may support outcomes commonly sought by tourism/regional-revitalizat
 - `children_editorial_program_with_staff_review`
 - `same_record_reused_by_program_and_regional_view_without_duplication`
 - `promotional_media_rights_are_separate_from_standard_public_display`
+- `stamp_rally_reuses_mission_profile_without_dedicated_core`
+
+M9 remains shaped until M7/M8 reach the required frontier state and a selected profile has explicit Requirement/Eval coverage. Roadmap presence does not activate runtime capability.
 
 ## M10 — Regional Publication Profiles
 
 ### Outcome
 
 The same governed source truth can be composed into different audience-specific regional outputs without copying it into new content silos.
+
+### Default implementation priority
+
+1. Program/campaign result Publication
+2. regional/theme encyclopedia
+3. history/culture collection
+4. tourism map/guide/route
+5. facility/shop/organization collection
+6. consented people/profile Publication
+7. paper/PDF publication manifest
+8. API/dataset projection
+
+This sequence maximizes reuse of existing PublicationEdition semantics before adding format-specific production work.
 
 ### People/profile boundary
 
@@ -153,6 +191,15 @@ Person-profile Claims retain Source/Evidence/Review and PublicationEdition histo
 
 ZUKAN can safely receive selected regional information from multiple Publishers and exchange explicitly selected public-safe information with NOCOSIL while keeping canonical/private domains separate.
 
+### Default implementation slices
+
+1. `M11-A Source Exchange Package v1`
+2. `M11-B NOCOSIL -> ZUKAN adapter`
+3. `M11-C external Publisher adapters`
+4. `M11-D correction / revocation / write-back`
+
+The exchange package stays small: Source/Edition/Publisher identity, rights, content or durable locator, Place/Entity candidates, provenance and revocation/correction information. Do not create a new shared control plane or database merely to exchange Records/Evidence.
+
 ### NOCOSIL bridge
 
 Canonical flow:
@@ -161,34 +208,49 @@ Canonical flow:
 
 Rules:
 
-- NOCOSIL owns its private Current State/source truth.
-- ZUKAN owns ZUKAN publication eligibility/state after exchange.
-- no raw private auto-publication
-- no shared giant database
-- no common abstraction built first merely because both products use Record/Evidence concepts
-- revocation/correction must be representable across the boundary
-- external receipt/acceptance must not be invented
+- NOCOSIL owns its private Current State/source truth;
+- ZUKAN owns ZUKAN publication eligibility/state after exchange;
+- no raw private auto-publication;
+- no shared giant database;
+- no common abstraction built first merely because both products use Record/Evidence concepts;
+- revocation/correction must be representable across the boundary;
+- external receipt/acceptance must not be invented.
 
 ## M12 — Professional & Managed Outcomes
 
 Repeated real demand may become paid output/support without making the free product incomplete.
 
-Candidate outcomes:
+Initial outcome families:
 
-- specialist/guaranteed reports
-- biodiversity/taxon inventory where appropriate
-- expert/official review and QA
-- custom tourism/campaign/LP/booklet/print production
-- rights/data preparation
-- facilitation / field operation
-- integration / managed operation / FDE / SLA
-- coupon/promotion operation where evidence justifies it
+1. `Professional Report`
+2. `Publication Production`
+3. `Managed Program`
+4. `Integration / Data Work`
 
-Billing/checkout is not the first implementation. First standardize request, scope, rights readiness, output and delivery evidence.
+These cover specialist/guaranteed reports, expert/official QA, custom tourism/campaign/LP/booklet/print production, rights/data preparation, facilitation/field operation, integrations/managed operation/FDE/SLA and other evidence-backed delivery work.
+
+Billing/checkout is not the first implementation. First standardize request, scope, rights readiness, output, delivery evidence and repeatability.
+
+## KPI baseline horizon
+
+Profile/product learning should first baseline, not guess targets for:
+
+- `first_record_completion`
+- `program_self_start_rate`
+- `join_completion`
+- `review_lead_time`
+- `support_minutes_per_program`
+- `handover_completion`
+- `raw_portability_success`
+- `publication_reuse`
+- `repeat_program_rate`
+- `paid_outcome_conversion`
+
+KPI collection must remain proportionate and must not weaken privacy or create unnecessary tracking.
 
 ## Rolling frontier
 
-Current projection after M6 production verification:
+Current projection:
 
 - `ACTIVE`: M7 Program Continuity & Handover
 - `READY_NEXT`: M8 Operational Summary & Raw Portability
@@ -202,15 +264,19 @@ No M9–M12 implementation Task is executor-eligible merely because the mileston
 
 A roadmap or implementation plan is invalid if it:
 
-- defines ZUKAN as a biodiversity/species observation product
-- treats `観察会` as the only Program type
-- makes Observation the parent type for unrelated regional Records
-- injects species/taxon fields into generic Program/Profile contracts
-- creates a municipality/customer-specific core for a photo contest, stamp rally or publication
-- adds person identification/tracking
-- auto-publishes private NOCOSIL information
-- moves custom production responsibilities into truth/safety semantics
-- activates M5 due only to sequence/rank
+- defines ZUKAN as a biodiversity/species observation product;
+- treats `観察会` as the only Program type;
+- makes Observation the parent type for unrelated regional Records;
+- injects species/taxon fields into generic Program/Profile contracts;
+- creates a municipality/customer-specific core for a photo contest, stamp rally or publication;
+- creates a dedicated stamp-rally auth/platform before a demonstrated invariant requires it;
+- builds a universal Program Profile Engine before repeated cross-profile need;
+- adds person identification/tracking;
+- auto-publishes private NOCOSIL information;
+- moves custom production responsibilities into truth/safety semantics;
+- activates M5 due only to sequence/rank;
+- activates all M9 profiles in parallel without demand evidence;
+- makes likes/rankings/social primitives mandatory Core.
 
 ## Product breadth test
 
@@ -219,11 +285,11 @@ The same foundation should be able to support, without product-forking:
 - biodiversity observation event
 - municipal photo contest
 - school sketch/editorial activity
-- tourism/town-walk mission
+- tourism/town-walk/stamp-rally variation
 - regional history/culture View
 - rights-safe people encyclopedia
 - facility/shop regional guide
 - selected NOCOSIL public projection
-- professional paid output
+- professional paid outcome
 
 while preserving provenance, time, rights, Review, correction, PublicationEdition and portability.
