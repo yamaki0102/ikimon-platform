@@ -90,7 +90,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, />ホーム<\/a>/);
   assert.match(html, />場所<\/a>/);
   assert.match(html, />記録<\/a>/);
-  assert.match(html, />観察会<\/a>/);
+  assert.match(html, />参加<\/a>/);
   assert.match(html, />自分<\/a>/);
   assert.match(html, /data-auth-member-href="\/ja\/records\?view=mine"/);
   assert.match(html, /href="\/ja\/profile" title="マイページ"/);
@@ -518,11 +518,11 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   assert.match(launcher, />撮る<\/span>/);
   assert.match(launcher, />場所<\/span>/);
   assert.match(launcher, />記録<\/span>/);
-  assert.match(launcher, />観察会<\/span>/);
+  assert.match(launcher, />参加<\/span>/);
   assert.ok(launcher.indexOf(">ホーム</span>") < launcher.indexOf(">記録</span>"));
   assert.ok(launcher.indexOf(">記録</span>") < launcher.indexOf(">撮る</span>"));
   assert.ok(launcher.indexOf(">撮る</span>") < launcher.indexOf(">場所</span>"));
-  assert.ok(launcher.indexOf(">場所</span>") < launcher.indexOf(">観察会</span>"));
+  assert.ok(launcher.indexOf(">場所</span>") < launcher.indexOf(">参加</span>"));
   assert.match(launcher, /<button[^>]+data-global-record-trigger="photo"[^>]+aria-haspopup="dialog"/);
   assert.doesNotMatch(launcher, /data-global-record-trigger="gallery"/);
   assert.doesNotMatch(launcher, /href="[^"]*\/record(?:\?|")/);
@@ -559,7 +559,7 @@ test("browse navigation gives active state to the matching destination", () => {
     { path: "/ja/", label: "ホーム", mobile: true },
     { path: "/ja/map?tab=places", label: "場所" },
     { path: "/ja/records?view=mine", label: "記録" },
-    { path: "/ja/community/events", label: "観察会" },
+    { path: "/ja/community/events", label: "参加" },
     { path: "/ja/profile", label: "自分", mobile: false },
   ];
 
@@ -653,7 +653,7 @@ test("site shell localizes the mobile global record launcher", () => {
   assert.match(html, />Capture<\/span>/);
   assert.match(html, />Places<\/span>/);
   assert.match(html, />Records<\/span>/);
-  assert.match(html, />Events<\/span>/);
+  assert.match(html, />Participate<\/span>/);
   assert.doesNotMatch(html, />Me<\/span>/);
   assert.match(html, /class="site-mobile-menu-account site-login-link" href="\/en\/login\?redirect=%2Fprofile">Sign in</);
   assert.match(html, /Capture a record/);
