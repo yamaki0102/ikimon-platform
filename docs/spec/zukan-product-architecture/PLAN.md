@@ -94,7 +94,14 @@ M7 design exit before promotion:
 - no unresolved product/rights decision in planner scope;
 - Requirement / dependency / Journey / negative Eval / fixture coverage complete;
 - outgoing/incoming authorization and lifecycle-reset semantics fixed;
+- source revision, target continuation, selected refs and actor identities are explicit inputs;
+- unknown, stale, scope-mismatched or unauthorized refs/actors fail closed without a target side effect;
+- the same canonical intent and source revision return the same plan digest, while same-key different-payload is a conflict;
+- partial failure is itemized and never reported as a completed handover;
+- source, authorization, rights, participant, review, lifecycle and target-scope changes invalidate a prior plan;
 - first implementation slice can be expressed as short `Source / Delta / Done` without executor product invention.
+
+M7 design fixtures are `community_group_continuing_program_into_next_year`, `one_record_reused_in_program_private_and_regional_public_contexts_without_duplication`, `incoming_actor_unknown_fail_closed`, `selected_reference_missing_fail_closed`, `same_key_different_payload_conflict`, `partial_source_revision_does_not_create_target`, and `retry_returns_same_plan_digest`. The pre-promotion terminal check is deterministic replay plus all negative fixtures with zero DB/UI side effects.
 
 ## M8 — Operational Summary & Raw Portability
 
@@ -115,6 +122,8 @@ Allowed operational information:
 - continuation/handover state;
 - Publication references.
 
+The projection is bound to an identified Program/Event and source watermark. Unknown, missing or partial metric inputs stay explicit as `unknown`/unavailable or itemized partial results; they are never coerced to zero or presented as complete. Repeating the same watermark is read-idempotent, and mixed visibility follows the existing audience/projection policy.
+
 Forbidden as free operational summary:
 
 - species/taxon list or count;
@@ -122,13 +131,17 @@ Forbidden as free operational summary:
 - normalized scientific inventory;
 - report-ready specialist tables/charts.
 
+M8-A design fixtures are `operational_summary_excludes_taxon_counts`, `operational_summary_partial_source_is_explicit`, `operational_summary_mixed_visibility_respects_projection`, `operational_summary_empty_program_is_not_error`, and `operational_summary_retry_same_watermark`. Failure of one metric source must not silently upgrade the summary to `complete`.
+
 ### M8-B — RawRecordPortabilityArchive
 
 Purpose: users/organizations can retain and move their own source Records without lock-in.
 
-Preserve Record granularity, source/media refs, user input, time, Place/location policy, consent, visibility, Review, provenance/history and withdrawal state.
+Preserve Record granularity, source/media refs, user input, time, Place/location policy, consent, visibility, Review, provenance/history and withdrawal state. Rights are evaluated per Record and field: ambiguous rights narrow or block the affected item, and private, withdrawn, deleted, quarantined or unauthorized data never becomes public through archive creation. Retention/deletion/withdrawal remain observed states rather than inferred completion.
 
 Do not reuse `researchExport.ts` as the RawRecordPortabilityArchive contract. Raw portability MUST NOT silently become taxonomy normalization, deduplicated inventory, species/taxon list/count, biodiversity summary or professional report.
+
+Each item may report an explicit partial failure; retry converges to the same archive manifest/digest without duplicate Records or media. M8-B design fixtures are `raw_record_archive_preserves_record_granularity`, `raw_record_archive_mixed_visibility_is_field_scoped`, `raw_record_archive_withdrawal_is_explicit`, `raw_record_archive_partial_item_failure_is_recoverable`, `raw_record_archive_retry_same_manifest`, and `raw_record_archive_does_not_emit_taxon_inventory`.
 
 M8 promotion requires M8-A and M8-B to remain separately testable, separately explainable and separately failure-isolated.
 
