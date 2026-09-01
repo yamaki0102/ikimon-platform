@@ -75,6 +75,18 @@
       "analytics": { "primary_event": "program_activation_submitted" }
     },
     {
+      "id": "content.zukan.program-hub",
+      "surface": "zukan.program.hub",
+      "audience": "観察会を探す人、参加者、主催者",
+      "user_intent": "開催中・募集中・過去の観察会を探し、参加・主催・振り返りへ進む",
+      "primary_message": "観察会を探して、同じ場所を一緒に見る。",
+      "primary_cta": "観察会を作成",
+      "secondary_actions": ["参加する", "振り返りを見る"],
+      "prohibited_claims": ["参加前の記録を参加成果と表示する", "非公開の参加者や記録を一覧で表示する", "観察結果を公式調査や生物総数と断定する"],
+      "seo": { "index": true, "canonical_path": "/community/events" },
+      "analytics": { "primary_event": "program_hub_opened" }
+    },
+    {
       "id": "content.zukan.program-console",
       "surface": "zukan.program.console",
       "audience": "観察会の主催者",

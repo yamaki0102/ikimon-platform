@@ -139,6 +139,17 @@
       "state_presentations": ["unauthenticated", "ready", "editing", "submitting", "created", "validation-error", "retrying", "error"]
     },
     {
+      "id": "design.zukan.program-hub",
+      "surface": "zukan.program.hub",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.program-flow",
+      "layout": "wide",
+      "density": "comfortable",
+      "navigation": "public-zukan",
+      "responsive": { "mobile": "single-column", "desktop": "wide-list" },
+      "state_presentations": ["guest", "member", "empty", "populated", "error"]
+    },
+    {
       "id": "design.zukan.program-console",
       "surface": "zukan.program.console",
       "brand": "brand.zukan-v1",
