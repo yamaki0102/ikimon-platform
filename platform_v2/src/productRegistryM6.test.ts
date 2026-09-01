@@ -56,3 +56,13 @@ test("M5 remains deferred and no local selector or status authority is introduce
   assert.deepEqual(validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/map", "/home", "/community/events", "/community/events/new", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) }), []);
   assert.deepEqual(validateProductRegistryNavigation(navigation, new Set(registry.requirements.map((item) => item.id))), []);
 });
+
+test("M6.3 closeout binds review, recap, and config-only rehost to existing assets", () => {
+  const requirement = registry.requirements.find((item) => item.id === "quality.zukan.program.closeout-rehost");
+  const task = loadProductRegistryNavigation().implementation_tasks.find((item) => item.id === "task.zukan.m6.3.closeout-rehost");
+  const recap = registry.surfaces.find((item) => item.id === "zukan.program.recap");
+  assert.ok(requirement);
+  assert.equal(task?.state, "implemented");
+  assert.ok(recap?.capabilities.includes("zukan.program.rehost-template"));
+  assert.equal(registry.evalContracts.filter((item) => item.requirement_ref === requirement?.id).length, 2);
+});
