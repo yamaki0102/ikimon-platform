@@ -2223,22 +2223,18 @@ const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/pt-br/record",
   "/pt-br/records",
   "/community",
-  "/community/events",
-  "/ja/community",
-  "/ja/community/events"
+  "/ja/community"
 ] as const;
 
 const ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS = [
   "/learn",
   "/community",
-  "/community/events",
   "/for-business",
   "/impact",
   "/cases",
   "/for-business/field-programs",
   "/ja/learn",
   "/ja/community",
-  "/ja/community/events",
   "/ja/for-business",
   "/ja/impact",
   "/ja/cases",
