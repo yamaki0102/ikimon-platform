@@ -3,24 +3,31 @@
 - Status: active plan
 - Contract: `SPEC.md`
 - Broad profile projection: `PROFILE_HORIZON.md`
-- Strategy decision: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
+- Current execution-roadmap authority: `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md`
+- Prior broad-scope provenance: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
 
 ## Goal
 
-Keep ZUKAN's implementation roadmap aligned with the adopted product definition: regional knowledge and participation across nature, history, culture, facilities, shops, people with explicit publication consent, documents, photos, activities and Publisher sources.
+Keep ZUKAN's development sequence aligned with the adopted product definition while optimizing for repeated real-world use and reuse of the existing Knowledge Core / Program Core.
+
+ZUKAN is a regional knowledge and participation product across nature, history, culture, facilities, shops, people with explicit publication consent, documents, photos, activities and Publisher sources.
 
 Biodiversity is one Domain Pack. Observation Event / `観察会` is one Program profile. Neither is the product boundary.
 
+The execution rule is not “finish milestone numbers in order.” It is:
+
+`close current verified foundation -> complete shared cross-profile foundations -> prove the smallest real non-biological Program profile -> compose governed Publications -> exchange Sources -> standardize repeated paid outcomes`.
+
 ## Current verified foundation
 
-The Product Registry / shared Resolver owns current implementation status. The roadmap meaning is:
+The Product Registry / shared Resolver owns current implementation status. The roadmap meaning remains:
 
 1. M1 — Personal Record/media integrity
 2. M2 — Safe Publication + rights/data lifecycle
 3. M3 — Program/Event/Quest/Workspace collaboration
 4. M4 — Regional knowledge / PublicationEdition / portability / correction
 5. M5 — Live-camera POC (`deferred`)
-6. M6 — Self-Serve Program Activation; the production implementation proves the observation-event Program profile
+6. M6 — Self-Serve Program Activation; the current production implementation proves the observation-event Program profile
 7. M7 — Program Continuity & Handover
 8. M8 — Operational Summary & Raw Portability
 9. M9 — Regional Program Profiles
@@ -30,9 +37,23 @@ The Product Registry / shared Resolver owns current implementation status. The r
 
 M5 remains deferred until real demand and authorized source evidence make it more valuable than the current frontier.
 
+## Execution waves
+
+### Wave 0 — Current foundation closure
+
+M1–M6 and App Experience should leave active feature-development mode once the following are true for the latest material source:
+
+- current main and current-state packet agree on exact source identity;
+- exact-source staging verification is fresh after material source changes;
+- critical authenticated Journeys are verified or explicitly retained as `UNKNOWN` rather than assumed;
+- production preparation may be brought to its protected approval/materialization boundary without blocking later safe work;
+- future changes to these capabilities are treated primarily as regression, defect or rights/safety work rather than recurring redesign.
+
+A pending production approval is not a reason to stop safe design/source work on later waves.
+
 ## Rolling frontier
 
-Current product-planning projection after M6 production verification:
+Current product-planning projection:
 
 - `ACTIVE`: M7 Program Continuity & Handover
 - `READY_NEXT`: M8 Operational Summary & Raw Portability
@@ -40,125 +61,214 @@ Current product-planning projection after M6 production verification:
 - M10–M12: dependency-shaped only
 - M5: deferred
 
-Only one executor implementation Task may be active at a time. Later milestone design may progress without creating executor-eligible Tasks.
+Only one executor implementation Task may be active at a time. Independent read-only/design work may proceed in parallel. Roadmap presence never grants implementation authority.
 
 ## M7 — Program Continuity & Handover
 
-Keep the existing executor-ready design direction:
+Purpose: make Programs durable across school years, fiscal periods, organizers and responsible-person changes.
 
-- source/target Program provenance
-- outgoing/incoming responsible actor
-- selected Place / Record / Quest / template refs
-- participant / consent / Review / publication approval reset
-- canonical Place/Record identity reuse without duplication
-- retry/idempotency
+Current design remains `implementation_allowed=false` until explicit promotion.
 
-First source slice remains a side-effect-zero deterministic handover planner and fixtures. DB/UI work follows only after the planner contract is verified.
+Required invariants:
+
+- source/target Program provenance;
+- outgoing/incoming responsible actor;
+- selected Place / Record / Quest / template refs only;
+- participant / consent / Review / publication approval reset;
+- canonical Place/Record identity reuse without duplication;
+- retry/idempotency;
+- partial failure never reports completion;
+- unknown or unapproved incoming actor fails closed.
+
+Implementation order after explicit promotion:
+
+1. `M7.0` side-effect-zero deterministic `ProgramHandover` planner + synthetic fixtures;
+2. `M7.1` persistence/idempotency;
+3. `M7.2` outgoing handover selection;
+4. `M7.3` incoming actor acceptance / responsibility transfer;
+5. `M7.4` real staging handover Journey;
+6. `M7.5` production promotion under the normal protected release boundary.
+
+M7 design exit before promotion:
+
+- no unresolved product/rights decision in planner scope;
+- Requirement / dependency / Journey / negative Eval / fixture coverage complete;
+- outgoing/incoming authorization and lifecycle-reset semantics fixed;
+- first implementation slice can be expressed as short `Source / Delta / Done` without executor product invention.
 
 ## M8 — Operational Summary & Raw Portability
 
-### M8-A Free OperationalActivitySummary
+M8 is two separate contracts. They MUST NOT be collapsed.
 
-Allowed operational information includes participant/team/activity, Quest progress, Record/Place counts, Review distribution, visibility, consent completeness, continuation and Publication references.
+### M8-A — Free OperationalActivitySummary
 
-The free summary must not silently become a biodiversity/taxon derived report.
+Purpose: a school, municipality, organization or company can understand normal Program operations without IKIMON support and without buying a specialist report.
 
-### M8-B RawRecordPortabilityArchive
+Allowed operational information:
+
+- participant/team/activity counts and state;
+- Quest progress;
+- Record/Place counts;
+- Review distribution;
+- visibility state;
+- consent completeness;
+- continuation/handover state;
+- Publication references.
+
+Forbidden as free operational summary:
+
+- species/taxon list or count;
+- biodiversity aggregate/comparison;
+- normalized scientific inventory;
+- report-ready specialist tables/charts.
+
+### M8-B — RawRecordPortabilityArchive
+
+Purpose: users/organizations can retain and move their own source Records without lock-in.
 
 Preserve Record granularity, source/media refs, user input, time, Place/location policy, consent, visibility, Review, provenance/history and withdrawal state.
 
-Do not reuse a research/taxonomy export as the raw portability contract.
+Do not reuse `researchExport.ts` as the RawRecordPortabilityArchive contract. Raw portability MUST NOT silently become taxonomy normalization, deduplicated inventory, species/taxon list/count, biodiversity summary or professional report.
+
+M8 promotion requires M8-A and M8-B to remain separately testable, separately explainable and separately failure-isolated.
 
 ## M9 — Regional Program Profiles
 
-Do not build separate products for each activity. Add reusable profiles over the shared Program Core.
+Purpose: prove that the existing Program Core is genuinely broader than observation events.
 
-Initial profile horizon:
+Do not build a universal Program Profile Engine first. Add the minimum vertical slice over existing Program / Quest / Record / Rights / Review / Publication assets.
 
-- current observation event
-- photo contest
-- sketch/drawing event
-- mission/town walk
-- stamp rally
-- children/citizen editorial program
-- tourism/regional-engagement program
+Default demand-informed implementation order after M7/M8 promotion conditions are satisfied:
 
-M9 implementation does not start until M7/M8 frontier conditions permit it. Before executor activation, the fixtures and rights boundaries in `PROFILE_HORIZON.md` must be represented in the Product Registry / Eval contract.
+1. `photo_contest`
+2. `mission_town_walk`
+3. shared school/editorial lane: `children_citizen_editorial` + `sketch_drawing_event`
+4. `tourism_regional_engagement` as a composite of already-proven Place + Mission + participation + Publication + multilingual capabilities
 
-The first selected profile should be the smallest reusable vertical slice backed by real demand, not the one with the most features.
+`stamp_rally` initially remains a Mission/Town-Walk profile variation rather than a dedicated Core/platform.
+
+A real-demand owner/product decision may reorder these profiles. Executors may not infer or change that priority.
+
+### Photo Contest first proof
+
+Use the smallest reusable flow:
+
+`Program -> Record submission -> purpose-specific rights -> organizer Review/selection -> result Publication`.
+
+Do not add public voting, likes, rankings or a social graph as core requirements.
+
+Ordinary display rights and promotional reuse rights remain separate.
+
+### Mission / Town Walk
+
+Reuse Quest + Place + Record/check-in evidence. Continuous precise-location tracking is not a requirement. QR, bounded check-in or Record evidence may be used when the concrete Program needs them.
+
+### Citizen Editorial / Sketch
+
+Reuse team + Quest + Source/Place investigation + Record/artwork media + teacher/staff Review + selected Publication. Minor/guardian consent remains fail-closed.
+
+### Tourism / Regional Engagement
+
+Compose proven capabilities rather than create a separate tourism platform: routes, Places, stories, missions, visitor/resident participation, selected Records, multilingual Publication where justified and repeat-engagement/continuation evidence.
+
+Before executor activation, M9 fixtures and rights/Review differences from `PROFILE_HORIZON.md` must be represented in Product Registry / Eval contracts.
 
 ## M10 — Regional Publication Profiles
 
-Compose the same governed source truth into multiple Views/Publications:
+Purpose: compose governed source truth into useful outputs without new content silos or a replacement truth store.
 
-- regional/theme encyclopedia
-- tourism map/guide/route
-- history/culture collection
-- facility/shop/organization collection
-- rights-safe people/profile encyclopedia
-- Program/campaign result page
-- standard paper/PDF manifest
-- API/dataset projection
+Default implementation order:
 
-Do not duplicate source truth into publication-specific databases.
+1. Program/campaign result Publication;
+2. regional/theme encyclopedia;
+3. history/culture collection;
+4. tourism map/guide/route;
+5. facility/shop/organization collection;
+6. consented people/profile Publication;
+7. standard paper/PDF publication manifest;
+8. API/dataset projection.
 
-People/profile publication requires an explicit rights basis and must never introduce face identification or tracking.
+Reuse PublicationEdition/source truth. A Publication Profile is a governed View, not a new canonical database.
+
+People/profile Publication requires explicit subject/Publisher rights basis, correction/withdrawal and must never introduce face identification, biometric recognition or tracking.
 
 ## M11 — Source & Public Projection Exchange
 
-Support Publisher/source exchange through bounded adapters and explicit rights/review state.
+Purpose: receive and return regional information while keeping source authority explicit and keeping NOCOSIL private truth separate.
 
-Source horizon:
+Implementation order:
 
-- municipal open data
-- government/DMO/tourism-association sources
-- PDF/Web/paper editions
-- school/company/community Publisher sources
-- selected NOCOSIL public-safe projection packages
+1. `M11-A Source Exchange Package v1` — small bounded envelope for Source/Edition/Publisher/rights/content-or-locator/Place-Entity candidates/provenance/revocation;
+2. `M11-B NOCOSIL -> ZUKAN adapter` — explicit selected public-safe projection only;
+3. `M11-C external Publisher adapters` — municipal open data, government/DMO/tourism sources, PDF/Web/paper and school/company/community sources;
+4. `M11-D correction/revocation/write-back` — explicit version/status/receipt only when an accountable path exists.
 
-NOCOSIL and ZUKAN remain separate canonical domains. The exchange is projection/package based, not a shared database or automatic private publication path.
+NOCOSIL and ZUKAN remain separate canonical/private domains. No shared giant database and no automatic private publication.
 
 ## M12 — Professional & Managed Outcomes
 
-Convert repeated demand into paid outputs/support without gating ordinary participation, Record truth, Review or standard Publication.
+Purpose: monetize repeated outcome demand without degrading the free truth/safety core.
 
-Candidate lanes:
+Initial commercial outcome families:
 
-- specialist/guaranteed reports
-- expert/official review
-- custom campaign/LP/booklet/print production
-- rights/data preparation
-- facilitation/field operation
-- integration/managed operation/FDE/SLA
-- coupon/promotion operation when evidence justifies it
+1. `Professional Report`
+2. `Publication Production`
+3. `Managed Program`
+4. `Integration / Data Work`
 
-Do not build billing SaaS before a recurring output workflow exists.
+Do not build billing/checkout first. First standardize request, scope, rights readiness, output, delivery evidence and repeatability. Billing follows a recurring reusable delivery workflow.
 
-## Product breadth fixtures
+## Always-on tracks
 
-The roadmap must preserve a path for all of the following without a customer-specific Core:
+Every wave runs with four continuous tracks:
 
-1. biodiversity observation event
-2. municipal photo contest
-3. school sketch/editorial activity
-4. tourism/town-walk mission or stamp rally
-5. regional history/culture View
-6. facility/shop guide
-7. rights-safe people encyclopedia
-8. selected NOCOSIL public projection
-9. professional paid output
+1. `UX Quality` — real browser Journey, mobile, PWA, auth, accessibility, performance, empty/degraded/error/retry;
+2. `Rights & Safety` — privacy, consent, minor/guardian, location minimization, withdrawal, person safety, Publication correction;
+3. `Product Registry / Evidence` — Outcome -> Journey -> Requirement -> Dependency -> Task -> Eval -> Runtime Evidence -> Learning with the shared Resolver as sole status authority;
+4. `Demand Learning` — record which Programs/Publications/outcomes are requested, repeated, support-heavy and commercially valuable.
 
-## Anti-drift rules
+## Future-profile selection rule
 
-Reject changes that:
+When more than one future profile/output is eligible, product authority selects using the ordering principle:
 
-- define ZUKAN as a biodiversity/species observation product
-- treat `観察会` as the only Program type
-- reuse taxon/Occurrence/Identification semantics as generic domain objects
-- make person identification/tracking a product capability
-- auto-publish NOCOSIL/private information
-- create a municipality-specific database/auth/Place model for a Program profile
-- promote M5 because of rank alone
+`real demand x reuse value x existing Core fit x adoption/revenue effect / implementation and operational burden`.
+
+The numeric scale is not canonical. Executors do not choose product priority from this formula on their own.
+
+## KPI baseline set
+
+Do not invent target percentages until baseline data exists. First capture:
+
+- `first_record_completion`
+- `program_self_start_rate`
+- `join_completion`
+- `review_lead_time`
+- `support_minutes_per_program`
+- `handover_completion`
+- `raw_portability_success`
+- `publication_reuse`
+- `repeat_program_rate`
+- `paid_outcome_conversion`
+
+Measurement must not weaken privacy or justify unnecessary tracking.
+
+## Explicit non-goals
+
+Do not build:
+
+- municipality/customer-specific backend, database, auth or canonical Place model;
+- photo-contest-specific Core database;
+- stamp-rally-specific auth/platform;
+- universal Program Profile Engine before repeated invariant demand;
+- Observation as the parent for unrelated Records;
+- generic regional semantics by renaming Taxon/Occurrence/Identification;
+- face-recognition/person-tracking people encyclopedia;
+- giant shared NOCOSIL/ZUKAN database;
+- all M9 profiles in parallel;
+- billing-first SaaS;
+- mandatory likes/rankings/social primitives;
+- coupon fraud infrastructure before repeat demand;
+- M5 because its milestone number is lower.
 
 ## Verification
 
@@ -172,13 +282,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_zukan_product
 
 Roadmap validation additionally must assert:
 
-- M1–M12 stable ordering
-- M5 remains deferred
-- M9 is the shaped-next broad Program-profile milestone
-- M10 includes publication breadth and people-profile safety
-- M11 preserves NOCOSIL/source authority boundaries
-- M12 remains demand-gated and does not redefine free-core truth
-- no executor Task exists for M9–M12 before frontier promotion
+- current strategy authority points to execution roadmap v3;
+- M1–M12 stable ordering;
+- M5 remains deferred;
+- M7/M8/M9 frontier stays explicit until product promotion changes it;
+- M9 default profile order starts with Photo Contest and then Mission/Town Walk, with Stamp Rally as a variation initially;
+- M10 Publication order and people-profile safety remain explicit;
+- M11 keeps NOCOSIL/source authority boundaries;
+- M12 remains demand-gated and billing-first is forbidden;
+- no executor Task exists for M9–M12 before frontier promotion;
+- KPI names remain baseline/measurement contracts, not invented target promises.
 
 ## Production boundary
 
