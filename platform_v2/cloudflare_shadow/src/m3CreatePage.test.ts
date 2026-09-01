@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderObservationEventCreatePage } from "./index.js";
+import { renderObservationEventCreatePage, renderObservationEventRecapPage } from "./index.js";
 
 test("M3 native create surface exposes the collaboration fields and safe handoff", () => {
   const body = renderObservationEventCreatePage({
@@ -48,4 +48,17 @@ test("M6.3 native rehost prefills configuration only and excludes lifecycle stat
   assert.match(body, /configuration-only/);
   assert.match(body, /参加者・同意・review・公開状態は引き継ぎません/);
   assert.doesNotMatch(body, /participant_id|consent_status|review_status|publication_status/);
+});
+
+test("M6.3 native recap exposes rehost only to the organizer", () => {
+  const common = {
+    session: { sessionId: "event-source", title: "Spring walk" },
+    highlights: { observationCount: 0, uniqueSpeciesCount: 0, participantsCount: 1 },
+    photos: [],
+  };
+  const organizer = renderObservationEventRecapPage({ ...common, permissions: { canManage: true } });
+  const participant = renderObservationEventRecapPage({ ...common, permissions: { canManage: false } });
+  assert.match(organizer, /template_from=event-source/);
+  assert.match(organizer, /参加者・同意・review・公開状態は引き継ぎません/);
+  assert.doesNotMatch(participant, /template_from=event-source/);
 });

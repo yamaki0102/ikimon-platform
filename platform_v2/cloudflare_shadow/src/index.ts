@@ -4751,8 +4751,10 @@ function observationEventRegistrationStartScript(sessionId: string): string {
 </script>`;
 }
 
-function renderObservationEventRecapPage(recap: Record<string, unknown>): string {
+export function renderObservationEventRecapPage(recap: Record<string, unknown>): string {
   const session = asPlainObject(recap.session) ?? {};
+  const permissions = asPlainObject(recap.permissions) ?? {};
+  const canManage = permissions.canManage === true;
   const highlights = asPlainObject(recap.highlights) ?? {};
   const photos = Array.isArray(recap.photos)
     ? recap.photos.map(asPlainObject).filter((photo): photo is Record<string, unknown> => Boolean(photo))
@@ -4763,7 +4765,10 @@ function renderObservationEventRecapPage(recap: Record<string, unknown>): string
   const photoGallery = photos.length > 0
     ? `<div class="event-photo-grid">${photos.map((photo) => `<figure class="card event-photo-card" data-event-recap-photo><img src="${escapeHtml(photo.photoUrl ?? "")}" alt="${escapeHtml(photo.taxonName ?? "未同定の観察写真")}" loading="lazy"><figcaption>${escapeHtml(photo.taxonName ?? "未同定")}</figcaption></figure>`).join("")}</div>`
     : `<p class="muted">写真は安全な表示用データの準備ができ次第、ここに表示されます。</p>`;
-  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>見つかった種類</h2><p>${escapeHtml(highlights.uniqueSpeciesCount ?? 0)}</p></article><article class="card"><h2>参加した家族・グループ</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><h2>みんなの観察写真</h2>${photoGallery}<article class="card"><h2>次に調べるヒント</h2><p>写真の形や色、見つけた場所の環境を見比べてみましょう。名前がまだ分からない記録も、大切な発見です。</p>${topTaxa.length > 0 ? `<p>${topTaxa.map((taxon) => `<span class="pill">${escapeHtml(taxon.name ?? "未同定")} ${escapeHtml(taxon.count ?? 0)}件</span>`).join("")}</p>` : ""}</article></section>`;
+  const rehost = canManage
+    ? `<article class="card"><h2>次回の観察会</h2><p class="muted">企画設定だけを再利用します。参加者・同意・review・公開状態は引き継ぎません。</p><div class="actions"><a class="btn" href="/community/events/new?template_from=${encodeURIComponent(String(session.sessionId ?? ""))}">もう一度開催する</a></div></article>`
+    : "";
+  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>見つかった種類</h2><p>${escapeHtml(highlights.uniqueSpeciesCount ?? 0)}</p></article><article class="card"><h2>参加した家族・グループ</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><h2>みんなの観察写真</h2>${photoGallery}<article class="card"><h2>次に調べるヒント</h2><p>写真の形や色、見つけた場所の環境を見比べてみましょう。名前がまだ分からない記録も、大切な発見です。</p>${topTaxa.length > 0 ? `<p>${topTaxa.map((taxon) => `<span class="pill">${escapeHtml(taxon.name ?? "未同定")} ${escapeHtml(taxon.count ?? 0)}件</span>`).join("")}</p>` : ""}</article>${rehost}</section>`;
 }
 
 function renderObservationEventReportPage(report: Awaited<ReturnType<typeof buildObservationEventOfficialReport>> & Record<string, unknown>): string {
