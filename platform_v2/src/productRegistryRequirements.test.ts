@@ -72,6 +72,9 @@ test("roadmap is static navigation only and defers live-camera to M5", () => {
   const navigation = loadProductRegistryNavigation();
   assert.deepEqual(validateProductRegistryNavigation(navigation, new Set(registry.requirements.map((item) => item.id))), []);
   assert.equal(navigation.roadmap.at(-1)?.id, "milestone.m5.live-camera-poc");
+  const taskStates = new Map(navigation.implementation_tasks.map((item) => [item.id, item.state]));
+  assert.equal(taskStates.get("task.zukan.m1.record-media-integrity"), "implemented");
+  assert.equal(taskStates.get("task.zukan.m2.safe-publication"), "implemented");
   assert.equal(navigation.implementation_tasks.at(-1)?.state, "deferred");
   const source = readFileSync(new URL("./productRegistryNavigation.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /deriveRequirementProgression|selectNextImplementationSlice/u);
