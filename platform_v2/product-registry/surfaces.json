@@ -40,10 +40,11 @@
       "implementation_status": "implemented",
       "known_gaps": [],
       "capabilities": ["zukan.capture.start", "zukan.record.save-private"],
-      "entry_points": ["zukan.home.public", "zukan.home.member", "zukan.records.public"],
+      "entry_points": ["zukan.home.public", "zukan.home.member", "zukan.records.public", "zukan.program.participation"],
       "transitions": [
         { "action": "保存成功", "target": "zukan.home.member", "status": "candidate" },
-        { "action": "公開記録へ戻る", "target": "zukan.records.public", "status": "implemented" }
+        { "action": "公開記録へ戻る", "target": "zukan.records.public", "status": "implemented" },
+        { "action": "Event記録を振り返る", "target": "zukan.program.recap", "status": "implemented" }
       ],
       "states": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying"],
       "design_contract": "design.zukan.capture",
@@ -187,7 +188,8 @@
       "capabilities": ["zukan.program.invite-participate", "zukan.record.save-private"],
       "entry_points": ["zukan.program.console"],
       "transitions": [
-        { "action": "参加して記録する", "target": "zukan.program.recap", "status": "candidate" },
+        { "action": "参加して記録する", "target": "zukan.capture.start", "status": "implemented" },
+        { "action": "参加後に振り返りを見る", "target": "zukan.program.recap", "status": "implemented" },
         { "action": "参加を拒否", "target": "zukan.program.participation", "status": "implemented" }
       ],
       "states": ["unauthenticated", "ready", "joined", "closed", "denied", "error"],
@@ -208,7 +210,7 @@
       "privacy": "event-scoped",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.program.view-recap"],
+      "capabilities": ["zukan.program.view-recap", "zukan.program.rehost-template"],
       "entry_points": ["zukan.program.console", "zukan.program.participation"],
       "transitions": [
         { "action": "もう一度開催する", "target": "zukan.program.activation", "status": "implemented" },
