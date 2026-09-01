@@ -4,7 +4,8 @@
 - Adopted: 2026-07-29
 - Current runtime: `platform_v2/`
 - Architecture decision: `yamaki0102/ikimon-business-strategy/decisions/2026-07-29-zukan-product-architecture-and-safety-boundary.md`
-- Current broad roadmap decision: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
+- Current execution-roadmap decision: `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md`
+- Broad product-scope provenance: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
 - Foundation contract: `docs/spec/zukan_foundation_v2_implementation_contract_2026-07-28.md`
 - Current profile horizon: `PROFILE_HORIZON.md`
 
@@ -237,7 +238,7 @@ Current delivery state and executor eligibility are owned by:
 - `platform_v2/product-registry/requirements.json` and Eval contracts for product acceptance;
 - the shared Verified Outcome Status Resolver for resolved status and evidence eligibility.
 
-Current planning projection after M6 production verification:
+Current planning projection:
 
 - `ACTIVE`: M7 Program Continuity & Handover
 - `READY_NEXT`: M8 Operational Summary & Raw Portability
@@ -247,7 +248,46 @@ Current planning projection after M6 production verification:
 
 The broad product horizon is fixed in `PROFILE_HORIZON.md`. Describing a future Program or Publication profile does not make it runtime-active or executor-eligible.
 
-## 14. Evidence interoperability
+## 14. Development execution principles
+
+The current execution roadmap adds these product-level rules without changing runtime status:
+
+1. close M1-M6/App Experience into regression-protected foundation instead of repeatedly redesigning them;
+2. complete cross-profile M7 and M8 before scaling profile count;
+3. prove M9 with the smallest demand-backed non-biological profile rather than building a universal profile engine;
+4. compose M10 Publications from existing governed truth rather than create new CMS/source silos;
+5. exchange bounded Source packages in M11 rather than build a shared NOCOSIL/ZUKAN database;
+6. standardize repeated paid outcomes in M12 before billing-first infrastructure;
+7. M5 remains demand-gated and deferred regardless of rank.
+
+Default M9 priority after promotion is Photo Contest, then Mission/Town Walk, then the shared Citizen Editorial/Sketch lane, then Tourism/Regional Engagement as a composite. Stamp Rally initially remains a Mission variation.
+
+A real-demand product decision may reorder future profiles; the executor may not infer or alter that priority.
+
+## 15. KPI and demand-learning boundary
+
+The product should baseline rather than invent target percentages for:
+
+- `first_record_completion`
+- `program_self_start_rate`
+- `join_completion`
+- `review_lead_time`
+- `support_minutes_per_program`
+- `handover_completion`
+- `raw_portability_success`
+- `publication_reuse`
+- `repeat_program_rate`
+- `paid_outcome_conversion`
+
+KPI measurement is subordinate to privacy/rights minimization. It must not introduce unnecessary user tracking.
+
+Future profile/output selection uses the ordering principle:
+
+`real demand x reuse value x existing Core fit x adoption/revenue effect / implementation and operational burden`.
+
+This is a product-authority decision aid, not an executor-autonomous ranking algorithm.
+
+## 16. Evidence interoperability
 
 Stable Product Registry requirements are the product-owned bridge into the shared execution resolver.
 
