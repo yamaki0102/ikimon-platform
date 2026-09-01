@@ -103,7 +103,7 @@ M7 design exit before promotion:
 - source, authorization, rights, participant, review, lifecycle and target-scope changes invalidate a prior plan;
 - first implementation slice can be expressed as short `Source / Delta / Done` without executor product invention.
 
-M7 design fixtures are `community_group_continuing_program_into_next_year`, `one_record_reused_in_program_private_and_regional_public_contexts_without_duplication`, `incoming_actor_unknown_fail_closed`, `selected_reference_missing_fail_closed`, `same_key_different_payload_conflict`, `partial_source_revision_does_not_create_target`, and `retry_returns_same_plan_digest`. The pre-promotion terminal check is deterministic replay plus all negative fixtures with zero DB/UI side effects.
+M7.0 fixtures are `school_new_academic_year_new_teacher`, `guardian_withdrawal_fail_closed`, `unresolved_review_reference_not_approval`, `same_place_record_reused_without_duplication`, `outgoing_actor_removed_after_acceptance`, `unknown_unapproved_incoming_actor_fail_closed`, `retry_converges_to_one_logical_plan`, `same_key_different_payload_rejected`, `invalid_selected_ref_fail_closed`, and `participant_consent_review_publication_carry_over_forbidden`. The terminal check is deterministic replay plus all negative fixtures with zero DB/UI side effects. Later M7.1 persistence/idempotency work remains out of scope.
 
 ## M8 — Operational Summary & Raw Portability
 

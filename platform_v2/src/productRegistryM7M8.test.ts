@@ -6,14 +6,18 @@ import { loadProductRegistryNavigation, validateProductRegistryNavigation } from
 
 const registry = loadProductRegistry();
 
-test("M7.0 is executor-eligible as a side-effect zero handover planner only", () => {
+test("M7.0 is source-verified and M7.1 remains outside this slice", () => {
   const journey = registry.journeys.find((item) => item.id === "journey.zukan.program-handover");
   const task = loadProductRegistryNavigation().implementation_tasks.find((item) => item.id === "task.zukan.m7.program-handover-planner") as any;
   assert.ok(journey);
-  assert.equal(task?.state, "planned");
-  assert.equal(task?.readiness, "executor-eligible");
-  assert.equal(task?.implementation_allowed, true);
+  assert.equal(task?.state, "implemented");
+  assert.equal(task?.readiness, "source-verified");
+  assert.equal(task?.implementation_allowed, false);
   assert.equal(task?.source_delta_done?.delta, "side-effect 0 deterministic ProgramHandover planner");
+  assert.ok(task?.source_locators?.includes("platform_v2/src/services/programHandoverPlanner.ts"));
+  assert.ok(task?.source_locators?.includes("platform_v2/src/services/programHandoverPlanner.test.ts"));
+  assert.equal(task?.negative_eval_ids?.length, 10);
+  assert.equal(task?.design_contract?.terminal_verification, "deterministic replay plus all negative fixtures with zero DB/UI side effects");
 });
 
 test("M7 design contract fixes authorization, rights, failure and idempotency boundaries", () => {
