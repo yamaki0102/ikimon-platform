@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { appLangFromLocale, buildAppServiceWorker, buildOfflineHtml, buildWebManifest } from "../appInstall.js";
+import { BRAND_ASSETS } from "../brandAssets.js";
 import { detectLangFromUrl, normalizeLang } from "../i18n.js";
 import { getForwardedBasePath } from "../httpBasePath.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
@@ -97,7 +98,7 @@ function renderAppRefreshHtml(target: string): string {
 </head>
 <body>
   <main class="panel">
-    <div class="mark">i</div>
+    <div class="mark"><img src="${BRAND_ASSETS.mark192}" alt="ZUKAN" /></div>
     <h1>アプリ表示を更新しています</h1>
     <p>端末内の古いService Workerとアプリ表示キャッシュだけを解除して、最新の地図を読み直します。未同期の記録データは消しません。</p>
     <div class="status" data-status>準備中...</div>
@@ -147,7 +148,7 @@ function renderAppRefreshHtml(target: string): string {
     try {
       if ('caches' in window && caches.keys) {
         var keys = await caches.keys();
-        await Promise.all(keys.filter(function (key) { return /^ikimon-app-/.test(key); }).map(function (key) { return caches.delete(key); }));
+        await Promise.all(keys.filter(function (key) { return /^ikimon-app-/.test(key) || (/^zukan-app-/.test(key) && !/^zukan-app-v1/.test(key)); }).map(function (key) { return caches.delete(key); }));
       }
     } catch (_) {}
     setStatus('最新の地図を開き直します...');

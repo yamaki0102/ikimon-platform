@@ -54,8 +54,8 @@ test("guest Top explains the product and leads with concrete actions", () => {
   assert.match(html, /現在は、招待された方をご案内しています。/);
   assert.doesNotMatch(html, /何を残せるか|記録が育つ流れ|home-category-index|home-value-icon/);
   assert.match(html, /場所から見る/);
-  assert.match(html, /href="\/ja\/community"/);
-  assert.match(html, /みんなの活動を見る/);
+  assert.match(html, /href="\/ja\/community\/events"/);
+  assert.match(html, /観察会を見る/);
   assert.match(html, /正確な位置は公開しません/);
   assert.match(html, /ikimon-home-slot:guest-hero:start/);
   assert.match(html, /home-guest-hero-visual/);
@@ -269,7 +269,7 @@ test("guest Top keeps the optional invited note and starts with the shared camer
   assert.match(html, /現在は、招待された方をご案内しています。/);
   assert.doesNotMatch(html, /学校・学び|地域・イベント|仕事・文化|暮らし・自然|home-category-index|home-value-icon/);
   assert.match(html, /home-community-section/);
-  assert.match(html, /href="\/ja\/community"/);
+  assert.match(html, /href="\/ja\/community\/events"/);
   assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(html, /placeholder\.jpg|home-category-photo/);
   assert.match(html, /data-global-record-trigger="photo"/);

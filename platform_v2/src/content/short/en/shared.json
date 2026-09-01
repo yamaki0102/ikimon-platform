@@ -73,11 +73,13 @@
   },
   "bottomNav": {
     "ariaLabel": "Main actions",
+    "home": "Home",
     "capture": "Capture",
     "captureAria": "Capture (opens camera)",
     "places": "Places",
     "records": "Records",
-    "self": "Me"
+    "self": "Me",
+    "events": "Events"
   },
   "cameraCapture": {
     "photo": "Photo",

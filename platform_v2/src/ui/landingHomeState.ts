@@ -174,7 +174,7 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
   const placeItem = publicItems.find((item) => Boolean(item.photoUrl) && isGuestVisibleRecord(item)) ?? null;
   const placeVisual = placeItem ? `<a class="home-place-visual" href="${escapeHtml(detailHref(options, placeItem))}">${renderMedia(placeItem, options.copy)}</a>` : `<div class="home-place-visual is-placeholder"><img src="/assets/brand/zukan-symbol.svg" alt="" width="180" height="180" /></div>`;
   const placeHref = href(options, "/map?tab=places");
-  const communityHref = href(options, "/community");
+  const communityHref = href(options, "/community/events");
   return `<div class="home-state-view is-guest" data-home-view="guest"${options.isLoggedIn ? " hidden" : ""}>
     <section class="home-guest-hero has-visual">
       <div class="home-guest-hero-copy">

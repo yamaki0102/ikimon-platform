@@ -57,11 +57,13 @@
   },
   "bottomNav": {
     "ariaLabel": "Acciones principales",
+    "home": "Inicio",
     "capture": "Capturar",
     "captureAria": "Capturar (abre la cámara)",
     "places": "Lugares",
     "records": "Registros",
-    "self": "Yo"
+    "self": "Yo",
+    "events": "Eventos"
   },
   "cameraCapture": {
     "photo": "Foto",

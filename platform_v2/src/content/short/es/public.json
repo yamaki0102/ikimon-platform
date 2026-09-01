@@ -18,7 +18,7 @@
           { "title": "Lleva a lo siguiente", "body": "Vuelve a verlo, comprueba algo o participa otra vez." }
         ],
         "placesTitle": "Explorar por lugar", "placesBody": "Sigue las fotos y actividades de un mismo lugar para ver los cambios y lo que viene.",
-        "communityTitle": "Registrar juntos", "communityBody": "Descubre registros reunidos en el mismo lugar mediante actividades locales.", "communityCta": "Ver actividades",
+        "communityTitle": "Registrar juntos", "communityBody": "Descubre registros reunidos en el mismo lugar mediante actividades locales.", "communityCta": "Ver eventos",
         "privacyTitle": "No publicamos tu ubicación exacta", "privacyBody": "Elige la visibilidad de cada registro. Los hogares y lugares de especies sensibles reciben mayor protección.",
         "finalTitle": "Guarda algo que hoy llamó tu atención", "finalCta": "Capturar"
       },

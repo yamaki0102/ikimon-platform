@@ -75,11 +75,13 @@
   },
   "bottomNav": {
     "ariaLabel": "主な操作",
+    "home": "ホーム",
     "capture": "撮る",
     "captureAria": "撮る（カメラを開きます）",
     "places": "場所",
     "records": "記録",
-    "self": "自分"
+    "self": "自分",
+    "events": "観察会"
   },
   "cameraCapture": {
     "photo": "写真",

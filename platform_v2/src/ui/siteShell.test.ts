@@ -87,8 +87,10 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /class="shell shell-layout-home"/);
   assert.match(html, /class="site-nav site-nav-desktop site-core-nav"/);
   assert.match(html, /data-global-record-trigger="photo"/);
+  assert.match(html, />ホーム<\/a>/);
   assert.match(html, />場所<\/a>/);
   assert.match(html, />記録<\/a>/);
+  assert.match(html, />観察会<\/a>/);
   assert.match(html, />自分<\/a>/);
   assert.match(html, /data-auth-member-href="\/ja\/records\?view=mine"/);
   assert.match(html, /href="\/ja\/profile" title="マイページ"/);
@@ -323,7 +325,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   });
 
   assert.match(html, /class="global-record-launcher"/);
-  assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 4);
+  assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 5);
   assert.equal(html.match(/data-global-record-input="gallery"/g)?.length, 1);
   assert.match(html, /data-global-record-input="gallery" type="file" accept="image\/\*" multiple/);
   assert.doesNotMatch(html, /capture="environment"/);
@@ -512,17 +514,19 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   });
   const launcher = html.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
 
+  assert.match(launcher, />ホーム<\/span>/);
   assert.match(launcher, />撮る<\/span>/);
   assert.match(launcher, />場所<\/span>/);
   assert.match(launcher, />記録<\/span>/);
-  assert.match(launcher, />自分<\/span>/);
+  assert.match(launcher, />観察会<\/span>/);
+  assert.ok(launcher.indexOf(">ホーム</span>") < launcher.indexOf(">記録</span>"));
+  assert.ok(launcher.indexOf(">記録</span>") < launcher.indexOf(">撮る</span>"));
   assert.ok(launcher.indexOf(">撮る</span>") < launcher.indexOf(">場所</span>"));
-  assert.ok(launcher.indexOf(">場所</span>") < launcher.indexOf(">記録</span>"));
-  assert.ok(launcher.indexOf(">記録</span>") < launcher.indexOf(">自分</span>"));
+  assert.ok(launcher.indexOf(">場所</span>") < launcher.indexOf(">観察会</span>"));
   assert.match(launcher, /<button[^>]+data-global-record-trigger="photo"[^>]+aria-haspopup="dialog"/);
   assert.doesNotMatch(launcher, /data-global-record-trigger="gallery"/);
   assert.doesNotMatch(launcher, /href="[^"]*\/record(?:\?|")/);
-  assert.doesNotMatch(launcher, /aria-current="page"/);
+  assert.match(launcher, /global-record-choice is-active[^>]+href="\/ja\/" aria-current="page"/);
   assert.match(html, /\.site-core-nav-link\.is-capture \{[^}]*min-height: 48px;[^}]*background: #087a4d;/);
   assert.match(html, /\.global-record-choice\.is-primary \{[^}]*min-height: 66px;[^}]*margin-top: -10px;[^}]*border-radius: 21px;/);
   assert.match(html, /\.global-record-choice\.is-primary \.global-record-choice-icon \{[^}]*width: 36px;[^}]*background: #087a4d;[^}]*color: #fff;/);
@@ -547,14 +551,16 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
     currentPath: "/ja/profile",
   });
   const profileLauncher = profileHtml.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
-  assert.match(profileLauncher, /global-record-choice is-active[^>]+href="\/ja\/login\?redirect=%2Fprofile"[^>]+aria-current="page"/);
+  assert.doesNotMatch(profileLauncher, />自分<\/span>/);
 });
 
-test("browse navigation gives active state only to places, records, or self", () => {
+test("browse navigation gives active state to the matching destination", () => {
   const surfaces = [
+    { path: "/ja/", label: "ホーム", mobile: true },
     { path: "/ja/map?tab=places", label: "場所" },
     { path: "/ja/records?view=mine", label: "記録" },
-    { path: "/ja/profile", label: "自分" },
+    { path: "/ja/community/events", label: "観察会" },
+    { path: "/ja/profile", label: "自分", mobile: false },
   ];
 
   for (const surface of surfaces) {
@@ -570,9 +576,9 @@ test("browse navigation gives active state only to places, records, or self", ()
     const mobileNav = html.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
 
     assert.equal((desktopNav.match(/aria-current="page"/g) || []).length, 1);
-    assert.equal((mobileNav.match(/aria-current="page"/g) || []).length, 1);
+    assert.equal((mobileNav.match(/aria-current="page"/g) || []).length, surface.mobile === false ? 0 : 1);
     assert.match(desktopNav, new RegExp(`aria-current="page">${surface.label}</a>`));
-    assert.match(mobileNav, new RegExp(`aria-current="page">[\\s\\S]*?<span>${surface.label}</span>`));
+    if (surface.mobile !== false) assert.match(mobileNav, new RegExp(`aria-current="page">[\\s\\S]*?<span>${surface.label}</span>`));
     const desktopCapture = desktopNav.match(/<button[^>]+data-global-record-trigger="photo"[^>]*>/)?.[0] ?? "";
     const mobileCapture = mobileNav.match(/<button[^>]+data-global-record-trigger="photo"[^>]*>/)?.[0] ?? "";
     assert.doesNotMatch(desktopCapture, /aria-current|is-active/);
@@ -643,10 +649,12 @@ test("site shell localizes the mobile global record launcher", () => {
   });
 
   assert.match(html, /aria-label="Main actions"/);
+  assert.match(html, />Home<\/span>/);
   assert.match(html, />Capture<\/span>/);
   assert.match(html, />Places<\/span>/);
   assert.match(html, />Records<\/span>/);
-  assert.match(html, />Me<\/span>/);
+  assert.match(html, />Events<\/span>/);
+  assert.doesNotMatch(html, />Me<\/span>/);
   assert.match(html, /class="site-mobile-menu-account site-login-link" href="\/en\/login\?redirect=%2Fprofile">Sign in</);
   assert.match(html, /Capture a record/);
   assert.match(html, /Choose from device/);

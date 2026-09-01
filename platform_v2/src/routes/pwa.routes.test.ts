@@ -30,7 +30,7 @@ test("manifest is app-first and localized from device or query language", async 
     assert.equal(manifest.theme_color, "#143f2e");
     assert.deepEqual(
       manifest.shortcuts.map((shortcut) => shortcut.url),
-      ["/en/record", "/en/map?tab=places", "/en/records?view=mine", "/en/profile"],
+      ["/en/record", "/en/community/events", "/en/map?tab=places", "/en/records?view=mine"],
     );
     assert.deepEqual(
       manifest.icons.map(({ src, sizes, type, purpose }) => ({ src, sizes, type, purpose })),
@@ -54,7 +54,8 @@ test("app service worker keeps authenticated navigation out of shared caches wit
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] as string, /application\/javascript/);
     assert.equal(response.headers["service-worker-allowed"], "/");
-    assert.match(response.body, /ikimon-app-v9/);
+    assert.match(response.body, /zukan-app-v1/);
+    assert.match(response.body, /ikimon-app-/);
     assert.match(response.body, /networkFirstNavigation/);
     assert.doesNotThrow(() => new Function(response.body));
     assert.doesNotMatch(response.body, /APP_NAV_RE|SHELL_CACHE/);
@@ -108,6 +109,8 @@ test("app refresh page unregisters stale service workers without clearing client
     assert.match(response.body, /registration\.unregister/);
     assert.match(response.body, /caches\.keys/);
     assert.match(response.body, /\^ikimon-app-/);
+    assert.match(response.body, /\^zukan-app-/);
+    assert.match(response.body, /zukan-app-v1/);
     assert.match(response.body, /URLSearchParams\(window\.location\.search\)/);
     assert.match(response.body, /"\/map\?lang=ja&tab=places"/);
     assert.doesNotMatch(response.body, /indexedDB\.deleteDatabase/);
@@ -133,7 +136,7 @@ test("app refresh page rejects external redirect targets", async () => {
   }
 });
 
-test("offline fallback page links the four primary app surfaces", async () => {
+test("offline fallback page links the primary app surfaces", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -144,6 +147,7 @@ test("offline fallback page links the four primary app surfaces", async () => {
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /<html lang="pt-BR">/);
     assert.match(response.body, /href="\/pt-br\/record"/);
+    assert.match(response.body, /href="\/pt-br\/community\/events"/);
     assert.match(response.body, /href="\/pt-br\/map\?tab=places"/);
     assert.match(response.body, /href="\/pt-br\/records\?view=mine"/);
     assert.match(response.body, /href="\/pt-br\/profile"/);
