@@ -4163,12 +4163,77 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
   });
 }
 
-function renderObservationEventCreatePage(auth: SessionSnapshot | null, initialFieldId: string): string {
+export function renderObservationEventCreatePage(auth: SessionSnapshot | null, initialFieldId: string): string {
   if (!auth) {
     return `<section class="card event-auth-required"><h1>観察会を作成</h1><p class="muted">招待された主催者が、参加する人と歩くためのページです。</p><p>観察会を作成するには、ZUKANにログインしてください。</p><div class="actions"><a class="btn" href="/login?redirect=/community/events/new">ログイン</a><a class="btn secondary" href="/community/events">観察会を見る</a></div></section>`;
   }
   const initialFieldIdJson = JSON.stringify(initialFieldId).replace(/</g, "\\u003c");
-  return `<section class="card"><h1>観察会を作成</h1><p class="muted">招待された主催者が、参加する人と歩くためのページです。</p><p>ログイン中: ${escapeHtml(auth.displayName)}</p><div class="actions"><a class="btn secondary" href="/community/events">観察会を見る</a></div></section>
+  return `<section class="card"><h1>観察会を作成</h1><p class="muted">招待された主催者が、参加する人と歩くためのページです。</p><p>ログイン中: ${escapeHtml(auth.displayName)}</p><div class="actions"><a class="btn secondary" href="/community/events">観察会を見る</a><a class="btn secondary" href="/guide-programs">ガイド企画を見る</a></div></section>
+<section class="card" data-observation-event-create>
+  <h2>共同活動の基本情報</h2>
+  <p class="muted">参加コードでメンバーを招待し、記録・ガイド・振り返りを同じ観察会にまとめます。記録は参加者の設定を保ち、公開範囲は別途明示操作で決まります。</p>
+  <form data-observation-event-create-form style="display:grid;gap:12px;">
+    <label>タイトル<input name="title" required maxlength="80" placeholder="例: 秋の里山観察会"></label>
+    <label>開始日時<input name="started_at" required type="datetime-local"></label>
+    <label>終了日時<input name="ended_at" type="datetime-local"></label>
+    <label>フィールドID<input name="field_id" value="${escapeHtml(initialFieldId)}" maxlength="120" placeholder="例: aikan-renri-ikan-hq"></label>
+    <label>緯度（フィールドIDがない場合）<input name="location_lat" type="number" step="any" min="-90" max="90" placeholder="34.7108"></label>
+    <label>経度（フィールドIDがない場合）<input name="location_lng" type="number" step="any" min="-180" max="180" placeholder="137.7261"></label>
+    <label>参加コード<input name="event_code" maxlength="8" pattern="[A-Z0-9]*" placeholder="空欄なら自動生成"></label>
+    <label>観察モード<select name="primary_mode"><option value="discovery">見つける</option><option value="effort_maximize">数える</option><option value="bingo">ビンゴ</option><option value="absence_confirm">いないを確かめる</option><option value="ai_quest">AIクエスト</option></select></label>
+    <label>観察したいもの<input name="target_species" maxlength="240" placeholder="例: ヤマセミ, エナガ"></label>
+    <label style="display:flex;gap:8px;align-items:center;"><input name="plan" type="checkbox" value="public"> 公開用の観察会として扱う</label>
+    <button class="btn" type="submit">観察会を作る</button>
+    <p class="muted" data-observation-event-create-status role="status" aria-live="polite"></p>
+    <a class="btn secondary" data-observation-event-join-link hidden href="/community/events">参加ページを開く</a>
+  </form>
+</section>
+<script>
+(() => {
+  const form = document.querySelector("[data-observation-event-create-form]");
+  const status = document.querySelector("[data-observation-event-create-status]");
+  const joinLink = document.querySelector("[data-observation-event-join-link]");
+  if (!(form instanceof HTMLFormElement)) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = form.querySelector("button[type=submit]");
+    if (button instanceof HTMLButtonElement) button.disabled = true;
+    if (status) status.textContent = "観察会を作成しています…";
+    const data = new FormData(form);
+    const targetSpecies = String(data.get("target_species") || "").split(",").map((item) => item.trim()).filter(Boolean);
+    const payload = {
+      title: String(data.get("title") || "").trim(),
+      started_at: String(data.get("started_at") || ""),
+      ended_at: String(data.get("ended_at") || "").trim() || null,
+      field_id: String(data.get("field_id") || "").trim() || null,
+      location_lat: String(data.get("location_lat") || "").trim() ? Number(data.get("location_lat")) : null,
+      location_lng: String(data.get("location_lng") || "").trim() ? Number(data.get("location_lng")) : null,
+      event_code: String(data.get("event_code") || "").trim().toUpperCase() || null,
+      primary_mode: String(data.get("primary_mode") || "discovery"),
+      active_modes: [String(data.get("primary_mode") || "discovery"), "rally"],
+      target_species: targetSpecies,
+      plan: data.get("plan") === "public" ? "public" : "community",
+      config: { collaboration_surface: "observation-event", public_list_visibility: "private-until-explicit" }
+    };
+    try {
+      const response = await fetch("/api/v1/observation-events", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      const result = await response.json().catch(() => ({}));
+      const session = result && typeof result.session === "object" ? result.session : result;
+      const sessionId = session?.session_id || session?.sessionId || result?.session_id || result?.sessionId;
+      const eventCode = session?.event_code || session?.eventCode || result?.event_code || result?.eventCode || payload.event_code;
+      if (!response.ok || !sessionId || !eventCode) throw new Error(result?.error || "観察会を作成できませんでした");
+      if (joinLink instanceof HTMLAnchorElement) {
+        joinLink.href = "/community/events/" + encodeURIComponent(eventCode) + "/join";
+        joinLink.hidden = false;
+      }
+      if (status) status.textContent = "観察会を作成しました。参加コードでメンバーを招待できます。";
+    } catch (error) {
+      if (status) status.textContent = error instanceof Error ? error.message : "観察会を作成できませんでした";
+      if (button instanceof HTMLButtonElement) button.disabled = false;
+    }
+  });
+})();
+</script>
 <section class="card area-sketch-card" data-area-sketch-assist>
   <h2>歩く範囲を決める</h2>
   <p class="muted">地図でおおまかな範囲を決め、あとで見直せるメモを残します。正式な境界や申請を決めるものではありません。</p>
