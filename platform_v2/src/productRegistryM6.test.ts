@@ -25,7 +25,7 @@ test("M6 keeps the Noah-adopted Outcome and full self-serve Journey trace", () =
 test("M6 first activation slice binds to the existing Event assets and shared Evals", () => {
   const navigation = loadProductRegistryNavigation();
   const task = navigation.implementation_tasks.find((item) => item.id === "task.zukan.m6.self-serve-program-activation");
-  assert.equal(task?.state, "planned");
+  assert.equal(task?.state, "implemented");
   assert.deepEqual(task?.requirement_ids, [requirementId]);
   for (const locator of task?.source_locators ?? []) assert.equal(existsSync(`${root}/${locator}`), true, locator);
   const evals = registry.evalContracts.filter((item) => item.requirement_ref === requirementId);
