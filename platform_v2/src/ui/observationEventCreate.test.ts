@@ -202,3 +202,11 @@ test("event area map keeps a fixed height after MapLibre CSS loads", () => {
   assert.match(OBSERVATION_EVENT_STYLES, /\.evt-area-map-shell\s*\{[^}]*height: 360px/s);
   assert.match(OBSERVATION_EVENT_STYLES, /\.evt-area-map-shell > \.evt-area-map\.maplibregl-map\s*\{[^}]*height: 100%/s);
 });
+
+test("self-serve activation keeps the organizer login boundary explicit", () => {
+  const html = renderEventCreateBody({ isAuthenticated: false, strings });
+
+  assert.match(html, /主催者アカウントでログインしてください/);
+  assert.match(html, /href="\/auth\?redirect=%2Fcommunity%2Fevents%2Fnew"/);
+  assert.doesNotMatch(html, /data-evt-create-form/);
+});

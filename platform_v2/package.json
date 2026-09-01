@@ -14,7 +14,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test:node": "tsx --test \"src/**/*.test.ts\"",
-    "test:product-registry": "tsx --test src/productRegistry.test.ts src/productRegistryRequirements.test.ts src/productRegistryM3.test.ts src/productRegistryM4.test.ts",
+    "test:product-registry": "tsx --test src/productRegistry.test.ts src/productRegistryRequirements.test.ts src/productRegistryM3.test.ts src/productRegistryM4.test.ts src/productRegistryM6.test.ts",
     "security:audit": "npm audit --omit=dev",
     "test:curator": "tsx --test src/services/aiModelPricing.test.ts src/services/curatorTrustBoundary.test.ts src/services/curatorSqlBuilder.test.ts src/scripts/curatorModelBakeoff.test.ts",
     "eval:navigable-os:generate": "tsx src/scripts/generateNavigableBiodiversityOsEvalCandidate.ts",
