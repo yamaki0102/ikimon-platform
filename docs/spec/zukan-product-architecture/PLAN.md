@@ -103,7 +103,7 @@ M7 design exit before promotion:
 - source, authorization, rights, participant, review, lifecycle and target-scope changes invalidate a prior plan;
 - first implementation slice can be expressed as short `Source / Delta / Done` without executor product invention.
 
-M7.0 fixtures are `school_new_academic_year_new_teacher`, `guardian_withdrawal_fail_closed`, `unresolved_review_reference_not_approval`, `same_place_record_reused_without_duplication`, `outgoing_actor_removed_after_acceptance`, `unknown_unapproved_incoming_actor_fail_closed`, `retry_converges_to_one_logical_plan`, `same_key_different_payload_rejected`, `invalid_selected_ref_fail_closed`, and `participant_consent_review_publication_carry_over_forbidden`. The terminal check is deterministic replay plus all negative fixtures with zero DB/UI side effects. M7.0 is source-verified on current main `0aff596f799381d184a23a4fa598e7fad4ad3a06`.
+M7.0 fixtures are `school_new_academic_year_new_teacher`, `guardian_withdrawal_fail_closed`, `unresolved_review_reference_not_approval`, `same_place_record_reused_without_duplication`, `outgoing_actor_removed_after_acceptance`, `unknown_unapproved_incoming_actor_fail_closed`, `retry_converges_to_one_logical_plan`, `same_key_different_payload_rejected`, `invalid_selected_ref_fail_closed`, and `participant_consent_review_publication_carry_over_forbidden`. The terminal check is deterministic replay plus all negative fixtures with zero DB/UI side effects. M7.0 is source-verified on current main `17e5fcf60f290d97f9aba64cdec63be869cbe402`.
 
 ### M7.1 — persisted handover plan / idempotency
 
