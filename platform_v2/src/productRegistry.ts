@@ -108,6 +108,17 @@ type QualityContract = {
   requirement_refs?: string[];
 };
 
+type RegistryEvalContract = {
+  id: string;
+  requirement_ref: string;
+  environment: "source" | "staging";
+  lane: string;
+  acceptance_clause_ids: string[];
+  evaluator_version: string;
+  source_locators: string[];
+  negative_eval_ids: string[];
+};
+
 export type EvidenceLane = "machine" | "design" | "human";
 export type VerificationLevel = "contract" | "source" | "deterministic" | "integration" | "staging" | "design" | "human";
 
@@ -137,6 +148,7 @@ export type ProductRegistry = {
   contentContracts: ContentContract[];
   qualityContracts: QualityContract[];
   requirements: ProductRequirement[];
+  evalContracts: RegistryEvalContract[];
 };
 
 export type ImplementationRouteRegistry = Record<RegistryRouteSource, ReadonlySet<string>>;
@@ -167,6 +179,7 @@ export function loadProductRegistry(): ProductRegistry {
   const contentContracts = readJson<{ contracts: ContentContract[] }>("content.json").contracts;
   const qualityContracts = readJson<{ contracts: QualityContract[] }>("quality.json").contracts;
   const requirements = readJson<{ requirements: ProductRequirement[] }>("requirements.json").requirements;
+  const evalContracts = readJson<{ contracts: RegistryEvalContract[] }>("evals.json").contracts;
   return {
     product,
     outcomes,
@@ -182,6 +195,7 @@ export function loadProductRegistry(): ProductRegistry {
     contentContracts,
     qualityContracts,
     requirements,
+    evalContracts,
   };
 }
 
@@ -244,7 +258,26 @@ export function validateProductRegistry(
   const contents = addUniqueIds(errors, "content contracts", registry.contentContracts);
   const qualities = addUniqueIds(errors, "quality contracts", registry.qualityContracts);
   const requirements = addUniqueIds(errors, "requirements", registry.requirements);
+  const evalContracts = addUniqueIds(errors, "Eval contracts", registry.evalContracts);
   addUniqueIds(errors, "design exceptions", registry.designExceptions);
+
+  for (const evalContract of registry.evalContracts) {
+    if (registry.product.status_authority?.locator !== "operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus") {
+      errors.push(`${evalContract.id} must use the shared status resolver`);
+    }
+    if (!requirements.has(evalContract.requirement_ref)) errors.push(`${evalContract.id} references unknown requirement ${evalContract.requirement_ref}`);
+    if (!["source", "staging"].includes(evalContract.environment)) errors.push(`${evalContract.id} has invalid environment`);
+    if (!evalContract.lane?.trim() || !evalContract.evaluator_version?.trim()) errors.push(`${evalContract.id} requires lane and evaluator_version`);
+    if (!nonEmptyStrings(evalContract.acceptance_clause_ids) || new Set(evalContract.acceptance_clause_ids).size !== evalContract.acceptance_clause_ids.length) {
+      errors.push(`${evalContract.id} requires unique acceptance_clause_ids`);
+    }
+    if (!nonEmptyStrings(evalContract.source_locators)) errors.push(`${evalContract.id} requires source locators`);
+    for (const locator of evalContract.source_locators ?? []) {
+      if (!repositoryFileExists(locator)) errors.push(`${evalContract.id} source locator does not exist: ${locator}`);
+    }
+    if (!nonEmptyStrings(evalContract.negative_eval_ids)) errors.push(`${evalContract.id} requires negative Eval ids`);
+  }
+  if (evalContracts.size !== registry.evalContracts.length) errors.push("Eval contracts contain duplicate ids");
 
   const capabilityMatrixRequirements = new Set<string>();
   for (const entry of registry.capabilityMatrix) {

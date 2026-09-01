@@ -25,6 +25,7 @@ Canonical trace:
 - `design.json`: visible states、layout/interaction contracts and bounded exceptions
 - `content.json`: audience/message/CTA/prohibited claims/SEO/analytics contracts
 - `quality.json`: acceptance、test locators、negative/property contracts、desktop/mobile Journey evaluator
+- `evals.json`: Requirement-bound source/staging Eval contracts and negative Eval navigation for shared Resolver consumption
 - `delivery.json`: static dependency graph、M1-M5 roadmap、Source/Delta/Done task contract and implementation navigation
 
 ## Roadmap
