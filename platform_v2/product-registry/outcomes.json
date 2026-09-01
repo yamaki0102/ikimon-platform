@@ -25,7 +25,8 @@
     {"id":"outcome.zukan.safe-publication","statement":"権利・位置・確認状態を守って選択範囲を公開する","journey_refs":["journey.zukan.personal-safe-publish","journey.zukan.public-discovery"]},
     {"id":"outcome.zukan.collaborative-knowledge","statement":"参加者・役割・reviewを保って共同知を育てる","journey_refs":["journey.zukan.school-field-learning","journey.zukan.organization-company-collaboration","journey.zukan.municipality-local-observation"]},
     {"id":"outcome.zukan.regional-portability","statement":"地域のSourceとPublicationEditionを訂正・再利用可能にする","journey_refs":["journey.zukan.personal-safe-publish","journey.zukan.public-discovery"]},
-    {"id":"outcome.zukan.live-place-context","statement":"権利と死活を確認した外部センサーを補助文脈として扱う","journey_refs":["journey.zukan.live-place-context"]}
+    {"id":"outcome.zukan.live-place-context","statement":"権利と死活を確認した外部センサーを補助文脈として扱う","journey_refs":["journey.zukan.live-place-context"]},
+    {"id":"outcome.zukan.self-serve-program-activation","statement":"主催者が運営者・開発者なしで企画から再開催まで完走する","journey_refs":["journey.zukan.self-serve-program-activation"]}
   ],
   "actors": [
     {"id":"actor.individual","label":"個人","job":"見つけたものを素早く記録し、自分の履歴として戻ってこられる"},

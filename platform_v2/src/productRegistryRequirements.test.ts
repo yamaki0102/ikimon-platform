@@ -19,7 +19,7 @@ test("canonical registry delegates resolved status and has no local evidence or 
 });
 
 test("requirements preserve the stable contract and cover the complete product scope", () => {
-  assert.equal(registry.requirements.length, 41);
+  assert.equal(registry.requirements.length, 42);
   assert.equal(new Set(registry.requirements.map((item) => item.id)).size, registry.requirements.length);
   for (const requirement of registry.requirements) {
     assert.equal("status" in requirement, false, `${requirement.id} must not carry resolved status`);
@@ -38,6 +38,7 @@ test("requirements preserve the stable contract and cover the complete product s
     "quality.zukan.publication.edition-integrity",
     "quality.zukan.publication.correction-takedown",
     "quality.zukan.program-event-quest.lifecycle",
+    "quality.zukan.program.self-serve-activation",
     "quality.zukan.free-core.boundary",
   ];
   const ids = new Set(registry.requirements.map((item) => item.id));
@@ -45,7 +46,7 @@ test("requirements preserve the stable contract and cover the complete product s
 });
 
 test("Outcome to Journey to Capability to Requirement to Surface trace is complete", () => {
-  const errors = validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/map", "/home"]) });
+  const errors = validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/map", "/home", "/community/events/new", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) });
   assert.deepEqual(errors, []);
   const journeyIds = new Set(registry.journeys.map((journey) => journey.id));
   for (const outcome of registry.outcomes) {
@@ -71,11 +72,12 @@ test("every required privacy and lifecycle contract has a negative Eval", () => 
 test("roadmap is static navigation only and defers live-camera to M5", () => {
   const navigation = loadProductRegistryNavigation();
   assert.deepEqual(validateProductRegistryNavigation(navigation, new Set(registry.requirements.map((item) => item.id))), []);
-  assert.equal(navigation.roadmap.at(-1)?.id, "milestone.m5.live-camera-poc");
+  assert.equal(navigation.roadmap.find((item) => item.id === "milestone.m5.live-camera-poc")?.rank, 5);
   const taskStates = new Map(navigation.implementation_tasks.map((item) => [item.id, item.state]));
   assert.equal(taskStates.get("task.zukan.m1.record-media-integrity"), "implemented");
   assert.equal(taskStates.get("task.zukan.m2.safe-publication"), "implemented");
-  assert.equal(navigation.implementation_tasks.at(-1)?.state, "deferred");
+  assert.equal(navigation.implementation_tasks.find((item) => item.id === "task.zukan.m5.live-camera-poc")?.state, "deferred");
+  assert.equal(navigation.implementation_tasks.find((item) => item.id === "task.zukan.m6.self-serve-program-activation")?.state, "implemented");
   const source = readFileSync(new URL("./productRegistryNavigation.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /deriveRequirementProgression|selectNextImplementationSlice/u);
 });

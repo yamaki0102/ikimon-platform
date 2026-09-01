@@ -61,6 +61,54 @@
       "prohibited_claims": ["処理中のAI候補が確定済みである", "非公開記録が公開済みである"],
       "seo": { "index": false, "canonical_path": "/home" },
       "analytics": { "primary_event": "member_record_start_clicked" }
+    },
+    {
+      "id": "content.zukan.program-activation",
+      "surface": "zukan.program.activation",
+      "audience": "学校・自治体・団体・企業の主催者",
+      "user_intent": "運営者に依頼せず、観察会の目的・場所・日時・参加方法を決めて作成する",
+      "primary_message": "観察会を、自分たちでひらく。",
+      "primary_cta": "観察会を作成",
+      "secondary_actions": ["一覧へ戻る"],
+      "prohibited_claims": ["作成前の観察会を公開済みと表示する", "参加者の同意や権限を推測する", "AIが記録や成果を確定する"],
+      "seo": { "index": false, "canonical_path": "/community/events/new" },
+      "analytics": { "primary_event": "program_activation_submitted" }
+    },
+    {
+      "id": "content.zukan.program-console",
+      "surface": "zukan.program.console",
+      "audience": "観察会の主催者",
+      "user_intent": "参加案内を確認し、当日の進行と振り返り入口を管理する",
+      "primary_message": "参加する人に、案内を渡す。",
+      "primary_cta": "参加案内を表示",
+      "secondary_actions": ["進行を見る", "振り返りを見る"],
+      "prohibited_claims": ["未参加者を参加済みと表示する", "正確な位置や個人別行動を公開成果と表示する"],
+      "seo": { "index": false, "canonical_path": "/events/:sessionId/console" },
+      "analytics": { "primary_event": "program_invite_opened" }
+    },
+    {
+      "id": "content.zukan.program-participation",
+      "surface": "zukan.program.participation",
+      "audience": "招待を受けた観察会参加者",
+      "user_intent": "案内された観察会に参加し、自分の記録を残す",
+      "primary_message": "案内を確認して、観察を始める。",
+      "primary_cta": "参加する",
+      "secondary_actions": ["参加しない", "記録を始める"],
+      "prohibited_claims": ["参加前の記録を参加成果と表示する", "権限外の記録を読めると表示する", "公開範囲を拡大して表示する"],
+      "seo": { "index": false, "canonical_path": "/community/events/:eventCode/join" },
+      "analytics": { "primary_event": "program_joined" }
+    },
+    {
+      "id": "content.zukan.program-recap",
+      "surface": "zukan.program.recap",
+      "audience": "観察会の主催者と参加者",
+      "user_intent": "記録と参加の成果を安全な範囲で振り返り、再開催を考える",
+      "primary_message": "今回の記録を、次の観察につなげる。",
+      "primary_cta": "もう一度開催する",
+      "secondary_actions": ["観察会一覧へ戻る"],
+      "prohibited_claims": ["小規模参加者の個人情報を表示する", "観察結果を公式調査や生物総数と断定する", "再開催を作成済みと表示する"],
+      "seo": { "index": false, "canonical_path": "/events/:sessionId/recap" },
+      "analytics": { "primary_event": "program_rehost_started" }
     }
   ]
 }

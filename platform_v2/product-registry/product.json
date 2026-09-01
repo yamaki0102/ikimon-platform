@@ -15,12 +15,13 @@
     {"id":"asset.exif-normalization","locator":"platform_v2/src/services/observationPhotoUpload.ts","use":"existing media metadata minimization and normalization locator"},
     {"id":"asset.program-event","locator":"platform_v2/src/services/guidePrograms.ts","use":"existing Program/Event contract locator"},
     {"id":"asset.event-api","locator":"platform_v2/src/routes/observationEventApi.ts","use":"existing Event API locator"},
+    {"id":"asset.event-create","locator":"platform_v2/src/ui/observationEventCreate.ts","use":"existing self-serve organizer creation and template reuse locator"},
     {"id":"asset.rights","locator":"platform_v2/src/services/observationDataRights.ts","use":"existing rights, withdrawal and deletion locator"},
     {"id":"asset.publication","locator":"platform_v2/src/services/publicationFeed.ts","use":"existing publication projection locator"},
     {"id":"asset.regional-envelope","locator":"platform_v2/src/services/zukanRegionalKnowledgeEnvelope.ts","use":"existing regional source/publication envelope locator"},
     {"id":"asset.export","locator":"platform_v2/src/services/researchExport.ts","use":"existing export locator"},
     {"id":"asset.free-core","locator":"docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","use":"free organizational core boundary locator"}
   ],
-  "required_surface_ids":["zukan.home.public","zukan.capture.start","zukan.records.public","zukan.map.public","zukan.home.member"],
+  "required_surface_ids":["zukan.home.public","zukan.capture.start","zukan.records.public","zukan.map.public","zukan.home.member","zukan.program.activation","zukan.program.console","zukan.program.participation","zukan.program.recap"],
   "rules":{"all_surfaces_require_design_contract":true,"all_surfaces_require_content_contract":true,"all_surfaces_require_quality_contract":true,"all_transitions_require_existing_target":true,"owner_only_surfaces_require_denied_state":true,"write_capabilities_require_failure_and_retry_contract":true,"exceptions_require_owner_reason_and_expiry":true,"planned_surfaces_must_not_claim_route_or_runtime":true,"status_must_be_resolved_by_shared_resolver":true}
 }

@@ -70,9 +70,10 @@ export function validateProductRegistryNavigation(
     "milestone.m3.program-event-quest-workspace",
     "milestone.m4.regional-publication-portability",
     "milestone.m5.live-camera-poc",
+    "milestone.m6.self-serve-program-activation",
   ];
   if (JSON.stringify(navigation.roadmap.slice().sort((a, b) => a.rank - b.rank).map((item) => item.id)) !== JSON.stringify(expectedMilestones)) {
-    errors.push("roadmap must be ordered M1 through M5 with live-camera as M5");
+    errors.push("roadmap must be ordered M1 through M6 with live-camera as M5");
   }
   for (const requirementId of requirementIds) {
     if (!roadmapRequirements.has(requirementId)) errors.push(`${requirementId} is absent from roadmap`);

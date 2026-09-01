@@ -61,6 +61,11 @@
       "rules": ["本人限定か公開混在かを明示する", "空状態から新規記録へ進める", "他人のprivate dataを表示しない"]
     },
     {
+      "id": "archetype.program-flow",
+      "required_regions": ["purpose", "privacy-context", "primary-action", "recovery-action"],
+      "rules": ["主催者・参加者の権限境界を明示する", "作成・参加・振り返りを成功表示だけで混同しない", "再開催は既存templateへ戻す"]
+    },
+    {
       "id": "archetype.campaign-landing",
       "required_regions": ["single-message", "safety-context", "primary-action", "owner-return-path"],
       "rules": ["一つの対象と一つの主行動に絞る", "通報・自動公開・AI確定と誤認させない"]
@@ -121,6 +126,50 @@
       "navigation": "member-zukan",
       "responsive": { "mobile": "single-column-camera-first", "desktop": "sidebar-and-feed" },
       "state_presentations": ["unauthenticated", "empty", "populated", "loading", "degraded", "error"]
+    },
+    {
+      "id": "design.zukan.program-activation",
+      "surface": "zukan.program.activation",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.program-flow",
+      "layout": "wide",
+      "density": "comfortable",
+      "navigation": "member-zukan",
+      "responsive": { "mobile": "single-column-sticky-action", "desktop": "centered-wide" },
+      "state_presentations": ["unauthenticated", "ready", "editing", "submitting", "created", "validation-error", "retrying", "error"]
+    },
+    {
+      "id": "design.zukan.program-console",
+      "surface": "zukan.program.console",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.program-flow",
+      "layout": "wide",
+      "density": "comfortable",
+      "navigation": "member-zukan",
+      "responsive": { "mobile": "single-column", "desktop": "two-column" },
+      "state_presentations": ["ready", "inviting", "live", "ended", "denied", "error"]
+    },
+    {
+      "id": "design.zukan.program-participation",
+      "surface": "zukan.program.participation",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.program-flow",
+      "layout": "wide",
+      "density": "comfortable",
+      "navigation": "member-zukan",
+      "responsive": { "mobile": "single-column-sticky-action", "desktop": "centered-wide" },
+      "state_presentations": ["unauthenticated", "ready", "joined", "closed", "denied", "error"]
+    },
+    {
+      "id": "design.zukan.program-recap",
+      "surface": "zukan.program.recap",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.program-flow",
+      "layout": "reading",
+      "density": "comfortable",
+      "navigation": "member-zukan",
+      "responsive": { "mobile": "single-column", "desktop": "centered-reading" },
+      "state_presentations": ["ready", "empty", "populated", "suppressed", "denied", "error"]
     }
   ],
   "exceptions": []
