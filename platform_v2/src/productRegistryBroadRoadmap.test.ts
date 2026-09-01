@@ -32,7 +32,7 @@ test("execution roadmap v3 pins future delivery order without activating it", ()
   assert.match(product.execution_roadmap.strategy_locator, /2026-09-02-zukan-development-execution-roadmap-v3\.md$/);
   assert.equal(delivery.execution_roadmap.selection_rule_is_executor_autonomous, false);
   assert.deepEqual(delivery.execution_roadmap.always_on_tracks, ["UX_QUALITY", "RIGHTS_SAFETY", "PRODUCT_REGISTRY_EVIDENCE", "DEMAND_LEARNING"]);
-  assert.equal(delivery.roadmap.find((item: any) => item.id === "milestone.m7.program-continuity-handover")?.implementation_allowed, false);
+  assert.equal(delivery.roadmap.find((item: any) => item.id === "milestone.m7.program-continuity-handover")?.implementation_allowed, true);
   assert.equal(delivery.roadmap.find((item: any) => item.id === "milestone.m8.operational-summary-raw-portability")?.implementation_allowed, false);
   assert.equal(delivery.roadmap.find((item: any) => item.id === M9)?.implementation_allowed, false);
 });
