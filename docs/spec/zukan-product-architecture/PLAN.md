@@ -290,7 +290,7 @@ Product Registry changes must continue to pass:
 ```bash
 npm --prefix platform_v2 run typecheck
 npm --prefix platform_v2 run test:node
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_zukan_product_registry.ps1
+npm --prefix platform_v2 run test:product-registry
 ```
 
 Roadmap validation additionally must assert:
