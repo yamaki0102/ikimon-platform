@@ -3,8 +3,10 @@
 - Status: active product contract
 - Adopted: 2026-07-29
 - Current runtime: `platform_v2/`
-- Strategy source: `yamaki0102/ikimon-business-strategy/decisions/2026-07-29-zukan-product-architecture-and-safety-boundary.md`
+- Architecture decision: `yamaki0102/ikimon-business-strategy/decisions/2026-07-29-zukan-product-architecture-and-safety-boundary.md`
+- Current broad roadmap decision: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
 - Foundation contract: `docs/spec/zukan_foundation_v2_implementation_contract_2026-07-28.md`
+- Current profile horizon: `PROFILE_HORIZON.md`
 
 ## 1. Product identity
 
@@ -60,7 +62,7 @@ The minimum product scope preserves Source, Record, Claim, Place, Review, Rights
 
 The Knowledge Core is a semantic and verification contract. It does not require all tenants, organizations or domains to share one physical database or one generic EAV table.
 
-## 3. Domain Pack
+## 3. Domain Pack and profile boundary
 
 A specialist domain is a contract that crosses all three layers, not a fourth architectural layer.
 
@@ -79,6 +81,10 @@ A Domain Pack defines:
 A Domain Pack is implemented only when a concrete user, activity, output and accountable owner exist.
 
 `Taxon`, `Occurrence` and `Identification` remain specialist Biodiversity Pack concepts. They must not be renamed into generic subjects and reused for unrelated domains.
+
+A Program Profile is likewise not a new Core. `観察会` is the currently proven Program profile; photo contests, sketch/editorial programs, missions/town walks, stamp rallies and tourism/regional-engagement programs may reuse the Program Core only under the contracts in `PROFILE_HORIZON.md` and the Product Registry frontier.
+
+A Publication Profile is a purpose-specific View/Publication over governed source truth; it must not duplicate source truth into a publication-specific database.
 
 ## 4. Object responsibilities
 
@@ -153,6 +159,8 @@ ZUKAN may retain asset identity, observations, evidence, inspection history, jur
 
 AI outputs remain candidates. Emergency situations must direct users to the existing official emergency channel.
 
+A rights-safe person/profile Publication is allowed only when an accountable subject or Publisher has a publication basis. This does not authorize face identification, biometric recognition or person tracking.
+
 ## 9. Specialist diagnosis
 
 For tree safety and similar domains, the default boundary is:
@@ -215,21 +223,29 @@ Specialist judgment belongs to a Domain Pack and accountable reviewers. Adoption
 - Keep the current `ikimon.life`, repository, runtime, API and database identifiers until an approved migration changes them.
 - Keep current biodiversity tables, routes and prompts inside the Biodiversity Pack.
 - Keep Foundation v2 migrations additive and dormant where no writer or reader is approved.
-- Do not switch current runtime routes or public response schemas as part of this contract.
+- Do not switch current runtime routes or public response schemas merely because a future profile is described in the roadmap.
 - Do not create a municipality-specific database, authentication system or canonical Place model.
+- Keep NOCOSIL and ZUKAN as separate canonical/private domains; exchange only explicit public-safe projections/packages under the profile horizon.
 
-## 13. Immediate implementation slice
+## 13. Delivery authority and current frontier
 
-The first non-biological slice is source-only and shadow-only:
+The former `first non-biological source-only slice` proved an important semantic boundary but is no longer the current implementation frontier. It must not be read as an active task selector.
 
-1. represent one regional non-biological Record independently from its Claims
-2. reference SourceEdition and Evidence instead of embedding them
-3. connect it to Place / Entity identities
-4. generate a deterministic Publication candidate
-5. reject emergency Action candidates and unsupported specialist conclusions
-6. leave runtime routes, DB writes and production unchanged
+Current delivery state and executor eligibility are owned by:
 
-This slice proves the semantic boundary before enabling a writer or public reader.
+- `platform_v2/product-registry/delivery.json` for static roadmap/frontier projection;
+- `platform_v2/product-registry/requirements.json` and Eval contracts for product acceptance;
+- the shared Verified Outcome Status Resolver for resolved status and evidence eligibility.
+
+Current planning projection after M6 production verification:
+
+- `ACTIVE`: M7 Program Continuity & Handover
+- `READY_NEXT`: M8 Operational Summary & Raw Portability
+- `SHAPED_NEXT`: M9 Regional Program Profiles
+- M10 Regional Publication Profiles, M11 Source & Public Projection Exchange and M12 Professional & Managed Outcomes remain dependency-shaped only
+- M5 Live-camera remains deferred
+
+The broad product horizon is fixed in `PROFILE_HORIZON.md`. Describing a future Program or Publication profile does not make it runtime-active or executor-eligible.
 
 ## 14. Evidence interoperability
 
@@ -241,4 +257,4 @@ Stable Product Registry requirements are the product-owned bridge into the share
 - Human and design evidence are independent lanes. They do not become valid because a machine test passed and must remain bound to the same exact source identity in the central resolver.
 - Human View and AI Context Pack consume the central resolver projection; this repository does not create a competing state calculation.
 
-This contract is source-only. It does not enable a runtime route, database writer, production mutation or customer communication.
+This architecture contract by itself does not enable a runtime route, database writer, production mutation or customer communication. Runtime capability remains whatever current source and verified runtime evidence actually prove.
