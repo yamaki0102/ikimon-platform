@@ -49,7 +49,7 @@ test("requirements preserve the stable contract and cover the complete product s
 });
 
 test("Outcome to Journey to Capability to Requirement to Surface trace is complete", () => {
-  const errors = validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/map", "/home", "/community/events/new", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) });
+  const errors = validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/map", "/home", "/community/events", "/community/events/new", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) });
   assert.deepEqual(errors, []);
   const journeyIds = new Set(registry.journeys.map((journey) => journey.id));
   for (const outcome of registry.outcomes) {

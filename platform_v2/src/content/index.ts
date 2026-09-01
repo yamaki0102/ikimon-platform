@@ -143,6 +143,13 @@ type JsonSharedCopy = {
     record: string;
     footer: {
       tagline: string;
+      kicker: string;
+      heading: string;
+      body: string;
+      nextStep: string;
+      nextStepTitle: string;
+      nextStepBody: string;
+      chips: string[];
       start: string;
       startLinks: Record<string, string>;
       learn: string;
@@ -367,7 +374,7 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
   assertObject(value.home, `${path}.home`);
   assertObject(value.home.guest, `${path}.home.guest`);
   for (const key of [
-    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "categoriesTitle", "proofEmpty", "proofEmptyNote", "inviteNote", "flowTitle",
+    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "categoriesTitle", "proofEmpty", "proofEmptyNote", "inviteNote", "recordStatusConfirmed", "recordStatusPending", "recordStatusLimited", "emptyFlowAria", "emptyFlowCapture", "emptyFlowPlace", "emptyFlowReturn", "flowTitle",
     "placesTitle", "placesBody", "communityTitle", "communityBody", "communityCta", "privacyTitle", "privacyBody", "finalTitle", "finalCta",
   ] as const) {
     assertString(value.home.guest[key], `${path}.home.guest.${key}`);
@@ -547,6 +554,15 @@ function validateSharedNamespace(value: JsonObject): void {
   }
   assertObject(value.shell.footer, "shared.shell.footer");
   assertString(value.shell.footer.tagline, "shared.shell.footer.tagline");
+  for (const key of ["kicker", "heading", "body", "nextStep", "nextStepTitle", "nextStepBody"] as const) {
+    assertString(value.shell.footer[key], `shared.shell.footer.${key}`);
+  }
+  if (!Array.isArray(value.shell.footer.chips) || value.shell.footer.chips.length === 0) {
+    throw new Error("shared.shell.footer.chips must be a non-empty array");
+  }
+  for (const [index, chip] of value.shell.footer.chips.entries()) {
+    assertString(chip, `shared.shell.footer.chips[${index}]`);
+  }
   assertString(value.shell.footer.start, "shared.shell.footer.start");
   assertObject(value.shell.footer.startLinks, "shared.shell.footer.startLinks");
   assertString(value.shell.footer.learn, "shared.shell.footer.learn");

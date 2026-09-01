@@ -17,27 +17,34 @@
     }
   },
   "shell": {
-    "brandTagline": "A natureza próxima fica mais interessante.",
+    "brandTagline": "Cultivamos juntos os registros locais.",
     "skipToContent": "Pular para o conteúdo",
-    "searchPlaceholder": "Buscar espécie ou lugar",
-    "searchLabel": "Busca no site",
+    "searchPlaceholder": "Buscar registros locais ou lugares",
+    "searchLabel": "Buscar registros locais e lugares",
     "menu": "Menu",
     "nav": {
       "home": "Início",
       "explore": "Explorar",
-      "places": "Meus lugares",
-      "community": "Comunidade",
+      "places": "Lugares",
+      "community": "Participar",
       "learn": "Aprender",
       "business": "Para organizações"
     },
     "record": "Registrar",
     "footer": {
-      "tagline": "Caminhe, encontre e guarde o lugar.",
+      "tagline": "Cultivamos juntos os registros locais.",
+      "kicker": "Cultivamos juntos os registros locais.",
+      "heading": "Pequenos registros se tornam conhecimento local.",
+      "body": "Guarde fotos, lugares, momentos e atividades em um formato que possa ser conferido depois e ligado aos próximos passos da região.",
+      "nextStep": "O próximo passo",
+      "nextStepTitle": "Os lugares do dia a dia também podem iniciar um registro.",
+      "nextStepBody": "Uma caminhada, o caminho para a escola, uma viagem ou um jardim podem gerar registros ligados ao lugar e ao momento.",
+      "chips": ["Guarde um registro mesmo sem saber o nome", "Mantenha a visibilidade no lado seguro", "Conecte atividades escolares, locais e empresariais"],
       "start": "Começar",
       "startLinks": {
         "discover": "Explorar",
         "record": "Registrar",
-        "places": "Meus lugares"
+        "places": "Lugares"
       },
       "learn": "Aprender",
       "learnLinks": {
@@ -57,11 +64,13 @@
   },
   "bottomNav": {
     "ariaLabel": "Ações principais",
+    "home": "Início",
     "capture": "Capturar",
     "captureAria": "Capturar (abre a câmera)",
     "places": "Lugares",
     "records": "Registros",
-    "self": "Eu"
+    "self": "Eu",
+    "events": "Participar"
   },
   "cameraCapture": {
     "photo": "Foto",
@@ -76,16 +85,16 @@
   "quickNav": {
     "ariaLabel": "Ações principais",
     "labels": {
-      "notes": "Meus lugares",
+      "notes": "Ver registros",
       "record": "Registrar",
       "lens": "Guia de campo",
       "scan": "Mapa",
-      "map": "Mapa"
+      "map": "Ver lugares"
     }
   },
   "footerNotes": {
-    "landing": "Caminhe, encontre e guarde o lugar.",
-    "public": "Guarde o que encontra perto e revisite depois.",
+    "landing": "Cultivamos juntos os registros locais.",
+    "public": "Guarde registros locais dos lugares e momentos que você encontra e volte a eles depois.",
     "qa": "Percurso de staging para QA visual."
   }
 }

@@ -3,8 +3,8 @@
     "title": "A regional field guide built together | ZUKAN",
     "home": {
       "guest": {
-        "heroHeading": "For invited members. Start with one photo.", "heroLead": "ZUKAN keeps photos and local moments with the places they belong to.",
-        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "proofEmpty": "No public records yet.", "proofEmptyNote": "This illustration shows the page before a record is added.", "inviteNote": "This experience is currently for invited members.",
+        "heroHeading": "Capture the present. Build a field guide.", "heroLead": "Keep a local record with its place and time, starting with one photo.",
+        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "proofEmpty": "No public records yet.", "proofEmptyNote": "Start with one photo. Your record stays connected to its place and time.", "inviteNote": "This experience is currently for invited members.", "recordStatusConfirmed": "Confirmed", "recordStatusPending": "Awaiting review", "recordStatusLimited": "Limited public detail", "emptyFlowAria": "Capture, keep it with a place, return to the record", "emptyFlowCapture": "Capture", "emptyFlowPlace": "Keep with a place", "emptyFlowReturn": "Return to the record",
         "categories": [
           { "title": "School & learning", "body": "Classes, projects, and workplace learning." },
           { "title": "Community & events", "body": "Festivals, markets, and local gatherings." },
@@ -18,7 +18,7 @@
           { "title": "Take the next step", "body": "Look back, check again, or join in another time." }
         ],
         "placesTitle": "Explore by place", "placesBody": "Follow photos and activities kept at the same place to see what changed and what comes next.",
-        "communityTitle": "Record together", "communityBody": "Find records gathered around the same place through community activities.", "communityCta": "View community activity",
+        "communityTitle": "Record together", "communityBody": "Find records gathered around the same place through community activities.", "communityCta": "View events",
         "privacyTitle": "Your exact location is not made public", "privacyBody": "Choose the visibility of every record. Homes and sensitive wildlife locations receive stronger protection.",
         "finalTitle": "Keep something that caught your attention today", "finalCta": "Capture"
       },

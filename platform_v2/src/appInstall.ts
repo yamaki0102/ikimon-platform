@@ -12,6 +12,7 @@ type AppInstallCopy = {
   offlineTitle: string;
   offlineBody: string;
   offlineCapture: string;
+  offlineEvents: string;
   offlinePlaces: string;
   offlineRecords: string;
   offlineSelf: string;
@@ -33,6 +34,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     offlineTitle: "オフラインです",
     offlineBody: "接続が戻るまで、最後に開いた記録・場所・ガイドを端末から再表示します。",
     offlineCapture: "撮る",
+    offlineEvents: "観察会",
     offlinePlaces: "場所",
     offlineRecords: "記録",
     offlineSelf: "自分",
@@ -49,6 +51,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     offlineTitle: "You are offline",
     offlineBody: "Until the connection returns, ZUKAN can reopen cached Records, Places, and Guides.",
     offlineCapture: "Capture",
+    offlineEvents: "Events",
     offlinePlaces: "Places",
     offlineRecords: "Records",
     offlineSelf: "Me",
@@ -65,6 +68,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     offlineTitle: "Sin conexión",
     offlineBody: "Hasta que vuelva la conexión, ZUKAN puede reabrir Registros, Lugares y Guías guardados.",
     offlineCapture: "Capturar",
+    offlineEvents: "Eventos",
     offlinePlaces: "Lugares",
     offlineRecords: "Registros",
     offlineSelf: "Yo",
@@ -81,6 +85,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     offlineTitle: "Você está offline",
     offlineBody: "Até a conexão voltar, o ZUKAN pode reabrir Registros, Lugares e Guias salvos.",
     offlineCapture: "Capturar",
+    offlineEvents: "Eventos",
     offlinePlaces: "Lugares",
     offlineRecords: "Registros",
     offlineSelf: "Eu",
@@ -118,9 +123,9 @@ export function buildWebManifest(lang: SiteLang): Record<string, unknown> {
     ],
     shortcuts: [
       { name: copy.offlineCapture, short_name: copy.offlineCapture, url: `${prefix}/record`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png" }] },
+      { name: copy.offlineEvents, short_name: copy.offlineEvents, url: `${prefix}/community/events`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png" }] },
       { name: copy.offlinePlaces, short_name: copy.offlinePlaces, url: `${prefix}/map?tab=places`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png" }] },
       { name: copy.offlineRecords, short_name: copy.offlineRecords, url: `${prefix}/records?view=mine`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png" }] },
-      { name: copy.offlineSelf, short_name: copy.offlineSelf, url: `${prefix}/profile`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png" }] },
     ],
     orientation: "portrait-primary",
   };
@@ -147,6 +152,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
     <p>${copy.offlineBody}</p>
     <div class="links">
       <a href="${prefix}/record">${copy.offlineCapture}</a>
+      <a href="${prefix}/community/events">${copy.offlineEvents}</a>
       <a href="${prefix}/map?tab=places">${copy.offlinePlaces}</a>
       <a href="${prefix}/records?view=mine">${copy.offlineRecords}</a>
       <a href="${prefix}/profile">${copy.offlineSelf}</a>
@@ -159,7 +165,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
 }
 
 export function buildAppServiceWorker(): string {
-  return `const VERSION = 'ikimon-app-v9';
+  return `const VERSION = 'zukan-app-v1';
 const STATIC_CACHE = VERSION + ':static';
 const OFFLINE_URL = '/offline.html';
 const OFFLINE_URLS = {
@@ -192,7 +198,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((key) => key.startsWith('ikimon-app-') && !key.startsWith(VERSION)).map((key) => caches.delete(key)));
+    await Promise.all(keys.filter((key) => key.startsWith('ikimon-app-') || (key.startsWith('zukan-app-') && !key.startsWith(VERSION))).map((key) => caches.delete(key)));
     await self.clients.claim();
   })());
 });

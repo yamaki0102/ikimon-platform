@@ -4,7 +4,7 @@
       "record": "記録する",
       "startObservation": "記録する",
       "openNotebook": "記録を見る",
-      "openMap": "生きものと場所を見る",
+      "openMap": "場所を見る",
       "readFaq": "FAQを見る",
       "openGuide": "その場で調べる",
       "openScan": "探索マップを見る",
@@ -22,7 +22,7 @@
     "ai": {
       "short": "AI はヒント役。決めるのは人です。",
       "support": "AI は主役の候補と周囲の手がかりを返します。名前を自動で決めることはしません。",
-      "supportLong": "AI は主役の候補、周囲の生きもの、環境の手がかりを返します。記録の主役は人の観察です。"
+      "supportLong": "AI は主役の候補と周囲の手がかりを返します。記録の主役は人の観察です。"
     },
     "business": {
       "nav": "企業・地域で活用",
@@ -33,27 +33,34 @@
     }
   },
   "shell": {
-    "brandTagline": "生きものを手がかりに、場所の今を残す",
+    "brandTagline": "地域の記録を、みんなで育てる。",
     "skipToContent": "本文へスキップ",
-    "searchPlaceholder": "生きものや場所を探す",
-    "searchLabel": "サイト内検索",
+    "searchPlaceholder": "地域の記録や場所を探す",
+    "searchLabel": "地域の記録と場所を検索",
     "menu": "メニュー",
     "nav": {
       "home": "ホーム",
-      "explore": "見つける",
-      "places": "記録",
-      "community": "みんなで調べる",
+      "explore": "探す",
+      "places": "場所",
+      "community": "参加",
       "learn": "読む",
       "business": "企業・地域"
     },
     "record": "記録する",
     "footer": {
-      "tagline": "歩いて、見つけて、場所の今を残す。",
+      "tagline": "地域の記録を、みんなで育てる。",
+      "kicker": "地域の記録を、みんなで育てる。",
+      "heading": "小さな記録を、地域の知識へ。",
+      "body": "写真、場所、時間、活動の記録を、あとから確かめられる形で残し、地域の次の行動につなげます。",
+      "nextStep": "次の一歩",
+      "nextStepTitle": "いつもの場所が、記録の入口になる。",
+      "nextStepBody": "散歩、通学路、旅先、庭先。どこから始めても、記録は場所と時間に結びついて残ります。",
+      "chips": ["名前が分からなくても残せる", "公開範囲を安全側で制御", "学校・地域・企業の活動へ接続"],
       "start": "はじめる",
       "startLinks": {
-        "discover": "見つける",
+        "discover": "探す",
         "record": "記録する",
-        "places": "記録を見る"
+        "places": "場所を見る"
       },
       "learn": "読む",
       "learnLinks": {
@@ -75,11 +82,13 @@
   },
   "bottomNav": {
     "ariaLabel": "主な操作",
+    "home": "ホーム",
     "capture": "撮る",
     "captureAria": "撮る（カメラを開きます）",
     "places": "場所",
     "records": "記録",
-    "self": "自分"
+    "self": "自分",
+    "events": "参加"
   },
   "cameraCapture": {
     "photo": "写真",
@@ -98,12 +107,12 @@
       "record": "記録する",
       "lens": "その場で調べる",
       "scan": "次の場所を探す",
-      "map": "生きものと場所を見る"
+      "map": "場所を見る"
     }
   },
   "footerNotes": {
-    "landing": "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。",
-    "public": "いつもの道で見つけた生きものを、記録から地域の観察レコードへ育てる。",
+      "landing": "地域の記録を、みんなで育てる。",
+    "public": "写真や場所に残した地域の記録を、あとから見返せます。",
     "qa": "staging walkthrough for full-page QA. use this after the shared shell migration to inspect actual website movement and visual consistency."
   }
 }

@@ -73,6 +73,13 @@ type ShellCopy = {
   record: string;
   footer: {
     tagline: string;
+    kicker: string;
+    heading: string;
+    body: string;
+    nextStep: string;
+    nextStepTitle: string;
+    nextStepBody: string;
+    chips: string[];
     start: string;
     startLinks: {
       discover: string;
@@ -383,7 +390,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "更新情報",
       },
       personalizedEmpty: "ログインすると、フォロー中の分類群や観察エリアをここに固定します。",
-      legalTagline: "皆で作る地域図鑑",
+      legalTagline: "地域の記録を、みんなで育てる。",
     },
     en: {
       primaryTitle: "Daily",
@@ -744,17 +751,21 @@ function renderHeaderCoreNavigation(basePath: string, lang: SiteLang, currentPat
   const copy = globalRecordEntryCopy(lang);
   const pathname = normalizePathname(currentPath);
   const placesHref = appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang);
+  const homeHref = appendLangToHref(withBasePath(basePath, "/"), lang);
   const memberRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
   const memberSelfHref = appendLangToHref(withBasePath(basePath, "/profile"), lang);
+  const eventsHref = appendLangToHref(withBasePath(basePath, "/community/events"), lang);
   const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Frecords%3Fview%3Dmine"), lang);
   const guestSelfHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Fprofile"), lang);
   const recordsHref = authState === "member" ? memberRecordsHref : guestRecordsHref;
   const selfHref = authState === "member" ? memberSelfHref : guestSelfHref;
   const current = (matched: boolean): string => matched ? ' aria-current="page"' : "";
   return `<nav class="site-nav site-nav-desktop site-core-nav" aria-label="${escapeHtml(copy.navLabel)}">
+    <a class="site-core-nav-link" href="${escapeHtml(homeHref)}"${current(pathname === "/" || pathname === "/home")}>${escapeHtml(copy.home)}</a>
     <button type="button" class="site-core-nav-link is-capture" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="header_capture" aria-haspopup="dialog">${escapeHtml(copy.photo)}</button>
-    <a class="site-core-nav-link" href="${escapeHtml(placesHref)}"${current(pathname === "/map" || pathname.startsWith("/map/"))}>${escapeHtml(copy.places)}</a>
     <a class="site-core-nav-link" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${current(pathname === "/records" || pathname.startsWith("/records/") || pathname.startsWith("/observations/"))}>${escapeHtml(copy.records)}</a>
+    <a class="site-core-nav-link" href="${escapeHtml(placesHref)}"${current(pathname === "/map" || pathname.startsWith("/map/"))}>${escapeHtml(copy.places)}</a>
+    <a class="site-core-nav-link" href="${escapeHtml(eventsHref)}"${current(pathname === "/community/events" || pathname.startsWith("/community/events/"))}>${escapeHtml(copy.events)}</a>
     <a class="site-core-nav-link" href="${escapeHtml(selfHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestSelfHref)}" data-auth-member-href="${escapeHtml(memberSelfHref)}"${current(pathname === "/profile" || pathname.startsWith("/profile/"))}>${escapeHtml(copy.self)}</a>
   </nav>`;
 }
@@ -941,31 +952,29 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
               <small>${escapeHtml(copy.footer.tagline)}</small>
             </span>
           </div>
-            <div class="footer-kicker">生きものを楽しむ。暮らしを楽しむ。</div>
-            <h2>小さな発見を、<br>観察レコードへ。</h2>
-            <p>身近な生きものを見つけ、記録し、対象ごとの観察レコードへ育て、また歩くための生物多様性プラットフォーム。個人の発見を、地域や企業の次のアクションにつなげる。</p>
+            <div class="footer-kicker">${escapeHtml(copy.footer.kicker)}</div>
+            <h2>${escapeHtml(copy.footer.heading)}</h2>
+            <p>${escapeHtml(copy.footer.body)}</p>
             <div class="footer-actions">
               <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.record)}</a>
-              <a class="btn btn-ghost-on-dark" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">読み物を見る</a>
+              <a class="btn btn-ghost-on-dark" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">${escapeHtml(copy.footer.learn)}</a>
             </div>
           </div>
           <p class="footer-operator">${escapeHtml(operatorStatement(lang))}</p>
           <div class="footer-chip-row" aria-label="ZUKAN の価値">
-            <span>名前が分からなくても残せる</span>
-            <span>公開範囲を安全側で制御</span>
-            <span>学校・研究・企業活動へ接続</span>
+            ${copy.footer.chips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
           </div>
         </div>
-        <div class="footer-mini-map" aria-label="観察ルートのイメージ">
+        <div class="footer-mini-map" aria-label="${escapeHtml(copy.footer.nextStep)}">
           <div class="footer-route"></div>
           <span class="footer-pin one"></span>
           <span class="footer-pin two"></span>
           <span class="footer-pin three"></span>
           <span class="footer-pin four"></span>
           <div class="footer-map-copy">
-            <span>次の一歩</span>
-            <strong>いつもの道が、観察ルートになる。</strong>
-            <p>散歩、通学路、旅先、庭先。どこから始めても、記録はあとから対象ごとの観察レコードへ育てられる。</p>
+            <span>${escapeHtml(copy.footer.nextStep)}</span>
+            <strong>${escapeHtml(copy.footer.nextStepTitle)}</strong>
+            <p>${escapeHtml(copy.footer.nextStepBody)}</p>
           </div>
         </div>
       </section>
@@ -998,7 +1007,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
       </section>
 
       <div class="footer-bottom">
-        <span>ZUKAN｜皆で作る地域図鑑</span>
+        <span>ZUKAN｜${escapeHtml(copy.footer.tagline)}</span>
         <span><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>・<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a></span>
       </div>
     </div>
@@ -1078,12 +1087,14 @@ function siteShellLayoutKind(currentPath: string, shellClassName: string): SiteS
 
 type GlobalRecordEntryCopy = {
   navLabel: string;
+  home: string;
   photo: string;
   photoMode: string;
   captureAria: string;
   places: string;
   records: string;
   self: string;
+  events: string;
   video: string;
   gallery: string;
   guide: string;
@@ -1109,7 +1120,7 @@ type GlobalRecordEntryCopy = {
 };
 
 function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
-  type LegacyCopy = Omit<GlobalRecordEntryCopy, "navLabel" | "photo" | "photoMode" | "captureAria" | "places" | "records" | "self" | "gallery" | "errorTitle" | "errorBody" | "permissionBody" | "retry" | "cancel">;
+  type LegacyCopy = Omit<GlobalRecordEntryCopy, "navLabel" | "home" | "photo" | "photoMode" | "captureAria" | "places" | "records" | "self" | "events" | "gallery" | "errorTitle" | "errorBody" | "permissionBody" | "retry" | "cancel">;
   const copy: Record<SiteLang, LegacyCopy> = {
     ja: {
       video: "動画",
@@ -1186,11 +1197,13 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
   };
   const bottomNav = getShortCopy<{
     ariaLabel: string;
+    home: string;
     capture: string;
     captureAria: string;
     places: string;
     records: string;
     self: string;
+    events: string;
   }>(lang, "shared", "bottomNav");
   const cameraCapture = getShortCopy<{
     photo: string;
@@ -1205,6 +1218,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
   return {
     ...(copy[lang] ?? copy.ja),
     navLabel: bottomNav.ariaLabel,
+    home: bottomNav.home,
     photo: bottomNav.capture,
     photoMode: cameraCapture.photo,
     video: cameraCapture.video,
@@ -1212,6 +1226,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
     places: bottomNav.places,
     records: bottomNav.records,
     self: bottomNav.self,
+    events: bottomNav.events,
     gallery: cameraCapture.gallery,
     errorTitle: cameraCapture.errorTitle,
     errorBody: cameraCapture.errorBody,
@@ -1227,18 +1242,26 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   }
   const copy = globalRecordEntryCopy(lang);
   const pathname = normalizePathname(currentPath);
+  const homeHref = appendLangToHref(withBasePath(basePath, "/"), lang);
   const placesHref = appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang);
   const memberRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
-  const memberSelfHref = appendLangToHref(withBasePath(basePath, "/profile"), lang);
   const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Frecords%3Fview%3Dmine"), lang);
-  const guestSelfHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Fprofile"), lang);
   const recordsHref = authState === "member" ? memberRecordsHref : guestRecordsHref;
-  const selfHref = authState === "member" ? memberSelfHref : guestSelfHref;
+  const eventsHref = appendLangToHref(withBasePath(basePath, "/community/events"), lang);
+  const homeCurrent = pathname === "/" || pathname === "/home";
   const placesCurrent = pathname === "/map" || pathname.startsWith("/map/");
   const recordsCurrent = pathname === "/records" || pathname.startsWith("/records/") || pathname.startsWith("/observations/");
-  const selfCurrent = pathname === "/profile" || pathname.startsWith("/profile/");
+  const eventsCurrent = pathname === "/community/events" || pathname.startsWith("/community/events/");
   return `<nav class="global-record-launcher" aria-label="${escapeHtml(copy.navLabel)}">
     <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*" multiple hidden />
+    <a class="global-record-choice${homeCurrent ? " is-active" : ""}" href="${escapeHtml(homeHref)}"${homeCurrent ? ' aria-current="page"' : ""}>
+      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg></span>
+      <span>${escapeHtml(copy.home)}</span>
+    </a>
+    <a class="global-record-choice${recordsCurrent ? " is-active" : ""}" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${recordsCurrent ? ' aria-current="page"' : ""}>
+      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+      <span>${escapeHtml(copy.records)}</span>
+    </a>
     <button type="button" class="global-record-choice is-primary" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="capture_nav" aria-haspopup="dialog" aria-label="${escapeHtml(copy.captureAria)}">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
       <span>${escapeHtml(copy.photo)}</span>
@@ -1247,13 +1270,9 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></svg></span>
       <span>${escapeHtml(copy.places)}</span>
     </a>
-    <a class="global-record-choice${recordsCurrent ? " is-active" : ""}" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${recordsCurrent ? ' aria-current="page"' : ""}>
-      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
-      <span>${escapeHtml(copy.records)}</span>
-    </a>
-    <a class="global-record-choice${selfCurrent ? " is-active" : ""}" href="${escapeHtml(selfHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestSelfHref)}" data-auth-member-href="${escapeHtml(memberSelfHref)}"${selfCurrent ? ' aria-current="page"' : ""}>
-      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 21c.6-4 3-6 7-6s6.4 2 7 6"/></svg></span>
-      <span>${escapeHtml(copy.self)}</span>
+    <a class="global-record-choice${eventsCurrent ? " is-active" : ""}" href="${escapeHtml(eventsHref)}"${eventsCurrent ? ' aria-current="page"' : ""}>
+      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5"/></svg></span>
+      <span>${escapeHtml(copy.events)}</span>
     </a>
   </nav>
   <div class="global-record-camera-backdrop" data-global-record-camera-close hidden></div>
@@ -3863,7 +3882,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const legacyServiceWorkerCleanupScript = `<script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
-  const legacyCachePrefixes = ['ikimon-pwa-', 'ikimon-offline-', 'ikimon-static-'];
+  const legacyCachePrefixes = ['ikimon-pwa-', 'ikimon-offline-', 'ikimon-static-', 'ikimon-app-'];
+  const currentZukanCachePrefix = 'zukan-app-v1';
   window.addEventListener('load', () => {
     navigator.serviceWorker.getRegistrations()
       .then((registrations) => Promise.all(registrations.map((registration) => {
@@ -3874,7 +3894,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .then(() => {
         if (!('caches' in window)) return undefined;
         return caches.keys().then((keys) => Promise.all(keys
-          .filter((key) => legacyCachePrefixes.some((prefix) => key.startsWith(prefix)))
+          .filter((key) => legacyCachePrefixes.some((prefix) => key.startsWith(prefix)) || (key.startsWith('zukan-app-') && !key.startsWith(currentZukanCachePrefix)))
           .map((key) => caches.delete(key))));
       })
       .catch(() => undefined);
@@ -5959,7 +5979,7 @@ ${alternateLinks}
       bottom: max(6px, env(safe-area-inset-bottom));
       z-index: 36;
       display: none;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       padding: 8px;
       gap: 8px;
       border-radius: 24px;
