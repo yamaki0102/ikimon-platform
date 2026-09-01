@@ -103,7 +103,27 @@ M7 design exit before promotion:
 - source, authorization, rights, participant, review, lifecycle and target-scope changes invalidate a prior plan;
 - first implementation slice can be expressed as short `Source / Delta / Done` without executor product invention.
 
-M7.0 fixtures are `school_new_academic_year_new_teacher`, `guardian_withdrawal_fail_closed`, `unresolved_review_reference_not_approval`, `same_place_record_reused_without_duplication`, `outgoing_actor_removed_after_acceptance`, `unknown_unapproved_incoming_actor_fail_closed`, `retry_converges_to_one_logical_plan`, `same_key_different_payload_rejected`, `invalid_selected_ref_fail_closed`, and `participant_consent_review_publication_carry_over_forbidden`. The terminal check is deterministic replay plus all negative fixtures with zero DB/UI side effects. Later M7.1 persistence/idempotency work remains out of scope.
+M7.0 fixtures are `school_new_academic_year_new_teacher`, `guardian_withdrawal_fail_closed`, `unresolved_review_reference_not_approval`, `same_place_record_reused_without_duplication`, `outgoing_actor_removed_after_acceptance`, `unknown_unapproved_incoming_actor_fail_closed`, `retry_converges_to_one_logical_plan`, `same_key_different_payload_rejected`, `invalid_selected_ref_fail_closed`, and `participant_consent_review_publication_carry_over_forbidden`. The terminal check is deterministic replay plus all negative fixtures with zero DB/UI side effects. M7.0 is source-verified on current main `0aff596f799381d184a23a4fa598e7fad4ad3a06`.
+
+### M7.1 ? persisted handover plan / idempotency
+
+M7.1 is explicitly promoted after M7.0 source verification. It persists only an accepted immutable `ProgramHandover` plan snapshot; it does not execute the handover or mutate the target Program.
+
+Reuse the existing Foundation D1 write-receipt/idempotency pattern rather than introducing a new generic idempotency subsystem. The active-runtime adapter is D1; keep the repository contract provider-neutral and do not require a second persistence backend unless an existing active path needs it.
+
+Persist only the minimum plan identity and provenance needed for later M7.2/M7.3 work: tenant/workspace scope, logical plan ID, plan identity, payload digest, source Program/revision, target Program/continuation, selected reference IDs, reset-state declaration, outgoing/incoming responsibility refs, observed-at, actor/audit ref and immutable created-at. Participant rows, consent grants, Review decisions, publication approvals, visibility state, Record/Place copies and target Program mutations remain forbidden.
+
+Persistence rules:
+
+- only an M7.0 `accepted/planned` result with matching current source/target scope may be stored;
+- same idempotency key + same payload digest returns the same stored logical plan/receipt;
+- same idempotency key + different payload digest fails closed;
+- concurrent retries converge to one logical stored plan;
+- write failure leaves no falsely completed handover state;
+- the stored plan is immutable in M7.1; later acceptance/transfer is a separate append/state-transition concern owned by M7.2/M7.3;
+- source/migration files may be added, but no staging/production migration application, route/UI activation or production mutation is authorized by M7.1.
+
+M7.1 Done is source repository/migration contract + deterministic D1 tests proving one logical row under replay/concurrency, conflict rejection, immutable plan snapshot, no participant/consent/Review/publication-state copy and no target Program side effect. M7.2 remains blocked until M7.1 is source-verified and Noah explicitly promotes it.
 
 ## M8 — Operational Summary & Raw Portability
 

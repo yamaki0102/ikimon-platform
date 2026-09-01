@@ -39,6 +39,19 @@ test("M7 design contract fixes authorization, rights, failure and idempotency bo
   assert.ok(contract?.fixtures?.length >= 7);
 });
 
+test("M7.1 is executor-ready for immutable persistence/idempotency only", () => {
+  const task = loadProductRegistryNavigation().implementation_tasks.find((item) => item.id === "task.zukan.m7.program-handover-persistence") as any;
+  assert.equal(task?.state, "planned");
+  assert.equal(task?.readiness, "executor-ready");
+  assert.equal(task?.implementation_allowed, true);
+  assert.match(task?.design_contract?.storage, /D1 first active-runtime adapter/);
+  assert.match(task?.design_contract?.idempotency, /same key\+payload.*one logical stored plan/);
+  assert.match(task?.design_contract?.rights, /never copy participant, consent grant, Review decision, publication approval/);
+  assert.match(task?.design_contract?.failure, /no target Program side effect/);
+  assert.match(task?.design_contract?.immutability, /immutable/);
+  assert.ok(task?.design_contract?.fixtures?.length >= 8);
+});
+
 test("M8 is shaped as separate operational summary and raw portability contracts", () => {
   const navigation = loadProductRegistryNavigation() as any;
   assert.equal(navigation.implementation_tasks.find((item: any) => item.id === "task.zukan.m8.operational-summary")?.readiness, "shaped");
