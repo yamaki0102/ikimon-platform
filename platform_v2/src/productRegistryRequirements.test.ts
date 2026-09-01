@@ -19,7 +19,7 @@ test("canonical registry delegates resolved status and has no local evidence or 
 });
 
 test("requirements preserve the stable contract and cover the complete product scope", () => {
-  assert.equal(registry.requirements.length, 44);
+  assert.equal(registry.requirements.length, 52);
   assert.equal(new Set(registry.requirements.map((item) => item.id)).size, registry.requirements.length);
   for (const requirement of registry.requirements) {
     assert.equal("status" in requirement, false, `${requirement.id} must not carry resolved status`);
@@ -41,6 +41,7 @@ test("requirements preserve the stable contract and cover the complete product s
     "quality.zukan.program.self-serve-activation",
     "quality.zukan.program.participation",
     "quality.zukan.program.closeout-rehost",
+    "quality.zukan.program.free-output-boundary",
     "quality.zukan.free-core.boundary",
   ];
   const ids = new Set(registry.requirements.map((item) => item.id));

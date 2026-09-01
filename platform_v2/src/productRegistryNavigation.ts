@@ -71,6 +71,8 @@ export function validateProductRegistryNavigation(
     "milestone.m4.regional-publication-portability",
     "milestone.m5.live-camera-poc",
     "milestone.m6.self-serve-program-activation",
+    "milestone.m7.program-continuity-handover",
+    "milestone.m8.operational-summary-raw-portability",
   ];
   if (JSON.stringify(navigation.roadmap.slice().sort((a, b) => a.rank - b.rank).map((item) => item.id)) !== JSON.stringify(expectedMilestones)) {
     errors.push("roadmap must be ordered M1 through M6 with live-camera as M5");

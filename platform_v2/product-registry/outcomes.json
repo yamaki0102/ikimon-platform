@@ -26,7 +26,9 @@
     {"id":"outcome.zukan.collaborative-knowledge","statement":"参加者・役割・reviewを保って共同知を育てる","journey_refs":["journey.zukan.school-field-learning","journey.zukan.organization-company-collaboration","journey.zukan.municipality-local-observation"]},
     {"id":"outcome.zukan.regional-portability","statement":"地域のSourceとPublicationEditionを訂正・再利用可能にする","journey_refs":["journey.zukan.personal-safe-publish","journey.zukan.public-discovery"]},
     {"id":"outcome.zukan.live-place-context","statement":"権利と死活を確認した外部センサーを補助文脈として扱う","journey_refs":["journey.zukan.live-place-context"]},
-    {"id":"outcome.zukan.self-serve-program-activation","statement":"主催者が運営者・開発者なしで企画から再開催まで完走する","journey_refs":["journey.zukan.self-serve-program-activation"]}
+    {"id":"outcome.zukan.self-serve-program-activation","statement":"主催者が運営者・開発者なしで企画から再開催まで完走する","journey_refs":["journey.zukan.self-serve-program-activation"]},
+    {"id":"outcome.zukan.program-continuity","statement":"年度・担当者交代をまたいでProgramを安全に継続する","journey_refs":["journey.zukan.program-handover"]},
+    {"id":"outcome.zukan.operational-portability","statement":"活動の運営状態とsource Recordを権利に沿って持ち運ぶ","journey_refs":["journey.zukan.program-operational-summary","journey.zukan.raw-record-portability"]}
   ],
   "actors": [
     {"id":"actor.individual","label":"個人","job":"見つけたものを素早く記録し、自分の履歴として戻ってこられる"},

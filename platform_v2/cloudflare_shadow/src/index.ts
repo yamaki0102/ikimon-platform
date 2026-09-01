@@ -4412,8 +4412,7 @@ export function renderObservationEventCreatePage(
 function renderObservationEventListPage(sessions: Array<NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>>, auth: SessionSnapshot | null): string {
   const items = sessions.map((session) => {
     const accessLabel = session.plan === "public" ? "公開" : "参加者限定";
-    const targets = session.targetSpecies.map((item) => `<span class="pill">${escapeHtml(item)}</span>`).join("");
-    return `<article class="card"><h2>${escapeHtml(session.title)}</h2><p class="muted">${escapeHtml(session.startedAt)} / ${accessLabel}</p>${targets ? `<p>${targets}</p>` : ""}<div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/live">観察画面</a><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/recap">振り返り</a>${session.eventCode ? `<a class="btn secondary" href="/community/events/${encodeURIComponent(session.eventCode)}/join">参加する</a>` : ""}</div></article>`;
+    return `<article class="card"><h2>${escapeHtml(session.title)}</h2><p class="muted">${escapeHtml(session.startedAt)} / ${accessLabel}</p><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/live">観察画面</a><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/recap">振り返り</a>${session.eventCode ? `<a class="btn secondary" href="/community/events/${encodeURIComponent(session.eventCode)}/join">参加する</a>` : ""}</div></article>`;
   }).join("");
   return `<section><h1>観察会</h1><p class="muted">${auth ? `${escapeHtml(auth.displayName)}の観察会` : "招待された観察会を表示しています"}</p><div class="grid">${items || observationEventEmptyState("観察会はまだありません", "招待された観察会がここに表示されます。")}</div></section>`;
 }
@@ -4667,14 +4666,7 @@ function renderObservationEventLivePage(
   canManage: boolean
 ): string {
   const summary = summarizePublicObservationEventLive(events);
-  const targetTaxa = [...new Set([
-    ...session.targetSpecies,
-    ...teams.flatMap((team) => jsonArray(team.target_taxa_json).filter((taxon): taxon is string => typeof taxon === "string"))
-  ])].slice(0, 12);
-  const targetTaxaHtml = targetTaxa.length > 0
-    ? `<p>${targetTaxa.map((taxon) => `<span class="pill">${escapeHtml(taxon)}</span>`).join("")}</p>`
-    : `<p class="muted">気になった形や色を手がかりに、身近ないきものを探してみましょう。</p>`;
-  return `<section><h1>${escapeHtml(session.title)} 参加者向けライブ</h1><p class="muted">チェックイン済みの参加者だけが見られる、観察会の最新情報です。</p>${canManage ? `<div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a></div>` : ""}<div class="grid"><article class="card"><h2>観察の更新</h2><p>${summary.observationCount}件</p></article><article class="card"><h2>見つかった種類</h2><p>${summary.uniqueTaxaCount}種</p></article><article class="card"><h2>最近の動き</h2><p>${summary.eventCount}件</p></article></div><article class="card"><h2>観察の手がかり</h2>${targetTaxaHtml}</article><h2>最近の動き</h2>${renderObservationEventTimeline(events)}</section>`;
+  return `<section><h1>${escapeHtml(session.title)} 参加者向けライブ</h1><p class="muted">チェックイン済みの参加者だけが見られる、観察会の最新情報です。</p>${canManage ? `<div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a></div>` : ""}<div class="grid"><article class="card"><h2>観察の更新</h2><p>${summary.observationCount}件</p></article><article class="card"><h2>最近の動き</h2><p>${summary.eventCount}件</p></article></div><article class="card"><h2>観察の手がかり</h2><p class="muted">記録の内容は個別の記録画面で確認できます。</p></article><h2>最近の動き</h2>${renderObservationEventTimeline(events)}</section>`;
 }
 
 function renderObservationEventConsolePage(
@@ -4687,7 +4679,10 @@ function renderObservationEventConsolePage(
   const funnelRows = dashboard.funnel.map((stage) => `<tr><th scope="row">${escapeHtml(stage.label)}</th><td>${stage.count}</td><td>${stage.conversionFromPreviousPct === null ? "—" : `${stage.conversionFromPreviousPct}%`}</td></tr>`).join("");
   const unsynced = dashboard.domain.unsynced.status === "not_measurable" ? "計測不可（durable queueなし）" : escapeHtml(dashboard.domain.unsynced.count ?? 0);
   const liveDelay = dashboard.domain.liveAggregationDelay.status === "not_measurable" ? "計測不可（反映時刻を別保持していません）" : `${escapeHtml(dashboard.domain.liveAggregationDelay.seconds ?? 0)}秒`;
-  return `<section><h1>${escapeHtml(session.title)} 管制塔</h1><div class="grid"><article class="card"><h2>状態</h2><p>${escapeHtml(session.primaryMode)}</p><p class="muted">${escapeHtml(session.startedAt)} - ${escapeHtml(session.endedAt ?? "open")}</p></article><article class="card"><h2>努力量</h2><p>${escapeHtml(effort?.totalEffortPersonHours ?? 0)} person-hours</p><p>${escapeHtml(effort?.coveragePct ?? 0)}% coverage</p></article><article class="card"><h2>チーム</h2><p>${teams.length}</p></article></div><h2>当日ドメイン集計</h2><div class="grid"><article class="card"><h3>チェックイン済み家族・グループ</h3><p>${dashboard.domain.checkedInFamiliesOrGroups}</p></article><article class="card"><h3>観察件数</h3><p>${dashboard.domain.observationCount}</p></article><article class="card"><h3>投稿 成功 / 失敗シグナル</h3><p>${dashboard.domain.submissionSucceededCount} / ${dashboard.domain.submissionFailedSignalCount}</p></article><article class="card"><h3>未同期件数</h3><p>${unsynced}</p></article><article class="card"><h3>live集計の遅延</h3><p>${liveDelay}</p></article><article class="card"><h3>recap生成状態</h3><p>${escapeHtml(dashboard.domain.recapStatus)}</p></article></div><p class="muted">最終更新: ${escapeHtml(dashboard.domain.lastUpdatedAt)}</p><h2>Funnel</h2><div class="card"><table><thead><tr><th>段階</th><th>件数</th><th>直前比</th></tr></thead><tbody>${funnelRows}</tbody></table><p class="muted">check-in失敗 ${dashboard.failures.checkin}件 / 観察保存失敗 ${dashboard.failures.observation}件。失敗件数は参加者テレメトリ由来の参考信号であり、単独ではフォールバックを発動しません。スタッフ再現またはドメイン健全性の異常で照合してください。参加組数・観察件数はD1のdomain counterを正本とします。</p></div><div class="actions"><a class="btn" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/dashboard">dashboard API</a><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/effort">effort API</a><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/report">公式出力</a></div><h2>運営イベント（個人情報なし）</h2>${renderObservationEventOperationalTimeline(events)}</section>`;
+  const reportLink = hasProfessionalReportEntitlement(session)
+    ? `<a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/report">公式出力</a>`
+    : "";
+  return `<section><h1>${escapeHtml(session.title)} 管制塔</h1><div class="grid"><article class="card"><h2>状態</h2><p>${escapeHtml(session.primaryMode)}</p><p class="muted">${escapeHtml(session.startedAt)} - ${escapeHtml(session.endedAt ?? "open")}</p></article><article class="card"><h2>努力量</h2><p>${escapeHtml(effort?.totalEffortPersonHours ?? 0)} person-hours</p><p>${escapeHtml(effort?.coveragePct ?? 0)}% coverage</p></article><article class="card"><h2>チーム</h2><p>${teams.length}</p></article></div><h2>当日ドメイン集計</h2><div class="grid"><article class="card"><h3>チェックイン済み家族・グループ</h3><p>${dashboard.domain.checkedInFamiliesOrGroups}</p></article><article class="card"><h3>観察件数</h3><p>${dashboard.domain.observationCount}</p></article><article class="card"><h3>投稿 成功 / 失敗シグナル</h3><p>${dashboard.domain.submissionSucceededCount} / ${dashboard.domain.submissionFailedSignalCount}</p></article><article class="card"><h3>未同期件数</h3><p>${unsynced}</p></article><article class="card"><h3>live集計の遅延</h3><p>${liveDelay}</p></article><article class="card"><h3>recap生成状態</h3><p>${escapeHtml(dashboard.domain.recapStatus)}</p></article></div><p class="muted">最終更新: ${escapeHtml(dashboard.domain.lastUpdatedAt)}</p><h2>Funnel</h2><div class="card"><table><thead><tr><th>段階</th><th>件数</th><th>直前比</th></tr></thead><tbody>${funnelRows}</tbody></table><p class="muted">check-in失敗 ${dashboard.failures.checkin}件 / 観察保存失敗 ${dashboard.failures.observation}件。失敗件数は参加者テレメトリ由来の参考信号であり、単独ではフォールバックを発動しません。スタッフ再現またはドメイン健全性の異常で照合してください。参加組数・観察件数はD1のdomain counterを正本とします。</p></div><div class="actions"><a class="btn" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/dashboard">dashboard API</a><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/effort">effort API</a>${reportLink}</div><h2>運営イベント（個人情報なし）</h2>${renderObservationEventOperationalTimeline(events)}</section>`;
 }
 
 function renderObservationEventEditPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): string {
@@ -4759,22 +4754,25 @@ export function renderObservationEventRecapPage(recap: Record<string, unknown>):
   const photos = Array.isArray(recap.photos)
     ? recap.photos.map(asPlainObject).filter((photo): photo is Record<string, unknown> => Boolean(photo))
     : [];
-  const topTaxa = Array.isArray(highlights.topTaxa)
-    ? highlights.topTaxa.map(asPlainObject).filter((taxon): taxon is Record<string, unknown> => Boolean(taxon))
-    : [];
   const photoGallery = photos.length > 0
-    ? `<div class="event-photo-grid">${photos.map((photo) => `<figure class="card event-photo-card" data-event-recap-photo><img src="${escapeHtml(photo.photoUrl ?? "")}" alt="${escapeHtml(photo.taxonName ?? "未同定の観察写真")}" loading="lazy"><figcaption>${escapeHtml(photo.taxonName ?? "未同定")}</figcaption></figure>`).join("")}</div>`
+    ? `<div class="event-photo-grid">${photos.map((photo) => `<figure class="card event-photo-card" data-event-recap-photo><img src="${escapeHtml(photo.photoUrl ?? "")}" alt="観察写真" loading="lazy"><figcaption>観察写真</figcaption></figure>`).join("")}</div>`
     : `<p class="muted">写真は安全な表示用データの準備ができ次第、ここに表示されます。</p>`;
   const rehost = canManage
     ? `<article class="card"><h2>次回の観察会</h2><p class="muted">企画設定だけを再利用します。参加者・同意・review・公開状態は引き継ぎません。</p><div class="actions"><a class="btn" href="/community/events/new?template_from=${encodeURIComponent(String(session.sessionId ?? ""))}">もう一度開催する</a></div></article>`
     : "";
-  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>見つかった種類</h2><p>${escapeHtml(highlights.uniqueSpeciesCount ?? 0)}</p></article><article class="card"><h2>参加した家族・グループ</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><h2>みんなの観察写真</h2>${photoGallery}<article class="card"><h2>次に調べるヒント</h2><p>写真の形や色、見つけた場所の環境を見比べてみましょう。名前がまだ分からない記録も、大切な発見です。</p>${topTaxa.length > 0 ? `<p>${topTaxa.map((taxon) => `<span class="pill">${escapeHtml(taxon.name ?? "未同定")} ${escapeHtml(taxon.count ?? 0)}件</span>`).join("")}</p>` : ""}</article>${rehost}</section>`;
+  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察記録</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>参加した家族・グループ</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><h2>みんなの観察写真</h2>${photoGallery}<article class="card"><h2>次に調べるヒント</h2><p>写真の形や色、見つけた場所の環境を見比べてみましょう。名前がまだ分からない記録も、大切な発見です。</p></article>${rehost}</section>`;
 }
 
 function renderObservationEventReportPage(report: Awaited<ReturnType<typeof buildObservationEventOfficialReport>> & Record<string, unknown>): string {
   const stats = asPlainObject(report.stats) ?? {};
   const records = Array.isArray(report.speciesRecords) ? report.speciesRecords : [];
   return `<section><h1>${escapeHtml((report.session as { title?: string } | undefined)?.title ?? "観察会")} 公式出力</h1><div class="grid"><article class="card"><h2>公式記録</h2><p>${escapeHtml(stats.officialObservationCount ?? 0)}</p></article><article class="card"><h2>分類群</h2><p>${escapeHtml(stats.uniqueTaxaCount ?? 0)}</p></article></div><pre>${escapeHtml(JSON.stringify(records.slice(0, 20), null, 2))}</pre></section>`;
+}
+
+function hasProfessionalReportEntitlement(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+): boolean {
+  return session.config.derived_output_entitlement === "professional_report";
 }
 
 function renderObservationEventTimeline(events: PublicObservationEventLiveEvent[]): string {
@@ -5194,7 +5192,7 @@ async function getObservationEventEffort(env: Env, sessionId: string): Promise<R
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
   const effort = await summarizeObservationEventEffort(env, session);
   return json({
-    session,
+    session: publicObservationEventRecapSession(session),
     effort
   }, 200, { "cache-control": "no-store" });
 }
@@ -5216,7 +5214,7 @@ async function buildObservationEventRecapPhotos(
 ) {
   const availablePhotos = await queryPublicMapPhotoUrls(env);
   const seen = new Set<string>();
-  const photos: Array<{ photoUrl: string; taxonName: string; observedAt: string }> = [];
+  const photos: Array<{ photoUrl: string; observedAt: string }> = [];
   for (const event of observationEvents) {
     const observationId = observationEventObservationId(event);
     if (!observationId || seen.has(observationId) || !availablePhotos.has(observationId)) continue;
@@ -5224,7 +5222,6 @@ async function buildObservationEventRecapPhotos(
     const photoRef = await observationEventRecapPhotoRef(sessionId, observationId);
     photos.push({
       photoUrl: `/api/v1/observation-events/${encodeURIComponent(sessionId)}/photos/${photoRef}`,
-      taxonName: observationEventTaxonName(event.payload) ?? "未同定",
       observedAt: event.createdAt
     });
     if (photos.length >= 60) break;
@@ -5241,8 +5238,7 @@ function publicObservationEventRecapSession(session: NonNullable<Awaited<ReturnT
     primaryMode: session.primaryMode,
     activeModes: session.activeModes,
     startedAt: session.startedAt,
-    endedAt: session.endedAt,
-    targetSpecies: session.targetSpecies
+    endedAt: session.endedAt
   };
 }
 
@@ -5251,16 +5247,15 @@ function publicObservationEventRecapTimeline(
 ) {
   const timeline: Array<{ type: string; payload: Record<string, unknown>; createdAt: string }> = [];
   for (const event of events) {
-    const taxonName = observationEventTaxonName(event.payload);
     if (["observation_added", "guide_scene_added", "field_scan_added"].includes(event.type)) {
-      timeline.push({ type: event.type, payload: { taxonName: taxonName ?? "未同定" }, createdAt: event.createdAt });
+      timeline.push({ type: event.type, payload: { kind: "record" }, createdAt: event.createdAt });
       continue;
     }
     if (event.type === "absence_recorded") {
       timeline.push({
         type: event.type,
         payload: {
-          searchedTaxon: normalizeOptionalText(event.payload.searched_taxon) ?? "未指定",
+          kind: "absence",
           confidence: normalizeOptionalText(event.payload.confidence) ?? "searched"
         },
         createdAt: event.createdAt
@@ -5276,7 +5271,6 @@ function publicObservationEventRecapTimeline(
       timeline.push({
         type: event.type,
         payload: {
-          taxonName: taxonName ?? null,
           headline: normalizeOptionalText(event.payload.headline) ?? null
         },
         createdAt: event.createdAt
@@ -5367,7 +5361,6 @@ async function getObservationEventRecap(request: Request, url: URL, env: Env, se
   const guideSceneCount = events.filter((event) => event.type === "guide_scene_added").length;
   const fieldScanCount = events.filter((event) => event.type === "field_scan_added").length;
   const fanfareCount = events.filter((event) => ["rare_species", "target_hit", "milestone", "fanfare"].includes(event.type)).length;
-  const taxonCounts = countObservationEventTaxa(observationEvents);
   const startedAt = session.startedAt;
   const endedAt = session.endedAt;
   const durationMinutes = durationMinutesBetween(startedAt, endedAt);
@@ -5380,7 +5373,6 @@ async function getObservationEventRecap(request: Request, url: URL, env: Env, se
   const myEvents = viewer
     ? observationEvents.filter((event) => (viewer.user_id && event.actorUserId === viewer.user_id) || (viewer.guest_token && event.actorGuestToken === viewer.guest_token))
     : [];
-  const myTaxa = [...countObservationEventTaxa(myEvents).keys()];
   const photos = await buildObservationEventRecapPhotos(env, sessionId, observationEvents);
   await recordObservationEventRecapView(env, sessionId, auth?.userId ?? null, guestToken);
   return json({
@@ -5390,7 +5382,6 @@ async function getObservationEventRecap(request: Request, url: URL, env: Env, se
       observationCount: observationEvents.length,
       guideSceneCount,
       fieldScanCount,
-      uniqueSpeciesCount: taxonCounts.size,
       absencesCount: absenceRows.length,
       participantsCount: participatingGroups.length,
       participantCountUnit: "families_or_groups",
@@ -5400,7 +5391,6 @@ async function getObservationEventRecap(request: Request, url: URL, env: Env, se
       fanfareCount,
       totalEffortPersonHours: effort.totalEffortPersonHours,
       meshCoveragePct: effort.coveragePct,
-      topTaxa: [...taxonCounts.entries()].map(([name, count]) => ({ name, count })).slice(0, 8),
       startedAt,
       endedAt,
       durationMinutes
@@ -5413,7 +5403,6 @@ async function getObservationEventRecap(request: Request, url: URL, env: Env, se
         color: team.color,
         memberCount: participatingGroups.filter((participant) => participant.team_id === team.team_id).length,
         observationsCount: teamEvents.length,
-        uniqueSpeciesCount: countObservationEventTaxa(teamEvents).size,
         absencesCount: absenceRows.filter((absence) => absence.team_id === team.team_id).length,
         questsAccepted: 0
       };
@@ -5424,10 +5413,8 @@ async function getObservationEventRecap(request: Request, url: URL, env: Env, se
     myContribution: viewer ? {
       displayName: viewer.display_name ?? null,
       observationsCount: myEvents.length,
-      uniqueSpeciesCount: myTaxa.length,
       absencesCount: absenceRows.filter((absence) => (viewer.user_id && absence.user_id === viewer.user_id) || (viewer.guest_token && absence.guest_token === viewer.guest_token)).length,
-      questsAccepted: 0,
-      recentTaxa: myTaxa.slice(0, 8)
+      questsAccepted: 0
     } : null
   }, 200, { "cache-control": "no-store" });
 }
@@ -5459,8 +5446,8 @@ async function buildObservationEventOfficialReport(request: Request, env: Env, s
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
   const auth = await readCompatibleSession(request, env).catch(() => null);
-  if (session.plan !== "public" && auth?.userId !== session.organizerUserId) {
-    return json({ error: "not allowed" }, 403, { "cache-control": "no-store" });
+  if (!auth || auth.userId !== session.organizerUserId || !hasProfessionalReportEntitlement(session)) {
+    return json({ error: "professional_report_requires_separate_contract" }, 403, { "cache-control": "no-store" });
   }
   const rows = (await listObservationEventLiveEvents(env, sessionId, 500))
     .filter((event) => ["observation_added", "guide_scene_added", "field_scan_added"].includes(event.type))
@@ -7306,22 +7293,15 @@ function publicObservationEventLiveSession(
     activeModes: session.activeModes,
     startedAt: session.startedAt,
     endedAt: session.endedAt,
-    targetSpecies: session.targetSpecies,
     status
   };
 }
 
 function summarizePublicObservationEventLive(events: PublicObservationEventLiveEvent[]) {
   const observations = events.filter((event) => ["observation_added", "field_scan_added", "guide_scene_added"].includes(event.type));
-  const taxa = new Set(
-    observations
-      .map((event) => publicObservationEventLiveText(event.payload.taxonName, 160))
-      .filter((taxon): taxon is string => Boolean(taxon && taxon !== "未同定"))
-  );
   return {
     eventCount: events.length,
-    observationCount: observations.length,
-    uniqueTaxaCount: taxa.size
+    observationCount: observations.length
   };
 }
 
