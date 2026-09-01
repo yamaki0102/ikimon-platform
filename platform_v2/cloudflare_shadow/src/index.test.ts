@@ -18099,6 +18099,8 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(eventJoinPage.status, 200);
     assert.equal(eventJoinPage.headers.get("x-ikimon-cloudflare-native"), "event-page-join");
     assert.match(eventJoinPageText, /D1観察会/);
+    assert.match(eventJoinPageText, /位置情報を共有しなくても同じように参加できます/);
+    assert.doesNotMatch(eventJoinPageText, /共有共有/u);
 
     const team = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/teams`, {
       method: "POST",

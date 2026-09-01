@@ -4443,7 +4443,7 @@ function renderObservationEventJoinPage(
       ${teamOptions ? `<label>班（任意）<select name="team_id"><option value="">選ばない</option>${teamOptions}</select></label>` : ""}
       <label class="evt-check-row">
         <input type="checkbox" name="share_location" />
-        <span>開催中だけ、主催者におおよその現在地を共有<small>共有しなくても同じように参加できます。終了後は自動で止まります。</small></span>
+        <span>開催中だけ、主催者におおよその現在地を共有<small>位置情報を共有しなくても同じように参加できます。終了後は自動で止まります。</small></span>
       </label>
       <label class="evt-check-row">
         <input type="checkbox" name="is_minor" />
