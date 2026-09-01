@@ -5,12 +5,13 @@
   "organization_id":"ikimon",
   "lifecycle":"active",
   "purpose":"地域の記録を、出典・時点・権利・確認状態つきで育て、必要なViewとPublicationへ返す",
-  "primary_outcome":"人が地域で見つけた記録を安全に保存し、本人へ返し、本人または認可された参加者が選んだ範囲だけを共有知として再利用できる",
+  "primary_outcome":"地域のSource・写真・文書・活動を、Place/Entity・時点・Evidence・Rights・Reviewで安全に接続し、参加型Programと目的別View/Publicationへ再利用し、必要なら外部Publisherへ訂正・更新を返せる",
   "canonical_domain":"zukan.earth",
   "implementation_repository":"yamaki0102/ikimon-platform",
   "registries":{"outcomes":"outcomes.json","surfaces":"surfaces.json","capabilities":"capabilities.json","journeys":"journeys.json","requirements":"requirements.json","design":"design.json","content":"content.json","quality":"quality.json","delivery":"delivery.json"},
   "status_authority":{"kind":"shared-resolver","locator":"operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus","version":"1.0.0","owns":["Claim IDs","Collector authority","exact-SHA and freshness","Evidence acceptance","resolved source/runtime status"],"registry_owns":["product meaning","acceptance","dependencies","implementation navigation"]},
   "canonical_chain":["Outcome","Golden Journey","Capability","Requirement","Surface","Design","Dependency","Roadmap","Task","Acceptance/Eval","Shared Status Resolver","Runtime Evidence"],
+  "profile_horizon":{"locator":"docs/spec/zukan-product-architecture/PROFILE_HORIZON.md","rules":["biodiversity_is_one_domain_pack","observation_event_is_one_program_profile","program_profiles_reuse_shared_program_core","publication_profiles_reuse_governed_source_truth","people_publication_requires_explicit_rights_and_never_face_identification","nocosil_exchange_is_explicit_projection_not_shared_database"]},
   "source_assets":[
     {"id":"asset.exif-normalization","locator":"platform_v2/src/services/observationPhotoUpload.ts","use":"existing media metadata minimization and normalization locator"},
     {"id":"asset.program-event","locator":"platform_v2/src/services/guidePrograms.ts","use":"existing Program/Event contract locator"},
@@ -20,7 +21,8 @@
     {"id":"asset.publication","locator":"platform_v2/src/services/publicationFeed.ts","use":"existing publication projection locator"},
     {"id":"asset.regional-envelope","locator":"platform_v2/src/services/zukanRegionalKnowledgeEnvelope.ts","use":"existing regional source/publication envelope locator"},
     {"id":"asset.export","locator":"platform_v2/src/services/researchExport.ts","use":"existing export locator"},
-    {"id":"asset.free-core","locator":"docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","use":"free organizational core boundary locator"}
+    {"id":"asset.free-core","locator":"docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","use":"free organizational core boundary locator"},
+    {"id":"asset.profile-horizon","locator":"docs/spec/zukan-product-architecture/PROFILE_HORIZON.md","use":"canonical product-local projection for broad Program, Publication, Source/Exchange and professional outcome horizon"}
   ],
   "required_surface_ids":["zukan.home.public","zukan.capture.start","zukan.records.public","zukan.map.public","zukan.home.member","zukan.program.activation","zukan.program.console","zukan.program.participation","zukan.program.recap"],
   "rules":{"all_surfaces_require_design_contract":true,"all_surfaces_require_content_contract":true,"all_surfaces_require_quality_contract":true,"all_transitions_require_existing_target":true,"owner_only_surfaces_require_denied_state":true,"write_capabilities_require_failure_and_retry_contract":true,"exceptions_require_owner_reason_and_expiry":true,"planned_surfaces_must_not_claim_route_or_runtime":true,"status_must_be_resolved_by_shared_resolver":true}
