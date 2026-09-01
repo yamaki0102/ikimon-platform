@@ -3947,7 +3947,13 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
   }
   if (pathname === "/community/events/new") {
     const auth = await readCompatibleSession(request, env).catch(() => null);
-    return observationEventPageHtml("観察会を作成", renderObservationEventCreatePage(auth, url.searchParams.get("field_id") ?? ""), "event-page-create");
+    const templateFrom = normalizeOptionalText(url.searchParams.get("template_from"));
+    const template = auth && templateFrom
+      ? await getObservationEventSessionById(env, templateFrom).then((candidate) => (
+        candidate && candidate.organizerUserId === auth.userId ? candidate : null
+      )).catch(() => null)
+      : null;
+    return observationEventPageHtml("観察会を作成", renderObservationEventCreatePage(auth, url.searchParams.get("field_id") ?? "", template), "event-page-create");
   }
   const joinMatch = pathname.match(/^\/community\/events\/([^/]+)\/join$/);
   if (joinMatch?.[1]) {
@@ -4163,25 +4169,37 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
   });
 }
 
-export function renderObservationEventCreatePage(auth: SessionSnapshot | null, initialFieldId: string): string {
+type ObservationEventTemplate = NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>;
+
+export function renderObservationEventCreatePage(
+  auth: SessionSnapshot | null,
+  initialFieldId: string,
+  template: ObservationEventTemplate | null = null,
+): string {
   if (!auth) {
     return `<section class="card event-auth-required"><h1>観察会を作成</h1><p class="muted">招待された主催者が、参加する人と歩くためのページです。</p><p>観察会を作成するには、ZUKANにログインしてください。</p><div class="actions"><a class="btn" href="/login?redirect=/community/events/new">ログイン</a><a class="btn secondary" href="/community/events">観察会を見る</a></div></section>`;
   }
   const initialFieldIdJson = JSON.stringify(initialFieldId).replace(/</g, "\\u003c");
+  const templateSourceSessionIdJson = JSON.stringify(template?.sessionId ?? null).replace(/</g, "\\u003c");
+  const templateTitle = template?.title ? `${template.title}（再開催）` : "";
+  const templateTargetSpecies = template?.targetSpecies?.join(", ") ?? "";
+  const templateMode = template?.primaryMode ?? "discovery";
+  const templateFieldId = template?.fieldId ?? initialFieldId;
   return `<section class="card"><h1>観察会を作成</h1><p class="muted">招待された主催者が、参加する人と歩くためのページです。</p><p>ログイン中: ${escapeHtml(auth.displayName)}</p><div class="actions"><a class="btn secondary" href="/community/events">観察会を見る</a><a class="btn secondary" href="/guide-programs">ガイド企画を見る</a></div></section>
 <section class="card" data-observation-event-create>
   <h2>共同活動の基本情報</h2>
   <p class="muted">参加コードでメンバーを招待し、記録・ガイド・振り返りを同じ観察会にまとめます。記録は参加者の設定を保ち、公開範囲は別途明示操作で決まります。</p>
+  ${template ? `<p class="muted" data-template-rehost>前回の企画設定だけを再利用しています。参加者・同意・review・公開状態は引き継ぎません。</p>` : ""}
   <form data-observation-event-create-form style="display:grid;gap:12px;">
-    <label>タイトル<input name="title" required maxlength="80" placeholder="例: 秋の里山観察会"></label>
+    <label>タイトル<input name="title" value="${escapeHtml(templateTitle)}" required maxlength="80" placeholder="例: 秋の里山観察会"></label>
     <label>開始日時<input name="started_at" required type="datetime-local"></label>
     <label>終了日時<input name="ended_at" type="datetime-local"></label>
-    <label>フィールドID<input name="field_id" value="${escapeHtml(initialFieldId)}" maxlength="120" placeholder="例: aikan-renri-ikan-hq"></label>
+    <label>フィールドID<input name="field_id" value="${escapeHtml(templateFieldId)}" maxlength="120" placeholder="例: aikan-renri-ikan-hq"></label>
     <label>緯度（フィールドIDがない場合）<input name="location_lat" type="number" step="any" min="-90" max="90" placeholder="34.7108"></label>
     <label>経度（フィールドIDがない場合）<input name="location_lng" type="number" step="any" min="-180" max="180" placeholder="137.7261"></label>
     <label>参加コード<input name="event_code" maxlength="8" pattern="[A-Z0-9]*" placeholder="空欄なら自動生成"></label>
-    <label>観察モード<select name="primary_mode"><option value="discovery">見つける</option><option value="effort_maximize">数える</option><option value="bingo">ビンゴ</option><option value="absence_confirm">いないを確かめる</option><option value="ai_quest">AIクエスト</option></select></label>
-    <label>観察したいもの<input name="target_species" maxlength="240" placeholder="例: ヤマセミ, エナガ"></label>
+    <label>観察モード<select name="primary_mode"><option value="discovery"${templateMode === "discovery" ? " selected" : ""}>見つける</option><option value="effort_maximize"${templateMode === "effort_maximize" ? " selected" : ""}>数える</option><option value="bingo"${templateMode === "bingo" ? " selected" : ""}>ビンゴ</option><option value="absence_confirm"${templateMode === "absence_confirm" ? " selected" : ""}>いないを確かめる</option><option value="ai_quest"${templateMode === "ai_quest" ? " selected" : ""}>AIクエスト</option></select></label>
+    <label>観察したいもの<input name="target_species" value="${escapeHtml(templateTargetSpecies)}" maxlength="240" placeholder="例: ヤマセミ, エナガ"></label>
     <label style="display:flex;gap:8px;align-items:center;"><input name="plan" type="checkbox" value="public"> 公開用の観察会として扱う</label>
     <button class="btn" type="submit">観察会を作る</button>
     <p class="muted" data-observation-event-create-status role="status" aria-live="polite"></p>
@@ -4193,6 +4211,7 @@ export function renderObservationEventCreatePage(auth: SessionSnapshot | null, i
   const form = document.querySelector("[data-observation-event-create-form]");
   const status = document.querySelector("[data-observation-event-create-status]");
   const joinLink = document.querySelector("[data-observation-event-join-link]");
+  const templateSourceSessionId = ${templateSourceSessionIdJson};
   if (!(form instanceof HTMLFormElement)) return;
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -4213,7 +4232,8 @@ export function renderObservationEventCreatePage(auth: SessionSnapshot | null, i
       active_modes: [String(data.get("primary_mode") || "discovery"), "rally"],
       target_species: targetSpecies,
       plan: data.get("plan") === "public" ? "public" : "community",
-      config: { collaboration_surface: "observation-event", public_list_visibility: "private-until-explicit" }
+      template_source_session_id: templateSourceSessionId,
+      config: { collaboration_surface: "observation-event", public_list_visibility: "private-until-explicit", rehost_mode: templateSourceSessionId ? "configuration-only" : null }
     };
     try {
       const response = await fetch("/api/v1/observation-events", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
