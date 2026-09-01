@@ -1,0 +1,150 @@
+{
+  "version": "zukan-post-model-bench-v2-7post-execution-evidence-v1",
+  "recordedAt": "2026-08-27T06:08:09.355Z",
+  "status": "COMPLETED_PROVIDER_RESPONSE_UNPARSED",
+  "source": {
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "baseCommit": "4a3583695daf60ceaace585c7e78f2c142c148d9",
+    "prNumber": 1582,
+    "prState": "open",
+    "draft": true
+  },
+  "runtimeInspection": {
+    "provider": "cloudflare",
+    "worker": "ikimon-life-cloudflare-prod",
+    "binding": "OBS_DB",
+    "databaseId": "c879eef6-009c-4710-a964-be343d96f3eb",
+    "rightsReadOperation": "SELECT",
+    "rightsMutationOperation": "single owner-scoped UPDATE",
+    "releaseControlUsed": false,
+    "productionDeployUsed": false,
+    "endpointDeployUsed": false,
+    "productionConfigChanged": false,
+    "trafficChanged": false,
+    "dnsChanged": false,
+    "secretValueReadOrPersisted": false,
+    "databaseUrlReadOrPersisted": false
+  },
+  "fixedInput": {
+    "sourceManifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json",
+    "derivedManifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+    "excludedVisitId": "record-1786965869920",
+    "visitIds": [
+      "record-1784366489892",
+      "record-1784430741938",
+      "record-1781252770584",
+      "record-1784430374598",
+      "record-1784430118720",
+      "record-1784431188621",
+      "record-1784430530197"
+    ],
+    "postCount": 7,
+    "imageCount": 21,
+    "imagesPerPost": 3,
+    "orderedPhotosPerPost": true,
+    "sourceManifestSha256": "0e27a691ded2fbed6333985676ccc002f1a072189cd0c7a2fb82cb3148814652",
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "excludedPostRemovedWithoutResampling": true,
+    "existingLabelExactLocationObserverIdentityExistingAiResultHidden": true
+  },
+  "rightsGate": {
+    "ownerScope": {
+      "preMutationRows": 7,
+      "preMutationOwnerMatchRows": 7,
+      "postMutationRows": 7,
+      "postMutationOwnerMatchRows": 7,
+      "postMutationCanonicalEligibleRows": 7
+    },
+    "required": {
+      "recordConsent": "external_export",
+      "researchUseConsent": "public_export",
+      "datasetLicense": "CC-BY-4.0",
+      "mediaLicense": "CC-BY-NC-4.0",
+      "withdrawalStatus": "active",
+      "externalExportAllowed": true
+    },
+    "preMutation": {
+      "externalExportAllowedRawOneRows": 0,
+      "recordConsentCounts": { "private": 6, "public_summary": 1 },
+      "researchUseConsentCounts": { "none": 7 },
+      "datasetLicenseNullRows": 7,
+      "mediaLicenseNullRows": 7,
+      "withdrawalActiveRows": 7
+    },
+    "mutation": {
+      "affectedRows": 7,
+      "scope": "seven fixed visit IDs AND observations.owner_user_id matched manifest owner attestation",
+      "sourcePayloadJsonChanged": false
+    },
+    "postMutation": {
+      "allSevenExactPredicate": true,
+      "externalExportAllowedRawOneRows": 7,
+      "recordConsent": "external_export",
+      "researchUseConsent": "public_export",
+      "datasetLicense": "CC-BY-4.0",
+      "mediaLicense": "CC-BY-NC-4.0",
+      "withdrawalStatus": "active"
+    },
+    "excludedPostReadback": {
+      "visitId": "record-1786965869920",
+      "unchanged": true,
+      "externalExportAllowedRaw": 0,
+      "recordConsent": "private",
+      "researchUseConsent": "none",
+      "datasetLicense": null,
+      "mediaLicense": null,
+      "withdrawalStatus": "active"
+    }
+  },
+  "execution": {
+    "model": "@cf/zai-org/glm-5.3-flash",
+    "transport": "cloudflare-official-rest",
+    "onePostPerRequest": true,
+    "providerRequests": 7,
+    "imageSends": 21,
+    "retryCount": 0,
+    "fallbackCount": 0,
+    "playgroundCount": 0,
+    "providerResponseError": "cloudflare_official_rest_empty_response",
+    "providerUsageReported": false,
+    "baseline": "NOT_RUN",
+    "estimatedCostUsd": 0,
+    "estimatedCostJpy": 0,
+    "budgetCapJpy": 100
+  },
+  "metrics": {
+    "successCount": 0,
+    "successRatePct": 0,
+    "schemaValidCount": 0,
+    "schemaValidRatePct": 0,
+    "goldPostCount": 0,
+    "goldAccuracy": "NOT_MEASURED_NO_PARSED_RESPONSES",
+    "wrongIdentificationCount": "NOT_MEASURED_NO_PARSED_RESPONSES",
+    "overprecisionCount": "NOT_MEASURED_NO_PARSED_RESPONSES",
+    "locationHallucinationCount": "NOT_MEASURED_NO_PARSED_RESPONSES",
+    "inputTokens": "NOT_REPORTED",
+    "outputTokens": "NOT_REPORTED",
+    "p50LatencyMs": 16552,
+    "p95LatencyMs": 18440,
+    "perPost": [
+      { "visitId": "record-1784366489892", "imageCount": 3, "status": "MODEL_ERROR_EMPTY_RESPONSE", "latencyMs": 17861 },
+      { "visitId": "record-1784430741938", "imageCount": 3, "status": "MODEL_ERROR_EMPTY_RESPONSE", "latencyMs": 18440 },
+      { "visitId": "record-1781252770584", "imageCount": 3, "status": "MODEL_ERROR_EMPTY_RESPONSE", "latencyMs": 15609 },
+      { "visitId": "record-1784430374598", "imageCount": 3, "status": "MODEL_ERROR_EMPTY_RESPONSE", "latencyMs": 16552 },
+      { "visitId": "record-1784430118720", "imageCount": 3, "status": "MODEL_ERROR_EMPTY_RESPONSE", "latencyMs": 16897 },
+      { "visitId": "record-1784431188621", "imageCount": 3, "status": "MODEL_ERROR_EMPTY_RESPONSE", "latencyMs": 16412 },
+      { "visitId": "record-1784430530197", "imageCount": 3, "status": "MODEL_ERROR_EMPTY_RESPONSE", "latencyMs": 15706 }
+    ]
+  },
+  "verification": {
+    "derivedManifestLoadAndDigest": "PASS",
+    "promptShaFixed": "PASS",
+    "ownerReadback": "7/7 PASS",
+    "rightsReadback": "7/7 PASS",
+    "excludedPostUnchanged": "PASS",
+    "officialRestRequests": "7 SENT",
+    "retryFallbackPlayground": "0/0/0",
+    "fixedSourceManifestModified": false
+  }
+}

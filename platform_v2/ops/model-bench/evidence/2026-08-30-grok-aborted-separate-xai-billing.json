@@ -1,0 +1,34 @@
+{
+  "version": "zukan-grok-aborted-separate-xai-billing-v1",
+  "status": "ABORTED_SEPARATE_BILLING",
+  "recorded_at": "2026-08-30",
+  "model": "grok-4.6",
+  "reason": "Cloudflare Unified Billing credit could not execute Grok 4.6 through the current catalog or provider-native route without a separately funded xAI API account.",
+  "cloudflare": {
+    "ai_gateway_credit_balance_usd": 10,
+    "credit_remains_available_for_supported_catalog_models": true,
+    "grok_4_6_catalog_available": false,
+    "grok_4_6_requests_succeeded": 0
+  },
+  "xai": {
+    "console_login_confirmed": true,
+    "credit_balance_usd": 0,
+    "purchase_completed": false,
+    "api_key_created": false,
+    "additional_charge_usd": 0
+  },
+  "decision": {
+    "grok_full_run_started": false,
+    "separate_xai_billing_declined": true,
+    "production_changed": false,
+    "rights_changed": false,
+    "retry_count": 0,
+    "fallback_count": 0
+  },
+  "fixed_input": {
+    "post_count": 7,
+    "image_count": 21,
+    "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9"
+  }
+}

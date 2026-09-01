@@ -1,0 +1,87 @@
+{
+  "reportVersion": "production-candidate-tuned-minimal-canary-v1",
+  "sourceRepository": "yamaki0102/ikimon-platform",
+  "sourceHeadBeforeWork": "d7a48e8acf16a1b413e106db7d9f1f5050f06406",
+  "model": "gemini-3.5-flash-lite",
+  "canaryExecutionCount": 1,
+  "requestPolicy": {
+    "thinkingLevel": "minimal",
+    "temperature": 0,
+    "nativeSchema": true,
+    "retryCount": 0,
+    "fallbackCount": 0
+  },
+  "fixedCanary": {
+    "postCount": 7,
+    "imageCount": 21,
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "manifest": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json",
+    "rights": "all selected fixtures were external-export-allowed and active"
+  },
+  "sourceContract": {
+    "path": "platform_v2/cloudflare_shadow/src/cloudflareObservationAi.ts",
+    "sha256AfterPatch": "30802d8d92c18ae8ed99fb8215b787ae1e0c1fb3b45c5bc37a61508d64565f55"
+  },
+  "promptHashes": {
+    "currentProductionShaped": "51c5a383fbb4e6aadc68fa6a7f66dac53ff11da5378964cf41b78f8818593a18",
+    "tunedProductionShaped": "50bb79533f65cbd307ef48b2716ee0f52168dc8ef73192839af3647e6ea4a6ac"
+  },
+  "pricing": {
+    "inputUsdPer1M": 0.3,
+    "outputUsdPer1M": 2.5,
+    "source": "https://ai.google.dev/gemini-api/docs/pricing"
+  },
+  "canonicalIdentificationMutations": 0,
+  "canonicalMutationEvidence": "read-only canary; no D1 write or identification mutation path invoked",
+  "runs": {
+    "currentProductionShaped": {
+      "requests": 7,
+      "schema": "7/7",
+      "rawUnsafeSpeciesHigh": 4,
+      "postGateUnsafeSpeciesHigh": 0,
+      "candidateContractPreserved": true,
+      "visualEvidenceComplete": "7/7",
+      "needsMoreEvidenceComplete": "7/7",
+      "visibleSubjectExtracted": "7/7",
+      "inputTokens": 24780,
+      "outputTokens": 1742,
+      "costUsd": 0.011789,
+      "latencyMs": { "p50": 3277, "p95": 6090 }
+    },
+    "tunedProductionShaped": {
+      "requests": 7,
+      "schema": "7/7",
+      "rawUnsafeSpeciesHigh": 4,
+      "postGateUnsafeSpeciesHigh": 0,
+      "candidateContractPreserved": true,
+      "visualEvidenceComplete": "7/7",
+      "needsMoreEvidenceComplete": "7/7",
+      "visibleSubjectExtracted": "7/7",
+      "inputTokens": 25704,
+      "outputTokens": 1657,
+      "costUsd": 0.0118537,
+      "latencyMs": { "p50": 3692, "p95": 5838 }
+    }
+  },
+  "comparison": {
+    "inputTokensDelta": 924,
+    "outputTokensDelta": -85,
+    "costUsdDelta": 0.0000647,
+    "visibleSubjectExtractionDelta": 0,
+    "visualEvidenceCompletenessDelta": 0,
+    "needsMoreEvidenceCompletenessDelta": 0,
+    "latencyMs": {
+      "p50Delta": 415,
+      "p95Delta": -252
+    }
+  },
+  "promotionGate": {
+    "schema7of7": true,
+    "unsafeSpeciesHigh0": true,
+    "canonicalIdentificationMutation0": true,
+    "candidateContractPreserved": true,
+    "noMaterialVisibleSubjectRegression": true
+  },
+  "verdict": "PROMOTE_TO_STAGING_CANDIDATE",
+  "productionDeployment": "NOT_RUN"
+}

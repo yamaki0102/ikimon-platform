@@ -1,0 +1,37 @@
+{
+  "visitId": "record-1784430741938",
+  "occurrenceId": "occ:record-1784430741938:0",
+  "imageCount": 3,
+  "postInputSha256": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752",
+  "images": [
+    {"index": 0, "sha256": "2c01f57184968e56efb6965ce2bf1d0e11396942bc07f7b3af11bff7597c031b", "observations": {"primary_subject": "creeping trifoliate herb", "secondary_subjects": ["grass", "mesh/fence", "other small weeds"], "visible_features": ["leaves divided into three heart-shaped/obcordate leaflets", "deep notch at leaflet tip", "small yellow flowers/buds", "dense low mat"], "image_quality_notes": ["good overview and repeated leaf morphology"], "limits": ["stipules and fruit not resolved"]}},
+    {"index": 1, "sha256": "68fc1ccfdc5a799222351454478a0025275f55f9f8b6d22c6c162e2b703fb51e", "observations": {"primary_subject": "same creeping trifoliate herb", "secondary_subjects": ["grass"], "visible_features": ["slender prostrate stems", "trifoliate leaves", "yellow five-petalled flower visible", "small scale relative to fingers"], "image_quality_notes": ["hand provides rough scale and exposes stem habit"], "limits": ["node rooting/stipules not sharply resolved"]}},
+    {"index": 2, "sha256": "faef3ead9e273c0465ca59a9f97ba9ba2e077542f4ab99cc8c175600c8f56583", "observations": {"primary_subject": "same herb as a patch", "secondary_subjects": ["lawn grass", "fence/mesh", "leaf litter"], "visible_features": ["broad low creeping patch rather than a single erect shoot"], "image_quality_notes": ["strong habit/context view"], "limits": ["individual flowers too small for detailed floral characters"]}}
+  ],
+  "post_level": {
+    "combined_observations": ["The three images strongly agree on a low creeping Oxalis with trifoliate obcordate leaves and yellow flowers.", "The prostrate/mat-forming habit favors O. corniculata over more erect yellow woodsorrels."],
+    "diagnostic_features": ["three obcordate leaflets", "yellow five-petalled flowers", "prostrate creeping habit"],
+    "missing_features": ["clear stipules", "mature capsules/seeds", "close stem hair/rooting-at-node view"],
+    "likely_confusions": ["Oxalis dillenii", "Oxalis stricta and other yellow-flowered Oxalis"],
+    "next_photos_to_take": ["petiole base/stipules", "mature seed capsule", "node showing whether stem roots", "flower close-up"]
+  },
+  "taxonomic_assessment": {
+    "recommended_taxon_name": "Oxalis corniculata",
+    "recommended_rank": "species",
+    "confidence_band": "high",
+    "candidates": [
+      {"taxon_name": "Oxalis corniculata", "rank": "species", "confidence_band": "high", "rationale": ["creeping mat, trifoliate deeply notched leaflets and yellow flowers fit well"]},
+      {"taxon_name": "Oxalis dillenii", "rank": "species", "confidence_band": "low", "rationale": ["yellow-flowered trifoliate Oxalis; habit is less compatible"]},
+      {"taxon_name": "Oxalis stricta", "rank": "species", "confidence_band": "low", "rationale": ["similar flowers/leaves but usually more ascending/upright"]}
+    ],
+    "why_not_more_specific": []
+  },
+  "support_map": [
+    {"claim": "The plant is an Oxalis.", "support_level": "SUPPORTED", "evidence": [{"image_index": 0, "evidence_text": "repeated trifoliate, heart-notched leaflets and yellow flowers"}, {"image_index": 1, "evidence_text": "same leaves and yellow flower on exposed prostrate stem"}]},
+    {"claim": "Oxalis corniculata is the best species match.", "support_level": "SUPPORTED", "evidence": [{"image_index": 1, "evidence_text": "slender prostrate stem"}, {"image_index": 2, "evidence_text": "dense creeping mat habit"}]},
+    {"claim": "The patch proves a particular geographic origin.", "support_level": "NOT_VISIBLE", "evidence": []}
+  ],
+  "safe_context": ["low herb mixed with lawn/edge vegetation", "disturbed managed-edge setting visible"],
+  "risk_notes": ["Do not use the fence/lawn to infer locality.", "Leaf spots are damage/disease-like and not needed for the ID."],
+  "raw_final_content": "This is a strong image-level match for Oxalis corniculata (creeping woodsorrel / カタバミ). Across all three images the plant repeatedly shows three obcordate, heart-like leaflets with a distinct apical notch, small yellow flowers, and a low prostrate growth habit. The second image is especially useful because the stem is exposed by hand and appears slender and creeping; the third shows the plant forming a mat along the edge.\n\nOther yellow-flowered Oxalis such as O. dillenii or O. stricta are reasonable formal alternatives, but the strongly creeping/mat-forming habit makes O. corniculata the best visual fit. A close photograph of the petiole base/stipules, node rooting and a mature capsule would make the species determination even more secure."
+}

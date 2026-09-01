@@ -1,0 +1,328 @@
+{
+  "version": "zukan-post-model-bench-v2-gemini-optimized-automated-grounding-evaluation-v1",
+  "recordedAt": "2026-08-28T19:13:36+09:00",
+  "status": "COMPLETED_AUTOMATED_GROUNDING_EVALUATION",
+  "source": {
+    "repository": "yamaki0102/ikimon-platform",
+    "pullRequest": 1582,
+    "sourceHead": "3b12ec0d934ecf1b14a2ceb7dfa08910df3cc527",
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "noModelRerun": true,
+    "humanReviewUsed": false,
+    "humanGoldUsed": false,
+    "productionDeployment": "NOT_RUN"
+  },
+  "fixedInput": {
+    "manifest": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+    "manifestSha256": "0e6c5b32a9300b91c2a56ebe446ea3bd2cc5a11a52d5bbd84a6623c06f8dd545",
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "postCount": 7,
+    "imageCount": 21,
+    "visitIds": [
+      "record-1784366489892",
+      "record-1784430741938",
+      "record-1781252770584",
+      "record-1784430374598",
+      "record-1784430118720",
+      "record-1784431188621",
+      "record-1784430530197"
+    ],
+    "postAndOrderedImageInputUnchanged": true
+  },
+  "visualReference": {
+    "name": "NOAH_MAX_READ_V1",
+    "manifest": "platform_v2/ops/model-bench/reference/noah-max-read-v1/manifest.json",
+    "manifestSha256": "1ba6cd3953e06a93c04d5023e98d098887120aa8643a20f3dcd9da042f7f5e25",
+    "role": "visual-grounding-reference-only",
+    "taxonomicGold": false,
+    "biologicalAccuracyClaim": false,
+    "fieldsUsed": [
+      "images.observations.visible_features",
+      "post_level.diagnostic_features",
+      "post_level.missing_features",
+      "post_level.likely_confusions",
+      "taxonomic_assessment.recommended_rank",
+      "taxonomic_assessment.confidence_band",
+      "taxonomic_assessment.why_not_more_specific",
+      "support_map"
+    ],
+    "excludedAsGold": true
+  },
+  "excludedInputs": [
+    "platform_v2/ops/model-bench/evidence/2026-08-28-gemini-3.5-flash-lite-human-gold-scoring.json",
+    "platform_v2/ops/model-bench/evidence/2026-08-28-blind-grounding-per-post.json",
+    "platform_v2/ops/model-bench/evidence/2026-08-28-grounding-cross-model-comparison.json"
+  ],
+  "savedOutputs": {
+    "baselineFull": {
+      "report": "2026-08-28-gemini-3.5-flash-lite-baseline-full.json",
+      "localEvidencePath": "../../../zukan-gemini-minimal-bench-20260828/reports/2026-08-28-gemini-3.5-flash-lite-baseline-full.json",
+      "sha256": "eadd3716de98160b920ac46e17b10fd2c59a35549155107a70051aec9409d4ad",
+      "rawContentCopiedHere": false
+    },
+    "optimizedFull": {
+      "report": "2026-08-28-gemini-3.5-flash-lite-optimized-full.json",
+      "localEvidencePath": "../../../zukan-gemini-minimal-bench-20260828/reports/2026-08-28-gemini-3.5-flash-lite-optimized-full.json",
+      "sha256": "0bd4b5750b1451fb2959eb16bfb7c53ab20986c5b94d5bfaae917dc704b9e51f",
+      "rawContentCopiedHere": false
+    }
+  },
+  "automatedRubric": {
+    "visibleEvidenceSupport": "PASS when the normalized optimized taxon name is present in the reference visual/taxonomic direction text; FAIL otherwise. This is reference alignment, not biological gold.",
+    "unsupportedSpeciesPrecision": "For species/high only, PASS requires direct reference direction support and no reference decisive-feature or nomenclature stop; otherwise DOWNGRADE_REQUIRED.",
+    "rankConsistency": "PASS when the optimized rank is equal to or broader than the reference stopping rank; a species/high precision stop is separately marked DOWNGRADE_CANDIDATE.",
+    "confidenceConsistency": "PASS when confidence does not exceed the reference confidence ceiling; lower confidence is CONSERVATIVE.",
+    "crossOutputAgreement": "Compare baseline and optimized against fixed reference-direction alias terms; invalid or empty baseline output is NOT_COMPARABLE and does not fail the grounding gate.",
+    "postGroundingPass": "visibleEvidenceSupport=PASS, unsupportedSpeciesPrecision is not DOWNGRADE_REQUIRED, rankConsistency is not INCONSISTENT, and confidenceConsistency is not INCONSISTENT."
+  },
+  "optimizedOperationalMetrics": {
+    "model": "gemini-3.5-flash-lite",
+    "provider": "gemini",
+    "thinkingLevel": "minimal",
+    "temperature": 0,
+    "maxOutputTokens": 2048,
+    "responseJsonSchema": "provider-native",
+    "retry": 0,
+    "fallback": 0,
+    "success": "7/7",
+    "schema": "7/7",
+    "totalInputTokens": 25361,
+    "totalOutputTokens": 260,
+    "estimatedCostUsd": 0.0082583,
+    "p50LatencyMs": 2825,
+    "p95LatencyMs": 3508,
+    "criticalFailures": 0,
+    "taxonNameOnly": "7/7",
+    "prompt": "platform_v2/src/prompts/observation_reassess_bench_minimal.md",
+    "promptSha256": "029a1e6b53478d7105745755ee583a2a2829d874f2d7ac9040190943f85caf10"
+  },
+  "perPost": [
+    {
+      "visitId": "record-1784366489892",
+      "optimized": {
+        "recommendedTaxonName": "Asteraceae",
+        "recommendedRank": "family",
+        "confidenceBand": "low",
+        "schemaValid": true,
+        "nameOnly": true,
+        "recommendedTaxonNameSha256": "d34bfdeb0d26d532bbfa56ae7edc571f3be5221eb1c4fd19450eaab4d42195c3"
+      },
+      "referenceDirection": "Erigeron/Conyza-group hairy juvenile Asteraceae",
+      "automated": {
+        "visibleEvidenceSupport": "PASS",
+        "unsupportedSpeciesPrecision": "NOT_APPLICABLE",
+        "rankConsistency": "CONSERVATIVE",
+        "confidenceConsistency": "CONSERVATIVE",
+        "crossOutputAgreement": "AGREE_DIRECTIONAL",
+        "groundingPass": true
+      },
+      "risk": null,
+      "downgradeCandidate": false
+    },
+    {
+      "visitId": "record-1784430741938",
+      "optimized": {
+        "recommendedTaxonName": "Oxalis",
+        "recommendedRank": "genus",
+        "confidenceBand": "high",
+        "schemaValid": true,
+        "nameOnly": true,
+        "recommendedTaxonNameSha256": "eb7c1cf4cd7c05ee2ccdee6d0ce91d9111d8e6b190110011efafdf16bceb62cf"
+      },
+      "referenceDirection": "Oxalis corniculata direction with trifoliate leaves, yellow flower, and creeping habit",
+      "automated": {
+        "visibleEvidenceSupport": "PASS",
+        "unsupportedSpeciesPrecision": "NOT_APPLICABLE",
+        "rankConsistency": "CONSERVATIVE",
+        "confidenceConsistency": "PASS",
+        "crossOutputAgreement": "AGREE_DIRECTIONAL",
+        "groundingPass": true
+      },
+      "risk": null,
+      "downgradeCandidate": false
+    },
+    {
+      "visitId": "record-1781252770584",
+      "optimized": {
+        "recommendedTaxonName": "Scarabaeidae",
+        "recommendedRank": "family",
+        "confidenceBand": "low",
+        "schemaValid": true,
+        "nameOnly": true,
+        "recommendedTaxonNameSha256": "ec17d4e5dbfb7f190dc3a124faf0bac6734463fcb58ea30b48d588d474e61316"
+      },
+      "referenceDirection": "Scarabaeidae family; brown chafer group remains unresolved",
+      "automated": {
+        "visibleEvidenceSupport": "PASS",
+        "unsupportedSpeciesPrecision": "NOT_APPLICABLE",
+        "rankConsistency": "PASS",
+        "confidenceConsistency": "CONSERVATIVE",
+        "crossOutputAgreement": "NOT_COMPARABLE",
+        "groundingPass": true
+      },
+      "risk": "Baseline saved output was invalid JSON; cross-output agreement is not scored.",
+      "downgradeCandidate": false
+    },
+    {
+      "visitId": "record-1784430374598",
+      "optimized": {
+        "recommendedTaxonName": "Acalypha reptans",
+        "recommendedRank": "species",
+        "confidenceBand": "high",
+        "schemaValid": true,
+        "nameOnly": true,
+        "recommendedTaxonNameSha256": "a824c3f212180d674c148031bd3e12db028d7dfc73cd0f9fb6b4d365f055fd07"
+      },
+      "referenceDirection": "dwarf Acalypha reptans/chamaedrifolia horticultural complex",
+      "automated": {
+        "visibleEvidenceSupport": "PASS",
+        "unsupportedSpeciesPrecision": "DOWNGRADE_REQUIRED",
+        "rankConsistency": "DOWNGRADE_CANDIDATE",
+        "confidenceConsistency": "PASS",
+        "crossOutputAgreement": "AGREE_DIRECTIONAL",
+        "groundingPass": false
+      },
+      "risk": "Species/high is too specific for the reference's missing fine floral anatomy, fruit, and unsettled horticultural nomenclature.",
+      "downgradeCandidate": true,
+      "recommendedConservativeOutput": {
+        "recommendedRank": "genus",
+        "recommendedTaxonName": "Acalypha"
+      }
+    },
+    {
+      "visitId": "record-1784430118720",
+      "optimized": {
+        "recommendedTaxonName": "Rubus",
+        "recommendedRank": "genus",
+        "confidenceBand": "low",
+        "schemaValid": true,
+        "nameOnly": true,
+        "recommendedTaxonNameSha256": "4427795c725dc9ccb80e1ef0c69c61001735012939c4860007afb1f49133aca5"
+      },
+      "referenceDirection": "Bidens developing-head direction with serrate leaves and elongated bracts",
+      "automated": {
+        "visibleEvidenceSupport": "FAIL",
+        "unsupportedSpeciesPrecision": "NOT_APPLICABLE",
+        "rankConsistency": "CONSERVATIVE_DEPTH_BUT_TAXON_DIRECTION_UNSUPPORTED",
+        "confidenceConsistency": "CONSERVATIVE",
+        "crossOutputAgreement": "NOT_COMPARABLE",
+        "groundingPass": false
+      },
+      "risk": "Rubus is not present in the fixed reference visual direction; the optimized genus choice misses the developing Bidens-like head/bracts.",
+      "downgradeCandidate": false
+    },
+    {
+      "visitId": "record-1784431188621",
+      "optimized": {
+        "recommendedTaxonName": "Passer montanus",
+        "recommendedRank": "species",
+        "confidenceBand": "high",
+        "schemaValid": true,
+        "nameOnly": true,
+        "recommendedTaxonNameSha256": "8832735c7802c7d03ff09f7551e96223d2a47cb9eb4d15c0825050b5b19a328f"
+      },
+      "referenceDirection": "Passer montanus with chestnut crown, pale cheek, and conical bill",
+      "automated": {
+        "visibleEvidenceSupport": "PASS",
+        "unsupportedSpeciesPrecision": "PASS",
+        "rankConsistency": "PASS",
+        "confidenceConsistency": "PASS",
+        "crossOutputAgreement": "AGREE_DIRECTIONAL",
+        "groundingPass": true
+      },
+      "risk": null,
+      "downgradeCandidate": false
+    },
+    {
+      "visitId": "record-1784430530197",
+      "optimized": {
+        "recommendedTaxonName": "bird",
+        "recommendedRank": "lifeform",
+        "confidenceBand": "low",
+        "schemaValid": true,
+        "nameOnly": true,
+        "recommendedTaxonNameSha256": "7a5179eecc0fe18760ba615f92603372ae3fe302860098a019e15927551fee3b"
+      },
+      "referenceDirection": "Hypsipetes genus direction; image remains a soft gray-brown passerine",
+      "automated": {
+        "visibleEvidenceSupport": "PASS",
+        "unsupportedSpeciesPrecision": "NOT_APPLICABLE",
+        "rankConsistency": "CONSERVATIVE",
+        "confidenceConsistency": "CONSERVATIVE",
+        "crossOutputAgreement": "NOT_COMPARABLE",
+        "groundingPass": true
+      },
+      "risk": "Baseline saved output was invalid JSON; the broad lifeform result is conservative but does not establish Hypsipetes direction.",
+      "downgradeCandidate": false
+    }
+  ],
+  "automatedGroundingAggregate": {
+    "passRate": "5/7",
+    "passRatePct": 71.43,
+    "visibleEvidenceSupport": "6/7",
+    "speciesHighCases": 2,
+    "speciesHighPass": 1,
+    "speciesHighDowngradeRequired": 1,
+    "rankSafeOrConservative": "6/7",
+    "rankDowngradeCandidates": 1,
+    "confidenceConsistentOrConservative": "7/7",
+    "crossOutputComparable": "4/7",
+    "crossOutputAgreement": "4/4 comparable",
+    "riskyPosts": [
+      "record-1784430374598",
+      "record-1784430118720"
+    ],
+    "downgradeCandidates": [
+      "record-1784430374598"
+    ],
+    "criticalGroundingRisks": [
+      {
+        "visitId": "record-1784430374598",
+        "risk": "species/high without sufficient decisive visual/nomenclatural support"
+      },
+      {
+        "visitId": "record-1784430118720",
+        "risk": "unsupported Rubus genus direction versus Bidens-like visible head/bracts"
+      }
+    ]
+  },
+  "productionPolicyProposal": {
+    "status": "CANDIDATE_POLICY_NOT_ACTIVE",
+    "model": "gemini-3.5-flash-lite",
+    "prompt": "platform_v2/src/prompts/observation_reassess_bench_minimal.md",
+    "requiredOutputKeys": [
+      "confidence_band",
+      "recommended_rank",
+      "recommended_taxon_name"
+    ],
+    "recommendedTaxonNameMustBeNameOnly": true,
+    "speciesRule": "Allow species only when confidence is high, decisive visual features are sufficiently supported, and no reference/evidence stop or nomenclatural ambiguity is present.",
+    "otherwiseRule": "Use genus or family; do not preserve an unsupported species-level guess.",
+    "unsupportedDirectionRule": "If the selected genus/family has no visible support, hold the result as bench-only until a deterministic support gate can broaden or suppress it.",
+    "noFallbackModel": true,
+    "noRetry": true,
+    "productionDeployment": "NOT_RUN"
+  },
+  "verification": {
+    "testCommand": "node --import tsx --test --test-isolation=none --test-concurrency=1 src\\scripts\\zukanModelBench.test.ts",
+    "testFile": "platform_v2/src/scripts/zukanModelBench.test.ts",
+    "result": "24/24 PASS",
+    "durationMs": 180470.1748,
+    "modelRerun": false,
+    "productionDeployment": "NOT_RUN"
+  },
+  "verdict": {
+    "value": "KEEP_BENCH_ONLY",
+    "reason": "The optimized output is operationally excellent but only 5/7 posts pass the automated visual-grounding gate. One species/high result requires downgrade and one low-confidence genus result is an unsupported taxon direction. Without human gold or an implemented support gate, conservative production-candidate promotion is not proven.",
+    "exactProductionDelta": {
+      "status": "NOT_APPLIED",
+      "requiredBeforePromotion": [
+        "Add a deterministic post-parse visual-support gate that blocks unsupported taxon direction; the Rubus result must not be accepted as a production taxon recommendation.",
+        "Apply the species/high safety gate; the Acalypha reptans result must be downgraded to genus Acalypha for this evidence profile.",
+        "Keep Gemini 3.5 Flash-Lite, the optimized minimal prompt, provider-native responseJsonSchema, three required keys, retry 0, and fallback 0.",
+        "Re-run this saved-output automated evaluation after the gate is implemented; no model rerun is required while the fixed input and saved outputs remain unchanged."
+      ],
+      "productionChangeApplied": false
+    }
+  }
+}

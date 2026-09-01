@@ -67,7 +67,9 @@
       {
         "queue": "ikimon-shadow-media-jobs",
         "max_batch_size": 25,
-        "max_batch_timeout": 10
+        "max_batch_timeout": 10,
+        "max_retries": 3,
+        "dead_letter_queue": "ikimon-shadow-media-jobs-dlq"
       }
     ]
   },
@@ -140,7 +142,9 @@
           {
             "queue": "ikimon-shadow-media-jobs",
             "max_batch_size": 25,
-            "max_batch_timeout": 10
+            "max_batch_timeout": 10,
+            "max_retries": 3,
+            "dead_letter_queue": "ikimon-shadow-media-jobs-dlq"
           },
           {
             "queue": "ikimon-shadow-alert-delivery",
@@ -232,7 +236,9 @@
           {
             "queue": "ikimon-staging-media-jobs",
             "max_batch_size": 25,
-            "max_batch_timeout": 10
+            "max_batch_timeout": 10,
+            "max_retries": 3,
+            "dead_letter_queue": "ikimon-staging-media-jobs-dlq"
           },
           {
             "queue": "ikimon-staging-alert-delivery",
@@ -329,7 +335,9 @@
           {
             "queue": "ikimon-prod-media-jobs",
             "max_batch_size": 25,
-            "max_batch_timeout": 10
+            "max_batch_timeout": 10,
+            "max_retries": 3,
+            "dead_letter_queue": "ikimon-prod-media-jobs-dlq"
           },
           {
             "queue": "ikimon-prod-alert-delivery",

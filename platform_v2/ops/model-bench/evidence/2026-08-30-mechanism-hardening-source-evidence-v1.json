@@ -1,0 +1,202 @@
+{
+  "version": "zukan-model-bench-mechanism-hardening-evidence-v1",
+  "createdAt": "2026-08-30T02:55:00.000Z",
+  "status": "SOURCE_VERIFIED_NOT_DEPLOYED",
+  "canonicalProtocol": {
+    "version": "2026.08.30.1",
+    "sha256": "de6414b30c5e6f5f087194e471bab37679f3864423813626ee4869680b71b54a",
+    "startGate": "ready",
+    "riskLevel": "L2",
+    "taskId": "zukan-model-bench-mechanism-hardening-20260830"
+  },
+  "sourceFreeze": {
+    "repository": "yamaki0102/ikimon-platform",
+    "draftPr": 1582,
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "latestMainMerged": "9a663b8eab99c9bd6201258444510369057f869d",
+    "preImplementationMergeCommit": "f0fd5340e6579db5552b46bc8d4f88a14f01ae62"
+  },
+  "fixedHistoricalEvidence": {
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "changed": false,
+    "modelsRerun": 0
+  },
+  "improvements": {
+    "compactOutputContract": {
+      "version": "compact-v2",
+      "promptVersion": "observation-reassess-post-compact-v3",
+      "promptPath": "src/prompts/observation_reassess_bench_compact_v3.md",
+      "promptSha256": "ba51fce67c344e7555198bb2c01a31feff7dbfe9dc45e0794b4f9c96384167d6",
+      "outputSchemaSha256": "294cfb4a8cbeeb9353b584937fcfb0000ee746d46f693dcadb79bfcee052a11f",
+      "providerSchema": {
+        "additionalProperties": false,
+        "candidateMaxItems": 4,
+        "observedFeatureMaxItems": 8,
+        "missingFeatureMaxItems": 8,
+        "uncertainFeatureMaxItems": 6
+      },
+      "localValidation": {
+        "taxonNameMaxChars": 120,
+        "featureMaxChars": 160,
+        "rejectsExtraFields": true
+      },
+      "comparisonIsolation": "dataset, prompt, outputContractVersion, and outputSchemaSha256 must all match"
+    },
+    "immutableImageRetrieval": {
+      "frozenManifestOrigin": "https://zukan.earth",
+      "observedBlocker": "derived image route redirected to Cloudflare Access before model request",
+      "fetchOrigin": "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev",
+      "manifestUrlChanged": false,
+      "imageSha256VerificationRequired": true,
+      "fetchOriginRecordedInRequestConfig": true
+    },
+    "boundedParallelFullRun": {
+      "recommendedConcurrency": 3,
+      "hardRange": "1..8",
+      "fixtureOrderPreserved": true,
+      "requiresSuccessfulOnePostCanary": true,
+      "canaryIdentityBindings": [
+        "model",
+        "datasetSha256",
+        "promptSha256",
+        "outputContractVersion",
+        "outputSchemaSha256"
+      ],
+      "costPreflight": "2x canary cost multiplied by full fixture count must fit maxEstimatedCostUsd",
+      "retryPerPost": 0,
+      "fallbackCount": 0
+    },
+    "adaptiveMediaProfile": {
+      "profile": "adaptive-medium-high",
+      "defaultRuntimeProfile": "current",
+      "primary": "MEDIA_RESOLUTION_MEDIUM",
+      "census": "MEDIA_RESOLUTION_MEDIUM",
+      "environment": "MEDIA_RESOLUTION_MEDIUM",
+      "specialist": "MEDIA_RESOLUTION_HIGH",
+      "summary": "no images",
+      "escalationGateReused": [
+        "lane_candidate_conflict",
+        "coarse_rank_with_visible_region",
+        "generic_label_with_visible_region",
+        "review_requested_for_visible_subject"
+      ],
+      "activation": "opt-in AI_OBSERVATION_MEDIA_PROFILE after separately governed staging canary"
+    },
+    "queueDurabilityAndOperations": {
+      "mediaQueueMaxRetries": 3,
+      "maxConcurrency": null,
+      "maxConcurrencyMeaning": "Cloudflare autoscaling remains enabled",
+      "deadLetterQueues": [
+        "ikimon-shadow-media-jobs-dlq",
+        "ikimon-staging-media-jobs-dlq",
+        "ikimon-prod-media-jobs-dlq"
+      ],
+      "healthEndpoint": {
+        "method": "GET",
+        "path": "/api/v1/admin/observation-ai/queue-health",
+        "auth": "admin_or_analyst_session",
+        "writesData": false,
+        "returnsObservationIdentities": false,
+        "thresholds": {
+          "pendingMinutes": 15,
+          "processingMinutes": 60,
+          "recentFailureHours": 24
+        }
+      },
+      "requeueEndpoint": {
+        "method": "POST",
+        "path": "/api/v1/admin/observation-ai/requeue",
+        "auth": "same_origin_and_admin_or_analyst_session",
+        "scope": "one failed standard request",
+        "concurrencyControl": "request_state and source_payload_json compare-and-swap",
+        "historyPreserved": true,
+        "dispatch": "existing outbox and MEDIA_QUEUE"
+      },
+      "monitoringWorkspaceIntegrated": true
+    }
+  },
+  "compactV2MeasuredValidation": {
+    "canonicalRights": {
+      "eligible": "7/7",
+      "rowsWritten": 0
+    },
+    "model": "gemini-3.5-flash-lite",
+    "canary": {
+      "report": "2026-08-30-gemini-3.5-flash-lite-compact-v2-canary.json",
+      "successSchema": "1/1",
+      "latencyMs": 2894,
+      "inputTokens": 3546,
+      "outputTokens": 232,
+      "estimatedCostUsd": 0.0016438
+    },
+    "full": {
+      "report": "2026-08-30-gemini-3.5-flash-lite-compact-v2-parallel3-final.json",
+      "postCount": 7,
+      "imageCount": 21,
+      "executionConcurrency": 3,
+      "requestSuccess": "7/7",
+      "schemaValid": "7/7",
+      "p50LatencyMs": 2812,
+      "p95LatencyMs": 2937,
+      "wallTimeMs": 8530,
+      "inputTokens": 24822,
+      "outputTokens": 1706,
+      "estimatedCostUsd": 0.0117116,
+      "rawFinalContentSaved": "7/7",
+      "retry": 0,
+      "fallback": 0
+    },
+    "deltaVsHistoricalGemini35FlashLitePct": {
+      "inputTokens": -70.04,
+      "outputTokens": -23.77,
+      "estimatedCost": -61.54,
+      "p50Latency": 8.91,
+      "p95Latency": -39.21,
+      "wallTime": -65.15
+    },
+    "referenceRelativeQuality": {
+      "accuracyWinnerDeclared": false,
+      "improvements": [
+        "Acalypha stopped at genus instead of A. hispida species overprecision",
+        "all seven outputs kept concise diagnostic observed and missing feature fields",
+        "blurred bird output abstained at low confidence"
+      ],
+      "remainingFailures": [
+        "record-1784430118720 remained a Rubus target miss instead of Bidens",
+        "record-1784430530197 returned Aves with family rank, a semantic rank mismatch",
+        "record-1784366489892 remained at Asteraceae family rather than the reference-relative Erigeron genus"
+      ],
+      "verdict": "OPERATIONAL_IMPROVEMENT_QUALITY_NOT_PROVEN"
+    }
+  },
+  "runtimeReadbackBeforeDeployment": {
+    "queue": "ikimon-prod-media-jobs",
+    "batchSize": 25,
+    "maxRetries": 3,
+    "maxConcurrency": null,
+    "deadLetterQueue": null,
+    "d1StateCounts": {
+      "completed": 31,
+      "failed": 7,
+      "pending": 0,
+      "processing": 0
+    },
+    "rowsWritten": 0,
+    "note": "The new DLQ and endpoints are source-only until a governed Worker deploy."
+  },
+  "verification": {
+    "targetedTests": {
+      "passed": 63,
+      "failed": 0
+    },
+    "typecheck": "PASS",
+    "wranglerProductionDryRun": "PASS",
+    "productionDeploy": false,
+    "databaseMutation": false,
+    "rightsMutation": false,
+    "modelInference": "new compact-v2 contract only; historical reports not rerun",
+    "newInferenceRequestCount": 8,
+    "newInferenceEstimatedCostUsd": 0.0133554
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "visitId": "record-1784431188621",
+  "occurrenceId": "occ:record-1784431188621:0",
+  "imageCount": 3,
+  "postInputSha256": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5",
+  "images": [
+    {"index": 0, "sha256": "dccfcdb4ab4b2de32d648e4cef9ff69d1867cb5fcb9d6a3b0da62193cc498316", "observations": {"primary_subject": "small sparrow-like passerine", "secondary_subjects": [], "visible_features": ["chestnut-brown crown", "pale/white cheek with dark cheek area", "brown streaked upperparts", "short stout conical bill", "compact sparrow proportions"], "image_quality_notes": ["telephoto/digital zoom is soft but key head pattern is visible"], "limits": ["fine plumage detail limited"]}},
+    {"index": 1, "sha256": "ba8d7ae0fa64d1adc3e2c3ee6eebdbe0ac4af41f2c649b39f1b3090ebbee22cf", "observations": {"primary_subject": "two sparrow-like passerines", "secondary_subjects": [], "visible_features": ["two individuals perched together", "left bird shows chestnut crown, pale cheek and dark cheek/throat markings", "brown patterned back and short conical bill", "right bird has similar structure/plumage but markings are less clear"], "image_quality_notes": ["best comparative frame; two individuals"], "limits": ["age/sex of right bird cannot be reliably assigned from blur"]}},
+    {"index": 2, "sha256": "bfd9311b1a64827412539c6963582dc92bec85e8d462af5ed8729e160ba910be", "observations": {"primary_subject": "habitat/context; birds not reliably resolved", "secondary_subjects": ["conifer-like trees", "lawn", "garden/utility structures"], "visible_features": ["landscaped vegetated setting"], "image_quality_notes": ["wide environmental frame"], "limits": ["does not add reliable plumage characters", "must not be used to infer exact location"]}}
+  ],
+  "post_level": {
+    "combined_observations": ["The close frames show classic Eurasian Tree Sparrow pattern: chestnut crown, pale cheek with dark cheek spot/area, blackish throat and brown patterned upperparts.", "Two individuals are visible in the second frame.", "The third frame is primarily context and should not be treated as additional taxonomic evidence."],
+    "diagnostic_features": ["chestnut crown", "white/pale cheek with black cheek patch/area", "short conical bill", "brown streaked upperparts"],
+    "missing_features": ["sharper cheek/throat detail", "clear age/sex characters"],
+    "likely_confusions": ["House Sparrow, but its adult male crown/cheek pattern differs and females lack this combination", "other small sparrows at low resolution"],
+    "next_photos_to_take": ["sharper lateral head shot if confirmation is required"]
+  },
+  "taxonomic_assessment": {
+    "recommended_taxon_name": "Passer montanus (Eurasian Tree Sparrow / スズメ)",
+    "recommended_rank": "species",
+    "confidence_band": "high",
+    "candidates": [
+      {"taxon_name": "Passer montanus", "rank": "species", "confidence_band": "high", "rationale": ["chestnut crown + pale cheek with dark cheek patch + sparrow bill/upperparts is highly characteristic"]},
+      {"taxon_name": "Passer domesticus", "rank": "species", "confidence_band": "very-low", "rationale": ["general sparrow shape, but head/cheek pattern is a poor fit"]}
+    ],
+    "why_not_more_specific": []
+  },
+  "support_map": [
+    {"claim": "At least two birds are present.", "support_level": "SUPPORTED", "evidence": [{"image_index": 1, "evidence_text": "two separate passerines perched side-by-side"}]},
+    {"claim": "The bird is Passer montanus.", "support_level": "SUPPORTED", "evidence": [{"image_index": 0, "evidence_text": "chestnut crown and pale cheek/dark cheek area"}, {"image_index": 1, "evidence_text": "same head pattern plus compact sparrow structure"}]},
+    {"claim": "The wide image proves where the observation was made.", "support_level": "NOT_VISIBLE", "evidence": []},
+    {"claim": "The right bird is definitely a juvenile.", "support_level": "PLAUSIBLE", "evidence": [{"image_index": 1, "evidence_text": "markings appear less crisp, but blur/angle could explain this"}]}
+  ],
+  "safe_context": ["birds perched in a tree within a landscaped vegetated setting"],
+  "risk_notes": ["Do not infer exact location from garden/utility context.", "Do not overstate age/sex from the soft telephoto image."],
+  "raw_final_content": "The first two photographs show small sparrows with a compact conical bill, brown streaked upperparts and, most importantly, a chestnut-brown crown plus pale cheek with a dark cheek patch/area and dark throat. That combination is highly characteristic of Eurasian Tree Sparrow, Passer montanus (スズメ). The second frame clearly contains two individuals.\n\nThe third photograph is useful only as environmental context; the birds are not resolved well enough there to add plumage evidence. I would identify P. montanus at species level with high confidence. I would not, however, claim a definite age or sex for the second/right individual from these blurred views."
+}

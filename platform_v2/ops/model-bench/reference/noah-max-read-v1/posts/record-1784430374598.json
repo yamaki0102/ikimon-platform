@@ -1,0 +1,37 @@
+{
+  "visitId": "record-1784430374598",
+  "occurrenceId": "occ:record-1784430374598:0",
+  "imageCount": 3,
+  "postInputSha256": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267",
+  "images": [
+    {"index": 0, "sha256": "0b52d058750744cae5f747b73de92164656c17b96e8d9256fa93d323f1359141", "observations": {"primary_subject": "red chenille-flowered low herb/shrub", "secondary_subjects": ["mint-like herb", "other garden vegetation"], "visible_features": ["bright red densely hairy cylindrical inflorescences", "short upright to arching catkin-like spikes", "small ovate serrate leaves", "many flowering stems"], "image_quality_notes": ["excellent floral overview"], "limits": ["individual flower anatomy not resolved"]}},
+    {"index": 1, "sha256": "1ca42989720be07b654b25eb5fd71b6b9d4ecd49245c2d3dc2543419fa1d99b0", "observations": {"primary_subject": "same red-inflorescence plant", "secondary_subjects": ["other leafy plants"], "visible_features": ["serrate ovate leaf close-up", "fine pubescence/texture on leaf underside and stem", "dense red inflorescence made of numerous protruding hair-like floral structures"], "image_quality_notes": ["close morphology and finger scale"], "limits": ["taxonomic nomenclature cannot be resolved by image alone"]}},
+    {"index": 2, "sha256": "62336f09742d9fd2dede9a85ca5db68c4b4743ccb5ff3c1048d4f5b1f5b49057", "observations": {"primary_subject": "same plant as a dense patch", "secondary_subjects": ["mint-like herb", "fennel-like foliage", "grass", "other ornamentals"], "visible_features": ["low spreading/groundcover habit", "numerous short red chenille spikes throughout patch", "small leaves relative to inflorescences"], "image_quality_notes": ["strong whole-habit view"], "limits": ["mixed planting requires care not to attribute neighboring leaves to target"]}}
+  ],
+  "post_level": {
+    "combined_observations": ["The short vivid red fuzzy spikes, small serrate leaves and low spreading habit strongly indicate a dwarf Acalypha 'cat-tail' ornamental.", "The mixed vegetation makes the close target images important; neighboring mint/fennel-like foliage belongs to other plants."],
+    "diagnostic_features": ["short dense red chenille inflorescences", "small serrate leaves", "low spreading habit"],
+    "missing_features": ["fine floral anatomy", "fruit", "authoritative nomenclatural context"],
+    "likely_confusions": ["Acalypha hispida, which generally has much larger leaves and much longer pendulous catkins", "other horticultural Acalypha names/synonyms such as A. chamaedrifolia/A. reptans/A. pendula"],
+    "next_photos_to_take": ["isolated whole target plant", "stem/leaf arrangement", "flower spike attachment", "fruit if present"]
+  },
+  "taxonomic_assessment": {
+    "recommended_taxon_name": "Acalypha reptans / Acalypha chamaedrifolia horticultural cat-tail complex",
+    "recommended_rank": "species",
+    "confidence_band": "medium-high",
+    "candidates": [
+      {"taxon_name": "Acalypha reptans (often treated/named with A. chamaedrifolia in horticulture)", "rank": "species", "confidence_band": "high visually", "rationale": ["short bright-red chenille spikes, small serrate leaves and dwarf spreading habit match strongly"]},
+      {"taxon_name": "Acalypha hispida", "rank": "species", "confidence_band": "low", "rationale": ["same genus and red fuzzy inflorescences, but typical leaves and catkins are much larger/longer"]},
+      {"taxon_name": "another dwarf horticultural Acalypha", "rank": "species", "confidence_band": "low-medium", "rationale": ["cultivar/synonym usage can complicate exact species naming"]}
+    ],
+    "why_not_more_specific": ["The visual entity is strong, but horticultural Acalypha nomenclature/synonymy is not safely settled from pixels alone."]
+  },
+  "support_map": [
+    {"claim": "The red fuzzy structures belong to an Acalypha-type chenille plant.", "support_level": "SUPPORTED", "evidence": [{"image_index": 0, "evidence_text": "numerous dense red cylindrical chenille inflorescences with serrate leaves"}, {"image_index": 1, "evidence_text": "close leaf and inflorescence morphology"}]},
+    {"claim": "The plant is the dwarf cat-tail Acalypha reptans/chamaedrifolia type rather than A. hispida.", "support_level": "SUPPORTED", "evidence": [{"image_index": 2, "evidence_text": "low spreading habit and many short spikes rather than long pendulous tails"}]},
+    {"claim": "Every green leaf in the wide image belongs to the target.", "support_level": "NOT_VISIBLE", "evidence": [{"image_index": 2, "evidence_text": "several clearly different neighboring plant morphologies are intermixed"}]}
+  ],
+  "safe_context": ["mixed cultivated/managed vegetation", "multiple co-occurring plant species visible"],
+  "risk_notes": ["Do not assign neighboring mint-like or fennel-like foliage to the Acalypha.", "Taxonomic synonym/cultivar naming should be separated from visual identification confidence."],
+  "raw_final_content": "The target is visually distinctive: a low spreading plant with many short, bright-red, densely hairy cylindrical “chenille” inflorescences and small ovate-serrate leaves. The close leaf image confirms that the target leaves are relatively small and toothed; the wide photograph shows a dwarf groundcover-like habit with many short red spikes.\n\nThis is a strong match to the dwarf cat-tail Acalypha commonly sold as Acalypha reptans, with horticultural nomenclature often overlapping A. chamaedrifolia (and related names). The much larger-leaved, long-pendulous A. hispida is a poorer visual fit. I am confident about the Acalypha/dwarf-cat-tail visual identity, while the exact accepted species name should carry a nomenclatural caveat.\n\nThe wide image contains several unrelated plants, so a model that describes all green foliage as one species would be making a grounding error."
+}

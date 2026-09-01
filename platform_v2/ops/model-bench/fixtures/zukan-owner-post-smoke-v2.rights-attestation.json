@@ -1,0 +1,23 @@
+{
+  "version": "zukan-owner-rights-attestation-v1",
+  "attestedAt": "2026-08-26T23:53:00Z",
+  "ownerUserId": "user_69bc926c2eca4",
+  "evidenceSource": "chatgpt-work-user-confirmation",
+  "fixtureIds": [
+    "zukan-post-record-1786965869920",
+    "zukan-post-record-1784366489892",
+    "zukan-post-record-1784430741938",
+    "zukan-post-record-1781252770584",
+    "zukan-post-record-1784430374598",
+    "zukan-post-record-1784430118720",
+    "zukan-post-record-1784431188621",
+    "zukan-post-record-1784430530197"
+  ],
+  "recordConsent": "external_export",
+  "researchUseConsent": "public_export",
+  "datasetLicense": "CC-BY-4.0",
+  "mediaLicense": "CC-BY-NC-4.0",
+  "externalExportAllowed": true,
+  "withdrawalStatus": "active",
+  "rightsPolicyVersion": "owner-attestation-v1-2026-08-26"
+}

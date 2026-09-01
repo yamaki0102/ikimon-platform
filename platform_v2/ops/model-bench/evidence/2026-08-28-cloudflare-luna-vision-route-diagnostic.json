@@ -1,0 +1,133 @@
+{
+  "version": "zukan-cloudflare-luna-vision-route-diagnostic-v1",
+  "recordedAt": "2026-08-28T01:48:00.000Z",
+  "status": "CANARY_BLOCKED_CLOUDFLARE_402",
+  "source": {
+    "repository": "yamaki0102/ikimon-platform",
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "pullRequest": 1582,
+    "productionModelChanged": false,
+    "productionTrafficChanged": false,
+    "releaseControlUsed": false
+  },
+  "fixedInput": {
+    "manifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+    "visitIds": [
+      "record-1784366489892",
+      "record-1784430741938",
+      "record-1781252770584",
+      "record-1784430374598",
+      "record-1784430118720",
+      "record-1784431188621",
+      "record-1784430530197"
+    ],
+    "postCount": 7,
+    "imageCount": 21,
+    "imagesPerPost": 3,
+    "orderedImagesPerPost": true,
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "manifestChanged": false
+  },
+  "rightsGate": {
+    "source": "production D1 OBS_DB",
+    "operation": "SELECT only",
+    "rowsRead": 7,
+    "eligibleRows": 7,
+    "predicate": "external_export_allowed == 1 AND record_consent == external_export AND research_use_consent == public_export AND dataset_license == CC-BY-4.0 AND media_license == CC-BY-NC-4.0 AND withdrawal_status == active",
+    "rightsChanged": false,
+    "sourcePayloadPersisted": false
+  },
+  "canaries": [
+    {
+      "transport": "cloudflare-ai-rest",
+      "endpointShape": "/accounts/{account_id}/ai/v1/responses",
+      "model": "openai/gpt-5.6-luna",
+      "visitId": "record-1784366489892",
+      "imageCount": 3,
+      "requestCount": 1,
+      "requestConfig": {
+        "reasoning_effort": "low",
+        "max_output_tokens": 8192,
+        "stream": false,
+        "response_schema_mode": "provider-native",
+        "strict": false,
+        "retryCount": 0,
+        "fallbackCount": 0
+      },
+      "httpStatus": 402,
+      "contentType": "application/json",
+      "responseShape": "error",
+      "rootFields": ["error"],
+      "providerErrorFields": ["error"],
+      "providerErrorCode": "invalid_prompt",
+      "latencyMs": 1686,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUsd": 0,
+      "rawProviderResponsePersisted": false,
+      "rawFinalContentStored": false,
+      "fullRunExecuted": false,
+      "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-28-openai-gpt-5.6-luna-cloudflare-luna-strict-false-canary-v1.json"
+    },
+    {
+      "transport": "cloudflare-ai-run",
+      "endpointShape": "/accounts/{account_id}/ai/run",
+      "model": "openai/gpt-5.6-luna",
+      "visitId": "record-1784366489892",
+      "imageCount": 3,
+      "requestCount": 1,
+      "requestConfig": {
+        "reasoning_effort": "low",
+        "max_output_tokens": 8192,
+        "stream": false,
+        "response_schema_mode": "provider-native",
+        "strict": false,
+        "retryCount": 0,
+        "fallbackCount": 0
+      },
+      "httpStatus": 402,
+      "contentType": "application/json",
+      "responseShape": "error",
+      "rootFields": ["errors", "success", "result", "messages"],
+      "providerErrorFields": ["errors"],
+      "providerErrorCode": "2021",
+      "latencyMs": 1390,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUsd": 0,
+      "rawProviderResponsePersisted": false,
+      "rawFinalContentStored": false,
+      "fullRunExecuted": false,
+      "reportPath": "platform_v2/ops/model-bench/evidence/2026-08-28-openai-gpt-5.6-luna-cloudflare-luna-ai-run-canary-v1.json"
+    }
+  ],
+  "diagnosis": {
+    "parserRootCause": false,
+    "schemaStrictnessRetest": "strict=false did not change the HTTP 402 failure",
+    "outputReceived": false,
+    "usageReceived": false,
+    "rootCauseClass": "cloudflare_provider_capability_or_account_entitlement_before_model_output",
+    "cloudflareModelCapabilityNote": "Cloudflare's current model page labels openai/gpt-5.6-luna as Text Generation and Responses format; upstream OpenAI image support does not establish image support on the Cloudflare route.",
+    "diagnosticGatewaySelection": "not-explicitly-selected",
+    "diagnosticGatewayStateReadBack": "unknown",
+    "fullRunNotExecuted": true,
+    "retryCount": 0,
+    "fallbackCount": 0,
+    "playgroundUsed": false
+  },
+  "safeRouteFix": {
+    "responsesAdapter": "provider-native Responses payload with ordered input_image/input_text parts and strict=false",
+    "universalAdapter": "Cloudflare /ai/run envelope with model-specific Responses input",
+    "gatewaySelection": "explicit-existing-named-gateway-only",
+    "implicitDefaultGateway": "disallowed",
+    "requiredRuntimeVariable": "CLOUDFLARE_AI_GATEWAY_ID",
+    "diagnosticCallsDidNotSendNamedGatewayHeader": true,
+    "secretValuesPersisted": false
+  },
+  "officialReferences": [
+    "https://developers.cloudflare.com/ai-gateway/usage/rest-api/",
+    "https://developers.cloudflare.com/ai/models/openai/gpt-5.6-luna/",
+    "https://developers.cloudflare.com/ai-gateway/features/unified-billing/"
+  ]
+}

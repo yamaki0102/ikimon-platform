@@ -1,0 +1,78 @@
+{
+  "schema": "zukan.model-bench-work-capsule/v1",
+  "createdAt": "2026-08-30T03:10:00.000Z",
+  "taskId": "zukan-model-bench-mechanism-hardening-20260830",
+  "terminalVerdict": "SOURCE_COMPLETE_PROVIDER_VALIDATED_RUNTIME_UNCHANGED",
+  "repository": "yamaki0102/ikimon-platform",
+  "draftPr": 1582,
+  "branch": "codex/zukan-model-bench-v1-20260827",
+  "source": {
+    "latestMainMerged": "9a663b8eab99c9bd6201258444510369057f869d",
+    "preImplementationMergeCommit": "f0fd5340e6579db5552b46bc8d4f88a14f01ae62",
+    "implementationCommits": [
+      "dab0b36626937603c12abc0806850dd4a4a917b6",
+      "1c2d4f01515f062ef43bf5c89143948187264689"
+    ],
+    "finalPrHeadAuthority": "fresh GitHub PR read-back after this capsule commit"
+  },
+  "completed": [
+    "compact-v2 closed structured-output contract and compact-v3 prompt",
+    "output contract and schema SHA comparison isolation",
+    "successful Gemini 3.5 Flash-Lite canary and seven-post concurrency-3 full run",
+    "immutable manifest URL plus explicit SHA-verified image fetch-origin override",
+    "adaptive-medium-high production media profile behind an unset opt-in variable",
+    "shadow/staging/production media queue DLQ source configuration",
+    "admin-only aggregate queue health endpoint and Monitoring Workspace integration",
+    "same-origin admin compare-and-swap failed-request requeue through existing outbox and MEDIA_QUEUE",
+    "typecheck, prompt leakage check, Wrangler production dry-run, JSON parse, and related tests"
+  ],
+  "measured": {
+    "model": "gemini-3.5-flash-lite",
+    "canarySuccessSchema": "1/1",
+    "fullSuccessSchema": "7/7",
+    "executionConcurrency": 3,
+    "fullWallTimeMs": 8530,
+    "fullInputTokens": 24822,
+    "fullOutputTokens": 1706,
+    "fullEstimatedCostUsd": 0.0117116,
+    "rawFinalContentSaved": "7/7",
+    "retry": 0,
+    "fallback": 0
+  },
+  "runtimeState": {
+    "productionDeployPerformed": false,
+    "productionModelChanged": false,
+    "productionTrafficChanged": false,
+    "databaseMutationPerformed": false,
+    "rightsMutationPerformed": false,
+    "currentMediaProfile": "current",
+    "currentProductionDlq": null,
+    "currentPending": 0,
+    "currentProcessing": 0,
+    "currentFailed": 7
+  },
+  "qualityBoundary": {
+    "verdict": "OPERATIONAL_IMPROVEMENT_QUALITY_NOT_PROVEN",
+    "remainingReferenceRelativeIssues": [
+      "record-1784430118720 remained Rubus instead of Bidens",
+      "record-1784430530197 returned Aves with family rank",
+      "human-backed biological accuracy is not established"
+    ]
+  },
+  "resumeOnlyIfRuntimeActivationIsExplicitlyRequested": {
+    "steps": [
+      "start a governed staging Worker release from the exact PR commit",
+      "verify DLQ attachment and admin health endpoint in staging",
+      "set AI_OBSERVATION_MEDIA_PROFILE=adaptive-medium-high only in staging",
+      "run a rights-safe staging canary and compare schema, cost, latency, and key visual cases",
+      "promote to production only under a separate explicit production approval and runtime read-back"
+    ],
+    "mustNot": [
+      "repeat historical model runs",
+      "change rights",
+      "mutate D1 outside the authenticated single-request requeue endpoint",
+      "change production model or traffic implicitly",
+      "copy or expose provider secrets"
+    ]
+  }
+}

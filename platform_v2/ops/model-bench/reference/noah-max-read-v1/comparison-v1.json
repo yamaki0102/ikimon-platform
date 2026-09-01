@@ -1,0 +1,94 @@
+{
+  "version": "NOAH_REFERENCE_COMPARISON_V1",
+  "referenceVersion": "NOAH_MAX_READ_V1",
+  "status": "REFERENCE_RELATIVE_ONLY_NOT_HUMAN_GOLD",
+  "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+  "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+  "method": {
+    "referenceFrozenBeforeRawCompetitorReview": true,
+    "humanGoldSubstitute": false,
+    "purpose": "Compare saved model final outputs with what the independent high-resolution Noah read found visibly supportable, including missed evidence and overprecision.",
+    "labels": ["REFERENCE_ALIGNED", "CONSERVATIVE_BUT_ALIGNED", "ALIGNED_WITH_OVERCLAIM", "LIKELY_CONFLICT", "INSUFFICIENT_OR_MISSED"],
+    "importantCaveat": "NOAH_MAX_READ_V1 is a visual reference, not authoritative biological gold. Aggregate competitor metrics had already appeared before reference construction, though raw competitor final outputs had not been consulted."
+  },
+  "sourceReports": {
+    "gemini": "platform_v2/ops/model-bench/evidence/2026-08-27-gemini-3.5-flash-lite-native-structured-final-report.json",
+    "glm": "platform_v2/ops/model-bench/evidence/2026-08-27-glm-5.3-flash-8192-final-report.json"
+  },
+  "modelSummary": {
+    "gemini-3.5-flash-lite": {
+      "referenceDirectionAlignedPosts": 5,
+      "likelyConflictPosts": 1,
+      "insufficientOrMissedPosts": 1,
+      "notes": [
+        "Very fast and concise, but the current structured baseline output contains little explicit visual evidence, so grounding richness cannot be compared fairly with GLM/Noah.",
+        "Generally conservative on rank in Erigeron and Oxalis cases.",
+        "Strong match on scarab family and sparrow direction.",
+        "Clear likely target miss on record-1784430118720, where it proposed Rubus while the Noah reference found an Asteraceae-like developing head supporting Bidens.",
+        "Acalypha final rank stayed at genus, which reduces harm, but the repeated A. hispida species narrative conflicts with the dwarf short-spike morphology emphasized by the reference."
+      ]
+    },
+    "@cf/zai-org/glm-5.3-flash": {
+      "referenceDirectionAlignedPosts": 4,
+      "likelyConflictPosts": 3,
+      "insufficientOrMissedPosts": 0,
+      "notes": [
+        "Much richer visual narrative than the Gemini baseline, useful for later claim-level grounding review.",
+        "Erigeron stopping rank and observed hair/leaf evidence align strongly with the reference, but the Japanese vernacular label attached to Erigeron is taxonomically inconsistent and some ecology/management assertions exceed direct image evidence.",
+        "Oxalis, scarab-family and Passer directions align well.",
+        "Acalypha hispida is likely over-specific relative to the dwarf A. reptans/chamaedrifolia morphology in the reference.",
+        "Likely target misses on record-1784430118720 (Ampelopsis/no-bud interpretation) and record-1784430530197 (Turdidae vs bulbul-like Hypsipetes reference)."
+      ]
+    }
+  },
+  "posts": [
+    {
+      "visitId": "record-1784366489892",
+      "noahReference": {"taxon": "Erigeron sp. (Conyza group)", "rank": "genus", "confidence": "low-medium", "keyEvidence": ["narrow lanceolate leaves", "conspicuous stem/leaf-margin hairs", "juvenile plant lacks flowers/involucre/fruit"]},
+      "gemini": {"outputDirection": "Asteraceae/young dicot", "rank": "family", "assessment": "CONSERVATIVE_BUT_ALIGNED", "notes": "Correct broad direction and sensible abstention, but it does not exploit the pubescence/leaf combination to reach the genus-level reference."},
+      "glm": {"outputDirection": "Erigeron", "rank": "genus", "assessment": "ALIGNED_WITH_OVERCLAIM", "notes": "Matches the reference stopping point and many visible features. However, the Japanese genus label is inconsistent with Erigeron, and some inferred ecology/management/size statements are less directly grounded than the core taxonomic evidence."}
+    },
+    {
+      "visitId": "record-1784430741938",
+      "noahReference": {"taxon": "Oxalis corniculata", "rank": "species", "confidence": "high", "keyEvidence": ["three obcordate leaflets", "yellow flower", "low prostrate mat-forming habit"]},
+      "gemini": {"outputDirection": "Oxalis sp.", "rank": "genus", "assessment": "CONSERVATIVE_BUT_ALIGNED", "notes": "Clearly recognizes Oxalis and stays one rank coarser than the reference."},
+      "glm": {"outputDirection": "Oxalis/corniculata-type", "assessment": "REFERENCE_ALIGNED", "notes": "Direction matches the high-confidence reference. Claim-level review should still distinguish visible creeping habit from any locality-derived assumptions."}
+    },
+    {
+      "visitId": "record-1781252770584",
+      "noahReference": {"taxon": "Scarabaeidae; Melolonthinae-like", "rank": "family", "confidence": "high", "keyEvidence": ["convex oval scarab body", "stout legs", "reddish-brown longitudinally striate elytra", "antenna/ventral/size characters unavailable"]},
+      "gemini": {"outputDirection": "Scarabaeidae", "rank": "family", "assessment": "REFERENCE_ALIGNED", "notes": "Closely matches the reference and correctly says head/ventral details are required for species."},
+      "glm": {"outputDirection": "Scarabaeidae with Melolontha candidate", "assessment": "ALIGNED_WITH_OVERCLAIM", "notes": "Family direction is strong; genus-level Melolontha and statements implying large size are more speculative than the image set supports without antenna/ventral detail or calibrated scale."}
+    },
+    {
+      "visitId": "record-1784430374598",
+      "noahReference": {"taxon": "dwarf Acalypha reptans/chamaedrifolia horticultural complex", "rank": "species-complex", "confidence": "medium-high", "keyEvidence": ["many short vivid-red chenille spikes", "small serrate leaves", "low spreading habit", "mixed unrelated vegetation in wide frame"]},
+      "gemini": {"outputDirection": "Acalypha; repeated A. hispida narrative", "rank": "genus", "assessment": "ALIGNED_WITH_OVERCLAIM", "notes": "Genus is correct and final rank is relatively safe, but the long self-contradictory narrative leans toward A. hispida, whose typical large leaves/long pendulous catkins are a poorer visual fit than the dwarf complex."},
+      "glm": {"outputDirection": "Acalypha hispida", "assessment": "LIKELY_CONFLICT", "notes": "Correct genus but likely over-specific species choice relative to the clearly short-spiked, small-leaved, low dwarf habit in the fixed images."}
+    },
+    {
+      "visitId": "record-1784430118720",
+      "noahReference": {"taxon": "Bidens sp.; B. frondosa leading", "rank": "genus", "confidence": "medium-high", "keyEvidence": ["serrate leaves/leaflets", "small developing Asteraceae-like head", "hairy peduncle", "elongated outer bract-like structures"]},
+      "gemini": {"outputDirection": "Rubus", "assessment": "LIKELY_CONFLICT", "notes": "Appears to misread foliage and miss the developing flower head. Claims such as thorn/palmate-pattern emphasis are not supported strongly enough by the target images to outweigh the reproductive structure."},
+      "glm": {"outputDirection": "Ampelopsis/no-bud vine type", "assessment": "LIKELY_CONFLICT", "notes": "Also misses the key developing head and assigns the target to a woody-vine direction inconsistent with the Noah reference."}
+    },
+    {
+      "visitId": "record-1784431188621",
+      "noahReference": {"taxon": "Passer montanus", "rank": "species", "confidence": "high", "keyEvidence": ["chestnut crown", "pale cheek with dark cheek patch", "conical bill", "two birds visible in image 2"]},
+      "gemini": {"outputDirection": "Passer montanus leading candidate", "assessment": "REFERENCE_ALIGNED", "notes": "Correct taxonomic direction; the reference is more confident because the crown/cheek combination is visible across the close frames."},
+      "glm": {"outputDirection": "Passer montanus", "assessment": "REFERENCE_ALIGNED", "notes": "Matches the reference species direction."}
+    },
+    {
+      "visitId": "record-1784430530197",
+      "noahReference": {"taxon": "Hypsipetes sp.; H. amaurotis leading", "rank": "genus", "confidence": "medium", "keyEvidence": ["medium gray-brown arboreal passerine", "slender bill", "moderately long tail", "pale mottled/streaked underparts", "ear patch/crest too blurred for high-confidence species"]},
+      "gemini": {"outputDirection": "very broad Passeriformes/Passeridae-like uncertainty", "assessment": "INSUFFICIENT_OR_MISSED", "notes": "Abstains rather than forcing a species, but does not recover the bulbul-like body/bill/underpart evidence that supports the reference genus candidate."},
+      "glm": {"outputDirection": "Turdidae", "assessment": "LIKELY_CONFLICT", "notes": "Family direction conflicts with the reference's bulbul-like morphology. Image quality is poor, so this remains reference-relative rather than authoritative error labeling."}
+    }
+  ],
+  "conclusion": {
+    "accuracyWinner": null,
+    "accuracyVerdict": "INSUFFICIENT_GOLD",
+    "referenceRelativeObservation": "Gemini appears more conservative and operationally cleaner; GLM exposes far more interpretable visual evidence but also more opportunities for unsupported detail and over-specificity. On this non-gold reference, Gemini is directionally aligned on roughly 5/7 posts and GLM on roughly 4/7. This must not be reported as biological accuracy until human community/authority gold exists.",
+    "nextUse": "Apply the same reference-relative rubric to every new model's saved final content without modifying NOAH_MAX_READ_V1."
+  }
+}

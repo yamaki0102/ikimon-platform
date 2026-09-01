@@ -1,0 +1,129 @@
+{
+  "version": "zukan-model-bench-gemini-3.1-canary-diagnostic-v1",
+  "status": "CANARY_BLOCKED",
+  "executedAt": "2026-08-28",
+  "provider": "google-gemini-developer-api",
+  "model": "gemini-3.1-flash-lite",
+  "endpointMode": "official-generate-content-sdk",
+  "fixedInput": {
+    "postCount": 7,
+    "imageCount": 21,
+    "canaryPostCount": 1,
+    "imagesPerPost": 3,
+    "orderedImages": true,
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "manifest": "fixtures/zukan-owner-post-smoke-v2-7.external.json",
+    "canaryVisitId": "record-1784366489892"
+  },
+  "rightsGate": {
+    "source": "Cloudflare production D1 native remote SELECT",
+    "databaseName": "ikimon_prod_observations_2026_06",
+    "databaseId": "c879eef6-009c-4710-a964-be343d96f3eb",
+    "table": "observation_data_rights",
+    "selectedRows": 7,
+    "canonicalEligibleRows": 7,
+    "predicate": {
+      "externalExportAllowed": true,
+      "recordConsent": "external_export",
+      "researchUseConsent": "public_export",
+      "datasetLicense": "CC-BY-4.0",
+      "mediaLicense": "CC-BY-NC-4.0",
+      "withdrawalStatus": "active"
+    },
+    "sourcePayloadPersisted": false,
+    "mutation": false
+  },
+  "requestContract": {
+    "oneRequestPerPost": true,
+    "stream": false,
+    "responseMimeType": "application/json",
+    "responseJsonSchema": "zukan-model-bench-parser-v1",
+    "schemaMode": "provider-native",
+    "thinkingLevel": "minimal",
+    "temperature": 0,
+    "retryCount": 0,
+    "fallbackCount": 0,
+    "playground": false,
+    "productionConfigChanged": false
+  },
+  "canaryAttempts": [
+    {
+      "attempt": 1,
+      "diagnosticChange": "initial benchmark setting",
+      "maxOutputTokens": 8192,
+      "apiSuccess": true,
+      "schemaValid": false,
+      "finishReason": "MAX_TOKENS",
+      "inputTokens": 11835,
+      "outputTokens": 8175,
+      "latencyMs": 22915,
+      "estimatedCostUsd": 0.01522125,
+      "rawFinalContentChars": 46920,
+      "rawFinalContentSaved": true,
+      "parsedJsonPresent": false,
+      "responseField": null,
+      "criticalFailures": ["invalid_json"],
+      "report": "2026-08-28-gemini-3.1-flash-lite-gemini-3.1-flash-lite-canary-v1.json"
+    },
+    {
+      "attempt": 2,
+      "diagnosticChange": "max output increased only",
+      "maxOutputTokens": 16384,
+      "apiSuccess": true,
+      "schemaValid": false,
+      "finishReason": "MAX_TOKENS",
+      "inputTokens": 11835,
+      "outputTokens": 16367,
+      "latencyMs": 35820,
+      "estimatedCostUsd": 0.02750925,
+      "rawFinalContentChars": 83120,
+      "rawFinalContentSaved": true,
+      "parsedJsonPresent": false,
+      "responseField": null,
+      "criticalFailures": ["invalid_json"],
+      "report": "2026-08-28-gemini-3.1-flash-lite-gemini-3.1-flash-lite-canary-v2.json"
+    },
+    {
+      "attempt": 3,
+      "diagnosticChange": "max output increased only",
+      "maxOutputTokens": 32768,
+      "apiSuccess": true,
+      "schemaValid": false,
+      "finishReason": "MAX_TOKENS",
+      "inputTokens": 11835,
+      "outputTokens": 32751,
+      "latencyMs": 68923,
+      "estimatedCostUsd": 0.05208525,
+      "rawFinalContentChars": 166371,
+      "rawFinalContentSaved": true,
+      "parsedJsonPresent": false,
+      "responseField": null,
+      "criticalFailures": ["invalid_json"],
+      "report": "2026-08-28-gemini-3.1-flash-lite-gemini-3.1-flash-lite-canary-v3.json"
+    }
+  ],
+  "rootCause": {
+    "classification": "provider_native_structured_output_truncation",
+    "evidence": [
+      "The unchanged first-post input and native schema returned an API-successful response on every diagnostic attempt.",
+      "The output consumed maxOutputTokens at 8192, 16384, and 32768 respectively.",
+      "The raw output starts with the required JSON object but its recommended_taxon_name string and closing JSON delimiter are absent at every cap.",
+      "The response had no provider responseField override and no parsed JSON; this is not a local parser-only failure."
+    ],
+    "notRetriedBlindly": true,
+    "fullRunStarted": false
+  },
+  "officialReferences": [
+    "https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite",
+    "https://ai.google.dev/gemini-api/docs/structured-output?lang=rest",
+    "https://ai.google.dev/gemini-api/docs/pricing?hl=en"
+  ],
+  "sensitiveData": {
+    "secretValuesSaved": false,
+    "authenticationValuesSaved": false,
+    "privateReasoningSaved": false,
+    "sourcePayloadSaved": false,
+    "imageBytesSaved": false
+  }
+}

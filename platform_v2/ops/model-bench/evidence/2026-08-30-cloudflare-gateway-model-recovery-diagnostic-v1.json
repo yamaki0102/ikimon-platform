@@ -1,0 +1,144 @@
+{
+  "version": "zukan-cloudflare-gateway-model-recovery-v1",
+  "status": "BLOCKED_GATEWAY_TOKEN_AND_MODEL_CATALOG",
+  "executed_at": "2026-08-30",
+  "fixed_input": {
+    "post_count": 7,
+    "image_count": 21,
+    "canary_visit_id": "record-1784366489892",
+    "canary_image_count": 3,
+    "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "ordered_images_preserved": true,
+    "existing_results_rerun": false
+  },
+  "rights_gate": {
+    "source": "Cloudflare production D1 native read-only SELECT",
+    "selected_rows": 7,
+    "canonical_eligible_rows": 7,
+    "database_mutation": false
+  },
+  "cloudflare_read_back": {
+    "account_id": "089a2d3bdee8858689ae8de1e8232899",
+    "browser_surface": "normal Chrome authenticated session",
+    "gateway_id": "default",
+    "gateway_exists": true,
+    "google_ai_studio_provider_key": "unconfigured",
+    "grok_provider_key": "unconfigured",
+    "unified_billing_provider_support": [
+      "Google AI Studio",
+      "xAI"
+    ],
+    "gateway_request_token_present": false,
+    "new_gateway_created": false,
+    "provider_key_created": false,
+    "credit_purchase_performed": false
+  },
+  "attempts": [
+    {
+      "model": "google-ai-studio/gemini-3.7-flash",
+      "route": "Cloudflare REST Unified Billing chat completions",
+      "request_count": 1,
+      "http_status": 404,
+      "provider_error_code": "7003",
+      "latency_ms": 3940,
+      "schema_valid": false,
+      "raw_final_content_saved": false,
+      "full_run_started": false,
+      "report_path": "platform_v2/ops/model-bench/evidence/2026-08-30-google-ai-studio-gemini-3.7-flash-cloudflare-default-canary-v1.json"
+    },
+    {
+      "model": "grok/grok-4.6",
+      "route": "Cloudflare REST Unified Billing chat completions",
+      "request_count": 1,
+      "http_status": 404,
+      "provider_error_code": "7003",
+      "latency_ms": 3478,
+      "schema_valid": false,
+      "raw_final_content_saved": false,
+      "full_run_started": false,
+      "report_path": "platform_v2/ops/model-bench/evidence/2026-08-30-grok-grok-4.6-cloudflare-default-canary-v1.json"
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "route": "Cloudflare provider-native Google AI Studio Gateway",
+      "gateway_authentication": "omitted",
+      "request_count": 1,
+      "http_status": 401,
+      "provider_error_code": "2009",
+      "latency_ms": 806,
+      "schema_valid": false,
+      "raw_final_content_saved": false,
+      "full_run_started": false,
+      "report_path": "platform_v2/ops/model-bench/evidence/2026-08-30-gemini-3.7-flash-cloudflare-google-native-canary-v1.json"
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "route": "Cloudflare provider-native Google AI Studio Gateway",
+      "gateway_authentication": "existing Wrangler OAuth token used ephemerally",
+      "request_count": 1,
+      "http_status": 401,
+      "provider_error_code": "2009",
+      "latency_ms": 1406,
+      "schema_valid": false,
+      "raw_final_content_saved": false,
+      "full_run_started": false,
+      "report_path": "platform_v2/ops/model-bench/evidence/2026-08-30-gemini-3.7-flash-cloudflare-google-native-oauth-diagnostic-v1.json"
+    }
+  ],
+  "diagnosis": {
+    "cloudflare_platform_supports_provider_classes": true,
+    "cloudflare_unified_catalog_has_requested_model_ids": false,
+    "runner_previously_false_rejected_existing_default_gateway": true,
+    "wrangler_oauth_is_ai_gateway_token": false,
+    "gemini_direct_503_is_cloudflare_caused": false,
+    "grok_direct_blocker_is_cloudflare_caused": false,
+    "luna_402_same_root_cause": false,
+    "luna_previous_gateway_selection": "not_explicitly_selected",
+    "root_cause": [
+      "runner gateway verification and provider adapter gap",
+      "Cloudflare Unified Billing REST catalog lag for newly released model IDs",
+      "dedicated AI Gateway request token missing for provider-native routes",
+      "xAI provider credential absent outside Unified Billing"
+    ]
+  },
+  "implemented_source_fixes": {
+    "verified_existing_default_gateway_flag": "ZUKAN_MODEL_BENCH_VERIFIED_DEFAULT_GATEWAY=1",
+    "gemini_3_7_default_thinking_level": "low",
+    "cloudflare_unified_model_ids": [
+      "google-ai-studio/gemini-3.7-flash",
+      "grok/grok-4.6"
+    ],
+    "provider_native_transports": [
+      "cloudflare-google-native",
+      "cloudflare-xai-native"
+    ],
+    "retry_count": 0,
+    "fallback_count": 0
+  },
+  "remaining_blocker": {
+    "code": "CLOUDFLARE_AI_GATEWAY_TOKEN_REQUIRED",
+    "required_action": "Create one token for the existing default AI Gateway, then expose it only to the authenticated benchmark process as CLOUDFLARE_AI_GATEWAY_TOKEN.",
+    "requires_new_gateway": false,
+    "requires_production_deploy": false,
+    "requires_database_change": false,
+    "requires_provider_key_if_unified_billing_has_credit": false
+  },
+  "contract": {
+    "retry_count": 0,
+    "fallback_count": 0,
+    "playground_used": false,
+    "production_model_changed": false,
+    "production_traffic_changed": false,
+    "rights_changed": false,
+    "secret_values_logged": false,
+    "secret_values_persisted": false,
+    "private_reasoning_saved": false
+  },
+  "official_references": [
+    "https://developers.cloudflare.com/ai-gateway/usage/providers/google-ai-studio/",
+    "https://developers.cloudflare.com/ai-gateway/usage/providers/grok/",
+    "https://developers.cloudflare.com/ai-gateway/configuration/bring-your-own-keys/",
+    "https://developers.cloudflare.com/ai-gateway/features/unified-billing/"
+  ]
+}

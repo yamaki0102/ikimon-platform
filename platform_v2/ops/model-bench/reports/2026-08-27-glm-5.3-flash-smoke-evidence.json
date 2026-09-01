@@ -1,0 +1,73 @@
+{
+  "version": "zukan-post-model-bench-v2-evidence-v1",
+  "recordedAt": "2026-08-27T00:05:30Z",
+  "requestedModel": "@cf/zai-org/glm-5.3-flash",
+  "transport": "cloudflare-official-playground",
+  "fixtureIds": [
+    "zukan-post-record-1786965869920",
+    "zukan-post-record-1784366489892",
+    "zukan-post-record-1784430741938",
+    "zukan-post-record-1781252770584",
+    "zukan-post-record-1784430374598",
+    "zukan-post-record-1784430118720",
+    "zukan-post-record-1784431188621",
+    "zukan-post-record-1784430530197"
+  ],
+  "postCount": 8,
+  "imageCount": 24,
+  "sourceDatasetSha256": "199442e1a30cebed2445f81b9d4e4cd681361942c7a1ab8ac0e16e877338b85c",
+  "rightsVettedDatasetSha256": "5636ef685524c59813449c3c9afffbeaee4be062d80834f3f86bc3ee185b251b",
+  "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+  "fileSha256": {
+    "sourceManifest": "a4ffc496381ec9b8d503709b08463c607fa44eabbf3b535e5688c7fb97332949",
+    "rightsVettedManifest": "0e27a691ded2fbed6333985676ccc002f1a072189cd0c7a2fb82cb3148814652",
+    "promptSnapshot": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "ownerRightsAttestation": "54d17dd070d48479ea8188ca9796de35e92aa92f5e8098c9500cc91dd1402642",
+    "initialSmokeReport": "42b6fc250a91f7e6738badc29b622e6b2114e0b0a75c0e938a100114c3d1f649"
+  },
+  "rightsEvidence": {
+    "productionCanonicalRead": "not_export_ready; the research projection returned licenseStatus=null for the matching exposed fixture",
+    "basisUsedForRun": "explicit owner attestation",
+    "ownerUserId": "user_69bc926c2eca4",
+    "recordConsent": "external_export",
+    "researchUseConsent": "public_export",
+    "datasetLicense": "CC-BY-4.0",
+    "mediaLicense": "CC-BY-NC-4.0",
+    "externalExportAllowed": true,
+    "withdrawalStatus": "active",
+    "productionDatabaseMutated": false
+  },
+  "smokeResult": {
+    "startedAt": "2026-08-26T23:55:01.928Z",
+    "completedAt": "2026-08-26T23:57:57.664Z",
+    "successCount": 0,
+    "successRatePct": 0,
+    "schemaValidRatePct": 0,
+    "humanGoldPostCount": 0,
+    "humanGoldAccuracyPct": null,
+    "highConfidenceWrongPostCount": 0,
+    "overprecisionPostCount": 0,
+    "locationHallucinationPostCount": 0,
+    "p50LatencyMs": 12450,
+    "p95LatencyMs": 17899,
+    "inputTokens": null,
+    "outputTokens": null,
+    "observedAdditionalCostUsd": 0,
+    "observedAdditionalCostJpy": 0,
+    "perPostResultPath": "ops/model-bench/reports/2026-08-26-cf-zai-org-glm-5.3-flash-smoke.json"
+  },
+  "diagnosis": {
+    "configuredStateModel": "@cf/zai-org/glm-5.3-flash",
+    "promptMessageLimitCharacters": 6000,
+    "deterministicPromptChunkCharacters": 5000,
+    "backendError": "3030: /cache/zai-org/GLM-4.7-Flash is not a multimodal model",
+    "interpretation": "The Playground accepted and confirmed the 5.3 state, but its image chat path internally resolved to the default 4.7 model and rejected multimodal input.",
+    "fallbackRequested": false,
+    "fallbackOutputAccepted": false,
+    "decision": "REJECT_TRANSPORT; no model quality comparison is valid"
+  },
+  "baseline": {
+    "executed": false,
+    "reason": "No credential-free path was available for the current ZUKAN baseline with the identical fixed inputs and prompt; fallback was prohibited."
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "version": "zukan-ai-gateway-token-handoff-gemini-direct-v2",
+  "status": "WAITING_SECRET_HANDOFF",
+  "executed_at": "2026-08-30",
+  "fixed_input": {
+    "post_count": 7,
+    "image_count": 21,
+    "canary_visit_id": "record-1784366489892",
+    "canary_image_count": 3,
+    "dataset_sha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "prompt_sha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9"
+  },
+  "rights_gate": {
+    "selected_rows": 7,
+    "canonical_eligible_rows": 7,
+    "database_mutation": false
+  },
+  "gemini_direct_canary": {
+    "model": "gemini-3.7-flash",
+    "provider": "google-gemini-developer-api",
+    "request_count": 1,
+    "http_status": 503,
+    "provider_status": "UNAVAILABLE",
+    "latency_ms": 4969,
+    "schema_valid": false,
+    "input_tokens": null,
+    "output_tokens": null,
+    "raw_final_content_saved": false,
+    "full_run_started": false,
+    "report_path": "platform_v2/ops/model-bench/evidence/2026-08-30-gemini-3.7-flash-direct-canary-v2.json"
+  },
+  "gateway_token": {
+    "gateway_id": "default",
+    "gateway_exists": true,
+    "token_name": "zukan-model-bench-20260830",
+    "permissions": [
+      "AI Gateway Run"
+    ],
+    "workers_ai_read_permission": false,
+    "workers_ai_edit_permission": false,
+    "created": true,
+    "browser_surface": "normal Chrome authenticated session",
+    "token_value_read_by_agent": false,
+    "token_value_logged": false,
+    "token_value_persisted": false,
+    "handoff_tab_preserved": true
+  },
+  "billing": {
+    "dashboard_credit_display_usd": 0,
+    "credit_purchase_performed": false,
+    "gemini_provider_native_requires_unified_credit": false,
+    "grok_unified_billing_requires_credit": true
+  },
+  "next_gate": {
+    "required_environment_variable": "CLOUDFLARE_AI_GATEWAY_TOKEN",
+    "instruction": "Copy the newly generated token from the preserved Cloudflare tab into the current local PowerShell session only. Do not paste it into chat or a file.",
+    "canaries_after_handoff": [
+      "gemini-3.7-flash via cloudflare-google-native",
+      "grok-4.6 via cloudflare-xai-native"
+    ]
+  },
+  "contract": {
+    "retry_count": 0,
+    "fallback_count": 0,
+    "playground_used": false,
+    "new_gateway_created": false,
+    "provider_key_created": false,
+    "production_changed": false,
+    "secret_values_logged": false,
+    "private_reasoning_saved": false
+  }
+}

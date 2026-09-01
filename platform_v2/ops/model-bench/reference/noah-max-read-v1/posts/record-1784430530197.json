@@ -1,0 +1,38 @@
+{
+  "visitId": "record-1784430530197",
+  "occurrenceId": "occ:record-1784430530197:0",
+  "imageCount": 3,
+  "postInputSha256": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0",
+  "images": [
+    {"index": 0, "sha256": "a743b4e9e7c2e68b8524395d685fc3bcf55c5da9809535a2830fe66d8e57eeb8", "observations": {"primary_subject": "medium gray-brown passerine", "secondary_subjects": [], "visible_features": ["upright arboreal posture", "fairly long slender bill", "gray-brown head/body", "mottled/streaked pale underparts", "tail appears moderately long"], "image_quality_notes": ["heavy digital zoom/blur"], "limits": ["ear patch/crest/wing pattern not reliably resolved"]}},
+    {"index": 1, "sha256": "e36214a4bf6ee8c9051b0452c3baac9a7dabdeff341b79c8313b57684208e7f0", "observations": {"primary_subject": "same bird as a small figure in tree", "secondary_subjects": [], "visible_features": ["arboreal perch", "medium passerine proportions"], "image_quality_notes": ["wide context"], "limits": ["too distant for additional diagnostic plumage detail"]}},
+    {"index": 2, "sha256": "ddc0e79182114a3550940337b5ddb7437829aae06e8bf1f4007568217dc86ccb", "observations": {"primary_subject": "same medium gray-brown passerine", "secondary_subjects": [], "visible_features": ["slender straight-to-slightly-downcurved bill", "gray-brown plumage", "pale underparts with darker streaking/mottling", "moderately long tail/body shape"], "image_quality_notes": ["best close frame but still blurred; enlargement inspected"], "limits": ["brown ear patch and crest are not cleanly visible", "fine wing/tail pattern absent"]}}
+  ],
+  "post_level": {
+    "combined_observations": ["The bird is a medium, longish-tailed, gray-brown arboreal passerine with a relatively slender bill and streaked/mottled pale underparts.", "Brown-eared Bulbul/Hypsipetes is a good visual fit, but the most diagnostic ear/crest details are not resolved enough for a fully confident species call without geographic context."],
+    "diagnostic_features": ["medium arboreal passerine", "slender bill", "gray-brown plumage", "streaked/mottled pale underparts", "moderately long tail"],
+    "missing_features": ["sharp ear-coverts patch", "clear crest/head silhouette", "sharp tail/wing pattern", "vocalization"],
+    "likely_confusions": ["Hypsipetes amaurotis (Brown-eared Bulbul)", "juvenile starling such as Spodiopsar cineraceus", "other gray-brown bulbuls if geography is intentionally withheld", "less likely shrike/thrush-type passerines"],
+    "next_photos_to_take": ["sharp lateral head showing ear coverts", "full tail/wing side view", "short audio clip/call if available"]
+  },
+  "taxonomic_assessment": {
+    "recommended_taxon_name": "Hypsipetes sp. (Brown-eared Bulbul H. amaurotis is the leading candidate)",
+    "recommended_rank": "genus",
+    "confidence_band": "medium",
+    "candidates": [
+      {"taxon_name": "Hypsipetes amaurotis", "rank": "species", "confidence_band": "medium", "rationale": ["body proportions, slender bill, gray-brown plumage and streaked underparts fit Brown-eared Bulbul well"]},
+      {"taxon_name": "Spodiopsar cineraceus (juvenile/immature)", "rank": "species", "confidence_band": "low", "rationale": ["plain gray-brown juvenile starling can overlap at this image quality, but body/tail and underpart pattern are less convincing"]},
+      {"taxon_name": "other Hypsipetes/Pycnonotidae", "rank": "genus/family", "confidence_band": "low", "rationale": ["geography is intentionally withheld and diagnostic ear/crest detail is blurred"]}
+    ],
+    "why_not_more_specific": ["The brown ear patch/crest expected for a confident H. amaurotis diagnosis is not sharply resolved.", "No geographic range information is permitted in the benchmark input."]
+  },
+  "support_map": [
+    {"claim": "The bird is a medium gray-brown arboreal passerine with a slender bill.", "support_level": "SUPPORTED", "evidence": [{"image_index": 0, "evidence_text": "body/bill visible on branch"}, {"image_index": 2, "evidence_text": "enlarged frame confirms bill/body proportions"}]},
+    {"claim": "Hypsipetes amaurotis is the best species candidate.", "support_level": "PLAUSIBLE", "evidence": [{"image_index": 2, "evidence_text": "gray-brown bulbul-like shape and streaked underparts"}]},
+    {"claim": "A brown ear patch is clearly visible.", "support_level": "OVERSTATED", "evidence": [{"image_index": 2, "evidence_text": "head is too blurred to cleanly resolve the ear patch"}]},
+    {"claim": "The bird can be species-confirmed solely from these images with no geography.", "support_level": "OVERSTATED", "evidence": [{"image_index": 0, "evidence_text": "key head details are soft"}]}
+  ],
+  "safe_context": ["bird perched in dense leafy tree canopy", "wide frame shows a vegetated edge but no safe locality information"],
+  "risk_notes": ["Digital zoom can invent apparent feather edges/patches; do not treat compression artifacts as plumage marks.", "Do not use likely regional commonness because location is intentionally withheld.", "A model that says H. amaurotis with high confidence should be checked for overprecision."],
+  "raw_final_content": "The bird is a medium-sized gray-brown arboreal passerine with a fairly slender bill, a moderately long tail and pale underparts that look mottled or streaked. The first and third frames are consistent with one bird; the second is mostly a wide context view.\n\nBrown-eared Bulbul, Hypsipetes amaurotis (ヒヨドリ), is my leading species candidate: the body proportions, bill, overall gray-brown tone and underpart pattern fit well. However, the images are digitally enlarged/soft, and I cannot cleanly resolve the brown ear-coverts patch or a diagnostic crest. Because the benchmark intentionally withholds geography, I would record Hypsipetes sp. at medium confidence and keep H. amaurotis as the leading species candidate rather than call it high-confidence species.\n\nA sharp lateral head image, full tail/wing view or a short call recording would resolve much of the remaining uncertainty."
+}

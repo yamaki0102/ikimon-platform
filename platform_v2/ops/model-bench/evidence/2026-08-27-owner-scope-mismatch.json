@@ -1,0 +1,88 @@
+{
+  "version": "zukan-post-model-bench-v2-owner-scope-evidence-v1",
+  "recordedAt": "2026-08-27T05:49:55.990Z",
+  "status": "BLOCKED_OWNER_SCOPE_MISMATCH",
+  "source": {
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "baseCommit": "2d60c5f2b77970171491781c938ce34cc209dff9",
+    "prNumber": 1582,
+    "prState": "open",
+    "draft": true
+  },
+  "runtimeInspection": {
+    "provider": "cloudflare",
+    "worker": "ikimon-life-cloudflare-prod",
+    "binding": "OBS_DB",
+    "databaseId": "c879eef6-009c-4710-a964-be343d96f3eb",
+    "operation": "SELECT",
+    "releaseControlUsed": false,
+    "productionDeployUsed": false,
+    "rawOwnerIdsPersisted": false,
+    "rawSourcePayloadPersisted": false
+  },
+  "fixedInput": {
+    "manifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json",
+    "manifestFileSha256": "0e27a691ded2fbed6333985676ccc002f1a072189cd0c7a2fb82cb3148814652",
+    "postCount": 8,
+    "imageCount": 24,
+    "datasetSha256": "5636ef685524c59813449c3c9afffbeaee4be062d80834f3f86bc3ee185b251b",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "orderedPhotosPerPost": true
+  },
+  "ownershipGate": {
+    "manifestAttestationOwnerRows": 7,
+    "fixedRowsRead": 8,
+    "observationsOwnerLinkedRows": 8,
+    "distinctOwnerCount": 2,
+    "attestationOwnerMatchedRows": 7,
+    "differentOwnerRows": 1,
+    "differentOwnerVisitIds": ["record-1786965869920"],
+    "mutationRequested": true,
+    "mutationApplied": false,
+    "reason": "One fixed visit is not owned by the attested/current owner scope; no other-user post may be changed."
+  },
+  "rightsGate": {
+    "required": {
+      "externalExportAllowed": true,
+      "withdrawalStatus": "active",
+      "recordConsent": "external_export",
+      "researchUseConsent": "public_export",
+      "datasetLicense": "CC-BY-4.0",
+      "mediaLicense": "CC-BY-NC-4.0"
+    },
+    "preMutationRead": {
+      "rowCount": 8,
+      "externalExportEligibleRows": 0,
+      "withdrawalActiveRows": 8,
+      "recordConsentCounts": {
+        "private": 7,
+        "public_summary": 1
+      },
+      "researchUseConsentCounts": {
+        "none": 8
+      },
+      "externalExportAllowedRawOneRows": 0
+    },
+    "directD1Select": true,
+    "directD1Mutation": false,
+    "afterMutationRead": null
+  },
+  "execution": {
+    "model": "@cf/zai-org/glm-5.3-flash",
+    "transport": "cloudflare-official-rest",
+    "providerRequests": 0,
+    "imageSends": 0,
+    "retryCount": 0,
+    "fallbackCount": 0,
+    "playgroundCount": 0,
+    "baseline": "NOT_RUN_OWNER_SCOPE_BLOCKED",
+    "observedCostJpy": 0,
+    "budgetCapJpy": 100
+  },
+  "verification": {
+    "ownershipReadback": "PASS_7_MATCH_1_MISMATCH",
+    "rightsMutationReadback": "NOT_APPLICABLE_NO_MUTATION",
+    "glmSmoke": "NOT_RUN",
+    "fixedManifestUnchanged": true
+  }
+}

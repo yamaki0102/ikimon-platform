@@ -1,0 +1,120 @@
+{
+  "version": "zukan-post-model-bench-v2-execution-evidence-v1",
+  "recordedAt": "2026-08-27T00:20:46.184Z",
+  "status": "BLOCKED_RIGHTS_AND_CLOUDFLARE_ACCESS",
+  "source": {
+    "operatingContractBlobSha": "b1752c143e4958975ad593ecfa8435cc8d47bfbc",
+    "latestMainSha": "a67bb3debf261f19b81cf761b9bf09ef0f30c4d2",
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "observedHeadBeforeEvidenceCommit": "a19839d3cb95f1678fc2cc21b664d50086cd7693",
+    "prNumber": 1582,
+    "prState": "open",
+    "draft": true
+  },
+  "sourceFileShas": {
+    "platform_v2/src/scripts/zukanModelBench.ts": "b05cb38f51c3f89e90de6270e7c7ec06af2e1987",
+    "platform_v2/src/scripts/zukanModelBench.test.ts": "c4ece2ddf9e678cc075891fbc2d62870e3a12559",
+    "platform_v2/ops/model-bench/README.md": "8c352f33acd68764f02ee9e4c416e6df6bdbd918",
+    "platform_v2/src/services/observationDataRights.ts": "0678f37185a6ebed04fa3548174aeeb60828a3a8",
+    "platform_v2/src/services/observationReassess.ts": "834b80dd9b605041c1bec9788e99c1be9c2ad60e",
+    "platform_v2/src/prompts/observation_reassess.md": "918806e9c7b3adc80d92f842e669b1ea0679af39",
+    "platform_v2/src/scripts/resolveObservationImageTargets.ts": "36e5696d36e490c2c18fdab768f6a5602a51fc68",
+    "platform_v2/src/services/aiModels.ts@main": "c912dcf4bc818d6aedfa53b32a0796254d99fe52"
+  },
+  "freezeCandidate": {
+    "manifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2.json",
+    "manifestFileSha": "5cb73bb9121aaaaba60919d7afbdde3178520c05",
+    "selectionPolicy": "deterministic_seeded_visit_order",
+    "selectionSeed": "zukan-public-post-core-v2-seed-1",
+    "postCount": 8,
+    "imageCount": 24,
+    "datasetSha256": "199442e1a30cebed2445f81b9d4e4cd681361942c7a1ab8ac0e16e877338b85c",
+    "promptPath": "ops/model-bench/fixtures/zukan-owner-post-smoke-v2.prompt.md",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "mimeTypes": [
+      "image/webp"
+    ],
+    "fixtureIds": [
+      "zukan-post-record-1786965869920",
+      "zukan-post-record-1784366489892",
+      "zukan-post-record-1784430741938",
+      "zukan-post-record-1781252770584",
+      "zukan-post-record-1784430374598",
+      "zukan-post-record-1784430118720",
+      "zukan-post-record-1784431188621",
+      "zukan-post-record-1784430530197"
+    ],
+    "visitIds": [
+      "record-1786965869920",
+      "record-1784366489892",
+      "record-1784430741938",
+      "record-1781252770584",
+      "record-1784430374598",
+      "record-1784430118720",
+      "record-1784431188621",
+      "record-1784430530197"
+    ],
+    "postInputSha256": {
+      "record-1786965869920": "9f7439967a8f0989ee38d12eb85223b24fbc58781b31aa1d57554ab78cb40035",
+      "record-1784366489892": "0a2d87197bf3368f3c27b7790457e047de286ebc98835f0f03c7603e597231e0",
+      "record-1784430741938": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752",
+      "record-1781252770584": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2",
+      "record-1784430374598": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267",
+      "record-1784430118720": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f",
+      "record-1784431188621": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5",
+      "record-1784430530197": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0"
+    },
+    "currentPublicImageRevalidation": {
+      "method": "GET current manifest image URLs; local sha256/byte count; no provider send",
+      "checkedImages": 24,
+      "matchingImages": 24,
+      "mismatches": 0
+    }
+  },
+  "rights": {
+    "canonicalService": "platform_v2/src/services/observationDataRights.ts",
+    "canonicalServiceRead": "unavailable_in_work_session_no_authorized_db_or_read_only_rights_endpoint",
+    "publicProjectionExportReadyQueryRows": 0,
+    "readOnlyUnfilteredEndpoint": "/api/v1/research/occurrences?include_machine_observations=true&tier_gte=1",
+    "publicProjectionRowsScanned": 1248,
+    "publicProjectionRowsWithNonNullRights": 0,
+    "publicProjectionEligiblePosts": 0,
+    "requiredGate": "externalExportAllowed === true && withdrawalStatus === active",
+    "rightsVettedManifestCreated": false,
+    "rightsVettedCount": 0,
+    "ownerAttestationNotAcceptedAsCanonicalRights": true
+  },
+  "targetModels": {
+    "baseline": "gemini:gemini-3.5-flash",
+    "challenger": "openai-compatible:@cf/zai-org/glm-5.3-flash",
+    "fallbackUsed": false
+  },
+  "execution": {
+    "currentSessionProviderCalls": 0,
+    "currentSessionImageSends": 0,
+    "currentSessionBaselineCalls": 0,
+    "currentSessionWorkersAiCostUsd": 0,
+    "glmSmoke": "NOT_RUN_RIGHTS_GATE",
+    "baselineSmoke": "NOT_RUN_RIGHTS_GATE",
+    "coreRun": "NOT_RUN"
+  },
+  "cloudflare": {
+    "dashboardState": "challenge_loop",
+    "captchaActionPermission": "not_provided",
+    "accountCredentialsAvailable": false,
+    "wranglerInstalled": false,
+    "noBypassRouteUsed": true
+  },
+  "existingArtifactQualification": {
+    "priorGlmReportPath": "platform_v2/ops/model-bench/reports/2026-08-26-cf-zai-org-glm-5.3-flash-smoke.json",
+    "priorGlmReportIsAccepted": false,
+    "reason": "Playground transport resolved image chat internally to GLM-4.7-Flash and returned error 3030; it also used a non-canonical owner attestation rather than the current canonical ODR gate.",
+    "priorCoreReportPostCount": 1,
+    "priorEvidenceDecision": "REJECT_TRANSPORT"
+  },
+  "unblock": [
+    "Make at least 8 target posts readable through canonical ObservationDataRights with externalExportAllowed=true and withdrawalStatus=active, or expose an authorized minimal read-only canonical rights endpoint.",
+    "Provide an approved Cloudflare Workers AI execution path and credentials through the configured secret mechanism; do not send secrets in chat.",
+    "If dashboard interaction is required, provide explicit one-time CAPTCHA action permission."
+  ]
+}

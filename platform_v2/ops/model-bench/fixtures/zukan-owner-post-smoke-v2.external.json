@@ -1,0 +1,343 @@
+{
+  "version": "zukan-post-model-bench-v2",
+  "sourceOrigin": "https://zukan.earth",
+  "frozenAt": "2026-08-26T23:29:31.132Z",
+  "selectionPolicy": "deterministic_seeded_visit_order",
+  "selectionSeed": "zukan-public-post-core-v2-seed-1",
+  "postCount": 8,
+  "imageCount": 24,
+  "datasetSha256": "5636ef685524c59813449c3c9afffbeaee4be062d80834f3f86bc3ee185b251b",
+  "promptPath": "ops/model-bench/fixtures/zukan-owner-post-smoke-v2.prompt.md",
+  "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+  "externalProcessingVettedAt": "2026-08-26T23:53:00Z",
+  "fixtures": [
+    {
+      "fixtureId": "zukan-post-record-1786965869920",
+      "visitId": "record-1786965869920",
+      "occurrenceId": "occ:record-1786965869920:0",
+      "detailPath": "/observations/record-1786965869920",
+      "observedAt": "",
+      "images": [
+        {
+          "index": 0,
+          "url": "https://zukan.earth/derived/v1-compat/record-1786965869920/asset_818994c3-39b3-43c7-9042-3d38283c263b-ikimon-photo-1786965854748.jpg/display.webp",
+          "sha256": "b45ba1db1924846bfbb7c3b235d45d8750ef95efc1a7877d955db1b4db04052a",
+          "bytes": 149650,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 1,
+          "url": "https://zukan.earth/derived/v1-compat/record-1786965869920/asset_c73870a8-bf01-40c1-a912-0d4be74bc2cf-ikimon-photo-1786965846248.jpg/display.webp",
+          "sha256": "4360a3ac678c04c79a48b26accfa4215d50bfb523fd85c7921b719ce1bb32ce3",
+          "bytes": 160324,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 2,
+          "url": "https://zukan.earth/derived/v1-compat/record-1786965869920/asset_b7b69aea-1d78-4294-a14a-b09ac8f97c75-ikimon-photo-1786965867706.jpg/display.webp",
+          "sha256": "17dee017185f5a8510502b8c5a36ab8586beb0c301f554c26f8f6aff90a1a193",
+          "bytes": 141062,
+          "mimeType": "image/webp"
+        }
+      ],
+      "postInputSha256": "9f7439967a8f0989ee38d12eb85223b24fbc58781b31aa1d57554ab78cb40035",
+      "gold": {
+        "label": null,
+        "aliases": [],
+        "rank": null,
+        "status": "unknown"
+      },
+      "externalExportAllowed": true,
+      "mediaLicense": "CC-BY-NC-4.0",
+      "rightsPolicyVersion": "owner-attestation-v1-2026-08-26",
+      "withdrawalStatus": "active"
+    },
+    {
+      "fixtureId": "zukan-post-record-1784366489892",
+      "visitId": "record-1784366489892",
+      "occurrenceId": "occ:record-1784366489892:0",
+      "detailPath": "/observations/record-1784366489892",
+      "observedAt": "",
+      "images": [
+        {
+          "index": 0,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784366489892/asset_10a1733d-e23a-48d8-8174-778c6912a320-ikimon-photo-1784366478858.jpg/display.webp",
+          "sha256": "ee6e3a54d816c4d4ed8f67721d6c8283db87f43ba24d0a0d01cbed82ae565753",
+          "bytes": 508558,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 1,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784366489892/asset_e447186c-ba63-4f65-8fdd-fb93a0c79119-ikimon-photo-1784366458327.jpg/display.webp",
+          "sha256": "40efc9e830cef93f0b3183ad1654f9ec86c158846b6e1c52da8fc3367dd99726",
+          "bytes": 1277944,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 2,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784366489892/asset_bbe14f22-90ed-4cfb-9990-4f2ce24626a7-ikimon-photo-1784366486493.jpg/display.webp",
+          "sha256": "4d9f7de05d09ee33f30296aefa60095e57b7f0143eb1d7cf2c79456cfed5ca87",
+          "bytes": 525732,
+          "mimeType": "image/webp"
+        }
+      ],
+      "postInputSha256": "0a2d87197bf3368f3c27b7790457e047de286ebc98835f0f03c7603e597231e0",
+      "gold": {
+        "label": null,
+        "aliases": [],
+        "rank": null,
+        "status": "unknown"
+      },
+      "externalExportAllowed": true,
+      "mediaLicense": "CC-BY-NC-4.0",
+      "rightsPolicyVersion": "owner-attestation-v1-2026-08-26",
+      "withdrawalStatus": "active"
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430741938",
+      "visitId": "record-1784430741938",
+      "occurrenceId": "occ:record-1784430741938:0",
+      "detailPath": "/observations/record-1784430741938",
+      "observedAt": "",
+      "images": [
+        {
+          "index": 0,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430741938/asset_f8c93f74-8ce2-487a-baf6-85aae0e630e0-ikimon-photo-1784430731370.jpg/display.webp",
+          "sha256": "2c01f57184968e56efb6965ce2bf1d0e11396942bc07f7b3af11bff7597c031b",
+          "bytes": 576238,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 1,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430741938/asset_1d44c94e-235a-48d4-8f41-f3c395cccc93-ikimon-photo-1784430737846.jpg/display.webp",
+          "sha256": "68fc1ccfdc5a799222351454478a0025275f55f9f8b6d22c6c162e2b703fb51e",
+          "bytes": 520982,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 2,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430741938/asset_e6bc90fd-56a0-45ae-9f35-65334fb7ada8-ikimon-photo-1784430740613.jpg/display.webp",
+          "sha256": "faef3ead9e273c0465ca59a9f97ba9ba2e077542f4ab99cc8c175600c8f56583",
+          "bytes": 1451152,
+          "mimeType": "image/webp"
+        }
+      ],
+      "postInputSha256": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752",
+      "gold": {
+        "label": null,
+        "aliases": [],
+        "rank": null,
+        "status": "unknown"
+      },
+      "externalExportAllowed": true,
+      "mediaLicense": "CC-BY-NC-4.0",
+      "rightsPolicyVersion": "owner-attestation-v1-2026-08-26",
+      "withdrawalStatus": "active"
+    },
+    {
+      "fixtureId": "zukan-post-record-1781252770584",
+      "visitId": "record-1781252770584",
+      "occurrenceId": "occ:record-1781252770584:0",
+      "detailPath": "/observations/record-1781252770584",
+      "observedAt": "",
+      "images": [
+        {
+          "index": 0,
+          "url": "https://zukan.earth/derived/import/20260615/observation_photo/73469f4e-5783-4362-b87d-bac05e0bc63d/display.webp",
+          "sha256": "2ab79c70ea5572c683301dc76daa7dd755722e2f49c5b1f8c759de48f26763ba",
+          "bytes": 159146,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 1,
+          "url": "https://zukan.earth/derived/import/20260615/observation_photo/882ee546-f867-481f-a32c-ef48df5a9ab6/display.webp",
+          "sha256": "58e3f4310ce35d70cc89722799f74ca5ef9923de565016ae4e03cc23afcb20f3",
+          "bytes": 230440,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 2,
+          "url": "https://zukan.earth/derived/import/20260615/observation_photo/9fd812bc-993c-484c-bd8c-526710005027/display.webp",
+          "sha256": "3c2283e9733f882b651397bc0c39fb666a6d90eb613c642a94a56a12ead1df3a",
+          "bytes": 167298,
+          "mimeType": "image/webp"
+        }
+      ],
+      "postInputSha256": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2",
+      "gold": {
+        "label": null,
+        "aliases": [],
+        "rank": null,
+        "status": "unknown"
+      },
+      "externalExportAllowed": true,
+      "mediaLicense": "CC-BY-NC-4.0",
+      "rightsPolicyVersion": "owner-attestation-v1-2026-08-26",
+      "withdrawalStatus": "active"
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430374598",
+      "visitId": "record-1784430374598",
+      "occurrenceId": "occ:record-1784430374598:0",
+      "detailPath": "/observations/record-1784430374598",
+      "observedAt": "",
+      "images": [
+        {
+          "index": 0,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430374598/asset_477086e9-7241-4b1d-b117-f527e5338756-ikimon-photo-1784430363807.jpg/display.webp",
+          "sha256": "0b52d058750744cae5f747b73de92164656c17b96e8d9256fa93d323f1359141",
+          "bytes": 270516,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 1,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430374598/asset_d7f05efe-ba60-4db3-b58a-195bafc3a9eb-ikimon-photo-1784430369952.jpg/display.webp",
+          "sha256": "1ca42989720be07b654b25eb5fd71b6b9d4ecd49245c2d3dc2543419fa1d99b0",
+          "bytes": 256072,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 2,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430374598/asset_be02d8ef-b04e-493c-8cf0-ac220e671cfa-ikimon-photo-1784430373305.jpg/display.webp",
+          "sha256": "62336f09742d9fd2dede9a85ca5db68c4b4743ccb5ff3c1048d4f5b1f5b49057",
+          "bytes": 1067882,
+          "mimeType": "image/webp"
+        }
+      ],
+      "postInputSha256": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267",
+      "gold": {
+        "label": null,
+        "aliases": [],
+        "rank": null,
+        "status": "unknown"
+      },
+      "externalExportAllowed": true,
+      "mediaLicense": "CC-BY-NC-4.0",
+      "rightsPolicyVersion": "owner-attestation-v1-2026-08-26",
+      "withdrawalStatus": "active"
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430118720",
+      "visitId": "record-1784430118720",
+      "occurrenceId": "occ:record-1784430118720:0",
+      "detailPath": "/observations/record-1784430118720",
+      "observedAt": "",
+      "images": [
+        {
+          "index": 0,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430118720/asset_e122c56a-3801-4d24-a031-65431f181919-ikimon-photo-1784430112177.jpg/display.webp",
+          "sha256": "2ad88d0a7540a55efc44db13cc62ea2af275eacd85ac73184d8a0c037f782448",
+          "bytes": 208596,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 1,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430118720/asset_c5022484-e061-4d5e-93fc-73de5daa3906-ikimon-photo-1784430107904.jpg/display.webp",
+          "sha256": "a0b8eb2d83d485960b855d88f0bf1e4d50d5af171109502b62c9064548832564",
+          "bytes": 673720,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 2,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430118720/asset_6c468528-8322-42d2-a4cd-9110aed1f07b-ikimon-photo-1784430117075.jpg/display.webp",
+          "sha256": "43a999fc83fd12397e32d1ec211ca71d9311e77d49560fd7c5bc53f9f490afc3",
+          "bytes": 378124,
+          "mimeType": "image/webp"
+        }
+      ],
+      "postInputSha256": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f",
+      "gold": {
+        "label": null,
+        "aliases": [],
+        "rank": null,
+        "status": "unknown"
+      },
+      "externalExportAllowed": true,
+      "mediaLicense": "CC-BY-NC-4.0",
+      "rightsPolicyVersion": "owner-attestation-v1-2026-08-26",
+      "withdrawalStatus": "active"
+    },
+    {
+      "fixtureId": "zukan-post-record-1784431188621",
+      "visitId": "record-1784431188621",
+      "occurrenceId": "occ:record-1784431188621:0",
+      "detailPath": "/observations/record-1784431188621",
+      "observedAt": "",
+      "images": [
+        {
+          "index": 0,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784431188621/asset_82109a6c-f044-4af9-ab6f-805d9771516e-ikimon-photo-1784431177593.jpg/display.webp",
+          "sha256": "dccfcdb4ab4b2de32d648e4cef9ff69d1867cb5fcb9d6a3b0da62193cc498316",
+          "bytes": 247628,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 1,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784431188621/asset_28fd7254-9c20-4c8b-891f-6ad0198bf5b0-ikimon-photo-1784431184745.jpg/display.webp",
+          "sha256": "ba8d7ae0fa64d1adc3e2c3ee6eebdbe0ac4af41f2c649b39f1b3090ebbee22cf",
+          "bytes": 215158,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 2,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784431188621/asset_bf770576-67c0-4e12-847f-9f1c85844d68-ikimon-photo-1784431186683.jpg/display.webp",
+          "sha256": "bfd9311b1a64827412539c6963582dc92bec85e8d462af5ed8729e160ba910be",
+          "bytes": 940410,
+          "mimeType": "image/webp"
+        }
+      ],
+      "postInputSha256": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5",
+      "gold": {
+        "label": null,
+        "aliases": [],
+        "rank": null,
+        "status": "unknown"
+      },
+      "externalExportAllowed": true,
+      "mediaLicense": "CC-BY-NC-4.0",
+      "rightsPolicyVersion": "owner-attestation-v1-2026-08-26",
+      "withdrawalStatus": "active"
+    },
+    {
+      "fixtureId": "zukan-post-record-1784430530197",
+      "visitId": "record-1784430530197",
+      "occurrenceId": "occ:record-1784430530197:0",
+      "detailPath": "/observations/record-1784430530197",
+      "observedAt": "",
+      "images": [
+        {
+          "index": 0,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430530197/asset_cd8dab5d-7325-4314-81ab-907142f26d5e-ikimon-photo-1784430510310.jpg/display.webp",
+          "sha256": "a743b4e9e7c2e68b8524395d685fc3bcf55c5da9809535a2830fe66d8e57eeb8",
+          "bytes": 166712,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 1,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430530197/asset_f71f5a59-b3e8-4951-9c4a-63a95412ec29-ikimon-photo-1784430520793.jpg/display.webp",
+          "sha256": "e36214a4bf6ee8c9051b0452c3baac9a7dabdeff341b79c8313b57684208e7f0",
+          "bytes": 547952,
+          "mimeType": "image/webp"
+        },
+        {
+          "index": 2,
+          "url": "https://zukan.earth/derived/v1-compat/record-1784430530197/asset_2e72ca0e-f907-47b2-9433-1906a6c77e2a-ikimon-photo-1784430528882.jpg/display.webp",
+          "sha256": "ddc0e79182114a3550940337b5ddb7437829aae06e8bf1f4007568217dc86ccb",
+          "bytes": 207786,
+          "mimeType": "image/webp"
+        }
+      ],
+      "postInputSha256": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0",
+      "gold": {
+        "label": null,
+        "aliases": [],
+        "rank": null,
+        "status": "unknown"
+      },
+      "externalExportAllowed": true,
+      "mediaLicense": "CC-BY-NC-4.0",
+      "rightsPolicyVersion": "owner-attestation-v1-2026-08-26",
+      "withdrawalStatus": "active"
+    }
+  ]
+}

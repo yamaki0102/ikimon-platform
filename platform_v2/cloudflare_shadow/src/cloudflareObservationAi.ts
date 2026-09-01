@@ -1,6 +1,7 @@
 export const OBSERVATION_VISION_MODEL = "gemini-3.5-flash-lite";
-export const OBSERVATION_AI_PROMPT_VERSION = "observation-triple-lane/v3";
-export const OBSERVATION_AI_RULE_VERSION = "record-observation-gemini-batch/v2";
+export const OBSERVATION_AI_PROMPT_VERSION = "observation-candidate-tuned-minimal/v1";
+export const OBSERVATION_AI_RULE_VERSION = "record-observation-gemini-batch/v3";
+export const OBSERVATION_AI_SPECIES_HIGH_MIN_CONFIDENCE = 0.8;
 
 export type ObservationAiSubjectLocator = {
   rect?: { x: number; y: number; width: number; height: number };
@@ -33,6 +34,10 @@ const allowedRanks = new Set<ObservationAiCandidate["rank"]>([
   "lifeform",
   "unknown",
 ]);
+
+const speciesSpecificEvidenceMarker = /(?:species-specific\s+decisive\s+evidence|species-specific|種固有の決定形質|種の決定形質)/iu;
+const speciesEvidenceUncertaintyMarker = /(?:not\s+(?:clear|visible|enough|supported)|insufficient|unclear|不明|不足|確認できない|確認不能|足りない)/iu;
+const speciesDowngradeEvidence = "種固有の決定形質が画像で明確に確認できる追加証拠";
 
 const cleanText = (value: unknown, maxLength: number): string | null => {
   if (typeof value !== "string") return null;
@@ -87,6 +92,41 @@ const cleanSubjectCandidate = (value: unknown): ObservationAiSubjectCandidate | 
   };
 };
 
+const genusFromScientificName = (value: string | null): string | null => {
+  if (!value) return null;
+  const [genus, species] = value.trim().split(/\s+/u);
+  return genus && species && /^[A-Z][A-Za-z-]{2,}$/u.test(genus) ? genus : null;
+};
+
+export function observationAiSpeciesHighSafe(candidate: ObservationAiSubjectCandidate): boolean {
+  return candidate.rank === "species"
+    && candidate.confidence >= OBSERVATION_AI_SPECIES_HIGH_MIN_CONFIDENCE
+    && candidate.needsMoreEvidence.length === 0
+    && candidate.visualEvidence.some((item) => speciesSpecificEvidenceMarker.test(item))
+    && !candidate.visualEvidence.some((item) => speciesEvidenceUncertaintyMarker.test(item));
+}
+
+const applySubjectSafetyGate = (candidate: ObservationAiSubjectCandidate): ObservationAiSubjectCandidate => {
+  if (candidate.rank !== "species" || observationAiSpeciesHighSafe(candidate)) return candidate;
+  const genus = genusFromScientificName(candidate.scientificName);
+  return {
+    ...candidate,
+    vernacularName: candidate.vernacularName,
+    scientificName: genus ?? candidate.scientificName,
+    rank: genus ? "genus" : "unknown",
+    confidence: Math.min(candidate.confidence, OBSERVATION_AI_SPECIES_HIGH_MIN_CONFIDENCE - 0.01),
+    needsMoreEvidence: [...new Set([...candidate.needsMoreEvidence, speciesDowngradeEvidence])].slice(0, 4),
+  };
+};
+
+export function applyObservationAiCandidateSafetyGate(candidate: ObservationAiCandidate): ObservationAiCandidate {
+  return {
+    ...applySubjectSafetyGate(candidate),
+    nonBiological: candidate.nonBiological,
+    coexistingSubjects: candidate.coexistingSubjects.map(applySubjectSafetyGate),
+  };
+}
+
 const fallbackSubjectKey = (candidate: ObservationAiSubjectCandidate): string => {
   const name = (candidate.scientificName ?? candidate.vernacularName ?? "unknown")
     .normalize("NFKC")
@@ -118,13 +158,22 @@ export function observationAiSubjects(candidate: ObservationAiCandidate): Array<
   });
 }
 
+export const OBSERVATION_AI_CANDIDATE_SAFETY_INSTRUCTION = [
+  "AI output is a candidate for human review, not a confirmed identification.",
+  "Never auto-promote it to a confirmed identification and never change accepted identification, consensus, or verification status using AI alone.",
+  "Allow species + high only when image-visible species-specific decisive evidence is clear and no decisive missing evidence remains; otherwise conservatively downgrade to genus, family, order, class, lifeform, or unknown.",
+  "Do not use taxon-specific hardcoded rules.",
+].join(" ");
+
 export function observationAiQuestion(): string {
   return [
-    "What is the main organism in this citizen-science image? Give the most likely common and scientific name, but stay at genus or family when the visible evidence is insufficient for a species identification.",
-    "List the visible traits supporting the candidate and what additional photo would help. This is a candidate for human review, not a confirmed identification. Consider cultivated plants.",
+    "Use all photos in this citizen-science post to identify the main visible organism conservatively. Give a common and scientific name only at the rank supported by visible evidence; stay at genus or family when species evidence is insufficient.",
+    "List concise visible traits supporting the candidate and the decisive missing evidence that an additional photo could resolve. Consider cultivated plants.",
     "Detect each separate organism or plant that is visibly supported. Keep alternative names for the same subject out of coexistingSubjects.",
+    OBSERVATION_AI_CANDIDATE_SAFETY_INSTRUCTION,
+    "When species + high is allowed, visualEvidence must include the phrase 'species-specific decisive evidence:' followed by the visible diagnostic trait. If that evidence is not clear, do not use species + high.",
     "Return JSON only, using exactly these keys: vernacularName, scientificName, rank, confidence, visualEvidence, needsMoreEvidence, nonBiological, subjectLocator, coexistingSubjects.",
-    "Use a Japanese common name for vernacularName when known. rank is one of species, genus, family, order, class, unknown. confidence is 0 to 1. visualEvidence and needsMoreEvidence are arrays. nonBiological is true only when no organism is visible.",
+    "Use a Japanese common name for vernacularName when known. rank is one of species, genus, family, order, class, lifeform, unknown. confidence is 0 to 1. visualEvidence and needsMoreEvidence are arrays. nonBiological is true only when no organism is visible.",
     "subjectLocator is {rect:{x,y,width,height}} with normalized 0 to 1 coordinates. coexistingSubjects is an array of at most 6 separate visible subjects using candidateKey, vernacularName, scientificName, rank, confidence, visualEvidence, needsMoreEvidence, subjectLocator.",
   ].join("\n");
 }
@@ -149,7 +198,7 @@ export function parseObservationAiCandidate(answer: unknown): ObservationAiCandi
     .map(cleanSubjectCandidate)
     .filter((item): item is ObservationAiSubjectCandidate => item !== null)
     .slice(0, 6);
-  const candidate: ObservationAiCandidate = {
+  const candidate: ObservationAiCandidate = applyObservationAiCandidateSafetyGate({
     candidateKey: primary?.candidateKey ?? null,
     vernacularName,
     scientificName,
@@ -160,7 +209,7 @@ export function parseObservationAiCandidate(answer: unknown): ObservationAiCandi
     subjectLocator: primary?.subjectLocator ?? {},
     nonBiological: parsed.nonBiological === true && !vernacularName && !scientificName,
     coexistingSubjects,
-  };
+  });
   if (!candidate.nonBiological && !candidate.vernacularName && !candidate.scientificName && coexistingSubjects.length === 0) {
     throw new Error("ai_candidate_name_missing");
   }

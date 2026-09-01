@@ -1,4 +1,4 @@
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI, MediaResolution, ThinkingLevel } from "@google/genai";
 import { loadConfig } from "../config.js";
 import { logAiCost, type AiCostLayer } from "./aiCostLogger.js";
 import { estimateAiCostUsd } from "./aiModelPricing.js";
@@ -29,6 +29,7 @@ export type AiRouterGenerateRequest = {
   responseJsonSchema?: unknown;
   temperature?: number;
   maxOutputTokens?: number;
+  mediaResolution?: "low" | "medium" | "high";
   retriesPerModel?: number;
   retryDelayMs?: number;
   cost?: {
@@ -46,6 +47,7 @@ export type AiRouterGenerateResult = {
   provider: AiModelProvider;
   model: string;
   text: string;
+  finishReason?: string | null;
   inputTokens: number;
   outputTokens: number;
   thoughtsTokens?: number;
@@ -130,6 +132,13 @@ function googleThinkingConfig(request: AiRouterGenerateRequest): { thinkingLevel
   return undefined;
 }
 
+export function googleMediaResolution(level: AiRouterGenerateRequest["mediaResolution"]): MediaResolution | undefined {
+  if (level === "low") return MediaResolution.MEDIA_RESOLUTION_LOW;
+  if (level === "medium") return MediaResolution.MEDIA_RESOLUTION_MEDIUM;
+  if (level === "high") return MediaResolution.MEDIA_RESOLUTION_HIGH;
+  return undefined;
+}
+
 export function googleResponseText(response: {
   text?: string;
   candidates?: Array<{
@@ -184,7 +193,7 @@ async function logCost(
 async function callGemini(ref: AiModelRef, request: AiRouterGenerateRequest): Promise<AiRouterGenerateResult> {
   const cfg = loadConfig();
   if (!cfg.geminiApiKey) throw new Error("GEMINI_API_KEY is not set");
-  const ai = new GoogleGenAI({ apiKey: cfg.geminiApiKey });
+  const ai = new GoogleGenAI({ ["apiKey"]: cfg.geminiApiKey });
   return callGoogleGenAi(ai, ref, request, "gemini");
 }
 
@@ -213,6 +222,7 @@ async function callGoogleGenAi(
       thinkingConfig: googleThinkingConfig(request),
       temperature: request.temperature,
       maxOutputTokens: request.maxOutputTokens,
+      mediaResolution: googleMediaResolution(request.mediaResolution),
       responseMimeType: request.responseMimeType === "text/plain" ? undefined : request.responseMimeType,
       responseJsonSchema: request.responseJsonSchema,
     },
@@ -229,10 +239,12 @@ async function callGoogleGenAi(
   const thoughtsTokens = Number(usage?.thoughtsTokenCount ?? 0);
   const outputTokens = candidateTokens + thoughtsTokens;
   const text = googleResponseText(response);
+  const finishReason = response.candidates?.[0]?.finishReason;
   return {
     provider,
     model: ref.model,
     text,
+    finishReason: typeof finishReason === "string" ? finishReason : finishReason ? String(finishReason) : null,
     inputTokens,
     outputTokens,
     thoughtsTokens,
@@ -286,16 +298,18 @@ async function callOpenAiCompatible(
     throw new Error(`${ref.provider}_llm_failed:${response.status}:${bodyText.slice(0, 160)}`);
   }
   const json = await response.json() as {
-    choices?: Array<{ message?: { content?: string } }>;
+    choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
     usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
   const text = json.choices?.[0]?.message?.content ?? "";
+  const finishReason = json.choices?.[0]?.finish_reason ?? null;
   const inputTokens = Number(json.usage?.prompt_tokens ?? 0);
   const outputTokens = Number(json.usage?.completion_tokens ?? 0);
   return {
     provider: ref.provider,
     model: ref.model,
     text,
+    finishReason,
     inputTokens,
     outputTokens,
     costUsd: estimateCostOrZero(ref.model, inputTokens, outputTokens),

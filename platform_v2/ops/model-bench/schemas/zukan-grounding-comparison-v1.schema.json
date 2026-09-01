@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zukan.earth/schemas/zukan-grounding-comparison-v1.schema.json",
+  "title": "ZUKAN blind grounding comparison v1",
+  "type": "object",
+  "required": [
+    "version",
+    "generatedAt",
+    "evaluationMode",
+    "modelNamesHidden",
+    "fixedInput",
+    "reference",
+    "claimLabels",
+    "scoreScale",
+    "postCount",
+    "outputCount",
+    "rawFinalContentAvailableOutputCount",
+    "posts"
+  ],
+  "properties": {
+    "version": {
+      "const": "zukan-blind-grounding-per-post-v1"
+    },
+    "generatedAt": {
+      "type": "string"
+    },
+    "evaluationMode": {
+      "const": "blind_model_names_hidden_during_claim_review"
+    },
+    "modelNamesHidden": {
+      "const": true
+    },
+    "fixedInput": {
+      "$ref": "#/$defs/fixedInput"
+    },
+    "reference": {
+      "$ref": "#/$defs/reference"
+    },
+    "claimLabels": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "SUPPORTED",
+          "PLAUSIBLE",
+          "OVERSTATED",
+          "NOT_VISIBLE",
+          "MISSED"
+        ]
+      }
+    },
+    "scoreScale": {
+      "type": "object",
+      "required": [
+        "range",
+        "direction",
+        "missingContent"
+      ],
+      "properties": {
+        "range": {
+          "const": "0-100"
+        },
+        "direction": {
+          "const": "higher_is_better"
+        },
+        "missingContent": {
+          "type": "string"
+        }
+      }
+    },
+    "postCount": {
+      "const": 7
+    },
+    "outputCount": {
+      "const": 14
+    },
+    "rawFinalContentAvailableOutputCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 14
+    },
+    "posts": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "$ref": "#/$defs/post"
+      }
+    }
+  },
+  "$defs": {
+    "fixedInput": {
+      "type": "object",
+      "required": [
+        "manifestPath",
+        "datasetSha256",
+        "promptSha256",
+        "postCount",
+        "imageCount",
+        "visitOrder",
+        "imageSha256ByVisitId",
+        "postSha256ByVisitId",
+        "rights"
+      ],
+      "properties": {
+        "manifestPath": {
+          "type": "string"
+        },
+        "datasetSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "promptSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "postCount": {
+          "const": 7
+        },
+        "imageCount": {
+          "const": 21
+        },
+        "visitOrder": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "type": "string"
+          }
+        },
+        "imageSha256ByVisitId": {
+          "type": "object"
+        },
+        "postSha256ByVisitId": {
+          "type": "object"
+        },
+        "rights": {
+          "type": "string"
+        }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "required": [
+        "id",
+        "path",
+        "role",
+        "notGold",
+        "immutable"
+      ],
+      "properties": {
+        "id": {
+          "const": "NOAH_MAX_READ_V1"
+        },
+        "path": {
+          "type": "string"
+        },
+        "role": {
+          "const": "high_resolution_visual_reference_only_not_gold"
+        },
+        "notGold": {
+          "const": true
+        },
+        "immutable": {
+          "const": true
+        }
+      }
+    },
+    "post": {
+      "type": "object",
+      "required": [
+        "postIndex",
+        "visitId",
+        "imageCount",
+        "imageSha256",
+        "postSha256",
+        "visualReviewBasis",
+        "outputs"
+      ],
+      "properties": {
+        "postIndex": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7
+        },
+        "visitId": {
+          "type": "string"
+        },
+        "imageCount": {
+          "const": 3
+        },
+        "imageSha256": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "postSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "visualReviewBasis": {
+          "type": "object",
+          "required": [
+            "fixedManifestImageShaVerified",
+            "imageIndices",
+            "referencePostPath",
+            "referenceRole",
+            "referenceFocus",
+            "noahReferenceEvidence"
+          ],
+          "properties": {
+            "fixedManifestImageShaVerified": {
+              "const": true
+            },
+            "imageIndices": {
+              "type": "array"
+            },
+            "referencePostPath": {
+              "type": "string"
+            },
+            "referenceRole": {
+              "const": "high_resolution_visual_reference_only_not_gold"
+            },
+            "referenceFocus": {
+              "type": "string"
+            },
+            "noahReferenceEvidence": {
+              "type": "object"
+            }
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/output"
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": [
+        "blindModelId",
+        "sourceRunClass",
+        "rawFinalContentStatus",
+        "raw_final_content",
+        "parsed_json",
+        "output_fields",
+        "outputTrace",
+        "claimAssessments",
+        "scores",
+        "qualityCounts",
+        "review_fields"
+      ],
+      "properties": {
+        "blindModelId": {
+          "enum": [
+            "blind-A",
+            "blind-B"
+          ]
+        },
+        "sourceRunClass": {
+          "type": "string"
+        },
+        "rawFinalContentStatus": {
+          "enum": [
+            "available",
+            "unavailable_in_existing_evidence"
+          ]
+        },
+        "raw_final_content": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parsed_json": {},
+        "output_fields": {
+          "type": "object"
+        },
+        "outputTrace": {
+          "type": "object"
+        },
+        "claimAssessments": {
+          "type": "array"
+        },
+        "scores": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "qualityCounts": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "review_fields": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

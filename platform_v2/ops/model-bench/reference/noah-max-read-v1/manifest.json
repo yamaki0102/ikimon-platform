@@ -1,0 +1,65 @@
+{
+  "benchmarkReferenceVersion": "NOAH_MAX_READ_V1",
+  "createdDate": "2026-08-27",
+  "purpose": "High-resolution visual-reading reference for later grounding comparison. Not human taxonomic gold and not a standard equal-prompt competitor.",
+  "model": {
+    "provider": "OpenAI",
+    "id": "GPT-5.6 Sol",
+    "executionMode": "ChatGPT interactive multimodal analysis",
+    "productionPromptUsed": false,
+    "competitorRawFinalOutputsConsulted": false,
+    "privateReasoningPersisted": false
+  },
+  "independenceCaveat": "Raw competitor final outputs were not opened or used while constructing this reference. However, aggregate benchmark metrics and some model rank summaries had already appeared in the conversation before this run, so NOAH_MAX_READ_V1 is not a formally blind scientific control. Treat it as a high-resolution visual reference, never as gold.",
+  "dataset": {
+    "postCount": 7,
+    "imageCount": 21,
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "linkedProductionPromptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "linkedProductionPromptUsedForNoahRead": false,
+    "sourceManifest": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json"
+  },
+  "overall_summary": {
+    "reference_taxonomic_stopping_points": {
+      "record-1784366489892": "genus (Erigeron/Conyza group), low-medium",
+      "record-1784430741938": "species (Oxalis corniculata), high",
+      "record-1781252770584": "family (Scarabaeidae), high; subfamily only plausible",
+      "record-1784430374598": "dwarf Acalypha cat-tail species-complex, medium-high",
+      "record-1784430118720": "genus (Bidens), medium-high; B. frondosa plausible",
+      "record-1784431188621": "species (Passer montanus), high",
+      "record-1784430530197": "genus (Hypsipetes), medium; H. amaurotis leading candidate"
+    },
+    "benchmark_strengths": [
+      "contains both easy and ambiguity-heavy cases",
+      "tests multi-image integration rather than single-frame recognition",
+      "includes cases where correct abstention/coarse rank is more important than forcing species",
+      "includes mixed vegetation where subject-grounding errors are possible",
+      "includes both clear and low-resolution bird cases",
+      "includes an insect where dorsal appearance is insufficient for species"
+    ],
+    "recommended_later_scoring": [
+      "claim-level SUPPORTED / PLAUSIBLE / OVERSTATED / NOT_VISIBLE",
+      "missed visible features",
+      "hallucinated features",
+      "taxonomic stopping-rank appropriateness",
+      "multi-image integration",
+      "subject separation in mixed scenes",
+      "usefulness of requested follow-up evidence"
+    ]
+  },
+  "telemetry": {
+    "latencyMs": null,
+    "tokenUsage": null,
+    "estimatedCostUsd": null,
+    "note": "ChatGPT session-level token/cost/latency telemetry is not exposed to the assistant; null is recorded rather than inventing values."
+  },
+  "postFiles": [
+    {"visitId": "record-1784366489892", "path": "posts/record-1784366489892.json", "postInputSha256": "0a2d87197bf3368f3c27b7790457e047de286ebc98835f0f03c7603e597231e0"},
+    {"visitId": "record-1784430741938", "path": "posts/record-1784430741938.json", "postInputSha256": "453fd53b608755562a9c3a728d46cf55a96578ab7fbe318b450b3f8df3a2b752"},
+    {"visitId": "record-1781252770584", "path": "posts/record-1781252770584.json", "postInputSha256": "b574d7f2e92489512dfe884708521a55213070b0c5f1b3a18efde19ccc5149f2"},
+    {"visitId": "record-1784430374598", "path": "posts/record-1784430374598.json", "postInputSha256": "67664ebb6105d1d144b8b1ff1f8e645c39d1ea5e1accabdc49b06b7f6bb75267"},
+    {"visitId": "record-1784430118720", "path": "posts/record-1784430118720.json", "postInputSha256": "1cf521778929da400c3fd492bc296e306090a4cb9c8d4632c662a39e18ea637f"},
+    {"visitId": "record-1784431188621", "path": "posts/record-1784431188621.json", "postInputSha256": "fea5a6c4b2e1b50225250ac970b298bf952e3a2fd7b0332f3a5e7f8b9b6d10b5"},
+    {"visitId": "record-1784430530197", "path": "posts/record-1784430530197.json", "postInputSha256": "7af169cf67a7f8b91d30f2464c22ae3ee68d2510494fe8eef414fa86f3324fa0"}
+  ]
+}

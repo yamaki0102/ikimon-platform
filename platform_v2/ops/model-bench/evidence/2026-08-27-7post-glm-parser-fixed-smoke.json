@@ -1,0 +1,260 @@
+{
+  "version": "zukan-post-model-bench-v2-7post-parser-fixed-smoke-evidence-v1",
+  "recordedAt": "2026-08-27T06:55:11.039Z",
+  "status": "COMPLETED_PARSER_FIXED_SMOKE_WITH_ONE_SCHEMA_FAILURE",
+  "source": {
+    "branch": "codex/zukan-model-bench-v1-20260827",
+    "baseCommit": "13350e8c0db32c8d86db4f4316840f1c50b1fe93",
+    "prNumber": 1582,
+    "prState": "open",
+    "draft": true
+  },
+  "diagnostics": {
+    "preParserCanary": {
+      "requestCount": 1,
+      "httpStatus": 200,
+      "contentType": "application/json",
+      "jsonParsed": true,
+      "rootKeys": ["errors", "messages", "result", "success"],
+      "resultKeys": ["choices", "created", "id", "model", "object", "usage"],
+      "resultChoicePath": "result.choices[0]",
+      "usageKeys": ["completion_tokens", "neurons", "prompt_tokens", "prompt_tokens_details", "total_tokens"],
+      "finishReasonPath": "result.choices[0].finish_reason",
+      "errorField": "errors",
+      "errorArrayLength": 0,
+      "rawValuesPersisted": false
+    },
+    "rootCause": [
+      "Cloudflare returned a non-empty Workers AI envelope with Chat Completions data under result.choices; the old parser only accepted a narrow set of text containers and did not accept reasoning_content or structured content objects.",
+      "With the old max_tokens=1024 payload, the provider response exposed reasoning_content and no usable final content, so the old parser mislabeled it as empty.",
+      "After parser correction, max_completion_tokens=4096 without a reasoning limit still failed the schema-valid canary; lowering reasoning_effort to low allowed final content to be returned.",
+      "The remaining one invalid JSON result is a separate output-budget/schema failure, not the original empty-response parser failure."
+    ],
+    "parserCorrection": {
+      "candidateOrder": [
+        "result.choices[0].message.content",
+        "result.choices[0].message.reasoning_content",
+        "result.choices[0].text",
+        "result.response",
+        "result"
+      ],
+      "structuredContentSupported": true,
+      "reasoningFallbackSupported": true,
+      "reasoningTextPersisted": false,
+      "responseFieldRecorded": true
+    },
+    "payloadReview": {
+      "before": {
+        "stream": false,
+        "maxTokens": 1024,
+        "responseFormat": "json_object",
+        "modalities": "omitted",
+        "contentPartTypes": ["image_url", "image_url", "image_url", "text"]
+      },
+      "final": {
+        "stream": false,
+        "maxCompletionTokens": 4096,
+        "reasoningEffort": "low",
+        "responseFormat": "json_object",
+        "modalities": "omitted",
+        "contentPartTypes": ["image_url", "image_url", "image_url", "text"]
+      }
+    },
+    "intermediateCanary": {
+      "payload": "max_completion_tokens=4096 without reasoning_effort",
+      "requestCount": 1,
+      "schemaValid": false,
+      "remainingSixExecuted": false,
+      "retryCount": 0,
+      "fallbackCount": 0
+    }
+  },
+  "runtimeInspection": {
+    "provider": "cloudflare",
+    "worker": "ikimon-life-cloudflare-prod",
+    "binding": "OBS_DB",
+    "databaseId": "c879eef6-009c-4710-a964-be343d96f3eb",
+    "rightsReadOperation": "SELECT",
+    "releaseControlUsed": false,
+    "productionDeployUsed": false,
+    "endpointDeployUsed": false,
+    "productionConfigChanged": false,
+    "trafficChanged": false,
+    "dnsChanged": false,
+    "secretValueReadOrPersisted": false,
+    "databaseUrlReadOrPersisted": false,
+    "imageBytesPersisted": false,
+    "personalInformationLogged": false
+  },
+  "fixedInput": {
+    "sourceManifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2.external.json",
+    "derivedManifestPath": "platform_v2/ops/model-bench/fixtures/zukan-owner-post-smoke-v2-7.external.json",
+    "excludedVisitId": "record-1786965869920",
+    "visitIds": [
+      "record-1784366489892",
+      "record-1784430741938",
+      "record-1781252770584",
+      "record-1784430374598",
+      "record-1784430118720",
+      "record-1784431188621",
+      "record-1784430530197"
+    ],
+    "postCount": 7,
+    "imageCount": 21,
+    "orderedPhotosPerPost": true,
+    "sourceManifestSha256": "0e27a691ded2fbed6333985676ccc002f1a072189cd0c7a2fb82cb3148814652",
+    "datasetSha256": "db98e2a6bd16f0cb3cf9b856dd54472d22760771d970572a3dead7bd99cfbfff",
+    "promptSha256": "6d0cc93200ad45142713287f81a8a55d96489c0c0e9397b15098ed6b387fd9e9",
+    "excludedPostRemovedWithoutResampling": true,
+    "existingLabelExactLocationObserverIdentityExistingAiResultHidden": true
+  },
+  "rightsGate": {
+    "productionDatabaseRead": "7/7 owner-matched canonical rights read-back PASS",
+    "rightsChangedThisRun": false,
+    "required": {
+      "recordConsent": "external_export",
+      "researchUseConsent": "public_export",
+      "datasetLicense": "CC-BY-4.0",
+      "mediaLicense": "CC-BY-NC-4.0",
+      "withdrawalStatus": "active",
+      "externalExportAllowed": true
+    },
+    "canonicalEligibleRows": 7,
+    "excludedPostUnchanged": true
+  },
+  "execution": {
+    "model": "@cf/zai-org/glm-5.3-flash",
+    "transport": "cloudflare-official-rest",
+    "onePostPerRequest": true,
+    "canaryGate": {
+      "visitId": "record-1784366489892",
+      "requestCount": 1,
+      "schemaValid": true,
+      "responseField": "result.choices[0].message.content",
+      "remainingSixExecuted": true
+    },
+    "providerRequests": 7,
+    "imageSends": 21,
+    "retryCount": 0,
+    "fallbackCount": 0,
+    "playgroundCount": 0,
+    "providerUsageReported": true,
+    "baseline": "NOT_RUN",
+    "inputTokens": 153402,
+    "outputTokens": 27206,
+    "estimatedCostUsd": 0.0366133,
+    "budgetCapJpy": 100
+  },
+  "metrics": {
+    "successCount": 7,
+    "successRatePct": 100,
+    "schemaValidCount": 6,
+    "schemaValidRatePct": 85.71,
+    "goldPostCount": 0,
+    "goldAccuracy": "NOT_MEASURED_NO_HUMAN_GOLD_POSTS",
+    "wrongIdentificationCount": 0,
+    "overprecisionCount": 0,
+    "locationHallucinationCount": 0,
+    "criticalFailurePostCount": 1,
+    "p50LatencyMs": 60170,
+    "p95LatencyMs": 66379,
+    "perPost": [
+      {
+        "visitId": "record-1784366489892",
+        "imageCount": 3,
+        "responseField": "result.choices[0].message.content",
+        "schemaValid": true,
+        "recommendedRank": "genus",
+        "confidenceBand": "low",
+        "latencyMs": 60170,
+        "inputTokens": 22760,
+        "outputTokens": 4093,
+        "criticalFailures": []
+      },
+      {
+        "visitId": "record-1784430741938",
+        "imageCount": 3,
+        "responseField": "result.choices[0].message.content",
+        "schemaValid": true,
+        "recommendedRank": "genus",
+        "confidenceBand": "medium",
+        "latencyMs": 58290,
+        "inputTokens": 22760,
+        "outputTokens": 4028,
+        "criticalFailures": []
+      },
+      {
+        "visitId": "record-1781252770584",
+        "imageCount": 3,
+        "responseField": "result.choices[0].message.content",
+        "schemaValid": true,
+        "recommendedRank": "family",
+        "confidenceBand": "low",
+        "latencyMs": 60641,
+        "inputTokens": 16843,
+        "outputTokens": 3950,
+        "criticalFailures": []
+      },
+      {
+        "visitId": "record-1784430374598",
+        "imageCount": 3,
+        "responseField": "result.choices[0].message.content",
+        "schemaValid": true,
+        "recommendedRank": "species",
+        "confidenceBand": "high",
+        "latencyMs": 56194,
+        "inputTokens": 22760,
+        "outputTokens": 3586,
+        "criticalFailures": []
+      },
+      {
+        "visitId": "record-1784430118720",
+        "imageCount": 3,
+        "responseField": "result.choices[0].message.content",
+        "schemaValid": false,
+        "recommendedRank": null,
+        "confidenceBand": null,
+        "latencyMs": 62670,
+        "inputTokens": 22760,
+        "outputTokens": 4096,
+        "criticalFailures": ["invalid_json"]
+      },
+      {
+        "visitId": "record-1784431188621",
+        "imageCount": 3,
+        "responseField": "result.choices[0].message.content",
+        "schemaValid": true,
+        "recommendedRank": "species",
+        "confidenceBand": "medium",
+        "latencyMs": 56256,
+        "inputTokens": 22759,
+        "outputTokens": 3967,
+        "criticalFailures": []
+      },
+      {
+        "visitId": "record-1784430530197",
+        "imageCount": 3,
+        "responseField": "result.choices[0].message.content",
+        "schemaValid": true,
+        "recommendedRank": "order",
+        "confidenceBand": "low",
+        "latencyMs": 66379,
+        "inputTokens": 22760,
+        "outputTokens": 3486,
+        "criticalFailures": []
+      }
+    ]
+  },
+  "verification": {
+    "derivedManifestLoadAndDigest": "PASS",
+    "promptShaFixed": "PASS",
+    "ownerRightsReadback": "7/7 PASS",
+    "canaryGate": "PASS; remaining 6 executed",
+    "officialRestRequests": "7 SENT",
+    "retryFallbackPlayground": "0/0/0",
+    "fixedSourceManifestModified": false,
+    "typecheck": "PASS",
+    "targetedTests": "17/17 PASS",
+    "reasoningTextPersisted": false
+  }
+}
