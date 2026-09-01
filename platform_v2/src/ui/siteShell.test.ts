@@ -165,7 +165,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/" \/>/);
   assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/);
   assert.match(html, /<meta name="twitter:image" content="https:\/\/zukan\.earth\/assets\/brand\/zukan-ogp-default\.png" \/>/);
-  assert.match(html, /<span>ZUKAN<\/span>\s*<span>皆で作る地域図鑑<\/span>/);
+  assert.match(html, /<span>ZUKAN<\/span>\s*<span>地域の記録を、みんなで育てる。<\/span>/);
   assert.doesNotMatch(html, /aria-label="ikimon"|application-name" content="ikimon|apple-mobile-web-app-title" content="ikimon|og:site_name" content="ikimon|og:image:alt" content="ikimon"/i);
 });
 

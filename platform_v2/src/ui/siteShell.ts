@@ -73,6 +73,13 @@ type ShellCopy = {
   record: string;
   footer: {
     tagline: string;
+    kicker: string;
+    heading: string;
+    body: string;
+    nextStep: string;
+    nextStepTitle: string;
+    nextStepBody: string;
+    chips: string[];
     start: string;
     startLinks: {
       discover: string;
@@ -383,7 +390,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "更新情報",
       },
       personalizedEmpty: "ログインすると、フォロー中の分類群や観察エリアをここに固定します。",
-      legalTagline: "皆で作る地域図鑑",
+      legalTagline: "地域の記録を、みんなで育てる。",
     },
     en: {
       primaryTitle: "Daily",
@@ -945,31 +952,29 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
               <small>${escapeHtml(copy.footer.tagline)}</small>
             </span>
           </div>
-            <div class="footer-kicker">生きものを楽しむ。暮らしを楽しむ。</div>
-            <h2>小さな発見を、<br>観察レコードへ。</h2>
-            <p>身近な生きものを見つけ、記録し、対象ごとの観察レコードへ育て、また歩くための生物多様性プラットフォーム。個人の発見を、地域や企業の次のアクションにつなげる。</p>
+            <div class="footer-kicker">${escapeHtml(copy.footer.kicker)}</div>
+            <h2>${escapeHtml(copy.footer.heading)}</h2>
+            <p>${escapeHtml(copy.footer.body)}</p>
             <div class="footer-actions">
               <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.record)}</a>
-              <a class="btn btn-ghost-on-dark" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">読み物を見る</a>
+              <a class="btn btn-ghost-on-dark" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">${escapeHtml(copy.footer.learn)}</a>
             </div>
           </div>
           <p class="footer-operator">${escapeHtml(operatorStatement(lang))}</p>
           <div class="footer-chip-row" aria-label="ZUKAN の価値">
-            <span>名前が分からなくても残せる</span>
-            <span>公開範囲を安全側で制御</span>
-            <span>学校・研究・企業活動へ接続</span>
+            ${copy.footer.chips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
           </div>
         </div>
-        <div class="footer-mini-map" aria-label="観察ルートのイメージ">
+        <div class="footer-mini-map" aria-label="${escapeHtml(copy.footer.nextStep)}">
           <div class="footer-route"></div>
           <span class="footer-pin one"></span>
           <span class="footer-pin two"></span>
           <span class="footer-pin three"></span>
           <span class="footer-pin four"></span>
           <div class="footer-map-copy">
-            <span>次の一歩</span>
-            <strong>いつもの道が、観察ルートになる。</strong>
-            <p>散歩、通学路、旅先、庭先。どこから始めても、記録はあとから対象ごとの観察レコードへ育てられる。</p>
+            <span>${escapeHtml(copy.footer.nextStep)}</span>
+            <strong>${escapeHtml(copy.footer.nextStepTitle)}</strong>
+            <p>${escapeHtml(copy.footer.nextStepBody)}</p>
           </div>
         </div>
       </section>
@@ -1002,7 +1007,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
       </section>
 
       <div class="footer-bottom">
-        <span>ZUKAN｜皆で作る地域図鑑</span>
+        <span>ZUKAN｜${escapeHtml(copy.footer.tagline)}</span>
         <span><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>・<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a></span>
       </div>
     </div>

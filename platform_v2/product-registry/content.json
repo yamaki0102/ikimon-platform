@@ -5,8 +5,8 @@
     {
       "id": "content.zukan.home-public",
       "surface": "zukan.home.public",
-      "audience": "地域の自然やまちの変化を身近に記録したい人",
-      "user_intent": "何のサービスか理解し、撮る・場所・記録のいずれかを始める",
+      "audience": "地域の記録を残したり、場所から見返したりしたい人",
+      "user_intent": "ZUKANの価値を理解し、撮る・場所・記録・参加のいずれかを始める",
       "primary_message": "撮ると、まちの今が図鑑になる。",
       "primary_cta": "撮る",
       "secondary_actions": ["場所を見る", "記録を見る"],
@@ -53,9 +53,9 @@
     {
       "id": "content.zukan.home-member",
       "surface": "zukan.home.member",
-      "audience": "自分の観察を続ける会員",
-      "user_intent": "最近の記録、場所、再訪候補を確認し、次の撮影へ進む",
-      "primary_message": "自分の記録から、次に撮る理由を見つける。",
+      "audience": "自分の地域の記録や参加中の企画を続ける会員",
+      "user_intent": "自分の記録・場所・参加中Program・次の行動を確認し、続きを始める",
+      "primary_message": "自分の記録から、次の行動を見つける。",
       "primary_cta": "撮る",
       "secondary_actions": ["自分の記録を見る"],
       "prohibited_claims": ["処理中のAI候補が確定済みである", "非公開記録が公開済みである"],

@@ -33,27 +33,34 @@
     }
   },
   "shell": {
-    "brandTagline": "Nearby nature gets a little more interesting.",
+    "brandTagline": "Grow local records together.",
     "skipToContent": "Skip to content",
-    "searchPlaceholder": "Search species or places",
-    "searchLabel": "Site search",
+    "searchPlaceholder": "Search local records or places",
+    "searchLabel": "Search local records and places",
     "menu": "Menu",
     "nav": {
       "home": "Home",
       "explore": "Explore",
-      "places": "My Places",
-      "community": "Community",
+      "places": "Places",
+      "community": "Participate",
       "learn": "Learn",
       "business": "For Business"
     },
     "record": "Record",
     "footer": {
-      "tagline": "Walk, find, and save the place.",
+      "tagline": "Grow local records together.",
+      "kicker": "Grow local records together.",
+      "heading": "Small records become local knowledge.",
+      "body": "Keep photos, places, times and activities in a form people can check later, then connect them to what the region does next.",
+      "nextStep": "The next step",
+      "nextStepTitle": "Everyday places can become record starting points.",
+      "nextStepBody": "A walk, a school route, a trip or a garden can all lead to records connected to place and time.",
+      "chips": ["Keep a record even without a name", "Keep visibility on the safe side", "Connect school, local and business activities"],
       "start": "Start",
       "startLinks": {
         "discover": "Explore",
         "record": "Record",
-        "places": "My Places"
+        "places": "Places"
       },
       "learn": "Learn",
       "learnLinks": {
@@ -94,16 +101,16 @@
   "quickNav": {
     "ariaLabel": "Primary actions",
     "labels": {
-      "notes": "My Places",
+      "notes": "View records",
       "record": "Record one",
       "lens": "Lens",
       "scan": "Explore Map",
-      "map": "Map"
+      "map": "View places"
     }
   },
   "footerNotes": {
-    "landing": "Walk, find, and save the place.",
-    "public": "Save what you find nearby and revisit it later.",
+    "landing": "Grow local records together.",
+    "public": "Save local records of the places and moments you notice, then return to them later.",
     "qa": "Staging walkthrough for full-page QA."
   }
 }

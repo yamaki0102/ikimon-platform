@@ -71,3 +71,30 @@ test("product root and north star reject biodiversity-only framing", () => {
   assert.ok(outcomes.north_star.non_goals.includes("ZUKANを生物多様性・種観察だけの製品に固定する"));
   assert.ok(outcomes.north_star.non_goals.includes("観察会を唯一のProgram profileにする"));
 });
+
+test("product-level shell and Home copy stays regional-record first", () => {
+  const forbiddenProductTerms = /\b(?:species|taxon|biodiversity|wildlife)\b|生きもの|生物多様性|観察会|observación|espécie|especie/iu;
+  for (const lang of ["ja", "en", "es", "pt-BR"]) {
+    const shared = JSON.parse(repoText(`platform_v2/src/content/short/${lang}/shared.json`)) as any;
+    const shellText = [
+      shared.shell.brandTagline,
+      shared.shell.searchPlaceholder,
+      shared.shell.searchLabel,
+      shared.shell.nav.home,
+      shared.shell.nav.explore,
+      shared.shell.nav.places,
+      shared.shell.nav.community,
+      shared.shell.footer.tagline,
+      shared.shell.footer.heading,
+      shared.shell.footer.body,
+      shared.footerNotes.landing,
+      shared.footerNotes.public,
+    ].join(" ");
+    assert.doesNotMatch(shellText, forbiddenProductTerms, `${lang} shared shell must not define the product as a biodiversity or observation-only service`);
+  }
+
+  const content = JSON.parse(repoText("platform_v2/product-registry/content.json")) as any;
+  const homeContracts = content.contracts.filter((contract: any) => ["content.zukan.home-public", "content.zukan.home-member"].includes(contract.id));
+  assert.equal(homeContracts.length, 2);
+  assert.doesNotMatch(homeContracts.map((contract: any) => `${contract.audience} ${contract.user_intent} ${contract.primary_message}`).join(" "), /生きもの|観察会|species|taxon|biodiversity/i);
+});

@@ -17,27 +17,34 @@
     }
   },
   "shell": {
-    "brandTagline": "La naturaleza cercana se vuelve más interesante.",
+    "brandTagline": "Hacemos crecer juntos los registros locales.",
     "skipToContent": "Saltar al contenido",
-    "searchPlaceholder": "Buscar especie o lugar",
-    "searchLabel": "Búsqueda del sitio",
+    "searchPlaceholder": "Buscar registros locales o lugares",
+    "searchLabel": "Buscar registros locales y lugares",
     "menu": "Menú",
     "nav": {
       "home": "Inicio",
       "explore": "Explorar",
-      "places": "Mis lugares",
-      "community": "Comunidad",
+      "places": "Lugares",
+      "community": "Participar",
       "learn": "Aprender",
       "business": "Para organizaciones"
     },
     "record": "Registrar",
     "footer": {
-      "tagline": "Camina, encuentra y guarda el lugar.",
+      "tagline": "Hacemos crecer juntos los registros locales.",
+      "kicker": "Hacemos crecer juntos los registros locales.",
+      "heading": "Los pequeños registros se convierten en conocimiento local.",
+      "body": "Conserva fotos, lugares, momentos y actividades de una forma que se pueda revisar después y conectar con los próximos pasos de la región.",
+      "nextStep": "El siguiente paso",
+      "nextStepTitle": "Los lugares cotidianos también pueden iniciar un registro.",
+      "nextStepBody": "Un paseo, el camino a la escuela, un viaje o un jardín pueden dejar registros vinculados al lugar y al momento.",
+      "chips": ["Guarda un registro aunque no conozcas el nombre", "Mantén la visibilidad en un nivel seguro", "Conecta actividades escolares, locales y empresariales"],
       "start": "Empezar",
       "startLinks": {
         "discover": "Explorar",
         "record": "Registrar",
-        "places": "Mis lugares"
+        "places": "Lugares"
       },
       "learn": "Aprender",
       "learnLinks": {
@@ -78,16 +85,16 @@
   "quickNav": {
     "ariaLabel": "Acciones principales",
     "labels": {
-      "notes": "Mis lugares",
+      "notes": "Ver registros",
       "record": "Registrar",
       "lens": "Guía de campo",
       "scan": "Mapa",
-      "map": "Mapa"
+      "map": "Ver lugares"
     }
   },
   "footerNotes": {
-    "landing": "Camina, encuentra y guarda el lugar.",
-    "public": "Guarda lo que encuentras cerca y revísalo más tarde.",
+    "landing": "Hacemos crecer juntos los registros locales.",
+    "public": "Guarda registros locales de los lugares y momentos que descubres y vuelve a ellos más tarde.",
     "qa": "Recorrido de staging para QA visual."
   }
 }
