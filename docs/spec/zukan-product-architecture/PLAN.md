@@ -67,7 +67,7 @@ Only one executor implementation Task may be active at a time. Independent read-
 
 Purpose: make Programs durable across school years, fiscal periods, organizers and responsible-person changes.
 
-Current design remains `implementation_allowed=false` until explicit promotion.
+M7.0 and M7.1 are source-verified on current main. M7.2+ remain `implementation_allowed=false` until explicit promotion.
 
 Required invariants:
 
@@ -80,7 +80,7 @@ Required invariants:
 - partial failure never reports completion;
 - unknown or unapproved incoming actor fails closed.
 
-Promotion status (2026-09-02): **M7.0 is explicitly promoted to executor-eligible** after exact-source Wave 0 production `LIVE_VERIFIED` at `ed39ef808b9284b972f82b8b142b1448e12e4323` and completion of the planner promotion conditions. This promotion authorizes only the side-effect-zero deterministic planner and synthetic fixtures. It does not authorize DB persistence, runtime UI, participant/consent/Review/publication-state carry-over, or production mutation.
+Promotion status (2026-09-02): **M7.0 was explicitly promoted to executor-eligible** after exact-source Wave 0 production `LIVE_VERIFIED` at `ed39ef808b9284b972f82b8b142b1448e12e4323` and completion of the planner promotion conditions. **M7.1 is now source-verified** as the provider-neutral immutable snapshot contract plus D1-first deterministic adapter/tests. Its migration remains unapplied outside the test database; no runtime UI, participant/consent/Review/publication-state carry-over, or production mutation is authorized.
 
 Implementation order after promotion:
 
@@ -105,7 +105,7 @@ M7 design exit before promotion:
 
 M7.0 fixtures are `school_new_academic_year_new_teacher`, `guardian_withdrawal_fail_closed`, `unresolved_review_reference_not_approval`, `same_place_record_reused_without_duplication`, `outgoing_actor_removed_after_acceptance`, `unknown_unapproved_incoming_actor_fail_closed`, `retry_converges_to_one_logical_plan`, `same_key_different_payload_rejected`, `invalid_selected_ref_fail_closed`, and `participant_consent_review_publication_carry_over_forbidden`. The terminal check is deterministic replay plus all negative fixtures with zero DB/UI side effects. M7.0 is source-verified on current main `0aff596f799381d184a23a4fa598e7fad4ad3a06`.
 
-### M7.1 ? persisted handover plan / idempotency
+### M7.1 — persisted handover plan / idempotency
 
 M7.1 is explicitly promoted after M7.0 source verification. It persists only an accepted immutable `ProgramHandover` plan snapshot; it does not execute the handover or mutate the target Program.
 
@@ -123,7 +123,7 @@ Persistence rules:
 - the stored plan is immutable in M7.1; later acceptance/transfer is a separate append/state-transition concern owned by M7.2/M7.3;
 - source/migration files may be added, but no staging/production migration application, route/UI activation or production mutation is authorized by M7.1.
 
-M7.1 Done is source repository/migration contract + deterministic D1 tests proving one logical row under replay/concurrency, conflict rejection, immutable plan snapshot, no participant/consent/Review/publication-state copy and no target Program side effect. M7.2 remains blocked until M7.1 is source-verified and Noah explicitly promotes it.
+M7.1 is source-verified on current main with the repository contract, unapplied migration definition, D1 deterministic tests, and registry/Eval bindings proving one logical row under replay/concurrency, conflict rejection, immutable plan snapshot, no participant/consent/Review/publication-state copy and no target Program side effect. M7.2 remains blocked until Noah explicitly promotes it.
 
 ## M8 — Operational Summary & Raw Portability
 

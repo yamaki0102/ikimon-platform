@@ -39,17 +39,29 @@ test("M7 design contract fixes authorization, rights, failure and idempotency bo
   assert.ok(contract?.fixtures?.length >= 7);
 });
 
-test("M7.1 is executor-ready for immutable persistence/idempotency only", () => {
+test("M7.1 is source-verified and closed for immutable persistence/idempotency only", () => {
   const task = loadProductRegistryNavigation().implementation_tasks.find((item) => item.id === "task.zukan.m7.program-handover-persistence") as any;
-  assert.equal(task?.state, "planned");
-  assert.equal(task?.readiness, "executor-ready");
-  assert.equal(task?.implementation_allowed, true);
+  assert.equal(task?.state, "implemented");
+  assert.equal(task?.readiness, "source-verified");
+  assert.equal(task?.implementation_allowed, false);
+  assert.ok(task?.requirement_ids?.includes("quality.zukan.handover.persistence"));
+  assert.ok(task?.source_locators?.includes("platform_v2/src/services/programHandoverD1Repository.ts"));
+  assert.ok(task?.source_locators?.includes("platform_v2/cloudflare_shadow/migrations/core/0015_zukan_program_handover_persistence.sql"));
+  assert.ok(task?.negative_eval_ids?.includes("prop.m7.persistence-replay-one-row"));
   assert.match(task?.design_contract?.storage, /D1 first active-runtime adapter/);
   assert.match(task?.design_contract?.idempotency, /same key\+payload.*one logical stored plan/);
   assert.match(task?.design_contract?.rights, /never copy participant, consent grant, Review decision, publication approval/);
   assert.match(task?.design_contract?.failure, /no target Program side effect/);
   assert.match(task?.design_contract?.immutability, /immutable/);
   assert.ok(task?.design_contract?.fixtures?.length >= 8);
+});
+
+test("M7.1 persistence contract is source-only and has no runtime activation", () => {
+  const contract = loadProductRegistry().qualityContracts.find((item: any) => item.id === "quality.zukan.m7-handover-persistence") as any;
+  assert.deepEqual(contract?.requirement_refs, ["quality.zukan.handover.persistence"]);
+  assert.match(contract?.acceptance?.join(" "), /immutable snapshot/);
+  assert.match(contract?.acceptance?.join(" "), /target Program/);
+  assert.ok(contract?.tests?.some((item: any) => item.locator.endsWith("programHandoverD1Repository.test.ts")));
 });
 
 test("M8 is shaped as separate operational summary and raw portability contracts", () => {
