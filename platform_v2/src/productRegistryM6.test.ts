@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { loadProductRegistry, validateProductRegistry } from "./productRegistry.js";
 import { loadProductRegistryNavigation, validateProductRegistryNavigation } from "./productRegistryNavigation.js";
@@ -32,7 +32,20 @@ test("M6 first activation slice binds to the existing Event assets and shared Ev
   const evals = registry.evalContracts.filter((item) => item.requirement_ref === requirementId);
   assert.equal(evals.length, 2);
   assert.deepEqual(evals.map((item) => item.environment).sort(), ["source", "staging"]);
-  assert.ok(evals.every((item) => item.evaluator_version === "zukan-m6-v1"));
+  assert.ok(evals.every((item) => item.evaluator_version === "zukan-m6-v2"));
+  const sourceEval = evals.find((item) => item.environment === "source");
+  assert.ok(sourceEval?.source_locators.includes("platform_v2/src/services/observationEventModeManager.test.ts"));
+  assert.ok(sourceEval?.source_locators.includes("platform_v2/src/routes/observationEventActivation.routes.test.ts"));
+  assert.match(registry.requirements.find((item) => item.id === requirementId)?.acceptance ?? "", /same-origin/);
+  assert.match(registry.requirements.find((item) => item.id === requirementId)?.acceptance ?? "", /409/);
+
+  const quality = JSON.parse(
+    readFileSync(new URL("../product-registry/quality.json", import.meta.url), "utf8"),
+  ) as { negative_property_tests: Array<{ id: string; current_test: string }> };
+  assert.equal(
+    quality.negative_property_tests.find((item) => item.id === "prop.program.activation-retry-converges")?.current_test,
+    "platform_v2/src/services/observationEventModeManager.test.ts",
+  );
 });
 
 test("M6.2 participation is an event-scoped trace over existing Event assets", () => {

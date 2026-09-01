@@ -28,6 +28,7 @@ import {
   getSessionById,
   getSessionByEventCode,
   isEventMode,
+  ObservationEventActivationConflictError,
   switchPrimaryMode,
   updateSession,
   EVENT_MODES,
@@ -135,10 +136,15 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
 
   // POST /api/v1/observation-events  — セッション作成(主催者)
   app.post("/api/v1/observation-events", async (request, reply) => {
+    assertSameOriginRequest(request);
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     if (!session) return reply.status(401).send({ error: "login required" });
 
     const body = (request.body ?? {}) as Record<string, unknown>;
+    const eventCode = asString(body.event_code)?.trim() ?? null;
+    if (!eventCode) {
+      return reply.status(400).send({ error: "event_code activation key required" });
+    }
     const startedAtRaw = asString(body.started_at);
     if (!startedAtRaw) {
       return reply.status(400).send({ error: "started_at required" });
@@ -169,7 +175,7 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
     try {
       const created = await createSession({
         legacyEventId: asString(body.legacy_event_id),
-        eventCode: asString(body.event_code),
+        eventCode,
         title,
         organizerUserId: session.userId,
         corporationId: asString(body.corporation_id),
@@ -190,6 +196,9 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
       });
       return reply.status(201).send(created);
     } catch (error) {
+      if (error instanceof ObservationEventActivationConflictError) {
+        return reply.status(409).send({ error: error.code });
+      }
       const message = error instanceof Error ? error.message : "create failed";
       return reply.status(500).send({ error: message });
     }
@@ -568,7 +577,16 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
       const body = request.body ?? {};
       const updates: Parameters<typeof updateSession>[1] = {};
       if (typeof body.title === "string") updates.title = body.title;
-      if (typeof body.event_code === "string") updates.eventCode = body.event_code;
+      if (typeof body.event_code === "string") {
+        const requestedEventCode = body.event_code.trim();
+        if (!requestedEventCode) {
+          return reply.status(400).send({ error: "event_code required" });
+        }
+        if (session.eventCode && requestedEventCode !== session.eventCode) {
+          return reply.status(409).send({ error: "event_code is immutable after activation" });
+        }
+        if (!session.eventCode) updates.eventCode = requestedEventCode;
+      }
       const primaryRaw = asString(body.primary_mode);
       if (primaryRaw && isEventMode(primaryRaw)) updates.primaryMode = primaryRaw;
       if (Array.isArray(body.active_modes)) {

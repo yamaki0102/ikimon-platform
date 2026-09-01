@@ -15,6 +15,7 @@ test.use({ trace: "off" });
 
 type SessionIssuePayload = { ok?: boolean; error?: string };
 type EventPayload = {
+  error?: string;
   sessionId?: string;
   session_id?: string;
   eventCode?: string | null;
@@ -95,32 +96,46 @@ async function cleanupFixture(api: APIRequestContext, writeKey: string, prefix: 
 async function createEvent(api: APIRequestContext, prefix: string): Promise<{ sessionId: string; eventCode: string }> {
   const code = `R${Date.now().toString(36).toUpperCase()}`.slice(0, 14);
   const startedAt = new Date(Date.now() - 5 * 60_000).toISOString();
-  const response = await api.post("/api/v1/observation-events", {
-    headers: { origin: "https://staging.ikimon.life", "content-type": "application/json", accept: "application/json" },
-    data: {
-      event_code: code,
-      title: `連理サイエンスアドベンチャー ${prefix}`,
-      started_at: startedAt,
-      field_id: "aikan-renri-ikan-hq",
-      plan: "community",
-      primary_mode: "discovery",
-      active_modes: ["discovery", "rally"],
-      target_species: ["名前が分からない生きもの"],
-      config: {
-        qa_fixture: true,
-        fixture_prefix: prefix,
-        public_list_visibility: "hidden",
-        participant_public_start: "2026-07-19T11:10:00+09:00",
-        participant_public_end: "2026-07-19T13:00:00+09:00",
-      },
+  const headers = { origin: "https://staging.ikimon.life", "content-type": "application/json", accept: "application/json" };
+  const data = {
+    event_code: code,
+    title: `連理サイエンスアドベンチャー ${prefix}`,
+    started_at: startedAt,
+    field_id: "aikan-renri-ikan-hq",
+    plan: "community",
+    primary_mode: "discovery",
+    active_modes: ["discovery", "rally"],
+    target_species: ["名前が分からない生きもの"],
+    config: {
+      qa_fixture: true,
+      fixture_prefix: prefix,
+      public_list_visibility: "hidden",
+      participant_public_start: "2026-07-19T11:10:00+09:00",
+      participant_public_end: "2026-07-19T13:00:00+09:00",
     },
-  });
-  const payload = (await response.json().catch(() => ({}))) as EventPayload;
-  expect(response.ok(), JSON.stringify(payload)).toBeTruthy();
-  const sessionId = payload.sessionId ?? payload.session_id ?? "";
-  const eventCode = payload.eventCode ?? payload.event_code ?? code;
+  };
+  const [first, replay] = await Promise.all([
+    api.post("/api/v1/observation-events", { headers, data }),
+    api.post("/api/v1/observation-events", { headers, data }),
+  ]);
+  const firstPayload = (await first.json().catch(() => ({}))) as EventPayload;
+  const replayPayload = (await replay.json().catch(() => ({}))) as EventPayload;
+  expect(first.ok(), JSON.stringify(firstPayload)).toBeTruthy();
+  expect(replay.ok(), JSON.stringify(replayPayload)).toBeTruthy();
+  const sessionId = firstPayload.sessionId ?? firstPayload.session_id ?? "";
+  const replaySessionId = replayPayload.sessionId ?? replayPayload.session_id ?? "";
+  const eventCode = firstPayload.eventCode ?? firstPayload.event_code ?? code;
   expect(sessionId).toBeTruthy();
+  expect(replaySessionId).toBe(sessionId);
   expect(eventCode).toBeTruthy();
+
+  const changedPayload = await api.post("/api/v1/observation-events", {
+    headers,
+    data: { ...data, title: `${data.title} changed` },
+  });
+  const changedBody = (await changedPayload.json().catch(() => ({}))) as EventPayload;
+  expect(changedPayload.status(), JSON.stringify(changedBody)).toBe(409);
+  expect(changedBody.error).toBe("observation_event_activation_conflict");
   return { sessionId, eventCode: eventCode! };
 }
 

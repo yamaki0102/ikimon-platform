@@ -17,8 +17,9 @@ The dependency order for the Product Registry and later implementation is:
 3. M3 — Program/Event/Quest/Workspace collaboration
 4. M4 — Regional knowledge / PublicationEdition / portability / correction
 5. M5 — Live-camera POC
+6. M6 — Self-Serve Program Activation / Participation / Closeout
 
-Live-camera remains deferred until M5. The Registry supplies static navigation only; resolved status and executor eligibility come from `operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus`.
+M5 live-camera remains deferred while M6 is the adopted delivery path. The Registry supplies static navigation only; resolved status and executor eligibility come from `operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus`.
 
 ## Stage 0 — Product contract
 
@@ -130,6 +131,18 @@ Measure:
 - whether an external source owner accepts or acts on a correction
 
 Do not generalize Action/Reporting until a concrete non-emergency case requires it.
+
+## M6.1 — Activation integrity
+
+The existing `observation_event_sessions.event_code` unique constraint is both the activation key and the participant invite code. New activation requires a non-empty code and uses one atomic `INSERT ... ON CONFLICT` against that constraint; no migration, secondary idempotency store or new route is introduced.
+
+- activation is same-origin and requires an authenticated organizer;
+- the default remains `community`, with existing private-safe participant and publication boundaries unchanged;
+- an identical organizer, activation key and semantic Event payload returns the existing session, including under concurrent replay;
+- the same code with a different organizer or semantic payload returns `409`;
+- once established, the invite code is immutable so a delayed replay cannot create a second Event after the original code is renamed.
+
+Source Evals bind the Event route and session-service tests for denial, required fields, atomic convergence, collision, organizer isolation and the community default. The staging Golden Journey independently replays the same activation concurrently and verifies changed-payload conflict. These are source contracts only until an exact deployed SHA is separately verified.
 
 ## Verification
 
