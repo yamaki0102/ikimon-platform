@@ -43,7 +43,7 @@ test("M9 profile horizon includes non-biological civic and tourism programs", ()
 
 test("publication horizon includes people profiles without identification or tracking", () => {
   const horizon = repoText("docs/spec/zukan-product-architecture/PROFILE_HORIZON.md");
-  assert.match(horizon, /people encyclopedia|person profile publication/i);
+  assert.match(horizon, /people\/profile encyclopedia/i);
   assert.match(horizon, /face\/biometric identification/);
   assert.match(horizon, /correction\/withdrawal/);
 });
