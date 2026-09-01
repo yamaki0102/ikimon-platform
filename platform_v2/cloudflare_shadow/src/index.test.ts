@@ -22849,6 +22849,8 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.match(body, /data-global-record-gallery>端末の写真から選ぶ/, check.path);
         assert.doesNotMatch(body, /href="\/ja\/record"[^>]*>撮る/, check.path);
         assert.match(body, /id="main-content" class="cf-profile-shell"/, check.path);
+        assert.match(body, /<title>(?:マイページ|プロフィール設定) — ZUKAN<\/title>/, check.path);
+        assert.doesNotMatch(body, /<title>[^<]*ikimon/u, check.path);
         assert.doesNotMatch(body, /cf-profile-header/, check.path);
         assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
         assert.doesNotMatch(body, /権限|ランク|admin|管理者|ログイン中/, check.path);
