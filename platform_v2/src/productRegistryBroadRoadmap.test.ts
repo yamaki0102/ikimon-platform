@@ -25,6 +25,73 @@ test("roadmap preserves broad ZUKAN scope after M6", () => {
   assert.deepEqual(validateProductRegistryNavigation(navigation, new Set(registry.requirements.map((item) => item.id))), []);
 });
 
+test("execution roadmap v3 pins future delivery order without activating it", () => {
+  const delivery = JSON.parse(repoText("platform_v2/product-registry/delivery.json")) as any;
+  const product = JSON.parse(repoText("platform_v2/product-registry/product.json")) as any;
+  assert.match(delivery.execution_roadmap.strategy_locator, /2026-09-02-zukan-development-execution-roadmap-v3\.md$/);
+  assert.match(product.execution_roadmap.strategy_locator, /2026-09-02-zukan-development-execution-roadmap-v3\.md$/);
+  assert.equal(delivery.execution_roadmap.selection_rule_is_executor_autonomous, false);
+  assert.deepEqual(delivery.execution_roadmap.always_on_tracks, ["UX_QUALITY", "RIGHTS_SAFETY", "PRODUCT_REGISTRY_EVIDENCE", "DEMAND_LEARNING"]);
+  assert.equal(delivery.roadmap.find((item: any) => item.id === "milestone.m7.program-continuity-handover")?.implementation_allowed, false);
+  assert.equal(delivery.roadmap.find((item: any) => item.id === "milestone.m8.operational-summary-raw-portability")?.implementation_allowed, false);
+  assert.equal(delivery.roadmap.find((item: any) => item.id === M9)?.implementation_allowed, false);
+});
+
+test("M9 default profile order starts with photo contest and reuses mission for stamp rally", () => {
+  const delivery = JSON.parse(repoText("platform_v2/product-registry/delivery.json")) as any;
+  const m9 = delivery.roadmap.find((item: any) => item.id === M9);
+  assert.deepEqual(m9.default_priority_groups, [
+    ["photo_contest"],
+    ["mission_town_walk"],
+    ["children_citizen_editorial", "sketch_drawing_event"],
+    ["tourism_regional_engagement"],
+  ]);
+  assert.equal(m9.stamp_rally_initial_mode, "MISSION_TOWN_WALK_VARIATION");
+  assert.ok(m9.promotion_conditions.includes("product authority records selected profile"));
+});
+
+test("M10 M11 and M12 keep the planned reusable order", () => {
+  const delivery = JSON.parse(repoText("platform_v2/product-registry/delivery.json")) as any;
+  const m10 = delivery.roadmap.find((item: any) => item.id === M10);
+  const m11 = delivery.roadmap.find((item: any) => item.id === M11);
+  const m12 = delivery.roadmap.find((item: any) => item.id === M12);
+  assert.deepEqual(m10.default_priority, [
+    "program_campaign_result",
+    "regional_theme_encyclopedia",
+    "history_culture_collection",
+    "tourism_map_guide_route",
+    "facility_shop_organization_collection",
+    "consented_people_profile",
+    "paper_pdf_manifest",
+    "api_dataset_projection",
+  ]);
+  assert.deepEqual(m11.default_slice_order, [
+    "M11-A_SOURCE_EXCHANGE_PACKAGE_V1",
+    "M11-B_NOCOSIL_TO_ZUKAN",
+    "M11-C_EXTERNAL_PUBLISHER_ADAPTERS",
+    "M11-D_CORRECTION_REVOCATION_WRITEBACK",
+  ]);
+  assert.deepEqual(m12.outcome_families, ["PROFESSIONAL_REPORT", "PUBLICATION_PRODUCTION", "MANAGED_PROGRAM", "INTEGRATION_DATA_WORK"]);
+});
+
+test("planning metrics are baselines and privacy-minimized", () => {
+  const delivery = JSON.parse(repoText("platform_v2/product-registry/delivery.json")) as any;
+  assert.equal(delivery.planning_metrics.mode, "BASELINE_BEFORE_TARGETS");
+  assert.deepEqual(delivery.planning_metrics.metrics, [
+    "first_record_completion",
+    "program_self_start_rate",
+    "join_completion",
+    "review_lead_time",
+    "support_minutes_per_program",
+    "handover_completion",
+    "raw_portability_success",
+    "publication_reuse",
+    "repeat_program_rate",
+    "paid_outcome_conversion",
+  ]);
+  assert.equal(delivery.planning_metrics.privacy_minimization_required, true);
+});
+
 test("M9 profile horizon includes non-biological civic and tourism programs", () => {
   const horizon = repoText("docs/spec/zukan-product-architecture/PROFILE_HORIZON.md");
   for (const profile of [
@@ -39,6 +106,8 @@ test("M9 profile horizon includes non-biological civic and tourism programs", ()
   }
   assert.match(horizon, /Biodiversity is one Domain Pack/);
   assert.match(horizon, /観察会.*one Program profile/);
+  assert.match(horizon, /stamp_rally.*variation/);
+  assert.match(horizon, /Executors do not select or reorder profiles autonomously/);
 });
 
 test("publication horizon includes people profiles without identification or tracking", () => {
@@ -53,6 +122,7 @@ test("NOCOSIL exchange remains an explicit public-safe projection boundary", () 
   assert.match(horizon, /NOCOSIL private\/source truth -> explicit selected public-safe projection/);
   assert.match(horizon, /no raw private auto-publication/);
   assert.match(horizon, /no shared giant database/);
+  assert.match(horizon, /M11-A Source Exchange Package v1/);
 });
 
 test("App Experience uses stable participation IA without pretending future profiles are live", () => {
