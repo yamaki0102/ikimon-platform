@@ -3,13 +3,20 @@
     "title": "地域の記録から始める | ZUKAN",
     "home": {
       "guest": {
-        "heroHeading": "招待された方へ。見つけたことを、写真1枚から。",
-        "heroLead": "ZUKANは、写真や出来事を場所と一緒に残すサービスです。",
+        "heroHeading": "撮ると、まちの今が図鑑になる。",
+        "heroLead": "写真1枚から、場所と時間に結びついた地域の記録を残せます。",
         "primaryCta": "撮る", "secondaryCta": "場所を見る",
         "categoriesTitle": "何を残せるか",
         "proofEmpty": "公開できる記録は、まだありません。",
-        "proofEmptyNote": "この絵は記録ではなく、表示例です。",
+        "proofEmptyNote": "まずは一枚。撮った記録は、場所と時間に結びついて残ります。",
         "inviteNote": "現在は、招待された方をご案内しています。",
+        "recordStatusConfirmed": "確認済み",
+        "recordStatusPending": "確認待ち",
+        "recordStatusLimited": "公開範囲を調整",
+        "emptyFlowAria": "撮る、場所に残る、記録として戻る",
+        "emptyFlowCapture": "撮る",
+        "emptyFlowPlace": "場所に残る",
+        "emptyFlowReturn": "記録として戻る",
         "categories": [
           { "title": "学校・学び", "body": "授業、探究、仕事体験で見つけたこと。" },
           { "title": "地域・イベント", "body": "祭り、マルシェ、地域行事の一場面。" },

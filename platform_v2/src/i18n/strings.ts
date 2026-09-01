@@ -10,6 +10,13 @@ export type LandingStrings = {
       proofEmpty: string;
       proofEmptyNote: string;
       inviteNote: string;
+      recordStatusConfirmed: string;
+      recordStatusPending: string;
+      recordStatusLimited: string;
+      emptyFlowAria: string;
+      emptyFlowCapture: string;
+      emptyFlowPlace: string;
+      emptyFlowReturn: string;
       categories: Array<{ title: string; body: string }>;
       flowTitle: string;
       flowItems: Array<{ title: string; body: string }>;

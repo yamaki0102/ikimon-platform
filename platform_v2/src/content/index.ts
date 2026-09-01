@@ -367,7 +367,7 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
   assertObject(value.home, `${path}.home`);
   assertObject(value.home.guest, `${path}.home.guest`);
   for (const key of [
-    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "categoriesTitle", "proofEmpty", "proofEmptyNote", "inviteNote", "flowTitle",
+    "heroHeading", "heroLead", "primaryCta", "secondaryCta", "categoriesTitle", "proofEmpty", "proofEmptyNote", "inviteNote", "recordStatusConfirmed", "recordStatusPending", "recordStatusLimited", "emptyFlowAria", "emptyFlowCapture", "emptyFlowPlace", "emptyFlowReturn", "flowTitle",
     "placesTitle", "placesBody", "communityTitle", "communityBody", "communityCta", "privacyTitle", "privacyBody", "finalTitle", "finalCta",
   ] as const) {
     assertString(value.home.guest[key], `${path}.home.guest.${key}`);

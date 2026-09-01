@@ -45,12 +45,12 @@ function render(lang: SiteLang, data: LandingSnapshot, isLoggedIn = Boolean(data
   return `${result.heroHtml}${result.dailyDashboardHtml}`;
 }
 
-test("guest Top leads with an invited-member promise and concrete actions", () => {
+test("guest Top explains the product and leads with concrete actions", () => {
   const html = render("ja", snapshot({ feed: [observation("public-1")] }));
   assert.match(html, /data-home-contract="state-split-v1"/);
   assert.match(html, /data-home-auth-state="guest"/);
-  assert.match(html, /<span class="home-hero-phrase">招待された方へ。見つけたことを、<\/span><span class="home-hero-phrase">写真1枚から。<\/span>/);
-  assert.match(html, /ZUKANは、写真や出来事を場所と一緒に残すサービスです。/);
+  assert.match(html, /撮ると、まちの今が図鑑になる。/);
+  assert.match(html, /写真1枚から、場所と時間に結びついた地域の記録を残せます。/);
   assert.match(html, /現在は、招待された方をご案内しています。/);
   assert.doesNotMatch(html, /何を残せるか|記録が育つ流れ|home-category-index|home-value-icon/);
   assert.match(html, /場所から見る/);
@@ -64,6 +64,7 @@ test("guest Top leads with an invited-member promise and concrete actions", () =
   assert.match(html, /data-kpi-event="top_place_tap"/);
   assert.ok((html.match(/\/media\/public-1\.jpg/g) || []).length >= 1);
   assert.match(html, /home-guest-proof is-count-1/);
+  assert.match(html, /確認待ち/);
   assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(html, /地方創生|ウェルビーイング|Place Intelligence OS|ENJOY NATURE/);
 });
@@ -74,10 +75,10 @@ test("guest Top stays useful without public data and never invents record cards"
   assert.match(html, /home-guest-hero-visual/);
   assert.match(html, /home-guest-proof is-count-0 is-empty/);
   assert.match(html, /<strong>公開できる記録は、まだありません。<\/strong>/);
-  assert.match(html, /data-home-empty-illustration="true"/);
-  assert.match(html, /\/assets\/img\/landing\/zukan-empty-illustration\.webp/);
+  assert.match(html, /home-empty-proof-flow/);
+  assert.match(html, /home-empty-proof-symbol/);
   assert.match(html, /home-place-visual is-placeholder/);
-  assert.match(html, /この絵は記録ではなく、表示例です。/);
+  assert.match(html, /まずは一枚。撮った記録は、場所と時間に結びついて残ります。/);
   assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(html, /class="home-public-card"/);
   assert.doesNotMatch(html, /sample|placeholder\.jpg|0件|未記録|場所から見る<\/p>/);
@@ -86,11 +87,29 @@ test("guest Top stays useful without public data and never invents record cards"
 test("guest empty visual is explicitly non-record content and keeps its copy readable", () => {
   const html = render("ja", snapshot());
   assert.match(html, /<div class="home-guest-proof is-count-0 is-empty"[^>]*data-home-empty-proof="true"/);
-  assert.match(html, /<img[^>]+alt=""[^>]+data-home-empty-illustration="true"/);
+  assert.match(html, /home-empty-proof-flow/);
   assert.match(html, /公開できる記録は、まだありません。/);
-  assert.match(html, /この絵は記録ではなく、表示例です。/);
+  assert.match(html, /撮る/);
+  assert.match(html, /場所に残る/);
+  assert.match(html, /記録として戻る/);
+  assert.doesNotMatch(html, /zukan-empty-illustration|data-home-empty-illustration/);
   assert.match(LANDING_TOP_STYLES, /\.home-empty-proof-copy\{display:grid;grid-template-columns:1fr/);
   assert.doesNotMatch(html, /data-home-public-record=/);
+});
+
+test("guest proof uses safe public records as editorial evidence", () => {
+  const records = [
+    observation("editorial-1", { displayName: "川辺の記録", identificationCount: 2, publicLocation: { label: "浜松市", scope: "municipality", cellId: null, gridM: null, radiusM: null, centroidLat: null, centroidLng: null, displayMode: "area" } }),
+    observation("editorial-2", { displayName: "草地の記録", identificationCount: 1, observedAt: "2026-07-20T08:30:00.000Z" }),
+    observation("editorial-3", { displayName: "確認待ちの記録", identificationCount: 0, isAiCandidate: true }),
+  ];
+  const html = render("ja", snapshot({ feed: records }));
+  assert.equal((html.match(/data-home-public-record=/g) || []).length, 3);
+  assert.match(html, /川辺の記録/);
+  assert.match(html, /浜松市/);
+  assert.match(html, /確認済み/);
+  assert.match(html, /確認待ち/);
+  assert.doesNotMatch(html, /zukan-empty-illustration/);
 });
 
 test("member Home shows only the viewer's recent records as its main record section", () => {
@@ -229,7 +248,8 @@ test("home CSS enforces mobile card sizing, touch targets, focus and reduced mot
   assert.match(LANDING_TOP_STYLES, /min-height:52px/);
   assert.match(LANDING_TOP_STYLES, /min-height:44px/);
   assert.match(LANDING_TOP_STYLES, /focus-visible/);
-  assert.match(LANDING_TOP_STYLES, /\.home-hero-phrase\{display:inline-block;max-width:100%\}/);
+  assert.match(LANDING_TOP_STYLES, /\.home-guest-hero h1\{max-width:620px/);
+  assert.match(LANDING_TOP_STYLES, /\.home-empty-proof-flow\{display:grid/);
   assert.match(LANDING_TOP_STYLES, /word-break:auto-phrase/);
   assert.match(LANDING_TOP_STYLES, /prefers-reduced-motion/);
   assert.match(LANDING_TOP_STYLES, /@media\(max-width:359px\)/);
@@ -243,9 +263,9 @@ test("home CSS enforces mobile card sizing, touch targets, focus and reduced mot
   );
 });
 
-test("guest Top explains the invited entry and starts with the shared camera action", () => {
+test("guest Top keeps the optional invited note and starts with the shared camera action", () => {
   const html = render("ja", snapshot({ feed: [observation("public-1")] }));
-  assert.match(html, /<span class="home-hero-phrase">招待された方へ。見つけたことを、<\/span><span class="home-hero-phrase">写真1枚から。<\/span>/);
+  assert.match(html, /撮ると、まちの今が図鑑になる。/);
   assert.match(html, /現在は、招待された方をご案内しています。/);
   assert.doesNotMatch(html, /学校・学び|地域・イベント|仕事・文化|暮らし・自然|home-category-index|home-value-icon/);
   assert.match(html, /home-community-section/);

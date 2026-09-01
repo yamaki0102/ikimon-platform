@@ -17,8 +17,6 @@ export type LandingHomeStateOptions = {
 
 type HomeMediaKind = "photo" | "video" | "audio" | "memo";
 
-const GUEST_EMPTY_ILLUSTRATION_PATH = "/assets/img/landing/zukan-empty-illustration.webp";
-
 const genericNames = new Set(["", "unknown", "unidentified"]);
 
 function href(options: LandingHomeStateOptions, path: string): string {
@@ -65,6 +63,12 @@ function dateLabel(item: LandingObservation, lang: SiteLang): string {
 function safePlace(item: LandingObservation, copy: LandingStrings): string {
   if (item.publicLocation?.scope === "blurred") return "";
   return String(item.publicLocation?.label || item.municipality || "").trim() || copy.home.shared.safePlaceFallback;
+}
+
+function publicRecordStatus(item: LandingObservation, copy: LandingStrings): string {
+  if (item.publicFeedGateStatus === "public_limited") return copy.home.guest.recordStatusLimited;
+  if (item.isAiCandidate || item.identificationCount < 1) return copy.home.guest.recordStatusPending;
+  return copy.home.guest.recordStatusConfirmed;
 }
 
 function detailHref(options: LandingHomeStateOptions, item: LandingObservation): string {
@@ -122,10 +126,8 @@ function galleryButton(label: string, className: string): string {
 }
 
 function renderHeroHeading(lang: SiteLang, value: string): string {
-  if (lang !== "ja") return escapeHtml(value);
-  const phraseBoundary = value.indexOf("、");
-  if (phraseBoundary < 0 || phraseBoundary >= value.length - 1) return escapeHtml(value);
-  return `<span class="home-hero-phrase">${escapeHtml(value.slice(0, phraseBoundary + 1))}</span><span class="home-hero-phrase">${escapeHtml(value.slice(phraseBoundary + 1))}</span>`;
+  void lang;
+  return escapeHtml(value);
 }
 
 function renderGuestPhotoTile(options: LandingHomeStateOptions, item: LandingObservation, index: number): string {
@@ -133,9 +135,10 @@ function renderGuestPhotoTile(options: LandingHomeStateOptions, item: LandingObs
   if (!imageUrl) return "";
   const name = displayName(item, options.copy);
   const meta = [safePlace(item, options.copy), dateLabel(item, options.lang)].filter(Boolean).join(" · ");
+  const status = publicRecordStatus(item, options.copy);
   return `<a class="home-guest-proof-item is-item-${index + 1}" href="${escapeHtml(detailHref(options, item))}" data-home-public-record="${escapeHtml(observationKey(item))}">
     <img src="${escapeHtml(imageUrl)}" alt="" width="900" height="900" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""} />
-    <span class="home-guest-proof-caption"><strong>${escapeHtml(name)}</strong>${meta ? `<small>${escapeHtml(meta)}</small>` : ""}</span>
+    <span class="home-guest-proof-caption"><strong>${escapeHtml(name)}</strong>${meta ? `<small>${escapeHtml(meta)}</small>` : ""}<small class="home-guest-proof-status">${escapeHtml(status)}</small></span>
   </a>`;
 }
 
@@ -149,8 +152,13 @@ function renderGuestProof(options: LandingHomeStateOptions, publicItems: Landing
   const photos = publicItems.filter((item) => Boolean(item.photoUrl) && isGuestVisibleRecord(item)).slice(0, 5);
   if (photos.length === 0) {
     return `<div class="home-guest-proof is-count-0 is-empty" data-home-empty-proof="true">
-      <div class="home-empty-proof-art">
-        <img src="${GUEST_EMPTY_ILLUSTRATION_PATH}" alt="" aria-hidden="true" data-home-empty-illustration="true" width="1200" height="800" loading="eager" fetchpriority="high" decoding="async" />
+      <div class="home-empty-proof-flow" aria-label="${escapeHtml(options.copy.home.guest.emptyFlowAria)}">
+        <span class="home-empty-proof-symbol" aria-hidden="true"><img src="/assets/brand/zukan-symbol.svg" alt="" width="56" height="56" /></span>
+        <ol>
+          <li><b>01</b><span>${escapeHtml(options.copy.home.guest.emptyFlowCapture)}</span></li>
+          <li><b>02</b><span>${escapeHtml(options.copy.home.guest.emptyFlowPlace)}</span></li>
+          <li><b>03</b><span>${escapeHtml(options.copy.home.guest.emptyFlowReturn)}</span></li>
+        </ol>
       </div>
       <div class="home-empty-proof-copy">
         <strong>${escapeHtml(options.copy.home.guest.proofEmpty)}</strong>
@@ -170,14 +178,13 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
   return `<div class="home-state-view is-guest" data-home-view="guest"${options.isLoggedIn ? " hidden" : ""}>
     <section class="home-guest-hero has-visual">
       <div class="home-guest-hero-copy">
-        <span class="home-product-kicker">ZUKAN</span>
         <h1>${renderHeroHeading(options.lang, copy.heroHeading)}</h1>
         <p>${escapeHtml(copy.heroLead)}</p>
-        <p class="home-invite-note" data-home-invite-note>${escapeHtml(copy.inviteNote)}</p>
         <div class="home-hero-actions">
           ${captureButton(copy.primaryCta, "home-primary-button", "top_capture")}
           <a class="home-secondary-link" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place">${escapeHtml(copy.secondaryCta)}</a>
         </div>
+        <p class="home-invite-note" data-home-invite-note>${escapeHtml(copy.inviteNote)}</p>
       </div>
       ${slot("guest-hero", `<div class="home-guest-hero-visual">${renderGuestProof(options, publicItems)}</div>`)}
     </section>
