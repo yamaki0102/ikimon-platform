@@ -4,7 +4,7 @@
 
 公開サービスの現行名は`ZUKAN`です。`ikimon.life`、`platform_v2`、repository名、API名は移行承認まで技術識別子として維持します。ZUKANは生き物・自然観察アプリを他領域へ拡張するサービスではなく、地域の写真、資料、観察、活動、出来事等を根拠・時点・権利・確認状態つきで育て、ViewやPublicationへ返す地域知識基盤です。
 
-ZUKANの有効なプロダクト境界は [`spec/zukan-product-architecture/SPEC.md`](spec/zukan-product-architecture/SPEC.md)、実装順は [`spec/zukan-product-architecture/PLAN.md`](spec/zukan-product-architecture/PLAN.md) を参照します。
+ZUKANの有効なプロダクト境界は [`spec/zukan-product-architecture/SPEC.md`](spec/zukan-product-architecture/SPEC.md)、実装順は [`spec/zukan-product-architecture/PLAN.md`](spec/zukan-product-architecture/PLAN.md) を参照します。Program / Publication / Source exchangeの広い将来プロファイルとanti-drift境界は [`spec/zukan-product-architecture/PROFILE_HORIZON.md`](spec/zukan-product-architecture/PROFILE_HORIZON.md)、ユーザー体験の現行正本は [`spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md`](spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md) を参照します。
 
 クビアカツヤカミキリ見守りの有効な対象専用契約は [`spec/kubiaka-focused-experience/SPEC.md`](spec/kubiaka-focused-experience/SPEC.md)、実装順は [`spec/kubiaka-focused-experience/PLAN.md`](spec/kubiaka-focused-experience/PLAN.md) を参照します。
 
@@ -15,11 +15,13 @@ ZUKANの有効なプロダクト境界は [`spec/zukan-product-architecture/SPEC
 1. [`AGENTS.md`](../AGENTS.md) — current app、security、test、deploy境界
 2. [`PROJECT.json`](../PROJECT.json) — organization / service / projectと外部正本へのpointer
 3. [`spec/zukan-product-architecture/SPEC.md`](spec/zukan-product-architecture/SPEC.md) — ZUKANの現行プロダクト境界
-4. このファイル — product docsの入口
-5. 対象機能のREADME
-6. 現行仕様、ADR、実装計画
-7. `yamaki0102/all-projects-management`のcurrent-state packetと中央Issue
-8. 対応Issue・PR・code・tests
+4. [`spec/zukan-product-architecture/PROFILE_HORIZON.md`](spec/zukan-product-architecture/PROFILE_HORIZON.md) — 生物/観察会へ狭めないProgram・Publication・Source exchange horizon
+5. [`spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md`](spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md) — public/member/PWAを含む現行Experience contract
+6. このファイル — product docsの入口
+7. 対象機能のREADME
+8. 現行仕様、ADR、実装計画
+9. `yamaki0102/all-projects-management`のcurrent-state packetと中央Issue
+10. 対応Issue・PR・code・tests
 
 ## Current app
 
@@ -32,6 +34,18 @@ ZUKANの有効なプロダクト境界は [`spec/zukan-product-architecture/SPEC
 [`spec/zukan-product-architecture/SPEC.md`](spec/zukan-product-architecture/SPEC.md)
 
 Knowledge Core、Participation / Workflow、Experience / Publicationの3層と、横断Domain Pack、安全・緊急対応の責任境界を定義します。
+
+### ZUKANのProgram / Publication / Source exchange horizon
+
+[`spec/zukan-product-architecture/PROFILE_HORIZON.md`](spec/zukan-product-architecture/PROFILE_HORIZON.md)
+
+観察会を一つのProgram profileとして位置づけ、フォトコン、写生・編集企画、まち歩き/ミッション、観光・関係人口施策、地域Publication、権利安全な人物profile、NOCOSIL public-safe projectionまでを同じCoreから展開する境界を定義します。ここにある将来profileは、Product Registryでexecutor-eligibleになるまでruntime実装済みを意味しません。
+
+### ZUKAN App Experience
+
+[`spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md`](spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md)
+
+Home / 記録 / 場所 / 参加 / 自分、global撮影action、状態優先順位、現在の観察会profileと将来Program profileの見せ分け、PWAのZUKANブランド移行を定義します。
 
 ### クビアカツヤカミキリ見守り
 
@@ -60,6 +74,7 @@ Receipt-first, Map-laterを採用し、全通知interlock、private receipt、�
 - `SPEC.md`: 現在有効な契約
 - `decisions/ADR-*`: 変更理由、棄却案、影響
 - `PLAN.md`: 実装順、migration、検証、rollback
+- `PROFILE_HORIZON.md`: 実装済みと将来profileを混同せず、共通Coreからの展開範囲とanti-driftを固定
 - GitHub Issue: 個別作業
 - Pull Request: 差分、review、verification evidence
 

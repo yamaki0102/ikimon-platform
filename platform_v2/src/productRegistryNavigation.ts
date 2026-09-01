@@ -6,6 +6,8 @@ export type NavigationMilestone = {
   rank: number;
   scope: string;
   target_requirements: string[];
+  readiness?: string;
+  implementation_allowed?: boolean;
 };
 
 type DependencyEdge = { requirement: string; depends_on: string[] };
@@ -13,14 +15,27 @@ type ImplementationTask = {
   id: string;
   milestone_id: string;
   state: "implemented" | "planned" | "deferred";
+  readiness?: string;
+  implementation_allowed?: boolean;
   requirement_ids: string[];
   source_locators: string[];
   negative_eval_ids: string[];
 };
 
+type RollingFrontier = {
+  active: string;
+  ready_next: string;
+  shaped_next: string;
+  dependency_shaped: string[];
+  deferred: string[];
+  max_executor_implementation_tasks: number;
+  profile_horizon: string;
+};
+
 export type ProductRegistryNavigation = {
   authority: { resolved_status: string; forbidden_local_state: string[] };
   dependency_graph: { edges: DependencyEdge[] };
+  rolling_frontier: RollingFrontier;
   roadmap: NavigationMilestone[];
   implementation_tasks: ImplementationTask[];
   luna_task_contract: { format: string[]; rules: string[] };
@@ -73,12 +88,31 @@ export function validateProductRegistryNavigation(
     "milestone.m6.self-serve-program-activation",
     "milestone.m7.program-continuity-handover",
     "milestone.m8.operational-summary-raw-portability",
+    "milestone.m9.regional-program-profiles",
+    "milestone.m10.regional-publication-profiles",
+    "milestone.m11.source-public-projection-exchange",
+    "milestone.m12.professional-managed-outcomes",
   ];
   if (JSON.stringify(navigation.roadmap.slice().sort((a, b) => a.rank - b.rank).map((item) => item.id)) !== JSON.stringify(expectedMilestones)) {
-    errors.push("roadmap must be ordered M1 through M6 with live-camera as M5");
+    errors.push("roadmap must preserve the canonical M1-M12 order with live-camera as deferred M5");
   }
   for (const requirementId of requirementIds) {
     if (!roadmapRequirements.has(requirementId)) errors.push(`${requirementId} is absent from roadmap`);
+  }
+
+  const frontier = navigation.rolling_frontier;
+  if (!frontier) {
+    errors.push("rolling_frontier is required");
+  } else {
+    if (frontier.active !== "milestone.m7.program-continuity-handover") errors.push("current ACTIVE frontier must be M7 Program Continuity & Handover");
+    if (frontier.ready_next !== "milestone.m8.operational-summary-raw-portability") errors.push("current READY_NEXT frontier must be M8 Operational Summary & Raw Portability");
+    if (frontier.shaped_next !== "milestone.m9.regional-program-profiles") errors.push("current SHAPED_NEXT frontier must be M9 Regional Program Profiles");
+    if (frontier.max_executor_implementation_tasks !== 1) errors.push("rolling frontier must allow at most one executor implementation task");
+    if (!frontier.deferred.includes("milestone.m5.live-camera-poc")) errors.push("M5 live-camera must remain deferred");
+    if (frontier.profile_horizon !== "docs/spec/zukan-product-architecture/PROFILE_HORIZON.md") errors.push("rolling frontier must reference the canonical profile horizon");
+    for (const milestoneId of [...frontier.dependency_shaped, ...frontier.deferred]) {
+      if (!roadmapIds.has(milestoneId)) errors.push(`rolling frontier references unknown milestone ${milestoneId}`);
+    }
   }
 
   const edgeByRequirement = new Map<string, string[]>();
@@ -107,6 +141,12 @@ export function validateProductRegistryNavigation(
   for (const id of requirementIds) visit(id);
 
   const taskIds = new Set<string>();
+  const futureMilestones = new Set([
+    "milestone.m9.regional-program-profiles",
+    "milestone.m10.regional-publication-profiles",
+    "milestone.m11.source-public-projection-exchange",
+    "milestone.m12.professional-managed-outcomes",
+  ]);
   for (const task of navigation.implementation_tasks) {
     if (taskIds.has(task.id)) errors.push(`duplicate implementation task ${task.id}`);
     taskIds.add(task.id);
@@ -116,9 +156,12 @@ export function validateProductRegistryNavigation(
     for (const locator of task.source_locators) {
       if (!repositoryFileExists(locator)) errors.push(`${task.id} source locator does not exist: ${locator}`);
     }
+    if (futureMilestones.has(task.milestone_id)) {
+      errors.push(`${task.id} must not exist before M9-M12 frontier promotion and Requirement/Eval shaping`);
+    }
   }
   if (navigation.implementation_tasks.some((task) => task.milestone_id === "milestone.m5.live-camera-poc" && task.state === "planned")) {
-    errors.push("live-camera POC must remain deferred until M5");
+    errors.push("live-camera POC must remain deferred until explicitly promoted by product evidence");
   }
   return errors;
 }

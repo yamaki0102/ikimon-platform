@@ -3,18 +3,26 @@
   "product_id": "zukan",
   "north_star": {
     "id": "outcome.zukan.living-local-record",
-    "statement": "人が地域で見つけた今を迷わず安全に記録でき、その記録が本人へ確実に返り、本人が選んだ範囲だけが地域の共有知として再利用できる。",
+    "statement": "地域の写真・文書・活動・場所・人や施設等の情報を、出典・時点・権利・確認状態つきで安全に記録・接続し、参加型Programと目的別View/Publicationへ再利用できる。",
     "product_outcomes": [
       "captureから保存・本人再訪までが失敗時も途切れない",
-      "公開範囲・位置精度・人物/生活場所・AI候補の不確実性を利用者が制御できる",
-      "公開された記録はrecords/map等で文脈を保って発見できる",
-      "学校・団体・企業・自治体は個人の権利を弱めず共同記録を運用できる",
-      "公開ライブカメラ等の外部センサーは、出典・権利・死活を保った補助文脈としてZUKAN記録と重ねられる"
+      "公開範囲・位置精度・人物/生活場所・AI候補の不確実性を利用者と認可主体が制御できる",
+      "地域のSource/Record/ClaimはPlace/Entity・時点・Evidence・Reviewを保って訂正・再利用できる",
+      "学校・団体・企業・自治体・地域Publisherは同じProgram Coreで複数種類の参加企画を運用できる",
+      "確認された地域知識は図鑑・地図・ガイド・人物/施設等のCollection・Program成果等の目的別Publicationへ安全に返せる",
+      "明示選択された外部SourceやNOCOSIL public-safe candidateはcanonical/private domainを混ぜずにZUKANへ交換できる",
+      "外部センサー等の補助文脈は、必要性・出典・権利・死活が確認できる場合だけ追加できる"
     ],
     "non_goals": [
+      "ZUKANを生物多様性・種観察だけの製品に固定する",
+      "観察会を唯一のProgram profileにする",
+      "Observationを文書・人物profile・施設情報・文化記録等の親オブジェクトにする",
       "AI候補を人または専門家の確認と同一視する",
       "公開可能であることを外部AI事業者への送信許可と同一視する",
       "共同利用のために既存投稿・公開権利を暗黙移行する",
+      "人物を顔・生体情報から識別または追跡する",
+      "自治体名・補助金名・顧客名ごとに別Core/DB/auth/Place modelを作る",
+      "NOCOSILや他Sourceのprivate情報を自動公開する",
       "再利用許諾が確認できない第三者のライブカメラ集約DBをコピーする",
       "別途の権利根拠なしにライブ映像のフレームを保存・抽出・AI解析する",
       "NOCOSILとの共通抽象を先に作る"
@@ -26,17 +34,18 @@
     {"id":"outcome.zukan.collaborative-knowledge","statement":"参加者・役割・reviewを保って共同知を育てる","journey_refs":["journey.zukan.school-field-learning","journey.zukan.organization-company-collaboration","journey.zukan.municipality-local-observation"]},
     {"id":"outcome.zukan.regional-portability","statement":"地域のSourceとPublicationEditionを訂正・再利用可能にする","journey_refs":["journey.zukan.personal-safe-publish","journey.zukan.public-discovery"]},
     {"id":"outcome.zukan.live-place-context","statement":"権利と死活を確認した外部センサーを補助文脈として扱う","journey_refs":["journey.zukan.live-place-context"]},
-    {"id":"outcome.zukan.self-serve-program-activation","statement":"主催者が運営者・開発者なしで企画から再開催まで完走する","journey_refs":["journey.zukan.self-serve-program-activation"]},
+    {"id":"outcome.zukan.self-serve-program-activation","statement":"主催者が運営者・開発者なしで現行Program profileを企画から再開催まで完走する","journey_refs":["journey.zukan.self-serve-program-activation"]},
     {"id":"outcome.zukan.program-continuity","statement":"年度・担当者交代をまたいでProgramを安全に継続する","journey_refs":["journey.zukan.program-handover"]},
     {"id":"outcome.zukan.operational-portability","statement":"活動の運営状態とsource Recordを権利に沿って持ち運ぶ","journey_refs":["journey.zukan.program-operational-summary","journey.zukan.raw-record-portability"]}
   ],
   "actors": [
     {"id":"actor.individual","label":"個人","job":"見つけたものを素早く記録し、自分の履歴として戻ってこられる"},
-    {"id":"actor.school","label":"学校","job":"学習者の記録を安全な範囲で集め、教員が確認して必要なものだけ共有する"},
-    {"id":"actor.organization","label":"団体","job":"複数人の記録を同じ目的で集め、役割に応じて確認・共有する"},
-    {"id":"actor.company","label":"企業","job":"業務・地域活動の観察を共同で残し、権限を保ったまま利用する"},
-    {"id":"actor.municipality","label":"自治体","job":"地域の観察を集約し、位置・人物・確認状態を守りながら公開知へつなぐ"},
-    {"id":"actor.public","label":"閲覧者","job":"公開が許可された地域の記録を安全な精度で探し、出典と確認状態を理解する"}
+    {"id":"actor.school","label":"学校","job":"学習者の記録と参加企画を安全に運用し、確認した範囲だけ地域へ返す"},
+    {"id":"actor.organization","label":"団体","job":"複数人の記録・企画・Publicationを同じ目的で運用し、役割に応じて確認・共有する"},
+    {"id":"actor.company","label":"企業","job":"業務・地域活動の記録と企画を権限を保ったまま継続・公開する"},
+    {"id":"actor.municipality","label":"自治体","job":"地域Sourceと参加型企画をつなぎ、位置・人物・確認状態を守りながら住民へ返す"},
+    {"id":"actor.publisher","label":"地域Publisher","job":"SourceEdition・権利・Reviewを保って地域View/Publicationを更新する"},
+    {"id":"actor.public","label":"閲覧者","job":"公開が許可された地域の記録・Place・Program・Publicationを安全に探し、出典と確認状態を理解する"}
   ],
   "truth_model": {
     "intent_truth": "product-registry内のstable contract。実装状態を意味しない",
