@@ -21243,27 +21243,31 @@ test("Cloudflare staging QA materialization combines visual smoke paths with the
     assert.equal(siteMapPaths.includes(path), false, `${path} stays on its dynamic or operator route`);
   }
 
-  for (const path of ["/community", "/community/events", "/ja/community", "/ja/community/events"]) {
+  for (const path of ["/community", "/ja/community"]) {
     assert.ok(corePaths.includes(path), `${path} must remain in the normal product materialization scope`);
+  }
+  for (const path of ["/community/events", "/ja/community/events"]) {
+    assert.equal(corePaths.includes(path), false, `${path} must stay on the Worker-native Event Hub`);
   }
 
   for (const path of [
     "/learn",
     "/community",
-    "/community/events",
     "/for-business",
     "/impact",
     "/cases",
     "/for-business/field-programs",
     "/ja/learn",
     "/ja/community",
-    "/ja/community/events",
     "/ja/for-business",
     "/ja/impact",
     "/ja/cases",
     "/ja/for-business/field-programs"
   ]) {
     assert.ok(stagingQaSmokePaths.includes(path), `${path} should be materialized for the Cloudflare staging QA sitemap smoke`);
+  }
+  for (const path of ["/community/events", "/ja/community/events"]) {
+    assert.equal(stagingQaSmokePaths.includes(path), false, `${path} should be verified through the Worker-native Event Hub`);
   }
 
   for (const path of [
