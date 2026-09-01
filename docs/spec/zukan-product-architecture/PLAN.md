@@ -123,7 +123,25 @@ Persistence rules:
 - the stored plan is immutable in M7.1; later acceptance/transfer is a separate append/state-transition concern owned by M7.2/M7.3;
 - source/migration files may be added, but no staging/production migration application, route/UI activation or production mutation is authorized by M7.1.
 
-M7.1 is source-verified on current main with the repository contract, unapplied migration definition, D1 deterministic tests, and registry/Eval bindings proving one logical row under replay/concurrency, conflict rejection, immutable plan snapshot, no participant/consent/Review/publication-state copy and no target Program side effect. M7.2 remains blocked until Noah explicitly promotes it.
+M7.1 is source-verified on current main with the repository contract, unapplied migration definition, D1 deterministic tests, and registry/Eval bindings proving one logical row under replay/concurrency, conflict rejection, immutable plan snapshot, no participant/consent/Review/publication-state copy and no target Program side effect.
+
+### M7.2 ? outgoing handover offer
+
+M7.2 is explicitly promoted after M7.1 source verification. It lets the currently authorized outgoing responsible actor select one immutable persisted M7.1 plan and append one `ProgramHandoverOffer` in `pending_acceptance` state. It does not accept the handover, transfer responsibility, mutate the target Program, or remove the outgoing actor.
+
+The offer MUST reference the stored logical plan/plan identity without editing its selected refs or reset-state declaration. If different refs are needed, create and persist a new M7.0/M7.1 plan rather than mutating the old plan.
+
+M7.2 rules:
+
+- re-read the persisted plan and current source Program revision before offering; stale/missing/mismatched plan bindings fail closed;
+- outgoing actor must still be authorized for the source Program at offer time;
+- incoming actor/target scope is recorded as the intended recipient only; M7.2 grants no acceptance or transfer authority;
+- the offer is append-only and carries `pending_acceptance`; no participant, consent grant, Review decision, publication approval, visibility state, Place/Record copy or target Program mutation is written;
+- same idempotency key + same offer payload converges to one logical offer; same key + different payload fails closed; concurrent retries converge;
+- an offered plan cannot be silently rewritten; changing plan identity or selected refs requires a new plan and new offer;
+- source/migration/repository definitions are allowed, but no staging/production migration application, route/UI activation, outgoing-role removal or incoming acceptance is authorized.
+
+M7.2 Done is provider-neutral offer contract + D1-first append-only source implementation/tests proving authorized outgoing offer, stale/unauthorized rejection, one logical offer under retry/concurrency, immutable plan reference and `pending_acceptance` with zero target Program/responsibility/state-transfer side effects. M7.3 remains blocked until M7.2 is source-verified and Noah explicitly promotes incoming acceptance/responsibility transfer.
 
 ## M8 — Operational Summary & Raw Portability
 

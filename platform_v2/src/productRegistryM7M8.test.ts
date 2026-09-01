@@ -64,6 +64,20 @@ test("M7.1 persistence contract is source-only and has no runtime activation", (
   assert.ok(contract?.tests?.some((item: any) => item.locator.endsWith("programHandoverD1Repository.test.ts")));
 });
 
+test("M7.2 is executor-ready as outgoing pending-acceptance offer only", () => {
+  const navigation = loadProductRegistryNavigation() as any;
+  const task = navigation.implementation_tasks.find((item: any) => item.id === "task.zukan.m7.program-handover-outgoing-selection");
+  assert.equal(task?.state, "planned");
+  assert.equal(task?.readiness, "executor-ready");
+  assert.equal(task?.implementation_allowed, true);
+  assert.ok(task?.requirement_ids?.includes("quality.zukan.handover.outgoing-selection"));
+  assert.match(task?.design_contract?.selection, /never edits plan selected refs/);
+  assert.match(task?.design_contract?.authorization, /receives no authority/);
+  assert.match(task?.design_contract?.state, /pending_acceptance/);
+  assert.match(task?.design_contract?.state, /no outgoing removal/);
+  assert.ok(task?.negative_eval_ids?.includes("prop.m7.outgoing-offer-no-transfer"));
+});
+
 test("M8 is shaped as separate operational summary and raw portability contracts", () => {
   const navigation = loadProductRegistryNavigation() as any;
   assert.equal(navigation.implementation_tasks.find((item: any) => item.id === "task.zukan.m8.operational-summary")?.readiness, "shaped");
