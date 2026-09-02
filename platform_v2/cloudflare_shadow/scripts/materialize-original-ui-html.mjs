@@ -2,12 +2,16 @@ import { createHash, createHmac } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   listPublicSiteMapLocalizableBasePaths,
   listPublicSiteMapMaterializationPaths,
 } from "../../src/services/originalUiMaterializationRoutes.ts";
+import {
+  selectMaterializationItems,
+  validateMaterializationImpactReceipt,
+} from "./release_fast_path_materialization.mjs";
 
 const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
@@ -27,6 +31,7 @@ const allowedArgs = new Set([
   "--skip-if-unchanged",
   "--manifest-key",
   "--phase-result",
+  "--impact-receipt",
   "--direct-staging-r2",
   "--direct-production-r2"
 ]);
@@ -72,6 +77,7 @@ const outputPath = args.get("--output") ?? "";
 const emitPhaseResult = args.get("--phase-result") === "true";
 const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 8);
 const skipIfUnchanged = args.get("--skip-if-unchanged") === "true";
+const impactReceiptPath = args.get("--impact-receipt") ?? "";
 const directStagingR2 = args.get("--direct-staging-r2") === "true";
 const directProductionR2 = args.get("--direct-production-r2") === "true";
 const directR2 = directStagingR2 || directProductionR2;
@@ -120,6 +126,18 @@ if (directProductionR2 && (targetEnv !== "production" || bucket !== productionBu
 }
 if (directStagingR2 && directProductionR2) {
   throw new Error("Only one direct R2 transport may be selected.");
+}
+
+let impactReceipt = null;
+if (impactReceiptPath) {
+  if (!isAbsolute(impactReceiptPath)) throw new Error("--impact-receipt must be an absolute path.");
+  try {
+    impactReceipt = JSON.parse(await readFile(impactReceiptPath, "utf8"));
+  } catch {
+    throw new Error("impact_receipt_invalid_json");
+  }
+  const receiptErrors = validateMaterializationImpactReceipt(impactReceipt, { sourceSha: materializationSourceSha, targetEnv });
+  if (receiptErrors.length > 0) throw new Error(`impact_receipt_invalid:${receiptErrors.join(",")}`);
 }
 
 const scriptDir = fileURLToPath(new URL(".", import.meta.url));
@@ -435,6 +453,12 @@ function sha256(payload) {
   return createHash("sha256").update(payload).digest("hex");
 }
 
+function stableHtmlSha256(payload) {
+  return sha256(String(payload)
+    .replace(/nonce="[^"]*"/gu, 'nonce="__CSP_NONCE__"')
+    .replace(/'nonce-[^']*'/gu, "'nonce-__CSP_NONCE__'"));
+}
+
 function resolveMaterializationGatewayUrl() {
   const explicit = String(process.env.IKIMON_R2_MATERIALIZATION_API_URL || "").trim();
   if (explicit) return explicit;
@@ -523,9 +547,26 @@ function wranglerR2Put(bucketName, key, filePath, contentType) {
   });
 }
 
-async function directR2Sync(allItems, tempDirPath, bucketName) {
+async function directR2Sync(allItems, tempDirPath, bucketName, receipt = null) {
   const versionPrefix = `original-ui/versions/${bundleHash}`;
-  await runPool(allItems, concurrency, async (item) => {
+  const selected = selectMaterializationItems(allItems, receipt);
+  uploadSummary.skipped += selected.skippedCount;
+  uploadSummary.uiR2PutCount = selected.uiR2PutCount;
+  if (selected.mode === "REUSE_EXACT") {
+    const provenance = receipt.prior_artifact_provenance;
+    if (provenance.bundle_hash !== bundleHash) throw new Error("impact_receipt_bundle_hash_mismatch");
+    return {
+      ok: true,
+      key: provenance.manifest_key,
+      sha256: provenance.manifest_sha256 || null,
+      versionPrefix: provenance.version_prefix,
+      pointerKey: provenance.pointer_key,
+      transport: "wrangler-r2",
+      skipped: true,
+      reason: "reuse_exact",
+    };
+  }
+  await runPool(selected.items, concurrency, async (item) => {
     const relativeKey = item.key.replace(/^original-ui\//, "");
     await wranglerR2Put(bucketName, `${versionPrefix}/${relativeKey}`, item.filePath, item.contentType);
     uploadSummary.updated += 1;
@@ -568,7 +609,10 @@ async function directR2Sync(allItems, tempDirPath, bucketName) {
     sha256: sha256(manifestPayload),
     versionPrefix,
     pointerKey,
-    transport: "wrangler-r2"
+    transport: "wrangler-r2",
+    uiR2PutCount: selected.uiR2PutCount,
+    selectionMode: selected.mode,
+    selectionReason: selected.reason,
   };
 }
 
@@ -638,7 +682,68 @@ let materializeSkipped = false;
 let skipReason = execute ? "not_requested" : "dry_run";
 let previousManifestSummary = null;
 let manifestUpload = { ok: false, key: manifestKey, skipped: true, reason: "not_executed" };
-const uploadSummary = { updated: 0, skipped: 0, failed: 0, resumed: 0, checkpoints: 0, durationMs: 0 };
+const uploadSummary = { updated: 0, skipped: 0, failed: 0, resumed: 0, checkpoints: 0, durationMs: 0, uiR2PutCount: 0 };
+
+if (execute && directR2 && impactReceipt?.reuse_decision === "REUSE_EXACT") {
+  const provenance = impactReceipt.prior_artifact_provenance;
+  bundleHash = provenance.bundle_hash;
+  materializeSkipped = true;
+  skipReason = "reuse_exact_binding_receipt";
+  manifestUpload = {
+    ok: true,
+    skipped: true,
+    reason: "reuse_exact_binding_receipt",
+    key: provenance.manifest_key,
+    sha256: provenance.manifest_sha256 || null,
+    versionPrefix: provenance.version_prefix,
+    pointerKey: provenance.pointer_key,
+    transport: directR2 ? "wrangler-r2" : "signed-gateway",
+  };
+  events.push({
+    command: "reuse exact derived UI artifact from binding receipt",
+    exitCode: 0,
+    durationMs: 0,
+    updated: 0,
+    skipped: 0,
+    failed: 0,
+    uiR2PutCount: 0,
+  });
+  await app.close();
+  await rm(tempDir, { recursive: true, force: true });
+  const result = {
+    ok: true,
+    sourceSha: materializationSourceSha,
+    mode: "execute",
+    r2WritesRequested: true,
+    r2WritesExecuted: false,
+    bucket,
+    targetEnv,
+    scope,
+    transport: "wrangler-r2",
+    concurrency,
+    skipIfUnchanged,
+    impactReceipt: {
+      locator: impactReceiptPath,
+      receiptDigest: impactReceipt.receipt_digest,
+      reuseDecision: impactReceipt.reuse_decision,
+      artifactIdentityDigest: impactReceipt.artifact_identity_digest,
+    },
+    manifestKey,
+    bundleHash,
+    materializeSkipped,
+    skipReason,
+    previousManifest: null,
+    manifestUpload,
+    uploadSummary,
+    rendered: [],
+    renderedStatic: [],
+    events,
+  };
+  const resultText = `${JSON.stringify(result, null, 2)}\n`;
+  if (outputPath) await writeFile(outputPath, resultText, "utf8");
+  console.log(resultText);
+  process.exit(0);
+}
 
 try {
   for (const pathname of targets) {
@@ -671,7 +776,8 @@ try {
       pathname,
       key,
       bytes: Buffer.byteLength(response.body),
-      sha256: sha256(response.body),
+    sha256: sha256(response.body),
+      identitySha256: stableHtmlSha256(response.body),
       filePath,
       contentType: "text/html"
     });
@@ -702,6 +808,7 @@ try {
       key,
       bytes: payload.byteLength,
       sha256: sha256(payload),
+      identitySha256: sha256(payload),
       filePath,
       contentType: expectedContentType
     });
@@ -717,7 +824,7 @@ try {
     const uploadStartedAt = Date.now();
     const allItems = [...rendered, ...renderedStatic];
     if (directR2) {
-      manifestUpload = await directR2Sync(allItems, tempDir, bucket);
+      manifestUpload = await directR2Sync(allItems, tempDir, bucket, impactReceipt);
       skipReason = `direct_${targetEnv}_r2`;
     } else {
       const state = await gatewayRequest({ op: "state" });
@@ -753,7 +860,7 @@ try {
             const result = await gatewayRequest({
               op: "put",
               key,
-              sha256: item.sha256,
+    sha256: item.identitySha256 || item.sha256,
               content_type: materializationGatewayContentType(item.contentType),
               body_base64: payload.toString("base64")
             });
@@ -813,6 +920,12 @@ const result = {
   transport: directR2 ? "wrangler-r2" : "signed-gateway",
   concurrency,
   skipIfUnchanged,
+  impactReceipt: impactReceipt ? {
+    locator: impactReceiptPath,
+    receiptDigest: impactReceipt.receipt_digest,
+    reuseDecision: impactReceipt.reuse_decision,
+    artifactIdentityDigest: impactReceipt.artifact_identity_digest,
+  } : null,
   manifestKey,
   bundleHash,
   materializeSkipped,
@@ -820,8 +933,8 @@ const result = {
   previousManifest: previousManifestSummary,
   manifestUpload,
   uploadSummary,
-  rendered: rendered.map(({ pathname, key, bytes, sha256 }) => ({ pathname, key, bytes, sha256 })),
-  renderedStatic: renderedStatic.map(({ pathname, key, bytes, sha256 }) => ({ pathname, key, bytes, sha256 })),
+  rendered: rendered.map(({ pathname, key, bytes, sha256: contentSha256, identitySha256 }) => ({ pathname, key, bytes, sha256: contentSha256, identitySha256 })),
+  renderedStatic: renderedStatic.map(({ pathname, key, bytes, sha256: contentSha256, identitySha256 }) => ({ pathname, key, bytes, sha256: contentSha256, identitySha256 })),
   events
 };
 
