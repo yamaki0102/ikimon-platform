@@ -548,7 +548,7 @@ function escapeAttribute(value: string): string {
 
 function nonceAttribute(html: string, cspNonce = ""): string {
   const match = html.match(/<script\b[^>]*\bnonce=(["'])([^"']+)\1/iu);
-  const nonce = match?.[2] || cspNonce;
+  const nonce = cspNonce || match?.[2];
   return nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
 }
 
@@ -561,9 +561,19 @@ function shouldPatchHtml(html: string): boolean {
   return ELIGIBLE_HTML_MARKERS.some((marker) => html.includes(marker));
 }
 
+function repairMarkedNonce(html: string, nonce: string): string {
+  if (!nonce) return html;
+  return html.replace(/<(script|style)\b([^>]*?)>/giu, (full, tagName: string, attributes: string) => {
+    if (!attributes.includes(PATCH_MARKER) && !attributes.includes(`id="${STYLE_ID}"`)) return full;
+    const withoutNonce = attributes.replace(/\snonce=(?:"[^"]*"|'[^']*'|[^\s>]+)/iu, "");
+    return `<${tagName}${withoutNonce}${nonce}>`;
+  });
+}
+
 export function applyPostCaptureValueLoopPatch(html: string, cspNonce = ""): string {
-  if (html.includes(PATCH_MARKER) || !shouldPatchHtml(html)) return html;
   const nonce = nonceAttribute(html, cspNonce);
+  if (html.includes(PATCH_MARKER)) return repairMarkedNonce(html, nonce);
+  if (!shouldPatchHtml(html)) return html;
   const payload = `<style id="${STYLE_ID}"${nonce}>${INJECTED_STYLE}</style><script ${PATCH_MARKER}${nonce}>${INJECTED_SCRIPT}</script>`;
   if (html.includes("</head>")) return html.replace("</head>", `${payload}\n</head>`);
   return `${payload}${html}`;

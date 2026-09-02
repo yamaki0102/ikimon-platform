@@ -123,3 +123,20 @@ test("dynamic compatibility injection reuses the response CSP nonce", async () =
   assert.match(patched, /<style id="ikimon-post-capture-value-loop-compact-style" nonce="page-csp-nonce">/u);
   assert.doesNotMatch(patched, /unsafe-inline/u);
 });
+
+test("existing marked compatibility injection repairs an empty nonce", async () => {
+  const marked = applyPostCaptureValueLoopCompatibilityPatch(detailHtml).replace(/nonce="compat-nonce"/gu, 'nonce=""');
+  const response = await enforcePostCaptureValueLoopCompatibility(
+    new Request("https://ikimon.life/ja/observations/record-1"),
+    new Response(marked, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-page-csp-nonce'",
+        "x-ikimon-csp-nonce": "page-csp-nonce",
+      },
+    }),
+  );
+  const patched = await response.text();
+  assert.equal((patched.match(/data-ikimon-post-capture-value-loop-compat="v2"/gu) ?? []).length, 1);
+  assert.match(patched, /data-ikimon-post-capture-value-loop-compat="v2" nonce="page-csp-nonce"/u);
+});

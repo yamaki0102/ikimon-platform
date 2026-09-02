@@ -77,6 +77,23 @@ test("dynamic detail injection reuses the response CSP nonce when HTML has no sc
   assert.doesNotMatch(patched, /unsafe-inline/u);
 });
 
+test("existing marked detail injection repairs an empty nonce without adding a duplicate patch", async () => {
+  const marked = applyPostCaptureValueLoopPatch(detailHtml).replace(/nonce="detail-nonce"/gu, 'nonce=""');
+  const response = await enhancePostCaptureValueLoop(
+    new Request("https://ikimon.life/ja/observations/visit-detail-contract"),
+    new Response(marked, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-page-csp-nonce'",
+        "x-ikimon-csp-nonce": "page-csp-nonce",
+      },
+    }),
+  );
+  const patched = await response.text();
+  assert.equal((patched.match(/data-ikimon-post-capture-value-loop="v1"/gu) ?? []).length, 1);
+  assert.match(patched, /data-ikimon-post-capture-value-loop="v1" nonce="page-csp-nonce"/u);
+});
+
 test("patch is idempotent and skips unrelated HTML", () => {
   const once = applyPostCaptureValueLoopPatch(detailHtml);
   const twice = applyPostCaptureValueLoopPatch(once);
