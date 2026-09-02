@@ -5,97 +5,1281 @@
     "meaning": "product.json, SPEC, ADR and requirements",
     "navigation": "this file is a static dependency and implementation navigation projection",
     "resolved_status": "operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus",
-    "forbidden_local_state": ["evidence.json", "source-audit", "learning.json", "derived status", "next-slice selector"]
+    "forbidden_local_state": [
+      "evidence.json",
+      "source-audit",
+      "learning.json",
+      "derived status",
+      "next-slice selector"
+    ]
   },
   "execution_roadmap": {
     "strategy_locator": "yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md",
     "product_plan_locator": "docs/spec/zukan-product-architecture/PLAN.md",
-    "wave0": "close current M1-M6/App Experience foundation into regression-protected state before reopening it as feature work",
+    "wave0": "keep the M1-M6/App Experience Core Loop verified; loop-stage defects and owner-adopted product-value corrections are Core Loop lane work, not deferred foundation debt",
+    "executor_slot_lanes": [
+      "CORE_LOOP",
+      "SELF_SERVE_FOUNDATION",
+      "ROADMAP_FRONTIER"
+    ],
+    "executor_slot_lane_rule": "one executor implementation Task at a time, filled by lane priority not milestone number; a lower lane is pre-empted, never cancelled; read-only design, demand probes and manual paid delivery do not use the slot",
+    "executor_slot_lane_rule_is_executor_autonomous": false,
+    "core_loop": "撮る -> 保存 -> AI候補 -> Review -> Areaに蓄積 -> 再訪 -> Program参加 -> Publication -> 次の参加",
+    "core_loop_adopted_corrections": [
+      "yamaki0102/ikimon-platform#1647",
+      "docs/implementation/zukan_area_encyclopedia_shared_renderer_p0_2026-09-02.md",
+      "docs/implementation/zukan_ryuyo_core_nearby_context_contract_2026-09-02.md"
+    ],
+    "promotion_boundaries": [
+      "MILESTONE_DESIGN_EXIT",
+      "FIRST_RUNTIME_MUTATION",
+      "PRODUCTION"
+    ],
+    "source_only_subslices_need_separate_promotion": false,
+    "m7_calendar_gate": {
+      "m7_4_staging_live_verified_by": "2027-01",
+      "m7_5_production_by": "2027-02",
+      "reason": "April school/fiscal-year turnover"
+    },
+    "m9_demand_probe_required_before_profile_code": true,
+    "m12_manual_paid_delivery_allowed_before_software": true,
     "selection_rule": "real demand x reuse value x existing Core fit x adoption/revenue effect / implementation and operational burden",
     "selection_rule_is_executor_autonomous": false,
-    "always_on_tracks": ["UX_QUALITY", "RIGHTS_SAFETY", "PRODUCT_REGISTRY_EVIDENCE", "DEMAND_LEARNING"]
+    "always_on_tracks": [
+      "UX_QUALITY",
+      "RIGHTS_SAFETY",
+      "PRODUCT_REGISTRY_EVIDENCE",
+      "DEMAND_LEARNING"
+    ],
+    "delivered_definition": "running in production and observed working there, with read-back evidence bound to the exact source SHA; source-verified, staging-verified, merged and deployed are progress states, not delivery",
+    "landing_rule": "a lane may not start a new implementation slice while it holds a source-verified but undelivered slice; deliver, revert or close the older slice instead of opening a replacement fix for the same defect",
+    "core_loop_returns_something_to_contributor": true,
+    "current_executor_task_id": "task.zukan.core-loop.capture-feedback-delivered",
+    "core_loop_requirements_verified_in_production": [
+      "quality.zukan.capture.truthful-status",
+      "quality.zukan.capture.ai-candidate",
+      "quality.zukan.capture.idempotent-save",
+      "quality.zukan.capture.draft-recovery",
+      "quality.zukan.place.record-accumulation-visible",
+      "quality.zukan.review.contributor-return"
+    ]
   },
   "planning_metrics": {
     "mode": "BASELINE_BEFORE_TARGETS",
-    "metrics": ["first_record_completion", "program_self_start_rate", "join_completion", "review_lead_time", "support_minutes_per_program", "handover_completion", "raw_portability_success", "publication_reuse", "repeat_program_rate", "paid_outcome_conversion"],
-    "privacy_minimization_required": true
+    "core_loop_baselines": [
+      "first_record_completion",
+      "ai_feedback_delivery_delay",
+      "review_lead_time",
+      "place_revisit_rate",
+      "publication_feed_inclusion_count"
+    ],
+    "frontier_baselines": [
+      "program_self_start_rate",
+      "join_completion",
+      "handover_completion",
+      "raw_portability_success",
+      "repeat_program_rate",
+      "publication_reuse"
+    ],
+    "business_baselines_recorded_by_operations": [
+      "support_minutes_per_program",
+      "paid_outcome_conversion"
+    ],
+    "privacy_minimization_required": true,
+    "note": "product metrics use existing product records or the governed feed projection; support and paid conversion use operations records; no metric introduces new user tracking"
   },
   "dependency_graph": {
     "edges": [
-      {"requirement":"quality.zukan.capture.owner-return","depends_on":["quality.zukan.capture.idempotent-save","quality.zukan.capture.location-optional"]},
-      {"requirement":"quality.zukan.home.owner-context","depends_on":["quality.zukan.capture.owner-return"]},
-      {"requirement":"quality.zukan.record.source-reference-integrity","depends_on":["quality.zukan.capture.owner-return"]},
-      {"requirement":"quality.zukan.record.claim-separation","depends_on":["quality.zukan.record.source-reference-integrity"]},
-      {"requirement":"quality.zukan.place.context-integrity","depends_on":["quality.zukan.record.source-reference-integrity"]},
-      {"requirement":"quality.zukan.trust.explicit-publication","depends_on":["quality.zukan.trust.private-default","quality.zukan.review.provenance"]},
-      {"requirement":"quality.zukan.rights.consent-scope","depends_on":["quality.zukan.trust.private-default"]},
-      {"requirement":"quality.zukan.rights.minor-guardian-consent","depends_on":["quality.zukan.rights.consent-scope"]},
-      {"requirement":"quality.zukan.rights.exif-minimization","depends_on":["quality.zukan.record.source-reference-integrity"]},
-      {"requirement":"quality.zukan.rights.export-withdrawal-deletion","depends_on":["quality.zukan.rights.consent-scope","quality.zukan.publication.edition-integrity"]},
-      {"requirement":"quality.zukan.rights.retention","depends_on":["quality.zukan.rights.export-withdrawal-deletion"]},
-      {"requirement":"quality.zukan.publication.edition-integrity","depends_on":["quality.zukan.trust.public-projection","quality.zukan.record.source-reference-integrity"]},
-      {"requirement":"quality.zukan.publication.correction-takedown","depends_on":["quality.zukan.publication.edition-integrity","quality.zukan.review.provenance"]},
-      {"requirement":"quality.zukan.workspace.contribution","depends_on":["quality.zukan.workspace.membership-authorization","quality.zukan.capture.owner-return"]},
-      {"requirement":"quality.zukan.workspace.review","depends_on":["quality.zukan.workspace.membership-authorization","quality.zukan.review.provenance"]},
-      {"requirement":"quality.zukan.workspace.explicit-publish","depends_on":["quality.zukan.workspace.review","quality.zukan.rights.consent-scope"]},
-      {"requirement":"quality.zukan.program-event-quest.lifecycle","depends_on":["quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution"]},
-      {"requirement":"quality.zukan.free-core.boundary","depends_on":["quality.zukan.rights.consent-scope","quality.zukan.program-event-quest.lifecycle"]},
-      {"requirement":"quality.zukan.map.live-camera-source-eligibility","depends_on":["quality.zukan.rights.consent-scope","quality.zukan.map.safe-discovery"]},
-      {"requirement":"quality.zukan.map.live-camera-health","depends_on":["quality.zukan.map.live-camera-source-eligibility"]},
-      {"requirement":"quality.zukan.map.live-camera-lazy-playback","depends_on":["quality.zukan.map.live-camera-source-eligibility","quality.zukan.map.safe-discovery"]},
-      {"requirement":"quality.zukan.map.live-camera-record-context","depends_on":["quality.zukan.map.live-camera-health","quality.zukan.map.live-camera-lazy-playback","quality.zukan.records.public-discovery"]},
-      {"requirement":"quality.zukan.program.self-serve-activation","depends_on":["quality.zukan.program-event-quest.lifecycle","quality.zukan.workspace.membership-authorization"]},
-      {"requirement":"quality.zukan.program.participation","depends_on":["quality.zukan.program.self-serve-activation","quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.rights.minor-guardian-consent"]},
-      {"requirement":"quality.zukan.program.closeout-rehost","depends_on":["quality.zukan.program.participation","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish"]},
-      {"requirement":"quality.zukan.program.free-output-boundary","depends_on":["quality.zukan.program.closeout-rehost","quality.zukan.free-core.boundary"]},
-      {"requirement":"quality.zukan.handover.provenance","depends_on":["quality.zukan.program.closeout-rehost","quality.zukan.workspace.membership-authorization"]},
-      {"requirement":"quality.zukan.handover.selective-reuse","depends_on":["quality.zukan.handover.provenance","quality.zukan.handover.lifecycle-reset"]},
-      {"requirement":"quality.zukan.handover.responsibility-transfer","depends_on":["quality.zukan.handover.provenance","quality.zukan.workspace.membership-authorization"]},
-      {"requirement":"quality.zukan.handover.lifecycle-reset","depends_on":["quality.zukan.handover.provenance","quality.zukan.rights.consent-scope","quality.zukan.workspace.review"]},
-      {"requirement":"quality.zukan.handover.idempotency","depends_on":["quality.zukan.handover.provenance"]},
-      {"requirement":"quality.zukan.handover.persistence","depends_on":["quality.zukan.handover.provenance","quality.zukan.handover.lifecycle-reset","quality.zukan.handover.idempotency"]},
-      {"requirement":"quality.zukan.handover.outgoing-selection","depends_on":["quality.zukan.handover.persistence","quality.zukan.handover.selective-reuse","quality.zukan.handover.responsibility-transfer"]},
-      {"requirement":"quality.zukan.operational-summary.free","depends_on":["quality.zukan.program.free-output-boundary","quality.zukan.program.closeout-rehost"]},
-      {"requirement":"quality.zukan.raw-record-portability","depends_on":["quality.zukan.rights.consent-scope","quality.zukan.record.source-reference-integrity","quality.zukan.program.free-output-boundary"]}
+      {
+        "requirement": "quality.zukan.capture.owner-return",
+        "depends_on": [
+          "quality.zukan.capture.idempotent-save",
+          "quality.zukan.capture.location-optional"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.home.owner-context",
+        "depends_on": [
+          "quality.zukan.capture.owner-return"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.record.source-reference-integrity",
+        "depends_on": [
+          "quality.zukan.capture.owner-return"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.record.claim-separation",
+        "depends_on": [
+          "quality.zukan.record.source-reference-integrity"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.place.context-integrity",
+        "depends_on": [
+          "quality.zukan.record.source-reference-integrity"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.trust.explicit-publication",
+        "depends_on": [
+          "quality.zukan.trust.private-default",
+          "quality.zukan.review.provenance"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.rights.consent-scope",
+        "depends_on": [
+          "quality.zukan.trust.private-default"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.rights.minor-guardian-consent",
+        "depends_on": [
+          "quality.zukan.rights.consent-scope"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.rights.exif-minimization",
+        "depends_on": [
+          "quality.zukan.record.source-reference-integrity"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.rights.export-withdrawal-deletion",
+        "depends_on": [
+          "quality.zukan.rights.consent-scope",
+          "quality.zukan.publication.edition-integrity"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.rights.retention",
+        "depends_on": [
+          "quality.zukan.rights.export-withdrawal-deletion"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.publication.edition-integrity",
+        "depends_on": [
+          "quality.zukan.trust.public-projection",
+          "quality.zukan.record.source-reference-integrity"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.publication.correction-takedown",
+        "depends_on": [
+          "quality.zukan.publication.edition-integrity",
+          "quality.zukan.review.provenance"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.workspace.contribution",
+        "depends_on": [
+          "quality.zukan.workspace.membership-authorization",
+          "quality.zukan.capture.owner-return"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.workspace.review",
+        "depends_on": [
+          "quality.zukan.workspace.membership-authorization",
+          "quality.zukan.review.provenance"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.workspace.explicit-publish",
+        "depends_on": [
+          "quality.zukan.workspace.review",
+          "quality.zukan.rights.consent-scope"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.program-event-quest.lifecycle",
+        "depends_on": [
+          "quality.zukan.workspace.membership-authorization",
+          "quality.zukan.workspace.contribution"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.free-core.boundary",
+        "depends_on": [
+          "quality.zukan.rights.consent-scope",
+          "quality.zukan.program-event-quest.lifecycle"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.map.live-camera-source-eligibility",
+        "depends_on": [
+          "quality.zukan.rights.consent-scope",
+          "quality.zukan.map.safe-discovery"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.map.live-camera-health",
+        "depends_on": [
+          "quality.zukan.map.live-camera-source-eligibility"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.map.live-camera-lazy-playback",
+        "depends_on": [
+          "quality.zukan.map.live-camera-source-eligibility",
+          "quality.zukan.map.safe-discovery"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.map.live-camera-record-context",
+        "depends_on": [
+          "quality.zukan.map.live-camera-health",
+          "quality.zukan.map.live-camera-lazy-playback",
+          "quality.zukan.records.public-discovery"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.program.self-serve-activation",
+        "depends_on": [
+          "quality.zukan.program-event-quest.lifecycle",
+          "quality.zukan.workspace.membership-authorization"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.program.participation",
+        "depends_on": [
+          "quality.zukan.program.self-serve-activation",
+          "quality.zukan.workspace.membership-authorization",
+          "quality.zukan.workspace.contribution",
+          "quality.zukan.rights.minor-guardian-consent"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.program.closeout-rehost",
+        "depends_on": [
+          "quality.zukan.program.participation",
+          "quality.zukan.workspace.review",
+          "quality.zukan.workspace.explicit-publish"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.program.free-output-boundary",
+        "depends_on": [
+          "quality.zukan.program.closeout-rehost",
+          "quality.zukan.free-core.boundary"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.handover.provenance",
+        "depends_on": [
+          "quality.zukan.program.closeout-rehost",
+          "quality.zukan.workspace.membership-authorization"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.handover.selective-reuse",
+        "depends_on": [
+          "quality.zukan.handover.provenance",
+          "quality.zukan.handover.lifecycle-reset"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.handover.responsibility-transfer",
+        "depends_on": [
+          "quality.zukan.handover.provenance",
+          "quality.zukan.workspace.membership-authorization"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.handover.lifecycle-reset",
+        "depends_on": [
+          "quality.zukan.handover.provenance",
+          "quality.zukan.rights.consent-scope",
+          "quality.zukan.workspace.review"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.handover.idempotency",
+        "depends_on": [
+          "quality.zukan.handover.provenance"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.handover.persistence",
+        "depends_on": [
+          "quality.zukan.handover.provenance",
+          "quality.zukan.handover.lifecycle-reset",
+          "quality.zukan.handover.idempotency"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.handover.outgoing-selection",
+        "depends_on": [
+          "quality.zukan.handover.persistence",
+          "quality.zukan.handover.selective-reuse",
+          "quality.zukan.handover.responsibility-transfer"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.operational-summary.free",
+        "depends_on": [
+          "quality.zukan.program.free-output-boundary",
+          "quality.zukan.program.closeout-rehost"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.raw-record-portability",
+        "depends_on": [
+          "quality.zukan.rights.consent-scope",
+          "quality.zukan.record.source-reference-integrity",
+          "quality.zukan.program.free-output-boundary"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.place.record-accumulation-visible",
+        "depends_on": [
+          "quality.zukan.place.context-integrity",
+          "quality.zukan.record.source-reference-integrity"
+        ]
+      },
+      {
+        "requirement": "quality.zukan.review.contributor-return",
+        "depends_on": [
+          "quality.zukan.workspace.review",
+          "quality.zukan.review.provenance"
+        ]
+      }
     ]
   },
   "rolling_frontier": {
     "active": "milestone.m7.program-continuity-handover",
     "ready_next": "milestone.m8.operational-summary-raw-portability",
     "shaped_next": "milestone.m9.regional-program-profiles",
-    "dependency_shaped": ["milestone.m10.regional-publication-profiles","milestone.m11.source-public-projection-exchange","milestone.m12.professional-managed-outcomes"],
-    "deferred": ["milestone.m5.live-camera-poc"],
+    "dependency_shaped": [
+      "milestone.m10.regional-publication-profiles",
+      "milestone.m11.source-public-projection-exchange",
+      "milestone.m12.professional-managed-outcomes"
+    ],
+    "deferred": [
+      "milestone.m5.live-camera-poc"
+    ],
     "max_executor_implementation_tasks": 1,
     "profile_horizon": "docs/spec/zukan-product-architecture/PROFILE_HORIZON.md"
   },
   "roadmap": [
-    {"id":"milestone.m1.personal-record-media-integrity","rank":1,"scope":"Personal Record/media integrity","target_requirements":["quality.zukan.capture.entry","quality.zukan.capture.source-choice","quality.zukan.capture.immediate-preview","quality.zukan.capture.location-optional","quality.zukan.capture.ai-candidate","quality.zukan.capture.draft-recovery","quality.zukan.capture.idempotent-save","quality.zukan.capture.truthful-status","quality.zukan.capture.owner-return","quality.zukan.home.owner-context","quality.zukan.record.source-reference-integrity","quality.zukan.record.claim-separation","quality.zukan.place.context-integrity","quality.zukan.rights.exif-minimization"]},
-    {"id":"milestone.m2.safe-publication-rights-lifecycle","rank":2,"scope":"Safe Publication + rights/data lifecycle","target_requirements":["quality.zukan.trust.private-default","quality.zukan.trust.explicit-publication","quality.zukan.trust.location-minimization","quality.zukan.trust.face-private-place-safety","quality.zukan.trust.ai-candidate-not-fact","quality.zukan.trust.confirmation-provenance","quality.zukan.trust.public-projection","quality.zukan.trust.existing-rights-preserved","quality.zukan.records.public-discovery","quality.zukan.map.safe-discovery","quality.zukan.review.provenance","quality.zukan.rights.consent-scope","quality.zukan.rights.minor-guardian-consent","quality.zukan.rights.export-withdrawal-deletion","quality.zukan.rights.retention","quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown","quality.zukan.free-core.boundary"]},
-    {"id":"milestone.m3.program-event-quest-workspace","rank":3,"scope":"Program/Event/Quest/Workspace collaboration","target_requirements":["quality.zukan.program-event-quest.lifecycle","quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish"]},
-    {"id":"milestone.m4.regional-publication-portability","rank":4,"scope":"Regional knowledge / PublicationEdition / portability / correction","target_requirements":["quality.zukan.place.context-integrity","quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown","quality.zukan.rights.export-withdrawal-deletion","quality.zukan.rights.retention"]},
-    {"id":"milestone.m5.live-camera-poc","rank":5,"scope":"Live-camera POC","target_requirements":["quality.zukan.map.live-camera-source-eligibility","quality.zukan.map.live-camera-health","quality.zukan.map.live-camera-lazy-playback","quality.zukan.map.live-camera-record-context"],"poc_constraints":["20-50 official/authorized sources","浜松・磐田・静岡","existing MapLibre additive layer","pin selection lazy-load","no frame save/extraction/AI without separate rights"]},
-    {"id":"milestone.m6.self-serve-program-activation","rank":6,"scope":"Self-Serve Program Activation / current observation-event profile","target_requirements":["quality.zukan.program.self-serve-activation","quality.zukan.program.participation","quality.zukan.program.closeout-rehost","quality.zukan.program.free-output-boundary"],"decision_ref":"M6 production verification proves the observation-event Program profile; it does not define all future Program profiles"},
-    {"id":"milestone.m7.program-continuity-handover","rank":7,"scope":"Program Continuity & Handover","target_requirements":["quality.zukan.handover.provenance","quality.zukan.handover.selective-reuse","quality.zukan.handover.responsibility-transfer","quality.zukan.handover.lifecycle-reset","quality.zukan.handover.idempotency","quality.zukan.handover.persistence","quality.zukan.handover.outgoing-selection"],"readiness":"active-implementation","implementation_allowed":true,"decision_ref":"cross-profile foundation; M7.0 and M7.1 source-verified; M7.2 outgoing pending-acceptance offer explicitly promoted; M7.3+ require later promotion","promotion_conditions":["no unresolved product or rights decision in planner scope","Requirement/Journey/dependency/negative Eval/fixture coverage complete","first implementation slice expressible as short Source/Delta/Done without executor product invention"],"implementation_sequence_after_promotion":["M7.0_side_effect_zero_planner","M7.1_persistence_idempotency","M7.2_outgoing_selection","M7.3_incoming_acceptance","M7.4_real_staging_handover","M7.5_production_promotion"]},
-    {"id":"milestone.m8.operational-summary-raw-portability","rank":8,"scope":"Operational Summary & Raw Portability","target_requirements":["quality.zukan.operational-summary.free","quality.zukan.raw-record-portability"],"readiness":"ready-next-design","implementation_allowed":false,"decision_ref":"cross-profile foundation; M8-A and M8-B remain separate from paid derived outputs","contracts":["M8-A_OperationalActivitySummary","M8-B_RawRecordPortabilityArchive"],"promotion_conditions":["M8-A and M8-B separately testable","free operational summary excludes derived taxon/biodiversity report output","raw archive remains Record-granular and does not reuse research export semantics"]},
-    {"id":"milestone.m9.regional-program-profiles","rank":9,"scope":"Regional Program Profiles","target_requirements":["quality.zukan.program-event-quest.lifecycle","quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish","quality.zukan.rights.consent-scope","quality.zukan.rights.minor-guardian-consent","quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown"],"readiness":"shaped-next","implementation_allowed":false,"profile_families":["photo_contest","sketch_drawing_event","mission_town_walk","stamp_rally","children_citizen_editorial","tourism_regional_engagement"],"default_priority_groups":[["photo_contest"],["mission_town_walk"],["children_citizen_editorial","sketch_drawing_event"],["tourism_regional_engagement"]],"stamp_rally_initial_mode":"MISSION_TOWN_WALK_VARIATION","decision_ref":"docs/spec/zukan-product-architecture/PROFILE_HORIZON.md#M9","promotion_conditions":["M7/M8 frontier conditions satisfied","selected profile has explicit fixtures","selected profile has explicit rights/Review differences and acceptance Evals","product authority records selected profile"]},
-    {"id":"milestone.m10.regional-publication-profiles","rank":10,"scope":"Regional Publication Profiles","target_requirements":["quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown","quality.zukan.trust.public-projection","quality.zukan.rights.consent-scope","quality.zukan.review.provenance","quality.zukan.place.context-integrity"],"readiness":"dependency-shaped","implementation_allowed":false,"profile_families":["regional_theme_encyclopedia","tourism_map_guide_route","history_culture_collection","facility_shop_organization_collection","consented_people_profile","program_campaign_result","paper_pdf_manifest","api_dataset_projection"],"default_priority":["program_campaign_result","regional_theme_encyclopedia","history_culture_collection","tourism_map_guide_route","facility_shop_organization_collection","consented_people_profile","paper_pdf_manifest","api_dataset_projection"],"decision_ref":"docs/spec/zukan-product-architecture/PROFILE_HORIZON.md#M10"},
-    {"id":"milestone.m11.source-public-projection-exchange","rank":11,"scope":"Source & Public Projection Exchange","target_requirements":["quality.zukan.record.source-reference-integrity","quality.zukan.record.claim-separation","quality.zukan.rights.consent-scope","quality.zukan.trust.public-projection","quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown"],"readiness":"dependency-shaped","implementation_allowed":false,"source_families":["municipal_open_data","government_dmo_tourism_sources","pdf_web_paper_editions","school_company_community_publishers","nocosil_public_safe_projection"],"default_slice_order":["M11-A_SOURCE_EXCHANGE_PACKAGE_V1","M11-B_NOCOSIL_TO_ZUKAN","M11-C_EXTERNAL_PUBLISHER_ADAPTERS","M11-D_CORRECTION_REVOCATION_WRITEBACK"],"decision_ref":"docs/spec/zukan-product-architecture/PROFILE_HORIZON.md#M11"},
-    {"id":"milestone.m12.professional-managed-outcomes","rank":12,"scope":"Professional & Managed Outcomes","target_requirements":["quality.zukan.free-core.boundary","quality.zukan.program.free-output-boundary","quality.zukan.review.provenance","quality.zukan.rights.consent-scope"],"readiness":"dependency-shaped-demand-gated","implementation_allowed":false,"outcome_families":["PROFESSIONAL_REPORT","PUBLICATION_PRODUCTION","MANAGED_PROGRAM","INTEGRATION_DATA_WORK"],"decision_ref":"paid outcome/support only after repeated demand evidence; billing SaaS is not the first slice"}
+    {
+      "id": "milestone.m1.personal-record-media-integrity",
+      "rank": 1,
+      "scope": "Personal Record/media integrity",
+      "target_requirements": [
+        "quality.zukan.capture.entry",
+        "quality.zukan.capture.source-choice",
+        "quality.zukan.capture.immediate-preview",
+        "quality.zukan.capture.location-optional",
+        "quality.zukan.capture.ai-candidate",
+        "quality.zukan.capture.draft-recovery",
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.capture.truthful-status",
+        "quality.zukan.capture.owner-return",
+        "quality.zukan.home.owner-context",
+        "quality.zukan.record.source-reference-integrity",
+        "quality.zukan.record.claim-separation",
+        "quality.zukan.place.context-integrity",
+        "quality.zukan.rights.exif-minimization"
+      ]
+    },
+    {
+      "id": "milestone.m2.safe-publication-rights-lifecycle",
+      "rank": 2,
+      "scope": "Safe Publication + rights/data lifecycle",
+      "target_requirements": [
+        "quality.zukan.trust.private-default",
+        "quality.zukan.trust.explicit-publication",
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.trust.face-private-place-safety",
+        "quality.zukan.trust.ai-candidate-not-fact",
+        "quality.zukan.trust.confirmation-provenance",
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.trust.existing-rights-preserved",
+        "quality.zukan.records.public-discovery",
+        "quality.zukan.map.safe-discovery",
+        "quality.zukan.review.provenance",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.rights.minor-guardian-consent",
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.rights.retention",
+        "quality.zukan.publication.edition-integrity",
+        "quality.zukan.publication.correction-takedown",
+        "quality.zukan.free-core.boundary"
+      ]
+    },
+    {
+      "id": "milestone.m3.program-event-quest-workspace",
+      "rank": 3,
+      "scope": "Program/Event/Quest/Workspace collaboration",
+      "target_requirements": [
+        "quality.zukan.program-event-quest.lifecycle",
+        "quality.zukan.workspace.membership-authorization",
+        "quality.zukan.workspace.contribution",
+        "quality.zukan.workspace.review",
+        "quality.zukan.workspace.explicit-publish",
+        "quality.zukan.review.contributor-return"
+      ]
+    },
+    {
+      "id": "milestone.m4.regional-publication-portability",
+      "rank": 4,
+      "scope": "Regional knowledge / PublicationEdition / portability / correction",
+      "target_requirements": [
+        "quality.zukan.place.context-integrity",
+        "quality.zukan.publication.edition-integrity",
+        "quality.zukan.publication.correction-takedown",
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.rights.retention",
+        "quality.zukan.place.record-accumulation-visible"
+      ]
+    },
+    {
+      "id": "milestone.m5.live-camera-poc",
+      "rank": 5,
+      "scope": "Live-camera POC",
+      "target_requirements": [
+        "quality.zukan.map.live-camera-source-eligibility",
+        "quality.zukan.map.live-camera-health",
+        "quality.zukan.map.live-camera-lazy-playback",
+        "quality.zukan.map.live-camera-record-context"
+      ],
+      "poc_constraints": [
+        "20-50 official/authorized sources",
+        "浜松・磐田・静岡",
+        "existing MapLibre additive layer",
+        "pin selection lazy-load",
+        "no frame save/extraction/AI without separate rights"
+      ]
+    },
+    {
+      "id": "milestone.m6.self-serve-program-activation",
+      "rank": 6,
+      "scope": "Self-Serve Program Activation / current observation-event profile",
+      "target_requirements": [
+        "quality.zukan.program.self-serve-activation",
+        "quality.zukan.program.participation",
+        "quality.zukan.program.closeout-rehost",
+        "quality.zukan.program.free-output-boundary"
+      ],
+      "decision_ref": "M6 production verification proves the observation-event Program profile; it does not define all future Program profiles"
+    },
+    {
+      "id": "milestone.m7.program-continuity-handover",
+      "rank": 7,
+      "scope": "Program Continuity & Handover",
+      "target_requirements": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.responsibility-transfer",
+        "quality.zukan.handover.lifecycle-reset",
+        "quality.zukan.handover.idempotency",
+        "quality.zukan.handover.persistence",
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "readiness": "active-implementation",
+      "implementation_allowed": true,
+      "decision_ref": "cross-profile foundation; M7.0-M7.2 source-verified; M7.3 promoted by docs/spec/zukan-product-architecture/M7_3_PROMOTION_2026-09-02.md (source-only); M7.4 requires FIRST_RUNTIME_MUTATION promotion; M7.5 production boundary; calendar gate m7_calendar_gate; runs in ROADMAP_FRONTIER lane until the gate window",
+      "promotion_conditions": [
+        "no unresolved product or rights decision in planner scope",
+        "Requirement/Journey/dependency/negative Eval/fixture coverage complete",
+        "first implementation slice expressible as short Source/Delta/Done without executor product invention"
+      ],
+      "implementation_sequence_after_promotion": [
+        "M7.0_side_effect_zero_planner",
+        "M7.1_persistence_idempotency",
+        "M7.2_outgoing_selection",
+        "M7.3_incoming_acceptance",
+        "M7.4_real_staging_handover",
+        "M7.5_production_promotion"
+      ]
+    },
+    {
+      "id": "milestone.m8.operational-summary-raw-portability",
+      "rank": 8,
+      "scope": "Operational Summary & Raw Portability",
+      "target_requirements": [
+        "quality.zukan.operational-summary.free",
+        "quality.zukan.raw-record-portability"
+      ],
+      "readiness": "ready-next-design",
+      "implementation_allowed": false,
+      "decision_ref": "cross-profile foundation; M8-A and M8-B remain separate from paid derived outputs; neither waits for M7 completion (M8-A depends on M6 closeout/free-output boundary and reports handover state as unknown until M7 is live; M8-B depends on M1/M2 Record and rights lifecycle); M8-A is the first SELF_SERVE_FOUNDATION lane Task",
+      "contracts": [
+        "M8-A_OperationalActivitySummary",
+        "M8-B_RawRecordPortabilityArchive"
+      ],
+      "promotion_conditions": [
+        "M8-A and M8-B separately testable",
+        "free operational summary excludes derived taxon/biodiversity report output",
+        "raw archive remains Record-granular and does not reuse research export semantics"
+      ]
+    },
+    {
+      "id": "milestone.m9.regional-program-profiles",
+      "rank": 9,
+      "scope": "Regional Program Profiles",
+      "target_requirements": [
+        "quality.zukan.program-event-quest.lifecycle",
+        "quality.zukan.workspace.membership-authorization",
+        "quality.zukan.workspace.contribution",
+        "quality.zukan.workspace.review",
+        "quality.zukan.workspace.explicit-publish",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.rights.minor-guardian-consent",
+        "quality.zukan.publication.edition-integrity",
+        "quality.zukan.publication.correction-takedown"
+      ],
+      "readiness": "shaped-next",
+      "implementation_allowed": false,
+      "profile_families": [
+        "photo_contest",
+        "sketch_drawing_event",
+        "mission_town_walk",
+        "stamp_rally",
+        "children_citizen_editorial",
+        "tourism_regional_engagement"
+      ],
+      "default_priority_groups": [
+        [
+          "photo_contest"
+        ],
+        [
+          "mission_town_walk"
+        ],
+        [
+          "children_citizen_editorial",
+          "sketch_drawing_event"
+        ],
+        [
+          "tourism_regional_engagement"
+        ]
+      ],
+      "stamp_rally_initial_mode": "MISSION_TOWN_WALK_VARIATION",
+      "decision_ref": "docs/spec/zukan-product-architecture/PROFILE_HORIZON.md#M9",
+      "promotion_conditions": [
+        "M7/M8 frontier conditions satisfied",
+        "selected profile has explicit fixtures",
+        "selected profile has explicit rights/Review differences and acceptance Evals",
+        "product authority records selected profile"
+      ]
+    },
+    {
+      "id": "milestone.m10.regional-publication-profiles",
+      "rank": 10,
+      "scope": "Regional Publication Profiles",
+      "target_requirements": [
+        "quality.zukan.publication.edition-integrity",
+        "quality.zukan.publication.correction-takedown",
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.review.provenance",
+        "quality.zukan.place.context-integrity"
+      ],
+      "readiness": "dependency-shaped",
+      "implementation_allowed": false,
+      "profile_families": [
+        "regional_theme_encyclopedia",
+        "tourism_map_guide_route",
+        "history_culture_collection",
+        "facility_shop_organization_collection",
+        "consented_people_profile",
+        "program_campaign_result",
+        "paper_pdf_manifest",
+        "api_dataset_projection"
+      ],
+      "default_priority": [
+        "program_campaign_result",
+        "regional_theme_encyclopedia",
+        "history_culture_collection",
+        "tourism_map_guide_route",
+        "facility_shop_organization_collection",
+        "consented_people_profile",
+        "paper_pdf_manifest",
+        "api_dataset_projection"
+      ],
+      "decision_ref": "docs/spec/zukan-product-architecture/PROFILE_HORIZON.md#M10",
+      "existing_runtime_seed": {
+        "locator": "platform_v2/cloudflare_shadow/src/publicationFeedNative.ts",
+        "use": "public feed already consumed by external regional sites; harden consent surfacing, recency and eligibility observability in the Core Loop lane before new Publication Profiles; ZUKAN maintains no per-region consumer code"
+      }
+    },
+    {
+      "id": "milestone.m11.source-public-projection-exchange",
+      "rank": 11,
+      "scope": "Source & Public Projection Exchange",
+      "target_requirements": [
+        "quality.zukan.record.source-reference-integrity",
+        "quality.zukan.record.claim-separation",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.publication.edition-integrity",
+        "quality.zukan.publication.correction-takedown"
+      ],
+      "readiness": "dependency-shaped",
+      "implementation_allowed": false,
+      "source_families": [
+        "municipal_open_data",
+        "government_dmo_tourism_sources",
+        "pdf_web_paper_editions",
+        "school_company_community_publishers",
+        "nocosil_public_safe_projection"
+      ],
+      "default_slice_order": [
+        "M11-A_SOURCE_EXCHANGE_PACKAGE_V1",
+        "M11-B_NOCOSIL_TO_ZUKAN",
+        "M11-C_EXTERNAL_PUBLISHER_ADAPTERS",
+        "M11-D_CORRECTION_REVOCATION_WRITEBACK"
+      ],
+      "decision_ref": "docs/spec/zukan-product-architecture/PROFILE_HORIZON.md#M11"
+    },
+    {
+      "id": "milestone.m12.professional-managed-outcomes",
+      "rank": 12,
+      "scope": "Professional & Managed Outcomes",
+      "target_requirements": [
+        "quality.zukan.free-core.boundary",
+        "quality.zukan.program.free-output-boundary",
+        "quality.zukan.review.provenance",
+        "quality.zukan.rights.consent-scope"
+      ],
+      "readiness": "dependency-shaped-demand-gated",
+      "implementation_allowed": false,
+      "outcome_families": [
+        "PROFESSIONAL_REPORT",
+        "PUBLICATION_PRODUCTION",
+        "MANAGED_PROGRAM",
+        "INTEGRATION_DATA_WORK"
+      ],
+      "decision_ref": "paid outcome/support only after repeated demand evidence; billing SaaS is not the first slice"
+    }
   ],
   "implementation_tasks": [
-    {"id":"task.zukan.m1.record-media-integrity","milestone_id":"milestone.m1.personal-record-media-integrity","state":"implemented","requirement_ids":["quality.zukan.capture.idempotent-save","quality.zukan.capture.draft-recovery","quality.zukan.rights.exif-minimization"],"source_locators":["platform_v2/src/services/observationWrite.ts","platform_v2/src/services/observationPhotoUpload.ts","platform_v2/src/routes/write.ts"],"negative_eval_ids":["prop.capture.same-intent-one-record","prop.capture.partial-failure-recoverable","prop.media.exif-gps-not-public"]},
-    {"id":"task.zukan.m2.safe-publication","milestone_id":"milestone.m2.safe-publication-rights-lifecycle","state":"implemented","requirement_ids":["quality.zukan.trust.public-projection","quality.zukan.rights.consent-scope","quality.zukan.rights.minor-guardian-consent"],"source_locators":["platform_v2/src/services/observationDataRights.ts","platform_v2/src/services/publicationFeed.ts"],"negative_eval_ids":["prop.public.no-private-leak","prop.rights.external-inference-is-separate","prop.minor.guardian-consent-fail-closed"]},
-    {"id":"task.zukan.m3.collaboration","milestone_id":"milestone.m3.program-event-quest-workspace","state":"implemented","requirement_ids":["quality.zukan.program-event-quest.lifecycle","quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish"],"source_locators":["platform_v2/src/services/guidePrograms.ts","platform_v2/src/routes/observationEventApi.ts","platform_v2/src/services/observationEventParticipantAccess.ts","platform_v2/src/services/observationEventQuestEngine.ts"],"negative_eval_ids":["prop.workspace.authz-fail-closed","prop.workspace.membership-role-fail-closed","prop.workspace.review-before-public","prop.workspace.private-public-separation","prop.workspace.retry-converges"]},
-    {"id":"task.zukan.m4.publication-portability","milestone_id":"milestone.m4.regional-publication-portability","state":"implemented","requirement_ids":["quality.zukan.place.context-integrity","quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown","quality.zukan.rights.export-withdrawal-deletion","quality.zukan.rights.retention"],"source_locators":["platform_v2/src/services/areaPlaceSnapshot.ts","platform_v2/src/services/regionalSourceRegistryV2.ts","platform_v2/src/services/zukanRegionalKnowledgeEnvelope.ts","platform_v2/src/services/researchExport.ts","platform_v2/src/services/observationDataRights.ts"],"negative_eval_ids":["prop.place.unknown-provenance-is-explicit","prop.publication.edition-is-reproducible","prop.rights.withdrawal-revokes-derived-publication","prop.retention-does-not-infer-delete"]},
-    {"id":"task.zukan.m5.live-camera-poc","milestone_id":"milestone.m5.live-camera-poc","state":"deferred","requirement_ids":["quality.zukan.map.live-camera-source-eligibility","quality.zukan.map.live-camera-health","quality.zukan.map.live-camera-lazy-playback","quality.zukan.map.live-camera-record-context"],"source_locators":["platform_v2/src/ui/mapExplorer.ts"],"negative_eval_ids":["prop.live-camera.unlicensed-source-not-exposed","prop.live-camera.dead-never-live","prop.live-camera.player-only-on-selection","prop.live-camera.no-frame-processing-without-rights"]},
-    {"id":"task.zukan.m6.self-serve-program-activation","milestone_id":"milestone.m6.self-serve-program-activation","state":"implemented","requirement_ids":["quality.zukan.program.self-serve-activation"],"source_locators":["platform_v2/src/ui/observationEventCreate.ts","platform_v2/src/ui/observationEventCreate.test.ts","platform_v2/src/routes/observationEventApi.ts","platform_v2/src/routes/observationEventPages.ts","platform_v2/src/services/observationEventParticipantAccess.ts","platform_v2/src/ui/observationEventRecap.ts"],"negative_eval_ids":["prop.program.organizer-authz-fail-closed","prop.program.activation-retry-converges","prop.program.private-record-not-public"]},
-    {"id":"task.zukan.m6.2.participation","milestone_id":"milestone.m6.self-serve-program-activation","state":"implemented","requirement_ids":["quality.zukan.program.participation"],"source_locators":["platform_v2/src/routes/observationEventApi.ts","platform_v2/src/routes/observationEventPages.ts","platform_v2/src/ui/observationEventCheckin.ts","platform_v2/src/ui/observationEventLive.ts","platform_v2/src/services/observationEventParticipantAccess.ts","platform_v2/src/routes/observationEventGuestCredential.routes.test.ts","platform_v2/src/routes/observationEventPrivacy.routes.test.ts"],"negative_eval_ids":["prop.program.participant-event-scope-fail-closed","prop.program.guest-promotion-preserves-attribution","prop.program.minor-consent-fail-closed","prop.program.private-record-not-public"]},
-    {"id":"task.zukan.m6.3.closeout-rehost","milestone_id":"milestone.m6.self-serve-program-activation","state":"implemented","requirement_ids":["quality.zukan.program.closeout-rehost","quality.zukan.program.free-output-boundary"],"source_locators":["platform_v2/src/routes/observationEventPages.ts","platform_v2/src/ui/observationEventRecap.ts","platform_v2/src/services/guidePrograms.ts","platform_v2/src/services/guidePrograms.test.ts","platform_v2/src/routes/observationEventCapsule.routes.test.ts","platform_v2/cloudflare_shadow/src/index.ts"],"negative_eval_ids":["prop.workspace.review-before-public","prop.program.closeout-rehost-resets-state","prop.program.private-record-not-public","prop.free-core.event-summary-no-taxon-aggregation","prop.free-core.no-report-ready-free-route"]},
-    {"id":"task.zukan.m7.program-handover-planner","milestone_id":"milestone.m7.program-continuity-handover","state":"implemented","readiness":"source-verified","implementation_allowed":false,"completed_slice":"M7.0 side-effect-zero deterministic ProgramHandover planner","requirement_ids":["quality.zukan.handover.provenance","quality.zukan.handover.selective-reuse","quality.zukan.handover.responsibility-transfer","quality.zukan.handover.lifecycle-reset","quality.zukan.handover.idempotency"],"source_locators":["platform_v2/src/services/programHandoverPlanner.ts","platform_v2/src/services/programHandoverPlanner.test.ts","platform_v2/product-registry/journeys.json","docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","docs/spec/zukan-product-architecture/PLAN.md"],"negative_eval_ids":["prop.m7.participant-copy-forbidden","prop.m7.consent-copy-forbidden","prop.m7.incoming-actor-fail-closed","prop.m7.handover-retry-idempotent","prop.m7.selected-reference-fail-closed","prop.m7.partial-input-never-completes","prop.m7.outgoing-removal-provenance-preserved","prop.m7.review-unresolved-not-approved","prop.m7.rights-boundary-fail-closed","prop.m7.same-key-payload-conflict"],"source_delta_done":{"source":"existing Program/Quest/template/Place/Record references plus synthetic fixtures","delta":"side-effect 0 deterministic ProgramHandover planner","done":"planner output and negative fixtures source-verified; no DB/UI"},"design_contract":{"inputs":["source Program revision","target continuation","selected Place/Record/Quest/template refs","outgoing/incoming actor","idempotency key","observed lifecycle/rights snapshot"],"outputs":["provenance","selected refs","reset fields","blocked reasons","invalidation observations","plan digest"],"authorization":"outgoing responsibility and incoming target-scope authorization are explicit; unknown/stale/scope-mismatched actors fail closed","rights":"references only; participant/consent/review/publication approval/withdrawal/retention/visibility state never transfers as approval","failure":"stale source, missing ref, target conflict or incomplete actor produces no target side effect and an itemized blocked result","idempotency":"same canonical intent and source revision yields the same plan digest; same-key different-payload is a conflict","terminal_verification":"deterministic replay plus all negative fixtures with zero DB/UI side effects","fixtures":["school_new_academic_year_new_teacher","guardian_withdrawal_fail_closed","unresolved_review_reference_not_approval","same_place_record_reused_without_duplication","outgoing_actor_removed_after_acceptance","unknown_unapproved_incoming_actor_fail_closed","retry_converges_to_one_logical_plan","same_key_different_payload_rejected","invalid_selected_ref_fail_closed","participant_consent_review_publication_carry_over_forbidden"]}},
-    {"id":"task.zukan.m7.program-handover-persistence","milestone_id":"milestone.m7.program-continuity-handover","state":"implemented","readiness":"source-verified","implementation_allowed":false,"slice":"M7.1 persistence/idempotency","requirement_ids":["quality.zukan.handover.provenance","quality.zukan.handover.selective-reuse","quality.zukan.handover.responsibility-transfer","quality.zukan.handover.lifecycle-reset","quality.zukan.handover.idempotency","quality.zukan.handover.persistence"],"source_locators":["platform_v2/src/services/programHandoverPlanner.ts","platform_v2/src/services/programHandoverD1Repository.ts","platform_v2/src/services/programHandoverRepositoryContract.ts","platform_v2/src/services/programHandoverD1Repository.test.ts","platform_v2/src/services/zukanFoundationV2D1Repository.ts","platform_v2/src/services/zukanFoundationV2RepositoryContract.ts","platform_v2/cloudflare_shadow/migrations/core/0015_zukan_program_handover_persistence.sql","docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","docs/spec/zukan-product-architecture/PLAN.md"],"negative_eval_ids":["prop.m7.participant-copy-forbidden","prop.m7.consent-copy-forbidden","prop.m7.handover-retry-idempotent","prop.m7.partial-input-never-completes","prop.m7.rights-boundary-fail-closed","prop.m7.same-key-payload-conflict","prop.m7.persistence-replay-one-row","prop.m7.persistence-same-key-payload-conflict","prop.m7.persistence-stale-scope-not-persisted","prop.m7.persistence-immutable-snapshot","prop.m7.persistence-write-failure-not-complete","prop.m7.persistence-target-unchanged","prop.m7.persistence-no-forbidden-state-copy"],"source_delta_done":{"source":"source-verified M7.0 planner + existing Foundation D1 write-receipt/idempotency pattern","delta":"persist one immutable accepted ProgramHandover plan snapshot through a provider-neutral contract and D1 first adapter","done":"source repository, unapplied migration, and deterministic D1 tests are source-verified; no route/UI/target Program/runtime mutation"},"design_contract":{"inputs":["accepted M7.0 ProgramHandover result","tenant/workspace scope","fresh source/target binding","actor/audit ref","idempotency key"],"outputs":["immutable persisted plan record","idempotent replay receipt","explicit conflict/failure result"],"storage":"provider-neutral repository contract; D1 first active-runtime adapter; reuse Foundation write-receipt semantics, not a new generic idempotency subsystem","authorization":"persist only accepted planner output whose source/target scope still matches the current binding; persistence grants no incoming acceptance or transfer authority","rights":"store refs/reset declarations only; never copy participant, consent grant, Review decision, publication approval, visibility or private payload state","failure":"transaction/write failure or stale/mismatched binding creates no completed handover and no target Program side effect","idempotency":"same key+payload returns one logical stored plan; same key+different payload fails closed; concurrent retries converge to one logical row","immutability":"M7.1 stored plan snapshot is immutable; later transfer/acceptance uses separate M7.2/M7.3 state transitions","terminal_verification":"D1 deterministic tests for replay, concurrent retry, payload conflict, immutable snapshot, forbidden carry-over and zero target Program side effects; migration remains unapplied outside test DB","fixtures":["persist_accepted_plan_once","retry_returns_same_persisted_plan","concurrent_retry_one_logical_row","same_key_different_payload_rejected","rejected_or_stale_plan_not_persisted","participant_consent_review_publication_not_stored_as_transfer_state","target_program_unchanged_after_plan_persist","write_failure_never_completed"]}},
-    {"id":"task.zukan.m7.program-handover-outgoing-selection","milestone_id":"milestone.m7.program-continuity-handover","state":"implemented","readiness":"source-verified","implementation_allowed":false,"slice":"M7.2 outgoing handover offer","requirement_ids":["quality.zukan.handover.provenance","quality.zukan.handover.selective-reuse","quality.zukan.handover.responsibility-transfer","quality.zukan.handover.idempotency","quality.zukan.handover.persistence","quality.zukan.handover.outgoing-selection"],"source_locators":["platform_v2/src/services/programHandoverPlanner.ts","platform_v2/src/services/programHandoverRepositoryContract.ts","platform_v2/src/services/programHandoverD1Repository.ts","platform_v2/src/services/programHandoverOfferRepositoryContract.ts","platform_v2/src/services/programHandoverOfferD1Repository.ts","platform_v2/src/services/programHandoverOfferD1Repository.test.ts","platform_v2/cloudflare_shadow/migrations/core/0015_zukan_program_handover_persistence.sql","platform_v2/cloudflare_shadow/migrations/core/0016_zukan_program_handover_offers.sql","docs/spec/zukan-product-architecture/PLAN.md"],"negative_eval_ids":["prop.m7.outgoing-offer-authorized-only","prop.m7.outgoing-offer-one-logical","prop.m7.outgoing-offer-payload-conflict","prop.m7.outgoing-offer-plan-immutable","prop.m7.outgoing-offer-no-transfer","prop.m7.outgoing-offer-missing-plan","prop.m7.outgoing-offer-identity-mismatch"],"source_delta_done":{"source":"source-verified M7.0 planner + source-verified immutable M7.1 persisted plan","delta":"append one idempotent pending_acceptance ProgramHandoverOffer from the currently authorized outgoing actor without changing the persisted plan","done":"provider-neutral offer contract, D1-first append-only adapter, migration definition and deterministic tests are source-verified; no incoming acceptance, responsibility transfer, target Program, route/UI or runtime mutation"},"design_contract":{"inputs":["persisted immutable M7.1 plan identity","fresh source Program revision","current outgoing actor authorization","intended incoming actor/target scope ref","offer idempotency key","actor/audit ref"],"outputs":["append-only ProgramHandoverOffer","pending_acceptance status","idempotent replay receipt","explicit blocked/conflict result"],"selection":"M7.2 selects one persisted plan as the offer; it never edits plan selected refs/reset state. Different refs require a new M7.0/M7.1 plan.","authorization":"outgoing actor must remain authorized for source Program at offer time; incoming actor is only the intended recipient and receives no authority in M7.2","rights":"offer carries references and reset declarations only; no participant, consent grant, Review decision, publication approval, visibility or private payload state is transferred","failure":"stale plan/source revision, missing plan, revoked/scope-mismatched outgoing authority, or payload conflict creates no offer and no target side effect","idempotency":"same key+offer payload converges to one logical offer including concurrent retry; same key+different payload fails closed","state":"append-only pending_acceptance; no outgoing removal, incoming acceptance, responsibility transfer, target Program mutation or plan rewrite","terminal_verification":"deterministic source tests for authorized offer, replay/concurrency, payload conflict, stale/unauthorized rejection, exact immutable-plan reference and zero transfer/target side effects; no staging migration/UI/runtime activation","fixtures":["authorized_outgoing_offer_once","retry_same_offer_one_logical","concurrent_offer_retry_one_logical","same_key_different_offer_rejected","stale_plan_or_source_revision_rejected","unauthorized_outgoing_actor_rejected","offer_does_not_accept_or_transfer","persisted_plan_refs_remain_immutable","target_program_unchanged","forbidden_state_not_copied"]}},
-    {"id":"task.zukan.m8.operational-summary","milestone_id":"milestone.m8.operational-summary-raw-portability","state":"planned","readiness":"shaped","implementation_allowed":false,"requirement_ids":["quality.zukan.operational-summary.free"],"source_locators":["platform_v2/product-registry/quality.json","docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","docs/spec/zukan-product-architecture/PLAN.md"],"negative_eval_ids":["prop.m8.free-summary-no-taxon-output"],"design_contract":{"inputs":["identified Program/Event","source watermark","authorized audience/projection policy"],"outputs":["operational metrics","explicit unknown/unavailable/partial states","source watermark"],"authorization":"audience and visibility policy apply to every metric; no payment status grants extra rights","rights":"mixed visibility and consent completeness are projected without exposing private member detail","failure":"missing or partial metric sources remain explicit and never become zero or complete","idempotency":"same source watermark is read-idempotent","terminal_verification":"normal, empty, mixed-visibility, partial-source and retry fixtures with forbidden-output assertions","fixtures":["operational_summary_excludes_taxon_counts","operational_summary_partial_source_is_explicit","operational_summary_mixed_visibility_respects_projection","operational_summary_empty_program_is_not_error","operational_summary_retry_same_watermark"]}},
-    {"id":"task.zukan.m8.raw-record-portability","milestone_id":"milestone.m8.operational-summary-raw-portability","state":"planned","readiness":"shaped","implementation_allowed":false,"requirement_ids":["quality.zukan.raw-record-portability"],"source_locators":["platform_v2/product-registry/quality.json","docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","docs/spec/zukan-product-architecture/PLAN.md"],"negative_eval_ids":["prop.m8.raw-archive-preserves-granularity","prop.m8.raw-archive-no-taxonomy-derivative"],"design_contract":{"inputs":["authorized requester","Record IDs","field-level rights/visibility/consent state","source/media refs","withdrawal/retention state"],"outputs":["Record-granular archive manifest/digest","per-item inclusion or blocked reason","provenance and observed lifecycle state"],"authorization":"scope is evaluated per Record and field; ambiguous or unauthorized rights narrow or block","rights":"private, withdrawn, deleted, quarantined or unauthorized data never becomes public through archive creation","failure":"partial item failure is explicit and never reports a complete archive","idempotency":"same source and rights snapshot converges to the same manifest/digest without duplicate Records/media","terminal_verification":"granularity, mixed visibility, withdrawal, partial failure, retry and forbidden-derivative fixtures","fixtures":["raw_record_archive_preserves_record_granularity","raw_record_archive_mixed_visibility_is_field_scoped","raw_record_archive_withdrawal_is_explicit","raw_record_archive_partial_item_failure_is_recoverable","raw_record_archive_retry_same_manifest","raw_record_archive_does_not_emit_taxon_inventory"]}}
+    {
+      "id": "task.zukan.m1.record-media-integrity",
+      "milestone_id": "milestone.m1.personal-record-media-integrity",
+      "state": "implemented",
+      "requirement_ids": [
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.capture.draft-recovery",
+        "quality.zukan.rights.exif-minimization"
+      ],
+      "source_locators": [
+        "platform_v2/src/services/observationWrite.ts",
+        "platform_v2/src/services/observationPhotoUpload.ts",
+        "platform_v2/src/routes/write.ts"
+      ],
+      "negative_eval_ids": [
+        "prop.capture.same-intent-one-record",
+        "prop.capture.partial-failure-recoverable",
+        "prop.media.exif-gps-not-public"
+      ]
+    },
+    {
+      "id": "task.zukan.m2.safe-publication",
+      "milestone_id": "milestone.m2.safe-publication-rights-lifecycle",
+      "state": "implemented",
+      "requirement_ids": [
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.rights.minor-guardian-consent"
+      ],
+      "source_locators": [
+        "platform_v2/src/services/observationDataRights.ts",
+        "platform_v2/src/services/publicationFeed.ts"
+      ],
+      "negative_eval_ids": [
+        "prop.public.no-private-leak",
+        "prop.rights.external-inference-is-separate",
+        "prop.minor.guardian-consent-fail-closed"
+      ]
+    },
+    {
+      "id": "task.zukan.m3.collaboration",
+      "milestone_id": "milestone.m3.program-event-quest-workspace",
+      "state": "implemented",
+      "requirement_ids": [
+        "quality.zukan.program-event-quest.lifecycle",
+        "quality.zukan.workspace.membership-authorization",
+        "quality.zukan.workspace.contribution",
+        "quality.zukan.workspace.review",
+        "quality.zukan.workspace.explicit-publish"
+      ],
+      "source_locators": [
+        "platform_v2/src/services/guidePrograms.ts",
+        "platform_v2/src/routes/observationEventApi.ts",
+        "platform_v2/src/services/observationEventParticipantAccess.ts",
+        "platform_v2/src/services/observationEventQuestEngine.ts"
+      ],
+      "negative_eval_ids": [
+        "prop.workspace.authz-fail-closed",
+        "prop.workspace.membership-role-fail-closed",
+        "prop.workspace.review-before-public",
+        "prop.workspace.private-public-separation",
+        "prop.workspace.retry-converges"
+      ]
+    },
+    {
+      "id": "task.zukan.m4.publication-portability",
+      "milestone_id": "milestone.m4.regional-publication-portability",
+      "state": "implemented",
+      "requirement_ids": [
+        "quality.zukan.place.context-integrity",
+        "quality.zukan.publication.edition-integrity",
+        "quality.zukan.publication.correction-takedown",
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.rights.retention"
+      ],
+      "source_locators": [
+        "platform_v2/src/services/areaPlaceSnapshot.ts",
+        "platform_v2/src/services/regionalSourceRegistryV2.ts",
+        "platform_v2/src/services/zukanRegionalKnowledgeEnvelope.ts",
+        "platform_v2/src/services/researchExport.ts",
+        "platform_v2/src/services/observationDataRights.ts"
+      ],
+      "negative_eval_ids": [
+        "prop.place.unknown-provenance-is-explicit",
+        "prop.publication.edition-is-reproducible",
+        "prop.rights.withdrawal-revokes-derived-publication",
+        "prop.retention-does-not-infer-delete"
+      ]
+    },
+    {
+      "id": "task.zukan.m5.live-camera-poc",
+      "milestone_id": "milestone.m5.live-camera-poc",
+      "state": "deferred",
+      "requirement_ids": [
+        "quality.zukan.map.live-camera-source-eligibility",
+        "quality.zukan.map.live-camera-health",
+        "quality.zukan.map.live-camera-lazy-playback",
+        "quality.zukan.map.live-camera-record-context"
+      ],
+      "source_locators": [
+        "platform_v2/src/ui/mapExplorer.ts"
+      ],
+      "negative_eval_ids": [
+        "prop.live-camera.unlicensed-source-not-exposed",
+        "prop.live-camera.dead-never-live",
+        "prop.live-camera.player-only-on-selection",
+        "prop.live-camera.no-frame-processing-without-rights"
+      ]
+    },
+    {
+      "id": "task.zukan.m6.self-serve-program-activation",
+      "milestone_id": "milestone.m6.self-serve-program-activation",
+      "state": "implemented",
+      "requirement_ids": [
+        "quality.zukan.program.self-serve-activation"
+      ],
+      "source_locators": [
+        "platform_v2/src/ui/observationEventCreate.ts",
+        "platform_v2/src/ui/observationEventCreate.test.ts",
+        "platform_v2/src/routes/observationEventApi.ts",
+        "platform_v2/src/routes/observationEventPages.ts",
+        "platform_v2/src/services/observationEventParticipantAccess.ts",
+        "platform_v2/src/ui/observationEventRecap.ts"
+      ],
+      "negative_eval_ids": [
+        "prop.program.organizer-authz-fail-closed",
+        "prop.program.activation-retry-converges",
+        "prop.program.private-record-not-public"
+      ]
+    },
+    {
+      "id": "task.zukan.m6.2.participation",
+      "milestone_id": "milestone.m6.self-serve-program-activation",
+      "state": "implemented",
+      "requirement_ids": [
+        "quality.zukan.program.participation"
+      ],
+      "source_locators": [
+        "platform_v2/src/routes/observationEventApi.ts",
+        "platform_v2/src/routes/observationEventPages.ts",
+        "platform_v2/src/ui/observationEventCheckin.ts",
+        "platform_v2/src/ui/observationEventLive.ts",
+        "platform_v2/src/services/observationEventParticipantAccess.ts",
+        "platform_v2/src/routes/observationEventGuestCredential.routes.test.ts",
+        "platform_v2/src/routes/observationEventPrivacy.routes.test.ts"
+      ],
+      "negative_eval_ids": [
+        "prop.program.participant-event-scope-fail-closed",
+        "prop.program.guest-promotion-preserves-attribution",
+        "prop.program.minor-consent-fail-closed",
+        "prop.program.private-record-not-public"
+      ]
+    },
+    {
+      "id": "task.zukan.m6.3.closeout-rehost",
+      "milestone_id": "milestone.m6.self-serve-program-activation",
+      "state": "implemented",
+      "requirement_ids": [
+        "quality.zukan.program.closeout-rehost",
+        "quality.zukan.program.free-output-boundary"
+      ],
+      "source_locators": [
+        "platform_v2/src/routes/observationEventPages.ts",
+        "platform_v2/src/ui/observationEventRecap.ts",
+        "platform_v2/src/services/guidePrograms.ts",
+        "platform_v2/src/services/guidePrograms.test.ts",
+        "platform_v2/src/routes/observationEventCapsule.routes.test.ts",
+        "platform_v2/cloudflare_shadow/src/index.ts"
+      ],
+      "negative_eval_ids": [
+        "prop.workspace.review-before-public",
+        "prop.program.closeout-rehost-resets-state",
+        "prop.program.private-record-not-public",
+        "prop.free-core.event-summary-no-taxon-aggregation",
+        "prop.free-core.no-report-ready-free-route"
+      ]
+    },
+    {
+      "id": "task.zukan.m7.program-handover-planner",
+      "milestone_id": "milestone.m7.program-continuity-handover",
+      "state": "implemented",
+      "readiness": "source-verified",
+      "implementation_allowed": false,
+      "completed_slice": "M7.0 side-effect-zero deterministic ProgramHandover planner",
+      "requirement_ids": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.responsibility-transfer",
+        "quality.zukan.handover.lifecycle-reset",
+        "quality.zukan.handover.idempotency"
+      ],
+      "source_locators": [
+        "platform_v2/src/services/programHandoverPlanner.ts",
+        "platform_v2/src/services/programHandoverPlanner.test.ts",
+        "platform_v2/product-registry/journeys.json",
+        "docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md",
+        "docs/spec/zukan-product-architecture/PLAN.md"
+      ],
+      "negative_eval_ids": [
+        "prop.m7.participant-copy-forbidden",
+        "prop.m7.consent-copy-forbidden",
+        "prop.m7.incoming-actor-fail-closed",
+        "prop.m7.handover-retry-idempotent",
+        "prop.m7.selected-reference-fail-closed",
+        "prop.m7.partial-input-never-completes",
+        "prop.m7.outgoing-removal-provenance-preserved",
+        "prop.m7.review-unresolved-not-approved",
+        "prop.m7.rights-boundary-fail-closed",
+        "prop.m7.same-key-payload-conflict"
+      ],
+      "source_delta_done": {
+        "source": "existing Program/Quest/template/Place/Record references plus synthetic fixtures",
+        "delta": "side-effect 0 deterministic ProgramHandover planner",
+        "done": "planner output and negative fixtures source-verified; no DB/UI"
+      },
+      "design_contract": {
+        "inputs": [
+          "source Program revision",
+          "target continuation",
+          "selected Place/Record/Quest/template refs",
+          "outgoing/incoming actor",
+          "idempotency key",
+          "observed lifecycle/rights snapshot"
+        ],
+        "outputs": [
+          "provenance",
+          "selected refs",
+          "reset fields",
+          "blocked reasons",
+          "invalidation observations",
+          "plan digest"
+        ],
+        "authorization": "outgoing responsibility and incoming target-scope authorization are explicit; unknown/stale/scope-mismatched actors fail closed",
+        "rights": "references only; participant/consent/review/publication approval/withdrawal/retention/visibility state never transfers as approval",
+        "failure": "stale source, missing ref, target conflict or incomplete actor produces no target side effect and an itemized blocked result",
+        "idempotency": "same canonical intent and source revision yields the same plan digest; same-key different-payload is a conflict",
+        "terminal_verification": "deterministic replay plus all negative fixtures with zero DB/UI side effects",
+        "fixtures": [
+          "school_new_academic_year_new_teacher",
+          "guardian_withdrawal_fail_closed",
+          "unresolved_review_reference_not_approval",
+          "same_place_record_reused_without_duplication",
+          "outgoing_actor_removed_after_acceptance",
+          "unknown_unapproved_incoming_actor_fail_closed",
+          "retry_converges_to_one_logical_plan",
+          "same_key_different_payload_rejected",
+          "invalid_selected_ref_fail_closed",
+          "participant_consent_review_publication_carry_over_forbidden"
+        ]
+      }
+    },
+    {
+      "id": "task.zukan.m7.program-handover-persistence",
+      "milestone_id": "milestone.m7.program-continuity-handover",
+      "state": "implemented",
+      "readiness": "source-verified",
+      "implementation_allowed": false,
+      "slice": "M7.1 persistence/idempotency",
+      "requirement_ids": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.responsibility-transfer",
+        "quality.zukan.handover.lifecycle-reset",
+        "quality.zukan.handover.idempotency",
+        "quality.zukan.handover.persistence"
+      ],
+      "source_locators": [
+        "platform_v2/src/services/programHandoverPlanner.ts",
+        "platform_v2/src/services/programHandoverD1Repository.ts",
+        "platform_v2/src/services/programHandoverRepositoryContract.ts",
+        "platform_v2/src/services/programHandoverD1Repository.test.ts",
+        "platform_v2/src/services/zukanFoundationV2D1Repository.ts",
+        "platform_v2/src/services/zukanFoundationV2RepositoryContract.ts",
+        "platform_v2/cloudflare_shadow/migrations/core/0015_zukan_program_handover_persistence.sql",
+        "docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md",
+        "docs/spec/zukan-product-architecture/PLAN.md"
+      ],
+      "negative_eval_ids": [
+        "prop.m7.participant-copy-forbidden",
+        "prop.m7.consent-copy-forbidden",
+        "prop.m7.handover-retry-idempotent",
+        "prop.m7.partial-input-never-completes",
+        "prop.m7.rights-boundary-fail-closed",
+        "prop.m7.same-key-payload-conflict",
+        "prop.m7.persistence-replay-one-row",
+        "prop.m7.persistence-same-key-payload-conflict",
+        "prop.m7.persistence-stale-scope-not-persisted",
+        "prop.m7.persistence-immutable-snapshot",
+        "prop.m7.persistence-write-failure-not-complete",
+        "prop.m7.persistence-target-unchanged",
+        "prop.m7.persistence-no-forbidden-state-copy"
+      ],
+      "source_delta_done": {
+        "source": "source-verified M7.0 planner + existing Foundation D1 write-receipt/idempotency pattern",
+        "delta": "persist one immutable accepted ProgramHandover plan snapshot through a provider-neutral contract and D1 first adapter",
+        "done": "source repository, unapplied migration, and deterministic D1 tests are source-verified; no route/UI/target Program/runtime mutation"
+      },
+      "design_contract": {
+        "inputs": [
+          "accepted M7.0 ProgramHandover result",
+          "tenant/workspace scope",
+          "fresh source/target binding",
+          "actor/audit ref",
+          "idempotency key"
+        ],
+        "outputs": [
+          "immutable persisted plan record",
+          "idempotent replay receipt",
+          "explicit conflict/failure result"
+        ],
+        "storage": "provider-neutral repository contract; D1 first active-runtime adapter; reuse Foundation write-receipt semantics, not a new generic idempotency subsystem",
+        "authorization": "persist only accepted planner output whose source/target scope still matches the current binding; persistence grants no incoming acceptance or transfer authority",
+        "rights": "store refs/reset declarations only; never copy participant, consent grant, Review decision, publication approval, visibility or private payload state",
+        "failure": "transaction/write failure or stale/mismatched binding creates no completed handover and no target Program side effect",
+        "idempotency": "same key+payload returns one logical stored plan; same key+different payload fails closed; concurrent retries converge to one logical row",
+        "immutability": "M7.1 stored plan snapshot is immutable; later transfer/acceptance uses separate M7.2/M7.3 state transitions",
+        "terminal_verification": "D1 deterministic tests for replay, concurrent retry, payload conflict, immutable snapshot, forbidden carry-over and zero target Program side effects; migration remains unapplied outside test DB",
+        "fixtures": [
+          "persist_accepted_plan_once",
+          "retry_returns_same_persisted_plan",
+          "concurrent_retry_one_logical_row",
+          "same_key_different_payload_rejected",
+          "rejected_or_stale_plan_not_persisted",
+          "participant_consent_review_publication_not_stored_as_transfer_state",
+          "target_program_unchanged_after_plan_persist",
+          "write_failure_never_completed"
+        ]
+      }
+    },
+    {
+      "id": "task.zukan.m7.program-handover-outgoing-selection",
+      "milestone_id": "milestone.m7.program-continuity-handover",
+      "state": "implemented",
+      "readiness": "source-verified",
+      "implementation_allowed": false,
+      "slice": "M7.2 outgoing handover offer",
+      "requirement_ids": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.responsibility-transfer",
+        "quality.zukan.handover.idempotency",
+        "quality.zukan.handover.persistence",
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "source_locators": [
+        "platform_v2/src/services/programHandoverPlanner.ts",
+        "platform_v2/src/services/programHandoverRepositoryContract.ts",
+        "platform_v2/src/services/programHandoverD1Repository.ts",
+        "platform_v2/src/services/programHandoverOfferRepositoryContract.ts",
+        "platform_v2/src/services/programHandoverOfferD1Repository.ts",
+        "platform_v2/src/services/programHandoverOfferD1Repository.test.ts",
+        "platform_v2/cloudflare_shadow/migrations/core/0015_zukan_program_handover_persistence.sql",
+        "platform_v2/cloudflare_shadow/migrations/core/0016_zukan_program_handover_offers.sql",
+        "docs/spec/zukan-product-architecture/PLAN.md"
+      ],
+      "negative_eval_ids": [
+        "prop.m7.outgoing-offer-authorized-only",
+        "prop.m7.outgoing-offer-one-logical",
+        "prop.m7.outgoing-offer-payload-conflict",
+        "prop.m7.outgoing-offer-plan-immutable",
+        "prop.m7.outgoing-offer-no-transfer",
+        "prop.m7.outgoing-offer-missing-plan",
+        "prop.m7.outgoing-offer-identity-mismatch"
+      ],
+      "source_delta_done": {
+        "source": "source-verified M7.0 planner + source-verified immutable M7.1 persisted plan",
+        "delta": "append one idempotent pending_acceptance ProgramHandoverOffer from the currently authorized outgoing actor without changing the persisted plan",
+        "done": "provider-neutral offer contract, D1-first append-only adapter, migration definition and deterministic tests are source-verified; no incoming acceptance, responsibility transfer, target Program, route/UI or runtime mutation"
+      },
+      "design_contract": {
+        "inputs": [
+          "persisted immutable M7.1 plan identity",
+          "fresh source Program revision",
+          "current outgoing actor authorization",
+          "intended incoming actor/target scope ref",
+          "offer idempotency key",
+          "actor/audit ref"
+        ],
+        "outputs": [
+          "append-only ProgramHandoverOffer",
+          "pending_acceptance status",
+          "idempotent replay receipt",
+          "explicit blocked/conflict result"
+        ],
+        "selection": "M7.2 selects one persisted plan as the offer; it never edits plan selected refs/reset state. Different refs require a new M7.0/M7.1 plan.",
+        "authorization": "outgoing actor must remain authorized for source Program at offer time; incoming actor is only the intended recipient and receives no authority in M7.2",
+        "rights": "offer carries references and reset declarations only; no participant, consent grant, Review decision, publication approval, visibility or private payload state is transferred",
+        "failure": "stale plan/source revision, missing plan, revoked/scope-mismatched outgoing authority, or payload conflict creates no offer and no target side effect",
+        "idempotency": "same key+offer payload converges to one logical offer including concurrent retry; same key+different payload fails closed",
+        "state": "append-only pending_acceptance; no outgoing removal, incoming acceptance, responsibility transfer, target Program mutation or plan rewrite",
+        "terminal_verification": "deterministic source tests for authorized offer, replay/concurrency, payload conflict, stale/unauthorized rejection, exact immutable-plan reference and zero transfer/target side effects; no staging migration/UI/runtime activation",
+        "fixtures": [
+          "authorized_outgoing_offer_once",
+          "retry_same_offer_one_logical",
+          "concurrent_offer_retry_one_logical",
+          "same_key_different_offer_rejected",
+          "stale_plan_or_source_revision_rejected",
+          "unauthorized_outgoing_actor_rejected",
+          "offer_does_not_accept_or_transfer",
+          "persisted_plan_refs_remain_immutable",
+          "target_program_unchanged",
+          "forbidden_state_not_copied"
+        ]
+      }
+    },
+    {
+      "id": "task.zukan.m8.operational-summary",
+      "milestone_id": "milestone.m8.operational-summary-raw-portability",
+      "state": "planned",
+      "readiness": "shaped",
+      "implementation_allowed": false,
+      "requirement_ids": [
+        "quality.zukan.operational-summary.free"
+      ],
+      "source_locators": [
+        "platform_v2/product-registry/quality.json",
+        "docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md",
+        "docs/spec/zukan-product-architecture/PLAN.md"
+      ],
+      "negative_eval_ids": [
+        "prop.m8.free-summary-no-taxon-output"
+      ],
+      "design_contract": {
+        "inputs": [
+          "identified Program/Event",
+          "source watermark",
+          "authorized audience/projection policy"
+        ],
+        "outputs": [
+          "operational metrics",
+          "explicit unknown/unavailable/partial states",
+          "source watermark"
+        ],
+        "authorization": "audience and visibility policy apply to every metric; no payment status grants extra rights",
+        "rights": "mixed visibility and consent completeness are projected without exposing private member detail",
+        "failure": "missing or partial metric sources remain explicit and never become zero or complete",
+        "idempotency": "same source watermark is read-idempotent",
+        "terminal_verification": "normal, empty, mixed-visibility, partial-source and retry fixtures with forbidden-output assertions",
+        "fixtures": [
+          "operational_summary_excludes_taxon_counts",
+          "operational_summary_partial_source_is_explicit",
+          "operational_summary_mixed_visibility_respects_projection",
+          "operational_summary_empty_program_is_not_error",
+          "operational_summary_retry_same_watermark"
+        ]
+      }
+    },
+    {
+      "id": "task.zukan.m8.raw-record-portability",
+      "milestone_id": "milestone.m8.operational-summary-raw-portability",
+      "state": "planned",
+      "readiness": "shaped",
+      "implementation_allowed": false,
+      "requirement_ids": [
+        "quality.zukan.raw-record-portability"
+      ],
+      "source_locators": [
+        "platform_v2/product-registry/quality.json",
+        "docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md",
+        "docs/spec/zukan-product-architecture/PLAN.md"
+      ],
+      "negative_eval_ids": [
+        "prop.m8.raw-archive-preserves-granularity",
+        "prop.m8.raw-archive-no-taxonomy-derivative"
+      ],
+      "design_contract": {
+        "inputs": [
+          "authorized requester",
+          "Record IDs",
+          "field-level rights/visibility/consent state",
+          "source/media refs",
+          "withdrawal/retention state"
+        ],
+        "outputs": [
+          "Record-granular archive manifest/digest",
+          "per-item inclusion or blocked reason",
+          "provenance and observed lifecycle state"
+        ],
+        "authorization": "scope is evaluated per Record and field; ambiguous or unauthorized rights narrow or block",
+        "rights": "private, withdrawn, deleted, quarantined or unauthorized data never becomes public through archive creation",
+        "failure": "partial item failure is explicit and never reports a complete archive",
+        "idempotency": "same source and rights snapshot converges to the same manifest/digest without duplicate Records/media",
+        "terminal_verification": "granularity, mixed visibility, withdrawal, partial failure, retry and forbidden-derivative fixtures",
+        "fixtures": [
+          "raw_record_archive_preserves_record_granularity",
+          "raw_record_archive_mixed_visibility_is_field_scoped",
+          "raw_record_archive_withdrawal_is_explicit",
+          "raw_record_archive_partial_item_failure_is_recoverable",
+          "raw_record_archive_retry_same_manifest",
+          "raw_record_archive_does_not_emit_taxon_inventory"
+        ]
+      }
+    },
+    {
+      "id": "task.zukan.core-loop.capture-feedback-delivered",
+      "milestone_id": "milestone.m1.personal-record-media-integrity",
+      "state": "planned",
+      "readiness": "executor-ready",
+      "implementation_allowed": true,
+      "implementation_scope": "source and pre-production verification only until the existing production approval boundary is separately satisfied",
+      "production_mutation_allowed": false,
+      "lane": "CORE_LOOP",
+      "slice": "Frontier 1 - deliver the capture-to-AI-feedback loop to production",
+      "requirement_ids": [
+        "quality.zukan.capture.truthful-status",
+        "quality.zukan.capture.ai-candidate",
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.capture.draft-recovery"
+      ],
+      "source_locators": [
+        "platform_v2/cloudflare_shadow/src/index.ts",
+        "platform_v2/cloudflare_shadow/src/geminiObservationBatch.ts",
+        "platform_v2/e2e/record-feedback-loop.staging.spec.ts",
+        "scripts/run_cloudflare_production_release.sh",
+        "scripts/build_production_verification_report.mjs",
+        "docs/spec/zukan-product-architecture/PLAN.md"
+      ],
+      "negative_eval_ids": [
+        "prop.ai.failure-never-becomes-fact",
+        "prop.capture.same-intent-one-record",
+        "prop.capture.partial-failure-recoverable",
+        "prop.review.ai-never-becomes-human"
+      ],
+      "source_delta_done": {
+        "source": "current main plus candidate PR 1649; reconcile overlapping enqueue/idempotency work in PRs 1302 and 1578 rather than re-implementing it; evaluate PR 1441 separately as historical backlog reprocessing",
+        "delta": "land the capture-to-AI-feedback path so a real contributor sees candidate feedback in the same session in production; bind the four requirements to the operation environment; run the existing feedback-loop journey against production with a disposable fixture account",
+        "done": "a production post shows queued to processing to completed or failed within the session; the four requirements are green in the operation environment with exact-SHA read-back evidence; ai_feedback_delivery_delay and first_record_completion have a first baseline; PRs 1302 and 1578 are delivered or explicitly superseded and PR 1441 has a separate written disposition"
+      }
+    },
+    {
+      "id": "task.zukan.core-loop.area-encyclopedia-shared-renderer",
+      "milestone_id": "milestone.m4.regional-publication-portability",
+      "state": "planned",
+      "readiness": "queued-behind-frontier-1",
+      "implementation_allowed": false,
+      "production_mutation_allowed": false,
+      "lane": "CORE_LOOP",
+      "slice": "Frontier 2 - shared Area Encyclopedia renderer P0 including the Ryuyo core and nearby fixture",
+      "requirement_ids": [
+        "quality.zukan.place.record-accumulation-visible",
+        "quality.zukan.place.context-integrity"
+      ],
+      "source_locators": [
+        "docs/implementation/zukan_area_encyclopedia_shared_renderer_p0_2026-09-02.md",
+        "docs/design/area_encyclopedia_growth_and_stewardship_contract_2026-09-02.md",
+        "docs/implementation/zukan_ryuyo_core_nearby_context_contract_2026-09-02.md",
+        "platform_v2/src/routes/observationEventPages.ts",
+        "platform_v2/src/services/areaPlaceSnapshot.ts"
+      ],
+      "negative_eval_ids": [
+        "prop.place.first-record-changes-page",
+        "prop.place.nearby-never-counts-as-local",
+        "prop.place.unknown-provenance-is-explicit"
+      ],
+      "source_delta_done": {
+        "source": "the three adopted Area and Ryuyo contracts plus the current field-detail runtime path",
+        "delta": "one shared renderer with growth states, no-value suppression, nearby Place fallback and the Ryuyo core/nearby classification; no Place-specific fork and no new map pipeline",
+        "done": "shared fixtures and Ryuyo non-contamination tests pass; staging LIVE_VERIFIED for the shared states and Ryuyo sections; then delivered to production under the existing approval boundary"
+      }
+    },
+    {
+      "id": "task.zukan.core-loop.publication-return-syndication-hardening",
+      "milestone_id": "milestone.m4.regional-publication-portability",
+      "state": "planned",
+      "readiness": "queued-behind-frontier-2",
+      "implementation_allowed": false,
+      "production_mutation_allowed": false,
+      "lane": "CORE_LOOP",
+      "slice": "Frontier 3 - publication return, syndication consent and consumer correction/withdrawal",
+      "requirement_ids": [
+        "quality.zukan.review.contributor-return",
+        "quality.zukan.trust.explicit-publication",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.rights.minor-guardian-consent",
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.publication.correction-takedown"
+      ],
+      "source_locators": [
+        "platform_v2/src/services/observationDataRights.ts",
+        "platform_v2/src/services/publicationFeed.ts",
+        "platform_v2/cloudflare_shadow/src/publicationFeedNative.ts",
+        "platform_v2/cloudflare_shadow/src/observationFirstRecordDetailHtml.ts",
+        "docs/spec/zukan-product-architecture/PLAN.md"
+      ],
+      "negative_eval_ids": [
+        "prop.minor.guardian-consent-fail-closed",
+        "prop.rights.withdrawal-revokes-derived-publication",
+        "prop.review.contributor-sees-decision",
+        "prop.review.ai-never-becomes-human"
+      ],
+      "source_delta_done": {
+        "source": "the existing PostgreSQL/D1 publication feeds, observation rights services, Record detail surface and the adopted Program-scope plus owner-detail consent decision",
+        "delta": "add purpose/version/term-bound syndication consent; fail closed on unresolved or withdrawn minor/guardian authority; return Review decision, publication destination and eligibility/exclusion state to the contributor; propagate correction/withdrawal; label the read-only production public feed consumed by staging sites",
+        "done": "one rights-eligible production Record reaches the read-only regional consumer and tells its contributor where it was published; minor/guardian ambiguity remains ineligible; correction or withdrawal disappears from consumers; all production mutation remains behind the existing separate approval boundary"
+      }
+    }
   ],
-  "luna_task_contract":{"format":["Source","Delta","Done"],"eligibility":"Only a fresh shared-resolver projection with RESOLVED decision and qualifying dependency evidence may produce an executor task.","source":["exact baseline SHA","Requirement ID/version","Golden Journey ID","canonical registry/source/test locator"],"delta":"observable behavior and explicit prohibitions only; no product strategy, priority, privacy, rights, scope or authorization decisions","done":["acceptance and negative/property Eval","real browser Journey when required","exact runtime identity and Evidence before staging-verified","rollback/read-back"],"rules":["1 task = 1 coherent slice","reuse verified work","do not retry unchanged deterministic failure","blocked/stale/unknown/conflicted/unresolved decision produces no task"]}
+  "luna_task_contract": {
+    "format": [
+      "Source",
+      "Delta",
+      "Done"
+    ],
+    "eligibility": "Only a fresh shared-resolver projection with RESOLVED decision and qualifying dependency evidence may produce an executor task.",
+    "source": [
+      "exact baseline SHA",
+      "Requirement ID/version",
+      "Golden Journey ID",
+      "canonical registry/source/test locator"
+    ],
+    "delta": "observable behavior and explicit prohibitions only; no product strategy, priority, privacy, rights, scope or authorization decisions",
+    "done": [
+      "acceptance and negative/property Eval",
+      "real browser Journey when required",
+      "exact runtime identity and Evidence before staging-verified",
+      "rollback/read-back"
+    ],
+    "rules": [
+      "1 task = 1 coherent slice",
+      "reuse verified work",
+      "do not retry unchanged deterministic failure",
+      "blocked/stale/unknown/conflicted/unresolved decision produces no task"
+    ]
+  }
 }

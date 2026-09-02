@@ -1,36 +1,407 @@
 {
-  "schema_version":"1.0.0",
-  "product_id":"zukan",
-  "profile_horizon":{
-    "authority":"docs/spec/zukan-product-architecture/PROFILE_HORIZON.md",
-    "current_runtime_profile":"observation_event",
-    "m9_program_profiles":["photo_contest","sketch_drawing_event","mission_town_walk","stamp_rally","children_citizen_editorial","tourism_regional_engagement"],
-    "m10_publication_profiles":["regional_theme_encyclopedia","tourism_map_guide_route","history_culture_collection","facility_shop_organization_collection","consented_people_profile","program_campaign_result","paper_pdf_manifest","api_dataset_projection"],
-    "m11_exchange":"publisher_sources_and_nocosil_public_safe_projection",
-    "m12_outcomes":"professional_and_managed_outcomes",
-    "runtime_truth":"profile horizon does not imply implemented capability"
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "profile_horizon": {
+    "authority": "docs/spec/zukan-product-architecture/PROFILE_HORIZON.md",
+    "current_runtime_profile": "observation_event",
+    "m9_program_profiles": [
+      "photo_contest",
+      "sketch_drawing_event",
+      "mission_town_walk",
+      "stamp_rally",
+      "children_citizen_editorial",
+      "tourism_regional_engagement"
+    ],
+    "m10_publication_profiles": [
+      "regional_theme_encyclopedia",
+      "tourism_map_guide_route",
+      "history_culture_collection",
+      "facility_shop_organization_collection",
+      "consented_people_profile",
+      "program_campaign_result",
+      "paper_pdf_manifest",
+      "api_dataset_projection"
+    ],
+    "m11_exchange": "publisher_sources_and_nocosil_public_safe_projection",
+    "m12_outcomes": "professional_and_managed_outcomes",
+    "runtime_truth": "profile horizon does not imply implemented capability"
   },
-  "matrix":[
-    {"domain":"capture","outcome_ref":"outcome.zukan.record-integrity","actors":["individual","school","organization","company","municipality"],"outcome":"地域の記録を失わず保存する","capability_refs":["zukan.capture.start","zukan.record.save-private"],"requirement_refs":["quality.zukan.capture.entry","quality.zukan.capture.source-choice","quality.zukan.capture.immediate-preview","quality.zukan.capture.location-optional","quality.zukan.capture.ai-candidate","quality.zukan.capture.draft-recovery","quality.zukan.capture.idempotent-save","quality.zukan.capture.truthful-status","quality.zukan.capture.owner-return","quality.zukan.record.source-reference-integrity","quality.zukan.record.claim-separation","quality.zukan.place.context-integrity","quality.zukan.rights.exif-minimization"]},
-    {"domain":"records","outcome_ref":"outcome.zukan.safe-publication","actors":["individual","public","school","organization","company","municipality"],"outcome":"本人の記録と公開記録を権利に沿って再発見する","capability_refs":["zukan.records.browse-public","zukan.record.save-private"],"requirement_refs":["quality.zukan.capture.owner-return","quality.zukan.records.public-discovery","quality.zukan.trust.private-default","quality.zukan.trust.explicit-publication","quality.zukan.trust.face-private-place-safety","quality.zukan.trust.ai-candidate-not-fact","quality.zukan.trust.confirmation-provenance","quality.zukan.trust.public-projection","quality.zukan.trust.existing-rights-preserved","quality.zukan.review.provenance","quality.zukan.rights.consent-scope","quality.zukan.rights.minor-guardian-consent","quality.zukan.rights.export-withdrawal-deletion","quality.zukan.rights.retention","quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown","quality.zukan.free-core.boundary"]},
-    {"domain":"map","outcome_ref":"outcome.zukan.regional-portability","actors":["public","individual","school","organization","company","municipality"],"outcome":"安全な位置精度で地域記録を場所から探索する","capability_refs":["zukan.map.explore-public"],"requirement_refs":["quality.zukan.map.safe-discovery","quality.zukan.trust.location-minimization","quality.zukan.trust.public-projection","quality.zukan.place.context-integrity"]},
-    {"domain":"live-camera-context","outcome_ref":"outcome.zukan.live-place-context","actors":["public","individual","school","organization","company","municipality"],"outcome":"外部センサーを補助文脈として扱う","capability_refs":["zukan.map.explore-public"],"requirement_refs":["quality.zukan.map.live-camera-source-eligibility","quality.zukan.map.live-camera-health","quality.zukan.map.live-camera-lazy-playback","quality.zukan.map.live-camera-record-context"],"data_contract":{"fields":["id","name","lat","lng","provider","source_ref","source_url","category","owner","status","last_checked_at","attribution","embed_allowed"],"identity":"provider + source_ref is the stable external identity","initial_acquisition":"浜松・磐田・静岡の公式/認可済みsourceをmanual curate","forbidden":"再利用許諾未確認の第三者集約DBをコピーしない"}},
-    {"domain":"home","outcome_ref":"outcome.zukan.record-integrity","actors":["individual"],"outcome":"自分の記録・場所・参加中Program・次の行動へ戻る","capability_refs":["zukan.home.view-member"],"requirement_refs":["quality.zukan.home.owner-context"]},
-    {"domain":"workspace-collaboration","outcome_ref":"outcome.zukan.collaborative-knowledge","actors":["school","organization","company","municipality"],"outcome":"member/role/reviewを保って共同記録し、選択した範囲だけ共有する","capability_refs":["zukan.capture.start","zukan.record.save-private","zukan.records.browse-public"],"requirement_refs":["quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish","quality.zukan.program-event-quest.lifecycle"]},
-    {"domain":"self-serve-program-activation","outcome_ref":"outcome.zukan.self-serve-program-activation","actors":["school","municipality","organization","company"],"outcome":"主催者が運営者・開発者なしで現行Program profile（観察会）を起動し、参加者を招待する","capability_refs":["zukan.program.activate-self-serve","zukan.program.invite-participate","zukan.program.rehost-template","zukan.program.view-recap"],"requirement_refs":["quality.zukan.program.self-serve-activation","quality.zukan.program.participation","quality.zukan.program.closeout-rehost","quality.zukan.program.free-output-boundary"]},
-    {"domain":"program-continuity-handover","outcome_ref":"outcome.zukan.program-continuity","actors":["school","municipality","organization","company"],"outcome":"Programの正本参照を保って次の責任者へ引き渡す","capability_refs":["zukan.program.view-recap"],"requirement_refs":["quality.zukan.handover.provenance","quality.zukan.handover.selective-reuse","quality.zukan.handover.responsibility-transfer","quality.zukan.handover.lifecycle-reset","quality.zukan.handover.idempotency","quality.zukan.handover.persistence","quality.zukan.handover.outgoing-selection"]},
-    {"domain":"operational-portability","outcome_ref":"outcome.zukan.operational-portability","actors":["school","municipality","organization","company","individual"],"outcome":"運営指標とsource Recordをderived outputと分離して扱う","capability_refs":["zukan.program.view-recap","zukan.records.browse-public"],"requirement_refs":["quality.zukan.operational-summary.free","quality.zukan.raw-record-portability"]}
+  "matrix": [
+    {
+      "domain": "capture",
+      "outcome_ref": "outcome.zukan.record-integrity",
+      "actors": [
+        "individual",
+        "school",
+        "organization",
+        "company",
+        "municipality"
+      ],
+      "outcome": "地域の記録を失わず保存する",
+      "capability_refs": [
+        "zukan.capture.start",
+        "zukan.record.save-private"
+      ],
+      "requirement_refs": [
+        "quality.zukan.capture.entry",
+        "quality.zukan.capture.source-choice",
+        "quality.zukan.capture.immediate-preview",
+        "quality.zukan.capture.location-optional",
+        "quality.zukan.capture.ai-candidate",
+        "quality.zukan.capture.draft-recovery",
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.capture.truthful-status",
+        "quality.zukan.capture.owner-return",
+        "quality.zukan.record.source-reference-integrity",
+        "quality.zukan.record.claim-separation",
+        "quality.zukan.place.context-integrity",
+        "quality.zukan.rights.exif-minimization"
+      ]
+    },
+    {
+      "domain": "records",
+      "outcome_ref": "outcome.zukan.safe-publication",
+      "actors": [
+        "individual",
+        "public",
+        "school",
+        "organization",
+        "company",
+        "municipality"
+      ],
+      "outcome": "本人の記録と公開記録を権利に沿って再発見する",
+      "capability_refs": [
+        "zukan.records.browse-public",
+        "zukan.record.save-private",
+        "zukan.record.view-detail"
+      ],
+      "requirement_refs": [
+        "quality.zukan.capture.owner-return",
+        "quality.zukan.records.public-discovery",
+        "quality.zukan.trust.private-default",
+        "quality.zukan.trust.explicit-publication",
+        "quality.zukan.trust.face-private-place-safety",
+        "quality.zukan.trust.ai-candidate-not-fact",
+        "quality.zukan.trust.confirmation-provenance",
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.trust.existing-rights-preserved",
+        "quality.zukan.review.provenance",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.rights.minor-guardian-consent",
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.rights.retention",
+        "quality.zukan.publication.edition-integrity",
+        "quality.zukan.publication.correction-takedown",
+        "quality.zukan.free-core.boundary"
+      ]
+    },
+    {
+      "domain": "place-accumulation",
+      "outcome_ref": "outcome.zukan.collaborative-knowledge",
+      "actors": [
+        "individual",
+        "public",
+        "school",
+        "organization",
+        "company",
+        "municipality"
+      ],
+      "outcome": "記録がPlaceの図鑑を育て、投稿者と地域へ再訪理由を返す",
+      "capability_refs": [
+        "zukan.place.view-accumulation",
+        "zukan.record.view-detail",
+        "zukan.capture.start"
+      ],
+      "requirement_refs": [
+        "quality.zukan.place.context-integrity",
+        "quality.zukan.place.record-accumulation-visible",
+        "quality.zukan.review.contributor-return"
+      ]
+    },
+    {
+      "domain": "map",
+      "outcome_ref": "outcome.zukan.regional-portability",
+      "actors": [
+        "public",
+        "individual",
+        "school",
+        "organization",
+        "company",
+        "municipality"
+      ],
+      "outcome": "安全な位置精度で地域記録を場所から探索する",
+      "capability_refs": [
+        "zukan.map.explore-public"
+      ],
+      "requirement_refs": [
+        "quality.zukan.map.safe-discovery",
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.place.context-integrity"
+      ]
+    },
+    {
+      "domain": "live-camera-context",
+      "outcome_ref": "outcome.zukan.live-place-context",
+      "actors": [
+        "public",
+        "individual",
+        "school",
+        "organization",
+        "company",
+        "municipality"
+      ],
+      "outcome": "外部センサーを補助文脈として扱う",
+      "capability_refs": [
+        "zukan.map.explore-public"
+      ],
+      "requirement_refs": [
+        "quality.zukan.map.live-camera-source-eligibility",
+        "quality.zukan.map.live-camera-health",
+        "quality.zukan.map.live-camera-lazy-playback",
+        "quality.zukan.map.live-camera-record-context"
+      ],
+      "data_contract": {
+        "fields": [
+          "id",
+          "name",
+          "lat",
+          "lng",
+          "provider",
+          "source_ref",
+          "source_url",
+          "category",
+          "owner",
+          "status",
+          "last_checked_at",
+          "attribution",
+          "embed_allowed"
+        ],
+        "identity": "provider + source_ref is the stable external identity",
+        "initial_acquisition": "浜松・磐田・静岡の公式/認可済みsourceをmanual curate",
+        "forbidden": "再利用許諾未確認の第三者集約DBをコピーしない"
+      }
+    },
+    {
+      "domain": "home",
+      "outcome_ref": "outcome.zukan.record-integrity",
+      "actors": [
+        "individual"
+      ],
+      "outcome": "自分の記録・場所・参加中Program・次の行動へ戻る",
+      "capability_refs": [
+        "zukan.home.view-member"
+      ],
+      "requirement_refs": [
+        "quality.zukan.home.owner-context"
+      ]
+    },
+    {
+      "domain": "workspace-collaboration",
+      "outcome_ref": "outcome.zukan.collaborative-knowledge",
+      "actors": [
+        "school",
+        "organization",
+        "company",
+        "municipality"
+      ],
+      "outcome": "member/role/reviewを保って共同記録し、選択した範囲だけ共有する",
+      "capability_refs": [
+        "zukan.capture.start",
+        "zukan.record.save-private",
+        "zukan.records.browse-public"
+      ],
+      "requirement_refs": [
+        "quality.zukan.workspace.membership-authorization",
+        "quality.zukan.workspace.contribution",
+        "quality.zukan.workspace.review",
+        "quality.zukan.workspace.explicit-publish",
+        "quality.zukan.program-event-quest.lifecycle",
+        "quality.zukan.review.contributor-return"
+      ]
+    },
+    {
+      "domain": "self-serve-program-activation",
+      "outcome_ref": "outcome.zukan.self-serve-program-activation",
+      "actors": [
+        "school",
+        "municipality",
+        "organization",
+        "company"
+      ],
+      "outcome": "主催者が運営者・開発者なしで現行Program profile（観察会）を起動し、参加者を招待する",
+      "capability_refs": [
+        "zukan.program.activate-self-serve",
+        "zukan.program.invite-participate",
+        "zukan.program.rehost-template",
+        "zukan.program.view-recap"
+      ],
+      "requirement_refs": [
+        "quality.zukan.program.self-serve-activation",
+        "quality.zukan.program.participation",
+        "quality.zukan.program.closeout-rehost",
+        "quality.zukan.program.free-output-boundary"
+      ]
+    },
+    {
+      "domain": "program-continuity-handover",
+      "outcome_ref": "outcome.zukan.program-continuity",
+      "actors": [
+        "school",
+        "municipality",
+        "organization",
+        "company"
+      ],
+      "outcome": "Programの正本参照を保って次の責任者へ引き渡す",
+      "capability_refs": [
+        "zukan.program.view-recap"
+      ],
+      "requirement_refs": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.responsibility-transfer",
+        "quality.zukan.handover.lifecycle-reset",
+        "quality.zukan.handover.idempotency",
+        "quality.zukan.handover.persistence",
+        "quality.zukan.handover.outgoing-selection"
+      ]
+    },
+    {
+      "domain": "operational-portability",
+      "outcome_ref": "outcome.zukan.operational-portability",
+      "actors": [
+        "school",
+        "municipality",
+        "organization",
+        "company",
+        "individual"
+      ],
+      "outcome": "運営指標とsource Recordをderived outputと分離して扱う",
+      "capability_refs": [
+        "zukan.program.view-recap",
+        "zukan.records.browse-public"
+      ],
+      "requirement_refs": [
+        "quality.zukan.operational-summary.free",
+        "quality.zukan.raw-record-portability"
+      ]
+    }
   ],
-  "capabilities":[
-    {"id":"zukan.home.view-public","title":"公開Homeを見る","actor":"visitor","operation":"read","privacy":"public","side_effects":[]},
-    {"id":"zukan.capture.start","title":"記録を開始する","actor":"visitor_or_member","operation":"read","privacy":"private-draft","side_effects":[]},
-    {"id":"zukan.record.save-private","title":"記録を非公開保存する","actor":"member","operation":"write","privacy":"owner-only","side_effects":["database-write","media-upload","snapshot-invalidation"],"failure_contract":"入力・認証・保存・media失敗を表示し未確定を成功扱いしない","retry_contract":"同一intent再試行で一つのlogical record/media setへ収束する"},
-    {"id":"zukan.records.browse-public","title":"公開記録を見る","actor":"visitor_or_member","operation":"read","privacy":"public-filtered","side_effects":[]},
-    {"id":"zukan.map.explore-public","title":"公開範囲の場所と記録を見る","actor":"visitor_or_member","operation":"read","privacy":"public-filtered-location","side_effects":[]},
-    {"id":"zukan.home.view-member","title":"自分のHomeを見る","actor":"member","operation":"read","privacy":"mixed-owner-and-public","side_effects":[]},
-    {"id":"zukan.program.activate-self-serve","title":"現行Program（観察会profile）を自分で作る","actor":"organizer","operation":"write","privacy":"organizer-controlled","side_effects":["event-create","invite-link"],"failure_contract":"未ログイン・必須項目不足・保存失敗を作成成功と表示せず、入力を保持して復帰できる","retry_contract":"同じ作成intentの再送で別の招待対象を勝手に増やさず、作成済みeventへ収束する"},
-    {"id":"zukan.program.invite-participate","title":"現行Programの招待から参加する","actor":"organizer_or_participant","operation":"write","privacy":"event-scoped","side_effects":["participant-checkin"],"failure_contract":"event不明・期間外・権限外の参加を成功扱いしない","retry_contract":"同じparticipant intentの再試行で重複participantを作らない"},
-    {"id":"zukan.program.rehost-template","title":"現行Programのテンプレートから再開催する","actor":"organizer","operation":"write","privacy":"organizer-controlled","side_effects":["event-create"],"failure_contract":"元Eventのparticipant・consent・review・publication状態を新Eventへコピーせず、作成失敗を成功扱いしない","retry_contract":"同じ再開催intentの再試行で新Eventを重複作成せず、同じlogical activationへ収束する"},
-    {"id":"zukan.program.view-recap","title":"現行Program（観察会profile）を振り返る","actor":"organizer_or_participant","operation":"read","privacy":"event-scoped","side_effects":[]}
+  "capabilities": [
+    {
+      "id": "zukan.home.view-public",
+      "title": "公開Homeを見る",
+      "actor": "visitor",
+      "operation": "read",
+      "privacy": "public",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.capture.start",
+      "title": "記録を開始する",
+      "actor": "visitor_or_member",
+      "operation": "read",
+      "privacy": "private-draft",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.record.save-private",
+      "title": "記録を非公開保存する",
+      "actor": "member",
+      "operation": "write",
+      "privacy": "owner-only",
+      "side_effects": [
+        "database-write",
+        "media-upload",
+        "snapshot-invalidation"
+      ],
+      "failure_contract": "入力・認証・保存・media失敗を表示し未確定を成功扱いしない",
+      "retry_contract": "同一intent再試行で一つのlogical record/media setへ収束する"
+    },
+    {
+      "id": "zukan.records.browse-public",
+      "title": "公開記録を見る",
+      "actor": "visitor_or_member",
+      "operation": "read",
+      "privacy": "public-filtered",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.map.explore-public",
+      "title": "公開範囲の場所と記録を見る",
+      "actor": "visitor_or_member",
+      "operation": "read",
+      "privacy": "public-filtered-location",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.home.view-member",
+      "title": "自分のHomeを見る",
+      "actor": "member",
+      "operation": "read",
+      "privacy": "mixed-owner-and-public",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.program.activate-self-serve",
+      "title": "現行Program（観察会profile）を自分で作る",
+      "actor": "organizer",
+      "operation": "write",
+      "privacy": "organizer-controlled",
+      "side_effects": [
+        "event-create",
+        "invite-link"
+      ],
+      "failure_contract": "未ログイン・必須項目不足・保存失敗を作成成功と表示せず、入力を保持して復帰できる",
+      "retry_contract": "同じ作成intentの再送で別の招待対象を勝手に増やさず、作成済みeventへ収束する"
+    },
+    {
+      "id": "zukan.program.invite-participate",
+      "title": "現行Programの招待から参加する",
+      "actor": "organizer_or_participant",
+      "operation": "write",
+      "privacy": "event-scoped",
+      "side_effects": [
+        "participant-checkin"
+      ],
+      "failure_contract": "event不明・期間外・権限外の参加を成功扱いしない",
+      "retry_contract": "同じparticipant intentの再試行で重複participantを作らない"
+    },
+    {
+      "id": "zukan.program.rehost-template",
+      "title": "現行Programのテンプレートから再開催する",
+      "actor": "organizer",
+      "operation": "write",
+      "privacy": "organizer-controlled",
+      "side_effects": [
+        "event-create"
+      ],
+      "failure_contract": "元Eventのparticipant・consent・review・publication状態を新Eventへコピーせず、作成失敗を成功扱いしない",
+      "retry_contract": "同じ再開催intentの再試行で新Eventを重複作成せず、同じlogical activationへ収束する"
+    },
+    {
+      "id": "zukan.program.view-recap",
+      "title": "現行Program（観察会profile）を振り返る",
+      "actor": "organizer_or_participant",
+      "operation": "read",
+      "privacy": "event-scoped",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.record.view-detail",
+      "title": "記録詳細と本人への返却を見る",
+      "actor": "visitor_or_owner",
+      "operation": "read",
+      "privacy": "audience-filtered",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.place.view-accumulation",
+      "title": "場所に育った記録を見る",
+      "actor": "visitor_or_member",
+      "operation": "read",
+      "privacy": "public-filtered",
+      "side_effects": []
+    }
   ]
 }

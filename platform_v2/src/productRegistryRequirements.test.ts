@@ -19,7 +19,7 @@ test("canonical registry delegates resolved status and has no local evidence or 
 });
 
 test("requirements preserve the stable contract and cover the complete product scope", () => {
-  assert.equal(registry.requirements.length, 54);
+  assert.equal(registry.requirements.length, 56);
   assert.equal(new Set(registry.requirements.map((item) => item.id)).size, registry.requirements.length);
   for (const requirement of registry.requirements) {
     assert.equal("status" in requirement, false, `${requirement.id} must not carry resolved status`);
@@ -51,7 +51,7 @@ test("requirements preserve the stable contract and cover the complete product s
 });
 
 test("Outcome to Journey to Capability to Requirement to Surface trace is complete", () => {
-  const errors = validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/map", "/home", "/community/events", "/community/events/new", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) });
+  const errors = validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/observations/:id", "/map", "/home", "/community/events", "/community/events/new", "/community/fields/:fieldId", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) });
   assert.deepEqual(errors, []);
   const journeyIds = new Set(registry.journeys.map((journey) => journey.id));
   for (const outcome of registry.outcomes) {

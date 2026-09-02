@@ -2,17 +2,750 @@
   "schema_version": "1.0.0",
   "product_id": "zukan",
   "journeys": [
-    {"id":"journey.zukan.guest-to-capture","title":"公開Homeから記録開始","actor":"public","golden":true,"outcome_refs":["outcome.zukan.record-integrity"],"capability_refs":["zukan.home.view-public","zukan.capture.start"],"goal":"価値を理解し記録開始または認証案内へ迷わず進む","start_surface":"zukan.home.public","success_surface":"zukan.capture.start","steps":[{"surface":"zukan.home.public","action":"撮る"},{"surface":"zukan.capture.start","action":"記録開始または認証案内を確認"}],"requirement_refs":["quality.zukan.capture.entry","quality.zukan.trust.private-default"],"required_outcomes":["主CTAから記録開始へ進める","未認証時に保存成功を装わない"],"recovery":["戻る/再読込で公開Homeへ戻れる"],"required_states":["guest","unauthenticated","error"]},
-    {"id":"journey.zukan.capture-to-personal-return","title":"個人: 記録→本人へ返却","actor":"individual","golden":true,"outcome_refs":["outcome.zukan.record-integrity"],"capability_refs":["zukan.home.view-member","zukan.capture.start","zukan.record.save-private"],"goal":"見つけたものを安全に保存し、自分の記録として再発見する","start_surface":"zukan.home.member","success_surface":"zukan.home.member","steps":[{"surface":"zukan.home.member","action":"記録開始"},{"surface":"zukan.capture.start","action":"写真・場所・時間を確認し保存"},{"surface":"zukan.home.member","action":"保存された記録と次の行動を確認"}],"requirement_refs":["quality.zukan.capture.entry","quality.zukan.capture.source-choice","quality.zukan.capture.immediate-preview","quality.zukan.capture.location-optional","quality.zukan.capture.ai-candidate","quality.zukan.capture.draft-recovery","quality.zukan.capture.idempotent-save","quality.zukan.capture.truthful-status","quality.zukan.capture.owner-return","quality.zukan.home.owner-context","quality.zukan.trust.private-default","quality.zukan.record.source-reference-integrity","quality.zukan.record.claim-separation","quality.zukan.rights.exif-minimization"],"required_outcomes":["通信断/拒否/AI失敗でも記録を失わない","retryで重複しない","保存後に本人が記録へ戻れる"],"recovery":["camera/location拒否は代替へ戻る","offline/reloadはdraft復旧","AI/media失敗は保存状態と分離してretry"],"required_states":["ready","preview","submitting","success","offline","retrying","error"]},
-    {"id":"journey.zukan.personal-safe-publish","title":"個人: 非公開記録→安全な公開","actor":"individual","golden":true,"outcome_refs":["outcome.zukan.safe-publication","outcome.zukan.regional-portability"],"capability_refs":["zukan.home.view-member","zukan.records.browse-public","zukan.map.explore-public"],"goal":"本人が選んだ記録だけを安全な位置精度・確認状態で地域へ公開する","start_surface":"zukan.home.member","success_surface":"zukan.map.public","steps":[{"surface":"zukan.home.member","action":"自分の記録を選ぶ"},{"surface":"zukan.records.public","action":"公開範囲/位置/人物/確認状態を確認して明示公開"},{"surface":"zukan.map.public","action":"公開projectionを確認"}],"requirement_refs":["quality.zukan.trust.private-default","quality.zukan.trust.explicit-publication","quality.zukan.trust.location-minimization","quality.zukan.trust.face-private-place-safety","quality.zukan.trust.ai-candidate-not-fact","quality.zukan.trust.confirmation-provenance","quality.zukan.trust.public-projection","quality.zukan.trust.existing-rights-preserved","quality.zukan.records.public-discovery","quality.zukan.map.safe-discovery","quality.zukan.rights.consent-scope","quality.zukan.rights.minor-guardian-consent","quality.zukan.rights.export-withdrawal-deletion","quality.zukan.rights.retention","quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown","quality.zukan.free-core.boundary"],"required_outcomes":["privateは明示操作なしに公開されない","exact位置/face blocked等はpublic projectionへ出ない","AI候補をverified扱いしない"],"recovery":["公開条件不足はprivateを維持","公開解除/権利変更はcache projectionを無効化"],"required_states":["populated","error"]},
-    {"id":"journey.zukan.live-place-context","title":"閲覧者: 地図→現在映像→場所の記録","actor":"public","golden":true,"outcome_refs":["outcome.zukan.live-place-context"],"capability_refs":["zukan.map.explore-public"],"goal":"場所の現在映像を補助文脈として確認し、同じ場所の今日・季節・過去のZUKAN記録へつなぐ","start_surface":"zukan.map.public","success_surface":"zukan.map.public","steps":[{"surface":"zukan.map.public","action":"ライブカメラlayerをON"},{"surface":"zukan.map.public","action":"camera pinを選択してsource/死活時刻を確認し必要時だけ再生"},{"surface":"zukan.map.public","action":"近隣・今日・同季節・過去のZUKAN記録を開く"}],"requirement_refs":["quality.zukan.map.safe-discovery","quality.zukan.records.public-discovery","quality.zukan.trust.existing-rights-preserved","quality.zukan.map.live-camera-source-eligibility","quality.zukan.map.live-camera-health","quality.zukan.map.live-camera-lazy-playback","quality.zukan.map.live-camera-record-context"],"required_outcomes":["許諾/出典不明cameraを公開しない","dead/private/endedをLIVE表示しない","camera未選択時はplayerをloadしない","ライブ映像をverified ZUKAN observation扱いしない","camera障害時も地図/記録探索を継続できる"],"recovery":["player失敗/stream終了時はmapへ戻る","関連ZUKAN記録0件でも映像とsource情報は閲覧できる"],"required_states":["populated","error"]},
-    {"id":"journey.zukan.school-field-learning","title":"学校: 共同観察→教員review→選択公開","actor":"school","golden":true,"outcome_refs":["outcome.zukan.collaborative-knowledge"],"capability_refs":["zukan.home.view-member","zukan.capture.start","zukan.record.save-private","zukan.records.browse-public"],"goal":"学習者の記録を安全に集め、教員が確認した範囲だけを共有する","start_surface":"zukan.home.member","success_surface":"zukan.records.public","steps":[{"surface":"zukan.home.member","action":"共同活動を開く"},{"surface":"zukan.capture.start","action":"memberとして記録を追加"},{"surface":"zukan.home.member","action":"教員がreview"},{"surface":"zukan.records.public","action":"認可された記録だけ公開"}],"requirement_refs":["quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish","quality.zukan.trust.location-minimization","quality.zukan.trust.face-private-place-safety","quality.zukan.trust.existing-rights-preserved","quality.zukan.rights.minor-guardian-consent","quality.zukan.program-event-quest.lifecycle"],"required_outcomes":["非member/権限外操作を拒否","review前をverified/public扱いしない","未成年/人物/位置の安全を優先"],"recovery":["権限不明はfail closed","review/publish失敗でも個人記録を失わない"],"required_states":["member","unauthenticated","error"]},
-    {"id":"journey.zukan.organization-company-collaboration","title":"団体・企業: 共同記録→review→共有","actor":"organization_or_company","golden":true,"outcome_refs":["outcome.zukan.collaborative-knowledge"],"capability_refs":["zukan.home.view-member","zukan.capture.start","zukan.record.save-private","zukan.records.browse-public","zukan.map.explore-public"],"goal":"複数memberが目的を共有して記録し、役割に応じてreview・共有する","start_surface":"zukan.home.member","success_surface":"zukan.map.public","steps":[{"surface":"zukan.home.member","action":"共同活動を開く"},{"surface":"zukan.capture.start","action":"記録を追加"},{"surface":"zukan.home.member","action":"roleに応じreview"},{"surface":"zukan.records.public","action":"共有対象を確認"},{"surface":"zukan.map.public","action":"公開を選んだ集約だけ確認"}],"requirement_refs":["quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish","quality.zukan.trust.public-projection","quality.zukan.trust.existing-rights-preserved","quality.zukan.program-event-quest.lifecycle","quality.zukan.free-core.boundary"],"required_outcomes":["個人/共同/public scopeを混同しない","権限外read/write/reviewを拒否","既存rightsを暗黙変更しない"],"recovery":["membership不整合はfail closed","retryで重複contributionを作らない"],"required_states":["member","unauthenticated","populated","error"]},
-    {"id":"journey.zukan.municipality-local-observation","title":"自治体: 地域観察→確認→安全な地図公開","actor":"municipality","golden":true,"outcome_refs":["outcome.zukan.collaborative-knowledge","outcome.zukan.safe-publication"],"capability_refs":["zukan.map.explore-public","zukan.capture.start","zukan.record.save-private","zukan.home.view-member","zukan.records.browse-public"],"goal":"地域の観察を集め、位置/人物/確認状態を守って住民へ返す","start_surface":"zukan.map.public","success_surface":"zukan.map.public","steps":[{"surface":"zukan.map.public","action":"地域/歩く地図等から対象を理解"},{"surface":"zukan.capture.start","action":"観察記録を追加"},{"surface":"zukan.home.member","action":"認可者/専門家がreview"},{"surface":"zukan.records.public","action":"公開対象を確認"},{"surface":"zukan.map.public","action":"public eligibleだけ地図で確認"}],"requirement_refs":["quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish","quality.zukan.trust.location-minimization","quality.zukan.trust.confirmation-provenance","quality.zukan.trust.public-projection","quality.zukan.map.safe-discovery","quality.zukan.record.source-reference-integrity","quality.zukan.publication.correction-takedown"],"required_outcomes":["exact/sensitive locationを公開しない","AI/人/専門家の確認由来を区別","public eligibleのみを地図へ投影"],"recovery":["地図不能時はrecordsへ退避","review未完了は非公開を維持"],"required_states":["member","populated","error"]},
-    {"id":"journey.zukan.public-discovery","title":"閲覧者: records/map→公開記録理解","actor":"public","golden":true,"outcome_refs":["outcome.zukan.safe-publication","outcome.zukan.regional-portability"],"capability_refs":["zukan.records.browse-public","zukan.map.explore-public"],"goal":"公開が許可された地域記録だけを安全な精度と確認状態で探索する","start_surface":"zukan.records.public","success_surface":"zukan.map.public","steps":[{"surface":"zukan.records.public","action":"公開記録を探す"},{"surface":"zukan.map.public","action":"場所の文脈で見る"}],"requirement_refs":["quality.zukan.records.public-discovery","quality.zukan.map.safe-discovery","quality.zukan.trust.location-minimization","quality.zukan.trust.ai-candidate-not-fact","quality.zukan.trust.public-projection","quality.zukan.publication.edition-integrity"],"required_outcomes":["private dataを見せない","0件と障害を区別","候補/確認済みを誤認させない"],"recovery":["map unavailable時はrecordsへ戻れる"],"required_states":["loading","empty","populated","error"]},
-    {"id":"journey.zukan.self-serve-program-activation","title":"主催者: 企画→作成→招待→参加→記録→review→recap→再開催","actor":"school_municipality_organization_company","golden":true,"outcome_refs":["outcome.zukan.self-serve-program-activation"],"capability_refs":["zukan.program.activate-self-serve","zukan.program.invite-participate","zukan.record.save-private","zukan.program.view-recap","zukan.program.rehost-template"],"goal":"運営者や開発者の介入なしに、既存のEvent/Quest/participant/review/recap/template資産で活動を完走する","start_surface":"zukan.program.activation","success_surface":"zukan.program.activation","steps":[{"surface":"zukan.program.activation","action":"企画の目的・場所・日時・参加方法を設定して作成"},{"surface":"zukan.program.console","action":"参加者招待入口を確認"},{"surface":"zukan.program.participation","action":"招待から参加する"},{"surface":"zukan.capture.start","action":"対象Event scopeの記録を開始する"},{"surface":"zukan.program.recap","action":"review済みの成果を振り返る"},{"surface":"zukan.program.activation","action":"templateから企画設定だけを再利用して再開催を始める"}],"requirement_refs":["quality.zukan.program.self-serve-activation","quality.zukan.program.participation","quality.zukan.program.closeout-rehost","quality.zukan.program.free-output-boundary","quality.zukan.program-event-quest.lifecycle","quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish"],"required_outcomes":["主催者が運営者・開発者なしで作成できる","招待・参加・記録がevent scopeでつながる","review前を公開成果と扱わない","recapから参加者等を持ち越さず再開催できる"],"recovery":["未ログイン・権限外は作成/参加/記録を成功扱いしない","入力不備・保存失敗・check-in失敗は成功扱いせず再試行する","guest→login移行でEvent scope attributionを保つ","participant private Recordは明示review/public操作まで非公開","minor/guardian不明は位置共有・公開を拒否する"],"required_states":["unauthenticated","ready","editing","submitting","created","inviting","joined","capturing","populated","error"]},
-    {"id":"journey.zukan.program-handover","title":"主催者: source Program→handover→incoming actor→継続開始","actor":"school_municipality_organization_company","golden":false,"outcome_refs":["outcome.zukan.program-continuity"],"capability_refs":["zukan.program.view-recap"],"goal":"正本参照と責任を保ったまま次年度・次担当者へ継続計画を渡す","start_surface":"zukan.program.console","success_surface":"zukan.program.console","steps":[{"surface":"zukan.program.console","action":"source Programとhandover開始を確認"},{"surface":"zukan.program.console","action":"selected Quest/template/Place/Record refsだけを選ぶ"},{"surface":"zukan.program.console","action":"incoming actorと受入状態を確認"},{"surface":"zukan.program.console","action":"target Programで継続開始可能なplanを確認"}],"requirement_refs":["quality.zukan.handover.provenance","quality.zukan.handover.selective-reuse","quality.zukan.handover.responsibility-transfer","quality.zukan.handover.lifecycle-reset","quality.zukan.handover.idempotency","quality.zukan.handover.persistence","quality.zukan.handover.outgoing-selection"],"required_outcomes":["side-effect 0 plannerがsource/targetを結ぶ","participant等をコピーしない","incoming actor不明はfail closed"],"recovery":["不明なactor/refsはplanを作らない","retryは同一planへ収束"],"required_states":["ready","inviting","ended","denied","error"]},
-    {"id":"journey.zukan.program-operational-summary","title":"主催者: 活動→Free OperationalActivitySummary","actor":"school_municipality_organization_company","golden":false,"outcome_refs":["outcome.zukan.operational-portability"],"capability_refs":["zukan.program.view-recap"],"goal":"運営に必要な活動指標だけをfree summaryで確認する","start_surface":"zukan.program.console","success_surface":"zukan.program.console","steps":[{"surface":"zukan.program.console","action":"参加者・team・Quest・Record・Review・continuation状態を確認"},{"surface":"zukan.program.console","action":"taxon/biodiversity/report outputを含まないsummaryとして確認"}],"requirement_refs":["quality.zukan.operational-summary.free"],"required_outcomes":["運営指標を確認できる","derived taxon/report outputを出さない"],"recovery":["source不足はunknown/計測不可を明示"],"required_states":["ready","live","ended","error"]},
-    {"id":"journey.zukan.raw-record-portability","title":"権利者: source Record→RawRecordPortabilityArchive","actor":"individual_school_municipality_organization_company","golden":false,"outcome_refs":["outcome.zukan.operational-portability"],"capability_refs":["zukan.records.browse-public"],"goal":"source Recordを粒度とrights/provenanceを保ったまま持ち運ぶ","start_surface":"zukan.records.public","success_surface":"zukan.records.public","steps":[{"surface":"zukan.records.public","action":"自分のsource Recordと許可範囲を選ぶ"},{"surface":"zukan.records.public","action":"Record単位archiveとderived output非包含を確認"}],"requirement_refs":["quality.zukan.raw-record-portability"],"required_outcomes":["canonical Record identityを保全する","taxon inventory/report-ready outputを生成しない"],"recovery":["rights不明はarchive範囲を縮小し、推測しない"],"required_states":["empty","populated","no-results","error"]}
+    {
+      "id": "journey.zukan.guest-to-capture",
+      "title": "公開Homeから記録開始",
+      "actor": "public",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.record-integrity"
+      ],
+      "capability_refs": [
+        "zukan.home.view-public",
+        "zukan.capture.start"
+      ],
+      "goal": "価値を理解し記録開始または認証案内へ迷わず進む",
+      "start_surface": "zukan.home.public",
+      "success_surface": "zukan.capture.start",
+      "steps": [
+        {
+          "surface": "zukan.home.public",
+          "action": "撮る"
+        },
+        {
+          "surface": "zukan.capture.start",
+          "action": "記録開始または認証案内を確認"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.capture.entry",
+        "quality.zukan.trust.private-default"
+      ],
+      "required_outcomes": [
+        "主CTAから記録開始へ進める",
+        "未認証時に保存成功を装わない"
+      ],
+      "recovery": [
+        "戻る/再読込で公開Homeへ戻れる"
+      ],
+      "required_states": [
+        "guest",
+        "unauthenticated",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.capture-to-personal-return",
+      "title": "個人: 記録→本人へ返却",
+      "actor": "individual",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.record-integrity"
+      ],
+      "capability_refs": [
+        "zukan.home.view-member",
+        "zukan.capture.start",
+        "zukan.record.save-private",
+        "zukan.record.view-detail"
+      ],
+      "goal": "見つけたものを安全に保存し、自分の記録として再発見する",
+      "start_surface": "zukan.home.member",
+      "success_surface": "zukan.record.detail",
+      "steps": [
+        {
+          "surface": "zukan.home.member",
+          "action": "記録開始"
+        },
+        {
+          "surface": "zukan.capture.start",
+          "action": "写真・場所・時間を確認し保存"
+        },
+        {
+          "surface": "zukan.record.detail",
+          "action": "保存された記録、AI候補と処理状態（queued/processing/completed|failed）、次の行動を同一セッションで確認"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.capture.entry",
+        "quality.zukan.capture.source-choice",
+        "quality.zukan.capture.immediate-preview",
+        "quality.zukan.capture.location-optional",
+        "quality.zukan.capture.ai-candidate",
+        "quality.zukan.capture.draft-recovery",
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.capture.truthful-status",
+        "quality.zukan.capture.owner-return",
+        "quality.zukan.home.owner-context",
+        "quality.zukan.trust.private-default",
+        "quality.zukan.record.source-reference-integrity",
+        "quality.zukan.record.claim-separation",
+        "quality.zukan.rights.exif-minimization"
+      ],
+      "required_outcomes": [
+        "通信断/拒否/AI失敗でも記録を失わない",
+        "retryで重複しない",
+        "保存後に本人が記録へ戻れる",
+        "AIの候補または明示的な失敗が同一セッションで本人へ返る"
+      ],
+      "recovery": [
+        "camera/location拒否は代替へ戻る",
+        "offline/reloadはdraft復旧",
+        "AI/media失敗は保存状態と分離してretry"
+      ],
+      "required_states": [
+        "ready",
+        "preview",
+        "submitting",
+        "success",
+        "offline",
+        "retrying",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.personal-safe-publish",
+      "title": "個人: 非公開記録→安全な公開",
+      "actor": "individual",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.safe-publication",
+        "outcome.zukan.regional-portability"
+      ],
+      "capability_refs": [
+        "zukan.home.view-member",
+        "zukan.records.browse-public",
+        "zukan.map.explore-public"
+      ],
+      "goal": "本人が選んだ記録だけを安全な位置精度・確認状態で地域へ公開する",
+      "start_surface": "zukan.home.member",
+      "success_surface": "zukan.map.public",
+      "steps": [
+        {
+          "surface": "zukan.home.member",
+          "action": "自分の記録を選ぶ"
+        },
+        {
+          "surface": "zukan.records.public",
+          "action": "公開範囲/位置/人物/確認状態を確認して明示公開"
+        },
+        {
+          "surface": "zukan.map.public",
+          "action": "公開projectionを確認"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.trust.private-default",
+        "quality.zukan.trust.explicit-publication",
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.trust.face-private-place-safety",
+        "quality.zukan.trust.ai-candidate-not-fact",
+        "quality.zukan.trust.confirmation-provenance",
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.trust.existing-rights-preserved",
+        "quality.zukan.records.public-discovery",
+        "quality.zukan.map.safe-discovery",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.rights.minor-guardian-consent",
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.rights.retention",
+        "quality.zukan.publication.edition-integrity",
+        "quality.zukan.publication.correction-takedown",
+        "quality.zukan.free-core.boundary"
+      ],
+      "required_outcomes": [
+        "privateは明示操作なしに公開されない",
+        "exact位置/face blocked等はpublic projectionへ出ない",
+        "AI候補をverified扱いしない"
+      ],
+      "recovery": [
+        "公開条件不足はprivateを維持",
+        "公開解除/権利変更はcache projectionを無効化"
+      ],
+      "required_states": [
+        "populated",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.live-place-context",
+      "title": "閲覧者: 地図→現在映像→場所の記録",
+      "actor": "public",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.live-place-context"
+      ],
+      "capability_refs": [
+        "zukan.map.explore-public"
+      ],
+      "goal": "場所の現在映像を補助文脈として確認し、同じ場所の今日・季節・過去のZUKAN記録へつなぐ",
+      "start_surface": "zukan.map.public",
+      "success_surface": "zukan.map.public",
+      "steps": [
+        {
+          "surface": "zukan.map.public",
+          "action": "ライブカメラlayerをON"
+        },
+        {
+          "surface": "zukan.map.public",
+          "action": "camera pinを選択してsource/死活時刻を確認し必要時だけ再生"
+        },
+        {
+          "surface": "zukan.map.public",
+          "action": "近隣・今日・同季節・過去のZUKAN記録を開く"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.map.safe-discovery",
+        "quality.zukan.records.public-discovery",
+        "quality.zukan.trust.existing-rights-preserved",
+        "quality.zukan.map.live-camera-source-eligibility",
+        "quality.zukan.map.live-camera-health",
+        "quality.zukan.map.live-camera-lazy-playback",
+        "quality.zukan.map.live-camera-record-context"
+      ],
+      "required_outcomes": [
+        "許諾/出典不明cameraを公開しない",
+        "dead/private/endedをLIVE表示しない",
+        "camera未選択時はplayerをloadしない",
+        "ライブ映像をverified ZUKAN observation扱いしない",
+        "camera障害時も地図/記録探索を継続できる"
+      ],
+      "recovery": [
+        "player失敗/stream終了時はmapへ戻る",
+        "関連ZUKAN記録0件でも映像とsource情報は閲覧できる"
+      ],
+      "required_states": [
+        "populated",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.school-field-learning",
+      "title": "学校: 共同観察→教員review→選択公開",
+      "actor": "school",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.collaborative-knowledge"
+      ],
+      "capability_refs": [
+        "zukan.home.view-member",
+        "zukan.capture.start",
+        "zukan.record.save-private",
+        "zukan.records.browse-public"
+      ],
+      "goal": "学習者の記録を安全に集め、教員が確認した範囲だけを共有する",
+      "start_surface": "zukan.home.member",
+      "success_surface": "zukan.records.public",
+      "steps": [
+        {
+          "surface": "zukan.home.member",
+          "action": "共同活動を開く"
+        },
+        {
+          "surface": "zukan.capture.start",
+          "action": "memberとして記録を追加"
+        },
+        {
+          "surface": "zukan.home.member",
+          "action": "教員がreview"
+        },
+        {
+          "surface": "zukan.records.public",
+          "action": "認可された記録だけ公開"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.workspace.membership-authorization",
+        "quality.zukan.workspace.contribution",
+        "quality.zukan.workspace.review",
+        "quality.zukan.workspace.explicit-publish",
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.trust.face-private-place-safety",
+        "quality.zukan.trust.existing-rights-preserved",
+        "quality.zukan.rights.minor-guardian-consent",
+        "quality.zukan.program-event-quest.lifecycle"
+      ],
+      "required_outcomes": [
+        "非member/権限外操作を拒否",
+        "review前をverified/public扱いしない",
+        "未成年/人物/位置の安全を優先"
+      ],
+      "recovery": [
+        "権限不明はfail closed",
+        "review/publish失敗でも個人記録を失わない"
+      ],
+      "required_states": [
+        "member",
+        "unauthenticated",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.organization-company-collaboration",
+      "title": "団体・企業: 共同記録→review→共有",
+      "actor": "organization_or_company",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.collaborative-knowledge"
+      ],
+      "capability_refs": [
+        "zukan.home.view-member",
+        "zukan.capture.start",
+        "zukan.record.save-private",
+        "zukan.records.browse-public",
+        "zukan.map.explore-public"
+      ],
+      "goal": "複数memberが目的を共有して記録し、役割に応じてreview・共有する",
+      "start_surface": "zukan.home.member",
+      "success_surface": "zukan.map.public",
+      "steps": [
+        {
+          "surface": "zukan.home.member",
+          "action": "共同活動を開く"
+        },
+        {
+          "surface": "zukan.capture.start",
+          "action": "記録を追加"
+        },
+        {
+          "surface": "zukan.home.member",
+          "action": "roleに応じreview"
+        },
+        {
+          "surface": "zukan.records.public",
+          "action": "共有対象を確認"
+        },
+        {
+          "surface": "zukan.map.public",
+          "action": "公開を選んだ集約だけ確認"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.workspace.membership-authorization",
+        "quality.zukan.workspace.contribution",
+        "quality.zukan.workspace.review",
+        "quality.zukan.workspace.explicit-publish",
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.trust.existing-rights-preserved",
+        "quality.zukan.program-event-quest.lifecycle",
+        "quality.zukan.free-core.boundary"
+      ],
+      "required_outcomes": [
+        "個人/共同/public scopeを混同しない",
+        "権限外read/write/reviewを拒否",
+        "既存rightsを暗黙変更しない"
+      ],
+      "recovery": [
+        "membership不整合はfail closed",
+        "retryで重複contributionを作らない"
+      ],
+      "required_states": [
+        "member",
+        "unauthenticated",
+        "populated",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.municipality-local-observation",
+      "title": "自治体: 地域観察→確認→安全な地図公開",
+      "actor": "municipality",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.collaborative-knowledge",
+        "outcome.zukan.safe-publication"
+      ],
+      "capability_refs": [
+        "zukan.map.explore-public",
+        "zukan.capture.start",
+        "zukan.record.save-private",
+        "zukan.home.view-member",
+        "zukan.records.browse-public"
+      ],
+      "goal": "地域の観察を集め、位置/人物/確認状態を守って住民へ返す",
+      "start_surface": "zukan.map.public",
+      "success_surface": "zukan.map.public",
+      "steps": [
+        {
+          "surface": "zukan.map.public",
+          "action": "地域/歩く地図等から対象を理解"
+        },
+        {
+          "surface": "zukan.capture.start",
+          "action": "観察記録を追加"
+        },
+        {
+          "surface": "zukan.home.member",
+          "action": "認可者/専門家がreview"
+        },
+        {
+          "surface": "zukan.records.public",
+          "action": "公開対象を確認"
+        },
+        {
+          "surface": "zukan.map.public",
+          "action": "public eligibleだけ地図で確認"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.workspace.membership-authorization",
+        "quality.zukan.workspace.contribution",
+        "quality.zukan.workspace.review",
+        "quality.zukan.workspace.explicit-publish",
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.trust.confirmation-provenance",
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.map.safe-discovery",
+        "quality.zukan.record.source-reference-integrity",
+        "quality.zukan.publication.correction-takedown"
+      ],
+      "required_outcomes": [
+        "exact/sensitive locationを公開しない",
+        "AI/人/専門家の確認由来を区別",
+        "public eligibleのみを地図へ投影"
+      ],
+      "recovery": [
+        "地図不能時はrecordsへ退避",
+        "review未完了は非公開を維持"
+      ],
+      "required_states": [
+        "member",
+        "populated",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.public-discovery",
+      "title": "閲覧者: records/map→公開記録理解",
+      "actor": "public",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.safe-publication",
+        "outcome.zukan.regional-portability"
+      ],
+      "capability_refs": [
+        "zukan.records.browse-public",
+        "zukan.map.explore-public"
+      ],
+      "goal": "公開が許可された地域記録だけを安全な精度と確認状態で探索する",
+      "start_surface": "zukan.records.public",
+      "success_surface": "zukan.map.public",
+      "steps": [
+        {
+          "surface": "zukan.records.public",
+          "action": "公開記録を探す"
+        },
+        {
+          "surface": "zukan.map.public",
+          "action": "場所の文脈で見る"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.records.public-discovery",
+        "quality.zukan.map.safe-discovery",
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.trust.ai-candidate-not-fact",
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.publication.edition-integrity"
+      ],
+      "required_outcomes": [
+        "private dataを見せない",
+        "0件と障害を区別",
+        "候補/確認済みを誤認させない"
+      ],
+      "recovery": [
+        "map unavailable時はrecordsへ戻れる"
+      ],
+      "required_states": [
+        "loading",
+        "empty",
+        "populated",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.self-serve-program-activation",
+      "title": "主催者: 企画→作成→招待→参加→記録→review→recap→再開催",
+      "actor": "school_municipality_organization_company",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.self-serve-program-activation"
+      ],
+      "capability_refs": [
+        "zukan.program.activate-self-serve",
+        "zukan.program.invite-participate",
+        "zukan.record.save-private",
+        "zukan.program.view-recap",
+        "zukan.program.rehost-template"
+      ],
+      "goal": "運営者や開発者の介入なしに、既存のEvent/Quest/participant/review/recap/template資産で活動を完走する",
+      "start_surface": "zukan.program.activation",
+      "success_surface": "zukan.program.activation",
+      "steps": [
+        {
+          "surface": "zukan.program.activation",
+          "action": "企画の目的・場所・日時・参加方法を設定して作成"
+        },
+        {
+          "surface": "zukan.program.console",
+          "action": "参加者招待入口を確認"
+        },
+        {
+          "surface": "zukan.program.participation",
+          "action": "招待から参加する"
+        },
+        {
+          "surface": "zukan.capture.start",
+          "action": "対象Event scopeの記録を開始する"
+        },
+        {
+          "surface": "zukan.program.recap",
+          "action": "review済みの成果を振り返る"
+        },
+        {
+          "surface": "zukan.program.activation",
+          "action": "templateから企画設定だけを再利用して再開催を始める"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.program.self-serve-activation",
+        "quality.zukan.program.participation",
+        "quality.zukan.program.closeout-rehost",
+        "quality.zukan.program.free-output-boundary",
+        "quality.zukan.program-event-quest.lifecycle",
+        "quality.zukan.workspace.membership-authorization",
+        "quality.zukan.workspace.contribution",
+        "quality.zukan.workspace.review",
+        "quality.zukan.workspace.explicit-publish"
+      ],
+      "required_outcomes": [
+        "主催者が運営者・開発者なしで作成できる",
+        "招待・参加・記録がevent scopeでつながる",
+        "review前を公開成果と扱わない",
+        "recapから参加者等を持ち越さず再開催できる"
+      ],
+      "recovery": [
+        "未ログイン・権限外は作成/参加/記録を成功扱いしない",
+        "入力不備・保存失敗・check-in失敗は成功扱いせず再試行する",
+        "guest→login移行でEvent scope attributionを保つ",
+        "participant private Recordは明示review/public操作まで非公開",
+        "minor/guardian不明は位置共有・公開を拒否する"
+      ],
+      "required_states": [
+        "unauthenticated",
+        "ready",
+        "editing",
+        "submitting",
+        "created",
+        "inviting",
+        "joined",
+        "capturing",
+        "populated",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.program-handover",
+      "title": "主催者: source Program→handover→incoming actor→継続開始",
+      "actor": "school_municipality_organization_company",
+      "golden": false,
+      "outcome_refs": [
+        "outcome.zukan.program-continuity"
+      ],
+      "capability_refs": [
+        "zukan.program.view-recap"
+      ],
+      "goal": "正本参照と責任を保ったまま次年度・次担当者へ継続計画を渡す",
+      "start_surface": "zukan.program.console",
+      "success_surface": "zukan.program.console",
+      "steps": [
+        {
+          "surface": "zukan.program.console",
+          "action": "source Programとhandover開始を確認"
+        },
+        {
+          "surface": "zukan.program.console",
+          "action": "selected Quest/template/Place/Record refsだけを選ぶ"
+        },
+        {
+          "surface": "zukan.program.console",
+          "action": "incoming actorと受入状態を確認"
+        },
+        {
+          "surface": "zukan.program.console",
+          "action": "target Programで継続開始可能なplanを確認"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.responsibility-transfer",
+        "quality.zukan.handover.lifecycle-reset",
+        "quality.zukan.handover.idempotency",
+        "quality.zukan.handover.persistence",
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "required_outcomes": [
+        "side-effect 0 plannerがsource/targetを結ぶ",
+        "participant等をコピーしない",
+        "incoming actor不明はfail closed"
+      ],
+      "recovery": [
+        "不明なactor/refsはplanを作らない",
+        "retryは同一planへ収束"
+      ],
+      "required_states": [
+        "ready",
+        "inviting",
+        "ended",
+        "denied",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.program-operational-summary",
+      "title": "主催者: 活動→Free OperationalActivitySummary",
+      "actor": "school_municipality_organization_company",
+      "golden": false,
+      "outcome_refs": [
+        "outcome.zukan.operational-portability"
+      ],
+      "capability_refs": [
+        "zukan.program.view-recap"
+      ],
+      "goal": "運営に必要な活動指標だけをfree summaryで確認する",
+      "start_surface": "zukan.program.console",
+      "success_surface": "zukan.program.console",
+      "steps": [
+        {
+          "surface": "zukan.program.console",
+          "action": "参加者・team・Quest・Record・Review・continuation状態を確認"
+        },
+        {
+          "surface": "zukan.program.console",
+          "action": "taxon/biodiversity/report outputを含まないsummaryとして確認"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.operational-summary.free"
+      ],
+      "required_outcomes": [
+        "運営指標を確認できる",
+        "derived taxon/report outputを出さない"
+      ],
+      "recovery": [
+        "source不足はunknown/計測不可を明示"
+      ],
+      "required_states": [
+        "ready",
+        "live",
+        "ended",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.raw-record-portability",
+      "title": "権利者: source Record→RawRecordPortabilityArchive",
+      "actor": "individual_school_municipality_organization_company",
+      "golden": false,
+      "outcome_refs": [
+        "outcome.zukan.operational-portability"
+      ],
+      "capability_refs": [
+        "zukan.records.browse-public"
+      ],
+      "goal": "source Recordを粒度とrights/provenanceを保ったまま持ち運ぶ",
+      "start_surface": "zukan.records.public",
+      "success_surface": "zukan.records.public",
+      "steps": [
+        {
+          "surface": "zukan.records.public",
+          "action": "自分のsource Recordと許可範囲を選ぶ"
+        },
+        {
+          "surface": "zukan.records.public",
+          "action": "Record単位archiveとderived output非包含を確認"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.raw-record-portability"
+      ],
+      "required_outcomes": [
+        "canonical Record identityを保全する",
+        "taxon inventory/report-ready outputを生成しない"
+      ],
+      "recovery": [
+        "rights不明はarchive範囲を縮小し、推測しない"
+      ],
+      "required_states": [
+        "empty",
+        "populated",
+        "no-results",
+        "error"
+      ]
+    },
+    {
+      "id": "journey.zukan.place-accumulation-revisit",
+      "title": "個人: 記録が場所を育て、再訪する",
+      "actor": "individual",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.collaborative-knowledge"
+      ],
+      "capability_refs": [
+        "zukan.place.view-accumulation",
+        "zukan.capture.start"
+      ],
+      "goal": "自分の記録がその場所の図鑑を育てたことを確かめ、同じ場所へ戻って次を記録する",
+      "start_surface": "zukan.place.detail",
+      "success_surface": "zukan.place.detail",
+      "steps": [
+        {
+          "surface": "zukan.place.detail",
+          "action": "その場所に今わかっていることと育て方を見る"
+        },
+        {
+          "surface": "zukan.capture.start",
+          "action": "このエリアで記録する"
+        },
+        {
+          "surface": "zukan.place.detail",
+          "action": "自分の記録で表示状態が変わったことを確認し、再訪の手がかりを得る"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.place.record-accumulation-visible",
+        "quality.zukan.place.context-integrity",
+        "quality.zukan.trust.private-default",
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.trust.ai-candidate-not-fact"
+      ],
+      "required_outcomes": [
+        "0件でも空の指標や内部用語を見せない",
+        "最初の1件で表示が実際に変わる",
+        "近隣Placeの記録をこの場所の記録として数えない"
+      ],
+      "recovery": [
+        "読み込み失敗は0件と区別する",
+        "sensitive/withdrawn記録は表示せず正確な位置も出さない"
+      ],
+      "required_states": [
+        "empty",
+        "first-record",
+        "populated",
+        "loading",
+        "error"
+      ]
+    }
   ]
 }

@@ -116,7 +116,7 @@ test("M8 design contracts stay separate and close partial, rights and forbidden-
 });
 
 test("M7/M8 design stays traceable without claiming implementation", () => {
-  const routes = { "site-map": new Set(["/", "/record", "/records", "/map", "/home", "/community/events", "/community/events/new", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) };
+  const routes = { "site-map": new Set(["/", "/record", "/records", "/observations/:id", "/map", "/home", "/community/events", "/community/events/new", "/community/fields/:fieldId", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) };
   assert.deepEqual(validateProductRegistry(registry, routes), []);
   assert.deepEqual(validateProductRegistryNavigation(loadProductRegistryNavigation(), new Set(registry.requirements.map((item) => item.id))), []);
 });

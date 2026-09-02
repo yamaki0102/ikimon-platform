@@ -226,7 +226,22 @@ Specialist judgment belongs to a Domain Pack and accountable reviewers. Adoption
 - Keep Foundation v2 migrations additive and dormant where no writer or reader is approved.
 - Do not switch current runtime routes or public response schemas merely because a future profile is described in the roadmap.
 - Do not create a municipality-specific database, authentication system or canonical Place model.
-- Keep NOCOSIL and ZUKAN as separate canonical/private domains; exchange only explicit public-safe projections/packages under the profile horizon.
+- Keep NOCOSIL and ZUKAN as separate canonical/private product domains with separate product-local databases and domain-local sessions. Source-level exchange remains explicit public-safe projections and packages under the profile horizon.
+
+### 12.1 Shared Identity & Activity plane
+
+The owner-approved Draft decision `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-nocosil-zukan-shared-identity-activity-plane-v1.md` proposes one product-family `principal_id` and one small shared Identity & Activity plane holding only `principal`, `product_account_link` and `activity_receipt`. If adopted, it narrows the earlier prohibition to *no giant merged product database* and supersedes the earlier "no account pairing" direction. It remains a separate lane from M11 source exchange, because identity is not a Source.
+
+ZUKAN's side of that boundary:
+
+- ZUKAN stays canonical for Program, participant, Record, Review and Publication state. A receipt is evidence that a person did something, never a second mutable copy of a ZUKAN object.
+- ZUKAN emits `activity_receipt` only for participation and contribution events it has already proven, carrying the minimum rights-safe fields plus verification state and visibility classification.
+- Correction, revocation and withdrawal propagate to the derived NOCOSIL view.
+- Minor, restricted and guardian-governed activity projects only the minimum rights-safe receipt, or none.
+- Participant rosters, other people's personal information, contact data, precise movement history, private media, guardian documents, organizer notes and credentials never enter the shared plane.
+- Sessions stay domain-local. No shared cookie and no standing cross-product bearer token.
+- Public ZUKAN activity does not make a person's NOCOSIL aggregate public, and shared identity grants no authority to publish NOCOSIL private data into ZUKAN.
+- No contribution score, ranking or social graph is derived from receipts without a separate transparent product decision.
 
 ## 13. Delivery authority and current frontier
 
@@ -238,13 +253,7 @@ Current delivery state and executor eligibility are owned by:
 - `platform_v2/product-registry/requirements.json` and Eval contracts for product acceptance;
 - the shared Verified Outcome Status Resolver for resolved status and evidence eligibility.
 
-Current planning projection:
-
-- `ACTIVE`: M7 Program Continuity & Handover
-- `READY_NEXT`: M8 Operational Summary & Raw Portability
-- `SHAPED_NEXT`: M9 Regional Program Profiles
-- M10 Regional Publication Profiles, M11 Source & Public Projection Exchange and M12 Professional & Managed Outcomes remain dependency-shaped only
-- M5 Live-camera remains deferred
+The current frontier (`ACTIVE` / `READY_NEXT` / `SHAPED_NEXT` / dependency-shaped / deferred) is projected only in `delivery.json#rolling_frontier`; this contract does not repeat it.
 
 The broad product horizon is fixed in `PROFILE_HORIZON.md`. Describing a future Program or Publication profile does not make it runtime-active or executor-eligible.
 
@@ -252,13 +261,14 @@ The broad product horizon is fixed in `PROFILE_HORIZON.md`. Describing a future 
 
 The current execution roadmap adds these product-level rules without changing runtime status:
 
-1. close M1-M6/App Experience into regression-protected foundation instead of repeatedly redesigning them;
-2. complete cross-profile M7 and M8 before scaling profile count;
-3. prove M9 with the smallest demand-backed non-biological profile rather than building a universal profile engine;
-4. compose M10 Publications from existing governed truth rather than create new CMS/source silos;
+1. M1-M6/App Experience are the Core Loop (`撮る -> 保存 -> AI候補 -> Review -> Place/Areaに蓄積 -> 再訪 -> Program参加 -> governed Publication -> 次の参加`); its defects and product-value corrections take the executor slot before frontier work, and redesign for its own sake does not. A slice is delivered only when it runs in production and is observed working there, and every loop stage owes the contributor a visible return;
+2. self-serve foundations (M8-A) and calendar-gated cross-profile foundations (M7) are scheduled by the lane rule in roadmap v3 §2.1, not by milestone number; M8-A does not wait for M7;
+3. prove M9 with the smallest demand-backed non-biological profile after one demand probe on the existing Program Core, rather than building a universal profile engine;
+4. compose M10 Publications from existing governed truth, starting from the existing publication feed already consumed by external regional sites, rather than create new CMS/source silos or per-region consumer code;
 5. exchange bounded Source packages in M11 rather than build a shared NOCOSIL/ZUKAN database;
-6. standardize repeated paid outcomes in M12 before billing-first infrastructure;
-7. M5 remains demand-gated and deferred regardless of rank.
+6. standardize repeated paid outcomes in M12 before billing-first infrastructure; manual paid delivery is allowed before software;
+7. promotion is required only at risk-class boundaries (milestone design exit, first runtime mutation, production);
+8. M5 remains demand-gated and deferred regardless of rank.
 
 Default M9 priority after promotion is Photo Contest, then Mission/Town Walk, then the shared Citizen Editorial/Sketch lane, then Tourism/Regional Engagement as a composite. Stamp Rally initially remains a Mission variation.
 
@@ -266,18 +276,7 @@ A real-demand product decision may reorder future profiles; the executor may not
 
 ## 15. KPI and demand-learning boundary
 
-The product should baseline rather than invent target percentages for:
-
-- `first_record_completion`
-- `program_self_start_rate`
-- `join_completion`
-- `review_lead_time`
-- `support_minutes_per_program`
-- `handover_completion`
-- `raw_portability_success`
-- `publication_reuse`
-- `repeat_program_rate`
-- `paid_outcome_conversion`
+KPI baseline names are owned by roadmap v3 §10 and projected in `delivery.json#planning_metrics`; the product baselines rather than invents target percentages.
 
 KPI measurement is subordinate to privacy/rights minimization. It must not introduce unnecessary user tracking.
 

@@ -1,7 +1,7 @@
 {
-  "schema_version":"1.0.0",
-  "product_id":"zukan",
-  "global_invariants":[
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "global_invariants": [
     "検証対象source SHAとruntime identityを一致させる",
     "private・blocked・unknown・errorはpublic projectionでfail closed",
     "owner/member/role外のread/write/reviewを拒否する",
@@ -12,93 +12,1292 @@
     "外部ライブcameraはsource/owner/embed可否/attribution/死活を確認し、別途権利なしにframe保存・抽出・AI解析しない",
     "desktop/mobileで主要Journeyの状態・導線・回復を実操作検証する"
   ],
-  "contracts":[
-    {"id":"quality.zukan.home-public","surface":"zukan.home.public","required_states":["guest","member","empty","populated","loading","degraded","error"],"acceptance":["guest Homeはpublic eligibleのみ表示","主CTAから記録開始へ到達","価値提示/記録/場所の導線が競合しない"],"tests":[{"locator":"platform_v2/e2e/home.staging.spec.ts","kind":"journey","status":"canonical"},{"locator":"platform_v2/e2e/sitemap-registry-visual.staging.spec.ts","kind":"visual","status":"canonical"}]},
-    {"id":"quality.zukan.capture","surface":"zukan.capture.start","required_states":["unauthenticated","ready","capturing","preview","submitting","success","validation-error","upload-error","offline","retrying"],"acceptance":["拒否/入力不足/upload/保存/AI失敗を成功扱いしない","retryでlogical record/mediaを重複作成しない","保存後に本人の記録へ戻れる"],"requirement_refs":["quality.zukan.capture.entry","quality.zukan.capture.source-choice","quality.zukan.capture.immediate-preview","quality.zukan.capture.location-optional","quality.zukan.capture.ai-candidate","quality.zukan.capture.draft-recovery","quality.zukan.capture.idempotent-save","quality.zukan.capture.truthful-status","quality.zukan.capture.owner-return","quality.zukan.record.source-reference-integrity","quality.zukan.record.claim-separation","quality.zukan.rights.exif-minimization"],"tests":[{"locator":"platform_v2/e2e/record-funnel.staging.spec.ts","kind":"journey","status":"canonical"},{"locator":"platform_v2/e2e/record-feedback-loop.staging.spec.ts","kind":"journey","status":"canonical"},{"locator":"platform_v2/e2e/record-capture-retry.zukan.staging.spec.ts","kind":"resilience","status":"canonical"}]},
-    {"id":"quality.zukan.records","surface":"zukan.records.public","required_states":["empty","populated","searching","no-results","loading","error"],"acceptance":["private/blocked/exact-locationを表示しない","0件と障害を区別","AI候補/人/専門家確認の由来を誤表示しない"],"requirement_refs":["quality.zukan.trust.private-default","quality.zukan.trust.explicit-publication","quality.zukan.trust.face-private-place-safety","quality.zukan.trust.ai-candidate-not-fact","quality.zukan.trust.confirmation-provenance","quality.zukan.trust.public-projection","quality.zukan.trust.existing-rights-preserved","quality.zukan.records.public-discovery","quality.zukan.review.provenance","quality.zukan.rights.consent-scope","quality.zukan.rights.minor-guardian-consent","quality.zukan.rights.export-withdrawal-deletion","quality.zukan.rights.retention","quality.zukan.publication.edition-integrity","quality.zukan.publication.correction-takedown","quality.zukan.free-core.boundary"],"tests":[{"locator":"platform_v2/e2e/sitemap-registry-visual.staging.spec.ts","kind":"visual","status":"canonical"},{"locator":"platform_v2/src/services/observationPublicationPolicy.test.ts","kind":"privacy","status":"canonical"}]},
-    {"id":"quality.zukan.map","surface":"zukan.map.public","required_states":["loading","populated","empty","location-denied","map-unavailable","error"],"acceptance":["public eligibleかつ許可された位置精度のみ表示","map不能でもrecordsへ退避","mobile/desktopで操作不能や横overflowなし","ライブcameraは権利・死活を確認したsourceだけを補助layerとして出し、playerはpin選択時だけloadする","ライブcameraをZUKAN observation扱いせず、現在映像からpublic eligibleな今日・季節・過去記録へ戻れる"],"requirement_refs":["quality.zukan.trust.location-minimization","quality.zukan.map.safe-discovery","quality.zukan.map.live-camera-source-eligibility","quality.zukan.map.live-camera-health","quality.zukan.map.live-camera-lazy-playback","quality.zukan.map.live-camera-record-context","quality.zukan.place.context-integrity"],"tests":[{"locator":"platform_v2/e2e/sitemap-registry-visual.staging.spec.ts","kind":"visual","status":"canonical"},{"locator":"platform_v2/e2e/map-performance.staging.spec.ts","kind":"performance","status":"canonical"},{"locator":"planned:m5-live-camera-layer","kind":"journey-resilience-rights","status":"planned"}]},
-    {"id":"quality.zukan.home-member","surface":"zukan.home.member","required_states":["unauthenticated","empty","populated","loading","degraded","error"],"acceptance":["本人の記録とpublic記録を混同しない","empty/errorから記録開始へ戻れる","共同利用が未実装ならworkspace成功を装わない"],"requirement_refs":["quality.zukan.home.owner-context","quality.zukan.workspace.membership-authorization","quality.zukan.workspace.contribution","quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish","quality.zukan.program-event-quest.lifecycle"],"tests":[{"locator":"platform_v2/e2e/home.staging.spec.ts","kind":"journey","status":"canonical"},{"locator":"platform_v2/e2e/sitemap-registry-visual.staging.spec.ts","kind":"visual","status":"canonical"},{"locator":"platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts","kind":"authorization-and-collaboration-journey","status":"canonical"}]},
-    {"id":"quality.zukan.program-activation","surface":"zukan.program.activation","required_states":["unauthenticated","ready","editing","submitting","created","validation-error","retrying","error"],"acceptance":["主催者が運営者・開発者なしで既存Event作成導線から企画を作成できる","必須項目不足・権限不足・保存失敗を作成成功と表示しない","作成後に主催者用consoleと参加者招待入口へ到達できる"],"requirement_refs":["quality.zukan.program.self-serve-activation"],"tests":[{"locator":"platform_v2/src/ui/observationEventCreate.test.ts","kind":"source-contract","status":"canonical"},{"locator":"platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts","kind":"staging-activation","status":"canonical"}]},
-    {"id":"quality.zukan.program-hub","surface":"zukan.program.hub","required_states":["guest","member","empty","populated","error"],"acceptance":["開催中・募集中・過去の観察会を既存Event scopeで探せる","参加者・主催者の操作を混同せず既存の参加・作成・recapへ進める","privateな参加者・記録・正確な位置を一覧へ投影しない"],"tests":[{"locator":"platform_v2/src/ui/observationEventList.ts","kind":"source-event-hub","status":"canonical"},{"locator":"platform_v2/src/routes/siteMap.routes.test.ts","kind":"route-contract","status":"canonical"},{"locator":"platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts","kind":"staging-event-hub","status":"canonical"}]},
-    {"id":"quality.zukan.program-console","surface":"zukan.program.console","required_states":["ready","inviting","live","ended","denied","error"],"acceptance":["主催者だけが参加案内と進行を管理できる","招待先はevent scopeに限定する","未終了・未確認をrecap成功と表示しない"],"tests":[{"locator":"platform_v2/src/routes/observationEventCapsule.routes.test.ts","kind":"source-contract","status":"canonical"},{"locator":"platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts","kind":"staging-console","status":"canonical"}]},
-    {"id":"quality.zukan.program-participation","surface":"zukan.program.participation","required_states":["unauthenticated","ready","joined","closed","denied","error"],"requirement_refs":["quality.zukan.program.participation"],"acceptance":["招待されたeventだけに参加できる","participant identityと記録入口をevent scopeへ固定する","同一参加・contribution intentの再試行でparticipant/recordを重複作成しない","guestからloginへ移行してもattributionを失わない","別Event/権限外Recordを拒否する","minor/guardian不明をpublic/位置共有へ進めない","参加者のprivate Recordをreview前に自動公開しない"],"tests":[{"locator":"platform_v2/src/services/observationEventParticipantAccess.test.ts","kind":"source-participant-scope","status":"canonical"},{"locator":"platform_v2/src/routes/observationEventGuestCredential.routes.test.ts","kind":"source-guest-boundary","status":"canonical"},{"locator":"platform_v2/src/routes/observationEventPrivacy.routes.test.ts","kind":"source-privacy-boundary","status":"canonical"},{"locator":"platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts","kind":"staging-participation","status":"canonical"}]},
-    {"id":"quality.zukan.program-recap","surface":"zukan.program.recap","required_states":["ready","empty","populated","suppressed","denied","error"],"requirement_refs":["quality.zukan.program.closeout-rehost"],"acceptance":["review済みの成果だけをevent scopeで振り返る","小規模参加者・正確な位置・個人別行動を公開しない","template入口から企画設定だけを再利用して再開催を開始し、参加者/同意/review/publication状態を持ち越さない"],"tests":[{"locator":"platform_v2/src/services/guidePrograms.test.ts","kind":"source-recap","status":"canonical"},{"locator":"platform_v2/src/routes/observationEventCapsule.routes.test.ts","kind":"source-review-boundary","status":"canonical"},{"locator":"platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts","kind":"staging-recap-rehost","status":"canonical"}]},
-    {"id":"quality.zukan.program-free-output-boundary","surface":"zukan.program.recap","required_states":["ready","empty","populated","suppressed","denied","error"],"requirement_refs":["quality.zukan.program.free-output-boundary"],"acceptance":["無料recap/activity summaryはEvent単位のspecies/taxon list・count・top taxa・composition・biodiversity aggregation/comparisonを出さない","無料Surfaceからreport-ready species CSVとProfessional Report導線を出さない","個別Recordの名称・AI候補・Review状態は個別Record Surfaceで維持する"],"tests":[{"locator":"platform_v2/cloudflare_shadow/src/freeCoreBoundary.test.ts","kind":"source-free-boundary","status":"canonical"},{"locator":"platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts","kind":"staging-free-boundary","status":"canonical"}]},
-    {"id":"quality.zukan.m7-handover-planner","surface":"zukan.program.console","required_states":["ready","inviting","live","ended","denied","error"],"requirement_refs":["quality.zukan.handover.provenance","quality.zukan.handover.selective-reuse","quality.zukan.handover.responsibility-transfer","quality.zukan.handover.lifecycle-reset","quality.zukan.handover.idempotency"],"acceptance":["side-effect 0 plannerがsource/target/selected refs/incoming actorを明示する","不明な責任者や状態はfail closed","canonical Place/Record identityを複製しない"],"tests":[{"locator":"platform_v2/src/services/programHandoverPlanner.test.ts","kind":"source-negative-property","status":"canonical"},{"locator":"platform_v2/src/productRegistryM7M8.test.ts","kind":"source-design-contract","status":"canonical"},{"locator":"docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","kind":"strategy-contract","status":"canonical"}]},
-    {"id":"quality.zukan.m7-handover-persistence","surface":"zukan.program.console","required_states":["ready","retrying","conflict","blocked","error"],"requirement_refs":["quality.zukan.handover.persistence"],"acceptance":["accepted M7.0 resultだけをimmutable snapshotとして保存する","same key+payloadはone logical planへ収束し、different payloadはfail closedする","write failure・stale scope・forbidden state copy・target Program mutationを許容しない"],"tests":[{"locator":"platform_v2/src/services/programHandoverD1Repository.test.ts","kind":"source-deterministic-d1","status":"canonical"},{"locator":"platform_v2/src/services/programHandoverRepositoryContract.ts","kind":"provider-neutral-contract","status":"canonical"},{"locator":"platform_v2/cloudflare_shadow/migrations/core/0015_zukan_program_handover_persistence.sql","kind":"source-migration-definition","status":"canonical"}]},
-    {"id":"quality.zukan.m7-handover-outgoing-selection","surface":"zukan.program.console","required_states":["ready","pending_acceptance","retrying","conflict","blocked","error"],"requirement_refs":["quality.zukan.handover.outgoing-selection"],"acceptance":["authorized outgoing actor appends one offer referencing an immutable persisted plan","offer remains pending_acceptance and grants no incoming acceptance or responsibility transfer","stale/unauthorized/replayed/conflicting attempts fail closed or converge without target Program/state-transfer side effects"],"tests":[{"locator":"platform_v2/src/services/programHandoverOfferD1Repository.test.ts","kind":"source-deterministic-d1","status":"canonical"},{"locator":"platform_v2/src/services/programHandoverOfferRepositoryContract.ts","kind":"provider-neutral-contract","status":"canonical"},{"locator":"platform_v2/cloudflare_shadow/migrations/core/0016_zukan_program_handover_offers.sql","kind":"source-migration-definition","status":"canonical"},{"locator":"docs/spec/zukan-product-architecture/PLAN.md","kind":"canonical-slice-contract","status":"canonical"}]},
-    {"id":"quality.zukan.m8-operational-summary","surface":"zukan.program.console","required_states":["ready","inviting","live","ended","denied","error"],"requirement_refs":["quality.zukan.operational-summary.free"],"acceptance":["free operational summaryは運営指標のみ","taxon/biodiversity/report outputを含めない"],"tests":[{"locator":"platform_v2/src/productRegistryM7M8.test.ts","kind":"source-design-contract","status":"canonical"},{"locator":"docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","kind":"strategy-contract","status":"canonical"}]},
-    {"id":"quality.zukan.m8-raw-record-portability","surface":"zukan.records.public","required_states":["empty","populated","searching","no-results","loading","error"],"requirement_refs":["quality.zukan.raw-record-portability"],"acceptance":["raw archiveはRecord granularityとrights/provenanceを保全","derived professional/research outputとは別contract","taxon inventoryを生成しない"],"tests":[{"locator":"platform_v2/src/productRegistryM7M8.test.ts","kind":"source-design-contract","status":"canonical"},{"locator":"docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","kind":"strategy-contract","status":"canonical"}]}
+  "contracts": [
+    {
+      "id": "quality.zukan.home-public",
+      "surface": "zukan.home.public",
+      "required_states": [
+        "guest",
+        "member",
+        "empty",
+        "populated",
+        "loading",
+        "degraded",
+        "error"
+      ],
+      "acceptance": [
+        "guest Homeはpublic eligibleのみ表示",
+        "主CTAから記録開始へ到達",
+        "価値提示/記録/場所の導線が競合しない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/e2e/home.staging.spec.ts",
+          "kind": "journey",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts",
+          "kind": "visual",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.capture",
+      "surface": "zukan.capture.start",
+      "required_states": [
+        "unauthenticated",
+        "ready",
+        "capturing",
+        "preview",
+        "submitting",
+        "success",
+        "validation-error",
+        "upload-error",
+        "offline",
+        "retrying"
+      ],
+      "acceptance": [
+        "拒否/入力不足/upload/保存/AI失敗を成功扱いしない",
+        "retryでlogical record/mediaを重複作成しない",
+        "保存後に本人の記録へ戻れる"
+      ],
+      "requirement_refs": [
+        "quality.zukan.capture.entry",
+        "quality.zukan.capture.source-choice",
+        "quality.zukan.capture.immediate-preview",
+        "quality.zukan.capture.location-optional",
+        "quality.zukan.capture.ai-candidate",
+        "quality.zukan.capture.draft-recovery",
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.capture.truthful-status",
+        "quality.zukan.capture.owner-return",
+        "quality.zukan.record.source-reference-integrity",
+        "quality.zukan.record.claim-separation",
+        "quality.zukan.rights.exif-minimization"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/e2e/record-funnel.staging.spec.ts",
+          "kind": "journey",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/record-feedback-loop.staging.spec.ts",
+          "kind": "journey",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/record-capture-retry.zukan.staging.spec.ts",
+          "kind": "resilience",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.records",
+      "surface": "zukan.records.public",
+      "required_states": [
+        "empty",
+        "populated",
+        "searching",
+        "no-results",
+        "loading",
+        "error"
+      ],
+      "acceptance": [
+        "private/blocked/exact-locationを表示しない",
+        "0件と障害を区別",
+        "AI候補/人/専門家確認の由来を誤表示しない"
+      ],
+      "requirement_refs": [
+        "quality.zukan.trust.private-default",
+        "quality.zukan.trust.explicit-publication",
+        "quality.zukan.trust.face-private-place-safety",
+        "quality.zukan.trust.ai-candidate-not-fact",
+        "quality.zukan.trust.confirmation-provenance",
+        "quality.zukan.trust.public-projection",
+        "quality.zukan.trust.existing-rights-preserved",
+        "quality.zukan.records.public-discovery",
+        "quality.zukan.review.provenance",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.rights.minor-guardian-consent",
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.rights.retention",
+        "quality.zukan.publication.edition-integrity",
+        "quality.zukan.publication.correction-takedown",
+        "quality.zukan.free-core.boundary"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts",
+          "kind": "visual",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/services/observationPublicationPolicy.test.ts",
+          "kind": "privacy",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.map",
+      "surface": "zukan.map.public",
+      "required_states": [
+        "loading",
+        "populated",
+        "empty",
+        "location-denied",
+        "map-unavailable",
+        "error"
+      ],
+      "acceptance": [
+        "public eligibleかつ許可された位置精度のみ表示",
+        "map不能でもrecordsへ退避",
+        "mobile/desktopで操作不能や横overflowなし",
+        "ライブcameraは権利・死活を確認したsourceだけを補助layerとして出し、playerはpin選択時だけloadする",
+        "ライブcameraをZUKAN observation扱いせず、現在映像からpublic eligibleな今日・季節・過去記録へ戻れる"
+      ],
+      "requirement_refs": [
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.map.safe-discovery",
+        "quality.zukan.map.live-camera-source-eligibility",
+        "quality.zukan.map.live-camera-health",
+        "quality.zukan.map.live-camera-lazy-playback",
+        "quality.zukan.map.live-camera-record-context",
+        "quality.zukan.place.context-integrity"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts",
+          "kind": "visual",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/map-performance.staging.spec.ts",
+          "kind": "performance",
+          "status": "canonical"
+        },
+        {
+          "locator": "planned:m5-live-camera-layer",
+          "kind": "journey-resilience-rights",
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.home-member",
+      "surface": "zukan.home.member",
+      "required_states": [
+        "unauthenticated",
+        "empty",
+        "populated",
+        "loading",
+        "degraded",
+        "error"
+      ],
+      "acceptance": [
+        "本人の記録とpublic記録を混同しない",
+        "empty/errorから記録開始へ戻れる",
+        "共同利用が未実装ならworkspace成功を装わない"
+      ],
+      "requirement_refs": [
+        "quality.zukan.home.owner-context",
+        "quality.zukan.workspace.membership-authorization",
+        "quality.zukan.workspace.contribution",
+        "quality.zukan.workspace.review",
+        "quality.zukan.workspace.explicit-publish",
+        "quality.zukan.program-event-quest.lifecycle",
+        "quality.zukan.review.contributor-return"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/e2e/home.staging.spec.ts",
+          "kind": "journey",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/sitemap-registry-visual.staging.spec.ts",
+          "kind": "visual",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts",
+          "kind": "authorization-and-collaboration-journey",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.program-activation",
+      "surface": "zukan.program.activation",
+      "required_states": [
+        "unauthenticated",
+        "ready",
+        "editing",
+        "submitting",
+        "created",
+        "validation-error",
+        "retrying",
+        "error"
+      ],
+      "acceptance": [
+        "主催者が運営者・開発者なしで既存Event作成導線から企画を作成できる",
+        "必須項目不足・権限不足・保存失敗を作成成功と表示しない",
+        "作成後に主催者用consoleと参加者招待入口へ到達できる"
+      ],
+      "requirement_refs": [
+        "quality.zukan.program.self-serve-activation"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/ui/observationEventCreate.test.ts",
+          "kind": "source-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts",
+          "kind": "staging-activation",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.program-hub",
+      "surface": "zukan.program.hub",
+      "required_states": [
+        "guest",
+        "member",
+        "empty",
+        "populated",
+        "error"
+      ],
+      "acceptance": [
+        "開催中・募集中・過去の観察会を既存Event scopeで探せる",
+        "参加者・主催者の操作を混同せず既存の参加・作成・recapへ進める",
+        "privateな参加者・記録・正確な位置を一覧へ投影しない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/ui/observationEventList.ts",
+          "kind": "source-event-hub",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/routes/siteMap.routes.test.ts",
+          "kind": "route-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts",
+          "kind": "staging-event-hub",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.program-console",
+      "surface": "zukan.program.console",
+      "required_states": [
+        "ready",
+        "inviting",
+        "live",
+        "ended",
+        "denied",
+        "error"
+      ],
+      "acceptance": [
+        "主催者だけが参加案内と進行を管理できる",
+        "招待先はevent scopeに限定する",
+        "未終了・未確認をrecap成功と表示しない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/routes/observationEventCapsule.routes.test.ts",
+          "kind": "source-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts",
+          "kind": "staging-console",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.program-participation",
+      "surface": "zukan.program.participation",
+      "required_states": [
+        "unauthenticated",
+        "ready",
+        "joined",
+        "closed",
+        "denied",
+        "error"
+      ],
+      "requirement_refs": [
+        "quality.zukan.program.participation"
+      ],
+      "acceptance": [
+        "招待されたeventだけに参加できる",
+        "participant identityと記録入口をevent scopeへ固定する",
+        "同一参加・contribution intentの再試行でparticipant/recordを重複作成しない",
+        "guestからloginへ移行してもattributionを失わない",
+        "別Event/権限外Recordを拒否する",
+        "minor/guardian不明をpublic/位置共有へ進めない",
+        "参加者のprivate Recordをreview前に自動公開しない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/services/observationEventParticipantAccess.test.ts",
+          "kind": "source-participant-scope",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/routes/observationEventGuestCredential.routes.test.ts",
+          "kind": "source-guest-boundary",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/routes/observationEventPrivacy.routes.test.ts",
+          "kind": "source-privacy-boundary",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts",
+          "kind": "staging-participation",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.program-recap",
+      "surface": "zukan.program.recap",
+      "required_states": [
+        "ready",
+        "empty",
+        "populated",
+        "suppressed",
+        "denied",
+        "error"
+      ],
+      "requirement_refs": [
+        "quality.zukan.program.closeout-rehost"
+      ],
+      "acceptance": [
+        "review済みの成果だけをevent scopeで振り返る",
+        "小規模参加者・正確な位置・個人別行動を公開しない",
+        "template入口から企画設定だけを再利用して再開催を開始し、参加者/同意/review/publication状態を持ち越さない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/services/guidePrograms.test.ts",
+          "kind": "source-recap",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/routes/observationEventCapsule.routes.test.ts",
+          "kind": "source-review-boundary",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts",
+          "kind": "staging-recap-rehost",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.program-free-output-boundary",
+      "surface": "zukan.program.recap",
+      "required_states": [
+        "ready",
+        "empty",
+        "populated",
+        "suppressed",
+        "denied",
+        "error"
+      ],
+      "requirement_refs": [
+        "quality.zukan.program.free-output-boundary"
+      ],
+      "acceptance": [
+        "無料recap/activity summaryはEvent単位のspecies/taxon list・count・top taxa・composition・biodiversity aggregation/comparisonを出さない",
+        "無料Surfaceからreport-ready species CSVとProfessional Report導線を出さない",
+        "個別Recordの名称・AI候補・Review状態は個別Record Surfaceで維持する"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/freeCoreBoundary.test.ts",
+          "kind": "source-free-boundary",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts",
+          "kind": "staging-free-boundary",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.m7-handover-planner",
+      "surface": "zukan.program.console",
+      "required_states": [
+        "ready",
+        "inviting",
+        "live",
+        "ended",
+        "denied",
+        "error"
+      ],
+      "requirement_refs": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.responsibility-transfer",
+        "quality.zukan.handover.lifecycle-reset",
+        "quality.zukan.handover.idempotency"
+      ],
+      "acceptance": [
+        "side-effect 0 plannerがsource/target/selected refs/incoming actorを明示する",
+        "不明な責任者や状態はfail closed",
+        "canonical Place/Record identityを複製しない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/services/programHandoverPlanner.test.ts",
+          "kind": "source-negative-property",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/productRegistryM7M8.test.ts",
+          "kind": "source-design-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md",
+          "kind": "strategy-contract",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.m7-handover-persistence",
+      "surface": "zukan.program.console",
+      "required_states": [
+        "ready",
+        "retrying",
+        "conflict",
+        "blocked",
+        "error"
+      ],
+      "requirement_refs": [
+        "quality.zukan.handover.persistence"
+      ],
+      "acceptance": [
+        "accepted M7.0 resultだけをimmutable snapshotとして保存する",
+        "same key+payloadはone logical planへ収束し、different payloadはfail closedする",
+        "write failure・stale scope・forbidden state copy・target Program mutationを許容しない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/services/programHandoverD1Repository.test.ts",
+          "kind": "source-deterministic-d1",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/services/programHandoverRepositoryContract.ts",
+          "kind": "provider-neutral-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/cloudflare_shadow/migrations/core/0015_zukan_program_handover_persistence.sql",
+          "kind": "source-migration-definition",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.m7-handover-outgoing-selection",
+      "surface": "zukan.program.console",
+      "required_states": [
+        "ready",
+        "pending_acceptance",
+        "retrying",
+        "conflict",
+        "blocked",
+        "error"
+      ],
+      "requirement_refs": [
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "acceptance": [
+        "authorized outgoing actor appends one offer referencing an immutable persisted plan",
+        "offer remains pending_acceptance and grants no incoming acceptance or responsibility transfer",
+        "stale/unauthorized/replayed/conflicting attempts fail closed or converge without target Program/state-transfer side effects"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/services/programHandoverOfferD1Repository.test.ts",
+          "kind": "source-deterministic-d1",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/services/programHandoverOfferRepositoryContract.ts",
+          "kind": "provider-neutral-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/cloudflare_shadow/migrations/core/0016_zukan_program_handover_offers.sql",
+          "kind": "source-migration-definition",
+          "status": "canonical"
+        },
+        {
+          "locator": "docs/spec/zukan-product-architecture/PLAN.md",
+          "kind": "canonical-slice-contract",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.m8-operational-summary",
+      "surface": "zukan.program.console",
+      "required_states": [
+        "ready",
+        "inviting",
+        "live",
+        "ended",
+        "denied",
+        "error"
+      ],
+      "requirement_refs": [
+        "quality.zukan.operational-summary.free"
+      ],
+      "acceptance": [
+        "free operational summaryは運営指標のみ",
+        "taxon/biodiversity/report outputを含めない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/productRegistryM7M8.test.ts",
+          "kind": "source-design-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md",
+          "kind": "strategy-contract",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.m8-raw-record-portability",
+      "surface": "zukan.records.public",
+      "required_states": [
+        "empty",
+        "populated",
+        "searching",
+        "no-results",
+        "loading",
+        "error"
+      ],
+      "requirement_refs": [
+        "quality.zukan.raw-record-portability"
+      ],
+      "acceptance": [
+        "raw archiveはRecord granularityとrights/provenanceを保全",
+        "derived professional/research outputとは別contract",
+        "taxon inventoryを生成しない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/productRegistryM7M8.test.ts",
+          "kind": "source-design-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md",
+          "kind": "strategy-contract",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.place-detail",
+      "surface": "zukan.place.detail",
+      "required_states": [
+        "empty",
+        "first-record",
+        "populated",
+        "loading",
+        "error"
+      ],
+      "acceptance": [
+        "値のない指標・空カード・内部処理用語を出さない",
+        "最初の1件で表示が実際に変わる",
+        "証拠のない季節・変化の主張を出さない",
+        "近隣Placeを別Placeとして明示する",
+        "sensitive/withdrawn記録と正確な位置を公開しない"
+      ],
+      "requirement_refs": [
+        "quality.zukan.place.record-accumulation-visible"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/e2e/place-memory.staging.spec.ts",
+          "kind": "journey",
+          "status": "candidate"
+        },
+        {
+          "locator": "platform_v2/e2e/map-nearby-areas.staging.spec.ts",
+          "kind": "journey",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.record-detail",
+      "surface": "zukan.record.detail",
+      "required_states": [
+        "public",
+        "owner",
+        "ai-queued",
+        "ai-processing",
+        "ai-completed",
+        "ai-failed",
+        "denied",
+        "not-found"
+      ],
+      "acceptance": [
+        "save stateとAI processing stateを分け、queued/processing/completed|failedを本人へ返す",
+        "AI候補と人のReview決定を別のauthorityとして表示する",
+        "非本人にはowner-onlyのReview理由・syndication状態・exclusion理由を返さない",
+        "withdrawn/restricted/sensitive stateは公開詳細へ漏らさない"
+      ],
+      "requirement_refs": [],
+      "tests": [
+        {
+          "locator": "platform_v2/e2e/record-feedback-loop.staging.spec.ts",
+          "kind": "journey",
+          "status": "candidate"
+        }
+      ]
+    }
   ],
-  "negative_property_tests":[
-    {"id":"prop.capture.same-intent-one-record","requirements":["quality.zukan.capture.idempotent-save"],"property":"同一capture intentをN回replayしても1 logical observation + 1 logical media setへ収束","current_test":"platform_v2/e2e/record-capture-retry.zukan.staging.spec.ts"},
-    {"id":"prop.capture.same-key-different-payload-conflict","requirements":["quality.zukan.capture.idempotent-save"],"property":"同一idempotency keyの異なるpayloadは既存recordを上書きしない","current_test":"planned"},
-    {"id":"prop.capture.partial-failure-recoverable","requirements":["quality.zukan.capture.draft-recovery","quality.zukan.capture.idempotent-save"],"property":"media/AI/network partial failure後もrecord/draftを失わずretryで重複しない","current_test":"platform_v2/e2e/record-capture-retry.zukan.staging.spec.ts"},
-    {"id":"prop.capture.permission-denial-nondestructive","requirements":["quality.zukan.capture.location-optional","quality.zukan.capture.source-choice"],"property":"camera/location拒否は記録中データを破棄せず代替経路を提示","current_test":"planned"},
-    {"id":"prop.public.no-private-leak","requirements":["quality.zukan.trust.private-default","quality.zukan.trust.public-projection"],"property":"private/rejected/quarantined/blocked mediaはpublic API/HTML/map/feed/cacheの全投影で0件","current_test":"planned"},
-    {"id":"prop.public.no-exact-location","requirements":["quality.zukan.trust.location-minimization","quality.zukan.trust.public-projection"],"property":"public URL/HTML/API/feedにexact coordinatesを含めず許可された粗化位置だけを出す","current_test":"planned"},
-    {"id":"prop.public.scope-monotonic-by-explicit-action","requirements":["quality.zukan.trust.explicit-publication","quality.zukan.trust.existing-rights-preserved"],"property":"権限ある明示操作なしにvisibility scopeが広がらない","current_test":"planned"},
-    {"id":"prop.privacy.face-private-place-fail-closed","requirements":["quality.zukan.trust.face-private-place-safety"],"property":"face/生活場所/私有地riskはsilent public expansionを起こさない","current_test":"planned"},
-    {"id":"prop.ai.failure-never-becomes-fact","requirements":["quality.zukan.capture.ai-candidate","quality.zukan.trust.ai-candidate-not-fact"],"property":"timeout/malformed/low confidenceでも保存継続しAI値をverifiedへ昇格しない","current_test":"planned"},
-    {"id":"prop.provenance.human-not-overwritten-by-ai","requirements":["quality.zukan.trust.confirmation-provenance"],"property":"後続AI処理が人/専門家確認provenanceを上書きしない","current_test":"planned"},
-    {"id":"prop.live-camera.unlicensed-source-not-exposed","requirements":["quality.zukan.map.live-camera-source-eligibility"],"property":"reuse/embed/attribution根拠がunknownまたは不許可のcameraは地図layerへ公開しない","current_test":"planned"},
-    {"id":"prop.live-camera.source-import-idempotent","requirements":["quality.zukan.map.live-camera-source-eligibility","quality.zukan.map.live-camera-health"],"property":"同一provider + source_refをN回取込しても1 logical cameraへ収束し、権利・死活履歴を破壊しない","current_test":"planned"},
-    {"id":"prop.live-camera.dead-never-live","requirements":["quality.zukan.map.live-camera-health"],"property":"deleted/private/ended/unverified sourceをLIVE表示せず、最終確認時刻を偽らない","current_test":"planned"},
-    {"id":"prop.live-camera.player-only-on-selection","requirements":["quality.zukan.map.live-camera-lazy-playback"],"property":"layer OFFまたはcamera未選択/close後はYouTube等のplayer/iframe resourceがactiveでない","current_test":"planned"},
-    {"id":"prop.live-camera.outage-isolated","requirements":["quality.zukan.map.live-camera-health","quality.zukan.map.live-camera-lazy-playback"],"property":"provider timeout/403/404/endedでもMap/Recordsの閲覧・操作を継続できる","current_test":"planned"},
-    {"id":"prop.live-camera.no-frame-processing-without-rights","requirements":["quality.zukan.map.live-camera-source-eligibility"],"property":"別途の権利契約がないcameraからframe snapshot/storage/extraction/AI inferenceを行わない","current_test":"planned"},
-    {"id":"prop.workspace.authz-fail-closed","requirements":["quality.zukan.workspace.membership-authorization","quality.zukan.workspace.review"],"property":"非member/権限外actorはread/write/review不可","current_test":"platform_v2/src/routes/observationEventPrivacy.routes.test.ts"},
-    {"id":"prop.workspace.membership-role-fail-closed","requirements":["quality.zukan.workspace.membership-authorization"],"property":"member/role外のevent participant操作は拒否され、権限を推測しない","current_test":"platform_v2/src/services/observationEventParticipantAccess.test.ts"},
-    {"id":"prop.workspace.review-before-public","requirements":["quality.zukan.workspace.review","quality.zukan.workspace.explicit-publish"],"property":"review権限とpublic化を分離し、review前の記録をpublic/verified扱いしない","current_test":"platform_v2/src/routes/observationEventCapsule.routes.test.ts"},
-    {"id":"prop.workspace.private-public-separation","requirements":["quality.zukan.workspace.contribution","quality.zukan.workspace.explicit-publish"],"property":"private/community/public scopeを混同せず、非公開fixtureをpublic一覧へ出さない","current_test":"platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts"},
-    {"id":"prop.workspace.retry-converges","requirements":["quality.zukan.workspace.contribution"],"property":"同一contribution/review replayは重複せず同じlogical stateへ収束","current_test":"platform_v2/src/services/observationEventParticipantAccess.test.ts"},
-    {"id":"prop.record.source-and-claim-remain-separate","requirements":["quality.zukan.record.source-reference-integrity","quality.zukan.record.claim-separation"],"property":"RecordはSource/Evidenceを埋め込まず、後続Claim/Reviewで元Recordを上書きしない","current_test":"planned"},
-    {"id":"prop.place.unknown-provenance-is-explicit","requirements":["quality.zukan.place.context-integrity"],"property":"unknown provenance/date/locationは捏造せず、公開位置policyを越えて表示しない","current_test":"platform_v2/src/services/zukanRegionalKnowledgeEnvelope.test.ts"},
-    {"id":"prop.review.ai-never-becomes-human","requirements":["quality.zukan.review.provenance","quality.zukan.trust.confirmation-provenance"],"property":"AI候補・低信頼・欠落根拠は人/専門家Reviewへ昇格しない","current_test":"planned"},
-    {"id":"prop.rights.external-inference-is-separate","requirements":["quality.zukan.rights.consent-scope"],"property":"表示/再公開同意なしに保存・分析・外部推論の許可を推測しない","current_test":"planned"},
-    {"id":"prop.media.exif-gps-not-public","requirements":["quality.zukan.rights.exif-minimization"],"property":"公開media/API/HTML/cacheへ不要EXIF/GPSが漏れない","current_test":"planned"},
-    {"id":"prop.minor.guardian-consent-fail-closed","requirements":["quality.zukan.rights.minor-guardian-consent"],"property":"minor/guardian同意がunknown・撤回済みならpublic projectionを拒否する","current_test":"planned"},
-    {"id":"prop.rights.withdrawal-revokes-derived-publication","requirements":["quality.zukan.rights.export-withdrawal-deletion","quality.zukan.publication.correction-takedown"],"property":"撤回・削除・takedown後に派生PublicationEditionが再利用されない","current_test":"platform_v2/src/services/zukanFoundationV2.integrityHardening.test.ts"},
-    {"id":"prop.retention-does-not-infer-delete","requirements":["quality.zukan.rights.retention"],"property":"retention期限・削除完了・法的保全を観測なしに成功扱いしない","current_test":"platform_v2/src/services/observationDataRights.test.ts"},
-    {"id":"prop.publication.edition-is-reproducible","requirements":["quality.zukan.publication.edition-integrity"],"property":"同じ入力watermarkとpolicyから同じPublicationEdition選択・除外理由を再現する","current_test":"platform_v2/src/services/regionalSourceRegistryV2.test.ts"},
-    {"id":"prop.free-core.no-billing-gate","requirements":["quality.zukan.free-core.boundary"],"property":"free coreの基本投稿・閲覧・参加・Review・通常Publicationを課金必須へ変換しない","current_test":"planned"},
-    {"id":"prop.program.organizer-authz-fail-closed","requirements":["quality.zukan.program.self-serve-activation"],"property":"未ログイン・権限外actorはProgram/Event作成を成功扱いせず、既存入力やprivate stateを公開しない","current_test":"platform_v2/src/ui/observationEventCreate.test.ts"},
-    {"id":"prop.program.activation-retry-converges","requirements":["quality.zukan.program.self-serve-activation"],"property":"同じactivation intentの再試行は複数の主催Eventや招待対象を勝手に作らず一つのlogical activationへ収束する","current_test":"platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts"},
-    {"id":"prop.program.private-record-not-public","requirements":["quality.zukan.program.self-serve-activation","quality.zukan.program.participation"],"property":"Program参加者のprivate Recordはreview/public操作なしにpublic projectionへ出ない","current_test":"platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts"},
-    {"id":"prop.program.participant-event-scope-fail-closed","requirements":["quality.zukan.program.participation"],"property":"participant identity・check-in・record入口は対象Eventへ固定され、別Event/権限外Recordをread/writeできない","current_test":"platform_v2/src/services/observationEventParticipantAccess.test.ts"},
-    {"id":"prop.program.guest-promotion-preserves-attribution","requirements":["quality.zukan.program.participation"],"property":"guestからloginへの移行でparticipant/contribution/review/recap attributionが同じEvent scopeに保持される","current_test":"platform_v2/src/services/observationEventParticipantAccess.test.ts"},
-    {"id":"prop.program.minor-consent-fail-closed","requirements":["quality.zukan.program.participation"],"property":"minorまたはguardian consent不明時は位置共有・公開へ進まずprivateを維持する","current_test":"platform_v2/src/routes/observationEventGuestCredential.routes.test.ts"},
-    {"id":"prop.program.closeout-rehost-resets-state","requirements":["quality.zukan.program.closeout-rehost"],"property":"再開催は企画設定だけを再利用し、participant/consent/review/publication状態を持ち越さない","current_test":"platform_v2/src/routes/observationEventCapsule.routes.test.ts"},
-    {"id":"prop.free-core.event-summary-no-taxon-aggregation","requirements":["quality.zukan.program.free-output-boundary"],"property":"無料Program/Event recap・activity summaryはspecies/taxon list・count・top taxa・composition・biodiversity aggregationを出さない","current_test":"platform_v2/cloudflare_shadow/src/freeCoreBoundary.test.ts"},
-    {"id":"prop.free-core.no-report-ready-free-route","requirements":["quality.zukan.program.free-output-boundary"],"property":"無料Eventからreport-ready species CSVとProfessional Report相当の導線を取得できず、別契約の内部資産だけを保持する","current_test":"platform_v2/cloudflare_shadow/src/index.test.ts"},
-    {"id":"prop.m7.participant-copy-forbidden","requirements":["quality.zukan.handover.selective-reuse","quality.zukan.handover.lifecycle-reset"],"property":"ProgramHandover plannerはparticipantをコピーせず参照と初期状態を分離する","current_test":"platform_v2/src/services/programHandoverPlanner.test.ts"},
-    {"id":"prop.m7.consent-copy-forbidden","requirements":["quality.zukan.handover.selective-reuse","quality.zukan.handover.lifecycle-reset"],"property":"ProgramHandover plannerはconsent/review/publication approvalをコピーしない","current_test":"platform_v2/src/services/programHandoverPlanner.test.ts"},
-    {"id":"prop.m7.incoming-actor-fail-closed","requirements":["quality.zukan.handover.responsibility-transfer"],"property":"incoming actor不明・未認可・scope外はhandover planを作らない","current_test":"platform_v2/src/services/programHandoverPlanner.test.ts"},
-    {"id":"prop.m7.handover-retry-idempotent","requirements":["quality.zukan.handover.idempotency"],"property":"同一handover intentのretryはtarget Program/receiptを重複作成しない","current_test":"platform_v2/src/services/programHandoverPlanner.test.ts"},
-    {"id":"prop.m7.selected-reference-fail-closed","requirements":["quality.zukan.handover.selective-reuse"],"property":"selected Place/Record/Quest/templateにunknown・invalid refがあればplanを作らない","current_test":"platform_v2/src/services/programHandoverPlanner.test.ts"},
-    {"id":"prop.m7.partial-input-never-completes","requirements":["quality.zukan.handover.provenance","quality.zukan.handover.responsibility-transfer"],"property":"source revision・target・actor・observed snapshotの欠落や不整合をcompleted扱いしない","current_test":"platform_v2/src/services/programHandoverPlanner.test.ts"},
-    {"id":"prop.m7.outgoing-removal-provenance-preserved","requirements":["quality.zukan.handover.provenance"],"property":"acceptance後にoutgoing actorがremovedでも履歴責任を明示し、現役責任者と誤表示しない","current_test":"platform_v2/src/services/programHandoverPlanner.test.ts"},
-    {"id":"prop.m7.review-unresolved-not-approved","requirements":["quality.zukan.handover.lifecycle-reset"],"property":"unresolved Review参照をapprovedへ昇格せずtarget Reviewを初期化する","current_test":"platform_v2/src/services/programHandoverPlanner.test.ts"},
-    {"id":"prop.m7.rights-boundary-fail-closed","requirements":["quality.zukan.handover.responsibility-transfer","quality.zukan.handover.lifecycle-reset"],"property":"unresolved rights/consent boundaryは推測せずhandoverを拒否する","current_test":"platform_v2/src/services/programHandoverPlanner.test.ts"},
-    {"id":"prop.m7.same-key-payload-conflict","requirements":["quality.zukan.handover.idempotency"],"property":"同一idempotency keyの異なるpayloadは既存planを上書きせず拒否する","current_test":"platform_v2/src/services/programHandoverPlanner.test.ts"},
-    {"id":"prop.m7.persistence-replay-one-row","requirements":["quality.zukan.handover.persistence"],"property":"accepted planのretry/concurrent retryは同一receiptと一つのlogical rowへ収束する","current_test":"platform_v2/src/services/programHandoverD1Repository.test.ts"},
-    {"id":"prop.m7.persistence-same-key-payload-conflict","requirements":["quality.zukan.handover.persistence"],"property":"同じkeyの異なるpayloadはfail closedで元のsnapshotを保持する","current_test":"platform_v2/src/services/programHandoverD1Repository.test.ts"},
-    {"id":"prop.m7.persistence-stale-scope-not-persisted","requirements":["quality.zukan.handover.persistence"],"property":"stale/mismatched source target scopeは保存しない","current_test":"platform_v2/src/services/programHandoverD1Repository.test.ts"},
-    {"id":"prop.m7.persistence-immutable-snapshot","requirements":["quality.zukan.handover.persistence"],"property":"stored M7.1 snapshotはUPDATE/DELETE不能のimmutable stateである","current_test":"platform_v2/src/services/programHandoverD1Repository.test.ts"},
-    {"id":"prop.m7.persistence-write-failure-not-complete","requirements":["quality.zukan.handover.persistence"],"property":"write failureはcompleted/succeededとして返さない","current_test":"platform_v2/src/services/programHandoverD1Repository.test.ts"},
-    {"id":"prop.m7.persistence-target-unchanged","requirements":["quality.zukan.handover.persistence"],"property":"plan persistenceはtarget Programを変更しない","current_test":"platform_v2/src/services/programHandoverD1Repository.test.ts"},
-    {"id":"prop.m7.persistence-no-forbidden-state-copy","requirements":["quality.zukan.handover.persistence"],"property":"snapshotはparticipant/consent/review/publication/visibilityのcarry-over stateを保存しない","current_test":"platform_v2/src/services/programHandoverD1Repository.test.ts"},
-    {"id":"prop.m7.outgoing-offer-authorized-only","requirements":["quality.zukan.handover.outgoing-selection"],"property":"Only the currently authorized outgoing source-Program actor may create an offer; stale or unauthorized actor/scope fails closed.","current_test":"platform_v2/src/services/programHandoverOfferD1Repository.test.ts"},
-    {"id":"prop.m7.outgoing-offer-one-logical","requirements":["quality.zukan.handover.outgoing-selection"],"property":"Same key and offer payload, including concurrent retry, converges to one logical pending offer.","current_test":"platform_v2/src/services/programHandoverOfferD1Repository.test.ts"},
-    {"id":"prop.m7.outgoing-offer-payload-conflict","requirements":["quality.zukan.handover.outgoing-selection"],"property":"Same key with a different plan identity or payload fails closed and does not rewrite the existing offer.","current_test":"platform_v2/src/services/programHandoverOfferD1Repository.test.ts"},
-    {"id":"prop.m7.outgoing-offer-plan-immutable","requirements":["quality.zukan.handover.outgoing-selection"],"property":"An offer references the persisted plan identity exactly; selected refs/reset state are never edited by M7.2.","current_test":"platform_v2/src/services/programHandoverOfferD1Repository.test.ts"},
-    {"id":"prop.m7.outgoing-offer-no-transfer","requirements":["quality.zukan.handover.outgoing-selection"],"property":"Creating an offer leaves target Program, incoming acceptance, responsibility, participants, consent, Review, publication and visibility unchanged.","current_test":"platform_v2/src/services/programHandoverOfferD1Repository.test.ts"},
-    {"id":"prop.m7.outgoing-offer-missing-plan","requirements":["quality.zukan.handover.outgoing-selection"],"property":"persisted M7.1 planがmissingならofferを作成しない","current_test":"platform_v2/src/services/programHandoverOfferD1Repository.test.ts"},
-    {"id":"prop.m7.outgoing-offer-identity-mismatch","requirements":["quality.zukan.handover.outgoing-selection"],"property":"plan identityまたはtarget scopeが一致しなければofferを作成しない","current_test":"platform_v2/src/services/programHandoverOfferD1Repository.test.ts"},
-    {"id":"prop.m8.free-summary-no-taxon-output","requirements":["quality.zukan.operational-summary.free"],"property":"Free OperationalActivitySummaryはtaxon list/count/composition/biodiversity/report-ready outputを出さない","current_test":"platform_v2/src/productRegistryM7M8.test.ts"},
-    {"id":"prop.m8.raw-archive-preserves-granularity","requirements":["quality.zukan.raw-record-portability"],"property":"RawRecordPortabilityArchiveはRecord単位・original reference・rights/provenanceを保つ","current_test":"platform_v2/src/productRegistryM7M8.test.ts"},
-    {"id":"prop.m8.raw-archive-no-taxonomy-derivative","requirements":["quality.zukan.raw-record-portability"],"property":"RawRecordPortabilityArchiveはtaxon inventory/normalized aggregate/report-ready outputを生成しない","current_test":"platform_v2/src/productRegistryM7M8.test.ts"}
+  "negative_property_tests": [
+    {
+      "id": "prop.capture.same-intent-one-record",
+      "requirements": [
+        "quality.zukan.capture.idempotent-save"
+      ],
+      "property": "同一capture intentをN回replayしても1 logical observation + 1 logical media setへ収束",
+      "current_test": "platform_v2/e2e/record-capture-retry.zukan.staging.spec.ts"
+    },
+    {
+      "id": "prop.capture.same-key-different-payload-conflict",
+      "requirements": [
+        "quality.zukan.capture.idempotent-save"
+      ],
+      "property": "同一idempotency keyの異なるpayloadは既存recordを上書きしない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.capture.partial-failure-recoverable",
+      "requirements": [
+        "quality.zukan.capture.draft-recovery",
+        "quality.zukan.capture.idempotent-save"
+      ],
+      "property": "media/AI/network partial failure後もrecord/draftを失わずretryで重複しない",
+      "current_test": "platform_v2/e2e/record-capture-retry.zukan.staging.spec.ts"
+    },
+    {
+      "id": "prop.capture.permission-denial-nondestructive",
+      "requirements": [
+        "quality.zukan.capture.location-optional",
+        "quality.zukan.capture.source-choice"
+      ],
+      "property": "camera/location拒否は記録中データを破棄せず代替経路を提示",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.public.no-private-leak",
+      "requirements": [
+        "quality.zukan.trust.private-default",
+        "quality.zukan.trust.public-projection"
+      ],
+      "property": "private/rejected/quarantined/blocked mediaはpublic API/HTML/map/feed/cacheの全投影で0件",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.public.no-exact-location",
+      "requirements": [
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.trust.public-projection"
+      ],
+      "property": "public URL/HTML/API/feedにexact coordinatesを含めず許可された粗化位置だけを出す",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.public.scope-monotonic-by-explicit-action",
+      "requirements": [
+        "quality.zukan.trust.explicit-publication",
+        "quality.zukan.trust.existing-rights-preserved"
+      ],
+      "property": "権限ある明示操作なしにvisibility scopeが広がらない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.privacy.face-private-place-fail-closed",
+      "requirements": [
+        "quality.zukan.trust.face-private-place-safety"
+      ],
+      "property": "face/生活場所/私有地riskはsilent public expansionを起こさない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.ai.failure-never-becomes-fact",
+      "requirements": [
+        "quality.zukan.capture.ai-candidate",
+        "quality.zukan.trust.ai-candidate-not-fact"
+      ],
+      "property": "timeout/malformed/low confidenceでも保存継続しAI値をverifiedへ昇格しない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.provenance.human-not-overwritten-by-ai",
+      "requirements": [
+        "quality.zukan.trust.confirmation-provenance"
+      ],
+      "property": "後続AI処理が人/専門家確認provenanceを上書きしない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.live-camera.unlicensed-source-not-exposed",
+      "requirements": [
+        "quality.zukan.map.live-camera-source-eligibility"
+      ],
+      "property": "reuse/embed/attribution根拠がunknownまたは不許可のcameraは地図layerへ公開しない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.live-camera.source-import-idempotent",
+      "requirements": [
+        "quality.zukan.map.live-camera-source-eligibility",
+        "quality.zukan.map.live-camera-health"
+      ],
+      "property": "同一provider + source_refをN回取込しても1 logical cameraへ収束し、権利・死活履歴を破壊しない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.live-camera.dead-never-live",
+      "requirements": [
+        "quality.zukan.map.live-camera-health"
+      ],
+      "property": "deleted/private/ended/unverified sourceをLIVE表示せず、最終確認時刻を偽らない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.live-camera.player-only-on-selection",
+      "requirements": [
+        "quality.zukan.map.live-camera-lazy-playback"
+      ],
+      "property": "layer OFFまたはcamera未選択/close後はYouTube等のplayer/iframe resourceがactiveでない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.live-camera.outage-isolated",
+      "requirements": [
+        "quality.zukan.map.live-camera-health",
+        "quality.zukan.map.live-camera-lazy-playback"
+      ],
+      "property": "provider timeout/403/404/endedでもMap/Recordsの閲覧・操作を継続できる",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.live-camera.no-frame-processing-without-rights",
+      "requirements": [
+        "quality.zukan.map.live-camera-source-eligibility"
+      ],
+      "property": "別途の権利契約がないcameraからframe snapshot/storage/extraction/AI inferenceを行わない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.workspace.authz-fail-closed",
+      "requirements": [
+        "quality.zukan.workspace.membership-authorization",
+        "quality.zukan.workspace.review"
+      ],
+      "property": "非member/権限外actorはread/write/review不可",
+      "current_test": "platform_v2/src/routes/observationEventPrivacy.routes.test.ts"
+    },
+    {
+      "id": "prop.workspace.membership-role-fail-closed",
+      "requirements": [
+        "quality.zukan.workspace.membership-authorization"
+      ],
+      "property": "member/role外のevent participant操作は拒否され、権限を推測しない",
+      "current_test": "platform_v2/src/services/observationEventParticipantAccess.test.ts"
+    },
+    {
+      "id": "prop.workspace.review-before-public",
+      "requirements": [
+        "quality.zukan.workspace.review",
+        "quality.zukan.workspace.explicit-publish"
+      ],
+      "property": "review権限とpublic化を分離し、review前の記録をpublic/verified扱いしない",
+      "current_test": "platform_v2/src/routes/observationEventCapsule.routes.test.ts"
+    },
+    {
+      "id": "prop.workspace.private-public-separation",
+      "requirements": [
+        "quality.zukan.workspace.contribution",
+        "quality.zukan.workspace.explicit-publish"
+      ],
+      "property": "private/community/public scopeを混同せず、非公開fixtureをpublic一覧へ出さない",
+      "current_test": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts"
+    },
+    {
+      "id": "prop.workspace.retry-converges",
+      "requirements": [
+        "quality.zukan.workspace.contribution"
+      ],
+      "property": "同一contribution/review replayは重複せず同じlogical stateへ収束",
+      "current_test": "platform_v2/src/services/observationEventParticipantAccess.test.ts"
+    },
+    {
+      "id": "prop.record.source-and-claim-remain-separate",
+      "requirements": [
+        "quality.zukan.record.source-reference-integrity",
+        "quality.zukan.record.claim-separation"
+      ],
+      "property": "RecordはSource/Evidenceを埋め込まず、後続Claim/Reviewで元Recordを上書きしない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.place.unknown-provenance-is-explicit",
+      "requirements": [
+        "quality.zukan.place.context-integrity"
+      ],
+      "property": "unknown provenance/date/locationは捏造せず、公開位置policyを越えて表示しない",
+      "current_test": "platform_v2/src/services/zukanRegionalKnowledgeEnvelope.test.ts"
+    },
+    {
+      "id": "prop.review.ai-never-becomes-human",
+      "requirements": [
+        "quality.zukan.review.provenance",
+        "quality.zukan.trust.confirmation-provenance"
+      ],
+      "property": "AI候補・低信頼・欠落根拠は人/専門家Reviewへ昇格しない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.rights.external-inference-is-separate",
+      "requirements": [
+        "quality.zukan.rights.consent-scope"
+      ],
+      "property": "表示/再公開同意なしに保存・分析・外部推論の許可を推測しない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.media.exif-gps-not-public",
+      "requirements": [
+        "quality.zukan.rights.exif-minimization"
+      ],
+      "property": "公開media/API/HTML/cacheへ不要EXIF/GPSが漏れない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.minor.guardian-consent-fail-closed",
+      "requirements": [
+        "quality.zukan.rights.minor-guardian-consent"
+      ],
+      "property": "minor/guardian同意がunknown・撤回済みならpublic projectionを拒否する",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.rights.withdrawal-revokes-derived-publication",
+      "requirements": [
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.publication.correction-takedown"
+      ],
+      "property": "撤回・削除・takedown後に派生PublicationEditionが再利用されない",
+      "current_test": "platform_v2/src/services/zukanFoundationV2.integrityHardening.test.ts"
+    },
+    {
+      "id": "prop.retention-does-not-infer-delete",
+      "requirements": [
+        "quality.zukan.rights.retention"
+      ],
+      "property": "retention期限・削除完了・法的保全を観測なしに成功扱いしない",
+      "current_test": "platform_v2/src/services/observationDataRights.test.ts"
+    },
+    {
+      "id": "prop.publication.edition-is-reproducible",
+      "requirements": [
+        "quality.zukan.publication.edition-integrity"
+      ],
+      "property": "同じ入力watermarkとpolicyから同じPublicationEdition選択・除外理由を再現する",
+      "current_test": "platform_v2/src/services/regionalSourceRegistryV2.test.ts"
+    },
+    {
+      "id": "prop.free-core.no-billing-gate",
+      "requirements": [
+        "quality.zukan.free-core.boundary"
+      ],
+      "property": "free coreの基本投稿・閲覧・参加・Review・通常Publicationを課金必須へ変換しない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.program.organizer-authz-fail-closed",
+      "requirements": [
+        "quality.zukan.program.self-serve-activation"
+      ],
+      "property": "未ログイン・権限外actorはProgram/Event作成を成功扱いせず、既存入力やprivate stateを公開しない",
+      "current_test": "platform_v2/src/ui/observationEventCreate.test.ts"
+    },
+    {
+      "id": "prop.program.activation-retry-converges",
+      "requirements": [
+        "quality.zukan.program.self-serve-activation"
+      ],
+      "property": "同じactivation intentの再試行は複数の主催Eventや招待対象を勝手に作らず一つのlogical activationへ収束する",
+      "current_test": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts"
+    },
+    {
+      "id": "prop.program.private-record-not-public",
+      "requirements": [
+        "quality.zukan.program.self-serve-activation",
+        "quality.zukan.program.participation"
+      ],
+      "property": "Program参加者のprivate Recordはreview/public操作なしにpublic projectionへ出ない",
+      "current_test": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts"
+    },
+    {
+      "id": "prop.program.participant-event-scope-fail-closed",
+      "requirements": [
+        "quality.zukan.program.participation"
+      ],
+      "property": "participant identity・check-in・record入口は対象Eventへ固定され、別Event/権限外Recordをread/writeできない",
+      "current_test": "platform_v2/src/services/observationEventParticipantAccess.test.ts"
+    },
+    {
+      "id": "prop.program.guest-promotion-preserves-attribution",
+      "requirements": [
+        "quality.zukan.program.participation"
+      ],
+      "property": "guestからloginへの移行でparticipant/contribution/review/recap attributionが同じEvent scopeに保持される",
+      "current_test": "platform_v2/src/services/observationEventParticipantAccess.test.ts"
+    },
+    {
+      "id": "prop.program.minor-consent-fail-closed",
+      "requirements": [
+        "quality.zukan.program.participation"
+      ],
+      "property": "minorまたはguardian consent不明時は位置共有・公開へ進まずprivateを維持する",
+      "current_test": "platform_v2/src/routes/observationEventGuestCredential.routes.test.ts"
+    },
+    {
+      "id": "prop.program.closeout-rehost-resets-state",
+      "requirements": [
+        "quality.zukan.program.closeout-rehost"
+      ],
+      "property": "再開催は企画設定だけを再利用し、participant/consent/review/publication状態を持ち越さない",
+      "current_test": "platform_v2/src/routes/observationEventCapsule.routes.test.ts"
+    },
+    {
+      "id": "prop.free-core.event-summary-no-taxon-aggregation",
+      "requirements": [
+        "quality.zukan.program.free-output-boundary"
+      ],
+      "property": "無料Program/Event recap・activity summaryはspecies/taxon list・count・top taxa・composition・biodiversity aggregationを出さない",
+      "current_test": "platform_v2/cloudflare_shadow/src/freeCoreBoundary.test.ts"
+    },
+    {
+      "id": "prop.free-core.no-report-ready-free-route",
+      "requirements": [
+        "quality.zukan.program.free-output-boundary"
+      ],
+      "property": "無料Eventからreport-ready species CSVとProfessional Report相当の導線を取得できず、別契約の内部資産だけを保持する",
+      "current_test": "platform_v2/cloudflare_shadow/src/index.test.ts"
+    },
+    {
+      "id": "prop.m7.participant-copy-forbidden",
+      "requirements": [
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.lifecycle-reset"
+      ],
+      "property": "ProgramHandover plannerはparticipantをコピーせず参照と初期状態を分離する",
+      "current_test": "platform_v2/src/services/programHandoverPlanner.test.ts"
+    },
+    {
+      "id": "prop.m7.consent-copy-forbidden",
+      "requirements": [
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.lifecycle-reset"
+      ],
+      "property": "ProgramHandover plannerはconsent/review/publication approvalをコピーしない",
+      "current_test": "platform_v2/src/services/programHandoverPlanner.test.ts"
+    },
+    {
+      "id": "prop.m7.incoming-actor-fail-closed",
+      "requirements": [
+        "quality.zukan.handover.responsibility-transfer"
+      ],
+      "property": "incoming actor不明・未認可・scope外はhandover planを作らない",
+      "current_test": "platform_v2/src/services/programHandoverPlanner.test.ts"
+    },
+    {
+      "id": "prop.m7.handover-retry-idempotent",
+      "requirements": [
+        "quality.zukan.handover.idempotency"
+      ],
+      "property": "同一handover intentのretryはtarget Program/receiptを重複作成しない",
+      "current_test": "platform_v2/src/services/programHandoverPlanner.test.ts"
+    },
+    {
+      "id": "prop.m7.selected-reference-fail-closed",
+      "requirements": [
+        "quality.zukan.handover.selective-reuse"
+      ],
+      "property": "selected Place/Record/Quest/templateにunknown・invalid refがあればplanを作らない",
+      "current_test": "platform_v2/src/services/programHandoverPlanner.test.ts"
+    },
+    {
+      "id": "prop.m7.partial-input-never-completes",
+      "requirements": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.responsibility-transfer"
+      ],
+      "property": "source revision・target・actor・observed snapshotの欠落や不整合をcompleted扱いしない",
+      "current_test": "platform_v2/src/services/programHandoverPlanner.test.ts"
+    },
+    {
+      "id": "prop.m7.outgoing-removal-provenance-preserved",
+      "requirements": [
+        "quality.zukan.handover.provenance"
+      ],
+      "property": "acceptance後にoutgoing actorがremovedでも履歴責任を明示し、現役責任者と誤表示しない",
+      "current_test": "platform_v2/src/services/programHandoverPlanner.test.ts"
+    },
+    {
+      "id": "prop.m7.review-unresolved-not-approved",
+      "requirements": [
+        "quality.zukan.handover.lifecycle-reset"
+      ],
+      "property": "unresolved Review参照をapprovedへ昇格せずtarget Reviewを初期化する",
+      "current_test": "platform_v2/src/services/programHandoverPlanner.test.ts"
+    },
+    {
+      "id": "prop.m7.rights-boundary-fail-closed",
+      "requirements": [
+        "quality.zukan.handover.responsibility-transfer",
+        "quality.zukan.handover.lifecycle-reset"
+      ],
+      "property": "unresolved rights/consent boundaryは推測せずhandoverを拒否する",
+      "current_test": "platform_v2/src/services/programHandoverPlanner.test.ts"
+    },
+    {
+      "id": "prop.m7.same-key-payload-conflict",
+      "requirements": [
+        "quality.zukan.handover.idempotency"
+      ],
+      "property": "同一idempotency keyの異なるpayloadは既存planを上書きせず拒否する",
+      "current_test": "platform_v2/src/services/programHandoverPlanner.test.ts"
+    },
+    {
+      "id": "prop.m7.persistence-replay-one-row",
+      "requirements": [
+        "quality.zukan.handover.persistence"
+      ],
+      "property": "accepted planのretry/concurrent retryは同一receiptと一つのlogical rowへ収束する",
+      "current_test": "platform_v2/src/services/programHandoverD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.persistence-same-key-payload-conflict",
+      "requirements": [
+        "quality.zukan.handover.persistence"
+      ],
+      "property": "同じkeyの異なるpayloadはfail closedで元のsnapshotを保持する",
+      "current_test": "platform_v2/src/services/programHandoverD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.persistence-stale-scope-not-persisted",
+      "requirements": [
+        "quality.zukan.handover.persistence"
+      ],
+      "property": "stale/mismatched source target scopeは保存しない",
+      "current_test": "platform_v2/src/services/programHandoverD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.persistence-immutable-snapshot",
+      "requirements": [
+        "quality.zukan.handover.persistence"
+      ],
+      "property": "stored M7.1 snapshotはUPDATE/DELETE不能のimmutable stateである",
+      "current_test": "platform_v2/src/services/programHandoverD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.persistence-write-failure-not-complete",
+      "requirements": [
+        "quality.zukan.handover.persistence"
+      ],
+      "property": "write failureはcompleted/succeededとして返さない",
+      "current_test": "platform_v2/src/services/programHandoverD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.persistence-target-unchanged",
+      "requirements": [
+        "quality.zukan.handover.persistence"
+      ],
+      "property": "plan persistenceはtarget Programを変更しない",
+      "current_test": "platform_v2/src/services/programHandoverD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.persistence-no-forbidden-state-copy",
+      "requirements": [
+        "quality.zukan.handover.persistence"
+      ],
+      "property": "snapshotはparticipant/consent/review/publication/visibilityのcarry-over stateを保存しない",
+      "current_test": "platform_v2/src/services/programHandoverD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.outgoing-offer-authorized-only",
+      "requirements": [
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "property": "Only the currently authorized outgoing source-Program actor may create an offer; stale or unauthorized actor/scope fails closed.",
+      "current_test": "platform_v2/src/services/programHandoverOfferD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.outgoing-offer-one-logical",
+      "requirements": [
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "property": "Same key and offer payload, including concurrent retry, converges to one logical pending offer.",
+      "current_test": "platform_v2/src/services/programHandoverOfferD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.outgoing-offer-payload-conflict",
+      "requirements": [
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "property": "Same key with a different plan identity or payload fails closed and does not rewrite the existing offer.",
+      "current_test": "platform_v2/src/services/programHandoverOfferD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.outgoing-offer-plan-immutable",
+      "requirements": [
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "property": "An offer references the persisted plan identity exactly; selected refs/reset state are never edited by M7.2.",
+      "current_test": "platform_v2/src/services/programHandoverOfferD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.outgoing-offer-no-transfer",
+      "requirements": [
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "property": "Creating an offer leaves target Program, incoming acceptance, responsibility, participants, consent, Review, publication and visibility unchanged.",
+      "current_test": "platform_v2/src/services/programHandoverOfferD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.outgoing-offer-missing-plan",
+      "requirements": [
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "property": "persisted M7.1 planがmissingならofferを作成しない",
+      "current_test": "platform_v2/src/services/programHandoverOfferD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.outgoing-offer-identity-mismatch",
+      "requirements": [
+        "quality.zukan.handover.outgoing-selection"
+      ],
+      "property": "plan identityまたはtarget scopeが一致しなければofferを作成しない",
+      "current_test": "platform_v2/src/services/programHandoverOfferD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m8.free-summary-no-taxon-output",
+      "requirements": [
+        "quality.zukan.operational-summary.free"
+      ],
+      "property": "Free OperationalActivitySummaryはtaxon list/count/composition/biodiversity/report-ready outputを出さない",
+      "current_test": "platform_v2/src/productRegistryM7M8.test.ts"
+    },
+    {
+      "id": "prop.m8.raw-archive-preserves-granularity",
+      "requirements": [
+        "quality.zukan.raw-record-portability"
+      ],
+      "property": "RawRecordPortabilityArchiveはRecord単位・original reference・rights/provenanceを保つ",
+      "current_test": "platform_v2/src/productRegistryM7M8.test.ts"
+    },
+    {
+      "id": "prop.m8.raw-archive-no-taxonomy-derivative",
+      "requirements": [
+        "quality.zukan.raw-record-portability"
+      ],
+      "property": "RawRecordPortabilityArchiveはtaxon inventory/normalized aggregate/report-ready outputを生成しない",
+      "current_test": "platform_v2/src/productRegistryM7M8.test.ts"
+    },
+    {
+      "id": "prop.place.first-record-changes-page",
+      "requirements": [
+        "quality.zukan.place.record-accumulation-visible"
+      ],
+      "property": "公開Recordが0件から1件になったときPlace図鑑の表示状態が実際に変わり、0件時に空指標・空カード・内部処理用語を描画しない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.place.nearby-never-counts-as-local",
+      "requirements": [
+        "quality.zukan.place.record-accumulation-visible"
+      ],
+      "property": "近隣PlaceのRecordが当該Placeのmembership・集計・外部publication feedへ混入しない",
+      "current_test": "planned"
+    },
+    {
+      "id": "prop.review.contributor-sees-decision",
+      "requirements": [
+        "quality.zukan.review.contributor-return"
+      ],
+      "property": "人のReview決定は投稿者本人へ返され、未Reviewをreview済みと表示せず、AI候補をReview結果として表示しない",
+      "current_test": "planned"
+    }
   ],
-  "journey_evaluator":{"runner":"platform_v2/scripts/runZukanRuntimeQa.mjs + Playwright existing configs","identity_gate":"behavior前にenvironment runtime revisionをexact read-back","viewports":{"desktop":{"width":1440,"height":1200},"mobile":{"width":390,"height":844}},"required_dimensions":["persona","viewport","start→success transition","failure/recovery branch","privacy projection","back/reload where relevant"],"rule":"page load/screenshotだけをJourney PASSにしない。major Golden Journeyはdesktop/mobile双方、surfaceが明示的にsingle-viewportなら理由をRegistryへ残す。"},
-  "release_gates":["registry invariant test","typecheck and node tests","exact-SHA source validation","independent full-diff review P0=0 P1=0","exact-SHA staging runtime identity read-back","Journey E2E + negative/property gates","desktop/mobile state/transitions/recovery QA","rollback locator","merged-SHA revalidation before production"]
+  "journey_evaluator": {
+    "runner": "platform_v2/scripts/runZukanRuntimeQa.mjs + Playwright existing configs",
+    "identity_gate": "behavior前にenvironment runtime revisionをexact read-back",
+    "viewports": {
+      "desktop": {
+        "width": 1440,
+        "height": 1200
+      },
+      "mobile": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    "required_dimensions": [
+      "persona",
+      "viewport",
+      "start→success transition",
+      "failure/recovery branch",
+      "privacy projection",
+      "back/reload where relevant"
+    ],
+    "rule": "page load/screenshotだけをJourney PASSにしない。major Golden Journeyはdesktop/mobile双方、surfaceが明示的にsingle-viewportなら理由をRegistryへ残す。"
+  },
+  "release_gates": [
+    "registry invariant test",
+    "typecheck and node tests",
+    "exact-SHA source validation",
+    "independent full-diff review P0=0 P1=0",
+    "exact-SHA staging runtime identity read-back",
+    "Journey E2E + negative/property gates",
+    "desktop/mobile state/transitions/recovery QA",
+    "rollback locator",
+    "merged-SHA revalidation before production"
+  ]
 }
