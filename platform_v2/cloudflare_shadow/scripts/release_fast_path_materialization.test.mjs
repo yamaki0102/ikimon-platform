@@ -34,4 +34,3 @@ test("receipt validation binds exact source and staging and requires provenance"
   assert.ok(validateMaterializationImpactReceipt({ ...base, release_source_sha: "d".repeat(40) }, { sourceSha: sha, targetEnv: "staging" }).includes("source_sha_mismatch"));
   assert.ok(validateMaterializationImpactReceipt({ ...base, prior_artifact_provenance: {} }, { sourceSha: sha, targetEnv: "staging" }).includes("prior_bundle_hash_missing"));
 });
-
