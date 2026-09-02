@@ -49,6 +49,7 @@ import {
   parseGeminiSpecialistEvidenceDirect,
   type GeminiBatchOperation,
   type GeminiBatchRequest,
+  type GeminiDirectContentResult,
   type GeminiMergedObservation,
   type GeminiObservationImage,
 } from "./geminiObservationBatch";
@@ -31131,6 +31132,20 @@ function isInteractiveStandardReassessment(sourcePayloadJson: string): boolean {
   ]).has(reassessmentSource(sourcePayloadJson));
 }
 
+async function generateDirectGeminiLane(
+  lane: string,
+  apiKey: string,
+  model: string,
+  request: Record<string, unknown>,
+): Promise<GeminiDirectContentResult> {
+  try {
+    return await generateGeminiContent(apiKey, model, request);
+  } catch (error) {
+    const message = (error instanceof Error ? error.message : String(error)).slice(0, 240);
+    throw new Error(`gemini_direct_lane_failed:${lane}:${model}:${message}`);
+  }
+}
+
 async function failPendingDirectGeminiReassessment(request: ObservationReassessmentRequestRow, error: unknown, env: Env): Promise<void> {
   const payload = reassessmentPayload(request.source_payload_json);
   const errorCode = (error instanceof Error ? error.message : String(error)).slice(0, 180);
@@ -31186,9 +31201,9 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
 
   try {
     const [primaryResult, censusResult, environmentResult] = await Promise.all([
-      generateGeminiContent(env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest(request.observation_id, prepared.record.observed_at, prepared.images)),
-      generateGeminiContent(env.GEMINI_API_KEY!, GEMINI_ANALYSIS_MODEL, buildGeminiCensusRequest(request.observation_id, prepared.images)),
-      generateGeminiContent(env.GEMINI_API_KEY!, GEMINI_ANALYSIS_MODEL, buildGeminiEnvironmentRequest(request.observation_id, prepared.images)),
+      generateDirectGeminiLane("primary", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest(request.observation_id, prepared.record.observed_at, prepared.images)),
+      generateDirectGeminiLane("census", env.GEMINI_API_KEY!, GEMINI_ANALYSIS_MODEL, buildGeminiCensusRequest(request.observation_id, prepared.images)),
+      generateDirectGeminiLane("environment", env.GEMINI_API_KEY!, GEMINI_ANALYSIS_MODEL, buildGeminiEnvironmentRequest(request.observation_id, prepared.images)),
     ]);
     const lanes: Record<string, DirectGeminiLaneEvidence> = {
       primary: { model: primaryResult.model, candidatesCount: primaryResult.candidatesCount, finishReason: primaryResult.finishReason, structuredTextPresent: true, parseStatus: "pass" },
@@ -31204,14 +31219,14 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
     if (merged.specialistEscalation.required) {
       const specialistImages = await observationAiSpecialistImages(prepared, merged, env);
       if (specialistImages.length > 0) {
-        const specialistResult = await generateGeminiContent(env.GEMINI_API_KEY!, GEMINI_SPECIALIST_MODEL, buildGeminiSpecialistRequest(request.observation_id, merged.specialistEscalation.specialistKind, specialistImages, merged));
+        const specialistResult = await generateDirectGeminiLane("specialist", env.GEMINI_API_KEY!, GEMINI_SPECIALIST_MODEL, buildGeminiSpecialistRequest(request.observation_id, merged.specialistEscalation.specialistKind, specialistImages, merged));
         lanes.specialist = { model: specialistResult.model, candidatesCount: specialistResult.candidatesCount, finishReason: specialistResult.finishReason, structuredTextPresent: true, parseStatus: "pass" };
         Object.assign(merged, applyGeminiSpecialistEvidence(merged, parseGeminiSpecialistEvidenceDirect(specialistResult.text)));
       }
     }
 
     if (merged.topCandidates.length > 0 || merged.needsReview) {
-      const summaryResult = await generateGeminiContent(env.GEMINI_API_KEY!, GEMINI_SUMMARY_MODEL, buildGeminiSummaryRequest(request.observation_id, merged));
+      const summaryResult = await generateDirectGeminiLane("summary", env.GEMINI_API_KEY!, GEMINI_SUMMARY_MODEL, buildGeminiSummaryRequest(request.observation_id, merged));
       lanes.summary = { model: summaryResult.model, candidatesCount: summaryResult.candidatesCount, finishReason: summaryResult.finishReason, structuredTextPresent: true, parseStatus: "pass" };
       Object.assign(merged, applyGeminiObservationSummary(merged, parseGeminiObservationSummaryDirect(summaryResult.text)));
     }
