@@ -22122,6 +22122,7 @@ async function loadFieldRecentPublicRecords(fieldId: string, env: Env): Promise<
     "FROM readmodel_public_observations r " +
     "JOIN observations o ON o.observation_id = r.observation_id " +
     "JOIN observation_data_rights rights ON rights.visit_id = r.observation_id " +
+    "LEFT JOIN civic_observation_contexts civic ON civic.visit_id = r.observation_id " +
     "WHERE o.visibility = 'public' AND o.emergency_hidden = 0 " +
     "AND rights.record_consent IN ('public_summary', 'external_export') " +
     "AND rights.withdrawal_status = 'active' " +
