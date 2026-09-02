@@ -467,10 +467,23 @@ const directApiJson = async (url: string, apiKey: string, init: RequestInit, fet
   const response = await fetcher(url, { ...init, headers: { "content-type": "application/json", "x-goog-api-key": apiKey, ...(init.headers ?? {}) } });
   const value = await response.json().catch(() => null);
   if (!response.ok) {
-    const message = value && typeof value === "object" && !Array.isArray(value)
-      ? String(((value as Record<string, unknown>).error as Record<string, unknown> | undefined)?.message ?? `http_${response.status}`)
-      : `http_${response.status}`;
-    throw new Error(`gemini_generate_content_api_failed:${response.status}:${message.slice(0, 240)}`);
+    const error = value && typeof value === "object" && !Array.isArray(value)
+      && (value as Record<string, unknown>).error && typeof (value as Record<string, unknown>).error === "object"
+      ? (value as Record<string, unknown>).error as Record<string, unknown> : {};
+    const message = String(error.message ?? `http_${response.status}`);
+    const fieldViolations = Array.isArray(error.details)
+      ? error.details.flatMap((detail) => {
+        if (!detail || typeof detail !== "object" || Array.isArray(detail)) return [];
+        const violations = (detail as Record<string, unknown>).fieldViolations;
+        if (!Array.isArray(violations)) return [];
+        return violations.flatMap((violation) => {
+          if (!violation || typeof violation !== "object" || Array.isArray(violation)) return [];
+          const item = violation as Record<string, unknown>;
+          return typeof item.field === "string" && typeof item.description === "string"
+            ? [`${item.field}:${item.description.slice(0, 120)}`] : [];
+        });
+      }).join("|") : "";
+    throw new Error(`gemini_generate_content_api_failed:${response.status}:${[message, fieldViolations].filter(Boolean).join(":").slice(0, 360)}`);
   }
   return value;
 };

@@ -360,3 +360,16 @@ test("direct structured failures do not become semantic not-assessable", async (
   }));
   assert.equal(semantic.information_state, "not_assessable");
 });
+
+test("direct provider errors retain only bounded field diagnostics", async () => {
+  const failure = (async () => new Response(JSON.stringify({
+    error: {
+      message: "Request contains an invalid argument.",
+      details: [{ fieldViolations: [{ field: "generation_config.response_format.text.mime_type", description: "invalid enum" }] }],
+    },
+  }), { status: 400 })) as typeof fetch;
+  await assert.rejects(
+    () => generateGeminiContent("secret", GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest("record-direct", null, images), failure),
+    /gemini_generate_content_api_failed:400:Request contains an invalid argument\.:generation_config\.response_format\.text\.mime_type:invalid enum/,
+  );
+});
