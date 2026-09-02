@@ -16,7 +16,8 @@ test("observation-first cutover fails closed for policy-forbidden and unavailabl
 test("legacy detail fallback remains available only when the observation-first record is missing", () => {
   assert.match(workerSource, /if \(observationFirst\.state === "ready"\)/);
   assert.match(workerSource, /if \(!container\) return \{ state: "missing" as const, detail: null \}/);
-  assert.match(workerSource, /return html\(renderPublicObservationDetailHtml\(detail, ownerStatus\)/);
+  assert.match(workerSource, /renderPublicObservationDetailHtml\(detail, ownerStatus, cspNonce\)/);
+  assert.match(workerSource, /browserSecurityHeaders\(cspNonce, env\.ENVIRONMENT === "production"\)/);
 });
 
 test("accepted identification reader preserves the human decider and accepted value", () => {

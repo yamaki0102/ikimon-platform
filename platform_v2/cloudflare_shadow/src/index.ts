@@ -26012,6 +26012,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     }
     return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
   }
+  const cspNonce = createHtmlCspNonce();
   if (observationReadCutoverEnabled(env)) {
     const observationFirst = await loadObservationFirstRecordDetail(detailIdToVisitId(rawId), session?.userId ?? null, env)
       .catch(() => ({ state: "unavailable" as const, detail: null }));
@@ -26041,7 +26042,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         detail.aiAssessmentStatus,
         detail.aiRequestStatus,
       );
-      return html(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
+      return html(applyCspNonceToHtmlScripts(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
@@ -26064,13 +26065,17 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
-      }), 200, {
+      }), cspNonce), 200, {
+        ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
         "cache-control": "private, no-store",
         "x-ikimon-record-reader": "observation-first/v1",
       });
     }
   }
-  return html(renderPublicObservationDetailHtml(detail, ownerStatus), 200, { "cache-control": "no-store" });
+  return html(applyCspNonceToHtmlScripts(renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce), cspNonce), 200, {
+    ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+    "cache-control": "no-store",
+  });
 }
 
 async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: string | null, env: Env) {
@@ -34839,7 +34844,8 @@ type PublicObservationDetail = NonNullable<Awaited<ReturnType<typeof buildPublic
 
 function renderPublicObservationDetailHtml(
   detail: PublicObservationDetail,
-  ownerStatus: ObservationProcessingStatus | null = null
+  ownerStatus: ObservationProcessingStatus | null = null,
+  cspNonce = ""
 ): string {
   const isPrivateRecord = detail.visibility === "private";
   const polish = isPrivateRecord ? null : publicObservationDetailPolish(detail);
@@ -35378,7 +35384,7 @@ ${headerBlock}
     </section>
     <aside class="obs-reading-panel" aria-label="観察記録">
       <h1 class="sr-only">${escapeHtml(displayName)}</h1>
-      ${ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus) : ""}
+      ${ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : ""}
       <div id="summary" class="obs-record-brief obs-record-brief-compact" data-obs-section="summary" aria-label="この記録">
         <div class="obs-record-compact-main">
           <div class="obs-record-compact-meta">

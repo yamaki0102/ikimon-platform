@@ -157,9 +157,11 @@ test("retryable AI failure offers an owner-initiated reassessment without treati
   assert.equal(status.action?.method, "post");
   assert.equal(status.action?.href, "/api/v1/observations/record-1/reassess");
 
-  const html = renderObservationProcessingStatusPanel(status);
-  assert.match(html, /<button[^>]+data-observation-reassess/);
+  const html = renderObservationProcessingStatusPanel(status, "page-csp-nonce");
+  assert.match(html, /<script nonce="page-csp-nonce" data-observation-reassess-script>/);
+  assert.doesNotMatch(html, /<script data-observation-reassess-script>/);
   assert.match(html, /method:'POST'/);
   assert.match(html, /AIで再確認を受け付けました/);
   assert.doesNotMatch(html, /<a[^>]+reassess/);
+  assert.doesNotMatch(html, /script-src[^>]*unsafe-inline/);
 });
