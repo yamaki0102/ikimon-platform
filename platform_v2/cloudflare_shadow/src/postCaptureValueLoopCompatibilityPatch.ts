@@ -253,14 +253,20 @@ function escapeAttribute(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
-function nonceAttribute(html: string): string {
+function nonceAttribute(html: string, cspNonce = ""): string {
   const match = html.match(/<script\b[^>]*\bnonce=(["'])([^"']+)\1/iu);
-  return match?.[2] ? ` nonce="${escapeAttribute(match[2])}"` : "";
+  const nonce = match?.[2] || cspNonce;
+  return nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
 }
 
-export function applyPostCaptureValueLoopCompatibilityPatch(html: string): string {
+function nonceFromContentSecurityPolicy(value: string | null): string {
+  const match = String(value ?? "").match(/(?:^|;)\s*script-src\s+[^;]*?'nonce-([^'\s;]+)'/iu);
+  return match?.[1] ?? "";
+}
+
+export function applyPostCaptureValueLoopCompatibilityPatch(html: string, cspNonce = ""): string {
   if (html.includes(PATCH_MARKER) || !html.includes("data-observation-first-record-detail")) return html;
-  const nonce = nonceAttribute(html);
+  const nonce = nonceAttribute(html, cspNonce);
   const payload = `<style id="${STYLE_ID}"${nonce}>${INJECTED_STYLE}</style><script ${PATCH_MARKER}${nonce}>${INJECTED_SCRIPT}</script>`;
   if (html.includes("</head>")) return html.replace("</head>", `${payload}\n</head>`);
   return `${payload}${html}`;
@@ -275,7 +281,7 @@ export async function enforcePostCaptureValueLoopCompatibility(
   if (!contentType.includes("text/html")) return response;
 
   const html = await response.text();
-  const patched = applyPostCaptureValueLoopCompatibilityPatch(html);
+  const patched = applyPostCaptureValueLoopCompatibilityPatch(html, nonceFromContentSecurityPolicy(response.headers.get("content-security-policy")));
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   if (patched !== html) {
