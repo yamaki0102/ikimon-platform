@@ -504,6 +504,28 @@ const directResponseText = (value: unknown): { text: string; candidatesCount: nu
   return { text, candidatesCount: candidates.length, finishReason: typeof first.finishReason === "string" ? first.finishReason : null };
 };
 
+const DIRECT_SCHEMA_TYPES: Record<string, string> = {
+  array: "ARRAY",
+  boolean: "BOOLEAN",
+  integer: "INTEGER",
+  number: "NUMBER",
+  object: "OBJECT",
+  string: "STRING",
+};
+
+function directResponseSchema(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(directResponseSchema);
+  if (!value || typeof value !== "object") return value;
+  const source = value as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(source)) {
+    result[key] = key === "type" && typeof item === "string"
+      ? DIRECT_SCHEMA_TYPES[item.toLowerCase()] ?? item
+      : directResponseSchema(item);
+  }
+  return result;
+}
+
 export async function generateGeminiContent(
   apiKey: string,
   model: string,
@@ -532,7 +554,7 @@ export async function generateGeminiContent(
       ...directGenerationConfig,
       ...(thinkingLevel ? { thinkingConfig: { ...thinkingConfig, thinkingLevel } } : {}),
       responseMimeType,
-      responseJsonSchema,
+      responseSchema: directResponseSchema(responseJsonSchema),
     },
   };
   const value = await directApiJson(`${apiBase}/models/${encodeURIComponent(model)}:generateContent`, apiKey, {
