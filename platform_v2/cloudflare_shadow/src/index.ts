@@ -8238,6 +8238,17 @@ async function requestCompatibleObservationReassessment(observationId: string, r
     dispatch
   }, row.request_state === "completed" ? 200 : 202, { "cache-control": "no-store" });
 
+  const completedInteractiveResultNeedsRearm = (sourcePayloadJson: string): boolean => {
+    const payload = reassessmentPayload(sourcePayloadJson);
+    if (payload.providerMode !== "direct_generate_content") return false;
+    const plan = payload.modelPlan && typeof payload.modelPlan === "object" && !Array.isArray(payload.modelPlan)
+      ? payload.modelPlan as Record<string, unknown>
+      : {};
+    const models = Array.isArray(payload.models) ? payload.models : [];
+    return [plan.primary, plan.census, plan.environment, plan.summary, ...models]
+      .some((model) => model === GEMINI_ANALYSIS_MODEL);
+  };
+
   const existing = await env.OBS_DB.prepare(
     `SELECT request_id, request_state, source_payload_json
        FROM observation_reassessment_requests
@@ -8248,19 +8259,24 @@ async function requestCompatibleObservationReassessment(observationId: string, r
     request_state: string;
     source_payload_json: string;
   }>();
-  if (existing && ["pending", "processing", "completed"].includes(existing.request_state)) {
+  const obsoleteCompletedInteractiveResult = existing?.request_state === "completed"
+    && requestKind === "standard"
+    && completedInteractiveResultNeedsRearm(existing.source_payload_json);
+  if (existing && (["pending", "processing"].includes(existing.request_state)
+    || (existing.request_state === "completed" && !obsoleteCompletedInteractiveResult))) {
     return responseFor(existing);
   }
-  if (existing && existing.request_state !== "failed") {
+  if (existing && existing.request_state !== "failed" && !obsoleteCompletedInteractiveResult) {
     return json({ ok: false, error: "reassessment_not_retryable" }, 409, { "cache-control": "no-store" });
   }
 
   if (existing) {
     const attemptCount = reassessmentAttemptCount(existing.source_payload_json);
-    if (requestKind === "standard" && attemptCount >= 3) {
+    if (requestKind === "standard" && (obsoleteCompletedInteractiveResult || attemptCount >= 3)) {
       const previous = reassessmentPayload(existing.source_payload_json);
       const previousErrorCode = typeof previous.errorCode === "string" ? previous.errorCode.slice(0, 180) : null;
       const previousFailedAt = typeof previous.failedAt === "string" ? previous.failedAt : null;
+      const previousCompletedAt = typeof previous.completedAt === "string" ? previous.completedAt : null;
       const outboxAiId = "outbox_" + existing.request_id + "_manual_" + crypto.randomUUID().replace(/-/gu, "");
       delete previous.batchExecution;
       delete previous.errorCode;
@@ -8276,10 +8292,11 @@ async function requestCompatibleObservationReassessment(observationId: string, r
         previousErrorCode,
         previousAttemptCount: attemptCount,
         ...(previousFailedAt ? { previousFailedAt } : {}),
+        ...(previousCompletedAt ? { previousCompletedAt } : {}),
       });
       const updated = await env.OBS_DB.prepare(
-        "UPDATE observation_reassessment_requests SET request_state = 'pending', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP WHERE request_id = ? AND request_state = 'failed' AND source_payload_json = ?"
-      ).bind(nextPayload, existing.request_id, existing.source_payload_json).run() as { meta?: { changes?: number } };
+        "UPDATE observation_reassessment_requests SET request_state = 'pending', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP WHERE request_id = ? AND request_state = ? AND source_payload_json = ?"
+      ).bind(nextPayload, existing.request_id, obsoleteCompletedInteractiveResult ? "completed" : "failed", existing.source_payload_json).run() as { meta?: { changes?: number } };
       if (Number(updated.meta?.changes ?? 0) === 0) {
         const current = await env.OBS_DB.prepare(
           "SELECT request_id, request_state, source_payload_json FROM observation_reassessment_requests WHERE observation_id = ? AND request_kind = ? AND actor_user_id = ? LIMIT 1"
