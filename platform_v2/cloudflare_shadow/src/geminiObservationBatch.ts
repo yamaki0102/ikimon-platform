@@ -520,10 +520,14 @@ export async function generateGeminiContent(
     ? generationConfig.responseJsonSchema : null;
   if (!responseMimeType || !responseJsonSchema) throw new Error("gemini_generate_content_structured_config_missing");
   const { responseMimeType: _legacyMimeType, responseJsonSchema: _legacySchema, ...directGenerationConfig } = generationConfig;
+  const thinkingConfig = directGenerationConfig.thinkingConfig && typeof directGenerationConfig.thinkingConfig === "object" && !Array.isArray(directGenerationConfig.thinkingConfig)
+    ? directGenerationConfig.thinkingConfig as Record<string, unknown> : null;
+  const thinkingLevel = typeof thinkingConfig?.thinkingLevel === "string" ? thinkingConfig.thinkingLevel.toUpperCase() : null;
   const directRequest = {
     ...request,
     generationConfig: {
       ...directGenerationConfig,
+      ...(thinkingLevel ? { thinkingConfig: { ...thinkingConfig, thinkingLevel } } : {}),
       responseFormat: { text: { mimeType: responseMimeType === "application/json" ? "APPLICATION_JSON" : responseMimeType, schema: responseJsonSchema } },
     },
   };

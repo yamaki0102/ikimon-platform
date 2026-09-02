@@ -343,7 +343,7 @@ test("direct generateContent reuses the primary request and extracts structured 
   assert.equal(sentRequest.generationConfig.responseJsonSchema, undefined);
   assert.equal(sentRequest.generationConfig.responseFormat.text.mimeType, "APPLICATION_JSON");
   assert.deepEqual(sentRequest.generationConfig.responseFormat.text.schema, request.generationConfig.responseJsonSchema);
-  assert.deepEqual(sentRequest.generationConfig.thinkingConfig, request.generationConfig.thinkingConfig);
+  assert.deepEqual(sentRequest.generationConfig.thinkingConfig, { thinkingLevel: "MINIMAL" });
   assert.equal(result.model, GEMINI_PRIMARY_MODEL);
   assert.equal(result.candidatesCount, 1);
   assert.equal(result.finishReason, "STOP");
