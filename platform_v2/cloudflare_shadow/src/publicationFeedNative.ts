@@ -595,7 +595,7 @@ export async function handlePublicationFeedNativeRequest(
     "cache-control": PUBLICATION_FEED_CACHE_CONTROL,
     etag: responseEtag,
     vary: "Origin",
-    "x-ikimon-cloudflare-native": "publication-feed-v1",
+    "x-ikimon-cloudflare-native": "publication-feed-v2",
   };
   if (allowedOrigin) headers["access-control-allow-origin"] = allowedOrigin;
   if (ifNoneMatch(request.headers.get("if-none-match"), responseEtag)) {
