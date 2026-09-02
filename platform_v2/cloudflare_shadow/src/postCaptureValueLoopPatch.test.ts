@@ -58,6 +58,24 @@ test("record detail pages load the owner-only processing status and render the p
   assert.match(patched, /window\.setTimeout/u);
 });
 
+test("dynamic detail injection reuses the response CSP nonce when HTML has no script nonce", async () => {
+  const dynamicDetailHtml = detailHtml.replace('<script nonce="detail-nonce">window.base=true;</script>', "");
+  const patchedResponse = await enhancePostCaptureValueLoop(
+    new Request("https://ikimon.life/ja/observations/visit-detail-contract"),
+    new Response(dynamicDetailHtml, {
+      status: 200,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-page-csp-nonce' https://static.cloudflareinsights.com",
+      },
+    }),
+  );
+  const patched = await patchedResponse.text();
+  assert.match(patched, /<script data-ikimon-post-capture-value-loop="v1" nonce="page-csp-nonce">/u);
+  assert.match(patched, /<style id="ikimon-post-capture-value-loop-style" nonce="page-csp-nonce">/u);
+  assert.doesNotMatch(patched, /unsafe-inline/u);
+});
+
 test("patch is idempotent and skips unrelated HTML", () => {
   const once = applyPostCaptureValueLoopPatch(detailHtml);
   const twice = applyPostCaptureValueLoopPatch(once);

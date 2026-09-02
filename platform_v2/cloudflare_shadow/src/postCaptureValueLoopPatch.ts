@@ -546,18 +546,24 @@ function escapeAttribute(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
-function nonceAttribute(html: string): string {
+function nonceAttribute(html: string, cspNonce = ""): string {
   const match = html.match(/<script\b[^>]*\bnonce=(["'])([^"']+)\1/iu);
-  return match?.[2] ? ` nonce="${escapeAttribute(match[2])}"` : "";
+  const nonce = match?.[2] || cspNonce;
+  return nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
+}
+
+function nonceFromContentSecurityPolicy(value: string | null): string {
+  const match = String(value ?? "").match(/(?:^|;)\s*script-src\s+[^;]*?'nonce-([^'\s;]+)'/iu);
+  return match?.[1] ?? "";
 }
 
 function shouldPatchHtml(html: string): boolean {
   return ELIGIBLE_HTML_MARKERS.some((marker) => html.includes(marker));
 }
 
-export function applyPostCaptureValueLoopPatch(html: string): string {
+export function applyPostCaptureValueLoopPatch(html: string, cspNonce = ""): string {
   if (html.includes(PATCH_MARKER) || !shouldPatchHtml(html)) return html;
-  const nonce = nonceAttribute(html);
+  const nonce = nonceAttribute(html, cspNonce);
   const payload = `<style id="${STYLE_ID}"${nonce}>${INJECTED_STYLE}</style><script ${PATCH_MARKER}${nonce}>${INJECTED_SCRIPT}</script>`;
   if (html.includes("</head>")) return html.replace("</head>", `${payload}\n</head>`);
   return `${payload}${html}`;
@@ -569,7 +575,7 @@ export async function enhancePostCaptureValueLoop(request: Request, response: Re
   if (!contentType.includes("text/html")) return response;
 
   const html = await response.text();
-  const patched = applyPostCaptureValueLoopPatch(html);
+  const patched = applyPostCaptureValueLoopPatch(html, nonceFromContentSecurityPolicy(response.headers.get("content-security-policy")));
   if (patched === html) {
     const headers = new Headers(response.headers);
     headers.delete("content-length");
