@@ -83,6 +83,8 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
     canonicalUrl: "https://ikimon.life/ja/observations/visit-ui-contract",
     actionNonce: "nonce-contract",
     processingMessage: "写真を表示できるよう整えています。",
+    aiFeedback: "主対象と環境の要素が確認できました。",
+    aiNextPhoto: "頭部とくちばしの詳細がわかる角度から撮影してください。",
     mediaDedup: { sourcePhotoCount: 2, representativePhotoCount: 1, excludedPhotoCount: 1 },
     aiCandidateInsights: [
       {
@@ -122,6 +124,8 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.match(rendered, /つながる記録/);
   assert.match(rendered, /浜松市周辺/);
   assert.match(rendered, /写真を表示できるよう整えています/);
+  assert.match(rendered, /主対象と環境の要素が確認できました/);
+  assert.match(rendered, /頭部とくちばしの詳細がわかる角度から撮影してください/);
   assert.match(rendered, /似た写真1枚は1枚にまとめて表示しています/);
   assert.match(rendered, /似ている候補との比較/);
   assert.match(rendered, /ナミアゲハ/);

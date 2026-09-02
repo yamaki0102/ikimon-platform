@@ -26113,6 +26113,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         actionNonce: crypto.randomUUID(),
         processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
         processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
+        aiFeedback: detail.feedback,
+        aiNextPhoto: detail.nextPhoto,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
       }), cspNonce), 200, {
