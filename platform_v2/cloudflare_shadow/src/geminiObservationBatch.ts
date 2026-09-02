@@ -541,7 +541,7 @@ export async function generateGeminiContent(
   const responseJsonSchema = generationConfig.responseJsonSchema && typeof generationConfig.responseJsonSchema === "object"
     ? generationConfig.responseJsonSchema : null;
   if (!responseMimeType || !responseJsonSchema) throw new Error("gemini_generate_content_structured_config_missing");
-  const { responseMimeType: _legacyMimeType, responseJsonSchema: _legacySchema, ...directGenerationConfig } = generationConfig;
+  const { responseMimeType: _legacyMimeType, responseJsonSchema: _legacySchema, temperature: _legacyTemperature, ...directGenerationConfig } = generationConfig;
   const thinkingConfig = directGenerationConfig.thinkingConfig && typeof directGenerationConfig.thinkingConfig === "object" && !Array.isArray(directGenerationConfig.thinkingConfig)
     ? directGenerationConfig.thinkingConfig as Record<string, unknown> : null;
   // GenerateContent REST examples use the public lowercase thinking-level values;
