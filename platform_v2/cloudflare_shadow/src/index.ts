@@ -23103,8 +23103,7 @@ async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promis
   if (/^[a-f0-9]{64}$/.test(pinnedManifestHash)) {
     const relativeKey = legacyKey.replace(/^original-ui\//, "");
     const versionPrefix = `original-ui/versions/${pinnedManifestHash}`;
-    const versioned = await env.ASSET_BUCKET.get(`${versionPrefix}/${relativeKey}`);
-    return await bindMaterializedSourceSha256(env, versionPrefix, relativeKey, versioned);
+    return await getManifestBoundOriginalUiObject(env, versionPrefix, relativeKey);
   }
 
   const targetEnv = env.ENVIRONMENT === "production" ? "production" : "staging";
@@ -23115,8 +23114,8 @@ async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promis
       const prefix = String(parsed.version_prefix ?? "");
       if (/^original-ui\/versions\/[a-f0-9]{64}$/.test(prefix)) {
         const relativeKey = legacyKey.replace(/^original-ui\//, "");
-        const versioned = await env.ASSET_BUCKET.get(`${prefix}/${relativeKey}`);
-        if (versioned?.body) return await bindMaterializedSourceSha256(env, prefix, relativeKey, versioned);
+        const versioned = await getManifestBoundOriginalUiObject(env, prefix, relativeKey);
+        if (versioned?.body) return versioned;
       }
     } catch {
       // An invalid or partially written pointer never replaces the legacy key.
@@ -23124,6 +23123,27 @@ async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promis
   }
   const legacy = await env.ASSET_BUCKET.get(legacyKey);
   return await bindMaterializedSourceSha256(env, "", legacyKey.replace(/^original-ui\//, ""), legacy);
+}
+
+async function getManifestBoundOriginalUiObject(
+  env: Env,
+  manifestVersionPrefix: string,
+  relativeKey: string,
+): Promise<MaterializedR2ObjectBody | null> {
+  const manifest = await env.ASSET_BUCKET.get(`${manifestVersionPrefix}/manifest.json`);
+  let objectVersionPrefix = manifestVersionPrefix;
+  if (manifest?.body) {
+    try {
+      const parsed = await new Response(manifest.body).json() as { items?: Array<{ key?: unknown; version_prefix?: unknown }> };
+      const entry = parsed.items?.find((item) => String(item?.key ?? "") === relativeKey);
+      const candidate = String(entry?.version_prefix ?? "");
+      if (/^original-ui\/versions\/[a-f0-9]{64}$/.test(candidate)) objectVersionPrefix = candidate;
+    } catch {
+      // An invalid manifest is handled as a missing versioned object.
+    }
+  }
+  const object = await env.ASSET_BUCKET.get(`${objectVersionPrefix}/${relativeKey}`);
+  return await bindMaterializedSourceSha256(env, objectVersionPrefix, relativeKey, object);
 }
 
 async function bindMaterializedSourceSha256(

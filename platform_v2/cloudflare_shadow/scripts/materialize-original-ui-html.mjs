@@ -547,6 +547,102 @@ function wranglerR2Put(bucketName, key, filePath, contentType) {
   });
 }
 
+function wranglerR2Get(bucketName, key, filePath) {
+  const wranglerCliPath = join(scriptDir, "..", "node_modules", "wrangler", "bin", "wrangler.js");
+  const objectPath = `${bucketName}/${normalizeR2ObjectKey(key)}`;
+  const commandArgs = [
+    wranglerCliPath,
+    "r2",
+    "object",
+    "get",
+    objectPath,
+    "--file",
+    filePath,
+    "--remote"
+  ];
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, commandArgs, {
+      cwd: join(scriptDir, ".."),
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
+    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+    child.on("close", (exitCode) => {
+      if (exitCode === 0) {
+        resolve({ key, exitCode });
+        return;
+      }
+      reject(new Error(`wrangler r2 object get failed for ${key}: exit=${exitCode} ${stderr || stdout}`));
+    });
+  });
+}
+
+function normalizeManifestItem(item, fallbackVersionPrefix) {
+  const key = String(item?.key ?? "").replace(/^original-ui\//u, "");
+  const versionPrefix = String(item?.version_prefix ?? fallbackVersionPrefix);
+  if (!key || !/^original-ui\/versions\/[a-f0-9]{64}$/u.test(versionPrefix)) return null;
+  return {
+    key,
+    bytes: Number.isFinite(item?.bytes) ? item.bytes : undefined,
+    sha256: String(item?.sha256 ?? "").toLowerCase(),
+    contentType: item?.contentType ?? item?.content_type ?? undefined,
+    version_prefix: versionPrefix
+  };
+}
+
+async function readPriorMaterializationManifest(bucketName, prior, tempDirPath) {
+  const versionPrefix = String(prior?.version_prefix ?? "");
+  if (!/^original-ui\/versions\/[a-f0-9]{64}$/u.test(versionPrefix)) {
+    throw new Error("selective_prior_version_prefix_invalid");
+  }
+  const path = join(tempDirPath, "prior-materialize-manifest.json");
+  await wranglerR2Get(bucketName, `${versionPrefix}/manifest.json`, path);
+  let parsed;
+  try {
+    parsed = JSON.parse(await readFile(path, "utf8"));
+  } catch {
+    throw new Error("selective_prior_manifest_invalid_json");
+  }
+  const items = Array.isArray(parsed?.items)
+    ? parsed.items.map((item) => normalizeManifestItem(item, versionPrefix)).filter(Boolean)
+    : [];
+  if (items.length === 0) throw new Error("selective_prior_manifest_items_missing");
+  return { ...parsed, items, versionPrefix };
+}
+
+function buildSelectiveManifestItems(allItems, selectedItems, priorManifest, versionPrefix) {
+  const currentByKey = new Map(allItems.map((item) => [item.key.replace(/^original-ui\//u, ""), item]));
+  const selectedKeys = new Set(selectedItems.map((item) => item.key.replace(/^original-ui\//u, "")));
+  const priorByKey = new Map(priorManifest.items.map((item) => [item.key, item]));
+  for (const item of allItems) {
+    const key = item.key.replace(/^original-ui\//u, "");
+    if (selectedKeys.has(key)) continue;
+    const prior = priorByKey.get(key);
+    if (!prior || prior.sha256 !== item.sha256 || prior.bytes !== item.bytes) {
+      throw new Error(`selective_input_closure_mismatch:${key}`);
+    }
+  }
+  const merged = new Map(priorManifest.items.map((item) => [item.key, { ...item }]));
+  for (const item of selectedItems) {
+    const key = item.key.replace(/^original-ui\//u, "");
+    merged.set(key, {
+      key,
+      bytes: item.bytes,
+      sha256: item.sha256,
+      contentType: item.contentType,
+      version_prefix: versionPrefix
+    });
+  }
+  for (const [key, item] of currentByKey) {
+    if (!merged.has(key)) throw new Error(`selective_prior_object_missing:${key}`);
+    if (!selectedKeys.has(key)) merged.get(key).version_prefix = priorByKey.get(key).version_prefix;
+  }
+  return [...merged.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
+
 async function directR2Sync(allItems, tempDirPath, bucketName, receipt = null) {
   const versionPrefix = `original-ui/versions/${bundleHash}`;
   const selected = selectMaterializationItems(allItems, receipt);
@@ -572,6 +668,20 @@ async function directR2Sync(allItems, tempDirPath, bucketName, receipt = null) {
     uploadSummary.updated += 1;
   });
 
+  const manifestItems = selected.mode === "SELECTIVE_REBUILD"
+    ? buildSelectiveManifestItems(
+      allItems,
+      selected.items,
+      await readPriorMaterializationManifest(bucketName, receipt.prior_artifact_provenance, tempDirPath),
+      versionPrefix
+    )
+    : allItems.map((item) => ({
+      key: item.key.replace(/^original-ui\//u, ""),
+      bytes: item.bytes,
+      sha256: item.sha256,
+      contentType: item.contentType,
+      version_prefix: versionPrefix
+    }));
   const manifest = {
     schemaVersion: materializeManifestSchemaVersion,
     sourceSha: materializationSourceSha,
@@ -579,12 +689,7 @@ async function directR2Sync(allItems, tempDirPath, bucketName, receipt = null) {
     scope,
     bundleHash,
     versionPrefix,
-    items: allItems.map((item) => ({
-      key: item.key.replace(/^original-ui\//, ""),
-      bytes: item.bytes,
-      sha256: item.sha256,
-      contentType: item.contentType
-    }))
+    items: manifestItems
   };
   const manifestPayload = `${JSON.stringify(manifest, null, 2)}\n`;
   const manifestPath = join(tempDirPath, "materialize-manifest.json");
