@@ -456,6 +456,58 @@ export function geminiBatchResponseText(value: unknown): string {
   return text;
 }
 
+export type GeminiDirectContentResult = {
+  model: string;
+  text: string;
+  candidatesCount: number;
+  finishReason: string | null;
+};
+
+const directApiJson = async (url: string, apiKey: string, init: RequestInit, fetcher: typeof fetch): Promise<unknown> => {
+  const response = await fetcher(url, { ...init, headers: { "content-type": "application/json", "x-goog-api-key": apiKey, ...(init.headers ?? {}) } });
+  const value = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = value && typeof value === "object" && !Array.isArray(value)
+      ? String(((value as Record<string, unknown>).error as Record<string, unknown> | undefined)?.message ?? `http_${response.status}`)
+      : `http_${response.status}`;
+    throw new Error(`gemini_generate_content_api_failed:${response.status}:${message.slice(0, 240)}`);
+  }
+  return value;
+};
+
+const directResponseText = (value: unknown): { text: string; candidatesCount: number; finishReason: string | null } => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("gemini_generate_content_response_invalid");
+  const source = value as Record<string, unknown>;
+  const candidates = Array.isArray(source.candidates) ? source.candidates : [];
+  if (candidates.length === 0) throw new Error("gemini_generate_content_candidates_missing");
+  const first = candidates[0] && typeof candidates[0] === "object" && !Array.isArray(candidates[0])
+    ? candidates[0] as Record<string, unknown> : {};
+  const content = first.content && typeof first.content === "object" && !Array.isArray(first.content)
+    ? first.content as Record<string, unknown> : {};
+  const parts = Array.isArray(content.parts) ? content.parts : [];
+  const text = parts.flatMap((part) => part && typeof part === "object" && !Array.isArray(part) && typeof (part as Record<string, unknown>).text === "string"
+    ? [(part as Record<string, unknown>).text as string] : []).join("");
+  if (!text.trim()) throw new Error("gemini_generate_content_text_missing");
+  return { text, candidatesCount: candidates.length, finishReason: typeof first.finishReason === "string" ? first.finishReason : null };
+};
+
+export async function generateGeminiContent(
+  apiKey: string,
+  model: string,
+  request: Record<string, unknown>,
+  fetcher: typeof fetch = fetch,
+): Promise<GeminiDirectContentResult> {
+  if (![GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL].includes(model)) {
+    throw new Error(`gemini_model_not_allowed:${model}`);
+  }
+  const value = await directApiJson(`${apiBase}/models/${encodeURIComponent(model)}:generateContent`, apiKey, {
+    method: "POST",
+    body: JSON.stringify(request),
+  }, fetcher);
+  const extracted = directResponseText(value);
+  return { model, ...extracted };
+}
+
 const parseJson = <T>(text: string): T => {
   try { return JSON.parse(text) as T; } catch { throw new Error("gemini_batch_output_invalid_json"); }
 };
@@ -473,6 +525,74 @@ export const parseGeminiPrimaryEvidence = (text: string): GeminiPrimaryEvidence 
     needs_review: parsed.needs_review === true,
     review_reasons: Array.isArray(parsed.review_reasons) ? parsed.review_reasons : [],
   };
+};
+
+function parseDirectStructuredObject(text: string, label: string, required: string[], enums: Record<string, string[]> = {}): Record<string, unknown> {
+  const parsed = parseJson<Record<string, unknown>>(text);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error(`gemini_direct_schema_mismatch:${label}:object`);
+  const missing = required.filter((key) => !(key in parsed));
+  if (missing.length > 0) throw new Error(`gemini_direct_schema_mismatch:${label}:missing_${missing.join(",")}`);
+  for (const [key, allowed] of Object.entries(enums)) {
+    if (typeof parsed[key] !== "string" || !allowed.includes(parsed[key] as string)) {
+      throw new Error(`gemini_direct_schema_mismatch:${label}:${key}`);
+    }
+  }
+  return parsed;
+}
+
+export const parseGeminiPrimaryEvidenceDirect = (text: string): GeminiPrimaryEvidence => {
+  const parsed = parseDirectStructuredObject(text, "primary", ["record_class", "information_state", "scene_class", "subjects", "regions", "non_biological_labels", "quality_flags", "needs_review", "review_reasons"], {
+    record_class: ["organism", "person", "food", "environment", "object", "document", "mixed", "unknown"],
+    information_state: ["informative", "not_informative", "not_assessable"],
+    scene_class: ["single_subject", "same_taxon_group", "multi_taxa", "no_clear_subject"],
+  });
+  if (!Array.isArray(parsed.subjects) || !Array.isArray(parsed.regions) || !Array.isArray(parsed.non_biological_labels)
+    || !Array.isArray(parsed.quality_flags) || typeof parsed.needs_review !== "boolean" || !Array.isArray(parsed.review_reasons)) {
+    throw new Error("gemini_direct_schema_mismatch:primary:types");
+  }
+  return parseGeminiPrimaryEvidence(text);
+};
+
+export const parseGeminiCensusEvidenceDirect = (text: string): GeminiCensusEvidence => {
+  const parsed = parseDirectStructuredObject(text, "census", ["detection_state", "scene", "groups", "regions", "relations", "needs_review", "review_reasons"], {
+    detection_state: ["detected", "not_detected", "not_assessable"],
+    scene: ["one_group", "same_taxon_multiple", "multiple_taxa", "uncertain"],
+  });
+  if (!Array.isArray(parsed.groups) || !Array.isArray(parsed.regions) || !Array.isArray(parsed.relations)
+    || typeof parsed.needs_review !== "boolean" || !Array.isArray(parsed.review_reasons)) {
+    throw new Error("gemini_direct_schema_mismatch:census:types");
+  }
+  return parseGeminiCensusEvidence(text);
+};
+
+export const parseGeminiEnvironmentEvidenceDirect = (text: string): GeminiEnvironmentEvidence => {
+  const parsed = parseDirectStructuredObject(text, "environment", ["assessment_state", "fields", "cues", "uncertain_cues"], {
+    assessment_state: ["informative", "not_informative", "not_assessable"],
+  });
+  if (!parsed.fields || typeof parsed.fields !== "object" || Array.isArray(parsed.fields)
+    || !Array.isArray(parsed.cues) || !Array.isArray(parsed.uncertain_cues)) {
+    throw new Error("gemini_direct_schema_mismatch:environment:types");
+  }
+  return parseGeminiEnvironmentEvidence(text);
+};
+
+export const parseGeminiSpecialistEvidenceDirect = (text: string): GeminiSpecialistEvidence => {
+  const parsed = parseDirectStructuredObject(text, "specialist", ["assessment_state", "candidates", "comparison_summary", "needs_review"], {
+    assessment_state: ["informative", "not_informative", "not_assessable"],
+  });
+  if (!Array.isArray(parsed.candidates) || typeof parsed.comparison_summary !== "string" || typeof parsed.needs_review !== "boolean") {
+    throw new Error("gemini_direct_schema_mismatch:specialist:types");
+  }
+  return parseGeminiSpecialistEvidence(text);
+};
+
+export const parseGeminiObservationSummaryDirect = (text: string): GeminiObservationSummary => {
+  const parsed = parseDirectStructuredObject(text, "summary", ["narrative", "subject_explanations", "environment_summary", "interaction_summary", "observer_feedback"]);
+  if (typeof parsed.narrative !== "string" || !Array.isArray(parsed.subject_explanations)
+    || typeof parsed.environment_summary !== "string" || typeof parsed.interaction_summary !== "string" || typeof parsed.observer_feedback !== "string") {
+    throw new Error("gemini_direct_schema_mismatch:summary:types");
+  }
+  return parseGeminiObservationSummary(text);
 };
 export const parseGeminiCensusEvidence = (text: string): GeminiCensusEvidence => {
   const parsed = parseJson<Partial<GeminiCensusEvidence>>(text);

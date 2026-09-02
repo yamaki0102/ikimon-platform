@@ -19,6 +19,10 @@ test("photo upload, queue, cron, Gemini Batch, and review target form one durabl
   assert.match(runtime, /gemini-3\.5-flash-lite/);
   assert.match(runtime, /gemini-3\.1-flash-lite/);
   assert.match(runtime, /batchGenerateContent/);
+  assert.match(runtime, /generateContent/);
+  assert.match(source, /submitDirectGeminiObservationReassessment/);
+  assert.match(source, /isInteractiveStandardReassessment/);
+  assert.match(source, /providerMode: "direct_generate_content"/);
   assert.doesNotMatch(runtime, /@cf\/moondream/);
   assert.match(source, /INSERT INTO observation_ai_review_targets/);
   assert.match(runtime, /INSERT INTO record_observations/);

@@ -14,6 +14,7 @@ import {
   createGeminiBatch,
   decideGeminiSpecialistEscalation,
   findGeminiBatchByDisplayName,
+  generateGeminiContent,
   getGeminiBatch,
   geminiBatchDisplayName,
   geminiBatchResponseText,
@@ -22,6 +23,7 @@ import {
   parseGeminiEnvironmentEvidence,
   parseGeminiObservationSummary,
   parseGeminiPrimaryEvidence,
+  parseGeminiPrimaryEvidenceDirect,
   type GeminiCensusEvidence,
   type GeminiEnvironmentEvidence,
   type GeminiPrimaryEvidence,
@@ -318,4 +320,37 @@ test("batch REST client reads inline responses from the canonical operation wrap
   assert.equal(completed.state, "JOB_STATE_SUCCEEDED");
   assert.equal(completed.responses.length, 1);
   assert.equal(geminiBatchResponseText(completed.responses[0]), '{"record_class":"organism"}');
+});
+
+test("direct generateContent reuses the primary request and extracts structured text", async () => {
+  const calls: Array<{ url: string; init: RequestInit }> = [];
+  const responseText = JSON.stringify({
+    record_class: "organism",
+    information_state: "informative",
+    scene_class: "single_subject",
+    subjects: [], regions: [], non_biological_labels: [], quality_flags: [], needs_review: true, review_reasons: ["species_uncertain"],
+  });
+  const mockFetch = (async (url: string | URL | Request, init: RequestInit = {}) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: responseText }] }, finishReason: "STOP" }] }), { status: 200 });
+  }) as typeof fetch;
+  const request = buildGeminiPrimaryRequest("record-direct", null, images);
+  const result = await generateGeminiContent("secret", GEMINI_PRIMARY_MODEL, request, mockFetch);
+  assert.equal(calls[0]!.url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent");
+  assert.deepEqual(JSON.parse(String(calls[0]!.init.body)), request);
+  assert.equal(result.model, GEMINI_PRIMARY_MODEL);
+  assert.equal(result.candidatesCount, 1);
+  assert.equal(result.finishReason, "STOP");
+  assert.deepEqual(parseGeminiPrimaryEvidenceDirect(result.text).review_reasons, ["species_uncertain"]);
+});
+
+test("direct structured failures do not become semantic not-assessable", async () => {
+  const empty = (async () => new Response(JSON.stringify({ candidates: [] }), { status: 200 })) as typeof fetch;
+  await assert.rejects(() => generateGeminiContent("secret", GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest("record-direct", null, images), empty), /gemini_generate_content_candidates_missing/);
+  assert.throws(() => parseGeminiPrimaryEvidenceDirect(JSON.stringify({ record_class: "organism" })), /gemini_direct_schema_mismatch:primary:missing_/);
+  const semantic = parseGeminiPrimaryEvidenceDirect(JSON.stringify({
+    record_class: "unknown", information_state: "not_assessable", scene_class: "no_clear_subject",
+    subjects: [], regions: [], non_biological_labels: [], quality_flags: [], needs_review: true, review_reasons: ["blurred"],
+  }));
+  assert.equal(semantic.information_state, "not_assessable");
 });

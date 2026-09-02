@@ -32,15 +32,21 @@ import {
   createGeminiBatch,
   decideGeminiSpecialistEscalation,
   findGeminiBatchByDisplayName,
+  generateGeminiContent,
   geminiBatchDisplayName,
   geminiBatchResponseText,
   getGeminiBatch,
   mergeGeminiObservationEvidence,
   parseGeminiCensusEvidence,
+  parseGeminiCensusEvidenceDirect,
   parseGeminiEnvironmentEvidence,
+  parseGeminiEnvironmentEvidenceDirect,
   parseGeminiObservationSummary,
+  parseGeminiObservationSummaryDirect,
   parseGeminiPrimaryEvidence,
+  parseGeminiPrimaryEvidenceDirect,
   parseGeminiSpecialistEvidence,
+  parseGeminiSpecialistEvidenceDirect,
   type GeminiBatchOperation,
   type GeminiBatchRequest,
   type GeminiMergedObservation,
@@ -31098,6 +31104,128 @@ async function loadPendingGeminiRequests(observationIds: string[], env: Env): Pr
   return rows.results;
 }
 
+type DirectGeminiLaneEvidence = {
+  model: string;
+  candidatesCount: number;
+  finishReason: string | null;
+  structuredTextPresent: true;
+  parseStatus: "pass";
+};
+
+type GeminiProviderMetadata = {
+  mode: "batch" | "direct_generate_content";
+  source: string;
+  lanes?: Record<string, DirectGeminiLaneEvidence>;
+};
+
+function reassessmentSource(sourcePayloadJson: string): string {
+  const payload = reassessmentPayload(sourcePayloadJson);
+  return typeof payload.source === "string" ? payload.source : "";
+}
+
+function isInteractiveStandardReassessment(sourcePayloadJson: string): boolean {
+  return new Set([
+    "cloudflare_photo_upload_atomic_reassessment",
+    "cloudflare_observation_finalize_atomic_reassessment",
+    "cloudflare_observation_reassessment_request_ledger",
+  ]).has(reassessmentSource(sourcePayloadJson));
+}
+
+async function failPendingDirectGeminiReassessment(request: ObservationReassessmentRequestRow, error: unknown, env: Env): Promise<void> {
+  const payload = reassessmentPayload(request.source_payload_json);
+  const errorCode = (error instanceof Error ? error.message : String(error)).slice(0, 180);
+  const nextPayload = JSON.stringify({
+    ...payload,
+    executionStatus: "failed",
+    attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
+    errorCode,
+    failedAt: new Date().toISOString(),
+  });
+  await env.OBS_DB.prepare(
+    `UPDATE observation_reassessment_requests SET request_state = 'failed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`
+  ).bind(nextPayload, request.request_id, request.source_payload_json).run();
+}
+
+async function submitDirectGeminiObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
+  let prepared: PreparedGeminiObservation;
+  try {
+    prepared = await loadPreparedGeminiObservation(request, env);
+  } catch (error) {
+    await failPendingDirectGeminiReassessment(request, error, env);
+    return;
+  }
+  const payload = reassessmentPayload(request.source_payload_json);
+  delete payload.errorCode;
+  delete payload.failedAt;
+  delete payload.batchExecution;
+  const nextPayload = JSON.stringify({
+    ...payload,
+    executionStatus: "processing",
+    attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
+    providerMode: "direct_generate_content",
+    modelStack: [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+    modelPlan: {
+      primary: GEMINI_PRIMARY_MODEL,
+      census: GEMINI_ANALYSIS_MODEL,
+      environment: GEMINI_ANALYSIS_MODEL,
+      specialistConditional: GEMINI_SPECIALIST_MODEL,
+      summary: GEMINI_SUMMARY_MODEL,
+    },
+    promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
+    ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+    startedAt: new Date().toISOString(),
+  });
+  const claimed = await env.OBS_DB.prepare(
+    `UPDATE observation_reassessment_requests SET request_state = 'processing', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`
+  ).bind(nextPayload, request.request_id, request.source_payload_json).run() as { meta?: { changes?: number } };
+  if (Number(claimed.meta?.changes ?? 0) !== 1) return;
+  prepared.request.request_state = "processing";
+  prepared.request.source_payload_json = nextPayload;
+
+  try {
+    const [primaryResult, censusResult, environmentResult] = await Promise.all([
+      generateGeminiContent(env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest(request.observation_id, prepared.record.observed_at, prepared.images)),
+      generateGeminiContent(env.GEMINI_API_KEY!, GEMINI_ANALYSIS_MODEL, buildGeminiCensusRequest(request.observation_id, prepared.images)),
+      generateGeminiContent(env.GEMINI_API_KEY!, GEMINI_ANALYSIS_MODEL, buildGeminiEnvironmentRequest(request.observation_id, prepared.images)),
+    ]);
+    const lanes: Record<string, DirectGeminiLaneEvidence> = {
+      primary: { model: primaryResult.model, candidatesCount: primaryResult.candidatesCount, finishReason: primaryResult.finishReason, structuredTextPresent: true, parseStatus: "pass" },
+      census: { model: censusResult.model, candidatesCount: censusResult.candidatesCount, finishReason: censusResult.finishReason, structuredTextPresent: true, parseStatus: "pass" },
+      environment: { model: environmentResult.model, candidatesCount: environmentResult.candidatesCount, finishReason: environmentResult.finishReason, structuredTextPresent: true, parseStatus: "pass" },
+    };
+    const primaryEvidence = parseGeminiPrimaryEvidenceDirect(primaryResult.text);
+    const censusEvidence = parseGeminiCensusEvidenceDirect(censusResult.text);
+    const environmentEvidence = parseGeminiEnvironmentEvidenceDirect(environmentResult.text);
+    const merged: GeminiMergedObservation = mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, prepared.assets.length);
+    merged.specialistEscalation = decideGeminiSpecialistEscalation(merged, primaryEvidence, censusEvidence);
+
+    if (merged.specialistEscalation.required) {
+      const specialistImages = await observationAiSpecialistImages(prepared, merged, env);
+      if (specialistImages.length > 0) {
+        const specialistResult = await generateGeminiContent(env.GEMINI_API_KEY!, GEMINI_SPECIALIST_MODEL, buildGeminiSpecialistRequest(request.observation_id, merged.specialistEscalation.specialistKind, specialistImages, merged));
+        lanes.specialist = { model: specialistResult.model, candidatesCount: specialistResult.candidatesCount, finishReason: specialistResult.finishReason, structuredTextPresent: true, parseStatus: "pass" };
+        Object.assign(merged, applyGeminiSpecialistEvidence(merged, parseGeminiSpecialistEvidenceDirect(specialistResult.text)));
+      }
+    }
+
+    if (merged.topCandidates.length > 0 || merged.needsReview) {
+      const summaryResult = await generateGeminiContent(env.GEMINI_API_KEY!, GEMINI_SUMMARY_MODEL, buildGeminiSummaryRequest(request.observation_id, merged));
+      lanes.summary = { model: summaryResult.model, candidatesCount: summaryResult.candidatesCount, finishReason: summaryResult.finishReason, structuredTextPresent: true, parseStatus: "pass" };
+      Object.assign(merged, applyGeminiObservationSummary(merged, parseGeminiObservationSummaryDirect(summaryResult.text)));
+    }
+    await finalizeGeminiObservationReassessment(prepared, merged, env, { mode: "direct_generate_content", source: "google_gemini_generate_content_observation_reassessment", lanes });
+  } catch (error) {
+    await failGeminiReassessment(prepared.request, error, env);
+  }
+}
+
+async function submitDirectGeminiObservationReassessmentGroups(observationIds: string[], env: Env): Promise<void> {
+  const rows = (await loadPendingGeminiRequests(observationIds, env)).filter((row) => isInteractiveStandardReassessment(row.source_payload_json));
+  for (const row of rows) await submitDirectGeminiObservationReassessment(row, env);
+}
+
 async function updateProcessingGeminiPayload(request: ObservationReassessmentRequestRow, execution: GeminiBatchExecution, env: Env, extra: Record<string, unknown> = {}): Promise<boolean> {
   const nextPayload = reassessmentPayloadWithResult(request.source_payload_json, { ...extra, batchExecution: execution });
   const updated = await env.OBS_DB.prepare(
@@ -31128,7 +31256,12 @@ async function ensureGeminiBatch(apiKey: string, model: string, displayName: str
 
 async function submitGeminiObservationReassessmentGroups(observationIds: string[], env: Env): Promise<void> {
   if (!env.GEMINI_API_KEY) return;
-  let pending = await loadPendingGeminiRequests(observationIds, env);
+  const pendingInitial = await loadPendingGeminiRequests(observationIds, env);
+  for (const request of pendingInitial.filter((row) => isInteractiveStandardReassessment(row.source_payload_json))) {
+    await submitDirectGeminiObservationReassessment(request, env);
+  }
+  let pending = (await loadPendingGeminiRequests(observationIds, env))
+    .filter((row) => !isInteractiveStandardReassessment(row.source_payload_json));
   while (pending.length > 0) {
     const submitted = await submitGeminiObservationReassessmentGroup(pending, env);
     if (submitted.size === 0) break;
@@ -31541,7 +31674,12 @@ async function resumeGeminiObservationBatchGroup(rows: ObservationReassessmentRe
   }
 }
 
-async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObservation, merged: GeminiMergedObservation, env: Env): Promise<void> {
+async function finalizeGeminiObservationReassessment(
+  prepared: PreparedGeminiObservation,
+  merged: GeminiMergedObservation,
+  env: Env,
+  provider: GeminiProviderMetadata = { mode: "batch", source: "google_gemini_batch_observation_reassessment" },
+): Promise<void> {
   const request = prepared.request;
   const observationId = request.observation_id;
   const candidate = merged.candidate;
@@ -31554,7 +31692,9 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
   const completedAt = new Date().toISOString();
   const specialistApplied = merged.topCandidates.some((topCandidate) => topCandidate.sourceLanes.includes("specialist"));
   const assessmentPayload = {
-    source: "google_gemini_batch_observation_reassessment",
+    source: provider.source,
+    providerMode: provider.mode,
+    providerLanes: provider.lanes ?? null,
     models: {
       primary: GEMINI_PRIMARY_MODEL,
       census: GEMINI_ANALYSIS_MODEL,
@@ -31640,7 +31780,7 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
       crypto.randomUUID(), observationId, prepared.assets[0]?.asset_id ?? null,
       JSON.stringify(merged.environment), merged.environment.cues.length > 0 ? Math.max(...merged.environment.cues.map((cue) => cue.confidence)) : null,
       GEMINI_ANALYSIS_MODEL, GEMINI_OBSERVATION_PROMPT_VERSION, GEMINI_OBSERVATION_RULE_VERSION,
-      `google_gemini_batch:${observationId}:${GEMINI_OBSERVATION_RULE_VERSION}:environment`,
+      `${provider.source}:${observationId}:${GEMINI_OBSERVATION_RULE_VERSION}:environment`,
       JSON.stringify({
         assetIds: prepared.assets.map((asset) => asset.asset_id),
         sourceAssetIds: prepared.sourceAssets.map((asset) => asset.asset_id),
@@ -31667,9 +31807,9 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
         surrounding_cover_source: "derived",
         environment_condition_source: "derived",
         human_change_source: "derived",
-        environment_record_source: "google_gemini_batch",
+        environment_record_source: provider.source,
         environment_record_status: "auto_draft",
-        environment_record_updated_by: "google_gemini_batch",
+        environment_record_updated_by: provider.source,
         environment_record_updated_at: completedAt,
         ai_environment_cues_json: JSON.stringify(merged.environment.cues),
       };
@@ -31685,6 +31825,8 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
   ).bind(
     reassessmentPayloadWithResult(request.source_payload_json, {
       executionStatus: "completed",
+      providerMode: provider.mode,
+      providerLanes: provider.lanes ?? null,
       aiRunId,
       models: specialistApplied
         ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
