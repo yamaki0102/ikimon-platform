@@ -340,9 +340,8 @@ test("direct generateContent reuses the primary request and extracts structured 
   const sentRequest = JSON.parse(String(calls[0]!.init.body));
   assert.deepEqual(sentRequest.contents, request.contents);
   assert.equal(sentRequest.generationConfig.responseMimeType, "application/json");
-  assert.equal(sentRequest.generationConfig.responseJsonSchema, undefined);
-  assert.equal(sentRequest.generationConfig.responseSchema.type, "OBJECT");
-  assert.equal(sentRequest.generationConfig.responseSchema.properties.subjects.type, "ARRAY");
+  assert.equal(sentRequest.generationConfig.responseSchema, undefined);
+  assert.deepEqual(sentRequest.generationConfig.responseJsonSchema, request.generationConfig.responseJsonSchema);
   assert.equal(sentRequest.generationConfig.temperature, undefined);
   assert.equal(sentRequest.generationConfig.responseFormat, undefined);
   assert.deepEqual(sentRequest.generationConfig.thinkingConfig, { thinkingLevel: "minimal" });
