@@ -522,7 +522,10 @@ export async function generateGeminiContent(
   const { responseMimeType: _legacyMimeType, responseJsonSchema: _legacySchema, ...directGenerationConfig } = generationConfig;
   const thinkingConfig = directGenerationConfig.thinkingConfig && typeof directGenerationConfig.thinkingConfig === "object" && !Array.isArray(directGenerationConfig.thinkingConfig)
     ? directGenerationConfig.thinkingConfig as Record<string, unknown> : null;
-  const thinkingLevel = typeof thinkingConfig?.thinkingLevel === "string" ? thinkingConfig.thinkingLevel.toUpperCase() : null;
+  // GenerateContent REST examples use the public lowercase thinking-level values;
+  // preserve the existing request builder's value instead of rewriting it to the
+  // SDK enum spelling.
+  const thinkingLevel = typeof thinkingConfig?.thinkingLevel === "string" ? thinkingConfig.thinkingLevel : null;
   const directRequest = {
     ...request,
     generationConfig: {
