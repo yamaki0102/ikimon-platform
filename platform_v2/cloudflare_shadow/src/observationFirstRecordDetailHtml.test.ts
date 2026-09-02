@@ -143,6 +143,20 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.ok(operationIds.includes("nonce-contract-visibility-public"));
 });
 
+test("owner processing panel is retained with the page CSP nonce", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    title: "庭の観察",
+    observedLabel: "2026年7月22日 18:00",
+    note: null,
+    media: [],
+    actionNonce: "nonce-processing",
+    processingStatusPanel: '<section data-observation-processing-status><button data-observation-reassess>AIで再確認</button><script nonce="page-csp-nonce" data-observation-reassess-script>window.testReassess=true;</script></section>',
+  });
+  assert.match(rendered, /data-observation-processing-status/);
+  assert.match(rendered, /<button data-observation-reassess>AIで再確認<\/button>/);
+  assert.match(rendered, /<script nonce="page-csp-nonce" data-observation-reassess-script>/);
+});
+
 test("guest HTML omits owner management and keeps proposals on demand", () => {
   const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
     title: "公開記録",

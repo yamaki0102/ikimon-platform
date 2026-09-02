@@ -26063,6 +26063,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         canonicalUrl: new URL(`/${recordLang}/observations/${encodeURIComponent(detail.visitId)}`, url.origin).toString(),
         actionNonce: crypto.randomUUID(),
         processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
+        processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
       }), cspNonce), 200, {
