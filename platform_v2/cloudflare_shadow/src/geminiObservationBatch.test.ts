@@ -300,3 +300,22 @@ test("batch REST client reads completed inline responses from the canonical batc
   assert.equal(completed.responses.length, 1);
   assert.equal(geminiBatchResponseText(completed.responses[0]), '{"record_class":"organism"}');
 });
+
+test("batch REST client reads inline responses from the canonical operation wrapper", async () => {
+  const mockFetch = (async () => new Response(JSON.stringify({
+    name: "batches/wrapped",
+    metadata: { displayName: "claim-primary", state: "JOB_STATE_SUCCEEDED" },
+    response: {
+      inlinedResponses: {
+        inlinedResponses: [{
+          metadata: { key: "record-1" },
+          response: { candidates: [{ content: { parts: [{ text: "{\"record_class\":\"organism\"}" }] } }] },
+        }],
+      },
+    },
+  }), { status: 200 })) as typeof fetch;
+  const completed = await getGeminiBatch("secret", "batches/wrapped", mockFetch);
+  assert.equal(completed.state, "JOB_STATE_SUCCEEDED");
+  assert.equal(completed.responses.length, 1);
+  assert.equal(geminiBatchResponseText(completed.responses[0]), '{"record_class":"organism"}');
+});

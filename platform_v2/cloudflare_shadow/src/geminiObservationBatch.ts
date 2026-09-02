@@ -371,9 +371,13 @@ const operationFromJson = (value: unknown): GeminiBatchOperation => {
   const response = source.response && typeof source.response === "object" && !Array.isArray(source.response)
     ? source.response as Record<string, unknown> : {};
   const output = source.output && typeof source.output === "object" && !Array.isArray(source.output)
-    ? source.output as Record<string, unknown> : {};
+    ? source.output as Record<string, unknown>
+    : response.output && typeof response.output === "object" && !Array.isArray(response.output)
+      ? response.output as Record<string, unknown> : {};
   const inlined = output.inlinedResponses && typeof output.inlinedResponses === "object" && !Array.isArray(output.inlinedResponses)
-    ? output.inlinedResponses as Record<string, unknown> : {};
+    ? output.inlinedResponses as Record<string, unknown>
+    : response.inlinedResponses && typeof response.inlinedResponses === "object" && !Array.isArray(response.inlinedResponses)
+      ? response.inlinedResponses as Record<string, unknown> : {};
   const responses = Array.isArray(inlined.inlinedResponses) ? inlined.inlinedResponses
     : Array.isArray(output.inlinedResponses) ? output.inlinedResponses
       : Array.isArray(response.inlinedResponses) ? response.inlinedResponses : [];
