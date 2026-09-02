@@ -500,9 +500,23 @@ export async function generateGeminiContent(
   if (![GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL].includes(model)) {
     throw new Error(`gemini_model_not_allowed:${model}`);
   }
+  const generationConfig = request.generationConfig && typeof request.generationConfig === "object" && !Array.isArray(request.generationConfig)
+    ? request.generationConfig as Record<string, unknown> : {};
+  const responseMimeType = typeof generationConfig.responseMimeType === "string" ? generationConfig.responseMimeType : null;
+  const responseJsonSchema = generationConfig.responseJsonSchema && typeof generationConfig.responseJsonSchema === "object"
+    ? generationConfig.responseJsonSchema : null;
+  if (!responseMimeType || !responseJsonSchema) throw new Error("gemini_generate_content_structured_config_missing");
+  const { responseMimeType: _legacyMimeType, responseJsonSchema: _legacySchema, ...directGenerationConfig } = generationConfig;
+  const directRequest = {
+    ...request,
+    generationConfig: {
+      ...directGenerationConfig,
+      responseFormat: { text: { mimeType: responseMimeType, schema: responseJsonSchema } },
+    },
+  };
   const value = await directApiJson(`${apiBase}/models/${encodeURIComponent(model)}:generateContent`, apiKey, {
     method: "POST",
-    body: JSON.stringify(request),
+    body: JSON.stringify(directRequest),
   }, fetcher);
   const extracted = directResponseText(value);
   return { model, ...extracted };

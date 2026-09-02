@@ -337,7 +337,13 @@ test("direct generateContent reuses the primary request and extracts structured 
   const request = buildGeminiPrimaryRequest("record-direct", null, images);
   const result = await generateGeminiContent("secret", GEMINI_PRIMARY_MODEL, request, mockFetch);
   assert.equal(calls[0]!.url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent");
-  assert.deepEqual(JSON.parse(String(calls[0]!.init.body)), request);
+  const sentRequest = JSON.parse(String(calls[0]!.init.body));
+  assert.deepEqual(sentRequest.contents, request.contents);
+  assert.equal(sentRequest.generationConfig.responseMimeType, undefined);
+  assert.equal(sentRequest.generationConfig.responseJsonSchema, undefined);
+  assert.equal(sentRequest.generationConfig.responseFormat.text.mimeType, "application/json");
+  assert.deepEqual(sentRequest.generationConfig.responseFormat.text.schema, request.generationConfig.responseJsonSchema);
+  assert.deepEqual(sentRequest.generationConfig.thinkingConfig, request.generationConfig.thinkingConfig);
   assert.equal(result.model, GEMINI_PRIMARY_MODEL);
   assert.equal(result.candidatesCount, 1);
   assert.equal(result.finishReason, "STOP");
