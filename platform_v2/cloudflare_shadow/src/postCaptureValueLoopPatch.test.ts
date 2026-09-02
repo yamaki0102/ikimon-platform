@@ -46,6 +46,7 @@ test("record detail pages load the owner-only processing status and render the p
   const patched = applyPostCaptureValueLoopPatch(detailHtml, "abc123");
 
   assert.match(patched, /\/processing-status/u);
+  assert.match(patched, /data-ikimon-post-capture-value-loop="v1" nonce="abc123"/u);
   assert.match(patched, /credentials: 'same-origin'/u);
   assert.match(patched, /data-ikimon-record-value-loop-panel/u);
   assert.match(patched, /記録できました/u);
