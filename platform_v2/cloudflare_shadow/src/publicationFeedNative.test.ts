@@ -92,6 +92,28 @@ test("returns the existing v1 contract with living and community-photo channels"
   assert.equal(payload.channels[1]?.items.length, 1);
 });
 
+test("Ryuyo feed keeps the shared rights gate and uses its configured scope label", async () => {
+  const response = await handlePublicationFeedNativeRequest(
+    new Request("https://zukan.earth/api/v1/publication-feeds/ryuyo-insect-park?channel=living"),
+    database([{
+      ...baseRow,
+      public_area_label: null,
+      exact_lat: 34.6695,
+      exact_lng: 137.8400,
+      boundary_name: "竜洋昆虫自然観察公園",
+      boundary_geometry_json: JSON.stringify({
+        type: "Polygon",
+        coordinates: [[[137.839, 34.668], [137.841, 34.668], [137.841, 34.672], [137.839, 34.672], [137.839, 34.668]]],
+      }),
+    }]),
+  );
+  assert.ok(response);
+  const payload = await response.json() as { feed: { feed_key: string; scope_label: string }; channels: Array<{ items: Array<{ subtitle: string }> }> };
+  assert.equal(payload.feed.feed_key, "ryuyo-insect-park");
+  assert.equal(payload.feed.scope_label, "磐田・竜洋昆虫自然観察公園");
+  assert.equal(payload.channels[0]?.items[0]?.subtitle, "磐田・竜洋昆虫自然観察公園");
+});
+
 test("keeps AI candidate machine-readable and excludes rights/privacy unsafe rows", async () => {
   const candidate = {
     ...baseRow,

@@ -122,6 +122,7 @@ function scopeConfig(
 
 export const PUBLICATION_FEED_CONFIGS: Readonly<Record<string, PublicationFeedConfig>> = Object.freeze({
   "miyakoda-renri-area": scopeConfig(PUBLICATION_FEED_DEFINITIONS["miyakoda-renri-area"]),
+  "ryuyo-insect-park": scopeConfig(PUBLICATION_FEED_DEFINITIONS["ryuyo-insect-park"]),
 });
 
 export function definePublicationFeedConfig(

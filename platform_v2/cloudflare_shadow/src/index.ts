@@ -79,6 +79,7 @@ import {
   buildPlaceAtlasProfileV2,
   PLACE_ATLAS_PROFILE_V2_VERSION,
 } from "../../src/services/placeAtlasV2Contract";
+import { pointInGeoJsonPolygon } from "../../src/services/pointInPolygon";
 import {
   bboxAreaHa,
   bboxForPlaceGeometry,
@@ -95,6 +96,7 @@ import {
   loadCloudflarePlaceAtlasProfile,
 } from "./placeAtlasProfileNative";
 import { handlePublicationFeedNativeRequest } from "./publicationFeedNative";
+import { resolveFieldsForPointNative } from "./fieldResolutionNative";
 import {
   listD1PublicPlaceChildren,
   searchD1PublicPlaces,
@@ -351,6 +353,7 @@ interface LegacyObservationUpsertInput {
   sourcePayload?: Record<string, unknown> | null;
   dataRights?: Record<string, unknown> | null;
   visibility?: "private" | "public" | null;
+  fieldId?: string | null;
 }
 
 interface CompatibleWaterRecordInput {
@@ -20433,8 +20436,9 @@ async function getOriginalUiAreaSnapshot(request: Request, fieldId: string, env:
   const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
   if (row) {
     const viewer = await getAreaSnapshotViewer(request, fieldId, env);
+    const recentRecords = await loadFieldRecentPublicRecords(fieldId, env);
     return json({
-      snapshot: fieldDetailAreaSnapshotPayload(row, viewer),
+      snapshot: fieldDetailAreaSnapshotPayload(row, viewer, recentRecords),
       compatibility: {
         source: "cloudflare_field_detail_readmodel_lightweight_area_snapshot"
       }
@@ -22045,6 +22049,90 @@ async function deleteFieldManagerGrant(
   });
 }
 
+type FieldRecentPublicRecord = {
+  observation_id: string;
+  observed_at: string;
+  taxon_label: string | null;
+  public_area_label: string | null;
+  asset_count: number;
+  exact_lat: number;
+  exact_lng: number;
+};
+
+async function loadFieldRecentPublicRecords(fieldId: string, env: Env): Promise<FieldRecentPublicRecord[]> {
+  const boundary = await env.OBS_DB.prepare(
+    "SELECT geometry_json FROM production_import_area_polygon_readmodel WHERE field_id = ? LIMIT 1",
+  ).bind(fieldId).first<{ geometry_json: string }>().catch(() => null);
+  if (!boundary?.geometry_json) return [];
+  let geometry: unknown;
+  try {
+    geometry = JSON.parse(boundary.geometry_json) as unknown;
+  } catch {
+    return [];
+  }
+  const rows = (await env.OBS_DB.prepare(
+    "SELECT r.observation_id, r.observed_at, r.taxon_label, r.public_area_label, " +
+    "COALESCE(r.asset_count, 0) AS asset_count, o.exact_lat, o.exact_lng " +
+    "FROM readmodel_public_observations r " +
+    "JOIN observations o ON o.observation_id = r.observation_id " +
+    "JOIN observation_data_rights rights ON rights.visit_id = r.observation_id " +
+    "WHERE o.visibility = 'public' AND o.emergency_hidden = 0 " +
+    "AND rights.record_consent IN ('public_summary', 'external_export') " +
+    "AND rights.withdrawal_status = 'active' " +
+    "AND NOT EXISTS (SELECT 1 FROM civic_observation_contexts civic " +
+    "WHERE civic.visit_id = r.observation_id AND civic.risk_lane = 'rare_sensitive') " +
+    "ORDER BY r.observed_at DESC, r.observation_id ASC LIMIT 48",
+  ).all<FieldRecentPublicRecord>()).results;
+  return rows.filter((row) => Number.isFinite(Number(row.exact_lat))
+    && Number.isFinite(Number(row.exact_lng))
+    && pointInGeoJsonPolygon(Number(row.exact_lng), Number(row.exact_lat), geometry));
+}
+
+function fieldRecentRecordDisplayName(row: FieldRecentPublicRecord): string {
+  return normalizeOptionalText(row.taxon_label) ?? "名前待ち";
+}
+
+function formatFieldRecentObservedAt(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "日時不明";
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function renderFieldRecentRecords(records: FieldRecentPublicRecord[], isEnglish: boolean): string {
+  const heading = isEnglish ? "Latest public records" : "公開された新着記録";
+  const empty = isEnglish ? "No public records yet." : "公開できる記録はまだありません。";
+  const cards = records.map((row) => [
+    "<li class=\"field-recent-card\"><a href=\"/observations/",
+    encodeURIComponent(row.observation_id),
+    "\"><strong>",
+    escapeHtml(fieldRecentRecordDisplayName(row)),
+    "</strong><span>",
+    escapeHtml(formatFieldRecentObservedAt(row.observed_at) + (isEnglish ? "" : " JST")),
+    "</span><small>",
+    escapeHtml(row.public_area_label ?? (isEnglish ? "Protected area" : "公開範囲で表示")),
+    "</small></a></li>",
+  ].join("")).join("");
+  return [
+    "<section class=\"field-recent-records panel\" aria-label=\"",
+    escapeHtml(heading),
+    "\"><header><div><p class=\"eyebrow\">Area Records</p><h2>",
+    escapeHtml(heading),
+    "</h2></div><span class=\"badge\">",
+    String(records.length),
+    "</span></header>",
+    cards ? "<ol class=\"field-recent-list\">" + cards + "</ol>" : "<p class=\"muted\">" + escapeHtml(empty) + "</p>",
+    "</section>",
+  ].join("");
+}
+
 async function getFieldDetailJson(fieldId: string, env: Env): Promise<Response> {
   const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
   if (!row) {
@@ -22090,7 +22178,8 @@ async function getNativeFieldDetailHtmlIfAvailable(request: Request, url: URL, e
   if (!match) return null;
   const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(match.fieldId, env);
   if (!row) return null;
-  return html(request.method === "HEAD" ? "" : renderFieldDetailHtml(row, match.lang), 200, {
+  const recentRecords = await loadFieldRecentPublicRecords(match.fieldId, env);
+  return html(request.method === "HEAD" ? "" : renderFieldDetailHtml(row, match.lang, recentRecords), 200, {
     "cache-control": "no-store",
     "vary": "cookie, authorization",
     "x-ikimon-cloudflare-native": "field-detail-readmodel"
@@ -22736,7 +22825,8 @@ function fieldPublicProfileEvidenceContract(row: FieldDetailReadmodelRow, placeT
 
 function fieldDetailAreaSnapshotPayload(
   row: FieldDetailReadmodelRow,
-  viewer: { isAdminOrAnalyst?: boolean; fieldRole?: FieldManagerRole | null; userId?: string | null } = {}
+  viewer: { isAdminOrAnalyst?: boolean; fieldRole?: FieldManagerRole | null; userId?: string | null } = {},
+  recentRecords: FieldRecentPublicRecord[] = []
 ) {
   const field = fieldDetailPublicPayload(row);
   const viewerCanSeeExact = Boolean(viewer.isAdminOrAnalyst || viewer.fieldRole);
@@ -22768,7 +22858,12 @@ function fieldDetailAreaSnapshotPayload(
       schoolAlbumProfiles: [],
       accessGuidance: publicFieldAccessGuidance(row)
     },
-    observationSummary: emptyPlaceObservationSummary(),
+    observationSummary: {
+      ...emptyPlaceObservationSummary(),
+      totalObservations: recentRecords.length,
+      totalVisits: recentRecords.length,
+      latestObservedAt: recentRecords[0]?.observed_at ?? null
+    },
     machineObservationSummary: emptyPlaceMachineObservationSummary(),
     relationshipScore: emptyPlaceRelationshipScore(field.fieldId),
     hypotheses: [],
@@ -22789,7 +22884,24 @@ function fieldDetailAreaSnapshotPayload(
     },
     generatedAt: new Date().toISOString(),
     representativePhoto: null,
-    observationGallery: [],
+    observationGallery: recentRecords.map((record) => ({
+      occurrenceId: "occ:" + record.observation_id + ":0",
+      visitId: record.observation_id,
+      displayName: fieldRecentRecordDisplayName(record),
+      observedAt: record.observed_at,
+      photoUrl: null,
+      localityLabel: record.public_area_label,
+      observationCount: 1,
+      recentObservationCount: 1,
+      likeCount: 0,
+      season: null,
+      seasonLabel: null,
+      isCurrentSeason: false,
+      visibility: "public",
+      privacyLabel: null,
+      privacyReason: null,
+      shareAllowed: true
+    })),
     seasonalCoverage: emptyAreaSeasonalCoverage(),
     yearlyTimeline: [],
     effortIndicators: emptyAreaEffortIndicators(),
@@ -23466,6 +23578,9 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       lng: "経度",
       save: "保存",
       prompt: "写真か動画を選ぶと、非公開の記録として保存できます。",
+      zukanPublic: "ZUKAN内で公開",
+      externalPublic: "ZUKAN外への掲載を許可",
+      externalHint: "外部サイトへの掲載は別途許可が必要です。",
       statusReady: "メディアを選択しました。座標を確認して保存してください。",
       saving: "保存中です...",
       saved: "記録を保存しました",
@@ -23485,6 +23600,9 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       lng: "Longitude",
       save: "Save",
       prompt: "Choose a photo or video to save a private record.",
+      zukanPublic: "Publish inside ZUKAN",
+      externalPublic: "Allow publication outside ZUKAN",
+      externalHint: "External publication requires a separate opt-in.",
       statusReady: "Media selected. Check the coordinates and save.",
       saving: "Saving...",
       saved: "Record saved",
@@ -23526,6 +23644,11 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     .cf-record-pick span{display:block;margin-top:4px;color:var(--muted);font-size:14px;font-weight:800}
     .cf-record-form{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 14px 34px rgba(16,37,26,.08)}
     .cf-record-form[hidden],.cf-record-submit[hidden]{display:none!important}
+    .cf-record-rights{display:grid;gap:8px;margin:0 0 12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fbfffd}
+    .cf-record-rights legend{padding:0 4px;font-weight:900}
+    .cf-record-rights label{display:flex;align-items:flex-start;gap:8px;min-height:44px;padding:4px 0;font-weight:800}
+    .cf-record-rights input{inline-size:20px;block-size:20px;min-height:20px;accent-color:var(--teal)}
+    .cf-record-rights small{color:var(--muted);font-size:13px;line-height:1.5}
     .cf-record-field{display:block;margin:0 0 12px;font-weight:900}
     .cf-record-field span{display:block;margin:0 0 6px;color:var(--muted);font-size:14px}
     .cf-record-field textarea,.cf-record-field input{width:100%;min-height:48px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:inherit}
@@ -23555,6 +23678,12 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     </div>
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><textarea name="note" rows="3"></textarea></label>
+      <fieldset class="cf-record-rights">
+        <legend>公開設定</legend>
+        <label><input id="record-zukan-public" name="zukan_public" type="checkbox"> ${escapeHtml(mediaCopy.zukanPublic)}</label>
+        <label><input id="record-external-public" name="external_public" type="checkbox" disabled> ${escapeHtml(mediaCopy.externalPublic)}</label>
+        <small>${escapeHtml(mediaCopy.externalHint)}</small>
+      </fieldset>
       <details class="cf-record-coordinates">
         <summary>${escapeHtml(mediaCopy.coord)}</summary>
         <div class="cf-record-coordinate-grid">
@@ -23574,6 +23703,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     const submitPanel = document.getElementById("record-submit-panel");
     const photoInput = document.getElementById("record-media-photo");
     const videoInput = document.getElementById("record-media-video");
+    const zukanPublicInput = document.getElementById("record-zukan-public");
+    const externalPublicInput = document.getElementById("record-external-public");
     const recordPrefix = ${JSON.stringify(prefix)};
     const eventContext = {
       eventCode: document.body.dataset.eventCode || "",
@@ -23678,6 +23809,14 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       if (submitPanel) submitPanel.hidden = false;
       setStatus(copy.statusReady, false);
     }
+    function syncPublicationChoices() {
+      if (!zukanPublicInput || !externalPublicInput) return;
+      const enabled = zukanPublicInput.checked;
+      externalPublicInput.disabled = !enabled;
+      if (!enabled) externalPublicInput.checked = false;
+    }
+    zukanPublicInput?.addEventListener("change", syncPublicationChoices);
+    syncPublicationChoices();
     function eventMetric(eventName, values = {}) {
       if (!eventContext.eventSessionId) return Promise.resolve();
       return fetch("/api/v1/observation-events/" + encodeURIComponent(eventContext.eventSessionId) + "/analytics", {
@@ -23739,6 +23878,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
         return;
       }
       const formData = new FormData(form);
+      const zukanPublic = formData.get("zukan_public") === "on";
+      const externalPublic = zukanPublic && formData.get("external_public") === "on";
       const latitudeText = String(formData.get("latitude") || "").trim();
       const longitudeText = String(formData.get("longitude") || "").trim();
       const latitude = Number(latitudeText);
@@ -23772,7 +23913,30 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           observedAt: recoveryObservedAt,
           latitude,
           longitude,
-          visibility: "private",
+          visibility: zukanPublic ? "public" : "private",
+          dataRights: zukanPublic
+            ? {
+                recordConsent: externalPublic ? "external_export" : "public_summary",
+                researchUseConsent: externalPublic ? "public_export" : "none",
+                datasetLicense: externalPublic ? "CC-BY-4.0" : null,
+                mediaLicense: externalPublic ? "CC-BY-4.0" : null,
+                externalExportAllowed: externalPublic,
+                sourcePayload: {
+                  source: "cloudflare_record_session_rights",
+                  zukanPublic,
+                  externalPublic,
+                },
+              }
+            : {
+                recordConsent: "private",
+                researchUseConsent: "none",
+                externalExportAllowed: false,
+                sourcePayload: {
+                  source: "cloudflare_record_session_rights",
+                  zukanPublic: false,
+                  externalPublic: false,
+                },
+              },
           note: String(formData.get("note") || ""),
           taxon: { vernacularName: "未同定", rank: "unknown" },
           eventCode: eventContext.eventCode || null,
@@ -28716,6 +28880,7 @@ function buildLegacyCompatibleObservationResponse(input: {
   taxonLabel: string | null;
   clientSubmissionId: string | null;
   idempotencyReused: boolean;
+  resolvedFieldIds?: string[];
   placeMemory?: unknown;
   placeMemorySample?: unknown;
 }, source: LegacyObservationUpsertInput) {
@@ -28740,6 +28905,7 @@ function buildLegacyCompatibleObservationResponse(input: {
       clientSubmissionId: input.clientSubmissionId,
       reused: input.idempotencyReused
     } : undefined,
+    resolvedFieldIds: input.resolvedFieldIds ?? [],
     placeMemory: input.placeMemory ?? null,
     placeMemorySample: input.placeMemorySample ?? [],
     contributionReceipts: buildLegacyContributionReceipts(input.visitId, input.occurrenceId, input.occurrenceIds.length, input.placeName, source),
@@ -28946,6 +29112,12 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
   const visibility = input.visibility === "private" ? "private" : "public";
   const publicAreaLabel = visibility === "public" ? resolveSafePublicAreaLabel(input) : null;
+  const autoResolvedFieldIds = await resolveFieldsForPointNative(input.latitude, input.longitude, env.OBS_DB).catch(() => []);
+  const requestedFieldId = normalizeOptionalText(input.fieldId ?? input.sourcePayload?.field_id);
+  const resolvedFieldIds = Array.from(new Set([
+    ...(requestedFieldId ? [requestedFieldId] : []),
+    ...autoResolvedFieldIds,
+  ]));
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
   const civicContext = buildObservationCivicContextNative(input, visitId, occurrenceId);
   const placeMemory = await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
@@ -29066,6 +29238,9 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     env.OBS_DB.prepare(
       "UPDATE draft_observations SET processing_state = 'finalized', finalized_at = CURRENT_TIMESTAMP WHERE draft_id = ?"
     ).bind(draftId),
+    env.OBS_DB.prepare(
+      "UPDATE observations SET resolved_field_ids_json = ? WHERE observation_id = ?"
+    ).bind(JSON.stringify(resolvedFieldIds), visitId),
     ...(clientSubmissionId ? [env.OBS_DB.prepare(
       `UPDATE observation_write_idempotency
           SET visit_id = ?,
@@ -29200,6 +29375,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     taxonLabel,
     clientSubmissionId,
     idempotencyReused: false,
+    resolvedFieldIds,
     placeMemory: placeMemory.result,
     placeMemorySample: placeMemory.sample,
   }, input), 201, await observationEventRegistrationBridgeResponseHeaders(registrationBridge));
@@ -34331,7 +34507,7 @@ function clampInteger(value: number, min: number, max: number): number {
   return Number.isFinite(value) ? Math.min(Math.max(Math.trunc(value), min), max) : min;
 }
 
-function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): string {
+function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string, recentRecords: FieldRecentPublicRecord[] = []): string {
   const payload = fieldDetailPublicPayload(row);
   const isEnglish = lang === "en";
   const title = isEnglish ? `${payload.name} - area encyclopedia` : `${payload.name} - エリア図鑑`;
@@ -34447,6 +34623,13 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
     .si-next { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; border-radius: 14px; background: #f0fdfa; border: 1px solid rgba(15,118,110,.14); }
     .si-next strong { color: #0f766e; font-size: 13px; font-weight: 950; }
     .si-next span { padding: 6px 9px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 12px; font-weight: 850; }
+    .field-recent-records { display: grid; gap: 14px; margin-top: 18px; padding: 18px; }
+    .field-recent-records > header { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+    .field-recent-records h2 { margin-top: 4px; font-size: 24px; line-height: 1.2; font-weight: 950; }
+    .field-recent-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .field-recent-card a { display: grid; gap: 3px; min-height: 64px; padding: 12px 14px; border: 1px solid rgba(15,118,110,.14); border-radius: 12px; background: #f8fffc; text-decoration: none; }
+    .field-recent-card strong { color: #0f172a; font-size: 16px; }
+    .field-recent-card span, .field-recent-card small { color: #475569; font-size: 12px; line-height: 1.45; }
     @media (max-width: 880px) {
       .hero { grid-template-columns: 1fr; }
       .grid, .si-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -34459,6 +34642,7 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
       .range header, .site-intelligence > header { align-items: flex-start; flex-direction: column; }
       .grid, .si-grid { grid-template-columns: 1fr; }
       .feature { min-height: 0; }
+      .field-recent-records > header { align-items: flex-start; flex-direction: column; }
     }
   </style>
 </head>
@@ -34489,6 +34673,7 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
     </article>
   </section>
   ${renderFieldSiteIntelligenceSection(row, isEnglish)}
+  ${renderFieldRecentRecords(recentRecords, isEnglish)}
   <section class="range panel" id="area-public-range" aria-label="${isEnglish ? "Public range and verification" : "公開範囲と確認"}">
     <header>
       <div><p class="eyebrow">Safety / Evidence</p><h2>${isEnglish ? "Public range and verification" : "公開範囲と確認"}</h2></div>

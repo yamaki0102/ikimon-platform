@@ -19,6 +19,21 @@ export const PUBLICATION_FEED_DEFINITIONS = Object.freeze({
       "http://127.0.0.1:3000",
     ]),
   }),
+  "ryuyo-insect-park": Object.freeze({
+    feedKey: "ryuyo-insect-park",
+    title: Object.freeze({ ja: "竜洋昆虫自然観察公園で見つけたもの", en: "What was found at Ryuyo Insect Nature Observation Park" }),
+    scopeLabel: Object.freeze({ ja: "磐田・竜洋昆虫自然観察公園", en: "Ryuyo, Iwata" }),
+    locale: "ja" as const,
+    scopeKind: "area" as const,
+    scope: Object.freeze([{ kind: "entity" as const, id: "osm:way:530835577" }]),
+    channels: Object.freeze([
+      Object.freeze({ key: "living", label: Object.freeze({ ja: "園内の生きもの", en: "Living things in the park" }) }),
+      Object.freeze({ key: "community_photo", label: Object.freeze({ ja: "園内のフォト", en: "Park photos" }) }),
+    ]),
+    publicationPolicyVersion: "public-feed-v1",
+    updatedAt: "2026-09-02T00:00:00.000Z",
+    allowedConsumerOrigins: Object.freeze([]),
+  }),
 });
 
 export type PublicationFeedDefinitionKey = keyof typeof PUBLICATION_FEED_DEFINITIONS;

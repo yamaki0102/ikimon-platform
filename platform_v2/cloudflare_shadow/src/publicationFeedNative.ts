@@ -331,12 +331,12 @@ function classification(row: PublicationFeedNativeRow, title: string): Publicati
   return { state: "accepted", source: "record", confidence: null };
 }
 
-function nativeItems(row: PublicationFeedNativeRow, origin: string): NativeItem[] {
+function nativeItems(row: PublicationFeedNativeRow, origin: string, scopeLabel: string): NativeItem[] {
   if (!isEligible(row)) return [];
   const observedAt = normalizedDate(row.observed_at);
   if (!observedAt) return [];
   const sourceUpdatedAt = normalizedDate(row.source_updated_at) ?? observedAt;
-  const placeLabel = cleanText(row.public_area_label) ?? "浜松・都田";
+  const placeLabel = cleanText(row.public_area_label) ?? scopeLabel;
   const humanTitle = cleanText(row.human_label);
   const recordTitle = cleanText(row.taxon_label);
   const candidateTitle = row.ai_assessment_status === "ai_judgement" ? cleanText(row.ai_candidate_label) : null;
@@ -483,7 +483,7 @@ function responseFor(
 ): PublicationFeedResponse {
   const supportedChannels = definition.channels.filter((channel) => !parsed.channel || channel.key === parsed.channel);
   const items = rows
-    .flatMap((row) => nativeItems(row, origin))
+    .flatMap((row) => nativeItems(row, origin, localized(definition.scopeLabel, parsed.locale)))
     .filter((item) => supportedChannels.some((channel) => channel.key === item.channel))
     .sort(compareItems);
   const afterCursor = parsed.cursor ? items.filter((item) => isAfterCursor(item, parsed.cursor!)) : items;

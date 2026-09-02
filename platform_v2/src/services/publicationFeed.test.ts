@@ -78,6 +78,15 @@ test("the first feed is config-driven and uses the stable Renri entity scope", (
   assert.equal(getPublicationFeedConfig("__proto__"), null);
 });
 
+test("Ryuyo uses the same publication engine with only scope and labels changed", () => {
+  const ryuyo = PUBLICATION_FEED_CONFIGS["ryuyo-insect-park"]!;
+  assert.equal(ryuyo.scopeKind, "area");
+  assert.deepEqual(ryuyo.scope, [{ kind: "entity", id: "osm:way:530835577" }]);
+  assert.deepEqual(ryuyo.channels.map((channel) => channel.key), ["living", "community_photo"]);
+  assert.deepEqual(ryuyo.allowedConsumerOrigins, []);
+  assert.equal(getPublicationFeedConfig("ryuyo-insect-park")?.feedKey, "ryuyo-insect-park");
+});
+
 test("projection is the privacy, rights, media, and sensitive-location boundary", () => {
   const rows = [
     row({ recordId: "verified-record" }),

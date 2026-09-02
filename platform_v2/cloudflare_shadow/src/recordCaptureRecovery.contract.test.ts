@@ -21,3 +21,17 @@ test("native record capture persists a stable media retry draft", () => {
   assert.match(indexSource, /observedAt: recoveryObservedAt/);
   assert.match(indexSource, /function renderCloudflareRecordHtml[\s\S]*location\.assign\(recordRecoveryHref\(\)\)/);
 });
+
+test("record capture keeps ZUKAN and external publication opt-ins separate and off by default", () => {
+  assert.match(indexSource, /id="record-zukan-public"[^>]+name="zukan_public"[^>]+type="checkbox"/);
+  assert.match(indexSource, /id="record-external-public"[^>]+name="external_public"[^>]+type="checkbox" disabled/);
+  assert.match(indexSource, /recordConsent: externalPublic \? "external_export" : "public_summary"/);
+  assert.match(indexSource, /visibility: zukanPublic \? "public" : "private"/);
+  assert.match(indexSource, /externalExportAllowed: externalPublic/);
+});
+
+test("native observation write stores the existing field association as a D1 projection", () => {
+  assert.match(indexSource, /resolveFieldsForPointNative\(input\.latitude, input\.longitude, env\.OBS_DB\)/);
+  assert.match(indexSource, /UPDATE observations SET resolved_field_ids_json = \?/);
+  assert.match(indexSource, /resolvedFieldIds/);
+});
