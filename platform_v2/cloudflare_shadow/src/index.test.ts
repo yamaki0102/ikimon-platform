@@ -3548,21 +3548,37 @@ class FakeStatement {
       return {};
     }
 
-    if (normalized.startsWith("INSERT INTO observation_reassessment_requests")) {
+    if (normalized.startsWith("INSERT OR IGNORE INTO observation_reassessment_requests") || normalized.startsWith("INSERT INTO observation_reassessment_requests")) {
       const now = new Date().toISOString();
-      const key = `${string(v[1])}:${string(v[2])}:${string(v[3])}`;
+      const fixedStandardInsert = normalized.includes("VALUES (?, ?, 'standard', ?, 'pending', ?");
+      const requestKind = fixedStandardInsert ? "standard" : string(v[2]);
+      const actorUserId = fixedStandardInsert ? string(v[2]) : string(v[3]);
+      const sourcePayloadJson = fixedStandardInsert ? string(v[3]) : string(v[4]);
+      const key = `${string(v[1])}:${requestKind}:${actorUserId}`;
       const existing = this.db.observationReassessmentRequests.get(key);
+      if (existing && normalized.startsWith("INSERT OR IGNORE INTO")) return { meta: { changes: 0 } };
       this.db.observationReassessmentRequests.set(key, {
         request_id: existing?.request_id ?? string(v[0]),
         observation_id: string(v[1]),
-        request_kind: string(v[2]),
-        actor_user_id: string(v[3]),
+        request_kind: requestKind,
+        actor_user_id: actorUserId,
         request_state: "pending",
-        source_payload_json: string(v[4]),
+        source_payload_json: sourcePayloadJson,
         created_at: existing?.created_at ?? now,
         updated_at: now
       });
-      return {};
+      return { meta: { changes: existing ? 1 : 1 } };
+    }
+
+    if (normalized.startsWith("UPDATE observation_reassessment_requests SET request_state = 'pending'")) {
+      const row = this.db.observationReassessmentRequests.get(
+        [...this.db.observationReassessmentRequests.entries()].find(([, candidate]) => candidate.request_id === string(v[1]))?.[0] ?? ""
+      );
+      if (!row || row.request_state !== "failed" || row.source_payload_json !== string(v[2])) return { meta: { changes: 0 } };
+      row.request_state = "pending";
+      row.source_payload_json = string(v[0]);
+      row.updated_at = new Date().toISOString();
+      return { meta: { changes: 1 } };
     }
 
     if (normalized.startsWith("INSERT INTO candidate_action_requests")) {
@@ -5059,6 +5075,20 @@ class FakeStatement {
       } as T) : null;
     }
 
+    if (normalized.startsWith("SELECT asset_id FROM asset_ledger WHERE observation_id = ?")) {
+      const asset = [...this.db.assets.values()].find((candidate) =>
+        candidate.observation_id === string(v[0]) && candidate.processing_state === "uploaded" && candidate.mime.startsWith("image/")
+      );
+      return asset ? ({ asset_id: asset.asset_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT request_id, request_state, source_payload_json FROM observation_reassessment_requests")) {
+      const row = [...this.db.observationReassessmentRequests.values()].find((candidate) =>
+        candidate.observation_id === string(v[0]) && candidate.request_kind === string(v[1]) && candidate.actor_user_id === string(v[2])
+      );
+      return (row as T | undefined) ?? null;
+    }
+
     if (normalized.startsWith("SELECT request_state FROM observation_reassessment_requests")) {
       const row = this.db.observationReassessmentRequests.get(`${string(v[0])}:standard:${string(v[1])}`);
       return row ? ({ request_state: row.request_state } as T) : null;
@@ -6120,6 +6150,13 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT asset_id, mime FROM asset_ledger WHERE draft_id = ?")) {
+      const rows = [...this.db.assets.values()]
+        .filter((asset) => asset.draft_id === string(v[0]))
+        .sort((left, right) => left.asset_id.localeCompare(right.asset_id))
+        .map((asset) => ({ asset_id: asset.asset_id, mime: asset.mime }));
+      return { results: rows as T[] };
+    }
     if (normalized.endsWith("/* renri_fixture_scope */")) {
       if (normalized.startsWith("SELECT session_id, organizer_user_id FROM observation_event_sessions")) {
         const fixturePrefix = string(v[0]);
@@ -7759,10 +7796,10 @@ test("finalize preserves canonical row and pending outbox when queue dispatch fa
 
   assert.equal(finalizeResponse.processingState, "accepted");
   assert.equal(finalizeResponse.dispatch.sent, 0);
-  assert.equal(finalizeResponse.dispatch.pending, 2);
+  assert.equal(finalizeResponse.dispatch.pending, 3);
   assert.equal(obs.observations.size, 1);
   assert.equal(obs.assets.size, 3);
-  assert.equal([...obs.outbox.values()].filter((row) => row.dispatch_state === "pending").length, 2);
+  assert.equal([...obs.outbox.values()].filter((row) => row.dispatch_state === "pending").length, 3);
   assert.equal([...obs.outbox.values()].every((row) => row.attempts === 1), true);
 
   const observation = [...obs.observations.values()][0];
@@ -7798,8 +7835,8 @@ test("synthetic 10k daily profile creates one durable observation and three medi
   assert.equal(obs.drafts.size, records);
   assert.equal(obs.observations.size, records);
   assert.equal(obs.assets.size, records * mediaPerRecord);
-  assert.equal(obs.outbox.size, records * 2);
-  assert.equal(queue.messages.length, records * 2);
+  assert.equal(obs.outbox.size, records * 3);
+  assert.equal(queue.messages.length, records * 3);
   assert.equal([...obs.outbox.values()].every((row) => row.dispatch_state === "dispatched"), true);
 });
 
@@ -14101,10 +14138,8 @@ test("production observation reassess routes write D1 requests without origin fa
       headers: { cookie: `ikimon_v2_session=${rawToken}` }
     }), productionEnv);
     const standardPayload = await standard.json() as any;
-    assert.equal(standard.status, 202, JSON.stringify(standardPayload));
-    assert.equal(standardPayload.ok, true);
-    assert.equal(standardPayload.reassessment.state, "pending");
-    assert.equal(standardPayload.reassessment.kind, "standard");
+    assert.equal(standard.status, 422, JSON.stringify(standardPayload));
+    assert.deepEqual(standardPayload, { ok: false, error: "observation_image_required" });
 
     const video = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-reassess-imported/reassess-from-video", {
       method: "POST",
@@ -14117,11 +14152,95 @@ test("production observation reassess routes write D1 requests without origin fa
 
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
-    assert.equal(obs.observationReassessmentRequests.get("occ-reassess-imported:standard:owner-user")?.request_state, "pending");
+    assert.equal(obs.observationReassessmentRequests.has("occ-reassess-imported:standard:owner-user"), false);
     assert.equal(obs.observationReassessmentRequests.get("occ-reassess-imported:video:owner-user")?.request_state, "pending");
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("owner observation reassess reuses active intent, retries failed work once, and never requeues completed work", async () => {
+  const { env, core, obs, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "owner-reassess-idempotency",
+    userId: "owner-user",
+    observedAt: "2026-06-25T00:00:00.000Z",
+    latitude: 34.7,
+    longitude: 137.8,
+  });
+  const rawToken = "owner-reassess-idempotency-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "owner-user",
+    display_name: "Owner User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  await post("/api/v1/observations/owner-reassess-idempotency/photos/upload", env, {
+    filename: "owner-reassess.png",
+    mimeType: "image/png",
+    base64Data: tinyPngBase64()
+  });
+
+  const requestRow = obs.observationReassessmentRequests.get("owner-reassess-idempotency:standard:owner-user");
+  assert.ok(requestRow);
+  const queueBefore = queue.messages.length;
+  const reassess = () => worker.fetch(new Request("https://shadow.test/api/v1/observations/owner-reassess-idempotency/reassess", {
+    method: "POST",
+    headers: { cookie: `ikimon_v2_session=${rawToken}` }
+  }), env);
+
+  const wrongToken = "wrong-owner-reassess-token";
+  const wrongTokenHash = createHash("sha256").update(wrongToken).digest("hex");
+  core.authSessions.set(wrongTokenHash, {
+    token_hash: wrongTokenHash,
+    user_id: "other-user",
+    display_name: "Other User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  const wrongOwnerResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/owner-reassess-idempotency/reassess", {
+    method: "POST",
+    headers: { cookie: `ikimon_v2_session=${wrongToken}` }
+  }), env);
+  assert.equal(wrongOwnerResponse.status, 403);
+  assert.deepEqual(await wrongOwnerResponse.json(), { ok: false, error: "observation_not_owned" });
+  assert.equal(queue.messages.length, queueBefore);
+
+  const pendingResponse = await reassess();
+  assert.equal(pendingResponse.status, 202);
+  const pendingPayload = await pendingResponse.json() as any;
+  assert.equal(pendingPayload.reassessment.requestId, requestRow.request_id);
+  assert.equal(pendingPayload.reassessment.state, "pending");
+  assert.equal(queue.messages.length, queueBefore);
+
+  requestRow.request_state = "processing";
+  const processingResponse = await reassess();
+  assert.equal(processingResponse.status, 202);
+  assert.equal((await processingResponse.json() as any).reassessment.state, "processing");
+  assert.equal(queue.messages.length, queueBefore);
+
+  requestRow.request_state = "completed";
+  const completedResponse = await reassess();
+  assert.equal(completedResponse.status, 200);
+  assert.equal((await completedResponse.json() as any).reassessment.state, "completed");
+  assert.equal(queue.messages.length, queueBefore);
+
+  requestRow.request_state = "failed";
+  requestRow.source_payload_json = JSON.stringify({ attemptCount: 1, errorCode: "gemini_provider_error" });
+  const retryResponse = await reassess();
+  assert.equal(retryResponse.status, 202);
+  assert.equal((await retryResponse.json() as any).reassessment.requestId, requestRow.request_id);
+  assert.equal(requestRow.request_state, "pending");
+  assert.equal(queue.messages.length, queueBefore + 1);
+  assert.equal([...obs.outbox.values()].filter((row) => String(row.topic) === "observation.reassess").length, 2);
 });
 
 test("production reference candidates route is native and never probes origin fallback", async () => {

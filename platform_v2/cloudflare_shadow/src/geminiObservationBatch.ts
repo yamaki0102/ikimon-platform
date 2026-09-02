@@ -178,114 +178,114 @@ export type GeminiMergedObservation = {
 type JsonSchema = Record<string, unknown>;
 
 const rectProperties = {
-  asset_index: { type: "INTEGER", minimum: 0 },
-  x: { type: "NUMBER", minimum: 0, maximum: 1 },
-  y: { type: "NUMBER", minimum: 0, maximum: 1 },
-  width: { type: "NUMBER", minimum: 0, maximum: 1 },
-  height: { type: "NUMBER", minimum: 0, maximum: 1 },
+  asset_index: { type: "integer", minimum: 0 },
+  x: { type: "number", minimum: 0, maximum: 1 },
+  y: { type: "number", minimum: 0, maximum: 1 },
+  width: { type: "number", minimum: 0, maximum: 1 },
+  height: { type: "number", minimum: 0, maximum: 1 },
 };
 
 export const GEMINI_PRIMARY_SCHEMA: JsonSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    record_class: { type: "STRING", enum: ["organism", "person", "food", "environment", "object", "document", "mixed", "unknown"] },
-    information_state: { type: "STRING", enum: ["informative", "not_informative", "not_assessable"] },
-    scene_class: { type: "STRING", enum: ["single_subject", "same_taxon_group", "multi_taxa", "no_clear_subject"] },
-    subjects: { type: "ARRAY", maxItems: 8, items: { type: "OBJECT", properties: {
-      id: { type: "STRING" }, role: { type: "STRING", enum: ["primary", "secondary", "background", "trace"] },
-      scope: { type: "STRING", enum: ["individual", "group", "unknown"] }, count: { type: "INTEGER", minimum: 0 },
-      name: { type: "STRING" }, scientific: { type: "STRING" },
-      rank: { type: "STRING", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
-      confidence: { type: "NUMBER", minimum: 0, maximum: 1 }, evidence: { type: "STRING" },
+    record_class: { type: "string", enum: ["organism", "person", "food", "environment", "object", "document", "mixed", "unknown"] },
+    information_state: { type: "string", enum: ["informative", "not_informative", "not_assessable"] },
+    scene_class: { type: "string", enum: ["single_subject", "same_taxon_group", "multi_taxa", "no_clear_subject"] },
+    subjects: { type: "array", maxItems: 8, items: { type: "object", properties: {
+      id: { type: "string" }, role: { type: "string", enum: ["primary", "secondary", "background", "trace"] },
+      scope: { type: "string", enum: ["individual", "group", "unknown"] }, count: { type: "integer", minimum: 0 },
+      name: { type: "string" }, scientific: { type: "string" },
+      rank: { type: "string", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
+      confidence: { type: "number", minimum: 0, maximum: 1 }, evidence: { type: "string" },
     }, required: ["id", "role", "scope", "count", "name", "scientific", "rank", "confidence", "evidence"] } },
-    regions: { type: "ARRAY", maxItems: 16, items: { type: "OBJECT", properties: { subject_id: { type: "STRING" }, ...rectProperties }, required: ["subject_id", "asset_index", "x", "y", "width", "height"] } },
-    non_biological_labels: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
-    quality_flags: { type: "ARRAY", maxItems: 8, items: { type: "STRING" } },
-    needs_review: { type: "BOOLEAN" },
-    review_reasons: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
+    regions: { type: "array", maxItems: 16, items: { type: "object", properties: { subject_id: { type: "string" }, ...rectProperties }, required: ["subject_id", "asset_index", "x", "y", "width", "height"] } },
+    non_biological_labels: { type: "array", maxItems: 6, items: { type: "string" } },
+    quality_flags: { type: "array", maxItems: 8, items: { type: "string" } },
+    needs_review: { type: "boolean" },
+    review_reasons: { type: "array", maxItems: 6, items: { type: "string" } },
   },
   required: ["record_class", "information_state", "scene_class", "subjects", "regions", "non_biological_labels", "quality_flags", "needs_review", "review_reasons"],
 };
 
 export const GEMINI_CENSUS_SCHEMA: JsonSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    detection_state: { type: "STRING", enum: ["detected", "not_detected", "not_assessable"] },
-    scene: { type: "STRING", enum: ["one_group", "same_taxon_multiple", "multiple_taxa", "uncertain"] },
-    groups: { type: "ARRAY", maxItems: 8, items: { type: "OBJECT", properties: {
-      id: { type: "STRING" }, kind: { type: "STRING", enum: ["animal", "plant", "fungus", "trace", "unknown_biota"] },
-      role: { type: "STRING", enum: ["primary", "other"] }, scope: { type: "STRING", enum: ["individual", "group", "unknown"] },
-      count: { type: "INTEGER", minimum: 0 }, label: { type: "STRING" }, scientific: { type: "STRING" },
-      rank: { type: "STRING", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
-      evidence: { type: "STRING" },
-      supporting_features: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
-      missing_features: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
-      contradictions: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
-      confidence: { type: "NUMBER", minimum: 0, maximum: 1 },
+    detection_state: { type: "string", enum: ["detected", "not_detected", "not_assessable"] },
+    scene: { type: "string", enum: ["one_group", "same_taxon_multiple", "multiple_taxa", "uncertain"] },
+    groups: { type: "array", maxItems: 8, items: { type: "object", properties: {
+      id: { type: "string" }, kind: { type: "string", enum: ["animal", "plant", "fungus", "trace", "unknown_biota"] },
+      role: { type: "string", enum: ["primary", "other"] }, scope: { type: "string", enum: ["individual", "group", "unknown"] },
+      count: { type: "integer", minimum: 0 }, label: { type: "string" }, scientific: { type: "string" },
+      rank: { type: "string", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
+      evidence: { type: "string" },
+      supporting_features: { type: "array", maxItems: 6, items: { type: "string" } },
+      missing_features: { type: "array", maxItems: 6, items: { type: "string" } },
+      contradictions: { type: "array", maxItems: 6, items: { type: "string" } },
+      confidence: { type: "number", minimum: 0, maximum: 1 },
     }, required: ["id", "kind", "role", "scope", "count", "label", "scientific", "rank", "evidence", "supporting_features", "missing_features", "contradictions", "confidence"] } },
-    regions: { type: "ARRAY", maxItems: 16, items: { type: "OBJECT", properties: { group_id: { type: "STRING" }, ...rectProperties }, required: ["group_id", "asset_index", "x", "y", "width", "height"] } },
-    relations: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
-    needs_review: { type: "BOOLEAN" }, review_reasons: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
+    regions: { type: "array", maxItems: 16, items: { type: "object", properties: { group_id: { type: "string" }, ...rectProperties }, required: ["group_id", "asset_index", "x", "y", "width", "height"] } },
+    relations: { type: "array", maxItems: 6, items: { type: "string" } },
+    needs_review: { type: "boolean" }, review_reasons: { type: "array", maxItems: 6, items: { type: "string" } },
   },
   required: ["detection_state", "scene", "groups", "regions", "relations", "needs_review", "review_reasons"],
 };
 
 export const GEMINI_SPECIALIST_SCHEMA: JsonSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    assessment_state: { type: "STRING", enum: ["informative", "not_informative", "not_assessable"] },
+    assessment_state: { type: "string", enum: ["informative", "not_informative", "not_assessable"] },
     candidates: {
-      type: "ARRAY",
+      type: "array",
       maxItems: 5,
       items: {
-        type: "OBJECT",
+        type: "object",
         properties: {
-          name: { type: "STRING" },
-          scientific: { type: "STRING" },
-          rank: { type: "STRING", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
-          confidence: { type: "NUMBER", minimum: 0, maximum: 1 },
-          supporting_features: { type: "ARRAY", maxItems: 8, items: { type: "STRING" } },
-          missing_features: { type: "ARRAY", maxItems: 8, items: { type: "STRING" } },
-          contradictions: { type: "ARRAY", maxItems: 8, items: { type: "STRING" } },
+          name: { type: "string" },
+          scientific: { type: "string" },
+          rank: { type: "string", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
+          confidence: { type: "number", minimum: 0, maximum: 1 },
+          supporting_features: { type: "array", maxItems: 8, items: { type: "string" } },
+          missing_features: { type: "array", maxItems: 8, items: { type: "string" } },
+          contradictions: { type: "array", maxItems: 8, items: { type: "string" } },
         },
         required: ["name", "scientific", "rank", "confidence", "supporting_features", "missing_features", "contradictions"],
       },
     },
-    comparison_summary: { type: "STRING" },
-    needs_review: { type: "BOOLEAN" },
+    comparison_summary: { type: "string" },
+    needs_review: { type: "boolean" },
   },
   required: ["assessment_state", "candidates", "comparison_summary", "needs_review"],
 };
 
 export const GEMINI_ENVIRONMENT_SCHEMA: JsonSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    assessment_state: { type: "STRING", enum: ["informative", "not_informative", "not_assessable"] },
-    fields: { type: "OBJECT", properties: {
-      place_type: { type: "STRING", enum: ["grassland_urban_edge", "urban", "woodland", "water_edge", "wetland", "coast", "unknown"] },
-      contact_surface: { type: "STRING", enum: ["soil_gravel_litter", "soil", "plant", "water", "rock", "artificial", "unknown"] },
-      surrounding_cover: { type: "STRING", enum: ["low_grass", "trees_shrubs", "bare_ground", "water", "snow", "built_surface", "unknown"] },
-      environment_condition: { type: "STRING", enum: ["open_dry", "sunny", "shaded", "wet", "flowing", "windy", "unknown"] },
-      human_change: { type: "STRING", enum: ["trampling_mowing", "mowing", "trampling", "planting", "construction", "release", "none_visible", "unknown"] },
+    assessment_state: { type: "string", enum: ["informative", "not_informative", "not_assessable"] },
+    fields: { type: "object", properties: {
+      place_type: { type: "string", enum: ["grassland_urban_edge", "urban", "woodland", "water_edge", "wetland", "coast", "unknown"] },
+      contact_surface: { type: "string", enum: ["soil_gravel_litter", "soil", "plant", "water", "rock", "artificial", "unknown"] },
+      surrounding_cover: { type: "string", enum: ["low_grass", "trees_shrubs", "bare_ground", "water", "snow", "built_surface", "unknown"] },
+      environment_condition: { type: "string", enum: ["open_dry", "sunny", "shaded", "wet", "flowing", "windy", "unknown"] },
+      human_change: { type: "string", enum: ["trampling_mowing", "mowing", "trampling", "planting", "construction", "release", "none_visible", "unknown"] },
     }, required: ["place_type", "contact_surface", "surrounding_cover", "environment_condition", "human_change"] },
-    cues: { type: "ARRAY", maxItems: 12, items: { type: "OBJECT", properties: {
-      slot: { type: "STRING", enum: ["vegetation_structure", "substrate", "moisture", "human_influence", "management_signs"] },
-      label: { type: "STRING" }, evidence: { type: "STRING" }, asset_index: { type: "INTEGER", minimum: 0 }, confidence: { type: "NUMBER", minimum: 0, maximum: 1 },
+    cues: { type: "array", maxItems: 12, items: { type: "object", properties: {
+      slot: { type: "string", enum: ["vegetation_structure", "substrate", "moisture", "human_influence", "management_signs"] },
+      label: { type: "string" }, evidence: { type: "string" }, asset_index: { type: "integer", minimum: 0 }, confidence: { type: "number", minimum: 0, maximum: 1 },
     }, required: ["slot", "label", "evidence", "asset_index", "confidence"] } },
-    uncertain_cues: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
+    uncertain_cues: { type: "array", maxItems: 6, items: { type: "string" } },
   },
   required: ["assessment_state", "fields", "cues", "uncertain_cues"],
 };
 
 export const GEMINI_SUMMARY_SCHEMA: JsonSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    narrative: { type: "STRING" },
-    subject_explanations: { type: "ARRAY", maxItems: 8, items: { type: "OBJECT", properties: {
-      subject_id: { type: "STRING" }, title: { type: "STRING" }, explanation: { type: "STRING" },
-      uncertainty: { type: "STRING" }, next_photo: { type: "STRING" },
+    narrative: { type: "string" },
+    subject_explanations: { type: "array", maxItems: 8, items: { type: "object", properties: {
+      subject_id: { type: "string" }, title: { type: "string" }, explanation: { type: "string" },
+      uncertainty: { type: "string" }, next_photo: { type: "string" },
     }, required: ["subject_id", "title", "explanation", "uncertainty", "next_photo"] } },
-    environment_summary: { type: "STRING" }, interaction_summary: { type: "STRING" }, observer_feedback: { type: "STRING" },
+    environment_summary: { type: "string" }, interaction_summary: { type: "string" }, observer_feedback: { type: "string" },
   },
   required: ["narrative", "subject_explanations", "environment_summary", "interaction_summary", "observer_feedback"],
 };
@@ -296,11 +296,11 @@ const imageParts = (images: GeminiObservationImage[]): Array<Record<string, unkn
 ]);
 
 const generationConfig = (schema: JsonSchema, maxOutputTokens: number, temperature: number) => ({
-  temperature,
+  temperature: 1,
   maxOutputTokens,
   responseMimeType: "application/json",
-  responseSchema: schema,
-  thinkingConfig: { thinkingLevel: "MINIMAL" },
+  responseJsonSchema: schema,
+  thinkingConfig: { thinkingLevel: "minimal" },
 });
 
 export function buildGeminiPrimaryRequest(recordId: string, observedAt: string | null, images: GeminiObservationImage[]) {

@@ -65,7 +65,7 @@ import {
 } from "./cloudflareObservationReadModel";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
-import { publicObservationAiCandidateInsights } from "./publicObservationAiPresentation";
+import { publicObservationAiCandidateInsights, publicObservationAiFeedback } from "./publicObservationAiPresentation";
 import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
@@ -8201,53 +8201,26 @@ async function requestCompatibleObservationReassessment(observationId: string, r
     return json({ ok: false, error: "observation_not_owned" }, 403, { "cache-control": "no-store" });
   }
 
-  const requestId = newId("reassess_req");
-  const outboxAiId = newId("outbox");
-  const sourcePayload = {
-    source: "cloudflare_observation_reassessment_request_ledger",
-    observationId: normalizedObservationId,
-    requestKind,
-    enqueueId: requestKind === "standard" ? outboxAiId : null,
-    requestedAt: new Date().toISOString()
-  };
-  const reassessmentStatements = [env.OBS_DB.prepare(
-      `INSERT INTO observation_reassessment_requests (
-         request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json
-       ) VALUES (?, ?, ?, ?, 'pending', ?)
-       ON CONFLICT(observation_id, request_kind, actor_user_id) DO UPDATE SET
-         request_state = 'pending',
-         source_payload_json = excluded.source_payload_json,
-         updated_at = CURRENT_TIMESTAMP`
-    ).bind(
-      requestId,
-      normalizedObservationId,
-      requestKind,
-      session.userId,
-      JSON.stringify(sourcePayload)
-    )];
   if (requestKind === "standard") {
-    reassessmentStatements.push(env.OBS_DB.prepare(
-      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
-    ).bind(
-      outboxAiId,
-      "observation.reassess",
-      normalizedObservationId,
-      JSON.stringify({ observationId: normalizedObservationId, requestKind }),
-      null
-    ));
+    const image = await env.OBS_DB.prepare(
+      `SELECT asset_id
+         FROM asset_ledger
+        WHERE observation_id = ?
+          AND processing_state = 'uploaded'
+          AND mime LIKE 'image/%'
+        LIMIT 1`
+    ).bind(normalizedObservationId).first<{ asset_id: string }>();
+    if (!image?.asset_id) {
+      return json({ ok: false, error: "observation_image_required" }, 422, { "cache-control": "no-store" });
+    }
   }
-  await env.OBS_DB.batch(reassessmentStatements);
-  const dispatch = requestKind === "standard"
-    ? await dispatchOutboxBestEffort(env, [
-        { outboxId: outboxAiId, topic: "observation.reassess", targetId: normalizedObservationId }
-      ])
-    : { sent: 0, pending: 0, errors: [] as string[] };
 
-  return json({
+  const emptyDispatch = { sent: 0, pending: 0, errors: [] as string[] };
+  const responseFor = (row: { request_id: string; request_state: string }, dispatch = emptyDispatch): Response => json({
     ok: true,
     reassessment: {
-      requestId,
-      state: "pending",
+      requestId: row.request_id,
+      state: row.request_state,
       kind: requestKind
     },
     compatibility: {
@@ -8255,7 +8228,92 @@ async function requestCompatibleObservationReassessment(observationId: string, r
       executionStatus: requestKind === "standard" ? "queued" : "not_migrated"
     },
     dispatch
-  }, 202, { "cache-control": "no-store" });
+  }, row.request_state === "completed" ? 200 : 202, { "cache-control": "no-store" });
+
+  const existing = await env.OBS_DB.prepare(
+    `SELECT request_id, request_state, source_payload_json
+       FROM observation_reassessment_requests
+      WHERE observation_id = ? AND request_kind = ? AND actor_user_id = ?
+      LIMIT 1`
+  ).bind(normalizedObservationId, requestKind, session.userId).first<{
+    request_id: string;
+    request_state: string;
+    source_payload_json: string;
+  }>();
+  if (existing && ["pending", "processing", "completed"].includes(existing.request_state)) {
+    return responseFor(existing);
+  }
+  if (existing && existing.request_state !== "failed") {
+    return json({ ok: false, error: "reassessment_not_retryable" }, 409, { "cache-control": "no-store" });
+  }
+
+  if (existing) {
+    const attemptCount = reassessmentAttemptCount(existing.source_payload_json);
+    if (attemptCount >= 3) {
+      return json({ ok: false, error: "reassessment_retry_exhausted" }, 409, { "cache-control": "no-store" });
+    }
+    const outboxAiId = `outbox_${existing.request_id}_retry_${attemptCount + 1}`;
+    const nextPayload = reassessmentPayloadWithResult(existing.source_payload_json, {
+      source: "cloudflare_observation_reassessment_request_ledger",
+      enqueueId: outboxAiId,
+      retryRequestedAt: new Date().toISOString(),
+    });
+    const updated = await env.OBS_DB.prepare(
+      `UPDATE observation_reassessment_requests
+          SET request_state = 'pending', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE request_id = ? AND request_state = 'failed' AND source_payload_json = ?`
+    ).bind(nextPayload, existing.request_id, existing.source_payload_json).run() as { meta?: { changes?: number } };
+    if (Number(updated.meta?.changes ?? 0) === 0) {
+      const current = await env.OBS_DB.prepare(
+        `SELECT request_id, request_state, source_payload_json
+           FROM observation_reassessment_requests
+          WHERE observation_id = ? AND request_kind = ? AND actor_user_id = ?
+          LIMIT 1`
+      ).bind(normalizedObservationId, requestKind, session.userId).first<{ request_id: string; request_state: string; source_payload_json: string }>();
+      return current ? responseFor(current) : json({ ok: false, error: "reassessment_state_unavailable" }, 503, { "cache-control": "no-store" });
+    }
+    if (requestKind === "standard") {
+      await env.OBS_DB.prepare(
+        "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      ).bind(outboxAiId, "observation.reassess", normalizedObservationId, JSON.stringify({ observationId: normalizedObservationId, requestKind }), null).run();
+      const dispatch = await dispatchOutboxBestEffort(env, [{ outboxId: outboxAiId, topic: "observation.reassess", targetId: normalizedObservationId }]);
+      return responseFor({ request_id: existing.request_id, request_state: "pending" }, dispatch);
+    }
+    return responseFor({ request_id: existing.request_id, request_state: "pending" });
+  }
+
+  const requestId = newId("reassess_req");
+  const outboxAiId = `outbox_${requestId}_initial`;
+  const sourcePayload = {
+    source: "cloudflare_observation_reassessment_request_ledger",
+    observationId: normalizedObservationId,
+    requestKind,
+    attemptCount: 0,
+    enqueueId: requestKind === "standard" ? outboxAiId : null,
+    requestedAt: new Date().toISOString()
+  };
+  await env.OBS_DB.prepare(
+    `INSERT OR IGNORE INTO observation_reassessment_requests (
+       request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json
+     ) VALUES (?, ?, ?, ?, 'pending', ?)`
+  ).bind(requestId, normalizedObservationId, requestKind, session.userId, JSON.stringify(sourcePayload)).run();
+  const persisted = await env.OBS_DB.prepare(
+    `SELECT request_id, request_state, source_payload_json
+       FROM observation_reassessment_requests
+      WHERE observation_id = ? AND request_kind = ? AND actor_user_id = ?
+      LIMIT 1`
+  ).bind(normalizedObservationId, requestKind, session.userId).first<{ request_id: string; request_state: string; source_payload_json: string }>();
+  if (!persisted) return json({ ok: false, error: "reassessment_state_unavailable" }, 503, { "cache-control": "no-store" });
+  if (persisted.request_id !== requestId) return responseFor(persisted);
+
+  if (requestKind === "standard") {
+    await env.OBS_DB.prepare(
+      "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+    ).bind(outboxAiId, "observation.reassess", normalizedObservationId, JSON.stringify({ observationId: normalizedObservationId, requestKind }), null).run();
+    const dispatch = await dispatchOutboxBestEffort(env, [{ outboxId: outboxAiId, topic: "observation.reassess", targetId: normalizedObservationId }]);
+    return responseFor(persisted, dispatch);
+  }
+  return responseFor(persisted);
 }
 
 async function resolveCompatibleObservationOwnerUserId(observationId: string, env: Env): Promise<string | null> {
@@ -26400,6 +26458,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiCandidateLabel: row.ai_candidate_label,
     aiCandidateRank: row.ai_candidate_rank,
     aiCandidateInsights: publicObservationAiCandidateInsights(row.ai_source_payload_json),
+    ...publicObservationAiFeedback(row.ai_source_payload_json),
     aiAssessmentStatus: row.ai_assessment_status,
     aiRequestStatus: row.ai_request_status,
     visibility: row.visibility,
@@ -30333,6 +30392,8 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
   const observationId = newId("obs");
   const outboxMediaId = newId("outbox");
   const outboxReadModelId = newId("outbox");
+  const outboxAiId = `outbox_${observationId}_ai`;
+  const reassessmentRequestId = `reassess:${observationId}:standard:${stringValue(draft.owner_user_id) ?? "unknown"}`;
   const observedAt = stringValue(draft.observed_at) ?? new Date().toISOString();
   const partition = resolveObservationPartition(observedAt, env);
   const ownerUserId = stringValue(draft.owner_user_id);
@@ -30355,20 +30416,21 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
       },
     })
     : null;
-  const draftAssets = observationDualWriteEnabled(env)
-    ? (await env.OBS_DB.prepare(
-      "SELECT asset_id, mime FROM asset_ledger WHERE draft_id = ? ORDER BY created_at, asset_id"
-    ).bind(input.draftId).all<{ asset_id: string; mime: string }>()).results
+  const draftAssets = (await env.OBS_DB.prepare(
+    "SELECT asset_id, mime FROM asset_ledger WHERE draft_id = ? ORDER BY created_at, asset_id"
+  ).bind(input.draftId).all<{ asset_id: string; mime: string }>()).results;
+  const hasAiMedia = draftAssets.some((asset) => asset.mime.startsWith("image/"));
+  const mediaDualWritePlans = observationDualWriteEnabled(env)
+    ? await Promise.all(draftAssets.map((asset) =>
+      buildMediaReassignmentDualWritePlan({
+        recordId: observationId,
+        mediaId: asset.asset_id,
+        actorUserId: ownerUserId,
+        role: asset.mime.startsWith("audio/") ? "audio_evidence" : "primary_evidence",
+        sourcePayload: { draftId: input.draftId, mime: asset.mime },
+      })
+    ))
     : [];
-  const mediaDualWritePlans = await Promise.all(draftAssets.map((asset) =>
-    buildMediaReassignmentDualWritePlan({
-      recordId: observationId,
-      mediaId: asset.asset_id,
-      actorUserId: ownerUserId,
-      role: asset.mime.startsWith("audio/") ? "audio_evidence" : "primary_evidence",
-      sourcePayload: { draftId: input.draftId, mime: asset.mime },
-    })
-  ));
 
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
@@ -30404,6 +30466,27 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
     env.OBS_DB.prepare(
       "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxReadModelId, "readmodel.refresh", observationId, JSON.stringify({ observationId }), partition.partitionMonth),
+    ...(hasAiMedia ? [
+      env.OBS_DB.prepare(
+        "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      ).bind(outboxAiId, "observation.reassess", observationId, JSON.stringify({ observationId }), partition.partitionMonth),
+      env.OBS_DB.prepare(
+        `INSERT OR IGNORE INTO observation_reassessment_requests (
+           request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json,
+           created_at, updated_at
+         ) VALUES (?, ?, 'standard', ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      ).bind(
+        reassessmentRequestId,
+        observationId,
+        ownerUserId,
+        JSON.stringify({
+          source: "cloudflare_observation_finalize_atomic_reassessment",
+          transactionalIntent: true,
+          enqueueId: outboxAiId,
+          requestedAt: new Date().toISOString(),
+        }),
+      ),
+    ] : []),
     rollbackLedgerInsert(env, {
       eventType: "observation.finalize",
       targetId: observationId,
@@ -30439,7 +30522,8 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
 
   const dispatch = await dispatchOutboxBestEffort(env, [
     { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
-    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId }
+    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId },
+    ...(hasAiMedia ? [{ outboxId: outboxAiId, topic: "observation.reassess" as const, targetId: observationId }] : []),
   ]);
 
   return json({ observationId, processingState: "accepted", dispatch }, 201);
