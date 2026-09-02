@@ -296,11 +296,11 @@ const imageParts = (images: GeminiObservationImage[]): Array<Record<string, unkn
 ]);
 
 const generationConfig = (schema: JsonSchema, maxOutputTokens: number, temperature: number) => ({
-  temperature,
+  temperature: 1,
   maxOutputTokens,
   responseMimeType: "application/json",
   responseSchema: schema,
-  thinkingConfig: { thinkingLevel: "MINIMAL" },
+  thinkingConfig: { thinkingLevel: "minimal" },
 });
 
 export function buildGeminiPrimaryRequest(recordId: string, observedAt: string | null, images: GeminiObservationImage[]) {

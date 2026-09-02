@@ -65,7 +65,7 @@ import {
 } from "./cloudflareObservationReadModel";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
-import { publicObservationAiCandidateInsights } from "./publicObservationAiPresentation";
+import { publicObservationAiCandidateInsights, publicObservationAiFeedback } from "./publicObservationAiPresentation";
 import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
@@ -26400,6 +26400,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiCandidateLabel: row.ai_candidate_label,
     aiCandidateRank: row.ai_candidate_rank,
     aiCandidateInsights: publicObservationAiCandidateInsights(row.ai_source_payload_json),
+    ...publicObservationAiFeedback(row.ai_source_payload_json),
     aiAssessmentStatus: row.ai_assessment_status,
     aiRequestStatus: row.ai_request_status,
     visibility: row.visibility,
@@ -30333,6 +30334,8 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
   const observationId = newId("obs");
   const outboxMediaId = newId("outbox");
   const outboxReadModelId = newId("outbox");
+  const outboxAiId = `outbox_${observationId}_ai`;
+  const reassessmentRequestId = `reassess:${observationId}:standard:${stringValue(draft.owner_user_id) ?? "unknown"}`;
   const observedAt = stringValue(draft.observed_at) ?? new Date().toISOString();
   const partition = resolveObservationPartition(observedAt, env);
   const ownerUserId = stringValue(draft.owner_user_id);
@@ -30360,6 +30363,7 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
       "SELECT asset_id, mime FROM asset_ledger WHERE draft_id = ? ORDER BY created_at, asset_id"
     ).bind(input.draftId).all<{ asset_id: string; mime: string }>()).results
     : [];
+  const hasAiMedia = draftAssets.some((asset) => asset.mime.startsWith("image/"));
   const mediaDualWritePlans = await Promise.all(draftAssets.map((asset) =>
     buildMediaReassignmentDualWritePlan({
       recordId: observationId,
@@ -30404,6 +30408,27 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
     env.OBS_DB.prepare(
       "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxReadModelId, "readmodel.refresh", observationId, JSON.stringify({ observationId }), partition.partitionMonth),
+    ...(hasAiMedia ? [
+      env.OBS_DB.prepare(
+        "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      ).bind(outboxAiId, "observation.reassess", observationId, JSON.stringify({ observationId }), partition.partitionMonth),
+      env.OBS_DB.prepare(
+        `INSERT OR IGNORE INTO observation_reassessment_requests (
+           request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json,
+           created_at, updated_at
+         ) VALUES (?, ?, 'standard', ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      ).bind(
+        reassessmentRequestId,
+        observationId,
+        ownerUserId,
+        JSON.stringify({
+          source: "cloudflare_observation_finalize_atomic_reassessment",
+          transactionalIntent: true,
+          enqueueId: outboxAiId,
+          requestedAt: new Date().toISOString(),
+        }),
+      ),
+    ] : []),
     rollbackLedgerInsert(env, {
       eventType: "observation.finalize",
       targetId: observationId,
@@ -30439,7 +30464,8 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
 
   const dispatch = await dispatchOutboxBestEffort(env, [
     { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
-    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId }
+    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId },
+    ...(hasAiMedia ? [{ outboxId: outboxAiId, topic: "observation.reassess" as const, targetId: observationId }] : []),
   ]);
 
   return json({ observationId, processingState: "accepted", dispatch }, 201);

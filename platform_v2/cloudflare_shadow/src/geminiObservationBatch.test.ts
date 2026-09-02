@@ -42,6 +42,9 @@ test("production model stack uses the measured exact Flash-Lite IDs and every im
     assert.equal((text.match(/inlineData/g) ?? []).length, 2);
     assert.equal(request.generationConfig.maxOutputTokens, 2048);
     assert.equal(request.generationConfig.responseMimeType, "application/json");
+    assert.equal(request.generationConfig.temperature, 1);
+    assert.equal(request.generationConfig.thinkingConfig.thinkingLevel, "minimal");
+    assert.doesNotMatch(text, /"thinkingLevel":"MINIMAL"/);
   }
 });
 

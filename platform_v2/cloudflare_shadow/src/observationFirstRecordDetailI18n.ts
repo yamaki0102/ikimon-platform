@@ -20,6 +20,8 @@ export type ObservationFirstRecordDetailCopy = {
   updatedNotice: string;
   found: string;
   aiFound: string;
+  aiFeedbackTitle: string;
+  aiNextPhotoTitle: string;
   learning: string;
   aiCandidate: string;
   communityProposalAvailable: string;
@@ -97,7 +99,7 @@ export type ObservationFirstRecordDetailCopy = {
 const ja: ObservationFirstRecordDetailCopy = {
   documentSuffix: "ZUKAN", back: "戻る", menu: "メニュー", records: "記録を見る", home: "ホーム", language: "言語",
   media: "写真・動画・音", enlargePhoto: "写真を大きく見る", openVideo: "動画を開く", openAudio: "音声を開く", mediaNavigation: "メディアを切り替える",
-  natureRecord: "自然の記録", publicLocation: "安全な場所", visibility: { public: "公開", limited: "限定公開", private: "非公開" },
+  natureRecord: "自然の記録", publicLocation: "安全な場所", visibility: { public: "公開", limited: "限定公開", private: "非公開" }, aiFeedbackTitle: "AIからの短いメモ", aiNextPhotoTitle: "次に撮るとよい写真",
   edit: "編集", share: "共有", updatedNotice: "変更を記録しました。", found: "この記録で見つかったもの", aiFound: "AIが見つけたもの", learning: "わかること", aiCandidate: "AIが見つけた候補", communityProposalAvailable: "名前の提案があります", candidateTemplate: "{name}かもしれません",
   openDetails: "詳しく見る", openAll: "すべて見る", recordName: "この記録の名前", photoCandidate: "写真からの候補",
   distinguishingPoints: "見分けるポイント", shootingAdvice: "もう少し詳しく調べるには", compareCandidates: "似ている候補との比較", compareCandidatesLead: "写真から見える特徴と、まだ確認できない点を並べています。", candidateEvidence: "手がかり", candidateUncertainty: "未確認", similarPhotosHidden: "似た写真{count}枚は1枚にまとめて表示しています。元の写真は削除されていません。", proposals: "名前の提案", proposeName: "名前を提案する",
@@ -127,7 +129,7 @@ const en: ObservationFirstRecordDetailCopy = {
   ...ja,
   documentSuffix: "ZUKAN", back: "Back", menu: "Menu", records: "Records", home: "Home", language: "Language",
   media: "Photos, video and sound", enlargePhoto: "View full-size photo", openVideo: "Open video", openAudio: "Open audio", mediaNavigation: "Choose media",
-  natureRecord: "Nature record", publicLocation: "Safe location", visibility: { public: "Public", limited: "Limited", private: "Private" }, edit: "Detailed edit", share: "Share", updatedNotice: "Changes saved.",
+  natureRecord: "Nature record", publicLocation: "Safe location", visibility: { public: "Public", limited: "Limited", private: "Private" }, aiFeedbackTitle: "A short note from AI", aiNextPhotoTitle: "A photo that could help next", edit: "Detailed edit", share: "Share", updatedNotice: "Changes saved.",
   found: "Found in this record", aiFound: "What AI found", learning: "What this can tell us", aiCandidate: "Candidate found by AI", communityProposalAvailable: "Name suggestions are available", candidateTemplate: "Possibly {name}", openDetails: "View details", openAll: "View all", recordName: "Name for this record", photoCandidate: "Candidate from the photo",
   distinguishingPoints: "What to look for", shootingAdvice: "A photo that could help", compareCandidates: "Compare similar candidates", compareCandidatesLead: "Visible clues are shown alongside what still needs checking.", candidateEvidence: "Clue", candidateUncertainty: "Not yet visible", similarPhotosHidden: "{count} similar photos are represented by one image. The originals have not been deleted.", proposals: "Name suggestions", proposeName: "Suggest a name", proposedName: "Name", proposalNote: "Reason or note", saveProposal: "Save suggestion", loginToPropose: "Log in to suggest a name", acceptName: "Use this name",
   placeSummary: "About this place", photoInference: "Possibilities read from the photo", sceneFound: "Found in this photo", notDetected: "No organism was visible in this photo.", notAssessable: "This photo alone was not enough to assess whether an organism was visible.",
@@ -151,7 +153,7 @@ const en: ObservationFirstRecordDetailCopy = {
 const es: ObservationFirstRecordDetailCopy = {
   ...en,
   back: "Volver", menu: "Menú", records: "Registros", home: "Inicio", language: "Idioma", media: "Fotos, vídeo y sonido", enlargePhoto: "Ver foto ampliada", openVideo: "Abrir vídeo", openAudio: "Abrir audio", mediaNavigation: "Cambiar contenido",
-  natureRecord: "Registro de naturaleza", publicLocation: "Lugar seguro", visibility: { public: "Público", limited: "Limitado", private: "Privado" }, edit: "Edición detallada", share: "Compartir", updatedNotice: "Cambios guardados.",
+  natureRecord: "Registro de naturaleza", publicLocation: "Lugar seguro", visibility: { public: "Público", limited: "Limitado", private: "Privado" }, aiFeedbackTitle: "Una nota breve de la IA", aiNextPhotoTitle: "Una foto que podría ayudar", edit: "Edición detallada", share: "Compartir", updatedNotice: "Cambios guardados.",
   found: "Encontrado en este registro", aiFound: "Lo que encontró la IA", learning: "Lo que podemos saber", aiCandidate: "Candidato encontrado por la IA", communityProposalAvailable: "Hay propuestas de nombre", candidateTemplate: "Podría ser {name}", openDetails: "Ver detalles", openAll: "Ver todo", recordName: "Nombre de este registro", photoCandidate: "Candidato a partir de la foto",
   distinguishingPoints: "En qué fijarse", shootingAdvice: "Una foto que podría ayudar", compareCandidates: "Comparar candidatos parecidos", compareCandidatesLead: "Se muestran las pistas visibles y lo que aún falta comprobar.", candidateEvidence: "Pista", candidateUncertainty: "Aún no visible", similarPhotosHidden: "{count} fotos parecidas se muestran mediante una sola imagen. Los originales no se han eliminado.", proposals: "Propuestas de nombre", proposeName: "Proponer un nombre", proposedName: "Nombre", proposalNote: "Motivo o nota", saveProposal: "Guardar propuesta", loginToPropose: "Inicia sesión para proponer un nombre", acceptName: "Usar este nombre",
   placeSummary: "Cómo es este lugar", photoInference: "Posibilidades observadas en la foto", sceneFound: "Encontrado en esta foto", notDetected: "En esta foto no se encontró la figura de ningún ser vivo.", notAssessable: "Esta foto por sí sola no permitió evaluar si había un ser vivo.",
@@ -175,7 +177,7 @@ const es: ObservationFirstRecordDetailCopy = {
 const ptBr: ObservationFirstRecordDetailCopy = {
   ...en,
   back: "Voltar", menu: "Menu", records: "Registros", home: "Início", language: "Idioma", media: "Fotos, vídeo e som", enlargePhoto: "Ver foto ampliada", openVideo: "Abrir vídeo", openAudio: "Abrir áudio", mediaNavigation: "Trocar mídia",
-  natureRecord: "Registro da natureza", publicLocation: "Local seguro", visibility: { public: "Público", limited: "Limitado", private: "Privado" }, edit: "Edição detalhada", share: "Compartilhar", updatedNotice: "Alterações salvas.",
+  natureRecord: "Registro da natureza", publicLocation: "Local seguro", visibility: { public: "Público", limited: "Limitado", private: "Privado" }, aiFeedbackTitle: "Uma nota breve da IA", aiNextPhotoTitle: "Uma foto que pode ajudar", edit: "Edição detalhada", share: "Compartilhar", updatedNotice: "Alterações salvas.",
   found: "Encontrado neste registro", aiFound: "O que a IA encontrou", learning: "O que podemos saber", aiCandidate: "Candidato encontrado pela IA", communityProposalAvailable: "Há sugestões de nome", candidateTemplate: "Pode ser {name}", openDetails: "Ver detalhes", openAll: "Ver tudo", recordName: "Nome deste registro", photoCandidate: "Candidato a partir da foto",
   distinguishingPoints: "O que observar", shootingAdvice: "Uma foto que pode ajudar", compareCandidates: "Comparar candidatos parecidos", compareCandidatesLead: "As pistas visíveis aparecem junto do que ainda precisa ser confirmado.", candidateEvidence: "Pista", candidateUncertainty: "Ainda não visível", similarPhotosHidden: "{count} fotos parecidas são representadas por uma imagem. Os originais não foram excluídos.", proposals: "Sugestões de nome", proposeName: "Sugerir um nome", proposedName: "Nome", proposalNote: "Motivo ou observação", saveProposal: "Salvar sugestão", loginToPropose: "Entre para sugerir um nome", acceptName: "Usar este nome",
   placeSummary: "Como é este lugar", photoInference: "Possibilidades observadas na foto", sceneFound: "Encontrado nesta foto", notDetected: "Nesta foto, não foi possível encontrar a figura de um ser vivo.", notAssessable: "Esta foto sozinha não permitiu avaliar se havia um ser vivo.",
