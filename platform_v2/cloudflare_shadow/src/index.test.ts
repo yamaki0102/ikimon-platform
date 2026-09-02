@@ -14243,6 +14243,70 @@ test("owner observation reassess reuses active intent, retries failed work once,
   assert.equal([...obs.outbox.values()].filter((row) => String(row.topic) === "observation.reassess").length, 2);
 });
 
+test("authorized owner re-arms an exhausted failed reassessment as one fresh manual cycle", async () => {
+  const { env, core, obs, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "owner-reassess-exhausted",
+    userId: "owner-user",
+    observedAt: "2026-06-25T00:00:00.000Z",
+    latitude: 34.7,
+    longitude: 137.8,
+  });
+  const rawToken = "owner-reassess-exhausted-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "owner-user",
+    display_name: "Owner User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  await post("/api/v1/observations/owner-reassess-exhausted/photos/upload", env, {
+    filename: "owner-reassess-exhausted.png",
+    mimeType: "image/png",
+    base64Data: tinyPngBase64()
+  });
+  const requestRow = obs.observationReassessmentRequests.get("owner-reassess-exhausted:standard:owner-user");
+  assert.ok(requestRow);
+  requestRow.request_state = "failed";
+  requestRow.source_payload_json = JSON.stringify({
+    attemptCount: 3,
+    errorCode: "gemini_batch_item_failed:Request contains an invalid argument.",
+    failedAt: "2026-06-25T00:05:00.000Z",
+    batchExecution: { version: "ikimon.observation-gemini-batch/v2", claimId: "stale-claim" }
+  });
+  const reassess = () => worker.fetch(new Request("https://shadow.test/api/v1/observations/owner-reassess-exhausted/reassess", {
+    method: "POST",
+    headers: { cookie: "ikimon_v2_session=" + rawToken }
+  }), env);
+  const outboxBefore = [...obs.outbox.values()].filter((row) => String(row.topic) === "observation.reassess").length;
+  const queueBefore = queue.messages.length;
+
+  const response = await reassess();
+  assert.equal(response.status, 202);
+  const payload = await response.json() as any;
+  assert.equal(payload.reassessment.state, "pending");
+  assert.equal(requestRow.request_state, "pending");
+  const rearmed = JSON.parse(requestRow.source_payload_json);
+  assert.equal(rearmed.attemptCount, 0);
+  assert.equal(rearmed.executionStatus, "pending");
+  assert.equal(rearmed.retryTrigger, "explicit_owner");
+  assert.equal(rearmed.previousAttemptCount, 3);
+  assert.equal(rearmed.previousErrorCode, "gemini_batch_item_failed:Request contains an invalid argument.");
+  assert.equal("batchExecution" in rearmed, false);
+  assert.equal(queue.messages.length, queueBefore + 1);
+  assert.equal([...obs.outbox.values()].filter((row) => String(row.topic) === "observation.reassess").length, outboxBefore + 1);
+
+  const duplicate = await reassess();
+  assert.equal(duplicate.status, 202);
+  assert.equal((await duplicate.json() as any).reassessment.state, "pending");
+  assert.equal(queue.messages.length, queueBefore + 1);
+  assert.equal([...obs.outbox.values()].filter((row) => String(row.topic) === "observation.reassess").length, outboxBefore + 1);
+});
+
 test("production reference candidates route is native and never probes origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {

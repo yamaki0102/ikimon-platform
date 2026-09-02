@@ -8249,6 +8249,41 @@ async function requestCompatibleObservationReassessment(observationId: string, r
 
   if (existing) {
     const attemptCount = reassessmentAttemptCount(existing.source_payload_json);
+    if (requestKind === "standard" && attemptCount >= 3) {
+      const previous = reassessmentPayload(existing.source_payload_json);
+      const previousErrorCode = typeof previous.errorCode === "string" ? previous.errorCode.slice(0, 180) : null;
+      const previousFailedAt = typeof previous.failedAt === "string" ? previous.failedAt : null;
+      const outboxAiId = "outbox_" + existing.request_id + "_manual_" + crypto.randomUUID().replace(/-/gu, "");
+      delete previous.batchExecution;
+      delete previous.errorCode;
+      delete previous.failedAt;
+      const nextPayload = JSON.stringify({
+        ...previous,
+        source: "cloudflare_observation_reassessment_request_ledger",
+        enqueueId: outboxAiId,
+        executionStatus: "pending",
+        attemptCount: 0,
+        requestedAt: new Date().toISOString(),
+        retryTrigger: "explicit_owner",
+        previousErrorCode,
+        previousAttemptCount: attemptCount,
+        ...(previousFailedAt ? { previousFailedAt } : {}),
+      });
+      const updated = await env.OBS_DB.prepare(
+        "UPDATE observation_reassessment_requests SET request_state = 'pending', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP WHERE request_id = ? AND request_state = 'failed' AND source_payload_json = ?"
+      ).bind(nextPayload, existing.request_id, existing.source_payload_json).run() as { meta?: { changes?: number } };
+      if (Number(updated.meta?.changes ?? 0) === 0) {
+        const current = await env.OBS_DB.prepare(
+          "SELECT request_id, request_state, source_payload_json FROM observation_reassessment_requests WHERE observation_id = ? AND request_kind = ? AND actor_user_id = ? LIMIT 1"
+        ).bind(normalizedObservationId, requestKind, session.userId).first<{ request_id: string; request_state: string; source_payload_json: string }>();
+        return current ? responseFor(current) : json({ ok: false, error: "reassessment_state_unavailable" }, 503, { "cache-control": "no-store" });
+      }
+      await env.OBS_DB.prepare(
+        "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      ).bind(outboxAiId, "observation.reassess", normalizedObservationId, JSON.stringify({ observationId: normalizedObservationId, requestKind, retryTrigger: "explicit_owner" }), null).run();
+      const dispatch = await dispatchOutboxBestEffort(env, [{ outboxId: outboxAiId, topic: "observation.reassess", targetId: normalizedObservationId }]);
+      return responseFor({ request_id: existing.request_id, request_state: "pending" }, dispatch);
+    }
     if (attemptCount >= 3) {
       return json({ ok: false, error: "reassessment_retry_exhausted" }, 409, { "cache-control": "no-store" });
     }
