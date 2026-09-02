@@ -95,7 +95,7 @@ import {
 import {
   loadCloudflarePlaceAtlasProfile,
 } from "./placeAtlasProfileNative";
-import { handlePublicationFeedNativeRequest } from "./publicationFeedNative";
+import { handlePublicationFeedNativeRequest, metadataProvesPublicFaceSafety } from "./publicationFeedNative";
 import { resolveFieldsForPointNative } from "./fieldResolutionNative";
 import {
   classifyRyuyoPoint,
@@ -22066,6 +22066,7 @@ type FieldRecentPublicRecord = {
   exact_lng: number | null;
   resolved_field_ids_json?: string | null;
   public_derivative_key?: string | null;
+  public_derivative_metadata_json?: string | null;
 };
 
 type FieldRecentPublicRecordGroups = {
@@ -22112,7 +22113,12 @@ async function loadFieldRecentPublicRecords(fieldId: string, env: Env): Promise<
     "AND a.processing_state = 'uploaded' AND a.public_derivative_key IS NOT NULL " +
     "AND a.public_derivative_verified_at IS NOT NULL AND a.public_derivative_metadata_json IS NOT NULL " +
     "AND a.exif_scrub_state = 'scrubbed' AND a.public_ready_at IS NOT NULL AND a.mime LIKE 'image/%' " +
-    "ORDER BY COALESCE(a.public_ready_at, a.uploaded_at, '') DESC, a.asset_id LIMIT 1) AS public_derivative_key " +
+    "ORDER BY COALESCE(a.public_ready_at, a.uploaded_at, '') DESC, a.asset_id LIMIT 1) AS public_derivative_key, " +
+    "(SELECT a.public_derivative_metadata_json FROM asset_ledger a WHERE a.observation_id = o.observation_id " +
+    "AND a.processing_state = 'uploaded' AND a.public_derivative_key IS NOT NULL " +
+    "AND a.public_derivative_verified_at IS NOT NULL AND a.public_derivative_metadata_json IS NOT NULL " +
+    "AND a.exif_scrub_state = 'scrubbed' AND a.public_ready_at IS NOT NULL AND a.mime LIKE 'image/%' " +
+    "ORDER BY COALESCE(a.public_ready_at, a.uploaded_at, '') DESC, a.asset_id LIMIT 1) AS public_derivative_metadata_json " +
     "FROM readmodel_public_observations r " +
     "JOIN observations o ON o.observation_id = r.observation_id " +
     "JOIN observation_data_rights rights ON rights.visit_id = r.observation_id " +
@@ -22168,9 +22174,11 @@ function fieldRecentRecordDisplayName(row: FieldRecentPublicRecord): string {
   return normalizeOptionalText(row.taxon_label) ?? "名前待ち";
 }
 
-function fieldRecentRecordPhotoUrl(row: FieldRecentPublicRecord): string | null {
+export function fieldRecentRecordPhotoUrl(row: FieldRecentPublicRecord): string | null {
   const key = normalizeOptionalText(row.public_derivative_key);
-  return key && isSafePublicDerivedImageKey(key) ? publicMediaUrl(key) : null;
+  return key && isSafePublicDerivedImageKey(key) && metadataProvesPublicFaceSafety(row.public_derivative_metadata_json ?? null)
+    ? publicMediaUrl(key)
+    : null;
 }
 
 function formatFieldRecentObservedAt(value: string): string {

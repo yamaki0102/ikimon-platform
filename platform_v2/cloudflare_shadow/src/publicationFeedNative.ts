@@ -294,7 +294,7 @@ function pointInGeometry(lng: unknown, lat: unknown, geometry: SupportedGeometry
     : geometry.coordinates.some((polygon) => pointInPolygon(lng, lat, polygon));
 }
 
-function metadataProvesPublicFaceSafety(value: string | null): boolean {
+export function metadataProvesPublicFaceSafety(value: string | null): boolean {
   if (!value) return false;
   try {
     const metadata = JSON.parse(value) as Record<string, unknown>;

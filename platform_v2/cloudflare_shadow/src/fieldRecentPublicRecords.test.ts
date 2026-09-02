@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { filterFieldRecentPublicRecords } from "./index";
+import { fieldRecentRecordPhotoUrl, filterFieldRecentPublicRecords } from "./index";
 
 const indexSource = readFileSync(fileURLToPath(new URL("./index.ts", import.meta.url)), "utf8");
 const fieldId = "372eafbd-ea9c-4b2f-ab5f-434b81b928b2";
@@ -43,4 +43,22 @@ test("field-scoped recency keeps an inside record despite unrelated outside volu
   };
   const result = filterFieldRecentPublicRecords([...outside, inside], fieldId, geometry);
   assert.deepEqual(result.map((row) => row.observation_id), ["inside-ryuyo-1"]);
+});
+
+test("field record image requires the shared face-privacy proof", () => {
+  const base = {
+    observation_id: "image-proof",
+    observed_at: "2026-09-02T00:00:00.000Z",
+    taxon_label: "昆虫",
+    public_area_label: "竜洋昆虫自然観察公園",
+    asset_count: 1,
+    exact_lat: 34.6695,
+    exact_lng: 137.8400,
+    public_derivative_key: "derived/image-proof/display.webp",
+  } as Parameters<typeof fieldRecentRecordPhotoUrl>[0];
+  assert.equal(fieldRecentRecordPhotoUrl(base), null);
+  assert.equal(
+    fieldRecentRecordPhotoUrl({ ...base, public_derivative_metadata_json: JSON.stringify({ facePrivacy: "no_faces" }) }),
+    "/derived/image-proof/display.webp",
+  );
 });
