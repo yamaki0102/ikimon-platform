@@ -548,7 +548,8 @@ function escapeAttribute(value: string): string {
 
 function nonceAttribute(html: string, cspNonce = ""): string {
   const match = html.match(/<script\b[^>]*\bnonce=(["'])([^"']+)\1/iu);
-  const nonce = cspNonce || match?.[2];
+  const carrier = html.match(/data-page-csp-nonce=(['"])([^"']+)\1/iu)?.[2];
+  const nonce = cspNonce || carrier || match?.[2];
   return nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
 }
 
