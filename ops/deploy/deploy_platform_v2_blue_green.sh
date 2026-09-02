@@ -457,6 +457,28 @@ render_nginx_for_port() {
   sed "s#127\\.0\\.0\\.1:3200#127.0.0.1:${port}#g" "${NGINX_TEMPLATE}" > "${rendered}"
 }
 
+verify_rendered_nginx_contract() {
+  local rendered="$1"
+  local port="$2"
+
+  if ! grep -q "location \\^~ /intake-hub/" "${rendered}"; then
+    echo "Rendered nginx config is missing the ikimon-intake-hub route" >&2
+    exit 1
+  fi
+  if ! grep -q "proxy_pass https://202403010951055736169.onamaeweb.jp/intake-hub/;" "${rendered}"; then
+    echo "Rendered nginx config is missing the ikimon-intake-hub Onamae proxy target" >&2
+    exit 1
+  fi
+  if grep -q "127\\.0\\.0\\.1:3200" "${rendered}"; then
+    echo "Rendered nginx config still references template port 3200" >&2
+    exit 1
+  fi
+  if ! grep -q "127\\.0\\.0\\.1:${port}" "${rendered}"; then
+    echo "Rendered nginx config does not reference candidate port ${port}" >&2
+    exit 1
+  fi
+}
+
 promote_candidate() {
   local candidate port previous snapshot rendered
   candidate="$(tr -d '[:space:]' < "${STATE_DIR}/candidate_color")"
@@ -475,6 +497,7 @@ promote_candidate() {
   snapshot="$(snapshot_nginx)"
   rendered="$(mktemp)"
   render_nginx_for_port "${port}" "${rendered}"
+  verify_rendered_nginx_contract "${rendered}" "${port}"
 
   if ! cp "${rendered}" "${LIVE_AVAILABLE}"; then
     rm -f "${rendered}"
