@@ -17,6 +17,8 @@ import {
   geminiBatchDisplayName,
   geminiBatchResponseText,
   mergeGeminiObservationEvidence,
+  parseGeminiCensusEvidence,
+  parseGeminiPrimaryEvidence,
   type GeminiCensusEvidence,
   type GeminiEnvironmentEvidence,
   type GeminiPrimaryEvidence,
@@ -104,6 +106,23 @@ test("not detected and not assessable remain separate states", () => {
     { ...environment, assessment_state: "not_assessable" },
     2,
   ).detectionState, "not_assessable");
+});
+
+test("partial provider JSON keeps the reassessment merge safe when required arrays are omitted", () => {
+  const parsedPrimary = parseGeminiPrimaryEvidence(JSON.stringify({
+    record_class: "environment",
+    information_state: "not_assessable",
+    scene_class: "no_clear_subject",
+  }));
+  const parsedCensus = parseGeminiCensusEvidence(JSON.stringify({
+    detection_state: "not_assessable",
+    scene: "uncertain",
+  }));
+  assert.deepEqual(parsedPrimary.subjects, []);
+  assert.deepEqual(parsedPrimary.regions, []);
+  assert.deepEqual(parsedCensus.groups, []);
+  assert.deepEqual(parsedCensus.regions, []);
+  assert.equal(mergeGeminiObservationEvidence(parsedPrimary, parsedCensus, environment, 1).detectionState, "not_assessable");
 });
 
 test("summary can only enrich already extracted subjects", () => {

@@ -446,8 +446,32 @@ const parseJson = <T>(text: string): T => {
   try { return JSON.parse(text) as T; } catch { throw new Error("gemini_batch_output_invalid_json"); }
 };
 
-export const parseGeminiPrimaryEvidence = (text: string): GeminiPrimaryEvidence => parseJson<GeminiPrimaryEvidence>(text);
-export const parseGeminiCensusEvidence = (text: string): GeminiCensusEvidence => parseJson<GeminiCensusEvidence>(text);
+export const parseGeminiPrimaryEvidence = (text: string): GeminiPrimaryEvidence => {
+  const parsed = parseJson<Partial<GeminiPrimaryEvidence>>(text);
+  return {
+    record_class: parsed.record_class ?? "unknown",
+    information_state: parsed.information_state ?? "not_assessable",
+    scene_class: parsed.scene_class ?? "no_clear_subject",
+    subjects: Array.isArray(parsed.subjects) ? parsed.subjects : [],
+    regions: Array.isArray(parsed.regions) ? parsed.regions : [],
+    non_biological_labels: Array.isArray(parsed.non_biological_labels) ? parsed.non_biological_labels : [],
+    quality_flags: Array.isArray(parsed.quality_flags) ? parsed.quality_flags : [],
+    needs_review: parsed.needs_review === true,
+    review_reasons: Array.isArray(parsed.review_reasons) ? parsed.review_reasons : [],
+  };
+};
+export const parseGeminiCensusEvidence = (text: string): GeminiCensusEvidence => {
+  const parsed = parseJson<Partial<GeminiCensusEvidence>>(text);
+  return {
+    detection_state: parsed.detection_state ?? "not_assessable",
+    scene: parsed.scene ?? "uncertain",
+    groups: Array.isArray(parsed.groups) ? parsed.groups : [],
+    regions: Array.isArray(parsed.regions) ? parsed.regions : [],
+    relations: Array.isArray(parsed.relations) ? parsed.relations : [],
+    needs_review: parsed.needs_review === true,
+    review_reasons: Array.isArray(parsed.review_reasons) ? parsed.review_reasons : [],
+  };
+};
 export const parseGeminiEnvironmentEvidence = (text: string): GeminiEnvironmentEvidence => parseJson<GeminiEnvironmentEvidence>(text);
 export const parseGeminiObservationSummary = (text: string): GeminiObservationSummary => parseJson<GeminiObservationSummary>(text);
 export const parseGeminiSpecialistEvidence = (text: string): GeminiSpecialistEvidence => parseJson<GeminiSpecialistEvidence>(text);
