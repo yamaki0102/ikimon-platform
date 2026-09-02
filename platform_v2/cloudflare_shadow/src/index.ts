@@ -95,7 +95,7 @@ import {
 import {
   loadCloudflarePlaceAtlasProfile,
 } from "./placeAtlasProfileNative";
-import { handlePublicationFeedNativeRequest, metadataProvesPublicFaceSafety } from "./publicationFeedNative";
+import { handlePublicationFeedNativeRequest, metadataProvesPublicFaceSafety, PUBLIC_CIVIC_VISIBILITY_SQL } from "./publicationFeedNative";
 import { resolveFieldsForPointNative } from "./fieldResolutionNative";
 import {
   classifyRyuyoPoint,
@@ -22125,6 +22125,7 @@ async function loadFieldRecentPublicRecords(fieldId: string, env: Env): Promise<
     "WHERE o.visibility = 'public' AND o.emergency_hidden = 0 " +
     "AND rights.record_consent IN ('public_summary', 'external_export') " +
     "AND rights.withdrawal_status = 'active' " +
+    "AND " + PUBLIC_CIVIC_VISIBILITY_SQL + " " +
     "AND NOT EXISTS (SELECT 1 FROM civic_observation_contexts civic " +
     "WHERE civic.visit_id = r.observation_id AND civic.risk_lane = 'rare_sensitive') " +
     "AND (EXISTS (SELECT 1 FROM json_each(COALESCE(o.resolved_field_ids_json, '[]')) resolved " +

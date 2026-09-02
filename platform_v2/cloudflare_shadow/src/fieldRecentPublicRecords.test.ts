@@ -5,6 +5,7 @@ import test from "node:test";
 import { fieldRecentRecordPhotoUrl, filterFieldRecentPublicRecords } from "./index";
 
 const indexSource = readFileSync(fileURLToPath(new URL("./index.ts", import.meta.url)), "utf8");
+const publicationFeedSource = readFileSync(fileURLToPath(new URL("./publicationFeedNative.ts", import.meta.url)), "utf8");
 const fieldId = "372eafbd-ea9c-4b2f-ab5f-434b81b928b2";
 const geometry = {
   type: "Polygon",
@@ -18,6 +19,10 @@ test("field recent query scopes by resolved field or bbox before recency limit",
   assert.ok(orderStart > scopeStart);
   assert.match(indexSource.slice(scopeStart, orderStart), /o\.exact_lat BETWEEN \? AND \?/);
   assert.match(indexSource.slice(scopeStart, orderStart), /o\.exact_lng BETWEEN \? AND \?/);
+  assert.match(indexSource, /PUBLIC_CIVIC_VISIBILITY_SQL/);
+  assert.match(publicationFeedSource, /COALESCE\(civic\.audience_scope, 'public'\)/);
+  assert.match(publicationFeedSource, /COALESCE\(civic\.public_precision, 'municipality'\)/);
+  assert.match(publicationFeedSource, /civic\.risk_lane = 'normal'/);
 });
 
 test("field-scoped recency keeps an inside record despite unrelated outside volume", () => {

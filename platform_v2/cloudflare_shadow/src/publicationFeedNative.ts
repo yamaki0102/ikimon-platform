@@ -14,6 +14,10 @@ const PUBLICATION_FEED_DEFAULT_LIMIT = 12;
 const PUBLICATION_FEED_MAX_LIMIT = 24;
 const PUBLICATION_FEED_QUERY_LIMIT = 96;
 
+export const PUBLIC_CIVIC_VISIBILITY_SQL = "COALESCE(civic.audience_scope, 'public') = 'public' " +
+  "AND COALESCE(civic.public_precision, 'municipality') NOT IN ('hidden', 'exact_private') " +
+  "AND civic.risk_lane = 'normal'";
+
 type D1Value = string | number | null;
 
 export interface PublicationFeedNativePreparedStatement {
@@ -192,9 +196,7 @@ const PUBLICATION_FEED_NATIVE_SQL = `
        )
      )
      AND rights.withdrawal_status = 'active'
-     AND COALESCE(civic.audience_scope, 'public') = 'public'
-     AND COALESCE(civic.public_precision, 'municipality') NOT IN ('hidden', 'exact_private')
-     AND civic.risk_lane = 'normal'
+     AND ${PUBLIC_CIVIC_VISIBILITY_SQL}
      AND EXISTS (
        SELECT 1
          FROM record_observation_source_map publication_source
