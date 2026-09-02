@@ -801,6 +801,7 @@ const primaryFusedCandidate = (
   subject: GeminiPrimarySubject,
   regions: GeminiRegion[],
   imageCount: number,
+  sourceModel = GEMINI_PRIMARY_MODEL,
 ): GeminiFusedCandidate | null => {
   const name = short(subject.name, 120);
   const scientificName = short(subject.scientific, 180);
@@ -816,7 +817,7 @@ const primaryFusedCandidate = (
     missingFeatures: [],
     contradictions: [],
     sourceLanes: ["primary"],
-    sourceModels: [GEMINI_PRIMARY_MODEL],
+    sourceModels: [sourceModel],
     sourceAssetIndices: [located.assetIndex],
     subjectLocator: located.subjectLocator,
   });
@@ -826,6 +827,7 @@ const censusFusedCandidate = (
   group: GeminiCensusGroup,
   regions: GeminiRegion[],
   imageCount: number,
+  sourceModel = GEMINI_ANALYSIS_MODEL,
 ): GeminiFusedCandidate | null => {
   const name = short(group.label, 120);
   const scientificName = short(group.scientific, 180);
@@ -841,7 +843,7 @@ const censusFusedCandidate = (
     missingFeatures: uniqueText(group.missing_features ?? []),
     contradictions: uniqueText(group.contradictions ?? []),
     sourceLanes: ["census"],
-    sourceModels: [GEMINI_ANALYSIS_MODEL],
+    sourceModels: [sourceModel],
     sourceAssetIndices: [located.assetIndex],
     subjectLocator: located.subjectLocator,
   });
@@ -899,13 +901,19 @@ const subjectFromFusedCandidate = (candidate: GeminiFusedCandidate): Observation
   subjectLocator: candidate.subjectLocator,
 });
 
-export function mergeGeminiObservationEvidence(primary: GeminiPrimaryEvidence, census: GeminiCensusEvidence, environment: GeminiEnvironmentEvidence, imageCount: number): GeminiMergedObservation {
+export function mergeGeminiObservationEvidence(
+  primary: GeminiPrimaryEvidence,
+  census: GeminiCensusEvidence,
+  environment: GeminiEnvironmentEvidence,
+  imageCount: number,
+  modelOverrides: { primary?: string; census?: string } = {},
+): GeminiMergedObservation {
   const primarySource = primary.subjects.find((subject) => subject.role === "primary") ?? primary.subjects[0] ?? null;
   const censusPrimary = census.groups.find((group) => group.role === "primary") ?? census.groups[0] ?? null;
   const censusRegions = census.regions.map((region) => ({ ...region, subject_id: region.group_id }));
   const topCandidates = mergeFusedCandidates([
-    ...(primarySource ? [primaryFusedCandidate(primarySource, primary.regions, imageCount)] : []),
-    ...(censusPrimary ? [censusFusedCandidate(censusPrimary, censusRegions, imageCount)] : []),
+    ...(primarySource ? [primaryFusedCandidate(primarySource, primary.regions, imageCount, modelOverrides.primary)] : []),
+    ...(censusPrimary ? [censusFusedCandidate(censusPrimary, censusRegions, imageCount, modelOverrides.census)] : []),
   ].filter((candidate): candidate is GeminiFusedCandidate => candidate !== null)).slice(0, 5);
   const main = topCandidates[0] ? subjectFromFusedCandidate(topCandidates[0]) : null;
   const alternativeNames = new Set(

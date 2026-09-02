@@ -31214,7 +31214,13 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
     const primaryEvidence = parseGeminiPrimaryEvidenceDirect(primaryResult.text);
     const censusEvidence = parseGeminiCensusEvidenceDirect(censusResult.text);
     const environmentEvidence = parseGeminiEnvironmentEvidenceDirect(environmentResult.text);
-    const merged: GeminiMergedObservation = mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, prepared.assets.length);
+    const merged: GeminiMergedObservation = mergeGeminiObservationEvidence(
+      primaryEvidence,
+      censusEvidence,
+      environmentEvidence,
+      prepared.assets.length,
+      { primary: GEMINI_PRIMARY_MODEL, census: GEMINI_PRIMARY_MODEL },
+    );
     merged.specialistEscalation = decideGeminiSpecialistEscalation(merged, primaryEvidence, censusEvidence);
 
     if (merged.specialistEscalation.required) {
@@ -31707,16 +31713,24 @@ async function finalizeGeminiObservationReassessment(
   const assessmentStatus = merged.detectionState === "detected" ? "ai_judgement" : merged.detectionState === "not_assessable" ? "completed_not_assessable" : "completed_no_candidate";
   const completedAt = new Date().toISOString();
   const specialistApplied = merged.topCandidates.some((topCandidate) => topCandidate.sourceLanes.includes("specialist"));
+  const interactive = provider.mode === "direct_generate_content";
+  const providerModels = {
+    primary: GEMINI_PRIMARY_MODEL,
+    census: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_ANALYSIS_MODEL,
+    environment: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_ANALYSIS_MODEL,
+    specialist: GEMINI_SPECIALIST_MODEL,
+    summary: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_SUMMARY_MODEL,
+  };
   const assessmentPayload = {
     source: provider.source,
     providerMode: provider.mode,
     providerLanes: provider.lanes ?? null,
     models: {
-      primary: GEMINI_PRIMARY_MODEL,
-      census: GEMINI_ANALYSIS_MODEL,
-      environment: GEMINI_ANALYSIS_MODEL,
-      specialist: specialistApplied ? GEMINI_SPECIALIST_MODEL : null,
-      summary: GEMINI_SUMMARY_MODEL,
+      primary: providerModels.primary,
+      census: providerModels.census,
+      environment: providerModels.environment,
+      specialist: specialistApplied ? providerModels.specialist : null,
+      summary: providerModels.summary,
     },
     promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
     ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
@@ -31795,7 +31809,7 @@ async function finalizeGeminiObservationReassessment(
     ).bind(
       crypto.randomUUID(), observationId, prepared.assets[0]?.asset_id ?? null,
       JSON.stringify(merged.environment), merged.environment.cues.length > 0 ? Math.max(...merged.environment.cues.map((cue) => cue.confidence)) : null,
-      GEMINI_ANALYSIS_MODEL, GEMINI_OBSERVATION_PROMPT_VERSION, GEMINI_OBSERVATION_RULE_VERSION,
+      providerModels.environment, GEMINI_OBSERVATION_PROMPT_VERSION, GEMINI_OBSERVATION_RULE_VERSION,
       `${provider.source}:${observationId}:${GEMINI_OBSERVATION_RULE_VERSION}:environment`,
       JSON.stringify({
         assetIds: prepared.assets.map((asset) => asset.asset_id),
@@ -31844,9 +31858,11 @@ async function finalizeGeminiObservationReassessment(
       providerMode: provider.mode,
       providerLanes: provider.lanes ?? null,
       aiRunId,
-      models: specialistApplied
-        ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
-        : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+      models: interactive
+        ? [GEMINI_PRIMARY_MODEL]
+        : specialistApplied
+          ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
+          : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
       promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
       ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
       recordClass: merged.recordClass,

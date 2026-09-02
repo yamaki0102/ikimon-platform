@@ -114,6 +114,14 @@ test("not detected and not assessable remain separate states", () => {
   ).detectionState, "not_assessable");
 });
 
+test("interactive fusion can record the fixed Gemini 3.5 model for every active lane", () => {
+  const merged = mergeGeminiObservationEvidence(primary, census, environment, 2, {
+    primary: GEMINI_PRIMARY_MODEL,
+    census: GEMINI_PRIMARY_MODEL,
+  });
+  assert.deepEqual([...new Set(merged.topCandidates.flatMap((candidate) => candidate.sourceModels))], [GEMINI_PRIMARY_MODEL]);
+});
+
 test("partial provider JSON keeps the reassessment merge safe when required arrays are omitted", () => {
   const parsedPrimary = parseGeminiPrimaryEvidence(JSON.stringify({
     record_class: "environment",
