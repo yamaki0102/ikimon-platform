@@ -575,7 +575,7 @@ export async function enhancePostCaptureValueLoop(request: Request, response: Re
   if (!contentType.includes("text/html")) return response;
 
   const html = await response.text();
-  const patched = applyPostCaptureValueLoopPatch(html, nonceFromContentSecurityPolicy(response.headers.get("content-security-policy")));
+  const patched = applyPostCaptureValueLoopPatch(html, nonceFromContentSecurityPolicy(response.headers.get("content-security-policy")) || String(response.headers.get("x-ikimon-csp-nonce") ?? ""));
   if (patched === html) {
     const headers = new Headers(response.headers);
     headers.delete("content-length");

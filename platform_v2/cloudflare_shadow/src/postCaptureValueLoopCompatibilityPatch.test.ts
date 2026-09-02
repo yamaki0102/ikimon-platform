@@ -114,6 +114,7 @@ test("dynamic compatibility injection reuses the response CSP nonce", async () =
       headers: {
         "content-type": "text/html; charset=utf-8",
         "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-page-csp-nonce' https://static.cloudflareinsights.com",
+        "x-ikimon-csp-nonce": "page-csp-nonce",
       },
     }),
   );

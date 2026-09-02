@@ -281,7 +281,7 @@ export async function enforcePostCaptureValueLoopCompatibility(
   if (!contentType.includes("text/html")) return response;
 
   const html = await response.text();
-  const patched = applyPostCaptureValueLoopCompatibilityPatch(html, nonceFromContentSecurityPolicy(response.headers.get("content-security-policy")));
+  const patched = applyPostCaptureValueLoopCompatibilityPatch(html, nonceFromContentSecurityPolicy(response.headers.get("content-security-policy")) || String(response.headers.get("x-ikimon-csp-nonce") ?? ""));
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   if (patched !== html) {

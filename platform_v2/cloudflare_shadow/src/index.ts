@@ -23409,6 +23409,7 @@ function browserSecurityHeaders(cspNonce: string, isProduction: boolean): Record
   ].join("; ");
   return {
     "content-security-policy": contentSecurityPolicy,
+    "x-ikimon-csp-nonce": cspNonce,
     "x-content-type-options": "nosniff",
     "x-frame-options": "SAMEORIGIN",
     "referrer-policy": "strict-origin-when-cross-origin",
