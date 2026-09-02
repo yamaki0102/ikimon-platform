@@ -37,6 +37,28 @@ test("execution roadmap v3 pins future delivery order without activating it", ()
   assert.equal(delivery.roadmap.find((item: any) => item.id === M9)?.implementation_allowed, false);
 });
 
+test("executor slot is filled by lane priority and promotion happens only at risk-class boundaries", () => {
+  const delivery = JSON.parse(repoText("platform_v2/product-registry/delivery.json")) as any;
+  const product = JSON.parse(repoText("platform_v2/product-registry/product.json")) as any;
+  const plan = repoText("docs/spec/zukan-product-architecture/PLAN.md");
+  assert.deepEqual(delivery.execution_roadmap.executor_slot_lanes, ["CORE_LOOP", "SELF_SERVE_FOUNDATION", "ROADMAP_FRONTIER"]);
+  assert.equal(delivery.execution_roadmap.executor_slot_lane_rule_is_executor_autonomous, false);
+  assert.deepEqual(delivery.execution_roadmap.promotion_boundaries, ["MILESTONE_DESIGN_EXIT", "FIRST_RUNTIME_MUTATION", "PRODUCTION"]);
+  assert.equal(delivery.execution_roadmap.source_only_subslices_need_separate_promotion, false);
+  assert.equal(delivery.execution_roadmap.m9_demand_probe_required_before_profile_code, true);
+  assert.equal(delivery.execution_roadmap.m12_manual_paid_delivery_allowed_before_software, true);
+  assert.match(delivery.execution_roadmap.m7_calendar_gate.m7_5_production_by, /^2027-0[1-3]$/);
+  assert.ok(product.execution_roadmap.rules.includes("core_loop_defects_preempt_frontier_work"));
+  assert.ok(product.execution_roadmap.rules.includes("m8a_does_not_wait_for_m7"));
+  assert.match(delivery.roadmap.find((item: any) => item.id === "milestone.m8.operational-summary-raw-portability")?.decision_ref, /neither waits for M7/);
+  assert.match(delivery.roadmap.find((item: any) => item.id === M10)?.existing_runtime_seed?.locator, /publicationFeedNative\.ts$/);
+  assert.match(plan, /## Core Loop lane/);
+  assert.match(plan, /## NEEDS_DECISION/);
+  assert.doesNotMatch(plan, /`ACTIVE`: M7/, "PLAN.md must not carry a second copy of the rolling frontier");
+  assert.doesNotMatch(repoText("docs/spec/zukan-product-architecture/PROFILE_HORIZON.md"), /`ACTIVE`: M7/);
+  assert.doesNotMatch(repoText("docs/spec/zukan-product-architecture/SPEC.md"), /`ACTIVE`: M7/);
+});
+
 test("M9 default profile order starts with photo contest and reuses mission for stamp rally", () => {
   const delivery = JSON.parse(repoText("platform_v2/product-registry/delivery.json")) as any;
   const m9 = delivery.roadmap.find((item: any) => item.id === M9);
@@ -79,6 +101,8 @@ test("planning metrics are baselines and privacy-minimized", () => {
   assert.equal(delivery.planning_metrics.mode, "BASELINE_BEFORE_TARGETS");
   assert.deepEqual(delivery.planning_metrics.metrics, [
     "first_record_completion",
+    "ai_feedback_visible_latency",
+    "place_revisit_rate",
     "program_self_start_rate",
     "join_completion",
     "review_lead_time",

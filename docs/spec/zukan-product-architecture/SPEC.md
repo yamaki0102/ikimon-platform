@@ -238,13 +238,7 @@ Current delivery state and executor eligibility are owned by:
 - `platform_v2/product-registry/requirements.json` and Eval contracts for product acceptance;
 - the shared Verified Outcome Status Resolver for resolved status and evidence eligibility.
 
-Current planning projection:
-
-- `ACTIVE`: M7 Program Continuity & Handover
-- `READY_NEXT`: M8 Operational Summary & Raw Portability
-- `SHAPED_NEXT`: M9 Regional Program Profiles
-- M10 Regional Publication Profiles, M11 Source & Public Projection Exchange and M12 Professional & Managed Outcomes remain dependency-shaped only
-- M5 Live-camera remains deferred
+The current frontier (`ACTIVE` / `READY_NEXT` / `SHAPED_NEXT` / dependency-shaped / deferred) is projected only in `delivery.json#rolling_frontier`; this contract does not repeat it.
 
 The broad product horizon is fixed in `PROFILE_HORIZON.md`. Describing a future Program or Publication profile does not make it runtime-active or executor-eligible.
 
@@ -252,13 +246,14 @@ The broad product horizon is fixed in `PROFILE_HORIZON.md`. Describing a future 
 
 The current execution roadmap adds these product-level rules without changing runtime status:
 
-1. close M1-M6/App Experience into regression-protected foundation instead of repeatedly redesigning them;
-2. complete cross-profile M7 and M8 before scaling profile count;
-3. prove M9 with the smallest demand-backed non-biological profile rather than building a universal profile engine;
-4. compose M10 Publications from existing governed truth rather than create new CMS/source silos;
+1. M1-M6/App Experience are the Core Loop (`撮る -> 保存 -> AI候補 -> Review -> Areaに蓄積 -> 再訪 -> Program参加 -> Publication -> 次の参加`); its defects and product-value corrections take the executor slot before frontier work, and redesign for its own sake does not;
+2. self-serve foundations (M8-A) and calendar-gated cross-profile foundations (M7) are scheduled by the lane rule in roadmap v3 §2.1, not by milestone number; M8-A does not wait for M7;
+3. prove M9 with the smallest demand-backed non-biological profile after one demand probe on the existing Program Core, rather than building a universal profile engine;
+4. compose M10 Publications from existing governed truth, starting from the existing publication feed already consumed by external regional sites, rather than create new CMS/source silos or per-region consumer code;
 5. exchange bounded Source packages in M11 rather than build a shared NOCOSIL/ZUKAN database;
-6. standardize repeated paid outcomes in M12 before billing-first infrastructure;
-7. M5 remains demand-gated and deferred regardless of rank.
+6. standardize repeated paid outcomes in M12 before billing-first infrastructure; manual paid delivery is allowed before software;
+7. promotion is required only at risk-class boundaries (milestone design exit, first runtime mutation, production);
+8. M5 remains demand-gated and deferred regardless of rank.
 
 Default M9 priority after promotion is Photo Contest, then Mission/Town Walk, then the shared Citizen Editorial/Sketch lane, then Tourism/Regional Engagement as a composite. Stamp Rally initially remains a Mission variation.
 
@@ -266,18 +261,7 @@ A real-demand product decision may reorder future profiles; the executor may not
 
 ## 15. KPI and demand-learning boundary
 
-The product should baseline rather than invent target percentages for:
-
-- `first_record_completion`
-- `program_self_start_rate`
-- `join_completion`
-- `review_lead_time`
-- `support_minutes_per_program`
-- `handover_completion`
-- `raw_portability_success`
-- `publication_reuse`
-- `repeat_program_rate`
-- `paid_outcome_conversion`
+KPI baseline names are owned by roadmap v3 §10 and projected in `delivery.json#planning_metrics`; the product baselines rather than invents target percentages.
 
 KPI measurement is subordinate to privacy/rights minimization. It must not introduce unnecessary user tracking.
 

@@ -231,34 +231,11 @@ These cover specialist/guaranteed reports, expert/official QA, custom tourism/ca
 
 Billing/checkout is not the first implementation. First standardize request, scope, rights readiness, output, delivery evidence and repeatability.
 
-## KPI baseline horizon
+## KPI and frontier
 
-Profile/product learning should first baseline, not guess targets for:
+KPI baseline names live in roadmap v3 §10 and `platform_v2/product-registry/delivery.json#planning_metrics`. The current frontier lives in `delivery.json#rolling_frontier` and the shared Resolver. This document does not repeat either.
 
-- `first_record_completion`
-- `program_self_start_rate`
-- `join_completion`
-- `review_lead_time`
-- `support_minutes_per_program`
-- `handover_completion`
-- `raw_portability_success`
-- `publication_reuse`
-- `repeat_program_rate`
-- `paid_outcome_conversion`
-
-KPI collection must remain proportionate and must not weaken privacy or create unnecessary tracking.
-
-## Rolling frontier
-
-Current projection:
-
-- `ACTIVE`: M7 Program Continuity & Handover
-- `READY_NEXT`: M8 Operational Summary & Raw Portability
-- `SHAPED_NEXT`: M9 Regional Program Profiles
-- M10–M12: dependency-shaped only
-- M5: deferred
-
-No M9–M12 implementation Task is executor-eligible merely because the milestone exists.
+No M9–M12 implementation Task is executor-eligible merely because the milestone exists. M9 additionally requires one completed demand probe on the existing Program Core (roadmap v3 §2 Wave 3).
 
 ## Anti-drift acceptance
 

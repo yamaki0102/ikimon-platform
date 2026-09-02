@@ -3,8 +3,9 @@
 - Status: active plan
 - Contract: `SPEC.md`
 - Broad profile projection: `PROFILE_HORIZON.md`
-- Current execution-roadmap authority: `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md`
+- Current execution-roadmap authority: `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md` (r2)
 - Prior broad-scope provenance: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
+- Current frontier / status projection: `platform_v2/product-registry/delivery.json` (`rolling_frontier`, `execution_roadmap`, `planning_metrics`) and the shared Resolver. This document does not repeat status.
 
 ## Goal
 
@@ -14,13 +15,20 @@ ZUKAN is a regional knowledge and participation product across nature, history, 
 
 Biodiversity is one Domain Pack. Observation Event / `観察会` is one Program profile. Neither is the product boundary.
 
-The execution rule is not “finish milestone numbers in order.” It is:
+The execution rule is not "finish milestone numbers in order." It is:
 
-`close current verified foundation -> complete shared cross-profile foundations -> prove the smallest real non-biological Program profile -> compose governed Publications -> exchange Sources -> standardize repeated paid outcomes`.
+`keep the Core Loop verified -> let organizations self-serve -> complete calendar-gated cross-profile foundations -> prove the smallest real non-biological Program profile from a demand probe -> compose governed Publications from the existing feed -> exchange Sources -> standardize repeated paid outcomes`.
 
-## Current verified foundation
+## What this document owns
 
-The Product Registry / shared Resolver owns current implementation status. The roadmap meaning remains:
+Roadmap v3 owns wave order, lane rule, promotion boundaries, KPI names and non-goals. `PROFILE_HORIZON.md` owns M9-M12 profile contracts and fixtures. `delivery.json` owns the static frontier/dependency projection. This plan owns only:
+
+- the Core Loop lane: what real-user loop the product must keep working and which corrections are adopted;
+- product-local slice contracts for the active foundation frontier (M7, M8);
+- open product decisions (`NEEDS_DECISION`) that an executor must not infer;
+- the verification gates this repository runs.
+
+## Milestone meaning
 
 1. M1 — Personal Record/media integrity
 2. M2 — Safe Publication + rights/data lifecycle
@@ -35,41 +43,58 @@ The Product Registry / shared Resolver owns current implementation status. The r
 11. M11 — Source & Public Projection Exchange
 12. M12 — Professional & Managed Outcomes
 
-M5 remains deferred until real demand and authorized source evidence make it more valuable than the current frontier.
+M1-M6 together are the Core Loop, not a closed foundation. M5 remains deferred until real demand and authorized source evidence make it more valuable than the current frontier.
 
-## Execution waves
+## Core Loop lane
 
-### Wave 0 — Current foundation closure
+The loop every ZUKAN user must be able to complete without IKIMON help:
 
-M1–M6 and App Experience should leave active feature-development mode once the following are true for the latest material source:
+`撮る -> 保存 -> AI候補 -> Review -> Areaに蓄積 -> 再訪 -> Program参加 -> Publication -> 次の参加`
 
-- current main and current-state packet agree on exact source identity;
-- exact-source staging verification is fresh after material source changes;
-- critical authenticated Journeys are verified or explicitly retained as `UNKNOWN` rather than assumed;
-- production preparation may be brought to its protected approval/materialization boundary without blocking later safe work;
-- future changes to these capabilities are treated primarily as regression, defect or rights/safety work rather than recurring redesign.
+Each stage must show a truthful state on the owner surface. A blank or silent stage is a defect with Core Loop lane priority (roadmap v3 §2.1), even when the underlying capability is source-verified.
 
-A pending production approval is not a reason to stop safe design/source work on later waves.
+Adopted Core Loop corrections (owner-adopted, executor-eligible under the lane rule; the Product Registry / shared Resolver still owns resolved status):
 
-## Rolling frontier
+| Loop stage | Correction | Canonical contract |
+|---|---|---|
+| 撮る -> 保存 -> AI候補 | AI reassessment enqueued durably at photo finalize; owner surface shows `queued -> processing -> completed \| failed`; completed shows candidate identification, visible evidence, needs-more-evidence, environment summary and short feedback; AI stays a candidate | `yamaki0102/ikimon-platform#1647` (open), fix in flight `#1649` |
+| Publication | Public feed reflects eligible Records at eligibility time; owner view shows exclusion/pending reason; per-observation diagnostic for media derivative / face safety / rights / risk / verification / AI request / feed eligibility | `#1647` |
+| Areaに蓄積 -> 再訪 | Shared Area Encyclopedia renderer: no-value suppression, growth states from 0 Records, first Record creates visible value, nearby Place fallback, steward truth without fake controls | `docs/design/area_encyclopedia_growth_and_stewardship_contract_2026-09-02.md`, `docs/implementation/zukan_area_encyclopedia_shared_renderer_p0_2026-09-02.md` |
+| Areaに蓄積 (facility fixture) | Ryuyo `core + nearby context` over shared primitives; nearby never contaminates membership, aggregates or the external feed | `docs/implementation/zukan_ryuyo_core_nearby_context_contract_2026-09-02.md` |
 
-Current product-planning projection:
+Rules for this lane:
 
-- `ACTIVE`: M7 Program Continuity & Handover
-- `READY_NEXT`: M8 Operational Summary & Raw Portability
-- `SHAPED_NEXT`: M9 Regional Program Profiles
-- M10–M12: dependency-shaped only
-- M5: deferred
+- a Core Loop correction reuses the current active runtime path and existing capabilities; it never creates a Place-specific renderer, per-region consumer code, a new map pipeline or a new engine;
+- rights, sensitive-location, minor/guardian, withdrawal and publication-authority boundaries are never relaxed to improve presentation or speed;
+- the lane records `ai_feedback_visible_latency`, `first_record_completion` and `place_revisit_rate` baselines as its own Evidence;
+- when the lane has no ready Task, the slot returns to self-serve foundation (M8-A) and then the roadmap frontier.
 
-Only one executor implementation Task may be active at a time. Independent read-only/design work may proceed in parallel. Roadmap presence never grants implementation authority.
+## First real-user loop to verify
+
+The first loop to prove end-to-end with real users, in this order:
+
+1. one real contributor posts a photo at an existing Place and sees AI candidate feedback within the same session (`#1647` Done);
+2. that Record visibly changes the Place's Area Encyclopedia from its previous growth state (shared renderer P0 Done);
+3. once explicit syndication consent exists (`NEEDS_DECISION-1`), the same Record reaches an external regional consumer feed with recency order and visible eligibility state;
+4. the contributor returns and records at the same Place again (`place_revisit_rate` first baseline).
+
+Only after 1-2 hold on staging with real Evidence does frontier implementation resume in the executor slot.
 
 ## M7 — Program Continuity & Handover
 
 Purpose: make Programs durable across school years, fiscal periods, organizers and responsible-person changes.
 
-M7.0 and M7.1 are source-verified on current main. M7.2+ remain `implementation_allowed=false` until explicit promotion.
+Status is owned by `delivery.json` tasks. Slice provenance:
 
-Required invariants:
+- M7.0 planner and M7.1 persistence: source-verified (`delivery.json` tasks `task.zukan.m7.program-handover-planner`, `task.zukan.m7.program-handover-persistence`);
+- M7.2 outgoing offer: source-verified (`task.zukan.m7.program-handover-outgoing-selection`);
+- M7.3 incoming acceptance: promoted by `M7_3_PROMOTION_2026-09-02.md`; the executor adds its Registry task in the implementing PR;
+- M7.4 real staging handover Journey: requires the runtime-mutation promotion (roadmap v3 §9) because it is the first slice that mutates Program responsibility;
+- M7.5 production promotion: normal protected release boundary.
+
+Calendar gate: M7.4 staging `LIVE_VERIFIED` by 2027-01, M7.5 production by 2027-02, ahead of the April school/fiscal-year turnover. Until that window M7 is roadmap-frontier lane work and does not pre-empt Core Loop or M8-A Tasks.
+
+Required invariants (unchanged):
 
 - source/target Program provenance;
 - outgoing/incoming responsible actor;
@@ -80,34 +105,11 @@ Required invariants:
 - partial failure never reports completion;
 - unknown or unapproved incoming actor fails closed.
 
-Promotion status (2026-09-02): **M7.0 was explicitly promoted to executor-eligible** after exact-source Wave 0 production `LIVE_VERIFIED` at `ed39ef808b9284b972f82b8b142b1448e12e4323` and completion of the planner promotion conditions. **M7.1 is now source-verified** as the provider-neutral immutable snapshot contract plus D1-first deterministic adapter/tests. Its migration remains unapplied outside the test database; no runtime UI, participant/consent/Review/publication-state carry-over, or production mutation is authorized.
-
-Implementation order after promotion:
-
-1. `M7.0` side-effect-zero deterministic `ProgramHandover` planner + synthetic fixtures;
-2. `M7.1` persistence/idempotency;
-3. `M7.2` outgoing handover selection;
-4. `M7.3` incoming actor acceptance / responsibility transfer;
-5. `M7.4` real staging handover Journey;
-6. `M7.5` production promotion under the normal protected release boundary.
-
-M7 design exit before promotion:
-
-- no unresolved product/rights decision in planner scope;
-- Requirement / dependency / Journey / negative Eval / fixture coverage complete;
-- outgoing/incoming authorization and lifecycle-reset semantics fixed;
-- source revision, target continuation, selected refs and actor identities are explicit inputs;
-- unknown, stale, scope-mismatched or unauthorized refs/actors fail closed without a target side effect;
-- the same canonical intent and source revision return the same plan digest, while same-key different-payload is a conflict;
-- partial failure is itemized and never reported as a completed handover;
-- source, authorization, rights, participant, review, lifecycle and target-scope changes invalidate a prior plan;
-- first implementation slice can be expressed as short `Source / Delta / Done` without executor product invention.
-
-M7.0 fixtures are `school_new_academic_year_new_teacher`, `guardian_withdrawal_fail_closed`, `unresolved_review_reference_not_approval`, `same_place_record_reused_without_duplication`, `outgoing_actor_removed_after_acceptance`, `unknown_unapproved_incoming_actor_fail_closed`, `retry_converges_to_one_logical_plan`, `same_key_different_payload_rejected`, `invalid_selected_ref_fail_closed`, and `participant_consent_review_publication_carry_over_forbidden`. The terminal check is deterministic replay plus all negative fixtures with zero DB/UI side effects. M7.0 is source-verified on current main `17e5fcf60f290d97f9aba64cdec63be869cbe402`.
+M7.0 fixtures are `school_new_academic_year_new_teacher`, `guardian_withdrawal_fail_closed`, `unresolved_review_reference_not_approval`, `same_place_record_reused_without_duplication`, `outgoing_actor_removed_after_acceptance`, `unknown_unapproved_incoming_actor_fail_closed`, `retry_converges_to_one_logical_plan`, `same_key_different_payload_rejected`, `invalid_selected_ref_fail_closed`, and `participant_consent_review_publication_carry_over_forbidden`. The terminal check is deterministic replay plus all negative fixtures with zero DB/UI side effects.
 
 ### M7.1 — persisted handover plan / idempotency
 
-M7.1 is explicitly promoted after M7.0 source verification. It persists only an accepted immutable `ProgramHandover` plan snapshot; it does not execute the handover or mutate the target Program.
+M7.1 persists only an accepted immutable `ProgramHandover` plan snapshot; it does not execute the handover or mutate the target Program.
 
 Reuse the existing Foundation D1 write-receipt/idempotency pattern rather than introducing a new generic idempotency subsystem. The active-runtime adapter is D1; keep the repository contract provider-neutral and do not require a second persistence backend unless an existing active path needs it.
 
@@ -123,11 +125,9 @@ Persistence rules:
 - the stored plan is immutable in M7.1; later acceptance/transfer is a separate append/state-transition concern owned by M7.2/M7.3;
 - source/migration files may be added, but no staging/production migration application, route/UI activation or production mutation is authorized by M7.1.
 
-M7.1 is source-verified on current main with the repository contract, unapplied migration definition, D1 deterministic tests, and registry/Eval bindings proving one logical row under replay/concurrency, conflict rejection, immutable plan snapshot, no participant/consent/Review/publication-state copy and no target Program side effect.
-
 ### M7.2 — outgoing handover offer
 
-M7.2 is explicitly promoted after M7.1 source verification. It lets the currently authorized outgoing responsible actor select one immutable persisted M7.1 plan and append one `ProgramHandoverOffer` in `pending_acceptance` state. It does not accept the handover, transfer responsibility, mutate the target Program, or remove the outgoing actor.
+M7.2 lets the currently authorized outgoing responsible actor select one immutable persisted M7.1 plan and append one `ProgramHandoverOffer` in `pending_acceptance` state. It does not accept the handover, transfer responsibility, mutate the target Program, or remove the outgoing actor.
 
 The offer MUST reference the stored logical plan/plan identity without editing its selected refs or reset-state declaration. If different refs are needed, create and persist a new M7.0/M7.1 plan rather than mutating the old plan.
 
@@ -141,11 +141,13 @@ M7.2 rules:
 - an offered plan cannot be silently rewritten; changing plan identity or selected refs requires a new plan and new offer;
 - source/migration/repository definitions are allowed, but no staging/production migration application, route/UI activation, outgoing-role removal or incoming acceptance is authorized.
 
-M7.2 is source-verified on current main with the provider-neutral offer contract, D1-first append-only implementation, unapplied migration definition, deterministic tests, and Registry/Eval bindings proving authorized outgoing offer, stale/unauthorized rejection, one logical offer under retry/concurrency, immutable plan reference and `pending_acceptance` with zero target Program/responsibility/state-transfer side effects. M7.3 remains blocked until Noah explicitly promotes incoming acceptance/responsibility transfer.
+### M7.3 — incoming acceptance
+
+Contract: `M7_3_PROMOTION_2026-09-02.md`. Source-only; terminal state `accepted_pending_apply`; no responsibility mutation, no outgoing removal, no lifecycle policy invention.
 
 ## M8 — Operational Summary & Raw Portability
 
-M8 is two separate contracts. They MUST NOT be collapsed.
+M8 is two separate contracts. They MUST NOT be collapsed. Neither waits for M7: M8-A depends on the M6 closeout/free-output boundary and reports continuation/handover state as `unknown` until M7 is live; M8-B depends on the M1/M2 Record and rights lifecycle. M8-A is the self-serve foundation lane's first Task once its fixtures and Evals are shaped.
 
 ### M8-A — Free OperationalActivitySummary
 
@@ -159,7 +161,7 @@ Allowed operational information:
 - Review distribution;
 - visibility state;
 - consent completeness;
-- continuation/handover state;
+- continuation/handover state (`unknown` until M7 is live);
 - Publication references.
 
 The projection is bound to an identified Program/Event and source watermark. Unknown, missing or partial metric inputs stay explicit as `unknown`/unavailable or itemized partial results; they are never coerced to zero or presented as complete. Repeating the same watermark is read-idempotent, and mixed visibility follows the existing audience/projection policy.
@@ -185,143 +187,49 @@ Each item may report an explicit partial failure; retry converges to the same ar
 
 M8 promotion requires M8-A and M8-B to remain separately testable, separately explainable and separately failure-isolated.
 
-## M9 — Regional Program Profiles
+## M9-M12
 
-Purpose: prove that the existing Program Core is genuinely broader than observation events.
+Profile contracts, fixtures, default order, people/profile boundary, NOCOSIL bridge and paid outcome families are owned by `PROFILE_HORIZON.md`; wave order, demand probe, existing M10 feed seed and manual M12 delivery are owned by roadmap v3 §2 Wave 3, §3 and §5. This plan adds no second copy.
 
-Do not build a universal Program Profile Engine first. Add the minimum vertical slice over existing Program / Quest / Record / Rights / Review / Publication assets.
+Product-local notes only:
 
-Default demand-informed implementation order after M7/M8 promotion conditions are satisfied:
+- M9 demand probe: run with an existing partner Place/organization on the current `observation_event` profile with manual organizer Review; record needed/manual/missing Core delta as Demand Learning Evidence; no profile code before one completed probe.
+- M10 seed: the existing publication feed and its external consumers are the live API/dataset projection; harden consent surfacing, recency and eligibility observability inside the Core Loop lane before any new Publication Profile.
+- M12: manual paid delivery of Professional Report / Publication Production / Managed Program is allowed now and recorded as `paid_outcome_conversion` baseline; product software follows the second repeated delivery.
 
-1. `photo_contest`
-2. `mission_town_walk`
-3. shared school/editorial lane: `children_citizen_editorial` + `sketch_drawing_event`
-4. `tourism_regional_engagement` as a composite of already-proven Place + Mission + participation + Publication + multilingual capabilities
+## NEEDS_DECISION
 
-`stamp_rally` initially remains a Mission/Town-Walk profile variation rather than a dedicated Core/platform.
+Open product choices. Executors must not infer them; the recommendation is the lead's proposal, not an adopted decision.
 
-A real-demand owner/product decision may reorder these profiles. Executors may not infer or change that priority.
+### NEEDS_DECISION-1 — where explicit external-syndication consent is captured
 
-### Photo Contest first proof
+Records default to `recordConsent=private`, `researchUseConsent=none`, `externalExportAllowed=false`; the public feed requires explicit external-export/public-export/licence state (`#1647`). Without a capture point, no personal Record reaches an external regional site.
 
-Use the smallest reusable flow:
+| Option | Description | Trade-off |
+|---|---|---|
+| A. Capture-time toggle | Per-Record opt-in `地域の図鑑・連携サイトにも掲載` at save, default off | Simplest; adds a decision to the first-record moment and may lower `first_record_completion` |
+| B. Program-scope consent + owner-detail prompt (recommended) | Joining a Program shows and records the Program's publication scope once; personal Records get a one-tap prompt on the owner detail after AI feedback | Keeps capture friction zero and ties consent to a visible benefit; requires two consent paths and Program-scope withdrawal semantics |
+| C. Post-hoc batch consent | Owner grants syndication per Place or per period from `自分` | Lowest friction, but feeds stay empty until the owner returns; weakest provenance per Record |
 
-`Program -> Record submission -> purpose-specific rights -> organizer Review/selection -> result Publication`.
+Hard boundary in all options: default stays private; minors require guardian consent; withdrawal revokes derived publication; ordinary display and promotional reuse remain separate rights.
 
-Do not add public voting, likes, rankings or a social graph as core requirements.
+### NEEDS_DECISION-2 — staging consumer environment contract for external regional sites
 
-Ordinary display rights and promotional reuse rights remain separate.
+The LENRI staging consumer reads the staging publication feed, so a production Record can never appear there (`#1647` follow-up).
 
-### Mission / Town Walk
+| Option | Description | Trade-off |
+|---|---|---|
+| A. Staging consumer reads production public feed read-only (recommended) | Real public-safe data for real-data preview; feed is already public-only | Cannot preview unreleased feed changes on staging; needs an explicit env label |
+| B. Staging consumer reads staging feed with seeded public fixtures | Full isolation | No real-user Evidence; fixtures must be maintained |
+| C. Env toggle, default A | Both, with visible source label | Small extra configuration surface |
 
-Reuse Quest + Place + Record/check-in evidence. Continuous precise-location tracking is not a requirement. QR, bounded check-in or Record evidence may be used when the concrete Program needs them.
+### NEEDS_DECISION-3 — first manual paid outcome to pursue
 
-### Citizen Editorial / Sketch
-
-Reuse team + Quest + Source/Place investigation + Record/artwork media + teacher/staff Review + selected Publication. Minor/guardian consent remains fail-closed.
-
-### Tourism / Regional Engagement
-
-Compose proven capabilities rather than create a separate tourism platform: routes, Places, stories, missions, visitor/resident participation, selected Records, multilingual Publication where justified and repeat-engagement/continuation evidence.
-
-Before executor activation, M9 fixtures and rights/Review differences from `PROFILE_HORIZON.md` must be represented in Product Registry / Eval contracts.
-
-## M10 — Regional Publication Profiles
-
-Purpose: compose governed source truth into useful outputs without new content silos or a replacement truth store.
-
-Default implementation order:
-
-1. Program/campaign result Publication;
-2. regional/theme encyclopedia;
-3. history/culture collection;
-4. tourism map/guide/route;
-5. facility/shop/organization collection;
-6. consented people/profile Publication;
-7. standard paper/PDF publication manifest;
-8. API/dataset projection.
-
-Reuse PublicationEdition/source truth. A Publication Profile is a governed View, not a new canonical database.
-
-People/profile Publication requires explicit subject/Publisher rights basis, correction/withdrawal and must never introduce face identification, biometric recognition or tracking.
-
-## M11 — Source & Public Projection Exchange
-
-Purpose: receive and return regional information while keeping source authority explicit and keeping NOCOSIL private truth separate.
-
-Implementation order:
-
-1. `M11-A Source Exchange Package v1` — small bounded envelope for Source/Edition/Publisher/rights/content-or-locator/Place-Entity candidates/provenance/revocation;
-2. `M11-B NOCOSIL -> ZUKAN adapter` — explicit selected public-safe projection only;
-3. `M11-C external Publisher adapters` — municipal open data, government/DMO/tourism sources, PDF/Web/paper and school/company/community sources;
-4. `M11-D correction/revocation/write-back` — explicit version/status/receipt only when an accountable path exists.
-
-NOCOSIL and ZUKAN remain separate canonical/private domains. No shared giant database and no automatic private publication.
-
-## M12 — Professional & Managed Outcomes
-
-Purpose: monetize repeated outcome demand without degrading the free truth/safety core.
-
-Initial commercial outcome families:
-
-1. `Professional Report`
-2. `Publication Production`
-3. `Managed Program`
-4. `Integration / Data Work`
-
-Do not build billing/checkout first. First standardize request, scope, rights readiness, output, delivery evidence and repeatability. Billing follows a recurring reusable delivery workflow.
-
-## Always-on tracks
-
-Every wave runs with four continuous tracks:
-
-1. `UX Quality` — real browser Journey, mobile, PWA, auth, accessibility, performance, empty/degraded/error/retry;
-2. `Rights & Safety` — privacy, consent, minor/guardian, location minimization, withdrawal, person safety, Publication correction;
-3. `Product Registry / Evidence` — Outcome -> Journey -> Requirement -> Dependency -> Task -> Eval -> Runtime Evidence -> Learning with the shared Resolver as sole status authority;
-4. `Demand Learning` — record which Programs/Publications/outcomes are requested, repeated, support-heavy and commercially valuable.
-
-## Future-profile selection rule
-
-When more than one future profile/output is eligible, product authority selects using the ordering principle:
-
-`real demand x reuse value x existing Core fit x adoption/revenue effect / implementation and operational burden`.
-
-The numeric scale is not canonical. Executors do not choose product priority from this formula on their own.
-
-## KPI baseline set
-
-Do not invent target percentages until baseline data exists. First capture:
-
-- `first_record_completion`
-- `program_self_start_rate`
-- `join_completion`
-- `review_lead_time`
-- `support_minutes_per_program`
-- `handover_completion`
-- `raw_portability_success`
-- `publication_reuse`
-- `repeat_program_rate`
-- `paid_outcome_conversion`
-
-Measurement must not weaken privacy or justify unnecessary tracking.
-
-## Explicit non-goals
-
-Do not build:
-
-- municipality/customer-specific backend, database, auth or canonical Place model;
-- photo-contest-specific Core database;
-- stamp-rally-specific auth/platform;
-- universal Program Profile Engine before repeated invariant demand;
-- Observation as the parent for unrelated Records;
-- generic regional semantics by renaming Taxon/Occurrence/Identification;
-- face-recognition/person-tracking people encyclopedia;
-- giant shared NOCOSIL/ZUKAN database;
-- all M9 profiles in parallel;
-- billing-first SaaS;
-- mandatory likes/rankings/social primitives;
-- coupon fraud infrastructure before repeat demand;
-- M5 because its milestone number is lower.
+| Option | Description | Trade-off |
+|---|---|---|
+| A. Managed Program with an existing partner (recommended) | Facilitate one real Program for a current partner (facility/community site) and deliver the free operational recap plus human facilitation | Uses existing capability only; highest support minutes per delivery |
+| B. Publication Production for an existing consumer site | Produce one custom regional Publication from the existing feed | Proves M10 demand; production work is bespoke until M10 profiles exist |
+| C. Professional Report for a municipal/facility partner | Specialist report with expert review | Highest price point; needs an accountable specialist and separate rights basis |
 
 ## Verification
 
@@ -336,14 +244,15 @@ npm --prefix platform_v2 run test:product-registry
 Roadmap validation additionally must assert:
 
 - current strategy authority points to execution roadmap v3;
-- M1–M12 stable ordering;
+- M1-M12 stable ordering;
 - M5 remains deferred;
 - M7/M8/M9 frontier stays explicit until product promotion changes it;
+- executor-slot lane priority is recorded and is not executor-autonomous;
 - M9 default profile order starts with Photo Contest and then Mission/Town Walk, with Stamp Rally as a variation initially;
 - M10 Publication order and people-profile safety remain explicit;
 - M11 keeps NOCOSIL/source authority boundaries;
 - M12 remains demand-gated and billing-first is forbidden;
-- no executor Task exists for M9–M12 before frontier promotion;
+- no executor Task exists for M9-M12 before frontier promotion;
 - KPI names remain baseline/measurement contracts, not invented target promises.
 
 ## Production boundary
