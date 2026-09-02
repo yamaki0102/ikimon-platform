@@ -528,7 +528,8 @@ export async function generateGeminiContent(
     generationConfig: {
       ...directGenerationConfig,
       ...(thinkingLevel ? { thinkingConfig: { ...thinkingConfig, thinkingLevel } } : {}),
-      responseFormat: { text: { mimeType: responseMimeType === "application/json" ? "APPLICATION_JSON" : responseMimeType, schema: responseJsonSchema } },
+      responseMimeType,
+      responseJsonSchema,
     },
   };
   const value = await directApiJson(`${apiBase}/models/${encodeURIComponent(model)}:generateContent`, apiKey, {

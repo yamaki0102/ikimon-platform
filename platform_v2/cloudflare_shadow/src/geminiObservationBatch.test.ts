@@ -339,10 +339,9 @@ test("direct generateContent reuses the primary request and extracts structured 
   assert.equal(calls[0]!.url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent");
   const sentRequest = JSON.parse(String(calls[0]!.init.body));
   assert.deepEqual(sentRequest.contents, request.contents);
-  assert.equal(sentRequest.generationConfig.responseMimeType, undefined);
-  assert.equal(sentRequest.generationConfig.responseJsonSchema, undefined);
-  assert.equal(sentRequest.generationConfig.responseFormat.text.mimeType, "APPLICATION_JSON");
-  assert.deepEqual(sentRequest.generationConfig.responseFormat.text.schema, request.generationConfig.responseJsonSchema);
+  assert.equal(sentRequest.generationConfig.responseMimeType, "application/json");
+  assert.deepEqual(sentRequest.generationConfig.responseJsonSchema, request.generationConfig.responseJsonSchema);
+  assert.equal(sentRequest.generationConfig.responseFormat, undefined);
   assert.deepEqual(sentRequest.generationConfig.thinkingConfig, { thinkingLevel: "MINIMAL" });
   assert.equal(result.model, GEMINI_PRIMARY_MODEL);
   assert.equal(result.candidatesCount, 1);
