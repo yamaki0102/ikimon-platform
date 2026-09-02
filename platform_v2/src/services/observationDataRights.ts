@@ -3,7 +3,8 @@ import { getPool } from "../db.js";
 
 type Queryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
 
-export const OBSERVATION_DATA_RIGHTS_POLICY_VERSION = "site_intelligence_p0_v1";
+export const OBSERVATION_DATA_RIGHTS_POLICY_VERSION = "site_intelligence_p0_v2";
+export const PUBLICATION_CONSENT_VERSION = "external_publication_consent_v2";
 
 export type RecordConsent = "private" | "internal" | "public_summary" | "external_export";
 export type ResearchUseConsent = "none" | "internal" | "research_allowed" | "public_export";
@@ -80,16 +81,29 @@ export function normalizeObservationDataRights(input: ObservationDataRightsInput
   const withdrawalStatus = oneOf(input.withdrawalStatus, WITHDRAWAL_STATUSES, "active");
   const areaProfileUseConsent = oneOf(input.areaProfileUseConsent, AREA_PROFILE_USE_CONSENTS, "none");
   const requestedAggregation = Boolean(input.publicAggregationAllowed);
-  const exportAllowed = Boolean(input.externalExportAllowed)
+  const consentSource = oneOf(input.consentSource, CONSENT_SOURCES, "default");
+  const legacyOpenLicenseExternalConsent = Boolean(input.externalExportAllowed)
     && recordConsent === "external_export"
     && researchUseConsent === "public_export"
     && Boolean(datasetLicense)
     && Boolean(mediaLicense)
     && withdrawalStatus === "active";
+  const directExternalConsent = Boolean(input.externalExportAllowed)
+    && recordConsent === "external_export"
+    && researchUseConsent === "none"
+    && consentSource === "user_selected"
+    && withdrawalStatus === "active";
+  const exportAllowed = legacyOpenLicenseExternalConsent || directExternalConsent;
   const aggregationAllowed = requestedAggregation
     && (areaProfileUseConsent === "aggregated_public" || areaProfileUseConsent === "external_export")
     && (recordConsent === "public_summary" || recordConsent === "external_export")
     && withdrawalStatus === "active";
+
+  const rightsPolicyVersion = cleanPolicyVersion(input.rightsPolicyVersion);
+  const sourcePayload = asRecord(input.sourcePayload);
+  if (consentSource === "user_selected" && (recordConsent === "public_summary" || recordConsent === "external_export")) {
+    sourcePayload.publicationConsentVersion = PUBLICATION_CONSENT_VERSION;
+  }
 
   return {
     visitId: input.visitId,
@@ -105,10 +119,10 @@ export function normalizeObservationDataRights(input: ObservationDataRightsInput
     publicProfileAttributionMode: aggregationAllowed
       ? oneOf(input.publicProfileAttributionMode, PUBLIC_PROFILE_ATTRIBUTION_MODES, "anonymous")
       : "hidden",
-    consentSource: oneOf(input.consentSource, CONSENT_SOURCES, "default"),
-    rightsPolicyVersion: cleanPolicyVersion(input.rightsPolicyVersion),
+    consentSource,
+    rightsPolicyVersion,
     withdrawalStatus,
-    sourcePayload: asRecord(input.sourcePayload),
+    sourcePayload,
   };
 }
 

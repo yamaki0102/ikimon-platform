@@ -26,6 +26,25 @@ test("data rights defaults keep external export disabled", () => {
   assert.equal(rights.datasetLicense, null);
 });
 
+test("direct external publication consent does not grant research use or an open license", () => {
+  const rights = normalizeObservationDataRights({
+    visitId: "visit-direct-external",
+    recordConsent: "external_export",
+    researchUseConsent: "none",
+    externalExportAllowed: true,
+    consentSource: "user_selected",
+    rightsPolicyVersion: OBSERVATION_DATA_RIGHTS_POLICY_VERSION,
+    sourcePayload: { source: "record_capture_publication_choices" },
+  });
+
+  assert.equal(rights.externalExportAllowed, true);
+  assert.equal(rights.researchUseConsent, "none");
+  assert.equal(rights.datasetLicense, null);
+  assert.equal(rights.mediaLicense, null);
+  assert.equal(rights.consentSource, "user_selected");
+  assert.equal(rights.sourcePayload.publicationConsentVersion, "external_publication_consent_v2");
+});
+
 test("data rights only allow export when consent, licenses, and active status align", () => {
   const rights = normalizeObservationDataRights({
     visitId: "visit-1",
@@ -111,5 +130,16 @@ test("observation data rights migration adds area profile rights fail-closed", (
   assert.match(sql, /ADD COLUMN IF NOT EXISTS public_aggregation_allowed BOOLEAN NOT NULL DEFAULT FALSE/);
   assert.match(sql, /ADD COLUMN IF NOT EXISTS public_profile_attribution_mode TEXT NOT NULL DEFAULT 'hidden'/);
   assert.match(sql, /area_profile_use_consent IN \('none', 'internal', 'aggregated_public', 'manager_report', 'external_export'\)/);
+  assert.doesNotMatch(sql, /^\s*(DROP|TRUNCATE|DELETE)\b/im);
+});
+
+test("native rights projection records consent provenance without changing legacy rows", () => {
+  const sql = readFileSync(
+    path.join(dirname, "..", "..", "cloudflare_shadow", "migrations", "observations", "0071_publication_consent_metadata.sql"),
+    "utf8",
+  );
+
+  assert.match(sql, /ADD COLUMN consent_source TEXT NOT NULL DEFAULT 'default'/);
+  assert.match(sql, /ADD COLUMN rights_policy_version TEXT NOT NULL DEFAULT 'site_intelligence_p0_v2'/);
   assert.doesNotMatch(sql, /^\s*(DROP|TRUNCATE|DELETE)\b/im);
 });

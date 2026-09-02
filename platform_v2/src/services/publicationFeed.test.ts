@@ -246,3 +246,21 @@ test("source query reuses existing public quality, AI, media, rights, area, and 
   assert.doesNotMatch(PUBLICATION_FEED_SOURCE_SQL, /storage_path\s+as\s+media_url/i);
   assert.doesNotMatch(PUBLICATION_FEED_SOURCE_SQL, /point_latitude\s+as|point_longitude\s+as/i);
 });
+
+test("direct external consent remains eligible without research or open-license grants", () => {
+  const projected = projectPublicationFeed(config, [row({
+    rights: {
+      recordConsent: "external_export",
+      researchUseConsent: "none",
+      datasetLicense: null,
+      mediaLicense: null,
+      externalExportAllowed: true,
+      consentSource: "user_selected",
+      rightsPolicyVersion: "site_intelligence_p0_v2",
+      withdrawalStatus: "active",
+      sourcePayload: { publicationConsentVersion: "external_publication_consent_v2" },
+    },
+  })], { sensitiveSpeciesIndex: new Set() });
+
+  assert.equal(projected.channels[0]?.items.length, 1);
+});

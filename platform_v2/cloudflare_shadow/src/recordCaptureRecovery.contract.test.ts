@@ -25,7 +25,13 @@ test("native record capture persists a stable media retry draft", () => {
 test("record capture keeps ZUKAN and external publication opt-ins separate and off by default", () => {
   assert.match(indexSource, /id="record-zukan-public"[^>]+name="zukan_public"[^>]+type="checkbox"/);
   assert.match(indexSource, /id="record-external-public"[^>]+name="external_public"[^>]+type="checkbox" disabled/);
-  assert.match(indexSource, /recordConsent: externalPublic \? "external_export" : "public_summary"/);
+  assert.match(indexSource, /recordConsent: zukanPublic \? \(externalPublic \? "external_export" : "public_summary"\) : "private"/);
+  assert.match(indexSource, /researchUseConsent: "none"/);
+  assert.match(indexSource, /datasetLicense: null/);
+  assert.match(indexSource, /mediaLicense: null/);
+  assert.match(indexSource, /consentSource: zukanPublic \? "user_selected" : "default"/);
+  assert.match(indexSource, /rightsPolicyVersion: "site_intelligence_p0_v2"/);
+  assert.match(indexSource, /publicationConsentVersion: "external_publication_consent_v2"/);
   assert.match(indexSource, /visibility: zukanPublic \? "public" : "private"/);
   assert.match(indexSource, /externalExportAllowed: externalPublic/);
 });

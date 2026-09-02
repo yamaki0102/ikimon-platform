@@ -22055,14 +22055,21 @@ type FieldRecentPublicRecord = {
   taxon_label: string | null;
   public_area_label: string | null;
   asset_count: number;
-  exact_lat: number;
-  exact_lng: number;
+  exact_lat: number | null;
+  exact_lng: number | null;
+  resolved_field_ids_json?: string | null;
 };
 
 async function loadFieldRecentPublicRecords(fieldId: string, env: Env): Promise<FieldRecentPublicRecord[]> {
   const boundary = await env.OBS_DB.prepare(
-    "SELECT geometry_json FROM production_import_area_polygon_readmodel WHERE field_id = ? LIMIT 1",
-  ).bind(fieldId).first<{ geometry_json: string }>().catch(() => null);
+    "SELECT geometry_json, bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng FROM production_import_area_polygon_readmodel WHERE field_id = ? LIMIT 1",
+  ).bind(fieldId).first<{
+    geometry_json: string;
+    bbox_min_lat: number;
+    bbox_max_lat: number;
+    bbox_min_lng: number;
+    bbox_max_lng: number;
+  }>().catch(() => null);
   if (!boundary?.geometry_json) return [];
   let geometry: unknown;
   try {
@@ -22072,7 +22079,7 @@ async function loadFieldRecentPublicRecords(fieldId: string, env: Env): Promise<
   }
   const rows = (await env.OBS_DB.prepare(
     "SELECT r.observation_id, r.observed_at, r.taxon_label, r.public_area_label, " +
-    "COALESCE(r.asset_count, 0) AS asset_count, o.exact_lat, o.exact_lng " +
+    "COALESCE(r.asset_count, 0) AS asset_count, o.exact_lat, o.exact_lng, o.resolved_field_ids_json " +
     "FROM readmodel_public_observations r " +
     "JOIN observations o ON o.observation_id = r.observation_id " +
     "JOIN observation_data_rights rights ON rights.visit_id = r.observation_id " +
@@ -22081,11 +22088,38 @@ async function loadFieldRecentPublicRecords(fieldId: string, env: Env): Promise<
     "AND rights.withdrawal_status = 'active' " +
     "AND NOT EXISTS (SELECT 1 FROM civic_observation_contexts civic " +
     "WHERE civic.visit_id = r.observation_id AND civic.risk_lane = 'rare_sensitive') " +
+    "AND (EXISTS (SELECT 1 FROM json_each(COALESCE(o.resolved_field_ids_json, '[]')) resolved " +
+    "WHERE CAST(resolved.value AS TEXT) = ?) " +
+    "OR (o.exact_lat BETWEEN ? AND ? AND o.exact_lng BETWEEN ? AND ?)) " +
     "ORDER BY r.observed_at DESC, r.observation_id ASC LIMIT 48",
+  ).bind(
+    fieldId,
+    Number(boundary.bbox_min_lat),
+    Number(boundary.bbox_max_lat),
+    Number(boundary.bbox_min_lng),
+    Number(boundary.bbox_max_lng),
   ).all<FieldRecentPublicRecord>()).results;
-  return rows.filter((row) => Number.isFinite(Number(row.exact_lat))
-    && Number.isFinite(Number(row.exact_lng))
-    && pointInGeoJsonPolygon(Number(row.exact_lng), Number(row.exact_lat), geometry));
+  return filterFieldRecentPublicRecords(rows, fieldId, geometry);
+}
+
+export function filterFieldRecentPublicRecords(
+  rows: FieldRecentPublicRecord[],
+  fieldId: string,
+  geometry: unknown,
+): FieldRecentPublicRecord[] {
+  return rows.filter((row) => {
+    const hasPoint = Number.isFinite(Number(row.exact_lat)) && Number.isFinite(Number(row.exact_lng));
+    if (hasPoint) {
+      return pointInGeoJsonPolygon(Number(row.exact_lng), Number(row.exact_lat), geometry);
+    }
+    try {
+      const resolved = JSON.parse(row.resolved_field_ids_json ?? "[]") as unknown;
+      if (Array.isArray(resolved) && resolved.some((value) => String(value) === fieldId)) return true;
+    } catch {
+      // Fall back to the verified point geometry below.
+    }
+    return false;
+  });
 }
 
 function fieldRecentRecordDisplayName(row: FieldRecentPublicRecord): string {
@@ -23914,29 +23948,21 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           latitude,
           longitude,
           visibility: zukanPublic ? "public" : "private",
-          dataRights: zukanPublic
-            ? {
-                recordConsent: externalPublic ? "external_export" : "public_summary",
-                researchUseConsent: externalPublic ? "public_export" : "none",
-                datasetLicense: externalPublic ? "CC-BY-4.0" : null,
-                mediaLicense: externalPublic ? "CC-BY-4.0" : null,
-                externalExportAllowed: externalPublic,
-                sourcePayload: {
-                  source: "cloudflare_record_session_rights",
-                  zukanPublic,
-                  externalPublic,
-                },
-              }
-            : {
-                recordConsent: "private",
-                researchUseConsent: "none",
-                externalExportAllowed: false,
-                sourcePayload: {
-                  source: "cloudflare_record_session_rights",
-                  zukanPublic: false,
-                  externalPublic: false,
-                },
-              },
+          dataRights: {
+            recordConsent: zukanPublic ? (externalPublic ? "external_export" : "public_summary") : "private",
+            researchUseConsent: "none",
+            datasetLicense: null,
+            mediaLicense: null,
+            externalExportAllowed: externalPublic,
+            consentSource: zukanPublic ? "user_selected" : "default",
+            rightsPolicyVersion: "site_intelligence_p0_v2",
+            sourcePayload: {
+              source: "cloudflare_record_session_rights",
+              publicationConsentVersion: "external_publication_consent_v2",
+              zukanPublic,
+              externalPublic,
+            },
+          },
           note: String(formData.get("note") || ""),
           taxon: { vernacularName: "未同定", rank: "unknown" },
           eventCode: eventContext.eventCode || null,
@@ -29255,8 +29281,9 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     env.OBS_DB.prepare(
       `INSERT INTO observation_data_rights
          (visit_id, occurrence_id, record_consent, research_use_consent, enterprise_report_consent,
-          dataset_license, media_license, external_export_allowed, withdrawal_status, source_payload_json, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          dataset_license, media_license, external_export_allowed, consent_source, rights_policy_version,
+          withdrawal_status, source_payload_json, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
        ON CONFLICT(visit_id) DO UPDATE SET
          occurrence_id = excluded.occurrence_id,
          record_consent = excluded.record_consent,
@@ -29265,6 +29292,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
          dataset_license = excluded.dataset_license,
          media_license = excluded.media_license,
          external_export_allowed = excluded.external_export_allowed,
+         consent_source = excluded.consent_source,
+         rights_policy_version = excluded.rights_policy_version,
          withdrawal_status = excluded.withdrawal_status,
          source_payload_json = excluded.source_payload_json,
          updated_at = CURRENT_TIMESTAMP`
@@ -29277,6 +29306,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       dataRights.datasetLicense,
       dataRights.mediaLicense,
       dataRights.externalExportAllowed ? 1 : 0,
+      dataRights.consentSource,
+      dataRights.rightsPolicyVersion,
       dataRights.withdrawalStatus,
       JSON.stringify(dataRights.sourcePayload)
     ),
@@ -30365,6 +30396,8 @@ function normalizeObservationDataRightsNative(input: unknown): {
   datasetLicense: string | null;
   mediaLicense: string | null;
   externalExportAllowed: boolean;
+  consentSource: string;
+  rightsPolicyVersion: string;
   withdrawalStatus: string;
   sourcePayload: Record<string, unknown>;
 } {
@@ -30374,23 +30407,36 @@ function normalizeObservationDataRightsNative(input: unknown): {
   const enterpriseReportConsent = pickEnum(value.enterpriseReportConsent, ["none", "internal", "aggregated", "identified"], "none");
   const datasetLicense = pickNullableEnum(value.datasetLicense, ["CC0-1.0", "CC-BY-4.0"]);
   const mediaLicense = pickNullableEnum(value.mediaLicense, ["all_rights_reserved", "CC-BY-4.0", "CC-BY-NC-4.0"]);
+  const consentSource = pickEnum(value.consentSource ?? value.consent_source, ["default", "user_selected", "manager_policy", "migration_backfill"], "default");
+  const rightsPolicyVersion = normalizeOptionalText(value.rightsPolicyVersion ?? value.rights_policy_version) ?? "site_intelligence_p0_v2";
   const withdrawalStatus = pickEnum(value.withdrawalStatus, ["active", "withdrawn", "delete_requested", "deleted"], "active");
-  const externalExportAllowed = value.externalExportAllowed === true
+  const legacyOpenLicenseExternalConsent = value.externalExportAllowed === true
     && recordConsent === "external_export"
     && researchUseConsent === "public_export"
     && Boolean(datasetLicense)
     && mediaLicense !== null
     && mediaLicense !== "all_rights_reserved"
     && withdrawalStatus === "active";
+  const directExternalConsent = value.externalExportAllowed === true
+    && recordConsent === "external_export"
+    && researchUseConsent === "none"
+    && consentSource === "user_selected"
+    && withdrawalStatus === "active";
+  const sourcePayload = { ...value };
+  if (consentSource === "user_selected" && (recordConsent === "public_summary" || recordConsent === "external_export")) {
+    sourcePayload.publicationConsentVersion = "external_publication_consent_v2";
+  }
   return {
     recordConsent,
     researchUseConsent,
     enterpriseReportConsent,
     datasetLicense,
     mediaLicense,
-    externalExportAllowed,
+    externalExportAllowed: legacyOpenLicenseExternalConsent || directExternalConsent,
+    consentSource,
+    rightsPolicyVersion,
     withdrawalStatus,
-    sourcePayload: value
+    sourcePayload
   };
 }
 

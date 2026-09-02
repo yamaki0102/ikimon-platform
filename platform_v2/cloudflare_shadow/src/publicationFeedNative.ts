@@ -40,6 +40,8 @@ export type PublicationFeedNativeRow = {
   dataset_license: string | null;
   media_license: string | null;
   external_export_allowed: number | boolean | null;
+  consent_source: string | null;
+  rights_policy_version: string | null;
   withdrawal_status: string | null;
   audience_scope: string | null;
   public_precision: string | null;
@@ -129,6 +131,8 @@ const PUBLICATION_FEED_NATIVE_SQL = `
          rights.dataset_license,
          rights.media_license,
          rights.external_export_allowed,
+         rights.consent_source,
+         rights.rights_policy_version,
          rights.withdrawal_status,
          civic.audience_scope,
          civic.public_precision,
@@ -175,9 +179,18 @@ const PUBLICATION_FEED_NATIVE_SQL = `
      AND o.exact_lng BETWEEN boundary.bbox_min_lng AND boundary.bbox_max_lng
      AND rights.external_export_allowed = 1
      AND rights.record_consent = 'external_export'
-     AND rights.research_use_consent = 'public_export'
-     AND rights.dataset_license IS NOT NULL
-     AND rights.media_license IS NOT NULL
+     AND (
+       (
+         rights.consent_source = 'user_selected'
+         AND rights.rights_policy_version = 'site_intelligence_p0_v2'
+         AND rights.research_use_consent = 'none'
+       )
+       OR (
+         rights.research_use_consent = 'public_export'
+         AND rights.dataset_license IS NOT NULL
+         AND rights.media_license IS NOT NULL
+       )
+     )
      AND rights.withdrawal_status = 'active'
      AND COALESCE(civic.audience_scope, 'public') = 'public'
      AND COALESCE(civic.public_precision, 'municipality') NOT IN ('hidden', 'exact_private')
@@ -312,8 +325,14 @@ function publicOrigin(url: URL): string {
 
 function isEligible(row: PublicationFeedNativeRow): boolean {
   if (!(row.external_export_allowed === true || Number(row.external_export_allowed) === 1)) return false;
-  if (row.record_consent !== "external_export" || row.research_use_consent !== "public_export") return false;
-  if (!cleanText(row.dataset_license) || !cleanText(row.media_license) || row.withdrawal_status !== "active") return false;
+  if (row.record_consent !== "external_export" || row.withdrawal_status !== "active") return false;
+  const directExternalConsent = row.consent_source === "user_selected"
+    && row.rights_policy_version === "site_intelligence_p0_v2"
+    && row.research_use_consent === "none";
+  const legacyOpenLicenseConsent = row.research_use_consent === "public_export"
+    && Boolean(cleanText(row.dataset_license))
+    && Boolean(cleanText(row.media_license));
+  if (!directExternalConsent && !legacyOpenLicenseConsent) return false;
   if (row.audience_scope && row.audience_scope !== "public") return false;
   if (row.public_precision === "hidden" || row.public_precision === "exact_private") return false;
   if (row.risk_lane !== "normal") return false;

@@ -26,6 +26,8 @@ const baseRow = {
   dataset_license: "CC-BY-4.0",
   media_license: "CC-BY-4.0",
   external_export_allowed: 1,
+  consent_source: "default",
+  rights_policy_version: "site_intelligence_p0_v1",
   withdrawal_status: "active",
   audience_scope: "public",
   public_precision: "municipality",
@@ -51,6 +53,8 @@ function database(rows: PublicationFeedNativeRow[]): PublicationFeedNativeDataba
       assert.match(sql, /production_import_area_polygon_readmodel/);
       assert.match(sql, /media\.role = 'context'/);
       assert.match(sql, /civic\.risk_lane = 'normal'/);
+      assert.match(sql, /rights\.consent_source/);
+      assert.match(sql, /rights\.rights_policy_version/);
       assert.match(sql, /publication_source\.ambiguity_state = 'clear'/);
       assert.match(sql, /publication_record\.verification_status IN/);
       return {
@@ -112,6 +116,30 @@ test("Ryuyo feed keeps the shared rights gate and uses its configured scope labe
   assert.equal(payload.feed.feed_key, "ryuyo-insect-park");
   assert.equal(payload.feed.scope_label, "磐田・竜洋昆虫自然観察公園");
   assert.equal(payload.channels[0]?.items[0]?.subtitle, "磐田・竜洋昆虫自然観察公園");
+});
+
+test("direct explicit external consent is eligible without open-license or research consent", async () => {
+  const response = await handlePublicationFeedNativeRequest(
+    new Request("https://zukan.earth/api/v1/publication-feeds/ryuyo-insect-park?channel=living"),
+    database([{
+      ...baseRow,
+      consent_source: "user_selected",
+      rights_policy_version: "site_intelligence_p0_v2",
+      research_use_consent: "none",
+      dataset_license: null,
+      media_license: null,
+      exact_lat: 34.6695,
+      exact_lng: 137.8400,
+      boundary_name: "竜洋昆虫自然観察公園",
+      boundary_geometry_json: JSON.stringify({
+        type: "Polygon",
+        coordinates: [[[137.839, 34.668], [137.841, 34.668], [137.841, 34.672], [137.839, 34.672], [137.839, 34.668]]],
+      }),
+    }]),
+  );
+  assert.ok(response);
+  const payload = await response.json() as { channels: Array<{ items: Array<{ id: string }> }> };
+  assert.deepEqual(payload.channels[0]?.items.map((item) => item.id), ["living:visit-public-1"]);
 });
 
 test("keeps AI candidate machine-readable and excludes rights/privacy unsafe rows", async () => {

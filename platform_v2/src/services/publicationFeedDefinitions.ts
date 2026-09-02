@@ -10,7 +10,7 @@ export const PUBLICATION_FEED_DEFINITIONS = Object.freeze({
       Object.freeze({ key: "living", label: Object.freeze({ ja: "この場所の生きもの", en: "Living things here" }) }),
       Object.freeze({ key: "community_photo", label: Object.freeze({ ja: "みんなのフォト", en: "Community photos" }) }),
     ]),
-    publicationPolicyVersion: "public-feed-v1",
+    publicationPolicyVersion: "public-feed-v2",
     updatedAt: "2026-08-28T00:00:00.000Z",
     allowedConsumerOrigins: Object.freeze([
       "https://lenrinokinoshitade.com",
@@ -30,7 +30,7 @@ export const PUBLICATION_FEED_DEFINITIONS = Object.freeze({
       Object.freeze({ key: "living", label: Object.freeze({ ja: "園内の生きもの", en: "Living things in the park" }) }),
       Object.freeze({ key: "community_photo", label: Object.freeze({ ja: "園内のフォト", en: "Park photos" }) }),
     ]),
-    publicationPolicyVersion: "public-feed-v1",
+    publicationPolicyVersion: "public-feed-v2",
     updatedAt: "2026-09-02T00:00:00.000Z",
     allowedConsumerOrigins: Object.freeze([]),
   }),

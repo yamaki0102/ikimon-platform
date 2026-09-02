@@ -18,7 +18,7 @@ import { PUBLICATION_FEED_DEFINITIONS } from "./publicationFeedDefinitions.js";
 type Queryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
 
 export const PUBLICATION_FEED_API_VERSION = "1";
-export const PUBLICATION_FEED_POLICY_VERSION = "public-feed-v1";
+export const PUBLICATION_FEED_POLICY_VERSION = "public-feed-v2";
 export const PUBLICATION_FEED_DEFAULT_LIMIT = 12;
 export const PUBLICATION_FEED_MAX_LIMIT = 24;
 
@@ -527,6 +527,8 @@ type PublicationFeedDbRow = {
   dataset_license: string | null;
   media_license: string | null;
   external_export_allowed: boolean | null;
+  consent_source: string | null;
+  rights_policy_version: string | null;
   withdrawal_status: string | null;
 };
 
@@ -574,6 +576,8 @@ export const PUBLICATION_FEED_SOURCE_SQL = `
     rights.dataset_license,
     rights.media_license,
     rights.external_export_allowed,
+    rights.consent_source,
+    rights.rights_policy_version,
     rights.withdrawal_status
   from visits v
   cross join feed_channels
@@ -653,9 +657,18 @@ export const PUBLICATION_FEED_SOURCE_SQL = `
     and ${PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL}
     and rights.external_export_allowed = true
     and rights.record_consent = 'external_export'
-    and rights.research_use_consent = 'public_export'
-    and rights.dataset_license is not null
-    and rights.media_license is not null
+    and (
+      (
+        rights.consent_source = 'user_selected'
+        and rights.rights_policy_version = 'site_intelligence_p0_v2'
+        and rights.research_use_consent = 'none'
+      )
+      or (
+        rights.research_use_consent = 'public_export'
+        and rights.dataset_license is not null
+        and rights.media_license is not null
+      )
+    )
     and rights.withdrawal_status = 'active'
     and not exists (
       select 1
@@ -800,6 +813,8 @@ export async function getPublicationFeed(options: GetPublicationFeedOptions): Pr
         datasetLicense: row.dataset_license as ObservationDataRightsInput["datasetLicense"],
         mediaLicense: row.media_license as ObservationDataRightsInput["mediaLicense"],
         externalExportAllowed: row.external_export_allowed ?? false,
+        consentSource: row.consent_source as ObservationDataRightsInput["consentSource"],
+        rightsPolicyVersion: row.rights_policy_version ?? undefined,
         withdrawalStatus: row.withdrawal_status as ObservationDataRightsInput["withdrawalStatus"],
       },
     }));
