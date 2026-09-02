@@ -43,6 +43,8 @@ const detail: ObservationFirstRecordDetail = {
 
 test("detection presentation is derived only from durable assessment facts", () => {
   assert.equal(resolveObservationFirstDetectionState(1, null, null), "detected");
+  assert.equal(resolveObservationFirstDetectionState(1, "completed_no_candidate", "completed"), "not_detected");
+  assert.equal(resolveObservationFirstDetectionState(1, "completed_not_assessable", "completed"), "not_assessable");
   assert.equal(resolveObservationFirstDetectionState(0, "completed_no_candidate", "completed"), "not_detected");
   assert.equal(resolveObservationFirstDetectionState(0, "completed_not_assessable", "completed"), "not_assessable");
   assert.equal(resolveObservationFirstDetectionState(0, null, "failed"), "not_assessable");

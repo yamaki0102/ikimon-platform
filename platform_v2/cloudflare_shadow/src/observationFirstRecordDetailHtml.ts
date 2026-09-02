@@ -34,9 +34,9 @@ export function resolveObservationFirstDetectionState(
   aiAssessmentStatus: string | null | undefined,
   aiRequestStatus: string | null | undefined,
 ): ObservationFirstDetectionState | null {
-  if (activeEvidenceObservationCount > 0) return "detected";
   if (aiAssessmentStatus === "completed_no_candidate") return "not_detected";
   if (aiAssessmentStatus === "completed_not_assessable") return "not_assessable";
+  if (activeEvidenceObservationCount > 0) return "detected";
   if (aiRequestStatus === "failed") return "not_assessable";
   return null;
 }
