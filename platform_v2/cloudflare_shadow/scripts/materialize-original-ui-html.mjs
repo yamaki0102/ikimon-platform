@@ -888,7 +888,8 @@ try {
     });
   }
 
-  for (const pathname of staticAssetPaths) {
+  const staticPathsToRender = explicitPaths.length === 0 ? staticAssetPaths : [];
+  for (const pathname of staticPathsToRender) {
     const expectedContentType = staticContentType(pathname);
     const response = await renderStaticAsset(app, pathname);
     const contentType = String(response.headers["content-type"] ?? "");
