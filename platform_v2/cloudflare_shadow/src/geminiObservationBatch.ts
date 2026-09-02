@@ -370,7 +370,8 @@ const operationFromJson = (value: unknown): GeminiBatchOperation => {
     ? source.metadata as Record<string, unknown> : {};
   const response = source.response && typeof source.response === "object" && !Array.isArray(source.response)
     ? source.response as Record<string, unknown> : {};
-  const output = (metadata.output && typeof metadata.output === "object" ? metadata.output : response.output && typeof response.output === "object" ? response.output : {}) as Record<string, unknown>;
+  const output = source.output && typeof source.output === "object" && !Array.isArray(source.output)
+    ? source.output as Record<string, unknown> : {};
   const inlined = output.inlinedResponses && typeof output.inlinedResponses === "object" && !Array.isArray(output.inlinedResponses)
     ? output.inlinedResponses as Record<string, unknown> : {};
   const responses = Array.isArray(inlined.inlinedResponses) ? inlined.inlinedResponses
@@ -379,9 +380,10 @@ const operationFromJson = (value: unknown): GeminiBatchOperation => {
   const errorSource = (source.error && typeof source.error === "object" ? source.error : metadata.error && typeof metadata.error === "object" ? metadata.error : {}) as Record<string, unknown>;
   return {
     name: typeof source.name === "string" ? source.name : typeof metadata.name === "string" ? metadata.name : "",
-    displayName: typeof metadata.displayName === "string" ? metadata.displayName : typeof source.displayName === "string" ? source.displayName : null,
-    state: typeof metadata.state === "string" ? metadata.state : typeof source.state === "string" ? source.state : null,
-    batchStats: metadata.batchStats && typeof metadata.batchStats === "object" ? metadata.batchStats as Record<string, unknown> : null,
+    displayName: typeof source.displayName === "string" ? source.displayName : typeof metadata.displayName === "string" ? metadata.displayName : null,
+    state: typeof source.state === "string" ? source.state : typeof metadata.state === "string" ? metadata.state : null,
+    batchStats: source.batchStats && typeof source.batchStats === "object" ? source.batchStats as Record<string, unknown>
+      : metadata.batchStats && typeof metadata.batchStats === "object" ? metadata.batchStats as Record<string, unknown> : null,
     responses,
     error: typeof errorSource.message === "string" ? errorSource.message : null,
   };

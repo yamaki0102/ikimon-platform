@@ -14,6 +14,7 @@ import {
   createGeminiBatch,
   decideGeminiSpecialistEscalation,
   findGeminiBatchByDisplayName,
+  getGeminiBatch,
   geminiBatchDisplayName,
   geminiBatchResponseText,
   mergeGeminiObservationEvidence,
@@ -274,4 +275,28 @@ test("batch REST client uses exact model paths, recovers by display name, and pa
   const recovered = await findGeminiBatchByDisplayName("secret", "claim-primary", mockFetch);
   assert.equal(recovered?.name, "batches/existing");
   assert.equal(geminiBatchResponseText({ response: { candidates: [{ content: { parts: [{ text: "{\"ok\":true}" }] } }] } }), '{"ok":true}');
+});
+
+test("batch REST client reads completed inline responses from the canonical batch output", async () => {
+  const mockFetch = (async (url: string | URL | Request) => {
+    assert.equal(String(url), "https://generativelanguage.googleapis.com/v1beta/batches/completed");
+    return new Response(JSON.stringify({
+      name: "batches/completed",
+      displayName: "claim-primary",
+      state: "BATCH_STATE_SUCCEEDED",
+      batchStats: { requestCount: "1", successfulRequestCount: "1" },
+      output: {
+        inlinedResponses: {
+          inlinedResponses: [{
+            metadata: { key: "record-1" },
+            response: { candidates: [{ content: { parts: [{ text: "{\"record_class\":\"organism\"}" }] } }] },
+          }],
+        },
+      },
+    }), { status: 200 });
+  }) as typeof fetch;
+  const completed = await getGeminiBatch("secret", "batches/completed", mockFetch);
+  assert.equal(completed.state, "BATCH_STATE_SUCCEEDED");
+  assert.equal(completed.responses.length, 1);
+  assert.equal(geminiBatchResponseText(completed.responses[0]), '{"record_class":"organism"}');
 });
