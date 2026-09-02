@@ -23409,7 +23409,6 @@ function browserSecurityHeaders(cspNonce: string, isProduction: boolean): Record
   ].join("; ");
   return {
     "content-security-policy": contentSecurityPolicy,
-    "x-ikimon-csp-nonce": cspNonce,
     "x-content-type-options": "nosniff",
     "x-frame-options": "SAMEORIGIN",
     "referrer-policy": "strict-origin-when-cross-origin",
@@ -26064,7 +26063,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         canonicalUrl: new URL(`/${recordLang}/observations/${encodeURIComponent(detail.visitId)}`, url.origin).toString(),
         actionNonce: crypto.randomUUID(),
         processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
-        processingStatusPanel: `<span data-page-csp-nonce="${escapeHtml(cspNonce)}" hidden></span>${ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : ""}`,
+        processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
       }), cspNonce), 200, {

@@ -31,10 +31,10 @@ const detailHtml = `<!doctype html>
 </html>`;
 
 test("capture pages redirect only after record upsert and all photo uploads have reached the saved marker", () => {
-  const patched = applyPostCaptureValueLoopPatch(captureHtml);
+  const patched = applyPostCaptureValueLoopPatch(captureHtml, "abc123");
 
   assert.match(patched, /data-ikimon-post-capture-value-loop="v1"/u);
-  assert.match(patched, /nonce="nonce-123"/u);
+  assert.match(patched, /nonce="abc123"/u);
   assert.match(patched, /\/api\\\/v1\\\/observations\\\/upsert/u);
   assert.match(patched, /data-global-record-saved-action="records"/u);
   assert.match(patched, /location\.assign\(detailHref\(recordId\)\)/u);
@@ -43,7 +43,7 @@ test("capture pages redirect only after record upsert and all photo uploads have
 });
 
 test("record detail pages load the owner-only processing status and render the place contribution", () => {
-  const patched = applyPostCaptureValueLoopPatch(detailHtml);
+  const patched = applyPostCaptureValueLoopPatch(detailHtml, "abc123");
 
   assert.match(patched, /\/processing-status/u);
   assert.match(patched, /credentials: 'same-origin'/u);
@@ -67,7 +67,6 @@ test("dynamic detail injection reuses the response CSP nonce when HTML has no sc
       headers: {
         "content-type": "text/html; charset=utf-8",
         "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-page-csp-nonce' https://static.cloudflareinsights.com",
-        "x-ikimon-csp-nonce": "page-csp-nonce",
       },
     }),
   );
@@ -78,14 +77,13 @@ test("dynamic detail injection reuses the response CSP nonce when HTML has no sc
 });
 
 test("existing marked detail injection repairs an empty nonce without adding a duplicate patch", async () => {
-  const marked = applyPostCaptureValueLoopPatch(detailHtml).replace(/nonce="detail-nonce"/gu, 'nonce=""');
+  const marked = applyPostCaptureValueLoopPatch(detailHtml, "abc123").replace(/nonce="abc123"/gu, 'nonce=""');
   const response = await enhancePostCaptureValueLoop(
     new Request("https://ikimon.life/ja/observations/visit-detail-contract"),
     new Response(marked, {
       headers: {
         "content-type": "text/html; charset=utf-8",
         "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-page-csp-nonce'",
-        "x-ikimon-csp-nonce": "page-csp-nonce",
       },
     }),
   );
@@ -95,8 +93,8 @@ test("existing marked detail injection repairs an empty nonce without adding a d
 });
 
 test("patch is idempotent and skips unrelated HTML", () => {
-  const once = applyPostCaptureValueLoopPatch(detailHtml);
-  const twice = applyPostCaptureValueLoopPatch(once);
+  const once = applyPostCaptureValueLoopPatch(detailHtml, "abc123");
+  const twice = applyPostCaptureValueLoopPatch(once, "abc123");
   const unrelated = "<!doctype html><html><head></head><body><p>plain</p></body></html>";
 
   assert.equal(twice, once);
@@ -113,6 +111,7 @@ test("response wrapper changes only successful GET HTML responses with eligible 
         "content-type": "text/html; charset=utf-8",
         "content-length": String(captureHtml.length),
         etag: '"capture"',
+        "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-header-nonce'",
       },
     }),
   );
@@ -123,7 +122,7 @@ test("response wrapper changes only successful GET HTML responses with eligible 
   );
   assert.equal(patchedResponse.headers.get("content-length"), null);
   assert.equal(patchedResponse.headers.get("etag"), null);
-  assert.match(await patchedResponse.text(), /data-ikimon-post-capture-value-loop="v1"/u);
+  assert.match(await patchedResponse.text(), /data-ikimon-post-capture-value-loop="v1" nonce="header-nonce"/u);
 
   const postResponse = await enhancePostCaptureValueLoop(
     new Request("https://ikimon.life/api/v1/observations/upsert", { method: "POST" }),
@@ -137,4 +136,15 @@ test("response wrapper changes only successful GET HTML responses with eligible 
     new Response('{"ok":true}', { headers: { "content-type": "application/json" } }),
   );
   assert.equal(await jsonResponse.text(), '{"ok":true}');
+});
+
+test("missing CSP nonce fails closed without generating an executable inline handler", async () => {
+  const dynamicDetailHtml = detailHtml.replace('<script nonce="detail-nonce">window.base=true;</script>', "");
+  const response = await enhancePostCaptureValueLoop(
+    new Request("https://ikimon.life/ja/observations/visit-detail-contract"),
+    new Response(dynamicDetailHtml, { headers: { "content-type": "text/html; charset=utf-8" } }),
+  );
+  const patched = await response.text();
+  assert.equal(patched, dynamicDetailHtml);
+  assert.doesNotMatch(patched, /data-ikimon-post-capture-value-loop="v1"/u);
 });

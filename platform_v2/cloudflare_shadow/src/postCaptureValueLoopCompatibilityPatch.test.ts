@@ -5,6 +5,7 @@ import {
   enforcePostCaptureValueLoopCompatibility,
   POST_CAPTURE_VALUE_LOOP_COMPATIBILITY,
 } from "./postCaptureValueLoopCompatibilityPatch";
+import { applyPostCaptureValueLoopPatch } from "./postCaptureValueLoopPatch";
 
 const detailHtml = `<!doctype html>
 <html lang="ja">
@@ -108,13 +109,13 @@ test("response wrapper changes only successful GET detail HTML", async () => {
 
 test("dynamic compatibility injection reuses the response CSP nonce", async () => {
   const dynamicDetailHtml = detailHtml.replace('<script nonce="compat-nonce">window.base=true;</script>', "");
+  const withValueLoop = applyPostCaptureValueLoopPatch(dynamicDetailHtml, "page-csp-nonce");
   const response = await enforcePostCaptureValueLoopCompatibility(
     new Request("https://ikimon.life/ja/observations/record-1"),
-    new Response(dynamicDetailHtml, {
+    new Response(withValueLoop, {
       headers: {
         "content-type": "text/html; charset=utf-8",
         "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-page-csp-nonce' https://static.cloudflareinsights.com",
-        "x-ikimon-csp-nonce": "page-csp-nonce",
       },
     }),
   );
@@ -124,15 +125,14 @@ test("dynamic compatibility injection reuses the response CSP nonce", async () =
   assert.doesNotMatch(patched, /unsafe-inline/u);
 });
 
-test("existing marked compatibility injection repairs an empty nonce", async () => {
-  const marked = applyPostCaptureValueLoopCompatibilityPatch(detailHtml).replace(/nonce="compat-nonce"/gu, 'nonce=""');
+test("existing marked compatibility injection preserves the value-loop nonce", async () => {
+  const marked = applyPostCaptureValueLoopPatch(detailHtml, "page-csp-nonce");
   const response = await enforcePostCaptureValueLoopCompatibility(
     new Request("https://ikimon.life/ja/observations/record-1"),
     new Response(marked, {
       headers: {
         "content-type": "text/html; charset=utf-8",
         "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-page-csp-nonce'",
-        "x-ikimon-csp-nonce": "page-csp-nonce",
       },
     }),
   );

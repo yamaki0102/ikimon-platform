@@ -546,10 +546,8 @@ function escapeAttribute(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
-function nonceAttribute(html: string, cspNonce = ""): string {
-  const match = html.match(/<script\b[^>]*\bnonce=(["'])([^"']+)\1/iu);
-  const carrier = html.match(/data-page-csp-nonce=(['"])([^"']+)\1/iu)?.[2];
-  const nonce = cspNonce || carrier || match?.[2];
+function nonceAttribute(cspNonce: string): string {
+  const nonce = cspNonce.trim();
   return nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
 }
 
@@ -572,9 +570,10 @@ function repairMarkedNonce(html: string, nonce: string): string {
 }
 
 export function applyPostCaptureValueLoopPatch(html: string, cspNonce = ""): string {
-  const nonce = nonceAttribute(html, cspNonce);
+  const nonce = nonceAttribute(cspNonce);
   if (html.includes(PATCH_MARKER)) return repairMarkedNonce(html, nonce);
   if (!shouldPatchHtml(html)) return html;
+  if (!nonce) return html;
   const payload = `<style id="${STYLE_ID}"${nonce}>${INJECTED_STYLE}</style><script ${PATCH_MARKER}${nonce}>${INJECTED_SCRIPT}</script>`;
   if (html.includes("</head>")) return html.replace("</head>", `${payload}\n</head>`);
   return `${payload}${html}`;
@@ -586,7 +585,7 @@ export async function enhancePostCaptureValueLoop(request: Request, response: Re
   if (!contentType.includes("text/html")) return response;
 
   const html = await response.text();
-  const patched = applyPostCaptureValueLoopPatch(html, nonceFromContentSecurityPolicy(response.headers.get("content-security-policy")) || String(response.headers.get("x-ikimon-csp-nonce") ?? ""));
+  const patched = applyPostCaptureValueLoopPatch(html, nonceFromContentSecurityPolicy(response.headers.get("content-security-policy")));
   if (patched === html) {
     const headers = new Headers(response.headers);
     headers.delete("content-length");

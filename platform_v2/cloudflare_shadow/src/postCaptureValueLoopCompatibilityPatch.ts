@@ -253,16 +253,12 @@ function escapeAttribute(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
-function nonceAttribute(html: string, cspNonce = ""): string {
-  const match = html.match(/<script\b[^>]*\bnonce=(["'])([^"']+)\1/iu);
-  const carrier = html.match(/data-page-csp-nonce=(['"])([^"']+)\1/iu)?.[2];
-  const nonce = cspNonce || carrier || match?.[2];
+function nonceAttribute(html: string): string {
+  const scripts = html.match(/<script\b[^>]*>/giu) ?? [];
+  const preferred = scripts.find((tag) => tag.includes('data-ikimon-post-capture-value-loop="v1"'));
+  const match = (preferred ?? scripts[0] ?? "").match(/\bnonce=(["'])([^"']+)\1/iu);
+  const nonce = match?.[2];
   return nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
-}
-
-function nonceFromContentSecurityPolicy(value: string | null): string {
-  const match = String(value ?? "").match(/(?:^|;)\s*script-src\s+[^;]*?'nonce-([^'\s;]+)'/iu);
-  return match?.[1] ?? "";
 }
 
 function repairMarkedNonce(html: string, nonce: string): string {
@@ -274,10 +270,10 @@ function repairMarkedNonce(html: string, nonce: string): string {
   });
 }
 
-export function applyPostCaptureValueLoopCompatibilityPatch(html: string, cspNonce = ""): string {
-  const nonce = nonceAttribute(html, cspNonce);
+export function applyPostCaptureValueLoopCompatibilityPatch(html: string): string {
+  const nonce = nonceAttribute(html);
   if (html.includes(PATCH_MARKER)) return repairMarkedNonce(html, nonce);
-  if (!html.includes("data-observation-first-record-detail")) return html;
+  if (!html.includes("data-observation-first-record-detail") || !nonce) return html;
   const payload = `<style id="${STYLE_ID}"${nonce}>${INJECTED_STYLE}</style><script ${PATCH_MARKER}${nonce}>${INJECTED_SCRIPT}</script>`;
   if (html.includes("</head>")) return html.replace("</head>", `${payload}\n</head>`);
   return `${payload}${html}`;
@@ -292,7 +288,7 @@ export async function enforcePostCaptureValueLoopCompatibility(
   if (!contentType.includes("text/html")) return response;
 
   const html = await response.text();
-  const patched = applyPostCaptureValueLoopCompatibilityPatch(html, nonceFromContentSecurityPolicy(response.headers.get("content-security-policy")) || String(response.headers.get("x-ikimon-csp-nonce") ?? ""));
+  const patched = applyPostCaptureValueLoopCompatibilityPatch(html);
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   if (patched !== html) {
