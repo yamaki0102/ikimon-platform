@@ -472,7 +472,24 @@ export const parseGeminiCensusEvidence = (text: string): GeminiCensusEvidence =>
     review_reasons: Array.isArray(parsed.review_reasons) ? parsed.review_reasons : [],
   };
 };
-export const parseGeminiEnvironmentEvidence = (text: string): GeminiEnvironmentEvidence => parseJson<GeminiEnvironmentEvidence>(text);
+export const parseGeminiEnvironmentEvidence = (text: string): GeminiEnvironmentEvidence => {
+  const parsed = parseJson<Partial<GeminiEnvironmentEvidence>>(text);
+  const fields = parsed.fields && typeof parsed.fields === "object" && !Array.isArray(parsed.fields)
+    ? parsed.fields as Partial<GeminiEnvironmentFields>
+    : {};
+  return {
+    assessment_state: parsed.assessment_state ?? "not_assessable",
+    fields: {
+      place_type: fields.place_type ?? "unknown",
+      contact_surface: fields.contact_surface ?? "unknown",
+      surrounding_cover: fields.surrounding_cover ?? "unknown",
+      environment_condition: fields.environment_condition ?? "unknown",
+      human_change: fields.human_change ?? "unknown",
+    },
+    cues: Array.isArray(parsed.cues) ? parsed.cues : [],
+    uncertain_cues: Array.isArray(parsed.uncertain_cues) ? parsed.uncertain_cues : [],
+  };
+};
 export const parseGeminiObservationSummary = (text: string): GeminiObservationSummary => parseJson<GeminiObservationSummary>(text);
 export const parseGeminiSpecialistEvidence = (text: string): GeminiSpecialistEvidence => parseJson<GeminiSpecialistEvidence>(text);
 
