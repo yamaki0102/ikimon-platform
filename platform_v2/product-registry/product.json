@@ -1,34 +1,198 @@
 {
-  "schema_version":"1.0.0",
-  "product_id":"zukan",
-  "name":"ZUKAN",
-  "organization_id":"ikimon",
-  "lifecycle":"active",
-  "purpose":"地域の記録を、出典・時点・権利・確認状態つきで育て、必要なViewとPublicationへ返す",
-  "primary_outcome":"地域のSource・写真・文書・活動を、Place/Entity・時点・Evidence・Rights・Reviewで安全に接続し、参加型Programと目的別View/Publicationへ再利用し、必要なら外部Publisherへ訂正・更新を返せる",
-  "canonical_domain":"zukan.earth",
-  "implementation_repository":"yamaki0102/ikimon-platform",
-  "registries":{"outcomes":"outcomes.json","surfaces":"surfaces.json","capabilities":"capabilities.json","journeys":"journeys.json","requirements":"requirements.json","design":"design.json","content":"content.json","quality":"quality.json","delivery":"delivery.json"},
-  "status_authority":{"kind":"shared-resolver","locator":"operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus","version":"1.0.0","owns":["Claim IDs","Collector authority","exact-SHA and freshness","Evidence acceptance","resolved source/runtime status"],"registry_owns":["product meaning","acceptance","dependencies","implementation navigation"]},
-  "canonical_chain":["Outcome","Golden Journey","Capability","Requirement","Surface","Design","Dependency","Roadmap","Task","Acceptance/Eval","Shared Status Resolver","Runtime Evidence"],
-  "execution_roadmap":{"strategy_locator":"yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md","product_plan_locator":"docs/spec/zukan-product-architecture/PLAN.md","rules":["core_loop_defects_preempt_frontier_work","executor_slot_filled_by_lane_priority_not_milestone_number","m7_m8_are_cross_profile_foundations","m8a_does_not_wait_for_m7","m7_runtime_slices_are_calendar_gated_to_fiscal_year_turnover","promotion_only_at_risk_class_boundaries","m9_requires_demand_probe_on_existing_program_core","m9_proves_profiles_by_small_demand_backed_vertical_slices","m10_starts_from_existing_publication_feed","m10_reuses_publicationedition","m11_uses_bounded_exchange_packages","m12_manual_paid_delivery_before_software","m12_standardizes_outcomes_before_billing","m5_remains_deferred_until_demand_evidence"]},
-  "profile_horizon":{"locator":"docs/spec/zukan-product-architecture/PROFILE_HORIZON.md","rules":["biodiversity_is_one_domain_pack","observation_event_is_one_program_profile","program_profiles_reuse_shared_program_core","publication_profiles_reuse_governed_source_truth","people_publication_requires_explicit_rights_and_never_face_identification","nocosil_exchange_is_explicit_projection_not_shared_database","photo_contest_is_default_first_m9_profile_after_promotion","stamp_rally_initially_reuses_mission_profile"]},
-  "source_assets":[
-    {"id":"asset.exif-normalization","locator":"platform_v2/src/services/observationPhotoUpload.ts","use":"existing media metadata minimization and normalization locator"},
-    {"id":"asset.program-event","locator":"platform_v2/src/services/guidePrograms.ts","use":"existing Program/Event contract locator"},
-    {"id":"asset.event-api","locator":"platform_v2/src/routes/observationEventApi.ts","use":"existing Event API locator"},
-    {"id":"asset.event-create","locator":"platform_v2/src/ui/observationEventCreate.ts","use":"existing self-serve organizer creation and template reuse locator"},
-    {"id":"asset.rights","locator":"platform_v2/src/services/observationDataRights.ts","use":"existing rights, withdrawal and deletion locator"},
-    {"id":"asset.publication","locator":"platform_v2/src/services/publicationFeed.ts","use":"existing publication projection locator"},
-    {"id":"asset.publication-feed-native","locator":"platform_v2/cloudflare_shadow/src/publicationFeedNative.ts","use":"existing runtime public feed consumed by external regional sites; M10 API/dataset projection seed"},
-    {"id":"asset.regional-envelope","locator":"platform_v2/src/services/zukanRegionalKnowledgeEnvelope.ts","use":"existing regional source/publication envelope locator"},
-    {"id":"asset.export","locator":"platform_v2/src/services/researchExport.ts","use":"existing export locator; not RawRecordPortabilityArchive authority"},
-    {"id":"asset.free-core","locator":"docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md","use":"free organizational core boundary locator"},
-    {"id":"asset.area-encyclopedia-growth","locator":"docs/design/area_encyclopedia_growth_and_stewardship_contract_2026-09-02.md","use":"owner-adopted Area Encyclopedia growth-state and stewardship contract; Core Loop lane"},
-    {"id":"asset.area-encyclopedia-renderer-p0","locator":"docs/implementation/zukan_area_encyclopedia_shared_renderer_p0_2026-09-02.md","use":"owner-adopted shared renderer P0 execution contract including the Ryuyo core + nearby fixture; Core Loop lane"},
-    {"id":"asset.profile-horizon","locator":"docs/spec/zukan-product-architecture/PROFILE_HORIZON.md","use":"canonical product-local projection for broad Program, Publication, Source/Exchange and professional outcome horizon"},
-    {"id":"asset.execution-roadmap-v3","locator":"docs/spec/zukan-product-architecture/PLAN.md","use":"product-local Core Loop lane, M7/M8 slice contracts and NEEDS_DECISION list under strategy roadmap v3 r2"}
+  "schema_version": "1.0.0",
+  "product_id": "zukan",
+  "name": "ZUKAN",
+  "organization_id": "ikimon",
+  "lifecycle": "active",
+  "purpose": "地域の記録を、出典・時点・権利・確認状態つきで育て、必要なViewとPublicationへ返す",
+  "primary_outcome": "地域のSource・写真・文書・活動を、Place/Entity・時点・Evidence・Rights・Reviewで安全に接続し、参加型Programと目的別View/Publicationへ再利用し、必要なら外部Publisherへ訂正・更新を返せる",
+  "canonical_domain": "zukan.earth",
+  "implementation_repository": "yamaki0102/ikimon-platform",
+  "registries": {
+    "outcomes": "outcomes.json",
+    "surfaces": "surfaces.json",
+    "capabilities": "capabilities.json",
+    "journeys": "journeys.json",
+    "requirements": "requirements.json",
+    "design": "design.json",
+    "content": "content.json",
+    "quality": "quality.json",
+    "delivery": "delivery.json"
+  },
+  "status_authority": {
+    "kind": "shared-resolver",
+    "locator": "operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus",
+    "version": "1.0.0",
+    "owns": [
+      "Claim IDs",
+      "Collector authority",
+      "exact-SHA and freshness",
+      "Evidence acceptance",
+      "resolved source/runtime status"
+    ],
+    "registry_owns": [
+      "product meaning",
+      "acceptance",
+      "dependencies",
+      "implementation navigation"
+    ]
+  },
+  "canonical_chain": [
+    "Outcome",
+    "Golden Journey",
+    "Capability",
+    "Requirement",
+    "Surface",
+    "Design",
+    "Dependency",
+    "Roadmap",
+    "Task",
+    "Acceptance/Eval",
+    "Shared Status Resolver",
+    "Runtime Evidence"
   ],
-  "required_surface_ids":["zukan.home.public","zukan.capture.start","zukan.records.public","zukan.map.public","zukan.home.member","zukan.program.hub","zukan.program.activation","zukan.program.console","zukan.program.participation","zukan.program.recap"],
-  "rules":{"all_surfaces_require_design_contract":true,"all_surfaces_require_content_contract":true,"all_surfaces_require_quality_contract":true,"all_transitions_require_existing_target":true,"owner_only_surfaces_require_denied_state":true,"write_capabilities_require_failure_and_retry_contract":true,"exceptions_require_owner_reason_and_expiry":true,"planned_surfaces_must_not_claim_route_or_runtime":true,"status_must_be_resolved_by_shared_resolver":true}
+  "execution_roadmap": {
+    "strategy_locator": "yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md",
+    "product_plan_locator": "docs/spec/zukan-product-architecture/PLAN.md",
+    "rules": [
+      "delivered_means_running_in_production_and_observed_working",
+      "no_new_slice_while_a_source_verified_slice_is_undelivered",
+      "every_core_loop_stage_returns_something_visible_to_the_contributor",
+      "core_loop_defects_preempt_frontier_work",
+      "executor_slot_filled_by_lane_priority_not_milestone_number",
+      "m7_m8_are_cross_profile_foundations",
+      "m8a_does_not_wait_for_m7",
+      "m7_runtime_slices_are_calendar_gated_to_fiscal_year_turnover",
+      "promotion_only_at_risk_class_boundaries",
+      "implementation_allowed_never_authorizes_production_mutation",
+      "m9_requires_demand_probe_on_existing_program_core",
+      "m9_proves_profiles_by_small_demand_backed_vertical_slices",
+      "m10_starts_from_existing_publication_feed",
+      "m10_reuses_publicationedition",
+      "m11_uses_bounded_exchange_packages",
+      "m12_manual_paid_delivery_before_software",
+      "m12_standardizes_outcomes_before_billing",
+      "m5_remains_deferred_until_demand_evidence"
+    ]
+  },
+  "profile_horizon": {
+    "locator": "docs/spec/zukan-product-architecture/PROFILE_HORIZON.md",
+    "rules": [
+      "biodiversity_is_one_domain_pack",
+      "observation_event_is_one_program_profile",
+      "program_profiles_reuse_shared_program_core",
+      "publication_profiles_reuse_governed_source_truth",
+      "people_publication_requires_explicit_rights_and_never_face_identification",
+      "nocosil_exchange_is_explicit_projection_not_shared_database",
+      "photo_contest_is_default_first_m9_profile_after_promotion",
+      "stamp_rally_initially_reuses_mission_profile"
+    ]
+  },
+  "source_assets": [
+    {
+      "id": "asset.exif-normalization",
+      "locator": "platform_v2/src/services/observationPhotoUpload.ts",
+      "use": "existing media metadata minimization and normalization locator"
+    },
+    {
+      "id": "asset.program-event",
+      "locator": "platform_v2/src/services/guidePrograms.ts",
+      "use": "existing Program/Event contract locator"
+    },
+    {
+      "id": "asset.event-api",
+      "locator": "platform_v2/src/routes/observationEventApi.ts",
+      "use": "existing Event API locator"
+    },
+    {
+      "id": "asset.event-create",
+      "locator": "platform_v2/src/ui/observationEventCreate.ts",
+      "use": "existing self-serve organizer creation and template reuse locator"
+    },
+    {
+      "id": "asset.rights",
+      "locator": "platform_v2/src/services/observationDataRights.ts",
+      "use": "existing rights, withdrawal and deletion locator"
+    },
+    {
+      "id": "asset.publication",
+      "locator": "platform_v2/src/services/publicationFeed.ts",
+      "use": "existing publication projection locator"
+    },
+    {
+      "id": "asset.publication-feed-native",
+      "locator": "platform_v2/cloudflare_shadow/src/publicationFeedNative.ts",
+      "use": "existing runtime public feed consumed by external regional sites; M10 API/dataset projection seed"
+    },
+    {
+      "id": "asset.regional-envelope",
+      "locator": "platform_v2/src/services/zukanRegionalKnowledgeEnvelope.ts",
+      "use": "existing regional source/publication envelope locator"
+    },
+    {
+      "id": "asset.export",
+      "locator": "platform_v2/src/services/researchExport.ts",
+      "use": "existing export locator; not RawRecordPortabilityArchive authority"
+    },
+    {
+      "id": "asset.free-core",
+      "locator": "docs/spec/programs/ZUKAN_FREE_ORGANIZATIONAL_CORE_CONTRACT.md",
+      "use": "free organizational core boundary locator"
+    },
+    {
+      "id": "asset.area-encyclopedia-growth",
+      "locator": "docs/design/area_encyclopedia_growth_and_stewardship_contract_2026-09-02.md",
+      "use": "owner-adopted Area Encyclopedia growth-state and stewardship contract; Core Loop lane"
+    },
+    {
+      "id": "asset.area-encyclopedia-renderer-p0",
+      "locator": "docs/implementation/zukan_area_encyclopedia_shared_renderer_p0_2026-09-02.md",
+      "use": "owner-adopted shared renderer P0 execution contract including the Ryuyo core + nearby fixture; Core Loop lane"
+    },
+    {
+      "id": "asset.profile-horizon",
+      "locator": "docs/spec/zukan-product-architecture/PROFILE_HORIZON.md",
+      "use": "canonical product-local projection for broad Program, Publication, Source/Exchange and professional outcome horizon"
+    },
+    {
+      "id": "asset.execution-roadmap-v3",
+      "locator": "docs/spec/zukan-product-architecture/PLAN.md",
+      "use": "product-local Core Loop lane, M7/M8 slice contracts and NEEDS_DECISION list under strategy roadmap v3 r2"
+    },
+    {
+      "id": "asset.record-detail",
+      "locator": "platform_v2/cloudflare_shadow/src/observationFirstRecordDetailHtml.ts",
+      "use": "existing public/owner-aware Record detail runtime and Core Loop contributor-return surface"
+    },
+    {
+      "id": "asset.place-detail",
+      "locator": "platform_v2/src/routes/observationEventPages.ts",
+      "use": "existing Area Encyclopedia / Place detail runtime locator; Core Loop accumulation stage"
+    }
+  ],
+  "required_surface_ids": [
+    "zukan.home.public",
+    "zukan.capture.start",
+    "zukan.records.public",
+    "zukan.record.detail",
+    "zukan.map.public",
+    "zukan.place.detail",
+    "zukan.home.member",
+    "zukan.program.hub",
+    "zukan.program.activation",
+    "zukan.program.console",
+    "zukan.program.participation",
+    "zukan.program.recap"
+  ],
+  "rules": {
+    "all_surfaces_require_design_contract": true,
+    "all_surfaces_require_content_contract": true,
+    "all_surfaces_require_quality_contract": true,
+    "all_transitions_require_existing_target": true,
+    "owner_only_surfaces_require_denied_state": true,
+    "write_capabilities_require_failure_and_retry_contract": true,
+    "exceptions_require_owner_reason_and_expiry": true,
+    "planned_surfaces_must_not_claim_route_or_runtime": true,
+    "status_must_be_resolved_by_shared_resolver": true
+  }
 }

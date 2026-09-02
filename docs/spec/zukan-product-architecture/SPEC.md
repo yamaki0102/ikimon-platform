@@ -226,7 +226,22 @@ Specialist judgment belongs to a Domain Pack and accountable reviewers. Adoption
 - Keep Foundation v2 migrations additive and dormant where no writer or reader is approved.
 - Do not switch current runtime routes or public response schemas merely because a future profile is described in the roadmap.
 - Do not create a municipality-specific database, authentication system or canonical Place model.
-- Keep NOCOSIL and ZUKAN as separate canonical/private domains; exchange only explicit public-safe projections/packages under the profile horizon.
+- Keep NOCOSIL and ZUKAN as separate canonical/private product domains with separate product-local databases and domain-local sessions. Source-level exchange remains explicit public-safe projections and packages under the profile horizon.
+
+### 12.1 Shared Identity & Activity plane
+
+The owner-approved Draft decision `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-nocosil-zukan-shared-identity-activity-plane-v1.md` proposes one product-family `principal_id` and one small shared Identity & Activity plane holding only `principal`, `product_account_link` and `activity_receipt`. If adopted, it narrows the earlier prohibition to *no giant merged product database* and supersedes the earlier "no account pairing" direction. It remains a separate lane from M11 source exchange, because identity is not a Source.
+
+ZUKAN's side of that boundary:
+
+- ZUKAN stays canonical for Program, participant, Record, Review and Publication state. A receipt is evidence that a person did something, never a second mutable copy of a ZUKAN object.
+- ZUKAN emits `activity_receipt` only for participation and contribution events it has already proven, carrying the minimum rights-safe fields plus verification state and visibility classification.
+- Correction, revocation and withdrawal propagate to the derived NOCOSIL view.
+- Minor, restricted and guardian-governed activity projects only the minimum rights-safe receipt, or none.
+- Participant rosters, other people's personal information, contact data, precise movement history, private media, guardian documents, organizer notes and credentials never enter the shared plane.
+- Sessions stay domain-local. No shared cookie and no standing cross-product bearer token.
+- Public ZUKAN activity does not make a person's NOCOSIL aggregate public, and shared identity grants no authority to publish NOCOSIL private data into ZUKAN.
+- No contribution score, ranking or social graph is derived from receipts without a separate transparent product decision.
 
 ## 13. Delivery authority and current frontier
 
@@ -246,7 +261,7 @@ The broad product horizon is fixed in `PROFILE_HORIZON.md`. Describing a future 
 
 The current execution roadmap adds these product-level rules without changing runtime status:
 
-1. M1-M6/App Experience are the Core Loop (`撮る -> 保存 -> AI候補 -> Review -> Areaに蓄積 -> 再訪 -> Program参加 -> Publication -> 次の参加`); its defects and product-value corrections take the executor slot before frontier work, and redesign for its own sake does not;
+1. M1-M6/App Experience are the Core Loop (`撮る -> 保存 -> AI候補 -> Review -> Place/Areaに蓄積 -> 再訪 -> Program参加 -> governed Publication -> 次の参加`); its defects and product-value corrections take the executor slot before frontier work, and redesign for its own sake does not. A slice is delivered only when it runs in production and is observed working there, and every loop stage owes the contributor a visible return;
 2. self-serve foundations (M8-A) and calendar-gated cross-profile foundations (M7) are scheduled by the lane rule in roadmap v3 §2.1, not by milestone number; M8-A does not wait for M7;
 3. prove M9 with the smallest demand-backed non-biological profile after one demand probe on the existing Program Core, rather than building a universal profile engine;
 4. compose M10 Publications from existing governed truth, starting from the existing publication feed already consumed by external regional sites, rather than create new CMS/source silos or per-region consumer code;

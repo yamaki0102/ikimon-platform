@@ -9,20 +9,52 @@
       "kind": "website-home",
       "area": "start",
       "purpose": "ZUKANの価値を理解し、地域の記録を撮る・見る・場所や参加へ進む",
-      "personas": ["visitor", "member"],
+      "personas": [
+        "visitor",
+        "member"
+      ],
       "auth": "public",
       "privacy": "public-filtered",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.home.view-public", "zukan.capture.start"],
-      "entry_points": ["external"],
-      "transitions": [
-        { "action": "撮る", "target": "zukan.capture.start", "status": "implemented" },
-        { "action": "記録を見る", "target": "zukan.records.public", "status": "implemented" },
-        { "action": "場所を見る", "target": "zukan.map.public", "status": "implemented" },
-        { "action": "観察会を見る", "target": "zukan.program.hub", "status": "implemented" }
+      "capabilities": [
+        "zukan.home.view-public",
+        "zukan.capture.start"
       ],
-      "states": ["guest", "member", "empty", "populated", "loading", "degraded", "error"],
+      "entry_points": [
+        "external"
+      ],
+      "transitions": [
+        {
+          "action": "撮る",
+          "target": "zukan.capture.start",
+          "status": "implemented"
+        },
+        {
+          "action": "記録を見る",
+          "target": "zukan.records.public",
+          "status": "implemented"
+        },
+        {
+          "action": "場所を見る",
+          "target": "zukan.map.public",
+          "status": "implemented"
+        },
+        {
+          "action": "観察会を見る",
+          "target": "zukan.program.hub",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "guest",
+        "member",
+        "empty",
+        "populated",
+        "loading",
+        "degraded",
+        "error"
+      ],
       "design_contract": "design.zukan.home-public",
       "content_contract": "content.zukan.home-public",
       "quality_contract": "quality.zukan.home-public",
@@ -35,19 +67,63 @@
       "kind": "capture-flow",
       "area": "capture",
       "purpose": "写真・場所・時間・メモを記録し、未ログイン時は安全に開始案内へ分岐する",
-      "personas": ["visitor", "member"],
+      "personas": [
+        "visitor",
+        "member"
+      ],
       "auth": "session-or-start-guide",
       "privacy": "private-draft",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.capture.start", "zukan.record.save-private"],
-      "entry_points": ["zukan.home.public", "zukan.home.member", "zukan.records.public", "zukan.program.participation"],
-      "transitions": [
-        { "action": "保存成功", "target": "zukan.home.member", "status": "candidate" },
-        { "action": "公開記録へ戻る", "target": "zukan.records.public", "status": "implemented" },
-        { "action": "Event記録を振り返る", "target": "zukan.program.recap", "status": "implemented" }
+      "capabilities": [
+        "zukan.capture.start",
+        "zukan.record.save-private"
       ],
-      "states": ["unauthenticated", "ready", "capturing", "preview", "submitting", "success", "validation-error", "upload-error", "offline", "retrying"],
+      "entry_points": [
+        "zukan.home.public",
+        "zukan.home.member",
+        "zukan.records.public",
+        "zukan.program.participation"
+      ],
+      "transitions": [
+        {
+          "action": "保存成功",
+          "target": "zukan.home.member",
+          "status": "candidate"
+        },
+        {
+          "action": "保存した記録の詳細と返却を見る",
+          "target": "zukan.record.detail",
+          "status": "candidate"
+        },
+        {
+          "action": "公開記録へ戻る",
+          "target": "zukan.records.public",
+          "status": "implemented"
+        },
+        {
+          "action": "Event記録を振り返る",
+          "target": "zukan.program.recap",
+          "status": "implemented"
+        },
+        {
+          "action": "記録した場所の図鑑へ戻る",
+          "target": "zukan.place.detail",
+          "status": "candidate"
+        }
+      ],
+      "states": [
+        "unauthenticated",
+        "ready",
+        "capturing",
+        "preview",
+        "submitting",
+        "success",
+        "validation-error",
+        "upload-error",
+        "offline",
+        "retrying"
+      ],
       "design_contract": "design.zukan.capture",
       "content_contract": "content.zukan.capture",
       "quality_contract": "quality.zukan.capture",
@@ -59,23 +135,112 @@
       "route_source": "site-map",
       "kind": "public-browser",
       "area": "records",
-      "purpose": "公開観察、名前待ち、証拠メディア、場所を一つの入口から探す",
-      "personas": ["visitor", "member"],
+      "purpose": "地域の記録（写真・文書・活動・施設等）を、時点・出典・確認状態つきで探し、場所や記録から次へ進む",
+      "personas": [
+        "visitor",
+        "member"
+      ],
       "auth": "public",
       "privacy": "public-filtered",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.records.browse-public", "zukan.capture.start"],
-      "entry_points": ["zukan.home.public", "zukan.home.member", "zukan.map.public"],
-      "transitions": [
-        { "action": "撮る", "target": "zukan.capture.start", "status": "implemented" },
-        { "action": "場所を見る", "target": "zukan.map.public", "status": "implemented" }
+      "capabilities": [
+        "zukan.records.browse-public",
+        "zukan.capture.start",
+        "zukan.record.view-detail"
       ],
-      "states": ["empty", "populated", "searching", "no-results", "loading", "error"],
+      "entry_points": [
+        "zukan.home.public",
+        "zukan.home.member",
+        "zukan.map.public"
+      ],
+      "transitions": [
+        {
+          "action": "撮る",
+          "target": "zukan.capture.start",
+          "status": "implemented"
+        },
+        {
+          "action": "場所を見る",
+          "target": "zukan.map.public",
+          "status": "implemented"
+        },
+        {
+          "action": "記録詳細を見る",
+          "target": "zukan.record.detail",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "empty",
+        "populated",
+        "searching",
+        "no-results",
+        "loading",
+        "error"
+      ],
       "design_contract": "design.zukan.records",
       "content_contract": "content.zukan.records",
       "quality_contract": "quality.zukan.records",
       "implementation_ref": "platform_v2/src/siteMap.ts"
+    },
+    {
+      "id": "zukan.record.detail",
+      "route": "/observations/:id",
+      "route_source": "site-map",
+      "kind": "record-detail",
+      "area": "records",
+      "purpose": "公開可能な記録詳細と、本人にだけ返すAI・Review・publication状態を同じRecord identityで確認する",
+      "personas": [
+        "visitor",
+        "member"
+      ],
+      "auth": "public",
+      "privacy": "mixed-owner-and-public",
+      "implementation_status": "implemented",
+      "known_gaps": [
+        "human Review decision return、syndication consent、publication destination/exclusion returnはCore Loop frontierで未着地"
+      ],
+      "capabilities": [
+        "zukan.record.view-detail",
+        "zukan.capture.start"
+      ],
+      "entry_points": [
+        "zukan.records.public",
+        "zukan.home.member",
+        "zukan.capture.start"
+      ],
+      "transitions": [
+        {
+          "action": "もう一度記録する",
+          "target": "zukan.capture.start",
+          "status": "implemented"
+        },
+        {
+          "action": "記録一覧へ戻る",
+          "target": "zukan.records.public",
+          "status": "implemented"
+        },
+        {
+          "action": "記録した場所を見る",
+          "target": "zukan.place.detail",
+          "status": "candidate"
+        }
+      ],
+      "states": [
+        "public",
+        "owner",
+        "ai-queued",
+        "ai-processing",
+        "ai-completed",
+        "ai-failed",
+        "denied",
+        "not-found"
+      ],
+      "design_contract": "design.zukan.record-detail",
+      "content_contract": "content.zukan.record-detail",
+      "quality_contract": "quality.zukan.record-detail",
+      "implementation_ref": "platform_v2/cloudflare_shadow/src/observationFirstRecordDetailHtml.ts"
     },
     {
       "id": "zukan.map.public",
@@ -84,18 +249,47 @@
       "kind": "map-explorer",
       "area": "places",
       "purpose": "公開可能な範囲で記録が集まる場所と次に歩く理由を見る",
-      "personas": ["visitor", "member"],
+      "personas": [
+        "visitor",
+        "member"
+      ],
       "auth": "public",
       "privacy": "public-filtered-location",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.map.explore-public", "zukan.capture.start"],
-      "entry_points": ["zukan.home.public", "zukan.records.public"],
-      "transitions": [
-        { "action": "記録を見る", "target": "zukan.records.public", "status": "implemented" },
-        { "action": "撮る", "target": "zukan.capture.start", "status": "implemented" }
+      "capabilities": [
+        "zukan.map.explore-public",
+        "zukan.capture.start"
       ],
-      "states": ["loading", "populated", "empty", "location-denied", "map-unavailable", "error"],
+      "entry_points": [
+        "zukan.home.public",
+        "zukan.records.public"
+      ],
+      "transitions": [
+        {
+          "action": "記録を見る",
+          "target": "zukan.records.public",
+          "status": "implemented"
+        },
+        {
+          "action": "撮る",
+          "target": "zukan.capture.start",
+          "status": "implemented"
+        },
+        {
+          "action": "場所の図鑑を見る",
+          "target": "zukan.place.detail",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "loading",
+        "populated",
+        "empty",
+        "location-denied",
+        "map-unavailable",
+        "error"
+      ],
       "design_contract": "design.zukan.map",
       "content_contract": "content.zukan.map",
       "quality_contract": "quality.zukan.map",
@@ -108,20 +302,56 @@
       "kind": "personal-library",
       "area": "self",
       "purpose": "自分の記録・場所・参加中Program・次の行動を確認し、続きを始める",
-      "personas": ["member"],
+      "personas": [
+        "member"
+      ],
       "auth": "session",
       "privacy": "mixed-owner-and-public",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.home.view-member", "zukan.capture.start"],
-      "entry_points": ["zukan.capture.start"],
-      "transitions": [
-        { "action": "撮る", "target": "zukan.capture.start", "status": "implemented" },
-        { "action": "公開記録を見る", "target": "zukan.records.public", "status": "implemented" },
-        { "action": "観察会を見る", "target": "zukan.program.hub", "status": "implemented" },
-        { "action": "観察会を作る", "target": "zukan.program.activation", "status": "candidate" }
+      "capabilities": [
+        "zukan.home.view-member",
+        "zukan.capture.start",
+        "zukan.record.view-detail"
       ],
-      "states": ["unauthenticated", "empty", "populated", "loading", "degraded", "error"],
+      "entry_points": [
+        "zukan.capture.start"
+      ],
+      "transitions": [
+        {
+          "action": "撮る",
+          "target": "zukan.capture.start",
+          "status": "implemented"
+        },
+        {
+          "action": "公開記録を見る",
+          "target": "zukan.records.public",
+          "status": "implemented"
+        },
+        {
+          "action": "自分の記録詳細を見る",
+          "target": "zukan.record.detail",
+          "status": "implemented"
+        },
+        {
+          "action": "観察会を見る",
+          "target": "zukan.program.hub",
+          "status": "implemented"
+        },
+        {
+          "action": "観察会を作る",
+          "target": "zukan.program.activation",
+          "status": "candidate"
+        }
+      ],
+      "states": [
+        "unauthenticated",
+        "empty",
+        "populated",
+        "loading",
+        "degraded",
+        "error"
+      ],
       "design_contract": "design.zukan.home-member",
       "content_contract": "content.zukan.home-member",
       "quality_contract": "quality.zukan.home-member",
@@ -134,19 +364,51 @@
       "kind": "observation-event-hub",
       "area": "group",
       "purpose": "参加できる企画を探し、現行の観察会profileへの参加・主催・振り返りへ進む",
-      "personas": ["visitor", "member", "school", "municipality", "organization", "company"],
+      "personas": [
+        "visitor",
+        "member",
+        "school",
+        "municipality",
+        "organization",
+        "company"
+      ],
       "auth": "public",
       "privacy": "public-filtered",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.program.activate-self-serve", "zukan.program.invite-participate", "zukan.program.view-recap"],
-      "entry_points": ["zukan.home.public", "zukan.home.member"],
-      "transitions": [
-        { "action": "観察会を作る", "target": "zukan.program.activation", "status": "implemented" },
-        { "action": "招待から参加する", "target": "zukan.program.participation", "status": "implemented" },
-        { "action": "振り返りを見る", "target": "zukan.program.recap", "status": "implemented" }
+      "capabilities": [
+        "zukan.program.activate-self-serve",
+        "zukan.program.invite-participate",
+        "zukan.program.view-recap"
       ],
-      "states": ["guest", "member", "empty", "populated", "error"],
+      "entry_points": [
+        "zukan.home.public",
+        "zukan.home.member"
+      ],
+      "transitions": [
+        {
+          "action": "観察会を作る",
+          "target": "zukan.program.activation",
+          "status": "implemented"
+        },
+        {
+          "action": "招待から参加する",
+          "target": "zukan.program.participation",
+          "status": "implemented"
+        },
+        {
+          "action": "振り返りを見る",
+          "target": "zukan.program.recap",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "guest",
+        "member",
+        "empty",
+        "populated",
+        "error"
+      ],
       "design_contract": "design.zukan.program-hub",
       "content_contract": "content.zukan.program-hub",
       "quality_contract": "quality.zukan.program-hub",
@@ -159,18 +421,44 @@
       "kind": "program-activation",
       "area": "group",
       "purpose": "主催者が場所・日時・参加方法を決め、運営者なしで観察会を起動する",
-      "personas": ["school", "municipality", "organization", "company"],
+      "personas": [
+        "school",
+        "municipality",
+        "organization",
+        "company"
+      ],
       "auth": "session",
       "privacy": "organizer-controlled",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.program.activate-self-serve"],
-      "entry_points": ["zukan.home.member"],
-      "transitions": [
-        { "action": "作成成功・管制塔へ", "target": "zukan.program.console", "status": "implemented" },
-        { "action": "一覧へ戻る", "target": "zukan.program.hub", "status": "implemented" }
+      "capabilities": [
+        "zukan.program.activate-self-serve"
       ],
-      "states": ["unauthenticated", "ready", "editing", "submitting", "created", "validation-error", "retrying", "error"],
+      "entry_points": [
+        "zukan.home.member"
+      ],
+      "transitions": [
+        {
+          "action": "作成成功・管制塔へ",
+          "target": "zukan.program.console",
+          "status": "implemented"
+        },
+        {
+          "action": "一覧へ戻る",
+          "target": "zukan.program.hub",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "unauthenticated",
+        "ready",
+        "editing",
+        "submitting",
+        "created",
+        "validation-error",
+        "retrying",
+        "error"
+      ],
       "design_contract": "design.zukan.program-activation",
       "content_contract": "content.zukan.program-activation",
       "quality_contract": "quality.zukan.program-activation",
@@ -183,18 +471,43 @@
       "kind": "program-console",
       "area": "group",
       "purpose": "主催者が招待入口と当日の進行を確認する",
-      "personas": ["school", "municipality", "organization", "company"],
+      "personas": [
+        "school",
+        "municipality",
+        "organization",
+        "company"
+      ],
       "auth": "session",
       "privacy": "organizer-controlled",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.program.invite-participate", "zukan.program.view-recap"],
-      "entry_points": ["zukan.program.activation"],
-      "transitions": [
-        { "action": "参加者を招待", "target": "zukan.program.participation", "status": "implemented" },
-        { "action": "振り返りを見る", "target": "zukan.program.recap", "status": "candidate" }
+      "capabilities": [
+        "zukan.program.invite-participate",
+        "zukan.program.view-recap"
       ],
-      "states": ["ready", "inviting", "live", "ended", "denied", "error"],
+      "entry_points": [
+        "zukan.program.activation"
+      ],
+      "transitions": [
+        {
+          "action": "参加者を招待",
+          "target": "zukan.program.participation",
+          "status": "implemented"
+        },
+        {
+          "action": "振り返りを見る",
+          "target": "zukan.program.recap",
+          "status": "candidate"
+        }
+      ],
+      "states": [
+        "ready",
+        "inviting",
+        "live",
+        "ended",
+        "denied",
+        "error"
+      ],
       "design_contract": "design.zukan.program-console",
       "content_contract": "content.zukan.program-console",
       "quality_contract": "quality.zukan.program-console",
@@ -207,19 +520,48 @@
       "kind": "program-participation",
       "area": "group",
       "purpose": "主催者から受け取った招待で安全に参加し、記録を始める",
-      "personas": ["individual", "school", "organization", "company"],
+      "personas": [
+        "individual",
+        "school",
+        "organization",
+        "company"
+      ],
       "auth": "session",
       "privacy": "event-scoped",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.program.invite-participate", "zukan.record.save-private"],
-      "entry_points": ["zukan.program.console"],
-      "transitions": [
-        { "action": "参加して記録する", "target": "zukan.capture.start", "status": "implemented" },
-        { "action": "参加後に振り返りを見る", "target": "zukan.program.recap", "status": "implemented" },
-        { "action": "参加を拒否", "target": "zukan.program.participation", "status": "implemented" }
+      "capabilities": [
+        "zukan.program.invite-participate",
+        "zukan.record.save-private"
       ],
-      "states": ["unauthenticated", "ready", "joined", "closed", "denied", "error"],
+      "entry_points": [
+        "zukan.program.console"
+      ],
+      "transitions": [
+        {
+          "action": "参加して記録する",
+          "target": "zukan.capture.start",
+          "status": "implemented"
+        },
+        {
+          "action": "参加後に振り返りを見る",
+          "target": "zukan.program.recap",
+          "status": "implemented"
+        },
+        {
+          "action": "参加を拒否",
+          "target": "zukan.program.participation",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "unauthenticated",
+        "ready",
+        "joined",
+        "closed",
+        "denied",
+        "error"
+      ],
       "design_contract": "design.zukan.program-participation",
       "content_contract": "content.zukan.program-participation",
       "quality_contract": "quality.zukan.program-participation",
@@ -232,21 +574,97 @@
       "kind": "program-recap",
       "area": "group",
       "purpose": "参加と記録の成果を安全な粒度で振り返り、再開催へつなげる",
-      "personas": ["school", "municipality", "organization", "company", "individual"],
+      "personas": [
+        "school",
+        "municipality",
+        "organization",
+        "company",
+        "individual"
+      ],
       "auth": "session",
       "privacy": "event-scoped",
       "implementation_status": "implemented",
       "known_gaps": [],
-      "capabilities": ["zukan.program.view-recap", "zukan.program.rehost-template"],
-      "entry_points": ["zukan.program.console", "zukan.program.participation"],
-      "transitions": [
-        { "action": "もう一度開催する", "target": "zukan.program.activation", "status": "implemented" },
-        { "action": "観察会一覧へ戻る", "target": "zukan.program.hub", "status": "implemented" }
+      "capabilities": [
+        "zukan.program.view-recap",
+        "zukan.program.rehost-template"
       ],
-      "states": ["ready", "empty", "populated", "suppressed", "denied", "error"],
+      "entry_points": [
+        "zukan.program.console",
+        "zukan.program.participation"
+      ],
+      "transitions": [
+        {
+          "action": "もう一度開催する",
+          "target": "zukan.program.activation",
+          "status": "implemented"
+        },
+        {
+          "action": "観察会一覧へ戻る",
+          "target": "zukan.program.hub",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "ready",
+        "empty",
+        "populated",
+        "suppressed",
+        "denied",
+        "error"
+      ],
       "design_contract": "design.zukan.program-recap",
       "content_contract": "content.zukan.program-recap",
       "quality_contract": "quality.zukan.program-recap",
+      "implementation_ref": "platform_v2/src/routes/observationEventPages.ts"
+    },
+    {
+      "id": "zukan.place.detail",
+      "route": "/community/fields/:fieldId",
+      "route_source": "site-map",
+      "kind": "place-encyclopedia",
+      "area": "places",
+      "purpose": "その場所に集まった記録・出典・活動を、育ち方がわかる形で見せ、次の記録と再訪につなげる",
+      "personas": [
+        "visitor",
+        "member"
+      ],
+      "auth": "public",
+      "privacy": "public-filtered",
+      "implementation_status": "implemented",
+      "known_gaps": [
+        "通常利用者向けsteward編集（要約・タグ・公式リンク・関係者・スポット・ガイド）は未実装",
+        "撮影後にその場所の図鑑へ戻る導線はcandidate（Area Encyclopedia P0で実装）"
+      ],
+      "capabilities": [
+        "zukan.place.view-accumulation",
+        "zukan.capture.start"
+      ],
+      "entry_points": [
+        "zukan.map.public"
+      ],
+      "transitions": [
+        {
+          "action": "このエリアで記録する",
+          "target": "zukan.capture.start",
+          "status": "implemented"
+        },
+        {
+          "action": "記録を見る",
+          "target": "zukan.records.public",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "empty",
+        "first-record",
+        "populated",
+        "loading",
+        "error"
+      ],
+      "design_contract": "design.zukan.place-detail",
+      "content_contract": "content.zukan.place-detail",
+      "quality_contract": "quality.zukan.place-detail",
       "implementation_ref": "platform_v2/src/routes/observationEventPages.ts"
     }
   ]

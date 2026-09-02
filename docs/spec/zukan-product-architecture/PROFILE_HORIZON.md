@@ -216,6 +216,8 @@ Rules:
 - revocation/correction must be representable across the boundary;
 - external receipt/acceptance must not be invented.
 
+This bridge is the SOURCE direction only. Cross-product person identity and the ZUKAN-to-NOCOSIL activity flow are a separate owner-approved Draft lane pending adoption, not an M11 slice: see `SPEC.md` §12.1 and roadmap v3 §4.1. Do not implement identity or activity receipts as part of a Source Exchange Package, and do not let source exchange assume a shared principal.
+
 ## M12 — Professional & Managed Outcomes
 
 Repeated real demand may become paid output/support without making the free product incomplete.

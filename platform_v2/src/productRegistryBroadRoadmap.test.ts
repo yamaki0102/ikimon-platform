@@ -21,7 +21,11 @@ test("roadmap preserves broad ZUKAN scope after M6", () => {
   assert.equal(navigation.rolling_frontier.shaped_next, M9);
   assert.deepEqual(navigation.rolling_frontier.deferred, ["milestone.m5.live-camera-poc"]);
   assert.equal(navigation.rolling_frontier.max_executor_implementation_tasks, 1);
-  assert.equal(navigation.implementation_tasks.some((task) => [M9, M10, M11, M12].includes(task.milestone_id)), false);
+  assert.equal(
+    navigation.implementation_tasks.some((task) => [M9, M10, M11, M12].includes(task.milestone_id) && task.implementation_allowed),
+    false,
+    "unpromoted frontier milestones must not expose an executor-eligible task",
+  );
   assert.deepEqual(validateProductRegistryNavigation(navigation, new Set(registry.requirements.map((item) => item.id))), []);
 });
 
@@ -99,21 +103,84 @@ test("M10 M11 and M12 keep the planned reusable order", () => {
 test("planning metrics are baselines and privacy-minimized", () => {
   const delivery = JSON.parse(repoText("platform_v2/product-registry/delivery.json")) as any;
   assert.equal(delivery.planning_metrics.mode, "BASELINE_BEFORE_TARGETS");
-  assert.deepEqual(delivery.planning_metrics.metrics, [
+  assert.deepEqual(delivery.planning_metrics.core_loop_baselines, [
     "first_record_completion",
-    "ai_feedback_visible_latency",
+    "ai_feedback_delivery_delay",
+    "review_lead_time",
     "place_revisit_rate",
+    "publication_feed_inclusion_count",
+  ]);
+  assert.deepEqual(delivery.planning_metrics.frontier_baselines, [
     "program_self_start_rate",
     "join_completion",
-    "review_lead_time",
-    "support_minutes_per_program",
     "handover_completion",
     "raw_portability_success",
-    "publication_reuse",
     "repeat_program_rate",
+    "publication_reuse",
+  ]);
+  assert.deepEqual(delivery.planning_metrics.business_baselines_recorded_by_operations, [
+    "support_minutes_per_program",
     "paid_outcome_conversion",
   ]);
   assert.equal(delivery.planning_metrics.privacy_minimization_required, true);
+  assert.equal("metrics" in delivery.planning_metrics, false, "a single flat metric list hides measurement maturity");
+});
+
+test("delivery means production, and an undelivered slice blocks the next one", () => {
+  const delivery = JSON.parse(repoText("platform_v2/product-registry/delivery.json")) as any;
+  const product = JSON.parse(repoText("platform_v2/product-registry/product.json")) as any;
+  const plan = repoText("docs/spec/zukan-product-architecture/PLAN.md");
+  assert.match(delivery.execution_roadmap.delivered_definition, /running in production and observed working/);
+  assert.match(delivery.execution_roadmap.landing_rule, /may not start a new implementation slice/);
+  assert.equal(delivery.execution_roadmap.core_loop_returns_something_to_contributor, true);
+  assert.equal(delivery.execution_roadmap.current_executor_task_id, "task.zukan.core-loop.capture-feedback-delivered");
+  assert.ok(product.execution_roadmap.rules.includes("delivered_means_running_in_production_and_observed_working"));
+  assert.ok(product.execution_roadmap.rules.includes("no_new_slice_while_a_source_verified_slice_is_undelivered"));
+  assert.ok(product.execution_roadmap.rules.includes("implementation_allowed_never_authorizes_production_mutation"));
+  assert.match(plan, /## Current execution frontier/);
+  assert.doesNotMatch(plan, /mergeable, clean|59 pull requests|44 have not moved/);
+  for (const requirementId of delivery.execution_roadmap.core_loop_requirements_verified_in_production) {
+    const requirement = registry.requirements.find((item) => item.id === requirementId);
+    assert.ok(requirement, `${requirementId} must exist`);
+    assert.ok(
+      requirement?.environments.includes("operation"),
+      `${requirementId} is a Core Loop requirement and must be verified where real users are, not only in staging`,
+    );
+  }
+});
+
+test("the accumulation and review-return stages of the Core Loop are contracted", () => {
+  const place = registry.requirements.find((item) => item.id === "quality.zukan.place.record-accumulation-visible");
+  const review = registry.requirements.find((item) => item.id === "quality.zukan.review.contributor-return");
+  assert.ok(place, "the Place accumulation stage needs a requirement, not only a design document");
+  assert.ok(review, "the contributor must be told the outcome of a human Review of their own record");
+  assert.ok(registry.surfaces.some((item) => item.id === "zukan.place.detail"), "the Area Encyclopedia needs a registered surface");
+  const delivery = JSON.parse(repoText("platform_v2/product-registry/delivery.json")) as any;
+  const quality = JSON.parse(repoText("platform_v2/product-registry/quality.json")) as any;
+  const areaTask = delivery.implementation_tasks.find((item: any) => item.id === "task.zukan.core-loop.area-encyclopedia-shared-renderer");
+  const loopTask = delivery.implementation_tasks.find((item: any) => item.id === "task.zukan.core-loop.capture-feedback-delivered");
+  const publicationTask = delivery.implementation_tasks.find((item: any) => item.id === "task.zukan.core-loop.publication-return-syndication-hardening");
+  assert.ok(areaTask && loopTask && publicationTask, "adopted Core Loop corrections need implementation tasks");
+  assert.equal(loopTask.lane, "CORE_LOOP");
+  assert.equal(loopTask.implementation_allowed, true);
+  assert.equal(loopTask.production_mutation_allowed, false);
+  assert.equal(areaTask.implementation_allowed, false, "Frontier 2 waits until Frontier 1 is delivered");
+  assert.equal(areaTask.production_mutation_allowed, false);
+  assert.equal(publicationTask.implementation_allowed, false, "Frontier 3 waits until the Area frontier is delivered");
+  assert.equal(publicationTask.production_mutation_allowed, false);
+  assert.ok(publicationTask.requirement_ids.includes("quality.zukan.rights.minor-guardian-consent"));
+  assert.ok(publicationTask.requirement_ids.includes("quality.zukan.rights.export-withdrawal-deletion"));
+  const captureJourney = registry.journeys.find((item) => item.id === "journey.zukan.capture-to-personal-return");
+  assert.equal(captureJourney?.success_surface, "zukan.record.detail");
+  assert.ok(captureJourney?.steps.some((step) => step.surface === "zukan.record.detail" && /queued\/processing\/completed\|failed/.test(step.action)));
+  assert.ok(registry.surfaces.some((item) => item.id === "zukan.record.detail" && item.route === "/observations/:id"));
+  const captureMatrix = registry.capabilityMatrix.find((item) => item.domain === "capture");
+  const placeMatrix = registry.capabilityMatrix.find((item) => item.domain === "place-accumulation");
+  assert.equal(captureMatrix?.capability_refs.includes("zukan.place.view-accumulation"), false);
+  assert.ok(placeMatrix?.capability_refs.includes("zukan.place.view-accumulation"));
+  for (const id of ["prop.place.first-record-changes-page", "prop.place.nearby-never-counts-as-local", "prop.review.contributor-sees-decision"]) {
+    assert.equal(quality.negative_property_tests.find((item: any) => item.id === id)?.current_test, "planned", `${id} must not claim unrelated test coverage`);
+  }
 });
 
 test("M9 profile horizon includes non-biological civic and tourism programs", () => {
