@@ -19,6 +19,7 @@ import {
   mergeGeminiObservationEvidence,
   parseGeminiCensusEvidence,
   parseGeminiEnvironmentEvidence,
+  parseGeminiObservationSummary,
   parseGeminiPrimaryEvidence,
   type GeminiCensusEvidence,
   type GeminiEnvironmentEvidence,
@@ -127,6 +128,8 @@ test("partial provider JSON keeps the reassessment merge safe when required arra
   const parsedEnvironment = parseGeminiEnvironmentEvidence(JSON.stringify({ assessment_state: "not_assessable", fields: {} }));
   assert.deepEqual(parsedEnvironment.cues, []);
   assert.deepEqual(parsedEnvironment.uncertain_cues, []);
+  const parsedSummary = parseGeminiObservationSummary(JSON.stringify({ narrative: "写真の要約" }));
+  assert.deepEqual(parsedSummary.subject_explanations, []);
 });
 
 test("summary can only enrich already extracted subjects", () => {

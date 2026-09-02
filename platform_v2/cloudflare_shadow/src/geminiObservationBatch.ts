@@ -490,7 +490,16 @@ export const parseGeminiEnvironmentEvidence = (text: string): GeminiEnvironmentE
     uncertain_cues: Array.isArray(parsed.uncertain_cues) ? parsed.uncertain_cues : [],
   };
 };
-export const parseGeminiObservationSummary = (text: string): GeminiObservationSummary => parseJson<GeminiObservationSummary>(text);
+export const parseGeminiObservationSummary = (text: string): GeminiObservationSummary => {
+  const parsed = parseJson<Partial<GeminiObservationSummary>>(text);
+  return {
+    narrative: typeof parsed.narrative === "string" ? parsed.narrative : "",
+    subject_explanations: Array.isArray(parsed.subject_explanations) ? parsed.subject_explanations : [],
+    environment_summary: typeof parsed.environment_summary === "string" ? parsed.environment_summary : "",
+    interaction_summary: typeof parsed.interaction_summary === "string" ? parsed.interaction_summary : "",
+    observer_feedback: typeof parsed.observer_feedback === "string" ? parsed.observer_feedback : "",
+  };
+};
 export const parseGeminiSpecialistEvidence = (text: string): GeminiSpecialistEvidence => parseJson<GeminiSpecialistEvidence>(text);
 
 const clipped = (value: unknown): number => Number.isFinite(Number(value)) ? Math.max(0, Math.min(1, Number(value))) : 0;
