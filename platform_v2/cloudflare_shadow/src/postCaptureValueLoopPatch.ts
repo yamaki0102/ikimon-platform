@@ -458,6 +458,7 @@ const INJECTED_SCRIPT = String.raw`
       if (retryHref) {
         var retryButton = textNode('button', 'ikimon-record-value-loop__action', copy.retry);
         retryButton.type = 'button';
+        retryButton.setAttribute('data-observation-reassess-handler-bound', 'v1');
         retryButton.addEventListener('click', function () {
           if (retryButton.disabled) return;
           retryButton.disabled = true;

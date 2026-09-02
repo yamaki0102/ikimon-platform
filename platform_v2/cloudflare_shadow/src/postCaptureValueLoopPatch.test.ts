@@ -54,6 +54,7 @@ test("record detail pages load the owner-only processing status and render the p
   assert.match(patched, /この場所の記録として保存されています。/u);
   assert.match(patched, /\/map\?tab=places&source=record_detail/u);
   assert.match(patched, /status\.aiState === 'failed_retryable'/u);
+  assert.match(patched, /retryButton\.setAttribute\('data-observation-reassess-handler-bound', 'v1'\)/u);
   assert.match(patched, /method: 'POST'/u);
   assert.match(patched, /status\.aiState === 'candidate_ready'/u);
   assert.match(patched, /window\.setTimeout/u);
