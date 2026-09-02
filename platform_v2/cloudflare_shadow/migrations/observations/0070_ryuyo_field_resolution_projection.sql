@@ -2,31 +2,85 @@
 -- This is not a new area model: it preserves the existing field_id/entity_key semantics.
 ALTER TABLE observations ADD COLUMN resolved_field_ids_json TEXT NOT NULL DEFAULT '[]';
 
-UPDATE production_import_field_detail_readmodel
-   SET source = 'user_defined',
-       admin_level = 'osm_park',
-       name = '竜洋昆虫自然観察公園',
-       summary = '昆虫と自然にふれあえる磐田市の自然観察公園です。',
-       prefecture = '静岡県',
-       city = '磐田市',
-       public_cell = '34.67,137.84',
-       public_lat = 34.6700000,
-       public_lng = 137.8400000,
-       radius_m = 169,
-       has_polygon = 1,
-       has_simplified_geometry = 0,
-       certification_id = 'osm:way:530835577',
-       certification_url = 'https://www.openstreetmap.org/way/530835577',
-       official_url = 'https://ryu-yo.jp/',
-       owner_url = NULL,
-       story_url = NULL,
-       verification_level = 'registry_matched',
-       verification_method = 'official_site_and_osm_way',
-       verification_label = '公式施設情報・OSM公園境界と一致',
-       source_confidence = 0.9,
-       entity_key = 'osm:way:530835577',
-       updated_at = CURRENT_TIMESTAMP
- WHERE field_id = '372eafbd-ea9c-4b2f-ab5f-434b81b928b2';
+-- Some registered staging databases retain the migration receipt while the
+-- read-model table itself is absent. Recreate only this existing projection
+-- shape, then upsert the canonical existing field_id without creating a new
+-- association model or a duplicate field.
+CREATE TABLE IF NOT EXISTS production_import_field_detail_readmodel (
+  field_id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  admin_level TEXT,
+  name TEXT NOT NULL,
+  name_kana TEXT,
+  summary TEXT,
+  prefecture TEXT,
+  city TEXT,
+  public_cell TEXT NOT NULL,
+  public_lat REAL NOT NULL,
+  public_lng REAL NOT NULL,
+  radius_m INTEGER,
+  area_ha REAL,
+  has_polygon INTEGER NOT NULL DEFAULT 0,
+  has_simplified_geometry INTEGER NOT NULL DEFAULT 0,
+  certification_id TEXT,
+  certification_url TEXT,
+  official_url TEXT,
+  owner_url TEXT,
+  story_url TEXT,
+  verification_level TEXT,
+  verification_method TEXT,
+  verification_label TEXT,
+  source_confidence REAL,
+  valid_from TEXT,
+  valid_to TEXT,
+  entity_key TEXT,
+  updated_at TEXT
+);
+
+INSERT INTO production_import_field_detail_readmodel (
+  field_id, source, admin_level, name, name_kana, summary, prefecture, city,
+  public_cell, public_lat, public_lng, radius_m, area_ha, has_polygon,
+  has_simplified_geometry, certification_id, certification_url, official_url,
+  owner_url, story_url, verification_level, verification_method,
+  verification_label, source_confidence, valid_from, valid_to, entity_key, updated_at
+) VALUES (
+  '372eafbd-ea9c-4b2f-ab5f-434b81b928b2',
+  'user_defined', 'osm_park', '竜洋昆虫自然観察公園', NULL,
+  '昆虫と自然にふれあえる磐田市の自然観察公園です。', '静岡県', '磐田市',
+  '34.67,137.84', 34.6700000, 137.8400000, 169, NULL, 1, 0,
+  'osm:way:530835577', 'https://www.openstreetmap.org/way/530835577',
+  'https://ryu-yo.jp/', NULL, NULL, 'registry_matched',
+  'official_site_and_osm_way', '公式施設情報・OSM公園境界と一致', 0.9,
+  NULL, NULL, 'osm:way:530835577', CURRENT_TIMESTAMP
+)
+ON CONFLICT(field_id) DO UPDATE SET
+  source = excluded.source,
+  admin_level = excluded.admin_level,
+  name = excluded.name,
+  name_kana = excluded.name_kana,
+  summary = excluded.summary,
+  prefecture = excluded.prefecture,
+  city = excluded.city,
+  public_cell = excluded.public_cell,
+  public_lat = excluded.public_lat,
+  public_lng = excluded.public_lng,
+  radius_m = excluded.radius_m,
+  area_ha = excluded.area_ha,
+  has_polygon = excluded.has_polygon,
+  has_simplified_geometry = excluded.has_simplified_geometry,
+  certification_id = excluded.certification_id,
+  certification_url = excluded.certification_url,
+  official_url = excluded.official_url,
+  owner_url = excluded.owner_url,
+  story_url = excluded.story_url,
+  verification_level = excluded.verification_level,
+  verification_method = excluded.verification_method,
+  verification_label = excluded.verification_label,
+  source_confidence = excluded.source_confidence,
+  valid_from = excluded.valid_from,
+  valid_to = excluded.valid_to,
+  entity_key = excluded.entity_key,
+  updated_at = excluded.updated_at;
 
 INSERT OR REPLACE INTO production_import_area_polygon_readmodel (
   field_id, source, admin_level, name, prefecture, city,
