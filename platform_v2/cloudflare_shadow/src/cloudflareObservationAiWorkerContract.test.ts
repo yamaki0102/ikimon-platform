@@ -23,7 +23,7 @@ test("photo upload, queue, cron, Gemini Batch, and review target form one durabl
   assert.match(source, /submitDirectGeminiObservationReassessment/);
   assert.match(source, /isInteractiveStandardReassessment/);
   assert.match(source, /providerMode: "direct_generate_content"/);
-  assert.match(source, /completedInteractiveResultNeedsRearm/);
+  assert.match(source, /isObsoleteInteractiveGeminiResult/);
   assert.match(source, /generateDirectGeminiLane\("census", env\.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL/);
   assert.match(source, /generateDirectGeminiLane\("environment", env\.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL/);
   assert.match(source, /generateDirectGeminiLane\("summary", env\.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL/);

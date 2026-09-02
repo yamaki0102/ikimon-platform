@@ -5,6 +5,7 @@ import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingFacts,
 } from "./observationProcessingStatus.js";
+import { isObsoleteInteractiveGeminiResult } from "../../cloudflare_shadow/src/ownerObservationProcessingStatus.js";
 
 const baseFacts: ObservationProcessingFacts = {
   occurrenceId: "occ:record-1:0",
@@ -164,4 +165,10 @@ test("retryable AI failure offers an owner-initiated reassessment without treati
   assert.match(html, /AIで再確認を受け付けました/);
   assert.doesNotMatch(html, /<a[^>]+reassess/);
   assert.doesNotMatch(html, /script-src[^>]*unsafe-inline/);
+});
+
+test("only an obsolete completed interactive Gemini result is exposed for explicit rearm", () => {
+  assert.equal(isObsoleteInteractiveGeminiResult(JSON.stringify({ providerMode: "direct_generate_content", modelPlan: { census: "gemini-3.1-flash-lite" } })), true);
+  assert.equal(isObsoleteInteractiveGeminiResult(JSON.stringify({ providerMode: "direct_generate_content", modelPlan: { census: "gemini-3.5-flash-lite" } })), false);
+  assert.equal(isObsoleteInteractiveGeminiResult(JSON.stringify({ providerMode: "batch", models: ["gemini-3.1-flash-lite"] })), false);
 });

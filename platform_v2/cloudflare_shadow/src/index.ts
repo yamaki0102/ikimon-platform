@@ -4,7 +4,7 @@ import {
   renderCloudflareRecordRecoverySignedHtml,
   resolveCloudflareRecordRecoveryState
 } from "./recordRecoveryHtml";
-import { loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
+import { isObsoleteInteractiveGeminiResult, loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
 import {
   OBSERVATION_AI_PROMPT_VERSION,
@@ -8238,17 +8238,6 @@ async function requestCompatibleObservationReassessment(observationId: string, r
     dispatch
   }, row.request_state === "completed" ? 200 : 202, { "cache-control": "no-store" });
 
-  const completedInteractiveResultNeedsRearm = (sourcePayloadJson: string): boolean => {
-    const payload = reassessmentPayload(sourcePayloadJson);
-    if (payload.providerMode !== "direct_generate_content") return false;
-    const plan = payload.modelPlan && typeof payload.modelPlan === "object" && !Array.isArray(payload.modelPlan)
-      ? payload.modelPlan as Record<string, unknown>
-      : {};
-    const models = Array.isArray(payload.models) ? payload.models : [];
-    return [plan.primary, plan.census, plan.environment, plan.summary, ...models]
-      .some((model) => model === GEMINI_ANALYSIS_MODEL);
-  };
-
   const existing = await env.OBS_DB.prepare(
     `SELECT request_id, request_state, source_payload_json
        FROM observation_reassessment_requests
@@ -8261,7 +8250,7 @@ async function requestCompatibleObservationReassessment(observationId: string, r
   }>();
   const obsoleteCompletedInteractiveResult = existing?.request_state === "completed"
     && requestKind === "standard"
-    && completedInteractiveResultNeedsRearm(existing.source_payload_json);
+    && isObsoleteInteractiveGeminiResult(existing.source_payload_json);
   if (existing && (["pending", "processing"].includes(existing.request_state)
     || (existing.request_state === "completed" && !obsoleteCompletedInteractiveResult))) {
     return responseFor(existing);
