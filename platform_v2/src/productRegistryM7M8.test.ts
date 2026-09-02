@@ -64,18 +64,29 @@ test("M7.1 persistence contract is source-only and has no runtime activation", (
   assert.ok(contract?.tests?.some((item: any) => item.locator.endsWith("programHandoverD1Repository.test.ts")));
 });
 
-test("M7.2 is executor-ready as outgoing pending-acceptance offer only", () => {
+test("M7.2 is source-verified and closed at outgoing pending-acceptance offer only", () => {
   const navigation = loadProductRegistryNavigation() as any;
   const task = navigation.implementation_tasks.find((item: any) => item.id === "task.zukan.m7.program-handover-outgoing-selection");
-  assert.equal(task?.state, "planned");
-  assert.equal(task?.readiness, "executor-ready");
-  assert.equal(task?.implementation_allowed, true);
+  assert.equal(task?.state, "implemented");
+  assert.equal(task?.readiness, "source-verified");
+  assert.equal(task?.implementation_allowed, false);
   assert.ok(task?.requirement_ids?.includes("quality.zukan.handover.outgoing-selection"));
+  assert.ok(task?.source_locators?.includes("platform_v2/src/services/programHandoverOfferD1Repository.ts"));
+  assert.ok(task?.source_locators?.includes("platform_v2/cloudflare_shadow/migrations/core/0016_zukan_program_handover_offers.sql"));
   assert.match(task?.design_contract?.selection, /never edits plan selected refs/);
   assert.match(task?.design_contract?.authorization, /receives no authority/);
   assert.match(task?.design_contract?.state, /pending_acceptance/);
   assert.match(task?.design_contract?.state, /no outgoing removal/);
   assert.ok(task?.negative_eval_ids?.includes("prop.m7.outgoing-offer-no-transfer"));
+  assert.ok(task?.design_contract?.fixtures?.length >= 10);
+});
+
+test("M7.2 outgoing-selection contract is source-only and has no transfer activation", () => {
+  const contract = loadProductRegistry().qualityContracts.find((item: any) => item.id === "quality.zukan.m7-handover-outgoing-selection") as any;
+  assert.deepEqual(contract?.requirement_refs, ["quality.zukan.handover.outgoing-selection"]);
+  assert.match(contract?.acceptance?.join(" "), /pending_acceptance/);
+  assert.match(contract?.acceptance?.join(" "), /responsibility transfer/);
+  assert.ok(contract?.tests?.some((item: any) => item.locator.endsWith("programHandoverOfferD1Repository.test.ts")));
 });
 
 test("M8 is shaped as separate operational summary and raw portability contracts", () => {
