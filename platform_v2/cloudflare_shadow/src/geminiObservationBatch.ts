@@ -358,6 +358,7 @@ export type GeminiBatchOperation = {
   state: string | null;
   batchStats: Record<string, unknown> | null;
   responses: unknown[];
+  responseShape: string;
   error: string | null;
 };
 
@@ -381,6 +382,12 @@ const operationFromJson = (value: unknown): GeminiBatchOperation => {
   const responses = Array.isArray(inlined.inlinedResponses) ? inlined.inlinedResponses
     : Array.isArray(output.inlinedResponses) ? output.inlinedResponses
       : Array.isArray(response.inlinedResponses) ? response.inlinedResponses : [];
+  const responseShape = [
+    `source=${Object.keys(source).sort().join(",") || "none"}`,
+    `output=${Object.keys(output).sort().join(",") || "none"}`,
+    `response=${Object.keys(response).sort().join(",") || "none"}`,
+    `inlined=${Object.keys(inlined).sort().join(",") || "none"}`,
+  ].join(";");
   const errorSource = (source.error && typeof source.error === "object" ? source.error : metadata.error && typeof metadata.error === "object" ? metadata.error : {}) as Record<string, unknown>;
   return {
     name: typeof source.name === "string" ? source.name : typeof metadata.name === "string" ? metadata.name : "",
@@ -389,6 +396,7 @@ const operationFromJson = (value: unknown): GeminiBatchOperation => {
     batchStats: source.batchStats && typeof source.batchStats === "object" ? source.batchStats as Record<string, unknown>
       : metadata.batchStats && typeof metadata.batchStats === "object" ? metadata.batchStats as Record<string, unknown> : null,
     responses,
+    responseShape,
     error: typeof errorSource.message === "string" ? errorSource.message : null,
   };
 };

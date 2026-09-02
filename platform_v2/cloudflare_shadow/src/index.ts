@@ -31289,9 +31289,15 @@ async function mergeGeminiBatchEvidence(
   env: Env,
 ): Promise<GeminiMergedObservation> {
   const execution = geminiBatchExecution(row.source_payload_json)!;
-  const primaryEvidence = parseGeminiPrimaryEvidence(geminiBatchResponseText(primary.responses[execution.primaryIndex]));
-  const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(analysis.responses[execution.censusIndex]));
-  const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(analysis.responses[execution.environmentIndex]));
+  const primaryResponse = primary.responses[execution.primaryIndex];
+  if (primaryResponse === undefined) throw new Error(`gemini_batch_response_missing:primary:${primary.state ?? "unknown"}:${primary.responseShape}`);
+  const censusResponse = analysis.responses[execution.censusIndex];
+  if (censusResponse === undefined) throw new Error(`gemini_batch_response_missing:census:${analysis.state ?? "unknown"}:${analysis.responseShape}`);
+  const environmentResponse = analysis.responses[execution.environmentIndex];
+  if (environmentResponse === undefined) throw new Error(`gemini_batch_response_missing:environment:${analysis.state ?? "unknown"}:${analysis.responseShape}`);
+  const primaryEvidence = parseGeminiPrimaryEvidence(geminiBatchResponseText(primaryResponse));
+  const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(censusResponse));
+  const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(environmentResponse));
   const mediaCount = execution.representativeImageCount
     ?? (await loadObservationAiAssetSelection(row.observation_id, env)).assets.length;
   const merged = mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, mediaCount);
