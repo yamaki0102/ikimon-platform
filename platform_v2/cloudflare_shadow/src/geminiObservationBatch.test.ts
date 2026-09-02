@@ -8,6 +8,7 @@ import {
   applyGeminiObservationSummary,
   applyGeminiSpecialistEvidence,
   buildGeminiCensusRequest,
+  buildGeminiCensusDirectRequest,
   buildGeminiEnvironmentRequest,
   buildGeminiPrimaryRequest,
   buildGeminiSpecialistRequest,
@@ -342,13 +343,22 @@ test("direct generateContent reuses the primary request and extracts structured 
   assert.equal(sentRequest.generationConfig.responseMimeType, "application/json");
   assert.equal(sentRequest.generationConfig.responseSchema, undefined);
   assert.deepEqual(sentRequest.generationConfig.responseJsonSchema, request.generationConfig.responseJsonSchema);
-  assert.equal(sentRequest.generationConfig.temperature, undefined);
+  assert.equal(sentRequest.generationConfig.temperature, 0);
   assert.equal(sentRequest.generationConfig.responseFormat, undefined);
   assert.deepEqual(sentRequest.generationConfig.thinkingConfig, { thinkingLevel: "minimal" });
   assert.equal(result.model, GEMINI_PRIMARY_MODEL);
   assert.equal(result.candidatesCount, 1);
   assert.equal(result.finishReason, "STOP");
   assert.deepEqual(parseGeminiPrimaryEvidenceDirect(result.text).review_reasons, ["species_uncertain"]);
+});
+
+test("direct census adapter keeps semantic fields while using a compact schema subset", () => {
+  const request = buildGeminiCensusDirectRequest("record-direct-census", images);
+  const schema = JSON.stringify(request.generationConfig.responseJsonSchema);
+  assert.match(schema, /supporting_features/);
+  assert.match(schema, /detection_state/);
+  assert.doesNotMatch(schema, /maxItems/);
+  assert.doesNotMatch(schema, /minimum/);
 });
 
 test("direct structured failures do not become semantic not-assessable", async () => {

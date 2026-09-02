@@ -25,6 +25,7 @@ import {
   applyGeminiSpecialistEvidence,
   applyGeminiObservationSummary,
   buildGeminiCensusRequest,
+  buildGeminiCensusDirectRequest,
   buildGeminiEnvironmentRequest,
   buildGeminiPrimaryRequest,
   buildGeminiSpecialistRequest,
@@ -31179,13 +31180,13 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
     executionStatus: "processing",
     attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
     providerMode: "direct_generate_content",
-    modelStack: [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+    modelStack: [GEMINI_PRIMARY_MODEL],
     modelPlan: {
       primary: GEMINI_PRIMARY_MODEL,
-      census: GEMINI_ANALYSIS_MODEL,
-      environment: GEMINI_ANALYSIS_MODEL,
+      census: GEMINI_PRIMARY_MODEL,
+      environment: GEMINI_PRIMARY_MODEL,
       specialistConditional: GEMINI_SPECIALIST_MODEL,
-      summary: GEMINI_SUMMARY_MODEL,
+      summary: GEMINI_PRIMARY_MODEL,
     },
     promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
     ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
@@ -31202,8 +31203,8 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
   try {
     const [primaryResult, censusResult, environmentResult] = await Promise.all([
       generateDirectGeminiLane("primary", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest(request.observation_id, prepared.record.observed_at, prepared.images)),
-      generateDirectGeminiLane("census", env.GEMINI_API_KEY!, GEMINI_ANALYSIS_MODEL, buildGeminiCensusRequest(request.observation_id, prepared.images)),
-      generateDirectGeminiLane("environment", env.GEMINI_API_KEY!, GEMINI_ANALYSIS_MODEL, buildGeminiEnvironmentRequest(request.observation_id, prepared.images)),
+      generateDirectGeminiLane("census", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiCensusDirectRequest(request.observation_id, prepared.images)),
+      generateDirectGeminiLane("environment", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiEnvironmentRequest(request.observation_id, prepared.images)),
     ]);
     const lanes: Record<string, DirectGeminiLaneEvidence> = {
       primary: { model: primaryResult.model, candidatesCount: primaryResult.candidatesCount, finishReason: primaryResult.finishReason, structuredTextPresent: true, parseStatus: "pass" },
@@ -31226,7 +31227,7 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
     }
 
     if (merged.topCandidates.length > 0 || merged.needsReview) {
-      const summaryResult = await generateDirectGeminiLane("summary", env.GEMINI_API_KEY!, GEMINI_SUMMARY_MODEL, buildGeminiSummaryRequest(request.observation_id, merged));
+      const summaryResult = await generateDirectGeminiLane("summary", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiSummaryRequest(request.observation_id, merged));
       lanes.summary = { model: summaryResult.model, candidatesCount: summaryResult.candidatesCount, finishReason: summaryResult.finishReason, structuredTextPresent: true, parseStatus: "pass" };
       Object.assign(merged, applyGeminiObservationSummary(merged, parseGeminiObservationSummaryDirect(summaryResult.text)));
     }

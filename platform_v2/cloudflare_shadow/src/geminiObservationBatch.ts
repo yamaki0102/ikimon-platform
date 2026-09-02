@@ -230,6 +230,41 @@ export const GEMINI_CENSUS_SCHEMA: JsonSchema = {
   required: ["detection_state", "scene", "groups", "regions", "relations", "needs_review", "review_reasons"],
 };
 
+// GenerateContent accepts the same semantic JSON schema, but the interactive
+// census lane uses a smaller supported subset to avoid provider rejection of
+// the larger batch-oriented schema. Parsers and fusion remain unchanged.
+export const GEMINI_CENSUS_DIRECT_SCHEMA: JsonSchema = {
+  type: "object",
+  properties: {
+    detection_state: { type: "string", enum: ["detected", "not_detected", "not_assessable"] },
+    scene: { type: "string", enum: ["one_group", "same_taxon_multiple", "multiple_taxa", "uncertain"] },
+    groups: { type: "array", items: { type: "object", properties: {
+      id: { type: "string" },
+      kind: { type: "string", enum: ["animal", "plant", "fungus", "trace", "unknown_biota"] },
+      role: { type: "string", enum: ["primary", "other"] },
+      scope: { type: "string", enum: ["individual", "group", "unknown"] },
+      count: { type: "integer" },
+      label: { type: "string" },
+      scientific: { type: "string" },
+      rank: { type: "string", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
+      evidence: { type: "string" },
+      supporting_features: { type: "array", items: { type: "string" } },
+      missing_features: { type: "array", items: { type: "string" } },
+      contradictions: { type: "array", items: { type: "string" } },
+      confidence: { type: "number" },
+    }, required: ["id", "kind", "role", "scope", "count", "label", "scientific", "rank", "evidence", "confidence"] } },
+    regions: { type: "array", items: { type: "object", properties: {
+      group_id: { type: "string" },
+      asset_index: { type: "integer" },
+      x: { type: "number" }, y: { type: "number" }, width: { type: "number" }, height: { type: "number" },
+    }, required: ["group_id", "asset_index", "x", "y", "width", "height"] } },
+    relations: { type: "array", items: { type: "string" } },
+    needs_review: { type: "boolean" },
+    review_reasons: { type: "array", items: { type: "string" } },
+  },
+  required: ["detection_state", "scene", "groups", "regions", "relations", "needs_review", "review_reasons"],
+};
+
 export const GEMINI_SPECIALIST_SCHEMA: JsonSchema = {
   type: "object",
   properties: {
@@ -456,6 +491,14 @@ export function geminiBatchResponseText(value: unknown): string {
   return text;
 }
 
+export function buildGeminiCensusDirectRequest(recordId: string, images: GeminiObservationImage[]) {
+  const request = buildGeminiCensusRequest(recordId, images);
+  return {
+    ...request,
+    generationConfig: { ...request.generationConfig, responseJsonSchema: GEMINI_CENSUS_DIRECT_SCHEMA },
+  };
+}
+
 export type GeminiDirectContentResult = {
   model: string;
   text: string;
@@ -531,6 +574,7 @@ export async function generateGeminiContent(
     generationConfig: {
       ...directGenerationConfig,
       ...(thinkingLevel ? { thinkingConfig: { ...thinkingConfig, thinkingLevel } } : {}),
+      temperature: 0,
       responseMimeType,
       responseJsonSchema,
     },
