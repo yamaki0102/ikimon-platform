@@ -1,0 +1,193 @@
+name: Deploy Record Detail Preview
+run-name: Record detail preview · ${{ github.event.inputs.branch || github.head_ref || github.ref_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy to an isolated record/detail preview Worker"
+        required: true
+        default: "main"
+        type: string
+      deploy_preview:
+        description: "Deploy the isolated preview Worker"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      test_profile:
+        description: "Preview preflight test profile"
+        required: true
+        default: "quick"
+        type: choice
+        options:
+          - quick
+          - full
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/deploy-record-detail-preview.yml"
+      - "platform_v2/cloudflare_shadow/src/**"
+      - "platform_v2/cloudflare_shadow/scripts/deploy-record-detail-preview-guard.mjs"
+      - "platform_v2/cloudflare_shadow/wrangler.jsonc"
+      - "platform_v2/cloudflare_shadow/package.json"
+      - "platform_v2/cloudflare_shadow/package-lock.json"
+      - "platform_v2/e2e/observation-detail-image-target.spec.ts"
+      - "platform_v2/playwright.observation-image-target.config.ts"
+      - "platform_v2/src/scripts/resolveObservationImageTargets.ts"
+      - "platform_v2/src/scripts/runObservationImageTargetE2e.ts"
+  push:
+    branches:
+      - "codex/**"
+    paths:
+      - ".github/workflows/deploy-record-detail-preview.yml"
+      - "platform_v2/cloudflare_shadow/src/**"
+      - "platform_v2/cloudflare_shadow/scripts/deploy-record-detail-preview-guard.mjs"
+      - "platform_v2/cloudflare_shadow/wrangler.jsonc"
+      - "platform_v2/cloudflare_shadow/package.json"
+      - "platform_v2/cloudflare_shadow/package-lock.json"
+      - "platform_v2/e2e/observation-detail-image-target.spec.ts"
+      - "platform_v2/playwright.observation-image-target.config.ts"
+      - "platform_v2/src/scripts/resolveObservationImageTargets.ts"
+      - "platform_v2/src/scripts/runObservationImageTargetE2e.ts"
+
+concurrency:
+  group: record-detail-preview-${{ github.event.inputs.branch || github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  IKIMON_CF_RECORD_DETAIL_PREVIEW_DEPLOY_APPROVAL: APPROVE_IKIMON_CF_RECORD_DETAIL_PREVIEW_WORKER_DEPLOY
+
+jobs:
+  record-detail-preview:
+    name: Deploy Record Detail Preview
+    runs-on: ubuntu-latest
+    environment: staging
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'push' &&
+        startsWith(github.ref_name, 'codex/') &&
+        (
+          contains(github.ref_name, 'record') ||
+          contains(github.ref_name, 'observation') ||
+          contains(github.ref_name, 'image') ||
+          contains(github.ref_name, 'detail')
+        )
+      ) ||
+      (
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        startsWith(github.head_ref, 'codex/') &&
+        (
+          contains(github.head_ref, 'record') ||
+          contains(github.head_ref, 'observation') ||
+          contains(github.head_ref, 'image') ||
+          contains(github.head_ref, 'detail') ||
+          contains(github.event.pull_request.title, 'record') ||
+          contains(github.event.pull_request.title, 'observation') ||
+          contains(github.event.pull_request.title, 'image') ||
+          contains(github.event.pull_request.title, 'detail')
+        )
+      )
+    env:
+      BRANCH_NAME: ${{ github.event.inputs.branch || github.head_ref || github.ref_name }}
+      DEPLOY_PREVIEW: ${{ github.event.inputs.deploy_preview || 'true' }}
+      TEST_PROFILE: ${{ github.event.inputs.test_profile || 'quick' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Validate workflow target
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$BRANCH_NAME" | grep -qE '^[a-zA-Z0-9._/-]+$'; then
+            echo "Invalid branch name: $BRANCH_NAME"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            platform_v2/package-lock.json
+            platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Require Cloudflare API token
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "CLOUDFLARE_API_TOKEN is required for record/detail preview deploy."
+            exit 1
+          fi
+
+      - name: Install platform dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Build platform original UI
+        working-directory: platform_v2
+        run: npm run build
+
+      - name: Install Playwright browsers
+        working-directory: platform_v2
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Cloudflare Worker dependencies
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm ci
+
+      - name: Record detail preview preflight
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run deploy:record-detail-preview:dry-run -- --branch "${BRANCH_NAME}" --test-profile "${TEST_PROFILE}" --write-preflight-report .deploy/record-detail-preview-preflight-latest.json
+
+      - name: Deploy isolated preview Worker
+        if: env.DEPLOY_PREVIEW == 'true'
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run deploy:record-detail-preview -- --branch "${BRANCH_NAME}" --test-profile "${TEST_PROFILE}" --approval "${IKIMON_CF_RECORD_DETAIL_PREVIEW_DEPLOY_APPROVAL}" --write-preflight-report .deploy/record-detail-preview-deploy-latest.json
+
+      - name: Run image detail parity against isolated preview
+        if: env.DEPLOY_PREVIEW == 'true'
+        working-directory: platform_v2
+        run: |
+          set -euo pipefail
+          PREVIEW_URL="$(node -e "const fs=require('node:fs'); const report=JSON.parse(fs.readFileSync('cloudflare_shadow/.deploy/record-detail-preview-deploy-latest.json','utf8')); process.stdout.write(report.workerUrl)")"
+          echo "OBSERVATION_DETAIL_BASE_URL=${PREVIEW_URL}" >> "$GITHUB_ENV"
+          OBSERVATION_IMAGE_TARGET_COUNT="3" OBSERVATION_DETAIL_BASE_URL="${PREVIEW_URL}" npm run e2e:observation-image-target
+
+      - name: Upload record detail preview artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: record-detail-preview-evidence
+          path: |
+            platform_v2/cloudflare_shadow/.deploy/record-detail-preview-*.json
+            platform_v2/playwright-report/observation-image-target/**
+            platform_v2/test-results/observation-detail-image-*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Write record detail preview summary
+        working-directory: platform_v2/cloudflare_shadow
+        run: |
+          node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require("node:fs");
+          const deployPath = ".deploy/record-detail-preview-deploy-latest.json";
+          const preflightPath = ".deploy/record-detail-preview-preflight-latest.json";
+          const report = fs.existsSync(deployPath)
+            ? JSON.parse(fs.readFileSync(deployPath, "utf8"))
+            : JSON.parse(fs.readFileSync(preflightPath, "utf8"));
+          console.log("## Record Detail Preview");
+          console.log("");
+          console.log(`- Worker: \`${report.workerName}\``);
+          console.log(`- URL: ${report.workerUrl}`);
+          console.log("- Shared staging route touched: `false`");
+          console.log("- Production DB/R2 mutation: `false`");
+          console.log("- Queue consumers / cron triggers: `false`");
+          console.log(`- Status: \`${report.status}\``);
+          console.log(`- Test profile: \`${report.testProfile}\``);
+          NODE
