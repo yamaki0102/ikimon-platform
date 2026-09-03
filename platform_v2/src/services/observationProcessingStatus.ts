@@ -40,6 +40,22 @@ function normalizedStatus(value: string | null | undefined): string {
   return String(value ?? "").trim().toLowerCase();
 }
 
+export function isObsoleteInteractiveGeminiResult(sourcePayloadJson: string | null | undefined): boolean {
+  if (!sourcePayloadJson) return false;
+  try {
+    const payload = JSON.parse(sourcePayloadJson) as Record<string, unknown>;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload) || payload.providerMode !== "direct_generate_content") return false;
+    const plan = payload.modelPlan && typeof payload.modelPlan === "object" && !Array.isArray(payload.modelPlan)
+      ? payload.modelPlan as Record<string, unknown>
+      : {};
+    const models = Array.isArray(payload.models) ? payload.models : [];
+    return [plan.primary, plan.census, plan.environment, plan.summary, ...models]
+      .some((model) => model === "gemini-3.1-flash-lite");
+  } catch {
+    return false;
+  }
+}
+
 function isFailedStatus(value: string | null | undefined): boolean {
   return ["failed", "error", "cancelled", "failed_retryable", "failed_terminal"].includes(normalizedStatus(value));
 }
@@ -176,7 +192,11 @@ function formattedUpdatedAt(value: string | null): string {
   }
 }
 
-export function renderObservationProcessingStatusPanel(status: ObservationProcessingStatus): string {
+export function renderObservationProcessingStatusPanel(status: ObservationProcessingStatus, cspNonce: string): string {
+  const normalizedNonce = cspNonce.trim();
+  if (!normalizedNonce || /["'<>\s]/u.test(normalizedNonce)) {
+    throw new Error("observation_processing_status_csp_nonce_required");
+  }
   const updatedAt = formattedUpdatedAt(status.updatedAt);
   const action = status.action?.method === "post"
     ? `<button type="button" class="obs-processing-status-action" data-observation-reassess data-endpoint="${escapeHtml(status.action.href)}">${escapeHtml(status.action.label)}</button><span class="obs-processing-status-action-result" aria-live="polite"></span>`
@@ -184,7 +204,7 @@ export function renderObservationProcessingStatusPanel(status: ObservationProces
       ? `<a class="obs-processing-status-action" href="${escapeHtml(status.action.href)}">${escapeHtml(status.action.label)}</a>`
       : "";
   const actionScript = status.action?.method === "post"
-    ? `<script data-observation-reassess-script>(()=>{const button=document.querySelector('[data-observation-reassess]');if(!(button instanceof HTMLButtonElement))return;const result=button.nextElementSibling;button.addEventListener('click',async()=>{if(button.disabled)return;button.disabled=true;button.textContent='受付中…';try{const response=await fetch(button.dataset.endpoint||'',{method:'POST',credentials:'same-origin',headers:{accept:'application/json'}});if(!response.ok)throw new Error('request_failed');button.textContent='受付済み';if(result)result.textContent='AIで再確認を受け付けました。';window.setTimeout(()=>window.location.reload(),800);}catch{button.disabled=false;button.textContent='AIで再確認';if(result)result.textContent='受付できませんでした。少し待ってからもう一度お試しください。';}});})();</script>`
+    ? `<script nonce="${escapeHtml(normalizedNonce)}" data-observation-reassess-script>(()=>{const button=document.querySelector('[data-observation-reassess]');if(!(button instanceof HTMLButtonElement))return;const result=button.nextElementSibling;button.addEventListener('click',async()=>{if(button.disabled)return;button.disabled=true;button.textContent='受付中…';try{const response=await fetch(button.dataset.endpoint||'',{method:'POST',credentials:'same-origin',headers:{accept:'application/json'}});if(!response.ok)throw new Error('request_failed');button.textContent='受付済み';if(result)result.textContent='AIで再確認を受け付けました。';window.setTimeout(()=>window.location.reload(),800);}catch{button.disabled=false;button.textContent='AIで再確認';if(result)result.textContent='受付できませんでした。少し待ってからもう一度お試しください。';}});})();</script>`
     : "";
   return `<style data-observation-processing-status-style>
     .obs-processing-status{margin:0 0 16px;padding:16px;border:1px solid rgba(15,23,42,.1);border-radius:18px;background:#fff;box-shadow:0 12px 30px rgba(15,23,42,.06);display:grid;gap:12px}

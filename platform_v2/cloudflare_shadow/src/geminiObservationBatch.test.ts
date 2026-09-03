@@ -8,15 +8,23 @@ import {
   applyGeminiObservationSummary,
   applyGeminiSpecialistEvidence,
   buildGeminiCensusRequest,
+  buildGeminiCensusDirectRequest,
   buildGeminiEnvironmentRequest,
   buildGeminiPrimaryRequest,
   buildGeminiSpecialistRequest,
   createGeminiBatch,
   decideGeminiSpecialistEscalation,
   findGeminiBatchByDisplayName,
+  generateGeminiContent,
+  getGeminiBatch,
   geminiBatchDisplayName,
   geminiBatchResponseText,
   mergeGeminiObservationEvidence,
+  parseGeminiCensusEvidence,
+  parseGeminiEnvironmentEvidence,
+  parseGeminiObservationSummary,
+  parseGeminiPrimaryEvidence,
+  parseGeminiPrimaryEvidenceDirect,
   type GeminiCensusEvidence,
   type GeminiEnvironmentEvidence,
   type GeminiPrimaryEvidence,
@@ -42,6 +50,9 @@ test("production model stack uses the measured exact Flash-Lite IDs and every im
     assert.equal((text.match(/inlineData/g) ?? []).length, 2);
     assert.equal(request.generationConfig.maxOutputTokens, 2048);
     assert.equal(request.generationConfig.responseMimeType, "application/json");
+    assert.equal(request.generationConfig.temperature, 1);
+    assert.equal(request.generationConfig.thinkingConfig.thinkingLevel, "minimal");
+    assert.doesNotMatch(text, /"thinkingLevel":"MINIMAL"/);
   }
 });
 
@@ -101,6 +112,36 @@ test("not detected and not assessable remain separate states", () => {
     { ...environment, assessment_state: "not_assessable" },
     2,
   ).detectionState, "not_assessable");
+});
+
+test("interactive fusion can record the fixed Gemini 3.5 model for every active lane", () => {
+  const merged = mergeGeminiObservationEvidence(primary, census, environment, 2, {
+    primary: GEMINI_PRIMARY_MODEL,
+    census: GEMINI_PRIMARY_MODEL,
+  });
+  assert.deepEqual([...new Set(merged.topCandidates.flatMap((candidate) => candidate.sourceModels))], [GEMINI_PRIMARY_MODEL]);
+});
+
+test("partial provider JSON keeps the reassessment merge safe when required arrays are omitted", () => {
+  const parsedPrimary = parseGeminiPrimaryEvidence(JSON.stringify({
+    record_class: "environment",
+    information_state: "not_assessable",
+    scene_class: "no_clear_subject",
+  }));
+  const parsedCensus = parseGeminiCensusEvidence(JSON.stringify({
+    detection_state: "not_assessable",
+    scene: "uncertain",
+  }));
+  assert.deepEqual(parsedPrimary.subjects, []);
+  assert.deepEqual(parsedPrimary.regions, []);
+  assert.deepEqual(parsedCensus.groups, []);
+  assert.deepEqual(parsedCensus.regions, []);
+  assert.equal(mergeGeminiObservationEvidence(parsedPrimary, parsedCensus, environment, 1).detectionState, "not_assessable");
+  const parsedEnvironment = parseGeminiEnvironmentEvidence(JSON.stringify({ assessment_state: "not_assessable", fields: {} }));
+  assert.deepEqual(parsedEnvironment.cues, []);
+  assert.deepEqual(parsedEnvironment.uncertain_cues, []);
+  const parsedSummary = parseGeminiObservationSummary(JSON.stringify({ narrative: "写真の要約" }));
+  assert.deepEqual(parsedSummary.subject_explanations, []);
 });
 
 test("summary can only enrich already extracted subjects", () => {
@@ -245,4 +286,109 @@ test("batch REST client uses exact model paths, recovers by display name, and pa
   const recovered = await findGeminiBatchByDisplayName("secret", "claim-primary", mockFetch);
   assert.equal(recovered?.name, "batches/existing");
   assert.equal(geminiBatchResponseText({ response: { candidates: [{ content: { parts: [{ text: "{\"ok\":true}" }] } }] } }), '{"ok":true}');
+});
+
+test("batch REST client reads completed inline responses from the canonical batch output", async () => {
+  const mockFetch = (async (url: string | URL | Request) => {
+    assert.equal(String(url), "https://generativelanguage.googleapis.com/v1beta/batches/completed");
+    return new Response(JSON.stringify({
+      name: "batches/completed",
+      displayName: "claim-primary",
+      state: "BATCH_STATE_SUCCEEDED",
+      batchStats: { requestCount: "1", successfulRequestCount: "1" },
+      output: {
+        inlinedResponses: {
+          inlinedResponses: [{
+            metadata: { key: "record-1" },
+            response: { candidates: [{ content: { parts: [{ text: "{\"record_class\":\"organism\"}" }] } }] },
+          }],
+        },
+      },
+    }), { status: 200 });
+  }) as typeof fetch;
+  const completed = await getGeminiBatch("secret", "batches/completed", mockFetch);
+  assert.equal(completed.state, "BATCH_STATE_SUCCEEDED");
+  assert.equal(completed.responses.length, 1);
+  assert.equal(geminiBatchResponseText(completed.responses[0]), '{"record_class":"organism"}');
+});
+
+test("batch REST client reads inline responses from the canonical operation wrapper", async () => {
+  const mockFetch = (async () => new Response(JSON.stringify({
+    name: "batches/wrapped",
+    metadata: { displayName: "claim-primary", state: "JOB_STATE_SUCCEEDED" },
+    response: {
+      inlinedResponses: {
+        inlinedResponses: [{
+          metadata: { key: "record-1" },
+          response: { candidates: [{ content: { parts: [{ text: "{\"record_class\":\"organism\"}" }] } }] },
+        }],
+      },
+    },
+  }), { status: 200 })) as typeof fetch;
+  const completed = await getGeminiBatch("secret", "batches/wrapped", mockFetch);
+  assert.equal(completed.state, "JOB_STATE_SUCCEEDED");
+  assert.equal(completed.responses.length, 1);
+  assert.equal(geminiBatchResponseText(completed.responses[0]), '{"record_class":"organism"}');
+});
+
+test("direct generateContent reuses the primary request and extracts structured text", async () => {
+  const calls: Array<{ url: string; init: RequestInit }> = [];
+  const responseText = JSON.stringify({
+    record_class: "organism",
+    information_state: "informative",
+    scene_class: "single_subject",
+    subjects: [], regions: [], non_biological_labels: [], quality_flags: [], needs_review: true, review_reasons: ["species_uncertain"],
+  });
+  const mockFetch = (async (url: string | URL | Request, init: RequestInit = {}) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: responseText }] }, finishReason: "STOP" }] }), { status: 200 });
+  }) as typeof fetch;
+  const request = buildGeminiPrimaryRequest("record-direct", null, images);
+  const result = await generateGeminiContent("secret", GEMINI_PRIMARY_MODEL, request, mockFetch);
+  assert.equal(calls[0]!.url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent");
+  const sentRequest = JSON.parse(String(calls[0]!.init.body));
+  assert.deepEqual(sentRequest.contents, request.contents);
+  assert.equal(sentRequest.generationConfig.responseMimeType, "application/json");
+  assert.equal(sentRequest.generationConfig.responseSchema, undefined);
+  assert.deepEqual(sentRequest.generationConfig.responseJsonSchema, request.generationConfig.responseJsonSchema);
+  assert.equal(sentRequest.generationConfig.temperature, 0);
+  assert.equal(sentRequest.generationConfig.responseFormat, undefined);
+  assert.deepEqual(sentRequest.generationConfig.thinkingConfig, { thinkingLevel: "minimal" });
+  assert.equal(result.model, GEMINI_PRIMARY_MODEL);
+  assert.equal(result.candidatesCount, 1);
+  assert.equal(result.finishReason, "STOP");
+  assert.deepEqual(parseGeminiPrimaryEvidenceDirect(result.text).review_reasons, ["species_uncertain"]);
+});
+
+test("direct census adapter keeps semantic fields while using a compact schema subset", () => {
+  const request = buildGeminiCensusDirectRequest("record-direct-census", images);
+  const schema = JSON.stringify(request.generationConfig.responseJsonSchema);
+  assert.match(schema, /supporting_features/);
+  assert.match(schema, /detection_state/);
+  assert.doesNotMatch(schema, /maxItems/);
+  assert.doesNotMatch(schema, /minimum/);
+});
+
+test("direct structured failures do not become semantic not-assessable", async () => {
+  const empty = (async () => new Response(JSON.stringify({ candidates: [] }), { status: 200 })) as typeof fetch;
+  await assert.rejects(() => generateGeminiContent("secret", GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest("record-direct", null, images), empty), /gemini_generate_content_candidates_missing/);
+  assert.throws(() => parseGeminiPrimaryEvidenceDirect(JSON.stringify({ record_class: "organism" })), /gemini_direct_schema_mismatch:primary:missing_/);
+  const semantic = parseGeminiPrimaryEvidenceDirect(JSON.stringify({
+    record_class: "unknown", information_state: "not_assessable", scene_class: "no_clear_subject",
+    subjects: [], regions: [], non_biological_labels: [], quality_flags: [], needs_review: true, review_reasons: ["blurred"],
+  }));
+  assert.equal(semantic.information_state, "not_assessable");
+});
+
+test("direct provider errors retain only bounded field diagnostics", async () => {
+  const failure = (async () => new Response(JSON.stringify({
+    error: {
+      message: "Request contains an invalid argument.",
+      details: [{ fieldViolations: [{ field: "generation_config.response_format.text.mime_type", description: "invalid enum" }] }],
+    },
+  }), { status: 400 })) as typeof fetch;
+  await assert.rejects(
+    () => generateGeminiContent("secret", GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest("record-direct", null, images), failure),
+    /gemini_generate_content_api_failed:400:Request contains an invalid argument\.:generation_config\.response_format\.text\.mime_type:invalid enum/,
+  );
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { publicObservationAiCandidateInsights } from "./publicObservationAiPresentation";
+import { publicObservationAiCandidateInsights, publicObservationAiFeedback } from "./publicObservationAiPresentation";
 
 test("public AI presentation keeps three evidence-backed candidates without confidence or provenance", () => {
   const insights = publicObservationAiCandidateInsights(JSON.stringify({
@@ -44,4 +44,21 @@ test("public AI presentation rejects malformed, generic, and exact-location-bear
       { name: "ヒヨドリ", supportingFeatures: [], missingFeatures: [], contradictions: [] },
     ],
   })), []);
+});
+
+test("public AI presentation exposes bounded feedback and next-photo guidance", () => {
+  const feedback = publicObservationAiFeedback(JSON.stringify({
+    summary: {
+      observer_feedback: "葉の形が見えるので、候補を比較できます。",
+      subject_explanations: [{ next_photo: "葉の裏側と茎の付け根を近くから撮る。" }],
+    },
+  }));
+  assert.deepEqual(feedback, {
+    feedback: "葉の形が見えるので、候補を比較できます。",
+    nextPhoto: "葉の裏側と茎の付け根を近くから撮る。",
+  });
+  assert.deepEqual(publicObservationAiFeedback(JSON.stringify({ summary: { observer_feedback: "座標 34.71234, 137.81234" } })), {
+    feedback: null,
+    nextPhoto: null,
+  });
 });

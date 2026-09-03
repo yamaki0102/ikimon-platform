@@ -178,114 +178,149 @@ export type GeminiMergedObservation = {
 type JsonSchema = Record<string, unknown>;
 
 const rectProperties = {
-  asset_index: { type: "INTEGER", minimum: 0 },
-  x: { type: "NUMBER", minimum: 0, maximum: 1 },
-  y: { type: "NUMBER", minimum: 0, maximum: 1 },
-  width: { type: "NUMBER", minimum: 0, maximum: 1 },
-  height: { type: "NUMBER", minimum: 0, maximum: 1 },
+  asset_index: { type: "integer", minimum: 0 },
+  x: { type: "number", minimum: 0, maximum: 1 },
+  y: { type: "number", minimum: 0, maximum: 1 },
+  width: { type: "number", minimum: 0, maximum: 1 },
+  height: { type: "number", minimum: 0, maximum: 1 },
 };
 
 export const GEMINI_PRIMARY_SCHEMA: JsonSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    record_class: { type: "STRING", enum: ["organism", "person", "food", "environment", "object", "document", "mixed", "unknown"] },
-    information_state: { type: "STRING", enum: ["informative", "not_informative", "not_assessable"] },
-    scene_class: { type: "STRING", enum: ["single_subject", "same_taxon_group", "multi_taxa", "no_clear_subject"] },
-    subjects: { type: "ARRAY", maxItems: 8, items: { type: "OBJECT", properties: {
-      id: { type: "STRING" }, role: { type: "STRING", enum: ["primary", "secondary", "background", "trace"] },
-      scope: { type: "STRING", enum: ["individual", "group", "unknown"] }, count: { type: "INTEGER", minimum: 0 },
-      name: { type: "STRING" }, scientific: { type: "STRING" },
-      rank: { type: "STRING", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
-      confidence: { type: "NUMBER", minimum: 0, maximum: 1 }, evidence: { type: "STRING" },
+    record_class: { type: "string", enum: ["organism", "person", "food", "environment", "object", "document", "mixed", "unknown"] },
+    information_state: { type: "string", enum: ["informative", "not_informative", "not_assessable"] },
+    scene_class: { type: "string", enum: ["single_subject", "same_taxon_group", "multi_taxa", "no_clear_subject"] },
+    subjects: { type: "array", maxItems: 8, items: { type: "object", properties: {
+      id: { type: "string" }, role: { type: "string", enum: ["primary", "secondary", "background", "trace"] },
+      scope: { type: "string", enum: ["individual", "group", "unknown"] }, count: { type: "integer", minimum: 0 },
+      name: { type: "string" }, scientific: { type: "string" },
+      rank: { type: "string", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
+      confidence: { type: "number", minimum: 0, maximum: 1 }, evidence: { type: "string" },
     }, required: ["id", "role", "scope", "count", "name", "scientific", "rank", "confidence", "evidence"] } },
-    regions: { type: "ARRAY", maxItems: 16, items: { type: "OBJECT", properties: { subject_id: { type: "STRING" }, ...rectProperties }, required: ["subject_id", "asset_index", "x", "y", "width", "height"] } },
-    non_biological_labels: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
-    quality_flags: { type: "ARRAY", maxItems: 8, items: { type: "STRING" } },
-    needs_review: { type: "BOOLEAN" },
-    review_reasons: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
+    regions: { type: "array", maxItems: 16, items: { type: "object", properties: { subject_id: { type: "string" }, ...rectProperties }, required: ["subject_id", "asset_index", "x", "y", "width", "height"] } },
+    non_biological_labels: { type: "array", maxItems: 6, items: { type: "string" } },
+    quality_flags: { type: "array", maxItems: 8, items: { type: "string" } },
+    needs_review: { type: "boolean" },
+    review_reasons: { type: "array", maxItems: 6, items: { type: "string" } },
   },
   required: ["record_class", "information_state", "scene_class", "subjects", "regions", "non_biological_labels", "quality_flags", "needs_review", "review_reasons"],
 };
 
 export const GEMINI_CENSUS_SCHEMA: JsonSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    detection_state: { type: "STRING", enum: ["detected", "not_detected", "not_assessable"] },
-    scene: { type: "STRING", enum: ["one_group", "same_taxon_multiple", "multiple_taxa", "uncertain"] },
-    groups: { type: "ARRAY", maxItems: 8, items: { type: "OBJECT", properties: {
-      id: { type: "STRING" }, kind: { type: "STRING", enum: ["animal", "plant", "fungus", "trace", "unknown_biota"] },
-      role: { type: "STRING", enum: ["primary", "other"] }, scope: { type: "STRING", enum: ["individual", "group", "unknown"] },
-      count: { type: "INTEGER", minimum: 0 }, label: { type: "STRING" }, scientific: { type: "STRING" },
-      rank: { type: "STRING", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
-      evidence: { type: "STRING" },
-      supporting_features: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
-      missing_features: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
-      contradictions: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
-      confidence: { type: "NUMBER", minimum: 0, maximum: 1 },
+    detection_state: { type: "string", enum: ["detected", "not_detected", "not_assessable"] },
+    scene: { type: "string", enum: ["one_group", "same_taxon_multiple", "multiple_taxa", "uncertain"] },
+    groups: { type: "array", maxItems: 8, items: { type: "object", properties: {
+      id: { type: "string" }, kind: { type: "string", enum: ["animal", "plant", "fungus", "trace", "unknown_biota"] },
+      role: { type: "string", enum: ["primary", "other"] }, scope: { type: "string", enum: ["individual", "group", "unknown"] },
+      count: { type: "integer", minimum: 0 }, label: { type: "string" }, scientific: { type: "string" },
+      rank: { type: "string", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
+      evidence: { type: "string" },
+      supporting_features: { type: "array", maxItems: 6, items: { type: "string" } },
+      missing_features: { type: "array", maxItems: 6, items: { type: "string" } },
+      contradictions: { type: "array", maxItems: 6, items: { type: "string" } },
+      confidence: { type: "number", minimum: 0, maximum: 1 },
     }, required: ["id", "kind", "role", "scope", "count", "label", "scientific", "rank", "evidence", "supporting_features", "missing_features", "contradictions", "confidence"] } },
-    regions: { type: "ARRAY", maxItems: 16, items: { type: "OBJECT", properties: { group_id: { type: "STRING" }, ...rectProperties }, required: ["group_id", "asset_index", "x", "y", "width", "height"] } },
-    relations: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
-    needs_review: { type: "BOOLEAN" }, review_reasons: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
+    regions: { type: "array", maxItems: 16, items: { type: "object", properties: { group_id: { type: "string" }, ...rectProperties }, required: ["group_id", "asset_index", "x", "y", "width", "height"] } },
+    relations: { type: "array", maxItems: 6, items: { type: "string" } },
+    needs_review: { type: "boolean" }, review_reasons: { type: "array", maxItems: 6, items: { type: "string" } },
+  },
+  required: ["detection_state", "scene", "groups", "regions", "relations", "needs_review", "review_reasons"],
+};
+
+// GenerateContent accepts the same semantic JSON schema, but the interactive
+// census lane uses a smaller supported subset to avoid provider rejection of
+// the larger batch-oriented schema. Parsers and fusion remain unchanged.
+export const GEMINI_CENSUS_DIRECT_SCHEMA: JsonSchema = {
+  type: "object",
+  properties: {
+    detection_state: { type: "string", enum: ["detected", "not_detected", "not_assessable"] },
+    scene: { type: "string", enum: ["one_group", "same_taxon_multiple", "multiple_taxa", "uncertain"] },
+    groups: { type: "array", items: { type: "object", properties: {
+      id: { type: "string" },
+      kind: { type: "string", enum: ["animal", "plant", "fungus", "trace", "unknown_biota"] },
+      role: { type: "string", enum: ["primary", "other"] },
+      scope: { type: "string", enum: ["individual", "group", "unknown"] },
+      count: { type: "integer" },
+      label: { type: "string" },
+      scientific: { type: "string" },
+      rank: { type: "string", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
+      evidence: { type: "string" },
+      supporting_features: { type: "array", items: { type: "string" } },
+      missing_features: { type: "array", items: { type: "string" } },
+      contradictions: { type: "array", items: { type: "string" } },
+      confidence: { type: "number" },
+    }, required: ["id", "kind", "role", "scope", "count", "label", "scientific", "rank", "evidence", "confidence"] } },
+    regions: { type: "array", items: { type: "object", properties: {
+      group_id: { type: "string" },
+      asset_index: { type: "integer" },
+      x: { type: "number" }, y: { type: "number" }, width: { type: "number" }, height: { type: "number" },
+    }, required: ["group_id", "asset_index", "x", "y", "width", "height"] } },
+    relations: { type: "array", items: { type: "string" } },
+    needs_review: { type: "boolean" },
+    review_reasons: { type: "array", items: { type: "string" } },
   },
   required: ["detection_state", "scene", "groups", "regions", "relations", "needs_review", "review_reasons"],
 };
 
 export const GEMINI_SPECIALIST_SCHEMA: JsonSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    assessment_state: { type: "STRING", enum: ["informative", "not_informative", "not_assessable"] },
+    assessment_state: { type: "string", enum: ["informative", "not_informative", "not_assessable"] },
     candidates: {
-      type: "ARRAY",
+      type: "array",
       maxItems: 5,
       items: {
-        type: "OBJECT",
+        type: "object",
         properties: {
-          name: { type: "STRING" },
-          scientific: { type: "STRING" },
-          rank: { type: "STRING", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
-          confidence: { type: "NUMBER", minimum: 0, maximum: 1 },
-          supporting_features: { type: "ARRAY", maxItems: 8, items: { type: "STRING" } },
-          missing_features: { type: "ARRAY", maxItems: 8, items: { type: "STRING" } },
-          contradictions: { type: "ARRAY", maxItems: 8, items: { type: "STRING" } },
+          name: { type: "string" },
+          scientific: { type: "string" },
+          rank: { type: "string", enum: ["species", "genus", "family", "order", "class", "lifeform", "unknown"] },
+          confidence: { type: "number", minimum: 0, maximum: 1 },
+          supporting_features: { type: "array", maxItems: 8, items: { type: "string" } },
+          missing_features: { type: "array", maxItems: 8, items: { type: "string" } },
+          contradictions: { type: "array", maxItems: 8, items: { type: "string" } },
         },
         required: ["name", "scientific", "rank", "confidence", "supporting_features", "missing_features", "contradictions"],
       },
     },
-    comparison_summary: { type: "STRING" },
-    needs_review: { type: "BOOLEAN" },
+    comparison_summary: { type: "string" },
+    needs_review: { type: "boolean" },
   },
   required: ["assessment_state", "candidates", "comparison_summary", "needs_review"],
 };
 
 export const GEMINI_ENVIRONMENT_SCHEMA: JsonSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    assessment_state: { type: "STRING", enum: ["informative", "not_informative", "not_assessable"] },
-    fields: { type: "OBJECT", properties: {
-      place_type: { type: "STRING", enum: ["grassland_urban_edge", "urban", "woodland", "water_edge", "wetland", "coast", "unknown"] },
-      contact_surface: { type: "STRING", enum: ["soil_gravel_litter", "soil", "plant", "water", "rock", "artificial", "unknown"] },
-      surrounding_cover: { type: "STRING", enum: ["low_grass", "trees_shrubs", "bare_ground", "water", "snow", "built_surface", "unknown"] },
-      environment_condition: { type: "STRING", enum: ["open_dry", "sunny", "shaded", "wet", "flowing", "windy", "unknown"] },
-      human_change: { type: "STRING", enum: ["trampling_mowing", "mowing", "trampling", "planting", "construction", "release", "none_visible", "unknown"] },
+    assessment_state: { type: "string", enum: ["informative", "not_informative", "not_assessable"] },
+    fields: { type: "object", properties: {
+      place_type: { type: "string", enum: ["grassland_urban_edge", "urban", "woodland", "water_edge", "wetland", "coast", "unknown"] },
+      contact_surface: { type: "string", enum: ["soil_gravel_litter", "soil", "plant", "water", "rock", "artificial", "unknown"] },
+      surrounding_cover: { type: "string", enum: ["low_grass", "trees_shrubs", "bare_ground", "water", "snow", "built_surface", "unknown"] },
+      environment_condition: { type: "string", enum: ["open_dry", "sunny", "shaded", "wet", "flowing", "windy", "unknown"] },
+      human_change: { type: "string", enum: ["trampling_mowing", "mowing", "trampling", "planting", "construction", "release", "none_visible", "unknown"] },
     }, required: ["place_type", "contact_surface", "surrounding_cover", "environment_condition", "human_change"] },
-    cues: { type: "ARRAY", maxItems: 12, items: { type: "OBJECT", properties: {
-      slot: { type: "STRING", enum: ["vegetation_structure", "substrate", "moisture", "human_influence", "management_signs"] },
-      label: { type: "STRING" }, evidence: { type: "STRING" }, asset_index: { type: "INTEGER", minimum: 0 }, confidence: { type: "NUMBER", minimum: 0, maximum: 1 },
+    cues: { type: "array", maxItems: 12, items: { type: "object", properties: {
+      slot: { type: "string", enum: ["vegetation_structure", "substrate", "moisture", "human_influence", "management_signs"] },
+      label: { type: "string" }, evidence: { type: "string" }, asset_index: { type: "integer", minimum: 0 }, confidence: { type: "number", minimum: 0, maximum: 1 },
     }, required: ["slot", "label", "evidence", "asset_index", "confidence"] } },
-    uncertain_cues: { type: "ARRAY", maxItems: 6, items: { type: "STRING" } },
+    uncertain_cues: { type: "array", maxItems: 6, items: { type: "string" } },
   },
   required: ["assessment_state", "fields", "cues", "uncertain_cues"],
 };
 
 export const GEMINI_SUMMARY_SCHEMA: JsonSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    narrative: { type: "STRING" },
-    subject_explanations: { type: "ARRAY", maxItems: 8, items: { type: "OBJECT", properties: {
-      subject_id: { type: "STRING" }, title: { type: "STRING" }, explanation: { type: "STRING" },
-      uncertainty: { type: "STRING" }, next_photo: { type: "STRING" },
+    narrative: { type: "string" },
+    subject_explanations: { type: "array", maxItems: 8, items: { type: "object", properties: {
+      subject_id: { type: "string" }, title: { type: "string" }, explanation: { type: "string" },
+      uncertainty: { type: "string" }, next_photo: { type: "string" },
     }, required: ["subject_id", "title", "explanation", "uncertainty", "next_photo"] } },
-    environment_summary: { type: "STRING" }, interaction_summary: { type: "STRING" }, observer_feedback: { type: "STRING" },
+    environment_summary: { type: "string" }, interaction_summary: { type: "string" }, observer_feedback: { type: "string" },
   },
   required: ["narrative", "subject_explanations", "environment_summary", "interaction_summary", "observer_feedback"],
 };
@@ -296,11 +331,11 @@ const imageParts = (images: GeminiObservationImage[]): Array<Record<string, unkn
 ]);
 
 const generationConfig = (schema: JsonSchema, maxOutputTokens: number, temperature: number) => ({
-  temperature,
+  temperature: 1,
   maxOutputTokens,
   responseMimeType: "application/json",
-  responseSchema: schema,
-  thinkingConfig: { thinkingLevel: "MINIMAL" },
+  responseJsonSchema: schema,
+  thinkingConfig: { thinkingLevel: "minimal" },
 });
 
 export function buildGeminiPrimaryRequest(recordId: string, observedAt: string | null, images: GeminiObservationImage[]) {
@@ -358,6 +393,7 @@ export type GeminiBatchOperation = {
   state: string | null;
   batchStats: Record<string, unknown> | null;
   responses: unknown[];
+  responseShape: string;
   error: string | null;
 };
 
@@ -370,19 +406,32 @@ const operationFromJson = (value: unknown): GeminiBatchOperation => {
     ? source.metadata as Record<string, unknown> : {};
   const response = source.response && typeof source.response === "object" && !Array.isArray(source.response)
     ? source.response as Record<string, unknown> : {};
-  const output = (metadata.output && typeof metadata.output === "object" ? metadata.output : response.output && typeof response.output === "object" ? response.output : {}) as Record<string, unknown>;
+  const output = source.output && typeof source.output === "object" && !Array.isArray(source.output)
+    ? source.output as Record<string, unknown>
+    : response.output && typeof response.output === "object" && !Array.isArray(response.output)
+      ? response.output as Record<string, unknown> : {};
   const inlined = output.inlinedResponses && typeof output.inlinedResponses === "object" && !Array.isArray(output.inlinedResponses)
-    ? output.inlinedResponses as Record<string, unknown> : {};
+    ? output.inlinedResponses as Record<string, unknown>
+    : response.inlinedResponses && typeof response.inlinedResponses === "object" && !Array.isArray(response.inlinedResponses)
+      ? response.inlinedResponses as Record<string, unknown> : {};
   const responses = Array.isArray(inlined.inlinedResponses) ? inlined.inlinedResponses
     : Array.isArray(output.inlinedResponses) ? output.inlinedResponses
       : Array.isArray(response.inlinedResponses) ? response.inlinedResponses : [];
+  const responseShape = [
+    `source=${Object.keys(source).sort().join(",") || "none"}`,
+    `output=${Object.keys(output).sort().join(",") || "none"}`,
+    `response=${Object.keys(response).sort().join(",") || "none"}`,
+    `inlined=${Object.keys(inlined).sort().join(",") || "none"}`,
+  ].join(";");
   const errorSource = (source.error && typeof source.error === "object" ? source.error : metadata.error && typeof metadata.error === "object" ? metadata.error : {}) as Record<string, unknown>;
   return {
     name: typeof source.name === "string" ? source.name : typeof metadata.name === "string" ? metadata.name : "",
-    displayName: typeof metadata.displayName === "string" ? metadata.displayName : typeof source.displayName === "string" ? source.displayName : null,
-    state: typeof metadata.state === "string" ? metadata.state : typeof source.state === "string" ? source.state : null,
-    batchStats: metadata.batchStats && typeof metadata.batchStats === "object" ? metadata.batchStats as Record<string, unknown> : null,
+    displayName: typeof source.displayName === "string" ? source.displayName : typeof metadata.displayName === "string" ? metadata.displayName : null,
+    state: typeof source.state === "string" ? source.state : typeof metadata.state === "string" ? metadata.state : null,
+    batchStats: source.batchStats && typeof source.batchStats === "object" ? source.batchStats as Record<string, unknown>
+      : metadata.batchStats && typeof metadata.batchStats === "object" ? metadata.batchStats as Record<string, unknown> : null,
     responses,
+    responseShape,
     error: typeof errorSource.message === "string" ? errorSource.message : null,
   };
 };
@@ -442,14 +491,228 @@ export function geminiBatchResponseText(value: unknown): string {
   return text;
 }
 
+export function buildGeminiCensusDirectRequest(recordId: string, images: GeminiObservationImage[]) {
+  const request = buildGeminiCensusRequest(recordId, images);
+  return {
+    ...request,
+    generationConfig: { ...request.generationConfig, responseJsonSchema: GEMINI_CENSUS_DIRECT_SCHEMA },
+  };
+}
+
+export type GeminiDirectContentResult = {
+  model: string;
+  text: string;
+  candidatesCount: number;
+  finishReason: string | null;
+};
+
+const directApiJson = async (url: string, apiKey: string, init: RequestInit, fetcher: typeof fetch): Promise<unknown> => {
+  const response = await fetcher(url, { ...init, headers: { "content-type": "application/json", "x-goog-api-key": apiKey, ...(init.headers ?? {}) } });
+  const value = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = value && typeof value === "object" && !Array.isArray(value)
+      && (value as Record<string, unknown>).error && typeof (value as Record<string, unknown>).error === "object"
+      ? (value as Record<string, unknown>).error as Record<string, unknown> : {};
+    const message = String(error.message ?? `http_${response.status}`);
+    const fieldViolations = Array.isArray(error.details)
+      ? error.details.flatMap((detail) => {
+        if (!detail || typeof detail !== "object" || Array.isArray(detail)) return [];
+        const violations = (detail as Record<string, unknown>).fieldViolations;
+        if (!Array.isArray(violations)) return [];
+        return violations.flatMap((violation) => {
+          if (!violation || typeof violation !== "object" || Array.isArray(violation)) return [];
+          const item = violation as Record<string, unknown>;
+          return typeof item.field === "string" && typeof item.description === "string"
+            ? [`${item.field}:${item.description.slice(0, 120)}`] : [];
+        });
+      }).join("|") : "";
+    throw new Error(`gemini_generate_content_api_failed:${response.status}:${[message, fieldViolations].filter(Boolean).join(":").slice(0, 360)}`);
+  }
+  return value;
+};
+
+const directResponseText = (value: unknown): { text: string; candidatesCount: number; finishReason: string | null } => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("gemini_generate_content_response_invalid");
+  const source = value as Record<string, unknown>;
+  const candidates = Array.isArray(source.candidates) ? source.candidates : [];
+  if (candidates.length === 0) throw new Error("gemini_generate_content_candidates_missing");
+  const first = candidates[0] && typeof candidates[0] === "object" && !Array.isArray(candidates[0])
+    ? candidates[0] as Record<string, unknown> : {};
+  const content = first.content && typeof first.content === "object" && !Array.isArray(first.content)
+    ? first.content as Record<string, unknown> : {};
+  const parts = Array.isArray(content.parts) ? content.parts : [];
+  const text = parts.flatMap((part) => part && typeof part === "object" && !Array.isArray(part) && typeof (part as Record<string, unknown>).text === "string"
+    ? [(part as Record<string, unknown>).text as string] : []).join("");
+  if (!text.trim()) throw new Error("gemini_generate_content_text_missing");
+  return { text, candidatesCount: candidates.length, finishReason: typeof first.finishReason === "string" ? first.finishReason : null };
+};
+
+export async function generateGeminiContent(
+  apiKey: string,
+  model: string,
+  request: Record<string, unknown>,
+  fetcher: typeof fetch = fetch,
+): Promise<GeminiDirectContentResult> {
+  if (![GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL].includes(model)) {
+    throw new Error(`gemini_model_not_allowed:${model}`);
+  }
+  const generationConfig = request.generationConfig && typeof request.generationConfig === "object" && !Array.isArray(request.generationConfig)
+    ? request.generationConfig as Record<string, unknown> : {};
+  const responseMimeType = typeof generationConfig.responseMimeType === "string" ? generationConfig.responseMimeType : null;
+  const responseJsonSchema = generationConfig.responseJsonSchema && typeof generationConfig.responseJsonSchema === "object"
+    ? generationConfig.responseJsonSchema : null;
+  if (!responseMimeType || !responseJsonSchema) throw new Error("gemini_generate_content_structured_config_missing");
+  const { responseMimeType: _legacyMimeType, responseJsonSchema: _legacySchema, temperature: _legacyTemperature, ...directGenerationConfig } = generationConfig;
+  const thinkingConfig = directGenerationConfig.thinkingConfig && typeof directGenerationConfig.thinkingConfig === "object" && !Array.isArray(directGenerationConfig.thinkingConfig)
+    ? directGenerationConfig.thinkingConfig as Record<string, unknown> : null;
+  // GenerateContent REST examples use the public lowercase thinking-level values;
+  // preserve the existing request builder's value instead of rewriting it to the
+  // SDK enum spelling.
+  const thinkingLevel = typeof thinkingConfig?.thinkingLevel === "string" ? thinkingConfig.thinkingLevel : null;
+  const directRequest = {
+    ...request,
+    generationConfig: {
+      ...directGenerationConfig,
+      ...(thinkingLevel ? { thinkingConfig: { ...thinkingConfig, thinkingLevel } } : {}),
+      temperature: 0,
+      responseMimeType,
+      responseJsonSchema,
+    },
+  };
+  const value = await directApiJson(`${apiBase}/models/${encodeURIComponent(model)}:generateContent`, apiKey, {
+    method: "POST",
+    body: JSON.stringify(directRequest),
+  }, fetcher);
+  const extracted = directResponseText(value);
+  return { model, ...extracted };
+}
+
 const parseJson = <T>(text: string): T => {
   try { return JSON.parse(text) as T; } catch { throw new Error("gemini_batch_output_invalid_json"); }
 };
 
-export const parseGeminiPrimaryEvidence = (text: string): GeminiPrimaryEvidence => parseJson<GeminiPrimaryEvidence>(text);
-export const parseGeminiCensusEvidence = (text: string): GeminiCensusEvidence => parseJson<GeminiCensusEvidence>(text);
-export const parseGeminiEnvironmentEvidence = (text: string): GeminiEnvironmentEvidence => parseJson<GeminiEnvironmentEvidence>(text);
-export const parseGeminiObservationSummary = (text: string): GeminiObservationSummary => parseJson<GeminiObservationSummary>(text);
+export const parseGeminiPrimaryEvidence = (text: string): GeminiPrimaryEvidence => {
+  const parsed = parseJson<Partial<GeminiPrimaryEvidence>>(text);
+  return {
+    record_class: parsed.record_class ?? "unknown",
+    information_state: parsed.information_state ?? "not_assessable",
+    scene_class: parsed.scene_class ?? "no_clear_subject",
+    subjects: Array.isArray(parsed.subjects) ? parsed.subjects : [],
+    regions: Array.isArray(parsed.regions) ? parsed.regions : [],
+    non_biological_labels: Array.isArray(parsed.non_biological_labels) ? parsed.non_biological_labels : [],
+    quality_flags: Array.isArray(parsed.quality_flags) ? parsed.quality_flags : [],
+    needs_review: parsed.needs_review === true,
+    review_reasons: Array.isArray(parsed.review_reasons) ? parsed.review_reasons : [],
+  };
+};
+
+function parseDirectStructuredObject(text: string, label: string, required: string[], enums: Record<string, string[]> = {}): Record<string, unknown> {
+  const parsed = parseJson<Record<string, unknown>>(text);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error(`gemini_direct_schema_mismatch:${label}:object`);
+  const missing = required.filter((key) => !(key in parsed));
+  if (missing.length > 0) throw new Error(`gemini_direct_schema_mismatch:${label}:missing_${missing.join(",")}`);
+  for (const [key, allowed] of Object.entries(enums)) {
+    if (typeof parsed[key] !== "string" || !allowed.includes(parsed[key] as string)) {
+      throw new Error(`gemini_direct_schema_mismatch:${label}:${key}`);
+    }
+  }
+  return parsed;
+}
+
+export const parseGeminiPrimaryEvidenceDirect = (text: string): GeminiPrimaryEvidence => {
+  const parsed = parseDirectStructuredObject(text, "primary", ["record_class", "information_state", "scene_class", "subjects", "regions", "non_biological_labels", "quality_flags", "needs_review", "review_reasons"], {
+    record_class: ["organism", "person", "food", "environment", "object", "document", "mixed", "unknown"],
+    information_state: ["informative", "not_informative", "not_assessable"],
+    scene_class: ["single_subject", "same_taxon_group", "multi_taxa", "no_clear_subject"],
+  });
+  if (!Array.isArray(parsed.subjects) || !Array.isArray(parsed.regions) || !Array.isArray(parsed.non_biological_labels)
+    || !Array.isArray(parsed.quality_flags) || typeof parsed.needs_review !== "boolean" || !Array.isArray(parsed.review_reasons)) {
+    throw new Error("gemini_direct_schema_mismatch:primary:types");
+  }
+  return parseGeminiPrimaryEvidence(text);
+};
+
+export const parseGeminiCensusEvidenceDirect = (text: string): GeminiCensusEvidence => {
+  const parsed = parseDirectStructuredObject(text, "census", ["detection_state", "scene", "groups", "regions", "relations", "needs_review", "review_reasons"], {
+    detection_state: ["detected", "not_detected", "not_assessable"],
+    scene: ["one_group", "same_taxon_multiple", "multiple_taxa", "uncertain"],
+  });
+  if (!Array.isArray(parsed.groups) || !Array.isArray(parsed.regions) || !Array.isArray(parsed.relations)
+    || typeof parsed.needs_review !== "boolean" || !Array.isArray(parsed.review_reasons)) {
+    throw new Error("gemini_direct_schema_mismatch:census:types");
+  }
+  return parseGeminiCensusEvidence(text);
+};
+
+export const parseGeminiEnvironmentEvidenceDirect = (text: string): GeminiEnvironmentEvidence => {
+  const parsed = parseDirectStructuredObject(text, "environment", ["assessment_state", "fields", "cues", "uncertain_cues"], {
+    assessment_state: ["informative", "not_informative", "not_assessable"],
+  });
+  if (!parsed.fields || typeof parsed.fields !== "object" || Array.isArray(parsed.fields)
+    || !Array.isArray(parsed.cues) || !Array.isArray(parsed.uncertain_cues)) {
+    throw new Error("gemini_direct_schema_mismatch:environment:types");
+  }
+  return parseGeminiEnvironmentEvidence(text);
+};
+
+export const parseGeminiSpecialistEvidenceDirect = (text: string): GeminiSpecialistEvidence => {
+  const parsed = parseDirectStructuredObject(text, "specialist", ["assessment_state", "candidates", "comparison_summary", "needs_review"], {
+    assessment_state: ["informative", "not_informative", "not_assessable"],
+  });
+  if (!Array.isArray(parsed.candidates) || typeof parsed.comparison_summary !== "string" || typeof parsed.needs_review !== "boolean") {
+    throw new Error("gemini_direct_schema_mismatch:specialist:types");
+  }
+  return parseGeminiSpecialistEvidence(text);
+};
+
+export const parseGeminiObservationSummaryDirect = (text: string): GeminiObservationSummary => {
+  const parsed = parseDirectStructuredObject(text, "summary", ["narrative", "subject_explanations", "environment_summary", "interaction_summary", "observer_feedback"]);
+  if (typeof parsed.narrative !== "string" || !Array.isArray(parsed.subject_explanations)
+    || typeof parsed.environment_summary !== "string" || typeof parsed.interaction_summary !== "string" || typeof parsed.observer_feedback !== "string") {
+    throw new Error("gemini_direct_schema_mismatch:summary:types");
+  }
+  return parseGeminiObservationSummary(text);
+};
+export const parseGeminiCensusEvidence = (text: string): GeminiCensusEvidence => {
+  const parsed = parseJson<Partial<GeminiCensusEvidence>>(text);
+  return {
+    detection_state: parsed.detection_state ?? "not_assessable",
+    scene: parsed.scene ?? "uncertain",
+    groups: Array.isArray(parsed.groups) ? parsed.groups : [],
+    regions: Array.isArray(parsed.regions) ? parsed.regions : [],
+    relations: Array.isArray(parsed.relations) ? parsed.relations : [],
+    needs_review: parsed.needs_review === true,
+    review_reasons: Array.isArray(parsed.review_reasons) ? parsed.review_reasons : [],
+  };
+};
+export const parseGeminiEnvironmentEvidence = (text: string): GeminiEnvironmentEvidence => {
+  const parsed = parseJson<Partial<GeminiEnvironmentEvidence>>(text);
+  const fields = parsed.fields && typeof parsed.fields === "object" && !Array.isArray(parsed.fields)
+    ? parsed.fields as Partial<GeminiEnvironmentFields>
+    : {};
+  return {
+    assessment_state: parsed.assessment_state ?? "not_assessable",
+    fields: {
+      place_type: fields.place_type ?? "unknown",
+      contact_surface: fields.contact_surface ?? "unknown",
+      surrounding_cover: fields.surrounding_cover ?? "unknown",
+      environment_condition: fields.environment_condition ?? "unknown",
+      human_change: fields.human_change ?? "unknown",
+    },
+    cues: Array.isArray(parsed.cues) ? parsed.cues : [],
+    uncertain_cues: Array.isArray(parsed.uncertain_cues) ? parsed.uncertain_cues : [],
+  };
+};
+export const parseGeminiObservationSummary = (text: string): GeminiObservationSummary => {
+  const parsed = parseJson<Partial<GeminiObservationSummary>>(text);
+  return {
+    narrative: typeof parsed.narrative === "string" ? parsed.narrative : "",
+    subject_explanations: Array.isArray(parsed.subject_explanations) ? parsed.subject_explanations : [],
+    environment_summary: typeof parsed.environment_summary === "string" ? parsed.environment_summary : "",
+    interaction_summary: typeof parsed.interaction_summary === "string" ? parsed.interaction_summary : "",
+    observer_feedback: typeof parsed.observer_feedback === "string" ? parsed.observer_feedback : "",
+  };
+};
 export const parseGeminiSpecialistEvidence = (text: string): GeminiSpecialistEvidence => parseJson<GeminiSpecialistEvidence>(text);
 
 const clipped = (value: unknown): number => Number.isFinite(Number(value)) ? Math.max(0, Math.min(1, Number(value))) : 0;
@@ -538,6 +801,7 @@ const primaryFusedCandidate = (
   subject: GeminiPrimarySubject,
   regions: GeminiRegion[],
   imageCount: number,
+  sourceModel = GEMINI_PRIMARY_MODEL,
 ): GeminiFusedCandidate | null => {
   const name = short(subject.name, 120);
   const scientificName = short(subject.scientific, 180);
@@ -553,7 +817,7 @@ const primaryFusedCandidate = (
     missingFeatures: [],
     contradictions: [],
     sourceLanes: ["primary"],
-    sourceModels: [GEMINI_PRIMARY_MODEL],
+    sourceModels: [sourceModel],
     sourceAssetIndices: [located.assetIndex],
     subjectLocator: located.subjectLocator,
   });
@@ -563,6 +827,7 @@ const censusFusedCandidate = (
   group: GeminiCensusGroup,
   regions: GeminiRegion[],
   imageCount: number,
+  sourceModel = GEMINI_ANALYSIS_MODEL,
 ): GeminiFusedCandidate | null => {
   const name = short(group.label, 120);
   const scientificName = short(group.scientific, 180);
@@ -578,7 +843,7 @@ const censusFusedCandidate = (
     missingFeatures: uniqueText(group.missing_features ?? []),
     contradictions: uniqueText(group.contradictions ?? []),
     sourceLanes: ["census"],
-    sourceModels: [GEMINI_ANALYSIS_MODEL],
+    sourceModels: [sourceModel],
     sourceAssetIndices: [located.assetIndex],
     subjectLocator: located.subjectLocator,
   });
@@ -636,13 +901,19 @@ const subjectFromFusedCandidate = (candidate: GeminiFusedCandidate): Observation
   subjectLocator: candidate.subjectLocator,
 });
 
-export function mergeGeminiObservationEvidence(primary: GeminiPrimaryEvidence, census: GeminiCensusEvidence, environment: GeminiEnvironmentEvidence, imageCount: number): GeminiMergedObservation {
+export function mergeGeminiObservationEvidence(
+  primary: GeminiPrimaryEvidence,
+  census: GeminiCensusEvidence,
+  environment: GeminiEnvironmentEvidence,
+  imageCount: number,
+  modelOverrides: { primary?: string; census?: string } = {},
+): GeminiMergedObservation {
   const primarySource = primary.subjects.find((subject) => subject.role === "primary") ?? primary.subjects[0] ?? null;
   const censusPrimary = census.groups.find((group) => group.role === "primary") ?? census.groups[0] ?? null;
   const censusRegions = census.regions.map((region) => ({ ...region, subject_id: region.group_id }));
   const topCandidates = mergeFusedCandidates([
-    ...(primarySource ? [primaryFusedCandidate(primarySource, primary.regions, imageCount)] : []),
-    ...(censusPrimary ? [censusFusedCandidate(censusPrimary, censusRegions, imageCount)] : []),
+    ...(primarySource ? [primaryFusedCandidate(primarySource, primary.regions, imageCount, modelOverrides.primary)] : []),
+    ...(censusPrimary ? [censusFusedCandidate(censusPrimary, censusRegions, imageCount, modelOverrides.census)] : []),
   ].filter((candidate): candidate is GeminiFusedCandidate => candidate !== null)).slice(0, 5);
   const main = topCandidates[0] ? subjectFromFusedCandidate(topCandidates[0]) : null;
   const alternativeNames = new Set(

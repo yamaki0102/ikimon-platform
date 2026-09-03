@@ -4,7 +4,7 @@ import {
   renderCloudflareRecordRecoverySignedHtml,
   resolveCloudflareRecordRecoveryState
 } from "./recordRecoveryHtml";
-import { loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
+import { isObsoleteInteractiveGeminiResult, loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
 import {
   OBSERVATION_AI_PROMPT_VERSION,
@@ -25,6 +25,7 @@ import {
   applyGeminiSpecialistEvidence,
   applyGeminiObservationSummary,
   buildGeminiCensusRequest,
+  buildGeminiCensusDirectRequest,
   buildGeminiEnvironmentRequest,
   buildGeminiPrimaryRequest,
   buildGeminiSpecialistRequest,
@@ -32,17 +33,24 @@ import {
   createGeminiBatch,
   decideGeminiSpecialistEscalation,
   findGeminiBatchByDisplayName,
+  generateGeminiContent,
   geminiBatchDisplayName,
   geminiBatchResponseText,
   getGeminiBatch,
   mergeGeminiObservationEvidence,
   parseGeminiCensusEvidence,
+  parseGeminiCensusEvidenceDirect,
   parseGeminiEnvironmentEvidence,
+  parseGeminiEnvironmentEvidenceDirect,
   parseGeminiObservationSummary,
+  parseGeminiObservationSummaryDirect,
   parseGeminiPrimaryEvidence,
+  parseGeminiPrimaryEvidenceDirect,
   parseGeminiSpecialistEvidence,
+  parseGeminiSpecialistEvidenceDirect,
   type GeminiBatchOperation,
   type GeminiBatchRequest,
+  type GeminiDirectContentResult,
   type GeminiMergedObservation,
   type GeminiObservationImage,
 } from "./geminiObservationBatch";
@@ -65,7 +73,7 @@ import {
 } from "./cloudflareObservationReadModel";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
-import { publicObservationAiCandidateInsights } from "./publicObservationAiPresentation";
+import { publicObservationAiCandidateInsights, publicObservationAiFeedback } from "./publicObservationAiPresentation";
 import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
@@ -8201,53 +8209,26 @@ async function requestCompatibleObservationReassessment(observationId: string, r
     return json({ ok: false, error: "observation_not_owned" }, 403, { "cache-control": "no-store" });
   }
 
-  const requestId = newId("reassess_req");
-  const outboxAiId = newId("outbox");
-  const sourcePayload = {
-    source: "cloudflare_observation_reassessment_request_ledger",
-    observationId: normalizedObservationId,
-    requestKind,
-    enqueueId: requestKind === "standard" ? outboxAiId : null,
-    requestedAt: new Date().toISOString()
-  };
-  const reassessmentStatements = [env.OBS_DB.prepare(
-      `INSERT INTO observation_reassessment_requests (
-         request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json
-       ) VALUES (?, ?, ?, ?, 'pending', ?)
-       ON CONFLICT(observation_id, request_kind, actor_user_id) DO UPDATE SET
-         request_state = 'pending',
-         source_payload_json = excluded.source_payload_json,
-         updated_at = CURRENT_TIMESTAMP`
-    ).bind(
-      requestId,
-      normalizedObservationId,
-      requestKind,
-      session.userId,
-      JSON.stringify(sourcePayload)
-    )];
   if (requestKind === "standard") {
-    reassessmentStatements.push(env.OBS_DB.prepare(
-      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
-    ).bind(
-      outboxAiId,
-      "observation.reassess",
-      normalizedObservationId,
-      JSON.stringify({ observationId: normalizedObservationId, requestKind }),
-      null
-    ));
+    const image = await env.OBS_DB.prepare(
+      `SELECT asset_id
+         FROM asset_ledger
+        WHERE observation_id = ?
+          AND processing_state = 'uploaded'
+          AND mime LIKE 'image/%'
+        LIMIT 1`
+    ).bind(normalizedObservationId).first<{ asset_id: string }>();
+    if (!image?.asset_id) {
+      return json({ ok: false, error: "observation_image_required" }, 422, { "cache-control": "no-store" });
+    }
   }
-  await env.OBS_DB.batch(reassessmentStatements);
-  const dispatch = requestKind === "standard"
-    ? await dispatchOutboxBestEffort(env, [
-        { outboxId: outboxAiId, topic: "observation.reassess", targetId: normalizedObservationId }
-      ])
-    : { sent: 0, pending: 0, errors: [] as string[] };
 
-  return json({
+  const emptyDispatch = { sent: 0, pending: 0, errors: [] as string[] };
+  const responseFor = (row: { request_id: string; request_state: string }, dispatch = emptyDispatch): Response => json({
     ok: true,
     reassessment: {
-      requestId,
-      state: "pending",
+      requestId: row.request_id,
+      state: row.request_state,
       kind: requestKind
     },
     compatibility: {
@@ -8255,7 +8236,133 @@ async function requestCompatibleObservationReassessment(observationId: string, r
       executionStatus: requestKind === "standard" ? "queued" : "not_migrated"
     },
     dispatch
-  }, 202, { "cache-control": "no-store" });
+  }, row.request_state === "completed" ? 200 : 202, { "cache-control": "no-store" });
+
+  const existing = await env.OBS_DB.prepare(
+    `SELECT request_id, request_state, source_payload_json
+       FROM observation_reassessment_requests
+      WHERE observation_id = ? AND request_kind = ? AND actor_user_id = ?
+      LIMIT 1`
+  ).bind(normalizedObservationId, requestKind, session.userId).first<{
+    request_id: string;
+    request_state: string;
+    source_payload_json: string;
+  }>();
+  const obsoleteCompletedInteractiveResult = existing?.request_state === "completed"
+    && requestKind === "standard"
+    && isObsoleteInteractiveGeminiResult(existing.source_payload_json);
+  if (existing && (["pending", "processing"].includes(existing.request_state)
+    || (existing.request_state === "completed" && !obsoleteCompletedInteractiveResult))) {
+    return responseFor(existing);
+  }
+  if (existing && existing.request_state !== "failed" && !obsoleteCompletedInteractiveResult) {
+    return json({ ok: false, error: "reassessment_not_retryable" }, 409, { "cache-control": "no-store" });
+  }
+
+  if (existing) {
+    const attemptCount = reassessmentAttemptCount(existing.source_payload_json);
+    if (requestKind === "standard" && (obsoleteCompletedInteractiveResult || attemptCount >= 3)) {
+      const previous = reassessmentPayload(existing.source_payload_json);
+      const previousErrorCode = typeof previous.errorCode === "string" ? previous.errorCode.slice(0, 180) : null;
+      const previousFailedAt = typeof previous.failedAt === "string" ? previous.failedAt : null;
+      const previousCompletedAt = typeof previous.completedAt === "string" ? previous.completedAt : null;
+      const outboxAiId = "outbox_" + existing.request_id + "_manual_" + crypto.randomUUID().replace(/-/gu, "");
+      delete previous.batchExecution;
+      delete previous.errorCode;
+      delete previous.failedAt;
+      const nextPayload = JSON.stringify({
+        ...previous,
+        source: "cloudflare_observation_reassessment_request_ledger",
+        enqueueId: outboxAiId,
+        executionStatus: "pending",
+        attemptCount: 0,
+        requestedAt: new Date().toISOString(),
+        retryTrigger: "explicit_owner",
+        previousErrorCode,
+        previousAttemptCount: attemptCount,
+        ...(previousFailedAt ? { previousFailedAt } : {}),
+        ...(previousCompletedAt ? { previousCompletedAt } : {}),
+      });
+      const updated = await env.OBS_DB.prepare(
+        "UPDATE observation_reassessment_requests SET request_state = 'pending', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP WHERE request_id = ? AND request_state = ? AND source_payload_json = ?"
+      ).bind(nextPayload, existing.request_id, obsoleteCompletedInteractiveResult ? "completed" : "failed", existing.source_payload_json).run() as { meta?: { changes?: number } };
+      if (Number(updated.meta?.changes ?? 0) === 0) {
+        const current = await env.OBS_DB.prepare(
+          "SELECT request_id, request_state, source_payload_json FROM observation_reassessment_requests WHERE observation_id = ? AND request_kind = ? AND actor_user_id = ? LIMIT 1"
+        ).bind(normalizedObservationId, requestKind, session.userId).first<{ request_id: string; request_state: string; source_payload_json: string }>();
+        return current ? responseFor(current) : json({ ok: false, error: "reassessment_state_unavailable" }, 503, { "cache-control": "no-store" });
+      }
+      await env.OBS_DB.prepare(
+        "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      ).bind(outboxAiId, "observation.reassess", normalizedObservationId, JSON.stringify({ observationId: normalizedObservationId, requestKind, retryTrigger: "explicit_owner" }), null).run();
+      const dispatch = await dispatchOutboxBestEffort(env, [{ outboxId: outboxAiId, topic: "observation.reassess", targetId: normalizedObservationId }]);
+      return responseFor({ request_id: existing.request_id, request_state: "pending" }, dispatch);
+    }
+    if (attemptCount >= 3) {
+      return json({ ok: false, error: "reassessment_retry_exhausted" }, 409, { "cache-control": "no-store" });
+    }
+    const outboxAiId = `outbox_${existing.request_id}_retry_${attemptCount + 1}`;
+    const nextPayload = reassessmentPayloadWithResult(existing.source_payload_json, {
+      source: "cloudflare_observation_reassessment_request_ledger",
+      enqueueId: outboxAiId,
+      retryRequestedAt: new Date().toISOString(),
+    });
+    const updated = await env.OBS_DB.prepare(
+      `UPDATE observation_reassessment_requests
+          SET request_state = 'pending', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE request_id = ? AND request_state = 'failed' AND source_payload_json = ?`
+    ).bind(nextPayload, existing.request_id, existing.source_payload_json).run() as { meta?: { changes?: number } };
+    if (Number(updated.meta?.changes ?? 0) === 0) {
+      const current = await env.OBS_DB.prepare(
+        `SELECT request_id, request_state, source_payload_json
+           FROM observation_reassessment_requests
+          WHERE observation_id = ? AND request_kind = ? AND actor_user_id = ?
+          LIMIT 1`
+      ).bind(normalizedObservationId, requestKind, session.userId).first<{ request_id: string; request_state: string; source_payload_json: string }>();
+      return current ? responseFor(current) : json({ ok: false, error: "reassessment_state_unavailable" }, 503, { "cache-control": "no-store" });
+    }
+    if (requestKind === "standard") {
+      await env.OBS_DB.prepare(
+        "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      ).bind(outboxAiId, "observation.reassess", normalizedObservationId, JSON.stringify({ observationId: normalizedObservationId, requestKind }), null).run();
+      const dispatch = await dispatchOutboxBestEffort(env, [{ outboxId: outboxAiId, topic: "observation.reassess", targetId: normalizedObservationId }]);
+      return responseFor({ request_id: existing.request_id, request_state: "pending" }, dispatch);
+    }
+    return responseFor({ request_id: existing.request_id, request_state: "pending" });
+  }
+
+  const requestId = newId("reassess_req");
+  const outboxAiId = `outbox_${requestId}_initial`;
+  const sourcePayload = {
+    source: "cloudflare_observation_reassessment_request_ledger",
+    observationId: normalizedObservationId,
+    requestKind,
+    attemptCount: 0,
+    enqueueId: requestKind === "standard" ? outboxAiId : null,
+    requestedAt: new Date().toISOString()
+  };
+  await env.OBS_DB.prepare(
+    `INSERT OR IGNORE INTO observation_reassessment_requests (
+       request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json
+     ) VALUES (?, ?, ?, ?, 'pending', ?)`
+  ).bind(requestId, normalizedObservationId, requestKind, session.userId, JSON.stringify(sourcePayload)).run();
+  const persisted = await env.OBS_DB.prepare(
+    `SELECT request_id, request_state, source_payload_json
+       FROM observation_reassessment_requests
+      WHERE observation_id = ? AND request_kind = ? AND actor_user_id = ?
+      LIMIT 1`
+  ).bind(normalizedObservationId, requestKind, session.userId).first<{ request_id: string; request_state: string; source_payload_json: string }>();
+  if (!persisted) return json({ ok: false, error: "reassessment_state_unavailable" }, 503, { "cache-control": "no-store" });
+  if (persisted.request_id !== requestId) return responseFor(persisted);
+
+  if (requestKind === "standard") {
+    await env.OBS_DB.prepare(
+      "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+    ).bind(outboxAiId, "observation.reassess", normalizedObservationId, JSON.stringify({ observationId: normalizedObservationId, requestKind }), null).run();
+    const dispatch = await dispatchOutboxBestEffort(env, [{ outboxId: outboxAiId, topic: "observation.reassess", targetId: normalizedObservationId }]);
+    return responseFor(persisted, dispatch);
+  }
+  return responseFor(persisted);
 }
 
 async function resolveCompatibleObservationOwnerUserId(observationId: string, env: Env): Promise<string | null> {
@@ -25954,6 +26061,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     }
     return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
   }
+  const cspNonce = createHtmlCspNonce();
   if (observationReadCutoverEnabled(env)) {
     const observationFirst = await loadObservationFirstRecordDetail(detailIdToVisitId(rawId), session?.userId ?? null, env)
       .catch(() => ({ state: "unavailable" as const, detail: null }));
@@ -25983,7 +26091,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         detail.aiAssessmentStatus,
         detail.aiRequestStatus,
       );
-      return html(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
+      return html(applyCspNonceToHtmlScripts(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
@@ -26004,15 +26112,22 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         canonicalUrl: new URL(`/${recordLang}/observations/${encodeURIComponent(detail.visitId)}`, url.origin).toString(),
         actionNonce: crypto.randomUUID(),
         processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
+        processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
+        aiFeedback: detail.feedback,
+        aiNextPhoto: detail.nextPhoto,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
-      }), 200, {
+      }), cspNonce), 200, {
+        ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
         "cache-control": "private, no-store",
         "x-ikimon-record-reader": "observation-first/v1",
       });
     }
   }
-  return html(renderPublicObservationDetailHtml(detail, ownerStatus), 200, { "cache-control": "no-store" });
+  return html(applyCspNonceToHtmlScripts(renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce), cspNonce), 200, {
+    ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+    "cache-control": "no-store",
+  });
 }
 
 async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: string | null, env: Env) {
@@ -26400,6 +26515,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiCandidateLabel: row.ai_candidate_label,
     aiCandidateRank: row.ai_candidate_rank,
     aiCandidateInsights: publicObservationAiCandidateInsights(row.ai_source_payload_json),
+    ...publicObservationAiFeedback(row.ai_source_payload_json),
     aiAssessmentStatus: row.ai_assessment_status,
     aiRequestStatus: row.ai_request_status,
     visibility: row.visibility,
@@ -30333,6 +30449,8 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
   const observationId = newId("obs");
   const outboxMediaId = newId("outbox");
   const outboxReadModelId = newId("outbox");
+  const outboxAiId = `outbox_${observationId}_ai`;
+  const reassessmentRequestId = `reassess:${observationId}:standard:${stringValue(draft.owner_user_id) ?? "unknown"}`;
   const observedAt = stringValue(draft.observed_at) ?? new Date().toISOString();
   const partition = resolveObservationPartition(observedAt, env);
   const ownerUserId = stringValue(draft.owner_user_id);
@@ -30355,20 +30473,21 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
       },
     })
     : null;
-  const draftAssets = observationDualWriteEnabled(env)
-    ? (await env.OBS_DB.prepare(
-      "SELECT asset_id, mime FROM asset_ledger WHERE draft_id = ? ORDER BY created_at, asset_id"
-    ).bind(input.draftId).all<{ asset_id: string; mime: string }>()).results
+  const draftAssets = (await env.OBS_DB.prepare(
+    "SELECT asset_id, mime FROM asset_ledger WHERE draft_id = ? ORDER BY created_at, asset_id"
+  ).bind(input.draftId).all<{ asset_id: string; mime: string }>()).results;
+  const hasAiMedia = draftAssets.some((asset) => asset.mime.startsWith("image/"));
+  const mediaDualWritePlans = observationDualWriteEnabled(env)
+    ? await Promise.all(draftAssets.map((asset) =>
+      buildMediaReassignmentDualWritePlan({
+        recordId: observationId,
+        mediaId: asset.asset_id,
+        actorUserId: ownerUserId,
+        role: asset.mime.startsWith("audio/") ? "audio_evidence" : "primary_evidence",
+        sourcePayload: { draftId: input.draftId, mime: asset.mime },
+      })
+    ))
     : [];
-  const mediaDualWritePlans = await Promise.all(draftAssets.map((asset) =>
-    buildMediaReassignmentDualWritePlan({
-      recordId: observationId,
-      mediaId: asset.asset_id,
-      actorUserId: ownerUserId,
-      role: asset.mime.startsWith("audio/") ? "audio_evidence" : "primary_evidence",
-      sourcePayload: { draftId: input.draftId, mime: asset.mime },
-    })
-  ));
 
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
@@ -30404,6 +30523,27 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
     env.OBS_DB.prepare(
       "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxReadModelId, "readmodel.refresh", observationId, JSON.stringify({ observationId }), partition.partitionMonth),
+    ...(hasAiMedia ? [
+      env.OBS_DB.prepare(
+        "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      ).bind(outboxAiId, "observation.reassess", observationId, JSON.stringify({ observationId }), partition.partitionMonth),
+      env.OBS_DB.prepare(
+        `INSERT OR IGNORE INTO observation_reassessment_requests (
+           request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json,
+           created_at, updated_at
+         ) VALUES (?, ?, 'standard', ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      ).bind(
+        reassessmentRequestId,
+        observationId,
+        ownerUserId,
+        JSON.stringify({
+          source: "cloudflare_observation_finalize_atomic_reassessment",
+          transactionalIntent: true,
+          enqueueId: outboxAiId,
+          requestedAt: new Date().toISOString(),
+        }),
+      ),
+    ] : []),
     rollbackLedgerInsert(env, {
       eventType: "observation.finalize",
       targetId: observationId,
@@ -30439,7 +30579,8 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
 
   const dispatch = await dispatchOutboxBestEffort(env, [
     { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
-    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId }
+    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId },
+    ...(hasAiMedia ? [{ outboxId: outboxAiId, topic: "observation.reassess" as const, targetId: observationId }] : []),
   ]);
 
   return json({ observationId, processingState: "accepted", dispatch }, 201);
@@ -30973,6 +31114,148 @@ async function loadPendingGeminiRequests(observationIds: string[], env: Env): Pr
   return rows.results;
 }
 
+type DirectGeminiLaneEvidence = {
+  model: string;
+  candidatesCount: number;
+  finishReason: string | null;
+  structuredTextPresent: true;
+  parseStatus: "pass";
+};
+
+type GeminiProviderMetadata = {
+  mode: "batch" | "direct_generate_content";
+  source: string;
+  lanes?: Record<string, DirectGeminiLaneEvidence>;
+};
+
+function reassessmentSource(sourcePayloadJson: string): string {
+  const payload = reassessmentPayload(sourcePayloadJson);
+  return typeof payload.source === "string" ? payload.source : "";
+}
+
+function isInteractiveStandardReassessment(sourcePayloadJson: string): boolean {
+  return new Set([
+    "cloudflare_photo_upload_atomic_reassessment",
+    "cloudflare_observation_finalize_atomic_reassessment",
+    "cloudflare_observation_reassessment_request_ledger",
+  ]).has(reassessmentSource(sourcePayloadJson));
+}
+
+async function generateDirectGeminiLane(
+  lane: string,
+  apiKey: string,
+  model: string,
+  request: Record<string, unknown>,
+): Promise<GeminiDirectContentResult> {
+  try {
+    return await generateGeminiContent(apiKey, model, request);
+  } catch (error) {
+    const message = (error instanceof Error ? error.message : String(error)).slice(0, 240);
+    throw new Error(`gemini_direct_lane_failed:${lane}:${model}:${message}`);
+  }
+}
+
+async function failPendingDirectGeminiReassessment(request: ObservationReassessmentRequestRow, error: unknown, env: Env): Promise<void> {
+  const payload = reassessmentPayload(request.source_payload_json);
+  const errorCode = (error instanceof Error ? error.message : String(error)).slice(0, 180);
+  const nextPayload = JSON.stringify({
+    ...payload,
+    executionStatus: "failed",
+    attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
+    errorCode,
+    failedAt: new Date().toISOString(),
+  });
+  await env.OBS_DB.prepare(
+    `UPDATE observation_reassessment_requests SET request_state = 'failed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`
+  ).bind(nextPayload, request.request_id, request.source_payload_json).run();
+}
+
+async function submitDirectGeminiObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
+  let prepared: PreparedGeminiObservation;
+  try {
+    prepared = await loadPreparedGeminiObservation(request, env);
+  } catch (error) {
+    await failPendingDirectGeminiReassessment(request, error, env);
+    return;
+  }
+  const payload = reassessmentPayload(request.source_payload_json);
+  delete payload.errorCode;
+  delete payload.failedAt;
+  delete payload.batchExecution;
+  const nextPayload = JSON.stringify({
+    ...payload,
+    executionStatus: "processing",
+    attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
+    providerMode: "direct_generate_content",
+    modelStack: [GEMINI_PRIMARY_MODEL],
+    modelPlan: {
+      primary: GEMINI_PRIMARY_MODEL,
+      census: GEMINI_PRIMARY_MODEL,
+      environment: GEMINI_PRIMARY_MODEL,
+      specialistConditional: GEMINI_SPECIALIST_MODEL,
+      summary: GEMINI_PRIMARY_MODEL,
+    },
+    promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
+    ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+    startedAt: new Date().toISOString(),
+  });
+  const claimed = await env.OBS_DB.prepare(
+    `UPDATE observation_reassessment_requests SET request_state = 'processing', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`
+  ).bind(nextPayload, request.request_id, request.source_payload_json).run() as { meta?: { changes?: number } };
+  if (Number(claimed.meta?.changes ?? 0) !== 1) return;
+  prepared.request.request_state = "processing";
+  prepared.request.source_payload_json = nextPayload;
+
+  try {
+    const [primaryResult, censusResult, environmentResult] = await Promise.all([
+      generateDirectGeminiLane("primary", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest(request.observation_id, prepared.record.observed_at, prepared.images)),
+      generateDirectGeminiLane("census", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiCensusDirectRequest(request.observation_id, prepared.images)),
+      generateDirectGeminiLane("environment", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiEnvironmentRequest(request.observation_id, prepared.images)),
+    ]);
+    const lanes: Record<string, DirectGeminiLaneEvidence> = {
+      primary: { model: primaryResult.model, candidatesCount: primaryResult.candidatesCount, finishReason: primaryResult.finishReason, structuredTextPresent: true, parseStatus: "pass" },
+      census: { model: censusResult.model, candidatesCount: censusResult.candidatesCount, finishReason: censusResult.finishReason, structuredTextPresent: true, parseStatus: "pass" },
+      environment: { model: environmentResult.model, candidatesCount: environmentResult.candidatesCount, finishReason: environmentResult.finishReason, structuredTextPresent: true, parseStatus: "pass" },
+    };
+    const primaryEvidence = parseGeminiPrimaryEvidenceDirect(primaryResult.text);
+    const censusEvidence = parseGeminiCensusEvidenceDirect(censusResult.text);
+    const environmentEvidence = parseGeminiEnvironmentEvidenceDirect(environmentResult.text);
+    const merged: GeminiMergedObservation = mergeGeminiObservationEvidence(
+      primaryEvidence,
+      censusEvidence,
+      environmentEvidence,
+      prepared.assets.length,
+      { primary: GEMINI_PRIMARY_MODEL, census: GEMINI_PRIMARY_MODEL },
+    );
+    merged.specialistEscalation = decideGeminiSpecialistEscalation(merged, primaryEvidence, censusEvidence);
+
+    if (merged.specialistEscalation.required) {
+      const specialistImages = await observationAiSpecialistImages(prepared, merged, env);
+      if (specialistImages.length > 0) {
+        const specialistResult = await generateDirectGeminiLane("specialist", env.GEMINI_API_KEY!, GEMINI_SPECIALIST_MODEL, buildGeminiSpecialistRequest(request.observation_id, merged.specialistEscalation.specialistKind, specialistImages, merged));
+        lanes.specialist = { model: specialistResult.model, candidatesCount: specialistResult.candidatesCount, finishReason: specialistResult.finishReason, structuredTextPresent: true, parseStatus: "pass" };
+        Object.assign(merged, applyGeminiSpecialistEvidence(merged, parseGeminiSpecialistEvidenceDirect(specialistResult.text)));
+      }
+    }
+
+    if (merged.topCandidates.length > 0 || merged.needsReview) {
+      const summaryResult = await generateDirectGeminiLane("summary", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiSummaryRequest(request.observation_id, merged));
+      lanes.summary = { model: summaryResult.model, candidatesCount: summaryResult.candidatesCount, finishReason: summaryResult.finishReason, structuredTextPresent: true, parseStatus: "pass" };
+      Object.assign(merged, applyGeminiObservationSummary(merged, parseGeminiObservationSummaryDirect(summaryResult.text)));
+    }
+    await finalizeGeminiObservationReassessment(prepared, merged, env, { mode: "direct_generate_content", source: "google_gemini_generate_content_observation_reassessment", lanes });
+  } catch (error) {
+    await failGeminiReassessment(prepared.request, error, env);
+  }
+}
+
+async function submitDirectGeminiObservationReassessmentGroups(observationIds: string[], env: Env): Promise<void> {
+  const rows = (await loadPendingGeminiRequests(observationIds, env)).filter((row) => isInteractiveStandardReassessment(row.source_payload_json));
+  for (const row of rows) await submitDirectGeminiObservationReassessment(row, env);
+}
+
 async function updateProcessingGeminiPayload(request: ObservationReassessmentRequestRow, execution: GeminiBatchExecution, env: Env, extra: Record<string, unknown> = {}): Promise<boolean> {
   const nextPayload = reassessmentPayloadWithResult(request.source_payload_json, { ...extra, batchExecution: execution });
   const updated = await env.OBS_DB.prepare(
@@ -31003,7 +31286,12 @@ async function ensureGeminiBatch(apiKey: string, model: string, displayName: str
 
 async function submitGeminiObservationReassessmentGroups(observationIds: string[], env: Env): Promise<void> {
   if (!env.GEMINI_API_KEY) return;
-  let pending = await loadPendingGeminiRequests(observationIds, env);
+  const pendingInitial = await loadPendingGeminiRequests(observationIds, env);
+  for (const request of pendingInitial.filter((row) => isInteractiveStandardReassessment(row.source_payload_json))) {
+    await submitDirectGeminiObservationReassessment(request, env);
+  }
+  let pending = (await loadPendingGeminiRequests(observationIds, env))
+    .filter((row) => !isInteractiveStandardReassessment(row.source_payload_json));
   while (pending.length > 0) {
     const submitted = await submitGeminiObservationReassessmentGroup(pending, env);
     if (submitted.size === 0) break;
@@ -31164,9 +31452,15 @@ async function mergeGeminiBatchEvidence(
   env: Env,
 ): Promise<GeminiMergedObservation> {
   const execution = geminiBatchExecution(row.source_payload_json)!;
-  const primaryEvidence = parseGeminiPrimaryEvidence(geminiBatchResponseText(primary.responses[execution.primaryIndex]));
-  const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(analysis.responses[execution.censusIndex]));
-  const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(analysis.responses[execution.environmentIndex]));
+  const primaryResponse = primary.responses[execution.primaryIndex];
+  if (primaryResponse === undefined) throw new Error(`gemini_batch_response_missing:primary:${primary.state ?? "unknown"}:${primary.responseShape}`);
+  const censusResponse = analysis.responses[execution.censusIndex];
+  if (censusResponse === undefined) throw new Error(`gemini_batch_response_missing:census:${analysis.state ?? "unknown"}:${analysis.responseShape}`);
+  const environmentResponse = analysis.responses[execution.environmentIndex];
+  if (environmentResponse === undefined) throw new Error(`gemini_batch_response_missing:environment:${analysis.state ?? "unknown"}:${analysis.responseShape}`);
+  const primaryEvidence = parseGeminiPrimaryEvidence(geminiBatchResponseText(primaryResponse));
+  const censusEvidence = parseGeminiCensusEvidence(geminiBatchResponseText(censusResponse));
+  const environmentEvidence = parseGeminiEnvironmentEvidence(geminiBatchResponseText(environmentResponse));
   const mediaCount = execution.representativeImageCount
     ?? (await loadObservationAiAssetSelection(row.observation_id, env)).assets.length;
   const merged = mergeGeminiObservationEvidence(primaryEvidence, censusEvidence, environmentEvidence, mediaCount);
@@ -31410,7 +31704,12 @@ async function resumeGeminiObservationBatchGroup(rows: ObservationReassessmentRe
   }
 }
 
-async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObservation, merged: GeminiMergedObservation, env: Env): Promise<void> {
+async function finalizeGeminiObservationReassessment(
+  prepared: PreparedGeminiObservation,
+  merged: GeminiMergedObservation,
+  env: Env,
+  provider: GeminiProviderMetadata = { mode: "batch", source: "google_gemini_batch_observation_reassessment" },
+): Promise<void> {
   const request = prepared.request;
   const observationId = request.observation_id;
   const candidate = merged.candidate;
@@ -31422,14 +31721,24 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
   const assessmentStatus = merged.detectionState === "detected" ? "ai_judgement" : merged.detectionState === "not_assessable" ? "completed_not_assessable" : "completed_no_candidate";
   const completedAt = new Date().toISOString();
   const specialistApplied = merged.topCandidates.some((topCandidate) => topCandidate.sourceLanes.includes("specialist"));
+  const interactive = provider.mode === "direct_generate_content";
+  const providerModels = {
+    primary: GEMINI_PRIMARY_MODEL,
+    census: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_ANALYSIS_MODEL,
+    environment: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_ANALYSIS_MODEL,
+    specialist: GEMINI_SPECIALIST_MODEL,
+    summary: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_SUMMARY_MODEL,
+  };
   const assessmentPayload = {
-    source: "google_gemini_batch_observation_reassessment",
+    source: provider.source,
+    providerMode: provider.mode,
+    providerLanes: provider.lanes ?? null,
     models: {
-      primary: GEMINI_PRIMARY_MODEL,
-      census: GEMINI_ANALYSIS_MODEL,
-      environment: GEMINI_ANALYSIS_MODEL,
-      specialist: specialistApplied ? GEMINI_SPECIALIST_MODEL : null,
-      summary: GEMINI_SUMMARY_MODEL,
+      primary: providerModels.primary,
+      census: providerModels.census,
+      environment: providerModels.environment,
+      specialist: specialistApplied ? providerModels.specialist : null,
+      summary: providerModels.summary,
     },
     promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
     ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
@@ -31508,8 +31817,8 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
     ).bind(
       crypto.randomUUID(), observationId, prepared.assets[0]?.asset_id ?? null,
       JSON.stringify(merged.environment), merged.environment.cues.length > 0 ? Math.max(...merged.environment.cues.map((cue) => cue.confidence)) : null,
-      GEMINI_ANALYSIS_MODEL, GEMINI_OBSERVATION_PROMPT_VERSION, GEMINI_OBSERVATION_RULE_VERSION,
-      `google_gemini_batch:${observationId}:${GEMINI_OBSERVATION_RULE_VERSION}:environment`,
+      providerModels.environment, GEMINI_OBSERVATION_PROMPT_VERSION, GEMINI_OBSERVATION_RULE_VERSION,
+      `${provider.source}:${observationId}:${GEMINI_OBSERVATION_RULE_VERSION}:environment`,
       JSON.stringify({
         assetIds: prepared.assets.map((asset) => asset.asset_id),
         sourceAssetIds: prepared.sourceAssets.map((asset) => asset.asset_id),
@@ -31536,9 +31845,9 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
         surrounding_cover_source: "derived",
         environment_condition_source: "derived",
         human_change_source: "derived",
-        environment_record_source: "google_gemini_batch",
+        environment_record_source: provider.source,
         environment_record_status: "auto_draft",
-        environment_record_updated_by: "google_gemini_batch",
+        environment_record_updated_by: provider.source,
         environment_record_updated_at: completedAt,
         ai_environment_cues_json: JSON.stringify(merged.environment.cues),
       };
@@ -31554,10 +31863,14 @@ async function finalizeGeminiObservationReassessment(prepared: PreparedGeminiObs
   ).bind(
     reassessmentPayloadWithResult(request.source_payload_json, {
       executionStatus: "completed",
+      providerMode: provider.mode,
+      providerLanes: provider.lanes ?? null,
       aiRunId,
-      models: specialistApplied
-        ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
-        : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+      models: interactive
+        ? [GEMINI_PRIMARY_MODEL]
+        : specialistApplied
+          ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
+          : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
       promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
       ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
       recordClass: merged.recordClass,
@@ -34755,7 +35068,8 @@ type PublicObservationDetail = NonNullable<Awaited<ReturnType<typeof buildPublic
 
 function renderPublicObservationDetailHtml(
   detail: PublicObservationDetail,
-  ownerStatus: ObservationProcessingStatus | null = null
+  ownerStatus: ObservationProcessingStatus | null = null,
+  cspNonce = ""
 ): string {
   const isPrivateRecord = detail.visibility === "private";
   const polish = isPrivateRecord ? null : publicObservationDetailPolish(detail);
@@ -35294,7 +35608,7 @@ ${headerBlock}
     </section>
     <aside class="obs-reading-panel" aria-label="観察記録">
       <h1 class="sr-only">${escapeHtml(displayName)}</h1>
-      ${ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus) : ""}
+      ${ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : ""}
       <div id="summary" class="obs-record-brief obs-record-brief-compact" data-obs-section="summary" aria-label="この記録">
         <div class="obs-record-compact-main">
           <div class="obs-record-compact-meta">

@@ -254,13 +254,26 @@ function escapeAttribute(value: string): string {
 }
 
 function nonceAttribute(html: string): string {
-  const match = html.match(/<script\b[^>]*\bnonce=(["'])([^"']+)\1/iu);
-  return match?.[2] ? ` nonce="${escapeAttribute(match[2])}"` : "";
+  const scripts = html.match(/<script\b[^>]*>/giu) ?? [];
+  const preferred = scripts.find((tag) => tag.includes('data-ikimon-post-capture-value-loop="v1"'));
+  const match = (preferred ?? scripts[0] ?? "").match(/\bnonce=(["'])([^"']+)\1/iu);
+  const nonce = match?.[2];
+  return nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
+}
+
+function repairMarkedNonce(html: string, nonce: string): string {
+  if (!nonce) return html;
+  return html.replace(/<(script|style)\b([^>]*?)>/giu, (full, tagName: string, attributes: string) => {
+    if (!attributes.includes(PATCH_MARKER) && !attributes.includes(`id="${STYLE_ID}"`)) return full;
+    const withoutNonce = attributes.replace(/\snonce=(?:"[^"]*"|'[^']*'|[^\s>]+)/iu, "");
+    return `<${tagName}${withoutNonce}${nonce}>`;
+  });
 }
 
 export function applyPostCaptureValueLoopCompatibilityPatch(html: string): string {
-  if (html.includes(PATCH_MARKER) || !html.includes("data-observation-first-record-detail")) return html;
   const nonce = nonceAttribute(html);
+  if (html.includes(PATCH_MARKER)) return repairMarkedNonce(html, nonce);
+  if (!html.includes("data-observation-first-record-detail") || !nonce) return html;
   const payload = `<style id="${STYLE_ID}"${nonce}>${INJECTED_STYLE}</style><script ${PATCH_MARKER}${nonce}>${INJECTED_SCRIPT}</script>`;
   if (html.includes("</head>")) return html.replace("</head>", `${payload}\n</head>`);
   return `${payload}${html}`;

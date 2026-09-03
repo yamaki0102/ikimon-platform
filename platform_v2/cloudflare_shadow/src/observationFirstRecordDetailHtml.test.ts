@@ -43,6 +43,8 @@ const detail: ObservationFirstRecordDetail = {
 
 test("detection presentation is derived only from durable assessment facts", () => {
   assert.equal(resolveObservationFirstDetectionState(1, null, null), "detected");
+  assert.equal(resolveObservationFirstDetectionState(1, "completed_no_candidate", "completed"), "not_detected");
+  assert.equal(resolveObservationFirstDetectionState(1, "completed_not_assessable", "completed"), "not_assessable");
   assert.equal(resolveObservationFirstDetectionState(0, "completed_no_candidate", "completed"), "not_detected");
   assert.equal(resolveObservationFirstDetectionState(0, "completed_not_assessable", "completed"), "not_assessable");
   assert.equal(resolveObservationFirstDetectionState(0, null, "failed"), "not_assessable");
@@ -81,6 +83,8 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
     canonicalUrl: "https://ikimon.life/ja/observations/visit-ui-contract",
     actionNonce: "nonce-contract",
     processingMessage: "写真を表示できるよう整えています。",
+    aiFeedback: "主対象と環境の要素が確認できました。",
+    aiNextPhoto: "頭部とくちばしの詳細がわかる角度から撮影してください。",
     mediaDedup: { sourcePhotoCount: 2, representativePhotoCount: 1, excludedPhotoCount: 1 },
     aiCandidateInsights: [
       {
@@ -120,6 +124,8 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.match(rendered, /つながる記録/);
   assert.match(rendered, /浜松市周辺/);
   assert.match(rendered, /写真を表示できるよう整えています/);
+  assert.match(rendered, /主対象と環境の要素が確認できました/);
+  assert.match(rendered, /頭部とくちばしの詳細がわかる角度から撮影してください/);
   assert.match(rendered, /似た写真1枚は1枚にまとめて表示しています/);
   assert.match(rendered, /似ている候補との比較/);
   assert.match(rendered, /ナミアゲハ/);
@@ -141,6 +147,20 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.ok(operationIds.includes("nonce-contract-add"));
   assert.ok(operationIds.includes("nonce-contract-policy-off"));
   assert.ok(operationIds.includes("nonce-contract-visibility-public"));
+});
+
+test("owner processing panel is retained with the page CSP nonce", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    title: "庭の観察",
+    observedLabel: "2026年7月22日 18:00",
+    note: null,
+    media: [],
+    actionNonce: "nonce-processing",
+    processingStatusPanel: '<section data-observation-processing-status><button data-observation-reassess>AIで再確認</button><script nonce="page-csp-nonce" data-observation-reassess-script>window.testReassess=true;</script></section>',
+  });
+  assert.match(rendered, /data-observation-processing-status/);
+  assert.match(rendered, /<button data-observation-reassess>AIで再確認<\/button>/);
+  assert.match(rendered, /<script nonce="page-csp-nonce" data-observation-reassess-script>/);
 });
 
 test("guest HTML omits owner management and keeps proposals on demand", () => {

@@ -1,7 +1,10 @@
 import {
   deriveObservationProcessingStatus,
+  isObsoleteInteractiveGeminiResult,
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus.js";
+
+export { isObsoleteInteractiveGeminiResult };
 
 type D1Value = string | number | null;
 
@@ -22,6 +25,7 @@ type OwnerObservationProcessingFactsRow = {
   latest_media_job_status: string | null;
   latest_media_job_error: string | null;
   ai_request_status: string | null;
+  ai_request_source_payload_json: string | null;
   ai_assessment_status: string | null;
   candidate_count: number;
   identification_count: number;
@@ -79,6 +83,13 @@ const OWNER_PROCESSING_STATUS_SQL = `SELECT
       AND rr.request_kind = 'standard'
     ORDER BY rr.updated_at DESC
     LIMIT 1) AS ai_request_status,
+  (SELECT rr.source_payload_json
+     FROM observation_reassessment_requests rr
+    WHERE rr.observation_id = o.observation_id
+      AND rr.actor_user_id = o.owner_user_id
+      AND rr.request_kind = 'standard'
+    ORDER BY rr.updated_at DESC
+    LIMIT 1) AS ai_request_source_payload_json,
   (SELECT art.ai_assessment_status
      FROM observation_ai_review_targets art
     WHERE art.occurrence_id = 'occ:' || o.observation_id || ':0'
@@ -124,6 +135,9 @@ export async function loadOwnerObservationProcessingStatusFromD1(
     .first<OwnerObservationProcessingFactsRow>();
   if (!row) return null;
 
+  const obsoleteInteractiveResult = row.ai_request_status === "completed"
+    && isObsoleteInteractiveGeminiResult(row.ai_request_source_payload_json);
+
   return deriveObservationProcessingStatus({
     occurrenceId: `occ:${row.observation_id}:0`,
     visitId: row.observation_id,
@@ -131,9 +145,9 @@ export async function loadOwnerObservationProcessingStatusFromD1(
     displayPhotoCount: Number(row.display_photo_count ?? 0),
     latestMediaJobStatus: row.latest_media_job_status,
     latestMediaJobError: row.latest_media_job_error,
-    aiRequestStatus: row.ai_request_status,
-    aiAssessmentStatus: row.ai_assessment_status,
-    candidateCount: Number(row.candidate_count ?? 0),
+    aiRequestStatus: obsoleteInteractiveResult ? "failed" : row.ai_request_status,
+    aiAssessmentStatus: obsoleteInteractiveResult ? null : row.ai_assessment_status,
+    candidateCount: obsoleteInteractiveResult ? 0 : Number(row.candidate_count ?? 0),
     identificationCount: Number(row.identification_count ?? 0),
     providerAvailable: input.providerAvailable,
     updatedAt: row.updated_at ?? row.observed_at,

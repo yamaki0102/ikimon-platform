@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   deriveObservationProcessingStatus,
+  isObsoleteInteractiveGeminiResult,
   renderObservationProcessingStatusPanel,
   type ObservationProcessingFacts,
 } from "./observationProcessingStatus.js";
@@ -157,9 +158,17 @@ test("retryable AI failure offers an owner-initiated reassessment without treati
   assert.equal(status.action?.method, "post");
   assert.equal(status.action?.href, "/api/v1/observations/record-1/reassess");
 
-  const html = renderObservationProcessingStatusPanel(status);
-  assert.match(html, /<button[^>]+data-observation-reassess/);
+  const html = renderObservationProcessingStatusPanel(status, "page-csp-nonce");
+  assert.match(html, /<script nonce="page-csp-nonce" data-observation-reassess-script>/);
+  assert.doesNotMatch(html, /<script data-observation-reassess-script>/);
   assert.match(html, /method:'POST'/);
   assert.match(html, /AIで再確認を受け付けました/);
   assert.doesNotMatch(html, /<a[^>]+reassess/);
+  assert.doesNotMatch(html, /script-src[^>]*unsafe-inline/);
+});
+
+test("only an obsolete completed interactive Gemini result is exposed for explicit rearm", () => {
+  assert.equal(isObsoleteInteractiveGeminiResult(JSON.stringify({ providerMode: "direct_generate_content", modelPlan: { census: "gemini-3.1-flash-lite" } })), true);
+  assert.equal(isObsoleteInteractiveGeminiResult(JSON.stringify({ providerMode: "direct_generate_content", modelPlan: { census: "gemini-3.5-flash-lite" } })), false);
+  assert.equal(isObsoleteInteractiveGeminiResult(JSON.stringify({ providerMode: "batch", models: ["gemini-3.1-flash-lite"] })), false);
 });
