@@ -5,6 +5,7 @@ import {
   enforcePostCaptureValueLoopCompatibility,
   POST_CAPTURE_VALUE_LOOP_COMPATIBILITY,
 } from "./postCaptureValueLoopCompatibilityPatch";
+import { applyPostCaptureValueLoopPatch } from "./postCaptureValueLoopPatch";
 
 const detailHtml = `<!doctype html>
 <html lang="ja">
@@ -104,4 +105,38 @@ test("response wrapper changes only successful GET detail HTML", async () => {
     new Response(detailHtml, { headers: { "content-type": "text/html" } }),
   );
   assert.equal(await post.text(), detailHtml);
+});
+
+test("dynamic compatibility injection reuses the response CSP nonce", async () => {
+  const dynamicDetailHtml = detailHtml.replace('<script nonce="compat-nonce">window.base=true;</script>', "");
+  const withValueLoop = applyPostCaptureValueLoopPatch(dynamicDetailHtml, "page-csp-nonce");
+  const response = await enforcePostCaptureValueLoopCompatibility(
+    new Request("https://ikimon.life/ja/observations/record-1"),
+    new Response(withValueLoop, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-page-csp-nonce' https://static.cloudflareinsights.com",
+      },
+    }),
+  );
+  const patched = await response.text();
+  assert.match(patched, /<script data-ikimon-post-capture-value-loop-compat="v2" nonce="page-csp-nonce">/u);
+  assert.match(patched, /<style id="ikimon-post-capture-value-loop-compact-style" nonce="page-csp-nonce">/u);
+  assert.doesNotMatch(patched, /unsafe-inline/u);
+});
+
+test("existing marked compatibility injection preserves the value-loop nonce", async () => {
+  const marked = applyPostCaptureValueLoopPatch(detailHtml, "page-csp-nonce");
+  const response = await enforcePostCaptureValueLoopCompatibility(
+    new Request("https://ikimon.life/ja/observations/record-1"),
+    new Response(marked, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-page-csp-nonce'",
+      },
+    }),
+  );
+  const patched = await response.text();
+  assert.equal((patched.match(/data-ikimon-post-capture-value-loop-compat="v2"/gu) ?? []).length, 1);
+  assert.match(patched, /data-ikimon-post-capture-value-loop-compat="v2" nonce="page-csp-nonce"/u);
 });

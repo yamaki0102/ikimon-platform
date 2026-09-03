@@ -53,3 +53,35 @@ export function publicObservationAiCandidateInsights(
     }];
   }).slice(0, 3);
 }
+
+export type PublicObservationAiFeedback = {
+  feedback: string | null;
+  nextPhoto: string | null;
+};
+
+export function publicObservationAiFeedback(
+  sourcePayloadJson: string | null | undefined,
+): PublicObservationAiFeedback {
+  if (!sourcePayloadJson) return { feedback: null, nextPhoto: null };
+  let payload: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(sourcePayloadJson) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { feedback: null, nextPhoto: null };
+    payload = parsed as Record<string, unknown>;
+  } catch {
+    return { feedback: null, nextPhoto: null };
+  }
+  const summary = payload.summary && typeof payload.summary === "object" && !Array.isArray(payload.summary)
+    ? payload.summary as Record<string, unknown>
+    : {};
+  const explanations = Array.isArray(summary.subject_explanations) ? summary.subject_explanations : [];
+  const nextPhoto = explanations.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const value = safeText((item as Record<string, unknown>).next_photo);
+    return value ? [value] : [];
+  })[0] ?? null;
+  return {
+    feedback: safeText(summary.observer_feedback),
+    nextPhoto,
+  };
+}

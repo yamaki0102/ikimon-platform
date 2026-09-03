@@ -458,6 +458,7 @@ const INJECTED_SCRIPT = String.raw`
       if (retryHref) {
         var retryButton = textNode('button', 'ikimon-record-value-loop__action', copy.retry);
         retryButton.type = 'button';
+        retryButton.setAttribute('data-observation-reassess-handler-bound', 'v1');
         retryButton.addEventListener('click', function () {
           if (retryButton.disabled) return;
           retryButton.disabled = true;
@@ -546,18 +547,34 @@ function escapeAttribute(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
-function nonceAttribute(html: string): string {
-  const match = html.match(/<script\b[^>]*\bnonce=(["'])([^"']+)\1/iu);
-  return match?.[2] ? ` nonce="${escapeAttribute(match[2])}"` : "";
+function nonceAttribute(cspNonce: string): string {
+  const nonce = cspNonce.trim();
+  return nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
+}
+
+function nonceFromContentSecurityPolicy(value: string | null): string {
+  const match = String(value ?? "").match(/(?:^|;)\s*script-src\s+[^;]*?'nonce-([^'\s;]+)'/iu);
+  return match?.[1] ?? "";
 }
 
 function shouldPatchHtml(html: string): boolean {
   return ELIGIBLE_HTML_MARKERS.some((marker) => html.includes(marker));
 }
 
-export function applyPostCaptureValueLoopPatch(html: string): string {
-  if (html.includes(PATCH_MARKER) || !shouldPatchHtml(html)) return html;
-  const nonce = nonceAttribute(html);
+function repairMarkedNonce(html: string, nonce: string): string {
+  if (!nonce) return html;
+  return html.replace(/<(script|style)\b([^>]*?)>/giu, (full, tagName: string, attributes: string) => {
+    if (!attributes.includes(PATCH_MARKER) && !attributes.includes(`id="${STYLE_ID}"`)) return full;
+    const withoutNonce = attributes.replace(/\snonce=(?:"[^"]*"|'[^']*'|[^\s>]+)/iu, "");
+    return `<${tagName}${withoutNonce}${nonce}>`;
+  });
+}
+
+export function applyPostCaptureValueLoopPatch(html: string, cspNonce = ""): string {
+  const nonce = nonceAttribute(cspNonce);
+  if (html.includes(PATCH_MARKER)) return repairMarkedNonce(html, nonce);
+  if (!shouldPatchHtml(html)) return html;
+  if (!nonce) return html;
   const payload = `<style id="${STYLE_ID}"${nonce}>${INJECTED_STYLE}</style><script ${PATCH_MARKER}${nonce}>${INJECTED_SCRIPT}</script>`;
   if (html.includes("</head>")) return html.replace("</head>", `${payload}\n</head>`);
   return `${payload}${html}`;
@@ -569,7 +586,7 @@ export async function enhancePostCaptureValueLoop(request: Request, response: Re
   if (!contentType.includes("text/html")) return response;
 
   const html = await response.text();
-  const patched = applyPostCaptureValueLoopPatch(html);
+  const patched = applyPostCaptureValueLoopPatch(html, nonceFromContentSecurityPolicy(response.headers.get("content-security-policy")));
   if (patched === html) {
     const headers = new Headers(response.headers);
     headers.delete("content-length");
