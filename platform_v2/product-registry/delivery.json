@@ -1216,8 +1216,8 @@
       ],
       "source_delta_done": {
         "source": "the three adopted Area and Ryuyo contracts plus the current field-detail runtime path",
-        "delta": "one shared renderer with growth states, no-value suppression, nearby Place fallback and the Ryuyo core/nearby classification; no Place-specific fork and no new map pipeline",
-        "done": "source tests and staging Worker identity are verified for exact source c5dd8e2784dce4a8cead6e17c05c6b8052619e52; functional staging proof is blocked until the existing Ryuyo polygon readmodel and real Record fixture are available; production remains unchanged"
+        "delta": "one shared renderer with growth states, no-value suppression, nearby Place fallback and the Ryuyo core/nearby classification; no Place-specific fork and no new map pipeline; source-only 0070 projection contract added without applying a database mutation",
+        "done": "source tests and staging Worker identity are verified for exact source ab1e5ea35d59945dc1cac91f42ba9861fab73114 (tree 07b3a5f820efcb3ab8375a5b637cbc10b25eb398); functional staging proof is blocked until the existing Ryuyo polygon readmodel and real Record fixture are available; 0070 is unapplied and production remains unchanged"
       }
     },
     {
