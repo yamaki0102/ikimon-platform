@@ -1190,8 +1190,8 @@
     {
       "id": "task.zukan.core-loop.area-encyclopedia-shared-renderer",
       "milestone_id": "milestone.m4.regional-publication-portability",
-      "state": "planned",
-      "readiness": "queued-behind-frontier-1",
+      "state": "implemented",
+      "readiness": "staging-blocked-by-ryuyo-readmodel",
       "implementation_allowed": false,
       "production_mutation_allowed": false,
       "lane": "CORE_LOOP",
@@ -1205,7 +1205,9 @@
         "docs/design/area_encyclopedia_growth_and_stewardship_contract_2026-09-02.md",
         "docs/implementation/zukan_ryuyo_core_nearby_context_contract_2026-09-02.md",
         "platform_v2/src/routes/observationEventPages.ts",
-        "platform_v2/src/services/areaPlaceSnapshot.ts"
+        "platform_v2/src/services/areaPlaceSnapshot.ts",
+        "platform_v2/cloudflare_shadow/src/index.ts",
+        "platform_v2/cloudflare_shadow/src/ryuyoAreaContext.ts"
       ],
       "negative_eval_ids": [
         "prop.place.first-record-changes-page",
@@ -1214,8 +1216,8 @@
       ],
       "source_delta_done": {
         "source": "the three adopted Area and Ryuyo contracts plus the current field-detail runtime path",
-        "delta": "one shared renderer with growth states, no-value suppression, nearby Place fallback and the Ryuyo core/nearby classification; no Place-specific fork and no new map pipeline",
-        "done": "shared fixtures and Ryuyo non-contamination tests pass; staging LIVE_VERIFIED for the shared states and Ryuyo sections; then delivered to production under the existing approval boundary"
+        "delta": "one shared renderer with growth states, no-value suppression, nearby Place fallback and the Ryuyo core/nearby classification; no Place-specific fork and no new map pipeline; source-only 0070 projection contract added without applying a database mutation",
+        "done": "source tests are verified for exact source a5b74501830cedbaa3a90e171b8b7b53bc50a047 (tree e45bd4310067a9f49e634c1dffc5a5157f1d61df); staging Worker identity is verified for the renderer source c5dd8e2784dce4a8cead6e17c05c6b8052619e52 before the source-only 0070 follow-up; functional staging proof is blocked until the existing Ryuyo polygon readmodel and real Record fixture are available; 0070 is unapplied and production remains unchanged"
       }
     },
     {

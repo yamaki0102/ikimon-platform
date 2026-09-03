@@ -103,6 +103,14 @@ import {
   loadCloudflarePlaceAtlasProfile,
 } from "./placeAtlasProfileNative";
 import { handlePublicationFeedNativeRequest } from "./publicationFeedNative";
+import { pointInGeoJsonPolygon } from "../../src/services/pointInPolygon";
+import {
+  classifyRyuyoPoint,
+  expandBboxByMeters,
+  RYUYO_ENTITY_KEY,
+  RYUYO_FIELD_ID,
+  type RyuyoGeometry,
+} from "./ryuyoAreaContext";
 import {
   listD1PublicPlaceChildren,
   searchD1PublicPlaces,
@@ -20540,8 +20548,9 @@ async function getOriginalUiAreaSnapshot(request: Request, fieldId: string, env:
   const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
   if (row) {
     const viewer = await getAreaSnapshotViewer(request, fieldId, env);
+    const recentRecords = await loadFieldRecentPublicRecords(fieldId, env).catch(() => ({ core: [], nearby: [] }));
     return json({
-      snapshot: fieldDetailAreaSnapshotPayload(row, viewer),
+      snapshot: fieldDetailAreaSnapshotPayload(row, viewer, recentRecords),
       compatibility: {
         source: "cloudflare_field_detail_readmodel_lightweight_area_snapshot"
       }
@@ -22152,6 +22161,97 @@ async function deleteFieldManagerGrant(
   });
 }
 
+type FieldRecentPublicRecord = {
+  observation_id: string;
+  observed_at: string;
+  taxon_label: string | null;
+  public_area_label: string | null;
+  asset_count: number;
+  exact_lat: number | null;
+  exact_lng: number | null;
+  resolved_field_ids_json?: string | null;
+  public_derivative_key?: string | null;
+};
+
+type FieldRecentPublicRecordGroups = {
+  core: FieldRecentPublicRecord[];
+  nearby: FieldRecentPublicRecord[];
+};
+
+async function loadFieldRecentPublicRecords(fieldId: string, env: Env): Promise<FieldRecentPublicRecordGroups> {
+  const boundary = await env.OBS_DB.prepare(
+    "SELECT geometry_json, entity_key, bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng FROM production_import_area_polygon_readmodel WHERE field_id = ? LIMIT 1",
+  ).bind(fieldId).first<{
+    geometry_json: string;
+    entity_key: string | null;
+    bbox_min_lat: number;
+    bbox_max_lat: number;
+    bbox_min_lng: number;
+    bbox_max_lng: number;
+  }>().catch(() => null);
+  if (!boundary?.geometry_json) return { core: [], nearby: [] };
+  let geometry: unknown;
+  try { geometry = JSON.parse(boundary.geometry_json) as unknown; } catch { return { core: [], nearby: [] }; }
+  const isRyuyo = fieldId === RYUYO_FIELD_ID || boundary.entity_key === RYUYO_ENTITY_KEY;
+  const bbox = isRyuyo
+    ? expandBboxByMeters({ minLat: Number(boundary.bbox_min_lat), maxLat: Number(boundary.bbox_max_lat), minLng: Number(boundary.bbox_min_lng), maxLng: Number(boundary.bbox_max_lng) })
+    : { minLat: Number(boundary.bbox_min_lat), maxLat: Number(boundary.bbox_max_lat), minLng: Number(boundary.bbox_min_lng), maxLng: Number(boundary.bbox_max_lng) };
+  const rows = (await env.OBS_DB.prepare(
+    "SELECT r.observation_id, r.observed_at, r.taxon_label, r.public_area_label, " +
+    "COALESCE(r.asset_count, 0) AS asset_count, o.exact_lat, o.exact_lng, o.resolved_field_ids_json, " +
+    "(SELECT a.public_derivative_key FROM asset_ledger a WHERE a.observation_id = o.observation_id " +
+    "AND a.processing_state = 'uploaded' AND a.public_derivative_key IS NOT NULL " +
+    "AND a.public_derivative_verified_at IS NOT NULL AND a.public_derivative_metadata_json IS NOT NULL " +
+    "AND a.exif_scrub_state = 'scrubbed' AND a.public_ready_at IS NOT NULL AND a.mime LIKE 'image/%' " +
+    "ORDER BY COALESCE(a.public_ready_at, a.uploaded_at, '') DESC, a.asset_id LIMIT 1) AS public_derivative_key " +
+    "FROM readmodel_public_observations r JOIN observations o ON o.observation_id = r.observation_id " +
+    "JOIN observation_data_rights rights ON rights.visit_id = r.observation_id " +
+    "WHERE o.visibility = 'public' AND o.emergency_hidden = 0 " +
+    "AND rights.record_consent IN ('public_summary', 'external_export') AND rights.withdrawal_status = 'active' " +
+    "AND NOT EXISTS (SELECT 1 FROM civic_observation_contexts civic WHERE civic.visit_id = r.observation_id AND civic.risk_lane = 'rare_sensitive') " +
+    "AND (EXISTS (SELECT 1 FROM json_each(COALESCE(o.resolved_field_ids_json, '[]')) resolved WHERE CAST(resolved.value AS TEXT) = ?) " +
+    "OR (o.exact_lat BETWEEN ? AND ? AND o.exact_lng BETWEEN ? AND ?)) " +
+    "ORDER BY r.observed_at DESC, r.observation_id ASC LIMIT 48",
+  ).bind(fieldId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng).all<FieldRecentPublicRecord>()).results;
+  if (!isRyuyo) {
+    return { core: rows.filter((row) => {
+      if (Number.isFinite(Number(row.exact_lat)) && Number.isFinite(Number(row.exact_lng))) return pointInGeoJsonPolygon(Number(row.exact_lng), Number(row.exact_lat), geometry);
+      try { return (JSON.parse(row.resolved_field_ids_json ?? "[]") as unknown[]).some((value) => String(value) === fieldId); } catch { return false; }
+    }), nearby: [] };
+  }
+  const core: FieldRecentPublicRecord[] = [];
+  const nearby: FieldRecentPublicRecord[] = [];
+  for (const row of rows) {
+    if (!Number.isFinite(Number(row.exact_lat)) || !Number.isFinite(Number(row.exact_lng))) continue;
+    const context = classifyRyuyoPoint(Number(row.exact_lng), Number(row.exact_lat), geometry as RyuyoGeometry);
+    if (context === "core") core.push(row);
+    if (context === "nearby") nearby.push(row);
+  }
+  return { core, nearby };
+}
+
+export function filterFieldRecentPublicRecords(rows: FieldRecentPublicRecord[], fieldId: string, geometry: unknown): FieldRecentPublicRecord[] {
+  return rows.filter((row) => {
+    if (Number.isFinite(Number(row.exact_lat)) && Number.isFinite(Number(row.exact_lng))) return pointInGeoJsonPolygon(Number(row.exact_lng), Number(row.exact_lat), geometry);
+    try { return (JSON.parse(row.resolved_field_ids_json ?? "[]") as unknown[]).some((value) => String(value) === fieldId); } catch { return false; }
+  });
+}
+
+function fieldRecentRecordDisplayName(row: FieldRecentPublicRecord): string {
+  return normalizeOptionalText(row.taxon_label) ?? "名前待ち";
+}
+
+function fieldRecentRecordPhotoUrl(row: FieldRecentPublicRecord): string | null {
+  const key = normalizeOptionalText(row.public_derivative_key);
+  return key && isSafePublicDerivedImageKey(key) ? publicMediaUrl(key) : null;
+}
+
+function formatFieldRecentObservedAt(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "日時不明" : new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "numeric", day: "numeric" }).format(date);
+}
+
+
 async function getFieldDetailJson(fieldId: string, env: Env): Promise<Response> {
   const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
   if (!row) {
@@ -22197,7 +22297,8 @@ async function getNativeFieldDetailHtmlIfAvailable(request: Request, url: URL, e
   if (!match) return null;
   const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(match.fieldId, env);
   if (!row) return null;
-  return html(request.method === "HEAD" ? "" : renderFieldDetailHtml(row, match.lang), 200, {
+  const recentRecords = await loadFieldRecentPublicRecords(match.fieldId, env).catch(() => ({ core: [], nearby: [] }));
+  return html(request.method === "HEAD" ? "" : renderFieldDetailHtml(row, match.lang, recentRecords), 200, {
     "cache-control": "no-store",
     "vary": "cookie, authorization",
     "x-ikimon-cloudflare-native": "field-detail-readmodel"
@@ -22843,7 +22944,8 @@ function fieldPublicProfileEvidenceContract(row: FieldDetailReadmodelRow, placeT
 
 function fieldDetailAreaSnapshotPayload(
   row: FieldDetailReadmodelRow,
-  viewer: { isAdminOrAnalyst?: boolean; fieldRole?: FieldManagerRole | null; userId?: string | null } = {}
+  viewer: { isAdminOrAnalyst?: boolean; fieldRole?: FieldManagerRole | null; userId?: string | null } = {},
+  recentRecords: FieldRecentPublicRecordGroups = { core: [], nearby: [] }
 ) {
   const field = fieldDetailPublicPayload(row);
   const viewerCanSeeExact = Boolean(viewer.isAdminOrAnalyst || viewer.fieldRole);
@@ -22875,7 +22977,12 @@ function fieldDetailAreaSnapshotPayload(
       schoolAlbumProfiles: [],
       accessGuidance: publicFieldAccessGuidance(row)
     },
-    observationSummary: emptyPlaceObservationSummary(),
+    observationSummary: {
+      ...emptyPlaceObservationSummary(),
+      totalObservations: recentRecords.core.length,
+      totalVisits: recentRecords.core.length,
+      latestObservedAt: recentRecords.core[0]?.observed_at ?? null
+    },
     machineObservationSummary: emptyPlaceMachineObservationSummary(),
     relationshipScore: emptyPlaceRelationshipScore(field.fieldId),
     hypotheses: [],
@@ -22896,7 +23003,42 @@ function fieldDetailAreaSnapshotPayload(
     },
     generatedAt: new Date().toISOString(),
     representativePhoto: null,
-    observationGallery: [],
+    observationGallery: recentRecords.core.map((record) => ({
+      occurrenceId: `occ:${record.observation_id}:0`,
+      visitId: record.observation_id,
+      displayName: fieldRecentRecordDisplayName(record),
+      observedAt: record.observed_at,
+      photoUrl: fieldRecentRecordPhotoUrl(record),
+      localityLabel: record.public_area_label,
+      observationCount: 1,
+      recentObservationCount: 1,
+      likeCount: 0,
+      season: null,
+      seasonLabel: null,
+      isCurrentSeason: false,
+      visibility: "public",
+      privacyLabel: null,
+      privacyReason: null,
+      shareAllowed: true
+    })),
+    nearbyObservationGallery: recentRecords.nearby.map((record) => ({
+      occurrenceId: `occ:${record.observation_id}:0`,
+      visitId: record.observation_id,
+      displayName: fieldRecentRecordDisplayName(record),
+      observedAt: record.observed_at,
+      photoUrl: fieldRecentRecordPhotoUrl(record),
+      localityLabel: record.public_area_label,
+      observationCount: 1,
+      recentObservationCount: 1,
+      likeCount: 0,
+      season: null,
+      seasonLabel: null,
+      isCurrentSeason: false,
+      visibility: "public",
+      privacyLabel: null,
+      privacyReason: null,
+      shareAllowed: true
+    })),
     seasonalCoverage: emptyAreaSeasonalCoverage(),
     yearlyTimeline: [],
     effortIndicators: emptyAreaEffortIndicators(),
@@ -34618,7 +34760,19 @@ function clampInteger(value: number, min: number, max: number): number {
   return Number.isFinite(value) ? Math.min(Math.max(Math.trunc(value), min), max) : min;
 }
 
-function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): string {
+function renderFieldRecentRecords(records: FieldRecentPublicRecord[], isEnglish: boolean, japaneseHeading = "公開された新着記録"): string {
+  if (records.length === 0) return "";
+  const heading = isEnglish
+    ? japaneseHeading === "園内の新着" ? "Latest records in the park" : japaneseHeading === "周辺で見つかったもの" ? "Found nearby" : "Latest public records"
+    : japaneseHeading;
+  const cards = records.map((row, index) => {
+    const photoUrl = fieldRecentRecordPhotoUrl(row);
+    return `<li class="field-recent-card"><a href="/observations/${encodeURIComponent(row.observation_id)}">${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt=""${index === 0 ? "" : " loading=\"lazy\""} decoding="async">` : ""}<strong>${escapeHtml(fieldRecentRecordDisplayName(row))}</strong><span>${escapeHtml(formatFieldRecentObservedAt(row.observed_at) + (isEnglish ? "" : " JST"))}</span><small>${escapeHtml(row.public_area_label ?? (isEnglish ? "Protected area" : "公開範囲で表示"))}</small></a></li>`;
+  }).join("");
+  return `<section class="field-recent-records panel" aria-label="${escapeHtml(heading)}"><header><div><p class="eyebrow">${isEnglish ? "Recent records" : "最近の記録"}</p><h2>${escapeHtml(heading)}</h2></div><span class="badge">${String(records.length)}</span></header><ol class="field-recent-list">${cards}</ol></section>`;
+}
+
+function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string, recentRecords: FieldRecentPublicRecordGroups = { core: [], nearby: [] }): string {
   const payload = fieldDetailPublicPayload(row);
   const isEnglish = lang === "en";
   const title = isEnglish ? `${payload.name} - area encyclopedia` : `${payload.name} - エリア図鑑`;
@@ -34734,6 +34888,14 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
     .si-next { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; border-radius: 14px; background: #f0fdfa; border: 1px solid rgba(15,118,110,.14); }
     .si-next strong { color: #0f766e; font-size: 13px; font-weight: 950; }
     .si-next span { padding: 6px 9px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 12px; font-weight: 850; }
+    .field-recent-records { display: grid; gap: 14px; margin-top: 18px; padding: 18px; }
+    .field-recent-records > header { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+    .field-recent-records h2 { margin-top: 4px; font-size: 24px; line-height: 1.2; font-weight: 950; }
+    .field-recent-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .field-recent-card a { display: grid; gap: 6px; min-height: 64px; padding: 12px 14px; border: 1px solid rgba(15,118,110,.14); border-radius: 12px; background: #f8fffc; text-decoration: none; }
+    .field-recent-card img { width: min(100%, 420px); max-height: 260px; object-fit: cover; border-radius: 10px; background: #ecfdf5; }
+    .field-recent-card strong { color: #0f172a; font-size: 16px; }
+    .field-recent-card span, .field-recent-card small { color: #475569; font-size: 12px; line-height: 1.45; }
     @media (max-width: 880px) {
       .hero { grid-template-columns: 1fr; }
       .grid, .si-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -34765,6 +34927,7 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
       <p class="summary">${payload.summary ? escapeHtml(payload.summary) : (isEnglish ? "Read public records for this area without exposing exact coordinates." : "このエリアに積み上がる公開記録を、安全な範囲で読むためのページです。")}</p>
       <div class="actions">
         <a class="button primary" href="/record?field_id=${encodeURIComponent(payload.fieldId)}">${isEnglish ? "Record in this area" : "このエリアで記録する"}</a>
+        <a class="button" href="/map">${isEnglish ? "Open map" : "地図で見る"}</a>
         <a class="button" href="#area-public-range">${isEnglish ? "Check public range" : "公開範囲を見る"}</a>
       </div>
     </div>
@@ -34775,7 +34938,8 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
       <em>${isEnglish ? "Photos, sounds, and notes will make this place easier to understand over time." : "写真、音、メモが増えるほど、この場所の変化が読みやすくなります。"}</em>
     </article>
   </section>
-  ${renderFieldSiteIntelligenceSection(row, isEnglish)}
+  ${renderFieldRecentRecords(recentRecords.core, isEnglish, row.entity_key === RYUYO_ENTITY_KEY || row.field_id === RYUYO_FIELD_ID ? "園内の新着" : "公開された新着記録")}
+  ${row.entity_key === RYUYO_ENTITY_KEY || row.field_id === RYUYO_FIELD_ID ? renderFieldRecentRecords(recentRecords.nearby, isEnglish, "周辺で見つかったもの") : ""}
   <section class="range panel" id="area-public-range" aria-label="${isEnglish ? "Public range and verification" : "公開範囲と確認"}">
     <header>
       <div><p class="eyebrow">Safety / Evidence</p><h2>${isEnglish ? "Public range and verification" : "公開範囲と確認"}</h2></div>
