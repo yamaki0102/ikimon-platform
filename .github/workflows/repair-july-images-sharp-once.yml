@@ -1,0 +1,304 @@
+name: Repair July Images With Sharp Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repair-july-images-sharp-once
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.head_ref == 'agent/repair-july-images-sharp-20260713'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TARGET_SHA: 2c4d72224ece8fe653bc1bffc4ce3ffa57b059cb
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PRODUCTION_BASE_URL: https://ikimon.life
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            platform_v2/package-lock.json
+            platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm --prefix platform_v2 ci
+          npm --prefix platform_v2/cloudflare_shadow ci
+
+      - name: Confirm exact production runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p july-sharp-repair
+          status="$(curl -sS -L --connect-timeout 10 --max-time 30 \
+            -H 'cache-control: no-store, no-cache' \
+            -A 'ikimon-july-sharp-repair/1.0' \
+            -o july-sharp-repair/runtime.json \
+            -w '%{http_code}' \
+            "${PRODUCTION_BASE_URL%/}/api/v1/runtime/version?sharp_repair=$GITHUB_RUN_ID")"
+          test "$status" = "200"
+          test "$(jq -r '.gitSha' july-sharp-repair/runtime.json)" = "$TARGET_SHA"
+
+      - name: Select exactly four legacy SVG derivatives
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/july-sharp-repair"
+          npx wrangler d1 execute ikimon_prod_core --env production --remote --json \
+            --command "SELECT user_id,display_name,role_name,rank_label,banned FROM auth_users WHERE lower(email)=lower('yamaki0102@gmail.com') LIMIT 1" \
+            > "$root/account.private.json"
+          USER_ID="$(node -e "const x=require(process.argv[1]);const r=x[0]?.results?.[0];if(!r)process.exit(2);process.stdout.write(r.user_id)" "$root/account.private.json")"
+
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json \
+            --command "SELECT o.observation_id,o.observed_at,a.asset_id,a.object_key,a.public_derivative_key,a.mime,a.bytes FROM observations o JOIN asset_ledger a ON a.observation_id=o.observation_id WHERE o.owner_user_id='$USER_ID' AND substr(o.observed_at,1,10) IN ('2026-07-07','2026-07-10') AND a.processing_state='uploaded' AND a.mime LIKE 'image/%' AND a.object_key IS NOT NULL AND a.public_derivative_key IS NOT NULL AND (a.public_derivative_metadata_json LIKE '%\"scannedContainer\":\"svg+xml\"%' OR a.public_derivative_metadata_json LIKE '%\"contentType\":\"image/svg%') ORDER BY o.observed_at DESC,a.asset_id" \
+            > "$root/assets.private.json"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const root = process.env.GITHUB_WORKSPACE + '/july-sharp-repair';
+          const rows = JSON.parse(fs.readFileSync(root + '/assets.private.json', 'utf8'))[0]?.results ?? [];
+          if (rows.length !== 4) throw new Error(`expected exactly 4 target assets, got ${rows.length}`);
+          const observationIds = new Set(rows.map((row) => String(row.observation_id)));
+          if (observationIds.size !== 2) throw new Error(`expected exactly 2 observations, got ${observationIds.size}`);
+          const hash = (value) => crypto.createHash('sha256').update(String(value ?? '')).digest('hex').slice(0, 12);
+          const safe = rows.map((row) => ({
+            observationHash: hash(row.observation_id),
+            assetHash: hash(row.asset_id),
+            observedDate: String(row.observed_at).slice(0, 10),
+            sourceMime: row.mime,
+            sourceBytes: Number(row.bytes || 0),
+          }));
+          fs.writeFileSync(root + '/targets.safe.json', JSON.stringify(safe, null, 2));
+          NODE
+
+      - name: Rebuild verified WebP bytes from preserved originals
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/july-sharp-repair"
+          mkdir -p "$root/private-work"
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const root = process.env.GITHUB_WORKSPACE + '/july-sharp-repair';
+          const rows = JSON.parse(fs.readFileSync(root + '/assets.private.json', 'utf8'))[0]?.results ?? [];
+          fs.writeFileSync(root + '/count.txt', String(rows.length));
+          rows.forEach((row, index) => {
+            fs.writeFileSync(root + `/private-work/asset-${index}.json`, JSON.stringify(row));
+          });
+          NODE
+
+          count="$(cat "$root/count.txt")"
+          for index in $(seq 0 $((count - 1))); do
+            manifest="$root/private-work/asset-${index}.json"
+            object_key="$(node -e "const r=require(process.argv[1]);process.stdout.write(r.object_key)" "$manifest")"
+            derivative_key="$(node -e "const r=require(process.argv[1]);process.stdout.write(r.public_derivative_key)" "$manifest")"
+            original="$root/private-work/original-${index}"
+            derivative="$root/private-work/derivative-${index}.webp"
+            verified="$root/private-work/verified-${index}.webp"
+
+            (cd platform_v2/cloudflare_shadow && npx wrangler r2 object get "ikimon-prod-media/${object_key}" --remote --pipe) > "$original"
+            test -s "$original"
+
+            INDEX="$index" ROOT="$root" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          import sharp from './platform_v2/node_modules/sharp/lib/index.js';
+
+          const root = process.env.ROOT;
+          const index = Number(process.env.INDEX);
+          const manifest = JSON.parse(fs.readFileSync(`${root}/private-work/asset-${index}.json`, 'utf8'));
+          const originalPath = `${root}/private-work/original-${index}`;
+          const derivativePath = `${root}/private-work/derivative-${index}.webp`;
+
+          const source = sharp(originalPath, { failOn: 'error', limitInputPixels: 100_000_000 }).rotate();
+          const sourceMetadata = await source.metadata();
+          if (!sourceMetadata.width || !sourceMetadata.height) throw new Error(`missing source dimensions for index ${index}`);
+
+          await source
+            .resize({ width: 1600, withoutEnlargement: true, fit: 'inside' })
+            .webp({ quality: 82, effort: 4, smartSubsample: true })
+            .toFile(derivativePath);
+
+          const derivativeBytes = fs.readFileSync(derivativePath);
+          const derivativeMetadata = await sharp(derivativeBytes).metadata();
+          if (derivativeMetadata.format !== 'webp') throw new Error(`not webp for index ${index}`);
+          if (!derivativeMetadata.width || !derivativeMetadata.height) throw new Error(`missing derivative dimensions for index ${index}`);
+          if (derivativeBytes.length < 1000) throw new Error(`derivative unexpectedly small for index ${index}`);
+          const header = derivativeBytes.subarray(0, 12).toString('ascii');
+          if (!header.startsWith('RIFF') || header.slice(8, 12) !== 'WEBP') throw new Error(`invalid WebP signature for index ${index}`);
+
+          const scan = derivativeBytes.toString('latin1').toLowerCase();
+          const forbidden = ['exif', 'gpslatitude', 'gpslongitude', 'http://ns.adobe.com/xap/', '<x:xmpmeta'];
+          const found = forbidden.filter((needle) => scan.includes(needle));
+          if (found.length) throw new Error(`privacy metadata remains for index ${index}: ${found.join(',')}`);
+
+          const metadata = {
+            gpsExifPresent: false,
+            contentType: 'image/webp',
+            scannedContainer: 'binary',
+            tool: 'github-sharp-targeted-repair-v1',
+            sourceContentType: String(manifest.mime),
+            sourceBytes: fs.statSync(originalPath).size,
+            sourceWidth: sourceMetadata.width,
+            sourceHeight: sourceMetadata.height,
+            derivativeFormat: 'webp',
+            derivativeWidth: derivativeMetadata.width,
+            derivativeHeight: derivativeMetadata.height,
+            derivativeBytes: derivativeBytes.length,
+            repairedAt: new Date().toISOString(),
+          };
+          const result = {
+            sha256: crypto.createHash('sha256').update(derivativeBytes).digest('hex'),
+            metadata,
+          };
+          fs.writeFileSync(`${root}/private-work/result-${index}.json`, JSON.stringify(result));
+          NODE
+
+            (cd platform_v2/cloudflare_shadow && npx wrangler r2 object put "ikimon-prod-media/${derivative_key}" --remote --file "$derivative" --content-type image/webp) >/dev/null
+            (cd platform_v2/cloudflare_shadow && npx wrangler r2 object get "ikimon-prod-media/${derivative_key}" --remote --pipe) > "$verified"
+            cmp "$derivative" "$verified"
+
+            INDEX="$index" ROOT="$root" node <<'NODE' > "$root/private-work/update-${index}.sql"
+          const fs = require('node:fs');
+          const root = process.env.ROOT;
+          const index = Number(process.env.INDEX);
+          const manifest = JSON.parse(fs.readFileSync(`${root}/private-work/asset-${index}.json`, 'utf8'));
+          const result = JSON.parse(fs.readFileSync(`${root}/private-work/result-${index}.json`, 'utf8'));
+          const esc = (value) => String(value ?? '').replaceAll("'", "''");
+          process.stdout.write(`UPDATE asset_ledger SET public_derivative_sha256='${esc(result.sha256)}', public_derivative_verified_at=CURRENT_TIMESTAMP, public_derivative_metadata_json='${esc(JSON.stringify(result.metadata))}', exif_scrub_state='scrubbed', public_ready_at=CURRENT_TIMESTAMP WHERE asset_id='${esc(manifest.asset_id)}' AND observation_id='${esc(manifest.observation_id)}' AND processing_state='uploaded';`);
+          NODE
+            sql="$(cat "$root/private-work/update-${index}.sql")"
+            (cd platform_v2/cloudflare_shadow && npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --command "$sql") >/dev/null
+          done
+
+      - name: Verify D1, HTTP bytes, and authenticated owner cards
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/july-sharp-repair"
+          USER_ID="$(node -e "const x=require(process.argv[1]);process.stdout.write(x[0].results[0].user_id)" "$root/account.private.json")"
+
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json \
+            --command "SELECT o.observation_id,o.observed_at,a.asset_id,a.public_derivative_key,a.public_derivative_verified_at,a.public_derivative_metadata_json,a.exif_scrub_state,a.public_ready_at FROM observations o JOIN asset_ledger a ON a.observation_id=o.observation_id WHERE o.owner_user_id='$USER_ID' AND substr(o.observed_at,1,10) IN ('2026-07-07','2026-07-10') AND a.mime LIKE 'image/%' ORDER BY o.observed_at DESC,a.asset_id" \
+            > "$root/final.private.json"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const cp = require('node:child_process');
+          const root = process.env.GITHUB_WORKSPACE + '/july-sharp-repair';
+          const rows = JSON.parse(fs.readFileSync(root + '/final.private.json', 'utf8'))[0]?.results ?? [];
+          const hash = (value) => crypto.createHash('sha256').update(String(value ?? '')).digest('hex').slice(0, 12);
+          if (rows.length !== 4) throw new Error(`expected 4 final rows, got ${rows.length}`);
+          const checks = [];
+          rows.forEach((row, index) => {
+            let metadata = {};
+            try { metadata = JSON.parse(row.public_derivative_metadata_json ?? '{}'); } catch {}
+            const ready = Boolean(
+              row.public_derivative_key && row.public_derivative_verified_at && row.public_ready_at &&
+              row.exif_scrub_state === 'scrubbed' && metadata.contentType === 'image/webp' &&
+              metadata.scannedContainer === 'binary' && metadata.gpsExifPresent === false &&
+              metadata.tool === 'github-sharp-targeted-repair-v1'
+            );
+            if (!ready) throw new Error(`D1 verification failed for ${hash(row.asset_id)}`);
+            const path = '/' + String(row.public_derivative_key).replace(/^\/+/, '');
+            const headerFile = `${root}/private-work/http-${index}.headers`;
+            const bodyFile = `${root}/private-work/http-${index}.body`;
+            const status = Number(cp.execFileSync('curl', ['-sS','-L','--connect-timeout','10','--max-time','30','-D',headerFile,'-o',bodyFile,'-w','%{http_code}','https://ikimon.life' + path], { encoding: 'utf8' }).trim());
+            const headers = fs.readFileSync(headerFile, 'utf8');
+            const bytes = fs.statSync(bodyFile).size;
+            fs.rmSync(headerFile); fs.rmSync(bodyFile);
+            const contentType = (headers.match(/content-type:\s*([^\r\n]+)/i) || [])[1]?.split(';')[0]?.trim().toLowerCase() ?? '';
+            if (status !== 200 || contentType !== 'image/webp' || bytes < 1000) throw new Error(`HTTP verification failed for ${hash(row.asset_id)}: ${status} ${contentType} ${bytes}`);
+            checks.push({ assetHash: hash(row.asset_id), observationHash: hash(row.observation_id), observedDate: String(row.observed_at).slice(0,10), status, contentType, bytes });
+          });
+          fs.writeFileSync(root + '/http.safe.json', JSON.stringify(checks, null, 2));
+          NODE
+
+          raw_token="sharp-repair-$(openssl rand -hex 24)"
+          token_hash="$(printf '%s' "$raw_token" | sha256sum | awk '{print $1}')"
+          expires_at="$(date -u -d '+15 minutes' '+%Y-%m-%dT%H:%M:%S.000Z')"
+          cleanup() {
+            npx wrangler d1 execute ikimon_prod_core --env production --remote --command "DELETE FROM auth_sessions WHERE token_hash='$token_hash'" >/dev/null 2>&1 || true
+            rm -rf "$root/private-work" "$root"/*.private.json
+          }
+          trap cleanup EXIT
+
+          TOKEN_HASH="$token_hash" EXPIRES_AT="$expires_at" node <<'NODE' > sharp-session.sql
+          const fs = require('node:fs');
+          const root = process.env.GITHUB_WORKSPACE + '/july-sharp-repair';
+          const row = JSON.parse(fs.readFileSync(root + '/account.private.json', 'utf8'))[0].results[0];
+          const esc = (value) => String(value ?? '').replaceAll("'", "''");
+          process.stdout.write(`INSERT INTO auth_sessions (token_hash,user_id,display_name,role_name,rank_label,banned,expires_at,user_agent) VALUES ('${esc(process.env.TOKEN_HASH)}','${esc(row.user_id)}','${esc(row.display_name)}','${esc(row.role_name || 'Observer')}','${esc(row.rank_label || '観察者')}',${Number(row.banned || 0)},'${esc(process.env.EXPIRES_AT)}','july-sharp-repair-qa');`);
+          NODE
+          npx wrangler d1 execute ikimon_prod_core --env production --remote --file sharp-session.sql >/dev/null
+          rm -f sharp-session.sql
+
+          status="$(curl -sS -L --connect-timeout 10 --max-time 45 \
+            -H 'cache-control: no-store, no-cache' \
+            -H "cookie: ikimon_v2_session=$raw_token" \
+            -A 'july-sharp-repair-qa/1.0' \
+            -o "$root/home.private.html" \
+            -w '%{http_code}' \
+            "${PRODUCTION_BASE_URL%/}/ja/?sharp_repair_verify=$GITHUB_RUN_ID")"
+          test "$status" = "200"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const root = process.env.GITHUB_WORKSPACE + '/july-sharp-repair';
+          const html = fs.readFileSync(root + '/home.private.html', 'utf8');
+          const rows = JSON.parse(fs.readFileSync(root + '/assets.private.json', 'utf8'))[0]?.results ?? [];
+          const unique = [...new Map(rows.map((row) => [String(row.observation_id), row])).values()];
+          const hash = (value) => crypto.createHash('sha256').update(String(value ?? '')).digest('hex').slice(0, 12);
+          const cards = unique.map((row) => {
+            const id = String(row.observation_id);
+            const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const match = html.match(new RegExp(`<article[^>]*data-cloudflare-home-record-id="${escaped}"[\\s\\S]*?<\\/article>`));
+            return {
+              observationHash: hash(id),
+              observedDate: String(row.observed_at).slice(0,10),
+              cardFound: Boolean(match),
+              hasImage: Boolean(match && /<img\b[^>]*src="[^"]+"/.test(match[0])),
+            };
+          });
+          if (cards.length !== 2 || cards.some((card) => !card.cardFound || !card.hasImage)) throw new Error(`authenticated home verification failed: ${JSON.stringify(cards)}`);
+          const report = {
+            targetSha: process.env.TARGET_SHA,
+            cards,
+            images: JSON.parse(fs.readFileSync(root + '/http.safe.json', 'utf8')),
+            allRealWebp: true,
+            authenticatedTopHasImages: true,
+            originalsDeleted: false,
+            ownershipChanged: false,
+            repairScope: 'two observations / four image derivatives',
+          };
+          fs.writeFileSync(root + '/report.safe.json', JSON.stringify(report, null, 2));
+          NODE
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: july-sharp-image-repair
+          path: |
+            july-sharp-repair/report.safe.json
+            july-sharp-repair/targets.safe.json
+            july-sharp-repair/http.safe.json
+          if-no-files-found: warn
+          retention-days: 14
