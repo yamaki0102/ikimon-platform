@@ -1,0 +1,118 @@
+name: Verify Record Recovery Production
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-origin-route-fix:
+    if: github.head_ref == 'agent/verify-record-recovery-production-20260712' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/fix-record-recovery-origin-route-20260712
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Apply exact recovery origin route
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('platform_v2/cloudflare_shadow/src/index.ts')
+          source = path.read_text(encoding='utf-8')
+          old_route = '''      if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
+        return getSessionAwareRecordHtml(request, url, env);
+      }'''
+          new_route = '''      if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
+        if (isRecordRecoveryRequest(url) && env.ORIGIN_FALLBACK_BASE_URL) {
+          return fetchOriginFallback(request, url, env, "record_recovery");
+        }
+        return getSessionAwareRecordHtml(request, url, env);
+      }'''
+          if old_route in source:
+              source = source.replace(old_route, new_route, 1)
+          elif new_route not in source:
+              raise SystemExit('record route block not found')
+          old_helper = '''function isRecordHtmlPath(pathname: string): boolean {
+  return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);
+}'''
+          new_helper = '''function isRecordHtmlPath(pathname: string): boolean {
+  return /^(?:\\/(?:ja|en|es|pt-br))?\\/record$/.test(pathname);
+}
+
+const RECORD_RECOVERY_SOURCE_VALUES = new Set([
+  "location_denied",
+  "login_required",
+  "draft_restore",
+  "media_retry",
+  "upload_failed",
+  "global_capture"
+]);
+
+function isRecordRecoveryRequest(url: URL): boolean {
+  if (!isRecordHtmlPath(url.pathname)) return false;
+  if (url.searchParams.get("draft") === "1") return true;
+  if (url.searchParams.get("retry") === "media") return true;
+  const source = url.searchParams.get("source")?.trim() ?? "";
+  return RECORD_RECOVERY_SOURCE_VALUES.has(source);
+}'''
+          if old_helper in source:
+              source = source.replace(old_helper, new_helper, 1)
+          elif new_helper not in source:
+              raise SystemExit('record helper block not found')
+          path.write_text(source, encoding='utf-8')
+          PY
+
+          cat > platform_v2/cloudflare_shadow/src/recordRecoveryOriginRoute.test.ts <<'TEST'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+          import test from "node:test";
+
+          const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+
+          test("record recovery requests use exact origin fallback before native or materialized record HTML", () => {
+            assert.match(source, /const RECORD_RECOVERY_SOURCE_VALUES = new Set\(\[/);
+            for (const value of ["location_denied", "login_required", "draft_restore", "media_retry", "upload_failed", "global_capture"]) {
+              assert.match(source, new RegExp(`"${value}"`));
+            }
+            assert.match(source, /function isRecordRecoveryRequest\(url: URL\): boolean/);
+            assert.match(source, /url\.searchParams\.get\("draft"\) === "1"/);
+            assert.match(source, /url\.searchParams\.get\("retry"\) === "media"/);
+            assert.match(source, /isRecordRecoveryRequest\(url\) && env\.ORIGIN_FALLBACK_BASE_URL/);
+            assert.match(source, /fetchOriginFallback\(request, url, env, "record_recovery"\)/);
+            assert.match(source, /fetchOriginFallback[\s\S]{0,220}getSessionAwareRecordHtml/);
+          });
+          TEST
+
+          rm -f .github/workflows/apply-record-recovery-origin-route.yml
+          git diff --check
+
+      - name: Verify Cloudflare Worker
+        working-directory: platform_v2/cloudflare_shadow
+        run: |
+          npm ci
+          npm run check
+          npm run test:quick
+
+      - name: Commit focused fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix: route record recovery through origin fallback' || exit 0
+          git push origin HEAD:agent/fix-record-recovery-origin-route-20260712
