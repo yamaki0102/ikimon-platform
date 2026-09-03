@@ -112,6 +112,12 @@ import {
   type ObservationMediaDedupInput,
   type ObservationMediaDedupPlan,
 } from "./observationMediaDedup";
+import {
+  OBSERVATION_AI_QUALITY_BACKLOG_SELECT_SQL,
+  observationAiQualityBacklogCapacity,
+  observationAiQualityBacklogReason,
+  type ObservationAiQualityBacklogTargetRow,
+} from "./observationAiQualityBacklog";
 
 type D1Value = string | number | null;
 
@@ -30704,6 +30710,7 @@ async function recoverLegacyFalsePositiveImageDerivatives(env: Env): Promise<voi
 async function runScheduledObservationReassessments(env: Env): Promise<void> {
   if (!env.GEMINI_API_KEY) return;
   await requeueLatestPublicGeminiUpgradeTargets(env);
+  await requeuePublicGeminiQualityBacklog(env);
   await resumeGeminiObservationBatchGroups(env);
   await submitGeminiObservationReassessmentGroups([], env);
 }
@@ -30742,7 +30749,7 @@ async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> 
         row.observation_id,
         row.owner_user_id,
         JSON.stringify({
-          source: "latest_public_record_ai_upgrade_v2",
+          source: "latest_public_record_ai_upgrade_v3",
           reason: "missing_reassessment_request",
           executionStatus: "pending",
           attemptCount: 0,
@@ -30758,7 +30765,7 @@ async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> 
     delete source.batchExecution;
     const nextPayload = JSON.stringify({
       ...source,
-      source: "latest_public_record_ai_upgrade_v2",
+      source: "latest_public_record_ai_upgrade_v3",
       executionStatus: "pending",
       attemptCount: 0,
       requestedRuleVersion: GEMINI_OBSERVATION_RULE_VERSION,
@@ -30766,6 +30773,69 @@ async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> 
     });
     await env.OBS_DB.prepare(
       `UPDATE observation_reassessment_requests SET request_state = 'pending', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE request_id = ? AND request_state IN ('completed', 'failed') AND source_payload_json = ?`
+    ).bind(nextPayload, row.request_id, row.source_payload_json).run();
+  }
+}
+
+async function requeuePublicGeminiQualityBacklog(env: Env): Promise<void> {
+  const active = await env.OBS_DB.prepare(
+    `SELECT COUNT(*) AS count
+       FROM observation_reassessment_requests
+      WHERE request_kind = 'standard'
+        AND request_state IN ('pending', 'processing')`
+  ).first<{ count: number | string }>();
+  const available = observationAiQualityBacklogCapacity(Number(active?.count ?? 0));
+  if (available === 0) return;
+
+  const rows = await env.OBS_DB.prepare(
+    OBSERVATION_AI_QUALITY_BACKLOG_SELECT_SQL
+  ).bind(GEMINI_OBSERVATION_RULE_VERSION, available).all<ObservationAiQualityBacklogTargetRow>();
+
+  for (const row of rows.results) {
+    const reason = observationAiQualityBacklogReason(row);
+    if (!row.request_id) {
+      const requestId = `reassess:${row.observation_id}:standard:${row.owner_user_id}`;
+      await env.OBS_DB.prepare(
+        `INSERT INTO observation_reassessment_requests (
+           request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json,
+           created_at, updated_at
+         ) VALUES (?, ?, 'standard', ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT(observation_id, request_kind, actor_user_id) DO NOTHING`
+      ).bind(
+        requestId,
+        row.observation_id,
+        row.owner_user_id,
+        JSON.stringify({
+          source: "public_record_ai_quality_backlog_v3",
+          reason,
+          executionStatus: "pending",
+          attemptCount: 0,
+          requestedRuleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+          requestedAt: new Date().toISOString(),
+        }),
+      ).run();
+      continue;
+    }
+    if (!row.source_payload_json || !["completed", "failed"].includes(row.request_state ?? "")) continue;
+    if (String(reassessmentPayload(row.source_payload_json).ruleVersion ?? "") === GEMINI_OBSERVATION_RULE_VERSION) continue;
+    const source = reassessmentPayload(row.source_payload_json);
+    delete source.batchExecution;
+    const nextPayload = JSON.stringify({
+      ...source,
+      source: "public_record_ai_quality_backlog_v3",
+      reason,
+      executionStatus: "pending",
+      attemptCount: 0,
+      requestedRuleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+      requestedAt: new Date().toISOString(),
+    });
+    // The unique observation/kind/actor key handles concurrent inserts. Existing
+    // rows use an old-payload compare-and-swap so overlapping cron ticks cannot
+    // claim the same completed result twice.
+    await env.OBS_DB.prepare(
+      `UPDATE observation_reassessment_requests
+          SET request_state = 'pending', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
         WHERE request_id = ? AND request_state IN ('completed', 'failed') AND source_payload_json = ?`
     ).bind(nextPayload, row.request_id, row.source_payload_json).run();
   }

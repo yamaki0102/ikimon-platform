@@ -3,13 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("photo upload, queue, cron, Gemini Batch, and review target form one durable reassessment path", async () => {
-  const [source, dualWrite, geminiBatch, wrangler] = await Promise.all([
+  const [source, dualWrite, geminiBatch, qualityBacklog, wrangler] = await Promise.all([
     readFile(new URL("./index.ts", import.meta.url), "utf8"),
     readFile(new URL("./cloudflareObservationAiDualWrite.ts", import.meta.url), "utf8"),
     readFile(new URL("./geminiObservationBatch.ts", import.meta.url), "utf8"),
+    readFile(new URL("./observationAiQualityBacklog.ts", import.meta.url), "utf8"),
     readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
   ]);
-  const runtime = `${source}\n${dualWrite}\n${geminiBatch}`;
+  const runtime = `${source}\n${dualWrite}\n${geminiBatch}\n${qualityBacklog}`;
 
   assert.match(source, /"observation\.reassess"/);
   assert.match(source, /runScheduledObservationReassessments/);
@@ -58,11 +59,18 @@ test("photo upload, queue, cron, Gemini Batch, and review target form one durabl
   assert.match(source, /geminiBatchTerminalFailure\(specialist\)/);
   assert.match(runtime, /generationConfig\([^\n]+, 2048,/);
   assert.match(source, /humanReviewRequired: true/);
-  assert.match(source, /latest_public_record_ai_upgrade_v2/);
+  assert.match(source, /latest_public_record_ai_upgrade_v3/);
   assert.match(source, /await recentPublicRecordCards\(env, 120\)[\s\S]+Boolean\(item\.photoUrl\)[\s\S]+\.slice\(0, 30\)/);
   assert.match(source, /FROM observations o\s+LEFT JOIN observation_reassessment_requests/);
   assert.match(source, /reason: "missing_reassessment_request"/);
   assert.match(source, /ON CONFLICT\(observation_id, request_kind, actor_user_id\) DO NOTHING/);
+  assert.match(source, /public_record_ai_quality_backlog_v3/);
+  assert.match(qualityBacklog, /GEMINI_QUALITY_BACKLOG_MAX_ACTIVE = 40/);
+  assert.match(qualityBacklog, /GEMINI_QUALITY_BACKLOG_MAX_REQUEUE_PER_TICK = 10/);
+  assert.match(qualityBacklog, /candidate_rank IN \('class', 'order', 'lifeform', 'unknown'\)/);
+  assert.match(qualityBacklog, /json_valid\(rr\.source_payload_json\)[\s\S]+json_extract\(rr\.source_payload_json, '\$\.ruleVersion'\)[\s\S]+\) <> \?/);
+  assert.match(qualityBacklog, /EXISTS \(\s*SELECT 1 FROM asset_ledger/);
+  assert.match(source, /WHERE request_id = \? AND request_state IN \('completed', 'failed'\) AND source_payload_json = \?/);
   assert.match(source, /OBSERVATION_DUAL_WRITE_MODE \?\? "off"/);
   assert.equal((wrangler.match(/"binding": "AI"/g) ?? []).length, 4);
   assert.equal((wrangler.match(/"OBSERVATION_DUAL_WRITE_MODE": "off"/g) ?? []).length, 2);
