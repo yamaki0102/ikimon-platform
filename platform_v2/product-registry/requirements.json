@@ -463,10 +463,11 @@
       "id": "quality.zukan.records.public-discovery",
       "quality_contract": "quality.zukan.records",
       "title": "安全な公開記録探索",
-      "acceptance": "records/detailはpublic eligibleのみを表示し、0件/障害を区別し、確認状態とsourceを誤認させない",
+      "acceptance": "records/detailはpublic eligibleのみを表示し、0件/障害を区別し、確認状態とsourceを誤認させない。Home掲載候補なしと公開一覧0件を混同せず、Homeから公開一覧へ進める。未知の名前は確認済みにしない",
       "environments": [
         "source",
-        "staging"
+        "staging",
+        "operation"
       ],
       "evidence_lanes": [
         "machine",
@@ -479,9 +480,11 @@
         "human"
       ],
       "invalidation_keys": [
+        "source:platform_v2/home",
         "source:platform_v2/records",
         "source:publication",
-        "runtime:staging"
+        "runtime:staging",
+        "runtime:operation"
       ],
       "priority": 80
     },
@@ -489,10 +492,11 @@
       "id": "quality.zukan.map.safe-discovery",
       "quality_contract": "quality.zukan.map",
       "title": "安全な地図探索",
-      "acceptance": "mapはpublic eligibleかつ許可された位置精度だけを表示し、地図不能時もrecords等へ退避できる",
+      "acceptance": "mapはpublic eligibleかつ許可された位置精度だけを表示し、地図不能時もrecords等へ退避できる。WebGL不能/読込失敗でも言語を維持した公開一覧リンクと明示再読込があり、keyboard focus・操作名・44px以上のtouch targetを保つ",
       "environments": [
         "source",
-        "staging"
+        "staging",
+        "operation"
       ],
       "evidence_lanes": [
         "machine",
@@ -507,7 +511,8 @@
       "invalidation_keys": [
         "source:platform_v2/map",
         "source:publication",
-        "runtime:staging"
+        "runtime:staging",
+        "runtime:operation"
       ],
       "priority": 80
     },

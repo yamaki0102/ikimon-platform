@@ -179,6 +179,7 @@ export type MapExplorerCopy = {
   mapLoadErrorTitle: string;
   mapLoadErrorBody: string;
   mapLoadRetryLabel: string;
+  mapLoadRecordsLabel: string;
   locateLabel: string;
   locateError: string;
   timelineAriaLabel: string;
@@ -383,9 +384,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     osmAreaSourceLabel: "公園・緑地 (OSM live)",
     areaLoading: "エリア情報を読み込み中…",
     unregisteredAreaText: "このエリアはまだ登録されていません。まずは地図上の手がかりとして扱います。",
-    mapLoadErrorTitle: "地図ライブラリを読み込めませんでした",
-    mapLoadErrorBody: "ネットワーク状況を確認のうえ、もう一度開いてください。",
+    mapLoadErrorTitle: "地図を表示できませんでした",
+    mapLoadErrorBody: "公開記録の一覧から探すこともできます。",
     mapLoadRetryLabel: "再読み込み",
+    mapLoadRecordsLabel: "公開記録を見る",
     locateLabel: "現在地を見る",
     locateError: "現在地を取得できなかった。ブラウザの位置情報を許可してほしい。",
     timelineAriaLabel: "年のタイムライン",
@@ -566,9 +568,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     osmAreaSourceLabel: "Park / green space (OSM live)",
     areaLoading: "Loading area information…",
     unregisteredAreaText: "This area is not registered in ZUKAN's field database yet. For now, it stays as a field-guide clue on the map.",
-    mapLoadErrorTitle: "Could not load the map library",
-    mapLoadErrorBody: "Check your network connection, then open the map again.",
+    mapLoadErrorTitle: "Could not display the map",
+    mapLoadErrorBody: "You can also explore the public records list.",
     mapLoadRetryLabel: "Reload",
+    mapLoadRecordsLabel: "Browse public records",
     locateLabel: "My location",
     locateError: "Could not get your location. Allow location in your browser.",
     timelineAriaLabel: "Year timeline",
@@ -749,9 +752,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     osmAreaSourceLabel: "Parque / zona verde (OSM live)",
     areaLoading: "Cargando información del área…",
     unregisteredAreaText: "Esta área aún no está registrada en la base de campos de ZUKAN. Por ahora queda como pista del mapa-guía.",
-    mapLoadErrorTitle: "No se pudo cargar la biblioteca del mapa",
-    mapLoadErrorBody: "Revisa la conexión y vuelve a abrir el mapa.",
+    mapLoadErrorTitle: "No se pudo mostrar el mapa",
+    mapLoadErrorBody: "También puedes explorar la lista de registros públicos.",
     mapLoadRetryLabel: "Recargar",
+    mapLoadRecordsLabel: "Ver registros públicos",
     locateLabel: "Mi ubicación",
     locateError: "No pude obtener tu ubicación. Permite la geolocalización en el navegador.",
     timelineAriaLabel: "Línea de tiempo por año",
@@ -932,9 +936,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     osmAreaSourceLabel: "Parque / área verde (OSM live)",
     areaLoading: "Carregando informações da área…",
     unregisteredAreaText: "Esta área ainda não está registrada no banco de campos do ZUKAN. Por enquanto, fica como pista do mapa guia.",
-    mapLoadErrorTitle: "Não foi possível carregar a biblioteca do mapa",
-    mapLoadErrorBody: "Verifique a conexão e abra o mapa novamente.",
+    mapLoadErrorTitle: "Não foi possível exibir o mapa",
+    mapLoadErrorBody: "Você também pode explorar a lista de registros públicos.",
     mapLoadRetryLabel: "Recarregar",
+    mapLoadRecordsLabel: "Ver registros públicos",
     locateLabel: "Minha localização",
     locateError: "Não foi possível obter sua localização. Permita a geolocalização no navegador.",
     timelineAriaLabel: "Linha do tempo por ano",
@@ -1993,6 +1998,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     mapLoadErrorTitle: copy.mapLoadErrorTitle,
     mapLoadErrorBody: copy.mapLoadErrorBody,
     mapLoadRetryLabel: copy.mapLoadRetryLabel,
+    mapLoadRecordsLabel: copy.mapLoadRecordsLabel,
     locateError: copy.locateError,
     yearAll: copy.yearAll,
     seasonAll: copy.seasonAll,
@@ -9541,8 +9547,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!root || root.querySelector('[data-map-load-error="1"]')) return;
     var box = document.createElement('div');
     box.setAttribute('data-map-load-error', '1');
+    box.setAttribute('role', 'region');
+    box.setAttribute('aria-label', COPY.mapLoadErrorTitle);
     box.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#ecfeff,#eff6ff);color:#0f172a;font:500 14px/1.5 system-ui,sans-serif;text-align:center;z-index:4;';
-    box.innerHTML = '<div><div style="font-size:15px;margin-bottom:6px;">' + escapeHtml(COPY.mapLoadErrorTitle) + '</div><div style="opacity:.75;margin-bottom:12px;">' + escapeHtml(COPY.mapLoadErrorBody) + '</div><button type="button" style="padding:8px 14px;border-radius:9999px;border:1px solid rgba(15,23,42,.18);background:#fff;cursor:pointer;font:600 13px/1 system-ui,sans-serif;">' + escapeHtml(COPY.mapLoadRetryLabel) + '</button></div>';
+    box.innerHTML = '<div><div style="font-size:15px;margin-bottom:6px;">' + escapeHtml(COPY.mapLoadErrorTitle) + '</div><div style="opacity:.75;margin-bottom:12px;">' + escapeHtml(COPY.mapLoadErrorBody) + '</div><button type="button" style="padding:8px 14px;border-radius:9999px;border:1px solid rgba(15,23,42,.18);background:#fff;cursor:pointer;font:600 13px/1 system-ui,sans-serif;">' + escapeHtml(COPY.mapLoadRetryLabel) + '</button><a href="' + escapeHtml(COMMUNITY_RECORDS_HREF) + '" data-map-public-records-link style="display:inline-flex;align-items:center;min-height:44px;margin-left:12px;text-underline-offset:3px;">' + escapeHtml(COPY.mapLoadRecordsLabel) + '</a></div>';
     var btn = box.querySelector('button');
     if (btn) btn.addEventListener('click', function () { window.location.reload(); });
     root.appendChild(box);

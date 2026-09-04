@@ -3,7 +3,7 @@
 - Status: active plan
 - Contract: `SPEC.md`
 - Broad profile projection: `PROFILE_HORIZON.md`
-- Paired execution-roadmap change: `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md` r2 in strategy Draft PR `#116`; merged r1 remains canonical until `#116` is adopted
+- Execution-roadmap authority: `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md`; r2 was adopted through strategy PR `#116`. The scoped-dependency correction below supersedes the former global landing interpretation for this owner-authorized review and is reflected in the same upstream roadmap.
 - Prior broad-scope provenance: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
 - Current frontier / status projection: `platform_v2/product-registry/delivery.json` and the shared Resolver. This document does not repeat status.
 
@@ -68,7 +68,9 @@ Core Loop requirements have been contracted and tested at staging and still fail
 
 ## Current execution frontier
 
-One slice, stated so an executor can start without further product judgement. Everything else waits.
+These are stable acceptance slices, not a second current-work selector. Fresh-read the management queue and shared Resolver to determine what is done, blocked or executable.
+
+**Scoped landing rule (2026-09-05):** retain one repository writer and finish existing work before duplicating the same outcome. Park only an unmet dependency or protected mutation. Independent adopted source/tests work may continue through the existing management queue. Preserve the original blocked/failed Work, source, failure fingerprint and invalidation binding; never rename, replay, retarget or widen an allowlist to evade it. Integrated acceptance still waits for the exact upstream outcome. A commercial choice or separate publication approval does not block unrelated development.
 
 ### Frontier 1 — Deliver the capture-to-feedback loop to production
 
@@ -80,11 +82,11 @@ One slice, stated so an executor can start without further product judgement. Ev
 
 ### Frontier 2 — Area Encyclopedia shared renderer P0
 
-Queued behind Frontier 1 in the same lane. Its contract is already adopted and complete; it lacked only a Product Registry task, which this change adds. It must not start while Frontier 1 is source-verified and undelivered.
+Reuse the existing Area source/staging candidate and original acceptance Work. Integrated zero/one-record acceptance uses the capture outcome; that dependency does not prohibit independent source work. A failed execution attempt is not a failed product design and its terminal state is not Area acceptance. Preserve the existing no-replay binding until its canonical invalidation condition is met; do not create a third acceptance Work or impersonate an owner.
 
 ### Frontier 3 — Publication return and syndication hardening
 
-Queued behind Frontier 2 in the same lane. Reuse the existing PostgreSQL/D1 publication feeds and rights services. Add the purpose/version/term-bound syndication consent path, fail-closed minor/guardian resolution, owner-visible eligibility or exclusion reason, contributor-visible publication destination, correction/withdrawal propagation, and the explicit read-only production-feed environment label for staging consumers. Do not add a new feed, per-region adapter, analytics system or publication database.
+Source implementation and deterministic rights/Review tests depend on the existing Record and rights contracts, not on a real Area publication. Final end-to-end publication return depends on actual Area acceptance and an explicitly eligible Record. Continue the original Frontier 3 Work at source scope when admitted by the management queue; retain those final acceptance dependencies. Reuse the existing PostgreSQL/D1 publication feeds and rights services. Add the purpose/version/term-bound syndication consent path, fail-closed minor/guardian resolution, owner-visible eligibility or exclusion reason, contributor-visible publication destination, correction/withdrawal propagation, and the explicit read-only production-feed environment label for staging consumers. Do not add a new feed, per-region adapter, analytics system or publication database.
 
 ### Then
 
@@ -98,13 +100,13 @@ Self-serve foundation lane: M8-A. Roadmap frontier lane: M7.3 source-only, then 
 4. the Record reaches an external regional consumer feed with recency order, visible eligibility state, and the contributor can see where it was published;
 5. the contributor returns and records at the same Place again.
 
-Step 1 holds on production Evidence before Frontier 2 starts. Step 2 holds after Frontier 2 and before Frontier 3 starts. Later steps become the acceptance sequence for Frontier 3 and the first repeat-use measurement; none is a precondition for implementing the stage that makes it possible.
+Steps 1–5 define the integrated user acceptance sequence. Each stage needs its actual upstream data/rights evidence when exercised; the sequence does not force independent source implementation to wait for a different stage's release or account access. Do not mark the sequence complete from isolated tests or a historical canary.
 
 ## M7 — Program Continuity & Handover
 
 Purpose: make Programs durable across school years, fiscal periods, organizers and responsible-person changes.
 
-Status is owned by `delivery.json`. Slice provenance: M7.0 planner, M7.1 persistence and M7.2 outgoing offer are source-verified; M7.3 incoming acceptance is promoted by `M7_3_PROMOTION_2026-09-02.md`; M7.4 needs the runtime-mutation promotion because it is the first slice that mutates Program responsibility; M7.5 is the production boundary. Calendar gate: M7.4 staging `LIVE_VERIFIED` by 2027-01, M7.5 delivered by 2027-02.
+Resolved status is owned by the shared Resolver and management evidence; `delivery.json` carries static navigation only. Slice provenance: M7.0 planner, M7.1 persistence and M7.2 outgoing offer are source-verified; M7.3 incoming acceptance is promoted by `M7_3_PROMOTION_2026-09-02.md`; M7.4 needs the runtime-mutation promotion because it is the first slice that mutates Program responsibility; M7.5 is the production boundary. Calendar gate: M7.4 staging `LIVE_VERIFIED` by 2027-01, M7.5 delivered by 2027-02.
 
 Scope boundary: M7 transfers a Program to a *different* responsible actor. The same organizer repeating next period is already covered by the implemented `quality.zukan.program.closeout-rehost` contract, which reuses only the plan settings and carries no participant, consent, Review or publication state forward. Verify and surface repeat-via-rehost rather than rebuilding repeat inside M7.
 
@@ -206,15 +208,39 @@ The plan recommends A, but choosing a partner, making an offer, contracting, inv
 
 ## Verification
 
-Product Registry changes must continue to pass:
+Apply the management change-proportional verification policy. Registry/dependency changes run `test:product-registry` plus the broad-roadmap test (not included in that npm script); changed renderer/state behavior runs its focused tests. Full app tests/typecheck/build are required only by the changed dependency graph or registered release contract. Test files are verification contracts, not proof that a runtime has passed them.
 
 ```bash
-npm --prefix platform_v2 run typecheck
-npm --prefix platform_v2 run test:node
 npm --prefix platform_v2 run test:product-registry
+cd platform_v2 && npx tsx --test src/productRegistryBroadRoadmap.test.ts
 ```
 
 Roadmap validation additionally asserts: the current strategy authority points to execution roadmap v3; stable M1-M12 ordering; M5 deferred; the M7/M8/M9 frontier explicit until product promotion changes it; the executor-slot lane priority recorded and not executor-autonomous; Core Loop requirements carrying a production obligation; the M9 default profile order; the M10 Publication order and people-profile safety; M11 NOCOSIL and source authority boundaries; M12 demand-gated with billing-first forbidden; no executor Task for M9-M12 before frontier promotion; and KPI names as measurable baselines rather than invented target promises.
+
+## User outcome acceptance
+
+Use the existing Requirements/Journeys; do not build another checklist engine. For every claimed outcome record adopted contract, source, executed checks, staging and current production separately. `UNKNOWN` remains valid when an authenticated or provider boundary was not exercised.
+
+| User action | Smallest meaningful completion | Existing owner / dependency |
+|---|---|---|
+| First visit → find a record → understand it | Guest Home links to real public records; a missing featured selection never claims no public records exist; detail shows source/time or explicit unknown and candidate/human state | public-discovery Journey; records.public-discovery |
+| Field capture → interruption → return | Same draft, original media and save intent survive reload/network failure; retry yields one logical Record and reports partial failure | capture-to-personal-return; draft-recovery/idempotent-save; existing recovery E2E |
+| AI candidate → human confirmation | Candidate, unresolved label and human confirmation stay distinct; AI rerun never overwrites accepted human evidence | claim-separation/review.provenance/ai-candidate-not-fact |
+| Source → correction → later edition | Original Record remains traceable; revision/withdrawal is visible; external correction is proven at the consumer, not inferred from a successful write | source-reference-integrity/edition-integrity/correction-takedown; Frontier 3 terminal |
+| Choose an audience | Private default, purpose-bound consent and permitted location/media precision hold in HTML/API/map/feed/cache; an unknown permission remains ineligible | existing Rights/Review/public-projection contracts |
+| Place → record → revisit | The first eligible Record visibly changes its Place; nearby records never inflate that Place's membership or feed | original Area/Ryuyo acceptance; no substitute Work |
+| Join → contribute → receive a result | A real organizer can invite, accept, Review, close and rehost using existing Program Core; contributor can see result or explicit pending state | M6 and Review return; no future-profile UI promises |
+| Phone or unavailable map → continue | Keyboard/focus/touch/overflow and readable loading/empty/denied/error states work on the changed route; unavailable WebGL still offers public records | existing map and landing tests/E2E; no full-site visual gate for a local change |
+
+## Bounded review disposition and next implementation
+
+- The anonymous Home featured slot retains its existing stricter eligibility. Link to the governed public list instead of creating another feed or promoting blurred/private records into the hero.
+- Map failure uses the existing records route. Unknown taxon placeholders remain unresolved in public read models. These corrections are independent of Area acceptance and do not publish data.
+- The original capture/Area/Publication task IDs stay stable. Current completion, PR heads, failed attempts and live runtime belong in management, not in a hard-coded `current_executor_task_id`.
+- Reuse Area PR source and valid staging evidence. Existing M6 activation, capture race/idempotency, mobile, media privacy and closed-loop drafts require current-main delta review before adoption; old source success is not runtime success. Do not bulk-merge stale drafts.
+- Next useful source Work is the existing Frontier 3: contributor-visible Review and publication eligibility/exclusion using existing rights primitives. Its source/tests can proceed independently; actual consumer publication and withdrawal proof retain Area/rights/provider dependencies.
+- Place-search availability and public-detail source/rights/revision presentation remain targeted Core Loop defects when reproduced. Diagnose the existing D1/source path; do not hide search failure as zero results or introduce a parallel index.
+- Assess Luna from recent exact-source results and review findings. Provide one user action per Source/Delta/Done task, bounded paths and negative acceptance. Noah owns product meaning/priority/integration; review scales with privacy/state risk. An unavailable executor is a routing fact, not evidence of model inability.
 
 ## Production boundary
 

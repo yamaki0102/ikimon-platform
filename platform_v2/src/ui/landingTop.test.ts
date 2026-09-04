@@ -74,7 +74,7 @@ test("guest Top stays useful without public data and never invents record cards"
   assert.match(html, /map\?tab=places/);
   assert.match(html, /home-guest-hero-visual/);
   assert.match(html, /home-guest-proof is-count-0 is-empty/);
-  assert.match(html, /<strong>公開できる記録は、まだありません。<\/strong>/);
+  assert.match(html, /<strong>ホームで紹介する記録は準備中です。<\/strong>/);
   assert.match(html, /home-empty-proof-flow/);
   assert.match(html, /home-empty-proof-symbol/);
   assert.match(html, /home-place-visual is-placeholder/);
@@ -88,7 +88,7 @@ test("guest empty visual is explicitly non-record content and keeps its copy rea
   const html = render("ja", snapshot());
   assert.match(html, /<div class="home-guest-proof is-count-0 is-empty"[^>]*data-home-empty-proof="true"/);
   assert.match(html, /home-empty-proof-flow/);
-  assert.match(html, /公開できる記録は、まだありません。/);
+  assert.match(html, /ホームで紹介する記録は準備中です。/);
   assert.match(html, /撮る/);
   assert.match(html, /場所に残る/);
   assert.match(html, /記録として戻る/);
@@ -488,4 +488,14 @@ test("member Home never borrows media from a different same-named Place", () => 
   const placeCard = html.match(/<a class="home-place-change-card"[^>]*data-home-place-change="place-target"[\s\S]*?<\/a>/)?.[0] ?? "";
   assert.match(placeCard, /data-home-place-change="place-target"/);
   assert.doesNotMatch(placeCard, /\/media\/same-name-other\.jpg|data-home-record-id="same-name-other"/);
+});
+
+
+test("guest discovery keeps public records reachable without promoting ineligible hero media", () => {
+  for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+    const html = render(lang, snapshot({ feed: [observation("withheld", { publicFeedEligible: false })] }));
+    const segment = lang === "pt-BR" ? "pt-br" : lang;
+    assert.ok(html.includes(`href="/${segment}/records?view=public" data-home-public-records-link`));
+    assert.doesNotMatch(html, /data-home-public-record="withheld"|No public records yet|公開できる記録は、まだありません/);
+  }
 });

@@ -8968,6 +8968,26 @@ test("privacy exact-coordinate gate keeps public map responses on public cells o
   assertPublicMapGate(coveragePayload);
 });
 
+test("public map keeps persisted unknown labels unconfirmed without exposing coordinates", async () => {
+  for (const label of ["名前待ち", " 同定待ち ", "unidentified", "Unknown", "", "カワセミ"]) {
+    const { env, obs } = createEnv();
+    obs.publicMapSnapshotRecords.push({
+      visit_id: "pending-japanese", cell_1000: "35.01,138.39",
+      observed_at: "2026-09-04T00:00:00.000Z", display_name: label, asset_count: 0,
+    });
+    const response = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A35.01%2C138.39"), env);
+    assert.equal(response.status, 200);
+    const payload = await response.json() as any;
+    assert.equal(payload.items.length, 1);
+    assert.equal(payload.items[0].displayName, label === "カワセミ" ? label : "名前待ち");
+    assert.equal(payload.items[0].isAwaitingId, label !== "カワセミ");
+    assert.equal(payload.items[0].isAiCandidate, false, "no AI evidence is invented");
+    assert.equal("latitude" in payload.items[0], false);
+    assert.equal("longitude" in payload.items[0], false);
+    assert.equal(payload.items[0].privacy.exactLocationExposed, false);
+  }
+});
+
 test("public map routes prefer D1 snapshot records when present", async () => {
   const { env, obs } = createEnv();
   obs.readmodel.set("legacy-readmodel-row", {

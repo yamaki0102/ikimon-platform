@@ -56,7 +56,7 @@
     "product_plan_locator": "docs/spec/zukan-product-architecture/PLAN.md",
     "rules": [
       "delivered_means_running_in_production_and_observed_working",
-      "no_new_slice_while_a_source_verified_slice_is_undelivered",
+      "scoped_blockers_preserve_identity_and_allow_independent_adopted_source_work",
       "every_core_loop_stage_returns_something_visible_to_the_contributor",
       "core_loop_defects_preempt_frontier_work",
       "executor_slot_filled_by_lane_priority_not_milestone_number",

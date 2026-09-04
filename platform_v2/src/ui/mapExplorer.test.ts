@@ -10,6 +10,53 @@ test("map explorer boot script is syntactically valid JavaScript", () => {
   assert.doesNotThrow(() => new vm.Script(script));
 });
 
+test("map initialization failure offers a usable public-record fallback", () => {
+  for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+    const script = mapExplorerBootScript({ basePath: "", lang });
+    const between = (start: string, end: string) => {
+      const from = script.indexOf(start);
+      const to = script.indexOf(end, from);
+      assert.ok(from >= 0 && to > from);
+      return script.slice(from, to);
+    };
+    const declaration = (name: string) => {
+      const line = script.split("\n").find((line) => line.trim().startsWith(`var ${name} = `));
+      assert.ok(line);
+      return line;
+    };
+    const children: any[] = [];
+    let retry: (() => void) | undefined;
+    let reloads = 0;
+    const root = { querySelector: () => children[0] ?? null, appendChild: (node: any) => children.push(node) };
+    const document = { createElement: () => ({
+      innerHTML: "", style: {}, attributes: {} as Record<string, string>,
+      setAttribute(name: string, value: string) { this.attributes[name] = value; },
+      querySelector: () => ({ addEventListener: (_event: string, listener: () => void) => { retry = listener; } }),
+    }) };
+    const context = vm.createContext({
+      root, document, state: { basemap: "standard" }, BASEMAPS: { standard: {} },
+      DEFAULT_MAP_CENTER: [137, 35], DEFAULT_MAP_ZOOM: 8,
+      initialStartupViewport: () => ({ center: [137, 35], zoom: 8 }), setStatus: () => {}, console: { error: () => {} },
+      window: { maplibregl: { Map: class { constructor() { throw new Error("WebGL unavailable"); } } }, location: { reload: () => { reloads += 1; } } },
+    });
+    new vm.Script([
+      declaration("COPY"), declaration("COMMUNITY_RECORDS_HREF"),
+      between("function escapeHtml(s)", "function escapeAttr(s)"),
+      between("function hydrate()", "function showMapLoadFailure()"),
+      between("function showMapLoadFailure()", "function loadMaplibreScript("),
+      "hydrate(); showMapLoadFailure();",
+    ].join("\n")).runInContext(context);
+    assert.equal(children.length, 1, "error panel must not duplicate");
+    assert.equal(children[0].attributes.role, "region");
+    assert.ok(children[0].attributes["aria-label"]);
+    const segment = lang === "pt-BR" ? "pt-br" : lang;
+    assert.ok(children[0].innerHTML.includes(`href="/${segment}/records?view=public"`));
+    assert.match(children[0].innerHTML, /data-map-public-records-link/);
+    assert.equal(reloads, 0, "failure must not reload automatically");
+    assert.ok(retry); retry(); assert.equal(reloads, 1);
+  }
+});
+
 test("map explorer desktop chrome hides legacy mobile menu affordances", () => {
   const styles = MAP_EXPLORER_STYLES;
 
@@ -111,14 +158,14 @@ test("map explorer localizes English fallback and failure chrome", () => {
 
   assert.match(html, /aria-label="Expand details"/);
   assert.match(html, /aria-label="Explore places on the map"/);
-  assert.match(script, /Could not load the map library/);
+  assert.match(script, /Could not display the map/);
   assert.match(script, /Map-selected point/);
   assert.match(script, /OSM park or green space/);
   assert.match(script, /A place the map alone cannot explain/);
   assert.match(script, /Needs name/);
   assert.match(script, /AI candidate/);
   assert.match(script, /SEARCH_LANG === 'ja' \? 'ja' : 'en'/);
-  assert.doesNotMatch(script, /地図ライブラリを読み込めませんでした/);
+  assert.doesNotMatch(script, /地図を表示できませんでした/);
   assert.doesNotMatch(script, /地図で選んだ地点/);
   assert.doesNotMatch(script, /OSMの公園・緑地/);
   assert.doesNotMatch(script, /エリア情報を読み込み中/);

@@ -9,6 +9,7 @@ export type LandingStrings = {
       categoriesTitle: string;
       proofEmpty: string;
       proofEmptyNote: string;
+      publicRecordsCta: string;
       inviteNote: string;
       recordStatusConfirmed: string;
       recordStatusPending: string;

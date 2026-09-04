@@ -11,7 +11,8 @@
       "learning.json",
       "derived status",
       "next-slice selector"
-    ]
+    ],
+    "current_assignment": "yamaki0102/all-projects-management:operations/ai_os/noah_current_work_queue.v1.json"
   },
   "execution_roadmap": {
     "strategy_locator": "yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md",
@@ -52,16 +53,18 @@
       "DEMAND_LEARNING"
     ],
     "delivered_definition": "running in production and observed working there, with read-back evidence bound to the exact source SHA; source-verified, staging-verified, merged and deployed are progress states, not delivery",
-    "landing_rule": "a lane may not start a new implementation slice while it holds a source-verified but undelivered slice; deliver, revert or close the older slice instead of opening a replacement fix for the same defect",
+    "landing_rule": "Preserve the original blocked/failed Work and do not duplicate its outcome. Park only its protected mutation or unmet dependency; continue independent adopted source/tests work through the management queue with one repository writer. Never rename, replay, retarget or widen an allowlist to evade an unchanged failure. Integrated acceptance retains actual upstream outcomes.",
     "core_loop_returns_something_to_contributor": true,
-    "current_executor_task_id": "task.zukan.core-loop.capture-feedback-delivered",
-    "core_loop_requirements_verified_in_production": [
+    "current_work_locator": "yamaki0102/all-projects-management:operations/ai_os/noah_current_work_queue.v1.json",
+    "core_loop_requirements_requiring_operation_evidence": [
       "quality.zukan.capture.truthful-status",
       "quality.zukan.capture.ai-candidate",
       "quality.zukan.capture.idempotent-save",
       "quality.zukan.capture.draft-recovery",
       "quality.zukan.place.record-accumulation-visible",
-      "quality.zukan.review.contributor-return"
+      "quality.zukan.review.contributor-return",
+      "quality.zukan.records.public-discovery",
+      "quality.zukan.map.safe-discovery"
     ]
   },
   "planning_metrics": {
@@ -1154,9 +1157,9 @@
     {
       "id": "task.zukan.core-loop.capture-feedback-delivered",
       "milestone_id": "milestone.m1.personal-record-media-integrity",
-      "state": "planned",
-      "readiness": "executor-ready",
-      "implementation_allowed": true,
+      "state": "implemented",
+      "readiness": "resolve-existing-evidence",
+      "implementation_allowed": false,
       "implementation_scope": "source and pre-production verification only until the existing production approval boundary is separately satisfied",
       "production_mutation_allowed": false,
       "lane": "CORE_LOOP",
@@ -1182,8 +1185,8 @@
         "prop.review.ai-never-becomes-human"
       ],
       "source_delta_done": {
-        "source": "current main plus candidate PR 1649; reconcile overlapping enqueue/idempotency work in PRs 1302 and 1578 rather than re-implementing it; evaluate PR 1441 separately as historical backlog reprocessing",
-        "delta": "land the capture-to-AI-feedback path so a real contributor sees candidate feedback in the same session in production; bind the four requirements to the operation environment; run the existing feedback-loop journey against production with a disposable fixture account",
+        "source": "current main and original capture closure evidence in the management queue; reuse previous exact-source checks whose bindings remain valid",
+        "delta": "verify an evidenced new regression only; do not reissue a terminal capture Work or equate historical closure with current runtime proof",
         "done": "a production post shows queued to processing to completed or failed within the session; the four requirements are green in the operation environment with exact-SHA read-back evidence; ai_feedback_delivery_delay and first_record_completion have a first baseline; PRs 1302 and 1578 are delivered or explicitly superseded and PR 1441 has a separate written disposition"
       }
     },
@@ -1191,7 +1194,7 @@
       "id": "task.zukan.core-loop.area-encyclopedia-shared-renderer",
       "milestone_id": "milestone.m4.regional-publication-portability",
       "state": "planned",
-      "readiness": "queued-behind-frontier-1",
+      "readiness": "original-acceptance-work-only",
       "implementation_allowed": false,
       "production_mutation_allowed": false,
       "lane": "CORE_LOOP",
@@ -1205,7 +1208,8 @@
         "docs/design/area_encyclopedia_growth_and_stewardship_contract_2026-09-02.md",
         "docs/implementation/zukan_ryuyo_core_nearby_context_contract_2026-09-02.md",
         "platform_v2/src/routes/observationEventPages.ts",
-        "platform_v2/src/services/areaPlaceSnapshot.ts"
+        "platform_v2/src/services/areaPlaceSnapshot.ts",
+        "platform_v2/cloudflare_shadow/src/index.ts"
       ],
       "negative_eval_ids": [
         "prop.place.first-record-changes-page",
@@ -1216,14 +1220,15 @@
         "source": "the three adopted Area and Ryuyo contracts plus the current field-detail runtime path",
         "delta": "one shared renderer with growth states, no-value suppression, nearby Place fallback and the Ryuyo core/nearby classification; no Place-specific fork and no new map pipeline",
         "done": "shared fixtures and Ryuyo non-contamination tests pass; staging LIVE_VERIFIED for the shared states and Ryuyo sections; then delivered to production under the existing approval boundary"
-      }
+      },
+      "implementation_scope": "preserve original Area candidate and failed Work binding; no replacement acceptance Work, retarget, replay or allowlist widening"
     },
     {
       "id": "task.zukan.core-loop.publication-return-syndication-hardening",
       "milestone_id": "milestone.m4.regional-publication-portability",
       "state": "planned",
-      "readiness": "queued-behind-frontier-2",
-      "implementation_allowed": false,
+      "readiness": "adopted-source-only",
+      "implementation_allowed": true,
       "production_mutation_allowed": false,
       "lane": "CORE_LOOP",
       "slice": "Frontier 3 - publication return, syndication consent and consumer correction/withdrawal",
@@ -1251,7 +1256,19 @@
       "source_delta_done": {
         "source": "the existing PostgreSQL/D1 publication feeds, observation rights services, Record detail surface and the adopted Program-scope plus owner-detail consent decision",
         "delta": "add purpose/version/term-bound syndication consent; fail closed on unresolved or withdrawn minor/guardian authority; return Review decision, publication destination and eligibility/exclusion state to the contributor; propagate correction/withdrawal; label the read-only production public feed consumed by staging sites",
-        "done": "one rights-eligible production Record reaches the read-only regional consumer and tells its contributor where it was published; minor/guardian ambiguity remains ineligible; correction or withdrawal disappears from consumers; all production mutation remains behind the existing separate approval boundary"
+        "done": "Source stage: owner-only Review/eligibility/exclusion projection and negative rights/withdrawal tests pass without changing publication eligibility. Integrated stage: one rights-eligible production Record reaches the read-only regional consumer and tells its contributor where it was published; minor/guardian ambiguity remains ineligible; correction or withdrawal disappears from consumers; all production mutation remains behind the existing separate approval boundary"
+      },
+      "implementation_scope": "source and deterministic tests through the original management Work; source implementation is independent of Area acceptance; runtime/publication remains separately bound",
+      "stage_dependencies": {
+        "source": [
+          "existing Record/Review/rights primitives",
+          "current management admission and one writer"
+        ],
+        "integrated_acceptance": [
+          "actual Area zero/one-record acceptance",
+          "rights-eligible Record and current consent/guardian authority",
+          "registered staging/production authority and consumer read-back"
+        ]
       }
     }
   ],
@@ -1279,7 +1296,9 @@
       "1 task = 1 coherent slice",
       "reuse verified work",
       "do not retry unchanged deterministic failure",
-      "blocked/stale/unknown/conflicted/unresolved decision produces no task"
+      "blocked/stale/unknown/conflicted/unresolved decision produces no task",
+      "static task readiness never overrides the current management Work state or unchanged failure binding",
+      "source/tested/staging/operation are distinct; only the shared Resolver promotes Evidence"
     ]
   }
 }
