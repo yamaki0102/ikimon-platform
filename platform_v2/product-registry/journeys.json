@@ -73,6 +73,10 @@
         {
           "surface": "zukan.record.detail",
           "action": "保存された記録、AI候補と処理状態（queued/processing/completed|failed）、次の行動を同一セッションで確認"
+        },
+        {
+          "surface": "zukan.record.detail",
+          "action": "後日同じRecord詳細へ戻り、未Reviewまたは人のReview決定と理由をAI候補と分けて確認する"
         }
       ],
       "requirement_refs": [
@@ -89,7 +93,8 @@
         "quality.zukan.trust.private-default",
         "quality.zukan.record.source-reference-integrity",
         "quality.zukan.record.claim-separation",
-        "quality.zukan.rights.exif-minimization"
+        "quality.zukan.rights.exif-minimization",
+        "quality.zukan.review.contributor-return"
       ],
       "required_outcomes": [
         "通信断/拒否/AI失敗でも記録を失わない",
@@ -426,7 +431,7 @@
     },
     {
       "id": "journey.zukan.public-discovery",
-      "title": "閲覧者: records/map→公開記録理解",
+      "title": "閲覧者: Home→記録・場所探索→公開記録の根拠を理解",
       "actor": "public",
       "golden": true,
       "outcome_refs": [
@@ -434,20 +439,25 @@
         "outcome.zukan.regional-portability"
       ],
       "capability_refs": [
+        "zukan.home.view-public",
         "zukan.records.browse-public",
-        "zukan.map.explore-public"
+        "zukan.record.view-detail"
       ],
-      "goal": "公開が許可された地域記録だけを安全な精度と確認状態で探索する",
-      "start_surface": "zukan.records.public",
-      "success_surface": "zukan.map.public",
+      "goal": "公開Homeから記録や場所を探し、記録詳細で出典・時点・安全な位置精度・AI候補と人の確認状態を理解する",
+      "start_surface": "zukan.home.public",
+      "success_surface": "zukan.record.detail",
       "steps": [
+        {
+          "surface": "zukan.home.public",
+          "action": "価値と公開記録への入口を確認する"
+        },
         {
           "surface": "zukan.records.public",
           "action": "公開記録を探す"
         },
         {
-          "surface": "zukan.map.public",
-          "action": "場所の文脈で見る"
+          "surface": "zukan.record.detail",
+          "action": "出典・記録時点・公開された位置精度を確認し、AI候補と人の確認または未確認を区別する"
         }
       ],
       "requirement_refs": [
@@ -456,12 +466,16 @@
         "quality.zukan.trust.location-minimization",
         "quality.zukan.trust.ai-candidate-not-fact",
         "quality.zukan.trust.public-projection",
-        "quality.zukan.publication.edition-integrity"
+        "quality.zukan.publication.edition-integrity",
+        "quality.zukan.record.source-reference-integrity",
+        "quality.zukan.record.claim-separation",
+        "quality.zukan.review.provenance"
       ],
       "required_outcomes": [
         "private dataを見せない",
         "0件と障害を区別",
-        "候補/確認済みを誤認させない"
+        "候補/確認済みを誤認させない",
+        "記録詳細で出典・時点と確認状態が分かり、不明な項目は不明と表示される"
       ],
       "recovery": [
         "map unavailable時はrecordsへ戻れる"

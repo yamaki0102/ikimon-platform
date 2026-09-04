@@ -1523,7 +1523,7 @@
     },
     {
       "id": "quality.zukan.review.contributor-return",
-      "quality_contract": "quality.zukan.home-member",
+      "quality_contract": "quality.zukan.record-detail",
       "title": "人によるReview結果を投稿者へ返す",
       "acceptance": "自分のRecordに対する人のReview決定（承認/要修正/却下と理由）を投稿者本人が確認できる。未Reviewとreview済みを混同せず、AI候補をReview結果として表示しない",
       "environments": [

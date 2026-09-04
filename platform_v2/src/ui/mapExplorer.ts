@@ -131,6 +131,8 @@ export type MapExplorerCopy = {
   searchAriaLabel: string;
   searchNoResult: string;
   searchError: string;
+  searchPartial: string;
+  searchRetry: string;
   searchResultSpecies: string;
   searchResultPlace: string;
   unknownHypothesisLabel: string;
@@ -338,7 +340,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     searchPlaceholder: "場所や生きものを探す（例: 静岡市 谷津山、モンシロチョウ）",
     searchAriaLabel: "場所または種を検索",
     searchNoResult: "見つからなかった。もう一語ゆるめてみる。",
-    searchError: "検索に失敗した。しばらく待ってから試す。",
+    searchError: "検索結果を取得できませんでした。時間をおいて再検索してください。",
+    searchPartial: "一部の検索結果を取得できませんでした。取得できた結果を表示しています。",
+    searchRetry: "再検索",
     searchResultSpecies: "種",
     searchResultPlace: "場所",
     unknownHypothesisLabel: "地図の手がかり",
@@ -523,6 +527,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     searchAriaLabel: "Search place or species",
     searchNoResult: "No match. Try a looser term.",
     searchError: "Search failed. Wait a moment and retry.",
+    searchPartial: "Some search results are unavailable. Available results are still shown.",
+    searchRetry: "Search again",
     searchResultSpecies: "Species",
     searchResultPlace: "Place",
     unknownHypothesisLabel: "A place the map alone cannot explain",
@@ -707,6 +713,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     searchAriaLabel: "Buscar lugar o especie",
     searchNoResult: "Sin resultados. Prueba con menos palabras.",
     searchError: "Fallo al buscar. Espera y reintenta.",
+    searchPartial: "Algunos resultados no están disponibles. Se muestran los resultados disponibles.",
+    searchRetry: "Buscar de nuevo",
     searchResultSpecies: "Especie",
     searchResultPlace: "Lugar",
     unknownHypothesisLabel: "Un lugar que el mapa solo no puede explicar",
@@ -891,6 +899,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     searchAriaLabel: "Buscar local ou espécie",
     searchNoResult: "Sem resultados. Tente um termo mais amplo.",
     searchError: "Falha na busca. Aguarde e tente novamente.",
+    searchPartial: "Alguns resultados estão indisponíveis. Os resultados disponíveis são exibidos.",
+    searchRetry: "Buscar novamente",
     searchResultSpecies: "Espécie",
     searchResultPlace: "Lugar",
     unknownHypothesisLabel: "Um lugar que o mapa sozinho não explica",
@@ -1950,6 +1960,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     loopHookLocalPrefix: props.lang === "ja" ? "次は " : props.lang === "es" ? "Lo siguiente: " : props.lang === "pt-BR" ? "Próximo: " : "Next: ",
     searchNoResult: copy.searchNoResult,
     searchError: copy.searchError,
+    searchPartial: copy.searchPartial,
+    searchRetry: copy.searchRetry,
     searchResultSpecies: copy.searchResultSpecies,
     searchResultPlace: copy.searchResultPlace,
     unknownHypothesisLabel: copy.unknownHypothesisLabel,
@@ -10156,10 +10168,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function canonicalPlaceRows(payload) {
     var results = payload && Array.isArray(payload.results) ? payload.results : [];
     return results.map(function (place) {
+      if (!place || typeof place !== 'object') return null;
       var bbox = place && place.boundary && Array.isArray(place.boundary.bbox)
         ? place.boundary.bbox.map(Number)
         : null;
-      var validBbox = bbox && bbox.length === 4 && bbox.every(isFinite);
+      var validBbox = bbox && bbox.length === 4 && bbox.every(isFinite)
+        && place.boundary.bbox.every(function (value) { return value !== null && String(value).trim() !== ''; })
+        && bbox[0] >= -180 && bbox[2] <= 180 && bbox[0] <= bbox[2]
+        && bbox[1] >= -90 && bbox[3] <= 90 && bbox[1] <= bbox[3];
       var sourceId = String(place && place.osmSourceId || '');
       var osmMatch = /^(node|way|relation)[:/]([0-9]+)$/.exec(sourceId);
       return {
@@ -10176,7 +10192,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         osm_id: osmMatch ? osmMatch[2] : '',
       };
     }).filter(function (row) {
-      return row.display_name && isFinite(Number(row.lat)) && isFinite(Number(row.lon));
+      return row && row.display_name && row.boundingbox && isFinite(Number(row.lat)) && isFinite(Number(row.lon));
     });
   }
 
@@ -10197,6 +10213,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       out.push(row);
     });
     return out.slice(0, 8);
+  }
+
+  function renderSearchUnavailable(rows) {
+    if (rows.length) renderSearchRows(rows);
+    else searchResultsEl.innerHTML = '';
+    var notice = document.createElement('div');
+    notice.className = 'me-search-empty me-search-recovery';
+    notice.setAttribute('role', 'status');
+    notice.innerHTML = '<p>' + escapeHtml(rows.length ? COPY.searchPartial : COPY.searchError) + '</p>' +
+      '<button type="button" data-search-retry>' + escapeHtml(COPY.searchRetry) + '</button> ' +
+      '<a href="' + escapeHtml(COMMUNITY_RECORDS_HREF) + '">' + escapeHtml(COPY.mapLoadRecordsLabel) + '</a>';
+    notice.querySelector('[data-search-retry]').addEventListener('click', function () {
+      runUnifiedSearch(searchInputEl ? searchInputEl.value : '');
+    });
+    searchResultsEl.appendChild(notice);
+    searchResultsEl.classList.add('is-open');
   }
 
   function runUnifiedSearch(query) {
@@ -10250,6 +10282,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         var candidates = mergePlaceSearchCandidates(registryRows, Array.isArray(resolved[1]) ? resolved[1] : []);
         var placeRows = buildPlaceSearchRows(candidates);
         var merged = groupSearchRows(localRows, placeRows);
+        var incomplete = !resolved[0] || !Array.isArray(resolved[0].results) || !Array.isArray(resolved[1])
+          || registryRows.length !== resolved[0].results.length;
         var searchCompletedAt = typeof performance !== 'undefined' && performance.now
           ? performance.now()
           : Date.now();
@@ -10259,8 +10293,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           placeCount: placeRows.length,
           localCount: localRows.length,
           latencyMs: Math.max(0, Math.round(searchCompletedAt - searchStartedAt)),
-          state: merged.length ? 'complete' : 'empty'
+          state: incomplete ? (merged.length ? 'partial' : 'unavailable') : (merged.length ? 'complete' : 'empty')
         });
+        if (incomplete) {
+          renderSearchUnavailable(merged);
+          return;
+        }
         if (!merged.length) {
           renderSearchRows([]);
           return;
@@ -10270,12 +10308,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
         if (seq !== searchSeq) return;
-        if (localRows.length) {
-          renderSearchRows(localRows);
-          return;
-        }
-        searchResultsEl.innerHTML = '<div class="me-search-empty">' + escapeHtml(COPY.searchError) + '</div>';
-        searchResultsEl.classList.add('is-open');
+        renderSearchUnavailable(localRows);
       });
   }
 
@@ -12210,6 +12243,16 @@ export const MAP_EXPLORER_STYLES = `
   .me-search-row strong { font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: -.01em; }
   .me-search-row span { font-size: 11px; color: #64748b; }
   .me-search-empty { padding: 14px; font-size: 12px; color: #64748b; }
+  .me-search-recovery { font-size: 14px; line-height: 1.6; color: #334155; }
+  .me-search-recovery p { margin: 0 0 8px; }
+  .me-search-recovery button, .me-search-recovery a {
+    display: inline-flex; align-items: center; justify-content: center;
+    box-sizing: border-box; min-height: 44px; padding: 8px 12px;
+    border: 0; border-radius: 8px; font: inherit; cursor: pointer;
+  }
+  .me-search-recovery button { background: #0f766e; color: #fff; }
+  .me-search-recovery a { color: #0f766e; text-decoration: underline; }
+  .me-search-recovery button:focus-visible, .me-search-recovery a:focus-visible { outline: 2px solid #0f766e; outline-offset: 2px; }
 
   .me-locate-fab {
     position: absolute; right: 14px; bottom: 84px; z-index: 5;

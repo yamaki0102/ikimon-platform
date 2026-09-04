@@ -22,7 +22,7 @@ The execution rule is not "finish milestone numbers in order". It is:
 Roadmap v3 owns wave order, the lane and landing rules, promotion boundaries, KPI names and non-goals. `PROFILE_HORIZON.md` owns M9-M12 profile contracts and fixtures. `delivery.json` owns the static frontier and dependency projection. This plan owns only:
 
 - the Core Loop lane and its adopted corrections;
-- the current execution frontier, stated so an executor can start without further product judgement;
+- 静的な実装候補の範囲・依存・完成条件。現在の着手対象は管理キューから読み、ここでは選択しない;
 - product-local slice contracts for M7 and M8;
 - decisions the evidence determines, and the one decision that genuinely remains the owner's;
 - the verification gates this repository runs.
@@ -232,14 +232,14 @@ Use the existing Requirements/Journeys; do not build another checklist engine. F
 | Join → contribute → receive a result | A real organizer can invite, accept, Review, close and rehost using existing Program Core; contributor can see result or explicit pending state | M6 and Review return; no future-profile UI promises |
 | Phone or unavailable map → continue | Keyboard/focus/touch/overflow and readable loading/empty/denied/error states work on the changed route; unavailable WebGL still offers public records | existing map and landing tests/E2E; no full-site visual gate for a local change |
 
-## Bounded review disposition and next implementation
+## Bounded review disposition and implementation dependencies
 
 - The anonymous Home featured slot retains its existing stricter eligibility. Link to the governed public list instead of creating another feed or promoting blurred/private records into the hero.
 - Map failure uses the existing records route. Unknown taxon placeholders remain unresolved in public read models. These corrections are independent of Area acceptance and do not publish data.
 - The original capture/Area/Publication task IDs stay stable. Current completion, PR heads, failed attempts and live runtime belong in management, not in a hard-coded `current_executor_task_id`.
 - Reuse Area PR source and valid staging evidence. Existing M6 activation, capture race/idempotency, mobile, media privacy and closed-loop drafts require current-main delta review before adoption; old source success is not runtime success. Do not bulk-merge stale drafts.
-- Next useful source Work is the existing Frontier 3: contributor-visible Review and publication eligibility/exclusion using existing rights primitives. Its source/tests can proceed independently; actual consumer publication and withdrawal proof retain Area/rights/provider dependencies.
-- Place-search availability and public-detail source/rights/revision presentation remain targeted Core Loop defects when reproduced. Diagnose the existing D1/source path; do not hide search failure as zero results or introduce a parallel index.
+- 既存Frontier 3は、投稿者へのReview結果と公開可否・除外理由を既存の権利処理で返す実装候補である。source/testsはArea受入から独立するが、実際の配信・撤回確認にはArea/rights/providerの依存が残る。着手対象・順序・writer・実行可否は、その時点の管理キューとadmissionを読み出して決定する。
+- Place-search availability and public-detail source/rights/revision presentation remain targeted Core Loop defects when reproduced. Diagnose the existing D1/source path; do not hide search failure as zero results or introduce a parallel index. 検索は一部取得・取得不能・正常な0件を区別し、取得できた結果を残して手動再検索を提供する。公開境界のないPlaceを座標0として表示しない。Place Registry未適用時は既存field IDを正式なPlace IDへ読み替えない。
 - Assess Luna from recent exact-source results and review findings. Provide one user action per Source/Delta/Done task, bounded paths and negative acceptance. Noah owns product meaning/priority/integration; review scales with privacy/state risk. An unavailable executor is a routing fact, not evidence of model inability.
 
 ## Production boundary
