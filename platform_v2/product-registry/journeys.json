@@ -441,7 +441,8 @@
       "capability_refs": [
         "zukan.home.view-public",
         "zukan.records.browse-public",
-        "zukan.record.view-detail"
+        "zukan.record.view-detail",
+        "zukan.map.explore-public"
       ],
       "goal": "公開Homeから記録や場所を探し、記録詳細で出典・時点・安全な位置精度・AI候補と人の確認状態を理解する",
       "start_surface": "zukan.home.public",
@@ -450,6 +451,10 @@
         {
           "surface": "zukan.home.public",
           "action": "価値と公開記録への入口を確認する"
+        },
+        {
+          "surface": "zukan.map.public",
+          "action": "場所から公開記録を探す。地図・検索が使えない場合は障害を確認して公開記録一覧へ戻る"
         },
         {
           "surface": "zukan.records.public",
