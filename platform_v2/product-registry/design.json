@@ -69,13 +69,14 @@
       "required_regions": [
         "value-proposition",
         "primary-action",
-        "proof-or-live-content",
+        "available-content-or-discovery-paths",
         "secondary-paths"
       ],
       "rules": [
         "ログイン前は価値提示を優先する",
-        "主CTAは撮影開始とする",
-        "複数CTAを同じ強さにしない"
+        "初訪問の主CTAは公開記録の閲覧。撮影開始は共通の撮る入口で維持する",
+        "複数CTAを同じ強さにしない",
+        "紹介できる記録がなければ写真枠を出さず、記録・場所・参加を探す入口へ置き換える"
       ]
     },
     {

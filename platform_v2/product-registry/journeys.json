@@ -14,13 +14,13 @@
         "zukan.home.view-public",
         "zukan.capture.start"
       ],
-      "goal": "価値を理解し記録開始または認証案内へ迷わず進む",
+      "goal": "記録を残したい閲覧者が共通の撮る入口から記録開始または認証案内へ迷わず進む",
       "start_surface": "zukan.home.public",
       "success_surface": "zukan.capture.start",
       "steps": [
         {
           "surface": "zukan.home.public",
-          "action": "撮る"
+          "action": "共通の撮る入口を選ぶ"
         },
         {
           "surface": "zukan.capture.start",
@@ -32,7 +32,7 @@
         "quality.zukan.trust.private-default"
       ],
       "required_outcomes": [
-        "主CTAから記録開始へ進める",
+        "閲覧の主CTAと競合しない共通の撮る入口から記録開始へ進める",
         "未認証時に保存成功を装わない"
       ],
       "recovery": [
