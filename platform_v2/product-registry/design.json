@@ -46,10 +46,12 @@
         "不安を煽らない"
       ],
       "navigation_labels": [
-        "撮る",
-        "場所",
+        "ホーム",
         "記録",
-        "自分"
+        "場所",
+        "参加",
+        "自分",
+        "撮る"
       ],
       "tokens": {
         "text_primary": "#17211b",
@@ -172,8 +174,9 @@
       "density": "comfortable",
       "navigation": "public-zukan",
       "responsive": {
-        "mobile": "single-column",
-        "desktop": "feed-with-navigation"
+        "mobile": "single-column-browse-first-no-empty-feature-shell",
+        "tablet": "two-column-feature-or-editorial-links",
+        "desktop": "editorial-hero-and-qualified-record-context"
       },
       "state_presentations": [
         "guest",
@@ -194,8 +197,9 @@
       "density": "comfortable",
       "navigation": "capture-focused",
       "responsive": {
-        "mobile": "single-column-sticky-action",
-        "desktop": "centered-narrow"
+        "mobile": "single-column-private-save-bar",
+        "tablet": "two-column-preview-form",
+        "desktop": "centered-preview-form"
       },
       "state_presentations": [
         "unauthenticated",
@@ -219,8 +223,9 @@
       "density": "comfortable",
       "navigation": "public-zukan",
       "responsive": {
-        "mobile": "single-column",
-        "desktop": "filter-and-grid"
+        "mobile": "compact-media-and-metadata-list",
+        "tablet": "two-column-media-and-metadata-grid",
+        "desktop": "three-column-media-and-metadata-grid"
       },
       "state_presentations": [
         "empty",
@@ -240,8 +245,9 @@
       "density": "compact-controls",
       "navigation": "public-zukan",
       "responsive": {
-        "mobile": "map-with-bottom-sheet",
-        "desktop": "map-with-side-panel"
+        "mobile": "list-first-with-map-switch",
+        "tablet": "list-with-map-context-sheet",
+        "desktop": "map-with-one-context-panel"
       },
       "state_presentations": [
         "loading",
@@ -261,8 +267,9 @@
       "density": "comfortable",
       "navigation": "member-zukan",
       "responsive": {
-        "mobile": "single-column-camera-first",
-        "desktop": "sidebar-and-feed"
+        "mobile": "single-current-action-and-compact-recent-list",
+        "tablet": "single-current-action-and-selective-records",
+        "desktop": "single-current-action-and-selective-records"
       },
       "state_presentations": [
         "unauthenticated",
@@ -283,7 +290,8 @@
       "navigation": "member-zukan",
       "responsive": {
         "mobile": "single-column-sticky-action",
-        "desktop": "centered-wide"
+        "desktop": "centered-wide",
+        "tablet": "single-column-sticky-action"
       },
       "state_presentations": [
         "unauthenticated",
@@ -306,7 +314,8 @@
       "navigation": "public-zukan",
       "responsive": {
         "mobile": "single-column",
-        "desktop": "wide-list"
+        "desktop": "wide-list",
+        "tablet": "single-column"
       },
       "state_presentations": [
         "guest",
@@ -326,7 +335,8 @@
       "navigation": "member-zukan",
       "responsive": {
         "mobile": "single-column",
-        "desktop": "two-column"
+        "desktop": "two-column",
+        "tablet": "single-column"
       },
       "state_presentations": [
         "ready",
@@ -347,7 +357,8 @@
       "navigation": "member-zukan",
       "responsive": {
         "mobile": "single-column-sticky-action",
-        "desktop": "centered-wide"
+        "desktop": "centered-wide",
+        "tablet": "single-column-sticky-action"
       },
       "state_presentations": [
         "unauthenticated",
@@ -368,7 +379,8 @@
       "navigation": "member-zukan",
       "responsive": {
         "mobile": "single-column",
-        "desktop": "centered-reading"
+        "desktop": "centered-reading",
+        "tablet": "single-column"
       },
       "state_presentations": [
         "ready",
@@ -389,7 +401,8 @@
       "navigation": "public-zukan",
       "responsive": {
         "mobile": "single-column",
-        "desktop": "media-first-single-column"
+        "desktop": "media-first-single-column",
+        "tablet": "single-column"
       },
       "state_presentations": [
         "empty",
@@ -408,8 +421,9 @@
       "density": "comfortable",
       "navigation": "public-zukan",
       "responsive": {
-        "mobile": "single-column",
-        "desktop": "media-and-detail"
+        "mobile": "title-media-facts-ai-provenance",
+        "tablet": "media-with-context-panel",
+        "desktop": "media-with-context-panel"
       },
       "state_presentations": [
         "public",
