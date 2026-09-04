@@ -163,6 +163,7 @@ function renderGuestProof(options: LandingHomeStateOptions, publicItems: Landing
       <div class="home-empty-proof-copy">
         <strong>${escapeHtml(options.copy.home.guest.proofEmpty)}</strong>
         <p>${escapeHtml(options.copy.home.guest.proofEmptyNote)}</p>
+        <a class="home-secondary-link" href="${escapeHtml(href(options, "/records?view=public"))}" data-home-public-records-link>${escapeHtml(options.copy.home.guest.publicRecordsCta)}</a>
       </div>
     </div>`;
   }

@@ -4,7 +4,7 @@
     "home": {
       "guest": {
         "heroHeading": "Capture o presente. Crie um guia local.", "heroLead": "Guarde um registro local ligado ao lugar e ao momento, começando com uma foto.",
-        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar", "proofEmpty": "Ainda não há registros públicos.", "proofEmptyNote": "Comece com uma foto. Seu registro fica ligado ao lugar e ao momento.", "inviteNote": "Esta experiência está disponível para pessoas convidadas.", "recordStatusConfirmed": "Confirmado", "recordStatusPending": "Aguardando revisão", "recordStatusLimited": "Detalhe público limitado", "emptyFlowAria": "Capturar, guardar com um lugar e voltar ao registro", "emptyFlowCapture": "Capturar", "emptyFlowPlace": "Guardar com um lugar", "emptyFlowReturn": "Voltar ao registro",
+        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar", "proofEmpty": "Estamos preparando os registros em destaque.", "publicRecordsCta": "Ver registros públicos", "proofEmptyNote": "Comece com uma foto. Seu registro fica ligado ao lugar e ao momento.", "inviteNote": "Esta experiência está disponível para pessoas convidadas.", "recordStatusConfirmed": "Confirmado", "recordStatusPending": "Aguardando revisão", "recordStatusLimited": "Detalhe público limitado", "emptyFlowAria": "Capturar, guardar com um lugar e voltar ao registro", "emptyFlowCapture": "Capturar", "emptyFlowPlace": "Guardar com um lugar", "emptyFlowReturn": "Voltar ao registro",
         "categories": [
           { "title": "Escola e aprendizado", "body": "Aulas, projetos e experiências de trabalho." },
           { "title": "Comunidade e eventos", "body": "Festas, feiras e encontros locais." },

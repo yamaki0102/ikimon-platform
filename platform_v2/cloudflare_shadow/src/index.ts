@@ -34595,7 +34595,7 @@ function publicMapExactCoordinateGate() {
 
 function isWeakTaxonLabel(label: string | null): boolean {
   const text = (label ?? "").trim().toLowerCase();
-  return !text || ["unidentified", "unknown", "unresolved", "awaiting id", "同定待ち", "未同定", "不明"].includes(text);
+  return !text || ["unidentified", "unknown", "unresolved", "awaiting id", "同定待ち", "名前待ち", "未同定", "不明"].includes(text);
 }
 
 function publicTaxonDisplayName(label: string | null): string {

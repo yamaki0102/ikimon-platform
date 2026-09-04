@@ -17,4 +17,4 @@
 13. 通常の組織利用は無料コア。専門責任、提出成果物、Publication制作、クーポン、個別連携・運用を有償領域とする。支払状態でRecord truth、Rights、Review、安全性を変えない。
 14. Product Registryの`rolling_frontier`を実装順の静的projectionとして読み、LUNA/executorは商品価値・profile優先順位・privacy/rights・milestone採否を再決定しない。executor Taskがなければ勝手に次milestoneを実装しない。
 15. Foundation v2はadditive expand状態を維持し、承認済みwriter・reader・migrationなしに現行runtime routeやpublic responseへ接続しない。
-16. production、DB実適用、secret、DNS、外部送信、mergeはrootの承認・検証境界に従う。
+16. production、DB実適用、secret、DNS、外部送信、mergeはrootから参照する現行管理正本と有効な承認・検証境界に従う。DB変更という分類だけで一律の追加承認を作らない。

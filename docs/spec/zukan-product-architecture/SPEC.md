@@ -25,6 +25,18 @@ Product definition:
 
 The terms `OS`, `regional observation OS` and `generic reporting OS` are not product contracts.
 
+### First value, continuity and regional return
+
+A visitor discovers a nearby Place or public Record and can tell when, where at a safe precision, and on what evidence it was recorded. A contributor keeps one photo, video, sound or document without losing it, receives a candidate or explicit pending state, and can return to the same Place as its record grows. An organizer gets reusable participation/results with accountable Review; local stewards and partners receive eligible updates and correction/withdrawal through the existing Publication boundary.
+
+The first experience is a record and a place, not a setup dashboard. Repeat use comes from visible updates, human feedback, seasonal change and continued activities. Use one Knowledge Core/Program Core; defer specialist profiles, live cameras and billing infrastructure until their existing demand gates are met. Normal free organizational use stays useful without buying a specialist output.
+
+「南アルプスを、みんなで育てる図鑑に。」 is a concrete place/theme scenario from the owner's 2026-09-05 review brief, not a claim that a current Program, partnership or ecological effect is live. Apply the same Place/Record/Source/Rights/Review/Publication flow to trail photos, cultural material and observations. The scenario does not narrow the whole product to one region or application campaign.
+
+Sustainable operation uses the existing baseline set: media/AI volume and provider bills, support minutes per Program, Review lead time and repeat participation. No cost figure or sufficient staffing is claimed until measured. Reuse storage/queues, bound provider calls and retries, keep a named human authority for specialist Review and external commitments, and add paid delivery software only after repeated demand.
+
+Records, participation and updates are observed facts. Learning gains, biodiversity improvement and causal community effects are separate hypotheses until appropriately measured. Cite primary research when it supplies a design claim; scientific effect validation is not a universal gate on normal usability or reliability fixes.
+
 ## 2. Three layers
 
 ### 2.1 Experience / Publication

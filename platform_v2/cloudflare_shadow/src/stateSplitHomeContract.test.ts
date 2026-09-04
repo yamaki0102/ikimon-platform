@@ -110,6 +110,8 @@ test("guest Home uses a neutral ZUKAN placeholder instead of synthetic lifestyle
   assert.match(injected, /home-guest-proof is-count-0 is-empty/);
   assert.doesNotMatch(injected, /home-generated-badge|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(injected, /\/media\/derived\/public%2Fpublic-1\.webp/);
+  assert.match(injected, /href="\/ja\/records\?view=public" data-home-public-records-link/);
+  assert.doesNotMatch(injected, /公開できる記録は、まだありません/);
 });
 
 test("state split worker turns owner history into a memory-first Home with a place continuation", async () => {

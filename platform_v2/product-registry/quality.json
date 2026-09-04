@@ -109,7 +109,8 @@
       "acceptance": [
         "private/blocked/exact-locationを表示しない",
         "0件と障害を区別",
-        "AI候補/人/専門家確認の由来を誤表示しない"
+        "AI候補/人/専門家確認の由来を誤表示しない",
+        "Homeで紹介する候補がなくても公開一覧へ進め、全公開記録が0件とは表示しない"
       ],
       "requirement_refs": [
         "quality.zukan.trust.private-default",
@@ -138,6 +139,21 @@
         {
           "locator": "platform_v2/src/services/observationPublicationPolicy.test.ts",
           "kind": "privacy",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/ui/landingTop.test.ts",
+          "kind": "discovery-recovery",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/stateSplitHomeContract.test.ts",
+          "kind": "privacy",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/index.test.ts",
+          "kind": "unconfirmed-public-projection",
           "status": "canonical"
         }
       ]
@@ -184,6 +200,16 @@
           "locator": "planned:m5-live-camera-layer",
           "kind": "journey-resilience-rights",
           "status": "planned"
+        },
+        {
+          "locator": "platform_v2/src/ui/mapExplorer.test.ts",
+          "kind": "failure-recovery-accessibility",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/e2e/map-place-atlas.staging.spec.ts",
+          "kind": "keyboard-image-fallback",
+          "status": "canonical"
         }
       ]
     },

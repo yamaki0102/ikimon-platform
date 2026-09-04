@@ -126,20 +126,22 @@ test("planning metrics are baselines and privacy-minimized", () => {
   assert.equal("metrics" in delivery.planning_metrics, false, "a single flat metric list hides measurement maturity");
 });
 
-test("delivery means production, and an undelivered slice blocks the next one", () => {
+test("delivery means production while blockers preserve independent source work", () => {
   const delivery = JSON.parse(repoText("platform_v2/product-registry/delivery.json")) as any;
   const product = JSON.parse(repoText("platform_v2/product-registry/product.json")) as any;
   const plan = repoText("docs/spec/zukan-product-architecture/PLAN.md");
   assert.match(delivery.execution_roadmap.delivered_definition, /running in production and observed working/);
-  assert.match(delivery.execution_roadmap.landing_rule, /may not start a new implementation slice/);
+  assert.match(delivery.execution_roadmap.landing_rule, /continue independent adopted source/);
+  assert.match(delivery.execution_roadmap.landing_rule, /Never rename, replay, retarget/);
   assert.equal(delivery.execution_roadmap.core_loop_returns_something_to_contributor, true);
-  assert.equal(delivery.execution_roadmap.current_executor_task_id, "task.zukan.core-loop.capture-feedback-delivered");
+  assert.equal("current_executor_task_id" in delivery.execution_roadmap, false);
+  assert.match(delivery.execution_roadmap.current_work_locator, /noah_current_work_queue/);
   assert.ok(product.execution_roadmap.rules.includes("delivered_means_running_in_production_and_observed_working"));
-  assert.ok(product.execution_roadmap.rules.includes("no_new_slice_while_a_source_verified_slice_is_undelivered"));
+  assert.ok(product.execution_roadmap.rules.includes("scoped_blockers_preserve_identity_and_allow_independent_adopted_source_work"));
   assert.ok(product.execution_roadmap.rules.includes("implementation_allowed_never_authorizes_production_mutation"));
   assert.match(plan, /## Current execution frontier/);
   assert.doesNotMatch(plan, /mergeable, clean|59 pull requests|44 have not moved/);
-  for (const requirementId of delivery.execution_roadmap.core_loop_requirements_verified_in_production) {
+  for (const requirementId of delivery.execution_roadmap.core_loop_requirements_requiring_operation_evidence) {
     const requirement = registry.requirements.find((item) => item.id === requirementId);
     assert.ok(requirement, `${requirementId} must exist`);
     assert.ok(
@@ -162,11 +164,13 @@ test("the accumulation and review-return stages of the Core Loop are contracted"
   const publicationTask = delivery.implementation_tasks.find((item: any) => item.id === "task.zukan.core-loop.publication-return-syndication-hardening");
   assert.ok(areaTask && loopTask && publicationTask, "adopted Core Loop corrections need implementation tasks");
   assert.equal(loopTask.lane, "CORE_LOOP");
-  assert.equal(loopTask.implementation_allowed, true);
+  assert.equal(loopTask.implementation_allowed, false, "a static registry must not reissue terminal capture work");
   assert.equal(loopTask.production_mutation_allowed, false);
-  assert.equal(areaTask.implementation_allowed, false, "Frontier 2 waits until Frontier 1 is delivered");
+  assert.equal(areaTask.implementation_allowed, false, "Area keeps its original acceptance Work and failed execution binding");
   assert.equal(areaTask.production_mutation_allowed, false);
-  assert.equal(publicationTask.implementation_allowed, false, "Frontier 3 waits until the Area frontier is delivered");
+  assert.equal(publicationTask.implementation_allowed, true, "independent adopted source does not wait for Area runtime acceptance");
+  assert.ok(publicationTask.stage_dependencies.integrated_acceptance.includes("actual Area zero/one-record acceptance"));
+  assert.equal(publicationTask.stage_dependencies.source.some((dependency: string) => /Area/.test(dependency)), false);
   assert.equal(publicationTask.production_mutation_allowed, false);
   assert.ok(publicationTask.requirement_ids.includes("quality.zukan.rights.minor-guardian-consent"));
   assert.ok(publicationTask.requirement_ids.includes("quality.zukan.rights.export-withdrawal-deletion"));

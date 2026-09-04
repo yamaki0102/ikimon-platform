@@ -1,4 +1,4 @@
-# ikimon.life — Documentation Start Here
+# ZUKAN — Documentation Start Here
 
 このrepoの実装入口はroot [`AGENTS.md`](../AGENTS.md)、機械可読project pointerは[`PROJECT.json`](../PROJECT.json)です。
 
@@ -24,6 +24,8 @@ ZUKANの有効なプロダクト境界は [`spec/zukan-product-architecture/SPEC
 10. 対応Issue・PR・code・tests
 
 ## Current app
+
+正本URLは `https://zukan.earth/`。稼働入口は `platform_v2/cloudflare_shadow/src/index.ts` と登録済みCloudflare資源です。Node/UI materializationとPostgreSQL実装資産は稼働状態と区別し、旧LIVE_VERIFIED・旧デプロイ資料を現在の証明に流用しません。
 
 通常の開発対象は`platform_v2/`です。`upload_package/`は互換・rollback・data preservation等の明示的なlegacy作業だけで扱います。
 
