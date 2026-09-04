@@ -6,24 +6,25 @@
       "id": "content.zukan.home-public",
       "surface": "zukan.home.public",
       "audience": "地域の記録を残したり、場所から見返したりしたい人",
-      "user_intent": "ZUKANの価値を理解し、撮る・場所・記録・参加のいずれかを始める",
+      "user_intent": "初訪問で公開記録の内容を理解し、場所をたどる。投稿するときに撮影・認証へ進む",
       "primary_message": "撮ると、まちの今が図鑑になる。",
-      "primary_cta": "撮る",
+      "primary_cta": "みんなの記録を見る",
       "secondary_actions": [
-        "場所を見る",
-        "記録を見る"
+        "場所から探す"
       ],
       "prohibited_claims": [
         "AIが種名を自動確定する",
         "すべての投稿が自動公開される",
-        "公開範囲が常に正確な位置を示す"
+        "公開範囲が常に正確な位置を示す",
+        "公開一覧への掲載をホーム紹介への同意と読み替える",
+        "紹介用写真の欠落を架空の地域記録で埋める"
       ],
       "seo": {
         "index": true,
         "canonical_path": "/"
       },
       "analytics": {
-        "primary_event": "record_start_clicked"
+        "primary_event": "record_detail_viewed"
       }
     },
     {
@@ -54,7 +55,7 @@
       "id": "content.zukan.records",
       "surface": "zukan.records.public",
       "audience": "地域の公開記録を探す人",
-      "user_intent": "公開可能な記録、名前待ち、場所を検索・閲覧する",
+      "user_intent": "題名・日時・許可された場所と写真を一緒に見て記録を見つける",
       "primary_message": "まちに残された記録を見る。",
       "primary_cta": "記録を探す",
       "secondary_actions": [
@@ -64,7 +65,9 @@
       "prohibited_claims": [
         "非公開記録を検索できる",
         "表示件数が地域の生物総数を示す",
-        "位置が採取・接触を許可する"
+        "位置が採取・接触を許可する",
+        "名前待ちで全Recordの題名を置き換える",
+        "取得不能を記録0件と表示する"
       ],
       "seo": {
         "index": true,
@@ -79,8 +82,8 @@
       "surface": "zukan.map.public",
       "audience": "記録が集まる場所や次に歩く場所を探す人",
       "user_intent": "公開可能な粒度で場所と記録の関係を見る",
-      "primary_message": "場所から、まちの記録をたどる。",
-      "primary_cta": "場所を見る",
+      "primary_message": "ひとつの場所をたどる",
+      "primary_cta": "場所を探す",
       "secondary_actions": [
         "記録を見る",
         "撮る"
@@ -88,7 +91,8 @@
       "prohibited_claims": [
         "正確な私有地位置を示す",
         "地図上の空白が不在を証明する",
-        "表示地点への立入を許可する"
+        "表示地点への立入を許可する",
+        "外部の地名候補を登録済みの図鑑と表示する"
       ],
       "seo": {
         "index": true,
@@ -267,9 +271,9 @@
       "id": "content.zukan.record-detail",
       "surface": "zukan.record.detail",
       "audience": "記録を見る人と記録した本人",
-      "user_intent": "記録の根拠と確認状態を理解し、本人はAI・Review・publicationの返却を確認する",
+      "user_intent": "Recordと出典、対象ごとのAI・人の確認を理解する。本人の公開操作は分け、場所が不明なら一覧へ戻る",
       "primary_message": "この記録で、わかったこと。まだ確かめたいこと。",
-      "primary_cta": "もう一度記録する",
+      "primary_cta": "場所の図鑑へ",
       "secondary_actions": [
         "記録一覧へ戻る",
         "場所を見る"
@@ -278,7 +282,11 @@
         "AI候補を人のReview結果として示す",
         "queued/processingをcompletedとして示す",
         "本人以外へ非公開のReview理由やpublication exclusion理由を示す",
-        "syndication consent未取得のRecordを外部公開済みと示す"
+        "syndication consent未取得のRecordを外部公開済みと示す",
+        "disputedを未確認へ潰す",
+        "配信可能を掲載済みと示す",
+        "ZUKANの公開Record URLを外部サイトの掲載先と示す",
+        "現在の公開判定が不明なだけで非公開になったと示す"
       ],
       "seo": {
         "index": true,

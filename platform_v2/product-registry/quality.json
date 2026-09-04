@@ -28,7 +28,10 @@
       "acceptance": [
         "guest Homeはpublic eligibleのみ表示",
         "主CTAから記録開始へ到達",
-        "価値提示/記録/場所の導線が競合しない"
+        "価値提示/記録/場所の導線が競合しない",
+        "初訪問者は認証だけで終わらず公開記録の詳細へ辿れる。投稿の入口は共通の撮るとして維持する",
+        "紹介写真がなければ空の写真枠を外し、架空の写真・件数・実績で埋めない",
+        "共通主ナビをヘッダーとサイドバーへ二重に表示しない"
       ],
       "tests": [
         {
@@ -61,7 +64,9 @@
       "acceptance": [
         "拒否/入力不足/upload/保存/AI失敗を成功扱いしない",
         "retryでlogical record/mediaを重複作成しない",
-        "保存後に本人の記録へ戻れる"
+        "保存後に本人の記録へ戻れる",
+        "端末の下書き、接続待ち、媒体送信中、一部保存、サーバー保存済みを正しい文言で区別する",
+        "接続が戻ると保存する表示は永続化した送信意図がある場合だけ。offline操作だけでサーバー保存済みへ変わらない"
       ],
       "requirement_refs": [
         "quality.zukan.capture.entry",
@@ -110,7 +115,9 @@
         "private/blocked/exact-locationを表示しない",
         "0件と障害を区別",
         "AI候補/人/専門家確認の由来を誤表示しない",
-        "Homeで紹介する候補がなくても公開一覧へ進め、全公開記録が0件とは表示しない"
+        "Homeで紹介する候補がなくても公開一覧へ進め、全公開記録が0件とは表示しない",
+        "PC3列・tablet2列・mobile媒体と本文の横並びを基本に、題名と日時を写真と同時に読める",
+        "本人の題名を優先し、未同定状態をすべてのRecordの主題名にしない"
       ],
       "requirement_refs": [
         "quality.zukan.trust.private-default",
@@ -174,7 +181,9 @@
         "map不能でもrecordsへ退避",
         "mobile/desktopで操作不能や横overflowなし",
         "ライブcameraは権利・死活を確認したsourceだけを補助layerとして出し、playerはpin選択時だけloadする",
-        "ライブcameraをZUKAN observation扱いせず、現在映像からpublic eligibleな今日・季節・過去記録へ戻れる"
+        "ライブcameraをZUKAN observation扱いせず、現在映像からpublic eligibleな今日・季節・過去記録へ戻れる",
+        "一覧と地図は同じPlaceを指し、外部地名候補やfield IDを正式なPlaceへ無言で置換しない",
+        "補助layerと設定は必要時に開き、場所/記録の探索と障害からの復帰を優先する"
       ],
       "requirement_refs": [
         "quality.zukan.trust.location-minimization",
@@ -227,7 +236,8 @@
       "acceptance": [
         "本人の記録とpublic記録を混同しない",
         "empty/errorから記録開始へ戻れる",
-        "共同利用が未実装ならworkspace成功を装わない"
+        "共同利用が未実装ならworkspace成功を装わない",
+        "途中の記録を見つけやすくし、主役のRecordを直下の最近一覧へ重複表示しない"
       ],
       "requirement_refs": [
         "quality.zukan.home.owner-context",
@@ -698,7 +708,11 @@
         "save stateとAI processing stateを分け、queued/processing/completed|failedを本人へ返す",
         "AI候補と人のReview決定を別のauthorityとして表示する",
         "非本人にはowner-onlyのReview理由・syndication状態・exclusion理由を返さない",
-        "withdrawn/restricted/sensitive stateは公開詳細へ漏らさない"
+        "withdrawn/restricted/sensitive stateは公開詳細へ漏らさない",
+        "名前の確認は対象Observation/Claimごと。本人確認・共同確認・意見の不一致と内容Reviewを混同しない",
+        "人の決定理由が取得できない場合は復元せず、AI理由や別Claimの理由を流用しない",
+        "現在の公開範囲、配信条件の充足、ZUKAN公開ページ、consumerで確認した実際の掲載を別の事実として表示する",
+        "正式なPlace関係が不明なら推定リンクを作らず、記録一覧への復帰を残す"
       ],
       "requirement_refs": [
         "quality.zukan.review.contributor-return"

@@ -126,6 +126,8 @@ The following must remain separate:
 
 New knowledge must not overwrite the original Record. A correction appends a ClaimRevision. A later response produces a new Record.
 
+UIでの保存・AI候補・名前の確認・内容Review・公開範囲・配信条件・実際の掲載の意味は、[App Experience §16.5](../zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md#165-記録詳細と確認公開の意味)に従う。disputedを未確認へ潰さず、AI理由から人のReview理由を作らず、配信可能やZUKAN自身のRecord URLを外部の掲載実績と扱わない。これは既存の責務を表示へ投影する設計であり、新しいDB・共通状態エンジンや実装着手の許可ではない。
+
 ## 6. Knowledge and action boundary
 
 Knowledge and action lifecycles are separate.
