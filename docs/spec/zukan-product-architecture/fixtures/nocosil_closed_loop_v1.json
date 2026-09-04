@@ -1,0 +1,301 @@
+{
+  "schema_version": "zukan.nocosil_closed_loop_fixtures.v1",
+  "status": "DRAFT_FIXTURE_AUTHORITY_WITH_PR_1633",
+  "purpose": "Exact semantic fixtures for the first NOCOSIL closed-loop implementation. Product code may map these fixtures to current internal object shapes but may not change their input meaning or expected outcome.",
+  "fixtures": {
+    "family.program_continuation_resets_lifecycle_authority": {
+      "input": {
+        "source_program_reference": "program_zukan_family_20260901",
+        "target_program_reference": "program_zukan_family_20270901",
+        "selected_place_refs": ["place_hamamatsu_family_01"],
+        "selected_record_refs": ["record_family_r1", "record_family_r4"],
+        "selected_quest_refs": ["quest_family_observe_01"],
+        "selected_template_refs": ["template_observation_event_v1"],
+        "selected_publication_refs": ["publication_edition_family_001"],
+        "outgoing_accountable_role_ref": "role_organizer_2026",
+        "incoming_accountable_role_ref": "role_organizer_2027",
+        "continuation_rationale": "次年度も同じ地域の変化を継続記録する",
+        "effective_period": {
+          "from": "2027-09-01T00:00:00.000Z",
+          "to": "2027-09-30T23:59:59.000Z"
+        },
+        "subject_version": "2026-09-25T12:00:00.000Z"
+      },
+      "expected": {
+        "schema": "ikimon.program-continuation-manifest/v1",
+        "reset_requirements": [
+          "participant_membership",
+          "consent",
+          "review_approval",
+          "publication_authority",
+          "invitation_secret"
+        ],
+        "copied_active_state": {
+          "participant_membership": false,
+          "consent": false,
+          "review_approval": false,
+          "publication_authority": false,
+          "invitation_secret": false
+        },
+        "payload_digest_algorithm": "sha256 over canonical JSON with recursively lexicographically sorted object keys, UTF-8, no insignificant whitespace, excluding payload_digest itself",
+        "payload_digest": "edce2efe240d5ae0f1647bb2cf43a55ff2d5639292c3847666e8465691cf2d5e",
+        "source_program_mutated": false
+      }
+    },
+    "family.program_summary_updates_current_state": {
+      "input": {
+        "program": {
+          "program_reference": "program_zukan_family_20260901",
+          "program_profile": "observation_event",
+          "public_title": "浜松まち観察会",
+          "phase": "closing",
+          "window_start": "2026-09-01T00:00:00.000Z",
+          "window_end": "2026-09-30T23:59:59.000Z",
+          "as_of": "2026-09-25T12:00:00.000Z",
+          "event_count": 2,
+          "next_event_at": "2026-09-28T01:00:00.000Z",
+          "incoming_accountable_role_ref": null,
+          "publication_references": ["publication_edition_family_001"]
+        },
+        "contributions": [
+          {
+            "record_reference": "record_family_r1",
+            "current_state": "active",
+            "review_state": "approved",
+            "required_consent_state": "complete",
+            "publication_state": "published",
+            "participant_identity": "participant_secret_a",
+            "participant_email": "secret-a@example.invalid",
+            "exact_location": "34.710123,137.730456"
+          },
+          {
+            "record_reference": "record_family_r2",
+            "current_state": "active",
+            "review_state": "pending",
+            "required_consent_state": "complete",
+            "publication_state": "not_published",
+            "participant_identity": "participant_secret_b",
+            "participant_email": "secret-b@example.invalid",
+            "exact_location": "34.710124,137.730457"
+          },
+          {
+            "record_reference": "record_family_r3",
+            "current_state": "withdrawn",
+            "review_state": "approved",
+            "required_consent_state": "complete",
+            "publication_state": "withdrawn",
+            "participant_identity": "participant_secret_c",
+            "participant_email": "secret-c@example.invalid",
+            "exact_location": "34.710125,137.730458"
+          },
+          {
+            "record_reference": "record_family_r4",
+            "current_state": "active",
+            "review_state": "approved",
+            "required_consent_state": "incomplete",
+            "publication_state": "not_published",
+            "participant_identity": "participant_secret_d",
+            "participant_email": "secret-d@example.invalid",
+            "exact_location": "34.710126,137.730459"
+          }
+        ],
+        "quest_aggregate_source": {
+          "eligible": 8,
+          "completed": 6
+        },
+        "aggregate_disclosure_policy": "ALLOW_NON_IDENTIFYING_OPERATIONAL_AGGREGATES"
+      },
+      "expected": {
+        "schema": "ikimon.program-operational-summary/v1",
+        "program_reference": "program_zukan_family_20260901",
+        "program_profile": "observation_event",
+        "phase": "closing",
+        "window_start": "2026-09-01T00:00:00.000Z",
+        "window_end": "2026-09-30T23:59:59.000Z",
+        "as_of": "2026-09-25T12:00:00.000Z",
+        "freshness_state": "CURRENT",
+        "record_count": 3,
+        "review_backlog_count": 1,
+        "consent_completeness_state": "INCOMPLETE",
+        "published_count": 1,
+        "withdrawn_count": 1,
+        "handover_readiness_state": "NOT_READY",
+        "event_count": 2,
+        "next_event_at": "2026-09-28T01:00:00.000Z",
+        "quest_completion_aggregate": {
+          "completed": 6,
+          "eligible": 8
+        },
+        "publication_references": ["publication_edition_family_001"],
+        "limitations": [
+          "Participant-level data is intentionally excluded.",
+          "Handover is not ready because the incoming accountable role is unresolved."
+        ],
+        "must_not_contain": [
+          "participant_secret_a",
+          "participant_secret_b",
+          "participant_secret_c",
+          "participant_secret_d",
+          "secret-a@example.invalid",
+          "secret-b@example.invalid",
+          "secret-c@example.invalid",
+          "secret-d@example.invalid",
+          "34.710123,137.730456",
+          "34.710124,137.730457",
+          "34.710125,137.730458",
+          "34.710126,137.730459"
+        ]
+      }
+    },
+    "family.no_participant_pii_in_organizer_summary": {
+      "reuse_fixture": "family.program_summary_updates_current_state",
+      "expected": {
+        "participant_names_emails_phones_school_roster_raw_media_free_text_exact_individual_location": "ABSENT",
+        "only_non_identifying_operational_aggregates": true
+      }
+    },
+    "family.small_cohort_minor_summary_fails_closed": {
+      "input": {
+        "program_reference": "program_zukan_family_minor_20260901",
+        "program_profile": "observation_event",
+        "phase": "active",
+        "as_of": "2026-09-25T12:00:00.000Z",
+        "contains_minors": true,
+        "aggregate_disclosure_policy": "SUPPRESS_PARTICIPANT_DERIVED_AGGREGATES",
+        "source_operational_values": {
+          "record_count": 2,
+          "review_backlog_count": 1,
+          "consent_completeness_state": "INCOMPLETE",
+          "quest_completed": 1,
+          "quest_eligible": 2
+        }
+      },
+      "expected": {
+        "record_count": null,
+        "review_backlog_count": null,
+        "consent_completeness_state": "SUPPRESSED",
+        "quest_completion_aggregate": null,
+        "limitations_contains": "Participant-derived aggregates are suppressed by the active minor/privacy policy."
+      }
+    },
+    "family.selected_record_reaches_zukan_review": {
+      "input": {
+        "schema": "ikimon.public-candidate/v1",
+        "candidate_kind": "regional_record",
+        "destination_purpose": "zukan.regional_record.publication",
+        "selected_public_text_or_claims": {
+          "title": "都田の秋の風景",
+          "summary": "地域の季節変化を記録した写真です。"
+        },
+        "media_derivative": {
+          "ref": "public_media_derivative_family_001",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "location": {
+          "policy": "COARSENED",
+          "public_value": "浜松市浜名区都田町"
+        },
+        "source_refs": ["nocosil_source_family_001"],
+        "evidence_digests": ["bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
+        "source_status": "current",
+        "rights_manifest": {
+          "permitted_uses": ["zukan_review", "zukan_publication_if_accepted"],
+          "prohibited_uses": ["unrelated_advertising"],
+          "consent_basis_refs": ["consent_family_adult_owner_001"]
+        },
+        "privacy_manifest": {
+          "identity_policy": "PUBLIC_SUBMITTER_ALIAS_ONLY",
+          "location_policy": "COARSENED",
+          "excluded_field_classes": ["private_note", "contact_graph", "exact_location", "raw_original_media"]
+        },
+        "ai_candidate_fields": ["summary"],
+        "correction_route": "nocosil://public-candidate/family-001/correct",
+        "revocation_route": "nocosil://public-candidate/family-001/withdraw",
+        "idempotency_key": "family_public_candidate_001",
+        "payload_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected_receiver_result": {
+        "state": "RECEIVED",
+        "published": false,
+        "review_required": true,
+        "ai_candidate_promoted_to_fact": false,
+        "raw_original_media_accessible": false,
+        "exact_location_accessible": false
+      }
+    },
+    "family.duplicate_delivery_converges_by_idempotency": {
+      "reuse_fixture": "family.selected_record_reaches_zukan_review",
+      "sequence": [
+        "submit family_public_candidate_001 with payload digest cccc...",
+        "submit the identical semantic payload with the same key and digest"
+      ],
+      "expected": {
+        "candidate_count_created": 1,
+        "second_result": "RETURN_EXISTING_RECEIPT_OR_CURRENT_RESULT"
+      }
+    },
+    "family.same_idempotency_key_different_payload_conflicts": {
+      "reuse_fixture": "family.selected_record_reaches_zukan_review",
+      "second_submission_delta": {
+        "selected_public_text_or_claims.summary": "意味が異なる別の公開候補"
+      },
+      "expected": {
+        "result": "CONFLICT",
+        "second_candidate_created": false
+      }
+    },
+    "family.correction_withdrawal_round_trip": {
+      "precondition": {
+        "source_exchange_id": "family_public_candidate_001",
+        "zukan_reference": "zukan_candidate_family_001",
+        "publication_edition_reference": "publication_edition_family_public_001",
+        "public_locator": "https://zukan.earth/records/family-public-001",
+        "state": "PUBLISHED"
+      },
+      "withdraw_notice": {
+        "schema": "ikimon.correction-revocation-notice/v1",
+        "affected_exchange_or_projection_id": "family_public_candidate_001",
+        "operation": "withdraws",
+        "affected_fields_or_media": ["public_media_derivative_family_001"],
+        "reason_code": "SOURCE_OWNER_WITHDRAWAL",
+        "effective_at": "2026-09-26T00:00:00.000Z",
+        "source_version": "2",
+        "source_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "requested_destination_effect": "REMOVE_PUBLIC_EXPOSURE",
+        "receipt_state": "AUTHORIZED"
+      },
+      "expected_after_destination_read_back": {
+        "state": "WITHDRAWN",
+        "public_locator_exposes_withdrawn_media": false,
+        "historical_audit_lineage_retained": true,
+        "cache_export_restore_can_resurrect_public_media": false
+      }
+    },
+    "family.participation_credential_returns_by_opt_in": {
+      "input": {
+        "explicit_participant_opt_in": true,
+        "schema": "ikimon.participation-credential/v1",
+        "issuer": "zukan",
+        "program_reference": "program_zukan_family_20260901",
+        "role": "participant",
+        "verified_period": {
+          "from": "2026-09-01T00:00:00.000Z",
+          "to": "2026-09-30T23:59:59.000Z"
+        },
+        "verified_state": "VERIFIED_PARTICIPATION",
+        "issued_at": "2026-10-01T00:00:00.000Z",
+        "revocation_state": "ACTIVE",
+        "rights_display_policy": "OWNER_SELECTED_PRIVATE_OR_PUBLIC",
+        "selected_public_contribution_locator": "https://zukan.earth/records/family-public-001"
+      },
+      "expected": {
+        "credential_issued": true,
+        "private_organizer_evaluation": "ABSENT",
+        "other_participant_identity": "ABSENT",
+        "movement_history": "ABSENT",
+        "talent_or_personality_score": "ABSENT",
+        "recruiting_or_crm_authority": "ABSENT"
+      }
+    }
+  }
+}
