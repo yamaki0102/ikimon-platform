@@ -13,6 +13,25 @@ const M10 = "milestone.m10.regional-publication-profiles";
 const M11 = "milestone.m11.source-public-projection-exchange";
 const M12 = "milestone.m12.professional-managed-outcomes";
 
+test("public discovery reaches record evidence and Review returns to its contributor", () => {
+  const discovery = registry.journeys.find((item) => item.id === "journey.zukan.public-discovery")!;
+  assert.equal(discovery.start_surface, "zukan.home.public");
+  assert.equal(discovery.success_surface, "zukan.record.detail");
+  assert.ok(discovery.capability_refs.includes("zukan.record.view-detail"));
+  assert.ok(discovery.steps.some((step) => step.surface === "zukan.record.detail"));
+  assert.ok(discovery.requirement_refs?.includes("quality.zukan.record.source-reference-integrity"));
+
+  const returnId = "quality.zukan.review.contributor-return";
+  const quality = JSON.parse(repoText("platform_v2/product-registry/quality.json"));
+  assert.equal(registry.requirements.find((item) => item.id === returnId)?.quality_contract, "quality.zukan.record-detail");
+  assert.ok(quality.contracts.find((item: any) => item.id === "quality.zukan.record-detail").requirement_refs.includes(returnId));
+  assert.equal(quality.contracts.find((item: any) => item.id === "quality.zukan.home-member").requirement_refs.includes(returnId), false);
+  const capture = registry.journeys.find((item) => item.id === "journey.zukan.capture-to-personal-return")!;
+  assert.ok(capture.requirement_refs?.includes(returnId));
+  assert.ok(capture.capability_refs.includes("zukan.record.view-detail"));
+  assert.ok(capture.steps.some((step) => step.surface === "zukan.record.detail" && /Review/.test(step.action)));
+});
+
 test("roadmap preserves broad ZUKAN scope after M6", () => {
   const ids = navigation.roadmap.map((item) => item.id);
   assert.deepEqual(ids.slice(-4), [M9, M10, M11, M12]);

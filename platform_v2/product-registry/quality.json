@@ -235,8 +235,7 @@
         "quality.zukan.workspace.contribution",
         "quality.zukan.workspace.review",
         "quality.zukan.workspace.explicit-publish",
-        "quality.zukan.program-event-quest.lifecycle",
-        "quality.zukan.review.contributor-return"
+        "quality.zukan.program-event-quest.lifecycle"
       ],
       "tests": [
         {
@@ -701,7 +700,9 @@
         "非本人にはowner-onlyのReview理由・syndication状態・exclusion理由を返さない",
         "withdrawn/restricted/sensitive stateは公開詳細へ漏らさない"
       ],
-      "requirement_refs": [],
+      "requirement_refs": [
+        "quality.zukan.review.contributor-return"
+      ],
       "tests": [
         {
           "locator": "platform_v2/e2e/record-feedback-loop.staging.spec.ts",

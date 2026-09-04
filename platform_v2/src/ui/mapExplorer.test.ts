@@ -3,6 +3,83 @@ import test from "node:test";
 import vm from "node:vm";
 import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
 
+function bootSection(start: string, end: string): string {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const from = script.indexOf(start);
+  const to = script.indexOf(end, from);
+  assert.ok(from >= 0 && to > from);
+  return script.slice(from, to);
+}
+
+test("canonical place suggestions require a real valid public boundary", () => {
+  const context = vm.createContext({});
+  new vm.Script(bootSection("function canonicalPlaceRows(payload)", "function mergePlaceSearchCandidates(")).runInContext(context);
+  const rows = [null, [null, null, null, null], ["", "", "", ""], [138, 35, 137, 34], [181, 34, 182, 35], [137, 34, 138, 35]]
+    .map((bbox, index) => ({ canonicalName: `place-${index}`, canonicalPlaceId: `place_${index}`, boundary: { bbox } }));
+  const result = context.canonicalPlaceRows({ results: rows });
+  assert.equal(result.length, 1);
+  assert.equal(result[0].canonical_place_id, "place_5");
+});
+
+test("unified search distinguishes failed providers from a successful empty search", async () => {
+  const validPlace = { canonicalName: "公園", canonicalPlaceId: "place_park", boundary: { bbox: [137, 34, 138, 35] } };
+  const invalidPlace = { ...validPlace, boundary: { bbox: null } };
+  for (const [registry, external, expected, count] of [
+    [null, null, "unavailable", 0],
+    [{ results: [] }, null, "unavailable", 0],
+    [null, [], "unavailable", 0],
+    [{ results: [] }, [], "empty", 0],
+    [null, [{ display_name: "公園" }], "partial", 1],
+    [{ results: [invalidPlace] }, [], "unavailable", 0],
+    [{ results: [validPlace, invalidPlace] }, [], "partial", 1],
+    [{ results: [null, validPlace] }, [{ display_name: "別の公園" }], "partial", 2],
+  ] as const) {
+    let state = "";
+    let unavailable = false;
+    let rendered: any[] = [];
+    const context = vm.createContext({
+      searchResultsEl: {}, searchInputEl: { value: "公園" }, searchSeq: 0, searchAbort: null,
+      apiPlaceSearch: "/api/v1/map/place-search", NOMINATIM_URL: "https://example.invalid/search", SEARCH_LANG: "ja",
+      URLSearchParams, AbortController, performance,
+      fetch: async (url: string) => { const payload = url.startsWith("/api/") ? registry : external; return { ok: payload !== null, json: async () => payload }; },
+      buildSpeciesSearchRows: () => [], closeSearchResults: () => {},
+      mergePlaceSearchCandidates: (a: any[], b: any[]) => [...a, ...b], buildPlaceSearchRows: (rows: any[]) => rows,
+      groupSearchRows: (a: any[], b: any[]) => [...a, ...b],
+      renderSearchRows: (rows: any[]) => { rendered = rows; },
+      renderSearchUnavailable: (rows: any[]) => { unavailable = true; rendered = rows; },
+      sendMapKpi: (_name: string, _key: string, data: any) => { state = data.state; },
+    });
+    new vm.Script(bootSection("function canonicalPlaceRows(payload)", "function mergePlaceSearchCandidates(") + bootSection("function runUnifiedSearch(query)", "  if (searchInputEl) {")).runInContext(context);
+    context.runUnifiedSearch("公園");
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(state, expected);
+    assert.equal(unavailable, expected !== "empty");
+    assert.equal(rendered.length, count);
+  }
+});
+
+test("search failure keeps available results and offers only an explicit retry", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const declarations = ["COPY", "COMMUNITY_RECORDS_HREF"].map((name) => script.split("\n").find((line) => line.trim().startsWith(`var ${name} = `))!);
+  let retry: (() => void) | undefined;
+  const queries: string[] = [];
+  const notices: any[] = [];
+  let keptRows: any[] = [];
+  const context = vm.createContext({
+    document: { createElement: () => ({ innerHTML: "", setAttribute() {}, querySelector: () => ({ addEventListener: (_event: string, listener: () => void) => { retry = listener; } }) }) },
+    searchInputEl: { value: "公園" }, searchResultsEl: { innerHTML: "", appendChild: (node: any) => notices.push(node), classList: { add() {} } },
+    renderSearchRows: (rows: any[]) => { keptRows = rows; }, runUnifiedSearch: (query: string) => queries.push(query),
+  });
+  new vm.Script([...declarations, bootSection("function escapeHtml(s)", "function escapeAttr(s)"), bootSection("function renderSearchUnavailable(rows)", "function runUnifiedSearch(query)")].join("\n")).runInContext(context);
+  context.renderSearchUnavailable([{ title: "取得済み" }]);
+  assert.equal(keptRows.length, 1);
+  assert.match(notices[0].innerHTML, /一部の検索結果/);
+  assert.match(notices[0].innerHTML, /\/ja\/records\?view=public/);
+  assert.equal(queries.length, 0);
+  assert.ok(retry); retry();
+  assert.deepEqual(queries, ["公園"]);
+});
+
 test("map explorer boot script is syntactically valid JavaScript", () => {
   const scriptHtml = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const script = scriptHtml.replace(/^<script>/, "").replace(/<\/script>$/, "");
