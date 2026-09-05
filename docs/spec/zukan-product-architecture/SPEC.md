@@ -311,3 +311,38 @@ Stable Product Registry requirements are the product-owned bridge into the share
 - Human View and AI Context Pack consume the central resolver projection; this repository does not create a competing state calculation.
 
 This architecture contract by itself does not enable a runtime route, database writer, production mutation or customer communication. Runtime capability remains whatever current source and verified runtime evidence actually prove.
+
+## 17. Simple participation and public information boundary — 2026-09-05
+
+Status: `ADOPTED ON MERGE / DESIGN CONTRACT / IMPLEMENTATION EVIDENCE SEPARATE`.
+Owner's later explicit direction refines the organizer surface without changing the product's regional scope or free Core. Rationale: [decision](decisions/2026-09-05-simple-participation-publication-boundary.md). Cross-product detail: [final design](https://github.com/yamaki0102/all-projects-management/blob/main/operations/decisions/2026-09-05-zukan-nocosil-participation-graph-review-input-v1.md); [60 acceptance journeys](https://github.com/yamaki0102/all-projects-management/blob/main/operations/decisions/2026-09-05-participation-acceptance-v1.md).
+
+- **ZUKAN: 見つける・記録する・参加する。** Image-first capture remains simple; existing sound/video/document responsibilities still apply. Public Records, signs, interviews, place information, releases and participation opportunities are content within the existing experience, not separate apps or a navigation item per genre.
+- **NOCOSIL: 企画・募集・調整・運営・報告・公開。** All new organizer interaction is composed in its existing context/Project and Public Surface. Do not grow an organizer dashboard or aquarium/museum/cinema/hotel management suite inside ZUKAN.
+- **External specialists:** booking, timed-entry inventory, assigned seating, lodging/transport, payment/refund, live streaming and professional distribution remain with the appropriate authorized provider. An outbound click, paid amount, pass or issued ticket is not confirmed attendance.
+- Organizer UI ownership does not transfer canonical data. Keep existing ZUKAN Program/Event/participant/Quest/Record/Review/Publication truth and identifiers; NOCOSIL uses authorized adapters and returned ref/version/effect evidence. A NOCOSIL draft is ordinary work/Source, not a mirrored mutable ZUKAN Program.
+- Do not remove working organizer routes until a replacement is implemented and accepted. Preserve equivalent free Program/participation/publication entitlements during UI migration; a NOCOSIL Organization subscription must not become a new prerequisite for existing free ZUKAN rights. Ordinary ZUKAN reading/capture/participation does not require NOCOSIL registration.
+
+### 17.1 Minimal semantics
+
+Use Program for reusable participation intent, an existing Event for a real bounded occurrence, and a simple agenda row for explanation only. Independent reusable parts may use Program `part_of`; a separately managed/attended occurrence may reference its parent Event. Parentage does not confer a ticket, seat, participation, data access or publication right. No cyclic parentage; collections can reference the same item without creating additional operational parents.
+
+Opening hours, date ranges, exceptions, IANA timezone, finite recurrence expansion and provider admission slots are values/references. Do not manufacture one Event per opening day or every external inventory slot. `Occurrence` remains biodiversity-specific. Do not add an `Opportunity`, universal Event subsystem, pass wallet or facility type-specific Core.
+
+Participation refers to the selected part/occurrence, participant or authorized proxy, quantity and unit, requested scope and accepted scope. Interest, booking, formation, payment, ticket, presence and communication evidence are separate. Minimum formation counts accepted qualifying quantities in declared units; it does not prove staff/safety readiness. Complex multi-resource capacity, seating and packaged travel remain external. Changes preserve accepted scope until the replacement is confirmed; impacted communication includes relevant pending/waitlist/offer/refund states.
+
+### 17.2 Signs, interviews, facilities and press releases
+
+A photographed sign is a Record with an image Source; OCR/translation is a candidate Claim with capture time and source. Old signage is not current opening/booking truth. An interview uses Source/Record/Claim and Entity relations with publication basis, attribution, editorial/translation separation and correction/withdrawal. Recording what someone said is distinct from verifying the statement. No unauthorized person database or face identification follows from displaying an interview.
+
+Places and subjects can grow from eligible contributions and permitted sources. Global coverage of every hot spring, inn, aquarium or amusement park is not a dependency. Exhibitions and film screenings reference the relevant existing work/Entity plus Program/Event where needed; every displayed object is not necessarily a CreativeWork. Facility admission, special exhibit admission, show reservation, annual-pass eligibility and re-entry conditions remain distinct.
+
+NOCOSIL press releases are a use of its existing publication Record and Public Surface. ZUKAN can display the accepted public edition or an authorized regional projection, retaining origin/ref/version/rights and update/withdrawal effects. Do not copy a second editorial truth store, require an Event for a release, or represent an issuer's announcement as independently verified reporting. Releases also remain readable publicly on NOCOSIL independently of ZUKAN acceptance.
+
+### 17.3 Discovery and evidence
+
+Public details need anonymous readable HTML, stable meaningful URLs, truthful local times/status/prices, accessible alternatives, language-specific content and reciprocal hreflang. Use the same public edition for HTML, metadata, JSON-LD and permitted feeds. Private drafts, embargoes, rosters, accommodation requests, precise restricted locations and access/ticket secrets never enter them.
+
+A NOCOSIL original release normally owns the preferred canonical for equivalent full-text syndication; a ZUKAN page with distinct regional content may be self-canonical. Schema.org meaning and Google feature eligibility differ; pure webinars can be discoverable without qualifying for Google's Event experience. SEO/AIO/LLMO do not justify fabricated articles, doorway pages, a separate AI truth store or promised ranking/citation.
+
+This section supersedes only older interpretations requiring expansion of ZUKAN organizer UI, exhaustive facility catalogs or duplicate content systems. It does not adopt the shared Identity & Activity draft, alter domain-local sessions, reorder the current M1–M12 selector or certify any new runtime journey.

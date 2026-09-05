@@ -191,7 +191,7 @@ Map and list presentations use the same Place truth and must not create parallel
 
 ### 8.1 Product position
 
-M6 proved a self-serve observation-event Program profile. The stable user responsibility is broader: find, join, resume or host regional Programs.
+M6 proved a self-serve observation-event Program profile. The stable public responsibility is broader: find, join and resume regional Programs. New organizer interactions belong to NOCOSIL under §17; existing hosting routes remain compatibility assets until an accepted replacement exists.
 
 Japanese primary-nav label: `参加`
 
@@ -212,7 +212,7 @@ Before M9 profile implementation, the hub may expose:
 - 参加中
 - 過去
 
-#### 主催
+#### 主催 — existing compatibility only; no new organizer surface
 - 主催中
 - current safe draft concept if it exists
 - 過去
@@ -534,3 +534,17 @@ PCは写真と本文を広い側、日時・場所・確認状態を補助側に
 - 色、アイコン、写真が見えなくても意味が分かる。写真の代替文にAI推定の種名を断定して入れない。
 - 長い地名、題名、理由、多言語を実寸で確認する。省略時も主題や確認理由を読む手段を残す。
 - 静的な画面案の確認は設計の視覚検証であり、認証・下書き永続化・本番での利用完了を証明しない。
+
+## 17. Read, record and participate; organize and publish in NOCOSIL — 2026-09-05
+
+This adopted design refines §8 without replacing §16's read-first layout, shared navigation or truthful state distinctions. [SPEC §17](../zukan-product-architecture/SPEC.md#17-simple-participation-and-public-information-boundary--2026-09-05) owns semantic responsibility; [decision](../zukan-product-architecture/decisions/2026-09-05-simple-participation-publication-boundary.md) explains the choice.
+
+- Preserve the current primary navigation and one prominent capture action. Do not add Events, Press, Interviews, Signs or facility-admin hubs. Content may be broad while operations stay few.
+- Participation lists/details prioritize **what, when, where/how, selected part, conditions/price, application provider and change status**. A multi-program day shows a chronological agenda and selectable real parts. `この時間だけ参加したい` records a request until the organizer accepts it; saving a plan is not applying.
+- `自分の参加` shows the selected scope and meaningful pending/confirmed/change state. External checkout return does not display success without evidence. A join URL is available only under the actual participation/access right.
+- Signboard information and interviews use the common Record/public detail layout: readable content/media, source/capture or publication time, subject/place at allowed precision, original vs extraction/translation, correction and use conditions. A museum or hot spring is usable as a Place/reference without a facility management module.
+- A release displays issuer, announcement/update date, authorized content, source and relevant regional/participation links. NOCOSIL's public original is a normal reading destination, not an editing/signup funnel. The issuer's claim is not presented as independent reporting or a verified Record review.
+- New `企画を作る・管理する` is a secondary authorized handoff to NOCOSIL's existing work context. Do not introduce a second organizer dashboard inside ZUKAN. Preserve currently working host/rehost routes and equivalent free capability until replacement acceptance; do not ship a dead or paywalled substitute.
+- When there is no authorized relevant content, show the honest empty/unavailable state. Do not require NOCOSIL registration or a complete facility catalog before visitors can read, post or participate.
+
+Acceptance: [AJ03/04/21/41–60](https://github.com/yamaki0102/all-projects-management/blob/main/operations/decisions/2026-09-05-participation-acceptance-v1.md) as relevant to the changed surface. Design adoption does not make any new control implemented or runtime-active.

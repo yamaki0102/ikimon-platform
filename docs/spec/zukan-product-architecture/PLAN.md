@@ -245,3 +245,17 @@ Use the existing Requirements/Journeys; do not build another checklist engine. F
 ## Production boundary
 
 This plan does not authorize production mutation, DB migration, secret, IAM, DNS or billing change, or external customer send. Production *verification* of a delivered slice runs inside the existing approval boundary under the central deploy registry.
+
+## Participation / publication implementation slices — 2026-09-05
+
+This section implements [SPEC §17](SPEC.md#17-simple-participation-and-public-information-boundary--2026-09-05). [Cross-product stages and acceptance](https://github.com/yamaki0102/all-projects-management/blob/main/operations/decisions/2026-09-05-zukan-nocosil-participation-graph-review-input-v1.md) provide the detailed S0–S4 contract; these are scoped work slices, not replacement milestone IDs or an active-work assignment.
+
+1. Start with one authorized organizer/source/provider probe. Measure repeated collection, corrections, copying, affected-recipient selection and reporting before claiming savings. NOCOSIL work can use an existing external source/ref; it need not wait for a new ZUKAN listing.
+2. Complete the first public loop on existing participation/Record surfaces: clear part selection and provider handoff, time/language/accessibility/SEO, and return to a personal Record. Add only demonstrated missing values/relations. Apply current M8-A/M9 demand gates where the slice changes a Program profile; do not build a universal profile engine.
+3. Use the existing NOCOSIL Public Surface and governed publication exchange for one release visible at an anonymous original URL and in a relevant ZUKAN view. Existing source rights/ref/version govern distribution. Public reachability is an actual dependency for that slice; internal editing and external-source direction work remain independently executable.
+4. Place all new organizer operations in NOCOSIL. Reuse ZUKAN APIs under their existing authority; bind the original/returned version, idempotency and effect. Initial collection uses authorized capture of existing forms/mail. Direct Guest submissions require actual target-scoped write authorization and isolation tests, not only a Project invite.
+5. Add native participation functionality only for a verified unmet need: existing simple RSVP/one capacity constraint/partial scope before any complex inventory. Leave payment/refund, assigned seats, multi-resource constraints and travel sales with providers. Carry selected Records, correction and withdrawal through existing Review/Rights/Publication, then measure repeat use.
+
+Migration acceptance includes AJ60: working old organizer routes and free rights remain until an equivalent authorized replacement passes. No shared-cookie migration, account-link prerequisite, facility table conversion or silent data copying is part of this plan. Rollback returns to the prior working route/public edition without erasing Records, participant references or history.
+
+Use the relevant subset of [AJ01–AJ60](https://github.com/yamaki0102/all-projects-management/blob/main/operations/decisions/2026-09-05-participation-acceptance-v1.md), plus actual privacy/version/race/timezone failures exposed by the slice. New release batching/embargo/feed behavior uses AJ56–AJ59. Document-only adoption uses bounded diff/link/state review, not an app build. Implemented, source-only, staging-observed and production-verified remain distinct; current assignments and runtime evidence remain in management, not this plan.
