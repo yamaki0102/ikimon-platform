@@ -17,7 +17,7 @@ export default defineConfig({
     ["html", { open: "never", outputFolder: "playwright-report/staging" }],
   ],
   use: {
-    baseURL: process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life",
+    baseURL: process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth",
     ignoreHTTPSErrors: true,
     httpCredentials: basicAuthUser && basicAuthPass
       ? {

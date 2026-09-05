@@ -163,8 +163,7 @@
         {
           "pattern": "staging.zukan.earth",
           "custom_domain": true
-        },
-        "staging.ikimon.life/*"
+        }
       ],
       "vars": {
         "ENVIRONMENT": "staging",

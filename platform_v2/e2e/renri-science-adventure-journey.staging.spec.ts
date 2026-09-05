@@ -96,7 +96,7 @@ async function createEvent(api: APIRequestContext, prefix: string): Promise<{ se
   const code = `R${Date.now().toString(36).toUpperCase()}`.slice(0, 14);
   const startedAt = new Date(Date.now() - 5 * 60_000).toISOString();
   const response = await api.post("/api/v1/observation-events", {
-    headers: { origin: "https://staging.ikimon.life", "content-type": "application/json", accept: "application/json" },
+    headers: { origin: "https://staging.zukan.earth", "content-type": "application/json", accept: "application/json" },
     data: {
       event_code: code,
       title: `連理サイエンスアドベンチャー ${prefix}`,
@@ -214,7 +214,7 @@ test.describe.serial("Renri Science Adventure staging journey", () => {
     expect(cookie?.sameSite).toBe("Lax");
     expect(cookie?.secure).toBe(true);
     const headers = {
-      origin: "https://staging.ikimon.life",
+      origin: "https://staging.zukan.earth",
       "content-type": "application/json",
       cookie: `${cookie!.name}=${cookie!.value}`,
     };
@@ -239,7 +239,7 @@ test.describe.serial("Renri Science Adventure staging journey", () => {
     const rawCookie = await issueSession(userApi, writeKey, userId);
     const authHeader = setCookieValue(rawCookie);
     const checkin = await userApi.post(`/api/v1/observation-events/${event.sessionId}/checkin`, {
-      headers: { origin: "https://staging.ikimon.life", cookie: authHeader, "content-type": "application/json" },
+      headers: { origin: "https://staging.zukan.earth", cookie: authHeader, "content-type": "application/json" },
       data: { display_name: "つばさ家族", share_location: false, is_minor: false },
     });
     expect(checkin.ok(), await checkin.text()).toBeTruthy();

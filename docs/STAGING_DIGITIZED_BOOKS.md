@@ -1,8 +1,8 @@
 # Staging Digitized Books
 
-- staging host: `https://staging.ikimon.life/`
-- review URL: `https://staging.ikimon.life/ops/digitized-books`
-- RAG data URL: `https://staging.ikimon.life/ops/digitized-books/rag-data`
+- staging host: `https://staging.zukan.earth/`
+- review URL: `https://staging.zukan.earth/ops/digitized-books`
+- RAG data URL: `https://staging.zukan.earth/ops/digitized-books/rag-data`
 - purpose: raw scan を公開せず、staging 上で catalog / page manifest / usage policy だけを確認する
 
 ## Sync command

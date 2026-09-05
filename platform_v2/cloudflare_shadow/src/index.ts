@@ -37033,9 +37033,11 @@ function getReflectionLoopManifest(url: URL, env: Env): Response {
         public_html_path_count: publicHtmlPaths.length,
         public_html_paths: publicHtmlPaths,
         worker_routes: [
+          "zukan.earth",
+          "www.zukan.earth",
+          "staging.zukan.earth",
           "ikimon.life/*",
-          "www.ikimon.life/*",
-          "staging.ikimon.life/*"
+          "www.ikimon.life/*"
         ],
         smoke_paths: [
           "/healthz",
