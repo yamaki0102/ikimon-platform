@@ -8,13 +8,18 @@ const styles = MAP_EXPLORER_STYLES;
 const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 const stagingSpec = readFileSync(new URL("../../e2e/map.staging.spec.ts", import.meta.url), "utf8");
 
-test("mobile map exposes three primary layers and preserves advanced layers in the drawer", () => {
+test("mobile map exposes two primary layers and one advanced-layer selector in the drawer", () => {
   assert.match(html, /data-mobile-primary-map-controls/);
   assert.match(html, /<summary class="me-filter-toggle">詳しく絞る<\/summary>/);
   assert.match(html, /data-filter-tab="rain"/);
   assert.match(html, /data-filter-tab="frontier"/);
-  assert.match(styles, /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /\.me-tab\[data-tab="rain"\],[\s\S]*\.me-tab\[data-tab="frontier"\] \{\s*display: none;/);
+  const primary = html.match(/data-mobile-primary-map-controls>([\s\S]*?)<\/div>/)?.[1] ?? "";
+  assert.equal((primary.match(/role="tab"/g) ?? []).length, 2);
+  assert.match(styles, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  for (const layer of ["heatmap", "rain", "frontier"]) {
+    assert.equal((html.match(new RegExp(`data-filter-tab="${layer}"`, "g")) ?? []).length, 1);
+    assert.doesNotMatch(html, new RegExp(`data-tab="${layer}"`));
+  }
 });
 
 test("mobile map keeps enough map area and removes the duplicate collapsed locate grid", () => {

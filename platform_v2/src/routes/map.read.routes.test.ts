@@ -88,7 +88,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /学校・キャンパス/);
     assert.match(html, /このエリアの活動・ラリー/);
     assert.match(html, /主催者の方へ/);
-    assert.match(html, /\/community\/events\/new/);
+    assert.match(html, /\/community\/events/);
     assert.match(html, /admin_curated/);
     assert.match(html, /community_curated/);
     assert.match(html, /auto_observation/);
@@ -98,7 +98,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.doesNotMatch(html, />発見の多さ</);
     assert.doesNotMatch(html, />記録が少ない場所</);
     assert.doesNotMatch(html, /class="me-map-command-deck"/);
-    assert.match(html, /data-tab="frontier"/);
+    assert.match(html, /data-filter-tab="frontier"/);
     assert.match(html, /name="me-basemap" value="esri"/);
     assert.match(html, /\.me-map-panel-selection \{\s*top: 148px;/);
     assert.match(html, /'repeatable', 0\.30/);

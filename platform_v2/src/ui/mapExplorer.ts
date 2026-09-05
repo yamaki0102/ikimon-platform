@@ -1269,7 +1269,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     { tab: "frontier", label: copy.tabCoverage },
   ];
   const filterDisplayTabsHtml = filterDisplayTabs
-    .map((item) => `<button type="button" class="me-chip me-filter-tab-chip${item.tab === "places" ? " is-active" : ""}" data-filter-tab="${escapeHtml(item.tab)}" aria-pressed="${item.tab === "places" ? "true" : "false"}">${escapeHtml(item.label)}</button>`)
+    .map((item) => `<button type="button" class="me-chip me-filter-tab-chip${item.tab === "places" ? " is-active" : ""}" aria-label="${escapeHtml(item.label)}" data-filter-tab="${escapeHtml(item.tab)}" aria-pressed="${item.tab === "places" ? "true" : "false"}">${escapeHtml(item.label)}</button>`)
     .join("");
   const startCards = [
     {
@@ -1548,7 +1548,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}" data-mobile-primary-map-controls>
           ${renderMapLayerTab("markers", copy.tabMarkers, mobileTabLabels.markers)}
           ${renderMapLayerTab("places", copy.tabPlaces, mobileTabLabels.places, true)}
-
         </div>
       </div>
       <div class="me-topbar-secondary">
@@ -1559,11 +1558,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <details class="me-filter-drawer">
           <summary class="me-filter-toggle">${escapeHtml(filterToggleLabel)}</summary>
           <div class="me-filter-panel">
-            <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}">
-          ${renderMapLayerTab("heatmap", copy.tabHeatmap, mobileTabLabels.heatmap)}
-          ${renderMapLayerTab("rain", copy.tabRain, mobileTabLabels.rain)}
-          ${renderMapLayerTab("frontier", copy.tabCoverage, mobileTabLabels.frontier)}
-            </div>
             <div class="me-filter-group me-filter-display-group">
               <span class="me-filter-label">${escapeHtml(displayFilterLabel)}</span>
               <div class="me-chip-row" role="group" aria-label="${escapeHtml(displayFilterLabel)}">${filterDisplayTabsHtml}</div>
@@ -14047,7 +14041,7 @@ export const MAP_EXPLORER_STYLES = `
       grid-column: 1 / -1;
       grid-row: 2;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       width: 100%;
       min-width: 0;
       overflow: hidden;
@@ -14056,7 +14050,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-rain-mode .me-tabs {
       grid-column: 1;
       grid-row: 1;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       align-self: center;
       gap: 3px;
       padding: 2px;
@@ -14065,10 +14059,6 @@ export const MAP_EXPLORER_STYLES = `
       box-shadow: 0 8px 22px rgba(15,23,42,.08);
     }
     .me-tabs::-webkit-scrollbar { display: none; }
-    .me-tab[data-tab="rain"],
-    .me-tab[data-tab="frontier"] {
-      display: none;
-    }
     .me-tab {
       min-width: 0;
       min-height: 34px;
