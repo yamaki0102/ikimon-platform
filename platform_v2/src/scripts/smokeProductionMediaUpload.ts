@@ -125,7 +125,7 @@ function parseArgs(argv: string[]): SmokeOptions {
 function isProductionBaseUrl(baseUrl: string): boolean {
   try {
     const hostname = new URL(baseUrl).hostname.toLowerCase();
-    return hostname === "ikimon.life" || hostname === "www.ikimon.life";
+    return ["zukan.earth", "www.zukan.earth", "ikimon.life", "www.ikimon.life", "ikimon-life-cloudflare-prod.yamaki0102.workers.dev"].includes(hostname);
   } catch {
     return false;
   }
@@ -135,8 +135,8 @@ function assertSafeSmokeOptions(options: SmokeOptions): void {
   if (!SAFE_FIXTURE_PREFIX_RE.test(options.fixturePrefix)) {
     throw new Error("fixture_prefix_must_match_prod_media_smoke_pattern");
   }
-  if (isProductionBaseUrl(options.baseUrl) && !options.cleanup) {
-    throw new Error("production_media_smoke_cleanup_required");
+  if (isProductionBaseUrl(options.baseUrl)) {
+    throw new Error("production_synthetic_posts_disabled_use_isolated_staging");
   }
 }
 

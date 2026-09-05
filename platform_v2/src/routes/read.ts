@@ -1,3 +1,4 @@
+import { renderObservationOwnerDeletePanel, renderObservationOwnerDeleteScript } from "../ui/observationOwnerDelete.js";
 import type { FastifyInstance } from "fastify";
 import { registerSnapshotInvalidator } from "../services/snapshotInvalidation.js";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
@@ -4257,21 +4258,6 @@ function renderObservationPhotoRecoveryScript(isOwner: boolean): string {
   })();</script>`;
 }
 
-function renderObservationOwnerDeletePanel(options: {
-  basePath: string;
-  visitId: string;
-  isOwner: boolean;
-  lang: SiteLang;
-}): string {
-  if (!options.isOwner) return "";
-  const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/hide`);
-  const notesHref = appendLangToHref(withBasePath(options.basePath, "/records?view=mine"), options.lang);
-  return `<section class="section obs-owner-tool obs-owner-delete" data-owner-delete data-delete-endpoint="${escapeHtml(endpoint)}" data-after-delete-href="${escapeHtml(notesHref)}" title="一覧と公開ページから外します。写真ファイルは監査用に残します。">
-    <span class="obs-owner-tool-label">削除</span>
-    <button type="button" class="obs-owner-delete-button" data-owner-delete-button>削除</button>
-    <span class="obs-owner-delete-status" data-owner-delete-status aria-live="polite"></span>
-  </section>`;
-}
 
 type OwnerPublicStateCopy = {
   title: string;
@@ -4440,59 +4426,6 @@ async function buildObservationDetailSiteContribution(options: {
   });
 }
 
-function renderObservationOwnerDeleteScript(isOwner: boolean): string {
-  if (!isOwner) return "";
-  return `<script>(function(){
-    var root = document.querySelector('[data-owner-delete]');
-    if (!root) return;
-    var button = root.querySelector('[data-owner-delete-button]');
-    var status = root.querySelector('[data-owner-delete-status]');
-    var endpoint = root.getAttribute('data-delete-endpoint') || '';
-    var nextHref = root.getAttribute('data-after-delete-href') || '/records?view=mine';
-    var confirmDelete = false;
-    var confirmTimer = null;
-    var setStatus = function(message, isError) {
-      if (!status) return;
-      status.textContent = message;
-      status.classList.toggle('is-error', Boolean(isError));
-    };
-    if (!button || !endpoint) return;
-    button.addEventListener('click', function() {
-      if (!confirmDelete) {
-        confirmDelete = true;
-        button.textContent = 'もう一度押して削除';
-        setStatus('一覧と公開ページから外します。取り消す場合はそのまま待ってください。', false);
-        if (confirmTimer) window.clearTimeout(confirmTimer);
-        confirmTimer = window.setTimeout(function(){
-          confirmDelete = false;
-          button.textContent = '削除';
-          setStatus('', false);
-        }, 5200);
-        return;
-      }
-      if (confirmTimer) window.clearTimeout(confirmTimer);
-      button.disabled = true;
-      setStatus('削除中...', false);
-      fetch(endpoint, {
-        method: 'POST',
-        headers: { accept: 'application/json' },
-        cache: 'no-store',
-        credentials: 'same-origin'
-      }).then(function(response) {
-        return response.json().catch(function(){ return {}; }).then(function(json) {
-          if (!response.ok || !json || json.ok === false) {
-            throw new Error(String((json && json.error) || response.status || 'delete_failed'));
-          }
-          setStatus('削除しました。記録ライブラリへ戻ります。', false);
-          setTimeout(function(){ window.location.href = nextHref; }, 700);
-        });
-      }).catch(function(error) {
-        setStatus('削除できませんでした: ' + String(error && error.message || 'network'), true);
-        button.disabled = false;
-      });
-    });
-  })();</script>`;
-}
 
 const START_STATE_STYLES = `
   .record-confidence-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
@@ -18634,7 +18567,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       window.addEventListener('ikimon:identify-panel-replaced', bindProposalQuickActions);
     })();</script>`;
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
-    const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
+    const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner, lang);
     const localPolishScript = renderLocalObservationPolishScript();
     const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${hintBlock}${layer2}${aiCandidateLearningBlock}${layer3}${contextBlock}${ctaBlock}</div>`;
     void hintBlock;

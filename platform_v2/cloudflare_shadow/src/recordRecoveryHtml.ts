@@ -1,3 +1,4 @@
+import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 export type CloudflareRecordRecoverySource =
   | ""
@@ -400,6 +401,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
   <script nonce="${escapeHtml(cspNonce)}">
   (() => {
     const copy = ${JSON.stringify(copy)};
+    ${PHOTO_UPLOAD_PREPARATION_SCRIPT}
     const recordsHref = ${JSON.stringify(`${prefix}/records?view=mine`)};
     const form = document.getElementById("record-form");
     const status = document.getElementById("record-status");
@@ -709,6 +711,8 @@ export function renderCloudflareRecordRecoverySignedHtml(
     void eventMetric("event_photo_selected");
     try {
       await persistDraftProgress({
+        preparedPhotoUploads: [],
+        photoPreparationVersion: "jpeg2560-v1",
         completedPhotoIndexes: [],
         pendingMediaRetryVideoUid: "",
         pendingMediaRetryVideoUploadUrl: "",
@@ -729,6 +733,8 @@ export function renderCloudflareRecordRecoverySignedHtml(
     reveal("video", copy.selected);
     try {
       await persistDraftProgress({
+        preparedPhotoUploads: [],
+        photoPreparationVersion: "jpeg2560-v1",
         completedPhotoIndexes: [],
         pendingMediaRetryVideoUid: "",
         pendingMediaRetryVideoUploadUrl: "",
@@ -794,6 +800,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
       const longitude = Number(longitudeText);
       const userId = form.dataset.userId || "";
       const isRetry = Boolean(pendingRetryTarget);
+      const legacyPhotoRetry = isRetry && recoveryMetadata.photoPreparationVersion !== "jpeg2560-v1";
       let observationStored = isRetry;
       if (!isRetry && (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude))) {
         setStatus(copy.invalidCoordinates, true);
@@ -854,17 +861,23 @@ export function renderCloudflareRecordRecoverySignedHtml(
         for (let index = 0; index < files.length; index += 1) {
           if (completedPhotoIndexes.has(index)) continue;
           const file = files[index];
+          const prepared = Array.isArray(recoveryMetadata.preparedPhotoUploads) ? [...recoveryMetadata.preparedPhotoUploads] : [];
+          const upload = prepared[index] || (legacyPhotoRetry
+            ? { filename: file.name || "record-photo.jpg", mimeType: file.type || "image/jpeg", base64Data: await fileToBase64(file) }
+            : await preparePhotoUpload(file));
+          prepared[index] = upload;
+          await persistDraftProgress({ preparedPhotoUploads: prepared, photoPreparationVersion: legacyPhotoRetry ? "original" : "jpeg2560-v1" });
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
-            filename: file.name || "record-photo-" + String(index + 1) + ".jpg",
-            mimeType: file.type || "image/jpeg",
-            base64Data: await fileToBase64(file),
+            ...upload,
             mediaRole: index === 0 ? "primary" : "context",
-            facePrivacy: "no_faces",
+            facePrivacy: "pending",
           });
+          prepared[index] = null;
           completedPhotoIndexes.add(index);
           await persistDraftProgress({
             recoverySubmissionId,
             pendingMediaRetryVisitId: visitId,
+            preparedPhotoUploads: prepared,
             completedPhotoIndexes: Array.from(completedPhotoIndexes).sort((a, b) => a - b),
           });
         }

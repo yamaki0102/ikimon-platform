@@ -1,3 +1,4 @@
+import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 import * as bcrypt from "bcryptjs";
 import {
@@ -23590,6 +23591,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       positionRequired: "位置が未設定です。現在地を取得するか、座標を入力してください。",
       prompt: "写真か動画を選ぶと、非公開の記録として保存できます。",
       statusReady: "写真・動画を選びました。メモと位置を確認して保存してください。",
+      preparing: "写真を送信用に整えています...",
+      uploading: "写真を送信しています...",
       saving: "保存中です...",
       saved: "記録を保存しました",
       photoSaved: "写真1枚を同じ記録に保存しました。",
@@ -23613,6 +23616,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       positionRequired: "Set a location using your current position or coordinates.",
       prompt: "Choose a photo or video to save a private record.",
       statusReady: "Media selected. Check the coordinates and save.",
+      preparing: "Preparing the photo...",
+      uploading: "Uploading the photo...",
       saving: "Saving...",
       saved: "Record saved",
       photoSaved: "Saved one photo to the same record.",
@@ -23696,6 +23701,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
   <script nonce="${escapeHtml(cspNonce)}">
   (() => {
     const copy = ${JSON.stringify(mediaCopy)};
+    ${PHOTO_UPLOAD_PREPARATION_SCRIPT}
     const form = document.getElementById("record-form");
     const status = document.getElementById("record-status");
     const submitPanel = document.getElementById("record-submit-panel");
@@ -23772,6 +23778,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       }
       return target.pathname + target.search;
     }
+    let preparedPhotoUploads = [];
     let recoverySubmissionId = "";
     let recoveryObservedAt = "";
     let pendingVideoUid = "";
@@ -23791,6 +23798,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         savedAt: Date.now(),
         metadata: {
           ...patch,
+          preparedPhotoUploads,
+          photoPreparationVersion: "jpeg2560-v1",
           recoverySubmissionId,
           recoveryObservedAt,
           eventContext,
@@ -23863,6 +23872,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       }, () => setStatus(copy.positionRequired, true), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
     });
     function reveal(kind) {
+      preparedPhotoUploads = [];
       mediaKind = kind;
       if (form) form.hidden = false;
       if (submitPanel) submitPanel.hidden = false;
@@ -23901,14 +23911,6 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     videoInput?.addEventListener("change", () => {
       reveal("video");
     });
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(reader.error || new Error("file_read_failed"));
-        reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
-        reader.readAsDataURL(file);
-      });
-    }
     async function postJson(path, body) {
       const response = await fetch(path, {
         method: "POST",
@@ -23996,12 +23998,15 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           console.error(draftError);
         }
         if (mediaKind === "photo") {
+          setStatus(copy.preparing, false);
+          const upload = preparedPhotoUploads[0] || await preparePhotoUpload(file);
+          preparedPhotoUploads = [upload];
+          await persistRecordDraftProgress(formData, { pendingMediaRetryVisitId: visitId });
+          setStatus(copy.uploading, false);
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
-            filename: file.name || "record-photo.jpg",
-            mimeType: file.type || "image/jpeg",
-            base64Data: await fileToBase64(file),
+            ...upload,
             mediaRole: "primary",
-            facePrivacy: "no_faces"
+            facePrivacy: "pending"
           });
           await deleteRecordDraft();
           serverSaved = true;
