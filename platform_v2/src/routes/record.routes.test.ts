@@ -113,6 +113,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /id="record-media"[^>]+multiple/);
         assert.match(response.body, /MAX_PHOTO_FILES = 6/);
         assert.match(response.body, /PHOTO_UPLOAD_MAX_EDGE = 2560/);
+        assert.match(response.body, /PHOTO_UPLOAD_WEBP_QUALITY = 0\.82/);
         assert.match(response.body, /PHOTO_UPLOAD_JPEG_QUALITY = 0\.88/);
         assert.match(response.body, /PHOTO_UPLOAD_CONCURRENCY = 2/);
         assert.doesNotMatch(response.body, /redactCanvasFaces\(canvas\)/);
@@ -134,6 +135,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /動画は保存済みです。公開までの状態を下に表示しています。/);
         assert.match(response.body, /動画は保存済みです。公開準備が続いています。画面を閉じても大丈夫です。/);
         assert.match(response.body, /preparePhotoUpload/);
+        assert.match(response.body, /canvasToWebpDataUrl\(canvas, PHOTO_UPLOAD_WEBP_QUALITY\)/);
         assert.match(response.body, /canvasToJpegDataUrl\(canvas, PHOTO_UPLOAD_JPEG_QUALITY\)/);
         assert.match(response.body, /mapWithConcurrency\(preparedPhotoUploads, PHOTO_UPLOAD_CONCURRENCY/);
         assert.match(response.body, /let selectedMediaFiles = \[\]/);

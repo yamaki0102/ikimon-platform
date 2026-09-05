@@ -439,7 +439,8 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /MediaRecorder/);
   assert.match(html, /MAX_PHOTO_DRAFT_FILES = 6/);
   assert.match(html, /PHOTO_UPLOAD_MAX_EDGE = 2560/);
-  assert.match(html, /PHOTO_UPLOAD_JPEG_QUALITY = 0\.88/);
+  assert.match(html, /PHOTO_UPLOAD_WEBP_QUALITY = 0\.82/);
+  assert.match(html, /PHOTO_UPLOAD_JPEG_FALLBACK_QUALITY = 0\.88/);
   assert.match(html, /PHOTO_UPLOAD_CONCURRENCY = 2/);
   assert.match(html, /CAMERA_PHOTO_IDEAL_WIDTH = 2560/);
   assert.match(html, /CAMERA_PHOTO_IDEAL_HEIGHT = 1920/);
@@ -450,7 +451,8 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /server_async_face_privacy/);
   assert.match(html, /facePrivacy: upload\.facePrivacy \|\| null/);
   assert.match(html, /preparePhotoUpload/);
-  assert.match(html, /canvasToJpegDataUrl\(canvas, PHOTO_UPLOAD_JPEG_QUALITY\)/);
+  assert.match(html, /canvasToPreparedPhoto\(canvas\)/);
+  assert.match(html, /image\/webp/);
   assert.match(html, /mapWithConcurrency\(files, PHOTO_UPLOAD_CONCURRENCY/);
   assert.match(html, /selectedPhotoDraftFiles/);
   assert.match(html, /data-global-record-photo-remove/);
