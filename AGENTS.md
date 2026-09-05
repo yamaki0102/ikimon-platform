@@ -65,3 +65,9 @@ Use a short-lived `codex/<work-id>` branch → reviewed/verified PR → authoriz
 ## Completion
 
 Report changed behavior, exact source/PR, proportional checks, current runtime read-back, remaining real dependencies and next admitted Work. A passing test, merged PR, HTTP 200 or old LIVE_VERIFIED record does not establish the complete user journey. Preserve existing blocked slices and failure bindings; continue independent adopted source work through the same management queue without renaming or retrying the blocked task.
+
+## Test data isolation (owner correction, 2026-09-05)
+
+- Do not create dummy or synthetic production posts as product verification, including private posts under the owner's account. Use local fixtures, isolated staging tests with cleanup, and read-only production checks.
+- The daily production-media-smoke writer is retired. Do not re-enable its timer or bypass the production guard to satisfy a test. Existing sample data does not prove real participation or user contribution.
+- Delete or hide only positively identified test records through the existing owner/canonical cleanup semantics. Preserve actual user posts, keep a bounded before/rollback record, verify removal from lists/detail/maps, and close the producer that recreated the data.

@@ -26,15 +26,17 @@ test("production media smoke verifies duplicate post guard", async () => {
   assert.doesNotMatch(source, /media_worker/);
 });
 
-test("production media smoke refuses unsafe production cleanup settings", () => {
+test("synthetic smoke cannot create production posts, even with cleanup enabled", () => {
   const safeOptions = __test__.parseArgs([
     "--base-url=https://ikimon.life",
     "--fixture-prefix=prod-media-smoke-contract",
     "--video-file=fixtures/smoke.mp4",
   ]);
-  assert.doesNotThrow(() => __test__.assertSafeSmokeOptions(safeOptions));
+  assert.throws(() => __test__.assertSafeSmokeOptions(safeOptions), /production_synthetic_posts_disabled/);
   assert.equal(__test__.isProductionBaseUrl("https://ikimon.life"), true);
   assert.equal(__test__.isProductionBaseUrl("https://www.ikimon.life"), true);
+  assert.equal(__test__.isProductionBaseUrl("https://zukan.earth"), true);
+  assert.equal(__test__.isProductionBaseUrl("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev"), true);
   assert.equal(__test__.isProductionBaseUrl("http://127.0.0.1:3200"), false);
 
   const unsafeNoCleanup = __test__.parseArgs([
@@ -45,8 +47,10 @@ test("production media smoke refuses unsafe production cleanup settings", () => 
   ]);
   assert.throws(
     () => __test__.assertSafeSmokeOptions(unsafeNoCleanup),
-    /production_media_smoke_cleanup_required/,
+    /production_synthetic_posts_disabled/,
   );
+  const isolated = __test__.parseArgs(["--base-url=http://127.0.0.1:3200", "--fixture-prefix=prod-media-smoke-contract"]);
+  assert.doesNotThrow(() => __test__.assertSafeSmokeOptions(isolated));
 
   const unsafePrefix = __test__.parseArgs([
     "--base-url=https://ikimon.life",

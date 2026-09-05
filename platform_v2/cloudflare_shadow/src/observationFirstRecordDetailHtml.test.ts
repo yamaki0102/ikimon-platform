@@ -134,7 +134,9 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.doesNotMatch(rendered, /confidence|0\.91/);
   assert.match(rendered, /変更を記録しました/);
   assert.doesNotMatch(rendered, /<script>alert\(1\)<\/script>/);
-  assert.doesNotMatch(rendered, /<script\b/i);
+  assert.match(rendered, /data-owner-delete-script/);
+  assert.match(rendered, /data-delete-endpoint="\/api\/v1\/observations\//);
+  assert.match(rendered, /href="#of-manage-body"/);
   assert.doesNotMatch(rendered, /latitude|longitude|exact_location|みんなに聞く|提案募集中|確認0件|観察記録|件の対象|名前は未決定|同定の履歴|人から記録された同定候補はまだありません|割り当てられたメディアはありません/i);
 
   const operationIds = [...rendered.matchAll(/name="operation_id" value="([^"]+)"/g)].map((match) => match[1]);

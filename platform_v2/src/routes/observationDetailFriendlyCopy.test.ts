@@ -18,6 +18,7 @@ import {
 } from "./read.js";
 
 const routeSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+const ownerDeleteSource = readFileSync(new URL("../ui/observationOwnerDelete.ts", import.meta.url), "utf8");
 const writeRouteSource = readFileSync(new URL("./write.ts", import.meta.url), "utf8");
 const cardSource = readFileSync(new URL("../ui/observationCard.ts", import.meta.url), "utf8");
 const mediaSource = readFileSync(new URL("../ui/observationMedia.ts", import.meta.url), "utf8");
@@ -380,7 +381,7 @@ test("observation detail keeps nearby guide cards owner-scoped and capped", () =
 });
 
 test("observation detail exposes owner-only site contribution state through policy services", () => {
-  const contributionSource = sourceBetween("function renderObservationSiteContributionPanel", "function renderObservationOwnerDeleteScript");
+  const contributionSource = sourceBetween("function renderObservationSiteContributionPanel", "const START_STATE_STYLES");
   const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
 
   assert.match(routeSource, /buildObservationSiteContribution/);
@@ -787,7 +788,7 @@ test("AI readout stays simple while the assessment is still being created", () =
 test("owner-only controls stay compact and avoid support-card copy", () => {
   const ownerSource = [
     sourceBetween("function renderObservationPhotoRecoveryPanel", "function renderObservationPhotoRecoveryScript"),
-    sourceBetween("function renderObservationOwnerDeletePanel", "function renderObservationOwnerDeleteScript"),
+    ownerDeleteSource,
     sourceBetween("const reassessBlock =", "const ownerToolsBlock ="),
   ].join("\n");
   assert.match(ownerSource, /obs-owner-tool/);
