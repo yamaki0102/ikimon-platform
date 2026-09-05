@@ -229,7 +229,7 @@
     "Production Worker deploy receives only the Cloudflare token after the Executor verifies the exact checkout, preflight receipt digest, materialized UI hashes, prepared dependencies, and an empty process table. The target entrypoint then replaces its shell with direct local Wrangler.",
     "Routine production deploy never applies D1 migrations; productionD1Migrations is false in the machine-readable phase contract.",
     "The production public entrypoint is Cloudflare Worker ikimon-life-cloudflare-prod, not the legacy VPS blue/green lane.",
-    "The production Worker must not own staging.ikimon.life routes; Cloudflare staging owns staging.ikimon.life/* through ikimon-life-cloudflare-staging.",
+    "The production Worker must not own staging routes; Cloudflare staging owns the staging.zukan.earth custom domain through ikimon-life-cloudflare-staging.",
     "Routine production deploy must not use VPS SSH, deploy_platform_v2_blue_green.sh, or VPS_SSH_KEY.",
     "Routine production deploy must not change DNS, custom domains, secrets, billing, provider settings, or VPS state.",
     "R2 writes in routine deploy are limited to generated original UI HTML/static assets and materialization metadata from the exact deployed commit."

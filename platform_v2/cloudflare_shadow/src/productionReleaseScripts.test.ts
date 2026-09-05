@@ -271,7 +271,12 @@ test("staging execute rejects dirty or changed deploy inputs before mutation", a
   await assert.rejects(runGate(true, clean, { ...clean, packageLockSha256: "lock-b" }), /staging_execute_state_changed:pre-deploy:packageLockSha256/u);
 
   const guard = await source("../scripts/deploy-staging-guard.mjs");
+  const wrangler = await source("../wrangler.jsonc");
   assert.match(guard, /scripts\/staging-runtime-smoke\.mjs/u);
   assert.match(guard, /scripts\/staging-deploy-state-gate\.mjs/u);
   assert.match(guard, /assertStagingExecuteState/u);
+  assert.match(guard, /missing_staging_custom_domain/u);
+  assert.match(guard, /retired_staging_legacy_route_present/u);
+  assert.match(wrangler, /staging\.zukan\.earth/u);
+  assert.doesNotMatch(wrangler, /staging\.ikimon\.life\/\*/u);
 });
