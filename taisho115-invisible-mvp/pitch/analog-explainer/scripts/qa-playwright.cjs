@@ -9,6 +9,12 @@ const narrationAssetDir = releaseAssets.rulesNarration;
 const outDir = process.env.QA_OUT_DIR ? path.resolve(process.env.QA_OUT_DIR) : path.resolve(__dirname, "..", ".runtime", "screenshots");
 fs.mkdirSync(outDir, { recursive: true });
 
+async function openDeck(page) {
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await page.waitForSelector(".slide.active", { state: "visible", timeout: 15000 });
+  await page.waitForTimeout(250);
+}
+
 function segments(slide, slideIndex) {
   const items =
     Array.isArray(slide.dialogue) && slide.dialogue.length
@@ -38,11 +44,14 @@ function segments(slide, slideIndex) {
     { name: "landscape", width: 667, height: 375 }
   ]) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.goto(url, { waitUntil: "networkidle" });
+    await openDeck(page);
     const count = await page.locator("[data-slide]").count();
     if (count !== slides.length) failures.push(`${viewport.name}: slide count ${count}`);
     for (let index = 0; index < count; index += 1) {
-      if (index > 0) await page.getByLabel("次のスライド").click();
+      if (index > 0) {
+        if (viewport.name === "landscape") await page.keyboard.press("ArrowRight");
+        else await page.getByLabel("次のスライド").click();
+      }
       await page.waitForTimeout(360);
       const metrics = await page.evaluate(() => {
         const active = document.querySelector(".slide.active");
@@ -97,7 +106,7 @@ function segments(slide, slideIndex) {
     await page.screenshot({ path: path.join(outDir, `${viewport.name}.png`), fullPage: true });
   }
 
-  await page.goto(url, { waitUntil: "networkidle" });
+  await openDeck(page);
   const audioFiles = [
     `${narrationAssetDir}/slide-manifest.json`,
     ...slides.map((_, index) => `${narrationAssetDir}/slides/slide-${String(index + 1).padStart(2, "0")}.wav`)
@@ -151,7 +160,8 @@ function segments(slide, slideIndex) {
   if (!ctaChecks.hasPurchase) failures.push("cta purchase affordance missing");
   if (!ctaChecks.hasShare) failures.push("cta share affordance missing");
 
-  await page.goto(url, { waitUntil: "networkidle" });
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await openDeck(page);
   await page.locator(".slide.active .segment-timeline button").last().click();
   await page.getByLabel("音声つき自動再生").click();
   const expectedNextSlideId = slides[1]?.id;
@@ -211,7 +221,8 @@ function segments(slide, slideIndex) {
     failures.push(`narration playback rate mismatch: ${JSON.stringify({ expectedPlaybackRate, autoplayState })}`);
   }
 
-  await page.goto(url, { waitUntil: "networkidle" });
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await openDeck(page);
   await page.getByLabel("音声つき自動再生").click();
   const firstPlaybackRate = await page.evaluate(() => document.querySelector("audio")?.playbackRate || 0);
   if (Math.abs(firstPlaybackRate - expectedPlaybackRate) > 0.001) {
