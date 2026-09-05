@@ -375,8 +375,11 @@
       "auth": "public",
       "privacy": "public-filtered",
       "implementation_status": "implemented",
-      "known_gaps": [],
+      "known_gaps": [
+        "現行runtime profileは観察会のみ。検索・絞り込み・自分の参加・当日復帰は後続のparticipant experience sliceで実装する"
+      ],
       "capabilities": [
+        "zukan.program.discover-public",
         "zukan.program.activate-self-serve",
         "zukan.program.invite-participate",
         "zukan.program.view-recap"
@@ -392,7 +395,7 @@
           "status": "implemented"
         },
         {
-          "action": "招待から参加する",
+          "action": "参加方法を確認する",
           "target": "zukan.program.participation",
           "status": "implemented"
         },
@@ -529,13 +532,17 @@
       "auth": "session",
       "privacy": "event-scoped",
       "implementation_status": "implemented",
-      "known_gaps": [],
+      "known_gaps": [
+        "公開Programの条件をログイン前に読む専用detailは未実装で、現行M6はjoin/check-in routeを兼用する",
+        "自分の参加・変更確認・当日復帰は未実装"
+      ],
       "capabilities": [
         "zukan.program.invite-participate",
         "zukan.record.save-private"
       ],
       "entry_points": [
-        "zukan.program.console"
+        "zukan.program.console",
+        "zukan.program.hub"
       ],
       "transitions": [
         {

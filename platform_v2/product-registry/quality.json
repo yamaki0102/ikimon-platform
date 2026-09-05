@@ -312,14 +312,17 @@
         "error"
       ],
       "acceptance": [
-        "開催中・募集中・過去の観察会を既存Event scopeで探せる",
-        "参加者・主催者の操作を混同せず既存の参加・作成・recapへ進める",
-        "privateな参加者・記録・正確な位置を一覧へ投影しない"
+        "公開参加入口のある現在の観察会を参加者優先で探し、終了分は履歴/recapへ分ける",
+        "通常の参加結果と主催者操作を分離し、結果ごとに現在のparticipant next actionを1つだけ示す",
+        "privateな参加者・記録・正確な位置・internal mode・未実装profileを一覧へ投影しない"
+      ],
+      "requirement_refs": [
+        "quality.zukan.program.public-discovery"
       ],
       "tests": [
         {
-          "locator": "platform_v2/src/ui/observationEventList.ts",
-          "kind": "source-event-hub",
+          "locator": "platform_v2/src/ui/observationEventList.test.ts",
+          "kind": "source-participant-first-hub",
           "status": "canonical"
         },
         {

@@ -1151,6 +1151,34 @@
       "priority": 80
     },
     {
+      "id": "quality.zukan.program.public-discovery",
+      "quality_contract": "quality.zukan.program-hub",
+      "title": "参加Hubのparticipant-first発見",
+      "acceptance": "公開HubでeventCodeのある現在参加可能な現行Programを参加者優先で表示し、主催者操作を通常結果から分離する。終了分は履歴/recapへ分け、公開参加入口のないlive session、internal mode、架空のurgency・人気・参加数を参加可能結果として出さず、結果ごとに現在のparticipant next actionを1つだけ示す。0件時は公開記録へ戻れる",
+      "environments": [
+        "source",
+        "staging"
+      ],
+      "evidence_lanes": [
+        "machine",
+        "human"
+      ],
+      "verification_levels": [
+        "contract",
+        "source",
+        "integration",
+        "staging",
+        "human"
+      ],
+      "invalidation_keys": [
+        "source:program",
+        "source:event",
+        "source:navigation",
+        "runtime:staging"
+      ],
+      "priority": 85
+    },
+    {
       "id": "quality.zukan.program.participation",
       "quality_contract": "quality.zukan.program-participation",
       "title": "Event参加と記録scopeの固定",

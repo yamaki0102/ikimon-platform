@@ -493,6 +493,68 @@
       ]
     },
     {
+      "id": "journey.zukan.public-program-participation",
+      "title": "閲覧者: 参加企画を見つける→参加→記録→振り返る",
+      "actor": "public_or_individual",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.collaborative-knowledge"
+      ],
+      "capability_refs": [
+        "zukan.program.discover-public",
+        "zukan.program.invite-participate",
+        "zukan.record.save-private",
+        "zukan.program.view-recap"
+      ],
+      "goal": "公開参加可能なProgramを参加者として見つけ、対象Eventの参加・非公開記録・振り返りへ同じscopeで進む",
+      "start_surface": "zukan.program.hub",
+      "success_surface": "zukan.program.recap",
+      "steps": [
+        {
+          "surface": "zukan.program.hub",
+          "action": "参加者向け一覧で現在参加可能な企画を見つけ、参加方法を確認する"
+        },
+        {
+          "surface": "zukan.program.participation",
+          "action": "対象Eventの条件とscopeを確認して参加する"
+        },
+        {
+          "surface": "zukan.capture.start",
+          "action": "対象Event scopeの記録をprivate defaultで残す"
+        },
+        {
+          "surface": "zukan.program.recap",
+          "action": "自分の記録とreview済みの範囲を振り返る"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.program.public-discovery",
+        "quality.zukan.program.participation",
+        "quality.zukan.trust.private-default"
+      ],
+      "required_outcomes": [
+        "公開参加入口がある現在のProgramを主催者操作と分離して見つけられる",
+        "終了Programを現在参加可能として表示せずrecapへ分ける",
+        "参加・記録は対象Event scopeを保ちprivate Recordを自動公開しない",
+        "検索・自分の参加・変更確認・当日復帰等の未実装stageを実装済みと装わない"
+      ],
+      "recovery": [
+        "参加可能な企画が0件でも公開記録へ戻れる",
+        "未ログイン・join失敗・権限外を参加成功扱いしない",
+        "guestからloginへ移行しても対象Event attributionを失わない"
+      ],
+      "required_states": [
+        "guest",
+        "unauthenticated",
+        "ready",
+        "joined",
+        "capturing",
+        "empty",
+        "populated",
+        "error"
+      ]
+    },
+    {
       "id": "journey.zukan.self-serve-program-activation",
       "title": "主催者: 企画→作成→招待→参加→記録→review→recap→再開催",
       "actor": "school_municipality_organization_company",
