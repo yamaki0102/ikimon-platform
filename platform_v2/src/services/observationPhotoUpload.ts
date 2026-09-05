@@ -147,13 +147,14 @@ function normalizeFacePrivacy(input: unknown): FacePrivacySummary | null {
   };
 }
 
-function canKeepPreparedJpeg(buffer: Buffer, mimeType: string, metadata: Metadata): boolean {
+function canKeepPreparedPhoto(buffer: Buffer, mimeType: string, metadata: Metadata): boolean {
   const width = typeof metadata.width === "number" ? metadata.width : 0;
   const height = typeof metadata.height === "number" ? metadata.height : 0;
   const extraMetadata = metadata as Metadata & { iptc?: unknown; xmp?: unknown };
   const hasSensitiveMetadata = Boolean(metadata.exif || extraMetadata.iptc || extraMetadata.xmp);
-  return mimeType === "image/jpeg"
-    && metadata.format === "jpeg"
+  const formatMatches = (mimeType === "image/jpeg" && metadata.format === "jpeg")
+    || (mimeType === "image/webp" && metadata.format === "webp");
+  return formatMatches
     && width > 0
     && height > 0
     && width <= 2560
@@ -167,10 +168,10 @@ async function normalizeObservationImage(buffer: Buffer, mimeType: string): Prom
   const normalizedMime = mimeType.trim().toLowerCase();
   try {
     const inputMetadata = await sharp(buffer, { failOn: "none" }).metadata();
-    if (canKeepPreparedJpeg(buffer, normalizedMime, inputMetadata)) {
+    if (canKeepPreparedPhoto(buffer, normalizedMime, inputMetadata)) {
       return {
         buffer,
-        mimeType: "image/jpeg",
+        mimeType: normalizedMime,
         widthPx: inputMetadata.width ?? null,
         heightPx: inputMetadata.height ?? null,
       };

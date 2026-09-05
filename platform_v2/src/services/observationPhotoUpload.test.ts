@@ -82,8 +82,12 @@ test("Kubiaka skips compatibility export and media reassessment", () => {
   assert.match(source, /private_no_public_processing/);
 });
 
-test("normalization, retry cleanup and non-Kubiaka behavior remain", () => {
+test("normalization, prepared WebP reuse, retry cleanup and non-Kubiaka behavior remain", () => {
   assert.match(source, /normalizeObservationImage/);
+  assert.match(source, /canKeepPreparedPhoto/);
+  assert.match(source, /mimeType === "image\/webp"/);
+  assert.match(source, /metadata\.format === "webp"/);
+  assert.match(source, /mimeType: normalizedMime/);
   assert.match(source, /width: 2560/);
   assert.match(source, /height: 2560/);
   assert.match(source, /createdMediaObjects\.push\(originalInput\)/);

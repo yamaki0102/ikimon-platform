@@ -712,7 +712,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
     try {
       await persistDraftProgress({
         preparedPhotoUploads: [],
-        photoPreparationVersion: "jpeg2560-v1",
+        photoPreparationVersion: "webp2560-v1",
         completedPhotoIndexes: [],
         pendingMediaRetryVideoUid: "",
         pendingMediaRetryVideoUploadUrl: "",
@@ -734,7 +734,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
     try {
       await persistDraftProgress({
         preparedPhotoUploads: [],
-        photoPreparationVersion: "jpeg2560-v1",
+        photoPreparationVersion: "webp2560-v1",
         completedPhotoIndexes: [],
         pendingMediaRetryVideoUid: "",
         pendingMediaRetryVideoUploadUrl: "",
@@ -800,7 +800,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
       const longitude = Number(longitudeText);
       const userId = form.dataset.userId || "";
       const isRetry = Boolean(pendingRetryTarget);
-      const legacyPhotoRetry = isRetry && recoveryMetadata.photoPreparationVersion !== "jpeg2560-v1";
+      const legacyPhotoRetry = isRetry && !["jpeg2560-v1", "webp2560-v1"].includes(String(recoveryMetadata.photoPreparationVersion || ""));
       let observationStored = isRetry;
       if (!isRetry && (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude))) {
         setStatus(copy.invalidCoordinates, true);
@@ -866,7 +866,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
             ? { filename: file.name || "record-photo.jpg", mimeType: file.type || "image/jpeg", base64Data: await fileToBase64(file) }
             : await preparePhotoUpload(file));
           prepared[index] = upload;
-          await persistDraftProgress({ preparedPhotoUploads: prepared, photoPreparationVersion: legacyPhotoRetry ? "original" : "jpeg2560-v1" });
+          await persistDraftProgress({ preparedPhotoUploads: prepared, photoPreparationVersion: legacyPhotoRetry ? "original" : "webp2560-v1" });
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
             ...upload,
             mediaRole: index === 0 ? "primary" : "context",
