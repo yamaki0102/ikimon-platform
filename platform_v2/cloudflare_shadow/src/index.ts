@@ -23799,7 +23799,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         metadata: {
           ...patch,
           preparedPhotoUploads,
-          photoPreparationVersion: "jpeg2560-v1",
+          photoPreparationVersion: "webp2560-v1",
           recoverySubmissionId,
           recoveryObservedAt,
           eventContext,

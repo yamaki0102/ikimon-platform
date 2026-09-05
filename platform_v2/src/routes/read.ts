@@ -11939,6 +11939,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const quickCaptureStateButtons = Array.from(document.querySelectorAll('[data-quick-capture-state]'));
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
+        const PHOTO_UPLOAD_WEBP_QUALITY = 0.82;
         const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
         const PHOTO_FEEDBACK_MAX_EDGE = 1024;
         const PHOTO_FEEDBACK_JPEG_QUALITY = 0.72;
@@ -14529,6 +14530,30 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             readFileAsDataUrl(blob).then(resolve).catch(() => resolve(canvas.toDataURL('image/jpeg', quality)));
           }, 'image/jpeg', quality);
         });
+        const canvasToWebpDataUrl = (canvas, quality) => new Promise((resolve) => {
+          if (!canvas) {
+            resolve(null);
+            return;
+          }
+          if (typeof canvas.toBlob !== 'function') {
+            try {
+              const dataUrl = canvas.toDataURL('image/webp', quality);
+              resolve(String(dataUrl || '').startsWith('data:image/webp') ? dataUrl : null);
+            } catch (_) {
+              resolve(null);
+            }
+            return;
+          }
+          canvas.toBlob((blob) => {
+            if (!blob || String(blob.type || '').toLowerCase() !== 'image/webp') {
+              resolve(null);
+              return;
+            }
+            readFileAsDataUrl(blob)
+              .then((dataUrl) => resolve(String(dataUrl || '').startsWith('data:image/webp') ? dataUrl : null))
+              .catch(() => resolve(null));
+          }, 'image/webp', quality);
+        });
         const loadImageElementForUpload = (file) => new Promise((resolve, reject) => {
           const url = URL.createObjectURL(file);
           const image = new Image();
@@ -14575,11 +14600,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (!context) throw new Error('photo_canvas_unavailable');
             context.drawImage(image, 0, 0, targetWidth, targetHeight);
             if (image && typeof image.close === 'function') image.close();
-            const base64Data = await canvasToJpegDataUrl(canvas, PHOTO_UPLOAD_JPEG_QUALITY);
-            const safeName = String(file.name || 'upload.jpg').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
+            const webpData = await canvasToWebpDataUrl(canvas, PHOTO_UPLOAD_WEBP_QUALITY);
+            const base64Data = webpData || await canvasToJpegDataUrl(canvas, PHOTO_UPLOAD_JPEG_QUALITY);
+            const outputMimeType = webpData ? 'image/webp' : 'image/jpeg';
+            const outputExtension = webpData ? '.webp' : '.jpg';
+            const safeName = String(file.name || 'upload').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
             return {
-              filename: safeName + '.jpg',
-              mimeType: 'image/jpeg',
+              filename: safeName + outputExtension,
+              mimeType: outputMimeType,
               base64Data,
               facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null },
             };
