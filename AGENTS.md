@@ -5,7 +5,7 @@ ZUKAN is a place-centered shared knowledge and participation product across natu
 ## Authority and start
 
 - Fresh-read `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md`, the current work queue, and the relevant project packet before making current-state or delivery claims.
-- Product entry: `docs/START_HERE.md`, `PROJECT.json`, `docs/spec/zukan-product-architecture/{SPEC,PLAN,PROFILE_HORIZON}.md`. UI work also reads `docs/spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md`; participation/Program discovery UI additionally reads `docs/spec/zukan-app-experience/PARTICIPATION_EXPERIENCE_V1.md`.
+- Product entry: `docs/START_HERE.md`, `PROJECT.json`, `docs/spec/zukan-product-architecture/{SPEC,PLAN,PROFILE_HORIZON}.md`. UI work also reads `docs/spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md`; `/profile` / `自分` UI additionally reads `docs/spec/zukan-app-experience/MY_PAGE_V2.md`; participation/Program discovery UI additionally reads `docs/spec/zukan-app-experience/PARTICIPATION_EXPERIENCE_V1.md`.
 - Product Registry owns meaning, acceptance and static dependencies. The management queue and shared Verified Outcome Status Resolver own current assignment and resolved evidence. A static task is not a live lease or runtime proof.
 - Use exact current source in an isolated native workspace, with one writer for the repository. Preserve unrelated dirty work and existing failed Work identities. Apply the current management start/locality and admission contract for the actual execution node.
 - Owner-authorized reversible source, test, branch, PR and merge work proceeds without repeated approval. Existing protected release, rights, privacy, identity and external-send boundaries remain binding.
