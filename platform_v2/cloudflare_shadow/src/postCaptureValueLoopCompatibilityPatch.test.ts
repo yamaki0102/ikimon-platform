@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import vm from "node:vm";
 import {
   applyPostCaptureValueLoopCompatibilityPatch,
   enforcePostCaptureValueLoopCompatibility,
@@ -31,6 +32,38 @@ const detailHtml = `<!doctype html>
 </body>
 </html>`;
 
+test("detail ordering reaches a fixed point instead of retriggering its observer forever", () => {
+  const patched = applyPostCaptureValueLoopCompatibilityPatch(detailHtml);
+  const from = patched.indexOf("var prioritizeContent = function (enhanced)");
+  const to = patched.indexOf("var compactPanel =", from);
+  assert.ok(from >= 0 && to > from);
+  for (const captureReturn of [false, true]) {
+    const children: any[] = [];
+    let mutations = 0;
+    const moveBefore = (node: any, before: any) => {
+      const old = children.indexOf(node);
+      if (old >= 0) children.splice(old, 1);
+      const target = before ? children.indexOf(before) : children.length;
+      children.splice(target, 0, node); mutations += 1;
+    };
+    const node = (name: string): any => ({ name,
+      get previousElementSibling() { return children[children.indexOf(this) - 1] ?? null; },
+      get nextElementSibling() { return children[children.indexOf(this) + 1] ?? null; },
+      insertAdjacentElement(_position: string, other: any) { moveBefore(other, this.nextElementSibling); },
+    });
+    const info = node("info"), note = node("note"), summary = node("summary"), enhanced = node("status");
+    children.push(info, note, summary, enhanced);
+    const panel = { querySelector: (selector: string) => selector === ".of-note" ? note : summary, insertBefore: moveBefore };
+    const context = vm.createContext({ document: { querySelector: () => panel }, isCaptureReturn: () => captureReturn });
+    new vm.Script(patched.slice(from, to)).runInContext(context);
+    context.prioritizeContent(enhanced);
+    const settled = mutations;
+    for (let i = 0; i < 10; i += 1) context.prioritizeContent(enhanced);
+    assert.equal(mutations, settled, "observer reconciliation must stop mutating the same nodes");
+    assert.equal(new Set(children).size, 4);
+  }
+});
+
 test("compatibility patch compacts the enhanced status while preserving every detail", () => {
   const patched = applyPostCaptureValueLoopCompatibilityPatch(detailHtml);
 
@@ -57,10 +90,10 @@ test("compatibility patch removes only duplicate processing copy and keeps fail-
   assert.match(patched, /data-observation-reassess-script/u);
 });
 
-test("compatibility patch prioritizes AI content and keeps save reassurance high after capture", () => {
+test("compatibility patch keeps the recorded note before AI content and save reassurance high after capture", () => {
   const patched = applyPostCaptureValueLoopCompatibilityPatch(detailHtml);
 
-  assert.match(patched, /panel\.insertBefore\(summary, note\)/u);
+  assert.match(patched, /note\.insertAdjacentElement\('afterend', summary\)/u);
   assert.match(patched, /summary\.insertAdjacentElement\('afterend', enhanced\)/u);
   assert.match(patched, /get\('source'\) === 'capture_saved'/u);
   assert.match(patched, /grid-template-areas/u);

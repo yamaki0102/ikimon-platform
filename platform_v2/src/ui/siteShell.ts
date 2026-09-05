@@ -1,3 +1,4 @@
+import { APP_EXPERIENCE_STYLES, isAppExperiencePath } from "./appExperience.js";
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
@@ -753,20 +754,16 @@ function renderHeaderCoreNavigation(basePath: string, lang: SiteLang, currentPat
   const placesHref = appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang);
   const homeHref = appendLangToHref(withBasePath(basePath, "/"), lang);
   const memberRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
-  const memberSelfHref = appendLangToHref(withBasePath(basePath, "/profile"), lang);
   const eventsHref = appendLangToHref(withBasePath(basePath, "/community/events"), lang);
-  const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Frecords%3Fview%3Dmine"), lang);
-  const guestSelfHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Fprofile"), lang);
+  const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=public"), lang);
   const recordsHref = authState === "member" ? memberRecordsHref : guestRecordsHref;
-  const selfHref = authState === "member" ? memberSelfHref : guestSelfHref;
   const current = (matched: boolean): string => matched ? ' aria-current="page"' : "";
   return `<nav class="site-nav site-nav-desktop site-core-nav" aria-label="${escapeHtml(copy.navLabel)}">
     <a class="site-core-nav-link" href="${escapeHtml(homeHref)}"${current(pathname === "/" || pathname === "/home")}>${escapeHtml(copy.home)}</a>
-    <button type="button" class="site-core-nav-link is-capture" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="header_capture" aria-haspopup="dialog">${escapeHtml(copy.photo)}</button>
     <a class="site-core-nav-link" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${current(pathname === "/records" || pathname.startsWith("/records/") || pathname.startsWith("/observations/"))}>${escapeHtml(copy.records)}</a>
     <a class="site-core-nav-link" href="${escapeHtml(placesHref)}"${current(pathname === "/map" || pathname.startsWith("/map/"))}>${escapeHtml(copy.places)}</a>
     <a class="site-core-nav-link" href="${escapeHtml(eventsHref)}"${current(pathname === "/community/events" || pathname.startsWith("/community/events/"))}>${escapeHtml(copy.events)}</a>
-    <a class="site-core-nav-link" href="${escapeHtml(selfHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestSelfHref)}" data-auth-member-href="${escapeHtml(memberSelfHref)}"${current(pathname === "/profile" || pathname.startsWith("/profile/"))}>${escapeHtml(copy.self)}</a>
+    <button type="button" class="site-core-nav-link is-capture" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="header_capture" aria-haspopup="dialog">${escapeHtml(copy.photo)}</button>
   </nav>`;
 }
 
@@ -794,9 +791,9 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
   const notificationIcon = siteNotificationMenu(basePath, lang);
   const settingsIcon = siteAccountIcon(basePath, lang, "settings", "/login?redirect=/profile/settings", accountCopy.settings, "data-account-settings");
 
-  if (homeChrome) {
+  if (homeChrome || (isAppExperiencePath(currentPath) && !minimalChrome)) {
     const homeProfileIcon = siteAccountIcon(basePath, lang, "account", "/profile", accountCopy.profile, "data-account-profile");
-    return `<header class="site-header site-header-home" data-home-header data-home-auth-state="${homeChrome}">
+    return `<header class="site-header site-header-home" data-home-header data-home-auth-state="${homeChrome ?? "guest"}">
     <div class="site-header-inner">
       <div class="site-brand-cluster">
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
@@ -804,7 +801,8 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
         </a>
       </div>
       ${navLinks}
-      <div class="home-header-actions is-guest"><a class="home-header-login" href="${loginHref}">${escapeHtml(accountCopy.login)}</a></div>
+      <div class="zukan-app-language">${desktopLangSwitch}</div>
+      <div class="home-header-actions is-guest"><a class="home-header-login site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a></div>
       <nav class="home-header-actions is-member" aria-label="${escapeHtml(accountCopy.accountNav)}">${notificationIcon}${homeProfileIcon}</nav>
     </div>
   </header>`;
@@ -1245,7 +1243,7 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   const homeHref = appendLangToHref(withBasePath(basePath, "/"), lang);
   const placesHref = appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang);
   const memberRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
-  const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/login?redirect=%2Frecords%3Fview%3Dmine"), lang);
+  const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=public"), lang);
   const recordsHref = authState === "member" ? memberRecordsHref : guestRecordsHref;
   const eventsHref = appendLangToHref(withBasePath(basePath, "/community/events"), lang);
   const homeCurrent = pathname === "/" || pathname === "/home";
@@ -3573,11 +3571,13 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
   const applySignedInState = (session) => {
     if (!session || !session.userId) {
       document.documentElement.dataset.auth = 'guest';
+      document.querySelectorAll('[data-home-header]').forEach((header) => { header.dataset.homeAuthState = 'guest'; });
       hydrateBottomNavAuth(false);
       return;
     }
     signedIn = true;
     document.documentElement.dataset.auth = 'signed-in';
+    document.querySelectorAll('[data-home-header]').forEach((header) => { header.dataset.homeAuthState = 'member'; });
     hydrateBottomNavAuth(true);
     document.querySelectorAll('.site-login-link').forEach((link) => {
       const label = link.querySelector('.desktop-side-nav-label');
@@ -7400,9 +7400,10 @@ ${alternateLinks}
       }
     }
     ${options.extraStyles ?? ""}
+    ${isAppExperiencePath(currentPath) ? APP_EXPERIENCE_STYLES : ""}
   </style>
 </head>
-<body${prefersCollapsedSideNav ? ' class="is-desktop-side-nav-collapsed"' : ""}>
+<body${isAppExperiencePath(currentPath) ? ' data-zukan-app-experience="v1"' : ""}${prefersCollapsedSideNav ? ' class="is-desktop-side-nav-collapsed"' : ""}>
   <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
   ${appLaunchScreenHtml}
   ${languageSuggestionHtml}

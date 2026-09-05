@@ -88,7 +88,7 @@ test("exact D1 migrations apply through the pinned workerd runtime", { timeout: 
     }>;
     assert.equal(response[0]?.success, true);
     assert.deepEqual(
-      response[0]?.results.slice(-6).map((row) => row.name),
+      response[0]?.results.filter((row) => /^(0009|0010|0011|0012|0013|0014)_zukan_/.test(row.name)).map((row) => row.name),
       [
         "0009_zukan_foundation_v2_source_identity.sql",
         "0010_zukan_foundation_v2_predicate_claims.sql",
