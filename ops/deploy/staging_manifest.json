@@ -12,7 +12,7 @@
     "ikimon_shadow_observations_2026_06"
   ],
   "queue": "ikimon-staging-media-jobs",
-  "stagingBaseUrl": "https://staging.ikimon.life/",
+  "stagingBaseUrl": "https://staging.zukan.earth/",
   "workerDevUrl": "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/",
   "materializedOriginalUiScope": "core",
   "promotion": {
@@ -29,9 +29,9 @@
     "requiredExecutorChecks": ["config_validation", "targeted_test", "build", "wrangler_dry_run"]
   },
   "healthChecks": [
-    "https://staging.ikimon.life/healthz",
-    "https://staging.ikimon.life/readyz",
-    "https://staging.ikimon.life/demo/place-feeling-tags"
+    "https://staging.zukan.earth/healthz",
+    "https://staging.zukan.earth/readyz",
+    "https://staging.zukan.earth/demo/place-feeling-tags"
   ],
   "requiredChecks": [
     "node --test scripts/tests/plan_ci_scope.tests.mjs scripts/tests/report_github_actions_dependency.tests.mjs",
@@ -65,9 +65,9 @@
     "D1 migrations are never executed by the staging deploy entrypoint; migration is a separate approval-bound job.",
     "Routine releases reuse the existing staging write secret. Secret mutation is explicit through SYNC_STAGING_WRITE_SECRET=true.",
     "Browser evidence is not duplicated in normal staging releases. PR CI selects affected browser surfaces; BROWSER_QA=full remains available for release evidence.",
-    "The staging Worker owns staging.ikimon.life/* and uses non-production shadow D1/R2 resources plus ikimon-staging-media-jobs.",
+    "The staging Worker owns the staging.zukan.earth custom domain and uses non-production shadow D1/R2 resources plus ikimon-staging-media-jobs.",
     "Routine Cloudflare staging deploy must not use VPS SSH, /var/www/ikimon.life-staging, or VPS_SSH_KEY.",
-    "Production Worker config must not own staging.ikimon.life routes.",
+    "Production Worker config must not own staging routes or the staging.zukan.earth custom domain.",
     "Legacy VPS staging remains only for old integration jobs until those jobs are migrated or retired.",
     "releaseGates currently documents the legacy VPS verify_level=full gate; Cloudflare staging uses requiredChecks and public route smoke until the Postgres-only smoke is migrated to D1."
   ]

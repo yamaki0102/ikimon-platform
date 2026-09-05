@@ -1,6 +1,6 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
 
-const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life";
+const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 const fixtureImage = {

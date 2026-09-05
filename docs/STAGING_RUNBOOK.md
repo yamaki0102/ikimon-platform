@@ -15,12 +15,12 @@ ikimon.life は **Cloudflare staging先行** で昇格する。
 ### Production
 
 - Worker: `ikimon-life-cloudflare-prod`
-- public URL: `https://ikimon.life/`
+- public URL: `https://zukan.earth/`
 
 ### Staging
 
 - Worker: `ikimon-life-cloudflare-staging`
-- public URL: `https://staging.ikimon.life/`
+- public URL: `https://staging.zukan.earth/`
 - D1: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`
 - R2: `ikimon-shadow-media`
 - Queue: `ikimon-staging-media-jobs`

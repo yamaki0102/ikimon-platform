@@ -7,7 +7,7 @@ import { waitForExactStagingRuntimeVersion } from "./staging-runtime-smoke.mjs";
 
 const requiredApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
 const stagingWorkerUrl = "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev";
-const stagingPublicUrl = "https://staging.ikimon.life";
+const stagingPublicUrl = "https://staging.zukan.earth";
 const defaultPreflightReportPath = ".deploy/staging-preflight-latest.json";
 const allowedArgs = new Set(["--execute", "--approval", "--write-preflight-report", "--test-profile"]);
 const args = new Map();
@@ -170,7 +170,11 @@ async function readStagingConfigSummary() {
   const failures = [];
 
   if (staging?.name !== "ikimon-life-cloudflare-staging") failures.push("unexpected_staging_worker_name");
-  if (!routes.includes("staging.ikimon.life/*")) failures.push("missing_staging_route");
+  const hasCanonicalStagingCustomDomain = routes.some((route) =>
+    route && typeof route === "object" && route.pattern === "staging.zukan.earth" && route.custom_domain === true
+  );
+  if (!hasCanonicalStagingCustomDomain) failures.push("missing_staging_custom_domain");
+  if (routes.includes("staging.ikimon.life/*")) failures.push("retired_staging_legacy_route_present");
   if (vars.ENVIRONMENT !== "staging") failures.push("staging_environment_var_missing");
   failures.push(...legacyOriginFallbackVars.map((key) => `retired_origin_fallback_var_present:${key}`));
   if (!d1Names.includes("ikimon_shadow_core")) failures.push("missing_nonproduction_core_d1");
