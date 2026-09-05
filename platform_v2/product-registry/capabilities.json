@@ -221,6 +221,26 @@
       ]
     },
     {
+      "domain": "public-program-participation",
+      "outcome_ref": "outcome.zukan.collaborative-knowledge",
+      "actors": [
+        "public",
+        "individual"
+      ],
+      "outcome": "参加できるProgramを参加者優先で見つけ、対象Eventの参加・記録・振り返りへつなぐ",
+      "capability_refs": [
+        "zukan.program.discover-public",
+        "zukan.program.invite-participate",
+        "zukan.record.save-private",
+        "zukan.program.view-recap"
+      ],
+      "requirement_refs": [
+        "quality.zukan.program.public-discovery",
+        "quality.zukan.program.participation",
+        "quality.zukan.trust.private-default"
+      ]
+    },
+    {
       "domain": "self-serve-program-activation",
       "outcome_ref": "outcome.zukan.self-serve-program-activation",
       "actors": [
@@ -340,6 +360,14 @@
       "actor": "member",
       "operation": "read",
       "privacy": "mixed-owner-and-public",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.program.discover-public",
+      "title": "公開中のProgramを参加者として見つける",
+      "actor": "visitor_or_member",
+      "operation": "read",
+      "privacy": "public-filtered",
       "side_effects": []
     },
     {

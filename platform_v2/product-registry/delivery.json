@@ -465,6 +465,7 @@
       "target_requirements": [
         "quality.zukan.program.self-serve-activation",
         "quality.zukan.program.participation",
+        "quality.zukan.program.public-discovery",
         "quality.zukan.program.closeout-rehost",
         "quality.zukan.program.free-output-boundary"
       ],
@@ -796,9 +797,13 @@
       "milestone_id": "milestone.m6.self-serve-program-activation",
       "state": "implemented",
       "requirement_ids": [
-        "quality.zukan.program.participation"
+        "quality.zukan.program.participation",
+        "quality.zukan.program.public-discovery"
       ],
       "source_locators": [
+        "platform_v2/src/ui/observationEventList.ts",
+        "platform_v2/src/ui/observationEventList.test.ts",
+        "docs/spec/zukan-app-experience/PARTICIPATION_EXPERIENCE_V1.md",
         "platform_v2/src/routes/observationEventApi.ts",
         "platform_v2/src/routes/observationEventPages.ts",
         "platform_v2/src/ui/observationEventCheckin.ts",
