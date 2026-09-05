@@ -30742,20 +30742,20 @@ async function queryPendingOutbox(env: Env): Promise<Array<{ outbox_id: string; 
 }
 
 async function dispatchOutboxBestEffort(env: Env, jobs: MediaJob[]): Promise<{ sent: number; pending: number; errors: string[] }> {
-  let sent = 0;
-  const errors: string[] = [];
-  for (const job of jobs) {
+  const results = await Promise.all(jobs.map(async (job) => {
     try {
       await sendOutbox(env, job);
-      sent++;
+      return { sent: true, error: null };
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown dispatch error";
-      errors.push(message);
       await env.OBS_DB.prepare(
         "UPDATE outbox SET attempts = attempts + 1, last_error = ? WHERE outbox_id = ?"
       ).bind(message, job.outboxId).run();
+      return { sent: false, error: message };
     }
-  }
+  }));
+  const sent = results.filter((result) => result.sent).length;
+  const errors = results.flatMap((result) => result.error ? [result.error] : []);
   return { sent, pending: jobs.length - sent, errors };
 }
 
