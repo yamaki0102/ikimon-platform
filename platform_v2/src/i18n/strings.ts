@@ -151,6 +151,8 @@ export type ObservationEventStrings = {
   listHeroLead: string;
   listCreateCta: string;
   listBackToCommunity: string;
+  listOrganizerHeading: string;
+  listOrganizerLead: string;
   listLiveSection: string;
   listPastSection: string;
   listLiveEmpty: string;

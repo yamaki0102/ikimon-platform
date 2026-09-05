@@ -48,7 +48,7 @@ import {
   recapScript,
 } from "../ui/observationEventRecap.js";
 import { renderObservationEventOfficialReportBody } from "../ui/observationEventOfficialReport.js";
-import { renderEventListBody } from "../ui/observationEventList.js";
+import { OBSERVATION_EVENT_LIST_STYLES, renderEventListBody } from "../ui/observationEventList.js";
 import {
   renderEventCreateBody,
   eventCreateScript,
@@ -396,9 +396,10 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     const strings = getStrings(lang).observationEvent;
     const html = pageDocument({
       basePath: "",
-        title: `${strings.listEyebrow} — ZUKAN`,
+      title: `${strings.listHeroHeading} — ZUKAN`,
       currentPath: currentPathOf(request),
       body: renderEventListBody(sessions, strings, lang),
+      extraStyles: OBSERVATION_EVENT_LIST_STYLES,
       lang,
     });
     reply.type("text/html; charset=utf-8");
