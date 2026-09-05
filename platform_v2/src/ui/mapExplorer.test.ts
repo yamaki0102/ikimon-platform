@@ -450,7 +450,8 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.doesNotMatch(html, /class="me-map-cues"/);
   assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="現地ガイド" data-tab="places"/);
   assert.match(html, /<span class="me-tab-short" aria-hidden="true">現地ガイド<\/span>/);
-  assert.match(html, /class="me-tab" role="tab" aria-selected="false" aria-label="雨雲" data-tab="rain"/);
+  assert.equal((html.match(/data-filter-tab="rain"/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /class="me-tab"[^>]*data-tab="rain"/);
   assert.match(html, /class="me-filter-group me-filter-display-group"/);
   assert.match(html, /<summary class="me-filter-toggle">詳しく絞る<\/summary>/);
   assert.match(html, /role="group" aria-label="見る人"/);
@@ -1005,15 +1006,15 @@ test("layer tabs expose low-zoom guidance without a floating layer key", () => {
   assert.match(styles, /\.me-layer-hint-jump \{/);
 });
 
-test("mobile map keeps three primary tabs and moves advanced layers into the details drawer", () => {
+test("mobile map keeps two primary tabs and the existing advanced-layer selector", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026, 2025] });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /data-mobile-primary-map-controls/);
   assert.match(html, /data-filter-tab="rain"/);
   assert.match(html, /data-filter-tab="frontier"/);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab\[data-tab="rain"\],[\s\S]*\.me-tab\[data-tab="frontier"\] \{[\s\S]*display: none;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
+  assert.doesNotMatch(html, /class="me-tab"[^>]*data-tab="(?:heatmap|rain|frontier)"/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*--me-enjoy-h: 38px;/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-map-role-strip span,[\s\S]*\.me-map-role-strip em \{[\s\S]*display: none;/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab \{[\s\S]*min-width: 0;[\s\S]*text-overflow: ellipsis;/);
