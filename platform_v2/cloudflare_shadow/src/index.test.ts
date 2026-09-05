@@ -17268,9 +17268,9 @@ test("production public UI routes avoid legacy PHP fallback by default", async (
     const eventCreatePageHtml = await eventCreatePage.text();
     const eventCreateVisibleHtml = eventCreatePageHtml.replace(/<script[\s\S]*?<\/script>/giu, "");
     assert.match(eventCreateVisibleHtml, /観察会を作成するには、ZUKANにログインしてください/);
-    assert.match(eventCreatePageHtml, /<header class="site-header">/);
-    assert.match(eventCreatePageHtml, /site-nav-link" href="\/ja\/map"/);
-    assert.match(eventCreatePageHtml, /site-record-link" href="\/ja\/record"/);
+    assert.match(eventCreatePageHtml, /<header class="zukan-app-header">/);
+    assert.match(eventCreatePageHtml, /href="\/es\/map\?tab=places"/);
+    assert.match(eventCreatePageHtml, /href="\/es\/record"/);
     assert.doesNotMatch(eventCreatePageHtml, /ikimon\.life 観察会/);
     assert.doesNotMatch(eventCreateVisibleHtml, /Worker|D1|Cloudflare|API|Area Sketch Assist|AI/);
     assert.doesNotMatch(eventCreateVisibleHtml, /data-area-sketch-map|tile\.openstreetmap\.org|World_Imagery|area-sketch-assessments/);
@@ -23055,7 +23055,7 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.match(body, /data-global-record-gallery>端末の写真から選ぶ/, check.path);
         assert.doesNotMatch(body, /href="\/ja\/record"[^>]*>撮る/, check.path);
         assert.match(body, /id="main-content" class="cf-profile-shell"/, check.path);
-        assert.match(body, /<title>(?:マイページ|プロフィール設定) — ZUKAN<\/title>/, check.path);
+        assert.match(body, /<title>(?:自分|プロフィール設定) — ZUKAN<\/title>/, check.path);
         assert.doesNotMatch(body, /<title>[^<]*ikimon/u, check.path);
         assert.doesNotMatch(body, /cf-profile-header/, check.path);
         assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
@@ -23077,7 +23077,7 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session", check.path);
         assert.doesNotMatch(body, /materialized record/, check.path);
         assert.match(body, /<title>記録する \| ZUKAN<\/title>/, check.path);
-        assert.match(body, /class="cf-record-brand"[^>]*>[\s\S]*zukan-app-icon-192\.png[\s\S]*zukan-wordmark\.svg[\s\S]*<\/a>/, check.path);
+        assert.match(body, /class="zukan-app-brand"[^>]*>[\s\S]*zukan-app-icon-192\.png[\s\S]*zukan-wordmark\.svg[\s\S]*<\/a>/, check.path);
         assert.match(body, /カメラ・写真ライブラリ/, check.path);
         assert.match(body, /\.cf-record-hero p\{[^}]*font-size:16px/);
         assert.match(body, /\.cf-record-pick span\{[^}]*font-size:14px/);

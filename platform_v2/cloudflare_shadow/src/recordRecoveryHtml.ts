@@ -1,3 +1,4 @@
+import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 export type CloudflareRecordRecoverySource =
   | ""
   | "location_denied"
@@ -317,11 +318,11 @@ export function renderCloudflareRecordRecoveryGuestHtml(url: URL, cspNonce: stri
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${escapeHtml(copy.pageTitle)} | ZUKAN</title>
-  <style>${recoveryStyles()}</style>
+  <style>${recoveryStyles()}${APP_EXPERIENCE_STYLES}</style>
 </head>
-<body>
-  <header class="cf-recovery-header"><a class="cf-recovery-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN Home">ZUKAN</a></header>
-  <main class="cf-recovery-shell" data-record-recovery-start>
+<body data-zukan-app-experience="v1">
+  ${renderAppExperienceHeader(lang, 2)}
+  <main id="main-content" tabindex="-1" class="cf-recovery-shell" data-record-recovery-start>
     <section class="cf-recovery-card">
       <span class="cf-recovery-eyebrow">${escapeHtml(copy.eyebrow)}</span>
       <h1>${escapeHtml(copy.guestTitle)}</h1>
@@ -335,6 +336,7 @@ export function renderCloudflareRecordRecoveryGuestHtml(url: URL, cspNonce: stri
       </div>
     </section>
   </main>
+  ${renderAppExperienceNavigation(lang, 2, "bottom")}
   <script nonce="${escapeHtml(cspNonce)}">document.documentElement.dataset.recordRecovery="guest";</script>
 </body>
 </html>`;
@@ -361,14 +363,11 @@ export function renderCloudflareRecordRecoverySignedHtml(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${escapeHtml(copy.pageTitle)} | ZUKAN</title>
-  <style>${recoveryStyles()}</style>
+  <style>${recoveryStyles()}${APP_EXPERIENCE_STYLES}</style>
 </head>
-<body data-record-start="${escapeHtml(state.start)}" data-record-recovery-page="1" data-recovery-source="${escapeHtml(state.source)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
-  <header class="cf-recovery-header">
-    <a class="cf-recovery-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN Home">ZUKAN</a>
-    <div class="cf-recovery-profile">${escapeHtml(session.displayName || session.userId)}</div>
-  </header>
-  <main class="cf-recovery-shell">
+<body data-zukan-app-experience="v1" data-record-start="${escapeHtml(state.start)}" data-record-recovery-page="1" data-recovery-source="${escapeHtml(state.source)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
+  ${renderAppExperienceHeader(lang, 2, true)}
+  <main id="main-content" tabindex="-1" class="cf-recovery-shell">
     <section class="cf-recovery-card" data-record-recovery data-state="checking">
       <span class="cf-recovery-eyebrow">${escapeHtml(copy.eyebrow)}</span>
       <h1 id="record-recovery-title">${escapeHtml(initialTitle)}</h1>
@@ -397,6 +396,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
       <div id="record-status" class="cf-recovery-status" role="status" aria-live="polite"></div>
     </form>
   </main>
+  ${renderAppExperienceNavigation(lang, 2, "bottom", true)}
   <script nonce="${escapeHtml(cspNonce)}">
   (() => {
     const copy = ${JSON.stringify(copy)};
@@ -496,6 +496,10 @@ export function renderCloudflareRecordRecoverySignedHtml(
       setPanelState(pendingRetryTarget ? "media_retry" : "ready", pendingRetryTarget ? copy.retry : copy.ready, pendingRetryTarget ? copy.retryBody : copy.readyBody);
       setStatus(message || copy.selected, false);
     }
+    const recoveryToken = new URLSearchParams(window.location.search).get("draft_token") || "";
+    const validRecoveryToken = /^[A-Za-z0-9_-]{20,96}$/.test(recoveryToken) ? recoveryToken : "";
+    const recoveryOwnerKey = validRecoveryToken ? "guest:" + validRecoveryToken : "user:" + form.dataset.userId;
+    const recoveryDraftKey = "latest:" + recoveryOwnerKey;
     function openRecordDraftDb() {
       return new Promise((resolve, reject) => {
         if (!("indexedDB" in window)) return reject(new Error("indexeddb_unavailable"));
@@ -512,8 +516,13 @@ export function renderCloudflareRecordRecoverySignedHtml(
       try {
         return await new Promise((resolve, reject) => {
           const tx = db.transaction("drafts", "readonly");
-          const request = tx.objectStore("drafts").get("latest");
-          request.onsuccess = () => resolve(request.result || null);
+          const request = tx.objectStore("drafts").get(recoveryDraftKey);
+          request.onsuccess = () => {
+            const candidate = request.result;
+            const owned = candidate && candidate.ownerKey === recoveryOwnerKey;
+            const tokenMatches = !validRecoveryToken || candidate?.continuationToken === validRecoveryToken;
+            resolve(owned && tokenMatches ? candidate : null);
+          };
           request.onerror = () => reject(request.error || new Error("indexeddb_read_failed"));
         });
       } finally {
@@ -525,7 +534,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
     try {
       await new Promise((resolve, reject) => {
         const tx = db.transaction("drafts", "readwrite");
-        tx.objectStore("drafts").put(draft, "latest");
+        tx.objectStore("drafts").put(draft, recoveryDraftKey);
         tx.oncomplete = () => resolve(true);
         tx.onerror = () => reject(tx.error || new Error("indexeddb_write_failed"));
       });
@@ -554,6 +563,8 @@ export function renderCloudflareRecordRecoverySignedHtml(
     };
     currentDraft = {
       ...previous,
+      ownerKey: recoveryOwnerKey,
+      continuationToken: validRecoveryToken || null,
       file: files[0] || previous.file || null,
       files: files.length > 0 ? files : normalizeDraftFiles(previous),
       kind: mediaKind,
@@ -575,7 +586,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
         try {
           await new Promise((resolve, reject) => {
             const tx = db.transaction("items", "readwrite");
-            tx.objectStore("items").delete("record:latest");
+            tx.objectStore("items").delete("record:" + recoveryDraftKey);
             tx.oncomplete = () => resolve(true);
             tx.onerror = () => reject(tx.error || new Error("outbox_delete_failed"));
           });
@@ -585,11 +596,12 @@ export function renderCloudflareRecordRecoverySignedHtml(
       } catch (_) {}
     }
     async function deleteDraft() {
+      if (!currentDraft || currentDraft.ownerKey !== recoveryOwnerKey) return;
       const db = await openRecordDraftDb();
       try {
         await new Promise((resolve, reject) => {
           const tx = db.transaction("drafts", "readwrite");
-          tx.objectStore("drafts").delete("latest");
+          tx.objectStore("drafts").delete(recoveryDraftKey);
           tx.oncomplete = () => resolve(true);
           tx.onerror = () => reject(tx.error || new Error("indexeddb_delete_failed"));
         });
@@ -597,6 +609,12 @@ export function renderCloudflareRecordRecoverySignedHtml(
         db.close();
       }
       await deleteOutboxDraft();
+      if (validRecoveryToken) {
+        const cleaned = new URL(window.location.href);
+        cleaned.searchParams.delete("draft_token");
+        history.replaceState(history.state, "", cleaned.pathname + cleaned.search + cleaned.hash);
+        if (sessionStorage.getItem("ikimon:record-draft-guest-token-v1") === validRecoveryToken) sessionStorage.removeItem("ikimon:record-draft-guest-token-v1");
+      }
     }
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {

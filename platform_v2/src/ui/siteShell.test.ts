@@ -29,6 +29,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
     title: "Test",
     body: "<p>body</p>",
     lang: "ja",
+    currentPath: "/learn",
   });
 
   assert.doesNotMatch(html, /class="btn btn-ghost site-login-link"/);
@@ -84,14 +85,14 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.doesNotMatch(html, /parts\.push\('名前待ち' \+ needsIdCount\)/);
   assert.doesNotMatch(html, /ログインすると、フォロー中の分類群や観察エリアをここに固定します。/);
   assert.match(html, /desktop-side-nav-mini-card/);
-  assert.match(html, /class="shell shell-layout-home"/);
+  assert.doesNotMatch(html, /data-zukan-app-experience="v1"/);
   assert.match(html, /class="site-nav site-nav-desktop site-core-nav"/);
   assert.match(html, /data-global-record-trigger="photo"/);
   assert.match(html, />ホーム<\/a>/);
   assert.match(html, />場所<\/a>/);
   assert.match(html, />記録<\/a>/);
   assert.match(html, />参加<\/a>/);
-  assert.match(html, />自分<\/a>/);
+  assert.match(html, /data-account-profile/);
   assert.match(html, /data-auth-member-href="\/ja\/records\?view=mine"/);
   assert.match(html, /href="\/ja\/profile" title="マイページ"/);
   assert.match(html, /href="\/ja\/records\?view=mine" title="記録を見る"/);
@@ -162,7 +163,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /<meta property="og:image:width" content="1200" \/>/);
   assert.match(html, /<meta property="og:image:height" content="630" \/>/);
   assert.match(html, /<meta property="og:image:alt" content="ZUKAN" \/>/);
-  assert.match(html, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/" \/>/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/learn" \/>/);
   assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/);
   assert.match(html, /<meta name="twitter:image" content="https:\/\/zukan\.earth\/assets\/brand\/zukan-ogp-default\.png" \/>/);
   assert.match(html, /<span>ZUKAN<\/span>\s*<span>地域の記録を、みんなで育てる。<\/span>/);
@@ -184,17 +185,13 @@ test("site shell replaces existing and empty script nonce attributes with the ac
   assert.doesNotMatch(html, /<script\b[^>]*\bnonce=""/);
 });
 
-test("site shell keeps records search query and view in header search", () => {
-  const html = renderSiteDocument({
-    basePath: "",
-    title: "Test",
-    body: "<p>body</p>",
-    lang: "ja",
-    currentPath: "/ja/records?view=needs_id&q=%E3%82%AB%E3%83%A9%E3%82%B9",
-  });
-
-  assert.match(html, /<input type="hidden" name="view" value="needs_id" \/>/);
-  assert.match(html, /name="q" placeholder="[^"]*" value="カラス"/);
+test("app records search belongs to the content, with public guest navigation", () => {
+  const html = renderSiteDocument({basePath: "", title: "Records", body: "<p>records</p>", lang: "ja", currentPath: "/ja/records?view=public&q=bird"});
+  assert.doesNotMatch(html, /<form class="site-search/);
+  assert.doesNotMatch(html, /<aside class="desktop-side-nav/);
+  assert.match(html, /data-auth-guest-href="\/ja\/records\?view=public"/);
+  assert.match(html, /data-auth-member-href="\/ja\/records\?view=mine"/);
+  assert.match(html, /data-home-header/);
 });
 
 test("mobile menu panel can render outside the sticky header", () => {
@@ -203,6 +200,7 @@ test("mobile menu panel can render outside the sticky header", () => {
     title: "Test",
     body: "<p>body</p>",
     lang: "ja",
+    currentPath: "/learn",
   });
 
   assert.match(html, /\.site-header \{[^}]*z-index: 90;[^}]*overflow: visible;/);
@@ -575,9 +573,9 @@ test("browse navigation gives active state to the matching destination", () => {
     const desktopNav = html.match(/<nav class="site-nav site-nav-desktop site-core-nav"[\s\S]*?<\/nav>/)?.[0] ?? "";
     const mobileNav = html.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
 
-    assert.equal((desktopNav.match(/aria-current="page"/g) || []).length, 1);
+    assert.equal((desktopNav.match(/aria-current="page"/g) || []).length, surface.mobile === false ? 0 : 1);
     assert.equal((mobileNav.match(/aria-current="page"/g) || []).length, surface.mobile === false ? 0 : 1);
-    assert.match(desktopNav, new RegExp(`aria-current="page">${surface.label}</a>`));
+    if (surface.mobile !== false) assert.match(desktopNav, new RegExp(`aria-current="page">${surface.label}</a>`));
     if (surface.mobile !== false) assert.match(mobileNav, new RegExp(`aria-current="page">[\\s\\S]*?<span>${surface.label}</span>`));
     const desktopCapture = desktopNav.match(/<button[^>]+data-global-record-trigger="photo"[^>]*>/)?.[0] ?? "";
     const mobileCapture = mobileNav.match(/<button[^>]+data-global-record-trigger="photo"[^>]*>/)?.[0] ?? "";
@@ -655,7 +653,7 @@ test("site shell localizes the mobile global record launcher", () => {
   assert.match(html, />Records<\/span>/);
   assert.match(html, />Participate<\/span>/);
   assert.doesNotMatch(html, />Me<\/span>/);
-  assert.match(html, /class="site-mobile-menu-account site-login-link" href="\/en\/login\?redirect=%2Fprofile">Sign in</);
+  assert.match(html, /class="home-header-login site-login-link" href="\/en\/login\?redirect=%2Fprofile">Sign in</);
   assert.match(html, /Capture a record/);
   assert.match(html, /Choose from device/);
   assert.doesNotMatch(html, /aria-label="主要ナビゲーション"/);

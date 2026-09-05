@@ -75,9 +75,9 @@ test("guest Top stays useful without public data and never invents record cards"
   assert.match(html, /home-guest-hero-visual/);
   assert.match(html, /home-guest-proof is-count-0 is-empty/);
   assert.match(html, /<strong>ホームで紹介する記録は準備中です。<\/strong>/);
-  assert.match(html, /home-empty-proof-flow/);
-  assert.match(html, /home-empty-proof-symbol/);
-  assert.match(html, /home-place-visual is-placeholder/);
+  assert.match(html, /data-home-public-records-link/);
+  assert.doesNotMatch(html, /home-empty-proof-symbol/);
+  assert.doesNotMatch(html, /home-place-visual is-placeholder/);
   assert.match(html, /まずは一枚。撮った記録は、場所と時間に結びついて残ります。/);
   assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(html, /class="home-public-card"/);
@@ -87,11 +87,10 @@ test("guest Top stays useful without public data and never invents record cards"
 test("guest empty visual is explicitly non-record content and keeps its copy readable", () => {
   const html = render("ja", snapshot());
   assert.match(html, /<div class="home-guest-proof is-count-0 is-empty"[^>]*data-home-empty-proof="true"/);
-  assert.match(html, /home-empty-proof-flow/);
+  assert.match(html, /data-home-public-records-link/);
   assert.match(html, /ホームで紹介する記録は準備中です。/);
   assert.match(html, /撮る/);
-  assert.match(html, /場所に残る/);
-  assert.match(html, /記録として戻る/);
+  assert.match(html, /公開記録を見る/);
   assert.doesNotMatch(html, /zukan-empty-illustration|data-home-empty-illustration/);
   assert.match(LANDING_TOP_STYLES, /\.home-empty-proof-copy\{display:grid;grid-template-columns:1fr/);
   assert.doesNotMatch(html, /data-home-public-record=/);
@@ -104,11 +103,11 @@ test("guest proof uses safe public records as editorial evidence", () => {
     observation("editorial-3", { displayName: "確認待ちの記録", identificationCount: 0, isAiCandidate: true }),
   ];
   const html = render("ja", snapshot({ feed: records }));
-  assert.equal((html.match(/data-home-public-record=/g) || []).length, 3);
+  assert.equal((html.match(/data-home-public-record=/g) || []).length, 1);
   assert.match(html, /川辺の記録/);
   assert.match(html, /浜松市/);
   assert.match(html, /確認済み/);
-  assert.match(html, /確認待ち/);
+  assert.doesNotMatch(html, /data-home-public-record="editorial-3"/);
   assert.doesNotMatch(html, /zukan-empty-illustration/);
 });
 
@@ -202,11 +201,11 @@ test("guest Top media stays fail-closed for private, blocked, and blurred record
 });
 
 for (const count of [0, 1, 2, 3, 5] as const) {
-  test(`guest proof renders the explicit ${count}-photo mosaic contract`, () => {
+  test(`guest proof renders the single editorial photo from ${count} eligible records`, () => {
     const feed = Array.from({ length: count }, (_, index) => observation(`proof-${count}-${index + 1}`));
     const html = render("ja", snapshot({ feed }));
-    assert.match(html, new RegExp(`home-guest-proof is-count-${count}(?: is-empty)?`));
-    assert.equal((html.match(/data-home-public-record=/g) || []).length, count);
+    assert.match(html, new RegExp(`home-guest-proof is-count-${Math.min(count, 1)}(?: is-empty)?`));
+    assert.equal((html.match(/data-home-public-record=/g) || []).length, Math.min(count, 1));
     assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   });
 }

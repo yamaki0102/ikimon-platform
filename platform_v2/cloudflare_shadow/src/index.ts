@@ -1,3 +1,4 @@
+import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 import * as bcrypt from "bcryptjs";
 import {
   renderCloudflareRecordRecoveryGuestHtml,
@@ -3951,13 +3952,14 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
   }
   if (pathname === "/community/events/new") {
     const auth = await readCompatibleSession(request, env).catch(() => null);
+    const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
     const templateFrom = normalizeOptionalText(url.searchParams.get("template_from"));
     const template = auth && templateFrom
       ? await getObservationEventSessionById(env, templateFrom).then((candidate) => (
         candidate && candidate.organizerUserId === auth.userId ? candidate : null
       )).catch(() => null)
       : null;
-    return observationEventPageHtml("観察会を作成", renderObservationEventCreatePage(auth, url.searchParams.get("field_id") ?? "", template), "event-page-create");
+    return pageHtml("観察会を作成", renderObservationEventCreatePage(auth, url.searchParams.get("field_id") ?? "", template), "event-page-create");
   }
   const joinMatch = pathname.match(/^\/community\/events\/([^/]+)\/join$/);
   if (joinMatch?.[1]) {
@@ -3970,6 +3972,7 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
 
 async function getObservationEventListPage(request: Request, env: Env): Promise<Response> {
   const auth = await readCompatibleSession(request, env).catch(() => null);
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
   const rows = await env.OBS_DB.prepare(
     `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
             plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
@@ -3982,7 +3985,7 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
   const sessions = rows.results
     .map(mapObservationEventSession)
     .filter((session) => auth?.userId === session.organizerUserId || !isObservationEventQaFixture(session));
-  return observationEventPageHtml("観察会", renderObservationEventListPage(sessions, auth), "event-page-list");
+  return pageHtml("観察会", renderObservationEventListPage(sessions, auth), "event-page-list");
 }
 
 function isObservationEventQaFixture(
@@ -4017,8 +4020,9 @@ async function getObservationEventJoinPage(request: Request, env: Env, eventCode
     readCompatibleSession(request, env).catch(() => null),
     getObservationEventSessionByEventCode(env, eventCode).catch(() => null)
   ]);
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
   if (!session) {
-    return observationEventPageHtml("観察会が見つかりません", observationEventEmptyState("参加コードが見つかりません", "主催者にコードを確認してください。"), "event-page-not-found", 404);
+    return pageHtml("観察会が見つかりません", observationEventEmptyState("参加コードが見つかりません", "主催者にコードを確認してください。"), "event-page-not-found", 404);
   }
   if (!isObservationEventCheckinOpen(session)) {
     return redirect303(`/events/${encodeURIComponent(session.sessionId)}/recap`, {
@@ -4044,7 +4048,7 @@ async function getObservationEventJoinPage(request: Request, env: Env, eventCode
       ...context
     }, actorKey);
   }
-  const response = observationEventPageHtml(`${session.title} に参加`, renderObservationEventJoinPage(session, teams, Boolean(auth)), "event-page-join");
+  const response = pageHtml(`${session.title} に参加`, renderObservationEventJoinPage(session, teams, Boolean(auth)), "event-page-join");
   if (!auth && guestCredential) {
     response.headers.set("set-cookie", await buildObservationEventGuestCookie(session, guestCredential));
   }
@@ -4065,8 +4069,9 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     readCompatibleSession(request, env).catch(() => null),
     getObservationEventSessionById(env, sessionId).catch(() => null)
   ]);
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
   if (!session) {
-    return observationEventPageHtml("観察会が見つかりません", observationEventEmptyState("セッションが見つかりません", "観察会一覧から選び直してください。"), "event-page-not-found", 404);
+    return pageHtml("観察会が見つかりません", observationEventEmptyState("セッションが見つかりません", "観察会一覧から選び直してください。"), "event-page-not-found", 404);
   }
   let canManage = Boolean(auth?.userId && auth.userId === session.organizerUserId);
   let liveViewer: Awaited<ReturnType<typeof observationEventParticipantContext>> | null = null;
@@ -4074,7 +4079,7 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     liveViewer = await observationEventParticipantContext(request, env, session);
     canManage = canManage || liveViewer.isOrganizer;
     if (!liveViewer.isOrganizer && !liveViewer.isCheckedInParticipant) {
-      return observationEventPageHtml(
+      return pageHtml(
         "権限がありません",
         observationEventEmptyState("参加者のみ閲覧できます", "先に観察会へチェックインしてください。"),
         "event-page-forbidden",
@@ -4083,7 +4088,7 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     }
   }
   if ((page === "edit" || page === "console") && !canManage) {
-    return observationEventPageHtml("権限がありません", observationEventEmptyState("主催者のみアクセスできます", "主催者アカウントでログインしてください。"), "event-page-forbidden", 403);
+    return pageHtml("権限がありません", observationEventEmptyState("主催者のみアクセスできます", "主催者アカウントでログインしてください。"), "event-page-forbidden", 403);
   }
   if (page === "recap") {
     return getObservationEventRecapPage(request, url, env, session);
@@ -4094,7 +4099,7 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
   if (page === "rally") {
     const rally = await getObservationRallySnapshot(env, session.sessionId).catch(() => ({ course: null, stations: [], missions: [], progress: [] }));
     await recordObservationEventParticipantPageMetric(request, env, session, "event_rally_opened", "rally");
-    return observationEventPageHtml(`${session.title} 観察ラリー`, renderObservationEventRallyPage(session, rally, Boolean(auth), canManage), "event-page-rally");
+    return pageHtml(`${session.title} 観察ラリー`, renderObservationEventRallyPage(session, rally, Boolean(auth), canManage), "event-page-rally");
   }
   const [teams, events, effort] = await Promise.all([
     listObservationEventTeams(env, session.sessionId).catch(() => []),
@@ -4102,38 +4107,42 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     summarizeObservationEventEffort(env, session).catch(() => null)
   ]);
   if (page === "edit") {
-    return observationEventPageHtml(`${session.title} 編集`, renderObservationEventEditPage(session), "event-page-edit");
+    return pageHtml(`${session.title} 編集`, renderObservationEventEditPage(session), "event-page-edit");
   }
   if (page === "console") {
     const dashboard = await buildObservationEventOperationsDashboard(env, session);
-    return observationEventPageHtml(`${session.title} 管制塔`, renderObservationEventConsolePage(session, teams, events, effort, dashboard), "event-page-console");
+    return pageHtml(`${session.title} 管制塔`, renderObservationEventConsolePage(session, teams, events, effort, dashboard), "event-page-console");
   }
   await recordObservationEventParticipantPageMetric(request, env, session, "event_live_viewed", "live");
   const participantEvents = events
     .filter((event) => shouldDeliverObservationEvent(event, liveViewer!))
     .map(publicObservationEventLiveEvent)
     .filter((event): event is PublicObservationEventLiveEvent => event !== null);
-  return observationEventPageHtml(`${session.title} ライブ`, renderObservationEventLivePage(session, teams, participantEvents, canManage), "event-page-live");
+  return pageHtml(`${session.title} ライブ`, renderObservationEventLivePage(session, teams, participantEvents, canManage), "event-page-live");
 }
 
 async function getObservationEventRecapPage(request: Request, url: URL, env: Env, session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): Promise<Response> {
+  const auth = await readCompatibleSession(request, env).catch(() => null);
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
   const recapResponse = await getObservationEventRecap(request, url, env, session.sessionId);
   if (!recapResponse.ok) return recapResponse;
   const recap = await recapResponse.json() as Record<string, unknown>;
   await recordObservationEventParticipantPageMetric(request, env, session, "event_recap_viewed", "recap");
-  return observationEventPageHtml(`${session.title} の振り返り`, renderObservationEventRecapPage(recap), "event-page-recap");
+  return pageHtml(`${session.title} の振り返り`, renderObservationEventRecapPage(recap), "event-page-recap");
 }
 
 async function getObservationEventReportPage(request: Request, env: Env, session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): Promise<Response> {
+  const auth = await readCompatibleSession(request, env).catch(() => null);
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
   const report = await buildObservationEventOfficialReport(request, env, session.sessionId);
   if (report instanceof Response) return report;
-  return observationEventPageHtml(`${session.title} 公式出力`, renderObservationEventReportPage(report), "event-page-report");
+  return pageHtml(`${session.title} 公式出力`, renderObservationEventReportPage(report), "event-page-report");
 }
 
-function observationEventPageHtml(title: string, body: string, nativeMarker: string, status = 200): Response {
+export function observationEventPageHtml(title: string, body: string, nativeMarker: string, status = 200, lang = "ja", member = false): Response {
   const cspNonce = createHtmlCspNonce();
   const document = `<!doctype html>
-<html lang="ja">
+<html lang="${escapeHtml(lang)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -4157,13 +4166,16 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
     .btn.secondary{background:#e8f1ed;color:#174c3d}.btn.rally-record-cta{min-height:44px}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
     pre{white-space:pre-wrap;word-break:break-word;background:#102018;color:#f3fff8;border-radius:8px;padding:12px}
     @media(max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}}
+    ${APP_EXPERIENCE_STYLES}
+    body[data-zukan-app-experience] main{padding-bottom:56px}body[data-zukan-app-experience] .btn{min-height:44px;border-radius:8px;background:#143f2e}body[data-zukan-app-experience] .btn.secondary{background:#edf3ee;color:#143f2e}
   </style>
 </head>
-<body>
-  ${renderVpsImageHeader()}
-  <main>
+<body data-zukan-app-experience="v1">
+  ${renderAppExperienceHeader(lang, 4, member)}
+  <main id="main-content" tabindex="-1">
     ${body}
   </main>
+${renderAppExperienceNavigation(lang, 4, "bottom", member)}
 </body>
 </html>`;
   return html(applyCspNonceToHtmlScripts(document, cspNonce), status, {
@@ -23557,7 +23569,7 @@ async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): 
   });
 }
 
-function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce: string): string {
+export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce: string): string {
   const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const title = lang === "ja" ? "記録する" : "Record";
@@ -23571,9 +23583,13 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       coord: "座標を直接編集",
       lat: "緯度",
       lng: "経度",
-      save: "保存",
+      save: "非公開で保存",
+      draftSaved: "この端末に下書きを保存しました。まだ送信していません。",
+      draftFailed: "端末に下書きを保存できません。この画面を閉じずに保存してください。",
+      replaceDraft: "このブラウザには前の下書きがあります。新しい記録で置き換えますか？",
+      positionRequired: "位置が未設定です。現在地を取得するか、座標を入力してください。",
       prompt: "写真か動画を選ぶと、非公開の記録として保存できます。",
-      statusReady: "メディアを選択しました。座標を確認して保存してください。",
+      statusReady: "写真・動画を選びました。メモと位置を確認して保存してください。",
       saving: "保存中です...",
       saved: "記録を保存しました",
       photoSaved: "写真1枚を同じ記録に保存しました。",
@@ -23590,7 +23606,11 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       coord: "Edit coordinates directly",
       lat: "Latitude",
       lng: "Longitude",
-      save: "Save",
+      save: "Save privately",
+      draftSaved: "Draft saved on this device. It has not been sent.",
+      draftFailed: "Unable to save the device draft. Keep this page open until you save.",
+      replaceDraft: "A previous draft is stored in this browser. Replace it with this record?",
+      positionRequired: "Set a location using your current position or coordinates.",
       prompt: "Choose a photo or video to save a private record.",
       statusReady: "Media selected. Check the coordinates and save.",
       saving: "Saving...",
@@ -23644,14 +23664,12 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
     .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible{outline:3px solid #ebb72f;outline-offset:3px;box-shadow:0 0 0 1px var(--ink)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
+    ${APP_EXPERIENCE_STYLES}
   </style>
 </head>
-<body data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
-  <header class="cf-record-header">
-    <a class="cf-record-brand" href="${escapeHtml(prefix)}/" aria-label="ZUKAN ホーム"><span class="cf-record-brand-lockup"><span class="cf-record-brand-mark"><img src="/assets/brand/zukan-app-icon-192.png" alt=""></span><span class="cf-record-brand-wordmark"><img src="/assets/brand/zukan-wordmark.svg" alt=""></span></span></a>
-    <div class="cf-record-profile">${escapeHtml(session.displayName || session.userId)}</div>
-  </header>
-  <main class="cf-record-shell">
+<body data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
+  ${renderAppExperienceHeader(lang, 2, true)}
+  <main id="main-content" tabindex="-1" class="cf-record-shell">
     <section class="cf-record-hero">
       <h1>${escapeHtml(title)}</h1>
       <p>${escapeHtml(mediaCopy.prompt)}</p>
@@ -23662,17 +23680,19 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     </div>
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><textarea name="note" rows="3"></textarea></label>
-      <details class="cf-record-coordinates">
+      <p><button type="button" id="record-use-location">${lang === "ja" ? "現在地を使う" : "Use current location"}</button> <a href="${prefix}/record?draft=1">${lang === "ja" ? "前の下書きを開く" : "Open saved draft"}</a></p>
+      <details class="cf-record-coordinates" open>
         <summary>${escapeHtml(mediaCopy.coord)}</summary>
         <div class="cf-record-coordinate-grid">
-          <label class="cf-record-field"><span>${escapeHtml(mediaCopy.lat)}</span><input name="latitude" inputmode="decimal" value="34.710800"></label>
-          <label class="cf-record-field"><span>${escapeHtml(mediaCopy.lng)}</span><input name="longitude" inputmode="decimal" value="137.726100"></label>
+          <label class="cf-record-field"><span>${escapeHtml(mediaCopy.lat)}</span><input name="latitude" inputmode="decimal" value=""></label>
+          <label class="cf-record-field"><span>${escapeHtml(mediaCopy.lng)}</span><input name="longitude" inputmode="decimal" value=""></label>
         </div>
       </details>
       <div id="record-submit-panel" class="cf-record-submit" hidden><button type="submit">${escapeHtml(mediaCopy.save)}</button></div>
       <div id="record-status" class="cf-record-status" role="status" aria-live="polite"></div>
     </form>
   </main>
+  ${renderAppExperienceNavigation(lang, 2, "bottom", true)}
   <script nonce="${escapeHtml(cspNonce)}">
   (() => {
     const copy = ${JSON.stringify(mediaCopy)};
@@ -23698,6 +23718,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       const input = mediaKind === "video" ? videoInput : photoInput;
       return input && input.files && input.files[0] ? input.files[0] : null;
     }
+    const draftOwnerKey = "user:" + form.dataset.userId;
+    const draftStorageKey = "latest:" + draftOwnerKey;
     function openRecordDraftDb() {
       return new Promise((resolve, reject) => {
         if (!("indexedDB" in window)) return reject(new Error("indexeddb_unavailable"));
@@ -23714,7 +23736,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       try {
         await new Promise((resolve, reject) => {
           const tx = db.transaction("drafts", "readwrite");
-          tx.objectStore("drafts").put(draft, "latest");
+          tx.objectStore("drafts").put(draft, draftStorageKey);
           tx.oncomplete = () => resolve(true);
           tx.onerror = () => reject(tx.error || new Error("indexeddb_write_failed"));
         });
@@ -23727,7 +23749,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       try {
         await new Promise((resolve, reject) => {
           const tx = db.transaction("drafts", "readwrite");
-          tx.objectStore("drafts").delete("latest");
+          tx.objectStore("drafts").delete(draftStorageKey);
           tx.oncomplete = () => resolve(true);
           tx.onerror = () => reject(tx.error || new Error("indexeddb_delete_failed"));
         });
@@ -23761,6 +23783,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       const latitude = String(formData.get("latitude") || "").trim();
       const longitude = String(formData.get("longitude") || "").trim();
       await writeRecordDraft({
+        ownerKey: draftOwnerKey,
+        continuationToken: null,
         file,
         files: [file],
         kind: mediaKind,
@@ -23779,11 +23803,71 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
         }
       });
     }
+    let draftWrites = Promise.resolve();
+    let draftClaimed = false;
+    let draftClaimDeclined = false;
+    let draftRevision = 0;
+    let draftTimer = null;
+    let submitting = false;
+    let submitRequested = false;
+    let serverSaved = false;
+    let volatileDraft = false;
+    async function claimDraft(force = false) {
+      if (draftClaimed) return true;
+      if (draftClaimDeclined && !force) return false;
+      const db = await openRecordDraftDb();
+      let existing;
+      try { existing = await new Promise((resolve, reject) => {
+        const tx = db.transaction("drafts", "readonly");
+        const req = tx.objectStore("drafts").get(draftStorageKey);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      }); } finally { db.close(); }
+      if (existing && existing.ownerKey !== draftOwnerKey) throw new Error("draft_owner_mismatch");
+      if (existing && !window.confirm(copy.replaceDraft)) { draftClaimDeclined = true; return false; }
+      draftClaimed = true;
+      return true;
+    }
+    function queueDraftSave() {
+      if (!selectedFile() || submitting || serverSaved) return;
+      volatileDraft = true;
+      draftRevision += 1;
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(flushDraftSave, 300);
+    }
+    function flushDraftSave() {
+      clearTimeout(draftTimer);
+      draftTimer = null;
+      const revision = draftRevision;
+      draftWrites = draftWrites.then(async () => {
+        if (!selectedFile() || submitting || serverSaved || revision !== draftRevision) return;
+        if (!await claimDraft()) { setStatus(copy.draftFailed, true); return; }
+        await persistRecordDraftProgress(new FormData(form));
+        if (revision === draftRevision) {
+          volatileDraft = false;
+          setStatus(copy.draftSaved, false);
+        }
+      }).catch(() => setStatus(copy.draftFailed, true));
+      return draftWrites;
+    }
+    form?.addEventListener("input", queueDraftSave);
+    window.addEventListener("beforeunload", (event) => {
+      if (volatileDraft || submitting) { event.preventDefault(); event.returnValue = ""; }
+    });
+    document.getElementById("record-use-location")?.addEventListener("click", () => {
+      if (!navigator.geolocation) { setStatus(copy.positionRequired, true); return; }
+      navigator.geolocation.getCurrentPosition((position) => {
+        form.elements.latitude.value = String(position.coords.latitude);
+        form.elements.longitude.value = String(position.coords.longitude);
+        queueDraftSave();
+      }, () => setStatus(copy.positionRequired, true), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    });
     function reveal(kind) {
       mediaKind = kind;
       if (form) form.hidden = false;
       if (submitPanel) submitPanel.hidden = false;
       setStatus(copy.statusReady, false);
+      queueDraftSave();
     }
     function eventMetric(eventName, values = {}) {
       if (!eventContext.eventSessionId) return Promise.resolve();
@@ -23840,6 +23924,11 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     }
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (submitting || serverSaved || submitRequested) return;
+      submitRequested = true;
+      try {
+      await flushDraftSave();
+      await draftWrites;
       const file = selectedFile();
       if (!file) {
         setStatus(copy.missingMedia, true);
@@ -23851,10 +23940,14 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       const latitude = Number(latitudeText);
       const longitude = Number(longitudeText);
       const userId = form.dataset.userId || "";
-      if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-        setStatus(copy.failed, true);
+      if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        setStatus(copy.positionRequired, true);
         return;
       }
+      try { if (!await claimDraft(true)) return; } catch { setStatus(copy.draftFailed, true); return; }
+      submitting = true;
+      document.querySelectorAll(".cf-record-picker input, #record-form input, #record-form textarea, #record-use-location").forEach(el => el.disabled = true);
+      submitPanel.querySelector("button").disabled = true;
       if (!recoverySubmissionId) {
         recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
         recoveryObservedAt = new Date().toISOString();
@@ -23911,6 +24004,9 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
             facePrivacy: "no_faces"
           });
           await deleteRecordDraft();
+          serverSaved = true;
+          submitting = false;
+          volatileDraft = false;
           setStatus(copy.saved + " " + copy.photoSaved, false);
           return;
         }
@@ -23957,8 +24053,14 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           readyToStream: true
         });
         await deleteRecordDraft();
+          serverSaved = true;
+          submitting = false;
+          volatileDraft = false;
         setStatus(copy.saved + " " + copy.videoSaved, false);
       } catch (error) {
+        submitting = false;
+        document.querySelectorAll(".cf-record-picker input, #record-form input, #record-form textarea, #record-use-location").forEach(el => el.disabled = false);
+        submitPanel.querySelector("button").disabled = false;
         console.error(error);
         if (!observationStored) {
           void eventMetric("event_observation_failed", { result_reason: observationFailureReason(error) });
@@ -23978,6 +24080,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
         }
         setStatus(copy.failed, true);
       }
+      } finally { submitRequested = false; }
     });
   })();
   </script>
@@ -24037,8 +24140,8 @@ function renderCloudflareProfileHtml(
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const copy = lang === "ja"
     ? {
-      title: options.settings ? "プロフィール設定" : "マイページ",
-      eyebrow: "マイページ",
+      title: options.settings ? "プロフィール設定" : "自分",
+      eyebrow: "アカウント",
       lead: "プロフィール、公開範囲、参加履歴、アカウント設定を管理します。",
       profile: "プロフィールと公開ページ",
       profileLead: "表示名を整え、公開される自分のページを確認する",
@@ -24054,7 +24157,7 @@ function renderCloudflareProfileHtml(
       settingsLead: "表示名とプロフィールを整える",
       publicProfile: "公開プロフィール",
       publicProfileLead: "公開されるプロフィールを確認する",
-      back: "マイページへ",
+      back: "自分へ",
       displayName: "表示名"
     }
     : {
@@ -24285,8 +24388,10 @@ function renderRecordsProductCard(
   lang: "ja" | "en" | "es" | "pt-br",
   mode: "mine" | "public"
 ): string {
-  const title = normalizeOptionalText(item.displayName) ?? (lang === "ja" ? "名前を確認中" : "Name pending");
   const date = formatHomeRecordObservedAt(item.observedAt, lang);
+  const title = item.isAwaitingId
+    ? [homeRecordMediaLabel(item.mediaKind, lang), date].filter(Boolean).join(" · ")
+    : normalizeOptionalText(item.displayName) ?? homeRecordMediaLabel(item.mediaKind, lang);
   const location = mode === "public"
     ? normalizeOptionalText(item.publicAreaLabel) ?? (lang === "ja" ? "位置を保護" : "Location protected")
     : lang === "ja" ? "自分の記録" : "Your record";
@@ -24301,15 +24406,16 @@ function renderRecordsProductCard(
     : `<span class="cf-records-native-no-media" aria-hidden="true">${escapeHtml(homeRecordMediaLabel(item.mediaKind, lang))}</span>`;
   return `<a class="cf-records-native-card" href="${escapeHtml(`${prefix}/observations/${encodeURIComponent(item.visitId)}`)}">
     <span class="cf-records-native-media">${media}</span>
-    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, location].filter(Boolean).join(" · "))}</span>${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
+    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, location].filter(Boolean).join(" · "))}</span>${item.isAwaitingId ? `<span>${lang === "ja" ? "名前は未確認" : "Identification unconfirmed"}</span>` : ""}${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
   </a>`;
 }
 
-function renderRecordsProductSection(
+export function renderRecordsProductSection(
   items: Array<ReturnType<typeof publicMapObservationItem> | OwnerHomeRecordItem>,
   url: URL,
   mode: "mine" | "public",
-  session: SessionSnapshot | null
+  session: SessionSnapshot | null,
+  unavailable = false
 ): string {
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
@@ -24319,16 +24425,18 @@ function renderRecordsProductSection(
   const lead = mode === "mine"
     ? (isJapanese ? "撮った写真やメモを、あとから探して見返せます。" : "Find and revisit your photos and notes.")
     : (isJapanese ? "公開された写真やメモを、名前や場所から探せます。" : "Find public photos and notes by name or place.");
-  const cards = items.length > 0
+  const cards = unavailable
+    ? `<div class="cf-records-native-empty" role="status"><strong>${isJapanese ? "記録を読み込めませんでした。" : "Records could not be loaded."}</strong><p>${isJapanese ? "通信を確認して、もう一度お試しください。" : "Check the connection and try again."}</p><a href="${escapeHtml(url.pathname + url.search)}">${isJapanese ? "もう一度読み込む" : "Try again"}</a></div>`
+    : items.length > 0
     ? `<div class="cf-records-native-grid">${items.map((item) => renderRecordsProductCard(item, prefix, lang, mode)).join("")}</div>`
     : `<div class="cf-records-native-empty"><strong>${escapeHtml(query
       ? (isJapanese ? `「${query}」に合う記録は見つかりませんでした。` : `No records matched “${query}”.`)
-      : (isJapanese ? "まだ記録はありません。" : "No records yet."))}</strong><a href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(isJapanese ? "写真から記録する" : "Create a record")}</a></div>`;
+      : (isJapanese ? "まだ記録はありません。" : "No records yet."))}</strong><a href="${escapeHtml(query ? `${prefix}/records?view=${mode}` : `${prefix}/record`)}">${escapeHtml(query ? (isJapanese ? "検索を解除" : "Clear search") : (isJapanese ? "写真から記録する" : "Create a record"))}</a></div>`;
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
     <style>
-      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#143f2e;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#143f2e;background:#143f2e;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#143f2e;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;min-height:112px;background:#edf3ee}.cf-records-native-media img{width:100%;height:100%;min-height:112px;object-fit:cover}.cf-records-native-no-media{font-size:.75rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.8rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#143f2e;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty a{min-height:44px;display:inline-flex;align-items:center;padding:0 16px;border-radius:999px;background:#143f2e;color:#fff;font-weight:850;text-decoration:none}.cf-records-native :is(a,button,input):focus-visible{outline:3px solid #ebb72f;outline-offset:3px}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media,.cf-records-native-media img{min-height:190px}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#143f2e;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#143f2e;background:#143f2e;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#143f2e;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;height:104px;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.75rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.8rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#143f2e;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty a{min-height:44px;display:inline-flex;align-items:center;padding:0 16px;border-radius:999px;background:#143f2e;color:#fff;font-weight:850;text-decoration:none}.cf-records-native :is(a,button,input):focus-visible{outline:3px solid #ebb72f;outline-offset:3px}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
     </style>
-    <header class="cf-records-native-head"><div class="cf-records-native-tabs">${session ? `<a href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${isJapanese ? "自分の記録" : "Your records"}</a>` : ""}<a href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${isJapanese ? "みんなの記録" : "Community records"}</a><a href="${prefix}/map?tab=places">${isJapanese ? "場所" : "Places"}</a><a href="${prefix}/community">${isJapanese ? "みんなの活動" : "Community"}</a></div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${isJapanese ? "記録を検索" : "Search records"}" aria-label="${isJapanese ? "記録を検索" : "Search records"}"><button type="submit">${isJapanese ? "探す" : "Search"}</button></form></header>
+    <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${isJapanese ? "自分の記録" : "Your records"}</a>` : ""}${session ? `<a href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${isJapanese ? "みんなの記録" : "Community records"}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${isJapanese ? "記録を検索" : "Search records"}" aria-label="${isJapanese ? "記録を検索" : "Search records"}"><button type="submit">${isJapanese ? "探す" : "Search"}</button></form></header>
     ${cards}
   </section>`;
 }
@@ -24349,13 +24457,13 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
   if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
   const query = recordsProductText(String(url.searchParams.get("q") ?? "").slice(0, 80));
   const sourceItems = requestedMode === "mine"
-    ? await ownerHomeRecordCards(session!.userId, env, 120).catch(() => [])
-    : await recentPublicRecordCards(env, 120).catch(() => []);
-  const items = sourceItems.filter((item) => recordsProductItemMatches(item, query));
+    ? await ownerHomeRecordCards(session!.userId, env, 120).catch(() => null)
+    : await recentPublicRecordCards(env, 120).catch(() => null);
+  const items = (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
   const cspNonce = createHtmlCspNonce();
   let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   html = html.replace(/<form class="site-search\b[^"]*"[\s\S]*?<\/form>/gi, "");
-  const section = renderRecordsProductSection(items, url, requestedMode, session);
+  const section = renderRecordsProductSection(items, url, requestedMode, session, sourceItems === null);
   if (/<main\b[^>]*>[\s\S]*?<\/main>/i.test(html)) {
     html = html.replace(/<main\b([^>]*)>[\s\S]*?<\/main>/i, `<main$1>${section}</main>`);
   } else if (/<\/body>/i.test(html)) {
@@ -24905,6 +25013,7 @@ function diversifyHomeRecordCards<T extends { visitId: string; mediaKind: HomeRe
 }
 
 function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapshot | null): string {
+  if (html.includes('data-zukan-app-experience="v1"')) return html;
   if (html.includes("data-cloudflare-header-menu")) return html;
   if (!html.includes("site-header-actions")) return html;
   const lang = publicLangFromPath(url.pathname) ?? "ja";

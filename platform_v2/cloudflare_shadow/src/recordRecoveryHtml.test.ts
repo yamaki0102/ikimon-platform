@@ -35,7 +35,7 @@ test("guest recovery keeps the draft on-device and preserves the recovery redire
   const html = renderCloudflareRecordRecoveryGuestHtml(url, "nonce-value");
   assert.match(html, /data-record-recovery-start/);
   assert.match(html, /<title>下書きから記録を続ける \| ZUKAN<\/title>/);
-  assert.match(html, /class="cf-recovery-brand"[^>]*>ZUKAN<\/a>/);
+  assert.match(html, /class="zukan-app-brand"[^>]*aria-label="ZUKAN"/);
   assert.match(html, /写真・入力内容はこの端末に残っています/);
   assert.match(html, /ログインして続ける/);
   assert.match(html, /登録して続ける/);
@@ -53,7 +53,7 @@ test("signed recovery resumes the same record and only unfinished media", () => 
     resolveCloudflareRecordRecoveryState(url),
   );
   assert.match(html, /indexedDB\.open\("ikimon-record-draft", 1\)/);
-  assert.match(html, /objectStore\("drafts"\)\.get\("latest"\)/);
+  assert.match(html, /objectStore\("drafts"\)\.get\(recoveryDraftKey\)/);
   assert.match(html, /async function persistDraftProgress/);
   assert.match(html, /recoverySubmissionId/);
   assert.match(html, /let recoveryObservedAt = ""/);
@@ -79,7 +79,10 @@ test("signed recovery resumes the same record and only unfinished media", () => 
   assert.match(html, /\.cf-recovery-brand\{min-width:44px;min-height:44px/);
   assert.match(html, /\.cf-recovery-field textarea,\.cf-recovery-field input\{width:100%;min-height:44px/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
-  assert.match(html, /record:latest/);
+  assert.match(html, /"record:" \+ recoveryDraftKey/);
+  assert.match(html, /candidate.ownerKey === recoveryOwnerKey/);
+  assert.match(html, /candidate\?\.continuationToken === validRecoveryToken/);
+  assert.doesNotMatch(html, /\.get\("latest"\)|\.delete\("latest"\)/);
   assert.doesNotMatch(html, /fetchOriginFallback|ORIGIN_FALLBACK_BASE_URL/);
 });
 

@@ -149,17 +149,9 @@ function isGuestVisibleRecord(item: LandingObservation): boolean {
 }
 
 function renderGuestProof(options: LandingHomeStateOptions, publicItems: LandingObservation[]): string {
-  const photos = publicItems.filter((item) => Boolean(item.photoUrl) && isGuestVisibleRecord(item)).slice(0, 5);
+  const photos = publicItems.filter((item) => Boolean(item.photoUrl) && isGuestVisibleRecord(item)).slice(0, 1);
   if (photos.length === 0) {
     return `<div class="home-guest-proof is-count-0 is-empty" data-home-empty-proof="true">
-      <div class="home-empty-proof-flow" aria-label="${escapeHtml(options.copy.home.guest.emptyFlowAria)}">
-        <span class="home-empty-proof-symbol" aria-hidden="true"><img src="/assets/brand/zukan-symbol.svg" alt="" width="56" height="56" /></span>
-        <ol>
-          <li><b>01</b><span>${escapeHtml(options.copy.home.guest.emptyFlowCapture)}</span></li>
-          <li><b>02</b><span>${escapeHtml(options.copy.home.guest.emptyFlowPlace)}</span></li>
-          <li><b>03</b><span>${escapeHtml(options.copy.home.guest.emptyFlowReturn)}</span></li>
-        </ol>
-      </div>
       <div class="home-empty-proof-copy">
         <strong>${escapeHtml(options.copy.home.guest.proofEmpty)}</strong>
         <p>${escapeHtml(options.copy.home.guest.proofEmptyNote)}</p>
@@ -172,8 +164,7 @@ function renderGuestProof(options: LandingHomeStateOptions, publicItems: Landing
 
 function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObservation[]): string {
   const copy = options.copy.home.guest;
-  const placeItem = publicItems.find((item) => Boolean(item.photoUrl) && isGuestVisibleRecord(item)) ?? null;
-  const placeVisual = placeItem ? `<a class="home-place-visual" href="${escapeHtml(detailHref(options, placeItem))}">${renderMedia(placeItem, options.copy)}</a>` : `<div class="home-place-visual is-placeholder"><img src="/assets/brand/zukan-symbol.svg" alt="" width="180" height="180" /></div>`;
+
   const placeHref = href(options, "/map?tab=places");
   const communityHref = href(options, "/community/events");
   return `<div class="home-state-view is-guest" data-home-view="guest"${options.isLoggedIn ? " hidden" : ""}>
@@ -182,7 +173,7 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
         <h1>${renderHeroHeading(options.lang, copy.heroHeading)}</h1>
         <p>${escapeHtml(copy.heroLead)}</p>
         <div class="home-hero-actions">
-          ${captureButton(copy.primaryCta, "home-primary-button", "top_capture")}
+          <a class="home-primary-button" href="${escapeHtml(href(options, "/records?view=public"))}" data-kpi-action="top_public_records">${escapeHtml(copy.publicRecordsCta)}</a>
           <a class="home-secondary-link" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place">${escapeHtml(copy.secondaryCta)}</a>
         </div>
         <p class="home-invite-note" data-home-invite-note>${escapeHtml(copy.inviteNote)}</p>
@@ -190,7 +181,6 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
       ${slot("guest-hero", `<div class="home-guest-hero-visual">${renderGuestProof(options, publicItems)}</div>`)}
     </section>
     <section class="home-section home-place-section" id="home-places">
-      ${placeVisual}
       <div><span class="home-product-kicker">PLACE</span><h2>${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
     </section>
     <section class="home-section home-community-section"><span class="home-product-kicker">COMMUNITY</span><h2>${escapeHtml(copy.communityTitle)}</h2><p>${escapeHtml(copy.communityBody)}</p><a class="home-secondary-button" href="${escapeHtml(communityHref)}">${escapeHtml(copy.communityCta)}</a></section>
