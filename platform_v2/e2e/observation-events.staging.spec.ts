@@ -3,21 +3,27 @@ import { newStagingContext } from "./support/staging.js";
 
 /**
  * 観察会機能の E2E:
- *   1. /community/events で 200 + ヒーロー表示
+ *   1. /community/events で 200 + 参加ハブ(参加者ファースト)表示
  *   2. 存在しない event_code → 404 ページ表示
  *   3. 存在しない sessionId → 404 ページ表示
  *   4. SSE 経由で live event をトリガし、フィードに反映されるか
  *      (Stage に観察会 fixture を仕込めない場合、既存 cookie + DB 接続前提でスキップ)
  */
 
-test("observation event list page renders hero", async ({ browser }) => {
+test("participation hub renders participant-first, with organizer entry kept separate", async ({ browser }) => {
   const context = await newStagingContext(browser, { slug: "desktop-1280", viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
   try {
     const resp = await page.goto("/community/events", { waitUntil: "networkidle" });
     expect(resp?.status()).toBe(200);
-    await expect(page.locator(".evt-hero")).toBeVisible();
-    await expect(page.locator(".evt-hero h1")).toContainText("小さな発見");
+    await expect(page.locator(".zukan-participation-shell")).toBeVisible();
+    await expect(page.locator(".zukan-participation-header h1")).toHaveText("参加");
+    // Participant discovery comes before the organizer entry in DOM order.
+    const bodyText = await page.locator(".zukan-participation-shell").innerText();
+    expect(bodyText).toContain("今、参加できる");
+    expect(bodyText.indexOf("今、参加できる")).toBeLessThan(bodyText.indexOf("企画を運営する方へ"));
+    // No internal observation-mode vocabulary leaks into public comparison copy.
+    expect(bodyText).not.toMatch(/今日のヒント|ビンゴ|努力量/);
   } finally {
     await context.close();
   }

@@ -133,7 +133,12 @@ async function loadTeamsLite(sessionId: string): Promise<Array<{ teamId: string;
   }));
 }
 
-async function loadRecentSessions(limit = 24): Promise<ObservationEventSessionRow[]> {
+interface RecentSessionsResult {
+  sessions: ObservationEventSessionRow[];
+  loadFailed: boolean;
+}
+
+async function loadRecentSessions(limit = 24): Promise<RecentSessionsResult> {
   try {
     const pool = getPool();
     const result = await pool.query<{ session_id: string }>(
@@ -155,9 +160,11 @@ async function loadRecentSessions(limit = 24): Promise<ObservationEventSessionRo
       const s = await getSessionById(row.session_id).catch(() => null);
       if (s) sessions.push(s);
     }
-    return sessions;
+    return { sessions, loadFailed: false };
   } catch {
-    return [];
+    // A full query failure is distinct from an empty result: the discovery view
+    // must show a retry affordance, not a "no programs" empty state.
+    return { sessions: [], loadFailed: true };
   }
 }
 
@@ -391,14 +398,17 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
 
   // /community/events  --- 一覧
   app.get("/community/events", async (request, reply) => {
-    const sessions = await loadRecentSessions();
+    const { sessions, loadFailed } = await loadRecentSessions();
     const lang = langOf(request);
     const strings = getStrings(lang).observationEvent;
     const html = pageDocument({
       basePath: "",
       title: `${strings.listHeroHeading} — ZUKAN`,
       currentPath: currentPathOf(request),
-      body: renderEventListBody(sessions, strings, lang),
+      body: renderEventListBody(sessions, strings, lang, {
+        loadFailed,
+        retryHref: appendLangToHref("/community/events", lang),
+      }),
       extraStyles: OBSERVATION_EVENT_LIST_STYLES,
       lang,
     });

@@ -355,3 +355,102 @@ export function getObservationEventStrings(lang: SiteLang): ObservationEventStri
       return ja;
   }
 }
+
+/**
+ * Participation-hub discovery copy (PARTICIPATION_EXPERIENCE_V1 §§4–6, §17).
+ *
+ * Kept separate from `ObservationEventStrings` so the S1 public-discovery slice
+ * can carry the participant-first labels (actionable / upcoming / history,
+ * zero-versus-load-failure, ended/cancelled truth) without widening the shared
+ * observation-event string contract.
+ */
+export interface ObservationEventDiscoveryStrings {
+  sectionActionable: string;
+  sectionUpcoming: string;
+  actionableEmpty: string;
+  noProgramsLead: string;
+  loadFailed: string;
+  retryCta: string;
+  badgeActionable: string;
+  badgeUpcoming: string;
+  badgeCancelled: string;
+  detailCta: string;
+  dateTbd: string;
+  untitled: string;
+  timezoneNote: string;
+}
+
+const discoveryJa: ObservationEventDiscoveryStrings = {
+  sectionActionable: "今、参加できる",
+  sectionUpcoming: "これから",
+  actionableEmpty: "いま参加できる企画はありません。",
+  noProgramsLead: "掲載中の公開企画はまだありません。",
+  loadFailed: "企画を読み込めませんでした。",
+  retryCta: "再読み込み",
+  badgeActionable: "受付中",
+  badgeUpcoming: "開催予定",
+  badgeCancelled: "中止",
+  detailCta: "詳しく見る",
+  dateTbd: "日時未定",
+  untitled: "タイトル未設定の企画",
+  timezoneNote: "時刻は日本時間（JST）で表示しています。",
+};
+
+const discoveryEn: ObservationEventDiscoveryStrings = {
+  sectionActionable: "Open now",
+  sectionUpcoming: "Coming up",
+  actionableEmpty: "No programs are open to join right now.",
+  noProgramsLead: "No public programs are listed yet.",
+  loadFailed: "Couldn’t load programs.",
+  retryCta: "Reload",
+  badgeActionable: "Open",
+  badgeUpcoming: "Scheduled",
+  badgeCancelled: "Cancelled",
+  detailCta: "View details",
+  dateTbd: "Date to be decided",
+  untitled: "Untitled program",
+  timezoneNote: "Times are shown in Japan time (JST).",
+};
+
+const discoveryEs: ObservationEventDiscoveryStrings = {
+  sectionActionable: "Abierto ahora",
+  sectionUpcoming: "Próximamente",
+  actionableEmpty: "Ahora no hay actividades abiertas para participar.",
+  noProgramsLead: "Todavía no hay actividades públicas publicadas.",
+  loadFailed: "No se pudieron cargar las actividades.",
+  retryCta: "Recargar",
+  badgeActionable: "Abierto",
+  badgeUpcoming: "Programado",
+  badgeCancelled: "Cancelado",
+  detailCta: "Ver detalles",
+  dateTbd: "Fecha por definir",
+  untitled: "Actividad sin título",
+  timezoneNote: "Las horas se muestran en hora de Japón (JST).",
+};
+
+const discoveryPtBR: ObservationEventDiscoveryStrings = {
+  sectionActionable: "Aberto agora",
+  sectionUpcoming: "Em breve",
+  actionableEmpty: "Não há atividades abertas para participar agora.",
+  noProgramsLead: "Ainda não há atividades públicas publicadas.",
+  loadFailed: "Não foi possível carregar as atividades.",
+  retryCta: "Recarregar",
+  badgeActionable: "Aberto",
+  badgeUpcoming: "Programado",
+  badgeCancelled: "Cancelado",
+  detailCta: "Ver detalhes",
+  dateTbd: "Data a definir",
+  untitled: "Atividade sem título",
+  timezoneNote: "Os horários são exibidos no horário do Japão (JST).",
+};
+
+export function getObservationEventDiscoveryStrings(lang: SiteLang): ObservationEventDiscoveryStrings {
+  switch (lang) {
+    case "en": return discoveryEn;
+    case "es": return discoveryEs;
+    case "pt-BR": return discoveryPtBR;
+    case "ja":
+    default:
+      return discoveryJa;
+  }
+}
