@@ -1301,6 +1301,8 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
           <span>手動ピント <output data-global-record-camera-focus-value>--</output></span>
           <input data-global-record-camera-focus-range type="range" min="0" max="1" step="0.01" value="0" />
         </label>
+        <button type="button" data-global-record-camera-focus-minus hidden aria-label="ピントを近くへ">−</button>
+        <button type="button" data-global-record-camera-focus-plus hidden aria-label="ピントを遠くへ">＋</button>
         <button type="button" data-global-record-camera-focus-auto hidden>AF</button>
       </div>
     </div>
@@ -1398,6 +1400,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   let cameraPinchStartDistance = 0;
   let cameraPinchStartZoom = 1;
   let cameraPinchActive = false;
+  let cameraPreviewGestureCanceled = false;
   const cameraPreviewPointers = new Map();
   const visitIdFromObservationTargetId = (targetId) => {
     const value = String(targetId || '').trim();
@@ -1457,6 +1460,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   let capturedPhotoFiles = [];
   let capturedPhotoObjectUrls = [];
   let capturedReviewMeta = null;
+  let photoCaptureSource = '';
   let reviewObjectUrl = '';
   let sheetVideoTrimState = null;
   let sheetOpenedAt = 0;
@@ -1487,6 +1491,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   const focusRange = document.querySelector('[data-global-record-camera-focus-range]');
   const focusValue = document.querySelector('[data-global-record-camera-focus-value]');
   const focusAutoButton = document.querySelector('[data-global-record-camera-focus-auto]');
+  const focusMinusButton = document.querySelector('[data-global-record-camera-focus-minus]');
+  const focusPlusButton = document.querySelector('[data-global-record-camera-focus-plus]');
   const trimWrap = document.querySelector('[data-global-record-video-trim]');
   const trimStart = document.querySelector('[data-global-record-video-trim-start]');
   const trimEnd = document.querySelector('[data-global-record-video-trim-end]');
@@ -1811,6 +1817,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     cameraPinchStartDistance = 0;
     cameraPinchStartZoom = 1;
     cameraPinchActive = false;
+    cameraPreviewGestureCanceled = false;
     cameraPreviewPointers.clear();
     if (zoomWrap) zoomWrap.hidden = true;
     if (zoomRange) {
@@ -1833,6 +1840,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       focusAutoButton.hidden = true;
       focusAutoButton.disabled = true;
     }
+    if (focusMinusButton) focusMinusButton.hidden = true;
+    if (focusPlusButton) focusPlusButton.hidden = true;
   };
   const updateCameraZoomUi = (value) => {
     cameraZoomCurrent = clamp(Number(value) || cameraZoomMin, cameraZoomMin, cameraZoomMax);
@@ -1870,6 +1879,11 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       await cameraFocusTrack.applyConstraints({ advanced: [manualConstraint] });
       setStatus('手動ピントを調整しました。');
     } catch (_) {}
+  };
+  const stepCameraFocus = (direction) => {
+    if (!cameraFocusTrack) return;
+    const next = clamp(cameraFocusCurrent + (Number(direction) < 0 ? -cameraFocusStep : cameraFocusStep), cameraFocusMin, cameraFocusMax);
+    void applyCameraFocusDistance(next);
   };
   const restoreCameraAutoFocus = async () => {
     if (!cameraFocusTrack || !cameraFocusTrack.applyConstraints || !cameraFocusAutoMode) return;
@@ -1923,6 +1937,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
         focusAutoButton.hidden = !cameraFocusAutoMode;
         focusAutoButton.disabled = !cameraFocusAutoMode;
       }
+      if (focusMinusButton) focusMinusButton.hidden = false;
+      if (focusPlusButton) focusPlusButton.hidden = false;
       hasControl = true;
     }
     if (zoomWrap) zoomWrap.hidden = !hasControl;
@@ -2585,6 +2601,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (backdrop) backdrop.hidden = true;
     document.documentElement.classList.remove('global-record-camera-open');
     activeKind = '';
+    photoCaptureSource = '';
     setSheetKind('');
     resetVisualViewportVars();
     hideCameraError();
@@ -2600,6 +2617,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (!(options && options.keepReview)) clearReview();
     sheetOpenedAt = nowMs();
     activeKind = kind;
+    if (kind !== 'photo') photoCaptureSource = '';
     setSheetKind(kind);
     setPhotoDraftLayout(kind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream);
     const label = labels[kind] || labels.photo;
@@ -3068,6 +3086,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       const kind = input.getAttribute('data-global-record-input') || 'gallery';
       if (!files.length) return;
       if (kind === 'photo') {
+        photoCaptureSource = 'native';
         openSheet('photo', { reviewOnly: true, keepReview: true });
         const metadata = buildCaptureMetadata();
         addPhotoDraftFiles(files, metadata);
@@ -3092,8 +3111,15 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   if (cameraCancelButton) cameraCancelButton.addEventListener('click', closeSheet);
   if (startButton) startButton.addEventListener('click', () => {
     resetPhotoDraftSubmitConfirm();
+    if (activeKind === 'photo' && photoCaptureSource === 'native' && !capturedReviewFile) {
+      clickFallbackInput('photo');
+      return;
+    }
     if (capturedReviewFile) retakeCapture();
-    else startCamera();
+    else {
+      if (activeKind === 'photo') photoCaptureSource = 'camera';
+      startCamera();
+    }
   });
   if (captureButton) captureButton.addEventListener('click', captureFromSheet);
   if (photoGrid) {
@@ -3131,6 +3157,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       void restoreCameraAutoFocus();
     });
   }
+  if (focusMinusButton) focusMinusButton.addEventListener('click', () => stepCameraFocus(-1));
+  if (focusPlusButton) focusPlusButton.addEventListener('click', () => stepCameraFocus(1));
   if (cameraPreview) {
     cameraPreview.addEventListener('pointerdown', (event) => {
       if (event.target instanceof Element && event.target.closest('.global-record-camera-zoom')) return;
@@ -3141,6 +3169,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       }
       if (cameraPreviewPointers.size === 2 && cameraZoomTrack && cameraZoomMax > cameraZoomMin) {
         cameraPinchActive = true;
+        cameraPreviewGestureCanceled = true;
         cameraPinchStartDistance = cameraPinchDistance();
         cameraPinchStartZoom = cameraZoomCurrent;
       }
@@ -3149,6 +3178,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     cameraPreview.addEventListener('pointermove', (event) => {
       if (!cameraPreviewPointers.has(event.pointerId)) return;
       const previous = cameraPreviewPointers.get(event.pointerId) || {};
+      const moved = Math.hypot(Number(event.clientX) - Number(previous.startX || event.clientX), Number(event.clientY) - Number(previous.startY || event.clientY));
+      if (moved >= 12) cameraPreviewGestureCanceled = true;
       cameraPreviewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: previous.startX || event.clientX, startY: previous.startY || event.clientY });
       if (cameraPreviewPointers.size >= 2 && cameraZoomTrack && cameraZoomMax > cameraZoomMin) {
         cameraPinchActive = true;
@@ -3159,7 +3190,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => {
       cameraPreview.addEventListener(type, (event) => {
         const previous = cameraPreviewPointers.get(event.pointerId) || null;
-        if (type === 'pointerup' && previous && cameraPreviewPointers.size === 1 && !cameraPinchActive) {
+        if (type === 'pointerup' && previous && cameraPreviewPointers.size === 1 && !cameraPinchActive && !cameraPreviewGestureCanceled) {
           const moved = Math.hypot(Number(event.clientX) - Number(previous.startX || event.clientX), Number(event.clientY) - Number(previous.startY || event.clientY));
           if (moved < 12) void applyCameraFocusAt(event.clientX, event.clientY);
         }
@@ -3168,6 +3199,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
           cameraPinchStartDistance = 0;
           cameraPinchStartZoom = cameraZoomCurrent;
           cameraPinchActive = false;
+          if (cameraPreviewPointers.size === 0) cameraPreviewGestureCanceled = false;
         }
       });
     });
