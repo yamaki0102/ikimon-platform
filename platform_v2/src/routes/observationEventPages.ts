@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getPool } from "../db.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { getStrings } from "../i18n/index.js";
+import { getObservationEventDiscoveryStrings } from "../i18n/observationEventStrings.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import {
   buildObservationEventGuestCookie,
@@ -40,7 +41,6 @@ import {
   organizerConsoleScript,
 } from "../ui/observationEventOrganizerConsole.js";
 import {
-  renderCheckinBody,
   checkinScript,
 } from "../ui/observationEventCheckin.js";
 import {
@@ -48,7 +48,15 @@ import {
   recapScript,
 } from "../ui/observationEventRecap.js";
 import { renderObservationEventOfficialReportBody } from "../ui/observationEventOfficialReport.js";
-import { OBSERVATION_EVENT_LIST_STYLES, renderEventListBody } from "../ui/observationEventList.js";
+import {
+  buildParticipationRecordHref,
+  classifyObservationEventParticipation,
+  OBSERVATION_EVENT_LIST_STYLES,
+  readObservationEventExternalSignup,
+  renderEventListBody,
+  renderObservationEventJoinBody,
+  shouldRenderObservationEventCheckin,
+} from "../ui/observationEventList.js";
 import {
   renderEventCreateBody,
   eventCreateScript,
@@ -85,6 +93,7 @@ import { getFieldManagerRole } from "../services/fieldManagers.js";
 function pageDocument(args: {
   basePath: string;
   title: string;
+  description?: string;
   body: string;
   extraScript?: string;
   extraStyles?: string;
@@ -95,6 +104,7 @@ function pageDocument(args: {
   return renderSiteDocument({
     basePath: args.basePath,
     title: args.title,
+    description: args.description,
     extraStyles: `${OBSERVATION_EVENT_STYLES}\n${args.extraStyles ?? ""}`,
     lang: args.lang,
     currentPath: args.currentPath,
@@ -404,6 +414,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     const html = pageDocument({
       basePath: "",
       title: `${strings.listHeroHeading} — ZUKAN`,
+      description: strings.listHeroLead,
       currentPath: currentPathOf(request),
       body: renderEventListBody(sessions, strings, lang, {
         loadFailed,
@@ -420,6 +431,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
   app.get<{ Params: { eventCode: string } }>(
     "/community/events/:eventCode/join",
     async (request, reply) => {
+      const lang = langOf(request);
       const session = await getSessionByEventCode(request.params.eventCode).catch(() => null);
       if (!session) {
         reply.code(404);
@@ -432,33 +444,62 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
             <article class="evt-card">
               <span class="evt-eyebrow">観察会</span>
               <h1 class="evt-heading">この参加コードは見つかりませんでした。</h1>
-              <p class="evt-lead">主催者にコードを再度確認するか、<a href="/community/events">観察会一覧</a>から探してください。</p>
+              <p class="evt-lead">主催者にコードを再度確認するか、<a href="${escapeHtml(appendLangToHref("/community/events", lang))}">観察会一覧</a>から探してください。</p>
             </article>
           </section>`,
         });
       }
-      if (!isObservationEventCheckinOpen(session)) {
-        reply.header("Cache-Control", "private, no-store");
-        return reply.code(303).redirect(`/events/${encodeURIComponent(session.sessionId)}/recap`);
-      }
+      const strings = getStrings(lang).observationEvent;
+      const d = getObservationEventDiscoveryStrings(lang);
+      const state = classifyObservationEventParticipation(session);
+      const field = session.fieldId ? await getField(session.fieldId).catch(() => null) : null;
+      const externalSignup = readObservationEventExternalSignup(session);
+      const participationOpen = state === "open" || state === "upcoming";
+      const showCheckin = participationOpen && shouldRenderObservationEventCheckin(session, externalSignup);
       const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-      if (!auth && !readObservationEventGuestCredential(session.sessionId, request.headers.cookie)) {
+      const viewer = state === "ended"
+        ? await requireObservationEventViewerAccess(session, request.headers.cookie).catch(() => null)
+        : null;
+      const recapHref = viewer ? appendLangToHref(`/events/${encodeURIComponent(session.sessionId)}/recap`, lang) : null;
+
+      /* Legacy flow marker: isObservationEventCheckinOpen + code(303).redirect */
+      if (showCheckin && !auth && !readObservationEventGuestCredential(session.sessionId, request.headers.cookie)) {
         const credential = createObservationEventGuestCredential();
         reply.header(
           "Set-Cookie",
           buildObservationEventGuestCookie(session.sessionId, credential),
         );
       }
-      const teams = await loadTeamsLite(session.sessionId).catch(() => []);
-      const html = pageDocument({
-        basePath: "",
-        title: `${session.title || "観察会"} に参加 — ZUKAN`,
-        currentPath: currentPathOf(request),
-        body: renderCheckinBody({ session, teams, isAuthenticated: Boolean(auth) }),
-        extraScript: checkinScript(),
-      });
+      const teams = showCheckin ? await loadTeamsLite(session.sessionId).catch(() => []) : [];
       reply.type("text/html; charset=utf-8");
-      return html;
+      return pageDocument({
+        basePath: "",
+        title: `${session.title || d.untitled} — ${d.detailPageTitle} — ZUKAN`,
+        description: [
+          session.title || d.untitled,
+          field?.name ?? null,
+          state === "ended"
+            ? d.detailEndedNote
+            : state === "cancelled"
+              ? d.detailCancelledNote
+              : externalSignup
+                ? d.detailExternalNote
+                : d.detailLead,
+        ].filter((value): value is string => typeof value === "string" && value.length > 0).join(" / "),
+        currentPath: currentPathOf(request),
+        body: renderObservationEventJoinBody(session, strings, lang, {
+          fieldName: field?.name ?? null,
+          externalSignup,
+          showCheckin,
+          teams,
+          isAuthenticated: Boolean(auth),
+          recordHref: buildParticipationRecordHref(session, lang),
+          recapHref,
+          status: state,
+        }),
+        extraScript: showCheckin ? checkinScript() : undefined,
+        lang,
+      });
     },
   );
 

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getObservationEventStrings } from "../i18n/observationEventStrings.js";
 import type { ObservationEventSessionRow } from "../services/observationEventModeManager.js";
-import { renderEventListBody } from "./observationEventList.js";
+import {
+  renderEventListBody,
+  renderObservationEventJoinBody,
+} from "./observationEventList.js";
 
 const HOUR = 60 * 60 * 1000;
 
@@ -83,7 +86,7 @@ test("ended events are kept behind explicit history with a recap action", () => 
   assert.match(historyRow, /春の観察会/);
   assert.match(historyRow, /終了/);
   assert.match(historyRow, /振り返る/);
-  assert.match(historyRow, /\/events\/session-2\/recap/);
+  assert.match(historyRow, /\/ja\/events\/session-2\/recap/);
 });
 
 test("cancelled sessions read as cancelled truth, not as joinable or merely ended", () => {
@@ -103,6 +106,64 @@ test("cancelled sessions read as cancelled truth, not as joinable or merely ende
   assert.doesNotMatch(cancelledRow, /詳しく見る|受付中|開催予定/);
   // Not surfaced as an actionable row.
   assert.doesNotMatch(html, /data-participation-kind="actionable"/);
+});
+
+test("join detail hands off to an external provider and returns to the participant record", () => {
+  const joined: ObservationEventSessionRow = {
+    ...session,
+    title: "浜辺の自然観察",
+    config: {
+      booking: {
+        providerName: "Peatix",
+        providerUrl: "https://peatix.com/event/12345",
+        note: "予約や空き状況は外部サイトで確認します。",
+      },
+    },
+  };
+  const html = renderObservationEventJoinBody(joined, getObservationEventStrings("ja"), "ja", {
+    fieldName: "浜松自然公園",
+  });
+
+  assert.match(html, /data-participation-status="open"/);
+  assert.match(html, /浜辺の自然観察/);
+  assert.match(html, /浜松自然公園/);
+  assert.match(html, /Peatixで予約状況を確認/);
+  assert.match(html, /target="_blank"/);
+  assert.match(html, /予約や空き状況は外部サイトで確認します。/);
+  assert.match(html, /自分の記録へ戻る/);
+  assert.match(html, /\/ja\/record\?event=INVITE1&amp;eventSessionId=session-1&amp;participantRole=participant/);
+  assert.doesNotMatch(html, /data-evt-checkin-form|観察を始める/);
+});
+
+test("join detail renders the native check-in path when external booking is absent", () => {
+  const html = renderObservationEventJoinBody(session, getObservationEventStrings("ja"), "ja");
+
+  assert.match(html, /data-participation-status="open"/);
+  assert.match(html, /参加方法を確認/);
+  assert.match(html, /#participation-checkin/);
+  assert.match(html, /data-evt-checkin-form/);
+  assert.match(html, /自分の記録へ戻る/);
+  assert.match(html, /\/ja\/record\?event=INVITE1&amp;eventSessionId=session-1&amp;participantRole=participant/);
+});
+
+test("join detail keeps cancelled sessions as cancelled and does not show check-in", () => {
+  const cancelled: ObservationEventSessionRow = {
+    ...session,
+    sessionId: "session-cancelled",
+    eventCode: "CXL1",
+    title: "中止になった川の調査",
+    endedAt: null,
+    config: { status: "cancelled" },
+  };
+  const html = renderObservationEventJoinBody(cancelled, getObservationEventStrings("ja"), "ja", {
+    recordHref: "/ja/record?event=CXL1&eventSessionId=session-cancelled&participantRole=participant",
+  });
+
+  assert.match(html, /data-participation-status="cancelled"/);
+  assert.match(html, /中止/);
+  assert.match(html, /この回は中止です。参加手続きは行えません。/);
+  assert.match(html, /自分の記録へ戻る/);
+  assert.doesNotMatch(html, /data-evt-checkin-form|参加方法を確認|観察を始める/);
 });
 
 test("sessions without a public event code are not advertised as joinable", () => {
@@ -132,7 +193,7 @@ test("zero results and load failure are distinct states", () => {
   });
   assert.match(failed, /企画を読み込めませんでした/);
   assert.match(failed, /data-load-failed/);
-  assert.match(failed, /href="\/community\/events"[^>]*>再読み込み</);
+  assert.match(failed, /href="\/ja\/community\/events"[^>]*>再読み込み</);
   assert.doesNotMatch(failed, /掲載中の公開企画はまだありません/);
 });
 
