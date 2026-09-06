@@ -525,3 +525,43 @@ test("detected records label learning and location protection without exposing i
   assert.match(rendered, /おおよその場所を表示/);
   assert.doesNotMatch(rendered, /provisional|human_asserted|accepted identification|provenance|occurrence/i);
 });
+
+test("Japanese record detail suppresses English-only AI prose from reassessment", () => {
+  const leakDetail: ObservationFirstRecordDetail = {
+    ...detail,
+    observations: detail.observations.map((card, index) => index === 0 ? {
+      ...card,
+      aiSuggestions: [{ ...card.aiSuggestions[0]!,
+        visualEvidence: ["characteristic white and reddish-purple centered flowers and opposite leaves", "花の中心が赤紫色に見えます"],
+        shootingAdvice: ["full root system details", "根系がわかる角度から撮影してください"],
+      }],
+    } : card),
+  };
+  const rendered = renderObservationFirstRecordDetailHtml(leakDetail, {
+    lang: "ja", title: "ヘクソカズラ", observedLabel: "2026年9月2日", note: null, media: [], actionNonce: "nonce-ja-language",
+    aiCandidateInsights: [{ name: "ヘクソカズラ", scientificName: "Paederia foetida",
+      supportingFeatures: ["distinctive white-to-pinkish tubular flowers with dark red centers", "花冠の中心が赤紫色です"],
+      missingFeatures: ["full root system details", "根系の詳細は確認できません"], contradictions: [],
+    }],
+    aiFeedback: "English feedback sentence", aiNextPhoto: "Take a closer photo of the roots",
+  });
+  assert.doesNotMatch(rendered, /characteristic white|distinctive white|full root system details|English feedback|Take a closer/);
+  assert.match(rendered, /花の中心が赤紫色/);
+  assert.match(rendered, /根系がわかる角度/);
+  assert.match(rendered, /根系の詳細は確認できません/);
+});
+
+test("Japanese record detail suppresses mixed and short English AI prose", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja", title: "ヘクソカズラ", observedLabel: "2026年9月2日", note: null, media: [], actionNonce: "nonce-ja-short-english",
+    aiCandidateInsights: [{ name: "ヘクソカズラ", scientificName: "Paederia foetida",
+      supportingFeatures: ["白い flower が見えます", "赤紫色の花冠です"],
+      missingFeatures: ["根の details", "根系は確認できません"], contradictions: [],
+    }],
+    aiFeedback: "観察の focus を保ってください", aiNextPhoto: "根元を撮影してください",
+  });
+  assert.doesNotMatch(rendered, /白い flower|根の details|観察の focus/);
+  assert.match(rendered, /赤紫色の花冠です/);
+  assert.match(rendered, /根系は確認できません/);
+  assert.match(rendered, /根元を撮影してください/);
+});

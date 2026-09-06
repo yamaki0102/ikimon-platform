@@ -7,7 +7,7 @@ export const GEMINI_PRIMARY_MODEL = "gemini-3.5-flash-lite";
 export const GEMINI_ANALYSIS_MODEL = "gemini-3.1-flash-lite";
 export const GEMINI_SPECIALIST_MODEL = "gemini-3.5-flash-lite";
 export const GEMINI_SUMMARY_MODEL = "gemini-3.1-flash-lite";
-export const GEMINI_OBSERVATION_PROMPT_VERSION = "observation-triple-lane/v3";
+export const GEMINI_OBSERVATION_PROMPT_VERSION = "observation-triple-lane/v4-ja-prose";
 export const GEMINI_OBSERVATION_RULE_VERSION = "record-observation-gemini-batch/v2";
 export const GEMINI_CANDIDATE_FUSION_RULE_VERSION = "candidate-fusion/v1";
 export const GEMINI_BATCH_MAX_RECORDS = 10;
@@ -330,6 +330,8 @@ const imageParts = (images: GeminiObservationImage[]): Array<Record<string, unkn
   { inlineData: { mimeType: image.mimeType, data: image.base64Data } },
 ]);
 
+const JAPANESE_HUMAN_TEXT_CONTRACT = "All human-facing string values MUST be written in natural Japanese. English prose, descriptive phrases, and comparison sentences are forbidden. Scientific names, IDs, enum values, and JSON keys may remain non-Japanese.";
+
 const generationConfig = (schema: JsonSchema, maxOutputTokens: number, temperature: number) => ({
   temperature: 1,
   maxOutputTokens,
@@ -339,17 +341,17 @@ const generationConfig = (schema: JsonSchema, maxOutputTokens: number, temperatu
 });
 
 export function buildGeminiPrimaryRequest(recordId: string, observedAt: string | null, images: GeminiObservationImage[]) {
-  const prompt = `あなたはikimon.lifeの公開記録写真から、主対象と写真全体の分類を短く構造化する視覚抽出器です。\n記録ID:${recordId}\n観察日:${observedAt ?? "不明"}\n画像数:${images.length}\n\n全画像を比較し、同じ対象は統合してください。主対象は1件だけprimaryにし、別生物も見落とさないでください。種の識別特徴が足りなければ属・科・目・生活型で止めます。人物、食べ物、環境風景、物、文書もrecord_classへ分類しますが、人物の容姿・属性・個人情報は記述しません。非生物をsubjectsへ入れません。information_stateは、判読できる情報があればinformative、何も有用に読めなければnot_informative、画質等で判定不能ならnot_assessableです。領域は正規化座標で返し、日本語、JSONのみを返してください。`;
+  const prompt = `あなたはikimon.lifeの公開記録写真から、主対象と写真全体の分類を短く構造化する視覚抽出器です。\n記録ID:${recordId}\n観察日:${observedAt ?? "不明"}\n画像数:${images.length}\n\n全画像を比較し、同じ対象は統合してください。主対象は1件だけprimaryにし、別生物も見落とさないでください。種の識別特徴が足りなければ属・科・目・生活型で止めます。人物、食べ物、環境風景、物、文書もrecord_classへ分類しますが、人物の容姿・属性・個人情報は記述しません。非生物をsubjectsへ入れません。information_stateは、判読できる情報があればinformative、何も有用に読めなければnot_informative、画質等で判定不能ならnot_assessableです。領域は正規化座標で返し、日本語、JSONのみを返してください。\n${JAPANESE_HUMAN_TEXT_CONTRACT}`;
   return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_PRIMARY_SCHEMA, 2048, 0.1) };
 }
 
 export function buildGeminiCensusRequest(recordId: string, images: GeminiObservationImage[]) {
-  const prompt = `公開された市民科学写真の「個体・別生物の棚卸し」だけをしてください。長い分類解説は不要です。\n記録ID:${recordId}\n画像数:${images.length}\n\n全画像を横断し、同じ個体は1 groupへ統合します。同分類群の複数個体はscope=group、分かる範囲でcountへ。主対象以外の独立した昆虫、鳥、植物、菌、痕跡、寄主植物、異なる形態の背景植物もotherへ入れます。同じ対象の別名候補は別groupにせず、石、舗装、フェンス、建物、影、食べ物、人物はgroupにしません。画像から支持できるname、scientific、rankを返し、種名を無理につけず属・科・目・綱・生活型の見える粒度に止めます。supporting_featuresは見える決定形質、missing_featuresは確認できない比較点、contradictionsは候補と矛盾する形質です。primaryは1 groupだけ、領域をasset_index付きで返してください。判定不能と不在を区別し、日本語、JSONのみを返してください。`;
+  const prompt = `公開された市民科学写真の「個体・別生物の棚卸し」だけをしてください。長い分類解説は不要です。\n記録ID:${recordId}\n画像数:${images.length}\n\n全画像を横断し、同じ個体は1 groupへ統合します。同分類群の複数個体はscope=group、分かる範囲でcountへ。主対象以外の独立した昆虫、鳥、植物、菌、痕跡、寄主植物、異なる形態の背景植物もotherへ入れます。同じ対象の別名候補は別groupにせず、石、舗装、フェンス、建物、影、食べ物、人物はgroupにしません。画像から支持できるname、scientific、rankを返し、種名を無理につけず属・科・目・綱・生活型の見える粒度に止めます。supporting_featuresは見える決定形質、missing_featuresは確認できない比較点、contradictionsは候補と矛盾する形質です。primaryは1 groupだけ、領域をasset_index付きで返してください。判定不能と不在を区別し、日本語、JSONのみを返してください。\n${JAPANESE_HUMAN_TEXT_CONTRACT}`;
   return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_CENSUS_SCHEMA, 2048, 0.1) };
 }
 
 export function buildGeminiEnvironmentRequest(recordId: string, images: GeminiObservationImage[]) {
-  const prompt = `公開写真から、環境・場所の「写っている証拠」だけを棚卸ししてください。生物同定や一般知識による生息地推測は不要です。\n記録ID:${recordId}\n画像数:${images.length}\n\n全画像を比較し、植生構造、地表、水分、人為物、管理痕跡を具体的な画像証拠とasset_index付きで返してください。地域、土壌性質、長期的な湿潤状態、管理主体を推測しません。人物の属性や個人情報を書きません。fieldsは画像から支持できる選択肢だけを選び、根拠がなければunknownです。不在と画質等による判定不能をassessment_stateで分け、日本語、JSONのみを返してください。`;
+  const prompt = `公開写真から、環境・場所の「写っている証拠」だけを棚卸ししてください。生物同定や一般知識による生息地推測は不要です。\n記録ID:${recordId}\n画像数:${images.length}\n\n全画像を比較し、植生構造、地表、水分、人為物、管理痕跡を具体的な画像証拠とasset_index付きで返してください。地域、土壌性質、長期的な湿潤状態、管理主体を推測しません。人物の属性や個人情報を書きません。fieldsは画像から支持できる選択肢だけを選び、根拠がなければunknownです。不在と画質等による判定不能をassessment_stateで分け、日本語、JSONのみを返してください。\n${JAPANESE_HUMAN_TEXT_CONTRACT}`;
   return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_ENVIRONMENT_SCHEMA, 2048, 0.1) };
 }
 
@@ -372,7 +374,7 @@ export function buildGeminiSpecialistRequest(
     qualityFlags: merged.qualityFlags,
     reviewReasons: merged.reviewReasons,
   };
-  const prompt = `公開された市民科学写真の同一主対象について、候補比較だけをしてください。別名候補を別個体・別subjectとして扱いません。\n記録ID:${recordId}\n専門分類:${specialistKind}\n画像数:${images.length}\n前段証拠:${JSON.stringify(evidence)}\n\n${specialistTraits[specialistKind]}\n最大5候補を、支持形質、不足形質、矛盾点とともに返してください。粗い汎用名だけで終えず、証拠が足りなければ無理に種へ固定せず適切なrankで止めます。人物の属性や個人情報、画像にない地域・季節情報を推測せず、AI候補であって確定同定ではない前提を守り、日本語、JSONのみを返してください。`;
+  const prompt = `公開された市民科学写真の同一主対象について、候補比較だけをしてください。別名候補を別個体・別subjectとして扱いません。\n記録ID:${recordId}\n専門分類:${specialistKind}\n画像数:${images.length}\n前段証拠:${JSON.stringify(evidence)}\n\n${specialistTraits[specialistKind]}\n最大5候補を、支持形質、不足形質、矛盾点とともに返してください。粗い汎用名だけで終えず、証拠が足りなければ無理に種へ固定せず適切なrankで止めます。人物の属性や個人情報、画像にない地域・季節情報を推測せず、AI候補であって確定同定ではない前提を守り、日本語、JSONのみを返してください。\n${JAPANESE_HUMAN_TEXT_CONTRACT}`;
   return {
     contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }],
     generationConfig: generationConfig(GEMINI_SPECIALIST_SCHEMA, 2048, 0.1),
@@ -381,7 +383,7 @@ export function buildGeminiSpecialistRequest(
 
 export function buildGeminiSummaryRequest(recordId: string, merged: GeminiMergedObservation) {
   const evidence = { ...merged, candidate: merged.candidate, summary: undefined };
-  const prompt = `以下は3つの専門レーン（主対象、別生物、環境）を決定的に統合した写真証拠JSONです。このJSONだけでikimon.life記録ページ向けの短い日本語説明を作ってください。新しい名前や事実を足さず、primaryと別対象を混ぜず、確定同定を避けます。各subjectを1件ずつ説明し、不確実性と次に撮る部位・角度を具体的にしてください。環境は写真で見える範囲に限定します。\n記録ID:${recordId}\n証拠JSON:${JSON.stringify(evidence)}`;
+  const prompt = `以下は3つの専門レーン（主対象、別生物、環境）を決定的に統合した写真証拠JSONです。このJSONだけでikimon.life記録ページ向けの短い日本語説明を作ってください。新しい名前や事実を足さず、primaryと別対象を混ぜず、確定同定を避けます。各subjectを1件ずつ説明し、不確実性と次に撮る部位・角度を具体的にしてください。環境は写真で見える範囲に限定します。\n${JAPANESE_HUMAN_TEXT_CONTRACT}\n記録ID:${recordId}\n証拠JSON:${JSON.stringify(evidence)}`;
   return { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: generationConfig(GEMINI_SUMMARY_SCHEMA, 2048, 0.15) };
 }
 
