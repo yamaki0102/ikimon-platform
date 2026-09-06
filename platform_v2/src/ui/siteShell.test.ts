@@ -414,6 +414,11 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /capabilities && capabilities\.focusDistance/);
   assert.match(html, /manualConstraint\.focusMode = 'manual'/);
   assert.match(html, /applyCameraFocusDistance/);
+  assert.match(html, /data-global-record-camera-focus-minus/);
+  assert.match(html, /data-global-record-camera-focus-plus/);
+  assert.match(html, /photoCaptureSource = 'native'/);
+  assert.match(html, /photoCaptureSource === 'native'/);
+  assert.match(html, /cameraFocusCurrent \+ \(Number\(direction\) < 0 \? -cameraFocusStep : cameraFocusStep\)/);
   assert.match(html, /restoreCameraAutoFocus/);
   assert.match(html, /const applyCameraFocusAt = async \(clientX, clientY\)/);
   assert.match(html, /pointsOfInterest: \[point\]/);
@@ -421,6 +426,8 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /zoomMaxButton\.addEventListener\('click'/);
   assert.match(html, /applyCameraZoom\(cameraZoomMax\)/);
   assert.match(html, /cameraPinchDistance/);
+  assert.match(html, /cameraPreviewGestureCanceled/);
+  assert.match(html, /!cameraPreviewGestureCanceled/);
   assert.match(html, /window\.visualViewport\.addEventListener\('resize', syncVisualViewportVars\)/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /const metadata = buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
