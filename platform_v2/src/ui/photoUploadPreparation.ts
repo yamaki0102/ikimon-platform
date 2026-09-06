@@ -1,61 +1,40 @@
-/** 2560px WebP-first policy shared by every browser photo entry. No network writes. */
+/** 2560px WebP-first upload policy shared by browser photo entries. No network writes. */
 export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
   const PHOTO_UPLOAD_MAX_EDGE = 2560;
-  const PHOTO_UPLOAD_WEBP_QUALITY = 0.82;
-  const PHOTO_UPLOAD_JPEG_FALLBACK_QUALITY = 0.88;
+  const PHOTO_UPLOAD_QUALITY = 0.88;
   const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ''));
     reader.onerror = () => reject(reader.error || new Error('file_read_failed'));
     reader.readAsDataURL(file);
   });
-  const encodeCanvas = (canvas, mimeType, quality) => new Promise((resolve) => {
-    if (!canvas) {
-      resolve(null);
-      return;
-    }
-    if (typeof canvas.toBlob !== 'function') {
-      try {
-        const dataUrl = canvas.toDataURL(mimeType, quality);
-        resolve(String(dataUrl || '').startsWith('data:' + mimeType) ? dataUrl : null);
-      } catch (_) {
-        resolve(null);
-      }
-      return;
-    }
-    canvas.toBlob((blob) => {
-      if (!blob || String(blob.type || '').toLowerCase() !== mimeType) {
-        resolve(null);
-        return;
-      }
-      readFileAsDataUrl(blob)
-        .then((dataUrl) => resolve(String(dataUrl || '').startsWith('data:' + mimeType) ? dataUrl : null))
-        .catch(() => resolve(null));
-    }, mimeType, quality);
-  });
-  const canvasToPreparedPhoto = async (canvas) => {
-    const webp = await encodeCanvas(canvas, 'image/webp', PHOTO_UPLOAD_WEBP_QUALITY);
-    if (webp) {
-      return { base64Data: webp, mimeType: 'image/webp', extension: '.webp' };
-    }
-    const jpeg = await encodeCanvas(canvas, 'image/jpeg', PHOTO_UPLOAD_JPEG_FALLBACK_QUALITY);
-    if (jpeg) {
-      return { base64Data: jpeg, mimeType: 'image/jpeg', extension: '.jpg' };
-    }
-    const base64Data = canvas.toDataURL('image/jpeg', PHOTO_UPLOAD_JPEG_FALLBACK_QUALITY);
-    return { base64Data, mimeType: 'image/jpeg', extension: '.jpg' };
+  const encodedDataUrl = (dataUrl, requestedType) => {
+    const value = String(dataUrl || '');
+    const match = /^data:(image\/(?:webp|jpeg|png));base64,[A-Za-z0-9+/]+={0,2}$/.exec(value);
+    if (!match || match[1] !== requestedType) return null;
+    return { dataUrl: value, mimeType: match[1] };
   };
+  const canvasToImage = (canvas, mimeType) => new Promise((resolve, reject) => {
+    const fallback = () => {
+      try { resolve(encodedDataUrl(canvas.toDataURL(mimeType, PHOTO_UPLOAD_QUALITY), mimeType)); }
+      catch (error) { reject(error); }
+    };
+    if (typeof canvas.toBlob !== 'function') { fallback(); return; }
+    try {
+      canvas.toBlob((blob) => {
+        if (!blob || String(blob.type || '').toLowerCase() !== mimeType) { fallback(); return; }
+        const reader = new FileReader();
+        reader.onload = () => resolve(encodedDataUrl(reader.result, mimeType));
+        reader.onerror = () => fallback();
+        reader.readAsDataURL(blob);
+      }, mimeType, PHOTO_UPLOAD_QUALITY);
+    } catch (_) { fallback(); }
+  });
   const loadImageElementForUpload = (file) => new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
-    image.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(image);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('photo_decode_failed'));
-    };
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('photo_decode_failed')); };
     image.src = url;
   });
   const loadImageForUpload = async (file) => {
@@ -63,14 +42,10 @@ export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
       ? window.createImageBitmap.bind(window)
       : (typeof createImageBitmap === 'function' ? createImageBitmap : null);
     if (createBitmap) {
-      try {
-        return await createBitmap(file, { imageOrientation: 'from-image' });
-      } catch (_) {
-        try {
-          return await createBitmap(file);
-        } catch (_) {
-          // Fall back to HTMLImageElement decoding below.
-        }
+      try { return await createBitmap(file, { imageOrientation: 'from-image' }); }
+      catch (_) {
+        try { return await createBitmap(file); }
+        catch (_) { /* Fall back to HTMLImageElement decoding below. */ }
       }
     }
     return await loadImageElementForUpload(file);
@@ -78,11 +53,7 @@ export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
   const preparePhotoUpload = async (file) => {
     const originalType = String(file && file.type || 'image/jpeg').toLowerCase();
     if (originalType === 'image/gif') {
-      return {
-        filename: file.name || 'upload.gif',
-        mimeType: originalType,
-        base64Data: await readFileAsDataUrl(file),
-      };
+      return { filename: file.name || 'upload.gif', mimeType: originalType, base64Data: await readFileAsDataUrl(file) };
     }
     let image = null;
     let canvas = null;
@@ -102,19 +73,22 @@ export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
       context.drawImage(image, 0, 0, targetWidth, targetHeight);
       if (image && typeof image.close === 'function') image.close();
       image = null;
-      const prepared = await canvasToPreparedPhoto(canvas);
+      const alphaSafeInput = !/^image\/jpeg$/.test(originalType);
+      let encoded = await canvasToImage(canvas, 'image/webp');
+      if (!encoded && !alphaSafeInput) encoded = await canvasToImage(canvas, 'image/jpeg');
+      if (!encoded && alphaSafeInput) encoded = await canvasToImage(canvas, 'image/png');
+      if (!encoded) throw new Error('photo_encode_failed');
+      const facePrivacy = { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null };
+      const encodedBytes = Math.floor((encoded.dataUrl.split(',')[1].length * 3) / 4);
+      if (scale === 1 && file.size > 0 && file.size <= encodedBytes && /^image\/(?:jpeg|png|webp|avif)$/.test(originalType)) {
+        return { filename: file.name || 'upload', mimeType: originalType, base64Data: await readFileAsDataUrl(file), facePrivacy };
+      }
+      const extension = encoded.mimeType === 'image/webp' ? 'webp' : encoded.mimeType === 'image/png' ? 'png' : 'jpg';
       const safeName = String(file.name || 'upload').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
-      return {
-        filename: safeName + prepared.extension,
-        mimeType: prepared.mimeType,
-        base64Data: prepared.base64Data,
-        facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null },
-      };
+      return { filename: safeName + '.' + extension, mimeType: encoded.mimeType, base64Data: encoded.dataUrl, facePrivacy };
     } catch (_) {
       return {
-        filename: file.name || 'upload.jpg',
-        mimeType: file.type || 'image/jpeg',
-        base64Data: await readFileAsDataUrl(file),
+        filename: file.name || 'upload.jpg', mimeType: file.type || 'image/jpeg', base64Data: await readFileAsDataUrl(file),
         facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: 'photo_canvas_fallback' },
       };
     } finally {
