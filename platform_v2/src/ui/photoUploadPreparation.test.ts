@@ -94,3 +94,11 @@ test("already smaller originals can be reused without dropping privacy metadata"
   assert.equal(result.mimeType, "image/jpeg");
   assert.equal(result.facePrivacy?.status, "pending");
 });
+
+test("does not reuse an original that is larger than the encoded payload", async () => {
+  const f = fixture({ width: 800, height: 600, size: 5, type: "image/jpeg" });
+  const result = await f.result;
+  assert.equal(result.filename, "field.photo.webp");
+  assert.equal(result.mimeType, "image/webp");
+  assert.match(result.base64Data, /^data:image\/webp;base64,/);
+});

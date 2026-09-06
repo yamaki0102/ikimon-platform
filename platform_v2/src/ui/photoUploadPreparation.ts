@@ -79,7 +79,9 @@ export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
       if (!encoded && alphaSafeInput) encoded = await canvasToImage(canvas, 'image/png');
       if (!encoded) throw new Error('photo_encode_failed');
       const facePrivacy = { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null };
-      const encodedBytes = Math.floor((encoded.dataUrl.split(',')[1].length * 3) / 4);
+      const encodedPayload = encoded.dataUrl.split(',')[1];
+      const encodedBytes = Math.floor((encodedPayload.length * 3) / 4)
+        - (encodedPayload.endsWith('==') ? 2 : encodedPayload.endsWith('=') ? 1 : 0);
       if (scale === 1 && file.size > 0 && file.size <= encodedBytes && /^image\/(?:jpeg|png|webp|avif)$/.test(originalType)) {
         return { filename: file.name || 'upload', mimeType: originalType, base64Data: await readFileAsDataUrl(file), facePrivacy };
       }
