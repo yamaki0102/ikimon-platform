@@ -3,6 +3,7 @@
 - Status: active plan
 - Contract: `SPEC.md`
 - Broad profile projection: `PROFILE_HORIZON.md`
+- Specialist capability reuse routing: `SPECIALIST_CAPABILITY_ROUTING_2026-09-07.md`; rationale: `decisions/ADR-0002-specialist-capability-reuse.md`
 - Execution-roadmap authority: `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md`; r2 was adopted through strategy PR `#116`. The scoped-dependency correction below supersedes the former global landing interpretation for this owner-authorized review and is reflected in the same upstream roadmap.
 - Prior broad-scope provenance: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
 - Current frontier / status projection: `platform_v2/product-registry/delivery.json` and the shared Resolver. This document does not repeat status.
