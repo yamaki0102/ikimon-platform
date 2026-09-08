@@ -8,7 +8,7 @@ test("Renri staging load check is fail-closed and covers the event capacity cont
   const source = await readFile(scriptUrl, "utf8");
 
   assert.match(source, /hostname === "ikimon\.life"[\s\S]*production_target_forbidden/);
-  assert.match(source, /hostname !== "staging\.ikimon\.life"[\s\S]*staging_target_required/);
+  assert.match(source, /hostname !== "staging\.zukan\.earth"[\s\S]*staging_target_required/);
   assert.match(source, /execute_requires_600_seconds/);
   assert.match(source, /renri-e2e-load-/);
   assert.match(source, /participantSessions: 20/);
