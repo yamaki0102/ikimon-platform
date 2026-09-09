@@ -260,6 +260,22 @@ test("private and unknown zones never become public place projections", () => {
   assert.equal(malformedZone.publicLocationMode, "hidden");
   assert.equal(malformedZone.contributionCtaMode, "suppressed");
   assert.equal(malformedZone.reason, "zone_visibility_invalid_fail_closed");
+
+  for (const zoneVisibility of ["private", "unknown", "publicly_visible"] as const) {
+    const prohibitedHiddenZone = defaultPlacePolicy({
+      placeKind: "park",
+      zoneVisibility: zoneVisibility as never,
+      officialRecordingPolicy: "prohibited",
+      officialRuleUrl: "https://example.test/hidden-zone-rules",
+    });
+    assert.equal(prohibitedHiddenZone.placeVisibility, "hidden");
+    assert.equal(prohibitedHiddenZone.recordingPolicy, "prohibited");
+    assert.equal(prohibitedHiddenZone.publicLocationMode, "hidden");
+    assert.equal(prohibitedHiddenZone.contributionCtaMode, "suppressed");
+    assert.equal(prohibitedHiddenZone.ruleSource, "official");
+    assert.equal(prohibitedHiddenZone.ruleUrl, "https://example.test/hidden-zone-rules");
+    assert.equal(prohibitedHiddenZone.reason, "verified_recording_policy");
+  }
 });
 
 test("an explicitly public zone remains browseable but never grants recording permission", () => {
