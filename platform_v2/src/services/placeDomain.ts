@@ -353,7 +353,23 @@ export function defaultPlacePolicy(input: {
   childRelated?: boolean;
   zoneVisibility?: "public" | "private" | "unknown";
 }): PlacePolicyProjection {
-  const zoneVisibility = input.zoneVisibility;
+  const zoneVisibility: unknown = input.zoneVisibility;
+  if (
+    zoneVisibility !== undefined &&
+    zoneVisibility !== "public" &&
+    zoneVisibility !== "private" &&
+    zoneVisibility !== "unknown"
+  ) {
+    return {
+      placeVisibility: "hidden",
+      recordingPolicy: "unknown",
+      publicLocationMode: "hidden",
+      contributionCtaMode: "suppressed",
+      ruleSource: "default",
+      ruleUrl: null,
+      reason: "zone_visibility_invalid_fail_closed",
+    };
+  }
   if (zoneVisibility === "private") {
     return {
       placeVisibility: "hidden",
@@ -377,6 +393,7 @@ export function defaultPlacePolicy(input: {
     };
   }
 
+  const officialPolicy = input.officialRecordingPolicy ?? null;
   const safeLocationMode = (fallback: PlacePolicyProjection["publicLocationMode"]): PlacePolicyProjection["publicLocationMode"] => {
     if (input.sensitiveLocation || input.childRelated || input.placeKind === "school") return "zone";
     if (zoneVisibility === "public") return "zone";
@@ -385,20 +402,23 @@ export function defaultPlacePolicy(input: {
   if (input.sensitiveLocation || input.childRelated || input.placeKind === "school") {
     return {
       placeVisibility: "public",
-      recordingPolicy: "permission_required",
+      recordingPolicy: officialPolicy === "prohibited" ? "prohibited" : "permission_required",
       publicLocationMode: safeLocationMode("zone"),
       contributionCtaMode: "suppressed",
-      ruleSource: "default",
-      ruleUrl: null,
-      reason: input.childRelated
-        ? "child_sensitive_location_fail_closed"
-        : input.placeKind === "school"
-          ? "school_fail_closed"
-          : "sensitive_location_fail_closed",
+      ruleSource: officialPolicy === "prohibited"
+        ? input.administratorVerified ? "administrator" : "official"
+        : "default",
+      ruleUrl: officialPolicy === "prohibited" ? nonEmpty(input.officialRuleUrl) : null,
+      reason: officialPolicy === "prohibited"
+        ? "verified_recording_policy"
+        : input.childRelated
+          ? "child_sensitive_location_fail_closed"
+          : input.placeKind === "school"
+            ? "school_fail_closed"
+            : "sensitive_location_fail_closed",
     };
   }
 
-  const officialPolicy = input.officialRecordingPolicy ?? null;
   if (officialPolicy) {
     const suppressed = officialPolicy === "prohibited" || officialPolicy === "permission_required";
     return {
