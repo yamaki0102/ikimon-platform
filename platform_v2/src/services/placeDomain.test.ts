@@ -222,6 +222,33 @@ test("sensitive and child-related places coarsen location and suppress contribut
   assert.equal(prohibitedSchool.contributionCtaMode, "suppressed");
   assert.equal(prohibitedSchool.ruleSource, "official");
   assert.equal(prohibitedSchool.ruleUrl, "https://example.test/school-rules");
+
+  const permissionRequiredSensitive = defaultPlacePolicy({
+    placeKind: "park",
+    sensitiveLocation: true,
+    officialRecordingPolicy: "permission_required",
+    officialRuleUrl: "https://example.test/sensitive-rules",
+  });
+  assert.equal(permissionRequiredSensitive.recordingPolicy, "permission_required");
+  assert.equal(permissionRequiredSensitive.publicLocationMode, "zone");
+  assert.equal(permissionRequiredSensitive.contributionCtaMode, "suppressed");
+  assert.equal(permissionRequiredSensitive.ruleSource, "official");
+  assert.equal(permissionRequiredSensitive.ruleUrl, "https://example.test/sensitive-rules");
+  assert.equal(permissionRequiredSensitive.reason, "verified_recording_policy");
+
+  const administratorChildPolicy = defaultPlacePolicy({
+    placeKind: "park",
+    childRelated: true,
+    officialRecordingPolicy: "permission_required",
+    officialRuleUrl: "https://example.test/child-rules",
+    administratorVerified: true,
+  });
+  assert.equal(administratorChildPolicy.recordingPolicy, "permission_required");
+  assert.equal(administratorChildPolicy.publicLocationMode, "zone");
+  assert.equal(administratorChildPolicy.contributionCtaMode, "suppressed");
+  assert.equal(administratorChildPolicy.ruleSource, "administrator");
+  assert.equal(administratorChildPolicy.ruleUrl, "https://example.test/child-rules");
+  assert.equal(administratorChildPolicy.reason, "verified_recording_policy");
 });
 
 test("private and unknown zones never become public place projections", () => {
