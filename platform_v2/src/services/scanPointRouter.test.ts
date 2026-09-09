@@ -44,6 +44,17 @@ test("content can change without changing the physical ScanPoint route", () => {
   }
 });
 
+
+
+test("invalid ScanPoint identifiers fail closed", () => {
+  for (const scanPointId of [null, 42, "", "   "]) {
+    assert.deepEqual(
+      resolveScanPointRoute({ scanPointId, bindings: [binding()] }),
+      { status: "not_found", scanPointId: "", reason: "invalid_scan_point_id" },
+    );
+  }
+});
+
 test("unknown ScanPoint fails closed as not_found", () => {
   assert.deepEqual(
     resolveScanPointRoute({ scanPointId: "missing", bindings: [binding()] }),
@@ -93,8 +104,11 @@ test("unsafe or incomplete route bindings are stale rather than publishable", ()
   for (const invalid of [
     binding({ publicRoute: "https://example.com/scan" }),
     binding({ publicRoute: "//external.example/scan" }),
+    binding({ publicRoute: "/\\evil.example/scan" }),
+    binding({ publicRoute: "/scan\tredirect" }),
     binding({ targetId: " " }),
     binding({ contentRevision: "" }),
+    { ...binding(), targetKind: "staff_internal" as never },
   ]) {
     assert.deepEqual(
       resolveScanPointRoute({ scanPointId: "sp-renri-tree-01", bindings: [invalid] }),
