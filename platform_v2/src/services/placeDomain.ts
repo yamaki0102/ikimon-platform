@@ -392,16 +392,18 @@ export function defaultPlacePolicy(input: {
     return fallback;
   };
   if (input.sensitiveLocation || input.childRelated || input.placeKind === "school") {
+    const matchingOfficialRestriction =
+      officialPolicy === "prohibited" || officialPolicy === "permission_required";
     return {
       placeVisibility: "public",
       recordingPolicy: officialPolicy === "prohibited" ? "prohibited" : "permission_required",
       publicLocationMode: safeLocationMode("zone"),
       contributionCtaMode: "suppressed",
-      ruleSource: officialPolicy === "prohibited"
+      ruleSource: matchingOfficialRestriction
         ? input.administratorVerified ? "administrator" : "official"
         : "default",
-      ruleUrl: officialPolicy === "prohibited" ? nonEmpty(input.officialRuleUrl) : null,
-      reason: officialPolicy === "prohibited"
+      ruleUrl: matchingOfficialRestriction ? nonEmpty(input.officialRuleUrl) : null,
+      reason: matchingOfficialRestriction
         ? "verified_recording_policy"
         : input.childRelated
           ? "child_sensitive_location_fail_closed"
