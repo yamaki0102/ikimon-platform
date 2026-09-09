@@ -1,8 +1,0 @@
-{
-  "schema_version": "noah.git-lease.v1",
-  "work_id": "ZUKAN-PLACE-001",
-  "lane_id": "B",
-  "acquired_at": "2026-09-10T00:30:02+09:00",
-  "expires_at": "2026-09-10T00:50:02+09:00",
-  "base_sha": "58491657467c55a3fbb0179a70801334446760ac"
-}
