@@ -114,6 +114,7 @@ import {
   type ObservationMediaDedupInput,
   type ObservationMediaDedupPlan,
 } from "./observationMediaDedup";
+import { buildRuntimeIdentity, runtimeIdentityHeaders, type RuntimeIdentityEnv } from "./runtimeIdentity";
 
 type D1Value = string | number | null;
 
@@ -273,6 +274,7 @@ interface Env {
   IKIMON_UI_BUNDLE_HASH?: string;
   IKIMON_UI_MANIFEST_HASH?: string;
   IKIMON_DEPLOYED_AT?: string;
+  CF_VERSION_METADATA?: RuntimeIdentityEnv["CF_VERSION_METADATA"];
 }
 
 function isAppRuntime(env: Env): boolean {
@@ -36959,28 +36961,27 @@ function json(body: unknown, status = 200, headers?: Record<string, string>): Re
 }
 
 function releaseIdentityHeaders(env: Env): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (env.IKIMON_GIT_SHA?.trim()) headers["x-ikimon-deploy-sha"] = env.IKIMON_GIT_SHA.trim();
-  if (env.IKIMON_UI_BUNDLE_HASH?.trim()) headers["x-ikimon-ui-bundle"] = env.IKIMON_UI_BUNDLE_HASH.trim();
-  if (env.IKIMON_WORKER_VERSION?.trim()) headers["x-ikimon-worker-version"] = env.IKIMON_WORKER_VERSION.trim();
-  return headers;
+  return runtimeIdentityHeaders(buildRuntimeIdentity(env, ""));
 }
 
 function getRuntimeVersion(url: URL, env: Env): Response {
-  const gitSha = env.IKIMON_GIT_SHA?.trim() || env.GITHUB_SHA?.trim() || null;
+  const identity = buildRuntimeIdentity(env, url.origin);
   return json({
     schemaVersion: "cloudflare_worker_runtime/v1",
     ok: true,
     service: "ikimon.life",
     runtime: "cloudflare-worker",
-    environment: env.ENVIRONMENT,
-    origin: url.origin,
+    environment: identity.environment,
+    origin: identity.origin,
     buildMarker: WORKER_BUILD_MARKER,
-    gitSha,
-    workerVersion: env.IKIMON_WORKER_VERSION?.trim() || null,
-    uiBundleHash: env.IKIMON_UI_BUNDLE_HASH?.trim() || null,
-    originalUiManifestHash: env.IKIMON_UI_MANIFEST_HASH?.trim() || null,
-    deployedAt: env.IKIMON_DEPLOYED_AT?.trim() || null,
+    gitSha: identity.gitSha,
+    workerVersion: identity.workerVersion,
+    workerVersionId: identity.workerVersionId,
+    workerVersionTag: identity.workerVersionTag,
+    workerVersionTimestamp: identity.workerVersionTimestamp,
+    uiBundleHash: identity.uiBundleHash,
+    originalUiManifestHash: identity.originalUiManifestHash,
+    deployedAt: identity.deployedAt,
     source: {
       worker: "platform_v2/cloudflare_shadow/src/index.ts",
       endpoint: RUNTIME_VERSION_PATH,
@@ -36993,7 +36994,7 @@ function getRuntimeVersion(url: URL, env: Env): Response {
       originalUiMaterializedHtml: true
     },
     publicSafe: true
-  }, 200, { "cache-control": "no-store", ...releaseIdentityHeaders(env) });
+  }, 200, { "cache-control": "no-store", ...runtimeIdentityHeaders(identity) });
 }
 
 function getReflectionLoopManifest(url: URL, env: Env): Response {
