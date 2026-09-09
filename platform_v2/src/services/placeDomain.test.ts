@@ -211,6 +211,17 @@ test("sensitive and child-related places coarsen location and suppress contribut
   assert.equal(school.publicLocationMode, "zone");
   assert.equal(school.recordingPolicy, "permission_required");
   assert.equal(school.contributionCtaMode, "suppressed");
+
+  const prohibitedSchool = defaultPlacePolicy({
+    placeKind: "school",
+    officialRecordingPolicy: "prohibited",
+    officialRuleUrl: "https://example.test/school-rules",
+  });
+  assert.equal(prohibitedSchool.publicLocationMode, "zone");
+  assert.equal(prohibitedSchool.recordingPolicy, "prohibited");
+  assert.equal(prohibitedSchool.contributionCtaMode, "suppressed");
+  assert.equal(prohibitedSchool.ruleSource, "official");
+  assert.equal(prohibitedSchool.ruleUrl, "https://example.test/school-rules");
 });
 
 test("private and unknown zones never become public place projections", () => {
@@ -234,8 +245,21 @@ test("private and unknown zones never become public place projections", () => {
 
   const unknownZone = defaultPlacePolicy({ placeKind: "park", zoneVisibility: "unknown" });
   assert.equal(unknownZone.placeVisibility, "hidden");
+  assert.equal(unknownZone.recordingPolicy, "unknown");
   assert.equal(unknownZone.publicLocationMode, "hidden");
   assert.equal(unknownZone.contributionCtaMode, "suppressed");
+  assert.equal(unknownZone.reason, "zone_visibility_unknown_fail_closed");
+
+  const malformedZone = defaultPlacePolicy({
+    placeKind: "park",
+    zoneVisibility: "publicly_visible" as never,
+    officialRecordingPolicy: "allowed",
+  });
+  assert.equal(malformedZone.placeVisibility, "hidden");
+  assert.equal(malformedZone.recordingPolicy, "unknown");
+  assert.equal(malformedZone.publicLocationMode, "hidden");
+  assert.equal(malformedZone.contributionCtaMode, "suppressed");
+  assert.equal(malformedZone.reason, "zone_visibility_invalid_fail_closed");
 });
 
 test("an explicitly public zone remains browseable but never grants recording permission", () => {
