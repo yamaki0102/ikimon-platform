@@ -57,6 +57,13 @@ test("native Cloudflare version header is omitted without native metadata", () =
   assert.equal(headers["x-cloudflare-worker-version"], undefined);
   assert.equal(headers["x-ikimon-worker-version"], "legacy-alias-only");
 });
+test("staging and production identity remain safe without the shadow-only binding", () => {
+  for (const environment of ["staging", "production"]) {
+    const identity = buildRuntimeIdentity({ ENVIRONMENT: environment }, "https://example.test");
+    assert.equal(identity.workerVersionId, null);
+    assert.equal(runtimeIdentityHeaders(identity)["x-cloudflare-worker-version"], undefined);
+  }
+});
 
 test("shadow config is the only config with the candidate toolchain flags", async () => {
   const config = JSON.parse(await readFile(configPath, "utf8")) as Record<string, any>;
