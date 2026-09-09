@@ -354,46 +354,38 @@ export function defaultPlacePolicy(input: {
   zoneVisibility?: "public" | "private" | "unknown";
 }): PlacePolicyProjection {
   const zoneVisibility: unknown = input.zoneVisibility;
+  const officialPolicy = input.officialRecordingPolicy ?? null;
+  const hiddenZonePolicy = (
+    fallbackRecordingPolicy: RecordingPolicy,
+    fallbackReason: string,
+  ): PlacePolicyProjection => {
+    const preserveOfficialProhibition = officialPolicy === "prohibited";
+    return {
+      placeVisibility: "hidden",
+      recordingPolicy: preserveOfficialProhibition ? "prohibited" : fallbackRecordingPolicy,
+      publicLocationMode: "hidden",
+      contributionCtaMode: "suppressed",
+      ruleSource: preserveOfficialProhibition
+        ? input.administratorVerified ? "administrator" : "official"
+        : "default",
+      ruleUrl: preserveOfficialProhibition ? nonEmpty(input.officialRuleUrl) : null,
+      reason: preserveOfficialProhibition ? "verified_recording_policy" : fallbackReason,
+    };
+  };
   if (
     zoneVisibility !== undefined &&
     zoneVisibility !== "public" &&
     zoneVisibility !== "private" &&
     zoneVisibility !== "unknown"
   ) {
-    return {
-      placeVisibility: "hidden",
-      recordingPolicy: "unknown",
-      publicLocationMode: "hidden",
-      contributionCtaMode: "suppressed",
-      ruleSource: "default",
-      ruleUrl: null,
-      reason: "zone_visibility_invalid_fail_closed",
-    };
+    return hiddenZonePolicy("unknown", "zone_visibility_invalid_fail_closed");
   }
   if (zoneVisibility === "private") {
-    return {
-      placeVisibility: "hidden",
-      recordingPolicy: "permission_required",
-      publicLocationMode: "hidden",
-      contributionCtaMode: "suppressed",
-      ruleSource: "default",
-      ruleUrl: null,
-      reason: "private_zone_fail_closed",
-    };
+    return hiddenZonePolicy("permission_required", "private_zone_fail_closed");
   }
   if (zoneVisibility === "unknown") {
-    return {
-      placeVisibility: "hidden",
-      recordingPolicy: "unknown",
-      publicLocationMode: "hidden",
-      contributionCtaMode: "suppressed",
-      ruleSource: "default",
-      ruleUrl: null,
-      reason: "zone_visibility_unknown_fail_closed",
-    };
+    return hiddenZonePolicy("unknown", "zone_visibility_unknown_fail_closed");
   }
-
-  const officialPolicy = input.officialRecordingPolicy ?? null;
   const safeLocationMode = (fallback: PlacePolicyProjection["publicLocationMode"]): PlacePolicyProjection["publicLocationMode"] => {
     if (input.sensitiveLocation || input.childRelated || input.placeKind === "school") return "zone";
     if (zoneVisibility === "public") return "zone";
