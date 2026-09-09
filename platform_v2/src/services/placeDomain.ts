@@ -349,14 +349,62 @@ export function defaultPlacePolicy(input: {
   officialRecordingPolicy?: RecordingPolicy | null;
   officialRuleUrl?: string | null;
   administratorVerified?: boolean;
+  sensitiveLocation?: boolean;
+  childRelated?: boolean;
+  zoneVisibility?: "public" | "private" | "unknown";
 }): PlacePolicyProjection {
+  const zoneVisibility = input.zoneVisibility;
+  if (zoneVisibility === "private") {
+    return {
+      placeVisibility: "hidden",
+      recordingPolicy: "permission_required",
+      publicLocationMode: "hidden",
+      contributionCtaMode: "suppressed",
+      ruleSource: "default",
+      ruleUrl: null,
+      reason: "private_zone_fail_closed",
+    };
+  }
+  if (zoneVisibility === "unknown") {
+    return {
+      placeVisibility: "hidden",
+      recordingPolicy: "unknown",
+      publicLocationMode: "hidden",
+      contributionCtaMode: "suppressed",
+      ruleSource: "default",
+      ruleUrl: null,
+      reason: "zone_visibility_unknown_fail_closed",
+    };
+  }
+
+  const safeLocationMode = (fallback: PlacePolicyProjection["publicLocationMode"]): PlacePolicyProjection["publicLocationMode"] => {
+    if (input.sensitiveLocation || input.childRelated || input.placeKind === "school") return "zone";
+    if (zoneVisibility === "public") return "zone";
+    return fallback;
+  };
+  if (input.sensitiveLocation || input.childRelated || input.placeKind === "school") {
+    return {
+      placeVisibility: "public",
+      recordingPolicy: "permission_required",
+      publicLocationMode: safeLocationMode("zone"),
+      contributionCtaMode: "suppressed",
+      ruleSource: "default",
+      ruleUrl: null,
+      reason: input.childRelated
+        ? "child_sensitive_location_fail_closed"
+        : input.placeKind === "school"
+          ? "school_fail_closed"
+          : "sensitive_location_fail_closed",
+    };
+  }
+
   const officialPolicy = input.officialRecordingPolicy ?? null;
   if (officialPolicy) {
     const suppressed = officialPolicy === "prohibited" || officialPolicy === "permission_required";
     return {
       placeVisibility: "public",
       recordingPolicy: officialPolicy,
-      publicLocationMode: "place",
+      publicLocationMode: safeLocationMode("place"),
       contributionCtaMode: suppressed
         ? "suppressed"
         : officialPolicy === "allowed"
@@ -369,22 +417,11 @@ export function defaultPlacePolicy(input: {
   }
 
   const access = nonEmpty(input.osmAccess)?.toLowerCase() ?? "";
-  if (input.placeKind === "school") {
-    return {
-      placeVisibility: "public",
-      recordingPolicy: "permission_required",
-      publicLocationMode: "place",
-      contributionCtaMode: "suppressed",
-      ruleSource: "default",
-      ruleUrl: null,
-      reason: "school_fail_closed",
-    };
-  }
   if (access === "private" || access === "no" || access === "restricted") {
     return {
       placeVisibility: "limited",
       recordingPolicy: "permission_required",
-      publicLocationMode: "place",
+      publicLocationMode: safeLocationMode("place"),
       contributionCtaMode: "suppressed",
       ruleSource: "osm_access",
       ruleUrl: null,
@@ -395,7 +432,7 @@ export function defaultPlacePolicy(input: {
     return {
       placeVisibility: "public",
       recordingPolicy: "check_rules",
-      publicLocationMode: "place",
+      publicLocationMode: safeLocationMode("place"),
       contributionCtaMode: "check_rules",
       ruleSource: "default",
       ruleUrl: null,
@@ -405,7 +442,7 @@ export function defaultPlacePolicy(input: {
   return {
     placeVisibility: "public",
     recordingPolicy: "check_rules",
-    publicLocationMode: "place",
+    publicLocationMode: safeLocationMode("place"),
     contributionCtaMode: "check_rules",
     ruleSource: access ? "osm_access" : "default",
     ruleUrl: null,
