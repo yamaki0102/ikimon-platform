@@ -1,8 +1,0 @@
-{
-  "schema_version": "noah.work-lease.v1",
-  "work_id": "ZUKAN-PLACE-006",
-  "lane_id": "A",
-  "acquired_at": "2026-09-10T03:54:42+09:00",
-  "expires_at": "2026-09-10T04:14:42+09:00",
-  "base_sha": "ec429bec0224b4ec3a579d265a019ce1eb7756dc"
-}
