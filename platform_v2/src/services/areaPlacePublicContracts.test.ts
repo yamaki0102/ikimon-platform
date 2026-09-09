@@ -10,6 +10,8 @@ const source = {
   sourceId: "source:synthetic-place-001",
   version: "v1",
   observedAt: "2026-09-08T00:00:00.000Z",
+  effectiveFrom: "2026-09-01T00:00:00.000Z",
+  effectiveUntil: "2026-09-30T23:59:59.999Z",
   freshness: "CURRENT" as const,
   authority: "OFFICIAL_VERIFIED" as const,
   rights: "PUBLIC" as const,
@@ -17,6 +19,7 @@ const source = {
 
 const baseInput: AreaPlacePublicContractsInput = {
   fixtureClass: "synthetic",
+  asOf: "2026-09-08T12:00:00.000Z",
   area: { id: "area:001", name: "Synthetic Area", source, publicProjection: "AUTHORIZED" },
   places: [{ id: "place:001", areaId: "area:001", name: "Synthetic Place", source, sensitiveLocation: false }],
   naturalFeatures: [{ id: "feature:001", placeId: "place:001", name: "Synthetic River", source }],
@@ -41,6 +44,14 @@ test("rejects stale, unknown, and uncertain seasonal state", () => {
   assert.equal(compileAreaPlacePublicContracts({
     ...baseInput,
     seasonalStates: [{ ...baseInput.seasonalStates[0]!, source: { ...source, freshness: "STALE" } }],
+  }).reasonCode, "SOURCE_NOT_CURRENT");
+  assert.equal(compileAreaPlacePublicContracts({
+    ...baseInput,
+    seasonalStates: [{ ...baseInput.seasonalStates[0]!, source: { ...source, effectiveUntil: "2026-09-07T23:59:59.999Z" } }],
+  }).reasonCode, "SOURCE_NOT_CURRENT");
+  assert.equal(compileAreaPlacePublicContracts({
+    ...baseInput,
+    seasonalStates: [{ ...baseInput.seasonalStates[0]!, source: { ...source, effectiveFrom: "2026-09-09T00:00:00.000Z" } }],
   }).reasonCode, "SOURCE_NOT_CURRENT");
   assert.equal(compileAreaPlacePublicContracts({
     ...baseInput,
@@ -70,13 +81,51 @@ test("excludes sensitive locations and invalid parent relationships", () => {
   }).reasonCode, "RELATIONSHIP_INVALID");
 });
 
+
+test("rejects duplicate or conflicting seasonal claims for the same place and season", () => {
+  const seasonal = baseInput.seasonalStates[0]!;
+  assert.equal(compileAreaPlacePublicContracts({
+    ...baseInput,
+    seasonalStates: [seasonal, { ...seasonal, state: "absent" }],
+  }).reasonCode, "SEASONAL_STATE_CONFLICT");
+});
+
+test("fails closed on malformed or unknown contract input", () => {
+  assert.equal(compileAreaPlacePublicContracts(null).reasonCode, "INVALID_INPUT");
+  assert.equal(compileAreaPlacePublicContracts({ ...baseInput, extra: true }).reasonCode, "INVALID_INPUT");
+  assert.equal(compileAreaPlacePublicContracts({
+    ...baseInput,
+    area: { ...baseInput.area, source: { ...source, observedAt: "not-a-date" } },
+  }).reasonCode, "INVALID_INPUT");
+  assert.equal(compileAreaPlacePublicContracts({
+    ...baseInput,
+    area: { ...baseInput.area, source: { ...source, freshness: "FUTURE" } },
+  }).reasonCode, "INVALID_INPUT");
+  const pollutedSource = Object.assign(Object.create({ polluted: true }), source);
+  assert.equal(compileAreaPlacePublicContracts({
+    ...baseInput,
+    area: { ...baseInput.area, source: pollutedSource },
+  }).reasonCode, "INVALID_INPUT");
+});
+
 test("keeps serialization deterministic and stable ScanPoint identities", () => {
   const reordered = {
     ...baseInput,
     places: [...baseInput.places].reverse(),
     naturalFeatures: [...baseInput.naturalFeatures].reverse(),
+    seasonalStates: [
+      { ...baseInput.seasonalStates[0]!, season: "winter", state: "absent" },
+      ...baseInput.seasonalStates,
+    ].reverse(),
   };
-  const first = compileAreaPlacePublicContracts(baseInput);
+  const ordered = {
+    ...baseInput,
+    seasonalStates: [
+      ...baseInput.seasonalStates,
+      { ...baseInput.seasonalStates[0]!, season: "winter", state: "absent" },
+    ],
+  };
+  const first = compileAreaPlacePublicContracts(ordered);
   const second = compileAreaPlacePublicContracts(reordered);
   assert.equal(first.serialized, second.serialized);
   assert.equal(serializeAreaPlacePublicContracts(first.contracts!), first.serialized);

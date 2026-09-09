@@ -18,12 +18,15 @@ export type PublicContractReasonCode =
   | "RELATIONSHIP_INVALID"
   | "SENSITIVE_LOCATION_EXCLUDED"
   | "SEASONAL_STATE_UNCERTAIN"
+  | "SEASONAL_STATE_CONFLICT"
   | "IDENTITY_INVALID";
 
 type SourceBinding = {
   readonly sourceId: string;
   readonly version: string;
   readonly observedAt: string;
+  readonly effectiveFrom: string;
+  readonly effectiveUntil: string;
   readonly freshness: "CURRENT" | "STALE" | "UNCERTAIN";
   readonly authority: "OFFICIAL_VERIFIED" | "SOURCE_VERIFIED" | "COMMUNITY_OBSERVED";
   readonly rights: "PUBLIC" | "RESTRICTED" | "PRIVATE";
@@ -68,6 +71,7 @@ type ScanPointInput = {
 
 export type AreaPlacePublicContractsInput = {
   readonly fixtureClass: "synthetic";
+  readonly asOf: string;
   readonly area: AreaInput;
   readonly places: readonly PlaceInput[];
   readonly naturalFeatures: readonly NaturalFeatureInput[];
@@ -121,19 +125,24 @@ function onlyKeys(value: Record<string, unknown>, allowed: readonly string[]): b
 }
 
 function validSource(value: unknown): value is SourceBinding {
-  if (!isRecord(value) || !onlyKeys(value, ["sourceId", "version", "observedAt", "freshness", "authority", "rights"])) return false;
+  if (!isRecord(value) || !onlyKeys(value, ["sourceId", "version", "observedAt", "effectiveFrom", "effectiveUntil", "freshness", "authority", "rights"])) return false;
   return nonEmpty(value.sourceId)
     && nonEmpty(value.version)
     && nonEmpty(value.observedAt)
+    && nonEmpty(value.effectiveFrom)
+    && nonEmpty(value.effectiveUntil)
     && Number.isFinite(Date.parse(value.observedAt))
+    && Number.isFinite(Date.parse(value.effectiveFrom))
+    && Number.isFinite(Date.parse(value.effectiveUntil))
+    && Date.parse(value.effectiveFrom) <= Date.parse(value.effectiveUntil)
     && ["CURRENT", "STALE", "UNCERTAIN"].includes(value.freshness as string)
     && ["OFFICIAL_VERIFIED", "SOURCE_VERIFIED", "COMMUNITY_OBSERVED"].includes(value.authority as string)
     && ["PUBLIC", "RESTRICTED", "PRIVATE"].includes(value.rights as string);
 }
 
 function validInput(value: unknown): value is AreaPlacePublicContractsInput {
-  if (!isRecord(value) || !onlyKeys(value, ["fixtureClass", "area", "places", "naturalFeatures", "seasonalStates", "scanPoints"])) return false;
-  if (value.fixtureClass !== "synthetic" || !isRecord(value.area)) return false;
+  if (!isRecord(value) || !onlyKeys(value, ["fixtureClass", "asOf", "area", "places", "naturalFeatures", "seasonalStates", "scanPoints"])) return false;
+  if (value.fixtureClass !== "synthetic" || !nonEmpty(value.asOf) || !Number.isFinite(Date.parse(value.asOf)) || !isRecord(value.area)) return false;
   if (!onlyKeys(value.area, ["id", "name", "source", "publicProjection"]) || !nonEmpty(value.area.id) || !nonEmpty(value.area.name) || !validSource(value.area.source)) return false;
   if (!["AUTHORIZED", "DENIED"].includes(value.area.publicProjection as string)) return false;
   if (!Array.isArray(value.places) || !Array.isArray(value.naturalFeatures) || !Array.isArray(value.seasonalStates) || !Array.isArray(value.scanPoints)) return false;
@@ -179,11 +188,18 @@ function result(
   return { schema_version: AREA_PLACE_PUBLIC_CONTRACT_SCHEMA, decision, reasonCode, contracts, serialized, effects: noEffects };
 }
 
+function sourceEffectiveAt(source: SourceBinding, asOf: string): boolean {
+  const instant = Date.parse(asOf);
+  return Date.parse(source.observedAt) <= instant
+    && Date.parse(source.effectiveFrom) <= instant
+    && instant <= Date.parse(source.effectiveUntil);
+}
+
 export function compileAreaPlacePublicContracts(value: unknown): AreaPlacePublicContractsResult {
   if (!validInput(value)) return result("DENY", "INVALID_INPUT");
   if (value.area.publicProjection !== "AUTHORIZED") return result("DENY", "PUBLIC_AUTHORITY_DENIED");
   const allSources = [value.area.source, ...value.places.map((place) => place.source), ...value.naturalFeatures.map((feature) => feature.source), ...value.seasonalStates.map((state) => state.source), ...value.scanPoints.map((scanPoint) => scanPoint.source)];
-  if (allSources.some((source) => source.freshness !== "CURRENT")) return result("DENY", "SOURCE_NOT_CURRENT");
+  if (allSources.some((source) => source.freshness !== "CURRENT" || !sourceEffectiveAt(source, value.asOf))) return result("DENY", "SOURCE_NOT_CURRENT");
   if (allSources.some((source) => source.rights !== "PUBLIC")) return result("DENY", "SOURCE_NOT_PUBLIC");
   if (value.places.some((place) => place.sensitiveLocation)) return result("DENY", "SENSITIVE_LOCATION_EXCLUDED");
   if (value.seasonalStates.some((state) => state.state === "unknown" || state.source.authority === "COMMUNITY_OBSERVED")) return result("DENY", "SEASONAL_STATE_UNCERTAIN");
@@ -204,7 +220,13 @@ export function compileAreaPlacePublicContracts(value: unknown): AreaPlacePublic
     if (scanPointIds.has(scanPoint.id) || !placeIds.has(scanPoint.placeId) || scanPoint.id !== `${scanPoint.placeId}:${scanPoint.routeKey}`) return result("DENY", "IDENTITY_INVALID");
     scanPointIds.add(scanPoint.id);
   }
-  if (value.seasonalStates.some((state) => !placeIds.has(state.placeId))) return result("DENY", "RELATIONSHIP_INVALID");
+  const seasonalKeys = new Set<string>();
+  for (const seasonalState of value.seasonalStates) {
+    if (!placeIds.has(seasonalState.placeId)) return result("DENY", "RELATIONSHIP_INVALID");
+    const key = `${seasonalState.placeId}:${seasonalState.season}`;
+    if (seasonalKeys.has(key)) return result("DENY", "SEASONAL_STATE_CONFLICT");
+    seasonalKeys.add(key);
+  }
 
   const contracts: PublicAreaPlaceContracts = {
     area: { id: value.area.id, name: value.area.name, source: value.area.source },
