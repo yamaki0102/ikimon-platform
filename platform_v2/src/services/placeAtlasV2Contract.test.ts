@@ -89,7 +89,7 @@ test("public-cell v2 remains a privacy-safe fallback and distinguishes empty fro
   assert.equal(v2.place.boundary.available, false);
 });
 
-test("v2 keeps only trusted canonical next_to and route_to relations", () => {
+test("v2 preserves trusted hierarchy relations and adds next_to and route_to", () => {
   const v1 = buildPlaceAtlasProfile({
     placeRef: { kind: "field", fieldId: "field-1" },
     place: { name: "River park", type: "park" },
@@ -107,7 +107,7 @@ test("v2 keeps only trusted canonical next_to and route_to relations", () => {
   });
 
   assert.deepEqual(v2.hierarchy.relationships.map(({ relationshipType, placeId }) => [relationshipType, placeId]), [
-    ["next_to", "place-near"], ["route_to", "place-route"],
+    ["next_to", "place-near"], ["route_to", "place-route"], ["same_as_candidate", "place-other"],
   ]);
 });
 
@@ -118,11 +118,13 @@ test("only fresh public current-season source becomes the current surface", () =
     records: [], recordSetComplete: true, locationMode: "field", sources: ["fixture"],
   });
   const item = { recordId: "record-1", observedAt: "2026-09-10T00:00:00Z", displayLabel: "秋の記録", publicMediaUrl: null, href: "/ja/observations/record-1", verificationState: "candidate" as const };
-  const current = buildPlaceAtlasProfileV2(v1, { currentSeason: { season: "autumn", sourceStatus: "fresh", publicationStatus: "public", items: [item] } });
+  const historical = { ...item, recordId: "record-spring", observedAt: "2026-04-10T00:00:00Z" };
+  const current = buildPlaceAtlasProfileV2(v1, { currentSeason: { season: "autumn", sourceStatus: "fresh", publicationStatus: "public", items: [item, historical] } });
   const stale = buildPlaceAtlasProfileV2(v1, { currentSeason: { season: "autumn", sourceStatus: "stale", publicationStatus: "public", items: [item] } });
   const privateSource = buildPlaceAtlasProfileV2(v1, { currentSeason: { season: "autumn", sourceStatus: "fresh", publicationStatus: "private", items: [item] } });
 
   assert.equal(current.currentSeason?.state, "current");
+  assert.deepEqual(current.currentSeason?.items.map((entry) => entry.recordId), ["record-1"]);
   assert.equal(stale.currentSeason?.state, "suppressed");
   assert.equal(privateSource.currentSeason?.state, "suppressed");
   assert.equal(buildPlaceAtlasProfileV2(v1).currentSeason, null);

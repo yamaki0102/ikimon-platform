@@ -158,6 +158,10 @@ function trustedRelationship(value: PlaceRelationshipProjection): boolean {
   return value.verificationStatus === "source_verified" || value.verificationStatus === "administrator_verified";
 }
 
+function validRelationshipType(value: PlaceRelationshipProjection["relationshipType"]): boolean {
+  return ["parent", "child", "contains", "part_of", "overlaps", "replaces", "same_as_candidate", "next_to", "route_to"].includes(value);
+}
+
 function normalizeRelationships(
   values: readonly PlaceRelationshipProjection[] | undefined,
   canonicalPlaceId: string,
@@ -166,7 +170,7 @@ function normalizeRelationships(
   return (values ?? [])
     .filter((value) =>
       trustedRelationship(value) &&
-      (value.relationshipType === "next_to" || value.relationshipType === "route_to") &&
+      validRelationshipType(value.relationshipType) &&
       typeof value.placeId === "string" && value.placeId.trim() !== "" && value.placeId.trim() !== canonicalPlaceId &&
       typeof value.name === "string" && value.name.trim() !== "" &&
       isPlaceKind(String(value.placeKind))
@@ -189,15 +193,23 @@ function buildCurrentSeason(
   input: PlaceAtlasCurrentSeasonInput | undefined,
 ): PlaceAtlasCurrentSeasonProjection | null {
   if (!input) return null;
+  const seasonMonths: Record<PlaceAtlasSeasonKey, number[]> = {
+    spring: [3, 4, 5],
+    summer: [6, 7, 8],
+    autumn: [9, 10, 11],
+    winter: [12, 1, 2],
+  };
+  const months = seasonMonths[input.season];
   const safeItems = input.items
     .filter((item) =>
       typeof item.recordId === "string" && item.recordId.trim() !== "" &&
-      typeof item.observedAt === "string" && Number.isFinite(Date.parse(item.observedAt))
+      typeof item.observedAt === "string" && Number.isFinite(Date.parse(item.observedAt)) &&
+      Boolean(months?.includes(new Date(item.observedAt).getUTCMonth() + 1))
     )
     .map((item) => ({ ...item, recordId: item.recordId.trim() }))
     .sort((left, right) => right.observedAt.localeCompare(left.observedAt))
     .slice(0, 8);
-  const publishable = input.sourceStatus === "fresh" && input.publicationStatus === "public";
+  const publishable = Boolean(months) && input.sourceStatus === "fresh" && input.publicationStatus === "public";
   return {
     season: input.season,
     state: publishable && safeItems.length > 0 ? "current" : "suppressed",
