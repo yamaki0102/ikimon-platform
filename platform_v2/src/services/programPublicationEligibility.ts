@@ -108,7 +108,9 @@ function publicSafeConsent(input: ProgramPublicationEligibilityInput): boolean {
   const consent = input.consent;
   if (!consent || consent.programId !== input.program.programId || consent.subjectId !== input.subjectId) return false;
   const rights: ObservationDataRights = consent.rights;
-  return rights.withdrawalStatus === "active"
+  return consent.withdrawalStatus === "active"
+    && consent.withdrawnAt === null
+    && rights.withdrawalStatus === "active"
     && rights.publicAggregationAllowed === true
     && (rights.recordConsent === "public_summary" || rights.recordConsent === "external_export");
 }

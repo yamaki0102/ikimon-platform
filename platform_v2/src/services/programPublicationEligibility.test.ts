@@ -131,6 +131,13 @@ test("fails closed for role, consent and review failures", () => {
     }).reasonCode,
     "CONSENT_NOT_PUBLIC_SAFE",
   );
+  assert.equal(
+    decideProgramPublicationEligibility({
+      ...baseInput(),
+      consent: { ...consent, withdrawalStatus: "withdrawn", withdrawnAt: "2026-09-09T00:00:00.000Z" },
+    }).reasonCode,
+    "CONSENT_NOT_PUBLIC_SAFE",
+  );
   for (const state of ["held", "rejected", "withdrawn"] as const) {
     assert.equal(
       decideProgramPublicationEligibility({ ...baseInput(), review: { ...review, state, history: [{ ...review.history[0], state }] } }).reasonCode,
