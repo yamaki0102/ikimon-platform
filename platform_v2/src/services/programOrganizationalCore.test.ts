@@ -16,6 +16,7 @@ import {
 } from "./programOrganizationalCore.js";
 
 const rightsInput = (overrides: Record<string, unknown> = {}) => ({
+  visitId: "visit-1",
   recordConsent: "public_summary" as const,
   areaProfileUseConsent: "aggregated_public" as const,
   publicAggregationAllowed: true,
@@ -151,6 +152,8 @@ test("versioned consent reuses observation rights and preserves withdrawal state
   });
 
   assert.equal(active.consentPolicyVersion, "site_intelligence_p0_v1");
+  assert.equal(active.rights.visitId, "visit-1");
+  assert.notEqual(active.rights.visitId, active.subjectId);
   assert.equal(active.rights.publicAggregationAllowed, true);
   assert.equal(withdrawn.withdrawalStatus, "withdrawn");
   assert.equal(withdrawn.rights.publicAggregationAllowed, false);

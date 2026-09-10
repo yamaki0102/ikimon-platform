@@ -93,15 +93,15 @@ export type ConsentRecordInput = {
   purpose: string;
   grantedAt: string;
   withdrawnAt?: string | null;
-  rights: ObservationDataRightsInput;
+  rights: ObservationDataRightsInput & { visitId: string };
 };
 
 export type ReviewHistoryEntry = {
-  state: ReviewState;
-  actorId: string;
-  occurredAt: string;
-  source: string;
-  note: string | null;
+  readonly state: ReviewState;
+  readonly actorId: string;
+  readonly occurredAt: string;
+  readonly source: string;
+  readonly note: string | null;
 };
 
 export type ReviewDecision = {
@@ -109,7 +109,7 @@ export type ReviewDecision = {
   programId: string;
   subjectId: string;
   state: ReviewState;
-  history: ReviewHistoryEntry[];
+  readonly history: readonly ReviewHistoryEntry[];
 };
 
 export type ReviewDecisionInput = Omit<ReviewDecision, "state"> & {
@@ -233,9 +233,10 @@ export function normalizeConsentRecord(input: ConsentRecordInput): ConsentRecord
   const purpose = requiredText(input.purpose, "consent_purpose");
   const grantedAt = isoTimestamp(input.grantedAt, "consent_granted_at");
   const withdrawnAt = input.withdrawnAt == null ? null : isoTimestamp(input.withdrawnAt, "consent_withdrawn_at");
+  const visitId = stableId(input.rights.visitId, "consent_visit_id");
   const rights = normalizeObservationDataRights({
     ...input.rights,
-    visitId: subjectId,
+    visitId,
     sourcePayload: {
       ...(input.rights.sourcePayload ?? {}),
       consentId,
@@ -264,7 +265,7 @@ export function normalizeConsentRecord(input: ConsentRecordInput): ConsentRecord
   };
 }
 
-function normalizeReviewHistory(history: readonly ReviewHistoryEntry[], reviewId: string): ReviewHistoryEntry[] {
+function normalizeReviewHistory(history: readonly ReviewHistoryEntry[], reviewId: string): readonly ReviewHistoryEntry[] {
   if (history.length === 0) throw new Error(`${reviewId}_history_required`);
   let previousOccurredAt = -Infinity;
   return history.map((entry) => {
