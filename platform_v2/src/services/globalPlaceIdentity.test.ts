@@ -5,7 +5,7 @@ import {
   canonicalNameAt, coexistingGeometryAssertionsAt, collectPlaceNameVariants,
   decideIdentityContinuity, geometryAssertionAt, isWellFormedNaturalPlace,
   overlappingMembershipsAt, pointMatchesPlaceGeometry, projectPublicGeometry,
-  recordBindingMatchesView, resolveExternalIdentifiersAt, shouldTreatAsSamePlace,
+  recordBindingMatchesView, resolveExternalIdentifiersAt, resolveRecordBindingView, shouldTreatAsSamePlace,
   siteForStructureAt, viewsReadingBinding,
   type AssertionTime, type EvidenceRef, type PlaceExternalIdentifier,
   type PlaceGeometryAssertion, type PlaceIdentity, type PlaceNameAssertion,
@@ -63,9 +63,11 @@ test("fixture 4: absorption identifies the surviving legal entity", () => {
 
 test("fixture 5: split retains the predecessor and records all successors", () => {
   const result = decideIdentityContinuity({ predecessors: [identity("split-old")], change: { type: "split", successorPlaceIds: ["split-north", "split-south"] }, time: time("1990-10-01", null), evidence });
+  assert.equal(result.status, "resolved");
   assert.deepEqual(result.canonicalPlaceIds.sort(), ["split-north", "split-south"]);
   assert.deepEqual(result.retainedPredecessorIds, ["split-old"]);
   assert.equal(result.relations.filter((r) => r.relationType === "split_into").length, 2);
+  assert.equal(result.relations.filter((r) => r.relationType === "successor_of").length, 2);
 });
 
 test("fixture 6: same labels never auto-merge distinct places", () => {
@@ -122,6 +124,13 @@ test("fixture 12: one record binding is read by current, historical and thematic
   assert.equal(recordBindingMatchesView(binding, views[3]!), false);
 });
 
+test("query-scoped views require explicit resolution and preserve an unresolved state", () => {
+  const binding: PlaceRecordBinding = { recordId: "record", placeId: "target", observedTime: "2018-05-20", membershipRole: "primary" };
+  const view: PlaceViewDefinition = { viewId: "query", scope: { query: "target place" }, targetInterval: { start: null, end: null }, publicationPolicy: "public", operator: "operator", provenance: evidence };
+  assert.deepEqual(resolveRecordBindingView(binding, view), { status: "unresolved", reason: "query_scope_requires_resolution" });
+  assert.equal(recordBindingMatchesView(binding, view, (query, current) => query === "target place" && current.placeId === "target" ? "matched" : "not_matched"), true);
+});
+
 test("fixture 13: private or exact geometry is never publicly projected", () => {
   const privateExact = geometry("private", square(137.5, 34.5), "exact", "private");
   const publicExact = geometry("private", square(137.5, 34.5), "exact", "public");
@@ -148,6 +157,13 @@ test("negative: historical assertions are not overwritten by current geometry", 
   assert.equal(geometryAssertionAt([old, current], placeId, "2000-01-01")?.geometry, old.geometry);
 });
 
+test("negative: open-start assertions sort before dated historical assertions", () => {
+  const placeId = "open-start";
+  const open = name(placeId, "open", "canonical", null, null);
+  const dated = name(placeId, "dated", "canonical", "1950-01-01", null);
+  assert.equal(canonicalNameAt([open, dated], placeId, "1960-01-01"), "dated");
+});
+
 test("negative: a shared label cannot establish same-place identity", () => {
   const result = shouldTreatAsSamePlace({ identity: identity("a", "park"), name: "同名", geometry: null }, { identity: identity("b", "park"), name: "同名", geometry: null });
   assert.equal(result.samePlace, false);
@@ -156,4 +172,15 @@ test("negative: a shared label cannot establish same-place identity", () => {
 test("negative: private geometry cannot be disclosed by public projection", () => {
   const assertion = geometry("secret", square(139, 36), "approximate", "private");
   assert.equal(projectPublicGeometry(assertion), null);
+});
+
+test("negative: candidate geometry cannot be disclosed by public projection", () => {
+  const assertion = { ...geometry("candidate", square(139, 36), "approximate", "public"), status: "candidate" as const };
+  assert.equal(projectPublicGeometry(assertion), null);
+});
+
+test("negative: uncertain boundary continuity cannot carry a canonical identity", () => {
+  const result = decideIdentityContinuity({ predecessors: [identity("uncertain")], change: { type: "boundary_change", legalEntityContinues: false }, time: time("2026-01-01", null), evidence });
+  assert.equal(result.status, "unresolved");
+  assert.deepEqual(result.canonicalPlaceIds, []);
 });
