@@ -88,3 +88,42 @@ test("public-cell v2 remains a privacy-safe fallback and distinguishes empty fro
   assert.equal(v2.place.boundary.precision, "public_cell");
   assert.equal(v2.place.boundary.available, false);
 });
+
+test("v2 keeps only trusted canonical next_to and route_to relations", () => {
+  const v1 = buildPlaceAtlasProfile({
+    placeRef: { kind: "field", fieldId: "field-1" },
+    place: { name: "River park", type: "park" },
+    records: [], recordSetComplete: true, locationMode: "field", sources: ["fixture"],
+  });
+  const v2 = buildPlaceAtlasProfileV2(v1, {
+    canonicalPlaceId: "place-main",
+    relationships: [
+      { relationshipType: "next_to", placeId: "place-near", name: "Near park", placeKind: "park", verificationStatus: "source_verified" },
+      { relationshipType: "route_to", placeId: "place-route", name: "Route point", placeKind: "museum", verificationStatus: "administrator_verified" },
+      { relationshipType: "route_to", placeId: "place-main", name: "Self", placeKind: "park", verificationStatus: "source_verified" },
+      { relationshipType: "next_to", placeId: "place-unknown", name: "Untrusted", placeKind: "park", verificationStatus: "unverified" },
+      { relationshipType: "same_as_candidate", placeId: "place-other", name: "Wrong relation", placeKind: "park", verificationStatus: "source_verified" },
+    ],
+  });
+
+  assert.deepEqual(v2.hierarchy.relationships.map(({ relationshipType, placeId }) => [relationshipType, placeId]), [
+    ["next_to", "place-near"], ["route_to", "place-route"],
+  ]);
+});
+
+test("only fresh public current-season source becomes the current surface", () => {
+  const v1 = buildPlaceAtlasProfile({
+    placeRef: { kind: "field", fieldId: "field-1" },
+    place: { name: "River park", type: "park" },
+    records: [], recordSetComplete: true, locationMode: "field", sources: ["fixture"],
+  });
+  const item = { recordId: "record-1", observedAt: "2026-09-10T00:00:00Z", displayLabel: "秋の記録", publicMediaUrl: null, href: "/ja/observations/record-1", verificationState: "candidate" as const };
+  const current = buildPlaceAtlasProfileV2(v1, { currentSeason: { season: "autumn", sourceStatus: "fresh", publicationStatus: "public", items: [item] } });
+  const stale = buildPlaceAtlasProfileV2(v1, { currentSeason: { season: "autumn", sourceStatus: "stale", publicationStatus: "public", items: [item] } });
+  const privateSource = buildPlaceAtlasProfileV2(v1, { currentSeason: { season: "autumn", sourceStatus: "fresh", publicationStatus: "private", items: [item] } });
+
+  assert.equal(current.currentSeason?.state, "current");
+  assert.equal(stale.currentSeason?.state, "suppressed");
+  assert.equal(privateSource.currentSeason?.state, "suppressed");
+  assert.equal(buildPlaceAtlasProfileV2(v1).currentSeason, null);
+});

@@ -134,6 +134,37 @@ test("timeline renders only the API projection in chronological order without id
   assert.doesNotMatch(html, /secret-old|secret-new|secret-owner|exactLat|evil\.test|javascript:bad/);
 });
 
+test("current season and nearby route surfaces require fresh public trusted projections", () => {
+  const profile = {
+    ...fixture(),
+    currentSeason: {
+      season: "autumn",
+      state: "current",
+      sourceStatus: "fresh",
+      publicationStatus: "public",
+      items: [{ recordId: "current-1", observedAt: "2026-09-10T00:00:00Z", displayLabel: "秋の記録", publicMediaUrl: null, href: "/ja/observations/current-1", verificationState: "candidate" }],
+    },
+    hierarchy: {
+      relationships: [
+        { relationshipType: "next_to", placeId: "place-near", name: "近くの森", placeKind: "park", verificationStatus: "source_verified" },
+        { relationshipType: "route_to", placeId: "place-route", name: "案内所", placeKind: "museum", verificationStatus: "administrator_verified" },
+        { relationshipType: "next_to", placeId: "secret", name: "非公開候補", placeKind: "park", verificationStatus: "unverified" },
+      ],
+      hasChildren: false,
+    },
+  } as unknown as PlaceAtlasProfile & Record<string, unknown>;
+  const html = renderMapPlaceAtlasProfile(profile, options);
+
+  assert.match(html, /今見られるもの/);
+  assert.match(html, /秋の記録/);
+  assert.match(html, /data-place-relationship="next_to"/);
+  assert.match(html, /data-place-relationship="route_to"/);
+  assert.doesNotMatch(html, /非公開候補|place-near.*unverified/);
+
+  const stale = { ...profile, currentSeason: { ...profile.currentSeason as Record<string, unknown>, sourceStatus: "stale" } };
+  assert.doesNotMatch(renderMapPlaceAtlasProfile(stale, options), /今見られるもの|秋の記録/);
+});
+
 test("single, empty, and suppressed timeline states make no unsupported change or count claim", () => {
   assert.match(renderMapPlaceAtlasProfile(withTimeline("single_period"), options), /一時期の記録/);
   for (const state of ["empty", "suppressed"]) {
