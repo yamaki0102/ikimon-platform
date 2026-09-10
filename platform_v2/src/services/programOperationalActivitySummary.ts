@@ -181,18 +181,22 @@ function statusDistribution<T extends string>(values: readonly T[] | null | unde
 
 function countConsent(
   consents: readonly ConsentRecordInput[] | null | undefined,
+  programId: string,
 ): OperationalConsentSummary {
   if (consents == null) {
     const unknown = { value: null, state: "unknown" as const };
     return { state: "unknown", total: unknown, granted: unknown, withdrawn: unknown, complete: unknown };
   }
-  const normalized = consents.map(normalizeConsentRecord);
+  const normalized = consents
+    .map(normalizeConsentRecord)
+    .filter((consent) => consent.programId === programId);
   const withdrawn = normalized.filter((consent) => consent.withdrawalStatus === "withdrawn");
-  const complete = normalized.filter((consent) => consent.withdrawalStatus !== "withdrawn" && consent.rights.publicAggregationAllowed);
+  const active = normalized.filter((consent) => consent.withdrawalStatus === "active");
+  const complete = active.filter((consent) => consent.rights.publicAggregationAllowed);
   return {
     state: "complete",
     total: countKnown(normalized),
-    granted: { value: normalized.length - withdrawn.length, state: "complete" },
+    granted: { value: active.length, state: "complete" },
     withdrawn: countKnown(withdrawn),
     complete: countKnown(complete),
   };
@@ -202,11 +206,16 @@ export function buildProgramOperationalActivitySummary(
   input: OperationalActivitySummaryInput,
 ): OperationalActivitySummary {
   const program = normalizeProgram(input.program);
-  const participants = input.participants?.map(normalizeProgramParticipant);
-  const teams = input.teams?.map(normalizeProgramTeam);
-  const quests = input.quests?.map(normalizeQuest);
-  const questParticipations = input.questParticipations?.map(normalizeQuestParticipation);
-  const reviews = input.reviews?.map(normalizeReviewDecision);
+  const participants = input.participants?.map(normalizeProgramParticipant)
+    .filter((participant) => participant.programId === program.programId);
+  const teams = input.teams?.map(normalizeProgramTeam)
+    .filter((team) => team.programId === program.programId);
+  const quests = input.quests?.map(normalizeQuest)
+    .filter((quest) => quest.programId === program.programId);
+  const questParticipations = input.questParticipations?.map(normalizeQuestParticipation)
+    .filter((participation) => participation.programId === program.programId);
+  const reviews = input.reviews?.map(normalizeReviewDecision)
+    .filter((review) => review.programId === program.programId);
   const places = input.places == null ? input.places : sortedUnique(input.places, "placeId");
   const records = input.records == null ? input.records : sortedUnique(input.records, "recordId");
   const activities = input.activities == null ? input.activities : sortedUnique(input.activities, "activityId");
@@ -271,7 +280,7 @@ export function buildProgramOperationalActivitySummary(
       state: input.visibility == null ? "unknown" : "complete",
       byVisibility: statusDistribution(input.visibility?.map((entry) => entry.visibility)).byState,
     },
-    consent: countConsent(input.consents),
+    consent: countConsent(input.consents, program.programId),
     continuation: {
       state: continuations == null ? "unknown" : "complete",
       total: countKnown(continuations),
