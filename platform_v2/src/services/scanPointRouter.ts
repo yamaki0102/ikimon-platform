@@ -12,7 +12,7 @@ export type ScanPointBinding = {
   publicRoute: string;
   targetKind: ScanPointTargetKind;
   targetId: string;
-  visibility: "public" | "non_public";
+  visibility: "public" | "non_public" | "private";
   lifecycle: "active" | "stale";
   contentRevision: string;
 };

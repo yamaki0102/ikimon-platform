@@ -86,6 +86,20 @@ test("non-public target is rejected without revealing its route or target", () =
   assert.equal("targetId" in result, false);
 });
 
+test("private target is rejected without revealing its route or target", () => {
+  const result = resolveScanPointRoute({
+    scanPointId: "sp-renri-tree-01",
+    bindings: [binding({ visibility: "private", publicRoute: "/private/staff-only" })],
+  });
+  assert.deepEqual(result, {
+    status: "non_public",
+    scanPointId: "sp-renri-tree-01",
+    reason: "scan_point_target_not_public",
+  });
+  assert.equal("publicRoute" in result, false);
+  assert.equal("targetId" in result, false);
+});
+
 test("ambiguous duplicate bindings fail closed", () => {
   assert.deepEqual(
     resolveScanPointRoute({
