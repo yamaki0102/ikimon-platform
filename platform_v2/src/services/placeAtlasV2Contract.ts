@@ -33,6 +33,8 @@ export type PlaceAtlasCurrentSeasonItem = {
 
 export type PlaceAtlasCurrentSeasonProjection = {
   season: PlaceAtlasSeasonKey;
+  effectiveFrom: string;
+  effectiveTo: string;
   state: "current" | "suppressed";
   sourceStatus: "fresh" | "stale" | "uncertain";
   publicationStatus: "public" | "private" | "suppressed";
@@ -52,6 +54,8 @@ export type PlaceSourceProjection = {
 
 export type PlaceAtlasV2Identity = {
   canonicalPlaceId?: string | null;
+  /** Canonical IDs already validated by the Place registry for relationship targets. */
+  canonicalPlaceIds?: readonly string[];
   aliases?: string[];
   multilingualNames?: Record<string, string>;
   placeKind?: PlaceKind | null;
@@ -165,13 +169,20 @@ function validRelationshipType(value: PlaceRelationshipProjection["relationshipT
 function normalizeRelationships(
   values: readonly PlaceRelationshipProjection[] | undefined,
   canonicalPlaceId: string,
+  canonicalPlaceIds: readonly string[] | undefined,
 ): PlaceRelationshipProjection[] {
+  const validatedCanonicalIds = new Set(
+    [canonicalPlaceId, ...(canonicalPlaceIds ?? [])]
+      .filter((value): value is string => typeof value === "string" && value.trim() !== "")
+      .map((value) => value.trim()),
+  );
   const seen = new Set<string>();
   return (values ?? [])
     .filter((value) =>
       trustedRelationship(value) &&
       validRelationshipType(value.relationshipType) &&
       typeof value.placeId === "string" && value.placeId.trim() !== "" && value.placeId.trim() !== canonicalPlaceId &&
+      validatedCanonicalIds.has(value.placeId.trim()) &&
       typeof value.name === "string" && value.name.trim() !== "" &&
       isPlaceKind(String(value.placeKind))
     )
@@ -191,6 +202,7 @@ function normalizeRelationships(
 
 function buildCurrentSeason(
   input: PlaceAtlasCurrentSeasonInput | undefined,
+  parentAllowsPublicDetail: boolean,
 ): PlaceAtlasCurrentSeasonProjection | null {
   if (!input) return null;
   const seasonMonths: Record<PlaceAtlasSeasonKey, number[]> = {
@@ -200,23 +212,37 @@ function buildCurrentSeason(
     winter: [12, 1, 2],
   };
   const months = seasonMonths[input.season];
+  const effectiveFrom = Date.parse(input.effectiveFrom);
+  const effectiveTo = Date.parse(input.effectiveTo);
+  const validInterval = Number.isFinite(effectiveFrom) && Number.isFinite(effectiveTo) && effectiveFrom < effectiveTo;
   const safeItems = input.items
     .filter((item) =>
       typeof item.recordId === "string" && item.recordId.trim() !== "" &&
       typeof item.observedAt === "string" && Number.isFinite(Date.parse(item.observedAt)) &&
+      Date.parse(item.observedAt) >= effectiveFrom &&
+      Date.parse(item.observedAt) < effectiveTo &&
       Boolean(months?.includes(new Date(item.observedAt).getUTCMonth() + 1))
     )
     .map((item) => ({ ...item, recordId: item.recordId.trim() }))
     .sort((left, right) => right.observedAt.localeCompare(left.observedAt))
     .slice(0, 8);
-  const publishable = Boolean(months) && input.sourceStatus === "fresh" && input.publicationStatus === "public";
+  const publishable = validInterval && parentAllowsPublicDetail && Boolean(months) && input.sourceStatus === "fresh" && input.publicationStatus === "public";
   return {
     season: input.season,
+    effectiveFrom: input.effectiveFrom,
+    effectiveTo: input.effectiveTo,
     state: publishable && safeItems.length > 0 ? "current" : "suppressed",
     sourceStatus: input.sourceStatus,
     publicationStatus: input.publicationStatus,
     items: publishable ? safeItems : [],
   };
+}
+
+function parentAllowsCurrentSeason(profile: PlaceAtlasProfile, policy: PlacePolicyProjection): boolean {
+  if (profile.publication.status === "suppressed" || profile.publication.suppressedSections.includes("current_season")) return false;
+  if (policy.placeVisibility === "hidden" || policy.publicLocationMode === "hidden") return false;
+  if (policy.recordingPolicy === "prohibited" || policy.recordingPolicy === "permission_required" || policy.contributionCtaMode === "suppressed") return false;
+  return true;
 }
 
 function responseState(profile: PlaceAtlasProfile): PlaceAtlasProfileV2["publication"]["responseState"] {
@@ -254,7 +280,8 @@ export function buildPlaceAtlasProfileV2(
     ...(profile.place.aliases ?? []),
     ...(identity.aliases ?? []),
   ]).filter((alias) => alias !== profile.place.name);
-  const relationships = normalizeRelationships(identity.relationships, canonicalPlaceId);
+  const relationships = normalizeRelationships(identity.relationships, canonicalPlaceId, identity.canonicalPlaceIds);
+  const parentPublicDetailAllowed = parentAllowsCurrentSeason(profile, policy);
   return {
     version: 2,
     contract: PLACE_ATLAS_PROFILE_V2_VERSION,
@@ -298,7 +325,7 @@ export function buildPlaceAtlasProfileV2(
         relationship.relationshipType === "child" || relationship.relationshipType === "contains"
       ),
     },
-    currentSeason: buildCurrentSeason(identity.currentSeason),
+    currentSeason: buildCurrentSeason(identity.currentSeason, parentPublicDetailAllowed),
     recordSummary: profile.summary,
     representativeMedia: profile.place.representativeMedia,
     themes: profile.facets,
