@@ -90,7 +90,7 @@ export function resolveScanPointRoute(input: {
   }
 
   const binding = matches[0];
-  if (!binding || binding.lifecycle === "stale") {
+  if (!binding || binding.lifecycle !== "active") {
     return {
       status: "stale",
       scanPointId,

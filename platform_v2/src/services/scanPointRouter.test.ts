@@ -72,6 +72,16 @@ test("stale ScanPoint never resolves to a public route", () => {
   );
 });
 
+test("unknown lifecycle fails closed as stale", () => {
+  assert.deepEqual(
+    resolveScanPointRoute({
+      scanPointId: "sp-renri-tree-01",
+      bindings: [binding({ lifecycle: "unknown" as never })],
+    }),
+    { status: "stale", scanPointId: "sp-renri-tree-01", reason: "scan_point_binding_stale" },
+  );
+});
+
 test("non-public target is rejected without revealing its route or target", () => {
   const result = resolveScanPointRoute({
     scanPointId: "sp-renri-tree-01",
