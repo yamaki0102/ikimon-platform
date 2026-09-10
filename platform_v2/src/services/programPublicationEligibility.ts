@@ -114,10 +114,12 @@ function publicSafeConsent(input: ProgramPublicationEligibilityInput): boolean {
 }
 
 function explicitSafety(input: ProgramPublicationEligibilityInput): boolean {
-  return input.safety.privacy === "safe"
-    && input.safety.location === "safe"
-    && input.safety.minor === "safe"
-    && input.safety.rareSpecies === "safe";
+  const safety = input.safety;
+  return safety != null
+    && safety.privacy === "safe"
+    && safety.location === "safe"
+    && safety.minor === "safe"
+    && safety.rareSpecies === "safe";
 }
 
 export function decideProgramPublicationEligibility(

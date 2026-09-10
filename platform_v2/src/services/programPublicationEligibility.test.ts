@@ -161,4 +161,5 @@ test("fails closed when required public-safe inputs are absent", () => {
   assert.equal(decideProgramPublicationEligibility({ ...baseInput(), review: null }).decision, "DENY");
   assert.equal(decideProgramPublicationEligibility({ ...baseInput(), fieldPolicy: null }).decision, "DENY");
   assert.equal(decideProgramPublicationEligibility({ ...baseInput(), safety: {} as typeof safety }).decision, "DENY");
+  assert.equal(decideProgramPublicationEligibility({ ...baseInput(), safety: undefined } as unknown as ProgramPublicationEligibilityInput).decision, "DENY");
 });
