@@ -8,7 +8,7 @@ import {
 
 const source = {
   sourceId: "source:place-001",
-  revision: "revision:7",
+  version: "v7",
   observedAt: "2026-09-08T00:00:00.000Z",
   effectiveFrom: "2026-09-01T00:00:00.000Z",
   effectiveUntil: "2026-09-30T23:59:59.999Z",
@@ -77,10 +77,10 @@ test("requires public rights and explicit publication authority", () => {
   }).reasonCode, "SOURCE_NOT_PUBLIC");
 });
 
-test("rejects missing or malformed source revision and stable identity", () => {
+test("rejects missing or malformed source version and stable identity", () => {
   assert.equal(ingestPlacePublicProjection({
     ...baseInput,
-    place: { ...baseInput.place, source: { ...source, revision: "" } },
+    place: { ...baseInput.place, source: { ...source, version: "" } },
   }).reasonCode, "INVALID_INPUT");
   assert.equal(ingestPlacePublicProjection({
     ...baseInput,
@@ -89,6 +89,10 @@ test("rejects missing or malformed source revision and stable identity", () => {
   assert.equal(ingestPlacePublicProjection({
     ...baseInput,
     place: { ...baseInput.place, source: { ...source, sourceId: "" } },
+  }).reasonCode, "INVALID_INPUT");
+  assert.equal(ingestPlacePublicProjection({
+    ...baseInput,
+    place: { ...baseInput.place, source: { ...source, revision: "legacy" } },
   }).reasonCode, "INVALID_INPUT");
 });
 
@@ -114,7 +118,7 @@ test("preserves source and stable identity while serializing deterministically",
   });
   assert.equal(renamed.projection?.id, baseInput.place.id);
   assert.equal(renamed.projection?.source.sourceId, source.sourceId);
-  assert.equal(renamed.projection?.source.revision, source.revision);
+  assert.equal(renamed.projection?.source.version, source.version);
 
   const first = ingestPlacePublicProjection(baseInput);
   const second = ingestPlacePublicProjection({

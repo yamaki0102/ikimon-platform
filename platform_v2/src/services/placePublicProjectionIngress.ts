@@ -17,7 +17,7 @@ export type PlacePublicProjectionIngressReasonCode =
 
 export type PlacePublicProjectionSource = {
   readonly sourceId: string;
-  readonly revision: string;
+  readonly version: string;
   readonly observedAt: string;
   readonly effectiveFrom: string;
   readonly effectiveUntil: string;
@@ -84,7 +84,7 @@ function onlyKeys(value: Record<string, unknown>, allowed: readonly string[]): b
 function validSource(value: unknown): value is PlacePublicProjectionSource {
   if (!isRecord(value) || !onlyKeys(value, [
     "sourceId",
-    "revision",
+    "version",
     "observedAt",
     "effectiveFrom",
     "effectiveUntil",
@@ -93,7 +93,7 @@ function validSource(value: unknown): value is PlacePublicProjectionSource {
     "rights",
   ])) return false;
   return nonEmpty(value.sourceId)
-    && nonEmpty(value.revision)
+    && nonEmpty(value.version)
     && nonEmpty(value.observedAt)
     && nonEmpty(value.effectiveFrom)
     && nonEmpty(value.effectiveUntil)
