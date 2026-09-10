@@ -185,6 +185,138 @@ test("OSM access never becomes photography or public-posting permission", () => 
   assert.equal(mall.contributionCtaMode, "check_rules");
 });
 
+test("sensitive and child-related places coarsen location and suppress contribution", () => {
+  const sensitive = defaultPlacePolicy({ placeKind: "park", sensitiveLocation: true });
+  assert.deepEqual(
+    {
+      recordingPolicy: sensitive.recordingPolicy,
+      publicLocationMode: sensitive.publicLocationMode,
+      contributionCtaMode: sensitive.contributionCtaMode,
+      reason: sensitive.reason,
+    },
+    {
+      recordingPolicy: "permission_required",
+      publicLocationMode: "zone",
+      contributionCtaMode: "suppressed",
+      reason: "sensitive_location_fail_closed",
+    },
+  );
+
+  const childRelated = defaultPlacePolicy({ placeKind: "park", childRelated: true });
+  assert.equal(childRelated.publicLocationMode, "zone");
+  assert.equal(childRelated.recordingPolicy, "permission_required");
+  assert.equal(childRelated.contributionCtaMode, "suppressed");
+
+  const school = defaultPlacePolicy({ placeKind: "school", officialRecordingPolicy: "allowed" });
+  assert.equal(school.publicLocationMode, "zone");
+  assert.equal(school.recordingPolicy, "permission_required");
+  assert.equal(school.contributionCtaMode, "suppressed");
+
+  const prohibitedSchool = defaultPlacePolicy({
+    placeKind: "school",
+    officialRecordingPolicy: "prohibited",
+    officialRuleUrl: "https://example.test/school-rules",
+  });
+  assert.equal(prohibitedSchool.publicLocationMode, "zone");
+  assert.equal(prohibitedSchool.recordingPolicy, "prohibited");
+  assert.equal(prohibitedSchool.contributionCtaMode, "suppressed");
+  assert.equal(prohibitedSchool.ruleSource, "official");
+  assert.equal(prohibitedSchool.ruleUrl, "https://example.test/school-rules");
+
+  const permissionRequiredSensitive = defaultPlacePolicy({
+    placeKind: "park",
+    sensitiveLocation: true,
+    officialRecordingPolicy: "permission_required",
+    officialRuleUrl: "https://example.test/sensitive-rules",
+  });
+  assert.equal(permissionRequiredSensitive.recordingPolicy, "permission_required");
+  assert.equal(permissionRequiredSensitive.publicLocationMode, "zone");
+  assert.equal(permissionRequiredSensitive.contributionCtaMode, "suppressed");
+  assert.equal(permissionRequiredSensitive.ruleSource, "official");
+  assert.equal(permissionRequiredSensitive.ruleUrl, "https://example.test/sensitive-rules");
+  assert.equal(permissionRequiredSensitive.reason, "verified_recording_policy");
+
+  const administratorChildPolicy = defaultPlacePolicy({
+    placeKind: "park",
+    childRelated: true,
+    officialRecordingPolicy: "permission_required",
+    officialRuleUrl: "https://example.test/child-rules",
+    administratorVerified: true,
+  });
+  assert.equal(administratorChildPolicy.recordingPolicy, "permission_required");
+  assert.equal(administratorChildPolicy.publicLocationMode, "zone");
+  assert.equal(administratorChildPolicy.contributionCtaMode, "suppressed");
+  assert.equal(administratorChildPolicy.ruleSource, "administrator");
+  assert.equal(administratorChildPolicy.ruleUrl, "https://example.test/child-rules");
+  assert.equal(administratorChildPolicy.reason, "verified_recording_policy");
+});
+
+test("private and unknown zones never become public place projections", () => {
+  const privateZone = defaultPlacePolicy({ placeKind: "park", zoneVisibility: "private", officialRecordingPolicy: "allowed" });
+  assert.deepEqual(
+    {
+      placeVisibility: privateZone.placeVisibility,
+      recordingPolicy: privateZone.recordingPolicy,
+      publicLocationMode: privateZone.publicLocationMode,
+      contributionCtaMode: privateZone.contributionCtaMode,
+      reason: privateZone.reason,
+    },
+    {
+      placeVisibility: "hidden",
+      recordingPolicy: "permission_required",
+      publicLocationMode: "hidden",
+      contributionCtaMode: "suppressed",
+      reason: "private_zone_fail_closed",
+    },
+  );
+
+  const unknownZone = defaultPlacePolicy({ placeKind: "park", zoneVisibility: "unknown" });
+  assert.equal(unknownZone.placeVisibility, "hidden");
+  assert.equal(unknownZone.recordingPolicy, "unknown");
+  assert.equal(unknownZone.publicLocationMode, "hidden");
+  assert.equal(unknownZone.contributionCtaMode, "suppressed");
+  assert.equal(unknownZone.reason, "zone_visibility_unknown_fail_closed");
+
+  const malformedZone = defaultPlacePolicy({
+    placeKind: "park",
+    zoneVisibility: "publicly_visible" as never,
+    officialRecordingPolicy: "allowed",
+  });
+  assert.equal(malformedZone.placeVisibility, "hidden");
+  assert.equal(malformedZone.recordingPolicy, "unknown");
+  assert.equal(malformedZone.publicLocationMode, "hidden");
+  assert.equal(malformedZone.contributionCtaMode, "suppressed");
+  assert.equal(malformedZone.reason, "zone_visibility_invalid_fail_closed");
+
+  for (const zoneVisibility of ["private", "unknown", "publicly_visible"] as const) {
+    const prohibitedHiddenZone = defaultPlacePolicy({
+      placeKind: "park",
+      zoneVisibility: zoneVisibility as never,
+      officialRecordingPolicy: "prohibited",
+      officialRuleUrl: "https://example.test/hidden-zone-rules",
+    });
+    assert.equal(prohibitedHiddenZone.placeVisibility, "hidden");
+    assert.equal(prohibitedHiddenZone.recordingPolicy, "prohibited");
+    assert.equal(prohibitedHiddenZone.publicLocationMode, "hidden");
+    assert.equal(prohibitedHiddenZone.contributionCtaMode, "suppressed");
+    assert.equal(prohibitedHiddenZone.ruleSource, "official");
+    assert.equal(prohibitedHiddenZone.ruleUrl, "https://example.test/hidden-zone-rules");
+    assert.equal(prohibitedHiddenZone.reason, "verified_recording_policy");
+  }
+});
+
+test("an explicitly public zone remains browseable but never grants recording permission", () => {
+  const publicZone = defaultPlacePolicy({
+    placeKind: "park",
+    zoneVisibility: "public",
+    osmAccess: "yes",
+  });
+  assert.equal(publicZone.placeVisibility, "public");
+  assert.equal(publicZone.publicLocationMode, "zone");
+  assert.equal(publicZone.recordingPolicy, "check_rules");
+  assert.equal(publicZone.contributionCtaMode, "check_rules");
+});
+
 test("official policy can allow, restrict, or prohibit recording with source", () => {
   const prohibited = defaultPlacePolicy({
     placeKind: "theme_park",
