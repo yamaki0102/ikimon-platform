@@ -34,6 +34,7 @@ const recordInput = (overrides: Partial<RawRecordPortabilityArchiveInput["record
     }],
   },
   consent: {
+    visitId: "visit-1",
     recordConsent: "external_export",
     researchUseConsent: "public_export",
     datasetLicense: "CC-BY-4.0",
@@ -151,5 +152,22 @@ test("duplicate records and mismatched histories fail closed", () => {
       }],
     })] }),
     /visibility_history_mismatch/,
+  );
+});
+
+test("consent requires an explicit visit identity and deserialize validates records", () => {
+  const missingVisit = structuredClone(recordInput());
+  missingVisit.consent.visitId = undefined as never;
+  assert.throws(
+    () => buildRawRecordPortabilityArchive({ records: [missingVisit] }),
+    /consent_visit_id_required/,
+  );
+
+  assert.throws(
+    () => deserializeRawRecordPortabilityArchive(JSON.stringify({
+      schemaVersion: RAW_RECORD_PORTABILITY_ARCHIVE_SCHEMA_VERSION,
+      records: [{ recordId: "record-1" }],
+    })),
+    /archive_payload_invalid/,
   );
 });

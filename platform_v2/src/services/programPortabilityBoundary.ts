@@ -59,7 +59,7 @@ export type RawRecordPortabilityRecord = {
 };
 
 export type RawRecordPortabilityRecordInput = Omit<RawRecordPortabilityRecord, "consent" | "review" | "visibility" | "visibilityHistory" | "changeHistory"> & {
-  consent: ObservationDataRightsInput;
+  consent: ObservationDataRightsInput & { visitId: string };
   review: RawRecordReview;
   visibility: RawRecordVisibility;
   visibilityHistory: RawRecordVisibilityHistoryEntry[];
@@ -155,9 +155,10 @@ export function normalizeRawRecordPortabilityRecord(
   input: RawRecordPortabilityRecordInput,
 ): RawRecordPortabilityRecord {
   const recordId = requiredId(input.recordId, "record_id");
+  const visitId = requiredId(input.consent.visitId, "consent_visit_id");
   const rights = normalizeObservationDataRights({
     ...input.consent,
-    visitId: input.consent.visitId ?? recordId,
+    visitId,
     sourcePayload: {
       ...(input.consent.sourcePayload ?? {}),
       recordId,
@@ -228,10 +229,13 @@ export function deserializeRawRecordPortabilityArchive(serialized: string): RawR
   if (candidate.schemaVersion !== RAW_RECORD_PORTABILITY_ARCHIVE_SCHEMA_VERSION || !Array.isArray(candidate.records)) {
     throw new Error("archive_payload_invalid");
   }
-  return {
-    schemaVersion: RAW_RECORD_PORTABILITY_ARCHIVE_SCHEMA_VERSION,
-    records: structuredClone(candidate.records) as RawRecordPortabilityRecord[],
-  };
+  try {
+    return buildRawRecordPortabilityArchive({
+      records: candidate.records as RawRecordPortabilityArchiveInput["records"],
+    });
+  } catch {
+    throw new Error("archive_payload_invalid");
+  }
 }
 
 export function isRawRecordPortabilityArchive(value: unknown): value is RawRecordPortabilityArchive {
