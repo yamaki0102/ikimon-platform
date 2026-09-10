@@ -224,7 +224,8 @@ export function buildProgramOperationalActivitySummary(
     : input.repeatedObservations.filter((value) => value.observationCount > 1);
   const continuations = input.continuations == null
     ? input.continuations
-    : sortedUnique(input.continuations, "continuationId");
+    : sortedUnique(input.continuations, "continuationId")
+      .filter((continuation) => continuation.sourceProgramId === program.programId);
   const references = input.regionalViewReferences == null
     ? null
     : sortedUnique(input.regionalViewReferences, "referenceId");

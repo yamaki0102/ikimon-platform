@@ -72,6 +72,25 @@ test("counts only entities bound to the summarized Program", () => {
   assert.deepEqual(summary.review.byState, { approved: 1 });
 });
 
+test("counts only continuations sourced by the summarized Program", () => {
+  const base = fixture();
+  const summary = buildProgramOperationalActivitySummary(fixture({
+    continuations: [
+      ...base.continuations!,
+      { continuationId: "continuation-foreign", sourceProgramId: "program-2", targetProgramId: "program-1", state: "accepted" },
+    ],
+  }));
+
+  assert.deepEqual(summary.continuation.total, { value: 1, state: "complete" });
+  assert.deepEqual(summary.continuation.active, { value: 1, state: "complete" });
+  assert.deepEqual(summary.continuation.references, [{
+    continuationId: "continuation-1",
+    sourceProgramId: "program-1",
+    targetProgramId: "program-2",
+    state: "accepted",
+  }]);
+});
+
 test("null source collections stay explicit as unknown while empty collections mean known zero", () => {
   const summary = buildProgramOperationalActivitySummary(fixture({
     participants: null,
