@@ -5,7 +5,11 @@ import {
   canActInProgram,
   normalizeConsentRecord,
   normalizeProgram,
+  normalizeProgramParticipant,
   normalizeProgramRoleAssignment,
+  normalizeProgramTeam,
+  normalizeQuest,
+  normalizeQuestParticipation,
   normalizeReviewDecision,
   planProgramHandoverBinding,
   type ProgramHandoverInput,
@@ -84,6 +88,45 @@ test("stable Program and role scope are explicit and independent of plan inputs"
   assert.equal(canActInProgram("teacher-1", "program-1", [assignment]), true);
   assert.equal(canActInProgram("teacher-1", "other-program", [assignment]), false);
   assert.equal(canActInProgram("teacher-1", "program-1", [{ ...assignment, status: "revoked" }]), false);
+  const unpaidAssignment = { ...assignment, paymentStatus: "unpaid" } as unknown as typeof assignment;
+  assert.equal(canActInProgram("teacher-1", "program-1", [unpaidAssignment]), true);
+});
+
+test("participant, team, and quest identities remain explicit and stable", () => {
+  const participant = normalizeProgramParticipant({
+    participantId: " participant-1 ",
+    programId: " program-1 ",
+    subjectId: " subject-1 ",
+    status: "active",
+    joinedAt: "2026-09-10T00:00:00.000Z",
+  });
+  const team = normalizeProgramTeam({
+    teamId: "team-1",
+    programId: participant.programId,
+    label: "River team",
+    participantIds: [participant.participantId, participant.participantId],
+    status: "active",
+  });
+  const quest = normalizeQuest({
+    questId: "quest-1",
+    programId: participant.programId,
+    revision: "rev-1",
+    title: "Spring quest",
+    status: "active",
+  });
+  const participation = normalizeQuestParticipation({
+    participationId: "participation-1",
+    programId: quest.programId,
+    questId: quest.questId,
+    participantId: participant.participantId,
+    status: "in_progress",
+  });
+
+  assert.equal(participant.participantId, "participant-1");
+  assert.deepEqual(team.participantIds, ["participant-1"]);
+  assert.equal(participation.questId, "quest-1");
+  assert.throws(() => normalizeProgramParticipant({ ...participant, participantId: " " }), /participant_id_required/);
+  assert.throws(() => normalizeQuestParticipation({ ...participation, questId: "" }), /quest_id_required/);
 });
 
 test("versioned consent reuses observation rights and preserves withdrawal state", () => {
@@ -112,6 +155,24 @@ test("versioned consent reuses observation rights and preserves withdrawal state
   assert.equal(withdrawn.withdrawalStatus, "withdrawn");
   assert.equal(withdrawn.rights.publicAggregationAllowed, false);
   assert.equal(withdrawn.withdrawnAt, "2026-09-11T00:00:00.000Z");
+  assert.throws(() => normalizeConsentRecord({
+    consentId: "consent-2",
+    programId: "program-1",
+    subjectId: "participant-1",
+    purpose: "program participation",
+    grantedAt: "2026-09-10T00:00:00.000Z",
+    withdrawnAt: "2026-09-09T00:00:00.000Z",
+    rights: rightsInput(),
+  }), /consent_withdrawal_before_grant/);
+  assert.throws(() => normalizeConsentRecord({
+    consentId: "consent-3",
+    programId: "program-1",
+    subjectId: "participant-1",
+    purpose: "program participation",
+    grantedAt: "2026-09-10T00:00:00.000Z",
+    withdrawnAt: "2026-09-11T00:00:00.000Z",
+    rights: rightsInput(),
+  }), /consent_withdrawal_time_mismatch/);
 });
 
 test("Review state is derived from immutable ordered history shape", () => {
@@ -140,6 +201,23 @@ test("Review state is derived from immutable ordered history shape", () => {
   assert.equal(approved.history.length, 2);
   assert.equal(approved.history[0]?.state, "requested");
   assert.throws(() => normalizeReviewDecision({ ...approved, state: "held" }), /review_state_history_mismatch/);
+  assert.deepEqual(requested.history, [{
+    state: "requested",
+    actorId: "participant-1",
+    occurredAt: "2026-09-10T00:00:00.000Z",
+    source: "fixture",
+    note: null,
+  }]);
+  assert.throws(() => normalizeReviewDecision({
+    ...approved,
+    history: [...approved.history, {
+      state: "held",
+      actorId: "reviewer-2",
+      occurredAt: "2026-09-09T23:00:00.000Z",
+      source: "fixture",
+      note: null,
+    }],
+  }), /review_history_not_monotonic/);
 });
 
 test("handover reuses planner reference integrity and reset semantics", () => {

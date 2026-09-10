@@ -244,6 +244,12 @@ export function normalizeConsentRecord(input: ConsentRecordInput): ConsentRecord
       guardianId,
     },
   });
+  if (withdrawnAt && Date.parse(withdrawnAt) < Date.parse(grantedAt)) {
+    throw new Error("consent_withdrawal_before_grant");
+  }
+  if ((withdrawnAt !== null) !== (rights.withdrawalStatus === "withdrawn")) {
+    throw new Error("consent_withdrawal_time_mismatch");
+  }
   return {
     consentId,
     programId,
@@ -260,13 +266,20 @@ export function normalizeConsentRecord(input: ConsentRecordInput): ConsentRecord
 
 function normalizeReviewHistory(history: readonly ReviewHistoryEntry[], reviewId: string): ReviewHistoryEntry[] {
   if (history.length === 0) throw new Error(`${reviewId}_history_required`);
-  return history.map((entry) => ({
-    state: entry.state,
-    actorId: stableId(entry.actorId, "review_actor_id"),
-    occurredAt: isoTimestamp(entry.occurredAt, "review_occurred_at"),
-    source: requiredText(entry.source, "review_source"),
-    note: entry.note == null ? null : String(entry.note),
-  }));
+  let previousOccurredAt = -Infinity;
+  return history.map((entry) => {
+    const occurredAt = isoTimestamp(entry.occurredAt, "review_occurred_at");
+    const occurredAtMs = Date.parse(occurredAt);
+    if (occurredAtMs < previousOccurredAt) throw new Error("review_history_not_monotonic");
+    previousOccurredAt = occurredAtMs;
+    return {
+      state: entry.state,
+      actorId: stableId(entry.actorId, "review_actor_id"),
+      occurredAt,
+      source: requiredText(entry.source, "review_source"),
+      note: entry.note == null ? null : String(entry.note),
+    };
+  });
 }
 
 export function normalizeReviewDecision(input: ReviewDecisionInput): ReviewDecision {
