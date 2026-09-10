@@ -171,3 +171,33 @@ test("consent requires an explicit visit identity and deserialize validates reco
     /archive_payload_invalid/,
   );
 });
+
+test("deserialize rejects unknown consent, review and visibility enum values before normalization", () => {
+  const invalidRecords = [
+    () => {
+      const record = structuredClone(recordInput());
+      record.consent.recordConsent = "unrecognized" as never;
+      return record;
+    },
+    () => {
+      const record = structuredClone(recordInput());
+      record.review.state = "unrecognized" as never;
+      return record;
+    },
+    () => {
+      const record = structuredClone(recordInput());
+      record.visibility = "unrecognized" as never;
+      return record;
+    },
+  ];
+
+  for (const makeInvalidRecord of invalidRecords) {
+    assert.throws(
+      () => deserializeRawRecordPortabilityArchive(JSON.stringify({
+        schemaVersion: RAW_RECORD_PORTABILITY_ARCHIVE_SCHEMA_VERSION,
+        records: [makeInvalidRecord()],
+      })),
+      /archive_payload_invalid/,
+    );
+  }
+});

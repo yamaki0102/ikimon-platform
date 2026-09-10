@@ -1,8 +1,17 @@
 import {
   OBSERVATION_DATA_RIGHTS_POLICY_VERSION,
   normalizeObservationDataRights,
+  type AreaProfileUseConsent,
+  type ConsentSource,
+  type DatasetLicense,
+  type EnterpriseReportConsent,
+  type MediaLicense,
   type ObservationDataRights,
   type ObservationDataRightsInput,
+  type PublicProfileAttributionMode,
+  type RecordConsent,
+  type ResearchUseConsent,
+  type WithdrawalStatus,
 } from "./observationDataRights.js";
 
 export const RAW_RECORD_PORTABILITY_ARCHIVE_SCHEMA_VERSION = "zukan.raw-record-portability-archive/v1";
@@ -10,6 +19,18 @@ export const TAXON_INVENTORY_SCHEMA_VERSION = "zukan.taxon-inventory/v1";
 
 export type RawRecordVisibility = "private" | "program_restricted" | "shared" | "public_candidate" | "public" | "withdrawn";
 export type RawRecordReviewState = "requested" | "in_review" | "changes_requested" | "held" | "approved" | "rejected" | "withdrawn";
+
+const RAW_RECORD_VISIBILITIES = ["private", "program_restricted", "shared", "public_candidate", "public", "withdrawn"] as const satisfies readonly RawRecordVisibility[];
+const RAW_RECORD_REVIEW_STATES = ["requested", "in_review", "changes_requested", "held", "approved", "rejected", "withdrawn"] as const satisfies readonly RawRecordReviewState[];
+const RECORD_CONSENTS = ["private", "internal", "public_summary", "external_export"] as const satisfies readonly RecordConsent[];
+const RESEARCH_USE_CONSENTS = ["none", "internal", "research_allowed", "public_export"] as const satisfies readonly ResearchUseConsent[];
+const ENTERPRISE_REPORT_CONSENTS = ["none", "internal", "aggregated", "identified"] as const satisfies readonly EnterpriseReportConsent[];
+const DATASET_LICENSES = ["CC0-1.0", "CC-BY-4.0"] as const satisfies readonly DatasetLicense[];
+const MEDIA_LICENSES = ["all_rights_reserved", "CC-BY-4.0", "CC-BY-NC-4.0"] as const satisfies readonly MediaLicense[];
+const WITHDRAWAL_STATUSES = ["active", "withdrawn", "delete_requested", "deleted"] as const satisfies readonly WithdrawalStatus[];
+const AREA_PROFILE_USE_CONSENTS = ["none", "internal", "aggregated_public", "manager_report", "external_export"] as const satisfies readonly AreaProfileUseConsent[];
+const PUBLIC_PROFILE_ATTRIBUTION_MODES = ["anonymous", "credited", "hidden"] as const satisfies readonly PublicProfileAttributionMode[];
+const CONSENT_SOURCES = ["default", "user_selected", "manager_policy", "migration_backfill"] as const satisfies readonly ConsentSource[];
 
 export type RawRecordProvenance = {
   sourceRef: string;
@@ -110,6 +131,40 @@ function copyRecordFields(value: Record<string, unknown>): Record<string, unknow
   return structuredClone(value);
 }
 
+function assertKnownEnum<T extends string>(value: unknown, allowed: readonly T[], field: string, options: { allowUndefined?: boolean; allowNull?: boolean } = {}): void {
+  if (options.allowUndefined && value === undefined) return;
+  if (options.allowNull && value === null) return;
+  if (typeof value !== "string" || !allowed.includes(value as T)) throw new Error(`${field}_enum_invalid`);
+}
+
+function validateConsentEnums(consent: ObservationDataRightsInput): void {
+  assertKnownEnum(consent.recordConsent, RECORD_CONSENTS, "consent_record", { allowUndefined: true });
+  assertKnownEnum(consent.researchUseConsent, RESEARCH_USE_CONSENTS, "consent_research", { allowUndefined: true });
+  assertKnownEnum(consent.enterpriseReportConsent, ENTERPRISE_REPORT_CONSENTS, "consent_enterprise_report", { allowUndefined: true });
+  assertKnownEnum(consent.datasetLicense, DATASET_LICENSES, "consent_dataset_license", { allowUndefined: true, allowNull: true });
+  assertKnownEnum(consent.mediaLicense, MEDIA_LICENSES, "consent_media_license", { allowUndefined: true, allowNull: true });
+  assertKnownEnum(consent.withdrawalStatus, WITHDRAWAL_STATUSES, "consent_withdrawal", { allowUndefined: true });
+  assertKnownEnum(consent.areaProfileUseConsent, AREA_PROFILE_USE_CONSENTS, "consent_area_profile", { allowUndefined: true });
+  assertKnownEnum(consent.publicProfileAttributionMode, PUBLIC_PROFILE_ATTRIBUTION_MODES, "consent_attribution", { allowUndefined: true });
+  assertKnownEnum(consent.consentSource, CONSENT_SOURCES, "consent_source", { allowUndefined: true });
+}
+
+function validateReviewEnums(review: RawRecordReview): void {
+  assertKnownEnum(review.state, RAW_RECORD_REVIEW_STATES, "review_state");
+  if (!Array.isArray(review.history)) return;
+  for (const entry of review.history) {
+    assertKnownEnum(entry?.state, RAW_RECORD_REVIEW_STATES, "review_history_state");
+  }
+}
+
+function validateVisibilityEnums(visibility: RawRecordVisibility, history: RawRecordVisibilityHistoryEntry[]): void {
+  assertKnownEnum(visibility, RAW_RECORD_VISIBILITIES, "visibility");
+  if (!Array.isArray(history)) return;
+  for (const entry of history) {
+    assertKnownEnum(entry?.visibility, RAW_RECORD_VISIBILITIES, "visibility_history_state");
+  }
+}
+
 function normalizeReview(review: RawRecordReview, recordId: string): RawRecordReview {
   if (!Array.isArray(review.history) || review.history.length === 0) throw new Error(`${recordId}_review_history_required`);
   const history = review.history.map((entry) => ({
@@ -155,6 +210,9 @@ export function normalizeRawRecordPortabilityRecord(
   input: RawRecordPortabilityRecordInput,
 ): RawRecordPortabilityRecord {
   const recordId = requiredId(input.recordId, "record_id");
+  validateConsentEnums(input.consent);
+  validateReviewEnums(input.review);
+  validateVisibilityEnums(input.visibility, input.visibilityHistory);
   const visitId = requiredId(input.consent.visitId, "consent_visit_id");
   const rights = normalizeObservationDataRights({
     ...input.consent,
