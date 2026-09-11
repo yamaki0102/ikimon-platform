@@ -67,6 +67,7 @@ const D1_PUBLIC_PLACE_SEARCH_SQL = `
       FROM place_source_references
       WHERE place_id = p.place_id
         AND source_type = 'osm'
+        AND verification_status IN ('verified', 'source_verified')
         AND valid_to IS NULL
         AND superseded_by_source_reference_id IS NULL
       ORDER BY source_confidence DESC
@@ -75,13 +76,20 @@ const D1_PUBLIC_PLACE_SEARCH_SQL = `
   FROM places p
   LEFT JOIN place_boundaries pb
     ON pb.boundary_id = (
-      SELECT boundary_id
-      FROM place_boundaries
-      WHERE place_id = p.place_id
-        AND is_primary = 1
-        AND valid_to IS NULL
-        AND superseded_by_boundary_id IS NULL
-      ORDER BY boundary_version DESC
+      SELECT b.boundary_id
+      FROM place_boundaries b
+      JOIN place_source_references bs
+        ON bs.source_reference_id = b.source_reference_id
+        AND bs.place_id = b.place_id
+      WHERE b.place_id = p.place_id
+        AND b.is_primary = 1
+        AND b.valid_to IS NULL
+        AND b.superseded_by_boundary_id IS NULL
+        AND b.validation_state IN ('valid', 'verified')
+        AND bs.verification_status IN ('verified', 'source_verified')
+        AND bs.valid_to IS NULL
+        AND bs.superseded_by_source_reference_id IS NULL
+      ORDER BY b.boundary_version DESC
       LIMIT 1
     )
   LEFT JOIN place_source_references ps
@@ -89,13 +97,23 @@ const D1_PUBLIC_PLACE_SEARCH_SQL = `
       SELECT source_reference_id
       FROM place_source_references
       WHERE place_id = p.place_id
+        AND verification_status IN ('verified', 'source_verified')
         AND valid_to IS NULL
         AND superseded_by_source_reference_id IS NULL
       ORDER BY precedence_rank ASC, source_confidence DESC
       LIMIT 1
     )
   WHERE p.public_profile_status = 'published'
+    AND p.valid_to IS NULL
     AND p.superseded_by_place_id IS NULL
+    AND pb.boundary_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM place_policies pp
+      WHERE pp.place_id = p.place_id
+        AND pp.place_visibility = 'public'
+        AND pp.valid_to IS NULL
+    )
     AND (
       p.place_id = ?
       OR p.canonical_name_normalized LIKE ?

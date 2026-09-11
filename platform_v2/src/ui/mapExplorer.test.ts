@@ -11,6 +11,11 @@ function bootSection(start: string, end: string): string {
   return script.slice(from, to);
 }
 
+test("OSM-backed place map credits contributors and links its data licence", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  assert.match(script, /attribution: 'OpenFreeMap \/ <a href="https:\/\/www\.openstreetmap\.org\/copyright"[^>]*>© OpenStreetMap contributors<\/a>'/);
+});
+
 test("canonical place suggestions require a real valid public boundary", () => {
   const context = vm.createContext({});
   new vm.Script(bootSection("function canonicalPlaceRows(payload)", "function mergePlaceSearchCandidates(")).runInContext(context);

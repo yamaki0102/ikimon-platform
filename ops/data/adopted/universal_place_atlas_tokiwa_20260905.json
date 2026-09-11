@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "zukan.public-place-adoption/v1",
+  "adoptionId": "zukan-place-tokiwa-20260905",
+  "workId": "ZUKAN-PLACE-SEARCH-RECOVERY-1423-20260905",
+  "source": {
+    "path": "ops/data/universal_place_atlas_canary.json",
+    "sourceCommit": "f7b1c9762cad787a70756310a40082dac8b705c0",
+    "sourceDocumentSha256": "de9cae05e3bceb6d8674ee70d956d279629af873948c5f1b8bbac104dba9a775",
+    "documentSchema": "universal_place_atlas_seed/v1",
+    "selectedPlaceId": "plc_e3293ec4bb9288a0",
+    "selectedPlaceCount": 1
+  },
+  "schemaMigration": "platform_v2/cloudflare_shadow/migrations/observations/0068_universal_place_atlas.sql",
+  "importArtifact": "ops/data/generated/universal_place_atlas_tokiwa_20260905.d1.sql",
+  "importArtifactSha256": "78c3b4a7dcf069d37231a1aa8d3187b217bf02b8447aa5d7e4f291a8dee623a9",
+  "scope": {
+    "publicPlaces": 1,
+    "aliases": 2,
+    "sourceReferences": 2,
+    "boundaries": 1,
+    "policies": 1,
+    "records": 0,
+    "recordPlaceMemberships": 0,
+    "media": 0,
+    "privateRows": 0
+  },
+  "expectedIdentity": {
+    "canonicalPlaceId": "plc_e3293ec4bb9288a0",
+    "canonicalName": "常磐公園",
+    "aliases": [
+      "常盤公園",
+      "Tokiwa Park"
+    ],
+    "bbox": [
+      138.3793901,
+      34.9695006,
+      138.3812408,
+      34.970775
+    ],
+    "boundarySource": "osm:way:125727939"
+  },
+  "conflictPolicy": "assert_exact_then_insert_only",
+  "registration": {
+    "existing0068BrokerSource": "present",
+    "exactImportBinding": "unverified_pending_registration",
+    "atomicTransactionRestoreReadback": "pending_registered_runtime_verification"
+  },
+  "rollback": "UNVERIFIED: atomic import failure rollback; post-commit exact-target recovery or narrow withdrawal with public/cache read-back must be proved. A rollout flag alone does not hide current Place search.",
+  "runtimeState": "source_only_pending_registered_runtime_verification"
+}
