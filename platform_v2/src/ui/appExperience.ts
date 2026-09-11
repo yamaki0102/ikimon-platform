@@ -189,7 +189,7 @@ body[data-zukan-app-experience] .of-meta{font-size:14px}
  body[data-zukan-app-experience] .of-header{padding:8px 16px}
 }
 @media(prefers-reduced-motion:reduce){body[data-zukan-app-experience] *{scroll-behavior:auto!important}}
-@media(max-width:430px){body[data-zukan-app-experience] .site-header-inner{gap:8px}body[data-zukan-app-experience] .home-header-login{padding-inline:8px}}
+@media(max-width:430px){body[data-zukan-app-experience] .site-header-inner{gap:8px}body[data-zukan-app-experience] .home-header-login{padding-inline:4px;white-space:nowrap;flex-shrink:0}}
 `;
 
 export const APP_EXPERIENCE_STYLES = `${ZUKAN_DESIGN_FOUNDATION_STYLES}\n${APP_EXPERIENCE_LAYOUT_STYLES}`;
