@@ -1,4 +1,4 @@
-/** Shared, dependency-free chrome for materialized pages and native Worker readers. */
+﻿/** Shared, dependency-free chrome for materialized pages and native Worker readers. */
 export function isAppExperiencePath(path: string): boolean {
   const pathname = (path.split(/[?#]/, 1)[0] ?? "/").replace(/^\/(ja|en|es|pt-br)(?=\/|$)/i, "") || "/";
   return /^\/(?:$|home\/?$|records(?:\/|$)|observations\/|record(?:\/|$)|map(?:\/|$)|profile(?:\/|$)|community\/events(?:\/|$))/.test(pathname);
@@ -33,13 +33,71 @@ export function renderAppExperienceHeader(lang: string, active: number, member =
   return `<a class="zukan-app-skip" href="#${mainId}">${copy[6]}</a><header class="zukan-app-header"><div><a class="zukan-app-brand" href="${prefix}/" aria-label="ZUKAN"><img src="/assets/brand/zukan-app-icon-192.png" alt="" width="32" height="32"><img src="/assets/brand/zukan-wordmark.svg" alt="" width="92" height="29"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<a class="zukan-app-account" href="${prefix}/profile">${copy[5]}</a></div></header>`;
 }
 
-export const APP_EXPERIENCE_STYLES = `
+/**
+ * Shared visual foundation for ZUKAN's materialized Node pages and native
+ * Worker readers. Keep this dependency-free: individual renderers retain
+ * their layout and state semantics, while consuming the same visual meaning.
+ */
+export const ZUKAN_DESIGN_FOUNDATION_STYLES = `
+:root{
+  color-scheme:light;
+  --zukan-action-primary:#143f2e;
+  --zukan-action-hover:#0f3023;
+  --zukan-action-active:#0a241a;
+  --zukan-text-primary:#17211b;
+  --zukan-text-secondary:#55615a;
+  --zukan-surface-base:#ffffff;
+  --zukan-surface-subtle:#f7f7f3;
+  --zukan-border-control:#68746c;
+  --zukan-border-decorative:#dde2dc;
+  --zukan-link:#0055ad;
+  --zukan-link-visited:#663399;
+  --zukan-status-success:#146c43;
+  --zukan-status-warning:#8a4b00;
+  --zukan-status-error:#b42318;
+  --zukan-status-info:#0055ad;
+  --zukan-focus-yellow-300:#ffd43d;
+  --zukan-focus-outline:#000000;
+  --zukan-font-sans:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --zukan-space-1:4px;
+  --zukan-space-2:8px;
+  --zukan-space-3:12px;
+  --zukan-space-4:16px;
+  --zukan-space-6:24px;
+  --zukan-space-8:32px;
+  --zukan-space-10:40px;
+  --zukan-space-14:56px;
+  --zukan-radius-control:4px;
+  --zukan-radius-content:8px;
+  --zukan-control-min:44px;
+  --zukan-content-max:1200px;
+}
+body[data-zukan-design],body[data-zukan-app-experience]{
+  background:var(--zukan-surface-base);
+  color:var(--zukan-text-primary);
+  font-family:var(--zukan-font-sans);
+  font-size:16px;
+  line-height:1.7;
+}
+body[data-zukan-design] *,body[data-zukan-app-experience] *{box-sizing:border-box}
+body[data-zukan-design] :is(button,input,textarea,select),body[data-zukan-app-experience] :is(button,input,textarea,select){font:inherit}
+body[data-zukan-design] :is(button,[role=button],input:not([type=hidden],[type=checkbox],[type=radio]),select,textarea,summary),body[data-zukan-app-experience] :is(button,[role=button],input:not([type=hidden],[type=checkbox],[type=radio]),select,textarea,summary){min-height:var(--zukan-control-min)}
+body[data-zukan-design] :is(h1,h2,h3),body[data-zukan-app-experience] :is(h1,h2,h3){overflow-wrap:anywhere;text-wrap:balance;line-height:1.35}
+body[data-zukan-design] :is(a,button,input,textarea,select,summary):focus-visible,body[data-zukan-app-experience] :is(a,button,input,textarea,select,summary):focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
+body[data-zukan-design] a:not([class]),body[data-zukan-app-experience] a:not([class]){color:var(--zukan-link);text-decoration-thickness:max(1px,.08em);text-underline-offset:.15em}
+body[data-zukan-design] a:not([class]):visited,body[data-zukan-app-experience] a:not([class]):visited{color:var(--zukan-link-visited)}
+body[data-zukan-design] :is([role=status],[role=alert],[data-zukan-ui-state]){display:block;border-inline-start:4px solid var(--zukan-status-info);padding:var(--zukan-space-3);border-radius:var(--zukan-radius-content);background:var(--zukan-surface-subtle)}
+body[data-zukan-design] [role=alert],body[data-zukan-design] [data-zukan-ui-state=error]{border-inline-start-color:var(--zukan-status-error)}
+body[data-zukan-design] [data-zukan-ui-state=warning],body[data-zukan-design] [data-zukan-ui-state=permission]{border-inline-start-color:var(--zukan-status-warning)}
+body[data-zukan-design] [data-zukan-ui-state=success]{border-inline-start-color:var(--zukan-status-success)}
+@media(forced-colors:active){body[data-zukan-design] :focus-visible,body[data-zukan-app-experience] :focus-visible{outline:2px solid CanvasText;outline-offset:2px;box-shadow:none}}
+@media(prefers-reduced-motion:reduce){body[data-zukan-design] *,body[data-zukan-app-experience] *{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+`;
+
+export const APP_EXPERIENCE_LAYOUT_STYLES = `
 /* Adopted app surface: one primary navigation at each viewport. */
-body[data-zukan-app-experience]{--zukan-green:#143f2e;--zukan-ink:#17211b;--zukan-muted:#55615a;--zukan-line:#dce2dc;--zukan-paper:#f7f7f3;color:var(--zukan-ink);background:#fff;font-size:16px;line-height:1.65}
+body[data-zukan-app-experience]{--zukan-green:var(--zukan-action-primary);--zukan-ink:var(--zukan-text-primary);--zukan-muted:var(--zukan-text-secondary);--zukan-line:var(--zukan-border-decorative);--zukan-paper:var(--zukan-surface-subtle);color:var(--zukan-ink);background:var(--zukan-surface-base);font-size:16px;line-height:1.7}
 body[data-zukan-app-experience] *{box-sizing:border-box}
-body[data-zukan-app-experience] :is(button,input,textarea,select){font:inherit}
-body[data-zukan-app-experience] :is(button,summary,input:not([type=hidden]),select){min-height:44px}
-body[data-zukan-app-experience] :is(a,button,input,select,textarea,summary):focus-visible{outline:3px solid #c18100;outline-offset:3px}
 body[data-zukan-app-experience] :is(h1,h2,h3){text-wrap:balance;overflow-wrap:anywhere;line-height:1.3}
 body[data-zukan-app-experience] h1{letter-spacing:-.025em}
 body[data-zukan-app-experience] [hidden]{display:none!important}
@@ -133,3 +191,5 @@ body[data-zukan-app-experience] .of-meta{font-size:14px}
 @media(prefers-reduced-motion:reduce){body[data-zukan-app-experience] *{scroll-behavior:auto!important}}
 @media(max-width:430px){body[data-zukan-app-experience] .site-header-inner{gap:8px}body[data-zukan-app-experience] .home-header-login{padding-inline:8px}}
 `;
+
+export const APP_EXPERIENCE_STYLES = `${ZUKAN_DESIGN_FOUNDATION_STYLES}\n${APP_EXPERIENCE_LAYOUT_STYLES}`;

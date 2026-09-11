@@ -1,5 +1,5 @@
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "./photoUploadPreparation.js";
-import { APP_EXPERIENCE_STYLES, isAppExperiencePath } from "./appExperience.js";
+import { APP_EXPERIENCE_LAYOUT_STYLES, isAppExperiencePath, ZUKAN_DESIGN_FOUNDATION_STYLES } from "./appExperience.js";
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
@@ -4170,36 +4170,36 @@ ${alternateLinks}
   <style>
     :root {
       color-scheme: light;
-      --bg: ${APP_LAUNCH_BACKGROUND_COLOR};
-      --surface: rgba(255,255,255,.92);
-      --surface-strong: #ffffff;
-      --border: rgba(0,0,0,.06);
-      --ink: #1a2e1f;
-      --muted: #64748b;
-      --hero-a: #059669;
-      --hero-b: #10b981;
+      --bg: var(--zukan-surface-subtle);
+      --surface: var(--zukan-surface-base);
+      --surface-strong: var(--zukan-surface-base);
+      --border: var(--zukan-border-decorative);
+      --ink: var(--zukan-text-primary);
+      --muted: var(--zukan-text-secondary);
+      --hero-a: var(--zukan-action-primary);
+      --hero-b: var(--zukan-action-hover);
       --hero-c: #0ea5e9;
-      --accent: #10b981;
-      --accent-hover: #059669;
-      --accent-soft: #ecfdf5;
+      --accent: var(--zukan-action-primary);
+      --accent-hover: var(--zukan-action-hover);
+      --accent-soft: var(--zukan-surface-subtle);
       --shadow: 0 18px 44px rgba(15, 23, 42, .07);
       --shadow-strong: 0 26px 64px rgba(15, 23, 42, .12);
-      --color-warn: #ea580c;
+      --color-warn: var(--zukan-status-warning);
       --color-warn-soft: rgba(234,88,12,.08);
-      --color-danger: #dc2626;
+      --color-danger: var(--zukan-status-error);
       --color-danger-soft: rgba(220,38,38,.08);
       --color-novelty: #a855f7;
       --color-novelty-soft: rgba(168,85,247,.08);
-      --color-info: #3b82f6;
+      --color-info: var(--zukan-status-info);
       --color-info-soft: rgba(59,130,246,.08);
-      --radius-card: 14px;
-      --radius-panel: 24px;
+      --radius-card: var(--zukan-radius-content);
+      --radius-panel: var(--zukan-radius-content);
       --radius-pill: 999px;
       --shadow-card: 0 8px 24px rgba(15,23,42,.06);
-      --space-card: clamp(16px, 2vw, 24px);
-      --ikimon-page-max: 1480px;
-      --ikimon-content-max: 1240px;
-      --ikimon-reading-max: 880px;
+      --space-card: var(--zukan-space-6);
+      --ikimon-page-max: var(--zukan-content-max);
+      --ikimon-content-max: var(--zukan-content-max);
+      --ikimon-reading-max: 760px;
       --ikimon-form-max: 760px;
       --ikimon-page-inline: clamp(24px, 3.4vw, 48px);
       --ikimon-desktop-sidebar-w: 0px;
@@ -5253,8 +5253,9 @@ ${alternateLinks}
     .btn:focus-visible,
     .site-nav-link:focus-visible,
     .lang-switch-link:focus-visible {
-      outline: 3px solid #0284c7;
+      outline: 2px solid var(--zukan-focus-outline);
       outline-offset: 2px;
+      box-shadow: 0 0 0 4px var(--zukan-focus-yellow-300);
       border-radius: 10px;
     }
     .site-nav-link:focus-visible,
@@ -7341,11 +7342,12 @@ ${alternateLinks}
         bottom: calc(max(14px, env(safe-area-inset-bottom)) + 176px);
       }
     }
+    ${ZUKAN_DESIGN_FOUNDATION_STYLES}
     ${options.extraStyles ?? ""}
-    ${isAppExperiencePath(currentPath) ? APP_EXPERIENCE_STYLES : ""}
+    ${isAppExperiencePath(currentPath) ? APP_EXPERIENCE_LAYOUT_STYLES : ""}
   </style>
 </head>
-<body${isAppExperiencePath(currentPath) ? ' data-zukan-app-experience="v1"' : ""}${prefersCollapsedSideNav ? ' class="is-desktop-side-nav-collapsed"' : ""}>
+<body data-zukan-design="v1"${isAppExperiencePath(currentPath) ? ' data-zukan-app-experience="v1"' : ""}${prefersCollapsedSideNav ? ' class="is-desktop-side-nav-collapsed"' : ""}>
   <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
   ${appLaunchScreenHtml}
   ${languageSuggestionHtml}

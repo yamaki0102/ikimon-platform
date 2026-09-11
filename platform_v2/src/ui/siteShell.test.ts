@@ -9,6 +9,16 @@ test("site shell keeps the keyboard skip link at the 44px target contract", () =
   assert.match(html, /\.skip-link \{[\s\S]*?min-height: 44px;[\s\S]*?display: inline-flex;[\s\S]*?align-items: center;/);
 });
 
+test("site shell applies the shared design foundation once to both product and adjacent routes", () => {
+  for (const currentPath of ["/ja/", "/ja/learn/field-loop"]) {
+    const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja", currentPath });
+    assert.match(html, /<body data-zukan-design="v1"/);
+    assert.equal((html.match(/--zukan-action-primary:#143f2e/g) ?? []).length, 1);
+    assert.match(html, /--ikimon-page-max: var\(--zukan-content-max\);/);
+    assert.match(html, /box-shadow: 0 0 0 4px var\(--zukan-focus-yellow-300\);/);
+  }
+});
+
 test("desktop shell controls keep a real 44px target contract", () => {
   const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
   assert.match(html, /\.desktop-side-nav-toggle \{[\s\S]*?width: 44px;[\s\S]*?height: 44px;[\s\S]*?flex: 0 0 44px;/);
