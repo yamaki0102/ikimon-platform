@@ -56,7 +56,7 @@ test("unavailable records are not reported as an empty collection", () => {
 test("native capture has no fabricated coordinates and its browser script parses", () => {
   const html = renderCloudflareRecordHtml({ userId: "fixture", displayName: "fixture" } as never, new URL("https://zukan.earth/ja/record"), "fixture");
   assert.match(html, /--zukan-action-primary:#143f2e/);
-  assert.match(html, /--zukan-focus-yellow-300:#ffd43d/);
+  assert.match(html, /--zukan-focus-yellow-300:#FFD43D/);
   assert.match(html, /--ink:var\(--zukan-text-primary\)/);
   assert.match(html, /box-shadow:0 0 0 4px var\(--zukan-focus-yellow-300\)/);
   assert.match(html, /name="latitude"[^>]*value=""/);

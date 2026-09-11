@@ -56,7 +56,7 @@ export const ZUKAN_DESIGN_FOUNDATION_STYLES = `
   --zukan-status-warning:#8a4b00;
   --zukan-status-error:#b42318;
   --zukan-status-info:#0055ad;
-  --zukan-focus-yellow-300:#ffd43d;
+  --zukan-focus-yellow-300:#FFD43D;
   --zukan-focus-outline:#000000;
   --zukan-font-sans:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --zukan-space-1:4px;

@@ -1,12 +1,12 @@
 const STATE_SPLIT_STYLE_ID = "zukan-home-state-split-release-closure";
 
 const STATE_SPLIT_STYLE = `<style id="${STATE_SPLIT_STYLE_ID}">
-.home-state-root :is(a,button):focus-visible{outline:3px solid var(--home-green);outline-offset:3px}
-.home-category-index{color:var(--home-green)}
+.home-state-root :is(a,button):focus-visible{outline:3px solid var(--zukan-focus-outline);outline-offset:3px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
+.home-category-index{color:var(--zukan-action-primary)}
 .home-guest-proof.is-count-0{grid-template-columns:1fr;grid-template-rows:1fr}
-.home-guest-proof.is-empty{background:#f3f5f2}
+.home-guest-proof.is-empty{background:var(--zukan-surface-subtle)}
 .home-guest-proof.is-empty img{display:none}
-.home-guest-proof.is-empty p{max-width:24rem;margin:0;padding:0 20px;color:var(--home-green);font-weight:800;text-align:center}
+.home-guest-proof.is-empty p{max-width:24rem;margin:0;padding:0 20px;color:var(--zukan-action-primary);font-weight:800;text-align:center}
 @media(max-width:959px){
 .home-guest-proof-item.is-item-4,.home-guest-proof-item.is-item-5{display:block}
 .home-guest-proof.is-count-1,.home-guest-proof.is-count-2{grid-template-rows:minmax(260px,1fr)}
