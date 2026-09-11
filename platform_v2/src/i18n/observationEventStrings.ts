@@ -355,3 +355,212 @@ export function getObservationEventStrings(lang: SiteLang): ObservationEventStri
       return ja;
   }
 }
+
+/**
+ * Participation-hub discovery copy (PARTICIPATION_EXPERIENCE_V1 §§4–6, §17).
+ *
+ * Kept separate from `ObservationEventStrings` so the S1 public-discovery slice
+ * can carry the participant-first labels (actionable / upcoming / history,
+ * zero-versus-load-failure, ended/cancelled truth) without widening the shared
+ * observation-event string contract.
+ */
+export interface ObservationEventDiscoveryStrings {
+  sectionActionable: string;
+  sectionUpcoming: string;
+  actionableEmpty: string;
+  noProgramsLead: string;
+  loadFailed: string;
+  retryCta: string;
+  badgeActionable: string;
+  badgeUpcoming: string;
+  badgeCancelled: string;
+  detailCta: string;
+  dateTbd: string;
+  untitled: string;
+  timezoneNote: string;
+  detailPageTitle: string;
+  detailLead: string;
+  detailOpenNote: string;
+  detailExternalNote: string;
+  detailEndedNote: string;
+  detailCancelledNote: string;
+  detailNoParticipationNote: string;
+  detailContentHeading: string;
+  detailTimePlaceHeading: string;
+  detailParticipationHeading: string;
+  detailRecordHeading: string;
+  detailGuidanceHeading: string;
+  detailWhenLabel: string;
+  detailWhereLabel: string;
+  detailWhoLabel: string;
+  detailCostLabel: string;
+  detailMethodLabel: string;
+  detailRecordLead: string;
+  detailRecordCta: string;
+  detailExternalCtaTemplate: string;
+  detailNativeEntryLabel: string;
+  detailUnknownValue: string;
+}
+
+const discoveryJa: ObservationEventDiscoveryStrings = {
+  sectionActionable: "今、参加できる",
+  sectionUpcoming: "これから",
+  actionableEmpty: "いま参加できる企画はありません。",
+  noProgramsLead: "掲載中の公開企画はまだありません。",
+  loadFailed: "企画を読み込めませんでした。",
+  retryCta: "再読み込み",
+  badgeActionable: "受付中",
+  badgeUpcoming: "開催予定",
+  badgeCancelled: "中止",
+  detailCta: "詳しく見る",
+  dateTbd: "日時未定",
+  untitled: "タイトル未設定の企画",
+  timezoneNote: "時刻は日本時間（JST）で表示しています。",
+  detailPageTitle: "参加詳細",
+  detailLead: "内容、日時、場所、参加方法をまとめて確認できます。",
+  detailOpenNote: "この回は参加方法を確認してから進めます。",
+  detailExternalNote: "予約や受付は外部サイトが担当します。ZUKAN は案内と記録への戻り先を出します。",
+  detailEndedNote: "この回は終了しています。自分の記録と許可済みの振り返りへ戻れます。",
+  detailCancelledNote: "この回は中止です。参加手続きは行えません。",
+  detailNoParticipationNote: "この回の参加方法はまだ公開されていません。",
+  detailContentHeading: "内容",
+  detailTimePlaceHeading: "日時・場所",
+  detailParticipationHeading: "参加方法",
+  detailRecordHeading: "この企画の記録",
+  detailGuidanceHeading: "当日の案内",
+  detailWhenLabel: "いつ",
+  detailWhereLabel: "どこ",
+  detailWhoLabel: "だれが",
+  detailCostLabel: "費用",
+  detailMethodLabel: "入口",
+  detailRecordLead: "イベントの文脈を付けたまま、記録画面を開きます。",
+  detailRecordCta: "自分の記録へ戻る",
+  detailExternalCtaTemplate: "{provider}で予約状況を確認",
+  detailNativeEntryLabel: "ZUKANの参加フォーム",
+  detailUnknownValue: "未確認",
+};
+
+const discoveryEn: ObservationEventDiscoveryStrings = {
+  sectionActionable: "Open now",
+  sectionUpcoming: "Coming up",
+  actionableEmpty: "No programs are open to join right now.",
+  noProgramsLead: "No public programs are listed yet.",
+  loadFailed: "Couldn’t load programs.",
+  retryCta: "Reload",
+  badgeActionable: "Open",
+  badgeUpcoming: "Scheduled",
+  badgeCancelled: "Cancelled",
+  detailCta: "View details",
+  dateTbd: "Date to be decided",
+  untitled: "Untitled program",
+  timezoneNote: "Times are shown in Japan time (JST).",
+  detailPageTitle: "Participation details",
+  detailLead: "Review the content, timing, place, and next step.",
+  detailOpenNote: "Check the participation method before you continue.",
+  detailExternalNote: "Booking and check-in are handled on the external site. ZUKAN shows the guide and the return path to your record.",
+  detailEndedNote: "This session has ended. You can return to your record and any approved recap.",
+  detailCancelledNote: "This session was cancelled. No participation action is available.",
+  detailNoParticipationNote: "The participation method for this session has not been published yet.",
+  detailContentHeading: "Content",
+  detailTimePlaceHeading: "Date and place",
+  detailParticipationHeading: "How to join",
+  detailRecordHeading: "This session's record",
+  detailGuidanceHeading: "Day-of guidance",
+  detailWhenLabel: "When",
+  detailWhereLabel: "Where",
+  detailWhoLabel: "Who",
+  detailCostLabel: "Cost",
+  detailMethodLabel: "Entry",
+  detailRecordLead: "Open the record surface with this event context attached.",
+  detailRecordCta: "Return to my record",
+  detailExternalCtaTemplate: "Check booking on {provider}",
+  detailNativeEntryLabel: "ZUKAN participation form",
+  detailUnknownValue: "Unknown",
+};
+
+const discoveryEs: ObservationEventDiscoveryStrings = {
+  sectionActionable: "Abierto ahora",
+  sectionUpcoming: "Próximamente",
+  actionableEmpty: "Ahora no hay actividades abiertas para participar.",
+  noProgramsLead: "Todavía no hay actividades públicas publicadas.",
+  loadFailed: "No se pudieron cargar las actividades.",
+  retryCta: "Recargar",
+  badgeActionable: "Abierto",
+  badgeUpcoming: "Programado",
+  badgeCancelled: "Cancelado",
+  detailCta: "Ver detalles",
+  dateTbd: "Fecha por definir",
+  untitled: "Actividad sin título",
+  timezoneNote: "Las horas se muestran en hora de Japón (JST).",
+  detailPageTitle: "Detalles de participación",
+  detailLead: "Revisa el contenido, la fecha, el lugar y el siguiente paso.",
+  detailOpenNote: "Revisa cómo participar antes de continuar.",
+  detailExternalNote: "La reserva y el registro se gestionan en el sitio externo. ZUKAN muestra la guía y la vuelta a tu registro.",
+  detailEndedNote: "Esta sesión ya terminó. Puedes volver a tu registro y al resumen aprobado.",
+  detailCancelledNote: "Esta sesión fue cancelada. No hay una acción de participación disponible.",
+  detailNoParticipationNote: "La forma de participar en esta sesión todavía no se ha publicado.",
+  detailContentHeading: "Contenido",
+  detailTimePlaceHeading: "Fecha y lugar",
+  detailParticipationHeading: "Cómo participar",
+  detailRecordHeading: "Registro de esta sesión",
+  detailGuidanceHeading: "Guía del día",
+  detailWhenLabel: "Cuándo",
+  detailWhereLabel: "Dónde",
+  detailWhoLabel: "Quién",
+  detailCostLabel: "Costo",
+  detailMethodLabel: "Entrada",
+  detailRecordLead: "Abre la pantalla de registro con este contexto del evento.",
+  detailRecordCta: "Volver a mi registro",
+  detailExternalCtaTemplate: "Consultar la reserva en {provider}",
+  detailNativeEntryLabel: "Formulario de participación de ZUKAN",
+  detailUnknownValue: "No confirmado",
+};
+
+const discoveryPtBR: ObservationEventDiscoveryStrings = {
+  sectionActionable: "Aberto agora",
+  sectionUpcoming: "Em breve",
+  actionableEmpty: "Não há atividades abertas para participar agora.",
+  noProgramsLead: "Ainda não há atividades públicas publicadas.",
+  loadFailed: "Não foi possível carregar as atividades.",
+  retryCta: "Recarregar",
+  badgeActionable: "Aberto",
+  badgeUpcoming: "Programado",
+  badgeCancelled: "Cancelado",
+  detailCta: "Ver detalhes",
+  dateTbd: "Data a definir",
+  untitled: "Atividade sem título",
+  timezoneNote: "Os horários são exibidos no horário do Japão (JST).",
+  detailPageTitle: "Detalhes da participação",
+  detailLead: "Revise o conteúdo, a data, o local e o próximo passo.",
+  detailOpenNote: "Confira como participar antes de continuar.",
+  detailExternalNote: "A reserva e o check-in são feitos no site externo. O ZUKAN mostra a orientação e o caminho de volta para o seu registro.",
+  detailEndedNote: "Esta sessão já terminou. Você pode voltar ao seu registro e ao resumo aprovado.",
+  detailCancelledNote: "Esta sessão foi cancelada. Nenhuma ação de participação está disponível.",
+  detailNoParticipationNote: "A forma de participar desta sessão ainda não foi publicada.",
+  detailContentHeading: "Conteúdo",
+  detailTimePlaceHeading: "Data e local",
+  detailParticipationHeading: "Como participar",
+  detailRecordHeading: "Registro desta sessão",
+  detailGuidanceHeading: "Orientação do dia",
+  detailWhenLabel: "Quando",
+  detailWhereLabel: "Onde",
+  detailWhoLabel: "Quem",
+  detailCostLabel: "Custo",
+  detailMethodLabel: "Entrada",
+  detailRecordLead: "Abra a área de registro com este contexto do evento anexado.",
+  detailRecordCta: "Voltar ao meu registro",
+  detailExternalCtaTemplate: "Ver a reserva em {provider}",
+  detailNativeEntryLabel: "Formulário de participação do ZUKAN",
+  detailUnknownValue: "Não confirmado",
+};
+
+export function getObservationEventDiscoveryStrings(lang: SiteLang): ObservationEventDiscoveryStrings {
+  switch (lang) {
+    case "en": return discoveryEn;
+    case "es": return discoveryEs;
+    case "pt-BR": return discoveryPtBR;
+    case "ja":
+    default:
+      return discoveryJa;
+  }
+}
