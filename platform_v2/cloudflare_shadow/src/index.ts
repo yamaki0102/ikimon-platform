@@ -23639,9 +23639,9 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)} | ZUKAN</title>
   <style>
-    :root{color-scheme:light;--ink:#10251a;--muted:#52635d;--line:#d8eae4;--mint:#eefbf6;--teal:#058f82;--leaf:#54c86f;--paper:#fbfdfb}
+    :root{color-scheme:light;--ink:var(--zukan-text-primary);--muted:var(--zukan-text-secondary);--line:var(--zukan-border-decorative);--mint:var(--zukan-surface-subtle);--teal:var(--zukan-action-primary);--leaf:var(--zukan-action-hover);--paper:var(--zukan-surface-base)}
     *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#f5fbf8 0,#fff 72%);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--zukan-font-sans);line-height:1.7}
     .cf-record-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
     .cf-record-brand{min-width:44px;min-height:44px;display:inline-flex;align-items:center;text-decoration:none;color:var(--ink)}
     .cf-record-brand-lockup{display:inline-flex;align-items:center;gap:8px;min-width:0}
@@ -23667,9 +23667,9 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-coordinates{margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--mint);overflow:hidden}
     .cf-record-coordinates summary{min-height:44px;display:flex;align-items:center;cursor:pointer;padding:0 12px;font-weight:900}
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
-    .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--leaf));color:#fff;font-weight:900;font-size:16px}
+    .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:var(--zukan-radius-content);background:var(--teal);color:#fff;font-weight:900;font-size:16px}
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
-    .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible{outline:3px solid #ebb72f;outline-offset:3px;box-shadow:0 0 0 1px var(--ink)}
+    .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
   </style>

@@ -2,7 +2,23 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
 import { observationEventPageHtml, renderCloudflareRecordHtml, renderRecordsProductSection } from "./index";
-import { isAppExperiencePath, renderAppExperienceNavigation } from "../../src/ui/appExperience";
+import { ZUKAN_DESIGN_FOUNDATION_STYLES, isAppExperiencePath, renderAppExperienceNavigation } from "../../src/ui/appExperience";
+
+test("shared design foundation keeps semantic visual roles and accessibility invariants", () => {
+  for (const token of [
+    "--zukan-action-primary:#143f2e",
+    "--zukan-text-primary:#17211b",
+    "--zukan-link:#0055ad",
+    "--zukan-status-error:#b42318",
+    "--zukan-control-min:44px",
+    "--zukan-radius-control:4px",
+    "--zukan-radius-content:8px",
+    "--zukan-content-max:1200px",
+  ]) assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /@media\(forced-colors:active\)/);
+  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /\[data-zukan-ui-state=permission\]/);
+});
 
 test("shared chrome preserves language and guest/member record destinations without owner controls", () => {
   for (const lang of ["ja", "en", "es", "pt-br"]) {
@@ -39,6 +55,10 @@ test("unavailable records are not reported as an empty collection", () => {
 
 test("native capture has no fabricated coordinates and its browser script parses", () => {
   const html = renderCloudflareRecordHtml({ userId: "fixture", displayName: "fixture" } as never, new URL("https://zukan.earth/ja/record"), "fixture");
+  assert.match(html, /--zukan-action-primary:#143f2e/);
+  assert.match(html, /--zukan-focus-yellow-300:#ffd43d/);
+  assert.match(html, /--ink:var\(--zukan-text-primary\)/);
+  assert.match(html, /box-shadow:0 0 0 4px var\(--zukan-focus-yellow-300\)/);
   assert.match(html, /name="latitude"[^>]*value=""/);
   assert.match(html, /name="longitude"[^>]*value=""/);
   assert.match(html, /ownerKey: draftOwnerKey/);
