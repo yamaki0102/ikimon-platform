@@ -29,12 +29,12 @@ test("AI model role chains support Vertex and observation visual roles", () => {
   ]);
   assert.deepEqual(getAiModelRoleChain("observationVisualExtract").map((ref) => ref.model), [
     "gemini-3.5-flash",
-    "gemini-3.1-flash-image-preview",
+    "gemini-3.1-flash-image",
     "gemini-3.1-flash-lite",
   ]);
   assert.equal(getAiModelRoleChain("observationVisualSummary")[0]?.model, "gemini-3.1-flash-lite");
   assert.deepEqual(getAiModelRoleChain("guideScene"), [
-    { provider: "gemini", model: "gemini-3.1-flash-image-preview" },
+    { provider: "gemini", model: "gemini-3.1-flash-image" },
   ]);
   assert.deepEqual(getAiModelRoleChain("guideSceneText"), [
     { provider: "gemini", model: "gemini-3.1-flash-lite" },
