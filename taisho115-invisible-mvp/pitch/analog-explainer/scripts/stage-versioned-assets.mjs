@@ -6,6 +6,8 @@ const root = path.resolve(import.meta.dirname, "..");
 const releaseAssets = JSON.parse(readFileSync(path.join(root, "src", "release-assets.json"), "utf8"));
 const pairs = [
   ["assets/formal", releaseAssets.formal],
+  ["assets/characters", releaseAssets.characters],
+  ["assets/demo-bgm", releaseAssets.demoBgm],
   ["assets/narration", releaseAssets.rulesNarration],
   ["assets/demo-narration", releaseAssets.demoNarration]
 ];
