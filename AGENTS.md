@@ -5,7 +5,7 @@ ZUKAN is a place-centered shared knowledge and participation product across natu
 ## Authority and start
 
 - Fresh-read `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md`, the current work queue, and the relevant project packet before making current-state or delivery claims.
-- Product entry: `docs/START_HERE.md`, `PROJECT.json`, `docs/spec/zukan-product-architecture/{SPEC,PLAN,PROFILE_HORIZON}.md`. UI work also reads `docs/spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md`; `/profile` / `自分` UI additionally reads `docs/spec/zukan-app-experience/MY_PAGE_V2.md`; participation/Program discovery UI additionally reads `docs/spec/zukan-app-experience/PARTICIPATION_EXPERIENCE_V1.md`.
+- Product entry: `docs/START_HERE.md`, `PROJECT.json`, `docs/spec/zukan-product-architecture/{SPEC,PLAN,PROFILE_HORIZON}.md`. UI work first reads `DESIGN.md`, the canonical ZUKAN design rulebook for shared brand, visual, interaction, internationalization and accessibility decisions, then `docs/spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md` for existing navigation, screen and state responsibilities; `/profile` / `自分` UI additionally reads `docs/spec/zukan-app-experience/MY_PAGE_V2.md`; participation/Program discovery UI additionally reads `docs/spec/zukan-app-experience/PARTICIPATION_EXPERIENCE_V1.md`.
 - Product Registry owns meaning, acceptance and static dependencies. The management queue and shared Verified Outcome Status Resolver own current assignment and resolved evidence. A static task is not a live lease or runtime proof.
 - Use exact current source in an isolated native workspace, with one writer for the repository. Preserve unrelated dirty work and existing failed Work identities. Apply the current management start/locality and admission contract for the actual execution node.
 - Owner-authorized reversible source, test, branch, PR and merge work proceeds without repeated approval. Existing protected release, rights, privacy, identity and external-send boundaries remain binding.
@@ -39,6 +39,8 @@ When changing a shared UI renderer, verify how the active Worker consumes its ma
 ## UI conventions
 
 Use the established Alpine/Tailwind/MapLibre and shared renderer assets. Keep Japanese copy concrete, concise and non-coercive; preserve pinned CDN dependencies and existing tokens. Shared controls need visible keyboard focus, accessible names and touch targets of at least 44px (preserve larger established capture targets). Support empty, unavailable, denied, partial and retry states. A map failure must still allow record discovery.
+
+`DESIGN.md` is adopted design, not proof of current UI or runtime conformance. It preserves the existing product/rights/state semantics and explicitly scopes any superseded visual guidance. Do not start a page redesign, new feature, new locale or deployment solely because the rulebook was adopted.
 
 ## Verification
 
