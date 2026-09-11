@@ -15,7 +15,7 @@ test("public design foundation covers representative user-facing Worker document
   const rendered = applyPublicDesignFoundation(publicDocument);
   assert.match(rendered, /id="zukan-design-foundation-v1"/);
   assert.match(rendered, /<body data-zukan-design="v1">/);
-  assert.match(rendered, /--zukan-focus-yellow-300:#ffd43d/);
+  assert.match(rendered, /--zukan-focus-yellow-300:#FFD43D/);
   assert.match(rendered, /--zukan-control-min:44px/);
   assert.match(rendered, /@media\(prefers-reduced-motion:reduce\)/);
 });

@@ -112,14 +112,14 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
     margin: 8px 0 14px;
   }
   .prototype-focused-feed-heading strong {
-    color: #10251a;
+    color: var(--zukan-text-primary);
     font-size: clamp(24px, 3vw, 34px);
     line-height: 1.15;
     font-weight: 950;
     letter-spacing: -.02em;
   }
   .prototype-focused-feed-heading span {
-    color: #64748b;
+    color: var(--zukan-text-secondary);
     font-size: 14px;
     line-height: 1.5;
     font-weight: 750;
@@ -184,7 +184,7 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
       padding: 0 10px;
       border-radius: 999px;
       background: rgba(2,6,23,.76);
-      color: #fff;
+      color: var(--zukan-surface-base);
       font-size: 13px;
       font-weight: 900;
       line-height: 1;
@@ -200,26 +200,26 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
       border-radius: 0;
       background: transparent;
       box-shadow: none;
-      color: #10251a;
+      color: var(--zukan-text-primary);
     }
     .prototype-guest-home-copy > span {
       max-width: 100%;
       padding: 0;
       background: transparent;
-      color: #047857;
+      color: var(--zukan-action-primary);
       font-size: 13px;
       overflow-wrap: anywhere;
     }
     .prototype-guest-home-copy h1 {
       max-width: 100%;
-      color: #10251a;
+      color: var(--zukan-text-primary);
       font-size: clamp(34px, 9.8vw, 42px);
       line-height: 1.04;
     }
     .prototype-guest-home-copy p,
     .prototype-guest-home-lead {
       max-width: 100% !important;
-      color: #334155 !important;
+      color: var(--zukan-text-secondary) !important;
       font-size: 16px !important;
       line-height: 1.65 !important;
       font-weight: 720 !important;
@@ -238,26 +238,26 @@ const FOCUSED_HOME_STYLE = `<style id="${FOCUSED_HOME_STYLE_ID}">
       min-height: 46px;
       padding-inline: 12px;
       border-color: rgba(15,118,110,.22);
-      background: #fff;
-      color: #0f766e;
+      background: var(--zukan-surface-base);
+      color: var(--zukan-action-primary);
       font-size: 15px;
     }
     .prototype-guest-home-actions.is-focused .prototype-guest-home-primary {
       min-height: 54px;
-      background: #047857;
-      border-color: #047857;
-      color: #fff;
+      background: var(--zukan-action-primary);
+      border-color: var(--zukan-action-primary);
+      color: var(--zukan-surface-base);
       font-size: 17px;
       box-shadow: 0 16px 34px rgba(4,120,87,.22);
     }
     .prototype-guest-home-actions.is-focused .prototype-guest-home-secondary {
-      background: #fff;
-      border-color: rgba(15,118,110,.24);
-      color: #0f766e;
+      background: var(--zukan-surface-base);
+      border-color: var(--zukan-border-decorative);
+      color: var(--zukan-action-primary);
     }
     .prototype-guest-home-trust {
       width: 100%;
-      color: #64748b !important;
+      color: var(--zukan-text-secondary) !important;
       font-size: 13px !important;
       line-height: 1.5 !important;
     }
