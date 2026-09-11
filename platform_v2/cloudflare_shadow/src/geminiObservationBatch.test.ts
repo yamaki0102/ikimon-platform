@@ -12,6 +12,7 @@ import {
   buildGeminiEnvironmentRequest,
   buildGeminiPrimaryRequest,
   buildGeminiSpecialistRequest,
+  buildGeminiSummaryRequest,
   createGeminiBatch,
   decideGeminiSpecialistEscalation,
   findGeminiBatchByDisplayName,
@@ -391,4 +392,20 @@ test("direct provider errors retain only bounded field diagnostics", async () =>
     () => generateGeminiContent("secret", GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest("record-direct", null, images), failure),
     /gemini_generate_content_api_failed:400:Request contains an invalid argument\.:generation_config\.response_format\.text\.mime_type:invalid enum/,
   );
+});
+
+test("all observation prompts require Japanese human-facing prose", () => {
+  const merged = mergeGeminiObservationEvidence(primary, census, environment, images.length);
+  const requests = [
+    buildGeminiPrimaryRequest("record-ja-contract", null, images),
+    buildGeminiCensusRequest("record-ja-contract", images),
+    buildGeminiEnvironmentRequest("record-ja-contract", images),
+    buildGeminiSpecialistRequest("record-ja-contract", "bird", images, merged),
+    buildGeminiSummaryRequest("record-ja-contract", merged),
+  ];
+  for (const request of requests) {
+    const prompt = JSON.stringify(request.contents);
+    assert.match(prompt, /human-facing string values MUST be written in natural Japanese/);
+    assert.match(prompt, /English prose, descriptive phrases, and comparison sentences are forbidden/);
+  }
 });

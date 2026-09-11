@@ -156,8 +156,26 @@ const observationName = (card: ObservationFirstCard, copy: ObservationFirstRecor
   return { text: !subjectLabel || genericLabels.has(subjectLabel) ? subjectTypeName(card, copy) : subjectLabel, ai: false };
 };
 
-function renderLearning(card: ObservationFirstCard, copy: ObservationFirstRecordDetailCopy): string {
-  const suggestion = card.aiSuggestions.find((item) => item.visualEvidence.length > 0 || item.shootingAdvice.length > 0);
+const japaneseAiProse = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u;
+const englishAiProse = /\b[A-Za-z]{3,}(?:[ -]+[A-Za-z]{3,}){2,}\b/u;
+
+function aiProseForLang(value: string, lang: ObservationRecordLang): string | null {
+  if (lang !== "ja") return value;
+  return japaneseAiProse.test(value) && !englishAiProse.test(value) ? value : null;
+}
+
+function aiProseListForLang(values: string[], lang: ObservationRecordLang): string[] {
+  return values.flatMap((value) => {
+    const localized = aiProseForLang(value, lang);
+    return localized ? [localized] : [];
+  });
+}
+
+function renderLearning(card: ObservationFirstCard, copy: ObservationFirstRecordDetailCopy, lang: ObservationRecordLang): string {
+  const suggestion = card.aiSuggestions.map((item) => ({
+    visualEvidence: aiProseListForLang(item.visualEvidence, lang),
+    shootingAdvice: aiProseListForLang(item.shootingAdvice, lang),
+  })).find((item) => item.visualEvidence.length > 0 || item.shootingAdvice.length > 0);
   if (!suggestion) return "";
   const visible = suggestion.visualEvidence.slice(0, 2);
   const advice = suggestion.shootingAdvice.slice(0, 2);
@@ -178,8 +196,9 @@ function renderAiCandidateComparison(
     const scientificName = candidate.scientificName && candidate.scientificName !== candidate.name
       ? `<small><i>${escapeHtml(candidate.scientificName)}</i></small>`
       : "";
-    const supporting = candidate.supportingFeatures.slice(0, 2);
-    const uncertainty = [...candidate.missingFeatures, ...candidate.contradictions].slice(0, 1);
+    const lang = presentation.lang ?? "ja";
+    const supporting = aiProseListForLang(candidate.supportingFeatures, lang).slice(0, 2);
+    const uncertainty = aiProseListForLang([...candidate.missingFeatures, ...candidate.contradictions], lang).slice(0, 1);
     return `<li><strong>${escapeHtml(candidate.name)}</strong>${scientificName}${supporting.length ? `<span><b>${escapeHtml(copy.candidateEvidence)}</b> ${escapeHtml(supporting.join("、"))}</span>` : ""}${uncertainty.length ? `<span><b>${escapeHtml(copy.candidateUncertainty)}</b> ${escapeHtml(uncertainty[0])}</span>` : ""}</li>`;
   }).join("")}</ul></section>`;
 }
@@ -188,8 +207,11 @@ function renderAiFeedback(
   presentation: ObservationFirstRecordPresentation,
   copy: ObservationFirstRecordDetailCopy,
 ): string {
-  if (!presentation.aiFeedback && !presentation.aiNextPhoto) return "";
-  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2>${presentation.aiFeedback ? `<p>${escapeHtml(presentation.aiFeedback)}</p>` : ""}${presentation.aiNextPhoto ? `<p><strong>${escapeHtml(copy.aiNextPhotoTitle)}</strong><br>${escapeHtml(presentation.aiNextPhoto)}</p>` : ""}</section>`;
+  const lang = presentation.lang ?? "ja";
+  const feedback = presentation.aiFeedback ? aiProseForLang(presentation.aiFeedback, lang) : null;
+  const nextPhoto = presentation.aiNextPhoto ? aiProseForLang(presentation.aiNextPhoto, lang) : null;
+  if (!feedback && !nextPhoto) return "";
+  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2>${feedback ? `<p>${escapeHtml(feedback)}</p>` : ""}${nextPhoto ? `<p><strong>${escapeHtml(copy.aiNextPhotoTitle)}</strong><br>${escapeHtml(nextPhoto)}</p>` : ""}</section>`;
 }
 
 function renderIdentificationForm(
@@ -254,7 +276,7 @@ function renderObservationSummary(
     return `<li${item.ai ? ' data-ai-candidate="true"' : ""}><strong>${escapeHtml(item.text)}</strong>${status ? `<small>${escapeHtml(status)}</small>` : ""}</li>`;
   }).join("");
   const details = active.map((card, index) => renderObservationDetail(card, index, detail, presentation, action, copy)).join("");
-  return `<section class="of-summary" aria-labelledby="of-summary-title"><h2 id="of-summary-title">${escapeHtml(copy.found)}</h2><ul class="of-summary-list">${list}</ul>${renderLearning(active[0]!, copy)}${renderAiCandidateComparison(active[0]!, presentation, copy)}<details class="of-observation-details"><summary>${escapeHtml(active.length > 1 ? copy.openAll : copy.openDetails)}</summary><div>${details}</div></details></section>`;
+  return `<section class="of-summary" aria-labelledby="of-summary-title"><h2 id="of-summary-title">${escapeHtml(copy.found)}</h2><ul class="of-summary-list">${list}</ul>${renderLearning(active[0]!, copy, presentation.lang ?? "ja")}${renderAiCandidateComparison(active[0]!, presentation, copy)}<details class="of-observation-details"><summary>${escapeHtml(active.length > 1 ? copy.openAll : copy.openDetails)}</summary><div>${details}</div></details></section>`;
 }
 
 const sceneElementKeys = new Set(["water", "low_grass", "trees_shrubs", "bare_ground", "built_surface", "soil", "plant", "rock", "artificial", "urban", "coast", "wetland"]);
