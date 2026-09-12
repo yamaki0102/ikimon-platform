@@ -1,260 +1,98 @@
-# 外来種・バイオセキュリティ — Service Surface / Prompt / Shared Data Boundary
+# ZUKAN Peer Platforms — Biosecurity Surface / Prompt / Shared Data
 
-- Status: `CANONICAL DESIGN SUPPLEMENT after merge`
-- Date: 2026-09-13 JST
-- Parent: `SPEC.md`
-- Cost boundary: `AI_INFERENCE_COST_BOUNDARY.md`
+Status: `ADOPTED ON MERGE / DESIGN ONLY / NOT RUNTIME-ACTIVE`
+Date: 2026-09-13 JST
+Parents: `SPEC.md`, `../zukan-product-architecture/SPEC.md`, `AI_INFERENCE_COST_BOUNDARY.md`.
+Global URL/publication authority: [Global Platform Bundle revision 2](https://github.com/yamaki0102/all-projects-management/blob/main/operations/decisions/2026-09-13-zukan-public-portal-network-and-nocosil-distribution-v1.md).
 
-## 0. Decision
+## 0. Identity correction
 
-外来種の市民参加体験は、利用者からは独立した専門サービスに見えるsurfaceとして提供してよい。
+`zukan.earth` is a bundle of peer platforms/services/experiences. It has no privileged default product or compulsory global generic AI prompt. The previous version's `normal ZUKAN` parent and `ZUKAN generic prompt` design are **SUPERSEDED**. This amendment applies to interpretation of the product architecture within this scope; it does not remove citizen/environmental Record capture, Place continuity, Programs or publications.
 
-ただし、別サービスに見せることと、別データ基盤・別認証・別AI常駐系を作ることは分ける。
+Jobs, food, events, offers, environmental monitoring, biosecurity, learning, guides and other public experiences can have distinct user journeys, branding and task-specific AI. Shared foundations preserve identity, source/evidence, time, rights, review and correction rather than impose one universal interface or biological ontology.
 
-> **Surface / conversation / guidance は外来種専用。Record / Media / Place / Evidence / Claim / Rights / Review / Case / Action はZUKAN共通。**
+A domain capability is not the same as a portal. One capability can be invoked from an appropriate peer experience under explicit action authority. An entry URL alone never grants AI, publication, review or administrative authority.
 
-ZUKAN本体の汎用AI promptへ外来種の専門指示や全Target Profileを常時混ぜない。外来種surfaceへ入った時だけBiosecurity専用promptを使用する。
+## 1. Specialist biosecurity experience
 
-## 1. Service appearance
+Biosecurity provides specialist capture guidance, lookalikes, uncertainty-aware assessment, private receipt, follow-up and official-contact handoff. It is not a cosmetic mode of a superior general application and not a reason for a separate canonical database, session, upload stack or Place model.
 
-外来種surfaceは、通常のZUKAN地域記録画面とは情報設計・語彙・導線を分ける。
+The contributor can report uncertainty rather than supply a species name. An entry such as Kubiaka is an intended target/context, not confirmation that the subject is that species. Evidence of wood dust, a frass candidate and attribution to a pest remain distinct claims.
 
-利用者には次が明確であること。
+Preserve existing citizen-biosecurity safety: private capture, guest/shared-device isolation, purpose-specific consent, assessed/unassessed image IDs, AI versus human review, official receipt evidence, no inferred absence/eradication, no raw public exact-location map and no automatic external send. A photograph outside supported targets still remains the contributor's valid Record; it is not automatically public or labelled non-invasive.
 
-- ここは外来種・病害虫等の発見、記録、確認、公式窓口案内に特化した体験である
-- ZUKANの通常投稿より専門的な撮影ガイド、類似種、痕跡、注意事項を持つ
-- AI・人Review・行政受付を同じものとして表示しない
-- ZUKAN基盤を利用していることはprivacy、rights、account、record provenance上隠さない
+## 2. URL and brand
 
-独立感のために別DB、別session、別upload stack、別Place modelを作らない。
-
-## 2. URL / origin policy
-
-初期のcanonical surfaceは同一origin配下を優先する。
+Use the global authority's locale-aware route contract, for example:
 
 ```text
-zukan.earth/invasive
-zukan.earth/invasive/:target
+/{locale}/biosecurity
+/{locale}/biosecurity/kubiaka
+/{locale}/areas/{slug}-{area_id}/biosecurity
 ```
 
-クビアカの既存入口は必要に応じてalias/redirectとして扱える。
+Examples describe designed routes, not current deployments. Retain actual `/kubiaka` and receipt links until a runtime inventory proves equivalent replacements; aliases cannot expose private records. The earlier mandatory `/invasive/kubiaka` hierarchy is superseded, not an instruction to perform a DNS/route migration now.
+
+The root is a network discovery entry, not the parent workflow. Geography/language/market/rights are independent. Specialist service titles/navigation/content can differ while sharing DESIGN.md accessibility and reusable foundations. A separate Google search site name for a subdirectory is not promised; a real branded subdomain is a separate evidenced choice, not another backend by default.
+
+## 3. Prompt and capability composition
+
+No AI is required just to browse, save a record or display existing permitted results.
+
+For an authorized biosecurity assessment:
 
 ```text
-zukan.earth/kubiaka
-→ zukan.earth/invasive/kubiaka
+shared evidence/safety/output constraints
++ versioned Biosecurity task prompt
++ only relevant Target Profile context
++ current applicable official policy fragments
++ minimum authorized evidence/context
 ```
 
-理由:
+This is one composed task context, not a chain of mandatory separate model calls. Shared safety instructions are reusable fragments, not a universal ZUKAN persona. Another peer platform uses its own appropriate task context only when needed.
 
-- account/sessionを複製しない
-- upload / receipt / rights / CSP / analytics / SEOの境界を増やさない
--同じWorker / Record Core / media pipelineを利用できる
-- canonical URLとindexingを一箇所へ固定できる
+Target Profile remains small versioned data: subject scope, signal types, photo/evidence roles, lookalikes, capture guidance, minimum evidence, safety, human-review policy and regional policy refs. It is neither a per-species model service nor one independent system prompt for every species. Registry size does not expand every prompt.
 
-将来、ブランド上 `invasive.zukan.earth` の価値が実需要で証明された場合も、別backendを作る理由にはしない。同じcanonical service contractへroute/redirectすることを先に検討する。
+Regional policy comes from official Source/Policy editions, not model memory. Required precise coordinates/private history are not sent to a provider merely because they exist. Assessment context contains selected image/crop/record revisions, observation time, necessary jurisdiction/location precision, supplied signal and relevant earlier evidence only.
 
-## 3. Prompt architecture
+Unknown-target entry permits one bounded candidate-generation stage when needed, followed by deterministic taxon/profile/policy lookup. Do not run each active profile or include all targets. Species-not-covered and evidence-insufficient are honest outcomes; neither proves safety. A Kubiaka-specific entry must allow lookalikes/other/uncertain outcomes rather than force a closed-set Kubiaka conclusion.
 
-### 3.1 ZUKAN generic prompt
+AI can help prioritize or request evidence. Low confidence, unusual place or unusual season cannot automatically reject a possible novel invasion. Human-review requests require an actual accountable capability/queue; no staffed-review promise is fabricated. Official contact handoff must remain available without waiting for AI/review when applicable.
 
-通常の `zukan.earth` は地域の写真、資料、環境、自然、文化、活動等を扱う広い記録体験である。
-
-通常promptへ次を常駐させない。
-
-- 外来種全一覧
-- 種ごとの見分け方
-- 行政通報ルール全文
-- 外来種専用の安全・対応instructions
-- 全Target Profileのprompt断片
-
-通常ZUKAN投稿だけを理由にbiosecurity専用推論を起動しない。
-
-### 3.2 Biosecurity domain prompt
-
-外来種surfaceでは、一つのversioned Biosecurity domain promptを使う。
-
-Domain promptが固定する責務:
-
-- 画像・位置・時刻等のEvidenceを区別する
-- 観察Recordと対象種Claimを分ける
-- AI候補、人Review、行政受付を分ける
-- 根拠不足時は追加Evidenceを求められる
-- 画像だけから不在、根絶、安全を主張しない
-- 公式通報を勝手に実行・完了扱いしない
-- 生体運搬等、対象domainの共通安全境界を守る
-- structured assessment contractを返す
-
-対象種数が増えても、このdomain prompt自体へ全種情報を追記し続けない。
-
-### 3.3 Target Profile context
-
-対象固有差分はprompt本文ではなくversioned Target Profileとして必要時だけ注入する。
-
-例:
+## 4. Shared data, not shared permissions
 
 ```text
-profile_id
-subject_scope
-signal_types
-evidence_roles
-lookalikes
-capture_guidance
-minimum_evidence
-review_policy
-safety_guidance
-regional_policy_refs
+Record / Media / Evidence
+Place / Area / Entity / Subject + time
+entry context: originating surface and requested target/profile
+Claim / ClaimRevision
+Rights / Consent
+Review / Authority
+Case / Action / Follow-up when a real response exists
+Publication / PublicationEdition when authorized
 ```
 
-`/invasive/kubiaka` なら原則 `kubiaka-watch` だけをcontextへ入れる。
+Entry context is provenance, not canonical identification or a grant of cross-platform visibility. A Record may be referenced by several purposes without being copied into several truth stores. Public derivatives, redacted media and rebuildable indexes can be necessary; do not confuse legitimate materialization with duplicated authority.
 
-1000 Target Profileが登録されていても1000 profileをpromptへ投入しない。
+Example: one known tree's seasonal photos, pest evidence, treatment and later revisit remain separate time-scoped Records tied to the same confirmed subject. Environmental, school, biosecurity and regional publication experiences reference only the permitted evidence/claims for their purposes. A nearby coordinate does not prove it is the same tree. A later visit is not a duplicate of the earlier photo.
 
-### 3.4 Regional policy context
+Cross-surface display of existing results needs no new inference. A new scientific question or materially changed evidence/context may require a separately authorized assessment. Cached identity cannot prove current species presence, administrative acceptance, successful treatment or eradication.
 
-地域の公式方針、管轄、連絡先、対象状態はSource/Policy dataから必要な範囲だけ注入する。
+One entity can have several genuinely different public works; use one preferred URL per actual publication purpose/language, not one webpage for all possible purposes. Do not force article/event/guide URLs to canonicalize to a Place merely because they concern it.
 
-AIモデルの記憶を行政ルールの正本にしない。
+NOCOSIL and ZUKAN retain product-local stores and sessions. Exchange only authorized public-safe editions/refs. Public linkage does not import private source records, rosters, internal notes or credentials and does not require a paid NOCOSIL account for ZUKAN participation.
 
-### 3.5 Record context
+## 5. Non-goals
 
-各推論へ渡すRecord contextも必要最小限とする。
+No second auth/backend, per-species canonical Record, global all-portal prompt, per-profile inference fan-out, public live-pin map, inferred municipality zone, unstaffed review SLA, universal form/profile engine or new scheduler. No implicit DNS, provider, billing, production or external-send activation.
 
-- assessment対象asset
-- observed time
--必要なlocation precision / jurisdiction candidate
-- user-provided signal
-- relevant prior assessment only
-- relevant Target Profile / regional policy version
+## 6. Acceptance
 
-無関係なZUKAN履歴、他のTarget Profile、他ユーザー情報をpromptへ入れない。
-
-## 4. Unknown-target entry
-
-利用者が種名を知らなくても使える一般入口を持てる。
-
-```text
-/invasive
-→ 「気になる生き物・痕跡を記録」
-→ common capture
-→ bounded biosecurity assessment if requested/eligible
-→ candidate taxon/group
-→ local registry/policy match
-→ relevant Target Profile only
-```
-
-未知対象のために `active profile × prompt` を実行しない。
-
-候補生成は一回のbounded assessmentまたは既存の生物候補結果を使い、その後にtaxon/region/policy registryをdeterministic lookupする。
-
-候補がTarget Profileに一致しなくてもRecordはZUKANの地域記録として保持できる。外来種でないと断定する根拠がなければ、単に専用workflow対象外とする。
-
-## 5. Shared data contract
-
-外来種surfaceから保存したデータもZUKAN共通CoreのRecordである。
-
-```text
-Record
-├─ Media / Evidence
-├─ Place / Entity / Subject
-├─ entry_context
-│  ├─ service_surface = invasive
-│  ├─ domain = biosecurity
-│  └─ target_profile optional
-├─ Claim / ClaimRevision
-├─ Rights / Consent
-├─ Review / Authority
-└─ Case / Action / Follow-up optional
-```
-
-`service_surface` や `target_profile` はRecordの由来・専門文脈であり、canonical species truthではない。
-
-同じRecordを、権利条件を満たす場合に次へ再利用できる。
-
-- 外来種専門receipt / history
-- 一般ZUKANの地域・環境記録
-- 同じPlace/Subjectの時系列
-- Program / Quest / 学校活動
-- operator monitoring
-- rights-safe Publication / dataset
-
-再利用時に写真・位置・観察日時を複製しない。用途ごとのProjection / Publication / Caseを作る。
-
-## 6. Environmental data connection
-
-外来種情報を独立サイロにしない。
-
-同じPlace / Time / Subjectを通じて、ZUKANが保持する他の環境記録と接続できる。
-
-例:
-
-```text
-Place: 公園A
-├─ サクラ個体 #123
-│  ├─ 2026-05 開花記録
-│  ├─ 2026-07 フラスRecord
-│  ├─ クビアカ候補Claim
-│  ├─ 2026-08 処置Record
-│  └─ 2027-06 再訪Record
-├─ 植生記録
-├─ 景観写真
-└─ Program参加記録
-```
-
-外来種surfaceはこのうちbiosecurityに必要なProjectionだけを見せる。通常ZUKANはrights-safeな地域記録として別のProjectionを見せられる。
-
-## 7. AI cost implication
-
-この分離により、ZUKAN generic promptのtoken/context量をTarget Profile数に比例させない。
-
-- generic ZUKAN request: biosecurity prompt/profile = 0
-- `/invasive` generic entry: Biosecurity domain prompt + bounded candidate discovery
-- `/invasive/kubiaka`: Biosecurity domain prompt + Kubiaka Profile only
-- follow-up review: persisted assessmentを優先し、必要差分だけ再評価
-
-新しい外来種をTarget Profileへ追加しただけでは既存Record再解析を起動しない。
-
-## 8. Brand / UX boundary
-
-専門サービス感は次で作る。
-
-- distinct service title / wordmark area
-- biosecurity-specific navigation
-- target-specific hero / photography guidance
-- lookalike cards
-- alert / report status UI
--専門家・行政sourceの明示
-
-ただし次はZUKAN共通を維持する。
-
-- accessibility foundation
-- design tokens / components
-- account / language / privacy controls
-- media capture primitives
-- receipt truthfulness
-- rights / consent semantics
-- Place / Record identity
-
-専用感のために第二のDesign Systemを作らない。
-
-## 9. Non-goals
-
-今は作らない。
-
-- 別会社・別製品としての独立auth/backend
-- speciesごとのsystem prompt
-- speciesごとのAI service
-- 全Target Profileをgeneric ZUKAN promptへ注入
-- 全ZUKAN Recordの外来種常時screening
-- biosecurity専用のRecord database
-- ZUKAN general promptを生物専用promptへ変更
-
-## 10. Acceptance invariants
-
-- 外来種surfaceは通常ZUKANとは異なる専門体験として理解できる。
-- URLはzukan.earth配下でcanonical化できる。
-- 通常ZUKAN promptは外来種Target Profile数によって肥大化しない。
-- Biosecurity promptは外来種surfaceだけで使用される。
-- Target Profileは必要なものだけcontextへ入る。
-- 外来種surfaceのRecordはZUKAN共通RecordとしてPlace/Time/Rightsを保つ。
-- 同じ原Recordを環境記録と外来種workflowの双方から参照できる。
-- profile追加のみではAI推論、過去Record再解析、外部送信を起こさない。
+- Peer specialist platforms have no privileged default parent or compulsory global prompt.
+- Task context is selected from the authorized operation, not from an untrusted URL parameter.
+- Relevant target/policy/evidence only; profile addition causes no inference or history replay.
+- Kubiaka context does not force Kubiaka identification; uncertainty/lookalikes remain possible.
+- Rights-aware cross-surface reference preserves origin, exact evidence coverage, corrections and temporal identity.
+- Existing capture/receipt/handoff remains useful without AI or a staffed specialist-review service.
+- Global URL, language, market, provider and withdrawal rules apply without creating another product core.
+- Semantic design, implemented source, passing tests and runtime availability remain separately evidenced.
