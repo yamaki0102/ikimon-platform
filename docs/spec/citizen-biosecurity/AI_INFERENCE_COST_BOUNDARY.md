@@ -1,198 +1,123 @@
-# 市民参加型バイオセキュリティ — AI / API Cost Boundary
+# Citizen Biosecurity — Bounded AI / API Cost
 
-- Status: `CANONICAL DESIGN SUPPLEMENT after merge`
-- Date: 2026-09-13 JST
-- Parent contract: `SPEC.md`
-- Surface/prompt boundary: `SERVICE_SURFACE_AND_PROMPT_BOUNDARY.md`
-- Scope: invasive-species / citizen-biosecurity AI inference and external AI API usage only
+Status: `ADOPTED ON MERGE / DESIGN ONLY / IMPLEMENTATION UNVERIFIED`
+Date: 2026-09-13 JST
+Parents: `SPEC.md`, `SERVICE_SURFACE_AND_PROMPT_BOUNDARY.md` and the [Global Platform Bundle revision 2](https://github.com/yamaki0102/all-projects-management/blob/main/operations/decisions/2026-09-13-zukan-public-portal-network-and-nocosil-distribution-v1.md).
 
-## 0. Decision
+## 0. Decision and correction
 
-Target Profile数とAI/API実行回数を比例させない。
+ZUKAN is a bundle of peer platforms with no privileged default product or compulsory global AI prompt. The previous version's `normal ZUKAN` / `generic ZUKAN path` hierarchy is **SUPERSEDED**. Cost policy is selected by an authorized operation, not by an invented general parent application.
 
-> **Profile追加は原則0 inference。AI費用はRecord起点・必要時のみ発生させる。**
+Adding a portal, species Target Profile, guide, region policy or public placement does not itself invoke AI or reprocess historical records. Browsing, deterministic filtering and displaying an already accepted result require no new model inference. They still incur storage, request, DB, indexing, media-transfer and operation costs; zero new AI is not zero total API cost.
 
-対象種が10、100、1000へ増えても、Profile登録自体、地域policy登録、見分け方、撮影ガイド、連絡先、rights、routing ruleの読取りは通常のDB/cache処理で完結させる。
+Forbidden scaling rule: `all records × all species/profiles/portals × all images × all languages`.
 
-通常のZUKAN投稿へ「外来種全件screening」を常時追加しない。投稿量が増えるほど固定AI費用になるため禁止する。
+Intended scaling rule: necessary new authorized assessments plus selected changed-publication translations/distributions, bounded retries and actual infrastructure/human work.
 
-通常ZUKANと外来種surfaceのpromptも分離する。ZUKAN generic promptへ外来種全Profileを常駐させず、外来種surfaceでだけversioned Biosecurity domain promptを使い、対象固有情報は必要なTarget Profileだけ注入する。
+## 1. Permitted assessment triggers
 
-## 1. Allowed inference triggers
+A new biosecurity provider call requires both a real task and current rights/authority/capacity. Valid tasks are:
 
-AIを起動してよいのは次のいずれか。
+1. a user explicitly requests the biosecurity assessment/capture workflow, including from another peer surface;
+2. an existing authorized Program/monitoring policy specifies target scope, location/period, budget and accountable review path;
+3. an authorized operator/reviewer requests a materially necessary re-assessment.
 
-1. 利用者が外来種surface / 対象profile入口から解析を伴う投稿をした。
-2. 利用者が通常ZUKANで既存のAI解析を明示的に開始した。
-3. 既存の通常AI解析結果に、active Target Profileと関連する候補が既に含まれた。
-4. 実在するProgram / monitoring policyが、対象・地域・期間・費用上限を限定して追加解析を要求する。
-5. operator / reviewerが、未解決Recordに対して再解析を明示的に要求した。
+An already persisted result from another capability may be reused to present a guide or candidate handoff without a new call. Its existence alone does not authorize additional external processing or publication. Profile activation, an image upload, a geographical match or an untrusted route/query parameter is not an inference trigger.
 
-単に「Profileがactive」「地域に侵入種がいる」「画像が投稿された」だけではAIを起動しない。
+Provider policies are evaluated before expensive processing. Do not apply every domain's screening pipeline to a shared record.
 
-## 2. Dedicated biosecurity surface
-
-例: `/invasive/kubiaka` からの投稿。
+## 2. Direct task path
 
 ```text
-Biosecurity domain prompt
-+ Target Profile = kubiaka-watch
-+ relevant regional policy only
-→ deterministic evidence checks
-→ optional bounded Kubiaka assessment
-→ human review only when policy requires
+resolve operation / authority / evidence scope
+-> deterministic MIME, size, dimension, duplicate and required-input checks
+-> compatible authorized assessment reuse
+-> budget admission/reservation
+-> one bounded assessment stage when needed
+-> persisted result + assessed/unassessed asset IDs
+-> candidate feedback / real review or official handoff when applicable
 ```
 
-全外来種候補のvision promptを回さない。Target Profileが既知なら必要なProfileだけをcontextへ入れる。
+Domain prompt, relevant Target Profile and current regional policy are composed into the necessary context, not executed as mandatory separate calls. A selected Kubiaka target narrows the task, not the allowed answer: lookalikes, other subjects and uncertainty must remain possible.
 
-種ごとの独立system promptを増殖させず、一つのBiosecurity domain promptへversioned Target Profileを差し込む。専門性は保ちながらpromptの保守・token量をTarget Profile数から切り離す。
+For unknown subjects, use a bounded candidate-generation stage only when requested/eligible, then deterministic taxonomy/profile/policy lookup. Never run one call per active profile or pass every registered species to the model. A later targeted assessment is allowed only for a meaningful unresolved task within a configured ceiling, not an automatic second stage for all records.
 
-AI failure、quota exhaustion、provider outageはRecord保存と公式窓口案内を止めない。
+Region and season may prioritize evidence/context; they cannot prove absence, reject a novel invasion, or turn `out of scope` into `not supported by evidence`.
 
-## 3. Generic ZUKAN path
+## 3. Reuse contract
 
-通常投稿へbiosecurity専用prompt / AI callを追加しない。
+Use stored evidence and assessment provenance as the reuse authority, not a provider cache.
 
-通常 `zukan.earth` は地域の写真、環境、資料、自然、文化、活動等を扱う汎用Record体験であり、外来種専用promptを常時持たない。
-
-既存の通常画像解析が利用者操作等ですでに走る場合のみ、その既存結果を再利用する。結果にactive Target Profile候補が含まれた場合、deterministicなregion / time / policy filterを通して専門guideを提示できる。
+Equivalent assessment requires compatible:
 
 ```text
-normal Record
-→ existing analysis, if already requested
-→ persisted candidate output
-→ local Target Profile match
-→ optional targeted escalation on biosecurity surface
+rights/security scope and allowed processing purpose
+asset contents + selected asset set/crop/preprocessing digest
+record/evidence revisions
+normalized task/purpose and output-schema version
+model/provider/version + pipeline/prompt version
+material observation/context values (including time/location when used)
+material Target Profile/policy versions
 ```
 
-同じ画像について「通常AI解析」と「外来種screening」を別々に呼ぶことをdefaultにしない。
+A single image checksum is insufficient when context, purpose or permissions differ. Permission is checked before lookup/return so caches cannot reveal another user's private capture or result. Cross-product reuse uses only an explicitly eligible projection, not the private source/cache.
 
-## 4. Unknown-target biosecurity entry
+Changing a heading, profile label, route or UI language does not re-run image inference. New photos, corrected context, invalidated results or a deliberately adopted new assessment method may justify bounded re-assessment. Store assessed and unassessed images separately; never mark six photos reviewed after assessing three.
 
-`/invasive` のような一般入口で対象種が不明でも、active Target Profileごとのpromptを順番に実行しない。
+Provider/Gateway equivalent-request caching is supplemental. Do not assume unique field photographs produce cache hits. Translation reuse is separate from image-assessment reuse and remains bound to source edition, selected locale, human edits and glossary/pipeline.
 
-```text
-one bounded biosecurity candidate assessment, when needed
-→ candidate taxon / group
-→ deterministic taxon + region + policy lookup
-→ relevant Target Profile only
-```
+## 4. Images, retries and model choice
 
-外来種一覧を全件promptへ投入することもdefaultにしない。候補が登録Target Profileへ一致しなくてもRecordは保存できる。
+Multiple images may share a request when the chosen model can evaluate them appropriately; batching does not make image tokens, bytes or compute free. Bound number, resolution/crops, bytes, input/output tokens and total calls per task. Validate image suitability rather than destructively compressing away identification evidence merely to hit a cost figure.
 
-## 5. Candidate narrowing
+Prefer no AI, then permitted reuse, then the cheapest evaluated model sufficient for the task. Escalate only the material unresolved remainder. A risk flag raises attention/appropriate routing; it does not automatically authorize a premium model or require an unavailable human service.
 
-対象数が増えても、LLM/vision promptへ全Profile一覧を投入しない。
+Retries are finite and distinguish transient transport failure from deterministic invalid input or unsupported provider capability. Persist request/result identity; reconcile ambiguous effects before retry where needed. Do not repeat the same permanent failure or enqueue unbounded premium fallbacks.
 
-候補を次の安価な情報から絞る。
+Model identities/prices/allowances stay current configuration, not copied into every Target Profile. Evidence of model adequacy is separate from a generic benchmark or a fluent answer.
 
-- explicit entry profile
-- existing AI candidate taxonomy
-- country / region / jurisdiction policy
-- observation time / season where authoritative enough for prioritization
-- subject class or taxonomic group
-- Program / Quest target scope
+## 5. Hard admission and degradation
 
-地域・季節外であることは誤認の証明には使わない。`not_supported`を自動生成せず、解析対象候補を減らすためだけに利用する。
+Before paid inference reserve/check applicable per-task, user/workspace, provider/account and platform budgets/concurrency through the existing native admission/Action seam. Release/settle reservations on known completion/cancellation. Account for outstanding work so concurrent calls cannot all spend the same remaining allowance.
 
-## 6. Asset and result reuse
+A cost dashboard or after-the-fact provider report alone is not an enforceable spending limit. Until a limit is actually enforced, do not claim capped costs. Numeric limits require measured task/quality/latency baselines and explicit existing budget policy; this design authorizes no new paid provider or spending increase.
 
-同じ保存済みEvidenceに同じ解析を繰り返さない。
+At quota/provider failure:
+- preserve record/media/receipt truth;
+- display AI not-run/unavailable/pending only when actually applicable;
+- keep save/edit, deterministic guidance and authorized official/manual handoff available;
+- avoid an unbounded delayed backlog or promising expert review where no accountable capacity exists.
 
-Logical reuse key:
+A budget cap never converts uncertainty into a negative identification or asserts safety. Accountable human review, moderation and support have their own capacity; do not promise free unlimited specialist verification.
 
-```text
-asset_checksum
-+ normalized assessment purpose
-+ model/provider family
-+ model version
-+ pipeline/prompt version
-+ materially relevant profile/policy version
-```
+## 6. Global publication and non-AI cost
 
-同じkeyの確定結果が存在すれば再利用する。Profileの説明文変更やUI copy変更だけでは再解析しない。
+Reusing one permitted record in an environmental view, a school activity or a regional publication does not require image re-analysis. Changed public facts can be rendered into existing views/feeds deterministically. Optional translation is generated for requested supported locales and only affected accepted source editions, not every global language on every view.
 
-再解析が必要なのは、model/pipeline変更、対象policy変更、追加Evidence、明示的なreview、過去結果がinvalidatedされた場合等、結果が変わり得る理由がある場合だけ。
+External provider costs grow with selected operations/destinations and verification, not the number of possible registered adapters. Use source deltas, permitted webhooks or conditional reads before polling. UI browsing must not call each external provider per item or each specialist model per image.
 
-Provider cacheは補助でありcanonical cacheではない。ZUKAN側にEvidenceとassessment provenanceを保持する。
+The total bill also includes DB rows/work, media storage/transforms/transfer, map/geocoding services where used, search indexing, moderation and human minutes. No fixed per-photo price or global scalability guarantee is claimed without actual measurement.
 
-## 7. Multi-image records
+## 7. Metrics and acceptance
 
-写真1枚ごとに無条件で独立LLM callしない。
+Measure by operation/surface with privacy-safe aggregation:
+- model calls, image/input/output volume and money per 1,000 assessed records;
+- zero-new-inference share and compatible reuse share;
+- extra-stage/premium escalation and human-review load;
+- outstanding reservation, actual spend, retry/failure and wait times;
+- publication/translation/provider cost per accepted changed edition;
+- non-AI storage, DB and media usage.
 
-- deterministic quality / MIME / dimensions / duplicate checks first
-- provider/modelが安全に複数画像を扱える場合は一つのbounded assessmentへまとめる
-- 全画像の詳細評価が不要なら、必要Evidenceのみ対象とする
-- assessed / unassessed asset IDsを必ず分ける
+Required invariants:
+1. Profile/portal addition alone causes zero inference and no historical replay.
+2. A peer-surface browse/contribution does not silently trigger biosecurity AI.
+3. Reuse checks material context and current rights, not only asset hash.
+4. No request contains every active profile by default.
+5. Multimodal batching reports actual evaluated assets and metered use.
+6. Concurrent admission and bounded retries cannot bypass the configured spend ceiling.
+7. Failed/unused AI cannot invalidate a saved record or block available official-contact guidance.
+8. Human review is explicitly staffed/capacity-bound or shown as unavailable, never inferred from AI status.
+9. Translation/distribution uses selected changed editions and independent destination effects.
+10. Pricing and technical/provider capabilities are verified at implementation, not assumed from this document.
 
-費用節減のため未評価画像を評価済みと扱わない。
-
-## 8. Escalation ladder
-
-Default order:
-
-```text
-0. no AI — save / policy / rights / routing guidance
-1. reuse persisted assessment
-2. existing general ZUKAN analysis output, if already created
-3. Biosecurity domain prompt + only relevant Target Profile
-4. cheapest capable bounded model
-5. stronger model only for unresolved material case
-6. human review when required by risk / policy / authority
-```
-
-高リスクだから全件premium model、ではない。高リスクはreview/routing priorityを上げる理由であり、無条件に高価な推論を増やす理由ではない。
-
-## 9. Cost invariants
-
-Implementation must preserve:
-
-- `number_of_target_profiles` alone causes zero AI requests.
-- one Record is never multiplied by every active profile.
-- normal ZUKAN contribution does not acquire mandatory biosecurity inference.
-- normal ZUKAN prompt does not grow with all biosecurity Target Profiles.
-- biosecurity requests receive only the domain prompt and relevant bounded profile context.
-- cached/persisted equivalent assessment is reused before provider call.
-- AI/provider failure never invalidates a successfully saved Record.
-- official-contact guidance can work without AI.
-- retries are bounded and idempotent; provider retry loops cannot create unbounded spend.
-- model routing and limits are configuration/runtime policy, not hard-coded into every profile.
-
-## 10. Budget controls
-
-Before scaled rollout, expose at least:
-
-- inference calls / 1,000 Records by surface
-- AI cost / 1,000 Records by surface
-- percentage with zero new AI call
-- persisted-result reuse rate
-- average prompt/input size for biosecurity assessment
-- escalation rate to stronger model
-- human-review rate
-- provider failure / retry rate
-
-Set runtime spend caps / rate limits at service or provider boundary when available. A cost cap must degrade to `AI pending/unavailable`, not prevent Record capture or falsely classify the observation.
-
-## 11. Cloudflare boundary
-
-Current Cloudflare capabilities may be used where they reduce operations, but are not product semantics.
-
-- Workers AI is usage-priced; profile count must not trigger model execution.
-- AI Gateway provider caching is useful only when requests are equivalent; unique field photos should not be assumed to produce cache hits.
-- canonical reuse therefore depends on ZUKAN's stored asset checksum + assessment provenance, not only provider/Gateway cache.
-- AI Gateway cost metadata/spend controls may support observability, but do not replace product-level per-Record invariants.
-
-## 12. Non-goals
-
-Do not build now:
-
-- species-by-species classifier services
-- one system prompt per species
-- one prompt per active profile executed on every Record
-- all Target Profiles embedded in the generic ZUKAN prompt
-- a generic inference scheduler/control plane
-- automatic re-analysis of historical media whenever a Profile is added
-- permanent premium-model routing for all invasive-species Records
-- a separate AI database for biosecurity
-
-Generalize only after measured recurring demand proves that the direct bounded path is insufficient.
+No new generic inference scheduler, per-species classifier service, second AI truth database, global prompt registry or permanent premium route is introduced. Reuse existing native/model/Action infrastructure and generalize only after measured recurring demand.
