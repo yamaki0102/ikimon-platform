@@ -1,566 +1,124 @@
-# ZUKAN クビアカツヤカミキリ見守り — Product Specification
+# クビアカツヤカミキリ見守り — Target Profile v1
 
-- Status: final active contract
-- Date: 2026-07-29
-- Strategy: `yamaki0102/ikimon-business-strategy/decisions/2026-07-29-zukan-kubiaka-focused-experience.md`
-- Parent architecture: `docs/spec/zukan-product-architecture/SPEC.md`
-- Public service: `ZUKAN`
-- Canonical path: `/kubiaka`
-- Experience key: `kubiaka-watch`
+- Status: `DESIGN PROPOSED; CANONICAL DESIGN after merge; RUNTIME NOT IMPLIED`
+- Updated: 2026-09-13 JST
+- Common contract: [市民参加型バイオセキュリティ詳細設計](../citizen-biosecurity/SPEC.md)
+- Parent: [ZUKAN Product Architecture](../zukan-product-architecture/SPEC.md)
+- Design: [DESIGN.md](../../../DESIGN.md)
+- Delivery: [PLAN.md](PLAN.md)
+- National context: [国戦略への対応](NATIONAL_STRATEGY_ALIGNMENT_2026-09-13.md)
 
-## 0. Product statement
+## 0. 専門入口と共通原本
 
-`クビアカツヤカミキリ見守り`は別アプリではない。
+クビアカは既存Biodiversity Domain Packの最初の市民参加型biosecurity profile。別アプリ・専用DB・別認証ではない。Record / Media / Evidence / Place / Entity / Claim / Review / Rights / Program / Case / Publicationは共通責務を利用する。
 
-ZUKAN共通のAccount、Record、Media、Place、Rights、AI provenance、Reviewを使いながら、入口、投稿、private receipt、確認待ち、feedback、再訪を対象専用に見せる。
+Canonical public entry: `/kubiaka`
+Profile ID: `kubiaka-watch`
+Legacy `experience_key=kubiaka-watch`は同じprofileへの互換locatorとして保持し、旧記録を複製・再採番しない。
+Subject scope: `Aromia bungii`。別名はauthority/source versionに紐付け、学名の一致だけで投稿を確定同定しない。
 
-初期方針:
+> 写真は先に保存する。確認は証拠の範囲で返す。行政への連絡は別に扱う。
 
-> Receipt-first, Map-later。返事を完成させてから地図を描く。
+## 1. 専用ページ
 
-利用者向けの約束:
-
-> クビアカツヤカミキリかもしれない虫や木の変化を、写真1〜6枚で送れます。写真は先に保存され、確認できた範囲と分からないことを後から返します。
-
-## 1. P0 scope
-
-### 1.1 Public / guest routes
-
-| Route | Auth | Purpose |
+| Route | 対象 | 責務 |
 |---|---|---|
-| `/kubiaka` | public | 専用入口、価値、安全、投稿開始 |
-| `/kubiaka/record` | public/session | 共通composerを使った1〜6枚投稿 |
-| `/kubiaka/receipt/:receiptId` | scoped guest/owner | private受付、状態、feedback |
-| `/kubiaka/guide` | public | 見分け方、撮り方、安全 |
-| `/kubiaka/about` | public | データ利用、AI、人Review、privacy |
-| `/kubiaka/faq` | public | 投稿、結果、共有、安全 |
+| `/kubiaka` | public | 専門ガイドと撮影入口 |
+| `/kubiaka/guide` | public | 成虫・痕跡・類似例・撮り方・安全 |
+| `/kubiaka/about` | public | 運営者、確認能力、AI、privacy、データ利用 |
+| `/kubiaka/faq` | public | 保存、結果、行政連絡、共有端末、削除 |
+| `/kubiaka/record` | scoped guest/account | 共通Capture Loopにprofile文脈を付けて保存 |
+| `/kubiaka/receipt/:receiptId` | scoped guest/owner | 保存結果・写真単位の確認範囲・次の操作 |
+| `/kubiaka/me` | account | 未読結果・追加写真・本人記録・再訪 |
+| `/kubiaka/me/records` | account | 本人のprofile付きRecord一覧 |
+| `/kubiaka/records/:recordId` | owner | 同じRecordの専門private表示 |
+| `/kubiaka/places/:placeId` | authorized owner | 権限内の同じ場所の履歴。全他者記録を混ぜない |
+| `/ops/kubiaka/inbox` | scoped reviewer | 既存Review機能のprofile絞込み |
+| `/ops/kubiaka/records/:recordId` | scoped reviewer | Evidence確認とfeedback。送信とは別操作 |
 
-### 1.2 Member routes
+Route表は実装済み一覧ではない。接続前のリンク、空の将来ページ、仮の地図を公開しない。public `/kubiaka/area`とoperator coverageは初期対象外。APIは共通commandへadapterで接続し、routeごとの別writerを作らない。
 
-| Route | Auth | Purpose |
+専用headerはZUKANロゴ、クビアカ見守り、ヘルプ、アカウント、ZUKANへ戻る。投稿taskではglobal撮影launcherの二重表示を避ける。言語・アクセシビリティ・privacy操作は残す。
+
+## 2. 文言
+
+H1: `クビアカツヤカミキリを見つけたかも？`
+
+Lead: `気になる虫や、サクラ・ウメなどの木の異変を、写真と場所で残せます。名前が分からなくても大丈夫です。`
+
+Primary CTA: `写真を送る`
+Secondary: `見分け方を見る`
+Support: `自治体への連絡先を見る`
+
+保存前: `まず非公開で保存します。自治体へ自動送信されることはありません。`
+保存確認: `この内容で保存する`
+保存後: `写真を保存しました。これは自治体への通報ではありません。`
+
+Guest所有/再開/claimの実証前に「ログイン不要」と表示しない。AI未提供・専門家未提供・確認受付停止を「確認中」にしない。
+
+安全の既定文: `安全な場所から撮影してください。私有地や車道には入らず、生きた虫や被害の疑いのある木を移動させないでください。対応方法は地域の公式案内を確認してください。`
+
+地域機関の現行案内を併記する場合は対象地域・出典・日付を付ける。ZUKANが一律の捕殺・伐採・薬剤施工を指示しない。地域の案内と矛盾する独自の対処文を生成しない。
+
+## 3. 撮影文脈
+
+| 選択 | 推奨する写真 | 判断を留保すること |
 |---|---|---|
-| `/kubiaka/me` | session | 専用Home、次の一つ |
-| `/kubiaka/me/records` | session | 本人のクビアカ記録 |
-| `/kubiaka/records/:recordId` | owner/session | 専用Record detail |
-| `/kubiaka/places/:placeId` | owner/session | 同じPlaceの季節・年次履歴 |
+| 気になる虫 | 安全に撮れる全体、特徴部、周辺 | 赤い部分や黒色だけで種を断定しない |
+| 木くず・痕跡 | 痕跡、根元/幹、木全体 | フラスらしいことと原因種を分ける |
+| 木の異変 | 木全体、異変部、幹/根元 | 倒木安全・病因・処置方法を確定しない |
+| 分からない | 今ある写真 | 撮り直しや種名入力を保存の条件にしない |
 
-### 1.3 Operator routes
+Evidence roles: `surroundings / whole_tree / branches / trunk / base / adult_insect / adult_detail / frass / exit_hole / damage_sign / other_context`。
 
-| Route | Auth | Purpose |
-|---|---|---|
-| `/ops/kubiaka/inbox` | operator | 確認待ち、候補、低品質、追加写真 |
-| `/ops/kubiaka/records/:recordId` | operator | evidence、assessment、feedback編集 |
+Signal vocabulary: `adult_insect / frass / exit_hole / tree_damage / unknown`。AIのSignal所見も候補であり、投稿者の選択と独立させる。
 
-### 1.4 Deferred routes
+写真1〜6枚は最初の写真モードの上限。各写真の保存済み/未送信/確認済み/未確認を区別する。寸法・薬剤名・所有地情報を市民の初回必須項目にしない。
 
-初期版では実装・公開しない。
+成虫、痕跡、類似種、生態、寄主、季節、分布、対処、参考資料はガイドの編集項目。初回画面へ百科事典全体を並べない。画像は由来・権利・credit・加工履歴を保持し、公式Webにあるだけで自由利用と扱わない。
 
-- `/kubiaka/area`
-- `/kubiaka/settings`
-- `/ops/kubiaka/cases`
-- `/ops/kubiaka/coverage`
-- `/ops/kubiaka/config`
+## 4. Private receiptと再訪
 
-空ページ、fixture map、将来機能を示唆する未完成UIを公開しない。
+共通設計のguest credential、session isolation、receipt単位claim、no-store、CSRF、認可を必須とする。receipt IDだけで写真を読めない。
 
-## 2. Reuse and ownership boundaries
+receipt HTML/metadata/OGPへ正確な座標、住所全文、本人識別、内部宛先、reviewer-only noteを出さない。本人が通報用情報を確認する保護されたpreviewのみ、必要な位置/連絡先を明示して扱う。媒体配信はownerまたは用途を許可された担当者へのprivate認可を通す。
 
-### 2.1 Reuse unchanged where possible
+同じ木を再訪する場合、Placeだけでは同一の木と確定しない。確認済みsubject、管理タグ、本人選択を使う。処置後の写真は新Recordとして追加し、旧写真・同定履歴を保持する。
 
-- current auth session
-- Record / Visit / Observation
-- Media / Evidence asset
-- Place / location privacy
-- Rights / Consent
-- AI provenance
-- Review / Correction / Suppression
-- current 1–6 photo composer
-- current upload / retry / MIME / EXIF handling after verification
-- current immersive shell primitives
+季節・年次の再訪はprofileと地域policyに沿う任意の課題。自動追跡・連続GPS収集・捕獲ランキング・streakを標準にしない。
 
-### 2.2 Reuse only after modification
+## 5. 確認とfeedback
 
-`recordPhotoFeedback`はそのまま再利用しない。
+クビアカで維持する必須条件:
 
-Current limitation:
+- submitted/assessed/unassessedは媒体IDで管理し、所見はassessedだけを参照する。
+- 一部しか確認していない場合、全記録について「手掛かりなし」としない。
+- AIは候補。Review authorityとClaimの支持/不足/異議を分ける。
+- 写真に写らないことを「この木にいない」「安全」「根絶」にしない。
+- 追加写真を受け取っても旧feedbackが新写真まで確認したことにしない。
+- feedbackはappend-only edition。前回との差・未確認範囲・次の撮影案内を返す。
+- 専門家Reviewと外部送信を一つのボタンで実行しない。
 
-- asset IDを入出力へ持たない
-- 最大3枚で無言切り捨てする
-- submitted枚数とassessed枚数を区別できない
+Usabilityは`isPhotoRecord / isScreenable / isRepeatComparable`の独立した評価。写真枚数でformal survey usableを推定しない。
 
-Release Cでasset-aware contractへ変更する。
+## 6. 通報と地域policy
 
-### 2.3 Kubiaka-specific contract
+初期は通報用情報の整理と公式窓口へのhandoff。自動送信、行政との契約、受付APIは提供済みと表示しない。AI/専門家確認終了を公式窓口案内の前提にしない。
 
-P0では以下をクビアカ固有として実装する。
+日本の4地域区分は国制度の原文code/label/source/dateとして保持する。実際の自治体区分が未公表・未取得なら`unknown`。海外や別の種へ日本の区分を強制しない。
 
-- taxon scopeと同義名集合
-- Record context link / outbox
-- guest participant / receipt / claim
-- evidence role vocabulary
-- submitted / assessed asset accounting
-- FeedbackEdition
-- member read models
-- operator queue
+農地、公園、民有地等で連絡窓口が分かれる可能性をregional policyの適用条件で扱う。所在地だけで土地所有者を推定しない。行政境界付近・位置精度不足・資料矛盾時は候補と確認事項を示す。
 
-汎用Focused Experience DB platformは2例目まで作らない。
+浜松等の実在パートナー・専用受付・専門家体制は、この設計では確定扱いにしない。公式な一般案内が見つかっても、専用通報受理契約が成立したことにはならない。
 
-## 3. Taxon scope and all-alert interlock
+## 7. データ再利用
 
-### 3.1 Taxon scope
+同じ写真・日時・場所を、本人記録、樹木の年次変化、学校の活動、他の対象種の確認、地域図鑑で参照できる。ただし原記録の目的別権利を継承する。旧no-export/no-aggregation/no-routingを移行で解除しない。
 
-P0では、正規化した`Aromia bungii`と承認済み同義名集合を単一のsource contractとして持つ。
+対象外の虫と判明した場合も原Recordを維持する。訂正Claimを加え、クビアカとしてのOccurrence出力・被害集計を止め、必要な外部訂正を追跡する。
 
-存在しないopaque taxon IDを前提にしない。
+## 8. SUPERSEDEDと維持事項
 
-### 3.2 Dispatcher interlock
+2026-07-29版の本SPECのうち、Kubiaka専用DB/receiptモデルを恒久化すること、Node/PostgreSQLを前提にしたRelease順、P0で通報準備情報も一律隠すことはSUPERSEDED。新しい実装順はPLAN.mdのみを使う。
 
-Kubiaka runtimeより先に、通知dispatcher入口でinterlockを実装する。
-
-管理対象taxonで、routing gateが明示的に有効でない場合は、各分岐へ入る前に外部通知をdenyする。
-
-対象:
-
-- taxon subscription / user taxon match
-- novelty
-- researcher trigger
-- invasive reporting
-- webhook
-- mail
-- municipality / land-manager delivery
-
-### 3.3 Link-independent
-
-遮断をexperience linkの存在に依存させない。
-
-Record linkが無い、`link_pending`、outbox retry中でも、管理対象taxonなら外部通知をdenyする。
-
-`link_pending`中はKubiaka Assessmentとfeedback公開も開始しない。
-
-## 4. Dedicated shell
-
-Official ZUKAN brandingを維持し、第二ブランドを作らない。
-
-Header:
-
-- ZUKAN logo
-- `クビアカツヤカミキリ見守り`
-- help
-- account / login
-- `ZUKANへ戻る`
-
-Mobile navigation:
-
-```text
-ホーム | 記録 | [写真を送る] | 見分け方
-```
-
-- `写真を送る`は独立した主行動
-- global record launcherを専用体験内では隠す
-- task surfaceではglobal footerを隠す
-- language、accessibility、privacy、account controlsは維持する
-- public area tabはP0に置かない
-
-## 5. Guest, receipt, shared device, claim
-
-### 5.1 Guest credential
-
-初回mutation時にexperience-scoped credentialを作る。
-
-- CSPRNG
-- serverにはdigestのみ
-- `__Host-` HttpOnly / Secure / SameSite cookie
-- receipt IDだけでは閲覧不可
-
-### 5.2 Default display on shared devices
-
-- 投稿前: 過去guest receiptを表示しない
-- 投稿後: 現在のbrowser sessionで作成した直近receiptだけ表示
-- 別session・過去利用者のreceipt一覧を表示しない
-- `別の人が使う`でcredentialをrotationし、現在session表示を閉じる
-
-### 5.3 Private receipt
-
-Receipt may show:
-
-- saved / link state
-- submitted media
-- safe location label
-- assessment state
-- FeedbackEdition
-- more-evidence request
-- receipt-scoped account claim
-
-Receipt must not expose:
-
-- exact coordinates
-- full address
-- contributor identity
-- private note
-- recipient routing
-- reviewer-only comments
-- public metadata / link preview details
-
-### 5.4 Claim
-
-- receipt単位claim
-- one transaction
-- no duplicate Record / media
-- preserve original timestamps and provenance
-- invalidate guest mutation after success
-- rollback on partial failure
-- no implicit claim-all in P0
-
-## 6. Record context and outbox
-
-Every saved Record from this experience requires a durable context link.
-
-Required context:
-
-```text
-experience_key = kubiaka-watch
-entrypoint
-participant_kind = guest | account
-protocol_profile
-protocol_version
-seasonal_module optional
-created_at
-```
-
-Record saveとlink作成を同一transactionにできない場合はdurable outboxを使用する。
-
-Persistence axis:
-
-```text
-draft
-saving
-link_pending
-ready
-failed
-suppressed
-erased_reference_only
-```
-
-Rules:
-
-- Record保存成功後にlinkが失敗してもRecordを失わない
-- `link_pending`を利用者へ安全に表示する
-- retryはidempotent
-- link準備前にAssessment・feedback公開・外部通知を開始しない
-
-## 7. Orthogonal state model
-
-### Assessment
-
-```text
-not_started
-queued
-running
-completed
-failed
-stale
-cancelled
-```
-
-### Feedback
-
-```text
-none
-draft
-published
-superseded
-withheld
-```
-
-### Action
-
-P0:
-
-```text
-not_applicable
-```
-
-Future:
-
-```text
-candidate
-operator_approved
-sent
-acknowledged
-failed
-expired
-follow_up_due
-closed
-```
-
-### Review authority
-
-FeedbackEdition attribute:
-
-```text
-automated
-trained_reviewer
-accountable_specialist
-approved_recipient_response
-```
-
-Do not derive authority from Case or workflow position.
-
-Required representable combinations:
-
-- persistence ready + assessment failed + feedback none
-- persistence link_pending + assessment not_started
-- feedback published + assessment stale
-- feedback published + specialist review in progress outside state axes
-- action sent + acknowledgement pending
-- feedback published + annual revisit due
-
-## 8. Asset accounting
-
-Store and distinguish:
-
-```text
-submittedAssetIds[]
-assessedAssetIds[]
-unassessedAssetIds[]
-```
-
-Counts are derived from unique asset IDs.
-
-Copy rules:
-
-- all assessed: `写真6枚を受け取り、6枚を確認しました。`
-- partial: `写真6枚を受け取りました。今回は3枚を確認しました。`
-- none: `写真6枚を受け取りました。確認はこれからです。`
-
-A feedback finding may reference only `assessedAssetIds`.
-
-If not all submitted assets are assessed, do not make a whole-Record no-clear-sign statement.
-
-## 9. Evidence model
-
-Kubiaka evidence roles:
-
-- surroundings
-- whole_tree
-- branches
-- trunk
-- base
-- adult_insect
-- adult_detail
-- frass
-- exit_hole
-- damage_sign
-- other_context
-
-For each item:
-
-```text
-role
-visibility = visible | partial | not_visible | not_applicable | unknown
-sourceAssetIds[]
-confidence optional
-assessor
-limitations[]
-```
-
-Usability is represented by orthogonal booleans, not one exclusive enum.
-
-```text
-isPhotoRecord
-isScreenable
-isRepeatComparable
-```
-
-`isSurveyUsable` is not calculated in P0.
-
-## 10. Non-detection boundary
-
-P0 allows only photo-scope wording.
-
-> 今回確認した写真の範囲では、明確な手がかりは確認されませんでした。
-
-Forbidden in P0:
-
-- this Place is absent
-- this tree is safe
-- survey non-detection
-- current area target met
-
-Foundation v2 SurveyEvent / DetectionOutcomeを使うのは、実在partner、versioned protocol、effort、対象範囲、review authorityが揃った後だけとする。
-
-## 11. FeedbackEdition
-
-Versioned、append-only projection for contributor.
-
-Required sections:
-
-1. `受け取った写真と確認した写真`
-2. `確認できた範囲`
-3. `今回わかったこと`
-4. `今回わからなかったこと`
-5. `前回との違い`
-6. `次に撮るなら`
-7. `確認状態`
-
-P0では共有・対応状況セクションを表示しない。
-
-Feedback publishing gate:
-
-- persistence=`ready`
-- assessed asset accounting valid
-- finding references assessed assets only
-- limitations rendered
-- authority label correct
-- sensitive content filtered
-- higher authority not claimed
-
-## 12. Page copy contract
-
-### 12.1 `/kubiaka`
-
-H1:
-
-> クビアカツヤカミキリを見つけたかも？
-
-Lead:
-
-> 赤い首の黒い虫や、サクラ・ウメなどの根元にある木くずを見つけたら、写真を送ってください。写真は1〜6枚。木全体と気になる部分の両方があると、より詳しく確認できます。
-
-CTA:
-
-> 写真を送る
-
-Trust line:
-
-> ログイン不要。写真は先に保存し、確認できた範囲を後から返します。
-
-Safety:
-
-> 虫には触れず、生きたまま持ち運ばないでください。私有地や車道など、危険な場所には入らないでください。
-
-### 12.2 `/kubiaka/record`
-
-Title:
-
-> 写真を送る
-
-Guidance:
-
-> 最大6枚まで送れます。木全体と気になる部分の両方があると、より詳しく確認できます。
-
-Primary action:
-
-> この内容で保存する
-
-Saving:
-
-> 写真を保存しています。この画面を閉じないでください。
-
-Success:
-
-> 写真を保存しました。確認結果はこの受付ページへ返します。
-
-### 12.3 Receipt states
-
-`link_pending`:
-
-> 写真は保存されています。クビアカ見守り記録への反映を続けています。
-
-Assessment queued/running:
-
-> 写真を確認しています。保存は完了しています。
-
-Assessment failed:
-
-> 写真は保存されています。確認処理をもう一度行います。
-
-Feedback ready:
-
-> 確認結果が届きました。
-
-### 12.4 `/kubiaka/me`
-
-Title:
-
-> クビアカ見守り記録
-
-Continuation priority:
-
-1. unread feedback
-2. more evidence request
-3. checking Record
-4. annual / seasonal revisit
-5. first submission
-
-No ranking, streak, capture competition, generic quest, or unrelated ZUKAN content.
-
-### 12.5 Record detail feedback example
-
-> 写真6枚を受け取りました。今回は3枚を確認しました。確認した写真では木全体、幹、根元の状態が分かります。今回確認した写真の範囲では、成虫、フラス、脱出孔と考えられる明確な特徴は確認されませんでした。残りの写真と枝の上部はまだ確認できていません。
-
-## 13. P0 non-goals
-
-- public coverage map
-- public detection pins
-- public aggregate counts
-- survey non-detection
-- specialist SLA
-- municipality routing
-- external send
-- generic Focused Experience database platform
-- weekly engagement optimization
-
-## 14. Accessibility and privacy
-
-- 320 / 375 / 390 / 412 / 768 / 1024 / 1280 / 1440 / 1536
-- text 200%
-- keyboard navigation
-- screen reader names and status
-- no horizontal overflow
-- no exact location in public or receipt metadata
-- unknown sensitivity defaults private
-- school / child / home-nearby / private land contexts are independent
-- logout and shared-device isolation tests are blocking
-
-## 15. Runtime release gates
-
-### Gate 0
-
-All-alert dispatcher interlock is merged and verified before Kubiaka runtime routes.
-
-### Release B
-
-Private contribution, receipt, claim, dedicated member workspace.
-
-### Release C
-
-Asset-aware feedback and operator inbox after closed pilot B1.
-
-### Release D
-
-Operator-only coverage after pilot evidence. Public map requires a separate future Decision.
-
-### Release E
-
-Approved routing requires explicit approval and real recipient contracts.
-
-## 16. Blocking tests
-
-- all managed-taxon notification paths denied at dispatcher entry
-- interlock works with missing link and `link_pending`
-- unmanaged taxon existing behavior preserved
-- guest A/B isolation
-- account A/B isolation
-- pre-submit shared-device view empty
-- only current-session receipt visible after submit
-- stale cookie / replay / logout
-- receipt enumeration denied
-- Record save + link failure recovered through outbox
-- claim partial failure rollback
-- submitted / assessed asset mismatch copy correct
-- finding cannot reference unassessed asset
-- Assessment failed while Record remains saved
-- published feedback while newer Assessment is stale
-- no survey non-detection generated
-- no external send
+private-first、通知interlock、guest/shared-device isolation、receipt単位claim、asset accounting、authority分離、非検出の限界、公開map後段化、明示的外部送信を維持する。旧仕様はGit履歴に残る。詳細な共通契約は../citizen-biosecurity/SPEC.mdを正とする。
