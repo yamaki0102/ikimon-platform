@@ -1,327 +1,107 @@
-# Global citizen biosecurity reporting — evidence note
+# 市民参加型バイオセキュリティ — 一次情報と設計への採用範囲
 
-- Status: `EVIDENCE NOTE / NON-CANONICAL`
-- Date: 2026-09-13 JST
-- Purpose: support the Kubiaka design without turning one species-specific implementation into a new generic platform prematurely
-- Related proposal: `NATIONAL_STRATEGY_ALIGNMENT_2026-09-13.md`
-- Parent architecture: `../zukan-product-architecture/SPEC.md`
+- Status: `EVIDENCE NOTE; NOT RUNTIME OR PERFORMANCE EVIDENCE`
+- Checked: 2026-09-13 JST
+- Product contract: [共通詳細設計](../citizen-biosecurity/SPEC.md)
+- First target: [クビアカprofile](SPEC.md)
 
-## 1. Finding
+## 1. 結論の位置付け
 
-The strongest international pattern is not one database or one app per invasive species.
+「専門的な入口＋共通の記録・証拠＋確認＋地域に応じた連絡＋再訪」を採用する。これは以下の事例とZUKANの既存正本を踏まえた設計判断であり、世界全体の優劣ランキングや、この実装の検出性能の証明ではない。
 
-A more durable pattern is:
+観察の保存、主張の確認、一般公開、機関への送付、現地対応を分ける。種ごとの別アプリ/DBを作る必要があるとは結論しない。一方、全サービスが同じ内部DBモデルを採用しているとも主張しない。
 
-```text
-shared observation / evidence core
-+ target-specific identification and capture guidance
-+ validation / expert review
-+ risk- and jurisdiction-specific routing
-+ revisit / management history
-+ standards-based export
-```
+## 2. 参加体験と確認の一次情報
 
-The public experience can look highly specialist while the underlying Record, Evidence, Claim, Review, Place, Case and Action responsibilities remain shared.
+### R1 — MyPestGuide Reporter / Western Australia DPIRD
 
-For ZUKAN this supports a `Biosecurity Domain Pack` with bounded target profiles. It does **not** justify a generic Focused Experience database, arbitrary custom-field engine, new auth system or species-specific backend.
+Source: https://www.dpird.wa.gov.au/online-tools/mypestguide/mypestguide-reporter/
+Related portal: https://mypestguide.dpird.wa.gov.au/
 
-## 2. International patterns reviewed
+確認できたこと: 虫・動物・雑草・病害等を共通Reporterへ報告し、写真等を専門家が確認して返す。公開mapには共有された報告が表示される。写真保存と共有は同一の意味ではない。
 
-### EDDMapS — United States / Canada
+採用: 共通captureと対象別guide、確認結果の返却、共有を別にすること。写真上限等の個別数値はZUKANへそのまま移植しない。
 
-Observed pattern:
+### R2 — EASIN / European Commission JRC
 
-- one large reporting and mapping network covers many invasive species and pests;
-- volunteer and partner data are aggregated;
-- observations are reviewed by verifiers before appearing in public queries/maps;
-- professionals can revisit a site and record states such as present, negative, treated or eradicated;
-- the same location can accumulate management history instead of being overwritten.
+Source: https://easin.jrc.ec.europa.eu/ias
+Privacy: https://easin.jrc.ec.europa.eu/easin/home/privacy
 
-Design implication:
+確認できたこと: web/mobileからの市民観察、専門家検証、検証済み情報によるCatalogue/Geodatabaseの充実が説明されている。
 
-- occurrence and response history must be separate but linked;
-- revisit is first-class;
-- a verified distribution view should be a projection, not raw submission truth.
+採用: 投稿、検証、公開版、公式利用を区別する。対象はこのReport Speciesの説明範囲であり、EASINという名称を持つ全API・旧公開hubの全レコードが検証済みとは拡張しない。
 
-Sources reviewed: EDDMapS About, Collect Data, Apps/EDDMapS Pro, current query tools.
+### R3 — Yellow-legged Hornet / UK APHA
 
-### EASIN — European Union
+Source: https://aphascience.blog.gov.uk/2025/05/15/yellow-legged-hornet-monitoring-and-eradication-in-the-uk/
+Related reporting guide: https://www.ceh.ac.uk/our-science/citizen-science/asian-hornet
 
-Observed pattern:
+確認できたこと: 専門的な報告入口と確認・現地対応を接続し、写真のある信用できる報告と写真がない報告で扱いを分けている。説明された件数は該当年の実績であり、現在の全件数へ読み替えない。
 
-- citizens submit location and photos through web/mobile;
-- expert validation occurs before citizen-science reports enrich the official EASIN geodatabase;
-- only validated report data are publicly exposed;
-- EASIN integrates heterogeneous source systems through validation, cleaning, standardization and mapping rather than requiring one source database.
+採用: evidenceの品質と対応経路を分けること。安全に写真を撮れない人の公式連絡を妨げない。ZUKANのAI/Review待ちを公式窓口案内の必須条件にしない。英国の捕獲・駆除手順を別地域へ移植しない。
 
-Design implication:
+### R4 — iNaturalist / geoprivacy
 
-- submission, validation, publication and official use are distinct states;
-- ZUKAN should normalize at the exchange/projection boundary rather than force all partners into one physical schema.
+Source: https://help.inaturalist.org/en/support/solutions/articles/151000233080-how-does-inaturalist-protect-the-locations-of-sensitive-species-
 
-Source reviewed: European Alien Species Information Network, Report Species and privacy/quality-control documentation.
+確認できたこと: 公開精度とprivate位置、対象種の保護等を区別する仕組みが説明されている。
 
-### Asian Hornet Watch — United Kingdom
+採用: 取得した位置と公開する位置を別に評価すること。iNaturalistの共有条件をZUKANの同意とみなさず、project参加だけでprivate座標を取得できるとはしない。
 
-Observed pattern:
+## 3. 国際交換標準
 
-- species-specific public UX provides lookalike guidance and simple photo reporting;
-- all reports are reviewed;
-- credible reports are forwarded to the National Bee Unit or local monitoring teams;
-- weak evidence can trigger a request for more detail rather than a false positive/negative conclusion;
-- the specialist-facing experience sits on an established national alert/response path.
+### R5 — TDWG Darwin Core
 
-Design implication:
+Standard: https://www.tdwg.org/standards/dwc/
+Terms: https://dwc.tdwg.org/list/
+Establishment means: https://dwc.tdwg.org/em/
+Degree of establishment: https://dwc.tdwg.org/doe/
 
-- specialist presentation is useful;
-- lookalike guidance is part of data quality;
-- `needs_more_evidence` is a valid terminal user-facing state for the current evidence;
-- target-specific UX does not require target-specific data infrastructure.
+確認できたこと: 生物多様性の情報共有用語彙であり、taxon、occurrence、event、位置、権利等を表せる。在来/導入・定着等は場所と時点に関係する情報であり、世界共通の種の属性一つに還元しない。
 
-Sources reviewed: GOV.UK/APHA Asian Hornet Watch material.
+採用: 内部Record/Claim/Caseを標準へ置換するのでなく、適格な生物情報を交換時にmappingする。行政送付状態や処置履歴をOccurrenceのpresence/absenceへ押し込まない。採用時に実際の用語版と受信側要件をpinする。
 
-### MyPestGuide — Australia
+### R6 — GBIF data quality / sampling events
 
-Observed pattern:
+Current technical documentation: https://techdocs.gbif.org/en/data-publishing/data-quality-recommendations
+Sampling events: https://www.gbif.org/sampling-event-data
 
-- one Reporter accepts plants, diseases, weeds, animals and aquatic organisms;
-- separate field guides and decision aids provide domain-specific identification help;
-- experts identify reports and return feedback;
-- sharing can be separated from submission;
-- the system can also support structured absence evidence where the reporting context warrants it.
+確認できたこと: 調査イベントには方法、努力量、範囲等の文脈が重要で、時点・位置・対象を解釈可能にする要件がある。
 
-Design implication:
+採用: casual写真の無所見と、protocolに基づくnot_detectedを分ける。absenceという単語が書けることを「この地域にいない」の根拠としない。古いGBIF案内のnegative data indexing説明を現在の受入仕様として引用しない。
 
-- generic capture + specialist guides is preferable to a new reporter per target;
-- privacy/publication is orthogonal to evidence capture;
-- absence must remain protocol-aware rather than inferred from casual photos.
+## 4. 国内の適用範囲
 
-Sources reviewed: Western Australia DPIRD MyPestGuide portal, Reporter guide and specialist guides.
+### R7 — 国と自治体の案内
 
-### FeralScan — Australia
+MAFF meeting notice: https://www.maff.go.jp/j/press/syouan/syokubo/260911.html
+Osaka guide: https://www.pref.osaka.lg.jp/o120030/midori/seibututayousei/kubiaka.html
+Nagano reporting guide: https://www.pref.nagano.lg.jp/nogi/kubiaka.html
+Hamamatsu project: https://www.city.hamamatsu.shizuoka.jp/kankyou/env/tayousei/senryaku2024/project2.html
 
-Observed pattern:
+採用: 成虫/痕跡の区別、土地利用や地域ごとの窓口、出典付き安全案内。依頼者提示の2026-09-11報道と、MAFFの開催案内、戦略の正式本文、個別自治体の区分指定は別Evidenceとして扱う。浜松の一般的な取組資料からクビアカ専用受理契約・専門家体制があるとは推定しない。
 
-- one platform presents species-specific shells such as RabbitScan, ToadScan and FeralCatScan;
-- users can record sightings, evidence, impacts and control activity;
-- landholders can work in private groups and coordinate management across properties;
-- reports can connect to local authorities and biosecurity groups.
+公式ページの写真公開は再利用許諾の証拠ではない。実装素材は権利/credit/加工条件を個別に確認する。
 
-Design implication:
+## 5. 実装上の一次情報
 
-- the same subject/place can accumulate `sighting → impact → control → follow-up` records;
-- public, private-group and authority views should be projections over the same governed evidence;
-- management activity is not a property of the original sighting.
+### R8 — Cloudflare D1 / R2
 
-Sources reviewed: FeralScan, FeralCatScan, RabbitScan, NSW Government FeralScan guidance.
+D1 database API: https://developers.cloudflare.com/d1/worker-api/d1-database/
+R2 consistency: https://developers.cloudflare.com/r2/reference/consistency/
 
-### Mosquito Alert — Europe / international collaboration
+確認できたこと: D1 batchはSQLのtransaction境界を提供し、R2はobject操作の整合性を説明している。これらはD1とR2を跨ぐ一つの原子的transactionを意味しない。
 
-Observed pattern:
+採用: 既存のprivate媒体予約と保存確定/再開を再利用する。conditional SQLの0件更新を正常成功と取り違えず、部分的所有者変更を防ぐ。private媒体や削除後の派生cacheはobject保管とは別に扱う。これらの防御は設計判断であり、既存runtimeでテスト済みとはしない。
 
-- geolocated citizen photos feed surveillance;
-- expert-validated images are used to train AI;
-- AI performs real-time triage and quick feedback while critical/ambiguous reports are escalated to experts;
-- expert validation remains distinct from automated classification;
-- the project combines citizen observations with surveillance and research data.
+## 6. 未採用・未確認を正直に残す
 
-Design implication:
+以前の広い事例メモに含まれるEDDMapS、FeralScan、Mosquito Alertの最新AI運用、Find-A-Pestの休止状態、ニュージーランドの957人調査等は、この設計の必須根拠・性能数値として採用しない。実利用で必要な事実がある場合に、その対象を一次情報から再確認する。
 
-- AI should rank/triage and help the contributor, not silently become final authority;
-- expert capacity should be reserved for high-value ambiguity;
-- model outputs and human verification need separate provenance.
+対象を絞る理由はそれらを否定するためではなく、この変更で実際に確認できたEvidenceと、参考候補を混同しないためである。旧メモはGit履歴に残る。
 
-Sources reviewed: Mosquito Alert data portal and AIMA peer-reviewed study.
+AIでexpert確認を減らせる割合、誤検出率、見逃し率、地域被害縮小、予算削減額は未測定。低confidenceでの自動却下を正当化しない。初期は保守的な理由付き振分けを用い、将来の自動化は対象/地域別の実測・監査・rollbackが成立した範囲だけ採用する。
 
-### iRecord — United Kingdom
+## 7. 設計と研究の境界
 
-Observed pattern:
-
-- automated checks flag difficult identifications, unusual geography and unusual seasonality;
-- flags do not automatically reject a record;
-- human verifiers decide whether records can be accepted;
-- automated validation and expert verification are explicitly different concepts.
-
-Design implication:
-
-- `automated_validation_flags[]` must not be collapsed into `verification_status`;
-- a report can be unusual and still be correct;
-- rules require source/version/freshness because species ranges and seasons change.
-
-Sources reviewed: iRecord automated checks and verification guidance.
-
-### Find-A-Pest / Biosecurity New Zealand
-
-Observed pattern:
-
-- Find-A-Pest demonstrated broad reporting, community/expert identification and escalation of potential threats;
-- the dedicated Find-A-Pest app is currently on hold and no longer supported because substantial technical upgrades would be required;
-- New Zealand's official path continues through a stable web form and hotline feeding the same specialist response capability;
-- New Zealand general surveillance combines public reporting with targeted surveillance programmes.
-
-Design implication:
-
-- avoid a proliferation of standalone species apps;
-- web/shared-product surfaces should remain viable even if a campaign/profile disappears;
-- urgent/high-risk routing may legitimately switch channel instead of forcing every case through one UI.
-
-Sources reviewed: Find-A-Pest current status; New Zealand MPI reporting and surveillance guidance.
-
-### IveGot1 / Florida
-
-Observed pattern:
-
-- app/web are preferred for lower-priority nonnative species;
-- higher-priority species are explicitly routed to a live hotline;
-- app reports can flow into EDDMapS and local/state verification.
-
-Design implication:
-
-- routing should depend on risk/priority and jurisdiction;
-- `report channel` is profile/policy configuration, not a universal button.
-
-Sources reviewed: Florida Fish and Wildlife Conservation Commission and EDDMapS Florida.
-
-## 3. Behavioural evidence
-
-A 2026 New Zealand national survey of 957 adults modeled citizen biosecurity reporting as a multi-step behaviour shaped by capability, opportunity and motivation.
-
-The product implication is not to maximize gamification. It is to reduce the main reporting barriers:
-
-- allow `I don't know what this is` submissions;
-- make the reporting path easy to discover and complete;
-- explain why the report matters;
-- reduce fear of negative consequences or doing it wrong;
-- return truthful feedback so contributors know what happened;
-- distinguish audience needs instead of assuming one funnel fits everyone.
-
-This also means that institutional processing capacity is part of the product outcome: collecting more reports without triage, review and feedback can make the system worse.
-
-Source reviewed: 2026 Journal of the Royal Society of New Zealand study, `A Theoretically Grounded, Behaviour-Science-Informed Model for Understanding Citizen Biosecurity Reporting`.
-
-## 4. Data reuse decision for ZUKAN
-
-### Keep shared
-
-Use existing ZUKAN responsibilities wherever possible:
-
-```text
-Record
-Media / Evidence
-Place / Entity / Subject identity
-Claim / ClaimRevision
-Review / Authority
-Rights / Consent / visibility
-Case
-Action / Resolution / Follow-up
-Publication / export
-```
-
-Do not add `KubiakaReport` as a new universal root.
-
-### Target-profile configuration
-
-A specialist page may bind a controlled target profile containing only the differences needed to collect and route useful evidence.
-
-Proposed logical contract:
-
-```text
-target_profile_id
-profile_version
-subject_scope
-lookalikes[]
-signal_types[]
-evidence_roles[]
-photo_guidance[]
-seasonality optional
-risk_priority
-review_policy
-routing_policy
-jurisdiction_policy
-privacy_policy
-public_precision_policy
-official_source_editions[]
-survey_protocol optional
-```
-
-This is a configuration contract over the existing Domain Pack, not authority to build a generic profile editor or arbitrary EAV/custom-field database.
-
-### Record / Claim / Review / Action mapping
-
-```text
-photo + time + place + contributor         -> Record / Evidence
-"クビアカかもしれない"                    -> Claim
-AI candidate / range-season flag            -> Assessment / automated validation
-expert identification                       -> Review / Verification
-official authority handoff                  -> Case / Action
-acknowledgement                              -> Action evidence
-control / removal / treatment                -> new Record + Action result
-later revisit                                -> new Record linked to same Place/Subject
-```
-
-Do not overwrite the original sighting when a later action changes the site state.
-
-## 5. Casual detection vs survey/monitoring
-
-International data standards reinforce the current Kubiaka boundary.
-
-For casual public reporting, the reusable interoperability target is Darwin Core `Occurrence`: evidence that a taxon/subject was observed at a place and time.
-
-For formal monitoring or absence/non-detection claims, use a versioned survey/Event with explicit target scope, protocol, effort, time and location. GBIF's Darwin Core Event / Humboldt guidance treats protocol and effort as necessary context for interpreting non-detection.
-
-Therefore:
-
-```text
-casual photo with no target detected
-!= formal absence
-!= area safe
-!= eradicated
-```
-
-ZUKAN should map outward to biodiversity standards at the publication/exchange boundary. It should not replace its internal Record/Claim/Case model with Darwin Core, because management, routing, rights and response history exceed an occurrence exchange schema.
-
-Sources reviewed: GBIF Darwin Core, sampling-event data-quality requirements, Survey and Monitoring Quick-Start Guide / Humboldt Extension.
-
-## 6. UX decision
-
-The specialist page can be strongly target-specific while the data stays reusable.
-
-For Kubiaka, show Kubiaka photographs, frass, host trees, lookalikes, Japanese official guidance and the correct local authority route.
-
-For another target, swap the profile:
-
-```text
-Kubiaka          -> adult / frass / exit hole / host tree
-Asian hornet     -> adult / nest / lookalikes / urgent route
-invasive plant   -> whole plant / leaf / flower / habitat
-mosquito         -> adult photo / breeding site / biting report
-pest animal      -> sighting / tracks / damage / control / revisit
-```
-
-The capture shell, Record, Place, Rights, Review and Case/Action lifecycle stay shared.
-
-## 7. What not to build now
-
-Do not create:
-
-- one app/backend/database per invasive species;
-- a universal invasive-species state machine that mixes evidence, verification and management;
-- arbitrary user-defined observation fields in the canonical Core;
-- public raw-coordinate maps by default;
-- automatic `reported to authority` state from link clicks;
-- casual-photo absence claims;
-- a generic Target Profile admin platform before a second concrete target proves the repeated need.
-
-## 8. Recommended Kubiaka delta
-
-Keep `/kubiaka` visibly expert and species-specific.
-
-Change the data/design assumption from:
-
-> Kubiaka has a dedicated reporting data model.
-
-to:
-
-> Kubiaka is the first high-consequence citizen-biosecurity Target Profile over the existing ZUKAN Biodiversity / Knowledge / Workflow responsibilities.
-
-Implement only the Kubiaka profile fields required for the first vertical slice. Preserve the profile boundary so the same Record/Evidence/Review/Case structure can later support another invasive species without migration of the original Kubiaka records.
+このノートはsource registerであり、プロファイル設定やruntime機能を有効化しない。採用された振る舞い・supersessionは共通SPEC、対象別差分はクビアカSPEC、実装順と受入はPLANとCONTRACT_EXAMPLES.jsonを参照する。
