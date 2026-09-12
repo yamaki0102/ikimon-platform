@@ -6,7 +6,7 @@
 
 ZUKANの有効なプロダクト境界は [`spec/zukan-product-architecture/SPEC.md`](spec/zukan-product-architecture/SPEC.md)、実装順は [`spec/zukan-product-architecture/PLAN.md`](spec/zukan-product-architecture/PLAN.md) を参照します。Program / Publication / Source exchangeの広い将来プロファイルとanti-drift境界は [`spec/zukan-product-architecture/PROFILE_HORIZON.md`](spec/zukan-product-architecture/PROFILE_HORIZON.md)、ユーザー体験の現行正本は [`spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md`](spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md) を参照します。
 
-市民参加型の外来種記録・通報支援は [`spec/citizen-biosecurity/SPEC.md`](spec/citizen-biosecurity/SPEC.md) を共通契約とし、クビアカ固有の差分は [`spec/kubiaka-focused-experience/SPEC.md`](spec/kubiaka-focused-experience/SPEC.md)、実装順は [`spec/kubiaka-focused-experience/PLAN.md`](spec/kubiaka-focused-experience/PLAN.md) を参照します。専門入口と共通Recordを分ける設計であり、別サービス・別DBや本番稼働済みの宣言ではありません。
+市民参加型の外来種記録・通報支援は [`spec/citizen-biosecurity/SPEC.md`](spec/citizen-biosecurity/SPEC.md) を共通契約とし、AI/API費用境界は [`spec/citizen-biosecurity/AI_INFERENCE_COST_BOUNDARY.md`](spec/citizen-biosecurity/AI_INFERENCE_COST_BOUNDARY.md)、クビアカ固有の差分は [`spec/kubiaka-focused-experience/SPEC.md`](spec/kubiaka-focused-experience/SPEC.md)、実装順は [`spec/kubiaka-focused-experience/PLAN.md`](spec/kubiaka-focused-experience/PLAN.md) を参照します。専門入口と共通Recordを分ける設計であり、別サービス・別DBや本番稼働済みの宣言ではありません。
 
 公開ホームの現行仕様は [`spec/public-home-state-split.md`](spec/public-home-state-split.md)、完了判定は [`operations/public-home-ux-completion-gate.md`](operations/public-home-ux-completion-gate.md) を参照します。
 
@@ -54,6 +54,8 @@ Home / 記録 / 場所 / 参加 / 自分、global撮影action、状態優先順�
 [`spec/citizen-biosecurity/SPEC.md`](spec/citizen-biosecurity/SPEC.md)
 
 対象別guideと共通Record、Claim/Review、地域policy、guest/private receipt、通報handoff、再訪、権利付き再利用、国際交換の責務を定めます。既存Biodiversity Domain Pack内のprofile群であり、ZUKAN全体を外来種アプリへ狭めません。
+
+[`spec/citizen-biosecurity/AI_INFERENCE_COST_BOUNDARY.md`](spec/citizen-biosecurity/AI_INFERENCE_COST_BOUNDARY.md) はTarget Profile数とAI/API実行回数を切り離し、通常投稿への外来種全件screeningを禁止し、Record起点の必要時推論・結果再利用・段階的escalation・費用計測を定めます。
 
 最初の対象は [`クビアカprofile`](spec/kubiaka-focused-experience/SPEC.md)。[`PLAN.md`](spec/kubiaka-focused-experience/PLAN.md) が実装順と受入を持ち、[`CONTRACT_EXAMPLES.json`](spec/citizen-biosecurity/CONTRACT_EXAMPLES.json) は構造検証用3プロファイルと44の受入ケースです。ケースは製品テスト結果ではありません。旧PostgreSQL中心のIMPLEMENTATION_MASTER_PLANはSUPERSEDEDです。
 
