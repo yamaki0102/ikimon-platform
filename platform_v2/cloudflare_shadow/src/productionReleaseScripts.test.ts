@@ -277,6 +277,10 @@ test("staging execute rejects dirty or changed deploy inputs before mutation", a
   assert.match(guard, /assertStagingExecuteState/u);
   assert.match(guard, /missing_staging_custom_domain/u);
   assert.match(guard, /retired_staging_legacy_route_present/u);
+  assert.match(guard, /verifyAccessProtectedStagingPublicUrl/u);
+  assert.match(guard, /Cloudflare-Access/u);
+  assert.match(guard, /yamaki-ops\.cloudflareaccess\.com/u);
+  assert.doesNotMatch(guard, /await smoke\(stagingPublicUrl, state\.gitHead\)/u);
   assert.match(wrangler, /staging\.zukan\.earth/u);
   assert.doesNotMatch(wrangler, /staging\.ikimon\.life\/\*/u);
 });
