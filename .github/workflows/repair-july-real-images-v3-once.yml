@@ -1,0 +1,117 @@
+name: Repair July Real Images V3 Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: repair-july-real-images-v3-once
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.head_ref == 'agent/repair-july-real-images-20260713'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TARGET_SHA: 2c4d72224ece8fe653bc1bffc4ce3ffa57b059cb
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PRODUCTION_BASE_URL: https://ikimon.life
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+      - run: npm --prefix platform_v2/cloudflare_shadow ci
+
+      - name: Confirm production runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p july-real-image-repair-v3
+          status="$(curl -sS -L --connect-timeout 10 --max-time 30 -H 'cache-control: no-store, no-cache' -o july-real-image-repair-v3/runtime.json -w '%{http_code}' "${PRODUCTION_BASE_URL%/}/api/v1/runtime/version?repair_v3=$GITHUB_RUN_ID")"
+          test "$status" = 200
+          test "$(jq -r '.gitSha' july-real-image-repair-v3/runtime.json)" = "$TARGET_SHA"
+
+      - name: Enqueue target observations with canonical outbox schema
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/july-real-image-repair-v3"
+          npx wrangler d1 execute ikimon_prod_core --env production --remote --json --command "SELECT user_id,display_name,role_name,rank_label,banned FROM auth_users WHERE lower(email)=lower('yamaki0102@gmail.com') LIMIT 1" > "$root/account.private.json"
+          USER_ID="$(node -e "const x=require(process.argv[1]);const r=x[0]?.results?.[0];if(!r)process.exit(2);process.stdout.write(r.user_id)" "$root/account.private.json")"
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json --command "SELECT DISTINCT o.observation_id,o.observed_at FROM observations o JOIN asset_ledger a ON a.observation_id=o.observation_id WHERE o.owner_user_id='$USER_ID' AND substr(o.observed_at,1,10) IN ('2026-07-07','2026-07-10') AND a.mime LIKE 'image/%' AND (a.public_derivative_metadata_json LIKE '%\"scannedContainer\":\"svg+xml\"%' OR a.public_derivative_metadata_json LIKE '%\"contentType\":\"image/svg%') ORDER BY o.observed_at DESC" > "$root/targets.private.json"
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json --command "SELECT outbox_id,topic,target_id,payload_json,dispatch_state,created_at FROM outbox WHERE topic='media.process' ORDER BY created_at DESC LIMIT 500" > "$root/outbox.private.json"
+          node <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          const root=process.env.GITHUB_WORKSPACE+'/july-real-image-repair-v3';
+          const targets=JSON.parse(fs.readFileSync(root+'/targets.private.json','utf8'))[0]?.results??[];
+          const outbox=JSON.parse(fs.readFileSync(root+'/outbox.private.json','utf8'))[0]?.results??[];
+          if(targets.length!==2)throw new Error(`expected 2 targets, got ${targets.length}`);
+          const esc=v=>String(v??'').replaceAll("'","''"),hash=v=>crypto.createHash('sha256').update(String(v)).digest('hex').slice(0,12);
+          const commands=[],safe=[];
+          targets.forEach((target,index)=>{const id=String(target.observation_id);const source=outbox.find(row=>{if(String(row.target_id??'')===id)return true;try{const p=JSON.parse(row.payload_json??'{}');return String(p.observationId??p.observation_id??p.targetId??'')===id;}catch{return false;}});if(!source?.payload_json)throw new Error(`payload missing ${hash(id)}`);const outboxId=`repair-real-image-v3-${process.env.GITHUB_RUN_ID}-${index+1}`;commands.push(`INSERT INTO outbox (outbox_id,topic,target_id,payload_json,dispatch_state,attempts,created_at) VALUES ('${esc(outboxId)}','media.process','${esc(id)}','${esc(source.payload_json)}','pending',0,CURRENT_TIMESTAMP);`);safe.push({observationHash:hash(id),observedDate:String(target.observed_at).slice(0,10)});});
+          fs.writeFileSync(root+'/commands.private.txt',commands.join('\n')+'\n');fs.writeFileSync(root+'/targets.safe.json',JSON.stringify(safe,null,2));
+          NODE
+          while IFS= read -r sql; do [ -n "$sql" ] || continue; npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --command "$sql" >/dev/null; done < "$root/commands.private.txt"
+          rm -f "$root/commands.private.txt" "$root/outbox.private.json"
+
+      - name: Wait for four real WebP derivatives
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/july-real-image-repair-v3"
+          USER_ID="$(node -e "const x=require(process.argv[1]);process.stdout.write(x[0].results[0].user_id)" "$root/account.private.json")"
+          ready=""
+          for attempt in $(seq 1 60); do
+            npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json --command "SELECT o.observation_id,o.observed_at,a.asset_id,a.public_derivative_key,a.public_derivative_verified_at,a.public_derivative_metadata_json,a.exif_scrub_state,a.public_ready_at FROM observations o JOIN asset_ledger a ON a.observation_id=o.observation_id WHERE o.owner_user_id='$USER_ID' AND substr(o.observed_at,1,10) IN ('2026-07-07','2026-07-10') AND a.mime LIKE 'image/%' ORDER BY o.observed_at DESC,a.asset_id" > "$root/assets.private.json"
+            node <<'NODE' > "$root/readiness.json"
+          const fs=require('node:fs');const rows=JSON.parse(fs.readFileSync(process.env.GITHUB_WORKSPACE+'/july-real-image-repair-v3/assets.private.json','utf8'))[0]?.results??[];const d=rows.map(r=>{let m={};try{m=JSON.parse(r.public_derivative_metadata_json??'{}')}catch{};return {ok:Boolean(r.public_derivative_key&&r.public_derivative_verified_at&&r.public_ready_at&&r.exif_scrub_state==='scrubbed'&&m.tool==='cloudflare-images-public-derivative-v1'&&m.contentType==='image/webp'&&m.scannedContainer==='binary'&&m.gpsExifPresent===false),reason:m.reason??null,tool:m.tool??null};});process.stdout.write(JSON.stringify({count:rows.length,ready:d.filter(x=>x.ok).length,all:rows.length===4&&d.every(x=>x.ok),failures:d.filter(x=>!x.ok)}));
+          NODE
+            echo "attempt=$attempt $(cat "$root/readiness.json")"
+            if jq -e '.all == true' "$root/readiness.json" >/dev/null; then ready=yes; break; fi
+            sleep 20
+          done
+          test "$ready" = yes
+
+      - name: Verify URLs and authenticated cards
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/july-real-image-repair-v3"
+          raw_token="repair-v3-$(openssl rand -hex 24)"; token_hash="$(printf '%s' "$raw_token"|sha256sum|awk '{print $1}')"; expires_at="$(date -u -d '+15 minutes' '+%Y-%m-%dT%H:%M:%S.000Z')"
+          cleanup(){ npx wrangler d1 execute ikimon_prod_core --env production --remote --command "DELETE FROM auth_sessions WHERE token_hash='$token_hash'" >/dev/null 2>&1||true;rm -f "$root"/*.private.*; }
+          trap cleanup EXIT
+          node <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto'),cp=require('node:child_process');const root=process.env.GITHUB_WORKSPACE+'/july-real-image-repair-v3';const rows=JSON.parse(fs.readFileSync(root+'/assets.private.json','utf8'))[0].results;const hash=v=>crypto.createHash('sha256').update(String(v)).digest('hex').slice(0,12),checks=[];rows.forEach((r,i)=>{const p='/'+String(r.public_derivative_key).replace(/^\/+/,''),h=`${root}/h${i}`,b=`${root}/b${i}`;let s=0,hs='',z=0;try{s=Number(cp.execFileSync('curl',['-sS','-L','--connect-timeout','10','--max-time','30','-D',h,'-o',b,'-w','%{http_code}','https://ikimon.life'+p],{encoding:'utf8'}).trim());hs=fs.readFileSync(h,'utf8');z=fs.statSync(b).size;}finally{if(fs.existsSync(h))fs.rmSync(h);if(fs.existsSync(b))fs.rmSync(b);}const ct=(hs.match(/content-type:\s*([^\r\n]+)/i)||[])[1]?.split(';')[0]?.trim().toLowerCase()??'';checks.push({assetHash:hash(r.asset_id),observationHash:hash(r.observation_id),status:s,contentType:ct,bytes:z});});if(checks.length!==4||checks.some(x=>x.status!==200||x.contentType!=='image/webp'||x.bytes<1000))throw new Error(JSON.stringify(checks));fs.writeFileSync(root+'/http.safe.json',JSON.stringify(checks,null,2));
+          NODE
+          TOKEN_HASH="$token_hash" EXPIRES_AT="$expires_at" node <<'NODE' > repair-session.sql
+          const fs=require('node:fs');const r=JSON.parse(fs.readFileSync(process.env.GITHUB_WORKSPACE+'/july-real-image-repair-v3/account.private.json','utf8'))[0].results[0],e=v=>String(v??'').replaceAll("'","''");console.log(`INSERT INTO auth_sessions (token_hash,user_id,display_name,role_name,rank_label,banned,expires_at,user_agent) VALUES ('${e(process.env.TOKEN_HASH)}','${e(r.user_id)}','${e(r.display_name)}','${e(r.role_name||'Observer')}','${e(r.rank_label||'観察者')}',${Number(r.banned||0)},'${e(process.env.EXPIRES_AT)}','july-real-image-repair-v3');`);
+          NODE
+          npx wrangler d1 execute ikimon_prod_core --env production --remote --file repair-session.sql >/dev/null;rm -f repair-session.sql
+          test "$(curl -sS -L --connect-timeout 10 --max-time 45 -H 'cache-control: no-store, no-cache' -H "cookie: ikimon_v2_session=$raw_token" -o "$root/home.private.html" -w '%{http_code}' "${PRODUCTION_BASE_URL%/}/ja/?repair_v3=$GITHUB_RUN_ID")" = 200
+          node <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto');const root=process.env.GITHUB_WORKSPACE+'/july-real-image-repair-v3',html=fs.readFileSync(root+'/home.private.html','utf8'),targets=JSON.parse(fs.readFileSync(root+'/targets.private.json','utf8'))[0].results,hash=v=>crypto.createHash('sha256').update(String(v)).digest('hex').slice(0,12);const cards=targets.map(t=>{const id=String(t.observation_id),x=id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),m=html.match(new RegExp(`<article[^>]*data-cloudflare-home-record-id="${x}"[\\s\\S]*?<\\/article>`));return {observationHash:hash(id),observedDate:String(t.observed_at).slice(0,10),cardFound:Boolean(m),hasImage:Boolean(m&&/<img\b[^>]*src="[^"]+"/.test(m[0]))};});if(cards.some(x=>!x.cardFound||!x.hasImage))throw new Error(JSON.stringify(cards));fs.writeFileSync(root+'/report.safe.json',JSON.stringify({targetSha:process.env.TARGET_SHA,cards,images:JSON.parse(fs.readFileSync(root+'/http.safe.json','utf8')),allRealWebp:true,authenticatedTopHasImages:true,originalsDeleted:false,ownershipChanged:false},null,2));
+          NODE
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: july-real-image-repair-v3
+          path: |
+            july-real-image-repair-v3/report.safe.json
+            july-real-image-repair-v3/targets.safe.json
+            july-real-image-repair-v3/http.safe.json
+            july-real-image-repair-v3/readiness.json
+          if-no-files-found: warn
+          retention-days: 14
