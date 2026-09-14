@@ -41,6 +41,14 @@ function candidate(overrides: Partial<RawRecordArchiveCandidate> = {}): RawRecor
       withdrawalStatus: "active",
     },
     visibility: "public_candidate",
+    locationPolicy: {
+      publicLocationMode: "site",
+      publicTimePrecision: "date",
+      sensitivityStatus: "none",
+      sensitivityReason: "ordinary_public_area_profile",
+      policyRulesetVersion: "site_intelligence_p0_v1",
+      recalculatedAt: "2026-09-10T02:00:00.000Z",
+    },
     visibilityHistory: [{
       visibility: "public_candidate",
       actorId: "reviewer-1",
@@ -81,6 +89,7 @@ function candidate(overrides: Partial<RawRecordArchiveCandidate> = {}): RawRecor
       consent: "allowed",
       visibility: "public_candidate",
       availability: "available",
+      retentionStatus: "retained",
     }],
     ...overrides,
   };
@@ -115,6 +124,7 @@ test("raw_record_archive_preserves_record_granularity", () => {
     mediaKind: "image",
   }]);
   assert.equal(item.lifecycle?.retentionStatus, "retained");
+  assert.equal(item.locationPolicy?.publicLocationMode, "site");
 });
 
 test("raw_record_archive_keeps_private_source_for_authorized_requester", () => {
@@ -266,4 +276,87 @@ test("unauthorized_requester_does_not_disclose_record_payload", () => {
   assert.equal(item.record, null);
   assert.equal(item.issues[0]?.code, "requester_authorization_denied");
   assert.doesNotMatch(JSON.stringify(plan), /river bird|near the reed bed|source-record-1/);
+});
+
+test("raw_record_archive_uses_locale_independent_canonical_ordering", () => {
+  const unordered = candidate({
+    contributorFields: {
+      "ä": "umlaut",
+      z: "zee",
+      a: "ay",
+    },
+    fieldPolicies: {
+      "ä": { authorization: "authorized", consent: "allowed", visibility: "private", retention: "retained" },
+      z: { authorization: "authorized", consent: "allowed", visibility: "private", retention: "retained" },
+      a: { authorization: "authorized", consent: "allowed", visibility: "private", retention: "retained" },
+    },
+    mediaRefs: [
+      { ...candidate().mediaRefs[0]!, mediaId: "ä-media" },
+      { ...candidate().mediaRefs[0]!, mediaId: "z-media" },
+    ],
+  });
+  const plan = planRawRecordPortabilityArchive(request({ records: [unordered] }));
+  const serialized = serializeRawRecordPortabilityArchivePlan(plan);
+
+  assert.deepEqual(plan.items[0]?.mediaDecisions.map((entry) => entry.mediaId), ["z-media", "ä-media"]);
+  assert.match(serialized, /"contributorFields":\{"a":"ay","z":"zee","ä":"umlaut"\}/);
+});
+
+test("raw_record_archive_blocks_every_duplicate_media_candidate", () => {
+  const first = {
+    ...candidate().mediaRefs[0]!,
+    mediaId: "media-duplicate",
+    sourceRef: "r2://records/record-1/media-a",
+    authorization: "authorized" as const,
+  };
+  const second = {
+    ...candidate().mediaRefs[0]!,
+    mediaId: "media-duplicate",
+    sourceRef: "r2://records/record-1/media-b",
+    authorization: "unauthorized" as const,
+  };
+  const firstPlan = planRawRecordPortabilityArchive(request({ records: [candidate({ mediaRefs: [first, second] })] }));
+  const secondPlan = planRawRecordPortabilityArchive(request({ records: [candidate({ mediaRefs: [second, first] })] }));
+  const firstItem = firstPlan.items[0]!;
+  const secondItem = secondPlan.items[0]!;
+
+  assert.equal(firstPlan.manifestDigest, secondPlan.manifestDigest);
+  assert.deepEqual(firstPlan, secondPlan);
+  assert.equal(firstItem.mediaRefs.length, 0);
+  assert.equal(firstItem.mediaDecisions.length, 2);
+  assert.ok(firstItem.mediaDecisions.every((entry) => entry.decision === "blocked"));
+  assert.ok(firstItem.mediaDecisions.every((entry) => entry.issue?.code === "media_id_duplicate"));
+  assert.equal(secondItem.mediaRefs.length, 0);
+});
+
+test("raw_record_archive_applies_media_retention_lifecycle", () => {
+  const plan = planRawRecordPortabilityArchive(request({
+    records: [candidate({
+      mediaRefs: [{
+        ...candidate().mediaRefs[0]!,
+        retentionStatus: "delete_requested",
+      }],
+    })],
+  }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "partial");
+  assert.equal(item.decision, "partial");
+  assert.deepEqual(item.mediaRefs, []);
+  assert.equal(item.mediaDecisions[0]?.retentionStatus, "delete_requested");
+  assert.equal(item.mediaDecisions[0]?.issue?.code, "media_retention_blocked");
+});
+
+test("raw_record_archive_requires_an_explicit_location_policy_snapshot", () => {
+  const plan = planRawRecordPortabilityArchive(request({
+    records: [candidate({ locationPolicy: undefined as never })],
+  }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "blocked");
+  assert.equal(item.decision, "blocked");
+  assert.equal(item.record, null);
+  assert.equal(item.locationPolicy, null);
+  assert.equal(item.issues[0]?.code, "location_policy_unknown");
+  assert.equal(item.issues[0]?.retryable, true);
 });

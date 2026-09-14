@@ -6,6 +6,7 @@ import {
   type RawRecordPortabilityRecordInput,
   type RawRecordVisibility,
 } from "./programPortabilityBoundary.js";
+import type { ObservationPublicationPolicy } from "./observationPublicationPolicy.js";
 
 export const RAW_RECORD_PORTABILITY_MANIFEST_SCHEMA_VERSION =
   "zukan.raw-record-portability-manifest/v1" as const;
@@ -44,10 +45,17 @@ export type RawRecordArchiveMediaInput = {
   consent: RawRecordArchiveConsent;
   visibility: RawRecordVisibility | "unknown";
   availability: RawRecordArchiveMediaAvailability;
+  retentionStatus: RawRecordArchiveRetentionStatus;
 };
+
+export type RawRecordArchiveLocationPolicy = Pick<
+  ObservationPublicationPolicy,
+  "publicLocationMode" | "publicTimePrecision" | "sensitivityStatus" | "sensitivityReason" | "policyRulesetVersion" | "recalculatedAt"
+>;
 
 export type RawRecordArchiveCandidate = RawRecordPortabilityRecordInput & {
   authorization: RawRecordArchiveAuthorization;
+  locationPolicy: RawRecordArchiveLocationPolicy;
   lifecycle: {
     sourceAvailability: RawRecordArchiveSourceAvailability;
     retentionStatus: RawRecordArchiveRetentionStatus;
@@ -83,6 +91,7 @@ export type RawRecordArchiveMediaDecision = {
   mediaId: string;
   mediaKind: RawRecordArchiveMediaKind | "other";
   availability: RawRecordArchiveMediaAvailability | "unknown";
+  retentionStatus: RawRecordArchiveRetentionStatus;
   visibility: RawRecordVisibility | "unknown";
   decision: "included" | "blocked";
   sourceRef: string | null;
@@ -102,6 +111,7 @@ export type RawRecordArchiveItem = {
   decision: RawRecordArchiveItemDecision;
   record: RawRecordPortabilityRecord | null;
   mediaRefs: ReadonlyArray<Pick<RawRecordArchiveMediaInput, "mediaId" | "sourceRef" | "mediaKind">>;
+  locationPolicy: RawRecordArchiveLocationPolicy | null;
   fieldDecisions: readonly RawRecordArchiveFieldDecision[];
   mediaDecisions: readonly RawRecordArchiveMediaDecision[];
   lifecycle: RawRecordArchiveLifecycle | null;
@@ -147,10 +157,24 @@ const RAW_RECORD_ARCHIVE_MEDIA_AVAILABILITIES = [
   "unknown",
 ] as const;
 const RAW_RECORD_ARCHIVE_MEDIA_KINDS = ["image", "video", "audio", "other"] as const;
+const RAW_RECORD_ARCHIVE_PUBLIC_LOCATION_MODES = ["exact", "site", "grid_250m", "grid_1km", "municipality", "hidden"] as const;
+const RAW_RECORD_ARCHIVE_PUBLIC_TIME_PRECISIONS = ["datetime", "date", "month", "season", "hidden"] as const;
+const RAW_RECORD_ARCHIVE_SENSITIVITY_STATUSES = [
+  "none",
+  "taxon_sensitive",
+  "context_sensitive",
+  "human_sensitive",
+  "manager_restricted",
+  "uncertain",
+] as const;
 
 function requiredText(value: unknown, field: string): string {
   if (typeof value !== "string" || value.trim().length === 0) throw new Error(`${field}_required`);
   return value.trim();
+}
+
+function compareCanonicalStrings(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function isOneOf<T extends string>(value: unknown, values: readonly T[]): value is T {
@@ -169,7 +193,7 @@ function canonicalJson(value: unknown): string {
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) throw new Error("manifest_value_not_serializable");
   return `{${Object.entries(value as Record<string, unknown>)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => compareCanonicalStrings(left, right))
     .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
     .join(",")}}`;
 }
@@ -192,6 +216,26 @@ function recordIdFrom(value: unknown): string | null {
   return typeof recordId === "string" && recordId.trim() ? recordId.trim() : null;
 }
 
+function normalizeLocationPolicy(value: unknown): RawRecordArchiveLocationPolicy | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const policy = value as Partial<RawRecordArchiveLocationPolicy>;
+  if (!isOneOf(policy.publicLocationMode, RAW_RECORD_ARCHIVE_PUBLIC_LOCATION_MODES)) return null;
+  if (!isOneOf(policy.publicTimePrecision, RAW_RECORD_ARCHIVE_PUBLIC_TIME_PRECISIONS)) return null;
+  if (!isOneOf(policy.sensitivityStatus, RAW_RECORD_ARCHIVE_SENSITIVITY_STATUSES)) return null;
+  const sensitivityReason = typeof policy.sensitivityReason === "string" ? policy.sensitivityReason.trim() : "";
+  const policyRulesetVersion = typeof policy.policyRulesetVersion === "string" ? policy.policyRulesetVersion.trim() : "";
+  const recalculatedAt = typeof policy.recalculatedAt === "string" ? policy.recalculatedAt.trim() : "";
+  if (!sensitivityReason || !policyRulesetVersion || !recalculatedAt || !Number.isFinite(Date.parse(recalculatedAt))) return null;
+  return {
+    publicLocationMode: policy.publicLocationMode,
+    publicTimePrecision: policy.publicTimePrecision,
+    sensitivityStatus: policy.sensitivityStatus,
+    sensitivityReason,
+    policyRulesetVersion,
+    recalculatedAt,
+  };
+}
+
 function lifecycleFor(
   candidate: RawRecordArchiveCandidate,
   record: RawRecordPortabilityRecord,
@@ -209,12 +253,18 @@ function lifecycleFor(
   };
 }
 
-function emptyItem(recordId: string, issues: readonly RawRecordArchiveIssue[], lifecycle: RawRecordArchiveLifecycle | null = null): RawRecordArchiveItem {
+function emptyItem(
+  recordId: string,
+  issues: readonly RawRecordArchiveIssue[],
+  lifecycle: RawRecordArchiveLifecycle | null = null,
+  locationPolicy: RawRecordArchiveLocationPolicy | null = null,
+): RawRecordArchiveItem {
   return {
     recordId,
     decision: "blocked",
     record: null,
     mediaRefs: [],
+    locationPolicy,
     fieldDecisions: [],
     mediaDecisions: [],
     lifecycle,
@@ -285,14 +335,22 @@ function mediaDecision(
   const availability = isOneOf(media?.availability, RAW_RECORD_ARCHIVE_MEDIA_AVAILABILITIES)
     ? media.availability
     : "unknown";
+  const retentionStatus = isOneOf(media?.retentionStatus, RAW_RECORD_ARCHIVE_RETENTION_STATUSES)
+    ? media.retentionStatus
+    : "unknown";
   const visibility = isOneOf(media?.visibility, RAW_RECORD_VISIBILITIES) ? media.visibility : "unknown";
-  const details = { mediaId, mediaKind, availability, visibility } as const;
+  const details = { mediaId, mediaKind, availability, retentionStatus, visibility } as const;
   let mediaIssue: RawRecordArchiveIssue | null = null;
   if (!mediaId) mediaIssue = issue("media_id_required", false);
   else if (media.authorization === "unauthorized") mediaIssue = issue("media_authorization_denied", false, { mediaId });
   else if (media.authorization !== "authorized") mediaIssue = issue("media_authorization_unknown", true, { mediaId });
   else if (media.consent === "denied") mediaIssue = issue("media_consent_denied", false, { mediaId });
   else if (media.consent !== "allowed") mediaIssue = issue("media_consent_unknown", true, { mediaId });
+  else if (retentionStatus === "delete_requested" || retentionStatus === "deleted" || retentionStatus === "quarantined") {
+    mediaIssue = issue("media_retention_blocked", false, { mediaId });
+  } else if (retentionStatus !== "retained") {
+    mediaIssue = issue("media_retention_unknown", true, { mediaId });
+  }
   else if (availability === "missing") mediaIssue = issue("media_unavailable", true, { mediaId });
   else if (availability === "unknown") mediaIssue = issue("media_availability_unknown", true, { mediaId });
   else if (availability === "deleted") mediaIssue = issue("media_deleted", false, { mediaId });
@@ -327,8 +385,10 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
     return emptyItem(recordId, [issue("record_payload_invalid", true)]);
   }
   const lifecycle = lifecycleFor(candidate, record);
+  const locationPolicy = normalizeLocationPolicy(candidate.locationPolicy);
+  if (!locationPolicy) return emptyItem(recordId, [issue("location_policy_unknown", true)], lifecycle);
   const recordBlocked = recordIssues(candidate, record);
-  if (recordBlocked.length > 0) return emptyItem(recordId, recordBlocked, lifecycle);
+  if (recordBlocked.length > 0) return emptyItem(recordId, recordBlocked, lifecycle, locationPolicy);
 
   const includedFields: Record<string, unknown> = {};
   const fieldDecisions: RawRecordArchiveFieldDecision[] = [];
@@ -342,12 +402,28 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
 
   const mediaDecisions: RawRecordArchiveMediaDecision[] = [];
   const includedMedia: Array<Pick<RawRecordArchiveMediaInput, "mediaId" | "sourceRef" | "mediaKind">> = [];
-  const seenMediaIds = new Set<string>();
   const mediaInputs = Array.isArray(candidate.mediaRefs) ? [...candidate.mediaRefs] : [];
   if (!Array.isArray(candidate.mediaRefs)) issues.push(issue("media_refs_invalid", true));
-  for (const media of mediaInputs.sort((left, right) => String(left?.mediaId ?? "").localeCompare(String(right?.mediaId ?? "")))) {
+  const evaluatedMedia = mediaInputs.map((media) => {
     const result = mediaDecision(media);
-    if (seenMediaIds.has(result.decision.mediaId)) {
+    const mediaId = typeof media?.mediaId === "string" && media.mediaId.trim() ? media.mediaId.trim() : null;
+    return { mediaId, result };
+  });
+  evaluatedMedia.sort((left, right) => {
+    const idComparison = compareCanonicalStrings(left.mediaId ?? "", right.mediaId ?? "");
+    if (idComparison !== 0) return idComparison;
+    return compareCanonicalStrings(
+      canonicalJson(left.result.decision),
+      canonicalJson(right.result.decision),
+    );
+  });
+  const mediaIdCounts = new Map<string, number>();
+  for (const evaluated of evaluatedMedia) {
+    if (evaluated.mediaId) mediaIdCounts.set(evaluated.mediaId, (mediaIdCounts.get(evaluated.mediaId) ?? 0) + 1);
+  }
+  for (const evaluated of evaluatedMedia) {
+    const { mediaId, result } = evaluated;
+    if (mediaId && (mediaIdCounts.get(mediaId) ?? 0) > 1) {
       const duplicate = issue("media_id_duplicate", false, { mediaId: result.decision.mediaId });
       mediaDecisions.push({
         ...result.decision,
@@ -358,7 +434,6 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
       issues.push(duplicate);
       continue;
     }
-    seenMediaIds.add(result.decision.mediaId);
     mediaDecisions.push(result.decision);
     if (result.issue) issues.push(result.issue);
     else includedMedia.push({
@@ -379,6 +454,7 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
     decision,
     record: hasIncludedPayload ? { ...record, contributorFields: includedFields } : null,
     mediaRefs: includedMedia,
+    locationPolicy,
     fieldDecisions,
     mediaDecisions,
     lifecycle,
