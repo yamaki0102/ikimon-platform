@@ -285,6 +285,29 @@ test("raw_record_archive_blocks_noncanonical_location_policy_combinations", () =
   assert.equal(item.issues[0]?.retryable, true);
 });
 
+test("raw_record_archive_does_not_preserve_unverified_location_policy_on_blocked_record", () => {
+  const withdrawn = candidate({
+    consent: {
+      ...candidate().consent,
+      withdrawalStatus: "withdrawn",
+    },
+    visibility: "withdrawn",
+    visibilityHistory: [{
+      visibility: "withdrawn",
+      actorId: "subject-1",
+      occurredAt: "2026-09-11T00:00:00.000Z",
+      source: "consent_withdrawal",
+    }],
+  });
+  const plan = planRawRecordPortabilityArchive(request({ records: [withdrawn] }));
+  const item = plan.items[0]!;
+
+  assert.equal(item.decision, "blocked");
+  assert.equal(item.locationPolicy, null);
+  assert.ok(item.issues.some((entry) => entry.code === "location_policy_rights_mismatch"));
+  assert.ok(item.issues.some((entry) => entry.code === "record_withdrawn"));
+});
+
 test("raw_record_archive_does_not_default_missing_withdrawal_to_active", () => {
   const missingWithdrawal = candidate({
     consent: {

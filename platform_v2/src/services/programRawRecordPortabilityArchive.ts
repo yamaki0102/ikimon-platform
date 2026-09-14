@@ -473,11 +473,13 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
   const locationPolicy = normalizeLocationPolicy(candidate.locationPolicy);
   if (!locationPolicy) return emptyItem(recordId, [issue("location_policy_unknown", true)], lifecycle);
   const recordBlocked = recordIssues(candidate, record);
-  if (recordBlocked.length > 0) return emptyItem(recordId, recordBlocked, lifecycle, locationPolicy);
   const locationRightsIssue = locationPolicyRightsIssue(record, locationPolicy);
-  if (locationRightsIssue) return emptyItem(recordId, [locationRightsIssue], lifecycle);
   const locationConsistencyIssue = locationPolicyConsistencyIssue(locationPolicy);
-  if (locationConsistencyIssue) return emptyItem(recordId, [locationConsistencyIssue], lifecycle);
+  const locationIssues = [locationRightsIssue, locationConsistencyIssue].filter(
+    (entry): entry is RawRecordArchiveIssue => entry !== null,
+  );
+  if (locationIssues.length > 0) return emptyItem(recordId, [...recordBlocked, ...locationIssues], lifecycle);
+  if (recordBlocked.length > 0) return emptyItem(recordId, recordBlocked, lifecycle, locationPolicy);
 
   const includedFields: Record<string, unknown> = {};
   const includedRecordFields: RawRecordArchiveRecordFields = {};
