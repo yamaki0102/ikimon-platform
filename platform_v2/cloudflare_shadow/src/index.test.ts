@@ -20813,8 +20813,9 @@ test("production public derived image transform route is bounded and copy-free",
     assert.equal(fetchCalls[0]?.init.method, "GET");
     assert.equal(fetchCalls[0]?.init.cf?.image?.width, 680);
     assert.equal(fetchCalls[0]?.init.cf?.image?.fit, "scale-down");
-    assert.equal(fetchCalls[0]?.init.cf?.image?.format, "auto");
+    assert.equal(fetchCalls[0]?.init.cf?.image?.format, "avif");
     assert.equal(fetchCalls[0]?.init.cf?.image?.quality, 82);
+    assert.equal(new Headers(fetchCalls[0]?.init.headers).get("accept"), "image/avif,image/webp");
 
     const headResponse = await worker.fetch(new Request("https://ikimon.life/derived-transform/w360/derived/import/20260615/observation_photo/asset-public-cache/display.webp", {
       method: "HEAD"
@@ -20840,6 +20841,46 @@ test("production public derived image transform route is bounded and copy-free",
     assert.equal(methodResponse.headers.get("cache-control"), "no-store");
     assert.equal(fetchCalls.length, 2);
     assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production public derived image transform negotiates explicit codecs and keeps wildcard fallback conservative", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+  };
+  const originalFetch = globalThis.fetch;
+  const fetchCalls: Array<{ init: RequestInit & { cf?: { image?: { format?: string } } } }> = [];
+  globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+    fetchCalls.push({ init: init as RequestInit & { cf?: { image?: { format?: string } } } });
+    return new Response("tiny-image", {
+      status: 200,
+      headers: { "content-type": "image/jpeg" }
+    });
+  }) as typeof fetch;
+  const cases = [
+    { accept: "image/avif,image/webp", format: "avif" },
+    { accept: "image/avif;q=0.4,image/webp;q=1,image/jpeg;q=0.5", format: "webp" },
+    { accept: "image/avif;q=0,image/webp;q=0.7,image/jpeg;q=0.5", format: "webp" },
+    { accept: "image/png", format: "png" },
+    { accept: "image/jpeg,image/png", format: "jpeg" },
+    { accept: "*/*", format: "jpeg" },
+    { accept: "image/avif;q=0,*/*;q=1", format: "jpeg" },
+    { accept: null, format: "jpeg" }
+  ] as const;
+  try {
+    for (const testCase of cases) {
+      const request = new Request("https://ikimon.life/derived-transform/w680/derived/import/20260615/observation_photo/asset-public-cache/display.webp");
+      if (testCase.accept !== null) request.headers.set("accept", testCase.accept);
+      const response = await worker.fetch(request, productionEnv);
+      assert.equal(response.status, 200);
+      const call = fetchCalls.at(-1);
+      assert.equal(call?.init.cf?.image?.format, testCase.format);
+      assert.equal(new Headers(call?.init.headers).get("accept"), testCase.accept ?? "image/jpeg");
+    }
   } finally {
     globalThis.fetch = originalFetch;
   }
