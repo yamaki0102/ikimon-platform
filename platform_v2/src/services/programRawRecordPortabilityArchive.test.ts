@@ -351,12 +351,12 @@ test("raw_record_archive_applies_rights_to_fixed_record_fields", () => {
 
 test("raw_record_archive_lifecycle_respects_fixed_field_redaction", () => {
   const cases = [
-    { fieldName: "review", lifecycleKey: "reviewState" },
-    { fieldName: "consent", lifecycleKey: "withdrawalStatus" },
-    { fieldName: "visibility", lifecycleKey: "visibility" },
+    { fieldName: "review", lifecycleKey: "reviewState", expectedDecision: "partial" },
+    { fieldName: "consent", lifecycleKey: "withdrawalStatus", expectedDecision: "blocked" },
+    { fieldName: "visibility", lifecycleKey: "visibility", expectedDecision: "partial" },
   ] as const;
 
-  for (const { fieldName, lifecycleKey } of cases) {
+  for (const { fieldName, lifecycleKey, expectedDecision } of cases) {
     const plan = planRawRecordPortabilityArchive(request({
       records: [candidate({
         recordFieldPolicies: {
@@ -370,9 +370,13 @@ test("raw_record_archive_lifecycle_respects_fixed_field_redaction", () => {
     }));
     const item = plan.items[0]!;
 
-    assert.equal(item.decision, "partial");
+    assert.equal(item.decision, expectedDecision);
     assert.equal(Object.hasOwn(item.record ?? {}, fieldName), false);
     assert.equal(Object.hasOwn(item.lifecycle ?? {}, lifecycleKey), false);
+    if (fieldName === "consent") {
+      assert.equal(item.locationPolicy, null);
+      assert.ok(item.issues.some((entry) => entry.code === "location_policy_unverifiable"));
+    }
   }
 });
 
@@ -439,9 +443,10 @@ test("raw_record_archive_redacts_location_policy_reason_with_consent_redaction",
   const item = plan.items[0]!;
 
   assert.equal(item.decision, "blocked");
-  assert.equal(item.locationPolicy?.sensitivityReason, "policy_reason_redacted");
+  assert.equal(item.locationPolicy, null);
   assert.equal(item.lifecycle?.withdrawalStatus, undefined);
   assert.ok(item.issues.some((entry) => entry.code === "record_lifecycle_blocked"));
+  assert.ok(item.issues.some((entry) => entry.code === "location_policy_unverifiable"));
   assert.doesNotMatch(JSON.stringify(item), /rights_withdrawn|record_withdrawn/);
 });
 

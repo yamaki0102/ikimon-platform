@@ -299,14 +299,14 @@ function locationPolicyRightsIssue(
   record: RawRecordPortabilityRecord,
   policy: RawRecordArchiveLocationPolicy,
 ): RawRecordArchiveIssue | null {
+  const consentDecision = fieldDecision("record:consent", candidate.recordFieldPolicies?.consent);
+  if (consentDecision.issue) {
+    return issue("location_policy_unverifiable", consentDecision.issue.retryable);
+  }
   const locationHidden = policy.publicLocationMode === "hidden";
   const timeHidden = policy.publicTimePrecision === "hidden";
   if (locationHidden !== timeHidden) return issue("location_policy_rights_mismatch", true);
   if (!record.consent.publicAggregationAllowed && (!locationHidden || !timeHidden)) {
-    const consentDecision = fieldDecision("record:consent", candidate.recordFieldPolicies?.consent);
-    if (consentDecision.issue) {
-      return issue("location_policy_unverifiable", consentDecision.issue.retryable);
-    }
     return issue("location_policy_rights_mismatch", true);
   }
   return null;
