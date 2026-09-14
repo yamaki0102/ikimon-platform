@@ -132,7 +132,17 @@ test("top-level shared navigation does not link to 404 pages", async () => {
     const sharedNav = await app.inject({ method: "GET", url: "/records?lang=ja", headers: { accept: "text/html" } });
     assert.equal(sharedNav.statusCode, 200);
     const hrefs = extractInternalHrefs(sharedNav.body);
-    assert.ok(hrefs.includes("/ja/community"), "shared navigation should expose community");
+    assert.ok(hrefs.includes("/ja/community/events"), "shared navigation should expose the implemented participation hub");
+
+    for (const lang of ["ja", "en", "es", "pt-br"] as const) {
+      const localized = await app.inject({ method: "GET", url: `/records?lang=${lang}`, headers: { accept: "text/html" } });
+      assert.equal(localized.statusCode, 200);
+      const localizedHrefs = extractInternalHrefs(localized.body);
+      const participationHref = `/${lang}/community/events`;
+      assert.ok(localizedHrefs.includes(participationHref), `${lang} shared navigation should expose the implemented participation hub`);
+      const participation = await app.inject({ method: "GET", url: participationHref, headers: { accept: "text/html" } });
+      assert.notEqual(participation.statusCode, 404, `${participationHref} should not 404 from shared navigation`);
+    }
 
     const cloudflareNativeLinks = new Set([
       "/ja/walk-maps",

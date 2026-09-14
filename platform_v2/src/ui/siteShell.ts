@@ -758,7 +758,7 @@ function renderHeaderCoreNavigation(basePath: string, lang: SiteLang, currentPat
   const placesHref = appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang);
   const homeHref = appendLangToHref(withBasePath(basePath, "/"), lang);
   const memberRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
-  const communityHref = appendLangToHref(withBasePath(basePath, "/community"), lang);
+  const eventsHref = appendLangToHref(withBasePath(basePath, "/community/events"), lang);
   const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=public"), lang);
   const recordsHref = authState === "member" ? memberRecordsHref : guestRecordsHref;
   const current = (matched: boolean): string => matched ? ' aria-current="page"' : "";
@@ -766,7 +766,7 @@ function renderHeaderCoreNavigation(basePath: string, lang: SiteLang, currentPat
     <a class="site-core-nav-link" href="${escapeHtml(homeHref)}"${current(pathname === "/" || pathname === "/home")}>${escapeHtml(copy.home)}</a>
     <a class="site-core-nav-link" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${current(pathname === "/records" || pathname.startsWith("/records/") || pathname.startsWith("/observations/"))}>${escapeHtml(copy.records)}</a>
     <a class="site-core-nav-link" href="${escapeHtml(placesHref)}"${current(pathname === "/map" || pathname.startsWith("/map/"))}>${escapeHtml(copy.places)}</a>
-    <a class="site-core-nav-link" href="${escapeHtml(communityHref)}"${current(pathname === "/community" || pathname.startsWith("/community/"))}>${escapeHtml(copy.events)}</a>
+    <a class="site-core-nav-link" href="${escapeHtml(eventsHref)}"${current(pathname === "/community/events" || pathname.startsWith("/community/events/"))}>${escapeHtml(copy.events)}</a>
     <button type="button" class="site-core-nav-link is-capture" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="header_capture" aria-haspopup="dialog">${escapeHtml(copy.photo)}</button>
   </nav>`;
 }
@@ -1249,11 +1249,11 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   const memberRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
   const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=public"), lang);
   const recordsHref = authState === "member" ? memberRecordsHref : guestRecordsHref;
-  const communityHref = appendLangToHref(withBasePath(basePath, "/community"), lang);
+  const eventsHref = appendLangToHref(withBasePath(basePath, "/community/events"), lang);
   const homeCurrent = pathname === "/" || pathname === "/home";
   const placesCurrent = pathname === "/map" || pathname.startsWith("/map/");
   const recordsCurrent = pathname === "/records" || pathname.startsWith("/records/") || pathname.startsWith("/observations/");
-  const communityCurrent = pathname === "/community" || pathname.startsWith("/community/");
+  const eventsCurrent = pathname === "/community/events" || pathname.startsWith("/community/events/");
   return `<nav class="global-record-launcher" aria-label="${escapeHtml(copy.navLabel)}">
     <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*" multiple hidden />
     <a class="global-record-choice${homeCurrent ? " is-active" : ""}" href="${escapeHtml(homeHref)}"${homeCurrent ? ' aria-current="page"' : ""}>
@@ -1272,7 +1272,7 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></svg></span>
       <span>${escapeHtml(copy.places)}</span>
     </a>
-    <a class="global-record-choice${communityCurrent ? " is-active" : ""}" href="${escapeHtml(communityHref)}"${communityCurrent ? ' aria-current="page"' : ""}>
+    <a class="global-record-choice${eventsCurrent ? " is-active" : ""}" href="${escapeHtml(eventsHref)}"${eventsCurrent ? ' aria-current="page"' : ""}>
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5"/></svg></span>
       <span>${escapeHtml(copy.events)}</span>
     </a>
