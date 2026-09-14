@@ -7,6 +7,11 @@ import {
 } from "../i18n/observationEventStrings.js";
 import type { SiteLang } from "../i18n.js";
 import { renderCheckinBody } from "./observationEventCheckin.js";
+import {
+  renderParticipationTerms,
+  summarizeParticipationTerms,
+  type ParticipationTermsLabels,
+} from "./participationTerms.js";
 
 function escapeHtml(str: string): string {
   return str
@@ -243,6 +248,22 @@ function renderFact(label: string, value: string): string {
     </div>`;
 }
 
+function participationTermsLabels(d: ObservationEventDiscoveryStrings): ParticipationTermsLabels {
+  return {
+    heading: d.detailTermsHeading,
+    roleLabel: d.detailRoleLabel,
+    relationshipLabel: d.detailRelationshipLabel,
+    compensationLabel: d.detailCompensationLabel,
+    expensesLabel: d.detailExpensesLabel,
+    participantCostLabel: d.detailParticipantCostLabel,
+    unknownValue: d.detailUnknownValue,
+    notApplicableValue: d.detailNotApplicableValue,
+    zeroValue: d.detailZeroValue,
+    capLabel: d.detailTermsCapLabel,
+    disclaimer: d.detailTermsDisclaimer,
+  };
+}
+
 export function renderObservationEventJoinBody(
   session: ObservationEventSessionRow,
   strings: ObservationEventStrings,
@@ -258,6 +279,7 @@ export function renderObservationEventJoinBody(
   const placeText = resolvePlaceLabel(session, sources, options.fieldName);
   const organizerText = resolveOrganizerLabel(sources);
   const costText = resolveCostLabel(sources);
+  const termsSection = renderParticipationTerms(session.config, participationTermsLabels(d));
   const whenText = formatWindow(session.startedAt, session.endedAt, lang) || d.dateTbd;
   const externalSignup = options.externalSignup ?? readObservationEventExternalSignup(session);
   const showCheckin = options.showCheckin ?? shouldRenderObservationEventCheckin(session, externalSignup);
@@ -365,6 +387,7 @@ export function renderObservationEventJoinBody(
           ${renderFact(d.detailWhoLabel, organizerText ?? d.detailUnknownValue)}
         </dl>
       </section>
+      ${termsSection}
       <section class="zukan-participation-detail-section" aria-labelledby="participation-method-facts-heading">
         <h2 id="participation-method-facts-heading">${escapeHtml(d.detailParticipationHeading)}</h2>
         <dl class="zukan-participation-detail-facts">
@@ -391,6 +414,7 @@ export function renderObservationEventJoinBody(
 export const OBSERVATION_EVENT_LIST_STYLES = `
 .zukan-participation-shell {
   width: min(100%, 1040px);
+  box-sizing: border-box;
   margin: 0 auto;
   padding: clamp(24px, 4vw, 52px) clamp(16px, 3vw, 28px) 72px;
   color: #17211b;
@@ -653,6 +677,23 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
   font-weight: 700;
   line-height: 1.5;
 }
+.zukan-participation-terms-role + .zukan-participation-terms-role {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #dde2dd;
+}
+.zukan-participation-terms-role h3 {
+  margin: 0 0 10px;
+  color: #17211b;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.zukan-participation-terms-disclaimer {
+  margin: 12px 0 0;
+  color: #55615a;
+  font-size: 12px;
+  line-height: 1.6;
+}
 .zukan-participation-detail-record {
   display: grid;
   gap: 10px;
@@ -764,6 +805,7 @@ export function renderEventListBody(
   options: EventListRenderOptions = {},
 ): string {
   const d: ObservationEventDiscoveryStrings = getObservationEventDiscoveryStrings(lang);
+  const termsLabels = participationTermsLabels(d);
   const { actionable, upcoming, history } = groupSessions(sessions, Date.now());
   const loadFailed = options.loadFailed === true;
   const nothing = actionable.length === 0 && upcoming.length === 0 && history.length === 0;
@@ -779,6 +821,7 @@ export function renderEventListBody(
           ? d.badgeCancelled
           : strings.badgeEnded;
     const targets = (s.targetSpecies ?? []).slice(0, 4).map(escapeHtml).join("、");
+    const termsSummary = summarizeParticipationTerms(s.config, termsLabels);
 
     let action = "";
     if ((kind === "actionable" || kind === "upcoming") && s.eventCode) {
@@ -799,6 +842,7 @@ export function renderEventListBody(
         <div>
           <h3>${escapeHtml(title)}</h3>
           ${targets ? `<p class="zukan-participation-meta">${escapeHtml(strings.liveTargetLabel)}：${targets}</p>` : ""}
+          ${termsSummary ? `<p class="zukan-participation-meta">${escapeHtml(termsSummary)}</p>` : ""}
         </div>
         <div class="zukan-participation-row-action">${action}</div>
       </article>`;
