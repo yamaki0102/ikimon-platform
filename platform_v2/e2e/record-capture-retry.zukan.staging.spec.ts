@@ -1,4 +1,11 @@
 import { test, expect, type Route } from "@playwright/test";
+import {
+  addSessionCookie,
+  cleanupFixtures,
+  createStagingApiContext,
+  issueSessionCookie,
+  requireEnv,
+} from "./support/staging.js";
 
 const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth";
 const STAGING_ORIGIN = new URL(STAGING_BASE_URL).origin;
@@ -30,10 +37,12 @@ async function fulfillJson(route: Route, status: number, body: unknown): Promise
 }
 
 test.describe.serial("ZUKAN capture P0 fixture-only retry gate", () => {
-  test("saves one Record, retries media, and succeeds without duplicate Record", async ({ page }, testInfo) => {
-    const fixtureId = `zukan-runtime-${Date.now()}`;
+  test("saves one Record, retries media, and succeeds without duplicate Record", async ({ page, playwright }, testInfo) => {
+    const fixtureId = `record-feedback-loop-${Date.now()}`;
     const visitId = `${fixtureId}-visit`;
     const occurrenceId = `occ:${visitId}:0`;
+    const writeKey = requireEnv("V2_PRIVILEGED_WRITE_API_KEY");
+    const api = await createStagingApiContext(playwright);
     let allowSuccessfulUpload = false;
     const counters: MutationCounters = {
       observationUpsert: 0,
@@ -43,7 +52,11 @@ test.describe.serial("ZUKAN capture P0 fixture-only retry gate", () => {
       unknown: [],
     };
 
-    await page.route("**/*", async (route) => {
+    try {
+      const rawCookie = await issueSessionCookie(api, writeKey, `${fixtureId}-user`);
+      await addSessionCookie(page.context(), rawCookie);
+
+      await page.route("**/*", async (route) => {
       const request = route.request();
       const url = new URL(request.url());
       const method = request.method().toUpperCase();
@@ -123,9 +136,9 @@ test.describe.serial("ZUKAN capture P0 fixture-only retry gate", () => {
 
       counters.unknown.push(`${method} ${url.pathname}`);
       await fulfillJson(route, 409, { ok: false, error: "fixture_unknown_mutation_rejected" });
-    });
+      });
 
-    const response = await page.goto(`/ja/record?userId=${encodeURIComponent(`${fixtureId}-user`)}&zukan_runtime_qa=1`, {
+      const response = await page.goto(`/ja/record?zukan_runtime_qa=1`, {
       waitUntil: "domcontentloaded",
     });
     expect(response?.status() ?? 0).toBeLessThan(400);
@@ -172,10 +185,14 @@ test.describe.serial("ZUKAN capture P0 fixture-only retry gate", () => {
     expect(counters.kpi, "the capture UI should emit existing KPI events").toBeGreaterThan(0);
     expect(counters.unknown, "no non-idempotent request may reach staging or an unknown fixture").toEqual([]);
 
-    const screenshot = await page.screenshot({ animations: "disabled", fullPage: true });
-    await testInfo.attach("zukan-capture-p0-retry-success", {
-      body: screenshot,
-      contentType: "image/png",
-    });
+      const screenshot = await page.screenshot({ animations: "disabled", fullPage: true });
+      await testInfo.attach("zukan-capture-p0-retry-success", {
+        body: screenshot,
+        contentType: "image/png",
+      });
+    } finally {
+      await cleanupFixtures(api, writeKey, fixtureId).catch(() => undefined);
+      await api.dispose();
+    }
   });
 });
