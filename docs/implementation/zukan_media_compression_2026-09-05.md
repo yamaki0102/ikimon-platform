@@ -13,6 +13,8 @@ This reconciliation intentionally does not implement server AVIF derivatives, pu
 ## Focused verification
 
 - `photoUploadPreparation.test.ts`: WebP-first output, actual MIME/extension, RGBA-safe PNG fallback, JPEG fallback, no-upscale/portrait sizing, GIF bypass, encoder/canvas failure fallback, cleanup, and privacy metadata.
+- Fresh native Chromium probe on product head `10d52aba81333aa9559dcad2b6a92834821e668a`: a JPEG fixture and an RGBA PNG fixture both returned `image/webp` data URLs and decoded `image/webp` blobs; the RGBA transparent pixel remained alpha `0` while a visible pixel remained alpha `255`; pending server face-privacy metadata was retained; no network writes were made.
+- Local source checks on the same head: `photoUploadPreparation.test.ts` 8/8 passed, `siteShell.test.ts` 27/27 passed, and `npm run typecheck` passed.
 - Existing integrated candidate evidence was fresh-read from the saved Result Capsule. Its native Chromium/photo fixture recorded JPEG → WebP and RGBA PNG → WebP with alpha preservation; those native-browser, staging, and production claims remain evidence-only and are not expanded by this source reconciliation.
 - Typecheck and the focused test command are the only required local checks for this three-path source delta. No authenticated upload, provider read-back, deployment, or external mutation is part of this Work.
 
