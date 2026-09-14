@@ -38,6 +38,8 @@ function candidate(overrides: Partial<RawRecordArchiveCandidate> = {}): RawRecor
       datasetLicense: "CC-BY-4.0",
       mediaLicense: "CC-BY-4.0",
       externalExportAllowed: true,
+      areaProfileUseConsent: "aggregated_public",
+      publicAggregationAllowed: true,
       withdrawalStatus: "active",
     },
     visibility: "public_candidate",
@@ -67,7 +69,7 @@ function candidate(overrides: Partial<RawRecordArchiveCandidate> = {}): RawRecor
       sourceAvailability: "available",
       retentionStatus: "retained",
     },
-    fieldPolicies: {
+    contributorFieldPolicies: {
       enteredLabel: {
         authorization: "authorized",
         consent: "allowed",
@@ -75,6 +77,56 @@ function candidate(overrides: Partial<RawRecordArchiveCandidate> = {}): RawRecor
         retention: "retained",
       },
       privateNote: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+    },
+    recordFieldPolicies: {
+      capturedAt: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+      placeRef: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+      provenance: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+      review: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+      consent: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+      visibility: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+      visibilityHistory: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+      changeHistory: {
         authorization: "authorized",
         consent: "allowed",
         visibility: "private",
@@ -117,7 +169,7 @@ test("raw_record_archive_preserves_record_granularity", () => {
   assert.equal(item.decision, "included");
   assert.equal(item.record?.recordId, "record-1");
   assert.deepEqual(item.record?.provenance, candidate().provenance);
-  assert.equal(item.record?.review.history[0]?.state, "approved");
+  assert.equal(item.record?.review?.history[0]?.state, "approved");
   assert.deepEqual(item.mediaRefs, [{
     mediaId: "media-1",
     sourceRef: "r2://records/record-1/media-1",
@@ -136,9 +188,18 @@ test("raw_record_archive_keeps_private_source_for_authorized_requester", () => {
       datasetLicense: null,
       mediaLicense: null,
       externalExportAllowed: false,
+      publicAggregationAllowed: false,
+      areaProfileUseConsent: "none",
     },
     visibility: "private",
-    fieldPolicies: {
+    locationPolicy: {
+      ...candidate().locationPolicy,
+      publicLocationMode: "hidden",
+      publicTimePrecision: "hidden",
+      sensitivityStatus: "context_sensitive",
+      sensitivityReason: "public_aggregation_not_allowed",
+    },
+    contributorFieldPolicies: {
       enteredLabel: {
         authorization: "authorized",
         consent: "allowed",
@@ -165,18 +226,90 @@ test("raw_record_archive_keeps_private_source_for_authorized_requester", () => {
   assert.equal(plan.state, "complete");
   assert.equal(item.decision, "included");
   assert.equal(item.record?.visibility, "private");
-  assert.equal(item.record?.consent.externalExportAllowed, false);
+  assert.equal(item.record?.consent?.externalExportAllowed, false);
   assert.deepEqual(item.record?.contributorFields, {
     enteredLabel: "river bird",
     privateNote: "near the reed bed",
   });
 });
 
+test("raw_record_archive_blocks_location_policy_that_exceeds_record_rights", () => {
+  const privateWithPublicLocationPolicy = candidate({
+    consent: {
+      ...candidate().consent,
+      recordConsent: "private",
+      researchUseConsent: "none",
+      datasetLicense: null,
+      mediaLicense: null,
+      externalExportAllowed: false,
+      publicAggregationAllowed: false,
+      areaProfileUseConsent: "none",
+    },
+    visibility: "private",
+    visibilityHistory: [{
+      visibility: "private",
+      actorId: "subject-1",
+      occurredAt: "2026-09-10T01:00:00.000Z",
+      source: "private_draft",
+    }],
+  });
+  const plan = planRawRecordPortabilityArchive(request({ records: [privateWithPublicLocationPolicy] }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "blocked");
+  assert.equal(item.decision, "blocked");
+  assert.equal(item.record, null);
+  assert.equal(item.locationPolicy, null);
+  assert.equal(item.issues[0]?.code, "location_policy_rights_mismatch");
+  assert.equal(item.issues[0]?.retryable, true);
+});
+
+test("raw_record_archive_does_not_default_missing_withdrawal_to_active", () => {
+  const missingWithdrawal = candidate({
+    consent: {
+      ...candidate().consent,
+      withdrawalStatus: undefined,
+    },
+  });
+  const plan = planRawRecordPortabilityArchive(request({ records: [missingWithdrawal] }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "blocked");
+  assert.equal(item.decision, "blocked");
+  assert.equal(item.record, null);
+  assert.equal(item.lifecycle, null);
+  assert.equal(item.issues[0]?.code, "record_withdrawal_unknown");
+  assert.equal(item.issues[0]?.retryable, true);
+});
+
+test("raw_record_archive_applies_rights_to_fixed_record_fields", () => {
+  const placeDenied = candidate({
+    recordFieldPolicies: {
+      ...candidate().recordFieldPolicies,
+      placeRef: {
+        authorization: "unauthorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+    },
+  });
+  const plan = planRawRecordPortabilityArchive(request({ records: [placeDenied] }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "partial");
+  assert.equal(item.decision, "partial");
+  assert.equal("placeRef" in (item.record ?? {}), false);
+  assert.equal(item.fieldDecisions.find((entry) => entry.fieldName === "record:placeRef")?.decision, "blocked");
+  assert.equal(item.fieldDecisions.find((entry) => entry.fieldName === "record:placeRef")?.issue?.code, "field_authorization_denied");
+  assert.doesNotMatch(JSON.stringify(item), /place-river/);
+});
+
 test("raw_record_archive_mixed_visibility_is_field_scoped", () => {
   const plan = planRawRecordPortabilityArchive(request({
     records: [candidate({
-      fieldPolicies: {
-        ...candidate().fieldPolicies,
+      contributorFieldPolicies: {
+        ...candidate().contributorFieldPolicies,
         privateNote: {
           authorization: "authorized",
           consent: "denied",
@@ -191,8 +324,8 @@ test("raw_record_archive_mixed_visibility_is_field_scoped", () => {
   assert.equal(plan.state, "partial");
   assert.equal(item.decision, "partial");
   assert.deepEqual(item.record?.contributorFields, { enteredLabel: "river bird" });
-  assert.equal(item.fieldDecisions.find((entry) => entry.fieldName === "privateNote")?.decision, "blocked");
-  assert.equal(item.fieldDecisions.find((entry) => entry.fieldName === "privateNote")?.issue?.code, "field_consent_denied");
+  assert.equal(item.fieldDecisions.find((entry) => entry.fieldName === "contributor:privateNote")?.decision, "blocked");
+  assert.equal(item.fieldDecisions.find((entry) => entry.fieldName === "contributor:privateNote")?.issue?.code, "field_consent_denied");
   assert.doesNotMatch(JSON.stringify(item), /near the reed bed/);
 });
 
@@ -285,7 +418,7 @@ test("raw_record_archive_uses_locale_independent_canonical_ordering", () => {
       z: "zee",
       a: "ay",
     },
-    fieldPolicies: {
+    contributorFieldPolicies: {
       "ä": { authorization: "authorized", consent: "allowed", visibility: "private", retention: "retained" },
       z: { authorization: "authorized", consent: "allowed", visibility: "private", retention: "retained" },
       a: { authorization: "authorized", consent: "allowed", visibility: "private", retention: "retained" },

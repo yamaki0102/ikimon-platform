@@ -53,6 +53,21 @@ export type RawRecordArchiveLocationPolicy = Pick<
   "publicLocationMode" | "publicTimePrecision" | "sensitivityStatus" | "sensitivityReason" | "policyRulesetVersion" | "recalculatedAt"
 >;
 
+export type RawRecordArchiveRecordFieldName =
+  | "capturedAt"
+  | "placeRef"
+  | "provenance"
+  | "review"
+  | "consent"
+  | "visibility"
+  | "visibilityHistory"
+  | "changeHistory";
+
+type RawRecordArchiveRecordFields = Partial<Pick<RawRecordPortabilityRecord, RawRecordArchiveRecordFieldName>>;
+
+export type RawRecordArchiveRecord = Pick<RawRecordPortabilityRecord, "recordId" | "contributorFields">
+  & RawRecordArchiveRecordFields;
+
 export type RawRecordArchiveCandidate = RawRecordPortabilityRecordInput & {
   authorization: RawRecordArchiveAuthorization;
   locationPolicy: RawRecordArchiveLocationPolicy;
@@ -60,7 +75,8 @@ export type RawRecordArchiveCandidate = RawRecordPortabilityRecordInput & {
     sourceAvailability: RawRecordArchiveSourceAvailability;
     retentionStatus: RawRecordArchiveRetentionStatus;
   };
-  fieldPolicies: Readonly<Record<string, RawRecordArchiveFieldPolicy>>;
+  contributorFieldPolicies: Readonly<Record<string, RawRecordArchiveFieldPolicy>>;
+  recordFieldPolicies: Readonly<Record<RawRecordArchiveRecordFieldName, RawRecordArchiveFieldPolicy>>;
   mediaRefs: readonly RawRecordArchiveMediaInput[];
 };
 
@@ -109,7 +125,7 @@ export type RawRecordArchiveLifecycle = {
 export type RawRecordArchiveItem = {
   recordId: string;
   decision: RawRecordArchiveItemDecision;
-  record: RawRecordPortabilityRecord | null;
+  record: RawRecordArchiveRecord | null;
   mediaRefs: ReadonlyArray<Pick<RawRecordArchiveMediaInput, "mediaId" | "sourceRef" | "mediaKind">>;
   locationPolicy: RawRecordArchiveLocationPolicy | null;
   fieldDecisions: readonly RawRecordArchiveFieldDecision[];
@@ -167,6 +183,17 @@ const RAW_RECORD_ARCHIVE_SENSITIVITY_STATUSES = [
   "manager_restricted",
   "uncertain",
 ] as const;
+const RAW_RECORD_ARCHIVE_WITHDRAWAL_STATUSES = ["active", "withdrawn", "delete_requested", "deleted"] as const;
+const RAW_RECORD_ARCHIVE_FIXED_FIELD_NAMES = [
+  "capturedAt",
+  "placeRef",
+  "provenance",
+  "review",
+  "consent",
+  "visibility",
+  "visibilityHistory",
+  "changeHistory",
+] as const satisfies readonly RawRecordArchiveRecordFieldName[];
 
 function requiredText(value: unknown, field: string): string {
   if (typeof value !== "string" || value.trim().length === 0) throw new Error(`${field}_required`);
@@ -234,6 +261,19 @@ function normalizeLocationPolicy(value: unknown): RawRecordArchiveLocationPolicy
     policyRulesetVersion,
     recalculatedAt,
   };
+}
+
+function locationPolicyRightsIssue(
+  record: RawRecordPortabilityRecord,
+  policy: RawRecordArchiveLocationPolicy,
+): RawRecordArchiveIssue | null {
+  const locationHidden = policy.publicLocationMode === "hidden";
+  const timeHidden = policy.publicTimePrecision === "hidden";
+  if (locationHidden !== timeHidden) return issue("location_policy_rights_mismatch", true);
+  if (!record.consent.publicAggregationAllowed && (!locationHidden || !timeHidden)) {
+    return issue("location_policy_rights_mismatch", true);
+  }
+  return null;
 }
 
 function lifecycleFor(
@@ -378,6 +418,13 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
     )]);
   }
 
+  const withdrawalStatus = candidate?.consent && typeof candidate.consent === "object"
+    ? (candidate.consent as { withdrawalStatus?: unknown }).withdrawalStatus
+    : undefined;
+  if (!isOneOf(withdrawalStatus, RAW_RECORD_ARCHIVE_WITHDRAWAL_STATUSES)) {
+    return emptyItem(recordId, [issue("record_withdrawal_unknown", true)]);
+  }
+
   let record: RawRecordPortabilityRecord;
   try {
     record = normalizeRawRecordPortabilityRecord(candidate);
@@ -389,15 +436,47 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
   if (!locationPolicy) return emptyItem(recordId, [issue("location_policy_unknown", true)], lifecycle);
   const recordBlocked = recordIssues(candidate, record);
   if (recordBlocked.length > 0) return emptyItem(recordId, recordBlocked, lifecycle, locationPolicy);
+  const locationRightsIssue = locationPolicyRightsIssue(record, locationPolicy);
+  if (locationRightsIssue) return emptyItem(recordId, [locationRightsIssue], lifecycle);
 
   const includedFields: Record<string, unknown> = {};
+  const includedRecordFields: RawRecordArchiveRecordFields = {};
   const fieldDecisions: RawRecordArchiveFieldDecision[] = [];
   const issues: RawRecordArchiveIssue[] = [];
-  for (const fieldName of Object.keys(record.contributorFields).sort()) {
-    const result = fieldDecision(fieldName, candidate.fieldPolicies?.[fieldName]);
+  const recordFieldValues: RawRecordArchiveRecordFields = {
+    capturedAt: record.capturedAt,
+    placeRef: record.placeRef,
+    provenance: record.provenance,
+    review: record.review,
+    consent: record.consent,
+    visibility: record.visibility,
+    visibilityHistory: record.visibilityHistory,
+    changeHistory: record.changeHistory,
+  };
+  const allFieldNames = [
+    ...Object.keys(record.contributorFields).map((fieldName) => `contributor:${fieldName}`),
+    ...RAW_RECORD_ARCHIVE_FIXED_FIELD_NAMES.map((fieldName) => `record:${fieldName}`),
+  ].sort(compareCanonicalStrings);
+  for (const qualifiedFieldName of allFieldNames) {
+    const separator = qualifiedFieldName.indexOf(":");
+    const scope = qualifiedFieldName.slice(0, separator);
+    const fieldName = qualifiedFieldName.slice(separator + 1);
+    const isRecordField = scope === "record";
+    const result = fieldDecision(
+      qualifiedFieldName,
+      isRecordField
+        ? candidate.recordFieldPolicies?.[fieldName as RawRecordArchiveRecordFieldName]
+        : candidate.contributorFieldPolicies?.[fieldName],
+    );
     fieldDecisions.push(result.decision);
     if (result.issue) continue;
-    includedFields[fieldName] = structuredClone(record.contributorFields[fieldName]);
+    if (isRecordField) {
+      Object.assign(includedRecordFields, {
+        [fieldName]: structuredClone(recordFieldValues[fieldName as RawRecordArchiveRecordFieldName]),
+      });
+    } else {
+      includedFields[fieldName] = structuredClone(record.contributorFields[fieldName]);
+    }
   }
 
   const mediaDecisions: RawRecordArchiveMediaDecision[] = [];
@@ -444,7 +523,10 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
   }
   issues.push(...fieldDecisions.flatMap((decision) => decision.issue ? [decision.issue] : []));
 
-  const hasIncludedPayload = Object.keys(includedFields).length > 0 || includedMedia.length > 0 || Object.keys(record.contributorFields).length === 0;
+  const hasIncludedPayload = Object.keys(includedFields).length > 0
+    || Object.keys(includedRecordFields).length > 0
+    || includedMedia.length > 0
+    || Object.keys(record.contributorFields).length === 0;
   const hasBlockedParts = issues.length > 0;
   const decision: RawRecordArchiveItemDecision = hasBlockedParts
     ? hasIncludedPayload ? "partial" : "blocked"
@@ -452,7 +534,7 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
   return {
     recordId,
     decision,
-    record: hasIncludedPayload ? { ...record, contributorFields: includedFields } : null,
+    record: hasIncludedPayload ? { recordId: record.recordId, contributorFields: includedFields, ...includedRecordFields } : null,
     mediaRefs: includedMedia,
     locationPolicy,
     fieldDecisions,
