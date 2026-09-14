@@ -61,7 +61,6 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
   const canAccessOfficialOutputs = session.plan === "public" || permissions.canManage;
   const heroStats = `
     <div><strong>${highlights.observationCount}</strong><span>観察</span></div>
-    <div><strong>${highlights.uniqueSpeciesCount}</strong><span>種</span></div>
     <div><strong>${highlights.absencesCount}</strong><span>不在</span></div>
   `;
 
@@ -74,29 +73,21 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
           <strong>${escapeHtml(t.name)}</strong>
           <span class="evt-lead" style="font-size:12px;">${t.memberCount} 名</span>
         </header>
-        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:10px;">
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; margin-top:10px;">
           <div><strong style="font-size:18px;">${t.observationsCount}</strong><div class="evt-eyebrow">観察</div></div>
-          <div><strong style="font-size:18px;">${t.uniqueSpeciesCount}</strong><div class="evt-eyebrow">種数</div></div>
           <div><strong style="font-size:18px;">${t.absencesCount}</strong><div class="evt-eyebrow">不在</div></div>
         </div>
         <p class="evt-lead" style="margin-top:8px;">受諾クエスト: ${t.questsAccepted} 件</p>
       </article>
     `).join("");
 
-  const topTaxa = highlights.topTaxa.length === 0
-    ? `<p class="evt-lead">観察記録はまだありません。</p>`
-    : highlights.topTaxa.map((t) => `
-        <span class="evt-badge evt-mode-discovery">${escapeHtml(t.name)} ×${t.count}</span>
-      `).join(" ");
-
   const personalSection = myContribution
     ? `
       <article class="evt-card evt-impact-card">
         <h3>${escapeHtml(myContribution.displayName ?? "あなた")} の貢献</h3>
         <p class="evt-lead">あなたの観察記録は、ZINB / Occupancy Model の高品質ピクセルになります。</p>
-        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:10px;">
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-top:10px;">
           <div><strong style="font-size:22px;">${myContribution.observationsCount}</strong><div class="evt-eyebrow">観察</div></div>
-          <div><strong style="font-size:22px;">${myContribution.uniqueSpeciesCount}</strong><div class="evt-eyebrow">種数</div></div>
           <div><strong style="font-size:22px;">${myContribution.absencesCount}</strong><div class="evt-eyebrow">不在</div></div>
         </div>
         ${myContribution.recentTaxa.length > 0
@@ -153,15 +144,11 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
   </div>
 
   <section class="evt-recap-section" data-tab-panel="overview">
-    <h2 class="evt-heading">よく見つかった種</h2>
-    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">${topTaxa}</div>
-
-    <h2 class="evt-heading" style="margin-top:24px;">セッションの数字</h2>
+    <h2 class="evt-heading">セッションの数字</h2>
     <div class="evt-stagger" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:10px;">
       <div class="evt-card"><span class="evt-eyebrow">観察</span><strong style="font-size:24px;">${highlights.observationCount}</strong></div>
       <div class="evt-card"><span class="evt-eyebrow">ガイド場面</span><strong style="font-size:24px;">${highlights.guideSceneCount}</strong></div>
       <div class="evt-card"><span class="evt-eyebrow">スキャン</span><strong style="font-size:24px;">${highlights.fieldScanCount}</strong></div>
-      <div class="evt-card"><span class="evt-eyebrow">種数</span><strong style="font-size:24px;">${highlights.uniqueSpeciesCount}</strong></div>
       <div class="evt-card"><span class="evt-eyebrow">不在</span><strong style="font-size:24px;">${highlights.absencesCount}</strong></div>
       <div class="evt-card"><span class="evt-eyebrow">クエスト達成</span><strong style="font-size:24px;">${highlights.questsCompleted}</strong></div>
       <div class="evt-card"><span class="evt-eyebrow">カバレッジ</span><strong style="font-size:24px;">${effort.coveragePct}%</strong></div>

@@ -21,7 +21,6 @@ function recap(canManage: boolean): ObservationEventRecap {
       observationCount: 1,
       guideSceneCount: 1,
       fieldScanCount: 1,
-      uniqueSpeciesCount: 1,
       absencesCount: 0,
       participantsCount: 3,
       questsOffered: 0,
@@ -30,7 +29,6 @@ function recap(canManage: boolean): ObservationEventRecap {
       fanfareCount: 0,
       totalEffortPersonHours: 1,
       meshCoveragePct: 10,
-      topTaxa: [{ name: "クスノキ", count: 1 }],
       startedAt: "2026-05-13T09:00:00.000Z",
       endedAt: "2026-05-13T10:00:00.000Z",
       durationMinutes: 60,
@@ -59,4 +57,13 @@ test("recap capsule controls are organizer-only", () => {
   assert.match(organizerHtml, /data-capsule-generate/);
   assert.match(publicHtml, /data-can-manage="false"/);
   assert.doesNotMatch(publicHtml, /data-capsule-generate/);
+});
+
+test("free event recap keeps operational counts free of derived taxon aggregation", () => {
+  const html = renderRecapBody(recap(false));
+
+  assert.match(html, /セッションの数字/);
+  assert.match(html, /観察/);
+  assert.match(html, /不在/);
+  assert.doesNotMatch(html, /よく見つかった種|種数|topTaxa|uniqueSpeciesCount/);
 });
