@@ -4,7 +4,7 @@ Status: SOURCE_ONLY / PARTIAL_IMPLEMENTATION / NOT_DEPLOYED
 
 ## Current-main reconciliation
 
-The browser preparation path requests native WebP at quality `0.88`, keeps the established 2560px longest-edge bound, and never upscales smaller photos. The returned filename and MIME are derived from the actual encoded data URL, with the requested `Blob.type` checked as well; unsupported WebP must not be labelled as WebP.
+The site-shell browser preparation path requests native WebP at quality `0.88`, keeps the established 2560px longest-edge bound, and never upscales smaller photos. The returned filename and MIME are derived from the actual encoded data URL, with the requested `Blob.type` checked as well; unsupported WebP must not be labelled as WebP. Only JPEG, PNG, and WebP originals may be reused without re-encoding because those are the image MIME types accepted by the current upload API.
 
 When WebP encoding is unavailable, JPEG input may use JPEG fallback. Non-JPEG inputs use PNG fallback so RGBA alpha is not discarded. GIF remains an original-media bypass. Decode and canvas resources are released, and canvas preparation failure retains the original file with the existing pending server face-privacy state. Reusing an already smaller supported original still carries that privacy state and does not alter public-derivative eligibility.
 
@@ -18,4 +18,4 @@ This reconciliation intentionally does not implement server AVIF derivatives, pu
 
 ## Remaining boundary
 
-AVIF display integration requires a separate, authorized server-side Work. It must preserve existing privacy/public-ready metadata and fallback contracts; this document does not authorize that work.
+AVIF display integration and the legacy duplicate preparation path under `src/routes/read.ts` require separate, authorized Work. They must preserve existing privacy/public-ready metadata and fallback contracts; this document does not authorize either change.

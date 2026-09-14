@@ -82,7 +82,7 @@ export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
       const encodedPayload = encoded.dataUrl.split(',')[1];
       const encodedBytes = Math.floor((encodedPayload.length * 3) / 4)
         - (encodedPayload.endsWith('==') ? 2 : encodedPayload.endsWith('=') ? 1 : 0);
-      if (scale === 1 && file.size > 0 && file.size <= encodedBytes && /^image\/(?:jpeg|png|webp|avif)$/.test(originalType)) {
+      if (scale === 1 && file.size > 0 && file.size <= encodedBytes && /^image\/(?:jpeg|png|webp)$/.test(originalType)) {
         return { filename: file.name || 'upload', mimeType: originalType, base64Data: await readFileAsDataUrl(file), facePrivacy };
       }
       const extension = encoded.mimeType === 'image/webp' ? 'webp' : encoded.mimeType === 'image/png' ? 'png' : 'jpg';

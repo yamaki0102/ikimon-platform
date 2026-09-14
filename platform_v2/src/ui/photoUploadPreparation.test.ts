@@ -102,3 +102,11 @@ test("does not reuse an original that is larger than the encoded payload", async
   assert.equal(result.mimeType, "image/webp");
   assert.match(result.base64Data, /^data:image\/webp;base64,/);
 });
+
+test("does not reuse an AVIF original that the upload API does not accept", async () => {
+  const f = fixture({ width: 800, height: 600, size: 1, type: "image/avif" });
+  const result = await f.result;
+  assert.equal(result.filename, "field.photo.webp");
+  assert.equal(result.mimeType, "image/webp");
+  assert.match(result.base64Data, /^data:image\/webp;base64,/);
+});
