@@ -13,7 +13,6 @@ export interface RecapHighlights {
   observationCount: number;
   guideSceneCount: number;
   fieldScanCount: number;
-  uniqueSpeciesCount: number;
   absencesCount: number;
   participantsCount: number;
   questsOffered: number;
@@ -22,7 +21,6 @@ export interface RecapHighlights {
   fanfareCount: number;
   totalEffortPersonHours: number;
   meshCoveragePct: number;
-  topTaxa: Array<{ name: string; count: number }>;
   startedAt: string;
   endedAt: string | null;
   durationMinutes: number | null;
@@ -33,7 +31,6 @@ export interface RecapTeamSummary {
   color: string;
   memberCount: number;
   observationsCount: number;
-  uniqueSpeciesCount: number;
   absencesCount: number;
   questsAccepted: number;
 }
@@ -67,7 +64,6 @@ export interface ObservationEventRecap {
 export interface ParticipantContribution {
   displayName: string | null;
   observationsCount: number;
-  uniqueSpeciesCount: number;
   absencesCount: number;
   questsAccepted: number;
   recentTaxa: string[];
@@ -204,7 +200,6 @@ export async function buildRecap(
   const targetCells = Number((session.config as Record<string, unknown>).coverage_target_cells ?? 100);
   const [
     highlightsRow,
-    topTaxaResult,
     teamsResult,
     timelineResult,
     impactsResult,
@@ -214,7 +209,6 @@ export async function buildRecap(
       obs_count: string;
       guide_scene_count: string;
       field_scan_count: string;
-      species_count: string;
       absence_count: string;
       participants: string;
       quests_offered: string;
@@ -226,7 +220,6 @@ export async function buildRecap(
          COALESCE((SELECT COUNT(*) FROM observation_event_live_events WHERE session_id = $1 AND type='observation_added'), 0)::text AS obs_count,
          COALESCE((SELECT COUNT(*) FROM observation_event_live_events WHERE session_id = $1 AND type='guide_scene_added'), 0)::text AS guide_scene_count,
          COALESCE((SELECT COUNT(*) FROM observation_event_live_events WHERE session_id = $1 AND type='field_scan_added'), 0)::text AS field_scan_count,
-         COALESCE((SELECT COUNT(DISTINCT payload->>'taxon_name') FROM observation_event_live_events WHERE session_id = $1 AND type='observation_added' AND payload->>'taxon_name' IS NOT NULL), 0)::text AS species_count,
          COALESCE((SELECT COUNT(*) FROM observation_event_absences WHERE session_id = $1), 0)::text AS absence_count,
          COALESCE((SELECT COUNT(*) FROM observation_event_participants WHERE session_id = $1), 0)::text AS participants,
          COALESCE((SELECT COUNT(*) FROM observation_event_quests WHERE session_id = $1), 0)::text AS quests_offered,
@@ -235,24 +228,12 @@ export async function buildRecap(
          COALESCE((SELECT COUNT(*) FROM observation_event_live_events WHERE session_id = $1 AND type IN ('rare_species','target_hit','milestone','fanfare')), 0)::text AS fanfare_count`,
       [sessionId],
     ),
-    pool.query<{ taxon_name: string; cnt: string }>(
-      `SELECT payload->>'taxon_name' AS taxon_name, COUNT(*)::text AS cnt
-       FROM observation_event_live_events
-       WHERE session_id = $1
-         AND type = 'observation_added'
-         AND payload->>'taxon_name' IS NOT NULL
-       GROUP BY payload->>'taxon_name'
-       ORDER BY COUNT(*) DESC
-       LIMIT 8`,
-      [sessionId],
-    ),
     pool.query<{
       team_id: string;
       name: string;
       color: string;
       member_count: string;
       obs_count: string;
-      species_count: string;
       absence_count: string;
       quests_accepted: string;
     }>(
@@ -260,8 +241,6 @@ export async function buildRecap(
               COALESCE((SELECT COUNT(*)::text FROM observation_event_participants p WHERE p.team_id = t.team_id), '0') AS member_count,
               COALESCE((SELECT COUNT(*)::text FROM observation_event_live_events e
                         WHERE e.session_id = t.session_id AND e.team_id = t.team_id AND e.type = 'observation_added'), '0') AS obs_count,
-              COALESCE((SELECT COUNT(DISTINCT e.payload->>'taxon_name')::text FROM observation_event_live_events e
-                        WHERE e.session_id = t.session_id AND e.team_id = t.team_id AND e.type = 'observation_added' AND e.payload->>'taxon_name' IS NOT NULL), '0') AS species_count,
               COALESCE((SELECT COUNT(*)::text FROM observation_event_absences a WHERE a.session_id = t.session_id AND a.team_id = t.team_id), '0') AS absence_count,
               COALESCE((SELECT COUNT(*)::text FROM observation_event_quests q WHERE q.session_id = t.session_id AND q.team_id = t.team_id AND q.status IN ('accepted','completed')), '0') AS quests_accepted
        FROM observation_event_teams t
@@ -315,7 +294,6 @@ export async function buildRecap(
     observationCount: Number(h?.obs_count ?? 0),
     guideSceneCount: Number(h?.guide_scene_count ?? 0),
     fieldScanCount: Number(h?.field_scan_count ?? 0),
-    uniqueSpeciesCount: Number(h?.species_count ?? 0),
     absencesCount: Number(h?.absence_count ?? 0),
     participantsCount: Number(h?.participants ?? 0),
     questsOffered: Number(h?.quests_offered ?? 0),
@@ -324,7 +302,6 @@ export async function buildRecap(
     fanfareCount: Number(h?.fanfare_count ?? 0),
     totalEffortPersonHours: effort.totalEffortPersonHours,
     meshCoveragePct: effort.coveragePct,
-    topTaxa: topTaxaResult.rows.map((r) => ({ name: r.taxon_name, count: Number(r.cnt) })),
     startedAt,
     endedAt,
     durationMinutes,
@@ -335,7 +312,6 @@ export async function buildRecap(
     color: r.color,
     memberCount: Number(r.member_count),
     observationsCount: Number(r.obs_count),
-    uniqueSpeciesCount: Number(r.species_count),
     absencesCount: Number(r.absence_count),
     questsAccepted: Number(r.quests_accepted),
   }));
@@ -411,10 +387,9 @@ async function buildContribution(
   const contributionGuestToken = participant?.guest_token ?? viewer.guestToken;
 
   const [obsRow, absenceRow, questRow, recentRow] = await Promise.all([
-    pool.query<{ obs_count: string; species_count: string }>(
+    pool.query<{ obs_count: string }>(
       `SELECT
-         COUNT(*)::text AS obs_count,
-         COUNT(DISTINCT payload->>'taxon_name')::text AS species_count
+         COUNT(*)::text AS obs_count
        FROM observation_event_live_events
        WHERE session_id = $1 AND type='observation_added'
          AND (
@@ -462,7 +437,6 @@ async function buildContribution(
   return {
     displayName: participant?.display_name ?? null,
     observationsCount: Number(obs?.obs_count ?? 0),
-    uniqueSpeciesCount: Number(obs?.species_count ?? 0),
     absencesCount: Number(abs?.absence_count ?? 0),
     questsAccepted: Number(qst?.quests_accepted ?? 0),
     recentTaxa: recentRow.rows.map((r) => r.taxon_name).filter(Boolean),
