@@ -10,6 +10,10 @@ import {
   type PublicationFeedCandidateRow,
   type PublicationFeedConfig,
 } from "./publicationFeed.js";
+import {
+  PUBLICATION_SYNDICATION_POLICY_VERSION,
+  PUBLICATION_SYNDICATION_PURPOSE,
+} from "./publicationSyndication.js";
 
 const exportRights = {
   recordConsent: "external_export" as const,
@@ -18,6 +22,18 @@ const exportRights = {
   mediaLicense: "CC-BY-4.0" as const,
   externalExportAllowed: true,
   withdrawalStatus: "active" as const,
+  sourcePayload: {
+    syndicationConsent: {
+      status: "active",
+      purpose: PUBLICATION_SYNDICATION_PURPOSE,
+      policyVersion: PUBLICATION_SYNDICATION_POLICY_VERSION,
+      grantedAt: "2026-08-01T00:00:00.000Z",
+      validUntil: "2027-08-01T00:00:00.000Z",
+      subjectStatus: "adult",
+      destinationFeedKeys: ["miyakoda-renri-area"],
+      guardian: { status: "not_required" },
+    },
+  },
 };
 
 const config = getPublicationFeedConfig("miyakoda-renri-area")!;
@@ -218,7 +234,19 @@ test("configured additive channels keep the same projection envelope", () => {
     updatedAt: "2026-08-28T00:00:00.000Z",
   });
   const projected = projectPublicationFeed(fixture, [
-    row({ recordId: "staff-pick-record", channel: "staff_pick" }),
+    row({
+      recordId: "staff-pick-record",
+      channel: "staff_pick",
+      rights: {
+        ...exportRights,
+        sourcePayload: {
+          syndicationConsent: {
+            ...exportRights.sourcePayload.syndicationConsent,
+            destinationFeedKeys: ["staff-pick-feed"],
+          },
+        },
+      },
+    }),
   ], { sensitiveSpeciesIndex: new Set() });
   assert.deepEqual(projected.channels.map((channel) => channel.key), ["living", "community_photo", "staff_pick"]);
   assert.equal(projected.channels[2]!.items[0]!.classification.state, "not_applicable");
@@ -228,6 +256,7 @@ test("source query reuses existing public quality, AI, media, rights, area, and 
   assert.match(PUBLICATION_FEED_SOURCE_SQL, /v\.public_visibility = 'public'/);
   assert.match(PUBLICATION_FEED_SOURCE_SQL, /v\.quality_review_status = 'accepted'/);
   assert.match(PUBLICATION_FEED_SOURCE_SQL, /observation_data_rights/);
+  assert.match(PUBLICATION_FEED_SOURCE_SQL, /rights\.source_payload/);
   assert.match(PUBLICATION_FEED_SOURCE_SQL, /rights\.external_export_allowed = true/);
   assert.match(PUBLICATION_FEED_SOURCE_SQL, /observation_ai_assessments/);
   assert.match(PUBLICATION_FEED_SOURCE_SQL, /identifications/);
@@ -236,4 +265,22 @@ test("source query reuses existing public quality, AI, media, rights, area, and 
   assert.match(PUBLICATION_FEED_SOURCE_SQL, /habitat_wide.*substrate.*scale_reference/s);
   assert.doesNotMatch(PUBLICATION_FEED_SOURCE_SQL, /storage_path\s+as\s+media_url/i);
   assert.doesNotMatch(PUBLICATION_FEED_SOURCE_SQL, /point_latitude\s+as|point_longitude\s+as/i);
+});
+
+test("syndication consent is destination-bound and correction/withdrawal changes the derived feed", () => {
+  const missing = projectPublicationFeed(config, [row({
+    recordId: "missing-syndication",
+    rights: { ...exportRights, sourcePayload: {} },
+  })], { sensitiveSpeciesIndex: new Set() });
+  assert.deepEqual(missing.channels.flatMap((channel) => channel.items), []);
+
+  const current = projectPublicationFeed(config, [row({ recordId: "corrected-record", vernacularName: "訂正前", humanName: null })], { sensitiveSpeciesIndex: new Set() });
+  assert.equal(current.channels[0]?.items[0]?.title, "訂正前");
+  const corrected = projectPublicationFeed(config, [row({ recordId: "corrected-record", vernacularName: "訂正後", humanName: null, sourceUpdatedAt: "2026-09-15T00:00:00.000Z" })], { sensitiveSpeciesIndex: new Set() });
+  assert.equal(corrected.channels[0]?.items[0]?.title, "訂正後");
+  const withdrawn = projectPublicationFeed(config, [row({
+    recordId: "corrected-record",
+    rights: { ...exportRights, withdrawalStatus: "withdrawn" },
+  })], { sensitiveSpeciesIndex: new Set() });
+  assert.deepEqual(withdrawn.channels.flatMap((channel) => channel.items), []);
 });
