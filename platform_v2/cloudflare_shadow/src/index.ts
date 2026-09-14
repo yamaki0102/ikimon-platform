@@ -25416,17 +25416,67 @@ function localizedMaterializedPath(pathname: string, langSegment: string): strin
 const PUBLIC_DERIVED_MEDIA_CACHE_CONTROL = "public, max-age=3600";
 const PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL = "private, no-cache, no-store, must-revalidate";
 const PUBLIC_DERIVED_IMAGE_TRANSFORM_WIDTHS = new Set([360, 680, 1020, 1360]);
+type PublicDerivedImageTransformFormat = "avif" | "webp" | "jpeg" | "png";
+
+const PUBLIC_DERIVED_IMAGE_TRANSFORM_FORMATS: ReadonlyArray<{
+  format: PublicDerivedImageTransformFormat;
+  mediaType: string;
+  preference: number;
+}> = [
+  { format: "avif", mediaType: "image/avif", preference: 0 },
+  { format: "webp", mediaType: "image/webp", preference: 1 },
+  { format: "jpeg", mediaType: "image/jpeg", preference: 2 },
+  { format: "png", mediaType: "image/png", preference: 3 }
+];
 
 type CloudflareImageFetchInit = RequestInit & {
   cf?: {
     image?: {
       fit?: "scale-down";
-      format?: "auto";
+      format?: PublicDerivedImageTransformFormat;
       quality?: number;
       width?: number;
     };
   };
 };
+
+function explicitAcceptQuality(accept: string | null, mediaType: string): number {
+  if (!accept) return 0;
+  let quality = -1;
+  for (const entry of accept.split(",")) {
+    const parameters = entry.split(";");
+    const range = parameters.shift()?.trim().toLowerCase();
+    if (!range || range !== mediaType) continue;
+    let entryQuality = 1;
+    let valid = true;
+    for (const parameter of parameters) {
+      const separator = parameter.indexOf("=");
+      if (separator < 0 || parameter.slice(0, separator).trim().toLowerCase() !== "q") continue;
+      const rawValue = parameter.slice(separator + 1).trim().replace(/^"(.*)"$/, "$1");
+      const parsed = Number(rawValue);
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+        valid = false;
+        break;
+      }
+      entryQuality = parsed;
+    }
+    if (valid) quality = Math.max(quality, entryQuality);
+  }
+  return quality;
+}
+
+function selectPublicDerivedImageTransformFormat(accept: string | null): PublicDerivedImageTransformFormat {
+  // Wildcard-only Accept values do not prove AVIF/WebP decoder support; keep the
+  // universal JPEG fallback until the client names an image codec explicitly.
+  const accepted = PUBLIC_DERIVED_IMAGE_TRANSFORM_FORMATS
+    .map((candidate) => ({
+      ...candidate,
+      quality: explicitAcceptQuality(accept, candidate.mediaType)
+    }))
+    .filter((candidate) => candidate.quality > 0)
+    .sort((left, right) => right.quality - left.quality || left.preference - right.preference);
+  return accepted[0]?.format ?? "jpeg";
+}
 
 function parsePublicDerivedImageTransformPath(pathname: string): { width: number; key: string } | null {
   const match = pathname.match(/^\/derived-transform\/w(\d+)\/(.+)$/);
@@ -25467,14 +25517,14 @@ async function getPublicDerivedImageTransform(request: Request, url: URL): Promi
   }
 
   const sourceUrl = new URL(`/${parsed.key}`, url.origin);
-  const accept = request.headers.get("accept") ?? "image/avif,image/webp,image/*,*/*";
+  const accept = request.headers.get("accept");
   const response = await fetch(sourceUrl.toString(), {
     method: request.method,
-    headers: { accept },
+    headers: { accept: accept ?? "image/jpeg" },
     cf: {
       image: {
         fit: "scale-down",
-        format: "auto",
+        format: selectPublicDerivedImageTransformFormat(accept),
         quality: 82,
         width: parsed.width
       }
