@@ -24,6 +24,7 @@ import {
   canAccessOfficialEventOutputs,
 } from "../services/observationEventOfficialReport.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
+import { FRONTEND_FOUNDATION_CSS } from "../ui/frontendFoundation.js";
 import {
   OBSERVATION_EVENT_STYLES,
   OBSERVATION_EVENT_BOOT_SCRIPT,
@@ -105,7 +106,7 @@ function pageDocument(args: {
     basePath: args.basePath,
     title: args.title,
     description: args.description,
-    extraStyles: `${OBSERVATION_EVENT_STYLES}\n${args.extraStyles ?? ""}`,
+    extraStyles: `${FRONTEND_FOUNDATION_CSS}\n${OBSERVATION_EVENT_STYLES}\n:root { --evt-motion-fast: var(--ik-motion-fast); --evt-motion: var(--ik-motion-normal); --evt-motion-slow: var(--ik-motion-slow); }\n${args.extraStyles ?? ""}`,
     lang: args.lang,
     currentPath: args.currentPath,
     body: `${args.body}<script>${scripts}</script>`,
