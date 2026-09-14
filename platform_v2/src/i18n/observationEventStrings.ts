@@ -394,12 +394,22 @@ export interface ObservationEventDiscoveryStrings {
   detailWhereLabel: string;
   detailWhoLabel: string;
   detailCostLabel: string;
+  detailTermsHeading: string;
+  detailRoleLabel: string;
+  detailRelationshipLabel: string;
+  detailCompensationLabel: string;
+  detailExpensesLabel: string;
+  detailParticipantCostLabel: string;
   detailMethodLabel: string;
   detailRecordLead: string;
   detailRecordCta: string;
   detailExternalCtaTemplate: string;
   detailNativeEntryLabel: string;
   detailUnknownValue: string;
+  detailNotApplicableValue: string;
+  detailZeroValue: string;
+  detailTermsCapLabel: string;
+  detailTermsDisclaimer: string;
 }
 
 const discoveryJa: ObservationEventDiscoveryStrings = {
@@ -432,12 +442,22 @@ const discoveryJa: ObservationEventDiscoveryStrings = {
   detailWhereLabel: "どこ",
   detailWhoLabel: "だれが",
   detailCostLabel: "費用",
+  detailTermsHeading: "募集条件",
+  detailRoleLabel: "役割",
+  detailRelationshipLabel: "関係性",
+  detailCompensationLabel: "対価・謝礼",
+  detailExpensesLabel: "経費・交通費",
+  detailParticipantCostLabel: "参加者負担",
   detailMethodLabel: "入口",
   detailRecordLead: "イベントの文脈を付けたまま、記録画面を開きます。",
   detailRecordCta: "自分の記録へ戻る",
   detailExternalCtaTemplate: "{provider}で予約状況を確認",
   detailNativeEntryLabel: "ZUKANの参加フォーム",
   detailUnknownValue: "未確認",
+  detailNotApplicableValue: "非該当",
+  detailZeroValue: "0円",
+  detailTermsCapLabel: "上限",
+  detailTermsDisclaimer: "掲載された募集条件の表示です。法的分類、保険適用、参加受入、支払い完了を示すものではありません。",
 };
 
 const discoveryEn: ObservationEventDiscoveryStrings = {
@@ -470,12 +490,22 @@ const discoveryEn: ObservationEventDiscoveryStrings = {
   detailWhereLabel: "Where",
   detailWhoLabel: "Who",
   detailCostLabel: "Cost",
+  detailTermsHeading: "Participation terms",
+  detailRoleLabel: "Role",
+  detailRelationshipLabel: "Relationship",
+  detailCompensationLabel: "Compensation",
+  detailExpensesLabel: "Expenses / travel",
+  detailParticipantCostLabel: "Participant cost",
   detailMethodLabel: "Entry",
   detailRecordLead: "Open the record surface with this event context attached.",
   detailRecordCta: "Return to my record",
   detailExternalCtaTemplate: "Check booking on {provider}",
   detailNativeEntryLabel: "ZUKAN participation form",
   detailUnknownValue: "Unknown",
+  detailNotApplicableValue: "Not applicable",
+  detailZeroValue: "0",
+  detailTermsCapLabel: "Cap",
+  detailTermsDisclaimer: "These are published participation terms. They do not determine legal classification, insurance coverage, acceptance, or payment completion.",
 };
 
 const discoveryEs: ObservationEventDiscoveryStrings = {
@@ -508,12 +538,22 @@ const discoveryEs: ObservationEventDiscoveryStrings = {
   detailWhereLabel: "Dónde",
   detailWhoLabel: "Quién",
   detailCostLabel: "Costo",
+  detailTermsHeading: "Condiciones de participación",
+  detailRoleLabel: "Rol",
+  detailRelationshipLabel: "Relación",
+  detailCompensationLabel: "Compensación",
+  detailExpensesLabel: "Gastos / transporte",
+  detailParticipantCostLabel: "Costo para la persona participante",
   detailMethodLabel: "Entrada",
   detailRecordLead: "Abre la pantalla de registro con este contexto del evento.",
   detailRecordCta: "Volver a mi registro",
   detailExternalCtaTemplate: "Consultar la reserva en {provider}",
   detailNativeEntryLabel: "Formulario de participación de ZUKAN",
   detailUnknownValue: "No confirmado",
+  detailNotApplicableValue: "No corresponde",
+  detailZeroValue: "0",
+  detailTermsCapLabel: "Límite",
+  detailTermsDisclaimer: "Son condiciones de participación publicadas. No determinan la clasificación legal, la cobertura del seguro, la aceptación ni la finalización del pago.",
 };
 
 const discoveryPtBR: ObservationEventDiscoveryStrings = {
@@ -546,12 +586,22 @@ const discoveryPtBR: ObservationEventDiscoveryStrings = {
   detailWhereLabel: "Onde",
   detailWhoLabel: "Quem",
   detailCostLabel: "Custo",
+  detailTermsHeading: "Condições de participação",
+  detailRoleLabel: "Papel",
+  detailRelationshipLabel: "Relação",
+  detailCompensationLabel: "Compensação",
+  detailExpensesLabel: "Despesas / transporte",
+  detailParticipantCostLabel: "Custo para a pessoa participante",
   detailMethodLabel: "Entrada",
   detailRecordLead: "Abra a área de registro com este contexto do evento anexado.",
   detailRecordCta: "Voltar ao meu registro",
   detailExternalCtaTemplate: "Ver a reserva em {provider}",
   detailNativeEntryLabel: "Formulário de participação do ZUKAN",
   detailUnknownValue: "Não confirmado",
+  detailNotApplicableValue: "Não se aplica",
+  detailZeroValue: "0",
+  detailTermsCapLabel: "Limite",
+  detailTermsDisclaimer: "Estas são condições de participação publicadas. Elas não determinam a classificação legal, a cobertura do seguro, a aceitação ou a conclusão do pagamento.",
 };
 
 export function getObservationEventDiscoveryStrings(lang: SiteLang): ObservationEventDiscoveryStrings {

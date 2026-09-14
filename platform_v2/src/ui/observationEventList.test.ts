@@ -135,6 +135,63 @@ test("join detail hands off to an external provider and returns to the participa
   assert.doesNotMatch(html, /data-evt-checkin-form|観察を始める/);
 });
 
+test("join detail renders role-specific terms before the entry facts without changing the handoff", () => {
+  const termsSession: ObservationEventSessionRow = {
+    ...session,
+    title: "地域の協力者募集",
+    config: {
+      participationTerms: {
+        roles: [{
+          roleLabel: "現地講師",
+          relationshipType: "業務委託",
+          compensation: { amount: 3000, currency: "JPY", unit: "per session" },
+          expenses: { display: "実費精算", cap: { amount: 1000, currency: "JPY", unit: "per session" } },
+          participantCost: { amount: 0, currency: "JPY", unit: "per person" },
+        }],
+      },
+      booking: {
+        providerName: "Peatix",
+        providerUrl: "https://peatix.com/event/terms-1",
+      },
+    },
+  };
+  const html = renderObservationEventJoinBody(termsSession, getObservationEventStrings("ja"), "ja", {
+    fieldName: "浜松自然公園",
+    showCheckin: false,
+  });
+
+  assert.match(html, /募集条件/);
+  assert.match(html, /現地講師/);
+  assert.match(html, /対価・謝礼[\s\S]*?3,000 JPY \/ per session/);
+  assert.match(html, /経費・交通費[\s\S]*?実費精算 \/ 上限 1,000 JPY \/ per session/);
+  assert.match(html, /参加者負担[\s\S]*?0 JPY \/ per person/);
+  assert.match(html, /Peatixで予約状況を確認/);
+  assert.ok(html.indexOf("data-participation-terms") < html.indexOf("participation-method-facts-heading"));
+});
+
+test("event list adds only explicit role terms and preserves legacy rows without new conditions", () => {
+  const termsSession: ObservationEventSessionRow = {
+    ...session,
+    title: "講師を募集する観察会",
+    config: {
+      participationTerms: {
+        roles: [{
+          roleLabel: "記録講師",
+          relationshipType: "業務委託",
+          compensation: { amount: 3000, currency: "JPY", unit: "per session" },
+        }],
+      },
+    },
+  };
+  const html = renderEventListBody([termsSession, session], getObservationEventStrings("ja"), "ja");
+  const rows = [...html.matchAll(/<article class="zukan-participation-row"[\s\S]*?<\/article>/g)].map(([row]) => row);
+  const termsRow = rows.find((row) => row.includes("講師を募集する観察会")) ?? "";
+  const legacyRow = rows.find((row) => row.includes("川辺を歩く会")) ?? "";
+  assert.match(termsRow, /記録講師/);
+  assert.match(termsRow, /3,000 JPY/);
+  assert.doesNotMatch(legacyRow, /募集条件|対価・謝礼|参加者負担/);
+});
+
 test("join detail renders the native check-in path when external booking is absent", () => {
   const html = renderObservationEventJoinBody(session, getObservationEventStrings("ja"), "ja");
 
