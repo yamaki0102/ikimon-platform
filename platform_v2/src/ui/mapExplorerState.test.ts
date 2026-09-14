@@ -56,3 +56,31 @@ test("serializeSharedMapState keeps share-critical params including cell", () =>
   assert.equal(params.get("lat"), "34.7219");
   assert.equal(params.get("z"), "10.6");
 });
+
+test("serializeSharedMapState omits an unsafe viewport atomically", () => {
+  const serialized = serializeSharedMapState({
+    center: { lng: 181, lat: 35.2 },
+    zoom: 10,
+    overlays: [{ id: "rain", enabled: true, opacity: 1.2 }],
+    year: Number.NaN,
+  });
+  const params = new URLSearchParams(serialized);
+
+  assert.equal(params.has("lng"), false);
+  assert.equal(params.has("lat"), false);
+  assert.equal(params.has("z"), false);
+  assert.equal(params.has("ov"), false);
+  assert.equal(params.has("year"), false);
+});
+
+test("serializeSharedMapState accepts only a bounded complete viewport", () => {
+  const serialized = serializeSharedMapState({
+    center: { lng: 137.8589, lat: 34.7219 },
+    zoom: 10.6,
+  });
+  const params = new URLSearchParams(serialized);
+
+  assert.equal(params.get("lng"), "137.8589");
+  assert.equal(params.get("lat"), "34.7219");
+  assert.equal(params.get("z"), "10.6");
+});
