@@ -20865,7 +20865,7 @@ test("production public derived image transform negotiates explicit codecs and k
     { accept: "image/avif,image/webp", format: "avif" },
     { accept: "image/avif;q=0.4,image/webp;q=1,image/jpeg;q=0.5", format: "webp" },
     { accept: "image/avif;q=0,image/webp;q=0.7,image/jpeg;q=0.5", format: "webp" },
-    { accept: "image/png", format: "png" },
+    { accept: "image/png", format: "jpeg" },
     { accept: "image/jpeg,image/png", format: "jpeg" },
     { accept: "*/*", format: "jpeg" },
     { accept: "image/avif;q=0,*/*;q=1", format: "jpeg" },

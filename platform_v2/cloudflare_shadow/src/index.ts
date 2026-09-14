@@ -25416,7 +25416,7 @@ function localizedMaterializedPath(pathname: string, langSegment: string): strin
 const PUBLIC_DERIVED_MEDIA_CACHE_CONTROL = "public, max-age=3600";
 const PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL = "private, no-cache, no-store, must-revalidate";
 const PUBLIC_DERIVED_IMAGE_TRANSFORM_WIDTHS = new Set([360, 680, 1020, 1360]);
-type PublicDerivedImageTransformFormat = "avif" | "webp" | "jpeg" | "png";
+type PublicDerivedImageTransformFormat = "avif" | "webp" | "jpeg";
 
 const PUBLIC_DERIVED_IMAGE_TRANSFORM_FORMATS: ReadonlyArray<{
   format: PublicDerivedImageTransformFormat;
@@ -25425,8 +25425,7 @@ const PUBLIC_DERIVED_IMAGE_TRANSFORM_FORMATS: ReadonlyArray<{
 }> = [
   { format: "avif", mediaType: "image/avif", preference: 0 },
   { format: "webp", mediaType: "image/webp", preference: 1 },
-  { format: "jpeg", mediaType: "image/jpeg", preference: 2 },
-  { format: "png", mediaType: "image/png", preference: 3 }
+  { format: "jpeg", mediaType: "image/jpeg", preference: 2 }
 ];
 
 type CloudflareImageFetchInit = RequestInit & {
@@ -25467,7 +25466,9 @@ function explicitAcceptQuality(accept: string | null, mediaType: string): number
 
 function selectPublicDerivedImageTransformFormat(accept: string | null): PublicDerivedImageTransformFormat {
   // Wildcard-only Accept values do not prove AVIF/WebP decoder support; keep the
-  // universal JPEG fallback until the client names an image codec explicitly.
+  // universal JPEG fallback until the client names a supported image codec
+  // explicitly. PNG is intentionally excluded because the Worker Image
+  // Transform output contract does not provide it for this route.
   const accepted = PUBLIC_DERIVED_IMAGE_TRANSFORM_FORMATS
     .map((candidate) => ({
       ...candidate,
