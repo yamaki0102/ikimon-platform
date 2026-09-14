@@ -295,6 +295,7 @@ function locationPolicyConsistencyIssue(
 }
 
 function locationPolicyRightsIssue(
+  candidate: RawRecordArchiveCandidate,
   record: RawRecordPortabilityRecord,
   policy: RawRecordArchiveLocationPolicy,
 ): RawRecordArchiveIssue | null {
@@ -302,6 +303,10 @@ function locationPolicyRightsIssue(
   const timeHidden = policy.publicTimePrecision === "hidden";
   if (locationHidden !== timeHidden) return issue("location_policy_rights_mismatch", true);
   if (!record.consent.publicAggregationAllowed && (!locationHidden || !timeHidden)) {
+    const consentDecision = fieldDecision("record:consent", candidate.recordFieldPolicies?.consent);
+    if (consentDecision.issue) {
+      return issue("location_policy_unverifiable", consentDecision.issue.retryable);
+    }
     return issue("location_policy_rights_mismatch", true);
   }
   return null;
@@ -369,10 +374,25 @@ function recordIssues(
   else if (retentionStatus === "quarantined") issues.push(issue("record_quarantined", false));
   else if (retentionStatus !== "retained") issues.push(issue("record_retention_unknown", true));
 
-  if (record.consent.withdrawalStatus === "withdrawn") issues.push(issue("record_withdrawn", false));
-  else if (record.consent.withdrawalStatus === "delete_requested") issues.push(issue("record_delete_requested", false));
-  else if (record.consent.withdrawalStatus === "deleted") issues.push(issue("record_deleted", false));
-  if (record.visibility === "withdrawn") issues.push(issue("record_withdrawn", false));
+  const consentDecision = fieldDecision("record:consent", candidate.recordFieldPolicies?.consent);
+  if (record.consent.withdrawalStatus !== "active") {
+    if (consentDecision.issue) {
+      if (!issues.some((entry) => entry.code === "record_lifecycle_blocked")) {
+        issues.push(issue("record_lifecycle_blocked", consentDecision.issue.retryable));
+      }
+    } else if (record.consent.withdrawalStatus === "withdrawn") issues.push(issue("record_withdrawn", false));
+    else if (record.consent.withdrawalStatus === "delete_requested") issues.push(issue("record_delete_requested", false));
+    else if (record.consent.withdrawalStatus === "deleted") issues.push(issue("record_deleted", false));
+  }
+
+  const visibilityDecision = fieldDecision("record:visibility", candidate.recordFieldPolicies?.visibility);
+  if (record.visibility === "withdrawn") {
+    if (visibilityDecision.issue) {
+      if (!issues.some((entry) => entry.code === "record_lifecycle_blocked")) {
+        issues.push(issue("record_lifecycle_blocked", visibilityDecision.issue.retryable));
+      }
+    } else issues.push(issue("record_withdrawn", false));
+  }
   return issues;
 }
 
@@ -473,7 +493,7 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
   const locationPolicy = normalizeLocationPolicy(candidate.locationPolicy);
   if (!locationPolicy) return emptyItem(recordId, [issue("location_policy_unknown", true)], lifecycle);
   const recordBlocked = recordIssues(candidate, record);
-  const locationRightsIssue = locationPolicyRightsIssue(record, locationPolicy);
+  const locationRightsIssue = locationPolicyRightsIssue(candidate, record, locationPolicy);
   const locationConsistencyIssue = locationPolicyConsistencyIssue(locationPolicy);
   const locationIssues = [locationRightsIssue, locationConsistencyIssue].filter(
     (entry): entry is RawRecordArchiveIssue => entry !== null,
