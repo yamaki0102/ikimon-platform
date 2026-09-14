@@ -7,7 +7,7 @@ export type AiModelRef = {
 
 export const AI_MODELS = {
   geminiFlashLite: "gemini-3.1-flash-lite",
-  geminiFlashImage: "gemini-3.1-flash-image-preview",
+  geminiFlashImage: "gemini-3.1-flash-image",
   gemini35Flash: "gemini-3.5-flash",
   geminiFlash: "gemini-2.5-flash",
   deepseekFlash: "deepseek-v4-flash",
