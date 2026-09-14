@@ -20785,6 +20785,7 @@ test("production public derived image transform route is bounded and copy-free",
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
+    IMAGES: undefined,
   };
   const originalFetch = globalThis.fetch;
   const fetchCalls: Array<{ input: unknown; init: RequestInit & { cf?: { image?: { width?: number; fit?: string; format?: string; quality?: number } } } }> = [];
@@ -20846,11 +20847,148 @@ test("production public derived image transform route is bounded and copy-free",
   }
 });
 
+test("public derived image transform reads R2 through Images binding and preserves private access", async () => {
+  const { env, core, obs } = createEnv();
+  const publicKey = "derived/import/20260615/observation_photo/asset-public-transform/display.webp";
+  const privateKey = "derived/import/20260615/observation_photo/asset-private-transform/display.webp";
+  await env.ASSET_BUCKET.put(publicKey, "source-public-webp", {
+    httpMetadata: { contentType: "image/webp" }
+  });
+  await env.ASSET_BUCKET.put(privateKey, "source-private-webp", {
+    httpMetadata: { contentType: "image/webp" }
+  });
+  obs.observations.set("private-transform-record", {
+    observation_id: "private-transform-record",
+    draft_id: "draft-private-transform",
+    owner_user_id: "private-transform-owner",
+    observed_at: "2026-06-15T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: null,
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "",
+    visibility: "private",
+    emergency_hidden: 0,
+    processing_state: "complete"
+  });
+  obs.assets.set("asset-private-transform", {
+    asset_id: "asset-private-transform",
+    draft_id: "draft-private-transform",
+    observation_id: "private-transform-record",
+    owner_user_id: "private-transform-owner",
+    object_key: "original/private-transform/photo.jpg",
+    partition_month: "2026-06",
+    sha256: "private-transform-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: privateKey,
+    public_derivative_sha256: "private-transform-derivative-sha",
+    public_derivative_verified_at: "2026-06-15T00:00:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T00:00:00.000Z"
+  });
+
+  const imageCalls: Array<{ kind: "transform" | "output"; options: Record<string, unknown> }> = [];
+  const images = {
+    async info(_stream: ReadableStream) {
+      return {};
+    },
+    input(_stream: ReadableStream) {
+      const handle = {
+        transform(options: Record<string, unknown>) {
+          imageCalls.push({ kind: "transform", options });
+          return handle;
+        },
+        async output(options: { format: string; quality?: number | string; anim?: boolean }) {
+          imageCalls.push({ kind: "output", options });
+          return {
+            response() {
+              return new Response("transformed-avif", {
+                status: 200,
+                headers: {
+                  "content-type": "image/avif",
+                  "cf-resized": "internal=ok"
+                }
+              });
+            }
+          };
+        }
+      };
+      return handle;
+    }
+  };
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    IMAGES: images
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    throw new Error("same-origin source fetch must not be used when Images is bound");
+  }) as typeof fetch;
+  try {
+    const publicResponse = await worker.fetch(new Request(`https://staging.zukan.earth/derived-transform/w680/${publicKey}`, {
+      headers: { accept: "image/avif,image/webp" }
+    }), productionEnv);
+    assert.equal(publicResponse.status, 200);
+    assert.equal(await publicResponse.text(), "transformed-avif");
+    assert.equal(publicResponse.headers.get("content-type"), "image/avif");
+    assert.equal(publicResponse.headers.get("cache-control"), "public, max-age=3600");
+    assert.equal(publicResponse.headers.get("vary"), "Accept");
+    assert.equal(publicResponse.headers.get("x-ikimon-image-transform-result"), "internal=ok");
+    assert.deepEqual(imageCalls, [
+      { kind: "transform", options: { fit: "scale-down", width: 680 } },
+      { kind: "output", options: { format: "image/avif", quality: 82, anim: false } }
+    ]);
+
+    const unauthenticatedPrivateResponse = await worker.fetch(new Request(`https://staging.zukan.earth/derived-transform/w680/${privateKey}`, {
+      headers: { accept: "image/avif,image/webp" }
+    }), productionEnv);
+    assert.equal(unauthenticatedPrivateResponse.status, 404);
+    assert.deepEqual(await unauthenticatedPrivateResponse.json(), { error: "media_not_found" });
+    assert.equal(imageCalls.length, 2);
+
+    const rawToken = "private-transform-owner-session";
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    core.authSessions.set(tokenHash, {
+      token_hash: tokenHash,
+      user_id: "private-transform-owner",
+      display_name: "Private Transform Owner",
+      role_name: "Observer",
+      rank_label: "観察者",
+      banned: 0,
+      expires_at: "2099-01-01T00:00:00.000Z",
+      last_used_at: null
+    });
+    const ownerResponse = await worker.fetch(new Request(`https://staging.zukan.earth/derived-transform/w360/${privateKey}`, {
+      headers: {
+        accept: "image/webp,image/jpeg",
+        cookie: `ikimon_v2_session=${rawToken}`
+      }
+    }), productionEnv);
+    assert.equal(ownerResponse.status, 200);
+    assert.equal(await ownerResponse.text(), "transformed-avif");
+    assert.equal(ownerResponse.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+    assert.equal(imageCalls.at(-2)?.options.width, 360);
+    assert.deepEqual(imageCalls.at(-1), {
+      kind: "output",
+      options: { format: "image/webp", quality: 82, anim: false }
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production public derived image transform negotiates explicit codecs and keeps wildcard fallback conservative", async () => {
   const { env } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
+    IMAGES: undefined,
   };
   const originalFetch = globalThis.fetch;
   const fetchCalls: Array<{ init: RequestInit & { cf?: { image?: { format?: string } } } }> = [];
@@ -23124,7 +23262,7 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.match(body, /\.cf-record-pick span\{[^}]*font-size:14px/);
         assert.match(body, /\.cf-record-field textarea,\.cf-record-field input\{[^}]*min-height:48px/);
         assert.match(body, /\.cf-record-coordinates summary\{[^}]*min-height:44px/);
-        assert.match(body, /focus-visible\{outline:3px solid #ebb72f/);
+        assert.match(body, /:focus-visible\{outline:2px solid var\(--zukan-focus-outline\)/);
         assert.doesNotMatch(body, />ikimon<| - ikimon<|<span>image\/|<span>video\//, check.path);
       }
     }
