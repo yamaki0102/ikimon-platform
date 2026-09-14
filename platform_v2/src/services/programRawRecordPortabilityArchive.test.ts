@@ -264,6 +264,27 @@ test("raw_record_archive_blocks_location_policy_that_exceeds_record_rights", () 
   assert.equal(item.issues[0]?.retryable, true);
 });
 
+test("raw_record_archive_blocks_noncanonical_location_policy_combinations", () => {
+  const inconsistentPolicy = candidate({
+    locationPolicy: {
+      ...candidate().locationPolicy,
+      publicLocationMode: "site",
+      publicTimePrecision: "date",
+      sensitivityStatus: "human_sensitive",
+      sensitivityReason: "human_or_school_context",
+    },
+  });
+  const plan = planRawRecordPortabilityArchive(request({ records: [inconsistentPolicy] }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "blocked");
+  assert.equal(item.decision, "blocked");
+  assert.equal(item.record, null);
+  assert.equal(item.locationPolicy, null);
+  assert.equal(item.issues[0]?.code, "location_policy_inconsistent");
+  assert.equal(item.issues[0]?.retryable, true);
+});
+
 test("raw_record_archive_does_not_default_missing_withdrawal_to_active", () => {
   const missingWithdrawal = candidate({
     consent: {
@@ -303,6 +324,33 @@ test("raw_record_archive_applies_rights_to_fixed_record_fields", () => {
   assert.equal(item.fieldDecisions.find((entry) => entry.fieldName === "record:placeRef")?.decision, "blocked");
   assert.equal(item.fieldDecisions.find((entry) => entry.fieldName === "record:placeRef")?.issue?.code, "field_authorization_denied");
   assert.doesNotMatch(JSON.stringify(item), /place-river/);
+});
+
+test("raw_record_archive_lifecycle_respects_fixed_field_redaction", () => {
+  const cases = [
+    { fieldName: "review", lifecycleKey: "reviewState" },
+    { fieldName: "consent", lifecycleKey: "withdrawalStatus" },
+    { fieldName: "visibility", lifecycleKey: "visibility" },
+  ] as const;
+
+  for (const { fieldName, lifecycleKey } of cases) {
+    const plan = planRawRecordPortabilityArchive(request({
+      records: [candidate({
+        recordFieldPolicies: {
+          ...candidate().recordFieldPolicies,
+          [fieldName]: {
+            ...candidate().recordFieldPolicies[fieldName],
+            authorization: "unauthorized",
+          },
+        },
+      })],
+    }));
+    const item = plan.items[0]!;
+
+    assert.equal(item.decision, "partial");
+    assert.equal(Object.hasOwn(item.record ?? {}, fieldName), false);
+    assert.equal(Object.hasOwn(item.lifecycle ?? {}, lifecycleKey), false);
+  }
 });
 
 test("raw_record_archive_mixed_visibility_is_field_scoped", () => {

@@ -6,7 +6,10 @@ import {
   type RawRecordPortabilityRecordInput,
   type RawRecordVisibility,
 } from "./programPortabilityBoundary.js";
-import type { ObservationPublicationPolicy } from "./observationPublicationPolicy.js";
+import {
+  OBSERVATION_PUBLICATION_RULESET_VERSION,
+  type ObservationPublicationPolicy,
+} from "./observationPublicationPolicy.js";
 
 export const RAW_RECORD_PORTABILITY_MANIFEST_SCHEMA_VERSION =
   "zukan.raw-record-portability-manifest/v1" as const;
@@ -117,9 +120,9 @@ export type RawRecordArchiveMediaDecision = {
 export type RawRecordArchiveLifecycle = {
   sourceAvailability: RawRecordArchiveSourceAvailability;
   retentionStatus: RawRecordArchiveRetentionStatus;
-  withdrawalStatus: RawRecordPortabilityRecord["consent"]["withdrawalStatus"];
-  visibility: RawRecordPortabilityRecord["visibility"];
-  reviewState: RawRecordPortabilityRecord["review"]["state"];
+  withdrawalStatus?: RawRecordPortabilityRecord["consent"]["withdrawalStatus"];
+  visibility?: RawRecordPortabilityRecord["visibility"];
+  reviewState?: RawRecordPortabilityRecord["review"]["state"];
 };
 
 export type RawRecordArchiveItem = {
@@ -263,6 +266,34 @@ function normalizeLocationPolicy(value: unknown): RawRecordArchiveLocationPolicy
   };
 }
 
+function locationPolicyCombinationIsCurrent(policy: RawRecordArchiveLocationPolicy): boolean {
+  switch (policy.sensitivityStatus) {
+    case "taxon_sensitive":
+      return policy.publicLocationMode === "grid_1km" && policy.publicTimePrecision === "month";
+    case "context_sensitive":
+    case "human_sensitive":
+    case "manager_restricted":
+    case "uncertain":
+      return policy.publicLocationMode === "hidden" && policy.publicTimePrecision === "hidden";
+    case "none":
+      if (policy.publicTimePrecision === "date") return policy.publicLocationMode !== "hidden";
+      return policy.publicTimePrecision === "month"
+        && (policy.publicLocationMode === "municipality" || policy.publicLocationMode === "grid_1km");
+    default:
+      return false;
+  }
+}
+
+function locationPolicyConsistencyIssue(
+  policy: RawRecordArchiveLocationPolicy,
+): RawRecordArchiveIssue | null {
+  if (policy.policyRulesetVersion !== OBSERVATION_PUBLICATION_RULESET_VERSION) {
+    return issue("location_policy_ruleset_unknown", true);
+  }
+  if (!locationPolicyCombinationIsCurrent(policy)) return issue("location_policy_inconsistent", true);
+  return null;
+}
+
 function locationPolicyRightsIssue(
   record: RawRecordPortabilityRecord,
   policy: RawRecordArchiveLocationPolicy,
@@ -280,17 +311,24 @@ function lifecycleFor(
   candidate: RawRecordArchiveCandidate,
   record: RawRecordPortabilityRecord,
 ): RawRecordArchiveLifecycle {
-  return {
+  const lifecycle: RawRecordArchiveLifecycle = {
     sourceAvailability: isOneOf(candidate.lifecycle?.sourceAvailability, RAW_RECORD_ARCHIVE_SOURCE_AVAILABILITIES)
       ? candidate.lifecycle.sourceAvailability
       : "unknown",
     retentionStatus: isOneOf(candidate.lifecycle?.retentionStatus, RAW_RECORD_ARCHIVE_RETENTION_STATUSES)
       ? candidate.lifecycle.retentionStatus
       : "unknown",
-    withdrawalStatus: record.consent.withdrawalStatus,
-    visibility: record.visibility,
-    reviewState: record.review.state,
   };
+  if (fieldDecision("record:consent", candidate.recordFieldPolicies?.consent).decision.decision === "included") {
+    lifecycle.withdrawalStatus = record.consent.withdrawalStatus;
+  }
+  if (fieldDecision("record:visibility", candidate.recordFieldPolicies?.visibility).decision.decision === "included") {
+    lifecycle.visibility = record.visibility;
+  }
+  if (fieldDecision("record:review", candidate.recordFieldPolicies?.review).decision.decision === "included") {
+    lifecycle.reviewState = record.review.state;
+  }
+  return lifecycle;
 }
 
 function emptyItem(
@@ -438,6 +476,8 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
   if (recordBlocked.length > 0) return emptyItem(recordId, recordBlocked, lifecycle, locationPolicy);
   const locationRightsIssue = locationPolicyRightsIssue(record, locationPolicy);
   if (locationRightsIssue) return emptyItem(recordId, [locationRightsIssue], lifecycle);
+  const locationConsistencyIssue = locationPolicyConsistencyIssue(locationPolicy);
+  if (locationConsistencyIssue) return emptyItem(recordId, [locationConsistencyIssue], lifecycle);
 
   const includedFields: Record<string, unknown> = {};
   const includedRecordFields: RawRecordArchiveRecordFields = {};
