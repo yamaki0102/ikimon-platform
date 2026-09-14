@@ -601,6 +601,54 @@
       ]
     },
     {
+      "id": "quality.zukan.m7-handover-incoming-acceptance",
+      "surface": "zukan.program.console",
+      "required_states": [
+        "pending_acceptance",
+        "accepting",
+        "accepted_pending_apply",
+        "conflict",
+        "blocked",
+        "error"
+      ],
+      "related_requirement_refs": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.responsibility-transfer",
+        "quality.zukan.handover.lifecycle-reset",
+        "quality.zukan.handover.idempotency"
+      ],
+      "acceptance": [
+        "incoming actorがofferの意図された受け手で、target scopeに対して現在authorizedであることを再確認する",
+        "plan/offer identity・source revision・target scope・outgoing actorを再読し、pending_acceptance以外は受け付けない",
+        "受入はaccepted_pending_applyの一つのappend-only receiptだけを作り、M7.4の責任移管やtarget Program変更を行わない",
+        "same key+payloadは一つのlogical acceptanceへreplayし、different payload・concurrent conflict・write failureはfail closedする",
+        "participant/consent/Review/publication/visibility/private payloadを受入receiptへコピーしない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/src/services/programHandoverAcceptanceD1Repository.test.ts",
+          "kind": "source-deterministic-d1",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/services/programHandoverAcceptanceRepositoryContract.ts",
+          "kind": "provider-neutral-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/cloudflare_shadow/migrations/core/0017_zukan_program_handover_acceptances.sql",
+          "kind": "source-migration-definition",
+          "status": "canonical"
+        },
+        {
+          "locator": "docs/spec/zukan-product-architecture/M7_3_PROMOTION_2026-09-02.md",
+          "kind": "canonical-slice-contract",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
       "id": "quality.zukan.m8-operational-summary",
       "surface": "zukan.program.console",
       "required_states": [
@@ -1263,6 +1311,49 @@
       ],
       "property": "plan identityまたはtarget scopeが一致しなければofferを作成しない",
       "current_test": "platform_v2/src/services/programHandoverOfferD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.acceptance-intended-actor-only",
+      "requirements": [
+        "quality.zukan.handover.responsibility-transfer"
+      ],
+      "property": "offerの意図されたincoming actorだけが現在のtarget scopeで受入でき、別actor・unknown・revoked・scope外はreceiptを作成しない",
+      "current_test": "platform_v2/src/services/programHandoverAcceptanceD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.acceptance-pending-offer-only",
+      "requirements": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.responsibility-transfer"
+      ],
+      "property": "plan/offerのidentity・source revision・target scope・outgoing actorが現行値と一致し、offerがpending_acceptanceでない限り受入を保存しない",
+      "current_test": "platform_v2/src/services/programHandoverAcceptanceD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.acceptance-retry-one-logical",
+      "requirements": [
+        "quality.zukan.handover.idempotency"
+      ],
+      "property": "同一acceptance keyとpayloadのretry/concurrent retryは一つのlogical accepted_pending_apply receiptへ収束する",
+      "current_test": "platform_v2/src/services/programHandoverAcceptanceD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.acceptance-no-transfer-side-effect",
+      "requirements": [
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.lifecycle-reset",
+        "quality.zukan.handover.responsibility-transfer"
+      ],
+      "property": "受入receiptはexact plan/offer refsだけを保存し、target Program・responsibility・participant・consent・Review・publication・visibilityを変更またはコピーしない",
+      "current_test": "platform_v2/src/services/programHandoverAcceptanceD1Repository.test.ts"
+    },
+    {
+      "id": "prop.m7.acceptance-write-failure-not-accepted",
+      "requirements": [
+        "quality.zukan.handover.responsibility-transfer"
+      ],
+      "property": "D1 write failureはaccepted_pending_apply/completedとして扱わず、受入receiptを観測できないblocked結果を返す",
+      "current_test": "platform_v2/src/services/programHandoverAcceptanceD1Repository.test.ts"
     },
     {
       "id": "prop.m8.free-summary-no-taxon-output",

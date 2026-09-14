@@ -89,6 +89,38 @@ test("M7.2 outgoing-selection contract is source-only and has no transfer activa
   assert.ok(contract?.tests?.some((item: any) => item.locator.endsWith("programHandoverOfferD1Repository.test.ts")));
 });
 
+test("M7.3 is source-verified and closed at accepted_pending_apply", () => {
+  const navigation = loadProductRegistryNavigation() as any;
+  const task = navigation.implementation_tasks.find((item: any) => item.id === "task.zukan.m7.program-handover-incoming-acceptance");
+  assert.equal(task?.state, "implemented");
+  assert.equal(task?.readiness, "source-verified");
+  assert.equal(task?.implementation_allowed, false);
+  assert.ok(task?.requirement_ids?.includes("quality.zukan.handover.responsibility-transfer"));
+  assert.ok(task?.source_locators?.includes("platform_v2/src/services/programHandoverAcceptanceRepositoryContract.ts"));
+  assert.ok(task?.source_locators?.includes("platform_v2/src/services/programHandoverAcceptanceD1Repository.ts"));
+  assert.ok(task?.source_locators?.includes("platform_v2/cloudflare_shadow/migrations/core/0017_zukan_program_handover_acceptances.sql"));
+  assert.equal(task?.negative_eval_ids?.length, 5);
+  assert.match(task?.design_contract?.state, /accepted_pending_apply/);
+  assert.match(task?.design_contract?.state, /pending_acceptance/);
+  assert.match(task?.design_contract?.rights, /participant.*consent.*Review.*publication.*visibility/);
+  assert.match(task?.design_contract?.terminal_verification, /zero target\/transfer side effects/);
+  assert.ok(task?.design_contract?.fixtures?.length >= 10);
+});
+
+test("M7.3 incoming-acceptance contract and source Eval remain separate from M7.4", () => {
+  const registry = loadProductRegistry() as any;
+  const contract = registry.qualityContracts.find((item: any) => item.id === "quality.zukan.m7-handover-incoming-acceptance");
+  const evaluation = registry.evalContracts.find((item: any) => item.id === "eval.zukan.m7.3.handover.incoming-acceptance.source");
+  assert.deepEqual(contract?.required_states, ["pending_acceptance", "accepting", "accepted_pending_apply", "conflict", "blocked", "error"]);
+  assert.match(contract?.acceptance?.join(" "), /append-only/);
+  assert.match(contract?.acceptance?.join(" "), /M7\.4/);
+  assert.ok(contract?.tests?.some((item: any) => item.locator.endsWith("programHandoverAcceptanceD1Repository.test.ts")));
+  assert.equal(evaluation?.environment, "source");
+  assert.equal(evaluation?.lane, "M7_3_SOURCE_INCOMING_ACCEPTANCE");
+  assert.ok(evaluation?.negative_eval_ids?.includes("prop.m7.acceptance-retry-one-logical"));
+  assert.ok(evaluation?.source_locators?.includes("platform_v2/cloudflare_shadow/migrations/core/0017_zukan_program_handover_acceptances.sql"));
+});
+
 test("M8 is shaped as separate operational summary and raw portability contracts", () => {
   const navigation = loadProductRegistryNavigation() as any;
   assert.equal(navigation.implementation_tasks.find((item: any) => item.id === "task.zukan.m8.operational-summary")?.readiness, "shaped");
