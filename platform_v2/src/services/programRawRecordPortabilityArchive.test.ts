@@ -1,0 +1,269 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  planRawRecordPortabilityArchive,
+  serializeRawRecordPortabilityArchivePlan,
+  type RawRecordArchiveCandidate,
+  type RawRecordPortabilityArchiveRequest,
+} from "./programRawRecordPortabilityArchive.js";
+
+function candidate(overrides: Partial<RawRecordArchiveCandidate> = {}): RawRecordArchiveCandidate {
+  return {
+    recordId: "record-1",
+    contributorFields: {
+      enteredLabel: "river bird",
+      privateNote: "near the reed bed",
+    },
+    capturedAt: "2026-09-10T00:00:00.000Z",
+    placeRef: "place-river",
+    provenance: {
+      sourceRef: "source-record-1",
+      sourceRevision: "rev-1",
+      sourceKind: "record",
+    },
+    review: {
+      state: "approved",
+      history: [{
+        state: "approved",
+        actorId: "reviewer-1",
+        occurredAt: "2026-09-10T01:00:00.000Z",
+        source: "staff_review",
+        note: "source checked",
+      }],
+    },
+    consent: {
+      visitId: "visit-1",
+      recordConsent: "external_export",
+      researchUseConsent: "public_export",
+      datasetLicense: "CC-BY-4.0",
+      mediaLicense: "CC-BY-4.0",
+      externalExportAllowed: true,
+      withdrawalStatus: "active",
+    },
+    visibility: "public_candidate",
+    visibilityHistory: [{
+      visibility: "public_candidate",
+      actorId: "reviewer-1",
+      occurredAt: "2026-09-10T01:00:00.000Z",
+      source: "staff_review",
+    }],
+    changeHistory: [{
+      actorId: "participant-1",
+      occurredAt: "2026-09-10T00:30:00.000Z",
+      source: "participant_edit",
+      revision: "rev-1",
+      changeType: "create",
+    }],
+    authorization: "authorized",
+    lifecycle: {
+      sourceAvailability: "available",
+      retentionStatus: "retained",
+    },
+    fieldPolicies: {
+      enteredLabel: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "public_candidate",
+        retention: "retained",
+      },
+      privateNote: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+    },
+    mediaRefs: [{
+      mediaId: "media-1",
+      sourceRef: "r2://records/record-1/media-1",
+      mediaKind: "image",
+      authorization: "authorized",
+      consent: "allowed",
+      visibility: "public_candidate",
+      availability: "available",
+    }],
+    ...overrides,
+  };
+}
+
+function request(overrides: Partial<RawRecordPortabilityArchiveRequest> = {}): RawRecordPortabilityArchiveRequest {
+  return {
+    requesterId: "subject-1",
+    authorization: "authorized",
+    sourceSnapshot: "source-watermark-7",
+    rightsSnapshot: "rights-snapshot-3",
+    recordIds: ["record-1"],
+    records: [candidate()],
+    ...overrides,
+  };
+}
+
+test("raw_record_archive_preserves_record_granularity", () => {
+  const plan = planRawRecordPortabilityArchive(request());
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "complete");
+  assert.equal(plan.archiveKind, "private_source_archive");
+  assert.equal(plan.publicProjection, false);
+  assert.equal(item.decision, "included");
+  assert.equal(item.record?.recordId, "record-1");
+  assert.deepEqual(item.record?.provenance, candidate().provenance);
+  assert.equal(item.record?.review.history[0]?.state, "approved");
+  assert.deepEqual(item.mediaRefs, [{
+    mediaId: "media-1",
+    sourceRef: "r2://records/record-1/media-1",
+    mediaKind: "image",
+  }]);
+  assert.equal(item.lifecycle?.retentionStatus, "retained");
+});
+
+test("raw_record_archive_keeps_private_source_for_authorized_requester", () => {
+  const privateCandidate = candidate({
+    consent: {
+      ...candidate().consent,
+      recordConsent: "private",
+      researchUseConsent: "none",
+      datasetLicense: null,
+      mediaLicense: null,
+      externalExportAllowed: false,
+    },
+    visibility: "private",
+    fieldPolicies: {
+      enteredLabel: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+      privateNote: {
+        authorization: "authorized",
+        consent: "allowed",
+        visibility: "private",
+        retention: "retained",
+      },
+    },
+    visibilityHistory: [{
+      visibility: "private",
+      actorId: "subject-1",
+      occurredAt: "2026-09-10T01:00:00.000Z",
+      source: "private_draft",
+    }],
+  });
+  const plan = planRawRecordPortabilityArchive(request({ records: [privateCandidate] }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "complete");
+  assert.equal(item.decision, "included");
+  assert.equal(item.record?.visibility, "private");
+  assert.equal(item.record?.consent.externalExportAllowed, false);
+  assert.deepEqual(item.record?.contributorFields, {
+    enteredLabel: "river bird",
+    privateNote: "near the reed bed",
+  });
+});
+
+test("raw_record_archive_mixed_visibility_is_field_scoped", () => {
+  const plan = planRawRecordPortabilityArchive(request({
+    records: [candidate({
+      fieldPolicies: {
+        ...candidate().fieldPolicies,
+        privateNote: {
+          authorization: "authorized",
+          consent: "denied",
+          visibility: "private",
+          retention: "retained",
+        },
+      },
+    })],
+  }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "partial");
+  assert.equal(item.decision, "partial");
+  assert.deepEqual(item.record?.contributorFields, { enteredLabel: "river bird" });
+  assert.equal(item.fieldDecisions.find((entry) => entry.fieldName === "privateNote")?.decision, "blocked");
+  assert.equal(item.fieldDecisions.find((entry) => entry.fieldName === "privateNote")?.issue?.code, "field_consent_denied");
+  assert.doesNotMatch(JSON.stringify(item), /near the reed bed/);
+});
+
+test("raw_record_archive_withdrawal_is_explicit", () => {
+  const withdrawn = candidate({
+    consent: {
+      ...candidate().consent,
+      withdrawalStatus: "withdrawn",
+    },
+    visibility: "withdrawn",
+    visibilityHistory: [{
+      visibility: "withdrawn",
+      actorId: "subject-1",
+      occurredAt: "2026-09-11T00:00:00.000Z",
+      source: "consent_withdrawal",
+    }],
+  });
+  const plan = planRawRecordPortabilityArchive(request({ records: [withdrawn] }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "blocked");
+  assert.equal(item.decision, "blocked");
+  assert.equal(item.record, null);
+  assert.equal(item.lifecycle?.withdrawalStatus, "withdrawn");
+  assert.ok(item.issues.some((entry) => entry.code === "record_withdrawn"));
+});
+
+test("raw_record_archive_partial_item_failure_is_recoverable", () => {
+  const unavailableMedia = candidate({
+    mediaRefs: [{
+      ...candidate().mediaRefs[0]!,
+      availability: "missing",
+    }],
+  });
+  const plan = planRawRecordPortabilityArchive(request({ records: [unavailableMedia] }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "partial");
+  assert.equal(item.decision, "partial");
+  assert.equal(item.retryable, true);
+  assert.deepEqual(item.mediaRefs, []);
+  assert.equal(item.mediaDecisions[0]?.issue?.code, "media_unavailable");
+  assert.equal(item.mediaDecisions[0]?.issue?.retryable, true);
+});
+
+test("raw_record_archive_retry_same_manifest", () => {
+  const second = candidate({ recordId: "record-2", mediaRefs: [{
+    ...candidate().mediaRefs[0]!,
+    mediaId: "media-2",
+    sourceRef: "r2://records/record-2/media-2",
+  }] });
+  const firstInput = request({ recordIds: ["record-2", "record-1"], records: [second, candidate()] });
+  const secondInput = request({ recordIds: ["record-1", "record-2"], records: [candidate(), second] });
+  const firstPlan = planRawRecordPortabilityArchive(firstInput);
+  const secondPlan = planRawRecordPortabilityArchive(secondInput);
+
+  assert.equal(firstPlan.state, "complete");
+  assert.equal(firstPlan.manifestDigest, secondPlan.manifestDigest);
+  assert.deepEqual(firstPlan, secondPlan);
+  assert.equal(new Set(firstPlan.items.map((item) => item.recordId)).size, 2);
+  assert.equal(serializeRawRecordPortabilityArchivePlan(firstPlan), serializeRawRecordPortabilityArchivePlan(secondPlan));
+});
+
+test("raw_record_archive_does_not_emit_taxon_inventory", () => {
+  const plan = planRawRecordPortabilityArchive(request());
+  const serialized = serializeRawRecordPortabilityArchivePlan(plan);
+  const parsed = JSON.parse(serialized) as Record<string, unknown>;
+
+  for (const key of ["taxa", "taxonName", "recordCount", "totalTaxa", "composition", "reportRef", "inventory", "report"]) {
+    assert.equal(key in parsed, false, key);
+  }
+  assert.equal((parsed.items as Array<Record<string, unknown>>)[0]!["recordCount"], undefined);
+  assert.equal(plan.archiveKind, "private_source_archive");
+});
+
+test("unauthorized_requester_does_not_disclose_record_payload", () => {
+  const plan = planRawRecordPortabilityArchive(request({ authorization: "unauthorized" }));
+  const item = plan.items[0]!;
+
+  assert.equal(plan.state, "blocked");
+  assert.equal(item.record, null);
+  assert.equal(item.issues[0]?.code, "requester_authorization_denied");
+  assert.doesNotMatch(JSON.stringify(plan), /river bird|near the reed bed|source-record-1/);
+});
