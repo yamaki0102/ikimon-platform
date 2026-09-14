@@ -2805,7 +2805,7 @@ export const worker = {
 
       if (url.pathname.startsWith("/derived-transform/")) {
         if (request.method === "GET" || request.method === "HEAD") {
-          return getPublicDerivedImageTransform(request, url);
+          return getPublicDerivedImageTransform(request, url, env);
         }
         return json({ error: "method_not_allowed" }, 405, {
           allow: "GET, HEAD",
@@ -25513,28 +25513,50 @@ function publicDerivedImageSrcset(photoUrl: string): string {
   return candidates.join(", ");
 }
 
-async function getPublicDerivedImageTransform(request: Request, url: URL): Promise<Response> {
+async function getPublicDerivedImageTransform(request: Request, url: URL, env: Env): Promise<Response> {
   const parsed = parsePublicDerivedImageTransformPath(url.pathname);
   if (!parsed) {
     return json({ error: "not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
   }
 
-  const sourceUrl = new URL(`/${parsed.key}`, url.origin);
   const accept = request.headers.get("accept");
-  const response = await fetch(sourceUrl.toString(), {
-    method: request.method,
-    headers: { accept: accept ?? "image/jpeg" },
-    cf: {
-      image: {
-        fit: "scale-down",
-        format: selectPublicDerivedImageTransformFormat(accept),
-        quality: 82,
-        width: parsed.width
-      }
+  const access = await publicDerivedMediaAccess(request, parsed.key, env);
+  if (access === "denied") {
+    return json({ error: "media_not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
+  }
+
+  const format = selectPublicDerivedImageTransformFormat(accept);
+  let response: Response;
+  if (env.IMAGES) {
+    const sourceObject = await env.ASSET_BUCKET.get(parsed.key);
+    if (!sourceObject?.body) {
+      return json({ error: "media_not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
     }
-  } as CloudflareImageFetchInit);
+    const output = await env.IMAGES
+      .input(sourceObject.body)
+      .transform({ fit: "scale-down", width: parsed.width })
+      .output({ format: `image/${format}`, quality: 82, anim: false });
+    response = output.response();
+  } else {
+    const sourceUrl = new URL(`/${parsed.key}`, url.origin);
+    response = await fetch(sourceUrl.toString(), {
+      method: request.method,
+      headers: { accept: accept ?? "image/jpeg" },
+      cf: {
+        image: {
+          fit: "scale-down",
+          format,
+          quality: 82,
+          width: parsed.width
+        }
+      }
+    } as CloudflareImageFetchInit);
+  }
   const headers = new Headers(response.headers);
-  headers.set("cache-control", response.ok ? PUBLIC_DERIVED_MEDIA_CACHE_CONTROL : PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL);
+  headers.set(
+    "cache-control",
+    response.ok && access === "public" ? PUBLIC_DERIVED_MEDIA_CACHE_CONTROL : PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL
+  );
   headers.set("vary", "Accept");
   headers.set("x-ikimon-image-transform", "cloudflare");
   headers.set("x-ikimon-image-transform-width", String(parsed.width));
