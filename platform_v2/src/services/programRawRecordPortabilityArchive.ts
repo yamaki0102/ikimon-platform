@@ -312,6 +312,18 @@ function locationPolicyRightsIssue(
   return null;
 }
 
+function locationPolicyForOutput(
+  candidate: RawRecordArchiveCandidate,
+  policy: RawRecordArchiveLocationPolicy,
+): RawRecordArchiveLocationPolicy {
+  const consentDecision = fieldDecision("record:consent", candidate.recordFieldPolicies?.consent);
+  const visibilityDecision = fieldDecision("record:visibility", candidate.recordFieldPolicies?.visibility);
+  if (consentDecision.issue || visibilityDecision.issue) {
+    return { ...policy, sensitivityReason: "policy_reason_redacted" };
+  }
+  return policy;
+}
+
 function lifecycleFor(
   candidate: RawRecordArchiveCandidate,
   record: RawRecordPortabilityRecord,
@@ -499,7 +511,8 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
     (entry): entry is RawRecordArchiveIssue => entry !== null,
   );
   if (locationIssues.length > 0) return emptyItem(recordId, [...recordBlocked, ...locationIssues], lifecycle);
-  if (recordBlocked.length > 0) return emptyItem(recordId, recordBlocked, lifecycle, locationPolicy);
+  const outputLocationPolicy = locationPolicyForOutput(candidate, locationPolicy);
+  if (recordBlocked.length > 0) return emptyItem(recordId, recordBlocked, lifecycle, outputLocationPolicy);
 
   const includedFields: Record<string, unknown> = {};
   const includedRecordFields: RawRecordArchiveRecordFields = {};
@@ -598,7 +611,7 @@ function buildItem(recordId: string, candidate: RawRecordArchiveCandidate): RawR
     decision,
     record: hasIncludedPayload ? { recordId: record.recordId, contributorFields: includedFields, ...includedRecordFields } : null,
     mediaRefs: includedMedia,
-    locationPolicy,
+    locationPolicy: outputLocationPolicy,
     fieldDecisions,
     mediaDecisions,
     lifecycle,

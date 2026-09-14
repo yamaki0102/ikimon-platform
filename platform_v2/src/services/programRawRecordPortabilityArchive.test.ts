@@ -413,6 +413,38 @@ test("raw_record_archive_redacts_lifecycle_state_from_issue_codes", () => {
   assert.doesNotMatch(serializedItem, /withdrawn|deleted|delete_requested/);
 });
 
+test("raw_record_archive_redacts_location_policy_reason_with_consent_redaction", () => {
+  const withdrawn = candidate({
+    consent: {
+      ...candidate().consent,
+      publicAggregationAllowed: false,
+      withdrawalStatus: "withdrawn",
+    },
+    locationPolicy: {
+      ...candidate().locationPolicy,
+      publicLocationMode: "hidden",
+      publicTimePrecision: "hidden",
+      sensitivityStatus: "context_sensitive",
+      sensitivityReason: "rights_withdrawn",
+    },
+    recordFieldPolicies: {
+      ...candidate().recordFieldPolicies,
+      consent: {
+        ...candidate().recordFieldPolicies.consent,
+        authorization: "unauthorized",
+      },
+    },
+  });
+  const plan = planRawRecordPortabilityArchive(request({ records: [withdrawn] }));
+  const item = plan.items[0]!;
+
+  assert.equal(item.decision, "blocked");
+  assert.equal(item.locationPolicy?.sensitivityReason, "policy_reason_redacted");
+  assert.equal(item.lifecycle?.withdrawalStatus, undefined);
+  assert.ok(item.issues.some((entry) => entry.code === "record_lifecycle_blocked"));
+  assert.doesNotMatch(JSON.stringify(item), /rights_withdrawn|record_withdrawn/);
+});
+
 test("raw_record_archive_mixed_visibility_is_field_scoped", () => {
   const plan = planRawRecordPortabilityArchive(request({
     records: [candidate({
