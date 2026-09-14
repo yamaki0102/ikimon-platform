@@ -1,10 +1,8 @@
 import { test, expect, type Route } from "@playwright/test";
 import {
-  addSessionCookie,
+  authenticateStagingFixture,
   cleanupFixtures,
   createStagingApiContext,
-  issueSessionCookie,
-  requireEnv,
 } from "./support/staging.js";
 
 const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth";
@@ -41,8 +39,8 @@ test.describe.serial("ZUKAN capture P0 fixture-only retry gate", () => {
     const fixtureId = `record-feedback-loop-${Date.now()}`;
     const visitId = `${fixtureId}-visit`;
     const occurrenceId = `occ:${visitId}:0`;
-    const writeKey = requireEnv("V2_PRIVILEGED_WRITE_API_KEY");
     const api = await createStagingApiContext(playwright);
+    let writeKey: string | undefined;
     let allowSuccessfulUpload = false;
     const counters: MutationCounters = {
       observationUpsert: 0,
@@ -53,8 +51,7 @@ test.describe.serial("ZUKAN capture P0 fixture-only retry gate", () => {
     };
 
     try {
-      const rawCookie = await issueSessionCookie(api, writeKey, `${fixtureId}-user`);
-      await addSessionCookie(page.context(), rawCookie);
+      ({ writeKey } = await authenticateStagingFixture(api, page.context(), `${fixtureId}-user`));
 
       await page.route("**/*", async (route) => {
       const request = route.request();
@@ -191,7 +188,9 @@ test.describe.serial("ZUKAN capture P0 fixture-only retry gate", () => {
         contentType: "image/png",
       });
     } finally {
-      await cleanupFixtures(api, writeKey, fixtureId).catch(() => undefined);
+      if (writeKey) {
+        await cleanupFixtures(api, writeKey, fixtureId).catch(() => undefined);
+      }
       await api.dispose();
     }
   });
