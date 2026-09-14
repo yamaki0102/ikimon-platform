@@ -148,6 +148,27 @@ interface RecentSessionsResult {
   loadFailed: boolean;
 }
 
+export async function loadObservationEventSessionDetails(
+  sessionIds: readonly string[],
+  loadSession: (sessionId: string) => Promise<ObservationEventSessionRow | null> = getSessionById,
+): Promise<RecentSessionsResult> {
+  const sessions: ObservationEventSessionRow[] = [];
+  let loadFailed = false;
+
+  for (const sessionId of sessionIds) {
+    try {
+      const session = await loadSession(sessionId);
+      if (session) sessions.push(session);
+    } catch {
+      // Preserve successful rows, but keep the list truthful when one detail
+      // read fails so the UI can offer a retry instead of implying completeness.
+      loadFailed = true;
+    }
+  }
+
+  return { sessions, loadFailed };
+}
+
 async function loadRecentSessions(limit = 24): Promise<RecentSessionsResult> {
   try {
     const pool = getPool();
@@ -165,12 +186,7 @@ async function loadRecentSessions(limit = 24): Promise<RecentSessionsResult> {
        LIMIT $1`,
       [limit],
     );
-    const sessions: ObservationEventSessionRow[] = [];
-    for (const row of result.rows) {
-      const s = await getSessionById(row.session_id).catch(() => null);
-      if (s) sessions.push(s);
-    }
-    return { sessions, loadFailed: false };
+    return loadObservationEventSessionDetails(result.rows.map((row) => row.session_id));
   } catch {
     // A full query failure is distinct from an empty result: the discovery view
     // must show a retry affordance, not a "no programs" empty state.
