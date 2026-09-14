@@ -9192,9 +9192,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (colon < 1) return;
         var id = item.slice(0, colon);
         var op = parseFloat(item.slice(colon + 1));
-        if (overlayState[id]) {
+        if (overlayState[id] && isFinite(op) && op >= 0 && op <= 1) {
           overlayState[id].enabled = true;
-          if (isFinite(op)) overlayState[id].opacity = op;
+          overlayState[id].opacity = op;
         }
       });
     }
