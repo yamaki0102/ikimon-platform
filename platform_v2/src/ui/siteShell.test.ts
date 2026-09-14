@@ -3,6 +3,28 @@ import test from "node:test";
 import { runWithCspNonce } from "../services/cspNonce.js";
 import { getSiteShellLayoutForPath } from "../siteMap.js";
 import { renderSiteDocument } from "./siteShell.js";
+import { renderPublicContextActions } from "./collaborationContext.js";
+
+test("site shell renders the optional public-context handoff slot with its scoped behavior", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Public source",
+    body: "<p>body</p>",
+    lang: "ja",
+    publicContextHtml: renderPublicContextActions({
+      publicUrl: "https://zukan.earth/ja/places/iwata#details",
+      title: "磐田の公開情報",
+      sourceState: "public",
+      rightsState: "public",
+    }),
+  });
+  assert.match(html, /公開情報のリンクをコピー/);
+  assert.match(html, /https:\/\/zukan\.earth\/ja\/places\/iwata/);
+  assert.match(html, /data-public-context-copy/);
+  assert.match(html, /min-height: 44px/);
+  assert.match(html, /@media \(max-width: 520px\)/);
+  assert.doesNotMatch(html, /nocosil\.com/);
+});
 
 test("site shell keeps the keyboard skip link at the 44px target contract", () => {
   const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });

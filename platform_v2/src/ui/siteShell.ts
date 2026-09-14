@@ -16,6 +16,7 @@ import {
   type SitePageDefinition,
   type SiteShellLayoutKind,
 } from "../siteMap.js";
+import { PUBLIC_CONTEXT_SCRIPT, PUBLIC_CONTEXT_STYLES } from "./collaborationContext.js";
 
 export type SiteAction = {
   href: string;
@@ -44,6 +45,8 @@ export type SiteShellOptions = {
   hero?: SiteHero;
   /** HTML slot rendered inside <main> between the hero and body (e.g. quick nav chips). */
   belowHeroHtml?: string;
+  /** Optional public-source handoff slot. The caller must provide only eligible, public-safe HTML. */
+  publicContextHtml?: string;
   /** CSS appended after the base shell styles (scoped via class names). */
   extraStyles?: string;
   activeNav?: string;
@@ -7343,6 +7346,7 @@ ${alternateLinks}
       }
     }
     ${ZUKAN_DESIGN_FOUNDATION_STYLES}
+    ${options.publicContextHtml ? PUBLIC_CONTEXT_STYLES : ""}
     ${options.extraStyles ?? ""}
     ${isAppExperiencePath(currentPath) ? APP_EXPERIENCE_LAYOUT_STYLES : ""}
   </style>
@@ -7358,6 +7362,7 @@ ${alternateLinks}
       ${hero(options.basePath, options.hero)}
       ${!options.hero && !/<h1[\s>]/.test(`${options.belowHeroHtml ?? ""}${options.body}`) ? `<h1 class="sr-only">${escapeHtml(srOnlyPageHeading)}</h1>` : ""}
       ${options.belowHeroHtml ?? ""}
+      ${options.publicContextHtml ?? ""}
       ${options.body}
     </main>
     ${shouldRenderFooter ? footer(options.basePath, lang, options.footerNote) : ""}
@@ -7368,6 +7373,7 @@ ${alternateLinks}
   ${authNavHydrationScript(options.basePath, lang)}
   ${globalRecordNav ? globalRecordEntryScript(options.basePath, lang) : ""}
   ${uiKpiScript}
+  ${options.publicContextHtml ? PUBLIC_CONTEXT_SCRIPT : ""}
 </body>
 </html>`);
 }
