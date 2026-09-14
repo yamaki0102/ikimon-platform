@@ -1,33 +1,66 @@
-import { test, expect } from "@playwright/test";
-import { newStagingContext } from "./support/staging.js";
+import { test, expect, type Page } from "@playwright/test";
+import { newStagingContext, type ViewportProfile } from "./support/staging.js";
 
 /**
  * 観察会機能の E2E:
- *   1. /community/events で 200 + ヒーロー表示
+ *   1. /community/events で 200 + 参加ハブ(参加者ファースト)表示
  *   2. 存在しない event_code → 404 ページ表示
  *   3. 存在しない sessionId → 404 ページ表示
  *   4. SSE 経由で live event をトリガし、フィードに反映されるか
  *      (Stage に観察会 fixture を仕込めない場合、既存 cookie + DB 接続前提でスキップ)
  */
 
-test("observation event list page renders hero", async ({ browser }) => {
-  const context = await newStagingContext(browser, { slug: "desktop-1280", viewport: { width: 1280, height: 800 } });
-  const page = await context.newPage();
-  try {
-    const resp = await page.goto("/community/events", { waitUntil: "networkidle" });
-    expect(resp?.status()).toBe(200);
-    await expect(page.locator(".evt-hero")).toBeVisible();
-    await expect(page.locator(".evt-hero h1")).toContainText("小さな発見");
-  } finally {
-    await context.close();
+const PARTICIPATION_VIEWPORTS: ViewportProfile[] = [
+  { slug: "observation-events-320", viewport: { width: 320, height: 900 }, isMobile: true, hasTouch: true },
+  { slug: "observation-events-375", viewport: { width: 375, height: 900 }, isMobile: true, hasTouch: true },
+  { slug: "observation-events-768", viewport: { width: 768, height: 900 } },
+  { slug: "observation-events-1160", viewport: { width: 1160, height: 900 } },
+  { slug: "observation-events-1161", viewport: { width: 1161, height: 900 } },
+  { slug: "observation-events-1280", viewport: { width: 1280, height: 900 } },
+];
+
+async function skipIfCloudflareAccess(page: Page): Promise<void> {
+  const bodyText = await page.locator("body").innerText().catch(() => "");
+  if (
+    bodyText.includes("Cloudflare Access") ||
+    bodyText.includes("Log in to ZUKAN Private Preview") ||
+    page.url().includes("cloudflareaccess.com")
+  ) {
+    test.skip(true, "staging.zukan.earth is behind Cloudflare Access in this environment");
   }
-});
+}
+
+for (const profile of PARTICIPATION_VIEWPORTS) {
+  test(`participation hub renders participant-first, with organizer entry kept separate (${profile.viewport.width}px)`, async ({ browser }) => {
+    const context = await newStagingContext(browser, profile);
+    const page = await context.newPage();
+    try {
+      const resp = await page.goto("/community/events", { waitUntil: "networkidle" });
+      expect(resp?.status()).toBe(200);
+      await skipIfCloudflareAccess(page);
+      await expect(page.locator(".zukan-participation-shell")).toBeVisible();
+      await expect(page.locator(".zukan-participation-header h1")).toHaveText("参加");
+      const shellBox = await page.locator(".zukan-participation-shell").boundingBox();
+      expect(shellBox).not.toBeNull();
+      expect(Math.abs(Math.round(shellBox!.width) - Math.min(profile.viewport.width, 1160))).toBeLessThanOrEqual(1);
+      // Participant discovery comes before the organizer entry in DOM order.
+      const bodyText = await page.locator(".zukan-participation-shell").innerText();
+      expect(bodyText).toContain("今、参加できる");
+      expect(bodyText.indexOf("今、参加できる")).toBeLessThan(bodyText.indexOf("企画を運営する方へ"));
+      // No internal observation-mode vocabulary leaks into public comparison copy.
+      expect(bodyText).not.toMatch(/今日のヒント|ビンゴ|努力量/);
+    } finally {
+      await context.close();
+    }
+  });
+}
 
 test("invalid event code returns 404 with html", async ({ browser }) => {
   const context = await newStagingContext(browser, { slug: "desktop-1280", viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
   try {
     const resp = await page.goto("/community/events/__invalid__/join", { waitUntil: "networkidle" });
+    await skipIfCloudflareAccess(page);
     expect(resp?.status()).toBe(404);
     await expect(page.locator(".evt-recap-shell")).toBeVisible();
     await expect(page.locator(".evt-heading")).toContainText("見つかりません");
@@ -41,6 +74,7 @@ test("invalid session id returns 404 on live page", async ({ browser }) => {
   const page = await context.newPage();
   try {
     const resp = await page.goto("/events/00000000-0000-0000-0000-000000000000/live", { waitUntil: "networkidle" });
+    await skipIfCloudflareAccess(page);
     expect(resp?.status()).toBe(404);
     await expect(page.locator(".evt-heading")).toContainText("見つかりません");
   } finally {
