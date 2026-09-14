@@ -30,8 +30,9 @@ test("original UI materializer pins discovery documents to the public canonical 
   assert.match(materializer, /createHmac\("sha256", materializationSecret\)/);
   assert.match(materializer, /targetEnv === "production" \? \{ source_sha: materializationSourceSha \} : \{\}/);
   assert.match(materializer, /production_materialization_source_sha_invalid/);
-  assert.match(materializer, /const materializationSecret = targetEnv === "production"\s*\?\s*String\(process\.env\.IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET \|\| ""\)\s*:\s*String\(process\.env\.IKIMON_AUTOMATION_PUSH_SECRET \|\| ""\)/);
+  assert.match(materializer, /const materializationSecret = targetEnv === "production"\s*\?\s*String\(process\.env\.IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET \|\| ""\)\s*:\s*String\(process\.env\.IKIMON_STAGING_MATERIALIZATION_JOB_SECRET \|\| process\.env\.IKIMON_AUTOMATION_PUSH_SECRET \|\| ""\)/);
   assert.match(materializer, /delete process\.env\.IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET/);
+  assert.match(materializer, /delete process\.env\.IKIMON_STAGING_MATERIALIZATION_JOB_SECRET/);
   assert.match(materializer, /delete process\.env\.IKIMON_AUTOMATION_PUSH_SECRET/);
   assert.doesNotMatch(materializer, /OPS_PRODUCTION_MATERIALIZATION_HMAC_SECRET/);
   assert.match(materializer, /checkpointInterval = 25/);
