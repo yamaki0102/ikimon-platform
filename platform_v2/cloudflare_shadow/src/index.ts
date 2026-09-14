@@ -1,5 +1,6 @@
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
+import { FRONTEND_FOUNDATION_CSS } from "../../src/ui/frontendFoundation";
 import * as bcrypt from "bcryptjs";
 import {
   renderCloudflareRecordRecoveryGuestHtml,
@@ -4171,6 +4172,8 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
     .btn.secondary{background:#e8f1ed;color:#174c3d}.btn.rally-record-cta{min-height:44px}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
     pre{white-space:pre-wrap;word-break:break-word;background:#102018;color:#f3fff8;border-radius:8px;padding:12px}
     @media(max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}}
+    ${FRONTEND_FOUNDATION_CSS}
+    :root{--evt-motion-fast:var(--ik-motion-fast);--evt-motion:var(--ik-motion-normal);--evt-motion-slow:var(--ik-motion-slow)}
     ${APP_EXPERIENCE_STYLES}
     body[data-zukan-app-experience] main{padding-bottom:56px}body[data-zukan-app-experience] .btn{min-height:44px;border-radius:8px;background:#143f2e}body[data-zukan-app-experience] .btn.secondary{background:#edf3ee;color:#143f2e}
   </style>
