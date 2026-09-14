@@ -9,7 +9,7 @@ import { buildRegionalSourceRegistryEntries } from "./regionalSourceRegistryV2.j
 
 const entry = buildRegionalSourceRegistryEntries().find(
   (candidate) => candidate.source.sourceAssetId === "source:iwata:open-data-landing",
-);
+) ?? null;
 assert.ok(entry);
 
 function record() {
