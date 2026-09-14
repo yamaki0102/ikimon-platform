@@ -187,7 +187,9 @@ test("the accumulation and review-return stages of the Core Loop are contracted"
   assert.equal(loopTask.production_mutation_allowed, false);
   assert.equal(areaTask.implementation_allowed, false, "Area keeps its original acceptance Work and failed execution binding");
   assert.equal(areaTask.production_mutation_allowed, false);
-  assert.equal(publicationTask.implementation_allowed, true, "independent adopted source does not wait for Area runtime acceptance");
+  assert.equal(publicationTask.implementation_allowed, false, "source-verified publication work must not be reissued");
+  assert.equal(publicationTask.state, "implemented");
+  assert.equal(publicationTask.readiness, "source-verified");
   assert.ok(publicationTask.stage_dependencies.integrated_acceptance.includes("actual Area zero/one-record acceptance"));
   assert.equal(publicationTask.stage_dependencies.source.some((dependency: string) => /Area/.test(dependency)), false);
   assert.equal(publicationTask.production_mutation_allowed, false);
@@ -201,9 +203,10 @@ test("the accumulation and review-return stages of the Core Loop are contracted"
   const placeMatrix = registry.capabilityMatrix.find((item) => item.domain === "place-accumulation");
   assert.equal(captureMatrix?.capability_refs.includes("zukan.place.view-accumulation"), false);
   assert.ok(placeMatrix?.capability_refs.includes("zukan.place.view-accumulation"));
-  for (const id of ["prop.place.first-record-changes-page", "prop.place.nearby-never-counts-as-local", "prop.review.contributor-sees-decision"]) {
+  for (const id of ["prop.place.first-record-changes-page", "prop.place.nearby-never-counts-as-local"]) {
     assert.equal(quality.negative_property_tests.find((item: any) => item.id === id)?.current_test, "planned", `${id} must not claim unrelated test coverage`);
   }
+  assert.equal(quality.negative_property_tests.find((item: any) => item.id === "prop.review.contributor-sees-decision")?.current_test, "platform_v2/cloudflare_shadow/src/observationFirstRecordDetailHtml.test.ts");
 });
 
 test("M9 profile horizon includes non-biological civic and tourism programs", () => {

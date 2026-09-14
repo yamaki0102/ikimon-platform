@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
+import type { OwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 
 const detail: ObservationFirstRecordDetail = {
@@ -524,4 +525,100 @@ test("detected records label learning and location protection without exposing i
   assert.match(rendered, /わかること/);
   assert.match(rendered, /おおよその場所を表示/);
   assert.doesNotMatch(rendered, /provisional|human_asserted|accepted identification|provenance|occurrence/i);
+});
+
+test("owner publication return distinguishes Review, eligible destination, and confirmed publication", () => {
+  const publicationReturn: OwnerPublicationReturn = {
+    schema_version: "zukan.publication-return/v1",
+    review: { state: "approved", source: "human_review", decidedAt: "2026-09-14T12:00:00.000Z" },
+    publication: {
+      state: "eligible",
+      exclusionCode: null,
+      destinations: [{
+        feedKey: "miyakoda-renri-area",
+        label: "浜松・都田",
+        sourceEnvironment: "production",
+        readOnly: true,
+        status: "eligible",
+        exclusionCode: null,
+      }],
+    },
+  };
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    title: "公開戻り値の記録",
+    observedLabel: "2026年9月15日",
+    note: null,
+    media: [],
+    publicationReturn,
+    actionNonce: "nonce-publication-return",
+    viewerAuthenticated: true,
+  });
+  assert.match(rendered, /data-publication-return="owner-only"/);
+  assert.match(rendered, /公開の戻り値/);
+  assert.match(rendered, /人によるReview/);
+  assert.match(rendered, /Review済み・承認/);
+  assert.match(rendered, /公開可能（未公開）/);
+  assert.match(rendered, /浜松・都田/);
+  assert.match(rendered, /production Feed（読み取り専用）/);
+  assert.doesNotMatch(rendered, /公開確認済み/);
+
+  const published = renderObservationFirstRecordDetailHtml(detail, {
+    title: "公開確認済みの記録",
+    observedLabel: "2026年9月15日",
+    note: null,
+    media: [],
+    publicationReturn: {
+      ...publicationReturn,
+      publication: {
+        ...publicationReturn.publication,
+        state: "published",
+        destinations: [{ ...publicationReturn.publication.destinations[0]!, status: "published" }],
+      },
+    },
+    actionNonce: "nonce-publication-published",
+    viewerAuthenticated: true,
+  });
+  assert.match(published, /公開確認済み/);
+});
+
+test("publication exclusion is owner-only and uses a safe localized reason", () => {
+  const publicationReturn: OwnerPublicationReturn = {
+    schema_version: "zukan.publication-return/v1",
+    review: { state: "approved", source: "human_review", decidedAt: "2026-09-14T12:00:00.000Z" },
+    publication: {
+      state: "excluded",
+      exclusionCode: "guardian_authority_unresolved",
+      destinations: [{
+        feedKey: "miyakoda-renri-area",
+        label: "浜松・都田",
+        sourceEnvironment: "production",
+        readOnly: true,
+        status: "excluded",
+        exclusionCode: "guardian_authority_unresolved",
+      }],
+    },
+  };
+  const owner = renderObservationFirstRecordDetailHtml(detail, {
+    title: "保護者確認待ち",
+    observedLabel: "2026年9月15日",
+    note: null,
+    media: [],
+    publicationReturn,
+    actionNonce: "nonce-publication-excluded",
+    viewerAuthenticated: true,
+  });
+  assert.match(owner, /公開対象外/);
+  assert.match(owner, /保護者権限を確認できません/);
+  assert.doesNotMatch(owner, /guardian_authority_unresolved/);
+
+  const guest = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
+    title: "公開記録",
+    observedLabel: "2026年9月15日",
+    note: null,
+    media: [],
+    publicationReturn,
+    actionNonce: "nonce-publication-guest",
+    viewerAuthenticated: false,
+  });
+  assert.doesNotMatch(guest, /data-publication-return|保護者権限を確認できません|miyakoda-renri-area/);
 });

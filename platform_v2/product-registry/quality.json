@@ -984,7 +984,7 @@
         "quality.zukan.trust.confirmation-provenance"
       ],
       "property": "AI候補・低信頼・欠落根拠は人/専門家Reviewへ昇格しない",
-      "current_test": "planned"
+      "current_test": "platform_v2/src/services/publicationSyndication.test.ts"
     },
     {
       "id": "prop.rights.external-inference-is-separate",
@@ -1008,7 +1008,7 @@
         "quality.zukan.rights.minor-guardian-consent"
       ],
       "property": "minor/guardian同意がunknown・撤回済みならpublic projectionを拒否する",
-      "current_test": "planned"
+      "current_test": "platform_v2/src/services/publicationSyndication.test.ts"
     },
     {
       "id": "prop.rights.withdrawal-revokes-derived-publication",
@@ -1017,7 +1017,7 @@
         "quality.zukan.publication.correction-takedown"
       ],
       "property": "撤回・削除・takedown後に派生PublicationEditionが再利用されない",
-      "current_test": "platform_v2/src/services/zukanFoundationV2.integrityHardening.test.ts"
+      "current_test": "platform_v2/src/services/publicationSyndication.test.ts"
     },
     {
       "id": "prop.retention-does-not-infer-delete",
@@ -1401,7 +1401,7 @@
         "quality.zukan.review.contributor-return"
       ],
       "property": "人のReview決定は投稿者本人へ返され、未Reviewをreview済みと表示せず、AI候補をReview結果として表示しない",
-      "current_test": "planned"
+      "current_test": "platform_v2/cloudflare_shadow/src/observationFirstRecordDetailHtml.test.ts"
     }
   ],
   "journey_evaluator": {

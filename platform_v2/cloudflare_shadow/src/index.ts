@@ -75,6 +75,8 @@ import {
 } from "./cloudflareObservationReadModel";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
+import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
+import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { publicObservationAiCandidateInsights, publicObservationAiFeedback } from "./publicObservationAiPresentation";
 import {
   renderObservationProcessingStatusPanel,
@@ -26284,6 +26286,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiNextPhoto: detail.nextPhoto,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
+        publicationReturn: observationFirst.publicationReturn,
       }), cspNonce), 200, {
         ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
         "cache-control": "private, no-store",
@@ -26307,7 +26310,7 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
       WHERE o.observation_id = ? AND o.emergency_hidden = 0 LIMIT 1`
   ).bind(recordId).first<{ owner_user_id: string; visibility: "public" | "limited" | "private"; accepts_identification_proposals: number }>();
   if (!container) return { state: "missing" as const, detail: null };
-  const [observations, media, claims, suggestions] = await Promise.all([
+  const [observations, media, claims, suggestions, rights] = await Promise.all([
     env.OBS_DB.prepare(
       `SELECT observation_id, source_key, record_id, owner_user_id, origin, assertion_status,
               verification_status, lifecycle_status, data_use_scope,
@@ -26347,6 +26350,20 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
         WHERE ro.record_runtime = 'cloudflare_d1' AND ro.record_id = ?
         ORDER BY s.created_at, s.suggestion_id`
     ).bind(recordId).all<RecordObservationReadSnapshot["aiSuggestions"][number]>(),
+    env.OBS_DB.prepare(
+      `SELECT record_consent, research_use_consent, dataset_license, media_license,
+              external_export_allowed, withdrawal_status, source_payload_json
+         FROM observation_data_rights
+        WHERE visit_id = ? LIMIT 1`
+    ).bind(recordId).first<{
+      record_consent: string | null;
+      research_use_consent: string | null;
+      dataset_license: string | null;
+      media_license: string | null;
+      external_export_allowed: number | null;
+      withdrawal_status: string | null;
+      source_payload_json: string | null;
+    }>(),
   ]);
   const detail: ObservationFirstRecordDetail | null = buildObservationFirstRecordDetail({
     recordId,
@@ -26362,8 +26379,36 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
     claims: claims.results,
     aiSuggestions: suggestions.results,
   }, viewerUserId);
+  const reviewCard = detail?.observations.find((card) => card.acceptedIdentification !== null);
+  const reviewDecision = reviewCard?.acceptedIdentification
+    ? { state: "approved", source: "human_review", decidedAt: null }
+    : null;
+  const sourcePayload = jsonObject(rights?.source_payload_json ?? "{}");
+  const destinations = Object.values(PUBLICATION_FEED_DEFINITIONS).map((definition) => ({
+    feedKey: definition.feedKey,
+    label: definition.scopeLabel.ja,
+    sourceEnvironment: "production" as const,
+    readOnly: true as const,
+  }));
+  const publicationReturn = detail
+    ? projectOwnerPublicationReturn({
+        owner: detail.owner,
+        recordVisibility: detail.visibility,
+        reviewDecision,
+        rights: {
+          recordConsent: rights?.record_consent,
+          researchUseConsent: rights?.research_use_consent,
+          datasetLicense: rights?.dataset_license,
+          mediaLicense: rights?.media_license,
+          externalExportAllowed: rights?.external_export_allowed,
+          withdrawalStatus: rights?.withdrawal_status,
+          sourcePayload,
+        },
+        destinations,
+      })
+    : null;
   return detail
-    ? { state: "ready" as const, detail }
+    ? { state: "ready" as const, detail, publicationReturn }
     : { state: "forbidden" as const, detail: null };
 }
 

@@ -21,4 +21,7 @@ export const PUBLICATION_FEED_DEFINITIONS = Object.freeze({
   }),
 });
 
+export const PUBLICATION_FEED_SOURCE_ENVIRONMENT = "production" as const;
+export const PUBLICATION_FEED_READ_ONLY = true as const;
+
 export type PublicationFeedDefinitionKey = keyof typeof PUBLICATION_FEED_DEFINITIONS;

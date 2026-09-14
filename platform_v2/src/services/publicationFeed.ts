@@ -13,7 +13,12 @@ import {
 import { loadAreaSnapshotVisitIds } from "./areaSnapshotVisitScope.js";
 import { decidePublicCoord, isSensitive, loadSensitiveSpeciesIndex } from "./sensitiveSpeciesMasking.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "./trustedPublicOrigin.js";
-import { PUBLICATION_FEED_DEFINITIONS } from "./publicationFeedDefinitions.js";
+import {
+  PUBLICATION_FEED_DEFINITIONS,
+  PUBLICATION_FEED_READ_ONLY,
+  PUBLICATION_FEED_SOURCE_ENVIRONMENT,
+} from "./publicationFeedDefinitions.js";
+import { evaluatePublicationSyndication } from "./publicationSyndication.js";
 
 type Queryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
 
@@ -245,6 +250,8 @@ export type PublicationFeedResponse = {
     scope_label: string;
     updated_at: string;
     publication_policy_version: string;
+    source_environment: typeof PUBLICATION_FEED_SOURCE_ENVIRONMENT;
+    read_only: typeof PUBLICATION_FEED_READ_ONLY;
   };
   channels: Array<{
     key: PublicationFeedChannelKey;
@@ -342,18 +349,22 @@ function rowClassification(row: PublicationFeedCandidateRow): { label: string; c
   return null;
 }
 
-function rightsAllowExternalExport(row: PublicationFeedCandidateRow): boolean {
+function rightsAllowExternalExport(row: PublicationFeedCandidateRow, feedKey: string): boolean {
   const rights = normalizeObservationDataRights({
     ...row.rights,
     visitId: row.visitId,
     occurrenceId: row.occurrenceId,
   });
-  return rights.externalExportAllowed;
+  return evaluatePublicationSyndication({
+    ...rights,
+    sourcePayload: rights.sourcePayload,
+    destinationFeedKey: feedKey,
+  }).decision === "ALLOW";
 }
 
-function rowIsPubliclyEligible(row: PublicationFeedCandidateRow, sensitiveSpeciesIndex: Set<string>): boolean {
+function rowIsPubliclyEligible(row: PublicationFeedCandidateRow, sensitiveSpeciesIndex: Set<string>, feedKey: string): boolean {
   if (row.publicVisibility !== "public" || row.qualityReviewStatus !== "accepted") return false;
-  if (!rightsAllowExternalExport(row)) return false;
+  if (!rightsAllowExternalExport(row, feedKey)) return false;
   if (row.sensitiveSpecies === true || row.media.hasFace === true) return false;
   if (row.channel === "community_photo" && !isCommunityPhotoRole(row.media.role)) return false;
 
@@ -439,7 +450,7 @@ export function projectPublicationFeed(
 
   const eligibleRows = rows
     .filter((row) => selectedChannelKeys.has(row.channel))
-    .filter((row) => rowIsPubliclyEligible(row, sensitiveSpeciesIndex))
+    .filter((row) => rowIsPubliclyEligible(row, sensitiveSpeciesIndex, config.feedKey))
     .sort(compareRows);
 
   const dedupedRows: PublicationFeedCandidateRow[] = [];
@@ -476,6 +487,8 @@ export function projectPublicationFeed(
       scope_label: localizedText(config.scopeLabel, locale),
       updated_at: latestUpdatedAt(config, eligibleRows),
       publication_policy_version: config.publicationPolicyVersion,
+      source_environment: PUBLICATION_FEED_SOURCE_ENVIRONMENT,
+      read_only: PUBLICATION_FEED_READ_ONLY,
     },
     channels: selectedChannels.map((channel) => ({
       key: channel.key,
@@ -527,6 +540,7 @@ type PublicationFeedDbRow = {
   media_license: string | null;
   external_export_allowed: boolean | null;
   withdrawal_status: string | null;
+  source_payload: Record<string, unknown> | string | null;
 };
 
 export const PUBLICATION_FEED_SOURCE_SQL = `
@@ -573,7 +587,8 @@ export const PUBLICATION_FEED_SOURCE_SQL = `
     rights.dataset_license,
     rights.media_license,
     rights.external_export_allowed,
-    rights.withdrawal_status
+    rights.withdrawal_status,
+    rights.source_payload
   from visits v
   cross join feed_channels
   left join occurrences o on o.visit_id = v.visit_id
@@ -800,6 +815,16 @@ export async function getPublicationFeed(options: GetPublicationFeedOptions): Pr
         mediaLicense: row.media_license as ObservationDataRightsInput["mediaLicense"],
         externalExportAllowed: row.external_export_allowed ?? false,
         withdrawalStatus: row.withdrawal_status as ObservationDataRightsInput["withdrawalStatus"],
+        sourcePayload: typeof row.source_payload === "string"
+          ? (() => {
+              try {
+                const parsed = JSON.parse(row.source_payload) as unknown;
+                return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+              } catch {
+                return {};
+              }
+            })()
+          : row.source_payload ?? {},
       },
     }));
   const sensitiveSpeciesIndex = options.sensitiveSpeciesIndex ?? await loadSensitiveSpeciesIndex();

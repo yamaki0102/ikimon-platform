@@ -199,7 +199,7 @@
       "privacy": "mixed-owner-and-public",
       "implementation_status": "implemented",
       "known_gaps": [
-        "human Review decision return、syndication consent、publication destination/exclusion returnはCore Loop frontierで未着地"
+        "source-onlyのowner Review/eligibility/exclusion projectionは実装済み。実データのstaging/production consumer publication read-backは別環境・別承認境界で未確認"
       ],
       "capabilities": [
         "zukan.record.view-detail",

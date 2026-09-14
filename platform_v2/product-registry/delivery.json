@@ -1310,9 +1310,9 @@
     {
       "id": "task.zukan.core-loop.publication-return-syndication-hardening",
       "milestone_id": "milestone.m4.regional-publication-portability",
-      "state": "planned",
-      "readiness": "adopted-source-only",
-      "implementation_allowed": true,
+      "state": "implemented",
+      "readiness": "source-verified",
+      "implementation_allowed": false,
       "production_mutation_allowed": false,
       "lane": "CORE_LOOP",
       "slice": "Frontier 3 - publication return, syndication consent and consumer correction/withdrawal",
@@ -1326,9 +1326,15 @@
       ],
       "source_locators": [
         "platform_v2/src/services/observationDataRights.ts",
+        "platform_v2/src/services/publicationSyndication.ts",
+        "platform_v2/src/services/publicationSyndication.test.ts",
         "platform_v2/src/services/publicationFeed.ts",
+        "platform_v2/src/services/publicationFeed.test.ts",
         "platform_v2/cloudflare_shadow/src/publicationFeedNative.ts",
+        "platform_v2/cloudflare_shadow/src/publicationFeedNative.test.ts",
         "platform_v2/cloudflare_shadow/src/observationFirstRecordDetailHtml.ts",
+        "platform_v2/cloudflare_shadow/src/observationFirstRecordDetailHtml.test.ts",
+        "platform_v2/cloudflare_shadow/src/index.ts",
         "docs/spec/zukan-product-architecture/PLAN.md"
       ],
       "negative_eval_ids": [

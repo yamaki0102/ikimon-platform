@@ -1,5 +1,10 @@
 import { isMeaningfulPublicObservationLabel } from "../../src/services/observationQualityGate";
-import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
+import {
+  PUBLICATION_FEED_DEFINITIONS,
+  PUBLICATION_FEED_READ_ONLY,
+  PUBLICATION_FEED_SOURCE_ENVIRONMENT,
+} from "../../src/services/publicationFeedDefinitions";
+import { evaluatePublicationSyndication } from "../../src/services/publicationSyndication";
 import { PRODUCTION_PUBLIC_ORIGIN, STAGING_PUBLIC_ORIGIN } from "../../src/services/trustedPublicOrigin";
 import type {
   PublicationFeedChannelKey,
@@ -41,6 +46,7 @@ export type PublicationFeedNativeRow = {
   media_license: string | null;
   external_export_allowed: number | boolean | null;
   withdrawal_status: string | null;
+  source_payload_json: string | null;
   audience_scope: string | null;
   public_precision: string | null;
   risk_lane: string | null;
@@ -130,6 +136,7 @@ const PUBLICATION_FEED_NATIVE_SQL = `
          rights.media_license,
          rights.external_export_allowed,
          rights.withdrawal_status,
+         rights.source_payload_json,
          civic.audience_scope,
          civic.public_precision,
          civic.risk_lane,
@@ -310,10 +317,18 @@ function publicOrigin(url: URL): string {
     : PRODUCTION_PUBLIC_ORIGIN;
 }
 
-function isEligible(row: PublicationFeedNativeRow): boolean {
-  if (!(row.external_export_allowed === true || Number(row.external_export_allowed) === 1)) return false;
-  if (row.record_consent !== "external_export" || row.research_use_consent !== "public_export") return false;
-  if (!cleanText(row.dataset_license) || !cleanText(row.media_license) || row.withdrawal_status !== "active") return false;
+function isEligible(row: PublicationFeedNativeRow, feedKey: string): boolean {
+  const syndication = evaluatePublicationSyndication({
+    recordConsent: row.record_consent,
+    researchUseConsent: row.research_use_consent,
+    datasetLicense: row.dataset_license,
+    mediaLicense: row.media_license,
+    externalExportAllowed: row.external_export_allowed,
+    withdrawalStatus: row.withdrawal_status,
+    sourcePayload: row.source_payload_json,
+    destinationFeedKey: feedKey,
+  });
+  if (syndication.decision !== "ALLOW") return false;
   if (row.audience_scope && row.audience_scope !== "public") return false;
   if (row.public_precision === "hidden" || row.public_precision === "exact_private") return false;
   if (row.risk_lane !== "normal") return false;
@@ -331,8 +346,8 @@ function classification(row: PublicationFeedNativeRow, title: string): Publicati
   return { state: "accepted", source: "record", confidence: null };
 }
 
-function nativeItems(row: PublicationFeedNativeRow, origin: string): NativeItem[] {
-  if (!isEligible(row)) return [];
+function nativeItems(row: PublicationFeedNativeRow, origin: string, feedKey: string): NativeItem[] {
+  if (!isEligible(row, feedKey)) return [];
   const observedAt = normalizedDate(row.observed_at);
   if (!observedAt) return [];
   const sourceUpdatedAt = normalizedDate(row.source_updated_at) ?? observedAt;
@@ -483,7 +498,7 @@ function responseFor(
 ): PublicationFeedResponse {
   const supportedChannels = definition.channels.filter((channel) => !parsed.channel || channel.key === parsed.channel);
   const items = rows
-    .flatMap((row) => nativeItems(row, origin))
+    .flatMap((row) => nativeItems(row, origin, definition.feedKey))
     .filter((item) => supportedChannels.some((channel) => channel.key === item.channel))
     .sort(compareItems);
   const afterCursor = parsed.cursor ? items.filter((item) => isAfterCursor(item, parsed.cursor!)) : items;
@@ -499,6 +514,8 @@ function responseFor(
       scope_label: localized(definition.scopeLabel, parsed.locale),
       updated_at: updatedAt,
       publication_policy_version: definition.publicationPolicyVersion,
+      source_environment: PUBLICATION_FEED_SOURCE_ENVIRONMENT,
+      read_only: PUBLICATION_FEED_READ_ONLY,
     },
     channels: supportedChannels.map((channel) => ({
       key: channel.key,

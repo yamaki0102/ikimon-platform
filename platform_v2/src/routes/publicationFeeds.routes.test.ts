@@ -18,6 +18,8 @@ const response: PublicationFeedResponse = {
     scope_label: "浜松・都田",
     updated_at: "2026-08-28T00:00:00.000Z",
     publication_policy_version: "public-feed-v1",
+    source_environment: "production",
+    read_only: true,
   },
   channels: [
     { key: "living", label: "この場所の生きもの", items: [] },
