@@ -37,6 +37,21 @@ test("area subscription migration matches the Worker contract", () => {
     ).all() as Array<{ name: string }>;
     assert.ok(indexes.some((index) => index.name === "idx_user_area_subscriptions_user"));
 
+    const statsColumns = database.prepare(
+      "PRAGMA table_info(user_area_subscription_stats)",
+    ).all() as Array<{ name: string }>;
+    assert.deepEqual(
+      statsColumns.map((column) => column.name),
+      [
+        "user_id",
+        "target_type",
+        "target_id",
+        "observation_count",
+        "needs_id_count",
+        "updated_at",
+      ],
+    );
+
     database.prepare(
       `INSERT INTO user_area_subscriptions
          (subscription_id, user_id, target_type, target_id, label, href)
@@ -61,6 +76,26 @@ test("area subscription migration matches the Worker contract", () => {
       subscription_id: "area-sub-1",
       label: "Updated",
       is_active: 1,
+    });
+
+    database.prepare(
+      `INSERT INTO user_area_subscription_stats
+         (user_id, target_type, target_id, observation_count, needs_id_count)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run("user-1", "field", "field-1", 3, 1);
+
+    const joined = database.prepare(
+      `SELECT s.subscription_id, COALESCE(st.observation_count, 0) AS observation_count,
+              COALESCE(st.needs_id_count, 0) AS needs_id_count
+         FROM user_area_subscriptions s
+         LEFT JOIN user_area_subscription_stats st
+           ON st.user_id = s.user_id AND st.target_type = s.target_type AND st.target_id = s.target_id
+        WHERE s.user_id = ? AND s.is_active = 1`,
+    ).get("user-1") as { subscription_id: string; observation_count: number; needs_id_count: number };
+    assert.deepEqual({ ...joined }, {
+      subscription_id: "area-sub-1",
+      observation_count: 3,
+      needs_id_count: 1,
     });
 
     assert.throws(
