@@ -1,0 +1,50 @@
+{
+  "package_id": "fixture_exchange_safe_01",
+  "package_version": "1.0",
+  "source_product": "nocosil",
+  "target_product": "zukan",
+  "idempotency_key": "fixture_exchange_safe_idem_01",
+  "created_at": "2026-08-13T08:34:00+09:00",
+  "source_digest": "sha256:fixture-safe-source",
+  "transformed_payload_digest": "sha256:fixture-safe-transformed",
+  "classification_before": "private",
+  "classification_after": "public_safe",
+  "transform": {
+    "policy_id": "fixture-publication-transform",
+    "policy_version": "1",
+    "implementation_version": "1",
+    "transformation_receipt_refs": ["transform-receipt-01"]
+  },
+  "authority": {
+    "mode": "one_tap_approval",
+    "decision_ref": "decision-fixture-01",
+    "revocable": true
+  },
+  "rights": {
+    "license_ref": "license-fixture-01",
+    "consent_refs": ["consent-fixture-01"],
+    "restrictions": []
+  },
+  "observation": {
+    "media_refs": [
+      {
+        "exchange_media_ref": "exchange-media-fixture-01",
+        "digest": "sha256:fixture-safe-media"
+      }
+    ],
+    "observed_time": {
+      "value": "2026-08-13",
+      "precision": "day"
+    },
+    "public_safe_location": {
+      "value": {
+        "area_ref": "opaque-grid-cell"
+      },
+      "precision": "area"
+    },
+    "public_safe_note": "public-safe transformed note"
+  },
+  "prohibited_private_fields_absent": true,
+  "signature": "fixture-signature",
+  "signing_key_id": "fixture-signing-key"
+}
