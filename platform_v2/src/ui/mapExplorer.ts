@@ -5984,6 +5984,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var canRecord = !!(options && options.canRecord);
     var hasRecords = Number(options && options.observationCount || 0) > 0 || !!(options && options.hasGallery);
     var hasGuide = !!(options && options.hasGuide);
+    var recordHref = options && options.recordHref ? String(options.recordHref) : RECORD_HREF;
     var title = canRecord ? COPY.areaNextStepRecordTitle : COPY.areaNextStepRestrictedTitle;
     var lines = [COPY.areaNextStepScopeLine];
     if (canRecord) {
@@ -5994,7 +5995,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (hasRecords) lines.push(COPY.areaNextStepBrowseLine);
     if (hasGuide) lines.push(COPY.areaNextStepGuideLine);
     var cta = canRecord
-      ? '<a class="me-area-next-step-cta" href="' + escapeHtml(RECORD_HREF) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:next_step_record" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.areaNextStepRecordCta) + '</a>'
+      ? '<a class="me-area-next-step-cta" href="' + escapeHtml(recordHref) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:next_step_record" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(recordHref) + '">' + escapeHtml(COPY.areaNextStepRecordCta) + '</a>'
       : '';
     return ''
       + '<section class="me-area-next-step' + (canRecord ? '' : ' is-restricted') + '" aria-label="' + escapeHtml(COPY.areaNextStepEyebrow) + '">'
@@ -6007,6 +6008,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +   '</ul>'
       +   cta
       + '</section>';
+  }
+
+  function recordContextHref(params) {
+    try {
+      var url = new URL(RECORD_HREF, window.location.origin);
+      Object.keys(params || {}).forEach(function (key) {
+        var value = params[key];
+        if (value == null || value === '') return;
+        url.searchParams.set(key, String(value));
+      });
+      return url.pathname + url.search;
+    } catch (_) {
+      return RECORD_HREF;
+    }
   }
 
   function renderAggregateSafety(text) {
@@ -6772,6 +6787,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var guidance = transientAccessGuidance(props);
     var areaStatus = areaAccessStatus(props, null);
     var canRecord = canSuggestDirectAreaRecord(props, null);
+    var recordHref = followId ? recordContextHref({ regionId: followId }) : RECORD_HREF;
     var guideStopHtml = renderAreaGuideStop(props, safeCenter);
     var galleryItems = transientAreaGalleryItems(feature, safeCenter);
     var nextStepHtml = renderAreaNextStepCard({
@@ -6779,6 +6795,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       observationCount: galleryItems.length,
       hasGallery: galleryItems.length > 0,
       hasGuide: !!guideStopHtml,
+      recordHref: recordHref,
     });
     var metaHtml = sourceLinksHtml || sourceTrustHtml
       ? '<div class="me-area-primary-actions-meta">' + sourceLinksHtml + sourceTrustHtml + '</div>'

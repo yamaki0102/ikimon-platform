@@ -356,6 +356,20 @@ test("transient area fallback does not expose raw coordinates or use them as a d
   assert.match(body, /canRecord && followId/);
 });
 
+test("transient area record CTA carries the stable region identity into the record flow", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const body = script.slice(
+    script.indexOf("function renderTransientAreaContent"),
+    script.indexOf("function openTransientAreaSheet"),
+  );
+
+  assert.match(script, /function recordContextHref\(params\)/);
+  assert.match(body, /var followId = String\(props\.entity_key \|\| props\.field_id \|\| ''\)/);
+  assert.match(body, /recordContextHref\(\{ regionId: followId \}\)/);
+  assert.match(body, /recordHref: recordHref/);
+  assert.match(script, /var recordHref = options && options\.recordHref \? String\(options\.recordHref\) : RECORD_HREF/);
+});
+
 test("mobile place detail peek keeps the map visible", () => {
   const styles = MAP_EXPLORER_STYLES;
 

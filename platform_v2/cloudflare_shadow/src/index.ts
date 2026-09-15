@@ -338,6 +338,7 @@ interface LegacyObservationUpsertInput {
   note?: string | null;
   siteId?: string | null;
   siteName?: string | null;
+  regionId?: string | null;
   municipality?: string | null;
   prefecture?: string | null;
   taxon?: {
@@ -11599,6 +11600,7 @@ type AreaWatchEmissionInput = {
   ownerUserId: string | null;
   placeId: string;
   fieldId: string | null;
+  regionId: string | null;
   prefecture: string | null;
   municipality: string | null;
   observedAt: string;
@@ -11619,7 +11621,7 @@ function areaWatchTargetMatches(
   if (subscription.target_type === "place") return subscription.target_id === input.placeId;
   if (subscription.target_type === "field") return Boolean(input.fieldId && subscription.target_id === input.fieldId);
   if (subscription.target_type !== "region") return false;
-  return [input.prefecture, input.municipality, [input.prefecture, input.municipality].filter(Boolean).join(":")]
+  return [input.regionId, input.prefecture, input.municipality, [input.prefecture, input.municipality].filter(Boolean).join(":")]
     .filter((value): value is string => Boolean(value))
     .includes(subscription.target_id);
 }
@@ -11641,8 +11643,10 @@ async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, en
     targetClauses.push("(target_type = 'field' AND target_id = ?)");
     targetBindings.push(input.fieldId);
   }
-  const regionIds = [input.prefecture, input.municipality, [input.prefecture, input.municipality].filter(Boolean).join(":")]
-    .filter((value): value is string => Boolean(value));
+  const regionIds = [...new Set(
+    [input.regionId, input.prefecture, input.municipality, [input.prefecture, input.municipality].filter(Boolean).join(":")]
+      .filter((value): value is string => Boolean(value))
+  )];
   for (const regionId of regionIds) {
     targetClauses.push("(target_type = 'region' AND target_id = ?)");
     targetBindings.push(regionId);
@@ -11792,6 +11796,7 @@ async function enqueueD1AreaWatchNotificationsForStoredObservation(
     ownerUserId: observation.owner_user_id,
     placeId: idempotency?.place_id ?? `place:${observation.public_cell}`,
     fieldId: normalizeOptionalText(context?.field_id),
+    regionId: normalizeOptionalText(sourcePayload.region_id ?? sourcePayload.regionId),
     prefecture: normalizeOptionalText(sourcePayload.prefecture ?? sourcePayload.observed_prefecture),
     municipality: normalizeOptionalText(sourcePayload.municipality ?? sourcePayload.observed_municipality),
     observedAt: observation.observed_at,
@@ -26760,7 +26765,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   const owner = container.owner_user_id === session.userId;
   let plan: ObservationDualWritePlan;
   let refreshVisibility = false;
-  let visibilityTransitionToPublic = false;
+  let publicVisibilityRequested = false;
   if (action === "add") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const subjectType = String(form.get("subject_type") ?? "unknown_subject");
@@ -26784,7 +26789,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
       return json({ ok: false, error: "visibility_input_invalid" }, 400, { "cache-control": "no-store" });
     }
     const previousVisibility = container.visibility === "public" || container.visibility === "limited" ? container.visibility : "private";
-    visibilityTransitionToPublic = previousVisibility !== "public" && visibility === "public";
+    publicVisibilityRequested = visibility === "public";
     plan = await buildRecordVisibilityPlan({
       recordId,
       ownerUserId: session.userId,
@@ -26888,7 +26893,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   }
   await env.OBS_DB.batch(plan.mutations.map((mutation) => env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)));
   if (refreshVisibility) await refreshPublicReadmodel(recordId, env);
-  if (visibilityTransitionToPublic) {
+  if (publicVisibilityRequested) {
     await enqueueD1AreaWatchNotificationsForStoredObservation(recordId, env).catch((error) => {
       console.error("[area-watch] public transition notification failed", error);
     });
@@ -29856,6 +29861,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       ownerUserId: input.userId,
       placeId,
       fieldId: civicContext?.fieldId ?? null,
+      regionId: normalizeOptionalText(input.regionId ?? input.sourcePayload?.region_id ?? input.sourcePayload?.regionId),
       prefecture: normalizeOptionalText(input.prefecture),
       municipality: normalizeOptionalText(input.municipality),
       observedAt: input.observedAt,

@@ -3172,6 +3172,14 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE civic_observation_contexts SET audience_scope = CASE")) {
+      const row = [...this.db.civicObservationContexts.values()].find((candidate) => candidate.visit_id === string(v[1]));
+      if (row && string(v[0]) === "public" && row.context_kind === "ordinary" && row.audience_scope === "private") {
+        row.audience_scope = "public";
+      }
+      return {};
+    }
+
     if (normalized.startsWith("INSERT INTO waterbodies")) {
       this.db.waterbodies.set(string(v[0]), {
         ikimon_waterbody_id: string(v[0]),
@@ -7711,6 +7719,10 @@ class VisibilityTransitionD1 extends FakeD1 {
     observation.visibility = "public";
     const rights = this.observationDataRights.get(this.recordId);
     if (rights) rights.record_consent = "public_summary";
+    const context = this.civicObservationContexts.get(this.recordId);
+    if (context && context.context_kind === "ordinary" && context.audience_scope === "private") {
+      context.audience_scope = "public";
+    }
     return [];
   }
 }
@@ -12750,6 +12762,19 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
     assert.deepEqual(pendingPayload.alerts, []);
     obs.observations.get("visit-1")!.processing_state = "accepted";
 
+    obs.observations.get("visit-1")!.visibility = "private";
+    const privateResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/alerts", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const privatePayload = await privateResponse.json() as any;
+    assert.deepEqual(privatePayload.alerts, []);
+    const privateMenuResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/personalized-menu?limit=8", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const privateMenuPayload = await privateMenuResponse.json() as any;
+    assert.equal(privateMenuPayload.summary.unreadAlertCount, 0);
+    obs.observations.get("visit-1")!.visibility = "public";
+
     const areaResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/area-subscriptions", {
       headers: { cookie: `ikimon_v2_session=${rawToken}` }
     }), productionEnv);
@@ -12843,6 +12868,17 @@ test("Cloudflare observation writes emit area-watch deliveries for matching acti
     created_at: "2026-06-17T00:00:00.000Z",
     updated_at: "2026-06-17T00:00:00.000Z"
   });
+  core.areaSubscriptions.set("area-watch-region-target", {
+    subscription_id: "area-watch-region-target",
+    user_id: "region-watcher-user",
+    target_type: "region",
+    target_id: "osm:way:263321117",
+    label: "散策エリア",
+    href: "/map?region=osm%3Away%3A263321117",
+    is_active: 1,
+    created_at: "2026-06-15T00:00:00.000Z",
+    updated_at: "2026-06-16T00:00:00.000Z"
+  });
 
   const response = await post("/api/v1/observations/upsert", env, {
     observationId: "area-watch-observation",
@@ -12851,6 +12887,7 @@ test("Cloudflare observation writes emit area-watch deliveries for matching acti
     latitude: 34.71234,
     longitude: 137.81234,
     siteId: "place:34.71,137.81",
+    regionId: "osm:way:263321117",
     siteName: "東金の観察地",
     taxon: { vernacularName: "観察テスト", rank: "species" },
     visibility: "public",
@@ -12859,10 +12896,13 @@ test("Cloudflare observation writes emit area-watch deliveries for matching acti
 
   assert.equal(response.visitId, "area-watch-observation");
   const deliveries = [...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
-  assert.equal(deliveries.length, 1);
-  assert.equal(deliveries[0]?.user_id, "watcher-user");
-  assert.equal(deliveries[0]?.occurrence_id, "occ:area-watch-observation:0");
-  assert.equal(JSON.parse(deliveries[0]?.payload_json ?? "{}").areaLabel, "東金の観察地（更新後）");
+  assert.equal(deliveries.length, 2);
+  assert.deepEqual(new Set(deliveries.map((row) => row.user_id)), new Set(["watcher-user", "region-watcher-user"]));
+  assert.ok(deliveries.every((row) => row.occurrence_id === "occ:area-watch-observation:0"));
+  const placeDelivery = deliveries.find((row) => row.user_id === "watcher-user");
+  const regionDelivery = deliveries.find((row) => row.user_id === "region-watcher-user");
+  assert.equal(JSON.parse(placeDelivery?.payload_json ?? "{}").areaLabel, "東金の観察地（更新後）");
+  assert.equal(JSON.parse(regionDelivery?.payload_json ?? "{}").targetId, "osm:way:263321117");
   assert.equal(obs.observations.get("area-watch-observation")?.visibility, "public");
 });
 
@@ -12909,15 +12949,17 @@ test("Cloudflare idempotent observation replay retries an area-watch delivery af
 test("Cloudflare public visibility transition emits an area-watch delivery after publication", async () => {
   const base = createEnv();
   const obs = new VisibilityTransitionD1("visibility-transition-record");
+  const core = new FailFirstAreaWatchInsertD1();
   const env = {
     ...base.env,
+    CORE_DB: core,
     OBS_DB: obs,
     OBSERVATION_DUAL_WRITE_MODE: "on",
     OBSERVATION_READ_CUTOVER_MODE: "on"
   };
   const rawToken = "visibility-transition-token";
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-  base.core.authSessions.set(tokenHash, {
+  core.authSessions.set(tokenHash, {
     token_hash: tokenHash,
     user_id: "visibility-owner",
     display_name: "Visibility Owner",
@@ -12927,7 +12969,7 @@ test("Cloudflare public visibility transition emits an area-watch delivery after
     expires_at: "2099-01-01T00:00:00.000Z",
     last_used_at: null
   });
-  base.core.areaSubscriptions.set("visibility-transition-target", {
+  core.areaSubscriptions.set("visibility-transition-target", {
     subscription_id: "visibility-transition-target",
     user_id: "watcher-user",
     target_type: "place",
@@ -12967,6 +13009,24 @@ test("Cloudflare public visibility transition emits an area-watch delivery after
     withdrawal_status: "active",
     source_payload_json: "{}"
   });
+  obs.civicObservationContexts.set("visibility-transition-record", {
+    context_id: "context-visibility-transition",
+    visit_id: "visibility-transition-record",
+    occurrence_id: "occ:visibility-transition-record:0",
+    context_kind: "ordinary",
+    activity_label: null,
+    activity_intent: null,
+    participant_role: null,
+    audience_scope: "private",
+    public_precision: "municipality",
+    risk_lane: "normal",
+    report_consent: "private",
+    revisit_of_visit_id: null,
+    field_id: null,
+    route_id: null,
+    plot_id: null,
+    source_payload_json: "{}"
+  });
 
   const response = await worker.fetch(new Request("https://shadow.test/api/v1/records/visibility-transition-record/observation-actions", {
     method: "POST",
@@ -12985,8 +13045,27 @@ test("Cloudflare public visibility transition emits an area-watch delivery after
   assert.equal(response.status, 303, await response.text());
   assert.equal(obs.observations.get("visibility-transition-record")?.visibility, "public");
   assert.equal(obs.observationDataRights.get("visibility-transition-record")?.record_consent, "public_summary");
+  assert.equal(obs.civicObservationContexts.get("visibility-transition-record")?.audience_scope, "public");
   assert.equal(obs.readmodel.has("visibility-transition-record"), true);
-  const deliveries = [...base.core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
+  const firstAttemptDeliveries = [...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
+  assert.equal(firstAttemptDeliveries.length, 0);
+
+  const retryResponse = await worker.fetch(new Request("https://shadow.test/api/v1/records/visibility-transition-record/observation-actions", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      origin: "https://shadow.test",
+      cookie: `ikimon_v2_session=${rawToken}`
+    },
+    body: new URLSearchParams({
+      action: "set_visibility",
+      visibility: "public",
+      operation_id: "visibility-transition-1"
+    })
+  }), env);
+
+  assert.equal(retryResponse.status, 303, await retryResponse.text());
+  const deliveries = [...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
   assert.equal(deliveries.length, 1);
   assert.equal(deliveries[0]?.occurrence_id, "occ:visibility-transition-record:0");
 });

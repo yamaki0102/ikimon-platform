@@ -697,6 +697,16 @@ export async function buildRecordVisibilityPlan(input: {
         values: [input.visibility, input.recordId],
       },
       {
+        sql: `UPDATE civic_observation_contexts SET
+          audience_scope = CASE
+            WHEN ? = 'public' AND context_kind = 'ordinary' AND audience_scope = 'private' THEN 'public'
+            ELSE audience_scope
+          END,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE visit_id = ?`,
+        values: [input.visibility, input.recordId],
+      },
+      {
         sql: `INSERT INTO record_observation_policies (
           record_runtime, record_id, owner_user_id, visibility,
           accepts_identification_proposals, default_source, updated_by_actor_id, created_at, updated_at
