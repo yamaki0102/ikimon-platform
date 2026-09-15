@@ -9573,6 +9573,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       state.waterwayDebounce = setTimeout(function () { loadWaterwayHints(); }, 350);
       if (layerHintEl && !layerHintEl.classList.contains('is-hidden')) maybeShowLayerHint(state.tab);
     });
+    // Some provider/browser combinations finish drag or zoom without emitting
+    // MapLibre's aggregate moveend event. Persist the shareable viewport at
+    // the gesture boundary so the URL still follows real map interactions.
+    state.map.on('dragend', saveMapState);
+    state.map.on('zoomend', saveMapState);
     state.map.on('dragstart', clearSuppressedViewportSearch);
     state.map.on('zoomstart', clearSuppressedViewportSearch);
     state.map.on('dragstart', function () {
