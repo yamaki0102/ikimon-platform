@@ -6254,7 +6254,7 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
             <a class="btn btn-ghost" href="${escapeHtml(publicFindsHref)}">${escapeHtml(copy.publicFindsAction)}</a>
           </div>
           <div class="start-guide-actions">
-            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">${escapeHtml(copy.photoAction)}</a>
+            <a class="btn btn-ghost" href="${escapeHtml(loginHref)}">${escapeHtml(copy.photoAction)}</a>
             <a class="btn btn-ghost" href="${escapeHtml(memoHref)}">${escapeHtml(copy.noteAction)}</a>
             <a class="btn btn-ghost" href="${escapeHtml(learnHref)}">${escapeHtml(copy.learnAction)}</a>
           </div>

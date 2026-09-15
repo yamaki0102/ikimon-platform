@@ -1278,7 +1278,7 @@ export function eventCreateScript(): string {
       '<div class="evt-area-conflict-actions">' +
       '<button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-conflict-action="use_existing" style="padding:6px 12px;">既存フィールドを使う</button>' +
       '<button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-conflict-action="update_existing" style="padding:6px 12px;">範囲を更新する</button>' +
-      '<button type="button" class="ik-ui-action evt-btn evt-btn-primary" data-conflict-action="save_as_new" style="padding:6px 12px;">別名で保存する</button>' +
+      '<button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-conflict-action="save_as_new" style="padding:6px 12px;">別名で保存する</button>' +
       '</div>';
     conflictBox.appendChild(wrap);
     wrap.querySelectorAll("[data-conflict-action]").forEach(btn => {
