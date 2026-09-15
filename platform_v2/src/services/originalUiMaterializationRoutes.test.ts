@@ -9,8 +9,8 @@ test("public SiteMap projection materializes every Fastify-owned route", () => {
   const basePaths = listPublicSiteMapLocalizableBasePaths();
   const localizedPaths = listPublicSiteMapMaterializationPaths();
 
-  assert.equal(basePaths.length, 67);
-  assert.equal(localizedPaths.length, 82);
+  assert.equal(basePaths.length, 66);
+  assert.equal(localizedPaths.length, 78);
   assert.equal(new Set(basePaths).size, basePaths.length);
   assert.equal(new Set(localizedPaths).size, localizedPaths.length);
 
@@ -24,7 +24,6 @@ test("public SiteMap projection materializes every Fastify-owned route", () => {
     "/terms",
     "/contact",
     "/community",
-    "/community/events",
     "/for-business/pricing",
     "/for-business/monitoring/apply",
     "/for-researcher/apply",

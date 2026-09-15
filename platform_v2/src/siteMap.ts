@@ -867,7 +867,6 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
       en: "Realtime cooperative bioblitz where AI reads the field and teams move together.",
     },
     primaryAction: { href: "/community/events", label: { ja: "観察会一覧", en: "Browse events" } },
-    htmlMaterialization: "fastify",
     legacyRedirects: ["/event_detail.php", "/bioblitz_join.php", "/event_dashboard.php"],
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "観察会" }, readySelector: "main", screenshot: { baselineName: "registry-observation-events" } },
   },
