@@ -127,6 +127,34 @@ async function waitForMapPerformanceSummary(
   return summary;
 }
 
+test("normal places movement stays off live OSM critical path", async ({ browser }) => {
+  const profile = MAP_VIEWPORTS.find((item) => item.slug === "desktop-1280") ?? MAP_VIEWPORTS[0]!;
+  const context = await newStagingContext(browser, profile);
+  const page = await context.newPage();
+  const externalOverpass: string[] = [];
+  const liveOsmViewportRequests: string[] = [];
+  page.on("request", (request) => {
+    const url = request.url();
+    if (/overpass-api\.de\/api\/interpreter/i.test(url)) externalOverpass.push(url);
+    if (/\/api\/v1\/map\/area-polygons\b/.test(url) && new URL(url).searchParams.get("live_osm") === "1") liveOsmViewportRequests.push(url);
+  });
+  const response = await page.goto("/map?tab=places&bm=esri&lng=137.8589&lat=34.7219&z=13.6", { waitUntil: "domcontentloaded" });
+  expect(response?.status() ?? 0).toBeLessThan(400);
+  const canvas = page.locator(".maplibregl-canvas");
+  await expect(canvas).toBeVisible({ timeout: 8_000 });
+  await page.waitForTimeout(900);
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x + box!.width * 0.65, box!.y + box!.height * 0.5);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width * 0.45, box!.y + box!.height * 0.5, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(1_400);
+  expect(externalOverpass).toEqual([]);
+  expect(liveOsmViewportRequests).toEqual([]);
+  await context.close();
+});
+
 for (const profile of MAP_PERFORMANCE_PROFILES) {
   test(`map initial load stays within the UX guardrail (${profile.slug})`, async ({ browser }) => {
     const summary = await waitForMapPerformanceSummary(browser, profile);

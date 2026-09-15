@@ -14199,31 +14199,24 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
   const sources = parseSourceParam(url.searchParams.get("sources"));
   const rawZoom = url.searchParams.get("zoom");
   const zoom = rawZoom == null || rawZoom.trim() === "" ? null : Number(rawZoom);
+  const liveOsmRequested = url.searchParams.get("live_osm") === "1";
   const defaultLimit = mapAreaPolygonsFallbackLimit(zoom);
   const requestedLimit = clampInteger(Number(url.searchParams.get("limit") ?? String(defaultLimit)), 1, 1000);
   const limit = mapAreaPolygonsResponseLimit(bbox, sources, zoom, requestedLimit);
   const nativeRows = await queryNativeAreaPolygonRows(env, bbox, sources, limit);
-  const liveNamedFeatures = await fetchLiveNamedAreaPolygonsWhenRequested(
-    env,
-    bbox,
-    sources,
-    zoom,
-    limit
-  );
+  const liveNamedFeatures = liveOsmRequested
+    ? await fetchLiveNamedAreaPolygonsWhenRequested(env, bbox, sources, zoom, limit)
+    : [];
   if (nativeRows.length > 0) {
     const nativeFeatures = nativeRows
       .map((row) => areaPolygonFeatureFromGeometryReadmodel(row))
       .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature))
       .filter(isDisplayableAreaPolygonFeature);
-    const liveSchoolFeatures = await fetchLiveSchoolAreaPolygonsWhenNativeSchoolIsOnlyApproximate(
-      env,
-      bbox,
-      sources,
-      zoom,
-      nativeRows,
-      nativeFeatures,
-      limit
-    );
+    const liveSchoolFeatures = liveOsmRequested
+      ? await fetchLiveSchoolAreaPolygonsWhenNativeSchoolIsOnlyApproximate(
+        env, bbox, sources, zoom, nativeRows, nativeFeatures, limit
+      )
+      : [];
     const features = dedupePublicAreaPolygonFeatures(
       [...nativeFeatures, ...liveSchoolFeatures, ...liveNamedFeatures],
       limit

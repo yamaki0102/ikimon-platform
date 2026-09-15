@@ -18917,7 +18917,7 @@ test("production map area polygons filter D1 geometry without origin fallback", 
     assert.equal(payload.stats.totalReturned, 1);
     assert.equal(payload.stats.totalAll, 1);
     assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
-    assert.equal(fallbackCalls, 1);
+    assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
 
     const localizedResponse = await worker.fetch(new Request(
@@ -18929,7 +18929,7 @@ test("production map area polygons filter D1 geometry without origin fallback", 
     assert.equal(localizedPayload.features[0].properties.name, "native polygon school");
     assert.equal(localizedPayload.stats.totalReturned, 1);
     assert.equal(localizedPayload.stats.totalAll, 1);
-    assert.equal(fallbackCalls, 2);
+    assert.equal(fallbackCalls, 0);
     assert.doesNotMatch(JSON.stringify(localizedPayload), /native-approx-school|OSMの学校・キャンパス|OSMの公園・緑地|境界未確認/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -19033,7 +19033,7 @@ test("production map area polygons discover generic named facilities and dedupe 
   }) as typeof fetch;
   try {
     const themeResponse = await worker.fetch(new Request(
-      "https://ikimon.life/api/v1/map/area-polygons?bbox=127.94%2C26.67%2C127.97%2C26.70&zoom=14&sources=osm_named_area"
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=127.94%2C26.67%2C127.97%2C26.70&zoom=14&sources=osm_named_area&live_osm=1"
     ), productionEnv);
     const themePayload = await themeResponse.json() as any;
     assert.equal(themeResponse.status, 200);
@@ -19044,7 +19044,7 @@ test("production map area polygons discover generic named facilities and dedupe 
     assert.equal(themePayload.stats.source, "live_osm_named_area");
 
     const mallResponse = await worker.fetch(new Request(
-      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.74%2C34.70%2C137.78%2C34.73&zoom=14&sources=osm_named_area"
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.74%2C34.70%2C137.78%2C34.73&zoom=14&sources=osm_named_area&live_osm=1"
     ), productionEnv);
     const mallPayload = await mallResponse.json() as any;
     assert.equal(mallResponse.status, 200);
@@ -19105,7 +19105,7 @@ test("production map area polygons supplement live OSM school polygons when nati
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(
-      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14"
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&live_osm=1"
     ), productionEnv);
     const payload = await response.json() as any;
     const featureNames = payload.features.map((feature: any) => feature.properties.name);
@@ -19184,7 +19184,7 @@ test("production map area polygons complement registered school polygons with mi
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(
-      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school"
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school&live_osm=1"
     ), productionEnv);
     const payload = await response.json() as any;
     const fieldIds = payload.features.map((feature: any) => feature.properties.field_id);
@@ -19254,7 +19254,7 @@ test("production map area polygons expand low legacy limits for human-scale scho
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(
-      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&limit=80"
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&limit=80&live_osm=1"
     ), productionEnv);
     const payload = await response.json() as any;
 
@@ -19293,7 +19293,7 @@ test("production map area polygons skip live OSM school fallback below human-sca
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(
-      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=12&sources=school"
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=12&sources=school&live_osm=1"
     ), productionEnv);
     const payload = await response.json() as any;
 
@@ -19304,6 +19304,20 @@ test("production map area polygons skip live OSM school fallback below human-sca
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("production map area polygons keep normal viewport reads off live OSM", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-approx-school-fast", productionAreaPolygonRow("native-approx-school-fast", { source: "school", approximate_boundary: 1, boundary_approximation: "point_buffer" }));
+  const productionEnv = { ...env, ENVIRONMENT: "production", OVERPASS_API_URL: "https://slow-overpass.test/api/interpreter" };
+  const originalFetch = globalThis.fetch;
+  let overpassCalls = 0;
+  globalThis.fetch = (async () => { overpassCalls += 1; return Response.json({ elements: [] }); }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14"), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(overpassCalls, 0);
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test("production map area polygons bounds live OSM school latency to one endpoint attempt", async () => {
@@ -19336,7 +19350,7 @@ test("production map area polygons bounds live OSM school latency to one endpoin
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(
-      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school"
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school&live_osm=1"
     ), productionEnv);
     const payload = await response.json() as any;
 
@@ -19517,7 +19531,7 @@ test("production map area polygons use native polygon readmodel without origin f
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(
-      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park"
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park&live_osm=1"
     ), productionEnv);
     const payload = await response.json() as any;
 
