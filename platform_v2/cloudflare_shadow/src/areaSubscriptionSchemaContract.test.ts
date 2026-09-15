@@ -125,3 +125,72 @@ test("area subscription migration matches the Worker contract", () => {
     database.close();
   }
 });
+
+test("area subscription migration remains compatible with the pre-existing production table shape", () => {
+  const database = new DatabaseSync(":memory:");
+  try {
+    database.exec(`
+      CREATE TABLE user_area_subscriptions (
+        subscription_id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        target_type TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        label TEXT NOT NULL DEFAULT '',
+        href TEXT NOT NULL DEFAULT '',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT,
+        updated_at TEXT
+      );
+      CREATE UNIQUE INDEX idx_user_area_subscriptions_target
+        ON user_area_subscriptions(user_id, target_type, target_id);
+      CREATE INDEX idx_user_area_subscriptions_user_active
+        ON user_area_subscriptions(user_id, is_active, updated_at DESC);
+      CREATE TABLE user_area_subscription_stats (
+        user_id TEXT NOT NULL,
+        target_type TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        observation_count INTEGER NOT NULL DEFAULT 0,
+        needs_id_count INTEGER NOT NULL DEFAULT 0,
+        refreshed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY(user_id, target_type, target_id)
+      );
+    `);
+
+    assert.doesNotThrow(() => database.exec(migration));
+
+    database.prepare(
+      `INSERT INTO user_area_subscriptions
+         (subscription_id, user_id, target_type, target_id, label, href, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id, target_type, target_id)
+       DO UPDATE SET label = excluded.label,
+                     href = excluded.href,
+                     is_active = 1,
+                     updated_at = CURRENT_TIMESTAMP`,
+    ).run("prod-sub-1", "prod-user", "place", "place-1", "Place 1", "/ja/map?place=place-1");
+
+    database.prepare(
+      `INSERT INTO user_area_subscription_stats
+         (user_id, target_type, target_id, observation_count, needs_id_count)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run("prod-user", "place", "place-1", 4, 2);
+
+    const joined = database.prepare(
+      `SELECT s.subscription_id,
+              COALESCE(st.observation_count, 0) AS observation_count,
+              COALESCE(st.needs_id_count, 0) AS needs_id_count
+         FROM user_area_subscriptions s
+         LEFT JOIN user_area_subscription_stats st
+           ON st.user_id = s.user_id AND st.target_type = s.target_type AND st.target_id = s.target_id
+        WHERE s.user_id = ? AND s.is_active = 1`,
+    ).get("prod-user") as { subscription_id: string; observation_count: number; needs_id_count: number };
+
+    assert.deepEqual({ ...joined }, {
+      subscription_id: "prod-sub-1",
+      observation_count: 4,
+      needs_id_count: 2,
+    });
+  } finally {
+    database.close();
+  }
+});

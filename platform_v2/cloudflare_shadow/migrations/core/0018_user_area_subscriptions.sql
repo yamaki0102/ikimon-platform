@@ -26,5 +26,5 @@ CREATE TABLE IF NOT EXISTS user_area_subscription_stats (
   PRIMARY KEY (user_id, target_type, target_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_area_subscription_stats_user
-  ON user_area_subscription_stats(user_id, updated_at DESC);
+-- No secondary stats timestamp index: older production-compatible tables use refreshed_at
+-- while the Worker joins this table through its composite primary key only.
