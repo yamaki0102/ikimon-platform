@@ -40,6 +40,8 @@ When changing a shared UI renderer, verify how the active Worker consumes its ma
 
 Use the established Alpine/Tailwind/MapLibre and shared renderer assets. Keep Japanese copy concrete, concise and non-coercive; preserve pinned CDN dependencies and existing tokens. Shared controls need visible keyboard focus, accessible names and touch targets of at least 44px (preserve larger established capture targets). Support empty, unavailable, denied, partial and retry states. A map failure must still allow record discovery.
 
+For ZUKAN frontend implementation, redesign, CSS, responsive layout or visual review, also use .agents/skills/zukan-frontend-quality/SKILL.md as the project adapter. It does not replace DESIGN.md; it binds implementation to rendered before/after inspection and existing Evidence/Resume.
+
 `DESIGN.md` is adopted design, not proof of current UI or runtime conformance. It preserves the existing product/rights/state semantics and explicitly scopes any superseded visual guidance. Do not start a page redesign, new feature, new locale or deployment solely because the rulebook was adopted.
 
 ## Verification
