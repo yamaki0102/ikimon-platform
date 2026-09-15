@@ -320,7 +320,7 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
   const payloadOf = (item) => item && typeof item.payload === 'object' && item.payload && !Array.isArray(item.payload) ? item.payload : {};
   const safeHref = (value, occurrenceId) => {
     const candidate = trimText(value, 600);
-    if (candidate.charAt(0) === '/' && candidate.indexOf('//') !== 0) return candidate;
+    if (candidate.charAt(0) === '/' && candidate.indexOf('//') !== 0 && candidate.indexOf('\\n') < 0 && candidate.indexOf('\\r') < 0) return candidate;
     const occurrence = trimText(occurrenceId, 200);
     return occurrence ? observationHrefBase + encodeURIComponent(occurrence) : fallbackHref;
   };
