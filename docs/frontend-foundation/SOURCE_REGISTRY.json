@@ -1,0 +1,21 @@
+{
+  "schema_version": "ikimon.frontend-source-registry.v1",
+  "updated_at": "2026-09-15",
+  "policy": {
+    "default_check_interval_days": 7,
+    "auto_adopt": false,
+    "candidate_threshold": "material_change_only"
+  },
+  "sources": [
+    {"id":"transitions-dev","name":"transitions.dev","status":"APPROVED","url":"https://www.transitions.dev/","uses":["motion","css-patterns"]},
+    {"id":"shadcn-ui","name":"shadcn/ui","status":"APPROVED","url":"https://ui.shadcn.com/","uses":["component-reference","registry-model","chat-patterns"]},
+    {"id":"base-ui","name":"Base UI","status":"APPROVED","url":"https://base-ui.com/","uses":["accessible-primitives"]},
+    {"id":"react-aria","name":"React Aria","status":"APPROVED","url":"https://react-spectrum.adobe.com/react-aria/","uses":["accessibility","interaction","i18n"]},
+    {"id":"radix-ui","name":"Radix UI","status":"APPROVED","url":"https://www.radix-ui.com/","uses":["primitive-behavior"]},
+    {"id":"motion","name":"Motion","status":"APPROVED","url":"https://motion.dev/","uses":["complex-motion","gesture"]},
+    {"id":"21st-dev","name":"21st.dev","status":"APPROVED","url":"https://21st.dev/","uses":["component-discovery"]},
+    {"id":"mdn","name":"MDN Web Docs","status":"APPROVED","url":"https://developer.mozilla.org/","uses":["native-platform","accessibility"]},
+    {"id":"wai-aria-apg","name":"WAI-ARIA APG","status":"APPROVED","url":"https://www.w3.org/WAI/ARIA/apg/","uses":["keyboard","aria-contracts"]},
+    {"id":"open-ui","name":"Open UI","status":"APPROVED","url":"https://open-ui.org/","uses":["emerging-native-semantics"]}
+  ]
+}
