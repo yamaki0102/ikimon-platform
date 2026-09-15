@@ -162,6 +162,7 @@ body[data-zukan-app-experience] .home-member-primary{border-radius:16px}
 body[data-zukan-app-experience] .home-member-primary.is-memory{grid-template-columns:1fr 1fr}
 body[data-zukan-app-experience] .home-member-primary-media .home-card-media{min-height:0;aspect-ratio:4/3;height:auto}
 body[data-zukan-app-experience] .home-recent-grid{display:grid;grid-auto-flow:row;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;gap:20px}
+body[data-zukan-app-experience] .home-recent-card .home-card-media{aspect-ratio:4/3}
 body[data-zukan-app-experience] .cf-record-shell{max-width:680px;margin-block:32px 64px}
 body[data-zukan-app-experience] :is(.cf-record-form,.cf-record-pick){box-shadow:none;border-color:var(--zukan-line);border-radius:12px}
 body[data-zukan-app-experience] .cf-record-submit button{background:var(--zukan-green)}
