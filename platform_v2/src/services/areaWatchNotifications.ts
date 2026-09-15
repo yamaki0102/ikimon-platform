@@ -10,16 +10,11 @@ export type AreaWatchNotificationSummary = {
   areaWatchNotifications: number;
 };
 
-export type AreaWatchParticipationSummary = {
-  followedAreas: number;
-};
-
 const AREA_WATCH_NOTIFICATION_SAVEPOINT = "area_watch_notification_dispatch";
 
 function cleanId(value: string): string {
   return value.trim();
 }
-
 export async function emitAreaWatchNotificationForObservation(
   input: EmitAreaWatchNotificationInput,
   client?: PoolClient,
@@ -67,16 +62,17 @@ export async function emitAreaWatchNotificationForObservation(
                and (ab.media_type = 'image' or ab.mime_type like 'image/%')
           ) as has_photo
         ),
-        matched_subscriptions as (
-          select s.subscription_id,
-                 s.user_id,
-                 s.target_type,
-                 s.target_id,
-                 s.label,
-                 s.href
-            from user_area_subscriptions s
-            join new_visit v on true
-           where s.is_active = true
+         matched_subscriptions as (
+           select distinct on (s.user_id)
+                  s.subscription_id,
+                  s.user_id,
+                  s.target_type,
+                  s.target_id,
+                  s.label,
+                  s.href
+             from user_area_subscriptions s
+             join new_visit v on true
+            where s.is_active = true
              and (v.user_id is null or s.user_id <> v.user_id)
              and (
                (s.target_type = 'place' and v.place_id = s.target_id)
@@ -94,9 +90,17 @@ export async function emitAreaWatchNotificationForObservation(
                    coalesce(v.observed_prefecture, ''),
                    coalesce(v.observed_municipality, ''),
                    concat_ws(':', nullif(v.observed_prefecture, ''), nullif(v.observed_municipality, ''))
-                 )
-               )
+                )
+              )
              )
+            order by s.user_id,
+                     case s.target_type
+                       when 'place' then 0
+                       when 'field' then 1
+                       else 2
+                     end,
+                     s.updated_at desc,
+                     s.subscription_id
         )
         insert into alert_deliveries (
           occurrence_id, user_id, area_subscription_id, trigger_kind, channel,
@@ -133,11 +137,25 @@ export async function emitAreaWatchNotificationForObservation(
                  ))
                )
           from matched_subscriptions ms
-          join new_visit v on true
-          join new_occurrence no on true
-          join photo_state ps on true
-         where v.public_visibility = 'public'
-           and coalesce(v.quality_review_status, '') in ('accepted', 'auto_accepted')
+           join new_visit v on true
+           join new_occurrence no on true
+           join photo_state ps on true
+          where v.public_visibility = 'public'
+            and coalesce(v.quality_review_status, '') in ('accepted', 'auto_accepted')
+            and exists (
+              select 1
+                from observation_data_rights rights
+               where rights.visit_id = v.visit_id
+                 and rights.withdrawal_status = 'active'
+                 and rights.record_consent in ('public_summary', 'external_export')
+            )
+            and not exists (
+              select 1
+                from alert_deliveries existing
+               where existing.occurrence_id = no.occurrence_id
+                 and existing.user_id = ms.user_id
+                 and existing.trigger_kind = 'area_watch'
+            )
         on conflict (occurrence_id, user_id, area_subscription_id, trigger_kind)
           where user_id is not null and area_subscription_id is not null
           do nothing
@@ -175,82 +193,6 @@ export async function emitAreaWatchNotificationForObservation(
   } catch (error) {
     await c.query("rollback").catch(() => undefined);
     throw error;
-  } finally {
-    c.release();
-  }
-}
-
-export async function ensureAreaWatchParticipationForVisit(
-  input: { visitId: string },
-  client?: PoolClient,
-): Promise<AreaWatchParticipationSummary> {
-  const visitId = cleanId(input.visitId);
-  if (!visitId) return { followedAreas: 0 };
-
-  const exec = async (c: PoolClient): Promise<AreaWatchParticipationSummary> => {
-    const result = await c.query<{ subscription_id: string }>(
-      `with new_visit as (
-          select v.visit_id,
-                 v.place_id,
-                 v.user_id,
-                 coalesce(nullif(p.canonical_name, ''), nullif(v.locality_note, ''), '参加したエリア') as place_label,
-                 coalesce(v.resolved_field_ids, '{}'::uuid[]) as resolved_field_ids
-            from visits v
-            left join places p on p.place_id = v.place_id
-           where v.visit_id = $1
-             and nullif(v.user_id, '') is not null
-        ),
-        field_targets as (
-          select nv.user_id,
-                 'field'::text as target_type,
-                 f.field_id::text as target_id,
-                 coalesce(nullif(f.name, ''), '参加したフィールド') as label,
-                 '/map?field=' || f.field_id::text as href,
-                 1 as priority
-            from new_visit nv
-            join lateral unnest(nv.resolved_field_ids) as rf(field_id) on true
-            join observation_fields f on f.field_id = rf.field_id
-           limit 4
-        ),
-        place_target as (
-          select nv.user_id,
-                 'place'::text as target_type,
-                 nv.place_id as target_id,
-                 nv.place_label as label,
-                 '/map?place=' || nv.place_id as href,
-                 9 as priority
-            from new_visit nv
-           where nv.place_id is not null
-             and nv.place_id not like 'place:unlocated:%'
-             and not exists (select 1 from field_targets)
-        ),
-        targets as (
-          select * from field_targets
-          union all
-          select * from place_target
-        )
-        insert into user_area_subscriptions (
-          user_id, target_type, target_id, label, href, is_active, updated_at
-        )
-        select user_id, target_type, target_id, left(label, 120), left(href, 240), true, now()
-          from targets
-         order by priority asc
-        on conflict (user_id, target_type, target_id)
-        do update set label = excluded.label,
-                      href = excluded.href,
-                      is_active = true,
-                      updated_at = now()
-        returning subscription_id::text`,
-      [visitId],
-    );
-    return { followedAreas: result.rows.length };
-  };
-
-  if (client) return await exec(client);
-  const pool = getPool();
-  const c = await pool.connect();
-  try {
-    return await exec(c);
   } finally {
     c.release();
   }

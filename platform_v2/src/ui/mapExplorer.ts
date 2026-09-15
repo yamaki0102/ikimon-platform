@@ -2178,7 +2178,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     placeActionNearby: props.lang === "ja" ? "近くを探索" : props.lang === "es" ? "Explorar cerca" : props.lang === "pt-BR" ? "Explorar perto" : "Explore nearby",
     placeActionGuide: props.lang === "ja" ? "ガイドで探す" : props.lang === "es" ? "Buscar con guía" : props.lang === "pt-BR" ? "Buscar com guia" : "Explore with guide",
     placeActionScan: props.lang === "ja" ? "スキャンする" : props.lang === "es" ? "Escanear" : props.lang === "pt-BR" ? "Escanear" : "Scan here",
-    placeActionFollow: props.lang === "ja" ? "この場所をフォロー" : props.lang === "es" ? "Seguir este lugar" : props.lang === "pt-BR" ? "Seguir este local" : "Follow this place",
+    placeActionFollow: props.lang === "ja" ? "この場所の更新を追う" : props.lang === "es" ? "Seguir las novedades de este lugar" : props.lang === "pt-BR" ? "Acompanhar atualizações deste local" : "Follow updates for this place",
     nearbyAreasStatusTemplate: props.lang === "ja" ? "現在地の近くで __COUNT__ 件のエリアを見つけられます" : props.lang === "es" ? "__COUNT__ áreas visibles cerca de tu ubicación" : props.lang === "pt-BR" ? "__COUNT__ áreas visíveis perto da sua localização" : "__COUNT__ discoverable areas near you",
     nearbyAreasNoneStatus: props.lang === "ja" ? "近くのエリアはまだ薄いです。少し広げると入口が見つかるかもしれません。" : props.lang === "es" ? "Todavía hay pocas áreas cerca. Amplía un poco para encontrar entradas." : props.lang === "pt-BR" ? "Ainda há poucas áreas perto. Amplie um pouco para encontrar entradas." : "Nearby areas are still thin. Widen the view to find entries.",
     nearbyAreaMarkerLabel: props.lang === "ja" ? "近くのエリア" : props.lang === "es" ? "Área cercana" : props.lang === "pt-BR" ? "Área próxima" : "Nearby area",

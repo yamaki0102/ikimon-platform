@@ -318,7 +318,9 @@ export async function registerMeSubscriptionsApiRoutes(app: FastifyInstance): Pr
     }
     const pool = getPool();
     const result = await pool.query<{ subscription_id: string }>(
-      `DELETE FROM user_area_subscriptions
+      `UPDATE user_area_subscriptions
+          SET is_active = false,
+              updated_at = NOW()
         WHERE subscription_id = $1::uuid AND user_id = $2
        RETURNING subscription_id::text`,
       [id, userId],

@@ -27,6 +27,7 @@
         "continuationTitle": "Continue where you left off", "continuationBody": "You have an unsaved capture. Continue without losing it.", "continuationCta": "Continue",
         "memoryEyebrow": "From your last record", "memoryLead": "Return to the photo, place, and time you kept.", "memoryCta": "Open this record",
         "activeEyebrow": "An activity you are part of", "activeLead": "See what is happening here and what you can do next.", "activeCta": "Open activity",
+        "watchUpdatesTitle": "Updates you follow", "watchUpdatesLoading": "Loading updates…", "watchUpdatesEmpty": "There are no updates yet.", "watchUpdatesError": "Could not load updates. Reload and try again.", "watchUpdatesReason": "An update from an area you follow", "watchUpdatesUnread": "Unread", "watchUpdatesObserved": "Observed", "watchUpdatesUpdated": "Updated", "watchUpdatesVerified": "Public and verified",
         "recentTitle": "Recent records", "recentCta": "View all", "placesTitle": "Places you are involved with", "placesCta": "View map", "nextTitle": "What comes next",
         "emptyTitle": "Leave your first record", "emptyBody": "Take one photo and keep it as your record with its time and place.",
         "galleryCta": "Choose from this device", "emptyPlaceCta": "Explore by place",

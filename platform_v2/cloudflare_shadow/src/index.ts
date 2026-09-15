@@ -11053,7 +11053,10 @@ async function deletePersonalAreaSubscription(session: SessionSnapshot, id: stri
     return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
   }
   await env.CORE_DB.prepare(
-    "DELETE FROM user_area_subscriptions WHERE subscription_id = ? AND user_id = ?"
+    `UPDATE user_area_subscriptions
+        SET is_active = 0,
+            updated_at = CURRENT_TIMESTAMP
+      WHERE subscription_id = ? AND user_id = ?`
   ).bind(subscriptionId, session.userId).run();
   return json({ ok: true }, 200, { "cache-control": "no-store" });
 }

@@ -180,7 +180,7 @@ function renderAreaWatch(snapshot: PlaceSnapshot): string {
       <p>${escapeHtml(watch.nextAction.body)}</p>
     </div>
     <div class="ps-watch-community">
-      <strong>参加したエリアをフォローすると、あとから誰かが写真・effort・季節の記録を足した時に通知で戻ってこられます。</strong>
+      <strong>このエリアの更新を追うと、あとから誰かが写真・effort・季節の記録を足した時に通知で戻ってこられます。</strong>
       <span>見守りは個人の宿題ではなく、同じ場所を見ている仲間の共同作業として育ちます。</span>
     </div>
     <div class="ps-watch-grid">${dimensions}</div>

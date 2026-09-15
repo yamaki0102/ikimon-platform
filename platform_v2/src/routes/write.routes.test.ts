@@ -24,6 +24,13 @@ test("observation upsert returns contribution receipts with the ok contract", ()
   assert.match(source, /placeMemorySample/);
 });
 
+test("observation writes never create or reactivate an area watch implicitly", () => {
+  const source = readFileSync(path.join(process.cwd(), "src/routes/write.ts"), "utf8");
+
+  assert.doesNotMatch(source, /ensureAreaWatchParticipationForVisit/u);
+  assert.match(source, /emitAreaWatchNotificationForObservation/u);
+});
+
 test("auth write mutation gate keeps same-origin on write scope and privileged token issuance", () => {
   const writeSource = readFileSync(path.join(process.cwd(), "src/routes/write.ts"), "utf8");
   const authSource = readFileSync(path.join(process.cwd(), "src/routes/auth.ts"), "utf8");

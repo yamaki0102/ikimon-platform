@@ -44,6 +44,15 @@ export type LandingStrings = {
       activeEyebrow: string;
       activeLead: string;
       activeCta: string;
+      watchUpdatesTitle: string;
+      watchUpdatesLoading: string;
+      watchUpdatesEmpty: string;
+      watchUpdatesError: string;
+      watchUpdatesReason: string;
+      watchUpdatesUnread: string;
+      watchUpdatesObserved: string;
+      watchUpdatesUpdated: string;
+      watchUpdatesVerified: string;
       recentTitle: string;
       recentCta: string;
       placesTitle: string;

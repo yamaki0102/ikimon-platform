@@ -4287,6 +4287,16 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE user_area_subscriptions SET is_active = 0")) {
+      const subscriptionId = string(v[0]);
+      const row = this.db.areaSubscriptions.get(subscriptionId);
+      if (row?.user_id === string(v[1])) {
+        row.is_active = 0;
+        row.updated_at = new Date().toISOString();
+      }
+      return {};
+    }
+
     if (normalized.startsWith("INSERT INTO taxon_alert_subscriptions")) {
       const row: TaxonAlertSubscriptionRow = {
         subscription_id: string(v[0]),
@@ -12528,6 +12538,23 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
     const areaPayload = await areaResponse.json() as any;
     assert.equal(areaResponse.ok, true, JSON.stringify(areaPayload));
     assert.equal(areaPayload.subscriptions[0].subscriptionId, "area-sub-1");
+
+    const stopAreaResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/area-subscriptions/area-sub-1", {
+      method: "DELETE",
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    assert.equal(stopAreaResponse.ok, true, await stopAreaResponse.text());
+    assert.equal(core.areaSubscriptions.get("area-sub-1")?.is_active, 0);
+
+    const resumeAreaResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/area-subscriptions", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({ targetType: "field", targetId: "field-1", label: "東金の観察地", href: "/map?field=field-1" })
+    }), productionEnv);
+    const resumeAreaPayload = await resumeAreaResponse.json() as any;
+    assert.equal(resumeAreaResponse.ok, true, JSON.stringify(resumeAreaPayload));
+    assert.equal(resumeAreaPayload.subscriptionId, "area-sub-1");
+    assert.equal(core.areaSubscriptions.get("area-sub-1")?.is_active, 1);
 
     const taxonResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/subscriptions", {
       headers: { cookie: `ikimon_v2_session=${rawToken}` }
