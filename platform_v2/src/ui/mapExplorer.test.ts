@@ -370,6 +370,17 @@ test("transient area record CTA carries the stable region identity into the reco
   assert.match(script, /var recordHref = options && options\.recordHref \? String\(options\.recordHref\) : RECORD_HREF/);
 });
 
+test("registered area record CTA carries the field identity into the record flow", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const body = script.slice(
+    script.indexOf("function renderAreaSheet"),
+    script.indexOf("function renderAreaTimeline"),
+  );
+
+  assert.match(body, /var recordHref = fieldId \? recordContextHref\(\{ fieldId: fieldId \}\) : RECORD_HREF/);
+  assert.match(body, /hasGuide: !!guideStopHtml,[\s\S]*recordHref: recordHref/);
+});
+
 test("mobile place detail peek keeps the map visible", () => {
   const styles = MAP_EXPLORER_STYLES;
 

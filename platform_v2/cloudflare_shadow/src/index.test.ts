@@ -7609,11 +7609,13 @@ class FakeStatement {
         });
       return { results: rows as T[] };
     }
-    if (normalized.startsWith("SELECT sha256, public_derivative_key, public_derivative_verified_at,")) {
+    if (normalized.startsWith("SELECT sha256, mime, processing_state, public_derivative_key, public_derivative_verified_at,")) {
       const rows = [...this.db.assets.values()]
-        .filter((row) => row.observation_id === string(this.values[0]) && row.processing_state === "uploaded" && row.mime.startsWith("image/"))
+        .filter((row) => row.observation_id === string(this.values[0]))
         .map((row) => ({
           sha256: row.sha256,
+          mime: row.mime,
+          processing_state: row.processing_state,
           public_derivative_key: row.public_derivative_key,
           public_derivative_verified_at: row.public_derivative_verified_at,
           public_derivative_metadata_json: row.public_derivative_metadata_json,
@@ -12950,6 +12952,36 @@ test("Cloudflare observation writes emit area-watch deliveries for matching acti
   assert.equal(obs.observations.get("area-watch-observation")?.visibility, "public");
 });
 
+test("Cloudflare area-watch fanout uses bounded D1 batches without dropping a popular area", async () => {
+  const { env, core } = createEnv();
+  for (let index = 0; index < 125; index += 1) {
+    core.areaSubscriptions.set(`area-watch-popular-${index}`, {
+      subscription_id: `area-watch-popular-${index}`,
+      user_id: `popular-watcher-${index}`,
+      target_type: "place",
+      target_id: "place:popular",
+      label: "人気の観察地",
+      href: "/map?place=place%3Apopular",
+      is_active: 1,
+      created_at: "2026-06-15T00:00:00.000Z",
+      updated_at: "2026-06-16T00:00:00.000Z"
+    });
+  }
+
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "area-watch-popular-observation",
+    userId: "popular-observer-user",
+    observedAt: "2026-06-15T02:30:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    siteId: "place:popular",
+    visibility: "public",
+    dataRights: { recordConsent: "public_summary", withdrawalStatus: "active" }
+  });
+
+  assert.equal([...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch").length, 125);
+});
+
 test("Cloudflare public photo alerts wait for a verified derivative and replay after media processing", async () => {
   const base = createEnv();
   const core = new FailFirstAreaWatchInsertD1(false);
@@ -13023,6 +13055,58 @@ test("Cloudflare public photo alerts wait for a verified derivative and replay a
   const deliveries = [...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
   assert.equal(deliveries.length, 2);
   assert.deepEqual(new Set(deliveries.map((row) => row.user_id)), new Set(["photo-watcher-user", "photo-region-watcher-user"]));
+});
+
+test("Cloudflare video area-watch alerts stay deferred until the complete media ledger is public-ready", async () => {
+  const { env, core, obs } = createEnv();
+  core.areaSubscriptions.set("area-watch-video-target", {
+    subscription_id: "area-watch-video-target",
+    user_id: "video-watcher-user",
+    target_type: "place",
+    target_id: "place:34.71,137.81",
+    label: "動画の観察地",
+    href: "/map?place=place%3A34.71%2C137.81",
+    is_active: 1,
+    created_at: "2026-06-15T00:00:00.000Z",
+    updated_at: "2026-06-16T00:00:00.000Z"
+  });
+  const input = {
+    observationId: "area-watch-video-observation",
+    clientSubmissionId: "area-watch-video-submission",
+    userId: "video-observer-user",
+    observedAt: "2026-06-15T02:30:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    siteId: "place:34.71,137.81",
+    visibility: "public",
+    dataRights: { recordConsent: "public_summary", withdrawalStatus: "active" },
+    sourcePayload: { client_video_selected: true }
+  };
+
+  await post("/api/v1/observations/upsert", env, input);
+  assert.equal([...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch").length, 0);
+
+  obs.assets.set("area-watch-video-asset", {
+    asset_id: "area-watch-video-asset",
+    draft_id: "draft-area-watch-video",
+    observation_id: "area-watch-video-observation",
+    owner_user_id: "video-observer-user",
+    object_key: "original/area-watch-video/video.mp4",
+    partition_month: "2026-06",
+    sha256: "video-ready-sha",
+    mime: "video/mp4",
+    bytes: 1200,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/area-watch-video/video.mp4",
+    public_derivative_sha256: "video-ready-sha",
+    public_derivative_verified_at: "2026-06-15T03:00:00.000Z",
+    public_derivative_metadata_json: JSON.stringify({ contentType: "video/mp4", scannedContainer: "mp4", gpsExifPresent: false }),
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T03:00:00.000Z"
+  });
+
+  await worker.queue({ messages: [{ body: { outboxId: "area-watch-video-readmodel", topic: "readmodel.refresh", targetId: "area-watch-video-observation" } }] }, env);
+  assert.equal([...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch").length, 1);
 });
 
 test("Cloudflare idempotent observation replay retries an area-watch delivery after the initial cross-D1 write fails", async () => {

@@ -11609,6 +11609,7 @@ type AreaWatchEmissionInput = {
   recordConsent: string;
   withdrawalStatus: string;
   hasPhoto: boolean;
+  hasVideo?: boolean;
   completeChecklist: boolean;
   effortMinutes: number | null;
   distanceMeters: number | null;
@@ -11631,13 +11632,15 @@ function areaWatchTargetPriority(targetType: string): number {
   return targetType === "place" ? 0 : targetType === "field" ? 1 : 2;
 }
 
+const AREA_WATCH_FANOUT_BATCH_SIZE = 90;
+
 async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, env: Env): Promise<number> {
   if (
     input.visibility !== "public"
     || input.withdrawalStatus !== "active"
     || !["public_summary", "external_export"].includes(input.recordConsent)
   ) return 0;
-  if (!(await publicMediaReadyForAreaWatch(input.visitId, input.photoHashes ?? [], env))) return 0;
+  if (!(await publicMediaReadyForAreaWatch(input.visitId, input.photoHashes ?? [], input.hasVideo === true, env))) return 0;
 
   const targetClauses = ["(target_type = 'place' AND target_id = ?)"];
   const targetBindings: D1Value[] = [input.placeId];
@@ -11670,8 +11673,8 @@ async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, en
     if (!selectedByUser.has(subscription.user_id)) selectedByUser.set(subscription.user_id, subscription);
   }
 
-  let created = 0;
-  for (const subscription of selectedByUser.values()) {
+  const now = new Date().toISOString();
+  const statements = [...selectedByUser.values()].map((subscription) => {
     const areaLabel = safePersonalLabel(subscription.label, subscription.target_id);
     const body = input.completeChecklist
       ? `${areaLabel} にチェックリストつきの記録が増えました。`
@@ -11680,8 +11683,7 @@ async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, en
         : input.hasPhoto
           ? `${areaLabel} に写真つきの記録が増えました。`
           : `${areaLabel} に新しい記録が増えました。`;
-    const now = new Date().toISOString();
-    const result = await env.CORE_DB.prepare(
+    return env.CORE_DB.prepare(
       `INSERT OR IGNORE INTO alert_deliveries (
          delivery_id, occurrence_id, user_id, recipient_id, subscription_id, area_subscription_id,
          trigger_kind, channel, delivered_at, delivery_status, error_message, payload_json, acknowledged_at, created_at
@@ -11721,8 +11723,12 @@ async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, en
       now,
       input.occurrenceId,
       subscription.user_id
-    ).run() as { meta?: { changes?: unknown } };
-    if (Number(result?.meta?.changes) === 1) created += 1;
+    );
+  });
+  let created = 0;
+  for (let offset = 0; offset < statements.length; offset += AREA_WATCH_FANOUT_BATCH_SIZE) {
+    const results = await env.CORE_DB.batch(statements.slice(offset, offset + AREA_WATCH_FANOUT_BATCH_SIZE));
+    created += results.filter((result) => Number((result as { meta?: { changes?: unknown } } | null)?.meta?.changes) === 1).length;
   }
   return created;
 }
@@ -11807,6 +11813,9 @@ async function enqueueD1AreaWatchNotificationsForStoredObservation(
     recordConsent: rights.record_consent,
     withdrawalStatus: rights.withdrawal_status,
     hasPhoto: clientPhotoHashes.some((value) => typeof value === "string" && value.trim() !== ""),
+    hasVideo: sourcePayload.client_video_selected === true
+      || sourcePayload.media_kind === "video"
+      || sourcePayload.mediaKind === "video",
     photoHashes: clientPhotoHashes.filter((value): value is string => typeof value === "string"),
     completeChecklist: sourcePayload.complete_checklist_flag === true,
     effortMinutes: numberOrNull(sourcePayload.effort_minutes),
@@ -11842,6 +11851,8 @@ function publicSafetyDecisionForContext(context: PublicSafetyContextRow | null):
 
 type PublicAreaWatchAssetRow = {
   sha256: string | null;
+  mime: string;
+  processing_state: string;
   public_derivative_key: string | null;
   public_derivative_verified_at: string | null;
   public_derivative_metadata_json: string | null;
@@ -11861,27 +11872,30 @@ function publicAreaWatchAssetIsReady(asset: PublicAreaWatchAssetRow): boolean {
     const metadata = JSON.parse(asset.public_derivative_metadata_json) as Record<string, unknown>;
     const contentType = String(metadata.contentType ?? "").split(";", 1)[0]?.trim().toLowerCase() ?? "";
     const scannedContainer = String(metadata.scannedContainer ?? "").trim().toLowerCase();
-    return contentType === "image/webp"
-      && scannedContainer !== "svg+xml"
-      && metadata.gpsExifPresent !== true;
+    if (metadata.gpsExifPresent === true || scannedContainer === "svg+xml") return false;
+    if (asset.mime.startsWith("image/")) return contentType === "image/webp";
+    if (asset.mime.startsWith("video/")) return contentType.startsWith("video/") && scannedContainer === "mp4";
+    if (asset.mime.startsWith("audio/")) return contentType.startsWith("audio/") && scannedContainer === "audio";
+    return false;
   } catch {
     return false;
   }
 }
 
-async function publicMediaReadyForAreaWatch(observationId: string, photoHashes: string[], env: Env): Promise<boolean> {
+async function publicMediaReadyForAreaWatch(observationId: string, photoHashes: string[], hasVideo: boolean, env: Env): Promise<boolean> {
   const expectedHashes = [...new Set(photoHashes.map((value) => normalizeOptionalText(value)).filter((value): value is string => Boolean(value)))];
-  if (expectedHashes.length === 0) return true;
   try {
     const assets = await env.OBS_DB.prepare(
-      `SELECT sha256, public_derivative_key, public_derivative_verified_at,
+      `SELECT sha256, mime, processing_state, public_derivative_key, public_derivative_verified_at,
               public_derivative_metadata_json, exif_scrub_state, public_ready_at
          FROM asset_ledger
-        WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'image/%'`
+         WHERE observation_id = ?`
     ).bind(observationId).all<PublicAreaWatchAssetRow>();
+    if (assets.results.length === 0) return !hasVideo && expectedHashes.length === 0;
+    if (assets.results.some((asset) => asset.processing_state !== "uploaded" || !publicAreaWatchAssetIsReady(asset))) return false;
     const readyHashes = new Set(
       assets.results
-        .filter((asset) => asset.sha256 && publicAreaWatchAssetIsReady(asset))
+        .filter((asset) => asset.mime.startsWith("image/") && asset.sha256)
         .map((asset) => asset.sha256 as string)
     );
     return expectedHashes.every((hash) => readyHashes.has(hash));
@@ -29388,6 +29402,9 @@ function legacyObservationAreaWatchPayload(input: LegacyObservationUpsertInput):
     municipality: normalizeOptionalText(input.municipality ?? sourcePayload.municipality ?? sourcePayload.observed_municipality ?? civicSourcePayload.municipality ?? civicSourcePayload.observed_municipality),
     field_id: normalizeOptionalText(civicContext.fieldId ?? civicContext.field_id ?? sourcePayload.field_id ?? sourcePayload.fieldId ?? civicSourcePayload.field_id ?? civicSourcePayload.fieldId),
     client_photo_sha256s: clientPhotoHashes,
+    client_video_selected: sourcePayload.client_video_selected === true
+      || sourcePayload.media_kind === "video"
+      || sourcePayload.mediaKind === "video",
     complete_checklist_flag: sourcePayload.complete_checklist_flag === true,
     effort_minutes: numberOrNull(sourcePayload.effort_minutes),
     distance_meters: numberOrNull(sourcePayload.distance_meters),
@@ -29975,6 +29992,9 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       withdrawalStatus: dataRights.withdrawalStatus,
       hasPhoto: Array.isArray(input.sourcePayload?.client_photo_sha256s)
         && input.sourcePayload.client_photo_sha256s.some((value) => typeof value === "string" && value.trim() !== ""),
+      hasVideo: input.sourcePayload?.client_video_selected === true
+        || input.sourcePayload?.media_kind === "video"
+        || input.sourcePayload?.mediaKind === "video",
       photoHashes: Array.isArray(input.sourcePayload?.client_photo_sha256s)
         ? input.sourcePayload.client_photo_sha256s.filter((value): value is string => typeof value === "string")
         : [],

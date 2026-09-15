@@ -7580,11 +7580,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? areaFeatureCenter(selectedAreaFeature, state.selectedPoint && state.selectedPoint.lat, state.selectedPoint && state.selectedPoint.lng)
       : (state.selectedPoint && Number.isFinite(state.selectedPoint.lat) && Number.isFinite(state.selectedPoint.lng) ? { lat: state.selectedPoint.lat, lng: state.selectedPoint.lng } : null);
     var guideStopHtml = renderAreaGuideStop(selectedAreaProps, selectedAreaCenter);
+    var recordHref = fieldId ? recordContextHref({ fieldId: fieldId }) : RECORD_HREF;
     var nextStepHtml = renderAreaNextStepCard({
       canRecord: canRecord,
       observationCount: summary.totalObservations || 0,
       hasGallery: gallery.length > 0,
       hasGuide: !!guideStopHtml,
+      recordHref: recordHref,
     });
     var areaMeta = rawLocationLabel + (areaHa ? ' / ' + areaHa : '');
     var heroHtml = renderAreaHero({

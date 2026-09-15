@@ -15856,6 +15856,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   municipality: String(data.get('municipality') || '').trim() || null,
                   client_submission_id: clientSubmissionId,
                   client_photo_sha256s: clientPhotoHashes,
+                  client_video_selected: Boolean(selectedVideoFile instanceof File && selectedVideoFile.size > 0),
                   location_provenance: hasRecordCoordinates ? recordLocationProvenance : null,
                   environment_record_draft: visualRecordEnvironmentDraft || null,
                   record_photo_feedback: visualRecordFeedbackSentence
