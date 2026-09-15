@@ -1,5 +1,5 @@
 export const FRONTEND_FOUNDATION_V1 = {
-  version: "1.0.0",
+  version: "1.1.0",
   motion: {
     fast: "160ms",
     normal: "220ms",
@@ -13,6 +13,14 @@ export const FRONTEND_FOUNDATION_V1 = {
     md: "16px",
     lg: "24px",
     pill: "999px",
+  },
+  spacing: {
+    xs: "4px",
+    sm: "8px",
+    md: "12px",
+    lg: "16px",
+    xl: "24px",
+    xxl: "32px",
   },
   tapTarget: "44px",
   focusRing: "3px",
@@ -30,6 +38,12 @@ export const FRONTEND_FOUNDATION_CSS = `
   --ik-radius-md: 16px;
   --ik-radius-lg: 24px;
   --ik-radius-pill: 999px;
+  --ik-space-xs: 4px;
+  --ik-space-sm: 8px;
+  --ik-space-md: 12px;
+  --ik-space-lg: 16px;
+  --ik-space-xl: 24px;
+  --ik-space-xxl: 32px;
   --ik-tap-target: 44px;
   --ik-focus-ring: 3px;
 }

@@ -1,14 +1,19 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const sourcePath = resolve("platform_v2/src/ui/frontendFoundation.ts");
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const sourcePath = resolve(repoRoot, "platform_v2/src/ui/frontendFoundation.ts");
 const source = await readFile(sourcePath, "utf8");
 const required = [
   "--ik-motion-fast",
   "--ik-motion-normal",
   "--ik-motion-slow",
   "--ik-ease-standard",
+  "--ik-space-xs",
+  "--ik-space-md",
+  "--ik-space-xl",
   "--ik-tap-target",
   "--ik-focus-ring",
   "prefers-reduced-motion",

@@ -1,0 +1,86 @@
+{
+  "schema_version": "ikimon.frontend-scout-baseline.v1",
+  "accepted_at": "2026-09-15T00:50:27.128Z",
+  "sources": [
+    {
+      "id": "transitions-dev",
+      "ok": true,
+      "final_url": "https://transitions.dev/",
+      "etag": null,
+      "last_modified": "Sun, 13 Sep 2026 12:54:38 GMT",
+      "sample_hash": null
+    },
+    {
+      "id": "shadcn-ui",
+      "ok": true,
+      "final_url": "https://ui.shadcn.com/docs/changelog",
+      "etag": "W/\"a29q07modxhicd\"",
+      "last_modified": null,
+      "sample_hash": "262144:3565bc23826db078a35e46e6190b22f4dbb7a5a89dc0ed3db4ea5c391b297766"
+    },
+    {
+      "id": "base-ui",
+      "ok": true,
+      "final_url": "https://base-ui.com/react/overview/releases",
+      "etag": "\"4fa29c001f44268a63edc068f00e13e4-ssl-df\"",
+      "last_modified": null,
+      "sample_hash": "85715:5c1b3126db26a6bde914c00c40cdd6ee84357b48dcb2d10ab076c8851d026901"
+    },
+    {
+      "id": "react-aria",
+      "ok": true,
+      "final_url": "https://react-aria.adobe.com/",
+      "etag": "W/\"2971e318d9e398ae643ed741cff7c2da\"",
+      "last_modified": "Tue, 08 Sep 2026 18:04:45 GMT",
+      "sample_hash": null
+    },
+    {
+      "id": "radix-ui",
+      "ok": true,
+      "final_url": "https://api.github.com/repos/radix-ui/primitives/tags?per_page=5",
+      "etag": "W/\"4b274b6ae0b12407683c3f42fc0d7586923f8da0dcdb9d5e0f3585066a90a9c5\"",
+      "last_modified": "Tue, 15 Sep 2026 00:26:55 GMT",
+      "sample_hash": "419:38fa5535cb87a725e9e6b01eebc8ecf48c626554cf7adb89f0f39283f89b5a09"
+    },
+    {
+      "id": "motion",
+      "ok": true,
+      "final_url": "https://api.github.com/repos/motiondivision/motion/tags?per_page=5",
+      "etag": "W/\"abb30bbf5c4a188fb5d9d46f515e2412c4057f79f500a54f461d3406cd059826\"",
+      "last_modified": "Tue, 15 Sep 2026 00:50:24 GMT",
+      "sample_hash": "2187:35b82f864a7b3874b195f7e24f6b91fdc578d745ba736547879c787b8bc99a04"
+    },
+    {
+      "id": "21st-dev",
+      "ok": true,
+      "final_url": "https://21st.dev/",
+      "etag": null,
+      "last_modified": null,
+      "sample_hash": null
+    },
+    {
+      "id": "mdn",
+      "ok": true,
+      "final_url": "https://developer.mozilla.org/en-US/",
+      "etag": "\"ef94a80bf36ed505f91d4d479c6d50fb\"",
+      "last_modified": "Mon, 14 Sep 2026 01:16:41 GMT",
+      "sample_hash": null
+    },
+    {
+      "id": "wai-aria-apg",
+      "ok": true,
+      "final_url": "https://www.w3.org/WAI/ARIA/apg/",
+      "etag": null,
+      "last_modified": "Sat, 12 Sep 2026 01:26:38 GMT",
+      "sample_hash": null
+    },
+    {
+      "id": "open-ui",
+      "ok": true,
+      "final_url": "https://open-ui.org/",
+      "etag": "\"de56d916aea076220a120da7e442d629-ssl-df\"",
+      "last_modified": null,
+      "sample_hash": null
+    }
+  ]
+}

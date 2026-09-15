@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { readdir, readFile } from "node:fs/promises";
-import { extname, join, resolve } from "node:path";
+import { dirname, extname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = resolve("platform_v2/src/ui");
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const root = resolve(repoRoot, "platform_v2/src/ui");
 const files = [];
 async function walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -29,7 +31,7 @@ for (const file of files) {
     if (!found.length) continue;
     matches[id].files += 1;
     matches[id].occurrences += found.length;
-    if (matches[id].examples.length < 5) matches[id].examples.push(file.replaceAll("\\", "/"));
+    if (matches[id].examples.length < 5) matches[id].examples.push(file.slice(repoRoot.length + 1).replaceAll("\\", "/"));
   }
 }
 const candidates = Object.entries(matches)

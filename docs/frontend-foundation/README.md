@@ -53,3 +53,7 @@ Reuse existing `platform_v2` Node tests and Playwright/visual checks. Do not add
 Create a cross-repository registry only after two or more repositories demonstrably reuse the same component and copy drift becomes a real maintenance cost.
 
 Until then, repository-owned source is canonical.
+
+## Continuous improvement
+
+`AUTOMATION.md` defines the bounded scout loop. Approved upstreams are tracked in `SOURCE_REGISTRY.json`; upstream change signals, repeated local implementations and Foundation contract drift are detected automatically, but external components are never auto-installed or auto-promoted.

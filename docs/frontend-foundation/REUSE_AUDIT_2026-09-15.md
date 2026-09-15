@@ -14,4 +14,4 @@ Observed repeated signals:
 
 Do not bulk-refactor these surfaces. The evidence is strong enough to make token/pattern drift a standing audit, but not strong enough to justify a new package or cross-repository component registry.
 
-Near-term promotion candidates are: shared spacing/token completion, sheet/dialog behavior reuse when those surfaces are next touched, and toast/async-state behavior where repeated implementations continue. Migration remains incremental and product-brand-local.
+The shared spacing scale is promoted now because the source contract already declares spacing shared and the runtime token layer lacked it. Sheet/dialog and toast/async-state behavior remain incremental promotion candidates when those surfaces are next touched. Product composition and brand remain local.

@@ -135,7 +135,10 @@
     "backfill:guide-non-biological-species": "tsx src/scripts/backfillGuideNonBiologicalSpecies.ts",
     "export:guide-correction-eval": "tsx src/scripts/exportGuideCorrectionEval.ts",
     "export:guide-hypothesis-eval": "tsx src/scripts/exportGuideHypothesisEvalSet.ts",
-    "rebuild:guide-environment-mesh": "tsx src/scripts/rebuildGuideEnvironmentMesh.ts"
+    "rebuild:guide-environment-mesh": "tsx src/scripts/rebuildGuideEnvironmentMesh.ts",
+    "frontend:scout": "node ../scripts/frontend-scout.mjs",
+    "frontend:audit": "node ../scripts/audit-frontend-reuse.mjs",
+    "frontend:drift": "node ../scripts/check-frontend-foundation-drift.mjs"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.2",
