@@ -4444,7 +4444,7 @@ const START_STATE_STYLES = `
   .start-guide-state-chip { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 999px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 13px; line-height: 1; font-weight: 900; }
   .start-guide-state-dot { width: 8px; height: 8px; border-radius: 999px; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.12); }
   .start-guide-browse-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
-  .start-guide-browse-actions .btn { min-height: 40px; padding: 9px 14px; }
+  .start-guide-browse-actions .btn { min-height: var(--ik-tap-target, 44px); padding: 9px 14px; }
   .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
   .start-guide-actions .btn-solid { min-width: 210px; }
   .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }

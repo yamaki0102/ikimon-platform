@@ -566,7 +566,7 @@ export const OBSERVATION_EVENT_STYLES = `
 .evt-quest-card .evt-quest-actions { display: flex; gap: 8px; }
 .evt-quest-card .evt-quest-actions button {
   flex: 1 1 auto;
-  min-height: 40px; padding: 8px 12px;
+  min-height: var(--ik-tap-target, 44px); padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid var(--evt-line);
   background: var(--evt-surface);
@@ -634,7 +634,7 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 .evt-mode-pill {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 12px; min-height: 38px;
+  padding: 8px 12px; min-height: var(--ik-tap-target, 44px);
   border-radius: 999px; border: 1px solid var(--evt-line);
   background: var(--evt-surface);
   font-size: 13px; font-weight: 700;
@@ -663,7 +663,7 @@ export const OBSERVATION_EVENT_STYLES = `
   width: max-content;
 }
 .evt-recap-tab {
-  padding: 8px 14px; min-height: 40px;
+  padding: 8px 14px; min-height: var(--ik-tap-target, 44px);
   min-width: 44px;
   border-radius: 999px;
   background: transparent; border: 0;
@@ -969,7 +969,7 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 .evt-land-cover-row input[type="range"] {
   width: 100%;
-  min-height: 32px;
+  min-height: var(--ik-tap-target, 44px);
   accent-color: var(--evt-accent-discovery);
 }
 .evt-land-cover-row output {

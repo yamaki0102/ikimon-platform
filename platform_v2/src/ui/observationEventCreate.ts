@@ -125,7 +125,7 @@ export function renderEventCreateBody(args: {
       <div class="evt-field-search">
         <div class="evt-field-search-row">
           <input data-evt-field-search type="search" placeholder="登録スポットを検索（例: 公園名・市区町村・マイフィールド）" />
-          <button type="button" class="evt-btn evt-btn-ghost" data-evt-field-search-run style="min-height:40px; padding:8px 14px;">検索</button>
+          <button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-evt-field-search-run>検索</button>
         </div>
         <div data-evt-field-search-results class="evt-field-search-results" style="display:none;"></div>
       </div>
@@ -1273,12 +1273,12 @@ export function eventCreateScript(): string {
       '<strong>似たフィールドがあります。今回の観察会ではどの範囲を使うか選んでください。</strong>' +
       '<span>既存: ' + escapeText(field?.name || "") + ' / 約 ' + Math.round(first.distanceM || first.distance_m || 0) + 'm</span>' +
       '<label style="display:grid;gap:4px;font-weight:700;font-size:12px;">別名で保存する場合' +
-      '<input data-evt-conflict-new-name placeholder="例: ' + escapeText((field?.name || "開催エリア") + "（公園側）") + '" style="min-height:40px;border:1px solid var(--evt-line);border-radius:12px;padding:8px 10px;" />' +
+      '<input data-evt-conflict-new-name placeholder="例: ' + escapeText((field?.name || "開催エリア") + "（公園側）") + '" style="min-height:var(--ik-tap-target,44px);border:1px solid var(--evt-line);border-radius:12px;padding:8px 10px;" />' +
       '</label>' +
       '<div class="evt-area-conflict-actions">' +
-      '<button type="button" class="evt-btn evt-btn-ghost" data-conflict-action="use_existing" style="min-height:36px;padding:6px 12px;">既存フィールドを使う</button>' +
-      '<button type="button" class="evt-btn evt-btn-ghost" data-conflict-action="update_existing" style="min-height:36px;padding:6px 12px;">範囲を更新する</button>' +
-      '<button type="button" class="evt-btn evt-btn-primary" data-conflict-action="save_as_new" style="min-height:36px;padding:6px 12px;">別名で保存する</button>' +
+      '<button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-conflict-action="use_existing" style="padding:6px 12px;">既存フィールドを使う</button>' +
+      '<button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-conflict-action="update_existing" style="padding:6px 12px;">範囲を更新する</button>' +
+      '<button type="button" class="ik-ui-action evt-btn evt-btn-primary" data-conflict-action="save_as_new" style="padding:6px 12px;">別名で保存する</button>' +
       '</div>';
     conflictBox.appendChild(wrap);
     wrap.querySelectorAll("[data-conflict-action]").forEach(btn => {
