@@ -1,5 +1,6 @@
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "./photoUploadPreparation.js";
 import { APP_EXPERIENCE_LAYOUT_STYLES, isAppExperiencePath, ZUKAN_DESIGN_FOUNDATION_STYLES } from "./appExperience.js";
+import { FRONTEND_FOUNDATION_CSS } from "./frontendFoundation.js";
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
@@ -1256,23 +1257,23 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   const eventsCurrent = pathname === "/community/events" || pathname.startsWith("/community/events/");
   return `<nav class="global-record-launcher" aria-label="${escapeHtml(copy.navLabel)}">
     <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*" multiple hidden />
-    <a class="global-record-choice${homeCurrent ? " is-active" : ""}" href="${escapeHtml(homeHref)}"${homeCurrent ? ' aria-current="page"' : ""}>
+    <a class="global-record-choice${homeCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(homeHref)}"${homeCurrent ? ' aria-current="page"' : ""}>
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg></span>
       <span>${escapeHtml(copy.home)}</span>
     </a>
-    <a class="global-record-choice${recordsCurrent ? " is-active" : ""}" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${recordsCurrent ? ' aria-current="page"' : ""}>
+    <a class="global-record-choice${recordsCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${recordsCurrent ? ' aria-current="page"' : ""}>
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
       <span>${escapeHtml(copy.records)}</span>
     </a>
-    <button type="button" class="global-record-choice is-primary" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="capture_nav" aria-haspopup="dialog" aria-label="${escapeHtml(copy.captureAria)}">
+    <button type="button" class="global-record-choice is-primary ik-ui-action" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="capture_nav" aria-haspopup="dialog" aria-label="${escapeHtml(copy.captureAria)}">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
       <span>${escapeHtml(copy.photo)}</span>
     </button>
-    <a class="global-record-choice${placesCurrent ? " is-active" : ""}" href="${escapeHtml(placesHref)}"${placesCurrent ? ' aria-current="page"' : ""}>
+    <a class="global-record-choice${placesCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(placesHref)}"${placesCurrent ? ' aria-current="page"' : ""}>
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></svg></span>
       <span>${escapeHtml(copy.places)}</span>
     </a>
-    <a class="global-record-choice${eventsCurrent ? " is-active" : ""}" href="${escapeHtml(eventsHref)}"${eventsCurrent ? ' aria-current="page"' : ""}>
+    <a class="global-record-choice${eventsCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(eventsHref)}"${eventsCurrent ? ' aria-current="page"' : ""}>
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5"/></svg></span>
       <span>${escapeHtml(copy.events)}</span>
     </a>
@@ -3661,6 +3662,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     ? (lang === "ja" ? "地図" : lang === "es" ? "Mapa" : lang === "pt-BR" ? "Mapa" : "Map")
     : defaultSrOnlyHeading;
   const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingPage ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}${isMapSurface ? " is-map-surface" : ""}${minimalChrome ? " is-minimal-chrome" : ""}`;
+  const foundationStyles = options.extraStyles?.includes("--ik-motion-fast") ? "" : FRONTEND_FOUNDATION_CSS;
   const appLaunchHeadScript = `<script>
 (function () {
   try {
@@ -7345,6 +7347,7 @@ ${alternateLinks}
         bottom: calc(max(14px, env(safe-area-inset-bottom)) + 176px);
       }
     }
+    ${foundationStyles}
     ${ZUKAN_DESIGN_FOUNDATION_STYLES}
     ${options.publicContextHtml ? PUBLIC_CONTEXT_STYLES : ""}
     ${options.extraStyles ?? ""}
