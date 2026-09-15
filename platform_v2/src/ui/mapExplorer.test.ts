@@ -154,7 +154,7 @@ test("failed map init is cleaned before fallback and interactions stay enabled",
     addControl() {} on() {} remove() {}
   }
   const context = vm.createContext({ root, state: { basemap: "satellite", map: null, mapHydrationStarted: false, _restoredCenter: null, _restoredZoom: null }, BASEMAPS: { satellite: {}, standard: {} }, DEFAULT_MAP_CENTER: [137,35], DEFAULT_MAP_ZOOM: 8,
-    initialStartupViewport: () => ({ center: [137,35], zoom: 8 }), console: { error() {} }, dismissPurposeHint() {}, dismissStartPanel() {}, clearSuppressedViewportSearch() {}, scheduleInitialMapDataLoad() {}, saveMapState() {}, window: { maplibregl: { Map: FakeMap, NavigationControl: class {} } }, showMapLoadFailure() {} });
+    initialStartupViewport: () => ({ center: [137,35], zoom: 8 }), console: { error() {} }, dismissPurposeHint() {}, dismissStartPanel() {}, clearSuppressedViewportSearch() {}, scheduleInitialMapDataLoad() {}, scheduleMapStateSave() {}, saveMapState() {}, window: { maplibregl: { Map: FakeMap, NavigationControl: class {} } }, showMapLoadFailure() {} });
   new vm.Script(section + "\nhydrate(); hydrate();").runInContext(context);
   assert.equal(attempts, 2); assert.equal(children.length, 0); assert.equal(context.state.mapHydrationStarted, true);
   assert.deepEqual(enabled.sort(), ["boxZoom","doubleClickZoom","dragPan","keyboard","scrollZoom","touchZoomRotate"].sort());
@@ -712,6 +712,7 @@ test("map interactions persist the shareable viewport when moveend is absent", (
     script.indexOf("// Empty-point tap"),
   );
 
+  assert.match(interactionBody, /state\.map\.on\('move', scheduleMapStateSave\);/);
   assert.match(interactionBody, /state\.map\.on\('dragend', saveMapState\);/);
   assert.match(interactionBody, /state\.map\.on\('zoomend', saveMapState\);/);
 });

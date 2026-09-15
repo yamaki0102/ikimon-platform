@@ -9139,6 +9139,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  var mapStateSaveFrame = null;
+
   function saveMapState() {
     var s = serializeMapState();
     try {
@@ -9220,6 +9222,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         }
       });
     }
+  }
+
+  function scheduleMapStateSave() {
+    if (mapStateSaveFrame !== null) return;
+    var flush = function () {
+      mapStateSaveFrame = null;
+      saveMapState();
+    };
+    if (window.requestAnimationFrame) mapStateSaveFrame = window.requestAnimationFrame(flush);
+    else mapStateSaveFrame = window.setTimeout(flush, 0);
   }
 
   function syncUiFromState() {
@@ -9576,6 +9588,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     // Some provider/browser combinations finish drag or zoom without emitting
     // MapLibre's aggregate moveend event. Persist the shareable viewport at
     // the gesture boundary so the URL still follows real map interactions.
+    state.map.on('move', scheduleMapStateSave);
     state.map.on('dragend', saveMapState);
     state.map.on('zoomend', saveMapState);
     state.map.on('dragstart', clearSuppressedViewportSearch);
