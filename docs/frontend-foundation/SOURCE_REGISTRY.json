@@ -1,0 +1,17 @@
+{
+  "schema_version": "ikimon.frontend-source-registry.v1",
+  "updated_at": "2026-09-15",
+  "policy": {"default_check_interval_days": 7, "auto_adopt": false, "candidate_threshold": "material_change_only"},
+  "sources": [
+    {"id":"transitions-dev","name":"transitions.dev","status":"APPROVED","url":"https://www.transitions.dev/","watch_mode":"headers","uses":["motion","css-patterns"]},
+    {"id":"shadcn-ui","name":"shadcn/ui","status":"APPROVED","url":"https://ui.shadcn.com/","watch_url":"https://ui.shadcn.com/docs/changelog","watch_mode":"sample_hash","uses":["component-reference","registry-model","chat-patterns"]},
+    {"id":"base-ui","name":"Base UI","status":"APPROVED","url":"https://base-ui.com/","watch_url":"https://api.github.com/repos/mui/base-ui/tags?per_page=5","watch_mode":"sample_hash","uses":["accessible-primitives"]},
+    {"id":"react-aria","name":"React Aria","status":"APPROVED","url":"https://react-spectrum.adobe.com/react-aria/","watch_mode":"headers","uses":["accessibility","interaction","i18n"]},
+    {"id":"radix-ui","name":"Radix UI","status":"APPROVED","url":"https://www.radix-ui.com/","watch_url":"https://api.github.com/repos/radix-ui/primitives/tags?per_page=5","watch_mode":"sample_hash","uses":["primitive-behavior"]},
+    {"id":"motion","name":"Motion","status":"APPROVED","url":"https://motion.dev/","watch_url":"https://api.github.com/repos/motiondivision/motion/tags?per_page=5","watch_mode":"sample_hash","uses":["complex-motion","gesture"]},
+    {"id":"21st-dev","name":"21st.dev","status":"APPROVED","url":"https://21st.dev/","watch_mode":"headers","uses":["component-discovery"]},
+    {"id":"mdn","name":"MDN Web Docs","status":"APPROVED","url":"https://developer.mozilla.org/","watch_mode":"headers","uses":["native-platform","accessibility"]},
+    {"id":"wai-aria-apg","name":"WAI-ARIA APG","status":"APPROVED","url":"https://www.w3.org/WAI/ARIA/apg/","watch_mode":"headers","uses":["keyboard","aria-contracts"]},
+    {"id":"open-ui","name":"Open UI","status":"APPROVED","url":"https://open-ui.org/","watch_mode":"headers","uses":["emerging-native-semantics"]}
+  ]
+}
