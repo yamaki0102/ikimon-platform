@@ -11661,9 +11661,39 @@ async function getPersonalAlerts(session: SessionSnapshot, env: Env): Promise<Re
       ORDER BY created_at DESC
       LIMIT 100`
   ).bind(session.userId).all<PersonalAlertRow>();
+  const areaOccurrenceIds = [...new Set(
+    rows.results
+      .filter((row) => row.trigger_kind === "area_watch")
+      .map((row) => row.occurrence_id)
+      .filter((value): value is string => Boolean(value))
+  )];
+  let activePublicAreaOccurrences = new Set<string>();
+  if (areaOccurrenceIds.length > 0) {
+    try {
+      const placeholders = areaOccurrenceIds.map(() => "?").join(", ");
+      const rights = await env.OBS_DB.prepare(
+        `SELECT occurrence_id
+           FROM observation_data_rights
+          WHERE occurrence_id IN (${placeholders})
+            AND withdrawal_status = 'active'
+            AND record_consent IN ('public_summary', 'external_export')`
+      ).bind(...areaOccurrenceIds).all<{ occurrence_id: string }>();
+      activePublicAreaOccurrences = new Set(
+        rights.results
+          .map((row) => row.occurrence_id)
+          .filter((value): value is string => Boolean(value))
+      );
+    } catch {
+      // A rights read failure must not resurface an old public-area alert.
+      activePublicAreaOccurrences = new Set();
+    }
+  }
+  const visibleRows = rows.results.filter((row) =>
+    row.trigger_kind !== "area_watch" || activePublicAreaOccurrences.has(row.occurrence_id)
+  );
   return json({
     ok: true,
-    alerts: rows.results.map((row) => ({
+    alerts: visibleRows.map((row) => ({
       deliveryId: row.delivery_id,
       occurrenceId: row.occurrence_id,
       triggerKind: row.trigger_kind,

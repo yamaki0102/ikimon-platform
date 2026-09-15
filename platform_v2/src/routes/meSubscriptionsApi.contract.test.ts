@@ -37,3 +37,16 @@ test("area Watch stop is durable and idempotent instead of deleting its target h
   assert.match(del, /updated_at = NOW\(\)/iu);
   assert.doesNotMatch(del, /DELETE FROM user_area_subscriptions/iu);
 });
+
+test("area Watch alerts disappear from the read surface when public rights are withdrawn", () => {
+  const alerts = routeBlock(
+    'app.get("/api/v1/me/alerts"',
+    'app.post("/api/v1/me/alerts/:id/acknowledge"',
+  );
+
+  assert.match(alerts, /LEFT JOIN occurrences o/iu);
+  assert.match(alerts, /d\.trigger_kind <> 'area_watch'/iu);
+  assert.match(alerts, /FROM observation_data_rights rights/iu);
+  assert.match(alerts, /rights\.withdrawal_status = 'active'/iu);
+  assert.match(alerts, /rights\.record_consent IN \('public_summary', 'external_export'\)/iu);
+});

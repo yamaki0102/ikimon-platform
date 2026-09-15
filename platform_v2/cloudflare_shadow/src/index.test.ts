@@ -7489,6 +7489,18 @@ class FakeStatement {
         .slice(0, 100);
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT occurrence_id FROM observation_data_rights WHERE occurrence_id IN")) {
+      const occurrenceIds = new Set(this.values.map(string));
+      const rows = [...this.db.observationDataRights.values()]
+        .filter((row) =>
+          row.occurrence_id !== null &&
+          occurrenceIds.has(row.occurrence_id) &&
+          row.withdrawal_status === "active" &&
+          (row.record_consent === "public_summary" || row.record_consent === "external_export")
+        )
+        .map((row) => ({ occurrence_id: row.occurrence_id }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT delivery_id FROM alert_deliveries WHERE user_id = ? AND delivery_id IN")) {
       const ids = this.values.slice(1).map((value) => string(value));
       const rows = [...this.db.alertDeliveries.values()]
@@ -12448,7 +12460,7 @@ test("production personal runtime returns native guest auth boundary without ori
 });
 
 test("production personal runtime serves signed-in data from Cloudflare D1 without origin fallback", async () => {
-  const { env, core } = createEnv();
+  const { env, core, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
@@ -12508,6 +12520,18 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
     acknowledged_at: null,
     created_at: "2026-06-16T00:00:00.000Z"
   });
+  obs.observationDataRights.set("rights-1", {
+    visit_id: "visit-1",
+    occurrence_id: "occ-1",
+    record_consent: "public_summary",
+    research_use_consent: "none",
+    enterprise_report_consent: "none",
+    dataset_license: null,
+    media_license: null,
+    external_export_allowed: 0,
+    withdrawal_status: "active",
+    source_payload_json: "{}"
+  });
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
   globalThis.fetch = (async () => {
@@ -12522,6 +12546,15 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
     assert.equal(response.ok, true, JSON.stringify(payload));
     assert.equal(payload.alerts[0].deliveryId, "alert-1");
     assert.equal(payload.alerts[0].payload.title, "新しい記録");
+
+    obs.observationDataRights.get("rights-1")!.withdrawal_status = "withdrawn";
+    const withdrawnResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/alerts", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const withdrawnPayload = await withdrawnResponse.json() as any;
+    assert.equal(withdrawnResponse.ok, true, JSON.stringify(withdrawnPayload));
+    assert.deepEqual(withdrawnPayload.alerts, []);
+    obs.observationDataRights.get("rights-1")!.withdrawal_status = "active";
 
     const menuResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/personalized-menu?limit=8", {
       headers: { cookie: `ikimon_v2_session=${rawToken}` }
