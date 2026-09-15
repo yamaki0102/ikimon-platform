@@ -8086,7 +8086,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name', 'area-polygon-selected-halo', 'area-polygon-selected']);
       showLegend(COPY.areaTrustLegendLow, COPY.areaTrustLegendHigh,
         'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)', 'areas');
-      loadWaterwayHints();
     } else if (tab === 'rain') {
       moveToTop(['jma-rain-nowcast-layer', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name']);
       hideLegend();
@@ -8296,7 +8295,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function loadWaterwayHints() {
-    if (!state.map || (state.tab !== 'places' && state.tab !== 'rain')) return;
+    if (!state.map || state.tab !== 'rain') return;
     if (state.map.getZoom() < 12.8) {
       emptyWaterwayHints();
       return;
@@ -8566,6 +8565,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var qs = '?bbox=' + encodeURIComponent(bbox) + '&zoom=' + encodeURIComponent(zoom.toFixed(2));
     var selectedSources = areaSourcesQueryValueForMap();
     if (selectedSources) qs += '&sources=' + encodeURIComponent(selectedSources);
+    var liveOsmDiscovery = Number(state.namedAreaDiscoveryUntil || 0) > Date.now()
+      && selectedSources.split(',').indexOf('osm_named_area') >= 0;
+    if (liveOsmDiscovery) qs += '&live_osm=1';
     fetch(apiAreaPolygons + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (collection) {

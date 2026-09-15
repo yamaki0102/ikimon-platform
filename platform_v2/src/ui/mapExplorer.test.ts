@@ -80,6 +80,14 @@ test("search failure keeps available results and offers only an explicit retry",
   assert.deepEqual(queries, ["公園"]);
 });
 
+test("normal map movement keeps live OSM off the interaction path", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  assert.match(script, /liveOsmDiscovery[\s\S]*live_osm=1/);
+  assert.match(script, /function loadWaterwayHints\(\) \{\n    if \(!state\.map \|\| state\.tab !== 'rain'\) return;/);
+  const placesBranch = script.slice(script.indexOf("} else if (tab === 'places')"), script.indexOf("} else if (tab === 'rain')"));
+  assert.doesNotMatch(placesBranch, /loadWaterwayHints\(\)/);
+});
+
 test("map explorer boot script is syntactically valid JavaScript", () => {
   const scriptHtml = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const script = scriptHtml.replace(/^<script>/, "").replace(/<\/script>$/, "");
