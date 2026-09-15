@@ -29375,6 +29375,25 @@ type LegacyObservationIdempotencyRow = {
 const LEGACY_IDEMPOTENCY_WAIT_ATTEMPTS = 40;
 const LEGACY_IDEMPOTENCY_WAIT_MS = 25;
 
+function legacyObservationAreaWatchPayload(input: LegacyObservationUpsertInput): Record<string, unknown> {
+  const sourcePayload = asPlainObject(input.sourcePayload) ?? {};
+  const civicContext = asPlainObject(input.civicContext) ?? {};
+  const civicSourcePayload = asPlainObject(civicContext.sourcePayload ?? civicContext.source_payload) ?? {};
+  const clientPhotoHashes = Array.isArray(sourcePayload.client_photo_sha256s)
+    ? sourcePayload.client_photo_sha256s.filter((value): value is string => typeof value === "string")
+    : [];
+  return {
+    region_id: normalizeOptionalText(input.regionId ?? sourcePayload.region_id ?? sourcePayload.regionId ?? civicSourcePayload.region_id ?? civicSourcePayload.regionId),
+    prefecture: normalizeOptionalText(input.prefecture ?? sourcePayload.prefecture ?? sourcePayload.observed_prefecture ?? civicSourcePayload.prefecture ?? civicSourcePayload.observed_prefecture),
+    municipality: normalizeOptionalText(input.municipality ?? sourcePayload.municipality ?? sourcePayload.observed_municipality ?? civicSourcePayload.municipality ?? civicSourcePayload.observed_municipality),
+    field_id: normalizeOptionalText(civicContext.fieldId ?? civicContext.field_id ?? sourcePayload.field_id ?? sourcePayload.fieldId ?? civicSourcePayload.field_id ?? civicSourcePayload.fieldId),
+    client_photo_sha256s: clientPhotoHashes,
+    complete_checklist_flag: sourcePayload.complete_checklist_flag === true,
+    effort_minutes: numberOrNull(sourcePayload.effort_minutes),
+    distance_meters: numberOrNull(sourcePayload.distance_meters),
+  };
+}
+
 function normalizeCompatibleClientSubmissionId(value: unknown): string | null {
   const text = normalizeOptionalText(value);
   if (!text) return null;
@@ -29663,9 +29682,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       JSON.stringify({
         source: "cloudflare_observation_write",
         observation_id: normalizeOptionalId(input.observationId),
-        client_photo_sha256s: Array.isArray(input.sourcePayload?.client_photo_sha256s)
-          ? input.sourcePayload?.client_photo_sha256s.filter((value): value is string => typeof value === "string")
-          : []
+        ...legacyObservationAreaWatchPayload(input)
       })
     ).run();
     const reservationChanges = Number((reservation as { meta?: { changes?: unknown } } | null)?.meta?.changes);
@@ -31049,11 +31066,15 @@ function buildObservationCivicContextNative(
   visitId: string,
   occurrenceId: string | null
 ): NativeCivicObservationContext | null {
+  const areaWatchPayload = legacyObservationAreaWatchPayload(input);
   const explicit = asPlainObject(input.civicContext);
   if (explicit) {
     return normalizeObservationCivicContextNative({
       ...explicit,
-      sourcePayload: asPlainObject(explicit.sourcePayload ?? explicit.source_payload) ?? {}
+      sourcePayload: {
+        ...(asPlainObject(explicit.sourcePayload ?? explicit.source_payload) ?? {}),
+        ...areaWatchPayload
+      }
     }, visitId, occurrenceId);
   }
   const hasEvent = typeof input.eventSessionId === "string" || typeof input.eventCode === "string";
@@ -31067,6 +31088,7 @@ function buildObservationCivicContextNative(
     eventSessionId: input.eventSessionId ?? null,
     eventCode: input.eventCode ?? null,
     sourcePayload: {
+      ...areaWatchPayload,
       derived: true,
       event_session_id: input.eventSessionId ?? null,
       event_code: input.eventCode ?? null
@@ -31319,17 +31341,13 @@ async function applyMediaJob(job: MediaJob, env: Env): Promise<void> {
   if (job.topic === "media.process") {
     await markUploadedAssetsPublicReady(job.targetId, env);
     await refreshPublicReadmodel(job.targetId, env);
-    await enqueueD1AreaWatchNotificationsForStoredObservation(job.targetId, env).catch((error) => {
-      console.error("[area-watch] media-ready notification retry failed", error);
-    });
+    await enqueueD1AreaWatchNotificationsForStoredObservation(job.targetId, env);
     return;
   }
 
   if (job.topic === "readmodel.refresh") {
     await refreshPublicReadmodel(job.targetId, env);
-    await enqueueD1AreaWatchNotificationsForStoredObservation(job.targetId, env).catch((error) => {
-      console.error("[area-watch] readmodel notification retry failed", error);
-    });
+    await enqueueD1AreaWatchNotificationsForStoredObservation(job.targetId, env);
     return;
   }
 

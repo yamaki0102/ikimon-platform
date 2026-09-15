@@ -359,9 +359,12 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
       const signals = payload.watchSignals && typeof payload.watchSignals === 'object' && !Array.isArray(payload.watchSignals)
         ? payload.watchSignals
         : {};
+      const hasNumericSignal = (value) =>
+        (typeof value === 'number' && Number.isFinite(value))
+        || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)));
       const signalText = signals.completeChecklist === true
         ? copy.signalChecklist
-        : Number.isFinite(Number(signals.effortMinutes)) || Number.isFinite(Number(signals.distanceMeters))
+        : hasNumericSignal(signals.effortMinutes) || hasNumericSignal(signals.distanceMeters)
           ? copy.signalEffort
           : signals.hasPhoto === true
             ? copy.signalPhoto

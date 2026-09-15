@@ -7733,7 +7733,16 @@ class FailFirstAreaWatchInsertStatement extends FakeStatement {
 }
 
 class FailFirstAreaWatchInsertD1 extends FakeD1 {
-  private failNextAreaWatchInsert = true;
+  private failNextAreaWatchInsert: boolean;
+
+  constructor(failFirstAreaWatchInsert = true) {
+    super();
+    this.failNextAreaWatchInsert = failFirstAreaWatchInsert;
+  }
+
+  failNextAreaWatchInsertNow(): void {
+    this.failNextAreaWatchInsert = true;
+  }
 
   override prepare(query: string): FakeStatement {
     if (this.failNextAreaWatchInsert && normalize(query).startsWith("INSERT OR IGNORE INTO alert_deliveries")) {
@@ -12942,7 +12951,10 @@ test("Cloudflare observation writes emit area-watch deliveries for matching acti
 });
 
 test("Cloudflare public photo alerts wait for a verified derivative and replay after media processing", async () => {
-  const { env, core, obs } = createEnv();
+  const base = createEnv();
+  const core = new FailFirstAreaWatchInsertD1(false);
+  const obs = base.obs;
+  const env = { ...base.env, CORE_DB: core };
   core.areaSubscriptions.set("area-watch-photo-target", {
     subscription_id: "area-watch-photo-target",
     user_id: "photo-watcher-user",
@@ -12950,6 +12962,17 @@ test("Cloudflare public photo alerts wait for a verified derivative and replay a
     target_id: "place:34.71,137.81",
     label: "写真待ちの観察地",
     href: "/map?place=place%3A34.71%2C137.81",
+    is_active: 1,
+    created_at: "2026-06-15T00:00:00.000Z",
+    updated_at: "2026-06-16T00:00:00.000Z"
+  });
+  core.areaSubscriptions.set("area-watch-photo-region-target", {
+    subscription_id: "area-watch-photo-region-target",
+    user_id: "photo-region-watcher-user",
+    target_type: "region",
+    target_id: "region:photo-ready",
+    label: "写真待ちの地域",
+    href: "/map?region=region%3Aphoto-ready",
     is_active: 1,
     created_at: "2026-06-15T00:00:00.000Z",
     updated_at: "2026-06-16T00:00:00.000Z"
@@ -12962,6 +12985,7 @@ test("Cloudflare public photo alerts wait for a verified derivative and replay a
     latitude: 34.71234,
     longitude: 137.81234,
     siteId: "place:34.71,137.81",
+    regionId: "region:photo-ready",
     taxon: { vernacularName: "公開写真テスト", rank: "species" },
     visibility: "public",
     dataRights: { recordConsent: "public_summary", withdrawalStatus: "active" },
@@ -12990,10 +13014,15 @@ test("Cloudflare public photo alerts wait for a verified derivative and replay a
     public_ready_at: "2026-06-15T03:00:00.000Z"
   });
 
+  (core as FailFirstAreaWatchInsertD1).failNextAreaWatchInsertNow();
+  await assert.rejects(
+    worker.queue({ messages: [{ body: { outboxId: "area-watch-photo-media", topic: "media.process", targetId: "area-watch-photo-observation" } }] }, env),
+    /area-watch delivery write unavailable/
+  );
   await worker.queue({ messages: [{ body: { outboxId: "area-watch-photo-media", topic: "media.process", targetId: "area-watch-photo-observation" } }] }, env);
   const deliveries = [...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
-  assert.equal(deliveries.length, 1);
-  assert.equal(deliveries[0]?.user_id, "photo-watcher-user");
+  assert.equal(deliveries.length, 2);
+  assert.deepEqual(new Set(deliveries.map((row) => row.user_id)), new Set(["photo-watcher-user", "photo-region-watcher-user"]));
 });
 
 test("Cloudflare idempotent observation replay retries an area-watch delivery after the initial cross-D1 write fails", async () => {
