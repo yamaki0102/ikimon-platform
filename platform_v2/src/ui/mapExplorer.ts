@@ -2563,6 +2563,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     tracesVisible: false,
     map: null,
     maplibreRuntime: null,
+    mapHydrationStarted: false,
     features: [],
     records: [],
     myObservations: [],
@@ -9468,8 +9469,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     run();
   }
 
+  function cleanupFailedMapInit() {
+    try { if (state.map && typeof state.map.remove === 'function') state.map.remove(); } catch (_) {}
+    state.map = null;
+    if (!root) return;
+    Array.prototype.slice.call(root.querySelectorAll('.maplibregl-canvas-container, .maplibregl-control-container')).forEach(function (node) {
+      try { node.remove(); } catch (_) { if (node.parentNode) node.parentNode.removeChild(node); }
+    });
+    try { root.classList.remove('maplibregl-map'); } catch (_) {}
+  }
+
+  function enableMapInteractions() {
+    if (!state.map) return;
+    ['dragPan', 'scrollZoom', 'doubleClickZoom', 'boxZoom', 'keyboard', 'touchZoomRotate'].forEach(function (key) {
+      var handler = state.map[key];
+      if (handler && typeof handler.enable === 'function') { try { handler.enable(); } catch (_) {} }
+    });
+  }
+
   function hydrate() {
-    if (!window.maplibregl) { showMapLoadFailure(); return; }
+    if (state.mapHydrationStarted || state.map) return;
+    state.mapHydrationStarted = true;
+    if (!window.maplibregl) { state.mapHydrationStarted = false; showMapLoadFailure(); return; }
     var startupViewport = initialStartupViewport();
     try {
       state.maplibreRuntime = window.maplibregl;
@@ -9482,6 +9503,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
     } catch (err) {
       try { console.error('[map] init failed', err); } catch (_) {}
+      cleanupFailedMapInit();
       state._restoredCenter = null;
       state._restoredZoom = null;
       try {
@@ -9494,10 +9516,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           attributionControl: true,
         });
       } catch (err2) {
+        cleanupFailedMapInit();
+        state.mapHydrationStarted = false;
         showMapLoadFailure();
         return;
       }
     }
+    enableMapInteractions();
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     state.map.on('click', dismissPurposeHint);
     state.map.on('click', dismissStartPanel);

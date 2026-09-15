@@ -54,6 +54,11 @@ async function waitForMapPerformanceSummary(
 ): Promise<MapPerfSummary> {
   const context = await newStagingContext(browser, profile);
   const page = await context.newPage();
+  const webglAvailable = await page.evaluate(() => {
+    const probe = document.createElement("canvas");
+    return Boolean(probe.getContext("webgl2") || probe.getContext("webgl"));
+  });
+  test.skip(!webglAvailable, "Playwright browser has no WebGL context; runtime interaction is not classified in this environment");
 
   const startedAt = Date.now();
   let firstMapApi: MapPerfMarker | null = null;
@@ -127,33 +132,69 @@ async function waitForMapPerformanceSummary(
   return summary;
 }
 
-test("normal places movement stays off live OSM critical path", async ({ browser }) => {
-  const profile = MAP_VIEWPORTS.find((item) => item.slug === "desktop-1280") ?? MAP_VIEWPORTS[0]!;
-  const context = await newStagingContext(browser, profile);
-  const page = await context.newPage();
-  const externalOverpass: string[] = [];
-  const liveOsmViewportRequests: string[] = [];
-  page.on("request", (request) => {
-    const url = request.url();
-    if (/overpass-api\.de\/api\/interpreter/i.test(url)) externalOverpass.push(url);
-    if (/\/api\/v1\/map\/area-polygons\b/.test(url) && new URL(url).searchParams.get("live_osm") === "1") liveOsmViewportRequests.push(url);
+type UrlViewportState = { lng: number; lat: number; z: number };
+
+async function readUrlViewport(page: import("@playwright/test").Page): Promise<UrlViewportState> {
+  return page.evaluate(() => {
+    const url = new URL(window.location.href);
+    return {
+      lng: Number(url.searchParams.get("lng")),
+      lat: Number(url.searchParams.get("lat")),
+      z: Number(url.searchParams.get("z")),
+    };
   });
-  const response = await page.goto("/map?tab=places&bm=esri&lng=137.8589&lat=34.7219&z=13.6", { waitUntil: "domcontentloaded" });
-  expect(response?.status() ?? 0).toBeLessThan(400);
-  const canvas = page.locator(".maplibregl-canvas");
-  await expect(canvas).toBeVisible({ timeout: 8_000 });
-  await page.waitForTimeout(900);
-  const box = await canvas.boundingBox();
-  expect(box).not.toBeNull();
-  await page.mouse.move(box!.x + box!.width * 0.65, box!.y + box!.height * 0.5);
-  await page.mouse.down();
-  await page.mouse.move(box!.x + box!.width * 0.45, box!.y + box!.height * 0.5, { steps: 8 });
-  await page.mouse.up();
-  await page.waitForTimeout(1_400);
-  expect(externalOverpass).toEqual([]);
-  expect(liveOsmViewportRequests).toEqual([]);
-  await context.close();
-});
+}
+
+function centerChanged(before: UrlViewportState, after: UrlViewportState): boolean {
+  return Math.abs(after.lng - before.lng) > 0.00001 || Math.abs(after.lat - before.lat) > 0.00001;
+}
+
+for (const profileName of ["desktop-1440", "mobile-390"] as const) {
+  test(`map interaction changes real viewport state (${profileName})`, async ({ browser }) => {
+    const profile = MAP_VIEWPORTS.find((item) => item.slug === profileName)!;
+    const context = await newStagingContext(browser, profile);
+    const page = await context.newPage();
+    const webglAvailable = await page.evaluate(() => {
+      const probe = document.createElement("canvas");
+      return Boolean(probe.getContext("webgl2") || probe.getContext("webgl"));
+    });
+    test.skip(!webglAvailable, "Playwright browser has no WebGL context; runtime interaction is not classified in this environment");
+    const initErrors: string[] = [];
+    const externalOverpass: string[] = [];
+    const liveOsmViewportRequests: string[] = [];
+    page.on("console", (message) => {
+      const text = message.text();
+      if (/\[map\] init failed|Failed to initialize WebGL|Could not create a WebGL context/i.test(text)) initErrors.push(text);
+    });
+    page.on("request", (request) => {
+      const url = request.url();
+      if (/overpass-api\.de\/api\/interpreter/i.test(url)) externalOverpass.push(url);
+      if (/\/api\/v1\/map\/area-polygons\b/.test(url) && new URL(url).searchParams.get("live_osm") === "1") liveOsmViewportRequests.push(url);
+    });
+    const response = await page.goto("/map?tab=places&bm=esri&lng=137.8589&lat=34.7219&z=13.6", { waitUntil: "domcontentloaded" });
+    expect(response?.status() ?? 0).toBeLessThan(400);
+    const canvas = page.locator(".maplibregl-canvas");
+    await expect(canvas).toHaveCount(1, { timeout: 8_000 });
+    await expect(canvas).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator(".maplibregl-canvas-container")).toHaveCount(1);
+    await expect(page.locator(".maplibregl-control-container")).toHaveCount(1);
+    const beforeDrag = await readUrlViewport(page);
+    const box = await canvas.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(box!.x + box!.width * 0.68, box!.y + box!.height * 0.52);
+    await page.mouse.down();
+    await page.mouse.move(box!.x + box!.width * 0.40, box!.y + box!.height * 0.52, { steps: 12 });
+    await page.mouse.up();
+    await expect.poll(async () => centerChanged(beforeDrag, await readUrlViewport(page)), { timeout: 5_000 }).toBe(true);
+    const beforeZoom = await readUrlViewport(page);
+    await page.locator(".maplibregl-ctrl-zoom-in").click();
+    await expect.poll(async () => (await readUrlViewport(page)).z, { timeout: 5_000 }).not.toBe(beforeZoom.z);
+    expect(initErrors, `MapLibre init errors: ${initErrors.join(" | ")}`).toEqual([]);
+    expect(externalOverpass).toEqual([]);
+    expect(liveOsmViewportRequests).toEqual([]);
+    await context.close();
+  });
+}
 
 for (const profile of MAP_PERFORMANCE_PROFILES) {
   test(`map initial load stays within the UX guardrail (${profile.slug})`, async ({ browser }) => {
