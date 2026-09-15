@@ -61,9 +61,12 @@ for (const source of registry.sources) {
   if (previous) {
     if (previous.ok && !result.ok) changedSignals.push("availability_lost");
     if (previous.final_url && result.final_url && previous.final_url !== result.final_url) changedSignals.push("redirect_changed");
-    if (previous.etag && result.etag && previous.etag !== result.etag) changedSignals.push("etag_changed");
-    if (previous.last_modified && result.last_modified && previous.last_modified !== result.last_modified) changedSignals.push("last_modified_changed");
-    if (previous.sample_hash && result.sample_hash && previous.sample_hash !== result.sample_hash) changedSignals.push("sample_hash_changed");
+    if (source.watch_mode === "sample_hash") {
+      if (previous.sample_hash && result.sample_hash && previous.sample_hash !== result.sample_hash) changedSignals.push("sample_hash_changed");
+    } else {
+      if (previous.etag && result.etag && previous.etag !== result.etag) changedSignals.push("etag_changed");
+      if (previous.last_modified && result.last_modified && previous.last_modified !== result.last_modified) changedSignals.push("last_modified_changed");
+    }
   }
   result.changed_signals = [...new Set(changedSignals)];
   results.push(result);
