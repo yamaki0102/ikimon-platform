@@ -106,6 +106,7 @@ body[data-zukan-app-experience] .site-shell>.shell{margin-left:auto;margin-right
 body[data-zukan-app-experience] .site-header{position:sticky;top:0;z-index:80;background:#fff;border-bottom:1px solid var(--zukan-line);backdrop-filter:none}
 body[data-zukan-app-experience] .site-header-inner{display:flex!important;align-items:center;justify-content:space-between;height:72px;max-width:1248px;margin:auto;padding:0 24px;gap:24px}
 body[data-zukan-app-experience] .home-header-actions.is-member{display:none}
+body[data-zukan-app-experience] .home-header-login{min-height:var(--zukan-control-min);display:inline-flex;align-items:center;justify-content:center;padding-inline:12px}
 body[data-zukan-app-experience] [data-home-auth-state=member] .home-header-actions.is-member{display:flex}
 body[data-zukan-app-experience] [data-home-auth-state=member] .home-header-actions.is-guest{display:none}
 html[data-auth=signed-in] body[data-zukan-app-experience] .home-header-actions.is-member{display:flex}
