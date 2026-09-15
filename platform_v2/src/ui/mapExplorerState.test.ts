@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import vm from "node:vm";
 import {
+  MAP_EXPLORER_STATE_RUNTIME,
   reconcileSelectedCellAfterCellsResponse,
   serializeSharedMapState,
 } from "./mapExplorerState.js";
@@ -83,4 +85,9 @@ test("serializeSharedMapState accepts only a bounded complete viewport", () => {
   assert.equal(params.get("lng"), "137.8589");
   assert.equal(params.get("lat"), "34.7219");
   assert.equal(params.get("z"), "10.6");
+});
+
+test("browser runtime includes every viewport serializer dependency", () => {
+  const context = vm.createContext({});
+  new vm.Script(`${MAP_EXPLORER_STATE_RUNTIME}; MapExplorerStateHelpers.serializeSharedMapState({ center: { lng: 137.8589, lat: 34.7219 }, zoom: 10.6 });`).runInContext(context);
 });
