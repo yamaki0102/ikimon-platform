@@ -42,6 +42,7 @@
         "continuationTitle": "前回の続き", "continuationBody": "保存前の撮影があります。内容を失わずに続けられます。", "continuationCta": "続きを開く",
         "memoryEyebrow": "この前の記録", "memoryLead": "写真と場所から、前の時間を見返せます。", "memoryCta": "この記録を見る",
         "activeEyebrow": "参加中の活動", "activeLead": "この場所の今と、次にできることを確認できます。", "activeCta": "活動を見る",
+        "watchUpdatesTitle": "追っている更新", "watchUpdatesLoading": "更新を読み込んでいます…", "watchUpdatesEmpty": "まだ更新はありません。", "watchUpdatesError": "取得できませんでした。再読み込みしてください。", "watchUpdatesReason": "追っているエリアの更新", "watchUpdatesUnread": "未読", "watchUpdatesObserved": "観察", "watchUpdatesUpdated": "更新", "watchUpdatesVerified": "公開・確認済み", "watchSignalChecklist": "チェックリスト付きの新しい記録", "watchSignalEffort": "取り組み情報付きの新しい記録", "watchSignalPhoto": "写真付きの新しい記録", "watchSignalRecord": "新しい記録",
         "recentTitle": "最近の記録", "recentCta": "すべて見る", "placesTitle": "関わっている場所", "placesCta": "地図で見る", "nextTitle": "次の活動",
         "emptyTitle": "最初の記録を残してみましょう", "emptyBody": "写真を1枚撮ると、時間と場所と一緒に自分の記録になります。",
         "galleryCta": "端末の写真から選ぶ", "emptyPlaceCta": "場所から見つける",
