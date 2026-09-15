@@ -394,7 +394,8 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
     "continuationCta", "memoryEyebrow", "memoryLead", "memoryCta", "activeEyebrow",
     "activeLead", "activeCta", "watchUpdatesTitle", "watchUpdatesLoading", "watchUpdatesEmpty",
     "watchUpdatesError", "watchUpdatesReason", "watchUpdatesUnread", "watchUpdatesObserved",
-    "watchUpdatesUpdated", "watchUpdatesVerified", "recentTitle", "recentCta", "placesTitle", "placesCta",
+    "watchUpdatesUpdated", "watchUpdatesVerified", "watchSignalChecklist", "watchSignalEffort",
+    "watchSignalPhoto", "watchSignalRecord", "recentTitle", "recentCta", "placesTitle", "placesCta",
     "nextTitle", "emptyTitle", "emptyBody", "galleryCta", "emptyPlaceCta", "routesTitle",
     "routeRecord", "routeSearch", "routePrivacy", "routeCollaboration",
   ] as const) {

@@ -11612,6 +11612,7 @@ type AreaWatchEmissionInput = {
   completeChecklist: boolean;
   effortMinutes: number | null;
   distanceMeters: number | null;
+  photoHashes?: string[];
 };
 
 function areaWatchTargetMatches(
@@ -11636,6 +11637,7 @@ async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, en
     || input.withdrawalStatus !== "active"
     || !["public_summary", "external_export"].includes(input.recordConsent)
   ) return 0;
+  if (!(await publicMediaReadyForAreaWatch(input.visitId, input.photoHashes ?? [], env))) return 0;
 
   const targetClauses = ["(target_type = 'place' AND target_id = ?)"];
   const targetBindings: D1Value[] = [input.placeId];
@@ -11805,6 +11807,7 @@ async function enqueueD1AreaWatchNotificationsForStoredObservation(
     recordConsent: rights.record_consent,
     withdrawalStatus: rights.withdrawal_status,
     hasPhoto: clientPhotoHashes.some((value) => typeof value === "string" && value.trim() !== ""),
+    photoHashes: clientPhotoHashes.filter((value): value is string => typeof value === "string"),
     completeChecklist: sourcePayload.complete_checklist_flag === true,
     effortMinutes: numberOrNull(sourcePayload.effort_minutes),
     distanceMeters: numberOrNull(sourcePayload.distance_meters)
@@ -11812,6 +11815,82 @@ async function enqueueD1AreaWatchNotificationsForStoredObservation(
 }
 
 type PersonalUnreadAlertRow = Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind">;
+
+type PublicSafetyContextRow = {
+  audience_scope: string | null;
+  public_precision: string | null;
+  risk_lane: string | null;
+};
+
+function publicSafetyDecisionForContext(context: PublicSafetyContextRow | null): { blocked: boolean; reason: string | null } {
+  if (!context) return { blocked: false, reason: null };
+  const riskLane = normalizeOptionalText(context.risk_lane) ?? "normal";
+  if (riskLane !== "normal") return { blocked: true, reason: `risk_lane:${riskLane}` };
+  const audienceScope = normalizeOptionalText(context.audience_scope);
+  if (audienceScope && audienceScope !== "public") {
+    return { blocked: true, reason: `audience_scope:${audienceScope}` };
+  }
+  const publicPrecision = normalizeOptionalText(context.public_precision);
+  if (publicPrecision === "hidden" || publicPrecision === "exact_private") {
+    return { blocked: true, reason: `public_precision:${publicPrecision}` };
+  }
+  if (!publicStreamAllowsLocationPrecision(publicPrecision)) {
+    return { blocked: true, reason: `public_stream_precision:${publicPrecision}` };
+  }
+  return { blocked: false, reason: null };
+}
+
+type PublicAreaWatchAssetRow = {
+  sha256: string | null;
+  public_derivative_key: string | null;
+  public_derivative_verified_at: string | null;
+  public_derivative_metadata_json: string | null;
+  exif_scrub_state: string | null;
+  public_ready_at: string | null;
+};
+
+function publicAreaWatchAssetIsReady(asset: PublicAreaWatchAssetRow): boolean {
+  if (
+    !asset.public_derivative_key
+    || !asset.public_derivative_verified_at
+    || !asset.public_derivative_metadata_json
+    || asset.exif_scrub_state !== "scrubbed"
+    || !asset.public_ready_at
+  ) return false;
+  try {
+    const metadata = JSON.parse(asset.public_derivative_metadata_json) as Record<string, unknown>;
+    const contentType = String(metadata.contentType ?? "").split(";", 1)[0]?.trim().toLowerCase() ?? "";
+    const scannedContainer = String(metadata.scannedContainer ?? "").trim().toLowerCase();
+    return contentType === "image/webp"
+      && scannedContainer !== "svg+xml"
+      && metadata.gpsExifPresent !== true;
+  } catch {
+    return false;
+  }
+}
+
+async function publicMediaReadyForAreaWatch(observationId: string, photoHashes: string[], env: Env): Promise<boolean> {
+  const expectedHashes = [...new Set(photoHashes.map((value) => normalizeOptionalText(value)).filter((value): value is string => Boolean(value)))];
+  if (expectedHashes.length === 0) return true;
+  try {
+    const assets = await env.OBS_DB.prepare(
+      `SELECT sha256, public_derivative_key, public_derivative_verified_at,
+              public_derivative_metadata_json, exif_scrub_state, public_ready_at
+         FROM asset_ledger
+        WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'image/%'`
+    ).bind(observationId).all<PublicAreaWatchAssetRow>();
+    const readyHashes = new Set(
+      assets.results
+        .filter((asset) => asset.sha256 && publicAreaWatchAssetIsReady(asset))
+        .map((asset) => asset.sha256 as string)
+    );
+    return expectedHashes.every((hash) => readyHashes.has(hash));
+  } catch {
+    // A media-read failure must defer the alert until the media/read-model
+    // retry path can prove that the public derivative is actually ready.
+    return false;
+  }
+}
 
 async function visibleAreaWatchOccurrenceIds(
   rows: Array<Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind">>,
@@ -11834,12 +11913,20 @@ async function visibleAreaWatchOccurrenceIds(
       const occurrenceChunk = occurrenceIds.slice(offset, offset + bindChunkSize);
       const placeholders = occurrenceChunk.map(() => "?").join(", ");
       const rights = await env.OBS_DB.prepare(
-        `SELECT occurrence_id, visit_id
-           FROM observation_data_rights
-          WHERE occurrence_id IN (${placeholders})
-            AND withdrawal_status = 'active'
-            AND record_consent IN ('public_summary', 'external_export')`
-      ).bind(...occurrenceChunk).all<{ occurrence_id: string; visit_id: string }>();
+        `SELECT r.occurrence_id, r.visit_id,
+                c.audience_scope, c.public_precision, c.risk_lane
+           FROM observation_data_rights r
+           LEFT JOIN civic_observation_contexts c ON c.visit_id = r.visit_id
+          WHERE r.occurrence_id IN (${placeholders})
+            AND r.withdrawal_status = 'active'
+            AND r.record_consent IN ('public_summary', 'external_export')`
+      ).bind(...occurrenceChunk).all<{
+        occurrence_id: string;
+        visit_id: string;
+        audience_scope: string | null;
+        public_precision: string | null;
+        risk_lane: string | null;
+      }>();
       const visitIds = [...new Set(rights.results.map((row) => row.visit_id).filter(Boolean))];
       if (visitIds.length === 0) continue;
       const observationPlaceholders = visitIds.map(() => "?").join(", ");
@@ -11858,7 +11945,7 @@ async function visibleAreaWatchOccurrenceIds(
         const observation = byObservationId.get(right.visit_id);
         if (!observation || observation.visibility !== "public" || Number(observation.emergency_hidden) !== 0) continue;
         if (!["accepted", "auto_accepted"].includes(observation.processing_state)) continue;
-        const safety = await publicSafetyGateForObservation(observation.observation_id, env).catch(() => ({ blocked: true, reason: "safety_read_failed" }));
+        const safety = publicSafetyDecisionForContext(right);
         if (!safety.blocked) visible.add(right.occurrence_id);
       }
     }
@@ -29871,6 +29958,9 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       withdrawalStatus: dataRights.withdrawalStatus,
       hasPhoto: Array.isArray(input.sourcePayload?.client_photo_sha256s)
         && input.sourcePayload.client_photo_sha256s.some((value) => typeof value === "string" && value.trim() !== ""),
+      photoHashes: Array.isArray(input.sourcePayload?.client_photo_sha256s)
+        ? input.sourcePayload.client_photo_sha256s.filter((value): value is string => typeof value === "string")
+        : [],
       completeChecklist: input.sourcePayload?.complete_checklist_flag === true,
       effortMinutes: numberOrNull(input.sourcePayload?.effort_minutes),
       distanceMeters: numberOrNull(input.sourcePayload?.distance_meters)
@@ -31229,11 +31319,17 @@ async function applyMediaJob(job: MediaJob, env: Env): Promise<void> {
   if (job.topic === "media.process") {
     await markUploadedAssetsPublicReady(job.targetId, env);
     await refreshPublicReadmodel(job.targetId, env);
+    await enqueueD1AreaWatchNotificationsForStoredObservation(job.targetId, env).catch((error) => {
+      console.error("[area-watch] media-ready notification retry failed", error);
+    });
     return;
   }
 
   if (job.topic === "readmodel.refresh") {
     await refreshPublicReadmodel(job.targetId, env);
+    await enqueueD1AreaWatchNotificationsForStoredObservation(job.targetId, env).catch((error) => {
+      console.error("[area-watch] readmodel notification retry failed", error);
+    });
     return;
   }
 
@@ -32562,27 +32658,7 @@ async function publicSafetyGateForObservation(
        WHERE visit_id = ?
        LIMIT 1`
     ).bind(observationId).first<{ audience_scope: string | null; public_precision: string | null; risk_lane: string | null }>();
-    if (!context) return { blocked: false, reason: null };
-
-    const riskLane = normalizeOptionalText(context.risk_lane) ?? "normal";
-    if (riskLane !== "normal") {
-      return { blocked: true, reason: `risk_lane:${riskLane}` };
-    }
-
-    const audienceScope = normalizeOptionalText(context.audience_scope);
-    if (audienceScope && audienceScope !== "public") {
-      return { blocked: true, reason: `audience_scope:${audienceScope}` };
-    }
-
-    const publicPrecision = normalizeOptionalText(context.public_precision);
-    if (publicPrecision === "hidden" || publicPrecision === "exact_private") {
-      return { blocked: true, reason: `public_precision:${publicPrecision}` };
-    }
-    if (!publicStreamAllowsLocationPrecision(publicPrecision)) {
-      return { blocked: true, reason: `public_stream_precision:${publicPrecision}` };
-    }
-
-    return { blocked: false, reason: null };
+    return publicSafetyDecisionForContext(context);
   } catch (error) {
     if (error instanceof Error && /no such table: civic_observation_contexts/i.test(error.message)) {
       return { blocked: false, reason: null };

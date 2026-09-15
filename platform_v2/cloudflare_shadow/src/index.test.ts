@@ -7587,6 +7587,41 @@ class FakeStatement {
         .map((row) => ({ occurrence_id: row.occurrence_id, trigger_kind: row.trigger_kind }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT r.occurrence_id, r.visit_id,")) {
+      if (this.values.length > 90) throw new Error("area-watch rights query exceeded D1 bind chunk");
+      const occurrenceIds = new Set(this.values.map(string));
+      const rows = [...this.db.observationDataRights.values()]
+        .filter((row) =>
+          row.occurrence_id !== null &&
+          occurrenceIds.has(row.occurrence_id) &&
+          row.withdrawal_status === "active" &&
+          (row.record_consent === "public_summary" || row.record_consent === "external_export")
+        )
+        .map((row) => {
+          const context = this.db.civicObservationContexts.get(row.visit_id);
+          return {
+            occurrence_id: row.occurrence_id,
+            visit_id: row.visit_id,
+            audience_scope: context?.audience_scope ?? null,
+            public_precision: context?.public_precision ?? null,
+            risk_lane: context?.risk_lane ?? null
+          };
+        });
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT sha256, public_derivative_key, public_derivative_verified_at,")) {
+      const rows = [...this.db.assets.values()]
+        .filter((row) => row.observation_id === string(this.values[0]) && row.processing_state === "uploaded" && row.mime.startsWith("image/"))
+        .map((row) => ({
+          sha256: row.sha256,
+          public_derivative_key: row.public_derivative_key,
+          public_derivative_verified_at: row.public_derivative_verified_at,
+          public_derivative_metadata_json: row.public_derivative_metadata_json,
+          exif_scrub_state: row.exif_scrub_state,
+          public_ready_at: row.public_ready_at
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT occurrence_id, visit_id FROM observation_data_rights WHERE occurrence_id IN")) {
       if (this.values.length > 90) throw new Error("area-watch rights query exceeded D1 bind chunk");
       const occurrenceIds = new Set(this.values.map(string));
@@ -12904,6 +12939,61 @@ test("Cloudflare observation writes emit area-watch deliveries for matching acti
   assert.equal(JSON.parse(placeDelivery?.payload_json ?? "{}").areaLabel, "東金の観察地（更新後）");
   assert.equal(JSON.parse(regionDelivery?.payload_json ?? "{}").targetId, "osm:way:263321117");
   assert.equal(obs.observations.get("area-watch-observation")?.visibility, "public");
+});
+
+test("Cloudflare public photo alerts wait for a verified derivative and replay after media processing", async () => {
+  const { env, core, obs } = createEnv();
+  core.areaSubscriptions.set("area-watch-photo-target", {
+    subscription_id: "area-watch-photo-target",
+    user_id: "photo-watcher-user",
+    target_type: "place",
+    target_id: "place:34.71,137.81",
+    label: "写真待ちの観察地",
+    href: "/map?place=place%3A34.71%2C137.81",
+    is_active: 1,
+    created_at: "2026-06-15T00:00:00.000Z",
+    updated_at: "2026-06-16T00:00:00.000Z"
+  });
+  const input = {
+    observationId: "area-watch-photo-observation",
+    clientSubmissionId: "area-watch-photo-submission",
+    userId: "photo-observer-user",
+    observedAt: "2026-06-15T02:30:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    siteId: "place:34.71,137.81",
+    taxon: { vernacularName: "公開写真テスト", rank: "species" },
+    visibility: "public",
+    dataRights: { recordConsent: "public_summary", withdrawalStatus: "active" },
+    sourcePayload: { client_photo_sha256s: ["photo-ready-sha"] }
+  };
+
+  await post("/api/v1/observations/upsert", env, input);
+  assert.equal([...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch").length, 0);
+
+  obs.assets.set("area-watch-photo-asset", {
+    asset_id: "area-watch-photo-asset",
+    draft_id: "draft-area-watch-photo",
+    observation_id: "area-watch-photo-observation",
+    owner_user_id: "photo-observer-user",
+    object_key: "original/area-watch-photo/photo.jpg",
+    partition_month: "2026-06",
+    sha256: "photo-ready-sha",
+    mime: "image/jpeg",
+    bytes: 1200,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/area-watch-photo/display.webp",
+    public_derivative_sha256: "photo-ready-derivative-sha",
+    public_derivative_verified_at: "2026-06-15T03:00:00.000Z",
+    public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", scannedContainer: "binary", gpsExifPresent: false }),
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T03:00:00.000Z"
+  });
+
+  await worker.queue({ messages: [{ body: { outboxId: "area-watch-photo-media", topic: "media.process", targetId: "area-watch-photo-observation" } }] }, env);
+  const deliveries = [...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0]?.user_id, "photo-watcher-user");
 });
 
 test("Cloudflare idempotent observation replay retries an area-watch delivery after the initial cross-D1 write fails", async () => {

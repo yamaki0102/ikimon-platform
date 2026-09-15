@@ -316,6 +316,10 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
     observed: copy.watchUpdatesObserved,
     updated: copy.watchUpdatesUpdated,
     verified: copy.watchUpdatesVerified,
+    signalChecklist: copy.watchSignalChecklist,
+    signalEffort: copy.watchSignalEffort,
+    signalPhoto: copy.watchSignalPhoto,
+    signalRecord: copy.watchSignalRecord,
   })};
   const trimText = (value, max) => String(value == null ? '' : value).trim().slice(0, max);
   const payloadOf = (item) => item && typeof item.payload === 'object' && item.payload && !Array.isArray(item.payload) ? item.payload : {};
@@ -351,6 +355,17 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
     updates.forEach((item) => {
       const payload = payloadOf(item);
       const occurrenceId = trimText(item.occurrenceId, 200);
+      const areaLabel = trimText(payload.areaLabel || payload.targetId, 120);
+      const signals = payload.watchSignals && typeof payload.watchSignals === 'object' && !Array.isArray(payload.watchSignals)
+        ? payload.watchSignals
+        : {};
+      const signalText = signals.completeChecklist === true
+        ? copy.signalChecklist
+        : Number.isFinite(Number(signals.effortMinutes)) || Number.isFinite(Number(signals.distanceMeters))
+          ? copy.signalEffort
+          : signals.hasPhoto === true
+            ? copy.signalPhoto
+            : copy.signalRecord;
       const observedAt = trimText(payload.observedAt, 80);
       const createdAt = trimText(item.createdAt, 80);
       const observedText = dateText(observedAt);
@@ -365,7 +380,7 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
       const head = document.createElement('span');
       head.className = 'home-watch-update-head';
       const target = document.createElement('strong');
-      target.textContent = trimText(payload.areaLabel || payload.targetId, 120) || copy.title;
+      target.textContent = areaLabel || copy.title;
       const state = document.createElement('em');
       state.textContent = item.acknowledgedAt ? '' : copy.unread;
       head.append(target, state);
@@ -373,7 +388,7 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
       title.textContent = trimText(payload.title, 120) || copy.title;
       const body = document.createElement('span');
       body.className = 'home-watch-update-body';
-      body.textContent = trimText(payload.body || payload.summary || payload.message, 180) || copy.reason;
+      body.textContent = [areaLabel, signalText].filter(Boolean).join(' · ') || copy.reason;
       const meta = document.createElement('small');
       meta.textContent = [dates, copy.verified].filter(Boolean).join(' · ');
       const reason = document.createElement('small');

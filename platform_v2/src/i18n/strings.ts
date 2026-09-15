@@ -53,6 +53,10 @@ export type LandingStrings = {
       watchUpdatesObserved: string;
       watchUpdatesUpdated: string;
       watchUpdatesVerified: string;
+      watchSignalChecklist: string;
+      watchSignalEffort: string;
+      watchSignalPhoto: string;
+      watchSignalRecord: string;
       recentTitle: string;
       recentCta: string;
       placesTitle: string;
