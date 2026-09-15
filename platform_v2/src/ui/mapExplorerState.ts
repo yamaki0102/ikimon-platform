@@ -199,6 +199,7 @@ const RUNTIME_HELPERS = [
   normalizeFiniteNumber,
   pushStateParam,
   pushStateFloat,
+  isSafeMapViewport,
   overlayShareEntries,
   normalizeStateList,
   shouldApplyAsyncResponse,
