@@ -139,6 +139,38 @@ test("state split worker turns owner history into a memory-first Home with a pla
   assert.doesNotMatch(member, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
 });
 
+test("state split signed-in Home keeps the area-watch return live after request-time auth activation", async () => {
+  const strings = getStrings("ja");
+  const rendered = renderLandingTopSections({
+    basePath: "",
+    lang: "ja",
+    copy: strings.landing,
+    fieldLoop: strings.fieldLoop,
+    isLoggedIn: false,
+    snapshot: {
+      viewerUserId: null,
+      stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
+      feed: [],
+      myFeed: [],
+      myPlaces: [],
+      nearbyFields: [],
+      nearbyEvents: [],
+      mapPreviewCells: [],
+      ambient: [],
+      habit: null,
+      dailyDashboard: null,
+    },
+  });
+  const canonicalHtml = `<!doctype html><html lang="ja"><head></head><body>${rendered.heroHtml}${rendered.dailyDashboardHtml}</body></html>`;
+  const injected = await injectStateSplitHome(canonicalHtml, { userId: "viewer", banned: false } as never, new URL("https://staging.ikimon.life/ja/"), mockEnv());
+  const member = injected.slice(injected.indexOf('data-home-view="member"'));
+  assert.match(member, /data-home-watch-updates/u);
+  assert.match(injected, /data-home-auth-state="member"/u);
+  assert.match(member, /document\.querySelector\('\[data-home-auth-state="member"\]'\)/u);
+  assert.doesNotMatch(member, /\/ja\/api\/v1\/me\/alerts/u);
+  assert.doesNotMatch(member, /if \(!false\) return/u);
+});
+
 test("state split contract bypasses all legacy home rewrites", () => {
   const focused = applyFocusedPublicHomeRedesign(template);
   const camera = enforceCameraFirstHomeCtaHtml(focused);

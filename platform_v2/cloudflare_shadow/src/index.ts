@@ -11593,9 +11593,191 @@ function alertEmailText(row: AlertDeliveryCandidateRow, payload: Record<string, 
   ].join("\n");
 }
 
+type AreaWatchEmissionInput = {
+  visitId: string;
+  occurrenceId: string;
+  ownerUserId: string | null;
+  placeId: string;
+  fieldId: string | null;
+  prefecture: string | null;
+  municipality: string | null;
+  observedAt: string;
+  displayName: string;
+  visibility: string;
+  recordConsent: string;
+  withdrawalStatus: string;
+  hasPhoto: boolean;
+  completeChecklist: boolean;
+  effortMinutes: number | null;
+  distanceMeters: number | null;
+};
+
+function areaWatchTargetMatches(
+  subscription: Pick<PersonalAreaSubscriptionRow, "target_type" | "target_id">,
+  input: AreaWatchEmissionInput
+): boolean {
+  if (subscription.target_type === "place") return subscription.target_id === input.placeId;
+  if (subscription.target_type === "field") return Boolean(input.fieldId && subscription.target_id === input.fieldId);
+  if (subscription.target_type !== "region") return false;
+  return [input.prefecture, input.municipality, [input.prefecture, input.municipality].filter(Boolean).join(":")]
+    .filter((value): value is string => Boolean(value))
+    .includes(subscription.target_id);
+}
+
+function areaWatchTargetPriority(targetType: string): number {
+  return targetType === "place" ? 0 : targetType === "field" ? 1 : 2;
+}
+
+async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, env: Env): Promise<number> {
+  if (
+    input.visibility !== "public"
+    || input.withdrawalStatus !== "active"
+    || !["public_summary", "external_export"].includes(input.recordConsent)
+  ) return 0;
+
+  const targetClauses = ["(target_type = 'place' AND target_id = ?)"];
+  const targetBindings: D1Value[] = [input.placeId];
+  if (input.fieldId) {
+    targetClauses.push("(target_type = 'field' AND target_id = ?)");
+    targetBindings.push(input.fieldId);
+  }
+  const regionIds = [input.prefecture, input.municipality, [input.prefecture, input.municipality].filter(Boolean).join(":")]
+    .filter((value): value is string => Boolean(value));
+  for (const regionId of regionIds) {
+    targetClauses.push("(target_type = 'region' AND target_id = ?)");
+    targetBindings.push(regionId);
+  }
+  const subscriptions = await env.CORE_DB.prepare(
+    `SELECT subscription_id, user_id, target_type, target_id, label, href, is_active, created_at, updated_at
+       FROM user_area_subscriptions
+      WHERE is_active = 1 AND (${targetClauses.join(" OR ")})`
+  ).bind(...targetBindings).all<PersonalAreaSubscriptionRow & { user_id: string }>();
+  const matches = subscriptions.results
+    .filter((subscription) => subscription.user_id !== input.ownerUserId && areaWatchTargetMatches(subscription, input))
+    .sort((left, right) =>
+      areaWatchTargetPriority(left.target_type) - areaWatchTargetPriority(right.target_type)
+      || (right.updated_at ?? "").localeCompare(left.updated_at ?? "")
+      || left.subscription_id.localeCompare(right.subscription_id)
+    );
+  const selectedByUser = new Map<string, typeof matches[number]>();
+  for (const subscription of matches) {
+    if (!selectedByUser.has(subscription.user_id)) selectedByUser.set(subscription.user_id, subscription);
+  }
+
+  let created = 0;
+  for (const subscription of selectedByUser.values()) {
+    const areaLabel = safePersonalLabel(subscription.label, subscription.target_id);
+    const body = input.completeChecklist
+      ? `${areaLabel} にチェックリストつきの記録が増えました。`
+      : input.effortMinutes !== null || input.distanceMeters !== null
+        ? `${areaLabel} にeffortつきの記録が増えました。`
+        : input.hasPhoto
+          ? `${areaLabel} に写真つきの記録が増えました。`
+          : `${areaLabel} に新しい記録が増えました。`;
+    const now = new Date().toISOString();
+    const result = await env.CORE_DB.prepare(
+      `INSERT OR IGNORE INTO alert_deliveries (
+         delivery_id, occurrence_id, user_id, recipient_id, subscription_id, area_subscription_id,
+         trigger_kind, channel, delivered_at, delivery_status, error_message, payload_json, acknowledged_at, created_at
+       ) VALUES (?, ?, ?, NULL, NULL, ?, 'area_watch', 'none', ?, 'sent', NULL, ?, NULL, ?)`
+    ).bind(
+      newId("alert_delivery"),
+      input.occurrenceId,
+      subscription.user_id,
+      subscription.subscription_id,
+      now,
+      JSON.stringify({
+        title: "見守りエリアに新しい記録",
+        body,
+        href: safePersonalHref(subscription.href, areaSubscriptionHref(subscription.target_type, subscription.target_id)),
+        areaLabel,
+        targetType: subscription.target_type,
+        targetId: subscription.target_id,
+        occurrenceId: input.occurrenceId,
+        visitId: input.visitId,
+        displayName: input.displayName,
+        observedAt: input.observedAt,
+        watchSignals: {
+          hasPhoto: input.hasPhoto,
+          completeChecklist: input.completeChecklist,
+          effortMinutes: input.effortMinutes,
+          distanceMeters: input.distanceMeters
+        }
+      }),
+      now
+    ).run() as { meta?: { changes?: unknown } };
+    if (Number(result?.meta?.changes) === 1) created += 1;
+  }
+  return created;
+}
+
+type PersonalUnreadAlertRow = Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind">;
+
+async function visibleAreaWatchOccurrenceIds(
+  rows: Array<Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind">>,
+  env: Env
+): Promise<Set<string>> {
+  const occurrenceIds = [...new Set(
+    rows
+      .filter((row) => row.trigger_kind === "area_watch")
+      .map((row) => row.occurrence_id)
+      .filter((value): value is string => Boolean(value))
+  )];
+  if (occurrenceIds.length === 0) return new Set();
+
+  try {
+    const placeholders = occurrenceIds.map(() => "?").join(", ");
+    const rights = await env.OBS_DB.prepare(
+      `SELECT occurrence_id, visit_id
+         FROM observation_data_rights
+        WHERE occurrence_id IN (${placeholders})
+          AND withdrawal_status = 'active'
+          AND record_consent IN ('public_summary', 'external_export')`
+    ).bind(...occurrenceIds).all<{ occurrence_id: string; visit_id: string }>();
+    const visitIds = [...new Set(rights.results.map((row) => row.visit_id).filter(Boolean))];
+    if (visitIds.length === 0) return new Set();
+    const observationPlaceholders = visitIds.map(() => "?").join(", ");
+    const observations = await env.OBS_DB.prepare(
+      `SELECT observation_id, visibility, emergency_hidden, processing_state
+         FROM observations
+        WHERE observation_id IN (${observationPlaceholders})`
+    ).bind(...visitIds).all<{
+      observation_id: string;
+      visibility: string;
+      emergency_hidden: number;
+      processing_state: string;
+    }>();
+    const byObservationId = new Map(observations.results.map((row) => [row.observation_id, row]));
+    const visible = new Set<string>();
+    for (const right of rights.results) {
+      const observation = byObservationId.get(right.visit_id);
+      if (!observation || observation.visibility !== "public" || Number(observation.emergency_hidden) !== 0) continue;
+      if (!["accepted", "auto_accepted"].includes(observation.processing_state)) continue;
+      const safety = await publicSafetyGateForObservation(observation.observation_id, env).catch(() => ({ blocked: true, reason: "safety_read_failed" }));
+      if (!safety.blocked) visible.add(right.occurrence_id);
+    }
+    return visible;
+  } catch {
+    // A rights or publication-state read failure must not resurface an old public-area alert.
+    return new Set();
+  }
+}
+
+async function countVisiblePersonalUnreadAlerts(session: SessionSnapshot, env: Env): Promise<number> {
+  const rows = await env.CORE_DB.prepare(
+    `SELECT occurrence_id, trigger_kind
+       FROM alert_deliveries
+      WHERE user_id = ? AND acknowledged_at IS NULL`
+  ).bind(session.userId).all<PersonalUnreadAlertRow>();
+  const visibleAreaOccurrences = await visibleAreaWatchOccurrenceIds(rows.results, env);
+  return rows.results.filter((row) =>
+    row.trigger_kind !== "area_watch" || visibleAreaOccurrences.has(row.occurrence_id)
+  ).length;
+}
+
 async function getPersonalizedMenu(session: SessionSnapshot, url: URL, env: Env): Promise<Response> {
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "10"), 1, 20);
-  const [areas, taxa, unreadAlerts] = await Promise.all([
+  const [areas, taxa] = await Promise.all([
     env.CORE_DB.prepare(
       `SELECT s.subscription_id, s.target_type, s.target_id, s.label, s.href, s.is_active, s.created_at, s.updated_at,
               COALESCE(st.observation_count, 0) AS observation_count,
@@ -11614,13 +11796,8 @@ async function getPersonalizedMenu(session: SessionSnapshot, url: URL, env: Env)
         ORDER BY created_at DESC
         LIMIT 8`
     ).bind(session.userId).all<PersonalTaxonSubscriptionRow>(),
-    env.CORE_DB.prepare(
-      `SELECT COUNT(*) AS unread_count
-         FROM alert_deliveries
-        WHERE user_id = ?
-          AND acknowledged_at IS NULL`
-    ).bind(session.userId).first<{ unread_count: number }>()
   ]);
+  const unreadAlertCount = await countVisiblePersonalUnreadAlerts(session, env);
   const items = dedupePersonalMenuItems([
     ...areas.results.map((row) => {
       const label = safePersonalLabel(row.label, row.target_id);
@@ -11649,51 +11826,32 @@ async function getPersonalizedMenu(session: SessionSnapshot, url: URL, env: Env)
   return json({
     ok: true,
     items,
-    summary: { unreadAlertCount: toSafeCount(unreadAlerts?.unread_count) }
+    summary: { unreadAlertCount }
   }, 200, { "cache-control": "no-store" });
 }
 
 async function getPersonalAlerts(session: SessionSnapshot, env: Env): Promise<Response> {
-  const rows = await env.CORE_DB.prepare(
-    `SELECT delivery_id, occurrence_id, trigger_kind, delivery_status, delivered_at, acknowledged_at, created_at, payload_json
-       FROM alert_deliveries
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      LIMIT 100`
-  ).bind(session.userId).all<PersonalAlertRow>();
-  const areaOccurrenceIds = [...new Set(
-    rows.results
-      .filter((row) => row.trigger_kind === "area_watch")
-      .map((row) => row.occurrence_id)
-      .filter((value): value is string => Boolean(value))
-  )];
-  let activePublicAreaOccurrences = new Set<string>();
-  if (areaOccurrenceIds.length > 0) {
-    try {
-      const placeholders = areaOccurrenceIds.map(() => "?").join(", ");
-      const rights = await env.OBS_DB.prepare(
-        `SELECT occurrence_id
-           FROM observation_data_rights
-          WHERE occurrence_id IN (${placeholders})
-            AND withdrawal_status = 'active'
-            AND record_consent IN ('public_summary', 'external_export')`
-      ).bind(...areaOccurrenceIds).all<{ occurrence_id: string }>();
-      activePublicAreaOccurrences = new Set(
-        rights.results
-          .map((row) => row.occurrence_id)
-          .filter((value): value is string => Boolean(value))
-      );
-    } catch {
-      // A rights read failure must not resurface an old public-area alert.
-      activePublicAreaOccurrences = new Set();
-    }
+  const pageSize = 100;
+  const maxScannedRows = 1000;
+  const visibleRows: PersonalAlertRow[] = [];
+  for (let offset = 0; offset < maxScannedRows && visibleRows.length < pageSize; offset += pageSize) {
+    const rows = await env.CORE_DB.prepare(
+      `SELECT delivery_id, occurrence_id, trigger_kind, delivery_status, delivered_at, acknowledged_at, created_at, payload_json
+         FROM alert_deliveries
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?`
+    ).bind(session.userId, pageSize, offset).all<PersonalAlertRow>();
+    if (rows.results.length === 0) break;
+    const activePublicAreaOccurrences = await visibleAreaWatchOccurrenceIds(rows.results, env);
+    visibleRows.push(...rows.results.filter((row) =>
+      row.trigger_kind !== "area_watch" || activePublicAreaOccurrences.has(row.occurrence_id)
+    ));
+    if (rows.results.length < pageSize) break;
   }
-  const visibleRows = rows.results.filter((row) =>
-    row.trigger_kind !== "area_watch" || activePublicAreaOccurrences.has(row.occurrence_id)
-  );
   return json({
     ok: true,
-    alerts: visibleRows.map((row) => ({
+    alerts: visibleRows.slice(0, pageSize).map((row) => ({
       deliveryId: row.delivery_id,
       occurrenceId: row.occurrence_id,
       triggerKind: row.trigger_kind,
@@ -29571,9 +29729,34 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     taxonLabel
   });
 
-  if (visibility !== "public" || (await publicSafetyGateForObservation(visitId, env)).blocked) {
+  const publicSafety = visibility === "public"
+    ? await publicSafetyGateForObservation(visitId, env)
+    : { blocked: false, reason: null };
+  if (visibility !== "public" || publicSafety.blocked) {
     await clearObservationPublicAreaLabel(visitId, env);
     await deletePublicReadmodelRow(visitId, env);
+  } else {
+    await enqueueD1AreaWatchNotifications({
+      visitId,
+      occurrenceId,
+      ownerUserId: input.userId,
+      placeId,
+      fieldId: civicContext?.fieldId ?? null,
+      prefecture: normalizeOptionalText(input.prefecture),
+      municipality: normalizeOptionalText(input.municipality),
+      observedAt: input.observedAt,
+      displayName: taxonLabel ?? "新しい観察",
+      visibility,
+      recordConsent: dataRights.recordConsent,
+      withdrawalStatus: dataRights.withdrawalStatus,
+      hasPhoto: Array.isArray(input.sourcePayload?.client_photo_sha256s)
+        && input.sourcePayload.client_photo_sha256s.some((value) => typeof value === "string" && value.trim() !== ""),
+      completeChecklist: input.sourcePayload?.complete_checklist_flag === true,
+      effortMinutes: numberOrNull(input.sourcePayload?.effort_minutes),
+      distanceMeters: numberOrNull(input.sourcePayload?.distance_meters)
+    }, env).catch((error) => {
+      console.error("[area-watch] native post-save notification failed", error);
+    });
   }
 
   return json(buildLegacyCompatibleObservationResponse({

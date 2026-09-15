@@ -291,12 +291,13 @@ function renderHomeContinuationScript(viewerUserId: string): string {
 
 function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string {
   const copy = options.copy.home.member;
-  const alertsEndpoint = href(options, "/api/v1/me/alerts");
+  const alertsEndpoint = withBasePath(options.basePath, "/api/v1/me/alerts");
   const observationHrefBase = href(options, "/observations/");
   const fallbackHref = href(options, "/home");
   return `<script>
 (() => {
-  if (!${JSON.stringify(options.isLoggedIn)}) return;
+  const authState = document.querySelector('[data-home-auth-state="member"]');
+  if (!authState) return;
   const root = document.querySelector('[data-home-watch-updates]');
   if (!root) return;
   const list = root.querySelector('[data-home-watch-updates-list]');
