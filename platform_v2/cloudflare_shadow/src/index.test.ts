@@ -7581,10 +7581,10 @@ class FakeStatement {
         .slice(offset, offset + limit);
       return { results: rows as T[] };
     }
-    if (normalized.startsWith("SELECT occurrence_id, trigger_kind FROM alert_deliveries")) {
+    if (normalized.startsWith("SELECT occurrence_id, trigger_kind")) {
       const rows = [...this.db.alertDeliveries.values()]
         .filter((row) => row.user_id === string(this.values[0]) && row.acknowledged_at === null)
-        .map((row) => ({ occurrence_id: row.occurrence_id, trigger_kind: row.trigger_kind }));
+        .map((row) => ({ occurrence_id: row.occurrence_id, trigger_kind: row.trigger_kind, payload_json: row.payload_json }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT r.occurrence_id, r.visit_id,")) {
@@ -7613,6 +7613,24 @@ class FakeStatement {
       const rows = [...this.db.assets.values()]
         .filter((row) => row.observation_id === string(this.values[0]))
         .map((row) => ({
+          sha256: row.sha256,
+          mime: row.mime,
+          processing_state: row.processing_state,
+          public_derivative_key: row.public_derivative_key,
+          public_derivative_verified_at: row.public_derivative_verified_at,
+          public_derivative_metadata_json: row.public_derivative_metadata_json,
+          exif_scrub_state: row.exif_scrub_state,
+          public_ready_at: row.public_ready_at
+        }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT observation_id, sha256, mime, processing_state, public_derivative_key, public_derivative_verified_at,")) {
+      if (this.values.length > 90) throw new Error("area-watch media query exceeded D1 bind chunk");
+      const observationIds = new Set(this.values.map(string));
+      const rows = [...this.db.assets.values()]
+        .filter((row) => row.observation_id && observationIds.has(row.observation_id))
+        .map((row) => ({
+          observation_id: row.observation_id,
           sha256: row.sha256,
           mime: row.mime,
           processing_state: row.processing_state,
@@ -12888,6 +12906,100 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("Cloudflare stored area alerts are suppressed when a later media verification fails", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const rawToken = "stored-area-media-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "stored-area-media-user",
+    display_name: "Stored Area Media User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  core.alertDeliveries.set("stored-area-media-alert", {
+    delivery_id: "stored-area-media-alert",
+    occurrence_id: "stored-area-media-occurrence",
+    user_id: "stored-area-media-user",
+    trigger_kind: "area_watch",
+    channel: "none",
+    delivered_at: null,
+    delivery_status: "sent",
+    payload_json: JSON.stringify({
+      title: "見守りエリアに新しい記録",
+      watchSignals: { hasPhoto: true, hasVideo: false }
+    }),
+    acknowledged_at: null,
+    created_at: "2026-06-16T00:00:00.000Z"
+  });
+  obs.observationDataRights.set("stored-area-media-rights", {
+    visit_id: "stored-area-media-observation",
+    occurrence_id: "stored-area-media-occurrence",
+    record_consent: "public_summary",
+    research_use_consent: "none",
+    enterprise_report_consent: "none",
+    dataset_license: null,
+    media_license: null,
+    external_export_allowed: 0,
+    withdrawal_status: "active",
+    source_payload_json: "{}"
+  });
+  obs.observations.set("stored-area-media-observation", {
+    observation_id: "stored-area-media-observation",
+    draft_id: "stored-area-media-draft",
+    owner_user_id: "stored-area-media-owner",
+    observed_at: "2026-06-15T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: "保存済みの記録",
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "cell-stored-area-media",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "公開中の観察地"
+  });
+  obs.assets.set("stored-area-media-asset", {
+    asset_id: "stored-area-media-asset",
+    draft_id: "stored-area-media-draft",
+    observation_id: "stored-area-media-observation",
+    owner_user_id: "stored-area-media-owner",
+    object_key: "original/stored-area-media/photo.jpg",
+    partition_month: "2026-06",
+    sha256: "stored-area-media-sha",
+    mime: "image/jpeg",
+    bytes: 1200,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/stored-area-media/photo.webp",
+    public_derivative_sha256: "stored-area-media-sha",
+    public_derivative_verified_at: "2026-06-15T03:00:00.000Z",
+    public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", gpsExifPresent: false }),
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T03:00:00.000Z"
+  });
+
+  const firstResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/alerts", {
+    headers: { cookie: `ikimon_v2_session=${rawToken}` }
+  }), productionEnv);
+  const firstPayload = await firstResponse.json() as any;
+  assert.deepEqual(firstPayload.alerts.map((alert: any) => alert.deliveryId), ["stored-area-media-alert"]);
+
+  const asset = obs.assets.get("stored-area-media-asset")!;
+  asset.public_derivative_verified_at = null;
+  asset.public_ready_at = null;
+  const failedResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/alerts", {
+    headers: { cookie: `ikimon_v2_session=${rawToken}` }
+  }), productionEnv);
+  const failedPayload = await failedResponse.json() as any;
+  assert.deepEqual(failedPayload.alerts, []);
 });
 
 test("Cloudflare observation writes emit area-watch deliveries for matching active subscribers", async () => {

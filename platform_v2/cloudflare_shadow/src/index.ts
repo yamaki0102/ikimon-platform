@@ -11715,6 +11715,7 @@ async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, en
         observedAt: input.observedAt,
         watchSignals: {
           hasPhoto: input.hasPhoto,
+          hasVideo: input.hasVideo === true,
           completeChecklist: input.completeChecklist,
           effortMinutes: input.effortMinutes,
           distanceMeters: input.distanceMeters
@@ -11823,7 +11824,7 @@ async function enqueueD1AreaWatchNotificationsForStoredObservation(
   }, env);
 }
 
-type PersonalUnreadAlertRow = Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind">;
+type PersonalUnreadAlertRow = Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind" | "payload_json">;
 
 type PublicSafetyContextRow = {
   audience_scope: string | null;
@@ -11906,8 +11907,64 @@ async function publicMediaReadyForAreaWatch(observationId: string, photoHashes: 
   }
 }
 
+type PublicAreaWatchMediaCheck = {
+  observationId: string;
+  requiresPhoto: boolean;
+  requiresVideo: boolean;
+};
+
+async function publicMediaReadyForAreaWatchObservations(
+  checks: PublicAreaWatchMediaCheck[],
+  env: Env
+): Promise<Set<string>> {
+  const ready = new Set(checks.map((check) => check.observationId));
+  if (checks.length === 0) return ready;
+  try {
+    const uniqueChecks = [...new Map(checks.map((check) => [check.observationId, check])).values()];
+    for (let offset = 0; offset < uniqueChecks.length; offset += AREA_WATCH_FANOUT_BATCH_SIZE) {
+      const chunk = uniqueChecks.slice(offset, offset + AREA_WATCH_FANOUT_BATCH_SIZE);
+      const placeholders = chunk.map(() => "?").join(", ");
+      const assets = await env.OBS_DB.prepare(
+        `SELECT observation_id, sha256, mime, processing_state, public_derivative_key, public_derivative_verified_at,
+                public_derivative_metadata_json, exif_scrub_state, public_ready_at
+           FROM asset_ledger
+          WHERE observation_id IN (${placeholders})`
+      ).bind(...chunk.map((check) => check.observationId)).all<PublicAreaWatchAssetRow & { observation_id: string }>();
+      const assetsByObservation = new Map<string, PublicAreaWatchAssetRow[]>();
+      for (const asset of assets.results) {
+        const current = assetsByObservation.get(asset.observation_id) ?? [];
+        current.push(asset);
+        assetsByObservation.set(asset.observation_id, current);
+      }
+      for (const check of chunk) {
+        const observationAssets = assetsByObservation.get(check.observationId) ?? [];
+        if (observationAssets.length === 0) {
+          if (check.requiresPhoto || check.requiresVideo) ready.delete(check.observationId);
+          continue;
+        }
+        if (observationAssets.some((asset) => asset.processing_state !== "uploaded" || !publicAreaWatchAssetIsReady(asset))) {
+          ready.delete(check.observationId);
+          continue;
+        }
+        if (check.requiresPhoto && !observationAssets.some((asset) => asset.mime.startsWith("image/"))) {
+          ready.delete(check.observationId);
+          continue;
+        }
+        if (check.requiresVideo && !observationAssets.some((asset) => asset.mime.startsWith("video/"))) {
+          ready.delete(check.observationId);
+        }
+      }
+    }
+    return ready;
+  } catch {
+    // A read-time media-policy failure must suppress the stored alert rather
+    // than re-promote a signal whose public derivative cannot be proven.
+    return new Set();
+  }
+}
+
 async function visibleAreaWatchOccurrenceIds(
-  rows: Array<Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind">>,
+  rows: Array<Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind" | "payload_json">>,
   env: Env
 ): Promise<Set<string>> {
   const occurrenceIds = [...new Set(
@@ -11917,6 +11974,7 @@ async function visibleAreaWatchOccurrenceIds(
       .filter((value): value is string => Boolean(value))
   )];
   if (occurrenceIds.length === 0) return new Set();
+  const alertByOccurrence = new Map(rows.map((row) => [row.occurrence_id, row]));
 
   try {
     const visible = new Set<string>();
@@ -11955,10 +12013,22 @@ async function visibleAreaWatchOccurrenceIds(
         processing_state: string;
       }>();
       const byObservationId = new Map(observations.results.map((row) => [row.observation_id, row]));
+      const mediaChecks = rights.results.map((right) => {
+        const alert = alertByOccurrence.get(right.occurrence_id);
+        const payload = parseJsonObject(alert?.payload_json ?? null);
+        const signals = asPlainObject(payload.watchSignals) ?? {};
+        return {
+          observationId: right.visit_id,
+          requiresPhoto: signals.hasPhoto === true,
+          requiresVideo: signals.hasVideo === true
+        };
+      });
+      const readyMediaObservations = await publicMediaReadyForAreaWatchObservations(mediaChecks, env);
       for (const right of rights.results) {
         const observation = byObservationId.get(right.visit_id);
         if (!observation || observation.visibility !== "public" || Number(observation.emergency_hidden) !== 0) continue;
         if (!["accepted", "auto_accepted"].includes(observation.processing_state)) continue;
+        if (!readyMediaObservations.has(right.visit_id)) continue;
         const safety = publicSafetyDecisionForContext(right);
         if (!safety.blocked) visible.add(right.occurrence_id);
       }
@@ -11972,7 +12042,7 @@ async function visibleAreaWatchOccurrenceIds(
 
 async function countVisiblePersonalUnreadAlerts(session: SessionSnapshot, env: Env): Promise<number> {
   const rows = await env.CORE_DB.prepare(
-    `SELECT occurrence_id, trigger_kind
+    `SELECT occurrence_id, trigger_kind, payload_json
        FROM alert_deliveries
       WHERE user_id = ? AND acknowledged_at IS NULL`
   ).bind(session.userId).all<PersonalUnreadAlertRow>();
