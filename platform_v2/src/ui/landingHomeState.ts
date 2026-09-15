@@ -118,11 +118,11 @@ function sectionSlot(name: string, content: string): string {
 }
 
 function captureButton(label: string, className: string, action: string): string {
-  return `<button type="button" class="${escapeHtml(className)}" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="${escapeHtml(action)}" aria-haspopup="dialog">${escapeHtml(label)}</button>`;
+  return `<button type="button" class="${escapeHtml(className)} ik-ui-action" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="${escapeHtml(action)}" aria-haspopup="dialog">${escapeHtml(label)}</button>`;
 }
 
 function galleryButton(label: string, className: string): string {
-  return `<button type="button" class="${escapeHtml(className)}" data-global-record-gallery-select data-kpi-event="gallery_select_tap" data-kpi-action="home_gallery_select">${escapeHtml(label)}</button>`;
+  return `<button type="button" class="${escapeHtml(className)} ik-ui-action" data-global-record-gallery-select data-kpi-event="gallery_select_tap" data-kpi-action="home_gallery_select">${escapeHtml(label)}</button>`;
 }
 
 function renderHeroHeading(lang: SiteLang, value: string): string {
@@ -173,7 +173,7 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
         <h1>${renderHeroHeading(options.lang, copy.heroHeading)}</h1>
         <p>${escapeHtml(copy.heroLead)}</p>
         <div class="home-hero-actions">
-          <a class="home-primary-button" href="${escapeHtml(href(options, "/records?view=public"))}" data-kpi-action="top_public_records">${escapeHtml(copy.publicRecordsCta)}</a>
+          <a class="home-primary-button ik-ui-action" href="${escapeHtml(href(options, "/records?view=public"))}" data-kpi-action="top_public_records">${escapeHtml(copy.publicRecordsCta)}</a>
           <a class="home-secondary-link" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place">${escapeHtml(copy.secondaryCta)}</a>
         </div>
         <p class="home-invite-note" data-home-invite-note>${escapeHtml(copy.inviteNote)}</p>
@@ -181,9 +181,9 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
       ${slot("guest-hero", `<div class="home-guest-hero-visual">${renderGuestProof(options, publicItems)}</div>`)}
     </section>
     <section class="home-section home-place-section" id="home-places">
-      <div><span class="home-product-kicker">PLACE</span><h2>${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
+      <div><span class="home-product-kicker">PLACE</span><h2>${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button ik-ui-action" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
     </section>
-    <section class="home-section home-community-section"><span class="home-product-kicker">COMMUNITY</span><h2>${escapeHtml(copy.communityTitle)}</h2><p>${escapeHtml(copy.communityBody)}</p><a class="home-secondary-button" href="${escapeHtml(communityHref)}">${escapeHtml(copy.communityCta)}</a></section>
+    <section class="home-section home-community-section"><span class="home-product-kicker">COMMUNITY</span><h2>${escapeHtml(copy.communityTitle)}</h2><p>${escapeHtml(copy.communityBody)}</p><a class="home-secondary-button ik-ui-action" href="${escapeHtml(communityHref)}">${escapeHtml(copy.communityCta)}</a></section>
     <section class="home-section home-privacy-section"><span class="home-privacy-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><div><h2>${escapeHtml(copy.privacyTitle)}</h2><p>${escapeHtml(copy.privacyBody)}</p></div></section>
     <section class="home-section home-final-section"><h2>${escapeHtml(copy.finalTitle)}</h2>${captureButton(copy.finalCta, "home-secondary-button", "top_capture_final")}</section>
     <p class="home-operator-statement">${escapeHtml(options.copy.home.shared.operatorStatement)}</p>
@@ -307,7 +307,7 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
           <h1>${escapeHtml(displayName(memory, options.copy))}</h1>
           ${meta ? `<p class="home-member-meta">${escapeHtml(meta)}</p>` : ""}
           <p>${escapeHtml(copy.memoryLead)}</p>
-          <a class="home-primary-button" href="${escapeHtml(detailHref(options, memory))}" data-kpi-action="home_memory_open">${escapeHtml(copy.memoryCta)}</a>
+        <a class="home-primary-button ik-ui-action" href="${escapeHtml(detailHref(options, memory))}" data-kpi-action="home_memory_open">${escapeHtml(copy.memoryCta)}</a>
         </div>
       </section>`;
     }
@@ -317,11 +317,11 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
           <span class="home-member-eyebrow">${escapeHtml(copy.memoryEyebrow)}</span>
           <h1>${escapeHtml(copy.recentTitle)}</h1>
           <p>${escapeHtml(copy.memoryLead)}</p>
-          <a class="home-primary-button" href="${escapeHtml(href(options, "/records?view=mine"))}" data-kpi-action="home_memory_open">${escapeHtml(copy.memoryCta)}</a>
+        <a class="home-primary-button ik-ui-action" href="${escapeHtml(href(options, "/records?view=mine"))}" data-kpi-action="home_memory_open">${escapeHtml(copy.memoryCta)}</a>
         </div>
       </section>`;
     }
-    return `<section class="home-member-primary is-first" data-home-primary-state="first_record" data-home-primary-active="true">
+      return `<section class="ik-ui-surface home-member-primary is-first" data-home-primary-state="first_record" data-home-primary-active="true">
       <div class="home-member-primary-copy">
         <span class="home-product-kicker">ZUKAN</span>
         <h1>${escapeHtml(copy.emptyTitle)}</h1>
@@ -382,7 +382,7 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
   const viewerUserId = options.snapshot.viewerUserId ?? "";
   return `<div class="home-state-view is-member" data-home-view="member" data-home-draft-owner="${escapeHtml(viewerUserId)}" data-home-base-state="${baseState}"${options.isLoggedIn ? "" : " hidden"}>
     <section class="home-member-primary is-draft" data-home-primary-state="draft_resume" data-home-primary-active="false" hidden>
-      <div class="home-member-primary-copy"><span class="home-member-eyebrow">${escapeHtml(copy.continuationTitle)}</span><h1>${escapeHtml(copy.continuationTitle)}</h1><p>${escapeHtml(copy.continuationBody)}</p><a class="home-primary-button" href="${escapeHtml(href(options, "/record?draft=1&source=home_continue"))}">${escapeHtml(copy.continuationCta)}</a></div>
+      <div class="home-member-primary-copy"><span class="home-member-eyebrow">${escapeHtml(copy.continuationTitle)}</span><h1>${escapeHtml(copy.continuationTitle)}</h1><p>${escapeHtml(copy.continuationBody)}</p><a class="home-primary-button ik-ui-action" href="${escapeHtml(href(options, "/record?draft=1&source=home_continue"))}">${escapeHtml(copy.continuationCta)}</a></div>
     </section>
     ${sectionSlot("member-primary", baseHero)}
     ${renderHomeContinuationScript(viewerUserId)}
@@ -414,4 +414,9 @@ body{background:#fff;color:#17211b}.shell.shell-bleed.prototype-shell{box-sizing
 @media(max-width:959px){.home-guest-proof-item.is-item-4,.home-guest-proof-item.is-item-5{display:block}.home-guest-proof.is-count-1,.home-guest-proof.is-count-2{grid-template-rows:minmax(260px,1fr)}.home-guest-proof.is-count-1 .is-item-1{grid-column:1/13;grid-row:1/2}.home-guest-proof.is-count-2 .is-item-1{grid-column:1/7;grid-row:1/2}.home-guest-proof.is-count-2 .is-item-2{grid-column:7/13;grid-row:1/2}.home-guest-proof.is-count-3{grid-template-rows:repeat(2,minmax(120px,1fr))}.home-guest-proof.is-count-3 .is-item-1{grid-column:1/9;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-2{grid-column:9/13;grid-row:1/2}.home-guest-proof.is-count-3 .is-item-3{grid-column:9/13;grid-row:2/3}.home-guest-proof.is-count-4,.home-guest-proof.is-count-5{grid-template-rows:repeat(3,minmax(100px,1fr))}.home-guest-proof.is-count-4 .is-item-1,.home-guest-proof.is-count-5 .is-item-1{grid-column:1/9;grid-row:1/3}.home-guest-proof.is-count-4 .is-item-2,.home-guest-proof.is-count-5 .is-item-2{grid-column:9/13;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-3,.home-guest-proof.is-count-5 .is-item-3{grid-column:9/13;grid-row:2/3}.home-guest-proof.is-count-4 .is-item-4{grid-column:1/13;grid-row:3/4}.home-guest-proof.is-count-5 .is-item-4{grid-column:1/7;grid-row:3/4}.home-guest-proof.is-count-5 .is-item-5{grid-column:7/13;grid-row:3/4}}
 @media(min-width:960px){.home-guest-proof.is-count-1 .is-item-1{grid-column:1/13;grid-row:1/3}.home-guest-proof.is-count-2 .is-item-1{grid-column:1/7;grid-row:1/3}.home-guest-proof.is-count-2 .is-item-2{grid-column:7/13;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-1{grid-column:1/8;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-2{grid-column:8/13;grid-row:1/2}.home-guest-proof.is-count-3 .is-item-3{grid-column:8/13;grid-row:2/3}.home-guest-proof.is-count-4 .is-item-1,.home-guest-proof.is-count-5 .is-item-1{grid-column:1/7;grid-row:1/3}.home-guest-proof.is-count-4 .is-item-2,.home-guest-proof.is-count-5 .is-item-2{grid-column:7/10;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-3,.home-guest-proof.is-count-5 .is-item-3{grid-column:10/13;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-4{grid-column:7/13;grid-row:2/3}.home-guest-proof.is-count-5 .is-item-4{grid-column:7/10;grid-row:2/3}.home-guest-proof.is-count-5 .is-item-5{grid-column:10/13;grid-row:2/3}}
  .home-invite-note{margin:-12px 0 0!important;color:var(--home-green)!important;font-size:.875rem!important;font-weight:750}.home-guest-proof.is-empty{min-height:0;display:grid;grid-template-columns:1fr;grid-template-rows:auto auto;align-content:start;gap:0}.home-guest-proof.is-empty .home-empty-proof-art{width:100%;min-width:0;overflow:hidden;background:#eef4ef}.home-guest-proof.is-empty .home-empty-proof-art img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover}.home-empty-proof-copy{display:grid;grid-template-columns:1fr;gap:6px;align-items:start;padding:16px 18px;background:#f7f8f4;color:var(--home-green)}.home-empty-proof-copy strong,.home-guest-proof.is-empty .home-empty-proof-copy p{grid-column:1;margin:0;min-width:0}.home-empty-proof-copy strong{font-size:.92rem;line-height:1.45}.home-guest-proof.is-empty .home-empty-proof-copy p{max-width:none;padding:0;color:var(--home-muted);font-size:.82rem;line-height:1.55;text-align:left}.home-community-section{justify-items:start;padding:28px;border:1px solid rgba(20,63,46,.12);border-radius:26px;background:linear-gradient(145deg,#f2f8f3,#fffaf0)}.home-community-section p{max-width:42rem;margin:0;color:var(--home-muted);font-size:1rem;line-height:1.8}.home-member-routes{gap:16px}.home-member-routes ul{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;min-width:0;margin:0;padding:0;list-style:none}.home-member-route-link{min-width:0;min-height:56px;display:flex;align-items:center;padding:12px 14px;border:1px solid var(--home-border);border-radius:16px;background:#fff;color:var(--home-green-dark);text-decoration:none;line-height:1.4}.home-member-route-link strong{font-size:.875rem;overflow-wrap:anywhere}.home-member-route-link:hover{border-color:rgba(20,63,46,.38);background:#f8faf7}@media(max-width:560px){.home-guest-proof.is-empty .home-empty-proof-art img{height:clamp(132px,45vw,180px);aspect-ratio:auto}.home-state-view{gap:48px}.home-community-section{padding:22px}}@media(max-width:767px){.home-member-routes ul{grid-template-columns:repeat(2,minmax(0,1fr))}.home-member-route-link{padding-inline:12px}}@media(max-width:420px){.home-member-route-link{padding-inline:10px}.home-member-route-link strong{font-size:.82rem}}
+  /* Foundation polish: keep the first action and local proof in the first viewport. */
+  .home-guest-hero { min-height: 0; padding-block: clamp(24px, 6vw, 56px); }
+  .home-state-root :is(a, button):focus-visible { outline: 3px solid #000; outline-offset: 3px; box-shadow: 0 0 0 6px var(--home-yellow); }
+  @media (min-width: 1180px) { .home-guest-hero { min-height: 0; } }
+  @media (max-width: 767px) { .home-state-view { gap: 36px; } }
 `;
