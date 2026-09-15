@@ -1,0 +1,18 @@
+{
+  "schema_version": "ikimon.frontend-scout-report.v1",
+  "checked_at": "2026-09-15T00:36:48.825Z",
+  "auto_adopted": false,
+  "summary": {"total": 10, "reachable": 10, "failed": 0},
+  "results": [
+    {"id":"transitions-dev","ok":true,"http_status":200,"last_modified":"Sun, 13 Sep 2026 12:54:38 GMT"},
+    {"id":"shadcn-ui","ok":true,"http_status":200},
+    {"id":"base-ui","ok":true,"http_status":200},
+    {"id":"react-aria","ok":true,"http_status":200,"last_modified":"Tue, 08 Sep 2026 18:04:45 GMT"},
+    {"id":"radix-ui","ok":true,"http_status":200},
+    {"id":"motion","ok":true,"http_status":200},
+    {"id":"21st-dev","ok":true,"http_status":200},
+    {"id":"mdn","ok":true,"http_status":200},
+    {"id":"wai-aria-apg","ok":true,"http_status":200},
+    {"id":"open-ui","ok":true,"http_status":200}
+  ]
+}
