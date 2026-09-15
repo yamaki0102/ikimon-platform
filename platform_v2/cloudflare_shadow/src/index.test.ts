@@ -4559,7 +4559,6 @@ class FakeStatement {
       const duplicate = [...this.db.alertDeliveries.values()].some((candidate) =>
         candidate.occurrence_id === string(v[1])
         && candidate.user_id === string(v[2])
-        && candidate.area_subscription_id === string(v[3])
         && candidate.trigger_kind === "area_watch"
       );
       if (duplicate) return { meta: { changes: 0 } };
@@ -5247,6 +5246,53 @@ class FakeStatement {
         request_fingerprint: row.request_fingerprint,
         write_status: row.write_status
       } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT o.owner_user_id, COALESCE(p.visibility, o.visibility) AS visibility, COALESCE(p.accepts_identification_proposals, 0) AS accepts_identification_proposals FROM observations o LEFT JOIN record_observation_policies p")) {
+      const row = this.db.observations.get(string(v[0]));
+      return row ? ({
+        owner_user_id: row.owner_user_id,
+        visibility: row.visibility,
+        accepts_identification_proposals: 0
+      } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT observation_id, owner_user_id, observed_at, taxon_label, public_cell, visibility, emergency_hidden, processing_state FROM observations")) {
+      const row = this.db.observations.get(string(v[0]));
+      return row ? ({
+        observation_id: row.observation_id,
+        owner_user_id: row.owner_user_id,
+        observed_at: row.observed_at,
+        taxon_label: row.taxon_label,
+        public_cell: row.public_cell,
+        visibility: row.visibility,
+        emergency_hidden: row.emergency_hidden,
+        processing_state: row.processing_state
+      } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT observation_id FROM readmodel_public_observations WHERE observation_id = ?")) {
+      const row = this.db.readmodel.get(string(v[0]));
+      return row ? ({ observation_id: row.observation_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT occurrence_id, record_consent, withdrawal_status FROM observation_data_rights WHERE visit_id = ?")) {
+      const row = [...this.db.observationDataRights.values()].find((candidate) => candidate.visit_id === string(v[0]));
+      return row ? ({
+        occurrence_id: row.occurrence_id,
+        record_consent: row.record_consent,
+        withdrawal_status: row.withdrawal_status
+      } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT field_id, source_payload_json FROM civic_observation_contexts WHERE visit_id = ?")) {
+      const row = [...this.db.civicObservationContexts.values()].find((candidate) => candidate.visit_id === string(v[0]));
+      return row ? ({ field_id: row.field_id, source_payload_json: row.source_payload_json } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT place_id, source_payload FROM observation_write_idempotency WHERE visit_id = ?")) {
+      const row = [...this.db.observationWriteIdempotency.values()].find((candidate) => candidate.visit_id === string(v[0]));
+      return row ? ({ place_id: row.place_id, source_payload: row.source_payload } as T) : null;
     }
 
     if (normalized.startsWith("SELECT o.observation_id, o.observed_at") && normalized.includes("AS original_photo_count")) {
@@ -7534,6 +7580,7 @@ class FakeStatement {
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT occurrence_id, visit_id FROM observation_data_rights WHERE occurrence_id IN")) {
+      if (this.values.length > 90) throw new Error("area-watch rights query exceeded D1 bind chunk");
       const occurrenceIds = new Set(this.values.map(string));
       const rows = [...this.db.observationDataRights.values()]
         .filter((row) =>
@@ -7546,6 +7593,7 @@ class FakeStatement {
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT observation_id, visibility, emergency_hidden, processing_state FROM observations WHERE observation_id IN")) {
+      if (this.values.length > 90) throw new Error("area-watch observation query exceeded D1 bind chunk");
       const observationIds = new Set(this.values.map(string));
       const rows = [...this.db.observations.values()]
         .filter((row) => observationIds.has(row.observation_id))
@@ -7632,6 +7680,38 @@ class FakeStatement {
     }
 
     throw new Error(`Unhandled SQL all: ${this.query}`);
+  }
+}
+
+class FailFirstAreaWatchInsertStatement extends FakeStatement {
+  override async run(): Promise<unknown> {
+    throw new Error("area-watch delivery write unavailable");
+  }
+}
+
+class FailFirstAreaWatchInsertD1 extends FakeD1 {
+  private failNextAreaWatchInsert = true;
+
+  override prepare(query: string): FakeStatement {
+    if (this.failNextAreaWatchInsert && normalize(query).startsWith("INSERT OR IGNORE INTO alert_deliveries")) {
+      this.failNextAreaWatchInsert = false;
+      return new FailFirstAreaWatchInsertStatement(this, query);
+    }
+    return super.prepare(query);
+  }
+}
+
+class VisibilityTransitionD1 extends FakeD1 {
+  constructor(private readonly recordId: string) {
+    super();
+  }
+
+  override async batch(_statements: FakeStatement[]): Promise<unknown[]> {
+    const observation = requireRow(this.observations, this.recordId);
+    observation.visibility = "public";
+    const rights = this.observationDataRights.get(this.recordId);
+    if (rights) rights.record_consent = "public_summary";
+    return [];
   }
 }
 
@@ -12752,6 +12832,17 @@ test("Cloudflare observation writes emit area-watch deliveries for matching acti
     created_at: "2026-06-15T00:00:00.000Z",
     updated_at: "2026-06-16T00:00:00.000Z"
   });
+  core.areaSubscriptions.set("area-watch-target-renamed", {
+    subscription_id: "area-watch-target-renamed",
+    user_id: "watcher-user",
+    target_type: "place",
+    target_id: "place:34.71,137.81",
+    label: "東金の観察地（更新後）",
+    href: "/map?place=place%3A34.71%2C137.81",
+    is_active: 1,
+    created_at: "2026-06-17T00:00:00.000Z",
+    updated_at: "2026-06-17T00:00:00.000Z"
+  });
 
   const response = await post("/api/v1/observations/upsert", env, {
     observationId: "area-watch-observation",
@@ -12771,8 +12862,133 @@ test("Cloudflare observation writes emit area-watch deliveries for matching acti
   assert.equal(deliveries.length, 1);
   assert.equal(deliveries[0]?.user_id, "watcher-user");
   assert.equal(deliveries[0]?.occurrence_id, "occ:area-watch-observation:0");
-  assert.equal(JSON.parse(deliveries[0]?.payload_json ?? "{}").areaLabel, "東金の観察地");
+  assert.equal(JSON.parse(deliveries[0]?.payload_json ?? "{}").areaLabel, "東金の観察地（更新後）");
   assert.equal(obs.observations.get("area-watch-observation")?.visibility, "public");
+});
+
+test("Cloudflare idempotent observation replay retries an area-watch delivery after the initial cross-D1 write fails", async () => {
+  const base = createEnv();
+  const core = new FailFirstAreaWatchInsertD1();
+  const env = { ...base.env, CORE_DB: core };
+  core.areaSubscriptions.set("area-watch-retry-target", {
+    subscription_id: "area-watch-retry-target",
+    user_id: "watcher-user",
+    target_type: "place",
+    target_id: "place:34.71,137.81",
+    label: "東金の観察地",
+    href: "/map?place=place%3A34.71%2C137.81",
+    is_active: 1,
+    created_at: "2026-06-15T00:00:00.000Z",
+    updated_at: "2026-06-16T00:00:00.000Z"
+  });
+  const input = {
+    observationId: "area-watch-retry-observation",
+    clientSubmissionId: "area-watch-retry-submission",
+    userId: "observer-user",
+    observedAt: "2026-06-15T02:30:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    siteId: "place:34.71,137.81",
+    siteName: "東金の観察地",
+    taxon: { vernacularName: "再試行テスト", rank: "species" },
+    visibility: "public",
+    dataRights: { recordConsent: "public_summary", withdrawalStatus: "active" }
+  };
+
+  const first = await post("/api/v1/observations/upsert", env, input);
+  assert.equal(first.idempotency.reused, false);
+  assert.equal([...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch").length, 0);
+
+  const replay = await post("/api/v1/observations/upsert", env, input);
+  assert.equal(replay.idempotency.reused, true);
+  const deliveries = [...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0]?.occurrence_id, "occ:area-watch-retry-observation:0");
+});
+
+test("Cloudflare public visibility transition emits an area-watch delivery after publication", async () => {
+  const base = createEnv();
+  const obs = new VisibilityTransitionD1("visibility-transition-record");
+  const env = {
+    ...base.env,
+    OBS_DB: obs,
+    OBSERVATION_DUAL_WRITE_MODE: "on",
+    OBSERVATION_READ_CUTOVER_MODE: "on"
+  };
+  const rawToken = "visibility-transition-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  base.core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "visibility-owner",
+    display_name: "Visibility Owner",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  base.core.areaSubscriptions.set("visibility-transition-target", {
+    subscription_id: "visibility-transition-target",
+    user_id: "watcher-user",
+    target_type: "place",
+    target_id: "place:cell-transition",
+    label: "切替対象の観察地",
+    href: "/map?place=place%3Acell-transition",
+    is_active: 1,
+    created_at: "2026-06-15T00:00:00.000Z",
+    updated_at: "2026-06-16T00:00:00.000Z"
+  });
+  obs.observations.set("visibility-transition-record", {
+    observation_id: "visibility-transition-record",
+    draft_id: "draft-visibility-transition",
+    owner_user_id: "visibility-owner",
+    observed_at: "2026-06-15T02:30:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: "公開切替テスト",
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "cell-transition",
+    visibility: "private",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: null
+  });
+  obs.observationDataRights.set("visibility-transition-record", {
+    visit_id: "visibility-transition-record",
+    occurrence_id: "occ:visibility-transition-record:0",
+    record_consent: "private",
+    research_use_consent: "none",
+    enterprise_report_consent: "none",
+    dataset_license: null,
+    media_license: null,
+    external_export_allowed: 0,
+    withdrawal_status: "active",
+    source_payload_json: "{}"
+  });
+
+  const response = await worker.fetch(new Request("https://shadow.test/api/v1/records/visibility-transition-record/observation-actions", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      origin: "https://shadow.test",
+      cookie: `ikimon_v2_session=${rawToken}`
+    },
+    body: new URLSearchParams({
+      action: "set_visibility",
+      visibility: "public",
+      operation_id: "visibility-transition-1"
+    })
+  }), env);
+
+  assert.equal(response.status, 303, await response.text());
+  assert.equal(obs.observations.get("visibility-transition-record")?.visibility, "public");
+  assert.equal(obs.observationDataRights.get("visibility-transition-record")?.record_consent, "public_summary");
+  assert.equal(obs.readmodel.has("visibility-transition-record"), true);
+  const deliveries = [...base.core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0]?.occurrence_id, "occ:visibility-transition-record:0");
 });
 
 test("Cloudflare personal alerts page past suppressed rows to return older visible updates", async () => {
@@ -12802,6 +13018,35 @@ test("Cloudflare personal alerts page past suppressed rows to return older visib
       payload_json: JSON.stringify({ title: "抑制済み通知" }),
       acknowledged_at: null,
       created_at: new Date(Date.UTC(2026, 7, 1, 0, index)).toISOString()
+    });
+    obs.observationDataRights.set(`rights-suppressed-${index}`, {
+      visit_id: `visit-suppressed-${index}`,
+      occurrence_id: `occ-suppressed-${index}`,
+      record_consent: "public_summary",
+      research_use_consent: "none",
+      enterprise_report_consent: "none",
+      dataset_license: null,
+      media_license: null,
+      external_export_allowed: 0,
+      withdrawal_status: "active",
+      source_payload_json: "{}"
+    });
+    obs.observations.set(`visit-suppressed-${index}`, {
+      observation_id: `visit-suppressed-${index}`,
+      draft_id: `draft-suppressed-${index}`,
+      owner_user_id: "record-owner",
+      observed_at: "2026-07-31T00:00:00.000Z",
+      partition_month: "2026-07",
+      taxon_label: "非公開の記録",
+      note: null,
+      exact_lat: null,
+      exact_lng: null,
+      location_accuracy_m: null,
+      public_cell: "cell-suppressed",
+      visibility: "private",
+      emergency_hidden: 0,
+      processing_state: "accepted",
+      public_area_label: null
     });
   }
   core.alertDeliveries.set("visible-old", {

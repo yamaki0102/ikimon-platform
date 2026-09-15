@@ -64,6 +64,10 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /name="activityIntent"/);
         assert.match(response.body, /name="participantRole"/);
         assert.match(response.body, /name="revisitOfVisitId"/);
+        assert.match(response.body, /name="fieldId"/);
+        assert.match(response.body, /params\.has\('field_id'\) && !params\.has\('fieldId'\)/);
+        assert.match(response.body, /data\.get\('fieldId'\) \|\| data\.get\('field_id'\)/);
+        assert.match(response.body, /field_id: fieldId \|\| null/);
         assert.match(response.body, /civicContext:/);
         assert.match(response.body, /activityIntent/);
         assert.match(response.body, /participantRole/);

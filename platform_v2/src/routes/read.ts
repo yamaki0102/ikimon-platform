@@ -11345,6 +11345,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input id="record-video-primary-photo-input" type="file" accept="image/*" capture="environment" hidden />
               <input type="hidden" name="recordMode" value="quick" />
               <input type="hidden" name="placeId" value="" />
+              <input type="hidden" name="fieldId" value="" />
               <input type="hidden" name="prefecture" value="" />
               <input type="hidden" name="revisitOfVisitId" value="" />
               <div id="record-video-guide" class="record-video-guide" hidden>
@@ -13554,7 +13555,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (!params.has(key)) params.set(key, value);
             });
           }
-          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'placeId', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason', 'activityIntent', 'participantRole', 'revisitOfVisitId', 'fieldScanMode', 'fixedPointId', 'routeId', 'areaId'];
+          if (params.has('field_id') && !params.has('fieldId')) params.set('fieldId', params.get('field_id') || '');
+          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'placeId', 'fieldId', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason', 'activityIntent', 'participantRole', 'revisitOfVisitId', 'fieldScanMode', 'fixedPointId', 'routeId', 'areaId'];
           names.forEach((name) => {
             if (!params.has(name)) return;
             const field = form.elements.namedItem(name);
@@ -15671,6 +15673,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const participantRole = String(data.get('participantRole') || 'finder').trim();
               const revisitOfVisitId = String(data.get('revisitOfVisitId') || '').trim();
               const placeIdHint = String(data.get('placeId') || '').trim();
+              const fieldId = String(data.get('fieldId') || data.get('field_id') || '').trim();
               const surveyResult = String(data.get('surveyResult') || 'detected');
               const catchOutcome = String(data.get('catchOutcome') || '').trim();
               const captureMethod = String(data.get('captureMethod') || '').trim();
@@ -15823,6 +15826,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   observedAt: observedAtIso,
                   latitude,
                   longitude,
+                  fieldId,
                 prefecture: String(data.get('prefecture') || ''),
                 municipality: String(data.get('municipality') || ''),
                 localityNote: String(data.get('localityNote') || ''),
@@ -15842,6 +15846,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   next_look_for: recordMode === 'survey' ? null : (nextLookFor || null),
                   media_role: mediaRole,
                   place_id_hint: placeIdHint || null,
+                  field_id: fieldId || null,
+                  prefecture: String(data.get('prefecture') || '').trim() || null,
+                  municipality: String(data.get('municipality') || '').trim() || null,
                   client_submission_id: clientSubmissionId,
                   client_photo_sha256s: clientPhotoHashes,
                   location_provenance: hasRecordCoordinates ? recordLocationProvenance : null,
@@ -15868,9 +15875,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   riskLane: activityIntent === 'confirm' ? 'danger_candidate' : 'normal',
                   reportConsent: 'none',
                   revisitOfVisitId: revisitOfVisitId || null,
+                  fieldId: fieldId || null,
                   sourcePayload: {
                     source: 'record_form_context',
                     record_mode: recordMode,
+                    field_id: fieldId || null,
+                    prefecture: String(data.get('prefecture') || '').trim() || null,
+                    municipality: String(data.get('municipality') || '').trim() || null,
+                    complete_checklist_flag: recordMode === 'survey' && checklistCompletion === 'complete',
+                    effort_minutes: recordMode === 'survey' && Number.isFinite(effortMinutes) ? effortMinutes : null,
                   },
                 },
                 dataRights: {

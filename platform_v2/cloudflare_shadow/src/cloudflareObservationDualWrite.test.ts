@@ -210,7 +210,7 @@ test("owner visibility changes are replay-safe and keep canonical rights aligned
   applyPlan(db, publish);
   assert.equal(db.prepare("SELECT visibility FROM observations").get()?.visibility, "public");
   assert.equal(db.prepare("SELECT visibility FROM asset_ledger").get()?.visibility, "public");
-  assert.equal(db.prepare("SELECT record_consent FROM observation_data_rights").get()?.record_consent, "public");
+  assert.equal(db.prepare("SELECT record_consent FROM observation_data_rights").get()?.record_consent, "public_summary");
   assert.deepEqual(Object.fromEntries(Object.entries(db.prepare("SELECT visibility, accepts_identification_proposals, default_source FROM record_observation_policies").get() ?? {})), {
     visibility: "public",
     accepts_identification_proposals: 0,

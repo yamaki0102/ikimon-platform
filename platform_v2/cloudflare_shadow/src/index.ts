@@ -11679,7 +11679,15 @@ async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, en
       `INSERT OR IGNORE INTO alert_deliveries (
          delivery_id, occurrence_id, user_id, recipient_id, subscription_id, area_subscription_id,
          trigger_kind, channel, delivered_at, delivery_status, error_message, payload_json, acknowledged_at, created_at
-       ) VALUES (?, ?, ?, NULL, NULL, ?, 'area_watch', 'none', ?, 'sent', NULL, ?, NULL, ?)`
+       )
+       SELECT ?, ?, ?, NULL, NULL, ?, 'area_watch', 'none', ?, 'sent', NULL, ?, NULL, ?
+        WHERE NOT EXISTS (
+          SELECT 1
+            FROM alert_deliveries existing
+           WHERE existing.occurrence_id = ?
+             AND existing.user_id = ?
+             AND existing.trigger_kind = 'area_watch'
+        )`
     ).bind(
       newId("alert_delivery"),
       input.occurrenceId,
@@ -11704,11 +11712,98 @@ async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, en
           distanceMeters: input.distanceMeters
         }
       }),
-      now
+      now,
+      input.occurrenceId,
+      subscription.user_id
     ).run() as { meta?: { changes?: unknown } };
     if (Number(result?.meta?.changes) === 1) created += 1;
   }
   return created;
+}
+
+async function enqueueD1AreaWatchNotificationsForStoredObservation(
+  observationId: string,
+  env: Env
+): Promise<number> {
+  const observation = await env.OBS_DB.prepare(
+    `SELECT observation_id, owner_user_id, observed_at, taxon_label, public_cell, visibility,
+            emergency_hidden, processing_state
+       FROM observations
+      WHERE observation_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{
+    observation_id: string;
+    owner_user_id: string;
+    observed_at: string;
+    taxon_label: string | null;
+    public_cell: string;
+    visibility: string;
+    emergency_hidden: number;
+    processing_state: string;
+  }>();
+  if (
+    !observation
+    || observation.visibility !== "public"
+    || Number(observation.emergency_hidden) !== 0
+    || !["accepted", "auto_accepted"].includes(observation.processing_state)
+  ) return 0;
+
+  // Re-run the same publication safety decision used by the initial write.
+  // The public read model may be materialized asynchronously, so it must not
+  // become a prerequisite for recovering an otherwise eligible alert.
+  const publicSafety = await publicSafetyGateForObservation(observationId, env).catch(() => ({ blocked: true }));
+  if (publicSafety.blocked) return 0;
+
+  const rights = await env.OBS_DB.prepare(
+    `SELECT occurrence_id, record_consent, withdrawal_status
+       FROM observation_data_rights
+      WHERE visit_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{
+    occurrence_id: string | null;
+    record_consent: string;
+    withdrawal_status: string;
+  }>();
+  if (!rights?.occurrence_id) return 0;
+
+  const context = await env.OBS_DB.prepare(
+    `SELECT field_id, source_payload_json
+       FROM civic_observation_contexts
+      WHERE visit_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{ field_id: string | null; source_payload_json: string | null }>().catch(() => null);
+  const idempotency = await env.OBS_DB.prepare(
+    `SELECT place_id, source_payload
+       FROM observation_write_idempotency
+      WHERE visit_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{ place_id: string | null; source_payload: string | null }>().catch(() => null);
+  const sourcePayload = {
+    ...jsonObject(idempotency?.source_payload ?? "{}"),
+    ...jsonObject(context?.source_payload_json ?? "{}")
+  };
+  const clientPhotoHashes = Array.isArray(sourcePayload.client_photo_sha256s)
+    ? sourcePayload.client_photo_sha256s
+    : [];
+
+  return enqueueD1AreaWatchNotifications({
+    visitId: observationId,
+    occurrenceId: rights.occurrence_id,
+    ownerUserId: observation.owner_user_id,
+    placeId: idempotency?.place_id ?? `place:${observation.public_cell}`,
+    fieldId: normalizeOptionalText(context?.field_id),
+    prefecture: normalizeOptionalText(sourcePayload.prefecture ?? sourcePayload.observed_prefecture),
+    municipality: normalizeOptionalText(sourcePayload.municipality ?? sourcePayload.observed_municipality),
+    observedAt: observation.observed_at,
+    displayName: normalizeOptionalText(observation.taxon_label) ?? "新しい観察",
+    visibility: observation.visibility,
+    recordConsent: rights.record_consent,
+    withdrawalStatus: rights.withdrawal_status,
+    hasPhoto: clientPhotoHashes.some((value) => typeof value === "string" && value.trim() !== ""),
+    completeChecklist: sourcePayload.complete_checklist_flag === true,
+    effortMinutes: numberOrNull(sourcePayload.effort_minutes),
+    distanceMeters: numberOrNull(sourcePayload.distance_meters)
+  }, env);
 }
 
 type PersonalUnreadAlertRow = Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind">;
@@ -11726,35 +11821,41 @@ async function visibleAreaWatchOccurrenceIds(
   if (occurrenceIds.length === 0) return new Set();
 
   try {
-    const placeholders = occurrenceIds.map(() => "?").join(", ");
-    const rights = await env.OBS_DB.prepare(
-      `SELECT occurrence_id, visit_id
-         FROM observation_data_rights
-        WHERE occurrence_id IN (${placeholders})
-          AND withdrawal_status = 'active'
-          AND record_consent IN ('public_summary', 'external_export')`
-    ).bind(...occurrenceIds).all<{ occurrence_id: string; visit_id: string }>();
-    const visitIds = [...new Set(rights.results.map((row) => row.visit_id).filter(Boolean))];
-    if (visitIds.length === 0) return new Set();
-    const observationPlaceholders = visitIds.map(() => "?").join(", ");
-    const observations = await env.OBS_DB.prepare(
-      `SELECT observation_id, visibility, emergency_hidden, processing_state
-         FROM observations
-        WHERE observation_id IN (${observationPlaceholders})`
-    ).bind(...visitIds).all<{
-      observation_id: string;
-      visibility: string;
-      emergency_hidden: number;
-      processing_state: string;
-    }>();
-    const byObservationId = new Map(observations.results.map((row) => [row.observation_id, row]));
     const visible = new Set<string>();
-    for (const right of rights.results) {
-      const observation = byObservationId.get(right.visit_id);
-      if (!observation || observation.visibility !== "public" || Number(observation.emergency_hidden) !== 0) continue;
-      if (!["accepted", "auto_accepted"].includes(observation.processing_state)) continue;
-      const safety = await publicSafetyGateForObservation(observation.observation_id, env).catch(() => ({ blocked: true, reason: "safety_read_failed" }));
-      if (!safety.blocked) visible.add(right.occurrence_id);
+    // D1 has a 100-bind ceiling. Keep both cross-database reads below it so a
+    // large unread history cannot turn the badge/read surface into an error.
+    const bindChunkSize = 90;
+    for (let offset = 0; offset < occurrenceIds.length; offset += bindChunkSize) {
+      const occurrenceChunk = occurrenceIds.slice(offset, offset + bindChunkSize);
+      const placeholders = occurrenceChunk.map(() => "?").join(", ");
+      const rights = await env.OBS_DB.prepare(
+        `SELECT occurrence_id, visit_id
+           FROM observation_data_rights
+          WHERE occurrence_id IN (${placeholders})
+            AND withdrawal_status = 'active'
+            AND record_consent IN ('public_summary', 'external_export')`
+      ).bind(...occurrenceChunk).all<{ occurrence_id: string; visit_id: string }>();
+      const visitIds = [...new Set(rights.results.map((row) => row.visit_id).filter(Boolean))];
+      if (visitIds.length === 0) continue;
+      const observationPlaceholders = visitIds.map(() => "?").join(", ");
+      const observations = await env.OBS_DB.prepare(
+        `SELECT observation_id, visibility, emergency_hidden, processing_state
+           FROM observations
+          WHERE observation_id IN (${observationPlaceholders})`
+      ).bind(...visitIds).all<{
+        observation_id: string;
+        visibility: string;
+        emergency_hidden: number;
+        processing_state: string;
+      }>();
+      const byObservationId = new Map(observations.results.map((row) => [row.observation_id, row]));
+      for (const right of rights.results) {
+        const observation = byObservationId.get(right.visit_id);
+        if (!observation || observation.visibility !== "public" || Number(observation.emergency_hidden) !== 0) continue;
+        if (!["accepted", "auto_accepted"].includes(observation.processing_state)) continue;
+        const safety = await publicSafetyGateForObservation(observation.observation_id, env).catch(() => ({ blocked: true, reason: "safety_read_failed" }));
+        if (!safety.blocked) visible.add(right.occurrence_id);
+      }
     }
     return visible;
   } catch {
@@ -26659,6 +26760,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   const owner = container.owner_user_id === session.userId;
   let plan: ObservationDualWritePlan;
   let refreshVisibility = false;
+  let visibilityTransitionToPublic = false;
   if (action === "add") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const subjectType = String(form.get("subject_type") ?? "unknown_subject");
@@ -26682,6 +26784,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
       return json({ ok: false, error: "visibility_input_invalid" }, 400, { "cache-control": "no-store" });
     }
     const previousVisibility = container.visibility === "public" || container.visibility === "limited" ? container.visibility : "private";
+    visibilityTransitionToPublic = previousVisibility !== "public" && visibility === "public";
     plan = await buildRecordVisibilityPlan({
       recordId,
       ownerUserId: session.userId,
@@ -26785,6 +26888,11 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   }
   await env.OBS_DB.batch(plan.mutations.map((mutation) => env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)));
   if (refreshVisibility) await refreshPublicReadmodel(recordId, env);
+  if (visibilityTransitionToPublic) {
+    await enqueueD1AreaWatchNotificationsForStoredObservation(recordId, env).catch((error) => {
+      console.error("[area-watch] public transition notification failed", error);
+    });
+  }
   return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
 }
 
@@ -29420,6 +29528,12 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         ?? "unknown place";
       const registrationBridge = await claimObservationEventRegistrationBridge(request, env, input, authenticatedSession);
       await recordObservationEventRegistrationBridgeMetric(env, registrationBridge);
+      // A successful observation write may have outlived an optional
+      // cross-D1 alert write. Replaying the same client submission is the
+      // existing idempotency recovery path, so retry the alert branch here.
+      await enqueueD1AreaWatchNotificationsForStoredObservation(visitId, env).catch((error) => {
+        console.error("[area-watch] idempotent replay notification retry failed", error);
+      });
       return json(buildLegacyCompatibleObservationResponse({
         visitId,
         occurrenceId,
