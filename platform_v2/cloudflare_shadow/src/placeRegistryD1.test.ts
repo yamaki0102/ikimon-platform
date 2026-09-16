@@ -37,7 +37,8 @@ const canarySeed = readFileSync(
 );
 
 function sha256(value: string | Buffer): string {
-  return createHash("sha256").update(value).digest("hex");
+  const text = Buffer.isBuffer(value) ? value.toString("utf8") : value;
+  return createHash("sha256").update(text.replace(/\r\n/g, "\n"), "utf8").digest("hex");
 }
 
 function realPlaceDatabase(): { sqlite: DatabaseSync; db: PlaceRegistryD1Database } {
