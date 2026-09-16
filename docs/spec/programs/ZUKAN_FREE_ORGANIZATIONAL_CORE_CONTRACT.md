@@ -255,7 +255,7 @@ Not approved in this slice:
 Owner: IKIMON. Work: `NOCOSIL-ZUKAN-FREE-PROGRAM-ORGANIZER-20260916`.
 Companion design: `yamaki0102/nocosil-platform/docs/product/NOCOSIL_FREE_PROGRAM_ORGANIZER_2026-09-16.md`.
 
-Event, observation-gathering and stamp-rally authoring belongs in NOCOSIL. ZUKAN remains the public discovery and participant surface; do not expand its organizer form or add a dashboard per profile. A final native organizer authentication/publication confirmation is not an authoring UI.
+Event, observation-gathering and stamp-rally orchestration belongs in NOCOSIL. Its default authoring surface is the existing conversation/composer: reuse known context, ask only material gaps, and generate a contextual Review/edit projection only when direct manipulation is useful. Do not create a persistent feature-specific organizer page merely because Program is structured. ZUKAN remains the public discovery and participant surface; do not expand its organizer form or add a dashboard per profile. A final native organizer authentication/publication confirmation is not an authoring UI.
 
 The free Core follows the capability when the UI moves: Personal, Organization and Project organizers do not need a paid NOCOSIL Organization subscription. Basic staff/team operation, consent, Review, activity counts and source-record portability are included. AI is optional. This does not make specialist biodiversity inventories or exceptional resources free, nor does it grant another owner's authority.
 
