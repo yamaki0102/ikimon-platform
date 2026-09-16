@@ -7,6 +7,8 @@ import { registerIwataOpenDataRoutes } from "./iwataOpenData.js";
 import { registerRegionalSourceRoutes } from "./regionalSources.js";
 
 const STAGING_ROBOTS_META = '<meta name="robots" content="noindex, nofollow" />';
+const PRODUCTION_CONTENT_SIGNAL = "search=yes, ai-input=yes, ai-train=no, use=reference";
+const STAGING_CONTENT_SIGNAL = "search=no, ai-input=no, ai-train=no, use=immediate";
 const ROBOTS_META_PATTERN = /<meta\b[^>]*\bname=["']robots["'][^>]*>/gi;
 
 function requestOrigin(
@@ -25,7 +27,7 @@ export function isStagingRequest(
 }
 
 export function stagingRobotsTxt(): string {
-  return `User-agent: *\nDisallow: /\n# production-canonical-origin: ${PRODUCTION_PUBLIC_ORIGIN}\n`;
+  return `User-agent: *\nContent-Signal: ${STAGING_CONTENT_SIGNAL}\nDisallow: /\n# production-canonical-origin: ${PRODUCTION_PUBLIC_ORIGIN}\n`;
 }
 
 export function addStagingRobotsMeta(payload: string): string {
@@ -37,7 +39,9 @@ export function addStagingRobotsMeta(payload: string): string {
 
 export async function registerSiteMapRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("onSend", (request, reply, payload, done) => {
-    if (!isStagingRequest(request as unknown as { headers: Record<string, unknown>; protocol?: string })) {
+    const staging = isStagingRequest(request as unknown as { headers: Record<string, unknown>; protocol?: string });
+    reply.header("Content-Signal", staging ? STAGING_CONTENT_SIGNAL : PRODUCTION_CONTENT_SIGNAL);
+    if (!staging) {
       done(null, payload);
       return;
     }

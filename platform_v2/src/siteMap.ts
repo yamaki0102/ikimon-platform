@@ -1329,6 +1329,7 @@ ${urls}
 export function buildRobotsTxt(origin: string): string {
   const base = normalizeOrigin(origin || PRODUCTION_PUBLIC_ORIGIN);
   return `User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=no, use=reference
 Allow: /
 
 Sitemap: ${base}/sitemap.xml
