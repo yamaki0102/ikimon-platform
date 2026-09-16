@@ -58,7 +58,7 @@ await context.route(/^https?:\/\/(?!127\.0\.0\.1)/,route=>route.fulfill({status:
 const page=await context.newPage();const pageErrors:string[]=[];page.on('pageerror',e=>pageErrors.push(e.message));
 const checks:unknown[]=[];
 try{
- for(const width of [320,375,768,1160,1161,1280,1440]){await page.setViewportSize({width,height:900});
+ for(const width of [320,375,390,412,768,1160,1161,1280,1440]){await page.setViewportSize({width,height:900});
   for(const [name,path] of [['before','/before'],['after','/after'],['saved','/ja/records?view=saved']]){
    await page.goto(origin+path,{waitUntil:'networkidle'});await page.screenshot({path:dir+'/'+name+'-'+width+'.png',fullPage:true});
    const layout=await page.evaluate(()=>({client:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));if(layout.scroll>layout.client){console.log('OVERFLOW',name,width,JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll('*')].filter(e=>{const r=e.getBoundingClientRect();return r.width&&r.right>document.documentElement.clientWidth}).map(e=>({tag:e.tagName,cls:e.className,w:e.getBoundingClientRect().width,min:getComputedStyle(e).minWidth,display:getComputedStyle(e).display})).slice(0,14))));}expect(layout.scroll).toBeLessThanOrEqual(layout.client);
