@@ -35,6 +35,9 @@ test("capture pages redirect only after record upsert and all photo uploads have
 
   assert.match(patched, /data-ikimon-post-capture-value-loop="v1"/u);
   assert.match(patched, /nonce="abc123"/u);
+  assert.match(patched, /border: 1px solid var\(--zukan-border-decorative\)/u);
+  assert.match(patched, /background: var\(--zukan-action-primary\)/u);
+  assert.match(patched, /color: var\(--zukan-surface-base\)/u);
   assert.match(patched, /\/api\\\/v1\\\/observations\\\/upsert/u);
   assert.match(patched, /data-global-record-saved-action="records"/u);
   assert.match(patched, /location\.assign\(detailHref\(recordId\)\)/u);

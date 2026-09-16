@@ -94,6 +94,33 @@ export type ObservationFirstRecordDetailCopy = {
   related: string;
   relatedRecord: string;
   protectedLocation: string;
+  publicationReturnTitle: string;
+  publicationReview: string;
+  publicationReviewNotReviewed: string;
+  publicationReviewApproved: string;
+  publicationReviewChangesRequested: string;
+  publicationReviewHeld: string;
+  publicationReviewRejected: string;
+  publicationReviewWithdrawn: string;
+  publicationEligibility: string;
+  publicationNotReady: string;
+  publicationEligible: string;
+  publicationPublished: string;
+  publicationExcluded: string;
+  publicationDestinations: string;
+  publicationConfigured: string;
+  publicationReadBack: string;
+  publicationProductionReadonly: string;
+  publicationExclusion: string;
+  publicationExclusionRecordNotPublic: string;
+  publicationExclusionReviewNotApproved: string;
+  publicationExclusionDestinationNotConfigured: string;
+  publicationExclusionConsentRequired: string;
+  publicationExclusionMinorUnknown: string;
+  publicationExclusionGuardianUnknown: string;
+  publicationExclusionGuardianWithdrawn: string;
+  publicationExclusionWithdrawn: string;
+  publicationExclusionDefault: string;
 };
 
 const ja: ObservationFirstRecordDetailCopy = {
@@ -122,7 +149,9 @@ const ja: ObservationFirstRecordDetailCopy = {
   separateSubject: "別の対象として分ける", separateName: "分ける対象の呼び名", separate: "分ける", notVisible: "この対象は写っていない", restore: "この対象を戻す",
   combineWith: "まとめる対象", combine: "別の対象とまとめる", assignMedia: "写真を対象へ割り当てる", assignMediaLead: "写真・動画・音と対象の関係を整理できます。", assign: "割り当てる",
   receiveProposals: "名前の提案を受け付ける", pauseProposals: "名前の提案を停止する", visibilitySettings: "公開範囲", visibilityLead: "公開すると、位置をぼかした記録がみんなの記録に加わります。", saveVisibility: "公開範囲を保存", captureInfo: "撮影情報", capturedAt: "撮影日時", place: "場所", scope: "公開範囲", mediaCount: "メディア",
-  photo: "写真", video: "動画", audio: "音声", related: "つながる記録", relatedRecord: "近くの自然の記録", protectedLocation: "位置情報は公開範囲に合わせて保護されています"
+  photo: "写真", video: "動画", audio: "音声", related: "つながる記録", relatedRecord: "近くの自然の記録", protectedLocation: "位置情報は公開範囲に合わせて保護されています",
+  publicationReturnTitle: "公開の戻り値", publicationReview: "人によるReview", publicationReviewNotReviewed: "まだReviewされていません", publicationReviewApproved: "Review済み・承認", publicationReviewChangesRequested: "修正依頼", publicationReviewHeld: "保留", publicationReviewRejected: "却下", publicationReviewWithdrawn: "撤回",
+  publicationEligibility: "公開状態", publicationNotReady: "まだ公開準備中", publicationEligible: "公開可能（未公開）", publicationPublished: "公開確認済み", publicationExcluded: "公開対象外", publicationDestinations: "公開先", publicationConfigured: "公開先として設定済み（未公開）", publicationReadBack: "公開確認済み", publicationProductionReadonly: "production Feed（読み取り専用）", publicationExclusion: "除外理由", publicationExclusionRecordNotPublic: "記録が公開範囲ではありません", publicationExclusionReviewNotApproved: "人によるReviewの承認がありません", publicationExclusionDestinationNotConfigured: "公開先が設定されていません", publicationExclusionConsentRequired: "この公開先への同意がありません", publicationExclusionMinorUnknown: "未成年者区分を確認できません", publicationExclusionGuardianUnknown: "保護者権限を確認できません", publicationExclusionGuardianWithdrawn: "保護者同意が撤回されています", publicationExclusionWithdrawn: "記録または公開同意が撤回されています", publicationExclusionDefault: "必要な公開条件を満たしていません"
 };
 
 const en: ObservationFirstRecordDetailCopy = {
@@ -147,7 +176,8 @@ const en: ObservationFirstRecordDetailCopy = {
   subjectTypes: { unknown_subject: "Something visible", organism: "Organism", group: "Group", trace: "Trace", sound: "Sound", pet: "Pet" }, contexts: { unknown: "Not set", wild: "Wild", pet: "Pet", captive: "Captive", cultivated: "Cultivated" },
   separateSubject: "Separate as another subject", separateName: "Name for the new subject", separate: "Separate", notVisible: "This subject is not visible", restore: "Restore this subject", combineWith: "Combine with", combine: "Combine subjects",
   assignMedia: "Assign media to subjects", assignMediaLead: "Organize how photos, video and sound support each subject.", assign: "Assign", receiveProposals: "Allow name suggestions", pauseProposals: "Pause name suggestions", visibilitySettings: "Visibility", visibilityLead: "Public records appear with an approximate location in community records.", saveVisibility: "Save visibility",
-  captureInfo: "Capture information", capturedAt: "Captured", place: "Place", scope: "Visibility", mediaCount: "Media", photo: "Photo", video: "Video", audio: "Audio", related: "Connected records", relatedRecord: "Nearby nature record", protectedLocation: "Location is protected according to the sharing scope"
+  captureInfo: "Capture information", capturedAt: "Captured", place: "Place", scope: "Visibility", mediaCount: "Media", photo: "Photo", video: "Video", audio: "Audio", related: "Connected records", relatedRecord: "Nearby nature record", protectedLocation: "Location is protected according to the sharing scope",
+  publicationReturnTitle: "Publication return", publicationReview: "Human Review", publicationReviewNotReviewed: "Not reviewed yet", publicationReviewApproved: "Approved by Review", publicationReviewChangesRequested: "Changes requested", publicationReviewHeld: "On hold", publicationReviewRejected: "Rejected", publicationReviewWithdrawn: "Withdrawn", publicationEligibility: "Publication state", publicationNotReady: "Not ready for publication", publicationEligible: "Eligible (not published)", publicationPublished: "Publication confirmed", publicationExcluded: "Excluded from publication", publicationDestinations: "Destinations", publicationConfigured: "Configured destination (not published)", publicationReadBack: "Publication confirmed", publicationProductionReadonly: "Production feed (read-only)", publicationExclusion: "Exclusion reason", publicationExclusionRecordNotPublic: "The record is not public", publicationExclusionReviewNotApproved: "Human Review has not approved it", publicationExclusionDestinationNotConfigured: "No destination is configured", publicationExclusionConsentRequired: "Consent does not cover this destination", publicationExclusionMinorUnknown: "Minor status is unresolved", publicationExclusionGuardianUnknown: "Guardian authority is unresolved", publicationExclusionGuardianWithdrawn: "Guardian consent was withdrawn", publicationExclusionWithdrawn: "The record or publication consent was withdrawn", publicationExclusionDefault: "Required publication conditions are not met"
 };
 
 const es: ObservationFirstRecordDetailCopy = {

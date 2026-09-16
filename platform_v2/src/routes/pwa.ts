@@ -5,6 +5,7 @@ import { detectLangFromUrl, normalizeLang } from "../i18n.js";
 import { getForwardedBasePath } from "../httpBasePath.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { renderSiteDocument } from "../ui/siteShell.js";
+import { ZUKAN_DESIGN_FOUNDATION_STYLES } from "../ui/appExperience.js";
 
 function requestLang(request: { query?: { lang?: string }; headers: Record<string, unknown> }) {
   const queryLang = normalizeLang(request.query?.lang);
@@ -93,10 +94,10 @@ function renderAppRefreshHtml(target: string): string {
   <meta name="robots" content="noindex,nofollow" />
   <title>ZUKAN app refresh</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5fbf7;color:#0f172a}.panel{width:min(420px,100%);display:grid;gap:14px}.mark{width:56px;height:56px;border-radius:16px;background:#ecfdf5;display:grid;place-items:center;color:#047857;font-weight:950;font-size:24px}.panel h1{margin:0;font-size:24px;line-height:1.25}.panel p{margin:0;color:#475569;line-height:1.7}.status{min-height:40px;border-radius:8px;background:#fff;border:1px solid rgba(15,23,42,.08);display:flex;align-items:center;padding:0 12px;font-size:13px;font-weight:850;color:#334155}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions a,.actions button{min-height:44px;border-radius:8px;border:0;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:inherit;font-weight:900;cursor:pointer}.actions button{background:#10b981;color:#fff}.actions a{background:#e2e8f0;color:#0f172a}
+    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:var(--zukan-font-sans);background:var(--zukan-surface-subtle);color:var(--zukan-text-primary)}.panel{width:min(420px,100%);display:grid;gap:14px}.mark{width:56px;height:56px;border-radius:var(--zukan-radius-content);background:var(--zukan-surface-subtle);display:grid;place-items:center;color:var(--zukan-action-primary);font-weight:950;font-size:24px}.panel h1{margin:0;font-size:24px;line-height:1.25}.panel p{margin:0;color:var(--zukan-text-secondary);line-height:1.7}.status{min-height:44px;border-radius:var(--zukan-radius-content);background:var(--zukan-surface-base);border:1px solid var(--zukan-border-decorative);display:flex;align-items:center;padding:0 12px;font-size:14px;font-weight:850;color:var(--zukan-text-primary)}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions a,.actions button{min-height:44px;border-radius:var(--zukan-radius-control);border:0;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:inherit;font-weight:900;cursor:pointer}.actions button{background:var(--zukan-action-primary);color:#fff}.actions a{background:var(--zukan-surface-base);border:1px solid var(--zukan-border-control);color:var(--zukan-text-primary)}${ZUKAN_DESIGN_FOUNDATION_STYLES}
   </style>
 </head>
-<body>
+<body data-zukan-design="v1">
   <main class="panel">
     <div class="mark"><img src="${BRAND_ASSETS.mark192}" alt="ZUKAN" /></div>
     <h1>アプリ表示を更新しています</h1>

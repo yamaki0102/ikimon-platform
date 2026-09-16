@@ -46,6 +46,9 @@ type AtlasCopy = {
   timelineRecord: string;
   verified: string;
   candidate: string;
+  currentSeason: string;
+  nearby: string;
+  routeTo: string;
 };
 
 const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
@@ -80,7 +83,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "この場所の図鑑はこれから",
     emptyBody: "公開できるRecordがまだ十分でないか、安全のため詳細を控えています。",
     unknown: "未確認",
-    timeline: "この場所のうつろい", timelineSingle: "一時期の記録", timelineMultiple: "複数の時期の記録", timelineSampled: "公開記録からの標本表示", timelineRecord: "今を撮る", verified: "確認済み", candidate: "候補",
+    timeline: "この場所のうつろい", timelineSingle: "一時期の記録", timelineMultiple: "複数の時期の記録", timelineSampled: "公開記録からの標本表示", timelineRecord: "今を撮る", verified: "確認済み", candidate: "候補", currentSeason: "今見られるもの", nearby: "近くの場所", routeTo: "ルート",
   },
   en: {
     eyebrow: "A local atlas led by place",
@@ -113,7 +116,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "This place atlas is just beginning",
     emptyBody: "There are not enough publishable records yet, or details are withheld for safety.",
     unknown: "Unknown",
-    timeline: "This place over time", timelineSingle: "Records from one period", timelineMultiple: "Records from multiple periods", timelineSampled: "Sample of public records", timelineRecord: "Capture now", verified: "Verified", candidate: "Candidate",
+    timeline: "This place over time", timelineSingle: "Records from one period", timelineMultiple: "Records from multiple periods", timelineSampled: "Sample of public records", timelineRecord: "Capture now", verified: "Verified", candidate: "Candidate", currentSeason: "What you may find now", nearby: "Nearby places", routeTo: "Route",
   },
   es: {
     eyebrow: "Atlas local guiado por el lugar",
@@ -146,7 +149,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "Este atlas apenas comienza",
     emptyBody: "Aún no hay suficientes registros publicables o se ocultan detalles por seguridad.",
     unknown: "Sin confirmar",
-    timeline: "Este lugar a través del tiempo", timelineSingle: "Registros de un periodo", timelineMultiple: "Registros de varios periodos", timelineSampled: "Muestra de registros públicos", timelineRecord: "Capturar ahora", verified: "Verificado", candidate: "Candidato",
+    timeline: "Este lugar a través del tiempo", timelineSingle: "Registros de un periodo", timelineMultiple: "Registros de varios periodos", timelineSampled: "Muestra de registros públicos", timelineRecord: "Capturar ahora", verified: "Verificado", candidate: "Candidato", currentSeason: "Lo que se puede ver ahora", nearby: "Lugares cercanos", routeTo: "Ruta",
   },
   "pt-BR": {
     eyebrow: "Atlas local guiado pelo lugar",
@@ -179,7 +182,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "Este atlas está só começando",
     emptyBody: "Ainda não há registros publicáveis suficientes ou os detalhes estão ocultos por segurança.",
     unknown: "Não confirmado",
-    timeline: "Este lugar ao longo do tempo", timelineSingle: "Registros de um período", timelineMultiple: "Registros de vários períodos", timelineSampled: "Amostra de registros públicos", timelineRecord: "Registrar agora", verified: "Verificado", candidate: "Candidato",
+    timeline: "Este lugar ao longo do tempo", timelineSingle: "Registros de um período", timelineMultiple: "Registros de vários períodos", timelineSampled: "Amostra de registros públicos", timelineRecord: "Registrar agora", verified: "Verificado", candidate: "Candidato", currentSeason: "O que pode ser visto agora", nearby: "Lugares próximos", routeTo: "Rota",
   },
 };
 
@@ -427,6 +430,46 @@ function renderAtlasTimeline(
   return `<section class="me-place-atlas-section me-place-atlas-timeline"><h3>${atlasEscapeHtml(copy.timeline)}</h3><p>${atlasEscapeHtml(projection.state === "single_period" ? copy.timelineSingle : copy.timelineMultiple)}</p>${projection.sampled === true ? `<small class="me-place-atlas-timeline-sampled">${atlasEscapeHtml(copy.timelineSampled)}</small>` : ""}<ol>${periodHtml}</ol>${showCta ? `<a class="me-place-atlas-timeline-cta" href="${atlasEscapeHtml(recordHref)}" data-place-primary-action data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:timeline_revisit" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordHref)}">${atlasEscapeHtml(copy.timelineRecord)}</a>` : ""}</section>`;
 }
 
+function renderAtlasCurrentSeason(profile: Record<string, unknown>, copy: AtlasCopy): string {
+  const projection = atlasPlainObject(profile.currentSeason);
+  if (!projection || projection.state !== "current" || projection.sourceStatus !== "fresh" || projection.publicationStatus !== "public") return "";
+  const items = atlasArray(projection.items)
+    .map(atlasPlainObject)
+    .filter((item): item is Record<string, unknown> =>
+      Boolean(item && typeof item.recordId === "string" && typeof item.observedAt === "string")
+    )
+    .slice(0, 8);
+  if (items.length === 0) return "";
+  return `<section class="me-place-atlas-section me-place-atlas-current-season" data-place-atlas-current-season="${atlasEscapeHtml(String(projection.season ?? "unknown"))}"><h3>${atlasEscapeHtml(copy.currentSeason)}</h3><div class="me-place-atlas-record-grid">${items.map((item) => {
+    const label = typeof item.displayLabel === "string" && item.displayLabel.trim() ? item.displayLabel : copy.unknown;
+    const image = renderAtlasImage(String(item.publicMediaUrl ?? ""), String(label), 360, "me-place-atlas-record-media", copy.imageFallback);
+    const status = item.verificationState === "verified" ? copy.verified : item.verificationState === "candidate" ? copy.candidate : copy.unknown;
+    const body = `${image}<div><strong>${atlasEscapeHtml(label)}</strong><small>${atlasEscapeHtml(String(projection.season ?? "unknown"))} · ${atlasEscapeHtml(status)}</small></div>`;
+    const href = atlasSafeHref(item.href);
+    return href ? `<a class="me-place-atlas-record" href="${atlasEscapeHtml(href)}">${body}</a>` : `<article class="me-place-atlas-record">${body}</article>`;
+  }).join("")}</div></section>`;
+}
+
+function renderAtlasHierarchy(profile: Record<string, unknown>, copy: AtlasCopy): string {
+  const hierarchy = atlasPlainObject(profile.hierarchy);
+  const relationships = atlasArray(hierarchy?.relationships)
+    .map(atlasPlainObject)
+    .filter((relationship): relationship is Record<string, unknown> =>
+      Boolean(
+        relationship &&
+        (relationship.relationshipType === "next_to" || relationship.relationshipType === "route_to") &&
+        (relationship.verificationStatus === "source_verified" || relationship.verificationStatus === "administrator_verified") &&
+        typeof relationship.placeId === "string" && relationship.placeId.trim() !== "" &&
+        typeof relationship.name === "string" && relationship.name.trim() !== "",
+      )
+    )
+    .slice(0, 8);
+  if (relationships.length === 0) return "";
+  return `<section class="me-place-atlas-section me-place-atlas-hierarchy"><h3>${atlasEscapeHtml(copy.nearby)}</h3><ul>${relationships.map((relationship) =>
+    `<li data-place-relationship="${atlasEscapeHtml(String(relationship.relationshipType))}"><strong>${atlasEscapeHtml(String(relationship.name))}</strong><small>${atlasEscapeHtml(relationship.relationshipType === "route_to" ? copy.routeTo : copy.nearby)} · ${atlasEscapeHtml(String(relationship.placeId))}</small></li>`
+  ).join("")}</ul></section>`;
+}
+
 function renderAtlasFacets(profile: Record<string, unknown>, lang: SiteLang, copy: AtlasCopy): string {
   const items = atlasArray(profile.facets)
     .map(atlasPlainObject)
@@ -610,7 +653,7 @@ export function renderMapPlaceAtlasProfile(
   const stateNotice = suppressed || empty
     ? `<section class="me-place-atlas-empty" data-place-atlas-state="${suppressed ? "suppressed" : "empty"}"><strong>${atlasEscapeHtml(copy.emptyTitle)}</strong><p>${atlasEscapeHtml(copy.emptyBody)}</p></section>`
     : "";
-  return `<article class="me-place-atlas" data-place-atlas-profile data-place-atlas-status="${atlasEscapeHtml(publication.status || "partial")}"><header class="me-place-atlas-hero"><div class="me-place-atlas-hero-copy"><span>${atlasEscapeHtml(copy.eyebrow)}</span><h2>${atlasEscapeHtml(name)}</h2>${description ? `<p>${atlasEscapeHtml(description)}</p>` : ""}<small>${atlasEscapeHtml([locality, type].filter(Boolean).join(" · "))}</small></div>${heroImage}</header>${renderAtlasSummary(profile, copy)}${stateNotice}${renderAtlasTimeline(profile, options, copy)}${renderAtlasHighlights(profile, copy)}${renderAtlasFacets(profile, options.lang, copy)}${renderAtlasRecent(profile, copy)}${renderAtlasRelated(profile, copy)}${renderAtlasGaps(profile, copy)}${renderAtlasActions(profile, options, copy)}${renderAtlasPolicy(profile, place, copy)}<p class="me-place-atlas-privacy">${atlasEscapeHtml(suppressed ? copy.privacySuppressed : copy.privacy)}</p></article>`;
+  return `<article class="me-place-atlas" data-place-atlas-profile data-place-atlas-status="${atlasEscapeHtml(publication.status || "partial")}"><header class="me-place-atlas-hero"><div class="me-place-atlas-hero-copy"><span>${atlasEscapeHtml(copy.eyebrow)}</span><h2>${atlasEscapeHtml(name)}</h2>${description ? `<p>${atlasEscapeHtml(description)}</p>` : ""}<small>${atlasEscapeHtml([locality, type].filter(Boolean).join(" · "))}</small></div>${heroImage}</header>${renderAtlasSummary(profile, copy)}${stateNotice}${renderAtlasCurrentSeason(profile, copy)}${renderAtlasHierarchy(profile, copy)}${renderAtlasTimeline(profile, options, copy)}${renderAtlasHighlights(profile, copy)}${renderAtlasFacets(profile, options.lang, copy)}${renderAtlasRecent(profile, copy)}${renderAtlasRelated(profile, copy)}${renderAtlasGaps(profile, copy)}${renderAtlasActions(profile, options, copy)}${renderAtlasPolicy(profile, place, copy)}<p class="me-place-atlas-privacy">${atlasEscapeHtml(suppressed ? copy.privacySuppressed : copy.privacy)}</p></article>`;
 }
 
 export function renderMapPlaceAtlasLoading(lang: SiteLang, name = ""): string {
@@ -1188,6 +1231,8 @@ const MAP_PLACE_ATLAS_RUNTIME_HELPERS = [
   atlasCanRecordAtPlace,
   atlasTimelineHasRecordCta,
   renderAtlasTimeline,
+  renderAtlasCurrentSeason,
+  renderAtlasHierarchy,
   renderAtlasHighlights,
   renderAtlasFacets,
   renderAtlasRecent,

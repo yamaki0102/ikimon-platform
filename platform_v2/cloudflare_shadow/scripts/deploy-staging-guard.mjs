@@ -242,6 +242,37 @@ async function currentDeployState() {
   };
 }
 
+async function verifyAccessProtectedStagingPublicUrl(baseUrl) {
+  const url = `${baseUrl.replace(/\/$/, "")}/health`;
+  const response = await fetch(url, {
+    redirect: "manual",
+    headers: { accept: "application/json", "cache-control": "no-store" }
+  });
+  const authenticate = response.headers.get("www-authenticate") ?? "";
+  const location = response.headers.get("location") ?? "";
+  let accessLogin = false;
+  try {
+    const redirect = new URL(location);
+    accessLogin = redirect.hostname === "yamaki-ops.cloudflareaccess.com"
+      && redirect.pathname === "/cdn-cgi/access/login/staging.zukan.earth";
+  } catch {
+    accessLogin = false;
+  }
+  const ok = response.status === 302
+    && authenticate.includes("Cloudflare-Access")
+    && accessLogin;
+  events.push({
+    command: `verify Cloudflare Access ${url}`,
+    exitCode: ok ? 0 : 1,
+    status: response.status,
+    accessProtected: authenticate.includes("Cloudflare-Access"),
+    durationMs: 0
+  });
+  if (!ok) {
+    throw new Error(`Staging Access boundary verification failed for ${url}: ${response.status}`);
+  }
+}
+
 async function smoke(baseUrl, expectedSha) {
   const checks = [
     { path: "/health", service: undefined },
@@ -320,7 +351,7 @@ try {
       console.warn(JSON.stringify(triggerWarning, null, 2));
     }
     await smoke(stagingWorkerUrl, state.gitHead);
-    await smoke(stagingPublicUrl, state.gitHead);
+    await verifyAccessProtectedStagingPublicUrl(stagingPublicUrl);
   }
 
   const report = {

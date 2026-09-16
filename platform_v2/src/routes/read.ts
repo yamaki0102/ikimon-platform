@@ -4444,7 +4444,7 @@ const START_STATE_STYLES = `
   .start-guide-state-chip { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 999px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 13px; line-height: 1; font-weight: 900; }
   .start-guide-state-dot { width: 8px; height: 8px; border-radius: 999px; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.12); }
   .start-guide-browse-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
-  .start-guide-browse-actions .btn { min-height: 40px; padding: 9px 14px; }
+  .start-guide-browse-actions .btn { min-height: var(--ik-tap-target, 44px); padding: 9px 14px; }
   .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
   .start-guide-actions .btn-solid { min-width: 210px; }
   .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
@@ -6254,7 +6254,7 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
             <a class="btn btn-ghost" href="${escapeHtml(publicFindsHref)}">${escapeHtml(copy.publicFindsAction)}</a>
           </div>
           <div class="start-guide-actions">
-            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">${escapeHtml(copy.photoAction)}</a>
+            <a class="btn btn-ghost" href="${escapeHtml(loginHref)}">${escapeHtml(copy.photoAction)}</a>
             <a class="btn btn-ghost" href="${escapeHtml(memoHref)}">${escapeHtml(copy.noteAction)}</a>
             <a class="btn btn-ghost" href="${escapeHtml(learnHref)}">${escapeHtml(copy.learnAction)}</a>
           </div>
@@ -11345,6 +11345,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input id="record-video-primary-photo-input" type="file" accept="image/*" capture="environment" hidden />
               <input type="hidden" name="recordMode" value="quick" />
               <input type="hidden" name="placeId" value="" />
+              <input type="hidden" name="fieldId" value="" />
+              <input type="hidden" name="regionId" value="" />
               <input type="hidden" name="prefecture" value="" />
               <input type="hidden" name="revisitOfVisitId" value="" />
               <div id="record-video-guide" class="record-video-guide" hidden>
@@ -13554,7 +13556,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (!params.has(key)) params.set(key, value);
             });
           }
-          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'placeId', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason', 'activityIntent', 'participantRole', 'revisitOfVisitId', 'fieldScanMode', 'fixedPointId', 'routeId', 'areaId'];
+          if (params.has('field_id') && !params.has('fieldId')) params.set('fieldId', params.get('field_id') || '');
+          if (params.has('region_id') && !params.has('regionId')) params.set('regionId', params.get('region_id') || '');
+          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'placeId', 'fieldId', 'regionId', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason', 'activityIntent', 'participantRole', 'revisitOfVisitId', 'fieldScanMode', 'fixedPointId', 'routeId', 'areaId'];
           names.forEach((name) => {
             if (!params.has(name)) return;
             const field = form.elements.namedItem(name);
@@ -15671,6 +15675,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const participantRole = String(data.get('participantRole') || 'finder').trim();
               const revisitOfVisitId = String(data.get('revisitOfVisitId') || '').trim();
               const placeIdHint = String(data.get('placeId') || '').trim();
+              const fieldId = String(data.get('fieldId') || data.get('field_id') || '').trim();
+              const regionId = String(data.get('regionId') || data.get('region_id') || '').trim();
               const surveyResult = String(data.get('surveyResult') || 'detected');
               const catchOutcome = String(data.get('catchOutcome') || '').trim();
               const captureMethod = String(data.get('captureMethod') || '').trim();
@@ -15823,7 +15829,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   observedAt: observedAtIso,
                   latitude,
                   longitude,
-                prefecture: String(data.get('prefecture') || ''),
+                  fieldId,
+                  regionId,
+                  prefecture: String(data.get('prefecture') || ''),
                 municipality: String(data.get('municipality') || ''),
                 localityNote: String(data.get('localityNote') || ''),
                 note: speciesNote,
@@ -15842,8 +15850,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   next_look_for: recordMode === 'survey' ? null : (nextLookFor || null),
                   media_role: mediaRole,
                   place_id_hint: placeIdHint || null,
+                  field_id: fieldId || null,
+                  region_id: regionId || null,
+                  prefecture: String(data.get('prefecture') || '').trim() || null,
+                  municipality: String(data.get('municipality') || '').trim() || null,
                   client_submission_id: clientSubmissionId,
                   client_photo_sha256s: clientPhotoHashes,
+                  client_video_selected: Boolean(selectedVideoFile instanceof File && selectedVideoFile.size > 0),
                   location_provenance: hasRecordCoordinates ? recordLocationProvenance : null,
                   environment_record_draft: visualRecordEnvironmentDraft || null,
                   record_photo_feedback: visualRecordFeedbackSentence
@@ -15868,9 +15881,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   riskLane: activityIntent === 'confirm' ? 'danger_candidate' : 'normal',
                   reportConsent: 'none',
                   revisitOfVisitId: revisitOfVisitId || null,
+                  fieldId: fieldId || null,
                   sourcePayload: {
                     source: 'record_form_context',
                     record_mode: recordMode,
+                    field_id: fieldId || null,
+                    region_id: regionId || null,
+                    prefecture: String(data.get('prefecture') || '').trim() || null,
+                    municipality: String(data.get('municipality') || '').trim() || null,
+                    complete_checklist_flag: recordMode === 'survey' && checklistCompletion === 'complete',
+                    effort_minutes: recordMode === 'survey' && Number.isFinite(effortMinutes) ? effortMinutes : null,
                   },
                 },
                 dataRights: {

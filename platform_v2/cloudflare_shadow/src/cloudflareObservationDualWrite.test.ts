@@ -196,11 +196,13 @@ test("owner visibility changes are replay-safe and keep canonical rights aligned
     CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, visibility TEXT NOT NULL, public_area_label TEXT);
     CREATE TABLE asset_ledger (asset_id TEXT PRIMARY KEY, observation_id TEXT NOT NULL, owner_user_id TEXT NOT NULL, visibility TEXT NOT NULL);
     CREATE TABLE observation_data_rights (visit_id TEXT PRIMARY KEY, record_consent TEXT NOT NULL, updated_at TEXT);
+    CREATE TABLE civic_observation_contexts (visit_id TEXT PRIMARY KEY, context_kind TEXT NOT NULL, audience_scope TEXT NOT NULL, updated_at TEXT);
     CREATE TABLE readmodel_public_observations (observation_id TEXT PRIMARY KEY);
     CREATE TABLE public_map_snapshot_records_v1 (snapshot_key TEXT NOT NULL, occurrence_id TEXT NOT NULL, PRIMARY KEY (snapshot_key, occurrence_id));
     INSERT INTO observations VALUES ('record-visibility', 'owner-1', 'private', NULL);
     INSERT INTO asset_ledger VALUES ('asset-visibility', 'record-visibility', 'owner-1', 'private');
     INSERT INTO observation_data_rights VALUES ('record-visibility', 'private', CURRENT_TIMESTAMP);
+    INSERT INTO civic_observation_contexts VALUES ('record-visibility', 'ordinary', 'private', CURRENT_TIMESTAMP);
   `);
   const owner = await buildOwnerObservationUpsertPlan({ recordId: "record-visibility", ownerUserId: "owner-1", visibility: "private", sourceSnapshot: {} });
   applyPlan(db, owner);
@@ -210,7 +212,8 @@ test("owner visibility changes are replay-safe and keep canonical rights aligned
   applyPlan(db, publish);
   assert.equal(db.prepare("SELECT visibility FROM observations").get()?.visibility, "public");
   assert.equal(db.prepare("SELECT visibility FROM asset_ledger").get()?.visibility, "public");
-  assert.equal(db.prepare("SELECT record_consent FROM observation_data_rights").get()?.record_consent, "public");
+  assert.equal(db.prepare("SELECT record_consent FROM observation_data_rights").get()?.record_consent, "public_summary");
+  assert.equal(db.prepare("SELECT audience_scope FROM civic_observation_contexts").get()?.audience_scope, "public");
   assert.deepEqual(Object.fromEntries(Object.entries(db.prepare("SELECT visibility, accepts_identification_proposals, default_source FROM record_observation_policies").get() ?? {})), {
     visibility: "public",
     accepts_identification_proposals: 0,

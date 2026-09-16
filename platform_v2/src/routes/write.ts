@@ -39,7 +39,6 @@ import { submitContact, verifyContactProof, type ContactSubmitInput } from "../s
 import { getPostSavePlaceMemorySample, kickPlaceMemoryPhotoProcessingForVisit } from "../services/placeMemory.js";
 import {
   emitAreaWatchNotificationForObservation,
-  ensureAreaWatchParticipationForVisit,
 } from "../services/areaWatchNotifications.js";
 import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
 import {
@@ -524,9 +523,6 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           occurrenceIds: result.occurrenceIds,
         },
       }).catch(() => undefined);
-      void ensureAreaWatchParticipationForVisit({ visitId: result.visitId }).catch((error) => {
-        request.log.warn({ err: error, visitId: result.visitId }, "area watch participation failed");
-      });
       void emitAreaWatchNotificationForObservation({
         occurrenceId: result.occurrenceId,
         visitId: result.visitId,

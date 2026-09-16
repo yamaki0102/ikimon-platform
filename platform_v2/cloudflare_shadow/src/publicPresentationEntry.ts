@@ -8,6 +8,7 @@ import {
 } from "./oauthStartBoundary";
 import { enforcePostCaptureValueLoopCompatibility } from "./postCaptureValueLoopCompatibilityPatch";
 import { enhancePostCaptureValueLoop } from "./postCaptureValueLoopPatch";
+import { ensurePublicDesignFoundation } from "./publicDesignFoundation";
 import { polishPublicHomeUx } from "./publicHomeUxPolish";
 import { patchPublicHomePresentation } from "./publicPresentationPatch";
 import { hardenSvgResponse } from "./svgResponseSecurity";
@@ -44,6 +45,6 @@ export default {
     const responsive = await ensureStateSplitHomeResponsive(polished);
     const valueLoop = await enhancePostCaptureValueLoop(request, responsive);
     const compatible = await enforcePostCaptureValueLoopCompatibility(request, valueLoop);
-    return hardenSvgResponse(compatible);
+    return hardenSvgResponse(await ensurePublicDesignFoundation(request, compatible));
   },
 };

@@ -548,6 +548,17 @@ export async function addSessionCookie(context: BrowserContext, rawCookie: strin
   ]);
 }
 
+export async function authenticateStagingFixture(
+  api: APIRequestContext,
+  context: BrowserContext,
+  userId: string,
+): Promise<{ writeKey: string }> {
+  const writeKey = requireEnv("V2_PRIVILEGED_WRITE_API_KEY");
+  const rawCookie = await issueSessionCookie(api, writeKey, userId);
+  await addSessionCookie(context, rawCookie);
+  return { writeKey };
+}
+
 export async function waitForMapReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH): Promise<void> {
   await page.goto(mapPath, { waitUntil: "domcontentloaded" });
   await page.locator("#map-explorer").waitFor({ state: "visible" });

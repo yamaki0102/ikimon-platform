@@ -74,6 +74,15 @@ function pushStateFloat(parts: string[], key: string, value: number | null, digi
   parts.push(`${key}=${value.toFixed(digits)}`);
 }
 
+function isSafeMapViewport(center: MapExplorerShareStateInput["center"], zoom: number | null): boolean {
+  if (!center || zoom == null) return false;
+  return (
+    center.lng >= -180 && center.lng <= 180 &&
+    center.lat >= -85 && center.lat <= 85 &&
+    zoom >= 0 && zoom <= 22
+  );
+}
+
 function overlayShareEntries(
   overlays: MapExplorerOverlayShareState[] | undefined,
 ): string[] {
@@ -82,7 +91,7 @@ function overlayShareEntries(
     if (!overlay || overlay.enabled !== true) continue;
     const id = normalizeStateText(overlay.id);
     const opacity = normalizeFiniteNumber(overlay.opacity);
-    if (!id || opacity == null) continue;
+    if (!id || opacity == null || opacity < 0 || opacity > 1) continue;
     entries.push(`${id}:${opacity.toFixed(2)}`);
   }
   return entries;
@@ -143,7 +152,7 @@ export function serializeSharedMapState(input: MapExplorerShareStateInput): stri
   const taxonGroup = normalizeStateText(input.taxonGroup);
   const year =
     typeof input.year === "number"
-      ? String(input.year)
+      ? Number.isFinite(input.year) ? String(input.year) : null
       : normalizeStateText(input.year);
   const season = normalizeStateText(input.season);
   const basemap = normalizeStateText(input.basemap);
@@ -171,11 +180,17 @@ export function serializeSharedMapState(input: MapExplorerShareStateInput): stri
     parts.push(`ov=${encodeURIComponent(overlayEntries.join(","))}`);
   }
 
-  if (center) {
-    pushStateFloat(parts, "lng", normalizeFiniteNumber(center.lng), 4);
-    pushStateFloat(parts, "lat", normalizeFiniteNumber(center.lat), 4);
+  if (
+    center &&
+    isSafeMapViewport(
+      { lng: normalizeFiniteNumber(center.lng) ?? NaN, lat: normalizeFiniteNumber(center.lat) ?? NaN },
+      zoom,
+    )
+  ) {
+    pushStateFloat(parts, "lng", center.lng, 4);
+    pushStateFloat(parts, "lat", center.lat, 4);
+    pushStateFloat(parts, "z", zoom, 1);
   }
-  pushStateFloat(parts, "z", zoom, 1);
   return parts.join("&");
 }
 
@@ -184,6 +199,7 @@ const RUNTIME_HELPERS = [
   normalizeFiniteNumber,
   pushStateParam,
   pushStateFloat,
+  isSafeMapViewport,
   overlayShareEntries,
   normalizeStateList,
   shouldApplyAsyncResponse,

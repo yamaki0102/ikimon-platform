@@ -42,14 +42,14 @@ export function renderEventCreateBody(args: {
     <p>場所と日時を決め、参加する人と一緒に記録を残せます。終わったあとに、みんなで振り返れます。</p>
   </article>
 
-  <form class="evt-checkin-form" data-evt-create-form>
+  <form class="ik-ui-surface evt-checkin-form" data-evt-create-form>
     <section class="evt-solo-preset" data-evt-solo-preset-card>
       <div>
         <span class="evt-eyebrow">明日の一人観察会</span>
         <h2 class="evt-heading" style="margin:4px 0 0;">狭い公園を、半径 80m で静かに回る</h2>
         <p class="evt-lead">タイトル・開始時刻・小さな開催範囲・当日の導線をまとめて整えます。現地では写真記録を最優先にします。</p>
       </div>
-      <button type="button" class="evt-btn evt-btn-primary" data-evt-solo-preset>一人用に整える</button>
+      <button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-evt-solo-preset>一人用に整える</button>
       <input type="hidden" name="solo_observation" value="" data-evt-solo-observation />
     </section>
 
@@ -108,11 +108,11 @@ export function renderEventCreateBody(args: {
           <p class="evt-lead">公式な施設境界ではなく、今回の集合・移動・観察に使う範囲を決めます。</p>
         </div>
         <div class="evt-area-toolbar">
-          <button type="button" class="evt-btn evt-btn-ghost" data-evt-locate style="min-height:36px; padding:6px 12px;">現在地</button>
-          <button type="button" class="evt-btn evt-btn-ghost" data-evt-area-use-center style="min-height:36px; padding:6px 12px;">ここでやる</button>
-          <button type="button" class="evt-btn evt-btn-primary" data-evt-area-suggest style="min-height:36px; padding:6px 12px;">範囲を整える</button>
-          <button type="button" class="evt-btn evt-btn-ghost" data-evt-area-sketch-save style="min-height:36px; padding:6px 12px;">下書き診断を保存</button>
-          <button type="button" class="evt-btn evt-btn-ghost" data-evt-area-undo style="min-height:36px; padding:6px 12px;">元に戻す</button>
+          <button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-evt-locate>現在地</button>
+          <button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-evt-area-use-center>ここでやる</button>
+          <button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-evt-area-suggest>範囲を整える</button>
+          <button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-evt-area-sketch-save>下書き診断を保存</button>
+          <button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-evt-area-undo>元に戻す</button>
         </div>
       </div>
 
@@ -125,7 +125,7 @@ export function renderEventCreateBody(args: {
       <div class="evt-field-search">
         <div class="evt-field-search-row">
           <input data-evt-field-search type="search" placeholder="登録スポットを検索（例: 公園名・市区町村・マイフィールド）" />
-          <button type="button" class="evt-btn evt-btn-ghost" data-evt-field-search-run style="min-height:40px; padding:8px 14px;">検索</button>
+          <button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-evt-field-search-run>検索</button>
         </div>
         <div data-evt-field-search-results class="evt-field-search-results" style="display:none;"></div>
       </div>
@@ -176,14 +176,14 @@ export function renderEventCreateBody(args: {
           <ul data-evt-area-sketch-preview-evidence></ul>
         </div>
         <p data-evt-area-sketch-preview-disclaimer></p>
-        <a class="evt-btn evt-btn-ghost" data-evt-area-sketch-field-link href="/community/fields" style="min-height:36px; padding:6px 12px;">フィールド詳細で見る</a>
+        <a class="evt-btn evt-btn-ghost" data-evt-area-sketch-field-link href="/community/fields">フィールド詳細で見る</a>
       </section>
 
       <div data-evt-field-summary class="evt-card" style="display:none; padding:10px 12px; background:rgba(16,185,129,.06); border-color:rgba(16,185,129,.32);">
         <span class="evt-eyebrow">選択中のフィールド</span>
         <strong data-evt-field-name style="display:block; margin-top:4px;">未選択</strong>
         <span data-evt-field-meta class="evt-lead" style="font-size:12px;"></span>
-        <button type="button" class="evt-btn evt-btn-ghost" data-evt-field-clear style="min-height:32px; margin-top:6px; padding:4px 10px;">解除</button>
+        <button type="button" class="evt-btn evt-btn-ghost" data-evt-field-clear>解除</button>
       </div>
 
       <div class="evt-recap-tabs" style="margin-top:0;">
@@ -200,7 +200,7 @@ export function renderEventCreateBody(args: {
 
       <div data-field-panel="nearby" style="display:none;">
         <p class="evt-lead">現在地から半径 10km 以内のフィールド。</p>
-        <button type="button" class="evt-btn evt-btn-ghost" data-evt-load-nearby style="min-height:36px; padding:6px 12px;">📍 近隣を取得</button>
+        <button type="button" class="evt-btn evt-btn-ghost" data-evt-load-nearby>📍 近隣を取得</button>
         <div data-field-list-nearby style="display:grid; gap:6px; max-height:240px; overflow:auto; margin-top:8px;"></div>
       </div>
 
@@ -242,7 +242,7 @@ export function renderEventCreateBody(args: {
           <span class="evt-eyebrow">告知文</span>
       <p class="evt-lead">場所と観察したいものを選ぶと、参加者向けの案内文を整えやすくなります。</p>
         </div>
-        <button type="button" class="evt-btn evt-btn-ghost" data-evt-announcement-generate style="min-height:36px; padding:6px 12px;">告知文を作る</button>
+        <button type="button" class="evt-btn evt-btn-ghost" data-evt-announcement-generate>告知文を作る</button>
       </div>
       <textarea name="announcement_text" data-evt-announcement rows="6" placeholder="場所を選ぶと告知文案が入ります。必要に応じて書き換えてください。"></textarea>
     </section>
@@ -254,9 +254,9 @@ export function renderEventCreateBody(args: {
       </select>
     </label>
 
-    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+    <div class="evt-form-actions">
       <a class="evt-btn evt-btn-ghost" href="/community/events">キャンセル</a>
-      <button type="submit" class="evt-btn evt-btn-primary">✨ 観察会を作成</button>
+      <button type="submit" class="ik-ui-action evt-btn evt-btn-primary">✨ 観察会を作成</button>
     </div>
   </form>
 </section>`;
@@ -1273,12 +1273,12 @@ export function eventCreateScript(): string {
       '<strong>似たフィールドがあります。今回の観察会ではどの範囲を使うか選んでください。</strong>' +
       '<span>既存: ' + escapeText(field?.name || "") + ' / 約 ' + Math.round(first.distanceM || first.distance_m || 0) + 'm</span>' +
       '<label style="display:grid;gap:4px;font-weight:700;font-size:12px;">別名で保存する場合' +
-      '<input data-evt-conflict-new-name placeholder="例: ' + escapeText((field?.name || "開催エリア") + "（公園側）") + '" style="min-height:40px;border:1px solid var(--evt-line);border-radius:12px;padding:8px 10px;" />' +
+      '<input data-evt-conflict-new-name placeholder="例: ' + escapeText((field?.name || "開催エリア") + "（公園側）") + '" style="min-height:var(--ik-tap-target,44px);border:1px solid var(--evt-line);border-radius:12px;padding:8px 10px;" />' +
       '</label>' +
       '<div class="evt-area-conflict-actions">' +
-      '<button type="button" class="evt-btn evt-btn-ghost" data-conflict-action="use_existing" style="min-height:36px;padding:6px 12px;">既存フィールドを使う</button>' +
-      '<button type="button" class="evt-btn evt-btn-ghost" data-conflict-action="update_existing" style="min-height:36px;padding:6px 12px;">範囲を更新する</button>' +
-      '<button type="button" class="evt-btn evt-btn-primary" data-conflict-action="save_as_new" style="min-height:36px;padding:6px 12px;">別名で保存する</button>' +
+      '<button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-conflict-action="use_existing" style="padding:6px 12px;">既存フィールドを使う</button>' +
+      '<button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-conflict-action="update_existing" style="padding:6px 12px;">範囲を更新する</button>' +
+      '<button type="button" class="ik-ui-action evt-btn evt-btn-ghost" data-conflict-action="save_as_new" style="padding:6px 12px;">別名で保存する</button>' +
       '</div>';
     conflictBox.appendChild(wrap);
     wrap.querySelectorAll("[data-conflict-action]").forEach(btn => {

@@ -15,8 +15,9 @@ const UX_STYLE = `<style id="${UX_STYLE_ID}">
   }
   .prototype-guest-home-actions.is-focused a:focus-visible,
   .prototype-home-records-more a:focus-visible {
-    outline: 3px solid #0f766e;
+    outline: 3px solid var(--zukan-focus-outline);
     outline-offset: 3px;
+    box-shadow: 0 0 0 4px var(--zukan-focus-yellow-300);
   }
   .prototype-home-records-more {
     display: flex;
@@ -29,10 +30,10 @@ const UX_STYLE = `<style id="${UX_STYLE_ID}">
     align-items: center;
     justify-content: center;
     padding: 0 18px;
-    border: 1px solid rgba(15,118,110,.24);
+    border: 1px solid var(--zukan-border-decorative);
     border-radius: 999px;
-    background: #fff;
-    color: #0f766e;
+    background: var(--zukan-surface-base);
+    color: var(--zukan-action-primary);
     font-size: 14px;
     line-height: 1.2;
     font-weight: 900;

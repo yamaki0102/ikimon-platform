@@ -86,6 +86,9 @@ test("public home polish shows an honest recent-record heading and limits the fi
   assert.match(polished, /href="\/ja\/records\?view=public"[^>]*>もっと記録を見る<\/a>/u);
   assert.match(polished, /id="ikimon-public-home-ux-v2"/u);
   assert.match(polished, /:focus-visible/u);
+  assert.match(polished, /outline: 3px solid var\(--zukan-focus-outline\)/u);
+  assert.match(polished, /box-shadow: 0 0 0 4px var\(--zukan-focus-yellow-300\)/u);
+  assert.match(polished, /color: var\(--zukan-action-primary\)/u);
   assert.match(polished, /min-height: 48px/u);
 });
 

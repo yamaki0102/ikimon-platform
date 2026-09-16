@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   emitAreaWatchNotificationForObservation,
-  ensureAreaWatchParticipationForVisit,
 } from "./areaWatchNotifications.js";
 
 type Query = { text: string; values: unknown[] };
@@ -31,10 +30,13 @@ test("emitAreaWatchNotificationForObservation targets active area followers with
   assert.match(sql, /'none'/u);
   assert.match(sql, /見守りエリアに新しい記録/u);
   assert.match(sql, /s\.user_id <> v\.user_id/u);
+  assert.match(sql, /select distinct on \(s\.user_id\)/iu);
+  assert.match(sql, /observation_data_rights/iu);
+  assert.match(sql, /rights\.withdrawal_status = 'active'/iu);
+  assert.match(sql, /not exists \([\s\S]+alert_deliveries existing[\s\S]+existing\.trigger_kind = 'area_watch'/iu);
   assert.match(sql, /savepoint area_watch_notification_dispatch/iu);
   assert.match(sql, /release savepoint area_watch_notification_dispatch/iu);
 });
-
 test("emitAreaWatchNotificationForObservation restores the caller transaction after a write error", async () => {
   const history: Query[] = [];
   let transactionAborted = false;
@@ -65,7 +67,6 @@ test("emitAreaWatchNotificationForObservation restores the caller transaction af
   assert.equal(transactionAborted, false);
   assert.match(history.map((query) => query.text).join("\n"), /rollback to savepoint area_watch_notification_dispatch/iu);
 });
-
 test("emitAreaWatchNotificationForObservation relies on idempotent conflict handling for replay", async () => {
   const history: Query[] = [];
   let areaWatchInsertCount = 0;
@@ -97,21 +98,4 @@ test("emitAreaWatchNotificationForObservation ignores blank ids", async () => {
   }, makeMockClient(history));
   assert.deepEqual(summary, { areaWatchNotifications: 0 });
   assert.equal(history.length, 0);
-});
-
-test("ensureAreaWatchParticipationForVisit auto-follows fields from a participant visit", async () => {
-  const history: Query[] = [];
-  const summary = await ensureAreaWatchParticipationForVisit(
-    { visitId: "visit-1" },
-    makeMockClient(history, [{ delivery_id: "subscription-1" }]),
-  );
-
-  assert.equal(summary.followedAreas, 1);
-  const sql = history.map((query) => query.text).join("\n");
-  assert.match(sql, /insert into user_area_subscriptions/u);
-  assert.match(sql, /resolved_field_ids/u);
-  assert.match(sql, /\/map\?field=/u);
-  assert.match(sql, /\/map\?place=/u);
-  assert.match(sql, /on conflict \(user_id, target_type, target_id\)/u);
-  assert.deepEqual(history[0]?.values, ["visit-1"]);
 });

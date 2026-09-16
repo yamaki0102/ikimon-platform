@@ -1072,6 +1072,85 @@
       }
     },
     {
+      "id": "task.zukan.m7.program-handover-incoming-acceptance",
+      "milestone_id": "milestone.m7.program-continuity-handover",
+      "state": "implemented",
+      "readiness": "source-verified",
+      "implementation_allowed": false,
+      "slice": "M7.3 incoming handover acceptance",
+      "requirement_ids": [
+        "quality.zukan.handover.provenance",
+        "quality.zukan.handover.selective-reuse",
+        "quality.zukan.handover.responsibility-transfer",
+        "quality.zukan.handover.lifecycle-reset",
+        "quality.zukan.handover.idempotency"
+      ],
+      "source_locators": [
+        "platform_v2/src/services/programHandoverAcceptanceRepositoryContract.ts",
+        "platform_v2/src/services/programHandoverAcceptanceD1Repository.ts",
+        "platform_v2/src/services/programHandoverAcceptanceD1Repository.test.ts",
+        "platform_v2/src/services/programHandoverOfferRepositoryContract.ts",
+        "platform_v2/src/services/programHandoverOfferD1Repository.ts",
+        "platform_v2/src/services/programHandoverRepositoryContract.ts",
+        "platform_v2/src/services/programHandoverD1Repository.ts",
+        "platform_v2/cloudflare_shadow/migrations/core/0015_zukan_program_handover_persistence.sql",
+        "platform_v2/cloudflare_shadow/migrations/core/0016_zukan_program_handover_offers.sql",
+        "platform_v2/cloudflare_shadow/migrations/core/0017_zukan_program_handover_acceptances.sql",
+        "platform_v2/src/productRegistryM7M8.test.ts",
+        "docs/spec/zukan-product-architecture/M7_3_PROMOTION_2026-09-02.md",
+        "docs/spec/zukan-product-architecture/PLAN.md"
+      ],
+      "negative_eval_ids": [
+        "prop.m7.acceptance-intended-actor-only",
+        "prop.m7.acceptance-pending-offer-only",
+        "prop.m7.acceptance-retry-one-logical",
+        "prop.m7.acceptance-no-transfer-side-effect",
+        "prop.m7.acceptance-write-failure-not-accepted"
+      ],
+      "source_delta_done": {
+        "source": "source-verified M7.2 pending_acceptance offer plus immutable M7.1 plan",
+        "delta": "append one explicit accepted_pending_apply receipt only after the intended incoming actor and all current plan/offer/authorization bindings are re-read",
+        "done": "provider-neutral acceptance contract, D1-first append-only adapter, source migration definition and deterministic negative tests are source-verified; no M7.4 responsibility transfer, target mutation, route/UI or runtime activation"
+      },
+      "design_contract": {
+        "inputs": [
+          "immutable M7.1 plan identity",
+          "immutable M7.2 offer identity",
+          "fresh source Program revision and target continuation scope",
+          "currently authorized intended incoming actor",
+          "currently authorized outgoing source actor",
+          "acceptance idempotency key",
+          "actor/audit ref and accepted-at timestamp"
+        ],
+        "outputs": [
+          "append-only accepted_pending_apply receipt",
+          "exact plan and offer provenance refs",
+          "idempotent replay receipt",
+          "explicit conflict/blocked/write-failure result"
+        ],
+        "authorization": "incoming actor must be the offer's intended actor and currently authorized for the target scope; outgoing actor must remain authorized for the source scope; unknown, revoked or scope-mismatched bindings fail closed",
+        "state": "offer must still be pending_acceptance with incoming_acceptance and responsibility_transfer both not_started; acceptance terminates at accepted_pending_apply",
+        "rights": "acceptance stores refs and actor evidence only; it never copies participant, consent, Review, publication, visibility or private payload state",
+        "failure": "missing/stale plan or offer, authorization drift, non-pending offer, write failure or payload conflict creates no accepted receipt and no target Program side effect",
+        "idempotency": "same key and canonical payload replay the one logical acceptance; same key with a different payload fails closed without rewriting the original",
+        "terminal_verification": "deterministic D1 tests prove exact immutable refs, intended actor and pending-only guards, concurrent replay convergence, append-only storage, write-failure blocking and zero target/transfer side effects; migration remains unapplied outside the test database",
+        "fixtures": [
+          "intended_incoming_actor_accepts_once",
+          "wrong_incoming_actor_rejected",
+          "unknown_revoked_or_scope_mismatched_incoming_rejected",
+          "revoked_outgoing_actor_rejected",
+          "missing_or_stale_plan_offer_rejected",
+          "non_pending_offer_rejected",
+          "same_key_retry_and_concurrency_one_logical_receipt",
+          "same_key_different_payload_conflict",
+          "exact_plan_offer_refs_and_no_state_copy",
+          "target_program_unchanged",
+          "append_only_acceptance",
+          "write_failure_never_accepted"
+        ]
+      }
+    },
+    {
       "id": "task.zukan.m8.operational-summary",
       "milestone_id": "milestone.m8.operational-summary-raw-portability",
       "state": "planned",
@@ -1231,9 +1310,9 @@
     {
       "id": "task.zukan.core-loop.publication-return-syndication-hardening",
       "milestone_id": "milestone.m4.regional-publication-portability",
-      "state": "planned",
-      "readiness": "adopted-source-only",
-      "implementation_allowed": true,
+      "state": "implemented",
+      "readiness": "source-verified",
+      "implementation_allowed": false,
       "production_mutation_allowed": false,
       "lane": "CORE_LOOP",
       "slice": "Frontier 3 - publication return, syndication consent and consumer correction/withdrawal",
@@ -1247,9 +1326,15 @@
       ],
       "source_locators": [
         "platform_v2/src/services/observationDataRights.ts",
+        "platform_v2/src/services/publicationSyndication.ts",
+        "platform_v2/src/services/publicationSyndication.test.ts",
         "platform_v2/src/services/publicationFeed.ts",
+        "platform_v2/src/services/publicationFeed.test.ts",
         "platform_v2/cloudflare_shadow/src/publicationFeedNative.ts",
+        "platform_v2/cloudflare_shadow/src/publicationFeedNative.test.ts",
         "platform_v2/cloudflare_shadow/src/observationFirstRecordDetailHtml.ts",
+        "platform_v2/cloudflare_shadow/src/observationFirstRecordDetailHtml.test.ts",
+        "platform_v2/cloudflare_shadow/src/index.ts",
         "docs/spec/zukan-product-architecture/PLAN.md"
       ],
       "negative_eval_ids": [

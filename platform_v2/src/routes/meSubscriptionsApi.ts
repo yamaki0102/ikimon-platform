@@ -318,7 +318,9 @@ export async function registerMeSubscriptionsApiRoutes(app: FastifyInstance): Pr
     }
     const pool = getPool();
     const result = await pool.query<{ subscription_id: string }>(
-      `DELETE FROM user_area_subscriptions
+      `UPDATE user_area_subscriptions
+          SET is_active = false,
+              updated_at = NOW()
         WHERE subscription_id = $1::uuid AND user_id = $2
        RETURNING subscription_id::text`,
       [id, userId],
@@ -471,17 +473,29 @@ export async function registerMeSubscriptionsApiRoutes(app: FastifyInstance): Pr
       created_at: string;
       payload_json: unknown;
     }>(
-      `SELECT delivery_id::text,
-              occurrence_id::text,
-              trigger_kind,
-              delivery_status,
-              delivered_at::text,
-              acknowledged_at::text,
-              created_at::text,
-              payload_json
-         FROM alert_deliveries
-        WHERE user_id = $1
-        ORDER BY created_at DESC
+      `SELECT d.delivery_id::text,
+              d.occurrence_id::text,
+              d.trigger_kind,
+              d.delivery_status,
+              d.delivered_at::text,
+              d.acknowledged_at::text,
+              d.created_at::text,
+              d.payload_json
+         FROM alert_deliveries d
+         LEFT JOIN occurrences o
+           ON o.occurrence_id = d.occurrence_id
+        WHERE d.user_id = $1
+          AND (
+            d.trigger_kind <> 'area_watch'
+            OR EXISTS (
+              SELECT 1
+                FROM observation_data_rights rights
+               WHERE (rights.occurrence_id = d.occurrence_id OR rights.visit_id = o.visit_id)
+                 AND rights.withdrawal_status = 'active'
+                 AND rights.record_consent IN ('public_summary', 'external_export')
+            )
+          )
+        ORDER BY d.created_at DESC
         LIMIT 100`,
       [userId],
     );

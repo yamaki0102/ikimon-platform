@@ -2178,7 +2178,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     placeActionNearby: props.lang === "ja" ? "近くを探索" : props.lang === "es" ? "Explorar cerca" : props.lang === "pt-BR" ? "Explorar perto" : "Explore nearby",
     placeActionGuide: props.lang === "ja" ? "ガイドで探す" : props.lang === "es" ? "Buscar con guía" : props.lang === "pt-BR" ? "Buscar com guia" : "Explore with guide",
     placeActionScan: props.lang === "ja" ? "スキャンする" : props.lang === "es" ? "Escanear" : props.lang === "pt-BR" ? "Escanear" : "Scan here",
-    placeActionFollow: props.lang === "ja" ? "この場所をフォロー" : props.lang === "es" ? "Seguir este lugar" : props.lang === "pt-BR" ? "Seguir este local" : "Follow this place",
+    placeActionFollow: props.lang === "ja" ? "この場所の更新を追う" : props.lang === "es" ? "Seguir las novedades de este lugar" : props.lang === "pt-BR" ? "Acompanhar atualizações deste local" : "Follow updates for this place",
     nearbyAreasStatusTemplate: props.lang === "ja" ? "現在地の近くで __COUNT__ 件のエリアを見つけられます" : props.lang === "es" ? "__COUNT__ áreas visibles cerca de tu ubicación" : props.lang === "pt-BR" ? "__COUNT__ áreas visíveis perto da sua localização" : "__COUNT__ discoverable areas near you",
     nearbyAreasNoneStatus: props.lang === "ja" ? "近くのエリアはまだ薄いです。少し広げると入口が見つかるかもしれません。" : props.lang === "es" ? "Todavía hay pocas áreas cerca. Amplía un poco para encontrar entradas." : props.lang === "pt-BR" ? "Ainda há poucas áreas perto. Amplie um pouco para encontrar entradas." : "Nearby areas are still thin. Widen the view to find entries.",
     nearbyAreaMarkerLabel: props.lang === "ja" ? "近くのエリア" : props.lang === "es" ? "Área cercana" : props.lang === "pt-BR" ? "Área próxima" : "Nearby area",
@@ -2563,6 +2563,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     tracesVisible: false,
     map: null,
     maplibreRuntime: null,
+    mapHydrationStarted: false,
     features: [],
     records: [],
     myObservations: [],
@@ -5984,6 +5985,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var canRecord = !!(options && options.canRecord);
     var hasRecords = Number(options && options.observationCount || 0) > 0 || !!(options && options.hasGallery);
     var hasGuide = !!(options && options.hasGuide);
+    var recordHref = options && options.recordHref ? String(options.recordHref) : RECORD_HREF;
     var title = canRecord ? COPY.areaNextStepRecordTitle : COPY.areaNextStepRestrictedTitle;
     var lines = [COPY.areaNextStepScopeLine];
     if (canRecord) {
@@ -5994,7 +5996,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (hasRecords) lines.push(COPY.areaNextStepBrowseLine);
     if (hasGuide) lines.push(COPY.areaNextStepGuideLine);
     var cta = canRecord
-      ? '<a class="me-area-next-step-cta" href="' + escapeHtml(RECORD_HREF) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:next_step_record" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.areaNextStepRecordCta) + '</a>'
+      ? '<a class="me-area-next-step-cta" href="' + escapeHtml(recordHref) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:next_step_record" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(recordHref) + '">' + escapeHtml(COPY.areaNextStepRecordCta) + '</a>'
       : '';
     return ''
       + '<section class="me-area-next-step' + (canRecord ? '' : ' is-restricted') + '" aria-label="' + escapeHtml(COPY.areaNextStepEyebrow) + '">'
@@ -6007,6 +6009,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +   '</ul>'
       +   cta
       + '</section>';
+  }
+
+  function recordContextHref(params) {
+    try {
+      var url = new URL(RECORD_HREF, window.location.origin);
+      Object.keys(params || {}).forEach(function (key) {
+        var value = params[key];
+        if (value == null || value === '') return;
+        url.searchParams.set(key, String(value));
+      });
+      return url.pathname + url.search;
+    } catch (_) {
+      return RECORD_HREF;
+    }
   }
 
   function renderAggregateSafety(text) {
@@ -6772,6 +6788,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var guidance = transientAccessGuidance(props);
     var areaStatus = areaAccessStatus(props, null);
     var canRecord = canSuggestDirectAreaRecord(props, null);
+    var recordHref = followId ? recordContextHref({ regionId: followId }) : RECORD_HREF;
     var guideStopHtml = renderAreaGuideStop(props, safeCenter);
     var galleryItems = transientAreaGalleryItems(feature, safeCenter);
     var nextStepHtml = renderAreaNextStepCard({
@@ -6779,6 +6796,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       observationCount: galleryItems.length,
       hasGallery: galleryItems.length > 0,
       hasGuide: !!guideStopHtml,
+      recordHref: recordHref,
     });
     var metaHtml = sourceLinksHtml || sourceTrustHtml
       ? '<div class="me-area-primary-actions-meta">' + sourceLinksHtml + sourceTrustHtml + '</div>'
@@ -7563,11 +7581,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? areaFeatureCenter(selectedAreaFeature, state.selectedPoint && state.selectedPoint.lat, state.selectedPoint && state.selectedPoint.lng)
       : (state.selectedPoint && Number.isFinite(state.selectedPoint.lat) && Number.isFinite(state.selectedPoint.lng) ? { lat: state.selectedPoint.lat, lng: state.selectedPoint.lng } : null);
     var guideStopHtml = renderAreaGuideStop(selectedAreaProps, selectedAreaCenter);
+    var recordHref = fieldId ? recordContextHref({ fieldId: fieldId }) : RECORD_HREF;
     var nextStepHtml = renderAreaNextStepCard({
       canRecord: canRecord,
       observationCount: summary.totalObservations || 0,
       hasGallery: gallery.length > 0,
       hasGuide: !!guideStopHtml,
+      recordHref: recordHref,
     });
     var areaMeta = rawLocationLabel + (areaHa ? ' / ' + areaHa : '');
     var heroHtml = renderAreaHero({
@@ -8086,7 +8106,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name', 'area-polygon-selected-halo', 'area-polygon-selected']);
       showLegend(COPY.areaTrustLegendLow, COPY.areaTrustLegendHigh,
         'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)', 'areas');
-      loadWaterwayHints();
     } else if (tab === 'rain') {
       moveToTop(['jma-rain-nowcast-layer', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name']);
       hideLegend();
@@ -8296,7 +8315,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function loadWaterwayHints() {
-    if (!state.map || (state.tab !== 'places' && state.tab !== 'rain')) return;
+    if (!state.map || state.tab !== 'rain') return;
     if (state.map.getZoom() < 12.8) {
       emptyWaterwayHints();
       return;
@@ -8566,6 +8585,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var qs = '?bbox=' + encodeURIComponent(bbox) + '&zoom=' + encodeURIComponent(zoom.toFixed(2));
     var selectedSources = areaSourcesQueryValueForMap();
     if (selectedSources) qs += '&sources=' + encodeURIComponent(selectedSources);
+    var liveOsmDiscovery = Number(state.namedAreaDiscoveryUntil || 0) > Date.now()
+      && selectedSources.split(',').indexOf('osm_named_area') >= 0;
+    if (liveOsmDiscovery) qs += '&live_osm=1';
     fetch(apiAreaPolygons + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (collection) {
@@ -9117,6 +9139,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  var mapStateSaveFrame = null;
+
   function saveMapState() {
     var s = serializeMapState();
     try {
@@ -9192,12 +9216,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (colon < 1) return;
         var id = item.slice(0, colon);
         var op = parseFloat(item.slice(colon + 1));
-        if (overlayState[id]) {
+        if (overlayState[id] && isFinite(op) && op >= 0 && op <= 1) {
           overlayState[id].enabled = true;
-          if (isFinite(op)) overlayState[id].opacity = op;
+          overlayState[id].opacity = op;
         }
       });
     }
+  }
+
+  function scheduleMapStateSave() {
+    if (mapStateSaveFrame !== null) return;
+    var flush = function () {
+      mapStateSaveFrame = null;
+      saveMapState();
+    };
+    if (window.requestAnimationFrame) mapStateSaveFrame = window.requestAnimationFrame(flush);
+    else mapStateSaveFrame = window.setTimeout(flush, 0);
   }
 
   function syncUiFromState() {
@@ -9447,8 +9481,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     run();
   }
 
+  function cleanupFailedMapInit() {
+    try { if (state.map && typeof state.map.remove === 'function') state.map.remove(); } catch (_) {}
+    state.map = null;
+    if (!root) return;
+    Array.prototype.slice.call(root.querySelectorAll('.maplibregl-canvas-container, .maplibregl-control-container')).forEach(function (node) {
+      try { node.remove(); } catch (_) { if (node.parentNode) node.parentNode.removeChild(node); }
+    });
+    try { root.classList.remove('maplibregl-map'); } catch (_) {}
+  }
+
+  function enableMapInteractions() {
+    if (!state.map) return;
+    ['dragPan', 'scrollZoom', 'doubleClickZoom', 'boxZoom', 'keyboard', 'touchZoomRotate'].forEach(function (key) {
+      var handler = state.map[key];
+      if (handler && typeof handler.enable === 'function') { try { handler.enable(); } catch (_) {} }
+    });
+  }
+
   function hydrate() {
-    if (!window.maplibregl) { showMapLoadFailure(); return; }
+    if (state.mapHydrationStarted || state.map) return;
+    state.mapHydrationStarted = true;
+    if (!window.maplibregl) { state.mapHydrationStarted = false; showMapLoadFailure(); return; }
     var startupViewport = initialStartupViewport();
     try {
       state.maplibreRuntime = window.maplibregl;
@@ -9461,6 +9515,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
     } catch (err) {
       try { console.error('[map] init failed', err); } catch (_) {}
+      cleanupFailedMapInit();
       state._restoredCenter = null;
       state._restoredZoom = null;
       try {
@@ -9473,10 +9528,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           attributionControl: true,
         });
       } catch (err2) {
+        cleanupFailedMapInit();
+        state.mapHydrationStarted = false;
         showMapLoadFailure();
         return;
       }
     }
+    enableMapInteractions();
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     state.map.on('click', dismissPurposeHint);
     state.map.on('click', dismissStartPanel);
@@ -9527,6 +9585,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       state.waterwayDebounce = setTimeout(function () { loadWaterwayHints(); }, 350);
       if (layerHintEl && !layerHintEl.classList.contains('is-hidden')) maybeShowLayerHint(state.tab);
     });
+    // Some provider/browser combinations finish drag or zoom without emitting
+    // MapLibre's aggregate moveend event. Persist the shareable viewport at
+    // the gesture boundary so the URL still follows real map interactions.
+    state.map.on('move', scheduleMapStateSave);
+    state.map.on('dragend', saveMapState);
+    state.map.on('zoomend', saveMapState);
     state.map.on('dragstart', clearSuppressedViewportSearch);
     state.map.on('zoomstart', clearSuppressedViewportSearch);
     state.map.on('dragstart', function () {

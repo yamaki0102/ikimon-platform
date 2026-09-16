@@ -37,10 +37,11 @@
     "visual:record-detail": "tsx scripts/render-record-detail-visual-fixtures.mts"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20260908.1",
     "@types/node": "^24.10.2",
     "tsx": "4.22.4",
     "typescript": "^5.9.3",
-    "wrangler": "4.110.0"
+    "wrangler": "4.130.0"
   },
   "overrides": {
     "esbuild": "^0.28.1"

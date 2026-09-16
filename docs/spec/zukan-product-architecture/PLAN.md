@@ -3,6 +3,7 @@
 - Status: active plan
 - Contract: `SPEC.md`
 - Broad profile projection: `PROFILE_HORIZON.md`
+- Specialist capability reuse routing: `SPECIALIST_CAPABILITY_ROUTING_2026-09-07.md`; rationale: `decisions/ADR-0002-specialist-capability-reuse.md`
 - Execution-roadmap authority: `yamaki0102/ikimon-business-strategy/decisions/2026-09-02-zukan-development-execution-roadmap-v3.md`; r2 was adopted through strategy PR `#116`. The scoped-dependency correction below supersedes the former global landing interpretation for this owner-authorized review and is reflected in the same upstream roadmap.
 - Prior broad-scope provenance: `yamaki0102/ikimon-business-strategy/decisions/2026-09-01-zukan-broad-product-roadmap-v2.md`
 - Current frontier / status projection: `platform_v2/product-registry/delivery.json` and the shared Resolver. This document does not repeat status.
@@ -86,7 +87,7 @@ Reuse the existing Area source/staging candidate and original acceptance Work. I
 
 ### Frontier 3 — Publication return and syndication hardening
 
-Source implementation and deterministic rights/Review tests depend on the existing Record and rights contracts, not on a real Area publication. Final end-to-end publication return depends on actual Area acceptance and an explicitly eligible Record. Continue the original Frontier 3 Work at source scope when admitted by the management queue; retain those final acceptance dependencies. Reuse the existing PostgreSQL/D1 publication feeds and rights services. Add the purpose/version/term-bound syndication consent path, fail-closed minor/guardian resolution, owner-visible eligibility or exclusion reason, contributor-visible publication destination, correction/withdrawal propagation, and the explicit read-only production-feed environment label for staging consumers. Do not add a new feed, per-region adapter, analytics system or publication database.
+Source implementation and deterministic rights/Review tests depend on the existing Record and rights contracts, not on a real Area publication. The source slice now includes a dependency-free syndication evaluator, destination-bound consent, fail-closed minor/guardian checks, owner-only publication return, and read-only production-feed markers. Final end-to-end publication return depends on actual Area acceptance and an explicitly eligible Record. Continue the original Frontier 3 Work at source scope when admitted by the management queue; retain those final acceptance dependencies. Reuse the existing PostgreSQL/D1 publication feeds and rights services. Add the purpose/version/term-bound syndication consent path, fail-closed minor/guardian resolution, owner-visible eligibility or exclusion reason, contributor-visible publication destination, correction/withdrawal propagation, and the explicit read-only production-feed environment label for staging consumers. Do not add a new feed, per-region adapter, analytics system or publication database.
 
 ### Then
 

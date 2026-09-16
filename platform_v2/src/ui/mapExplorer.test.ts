@@ -85,6 +85,14 @@ test("search failure keeps available results and offers only an explicit retry",
   assert.deepEqual(queries, ["公園"]);
 });
 
+test("normal map movement keeps live OSM off the interaction path", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  assert.match(script, /liveOsmDiscovery[\s\S]*live_osm=1/);
+  assert.match(script, /function loadWaterwayHints\(\) \{\n    if \(!state\.map \|\| state\.tab !== 'rain'\) return;/);
+  const placesBranch = script.slice(script.indexOf("} else if (tab === 'places')"), script.indexOf("} else if (tab === 'rain')"));
+  assert.doesNotMatch(placesBranch, /loadWaterwayHints\(\)/);
+});
+
 test("map explorer boot script is syntactically valid JavaScript", () => {
   const scriptHtml = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const script = scriptHtml.replace(/^<script>/, "").replace(/<\/script>$/, "");
@@ -109,14 +117,14 @@ test("map initialization failure offers a usable public-record fallback", () => 
     const children: any[] = [];
     let retry: (() => void) | undefined;
     let reloads = 0;
-    const root = { querySelector: () => children[0] ?? null, appendChild: (node: any) => children.push(node) };
+    const root = { querySelector: () => children[0] ?? null, querySelectorAll: () => [], appendChild: (node: any) => children.push(node), classList: { remove() {} } };
     const document = { createElement: () => ({
       innerHTML: "", style: {}, attributes: {} as Record<string, string>,
       setAttribute(name: string, value: string) { this.attributes[name] = value; },
       querySelector: () => ({ addEventListener: (_event: string, listener: () => void) => { retry = listener; } }),
     }) };
     const context = vm.createContext({
-      root, document, state: { basemap: "standard" }, BASEMAPS: { standard: {} },
+      root, document, state: { basemap: "standard", map: null, mapHydrationStarted: false }, BASEMAPS: { standard: {} },
       DEFAULT_MAP_CENTER: [137, 35], DEFAULT_MAP_ZOOM: 8,
       initialStartupViewport: () => ({ center: [137, 35], zoom: 8 }), setStatus: () => {}, console: { error: () => {} },
       window: { maplibregl: { Map: class { constructor() { throw new Error("WebGL unavailable"); } } }, location: { reload: () => { reloads += 1; } } },
@@ -124,7 +132,7 @@ test("map initialization failure offers a usable public-record fallback", () => 
     new vm.Script([
       declaration("COPY"), declaration("COMMUNITY_RECORDS_HREF"),
       between("function escapeHtml(s)", "function escapeAttr(s)"),
-      between("function hydrate()", "function showMapLoadFailure()"),
+      between("function cleanupFailedMapInit()", "function showMapLoadFailure()"),
       between("function showMapLoadFailure()", "function loadMaplibreScript("),
       "hydrate(); showMapLoadFailure();",
     ].join("\n")).runInContext(context);
@@ -137,6 +145,24 @@ test("map initialization failure offers a usable public-record fallback", () => 
     assert.equal(reloads, 0, "failure must not reload automatically");
     assert.ok(retry); retry(); assert.equal(reloads, 1);
   }
+});
+
+test("failed map init is cleaned before fallback and interactions stay enabled", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const section = bootSection("function cleanupFailedMapInit()", "function showMapLoadFailure()");
+  const children: any[] = []; let attempts = 0; const enabled: string[] = [];
+  const makeNode = (className: string) => { const node: any = { className, parentNode: null, remove() { const i = children.indexOf(node); if (i >= 0) children.splice(i, 1); } }; node.parentNode = { removeChild: () => node.remove() }; return node; };
+  const root: any = { classList: { remove() {} }, querySelectorAll: () => children.slice(), querySelector: () => null };
+  const handler = (name: string) => ({ enable: () => enabled.push(name) });
+  class FakeMap { dragPan=handler("dragPan"); scrollZoom=handler("scrollZoom"); doubleClickZoom=handler("doubleClickZoom"); boxZoom=handler("boxZoom"); keyboard=handler("keyboard"); touchZoomRotate=handler("touchZoomRotate");
+    constructor() { attempts += 1; if (attempts === 1) { children.push(makeNode("maplibregl-canvas-container"), makeNode("maplibregl-control-container")); throw new Error("first init failed"); } }
+    addControl() {} on() {} remove() {}
+  }
+  const context = vm.createContext({ root, state: { basemap: "satellite", map: null, mapHydrationStarted: false, _restoredCenter: null, _restoredZoom: null }, BASEMAPS: { satellite: {}, standard: {} }, DEFAULT_MAP_CENTER: [137,35], DEFAULT_MAP_ZOOM: 8,
+    initialStartupViewport: () => ({ center: [137,35], zoom: 8 }), console: { error() {} }, dismissPurposeHint() {}, dismissStartPanel() {}, clearSuppressedViewportSearch() {}, scheduleInitialMapDataLoad() {}, scheduleMapStateSave() {}, saveMapState() {}, window: { maplibregl: { Map: FakeMap, NavigationControl: class {} } }, showMapLoadFailure() {} });
+  new vm.Script(section + "\nhydrate(); hydrate();").runInContext(context);
+  assert.equal(attempts, 2); assert.equal(children.length, 0); assert.equal(context.state.mapHydrationStarted, true);
+  assert.deepEqual(enabled.sort(), ["boxZoom","doubleClickZoom","dragPan","keyboard","scrollZoom","touchZoomRotate"].sort());
 });
 
 test("map explorer desktop chrome hides legacy mobile menu affordances", () => {
@@ -359,6 +385,31 @@ test("transient area fallback does not expose raw coordinates or use them as a d
   assert.doesNotMatch(body, /safeCenter\.lat\.toFixed\(4\)/);
   assert.doesNotMatch(body, /point:' \+ safeCenter/);
   assert.match(body, /canRecord && followId/);
+});
+
+test("transient area record CTA carries the stable region identity into the record flow", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const body = script.slice(
+    script.indexOf("function renderTransientAreaContent"),
+    script.indexOf("function openTransientAreaSheet"),
+  );
+
+  assert.match(script, /function recordContextHref\(params\)/);
+  assert.match(body, /var followId = String\(props\.entity_key \|\| props\.field_id \|\| ''\)/);
+  assert.match(body, /recordContextHref\(\{ regionId: followId \}\)/);
+  assert.match(body, /recordHref: recordHref/);
+  assert.match(script, /var recordHref = options && options\.recordHref \? String\(options\.recordHref\) : RECORD_HREF/);
+});
+
+test("registered area record CTA carries the field identity into the record flow", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const body = script.slice(
+    script.indexOf("function renderAreaSheet"),
+    script.indexOf("function renderAreaTimeline"),
+  );
+
+  assert.match(body, /var recordHref = fieldId \? recordContextHref\(\{ fieldId: fieldId \}\) : RECORD_HREF/);
+  assert.match(body, /hasGuide: !!guideStopHtml,[\s\S]*recordHref: recordHref/);
 });
 
 test("mobile place detail peek keeps the map visible", () => {
@@ -657,6 +708,18 @@ test("shared map state does not serialize private owner observation coordinates"
   assert.doesNotMatch(serializeBody, /myObservations/);
   assert.doesNotMatch(serializeBody, /ownObservation/);
   assert.doesNotMatch(serializeBody, /record\.latitude|record\.longitude/);
+});
+
+test("map interactions persist the shareable viewport when moveend is absent", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const interactionBody = script.slice(
+    script.indexOf("state.map.on('moveend', function ()"),
+    script.indexOf("// Empty-point tap"),
+  );
+
+  assert.match(interactionBody, /state\.map\.on\('move', scheduleMapStateSave\);/);
+  assert.match(interactionBody, /state\.map\.on\('dragend', saveMapState\);/);
+  assert.match(interactionBody, /state\.map\.on\('zoomend', saveMapState\);/);
 });
 
 test("map explorer exposes JMA rain overlay without making ikimon the forecaster", () => {

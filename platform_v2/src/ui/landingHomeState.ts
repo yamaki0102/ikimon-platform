@@ -118,11 +118,11 @@ function sectionSlot(name: string, content: string): string {
 }
 
 function captureButton(label: string, className: string, action: string): string {
-  return `<button type="button" class="${escapeHtml(className)}" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="${escapeHtml(action)}" aria-haspopup="dialog">${escapeHtml(label)}</button>`;
+  return `<button type="button" class="${escapeHtml(className)} ik-ui-action" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="${escapeHtml(action)}" aria-haspopup="dialog">${escapeHtml(label)}</button>`;
 }
 
 function galleryButton(label: string, className: string): string {
-  return `<button type="button" class="${escapeHtml(className)}" data-global-record-gallery-select data-kpi-event="gallery_select_tap" data-kpi-action="home_gallery_select">${escapeHtml(label)}</button>`;
+  return `<button type="button" class="${escapeHtml(className)} ik-ui-action" data-global-record-gallery-select data-kpi-event="gallery_select_tap" data-kpi-action="home_gallery_select">${escapeHtml(label)}</button>`;
 }
 
 function renderHeroHeading(lang: SiteLang, value: string): string {
@@ -173,7 +173,7 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
         <h1>${renderHeroHeading(options.lang, copy.heroHeading)}</h1>
         <p>${escapeHtml(copy.heroLead)}</p>
         <div class="home-hero-actions">
-          <a class="home-primary-button" href="${escapeHtml(href(options, "/records?view=public"))}" data-kpi-action="top_public_records">${escapeHtml(copy.publicRecordsCta)}</a>
+          <a class="home-primary-button ik-ui-action" href="${escapeHtml(href(options, "/records?view=public"))}" data-kpi-action="top_public_records">${escapeHtml(copy.publicRecordsCta)}</a>
           <a class="home-secondary-link" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place">${escapeHtml(copy.secondaryCta)}</a>
         </div>
         <p class="home-invite-note" data-home-invite-note>${escapeHtml(copy.inviteNote)}</p>
@@ -181,9 +181,9 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
       ${slot("guest-hero", `<div class="home-guest-hero-visual">${renderGuestProof(options, publicItems)}</div>`)}
     </section>
     <section class="home-section home-place-section" id="home-places">
-      <div><span class="home-product-kicker">PLACE</span><h2>${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
+      <div><span class="home-product-kicker">PLACE</span><h2>${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button ik-ui-action" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
     </section>
-    <section class="home-section home-community-section"><span class="home-product-kicker">COMMUNITY</span><h2>${escapeHtml(copy.communityTitle)}</h2><p>${escapeHtml(copy.communityBody)}</p><a class="home-secondary-button" href="${escapeHtml(communityHref)}">${escapeHtml(copy.communityCta)}</a></section>
+    <section class="home-section home-community-section"><span class="home-product-kicker">COMMUNITY</span><h2>${escapeHtml(copy.communityTitle)}</h2><p>${escapeHtml(copy.communityBody)}</p><a class="home-secondary-button ik-ui-action" href="${escapeHtml(communityHref)}">${escapeHtml(copy.communityCta)}</a></section>
     <section class="home-section home-privacy-section"><span class="home-privacy-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><div><h2>${escapeHtml(copy.privacyTitle)}</h2><p>${escapeHtml(copy.privacyBody)}</p></div></section>
     <section class="home-section home-final-section"><h2>${escapeHtml(copy.finalTitle)}</h2>${captureButton(copy.finalCta, "home-secondary-button", "top_capture_final")}</section>
     <p class="home-operator-statement">${escapeHtml(options.copy.home.shared.operatorStatement)}</p>
@@ -289,6 +289,127 @@ function renderHomeContinuationScript(viewerUserId: string): string {
 </script>`;
 }
 
+function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string {
+  const copy = options.copy.home.member;
+  const alertsEndpoint = withBasePath(options.basePath, "/api/v1/me/alerts");
+  const observationHrefBase = href(options, "/observations/");
+  const fallbackHref = href(options, "/home");
+  return `<script>
+(() => {
+  const authState = document.querySelector('[data-home-auth-state="member"]');
+  if (!authState) return;
+  const root = document.querySelector('[data-home-watch-updates]');
+  if (!root) return;
+  const list = root.querySelector('[data-home-watch-updates-list]');
+  const status = root.querySelector('[data-home-watch-updates-status]');
+  if (!list || !status) return;
+  const alertsEndpoint = ${JSON.stringify(alertsEndpoint)};
+  const observationHrefBase = ${JSON.stringify(observationHrefBase)};
+  const fallbackHref = ${JSON.stringify(fallbackHref)};
+  const copy = ${JSON.stringify({
+    title: copy.watchUpdatesTitle,
+    loading: copy.watchUpdatesLoading,
+    empty: copy.watchUpdatesEmpty,
+    error: copy.watchUpdatesError,
+    reason: copy.watchUpdatesReason,
+    unread: copy.watchUpdatesUnread,
+    observed: copy.watchUpdatesObserved,
+    updated: copy.watchUpdatesUpdated,
+    verified: copy.watchUpdatesVerified,
+    signalChecklist: copy.watchSignalChecklist,
+    signalEffort: copy.watchSignalEffort,
+    signalPhoto: copy.watchSignalPhoto,
+    signalRecord: copy.watchSignalRecord,
+  })};
+  const trimText = (value, max) => String(value == null ? '' : value).trim().slice(0, max);
+  const payloadOf = (item) => item && typeof item.payload === 'object' && item.payload && !Array.isArray(item.payload) ? item.payload : {};
+  const safeHref = (value, occurrenceId) => {
+    const candidate = trimText(value, 600);
+    if (candidate.charAt(0) === '/' && candidate.indexOf('//') !== 0 && candidate.indexOf('\\n') < 0 && candidate.indexOf('\\r') < 0) return candidate;
+    const occurrence = trimText(occurrenceId, 200);
+    return occurrence ? observationHrefBase + encodeURIComponent(occurrence) : fallbackHref;
+  };
+  const dateText = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const lang = document.documentElement.lang || 'ja';
+    const locale = lang === 'en' ? 'en-US' : lang === 'es' ? 'es-ES' : lang === 'pt-BR' ? 'pt-BR' : 'ja-JP';
+    return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
+  };
+  const render = (alerts) => {
+    const seen = new Set();
+    const updates = (Array.isArray(alerts) ? alerts : []).filter((item) => {
+      if (!item || item.triggerKind !== 'area_watch') return false;
+      const occurrenceId = trimText(item.occurrenceId, 200);
+      const key = occurrenceId ? 'area_watch:' + occurrenceId : 'delivery:' + trimText(item.deliveryId, 200);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 5);
+    list.textContent = '';
+    if (!updates.length) {
+      status.textContent = copy.empty;
+      return;
+    }
+    status.textContent = '';
+    updates.forEach((item) => {
+      const payload = payloadOf(item);
+      const occurrenceId = trimText(item.occurrenceId, 200);
+      const areaLabel = trimText(payload.areaLabel || payload.targetId, 120);
+      const signals = payload.watchSignals && typeof payload.watchSignals === 'object' && !Array.isArray(payload.watchSignals)
+        ? payload.watchSignals
+        : {};
+      const hasNumericSignal = (value) =>
+        (typeof value === 'number' && Number.isFinite(value))
+        || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)));
+      const signalText = signals.completeChecklist === true
+        ? copy.signalChecklist
+        : hasNumericSignal(signals.effortMinutes) || hasNumericSignal(signals.distanceMeters)
+          ? copy.signalEffort
+          : signals.hasPhoto === true
+            ? copy.signalPhoto
+            : copy.signalRecord;
+      const observedAt = trimText(payload.observedAt, 80);
+      const createdAt = trimText(item.createdAt, 80);
+      const observedText = dateText(observedAt);
+      const createdText = dateText(createdAt);
+      const dates = observedText && createdText && observedText !== createdText
+        ? copy.observed + ' ' + observedText + ' · ' + copy.updated + ' ' + createdText
+        : observedText || createdText;
+      const link = document.createElement('a');
+      link.className = 'home-watch-update-card' + (item.acknowledgedAt ? '' : ' is-unread');
+      link.href = safeHref(payload.href, occurrenceId);
+      if (item.deliveryId) link.setAttribute('data-notification-id', trimText(item.deliveryId, 200));
+      const head = document.createElement('span');
+      head.className = 'home-watch-update-head';
+      const target = document.createElement('strong');
+      target.textContent = areaLabel || copy.title;
+      const state = document.createElement('em');
+      state.textContent = item.acknowledgedAt ? '' : copy.unread;
+      head.append(target, state);
+      const title = document.createElement('b');
+      title.textContent = trimText(payload.title, 120) || copy.title;
+      const body = document.createElement('span');
+      body.className = 'home-watch-update-body';
+      body.textContent = [areaLabel, signalText].filter(Boolean).join(' · ') || copy.reason;
+      const meta = document.createElement('small');
+      meta.textContent = [dates, copy.verified].filter(Boolean).join(' · ');
+      const reason = document.createElement('small');
+      reason.className = 'home-watch-update-reason';
+      reason.textContent = copy.reason;
+      link.append(head, title, body, meta, reason);
+      list.appendChild(link);
+    });
+  };
+  status.textContent = copy.loading;
+  fetch(alertsEndpoint, { method: 'GET', headers: { accept: 'application/json' }, credentials: 'same-origin' })
+    .then((response) => response.ok ? response.json() : Promise.reject(new Error('alerts_unavailable')))
+    .then((payload) => render(payload && payload.ok ? payload.alerts : []))
+    .catch(() => { status.textContent = copy.error; });
+})();
+</script>`;
+}
+
 function renderMember(options: LandingHomeStateOptions, ownItems: LandingObservation[]): string {
   const copy = options.copy.home.member;
   const p0 = copy.p0;
@@ -307,7 +428,7 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
           <h1>${escapeHtml(displayName(memory, options.copy))}</h1>
           ${meta ? `<p class="home-member-meta">${escapeHtml(meta)}</p>` : ""}
           <p>${escapeHtml(copy.memoryLead)}</p>
-          <a class="home-primary-button" href="${escapeHtml(detailHref(options, memory))}" data-kpi-action="home_memory_open">${escapeHtml(copy.memoryCta)}</a>
+        <a class="home-primary-button ik-ui-action" href="${escapeHtml(detailHref(options, memory))}" data-kpi-action="home_memory_open">${escapeHtml(copy.memoryCta)}</a>
         </div>
       </section>`;
     }
@@ -317,11 +438,11 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
           <span class="home-member-eyebrow">${escapeHtml(copy.memoryEyebrow)}</span>
           <h1>${escapeHtml(copy.recentTitle)}</h1>
           <p>${escapeHtml(copy.memoryLead)}</p>
-          <a class="home-primary-button" href="${escapeHtml(href(options, "/records?view=mine"))}" data-kpi-action="home_memory_open">${escapeHtml(copy.memoryCta)}</a>
+        <a class="home-primary-button ik-ui-action" href="${escapeHtml(href(options, "/records?view=mine"))}" data-kpi-action="home_memory_open">${escapeHtml(copy.memoryCta)}</a>
         </div>
       </section>`;
     }
-    return `<section class="home-member-primary is-first" data-home-primary-state="first_record" data-home-primary-active="true">
+      return `<section class="ik-ui-surface home-member-primary is-first" data-home-primary-state="first_record" data-home-primary-active="true">
       <div class="home-member-primary-copy">
         <span class="home-product-kicker">ZUKAN</span>
         <h1>${escapeHtml(copy.emptyTitle)}</h1>
@@ -382,11 +503,17 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
   const viewerUserId = options.snapshot.viewerUserId ?? "";
   return `<div class="home-state-view is-member" data-home-view="member" data-home-draft-owner="${escapeHtml(viewerUserId)}" data-home-base-state="${baseState}"${options.isLoggedIn ? "" : " hidden"}>
     <section class="home-member-primary is-draft" data-home-primary-state="draft_resume" data-home-primary-active="false" hidden>
-      <div class="home-member-primary-copy"><span class="home-member-eyebrow">${escapeHtml(copy.continuationTitle)}</span><h1>${escapeHtml(copy.continuationTitle)}</h1><p>${escapeHtml(copy.continuationBody)}</p><a class="home-primary-button" href="${escapeHtml(href(options, "/record?draft=1&source=home_continue"))}">${escapeHtml(copy.continuationCta)}</a></div>
+      <div class="home-member-primary-copy"><span class="home-member-eyebrow">${escapeHtml(copy.continuationTitle)}</span><h1>${escapeHtml(copy.continuationTitle)}</h1><p>${escapeHtml(copy.continuationBody)}</p><a class="home-primary-button ik-ui-action" href="${escapeHtml(href(options, "/record?draft=1&source=home_continue"))}">${escapeHtml(copy.continuationCta)}</a></div>
     </section>
     ${sectionSlot("member-primary", baseHero)}
     ${renderHomeContinuationScript(viewerUserId)}
     ${sectionSlot("member-routes", memberRoutesSection)}
+    <section class="home-section home-watch-updates" data-home-watch-updates aria-labelledby="home-watch-updates-heading">
+      <div class="home-section-heading"><div><span class="home-product-kicker">AREA WATCH</span><h2 id="home-watch-updates-heading">${escapeHtml(copy.watchUpdatesTitle)}</h2></div></div>
+      <p class="home-watch-updates-status" data-home-watch-updates-status aria-live="polite">${escapeHtml(copy.watchUpdatesLoading)}</p>
+      <div class="home-watch-updates-list" data-home-watch-updates-list></div>
+    </section>
+    ${renderHomeWatchUpdatesScript(options)}
     ${sectionSlot("member-recent", recentSection)}
     ${sectionSlot("member-discovery", pastSection)}
     ${sectionSlot("member-place", placesSection)}
@@ -414,4 +541,10 @@ body{background:#fff;color:#17211b}.shell.shell-bleed.prototype-shell{box-sizing
 @media(max-width:959px){.home-guest-proof-item.is-item-4,.home-guest-proof-item.is-item-5{display:block}.home-guest-proof.is-count-1,.home-guest-proof.is-count-2{grid-template-rows:minmax(260px,1fr)}.home-guest-proof.is-count-1 .is-item-1{grid-column:1/13;grid-row:1/2}.home-guest-proof.is-count-2 .is-item-1{grid-column:1/7;grid-row:1/2}.home-guest-proof.is-count-2 .is-item-2{grid-column:7/13;grid-row:1/2}.home-guest-proof.is-count-3{grid-template-rows:repeat(2,minmax(120px,1fr))}.home-guest-proof.is-count-3 .is-item-1{grid-column:1/9;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-2{grid-column:9/13;grid-row:1/2}.home-guest-proof.is-count-3 .is-item-3{grid-column:9/13;grid-row:2/3}.home-guest-proof.is-count-4,.home-guest-proof.is-count-5{grid-template-rows:repeat(3,minmax(100px,1fr))}.home-guest-proof.is-count-4 .is-item-1,.home-guest-proof.is-count-5 .is-item-1{grid-column:1/9;grid-row:1/3}.home-guest-proof.is-count-4 .is-item-2,.home-guest-proof.is-count-5 .is-item-2{grid-column:9/13;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-3,.home-guest-proof.is-count-5 .is-item-3{grid-column:9/13;grid-row:2/3}.home-guest-proof.is-count-4 .is-item-4{grid-column:1/13;grid-row:3/4}.home-guest-proof.is-count-5 .is-item-4{grid-column:1/7;grid-row:3/4}.home-guest-proof.is-count-5 .is-item-5{grid-column:7/13;grid-row:3/4}}
 @media(min-width:960px){.home-guest-proof.is-count-1 .is-item-1{grid-column:1/13;grid-row:1/3}.home-guest-proof.is-count-2 .is-item-1{grid-column:1/7;grid-row:1/3}.home-guest-proof.is-count-2 .is-item-2{grid-column:7/13;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-1{grid-column:1/8;grid-row:1/3}.home-guest-proof.is-count-3 .is-item-2{grid-column:8/13;grid-row:1/2}.home-guest-proof.is-count-3 .is-item-3{grid-column:8/13;grid-row:2/3}.home-guest-proof.is-count-4 .is-item-1,.home-guest-proof.is-count-5 .is-item-1{grid-column:1/7;grid-row:1/3}.home-guest-proof.is-count-4 .is-item-2,.home-guest-proof.is-count-5 .is-item-2{grid-column:7/10;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-3,.home-guest-proof.is-count-5 .is-item-3{grid-column:10/13;grid-row:1/2}.home-guest-proof.is-count-4 .is-item-4{grid-column:7/13;grid-row:2/3}.home-guest-proof.is-count-5 .is-item-4{grid-column:7/10;grid-row:2/3}.home-guest-proof.is-count-5 .is-item-5{grid-column:10/13;grid-row:2/3}}
  .home-invite-note{margin:-12px 0 0!important;color:var(--home-green)!important;font-size:.875rem!important;font-weight:750}.home-guest-proof.is-empty{min-height:0;display:grid;grid-template-columns:1fr;grid-template-rows:auto auto;align-content:start;gap:0}.home-guest-proof.is-empty .home-empty-proof-art{width:100%;min-width:0;overflow:hidden;background:#eef4ef}.home-guest-proof.is-empty .home-empty-proof-art img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover}.home-empty-proof-copy{display:grid;grid-template-columns:1fr;gap:6px;align-items:start;padding:16px 18px;background:#f7f8f4;color:var(--home-green)}.home-empty-proof-copy strong,.home-guest-proof.is-empty .home-empty-proof-copy p{grid-column:1;margin:0;min-width:0}.home-empty-proof-copy strong{font-size:.92rem;line-height:1.45}.home-guest-proof.is-empty .home-empty-proof-copy p{max-width:none;padding:0;color:var(--home-muted);font-size:.82rem;line-height:1.55;text-align:left}.home-community-section{justify-items:start;padding:28px;border:1px solid rgba(20,63,46,.12);border-radius:26px;background:linear-gradient(145deg,#f2f8f3,#fffaf0)}.home-community-section p{max-width:42rem;margin:0;color:var(--home-muted);font-size:1rem;line-height:1.8}.home-member-routes{gap:16px}.home-member-routes ul{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;min-width:0;margin:0;padding:0;list-style:none}.home-member-route-link{min-width:0;min-height:56px;display:flex;align-items:center;padding:12px 14px;border:1px solid var(--home-border);border-radius:16px;background:#fff;color:var(--home-green-dark);text-decoration:none;line-height:1.4}.home-member-route-link strong{font-size:.875rem;overflow-wrap:anywhere}.home-member-route-link:hover{border-color:rgba(20,63,46,.38);background:#f8faf7}@media(max-width:560px){.home-guest-proof.is-empty .home-empty-proof-art img{height:clamp(132px,45vw,180px);aspect-ratio:auto}.home-state-view{gap:48px}.home-community-section{padding:22px}}@media(max-width:767px){.home-member-routes ul{grid-template-columns:repeat(2,minmax(0,1fr))}.home-member-route-link{padding-inline:12px}}@media(max-width:420px){.home-member-route-link{padding-inline:10px}.home-member-route-link strong{font-size:.82rem}}
+  /* Foundation polish: keep the first action and local proof in the first viewport. */
+  .home-guest-hero { min-height: 0; padding-block: clamp(24px, 6vw, 56px); }
+  .home-state-root :is(a, button):focus-visible { outline: 3px solid #000; outline-offset: 3px; box-shadow: 0 0 0 6px var(--home-yellow); }
+  @media (min-width: 1180px) { .home-guest-hero { min-height: 0; } }
+  @media (max-width: 767px) { .home-state-view { gap: 36px; } }
+.home-watch-updates{gap:16px;padding:24px;border:1px solid var(--home-border);border-radius:22px;background:#fbfcfa}.home-watch-updates-status{margin:0;color:var(--home-muted);font-size:.875rem;line-height:1.6}.home-watch-updates-list{display:grid;gap:0;border-top:1px solid var(--home-border)}.home-watch-update-card{display:grid;gap:7px;min-width:0;padding:16px 2px;border-bottom:1px solid var(--home-border);color:var(--home-green-dark);text-decoration:none}.home-watch-update-card:hover{background:#f4f8f3}.home-watch-update-card.is-unread{padding-left:12px;border-left:3px solid var(--home-leaf);background:#f5faf5}.home-watch-update-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}.home-watch-update-head strong{min-width:0;color:var(--home-green);font-size:.8rem;line-height:1.4;overflow-wrap:anywhere}.home-watch-update-head em{flex:0 0 auto;color:var(--home-leaf);font-size:.72rem;font-style:normal;font-weight:850}.home-watch-update-card>b{font-size:1rem;line-height:1.45;overflow-wrap:anywhere}.home-watch-update-body{color:#33443b;font-size:.9rem;line-height:1.65;overflow-wrap:anywhere}.home-watch-update-card>small{color:var(--home-muted);font-size:.75rem;line-height:1.45}.home-watch-update-card .home-watch-update-reason{color:var(--home-green);font-weight:750}@media(max-width:560px){.home-watch-updates{padding:18px}}
 `;

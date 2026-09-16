@@ -80,8 +80,9 @@ const materializationJobId = String(process.env.IKIMON_OPS_JOB_ID || "");
 const materializationSourceSha = String(process.env.IKIMON_EXPECTED_GIT_SHA || "");
 const materializationSecret = targetEnv === "production"
   ? String(process.env.IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET || "")
-  : String(process.env.IKIMON_AUTOMATION_PUSH_SECRET || "");
+  : String(process.env.IKIMON_STAGING_MATERIALIZATION_JOB_SECRET || process.env.IKIMON_AUTOMATION_PUSH_SECRET || "");
 delete process.env.IKIMON_PRODUCTION_MATERIALIZATION_JOB_SECRET;
+delete process.env.IKIMON_STAGING_MATERIALIZATION_JOB_SECRET;
 delete process.env.IKIMON_AUTOMATION_PUSH_SECRET;
 const materializationGatewayUrl = resolveMaterializationGatewayUrl();
 

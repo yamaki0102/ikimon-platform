@@ -14,10 +14,10 @@ const INJECTED_STYLE = `
     gap: 13px;
     margin: 0 0 14px;
     padding: 17px;
-    border: 1px solid #cfe2d7;
+    border: 1px solid var(--zukan-border-decorative);
     border-radius: 17px;
-    background: linear-gradient(145deg, #edf8f2, #fff 64%);
-    color: #16231c;
+    background: linear-gradient(145deg, var(--zukan-surface-subtle), var(--zukan-surface-base) 64%);
+    color: var(--zukan-text-primary);
   }
   .ikimon-record-value-loop[hidden] { display: none !important; }
   .ikimon-record-value-loop__head {
@@ -32,7 +32,7 @@ const INJECTED_STYLE = `
     line-height: 1.35;
   }
   .ikimon-record-value-loop__updated {
-    color: #607067;
+    color: var(--zukan-text-secondary);
     font-size: 11px;
     font-weight: 750;
     text-align: right;
@@ -49,10 +49,10 @@ const INJECTED_STYLE = `
     min-height: 66px;
     padding: 10px 12px;
     border-radius: 13px;
-    background: #fff;
+    background: var(--zukan-surface-base);
   }
   .ikimon-record-value-loop__state span {
-    color: #607067;
+    color: var(--zukan-text-secondary);
     font-size: 11px;
     font-weight: 800;
   }
@@ -63,13 +63,13 @@ const INJECTED_STYLE = `
   .ikimon-record-value-loop__message,
   .ikimon-record-value-loop__place {
     margin: 0;
-    color: #33473c;
+    color: var(--zukan-text-secondary);
     font-size: 14px;
     line-height: 1.7;
   }
   .ikimon-record-value-loop__place {
     padding-top: 11px;
-    border-top: 1px solid #dce7e0;
+    border-top: 1px solid var(--zukan-border-decorative);
   }
   .ikimon-record-value-loop__actions {
     display: flex;
@@ -82,19 +82,19 @@ const INJECTED_STYLE = `
     justify-content: center;
     min-height: 44px;
     padding: 8px 14px;
-    border: 1px solid #0a7b57;
+    border: 1px solid var(--zukan-action-primary);
     border-radius: 999px;
-    background: #0a7b57;
-    color: #fff;
+    background: var(--zukan-action-primary);
+    color: var(--zukan-surface-base);
     font: inherit;
     font-weight: 850;
     text-decoration: none;
     cursor: pointer;
   }
   .ikimon-record-value-loop__action.is-secondary {
-    border-color: #cfe2d7;
-    background: #fff;
-    color: #0b6f61;
+    border-color: var(--zukan-border-decorative);
+    background: var(--zukan-surface-base);
+    color: var(--zukan-action-primary);
   }
   .ikimon-record-value-loop__action:disabled {
     cursor: wait;
@@ -102,7 +102,7 @@ const INJECTED_STYLE = `
   }
   .ikimon-record-value-loop__result {
     min-height: 1.5em;
-    color: #607067;
+    color: var(--zukan-text-secondary);
     font-size: 12px;
     font-weight: 700;
   }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { canonicalPublicHostRedirect, rewriteCanonicalPublicOrigins } from "./index";
+import { canonicalPublicHostRedirect, isPublicAiReferencePath, rewriteCanonicalPublicOrigins, withAiContentPolicy, withRobotsContentSignal } from "./index";
 
 const env = (mode: string): any => ({ ENVIRONMENT: "production", LEGACY_HOST_REDIRECT_MODE: mode });
 const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
@@ -95,4 +95,82 @@ test("materialized public text is canonicalized at the existing Worker edge", ()
     rewriteCanonicalPublicOrigins("https://ikimon.life/ja/", { ENVIRONMENT: "staging" } as any),
     "https://staging.zukan.earth/ja/",
   );
+});
+
+
+test("AI content policy allows only explicit public references and denies private/staging surfaces", () => {
+  for (const path of [
+    "/", "/ja/records", "/map", "/ja/community/fields/example",
+    "/observations/example", "/ja/places/example", "/walk-maps/example",
+    "/community/events/example", "/robots.txt", "/sitemap.xml",
+  ]) {
+    assert.equal(isPublicAiReferencePath(path), true, path);
+    const response = withAiContentPolicy(
+      new Response("public", { status: 200 }),
+      new Request(`https://zukan.earth${path}`),
+      { ENVIRONMENT: "production" },
+    );
+    assert.equal(response.headers.get("content-signal"), "search=yes, ai-input=yes, ai-train=no, use=reference", path);
+    assert.equal(response.headers.get("x-robots-tag"), null, path);
+  }
+
+  for (const path of [
+    "/profile", "/ja/profile/settings", "/record", "/my-guides",
+    "/community/events/new", "/admin/municipal-walk-maps", "/api/v1/me",
+    "/auth/oauth/google/start", "/internal/r2-inventory",
+  ]) {
+    assert.equal(isPublicAiReferencePath(path), false, path);
+    const response = withAiContentPolicy(
+      new Response("private", { status: 200 }),
+      new Request(`https://zukan.earth${path}`),
+      { ENVIRONMENT: "production" },
+    );
+    assert.equal(response.headers.get("content-signal"), "search=no, ai-input=no, ai-train=no, use=immediate", path);
+    assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow", path);
+  }
+
+  for (const request of [
+    new Request("https://zukan.earth/ja/records", { headers: { cookie: "session=opaque" } }),
+    new Request("https://zukan.earth/ja/records", { headers: { authorization: "Bearer opaque" } }),
+    new Request("https://zukan.earth/ja/records?view=mine"),
+  ]) {
+    const response = withAiContentPolicy(new Response("session-aware", { status: 200 }), request, { ENVIRONMENT: "production" });
+    assert.equal(response.headers.get("content-signal"), "search=no, ai-input=no, ai-train=no, use=immediate");
+    assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
+  }
+
+  const staging = withAiContentPolicy(
+    new Response("staging", { status: 200 }),
+    new Request("https://staging.zukan.earth/ja/records"),
+    { ENVIRONMENT: "staging" },
+  );
+  assert.equal(staging.headers.get("content-signal"), "search=no, ai-input=no, ai-train=no, use=immediate");
+  assert.equal(staging.headers.get("x-robots-tag"), "noindex, nofollow");
+
+  const preexistingNoindex = withAiContentPolicy(
+    new Response("hidden", { status: 200, headers: { "x-robots-tag": "noindex" } }),
+    new Request("https://zukan.earth/ja/records"),
+    { ENVIRONMENT: "production" },
+  );
+  assert.equal(preexistingNoindex.headers.get("content-signal"), "search=no, ai-input=no, ai-train=no, use=immediate");
+
+  const strongerNoindex = withAiContentPolicy(
+    new Response("hidden", { status: 200, headers: { "x-robots-tag": "noindex, nofollow, noarchive, nosnippet" } }),
+    new Request("https://zukan.earth/ja/records"),
+    { ENVIRONMENT: "production" },
+  );
+  assert.equal(strongerNoindex.headers.get("x-robots-tag"), "noindex, nofollow, noarchive, nosnippet");
+});
+
+
+test("robots content signal is enforced at the active Worker edge", () => {
+  const oldBody = "User-agent: *\nAllow: /\n\nSitemap: https://zukan.earth/sitemap.xml\n";
+  const production = withRobotsContentSignal(oldBody, "production");
+  assert.match(production, /^User-agent: \*\nContent-Signal: search=yes, ai-input=yes, ai-train=no, use=reference\nAllow: \/\n/u);
+  assert.equal((production.match(/Content-Signal:/gu) ?? []).length, 1);
+
+  const stale = "User-agent: *\nContent-Signal: ai-train=yes\nDisallow: /\n";
+  const staging = withRobotsContentSignal(stale, "staging");
+  assert.match(staging, /^User-agent: \*\nContent-Signal: search=no, ai-input=no, ai-train=no, use=immediate\nDisallow: \/\n/u);
+  assert.equal((staging.match(/Content-Signal:/gu) ?? []).length, 1);
 });

@@ -43,8 +43,8 @@ describe("ZUKAN Home release closure", () => {
       assert.match(patched, /id="zukan-home-state-split-release-closure"/);
       assert.ok(patched.includes(`home-guest-proof.is-count-${count}`));
       assert.match(patched, /home-guest-proof\.is-empty img\{display:none\}/);
-      assert.match(patched, /home-category-index\{color:var\(--home-green\)\}/);
-      assert.match(patched, /focus-visible\{outline:3px solid var\(--home-green\)/);
+      assert.match(patched, /home-category-index\{color:var\(--zukan-action-primary\)\}/);
+      assert.match(patched, /\.home-state-root :is\(a,button\):focus-visible\{outline:3px solid var\(--zukan-focus-outline\);outline-offset:3px;box-shadow:0 0 0 4px var\(--zukan-focus-yellow-300\)\}/);
       assert.doesNotMatch(patched, /イメージ/);
     });
   }

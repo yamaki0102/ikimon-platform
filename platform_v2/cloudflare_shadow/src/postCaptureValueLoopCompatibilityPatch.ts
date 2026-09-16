@@ -29,7 +29,7 @@ const INJECTED_STYLE = `
     padding: 11px 12px;
     border-radius: 14px;
     box-shadow: none;
-    background: #f3faf6;
+    background: var(--zukan-surface-subtle);
   }
   .ikimon-record-value-loop[data-compact="v2"] .ikimon-record-value-loop__head {
     align-items: center;
@@ -50,9 +50,9 @@ const INJECTED_STYLE = `
   .ikimon-record-value-loop[data-compact="v2"] .ikimon-record-value-loop__state {
     min-height: 0;
     padding: 6px 7px;
-    border: 1px solid #dce9e2;
+    border: 1px solid var(--zukan-border-decorative);
     border-radius: 10px;
-    background: #fff;
+    background: var(--zukan-surface-base);
   }
   .ikimon-record-value-loop[data-compact="v2"] .ikimon-record-value-loop__state span {
     font-size: 10px;
@@ -71,14 +71,14 @@ const INJECTED_STYLE = `
     padding: 8px 13px;
   }
   .ikimon-record-value-loop__details {
-    border-top: 1px solid #dce7e0;
+    border-top: 1px solid var(--zukan-border-decorative);
   }
   .ikimon-record-value-loop__details > summary {
     display: flex;
     align-items: center;
     min-height: 44px;
     cursor: pointer;
-    color: #365848;
+    color: var(--zukan-action-primary);
     font-size: 13px;
     font-weight: 850;
   }

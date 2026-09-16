@@ -269,9 +269,9 @@ export function resolveCloudflareRecordRecoveryState(url: URL): CloudflareRecord
 
 function recoveryStyles(): string {
   return `
-    :root{color-scheme:light;--ink:#10251a;--muted:#52635d;--line:#d8eae4;--mint:#eefbf6;--teal:#058f82;--leaf:#54c86f;--paper:#fbfdfb;--danger:#b42318}
+    :root{color-scheme:light;--ink:var(--zukan-text-primary);--muted:var(--zukan-text-secondary);--line:var(--zukan-border-decorative);--mint:var(--zukan-surface-subtle);--teal:var(--zukan-action-primary);--leaf:var(--zukan-action-hover);--paper:var(--zukan-surface-base);--danger:var(--zukan-status-error)}
     *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#f5fbf8 0,#fff 72%);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--zukan-font-sans);line-height:1.7}
     .cf-recovery-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
     .cf-recovery-brand{min-width:44px;min-height:44px;display:inline-flex;align-items:center;font-weight:900;text-decoration:none;color:var(--ink);font-size:20px;letter-spacing:.02em}
     .cf-recovery-profile{color:var(--muted);font-size:13px;font-weight:800;overflow-wrap:anywhere;text-align:right}
@@ -303,7 +303,7 @@ function recoveryStyles(): string {
     .cf-recovery-coordinates summary{min-height:44px;display:flex;align-items:center;cursor:pointer;padding:10px 12px;font-weight:900}
     .cf-recovery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
     .cf-recovery-status{min-height:28px;margin-top:12px;color:var(--teal);font-weight:900}
-    .cf-recovery-brand:focus-visible,.cf-recovery-pick:has(input:focus-visible),.cf-recovery-field :is(input,textarea):focus-visible,.cf-recovery-coordinates summary:focus-visible,.cf-recovery-actions :is(a,button):focus-visible{outline:3px solid #0ea5e9;outline-offset:3px}
+    .cf-recovery-brand:focus-visible,.cf-recovery-pick:has(input:focus-visible),.cf-recovery-field :is(input,textarea):focus-visible,.cf-recovery-coordinates summary:focus-visible,.cf-recovery-actions :is(a,button):focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media(max-width:520px){.cf-recovery-shell{width:calc(100% - 16px);margin-top:14px}.cf-recovery-grid{grid-template-columns:1fr}.cf-recovery-actions>*{flex:1 1 100%}.cf-recovery-header{padding:11px 12px}.cf-recovery-profile{max-width:52%;font-size:12px}}
   `;
 }

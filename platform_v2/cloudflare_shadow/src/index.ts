@@ -1,5 +1,6 @@
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
+import { FRONTEND_FOUNDATION_CSS } from "../../src/ui/frontendFoundation";
 import * as bcrypt from "bcryptjs";
 import {
   renderCloudflareRecordRecoveryGuestHtml,
@@ -75,6 +76,8 @@ import {
 } from "./cloudflareObservationReadModel";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
+import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
+import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { publicObservationAiCandidateInsights, publicObservationAiFeedback } from "./publicObservationAiPresentation";
 import {
   renderObservationProcessingStatusPanel,
@@ -114,6 +117,7 @@ import {
   type ObservationMediaDedupInput,
   type ObservationMediaDedupPlan,
 } from "./observationMediaDedup";
+import { buildRuntimeIdentity, runtimeIdentityHeaders, type RuntimeIdentityEnv } from "./runtimeIdentity";
 
 type D1Value = string | number | null;
 
@@ -273,6 +277,7 @@ interface Env {
   IKIMON_UI_BUNDLE_HASH?: string;
   IKIMON_UI_MANIFEST_HASH?: string;
   IKIMON_DEPLOYED_AT?: string;
+  CF_VERSION_METADATA?: RuntimeIdentityEnv["CF_VERSION_METADATA"];
 }
 
 function isAppRuntime(env: Env): boolean {
@@ -333,6 +338,7 @@ interface LegacyObservationUpsertInput {
   note?: string | null;
   siteId?: string | null;
   siteName?: string | null;
+  regionId?: string | null;
   municipality?: string | null;
   prefecture?: string | null;
   taxon?: {
@@ -2414,9 +2420,79 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/ja/terms"
 ]);
 const ORIGINAL_UI_HTML_CACHE_CONTROL = "no-store, no-cache, must-revalidate, proxy-revalidate";
+const PUBLIC_CONTENT_SIGNAL = "search=yes, ai-input=yes, ai-train=no, use=reference";
+const PRIVATE_CONTENT_SIGNAL = "search=no, ai-input=no, ai-train=no, use=immediate";
+
+export function withRobotsContentSignal(value: string, environment: string): string {
+  const signal = environment === "production" ? PUBLIC_CONTENT_SIGNAL : PRIVATE_CONTENT_SIGNAL;
+  const withoutSignal = value.replace(/^Content-Signal:.*(?:\r?\n|$)/gimu, "");
+  const firstLineEnd = withoutSignal.search(/\r?\n/u);
+  if (firstLineEnd < 0) return `${withoutSignal}\nContent-Signal: ${signal}\n`;
+  const lineBreak = withoutSignal[firstLineEnd] === "\r" ? "\r\n" : "\n";
+  return `${withoutSignal.slice(0, firstLineEnd)}${lineBreak}Content-Signal: ${signal}${lineBreak}${withoutSignal.slice(firstLineEnd + lineBreak.length)}`;
+}
+
+function isNonPublicOriginalUiHtmlPath(pathname: string): boolean {
+  const nativePathname = stripPublicLangPrefix(pathname);
+  return nativePathname === "/login"
+    || nativePathname === "/register"
+    || nativePathname === "/record"
+    || nativePathname === "/profile"
+    || nativePathname === "/profile/settings"
+    || nativePathname === "/my-guides"
+    || nativePathname === "/app-refresh"
+    || nativePathname === "/community/events/new"
+    || nativePathname.startsWith("/admin/");
+}
+
+export function isPublicAiReferencePath(pathname: string): boolean {
+  const nativePathname = stripPublicLangPrefix(pathname);
+  if (pathname === "/robots.txt" || pathname === "/sitemap.xml" || pathname === "/llms.txt") return true;
+  if (isOriginalUiHtmlPath(pathname)) return !isNonPublicOriginalUiHtmlPath(pathname);
+  if (nativePathname === "/walk-maps" || /^\/walk-maps\/[^/]+$/.test(nativePathname)) return true;
+  if (/^\/places\/[^/]+(?:\/station)?$/.test(nativePathname)) return true;
+  if (/^\/observations\/[^/]+$/.test(nativePathname)) return true;
+  if (/^\/community\/events(?:\/[^/]+)?$/.test(nativePathname)) return true;
+  return false;
+}
+
+export function withAiContentPolicy(response: Response, request: Request, env: Pick<Env, "ENVIRONMENT">): Response {
+  const url = new URL(request.url);
+  const credentialed = Boolean(request.headers.get("authorization") || request.headers.get("cookie"));
+  const privateView = url.searchParams.get("view") === "mine";
+  const publicReference = env.ENVIRONMENT === "production"
+    && (request.method === "GET" || request.method === "HEAD")
+    && response.ok
+    && !credentialed
+    && !privateView
+    && !/noindex/i.test(response.headers.get("x-robots-tag") ?? "")
+    && isPublicAiReferencePath(url.pathname);
+  const apply = (target: Response): Response => {
+    target.headers.set("content-signal", publicReference ? PUBLIC_CONTENT_SIGNAL : PRIVATE_CONTENT_SIGNAL);
+    if (!publicReference) {
+      const existingRobots = target.headers.get("x-robots-tag");
+      if (existingRobots === null) {
+        target.headers.set("x-robots-tag", "noindex, nofollow");
+      } else {
+        const directives = existingRobots.split(",").map((value) => value.trim()).filter(Boolean);
+        const normalized = new Set(directives.map((value) => value.toLowerCase()));
+        if (!normalized.has("noindex")) directives.push("noindex");
+        if (!normalized.has("nofollow")) directives.push("nofollow");
+        target.headers.set("x-robots-tag", directives.join(", "));
+      }
+    }
+    return target;
+  };
+  try {
+    return apply(response);
+  } catch {
+    return apply(new Response(response.body, response));
+  }
+}
 
 export const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext = { waitUntil() {} }): Promise<Response> {
+    const response = await (async (): Promise<Response> => {
     try {
       const url = new URL(request.url);
       const nativePathname = stripPublicLangPrefix(url.pathname);
@@ -2801,7 +2877,7 @@ export const worker = {
 
       if (url.pathname.startsWith("/derived-transform/")) {
         if (request.method === "GET" || request.method === "HEAD") {
-          return getPublicDerivedImageTransform(request, url);
+          return getPublicDerivedImageTransform(request, url, env);
         }
         return json({ error: "method_not_allowed" }, 405, {
           allow: "GET, HEAD",
@@ -3287,6 +3363,8 @@ export const worker = {
       console.error(error);
       return json({ error: "internal_error" }, 500);
     }
+    })();
+    return withAiContentPolicy(response, request, env);
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -4167,6 +4245,8 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
     .btn.secondary{background:#e8f1ed;color:#174c3d}.btn.rally-record-cta{min-height:44px}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
     pre{white-space:pre-wrap;word-break:break-word;background:#102018;color:#f3fff8;border-radius:8px;padding:12px}
     @media(max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}}
+    ${FRONTEND_FOUNDATION_CSS}
+    :root{--evt-motion-fast:var(--ik-motion-fast);--evt-motion:var(--ik-motion-normal);--evt-motion-slow:var(--ik-motion-slow)}
     ${APP_EXPERIENCE_STYLES}
     body[data-zukan-app-experience] main{padding-bottom:56px}body[data-zukan-app-experience] .btn{min-height:44px;border-radius:8px;background:#143f2e}body[data-zukan-app-experience] .btn.secondary{background:#edf3ee;color:#143f2e}
   </style>
@@ -11046,7 +11126,10 @@ async function deletePersonalAreaSubscription(session: SessionSnapshot, id: stri
     return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
   }
   await env.CORE_DB.prepare(
-    "DELETE FROM user_area_subscriptions WHERE subscription_id = ? AND user_id = ?"
+    `UPDATE user_area_subscriptions
+        SET is_active = 0,
+            updated_at = CURRENT_TIMESTAMP
+      WHERE subscription_id = ? AND user_id = ?`
   ).bind(subscriptionId, session.userId).run();
   return json({ ok: true }, 200, { "cache-control": "no-store" });
 }
@@ -11583,9 +11666,467 @@ function alertEmailText(row: AlertDeliveryCandidateRow, payload: Record<string, 
   ].join("\n");
 }
 
+type AreaWatchEmissionInput = {
+  visitId: string;
+  occurrenceId: string;
+  ownerUserId: string | null;
+  placeId: string;
+  fieldId: string | null;
+  regionId: string | null;
+  prefecture: string | null;
+  municipality: string | null;
+  observedAt: string;
+  displayName: string;
+  visibility: string;
+  recordConsent: string;
+  withdrawalStatus: string;
+  hasPhoto: boolean;
+  hasVideo?: boolean;
+  completeChecklist: boolean;
+  effortMinutes: number | null;
+  distanceMeters: number | null;
+  photoHashes?: string[];
+};
+
+function areaWatchTargetMatches(
+  subscription: Pick<PersonalAreaSubscriptionRow, "target_type" | "target_id">,
+  input: AreaWatchEmissionInput
+): boolean {
+  if (subscription.target_type === "place") return subscription.target_id === input.placeId;
+  if (subscription.target_type === "field") return Boolean(input.fieldId && subscription.target_id === input.fieldId);
+  if (subscription.target_type !== "region") return false;
+  return [input.regionId, input.prefecture, input.municipality, [input.prefecture, input.municipality].filter(Boolean).join(":")]
+    .filter((value): value is string => Boolean(value))
+    .includes(subscription.target_id);
+}
+
+function areaWatchTargetPriority(targetType: string): number {
+  return targetType === "place" ? 0 : targetType === "field" ? 1 : 2;
+}
+
+const AREA_WATCH_FANOUT_BATCH_SIZE = 90;
+
+async function enqueueD1AreaWatchNotifications(input: AreaWatchEmissionInput, env: Env): Promise<number> {
+  if (
+    input.visibility !== "public"
+    || input.withdrawalStatus !== "active"
+    || !["public_summary", "external_export"].includes(input.recordConsent)
+  ) return 0;
+  if (!(await publicMediaReadyForAreaWatch(input.visitId, input.photoHashes ?? [], input.hasVideo === true, env))) return 0;
+
+  const targetClauses = ["(target_type = 'place' AND target_id = ?)"];
+  const targetBindings: D1Value[] = [input.placeId];
+  if (input.fieldId) {
+    targetClauses.push("(target_type = 'field' AND target_id = ?)");
+    targetBindings.push(input.fieldId);
+  }
+  const regionIds = [...new Set(
+    [input.regionId, input.prefecture, input.municipality, [input.prefecture, input.municipality].filter(Boolean).join(":")]
+      .filter((value): value is string => Boolean(value))
+  )];
+  for (const regionId of regionIds) {
+    targetClauses.push("(target_type = 'region' AND target_id = ?)");
+    targetBindings.push(regionId);
+  }
+  const subscriptions = await env.CORE_DB.prepare(
+    `SELECT subscription_id, user_id, target_type, target_id, label, href, is_active, created_at, updated_at
+       FROM user_area_subscriptions
+      WHERE is_active = 1 AND (${targetClauses.join(" OR ")})`
+  ).bind(...targetBindings).all<PersonalAreaSubscriptionRow & { user_id: string }>();
+  const matches = subscriptions.results
+    .filter((subscription) => subscription.user_id !== input.ownerUserId && areaWatchTargetMatches(subscription, input))
+    .sort((left, right) =>
+      areaWatchTargetPriority(left.target_type) - areaWatchTargetPriority(right.target_type)
+      || (right.updated_at ?? "").localeCompare(left.updated_at ?? "")
+      || left.subscription_id.localeCompare(right.subscription_id)
+    );
+  const selectedByUser = new Map<string, typeof matches[number]>();
+  for (const subscription of matches) {
+    if (!selectedByUser.has(subscription.user_id)) selectedByUser.set(subscription.user_id, subscription);
+  }
+
+  const now = new Date().toISOString();
+  const statements = [...selectedByUser.values()].map((subscription) => {
+    const areaLabel = safePersonalLabel(subscription.label, subscription.target_id);
+    const body = input.completeChecklist
+      ? `${areaLabel} にチェックリストつきの記録が増えました。`
+      : input.effortMinutes !== null || input.distanceMeters !== null
+        ? `${areaLabel} にeffortつきの記録が増えました。`
+        : input.hasPhoto
+          ? `${areaLabel} に写真つきの記録が増えました。`
+          : `${areaLabel} に新しい記録が増えました。`;
+    return env.CORE_DB.prepare(
+      `INSERT OR IGNORE INTO alert_deliveries (
+         delivery_id, occurrence_id, user_id, recipient_id, subscription_id, area_subscription_id,
+         trigger_kind, channel, delivered_at, delivery_status, error_message, payload_json, acknowledged_at, created_at
+       )
+       SELECT ?, ?, ?, NULL, NULL, ?, 'area_watch', 'none', ?, 'sent', NULL, ?, NULL, ?
+        WHERE NOT EXISTS (
+          SELECT 1
+            FROM alert_deliveries existing
+           WHERE existing.occurrence_id = ?
+             AND existing.user_id = ?
+             AND existing.trigger_kind = 'area_watch'
+        )`
+    ).bind(
+      newId("alert_delivery"),
+      input.occurrenceId,
+      subscription.user_id,
+      subscription.subscription_id,
+      now,
+      JSON.stringify({
+        title: "見守りエリアに新しい記録",
+        body,
+        href: safePersonalHref(subscription.href, areaSubscriptionHref(subscription.target_type, subscription.target_id)),
+        areaLabel,
+        targetType: subscription.target_type,
+        targetId: subscription.target_id,
+        occurrenceId: input.occurrenceId,
+        visitId: input.visitId,
+        displayName: input.displayName,
+        observedAt: input.observedAt,
+        watchSignals: {
+          hasPhoto: input.hasPhoto,
+          hasVideo: input.hasVideo === true,
+          completeChecklist: input.completeChecklist,
+          effortMinutes: input.effortMinutes,
+          distanceMeters: input.distanceMeters
+        }
+      }),
+      now,
+      input.occurrenceId,
+      subscription.user_id
+    );
+  });
+  let created = 0;
+  for (let offset = 0; offset < statements.length; offset += AREA_WATCH_FANOUT_BATCH_SIZE) {
+    const results = await env.CORE_DB.batch(statements.slice(offset, offset + AREA_WATCH_FANOUT_BATCH_SIZE));
+    created += results.filter((result) => Number((result as { meta?: { changes?: unknown } } | null)?.meta?.changes) === 1).length;
+  }
+  return created;
+}
+
+async function enqueueD1AreaWatchNotificationsForStoredObservation(
+  observationId: string,
+  env: Env
+): Promise<number> {
+  const observation = await env.OBS_DB.prepare(
+    `SELECT observation_id, owner_user_id, observed_at, taxon_label, public_cell, visibility,
+            emergency_hidden, processing_state
+       FROM observations
+      WHERE observation_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{
+    observation_id: string;
+    owner_user_id: string;
+    observed_at: string;
+    taxon_label: string | null;
+    public_cell: string;
+    visibility: string;
+    emergency_hidden: number;
+    processing_state: string;
+  }>();
+  if (
+    !observation
+    || observation.visibility !== "public"
+    || Number(observation.emergency_hidden) !== 0
+    || !["accepted", "auto_accepted"].includes(observation.processing_state)
+  ) return 0;
+
+  // Re-run the same publication safety decision used by the initial write.
+  // The public read model may be materialized asynchronously, so it must not
+  // become a prerequisite for recovering an otherwise eligible alert.
+  const publicSafety = await publicSafetyGateForObservation(observationId, env).catch(() => ({ blocked: true }));
+  if (publicSafety.blocked) return 0;
+
+  const rights = await env.OBS_DB.prepare(
+    `SELECT occurrence_id, record_consent, withdrawal_status
+       FROM observation_data_rights
+      WHERE visit_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{
+    occurrence_id: string | null;
+    record_consent: string;
+    withdrawal_status: string;
+  }>();
+  if (!rights?.occurrence_id) return 0;
+
+  const context = await env.OBS_DB.prepare(
+    `SELECT field_id, source_payload_json
+       FROM civic_observation_contexts
+      WHERE visit_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{ field_id: string | null; source_payload_json: string | null }>().catch(() => null);
+  const idempotency = await env.OBS_DB.prepare(
+    `SELECT place_id, source_payload
+       FROM observation_write_idempotency
+      WHERE visit_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{ place_id: string | null; source_payload: string | null }>().catch(() => null);
+  const sourcePayload = {
+    ...jsonObject(idempotency?.source_payload ?? "{}"),
+    ...jsonObject(context?.source_payload_json ?? "{}")
+  };
+  const clientPhotoHashes = Array.isArray(sourcePayload.client_photo_sha256s)
+    ? sourcePayload.client_photo_sha256s
+    : [];
+
+  return enqueueD1AreaWatchNotifications({
+    visitId: observationId,
+    occurrenceId: rights.occurrence_id,
+    ownerUserId: observation.owner_user_id,
+    placeId: idempotency?.place_id ?? `place:${observation.public_cell}`,
+    fieldId: normalizeOptionalText(context?.field_id),
+    regionId: normalizeOptionalText(sourcePayload.region_id ?? sourcePayload.regionId),
+    prefecture: normalizeOptionalText(sourcePayload.prefecture ?? sourcePayload.observed_prefecture),
+    municipality: normalizeOptionalText(sourcePayload.municipality ?? sourcePayload.observed_municipality),
+    observedAt: observation.observed_at,
+    displayName: normalizeOptionalText(observation.taxon_label) ?? "新しい観察",
+    visibility: observation.visibility,
+    recordConsent: rights.record_consent,
+    withdrawalStatus: rights.withdrawal_status,
+    hasPhoto: clientPhotoHashes.some((value) => typeof value === "string" && value.trim() !== ""),
+    hasVideo: sourcePayload.client_video_selected === true
+      || sourcePayload.media_kind === "video"
+      || sourcePayload.mediaKind === "video",
+    photoHashes: clientPhotoHashes.filter((value): value is string => typeof value === "string"),
+    completeChecklist: sourcePayload.complete_checklist_flag === true,
+    effortMinutes: numberOrNull(sourcePayload.effort_minutes),
+    distanceMeters: numberOrNull(sourcePayload.distance_meters)
+  }, env);
+}
+
+type PersonalUnreadAlertRow = Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind" | "payload_json">;
+
+type PublicSafetyContextRow = {
+  audience_scope: string | null;
+  public_precision: string | null;
+  risk_lane: string | null;
+};
+
+function publicSafetyDecisionForContext(context: PublicSafetyContextRow | null): { blocked: boolean; reason: string | null } {
+  if (!context) return { blocked: false, reason: null };
+  const riskLane = normalizeOptionalText(context.risk_lane) ?? "normal";
+  if (riskLane !== "normal") return { blocked: true, reason: `risk_lane:${riskLane}` };
+  const audienceScope = normalizeOptionalText(context.audience_scope);
+  if (audienceScope && audienceScope !== "public") {
+    return { blocked: true, reason: `audience_scope:${audienceScope}` };
+  }
+  const publicPrecision = normalizeOptionalText(context.public_precision);
+  if (publicPrecision === "hidden" || publicPrecision === "exact_private") {
+    return { blocked: true, reason: `public_precision:${publicPrecision}` };
+  }
+  if (!publicStreamAllowsLocationPrecision(publicPrecision)) {
+    return { blocked: true, reason: `public_stream_precision:${publicPrecision}` };
+  }
+  return { blocked: false, reason: null };
+}
+
+type PublicAreaWatchAssetRow = {
+  sha256: string | null;
+  mime: string;
+  processing_state: string;
+  public_derivative_key: string | null;
+  public_derivative_verified_at: string | null;
+  public_derivative_metadata_json: string | null;
+  exif_scrub_state: string | null;
+  public_ready_at: string | null;
+};
+
+function publicAreaWatchAssetIsReady(asset: PublicAreaWatchAssetRow): boolean {
+  if (
+    !asset.public_derivative_key
+    || !asset.public_derivative_verified_at
+    || !asset.public_derivative_metadata_json
+    || asset.exif_scrub_state !== "scrubbed"
+    || !asset.public_ready_at
+  ) return false;
+  try {
+    const metadata = JSON.parse(asset.public_derivative_metadata_json) as Record<string, unknown>;
+    const contentType = String(metadata.contentType ?? "").split(";", 1)[0]?.trim().toLowerCase() ?? "";
+    const scannedContainer = String(metadata.scannedContainer ?? "").trim().toLowerCase();
+    if (metadata.gpsExifPresent === true || scannedContainer === "svg+xml") return false;
+    if (asset.mime.startsWith("image/")) return contentType === "image/webp";
+    if (asset.mime.startsWith("video/")) return contentType.startsWith("video/") && scannedContainer === "mp4";
+    if (asset.mime.startsWith("audio/")) return contentType.startsWith("audio/") && scannedContainer === "audio";
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function publicMediaReadyForAreaWatch(observationId: string, photoHashes: string[], hasVideo: boolean, env: Env): Promise<boolean> {
+  const expectedHashes = [...new Set(photoHashes.map((value) => normalizeOptionalText(value)).filter((value): value is string => Boolean(value)))];
+  try {
+    const assets = await env.OBS_DB.prepare(
+      `SELECT sha256, mime, processing_state, public_derivative_key, public_derivative_verified_at,
+              public_derivative_metadata_json, exif_scrub_state, public_ready_at
+         FROM asset_ledger
+         WHERE observation_id = ?`
+    ).bind(observationId).all<PublicAreaWatchAssetRow>();
+    if (assets.results.length === 0) return !hasVideo && expectedHashes.length === 0;
+    if (assets.results.some((asset) => asset.processing_state !== "uploaded" || !publicAreaWatchAssetIsReady(asset))) return false;
+    const readyHashes = new Set(
+      assets.results
+        .filter((asset) => asset.mime.startsWith("image/") && asset.sha256)
+        .map((asset) => asset.sha256 as string)
+    );
+    return expectedHashes.every((hash) => readyHashes.has(hash));
+  } catch {
+    // A media-read failure must defer the alert until the media/read-model
+    // retry path can prove that the public derivative is actually ready.
+    return false;
+  }
+}
+
+type PublicAreaWatchMediaCheck = {
+  observationId: string;
+  requiresPhoto: boolean;
+  requiresVideo: boolean;
+};
+
+async function publicMediaReadyForAreaWatchObservations(
+  checks: PublicAreaWatchMediaCheck[],
+  env: Env
+): Promise<Set<string>> {
+  const ready = new Set(checks.map((check) => check.observationId));
+  if (checks.length === 0) return ready;
+  try {
+    const uniqueChecks = [...new Map(checks.map((check) => [check.observationId, check])).values()];
+    for (let offset = 0; offset < uniqueChecks.length; offset += AREA_WATCH_FANOUT_BATCH_SIZE) {
+      const chunk = uniqueChecks.slice(offset, offset + AREA_WATCH_FANOUT_BATCH_SIZE);
+      const placeholders = chunk.map(() => "?").join(", ");
+      const assets = await env.OBS_DB.prepare(
+        `SELECT observation_id, sha256, mime, processing_state, public_derivative_key, public_derivative_verified_at,
+                public_derivative_metadata_json, exif_scrub_state, public_ready_at
+           FROM asset_ledger
+          WHERE observation_id IN (${placeholders})`
+      ).bind(...chunk.map((check) => check.observationId)).all<PublicAreaWatchAssetRow & { observation_id: string }>();
+      const assetsByObservation = new Map<string, PublicAreaWatchAssetRow[]>();
+      for (const asset of assets.results) {
+        const current = assetsByObservation.get(asset.observation_id) ?? [];
+        current.push(asset);
+        assetsByObservation.set(asset.observation_id, current);
+      }
+      for (const check of chunk) {
+        const observationAssets = assetsByObservation.get(check.observationId) ?? [];
+        if (observationAssets.length === 0) {
+          if (check.requiresPhoto || check.requiresVideo) ready.delete(check.observationId);
+          continue;
+        }
+        if (observationAssets.some((asset) => asset.processing_state !== "uploaded" || !publicAreaWatchAssetIsReady(asset))) {
+          ready.delete(check.observationId);
+          continue;
+        }
+        if (check.requiresPhoto && !observationAssets.some((asset) => asset.mime.startsWith("image/"))) {
+          ready.delete(check.observationId);
+          continue;
+        }
+        if (check.requiresVideo && !observationAssets.some((asset) => asset.mime.startsWith("video/"))) {
+          ready.delete(check.observationId);
+        }
+      }
+    }
+    return ready;
+  } catch {
+    // A read-time media-policy failure must suppress the stored alert rather
+    // than re-promote a signal whose public derivative cannot be proven.
+    return new Set();
+  }
+}
+
+async function visibleAreaWatchOccurrenceIds(
+  rows: Array<Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind" | "payload_json">>,
+  env: Env
+): Promise<Set<string>> {
+  const occurrenceIds = [...new Set(
+    rows
+      .filter((row) => row.trigger_kind === "area_watch")
+      .map((row) => row.occurrence_id)
+      .filter((value): value is string => Boolean(value))
+  )];
+  if (occurrenceIds.length === 0) return new Set();
+  const alertByOccurrence = new Map(rows.map((row) => [row.occurrence_id, row]));
+
+  try {
+    const visible = new Set<string>();
+    // D1 has a 100-bind ceiling. Keep both cross-database reads below it so a
+    // large unread history cannot turn the badge/read surface into an error.
+    const bindChunkSize = 90;
+    for (let offset = 0; offset < occurrenceIds.length; offset += bindChunkSize) {
+      const occurrenceChunk = occurrenceIds.slice(offset, offset + bindChunkSize);
+      const placeholders = occurrenceChunk.map(() => "?").join(", ");
+      const rights = await env.OBS_DB.prepare(
+        `SELECT r.occurrence_id, r.visit_id,
+                c.audience_scope, c.public_precision, c.risk_lane
+           FROM observation_data_rights r
+           LEFT JOIN civic_observation_contexts c ON c.visit_id = r.visit_id
+          WHERE r.occurrence_id IN (${placeholders})
+            AND r.withdrawal_status = 'active'
+            AND r.record_consent IN ('public_summary', 'external_export')`
+      ).bind(...occurrenceChunk).all<{
+        occurrence_id: string;
+        visit_id: string;
+        audience_scope: string | null;
+        public_precision: string | null;
+        risk_lane: string | null;
+      }>();
+      const visitIds = [...new Set(rights.results.map((row) => row.visit_id).filter(Boolean))];
+      if (visitIds.length === 0) continue;
+      const observationPlaceholders = visitIds.map(() => "?").join(", ");
+      const observations = await env.OBS_DB.prepare(
+        `SELECT observation_id, visibility, emergency_hidden, processing_state
+           FROM observations
+          WHERE observation_id IN (${observationPlaceholders})`
+      ).bind(...visitIds).all<{
+        observation_id: string;
+        visibility: string;
+        emergency_hidden: number;
+        processing_state: string;
+      }>();
+      const byObservationId = new Map(observations.results.map((row) => [row.observation_id, row]));
+      const mediaChecks = rights.results.map((right) => {
+        const alert = alertByOccurrence.get(right.occurrence_id);
+        const payload = parseJsonObject(alert?.payload_json ?? null);
+        const signals = asPlainObject(payload.watchSignals) ?? {};
+        return {
+          observationId: right.visit_id,
+          requiresPhoto: signals.hasPhoto === true,
+          requiresVideo: signals.hasVideo === true
+        };
+      });
+      const readyMediaObservations = await publicMediaReadyForAreaWatchObservations(mediaChecks, env);
+      for (const right of rights.results) {
+        const observation = byObservationId.get(right.visit_id);
+        if (!observation || observation.visibility !== "public" || Number(observation.emergency_hidden) !== 0) continue;
+        if (!["accepted", "auto_accepted"].includes(observation.processing_state)) continue;
+        if (!readyMediaObservations.has(right.visit_id)) continue;
+        const safety = publicSafetyDecisionForContext(right);
+        if (!safety.blocked) visible.add(right.occurrence_id);
+      }
+    }
+    return visible;
+  } catch {
+    // A rights or publication-state read failure must not resurface an old public-area alert.
+    return new Set();
+  }
+}
+
+async function countVisiblePersonalUnreadAlerts(session: SessionSnapshot, env: Env): Promise<number> {
+  const rows = await env.CORE_DB.prepare(
+    `SELECT occurrence_id, trigger_kind, payload_json
+       FROM alert_deliveries
+      WHERE user_id = ? AND acknowledged_at IS NULL`
+  ).bind(session.userId).all<PersonalUnreadAlertRow>();
+  const visibleAreaOccurrences = await visibleAreaWatchOccurrenceIds(rows.results, env);
+  return rows.results.filter((row) =>
+    row.trigger_kind !== "area_watch" || visibleAreaOccurrences.has(row.occurrence_id)
+  ).length;
+}
+
 async function getPersonalizedMenu(session: SessionSnapshot, url: URL, env: Env): Promise<Response> {
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "10"), 1, 20);
-  const [areas, taxa, unreadAlerts] = await Promise.all([
+  const [areas, taxa] = await Promise.all([
     env.CORE_DB.prepare(
       `SELECT s.subscription_id, s.target_type, s.target_id, s.label, s.href, s.is_active, s.created_at, s.updated_at,
               COALESCE(st.observation_count, 0) AS observation_count,
@@ -11604,13 +12145,8 @@ async function getPersonalizedMenu(session: SessionSnapshot, url: URL, env: Env)
         ORDER BY created_at DESC
         LIMIT 8`
     ).bind(session.userId).all<PersonalTaxonSubscriptionRow>(),
-    env.CORE_DB.prepare(
-      `SELECT COUNT(*) AS unread_count
-         FROM alert_deliveries
-        WHERE user_id = ?
-          AND acknowledged_at IS NULL`
-    ).bind(session.userId).first<{ unread_count: number }>()
   ]);
+  const unreadAlertCount = await countVisiblePersonalUnreadAlerts(session, env);
   const items = dedupePersonalMenuItems([
     ...areas.results.map((row) => {
       const label = safePersonalLabel(row.label, row.target_id);
@@ -11639,21 +12175,32 @@ async function getPersonalizedMenu(session: SessionSnapshot, url: URL, env: Env)
   return json({
     ok: true,
     items,
-    summary: { unreadAlertCount: toSafeCount(unreadAlerts?.unread_count) }
+    summary: { unreadAlertCount }
   }, 200, { "cache-control": "no-store" });
 }
 
 async function getPersonalAlerts(session: SessionSnapshot, env: Env): Promise<Response> {
-  const rows = await env.CORE_DB.prepare(
-    `SELECT delivery_id, occurrence_id, trigger_kind, delivery_status, delivered_at, acknowledged_at, created_at, payload_json
-       FROM alert_deliveries
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      LIMIT 100`
-  ).bind(session.userId).all<PersonalAlertRow>();
+  const pageSize = 100;
+  const maxScannedRows = 1000;
+  const visibleRows: PersonalAlertRow[] = [];
+  for (let offset = 0; offset < maxScannedRows && visibleRows.length < pageSize; offset += pageSize) {
+    const rows = await env.CORE_DB.prepare(
+      `SELECT delivery_id, occurrence_id, trigger_kind, delivery_status, delivered_at, acknowledged_at, created_at, payload_json
+         FROM alert_deliveries
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?`
+    ).bind(session.userId, pageSize, offset).all<PersonalAlertRow>();
+    if (rows.results.length === 0) break;
+    const activePublicAreaOccurrences = await visibleAreaWatchOccurrenceIds(rows.results, env);
+    visibleRows.push(...rows.results.filter((row) =>
+      row.trigger_kind !== "area_watch" || activePublicAreaOccurrences.has(row.occurrence_id)
+    ));
+    if (rows.results.length < pageSize) break;
+  }
   return json({
     ok: true,
-    alerts: rows.results.map((row) => ({
+    alerts: visibleRows.slice(0, pageSize).map((row) => ({
       deliveryId: row.delivery_id,
       occurrenceId: row.occurrence_id,
       triggerKind: row.trigger_kind,
@@ -14192,31 +14739,24 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
   const sources = parseSourceParam(url.searchParams.get("sources"));
   const rawZoom = url.searchParams.get("zoom");
   const zoom = rawZoom == null || rawZoom.trim() === "" ? null : Number(rawZoom);
+  const liveOsmRequested = url.searchParams.get("live_osm") === "1";
   const defaultLimit = mapAreaPolygonsFallbackLimit(zoom);
   const requestedLimit = clampInteger(Number(url.searchParams.get("limit") ?? String(defaultLimit)), 1, 1000);
   const limit = mapAreaPolygonsResponseLimit(bbox, sources, zoom, requestedLimit);
   const nativeRows = await queryNativeAreaPolygonRows(env, bbox, sources, limit);
-  const liveNamedFeatures = await fetchLiveNamedAreaPolygonsWhenRequested(
-    env,
-    bbox,
-    sources,
-    zoom,
-    limit
-  );
+  const liveNamedFeatures = liveOsmRequested
+    ? await fetchLiveNamedAreaPolygonsWhenRequested(env, bbox, sources, zoom, limit)
+    : [];
   if (nativeRows.length > 0) {
     const nativeFeatures = nativeRows
       .map((row) => areaPolygonFeatureFromGeometryReadmodel(row))
       .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature))
       .filter(isDisplayableAreaPolygonFeature);
-    const liveSchoolFeatures = await fetchLiveSchoolAreaPolygonsWhenNativeSchoolIsOnlyApproximate(
-      env,
-      bbox,
-      sources,
-      zoom,
-      nativeRows,
-      nativeFeatures,
-      limit
-    );
+    const liveSchoolFeatures = liveOsmRequested
+      ? await fetchLiveSchoolAreaPolygonsWhenNativeSchoolIsOnlyApproximate(
+        env, bbox, sources, zoom, nativeRows, nativeFeatures, limit
+      )
+      : [];
     const features = dedupePublicAreaPolygonFeatures(
       [...nativeFeatures, ...liveSchoolFeatures, ...liveNamedFeatures],
       limit
@@ -23188,11 +23728,15 @@ async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): P
       ? fallbackContentType
       : object.httpMetadata?.contentType ?? fallbackContentType;
     const shouldRewrite = ["/offline.html", "/robots.txt", "/sitemap.xml", "/app-sw.js", "/manifest.webmanifest"].includes(url.pathname);
-    const body = request.method === "HEAD"
-      ? null
-      : shouldRewrite
-        ? rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env)
-        : object.body;
+    let body: ReadableStream | string | null;
+    if (request.method === "HEAD") {
+      body = null;
+    } else if (shouldRewrite) {
+      const rewritten = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
+      body = url.pathname === "/robots.txt" ? withRobotsContentSignal(rewritten, env.ENVIRONMENT) : rewritten;
+    } else {
+      body = object.body;
+    }
     return new Response(body, {
       headers: {
         "content-type": contentType,
@@ -23637,9 +24181,9 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)} | ZUKAN</title>
   <style>
-    :root{color-scheme:light;--ink:#10251a;--muted:#52635d;--line:#d8eae4;--mint:#eefbf6;--teal:#058f82;--leaf:#54c86f;--paper:#fbfdfb}
+    :root{color-scheme:light;--ink:var(--zukan-text-primary);--muted:var(--zukan-text-secondary);--line:var(--zukan-border-decorative);--mint:var(--zukan-surface-subtle);--teal:var(--zukan-action-primary);--leaf:var(--zukan-action-hover);--paper:var(--zukan-surface-base)}
     *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#f5fbf8 0,#fff 72%);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--zukan-font-sans);line-height:1.7}
     .cf-record-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
     .cf-record-brand{min-width:44px;min-height:44px;display:inline-flex;align-items:center;text-decoration:none;color:var(--ink)}
     .cf-record-brand-lockup{display:inline-flex;align-items:center;gap:8px;min-width:0}
@@ -23665,9 +24209,9 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-coordinates{margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--mint);overflow:hidden}
     .cf-record-coordinates summary{min-height:44px;display:flex;align-items:center;cursor:pointer;padding:0 12px;font-weight:900}
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
-    .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--leaf));color:#fff;font-weight:900;font-size:16px}
+    .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:var(--zukan-radius-content);background:var(--teal);color:#fff;font-weight:900;font-size:16px}
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
-    .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible{outline:3px solid #ebb72f;outline-offset:3px;box-shadow:0 0 0 1px var(--ink)}
+    .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
   </style>
@@ -25414,17 +25958,68 @@ function localizedMaterializedPath(pathname: string, langSegment: string): strin
 const PUBLIC_DERIVED_MEDIA_CACHE_CONTROL = "public, max-age=3600";
 const PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL = "private, no-cache, no-store, must-revalidate";
 const PUBLIC_DERIVED_IMAGE_TRANSFORM_WIDTHS = new Set([360, 680, 1020, 1360]);
+type PublicDerivedImageTransformFormat = "avif" | "webp" | "jpeg";
+
+const PUBLIC_DERIVED_IMAGE_TRANSFORM_FORMATS: ReadonlyArray<{
+  format: PublicDerivedImageTransformFormat;
+  mediaType: string;
+  preference: number;
+}> = [
+  { format: "avif", mediaType: "image/avif", preference: 0 },
+  { format: "webp", mediaType: "image/webp", preference: 1 },
+  { format: "jpeg", mediaType: "image/jpeg", preference: 2 }
+];
 
 type CloudflareImageFetchInit = RequestInit & {
   cf?: {
     image?: {
       fit?: "scale-down";
-      format?: "auto";
+      format?: PublicDerivedImageTransformFormat;
       quality?: number;
       width?: number;
     };
   };
 };
+
+function explicitAcceptQuality(accept: string | null, mediaType: string): number {
+  if (!accept) return 0;
+  let quality = -1;
+  for (const entry of accept.split(",")) {
+    const parameters = entry.split(";");
+    const range = parameters.shift()?.trim().toLowerCase();
+    if (!range || range !== mediaType) continue;
+    let entryQuality = 1;
+    let valid = true;
+    for (const parameter of parameters) {
+      const separator = parameter.indexOf("=");
+      if (separator < 0 || parameter.slice(0, separator).trim().toLowerCase() !== "q") continue;
+      const rawValue = parameter.slice(separator + 1).trim().replace(/^"(.*)"$/, "$1");
+      const parsed = Number(rawValue);
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+        valid = false;
+        break;
+      }
+      entryQuality = parsed;
+    }
+    if (valid) quality = Math.max(quality, entryQuality);
+  }
+  return quality;
+}
+
+function selectPublicDerivedImageTransformFormat(accept: string | null): PublicDerivedImageTransformFormat {
+  // Wildcard-only Accept values do not prove AVIF/WebP decoder support; keep the
+  // universal JPEG fallback until the client names a supported image codec
+  // explicitly. PNG is intentionally excluded because the Worker Image
+  // Transform output contract does not provide it for this route.
+  const accepted = PUBLIC_DERIVED_IMAGE_TRANSFORM_FORMATS
+    .map((candidate) => ({
+      ...candidate,
+      quality: explicitAcceptQuality(accept, candidate.mediaType)
+    }))
+    .filter((candidate) => candidate.quality > 0)
+    .sort((left, right) => right.quality - left.quality || left.preference - right.preference);
+  return accepted[0]?.format ?? "jpeg";
+}
 
 function parsePublicDerivedImageTransformPath(pathname: string): { width: number; key: string } | null {
   const match = pathname.match(/^\/derived-transform\/w(\d+)\/(.+)$/);
@@ -25458,28 +26053,50 @@ function publicDerivedImageSrcset(photoUrl: string): string {
   return candidates.join(", ");
 }
 
-async function getPublicDerivedImageTransform(request: Request, url: URL): Promise<Response> {
+async function getPublicDerivedImageTransform(request: Request, url: URL, env: Env): Promise<Response> {
   const parsed = parsePublicDerivedImageTransformPath(url.pathname);
   if (!parsed) {
     return json({ error: "not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
   }
 
-  const sourceUrl = new URL(`/${parsed.key}`, url.origin);
-  const accept = request.headers.get("accept") ?? "image/avif,image/webp,image/*,*/*";
-  const response = await fetch(sourceUrl.toString(), {
-    method: request.method,
-    headers: { accept },
-    cf: {
-      image: {
-        fit: "scale-down",
-        format: "auto",
-        quality: 82,
-        width: parsed.width
-      }
+  const accept = request.headers.get("accept");
+  const access = await publicDerivedMediaAccess(request, parsed.key, env);
+  if (access === "denied") {
+    return json({ error: "media_not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
+  }
+
+  const format = selectPublicDerivedImageTransformFormat(accept);
+  let response: Response;
+  if (env.IMAGES) {
+    const sourceObject = await env.ASSET_BUCKET.get(parsed.key);
+    if (!sourceObject?.body) {
+      return json({ error: "media_not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
     }
-  } as CloudflareImageFetchInit);
+    const output = await env.IMAGES
+      .input(sourceObject.body)
+      .transform({ fit: "scale-down", width: parsed.width })
+      .output({ format: `image/${format}`, quality: 82, anim: false });
+    response = output.response();
+  } else {
+    const sourceUrl = new URL(`/${parsed.key}`, url.origin);
+    response = await fetch(sourceUrl.toString(), {
+      method: request.method,
+      headers: { accept: accept ?? "image/jpeg" },
+      cf: {
+        image: {
+          fit: "scale-down",
+          format,
+          quality: 82,
+          width: parsed.width
+        }
+      }
+    } as CloudflareImageFetchInit);
+  }
   const headers = new Headers(response.headers);
-  headers.set("cache-control", response.ok ? PUBLIC_DERIVED_MEDIA_CACHE_CONTROL : PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL);
+  headers.set(
+    "cache-control",
+    response.ok && access === "public" ? PUBLIC_DERIVED_MEDIA_CACHE_CONTROL : PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL
+  );
   headers.set("vary", "Accept");
   headers.set("x-ikimon-image-transform", "cloudflare");
   headers.set("x-ikimon-image-transform-width", String(parsed.width));
@@ -26231,6 +26848,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiNextPhoto: detail.nextPhoto,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
+        publicationReturn: observationFirst.publicationReturn,
       }), cspNonce), 200, {
         ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
         "cache-control": "private, no-store",
@@ -26254,7 +26872,7 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
       WHERE o.observation_id = ? AND o.emergency_hidden = 0 LIMIT 1`
   ).bind(recordId).first<{ owner_user_id: string; visibility: "public" | "limited" | "private"; accepts_identification_proposals: number }>();
   if (!container) return { state: "missing" as const, detail: null };
-  const [observations, media, claims, suggestions] = await Promise.all([
+  const [observations, media, claims, suggestions, rights] = await Promise.all([
     env.OBS_DB.prepare(
       `SELECT observation_id, source_key, record_id, owner_user_id, origin, assertion_status,
               verification_status, lifecycle_status, data_use_scope,
@@ -26294,6 +26912,20 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
         WHERE ro.record_runtime = 'cloudflare_d1' AND ro.record_id = ?
         ORDER BY s.created_at, s.suggestion_id`
     ).bind(recordId).all<RecordObservationReadSnapshot["aiSuggestions"][number]>(),
+    env.OBS_DB.prepare(
+      `SELECT record_consent, research_use_consent, dataset_license, media_license,
+              external_export_allowed, withdrawal_status, source_payload_json
+         FROM observation_data_rights
+        WHERE visit_id = ? LIMIT 1`
+    ).bind(recordId).first<{
+      record_consent: string | null;
+      research_use_consent: string | null;
+      dataset_license: string | null;
+      media_license: string | null;
+      external_export_allowed: number | null;
+      withdrawal_status: string | null;
+      source_payload_json: string | null;
+    }>(),
   ]);
   const detail: ObservationFirstRecordDetail | null = buildObservationFirstRecordDetail({
     recordId,
@@ -26309,8 +26941,36 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
     claims: claims.results,
     aiSuggestions: suggestions.results,
   }, viewerUserId);
+  const reviewCard = detail?.observations.find((card) => card.acceptedIdentification !== null);
+  const reviewDecision = reviewCard?.acceptedIdentification
+    ? { state: "approved", source: "human_review", decidedAt: null }
+    : null;
+  const sourcePayload = jsonObject(rights?.source_payload_json ?? "{}");
+  const destinations = Object.values(PUBLICATION_FEED_DEFINITIONS).map((definition) => ({
+    feedKey: definition.feedKey,
+    label: definition.scopeLabel.ja,
+    sourceEnvironment: "production" as const,
+    readOnly: true as const,
+  }));
+  const publicationReturn = detail
+    ? projectOwnerPublicationReturn({
+        owner: detail.owner,
+        recordVisibility: detail.visibility,
+        reviewDecision,
+        rights: {
+          recordConsent: rights?.record_consent,
+          researchUseConsent: rights?.research_use_consent,
+          datasetLicense: rights?.dataset_license,
+          mediaLicense: rights?.media_license,
+          externalExportAllowed: rights?.external_export_allowed,
+          withdrawalStatus: rights?.withdrawal_status,
+          sourcePayload,
+        },
+        destinations,
+      })
+    : null;
   return detail
-    ? { state: "ready" as const, detail }
+    ? { state: "ready" as const, detail, publicationReturn }
     : { state: "forbidden" as const, detail: null };
 }
 
@@ -26345,6 +27005,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   const owner = container.owner_user_id === session.userId;
   let plan: ObservationDualWritePlan;
   let refreshVisibility = false;
+  let publicVisibilityRequested = false;
   if (action === "add") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const subjectType = String(form.get("subject_type") ?? "unknown_subject");
@@ -26368,6 +27029,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
       return json({ ok: false, error: "visibility_input_invalid" }, 400, { "cache-control": "no-store" });
     }
     const previousVisibility = container.visibility === "public" || container.visibility === "limited" ? container.visibility : "private";
+    publicVisibilityRequested = visibility === "public";
     plan = await buildRecordVisibilityPlan({
       recordId,
       ownerUserId: session.userId,
@@ -26471,6 +27133,11 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   }
   await env.OBS_DB.batch(plan.mutations.map((mutation) => env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)));
   if (refreshVisibility) await refreshPublicReadmodel(recordId, env);
+  if (publicVisibilityRequested) {
+    await enqueueD1AreaWatchNotificationsForStoredObservation(recordId, env).catch((error) => {
+      console.error("[area-watch] public transition notification failed", error);
+    });
+  }
   return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
 }
 
@@ -28861,6 +29528,28 @@ type LegacyObservationIdempotencyRow = {
 const LEGACY_IDEMPOTENCY_WAIT_ATTEMPTS = 40;
 const LEGACY_IDEMPOTENCY_WAIT_MS = 25;
 
+function legacyObservationAreaWatchPayload(input: LegacyObservationUpsertInput): Record<string, unknown> {
+  const sourcePayload = asPlainObject(input.sourcePayload) ?? {};
+  const civicContext = asPlainObject(input.civicContext) ?? {};
+  const civicSourcePayload = asPlainObject(civicContext.sourcePayload ?? civicContext.source_payload) ?? {};
+  const clientPhotoHashes = Array.isArray(sourcePayload.client_photo_sha256s)
+    ? sourcePayload.client_photo_sha256s.filter((value): value is string => typeof value === "string")
+    : [];
+  return {
+    region_id: normalizeOptionalText(input.regionId ?? sourcePayload.region_id ?? sourcePayload.regionId ?? civicSourcePayload.region_id ?? civicSourcePayload.regionId),
+    prefecture: normalizeOptionalText(input.prefecture ?? sourcePayload.prefecture ?? sourcePayload.observed_prefecture ?? civicSourcePayload.prefecture ?? civicSourcePayload.observed_prefecture),
+    municipality: normalizeOptionalText(input.municipality ?? sourcePayload.municipality ?? sourcePayload.observed_municipality ?? civicSourcePayload.municipality ?? civicSourcePayload.observed_municipality),
+    field_id: normalizeOptionalText(civicContext.fieldId ?? civicContext.field_id ?? sourcePayload.field_id ?? sourcePayload.fieldId ?? civicSourcePayload.field_id ?? civicSourcePayload.fieldId),
+    client_photo_sha256s: clientPhotoHashes,
+    client_video_selected: sourcePayload.client_video_selected === true
+      || sourcePayload.media_kind === "video"
+      || sourcePayload.mediaKind === "video",
+    complete_checklist_flag: sourcePayload.complete_checklist_flag === true,
+    effort_minutes: numberOrNull(sourcePayload.effort_minutes),
+    distance_meters: numberOrNull(sourcePayload.distance_meters),
+  };
+}
+
 function normalizeCompatibleClientSubmissionId(value: unknown): string | null {
   const text = normalizeOptionalText(value);
   if (!text) return null;
@@ -29106,6 +29795,12 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         ?? "unknown place";
       const registrationBridge = await claimObservationEventRegistrationBridge(request, env, input, authenticatedSession);
       await recordObservationEventRegistrationBridgeMetric(env, registrationBridge);
+      // A successful observation write may have outlived an optional
+      // cross-D1 alert write. Replaying the same client submission is the
+      // existing idempotency recovery path, so retry the alert branch here.
+      await enqueueD1AreaWatchNotificationsForStoredObservation(visitId, env).catch((error) => {
+        console.error("[area-watch] idempotent replay notification retry failed", error);
+      });
       return json(buildLegacyCompatibleObservationResponse({
         visitId,
         occurrenceId,
@@ -29143,9 +29838,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       JSON.stringify({
         source: "cloudflare_observation_write",
         observation_id: normalizeOptionalId(input.observationId),
-        client_photo_sha256s: Array.isArray(input.sourcePayload?.client_photo_sha256s)
-          ? input.sourcePayload?.client_photo_sha256s.filter((value): value is string => typeof value === "string")
-          : []
+        ...legacyObservationAreaWatchPayload(input)
       })
     ).run();
     const reservationChanges = Number((reservation as { meta?: { changes?: unknown } } | null)?.meta?.changes);
@@ -29415,9 +30108,41 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     taxonLabel
   });
 
-  if (visibility !== "public" || (await publicSafetyGateForObservation(visitId, env)).blocked) {
+  const publicSafety = visibility === "public"
+    ? await publicSafetyGateForObservation(visitId, env)
+    : { blocked: false, reason: null };
+  if (visibility !== "public" || publicSafety.blocked) {
     await clearObservationPublicAreaLabel(visitId, env);
     await deletePublicReadmodelRow(visitId, env);
+  } else {
+    await enqueueD1AreaWatchNotifications({
+      visitId,
+      occurrenceId,
+      ownerUserId: input.userId,
+      placeId,
+      fieldId: civicContext?.fieldId ?? null,
+      regionId: normalizeOptionalText(input.regionId ?? input.sourcePayload?.region_id ?? input.sourcePayload?.regionId),
+      prefecture: normalizeOptionalText(input.prefecture),
+      municipality: normalizeOptionalText(input.municipality),
+      observedAt: input.observedAt,
+      displayName: taxonLabel ?? "新しい観察",
+      visibility,
+      recordConsent: dataRights.recordConsent,
+      withdrawalStatus: dataRights.withdrawalStatus,
+      hasPhoto: Array.isArray(input.sourcePayload?.client_photo_sha256s)
+        && input.sourcePayload.client_photo_sha256s.some((value) => typeof value === "string" && value.trim() !== ""),
+      hasVideo: input.sourcePayload?.client_video_selected === true
+        || input.sourcePayload?.media_kind === "video"
+        || input.sourcePayload?.mediaKind === "video",
+      photoHashes: Array.isArray(input.sourcePayload?.client_photo_sha256s)
+        ? input.sourcePayload.client_photo_sha256s.filter((value): value is string => typeof value === "string")
+        : [],
+      completeChecklist: input.sourcePayload?.complete_checklist_flag === true,
+      effortMinutes: numberOrNull(input.sourcePayload?.effort_minutes),
+      distanceMeters: numberOrNull(input.sourcePayload?.distance_meters)
+    }, env).catch((error) => {
+      console.error("[area-watch] native post-save notification failed", error);
+    });
   }
 
   return json(buildLegacyCompatibleObservationResponse({
@@ -30500,11 +31225,15 @@ function buildObservationCivicContextNative(
   visitId: string,
   occurrenceId: string | null
 ): NativeCivicObservationContext | null {
+  const areaWatchPayload = legacyObservationAreaWatchPayload(input);
   const explicit = asPlainObject(input.civicContext);
   if (explicit) {
     return normalizeObservationCivicContextNative({
       ...explicit,
-      sourcePayload: asPlainObject(explicit.sourcePayload ?? explicit.source_payload) ?? {}
+      sourcePayload: {
+        ...(asPlainObject(explicit.sourcePayload ?? explicit.source_payload) ?? {}),
+        ...areaWatchPayload
+      }
     }, visitId, occurrenceId);
   }
   const hasEvent = typeof input.eventSessionId === "string" || typeof input.eventCode === "string";
@@ -30518,6 +31247,7 @@ function buildObservationCivicContextNative(
     eventSessionId: input.eventSessionId ?? null,
     eventCode: input.eventCode ?? null,
     sourcePayload: {
+      ...areaWatchPayload,
       derived: true,
       event_session_id: input.eventSessionId ?? null,
       event_code: input.eventCode ?? null
@@ -30770,11 +31500,13 @@ async function applyMediaJob(job: MediaJob, env: Env): Promise<void> {
   if (job.topic === "media.process") {
     await markUploadedAssetsPublicReady(job.targetId, env);
     await refreshPublicReadmodel(job.targetId, env);
+    await enqueueD1AreaWatchNotificationsForStoredObservation(job.targetId, env);
     return;
   }
 
   if (job.topic === "readmodel.refresh") {
     await refreshPublicReadmodel(job.targetId, env);
+    await enqueueD1AreaWatchNotificationsForStoredObservation(job.targetId, env);
     return;
   }
 
@@ -32103,27 +32835,7 @@ async function publicSafetyGateForObservation(
        WHERE visit_id = ?
        LIMIT 1`
     ).bind(observationId).first<{ audience_scope: string | null; public_precision: string | null; risk_lane: string | null }>();
-    if (!context) return { blocked: false, reason: null };
-
-    const riskLane = normalizeOptionalText(context.risk_lane) ?? "normal";
-    if (riskLane !== "normal") {
-      return { blocked: true, reason: `risk_lane:${riskLane}` };
-    }
-
-    const audienceScope = normalizeOptionalText(context.audience_scope);
-    if (audienceScope && audienceScope !== "public") {
-      return { blocked: true, reason: `audience_scope:${audienceScope}` };
-    }
-
-    const publicPrecision = normalizeOptionalText(context.public_precision);
-    if (publicPrecision === "hidden" || publicPrecision === "exact_private") {
-      return { blocked: true, reason: `public_precision:${publicPrecision}` };
-    }
-    if (!publicStreamAllowsLocationPrecision(publicPrecision)) {
-      return { blocked: true, reason: `public_stream_precision:${publicPrecision}` };
-    }
-
-    return { blocked: false, reason: null };
+    return publicSafetyDecisionForContext(context);
   } catch (error) {
     if (error instanceof Error && /no such table: civic_observation_contexts/i.test(error.message)) {
       return { blocked: false, reason: null };
@@ -36959,28 +37671,27 @@ function json(body: unknown, status = 200, headers?: Record<string, string>): Re
 }
 
 function releaseIdentityHeaders(env: Env): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (env.IKIMON_GIT_SHA?.trim()) headers["x-ikimon-deploy-sha"] = env.IKIMON_GIT_SHA.trim();
-  if (env.IKIMON_UI_BUNDLE_HASH?.trim()) headers["x-ikimon-ui-bundle"] = env.IKIMON_UI_BUNDLE_HASH.trim();
-  if (env.IKIMON_WORKER_VERSION?.trim()) headers["x-ikimon-worker-version"] = env.IKIMON_WORKER_VERSION.trim();
-  return headers;
+  return runtimeIdentityHeaders(buildRuntimeIdentity(env, ""));
 }
 
 function getRuntimeVersion(url: URL, env: Env): Response {
-  const gitSha = env.IKIMON_GIT_SHA?.trim() || env.GITHUB_SHA?.trim() || null;
+  const identity = buildRuntimeIdentity(env, url.origin);
   return json({
     schemaVersion: "cloudflare_worker_runtime/v1",
     ok: true,
     service: "ikimon.life",
     runtime: "cloudflare-worker",
-    environment: env.ENVIRONMENT,
-    origin: url.origin,
+    environment: identity.environment,
+    origin: identity.origin,
     buildMarker: WORKER_BUILD_MARKER,
-    gitSha,
-    workerVersion: env.IKIMON_WORKER_VERSION?.trim() || null,
-    uiBundleHash: env.IKIMON_UI_BUNDLE_HASH?.trim() || null,
-    originalUiManifestHash: env.IKIMON_UI_MANIFEST_HASH?.trim() || null,
-    deployedAt: env.IKIMON_DEPLOYED_AT?.trim() || null,
+    gitSha: identity.gitSha,
+    workerVersion: identity.workerVersion,
+    workerVersionId: identity.workerVersionId,
+    workerVersionTag: identity.workerVersionTag,
+    workerVersionTimestamp: identity.workerVersionTimestamp,
+    uiBundleHash: identity.uiBundleHash,
+    originalUiManifestHash: identity.originalUiManifestHash,
+    deployedAt: identity.deployedAt,
     source: {
       worker: "platform_v2/cloudflare_shadow/src/index.ts",
       endpoint: RUNTIME_VERSION_PATH,
@@ -36993,7 +37704,7 @@ function getRuntimeVersion(url: URL, env: Env): Response {
       originalUiMaterializedHtml: true
     },
     publicSafe: true
-  }, 200, { "cache-control": "no-store", ...releaseIdentityHeaders(env) });
+  }, 200, { "cache-control": "no-store", ...runtimeIdentityHeaders(identity) });
 }
 
 function getReflectionLoopManifest(url: URL, env: Env): Response {

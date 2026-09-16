@@ -105,3 +105,62 @@ test("private, blurred, and blocked_public records never reach guest Home", () =
   }));
   assertHidden(proof({ publicFeedEligible: true, publicFeedGateStatus: "blocked_public" }));
 });
+
+test("member Home exposes a bounded in-app area update return", () => {
+  const result = renderLandingHomeState({
+    basePath: "",
+    lang: "ja",
+    copy: getStrings("ja").landing,
+    snapshot: {
+      viewerUserId: "viewer-1",
+      stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
+      feed: [],
+      publicProofFeed: [],
+      myFeed: [],
+      myPlaces: [],
+      nearbyFields: [],
+      nearbyEvents: [],
+      mapPreviewCells: [],
+      ambient: [],
+      habit: null,
+      dailyDashboard: null,
+    },
+    isLoggedIn: true,
+  });
+  const html = `${result.heroHtml}${result.bodyHtml}`;
+
+  assert.match(html, /data-home-watch-updates/u);
+  assert.match(html, /追っている更新/u);
+  assert.match(html, /\/api\/v1\/me\/alerts/u);
+  assert.match(html, /triggerKind !== 'area_watch'/u);
+  assert.match(html, /slice\(0, 5\)/u);
+  assert.match(html, /公開・確認済み/u);
+});
+
+test("member Home derives area-watch body copy from structured signals for each locale", () => {
+  const result = renderLandingHomeState({
+    basePath: "",
+    lang: "en",
+    copy: getStrings("en").landing,
+    snapshot: {
+      viewerUserId: "viewer-1",
+      stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
+      feed: [],
+      publicProofFeed: [],
+      myFeed: [],
+      myPlaces: [],
+      nearbyFields: [],
+      nearbyEvents: [],
+      mapPreviewCells: [],
+      ambient: [],
+      habit: null,
+      dailyDashboard: null,
+    },
+    isLoggedIn: true,
+  });
+  const html = `${result.heroHtml}${result.bodyHtml}`;
+  assert.match(html, /signalChecklist":"New record with a completed checklist"/u);
+  assert.match(html, /signalText/u);
+  assert.match(html, /body\.textContent = \[areaLabel, signalText\]/u);
+  assert.doesNotMatch(html, /body\.textContent = trimText\(payload\.body/u);
+});

@@ -310,7 +310,7 @@ test("records workbench unifies personal library and public observations", async
   try {
     const response = await app.inject({ method: "GET", url: "/records?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /<body class="is-desktop-side-nav-collapsed">/);
+    assert.match(response.body, /<body\b[^>]*class="[^"]*\bis-desktop-side-nav-collapsed\b[^"]*"/);
     assert.match(response.body, /data-testid="records-workbench"/);
     assert.match(response.body, /記録を見る/);
     assert.match(response.body, /自分の記録/);

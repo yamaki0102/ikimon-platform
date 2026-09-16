@@ -5,6 +5,10 @@ import {
   type PublicationFeedNativeDatabase,
   type PublicationFeedNativeRow,
 } from "./publicationFeedNative";
+import {
+  PUBLICATION_SYNDICATION_POLICY_VERSION,
+  PUBLICATION_SYNDICATION_PURPOSE,
+} from "../../src/services/publicationSyndication";
 
 const boundary = JSON.stringify({
   type: "Polygon",
@@ -27,6 +31,18 @@ const baseRow = {
   media_license: "CC-BY-4.0",
   external_export_allowed: 1,
   withdrawal_status: "active",
+  source_payload_json: JSON.stringify({
+    syndicationConsent: {
+      status: "active",
+      purpose: PUBLICATION_SYNDICATION_PURPOSE,
+      policyVersion: PUBLICATION_SYNDICATION_POLICY_VERSION,
+      grantedAt: "2026-08-01T00:00:00.000Z",
+      validUntil: "2027-08-01T00:00:00.000Z",
+      subjectStatus: "adult",
+      destinationFeedKeys: ["miyakoda-renri-area"],
+      guardian: { status: "not_required" },
+    },
+  }),
   audience_scope: "public",
   public_precision: "municipality",
   risk_lane: "normal",
@@ -80,11 +96,13 @@ test("returns the existing v1 contract with living and community-photo channels"
   assert.equal(response.headers.get("vary"), "Origin");
   const payload = await response.json() as {
     api_version: string;
-    feed: { feed_key: string };
+    feed: { feed_key: string; source_environment: string; read_only: boolean };
     channels: Array<{ key: string; items: Array<{ title: string; media: { url: string }; classification: { state: string } }> }>;
   };
   assert.equal(payload.api_version, "1");
   assert.equal(payload.feed.feed_key, "miyakoda-renri-area");
+  assert.equal(payload.feed.source_environment, "production");
+  assert.equal(payload.feed.read_only, true);
   assert.deepEqual(payload.channels.map((channel) => channel.key), ["living", "community_photo"]);
   assert.equal(payload.channels[0]?.items[0]?.title, "ニホンアマガエル");
   assert.equal(payload.channels[0]?.items[0]?.classification.state, "accepted");
@@ -206,4 +224,30 @@ test("preserves 404, 400, 304 and fail-closed 503 behavior", async () => {
   );
   assert.equal(unavailable?.status, 503);
   assert.deepEqual(await unavailable?.json(), { ok: false, error: "publication_feed_unavailable" });
+});
+
+test("native projection fails closed for missing, unresolved-minor, and withdrawn syndication state", async () => {
+  const missing = { ...baseRow, observation_id: "visit-missing", source_payload_json: "{}" } satisfies PublicationFeedNativeRow;
+  const minor = {
+    ...baseRow,
+    observation_id: "visit-minor",
+    source_payload_json: JSON.stringify({ syndicationConsent: {
+      status: "active",
+      purpose: PUBLICATION_SYNDICATION_PURPOSE,
+      policyVersion: PUBLICATION_SYNDICATION_POLICY_VERSION,
+      grantedAt: "2026-08-01T00:00:00.000Z",
+      validUntil: "2027-08-01T00:00:00.000Z",
+      subjectStatus: "minor",
+      destinationFeedKeys: ["miyakoda-renri-area"],
+      guardian: { status: "unknown" },
+    } }),
+  } satisfies PublicationFeedNativeRow;
+  const withdrawn = { ...baseRow, observation_id: "visit-withdrawn-consent", withdrawal_status: "withdrawn" } satisfies PublicationFeedNativeRow;
+  const response = await handlePublicationFeedNativeRequest(
+    new Request("https://staging.zukan.earth/api/v1/publication-feeds/miyakoda-renri-area?channel=living"),
+    database([missing, minor, withdrawn]),
+  );
+  assert.ok(response);
+  const payload = await response.json() as { channels: Array<{ items: Array<{ id: string }> }> };
+  assert.deepEqual(payload.channels[0]?.items, []);
 });

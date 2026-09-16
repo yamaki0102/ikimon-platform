@@ -76,13 +76,10 @@ export const OBSERVATION_EVENT_STYLES = `
   position: relative;
   border-radius: var(--evt-radius-lg);
   padding: clamp(28px, 4vw, 56px) clamp(20px, 4vw, 56px);
-  background:
-    radial-gradient(120% 80% at 20% 0%, rgba(16,185,129,.55), rgba(16,185,129,0) 60%),
-    radial-gradient(110% 90% at 90% 100%, rgba(14,165,233,.55), rgba(14,165,233,0) 60%),
-    linear-gradient(135deg, #064e3b 0%, #065f46 35%, #0c4a6e 100%);
+  background: var(--zukan-action-primary, #064e3b);
   color: #ecfdf5;
   overflow: hidden;
-  box-shadow: var(--evt-shadow-lg);
+  box-shadow: none;
 }
 .evt-hero::before {
   content: "";
@@ -91,6 +88,7 @@ export const OBSERVATION_EVENT_STYLES = `
   background-size: 24px 24px;
   pointer-events: none;
   mix-blend-mode: screen;
+  display: none;
 }
 .evt-hero > * { position: relative; }
 .evt-hero .evt-hero-eyebrow {
@@ -124,24 +122,24 @@ export const OBSERVATION_EVENT_STYLES = `
 .evt-btn {
   display: inline-flex; align-items: center; justify-content: center;
   gap: 8px;
-  min-height: 48px; padding: 12px 20px;
+  min-height: var(--ik-tap-target, 48px); padding: 12px 20px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--ik-radius-sm, 10px);
   font-size: 15px; font-weight: 800; letter-spacing: .02em;
   text-decoration: none;
   cursor: pointer;
-  transition: transform var(--evt-motion-fast), box-shadow var(--evt-motion), background var(--evt-motion);
+  transition: transform var(--ik-motion-fast, var(--evt-motion-fast)), box-shadow var(--ik-motion-normal, var(--evt-motion)), background-color var(--ik-motion-normal, var(--evt-motion));
   -webkit-tap-highlight-color: transparent;
 }
 .evt-btn:active { transform: scale(.97); }
-.evt-btn:focus-visible { outline: 3px solid var(--evt-accent-discovery); outline-offset: 4px; }
+.evt-btn:focus-visible { outline: 3px solid #000; outline-offset: 3px; box-shadow: 0 0 0 6px var(--zukan-focus-yellow-300, #FFD43D); }
 
 .evt-btn-primary {
   color: #ffffff;
-  background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
-  box-shadow: 0 12px 28px var(--evt-glow-discovery);
+  background: var(--zukan-action-primary, #064e3b);
+  box-shadow: none;
 }
-.evt-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 36px var(--evt-glow-discovery); }
+.evt-btn-primary:hover { transform: translateY(-1px); background: var(--zukan-action-hover, #0f3023); box-shadow: none; }
 
 .evt-btn-ghost {
   color: var(--evt-ink);
@@ -168,8 +166,8 @@ export const OBSERVATION_EVENT_STYLES = `
   position: relative;
   background: var(--evt-surface);
   border: 1px solid var(--evt-line);
-  border-radius: var(--evt-radius-md);
-  box-shadow: var(--evt-shadow-sm);
+  border-radius: var(--ik-radius-md, var(--evt-radius-md));
+  box-shadow: none;
   padding: 16px 18px;
   transition: transform var(--evt-motion), box-shadow var(--evt-motion), border-color var(--evt-motion);
   animation: evt-rise var(--evt-motion-slow) both;
@@ -568,7 +566,7 @@ export const OBSERVATION_EVENT_STYLES = `
 .evt-quest-card .evt-quest-actions { display: flex; gap: 8px; }
 .evt-quest-card .evt-quest-actions button {
   flex: 1 1 auto;
-  min-height: 40px; padding: 8px 12px;
+  min-height: var(--ik-tap-target, 44px); padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid var(--evt-line);
   background: var(--evt-surface);
@@ -636,7 +634,7 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 .evt-mode-pill {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 12px; min-height: 38px;
+  padding: 8px 12px; min-height: var(--ik-tap-target, 44px);
   border-radius: 999px; border: 1px solid var(--evt-line);
   background: var(--evt-surface);
   font-size: 13px; font-weight: 700;
@@ -652,7 +650,7 @@ export const OBSERVATION_EVENT_STYLES = `
 /* === Recap 画面 === */
 .evt-recap-shell {
   display: grid; gap: 24px;
-  max-width: 1080px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 24px 18px 64px;
 }
@@ -665,7 +663,7 @@ export const OBSERVATION_EVENT_STYLES = `
   width: max-content;
 }
 .evt-recap-tab {
-  padding: 8px 14px; min-height: 40px;
+  padding: 8px 14px; min-height: var(--ik-tap-target, 44px);
   min-width: 44px;
   border-radius: 999px;
   background: transparent; border: 0;
@@ -729,12 +727,15 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 .evt-checkin-form {
   display: grid; gap: 12px;
+  max-width: 780px;
+  width: 100%;
+  margin-inline: auto;
   background: var(--evt-surface);
   border: 1px solid var(--evt-line);
-  border-radius: var(--evt-radius-md);
+  border-radius: var(--ik-radius-md, var(--evt-radius-md));
   padding: 18px;
 }
-.evt-checkin-form label { display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
+.evt-checkin-form label { display: grid; gap: 6px; font-weight: 700; font-size: 16px; }
 .evt-checkin-form input,
 .evt-checkin-form select,
 .evt-checkin-form textarea {
@@ -799,6 +800,13 @@ export const OBSERVATION_EVENT_STYLES = `
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+}
+.evt-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
 }
 .evt-area-planner.is-registered-area-selected .evt-area-modebar {
   display: none;
@@ -961,7 +969,7 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 .evt-land-cover-row input[type="range"] {
   width: 100%;
-  min-height: 32px;
+  min-height: var(--ik-tap-target, 44px);
   accent-color: var(--evt-accent-discovery);
 }
 .evt-land-cover-row output {
@@ -1129,6 +1137,11 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 
 @media (max-width: 720px) {
+  .evt-recap-shell { gap: 16px; padding: 16px 12px calc(96px + env(safe-area-inset-bottom, 0px)); }
+  .evt-hero { padding: 24px 20px; border-radius: var(--ik-radius-md, 16px); }
+  .evt-checkin-form { padding: 16px; }
+  .evt-form-actions { display: grid; grid-template-columns: 1fr; }
+  .evt-form-actions > * { width: 100%; }
   .evt-solo-preset { grid-template-columns: 1fr; }
   .evt-solo-preset .evt-btn { width: 100%; }
   .evt-live-topbar {
@@ -1161,7 +1174,8 @@ export const OBSERVATION_EVENT_STYLES = `
   .evt-solo-loop-grid { grid-template-columns: 1fr; }
   .evt-area-head { grid-template-columns: 1fr; }
   .evt-area-map-shell { height: 320px; min-height: 320px; }
-  .evt-area-toolbar .evt-btn { flex: 1 1 auto; }
+  .evt-area-toolbar { width: 100%; min-width: 0; }
+  .evt-area-toolbar .evt-btn { min-width: 0; flex: 1 1 8rem; white-space: normal; overflow-wrap: anywhere; }
   .evt-field-search-row { grid-template-columns: 1fr; }
   .evt-land-cover-panel > header { align-items: flex-start; flex-direction: column; }
   .evt-land-cover-grid { grid-template-columns: 1fr; }

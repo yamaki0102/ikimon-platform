@@ -1,5 +1,6 @@
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "./photoUploadPreparation.js";
-import { APP_EXPERIENCE_STYLES, isAppExperiencePath } from "./appExperience.js";
+import { APP_EXPERIENCE_LAYOUT_STYLES, isAppExperiencePath, ZUKAN_DESIGN_FOUNDATION_STYLES } from "./appExperience.js";
+import { FRONTEND_FOUNDATION_CSS } from "./frontendFoundation.js";
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
@@ -16,6 +17,7 @@ import {
   type SitePageDefinition,
   type SiteShellLayoutKind,
 } from "../siteMap.js";
+import { PUBLIC_CONTEXT_SCRIPT, PUBLIC_CONTEXT_STYLES } from "./collaborationContext.js";
 
 export type SiteAction = {
   href: string;
@@ -44,6 +46,8 @@ export type SiteShellOptions = {
   hero?: SiteHero;
   /** HTML slot rendered inside <main> between the hero and body (e.g. quick nav chips). */
   belowHeroHtml?: string;
+  /** Optional public-source handoff slot. The caller must provide only eligible, public-safe HTML. */
+  publicContextHtml?: string;
   /** CSS appended after the base shell styles (scoped via class names). */
   extraStyles?: string;
   activeNav?: string;
@@ -1253,23 +1257,23 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   const eventsCurrent = pathname === "/community/events" || pathname.startsWith("/community/events/");
   return `<nav class="global-record-launcher" aria-label="${escapeHtml(copy.navLabel)}">
     <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*" multiple hidden />
-    <a class="global-record-choice${homeCurrent ? " is-active" : ""}" href="${escapeHtml(homeHref)}"${homeCurrent ? ' aria-current="page"' : ""}>
+    <a class="global-record-choice${homeCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(homeHref)}"${homeCurrent ? ' aria-current="page"' : ""}>
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg></span>
       <span>${escapeHtml(copy.home)}</span>
     </a>
-    <a class="global-record-choice${recordsCurrent ? " is-active" : ""}" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${recordsCurrent ? ' aria-current="page"' : ""}>
+    <a class="global-record-choice${recordsCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${recordsCurrent ? ' aria-current="page"' : ""}>
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
       <span>${escapeHtml(copy.records)}</span>
     </a>
-    <button type="button" class="global-record-choice is-primary" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="capture_nav" aria-haspopup="dialog" aria-label="${escapeHtml(copy.captureAria)}">
+    <button type="button" class="global-record-choice is-primary ik-ui-action" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="capture_nav" aria-haspopup="dialog" aria-label="${escapeHtml(copy.captureAria)}">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
       <span>${escapeHtml(copy.photo)}</span>
     </button>
-    <a class="global-record-choice${placesCurrent ? " is-active" : ""}" href="${escapeHtml(placesHref)}"${placesCurrent ? ' aria-current="page"' : ""}>
+    <a class="global-record-choice${placesCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(placesHref)}"${placesCurrent ? ' aria-current="page"' : ""}>
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></svg></span>
       <span>${escapeHtml(copy.places)}</span>
     </a>
-    <a class="global-record-choice${eventsCurrent ? " is-active" : ""}" href="${escapeHtml(eventsHref)}"${eventsCurrent ? ' aria-current="page"' : ""}>
+    <a class="global-record-choice${eventsCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(eventsHref)}"${eventsCurrent ? ' aria-current="page"' : ""}>
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5"/></svg></span>
       <span>${escapeHtml(copy.events)}</span>
     </a>
@@ -1301,6 +1305,8 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
           <span>手動ピント <output data-global-record-camera-focus-value>--</output></span>
           <input data-global-record-camera-focus-range type="range" min="0" max="1" step="0.01" value="0" />
         </label>
+        <button type="button" data-global-record-camera-focus-minus hidden aria-label="ピントを近くへ">−</button>
+        <button type="button" data-global-record-camera-focus-plus hidden aria-label="ピントを遠くへ">＋</button>
         <button type="button" data-global-record-camera-focus-auto hidden>AF</button>
       </div>
     </div>
@@ -1398,6 +1404,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   let cameraPinchStartDistance = 0;
   let cameraPinchStartZoom = 1;
   let cameraPinchActive = false;
+  let cameraPreviewGestureCanceled = false;
   const cameraPreviewPointers = new Map();
   const visitIdFromObservationTargetId = (targetId) => {
     const value = String(targetId || '').trim();
@@ -1457,6 +1464,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   let capturedPhotoFiles = [];
   let capturedPhotoObjectUrls = [];
   let capturedReviewMeta = null;
+  let photoCaptureSource = '';
   let reviewObjectUrl = '';
   let sheetVideoTrimState = null;
   let sheetOpenedAt = 0;
@@ -1487,6 +1495,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   const focusRange = document.querySelector('[data-global-record-camera-focus-range]');
   const focusValue = document.querySelector('[data-global-record-camera-focus-value]');
   const focusAutoButton = document.querySelector('[data-global-record-camera-focus-auto]');
+  const focusMinusButton = document.querySelector('[data-global-record-camera-focus-minus]');
+  const focusPlusButton = document.querySelector('[data-global-record-camera-focus-plus]');
   const trimWrap = document.querySelector('[data-global-record-video-trim]');
   const trimStart = document.querySelector('[data-global-record-video-trim-start]');
   const trimEnd = document.querySelector('[data-global-record-video-trim-end]');
@@ -1811,6 +1821,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     cameraPinchStartDistance = 0;
     cameraPinchStartZoom = 1;
     cameraPinchActive = false;
+    cameraPreviewGestureCanceled = false;
     cameraPreviewPointers.clear();
     if (zoomWrap) zoomWrap.hidden = true;
     if (zoomRange) {
@@ -1833,6 +1844,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       focusAutoButton.hidden = true;
       focusAutoButton.disabled = true;
     }
+    if (focusMinusButton) focusMinusButton.hidden = true;
+    if (focusPlusButton) focusPlusButton.hidden = true;
   };
   const updateCameraZoomUi = (value) => {
     cameraZoomCurrent = clamp(Number(value) || cameraZoomMin, cameraZoomMin, cameraZoomMax);
@@ -1870,6 +1883,11 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       await cameraFocusTrack.applyConstraints({ advanced: [manualConstraint] });
       setStatus('手動ピントを調整しました。');
     } catch (_) {}
+  };
+  const stepCameraFocus = (direction) => {
+    if (!cameraFocusTrack) return;
+    const next = clamp(cameraFocusCurrent + (Number(direction) < 0 ? -cameraFocusStep : cameraFocusStep), cameraFocusMin, cameraFocusMax);
+    void applyCameraFocusDistance(next);
   };
   const restoreCameraAutoFocus = async () => {
     if (!cameraFocusTrack || !cameraFocusTrack.applyConstraints || !cameraFocusAutoMode) return;
@@ -1923,6 +1941,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
         focusAutoButton.hidden = !cameraFocusAutoMode;
         focusAutoButton.disabled = !cameraFocusAutoMode;
       }
+      if (focusMinusButton) focusMinusButton.hidden = false;
+      if (focusPlusButton) focusPlusButton.hidden = false;
       hasControl = true;
     }
     if (zoomWrap) zoomWrap.hidden = !hasControl;
@@ -2585,6 +2605,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (backdrop) backdrop.hidden = true;
     document.documentElement.classList.remove('global-record-camera-open');
     activeKind = '';
+    photoCaptureSource = '';
     setSheetKind('');
     resetVisualViewportVars();
     hideCameraError();
@@ -2600,6 +2621,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (!(options && options.keepReview)) clearReview();
     sheetOpenedAt = nowMs();
     activeKind = kind;
+    if (kind !== 'photo') photoCaptureSource = '';
     setSheetKind(kind);
     setPhotoDraftLayout(kind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream);
     const label = labels[kind] || labels.photo;
@@ -3068,6 +3090,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       const kind = input.getAttribute('data-global-record-input') || 'gallery';
       if (!files.length) return;
       if (kind === 'photo') {
+        photoCaptureSource = 'native';
         openSheet('photo', { reviewOnly: true, keepReview: true });
         const metadata = buildCaptureMetadata();
         addPhotoDraftFiles(files, metadata);
@@ -3092,8 +3115,15 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   if (cameraCancelButton) cameraCancelButton.addEventListener('click', closeSheet);
   if (startButton) startButton.addEventListener('click', () => {
     resetPhotoDraftSubmitConfirm();
+    if (activeKind === 'photo' && photoCaptureSource === 'native' && !capturedReviewFile) {
+      clickFallbackInput('photo');
+      return;
+    }
     if (capturedReviewFile) retakeCapture();
-    else startCamera();
+    else {
+      if (activeKind === 'photo') photoCaptureSource = 'camera';
+      startCamera();
+    }
   });
   if (captureButton) captureButton.addEventListener('click', captureFromSheet);
   if (photoGrid) {
@@ -3131,6 +3161,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       void restoreCameraAutoFocus();
     });
   }
+  if (focusMinusButton) focusMinusButton.addEventListener('click', () => stepCameraFocus(-1));
+  if (focusPlusButton) focusPlusButton.addEventListener('click', () => stepCameraFocus(1));
   if (cameraPreview) {
     cameraPreview.addEventListener('pointerdown', (event) => {
       if (event.target instanceof Element && event.target.closest('.global-record-camera-zoom')) return;
@@ -3141,6 +3173,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       }
       if (cameraPreviewPointers.size === 2 && cameraZoomTrack && cameraZoomMax > cameraZoomMin) {
         cameraPinchActive = true;
+        cameraPreviewGestureCanceled = true;
         cameraPinchStartDistance = cameraPinchDistance();
         cameraPinchStartZoom = cameraZoomCurrent;
       }
@@ -3149,6 +3182,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     cameraPreview.addEventListener('pointermove', (event) => {
       if (!cameraPreviewPointers.has(event.pointerId)) return;
       const previous = cameraPreviewPointers.get(event.pointerId) || {};
+      const moved = Math.hypot(Number(event.clientX) - Number(previous.startX || event.clientX), Number(event.clientY) - Number(previous.startY || event.clientY));
+      if (moved >= 12) cameraPreviewGestureCanceled = true;
       cameraPreviewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: previous.startX || event.clientX, startY: previous.startY || event.clientY });
       if (cameraPreviewPointers.size >= 2 && cameraZoomTrack && cameraZoomMax > cameraZoomMin) {
         cameraPinchActive = true;
@@ -3159,7 +3194,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => {
       cameraPreview.addEventListener(type, (event) => {
         const previous = cameraPreviewPointers.get(event.pointerId) || null;
-        if (type === 'pointerup' && previous && cameraPreviewPointers.size === 1 && !cameraPinchActive) {
+        if (type === 'pointerup' && previous && cameraPreviewPointers.size === 1 && !cameraPinchActive && !cameraPreviewGestureCanceled) {
           const moved = Math.hypot(Number(event.clientX) - Number(previous.startX || event.clientX), Number(event.clientY) - Number(previous.startY || event.clientY));
           if (moved < 12) void applyCameraFocusAt(event.clientX, event.clientY);
         }
@@ -3168,6 +3203,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
           cameraPinchStartDistance = 0;
           cameraPinchStartZoom = cameraZoomCurrent;
           cameraPinchActive = false;
+          if (cameraPreviewPointers.size === 0) cameraPreviewGestureCanceled = false;
         }
       });
     });
@@ -3626,6 +3662,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     ? (lang === "ja" ? "地図" : lang === "es" ? "Mapa" : lang === "pt-BR" ? "Mapa" : "Map")
     : defaultSrOnlyHeading;
   const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingPage ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}${isMapSurface ? " is-map-surface" : ""}${minimalChrome ? " is-minimal-chrome" : ""}`;
+  const foundationStyles = options.extraStyles?.includes("--ik-motion-fast") ? "" : FRONTEND_FOUNDATION_CSS;
   const appLaunchHeadScript = `<script>
 (function () {
   try {
@@ -4138,36 +4175,36 @@ ${alternateLinks}
   <style>
     :root {
       color-scheme: light;
-      --bg: ${APP_LAUNCH_BACKGROUND_COLOR};
-      --surface: rgba(255,255,255,.92);
-      --surface-strong: #ffffff;
-      --border: rgba(0,0,0,.06);
-      --ink: #1a2e1f;
-      --muted: #64748b;
-      --hero-a: #059669;
-      --hero-b: #10b981;
+      --bg: var(--zukan-surface-subtle);
+      --surface: var(--zukan-surface-base);
+      --surface-strong: var(--zukan-surface-base);
+      --border: var(--zukan-border-decorative);
+      --ink: var(--zukan-text-primary);
+      --muted: var(--zukan-text-secondary);
+      --hero-a: var(--zukan-action-primary);
+      --hero-b: var(--zukan-action-hover);
       --hero-c: #0ea5e9;
-      --accent: #10b981;
-      --accent-hover: #059669;
-      --accent-soft: #ecfdf5;
+      --accent: var(--zukan-action-primary);
+      --accent-hover: var(--zukan-action-hover);
+      --accent-soft: var(--zukan-surface-subtle);
       --shadow: 0 18px 44px rgba(15, 23, 42, .07);
       --shadow-strong: 0 26px 64px rgba(15, 23, 42, .12);
-      --color-warn: #ea580c;
+      --color-warn: var(--zukan-status-warning);
       --color-warn-soft: rgba(234,88,12,.08);
-      --color-danger: #dc2626;
+      --color-danger: var(--zukan-status-error);
       --color-danger-soft: rgba(220,38,38,.08);
       --color-novelty: #a855f7;
       --color-novelty-soft: rgba(168,85,247,.08);
-      --color-info: #3b82f6;
+      --color-info: var(--zukan-status-info);
       --color-info-soft: rgba(59,130,246,.08);
-      --radius-card: 14px;
-      --radius-panel: 24px;
+      --radius-card: var(--zukan-radius-content);
+      --radius-panel: var(--zukan-radius-content);
       --radius-pill: 999px;
       --shadow-card: 0 8px 24px rgba(15,23,42,.06);
-      --space-card: clamp(16px, 2vw, 24px);
-      --ikimon-page-max: 1480px;
-      --ikimon-content-max: 1240px;
-      --ikimon-reading-max: 880px;
+      --space-card: var(--zukan-space-6);
+      --ikimon-page-max: var(--zukan-content-max);
+      --ikimon-content-max: var(--zukan-content-max);
+      --ikimon-reading-max: 760px;
       --ikimon-form-max: 760px;
       --ikimon-page-inline: clamp(24px, 3.4vw, 48px);
       --ikimon-desktop-sidebar-w: 0px;
@@ -5221,8 +5258,9 @@ ${alternateLinks}
     .btn:focus-visible,
     .site-nav-link:focus-visible,
     .lang-switch-link:focus-visible {
-      outline: 3px solid #0284c7;
+      outline: 2px solid var(--zukan-focus-outline);
       outline-offset: 2px;
+      box-shadow: 0 0 0 4px var(--zukan-focus-yellow-300);
       border-radius: 10px;
     }
     .site-nav-link:focus-visible,
@@ -7309,11 +7347,14 @@ ${alternateLinks}
         bottom: calc(max(14px, env(safe-area-inset-bottom)) + 176px);
       }
     }
+    ${foundationStyles}
+    ${ZUKAN_DESIGN_FOUNDATION_STYLES}
+    ${options.publicContextHtml ? PUBLIC_CONTEXT_STYLES : ""}
     ${options.extraStyles ?? ""}
-    ${isAppExperiencePath(currentPath) ? APP_EXPERIENCE_STYLES : ""}
+    ${isAppExperiencePath(currentPath) ? APP_EXPERIENCE_LAYOUT_STYLES : ""}
   </style>
 </head>
-<body${isAppExperiencePath(currentPath) ? ' data-zukan-app-experience="v1"' : ""}${prefersCollapsedSideNav ? ' class="is-desktop-side-nav-collapsed"' : ""}>
+<body data-zukan-design="v1"${isAppExperiencePath(currentPath) ? ' data-zukan-app-experience="v1"' : ""}${prefersCollapsedSideNav ? ' class="is-desktop-side-nav-collapsed"' : ""}>
   <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
   ${appLaunchScreenHtml}
   ${languageSuggestionHtml}
@@ -7324,6 +7365,7 @@ ${alternateLinks}
       ${hero(options.basePath, options.hero)}
       ${!options.hero && !/<h1[\s>]/.test(`${options.belowHeroHtml ?? ""}${options.body}`) ? `<h1 class="sr-only">${escapeHtml(srOnlyPageHeading)}</h1>` : ""}
       ${options.belowHeroHtml ?? ""}
+      ${options.publicContextHtml ?? ""}
       ${options.body}
     </main>
     ${shouldRenderFooter ? footer(options.basePath, lang, options.footerNote) : ""}
@@ -7334,6 +7376,7 @@ ${alternateLinks}
   ${authNavHydrationScript(options.basePath, lang)}
   ${globalRecordNav ? globalRecordEntryScript(options.basePath, lang) : ""}
   ${uiKpiScript}
+  ${options.publicContextHtml ? PUBLIC_CONTEXT_SCRIPT : ""}
 </body>
 </html>`);
 }

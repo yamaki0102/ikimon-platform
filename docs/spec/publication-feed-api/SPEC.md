@@ -59,7 +59,9 @@ Unknown query parameters are ignored only when harmless; malformed supported par
     "title": "この場所で見つけたもの",
     "scope_label": "浜松・都田",
     "updated_at": "2026-08-28T00:00:00Z",
-    "publication_policy_version": "public-feed-v1"
+    "publication_policy_version": "public-feed-v1",
+    "source_environment": "production",
+    "read_only": true
   },
   "channels": [
     {
@@ -203,6 +205,8 @@ Failure of any gate excludes the item; the API does not expose exclusion reasons
 
 The feed projection MUST require an explicit republication-allowed state or a policy-derived equivalent that is auditable. Existing public observations without sufficient republication rights remain excluded until rights are resolved.
 
+Public viewability is not syndication consent. A target feed additionally requires an explicit consent payload bound to `public_syndication`, the current syndication policy version, a valid start/end term, and that exact destination feed key. Minor status and guardian authority are fail-closed; unresolved or withdrawn authority excludes the item. Withdrawal is evaluated on every projection so a previously derived item cannot remain reusable after the source or syndication consent is withdrawn.
+
 This is a hard boundary because the API is designed for third-party reuse.
 
 ## Caching and delivery
@@ -267,7 +271,7 @@ The first LENRI consumer should use exactly this public contract and must not re
 2. Add `GET /api/v1/publication-feeds/:feedKey`.
 3. Implement one configured feed for the Miyakoda/RENRI area using existing area/observation data as an adapter.
 4. Produce `living` and `community_photo` channels.
-5. Reuse existing public observation quality, media, face/privacy, and sensitive masking controls; add an explicit republication-right gate before external syndication.
+5. Reuse existing public observation quality, media, face/privacy, and sensitive masking controls; add explicit destination-bound syndication consent before external syndication.
 6. Add contract tests for privacy leakage, AI candidate labeling, deterministic ordering, limits/cursors, unknown channels, and empty feeds.
 7. Keep all writes, production activation, DNS, credentials, and external customer communication out of this PR unless separately authorized.
 

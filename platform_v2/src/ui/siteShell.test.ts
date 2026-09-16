@@ -3,10 +3,42 @@ import test from "node:test";
 import { runWithCspNonce } from "../services/cspNonce.js";
 import { getSiteShellLayoutForPath } from "../siteMap.js";
 import { renderSiteDocument } from "./siteShell.js";
+import { renderPublicContextActions } from "./collaborationContext.js";
+
+test("site shell renders the optional public-context handoff slot with its scoped behavior", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Public source",
+    body: "<p>body</p>",
+    lang: "ja",
+    publicContextHtml: renderPublicContextActions({
+      publicUrl: "https://zukan.earth/ja/places/iwata#details",
+      title: "磐田の公開情報",
+      sourceState: "public",
+      rightsState: "public",
+    }),
+  });
+  assert.match(html, /公開情報のリンクをコピー/);
+  assert.match(html, /https:\/\/zukan\.earth\/ja\/places\/iwata/);
+  assert.match(html, /data-public-context-copy/);
+  assert.match(html, /min-height: 44px/);
+  assert.match(html, /@media \(max-width: 520px\)/);
+  assert.doesNotMatch(html, /nocosil\.com/);
+});
 
 test("site shell keeps the keyboard skip link at the 44px target contract", () => {
   const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
   assert.match(html, /\.skip-link \{[\s\S]*?min-height: 44px;[\s\S]*?display: inline-flex;[\s\S]*?align-items: center;/);
+});
+
+test("site shell applies the shared design foundation once to both product and adjacent routes", () => {
+  for (const currentPath of ["/ja/", "/ja/learn/field-loop"]) {
+    const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja", currentPath });
+    assert.match(html, /<body data-zukan-design="v1"/);
+    assert.equal((html.match(/--zukan-action-primary:#143f2e/g) ?? []).length, 1);
+    assert.match(html, /--ikimon-page-max: var\(--zukan-content-max\);/);
+    assert.match(html, /box-shadow: 0 0 0 4px var\(--zukan-focus-yellow-300\);/);
+  }
 });
 
 test("desktop shell controls keep a real 44px target contract", () => {
@@ -414,6 +446,11 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /capabilities && capabilities\.focusDistance/);
   assert.match(html, /manualConstraint\.focusMode = 'manual'/);
   assert.match(html, /applyCameraFocusDistance/);
+  assert.match(html, /data-global-record-camera-focus-minus/);
+  assert.match(html, /data-global-record-camera-focus-plus/);
+  assert.match(html, /photoCaptureSource = 'native'/);
+  assert.match(html, /photoCaptureSource === 'native'/);
+  assert.match(html, /cameraFocusCurrent \+ \(Number\(direction\) < 0 \? -cameraFocusStep : cameraFocusStep\)/);
   assert.match(html, /restoreCameraAutoFocus/);
   assert.match(html, /const applyCameraFocusAt = async \(clientX, clientY\)/);
   assert.match(html, /pointsOfInterest: \[point\]/);
@@ -421,6 +458,8 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /zoomMaxButton\.addEventListener\('click'/);
   assert.match(html, /applyCameraZoom\(cameraZoomMax\)/);
   assert.match(html, /cameraPinchDistance/);
+  assert.match(html, /cameraPreviewGestureCanceled/);
+  assert.match(html, /!cameraPreviewGestureCanceled/);
   assert.match(html, /window\.visualViewport\.addEventListener\('resize', syncVisualViewportVars\)/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /const metadata = buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
@@ -439,8 +478,8 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /MediaRecorder/);
   assert.match(html, /MAX_PHOTO_DRAFT_FILES = 6/);
   assert.match(html, /PHOTO_UPLOAD_MAX_EDGE = 2560/);
-  assert.match(html, /PHOTO_UPLOAD_WEBP_QUALITY = 0\.82/);
-  assert.match(html, /PHOTO_UPLOAD_JPEG_FALLBACK_QUALITY = 0\.88/);
+  assert.match(html, /PHOTO_UPLOAD_QUALITY = 0\.88/);
+  assert.doesNotMatch(html, /PHOTO_UPLOAD_JPEG_FALLBACK_QUALITY/);
   assert.match(html, /PHOTO_UPLOAD_CONCURRENCY = 2/);
   assert.match(html, /CAMERA_PHOTO_IDEAL_WIDTH = 2560/);
   assert.match(html, /CAMERA_PHOTO_IDEAL_HEIGHT = 1920/);
@@ -451,7 +490,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /server_async_face_privacy/);
   assert.match(html, /facePrivacy: upload\.facePrivacy \|\| null/);
   assert.match(html, /preparePhotoUpload/);
-  assert.match(html, /canvasToPreparedPhoto\(canvas\)/);
+  assert.match(html, /canvasToImage\(canvas, 'image\/webp'\)/);
   assert.match(html, /image\/webp/);
   assert.match(html, /mapWithConcurrency\(files, PHOTO_UPLOAD_CONCURRENCY/);
   assert.match(html, /selectedPhotoDraftFiles/);

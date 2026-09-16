@@ -1,473 +1,162 @@
-# ZUKAN クビアカツヤカミキリ見守り — Ordered Implementation Plan
+# 市民参加型バイオセキュリティ — クビアカからの実装計画
 
-- Status: final active plan
-- Contract: `SPEC.md`
-- Master plan: `IMPLEMENTATION_MASTER_PLAN.md`
-- Coverage: `AREA_COVERAGE.md`
-- Strategy: `yamaki0102/ikimon-business-strategy#42` and `#43`
+- Status: `DESIGN PROPOSED; CANONICAL PLAN after merge; EXECUTION NOT STARTED BY THIS FILE`
+- Updated: 2026-09-13 JST
+- Shared contract: [詳細設計](../citizen-biosecurity/SPEC.md)
+- First profile: [SPEC.md](SPEC.md)
+- Fixtures: [CONTRACT_EXAMPLES.json](../citizen-biosecurity/CONTRACT_EXAMPLES.json)
 
-## 0. Execution rule
+## 0. 成果と既存資産
 
-Implement from latest main after strategy and product architecture are integrated.
+最初の成果は `専門ガイド → 共通撮影 → private保存 → 再表示 → 通報用情報と公式窓口`。AIや専門家待ちをその前提にしない。後続は同じ原Recordを使う確認、再訪、活動・データ出力である。
 
-Do not reuse closed PR #1492 as an implementation base.
+旧PRを復活させるのではなく、fresh mainのactive Workerと共通Capture Loopから始める。地域別・種別DB、第二カメラ、第二認証、汎用フォームエンジン、専用queue/daemonを作らない。
 
-Each PR must have one clear responsibility, exact source SHA, explicit non-goals, tests, and release-state report.
+### Source確認時点
 
-## 1. Canonical integration
+設計開始base: `c6b983443a250937bc7c1ea70a57b4893a83275a`。これは将来の実装開始SHAとして固定しない。
 
-### PR S1 — strategy #42
+確認済みの正本:
 
-Purpose:
+| 場所 | この設計で確認した意味 | 実装時の扱い |
+|---|---|---|
+| `AGENTS.md` | active Worker/D1/R2、shared UI、権利・release境界 | canonical commandと実装入口をfresh read |
+| `docs/spec/zukan-product-architecture/SPEC.md` | Record/Claim/Review/Case分離、Domain Pack | 新しいCoreを追加せず使う |
+| `docs/spec/zukan_foundation_v2_implementation_contract_2026-07-28.md` | SurveyEvent等はfrozen source-only契約 | 本番テーブル存在の証明にしない |
+| `DESIGN.md` | ブランド・UI・状態・アクセシビリティ | 同じ部品とtokenを適用 |
+| `platform_v2/cloudflare_shadow/src/index.ts` | AGENTSが指定するactive request入口 | 当該分岐・writerを実装時に直接確認 |
+| `platform_v2/src/services/observationDataRights.ts` | AGENTSが指定する権利実装 | 既存の判定・testsへ対応付ける |
+| `platform_v2/cloudflare_shadow/src/publicationFeedNative.ts` | AGENTSが指定するpublic delivery境界 | 実際のsinkで禁止副作用を確認 |
 
-- finalize ZUKAN architecture and all-alert routing safety
+この設計作業では実D1 schema、provider bindings、投稿E2E、本番privateデータを検査していない。ファイルlocatorがあることと再利用可能な実装があることを区別する。
 
-Exit:
+## 1. 実装順
 
-- strategy main contains taxon-side, link-independent, dispatcher-entry interlock
+### S1 — 安全な共通保存と専門入口
 
-### PR S2 — strategy #43
+Outcome: guest/accountがクビアカ文脈の1〜6枚を非公開保存し、同じreceiptを再表示できる。
 
-Purpose:
+同じWorkに含めるもの:
 
-- adopt Receipt-first, Map-later Kubiaka decision
+- 対象の既存writer/schemaを限定して調べ、論理Record/asset/profile/rights/receipt/claimと物理欄の対応表を作る。
+- 既存Capture Loop、媒体予約、owner session、idempotencyを再利用する。
+- 独立した関係欄がなければ最小のadditive field/linkだけ追加する。Foundation全DBやKubiaka専用DBは作らない。
+- version付き静的Kubiaka profile、source-backed guide、locale、既存デザイン部品。
+- active Workerの実出口でprivate contextと管理対象taxonのinterlockを確認する。
+- guest credential、receipt単位claim、共有端末reset、部分保存/再送を成立させる。
+- common Recordが植物/ハチfixtureにも適合し、別DBを必要としないことを確認する。
 
-Exit:
+Gate: owner/guest A-B隔離、receipt列挙、private media、6枚部分失敗、同一要求再送、context欠落、DB/R2間失敗、generic出口による漏出がnegative testで防げること。
 
-- strategy main fixes P0 scope, state axes, guest boundary, feedback truthfulness, public-map deferral
+先に情報ページだけを公開する場合、投稿・ログイン不要・確認結果等の未実装能力は表示しない。保存journeyの公開はその権利/再開の実証後とする。
 
-### PR P1 — platform #1489
+### S2 — 通報用情報と公式窓口
 
-Purpose:
+Depends: S1。AI・人Reviewは依存にしない。
 
-- integrate ZUKAN product architecture contract
+Outcome: 保存済み写真から、本人が選んだ情報だけを通報用にまとめ、根拠付きの公式窓口へ進める。
 
-Required before merge:
+- regional policyのscope/date/sourceと宛先解決。不明・失効・矛盾時は上位公式案内へ戻す。
+- 通報用位置・写真・説明・未確認内容をpreviewする。権利がなければその項目は送れない。
+- copy/download/open/callのactual capabilityだけを出す。
+- prepared/opened/self_reported/submitted/acknowledgedを区別し、初期はZUKAN外部送信なし。
+- 規定のAI/専門家同定がない状態でも、未確認であることを記載して本人が連絡できる。
 
-- references current strategy exact SHA
-- typecheck green
-- Node tests green
-- build green
-- no runtime writer
-- no DB change
+Gate: link/call tapで受付済みにならない、private tokenをpackageへ出さない、期限切れ/境界地域/別tenant/private fieldのテスト。実送信せずstagingでpreviewまで検証する。
 
-### PR P2 — platform #1491
+S1+S2で最初の実用journeyを閉じる。S3を理由に先送りしない。
 
-Purpose:
+### S3 — 確認と価値の返却
 
-- integrate final Kubiaka SPEC / Master Plan / Coverage deferral
+Depends: S1。S2と非競合範囲は並行可。
 
-Required before merge:
+Outcome: asset-aware候補と限界を返し、実在する担当体制の範囲で人Reviewと訂正ができる。
 
-- rebase to latest main
-- docs/spec only
-- no review prompt in active spec
-- no reference to #1492 as current implementation
-- no runtime, migration, staging, production change
+- submitted/assessed/unassessed、参照制約、provider provenance、処理失敗を正しく投影する。
+- 低confidenceで自動却下せず、初期triageは保守的なruleと理由表示。
+- feedback edition、追加写真、ClaimRevision、未読結果を再利用する。
+- operator inboxは既存Reviewのfilterとして実装する。別の管理アプリを作らない。
+- reviewerがいない場合は未提供表示。実運用の専門家SLAやAI精度を捏造しない。
+- 解析再利用digestと既存予算上限を使い、無変更再解析・無限retryを防ぐ。
 
-## 2. Gate 0 implementation
+Gate: 6枚中3枚確認、所見が未確認画像を参照、写真追加後のstale、同定訂正、role失効、review競合、AI低確信による却下禁止、provider停止。
 
-### PR K0 — Managed-taxon all-alert interlock
+### S4 — 再訪と権利付き再利用
 
-Base:
+Depends: S1。人確認が必要な出力だけS3に依存。
 
-- latest platform main
+Outcome: 同じ木の発見/処置/再訪を追い、同じRecordを活動結果と他のViewへ重複保存せず利用できる。
 
-Files likely involved:
+- 同じPlaceと同じsubjectの区別、確認済みタグ/QR/本人選択。
+- 新しいfollow-up Record、Case/action結果、前後比較。
+- Program/Quest contributionの参照、目的別の許可・撤回。
+- 許可されたJSON/CSVとDwC mapping。exact位置を公開用に流出させない。
+- 同定訂正や削除時のderived view/cache/exportの扱い。
+- 1つのRecordから複数の生物主張を出すfixture、他種へ訂正されても原Recordを維持するfixture。
 
-- alert dispatcher
-- taxon normalization helper
-- managed-taxon scope registry/config
-- alert tests
-- operations evidence
+Gate: 原Record/媒体数不変、跨tenant参照拒否、旧private権利維持、誤同定の出力停止、再訪を重複と消さない、casual無所見をabsentにしない。
 
-Implement:
+### S5 — 実パートナーに必要な分だけ
 
-- canonical normalized name + approved synonym set
-- dispatcher-entry early return
-- deny taxon match, novelty, researcher, invasive, webhook/mail/delivery paths
-- deny independent of Record link
-- deny during `link_pending`
-- unmanaged taxon regression
+S1〜S4の公開を待たせない条件付き拡張。
 
-Do not implement:
+- 実受信機関がある場合のAPI送信、受付照会、timeout unknown、訂正/撤回Action。
+- 実在の調査責任者・protocol・effortがある場合のSurveyEvent/DetectionOutcome。
+- 権限内のoperator monitoring mapと、別途承認されたprivacy-safe public aggregate。
+- 明示接続・権利が成立した場合のNOCOSIL参照/内部task連携。
 
-- Kubiaka UI
-- Record link
-- DB activation unless separately approved
-- routing enablement
-- external send
+Partner名・窓口・SLA・API仕様が不明なままこの段階を実装済み/READY_NOWにしない。実在需要のないプロファイル管理画面・常設多種platformは作らない。
 
-Exit:
+## 2. 共通の実装受入
 
-- focused tests green
-- full relevant alert tests green
-- no external mutation
+CONTRACT_EXAMPLES.jsonのtest casesはacceptance oracleであり、製品testsのPASS記録ではない。
 
-## 3. Private contribution foundation
+| 検証 | 見る境界 |
+|---|---|
+| pure contract | profile/version、主張/Record分離、状態projection、source/rights mapping |
+| persistence integration | 実D1-compatible transaction、unique key、CAS、R2予約/確定/再開、削除整合 |
+| security negative | guest/account/workspace隔離、CSRF、IDOR、private媒体、未設定fail-closed |
+| actual outbound sink | generic通知、export、public feedへ副作用が0であること |
+| browser journey | 正常/一部失敗/通信断/再開/共有端末、320px〜desktop、keyboard/読み上げ |
+| contract export | DwC対象の選別、unknown/time/precision/rights、複数Occurrence、訂正ID |
+| operational | 登録済みruntime identity、担当能力表示、連絡先版、rollback、残る未提供機能 |
 
-### PR K1 — Kubiaka registry and route contract
+privacyや副作用はソースの文字列検索だけで完了とせず、書込みsink/公開responseが実際にdenyされるテストを持つ。schema・権利未読を無視してfixture成功だけで進めない。
 
-Implement:
+## 3. Migration / rollback
 
-- source-only Kubiaka definition
-- `/kubiaka` route registry
-- normalized taxon scope reference
-- status `active | read_only | retired`
-- dedicated route resolution
+実装開始時に現在schema、旧privateデータの件数/参照だけを必要最小限で確認し、個人内容をChatやGitへ投入しない。
 
-Do not implement:
+新規migrationは不足している意味だけのadditive changeとし、適用前backup/restore、移行前後件数、FK/unique、旧reader互換を検証する。旧データを勝手にpublicへ変換しない。旧ID→共通IDの対応が必要でも原IDを失わない。
 
-- DB
-- composer save
-- receipt
-- map
+source rollbackは新規capture/assessment/sendの入口を止めても既存receiptのreadを保つ。既に保存したRecordやmediaをrollbackの名目で消さない。未完了objectは既存retentionで回収し、参照確認前の一括削除はしない。
 
-Exit:
+外部送信はsource rollbackで取り消せない。送信後の訂正/撤回はrecipient別Action。公開/送信前にその境界を確認する。
 
-- deterministic contract tests
-- no runtime behavior outside disabled/fixture-safe route registration
+## 4. 公開の前提と既定動作
 
-### PR K2 — Dedicated shell and static public pages
+| 実値が未成立 | 既定動作 |
+|---|---|
+| guest credential/retention policy | guest captureを公開せず、ログイン不要と宣伝しない |
+| 画像解析経路 | private保存と公式案内は維持。AI未提供と表示 |
+| 実在reviewer | 専門家未提供と表示。永久に確認中にしない |
+| 専用窓口の適用確認 | 公式上位案内と未確認表示。架空のrecipientを作らない |
+| 受領Evidence/API契約 | 明示handoffまで。自動送信しない |
+| formal protocol | casual/follow-upとして保持。absence/coverageを出さない |
+| 公開許可 | privateのまま。Program参加・taxon一致でACL拡大しない |
 
-Implement:
+## 5. 実行と証拠
 
-- `/kubiaka`
-- `/kubiaka/guide`
-- `/kubiaka/about`
-- `/kubiaka/faq`
-- dedicated shell
-- final copy
-- accessibility / visual QA
+Work開始はfresh main、該当source、現行Board/admission/deploy catalogから行う。テスト用データはlocalか隔離stagingで扱い、本番へ合成投稿しない。
 
-Do not implement:
+実装のsource変更・検証はChat+利用可能な登録済みnative/cloud経路で成立させ、ARK/NEXUSを必須にしない。端末ブーストを使ってもcanonical stateはGit/登録済みEvidenceへ戻す。
 
-- public area map
-- external routing
-- real Record context
+docs-onlyはリンク・diff・例のJSON整合・仕様矛盾の検査で十分。製品実装は対象のmeaningful testsと必要なbrowser検証を選ぶ。全suite・新しいreview gateを機械的に増やさない。
 
-Exit:
+各Workはexact SHA、changed paths、実行コマンドと結果、差分レビュー、staging/runtime identity、禁止副作用、rollback、未検証境界を短く返す。古いgreen、merge、HTTP 200を本番journey完了の証拠にしない。
 
-- 320–1536 viewports
-- text 200%
-- keyboard and screen-reader checks
-- one dominant CTA
+## 6. SUPERSEDED
 
-### PR K3 — Additive persistence migrations
+旧PLANのK0〜K14/古いPR番号を前提にした直列実装順、およびIMPLEMENTATION_MASTER_PLAN.mdのPostgreSQL中心の物理設計・release順はSUPERSEDED。再利用するのは安全上の不変条件と、現在の実装で必要性が確かめられたbehavior/testのみ。
 
-Source-only migration PR first.
-
-Entities:
-
-- `experience_managed_taxa` if runtime activation requires DB
-- `kubiaka_record_links`
-- `kubiaka_link_outbox`
-- `kubiaka_participants`
-- `kubiaka_receipts`
-- `kubiaka_receipt_claims`
-
-Required evidence:
-
-- schema review
-- PostgreSQL fixture
-- D1 fixture only where active runtime requires
-- idempotent apply
-- rollback plan
-- tenant isolation
-- suppression compatibility
-
-Do not apply migration without explicit approval.
-
-### PR K4 — Composer context and outbox
-
-Implement:
-
-- `/kubiaka/record`
-- server-side experience context
-- existing composer reuse
-- 1–6 photos
-- login return
-- retry context preservation
-- Record save→link/outbox
-- `link_pending` state
-
-Blocking tests:
-
-- Record save success + link failure
-- outbox retry idempotency
-- no Assessment before ready
-- Gate 0 deny during pending
-- no duplicate link
-
-### PR K5 — Guest credential and private receipt
-
-Implement:
-
-- scoped guest credential
-- private receipt
-- current-session receipt only
-- pre-submit empty guest state
-- safe metadata
-- no-store
-
-Blocking tests:
-
-- guest A/B isolation
-- stale cookie
-- replay
-- enumeration
-- link preview
-- shared-device reset
-
-### PR K6 — Receipt-scoped account claim
-
-Implement:
-
-- receipt claim transaction
-- account attribution
-- guest mutation invalidation
-- duplicate prevention
-
-Blocking tests:
-
-- account A/B isolation
-- claim merge
-- partial failure rollback
-- idempotent repeat
-- logout
-- no claim-all
-
-### PR K7 — Dedicated member workspace
-
-Implement:
-
-- `/kubiaka/me`
-- `/kubiaka/me/records`
-- `/kubiaka/records/:recordId`
-- `/kubiaka/places/:placeId`
-- continuation priority
-- annual revisit read model
-
-Exit:
-
-- post-save and login return remain in dedicated experience
-- unrelated ZUKAN records do not dominate
-- exact location remains owner-only
-
-## 4. Closed pilot B1
-
-No new PR until staging journey is proven.
-
-Required staging journey:
-
-```text
-Guest open
-→ select 1–6 photos
-→ save
-→ link pending or ready
-→ private receipt
-→ reopen same session
-→ optional login
-→ receipt claim
-→ dedicated member detail
-```
-
-Verify:
-
-- mobile real image
-- offline/retry
-- shared device
-- Assessment unavailable
-- no external delivery
-- no public map
-
-Record metrics in operations evidence.
-
-## 5. Feedback implementation
-
-### PR K8 — Asset-aware assessment adapter
-
-Implement:
-
-- asset ID in input/output
-- deterministic batch handling
-- submitted / assessed / failed IDs
-- per-asset evidence roles
-- no silent truncation
-
-Blocking tests:
-
-- 6 submitted / 3 assessed copy
-- 6 submitted / 6 assessed copy
-- finding references assessed IDs only
-- failed asset retained as unassessed
-
-### PR K9 — Orthogonal state projection
-
-Implement pure projection from:
-
-- persistence
-- assessment
-- feedback
-- action
-- review authority
-- more-evidence flag
-- revisit due
-
-Blocking combinations:
-
-- saved + assessment failed
-- published + assessment stale
-- published + specialist review ongoing
-- sent + unacknowledged
-- published + revisit due
-- link pending
-
-### PR K10 — FeedbackEdition persistence and publisher
-
-Implement:
-
-- append-only edition
-- authority
-- source assessment versions
-- limitations
-- supersedes link
-- publish/withhold gate
-
-Do not implement:
-
-- survey non-detection
-- external routing
-
-### PR K11 — Operator inbox
-
-Implement:
-
-- candidate queue
-- insufficient/contradiction queue
-- feedback draft
-- more-evidence request
-- audit sample
-
-No action both confirms and sends.
-
-## 6. Closed pilot C1
-
-Measure before further scope:
-
-- review time
-- feedback latency p50/p90/p99
-- automatic completion
-- false positives
-- no-clear-sign false-negative audit
-- more-evidence request rate
-- feedback read rate
-
-Stop if:
-
-- feedback makes unsupported claim
-- queue capacity is unsustainable
-- submitted/assessed accounting mismatches
-- privacy incident occurs
-
-## 7. Operator coverage
-
-### PR K12 — Operator coverage read model
-
-Start only after C1 evidence.
-
-Reuse:
-
-- grid derivation
-- snapshot cadence mechanism
-
-Implement:
-
-- separate operator read model
-- no public route
-- no generic public map feature schema
-- evidence role / unique day / revisit / freshness
-
-### PR K13 — Suppression and erase consumer
-
-Implement:
-
-- consume suppression/erase events
-- exclude affected source data
-- regenerate immutable edition
-- switch operator pointer
-- audit propagation
-
-### PR K14 — Operator coverage UI
-
-Implement:
-
-- `/ops/kubiaka/coverage`
-- authorized access
-- map/list parity
-- no public cache
-
-## 8. Future public map
-
-Not part of this plan's execution authorization.
-
-Requires new Decision.
-
-Minimum evidence:
-
-- account-only participant threshold
-- sparse-cell privacy tests
-- empty/suppressed indistinguishability
-- no raw count/date/centroid
-- differencing protection
-- suppression propagation
-- operator owner
-- rollback
-
-Start with municipality or approved Place group, not 500m public cells.
-
-## 9. Future approved routing
-
-Not part of this plan's execution authorization.
-
-Requires explicit approval for:
-
-- recipient registration
-- routing gate activation
-- external send
-- production operation
-
-Gate 0 remains deny by default.
-
-## 10. Validation commands and evidence
-
-Each code PR should run the repository's current canonical commands after reading `AGENTS.md` and `docs/START_HERE.md`.
-
-Minimum evidence:
-
-- typecheck
-- focused Node tests
-- full relevant Node tests
-- build
-- security / secret scan
-- migration fixture where applicable
-- browser QA where visible
-- exact SHA
-- changed-files list
-- release state
-
-Do not state staging or production completion without runtime identity evidence.
-
-## 11. Stop conditions
-
-- strategy or product contract not on main
-- branch based on superseded #1492
-- any Gate 0 bypass
-- experience link loss without outbox
-- shared-device history exposure
-- receipt URL bearer access
-- feedback references unassessed asset
-- casual photo becomes survey non-detection
-- public map added before separate Decision
-- external send added before explicit approval
-- DB / production mutation without explicit approval
+AREA_COVERAGE.mdの非検出・公開privacy境界は維持するが、表中の旧URL/物理実装予定を起動許可と解釈しない。新規コードを作る前に本PLANのS1へcurrent sourceを対応付ける。

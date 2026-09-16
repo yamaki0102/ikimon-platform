@@ -26,6 +26,7 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     assert.equal(sitemap.statusCode, 200);
     assert.match(sitemap.headers["content-type"] as string, /application\/xml/);
     assert.equal(sitemap.headers["x-robots-tag"], "noindex, nofollow");
+    assert.equal(sitemap.headers["content-signal"], "search=no, ai-input=no, ai-train=no, use=immediate");
     assert.match(sitemap.body, /https:\/\/staging\.zukan\.earth\/ja\/community/);
     assert.doesNotMatch(sitemap.body, /https:\/\/staging\.zukan\.earth\/en\/community/);
     assert.doesNotMatch(sitemap.body, /hreflang="en"/);
@@ -41,7 +42,8 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     });
     assert.equal(stagingRobots.statusCode, 200);
     assert.equal(stagingRobots.headers["x-robots-tag"], "noindex, nofollow");
-    assert.match(stagingRobots.body, /^User-agent: \*\nDisallow: \/\n/);
+    assert.equal(stagingRobots.headers["content-signal"], "search=no, ai-input=no, ai-train=no, use=immediate");
+    assert.match(stagingRobots.body, /^User-agent: \*\nContent-Signal: search=no, ai-input=no, ai-train=no, use=immediate\nDisallow: \/\n/);
     assert.match(stagingRobots.body, /# production-canonical-origin: https:\/\/zukan\.earth/);
     assert.doesNotMatch(stagingRobots.body, /Sitemap:|LLMs:/);
 
@@ -52,6 +54,8 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     });
     assert.equal(productionRobots.statusCode, 200);
     assert.equal(productionRobots.headers["x-robots-tag"], undefined);
+    assert.equal(productionRobots.headers["content-signal"], undefined);
+    assert.match(productionRobots.body, /^User-agent: \*\nContent-Signal: search=yes, ai-input=yes, ai-train=no, use=reference\nAllow: \/\n/);
     assert.match(productionRobots.body, /Sitemap: https:\/\/zukan\.earth\/sitemap\.xml/);
     assert.match(productionRobots.body, /LLMs: https:\/\/zukan\.earth\/llms\.txt/);
   } finally {
@@ -132,7 +136,17 @@ test("top-level shared navigation does not link to 404 pages", async () => {
     const sharedNav = await app.inject({ method: "GET", url: "/records?lang=ja", headers: { accept: "text/html" } });
     assert.equal(sharedNav.statusCode, 200);
     const hrefs = extractInternalHrefs(sharedNav.body);
-    assert.ok(hrefs.includes("/ja/community"), "shared navigation should expose community");
+    assert.ok(hrefs.includes("/ja/community/events"), "shared navigation should expose the implemented participation hub");
+
+    for (const lang of ["ja", "en", "es", "pt-br"] as const) {
+      const localized = await app.inject({ method: "GET", url: `/records?lang=${lang}`, headers: { accept: "text/html" } });
+      assert.equal(localized.statusCode, 200);
+      const localizedHrefs = extractInternalHrefs(localized.body);
+      const participationHref = `/${lang}/community/events`;
+      assert.ok(localizedHrefs.includes(participationHref), `${lang} shared navigation should expose the implemented participation hub`);
+      const participation = await app.inject({ method: "GET", url: participationHref, headers: { accept: "text/html" } });
+      assert.notEqual(participation.statusCode, 404, `${participationHref} should not 404 from shared navigation`);
+    }
 
     const cloudflareNativeLinks = new Set([
       "/ja/walk-maps",

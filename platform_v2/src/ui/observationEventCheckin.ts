@@ -6,14 +6,6 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-const MODE_LABEL: Record<string, string> = {
-  discovery: "発見",
-  effort_maximize: "努力量",
-  bingo: "ビンゴ",
-  absence_confirm: "不在確認",
-  ai_quest: "AI クエスト",
-};
-
 function isSoloMicroSession(session: ObservationEventSessionRow): boolean {
   const config = session.config ?? {};
   const placeEvent = typeof config.place_event === "object" && config.place_event !== null
@@ -38,42 +30,49 @@ export interface RenderCheckinArgs {
 export function renderCheckinBody(args: RenderCheckinArgs): string {
   const { session, teams, isAuthenticated } = args;
   const isSolo = isSoloMicroSession(session);
-  const targets = (session.targetSpecies ?? []).slice(0, 8).map(escapeHtml).join("、") || "未設定";
+  const targets = (session.targetSpecies ?? []).slice(0, 8).map(escapeHtml);
 
-  const teamCards = teams.length === 0
-    ? `<div class="evt-card ${isSolo ? "evt-solo-empty-team" : ""}">
-         <span class="evt-eyebrow">${isSolo ? "一人観察会" : "班"}</span>
-         <p class="evt-lead" style="margin-top:4px;">${isSolo ? "班分けなしで開始します。現地では写真記録と不明メモを優先します。" : "主催者がまだ班を作成していません。後で参加できます。"}</p>
-       </div>`
-    : teams.map((t) => `
-        <label class="evt-checkin-team-card" data-team-card>
-          <input type="radio" name="team_id" value="${escapeHtml(t.teamId)}" style="display:none;" />
-          <span style="display:flex; align-items:center; gap:8px;">
-            <span class="evt-team-color" style="background:${escapeHtml(t.color)};"></span>
-            <strong>${escapeHtml(t.name)}</strong>
-          </span>
-          <span class="evt-lead" style="font-size:12px;">${t.memberCount} 名参加中</span>
-        </label>`).join("");
+  const teamSection = isSolo
+    ? ""
+    : teams.length === 0
+      ? `<div class="evt-card">
+           <span class="evt-eyebrow">班について</span>
+           <p class="evt-lead" style="margin-top:4px;">班の指定はありません。必要な場合は主催者から案内されます。</p>
+         </div>`
+      : `<fieldset style="border:0; padding:0; margin:0; display:grid; gap:6px;">
+           <span class="evt-eyebrow">班を選ぶ</span>
+           <div class="evt-checkin-team-grid">
+             ${teams.map((t) => `
+               <label class="evt-checkin-team-card" data-team-card>
+                 <input type="radio" name="team_id" value="${escapeHtml(t.teamId)}" style="display:none;" />
+                 <span style="display:flex; align-items:center; gap:8px;">
+                   <span class="evt-team-color" style="background:${escapeHtml(t.color)};"></span>
+                   <strong>${escapeHtml(t.name)}</strong>
+                 </span>
+                 <span class="evt-lead" style="font-size:12px;">${t.memberCount} 名参加中</span>
+               </label>`).join("")}
+           </div>
+         </fieldset>`;
+
+  const targetSummary = targets.length > 0
+    ? `<p class="evt-lead">観察対象: ${targets.join("、")}</p>`
+    : "";
 
   return `
 <section class="evt-checkin-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}" data-solo-observation="${isSolo ? "true" : "false"}">
   <header>
-    <span class="evt-eyebrow">${isSolo ? "一人観察会チェックイン" : "チェックイン"}</span>
-    <h1 class="evt-heading" style="margin-top:6px; font-size:clamp(22px, 4vw, 30px);">${escapeHtml(session.title || "観察会に参加")}</h1>
-    <p class="evt-lead">「${escapeHtml(MODE_LABEL[session.primaryMode] ?? "発見")}」モードで進行中。目標: ${targets}</p>
+    <span class="evt-eyebrow">参加受付</span>
+    <h1 class="evt-heading" style="margin-top:6px; font-size:clamp(22px, 4vw, 30px);">${escapeHtml(session.title || "企画に参加")}</h1>
+    <p class="evt-lead">参加に必要な情報を確認して、受付を完了します。</p>
+    ${targetSummary}
   </header>
 
   <form class="evt-checkin-form" data-evt-checkin-form>
-    <label>表示名(チームに表示されます)
-      <input type="text" name="display_name" required maxlength="32" placeholder="例: たかし" />
+    <label>表示名
+      <input type="text" name="display_name" required maxlength="32" autocomplete="nickname" placeholder="例: たかし" />
     </label>
 
-    <fieldset style="border:0; padding:0; margin:0; display:grid; gap:6px;">
-      <span class="evt-eyebrow">班を選ぶ</span>
-      <div class="evt-checkin-team-grid">
-        ${teamCards}
-      </div>
-    </fieldset>
+    ${teamSection}
 
     <label style="display:flex; gap:8px; align-items:center; min-height:44px;">
       <input type="checkbox" name="share_location" />
@@ -90,10 +89,12 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
 
     ${isAuthenticated
       ? `<p class="evt-lead">ログイン済みアカウントで参加します。</p>`
-      : `<p class="evt-lead">ゲスト参加の記録とふり返りは、この端末の安全な参加情報で開けます。</p>`}
+      : `<p class="evt-lead">ゲスト参加の記録とふり返りは、この端末の参加情報から開けます。</p>`}
 
-    <button type="submit" class="evt-btn evt-btn-primary" style="justify-self:stretch;">
-      ✨ 観察を始める
+    <p class="evt-lead" data-evt-checkin-error role="alert" tabindex="-1" hidden></p>
+
+    <button type="submit" class="evt-btn evt-btn-primary" data-evt-checkin-submit style="justify-self:stretch;">
+      受付して参加する
     </button>
   </form>
 </section>
@@ -118,15 +119,30 @@ export function checkinScript(): string {
   });
 
   const form = root.querySelector("[data-evt-checkin-form]");
+  const submitButton = root.querySelector("[data-evt-checkin-submit]");
+  const errorNode = root.querySelector("[data-evt-checkin-error]");
+  const showError = (message) => {
+    if (!errorNode) return;
+    errorNode.textContent = message;
+    errorNode.hidden = false;
+    errorNode.focus();
+  };
+  const clearError = () => {
+    if (!errorNode) return;
+    errorNode.textContent = "";
+    errorNode.hidden = true;
+  };
+
   form?.addEventListener("submit", async (ev) => {
     ev.preventDefault();
+    clearError();
     const fd = new FormData(form);
     const isMinor = fd.get("is_minor") === "on";
     const guardianConsent = fd.get("guardian_location_consent") === "on";
     const shareLocation = fd.get("share_location") === "on";
     const teamId = fd.get("team_id") || null;
     if (isMinor && shareLocation && !guardianConsent) {
-      alert("未成年の位置共有には、保護者または引率者の同意が必要です。");
+      showError("未成年の位置共有には、保護者または引率者の同意が必要です。");
       return;
     }
     const payload = {
@@ -136,20 +152,35 @@ export function checkinScript(): string {
       is_minor: isMinor,
       guardian_location_consent: guardianConsent,
     };
-    const r = await fetch("/api/v1/observation-events/" + sessionId + "/checkin", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!r.ok) {
-      alert("チェックインに失敗しました。時間をおいて再試行してください。");
-      return;
+
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "参加手続きを送信中…";
     }
-    if (window.evtFanfare) window.evtFanfare("ようこそ!");
-    setTimeout(() => {
-      window.location.href = "/events/" + sessionId + (isSolo ? "/live" : "/rally");
-    }, 600);
+
+    try {
+      const r = await fetch("/api/v1/observation-events/" + sessionId + "/checkin", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        showError("参加手続きを完了できませんでした。入力内容を確認して、もう一度お試しください。");
+        return;
+      }
+      if (window.evtFanfare) window.evtFanfare("参加を受け付けました");
+      setTimeout(() => {
+        window.location.href = "/events/" + sessionId + (isSolo ? "/live" : "/rally");
+      }, 600);
+    } catch {
+      showError("通信できませんでした。接続を確認して、もう一度お試しください。");
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "受付して参加する";
+      }
+    }
   });
 })();
 `;
