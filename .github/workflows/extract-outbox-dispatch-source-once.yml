@@ -1,0 +1,45 @@
+name: Extract Outbox Dispatch Source Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    if: github.head_ref == 'agent/check-july-image-repair-status-20260713'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Extract queue and scheduled handlers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p outbox-dispatch-source
+          python <<'PY'
+          from pathlib import Path
+          src=Path('platform_v2/cloudflare_shadow/src/index.ts').read_text(encoding='utf-8')
+          lines=src.splitlines()
+          markers=['drainOutbox','dispatchPendingOutbox','scheduled(', 'scheduled:', 'MEDIA_QUEUE.send','media.process','dispatch_state = \'pending\'', 'dispatch_state = "pending"']
+          ranges=[]
+          for i,line in enumerate(lines):
+            if any(m in line for m in markers): ranges.append((max(0,i-40),min(len(lines),i+100)))
+          merged=[]
+          for s,e in sorted(ranges):
+            if merged and s<=merged[-1][1]: merged[-1]=(merged[-1][0],max(merged[-1][1],e))
+            else: merged.append((s,e))
+          out=[]
+          for s,e in merged:
+            out.append(f'\n===== lines {s+1}-{e} =====\n')
+            out.extend(f'{j+1}: {lines[j]}\n' for j in range(s,e))
+          Path('outbox-dispatch-source/source.txt').write_text(''.join(out),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@v6
+        with:
+          name: outbox-dispatch-source
+          path: outbox-dispatch-source/source.txt
+          if-no-files-found: error
+          retention-days: 3
