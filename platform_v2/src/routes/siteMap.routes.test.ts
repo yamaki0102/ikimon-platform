@@ -26,6 +26,7 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     assert.equal(sitemap.statusCode, 200);
     assert.match(sitemap.headers["content-type"] as string, /application\/xml/);
     assert.equal(sitemap.headers["x-robots-tag"], "noindex, nofollow");
+    assert.equal(sitemap.headers["content-signal"], "search=no, ai-input=no, ai-train=no, use=immediate");
     assert.match(sitemap.body, /https:\/\/staging\.zukan\.earth\/ja\/community/);
     assert.doesNotMatch(sitemap.body, /https:\/\/staging\.zukan\.earth\/en\/community/);
     assert.doesNotMatch(sitemap.body, /hreflang="en"/);
@@ -41,7 +42,8 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     });
     assert.equal(stagingRobots.statusCode, 200);
     assert.equal(stagingRobots.headers["x-robots-tag"], "noindex, nofollow");
-    assert.match(stagingRobots.body, /^User-agent: \*\nDisallow: \/\n/);
+    assert.equal(stagingRobots.headers["content-signal"], "search=no, ai-input=no, ai-train=no, use=immediate");
+    assert.match(stagingRobots.body, /^User-agent: \*\nContent-Signal: search=no, ai-input=no, ai-train=no, use=immediate\nDisallow: \/\n/);
     assert.match(stagingRobots.body, /# production-canonical-origin: https:\/\/zukan\.earth/);
     assert.doesNotMatch(stagingRobots.body, /Sitemap:|LLMs:/);
 
@@ -52,6 +54,8 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     });
     assert.equal(productionRobots.statusCode, 200);
     assert.equal(productionRobots.headers["x-robots-tag"], undefined);
+    assert.equal(productionRobots.headers["content-signal"], undefined);
+    assert.match(productionRobots.body, /^User-agent: \*\nContent-Signal: search=yes, ai-input=yes, ai-train=no, use=reference\nAllow: \/\n/);
     assert.match(productionRobots.body, /Sitemap: https:\/\/zukan\.earth\/sitemap\.xml/);
     assert.match(productionRobots.body, /LLMs: https:\/\/zukan\.earth\/llms\.txt/);
   } finally {
