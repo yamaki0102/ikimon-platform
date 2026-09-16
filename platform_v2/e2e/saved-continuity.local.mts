@@ -24,10 +24,12 @@ for(const user of ['one','two'])sqlite.prepare('INSERT INTO auth_sessions VALUES
 const db={prepare(sql:string){const q=(values:unknown[]=[])=>({bind:(...args:unknown[])=>q(args),first:async()=>sqlite.prepare(sql).get(...values as never[])??null,all:async()=>({results:sqlite.prepare(sql).all(...values as never[])}),run:async()=>{const r=sqlite.prepare(sql).run(...values as never[]);return {success:true,meta:{changes:Number(r.changes)}};}});return q();}} as unknown as SavedDatabase;
 const record={visitId:'fixture-photo-one',displayName:'旅先で残した記録（検証用）',observedAt:'2026-09-17T00:00:00.000Z',mediaKind:'memo',isAwaitingId:false,photoUrl:null,publicAreaLabel:'地域',ownerVisibility:'private'};
 for(const [kind,id,path,title] of [['place','place-one','/places/place-one','旅行先の飲食店（検証用）'],['event','event-one','/events/event-one','週末の体験（検証用）'],['job','job-one','/jobs/job-one','気になった求人（検証用）']])await changeSavedItem(db,'one',{reference:{kind,objectId:id,path,title},state:'saved',expectedRevision:0,commandId:'seed-fixture-'+id});
+await changeSavedItem(db,'one',{reference:{kind:'job',objectId:'job-withdrawn',path:'/jobs/job-withdrawn',title:'公開終了した求人（検証用）'},state:'saved',expectedRevision:0,commandId:'seed-fixture-job-withdrawn'});
 const emptyObservations={prepare(){const stmt={bind(){return stmt;},async all(){return {results:[]};},async first(){return null;}};return stmt;}};
 const localErrors:string[]=[];let origin='';
 const server=createServer(async(req,res)=>{try{
  const url=new URL(req.url!,origin);const user=(req.headers.cookie??'').includes('fixture-token-two')?'two':'one';
+ if(req.method==='HEAD'&&(url.pathname==='/jobs/job-withdrawn'||url.pathname==='/ja/jobs/job-withdrawn')){res.statusCode=410;res.end();return;}
  if(url.pathname.startsWith('/assets/brand/')){const file=root+'/../upload_package/public_html'+url.pathname;const content=readFileSync(file);res.setHeader('content-type',file.endsWith('.svg')?'image/svg+xml':'image/png');res.end(content);return;}
  if(url.pathname==='/api/v1/me/saved'){
   const chunks:Buffer[]=[];for await(const c of req)chunks.push(Buffer.from(c));const headers=new Headers();for(const [k,v] of Object.entries(req.headers))if(typeof v==='string')headers.set(k,v);
@@ -67,6 +69,7 @@ try{
  const save=page.locator('[data-zukan-save]').first();await expect(save).toHaveAttribute('aria-pressed','false');await save.click();await expect(save).toHaveAttribute('aria-pressed','true');await expect(page.locator('[data-zukan-saved-status]')).toContainText('ZUKANに保存しました');
  await page.reload();await expect(page.locator('[data-zukan-save]').first()).toHaveAttribute('aria-pressed','true');
  await page.goto(origin+'/ja/records?view=saved');const row=page.locator('[data-saved-item-row]').filter({hasText:record.displayName});await expect(row).toBeVisible();await row.getByRole('button').click();await expect(row).toHaveCount(0);await page.reload();await expect(page.locator('[data-saved-item-row]').filter({hasText:record.displayName})).toHaveCount(0);
+ const withdrawn=page.locator('[data-saved-item-row]').filter({hasText:'公開終了した求人'});await expect(withdrawn).toBeVisible();await expect(withdrawn).toContainText('公開情報は現在利用できません');await expect(withdrawn.locator('.qh-item-link')).toHaveAttribute('aria-disabled','true');
  checks.push({journey:'actual Worker cookie -> save -> reload -> Saved -> remove -> reload',pass:true});
  // Failure must not claim success; retry keeps the exact desired-state command.
  await page.goto(origin+'/ja/records?view=mine');let failed=false;

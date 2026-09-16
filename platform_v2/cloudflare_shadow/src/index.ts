@@ -26806,6 +26806,34 @@ async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<
   return json({ ok: true, observation: detail }, 200, { "cache-control": "no-store" });
 }
 
+function renderObservationSavedContinuity(
+  detail: PublicObservationDetail,
+  session: SessionSnapshot | null,
+  savedStates: Map<string, SavedItem> | null,
+  lang: "ja" | "en" | "es" | "pt-br",
+): { controlHtml: string; scriptHtml: string } {
+  if (!session || session.banned || !savedStates) return { controlHtml: "", scriptHtml: "" };
+  const control = renderSavedControl({
+    kind: "record",
+    objectId: detail.visitId,
+    path: `/observations/${detail.visitId}`,
+    title: detail.displayName,
+  }, lang, savedStates.get(detail.visitId) ?? null);
+  return {
+    controlHtml: `<div class="of-saved-control">${control}</div>`,
+    scriptHtml: `<style>.of-saved-control{display:grid;gap:6px;align-content:start}.of-saved-control .zs-control{min-height:44px;border:1px solid var(--line);border-radius:999px;padding:9px 15px;background:#fff;color:var(--ink);font:inherit;font-weight:850;cursor:pointer}.of-saved-control .zs-control[aria-pressed="true"]{border-color:var(--green);background:var(--soft)}.of-saved-control .zs-control:disabled{cursor:wait}</style><p class="of-status zs-status" data-zukan-saved-status aria-live="polite"></p>${renderSavedItemsScript(lang)}`,
+  };
+}
+
+function injectLegacyObservationSavedContinuity(html: string, saved: { controlHtml: string; scriptHtml: string }): string {
+  if (!saved.controlHtml) return html;
+  const anchor = '<div class="obs-reading-kicker">';
+  const withControl = html.includes(anchor)
+    ? html.replace(anchor, `${saved.controlHtml}${anchor}`)
+    : html;
+  return withControl.replace('</body>', `${saved.scriptHtml}</body>`);
+}
+
 async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env): Promise<Response> {
   const session = await readCompatibleSession(request, env).catch(() => null);
   const ownerStatus = session && !session.banned
@@ -26823,6 +26851,11 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     }
     return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
   }
+  const detailLang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const savedStates = session && !session.banned
+    ? await savedRecordStates(env.CORE_DB, session.userId, [detail.visitId]).catch(() => null)
+    : null;
+  const savedContinuity = renderObservationSavedContinuity(detail, session, savedStates, detailLang);
   const cspNonce = createHtmlCspNonce();
   if (observationReadCutoverEnabled(env)) {
     const observationFirst = await loadObservationFirstRecordDetail(detailIdToVisitId(rawId), session?.userId ?? null, env)
@@ -26879,6 +26912,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiNextPhoto: detail.nextPhoto,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
+        savedControlHtml: savedContinuity.controlHtml,
+        savedScriptHtml: savedContinuity.scriptHtml,
         publicationReturn: observationFirst.publicationReturn,
       }), cspNonce), 200, {
         ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
@@ -26887,7 +26922,11 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       });
     }
   }
-  return html(applyCspNonceToHtmlScripts(renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce), cspNonce), 200, {
+  const legacyDetailHtml = injectLegacyObservationSavedContinuity(
+    renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce),
+    savedContinuity,
+  );
+  return html(applyCspNonceToHtmlScripts(legacyDetailHtml, cspNonce), 200, {
     ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
     "cache-control": "no-store",
   });
@@ -36522,7 +36561,7 @@ ${headerBlock}
   </section>
 </main>
 ${polish?.previewDialog ?? ""}
-${polish?.previewScript ?? ""}
+  ${polish?.previewScript ?? ""}
 </body>
 </html>`;
 }

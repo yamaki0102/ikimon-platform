@@ -34,6 +34,13 @@ test("unavailable data is not an empty library or a false synchronization result
  assert.match(renderSavedPage(null,"ja"),/読み込めませんでした/);assert.doesNotMatch(renderSavedPage(null,"ja").replace(/<script>[\s\S]*?<\/script>/g,""),/気になるものを保存すると/);
  assert.match(renderQuietHome({lang:"ja",saved:null,recentHtml:""}),/読み込めませんでした/);
 });
+test("saved targets are revalidated without deleting the private relationship",()=>{
+ const html=renderSavedPage({items:[item],nextCursor:null},"ja");
+ assert.match(html,/data-saved-target-state="unknown"/);
+ assert.match(html,/method:'HEAD'/);
+ assert.match(html,/公開情報は現在利用できません/);
+ assert.match(html,/data-zukan-save/);
+});
 test("titles and reference attributes are escaped",()=>{
  const html=renderSavedControl({...item,title:'"><img src=x onerror=alert(1)>'},"ja",item);
  assert.doesNotMatch(html,/<img src=x/);assert.match(html,/&lt;img/);assert.match(html,/data-saved-reference="\{&quot;/);
