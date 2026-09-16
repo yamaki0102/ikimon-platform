@@ -2420,9 +2420,59 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/ja/terms"
 ]);
 const ORIGINAL_UI_HTML_CACHE_CONTROL = "no-store, no-cache, must-revalidate, proxy-revalidate";
+const PUBLIC_CONTENT_SIGNAL = "search=yes, ai-input=yes, ai-train=no, use=reference";
+const PRIVATE_CONTENT_SIGNAL = "search=no, ai-input=no, ai-train=no, use=immediate";
+
+function isNonPublicOriginalUiHtmlPath(pathname: string): boolean {
+  const nativePathname = stripPublicLangPrefix(pathname);
+  return nativePathname === "/login"
+    || nativePathname === "/register"
+    || nativePathname === "/record"
+    || nativePathname === "/profile"
+    || nativePathname === "/profile/settings"
+    || nativePathname === "/my-guides"
+    || nativePathname === "/app-refresh"
+    || nativePathname === "/community/events/new"
+    || nativePathname.startsWith("/admin/");
+}
+
+export function isPublicAiReferencePath(pathname: string): boolean {
+  const nativePathname = stripPublicLangPrefix(pathname);
+  if (pathname === "/robots.txt" || pathname === "/sitemap.xml" || pathname === "/llms.txt") return true;
+  if (isOriginalUiHtmlPath(pathname)) return !isNonPublicOriginalUiHtmlPath(pathname);
+  if (nativePathname === "/walk-maps" || /^\/walk-maps\/[^/]+$/.test(nativePathname)) return true;
+  if (/^\/places\/[^/]+(?:\/station)?$/.test(nativePathname)) return true;
+  if (/^\/observations\/[^/]+$/.test(nativePathname)) return true;
+  if (/^\/community\/events(?:\/[^/]+)?$/.test(nativePathname)) return true;
+  return false;
+}
+
+export function withAiContentPolicy(response: Response, request: Request, env: Pick<Env, "ENVIRONMENT">): Response {
+  const url = new URL(request.url);
+  const credentialed = Boolean(request.headers.get("authorization") || request.headers.get("cookie"));
+  const privateView = url.searchParams.get("view") === "mine";
+  const publicReference = env.ENVIRONMENT === "production"
+    && (request.method === "GET" || request.method === "HEAD")
+    && response.ok
+    && !credentialed
+    && !privateView
+    && !/noindex/i.test(response.headers.get("x-robots-tag") ?? "")
+    && isPublicAiReferencePath(url.pathname);
+  const apply = (target: Response): Response => {
+    target.headers.set("content-signal", publicReference ? PUBLIC_CONTENT_SIGNAL : PRIVATE_CONTENT_SIGNAL);
+    if (!publicReference) target.headers.set("x-robots-tag", "noindex, nofollow");
+    return target;
+  };
+  try {
+    return apply(response);
+  } catch {
+    return apply(new Response(response.body, response));
+  }
+}
 
 export const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext = { waitUntil() {} }): Promise<Response> {
+    const response = await (async (): Promise<Response> => {
     try {
       const url = new URL(request.url);
       const nativePathname = stripPublicLangPrefix(url.pathname);
@@ -3293,6 +3343,8 @@ export const worker = {
       console.error(error);
       return json({ error: "internal_error" }, 500);
     }
+    })();
+    return withAiContentPolicy(response, request, env);
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {

@@ -40,11 +40,11 @@ export function addStagingRobotsMeta(payload: string): string {
 export async function registerSiteMapRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("onSend", (request, reply, payload, done) => {
     const staging = isStagingRequest(request as unknown as { headers: Record<string, unknown>; protocol?: string });
-    reply.header("Content-Signal", staging ? STAGING_CONTENT_SIGNAL : PRODUCTION_CONTENT_SIGNAL);
     if (!staging) {
       done(null, payload);
       return;
     }
+    reply.header("Content-Signal", STAGING_CONTENT_SIGNAL);
     reply.header("X-Robots-Tag", "noindex, nofollow");
     const contentType = String(reply.getHeader("content-type") ?? "").toLowerCase();
     const nextPayload = contentType.startsWith("text/html") && typeof payload === "string"

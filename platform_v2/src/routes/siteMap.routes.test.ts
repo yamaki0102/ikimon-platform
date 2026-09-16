@@ -54,7 +54,7 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     });
     assert.equal(productionRobots.statusCode, 200);
     assert.equal(productionRobots.headers["x-robots-tag"], undefined);
-    assert.equal(productionRobots.headers["content-signal"], "search=yes, ai-input=yes, ai-train=no, use=reference");
+    assert.equal(productionRobots.headers["content-signal"], undefined);
     assert.match(productionRobots.body, /^User-agent: \*\nContent-Signal: search=yes, ai-input=yes, ai-train=no, use=reference\nAllow: \/\n/);
     assert.match(productionRobots.body, /Sitemap: https:\/\/zukan\.earth\/sitemap\.xml/);
     assert.match(productionRobots.body, /LLMs: https:\/\/zukan\.earth\/llms\.txt/);
