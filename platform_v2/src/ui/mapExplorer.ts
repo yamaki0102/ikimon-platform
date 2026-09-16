@@ -2236,7 +2236,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       version: 8,
       glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
       sources: {
-        openmaptiles: { type: 'vector', url: 'https://tiles.openfreemap.org/planet', attribution: 'OpenFreeMap / OpenStreetMap contributors' },
+        openmaptiles: { type: 'vector', url: 'https://tiles.openfreemap.org/planet', attribution: 'OpenFreeMap / <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>' },
       },
       layers: [
         { id: 'simple-bg', type: 'background', paint: { 'background-color': '#edf4ef' } },
