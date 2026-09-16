@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { canonicalPublicHostRedirect, isPublicAiReferencePath, rewriteCanonicalPublicOrigins, withAiContentPolicy } from "./index";
+import { canonicalPublicHostRedirect, isPublicAiReferencePath, rewriteCanonicalPublicOrigins, withAiContentPolicy, withRobotsContentSignal } from "./index";
 
 const env = (mode: string): any => ({ ENVIRONMENT: "production", LEGACY_HOST_REDIRECT_MODE: mode });
 const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
@@ -160,4 +160,17 @@ test("AI content policy allows only explicit public references and denies privat
     { ENVIRONMENT: "production" },
   );
   assert.equal(strongerNoindex.headers.get("x-robots-tag"), "noindex, nofollow, noarchive, nosnippet");
+});
+
+
+test("robots content signal is enforced at the active Worker edge", () => {
+  const oldBody = "User-agent: *\nAllow: /\n\nSitemap: https://zukan.earth/sitemap.xml\n";
+  const production = withRobotsContentSignal(oldBody, "production");
+  assert.match(production, /^User-agent: \*\nContent-Signal: search=yes, ai-input=yes, ai-train=no, use=reference\nAllow: \/\n/u);
+  assert.equal((production.match(/Content-Signal:/gu) ?? []).length, 1);
+
+  const stale = "User-agent: *\nContent-Signal: ai-train=yes\nDisallow: /\n";
+  const staging = withRobotsContentSignal(stale, "staging");
+  assert.match(staging, /^User-agent: \*\nContent-Signal: search=no, ai-input=no, ai-train=no, use=immediate\nDisallow: \/\n/u);
+  assert.equal((staging.match(/Content-Signal:/gu) ?? []).length, 1);
 });

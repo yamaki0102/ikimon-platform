@@ -2423,6 +2423,15 @@ const ORIGINAL_UI_HTML_CACHE_CONTROL = "no-store, no-cache, must-revalidate, pro
 const PUBLIC_CONTENT_SIGNAL = "search=yes, ai-input=yes, ai-train=no, use=reference";
 const PRIVATE_CONTENT_SIGNAL = "search=no, ai-input=no, ai-train=no, use=immediate";
 
+export function withRobotsContentSignal(value: string, environment: string): string {
+  const signal = environment === "production" ? PUBLIC_CONTENT_SIGNAL : PRIVATE_CONTENT_SIGNAL;
+  const withoutSignal = value.replace(/^Content-Signal:.*(?:\r?\n|$)/gimu, "");
+  const firstLineEnd = withoutSignal.search(/\r?\n/u);
+  if (firstLineEnd < 0) return `${withoutSignal}\nContent-Signal: ${signal}\n`;
+  const lineBreak = withoutSignal[firstLineEnd] === "\r" ? "\r\n" : "\n";
+  return `${withoutSignal.slice(0, firstLineEnd)}${lineBreak}Content-Signal: ${signal}${lineBreak}${withoutSignal.slice(firstLineEnd + lineBreak.length)}`;
+}
+
 function isNonPublicOriginalUiHtmlPath(pathname: string): boolean {
   const nativePathname = stripPublicLangPrefix(pathname);
   return nativePathname === "/login"
@@ -23719,11 +23728,15 @@ async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): P
       ? fallbackContentType
       : object.httpMetadata?.contentType ?? fallbackContentType;
     const shouldRewrite = ["/offline.html", "/robots.txt", "/sitemap.xml", "/app-sw.js", "/manifest.webmanifest"].includes(url.pathname);
-    const body = request.method === "HEAD"
-      ? null
-      : shouldRewrite
-        ? rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env)
-        : object.body;
+    let body: ReadableStream | string | null;
+    if (request.method === "HEAD") {
+      body = null;
+    } else if (shouldRewrite) {
+      const rewritten = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
+      body = url.pathname === "/robots.txt" ? withRobotsContentSignal(rewritten, env.ENVIRONMENT) : rewritten;
+    } else {
+      body = object.body;
+    }
     return new Response(body, {
       headers: {
         "content-type": contentType,
