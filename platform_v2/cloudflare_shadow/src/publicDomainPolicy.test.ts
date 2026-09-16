@@ -153,4 +153,11 @@ test("AI content policy allows only explicit public references and denies privat
     { ENVIRONMENT: "production" },
   );
   assert.equal(preexistingNoindex.headers.get("content-signal"), "search=no, ai-input=no, ai-train=no, use=immediate");
+
+  const strongerNoindex = withAiContentPolicy(
+    new Response("hidden", { status: 200, headers: { "x-robots-tag": "noindex, nofollow, noarchive, nosnippet" } }),
+    new Request("https://zukan.earth/ja/records"),
+    { ENVIRONMENT: "production" },
+  );
+  assert.equal(strongerNoindex.headers.get("x-robots-tag"), "noindex, nofollow, noarchive, nosnippet");
 });

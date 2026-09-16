@@ -2460,7 +2460,18 @@ export function withAiContentPolicy(response: Response, request: Request, env: P
     && isPublicAiReferencePath(url.pathname);
   const apply = (target: Response): Response => {
     target.headers.set("content-signal", publicReference ? PUBLIC_CONTENT_SIGNAL : PRIVATE_CONTENT_SIGNAL);
-    if (!publicReference) target.headers.set("x-robots-tag", "noindex, nofollow");
+    if (!publicReference) {
+      const existingRobots = target.headers.get("x-robots-tag");
+      if (existingRobots === null) {
+        target.headers.set("x-robots-tag", "noindex, nofollow");
+      } else {
+        const directives = existingRobots.split(",").map((value) => value.trim()).filter(Boolean);
+        const normalized = new Set(directives.map((value) => value.toLowerCase()));
+        if (!normalized.has("noindex")) directives.push("noindex");
+        if (!normalized.has("nofollow")) directives.push("nofollow");
+        target.headers.set("x-robots-tag", directives.join(", "));
+      }
+    }
     return target;
   };
   try {
