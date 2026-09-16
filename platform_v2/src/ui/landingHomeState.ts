@@ -262,10 +262,12 @@ function renderHomeContinuationScript(viewerUserId: string): string {
   const member = document.querySelector('[data-home-view="member"][data-home-draft-owner]');
   const draftState = member && member.querySelector('[data-home-primary-state="draft_resume"]');
   if (!member || !draftState || !('indexedDB' in window)) return;
-  const ownerId = ${JSON.stringify(viewerUserId)};
-  if (!ownerId || member.getAttribute('data-home-draft-owner') !== ownerId) return;
+  const ownerId = member.getAttribute('data-home-draft-owner') || '';
+  if (!ownerId) return;
   try {
     const request = indexedDB.open('ikimon-record-draft', 1);
+    request.onupgradeneeded = () => { request.transaction?.abort(); };
+    request.onerror = () => {};
     request.onsuccess = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains('drafts')) { db.close(); return; }
@@ -276,6 +278,11 @@ function renderHomeContinuationScript(viewerUserId: string): string {
         const files = draft && Array.isArray(draft.files) ? draft.files : [];
         const owned = draft && draft.ownerKey === 'user:' + ownerId;
         if (!owned || !(draft.file || files.length > 0 || (draft.metadata && draft.metadata.formValues))) return;
+        if (member.querySelector('[data-zukan-quiet-home]')) {
+          draftState.hidden = false;
+          draftState.classList.add('is-quiet-recovery');
+          return;
+        }
         member.querySelectorAll('[data-home-primary-state]').forEach((state) => {
           state.hidden = state !== draftState;
           state.setAttribute('data-home-primary-active', state === draftState ? 'true' : 'false');
@@ -347,6 +354,7 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
       return true;
     }).slice(0, 5);
     list.textContent = '';
+    if (document.querySelector('[data-zukan-quiet-home]')) root.hidden = updates.length === 0;
     if (!updates.length) {
       status.textContent = copy.empty;
       return;
@@ -404,7 +412,7 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
   status.textContent = copy.loading;
   fetch(alertsEndpoint, { method: 'GET', headers: { accept: 'application/json' }, credentials: 'same-origin' })
     .then((response) => response.ok ? response.json() : Promise.reject(new Error('alerts_unavailable')))
-    .then((payload) => render(payload && payload.ok ? payload.alerts : []))
+    .then((payload) => { if (!payload || payload.ok !== true || !Array.isArray(payload.alerts)) throw new Error('alerts_unavailable'); render(payload.alerts); })
     .catch(() => { status.textContent = copy.error; });
 })();
 </script>`;
@@ -503,7 +511,7 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
   const viewerUserId = options.snapshot.viewerUserId ?? "";
   return `<div class="home-state-view is-member" data-home-view="member" data-home-draft-owner="${escapeHtml(viewerUserId)}" data-home-base-state="${baseState}"${options.isLoggedIn ? "" : " hidden"}>
     <section class="home-member-primary is-draft" data-home-primary-state="draft_resume" data-home-primary-active="false" hidden>
-      <div class="home-member-primary-copy"><span class="home-member-eyebrow">${escapeHtml(copy.continuationTitle)}</span><h1>${escapeHtml(copy.continuationTitle)}</h1><p>${escapeHtml(copy.continuationBody)}</p><a class="home-primary-button ik-ui-action" href="${escapeHtml(href(options, "/record?draft=1&source=home_continue"))}">${escapeHtml(copy.continuationCta)}</a></div>
+      <div class="home-member-primary-copy"><span class="home-member-eyebrow">${escapeHtml(copy.continuationTitle)}</span><h2>${escapeHtml(copy.continuationTitle)}</h2><p>${escapeHtml(copy.continuationBody)}</p><a class="home-primary-button ik-ui-action" href="${escapeHtml(href(options, "/record?draft=1&source=home_continue"))}">${escapeHtml(copy.continuationCta)}</a></div>
     </section>
     ${sectionSlot("member-primary", baseHero)}
     ${renderHomeContinuationScript(viewerUserId)}

@@ -16,6 +16,10 @@ ZUKANの有効なプロダクト境界は [`spec/zukan-product-architecture/SPEC
 
 公開ホームの現行仕様は [`spec/public-home-state-split.md`](spec/public-home-state-split.md)、完了判定は [`operations/public-home-ux-completion-gate.md`](operations/public-home-ux-completion-gate.md) を参照します。
 
+## 静かな横断ホームと保存の継続 — 2026-09-17
+
+[`QUIET_HOME_SAVED_CONTINUITY_V1.md`](spec/zukan-app-experience/QUIET_HOME_SAVED_CONTINUITY_V1.md) は、今回ownerが採用したログイン後の横断探索・私的Saved・任意NOCOSIL連携の設計境界です。既存の専門面やcapture/権利を保持し、実装・接続・staging・productionは個別Evidenceで判定します。
+
 ## 読む順番
 
 1. [`AGENTS.md`](../AGENTS.md) — current app、security、test、deploy境界
