@@ -91,3 +91,7 @@ Home / 記録 / 場所 / 参加 / 自分、global撮影action、状態優先順�
 - Pull Request: 差分、review、verification evidence
 
 ローカル絶対パス、端末名、secret、OAuth値を恒久的な正本参照として書きません。
+
+## 2026-09-17 — Quiet discovery and personal continuity
+
+The logged-in cross-surface Home and private saved-reference delta are governed by `docs/spec/zukan-app-experience/QUIET_DISCOVERY_PERSONAL_CONTINUITY_V1.md` (relative to repository root). This narrowly supersedes compulsory recent-photo/next-task dominance, not specialist/capture/rights behavior. Automatic NOCOSIL account linking and ongoing synchronization are separate unverified boundaries, not implied by export.

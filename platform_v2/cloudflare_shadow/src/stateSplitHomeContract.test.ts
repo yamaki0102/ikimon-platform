@@ -75,7 +75,7 @@ test("state split worker injects owner data into the actual canonical Home rende
   assert.match(canonicalHtml, /ikimon-home-section:member-next:start/);
   const injected = await injectStateSplitHome(canonicalHtml, { userId: "viewer", banned: false } as never, new URL("https://staging.ikimon.life/ja/"), mockEnv());
   assert.doesNotMatch(injected, /data-home-primary-state="first_record"[^>]*data-home-primary-active="true"/);
-  assert.match(injected, /data-home-primary-state="recent_memory"/);
+  assert.match(injected, /data-home-primary-state="discovery"/);
   assert.match(injected, /川沿いの夕景/);
   assert.match(injected, /owner-discovery/);
   assert.match(injected, /ZUKAN/);
@@ -114,22 +114,22 @@ test("guest Home uses a neutral ZUKAN placeholder instead of synthetic lifestyle
   assert.doesNotMatch(injected, /公開できる記録は、まだありません/);
 });
 
-test("state split worker turns owner history into a memory-first Home with a place continuation", async () => {
+test("state split worker returns private history below quiet discovery without losing place continuity", async () => {
   const html = await injectStateSplitHome(template, { userId: "viewer", banned: false } as never, new URL("https://staging.ikimon.life/ja/"), mockEnv());
   assert.match(html, /data-home-auth-state="member"/);
   assert.match(html, /data-home-view="guest" hidden/);
   assert.match(html, /data-home-view="member">/);
   assert.doesNotMatch(html, /template-first-state/);
-  assert.match(html, /この前の記録/);
-  assert.match(html, /今日の記録を撮る/);
-  assert.match(html, /data-global-record-trigger="photo"/);
+  assert.match(html, /保存したもの/);
+  assert.match(html, /data-home-primary-state="discovery"/);
+  assert.match(html, /href="\/ja\/records\?view=saved"/);
   assert.match(html, /最近の記録/);
   assert.doesNotMatch(html, /写真からわかったこと|カワセミ かもしれません|近くで残された記録/);
-  assert.match(html, /data-canonical-discovery/);
+  assert.doesNotMatch(html, /data-canonical-discovery/);
   assert.match(html, /data-canonical-place/);
-  assert.match(html, /data-canonical-next/);
+  assert.doesNotMatch(html, /data-canonical-next/);
   assert.match(html, /same place and season|place changes|next action/);
-  assert.match(html, /ZUKAN/);
+  assert.match(html, /見つける/);
   const member = html.slice(html.indexOf('data-home-view="member"'));
   assert.equal((member.match(/data-home-record-id="owner-latest"/g) || []).length, 1);
   assert.equal((member.match(/data-home-record-id="owner-discovery"/g) || []).length, 1);

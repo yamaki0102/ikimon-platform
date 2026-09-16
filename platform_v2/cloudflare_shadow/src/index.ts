@@ -1,3 +1,6 @@
+import { handleSavedReferences, isSavedReferencesPath } from "./savedReferencesNative";
+import { parseSavedTarget, type SavedTarget } from "../../src/services/savedReference";
+import { renderQuietDiscoveryEntry, renderSavedReferencesView, renderSavedReferenceAction, SAVED_REFERENCE_STYLES } from "../../src/ui/savedReferencesUi";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 import { FRONTEND_FOUNDATION_CSS } from "../../src/ui/frontendFoundation";
@@ -2459,7 +2462,7 @@ export function isPublicAiReferencePath(pathname: string): boolean {
 export function withAiContentPolicy(response: Response, request: Request, env: Pick<Env, "ENVIRONMENT">): Response {
   const url = new URL(request.url);
   const credentialed = Boolean(request.headers.get("authorization") || request.headers.get("cookie"));
-  const privateView = url.searchParams.get("view") === "mine";
+  const privateView = ["mine", "saved"].includes(url.searchParams.get("view") ?? "");
   const publicReference = env.ENVIRONMENT === "production"
     && (request.method === "GET" || request.method === "HEAD")
     && response.ok
@@ -3364,7 +3367,7 @@ export const worker = {
       return json({ error: "internal_error" }, 500);
     }
     })();
-    return withAiContentPolicy(response, request, env);
+    return withAiContentPolicy(await injectSavedReferenceActionResponse(response, request), request, env);
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -3475,6 +3478,7 @@ async function handleOriginalPersonalRuntimeBoundary(request: Request, url: URL,
   if (session.banned) {
     return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
   }
+  if (isSavedReferencesPath(url.pathname)) return handleSavedReferences(request, env.CORE_DB, session, (target) => resolveSavedPublicSource(target, url.origin, env));
   if (request.method === "GET" && url.pathname === "/api/v1/me/alerts") {
     return getPersonalAlerts(session, env);
   }
@@ -3508,6 +3512,7 @@ async function handleOriginalPersonalRuntimeBoundary(request: Request, url: URL,
 }
 
 function isOriginalPersonalRuntimePath(request: Request, url: URL): boolean {
+  if (isSavedReferencesPath(url.pathname)) return true;
   if (request.method === "GET" && url.pathname === "/api/v1/me/alerts") return true;
   if (request.method === "POST" && url.pathname === "/api/v1/me/alerts/read") return true;
   if (request.method === "GET" && url.pathname === "/api/v1/me/personalized-menu") return true;
@@ -24914,7 +24919,7 @@ function isRecordsHtmlPath(pathname: string): boolean {
 function isNativeRecordsProductView(url: URL): boolean {
   if (!isRecordsHtmlPath(url.pathname)) return false;
   const view = String(url.searchParams.get("view") ?? "").trim();
-  return view === "" || view === "public" || view === "mine";
+  return view === "" || view === "public" || view === "mine" || view === "saved";
 }
 
 function recordsProductText(value: unknown): string {
@@ -24992,11 +24997,12 @@ export function renderRecordsProductSection(
 
 async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env): Promise<Response> {
   const session = await readCompatibleSession(request, env).catch(() => null);
-  const requestedMode = url.searchParams.get("view") === "mine" ? "mine" : "public";
+  const savedView = url.searchParams.get("view") === "saved";
+  const requestedMode = url.searchParams.get("view") === "mine" || savedView ? "mine" : "public";
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   if (requestedMode === "mine" && (!session || session.banned)) {
-    return redirect303(`${prefix}/login?redirect=${encodeURIComponent(`${prefix}/records?view=mine`)}`, { "cache-control": "no-store" });
+    return redirect303(`${prefix}/login?redirect=${encodeURIComponent(`${prefix}/records?view=${savedView ? "saved" : "mine"}`)}`, { "cache-control": "no-store" });
   }
   let object: MaterializedR2ObjectBody | null = null;
   for (const key of originalUiHtmlKeysForRequest(new URL(`${url.origin}${prefix}/records`))) {
@@ -25005,14 +25011,14 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
   }
   if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
   const query = recordsProductText(String(url.searchParams.get("q") ?? "").slice(0, 80));
-  const sourceItems = requestedMode === "mine"
+  const sourceItems = savedView ? [] : requestedMode === "mine"
     ? await ownerHomeRecordCards(session!.userId, env, 120).catch(() => null)
     : await recentPublicRecordCards(env, 120).catch(() => null);
   const items = (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
   const cspNonce = createHtmlCspNonce();
   let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   html = html.replace(/<form class="site-search\b[^"]*"[\s\S]*?<\/form>/gi, "");
-  const section = renderRecordsProductSection(items, url, requestedMode, session, sourceItems === null);
+  const section = savedView ? `<style>${SAVED_REFERENCE_STYLES}</style>${renderSavedReferencesView(lang === "pt-br" ? "pt-BR" : lang)}` : renderRecordsProductSection(items, url, requestedMode, session, sourceItems === null);
   if (/<main\b[^>]*>[\s\S]*?<\/main>/i.test(html)) {
     html = html.replace(/<main\b([^>]*)>[\s\S]*?<\/main>/i, `<main$1>${section}</main>`);
   } else if (/<\/body>/i.test(html)) {
@@ -25025,7 +25031,7 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
     headers: {
       ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
       "content-type": object.httpMetadata?.contentType ?? "text/html; charset=utf-8",
-      "cache-control": ORIGINAL_UI_HTML_CACHE_CONTROL,
+      "cache-control": requestedMode === "mine" ? "private, no-store" : ORIGINAL_UI_HTML_CACHE_CONTROL,
       "vary": "cookie, authorization",
       "x-ikimon-cloudflare-materialized": "original-ui-html",
       "x-ikimon-cloudflare-native": "records-product",
@@ -25249,21 +25255,24 @@ export async function injectStateSplitHome(html: string, session: SessionSnapsho
   const lang: StateHomeLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
   const member = Boolean(session && !session.banned);
   let next = setStateHomeAuth(html, member);
+  next = next.replace(/data-home-draft-owner="[^"]*"/g, `data-home-draft-owner="${escapeHtml(member && session ? session.userId : "")}"`);
   if (!member || !session) return next;
 
-  const ownerItems = await ownerHomeRecordCards(session.userId, env, 24).catch(() => []);
-  const recent = ownerItems[0] ?? null;
+  const ownerItems = await ownerHomeRecordCards(session.userId, env, 24).catch(() => null);
   const copy = stateHomeCopy(lang);
-  if (recent) {
-    next = replaceStateHomeMarker(next, "section", "member-primary", stateHomeOwnerPrimary(recent, lang));
-  }
+  next = replaceStateHomeMarker(next, "section", "member-primary", renderQuietDiscoveryEntry("", lang === "pt-br" ? "pt-BR" : lang));
 
-  const recentItems = ownerItems.slice(1, 7);
+  const recentItems = (ownerItems ?? []).slice(0, 4);
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  const recentSection = recentItems.length > 0
+  const recentSection = ownerItems === null
+    ? `<section class="home-section home-recent-section"><p role="status">${lang === "ja" ? "最近の記録を読み込めませんでした。保存済みの記録は、自分の記録から確認できます。" : "Could not load recent records. Open My records to try again."}</p></section>`
+    : recentItems.length > 0
     ? `<section class="home-section home-recent-section"><div class="home-section-heading"><h2>${escapeHtml(copy.recent)}</h2><a href="${prefix}/records?view=mine">${escapeHtml(copy.recentAll)}</a></div><div class="home-recent-grid">${recentItems.map((item) => stateHomeOwnerCard(item, lang)).join("")}</div></section>`
     : "";
   next = replaceStateHomeMarker(next, "section", "member-recent", recentSection);
+  for (const section of ["member-routes", "member-discovery", "member-next"]) next = replaceStateHomeMarker(next, "section", section, "");
+  if (!next.includes('id="zukan-quiet-discovery-style"')) next = next.replace("</head>", `<style id="zukan-quiet-discovery-style">${SAVED_REFERENCE_STYLES}</style></head>`);
+  next = next.replace('const ownerId = "";', "const ownerId = member.getAttribute('data-home-draft-owner') || '';");
   return next;
 }
 
@@ -38304,4 +38313,38 @@ class HttpError extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
   }
+}
+
+async function resolveSavedPublicSource(target: SavedTarget, origin: string, env: Env): Promise<{ availability: "available" | "unavailable" | "unknown"; title: string | null }> {
+  // Only current proven families. New profiles need their own source-eligibility adapter.
+  if (!/^\/(?:places|observations|community\/events)\/[^/]+$/u.test(target.path)) return { availability: "unavailable", title: null };
+  const result = await worker.fetch(new Request(`${origin}/ja${target.path}`, { headers: { accept: "text/html" } }), env);
+  if ([401,403,404,410].includes(result.status)) return { availability: "unavailable", title: null };
+  if (result.status !== 200 || !result.headers.get("content-type")?.includes("text/html")) return { availability: "unknown", title: null };
+  const reader = result.body?.getReader(); if (!reader) return { availability: "unknown", title: null };
+  const decoder = new TextDecoder(); let text = "", bytes = 0;
+  try { while (bytes < 65536 && !/<\/title>/i.test(text)) { const chunk = await reader.read(); if (chunk.done) break; const part = chunk.value.subarray(0, 65536 - bytes); bytes += part.byteLength; text += decoder.decode(part, { stream: true }); } }
+  finally { await reader.cancel(); }
+  const raw = text.match(/<title[^>]*>([^<]{1,1000})<\/title>/i)?.[1];
+  if (!raw) return { availability: "unknown", title: null };
+  const title = raw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'").trim().slice(0,300);
+  return { availability: "available", title };
+}
+
+export async function injectSavedReferenceActionResponse(response: Response, request: Request): Promise<Response> {
+  if (request.method !== "GET" || response.status !== 200 || !response.headers.get("content-type")?.includes("text/html")) return response;
+  const url = new URL(request.url); let target: SavedTarget;
+  try { target = parseSavedTarget(url.pathname); } catch { return response; }
+  if (!/^\/(?:places|observations|community\/events)\/[^/]+$/u.test(target.path)) return response;
+  const nonce = response.headers.get("content-security-policy")?.match(/'nonce-([^']+)'/)?.[1];
+  // Do not create an unusable action or weaken CSP on an unverified legacy template.
+  if (!nonce || !/^[A-Za-z0-9_+\/=-]{8,160}$/u.test(nonce)) return response;
+  let body: string;
+  try { body = await response.clone().text(); } catch { return response; }
+  if (!body.includes("</main>") || body.includes("data-zukan-save-action")) return response;
+  const lang = publicLangFromPath(url.pathname) ?? "ja";
+  const action = applyCspNonceToHtmlScripts(renderSavedReferenceAction(target.path, lang === "pt-br" ? "pt-BR" : lang), nonce);
+  const next = body.replace("</head>", `<style>${SAVED_REFERENCE_STYLES}</style></head>`).replace("</main>", `${action}</main>`);
+  const headers = new Headers(response.headers); headers.delete("content-length"); headers.delete("etag");
+  return new Response(next, { status: response.status, headers });
 }

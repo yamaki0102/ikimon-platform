@@ -133,7 +133,7 @@ test("member Home exposes a bounded in-app area update return", () => {
   assert.match(html, /追っている更新/u);
   assert.match(html, /\/api\/v1\/me\/alerts/u);
   assert.match(html, /triggerKind !== 'area_watch'/u);
-  assert.match(html, /slice\(0, 5\)/u);
+  assert.match(html, /slice\(0, 4\)/u);
   assert.match(html, /公開・確認済み/u);
 });
 

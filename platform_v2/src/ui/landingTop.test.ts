@@ -117,14 +117,14 @@ test("member Home shows only the viewer's recent records as its main record sect
   const nearby = observation("nearby-public", { observerUserId: "neighbor", displayName: "水辺の記録" });
   const html = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [latest, discovery], feed: [latest, nearby] }), true);
   const member = html.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || html;
-  assert.match(member, /data-home-primary-state="recent_memory"/);
+  assert.match(member, /data-home-primary-state="discovery"/);
   assert.match(member, /川沿いの夕景/);
   assert.doesNotMatch(member, /今日は何を残しますか？/);
   assert.match(member, /最近の記録/);
   assert.equal((member.match(/data-home-record-id="mine-latest"/g) || []).length, 1);
   assert.equal((member.match(/data-home-record-id="mine-discovery"/g) || []).length, 1);
   assert.equal((member.match(/data-home-record-id="nearby-public"/g) || []).length, 0);
-  assert.equal((member.match(/class="home-member-primary(?: |")/g) || []).length, 2);
+  assert.equal((member.match(/data-home-primary-active="true"/g) || []).length, 1);
   assert.doesNotMatch(member, /ツバメ かもしれません|近くで残された記録|monitoring|モニタリング/);
 });
 
@@ -140,32 +140,29 @@ test("member Home keeps AI and internal processing labels out of recent cards", 
 test("member empty state stays compact and hides internal processing state", () => {
   const emptyHtml = render("ja", snapshot({ viewerUserId: "viewer" }), true);
   const member = emptyHtml.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || emptyHtml;
-  assert.match(member, /最初の記録を残してみましょう/);
-  assert.match(member, /data-home-primary-state="first_record"/);
-  assert.equal((member.match(/data-global-record-trigger="photo"/g) || []).length, 1);
+  assert.match(member, /保存したもの/);
+  assert.match(member, /data-home-primary-state="discovery"/);
+  assert.equal((member.match(/data-global-record-trigger="photo"/g) || []).length, 0); // capture remains in the shell
   assert.doesNotMatch(member, /home-recent-section|home-discovery-section|home-nearby-section|home-places-section|home-next-section/);
   assert.doesNotMatch(member, /まだありません|0件|未記録|名前待ち/);
   const processingHtml = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [observation("processing", { observerUserId: "viewer", aiAssessmentStatus: "processing" })] }), true);
   assert.doesNotMatch(processingHtml, /写真からわかることを調べています/);
 });
 
-test("member Home exposes clear record, search, privacy, and collaboration paths", () => {
+test("member Home has stable discovery and private return entrances, not another settings dashboard", () => {
   const html = render("ja", snapshot({ viewerUserId: "viewer" }), true);
-  const member = html.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || html;
-  assert.match(member, /data-home-member-routes="record search privacy collaboration"/);
-  assert.match(member, /href="\/ja\/record"[^>]*data-home-member-route="record"/);
-  assert.match(member, /href="\/ja\/records\?view=mine"[^>]*data-home-member-route="search"/);
-  assert.match(member, /href="\/ja\/profile\/settings"[^>]*data-home-member-route="privacy"/);
-  assert.match(member, /href="\/ja\/community\/events"[^>]*data-home-member-route="collaboration"/);
-  assert.match(member, /記録する/);
-  assert.match(member, /自分の記録を探す/);
-  assert.match(member, /公開範囲を確認/);
-  assert.match(member, /観察会を見る/);
+  const member = html.slice(html.indexOf('data-home-view="member"'));
+  assert.match(member, /href="\/ja\/records\?view=saved"/);
+  assert.match(member, /href="\/ja\/records\?view=mine"/);
+  assert.match(member, /href="\/ja\/map\?tab=places"/);
+  assert.match(member, /href="\/ja\/community\/events"/);
+  assert.match(member, /<form[^>]+method="get"[^>]+action="\/records"/);
+  assert.doesNotMatch(member, /data-home-member-routes|profile\/settings/);
 });
 
 test("member recent records render photo, video, audio, memo, and multiple media accessibly", () => {
   const items = [
-    observation("photo", { observerUserId: "viewer" }),
+    observation("photo", { observerUserId: "viewer", photoCount: 3, photoUrls: ["a", "b", "c"] }),
     observation("video", { observerUserId: "viewer", librarySourceKind: "video", hasVideo: true }),
     observation("audio", { observerUserId: "viewer", librarySourceKind: "audio", hasAudio: true, photoUrl: null }),
     observation("memo", { observerUserId: "viewer", librarySourceKind: "note", photoUrl: null }),
@@ -177,7 +174,7 @@ test("member recent records render photo, video, audio, memo, and multiple media
   assert.match(html, /is-memo/);
   assert.match(html, />3 件のメディア</);
   assert.doesNotMatch(html, /<video|autoplay/);
-  assert.match(html, /loading="eager"/);
+  assert.match(html, /loading="lazy"/); // personal shelf no longer competes as a hero
 });
 
 test("guest Top media stays fail-closed for private, blocked, and blurred records", () => {
@@ -278,11 +275,11 @@ test("guest Top keeps the optional invited note and starts with the shared camer
 
 test("member Home is personal, continuation-oriented, and compact when empty", () => {
   const empty = render("ja", snapshot({ viewerUserId: "viewer" }), true);
-  assert.match(empty, /最初の記録を残してみましょう/);
+  assert.match(empty, /保存したもの/);
   assert.match(empty, /data-home-primary-state="draft_resume"/);
   assert.match(empty, /data-home-draft-owner="viewer"/);
   assert.match(empty, /data-global-record-trigger="photo"/);
-  assert.match(empty, /data-global-record-gallery-select/);
+  assert.doesNotMatch(empty, /data-global-record-gallery-select/); // use the existing shell capture launcher
   assert.match(empty, /href="\/ja\/map\?tab=places"/);
   assert.match(empty, /ikimon-home-section:member-primary:start/);
   assert.match(empty, /ikimon-home-section:member-recent:start/);
@@ -323,11 +320,11 @@ test("member Home is personal, continuation-oriented, and compact when empty", (
       participantCount: 3,
     }],
   }), true);
-  assert.match(populated, /この前の記録/);
+  assert.match(populated, /保存したもの/);
   assert.match(populated, /関わっている場所の変化/);
-  assert.match(populated, /次の活動/);
-  assert.match(populated, /今を撮る/);
-  assert.match(populated, /data-home-primary-state="recent_memory"/);
+  assert.doesNotMatch(populated, /home-next-section/);
+  assert.match(populated, /最近の記録/);
+  assert.match(populated, /data-home-primary-state="discovery"/);
   const populatedMember = populated.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || populated;
   assert.doesNotMatch(populatedMember, /都田夏祭り|data-home-primary-state="active_context"/);
   assert.doesNotMatch(populatedMember, /近くで残された記録/);
@@ -351,11 +348,11 @@ test("member Home never promotes nearby Program or event context into the person
   }), true);
 
   const member = html.match(/<div class="home-state-view is-member"[\s\S]*?<\/div><\/div>$/)?.[0] || html;
-  assert.match(member, /data-home-primary-state="first_record"[^>]*data-home-primary-active="true"/);
+  assert.match(member, /data-home-primary-state="discovery"[^>]*data-home-primary-active="true"/);
   assert.doesNotMatch(member, /data-home-primary-state="active_context"|都田夏祭り|次の活動/);
 });
 
-test("member Home orders one continuation, recent records, past comparison, place change, and one next action", () => {
+test("member Home keeps discovery, four recent records and place return without adding task or comparison shelves", () => {
   const items = Array.from({ length: 8 }, (_, index) => observation(`mine-${index + 1}`, {
     observerUserId: "viewer",
     observedAt: `202${6 - Math.floor(index / 4)}-07-${String(20 - index).padStart(2, "0")}T08:30:00.000Z`,
@@ -400,17 +397,15 @@ test("member Home orders one continuation, recent records, past comparison, plac
   const order = [
     member.indexOf("ikimon-home-section:member-primary:start"),
     member.indexOf("home-recent-section"),
-    member.indexOf("home-past-section"),
     member.indexOf("home-places-section"),
-    member.indexOf("home-next-section"),
   ];
   assert.ok(order.every((index) => index >= 0));
   assert.deepEqual(order.slice().sort((a, b) => a - b), order);
   assert.equal((member.match(/data-home-primary-active="true"/g) || []).length, 1);
-  assert.match(member, /同じ場所の過去/);
+  assert.doesNotMatch(member, /home-past-section/);
   assert.match(member, /関わっている場所の変化/);
-  assert.equal((member.match(/data-home-next-action/g) || []).length, 1);
-  assert.match(member, /次は「水辺の様子」を確かめる/);
+  assert.equal((member.match(/data-home-next-action/g) || []).length, 0);
+  assert.match(member, /href="\/ja\/records\?view=mine"/);
   assert.doesNotMatch(member, /表示してはいけないQuest|hidden-program|34\.712345|137\.723456|latitude|longitude/);
 });
 
@@ -434,7 +429,7 @@ test("member Home excludes sensitive records from automatic photo surfaces", () 
 
   assert.doesNotMatch(html, /\/media\/private-home\.jpg/);
   assert.doesNotMatch(html, /自宅の記録/);
-  assert.match(html, /data-home-primary-state="recent_memory"/);
+  assert.match(html, /data-home-primary-state="discovery"/);
   assert.match(html, /href="\/ja\/records\?view=mine"/);
   assert.doesNotMatch(html, /data-home-primary-state="first_record"[^>]*data-home-primary-active="true"/);
 });
@@ -450,7 +445,7 @@ test("member Home keeps a private owner photo useful without exposing its place"
   });
   const html = render("ja", snapshot({ viewerUserId: "viewer", myFeed: [privateRecord] }), true);
 
-  assert.match(html, /data-home-primary-state="recent_memory"/);
+  assert.match(html, /data-home-primary-state="discovery"/);
   assert.match(html, /\/media\/private-owner\.jpg/);
   assert.match(html, /家族との思い出/);
   assert.doesNotMatch(html, /非公開の場所|浜松市/);

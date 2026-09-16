@@ -562,3 +562,7 @@ This adopted design refines §8 without replacing §16's read-first layout, shar
 - When there is no authorized relevant content, show the honest empty/unavailable state. Do not require NOCOSIL registration or a complete facility catalog before visitors can read, post or participate.
 
 Acceptance: [AJ03/04/21/41–60](https://github.com/yamaki0102/all-projects-management/blob/main/operations/decisions/2026-09-05-participation-acceptance-v1.md) as relevant to the changed surface. Design adoption does not make any new control implemented or runtime-active.
+
+## 2026-09-17 — Quiet discovery and personal continuity
+
+The logged-in cross-surface Home and private saved-reference delta are governed by `docs/spec/zukan-app-experience/QUIET_DISCOVERY_PERSONAL_CONTINUITY_V1.md` (relative to repository root). This narrowly supersedes compulsory recent-photo/next-task dominance, not specialist/capture/rights behavior. Automatic NOCOSIL account linking and ongoing synchronization are separate unverified boundaries, not implied by export.
