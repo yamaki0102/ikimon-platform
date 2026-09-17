@@ -65,13 +65,13 @@ test("staging and production identity remain safe without the shadow-only bindin
   }
 });
 
-test("shadow config is the only config with the candidate toolchain flags", async () => {
+test("environment configs carry only the compatibility flags they require", async () => {
   const config = JSON.parse(await readFile(configPath, "utf8")) as Record<string, any>;
   assert.equal(config.env.shadow.compatibility_date, "2026-09-09");
   assert.deepEqual(config.env.shadow.compatibility_flags, ["new_module_registry"]);
   assert.deepEqual(config.env.shadow.version_metadata, { binding: "CF_VERSION_METADATA" });
-  assert.equal(config.env.staging.compatibility_flags, undefined);
-  assert.equal(config.env.production.compatibility_flags, undefined);
+  assert.deepEqual(config.env.staging.compatibility_flags, ["nodejs_compat"]);
+  assert.deepEqual(config.env.production.compatibility_flags, ["nodejs_compat"]);
   assert.equal(config.env.production.version_metadata, undefined);
 });
 test("package pins the candidate Wrangler and matching Workers types", async () => {
