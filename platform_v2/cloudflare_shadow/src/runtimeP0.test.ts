@@ -67,6 +67,13 @@ test("staging and production identity remain safe without the shadow-only bindin
 
 test("environment configs carry only the compatibility flags they require", async () => {
   const config = JSON.parse(await readFile(configPath, "utf8")) as Record<string, any>;
+  assert.equal(config.find_additional_modules, true);
+  assert.equal(config.base_dir, "../src/content");
+  assert.equal(config.preserve_file_names, true);
+  assert.deepEqual(config.rules, [
+    { type: "Data", globs: ["short/**/*.json"], fallthrough: false },
+    { type: "Text", globs: ["longform/**/*.md"], fallthrough: false },
+  ]);
   assert.equal(config.env.shadow.compatibility_date, "2026-09-09");
   assert.deepEqual(config.env.shadow.compatibility_flags, ["new_module_registry"]);
   assert.deepEqual(config.env.shadow.version_metadata, { binding: "CF_VERSION_METADATA" });
