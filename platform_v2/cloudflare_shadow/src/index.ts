@@ -1,3 +1,5 @@
+import { handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
+import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 import { FRONTEND_FOUNDATION_CSS } from "../../src/ui/frontendFoundation";
@@ -228,6 +230,7 @@ interface WorkersAiBinding {
 }
 
 interface Env {
+  ZUKAN_QUIET_HOME_MODE?: string;
   CORE_DB: D1Database;
   OBS_DB: D1Database;
   ASSET_BUCKET: R2Bucket;
@@ -2459,7 +2462,7 @@ export function isPublicAiReferencePath(pathname: string): boolean {
 export function withAiContentPolicy(response: Response, request: Request, env: Pick<Env, "ENVIRONMENT">): Response {
   const url = new URL(request.url);
   const credentialed = Boolean(request.headers.get("authorization") || request.headers.get("cookie"));
-  const privateView = url.searchParams.get("view") === "mine";
+  const privateView = url.searchParams.get("view") === "mine" || url.searchParams.get("view") === "saved";
   const publicReference = env.ENVIRONMENT === "production"
     && (request.method === "GET" || request.method === "HEAD")
     && response.ok
@@ -2806,6 +2809,10 @@ export const worker = {
 
       const fieldRegistryResponse = await handleObservationFieldRegistryRuntime(request, url, env);
       if (fieldRegistryResponse) return fieldRegistryResponse;
+
+      if (nativePathname === "/api/v1/me/saved") {
+        return handleSavedItemsRequest(request, env.CORE_DB, await readCompatibleSession(request, env));
+      }
 
       const placeMemoryResponse = await handlePlaceMemoryRuntime(request, url, env);
       if (placeMemoryResponse) return placeMemoryResponse;
@@ -24914,7 +24921,7 @@ function isRecordsHtmlPath(pathname: string): boolean {
 function isNativeRecordsProductView(url: URL): boolean {
   if (!isRecordsHtmlPath(url.pathname)) return false;
   const view = String(url.searchParams.get("view") ?? "").trim();
-  return view === "" || view === "public" || view === "mine";
+  return view === "" || view === "public" || view === "mine" || view === "saved";
 }
 
 function recordsProductText(value: unknown): string {
@@ -24964,7 +24971,8 @@ export function renderRecordsProductSection(
   url: URL,
   mode: "mine" | "public",
   session: SessionSnapshot | null,
-  unavailable = false
+  unavailable = false,
+  savedStates: Map<string, SavedItem> | null = null
 ): string {
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
@@ -24977,7 +24985,11 @@ export function renderRecordsProductSection(
   const cards = unavailable
     ? `<div class="cf-records-native-empty" role="status"><strong>${isJapanese ? "記録を読み込めませんでした。" : "Records could not be loaded."}</strong><p>${isJapanese ? "通信を確認して、もう一度お試しください。" : "Check the connection and try again."}</p><a href="${escapeHtml(url.pathname + url.search)}">${isJapanese ? "もう一度読み込む" : "Try again"}</a></div>`
     : items.length > 0
-    ? `<div class="cf-records-native-grid">${items.map((item) => renderRecordsProductCard(item, prefix, lang, mode)).join("")}</div>`
+    ? `<div class="cf-records-native-grid">${items.map((item) => {
+          const card = renderRecordsProductCard(item, prefix, lang, mode);
+          if (!session || savedStates === null) return card;
+          return `<div class="zs-card">${card}${renderSavedControl({ kind: "record", objectId: item.visitId, path: `/observations/${item.visitId}`, title: item.isAwaitingId ? quietHomeCopy[lang].record : (normalizeOptionalText(item.displayName) ?? quietHomeCopy[lang].record) }, lang, savedStates.get(item.visitId) ?? null)}</div>`;
+        }).join("")}</div>`
     : `<div class="cf-records-native-empty"><strong>${escapeHtml(query
       ? (isJapanese ? `「${query}」に合う記録は見つかりませんでした。` : `No records matched “${query}”.`)
       : (isJapanese ? "まだ記録はありません。" : "No records yet."))}</strong><a href="${escapeHtml(query ? `${prefix}/records?view=${mode}` : `${prefix}/record`)}">${escapeHtml(query ? (isJapanese ? "検索を解除" : "Clear search") : (isJapanese ? "写真から記録する" : "Create a record"))}</a></div>`;
@@ -24986,17 +24998,19 @@ export function renderRecordsProductSection(
       .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#143f2e;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#143f2e;background:#143f2e;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#143f2e;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;height:104px;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.75rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.8rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#143f2e;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty a{min-height:44px;display:inline-flex;align-items:center;padding:0 16px;border-radius:999px;background:#143f2e;color:#fff;font-weight:850;text-decoration:none}.cf-records-native :is(a,button,input):focus-visible{outline:3px solid #ebb72f;outline-offset:3px}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
     </style>
     <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${isJapanese ? "自分の記録" : "Your records"}</a>` : ""}${session ? `<a href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${isJapanese ? "みんなの記録" : "Community records"}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${isJapanese ? "記録を検索" : "Search records"}" aria-label="${isJapanese ? "記録を検索" : "Search records"}"><button type="submit">${isJapanese ? "探す" : "Search"}</button></form></header>
+    ${session && savedStates !== null ? `<a class="qh-entrances" href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a>` : ""}
     ${cards}
+    ${session && savedStates !== null ? `<style>${QUIET_HOME_STYLES}</style>${renderSavedItemsScript(lang)}` : ""}
   </section>`;
 }
 
 async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env): Promise<Response> {
   const session = await readCompatibleSession(request, env).catch(() => null);
-  const requestedMode = url.searchParams.get("view") === "mine" ? "mine" : "public";
+  const requestedMode = url.searchParams.get("view") === "saved" ? "saved" : url.searchParams.get("view") === "mine" ? "mine" : "public";
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  if (requestedMode === "mine" && (!session || session.banned)) {
-    return redirect303(`${prefix}/login?redirect=${encodeURIComponent(`${prefix}/records?view=mine`)}`, { "cache-control": "no-store" });
+  if (requestedMode !== "public" && (!session || session.banned)) {
+    return redirect303(`${prefix}/login?redirect=${encodeURIComponent(`${prefix}/records?view=${requestedMode}`)}`, { "cache-control": "no-store" });
   }
   let object: MaterializedR2ObjectBody | null = null;
   for (const key of originalUiHtmlKeysForRequest(new URL(`${url.origin}${prefix}/records`))) {
@@ -25005,14 +25019,17 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
   }
   if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
   const query = recordsProductText(String(url.searchParams.get("q") ?? "").slice(0, 80));
-  const sourceItems = requestedMode === "mine"
+  const sourceItems = requestedMode === "saved" ? [] : requestedMode === "mine"
     ? await ownerHomeRecordCards(session!.userId, env, 120).catch(() => null)
     : await recentPublicRecordCards(env, 120).catch(() => null);
   const items = (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
   const cspNonce = createHtmlCspNonce();
   let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   html = html.replace(/<form class="site-search\b[^"]*"[\s\S]*?<\/form>/gi, "");
-  const section = renderRecordsProductSection(items, url, requestedMode, session, sourceItems === null);
+  const section = requestedMode === "saved"
+    ? renderSavedPage(await listSavedItems(env.CORE_DB, session!.userId, { limit: 30, ...(url.searchParams.has("cursor") ? { cursor: url.searchParams.get("cursor")! } : {}) }).catch(() => null), lang)
+    : renderRecordsProductSection(items, url, requestedMode, session, sourceItems === null,
+      session && !session.banned ? await savedRecordStates(env.CORE_DB, session.userId, items.map(item => item.visitId)).catch(() => null) : null);
   if (/<main\b[^>]*>[\s\S]*?<\/main>/i.test(html)) {
     html = html.replace(/<main\b([^>]*)>[\s\S]*?<\/main>/i, `<main$1>${section}</main>`);
   } else if (/<\/body>/i.test(html)) {
@@ -25250,7 +25267,21 @@ export async function injectStateSplitHome(html: string, session: SessionSnapsho
   const member = Boolean(session && !session.banned);
   let next = setStateHomeAuth(html, member);
   if (!member || !session) return next;
+  next = next.replace(/(data-home-view="member"[^>]*data-home-draft-owner=")[^"]*"/,
+    (_match, prefix: string) => `${prefix}${escapeHtml(session.userId)}"`);
 
+  if (env.ZUKAN_QUIET_HOME_MODE === "enabled") {
+    const [saved, ownerItems] = await Promise.all([
+      listSavedItems(env.CORE_DB, session.userId, { limit: 3 }).catch(() => null),
+      ownerHomeRecordCards(session.userId, env, 3).catch(() => null)
+    ]);
+    next = replaceStateHomeMarker(next, "section", "member-primary", renderQuietHome({ lang, saved,
+      recentHtml: (ownerItems ?? []).map(item => stateHomeOwnerCard(item, lang)).join(""), recordsUnavailable: ownerItems === null }));
+    for (const section of ["member-routes", "member-recent", "member-discovery", "member-place", "member-next"]) {
+      next = replaceStateHomeMarker(next, "section", section, "");
+    }
+    return next;
+  }
   const ownerItems = await ownerHomeRecordCards(session.userId, env, 24).catch(() => []);
   const recent = ownerItems[0] ?? null;
   const copy = stateHomeCopy(lang);
@@ -26775,6 +26806,34 @@ async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<
   return json({ ok: true, observation: detail }, 200, { "cache-control": "no-store" });
 }
 
+function renderObservationSavedContinuity(
+  detail: PublicObservationDetail,
+  session: SessionSnapshot | null,
+  savedStates: Map<string, SavedItem> | null,
+  lang: "ja" | "en" | "es" | "pt-br",
+): { controlHtml: string; scriptHtml: string } {
+  if (!session || session.banned || !savedStates) return { controlHtml: "", scriptHtml: "" };
+  const control = renderSavedControl({
+    kind: "record",
+    objectId: detail.visitId,
+    path: `/observations/${detail.visitId}`,
+    title: detail.displayName,
+  }, lang, savedStates.get(detail.visitId) ?? null);
+  return {
+    controlHtml: `<div class="of-saved-control">${control}</div>`,
+    scriptHtml: `<style>.of-saved-control{display:grid;gap:6px;align-content:start}.of-saved-control .zs-control{min-height:44px;border:1px solid var(--line);border-radius:999px;padding:9px 15px;background:#fff;color:var(--ink);font:inherit;font-weight:850;cursor:pointer}.of-saved-control .zs-control[aria-pressed="true"]{border-color:var(--green);background:var(--soft)}.of-saved-control .zs-control:disabled{cursor:wait}</style><p class="of-status zs-status" data-zukan-saved-status aria-live="polite"></p>${renderSavedItemsScript(lang)}`,
+  };
+}
+
+function injectLegacyObservationSavedContinuity(html: string, saved: { controlHtml: string; scriptHtml: string }): string {
+  if (!saved.controlHtml) return html;
+  const anchor = '<div class="obs-reading-kicker">';
+  const withControl = html.includes(anchor)
+    ? html.replace(anchor, `${saved.controlHtml}${anchor}`)
+    : html;
+  return withControl.replace('</body>', `${saved.scriptHtml}</body>`);
+}
+
 async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env): Promise<Response> {
   const session = await readCompatibleSession(request, env).catch(() => null);
   const ownerStatus = session && !session.banned
@@ -26792,6 +26851,11 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     }
     return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
   }
+  const detailLang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const savedStates = session && !session.banned
+    ? await savedRecordStates(env.CORE_DB, session.userId, [detail.visitId]).catch(() => null)
+    : null;
+  const savedContinuity = renderObservationSavedContinuity(detail, session, savedStates, detailLang);
   const cspNonce = createHtmlCspNonce();
   if (observationReadCutoverEnabled(env)) {
     const observationFirst = await loadObservationFirstRecordDetail(detailIdToVisitId(rawId), session?.userId ?? null, env)
@@ -26848,6 +26912,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiNextPhoto: detail.nextPhoto,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
+        savedControlHtml: savedContinuity.controlHtml,
+        savedScriptHtml: savedContinuity.scriptHtml,
         publicationReturn: observationFirst.publicationReturn,
       }), cspNonce), 200, {
         ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
@@ -26856,7 +26922,11 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       });
     }
   }
-  return html(applyCspNonceToHtmlScripts(renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce), cspNonce), 200, {
+  const legacyDetailHtml = injectLegacyObservationSavedContinuity(
+    renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce),
+    savedContinuity,
+  );
+  return html(applyCspNonceToHtmlScripts(legacyDetailHtml, cspNonce), 200, {
     ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
     "cache-control": "no-store",
   });
@@ -36491,7 +36561,7 @@ ${headerBlock}
   </section>
 </main>
 ${polish?.previewDialog ?? ""}
-${polish?.previewScript ?? ""}
+  ${polish?.previewScript ?? ""}
 </body>
 </html>`;
 }

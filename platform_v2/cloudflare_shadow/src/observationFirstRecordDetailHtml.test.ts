@@ -53,6 +53,22 @@ test("detection presentation is derived only from durable assessment facts", () 
   assert.equal(resolveObservationFirstDetectionState(0, null, null), null);
 });
 
+test("authenticated detail can carry the private Saved control without changing record meaning", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    title: "庭の観察",
+    observedLabel: "2026年7月22日 18:00",
+    note: null,
+    media: [],
+    actionNonce: "nonce-saved",
+    viewerAuthenticated: true,
+    savedControlHtml: '<button data-zukan-save aria-pressed="false"><span>保存</span></button>',
+    savedScriptHtml: '<script>window.savedContinuityFixture = true;</script>',
+  });
+  assert.match(rendered, /data-zukan-save/);
+  assert.match(rendered, /savedContinuityFixture/);
+  assert.doesNotMatch(rendered, /予約|応募|参加の申込み/);
+});
+
 test("generic imported placeholders do not override a durable no-biota result", () => {
   const placeholder: ObservationFirstRecordDetail["observations"][number] = {
     observationId: "placeholder",
