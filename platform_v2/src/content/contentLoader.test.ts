@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -29,6 +30,15 @@ test("content roots fall back to the Worker virtual filesystem for bundled modul
     shortRoot: "/bundle/short",
     longformRoot: "/bundle/longform",
   });
+});
+
+test("Worker invasive species seed stays byte-identical to the canonical seed", () => {
+  const canonical = readFileSync(new URL("../../db/seeds/invasive_species_seed.ja.json", import.meta.url));
+  const bundled = readFileSync(new URL("./runtime/invasive_species_seed.ja.json", import.meta.url));
+  assert.equal(
+    createHash("sha256").update(bundled).digest("hex"),
+    createHash("sha256").update(canonical).digest("hex"),
+  );
 });
 
 test("content store loads canonical ja and partial fallback languages", () => {

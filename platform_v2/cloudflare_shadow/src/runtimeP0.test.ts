@@ -71,7 +71,7 @@ test("environment configs carry only the compatibility flags they require", asyn
   assert.equal(config.base_dir, "../src/content");
   assert.equal(config.preserve_file_names, true);
   assert.deepEqual(config.rules, [
-    { type: "Data", globs: ["short/**/*.json"], fallthrough: false },
+    { type: "Data", globs: ["short/**/*.json", "runtime/invasive_species_seed.ja.json"], fallthrough: false },
     { type: "Text", globs: ["longform/**/*.md"], fallthrough: false },
   ]);
   assert.equal(config.env.shadow.compatibility_date, "2026-09-09");
