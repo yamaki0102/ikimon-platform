@@ -24,6 +24,13 @@ test("fallbackChain keeps requested language before canonical ja", () => {
   assert.deepEqual(fallbackChain("pt-BR"), ["pt-BR", "ja"]);
 });
 
+test("content roots fall back to the Worker virtual filesystem for bundled modules", () => {
+  assert.deepEqual(resolveContentRoots("publicPresentationEntry.js"), {
+    shortRoot: "/bundle/short",
+    longformRoot: "/bundle/longform",
+  });
+});
+
 test("content store loads canonical ja and partial fallback languages", () => {
   const store = createContentStore();
   const jaPublic = store.short.ja.public as any;

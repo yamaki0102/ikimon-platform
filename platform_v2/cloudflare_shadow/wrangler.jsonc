@@ -3,6 +3,21 @@
   "name": "ikimon-life-cloudflare-shadow-lab",
   "main": "src/publicPresentationEntry.ts",
   "compatibility_date": "2026-06-15",
+  "find_additional_modules": true,
+  "base_dir": "../src/content",
+  "preserve_file_names": true,
+  "rules": [
+    {
+      "type": "Data",
+      "globs": ["short/**/*.json"],
+      "fallthrough": false
+    },
+    {
+      "type": "Text",
+      "globs": ["longform/**/*.md"],
+      "fallthrough": false
+    }
+  ],
   "observability": {
     "enabled": true
   },

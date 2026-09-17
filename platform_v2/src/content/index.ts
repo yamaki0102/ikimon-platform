@@ -258,13 +258,27 @@ export type ContentRoots = {
 
 const LANGS: SiteLang[] = ["ja", "en", "es", "pt-BR"];
 const NAMESPACES: ContentNamespace[] = ["shared", "public", "specialist", "ops"];
+const WORKER_CONTENT_ROOT = "/bundle";
 
 export function resolveContentRoots(moduleUrl = import.meta.url): ContentRoots {
-  const contentRoot = fileURLToPath(new URL("./", moduleUrl));
-  return {
-    shortRoot: join(contentRoot, "short"),
-    longformRoot: join(contentRoot, "longform"),
-  };
+  let contentRoot = WORKER_CONTENT_ROOT;
+  let workerBundleRoot = true;
+  try {
+    contentRoot = fileURLToPath(new URL("./", moduleUrl));
+    workerBundleRoot = false;
+  } catch {
+    // Cloudflare's bundled entrypoint does not expose a file URL for this
+    // inlined module. Additional content modules are mounted under /bundle.
+  }
+  return workerBundleRoot
+    ? {
+        shortRoot: `${WORKER_CONTENT_ROOT}/short`,
+        longformRoot: `${WORKER_CONTENT_ROOT}/longform`,
+      }
+    : {
+        shortRoot: join(contentRoot, "short"),
+        longformRoot: join(contentRoot, "longform"),
+      };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
