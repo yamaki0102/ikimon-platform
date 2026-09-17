@@ -1,0 +1,53 @@
+﻿{
+    "success":  false,
+    "status":  "partial",
+    "task_id":  "zukan-invasive-seed-vfs-verify-20260917",
+    "target":  "D:\\CodexManagedWorktrees\\ark-native\\scratch\\zukan-invasive-seed-vfs-verify-20260917-review.md",
+    "review_focus":  "P0/P1 correctness, Cloudflare Worker VFS runtime safety, canonical data ownership, privacy and release risk",
+    "claude":  {
+                   "status":  "ok",
+                   "model_used":  "opus",
+                   "prompt_variant_used":  "full",
+                   "review_path":  "E:\\Projects\\_agent_scratch\\claude-latest-review\\zukan-invasive-seed-vfs-verify-20260917\\claude-review-20260917-110507.md",
+                   "meta_path":  "E:\\Projects\\_agent_scratch\\claude-latest-review\\zukan-invasive-seed-vfs-verify-20260917\\claude-review-20260917-110507.meta.json",
+                   "safe_mode":  true
+               },
+    "gemini":  {
+                   "success":  false,
+                   "auth_mode":  "antigravity_google_account",
+                   "billing_mode":  "antigravity_account_plan_non_api",
+                   "intended_account_plan":  "google_ai_pro",
+                   "account_plan_verified":  false,
+                   "api_key_available_to_child":  false,
+                   "paid_credit_fallback_enabled":  false,
+                   "use_g1_credits":  false,
+                   "model_used":  null,
+                   "task_id":  "zukan-invasive-seed-vfs-verify-20260917-gemini-subscription",
+                   "target":  "zukan-invasive-seed-vfs-verify-20260917-review.md",
+                   "review_focus":  "P0/P1 correctness, Cloudflare Worker VFS runtime safety, canonical data ownership, privacy and release risk",
+                   "prompt_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\zukan-invasive-seed-vfs-verify-20260917-gemini-subscription\\prompt.md",
+                   "review_path":  null,
+                   "model_candidates":  [
+                                            ""
+                                        ],
+                   "attempts":  [
+                                    {
+                                        "requested_model":  "",
+                                        "model":  "gemini-3.5-flash-low",
+                                        "exit_code":  1,
+                                        "timed_out":  false,
+                                        "status":  "ERROR",
+                                        "raw_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\zukan-invasive-seed-vfs-verify-20260917-gemini-subscription\\response-gemini-3.5-flash-low.json.txt",
+                                        "stderr_path":  "E:\\Projects\\_agent_scratch\\gemini-latest-review\\zukan-invasive-seed-vfs-verify-20260917-gemini-subscription\\stderr-gemini-3.5-flash-low.txt"
+                                    }
+                                ],
+                   "generated_at":  "2026-09-17T11:07:38.3685845+09:00"
+               },
+    "evidence":  {
+                     "repo_root":  "D:\\CodexManagedWorktrees\\ark-native\\worktrees\\zukan-invasive-seed-vfs-verify-20260917",
+                     "relative_dir":  "operations\\ai_os\\external_review_evidence\\2026-09\\zukan-invasive-seed-vfs-verify-20260917\\20260917-110738",
+                     "absolute_dir":  "D:\\CodexManagedWorktrees\\ark-native\\worktrees\\zukan-invasive-seed-vfs-verify-20260917\\operations\\ai_os\\external_review_evidence\\2026-09\\zukan-invasive-seed-vfs-verify-20260917\\20260917-110738",
+                     "github_status":  "pending_commit"
+                 },
+    "generated_at":  "2026-09-17T11:07:38.4537119+09:00"
+}
