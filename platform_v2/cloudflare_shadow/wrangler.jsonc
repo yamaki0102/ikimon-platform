@@ -9,7 +9,7 @@
   "rules": [
     {
       "type": "Data",
-      "globs": ["short/**/*.json", "runtime/**/*.json"],
+      "globs": ["short/**/*.json", "runtime/invasive_species_seed.ja.json"],
       "fallthrough": false
     },
     {
