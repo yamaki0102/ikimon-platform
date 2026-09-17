@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 export type InvasiveSpeciesCategory = "iaspecified" | "priority" | "industrial" | "prevention" | "native" | string;
 
@@ -37,7 +38,15 @@ export type InvasiveSpeciesCatalogItem = {
   groupLabel: string;
 };
 
-const seedUrl = new URL("../../db/seeds/invasive_species_seed.ja.json", import.meta.url);
+const seedPath = (() => {
+  try {
+    return fileURLToPath(new URL("../../db/seeds/invasive_species_seed.ja.json", import.meta.url));
+  } catch {
+    // Cloudflare's module VFS does not expose a file URL for import.meta.url.
+    // The release bundle materializes this canonical seed under the content VFS.
+    return "/bundle/runtime/invasive_species_seed.ja.json";
+  }
+})();
 
 export const INVASIVE_SPECIES_LIST_PATH = "/learn/invasive-species";
 
@@ -137,7 +146,7 @@ function toCatalogItem(record: SeedRecord): InvasiveSpeciesCatalogItem {
 }
 
 function loadCatalog(): InvasiveSpeciesCatalogItem[] {
-  const raw = readFileSync(seedUrl, "utf8");
+  const raw = readFileSync(seedPath, "utf8");
   const parsed = JSON.parse(raw) as SeedRecord[];
   return parsed
     .map(toCatalogItem)
