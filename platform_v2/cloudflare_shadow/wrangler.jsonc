@@ -166,6 +166,9 @@
     "staging": {
       "name": "ikimon-life-cloudflare-staging",
       "workers_dev": true,
+      "compatibility_flags": [
+        "nodejs_compat"
+      ],
       "routes": [
         {
           "pattern": "staging.zukan.earth",
@@ -257,6 +260,9 @@
     "production": {
       "name": "ikimon-life-cloudflare-prod",
       "workers_dev": true,
+      "compatibility_flags": [
+        "nodejs_compat"
+      ],
       "routes": [
         {
           "pattern": "zukan.earth",
