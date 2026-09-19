@@ -35,7 +35,7 @@ export type PublicProgramReceiverResult = {
   readonly body: Record<string, unknown>;
 };
 
-function receiverConfig(program: PublicProgram, digest: string) {
+function receiverConfig(program: PublicProgram, digest: string, confirmed: boolean) {
   return {
     schema: PUBLIC_PROGRAM_RECEIVER_SCHEMA,
     source: "nocosil",
@@ -45,8 +45,8 @@ function receiverConfig(program: PublicProgram, digest: string) {
     placeLabel: program.placeLabel,
     description: program.description,
     conditions: program.conditions,
-    public_listed: false,
-    program_receiver_private: true,
+    public_listed: confirmed,
+    program_receiver_private: !confirmed,
   };
 }
 
@@ -76,13 +76,33 @@ async function success(
     body: {
       schema: PUBLIC_PROGRAM_RECEIVER_SCHEMA,
       replayed,
-      publicationState: "created_private",
+      publicationState: session.config.public_listed === true ? "public" : "created_private",
       programId: session.sessionId,
       profile: program.profile,
       session,
       rally,
     },
   };
+}
+
+export function decodePublicProgramHandoffPayload(payload: string): PublicProgram {
+  const encoded = payload.trim();
+  if (!/^[A-Za-z0-9_-]{1,32768}$/u.test(encoded)) throw new ProgramInputError("handoff");
+  const normalized = encoded.replace(/-/gu, "+").replace(/_/gu, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  try {
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    return parsePublicProgram(parsed, true);
+  } catch (error) {
+    if (error instanceof ProgramInputError) throw error;
+    throw new ProgramInputError("handoff");
+  }
+}
+
+function publicEventCode(program: PublicProgram): string {
+  return ("P" + program.requestId.replace(/-/gu, "").slice(0, 7)).toUpperCase();
 }
 
 export async function receivePublicProgram(
@@ -102,6 +122,7 @@ export async function receivePublicProgram(
   }
 
   const digest = await programDigest(program);
+  const confirmPublication = dependencies.body.confirmPublication === true;
   const existing = await dependencies.loadSession(program.requestId);
   if (existing) {
     if (
@@ -110,10 +131,23 @@ export async function receivePublicProgram(
     ) {
       return { status: 409, body: { error: "public_program_idempotency_conflict" } };
     }
+    if (confirmPublication && existing.config.public_listed !== true) {
+      const confirmedConfig = receiverConfig(program, digest, true);
+      await dependencies.database.batch([
+        dependencies.database.prepare(
+          "UPDATE observation_event_sessions SET event_code = COALESCE(event_code, ?), config_json = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ? AND organizer_user_id = ?"
+        ).bind(publicEventCode(program), JSON.stringify(confirmedConfig), program.requestId, dependencies.actorUserId),
+      ]);
+      const promoted = await dependencies.loadSession(program.requestId);
+      if (!promoted || promoted.organizerUserId !== dependencies.actorUserId || !configMatches(promoted, program, digest) || promoted.config.public_listed !== true) {
+        return { status: 500, body: { error: "public_program_publication_readback_failed" } };
+      }
+      return success(dependencies, program, promoted, true);
+    }
     return success(dependencies, program, existing, true);
   }
 
-  const config = receiverConfig(program, digest);
+  const config = receiverConfig(program, digest, confirmPublication);
   const statements: PublicProgramReceiverStatement[] = [
     dependencies.database.prepare(
       "INSERT INTO observation_event_sessions ("
@@ -122,7 +156,7 @@ export async function receivePublicProgram(
       + "started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id"
       + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     ).bind(
-      program.requestId, null, null, program.title, dependencies.actorUserId, null,
+      program.requestId, null, confirmPublication ? publicEventCode(program) : null, program.title, dependencies.actorUserId, null,
       "community", "discovery", JSON.stringify(["discovery"]), null, null, 1000,
       program.startsAt, program.endsAt || null, JSON.stringify([]), JSON.stringify(config), null, null,
     ),

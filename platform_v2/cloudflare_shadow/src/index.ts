@@ -78,7 +78,8 @@ import {
 } from "./cloudflareObservationReadModel";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
-import { receivePublicProgram } from "./publicProgramReceiver";
+import { decodePublicProgramHandoffPayload, receivePublicProgram } from "./publicProgramReceiver";
+import { renderPublicProgramConfirmationBody } from "./publicProgramConfirmation";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { publicObservationAiCandidateInsights, publicObservationAiFeedback } from "./publicObservationAiPresentation";
@@ -4084,6 +4085,9 @@ function renderSyntheticRenriRallyInteractions(
 async function handleObservationEventPages(request: Request, url: URL, env: Env): Promise<Response | null> {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const pathname = stripPublicLangPrefix(url.pathname);
+  if (pathname === "/community/programs/confirm") {
+    return getPublicProgramConfirmationPage(request, url, env);
+  }
   if (pathname === "/community/events") {
     return getObservationEventListPage(request, env);
   }
@@ -4105,6 +4109,31 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
   const eventPageMatch = pathname.match(/^\/events\/([^/]+)\/(edit|live|rally|console|recap|report)$/);
   if (!eventPageMatch?.[1] || !eventPageMatch[2]) return null;
   return getObservationEventSessionPage(request, url, env, decodeURIComponent(eventPageMatch[1]), eventPageMatch[2]);
+}
+
+async function getPublicProgramConfirmationPage(request: Request, url: URL, env: Env): Promise<Response> {
+  const lang = publicLangFromPath(url.pathname) ?? "ja";
+  let program;
+  try {
+    program = decodePublicProgramHandoffPayload(url.searchParams.get("payload") ?? "");
+  } catch {
+    return observationEventPageHtml(
+      "公開内容を確認",
+      observationEventEmptyState("企画候補を読み込めません", "NOCOSILからもう一度、公開内容の確認を開いてください。"),
+      "program-confirmation-invalid",
+      400,
+      lang,
+      false,
+    );
+  }
+  const auth = await readCompatibleSession(request, env).catch(() => null);
+  const redirect = url.pathname + url.search;
+  const body = renderPublicProgramConfirmationBody({
+    program,
+    authenticated: Boolean(auth && !auth.banned),
+    loginHref: "/auth?redirect=" + encodeURIComponent(redirect),
+  });
+  return observationEventPageHtml("公開内容を確認", body, "program-confirmation", 200, lang, Boolean(auth && !auth.banned));
 }
 
 async function getObservationEventListPage(request: Request, env: Env): Promise<Response> {

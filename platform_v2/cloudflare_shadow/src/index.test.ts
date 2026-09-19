@@ -2340,6 +2340,15 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE observation_event_sessions SET event_code = COALESCE")) {
+      const row = requireRow(this.db.observationEventSessions, string(v[2]));
+      if (row.organizer_user_id !== string(v[3])) return { meta: { changes: 0 } };
+      row.event_code = row.event_code ?? string(v[0]);
+      row.config_json = string(v[1]);
+      row.updated_at = new Date().toISOString();
+      return { meta: { changes: 1 } };
+    }
+
     if (normalized.startsWith("UPDATE observation_event_sessions SET ended_at")) {
       const row = requireRow(this.db.observationEventSessions, string(v[0]));
       row.ended_at = row.ended_at ?? new Date().toISOString();
@@ -26174,6 +26183,24 @@ test("public Program receiver reuses canonical event/rally storage with auth, sa
   }), productionEnv);
   assert.equal(otherOwnerReplay.status, 409);
 
+  const confirmed = await worker.fetch(new Request(receiverUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ program: eventProgram, confirmPublication: true }),
+  }), productionEnv);
+  assert.equal(confirmed.status, 200);
+  const confirmedPayload = await confirmed.json() as any;
+  assert.equal(confirmedPayload.publicationState, "public");
+  assert.equal(confirmedPayload.session.config.public_listed, true);
+  assert.equal(confirmedPayload.session.config.program_receiver_private, false);
+  assert.match(confirmedPayload.session.eventCode, /^P[A-F0-9]{7}$/u);
+
+  const publicDirect = await worker.fetch(
+    new Request("https://ikimon.life/api/v1/observation-events/" + eventProgram.requestId),
+    productionEnv,
+  );
+  assert.equal(publicDirect.status, 200);
+
   const rallyProgram = {
     ...eventProgram,
     requestId: "22345678-1234-4123-8123-123456789abc",
@@ -26211,4 +26238,35 @@ test("public Program receiver reuses canonical event/rally storage with auth, sa
     productionEnv,
   );
   assert.equal(anonymousRally.status, 404);
+});
+
+test("Program confirmation page carries data only and requires native ZUKAN auth before explicit publication", async () => {
+  const { env } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const program = {
+    schema: "ikimon.public-program/v1", requestId: "42345678-1234-4123-8123-123456789abc",
+    profile: "event", title: "確認画面E2E", startsAt: "2026-10-21T01:00:00.000Z", endsAt: "",
+    timezone: "Asia/Tokyo", placeLabel: "浜松駅周辺", description: "確認用", conditions: "無料", stations: [],
+  };
+  const payload = Buffer.from(JSON.stringify(program), "utf8").toString("base64url");
+  const url = "https://ikimon.life/community/programs/confirm?payload=" + encodeURIComponent(payload);
+  const guest = await worker.fetch(new Request(url), productionEnv);
+  const guestHtml = await guest.text();
+  assert.equal(guest.status, 200);
+  assert.match(guestHtml, /ZUKANにログインして確認する/);
+  assert.doesNotMatch(guestHtml, /data-program-confirm>/);
+  assert.doesNotMatch(guestHtml, /nocosil.*token|bearer|cookie/iu);
+
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "program-confirm-owner", displayName: "Program Confirm Owner", ttlHours: 1 }),
+  }), env);
+  const cookie = issue.headers.get("set-cookie") ?? "";
+  const signed = await worker.fetch(new Request(url, { headers: { cookie } }), productionEnv);
+  const signedHtml = await signed.text();
+  assert.equal(signed.status, 200);
+  assert.match(signedHtml, /ZUKANで作成して公開する/);
+  assert.match(signedHtml, /confirmPublication:true/);
+  assert.match(signedHtml, /\/api\/v1\/programs\/receive/);
+  assert.doesNotMatch(signedHtml, /NOCOSIL.*(cookie|token|role)/iu);
 });
