@@ -1,6 +1,7 @@
 import { handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
+import { ProgramHandoverApplyRuntime } from "../../src/services/programHandoverApplyRuntime";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 import { FRONTEND_FOUNDATION_CSS } from "../../src/ui/frontendFoundation";
 import * as bcrypt from "bcryptjs";
@@ -3559,6 +3560,69 @@ function isPrivateReceivedProgram(
     && session.config.program_receiver_private === true;
 }
 
+async function applyObservationEventHandover(request: Request, env: Env, targetProgramId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const auth = await readCompatibleSession(request, env);
+  if (!auth) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const logicalAcceptanceId = normalizeOptionalText(body.logical_acceptance_id);
+  const acceptanceIdentity = normalizeOptionalText(body.acceptance_identity);
+  const tenantId = normalizeOptionalText(body.tenant_id);
+  const expectedTargetRevision = normalizeOptionalText(body.expected_target_revision);
+  const idempotencyKey = normalizeOptionalText(body.idempotency_key);
+  const actorAuditRef = normalizeOptionalText(body.actor_audit_ref);
+  if (!logicalAcceptanceId || !acceptanceIdentity || !tenantId || !expectedTargetRevision || !idempotencyKey || !actorAuditRef) {
+    return json({ error: "handover_apply_fields_required" }, 400, { "cache-control": "no-store" });
+  }
+  const runtime = new ProgramHandoverApplyRuntime(env.CORE_DB, env.OBS_DB);
+  const outcome = await runtime.apply({
+    tenantId,
+    workspaceId: normalizeOptionalText(body.workspace_id),
+    targetProgramId,
+    logicalAcceptanceId,
+    acceptanceIdentity,
+    actorUserId: auth.userId,
+    expectedTargetRevision,
+    idempotencyKey,
+    actorAuditRef,
+    occurredAt: new Date().toISOString(),
+  });
+  const status = outcome.status === "succeeded" || outcome.status === "replayed" ? 200
+    : outcome.status === "conflict" ? 409 : 422;
+  return json({ handover: outcome }, status, { "cache-control": "no-store" });
+}
+
+async function rollbackObservationEventHandover(request: Request, env: Env, targetProgramId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const auth = await readCompatibleSession(request, env);
+  if (!auth) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const logicalApplyId = normalizeOptionalText(body.logical_apply_id);
+  const applyIdentity = normalizeOptionalText(body.apply_identity);
+  const expectedTargetRevision = normalizeOptionalText(body.expected_target_revision);
+  const idempotencyKey = normalizeOptionalText(body.idempotency_key);
+  const actorAuditRef = normalizeOptionalText(body.actor_audit_ref);
+  if (!logicalApplyId || !applyIdentity || !expectedTargetRevision || !idempotencyKey || !actorAuditRef) {
+    return json({ error: "handover_rollback_fields_required" }, 400, { "cache-control": "no-store" });
+  }
+  const runtime = new ProgramHandoverApplyRuntime(env.CORE_DB, env.OBS_DB);
+  const outcome = await runtime.rollback({
+    targetProgramId,
+    logicalApplyId,
+    applyIdentity,
+    actorUserId: auth.userId,
+    expectedTargetRevision,
+    idempotencyKey,
+    actorAuditRef,
+    occurredAt: new Date().toISOString(),
+  });
+  const status = outcome.status === "succeeded" || outcome.status === "replayed" ? 200
+    : outcome.status === "conflict" ? 409 : 422;
+  return json({ handover: outcome }, status, { "cache-control": "no-store" });
+}
+
 async function privateReceivedProgramGuard(
   request: Request,
   env: Env,
@@ -3581,6 +3645,14 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
 
   if (request.method === "POST" && pathname === "/api/v1/observation-events") {
     return createObservationEventSession(request, env);
+  }
+  const handoverApplyMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/handover-apply$/);
+  if (request.method === "POST" && handoverApplyMatch?.[1]) {
+    return applyObservationEventHandover(request, env, decodeURIComponent(handoverApplyMatch[1]));
+  }
+  const handoverRollbackMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/handover-rollback$/);
+  if (request.method === "POST" && handoverRollbackMatch?.[1]) {
+    return rollbackObservationEventHandover(request, env, decodeURIComponent(handoverRollbackMatch[1]));
   }
   const privateSessionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)/);
   if (privateSessionMatch?.[1] && !["by-code", "area-suggestions"].includes(privateSessionMatch[1])) {
