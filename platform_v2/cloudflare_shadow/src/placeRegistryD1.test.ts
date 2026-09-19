@@ -17,6 +17,10 @@ const tokiwaImportSql = readFileSync(
   new URL("../../../ops/data/generated/universal_place_atlas_tokiwa_20260905.d1.sql", import.meta.url),
   "utf8",
 );
+const tokiwaRollbackSql = readFileSync(
+  new URL("../../../ops/data/generated/universal_place_atlas_tokiwa_20260905.rollback.d1.sql", import.meta.url),
+  "utf8",
+);
 type TokiwaAdoption = {
   source: {
     sourceDocumentSha256: string;
@@ -291,5 +295,41 @@ test("adopted Place import rejects all nullable expected-row drift under an atom
     } finally {
       sqlite.close();
     }
+  }
+});
+
+
+test("adopted Place fixed rollback removes only the untouched exact adoption and can re-import", async () => {
+  const { sqlite, db } = realPlaceDatabase();
+  try {
+    sqlite.exec("BEGIN");
+    sqlite.exec(tokiwaRollbackSql);
+    sqlite.exec("COMMIT");
+    assert.equal((sqlite.prepare("SELECT COUNT(*) AS count FROM places WHERE place_id = ?").get("plc_e3293ec4bb9288a0") as { count: number }).count, 0);
+    assert.equal((await searchD1PublicPlaces({ db, query: "常磐公園" })).results.length, 0);
+    sqlite.exec("BEGIN");
+    sqlite.exec(tokiwaImportSql);
+    sqlite.exec("COMMIT");
+    const restored = await searchD1PublicPlaces({ db, query: "Tokiwa Park" });
+    assert.equal(restored.results.length, 1);
+    assert.equal(restored.results[0]?.canonicalPlaceId, "plc_e3293ec4bb9288a0");
+    assert.deepEqual(sqlite.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally { sqlite.close(); }
+});
+
+test("adopted Place rollback fails closed after downstream use or adopted-row mutation", () => {
+  const mutations = [
+    (sqlite: DatabaseSync) => sqlite.prepare("INSERT INTO record_place_memberships (membership_id, record_id, place_id, membership_type, membership_state, derivation_source, calculation_version) VALUES (?, ?, ?, ?, ?, ?, ?)").run("membership-1", "record-1", "plc_e3293ec4bb9288a0", "inside", "confirmed", "test", "v1"),
+    (sqlite: DatabaseSync) => sqlite.prepare("UPDATE places SET public_summary = ?, updated_at = ? WHERE place_id = ?").run("changed after adoption", "2026-09-20T00:00:00Z", "plc_e3293ec4bb9288a0"),
+  ];
+  for (const mutate of mutations) {
+    const { sqlite } = realPlaceDatabase();
+    try {
+      mutate(sqlite);
+      sqlite.exec("BEGIN");
+      assert.throws(() => sqlite.exec(tokiwaRollbackSql), /CHECK constraint failed/);
+      sqlite.exec("ROLLBACK");
+      assert.equal((sqlite.prepare("SELECT COUNT(*) AS count FROM places WHERE place_id = ?").get("plc_e3293ec4bb9288a0") as { count: number }).count, 1);
+    } finally { sqlite.close(); }
   }
 });
