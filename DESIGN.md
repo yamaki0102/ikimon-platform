@@ -1,7 +1,7 @@
 # ZUKAN デザインルールブック
 
-Version: **1.0.0**  
-Decision date: **2026-09-11 JST**  
+Version: **1.1.0**  
+Decision date: **2026-09-20 JST**  
 Status: **ADOPTED / CANONICAL DESIGN — mainへのmergeをもって発効**  
 Canonical: **yamaki0102/ikimon-platform / DESIGN.md**  
 Scope: **ブランド表現・UI・コンテンツ・インタラクション・体験品質**
@@ -42,6 +42,14 @@ ZUKANは、生きものの同定アプリだけでも、地域別に量産する
 
 主な利用者は、初めて見る人、記録する人、参加する人、地域の記録を確かめる人。専門家、学校、自治体、企業、団体も使うが、最初の画面を専門家向けの管理コンソールにしない。熟練度は段階的な情報開示で扱い、国籍や年齢から能力を推測しない。
 
+### Design North Star
+
+> **今ここを知り、残し、次に関われる。**
+
+これは広告コピーではなく、画面設計の内部基準である。主要画面では、利用者がZUKAN固有のtaxonomyや内部用語を知らなくても、**何を見ているか／どこ・いつのことか／今どの状態か・何が未確認か／次に何ができるか**を理解できることを優先する。
+
+機能名やメニューより内容、分類より文脈、最初からやり直す導線より「続きへ戻る」導線を優先する。AI、地図、Program、Place Graph等の仕組みは、理解と行動を助ける場合だけ前面に出す。
+
 ### 大切にする五つの体験
 
 | 体験 | 利用者に返す価値 | 成立を確かめる問い |
@@ -54,7 +62,7 @@ ZUKANは、生きものの同定アプリだけでも、地域別に量産する
 
 初回価値を「登録した」「CTAを押した」だけで測らない。滞在時間、通知開封、投稿件数は補助情報であり、体験の目的そのものにしない。学習効果、地域活性化、生物多様性への効果は、記録・参加の成立と別に検証する。[P1][P2]
 
-## 2. 迷ったときの八原則
+## 2. 迷ったときの十二原則
 
 | ID | 原則 | 設計で選ぶこと | 選ばないこと |
 |---|---|---|---|
@@ -66,8 +74,51 @@ ZUKANは、生きものの同定アプリだけでも、地域別に量産する
 | ZD-06 | 場所と時間のつながりを保つ | 同じ対象の過去・別名・出典・訂正へ辿れるようにする | 最新情報で過去を消す、地域Viewごとに記録を複製する |
 | ZD-07 | 人の選択を奪わない | 読むだけ、非公開、後で、取り消すという選択を残す | 公開の誘導、連続投稿の圧力、過剰な通知 |
 | ZD-08 | 小さく一貫して作る | native、既存部品、共通トークンを優先する | ページ専用テーマ、顧客別UI基盤、不要な新ライブラリ |
+| ZD-09 | 分類より文脈を先に見せる | 対象、場所、時間、出所、現在状態を先に理解できる | Domain Packやカテゴリ選択を理解の前提にする |
+| ZD-10 | 再発見より復帰を優先する | 検索条件、地図範囲、下書き、参加対象、直前のPlaceへ戻せる | Homeへ戻して同じ対象を探し直させる |
+| ZD-11 | 一画面一主題にする | 主対象・主表示を一つにし、補助操作は段階的に開示する | map、card、dashboard、sheet、CTA群を同じ強さで重ねる |
+| ZD-12 | 探索から記録・参加・再訪をつなぐ | Record、Place、Program、自分の記録を同じ文脈で往復できる | 各機能を行き止まりにし、同じ情報を別画面で再入力させる |
 
 競合時は、**安全・本人の選択 → 内容理解と目的達成 → 一貫性・アクセス可能性 → ブランド表現 → 装飾**の順で判断する。楽しさは必要だが、誤認や操作不能を対価にしない。
+
+### 2.1 5秒テスト
+
+主要な公開・個人画面では、初見の人が短時間で次のうち該当するものを説明できることを目標にする。
+
+1. **何を見ているか** — Record、Place、Program、自分の記録、探索結果等の主対象。
+2. **どこ・いつのことか** — 場所、日時・期間、必要な場合は時刻帯。
+3. **今どの状態か** — 保存、未確認、確認済み、公開範囲、参加状態、取得失敗等。
+4. **次に何ができるか** — 主要行動は原則0–1個。
+5. **何が外へ出るか** — 公開・共有・参加申込み等、外部状態を変える操作では公開範囲・相手を理解できる。
+
+全画面で5項目すべてを表示するという意味ではない。**その画面の目的に必要な問いへ、内部taxonomyを学ばず答えられるか**を受入基準とする。
+
+### 2.2 Surface budget
+
+機能追加を、表示面・ナビゲーション・カードの追加と同義にしない。
+
+- 原則は **primary surface 1つ + 必要時のsidecar / sheet 1つ**。作成中のみcomposer / capture flowを主面としてよい。
+- 一つの状態で主要操作は0–1個、隣接する補助操作は最大2個を基本とする。詳細・稀な操作は段階的に開示する。
+- スマートフォンではmap・list・detailを「同時に全部見せる」のでなく、同じ探索文脈の表示切替として扱う。固定bottom navigation、撮影主行動、sheetが本文やエラーを隠さない。
+- Cardは情報の所有境界・繰り返し比較に意味がある場合に使う。sectionを全部card化しない。
+- 新しいDomain Pack、Program profile、Publication種別を追加しても、原則として最上位ナビ・専用dashboard・専用Homeを増やさない。
+- 参加者画面へ主催・管理・配信の操作群を常設しない。責務分離を保ち、必要な管理導線はNOCOSIL側の既存面へ渡す。
+
+### 2.3 外部プロダクトをどう参照するか — 競合コピー禁止
+
+外部プロダクトは、ZUKANの目的に効く**interaction pattern**を学ぶために参照する。見た目、情報量、事業モデル、engagement施策を一式で持ち込まない。
+
+| 領域 | 参照するもの | ZUKANが借りること | 持ち込まないこと |
+|---|---|---|---|
+| 観察・確認 | iNaturalist | Exploreのmap / list / grid切替、filterを保った探索、観察と同定・確認作業の分離 [C1] | 生物・taxon中心のIA、専門家向け確認UIを全利用者の標準にすること |
+| 場所探索・自分への返却 | Google Maps | Explore / You / Contributeの責務分離、保存した場所を本人へ返す構造、private保存と共有の区別 [C2] | 広告、星評価、商業ランキング、人気順を地域知識の真実度として扱うこと |
+| 個人記録 | Google Photos系の既存参照原則 | 写真を入口にし、少ない常設選択肢、過去の自然な再浮上、見返しから再訪へつなぐ [P1] | 汎用写真保管庫、滞在時間目的のMemories、公開SNS化 |
+| 参加 | Eventbrite等 | Discover → 申込み状態 → Tickets / 当日情報へ戻る明快な参加者journey [C3] | 販売conversion、follow・友人グラフ、根拠のない希少性や参加圧 |
+| 公開知識 | Wikimedia / Codex | Content First、Trustworthy、privacy、国際化・accessibilityを共通部品に埋め込む考え方 [C4] | 百科事典の高密度記事UIをPlace / Capture / Programへ一律適用すること |
+| 屋外・低速回線 | AllTrails等 | 保存済み対象へ戻れること、offline / degradedを通常条件として扱うこと [C5] | ルート案内・運動記録をZUKANの中心にすること、paid offlineを前提にすること |
+| 公共UI基盤 | DADS / USWDS | 予測可能なcontrol、明確なfocus/error、読みやすいtype/spacing、実利用者文脈での検証 [D1][U1] | 行政サイトの構成・語彙・権威表現をブランドごと移植すること |
+
+**「競合にあるから採用」は理由にならない。** Human Attention、再説明、再探索、待ち、誤操作、状態誤認を減らし、ZUKANのRecord / Place / Time / Evidence / Rightsを理解しやすくする場合だけ採用する。UIの類似そのものを目標にしない。
 
 ## 3. デジタル庁デザインシステムから何を採用するか
 
@@ -301,6 +352,21 @@ Webの性能目標は、実利用の75パーセンタイルで **LCP ≤ 2.5秒�
 
 まず影響範囲を選び、該当する条件だけを検証する。基盤を初めて実装・更新するときには代表的な広さと状態を確認し、局所的な文章修正へ全行列を毎回要求しない。[G1]
 
+### 10問のデザイン受入
+
+変更した面について、該当する問いに短く答えられない場合は実装前または受入前に設計を戻す。
+
+1. ZUKAN固有のtaxonomy・内部用語を知らなくても主対象を理解できるか。
+2. 5秒で、対象・場所/時間・現在状態・次の一歩のうち必要なものが分かるか。
+3. 実際のRecord、Place、Program、写真、資料が、UI chromeやAI演出より主役になっているか。
+4. 同じ状態で主要操作が複数競合していないか。
+5. 戻る・再開で検索条件、地図範囲、下書き、参加対象等の文脈を不必要に失わないか。
+6. 0件、未確認、取得失敗、権限不足、非公開、終了を同じ見た目・文言に潰していないか。
+7. 地図、AI、常時通信が使えなくても主要な閲覧・保存・復帰が成立するか。
+8. private / public、AI候補 / 人の確認、希望 / 申込み / 承認等を誤認させないか。
+9. 320pxを含む影響幅で、固定要素・長文・日本語改行・keyboard / safe-areaが主要内容を隠さないか。
+10. 新機能のためだけに最上位nav、tab、dashboard、card層、別デザインsystemを増やしていないか。
+
 ### 代表シナリオ
 
 | ID | シナリオ | 受入条件 |
@@ -349,7 +415,7 @@ Done: 該当するZD/QA、実データに近い状態と幅、結果・根拠・
 
 この一覧は制定時の出典。今後の実装はcurrent canonicalとの変更差分を確認する。記載した過去SHAを永続的な実装着手sourceに固定しない。
 
-### 外部一次資料 — 確認日 2026-09-11
+### 外部一次資料 — 確認日 2026-09-20
 
 - [D1] [デジタル庁：スタイルガイド](https://design.digital.go.jp/dads/guidance/style-guides/) — DADS v2.18.0のサイトを参照。ZUKAN独自のブランド・情報設計を重ねる根拠。
 - [D2] [デジタル庁：アクセシビリティ](https://design.digital.go.jp/dads/guidance/accessibility/) — 完成サービス側での対応責務。
@@ -363,5 +429,10 @@ Done: 該当するZD/QA、実データに近い状態と幅、結果・根拠・
 - [W6] [W3C：Understanding Reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html) — reflowと二次元コンテンツの例外。
 - [F1] [Google web.dev：Web Vitals](https://web.dev/articles/vitals) — LCP・INP・CLSの良好基準と75パーセンタイル。
 - [U1] [USWDS：Design Principles](https://designsystem.digital.gov/design-principles/) — 実際の利用者の文脈、信頼、アクセシビリティ、継続的な評価。
+- [C1] [iNaturalist：Explore / observation search](https://help.inaturalist.org/en/support/solutions/articles/151000198035-inaturalist-next-the-explore-screen) — map / list / gridとfilterを保った観察探索。Identifyは別の確認作業として分離される。
+- [C2] [Google Maps：Get started](https://support.google.com/maps/answer/144349?hl=en)／[Save favorite places](https://support.google.com/maps/answer/3184808?hl=en) — Explore / You / Contributeの責務分離と、private保存・共有の区別。
+- [C3] [Eventbrite：Using the Eventbrite app](https://www.eventbrite.com/help/en-us/articles/783059/) — Discover、registration、Tickets、当日確認へ戻る参加者journey。
+- [C4] [Wikimedia Codex：Design Principles](https://doc.wikimedia.org/codex/latest/style-guide/design-principles-overview.html) — Content First、Trustworthy、For Curious Humans。Codex current siteは国際化・accessibilityをdesign systemの機能として扱う。
+- [C5] [AllTrails：offline maps](https://support.alltrails.com/hc/en-us/articles/37213318235028-How-to-download-maps-to-your-phone-for-offline-use) — 屋外で接続がない状態でも保存済み対象へ戻る設計の参考。
 
 **世界標準を目指すとは、世界中で同じ見た目を押し付けることではない。誰が、どこで使っても、記録を失わず、意味を誤らず、自分の意思で地域に関われる共通品質を育てることである。** 本書はそのZUKAN内部の設計標準であり、国際標準団体の認定や全地域での検証済みという主張ではない。
