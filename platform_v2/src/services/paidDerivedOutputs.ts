@@ -1,4 +1,4 @@
-import type { TaxonInventory } from "./programPortabilityBoundary.js";
+import type { ObservationDataRights } from "./observationDataRights.js";
 
 export const PAID_DERIVED_OUTPUTS_SCHEMA = "zukan.paid-derived-outputs/v1" as const;
 
@@ -23,8 +23,7 @@ export function couponAccessBoundary(role: CouponAccessRole): {
 }
 
 export type CommercialUseRightsInput = {
-  copyrightOrLicense: boolean;
-  contributorConsent: boolean;
+  observationRights: ObservationDataRights;
   portraitAndPersonalData: boolean;
   minorConsent: boolean;
   commercialReusePermission: boolean;
@@ -36,12 +35,49 @@ export type CommercialUseRightsInput = {
   modificationPermission: boolean;
 };
 
+export type CommercialUseRequirement =
+  | "recordConsent"
+  | "externalExportAllowed"
+  | "datasetLicense"
+  | "mediaLicense"
+  | "withdrawalStatus"
+  | "portraitAndPersonalData"
+  | "minorConsent"
+  | "commercialReusePermission"
+  | "reportingReusePermission"
+  | "locationSafety"
+  | "rareSpeciesSafety"
+  | "confidentialityCleared"
+  | "attributionSatisfied"
+  | "modificationPermission";
+
 export type CommercialUseRightsDecision =
   | { decision: "ALLOW"; missing: [] }
-  | { decision: "DENY"; missing: (keyof CommercialUseRightsInput)[] };
+  | { decision: "DENY"; missing: CommercialUseRequirement[] };
+
+const COMMERCIAL_EXTRA_REQUIREMENTS = [
+  "portraitAndPersonalData",
+  "minorConsent",
+  "commercialReusePermission",
+  "reportingReusePermission",
+  "locationSafety",
+  "rareSpeciesSafety",
+  "confidentialityCleared",
+  "attributionSatisfied",
+  "modificationPermission",
+] as const satisfies readonly (keyof Omit<CommercialUseRightsInput, "observationRights">)[];
 
 export function evaluateCommercialUseRights(input: CommercialUseRightsInput): CommercialUseRightsDecision {
-  const missing = (Object.keys(input) as (keyof CommercialUseRightsInput)[]).filter((key) => input[key] !== true);
+  const rights = input?.observationRights;
+  const missing: CommercialUseRequirement[] = [];
+  if (!rights || rights.recordConsent !== "external_export") missing.push("recordConsent");
+  if (!rights || rights.externalExportAllowed !== true) missing.push("externalExportAllowed");
+  if (!rights?.datasetLicense) missing.push("datasetLicense");
+  if (!rights?.mediaLicense || rights.mediaLicense === "CC-BY-NC-4.0") missing.push("mediaLicense");
+  if (!rights || rights.withdrawalStatus !== "active") missing.push("withdrawalStatus");
+  for (const key of COMMERCIAL_EXTRA_REQUIREMENTS) {
+    if (input?.[key] !== true) missing.push(key);
+  }
   return missing.length === 0 ? { decision: "ALLOW", missing: [] } : { decision: "DENY", missing };
 }
 
@@ -214,7 +250,7 @@ export function applyCouponAction(input: {
   if (!claimId.trim() || !actorId.trim()) throw new Error("coupon_audit_identity_required");
   if (!Number.isFinite(Date.parse(occurredAt))) throw new Error("coupon_action_time_invalid");
   const now = Date.parse(occurredAt);
-  const active = campaign.status !== "suspended" && campaign.status !== "cancelled"
+  const active = (campaign.status === "issued" || campaign.status === "distributed")
     && now >= Date.parse(campaign.validFrom) && now <= Date.parse(campaign.validUntil);
   const transitions: Record<CouponAction, [CouponClaimState, CouponClaimState]> = {
     claim: ["available", "claimed"], validate: ["claimed", "validated"],
@@ -229,17 +265,15 @@ export function applyCouponAction(input: {
   else if (action === "redeem" && state === "redeemed") reason = "duplicate_redemption";
   else if (action === "redeem" && usage.redeemed >= campaign.redemptionLimit) reason = "redemption_limit_reached";
   else if (action !== "cancel" && state !== expected) reason = "invalid_state_transition";
-  const finalState = reason ? state : next;
   const nextUsage = reason ? { ...usage } : {
     claimed: usage.claimed + (action === "claim" ? 1 : 0),
     redeemed: usage.redeemed + (action === "redeem" ? 1 : 0),
   };
+  const finalState = reason ? state
+    : action === "redeem" && nextUsage.redeemed < campaign.redemptionLimit ? "validated"
+    : next;
   return { state: finalState, usage: nextUsage, audit: {
     campaignId: campaign.couponCampaignId, claimId: claimId.trim(), actorId: actorId.trim(), action,
     from: state, to: finalState, outcome: reason ? "denied" : "applied", reason, occurredAt,
   } };
-}
-
-export function taxonInventoryReferencesCanonicalRecords(inventory: TaxonInventory): boolean {
-  return inventory.schemaVersion === "zukan.taxon-inventory/v1" && Array.isArray(inventory.entries);
 }

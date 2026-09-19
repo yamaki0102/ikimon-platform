@@ -4,11 +4,29 @@ import {
   applyCouponAction, couponAccessBoundary, createCouponCampaign, createProfessionalReport, createPromotionalPublication,
   evaluateCommercialUseRights, sponsorDisclosure, taxonInventoryAccess,
 } from "./paidDerivedOutputs.js";
+import { normalizeObservationDataRights } from "./observationDataRights.js";
 
+const observationRights = () => normalizeObservationDataRights({
+  visitId: "visit-1",
+  recordConsent: "external_export",
+  researchUseConsent: "public_export",
+  enterpriseReportConsent: "identified",
+  datasetLicense: "CC-BY-4.0",
+  mediaLicense: "CC-BY-4.0",
+  externalExportAllowed: true,
+  withdrawalStatus: "active",
+});
 const rights = () => ({
-  copyrightOrLicense: true, contributorConsent: true, portraitAndPersonalData: true, minorConsent: true,
-  commercialReusePermission: true, reportingReusePermission: true, locationSafety: true, rareSpeciesSafety: true,
-  confidentialityCleared: true, attributionSatisfied: true, modificationPermission: true,
+  observationRights: observationRights(),
+  portraitAndPersonalData: true,
+  minorConsent: true,
+  commercialReusePermission: true,
+  reportingReusePermission: true,
+  locationSafety: true,
+  rareSpeciesSafety: true,
+  confidentialityCleared: true,
+  attributionSatisfied: true,
+  modificationPermission: true,
 });
 const sponsor = () => sponsorDisclosure({ sponsorAgentId: "org-1", label: "sponsored", displayName: "Example Sponsor" });
 const campaign = () => createCouponCampaign({
@@ -51,6 +69,13 @@ test("commercial-use rights fail closed and public visibility alone is insuffici
   const denied = evaluateCommercialUseRights({ ...rights(), commercialReusePermission: false });
   assert.deepEqual(denied, { decision: "DENY", missing: ["commercialReusePermission"] });
   assert.equal(evaluateCommercialUseRights(rights()).decision, "ALLOW");
+  assert.equal(evaluateCommercialUseRights({} as never).decision, "DENY");
+  const withdrawn = evaluateCommercialUseRights({ ...rights(), observationRights: { ...observationRights(), withdrawalStatus: "withdrawn" } });
+  assert.equal(withdrawn.decision, "DENY");
+  if (withdrawn.decision === "DENY") assert.ok(withdrawn.missing.includes("withdrawalStatus"));
+  const nonCommercial = evaluateCommercialUseRights({ ...rights(), observationRights: { ...observationRights(), mediaLicense: "CC-BY-NC-4.0" } });
+  assert.equal(nonCommercial.decision, "DENY");
+  if (nonCommercial.decision === "DENY") assert.ok(nonCommercial.missing.includes("mediaLicense"));
 });
 
 test("PromotionalPublication requires clearance and sponsor disclosure never changes canonical ranking", () => {
@@ -81,6 +106,20 @@ test("CouponCampaign excludes payment and applies claim validate redeem without 
   state = applyCouponAction({ campaign: c, claimId: "claim-1", actorId: "staff-1", state: state.state, action: "redeem", occurredAt: "2026-09-19T00:02:00Z", usage: state.usage });
   assert.equal(state.state, "redeemed");
   assert.throws(() => createCouponCampaign({ ...c, payment: "yen" } as never), /coupon_payment_scope_forbidden/);
+});
+
+test("draft campaigns remain inactive and configured multi-redemption limits are honored", () => {
+  const base = campaign();
+  const draft = applyCouponAction({ campaign: { ...base, status: "draft" }, claimId: "draft-1", actorId: "user-1", state: "available", action: "claim", occurredAt: "2026-09-19T00:00:00Z" });
+  assert.equal(draft.audit.reason, "campaign_not_active");
+
+  const multi = { ...base, redemptionLimit: 2 };
+  const first = applyCouponAction({ campaign: multi, claimId: "multi-1", actorId: "staff-1", state: "validated", action: "redeem", occurredAt: "2026-09-19T00:01:00Z", usage: { claimed: 1, redeemed: 0 } });
+  assert.equal(first.state, "validated");
+  assert.equal(first.usage.redeemed, 1);
+  const second = applyCouponAction({ campaign: multi, claimId: "multi-1", actorId: "staff-1", state: first.state, action: "redeem", occurredAt: "2026-09-19T00:02:00Z", usage: first.usage });
+  assert.equal(second.state, "redeemed");
+  assert.equal(second.usage.redeemed, 2);
 });
 
 test("duplicate redemption, invalid transitions, suspension and expiry are auditable denials", () => {
