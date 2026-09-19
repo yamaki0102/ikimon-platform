@@ -248,4 +248,19 @@ Not approved in this slice:
 - billing or payment system
 - production or staging changes
 - DNS, domain, secret, or permission changes
-- external publication
+- external publication\n\n## Owner refinement: NOCOSIL organizer, ZUKAN participation (2026-09-16)
+
+Owner: IKIMON. Work: `NOCOSIL-ZUKAN-FREE-PROGRAM-ORGANIZER-20260916`.
+Companion design: `yamaki0102/nocosil-platform/docs/product/NOCOSIL_FREE_PROGRAM_ORGANIZER_2026-09-16.md`.
+
+Event, observation-gathering and stamp-rally orchestration belongs in NOCOSIL. Its default authoring surface is the existing conversation/composer: reuse known context, ask only material gaps, and generate a contextual Review/edit projection only when direct manipulation is useful. Do not create a persistent feature-specific organizer page merely because Program is structured. ZUKAN remains the public discovery and participant surface; do not expand its organizer form or add a dashboard per profile. A final native organizer authentication/publication confirmation is not an authoring UI.
+
+The free Core follows the capability when the UI moves: Personal, Organization and Project organizers do not need a paid NOCOSIL Organization subscription. Basic staff/team operation, consent, Review, activity counts and source-record portability are included. AI is optional. This does not make specialist biodiversity inventories or exceptional resources free, nor does it grant another owner's authority.
+
+Existing ZUKAN Program, event, participant, Quest and rally storage remains canonical. NOCOSIL actor-private planning drafts are not mirrored Program records. Do not migrate records, duplicate rosters, copy consent, infer corporate roles from a workspace name, share browser cookies or introduce a standing cross-product bearer token.
+
+All new public input is allowlisted and explicitly previewed. Domain-local native authorization, account-switch checks and transactional/replay behavior are required at the receiving API. `platform_v2/src/services/publicProgram.ts` defines a data contract only, not permission and not proof of an implemented receiving endpoint.
+
+A working stamp rally additionally requires participant/station-bound unique accepted receipts, retries that do not add stamps twice, valid opening/closing states, scoped guest credentials, private progress isolation and explicit verification strength. Definition creation or a QR scan alone is not proof of participation or reward entitlement.
+
+Keep current creation and management paths as compatibility until the NOCOSIL replacement passes the equivalent journey, including edits, cancellation, staff Review and safe template reuse. Do not send organizers to a dead NOCOSIL destination. No active redirect, receiving handler or production deployment is implemented by this documentation/schema-only candidate.\n
