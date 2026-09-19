@@ -26064,3 +26064,151 @@ function payloadObservationId(row: RollbackLedgerRow): string | null {
   const payload = JSON.parse(row.payload_json) as { observationId?: string };
   return typeof payload.observationId === "string" ? payload.observationId : null;
 }
+
+
+test("public Program receiver reuses canonical event/rally storage with auth, same-origin and idempotent replay", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "program-owner", displayName: "Program Owner", ttlHours: 1 }),
+  }), env);
+  const cookie = issue.headers.get("set-cookie") ?? "";
+  const receiverUrl = "https://ikimon.life/api/v1/programs/receive";
+  const headers = {
+    "content-type": "application/json",
+    cookie,
+    origin: "https://ikimon.life",
+    "sec-fetch-site": "same-origin",
+  };
+  const eventProgram = {
+    schema: "ikimon.public-program/v1",
+    requestId: "12345678-1234-4123-8123-123456789abc",
+    profile: "event",
+    title: "地域の体験会",
+    startsAt: "2026-10-20T01:00:00.000Z",
+    endsAt: "2026-10-20T03:00:00.000Z",
+    timezone: "Asia/Tokyo",
+    placeLabel: "浜松駅周辺",
+    description: "地域をめぐる体験会です。",
+    conditions: "無料",
+    stations: [],
+  };
+
+  const anonymous = await worker.fetch(new Request(receiverUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ program: eventProgram }),
+  }), productionEnv);
+  assert.equal(anonymous.status, 401);
+
+  const crossOrigin = await worker.fetch(new Request(receiverUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie, origin: "https://attacker.example", "sec-fetch-site": "cross-site" },
+    body: JSON.stringify({ program: eventProgram }),
+  }), productionEnv);
+  assert.equal(crossOrigin.status, 403);
+
+  const created = await worker.fetch(new Request(receiverUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ program: eventProgram }),
+  }), productionEnv);
+  assert.equal(created.status, 201);
+  const createdPayload = await created.json() as any;
+  assert.equal(createdPayload.schema, "zukan.public-program-receiver/v1");
+  assert.equal(createdPayload.replayed, false);
+  assert.equal(createdPayload.publicationState, "created_private");
+  assert.equal(createdPayload.programId, eventProgram.requestId);
+  assert.equal(createdPayload.session.organizerUserId, "program-owner");
+  assert.equal(createdPayload.session.config.profile, "event");
+  assert.equal(createdPayload.session.config.placeLabel, "浜松駅周辺");
+  assert.equal(obs.observationEventSessions.size, 1);
+  assert.equal(createdPayload.session.config.public_listed, false);
+  assert.equal(createdPayload.session.config.program_receiver_private, true);
+
+  const publicList = await worker.fetch(new Request("https://ikimon.life/community/events"), productionEnv);
+  assert.equal(publicList.status, 200);
+  assert.doesNotMatch(await publicList.text(), /地域の体験会/);
+
+  const anonymousDirect = await worker.fetch(
+    new Request("https://ikimon.life/api/v1/observation-events/" + eventProgram.requestId),
+    productionEnv,
+  );
+  assert.equal(anonymousDirect.status, 404);
+  const ownerDirect = await worker.fetch(
+    new Request("https://ikimon.life/api/v1/observation-events/" + eventProgram.requestId, { headers: { cookie } }),
+    productionEnv,
+  );
+  assert.equal(ownerDirect.status, 200);
+
+  const replay = await worker.fetch(new Request(receiverUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ program: eventProgram }),
+  }), productionEnv);
+  assert.equal(replay.status, 200);
+  assert.equal((await replay.json() as any).replayed, true);
+  assert.equal(obs.observationEventSessions.size, 1);
+
+  const conflict = await worker.fetch(new Request(receiverUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ program: { ...eventProgram, title: "別の企画" } }),
+  }), productionEnv);
+  assert.equal(conflict.status, 409);
+  assert.equal((await conflict.json() as any).error, "public_program_idempotency_conflict");
+  assert.equal(obs.observationEventSessions.size, 1);
+
+  const otherIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "other-program-owner", displayName: "Other Owner", ttlHours: 1 }),
+  }), env);
+  const otherCookie = otherIssue.headers.get("set-cookie") ?? "";
+  const otherOwnerReplay = await worker.fetch(new Request(receiverUrl, {
+    method: "POST",
+    headers: { ...headers, cookie: otherCookie },
+    body: JSON.stringify({ program: eventProgram }),
+  }), productionEnv);
+  assert.equal(otherOwnerReplay.status, 409);
+
+  const rallyProgram = {
+    ...eventProgram,
+    requestId: "22345678-1234-4123-8123-123456789abc",
+    profile: "stamp_rally",
+    title: "まちなかスタンプラリー",
+    endsAt: "2026-10-20T06:00:00.000Z",
+    stations: [
+      { id: "shop-1", name: "1店舗目" },
+      { id: "shop-2", name: "2店舗目" },
+    ],
+  };
+  const rally = await worker.fetch(new Request(receiverUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ program: rallyProgram }),
+  }), productionEnv);
+
+  assert.equal(rally.status, 201);
+  const rallyPayload = await rally.json() as any;
+  assert.equal(rallyPayload.profile, "stamp_rally");
+  assert.equal(rallyPayload.rally.course.sessionId, rallyProgram.requestId);
+  assert.equal(rallyPayload.rally.course.status, "preflight");
+  assert.deepEqual(
+    rallyPayload.rally.stations.map((station: any) => station.name),
+    ["1店舗目", "2店舗目"],
+  );
+  assert.equal(obs.observationEventSessions.size, 2);
+  assert.equal(obs.observationRallyCourses.size, 1);
+  assert.equal(obs.observationRallyStations.size, 2);
+  assert.equal(obs.observationRallyMissions.size, 0);
+  assert.equal(obs.observationRallyProgress.size, 0);
+  assert.equal(obs.observationRallySubmissions.size, 0);
+  const anonymousRally = await worker.fetch(
+    new Request("https://ikimon.life/api/v1/observation-events/" + rallyProgram.requestId + "/rally"),
+    productionEnv,
+  );
+  assert.equal(anonymousRally.status, 404);
+});

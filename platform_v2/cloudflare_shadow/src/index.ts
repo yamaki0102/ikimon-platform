@@ -78,6 +78,7 @@ import {
 } from "./cloudflareObservationReadModel";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
+import { receivePublicProgram } from "./publicProgramReceiver";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { publicObservationAiCandidateInsights, publicObservationAiFeedback } from "./publicObservationAiPresentation";
@@ -3178,6 +3179,11 @@ export const worker = {
         );
       }
 
+      const publicProgramReceiverResponse = await handlePublicProgramReceiverApi(request, url, env);
+      if (publicProgramReceiverResponse) {
+        return publicProgramReceiverResponse;
+      }
+
       const observationEventResponse = await handleObservationEventApi(request, url, env);
       if (observationEventResponse) {
         return observationEventResponse;
@@ -3525,6 +3531,46 @@ function isOriginalPersonalRuntimePath(request: Request, url: URL): boolean {
   return false;
 }
 
+async function handlePublicProgramReceiverApi(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  if (pathname !== "/api/v1/programs/receive") return null;
+  if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, { "cache-control": "no-store" });
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const auth = await readCompatibleSession(request, env);
+  if (!auth) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const result = await receivePublicProgram({
+    actorUserId: auth.userId,
+    body,
+    database: env.OBS_DB,
+    loadSession: async (sessionId) => getObservationEventSessionById(env, sessionId),
+    loadRally: async (sessionId) => getObservationRallySnapshot(env, sessionId),
+  });
+  return json(result.body, result.status, { "cache-control": "no-store" });
+}
+
+function isPrivateReceivedProgram(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+): boolean {
+  return session.config.schema === "zukan.public-program-receiver/v1"
+    && session.config.source === "nocosil"
+    && session.config.program_receiver_private === true;
+}
+
+async function privateReceivedProgramGuard(
+  request: Request,
+  env: Env,
+  sessionId: string,
+): Promise<Response | null> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session || !isPrivateReceivedProgram(session)) return null;
+  const auth = await readCompatibleSession(request, env);
+  return auth?.userId === session.organizerUserId
+    ? null
+    : json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+}
+
 async function handleObservationEventApi(request: Request, url: URL, env: Env): Promise<Response | null> {
   const pathname = stripPublicLangPrefix(url.pathname);
   if (!pathname.startsWith("/api/v1/observation-events")) return null;
@@ -3534,6 +3580,11 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
 
   if (request.method === "POST" && pathname === "/api/v1/observation-events") {
     return createObservationEventSession(request, env);
+  }
+  const privateSessionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)/);
+  if (privateSessionMatch?.[1] && !["by-code", "area-suggestions"].includes(privateSessionMatch[1])) {
+    const privateGuard = await privateReceivedProgramGuard(request, env, decodeURIComponent(privateSessionMatch[1]));
+    if (privateGuard) return privateGuard;
   }
   const byCodeRecapMatch = pathname.match(/^\/api\/v1\/observation-events\/by-code\/([^/]+)\/recap$/);
   if (request.method === "GET" && byCodeRecapMatch?.[1]) {
@@ -30685,6 +30736,7 @@ async function runScheduledObservationEventQuests(env: Env): Promise<void> {
               created_at, updated_at
          FROM observation_event_sessions
         WHERE ended_at IS NULL
+          AND COALESCE(json_extract(config_json, '$.program_receiver_private'), 0) = 0
           AND started_at <= CURRENT_TIMESTAMP
         ORDER BY started_at DESC
         LIMIT 50`
