@@ -1,11 +1,19 @@
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { test, expect } from "./support/browser-run.js";
+import type { APIRequestContext, Page } from "@playwright/test";
 import {
   addSessionCookie,
+  closeStagingContext,
   createStagingApiContext,
   newStagingContext,
+  startStagingTrace,
   suppressMapLibreForSmoke,
   type ViewportProfile,
 } from "./support/staging.js";
+import {
+  captureBrowserRunCheckpoint,
+  captureBrowserRunRuntimeIdentity,
+  isCloudflareBrowserRun,
+} from "./support/browser-run.js";
 
 const VIEWPORTS: ViewportProfile[] = [
   { slug: "desktop-1440", viewport: { width: 1440, height: 1000 } },
@@ -85,6 +93,32 @@ async function issueSessionCookie(api: APIRequestContext, userId: string): Promi
   const rawCookie = response.headers()["set-cookie"] ?? "";
   expect(rawCookie, "session issue response should set a cookie").toBeTruthy();
   return rawCookie;
+}
+
+async function loginThroughUi(page: Page): Promise<string> {
+  const email = process.env.BROWSER_RUN_TEST_EMAIL?.trim();
+  const password = process.env.BROWSER_RUN_TEST_PASSWORD?.trim();
+  expect(email, "BROWSER_RUN_TEST_EMAIL is required for Cloudflare Browser Run").toBeTruthy();
+  expect(password, "BROWSER_RUN_TEST_PASSWORD is required for Cloudflare Browser Run").toBeTruthy();
+
+  await page.goto("/login?redirect=" + encodeURIComponent("/record?lang=ja"), {
+    waitUntil: "domcontentloaded",
+  });
+  const form = page.locator("[data-auth-form]");
+  await expect(form).toBeVisible();
+  await form.locator("input[name='email']").fill(email!);
+  await form.locator("input[name='password']").fill(password!);
+  await form.locator("button[type='submit']").click();
+  await expect(page).toHaveURL(/\/record(?:\?|$)/);
+  const sessionResponse = await page.request.get(new URL("/api/v1/auth/session", page.url()).toString());
+  const payload = await sessionResponse.json().catch(() => null) as {
+    ok?: boolean;
+    error?: string;
+    session?: { userId?: string };
+  } | null;
+  expect(sessionResponse.ok(), payload?.error ?? "auth_session_read_failed").toBeTruthy();
+  expect(payload?.session?.userId, "authenticated session should expose userId").toBeTruthy();
+  return payload!.session!.userId!;
 }
 
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
@@ -321,38 +355,55 @@ async function expectCameraConstraint(page: Page, marker: "zoom" | "pointsOfInte
 }
 
 test.describe("record funnel staging QA", () => {
-  let api: APIRequestContext;
-  let sessionCookie: string;
-  let userId: string;
+  let api: APIRequestContext | undefined;
+  let sessionCookie = "";
+  let userId = "";
 
   test.beforeAll(async ({ playwright }) => {
+    if (isCloudflareBrowserRun()) return;
     api = await createStagingApiContext(playwright);
     userId = await resolveQaUserId(api);
     sessionCookie = await issueSessionCookie(api, userId);
   });
 
   test.afterAll(async () => {
-    await api.dispose();
+    await api?.dispose();
   });
 
   for (const profile of VIEWPORTS) {
-    test(`photo record funnel emits KPI and revisit CTA (${profile.slug})`, async ({ browser }) => {
-      const context = await newStagingContext(browser, profile);
-      await addSessionCookie(context, sessionCookie);
+    test(`photo record funnel emits KPI and revisit CTA (${profile.slug})`, async ({ browserRunBrowser }) => {
+      const context = await newStagingContext(browserRunBrowser, profile);
       const page = await context.newPage();
       const kpiPayloads: KpiPayload[] = [];
 
       try {
         await suppressMapLibreForSmoke(page);
+        if (isCloudflareBrowserRun()) {
+          userId = await loginThroughUi(page);
+        } else {
+          await addSessionCookie(context, sessionCookie);
+        }
+        await startStagingTrace(context);
         await installRecordMocks(page, userId, kpiPayloads);
 
         await page.goto("/record?lang=ja", { waitUntil: "domcontentloaded" });
+        if (isCloudflareBrowserRun()) {
+          const runtimeIdentity = await captureBrowserRunRuntimeIdentity(page);
+          expect(runtimeIdentity.environment).toBe("staging");
+          expect(runtimeIdentity.publicSafe).toBe(true);
+          const expectedRuntimeSha = process.env.BROWSER_RUN_EXPECTED_RUNTIME_SHA?.trim();
+          if (expectedRuntimeSha) expect(runtimeIdentity.sourceSha).toBe(expectedRuntimeSha);
+          await captureBrowserRunCheckpoint(page, "01-login-complete-" + profile.slug);
+        }
         await expect(page.locator("#record-form")).toBeHidden();
         await expectNoHorizontalOverflow(page);
 
         await page.locator("#record-media-photo").setInputFiles(tinyPngFile());
         await expect(page.locator("#record-form")).toBeVisible();
         await expect(page.locator("#record-submit-panel")).toBeVisible();
+        if (isCloudflareBrowserRun()) {
+          await captureBrowserRunCheckpoint(page, "03-target-before-action-" + profile.slug);
+        }
 
         await page.locator("summary", { hasText: "座標を直接編集" }).click();
         await page.locator("input[name='latitude']").fill("34.710800");
@@ -367,6 +418,7 @@ test.describe("record funnel staging QA", () => {
         await expect(page.locator("#record-status .record-success-shortcuts a").first()).toContainText(/自分の記録/);
         await expect(page.locator("#record-status a", { hasText: /見つけたものを確認する|対象ごとの記録を確認する|観察レコードを見る|観察を見る/ })).toBeVisible();
         await expect(page.locator("#record-status a", { hasText: /記録を見る|シーンを見る|ノートを見る/ })).toBeVisible();
+        await captureBrowserRunCheckpoint(page, "04-after-action-" + profile.slug);
         const revisitLink = page.locator("#record-status a", { hasText: /続けて記録する|同じ場所でもう1件記録する|同じ場所でもう1シーン|同じ場所でもう1件/ });
         await expect(revisitLink).toHaveAttribute(
           "href",
@@ -376,6 +428,17 @@ test.describe("record funnel staging QA", () => {
 
         await revisitLink.click({ noWaitAfter: true });
         await page.waitForTimeout(250);
+        await expect(page).toHaveURL(/\/record\?start=gallery&revisitObservationId=record-funnel-visit/);
+        await captureBrowserRunCheckpoint(page, "05-after-navigation-" + profile.slug);
+        if (isCloudflareBrowserRun()) {
+          await page.reload({ waitUntil: "domcontentloaded" });
+          await expect(page).toHaveURL(/\/record\?start=gallery&revisitObservationId=record-funnel-visit/);
+          await expect(page.locator("#record-form")).toBeVisible();
+          await captureBrowserRunCheckpoint(page, "06-after-reload-" + profile.slug);
+        }
+        if (isCloudflareBrowserRun() && process.env.BROWSER_RUN_INTENTIONAL_FAILURE === "1") {
+          expect(false, "intentional Browser Run diagnostic failure").toBe(true);
+        }
 
         const actionList = actions(kpiPayloads);
         expect(actionList).toContain("record_open");
@@ -400,7 +463,7 @@ test.describe("record funnel staging QA", () => {
         expect(saved?.metadata?.placeId).toBe(MOCK_PLACE_ID);
         expect(Number(saved?.metadata?.elapsedMs ?? -1)).toBeGreaterThanOrEqual(0);
       } finally {
-        await context.close();
+        await closeStagingContext(context);
       }
     });
   }
@@ -417,7 +480,7 @@ test.describe("record entry viewport reachability", () => {
           await page.goto(route.path, { waitUntil: "domcontentloaded" });
           await expectRecordEntryReachable(page, profile);
         } finally {
-          await context.close();
+          await closeStagingContext(context);
         }
       });
     }
@@ -465,7 +528,7 @@ cameraDeviceQaDescribe("global record camera mobile controls QA", () => {
           await page.locator(".global-record-camera-close").click();
           await expect(sheet).toBeHidden();
         } finally {
-          await context.close();
+          await closeStagingContext(context);
         }
       });
     }
@@ -541,7 +604,7 @@ test.describe("record recovery staging QA", () => {
       await page.locator("[data-record-recovery-discard]").click();
       await page.waitForURL(/\/records\?view=mine/);
     } finally {
-      await context.close();
+      await closeStagingContext(context);
     }
   });
 });
