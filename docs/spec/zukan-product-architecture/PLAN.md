@@ -91,7 +91,7 @@ Source implementation and deterministic rights/Review tests depend on the existi
 
 ### Then
 
-Self-serve foundation lane: M8-A. Roadmap frontier lane: M7.3 source-only, then M7.4 under the runtime-mutation promotion within the calendar gate.
+Self-serve foundation lane: M8-A. Roadmap frontier lane: M7.3 source-only, then M7.4 runtime-mutation promotion as soon as current prerequisites and release authority are verified. The former 2027 calendar deferral was explicitly superseded by the owner on 2026-09-19 and is not an execution blocker.
 
 ## First real-user loop to verify
 
@@ -107,7 +107,7 @@ Steps 1–5 define the integrated user acceptance sequence. Each stage needs its
 
 Purpose: make Programs durable across school years, fiscal periods, organizers and responsible-person changes.
 
-Resolved status is owned by the shared Resolver and management evidence; `delivery.json` carries static navigation only. Slice provenance: M7.0 planner, M7.1 persistence and M7.2 outgoing offer are source-verified; M7.3 incoming acceptance is promoted by `M7_3_PROMOTION_2026-09-02.md`; M7.4 needs the runtime-mutation promotion because it is the first slice that mutates Program responsibility; M7.5 is the production boundary. Calendar gate: M7.4 staging `LIVE_VERIFIED` by 2027-01, M7.5 delivered by 2027-02.
+Resolved status is owned by the shared Resolver and management evidence; `delivery.json` carries static navigation only. Slice provenance: M7.0 planner, M7.1 persistence and M7.2 outgoing offer are source-verified; M7.3 incoming acceptance is promoted by `M7_3_PROMOTION_2026-09-02.md`; M7.4 needs the runtime-mutation promotion because it is the first slice that mutates Program responsibility; M7.5 is the production boundary. Promotion gate: M7.4 may proceed now when exact source, current runtime authority, atomic responsibility mutation, rollback and read-back are verified; M7.5 may proceed immediately after M7.4 staging `LIVE_VERIFIED` and fresh production authority. The former 2027-01/2027-02 dates were scheduling targets, not technical prerequisites, and were superseded by the owner on 2026-09-19.
 
 Scope boundary: M7 transfers a Program to a *different* responsible actor. The same organizer repeating next period is already covered by the implemented `quality.zukan.program.closeout-rehost` contract, which reuses only the plan settings and carries no participant, consent, Review or publication state forward. Verify and surface repeat-via-rehost rather than rebuilding repeat inside M7.
 
