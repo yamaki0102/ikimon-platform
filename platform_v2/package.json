@@ -28,6 +28,8 @@
     "e2e:staging:smoke": "playwright test -c playwright.staging.config.ts e2e/home.staging.spec.ts",
     "e2e:staging:service-loop": "playwright test -c playwright.staging.config.ts e2e/service-loop.staging.spec.ts",
     "e2e:staging:record-funnel": "playwright test -c playwright.staging.config.ts e2e/record-funnel.staging.spec.ts",
+    "e2e:browser-run": "node scripts/runBrowserRun.mjs",
+    "e2e:browser-run:diagnostic": "node scripts/runBrowserRun.mjs --diagnostics --intentional-failure",
     "e2e:staging:record-feedback-loop": "playwright test -c playwright.staging.config.ts e2e/record-feedback-loop.staging.spec.ts",
     "e2e:staging:zukan-runtime": "node scripts/runZukanRuntimeQa.mjs",
     "e2e:staging:renri-event": "playwright test -c playwright.staging.config.ts e2e/renri-science-adventure-journey.staging.spec.ts",

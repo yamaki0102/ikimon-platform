@@ -10,6 +10,11 @@ import type {
   Playwright,
 } from "@playwright/test";
 import { expect } from "@playwright/test";
+import {
+  attachBrowserRunContextDiagnostics,
+  browserRunDiagnosticsEnabled,
+  isCloudflareBrowserRun,
+} from "./browser-run.js";
 
 export const DEFAULT_STAGING_MAP_PATH = "/map?tab=markers&bm=esri&lng=137.8589&lat=34.7219&z=10.6";
 export const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.zukan.earth";
@@ -110,6 +115,21 @@ export function stagingBasicAuthHeader(): string | null {
   return `Basic ${encodeBasicAuth(user, pass)}`;
 }
 
+export function stagingAccessHeaders(): Record<string, string> {
+  const clientId = process.env.CF_ACCESS_CLIENT_ID?.trim()
+    || process.env.CLOUDFLARE_ACCESS_CLIENT_ID?.trim();
+  const clientSecret = process.env.CF_ACCESS_CLIENT_SECRET?.trim()
+    || process.env.CLOUDFLARE_ACCESS_CLIENT_SECRET?.trim();
+  if (!clientId && !clientSecret) return {};
+  if (!clientId || !clientSecret) {
+    throw new Error("CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET must be provided together");
+  }
+  return {
+    "CF-Access-Client-Id": clientId,
+    "CF-Access-Client-Secret": clientSecret,
+  };
+}
+
 export function stagingContextOptions(overrides: Partial<BrowserContextOptions> = {}): BrowserContextOptions {
   const user = process.env.STAGING_BASIC_AUTH_USER?.trim();
   const pass = process.env.STAGING_BASIC_AUTH_PASS?.trim();
@@ -121,12 +141,15 @@ export function stagingContextOptions(overrides: Partial<BrowserContextOptions> 
   };
 }
 
+let browserRunTraceSequence = 0;
+const browserRunTracePaths = new WeakMap<BrowserContext, string>();
+
 export async function newStagingContext(
   browser: Browser,
   profile: ViewportProfile,
   overrides: Partial<BrowserContextOptions> = {},
 ): Promise<BrowserContext> {
-  return browser.newContext(
+  const context = await browser.newContext(
     stagingContextOptions({
       viewport: profile.viewport,
       deviceScaleFactor: profile.deviceScaleFactor,
@@ -136,6 +159,46 @@ export async function newStagingContext(
       ...overrides,
     }),
   );
+  if (isCloudflareBrowserRun()) attachBrowserRunContextDiagnostics(context);
+  const accessHeaders = stagingAccessHeaders();
+  if (Object.keys(accessHeaders).length > 0) {
+    const stagingOrigin = new URL(STAGING_BASE_URL).origin;
+    await context.route("**/*", async (route) => {
+      const requestUrl = new URL(route.request().url());
+      if (requestUrl.origin !== stagingOrigin) {
+        await route.continue();
+        return;
+      }
+      await route.continue({
+        headers: {
+          ...route.request().headers(),
+          ...accessHeaders,
+        },
+      });
+    });
+  }
+  return context;
+}
+
+export async function startStagingTrace(context: BrowserContext): Promise<void> {
+  if (!isCloudflareBrowserRun() || !browserRunDiagnosticsEnabled() || browserRunTracePaths.has(context)) {
+    return;
+  }
+  const artifactDir = process.env.BROWSER_RUN_ARTIFACT_DIR?.trim()
+    || path.resolve(process.cwd(), "test-results", "browser-run");
+  await mkdir(artifactDir, { recursive: true });
+  const tracePath = path.join(artifactDir, "trace-" + browserRunTraceSequence++ + ".zip");
+  await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+  browserRunTracePaths.set(context, tracePath);
+}
+
+export async function closeStagingContext(context: BrowserContext): Promise<void> {
+  const tracePath = browserRunTracePaths.get(context);
+  if (tracePath) {
+    await context.tracing.stop({ path: tracePath }).catch(() => undefined);
+    browserRunTracePaths.delete(context);
+  }
+  await context.close();
 }
 
 export async function suppressMapLibreForSmoke(page: Page): Promise<void> {
@@ -410,10 +473,14 @@ export async function installMapLibreStubForSmoke(page: Page): Promise<void> {
 
 export async function createStagingApiContext(playwright: Playwright): Promise<APIRequestContext> {
   const authHeader = stagingBasicAuthHeader();
+  const accessHeaders = stagingAccessHeaders();
   return playwright.request.newContext({
     baseURL: STAGING_BASE_URL,
     ignoreHTTPSErrors: true,
-    extraHTTPHeaders: authHeader ? { Authorization: authHeader } : undefined,
+    extraHTTPHeaders: {
+      ...(authHeader ? { Authorization: authHeader } : {}),
+      ...accessHeaders,
+    },
   });
 }
 
