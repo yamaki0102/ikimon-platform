@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  applyCouponAction, createCouponCampaign, createProfessionalReport, createPromotionalPublication,
+  applyCouponAction, couponAccessBoundary, createCouponCampaign, createProfessionalReport, createPromotionalPublication,
   evaluateCommercialUseRights, sponsorDisclosure, taxonInventoryAccess,
 } from "./paidDerivedOutputs.js";
 
@@ -22,6 +22,17 @@ test("TaxonInventory screen download and API share one paid boundary", () => {
     assert.deepEqual(taxonInventoryAccess(surface, false), { allowed: false, reason: "PAID_DERIVED_OUTPUT_REQUIRED" });
     assert.deepEqual(taxonInventoryAccess(surface, true), { allowed: true, reason: "ENTITLED" });
   }
+});
+
+test("coupon participant access stays free while issuer management is the paid boundary", () => {
+  assert.deepEqual(couponAccessBoundary("participant"), {
+    claimAndRedeemRequirePaidEntitlement: false,
+    campaignManagementRequiresPaidEntitlement: false,
+  });
+  assert.deepEqual(couponAccessBoundary("issuer"), {
+    claimAndRedeemRequirePaidEntitlement: false,
+    campaignManagementRequiresPaidEntitlement: true,
+  });
 });
 
 test("ProfessionalReport is a source-bound derived object and does not own canonical Records", () => {
@@ -62,27 +73,32 @@ test("PromotionalPublication requires clearance and sponsor disclosure never cha
 
 test("CouponCampaign excludes payment and applies claim validate redeem without stored value", () => {
   const c = campaign();
-  let state = applyCouponAction({ campaign: c, claimId: "claim-1", state: "available", action: "claim", occurredAt: "2026-09-19T00:00:00Z" });
+  let state = applyCouponAction({ campaign: c, claimId: "claim-1", actorId: "user-1", state: "available", action: "claim", occurredAt: "2026-09-19T00:00:00Z" });
   assert.equal(state.state, "claimed");
-  state = applyCouponAction({ campaign: c, claimId: "claim-1", state: state.state, action: "validate", occurredAt: "2026-09-19T00:01:00Z" });
+  assert.equal(state.usage.claimed, 1);
+  state = applyCouponAction({ campaign: c, claimId: "claim-1", actorId: "staff-1", state: state.state, action: "validate", occurredAt: "2026-09-19T00:01:00Z", usage: state.usage });
   assert.equal(state.state, "validated");
-  state = applyCouponAction({ campaign: c, claimId: "claim-1", state: state.state, action: "redeem", occurredAt: "2026-09-19T00:02:00Z" });
+  state = applyCouponAction({ campaign: c, claimId: "claim-1", actorId: "staff-1", state: state.state, action: "redeem", occurredAt: "2026-09-19T00:02:00Z", usage: state.usage });
   assert.equal(state.state, "redeemed");
   assert.throws(() => createCouponCampaign({ ...c, payment: "yen" } as never), /coupon_payment_scope_forbidden/);
 });
 
 test("duplicate redemption, invalid transitions, suspension and expiry are auditable denials", () => {
   const c = campaign();
-  const duplicate = applyCouponAction({ campaign: c, claimId: "claim-1", state: "redeemed", action: "redeem", occurredAt: "2026-09-19T00:03:00Z" });
+  const duplicate = applyCouponAction({ campaign: c, claimId: "claim-1", actorId: "staff-1", state: "redeemed", action: "redeem", occurredAt: "2026-09-19T00:03:00Z", usage: { claimed: 1, redeemed: 1 } });
   assert.equal(duplicate.state, "redeemed");
   assert.deepEqual({ outcome: duplicate.audit.outcome, reason: duplicate.audit.reason }, { outcome: "denied", reason: "duplicate_redemption" });
 
-  const invalid = applyCouponAction({ campaign: c, claimId: "claim-2", state: "available", action: "redeem", occurredAt: "2026-09-19T00:03:00Z" });
+  const invalid = applyCouponAction({ campaign: c, claimId: "claim-2", actorId: "staff-1", state: "available", action: "redeem", occurredAt: "2026-09-19T00:03:00Z" });
   assert.equal(invalid.audit.reason, "invalid_state_transition");
 
-  const suspended = applyCouponAction({ campaign: { ...c, status: "suspended" }, claimId: "claim-3", state: "available", action: "claim", occurredAt: "2026-09-19T00:03:00Z" });
+  const suspended = applyCouponAction({ campaign: { ...c, status: "suspended" }, claimId: "claim-3", actorId: "user-3", state: "available", action: "claim", occurredAt: "2026-09-19T00:03:00Z" });
   assert.equal(suspended.audit.reason, "campaign_not_active");
 
-  const expired = applyCouponAction({ campaign: c, claimId: "claim-4", state: "available", action: "claim", occurredAt: "2026-10-02T00:00:00Z" });
+  const expired = applyCouponAction({ campaign: c, claimId: "claim-4", actorId: "user-4", state: "available", action: "claim", occurredAt: "2026-10-02T00:00:00Z" });
   assert.equal(expired.audit.reason, "campaign_not_active");
+
+  const claimLimit = applyCouponAction({ campaign: c, claimId: "claim-5", actorId: "user-5", state: "available", action: "claim", occurredAt: "2026-09-19T00:04:00Z", usage: { claimed: 1, redeemed: 0 } });
+  assert.equal(claimLimit.audit.reason, "claim_limit_reached");
+  assert.equal(claimLimit.audit.actorId, "user-5");
 });
