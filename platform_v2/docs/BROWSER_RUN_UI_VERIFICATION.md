@@ -8,7 +8,7 @@ Normal Playwright execution remains unchanged. The Browser Run runner sets BROWS
 
 - acquires a new Cloudflare Browser Run session;
 - connects the existing Playwright test through CDP;
-- uses the normal /login form with a dedicated test account;
+- uses the normal /login form with an ephemeral self-cleaning staging account by default, or an explicitly supplied dedicated account;
 - closes the session after the test;
 - records checkpoint screenshots, console errors, page errors, failed requests, HTTP 4xx/5xx responses, and runtime identity.
 
@@ -29,12 +29,9 @@ Browser Run defaults to the fixed staging Worker endpoint:
 
 This verifies the same staging Worker without requiring a Cloudflare Access service token for the custom domain. Set STAGING_BASE_URL explicitly when the custom-domain path itself must be verified. If that custom domain is Cloudflare Access protected, provide both CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (the CLOUDFLARE_ACCESS_* aliases are also accepted). Existing staging Basic Auth variables remain supported.
 
-A dedicated staging login is still required:
+By default the runner provisions a short-lived, staging-only login under the existing `staging-session-smoke-` fixture namespace, uses the normal `/login` UI, and calls the authenticated self-cleanup endpoint after the run. The generated email, password and session cookie remain process-local and are never printed or persisted. The cleanup endpoint is enabled only for the strict Browser Run fixture identity while `ENVIRONMENT=staging`; production and ordinary user IDs fail closed.
 
-- BROWSER_RUN_TEST_EMAIL
-- BROWSER_RUN_TEST_PASSWORD
-
-These values must come from the existing secret manager or an approved dedicated test-account path; never commit or print them.
+`BROWSER_RUN_TEST_EMAIL` and `BROWSER_RUN_TEST_PASSWORD` remain an explicit override and must be provided together. Discovery-only `--list` does not create a staging account.
 
 BROWSER_RUN_EXPECTED_RUNTIME_SHA is optional but should be set for a deployment verification. When set, the test compares it to /api/v1/runtime/version.
 
