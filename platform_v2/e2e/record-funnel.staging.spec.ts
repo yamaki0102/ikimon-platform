@@ -2,11 +2,15 @@ import { test, expect } from "./support/browser-run.js";
 import type { APIRequestContext, Page } from "@playwright/test";
 import {
   addSessionCookie,
+  cleanupFixtures,
   closeStagingContext,
   createStagingApiContext,
   newStagingContext,
+  provisionBrowserRunTestAccount,
+  requireEnv,
   startStagingTrace,
   suppressMapLibreForSmoke,
+  uniqueFixturePrefix,
   type ViewportProfile,
 } from "./support/staging.js";
 import {
@@ -95,19 +99,17 @@ async function issueSessionCookie(api: APIRequestContext, userId: string): Promi
   return rawCookie;
 }
 
-async function loginThroughUi(page: Page): Promise<string> {
-  const email = process.env.BROWSER_RUN_TEST_EMAIL?.trim();
-  const password = process.env.BROWSER_RUN_TEST_PASSWORD?.trim();
-  expect(email, "BROWSER_RUN_TEST_EMAIL is required for Cloudflare Browser Run").toBeTruthy();
-  expect(password, "BROWSER_RUN_TEST_PASSWORD is required for Cloudflare Browser Run").toBeTruthy();
-
+async function loginThroughUi(
+  page: Page,
+  credentials: { email: string; password: string },
+): Promise<string> {
   await page.goto("/login?redirect=" + encodeURIComponent("/record?lang=ja"), {
     waitUntil: "domcontentloaded",
   });
   const form = page.locator("[data-auth-form]");
   await expect(form).toBeVisible();
-  await form.locator("input[name='email']").fill(email!);
-  await form.locator("input[name='password']").fill(password!);
+  await form.locator("input[name='email']").fill(credentials.email);
+  await form.locator("input[name='password']").fill(credentials.password);
   await form.locator("button[type='submit']").click();
   await expect(page).toHaveURL(/\/record(?:\?|$)/);
   const sessionResponse = await page.request.get(new URL("/api/v1/auth/session", page.url()).toString());
@@ -358,15 +360,36 @@ test.describe("record funnel staging QA", () => {
   let api: APIRequestContext | undefined;
   let sessionCookie = "";
   let userId = "";
+  let browserRunCredentials: { email: string; password: string } | undefined;
+  let browserRunFixturePrefix = "";
+  let browserRunWriteKey = "";
 
   test.beforeAll(async ({ playwright }) => {
-    if (isCloudflareBrowserRun()) return;
     api = await createStagingApiContext(playwright);
+    if (isCloudflareBrowserRun()) {
+      const explicitEmail = process.env.BROWSER_RUN_TEST_EMAIL?.trim();
+      const explicitPassword = process.env.BROWSER_RUN_TEST_PASSWORD?.trim();
+      if (explicitEmail || explicitPassword) {
+        expect(explicitEmail, "BROWSER_RUN_TEST_EMAIL and BROWSER_RUN_TEST_PASSWORD must be provided together").toBeTruthy();
+        expect(explicitPassword, "BROWSER_RUN_TEST_EMAIL and BROWSER_RUN_TEST_PASSWORD must be provided together").toBeTruthy();
+        browserRunCredentials = { email: explicitEmail!, password: explicitPassword! };
+        return;
+      }
+      browserRunWriteKey = requireEnv("V2_PRIVILEGED_WRITE_API_KEY");
+      browserRunFixturePrefix = uniqueFixturePrefix("browser-run");
+      const account = await provisionBrowserRunTestAccount(api, browserRunWriteKey, browserRunFixturePrefix);
+      browserRunCredentials = { email: account.email, password: account.password };
+      userId = account.userId;
+      return;
+    }
     userId = await resolveQaUserId(api);
     sessionCookie = await issueSessionCookie(api, userId);
   });
 
   test.afterAll(async () => {
+    if (api && browserRunFixturePrefix && browserRunWriteKey) {
+      await cleanupFixtures(api, browserRunWriteKey, browserRunFixturePrefix);
+    }
     await api?.dispose();
   });
 
@@ -379,7 +402,8 @@ test.describe("record funnel staging QA", () => {
       try {
         await suppressMapLibreForSmoke(page);
         if (isCloudflareBrowserRun()) {
-          userId = await loginThroughUi(page);
+          expect(browserRunCredentials, "Browser Run login credentials should be prepared in beforeAll").toBeTruthy();
+          userId = await loginThroughUi(page, browserRunCredentials!);
         } else {
           await addSessionCookie(context, sessionCookie);
         }
