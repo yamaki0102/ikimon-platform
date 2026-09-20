@@ -8,17 +8,14 @@ const platformRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 const diagnostic = process.argv.includes("--diagnostics");
 const intentionalFailure = process.argv.includes("--intentional-failure");
 const passthrough = process.argv.filter((arg) => arg !== "--diagnostics" && arg !== "--intentional-failure");
-const token = process.env.CLOUDFLARE_BROWSER_RUN_API_TOKEN?.trim()
-  || process.env.CLOUDFLARE_API_TOKEN?.trim();
-const missing = [
-  !process.env.CLOUDFLARE_ACCOUNT_ID?.trim() && "CLOUDFLARE_ACCOUNT_ID",
-  !token && "CLOUDFLARE_BROWSER_RUN_API_TOKEN",
-  !process.env.BROWSER_RUN_TEST_EMAIL?.trim() && "BROWSER_RUN_TEST_EMAIL",
-  !process.env.BROWSER_RUN_TEST_PASSWORD?.trim() && "BROWSER_RUN_TEST_PASSWORD",
-].filter(Boolean);
-
-if (missing.length > 0) {
-  console.error("Cloudflare Browser Run prerequisites are missing: " + missing.join(", "));
+const testEmail = process.env.BROWSER_RUN_TEST_EMAIL?.trim();
+const testPassword = process.env.BROWSER_RUN_TEST_PASSWORD?.trim();
+if (Boolean(testEmail) !== Boolean(testPassword)) {
+  console.error("BROWSER_RUN_TEST_EMAIL and BROWSER_RUN_TEST_PASSWORD must be provided together.");
+  process.exit(2);
+}
+if (!testEmail && !process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim()) {
+  console.error("Browser Run needs either explicit test-account credentials or V2_PRIVILEGED_WRITE_API_KEY for self-provisioning.");
   process.exit(2);
 }
 
@@ -48,6 +45,8 @@ const args = [
 ];
 const env = {
   ...process.env,
+  STAGING_BASE_URL: process.env.STAGING_BASE_URL?.trim()
+    || "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev",
   BROWSER_RUNTIME: "cloudflare",
   IKIMON_EXPECTED_GIT_SHA: sourceSha,
   BROWSER_RUN_DIAGNOSTICS: diagnostic ? "1" : "0",
