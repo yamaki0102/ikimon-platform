@@ -1,7 +1,13 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
-import { getSessionFromCookie, issueSession, readSessionTokenFromCookie, revokeSession } from "../services/authSession.js";
+import {
+  buildClearedSessionCookie,
+  getSessionFromCookie,
+  issueSession,
+  readSessionTokenFromCookie,
+  revokeSession,
+} from "../services/authSession.js";
 import { authenticateWithPassword, findOrCreateOAuthUser, registerWithPassword } from "../services/authUsers.js";
 import { consumeAppOAuthExchangeCode, createAppOAuthExchangeCode } from "../services/appOAuthExchange.js";
 import {
@@ -20,6 +26,8 @@ import {
   readOAuthState,
   type OAuthProvider,
 } from "../services/oauthFlow.js";
+import { isBrowserRunStagingUserId } from "../services/browserRunStagingAccount.js";
+import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 
 type AuthBody = {
@@ -713,6 +721,30 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     } catch (error) {
       reply.code(apiErrorStatus(error));
       return { ok: false, error: publicAuthError(error) };
+    }
+  });
+
+  app.post("/api/v1/ops/staging/browser-run/cleanup-self", async (request, reply) => {
+    try {
+      assertSameOriginRequest(request);
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session || !isBrowserRunStagingUserId(session.userId)) {
+        reply.code(404);
+        return { ok: false, error: "browser_run_staging_account_not_found" };
+      }
+      const cleanup = await cleanupStagingFixtures({
+        fixturePrefix: session.userId,
+        dryRun: false,
+        removeFiles: true,
+      });
+      reply.header("set-cookie", buildClearedSessionCookie());
+      return { ok: true, cleanup };
+    } catch (error) {
+      reply.code(400);
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "browser_run_staging_cleanup_failed",
+      };
     }
   });
 
