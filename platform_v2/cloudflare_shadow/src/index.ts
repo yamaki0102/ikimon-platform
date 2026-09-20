@@ -1,4 +1,5 @@
 import { handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
+import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { ProgramHandoverApplyRuntime } from "../../src/services/programHandoverApplyRuntime";
@@ -3236,6 +3237,10 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/ops/staging/record-feedback-loop/cleanup") {
         return cleanupStagingRecordFeedbackLoopSmoke(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/ops/staging/browser-run/cleanup-self") {
+        return cleanupBrowserRunStagingAccountNative(request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/session/issue") {
@@ -28026,6 +28031,46 @@ async function exchangeMobileAppOAuthCode(request: Request, env: Env): Promise<R
       error: error instanceof Error ? error.message : "oauth_exchange_failed"
     }, 400, { "cache-control": "no-store" });
   }
+}
+
+async function cleanupBrowserRunStagingAccountNative(request: Request, env: Env): Promise<Response> {
+  if (env.ENVIRONMENT !== "staging") {
+    return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
+  }
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+
+  const session = await readCompatibleSession(request, env);
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+
+  const account = await env.CORE_DB.prepare(
+    `SELECT user_id, email, display_name
+       FROM auth_users
+      WHERE user_id = ?
+      LIMIT 1`
+  ).bind(session.userId).first<{ user_id: string; email: string; display_name: string }>();
+
+  if (!account || !isBrowserRunEphemeralStagingAccount({
+    environment: env.ENVIRONMENT,
+    email: account.email,
+    displayName: account.display_name,
+  })) {
+    return json({ ok: false, error: "browser_run_staging_account_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  await env.CORE_DB.batch([
+    env.CORE_DB.prepare("DELETE FROM auth_sessions WHERE user_id = ?").bind(session.userId),
+    env.CORE_DB.prepare("DELETE FROM oauth_accounts WHERE user_id = ?").bind(session.userId),
+    env.CORE_DB.prepare("DELETE FROM auth_users WHERE user_id = ?").bind(session.userId),
+    env.CORE_DB.prepare("DELETE FROM users WHERE user_id = ?").bind(session.userId),
+  ]);
+
+  return json({ ok: true, cleaned: true }, 200, {
+    "cache-control": "no-store",
+    "set-cookie": buildClearedSessionCookie(env),
+  });
 }
 
 async function registerWithPasswordNative(request: Request, env: Env): Promise<Response> {
