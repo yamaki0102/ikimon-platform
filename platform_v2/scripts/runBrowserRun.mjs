@@ -5,27 +5,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const platformRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const cloudflareRoot = path.join(platformRoot, "cloudflare_shadow");
 const diagnostic = process.argv.includes("--diagnostics");
 const intentionalFailure = process.argv.includes("--intentional-failure");
 const passthrough = process.argv.filter((arg) => arg !== "--diagnostics" && arg !== "--intentional-failure");
 const defaultBrowserRunStagingUrl = "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev";
 
-function wranglerCommand() {
-  return process.platform === "win32" ? "npx.cmd" : "npx";
-}
-
 function readWranglerAuthToken() {
   try {
-    const raw = execFileSync(
-      wranglerCommand(),
-      ["wrangler", "auth", "token", "--json"],
-      {
-        cwd: cloudflareRoot,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
+    const command = process.platform === "win32" ? "cmd.exe" : "npx";
+    const args = process.platform === "win32"
+      ? ["/d", "/s", "/c", "npx wrangler auth token --json"]
+      : ["wrangler", "auth", "token", "--json"];
+    const raw = execFileSync(command, args, {
+      cwd: platformRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     const parsed = JSON.parse(raw);
     return typeof parsed?.token === "string" ? parsed.token.trim() : "";
   } catch {
