@@ -204,6 +204,7 @@ const env = {
   STAGING_BASE_URL: stagingBaseUrl,
   BROWSER_RUN_TEST_EMAIL: runEmail,
   BROWSER_RUN_TEST_PASSWORD: runPassword,
+  BROWSER_RUN_EXPECTED_RUNTIME_SHA: process.env.BROWSER_RUN_EXPECTED_RUNTIME_SHA?.trim() || sourceSha,
   IKIMON_EXPECTED_GIT_SHA: sourceSha,
   BROWSER_RUN_DIAGNOSTICS: diagnostic ? "1" : "0",
   BROWSER_RUN_INTENTIONAL_FAILURE: intentionalFailure ? "1" : "0",
