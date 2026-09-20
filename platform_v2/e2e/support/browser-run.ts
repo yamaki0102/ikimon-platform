@@ -75,11 +75,15 @@ function resolveCloudflareBrowserAuth(): CloudflareBrowserAuth {
   if (!accountId) {
     const whoami = wranglerJson(["whoami", "--json"]);
     const accountIds = [...new Set(collectAccountIds(whoami))];
-    if (accountIds.length !== 1) {
+    const resolvedAccountId = accountIds[0];
+    if (accountIds.length !== 1 || !resolvedAccountId) {
       throw new Error("CLOUDFLARE_ACCOUNT_ID is required when Wrangler does not resolve exactly one account");
     }
-    [accountId] = accountIds;
+    accountId = resolvedAccountId;
     source = "wrangler";
+  }
+  if (!accountId) {
+    throw new Error("Cloudflare account ID is unavailable for Browser Run");
   }
 
   return { accountId, token, source };
