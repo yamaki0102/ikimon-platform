@@ -7,6 +7,7 @@ import { loadConfig } from "../config.js";
 import { writeLegacyUser } from "../legacy/compatibilityWriter.js";
 import { readJsonArray } from "../legacy/legacyJsonStore.js";
 import { normalizeEmail } from "./authSecurity.js";
+import { browserRunStagingUserIdForEmail } from "./browserRunStagingAccount.js";
 
 export type AuthenticatedUser = {
   userId: string;
@@ -183,7 +184,7 @@ export async function registerWithPassword(input: {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const userId = `user_${randomUUID()}`;
+  const userId = browserRunStagingUserIdForEmail(email) ?? `user_${randomUUID()}`;
   try {
     const result = await getPool().query<{
       user_id: string;
