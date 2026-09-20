@@ -22,7 +22,7 @@ type CloudflareBrowserAuth = {
 };
 
 function wranglerJson(args: string[]): Record<string, unknown> {
-  const executable = process.platform === "win32" ? "npx.cmd" : "npx";
+  const executable = "npx";
   let stdout = "";
   try {
     stdout = execFileSync(executable, ["wrangler", ...args], {
@@ -30,6 +30,7 @@ function wranglerJson(args: string[]): Record<string, unknown> {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
       env: process.env,
+      shell: process.platform === "win32",
     });
   } catch {
     throw new Error("Wrangler authentication is unavailable for Cloudflare Browser Run");
