@@ -14,16 +14,27 @@ Normal Playwright execution remains unchanged. The Browser Run runner sets BROWS
 
 A diagnostic run sets recording=true only when the session is created. It also writes a Playwright trace and, after session close, reads back the recording and redacted network HAR when Cloudflare exposes a target.
 
-## Required secret names
+## Authentication and staging target
 
-Values must come from the existing secret manager or CI secret store; never commit them or print them.
+The runner prefers explicit environment credentials when they are supplied:
 
 - CLOUDFLARE_ACCOUNT_ID
 - CLOUDFLARE_BROWSER_RUN_API_TOKEN (preferred) or CLOUDFLARE_API_TOKEN
+
+For an authorized local developer machine, the runner can instead reuse the current Wrangler OAuth login through `wrangler auth token --json`. The OAuth token is passed only to the child Playwright process and is not printed or persisted by the runner. When CLOUDFLARE_ACCOUNT_ID is absent, the runner discovers it only when the OAuth/API credential can see exactly one Cloudflare account; multiple accounts fail closed and require an explicit account ID.
+
+Browser Run defaults to the fixed staging Worker endpoint:
+
+    https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev
+
+This verifies the same staging Worker without requiring a Cloudflare Access service token for the custom domain. Set STAGING_BASE_URL explicitly when the custom-domain path itself must be verified. If that custom domain is Cloudflare Access protected, provide both CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (the CLOUDFLARE_ACCESS_* aliases are also accepted). Existing staging Basic Auth variables remain supported.
+
+A dedicated staging login is still required:
+
 - BROWSER_RUN_TEST_EMAIL
 - BROWSER_RUN_TEST_PASSWORD
 
-The API token must be scoped to the Cloudflare Browser Rendering Edit permission. If staging is Cloudflare Access protected, provide both CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (the CLOUDFLARE_ACCESS_* aliases are also accepted). Access headers are added only to the staging origin. Existing staging Basic Auth variables remain supported.
+These values must come from the existing secret manager or an approved dedicated test-account path; never commit or print them.
 
 BROWSER_RUN_EXPECTED_RUNTIME_SHA is optional but should be set for a deployment verification. When set, the test compares it to /api/v1/runtime/version.
 
