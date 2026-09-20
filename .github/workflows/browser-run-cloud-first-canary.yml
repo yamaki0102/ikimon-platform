@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - noah/browser-run-cloud-first-20260920
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
