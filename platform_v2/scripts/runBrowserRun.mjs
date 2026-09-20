@@ -114,14 +114,14 @@ async function provisionEphemeralStagingAccount(baseUrl) {
     }),
   });
   const payload = await response.json().catch(() => null);
-  if (!response.ok || payload?.ok !== true || payload?.session?.userId !== fixtureId) {
+  if (!response.ok || payload?.ok !== true || typeof payload?.session?.userId !== "string" || !payload.session.userId) {
     throw new Error("Ephemeral Browser Run staging account registration failed with HTTP " + response.status);
   }
   const cookie = sessionCookieFromResponse(response);
   if (!cookie) {
     throw new Error("Ephemeral Browser Run staging account registration omitted the session cookie.");
   }
-  return { email, password, cookie };
+  return { email, password, cookie, userId: payload.session.userId };
 }
 
 async function cleanupEphemeralStagingAccount(baseUrl, cookie) {
