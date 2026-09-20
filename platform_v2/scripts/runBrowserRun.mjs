@@ -78,11 +78,9 @@ if (!sourceSha) {
   sourceSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: platformRoot, encoding: "utf8" }).trim();
 }
 
-const executable = process.platform === "win32"
-  ? path.join(platformRoot, "node_modules", ".bin", "playwright.cmd")
-  : path.join(platformRoot, "node_modules", ".bin", "playwright");
-if (!existsSync(executable)) {
-  console.error("Playwright executable is missing; run npm ci in platform_v2 first.");
+const playwrightCli = path.join(platformRoot, "node_modules", "@playwright", "test", "cli.js");
+if (!existsSync(playwrightCli)) {
+  console.error("Playwright CLI is missing; run npm ci in platform_v2 first.");
   process.exit(2);
 }
 
@@ -107,7 +105,7 @@ const env = {
   BROWSER_RUN_DIAGNOSTICS: diagnostic ? "1" : "0",
   BROWSER_RUN_INTENTIONAL_FAILURE: intentionalFailure ? "1" : "0",
 };
-const result = spawnSync(executable, args, {
+const result = spawnSync(process.execPath, [playwrightCli, ...args], {
   cwd: platformRoot,
   env,
   stdio: "inherit",
