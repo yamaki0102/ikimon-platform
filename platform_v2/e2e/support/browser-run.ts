@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
@@ -14,20 +15,74 @@ export function browserRunDiagnosticsEnabled(): boolean {
   return process.env.BROWSER_RUN_DIAGNOSTICS === "1";
 }
 
-function requiredEnv(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(name + " is required for Cloudflare Browser Run");
-  return value;
+type CloudflareBrowserAuth = {
+  accountId: string;
+  token: string;
+  source: "environment" | "wrangler";
+};
+
+function wranglerJson(args: string[]): Record<string, unknown> {
+  const executable = process.platform === "win32" ? "npx.cmd" : "npx";
+  let stdout = "";
+  try {
+    stdout = execFileSync(executable, ["wrangler", ...args], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env: process.env,
+    });
+  } catch {
+    throw new Error("Wrangler authentication is unavailable for Cloudflare Browser Run");
+  }
+  try {
+    const parsed = JSON.parse(stdout) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("invalid_wrangler_json");
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    throw new Error("Wrangler returned invalid JSON for Cloudflare Browser Run");
+  }
 }
 
-function accountId(): string {
-  return requiredEnv("CLOUDFLARE_ACCOUNT_ID");
+function collectAccountIds(value: unknown, key = ""): string[] {
+  if (Array.isArray(value)) return value.flatMap((entry) => collectAccountIds(entry, key));
+  if (!value || typeof value !== "object") {
+    const text = String(value ?? "").trim();
+    return /^(?:[a-f0-9]{32})$/i.test(text) && /^(?:id|account[_-]?id)$/i.test(key) ? [text] : [];
+  }
+  return Object.entries(value as Record<string, unknown>)
+    .flatMap(([childKey, childValue]) => collectAccountIds(childValue, childKey));
 }
 
-function apiToken(): string {
-  return process.env.CLOUDFLARE_BROWSER_RUN_API_TOKEN?.trim()
-    || process.env.CLOUDFLARE_API_TOKEN?.trim()
-    || (() => { throw new Error("CLOUDFLARE_BROWSER_RUN_API_TOKEN is required for Cloudflare Browser Run"); })();
+function resolveCloudflareBrowserAuth(): CloudflareBrowserAuth {
+  const explicitAccountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  const explicitToken = process.env.CLOUDFLARE_BROWSER_RUN_API_TOKEN?.trim()
+    || process.env.CLOUDFLARE_API_TOKEN?.trim();
+
+  let token = explicitToken;
+  let source: CloudflareBrowserAuth["source"] = "environment";
+  if (!token) {
+    const auth = wranglerJson(["auth", "token", "--json"]);
+    token = typeof auth.token === "string" ? auth.token.trim() : "";
+    source = "wrangler";
+  }
+  if (!token) {
+    throw new Error("Cloudflare Browser Run authentication token is unavailable");
+  }
+
+  let accountId = explicitAccountId;
+  if (!accountId) {
+    const whoami = wranglerJson(["whoami", "--json"]);
+    const accountIds = [...new Set(collectAccountIds(whoami))];
+    if (accountIds.length !== 1) {
+      throw new Error("CLOUDFLARE_ACCOUNT_ID is required when Wrangler does not resolve exactly one account");
+    }
+    [accountId] = accountIds;
+    source = "wrangler";
+  }
+
+  return { accountId, token, source };
 }
 
 function redactUrl(value: string): string {
@@ -105,8 +160,9 @@ async function cloudflareRequest(
 }
 
 export async function createBrowserRunSession(): Promise<BrowserRunSession> {
-  const account = accountId();
-  const token = apiToken();
+  const auth = resolveCloudflareBrowserAuth();
+  const account = auth.accountId;
+  const token = auth.token;
   const keepAlive = Math.min(Math.max(Number(process.env.BROWSER_RUN_KEEP_ALIVE_MS ?? "600000"), 60000), 600000);
   const params = new URLSearchParams({
     keep_alive: String(keepAlive),
