@@ -1,5 +1,7 @@
+import { randomBytes } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import bcrypt from "bcryptjs";
 import type {
   APIRequestContext,
   Browser,
@@ -482,6 +484,46 @@ export async function createStagingApiContext(playwright: Playwright): Promise<A
       ...accessHeaders,
     },
   });
+}
+
+
+export type BrowserRunTestAccount = {
+  fixturePrefix: string;
+  userId: string;
+  email: string;
+  password: string;
+};
+
+export async function provisionBrowserRunTestAccount(
+  api: APIRequestContext,
+  writeKey: string,
+  fixturePrefix: string,
+): Promise<BrowserRunTestAccount> {
+  const userId = `${fixturePrefix}-user`;
+  const email = `${userId}@example.invalid`;
+  const password = `BrowserRun-${randomBytes(24).toString("base64url")}!`;
+  const passwordHash = await bcrypt.hash(password, 12);
+  const response = await api.post("/api/v1/users/upsert", {
+    headers: {
+      "x-ikimon-write-key": writeKey,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    data: {
+      userId,
+      displayName: "Browser Run QA",
+      email,
+      passwordHash,
+      roleName: "Observer",
+      rankLabel: "観察者",
+      authProvider: "local",
+      banned: false,
+    },
+  });
+  const payload = await response.json().catch(() => null) as { userId?: unknown; error?: unknown } | null;
+  expect(response.ok(), String(payload?.error ?? "browser_run_test_account_provision_failed")).toBeTruthy();
+  expect(payload?.userId, "browser run test account upsert should return userId").toBe(userId);
+  return { fixturePrefix, userId, email, password };
 }
 
 type SeedRegressionResponse = {
