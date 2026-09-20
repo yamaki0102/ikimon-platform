@@ -14,18 +14,24 @@ Normal Playwright execution remains unchanged. The Browser Run runner sets BROWS
 
 A diagnostic run sets recording=true only when the session is created. It also writes a Playwright trace and, after session close, reads back the recording and redacted network HAR when Cloudflare exposes a target.
 
-## Required secret names
+## Authentication and staging account
 
-Values must come from the existing secret manager or CI secret store; never commit them or print them.
+The default lane no longer requires a separately copied Browser Run token, account ID, or a human-maintained test-account password.
 
-- CLOUDFLARE_ACCOUNT_ID
-- CLOUDFLARE_BROWSER_RUN_API_TOKEN (preferred) or CLOUDFLARE_API_TOKEN
-- BROWSER_RUN_TEST_EMAIL
-- BROWSER_RUN_TEST_PASSWORD
+Cloudflare authentication resolves in this order:
 
-The API token must be scoped to the Cloudflare Browser Rendering Edit permission. If staging is Cloudflare Access protected, provide both CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (the CLOUDFLARE_ACCESS_* aliases are also accepted). Access headers are added only to the staging origin. Existing staging Basic Auth variables remain supported.
+1. `CLOUDFLARE_BROWSER_RUN_API_TOKEN`, when an explicitly scoped Browser Rendering token is already available;
+2. `CLOUDFLARE_API_TOKEN`, when an existing authorized executor supplies it;
+3. the current Wrangler authentication via `wrangler auth token --json`.
 
-BROWSER_RUN_EXPECTED_RUNTIME_SHA is optional but should be set for a deployment verification. When set, the test compares it to /api/v1/runtime/version.
+If `CLOUDFLARE_ACCOUNT_ID` is absent, the lane resolves the single current account through `wrangler whoami --json`. The token is held in process memory only and is never written into Browser Run evidence.
+
+For UI login, explicit `BROWSER_RUN_TEST_EMAIL` / `BROWSER_RUN_TEST_PASSWORD` remain supported as an override. Otherwise the lane uses the existing `V2_PRIVILEGED_WRITE_API_KEY` staging authority to create a bounded `browser-run-*` QA account with a random password, logs in through the normal `/login` form, and removes the fixture in `afterAll`.
+
+By default Browser Run targets the same staging Worker through
+`https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev`. This avoids making Cloudflare Access service-token IAM a prerequisite for automated UI verification. Set `STAGING_BASE_URL` explicitly when the Access-protected custom domain itself is the subject under test.
+
+`BROWSER_RUN_EXPECTED_RUNTIME_SHA` is optional but should be set for a deployment verification. When set, the test compares it to `/api/v1/runtime/version`.
 
 ## Commands
 
