@@ -34,6 +34,18 @@ Roadmap v3 owns wave order, the lane and landing rules, promotion boundaries, KP
 
 M1-M6 together are the Core Loop, not a closed foundation.
 
+## M6.1 — Activation integrity
+
+The existing `observation_event_sessions.event_code` unique constraint is both the activation key and the participant invite code. New activation requires a non-empty code and uses one atomic `INSERT ... ON CONFLICT` against that constraint; no migration, secondary idempotency store or new route is introduced.
+
+- activation is same-origin and requires an authenticated organizer;
+- the default remains `community`, with existing private-safe participant and publication boundaries unchanged;
+- an identical organizer, activation key and semantic Event payload returns the existing session, including under concurrent replay;
+- the same code with a different organizer or semantic payload returns `409`;
+- once established, the invite code is immutable so a delayed replay cannot create a second Event after the original code is renamed.
+
+Source Evals bind the Event route and session-service tests for denial, required fields, atomic convergence, collision, organizer isolation and the community default. The staging Golden Journey independently replays the same activation concurrently and verifies changed-payload conflict. These are source contracts only until an exact deployed SHA is separately verified.
+
 ## Core Loop lane
 
 The loop every ZUKAN user must complete without IKIMON help:

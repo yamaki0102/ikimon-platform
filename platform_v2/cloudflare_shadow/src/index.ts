@@ -5119,6 +5119,10 @@ async function createObservationEventSession(request: Request, env: Env): Promis
   const session = await readCompatibleSession(request, env);
   if (!session) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
   const body = await readJson<Record<string, unknown>>(request);
+  const eventCode = normalizeOptionalText(body.event_code);
+  if (!eventCode) {
+    return json({ error: "event_code activation key required" }, 400, { "cache-control": "no-store" });
+  }
   const startedAt = normalizeOptionalText(body.started_at);
   const title = normalizeOptionalText(body.title);
   if (!startedAt) return json({ error: "started_at required" }, 400, { "cache-control": "no-store" });
@@ -5132,16 +5136,38 @@ async function createObservationEventSession(request: Request, env: Env): Promis
   const primaryMode = observationEventMode(body.primary_mode) ?? "discovery";
   const activeModes = observationEventModes(body.active_modes, primaryMode);
   const id = crypto.randomUUID();
-  await env.OBS_DB.prepare(
-    `INSERT INTO observation_event_sessions (
+  // Activation is a semantic upsert keyed on the invite code (event_code UNIQUE), not a
+  // plain insert: identical retries of the same activation must converge on one session
+  // instead of colliding on the unique constraint, while a changed payload replaying the
+  // same code must be rejected as a conflict rather than silently reusing the old session.
+  const activated = await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_sessions AS activated (
        session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
        plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
        started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(event_code) DO UPDATE SET event_code = excluded.event_code
+     WHERE activated.organizer_user_id IS excluded.organizer_user_id
+       AND activated.legacy_event_id IS excluded.legacy_event_id
+       AND activated.title IS excluded.title
+       AND activated.corporation_id IS excluded.corporation_id
+       AND activated.plan IS excluded.plan
+       AND activated.primary_mode IS excluded.primary_mode
+       AND activated.active_modes_json IS excluded.active_modes_json
+       AND activated.location_lat IS excluded.location_lat
+       AND activated.location_lng IS excluded.location_lng
+       AND activated.location_radius_m IS excluded.location_radius_m
+       AND activated.started_at IS excluded.started_at
+       AND activated.ended_at IS excluded.ended_at
+       AND activated.target_species_json IS excluded.target_species_json
+       AND activated.config_json IS excluded.config_json
+       AND activated.field_id IS excluded.field_id
+       AND activated.template_source_session_id IS excluded.template_source_session_id
+     RETURNING session_id`
   ).bind(
     id,
     normalizeOptionalText(body.legacy_event_id),
-    normalizeOptionalText(body.event_code),
+    eventCode,
     title,
     session.userId,
     normalizeOptionalText(body.corporation_id),
@@ -5157,8 +5183,11 @@ async function createObservationEventSession(request: Request, env: Env): Promis
     JSON.stringify(asPlainObject(body.config) ?? {}),
     fieldId,
     normalizeOptionalText(body.template_source_session_id)
-  ).run();
-  const created = await getObservationEventSessionById(env, id);
+  ).first<{ session_id: string }>();
+  if (!activated) {
+    return json({ error: "observation_event_activation_conflict" }, 409, { "cache-control": "no-store" });
+  }
+  const created = await getObservationEventSessionById(env, activated.session_id);
   return json(created, 201, { "cache-control": "no-store" });
 }
 
@@ -5167,16 +5196,38 @@ async function updateObservationEventSession(request: Request, env: Env, session
   if (auth instanceof Response) return auth;
   const body = await readJson<Record<string, unknown>>(request);
   const current = auth.session;
+  if (typeof body.event_code === "string") {
+    const requestedEventCode = body.event_code.trim();
+    if (!requestedEventCode) {
+      return json({ error: "event_code required" }, 400, { "cache-control": "no-store" });
+    }
+    if (current.eventCode) {
+      if (requestedEventCode !== current.eventCode) {
+        return json({ error: "event_code is immutable after activation" }, 409, { "cache-control": "no-store" });
+      }
+    } else {
+      // The `current` snapshot above can go stale before this write lands, so the
+      // one-time invite-code claim is its own conditional statement (event_code IS
+      // NULL) rather than folded into the combined UPDATE below — otherwise two
+      // concurrent PATCH requests could both pass a null-check and the later write
+      // would silently overwrite the first organizer's code.
+      const claimed = await env.OBS_DB.prepare(
+        "UPDATE observation_event_sessions SET event_code = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ? AND event_code IS NULL"
+      ).bind(requestedEventCode, sessionId).run() as { meta?: { changes?: number } };
+      if (Number(claimed.meta?.changes ?? 0) === 0) {
+        return json({ error: "event_code is immutable after activation" }, 409, { "cache-control": "no-store" });
+      }
+    }
+  }
   const primaryMode = observationEventMode(body.primary_mode) ?? current.primaryMode;
   await env.OBS_DB.prepare(
     `UPDATE observation_event_sessions
-        SET title = ?, event_code = ?, primary_mode = ?, active_modes_json = ?,
+        SET title = ?, primary_mode = ?, active_modes_json = ?,
             location_lat = ?, location_lng = ?, location_radius_m = ?, started_at = ?,
             target_species_json = ?, plan = ?, config_json = ?, field_id = ?, updated_at = CURRENT_TIMESTAMP
       WHERE session_id = ?`
   ).bind(
     typeof body.title === "string" ? body.title : current.title,
-    body.event_code === undefined ? current.eventCode : normalizeOptionalText(body.event_code),
     primaryMode,
     JSON.stringify(Array.isArray(body.active_modes) ? observationEventModes(body.active_modes, primaryMode) : current.activeModes),
     body.location_lat === undefined ? current.locationLat : numberOrNullFromUnknown(body.location_lat),

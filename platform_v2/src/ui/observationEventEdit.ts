@@ -19,6 +19,10 @@ export function renderEventEditBody(args: {
   strings: ObservationEventStrings;
 }): string {
   const { session, strings } = args;
+  const eventCodeAttributes = session.eventCode ? ' readonly aria-readonly="true"' : "";
+  const eventCodeGuidance = session.eventCode
+    ? "招待リンクを安定させるため、作成後は変更できません。"
+    : "既存の観察会には参加コードを一度だけ設定できます。空欄のままでも他の項目を編集できます。";
   const modeOptions = EVENT_MODES.map((mode) => {
     const label = strings.modeLabels[mode] ?? mode;
     const sel = mode === session.primaryMode ? " selected" : "";
@@ -41,8 +45,9 @@ export function renderEventEditBody(args: {
       <input name="started_at" type="datetime-local" value="${escapeHtml(toLocalDatetimeValue(session.startedAt))}" />
     </label>
     <label>参加コード
-      <input name="event_code" maxlength="8" value="${escapeHtml(session.eventCode ?? "")}"
+      <input name="event_code" maxlength="8" value="${escapeHtml(session.eventCode ?? "")}"${eventCodeAttributes}
              style="font-family:'Roboto Mono',monospace; text-transform:uppercase; letter-spacing:.12em;" />
+      <span class="evt-lead">${eventCodeGuidance}</span>
     </label>
     <label>主モード
       <select name="primary_mode" required>${modeOptions}</select>
@@ -95,9 +100,13 @@ export function eventEditScript(): string {
     const lat = fd.get("location_lat") ? Number(fd.get("location_lat")) : null;
     const lng = fd.get("location_lng") ? Number(fd.get("location_lng")) : null;
     const radius = fd.get("location_radius_m") ? Number(fd.get("location_radius_m")) : 1000;
+    const eventCodeInput = form.querySelector('[name="event_code"]');
+    const eventCode = eventCodeInput && !eventCodeInput.readOnly
+      ? String(fd.get("event_code") || "").toUpperCase().replace(/[^A-Z0-9]/g, "")
+      : "";
     const payload = {
       title: fd.get("title"),
-      event_code: String(fd.get("event_code") || "").toUpperCase().replace(/[^A-Z0-9]/g, ""),
+      ...(eventCode ? { event_code: eventCode } : {}),
       started_at: startedAt,
       primary_mode: fd.get("primary_mode"),
       target_species: targetSpecies,
