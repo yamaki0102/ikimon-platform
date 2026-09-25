@@ -1049,7 +1049,7 @@
         "quality.zukan.program.self-serve-activation"
       ],
       "property": "未ログイン・権限外actorはProgram/Event作成を成功扱いせず、既存入力やprivate stateを公開しない",
-      "current_test": "platform_v2/src/ui/observationEventCreate.test.ts"
+      "current_test": "platform_v2/src/routes/observationEventActivation.routes.test.ts"
     },
     {
       "id": "prop.program.activation-retry-converges",
@@ -1057,7 +1057,7 @@
         "quality.zukan.program.self-serve-activation"
       ],
       "property": "同じactivation intentの再試行は複数の主催Eventや招待対象を勝手に作らず一つのlogical activationへ収束する",
-      "current_test": "platform_v2/e2e/renri-science-adventure-journey.staging.spec.ts"
+      "current_test": "platform_v2/src/services/observationEventModeManager.test.ts"
     },
     {
       "id": "prop.program.private-record-not-public",

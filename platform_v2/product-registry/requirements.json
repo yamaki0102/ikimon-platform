@@ -1125,7 +1125,7 @@
       "id": "quality.zukan.program.self-serve-activation",
       "quality_contract": "quality.zukan.program-activation",
       "title": "主催者のSelf-Serve Program起動",
-      "acceptance": "学校・自治体・団体・企業の主催者が、運営者や開発者の介入なしに既存のProgram/Event作成導線から目的・場所・日時・参加方法を設定し、招待可能なEventを作成できる",
+      "acceptance": "学校・自治体・団体・企業の認証済み主催者がsame-originの既存Program/Event作成導線から目的・場所・日時・参加方法を設定し、community/private-safe defaultの安定した非null招待コードを持つEventを作成できる。同じ主催者・activation key・semantic payloadの再試行と同時実行は同じEventへ収束し、payload変更・別主催者・コード衝突は409でfail closedする",
       "environments": [
         "source",
         "staging"

@@ -106,7 +106,7 @@ function mapSession(row: RawSessionRow): ObservationEventSessionRow {
 
 export interface CreateSessionInput {
   legacyEventId?: string | null;
-  eventCode?: string | null;
+  eventCode: string;
   title?: string;
   organizerUserId: string;
   corporationId?: string | null;
@@ -124,16 +124,40 @@ export interface CreateSessionInput {
   templateSourceSessionId?: string | null;
 }
 
+export const OBSERVATION_EVENT_ACTIVATION_CONFLICT = "observation_event_activation_conflict";
+
+export class ObservationEventActivationConflictError extends Error {
+  readonly code = OBSERVATION_EVENT_ACTIVATION_CONFLICT;
+  readonly statusCode = 409;
+
+  constructor() {
+    super(OBSERVATION_EVENT_ACTIVATION_CONFLICT);
+    this.name = "ObservationEventActivationConflictError";
+  }
+}
+
+export type ObservationEventSessionQuery = (
+  statement: string,
+  values: unknown[],
+) => Promise<{ rows: Array<Record<string, unknown>> }>;
+
 export async function createSession(
   input: CreateSessionInput,
+  query?: ObservationEventSessionQuery,
 ): Promise<ObservationEventSessionRow> {
+  const eventCode = input.eventCode.trim();
+  if (!eventCode) throw new Error("event_code activation key required");
+
   const primaryMode = input.primaryMode ?? "discovery";
   const activeModes = (input.activeModes && input.activeModes.length > 0
     ? input.activeModes
     : [primaryMode]).filter(isEventMode);
 
-  const result = await getPool().query<RawSessionRow>(
-    `INSERT INTO observation_event_sessions (
+  const runQuery: ObservationEventSessionQuery = query ?? (
+    (statement, values) => getPool().query<RawSessionRow>(statement, values)
+  );
+  const result = await runQuery(
+    `INSERT INTO observation_event_sessions AS activated (
        legacy_event_id, event_code, title, organizer_user_id, corporation_id,
        plan, primary_mode, active_modes,
        location_lat, location_lng, location_radius_m,
@@ -146,10 +170,28 @@ export async function createSession(
        $12, $13, $14::text[], $15::jsonb,
        $16, $17
      )
+     ON CONFLICT (event_code) DO UPDATE
+     SET event_code = EXCLUDED.event_code
+     WHERE activated.organizer_user_id IS NOT DISTINCT FROM EXCLUDED.organizer_user_id
+       AND activated.legacy_event_id IS NOT DISTINCT FROM EXCLUDED.legacy_event_id
+       AND activated.title IS NOT DISTINCT FROM EXCLUDED.title
+       AND activated.corporation_id IS NOT DISTINCT FROM EXCLUDED.corporation_id
+       AND activated.plan IS NOT DISTINCT FROM EXCLUDED.plan
+       AND activated.primary_mode IS NOT DISTINCT FROM EXCLUDED.primary_mode
+       AND activated.active_modes IS NOT DISTINCT FROM EXCLUDED.active_modes
+       AND activated.location_lat IS NOT DISTINCT FROM EXCLUDED.location_lat
+       AND activated.location_lng IS NOT DISTINCT FROM EXCLUDED.location_lng
+       AND activated.location_radius_m IS NOT DISTINCT FROM EXCLUDED.location_radius_m
+       AND activated.started_at IS NOT DISTINCT FROM EXCLUDED.started_at
+       AND activated.ended_at IS NOT DISTINCT FROM EXCLUDED.ended_at
+       AND activated.target_species IS NOT DISTINCT FROM EXCLUDED.target_species
+       AND activated.config IS NOT DISTINCT FROM EXCLUDED.config
+       AND activated.field_id IS NOT DISTINCT FROM EXCLUDED.field_id
+       AND activated.template_source_session_id IS NOT DISTINCT FROM EXCLUDED.template_source_session_id
      RETURNING ${SESSION_SELECT}`,
     [
       input.legacyEventId ?? null,
-      input.eventCode ?? null,
+      eventCode,
       input.title ?? "",
       input.organizerUserId,
       input.corporationId ?? null,
@@ -167,8 +209,8 @@ export async function createSession(
       input.templateSourceSessionId ?? null,
     ],
   );
-  const row = result.rows[0];
-  if (!row) throw new Error("failed to create observation event session");
+  const row = result.rows[0] as RawSessionRow | undefined;
+  if (!row) throw new ObservationEventActivationConflictError();
   return mapSession(row);
 }
 

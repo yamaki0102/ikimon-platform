@@ -1472,6 +1472,8 @@ export function eventCreateScript(): string {
     const endedAtLocal = String(fd.get("ended_at") || "");
     const endedAt = endedAtLocal ? new Date(endedAtLocal).toISOString() : null;
     const eventCode = String(fd.get("event_code") || "").toUpperCase().replace(/[^A-Z0-9]/g, "") || genEventCode();
+    const eventCodeInput = form.querySelector('[name="event_code"]');
+    if (eventCodeInput) eventCodeInput.value = eventCode;
     const targetSpecies = String(fd.get("target_species") || "")
       .split(/[,、]/).map(s => s.trim()).filter(Boolean).slice(0, 12);
     const lat = fd.get("location_lat") ? Number(fd.get("location_lat")) : null;

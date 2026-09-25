@@ -210,3 +210,15 @@ test("self-serve activation keeps the organizer login boundary explicit", () => 
   assert.match(html, /href="\/auth\?redirect=%2Fcommunity%2Fevents%2Fnew"/);
   assert.doesNotMatch(html, /data-evt-create-form/);
 });
+
+test("self-serve activation retains one generated invite code across submit retries", () => {
+  const script = eventCreateScript();
+
+  assert.match(script, /const eventCodeInput = form\.querySelector\('\[name="event_code"\]'\)/);
+  assert.match(script, /if \(eventCodeInput\) eventCodeInput\.value = eventCode/);
+  const retainedAt = script.indexOf("eventCodeInput.value = eventCode");
+  assert.ok(
+    retainedAt >= 0 && retainedAt < script.indexOf("await resolveFieldForEvent", retainedAt),
+    "the activation key must be retained before the first asynchronous side effect",
+  );
+});

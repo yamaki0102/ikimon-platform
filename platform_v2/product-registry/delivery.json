@@ -781,8 +781,12 @@
       "source_locators": [
         "platform_v2/src/ui/observationEventCreate.ts",
         "platform_v2/src/ui/observationEventCreate.test.ts",
+        "platform_v2/src/ui/observationEventEdit.ts",
         "platform_v2/src/routes/observationEventApi.ts",
+        "platform_v2/src/routes/observationEventActivation.routes.test.ts",
         "platform_v2/src/routes/observationEventPages.ts",
+        "platform_v2/src/services/observationEventModeManager.ts",
+        "platform_v2/src/services/observationEventModeManager.test.ts",
         "platform_v2/src/services/observationEventParticipantAccess.ts",
         "platform_v2/src/ui/observationEventRecap.ts"
       ],
