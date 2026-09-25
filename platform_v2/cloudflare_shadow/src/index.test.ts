@@ -2349,6 +2349,17 @@ class FakeStatement {
       return { meta: { changes: 1 } };
     }
 
+    if (normalized.startsWith("UPDATE observation_event_sessions SET event_code = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ? AND event_code IS NULL")) {
+      // One-time legacy invite-code claim: conditioned on event_code IS NULL so a losing
+      // concurrent PATCH reports changes: 0 instead of clobbering the winner's code.
+      const sessionId = string(v[1]);
+      const row = this.db.observationEventSessions.get(sessionId);
+      if (!row || row.event_code !== null) return { meta: { changes: 0 } };
+      row.event_code = string(v[0]);
+      row.updated_at = new Date().toISOString();
+      return { meta: { changes: 1 } };
+    }
+
     if (normalized.startsWith("UPDATE observation_event_sessions SET ended_at")) {
       const row = requireRow(this.db.observationEventSessions, string(v[0]));
       row.ended_at = row.ended_at ?? new Date().toISOString();
@@ -2365,19 +2376,18 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("UPDATE observation_event_sessions SET title")) {
-      const row = requireRow(this.db.observationEventSessions, string(v[12]));
+      const row = requireRow(this.db.observationEventSessions, string(v[11]));
       row.title = string(v[0]);
-      row.event_code = nullableString(v[1]);
-      row.primary_mode = string(v[2]);
-      row.active_modes_json = string(v[3]);
-      row.location_lat = nullableNumber(v[4]);
-      row.location_lng = nullableNumber(v[5]);
-      row.location_radius_m = number(v[6]);
-      row.started_at = string(v[7]);
-      row.target_species_json = string(v[8]);
-      row.plan = string(v[9]);
-      row.config_json = string(v[10]);
-      row.field_id = nullableString(v[11]);
+      row.primary_mode = string(v[1]);
+      row.active_modes_json = string(v[2]);
+      row.location_lat = nullableNumber(v[3]);
+      row.location_lng = nullableNumber(v[4]);
+      row.location_radius_m = number(v[5]);
+      row.started_at = string(v[6]);
+      row.target_species_json = string(v[7]);
+      row.plan = string(v[8]);
+      row.config_json = string(v[9]);
+      row.field_id = nullableString(v[10]);
       row.updated_at = new Date().toISOString();
       return {};
     }
@@ -6248,6 +6258,59 @@ class FakeStatement {
         expires_at: row.expires_at,
         note: row.note
       } as T);
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_event_sessions AS activated")) {
+      const eventCode = string(v[2]);
+      const incoming: ObservationEventSessionTestRow = {
+        session_id: string(v[0]),
+        legacy_event_id: nullableString(v[1]),
+        event_code: eventCode,
+        title: string(v[3]),
+        organizer_user_id: string(v[4]),
+        corporation_id: nullableString(v[5]),
+        plan: string(v[6]),
+        primary_mode: string(v[7]),
+        active_modes_json: string(v[8]),
+        location_lat: nullableNumber(v[9]),
+        location_lng: nullableNumber(v[10]),
+        location_radius_m: number(v[11]),
+        started_at: string(v[12]),
+        ended_at: nullableString(v[13]),
+        target_species_json: string(v[14]),
+        config_json: string(v[15]),
+        field_id: nullableString(v[16]),
+        template_source_session_id: nullableString(v[17]),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      // Mirrors `ON CONFLICT(event_code) DO UPDATE ... WHERE <all columns match> RETURNING
+      // session_id`: no existing row with this invite code inserts fresh; an existing row
+      // with identical semantics converges on it (idempotent retry); any mismatch returns
+      // no row so the caller reports an activation conflict instead of reusing a stale
+      // session or clobbering someone else's.
+      const existing = [...this.db.observationEventSessions.values()].find((row) => row.event_code === eventCode);
+      if (!existing) {
+        this.db.observationEventSessions.set(incoming.session_id, incoming);
+        return ({ session_id: incoming.session_id } as T);
+      }
+      const matches = existing.organizer_user_id === incoming.organizer_user_id
+        && existing.legacy_event_id === incoming.legacy_event_id
+        && existing.title === incoming.title
+        && existing.corporation_id === incoming.corporation_id
+        && existing.plan === incoming.plan
+        && existing.primary_mode === incoming.primary_mode
+        && existing.active_modes_json === incoming.active_modes_json
+        && existing.location_lat === incoming.location_lat
+        && existing.location_lng === incoming.location_lng
+        && existing.location_radius_m === incoming.location_radius_m
+        && existing.started_at === incoming.started_at
+        && existing.ended_at === incoming.ended_at
+        && existing.target_species_json === incoming.target_species_json
+        && existing.config_json === incoming.config_json
+        && existing.field_id === incoming.field_id
+        && existing.template_source_session_id === incoming.template_source_session_id;
+      return matches ? ({ session_id: existing.session_id } as T) : null;
     }
 
     throw new Error(`Unhandled SQL first: ${this.query}`);

@@ -23,6 +23,7 @@ import {
   sanitizeObservationEventTimeline,
 } from "../services/observationEventRecap.js";
 import {
+  claimEventCodeOnce,
   createSession,
   endSession,
   getSessionById,
@@ -582,10 +583,20 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
         if (!requestedEventCode) {
           return reply.status(400).send({ error: "event_code required" });
         }
-        if (session.eventCode && requestedEventCode !== session.eventCode) {
-          return reply.status(409).send({ error: "event_code is immutable after activation" });
+        if (session.eventCode) {
+          if (requestedEventCode !== session.eventCode) {
+            return reply.status(409).send({ error: "event_code is immutable after activation" });
+          }
+        } else {
+          // The session snapshot above can go stale before this write lands, so the
+          // one-time claim has to be its own conditional statement (event_code IS NULL)
+          // rather than folded into the generic `updates` UPDATE below — otherwise two
+          // concurrent PATCH requests both pass the null-check and the later write wins.
+          const claimed = await claimEventCodeOnce(session.sessionId, requestedEventCode);
+          if (!claimed) {
+            return reply.status(409).send({ error: "event_code is immutable after activation" });
+          }
         }
-        if (!session.eventCode) updates.eventCode = requestedEventCode;
       }
       const primaryRaw = asString(body.primary_mode);
       if (primaryRaw && isEventMode(primaryRaw)) updates.primaryMode = primaryRaw;

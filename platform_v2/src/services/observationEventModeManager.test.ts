@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isDeepStrictEqual } from "node:util";
 import {
+  claimEventCodeOnce,
   createSession,
   ObservationEventActivationConflictError,
   type CreateSessionInput,
@@ -88,4 +89,54 @@ test("the same activation key rejects changed payload and organizer collisions",
   const replay = await createSession(BASE_INPUT, store.query);
   assert.equal(replay.sessionId, original.sessionId);
   assert.equal(store.insertions(), 1);
+});
+
+function legacySessionRow(sessionId: string, eventCode: string | null): Record<string, unknown> {
+  return {
+    session_id: sessionId, legacy_event_id: "legacy-42", event_code: eventCode,
+    title: "地域の記録会", organizer_user_id: "organizer-a", corporation_id: null,
+    plan: "community", primary_mode: "discovery", active_modes: ["discovery"],
+    location_lat: null, location_lng: null, location_radius_m: 1000,
+    started_at: "2026-09-02T01:00:00.000Z", ended_at: null, target_species: [], config: {},
+    field_id: "field-a", template_source_session_id: null,
+    created_at: "2026-09-01T05:00:00.000Z", updated_at: "2026-09-01T05:00:00.000Z",
+  };
+}
+
+/** Simulates the DB-level atomicity of `UPDATE ... WHERE event_code IS NULL RETURNING ...`:
+ *  the network round trip is async, but the read-check-write on the row itself happens
+ *  in one uninterrupted step, exactly like a single SQL statement would. */
+function legacySessionStore(initial: Map<string, Record<string, unknown>>): { query: ObservationEventSessionQuery } {
+  const query: ObservationEventSessionQuery = async (_statement, values) => {
+    await Promise.resolve();
+    const [sessionId, eventCode] = values as [string, string];
+    const row = initial.get(sessionId);
+    if (!row || row.event_code !== null) return { rows: [] };
+    const updated = { ...row, event_code: eventCode };
+    initial.set(sessionId, updated);
+    return { rows: [updated] };
+  };
+  return { query };
+}
+
+test("claimEventCodeOnce assigns a legacy session's invite code exactly once", async () => {
+  const rows = new Map([["session-legacy", legacySessionRow("session-legacy", null)]]);
+  const { query } = legacySessionStore(rows);
+  const claimed = await claimEventCodeOnce("session-legacy", "SUMMER26", query);
+  assert.ok(claimed);
+  assert.equal(claimed?.eventCode, "SUMMER26");
+  const secondAttempt = await claimEventCodeOnce("session-legacy", "OTHER99", query);
+  assert.equal(secondAttempt, null);
+});
+
+test("concurrent one-time code claims pick exactly one winner instead of last-write-wins", async () => {
+  const rows = new Map([["session-legacy", legacySessionRow("session-legacy", null)]]);
+  const { query } = legacySessionStore(rows);
+  const [first, second] = await Promise.all([
+    claimEventCodeOnce("session-legacy", "ORGANIZER-A-CODE", query),
+    claimEventCodeOnce("session-legacy", "ORGANIZER-B-CODE", query),
+  ]);
+  const winners = [first, second].filter((result): result is NonNullable<typeof result> => result !== null);
+  assert.equal(winners.length, 1, "exactly one concurrent claim should win, not both or neither");
+  assert.equal(rows.get("session-legacy")?.event_code, winners[0]?.eventCode);
 });

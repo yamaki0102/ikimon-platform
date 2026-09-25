@@ -214,6 +214,36 @@ export async function createSession(
   return mapSession(row);
 }
 
+/**
+ * Atomically claims a legacy session's one-time invite code.
+ *
+ * The PATCH route only knows a session was code-less from the snapshot it
+ * read before this call, so the assignment itself must be conditioned on
+ * `event_code IS NULL` in the same statement — otherwise two concurrent
+ * PATCH requests can both pass the route's null-check and the later
+ * unconditional UPDATE silently overwrites the first code. Returns null
+ * when the race is lost (someone else claimed the code first), letting the
+ * caller report a conflict instead of a false success.
+ */
+export async function claimEventCodeOnce(
+  sessionId: string,
+  eventCode: string,
+  query?: ObservationEventSessionQuery,
+): Promise<ObservationEventSessionRow | null> {
+  const runQuery: ObservationEventSessionQuery = query ?? (
+    (statement, values) => getPool().query<RawSessionRow>(statement, values)
+  );
+  const result = await runQuery(
+    `UPDATE observation_event_sessions
+        SET event_code = $2, updated_at = NOW()
+      WHERE session_id = $1 AND event_code IS NULL
+      RETURNING ${SESSION_SELECT}`,
+    [sessionId, eventCode],
+  );
+  const row = result.rows[0] as RawSessionRow | undefined;
+  return row ? mapSession(row) : null;
+}
+
 export async function getSessionById(
   sessionId: string,
 ): Promise<ObservationEventSessionRow | null> {
