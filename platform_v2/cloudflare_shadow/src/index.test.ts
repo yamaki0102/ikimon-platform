@@ -25350,7 +25350,7 @@ test("production field public-profile API prefers dedicated profile readmodel sn
   assert.equal(text.includes("coordinates"), false);
 });
 
-test("production field detail HTML renders Site Intelligence section from D1 readmodel", async () => {
+test("production field detail HTML hides unsupported metrics and guides the first contribution", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
     ...env,
@@ -25391,10 +25391,12 @@ test("production field detail HTML renders Site Intelligence section from D1 rea
   const response = await worker.fetch(new Request(`https://ikimon.life/ja/community/fields/${fieldId}`), productionEnv);
   const body = await response.text();
   assert.equal(response.status, 200);
-  assert.equal(body.includes("data-field-public-profile"), true);
-  assert.equal(body.includes("Site Intelligence"), true);
-  assert.equal(body.includes("観察密度"), true);
-  assert.equal(body.includes("次に観察するとよいこと"), true);
+  assert.equal(body.includes("data-field-public-profile"), false);
+  assert.equal(body.includes("Site Intelligence"), false);
+  assert.equal(body.includes("観察密度"), false);
+  assert.equal(body.includes("この図鑑の育て方"), true);
+  assert.equal(body.includes("この図鑑は、最初の公開記録から育ちます。"), true);
+  assert.equal(body.includes("次の記録を残す"), true);
   assert.equal(body.includes("春の里小学校"), true);
   assert.equal(body.includes("34.95123"), false);
   assert.equal(body.includes("137.17123"), false);

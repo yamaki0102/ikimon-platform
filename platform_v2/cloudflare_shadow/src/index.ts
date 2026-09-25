@@ -111,6 +111,13 @@ import {
   type PlaceGeometry as UniversalPlaceGeometry,
 } from "../../src/services/placeDomain";
 import {
+  classifyAreaRecordCandidates,
+  RYUYO_FIELD_ID,
+  RYUYO_NEARBY_METERS,
+  type AreaRecordCandidate,
+  type AreaRecordContext,
+} from "./areaEncyclopediaNative";
+import {
   loadCloudflarePlaceAtlasProfile,
 } from "./placeAtlasProfileNative";
 import { handlePublicationFeedNativeRequest } from "./publicationFeedNative";
@@ -22965,11 +22972,70 @@ async function getNativeFieldDetailHtmlIfAvailable(request: Request, url: URL, e
   if (!match) return null;
   const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(match.fieldId, env);
   if (!row) return null;
-  return html(request.method === "HEAD" ? "" : renderFieldDetailHtml(row, match.lang), 200, {
+  const recordContext = await loadAreaRecordContext(row.field_id, env).catch(() => ({ core: [], nearby: [] }));
+  return html(request.method === "HEAD" ? "" : renderFieldDetailHtml(row, match.lang, recordContext), 200, {
     "cache-control": "no-store",
     "vary": "cookie, authorization",
     "x-ikimon-cloudflare-native": "field-detail-readmodel"
   });
+}
+
+async function loadAreaRecordContext(fieldId: string, env: Env): Promise<AreaRecordContext> {
+  const polygon = await env.OBS_DB.prepare(
+    `SELECT field_id, bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, geometry_json
+       FROM production_import_area_polygon_readmodel
+      WHERE field_id = ?
+      LIMIT 1`
+  ).bind(fieldId).first<Pick<AreaPolygonGeometryReadmodelRow,
+    "field_id" | "bbox_min_lat" | "bbox_max_lat" | "bbox_min_lng" | "bbox_max_lng" | "geometry_json"
+  >>();
+  if (!polygon) return { core: [], nearby: [] };
+  const geometry = safeAreaGeometry(polygon.geometry_json);
+  if (!geometry) return { core: [], nearby: [] };
+
+  // The DB scan is bounded before application geometry checks. Ryuyo alone gets
+  // the adopted 300 m nearby margin; other Places query only their own bbox.
+  const marginM = fieldId === RYUYO_FIELD_ID ? RYUYO_NEARBY_METERS : 0;
+  const latMargin = marginM / 110_540;
+  const centerLat = (polygon.bbox_min_lat + polygon.bbox_max_lat) / 2;
+  const lngMargin = marginM / Math.max(1, 111_320 * Math.cos(centerLat * Math.PI / 180));
+  const rows = await env.OBS_DB.prepare(
+    `SELECT v.visit_id, v.observed_at, v.exact_lat, v.exact_lng,
+            COALESCE(
+              (SELECT NULLIF(o.vernacular_name, '') FROM production_import_occurrences o
+                WHERE o.visit_id = v.visit_id ORDER BY o.created_at ASC LIMIT 1),
+              (SELECT NULLIF(o.scientific_name, '') FROM production_import_occurrences o
+                WHERE o.visit_id = v.visit_id ORDER BY o.created_at ASC LIMIT 1)
+            ) AS display_name
+       FROM production_import_visits v
+       JOIN production_import_public_readmodel p ON p.visit_id = v.visit_id
+      WHERE v.exact_lat BETWEEN ? AND ?
+        AND v.exact_lng BETWEEN ? AND ?
+        AND COALESCE(v.public_visibility, p.visibility, 'public') = 'public'
+      ORDER BY v.observed_at DESC, v.visit_id DESC
+      LIMIT 120`
+  ).bind(
+    polygon.bbox_min_lat - latMargin,
+    polygon.bbox_max_lat + latMargin,
+    polygon.bbox_min_lng - lngMargin,
+    polygon.bbox_max_lng + lngMargin,
+  ).all<{
+    visit_id: string;
+    observed_at: string | null;
+    exact_lat: number;
+    exact_lng: number;
+    display_name: string | null;
+  }>();
+  const candidates: AreaRecordCandidate[] = rows.results
+    .filter((item) => Number.isFinite(item.exact_lat) && Number.isFinite(item.exact_lng))
+    .map((item) => ({
+      visitId: item.visit_id,
+      observedAt: item.observed_at,
+      displayName: normalizeOptionalText(item.display_name),
+      lat: item.exact_lat,
+      lng: item.exact_lng,
+    }));
+  return classifyAreaRecordCandidates(fieldId, geometry as UniversalPlaceGeometry, candidates);
 }
 
 function parseFieldDetailPath(pathname: string): { lang: string; fieldId: string } | null {
@@ -35763,7 +35829,7 @@ function clampInteger(value: number, min: number, max: number): number {
   return Number.isFinite(value) ? Math.min(Math.max(Math.trunc(value), min), max) : min;
 }
 
-function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): string {
+function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string, records: AreaRecordContext = { core: [], nearby: [] }): string {
   const payload = fieldDetailPublicPayload(row);
   const isEnglish = lang === "en";
   const title = isEnglish ? `${payload.name} - area encyclopedia` : `${payload.name} - エリア図鑑`;
@@ -35875,13 +35941,19 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
     .site-intelligence > header { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
     .site-intelligence h2 { margin-top: 4px; font-size: 24px; line-height: 1.2; font-weight: 950; }
     .site-intelligence .brief { color: #334155; font-size: 14px; line-height: 1.7; font-weight: 720; }
+    .records { display: grid; gap: 14px; margin-top: 18px; }
+    .records h2 { font-size: 24px; }
+    .record-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+    .record { min-height: 112px; display: grid; gap: 8px; padding: 16px; color: inherit; text-decoration: none; }
+    .record time { color: #64748b; font-size: 14px; font-weight: 750; }
+    .growth { display: grid; gap: 10px; margin-top: 18px; padding: 18px; }
     .si-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .si-next { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; border-radius: 14px; background: #f0fdfa; border: 1px solid rgba(15,118,110,.14); }
     .si-next strong { color: #0f766e; font-size: 13px; font-weight: 950; }
     .si-next span { padding: 6px 9px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 12px; font-weight: 850; }
     @media (max-width: 880px) {
       .hero { grid-template-columns: 1fr; }
-      .grid, .si-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid, .si-grid, .record-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 640px) {
       main { padding: 32px 16px 56px; }
@@ -35889,7 +35961,7 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
       h1 { font-size: 30px; }
       .actions .button { flex: 1 1 160px; }
       .range header, .site-intelligence > header { align-items: flex-start; flex-direction: column; }
-      .grid, .si-grid { grid-template-columns: 1fr; }
+      .grid, .si-grid, .record-list { grid-template-columns: 1fr; }
       .feature { min-height: 0; }
     }
   </style>
@@ -35920,7 +35992,9 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
       <em>${isEnglish ? "Photos, sounds, and notes will make this place easier to understand over time." : "写真、音、メモが増えるほど、この場所の変化が読みやすくなります。"}</em>
     </article>
   </section>
-  ${renderFieldSiteIntelligenceSection(row, isEnglish)}
+  ${renderAreaRecordSections(payload.fieldId, records, isEnglish)}
+  ${renderAreaGrowthSection(payload.fieldId, records.core.length, isEnglish)}
+  ${records.core.length >= 10 ? renderFieldSiteIntelligenceSection(row, isEnglish) : ""}
   <section class="range panel" id="area-public-range" aria-label="${isEnglish ? "Public range and verification" : "公開範囲と確認"}">
     <header>
       <div><p class="eyebrow">Safety / Evidence</p><h2>${isEnglish ? "Public range and verification" : "公開範囲と確認"}</h2></div>
@@ -35940,6 +36014,37 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
 </main>
 </body>
 </html>`;
+}
+
+function renderAreaRecordSections(fieldId: string, records: AreaRecordContext, isEnglish: boolean): string {
+  const section = (title: string, items: AreaRecordCandidate[]) => items.length === 0 ? "" : `
+    <section class="records panel">
+      <h2>${escapeHtml(title)}</h2>
+      <div class="record-list">${items.slice(0, 9).map((item) => `<a class="record panel" href="/observations/${encodeURIComponent(item.visitId)}">
+        <strong>${escapeHtml(item.displayName || (isEnglish ? "Record awaiting a name" : "名前は未確認"))}</strong>
+        <time datetime="${escapeHtml(item.observedAt ?? "")}">${escapeHtml(formatPublicObservationDate(item.observedAt))}</time>
+        <span class="muted">${isEnglish ? "Open this record" : "記録を見る"}</span>
+      </a>`).join("")}</div>
+    </section>`;
+  return [
+    section(isEnglish ? "Latest records here" : fieldId === RYUYO_FIELD_ID ? "園内の新着" : "この場所の新着", records.core),
+    section(isEnglish ? "Found nearby" : "周辺で見つかったもの", records.nearby),
+  ].join("");
+}
+
+function renderAreaGrowthSection(fieldId: string, coreCount: number, isEnglish: boolean): string {
+  const message = coreCount === 0
+    ? (isEnglish ? "This encyclopedia starts with the first public record." : "この図鑑は、最初の公開記録から育ちます。")
+    : coreCount === 1
+      ? (isEnglish ? "The first record is here. A second record will begin to show how this place differs over time." : "最初の記録が入りました。次の記録で、この場所の違いが見えてきます。")
+      : coreCount < 10
+        ? (isEnglish ? "More records and repeat visits will make this place easier to understand." : "記録や季節を変えた再訪が増えると、この場所のことが少しずつ見えてきます。")
+        : (isEnglish ? "Repeated records can reveal this place over time." : "繰り返しの記録から、この場所のうつろいをたどれます。");
+  return `<section class="growth panel" aria-label="${isEnglish ? "How this encyclopedia grows" : "この図鑑の育て方"}">
+    <p class="eyebrow">${isEnglish ? "How this encyclopedia grows" : "この図鑑の育て方"}</p>
+    <p class="summary">${escapeHtml(message)}</p>
+    <div class="actions"><a class="button primary" href="/record?field_id=${encodeURIComponent(fieldId)}">${isEnglish ? "Add the next record" : "次の記録を残す"}</a></div>
+  </section>`;
 }
 
 function renderFieldSiteIntelligenceSection(row: FieldDetailReadmodelRow, isEnglish: boolean): string {
