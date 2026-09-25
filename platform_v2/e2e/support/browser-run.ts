@@ -2,6 +2,7 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { chromium, test as baseTest, expect } from "@playwright/test";
+import { minimizeRecordingHar, recordingTargetIds } from "./browser-run-recording";
 
 const CLOUDFLARE_API_ROOT = "https://api.cloudflare.com/client/v4/accounts";
 const DIAGNOSTIC_DELAYS_MS = [250, 500, 1000, 2000, 4000, 8000];
@@ -74,6 +75,7 @@ export type BrowserRunEvidence = {
     contentType: string;
     bytes: number;
     attempts: number;
+    targetIds: string[];
   };
   networkReadback?: string[];
   finalizationError?: string;
@@ -169,27 +171,22 @@ async function readRecording(session: BrowserRunSession): Promise<NonNullable<Br
   if (!response) throw new Error("recording readback did not return a response");
   const contentType = response.headers.get("content-type") ?? "";
   const body = response.ok ? await response.arrayBuffer() : new ArrayBuffer(0);
+  let targetIds: string[] | null = null;
+  if (response.ok) {
+    try {
+      targetIds = recordingTargetIds(JSON.parse(new TextDecoder().decode(body)), session.sessionId);
+    } catch {
+      // HTTP 200 with HTML, malformed JSON or another session is not recording evidence.
+    }
+  }
   return {
     status: response.status,
-    available: response.ok,
+    available: response.ok && targetIds !== null,
     contentType,
     bytes: body.byteLength,
     attempts,
+    targetIds: targetIds ?? [],
   };
-}
-
-function redactHar(value: unknown, key = ""): unknown {
-  if (Array.isArray(value)) return value.map((entry) => redactHar(entry, key));
-  if (!value || typeof value !== "object") {
-    if (key.toLowerCase() === "url") return redactUrl(String(value ?? ""));
-    if (/authorization|cookie|secret|token|password|api[-_]?key|jwt/i.test(key)) return "[REDACTED]";
-    return typeof value === "string" ? redactText(value) : value;
-  }
-  const result: Record<string, unknown> = {};
-  for (const [childKey, childValue] of Object.entries(value as Record<string, unknown>)) {
-    result[childKey] = redactHar(childValue, childKey);
-  }
-  return result;
 }
 
 async function readNetworkRecording(
@@ -205,9 +202,10 @@ async function readNetworkRecording(
   );
   if (!response.ok) return null;
   const payload = await response.json().catch(() => null);
-  if (!payload) return null;
+  const minimized = minimizeRecordingHar(payload);
+  if (minimized === null) return null;
   const outputPath = path.join(artifactDir, "network-" + targetId.replace(/[^A-Za-z0-9_-]/g, "_") + ".json");
-  await writeFile(outputPath, JSON.stringify(redactHar(payload), null, 2) + "\n", "utf8");
+  await writeFile(outputPath, JSON.stringify(minimized, null, 2) + "\n", "utf8");
   return path.basename(outputPath);
 }
 
@@ -321,8 +319,11 @@ export async function finalizeBrowserRun(
       evidence.recordingReadback = recordingReadback;
       if (recordingReadback.available) {
         await mkdir(artifactDir, { recursive: true });
-        const names = await Promise.all(session.targetIds.map((targetId) => readNetworkRecording(session, targetId, artifactDir)));
+        const names = await Promise.all(recordingReadback.targetIds.map((targetId) => readNetworkRecording(session, targetId, artifactDir)));
         evidence.networkReadback = names.filter((name): name is string => Boolean(name));
+        if (evidence.networkReadback.length !== recordingReadback.targetIds.length) {
+          evidence.finalizationError = "browser_run_network_recording_incomplete";
+        }
       }
     } catch (error) {
       evidence.finalizationError = redactText(error instanceof Error ? error.message : String(error));

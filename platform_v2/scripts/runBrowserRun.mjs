@@ -255,10 +255,13 @@ if (evidencePaths.length === 0) {
 }
 for (const evidencePath of evidencePaths) {
   const evidence = JSON.parse(await readFile(evidencePath, "utf8"));
-  if (!evidence.recordingEnabled || !evidence.sessionId || !evidence.recordingReadback?.available) {
-    console.error("Diagnostic evidence is incomplete: recording/session read-back was not confirmed.");
+  if (!evidence.recordingEnabled || !evidence.sessionId || !evidence.recordingReadback?.available
+    || evidence.finalizationError
+    || !Array.isArray(evidence.recordingReadback.targetIds) || evidence.recordingReadback.targetIds.length === 0
+    || !Array.isArray(evidence.networkReadback) || evidence.networkReadback.length !== evidence.recordingReadback.targetIds.length) {
+    console.error("Diagnostic evidence is incomplete: recording/session/network read-back was not confirmed.");
     process.exit(1);
   }
 }
 if (cleanupFailed) process.exit(1);
-console.log("Diagnostic failure produced recording/session evidence for " + evidencePaths.length + " test result(s).");
+console.log("Diagnostic failure produced recording/session/network evidence for " + evidencePaths.length + " test result(s).");
