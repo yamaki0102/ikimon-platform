@@ -553,6 +553,8 @@ test("owner publication return distinguishes Review, eligible destination, and c
       destinations: [{
         feedKey: "miyakoda-renri-area",
         label: "浜松・都田",
+        sourceVersion: "public-feed-v1",
+        href: null,
         sourceEnvironment: "production",
         readOnly: true,
         status: "eligible",
@@ -570,12 +572,12 @@ test("owner publication return distinguishes Review, eligible destination, and c
     viewerAuthenticated: true,
   });
   assert.match(rendered, /data-publication-return="owner-only"/);
-  assert.match(rendered, /公開の戻り値/);
-  assert.match(rendered, /人によるReview/);
-  assert.match(rendered, /Review済み・承認/);
+  assert.match(rendered, /公開と確認/);
+  assert.match(rendered, /確認結果/);
+  assert.match(rendered, /確認済み・承認/);
   assert.match(rendered, /公開可能（未公開）/);
   assert.match(rendered, /浜松・都田/);
-  assert.match(rendered, /production Feed（読み取り専用）/);
+  assert.match(rendered, /公開フィード · public-feed-v1/);
   assert.doesNotMatch(rendered, /公開確認済み/);
 
   const published = renderObservationFirstRecordDetailHtml(detail, {
@@ -607,6 +609,8 @@ test("publication exclusion is owner-only and uses a safe localized reason", () 
       destinations: [{
         feedKey: "miyakoda-renri-area",
         label: "浜松・都田",
+        sourceVersion: "public-feed-v1",
+        href: null,
         sourceEnvironment: "production",
         readOnly: true,
         status: "excluded",

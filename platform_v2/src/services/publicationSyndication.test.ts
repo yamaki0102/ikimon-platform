@@ -123,7 +123,7 @@ test("owner publication return separates human Review, eligibility, configured d
     recordVisibility: "public",
     reviewDecision: { state: "approved", source: "human_review", decidedAt: "2026-09-14T12:00:00.000Z" },
     rights,
-    destinations: [{ feedKey: destination, label: "浜松・都田", sourceEnvironment: "production", readOnly: true }],
+    destinations: [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", href: null, sourceEnvironment: "production", readOnly: true }],
     now,
   });
   assert.ok(returned);
@@ -137,7 +137,7 @@ test("owner publication return separates human Review, eligibility, configured d
     recordVisibility: "public",
     reviewDecision: { state: "approved", source: "human_review", decidedAt: "2026-09-14T12:00:00.000Z" },
     rights,
-    destinations: [{ feedKey: destination, label: "浜松・都田", sourceEnvironment: "production", readOnly: true }],
+    destinations: [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", href: null, sourceEnvironment: "production", readOnly: true }],
     publishedDestinations: [destination],
     now,
   });
@@ -149,7 +149,7 @@ test("owner publication return separates human Review, eligibility, configured d
     recordVisibility: "public",
     reviewDecision: { state: "approved", source: "ai", decidedAt: "2026-09-14T12:00:00.000Z" },
     rights,
-    destinations: [{ feedKey: destination, label: "浜松・都田", sourceEnvironment: "production", readOnly: true }],
+    destinations: [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", href: null, sourceEnvironment: "production", readOnly: true }],
     now,
   });
   assert.equal(aiOnly?.review.state, "not_reviewed");
@@ -162,7 +162,7 @@ test("guest and non-public owner projections do not receive private return data"
     recordVisibility: "public",
     reviewDecision: { state: "approved", source: "human_review" },
     rights,
-    destinations: [{ feedKey: destination, label: "浜松・都田", sourceEnvironment: "production", readOnly: true }],
+    destinations: [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", href: null, sourceEnvironment: "production", readOnly: true }],
     now,
   }), null);
 
@@ -171,9 +171,37 @@ test("guest and non-public owner projections do not receive private return data"
     recordVisibility: "private",
     reviewDecision: { state: "approved", source: "human_review" },
     rights,
-    destinations: [{ feedKey: destination, label: "浜松・都田", sourceEnvironment: "production", readOnly: true }],
+    destinations: [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", href: null, sourceEnvironment: "production", readOnly: true }],
     now,
   });
   assert.equal(nonPublic?.publication.state, "excluded");
   assert.equal(nonPublic?.publication.exclusionCode, "record_not_public");
+});
+
+
+test("correction and withdrawal cannot retain a previously published destination", () => {
+  const destinationConfig = [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", href: "/publication/miyakoda", sourceEnvironment: "production" as const, readOnly: true as const }];
+  const correction = projectOwnerPublicationReturn({
+    owner: true,
+    recordVisibility: "public",
+    reviewDecision: { state: "changes_requested", source: "human_review" },
+    rights,
+    destinations: destinationConfig,
+    publishedDestinations: [destination],
+    now,
+  });
+  assert.equal(correction?.publication.state, "not_ready");
+  assert.deepEqual(correction?.publication.destinations.map((item) => item.status), ["excluded"]);
+
+  const withdrawn = projectOwnerPublicationReturn({
+    owner: true,
+    recordVisibility: "public",
+    reviewDecision: { state: "approved", source: "human_review" },
+    rights: { ...rights, withdrawalStatus: "withdrawn" },
+    destinations: destinationConfig,
+    publishedDestinations: [destination],
+    now,
+  });
+  assert.equal(withdrawn?.publication.state, "excluded");
+  assert.deepEqual(withdrawn?.publication.destinations.map((item) => item.status), ["excluded"]);
 });

@@ -242,6 +242,8 @@ export type OwnerPublicationExclusionCode = PublicationSyndicationReasonCode | "
 export type OwnerPublicationDestination = {
   feedKey: string;
   label: string;
+  sourceVersion: string;
+  href: string | null;
   sourceEnvironment: "production";
   readOnly: true;
   status: "eligible" | "published" | "excluded";
@@ -290,9 +292,12 @@ function destinationProjection(
   return input.flatMap((item) => {
     const feedKey = cleanText(item.feedKey);
     const label = cleanText(item.label);
-    if (!feedKey || !/^[a-z0-9][a-z0-9:_-]{0,127}$/u.test(feedKey) || !label || item.sourceEnvironment !== "production" || item.readOnly !== true || seen.has(feedKey)) return [];
+    const sourceVersion = cleanText(item.sourceVersion);
+    const href = cleanText(item.href);
+    const safeHref = href && (/^https:\/\//u.test(href) || /^\/[A-Za-z0-9/_?&=.%:-]*$/u.test(href)) ? href : null;
+    if (!feedKey || !/^[a-z0-9][a-z0-9:_-]{0,127}$/u.test(feedKey) || !label || !sourceVersion || item.sourceEnvironment !== "production" || item.readOnly !== true || seen.has(feedKey)) return [];
     seen.add(feedKey);
-    return [{ feedKey, label, sourceEnvironment: "production" as const, readOnly: true as const }];
+    return [{ feedKey, label, sourceVersion, href: safeHref, sourceEnvironment: "production" as const, readOnly: true as const }];
   });
 }
 

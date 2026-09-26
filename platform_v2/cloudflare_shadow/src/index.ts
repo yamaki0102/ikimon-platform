@@ -27313,6 +27313,8 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
   const destinations = Object.values(PUBLICATION_FEED_DEFINITIONS).map((definition) => ({
     feedKey: definition.feedKey,
     label: definition.scopeLabel.ja,
+    sourceVersion: definition.publicationPolicyVersion,
+    href: null,
     sourceEnvironment: "production" as const,
     readOnly: true as const,
   }));

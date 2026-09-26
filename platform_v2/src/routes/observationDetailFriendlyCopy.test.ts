@@ -291,6 +291,17 @@ test("observation detail keeps one dominant enrichment action and owner-only pri
   assert.match(registrationSource, /const nextActionRail = ""/);
 });
 
+test("owner publication return is fail-closed and sits immediately before management", () => {
+  assert.match(routeSource, /if \(!isOwner\) return "";/);
+  assert.match(routeSource, /rights: rights \? \{/);
+  assert.match(routeSource, /\} : \{\},\s*destinations,/);
+  assert.match(routeSource, /公開と確認/);
+  assert.match(routeSource, /<dt>確認結果<\/dt>/);
+  assert.match(routeSource, /<dt>公開状況<\/dt>/);
+  assert.match(routeSource, /<dt>掲載先<\/dt>/);
+  assert.match(routeSource, /\$\{siteContributionBlock\}\$\{publicationReturnBlock\}\$\{ownerToolsBlock\}/);
+});
+
 test("observation detail P0 status and enrichment copy stays localized", () => {
   const expected = {
     en: { saved: "Saved", enrichTitle: "Add record details", candidate: "candidate unverified", reviewed: "human-reviewed", media: "Media evidence available" },
@@ -396,7 +407,7 @@ test("observation detail exposes owner-only site contribution state through poli
   assert.match(siteContributionSource, /追加で撮る/);
   assert.doesNotMatch(contributionSource, /latitude|longitude|正確な座標|exact/);
   assert.match(registrationSource, /const siteContributionBlock = await buildObservationDetailSiteContribution/);
-  assert.match(registrationSource, /ownerPublicStateBlock\}\$\{siteContributionBlock\}\$\{ownerToolsBlock/);
+  assert.match(registrationSource, /ownerPublicStateBlock\}\$\{siteContributionBlock\}\$\{publicationReturnBlock\}\$\{ownerToolsBlock/);
 });
 
 test("observation detail hero readout keeps scene candidates out of identification tabs", () => {
