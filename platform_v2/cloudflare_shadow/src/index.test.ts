@@ -22191,6 +22191,23 @@ test("production original UI follows the deployed or rollback manifest hash inst
   assert.doesNotMatch(rollbackBody, /deployed-hash|legacy-pointer/);
 });
 
+test("production original UI resolves selectively rebuilt objects through the bound manifest", async () => {
+  const { env } = createEnv();
+  const manifestHash = "a".repeat(64);
+  const reusedObjectHash = "b".repeat(64);
+  const versionPrefix = `original-ui/versions/${manifestHash}`;
+  const reusedVersionPrefix = `original-ui/versions/${reusedObjectHash}`;
+  const productionEnv = { ...env, ENVIRONMENT: "production", IKIMON_UI_MANIFEST_HASH: manifestHash };
+  await env.ASSET_BUCKET.put(`${reusedVersionPrefix}/html/root.html`, "<!doctype html><main>selectively-reused</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put(`${versionPrefix}/manifest.json`, JSON.stringify({
+    items: [{ key: "html/root.html", version_prefix: reusedVersionPrefix }],
+  }), { httpMetadata: { contentType: "application/json" } });
+
+  const response = await worker.fetch(new Request("https://ikimon.life/"), productionEnv);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /selectively-reused/);
+});
+
 test("production original UI falls back to the current versioned pointer without a valid deployed hash", async () => {
   const { env } = createEnv();
   const productionEnv = { ...env, ENVIRONMENT: "production" };
