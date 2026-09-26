@@ -3,8 +3,14 @@ import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountN
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { ProgramHandoverApplyRuntime } from "../../src/services/programHandoverApplyRuntime";
+import type { ObservationEventSessionRow } from "../../src/services/observationEventModeManager";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 import { FRONTEND_FOUNDATION_CSS } from "../../src/ui/frontendFoundation";
+import { getObservationEventStrings } from "../../src/i18n/observationEventStrings";
+import {
+  OBSERVATION_EVENT_LIST_STYLES,
+  renderEventListBody,
+} from "../../src/ui/observationEventList";
 import * as bcrypt from "bcryptjs";
 import {
   renderCloudflareRecordRecoveryGuestHtml,
@@ -4222,20 +4228,37 @@ async function getPublicProgramConfirmationPage(request: Request, url: URL, env:
 
 async function getObservationEventListPage(request: Request, env: Env): Promise<Response> {
   const auth = await readCompatibleSession(request, env).catch(() => null);
-  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
-  const rows = await env.OBS_DB.prepare(
-    `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
-            plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
-            started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
-            created_at, updated_at
-       FROM observation_event_sessions
-      ORDER BY started_at DESC
-      LIMIT 24`
-  ).all<ObservationEventSessionD1Row>();
+  const publicLang = publicLangFromPath(new URL(request.url).pathname) ?? "ja";
+  const lang = publicLang === "pt-br" ? "pt-BR" : publicLang;
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLang, Boolean(auth && !auth.banned));
+  let loadFailed = false;
+  let rows: { results: ObservationEventSessionD1Row[] };
+  try {
+    rows = await env.OBS_DB.prepare(
+      `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+              plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+              started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+              created_at, updated_at
+         FROM observation_event_sessions
+        ORDER BY started_at DESC
+        LIMIT 24`
+    ).all<ObservationEventSessionD1Row>();
+  } catch {
+    loadFailed = true;
+    rows = { results: [] };
+  }
   const sessions = rows.results
     .map(mapObservationEventSession)
     .filter((session) => auth?.userId === session.organizerUserId || !isObservationEventQaFixture(session));
-  return pageHtml("観察会", renderObservationEventListPage(sessions, auth), "event-page-list");
+  const strings = getObservationEventStrings(lang);
+  return pageHtml(
+    strings.listHeroHeading,
+    renderEventListBody(sessions, strings, lang, {
+      loadFailed,
+      retryHref: "/community/events",
+    }),
+    "event-page-list",
+  );
 }
 
 function isObservationEventQaFixture(
@@ -4419,6 +4442,7 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
     ${FRONTEND_FOUNDATION_CSS}
     :root{--evt-motion-fast:var(--ik-motion-fast);--evt-motion:var(--ik-motion-normal);--evt-motion-slow:var(--ik-motion-slow)}
     ${APP_EXPERIENCE_STYLES}
+    ${OBSERVATION_EVENT_LIST_STYLES}
     body[data-zukan-app-experience] main{padding-bottom:56px}body[data-zukan-app-experience] .btn{min-height:44px;border-radius:8px;background:#143f2e}body[data-zukan-app-experience] .btn.secondary{background:#edf3ee;color:#143f2e}
   </style>
 </head>
@@ -6867,7 +6891,7 @@ function mapObservationRallySubmission(row: ObservationRallySubmissionD1Row) {
   };
 }
 
-function mapObservationEventSession(row: ObservationEventSessionD1Row) {
+function mapObservationEventSession(row: ObservationEventSessionD1Row): ObservationEventSessionRow {
   const activeModes = jsonArray(row.active_modes_json).filter(isObservationEventMode);
   return {
     sessionId: row.session_id,
