@@ -69,6 +69,39 @@ test("upcoming sessions are grouped apart from currently actionable ones", () =>
   assert.doesNotMatch(actionableRow, /秋の夜の生きもの観察/);
 });
 
+test("discovery rows present canonical Program purpose, time, place, cost, and entry type", () => {
+  const discoverable: ObservationEventSessionRow = {
+    ...session,
+    title: "川の文化をたどるまち歩き",
+    startedAt: "2099-09-05T01:00:00.000Z",
+    endedAt: "2099-09-05T03:30:00.000Z",
+    config: {
+      summary: "水路と地域の暮らしの関わりを現地で確かめます。",
+      placeLabel: "旧東海道沿いの水路",
+      priceText: "無料",
+      booking: {
+        providerName: "まちの受付サイト",
+        providerUrl: "https://example.org/programs/river-walk",
+      },
+    },
+  };
+
+  const html = renderEventListBody([discoverable], getObservationEventStrings("ja"), "ja");
+  assert.match(html, /川の文化をたどるまち歩き/);
+  assert.match(html, /水路と地域の暮らしの関わり/);
+  assert.match(html, /9月5日[^<]*10:00–12:30/);
+  assert.match(html, /どこ[\s\S]*旧東海道沿いの水路/);
+  assert.match(html, /費用[\s\S]*無料/);
+  assert.match(html, /入口[\s\S]*まちの受付サイト/);
+  assert.match(html, /開催予定/);
+});
+
+test("event list body leaves the main landmark to the page shell", () => {
+  const html = renderEventListBody([session], getObservationEventStrings("ja"), "ja");
+  assert.doesNotMatch(html, /<\/?main\b/);
+  assert.match(html, /<div class="zukan-participation-shell">/);
+});
+
 test("ended events are kept behind explicit history with a recap action", () => {
   const ended: ObservationEventSessionRow = {
     ...session,

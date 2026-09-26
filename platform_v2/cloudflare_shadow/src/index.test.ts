@@ -19287,7 +19287,8 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(eventListPage.status, 200);
     assert.equal(eventListPage.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
     assert.match(eventListPageText, /D1観察会/);
-    assert.match(eventListPageText, /<title>観察会 — ZUKAN<\/title>/);
+    assert.match(eventListPageText, /<title>参加 — ZUKAN<\/title>/);
+    assert.equal((eventListPageText.match(/<main\b/g) ?? []).length, 1);
     assert.doesNotMatch(eventListPageText, /<title>[^<]*ikimon\.life/u);
 
     const eventJoinPage = await worker.fetch(new Request("https://ikimon.life/community/events/d1-core-event/join"), productionEnv);
