@@ -16,6 +16,15 @@ test("ZUKAN native runtime QA is pinned to the canonical staging host", () => {
   assert.doesNotMatch(placeAtlasSpec, /staging\.ikimon\.life/u);
 });
 
+test("ZUKAN runtime QA requires prewrite evidence and finalized staging pointer readback", () => {
+  assert.match(source, /materialization staging pointer readback is missing or unbound/u);
+  assert.match(source, /materialization pointer prewrite evidence contract is invalid/u);
+  assert.match(source, /materialization postwrite evidence is not JSON/u);
+  assert.match(source, /ikimon\.r2-pointer-postwrite\/v1/u);
+  assert.match(source, /prewriteEvidenceSha256/u);
+  assert.match(source, /original-ui\/current\/staging\.json/u);
+});
+
 test("materialized HTML QA binds the source digest through the Worker response header", () => {
   assert.match(source, /x-ikimon-cloudflare-materialized-sha256/u);
   assert.match(source, /materializedSourceSha256/iu);
