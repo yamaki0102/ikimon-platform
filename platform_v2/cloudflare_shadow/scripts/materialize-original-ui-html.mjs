@@ -1,6 +1,6 @@
 import { createHash, createHmac } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,7 @@ const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
 const productionBucket = "ikimon-prod-media";
 const stagingBucket = "ikimon-shadow-media";
+const stagingPointerKey = "original-ui/current/staging.json";
 const materializeManifestSchemaVersion = "original-ui-materialize/v1";
 const uploadCacheControl = "no-store";
 const allowedArgs = new Set([
@@ -119,6 +120,9 @@ if (execute && targetEnv === "production" && !/^[a-f0-9]{40}$/u.test(materializa
 
 if (execute && targetEnv === "staging" && approval !== stagingApproval) {
   throw new Error(`Refusing staging R2 materialization. Pass --approval ${stagingApproval}.`);
+}
+if (execute && targetEnv === "staging" && !/^[a-f0-9]{40}$/u.test(materializationSourceSha)) {
+  throw new Error("staging_materialization_source_sha_invalid");
 }
 if (directStagingR2 && (targetEnv !== "staging" || bucket !== stagingBucket)) {
   throw new Error("--direct-staging-r2 is restricted to the fixed staging bucket.");
@@ -458,6 +462,65 @@ function sha256(payload) {
   return createHash("sha256").update(payload).digest("hex");
 }
 
+function validateStagingPointerSnapshot(snapshot) {
+  if (!snapshot || snapshot.bucket !== stagingBucket || snapshot.key !== stagingPointerKey
+      || !/^[a-f0-9]{32}$/u.test(String(snapshot.account_id ?? ""))
+      || typeof snapshot.exists !== "boolean") {
+    throw new Error("staging_pointer_snapshot_binding_invalid");
+  }
+  if (!snapshot.exists) {
+    if (snapshot.body_base64 !== null || snapshot.sha256 !== null) {
+      throw new Error("staging_pointer_absence_snapshot_invalid");
+    }
+    return { accountId: snapshot.account_id, exists: false, bytesBase64: null, sha256: null };
+  }
+  if (typeof snapshot.body_base64 !== "string" || !/^[a-f0-9]{64}$/u.test(String(snapshot.sha256 ?? ""))) {
+    throw new Error("staging_pointer_bytes_snapshot_invalid");
+  }
+  const bytes = Buffer.from(snapshot.body_base64, "base64");
+  if (bytes.toString("base64") !== snapshot.body_base64 || sha256(bytes) !== snapshot.sha256) {
+    throw new Error("staging_pointer_snapshot_digest_mismatch");
+  }
+  return { accountId: snapshot.account_id, exists: true, bytesBase64: snapshot.body_base64, sha256: snapshot.sha256 };
+}
+
+async function persistPrewriteEvidence(path, evidence) {
+  if (!path) throw new Error("staging_prewrite_evidence_path_required");
+  const text = `${JSON.stringify(evidence, null, 2)}\n`;
+  const handle = await open(path, "wx", 0o600);
+  try {
+    await handle.writeFile(text, "utf8");
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  return sha256(text);
+}
+
+async function persistPostwriteEvidence(path, evidence) {
+  const handle = await open(path, "wx", 0o600);
+  try {
+    await handle.writeFile(`${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
+function validateStagingPointerReadback(readback, expected, bundleHash) {
+  if (!readback || readback.account_id !== expected.accountId || readback.bucket !== stagingBucket
+      || readback.key !== stagingPointerKey || readback.exists !== true
+      || readback.manifest_hash !== bundleHash || !/^[a-f0-9]{64}$/u.test(String(readback.sha256 ?? ""))
+      || typeof readback.body_base64 !== "string") {
+    throw new Error("staging_pointer_postwrite_readback_invalid");
+  }
+  const bytes = Buffer.from(readback.body_base64, "base64");
+  if (bytes.toString("base64") !== readback.body_base64 || sha256(bytes) !== readback.sha256) {
+    throw new Error("staging_pointer_postwrite_digest_mismatch");
+  }
+  return { accountId: readback.account_id, bucket: readback.bucket, key: readback.key, exists: true, sha256: readback.sha256, manifestHash: readback.manifest_hash };
+}
+
 function resolveMaterializationGatewayUrl() {
   const explicit = String(process.env.IKIMON_R2_MATERIALIZATION_API_URL || "").trim();
   if (explicit) return explicit;
@@ -476,7 +539,7 @@ async function gatewayRequest(payload) {
     schema: "ikimon.r2-materialization/v1",
     job_id: materializationJobId,
     target_env: targetEnv,
-    ...(targetEnv === "production" ? { source_sha: materializationSourceSha } : {}),
+    source_sha: materializationSourceSha,
     manifest_hash: bundleHash,
     ...payload
   });
@@ -491,12 +554,17 @@ async function gatewayRequest(payload) {
       });
       const result = await response.json().catch(() => ({}));
       if (response.ok) return result;
+      const errorCode = String(result.error || "rejected");
+      const error = new Error(`materialization_gateway_${response.status}_${errorCode}`);
+      error.name = "MaterializationGatewayError";
+      error.code = errorCode;
+      error.status = response.status;
+      error.kind = errorCode.endsWith("_cas_mismatch") ? "cas_mismatch" : "gateway_rejection";
+      error.retryable = response.status === 429 || response.status >= 500;
       if (response.status !== 429 && response.status < 500) {
-        const error = new Error(`materialization_gateway_${response.status}_${result.error || "rejected"}`);
-        error.retryable = false;
         throw error;
       }
-      lastError = new Error(`materialization_gateway_${response.status}_${result.error || "retryable"}`);
+      lastError = error;
     } catch (error) {
       lastError = error;
       if (error?.retryable === false) throw error;
@@ -505,6 +573,26 @@ async function gatewayRequest(payload) {
     await sleep(Math.min(8_000, 500 * (2 ** (attempt - 1))));
   }
   throw lastError;
+}
+
+function validateStagingPrewriteResponse(response, expectedPointer) {
+  const receipt = response?.receipt;
+  if (response?.ok !== true
+      || !/^[a-f0-9]{64}$/u.test(String(response?.receipt_sha256 ?? ""))
+      || response.receipt_key !== `original-ui/prewrite/${materializationJobId}.json`
+      || receipt?.run_id !== materializationJobId
+      || receipt?.source_sha !== materializationSourceSha
+      || receipt?.manifest_hash !== bundleHash
+      || !receipt?.pointer
+      || receipt.pointer.account_id !== expectedPointer.account_id
+      || receipt.pointer.bucket !== expectedPointer.bucket
+      || receipt.pointer.key !== expectedPointer.key
+      || receipt.pointer.exists !== expectedPointer.exists
+      || receipt.pointer.sha256 !== expectedPointer.sha256
+      || receipt.pointer.body_base64 !== expectedPointer.body_base64) {
+    throw new Error("staging_prewrite_receipt_invalid");
+  }
+  return { runId: receipt.run_id, receiptSha256: response.receipt_sha256 };
 }
 
 function wranglerR2Put(bucketName, key, filePath, contentType) {
@@ -880,11 +968,48 @@ try {
       skipReason = `direct_${targetEnv}_r2`;
     } else {
       const state = await gatewayRequest({ op: "state" });
+      let stagingPrewrite = null;
+      let expectedPreviousPointer = null;
+      if (targetEnv === "staging") {
+        expectedPreviousPointer = state.current_pointer;
+        const priorPointer = validateStagingPointerSnapshot(state.current_pointer);
+        if (!outputPath) throw new Error("staging_prewrite_evidence_output_required");
+        const prewrite = await gatewayRequest({
+          op: "prewrite",
+          run_id: materializationJobId,
+          expected_previous_pointer: expectedPreviousPointer
+        });
+        const prewriteReceipt = validateStagingPrewriteResponse(prewrite, expectedPreviousPointer);
+        const prewriteState = await gatewayRequest({ op: "prewrite-state", run_id: materializationJobId });
+        const prewriteReadback = validateStagingPrewriteResponse(prewriteState, expectedPreviousPointer);
+        if (prewriteReadback.runId !== prewriteReceipt.runId || prewriteReadback.receiptSha256 !== prewriteReceipt.receiptSha256) {
+          throw new Error("staging_prewrite_receipt_readback_mismatch");
+        }
+        stagingPrewrite = {
+          schema: "ikimon.r2-pointer-prewrite/v1",
+          jobId: materializationJobId,
+          sourceSha: materializationSourceSha,
+          targetEnv: "staging",
+          accountId: priorPointer.accountId,
+          bucket: stagingBucket,
+          key: stagingPointerKey,
+          priorPointerExists: priorPointer.exists,
+          priorPointerBodyBase64: priorPointer.bytesBase64,
+          priorPointerSha256: priorPointer.sha256,
+          bundleHash,
+          prewriteReceiptRunId: prewriteReceipt.runId,
+          prewriteReceiptSha256: prewriteReceipt.receiptSha256,
+          observedAt: new Date().toISOString()
+        };
+        stagingPrewrite.evidenceSha256 = await persistPrewriteEvidence(`${outputPath}.prewrite.json`, stagingPrewrite);
+      }
       previousManifestSummary = {
         bundleHash: state.current_manifest_hash || null,
-        checkpointCount: Array.isArray(state.completed) ? state.completed.length : 0
+        checkpointCount: Array.isArray(state.completed) ? state.completed.length : 0,
+        ...(stagingPrewrite ? { accountId: stagingPrewrite.accountId, pointerPrewriteEvidence: `${outputPath}.prewrite.json`, priorPointerSha256: stagingPrewrite.priorPointerSha256, priorPointerExists: stagingPrewrite.priorPointerExists } : {})
       };
       if (state.same_manifest) {
+        if (targetEnv === "staging") throw new Error("staging_pointer_readback_required_for_unchanged_manifest");
         materializeSkipped = true;
         skipReason = "bundle_hash_match";
         uploadSummary.skipped = bundleEntries.length;
@@ -928,6 +1053,11 @@ try {
             manifestUpload = await gatewayRequest({
               op: "finalize",
               items: allItems.map((item) => ({ key: item.key.replace(/^original-ui\//, ""), sha256: item.sha256 })),
+              ...(stagingPrewrite ? {
+                expected_previous_pointer: expectedPreviousPointer,
+                prewrite_receipt: { run_id: stagingPrewrite.prewriteReceiptRunId, receipt_sha256: stagingPrewrite.prewriteReceiptSha256 },
+                require_pointer_readback: true
+              } : {}),
               summary: {
                 updated: uploadSummary.updated,
                 skipped: uploadSummary.skipped,
@@ -937,6 +1067,24 @@ try {
                 duration_ms: uploadSummary.durationMs
               }
             });
+            if (stagingPrewrite) {
+              const pointerReadback = validateStagingPointerReadback(manifestUpload.pointer_readback, { accountId: stagingPrewrite.accountId }, bundleHash);
+              manifestUpload = { ...manifestUpload, pointerReadback };
+              const releaseReportBinding = { manifestHash: String(manifestUpload.sha256 ?? bundleHash), pointerSha256: pointerReadback.sha256 };
+              await persistPostwriteEvidence(`${outputPath}.postwrite.json`, {
+                schema: "ikimon.r2-pointer-postwrite/v1",
+                jobId: materializationJobId,
+                prewriteEvidenceSha256: stagingPrewrite.evidenceSha256,
+                targetEnv: "staging",
+                sourceSha: materializationSourceSha,
+                accountId: stagingPrewrite.accountId,
+                bucket: stagingBucket,
+                key: stagingPointerKey,
+                bundleHash,
+                pointerReadback,
+                releaseReportBinding
+              });
+            }
           } else {
             manifestUpload = { ok: true, skipped: true, reason: "explicit_paths_not_finalized" };
           }
