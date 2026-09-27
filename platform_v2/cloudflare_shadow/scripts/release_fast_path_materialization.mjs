@@ -15,6 +15,12 @@ export function stableHtmlSha256(payload) {
   return createHash("sha256").update(normalized).digest("hex");
 }
 
+export function gatewayPutSha256(item) {
+  const digest = String(item?.sha256 ?? "").toLowerCase();
+  if (!SHA256.test(digest)) throw new Error("gateway_put_content_sha256_invalid");
+  return digest;
+}
+
 export function validateMaterializationImpactReceipt(receipt, { sourceSha, targetEnv } = {}) {
   const errors = [];
   if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) return ["receipt_invalid"];

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { selectMaterializationItems, stableHtmlSha256, validateMaterializationImpactReceipt } from "./release_fast_path_materialization.mjs";
+import { gatewayPutSha256, selectMaterializationItems, stableHtmlSha256, validateMaterializationImpactReceipt } from "./release_fast_path_materialization.mjs";
 
 const sha = "a".repeat(40);
 const bundleHash = "c".repeat(64);
@@ -32,4 +32,11 @@ test("stable HTML identity ignores fresh CSP nonces but not content", () => {
   const second = '<script nonce="second">x</script><meta content="script-src \'nonce-second\'">';
   assert.equal(stableHtmlSha256(first), stableHtmlSha256(second));
   assert.notEqual(stableHtmlSha256(first), stableHtmlSha256(first.replace(">x<", ">y<")));
+});
+
+test("gateway PUT checksum uses uploaded bytes, not identity digest", () => {
+  const contentSha256 = "a".repeat(64);
+  const identitySha256 = "b".repeat(64);
+  assert.equal(gatewayPutSha256({ sha256: contentSha256, identitySha256 }), contentSha256);
+  assert.notEqual(gatewayPutSha256({ sha256: contentSha256, identitySha256 }), identitySha256);
 });
