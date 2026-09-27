@@ -57,6 +57,8 @@ const SHEET_KIND_WITH_SOURCE_VISIBILITY = `${SHEET_KIND_SOURCE_VISIBILITY_ANCHOR
       button.hidden = kind !== 'photo';
     });`;
 const SOURCE_CHOICE_INJECT_PATCH_FLAG = "__ikimonGlobalRecordSourceChoiceInjectPatched";
+const CLOSEUP_FOCUS_GUARD = "  const REQUIRE_CLOSEUP_FOCUS = false;";
+const CLOSEUP_FOCUS_REQUIRED = "  const REQUIRE_CLOSEUP_FOCUS = true;";
 
 const SOURCE_LABELS: Record<SourceChoiceLang, {
   native: string;
@@ -136,10 +138,17 @@ function localizedPhotoSourceStatus(lang: SourceChoiceLang): string {
 }
 
 function addSourceChoiceButton(html: string): string {
-  if (html.includes("data-global-record-os-camera")) return html;
+  if (html.includes("data-global-record-os-camera-fallback")) return html;
   const startButton = /(<button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>[^<]*<\/button>)/;
   if (!startButton.test(html)) return html;
-  return html.replace(startButton, `$1\n      ${nativeCameraButton(html)}`);
+  const withPrimaryChoice = html.includes("data-global-record-os-camera")
+    ? html
+    : html.replace(startButton, `$1\n      ${nativeCameraButton(html)}`);
+  const retryButton = /(<button type="button" data-global-record-camera-retry>[^<]*<\/button>)/;
+  return withPrimaryChoice.replace(
+    retryButton,
+    `$1\n        ${nativeCameraButton(html).replace("data-global-record-os-camera", "data-global-record-os-camera data-global-record-os-camera-fallback")}`,
+  );
 }
 
 function addNativeCameraListener(html: string): string {
@@ -179,6 +188,9 @@ export function patchGlobalRecordSourceChoiceHtml(html: string): string {
   }
   if (patched.includes(SHEET_KIND_SOURCE_VISIBILITY_ANCHOR)) {
     patched = patched.replace(SHEET_KIND_SOURCE_VISIBILITY_ANCHOR, SHEET_KIND_WITH_SOURCE_VISIBILITY);
+  }
+  if (patched.includes(CLOSEUP_FOCUS_GUARD)) {
+    patched = patched.replace(CLOSEUP_FOCUS_GUARD, CLOSEUP_FOCUS_REQUIRED);
   }
   return patched;
 }

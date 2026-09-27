@@ -471,6 +471,10 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /capture_to_review_ms/);
   assert.doesNotMatch(html, /gps_wait_ms/);
   assert.match(html, /camera_start_ms/);
+  assert.match(html, /requireFocusMode: activeKind === 'photo' && REQUIRE_CLOSEUP_FOCUS/);
+  assert.match(html, /reason === 'permission_denied'/);
+  assert.match(html, /focus_unsupported/);
+  assert.match(html, /カメラの起動を確認できませんでした/);
   assert.match(html, /photo_prepare_ms/);
   assert.match(html, /observation_upsert_ms/);
   assert.match(html, /photo_upload_ms/);
