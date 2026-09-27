@@ -110,6 +110,7 @@ async function createEvent(api: APIRequestContext, prefix: string): Promise<{ se
       qa_fixture: true,
       fixture_prefix: prefix,
       public_list_visibility: "hidden",
+      guest_media_enabled: true,
       participant_public_start: "2026-07-19T11:10:00+09:00",
       participant_public_end: "2026-07-19T13:00:00+09:00",
     },
@@ -245,6 +246,84 @@ test.describe.serial("Renri Science Adventure staging journey", () => {
       secondJson.participant?.participantId ?? secondJson.participant?.participant_id,
     );
     await context.close();
+  });
+
+  test("synthetic guest photo stays private through revisit, rights review, result, and withdrawal", async ({ browser }) => {
+    const guestContext = await newStagingContext(browser, VIEWPORTS[3]!);
+    const guestPage = await guestContext.newPage();
+    await guestPage.goto(`/community/events/${event.eventCode}/join`, { waitUntil: "domcontentloaded" });
+    await guestPage.locator('input[name="display_name"]').fill("合成テスト家族");
+    await guestPage.getByRole("button", { name: "観察を始める" }).click();
+    const cookie = (await guestContext.cookies()).find((item) => item.name.startsWith("__Host-ikimon_evt_"));
+    expect(cookie?.httpOnly).toBe(true);
+    const checkinPath = `/api/v1/observation-events/${event.sessionId}/checkin`;
+    const checkin = await guestPage.request.post(checkinPath, {
+      headers: { origin: "https://staging.zukan.earth", "content-type": "application/json" },
+      data: { display_name: "合成テスト家族", share_location: false, is_minor: true }
+    });
+    expect(checkin.ok()).toBeTruthy();
+
+    const rallyPath = `/events/${event.sessionId}/rally`;
+    await guestPage.goto(rallyPath, { waitUntil: "domcontentloaded" });
+    await expect(guestPage.locator("[data-guest-media-panel]")).toBeVisible();
+    const photo = await gpsExifFixture();
+    await guestPage.locator('[data-guest-media-form] input[name="media"]').setInputFiles({
+      name: `${prefix}-private-gps.jpg`, mimeType: "image/jpeg", buffer: photo
+    });
+    await guestPage.locator('input[name="private_storage_consent"]').check();
+    await guestPage.locator('input[name="creator_rights_attestation"]').check();
+    await guestPage.locator('[data-guest-media-form] button[type="submit"]').click();
+    await expect(guestPage.locator("[data-guest-media-status]")).toContainText("受取", { timeout: 60_000 });
+    const receipt = await guestPage.request.get(`/api/v1/observation-events/${event.sessionId}/guest-media`);
+    expect(receipt.ok()).toBeTruthy();
+    const receiptPayload = await receipt.json() as { receipts: Array<{ receiptId: string; privateContentHref: string; rightsReviewStatus: string }>; results: { pending: number; publicProjection: boolean } };
+    expect(receiptPayload.receipts).toHaveLength(1);
+    expect(receiptPayload.receipts[0]?.rightsReviewStatus).toBe("pending");
+    expect(receiptPayload.results.publicProjection).toBe(false);
+    const receiptId = receiptPayload.receipts[0]!.receiptId;
+    const contentPath = receiptPayload.receipts[0]!.privateContentHref;
+    const privateImage = await guestPage.request.get(contentPath);
+    expect(privateImage.ok()).toBeTruthy();
+    expect(privateImage.headers()["cache-control"]).toContain("no-store");
+    const privateBytes = Buffer.from(await privateImage.body());
+    expect((await sharp(privateBytes).metadata()).exif).toBeUndefined();
+    expect(privateBytes.includes(Buffer.from("GPSLatitude"))).toBe(false);
+
+    await guestPage.reload({ waitUntil: "domcontentloaded" });
+    await expect(guestPage.locator("[data-guest-media-receipts]")).toContainText(receiptId);
+    const organizerContext = await newStagingContext(browser, VIEWPORTS[7]!);
+    await addAuthenticatedCookie(organizerContext, organizerCookie);
+    const organizerPage = await organizerContext.newPage();
+    await organizerPage.goto(rallyPath, { waitUntil: "domcontentloaded" });
+    await expect(organizerPage.locator("[data-guest-media-review]")).toBeVisible();
+    const reviewQueue = await organizerPage.request.get(`/api/v1/observation-events/${event.sessionId}/guest-media`);
+    expect(reviewQueue.ok()).toBeTruthy();
+    expect(await reviewQueue.text()).toContain(receiptId);
+    const reviewItem = organizerPage.locator("[data-guest-media-review-list] li").filter({ has: organizerPage.locator("img") }).first();
+    await expect(reviewItem.locator("img")).toBeVisible();
+    await reviewItem.getByLabel("確認した権利と写り込みの理由").fill("Synthetic staging rights review; private only.");
+    await reviewItem.getByRole("button", { name: "権利確認を記録" }).click();
+    await expect(organizerPage.locator("[data-guest-media-status]")).not.toContainText("権利確認を保存できませんでした");
+    await expect.poll(async () => {
+      const response = await guestPage.request.get(`/api/v1/observation-events/${event.sessionId}/guest-media`);
+      if (!response.ok()) return null;
+      const data = await response.json() as { receipts: Array<{ receiptId: string; rightsReviewStatus: string }>; results: { approved: number; publicProjection: boolean } };
+      return data.results;
+    }, { timeout: 15_000 }).toMatchObject({ approved: 1, publicProjection: false });
+    const afterReview = await guestPage.request.get(`/api/v1/observation-events/${event.sessionId}/guest-media`);
+    const afterReviewPayload = await afterReview.json() as { receipts: Array<{ receiptId: string; rightsReviewStatus: string }>; results: { approved: number; publicProjection: boolean } };
+    expect(afterReviewPayload.receipts[0]?.rightsReviewStatus).toBe("approved");
+    expect(afterReviewPayload.results.approved).toBe(1);
+    expect(afterReviewPayload.results.publicProjection).toBe(false);
+    await expect(guestPage.locator("[data-guest-media-results]")).toContainText("掲載 なし");
+    const recap = await guestPage.request.get(`/api/v1/observation-events/${event.sessionId}/recap`);
+    expect(await recap.text()).not.toContain(receiptId);
+
+    guestPage.once("dialog", (dialog) => dialog.accept());
+    await guestPage.getByRole("button", { name: "この写真を取り下げる" }).click();
+    await expect.poll(async () => (await guestPage.request.get(contentPath)).status(), { timeout: 15_000 }).toBe(404);
+    await organizerContext.close();
+    await guestContext.close();
   });
 
   test("registered parent saves a real GPS-EXIF photo, event recap shows it, and public bytes are scrubbed", async ({ browser, playwright }) => {
