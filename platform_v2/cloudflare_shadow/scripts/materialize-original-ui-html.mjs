@@ -9,6 +9,7 @@ import {
   listPublicSiteMapMaterializationPaths,
 } from "../../src/services/originalUiMaterializationRoutes.ts";
 import {
+  gatewayPutSha256,
   selectMaterializationItems,
   stableHtmlSha256,
   validateMaterializationImpactReceipt,
@@ -1038,7 +1039,7 @@ try {
             const result = await gatewayRequest({
               op: "put",
               key,
-              sha256: item.identitySha256 || item.sha256,
+              sha256: gatewayPutSha256(item),
               content_type: materializationGatewayContentType(item.contentType),
               body_base64: payload.toString("base64")
             });
