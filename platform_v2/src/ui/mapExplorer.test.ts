@@ -197,6 +197,18 @@ test("map explorer keeps controls touchable and hides internal provenance labels
   assert.match(script, /位置を保護した集計を表示しています/);
 });
 
+test("map filters lead with regional content types and keep nature taxonomy as an advanced filter", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  assert.match(html, /me-content-type-chip[^>]*data-map-content-type="all"[^>]*>.*すべて/s);
+  assert.match(html, /data-map-content-type="place"[^>]*href="\/ja\/map\?tab=places"/);
+  assert.match(html, /data-map-content-type="record"[^>]*href="\/ja\/map\?tab=markers"/);
+  assert.match(html, /data-map-content-type="event"[^>]*href="\/ja\/community\/events"/);
+  assert.match(html, /data-map-content-type="food"/);
+  assert.match(html, /data-map-content-type="culture"/);
+  assert.match(html, /me-filter-label">生きものの分類/);
+  assert.match(html, /data-taxon-group="insect"/);
+});
+
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const outlineStart = script.indexOf("id: 'area-polygon-outline'");

@@ -3,7 +3,7 @@
     "title": "ZUKAN — Enjoy Life | Disfrutar y registrar la naturaleza cercana",
     "home": {
       "guest": {
-        "heroHeading": "Fotografía el presente. Construye una guía local.", "heroLead": "Guarda un registro local unido a su lugar y momento, empezando con una foto.",
+        "heroHeading": "Descubre el presente. Guárdalo. Vuelve a participar.", "heroLead": "Usa los registros de lugares y actividades locales para entender lo que ocurre ahora, volver después y elegir el siguiente paso.",
         "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "Qué puedes guardar", "proofEmpty": "Estamos preparando los registros destacados.", "publicRecordsCta": "Ver registros públicos", "proofEmptyNote": "Empieza con una foto. Tu registro queda unido a su lugar y momento.", "inviteNote": "Esta experiencia está disponible para personas invitadas.", "recordStatusConfirmed": "Confirmado", "recordStatusPending": "Pendiente de revisión", "recordStatusLimited": "Detalle público limitado", "emptyFlowAria": "Fotografiar, guardar con un lugar y volver al registro", "emptyFlowCapture": "Fotografiar", "emptyFlowPlace": "Guardar con un lugar", "emptyFlowReturn": "Volver al registro",
         "categories": [
           { "title": "Escuela y aprendizaje", "body": "Clases, proyectos y experiencias de trabajo." },

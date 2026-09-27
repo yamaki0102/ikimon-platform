@@ -167,18 +167,25 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
 
   const placeHref = href(options, "/map?tab=places");
   const communityHref = href(options, "/community/events");
+  const categoriesHtml = copy.categories
+    .map((category, index) => `<li><span class="home-category-index">${String(index + 1).padStart(2, "0")}</span><span><strong>${escapeHtml(category.title)}</strong><small>${escapeHtml(category.body)}</small></span></li>`)
+    .join("");
   return `<div class="home-state-view is-guest" data-home-view="guest"${options.isLoggedIn ? " hidden" : ""}>
     <section class="home-guest-hero has-visual">
       <div class="home-guest-hero-copy">
         <h1>${renderHeroHeading(options.lang, copy.heroHeading)}</h1>
         <p>${escapeHtml(copy.heroLead)}</p>
         <div class="home-hero-actions">
-          <a class="home-primary-button ik-ui-action" href="${escapeHtml(href(options, "/records?view=public"))}" data-kpi-action="top_public_records">${escapeHtml(copy.publicRecordsCta)}</a>
+          ${captureButton(copy.primaryCta, "home-primary-button", "top_capture_hero")}
           <a class="home-secondary-link" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place">${escapeHtml(copy.secondaryCta)}</a>
         </div>
         <p class="home-invite-note" data-home-invite-note>${escapeHtml(copy.inviteNote)}</p>
       </div>
       ${slot("guest-hero", `<div class="home-guest-hero-visual">${renderGuestProof(options, publicItems)}</div>`)}
+    </section>
+    <section class="home-section home-category-section" data-home-categories aria-labelledby="home-categories-heading">
+      <div class="home-section-heading"><h2 id="home-categories-heading">${escapeHtml(copy.categoriesTitle)}</h2></div>
+      <ul>${categoriesHtml}</ul>
     </section>
     <section class="home-section home-place-section" id="home-places">
       <div><span class="home-product-kicker">PLACE</span><h2>${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button ik-ui-action" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
