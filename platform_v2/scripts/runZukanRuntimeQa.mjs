@@ -22,6 +22,7 @@ const PLAYWRIGHT_TIMEOUT_MS = 20 * 60 * 1000;
 const SHA256_RE = /^[a-f0-9]{64}$/u;
 const MAX_REPORT_BYTES = 2 * 1024 * 1024;
 const MATERIALIZATION_MANIFEST_KEY = "original-ui/materialize-manifest/staging/staging-qa.json";
+const MATERIALIZATION_POINTER_KEY = "original-ui/current/staging.json";
 const MAP_KEYS = Object.freeze({
   "/ja/map": "original-ui/html/ja/map.html",
   "/en/map": "original-ui/html/en/map.html",
@@ -173,6 +174,46 @@ async function readMaterializationIdentity() {
       || result?.manifestUpload?.reason === "explicit_paths_not_finalized") {
     throw new Error("materialization report contract is invalid");
   }
+  const pointerReadback = result.manifestUpload?.pointerReadback;
+  if (result.transport !== "signed-gateway"
+      || !pointerReadback || pointerReadback.accountId !== result.previousManifest?.accountId
+      || pointerReadback.bucket !== "ikimon-shadow-media"
+      || pointerReadback.key !== MATERIALIZATION_POINTER_KEY
+      || pointerReadback.exists !== true
+      || pointerReadback.manifestHash !== result.bundleHash
+      || !SHA256_RE.test(String(pointerReadback.sha256 ?? ""))) {
+    throw new Error("materialization staging pointer readback is missing or unbound");
+  }
+  const prewriteText = await readFile(`${materializationReportPath}.prewrite.json`, "utf8");
+  let prewrite;
+  try { prewrite = JSON.parse(prewriteText); } catch { throw new Error("materialization prewrite evidence is not JSON"); }
+  const postwriteText = await readFile(`${materializationReportPath}.postwrite.json`, "utf8");
+  let postwrite;
+  try { postwrite = JSON.parse(postwriteText); } catch { throw new Error("materialization postwrite evidence is not JSON"); }
+  const priorBytes = prewrite.priorPointerExists === true ? Buffer.from(String(prewrite.priorPointerBodyBase64 ?? ""), "base64") : null;
+  const priorDigest = priorBytes ? createHash("sha256").update(priorBytes).digest("hex") : null;
+  if (prewrite.schema !== "ikimon.r2-pointer-prewrite/v1"
+      || prewrite.targetEnv !== "staging"
+      || prewrite.sourceSha !== expectedSha
+      || prewrite.bundleHash !== result.bundleHash
+      || prewrite.accountId !== pointerReadback.accountId
+      || prewrite.bucket !== "ikimon-shadow-media"
+      || prewrite.key !== MATERIALIZATION_POINTER_KEY
+      || (prewrite.priorPointerExists === true ? priorDigest !== prewrite.priorPointerSha256 : prewrite.priorPointerSha256 !== null)
+      || postwrite.schema !== "ikimon.r2-pointer-postwrite/v1"
+      || postwrite.jobId !== prewrite.jobId
+      || postwrite.prewriteEvidenceSha256 !== createHash("sha256").update(prewriteText).digest("hex")
+      || postwrite.targetEnv !== "staging"
+      || postwrite.sourceSha !== expectedSha
+      || postwrite.bundleHash !== result.bundleHash
+      || postwrite.accountId !== pointerReadback.accountId
+      || postwrite.bucket !== "ikimon-shadow-media"
+      || postwrite.key !== MATERIALIZATION_POINTER_KEY
+      || postwrite.pointerReadback?.sha256 !== pointerReadback.sha256
+      || postwrite.releaseReportBinding?.manifestHash !== String(result.manifestUpload?.sha256 ?? result.bundleHash)
+      || postwrite.releaseReportBinding?.pointerSha256 !== pointerReadback.sha256) {
+    throw new Error("materialization pointer prewrite evidence contract is invalid");
+  }
   const manifestHash = String(result.manifestUpload?.sha256 ?? result.bundleHash);
   if (!SHA256_RE.test(manifestHash)) throw new Error("materialization manifest hash is invalid");
   if (!Array.isArray(result.rendered)) throw new Error("materialization rendered list is missing");
@@ -194,6 +235,9 @@ async function readMaterializationIdentity() {
   return {
     bundleHash: result.bundleHash,
     manifestHash,
+    pointerReadback,
+    prewriteEvidenceSha256: createHash("sha256").update(prewriteText).digest("hex"),
+    postwriteEvidenceSha256: createHash("sha256").update(postwriteText).digest("hex"),
     manifestKey: result.manifestKey,
     reportSha256: createHash("sha256").update(text).digest("hex"),
     reportMtime: new Date(file.mtimeMs).toISOString(),

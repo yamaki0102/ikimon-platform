@@ -16,6 +16,7 @@ IKIMON_CF_STAGING_DEPLOY_APPROVAL="${IKIMON_CF_STAGING_DEPLOY_APPROVAL:-APPROVE_
 STAGING_BASE_URL="${STAGING_BASE_URL:-https://staging.ikimon.life}"
 REPORT_DIR="${WORKER_DIR}/.deploy"
 SUMMARY_PATH="${REPORT_DIR}/staging-release-summary.json"
+MATERIALIZATION_EVIDENCE='null'
 
 case "${DEPLOY_STAGING}" in true|false) ;; *) echo "DEPLOY_STAGING must be true or false" >&2; exit 2 ;; esac
 case "${TEST_PROFILE}" in quick|full) ;; *) echo "TEST_PROFILE must be quick or full" >&2; exit 2 ;; esac
@@ -52,11 +53,12 @@ prove_cloudflare_provider_auth() {
 
 write_summary() {
   local status="$1"
+  local materialization_evidence="${2:-null}"
   local finished_at
   finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  node --input-type=module - "${SUMMARY_PATH}" "${status}" "${STARTED_AT}" "${finished_at}" "${GIT_SHA}" "${DEPLOY_STAGING}" "${TEST_PROFILE}" "${BROWSER_QA}" "${SYNC_STAGING_WRITE_SECRET}" "${APPLY_STAGING_MIGRATIONS}" <<'NODE'
+  node --input-type=module - "${SUMMARY_PATH}" "${status}" "${STARTED_AT}" "${finished_at}" "${GIT_SHA}" "${DEPLOY_STAGING}" "${TEST_PROFILE}" "${BROWSER_QA}" "${SYNC_STAGING_WRITE_SECRET}" "${APPLY_STAGING_MIGRATIONS}" "${materialization_evidence}" <<'NODE'
 import fs from 'node:fs';
-const [path, status, startedAt, finishedAt, gitSha, deployStaging, testProfile, browserQa, syncSecret, applyMigrations] = process.argv.slice(2);
+const [path, status, startedAt, finishedAt, gitSha, deployStaging, testProfile, browserQa, syncSecret, applyMigrations, materializationEvidence] = process.argv.slice(2);
 fs.writeFileSync(path, `${JSON.stringify({
   schemaVersion: 'ikimon_cloudflare_staging_release/v1',
   status,
@@ -68,6 +70,7 @@ fs.writeFileSync(path, `${JSON.stringify({
   browserQa,
   syncStagingWriteSecret: syncSecret === 'true',
   applyStagingMigrations: applyMigrations === 'true',
+  materializationEvidence: JSON.parse(materializationEvidence),
   productionMutation: false,
   vpsSshDeploy: false,
 }, null, 2)}\n`);
@@ -139,6 +142,27 @@ npm --prefix "${WORKER_DIR}" run materialize:original-ui -- \
   --concurrency 8 \
   --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" \
   --output materialize-staging-original-ui.json
+MATERIALIZATION_EVIDENCE="$(node --input-type=module - "${WORKER_DIR}" <<'NODE'
+import { createHash } from 'node:crypto';
+import { readFile, stat } from 'node:fs/promises';
+import path from 'node:path';
+const root = process.argv[2];
+const files = [
+  ['report', 'materialize-staging-original-ui.json', 2 * 1024 * 1024],
+  ['prewrite', 'materialize-staging-original-ui.json.prewrite.json', 1024 * 1024],
+  ['postwrite', 'materialize-staging-original-ui.json.postwrite.json', 64 * 1024],
+];
+const evidence = {};
+for (const [name, relativePath, maxBytes] of files) {
+  const absolutePath = path.join(root, relativePath);
+  const metadata = await stat(absolutePath);
+  if (!metadata.isFile() || metadata.size < 2 || metadata.size > maxBytes) throw new Error(`materialization_evidence_size_invalid:${name}`);
+  const bytes = await readFile(absolutePath);
+  evidence[name] = { path: relativePath, sha256: createHash('sha256').update(bytes).digest('hex') };
+}
+process.stdout.write(JSON.stringify(evidence));
+NODE
+)"
 
 echo "== Verify Cloudflare staging public routes =="
 (
@@ -180,6 +204,6 @@ if [[ "${BROWSER_QA}" != "none" ]]; then
   npm --prefix "${PLATFORM_DIR}" run e2e:staging:record-feedback-loop
 fi
 
-write_summary success
+write_summary success "${MATERIALIZATION_EVIDENCE}"
 trap - EXIT
 echo "Cloudflare staging release completed: browser_qa=${BROWSER_QA}."
