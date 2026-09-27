@@ -3,7 +3,7 @@
     "title": "A regional field guide built together | ZUKAN",
     "home": {
       "guest": {
-        "heroHeading": "Capture the present. Build a field guide.", "heroLead": "Keep a local record with its place and time, starting with one photo.",
+        "heroHeading": "Find the present. Keep it. Take part again.", "heroLead": "Use records of places and local activity to see what is happening now, return to it later, and choose your next step.",
         "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "proofEmpty": "Featured records are being prepared.", "publicRecordsCta": "Browse public records", "proofEmptyNote": "Start with one photo. Your record stays connected to its place and time.", "inviteNote": "This experience is currently for invited members.", "recordStatusConfirmed": "Confirmed", "recordStatusPending": "Awaiting review", "recordStatusLimited": "Limited public detail", "emptyFlowAria": "Capture, keep it with a place, return to the record", "emptyFlowCapture": "Capture", "emptyFlowPlace": "Keep with a place", "emptyFlowReturn": "Return to the record",
         "categories": [
           { "title": "School & learning", "body": "Classes, projects, and workplace learning." },

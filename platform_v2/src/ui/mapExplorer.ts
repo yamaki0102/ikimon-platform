@@ -43,6 +43,7 @@ export type MapExplorerCopy = {
   tabRain: string;
   tabCoverage: string;
   tabAriaLabel: string;
+  contentTypeFilterLabel: string;
   taxonFilterLabel: string;
   yearFilterLabel: string;
   yearAll: string;
@@ -236,7 +237,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     tabRain: "雨雲",
     tabCoverage: "記録の空白",
     tabAriaLabel: "マップの表示切替",
-    taxonFilterLabel: "分類",
+    contentTypeFilterLabel: "対象",
+    taxonFilterLabel: "生きものの分類",
     yearFilterLabel: "年",
     yearAll: "すべての年",
     seasonFilterLabel: "季節",
@@ -422,7 +424,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     tabRain: "Rain",
     tabCoverage: "Open areas",
     tabAriaLabel: "Switch map view",
-    taxonFilterLabel: "Group",
+    contentTypeFilterLabel: "Type",
+    taxonFilterLabel: "Living things",
     yearFilterLabel: "Year",
     yearAll: "All years",
     seasonFilterLabel: "Season",
@@ -608,7 +611,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     tabRain: "Lluvia",
     tabCoverage: "Zonas abiertas",
     tabAriaLabel: "Cambiar vista del mapa",
-    taxonFilterLabel: "Grupo",
+    contentTypeFilterLabel: "Tipo",
+    taxonFilterLabel: "Seres vivos",
     yearFilterLabel: "Año",
     yearAll: "Todos los años",
     seasonFilterLabel: "Estación",
@@ -794,7 +798,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     tabRain: "Chuva",
     tabCoverage: "Áreas abertas",
     tabAriaLabel: "Alternar visão do mapa",
-    taxonFilterLabel: "Grupo",
+    contentTypeFilterLabel: "Tipo",
+    taxonFilterLabel: "Seres vivos",
     yearFilterLabel: "Ano",
     yearAll: "Todos os anos",
     seasonFilterLabel: "Estação",
@@ -1271,6 +1276,24 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const filterDisplayTabsHtml = filterDisplayTabs
     .map((item) => `<button type="button" class="me-chip me-filter-tab-chip${item.tab === "places" ? " is-active" : ""}" aria-label="${escapeHtml(item.label)}" data-filter-tab="${escapeHtml(item.tab)}" aria-pressed="${item.tab === "places" ? "true" : "false"}">${escapeHtml(item.label)}</button>`)
     .join("");
+  const contentTypeQueries = lang === "ja"
+    ? { food: "食", culture: "文化" }
+    : lang === "es"
+      ? { food: "comida", culture: "cultura" }
+      : lang === "pt-BR"
+        ? { food: "comida", culture: "cultura" }
+        : { food: "food", culture: "culture" };
+  const contentTypeOptions = [
+    { value: "all", label: lang === "ja" ? "すべて" : lang === "es" ? "Todo" : lang === "pt-BR" ? "Tudo" : "All", icon: "✦", href: withBasePath(props.basePath, "/map") },
+    { value: "place", label: lang === "ja" ? "場所" : lang === "es" ? "Lugares" : lang === "pt-BR" ? "Lugares" : "Places", icon: "⌂", href: withBasePath(props.basePath, "/map?tab=places") },
+    { value: "record", label: lang === "ja" ? "記録" : lang === "es" ? "Registros" : lang === "pt-BR" ? "Registros" : "Records", icon: "▤", href: withBasePath(props.basePath, "/map?tab=markers") },
+    { value: "event", label: lang === "ja" ? "催し" : lang === "es" ? "Eventos" : lang === "pt-BR" ? "Eventos" : "Events", icon: "◷", href: withBasePath(props.basePath, "/community/events") },
+    { value: "food", label: lang === "ja" ? "食" : lang === "es" ? "Comida" : lang === "pt-BR" ? "Comida" : "Food", icon: "⌁", href: withBasePath(props.basePath, `/records?view=public&q=${encodeURIComponent(contentTypeQueries.food)}`) },
+    { value: "culture", label: lang === "ja" ? "文化" : lang === "es" ? "Cultura" : lang === "pt-BR" ? "Cultura" : "Culture", icon: "◈", href: withBasePath(props.basePath, `/records?view=public&q=${encodeURIComponent(contentTypeQueries.culture)}`) },
+  ];
+  const contentTypeChipsHtml = contentTypeOptions
+    .map((item) => `<a class="me-chip me-content-type-chip${item.value === "all" ? " is-active" : ""}" data-map-content-type="${item.value}" href="${escapeHtml(appendLangToHref(item.href, props.lang))}"><span class="me-chip-icon" aria-hidden="true">${item.icon}</span><span>${escapeHtml(item.label)}</span></a>`)
+    .join("");
   const startCards = [
     {
       icon: "📷",
@@ -1551,16 +1574,20 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </div>
       <div class="me-topbar-secondary">
-        <div class="me-filter-group me-filter-group-quick">
-          <span class="me-filter-label">${escapeHtml(copy.taxonFilterLabel)}</span>
-          <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.taxonFilterLabel)}">${taxonChipsHtml}</div>
-        </div>
         <details class="me-filter-drawer">
           <summary class="me-filter-toggle">${escapeHtml(filterToggleLabel)}</summary>
           <div class="me-filter-panel">
+            <div class="me-filter-group me-content-type-group">
+              <span class="me-filter-label">${escapeHtml(copy.contentTypeFilterLabel)}</span>
+              <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.contentTypeFilterLabel)}">${contentTypeChipsHtml}</div>
+            </div>
             <div class="me-filter-group me-filter-display-group">
               <span class="me-filter-label">${escapeHtml(displayFilterLabel)}</span>
               <div class="me-chip-row" role="group" aria-label="${escapeHtml(displayFilterLabel)}">${filterDisplayTabsHtml}</div>
+            </div>
+            <div class="me-filter-group">
+              <span class="me-filter-label">${escapeHtml(copy.taxonFilterLabel)}</span>
+              <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.taxonFilterLabel)}">${taxonChipsHtml}</div>
             </div>
             <div class="me-filter-group">
               <span class="me-filter-label">${escapeHtml(ambientLabels.roleLabel)}</span>
@@ -10871,6 +10898,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-filter-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
   .me-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
   .me-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; font-weight: 700; font-size: 12px; color: #334155; cursor: pointer; transition: all .15s ease; }
+  .me-content-type-chip { text-decoration: none; white-space: nowrap; }
   .me-chip:hover { border-color: rgba(16,185,129,.35); }
   .me-chip.is-active { background: linear-gradient(135deg, rgba(16,185,129,.16), rgba(14,165,233,.14)); border-color: rgba(16,185,129,.45); color: #065f46; }
   .me-chip-icon { font-size: 13px; }
