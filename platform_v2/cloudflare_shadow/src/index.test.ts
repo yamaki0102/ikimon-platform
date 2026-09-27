@@ -1222,6 +1222,7 @@ interface ObservationEventGuestMediaTestRow {
   media_state: "uploading" | "saved" | "failed"; idempotency_key: string;
   rights_review_status: "pending" | "approved" | "rejected" | "withdrawn";
   rights_reviewed_by: string | null; rights_reviewed_at: string | null; rights_review_note: string | null;
+  private_delete_pending: number; active_upload_count: number;
   visibility: "private"; created_at: string; updated_at: string;
 }
 
@@ -1950,7 +1951,7 @@ class FakeStatement {
         submission_id: submissionId, session_id: string(v[1]), participant_id: string(v[2]), actor_user_id: nullableString(v[3]),
         asset_key: string(v[4]), request_sha256: string(v[5]), media_sha256: string(v[6]), mime: "image/webp", bytes: number(v[7]),
         media_state: "uploading", idempotency_key: string(v[8]), rights_review_status: "pending",
-        rights_reviewed_by: null, rights_reviewed_at: null, rights_review_note: null, visibility: "private",
+        rights_reviewed_by: null, rights_reviewed_at: null, rights_review_note: null, visibility: "private", private_delete_pending: 0, active_upload_count: 0,
         created_at: now, updated_at: now
       });
       return { meta: { changes: 1 } };
@@ -1967,6 +1968,24 @@ class FakeStatement {
       row.media_state = "failed"; row.updated_at = new Date().toISOString();
       return { meta: { changes: 1 } };
     }
+    if (normalized.startsWith("UPDATE observation_event_guest_media SET active_upload_count = active_upload_count + 1")) {
+      const row = this.db.observationEventGuestMedia.get(string(v[0]));
+      if (!row || row.rights_review_status === "withdrawn") return { meta: { changes: 0 } };
+      row.active_upload_count += 1;
+      return { meta: { changes: 1 } };
+    }
+    if (normalized.startsWith("UPDATE observation_event_guest_media SET active_upload_count = MAX")) {
+      const row = this.db.observationEventGuestMedia.get(string(v[0]));
+      if (!row) return { meta: { changes: 0 } };
+      row.active_upload_count = Math.max(0, row.active_upload_count - 1);
+      return { meta: { changes: 1 } };
+    }
+    if (normalized.startsWith("UPDATE observation_event_guest_media SET private_delete_pending = 0")) {
+      const row = this.db.observationEventGuestMedia.get(string(v[0]));
+      if (!row || row.rights_review_status !== "withdrawn" || row.active_upload_count !== 0) return { meta: { changes: 0 } };
+      row.private_delete_pending = 0;
+      return { meta: { changes: 1 } };
+    }
     if (normalized.startsWith("UPDATE observation_event_guest_media SET rights_review_status = ?")) {
       const row = this.db.observationEventGuestMedia.get(string(v[4]));
       if (!row || row.session_id !== string(v[3]) || row.media_state !== "saved" || row.rights_review_status !== "pending") return { meta: { changes: 0 } };
@@ -1977,7 +1996,7 @@ class FakeStatement {
     if (normalized.startsWith("UPDATE observation_event_guest_media SET rights_review_status = 'withdrawn'")) {
       const row = this.db.observationEventGuestMedia.get(string(v[1]));
       if (!row || row.session_id !== string(v[0]) || row.participant_id !== string(v[2])) return { meta: { changes: 0 } };
-      row.rights_review_status = "withdrawn"; row.updated_at = new Date().toISOString();
+      row.rights_review_status = "withdrawn"; row.private_delete_pending = 1; row.updated_at = new Date().toISOString();
       return { meta: { changes: 1 } };
     }
     if (normalized.startsWith("UPDATE observation_event_guest_media AS guest")) {
@@ -6407,7 +6426,9 @@ class FakeStatement {
     const v = this.values;
     if (normalized.startsWith("SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256")) {
       const sessionId = string(v[0]);
-      const rows = [...this.db.observationEventGuestMedia.values()].filter((row) => row.session_id === sessionId && (!normalized.includes("AND media_state = 'saved'") || row.media_state === "saved") && (!normalized.includes("AND participant_id = ?") || row.participant_id === string(v[1])))
+      const rows = [...this.db.observationEventGuestMedia.values()].filter((row) => row.session_id === sessionId
+        && (normalized.includes("(media_state = 'saved' OR rights_review_status = 'withdrawn')") ? row.media_state === "saved" || row.rights_review_status === "withdrawn" : !normalized.includes("AND media_state = 'saved'") || row.media_state === "saved")
+        && (!normalized.includes("AND participant_id = ?") || row.participant_id === string(v[1])))
         .sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 100);
       return { results: rows as T[] };
     }
@@ -17104,7 +17125,7 @@ test("staging Renri fixture inventory and cleanup stay scoped to the exact fixtu
     asset_key: guestMediaKey, request_sha256: "request", media_sha256: "media", mime: "image/webp", bytes: 12,
     media_state: "saved", idempotency_key: "fixture-idempotency", rights_review_status: "approved",
     rights_reviewed_by: target.userId, rights_reviewed_at: "2026-01-01T00:00:00.000Z", rights_review_note: "Synthetic fixture review",
-    visibility: "private", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z"
+    visibility: "private", private_delete_pending: 0, active_upload_count: 0, created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z"
   });
   await stagingEnv.ASSET_BUCKET.put(guestMediaKey, new Uint8Array([1, 2, 3]));
 
@@ -26863,7 +26884,7 @@ test("event guest photo stays private through receipt, rights review, result and
       media_sha256: submissionId, mime: "image/webp", bytes: 12, media_state: mediaState,
       idempotency_key: `fixture-${submissionId}`, rights_review_status: "pending", rights_reviewed_by: null,
       rights_reviewed_at: null, rights_review_note: null, visibility: "private",
-      created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      private_delete_pending: 0, active_upload_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString()
     });
   }
   const replay = await upload();
@@ -26958,6 +26979,7 @@ test("event guest photo stays private through receipt, rights review, result and
   assert.equal(failedWithdraw.status, 503);
   const fencedReceipt = (await (await worker.fetch(new Request(url, { headers: { cookie: parentCookie } }), env)).json() as any).receipts.find((receipt: any) => receipt.receiptId === savedPayload.receipt.receiptId);
   assert.equal(fencedReceipt.rightsReviewStatus, "withdrawn");
+  assert.equal(fencedReceipt.cleanupPending, true);
   bucket.failDelete = false;
   const successfulWithdraw = await worker.fetch(new Request(`${url}/${savedPayload.receipt.receiptId}/withdraw`, {
     method: "POST", headers: { cookie: parentCookie, origin: "https://ikimon.life", "content-type": "application/json" }, body: "{}"
@@ -26982,12 +27004,32 @@ test("event guest photo stays private through receipt, rights review, result and
   const raceWithdraw = await worker.fetch(new Request(`${url}/${racingRow.submission_id}/withdraw`, {
     method: "POST", headers: { cookie: parentCookie, origin: "https://ikimon.life", "content-type": "application/json" }, body: "{}"
   }), env);
-  assert.equal(raceWithdraw.status, 200);
+  assert.equal(raceWithdraw.status, 409);
+  assert.equal((await raceWithdraw.json() as any).error, "withdrawal_cleanup_pending");
   finishPut();
+  bucket.failDelete = true;
   const lateUpload = await racingUpload;
   assert.equal(lateUpload.status, 410);
-  assert.equal(bucket.objects.has(racingRow.asset_key), false);
+  assert.equal(bucket.objects.has(racingRow.asset_key), true);
   assert.equal(obs.observationEventGuestMedia.get(racingRow.submission_id)?.rights_review_status, "withdrawn");
+  assert.equal(obs.observationEventGuestMedia.get(racingRow.submission_id)?.private_delete_pending, 1);
+  const raceReceipt = (await (await worker.fetch(new Request(url, { headers: { cookie: parentCookie } }), env)).json() as any).receipts.find((receipt: any) => receipt.receiptId === racingRow.submission_id);
+  assert.equal(raceReceipt.cleanupPending, true);
+  assert.equal("privateContentHref" in raceReceipt, false);
+  const revisit = await worker.fetch(new Request(`https://ikimon.life/events/${sessionId}/rally`, { headers: { cookie: parentCookie } }), env);
+  const revisitHtml = await revisit.text();
+  assert.equal(revisit.status, 200);
+  assert.match(revisitHtml, /削除確認を再試行/);
+  const racedContent = await worker.fetch(new Request(`https://ikimon.life${url}/${racingRow.submission_id}/content`, { headers: { cookie: parentCookie } }), env);
+  assert.equal(racedContent.status, 404);
+  bucket.failDelete = false;
+  const cleanupRetry = await worker.fetch(new Request(`${url}/${racingRow.submission_id}/withdraw`, {
+    method: "POST", headers: { cookie: parentCookie, origin: "https://ikimon.life", "content-type": "application/json" }, body: "{}"
+  }), env);
+  assert.equal(cleanupRetry.status, 200);
+  assert.equal(bucket.objects.has(racingRow.asset_key), false);
+  const cleanReceipt = (await (await worker.fetch(new Request(url, { headers: { cookie: parentCookie } }), env)).json() as any).receipts.find((receipt: any) => receipt.receiptId === racingRow.submission_id);
+  assert.equal(cleanReceipt.cleanupPending, false);
   bucket.beforePut = undefined;
   const nonparticipantProduction = await worker.fetch(new Request(url, { headers: { cookie: guestCookie } }), { ...env, ENVIRONMENT: "production" });
   assert.equal(nonparticipantProduction.status, 404);
@@ -26995,6 +27037,8 @@ test("event guest photo stays private through receipt, rights review, result and
   const migration = await readFile(new URL("../migrations/observations/0071_observation_event_guest_media.sql", import.meta.url), "utf8");
   assert.match(migration, /visibility TEXT NOT NULL DEFAULT 'private' CHECK \(visibility = 'private'\)/);
   assert.match(migration, /rights_review_status TEXT NOT NULL DEFAULT 'pending'/);
+  assert.match(migration, /private_delete_pending INTEGER NOT NULL DEFAULT 0/);
+  assert.match(migration, /active_upload_count INTEGER NOT NULL DEFAULT 0/);
   assert.match(migration, /UNIQUE \(session_id, participant_id, idempotency_key\)/);
   assert.doesNotMatch(migration, /owner_user_id|public_derivative|public_ready/i);
 });

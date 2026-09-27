@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS observation_event_guest_media (
   rights_reviewed_at TEXT,
   rights_review_note TEXT,
   visibility TEXT NOT NULL DEFAULT 'private' CHECK (visibility = 'private'),
+  private_delete_pending INTEGER NOT NULL DEFAULT 0 CHECK (private_delete_pending IN (0, 1)),
+  active_upload_count INTEGER NOT NULL DEFAULT 0 CHECK (active_upload_count >= 0),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (session_id, participant_id, idempotency_key)
