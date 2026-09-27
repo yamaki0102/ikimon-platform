@@ -5033,7 +5033,12 @@ function renderObservationEventGuestMediaPanel(sessionId: string, canReview: boo
       receipts.replaceChildren();
       (data.receipts || []).forEach(receipt => {
         const item = node('li', '受取 ' + receipt.receiptId + ' / ' + receipt.mediaState + ' / 権利確認: ' + receipt.rightsReviewStatus + ' / 非公開');
-        if (receipt.rightsReviewStatus !== 'withdrawn') {
+        if (receipt.rightsReviewStatus === 'withdrawn') {
+          if (receipt.cleanupPending) {
+            const retry = node('button', '削除確認を再試行'); retry.type = 'button'; retry.className = 'btn secondary';
+            retry.addEventListener('click', async () => { const result = await fetch(endpoint + '/' + encodeURIComponent(receipt.receiptId) + '/withdraw', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' }); const body = await result.json().catch(() => ({})); if (!result.ok) { status.textContent = body.error === 'withdrawal_cleanup_pending' ? '削除処理の完了を確認しています。少し待って再試行してください。' : '写真は非公開です。削除確認を再試行してください。'; await load(); return; } status.textContent = '非公開写真の削除を確認しました。'; await load(); }); item.append(' ', retry);
+          } else item.append(' ', node('span', '削除済み・非公開'));
+        } else {
           const link = node('a', '自分の写真を見る'); link.href = receipt.privateContentHref; link.rel = 'noreferrer'; item.append(' ', link);
           const withdraw = node('button', 'この写真を取り下げる'); withdraw.type = 'button'; withdraw.className = 'btn secondary';
           withdraw.addEventListener('click', async () => { if (!confirm('この写真を非公開保存から削除し、イベントの確認対象から外します。削除後は元に戻せません。続けますか。')) return; const result = await fetch(receipt.privateContentHref.slice(0, receipt.privateContentHref.lastIndexOf('/')) + '/withdraw', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' }); if (!result.ok) { status.textContent = '削除できませんでした。時間をおいてもう一度お試しください。'; return; } await load(); }); item.append(' ', withdraw);
@@ -6463,6 +6468,7 @@ interface ObservationEventGuestMediaRow {
   media_state: "uploading" | "saved" | "failed"; idempotency_key: string;
   rights_review_status: "pending" | "approved" | "rejected" | "withdrawn";
   rights_reviewed_by: string | null; rights_reviewed_at: string | null; rights_review_note: string | null;
+  private_delete_pending: number; active_upload_count: number;
   visibility: "private"; created_at: string; updated_at: string;
 }
 
@@ -6474,7 +6480,8 @@ function observationEventGuestMediaReceipt(row: ObservationEventGuestMediaRow) {
   return {
     receiptId: row.submission_id, mediaState: row.media_state, rightsReviewStatus: row.rights_review_status,
     visibility: "private" as const, createdAt: row.created_at, updatedAt: row.updated_at,
-    privateContentHref: `/api/v1/observation-events/${encodeURIComponent(row.session_id)}/guest-media/${encodeURIComponent(row.submission_id)}/content`
+    cleanupPending: row.private_delete_pending === 1,
+    ...(row.rights_review_status === "withdrawn" ? {} : { privateContentHref: `/api/v1/observation-events/${encodeURIComponent(row.session_id)}/guest-media/${encodeURIComponent(row.submission_id)}/content` })
   };
 }
 
@@ -6516,7 +6523,7 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   const findByKey = () => env.OBS_DB.prepare(
     `SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
             mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by,
-            rights_reviewed_at, rights_review_note, visibility, created_at, updated_at
+            rights_reviewed_at, rights_review_note, visibility, private_delete_pending, active_upload_count, created_at, updated_at
        FROM observation_event_guest_media WHERE session_id = ? AND participant_id = ? AND idempotency_key = ? LIMIT 1`
   ).bind(sessionId, actor.participant!.participant_id, idempotencyKey).first<ObservationEventGuestMediaRow>();
   let row = await findByKey();
@@ -6550,24 +6557,31 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   if (!row || row.request_sha256 !== requestSha256 || row.media_sha256 !== mediaSha256) return json({ error: "idempotency_key_conflict" }, 409, { "cache-control": "no-store" });
   const replay = row.media_state === "saved";
   if (!replay) {
+    const started = await env.OBS_DB.prepare("UPDATE observation_event_guest_media SET active_upload_count = active_upload_count + 1, updated_at = CURRENT_TIMESTAMP WHERE submission_id = ? AND rights_review_status <> 'withdrawn'").bind(row.submission_id).run();
+    if (Number(started.meta?.changes ?? 0) !== 1) return json({ error: "media_withdrawn" }, 410, { "cache-control": "no-store" });
+    let putCompleted = false;
     try {
       await env.ASSET_BUCKET.put(row.asset_key, transformed, { httpMetadata: { contentType: row.mime, cacheControl: "private, no-store" }, customMetadata: { visibility: "private", source: "observation_event_guest_media", gpsExifPresent: "false" } });
+      putCompleted = true;
       const saved = await env.OBS_DB.prepare("UPDATE observation_event_guest_media SET media_state = 'saved', updated_at = CURRENT_TIMESTAMP WHERE submission_id = ? AND media_sha256 = ? AND rights_review_status <> 'withdrawn'").bind(row.submission_id, mediaSha256).run();
       if (Number(saved.meta?.changes ?? 0) !== 1) {
-        await env.ASSET_BUCKET.delete(row.asset_key);
-        if (await env.ASSET_BUCKET.head(row.asset_key)) return json({ error: "private_media_delete_unverified" }, 503, { "cache-control": "no-store" });
+        await reconcileObservationEventGuestMediaDelete(env, row.submission_id);
         const current = await findByKey();
         return json({ error: current?.rights_review_status === "withdrawn" ? "media_withdrawn" : "media_upload_cancelled" }, current?.rights_review_status === "withdrawn" ? 410 : 409, { "cache-control": "no-store" });
       }
     } catch {
-      await env.OBS_DB.prepare("UPDATE observation_event_guest_media SET media_state = 'failed', updated_at = CURRENT_TIMESTAMP WHERE submission_id = ? AND media_sha256 = ? AND rights_review_status <> 'withdrawn'").bind(row.submission_id, mediaSha256).run().catch(() => undefined);
+      await env.OBS_DB.prepare("UPDATE observation_event_guest_media SET media_state = 'failed', updated_at = CURRENT_TIMESTAMP WHERE submission_id = ? AND media_sha256 = ? AND rights_review_status <> 'withdrawn' AND media_state <> 'saved'").bind(row.submission_id, mediaSha256).run().catch(() => undefined);
+      if (putCompleted) await reconcileObservationEventGuestMediaDelete(env, row.submission_id);
       return json({ error: "private_media_save_failed" }, 503, { "cache-control": "no-store" });
+    } finally {
+      await env.OBS_DB.prepare("UPDATE observation_event_guest_media SET active_upload_count = MAX(0, active_upload_count - 1), updated_at = CURRENT_TIMESTAMP WHERE submission_id = ?").bind(row.submission_id).run();
+      await reconcileObservationEventGuestMediaDelete(env, row.submission_id);
     }
   }
   row = await env.OBS_DB.prepare(
     `SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
             mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by,
-            rights_reviewed_at, rights_review_note, visibility, created_at, updated_at
+            rights_reviewed_at, rights_review_note, visibility, private_delete_pending, active_upload_count, created_at, updated_at
        FROM observation_event_guest_media WHERE submission_id = ? LIMIT 1`
   ).bind(row.submission_id).first<ObservationEventGuestMediaRow>();
   if (row?.rights_review_status === "withdrawn") return json({ error: "media_withdrawn" }, 410, { "cache-control": "no-store" });
@@ -6584,8 +6598,8 @@ async function getObservationEventGuestMedia(request: Request, env: Env, session
   const rows = await env.OBS_DB.prepare(
     `SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
             mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by,
-            rights_reviewed_at, rights_review_note, visibility, created_at, updated_at
-       FROM observation_event_guest_media WHERE session_id = ? AND media_state = 'saved' ${isOrganizer ? "" : "AND participant_id = ?"}
+            rights_reviewed_at, rights_review_note, visibility, private_delete_pending, active_upload_count, created_at, updated_at
+       FROM observation_event_guest_media WHERE session_id = ? AND ${isOrganizer ? "media_state = 'saved'" : "(media_state = 'saved' OR rights_review_status = 'withdrawn')"} ${isOrganizer ? "" : "AND participant_id = ?"}
       ORDER BY created_at DESC LIMIT 100`
   ).bind(...(isOrganizer ? [sessionId] : [sessionId, actor.participant!.participant_id])).all<ObservationEventGuestMediaRow>();
   const resultRows = await env.OBS_DB.prepare("SELECT rights_review_status, COUNT(*) AS count FROM observation_event_guest_media WHERE session_id = ? AND media_state = 'saved' GROUP BY rights_review_status").bind(sessionId).all<{ rights_review_status: string; count: number }>();
@@ -6604,7 +6618,7 @@ async function getObservationEventGuestMediaContent(request: Request, env: Env, 
   const row = await env.OBS_DB.prepare(
     `SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
             mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by,
-            rights_reviewed_at, rights_review_note, visibility, created_at, updated_at
+            rights_reviewed_at, rights_review_note, visibility, private_delete_pending, active_upload_count, created_at, updated_at
        FROM observation_event_guest_media WHERE session_id = ? AND submission_id = ? LIMIT 1`
   ).bind(sessionId, submissionId).first<ObservationEventGuestMediaRow>();
   if (!row || row.media_state !== "saved" || row.rights_review_status === "withdrawn") return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
@@ -6644,21 +6658,34 @@ async function withdrawObservationEventGuestMedia(request: Request, env: Env, se
   const actor = await observationEventGuestMediaActor(request, env, sessionId);
   if (!actor.participant || actor.participant.status !== "checked_in") return json({ error: "checked_in_participant_required" }, 403, { "cache-control": "no-store" });
   const row = await env.OBS_DB.prepare(
-    "SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256, mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by, rights_reviewed_at, rights_review_note, visibility, created_at, updated_at FROM observation_event_guest_media WHERE session_id = ? AND submission_id = ? LIMIT 1"
+    "SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256, mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by, rights_reviewed_at, rights_review_note, visibility, private_delete_pending, active_upload_count, created_at, updated_at FROM observation_event_guest_media WHERE session_id = ? AND submission_id = ? LIMIT 1"
   ).bind(sessionId, submissionId).first<ObservationEventGuestMediaRow>();
   if (!row || row.participant_id !== actor.participant.participant_id) return json({ error: "receipt_not_found" }, 404, { "cache-control": "no-store" });
   const fenced = await env.OBS_DB.prepare(
-    `UPDATE observation_event_guest_media SET rights_review_status = 'withdrawn', updated_at = CURRENT_TIMESTAMP
+    `UPDATE observation_event_guest_media SET rights_review_status = 'withdrawn', private_delete_pending = 1, updated_at = CURRENT_TIMESTAMP
       WHERE session_id = ? AND submission_id = ? AND participant_id = ?`
   ).bind(sessionId, submissionId, actor.participant.participant_id).run();
   if (Number(fenced.meta?.changes ?? 0) !== 1) return json({ error: "receipt_claim_changed" }, 409, { "cache-control": "no-store" });
+  const cleanup = await reconcileObservationEventGuestMediaDelete(env, submissionId);
+  if (cleanup.error) return json({ error: cleanup.error }, 503, { "cache-control": "no-store" });
+  if (!cleanup.complete) return json({ error: "withdrawal_cleanup_pending" }, 409, { "cache-control": "no-store" });
+  return json({ receiptId: submissionId, rightsReviewStatus: "withdrawn", visibility: "private", publicProjection: false }, 200, { "cache-control": "no-store" });
+}
+
+async function reconcileObservationEventGuestMediaDelete(env: Env, submissionId: string): Promise<{ complete: boolean; error?: string }> {
+  const row = await env.OBS_DB.prepare("SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256, mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by, rights_reviewed_at, rights_review_note, visibility, private_delete_pending, active_upload_count, created_at, updated_at FROM observation_event_guest_media WHERE submission_id = ? LIMIT 1").bind(submissionId).first<ObservationEventGuestMediaRow>();
+  if (!row || row.rights_review_status !== "withdrawn") return { complete: true };
   try {
     await env.ASSET_BUCKET.delete(row.asset_key);
-    if (await env.ASSET_BUCKET.head(row.asset_key)) return json({ error: "private_media_delete_unverified" }, 503, { "cache-control": "no-store" });
-  } catch {
-    return json({ error: "private_media_delete_failed" }, 503, { "cache-control": "no-store" });
-  }
-  return json({ receiptId: submissionId, rightsReviewStatus: "withdrawn", visibility: "private", publicProjection: false }, 200, { "cache-control": "no-store" });
+    if (await env.ASSET_BUCKET.head(row.asset_key)) return { complete: false, error: "private_media_delete_unverified" };
+  } catch { return { complete: false, error: "private_media_delete_failed" }; }
+  if (row.active_upload_count > 0) return { complete: false };
+  await env.OBS_DB.prepare("UPDATE observation_event_guest_media SET private_delete_pending = 0, updated_at = CURRENT_TIMESTAMP WHERE submission_id = ? AND rights_review_status = 'withdrawn' AND active_upload_count = 0").bind(submissionId).run();
+  const verified = await env.OBS_DB.prepare("SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256, mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by, rights_reviewed_at, rights_review_note, visibility, private_delete_pending, active_upload_count, created_at, updated_at FROM observation_event_guest_media WHERE submission_id = ? LIMIT 1").bind(submissionId).first<ObservationEventGuestMediaRow>();
+  if (verified?.rights_review_status !== "withdrawn" || verified.private_delete_pending !== 0 || verified.active_upload_count !== 0) return { complete: false };
+  try { if (await env.ASSET_BUCKET.head(row.asset_key)) return { complete: false, error: "private_media_delete_unverified" }; }
+  catch { return { complete: false, error: "private_media_delete_unverified" }; }
+  return { complete: true };
 }
 
 async function handleObservationEventRallyApi(request: Request, env: Env, sessionId: string, pathRemainder: string): Promise<Response> {
