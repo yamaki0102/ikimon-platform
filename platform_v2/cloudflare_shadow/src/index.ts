@@ -3700,6 +3700,18 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   if (request.method === "POST" && handoverRollbackMatch?.[1]) {
     return rollbackObservationEventHandover(request, env, decodeURIComponent(handoverRollbackMatch[1]));
   }
+  const guestMediaMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/guest-media(?:\/([^/]+)(?:\/(content|review|withdraw))?)?$/);
+  if (guestMediaMatch?.[1]) {
+    const sessionId = decodeURIComponent(guestMediaMatch[1]);
+    const submissionId = guestMediaMatch[2] ? decodeURIComponent(guestMediaMatch[2]) : null;
+    const action = guestMediaMatch[3] ?? "";
+    if (!submissionId && request.method === "POST") return createObservationEventGuestMedia(request, env, sessionId);
+    if (!submissionId && request.method === "GET") return getObservationEventGuestMedia(request, env, sessionId);
+    if (submissionId && action === "content" && request.method === "GET") return getObservationEventGuestMediaContent(request, env, sessionId, submissionId);
+    if (submissionId && action === "review" && request.method === "PATCH") return reviewObservationEventGuestMedia(request, env, sessionId, submissionId);
+    if (submissionId && action === "withdraw" && request.method === "POST") return withdrawObservationEventGuestMedia(request, env, sessionId, submissionId);
+    return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
   const privateSessionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)/);
   if (privateSessionMatch?.[1] && !["by-code", "area-suggestions"].includes(privateSessionMatch[1])) {
     const privateGuard = await privateReceivedProgramGuard(request, env, decodeURIComponent(privateSessionMatch[1]));
@@ -4465,7 +4477,10 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
   if (page === "rally") {
     const rally = await getObservationRallySnapshot(env, session.sessionId).catch(() => ({ course: null, stations: [], missions: [], progress: [] }));
     await recordObservationEventParticipantPageMetric(request, env, session, "event_rally_opened", "rally");
-    return pageHtml(`${session.title} 観察ラリー`, renderObservationEventRallyPage(session, rally, Boolean(auth), canManage), "event-page-rally");
+    return pageHtml(`${session.title} 観察ラリー`, renderObservationEventRallyPage(
+      session, rally, Boolean(auth), canManage, undefined, observationEventGuestMediaEnabled(env, session), canManage,
+      Boolean(liveViewer?.isCheckedInParticipant)
+    ), "event-page-rally");
   }
   const [teams, events, effort] = await Promise.all([
     listObservationEventTeams(env, session.sessionId).catch(() => []),
@@ -5146,7 +5161,10 @@ function renderObservationEventRallyPage(
   rally: Awaited<ReturnType<typeof getObservationRallySnapshot>>,
   isAuthenticated: boolean,
   canManage: boolean,
-  options?: SyntheticObservationEventRenderOptions
+  options?: SyntheticObservationEventRenderOptions,
+  guestMediaEnabled = false,
+  guestMediaCanReview = false,
+  guestMediaCanSubmit = false
 ): string {
   const recordParams = new URLSearchParams();
   if (session.eventCode) recordParams.set("event", session.eventCode);
@@ -5171,7 +5189,71 @@ function renderObservationEventRallyPage(
   const progressHref = options
     ? `${options.syntheticQaBasePath}/live`
     : `/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/rally`;
-  return `<section><h1>${escapeHtml(session.title)} 観察ラリー</h1><article class="card"><h2>見つけたものを記録しよう</h2><p>${escapeHtml(accountCopy)}</p><div class="actions">${recordAction}</div></article><div class="grid"><article class="card"><h2>${escapeHtml(rally.course?.title ?? "観察ラリー未作成")}</h2><p class="muted">${escapeHtml(rally.course?.status ?? "draft")}</p></article><article class="card"><h2>地点</h2><p>${rally.stations.length}</p></article><article class="card"><h2>ミッション</h2><p>${rally.missions.length}</p></article></div><div class="actions"><a class="btn secondary" href="${escapeHtml(progressHref)}">${options ? "合成ライブを見る" : "ラリーの進み具合"}</a>${!options && canManage ? `<a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a>` : ""}</div></section>${registrationAnalytics}`;
+  const guestMedia = guestMediaEnabled
+    ? renderObservationEventGuestMediaPanel(session.sessionId, guestMediaCanReview, guestMediaCanSubmit)
+    : "";
+  return `<section><h1>${escapeHtml(session.title)} 観察ラリー</h1><article class="card"><h2>見つけたものを記録しよう</h2><p>${escapeHtml(accountCopy)}</p><div class="actions">${recordAction}</div></article>${guestMedia}<div class="grid"><article class="card"><h2>${escapeHtml(rally.course?.title ?? "観察ラリー未作成")}</h2><p class="muted">${escapeHtml(rally.course?.status ?? "draft")}</p></article><article class="card"><h2>地点</h2><p>${rally.stations.length}</p></article><article class="card"><h2>ミッション</h2><p>${rally.missions.length}</p></article></div><div class="actions"><a class="btn secondary" href="${escapeHtml(progressHref)}">${options ? "合成ライブを見る" : "ラリーの進み具合"}</a>${!options && canManage ? `<a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a>` : ""}</div></section>${registrationAnalytics}`;
+}
+
+function renderObservationEventGuestMediaPanel(sessionId: string, canReview: boolean, canSubmit: boolean): string {
+  const sessionIdJson = JSON.stringify(sessionId).replace(/</g, "\\u003c");
+  const captureForm = canSubmit ? `<form data-guest-media-form><label>写真を撮る、または選ぶ<input name="media" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required></label><label class="evt-check-row"><input name="private_storage_consent" type="checkbox" value="yes" required><span>写真を非公開で保存し、このイベント内の権利確認に使うことに同意します。</span></label><label class="evt-check-row"><input name="creator_rights_attestation" type="checkbox" value="yes" required><span>自分で撮影した写真、またはこの用途で使う許可を得た写真です。人物・名札・車の番号など、見せたくないものが写っていないことを確認しました。</span></label><button class="btn" type="submit">非公開で保存する</button></form>` : "";
+  return `<section class="card" data-guest-media-panel data-session-id="${escapeHtml(sessionId)}"><h2>写真を非公開で残す</h2><p class="muted">保存した写真はあなたと主催者だけが確認できます。主催者の権利確認が終わるまで、結果や公開ページには表示しません。</p>${captureForm}<p class="muted" data-guest-media-status role="status" aria-live="polite"></p><h3>この端末の受取</h3><ul data-guest-media-receipts></ul><h3>イベント内の結果</h3><p data-guest-media-results role="status" aria-live="polite">権利確認が済んだ写真だけを集計します。公開には使いません。</p>${canReview ? `<div data-guest-media-review><h3>権利確認が必要な写真</h3><ul data-guest-media-review-list></ul></div>` : ""}</section><script>
+(() => {
+  const sessionId = ${sessionIdJson};
+  const root = document.querySelector('[data-guest-media-panel]');
+  if (!root) return;
+  const endpoint = '/api/v1/observation-events/' + encodeURIComponent(sessionId) + '/guest-media';
+  const form = root.querySelector('[data-guest-media-form]');
+  const status = root.querySelector('[data-guest-media-status]');
+  const receipts = root.querySelector('[data-guest-media-receipts]');
+  const results = root.querySelector('[data-guest-media-results]');
+  const reviewList = root.querySelector('[data-guest-media-review-list]');
+  function node(tag, value) { const item = document.createElement(tag); if (value) item.textContent = value; return item; }
+  function load() {
+    return fetch(endpoint, { credentials: 'same-origin', cache: 'no-store' }).then(async response => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || '保存済みの受取を読み込めませんでした。');
+      receipts.replaceChildren();
+      (data.receipts || []).forEach(receipt => {
+        const item = node('li', '受取 ' + receipt.receiptId + ' / ' + receipt.mediaState + ' / 権利確認: ' + receipt.rightsReviewStatus + ' / 非公開');
+        if (receipt.rightsReviewStatus !== 'withdrawn') {
+          const link = node('a', '自分の写真を見る'); link.href = receipt.privateContentHref; link.rel = 'noreferrer'; item.append(' ', link);
+          const withdraw = node('button', 'この写真を取り下げる'); withdraw.type = 'button'; withdraw.className = 'btn secondary';
+          withdraw.addEventListener('click', async () => { if (!confirm('この受取を取り下げますか。イベント内の確認対象から外れます。')) return; const result = await fetch(receipt.privateContentHref.slice(0, receipt.privateContentHref.lastIndexOf('/')) + '/withdraw', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' }); if (!result.ok) { status.textContent = '取り下げられませんでした。'; return; } await load(); }); item.append(' ', withdraw);
+        }
+        receipts.append(item);
+      });
+      if (!receipts.childNodes.length) receipts.append(node('li', '保存した写真はありません。'));
+      results.textContent = '未確認 ' + (data.results?.pending || 0) + '件 / 権利確認済み ' + (data.results?.approved || 0) + '件 / 掲載 ' + (data.results?.publicProjection ? 'あり' : 'なし');
+      if (reviewList) {
+        reviewList.replaceChildren();
+        (data.reviewQueue || []).forEach(receipt => {
+          const item = node('li'); const heading = node('p', '参加者からの写真 / 非公開 / 権利確認が必要'); item.append(heading);
+          const image = node('img'); image.src = receipt.privateContentHref; image.alt = '権利確認のための非公開写真'; image.loading = 'lazy'; image.style.maxWidth = '100%'; image.style.maxHeight = '320px'; item.append(image);
+          const note = node('textarea'); note.required = true; note.maxLength = 500; note.minLength = 8; note.setAttribute('aria-label', '確認した権利と写り込みの理由'); note.placeholder = '写真の利用権と写り込みを確認した理由（8〜500字）'; item.append(note);
+          ['approved', 'rejected'].forEach(decision => { const button = node('button', decision === 'approved' ? '権利確認を記録' : '結果から除外'); button.type = 'button'; button.className = 'btn secondary'; button.addEventListener('click', async () => { if (note.value.trim().length < 8) { note.focus(); return; } const response = await fetch(endpoint + '/' + encodeURIComponent(receipt.receiptId) + '/review', { method: 'PATCH', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decision, note: note.value.trim() }) }); const body = await response.json().catch(() => ({})); if (!response.ok) { status.textContent = body.error || '権利確認を保存できませんでした。'; return; } await load(); }); item.append(' ', button); });
+          reviewList.append(item);
+        });
+        if (!reviewList.childNodes.length) reviewList.append(node('li', '未確認の写真はありません。'));
+      }
+    }).catch(error => { status.textContent = error.message || '受取を読み込めませんでした。'; });
+  }
+  if (form) form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = form.querySelector('button[type=submit]'); if (button) button.disabled = true;
+    status.textContent = '写真を非公開で保存しています。';
+    try {
+      const response = await fetch(endpoint, { method: 'POST', credentials: 'same-origin', headers: { 'idempotency-key': crypto.randomUUID() }, body: new FormData(form) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || '保存に失敗しました。');
+      form.reset(); status.textContent = '非公開で保存しました。受取番号: ' + data.receipt.receiptId + '。権利確認まで結果には含まれません。'; await load();
+    } catch (error) { status.textContent = error.message || '保存できませんでした。'; }
+    finally { if (button) button.disabled = false; }
+  });
+  void load();
+})();
+</script>`;
 }
 
 function observationEventRegistrationStartScript(sessionId: string): string {
@@ -6557,6 +6639,202 @@ async function autoMatchObservationToActiveRalliesNative(
   }
 
   return { matchedCandidates, createdSubmissions };
+}
+
+interface ObservationEventGuestMediaRow {
+  submission_id: string; session_id: string; participant_id: string; actor_user_id: string | null;
+  asset_key: string; request_sha256: string; media_sha256: string; mime: string; bytes: number;
+  media_state: "uploading" | "saved" | "failed"; idempotency_key: string;
+  rights_review_status: "pending" | "approved" | "rejected" | "withdrawn";
+  rights_reviewed_by: string | null; rights_reviewed_at: string | null; rights_review_note: string | null;
+  visibility: "private"; created_at: string; updated_at: string;
+}
+
+function observationEventGuestMediaEnabled(env: Env, session: ObservationEventTemplate): boolean {
+  return env.ENVIRONMENT !== "production" && session.config.qa_fixture === true && session.config.guest_media_enabled === true;
+}
+
+function observationEventGuestMediaReceipt(row: ObservationEventGuestMediaRow) {
+  return {
+    receiptId: row.submission_id, mediaState: row.media_state, rightsReviewStatus: row.rights_review_status,
+    visibility: "private" as const, createdAt: row.created_at, updatedAt: row.updated_at,
+    privateContentHref: `/api/v1/observation-events/${encodeURIComponent(row.session_id)}/guest-media/${encodeURIComponent(row.submission_id)}/content`
+  };
+}
+
+async function observationEventGuestMediaActor(request: Request, env: Env, sessionId: string) {
+  const { auth, guestToken } = await observationEventRequestActor(request, env, sessionId);
+  const participant = auth || guestToken ? await findObservationEventParticipant(env, sessionId, auth?.userId ?? null, guestToken) : null;
+  return { auth, guestToken, participant };
+}
+
+async function createObservationEventGuestMedia(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session || !observationEventGuestMediaEnabled(env, session)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const actor = await observationEventGuestMediaActor(request, env, sessionId);
+  if (!actor.participant || actor.participant.status !== "checked_in") return json({ error: "checked_in_participant_required" }, 403, { "cache-control": "no-store" });
+  if (Number(request.headers.get("content-length") ?? 0) > 13_107_200) return json({ error: "media_too_large" }, 413, { "cache-control": "no-store" });
+  if (!env.IMAGES) return json({ error: "private_image_scrubber_unavailable" }, 503, { "cache-control": "no-store" });
+  let form: FormData;
+  try { form = await request.formData(); } catch { return json({ error: "multipart_form_required" }, 400, { "cache-control": "no-store" }); }
+  const file = form.get("media");
+  if (!(file instanceof File) || file.size < 1 || file.size > 12_582_912) return json({ error: "image_required_or_too_large" }, 400, { "cache-control": "no-store" });
+  const mime = file.type.toLowerCase();
+  if (!new Set(["image/jpeg", "image/png", "image/webp"]).has(mime)) return json({ error: "unsupported_image_type" }, 415, { "cache-control": "no-store" });
+  if (form.get("private_storage_consent") !== "yes" || form.get("creator_rights_attestation") !== "yes") return json({ error: "private_storage_and_creator_rights_confirmation_required" }, 400, { "cache-control": "no-store" });
+  const idempotencyKey = normalizeOptionalText(request.headers.get("idempotency-key") ?? form.get("idempotency_key"));
+  if (!idempotencyKey || idempotencyKey.length < 16 || idempotencyKey.length > 128 || !/^[a-zA-Z0-9._:-]+$/.test(idempotencyKey)) return json({ error: "valid_idempotency_key_required" }, 400, { "cache-control": "no-store" });
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const signatureValid = mime === "image/jpeg"
+    ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+    : mime === "image/png"
+      ? bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+      : bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+  if (!signatureValid) return json({ error: "image_content_mismatch" }, 415, { "cache-control": "no-store" });
+  const requestSha256 = await sha256Hex(bytes.buffer);
+  const idempotencyDigest = await sha256Hex(textToArrayBuffer(`${sessionId}\0${actor.participant.participant_id}\0${idempotencyKey}`));
+  const submissionId = `egm_${idempotencyDigest.slice(0, 40)}`;
+  const assetKey = `private/event-guest-media/${encodeURIComponent(sessionId)}/${submissionId}/original`;
+  const findByKey = () => env.OBS_DB.prepare(
+    `SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
+            mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by,
+            rights_reviewed_at, rights_review_note, visibility, created_at, updated_at
+       FROM observation_event_guest_media WHERE session_id = ? AND participant_id = ? AND idempotency_key = ? LIMIT 1`
+  ).bind(sessionId, actor.participant!.participant_id, idempotencyKey).first<ObservationEventGuestMediaRow>();
+  let row = await findByKey();
+  if (row && row.request_sha256 !== requestSha256) return json({ error: "idempotency_key_conflict" }, 409, { "cache-control": "no-store" });
+  if (row?.media_state === "saved") return json({ receipt: observationEventGuestMediaReceipt(row) }, 200, { "cache-control": "no-store" });
+  let transformed: ArrayBuffer;
+  try {
+    const output = await env.IMAGES.input(new Response(bytes.slice()).body!).transform({ width: 1600 }).output({ format: "image/webp", quality: 82, anim: false });
+    const response = output.response();
+    const contentType = (response.headers.get("content-type") ?? "").split(";", 1)[0]?.trim().toLowerCase();
+    if (!response.ok || contentType !== "image/webp") return json({ error: "private_image_scrub_failed" }, 422, { "cache-control": "no-store" });
+    transformed = await response.arrayBuffer();
+    if (transformed.byteLength === 0 || transformed.byteLength > 12_582_912) return json({ error: "private_image_output_invalid" }, 422, { "cache-control": "no-store" });
+    const inspection = inspectPublicDerivativeMetadata(transformed, contentType);
+    if (inspection.scannedContainer !== "webp" || inspection.gpsExifPresent || inspection.exifPresent || inspection.xmpPresent) return json({ error: "private_image_metadata_not_scrubbed" }, 422, { "cache-control": "no-store" });
+  } catch {
+    return json({ error: "private_image_scrub_failed" }, 422, { "cache-control": "no-store" });
+  }
+  const mediaSha256 = await sha256Hex(transformed);
+  if (row && row.media_sha256 !== mediaSha256) return json({ error: "idempotency_key_conflict" }, 409, { "cache-control": "no-store" });
+  if (!row) {
+    await env.OBS_DB.prepare(
+      `INSERT OR IGNORE INTO observation_event_guest_media (
+         submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
+         mime, bytes, idempotency_key, private_storage_consent_at, creator_rights_attested_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'image/webp', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).bind(submissionId, sessionId, actor.participant.participant_id, actor.auth?.userId ?? null, assetKey, requestSha256, mediaSha256, transformed.byteLength, idempotencyKey).run();
+    row = await findByKey();
+  }
+  if (!row || row.request_sha256 !== requestSha256 || row.media_sha256 !== mediaSha256) return json({ error: "idempotency_key_conflict" }, 409, { "cache-control": "no-store" });
+  const replay = row.media_state === "saved";
+  if (!replay) {
+    try {
+      await env.ASSET_BUCKET.put(row.asset_key, transformed, { httpMetadata: { contentType: row.mime, cacheControl: "private, no-store" }, customMetadata: { visibility: "private", source: "observation_event_guest_media", gpsExifPresent: "false" } });
+      await env.OBS_DB.prepare("UPDATE observation_event_guest_media SET media_state = 'saved', updated_at = CURRENT_TIMESTAMP WHERE submission_id = ? AND media_sha256 = ?").bind(row.submission_id, mediaSha256).run();
+    } catch {
+      await env.OBS_DB.prepare("UPDATE observation_event_guest_media SET media_state = 'failed', updated_at = CURRENT_TIMESTAMP WHERE submission_id = ? AND media_sha256 = ?").bind(row.submission_id, mediaSha256).run().catch(() => undefined);
+      return json({ error: "private_media_save_failed" }, 503, { "cache-control": "no-store" });
+    }
+  }
+  row = await env.OBS_DB.prepare(
+    `SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
+            mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by,
+            rights_reviewed_at, rights_review_note, visibility, created_at, updated_at
+       FROM observation_event_guest_media WHERE submission_id = ? LIMIT 1`
+  ).bind(row.submission_id).first<ObservationEventGuestMediaRow>();
+  if (!row || row.media_state !== "saved") return json({ error: "private_media_save_failed" }, 503, { "cache-control": "no-store" });
+  return json({ receipt: observationEventGuestMediaReceipt(row) }, replay ? 200 : 201, { "cache-control": "no-store" });
+}
+
+async function getObservationEventGuestMedia(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session || !observationEventGuestMediaEnabled(env, session)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const actor = await observationEventGuestMediaActor(request, env, sessionId);
+  const isOrganizer = actor.auth?.userId === session.organizerUserId;
+  if (!isOrganizer && (!actor.participant || actor.participant.status !== "checked_in")) return json({ error: "checked_in_participant_required" }, 403, { "cache-control": "no-store" });
+  const rows = await env.OBS_DB.prepare(
+    `SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
+            mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by,
+            rights_reviewed_at, rights_review_note, visibility, created_at, updated_at
+       FROM observation_event_guest_media WHERE session_id = ? ${isOrganizer ? "" : "AND participant_id = ?"}
+      ORDER BY created_at DESC LIMIT 100`
+  ).bind(...(isOrganizer ? [sessionId] : [sessionId, actor.participant!.participant_id])).all<ObservationEventGuestMediaRow>();
+  const resultRows = await env.OBS_DB.prepare("SELECT rights_review_status, COUNT(*) AS count FROM observation_event_guest_media WHERE session_id = ? GROUP BY rights_review_status").bind(sessionId).all<{ rights_review_status: string; count: number }>();
+  const counts = Object.fromEntries(resultRows.results.map((entry) => [entry.rights_review_status, Number(entry.count)]));
+  return json({
+    receipts: rows.results.map(observationEventGuestMediaReceipt),
+    results: { pending: counts.pending ?? 0, approved: counts.approved ?? 0, rejected: counts.rejected ?? 0, publicProjection: false },
+    reviewQueue: isOrganizer ? rows.results.filter((entry) => entry.rights_review_status === "pending").map((entry) => ({ ...observationEventGuestMediaReceipt(entry), mime: entry.mime, bytes: entry.bytes })) : undefined
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function getObservationEventGuestMediaContent(request: Request, env: Env, sessionId: string, submissionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session || !observationEventGuestMediaEnabled(env, session)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const actor = await observationEventGuestMediaActor(request, env, sessionId);
+  const row = await env.OBS_DB.prepare(
+    `SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
+            mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by,
+            rights_reviewed_at, rights_review_note, visibility, created_at, updated_at
+       FROM observation_event_guest_media WHERE session_id = ? AND submission_id = ? LIMIT 1`
+  ).bind(sessionId, submissionId).first<ObservationEventGuestMediaRow>();
+  if (!row || row.media_state !== "saved" || row.rights_review_status === "withdrawn") return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const participantOwns = actor.participant?.participant_id === row.participant_id && actor.participant.status === "checked_in";
+  const organizerCanReview = actor.auth?.userId === session.organizerUserId && row.rights_review_status === "pending";
+  if (!participantOwns && !organizerCanReview) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const object = await env.ASSET_BUCKET.get(row.asset_key);
+  if (!object) return json({ error: "private_media_unavailable" }, 404, { "cache-control": "no-store" });
+  return new Response(object.body, { headers: { "cache-control": "private, no-store", "content-type": row.mime, "content-length": String(row.bytes), "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; sandbox" } });
+}
+
+async function reviewObservationEventGuestMedia(request: Request, env: Env, sessionId: string, submissionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session || !observationEventGuestMediaEnabled(env, session)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const decision = normalizeOptionalText(body.decision);
+  const note = normalizeOptionalText(body.note) ?? "";
+  if (!(decision === "approved" || decision === "rejected") || note.length < 8 || note.length > 500) return json({ error: "decision_and_review_note_required" }, 400, { "cache-control": "no-store" });
+  const result = await env.OBS_DB.prepare(
+    `UPDATE observation_event_guest_media SET rights_review_status = ?, rights_reviewed_by = ?,
+       rights_reviewed_at = CURRENT_TIMESTAMP, rights_review_note = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE session_id = ? AND submission_id = ? AND media_state = 'saved' AND rights_review_status = 'pending'`
+  ).bind(decision, auth.auth.userId, note, sessionId, submissionId).run();
+  if (Number(result.meta?.changes ?? 0) !== 1) return json({ error: "pending_media_not_found" }, 404, { "cache-control": "no-store" });
+  return json({ receiptId: submissionId, rightsReviewStatus: decision, visibility: "private", publicProjection: false }, 200, { "cache-control": "no-store" });
+}
+
+async function withdrawObservationEventGuestMedia(request: Request, env: Env, sessionId: string, submissionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session || !observationEventGuestMediaEnabled(env, session)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const actor = await observationEventGuestMediaActor(request, env, sessionId);
+  if (!actor.participant || actor.participant.status !== "checked_in") return json({ error: "checked_in_participant_required" }, 403, { "cache-control": "no-store" });
+  const row = await env.OBS_DB.prepare(
+    "SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256, mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by, rights_reviewed_at, rights_review_note, visibility, created_at, updated_at FROM observation_event_guest_media WHERE session_id = ? AND submission_id = ? LIMIT 1"
+  ).bind(sessionId, submissionId).first<ObservationEventGuestMediaRow>();
+  if (!row || row.participant_id !== actor.participant.participant_id || row.rights_review_status === "withdrawn") return json({ error: "receipt_not_found" }, 404, { "cache-control": "no-store" });
+  try {
+    await env.ASSET_BUCKET.delete(row.asset_key);
+    if (await env.ASSET_BUCKET.head(row.asset_key)) return json({ error: "private_media_delete_unverified" }, 503, { "cache-control": "no-store" });
+  } catch {
+    return json({ error: "private_media_delete_failed" }, 503, { "cache-control": "no-store" });
+  }
+  const result = await env.OBS_DB.prepare(
+    `UPDATE observation_event_guest_media SET rights_review_status = 'withdrawn', updated_at = CURRENT_TIMESTAMP
+      WHERE session_id = ? AND submission_id = ? AND participant_id = ? AND rights_review_status <> 'withdrawn'`
+  ).bind(sessionId, submissionId, actor.participant.participant_id).run();
+  if (Number(result.meta?.changes ?? 0) !== 1) return json({ error: "receipt_not_found" }, 404, { "cache-control": "no-store" });
+  return json({ receiptId: submissionId, rightsReviewStatus: "withdrawn", visibility: "private", publicProjection: false }, 200, { "cache-control": "no-store" });
 }
 
 async function handleObservationEventRallyApi(request: Request, env: Env, sessionId: string, pathRemainder: string): Promise<Response> {
@@ -33972,6 +34250,12 @@ async function discoverRenriFixtureScope(env: Env, fixturePrefix: string): Promi
   }>(env.OBS_DB, "SELECT asset_id, object_key, public_derivative_key FROM asset_ledger WHERE owner_user_id IN", userIds);
   const assetIds = uniqueNonEmpty(assetRows.map((row) => row.asset_id));
   const r2ObjectKeys = uniqueNonEmpty(assetRows.flatMap((row) => [row.object_key, row.public_derivative_key]));
+  const guestMediaRows = await selectRenriFixtureRows<{ asset_key: string }>(
+    env.OBS_DB,
+    "SELECT asset_key FROM observation_event_guest_media WHERE session_id IN",
+    sessionIds
+  );
+  r2ObjectKeys.push(...uniqueNonEmpty(guestMediaRows.map((row) => row.asset_key)).filter((key) => !r2ObjectKeys.includes(key)));
   const courseRows = await selectRenriFixtureRows<{ course_id: string }>(
     env.OBS_DB,
     "SELECT course_id FROM observation_rally_courses WHERE session_id IN",
@@ -34029,6 +34313,7 @@ async function inventoryRenriFixtureScope(env: Env, scope: RenriFixtureScope): P
     rollbackLedger,
     dataRights,
     idempotency,
+    guestMedia,
     r2Objects
   ] = await Promise.all([
     countRenriFixtureRows(env.CORE_DB, "users", "user_id", scope.userIds),
@@ -34059,6 +34344,7 @@ async function inventoryRenriFixtureScope(env: Env, scope: RenriFixtureScope): P
     countRenriFixtureRows(env.OBS_DB, "rollback_write_ledger", "target_id", scope.observationIds),
     countRenriFixtureRows(env.OBS_DB, "observation_data_rights", "visit_id", scope.observationIds),
     countRenriFixtureRows(env.OBS_DB, "observation_write_idempotency", "visit_id", scope.observationIds),
+    countRenriFixtureRows(env.OBS_DB, "observation_event_guest_media", "session_id", scope.sessionIds),
     countExistingR2Objects(env.ASSET_BUCKET, scope.r2ObjectKeys)
   ]);
 
@@ -34092,7 +34378,8 @@ async function inventoryRenriFixtureScope(env: Env, scope: RenriFixtureScope): P
     outbox,
     rollbackLedger,
     dataRights,
-    idempotency
+    idempotency,
+    guestMedia
   };
 }
 
@@ -34151,6 +34438,8 @@ async function cleanupRenriFixtureScope(env: Env, scope: RenriFixtureScope): Pro
       throw new HttpError(502, `renri_fixture_r2_delete_failed:${key}`);
     }
   }
+
+  await deleteRenriFixtureRows(env.OBS_DB, "observation_event_guest_media", "session_id", scope.sessionIds);
 
   await deleteRenriFixtureRows(env.OBS_DB, "asset_ledger", "asset_id", scope.assetIds);
   await deleteRenriFixtureRows(env.OBS_DB, "observations", "observation_id", scope.observationIds);
