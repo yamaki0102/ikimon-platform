@@ -26791,6 +26791,11 @@ test("event guest photo stays private through receipt, rights review, result and
   const sessionId = (await created.json() as { sessionId: string }).sessionId;
   const join = await worker.fetch(new Request("https://ikimon.life/community/events/guest-media-qa/join"), env);
   const guestCookie = (join.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const beforeCheckin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${sessionId}/guest-media`, {
+    method: "POST", headers: { cookie: guestCookie, origin: "https://ikimon.life" }, body: new FormData()
+  }), env);
+  assert.equal(beforeCheckin.status, 403);
+  assert.equal(env.ASSET_BUCKET.objects.size, 0);
   const checkin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${sessionId}/checkin`, {
     method: "POST", headers: { "content-type": "application/json", cookie: guestCookie, origin: "https://ikimon.life" },
     body: JSON.stringify({ display_name: "合成QA家族", share_location: false })
@@ -26846,6 +26851,15 @@ test("event guest photo stays private through receipt, rights review, result and
   assert.equal(photo.headers.get("x-content-type-options"), "nosniff");
   assert.equal(photo.headers.get("content-type"), "image/webp");
   assert.deepEqual(new Uint8Array(await photo.arrayBuffer()), FAKE_WEBP_BYTES);
+  const otherJoin = await worker.fetch(new Request("https://ikimon.life/community/events/guest-media-qa/join"), env);
+  const otherGuestCookie = (otherJoin.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const otherCheckin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${sessionId}/checkin`, {
+    method: "POST", headers: { cookie: otherGuestCookie, origin: "https://ikimon.life", "content-type": "application/json" },
+    body: JSON.stringify({ display_name: "別の合成参加者", share_location: false })
+  }), env);
+  assert.equal(otherCheckin.status, 200);
+  const otherCannotRead = await worker.fetch(new Request(`https://ikimon.life${savedPayload.receipt.privateContentHref}`, { headers: { cookie: otherGuestCookie } }), env);
+  assert.equal(otherCannotRead.status, 404);
 
   const organizerQueue = await worker.fetch(new Request(url, { headers: { cookie: organizerCookie } }), env);
   const queuePayload = await organizerQueue.json() as any;
