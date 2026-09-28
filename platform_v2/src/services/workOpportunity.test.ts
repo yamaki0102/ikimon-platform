@@ -18,3 +18,79 @@ test("failure and zero results are distinct recoverable states", () => {
   const empty=renderWorkOpportunityDiscovery({items:[],query:{query:"林業"},state:"ready",currentPath:"/ja/jobs?q=林業"});
   assert.match(failed,/仕事の情報を読み込めませんでした/); assert.match(failed,/もう一度読み込む/); assert.match(empty,/条件に合う仕事・職場・見学は見つかりませんでした/); assert.match(empty,/条件をクリア/);
 });
+import { readFileSync } from "node:fs";
+
+const experience = readFileSync(
+  new URL("../../../docs/spec/zukan-app-experience/WORK_OPPORTUNITY_EXPERIENCE_V1.md", import.meta.url),
+  "utf8",
+);
+const acceptance = readFileSync(
+  new URL("../../../docs/spec/zukan-app-experience/WORK_OPPORTUNITY_ACCEPTANCE_20260907.md", import.meta.url),
+  "utf8",
+);
+
+test("work-opportunity acceptance does not promote proposed routes to a rendered pass", () => {
+  assert.match(experience, /Proposed additions, not current routes/u);
+  assert.match(acceptance, /判定: \*\*NOT ACCEPTED/u);
+  assert.match(acceptance, /Noah の rendered acceptance を代行しない/u);
+  assert.match(acceptance, /参照 prototype[^\n]+live auth・永続化・配送・公開可用性の証明にしない/u);
+  assert.doesNotMatch(acceptance, /判定: \*\*(?:PASS|ACCEPTED)/u);
+});
+
+test("acceptance separates source, rendered, staging, production and transaction evidence", () => {
+  for (const layer of [
+    "Source",
+    "Local rendered",
+    "Staging",
+    "Production",
+    "Auth / persistence / delivery",
+    "Noah rendered verdict",
+  ]) {
+    assert.match(acceptance, new RegExp(`\\| ${layer.replaceAll("/", "\\/")} \\|`, "u"), layer);
+  }
+
+  assert.match(acceptance, /proxy の HTTP 403/u);
+  assert.match(acceptance, /403 を product response と解釈しない/u);
+  assert.match(acceptance, /production mutation、dummy 応募、owner impersonation は行っていない/u);
+});
+
+test("acceptance keeps the complete responsive and recovery matrix pending", () => {
+  for (const width of [320, 375, 768, 1024, 1160, 1161, 1280]) {
+    const row = acceptance.split("\n").find((line) => line.startsWith(`| ${width}px |`));
+    assert.ok(row?.endsWith("| **BLOCKED / NOT RUN** |"), `${width}px`);
+  }
+
+  for (const requirement of [
+    "keyboard",
+    "IME",
+    "200% text",
+    "safe area",
+    "map failure",
+    "empty",
+    "load failure",
+    "partial",
+    "closed",
+    "expired",
+    "provider unknown",
+    "44px",
+  ]) {
+    assert.ok(acceptance.includes(requirement), requirement);
+  }
+});
+
+test("acceptance requires the real discovery-to-application transition before re-review", () => {
+  for (const dependency of [
+    "WFC-Z1",
+    "active Worker",
+    "materialized artifact",
+    "allowlisted NOCOSIL guest/application",
+    "同一 target",
+    "重複送信防止",
+    "Noah の明示的な verdict",
+  ]) {
+    assert.match(acceptance, new RegExp(dependency, "u"), dependency);
+  }
+
+  assert.match(acceptance, /クリック\/ブラウザ復帰だけでは `応募済み` にせず/u);
+  assert.match(acceptance, /production へ synthetic\/dummy record を作らない/u);
+});
