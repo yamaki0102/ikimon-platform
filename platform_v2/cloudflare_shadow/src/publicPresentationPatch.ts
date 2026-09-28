@@ -83,6 +83,14 @@ export function routeFocusedHomePrimaryCtaToPhotoCamera(html: string): string {
   );
 }
 
+export function rewriteHomePublicRecordsAvailability(html: string): string {
+  return html
+    .replace("ホームで紹介する記録は準備中です。", "公開記録は、記録のページから見つけられます。")
+    .replace("Featured records are being prepared.", "Public records are available on the records page.")
+    .replace("Estamos preparando los registros destacados.", "Los registros públicos están disponibles en la página de registros.")
+    .replace("Estamos preparando os registros em destaque.", "Os registros públicos estão disponíveis na página de registros.");
+}
+
 export async function patchPublicHomePresentation(request: Request, response: Response): Promise<Response> {
   if (!isNormalPublicHomeRequest(request) || response.status < 200 || response.status >= 300) {
     return response;
@@ -94,13 +102,14 @@ export async function patchPublicHomePresentation(request: Request, response: Re
   const html = await response.text();
   const stateSplitHome = html.includes('data-home-contract="state-split-v1"');
   if (stateSplitHome) {
+    const rewritten = rewriteHomePublicRecordsAvailability(html);
     const headers = new Headers(response.headers);
     headers.delete("content-length");
     headers.delete("etag");
     headers.delete("last-modified");
     headers.set("cache-control", "no-cache, no-store, must-revalidate");
     headers.set("x-ikimon-presentation-contract", "state-split-home-v1");
-    return new Response(html, { status: response.status, statusText: response.statusText, headers });
+    return new Response(rewritten, { status: response.status, statusText: response.statusText, headers });
   }
   const withoutPassiveIdentification = stripPassiveIdentificationFromHomeHtml(html);
   const focusedRedesign = supportsFocusedHomeRedesign(request);
