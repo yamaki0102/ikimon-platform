@@ -2655,6 +2655,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     _restoredCenter: null,
     _restoredZoom: null,
     _restoredCellId: null,
+    _restoredPlaceRef: null,
     _fittedOnce: false,
     _ownObservationFirstViewApplied: false,
     _meMarker: null,
@@ -8626,6 +8627,26 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (src) src.setData(collection);
         applyTab(state.map, state.tab);
         refreshAreaBadgeMarkers();
+        if (state._restoredPlaceRef) {
+          var restoredPlaceRef = state._restoredPlaceRef;
+          var restoredPlaceMatch = state.areaPolygonFeatures.find(function (feature) {
+            var props = feature && feature.properties ? feature.properties : {};
+            if (restoredPlaceRef.kind === 'field') {
+              return String(props.field_id || '') === restoredPlaceRef.fieldId;
+            }
+            return String(props.osm_type || '') === restoredPlaceRef.osmType
+              && Number(props.osm_id || 0) === restoredPlaceRef.osmId;
+          });
+          if (restoredPlaceMatch) {
+            state._restoredPlaceRef = null;
+            var restoredPlaceCenter = areaFeatureCenter(restoredPlaceMatch, null, null);
+            openAreaFeatureSheet(
+              restoredPlaceMatch,
+              restoredPlaceCenter ? restoredPlaceCenter.lat : null,
+              restoredPlaceCenter ? restoredPlaceCenter.lng : null
+            );
+          }
+        }
         if (state.pendingPlaceSearchRef) {
           var pendingRef = state.pendingPlaceSearchRef;
           var pendingMatch = state.areaPolygonFeatures.find(function (feature) {
@@ -9159,6 +9180,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       basemap: state.basemap,
       tracesVisible: state.tracesVisible,
       selectedCellId: state.selectedCellId,
+      selectedPlaceRef: (function () {
+        var ref = placeAtlasRefForContext(state.selectedPoint);
+        if (!ref || ref.kind === 'public_cell') return null;
+        return ref.kind === 'field'
+          ? { kind: 'field', fieldId: ref.fieldId }
+          : { kind: 'osm_area', osmType: ref.osmType, osmId: ref.osmId };
+      })(),
       areaSources: state.areaSources,
       overlays: currentOverlayShareState(),
       center: center,
@@ -9223,6 +9251,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.tracesVisible = params.traces === '1' || params.traces === 'true';
     if (params.areas) setAreaSources(String(params.areas).split(','));
     if (restoreViewport && params.cell) state._restoredCellId = params.cell;
+    if (restoreViewport && params.place) state._restoredPlaceRef = MapExplorerStateHelpers.parseSelectedPlaceRef(params.place);
     if (restoreViewport && params.lng && params.lat && params.z) {
       var lng2 = parseFloat(params.lng);
       var lat2 = parseFloat(params.lat);

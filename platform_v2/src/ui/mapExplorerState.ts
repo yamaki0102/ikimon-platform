@@ -14,7 +14,12 @@ export const MAP_EXPLORER_STATE_KEYS = [
   "traces",
   "cell",
   "areas",
+  "place",
 ] as const;
+
+export type MapExplorerSelectedPlaceRef =
+  | { kind: "field"; fieldId: string }
+  | { kind: "osm_area"; osmType: "way" | "relation"; osmId: number };
 
 export type MapExplorerOverlayShareState = {
   id: string;
@@ -33,6 +38,7 @@ export type MapExplorerShareStateInput = {
   basemap?: string | null;
   tracesVisible?: boolean;
   selectedCellId?: string | null;
+  selectedPlaceRef?: MapExplorerSelectedPlaceRef | null;
   areaSources?: string[] | null;
   overlays?: MapExplorerOverlayShareState[];
   center?: { lng: number; lat: number } | null;
@@ -110,6 +116,35 @@ function normalizeStateList(values: unknown): string[] {
   return normalized;
 }
 
+export function serializeSelectedPlaceRef(ref: MapExplorerSelectedPlaceRef | null | undefined): string | null {
+  if (!ref || typeof ref !== "object") return null;
+  if (ref.kind === "field") {
+    const fieldId = normalizeStateText(ref.fieldId);
+    if (!fieldId || fieldId.length > 200 || !/^[A-Za-z0-9._:-]+$/.test(fieldId)) return null;
+    return `field:${fieldId}`;
+  }
+  if (
+    ref.kind === "osm_area" &&
+    (ref.osmType === "way" || ref.osmType === "relation") &&
+    Number.isSafeInteger(ref.osmId) &&
+    ref.osmId > 0
+  ) {
+    return `osm:${ref.osmType}:${ref.osmId}`;
+  }
+  return null;
+}
+
+export function parseSelectedPlaceRef(value: unknown): MapExplorerSelectedPlaceRef | null {
+  const normalized = normalizeStateText(value);
+  if (!normalized || normalized.length > 220) return null;
+  const fieldMatch = /^field:([A-Za-z0-9._:-]+)$/.exec(normalized);
+  if (fieldMatch && fieldMatch[1]!.length <= 200) return { kind: "field", fieldId: fieldMatch[1]! };
+  const osmMatch = /^osm:(way|relation):([1-9][0-9]*)$/.exec(normalized);
+  if (!osmMatch) return null;
+  const osmId = Number(osmMatch[2]);
+  return Number.isSafeInteger(osmId) ? { kind: "osm_area", osmType: osmMatch[1] as "way" | "relation", osmId } : null;
+}
+
 export function shouldApplyAsyncResponse(responseSeq: number, latestRequestSeq: number): boolean {
   return Number.isFinite(responseSeq) && Number.isFinite(latestRequestSeq) && responseSeq === latestRequestSeq;
 }
@@ -157,6 +192,7 @@ export function serializeSharedMapState(input: MapExplorerShareStateInput): stri
   const season = normalizeStateText(input.season);
   const basemap = normalizeStateText(input.basemap);
   const selectedCellId = normalizeStateText(input.selectedCellId);
+  const selectedPlaceRef = serializeSelectedPlaceRef(input.selectedPlaceRef);
   const areaSources = normalizeStateList(input.areaSources);
   const center = input.center ?? null;
   const zoom = normalizeFiniteNumber(input.zoom);
@@ -171,6 +207,7 @@ export function serializeSharedMapState(input: MapExplorerShareStateInput): stri
   pushStateParam(parts, "bm", basemap && basemap !== "standard" ? basemap : null);
   if (input.tracesVisible) parts.push("traces=1");
   pushStateParam(parts, "cell", selectedCellId);
+  pushStateParam(parts, "place", selectedPlaceRef);
   if (areaSources.length > 0) {
     pushStateParam(parts, "areas", areaSources.join(","));
   }
@@ -202,6 +239,8 @@ const RUNTIME_HELPERS = [
   isSafeMapViewport,
   overlayShareEntries,
   normalizeStateList,
+  serializeSelectedPlaceRef,
+  parseSelectedPlaceRef,
   shouldApplyAsyncResponse,
   reconcileSelectedCellAfterCellsResponse,
   serializeSharedMapState,
@@ -215,6 +254,8 @@ export const MAP_EXPLORER_STATE_RUNTIME = [
   "  MAP_STATE_KEYS: MAP_STATE_KEYS,",
   "  shouldApplyAsyncResponse: shouldApplyAsyncResponse,",
   "  reconcileSelectedCellAfterCellsResponse: reconcileSelectedCellAfterCellsResponse,",
+  "  serializeSelectedPlaceRef: serializeSelectedPlaceRef,",
+  "  parseSelectedPlaceRef: parseSelectedPlaceRef,",
   "  serializeSharedMapState: serializeSharedMapState",
   "};",
   "})();",
