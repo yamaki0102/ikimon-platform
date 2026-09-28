@@ -18,6 +18,7 @@ import {
   type SiteShellLayoutKind,
 } from "../siteMap.js";
 import { PUBLIC_CONTEXT_SCRIPT, PUBLIC_CONTEXT_STYLES } from "./collaborationContext.js";
+import { CAMERA_START_TIMEOUT_MS, cameraStartRuntimeSource } from "./cameraStart.js";
 
 export type SiteAction = {
   href: string;
@@ -1366,6 +1367,9 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   };
   return `<script>
 (function () {
+  const requestCameraStream = ${cameraStartRuntimeSource};
+  const CAMERA_START_TIMEOUT_MS = ${CAMERA_START_TIMEOUT_MS};
+  const REQUIRE_CLOSEUP_FOCUS = false;
   const BASE_PATH = ${JSON.stringify(basePath.replace(/\/$/, ""))};
   const CAMERA_COPY = ${JSON.stringify(cameraCopy)};
   const RECORD_TARGETS = ${JSON.stringify(recordTargets)};
@@ -2692,7 +2696,10 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
         video: cameraVideoConstraints(),
         audio: activeKind === 'video',
       };
-      activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+      activeStream = await requestCameraStream(navigator.mediaDevices, constraints, {
+        timeoutMs: CAMERA_START_TIMEOUT_MS,
+        requireFocusMode: activeKind === 'photo' && REQUIRE_CLOSEUP_FOCUS,
+      });
       if (requestId !== cameraRequestId || !activeKind || (sheet && sheet.hidden)) {
         activeStream.getTracks().forEach((track) => track.stop());
         activeStream = null;
@@ -2730,13 +2737,23 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     } catch (error) {
       setCameraLiveLayout(false);
       resetCameraZoomUi();
-      const errorName = String(error && error.name || '');
-      const permissionDenied = errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError' || errorName === 'SecurityError';
+      const reason = String(error && error.reason || 'unavailable');
+      const permissionDenied = reason === 'permission_denied';
+      const fallbackCopy = {
+        no_device: '利用できるカメラが見つかりません。標準カメラまたは「写真から選ぶ」を使ってください。',
+        permission_denied: CAMERA_COPY.permissionBody,
+        device_busy: 'カメラをほかのアプリが使用中です。閉じて再試行するか、標準カメラまたは「写真から選ぶ」を使ってください。',
+        constraints_unsupported: 'このカメラでは接写用の設定を使えません。標準カメラまたは「写真から選ぶ」を使ってください。',
+        focus_unsupported: 'この端末では接写カメラのピント調整を使えません。標準カメラまたは「写真から選ぶ」を使ってください。',
+        timeout: 'カメラの起動を確認できませんでした。再試行するか、標準カメラまたは「写真から選ぶ」を使ってください。',
+        unavailable: CAMERA_COPY.errorBody,
+      };
       showCameraError(permissionDenied);
+      if (cameraErrorBody) cameraErrorBody.textContent = fallbackCopy[reason] || fallbackCopy.unavailable;
       sendGlobalRecordEvent(permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', {
-        reason: permissionDenied ? 'permission_denied' : 'get_user_media_failed',
+        reason,
       });
-      sendGlobalRecordErrorKpi('camera_start_failed', permissionDenied ? 'permission_denied' : 'get_user_media_failed', {
+      sendGlobalRecordErrorKpi('camera_start_failed', reason, {
         durationMs: durationSince(cameraStartedAt),
       });
     } finally {

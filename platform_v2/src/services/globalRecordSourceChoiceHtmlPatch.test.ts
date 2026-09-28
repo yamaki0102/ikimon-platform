@@ -82,6 +82,8 @@ test("patch anchors stay compatible with the real site shell output", () => {
   assert.notEqual(patched, original, "site-shell drift must not silently turn the source-choice patch into a no-op");
   assert.match(patched, /data-global-record-input="photo"[^>]*capture="environment"/);
   assert.match(patched, /data-global-record-os-camera>標準カメラ<\/button>/);
+  assert.match(patched, /data-global-record-os-camera-fallback/);
+  assert.match(patched, /const REQUIRE_CLOSEUP_FOCUS = true/);
   assert.match(patched, /kind !== 'photo'\) void startCamera\(\)/);
   assert.match(patched, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
   assert.match(patched, /latestCaptureLocationAt = 0;\n    }\n    if \(!\(options && options\.reviewOnly\) && kind !== 'photo'\) void startCamera\(\)/);
