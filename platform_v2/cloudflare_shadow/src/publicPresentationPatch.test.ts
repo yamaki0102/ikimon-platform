@@ -4,6 +4,7 @@ import {
   isNormalPublicHomeRequest,
   patchPublicHomePresentation,
   routeFocusedHomePrimaryCtaToPhotoCamera,
+  rewriteHomePublicRecordsAvailability,
   stripPassiveIdentificationFromHomeHtml,
 } from "./publicPresentationPatch";
 
@@ -41,6 +42,18 @@ test("focused public home primary CTA opens the shared photo camera trigger", ()
   assert.doesNotMatch(patched, /start=gallery/u);
 });
 
+test("home public-records proof points guests to the records page", () => {
+  const patched = rewriteHomePublicRecordsAvailability(
+    '<div data-home-contract="state-split-v1"><strong>ホームで紹介する記録は準備中です。</strong><strong>Featured records are being prepared.</strong><strong>Estamos preparando los registros destacados.</strong><strong>Estamos preparando os registros em destaque.</strong></div>',
+  );
+
+  assert.match(patched, /公開記録は、記録のページから見つけられます。/u);
+  assert.match(patched, /Public records are available on the records page\./u);
+  assert.match(patched, /Los registros públicos están disponibles en la página de registros\./u);
+  assert.match(patched, /Os registros públicos estão disponíveis na página de registros\./u);
+  assert.doesNotMatch(patched, /準備中|being prepared|preparando/u);
+});
+
 test("only public home aliases receive the final presentation patch", () => {
   assert.equal(isNormalPublicHomeRequest(new Request("https://ikimon.life/")), true);
   assert.equal(isNormalPublicHomeRequest(new Request("https://ikimon.life/home")), true);
@@ -69,6 +82,18 @@ test("final HTML patch sets a no-store presentation contract on home", async () 
   assert.equal(patched.headers.get("x-ikimon-home-capture-contract"), "camera-first-v1");
   assert.equal(patched.headers.get("etag"), null);
   assert.doesNotMatch(await patched.text(), /名前待ち/);
+});
+
+test("state-split home receives the public-records proof patch without materialization", async () => {
+  const response = await patchPublicHomePresentation(
+    new Request("https://ikimon.life/ja/"),
+    new Response('<main data-home-contract="state-split-v1"><strong>ホームで紹介する記録は準備中です。</strong></main>', {
+      headers: { "content-type": "text/html; charset=utf-8" },
+    }),
+  );
+
+  assert.match(await response.text(), /公開記録は、記録のページから見つけられます。/u);
+  assert.equal(response.headers.get("x-ikimon-presentation-contract"), "state-split-home-v1");
 });
 
 test("dedicated name review and non-HTML responses remain unchanged", async () => {
