@@ -722,6 +722,31 @@ test("shared map state does not serialize private owner observation coordinates"
   assert.doesNotMatch(serializeBody, /record\.latitude|record\.longitude/);
 });
 
+test("shared map state restores a selected public place without persisting raw place coordinates", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const serializeBody = script.slice(
+    script.indexOf("function serializeMapState()"),
+    script.indexOf("function saveMapState()"),
+  );
+  const restoreBody = script.slice(
+    script.indexOf("function applyRestoredParams"),
+    script.indexOf("function scheduleMapStateSave"),
+  );
+  const areaLoadBody = script.slice(
+    script.indexOf("function loadAreaPolygons()"),
+    script.indexOf("function renderGuideSpotMarker"),
+  );
+
+  assert.match(serializeBody, /selectedPlaceRef:/);
+  assert.match(serializeBody, /placeAtlasRefForContext\(state\.selectedPoint\)/);
+  assert.doesNotMatch(serializeBody, /selectedPoint\.(?:lat|lng)/);
+  assert.match(restoreBody, /parseSelectedPlaceRef\(params\.place\)/);
+  assert.match(areaLoadBody, /state\._restoredPlaceRef/);
+  assert.match(areaLoadBody, /openAreaFeatureSheet\(/);
+  assert.match(areaLoadBody, /String\(props\.field_id \|\| ''\) === restoredPlaceRef\.fieldId/);
+  assert.match(areaLoadBody, /String\(props\.osm_type \|\| ''\) === restoredPlaceRef\.osmType/);
+});
+
 test("map interactions persist the shareable viewport when moveend is absent", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const interactionBody = script.slice(

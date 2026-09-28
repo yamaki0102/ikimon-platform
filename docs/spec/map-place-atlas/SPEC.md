@@ -4,6 +4,56 @@ Status: MVP implemented; release gates pending
 Contract version: `place_atlas_profile/v1`
 Baseline: `2a93c8983e2c836b847730bd77f9ff964c0404a0`
 Issue: [#1418](https://github.com/yamaki0102/ikimon-platform/issues/1418)
+
+## ZUKAN-GLOBAL-PLACE-04 bounded job
+
+- **Main action:** 地域または場所を探し、同じ探索範囲の地図と一覧から、公開記録・場所の図鑑・開催情報へ進む。
+- **Visible problem:** 地図の表示範囲とfilterは復元できても、選択したfield / OSM areaはURLに残らず、詳細から戻った再読込時に場所の選択が失われる。
+- **Intended improvement:** 公開可能な安定Place参照だけを探索URLへ保存し、PC / tablet / mobileの既存地図・一覧・panel構成を保ったまま選択を復元する。
+
+Surface classification: **product UI**. Marketing landing page、管理dashboard、地図だけの別製品にはしない。
+
+## Acceptance A01–A24
+
+These identifiers are the implementation acceptance checklist for `ZUKAN-GLOBAL-PLACE-04`. The older offline
+prototype checks remain design evidence only; source tests and rendered browser checks are required separately.
+
+| ID | Observable acceptance |
+|---|---|
+| A01 | `場所`を選ぶと場所検索が主行動として分かる。 |
+| A02 | 検索は地域名・場所名を受け、2文字未満では外部検索を開始しない。 |
+| A03 | device location is requested only after an explicit current-location action. |
+| A04 | 検索結果は現在範囲とその他を区別し、場所種別・地域・確認状態を偽らない。 |
+| A05 | 地図と一覧は同じviewport、filter、公開Record集合を使う。 |
+| A06 | map failureでも公開記録一覧への導線が残る。 |
+| A07 | 0件と読込失敗を別状態として表示し、再試行または条件変更ができる。 |
+| A08 | field / OSM area / public cellを同じPlace Atlas閲覧責務で扱う。 |
+| A09 | 選択場所はdesktopのside panel、mobile / tabletのbottom sheetに同じ情報順で現れる。 |
+| A10 | 場所名、地域、安全に公開できる件数・期間を内部IDより先に表示する。 |
+| A11 | 公開RecordはRecord ID単位で重複せず、unknownを0件と表示しない。 |
+| A12 | 場所の図鑑から公開Record詳細へ進める。 |
+| A13 | 場所に根拠付きで関連する開催情報だけを表示し、将来profileを利用可能に見せない。 |
+| A14 | 開催情報への導線は参加者向けで、主催操作と混在しない。 |
+| A15 | Place Atlas failureは地図と一覧を壊さず、選択場所だけ再試行できる。 |
+| A16 | exact coordinate、private / hidden Record、sensitive locationを探索状態へ保存しない。 |
+| A17 | URLへ保存する場所選択はvalidated field IDまたは`osm:way|relation:id`だけとする。 |
+| A18 | viewport、zoom、filter、overlay、公開cell、選択Placeを一つの探索URLへ保存する。 |
+| A19 | Record / Place Atlas / Programへ進んでbrowser backした時、同じviewportとfilterを復元する。 |
+| A20 | 再読込後もURL内の選択Placeが現在取得できる場合はpanel / sheetを再度開く。 |
+| A21 | malformed、座標形式、unsupported OSM typeのPlace参照は無視して安全に地図を開く。 |
+| A22 | 遅い旧responseは現在の検索・Record・Place Atlas選択を上書きしない。 |
+| A23 | 320 / 375、768、1280 / 1440pxで横overflow、fixed navigationとの重なり、44px未満の主要操作を残さない。 |
+| A24 | keyboard focus、accessible name、live loading/error、reduced motionを維持し、fixtureと実runtime evidenceを区別する。 |
+
+### Implementation evidence boundary
+
+- `mapExplorerState.ts` owns bounded URL serialization and validation; it never serializes raw Place coordinates.
+- `mapExplorer.ts` owns selection restoration only after the current viewport's area collection has loaded. A
+  reference that is valid but absent from that collection is left unopened rather than synthesized.
+- `mapPlaceAtlasProfile.ts` continues to own the shared Place Atlas state renderer. Navigation to Records and
+  Programs remains ordinary links, so browser history owns return navigation; the map URL owns recoverable state.
+- Unit tests prove reference validation and Node/browser-runtime parity. Focused Playwright must prove the rendered
+  PC / tablet / mobile journey; its fixture result is not staging or production proof.
 ## 背景
 
 現行の `/ja/map` は、公開セルの写真付き記録、登録済みfieldの

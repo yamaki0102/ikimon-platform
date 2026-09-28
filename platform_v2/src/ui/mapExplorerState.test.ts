@@ -3,6 +3,7 @@ import test from "node:test";
 import vm from "node:vm";
 import {
   MAP_EXPLORER_STATE_RUNTIME,
+  parseSelectedPlaceRef,
   reconcileSelectedCellAfterCellsResponse,
   serializeSharedMapState,
 } from "./mapExplorerState.js";
@@ -59,6 +60,23 @@ test("serializeSharedMapState keeps share-critical params including cell", () =>
   assert.equal(params.get("z"), "10.6");
 });
 
+test("selected registered and OSM places round-trip without coordinates", () => {
+  const field = serializeSharedMapState({ selectedPlaceRef: { kind: "field", fieldId: "field:public-1" } });
+  const osm = serializeSharedMapState({ selectedPlaceRef: { kind: "osm_area", osmType: "way", osmId: 125727939 } });
+
+  assert.equal(new URLSearchParams(field).get("place"), "field:field:public-1");
+  assert.deepEqual(parseSelectedPlaceRef(new URLSearchParams(field).get("place")), { kind: "field", fieldId: "field:public-1" });
+  assert.deepEqual(parseSelectedPlaceRef(new URLSearchParams(osm).get("place")), { kind: "osm_area", osmType: "way", osmId: 125727939 });
+  assert.doesNotMatch(`${field}&${osm}`, /(?:lat|lng)=/);
+});
+
+test("selected place restore rejects malformed, coordinate-shaped, and unsafe references", () => {
+  for (const value of ["field:../../secret", "osm:node:1", "osm:way:-1", "osm:way:1.2", "field:35.1,137.2", "field:<script>"]) {
+    assert.equal(parseSelectedPlaceRef(value), null);
+  }
+  assert.equal(serializeSharedMapState({ selectedPlaceRef: { kind: "field", fieldId: "../../secret" } }), "");
+});
+
 test("serializeSharedMapState omits an unsafe viewport atomically", () => {
   const serialized = serializeSharedMapState({
     center: { lng: 181, lat: 35.2 },
@@ -90,4 +108,10 @@ test("serializeSharedMapState accepts only a bounded complete viewport", () => {
 test("browser runtime includes every viewport serializer dependency", () => {
   const context = vm.createContext({});
   new vm.Script(`${MAP_EXPLORER_STATE_RUNTIME}; MapExplorerStateHelpers.serializeSharedMapState({ center: { lng: 137.8589, lat: 34.7219 }, zoom: 10.6 });`).runInContext(context);
+});
+
+test("browser runtime parses selected place references in parity with node", () => {
+  const context = vm.createContext({});
+  new vm.Script(`${MAP_EXPLORER_STATE_RUNTIME}; parsed = MapExplorerStateHelpers.parseSelectedPlaceRef("osm:relation:42");`).runInContext(context);
+  assert.deepEqual(JSON.parse(JSON.stringify((context as any).parsed)), { kind: "osm_area", osmType: "relation", osmId: 42 });
 });
