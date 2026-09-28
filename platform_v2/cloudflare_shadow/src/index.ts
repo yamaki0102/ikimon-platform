@@ -131,6 +131,7 @@ import {
   type ObservationMediaDedupPlan,
 } from "./observationMediaDedup";
 import { buildRuntimeIdentity, runtimeIdentityHeaders, type RuntimeIdentityEnv } from "./runtimeIdentity";
+import { handleWorkOpportunityRequest } from "./workOpportunity";
 
 type D1Value = string | number | null;
 
@@ -2827,6 +2828,9 @@ export const worker = {
 
       const placeMemoryResponse = await handlePlaceMemoryRuntime(request, url, env);
       if (placeMemoryResponse) return placeMemoryResponse;
+
+      const workOpportunityResponse = await handleWorkOpportunityRequest(request, url, env.CORE_DB);
+      if (workOpportunityResponse) return workOpportunityResponse;
 
       const referenceLibraryResponse = await handleReferenceLibraryRuntime(request, url, env);
       if (referenceLibraryResponse) return referenceLibraryResponse;

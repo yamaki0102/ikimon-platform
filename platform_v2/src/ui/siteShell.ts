@@ -358,6 +358,7 @@ type SideNavDirectoryCopy = {
     lens: string;
     guide: string;
     events: string;
+    jobs: string;
     updates: string;
   };
   personalizedEmpty: string;
@@ -393,6 +394,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         lens: "その場で見る",
         guide: "ライブガイド",
         events: "観察会",
+        jobs: "仕事を探す",
         updates: "更新情報",
       },
       personalizedEmpty: "ログインすると、フォロー中の分類群や観察エリアをここに固定します。",
@@ -425,6 +427,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         lens: "Look on site",
         guide: "Live guide",
         events: "Events",
+        jobs: "Find work",
         updates: "Updates",
       },
       personalizedEmpty: "Sign in to pin followed taxa and observation areas here.",
@@ -457,6 +460,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         lens: "Ver en campo",
         guide: "Guia en vivo",
         events: "Eventos",
+        jobs: "Buscar trabajo",
         updates: "Novedades",
       },
       personalizedEmpty: "Entra para fijar taxones y areas de observacion.",
@@ -489,6 +493,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         lens: "Ver no campo",
         guide: "Guia ao vivo",
         events: "Eventos",
+        jobs: "Buscar trabalho",
         updates: "Novidades",
       },
       personalizedEmpty: "Entre para fixar taxons e areas de observacao.",
@@ -658,6 +663,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
         { href: "/records?view=public", label: directoryCopy.links.observations, match: ["/records?view=public"] },
         { href: "/lens", label: directoryCopy.links.lens, match: ["/lens"] },
         { href: "/community/events", label: directoryCopy.links.events, match: ["/community/events"] },
+        { href: "/jobs", label: directoryCopy.links.jobs, match: ["/jobs"] },
       ],
     },
     {
