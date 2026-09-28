@@ -5,6 +5,7 @@ import {
   type AreaPlacePublicContractsInput,
 } from "./areaPlacePublicContracts.js";
 import { assessDerivedGuideFreshness } from "./derivedGuideFreshness.js";
+import { IWATA_OPEN_DATA_ITEMS } from "./iwataOpenDataSnapshot.js";
 import { buildPlaceAtlasProfile } from "./placeAtlasContract.js";
 import { buildPlaceAtlasProfileV2 } from "./placeAtlasV2Contract.js";
 import { defaultPlacePolicy } from "./placeDomain.js";
@@ -102,6 +103,58 @@ const scanBinding = (revision: string): ScanPointBinding => ({
   lifecycle: "active",
   contentRevision: revision,
 });
+
+const RYUYO_PILOT_PLACES = ["iwata:tourism:5", "iwata:tourism:6"] as const;
+
+function ryuyoPilotFixture(input: {
+  asOf: string;
+  version: string;
+  season: Season;
+  marineParkState: SeasonalState;
+}): AreaPlacePublicContractsInput {
+  const source = publicSource({
+    version: input.version,
+    observedAt: input.asOf,
+    effectiveFrom: input.season === "summer" ? "2026-06-01T00:00:00.000Z" : "2026-09-01T00:00:00.000Z",
+    effectiveUntil: input.season === "summer" ? "2026-08-31T23:59:59.999Z" : "2026-11-30T23:59:59.999Z",
+  });
+  const places = RYUYO_PILOT_PLACES.map((id) => {
+    const place = IWATA_OPEN_DATA_ITEMS.find((item) => item.id === id);
+    assert.ok(place, `adopted Iwata source item ${id} must remain available`);
+    return {
+      id: place.id,
+      areaId: "area:iwata:ryuyo",
+      name: place.name,
+      source: { ...source, sourceId: place.sourceUrl },
+      sensitiveLocation: false,
+    };
+  });
+  return {
+    fixtureClass: "synthetic",
+    asOf: input.asOf,
+    area: {
+      id: "area:iwata:ryuyo",
+      name: "磐田市竜洋エリア（検証fixture）",
+      source,
+      publicProjection: "AUTHORIZED",
+    },
+    places,
+    naturalFeatures: [],
+    seasonalStates: places.map((place) => ({
+      placeId: place.id,
+      season: input.season,
+      state: place.id === "iwata:tourism:5" ? input.marineParkState : "present",
+      source,
+    })),
+    scanPoints: places.map((place) => ({
+      id: `${place.id}:main`,
+      placeId: place.id,
+      routeKey: "main",
+      source,
+      status: "ACTIVE",
+    })),
+  };
+}
 
 test("synthetic multi-place pilot keeps place identity stable while seasonal content changes", () => {
   const summer = compileAreaPlacePublicContracts(areaFixture({
@@ -319,4 +372,92 @@ test("pilot fails closed for private, sensitive, stale-child-shaped or unapprove
   });
   assert.equal(sensitiveAtlas.currentSeason?.state, "suppressed");
   assert.deepEqual(sensitiveAtlas.currentSeason?.items, []);
+});
+
+test("exact Ryuyo pilot carries two real Places through seasonal revisions and multilingual scan pages", () => {
+  const summer = compileAreaPlacePublicContracts(ryuyoPilotFixture({
+    asOf: "2026-08-15T12:00:00.000Z",
+    version: "ryuyo-summer-v1",
+    season: "summer",
+    marineParkState: "present",
+  }));
+  const autumn = compileAreaPlacePublicContracts(ryuyoPilotFixture({
+    asOf: "2026-09-15T12:00:00.000Z",
+    version: "ryuyo-autumn-v2",
+    season: "autumn",
+    marineParkState: "absent",
+  }));
+
+  assert.equal(summer.decision, "ALLOW");
+  assert.equal(autumn.decision, "ALLOW");
+  assert.deepEqual(
+    autumn.contracts?.places.map(({ id, name }) => [id, name]),
+    [
+      ["iwata:tourism:5", "竜洋海洋公園"],
+      ["iwata:tourism:6", "竜洋昆虫自然観察公園"],
+    ],
+  );
+  assert.deepEqual(
+    summer.contracts?.places.map(({ id }) => id),
+    autumn.contracts?.places.map(({ id }) => id),
+  );
+  assert.deepEqual(
+    summer.contracts?.scanPoints.map(({ id }) => id),
+    autumn.contracts?.scanPoints.map(({ id }) => id),
+  );
+  assert.equal(
+    summer.contracts?.seasonalStates.find(({ placeId }) => placeId === "iwata:tourism:5")?.state,
+    "present",
+  );
+  assert.equal(
+    autumn.contracts?.seasonalStates.find(({ placeId }) => placeId === "iwata:tourism:5")?.state,
+    "absent",
+  );
+
+  for (const place of autumn.contracts?.places ?? []) {
+    const scanPointId = `${place.id}:main`;
+    const route = resolveScanPointRoute({
+      scanPointId,
+      bindings: [{
+        scanPointId,
+        publicRoute: `/scan/${encodeURIComponent(scanPointId)}`,
+        targetKind: "place",
+        targetId: place.id,
+        visibility: "public",
+        lifecycle: "active",
+        contentRevision: "ryuyo-autumn-v2",
+      }],
+    });
+    assert.equal(route.status, "resolved");
+    if (route.status !== "resolved") continue;
+
+    const pages = [
+      { language: "ja", format: "EASY_JAPANESE" as const },
+      { language: "en", format: "TEXT" as const },
+    ].map((page) => ({
+      route: route.publicRoute,
+      targetId: route.targetId,
+      freshness: assessDerivedGuideFreshness({
+        source: {
+          sourceId: place.id,
+          sourceVersion: route.contentRevision,
+          visibility: "PUBLIC",
+          approved: true,
+        },
+        derivative: {
+          sourceId: place.id,
+          sourceVersion: route.contentRevision,
+          language: page.language,
+          format: page.format,
+          visibility: "PUBLIC",
+        },
+      }),
+    }));
+
+    assert.deepEqual(pages.map(({ route: pageRoute }) => pageRoute), [route.publicRoute, route.publicRoute]);
+    assert.deepEqual(pages.map(({ targetId }) => targetId), [place.id, place.id]);
+    assert.deepEqual(pages.map(({ freshness }) => freshness.status), ["CURRENT", "CURRENT"]);
+    assert.deepEqual(pages.map(({ freshness }) => freshness.derivative?.language), ["ja", "en"]);
+    assert.ok(pages.every(({ freshness }) => freshness.publication === "NOT_DECIDED"));
+  }
 });
