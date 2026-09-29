@@ -8,9 +8,10 @@ WHERE evidence_id = 'ryuyo-osm-way-530835577-v1'
   AND EXISTS (
     SELECT 1 FROM production_import_boundary_provenance_apply_receipts
      WHERE evidence_id = 'ryuyo-osm-way-530835577-v1'
-       AND migration_id = '0071_ryuyo_osm_provenance_overlay'
+       AND migration_id = '0072_ryuyo_osm_provenance_overlay'
   );
 
 DELETE FROM production_import_boundary_provenance_apply_receipts
 WHERE evidence_id = 'ryuyo-osm-way-530835577-v1'
-  AND migration_id = '0071_ryuyo_osm_provenance_overlay';
+  AND migration_id = '0072_ryuyo_osm_provenance_overlay';
+
