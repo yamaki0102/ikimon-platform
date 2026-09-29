@@ -25243,6 +25243,59 @@ test("Ryuyo field page renders real OSM provenance and distinct core/nearby reco
   assert.equal(polygon.properties.verification_label.includes("ODbL 1.0"), true);
 });
 
+test("unverified Ryuyo OSM keys do not expose provenance or ODbL metadata without the evidence overlay", async () => {
+  const { env, obs } = createEnv();
+  const fieldId = RYUYO_FIELD_ID;
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "user_defined",
+    admin_level: "osm_park",
+    name: "竜洋昆虫自然観察公園",
+    name_kana: null,
+    summary: "",
+    prefecture: "静岡県",
+    city: "磐田市",
+    public_cell: "34.67,137.84",
+    public_lat: 34.67,
+    public_lng: 137.84,
+    radius_m: 169,
+    area_ha: null,
+    has_polygon: 1,
+    has_simplified_geometry: 0,
+    certification_id: null,
+    certification_url: null,
+    official_url: "https://ryu-yo.jp/",
+    owner_url: null,
+    story_url: null,
+    verification_level: "unverified",
+    verification_method: "user_submission",
+    verification_label: "確認待ち",
+    source_confidence: 0.4,
+    valid_from: null,
+    valid_to: null,
+    entity_key: "osm:way:530835577",
+    updated_at: "2026-09-29T00:00:00.000Z",
+  });
+  obs.productionAreaPolygons.set(fieldId, productionAreaPolygonRow(fieldId, {
+    source: "osm_park",
+    admin_level: "osm_park",
+    name: "竜洋昆虫自然観察公園",
+    entity_key: "osm:way:530835577",
+    verification_level: "unverified",
+  }));
+
+  const detailResponse = await worker.fetch(new Request(`https://zukan.earth/api/v1/fields/${fieldId}/public-detail`), { ...env, ENVIRONMENT: "production" });
+  const detail = await detailResponse.json() as any;
+  assert.equal(detail.field.source, "user_defined");
+  assert.equal(detail.field.sourceEvidence, null);
+
+  const polygonResponse = await worker.fetch(new Request("https://zukan.earth/api/v1/map/area-polygons?bbox=137.83,34.66,137.85,34.68&sources=osm_park&zoom=15&limit=100"), { ...env, ENVIRONMENT: "production" });
+  const collection = await polygonResponse.json() as any;
+  const polygon = collection.features.find((item: any) => item.properties.field_id === fieldId);
+  assert.equal(polygon.properties.license_code, undefined);
+  assert.equal(polygon.properties.attribution, undefined);
+});
+
 test("production field detail misses return 404 when readmodel table is unavailable", async () => {
   const { env } = createEnv();
   const originalObsDb = env.OBS_DB;

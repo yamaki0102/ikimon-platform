@@ -23486,7 +23486,10 @@ function fieldDetailPublicPayload(row: FieldDetailReadmodelRow) {
     validFrom: row.valid_from ?? "",
     validTo: row.valid_to ?? "",
     entityKey: row.entity_key ?? "",
-    sourceEvidence: row.entity_key === "osm:way:530835577" ? {
+    sourceEvidence: row.source === "osm_park"
+      && row.admin_level === "osm_park"
+      && row.verification_level === "registry_matched"
+      && row.entity_key === "osm:way:530835577" ? {
       source: "OpenStreetMap",
       entityKey: row.entity_key,
       license: "ODbL-1.0",
@@ -27223,8 +27226,8 @@ function areaPolygonFeatureFromGeometryReadmodel(row: AreaPolygonGeometryReadmod
       source_confidence: row.source_confidence ?? 0.75,
       verification_level: row.verification_level ?? "readmodel_public_polygon",
       verification_label: row.verification_label ?? "公開read model polygon",
-      license_code: row.entity_key === "osm:way:530835577" ? "ODbL-1.0" : undefined,
-      attribution: row.entity_key === "osm:way:530835577" ? "© OpenStreetMap contributors" : undefined,
+      license_code: row.source === "osm_park" && row.verification_level === "registry_matched" && row.entity_key === "osm:way:530835577" ? "ODbL-1.0" : undefined,
+      attribution: row.source === "osm_park" && row.verification_level === "registry_matched" && row.entity_key === "osm:way:530835577" ? "© OpenStreetMap contributors" : undefined,
       center: [row.center_lng, row.center_lat],
       transient: row.approximate_boundary === 1,
       approximate_boundary: row.approximate_boundary === 1,
