@@ -6505,7 +6505,7 @@ ${alternateLinks}
     }
     .global-record-camera-action.is-additional:not(.is-primary) {
       min-height: 44px;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 700;
     }
     .global-record-camera-action[hidden] {

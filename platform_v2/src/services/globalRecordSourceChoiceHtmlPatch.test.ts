@@ -172,6 +172,7 @@ test("source choice patch reaches the root route materialization", async () => {
     assert.equal(root.statusCode, 200);
     assert.match(root.body, /data-global-record-input="photo"[^>]*capture="environment"/);
     assert.match(root.body, /class="global-record-camera-action is-primary" data-global-record-os-camera>標準カメラで撮る<\/button>/);
+    assert.match(root.body, /\.global-record-camera-action\.is-additional:not\(\.is-primary\)\s*\{[^}]*font-size:\s*16px;/);
     assert.match(root.body, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
   } finally {
     await app.close();
