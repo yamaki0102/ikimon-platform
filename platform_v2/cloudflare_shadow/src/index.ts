@@ -25129,42 +25129,28 @@ function renderCloudflareProfileHtml(
     ? {
       title: options.settings ? "プロフィール設定" : "自分",
       eyebrow: "アカウント",
-      lead: "プロフィール、公開範囲、参加履歴、アカウント設定を管理します。",
-      profile: "プロフィールと公開ページ",
-      profileLead: "表示名を整え、公開される自分のページを確認する",
-      privacy: "公開範囲と位置情報",
-      privacyLead: "自分の記録を見ながら、公開状態を確かめる",
-      participation: "参加とフォロー",
-      participationLead: "関わっている場所や活動を確認する",
-      account: "アカウント設定",
-      accountLead: "表示名やアカウントの設定を変更する",
+      lead: "表示名を確認し、自分の記録や参加先へ移動できます。",
+      identity: "ZUKAN上の表示名",
+      participation: "参加先を探す",
+      participationLead: "イベントや活動の一覧を見る",
       records: "自分の記録",
       recordsLead: "保存した記録を時系列で見る",
-      settings: "プロフィールを編集",
-      settingsLead: "表示名とプロフィールを整える",
-      publicProfile: "公開プロフィール",
-      publicProfileLead: "公開されるプロフィールを確認する",
+      settings: "プロフィール編集",
+      settingsLead: "この画面からプロフィールは編集できません。",
       back: "自分へ",
       displayName: "表示名"
     }
     : {
       title: options.settings ? "Profile Settings" : "My Page",
       eyebrow: "My Page",
-      lead: "Manage your profile, visibility, participation, and account settings.",
-      profile: "Profile and public page",
-      profileLead: "Edit your display details and review your public page",
-      privacy: "Visibility and location",
-      privacyLead: "Review your records and check what is shared",
-      participation: "Participation and follows",
-      participationLead: "Review the places and activities you follow",
-      account: "Account settings",
-      accountLead: "Update your profile and account preferences",
+      lead: "Check your display name and open your records or participation destinations.",
+      identity: "Name shown on ZUKAN",
+      participation: "Find activities",
+      participationLead: "Browse events and activities",
       records: "My records",
       recordsLead: "Review your saved records",
-      settings: "Edit profile",
-      settingsLead: "Edit display and profile details",
-      publicProfile: "Public profile",
-      publicProfileLead: "Review your public profile",
+      settings: "Profile editing",
+      settingsLead: "Profile editing is not available on this screen.",
       back: "Back to profile",
       displayName: "Display name"
     };
@@ -25177,11 +25163,7 @@ function renderCloudflareProfileHtml(
           <h2>${escapeHtml(copy.settings)}</h2>
           <p>${escapeHtml(copy.settingsLead)}</p>
         </div>
-        <dl>
-          <div><dt>${escapeHtml(copy.displayName)}</dt><dd>${displayName}</dd></div>
-          <div><dt>${escapeHtml(copy.records)}</dt><dd><a href="${escapeHtml(`${prefix}/records?view=mine`)}">${escapeHtml(copy.recordsLead)}</a></dd></div>
-          <div><dt>${escapeHtml(copy.publicProfile)}</dt><dd><a href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.publicProfileLead)}</a></dd></div>
-        </dl>
+        <dl><div><dt>${escapeHtml(copy.displayName)}</dt><dd>${displayName}</dd></div></dl>
         <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
       </section>`
     : `<section class="cf-profile-dashboard" data-testid="self-control-hub">
@@ -25191,21 +25173,12 @@ function renderCloudflareProfileHtml(
             <h1 data-testid="profile-heading">${displayName}</h1>
             <p>${escapeHtml(copy.lead)}</p>
           </div>
-          <nav class="cf-profile-primary-actions" aria-label="${escapeHtml(copy.profile)}">
-            ${renderCloudflareProfileAction(`${prefix}/profile/settings`, copy.settings, copy.settingsLead, true)}
-            ${renderCloudflareProfileAction(`${prefix}/profile/${encodeURIComponent(session.userId)}`, copy.publicProfile, copy.publicProfileLead)}
-          </nav>
+          <p class="cf-profile-identity"><strong>${escapeHtml(copy.identity)}</strong><span>${displayName}</span></p>
         </div>
-        <section class="cf-profile-control-grid" aria-label="${escapeHtml(copy.profile)}">
-          ${renderCloudflareProfileAction(`${prefix}/records?view=mine`, copy.privacy, copy.privacyLead)}
+        <nav class="cf-profile-destinations" aria-label="${escapeHtml(copy.title)}">
+          ${renderCloudflareProfileAction(`${prefix}/records?view=mine`, copy.records, copy.recordsLead)}
           ${renderCloudflareProfileAction(`${prefix}/community/events`, copy.participation, copy.participationLead)}
-        </section>
-        <section class="cf-profile-account" data-testid="profile-account-utilities">
-          <div><span>${escapeHtml(copy.eyebrow)}</span><h2>${escapeHtml(copy.account)}</h2><p>${escapeHtml(copy.accountLead)}</p></div>
-          <div class="cf-profile-account-actions">
-            <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile/settings`)}">${escapeHtml(copy.settings)}</a>
-          </div>
-        </section>
+        </nav>
       </section>`;
 
   return `<!doctype html>
@@ -25215,9 +25188,9 @@ function renderCloudflareProfileHtml(
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title} — ZUKAN</title>
   <style>
-    :root{color-scheme:light;--ink:#10251a;--muted:#475569;--line:#d9e8e2;--surface:#fff;--soft:#f5faf7;--mint:#e8f7ef;--sky:#e0f2fe;--amber:#fef3c7;--teal:#047857;--blue:#0369a1;--gold:#92400e}
+    :root{color-scheme:light;--ink:#17211B;--muted:#55615A;--line:#c8d0ca;--surface:#fff;--soft:#F7F7F3;--action:#143F2E}
     *{box-sizing:border-box}
-    body{margin:0;background:#f4f8f6;color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
+    body{margin:0;background:var(--soft);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
     .site-header{position:sticky;top:0;z-index:20;border-bottom:1px solid rgba(15,23,42,.08);background:rgba(255,255,255,.92);backdrop-filter:blur(14px)}
     .site-header-inner{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 18px}
     .site-brand-cluster{display:flex;align-items:center;gap:8px;min-width:0}
@@ -25251,27 +25224,22 @@ function renderCloudflareProfileHtml(
     .site-mobile-menu-icon::before{top:-5px}
     .site-mobile-menu-icon::after{top:5px}
     .site-mobile-menu-panel{position:absolute;right:0;top:calc(100% + 9px);z-index:30;width:min(340px,calc(100vw - 28px));display:grid;gap:10px;padding:12px;border-radius:16px;border:1px solid #d6e3dc;background:#fff;box-shadow:0 20px 42px rgba(15,23,42,.16)}
-    .cf-profile-shell{width:min(1080px,calc(100% - 32px));margin:22px auto 38px}
-    .cf-profile-dashboard{display:grid;gap:16px}
-    .cf-profile-hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr);gap:14px;align-items:stretch}
-    .cf-profile-hero-copy{min-width:0;padding:24px;border-radius:18px;background:#10251a;color:#fff;box-shadow:0 18px 38px rgba(16,37,26,.16)}
-    .cf-profile-hero-copy span,.cf-profile-section-head span,.cf-profile-flow>span,.cf-profile-settings span{display:block;color:#0f766e;font-size:13px;line-height:1.2;font-weight:950}
-    .cf-profile-hero-copy span{color:#a7f3d0}
-    .cf-profile-hero-copy h1{margin:8px 0 10px;font-size:34px;line-height:1.15;letter-spacing:0;overflow-wrap:anywhere}
-    .cf-profile-hero-copy p{margin:0;max-width:620px;color:#d1fae5;font-size:16px;line-height:1.62;font-weight:700}
-    .cf-profile-primary-actions{min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .cf-profile-action,.cf-profile-link,.cf-profile-empty a{min-width:0;min-height:72px;display:grid;align-content:center;gap:4px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);text-decoration:none;box-shadow:0 12px 26px rgba(15,23,42,.07)}
+    .cf-profile-shell{width:min(1200px,calc(100% - 40px));margin:32px auto 40px}
+    .cf-profile-dashboard{display:grid;gap:24px}
+    .cf-profile-hero{display:grid;gap:16px;align-items:start}
+    .cf-profile-hero-copy{min-width:0;padding:0}
+    .cf-profile-hero-copy span,.cf-profile-settings span{display:block;color:var(--muted);font-size:14px;line-height:1.4;font-weight:600}
+    .cf-profile-hero-copy h1{margin:8px 0;font-size:32px;line-height:1.25;letter-spacing:0;overflow-wrap:anywhere}
+    .cf-profile-hero-copy p{margin:0;max-width:680px;color:var(--muted);font-size:16px;line-height:1.6}
+    .cf-profile-identity{display:grid;gap:4px;margin:0;padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+    .cf-profile-identity strong{font-size:14px;font-weight:600;color:var(--muted)}
+    .cf-profile-identity span{font-size:16px;overflow-wrap:anywhere}
+    .cf-profile-destinations{display:grid;gap:12px}
+    .cf-profile-action,.cf-profile-link{min-width:0;min-height:64px;display:grid;align-content:center;gap:4px;padding:12px 16px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);text-decoration:none}
     .cf-profile-action strong{font-size:17px;line-height:1.25;font-weight:950;overflow-wrap:anywhere}
-    .cf-profile-action span{color:var(--muted);font-size:13px;line-height:1.35;font-weight:750}
-    .cf-profile-action.is-primary{background:#047857;border-color:#047857;color:#fff;box-shadow:0 16px 30px rgba(4,120,87,.22)}
-    .cf-profile-action.is-primary span{color:#d1fae5}
-    .cf-profile-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .cf-profile-account{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 14px 32px rgba(15,23,42,.06)}
-    .cf-profile-account h2{margin:3px 0 0;font-size:22px;line-height:1.25}
-    .cf-profile-account p{margin:6px 0 0;color:var(--muted);font-weight:700}
-    .cf-profile-account>div>span{display:block;color:#0f766e;font-size:13px;line-height:1.2;font-weight:950}
-    .cf-profile-account-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
-    .cf-profile-latest,.cf-profile-settings,.cf-profile-flow{padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 14px 32px rgba(15,23,42,.06)}
+    .cf-profile-action strong{font-size:16px;line-height:1.4;font-weight:650;overflow-wrap:anywhere}
+    .cf-profile-action span{color:var(--muted);font-size:14px;line-height:1.4}
+    .cf-profile-latest,.cf-profile-settings,.cf-profile-flow{padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
     .cf-profile-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}
     .cf-profile-section-head h2,.cf-profile-settings h2{margin:3px 0 0;font-size:22px;line-height:1.25;letter-spacing:0}
     .cf-profile-record-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
@@ -25291,13 +25259,14 @@ function renderCloudflareProfileHtml(
     .cf-profile-flow a::before{content:counter(profile-flow);width:26px;height:26px;display:grid;place-items:center;flex:0 0 auto;border-radius:999px;background:#10251a;color:#fff;font-size:12px;font-weight:950}
     .cf-profile-settings{display:grid;gap:16px}
     .cf-profile-settings p{margin:6px 0 0;color:var(--muted);font-weight:700}
-    .cf-profile-settings dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
-    .cf-profile-settings dl div{min-width:0;padding:13px;border-radius:13px;background:var(--soft)}
-    .cf-profile-settings dt{color:var(--muted);font-size:13px;font-weight:850}
-    .cf-profile-settings dd{margin:4px 0 0;font-weight:950;overflow-wrap:anywhere}
-    .cf-profile-settings a{color:var(--blue);font-weight:950}
-    @media (max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}.cf-profile-hero{grid-template-columns:1fr}.cf-profile-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-profile-settings dl{grid-template-columns:1fr}}
-    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 20px);margin:16px auto calc(116px + env(safe-area-inset-bottom))}.cf-profile-hero-copy{padding:20px;border-radius:16px}.cf-profile-hero-copy h1{font-size:28px}.cf-profile-primary-actions,.cf-profile-control-grid{grid-template-columns:1fr;gap:9px}.cf-profile-action{min-height:78px;padding:12px}.cf-profile-account{display:grid}.cf-profile-account-actions{justify-content:flex-start}.cf-profile-record-grid{grid-template-columns:1fr;gap:9px}.cf-profile-record{grid-template-columns:124px minmax(0,1fr);min-height:128px;padding:8px;gap:12px}.cf-profile-record-media{width:124px;height:112px;border-radius:11px}.cf-profile-record>span:last-child{min-width:0}.cf-profile-record>span:last-child strong{font-size:15px;line-height:1.35}.cf-profile-record>span:last-child span{font-size:13px;line-height:1.45}.cf-profile-flow ol{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .cf-profile-settings dl{display:grid;grid-template-columns:1fr;gap:10px;margin:0}
+    .cf-profile-settings dl div{min-width:0;padding:13px;border-radius:8px;background:var(--soft)}
+    .cf-profile-settings dt{color:var(--muted);font-size:14px;font-weight:600}
+    .cf-profile-settings dd{margin:4px 0 0;font-size:16px;overflow-wrap:anywhere}
+    .cf-profile-settings p[role="status"]{margin:0;color:var(--muted);font-size:16px}
+    .cf-profile-shell a:focus-visible{outline:2px solid var(--action);outline-offset:2px;box-shadow:0 0 0 4px #fff}
+    @media (max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:44px;padding:10px 12px}}
+    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 40px);margin:24px auto calc(116px + env(safe-area-inset-bottom))}.cf-profile-hero-copy h1{font-size:28px}}
   </style>
 </head>
 <body data-cloudflare-profile="signed-in">

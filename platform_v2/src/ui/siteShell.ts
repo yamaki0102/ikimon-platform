@@ -261,7 +261,7 @@ function siteNotificationMenu(basePath: string, lang: SiteLang): string {
       <div class="site-notification-head">
         <strong>${escapeHtml(accountCopy.notifications)}</strong>
         <button type="button" data-notification-read-all hidden>${escapeHtml(accountCopy.markAllRead)}</button>
-        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/home"), lang))}">${escapeHtml(accountCopy.profile)}</a>
+        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/profile"), lang))}">${escapeHtml(accountCopy.profile)}</a>
       </div>
       <div class="site-notification-list" data-notification-list>
         <div class="site-notification-empty">${escapeHtml(accountCopy.guestNotificationEmpty)}</div>

@@ -24258,6 +24258,13 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.doesNotMatch(body, /href="\/ja\/record"[^>]*>撮る/, check.path);
         assert.match(body, /id="main-content" class="cf-profile-shell"/, check.path);
         assert.match(body, /<title>(?:自分|プロフィール設定) — ZUKAN<\/title>/, check.path);
+        assert.match(body, /--action:#143F2E/);
+        assert.match(body, /--soft:#F7F7F3/);
+        assert.match(body, /--ink:#17211B/);
+        assert.match(body, /--muted:#55615A/);
+        assert.match(body, /\.cf-profile-action,\.cf-profile-link\{[^}]*min-height:64px[^}]*border-radius:4px/);
+        assert.match(body, /\.cf-profile-identity\{[^}]*border-radius:8px/);
+        assert.match(body, /\.cf-profile-shell a:focus-visible\{outline:2px solid var\(--action\);outline-offset:2px;box-shadow:0 0 0 4px #fff\}/);
         assert.doesNotMatch(body, /<title>[^<]*ikimon/u, check.path);
         assert.doesNotMatch(body, /cf-profile-header/, check.path);
         assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
@@ -24265,15 +24272,18 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
       }
       if (check.path === "/ja/profile") {
         assert.match(body, /data-testid="self-control-hub"/);
-        assert.match(body, /プロフィールと公開ページ/);
-        assert.match(body, /公開範囲と位置情報/);
-        assert.match(body, /参加とフォロー/);
-        assert.match(body, /アカウント設定/);
+        assert.match(body, /表示名を確認し、自分の記録や参加先へ移動できます。/);
+        assert.match(body, /参加先を探す/);
         assert.doesNotMatch(body, /今日の入口|ikimon\.lifeの流れ|最近の記録|八巻の最初の記録/);
         assert.match(body, /href="\/ja\/records\?view=mine"/);
-        assert.match(body, /href="\/ja\/profile\/settings"/);
-        assert.match(body, /href="\/ja\/profile\/profile-user"/);
+        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"|href="\/ja\/profile\/settings"/);
         assert.match(body, /href="\/ja\/community\/events"/);
+        assert.doesNotMatch(body, /公開プロフィール|公開範囲|フォロー中|参加履歴|アカウント設定/);
+      }
+      if (check.path === "/ja/profile/settings") {
+        assert.match(body, /プロフィール編集/);
+        assert.match(body, /この画面からプロフィールは編集できません。/);
+        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
       }
       if (check.native === "record") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session", check.path);
