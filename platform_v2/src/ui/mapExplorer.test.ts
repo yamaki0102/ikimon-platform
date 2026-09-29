@@ -1562,6 +1562,11 @@ test("map uses nearby startup location while keeping record page location explic
   assert.match(script, /rememberLastStartupLocation\(lng, lat/);
   assert.doesNotMatch(script, /maybeAutoLocateOnFirstOpen/);
   assert.match(script, /locateFab\.addEventListener\('click'[\s\S]*navigator\.geolocation\.getCurrentPosition/);
+  assert.match(script, /function requestStartupCurrentLocation\(options\)/);
+  assert.match(script, /requestStartupCurrentLocation\(\{ onlyIfGranted: true \}\)/);
+  assert.match(script, /requestStartupCurrentLocation\(\{ force: true \}\)/);
+  assert.match(script, /function saveMapState\(/);
+  assert.doesNotMatch(script, /window\.location\.(href|assign)\s*=\s*['"]\/compare/);
 });
 
 test("heatmap and rain tabs keep area polygons selectable", () => {

@@ -14,7 +14,7 @@ import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml } from "./siteShell.js";
 
 function formatObservedAt(raw: string, lang: SiteLang): string {
-  if (!raw) return "";
+  if (!raw) return lang === "ja" ? "日時不明" : lang === "es" ? "Fecha desconocida" : lang === "pt-BR" ? "Data desconhecida" : "Date unknown";
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return raw;
   const y = date.getFullYear();
@@ -97,8 +97,9 @@ export function renderObservationCard(
     <span class="obs-card-sketch-name">${escapeHtml(subjectLabel)}</span>
     <span class="obs-card-sketch-note">${escapeHtml(missingMediaLabel)}</span>
   </div>`;
+  const mediaAlt = lang === "ja" ? "記録の画像" : lang === "es" ? "Imagen del registro" : lang === "pt-BR" ? "Imagem do registro" : "Record image";
   const photo = mediaUrl
-    ? `<img class="obs-card-photo" src="${escapeHtml(toThumbnailUrl(mediaUrl, "md") ?? mediaUrl)}" alt="${escapeHtml(subjectLabel)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
+    ? `<img class="obs-card-photo" src="${escapeHtml(toThumbnailUrl(mediaUrl, "md") ?? mediaUrl)}" alt="${escapeHtml(mediaAlt)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
     : sketchFallback;
   const locationMode = options.locationMode ?? "public";
   const placeLine = formatPlaceDisplay({
