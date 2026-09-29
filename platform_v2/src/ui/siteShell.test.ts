@@ -82,6 +82,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /\/api\/v1\/me\/alerts/);
   assert.match(html, /\/api\/v1\/me\/alerts\/read/);
   assert.match(html, /data-notification-panel/);
+  assert.match(html, /<div class="site-notification-head">[\s\S]*href="\/ja\/profile"[^>]*>マイページ<\/a>/);
   assert.match(html, /data-notification-toggle/);
   assert.match(html, /data-notification-read-all/);
   assert.match(html, /\.site-notification-badge\[hidden\] \{ display: none; \}/);
