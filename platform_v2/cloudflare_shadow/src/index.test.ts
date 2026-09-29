@@ -1943,14 +1943,14 @@ class FakeStatement {
     if (normalized.startsWith("INSERT OR IGNORE INTO observation_event_guest_media")) {
       const submissionId = string(v[0]);
       const unique = [...this.db.observationEventGuestMedia.values()].some((row) =>
-        row.session_id === string(v[1]) && row.participant_id === string(v[2]) && row.idempotency_key === string(v[8])
+        row.session_id === string(v[1]) && row.participant_id === string(v[2]) && row.idempotency_key === string(v[9])
       );
       if (unique) return { meta: { changes: 0 } };
       const now = new Date().toISOString();
       this.db.observationEventGuestMedia.set(submissionId, {
         submission_id: submissionId, session_id: string(v[1]), participant_id: string(v[2]), actor_user_id: nullableString(v[3]),
-        asset_key: string(v[4]), request_sha256: string(v[5]), media_sha256: string(v[6]), mime: "image/webp", bytes: number(v[7]),
-        media_state: "uploading", idempotency_key: string(v[8]), rights_review_status: "pending",
+        asset_key: string(v[4]), request_sha256: string(v[5]), media_sha256: string(v[6]), mime: string(v[7]), bytes: number(v[8]),
+        media_state: "uploading", idempotency_key: string(v[9]), rights_review_status: "pending",
         rights_reviewed_by: null, rights_reviewed_at: null, rights_review_note: null, visibility: "private", private_delete_pending: 0, active_upload_count: 0,
         created_at: now, updated_at: now
       });
@@ -26812,7 +26812,7 @@ test("allowlisted observation event applications persist as registered without c
   assert.doesNotMatch(otherGuestHtml, /星を見るグループ/u);
 });
 
-test("event guest photo stays private through receipt, rights review, result and withdrawal", async () => {
+test("event guest photos and videos stay private through receipt, rights review, result and withdrawal", async () => {
   const { env, obs } = createEnv();
   const organizerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
     method: "POST", headers: { "content-type": "application/json" },
@@ -26846,6 +26846,7 @@ test("event guest photo stays private through receipt, rights review, result and
   const rallyHtml = await rally.text();
   assert.equal(rally.status, 200);
   assert.match(rallyHtml, /data-guest-media-form/);
+  assert.match(rallyHtml, /video\/mp4/);
   assert.match(rallyHtml, /権利確認まで結果には含まれません/);
   assert.match(rallyHtml, /capture="environment"/);
 
@@ -26914,6 +26915,27 @@ test("event guest photo stays private through receipt, rights review, result and
   const otherCannotRead = await worker.fetch(new Request(`https://ikimon.life${savedPayload.receipt.privateContentHref}`, { headers: { cookie: otherGuestCookie } }), env);
   assert.equal(otherCannotRead.status, 404);
 
+  const videoBytes = new Uint8Array([0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 0]);
+  const videoForm = new FormData();
+  videoForm.set("media", new File([videoBytes], "field-note.mp4", { type: "video/mp4" }));
+  videoForm.set("private_storage_consent", "yes");
+  videoForm.set("creator_rights_attestation", "yes");
+  const videoUpload = await worker.fetch(new Request(url, {
+    method: "POST", headers: { cookie: guestCookie, origin: "https://ikimon.life", "idempotency-key": "guest-video-qa-idempotency-001" }, body: videoForm
+  }), env);
+  assert.equal(videoUpload.status, 201);
+  const videoReceipt = (await videoUpload.json() as any).receipt;
+  assert.equal(videoReceipt.mediaType, "video/mp4");
+  assert.equal(videoReceipt.rightsReviewStatus, "pending");
+  assert.equal(videoReceipt.visibility, "private");
+  const privateVideo = await worker.fetch(new Request(`https://ikimon.life${videoReceipt.privateContentHref}`, { headers: { cookie: guestCookie } }), env);
+  assert.equal(privateVideo.status, 200);
+  assert.equal(privateVideo.headers.get("content-type"), "video/mp4");
+  assert.equal(privateVideo.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(new Uint8Array(await privateVideo.arrayBuffer()), videoBytes);
+  const otherCannotReadVideo = await worker.fetch(new Request(`https://ikimon.life${videoReceipt.privateContentHref}`, { headers: { cookie: otherGuestCookie } }), env);
+  assert.equal(otherCannotReadVideo.status, 404);
+
   const parentIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ userId: "guest-media-parent", displayName: "保護者", ttlHours: 1 })
@@ -26942,8 +26964,8 @@ test("event guest photo stays private through receipt, rights review, result and
   assert.match(claimedGuestMedia.idempotency_key, /^claimed:/);
   const accountReceipts = await worker.fetch(new Request(url, { headers: { cookie: parentCookie } }), env);
   const accountReceiptPayload = await accountReceipts.json() as any;
-  assert.equal(accountReceiptPayload.receipts.length, 2);
-  assert.equal(accountReceiptPayload.results.pending, 2);
+  assert.equal(accountReceiptPayload.receipts.length, 3);
+  assert.equal(accountReceiptPayload.results.pending, 3);
   const accountCanReadClaimedPhoto = await worker.fetch(new Request(`https://ikimon.life${savedPayload.receipt.privateContentHref}`, { headers: { cookie: parentCookie } }), env);
   assert.equal(accountCanReadClaimedPhoto.status, 200);
   const collisionRetry = await worker.fetch(new Request(url, {
@@ -26954,7 +26976,13 @@ test("event guest photo stays private through receipt, rights review, result and
 
   const organizerQueue = await worker.fetch(new Request(url, { headers: { cookie: organizerCookie } }), env);
   const queuePayload = await organizerQueue.json() as any;
-  assert.equal(queuePayload.reviewQueue.length, 2);
+  assert.equal(queuePayload.reviewQueue.length, 3);
+  const organizerRally = await worker.fetch(new Request(`https://ikimon.life/events/${sessionId}/rally`, { headers: { cookie: organizerCookie } }), env);
+  const organizerRallyHtml = await organizerRally.text();
+  assert.equal(organizerRally.status, 200);
+  assert.match(organizerRallyHtml, /権利確認が必要な写真・動画/u);
+  assert.match(organizerRallyHtml, /receipt\.mime\?\.startsWith\('video\/'\) \? 'video' : 'img'/u);
+  assert.match(organizerRallyHtml, /preview\.controls = true/u);
   const blankReason = await worker.fetch(new Request(`${url}/${savedPayload.receipt.receiptId}/review`, {
     method: "PATCH", headers: { cookie: organizerCookie, origin: "https://ikimon.life", "content-type": "application/json" },
     body: JSON.stringify({ decision: "approved", note: "no" })
@@ -26986,7 +27014,7 @@ test("event guest photo stays private through receipt, rights review, result and
   }), env);
   assert.equal(successfulWithdraw.status, 200);
   assert.equal((await successfulWithdraw.json() as any).rightsReviewStatus, "withdrawn");
-  assert.equal(bucket.objects.size, 1);
+  assert.equal(bucket.objects.size, 2);
   const withdrawnPhoto = await worker.fetch(new Request(`https://ikimon.life${savedPayload.receipt.privateContentHref}`, { headers: { cookie: parentCookie } }), env);
   assert.equal(withdrawnPhoto.status, 404);
   let signalPutStarted!: () => void;
@@ -27033,12 +27061,18 @@ test("event guest photo stays private through receipt, rights review, result and
   bucket.beforePut = undefined;
   const nonparticipantProduction = await worker.fetch(new Request(url, { headers: { cookie: guestCookie } }), { ...env, ENVIRONMENT: "production" });
   assert.equal(nonparticipantProduction.status, 404);
+  const productionMediaDefaultOff = await worker.fetch(new Request(url, { headers: { cookie: parentCookie } }), { ...env, ENVIRONMENT: "production", OBSERVATION_EVENT_GUEST_MEDIA_CODES: "other-event" });
+  assert.equal(productionMediaDefaultOff.status, 404);
+  const productionMediaAllowlisted = await worker.fetch(new Request(url, { headers: { cookie: parentCookie } }), { ...env, ENVIRONMENT: "production", OBSERVATION_EVENT_GUEST_MEDIA_CODES: "guest-media-qa" });
+  assert.equal(productionMediaAllowlisted.status, 200);
+  assert.equal((await productionMediaAllowlisted.json() as any).results.publicProjection, false);
 
   const migration = await readFile(new URL("../migrations/observations/0071_observation_event_guest_media.sql", import.meta.url), "utf8");
   assert.match(migration, /visibility TEXT NOT NULL DEFAULT 'private' CHECK \(visibility = 'private'\)/);
   assert.match(migration, /rights_review_status TEXT NOT NULL DEFAULT 'pending'/);
   assert.match(migration, /private_delete_pending INTEGER NOT NULL DEFAULT 0/);
   assert.match(migration, /active_upload_count INTEGER NOT NULL DEFAULT 0/);
+  assert.match(migration, /'video\/mp4', 'video\/webm'/);
   assert.match(migration, /UNIQUE \(session_id, participant_id, idempotency_key\)/);
   assert.doesNotMatch(migration, /owner_user_id|public_derivative|public_ready/i);
 });

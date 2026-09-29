@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS observation_event_guest_media (
   asset_key TEXT NOT NULL UNIQUE,
   request_sha256 TEXT NOT NULL,
   media_sha256 TEXT NOT NULL,
-  mime TEXT NOT NULL CHECK (mime IN ('image/jpeg', 'image/png', 'image/webp')),
+  mime TEXT NOT NULL CHECK (mime IN ('image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm')),
   bytes INTEGER NOT NULL CHECK (bytes > 0 AND bytes <= 12582912),
   media_state TEXT NOT NULL DEFAULT 'uploading'
     CHECK (media_state IN ('uploading', 'saved', 'failed')),
