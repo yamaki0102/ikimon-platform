@@ -99,6 +99,7 @@
       },
       "vars": {
         "ENVIRONMENT": "shadow",
+        "OBSERVATION_EVENT_APPLICATION_CODES": "",
         "PUBLIC_LOCATION_CELL_PRECISION": "geohash6",
         "OBSERVATION_DB_NAME": "ikimon_shadow_observations_2026_06",
         "OBSERVATION_ARCHIVE_TARGET": "r2_sql_export_by_partition_month",
@@ -192,6 +193,7 @@
       ],
       "vars": {
         "ENVIRONMENT": "staging",
+        "OBSERVATION_EVENT_APPLICATION_CODES": "",
         "ZUKAN_QUIET_HOME_MODE": "enabled",
         "PUBLIC_LOCATION_CELL_PRECISION": "geohash6",
         "OBSERVATION_DB_NAME": "ikimon_shadow_observations_2026_06",
@@ -293,6 +295,7 @@
       ],
       "vars": {
         "ENVIRONMENT": "production",
+        "OBSERVATION_EVENT_APPLICATION_CODES": "",
         "PUBLIC_LOCATION_CELL_PRECISION": "geohash6",
         "OBSERVATION_DB_NAME": "ikimon_prod_observations_2026_06",
         "OBSERVATION_ARCHIVE_TARGET": "r2_sql_export_by_partition_month",

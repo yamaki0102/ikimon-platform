@@ -2479,6 +2479,7 @@ class FakeStatement {
 
     if (normalized.startsWith("INSERT INTO observation_event_participants")) {
       const now = new Date().toISOString();
+      const registered = normalized.includes("'registered'");
       const sessionId = string(v[1]);
       const userId = nullableString(v[2]);
       const guestToken = nullableString(v[3]);
@@ -2498,12 +2499,12 @@ class FakeStatement {
         team_id: nullableString(v[5]),
         role: "participant",
         declared_job: null,
-        status: "checked_in",
-        checked_in_at: now,
-        share_location: number(v[6]),
-        is_minor: number(v[7]),
-        location_share_until: nullableString(v[8]),
-        location_share_consent_type: nullableString(v[9]),
+        status: registered ? "registered" : "checked_in",
+        checked_in_at: registered ? null : now,
+        share_location: registered ? 0 : number(v[6]),
+        is_minor: registered ? 0 : number(v[7]),
+        location_share_until: registered ? null : nullableString(v[8]),
+        location_share_consent_type: registered ? null : nullableString(v[9]),
         created_at: now,
         updated_at: now
       });
@@ -26590,4 +26591,90 @@ test("Program confirmation page carries data only and requires native ZUKAN auth
   assert.match(signedHtml, /confirmPublication:true/);
   assert.match(signedHtml, /\/api\/v1\/programs\/receive/);
   assert.doesNotMatch(signedHtml, /NOCOSIL.*(cookie|token|role)/iu);
+});
+
+test("allowlisted observation event applications persist as registered without check-in or duplicate rows", async () => {
+  const { env, obs } = createEnv();
+  const organizerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "application-owner", displayName: "Application Owner", ttlHours: 1 })
+  }), env);
+  const organizerCookie = organizerIssue.headers.get("set-cookie") ?? "";
+  const created = await worker.fetch(new Request("https://shadow.test/api/v1/observation-events", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: organizerCookie },
+    body: JSON.stringify({
+      title: "野外観察会",
+      event_code: "application-event",
+      plan: "public",
+      started_at: "2026-09-28T02:10:00.000Z",
+      location_lat: 34.9756,
+      location_lng: 138.3828
+    })
+  }), env);
+  assert.equal(created.status, 201);
+  const event = await created.json() as { sessionId: string };
+  const applicationPath = "/community/events/application-event/apply";
+  const disabled = await worker.fetch(new Request("https://ikimon.life" + applicationPath + "?applications=on"), env);
+  assert.equal(disabled.status, 404);
+  assert.equal(disabled.headers.get("set-cookie"), null);
+  assert.equal(obs.observationEventParticipants.size, 0);
+
+  Object.assign(env, { OBSERVATION_EVENT_APPLICATION_CODES: "other-event, application-event" });
+  const join = await worker.fetch(new Request("https://ikimon.life/community/events/application-event/join"), env);
+  assert.equal(join.status, 200);
+  const joinHtml = await join.text();
+  assert.match(joinHtml, /data-event-application-link/u);
+  assert.match(joinHtml, /class="btn secondary ik-ui-action"/u);
+
+  const applicationPage = await worker.fetch(new Request("https://ikimon.life" + applicationPath), env);
+  assert.equal(applicationPage.status, 200);
+  assert.match(applicationPage.headers.get("x-robots-tag") ?? "", /noindex/u);
+  assert.match(await applicationPage.clone().text(), /個人名・連絡先は入力しないでください/u);
+  const setCookie = applicationPage.headers.get("set-cookie") ?? "";
+  const guestCookie = setCookie.split(";")[0] ?? "";
+  assert.match(guestCookie, /^__Host-ikimon_evt_[a-f0-9]{16}=/u);
+
+  const submit = (displayName: string) => worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${event.sessionId}/application`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: guestCookie },
+    body: JSON.stringify({ display_name: displayName })
+  }), env);
+  const invalid = await submit(" ");
+  assert.equal(invalid.status, 400);
+  assert.equal(obs.observationEventParticipants.size, 0);
+
+  const first = await submit("星を見るグループ");
+  assert.equal(first.status, 201);
+  assert.deepEqual(await first.json(), { participant: { status: "registered" }, confirmed: false, created: true });
+  assert.equal(obs.observationEventParticipants.size, 1);
+  const participant = [...obs.observationEventParticipants.values()][0]!;
+  assert.equal(participant.session_id, event.sessionId);
+  assert.equal(participant.display_name, "星を見るグループ");
+  assert.equal(participant.status, "registered");
+  assert.equal(participant.checked_in_at, null);
+  assert.ok(participant.guest_token);
+
+  const replay = await submit("別の表示名");
+  assert.equal(replay.status, 200);
+  assert.deepEqual(await replay.json(), { participant: { status: "registered" }, confirmed: false, created: false });
+  assert.equal(obs.observationEventParticipants.size, 1);
+  assert.equal(participant.display_name, "星を見るグループ");
+
+  const revisit = await worker.fetch(new Request("https://ikimon.life" + applicationPath, {
+    headers: { cookie: guestCookie }
+  }), env);
+  const revisitHtml = await revisit.text();
+  assert.equal(revisit.status, 200);
+  assert.match(revisitHtml, /申込みを受け付けました/u);
+  assert.doesNotMatch(revisitHtml, /data-event-application-form/u);
+  assert.doesNotMatch(revisitHtml, /星を見るグループ/u);
+
+  const otherGuest = await worker.fetch(new Request("https://ikimon.life" + applicationPath), env);
+  const otherGuestHtml = await otherGuest.text();
+  assert.equal(otherGuest.status, 200);
+  assert.match(otherGuestHtml, /data-event-application-form/u);
+  assert.doesNotMatch(otherGuestHtml, /<strong>申込みを受け付けました/u);
+  assert.doesNotMatch(otherGuestHtml, /星を見るグループ/u);
 });

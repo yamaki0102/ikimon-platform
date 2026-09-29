@@ -262,6 +262,7 @@ interface Env {
   OBSERVATION_ARCHIVE_TARGET?: string;
   OBSERVATION_DUAL_WRITE_MODE?: string;
   OBSERVATION_READ_CUTOVER_MODE?: string;
+  OBSERVATION_EVENT_APPLICATION_CODES?: string;
   ZUKAN_FOUNDATION_V2_SHADOW_READ_MODE?: string;
   ZUKAN_FOUNDATION_V2_DUAL_WRITE_MODE?: string;
   ZUKAN_FOUNDATION_V2_WRITE_KILL_SWITCH?: string;
@@ -3687,6 +3688,10 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   if (request.method === "POST" && pathname === "/api/v1/observation-events") {
     return createObservationEventSession(request, env);
   }
+  const applicationMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/application$/);
+  if (request.method === "POST" && applicationMatch?.[1]) {
+    return applyToObservationEvent(request, env, decodeURIComponent(applicationMatch[1]));
+  }
   const handoverApplyMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/handover-apply$/);
   if (request.method === "POST" && handoverApplyMatch?.[1]) {
     return applyObservationEventHandover(request, env, decodeURIComponent(handoverApplyMatch[1]));
@@ -4217,6 +4222,10 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
       : null;
     return pageHtml("観察会を作成", renderObservationEventCreatePage(auth, url.searchParams.get("field_id") ?? "", template), "event-page-create");
   }
+  const applicationMatch = pathname.match(/^\/community\/events\/([^/]+)\/apply$/);
+  if (applicationMatch?.[1]) {
+    return getObservationEventApplicationPage(request, env, decodeURIComponent(applicationMatch[1]));
+  }
   const joinMatch = pathname.match(/^\/community\/events\/([^/]+)\/join$/);
   if (joinMatch?.[1]) {
     return getObservationEventJoinPage(request, env, decodeURIComponent(joinMatch[1]));
@@ -4329,7 +4338,8 @@ async function getObservationEventJoinPage(request: Request, env: Env, eventCode
       ...context
     }, actorKey);
   }
-  const response = pageHtml(`${session.title} に参加`, renderObservationEventJoinPage(session, teams, Boolean(auth)), "event-page-join");
+  const applicationEnabled = !auth?.banned && observationEventApplicationEnabled(env, session);
+  const response = pageHtml(`${session.title} に参加`, renderObservationEventJoinPage(session, teams, Boolean(auth), undefined, applicationEnabled), "event-page-join");
   if (!auth && guestCredential) {
     response.headers.set("set-cookie", await buildObservationEventGuestCookie(session, guestCredential));
   }
@@ -4343,6 +4353,81 @@ function isObservationEventCheckinOpen(
   if (!session.endedAt) return true;
   const endedAtMs = Date.parse(session.endedAt);
   return Number.isFinite(endedAtMs) && endedAtMs > nowMs;
+}
+
+function observationEventApplicationEnabled(env: Env, session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): boolean {
+  const eventCode = normalizeOptionalText(session.eventCode)?.toLowerCase();
+  if (!eventCode || session.plan !== "public" || !isObservationEventCheckinOpen(session) || isObservationEventQaFixture(session) || isPrivateReceivedProgram(session)) return false;
+  const enabledCodes = new Set((env.OBSERVATION_EVENT_APPLICATION_CODES ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
+  return enabledCodes.has(eventCode);
+}
+
+async function getObservationEventApplicationPage(request: Request, env: Env, eventCode: string): Promise<Response> {
+  const [auth, session] = await Promise.all([
+    readCompatibleSession(request, env).catch(() => null),
+    getObservationEventSessionByEventCode(env, eventCode).catch(() => null)
+  ]);
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
+  if (auth?.banned) {
+    return pageHtml("申込みを受け付けていません", observationEventEmptyState("申込みを利用できません", "主催者へお問い合わせください。"), "event-application-denied", 403);
+  }
+  if (!session || !observationEventApplicationEnabled(env, session)) {
+    return pageHtml("申込みを受け付けていません", observationEventEmptyState("申込み受付はありません", "このイベントでは現在、オンライン申込みを受け付けていません。"), "event-application-unavailable", 404);
+  }
+  const userId = auth?.userId ?? null;
+  const existingGuestCredential = await readObservationEventGuestCredential(request.headers.get("cookie"), session.sessionId);
+  const activeGuestCredential = existingGuestCredential ?? (userId ? null : randomToken());
+  const guestToken = activeGuestCredential ? await observationEventGuestCredentialDigest(activeGuestCredential) : null;
+  const participant = await findObservationEventParticipant(env, session.sessionId, userId, guestToken);
+  const response = pageHtml(`${session.title} 参加申込み`, renderObservationEventApplicationPage(session, participant), "event-application");
+  response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+  if (!userId && activeGuestCredential) response.headers.set("set-cookie", await buildObservationEventGuestCookie(session, activeGuestCredential));
+  return response;
+}
+
+async function applyToObservationEvent(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session || !observationEventApplicationEnabled(env, session)) {
+    return json({ error: "event_application_unavailable" }, 404, { "cache-control": "no-store" });
+  }
+  const auth = await readCompatibleSession(request, env);
+  if (auth?.banned) return json({ error: "event_application_unavailable" }, 403, { "cache-control": "no-store" });
+  const userId = auth?.userId ?? null;
+  const browserGuestCredential = await readObservationEventGuestCredential(request.headers.get("cookie"), sessionId);
+  if (userId && browserGuestCredential) {
+    await claimObservationEventGuestParticipant(env, sessionId, userId, await observationEventGuestCredentialDigest(browserGuestCredential));
+  }
+  const guestCredential = userId ? null : browserGuestCredential;
+  if (!userId && !guestCredential) return json({ error: "event_guest_cookie_required" }, 428, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const displayName = normalizeOptionalText(body.display_name);
+  if (!displayName || displayName.length > 32 || /[\u0000-\u001f\u007f]/u.test(displayName)) {
+    return json({ error: "event_application_name_invalid" }, 400, { "cache-control": "no-store" });
+  }
+  const guestToken = guestCredential ? await observationEventGuestCredentialDigest(guestCredential) : null;
+  let participant = await findObservationEventParticipant(env, sessionId, userId, guestToken);
+  let created = false;
+  if (!participant) {
+    const participantId = crypto.randomUUID();
+    try {
+      await env.OBS_DB.prepare(
+        `INSERT INTO observation_event_participants (
+           participant_id, session_id, user_id, guest_token, display_name, team_id, role, status,
+           checked_in_at, share_location, is_minor, location_share_until, location_share_consent_type
+         ) VALUES (?, ?, ?, ?, ?, NULL, 'participant', 'registered', NULL, 0, 0, NULL, NULL)`
+      ).bind(participantId, sessionId, userId, guestToken, displayName).run();
+      created = true;
+    } catch (error) {
+      if (!isD1UniqueConstraintError(error)) throw error;
+    }
+    participant = await findObservationEventParticipant(env, sessionId, userId, guestToken);
+  }
+  if (!participant || participant.role === "organizer") {
+    return json({ error: "event_application_readback_failed" }, 503, { "cache-control": "no-store" });
+  }
+  return json({ participant: { status: participant.status }, confirmed: false, created }, created ? 201 : 200, { "cache-control": "no-store" });
 }
 
 async function getObservationEventSessionPage(request: Request, url: URL, env: Env, sessionId: string, page: string): Promise<Response> {
@@ -4720,7 +4805,8 @@ function renderObservationEventJoinPage(
   session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
   teams: Awaited<ReturnType<typeof listObservationEventTeams>>,
   isAuthenticated: boolean,
-  options?: SyntheticObservationEventRenderOptions
+  options?: SyntheticObservationEventRenderOptions,
+  applicationEnabled = false
 ): string {
   const eventCode = session.eventCode ?? "";
   const returnPath = `/community/events/${encodeURIComponent(eventCode)}/join`;
@@ -4734,10 +4820,14 @@ function renderObservationEventJoinPage(
     : isAuthenticated
     ? `<p class="muted">ログイン済みアカウントで参加します。このイベント用のゲストIDは作りません。</p>`
     : `<aside class="card"><p><strong>ゲストのまますぐ参加できます。</strong> ライブと終了後のふり返りは、この端末で開けます。</p><p class="muted">写真を自分の記録として残す方は、<a data-evt-register-link href="${escapeHtml(registerHref)}">無料アカウントを作る</a>か、<a data-evt-login-link href="${escapeHtml(loginHref)}">ログイン</a>してください。登録後はこの画面へ戻ります。</p></aside>`;
+  const applicationLink = applicationEnabled
+    ? `<p><a class="btn secondary ik-ui-action" data-event-application-link href="/community/events/${encodeURIComponent(eventCode)}/apply">参加を申し込む</a></p>`
+    : "";
   return `<section class="card" data-renri-checkin-root data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(eventCode)}" data-authenticated="${isAuthenticated ? "true" : "false"}"${options ? ' data-synthetic="true"' : ""}>
     <p class="pill">観察会チェックイン</p>
     <h1>${escapeHtml(session.title)} に参加</h1>
     <p>家族・グループはスマートフォン1台で参加できます。代表者のニックネームや「○○家」で進めてください。</p>
+    ${applicationLink}
     <aside class="card"><strong>名前が分からなくても大丈夫です</strong><p class="muted">位置情報を共有しなくても、参加・観察・投稿ができます。</p></aside>
     <form data-evt-checkin-form novalidate>
       <label>参加名（家族・グループ名でもOK）
@@ -4762,6 +4852,69 @@ function renderObservationEventJoinPage(
       ${options ? `<button type="button" class="btn secondary" data-synthetic-checkin-error>合成通信エラー表示を確認</button><a class="btn secondary" data-synthetic-checkin-continue href="${escapeHtml(`${options.syntheticQaBasePath}/rally`)}" hidden>合成ラリーへ進む</a>` : ""}
     </form>
   </section>${options ? syntheticObservationEventJoinScript() : observationEventJoinScript()}`;
+}
+
+function renderObservationEventApplicationPage(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+  participant: ObservationEventParticipantD1Row | null
+): string {
+  if (participant?.role === "organizer") {
+    return `<section class="card"><p class="pill">イベント申込み</p><h1>${escapeHtml(session.title)}</h1><p role="status">主催者アカウントでは参加申込みできません。</p></section>`;
+  }
+  if (participant?.status === "registered") {
+    return `<section class="card" data-event-application-root><p class="pill">申込状況</p><h1>${escapeHtml(session.title)}</h1><p role="status" data-event-application-status><strong>申込みを受け付けました。</strong></p><p>これは申込の受領です。参加確定、定員確保、主催者からの連絡を意味しません。</p><p class="muted">同じ端末からこのページを開くと、申込の状態を再確認できます。</p></section>`;
+  }
+  if (participant && ["checked_in", "offline", "left"].includes(participant.status)) {
+    return `<section class="card" data-event-application-root><p class="pill">申込状況</p><h1>${escapeHtml(session.title)}</h1><p role="status" data-event-application-status><strong>この端末の参加記録を確認しました。</strong></p><p>新しい申込みは作成していません。</p></section>`;
+  }
+  return `<section class="card" data-event-application-root data-session-id="${escapeHtml(session.sessionId)}">
+  <p class="pill">イベント申込み</p><h1>${escapeHtml(session.title)}</h1>
+  <p>参加名を登録します。個人名・連絡先は入力しないでください。</p>
+  <p class="muted">申込の受領は参加確定や定員確保ではありません。メール等の外部通知は送信しません。参加名はこのイベントの主催者が確認できます。</p>
+  <form data-event-application-form>
+    <label for="event-application-name">参加名（家族・グループ名でも可）</label>
+    <input id="event-application-name" name="display_name" maxlength="32" autocomplete="nickname" required style="display:block;width:100%;margin-top:8px">
+    <p class="muted" data-event-application-status role="status" aria-live="polite"></p>
+    <button class="btn" type="submit">申込みを送る</button>
+  </form>
+</section>${observationEventApplicationScript()}`;
+}
+
+function observationEventApplicationScript(): string {
+  return `<script>
+(() => {
+  const root = document.querySelector("[data-event-application-root]");
+  const form = root?.querySelector("[data-event-application-form]");
+  const status = root?.querySelector("[data-event-application-status]");
+  const submit = form?.querySelector("button[type=submit]");
+  if (!root || !form || !status || !submit) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const displayName = String(new FormData(form).get("display_name") || "").trim();
+    submit.disabled = true;
+    status.textContent = "申込みを保存しています。";
+    try {
+      const response = await fetch("/api/v1/observation-events/" + encodeURIComponent(root.dataset.sessionId || "") + "/application", {
+        method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ display_name: displayName })
+      });
+      const result = await response.json();
+      if (!response.ok || result.confirmed !== false || !result.participant) throw new Error("申込みを保存できませんでした。入力を確認して再度お試しください。");
+      if (result.participant.status === "registered") {
+        status.textContent = "申込みを受け付けました。参加確定や定員確保ではありません。";
+      } else if (["checked_in", "offline", "left"].includes(result.participant.status)) {
+        status.textContent = "この端末の参加記録を確認しました。新しい申込みは作成していません。";
+      } else {
+        throw new Error("申込みの状態を確認できませんでした。ページを再読み込みしてください。");
+      }
+      form.querySelectorAll("input,button").forEach((control) => { control.disabled = true; });
+    } catch (error) {
+      status.textContent = error instanceof Error ? error.message : "申込みの状態を確認できませんでした。ページを再読み込みしてください。";
+      submit.disabled = false;
+    }
+  });
+})();
+</script>`;
 }
 
 function syntheticObservationEventJoinScript(): string {
