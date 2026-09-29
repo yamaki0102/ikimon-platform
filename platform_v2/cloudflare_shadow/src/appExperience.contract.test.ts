@@ -68,6 +68,8 @@ test("native capture has no fabricated coordinates and its browser script parses
   assert.match(html, /form\?\.addEventListener\("input", queueDraftSave\)/);
   assert.match(html, /await draftWrites/);
   assert.match(html, /visibility: "private"/);
+  assert.match(html, /setStatus\(copy\.saved \+ " " \+ files\.length \+ copy\.photoSaved/);
+  assert.doesNotMatch(html, /lang === "ja" \? copy\.saved/);
   assert.doesNotMatch(html, /value="34\.710800"|value="137\.726100"/);
   for (const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(match[1]!);
 });

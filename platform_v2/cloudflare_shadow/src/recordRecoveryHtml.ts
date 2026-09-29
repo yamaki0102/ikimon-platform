@@ -701,19 +701,25 @@ export function renderCloudflareRecordRecoverySignedHtml(
     }
 
   photoInput?.addEventListener("change", async () => {
+    const switchingFromVideo = mediaKind === "video";
     mediaKind = "photo";
-    recoveredFiles = photoInput?.files ? Array.from(photoInput.files).filter((file) => file instanceof File && file.size > 0) : [];
-    completedPhotoIndexes = new Set();
+    const incoming = photoInput?.files ? Array.from(photoInput.files).filter((file) => file instanceof File && file.size > 0) : [];
+    if (switchingFromVideo) {
+      recoveredFiles = [];
+      completedPhotoIndexes = new Set();
+      recoveryMetadata = { ...recoveryMetadata, preparedPhotoUploads: [], photoPreparationVersion: "webp2560-v1", completedPhotoIndexes: [] };
+    }
+    recoveredFiles.push(...incoming);
+    if (photoInput) photoInput.value = "";
     pendingVideoUid = "";
     pendingVideoUploadUrl = "";
     pendingVideoBodyUploaded = false;
-    reveal("photo", copy.selected);
+    reveal("photo", copy.selected + " (" + recoveredFiles.length + ")");
     void eventMetric("event_photo_selected");
     try {
       await persistDraftProgress({
-        preparedPhotoUploads: [],
-        photoPreparationVersion: "webp2560-v1",
-        completedPhotoIndexes: [],
+        ...(switchingFromVideo ? { preparedPhotoUploads: [], photoPreparationVersion: "webp2560-v1" } : {}),
+        completedPhotoIndexes: Array.from(completedPhotoIndexes).sort((a, b) => a - b),
         pendingMediaRetryVideoUid: "",
         pendingMediaRetryVideoUploadUrl: "",
         pendingMediaRetryVideoBodyUploaded: false,
