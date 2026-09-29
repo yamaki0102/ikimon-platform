@@ -523,6 +523,20 @@ test("comparison appears only with an evidence-backed presentation", () => {
   assert.doesNotMatch(withComparison, /latitude|longitude|geohash|public_cell/i);
 });
 
+test("record detail labels an absent date as unknown in both summary and capture metadata", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
+    title: "時点が未確認の記録",
+    observedLabel: "",
+    note: null,
+    media: [],
+    actionNonce: "nonce-unknown-date",
+    viewerAuthenticated: false,
+  });
+
+  assert.match(rendered, /日時不明/);
+  assert.doesNotMatch(rendered, /1970/);
+});
+
 test("detected records label learning and location protection without exposing internal state", () => {
   const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
     title: "庭のアゲハ",

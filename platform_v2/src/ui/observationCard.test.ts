@@ -166,3 +166,16 @@ test("renderObservationCard does not show non-taxon scene labels as species", ()
   assert.match(html, /名前待ち/);
   assert.doesNotMatch(html, /芝生/);
 });
+
+test("renderObservationCard keeps missing dates unknown and image alt independent of subject claims", () => {
+  const html = renderObservationCard("", "ja", {
+    ...observation,
+    observedAt: null as unknown as string,
+    displayName: "AIの候補名",
+    isAiCandidate: true,
+  }, { locationMode: "public" });
+
+  assert.match(html, /日時不明/);
+  assert.doesNotMatch(html, /1970[.\/-]01/);
+  assert.match(html, /alt="記録の画像"/);
+});
