@@ -1846,6 +1846,7 @@ class FakeD1 {
   fieldManagers = new Map<string, FieldManagerGrantTestRow>();
   areaSketchAssessments = new Map<string, AreaSketchAssessmentTestRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
+  productionBoundaryProvenance = new Map<string, Record<string, unknown>>();
   municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
   municipalWalkMaps = new Map<string, MunicipalWalkMapD1Row>();
   municipalWalkMapStops = new Map<string, MunicipalWalkMapStopRow>();
@@ -5679,6 +5680,10 @@ class FakeStatement {
 
     if (normalized.startsWith("SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city")) {
       return (this.db.productionFieldDetails.get(string(v[0])) as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT evidence_id, field_id, source, admin_level, entity_key, license_code, attribution")) {
+      return (this.db.productionBoundaryProvenance.get(string(v[0])) as T | undefined) ?? null;
     }
 
     if (normalized.startsWith("SELECT snapshot_id FROM source_snapshots")) {
@@ -25085,7 +25090,7 @@ test("Ryuyo field page renders real OSM provenance and distinct core/nearby reco
   };
   obs.productionFieldDetails.set(fieldId, {
     field_id: fieldId,
-    source: "osm_park",
+    source: "user_defined",
     admin_level: "osm_park",
     name: "竜洋昆虫自然観察公園",
     name_kana: null,
@@ -25104,15 +25109,53 @@ test("Ryuyo field page renders real OSM provenance and distinct core/nearby reco
     official_url: "https://ryu-yo.jp/",
     owner_url: null,
     story_url: null,
-    verification_level: "registry_matched",
-    verification_method: "official_site_and_osm_way",
-    verification_label: "竜洋昆虫自然観察公園の園内境界：OpenStreetMap Way 530835577（ODbL 1.0）",
-    source_confidence: 0.9,
+    verification_level: "unverified",
+    verification_method: "user_submission",
+    verification_label: "確認待ち",
+    source_confidence: 0.4,
     valid_from: null,
     valid_to: null,
     entity_key: "osm:way:530835577",
     updated_at: "2026-09-29T00:00:00.000Z",
   });
+  obs.productionBoundaryProvenance.set(fieldId, {
+    evidence_id: "ryuyo-osm-way-530835577-v1",
+    field_id: fieldId,
+    source: "osm_park",
+    admin_level: "osm_park",
+    entity_key: "osm:way:530835577",
+    license_code: "ODbL-1.0",
+    attribution: "© OpenStreetMap contributors",
+    verification_level: "registry_matched",
+    verification_method: "official_site_and_osm_way",
+    verification_label: "竜洋昆虫自然観察公園の園内境界：OpenStreetMap Way 530835577（ODbL 1.0）",
+    source_confidence: 0.9,
+    geometry_json: JSON.stringify(geometry),
+    center_lat: 34.6698,
+    center_lng: 137.8398,
+    bbox_min_lat: 34.6684471,
+    bbox_max_lat: 34.6712001,
+    bbox_min_lng: 137.8391405,
+    bbox_max_lng: 137.8407421,
+    approximate_boundary: 0,
+    boundary_approximation: "osm_way",
+    official_url: "https://ryu-yo.jp/",
+  });
+  obs.productionAreaPolygons.set(fieldId, productionAreaPolygonRow(fieldId, {
+    source: "osm_park",
+    admin_level: "osm_park",
+    name: "竜洋昆虫自然観察公園",
+    center_lat: 34.6698,
+    center_lng: 137.8398,
+    bbox_min_lat: 34.6684471,
+    bbox_max_lat: 34.6712001,
+    bbox_min_lng: 137.8391405,
+    bbox_max_lng: 137.8407421,
+    geometry_json: JSON.stringify(geometry),
+    entity_key: "osm:way:530835577",
+    verification_level: "unverified",
+    verification_label: "確認待ち",
+  }));
 
   const originalObsDb = env.OBS_DB;
   const coreRows = [{
@@ -25180,7 +25223,24 @@ test("Ryuyo field page renders real OSM provenance and distinct core/nearby reco
   assert.match(html, /href="https:\/\/www\.openstreetmap\.org\/copyright"/);
   assert.match(html, /© OpenStreetMap contributors · ODbL 1\.0/);
   assert.doesNotMatch(html, /認定情報/);
+  assert.match(html, /OpenStreetMap Way 530835577/);
   assert.doesNotMatch(html, /34\.6698|137\.8398|137\.8393578|exact_lat|exact_lng|EXIF|GPSLatitude|private_note/i);
+
+  const detailResponse = await worker.fetch(new Request(`https://zukan.earth/api/v1/fields/${fieldId}/public-detail`), { ...env, ENVIRONMENT: "production" });
+  const detail = await detailResponse.json() as any;
+  assert.equal(detail.field.source, "osm_park");
+  assert.equal(detail.field.verification.level, "registry_matched");
+  assert.equal(detail.field.entityKey, "osm:way:530835577");
+  assert.equal(detail.field.sourceEvidence.license, "ODbL-1.0");
+  assert.equal(detail.field.sourceEvidence.attribution, "© OpenStreetMap contributors");
+  assert.equal(detail.field.certificationId, "");
+
+  const polygonResponse = await worker.fetch(new Request("https://zukan.earth/api/v1/map/area-polygons?bbox=137.83,34.66,137.85,34.68&sources=osm_park&zoom=15&limit=100"), { ...env, ENVIRONMENT: "production" });
+  const polygonCollection = await polygonResponse.json() as any;
+  const polygon = polygonCollection.features.find((item: any) => item.properties.field_id === fieldId);
+  assert.equal(polygon.properties.entity_key, "osm:way:530835577");
+  assert.equal(polygon.properties.verification_level, "registry_matched");
+  assert.equal(polygon.properties.verification_label.includes("ODbL 1.0"), true);
 });
 
 test("production field detail misses return 404 when readmodel table is unavailable", async () => {

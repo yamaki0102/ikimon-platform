@@ -5,7 +5,8 @@ import test from "node:test";
 
 const migrationsUrl = new URL("../migrations/observations/", import.meta.url);
 const projectionUrl = new URL("0070_ryuyo_field_resolution_projection.sql", migrationsUrl);
-const rollbackUrl = new URL("../rollback/observations/0070_ryuyo_field_resolution_projection.sql", import.meta.url);
+const provenanceUrl = new URL("0071_ryuyo_osm_provenance_overlay.sql", migrationsUrl);
+const provenanceRollbackUrl = new URL("../rollback/observations/0071_ryuyo_osm_provenance_overlay.sql", import.meta.url);
 const fieldId = "372eafbd-ea9c-4b2f-ab5f-434b81b928b2";
 const entityKey = "osm:way:530835577";
 
@@ -23,10 +24,13 @@ async function createDatabase(): Promise<DatabaseSync> {
 
 test("Ryuyo projection is additive, OSM-attributed and safe to repeat", async () => {
   const sql = await readSql(projectionUrl);
+  const provenanceSql = await readSql(provenanceUrl);
   const db = await createDatabase();
 
   db.exec(sql);
   db.exec(sql);
+  db.exec(provenanceSql);
+  db.exec(provenanceSql);
 
   const field = db.prepare(
     `SELECT field_id, source, certification_id, certification_url, verification_label, entity_key
@@ -64,41 +68,70 @@ test("Ryuyo projection is additive, OSM-attributed and safe to repeat", async ()
 
   assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.count, 1);
   assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_area_polygon_readmodel WHERE field_id = ?").get(fieldId)?.count, 1);
+  const evidence = db.prepare(
+    `SELECT field_id, source, entity_key, license_code, attribution, verification_level, geometry_json
+       FROM production_import_boundary_provenance_readmodel WHERE evidence_id = 'ryuyo-osm-way-530835577-v1'`,
+  ).get() as Record<string, unknown>;
+  assert.equal(evidence.field_id, fieldId);
+  assert.equal(evidence.source, "osm_park");
+  assert.equal(evidence.entity_key, entityKey);
+  assert.equal(evidence.license_code, "ODbL-1.0");
+  assert.equal(evidence.attribution, "© OpenStreetMap contributors");
+  assert.equal(evidence.verification_level, "registry_matched");
+  assert.match(String(evidence.geometry_json), /"type":"Polygon"/);
   db.close();
 });
 
-test("Ryuyo projection never replaces pre-existing conflicting rows", async () => {
+test("Ryuyo overlay preserves pre-existing field and polygon rows", async () => {
   const db = await createDatabase();
   db.prepare(`INSERT INTO production_import_field_detail_readmodel (
     field_id, source, admin_level, name, public_cell, public_lat, public_lng, entity_key
-  ) VALUES (?, 'user_defined', 'user_defined', 'Existing field', '0,0', 0, 0, 'existing:field')`)
-    .run(fieldId);
+  ) VALUES (?, 'user_defined', 'osm_park', 'Existing field', '0,0', 0, 0, ?)`)
+    .run(fieldId, entityKey);
   db.prepare(`INSERT INTO production_import_area_polygon_readmodel (
     field_id, source, admin_level, name, center_lat, center_lng, bbox_min_lat, bbox_max_lat,
-    bbox_min_lng, bbox_max_lng, geometry_json, entity_key
-  ) VALUES (?, 'user_defined', 'user_defined', 'Existing boundary', 0, 0, 0, 0, 0, 0, '{}', 'existing:boundary')`)
-    .run(fieldId);
+    bbox_min_lng, bbox_max_lng, geometry_json, entity_key, verification_level
+  ) VALUES (?, 'osm_park', 'osm_park', 'Existing boundary', 0, 0, 0, 0, 0, 0, '{}', ?, 'unverified')`)
+    .run(fieldId, entityKey);
 
   db.exec(await readSql(projectionUrl));
+  db.exec(await readSql(provenanceUrl));
 
   assert.equal(db.prepare("SELECT name FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.name, "Existing field");
-  assert.equal(db.prepare("SELECT entity_key FROM production_import_area_polygon_readmodel WHERE field_id = ?").get(fieldId)?.entity_key, "existing:boundary");
+  assert.equal(db.prepare("SELECT source FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.source, "user_defined");
+  assert.equal(db.prepare("SELECT entity_key FROM production_import_area_polygon_readmodel WHERE field_id = ?").get(fieldId)?.entity_key, entityKey);
+  assert.equal(db.prepare("SELECT verification_level FROM production_import_area_polygon_readmodel WHERE field_id = ?").get(fieldId)?.verification_level, "unverified");
+  const evidence = db.prepare("SELECT source, entity_key, license_code FROM production_import_boundary_provenance_readmodel WHERE evidence_id = 'ryuyo-osm-way-530835577-v1'").get() as Record<string, unknown>;
+  assert.equal(evidence.source, "osm_park");
+  assert.equal(evidence.entity_key, entityKey);
+  assert.equal(evidence.license_code, "ODbL-1.0");
+  assert.equal(db.prepare("SELECT name FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.name, "Existing field");
   db.close();
 });
 
-test("Ryuyo rollback removes only exact OSM projection rows", async () => {
+test("Ryuyo rollback leaves a pre-existing evidence row untouched", async () => {
   const db = await createDatabase();
   db.exec(await readSql(projectionUrl));
+  const migration = await readSql(provenanceUrl);
+  db.exec(migration);
+  db.exec("DELETE FROM production_import_boundary_provenance_apply_receipts");
+  db.prepare(`UPDATE production_import_boundary_provenance_readmodel
+                 SET verification_label = 'Owner value'
+               WHERE evidence_id = 'ryuyo-osm-way-530835577-v1'`).run();
+  db.exec(migration);
+  db.exec(await readSql(provenanceRollbackUrl));
+  assert.equal(db.prepare("SELECT verification_label FROM production_import_boundary_provenance_readmodel WHERE evidence_id = 'ryuyo-osm-way-530835577-v1'").get()?.verification_label, "Owner value");
+  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_boundary_provenance_apply_receipts").get()?.count, 0);
+  db.close();
+});
 
-  db.exec(await readSql(rollbackUrl));
-
-  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.count, 0);
-  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_area_polygon_readmodel WHERE field_id = ?").get(fieldId)?.count, 0);
-  db.prepare(`INSERT INTO production_import_field_detail_readmodel (
-    field_id, source, admin_level, name, public_cell, public_lat, public_lng, entity_key
-  ) VALUES (?, 'user_defined', 'user_defined', 'Pre-existing', '0,0', 0, 0, 'existing:field')`)
-    .run(fieldId);
-  db.exec(await readSql(rollbackUrl));
-  assert.equal(db.prepare("SELECT name FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.name, "Pre-existing");
+test("Ryuyo rollback removes only the new provenance overlay and retains original rows", async () => {
+  const db = await createDatabase();
+  db.exec(await readSql(projectionUrl));
+  db.exec(await readSql(provenanceUrl));
+  db.exec(await readSql(provenanceRollbackUrl));
+  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_boundary_provenance_readmodel WHERE evidence_id = 'ryuyo-osm-way-530835577-v1'").get()?.count, 0);
+  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.count, 1);
+  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_area_polygon_readmodel WHERE field_id = ?").get(fieldId)?.count, 1);
   db.close();
 });
