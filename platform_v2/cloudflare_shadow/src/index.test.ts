@@ -26842,6 +26842,15 @@ test("event guest photos and videos stay private through receipt, rights review,
     body: JSON.stringify({ display_name: "合成QA家族", share_location: false })
   }), env);
   assert.equal(checkin.status, 200);
+  const deniedGallery = await worker.fetch(new Request(`https://ikimon.life/events/${sessionId}/gallery`), env);
+  assert.equal(deniedGallery.status, 403);
+  assert.match(await deniedGallery.text(), /先に観察会へチェックインしてください/u);
+  const emptyGallery = await worker.fetch(new Request(`https://ikimon.life/events/${sessionId}/gallery`, { headers: { cookie: guestCookie } }), env);
+  const emptyGalleryHtml = await emptyGallery.text();
+  assert.equal(emptyGallery.status, 200);
+  assert.match(emptyGalleryHtml, /data-gallery-empty/u);
+  assert.match(emptyGalleryHtml, /保存した写真・動画はありません/u);
+  assert.match(emptyGallery.headers.get("cache-control") ?? "", /no-store/u);
   const rally = await worker.fetch(new Request(`https://ikimon.life/events/${sessionId}/rally`, { headers: { cookie: guestCookie } }), env);
   const rallyHtml = await rally.text();
   assert.equal(rally.status, 200);
@@ -26935,6 +26944,23 @@ test("event guest photos and videos stay private through receipt, rights review,
   assert.deepEqual(new Uint8Array(await privateVideo.arrayBuffer()), videoBytes);
   const otherCannotReadVideo = await worker.fetch(new Request(`https://ikimon.life${videoReceipt.privateContentHref}`, { headers: { cookie: otherGuestCookie } }), env);
   assert.equal(otherCannotReadVideo.status, 404);
+  const ownGallery = await worker.fetch(new Request(`https://ikimon.life/events/${sessionId}/gallery`, { headers: { cookie: guestCookie } }), env);
+  const ownGalleryHtml = await ownGallery.text();
+  assert.equal(ownGallery.status, 200);
+  assert.equal((ownGalleryHtml.match(/data-private-gallery-item/g) ?? []).length, 2);
+  assert.match(ownGalleryHtml, /権利確認待ち・非公開/u);
+  assert.match(ownGalleryHtml, /<video[^>]+src="\/api\/v1\/observation-events/u);
+  assert.match(ownGalleryHtml, /<img[^>]+src="\/api\/v1\/observation-events/u);
+  assert.match(ownGalleryHtml, /公開ページやみんなの振り返りには表示されません/u);
+  assert.doesNotMatch(ownGalleryHtml, /別の合成参加者/u);
+  assert.match(ownGalleryHtml, /href="\/events\/[^"]+\/rally"/u);
+  const organizerGallery = await worker.fetch(new Request(`https://ikimon.life/events/${sessionId}/gallery`, { headers: { cookie: organizerCookie } }), env);
+  const organizerGalleryHtml = await organizerGallery.text();
+  assert.equal(organizerGallery.status, 200);
+  assert.equal((organizerGalleryHtml.match(/data-private-gallery-item/g) ?? []).length, 2);
+  assert.match(organizerGalleryHtml, /権利確認を記録/u);
+  assert.match(organizerGalleryHtml, /掲載対象外にする/u);
+  assert.doesNotMatch(organizerGalleryHtml, /data-gallery-empty/u);
 
   const parentIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
     method: "POST", headers: { "content-type": "application/json" },
