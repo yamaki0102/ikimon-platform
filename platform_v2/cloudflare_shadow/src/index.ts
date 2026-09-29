@@ -24446,6 +24446,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       reviewLocation: "位置",
       reviewUnknown: "未入力",
       reviewBack: "戻って編集",
+      emptySelection: "写真をすべて外しました。記録する写真を選んでください。",
       draftSaved: "この端末に下書きを保存しました。まだ送信していません。",
       draftFailed: "端末に下書きを保存できません。この画面を閉じずに保存してください。",
       replaceDraft: "このブラウザには前の下書きがあります。新しい記録で置き換えますか？",
@@ -24484,6 +24485,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       reviewLocation: "Location",
       reviewUnknown: "Not entered",
       reviewBack: "Back to edit",
+      emptySelection: "All photos were removed. Choose a photo to record.",
       draftSaved: "Draft saved on this device. It has not been sent.",
       draftFailed: "Unable to save the device draft. Keep this page open until you save.",
       replaceDraft: "A previous draft is stored in this browser. Replace it with this record?",
@@ -24656,7 +24658,23 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         const zoom = document.createElement("button"); zoom.type = "button"; zoom.className = "cf-record-photo-zoom"; zoom.textContent = copy.zoomPhoto;
         zoom.addEventListener("click", () => { const dialog = document.getElementById("record-photo-zoom"); const preview = dialog.querySelector("img"); preview.src = image.src; preview.alt = file.name || copy.photo; dialog.showModal(); });
         const remove = document.createElement("button"); remove.type = "button"; remove.className = "cf-record-photo-remove"; remove.textContent = "×"; remove.setAttribute("aria-label", copy.removePhoto + ": " + (file.name || (index + 1)));
-        remove.addEventListener("click", () => { selectedPhotos.splice(index, 1); preparedPhotoUploads.splice(index, 1); renderPhotoReview(); queueDraftSave(); });
+        remove.addEventListener("click", () => {
+          selectedPhotos.splice(index, 1);
+          preparedPhotoUploads.splice(index, 1);
+          renderPhotoReview();
+          if (selectedPhotos.length === 0) {
+            clearTimeout(draftTimer);
+            draftTimer = null;
+            draftRevision += 1;
+            draftWrites = draftWrites.then(async () => {
+              await deleteRecordDraft();
+              volatileDraft = false;
+              setStatus(copy.emptySelection, false);
+            }).catch(() => setStatus(copy.draftFailed, true));
+            return;
+          }
+          queueDraftSave();
+        });
         item.append(image, zoom, remove); grid.append(item);
       });
     }
@@ -24672,7 +24690,6 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       confirmDialog.showModal();
     });
     document.getElementById("record-confirm-back")?.addEventListener("click", () => confirmDialog.close());
-    }
     const draftOwnerKey = "user:" + form.dataset.userId;
     const draftStorageKey = "latest:" + draftOwnerKey;
     function openRecordDraftDb() {
@@ -24974,7 +24991,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
-          setStatus(lang === "ja" ? copy.saved + " " + files.length + copy.photoSaved : copy.saved + " (" + files.length + copy.photoSaved + ")", false);
+          setStatus(copy.saved + " " + files.length + copy.photoSaved, false);
           return;
         }
       const file = files[0];

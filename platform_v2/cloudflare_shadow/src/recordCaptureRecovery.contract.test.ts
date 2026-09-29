@@ -34,6 +34,8 @@ test("native record capture persists a stable media retry draft", () => {
   assert.match(indexSource, /<button type="submit" form="record-form" id="record-confirm-save"/);
   assert.match(indexSource, /reviewOpen\?\.addEventListener\("click"[\s\S]*confirmDialog\.showModal\(\)/);
   assert.match(indexSource, /savePrivate: "非公開で保存"/);
+  assert.match(indexSource, /if \(selectedPhotos\.length === 0\) \{[\s\S]*await deleteRecordDraft\(\)[\s\S]*copy\.emptySelection/);
+  assert.match(indexSource, /emptySelection: "写真をすべて外しました。記録する写真を選んでください。"/);
   assert.match(indexSource, /"保存した記録は非公開です。公開する場合は、保存後に公開範囲を別途選びます。"/);
   assert.match(indexSource, /\.cf-record-photo button\{[^}]*min-height:44px[^}]*border-radius:4px[^}]*font-size:16px/);
   assert.match(indexSource, /\.cf-record-add\{[^}]*border-radius:4px[^}]*font-size:16px/);

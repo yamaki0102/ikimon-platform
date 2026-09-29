@@ -64,6 +64,8 @@ test("signed recovery resumes the same record and only unfinished media", () => 
   assert.match(html, /await persistDraftProgress\(\{[\s\S]*recoverySubmissionId[\s\S]*const observationId/);
   assert.match(html, /pendingMediaRetryVisitId: visitId/);
   assert.match(html, /completedPhotoIndexes\.has\(index\)[\s\S]*completedPhotoIndexes\.add\(index\)/);
+  assert.match(html, /const switchingFromVideo = mediaKind === "video"[\s\S]*if \(switchingFromVideo\) \{[\s\S]*recoveredFiles = \[\][\s\S]*completedPhotoIndexes = new Set\(\)/);
+  assert.match(html, /switchingFromVideo \? \{ preparedPhotoUploads: \[\], photoPreparationVersion: "webp2560-v1" \}/);
   assert.match(html, /recoveredFiles\.push\(\.\.\.incoming\)/);
   assert.match(html, /if \(photoInput\) photoInput\.value = ""/);
   assert.match(html, /completedPhotoIndexes: Array\.from\(completedPhotoIndexes\)/);

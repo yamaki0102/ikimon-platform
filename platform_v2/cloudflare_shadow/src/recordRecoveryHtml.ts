@@ -701,8 +701,14 @@ export function renderCloudflareRecordRecoverySignedHtml(
     }
 
   photoInput?.addEventListener("change", async () => {
+    const switchingFromVideo = mediaKind === "video";
     mediaKind = "photo";
     const incoming = photoInput?.files ? Array.from(photoInput.files).filter((file) => file instanceof File && file.size > 0) : [];
+    if (switchingFromVideo) {
+      recoveredFiles = [];
+      completedPhotoIndexes = new Set();
+      recoveryMetadata = { ...recoveryMetadata, preparedPhotoUploads: [], photoPreparationVersion: "webp2560-v1", completedPhotoIndexes: [] };
+    }
     recoveredFiles.push(...incoming);
     if (photoInput) photoInput.value = "";
     pendingVideoUid = "";
@@ -712,6 +718,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
     void eventMetric("event_photo_selected");
     try {
       await persistDraftProgress({
+        ...(switchingFromVideo ? { preparedPhotoUploads: [], photoPreparationVersion: "webp2560-v1" } : {}),
         completedPhotoIndexes: Array.from(completedPhotoIndexes).sort((a, b) => a - b),
         pendingMediaRetryVideoUid: "",
         pendingMediaRetryVideoUploadUrl: "",
