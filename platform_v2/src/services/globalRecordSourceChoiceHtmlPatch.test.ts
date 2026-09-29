@@ -56,11 +56,14 @@ function shellFixture(lang = "ja"): string {
 test("photo source choice exposes native camera without pre-requesting camera or location", () => {
   const patched = patchGlobalRecordSourceChoiceHtml(shellFixture());
   assert.match(patched, /data-global-record-input="photo"[^>]*capture="environment"/);
-  assert.match(patched, /data-global-record-os-camera>標準カメラ<\/button>/);
+  assert.match(patched, /class="global-record-camera-action is-primary" data-global-record-os-camera>標準カメラで撮る<\/button>/);
+  assert.doesNotMatch(patched, /class="global-record-camera-action is-primary" data-global-record-camera-start/);
+  assert.match(patched, /class="global-record-camera-action is-additional" data-global-record-camera-start/);
+  assert.ok(patched.indexOf('data-global-record-os-camera') < patched.indexOf('data-global-record-camera-start'));
   assert.match(patched, /start: ["']接写カメラ["']/);
   assert.match(patched, /kind !== 'photo'\) void startCamera\(\)/);
   assert.match(patched, /撮影方法を選ぶ/);
-  assert.match(patched, /標準カメラ、接写カメラ、写真から選ぶ/);
+  assert.match(patched, /標準カメラで撮る、写真から選ぶ、接写カメラを使う/);
   assert.match(patched, /clickFallbackInput\('photo'\)/);
   assert.match(patched, /native_camera_tap/);
   assert.match(patched, /latestCaptureLocationAt = 0;\n    }\n    if \(!\(options && options\.reviewOnly\) && kind !== 'photo'\) void startCamera\(\)/);
@@ -81,13 +84,17 @@ test("patch anchors stay compatible with the real site shell output", () => {
   const patched = patchGlobalRecordSourceChoiceHtml(original);
   assert.notEqual(patched, original, "site-shell drift must not silently turn the source-choice patch into a no-op");
   assert.match(patched, /data-global-record-input="photo"[^>]*capture="environment"/);
-  assert.match(patched, /data-global-record-os-camera>標準カメラ<\/button>/);
+  assert.match(patched, /class="global-record-camera-action is-primary" data-global-record-os-camera>標準カメラで撮る<\/button>/);
+  assert.match(patched, /class="global-record-gallery-select is-secondary" data-global-record-gallery-select/);
+  assert.doesNotMatch(patched, /class="global-record-camera-action is-primary" data-global-record-camera-start/);
   assert.match(patched, /kind !== 'photo'\) void startCamera\(\)/);
   assert.match(patched, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
   assert.match(patched, /latestCaptureLocationAt = 0;\n    }\n    if \(!\(options && options\.reviewOnly\) && kind !== 'photo'\) void startCamera\(\)/);
   assert.match(patched, /captureSource: 'gallery'/);
   assert.match(patched, /metadata && metadata\.captureSource === 'gallery'/);
   assert.match(patched, /button\.hidden = kind !== 'photo'/);
+  assert.match(patched, /macroButton\.classList\.remove\('is-primary'\)/);
+  assert.match(patched, /nativeButton\.classList\.add\('is-primary'\)/);
 });
 
 test("gallery selections do not infer capture time or current location", () => {
@@ -122,16 +129,16 @@ test("native camera is hidden while the shared sheet is in video mode", () => {
 });
 
 test("source choice patch keeps localized native-camera labels", () => {
-  assert.match(patchGlobalRecordSourceChoiceHtml(shellFixture("en")), /data-global-record-os-camera>Device camera<\/button>/);
-  assert.match(patchGlobalRecordSourceChoiceHtml(shellFixture("es")), /data-global-record-os-camera>Cámara del dispositivo<\/button>/);
-  assert.match(patchGlobalRecordSourceChoiceHtml(shellFixture("pt-BR")), /data-global-record-os-camera>Câmera do aparelho<\/button>/);
+  assert.match(patchGlobalRecordSourceChoiceHtml(shellFixture("en")), /data-global-record-os-camera>Take with device camera<\/button>/);
+  assert.match(patchGlobalRecordSourceChoiceHtml(shellFixture("es")), /data-global-record-os-camera>Tomar con la cámara del dispositivo<\/button>/);
+  assert.match(patchGlobalRecordSourceChoiceHtml(shellFixture("pt-BR")), /data-global-record-os-camera>Tirar com a câmera do aparelho<\/button>/);
 });
 
 test("source choice patch localizes the macro path and chooser status", () => {
   const expectations = [
-    ["en", "Choose a photo source", "Macro camera", "Choose a device camera, macro camera, or photo library."],
-    ["es", "Elige cómo tomar la foto", "Cámara macro", "Elige la cámara del dispositivo, la cámara macro o la biblioteca de fotos."],
-    ["pt-BR", "Escolha como tirar a foto", "Câmera macro", "Escolha a câmera do aparelho, a câmera macro ou a biblioteca de fotos."],
+    ["en", "Choose a photo source", "Macro camera", "Take with the device camera, choose a photo, or use the macro camera."],
+    ["es", "Elige cómo tomar la foto", "Cámara macro", "Usa la cámara del dispositivo, elige una foto o usa la cámara macro."],
+    ["pt-BR", "Escolha como tirar a foto", "Câmera macro", "Use a câmera do aparelho, escolha uma foto ou use a câmera macro."],
   ] as const;
   for (const [lang, title, macro, chooser] of expectations) {
     const patched = patchGlobalRecordSourceChoiceHtml(shellFixture(lang));
@@ -164,7 +171,8 @@ test("source choice patch reaches the root route materialization", async () => {
     const root = await app.inject({ method: "GET", url: "/" });
     assert.equal(root.statusCode, 200);
     assert.match(root.body, /data-global-record-input="photo"[^>]*capture="environment"/);
-    assert.match(root.body, /data-global-record-os-camera>標準カメラ<\/button>/);
+    assert.match(root.body, /class="global-record-camera-action is-primary" data-global-record-os-camera>標準カメラで撮る<\/button>/);
+    assert.match(root.body, /\.global-record-camera-action\.is-additional:not\(\.is-primary\)\s*\{[^}]*font-size:\s*16px;/);
     assert.match(root.body, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
   } finally {
     await app.close();

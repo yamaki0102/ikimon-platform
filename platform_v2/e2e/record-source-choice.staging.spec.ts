@@ -93,13 +93,29 @@ test.describe("ZUKAN photo source choice staging contract", () => {
     await openPhotoSourceChoice(page);
 
     await expect.poll(() => permissionCalls(page)).toEqual({ cameraCalls: 0, locationCalls: 0 });
-    await expect(page.locator("[data-global-record-os-camera]")).toContainText("標準カメラ");
+    await expect(page.locator("[data-global-record-os-camera]")).toContainText("標準カメラで撮る");
+    await expect(page.locator("[data-global-record-os-camera]")).toHaveClass(/is-primary/);
     await expect(page.locator("[data-global-record-camera-start]")).toContainText("接写カメラ");
+    await expect(page.locator("[data-global-record-camera-start]")).not.toHaveClass(/is-primary/);
+    await expect(page.locator("[data-global-record-camera-start]")).toHaveClass(/is-additional/);
     await expect(page.locator("[data-global-record-camera-sheet] [data-global-record-gallery-select]").first()).toBeVisible();
+    await expect(page.locator("[data-global-record-camera-sheet] > [data-global-record-gallery-select]")).toHaveClass(/is-secondary/);
     await expect(page.locator('[data-global-record-input="photo"]')).toHaveAttribute("capture", "environment");
 
     await page.locator("[data-global-record-camera-start]").click();
     await expect.poll(() => permissionCalls(page)).toEqual({ cameraCalls: 1, locationCalls: 0 });
+  });
+
+  test("closing the chooser returns to the page and reopening resumes the same choice without permission prompts", async ({ page }) => {
+    await installPermissionCounters(page);
+    await page.route("**/*", blockWrites);
+    await openPhotoSourceChoice(page);
+    await page.locator(".global-record-camera-close").click();
+    await expect(page.locator("[data-global-record-camera-sheet]")).toBeHidden();
+    await page.locator('[data-global-record-trigger="photo"]:visible').first().click();
+    await expect(page.locator("[data-global-record-camera-sheet]")).toBeVisible();
+    await expect(page.locator("[data-global-record-os-camera]")).toBeVisible();
+    await expect.poll(() => permissionCalls(page)).toEqual({ cameraCalls: 0, locationCalls: 0 });
   });
 
   for (const source of ["photo", "gallery"] as const) {

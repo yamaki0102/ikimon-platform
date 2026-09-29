@@ -56,6 +56,16 @@ const SHEET_KIND_WITH_SOURCE_VISIBILITY = `${SHEET_KIND_SOURCE_VISIBILITY_ANCHOR
     document.querySelectorAll('[data-global-record-os-camera]').forEach((button) => {
       button.hidden = kind !== 'photo';
     });`;
+const PHOTO_PRIMARY_DEMOTION_ANCHOR = `    setFooterActionMode('start');
+    if (empty) {`;
+const PHOTO_PRIMARY_DEMOTION = `    setFooterActionMode('start');
+    if (kind === 'photo') {
+      const macroButton = document.querySelector('[data-global-record-camera-start]');
+      const nativeButton = document.querySelector('[data-global-record-os-camera]');
+      if (macroButton) macroButton.classList.remove('is-primary');
+      if (nativeButton) nativeButton.classList.add('is-primary');
+    }
+    if (empty) {`;
 const SOURCE_CHOICE_INJECT_PATCH_FLAG = "__ikimonGlobalRecordSourceChoiceInjectPatched";
 
 const SOURCE_LABELS: Record<SourceChoiceLang, {
@@ -68,39 +78,39 @@ const SOURCE_LABELS: Record<SourceChoiceLang, {
   camera: string;
 }> = {
   ja: {
-    native: "標準カメラ",
+    native: "標準カメラで撮る",
     title: "撮影方法を選ぶ",
     macro: "接写カメラ",
     capture: "写真を撮る",
     review: "写真を確認しています。追加撮影してから記録へ進めます。",
-    chooser: "標準カメラ、接写カメラ、写真から選ぶ、のいずれかを選んでください。",
+    chooser: "標準カメラで撮る、写真から選ぶ、接写カメラを使う、のいずれかを選んでください。",
     camera: "カメラを起動しています...",
   },
   en: {
-    native: "Device camera",
+    native: "Take with device camera",
     title: "Choose a photo source",
     macro: "Macro camera",
     capture: "Take photo",
     review: "Review the photo, add another, then continue to record.",
-    chooser: "Choose a device camera, macro camera, or photo library.",
+    chooser: "Take with the device camera, choose a photo, or use the macro camera.",
     camera: "Starting camera...",
   },
   es: {
-    native: "Cámara del dispositivo",
+    native: "Tomar con la cámara del dispositivo",
     title: "Elige cómo tomar la foto",
     macro: "Cámara macro",
     capture: "Tomar foto",
     review: "Revisa la foto, añade otra y continúa para registrarla.",
-    chooser: "Elige la cámara del dispositivo, la cámara macro o la biblioteca de fotos.",
+    chooser: "Usa la cámara del dispositivo, elige una foto o usa la cámara macro.",
     camera: "Iniciando la cámara...",
   },
   "pt-BR": {
-    native: "Câmera do aparelho",
+    native: "Tirar com a câmera do aparelho",
     title: "Escolha como tirar a foto",
     macro: "Câmera macro",
     capture: "Tirar foto",
     review: "Revise a foto, adicione outra e continue para registrar.",
-    chooser: "Escolha a câmera do aparelho, a câmera macro ou a biblioteca de fotos.",
+    chooser: "Use a câmera do aparelho, escolha uma foto ou use a câmera macro.",
     camera: "Iniciando a câmera...",
   },
 };
@@ -113,7 +123,7 @@ function resolveLang(html: string): SourceChoiceLang {
 
 function nativeCameraButton(html: string): string {
   const label = SOURCE_LABELS[resolveLang(html)].native;
-  return `<button type="button" class="global-record-camera-action" data-global-record-os-camera>${label}</button>`;
+  return `<button type="button" class="global-record-camera-action is-primary" data-global-record-os-camera>${label}</button>`;
 }
 
 function localizedPhotoLabelsWithMacro(lang: SourceChoiceLang): string {
@@ -139,7 +149,7 @@ function addSourceChoiceButton(html: string): string {
   if (html.includes("data-global-record-os-camera")) return html;
   const startButton = /(<button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>[^<]*<\/button>)/;
   if (!startButton.test(html)) return html;
-  return html.replace(startButton, `$1\n      ${nativeCameraButton(html)}`);
+  return html.replace(startButton, (_match, button: string) => `${nativeCameraButton(html)}\n      ${button.replace(" is-primary", " is-additional")}`);
 }
 
 function addNativeCameraListener(html: string): string {
@@ -179,6 +189,9 @@ export function patchGlobalRecordSourceChoiceHtml(html: string): string {
   }
   if (patched.includes(SHEET_KIND_SOURCE_VISIBILITY_ANCHOR)) {
     patched = patched.replace(SHEET_KIND_SOURCE_VISIBILITY_ANCHOR, SHEET_KIND_WITH_SOURCE_VISIBILITY);
+  }
+  if (patched.includes(PHOTO_PRIMARY_DEMOTION_ANCHOR)) {
+    patched = patched.replace(PHOTO_PRIMARY_DEMOTION_ANCHOR, PHOTO_PRIMARY_DEMOTION);
   }
   return patched;
 }
