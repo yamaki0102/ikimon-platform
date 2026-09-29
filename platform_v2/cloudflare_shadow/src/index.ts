@@ -1410,6 +1410,30 @@ interface AreaPolygonGeometryReadmodelRow {
   updated_at: string | null;
 }
 
+interface BoundaryProvenanceReadmodelRow {
+  evidence_id: string;
+  field_id: string;
+  source: string;
+  admin_level: string;
+  entity_key: string;
+  license_code: string;
+  attribution: string;
+  verification_level: string;
+  verification_method: string;
+  verification_label: string;
+  source_confidence: number;
+  geometry_json: string;
+  center_lat: number;
+  center_lng: number;
+  bbox_min_lat: number;
+  bbox_max_lat: number;
+  bbox_min_lng: number;
+  bbox_max_lng: number;
+  approximate_boundary: number;
+  boundary_approximation: string;
+  official_url: string;
+}
+
 interface PlaceMemoryEntryRow {
   entry_id: string;
   visit_id: string;
@@ -22932,10 +22956,12 @@ async function deleteFieldManagerGrant(
 }
 
 async function getFieldDetailJson(fieldId: string, env: Env): Promise<Response> {
-  const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
-  if (!row) {
+  const storedRow = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
+  if (!storedRow) {
     return json({ ok: false, error: "field_not_found" }, 404, { "cache-control": "no-store" });
   }
+  const evidence = await getBoundaryProvenanceReadmodelRowOrNull(fieldId, env);
+  const row = applyBoundaryProvenanceToFieldDetail(storedRow, evidence);
   return json({
     ok: true,
     field: fieldDetailPublicPayload(row),
@@ -22974,8 +23000,10 @@ async function getFieldPublicProfileJson(fieldId: string, env: Env): Promise<Res
 async function getNativeFieldDetailHtmlIfAvailable(request: Request, url: URL, env: Env): Promise<Response | null> {
   const match = parseFieldDetailPath(url.pathname);
   if (!match) return null;
-  const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(match.fieldId, env);
-  if (!row) return null;
+  const storedRow = await getFieldDetailReadmodelRowOrNullOnMissingTable(match.fieldId, env);
+  if (!storedRow) return null;
+  const evidence = await getBoundaryProvenanceReadmodelRowOrNull(match.fieldId, env);
+  const row = applyBoundaryProvenanceToFieldDetail(storedRow, evidence);
   const recordContext = await loadAreaRecordContext(row.field_id, env).catch(() => ({ core: [], nearby: [] }));
   return html(request.method === "HEAD" ? "" : renderFieldDetailHtml(row, match.lang, recordContext), 200, {
     "cache-control": "no-store",
@@ -22985,7 +23013,8 @@ async function getNativeFieldDetailHtmlIfAvailable(request: Request, url: URL, e
 }
 
 async function loadAreaRecordContext(fieldId: string, env: Env): Promise<AreaRecordContext> {
-  const polygon = await env.OBS_DB.prepare(
+  const evidence = await getBoundaryProvenanceReadmodelRowOrNull(fieldId, env);
+  const storedPolygon = evidence ? null : await env.OBS_DB.prepare(
     `SELECT field_id, bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, geometry_json
        FROM production_import_area_polygon_readmodel
       WHERE field_id = ?
@@ -22993,6 +23022,7 @@ async function loadAreaRecordContext(fieldId: string, env: Env): Promise<AreaRec
   ).bind(fieldId).first<Pick<AreaPolygonGeometryReadmodelRow,
     "field_id" | "bbox_min_lat" | "bbox_max_lat" | "bbox_min_lng" | "bbox_max_lng" | "geometry_json"
   >>();
+  const polygon = evidence ?? storedPolygon;
   if (!polygon) return { core: [], nearby: [] };
   const geometry = safeAreaGeometry(polygon.geometry_json);
   if (!geometry) return { core: [], nearby: [] };
@@ -23321,6 +23351,71 @@ async function getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId: string, e
   }
 }
 
+async function getBoundaryProvenanceReadmodelRowOrNull(fieldId: string, env: Env): Promise<BoundaryProvenanceReadmodelRow | null> {
+  if (fieldId !== RYUYO_FIELD_ID) return null;
+  try {
+    return await env.OBS_DB.prepare(
+      `SELECT evidence_id, field_id, source, admin_level, entity_key, license_code, attribution,
+              verification_level, verification_method, verification_label, source_confidence,
+              geometry_json, center_lat, center_lng,
+              bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng,
+              approximate_boundary, boundary_approximation, official_url
+         FROM production_import_boundary_provenance_readmodel
+        WHERE field_id = ? AND entity_key = 'osm:way:530835577'
+        LIMIT 1`
+    ).bind(fieldId).first<BoundaryProvenanceReadmodelRow>();
+  } catch (error) {
+    if (isMissingD1TableError(error, "production_import_boundary_provenance_readmodel")) return null;
+    throw error;
+  }
+}
+
+function applyBoundaryProvenanceToFieldDetail(
+  row: FieldDetailReadmodelRow,
+  evidence: BoundaryProvenanceReadmodelRow | null
+): FieldDetailReadmodelRow {
+  if (!evidence || (row.entity_key && row.entity_key !== evidence.entity_key)) return row;
+  return {
+    ...row,
+    source: evidence.source,
+    admin_level: evidence.admin_level,
+    has_polygon: 1,
+    verification_level: evidence.verification_level,
+    verification_method: evidence.verification_method,
+    verification_label: evidence.verification_label,
+    source_confidence: evidence.source_confidence,
+    entity_key: evidence.entity_key,
+    official_url: evidence.official_url
+  };
+}
+
+function applyBoundaryProvenanceToPolygon(
+  row: AreaPolygonGeometryReadmodelRow,
+  evidence: BoundaryProvenanceReadmodelRow | null
+): AreaPolygonGeometryReadmodelRow {
+  if (!evidence || evidence.field_id !== row.field_id || (row.entity_key && row.entity_key !== evidence.entity_key)) return row;
+  return {
+    ...row,
+    source: evidence.source,
+    admin_level: evidence.admin_level,
+    geometry_json: evidence.geometry_json,
+    center_lat: evidence.center_lat,
+    center_lng: evidence.center_lng,
+    bbox_min_lat: evidence.bbox_min_lat,
+    bbox_max_lat: evidence.bbox_max_lat,
+    bbox_min_lng: evidence.bbox_min_lng,
+    bbox_max_lng: evidence.bbox_max_lng,
+    approximate_boundary: evidence.approximate_boundary,
+    boundary_approximation: evidence.boundary_approximation,
+    source_confidence: evidence.source_confidence,
+    verification_level: evidence.verification_level,
+    verification_label: evidence.verification_label,
+    official_url: evidence.official_url,
+    certification_url: null,
+    entity_key: evidence.entity_key
+  };
+}
+
 async function getFieldPublicProfileReadmodelRow(fieldId: string, env: Env): Promise<FieldPublicProfileReadmodelRow | null> {
   if (!isSafeFieldId(fieldId)) return null;
   return await env.OBS_DB.prepare(
@@ -23388,6 +23483,13 @@ function fieldDetailPublicPayload(row: FieldDetailReadmodelRow) {
     validFrom: row.valid_from ?? "",
     validTo: row.valid_to ?? "",
     entityKey: row.entity_key ?? "",
+    sourceEvidence: row.entity_key === "osm:way:530835577" ? {
+      source: "OpenStreetMap",
+      entityKey: row.entity_key,
+      license: "ODbL-1.0",
+      attribution: "© OpenStreetMap contributors",
+      url: "https://www.openstreetmap.org/way/530835577"
+    } : null,
     updatedAt: row.updated_at ?? ""
   };
 }
@@ -26996,7 +27098,8 @@ async function queryNativeAreaPolygonRows(
         ORDER BY COALESCE(area_ha, 999999), name
         LIMIT ?`
     ).bind(minLat, maxLat, minLng, maxLng, ...sources, limit).all<AreaPolygonGeometryReadmodelRow>();
-    return rows.results;
+    const evidence = await getBoundaryProvenanceReadmodelRowOrNull(RYUYO_FIELD_ID, env);
+    return rows.results.map((row) => applyBoundaryProvenanceToPolygon(row, evidence));
   } catch (error) {
     const message = String(error);
     if (message.includes("production_import_area_polygon_readmodel") || /no such table|no such column/i.test(message)) {
@@ -27117,6 +27220,8 @@ function areaPolygonFeatureFromGeometryReadmodel(row: AreaPolygonGeometryReadmod
       source_confidence: row.source_confidence ?? 0.75,
       verification_level: row.verification_level ?? "readmodel_public_polygon",
       verification_label: row.verification_label ?? "公開read model polygon",
+      license_code: row.entity_key === "osm:way:530835577" ? "ODbL-1.0" : undefined,
+      attribution: row.entity_key === "osm:way:530835577" ? "© OpenStreetMap contributors" : undefined,
       center: [row.center_lng, row.center_lat],
       transient: row.approximate_boundary === 1,
       approximate_boundary: row.approximate_boundary === 1,
