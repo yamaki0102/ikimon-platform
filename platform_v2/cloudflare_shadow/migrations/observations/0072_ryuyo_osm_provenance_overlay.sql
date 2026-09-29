@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS production_import_boundary_provenance_apply_receipts 
 );
 
 INSERT OR IGNORE INTO production_import_boundary_provenance_apply_receipts (evidence_id, migration_id)
-SELECT 'ryuyo-osm-way-530835577-v1', '0071_ryuyo_osm_provenance_overlay'
+SELECT 'ryuyo-osm-way-530835577-v1', '0072_ryuyo_osm_provenance_overlay'
 WHERE NOT EXISTS (
   SELECT 1 FROM production_import_boundary_provenance_readmodel
    WHERE evidence_id = 'ryuyo-osm-way-530835577-v1'
@@ -56,3 +56,4 @@ INSERT OR IGNORE INTO production_import_boundary_provenance_readmodel (
   34.6698, 137.8398, 34.6684471, 34.6712001, 137.8391405, 137.8407421,
   0, 'osm_way', 'https://ryu-yo.jp/'
 );
+

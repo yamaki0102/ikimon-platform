@@ -1,18 +1,23 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 const migrationsUrl = new URL("../migrations/observations/", import.meta.url);
 const projectionUrl = new URL("0070_ryuyo_field_resolution_projection.sql", migrationsUrl);
-const provenanceUrl = new URL("0071_ryuyo_osm_provenance_overlay.sql", migrationsUrl);
-const provenanceRollbackUrl = new URL("../rollback/observations/0071_ryuyo_osm_provenance_overlay.sql", import.meta.url);
+const provenanceUrl = new URL("0072_ryuyo_osm_provenance_overlay.sql", migrationsUrl);
+const provenanceRollbackUrl = new URL("../rollback/observations/0072_ryuyo_osm_provenance_overlay.sql", import.meta.url);
 const fieldId = "372eafbd-ea9c-4b2f-ab5f-434b81b928b2";
 const entityKey = "osm:way:530835577";
 
 async function readSql(url: URL): Promise<string> {
   return readFile(url, "utf8");
 }
+
+test("Ryuyo provenance migration uses an unambiguous observation migration prefix", async () => {
+  const names = await readdir(migrationsUrl);
+  assert.deepEqual(names.filter((name) => name.startsWith("0072_")), ["0072_ryuyo_osm_provenance_overlay.sql"]);
+});
 
 async function createDatabase(): Promise<DatabaseSync> {
   const db = new DatabaseSync(":memory:");
