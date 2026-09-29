@@ -24428,23 +24428,28 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       photo: "写真",
       video: "動画",
       photoHint: "カメラ・写真ライブラリ",
+      addPhoto: "写真を追加",
+      reviewPhotos: "選んだ写真",
+      removePhoto: "この写真を削除",
+      zoomPhoto: "写真を拡大",
       videoHint: "端末の動画",
       note: "メモ",
       coord: "座標を直接編集",
       lat: "緯度",
       lng: "経度",
-      save: "非公開で保存",
+      save: "記録を確認",
       draftSaved: "この端末に下書きを保存しました。まだ送信していません。",
       draftFailed: "端末に下書きを保存できません。この画面を閉じずに保存してください。",
       replaceDraft: "このブラウザには前の下書きがあります。新しい記録で置き換えますか？",
       positionRequired: "位置が未設定です。現在地を取得するか、座標を入力してください。",
       prompt: "写真か動画を選ぶと、非公開の記録として保存できます。",
       statusReady: "写真・動画を選びました。メモと位置を確認して保存してください。",
+      privateBoundary: "保存した記録は非公開です。公開する場合は、保存後に公開範囲を別途選びます。",
       preparing: "写真を送信用に整えています...",
       uploading: "写真を送信しています...",
       saving: "保存中です...",
       saved: "記録を保存しました",
-      photoSaved: "写真1枚を同じ記録に保存しました。",
+      photoSaved: "枚の写真を同じ記録に保存しました。",
       videoSaved: "動画は保存済みです。",
       missingMedia: "写真または動画を選択してください。",
       failed: "写真はまだ保存されていません。選択したまま、もう一度保存してください。"
@@ -24453,23 +24458,28 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       photo: "Photo",
       video: "Video",
       photoHint: "Camera or photo library",
+      addPhoto: "Add photos",
+      reviewPhotos: "Selected photos",
+      removePhoto: "Remove this photo",
+      zoomPhoto: "Enlarge photo",
       videoHint: "Video on this device",
       note: "Note",
       coord: "Edit coordinates directly",
       lat: "Latitude",
       lng: "Longitude",
-      save: "Save privately",
+      save: "Review record",
       draftSaved: "Draft saved on this device. It has not been sent.",
       draftFailed: "Unable to save the device draft. Keep this page open until you save.",
       replaceDraft: "A previous draft is stored in this browser. Replace it with this record?",
       positionRequired: "Set a location using your current position or coordinates.",
       prompt: "Choose a photo or video to save a private record.",
       statusReady: "Media selected. Check the coordinates and save.",
+      privateBoundary: "Saved records are private. Choose a separate visibility setting after saving if you want to publish.",
       preparing: "Preparing the photo...",
       uploading: "Uploading the photo...",
       saving: "Saving...",
       saved: "Record saved",
-      photoSaved: "Saved one photo to the same record.",
+      photoSaved: " photos saved to the same record.",
       videoSaved: "Video saved.",
       missingMedia: "Choose a photo or video.",
       failed: "The photo is not saved yet. Keep it selected and try saving again."
@@ -24515,8 +24525,22 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-coordinates summary{min-height:44px;display:flex;align-items:center;cursor:pointer;padding:0 12px;font-weight:900}
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
     .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:var(--zukan-radius-content);background:var(--teal);color:#fff;font-weight:900;font-size:16px}
+    .cf-record-photo-review{display:grid;gap:10px;margin:0 0 14px}
+    .cf-record-photo-review[hidden]{display:none}
+    .cf-record-photo-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0;font-weight:900}
+    .cf-record-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+    .cf-record-photo{position:relative;min-width:0;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--mint)}
+    .cf-record-photo img{display:block;width:100%;height:100%;object-fit:cover}
+    .cf-record-photo button{position:absolute;min-width:44px;min-height:44px;border:0;border-radius:10px;background:rgba(23,33,27,.88);color:white;font:inherit;font-size:13px;font-weight:900}
+    .cf-record-photo-zoom{inset:auto auto 6px 6px;padding:0 9px}
+    .cf-record-photo-remove{inset:6px 6px auto auto;width:44px;padding:0;font-size:22px!important}
+    .cf-record-add{min-height:48px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font:inherit;font-weight:900}
+    .cf-record-zoom{width:min(92vw,900px);max-width:none;padding:12px;border:0;border-radius:14px}
+    .cf-record-zoom::backdrop{background:rgba(0,0,0,.78)}
+    .cf-record-zoom img{display:block;max-width:100%;max-height:78vh;margin:auto}
+    .cf-record-zoom button{min-height:44px;margin-top:8px}
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
-    .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
+    .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible,.cf-record-photo button:focus-visible,.cf-record-add:focus-visible,.cf-record-zoom button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
   </style>
@@ -24526,13 +24550,14 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
   <main id="main-content" tabindex="-1" class="cf-record-shell">
     <section class="cf-record-hero">
       <h1>${escapeHtml(title)}</h1>
-      <p>${escapeHtml(mediaCopy.prompt)}</p>
+      <p>${escapeHtml(mediaCopy.prompt)}</p><p>${escapeHtml(mediaCopy.privateBoundary)}</p>
     </section>
     <div class="cf-record-picker" aria-label="${escapeHtml(title)}">
-      <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>${escapeHtml(mediaCopy.photoHint)}</span><input id="record-media-photo" type="file" accept="image/*"></label>
+      <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>${escapeHtml(mediaCopy.photoHint)}</span><input id="record-media-photo" type="file" accept="image/*" multiple></label>
       <label class="cf-record-pick">${escapeHtml(mediaCopy.video)}<span>${escapeHtml(mediaCopy.videoHint)}</span><input id="record-media-video" type="file" accept="video/*"></label>
     </div>
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
+      <section id="record-photo-review" class="cf-record-photo-review" aria-label="${escapeHtml(mediaCopy.reviewPhotos)}" hidden><h2 class="cf-record-photo-heading"><span>${escapeHtml(mediaCopy.reviewPhotos)}</span><span id="record-photo-count" aria-live="polite"></span></h2><div id="record-photo-grid" class="cf-record-photo-grid"></div><button type="button" id="record-add-photo" class="cf-record-add">${escapeHtml(mediaCopy.addPhoto)}</button></section>
       <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><textarea name="note" rows="3"></textarea></label>
       <p><button type="button" id="record-use-location">${lang === "ja" ? "現在地を使う" : "Use current location"}</button> <a href="${prefix}/record?draft=1">${lang === "ja" ? "前の下書きを開く" : "Open saved draft"}</a></p>
       <details class="cf-record-coordinates" open>
@@ -24547,6 +24572,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     </form>
   </main>
   ${renderAppExperienceNavigation(lang, 2, "bottom", true)}
+  <dialog id="record-photo-zoom" class="cf-record-zoom"><img alt=""><button type="button">${lang === "ja" ? "閉じる" : "Close"}</button></dialog>
   <script nonce="${escapeHtml(cspNonce)}">
   (() => {
     const copy = ${JSON.stringify(mediaCopy)};
@@ -24569,9 +24595,35 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       status.textContent = message;
       status.style.color = error ? "#b42318" : "";
     }
-    function selectedFile() {
+    let selectedPhotos = [];
+    let photoPreviewUrls = [];
+    function selectedFiles() {
       const input = mediaKind === "video" ? videoInput : photoInput;
-      return input && input.files && input.files[0] ? input.files[0] : null;
+      if (mediaKind === "photo") return selectedPhotos;
+      return input && input.files && input.files[0] ? [input.files[0]] : [];
+    }
+    function renderPhotoReview() {
+      const review = document.getElementById("record-photo-review");
+      const grid = document.getElementById("record-photo-grid");
+      const count = document.getElementById("record-photo-count");
+      if (!review || !grid || !count) return;
+      photoPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+      photoPreviewUrls = [];
+      review.hidden = mediaKind !== "photo" || selectedPhotos.length === 0;
+      count.textContent = String(selectedPhotos.length);
+      grid.replaceChildren();
+      selectedPhotos.forEach((file, index) => {
+        const item = document.createElement("div"); item.className = "cf-record-photo";
+        const image = document.createElement("img"); image.src = URL.createObjectURL(file); photoPreviewUrls.push(image.src); image.alt = "";
+        const zoom = document.createElement("button"); zoom.type = "button"; zoom.className = "cf-record-photo-zoom"; zoom.textContent = copy.zoomPhoto;
+        zoom.addEventListener("click", () => { const dialog = document.getElementById("record-photo-zoom"); const preview = dialog.querySelector("img"); preview.src = image.src; preview.alt = file.name || copy.photo; dialog.showModal(); });
+        const remove = document.createElement("button"); remove.type = "button"; remove.className = "cf-record-photo-remove"; remove.textContent = "×"; remove.setAttribute("aria-label", copy.removePhoto + ": " + (file.name || (index + 1)));
+        remove.addEventListener("click", () => { selectedPhotos.splice(index, 1); preparedPhotoUploads.splice(index, 1); renderPhotoReview(); queueDraftSave(); });
+        item.append(image, zoom, remove); grid.append(item);
+      });
+    }
+    document.querySelector("#record-photo-zoom button")?.addEventListener("click", () => document.getElementById("record-photo-zoom").close());
+    document.getElementById("record-add-photo")?.addEventListener("click", () => photoInput?.click());
     }
     const draftOwnerKey = "user:" + form.dataset.userId;
     const draftStorageKey = "latest:" + draftOwnerKey;
@@ -24628,21 +24680,22 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       return target.pathname + target.search;
     }
     let preparedPhotoUploads = [];
+    let completedPhotoIndexes = new Set();
     let recoverySubmissionId = "";
     let recoveryObservedAt = "";
     let pendingVideoUid = "";
     let pendingVideoUploadUrl = "";
     let pendingVideoBodyUploaded = false;
     async function persistRecordDraftProgress(formData, patch = {}) {
-      const file = selectedFile();
-      if (!file) throw new Error("record_draft_media_missing");
+      const files = selectedFiles();
+      if (!files.length) throw new Error("record_draft_media_missing");
       const latitude = String(formData.get("latitude") || "").trim();
       const longitude = String(formData.get("longitude") || "").trim();
       await writeRecordDraft({
         ownerKey: draftOwnerKey,
         continuationToken: null,
-        file,
-        files: [file],
+        file: files[0],
+        files,
         kind: mediaKind,
         savedAt: Date.now(),
         metadata: {
@@ -24687,7 +24740,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       return true;
     }
     function queueDraftSave() {
-      if (!selectedFile() || submitting || serverSaved) return;
+      if (!selectedFiles().length || submitting || serverSaved) return;
       volatileDraft = true;
       draftRevision += 1;
       clearTimeout(draftTimer);
@@ -24698,7 +24751,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       draftTimer = null;
       const revision = draftRevision;
       draftWrites = draftWrites.then(async () => {
-        if (!selectedFile() || submitting || serverSaved || revision !== draftRevision) return;
+        if (!selectedFiles().length || submitting || serverSaved || revision !== draftRevision) return;
         if (!await claimDraft()) { setStatus(copy.draftFailed, true); return; }
         await persistRecordDraftProgress(new FormData(form));
         if (revision === draftRevision) {
@@ -24721,12 +24774,12 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       }, () => setStatus(copy.positionRequired, true), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
     });
     function reveal(kind) {
-      preparedPhotoUploads = [];
       mediaKind = kind;
       if (form) form.hidden = false;
       if (submitPanel) submitPanel.hidden = false;
       setStatus(copy.statusReady, false);
       queueDraftSave();
+      renderPhotoReview();
     }
     function eventMetric(eventName, values = {}) {
       if (!eventContext.eventSessionId) return Promise.resolve();
@@ -24754,6 +24807,9 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       return "unknown";
     }
     photoInput?.addEventListener("change", () => {
+      const incoming = photoInput.files ? Array.from(photoInput.files).filter(file => file instanceof File && file.size > 0) : [];
+      selectedPhotos.push(...incoming);
+      photoInput.value = "";
       reveal("photo");
       void eventMetric("event_photo_selected");
     });
@@ -24780,8 +24836,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       try {
       await flushDraftSave();
       await draftWrites;
-      const file = selectedFile();
-      if (!file) {
+      const files = selectedFiles();
+      if (!files.length) {
         setStatus(copy.missingMedia, true);
         return;
       }
@@ -24798,6 +24854,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       try { if (!await claimDraft(true)) return; } catch { setStatus(copy.draftFailed, true); return; }
       submitting = true;
       document.querySelectorAll(".cf-record-picker input, #record-form input, #record-form textarea, #record-use-location").forEach(el => el.disabled = true);
+      document.querySelectorAll("#record-photo-review button").forEach(el => el.disabled = true);
       submitPanel.querySelector("button").disabled = true;
       if (!recoverySubmissionId) {
         recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
@@ -24847,24 +24904,31 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           console.error(draftError);
         }
         if (mediaKind === "photo") {
-          setStatus(copy.preparing, false);
-          const upload = preparedPhotoUploads[0] || await preparePhotoUpload(file);
-          preparedPhotoUploads = [upload];
-          await persistRecordDraftProgress(formData, { pendingMediaRetryVisitId: visitId });
-          setStatus(copy.uploading, false);
-          await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
-            ...upload,
-            mediaRole: "primary",
-            facePrivacy: "pending"
-          });
+          for (let index = 0; index < files.length; index += 1) {
+            if (completedPhotoIndexes.has(index)) continue;
+            setStatus(copy.preparing + " " + (index + 1) + "/" + files.length, false);
+            const upload = preparedPhotoUploads[index] || await preparePhotoUpload(files[index]);
+            preparedPhotoUploads[index] = upload;
+            await persistRecordDraftProgress(formData, { pendingMediaRetryVisitId: visitId });
+            setStatus(copy.uploading + " " + (index + 1) + "/" + files.length, false);
+            await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
+              ...upload,
+              mediaRole: index === 0 ? "primary" : "context",
+              facePrivacy: "pending"
+            });
+            preparedPhotoUploads[index] = null;
+            completedPhotoIndexes.add(index);
+            await persistRecordDraftProgress(formData, { pendingMediaRetryVisitId: visitId, completedPhotoIndexes: Array.from(completedPhotoIndexes).sort((a, b) => a - b) });
+          }
           await deleteRecordDraft();
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
-          setStatus(copy.saved + " " + copy.photoSaved, false);
+          setStatus(lang === "ja" ? copy.saved + " " + files.length + copy.photoSaved : copy.saved + " (" + files.length + copy.photoSaved + ")", false);
           return;
         }
-        const direct = await postJson("/api/v1/videos/direct-upload", {
+      const file = files[0];
+      const direct = await postJson("/api/v1/videos/direct-upload", {
           filename: file.name || "record-video.mp4",
           observationId: visitId,
           mediaRole: "observation_video",
@@ -24914,6 +24978,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       } catch (error) {
         submitting = false;
         document.querySelectorAll(".cf-record-picker input, #record-form input, #record-form textarea, #record-use-location").forEach(el => el.disabled = false);
+        document.querySelectorAll("#record-photo-review button").forEach(el => el.disabled = false);
         submitPanel.querySelector("button").disabled = false;
         console.error(error);
         if (!observationStored) {
